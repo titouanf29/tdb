@@ -1,9 +1,27 @@
-yfinance
-pandas
-numpy
-python-telegram-bot
-pytz
-matplotlib
-requests
-beautifulsoup4
-scikit-learn
+# ==================== DÉPENDANCES DE BASE ====================
+yfinance==0.2.32
+pandas==2.1.4
+numpy==1.26.2
+python-telegram-bot==20.7
+pytz==2023.3
+matplotlib==3.8.2
+requests==2.31.0
+beautifulsoup4==4.12.2
+scikit-learn==1.3.2
+
+# ==================== DEEP LEARNING ====================
+torch==2.1.2
+torchvision==0.16.2
+
+# ==================== TRANSFORMERS & NLP ====================
+transformers==4.36.2
+sentencepiece==0.1.99
+tokenizers==0.15.0
+
+# ==================== MACHINE LEARNING AVANCÉ ====================
+xgboost==2.0.3
+lightgbm==4.1.0
+
+# ==================== UTILITAIRES ====================
+tqdm==4.66.1
+joblib==1.3.2
