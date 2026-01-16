@@ -1,0 +1,20 @@
+# Requirements pour le bot de trading
+# Installation: pip install -r requirements.txt
+
+# Core packages (déjà installés normalement)
+yfinance>=0.2.0
+pandas>=1.5.0
+numpy>=1.23.0
+matplotlib>=3.5.0
+python-telegram-bot>=20.0
+
+# Pour les actualités multi-sources
+requests>=2.28.0
+beautifulsoup4>=4.11.0
+lxml>=4.9.0
+
+# Base de données
+# sqlite3 est inclus dans Python par défaut
+
+# Timezone
+pytz>=2022.1

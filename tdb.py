@@ -6536,9 +6536,9 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 💡 *Utilisez les boutons ci-dessous*
 """
 
-    
+
     await update.message.reply_text(
-        welcome_message,
+        message,
         reply_markup=reply_markup,
         parse_mode='Markdown'
     )
