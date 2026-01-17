@@ -1,12 +1,17 @@
 ═══════════════════════════════════════════════════════════════════════════
-  TRADING COMPANION v5.0 - MISE À JOUR MAJEURE
+  TRADING COMPANION v5.0.1 - MISE À JOUR MAJEURE + CORRECTIFS
 ═══════════════════════════════════════════════════════════════════════════
 
 Date: 16/01/2026
 Fichier modifié: tdb.py
 
+🐛 CORRECTIFS v5.0.1 (Dernière version)
+---------------------------------------
+  ✓ /backtest TICKER fonctionne maintenant (erreur timezone corrigée)
+  ✓ /predict TICKER fonctionne maintenant (caractères Markdown échappés)
+
 ═══════════════════════════════════════════════════════════════════════════
-  NOUVEAUTÉS
+  NOUVEAUTÉS v5.0
 ═══════════════════════════════════════════════════════════════════════════
 
 🆕 NOUVELLES COMMANDES
