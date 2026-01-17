@@ -7913,6 +7913,10 @@ async def analyze_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 InlineKeyboardButton("🤖 Trading Companion", callback_data=f"companion_step1_{ticker}")
             ],
             [
+                InlineKeyboardButton("🧪 Backtest", callback_data=f"backtest_{ticker}"),
+                InlineKeyboardButton("🤖 Prédiction ML", callback_data=f"predict_{ticker}")
+            ],
+            [
                 InlineKeyboardButton("📈 Voir Graphique", callback_data=f"chart_{ticker}_{interval}"),
                 InlineKeyboardButton("📰 News", callback_data=f"news_{ticker}")
             ],
@@ -11089,6 +11093,136 @@ Utilisez /favorites pour voir vos favoris
 
 
 
+async def backtest_inline_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Gère le bouton Backtest depuis l'analyse"""
+    query = update.callback_query
+    await query.answer("🧪 Lancement du backtest...")
+
+    ticker = query.data.split("_")[1]
+    user_name = get_user_name(update)
+
+    print(f"[BACKTEST] Inline backtest pour {ticker}")
+
+    # Lancer le backtest
+    result = backtest_strategy(ticker)
+
+    if result:
+        message = f"""
+🧪 *BACKTEST - {result['ticker']}*
+
+━━━━━━━━━━━━━━━━━━━━
+📊 *PERFORMANCE*
+━━━━━━━━━━━━━━━━━━━━
+
+💰 Capital initial: ${result['initial_capital']:,.0f}
+💵 Capital final: ${result['final_capital']:,.2f}
+📈 Rendement total: {result['total_return']:+.2f}%
+
+━━━━━━━━━━━━━━━━━━━━
+📊 *STATISTIQUES*
+━━━━━━━━━━━━━━━━━━━━
+
+📊 Total trades: {result['total_trades']}
+✅ Trades gagnants: {result['winning_trades']}
+❌ Trades perdants: {result['losing_trades']}
+🎯 Win rate: {result['win_rate']:.1f}%
+
+━━━━━━━━━━━━━━━━━━━━
+📅 *PÉRIODE*
+━━━━━━━━━━━━━━━━━━━━
+
+{result['period']}
+
+💡 _Backtesting sur données historiques_
+⚠️ _Performances passées ne garantissent pas les résultats futurs_
+"""
+
+        keyboard = [[InlineKeyboardButton("« Retour", callback_data=f"back_to_analysis_{ticker}")]]
+
+        try:
+            await query.edit_message_text(
+                message,
+                reply_markup=InlineKeyboardMarkup(keyboard),
+                parse_mode='Markdown'
+            )
+        except Exception as e:
+            print(f"[BACKTEST] Erreur: {e}")
+            await query.answer("❌ Erreur lors du backtest", show_alert=True)
+    else:
+        await query.answer("❌ Impossible de backtester ce ticker", show_alert=True)
+
+
+async def predict_inline_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Gère le bouton Prédiction ML depuis l'analyse"""
+    query = update.callback_query
+    await query.answer("🤖 Génération de la prédiction ML...")
+
+    ticker = query.data.split("_")[1]
+    user_name = get_user_name(update)
+
+    print(f"[PREDICT] Inline prédiction pour {ticker}")
+
+    # Prédiction ML
+    result = predict_ml(ticker)
+
+    if result:
+        # Emoji selon prédiction
+        if 'HAUSSE' in result['prediction']:
+            emoji = '🟢'
+        elif 'BAISSE' in result['prediction']:
+            emoji = '🔴'
+        else:
+            emoji = '⚪'
+
+        # Échapper les underscores pour Markdown
+        prediction_text = result['prediction'].replace('_', '\\_')
+
+        message = f"""
+🤖 *PRÉDICTION ML - {result['ticker']}*
+
+━━━━━━━━━━━━━━━━━━━━
+🔮 *PRÉDICTION*
+━━━━━━━━━━━━━━━━━━━━
+
+{emoji} *Direction:* {prediction_text}
+📊 *Probabilité:* {result['probability']:.1f}%
+📈 *Score signal:* {result['score']}/15
+🎯 *Confiance:* {result['confidence']:.1f}%
+
+━━━━━━━━━━━━━━━━━━━━
+⏰ *HORIZON*
+━━━━━━━━━━━━━━━━━━━━
+
+{result['horizon']}
+
+━━━━━━━━━━━━━━━━━━━━
+📊 *FACTEURS CLÉS*
+━━━━━━━━━━━━━━━━━━━━
+
+• RSI: {result['factors']['rsi']:.1f}
+• ADX: {result['factors']['adx']:.1f}
+• Bollinger: {result['factors']['bb_position']:.1f}%
+• Stochastic: {result['factors']['stoch_k']:.1f}
+
+💡 _Prédiction basée sur 15+ indicateurs techniques_
+⚠️ _Ceci n'est pas un conseil financier_
+"""
+
+        keyboard = [[InlineKeyboardButton("« Retour", callback_data=f"back_to_analysis_{ticker}")]]
+
+        try:
+            await query.edit_message_text(
+                message,
+                reply_markup=InlineKeyboardMarkup(keyboard),
+                parse_mode='Markdown'
+            )
+        except Exception as e:
+            print(f"[PREDICT] Erreur: {e}")
+            await query.answer("❌ Erreur lors de la prédiction", show_alert=True)
+    else:
+        await query.answer("❌ Impossible de prédire ce ticker", show_alert=True)
+
+
 async def chart_inline_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Gère le bouton Graphique - Affiche menu timeframe"""
     global db
@@ -12961,6 +13095,8 @@ def main():
     # Callbacks paper trading (AVANT les autres CallbackQueryHandler)
     # application.add_handler(CallbackQueryHandler(paper_callback_handler, pattern="^(pt_|mode_)")) # DÉSACTIVÉ - Handler manquant
     application.add_handler(CallbackQueryHandler(delete_message_callback, pattern="^delete_message$"))
+    application.add_handler(CallbackQueryHandler(backtest_inline_callback, pattern="^backtest_"))
+    application.add_handler(CallbackQueryHandler(predict_inline_callback, pattern="^predict_"))
     application.add_handler(CallbackQueryHandler(chart_inline_callback, pattern="^chart_inline_"))
     application.add_handler(CallbackQueryHandler(chartgen_callback, pattern="^chartgen_"))
     application.add_handler(CallbackQueryHandler(back_to_analysis_callback, pattern="^back_to_analysis_"))
