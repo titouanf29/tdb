@@ -15,6 +15,10 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
 from io import BytesIO
+import functools
+import concurrent.futures
+import multiprocessing
+from threading import Lock
 
 
 
@@ -30,11 +34,131 @@ from datetime import datetime
 
 
 """
-TRADING COMPANION v4.0 - Système de Trading Conversationnel Intelligent
-Intégration complète avec wallet, analyse IA, et suivi en temps réel
+TRADING COMPANION v5.0 - Système de Trading Conversationnel Intelligent + IA Avancée
+Intégration complète avec wallet, analyse IA, 15+ indicateurs avancés, backtesting et ML
 """
 
+# ==================== SYSTÈME DE CACHE ET PERFORMANCE ====================
 
+# Cache global pour les analyses
+_analysis_cache = {}
+_cache_lock = Lock()
+CACHE_DURATION = 900  # 15 minutes en secondes
+
+def get_cache_key():
+    """Génère une clé de cache basée sur timestamp 15min"""
+    now = datetime.now()
+    return now.replace(minute=(now.minute // 15) * 15, second=0, microsecond=0).timestamp()
+
+def safe_fetch_yfinance(symbol, period='3mo', timeout=10, retries=3):
+    """
+    Récupère les données yfinance de manière sécurisée avec:
+    - Timeout
+    - Retries
+    - Gestion d'erreurs
+    """
+    for attempt in range(retries):
+        try:
+            ticker = yf.Ticker(symbol)
+            data = ticker.history(period=period)
+
+            if not data.empty and len(data) >= 50:
+                return data
+
+            # Si données insuffisantes, attendre un peu et réessayer
+            if attempt < retries - 1:
+                time.sleep(0.5)
+
+        except Exception as e:
+            if attempt == retries - 1:
+                print(f"❌ Erreur fetch {symbol}: {e}")
+                return None
+            time.sleep(1)  # Attendre 1s avant retry
+
+    return None
+
+def validate_data(data):
+    """Valide que les données sont exploitables"""
+    if data is None or data.empty:
+        return False
+    if len(data) < 50:  # Besoin minimum 50 barres
+        return False
+    if data['Close'].isna().any():
+        return False
+    return True
+
+def get_cached_analysis(ticker):
+    """Récupère l'analyse depuis le cache si disponible"""
+    cache_key = get_cache_key()
+    key = f"{ticker}_{cache_key}"
+
+    with _cache_lock:
+        if key in _analysis_cache:
+            cached_data, timestamp = _analysis_cache[key]
+            # Vérifier que le cache n'est pas expiré
+            if time.time() - timestamp < CACHE_DURATION:
+                return cached_data
+
+    return None
+
+def set_cached_analysis(ticker, data):
+    """Sauvegarde l'analyse dans le cache"""
+    cache_key = get_cache_key()
+    key = f"{ticker}_{cache_key}"
+
+    with _cache_lock:
+        _analysis_cache[key] = (data, time.time())
+
+        # Nettoyage du cache (supprimer entrées > 1h)
+        current_time = time.time()
+        expired_keys = [k for k, (_, ts) in _analysis_cache.items()
+                       if current_time - ts > 3600]
+        for k in expired_keys:
+            del _analysis_cache[k]
+
+def scan_market_parallel(tickers, min_score=2, max_workers=None):
+    """
+    Scanne le marché en parallèle pour performance × 10
+    """
+    if max_workers is None:
+        max_workers = min(multiprocessing.cpu_count() * 2, 10)
+
+    results = []
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+        # Soumettre tous les tickers en parallèle
+        future_to_ticker = {
+            executor.submit(analyze_stock_cached, ticker): ticker
+            for ticker in tickers
+        }
+
+        # Collecter les résultats au fur et à mesure
+        for future in concurrent.futures.as_completed(future_to_ticker):
+            try:
+                result = future.result(timeout=15)  # Timeout 15s par ticker
+                if result and abs(result.get('score', 0)) >= min_score:
+                    results.append(result)
+            except Exception as e:
+                ticker = future_to_ticker[future]
+                print(f"⚠️ Erreur analyse {ticker}: {e}")
+
+    return sorted(results, key=lambda x: abs(x.get('score', 0)), reverse=True)
+
+def analyze_stock_cached(ticker):
+    """Version avec cache de analyze_stock"""
+    # Vérifier le cache d'abord
+    cached = get_cached_analysis(ticker)
+    if cached:
+        return cached
+
+    # Si pas de cache, analyser
+    result = analyze_stock(ticker)
+
+    # Sauvegarder dans le cache
+    if result:
+        set_cached_analysis(ticker, result)
+
+    return result
 
 # ==================== CONFIGURATION ALERTES ====================
 
@@ -5128,13 +5252,14 @@ def get_market_status(ticker):
 # ==================== INDICATEURS TECHNIQUES ====================
 
 def calculate_rsi(data, period=14):
-    """Calcule le RSI"""
+    """Calcule le RSI avec protection division par zéro"""
     delta = data['Close'].diff()
     gain = (delta.where(delta > 0, 0)).rolling(window=period).mean()
     loss = (-delta.where(delta < 0, 0)).rolling(window=period).mean()
-    rs = gain / loss
+    # Protection division par zéro
+    rs = np.where(loss != 0, gain / loss, 100)
     rsi = 100 - (100 / (1 + rs))
-    return rsi
+    return pd.Series(rsi, index=data.index)
 
 def calculate_macd(data, fast=12, slow=26, signal=9):
     """Calcule le MACD"""
@@ -5154,7 +5279,7 @@ def detect_trend(data):
     sma20 = calculate_sma(data, 20).iloc[-1]
     sma50 = calculate_sma(data, 50).iloc[-1]
     current_price = data['Close'].iloc[-1]
-    
+
     if current_price > sma20 > sma50:
         return "🟢 HAUSSIÈRE FORTE"
     elif current_price > sma20 and sma20 < sma50:
@@ -5166,8 +5291,580 @@ def detect_trend(data):
     else:
         return "⚪ NEUTRE"
 
+# ==================== INDICATEURS AVANCÉS (NOUVEAUX) ====================
+
+def calculate_bollinger_bands(data, period=20, std_dev=2):
+    """
+    Calcule les Bollinger Bands
+    Retourne: upper_band, middle_band (SMA), lower_band, bb_position (0-100%)
+    """
+    sma = data['Close'].rolling(window=period).mean()
+    std = data['Close'].rolling(window=period).std()
+
+    upper_band = sma + (std_dev * std)
+    lower_band = sma - (std_dev * std)
+
+    # Position relative entre les bandes (0% = lower, 100% = upper)
+    bb_position = np.where(
+        (upper_band - lower_band) != 0,
+        ((data['Close'] - lower_band) / (upper_band - lower_band)) * 100,
+        50
+    )
+
+    return upper_band, sma, lower_band, pd.Series(bb_position, index=data.index)
+
+def calculate_stochastic(data, k_period=14, d_period=3):
+    """
+    Calcule le Stochastic Oscillator (%K et %D)
+    Retourne: stoch_k, stoch_d
+    """
+    low_min = data['Low'].rolling(window=k_period).min()
+    high_max = data['High'].rolling(window=k_period).max()
+
+    # %K
+    k = np.where(
+        (high_max - low_min) != 0,
+        100 * ((data['Close'] - low_min) / (high_max - low_min)),
+        50
+    )
+    stoch_k = pd.Series(k, index=data.index)
+
+    # %D (SMA de %K)
+    stoch_d = stoch_k.rolling(window=d_period).mean()
+
+    return stoch_k, stoch_d
+
+def calculate_adx(data, period=14):
+    """
+    Calcule l'ADX (Average Directional Index) pour mesurer la force de la tendance
+    Retourne: adx, plus_di, minus_di
+    """
+    high = data['High']
+    low = data['Low']
+    close = data['Close']
+
+    # True Range
+    tr1 = high - low
+    tr2 = abs(high - close.shift(1))
+    tr3 = abs(low - close.shift(1))
+    tr = pd.concat([tr1, tr2, tr3], axis=1).max(axis=1)
+    atr = tr.rolling(window=period).mean()
+
+    # +DM et -DM
+    high_diff = high - high.shift(1)
+    low_diff = low.shift(1) - low
+
+    plus_dm = np.where((high_diff > low_diff) & (high_diff > 0), high_diff, 0)
+    minus_dm = np.where((low_diff > high_diff) & (low_diff > 0), low_diff, 0)
+
+    # +DI et -DI
+    plus_di = 100 * pd.Series(plus_dm).rolling(window=period).mean() / atr
+    minus_di = 100 * pd.Series(minus_dm).rolling(window=period).mean() / atr
+
+    # DX
+    dx = np.where(
+        (plus_di + minus_di) != 0,
+        100 * abs(plus_di - minus_di) / (plus_di + minus_di),
+        0
+    )
+
+    # ADX (SMA du DX)
+    adx = pd.Series(dx).rolling(window=period).mean()
+
+    return adx, plus_di, minus_di
+
+def calculate_atr(data, period=14):
+    """
+    Calcule l'ATR (Average True Range) pour mesurer la volatilité
+    Retourne: atr, atr_percent
+    """
+    high = data['High']
+    low = data['Low']
+    close = data['Close']
+
+    tr1 = high - low
+    tr2 = abs(high - close.shift(1))
+    tr3 = abs(low - close.shift(1))
+
+    tr = pd.concat([tr1, tr2, tr3], axis=1).max(axis=1)
+    atr = tr.rolling(window=period).mean()
+
+    # ATR en % du prix
+    atr_percent = (atr / close) * 100
+
+    return atr, atr_percent
+
+def calculate_obv(data):
+    """
+    Calcule l'OBV (On-Balance Volume)
+    Retourne: obv, obv_sma
+    """
+    obv = [0]
+    for i in range(1, len(data)):
+        if data['Close'].iloc[i] > data['Close'].iloc[i-1]:
+            obv.append(obv[-1] + data['Volume'].iloc[i])
+        elif data['Close'].iloc[i] < data['Close'].iloc[i-1]:
+            obv.append(obv[-1] - data['Volume'].iloc[i])
+        else:
+            obv.append(obv[-1])
+
+    obv_series = pd.Series(obv, index=data.index)
+    obv_sma = obv_series.rolling(window=20).mean()
+
+    return obv_series, obv_sma
+
+def calculate_ichimoku(data):
+    """
+    Calcule l'Ichimoku Cloud
+    Retourne: tenkan_sen, kijun_sen, senkou_span_a, senkou_span_b, chikou_span
+    """
+    # Tenkan-sen (ligne de conversion) : 9 périodes
+    nine_period_high = data['High'].rolling(window=9).max()
+    nine_period_low = data['Low'].rolling(window=9).min()
+    tenkan_sen = (nine_period_high + nine_period_low) / 2
+
+    # Kijun-sen (ligne de base) : 26 périodes
+    period26_high = data['High'].rolling(window=26).max()
+    period26_low = data['Low'].rolling(window=26).min()
+    kijun_sen = (period26_high + period26_low) / 2
+
+    # Senkou Span A (limite supérieure du nuage) : projeté 26 périodes en avant
+    senkou_span_a = ((tenkan_sen + kijun_sen) / 2).shift(26)
+
+    # Senkou Span B : 52 périodes projeté 26 en avant
+    period52_high = data['High'].rolling(window=52).max()
+    period52_low = data['Low'].rolling(window=52).min()
+    senkou_span_b = ((period52_high + period52_low) / 2).shift(26)
+
+    # Chikou Span : prix projeté 26 périodes en arrière
+    chikou_span = data['Close'].shift(-26)
+
+    return tenkan_sen, kijun_sen, senkou_span_a, senkou_span_b, chikou_span
+
+# ==================== SUPPORT/RÉSISTANCE AVANCÉS ====================
+
+def calculate_advanced_support_resistance(data, lookback=100):
+    """
+    Calcule supports et résistances avancés basés sur:
+    - Pivot points classiques
+    - Swing highs/lows (fractales)
+    - Clustering des niveaux proches
+    """
+    # 1. Pivot Points classiques
+    pivot = (data['High'].iloc[-1] + data['Low'].iloc[-1] + data['Close'].iloc[-1]) / 3
+
+    r1 = 2 * pivot - data['Low'].iloc[-1]
+    r2 = pivot + (data['High'].iloc[-1] - data['Low'].iloc[-1])
+    r3 = r1 + (data['High'].iloc[-1] - data['Low'].iloc[-1])
+
+    s1 = 2 * pivot - data['High'].iloc[-1]
+    s2 = pivot - (data['High'].iloc[-1] - data['Low'].iloc[-1])
+    s3 = s1 - (data['High'].iloc[-1] - data['Low'].iloc[-1])
+
+    # 2. Swing Highs et Lows (méthode fractale)
+    recent_data = data.tail(min(lookback, len(data)))
+
+    swing_highs = []
+    swing_lows = []
+
+    for i in range(2, len(recent_data) - 2):
+        # Swing High : plus haut que 2 barres avant et après
+        if (recent_data['High'].iloc[i] > recent_data['High'].iloc[i-1] and
+            recent_data['High'].iloc[i] > recent_data['High'].iloc[i-2] and
+            recent_data['High'].iloc[i] > recent_data['High'].iloc[i+1] and
+            recent_data['High'].iloc[i] > recent_data['High'].iloc[i+2]):
+            swing_highs.append(recent_data['High'].iloc[i])
+
+        # Swing Low : plus bas que 2 barres avant et après
+        if (recent_data['Low'].iloc[i] < recent_data['Low'].iloc[i-1] and
+            recent_data['Low'].iloc[i] < recent_data['Low'].iloc[i-2] and
+            recent_data['Low'].iloc[i] < recent_data['Low'].iloc[i+1] and
+            recent_data['Low'].iloc[i] < recent_data['Low'].iloc[i+2]):
+            swing_lows.append(recent_data['Low'].iloc[i])
+
+    # 3. Clustering (regrouper niveaux proches)
+    def cluster_levels(levels, tolerance=0.02):
+        """Regroupe niveaux à ±2% près"""
+        if not levels:
+            return []
+
+        levels_sorted = sorted(levels)
+        clusters = []
+        current_cluster = [levels_sorted[0]]
+
+        for level in levels_sorted[1:]:
+            if abs(level - current_cluster[-1]) / current_cluster[-1] < tolerance:
+                current_cluster.append(level)
+            else:
+                clusters.append(sum(current_cluster) / len(current_cluster))
+                current_cluster = [level]
+
+        clusters.append(sum(current_cluster) / len(current_cluster))
+        return clusters
+
+    # Résistances : swing highs + pivot resistances
+    all_resistances = swing_highs + [r1, r2, r3]
+    clustered_resistances = cluster_levels(all_resistances)
+
+    # Supports : swing lows + pivot supports
+    all_supports = swing_lows + [s1, s2, s3]
+    clustered_supports = cluster_levels(all_supports)
+
+    # Filtrer pour garder les plus pertinents
+    current_price = data['Close'].iloc[-1]
+
+    # Résistances au-dessus du prix
+    resistances = sorted([r for r in clustered_resistances if r > current_price])[:3]
+
+    # Supports en-dessous du prix
+    supports = sorted([s for s in clustered_supports if s < current_price], reverse=True)[:3]
+
+    return {
+        'resistances': resistances,
+        'supports': supports,
+        'pivot': pivot,
+        'current_price': current_price
+    }
+
+def calculate_smart_targets(data, signal_direction, sr_levels):
+    """
+    Calcule prix cibles intelligents basés sur:
+    - Support/Résistance
+    - ATR (volatilité)
+    """
+    current_price = data['Close'].iloc[-1]
+    atr, atr_percent = calculate_atr(data)
+    atr_value = atr.iloc[-1]
+
+    resistances = sr_levels['resistances']
+    supports = sr_levels['supports']
+
+    if signal_direction > 0:  # Signal ACHAT
+        # TP1 : 1.5 × ATR ou première résistance
+        tp1_atr = current_price + (1.5 * atr_value)
+        tp1 = resistances[0] if resistances and resistances[0] < tp1_atr * 1.2 else tp1_atr
+
+        # TP2 : 2.5 × ATR ou deuxième résistance
+        tp2_atr = current_price + (2.5 * atr_value)
+        tp2 = resistances[1] if len(resistances) > 1 else tp2_atr
+
+        # TP3 : 4 × ATR ou troisième résistance
+        tp3_atr = current_price + (4 * atr_value)
+        tp3 = resistances[2] if len(resistances) > 2 else tp3_atr
+
+        # Stop Loss : premier support ou 2 × ATR
+        sl_atr = current_price - (2 * atr_value)
+        sl = supports[0] if supports and supports[0] > sl_atr * 0.9 else sl_atr
+
+    else:  # Signal VENTE
+        # TP1 : 1.5 × ATR ou premier support
+        tp1_atr = current_price - (1.5 * atr_value)
+        tp1 = supports[0] if supports and supports[0] > tp1_atr * 0.8 else tp1_atr
+
+        # TP2 : 2.5 × ATR ou deuxième support
+        tp2_atr = current_price - (2.5 * atr_value)
+        tp2 = supports[1] if len(supports) > 1 else tp2_atr
+
+        # TP3 : 4 × ATR ou troisième support
+        tp3_atr = current_price - (4 * atr_value)
+        tp3 = supports[2] if len(supports) > 2 else tp3_atr
+
+        # Stop Loss : première résistance ou 2 × ATR
+        sl_atr = current_price + (2 * atr_value)
+        sl = resistances[0] if resistances and resistances[0] < sl_atr * 1.1 else sl_atr
+
+    # Calculer Risk/Reward
+    risk = abs(current_price - sl)
+    reward = abs(tp2 - current_price)
+    risk_reward = reward / risk if risk > 0 else 0
+
+    return {
+        'tp1': round(tp1, 2),
+        'tp2': round(tp2, 2),
+        'tp3': round(tp3, 2),
+        'sl': round(sl, 2),
+        'risk_reward': round(risk_reward, 2),
+        'risk_amount': round(risk, 2),
+        'reward_amount': round(reward, 2)
+    }
+
+def calculate_all_indicators(data):
+    """
+    Calcule TOUS les indicateurs techniques (basiques + avancés)
+    Retourne un dict avec tous les indicateurs
+    """
+    indicators = {}
+
+    # Indicateurs basiques
+    indicators['rsi'] = calculate_rsi(data).iloc[-1] if len(data) >= 14 else 50
+    macd, signal, hist = calculate_macd(data)
+    indicators['macd'] = macd.iloc[-1] if len(data) >= 26 else 0
+    indicators['macd_signal'] = signal.iloc[-1] if len(data) >= 26 else 0
+    indicators['macd_hist'] = hist.iloc[-1] if len(data) >= 26 else 0
+
+    indicators['sma20'] = calculate_sma(data, 20).iloc[-1] if len(data) >= 20 else data['Close'].iloc[-1]
+    indicators['sma50'] = calculate_sma(data, 50).iloc[-1] if len(data) >= 50 else data['Close'].iloc[-1]
+    indicators['trend'] = detect_trend(data)
+
+    # Indicateurs avancés
+    if len(data) >= 20:
+        upper_bb, middle_bb, lower_bb, bb_pos = calculate_bollinger_bands(data)
+        indicators['bb_upper'] = upper_bb.iloc[-1]
+        indicators['bb_middle'] = middle_bb.iloc[-1]
+        indicators['bb_lower'] = lower_bb.iloc[-1]
+        indicators['bb_position'] = bb_pos.iloc[-1]
+    else:
+        indicators['bb_position'] = 50
+
+    if len(data) >= 14:
+        stoch_k, stoch_d = calculate_stochastic(data)
+        indicators['stoch_k'] = stoch_k.iloc[-1]
+        indicators['stoch_d'] = stoch_d.iloc[-1]
+    else:
+        indicators['stoch_k'] = 50
+        indicators['stoch_d'] = 50
+
+    if len(data) >= 14:
+        adx, plus_di, minus_di = calculate_adx(data)
+        indicators['adx'] = adx.iloc[-1] if not pd.isna(adx.iloc[-1]) else 20
+        indicators['plus_di'] = plus_di.iloc[-1] if not pd.isna(plus_di.iloc[-1]) else 50
+        indicators['minus_di'] = minus_di.iloc[-1] if not pd.isna(minus_di.iloc[-1]) else 50
+    else:
+        indicators['adx'] = 20
+        indicators['plus_di'] = 50
+        indicators['minus_di'] = 50
+
+    if len(data) >= 14:
+        atr, atr_percent = calculate_atr(data)
+        indicators['atr'] = atr.iloc[-1]
+        indicators['atr_percent'] = atr_percent.iloc[-1]
+    else:
+        indicators['atr'] = 1.0
+        indicators['atr_percent'] = 2.0
+
+    if len(data) >= 20:
+        obv, obv_sma = calculate_obv(data)
+        indicators['obv'] = obv.iloc[-1]
+        indicators['obv_sma'] = obv_sma.iloc[-1] if not pd.isna(obv_sma.iloc[-1]) else obv.iloc[-1]
+        # Tendance OBV
+        indicators['obv_trend'] = 1 if obv.iloc[-1] > obv_sma.iloc[-1] else -1
+    else:
+        indicators['obv_trend'] = 0
+
+    if len(data) >= 52:
+        tenkan, kijun, senkou_a, senkou_b, chikou = calculate_ichimoku(data)
+        current_price = data['Close'].iloc[-1]
+        indicators['tenkan'] = tenkan.iloc[-1] if not pd.isna(tenkan.iloc[-1]) else current_price
+        indicators['kijun'] = kijun.iloc[-1] if not pd.isna(kijun.iloc[-1]) else current_price
+
+        # Position par rapport au cloud
+        if len(data) >= 26:
+            cloud_top = max(senkou_a.iloc[-26] if not pd.isna(senkou_a.iloc[-26]) else 0,
+                           senkou_b.iloc[-26] if not pd.isna(senkou_b.iloc[-26]) else 0)
+            cloud_bottom = min(senkou_a.iloc[-26] if not pd.isna(senkou_a.iloc[-26]) else 0,
+                              senkou_b.iloc[-26] if not pd.isna(senkou_b.iloc[-26]) else 0)
+
+            if current_price > cloud_top:
+                indicators['price_vs_cloud'] = 'above'
+            elif current_price < cloud_bottom:
+                indicators['price_vs_cloud'] = 'below'
+            else:
+                indicators['price_vs_cloud'] = 'inside'
+
+            indicators['tenkan_vs_kijun'] = 'bullish' if indicators['tenkan'] > indicators['kijun'] else 'bearish'
+        else:
+            indicators['price_vs_cloud'] = 'neutral'
+            indicators['tenkan_vs_kijun'] = 'neutral'
+    else:
+        indicators['price_vs_cloud'] = 'neutral'
+        indicators['tenkan_vs_kijun'] = 'neutral'
+
+    # Momentum et volume
+    indicators['price_momentum'] = ((data['Close'].iloc[-1] - data['Close'].iloc[-5]) / data['Close'].iloc[-5] * 100) if len(data) >= 5 else 0
+    indicators['price_trend'] = 1 if indicators['price_momentum'] > 0 else -1
+    indicators['volume_ratio'] = data['Volume'].iloc[-1] / data['Volume'].rolling(20).mean().iloc[-1] if len(data) >= 20 else 1.0
+
+    indicators['current_price'] = data['Close'].iloc[-1]
+
+    return indicators
+
+def generate_advanced_signal(indicators):
+    """
+    Génère signal amélioré avec TOUS les indicateurs (score -15 à +15)
+    Retourne: score, signal_text, confidence (0-100%)
+    """
+    score = 0
+    confidence_factors = []
+
+    # 1. RSI (poids: 3)
+    rsi = indicators['rsi']
+    if rsi < 25:
+        score += 3
+        confidence_factors.append(15)
+    elif rsi < 30:
+        score += 2
+        confidence_factors.append(10)
+    elif rsi > 75:
+        score -= 3
+        confidence_factors.append(15)
+    elif rsi > 70:
+        score -= 2
+        confidence_factors.append(10)
+
+    # 2. MACD (poids: 2)
+    macd = indicators['macd']
+    macd_signal = indicators['macd_signal']
+    macd_hist = indicators['macd_hist']
+
+    if macd > macd_signal and macd_hist > 0:
+        score += 2
+        confidence_factors.append(10)
+    elif macd < macd_signal and macd_hist < 0:
+        score -= 2
+        confidence_factors.append(10)
+
+    # 3. Bollinger Bands (poids: 2)
+    bb_position = indicators['bb_position']
+    if bb_position < 10:  # Près de la bande basse
+        score += 2
+        confidence_factors.append(12)
+    elif bb_position > 90:  # Près de la bande haute
+        score -= 2
+        confidence_factors.append(12)
+
+    # 4. Stochastic (poids: 2)
+    stoch_k = indicators['stoch_k']
+    stoch_d = indicators['stoch_d']
+
+    if stoch_k < 20 and stoch_k > stoch_d:
+        score += 2
+        confidence_factors.append(10)
+    elif stoch_k > 80 and stoch_k < stoch_d:
+        score -= 2
+        confidence_factors.append(10)
+
+    # 5. ADX - Force de tendance (multiplicateur)
+    adx = indicators['adx']
+    plus_di = indicators['plus_di']
+    minus_di = indicators['minus_di']
+
+    trend_strength = 1.0
+    if adx > 40:  # Tendance très forte
+        trend_strength = 1.5
+        confidence_factors.append(15)
+    elif adx > 25:  # Tendance forte
+        trend_strength = 1.2
+        confidence_factors.append(10)
+    elif adx < 20:  # Pas de tendance
+        trend_strength = 0.5  # Réduire le score
+        confidence_factors.append(-10)
+
+    # Direction de tendance
+    if plus_di > minus_di:
+        score += 1
+    else:
+        score -= 1
+
+    # 6. OBV - Divergences (poids: 2)
+    obv_trend = indicators['obv_trend']
+    price_trend = indicators['price_trend']
+
+    if obv_trend > 0 and price_trend < 0:
+        score += 2  # Divergence haussière
+        confidence_factors.append(12)
+    elif obv_trend < 0 and price_trend > 0:
+        score -= 2  # Divergence baissière
+        confidence_factors.append(12)
+    elif obv_trend > 0 and price_trend > 0:
+        score += 1  # Confirmation
+        confidence_factors.append(5)
+
+    # 7. Ichimoku (poids: 2)
+    price_vs_cloud = indicators['price_vs_cloud']
+    tenkan_vs_kijun = indicators['tenkan_vs_kijun']
+
+    if price_vs_cloud == 'above':
+        score += 2
+        confidence_factors.append(10)
+    elif price_vs_cloud == 'below':
+        score -= 2
+        confidence_factors.append(10)
+
+    if tenkan_vs_kijun == 'bullish':
+        score += 1
+    elif tenkan_vs_kijun == 'bearish':
+        score -= 1
+
+    # 8. Volume (poids: 1)
+    volume_ratio = indicators['volume_ratio']
+    if volume_ratio > 1.5:
+        score += 1
+        confidence_factors.append(5)
+    elif volume_ratio < 0.7:
+        score -= 0.5
+
+    # 9. Momentum (poids: 2)
+    momentum = indicators['price_momentum']
+    if momentum > 5:
+        score += 2
+    elif momentum > 2:
+        score += 1
+    elif momentum < -5:
+        score -= 2
+    elif momentum < -2:
+        score -= 1
+
+    # 10. Moving Averages (poids: 2)
+    current_price = indicators['current_price']
+    sma20 = indicators['sma20']
+    sma50 = indicators['sma50']
+
+    if current_price > sma20 > sma50:
+        score += 2
+        confidence_factors.append(10)
+    elif current_price < sma20 < sma50:
+        score -= 2
+        confidence_factors.append(10)
+    elif current_price > sma20:
+        score += 1
+    else:
+        score -= 1
+
+    # Appliquer le multiplicateur de force de tendance
+    score = int(score * trend_strength)
+
+    # Limiter le score entre -15 et +15
+    score = max(-15, min(15, score))
+
+    # Calculer la confiance (0-100%)
+    base_confidence = 50
+    confidence_bonus = sum(confidence_factors)
+    confidence = min(95, max(20, base_confidence + confidence_bonus))
+
+    # Générer le signal textuel
+    if score >= 10:
+        signal = "🚀 ACHAT TRÈS FORT"
+    elif score >= 7:
+        signal = "🟢 ACHAT FORT"
+    elif score >= 4:
+        signal = "🟡 ACHAT MODÉRÉ"
+    elif score >= 1:
+        signal = "⚪ ACHAT FAIBLE"
+    elif score <= -10:
+        signal = "💥 VENTE TRÈS FORTE"
+    elif score <= -7:
+        signal = "🔴 VENTE FORTE"
+    elif score <= -4:
+        signal = "🟠 VENTE MODÉRÉE"
+    elif score <= -1:
+        signal = "⚪ VENTE FAIBLE"
+    else:
+        signal = "⚪ NEUTRE"
+
+    return score, signal, confidence
+
 def generate_signal(rsi, macd, macd_signal, trend, current_price, sma20, sma50=None, volume_ratio=1.0, price_momentum=0):
-    """Génère un signal d'achat/vente avancé avec scoring amélioré"""
+    """Génère un signal d'achat/vente avancé avec scoring amélioré (ANCIENNE VERSION - conservée pour compatibilité)"""
     signals = []
     score = 0
     strength_indicators = []
@@ -5999,85 +6696,294 @@ def get_stock_news_OLD(ticker, limit=5):
         return []
 
 
-def analyze_stock(ticker, period="3mo", interval="1d"):
-    """Analyse complète d'une action"""
+# ==================== BACKTESTING & MACHINE LEARNING ====================
+
+def backtest_strategy(ticker, start_date=None, end_date=None, initial_capital=10000):
+    """
+    Backteste la stratégie sur période historique
+    Retourne: métriques de performance
+    """
     try:
-        stock = yf.Ticker(ticker)
-        data = stock.history(period=period, interval=interval)
-        
-        if len(data) < 50:
+        if end_date is None:
+            end_date = datetime.now()
+        if start_date is None:
+            start_date = end_date - timedelta(days=365)
+
+        # Récupérer données historiques
+        data = safe_fetch_yfinance(ticker, period='2y')
+        if not validate_data(data):
             return None
-        
-        # Calcul des indicateurs
-        rsi = calculate_rsi(data, RSI_PERIOD).iloc[-1]
-        macd, macd_signal_line, macd_hist = calculate_macd(data, MACD_FAST, MACD_SLOW, MACD_SIGNAL)
-        sma20 = calculate_sma(data, SMA_SHORT).iloc[-1]
-        sma50 = calculate_sma(data, SMA_LONG).iloc[-1]
-        
-        current_price = data['Close'].iloc[-1]
+
+        # Filtrer par dates
+        data = data[(data.index >= pd.Timestamp(start_date)) & (data.index <= pd.Timestamp(end_date))]
+
+        capital = initial_capital
+        position = None  # None, 'LONG'
+        entry_price = 0
+        trades = []
+
+        # Simuler jour par jour
+        for i in range(100, len(data)):
+            current_data = data.iloc[:i+1]
+            current_price = current_data['Close'].iloc[-1]
+
+            # Calculer indicateurs et signal
+            indicators = calculate_all_indicators(current_data)
+            score, signal, confidence = generate_advanced_signal(indicators)
+
+            # Gestion des positions
+            if position is None:
+                # Chercher une entrée
+                if score >= 7 and confidence >= 70:
+                    # ACHAT
+                    position = 'LONG'
+                    entry_price = current_price
+
+                    # Calculer TP et SL
+                    sr_levels = calculate_advanced_support_resistance(current_data)
+                    targets = calculate_smart_targets(current_data, score, sr_levels)
+
+                    tp = targets['tp2']
+                    sl = targets['sl']
+
+                    trades.append({
+                        'entry_date': current_data.index[-1],
+                        'entry_price': entry_price,
+                        'tp': tp,
+                        'sl': sl,
+                        'signal': signal,
+                        'score': score
+                    })
+
+            else:
+                # En position, vérifier TP/SL
+                if position == 'LONG':
+                    tp = trades[-1]['tp']
+                    sl = trades[-1]['sl']
+
+                    if current_price >= tp or current_price <= sl:
+                        # Sortie
+                        exit_price = current_price
+                        pnl = exit_price - entry_price
+                        pnl_percent = (pnl / entry_price) * 100
+
+                        capital += (capital * pnl_percent / 100)
+
+                        trades[-1].update({
+                            'exit_date': current_data.index[-1],
+                            'exit_price': exit_price,
+                            'pnl': pnl,
+                            'pnl_percent': pnl_percent,
+                            'hit_tp': current_price >= tp
+                        })
+
+                        position = None
+
+        # Analyser résultats
+        closed_trades = [t for t in trades if 'exit_price' in t]
+
+        if not closed_trades:
+            return None
+
+        total_trades = len(closed_trades)
+        winning_trades = len([t for t in closed_trades if t['pnl'] > 0])
+        win_rate = (winning_trades / total_trades) * 100 if total_trades > 0 else 0
+
+        total_return = ((capital - initial_capital) / initial_capital) * 100
+
+        return {
+            'ticker': ticker,
+            'period': f"{start_date.strftime('%Y-%m-%d')} à {end_date.strftime('%Y-%m-%d')}",
+            'initial_capital': initial_capital,
+            'final_capital': round(capital, 2),
+            'total_return': round(total_return, 2),
+            'total_trades': total_trades,
+            'winning_trades': winning_trades,
+            'losing_trades': total_trades - winning_trades,
+            'win_rate': round(win_rate, 2),
+            'trades': closed_trades
+        }
+
+    except Exception as e:
+        print(f"❌ Erreur backtesting {ticker}: {e}")
+        return None
+
+def predict_ml(ticker):
+    """
+    Prédiction ML simplifiée basée sur patterns
+    (Version simplifiée - peut être étendue avec sklearn)
+    """
+    try:
+        # Récupérer données
+        data = safe_fetch_yfinance(ticker, period='6mo')
+        if not validate_data(data):
+            return None
+
+        # Calculer tous les indicateurs
+        indicators = calculate_all_indicators(data)
+
+        # Score avancé
+        score, signal, confidence = generate_advanced_signal(indicators)
+
+        # Prédiction simple basée sur:
+        # - Force du signal (score)
+        # - Confiance
+        # - Tendance récente
+
+        prediction = 'NEUTRE'
+        probability = 50
+
+        if score >= 7 and confidence >= 70:
+            prediction = 'HAUSSE'
+            probability = min(85, 50 + (score * 2) + (confidence / 5))
+        elif score <= -7 and confidence >= 70:
+            prediction = 'BAISSE'
+            probability = min(85, 50 + (abs(score) * 2) + (confidence / 5))
+        elif score >= 4:
+            prediction = 'HAUSSE_MODEREE'
+            probability = 50 + (score * 3)
+        elif score <= -4:
+            prediction = 'BAISSE_MODEREE'
+            probability = 50 + (abs(score) * 3)
+
+        return {
+            'ticker': ticker,
+            'prediction': prediction,
+            'probability': round(probability, 1),
+            'score': score,
+            'confidence': confidence,
+            'horizon': '5-10 jours',
+            'factors': {
+                'rsi': indicators['rsi'],
+                'adx': indicators['adx'],
+                'bb_position': indicators['bb_position'],
+                'stoch_k': indicators['stoch_k']
+            }
+        }
+
+    except Exception as e:
+        print(f"❌ Erreur prédiction ML {ticker}: {e}")
+        return None
+
+def analyze_stock(ticker, period="3mo", interval="1d"):
+    """Analyse complète d'une action avec 15+ indicateurs avancés"""
+    try:
+        # Récupération sécurisée des données
+        data = safe_fetch_yfinance(ticker, period=period)
+
+        if not validate_data(data):
+            return None
+
+        # Calcul de TOUS les indicateurs (basiques + avancés)
+        indicators = calculate_all_indicators(data)
+
+        # Génération du signal avancé (-15 à +15)
+        score, signal, confidence = generate_advanced_signal(indicators)
+
+        # Calcul des anciennes métriques pour compatibilité
+        current_price = indicators['current_price']
         prev_close = data['Close'].iloc[-2]
         variation = ((current_price - prev_close) / prev_close) * 100
-        
-        trend = detect_trend(data)
-        # Calculs avancés
-        avg_volume = data['Volume'].tail(20).mean()
-        volume_ratio = data['Volume'].iloc[-1] / avg_volume if avg_volume > 0 else 1.0
-        price_5d_ago = data['Close'].iloc[-6] if len(data) >= 6 else data['Close'].iloc[0]
-        price_momentum = ((current_price - price_5d_ago) / price_5d_ago) * 100
-        volatility = data['Close'].tail(20).pct_change().std() * 100
-        
-        signal, signal_details, score = generate_signal(
-            rsi, macd.iloc[-1], macd_signal_line.iloc[-1], 
-            trend, current_price, sma20, sma50, volume_ratio, price_momentum
-        )
-        
+
+        # Support et Résistance avancés
+        sr_levels = calculate_advanced_support_resistance(data)
+
+        # Prix cibles intelligents
+        targets = calculate_smart_targets(data, score, sr_levels)
+
         # Informations supplémentaires
-        info = stock.info
-        company_name = info.get('longName', ticker)
-        
+        try:
+            stock = yf.Ticker(ticker)
+            info = stock.info
+            company_name = info.get('longName', ticker)
+        except:
+            company_name = ticker
+
+        # Signal textuel détaillé (ancien format pour compatibilité)
+        signal_details = []
+        if indicators['rsi'] < 30:
+            signal_details.append(f"RSI survendu ({indicators['rsi']:.1f})")
+        elif indicators['rsi'] > 70:
+            signal_details.append(f"RSI suracheté ({indicators['rsi']:.1f})")
+
+        if indicators['bb_position'] < 10:
+            signal_details.append("Prix proche bande Bollinger basse")
+        elif indicators['bb_position'] > 90:
+            signal_details.append("Prix proche bande Bollinger haute")
+
+        if indicators['adx'] > 25:
+            signal_details.append(f"Tendance forte (ADX {indicators['adx']:.1f})")
+
         result = {
+            # Informations de base
             'ticker': ticker,
             'name': company_name,
             'price': current_price,
             'variation': variation,
-            'rsi': rsi,
-            'macd': macd.iloc[-1],
-            'macd_signal': macd_signal_line.iloc[-1],
-            'macd_hist': macd_hist.iloc[-1],
-            'sma20': sma20,
-            'sma50': sma50,
-            'trend': trend,
+
+            # Signal et score améliorés
             'signal': signal,
+            'score': score,  # Maintenant de -15 à +15
+            'confidence': confidence,  # Nouveau : 0-100%
             'signal_details': signal_details,
-            'score': score,
+
+            # Indicateurs basiques (compatibilité)
+            'rsi': indicators['rsi'],
+            'macd': indicators['macd'],
+            'macd_signal': indicators['macd_signal'],
+            'macd_hist': indicators['macd_hist'],
+            'sma20': indicators['sma20'],
+            'sma50': indicators['sma50'],
+            'trend': indicators['trend'],
             'volume': data['Volume'].iloc[-1],
-            'volume_ratio': volume_ratio,
-            'price_momentum': price_momentum,
-            'volatility': volatility
+            'volume_ratio': indicators['volume_ratio'],
+            'price_momentum': indicators['price_momentum'],
+            'volatility': indicators['atr_percent'],
+
+            # NOUVEAUX indicateurs avancés
+            'bb_upper': indicators.get('bb_upper', 0),
+            'bb_lower': indicators.get('bb_lower', 0),
+            'bb_position': indicators.get('bb_position', 50),
+            'stoch_k': indicators.get('stoch_k', 50),
+            'stoch_d': indicators.get('stoch_d', 50),
+            'adx': indicators.get('adx', 20),
+            'plus_di': indicators.get('plus_di', 50),
+            'minus_di': indicators.get('minus_di', 50),
+            'atr': indicators.get('atr', 0),
+            'atr_percent': indicators.get('atr_percent', 0),
+            'price_vs_cloud': indicators.get('price_vs_cloud', 'neutral'),
+
+            # Support/Résistance avancés
+            'supports': sr_levels.get('supports', []),
+            'resistances': sr_levels.get('resistances', []),
+            'pivot': sr_levels.get('pivot', current_price),
+
+            # Prix cibles intelligents
+            'tp1': targets.get('tp1', 0),
+            'tp2': targets.get('tp2', 0),
+            'tp3': targets.get('tp3', 0),
+            'sl': targets.get('sl', 0),
+            'risk_reward': targets.get('risk_reward', 0),
         }
-        
+
         # Analyse IA complète
         try:
             ai_analysis = ai_complete_analysis(ticker, data, result)
             if ai_analysis:
                 result['ai_analysis'] = ai_analysis
-                print(f"[AI] Analyse IA ajoutée pour {ticker}")
-            else:
-                print(f"[AI] ⚠️ Analyse IA retourne None pour {ticker}")
         except Exception as e:
-            print(f"[AI] ❌ Erreur analyse IA pour {ticker}: {e}")
-        
+            print(f"[AI] Erreur analyse IA pour {ticker}: {e}")
+
         return result
-        
+
     except Exception as e:
         error_msg = str(e)
-        # Logger les erreurs importantes sur le canal
         if "delisted" in error_msg.lower():
             print(f"⚠️ {ticker}: Action possiblement délistée")
         elif "no data found" in error_msg.lower():
             print(f"⚠️ {ticker}: Aucune donnée disponible")
         else:
-            print(f"Erreur lors de l'analyse de {ticker}: {error_msg}")
+            print(f"❌ Erreur analyse {ticker}: {error_msg}")
         return None
 
 def scan_market(watchlist_dict, min_score=2, log_progress=False):
@@ -6484,64 +7390,84 @@ Clique sur un bouton ci-dessous pour recevoir une analyse en privé !
 
 # ==================== BOT TELEGRAM - COMMANDES ====================
 
-async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Commande /start - Message de bienvenue avec menu"""
+async def menu_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Commande /menu - Menu principal unifié avec toutes les fonctionnalités"""
     user_name = get_user_name(update)
     user_id = update.effective_user.id
-    
+
     # Ajouter l'utilisateur
     get_or_create_user(user_id)
-    
-    # Boutons du menu principal
-    # Créer le menu avec boutons
+
+    # Menu principal avec boutons organisés
     keyboard = [
+        [
+            InlineKeyboardButton("📊 Analyser", callback_data="menu_analyze"),
+            InlineKeyboardButton("🔍 Scanner", callback_data="menu_scanner")
+        ],
         [
             InlineKeyboardButton("💼 Wallet", callback_data="menu_wallet"),
             InlineKeyboardButton("🌍 Marchés", callback_data="markets_menu")
         ],
         [
-            InlineKeyboardButton("⚙️ Paramètres", callback_data="menu_settings"),
-            InlineKeyboardButton("📌 Favoris", callback_data="menu_favorites")
+            InlineKeyboardButton("🧪 Backtest", callback_data="menu_backtest"),
+            InlineKeyboardButton("🤖 Prédiction ML", callback_data="menu_ml")
         ],
         [
-            InlineKeyboardButton("🔔 Alertes", callback_data="menu_alerts"),
+            InlineKeyboardButton("📌 Favoris", callback_data="menu_favorites"),
+            InlineKeyboardButton("🔔 Alertes", callback_data="menu_alerts")
+        ],
+        [
+            InlineKeyboardButton("⚙️ Paramètres", callback_data="menu_settings"),
             InlineKeyboardButton("ℹ️ Aide", callback_data="menu_help")
         ],
         [
             InlineKeyboardButton("❌ Fermer", callback_data="menu_close")
         ]
     ]
-    
+
     reply_markup = InlineKeyboardMarkup(keyboard)
-    
+
     message = f"""
-🤖 *MENU PRINCIPAL - {user_name}*
+🤖 *TRADING COMPANION v5.0 - {user_name}*
 
 ━━━━━━━━━━━━━━━━━━━━
-💼 *TRADING*
+📈 *ANALYSE & TRADING*
 ━━━━━━━━━━━━━━━━━━━━
 
-💼 *Wallet* - Gérer votre portefeuille
-📈 *Scanner* - Scanner le marché
+📊 */analyze TICKER* - Analyse complète avec 15+ indicateurs
+🔍 */scanner* - Scanner les meilleurs opportunités
+💼 */wallet* - Gérer votre portefeuille virtuel
+🌍 */markets* - État des marchés mondiaux
 
 ━━━━━━━━━━━━━━━━━━━━
-⚙️ *OUTILS*
+🧪 *OUTILS AVANCÉS (NOUVEAU)*
 ━━━━━━━━━━━━━━━━━━━━
 
-⚙️ *Paramètres* - Configuration du bot
-📌 *Favoris* - Gérer vos favoris
-🔔 *Alertes* - Gérer vos alertes
+🧪 */backtest TICKER* - Backtester la stratégie
+🤖 */predict TICKER* - Prédiction ML (5-10j)
+📊 */compare TICKER1 TICKER2* - Comparer 2 actions
 
 ━━━━━━━━━━━━━━━━━━━━
-💡 *Utilisez les boutons ci-dessous*
+⚙️ *PERSONNALISATION*
+━━━━━━━━━━━━━━━━━━━━
+
+📌 */fav* - Gérer favoris
+🔔 */alert* - Gérer alertes
+⚙️ */settings* - Configuration
+
+━━━━━━━━━━━━━━━━━━━━
+💡 *Utilisez /menu pour revenir ici*
 """
-
 
     await update.message.reply_text(
         message,
         reply_markup=reply_markup,
         parse_mode='Markdown'
     )
+
+async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Commande /start - Redirige vers /menu"""
+    await menu_command(update, context)
 
 
 
@@ -6999,6 +7925,133 @@ async def analyze_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     else:
         await update.message.reply_text(f"❌ Désolé *{user_name}*, impossible d'analyser {ticker}", parse_mode='Markdown')
+
+async def backtest_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Commande /backtest TICKER - Backteste la stratégie sur 1 an"""
+    user_name = get_user_name(update)
+
+    if not context.args:
+        await update.message.reply_text(
+            f"*{user_name}*, il me faut un ticker !\n\nUsage: /backtest TICKER\nExemple: /backtest AAPL",
+            parse_mode='Markdown'
+        )
+        return
+
+    ticker = context.args[0].upper()
+
+    await update.message.reply_text(
+        f"🧪 *{user_name}*, backtesting de {ticker} en cours...\n\n⏱️ Simulation sur 1 an avec 10 000$ de capital initial",
+        parse_mode='Markdown'
+    )
+
+    # Backtester
+    result = backtest_strategy(ticker)
+
+    if result:
+        message = f"""
+🧪 *BACKTEST - {result['ticker']}*
+
+━━━━━━━━━━━━━━━━━━━━
+📊 *PERFORMANCE*
+━━━━━━━━━━━━━━━━━━━━
+
+💰 Capital initial: ${result['initial_capital']:,.0f}
+💵 Capital final: ${result['final_capital']:,.2f}
+📈 Rendement total: {result['total_return']:+.2f}%
+
+━━━━━━━━━━━━━━━━━━━━
+📊 *STATISTIQUES*
+━━━━━━━━━━━━━━━━━━━━
+
+📊 Total trades: {result['total_trades']}
+✅ Trades gagnants: {result['winning_trades']}
+❌ Trades perdants: {result['losing_trades']}
+🎯 Win rate: {result['win_rate']:.1f}%
+
+━━━━━━━━━━━━━━━━━━━━
+📅 *PÉRIODE*
+━━━━━━━━━━━━━━━━━━━━
+
+{result['period']}
+
+💡 _Backtesting sur données historiques_
+⚠️ _Performances passées ne garantissent pas les résultats futurs_
+"""
+
+        await update.message.reply_text(message, parse_mode='Markdown')
+    else:
+        await update.message.reply_text(
+            f"❌ Désolé *{user_name}*, impossible de backtester {ticker}",
+            parse_mode='Markdown'
+        )
+
+async def predict_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Commande /predict TICKER - Prédiction ML sur 5-10 jours"""
+    user_name = get_user_name(update)
+
+    if not context.args:
+        await update.message.reply_text(
+            f"*{user_name}*, il me faut un ticker !\n\nUsage: /predict TICKER\nExemple: /predict AAPL",
+            parse_mode='Markdown'
+        )
+        return
+
+    ticker = context.args[0].upper()
+
+    await update.message.reply_text(
+        f"🤖 *{user_name}*, prédiction ML pour {ticker}...",
+        parse_mode='Markdown'
+    )
+
+    # Prédiction ML
+    result = predict_ml(ticker)
+
+    if result:
+        # Emoji selon prédiction
+        if 'HAUSSE' in result['prediction']:
+            emoji = '🟢'
+        elif 'BAISSE' in result['prediction']:
+            emoji = '🔴'
+        else:
+            emoji = '⚪'
+
+        message = f"""
+🤖 *PRÉDICTION ML - {result['ticker']}*
+
+━━━━━━━━━━━━━━━━━━━━
+🔮 *PRÉDICTION*
+━━━━━━━━━━━━━━━━━━━━
+
+{emoji} *Direction:* {result['prediction']}
+📊 *Probabilité:* {result['probability']:.1f}%
+📈 *Score signal:* {result['score']}/15
+🎯 *Confiance:* {result['confidence']:.1f}%
+
+━━━━━━━━━━━━━━━━━━━━
+⏰ *HORIZON*
+━━━━━━━━━━━━━━━━━━━━
+
+{result['horizon']}
+
+━━━━━━━━━━━━━━━━━━━━
+📊 *FACTEURS CLÉS*
+━━━━━━━━━━━━━━━━━━━━
+
+• RSI: {result['factors']['rsi']:.1f}
+• ADX: {result['factors']['adx']:.1f}
+• Bollinger: {result['factors']['bb_position']:.1f}%
+• Stochastic: {result['factors']['stoch_k']:.1f}
+
+💡 _Prédiction basée sur 15+ indicateurs techniques_
+⚠️ _Ceci n'est pas un conseil financier_
+"""
+
+        await update.message.reply_text(message, parse_mode='Markdown')
+    else:
+        await update.message.reply_text(
+            f"❌ Désolé *{user_name}*, impossible de prédire {ticker}",
+            parse_mode='Markdown'
+        )
 
 async def compare_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Commande /compare TICKER1 TICKER2"""
@@ -11886,8 +12939,12 @@ def main():
     
     # ==================== HANDLERS EXISTANTS ====================
     application.add_handler(CommandHandler("start", start_command))
-    
-    
+    application.add_handler(CommandHandler("menu", menu_command))
+
+    # Nouvelles commandes avancées (v5.0)
+    application.add_handler(CommandHandler("backtest", backtest_command))
+    application.add_handler(CommandHandler("predict", predict_command))
+
     # Callbacks paper trading (AVANT les autres CallbackQueryHandler)
     # application.add_handler(CallbackQueryHandler(paper_callback_handler, pattern="^(pt_|mode_)")) # DÉSACTIVÉ - Handler manquant
     application.add_handler(CallbackQueryHandler(delete_message_callback, pattern="^delete_message$"))
@@ -11925,10 +12982,10 @@ def main():
         
         # Liste des commandes connues (à ignorer)
         known_commands = [
-            'START', 'HELP', 'STATUS', 'ANALYZE', 'COMPARE', 'HISTORY', 
+            'START', 'HELP', 'STATUS', 'ANALYZE', 'COMPARE', 'HISTORY',
             'STATS', 'VOLATILE', 'GAINER', 'LOSER', 'AUTOSCAN', 'CHART',
-            'SMARTNOTIF', 'DAILYREPORT', 'NEWS', 'TOP', 'MENU', 'FAV', 
-            'ALERT', 'POSITIONS', 'POSITION'
+            'SMARTNOTIF', 'DAILYREPORT', 'NEWS', 'TOP', 'MENU', 'FAV',
+            'ALERT', 'POSITIONS', 'POSITION', 'BACKTEST', 'PREDICT'
         ]
         
         if command in known_commands:
