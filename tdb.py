@@ -422,17 +422,13 @@ def is_market_open(market_type):
     """Vérifie si un marché est actuellement ouvert (heure française)"""
     import pytz
     from datetime import datetime
-    
+
     # Heure actuelle en France
     france_tz = pytz.timezone('Europe/Paris')
     now = datetime.now(france_tz)
     current_hour = now.hour
     weekday = now.weekday()  # 0=Lundi, 6=Dimanche
-    
-    # Weekend : tous fermés
-    if weekday >= 5:  # Samedi ou Dimanche
-        return False, "Week-end"
-    
+
     # Horaires d'ouverture (heure française)
     market_schedules = {
         'us': {
@@ -461,15 +457,19 @@ def is_market_open(market_type):
             'name': 'Commodities'
         }
     }
-    
+
     schedule = market_schedules.get(market_type)
     if not schedule:
         return True, "Inconnu"
-    
-    # Crypto ouvert 24/7
+
+    # Crypto ouvert 24h/24 et 7j/7 (même le week-end)
     if market_type == 'crypto':
-        return True, "24/7"
-    
+        return True, "Ouvert 24h/24, 7j/7"
+
+    # Weekend : tous les autres marchés sont fermés
+    if weekday >= 5:  # Samedi ou Dimanche
+        return False, "Week-end"
+
     # Vérifier horaires
     if schedule['open'] <= current_hour < schedule['close']:
         return True, f"Ouvert jusqu'à {schedule['close']}h"
