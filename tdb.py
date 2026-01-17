@@ -6714,8 +6714,18 @@ def backtest_strategy(ticker, start_date=None, end_date=None, initial_capital=10
         if not validate_data(data):
             return None
 
-        # Filtrer par dates
-        data = data[(data.index >= pd.Timestamp(start_date)) & (data.index <= pd.Timestamp(end_date))]
+        # Filtrer par dates (gérer timezone)
+        # Convertir les dates pour matcher le timezone des données
+        if data.index.tz is not None:
+            # Les données ont un timezone, convertir start_date et end_date
+            start_ts = pd.Timestamp(start_date).tz_localize(data.index.tz)
+            end_ts = pd.Timestamp(end_date).tz_localize(data.index.tz)
+        else:
+            # Pas de timezone
+            start_ts = pd.Timestamp(start_date)
+            end_ts = pd.Timestamp(end_date)
+
+        data = data[(data.index >= start_ts) & (data.index <= end_ts)]
 
         capital = initial_capital
         position = None  # None, 'LONG'
@@ -8015,6 +8025,9 @@ async def predict_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         else:
             emoji = '⚪'
 
+        # Échapper les underscores pour Markdown
+        prediction_text = result['prediction'].replace('_', '\\_')
+
         message = f"""
 🤖 *PRÉDICTION ML - {result['ticker']}*
 
@@ -8022,7 +8035,7 @@ async def predict_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 🔮 *PRÉDICTION*
 ━━━━━━━━━━━━━━━━━━━━
 
-{emoji} *Direction:* {result['prediction']}
+{emoji} *Direction:* {prediction_text}
 📊 *Probabilité:* {result['probability']:.1f}%
 📈 *Score signal:* {result['score']}/15
 🎯 *Confiance:* {result['confidence']:.1f}%
