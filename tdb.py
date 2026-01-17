@@ -12294,11 +12294,31 @@ TP et SL seront calculés automatiquement
 
 
 async def shortcut_analyser_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handler pour les raccourcis /cspa, /bnpa, etc."""
+    """Handler pour les raccourcis /cspa, /bnpa, /btc, /btcusd, etc."""
     command = update.message.text.lstrip('/').upper()
-    
+
+    # Mapping des raccourcis crypto (sans tiret) vers les vrais tickers (avec tiret)
+    crypto_mapping = {
+        'BTC': 'BTC-USD', 'BTCUSD': 'BTC-USD',
+        'ETH': 'ETH-USD', 'ETHUSD': 'ETH-USD',
+        'BNB': 'BNB-USD', 'BNBUSD': 'BNB-USD',
+        'SOL': 'SOL-USD', 'SOLUSD': 'SOL-USD',
+        'XRP': 'XRP-USD', 'XRPUSD': 'XRP-USD',
+        'ADA': 'ADA-USD', 'ADAUSD': 'ADA-USD',
+        'AVAX': 'AVAX-USD', 'AVAXUSD': 'AVAX-USD',
+        'DOGE': 'DOGE-USD', 'DOGEUSD': 'DOGE-USD',
+        'DOT': 'DOT-USD', 'DOTUSD': 'DOT-USD',
+        'LINK': 'LINK-USD', 'LINKUSD': 'LINK-USD',
+        'ATOM': 'ATOM-USD', 'ATOMUSD': 'ATOM-USD',
+        'LTC': 'LTC-USD', 'LTCUSD': 'LTC-USD',
+        'SHIB': 'SHIB-USD', 'SHIBUSD': 'SHIB-USD',
+    }
+
+    # Vérifier si c'est un ticker crypto
+    if command in crypto_mapping:
+        ticker = crypto_mapping[command]
     # Convertir raccourci en ticker: alopa -> ALO.PA
-    if len(command) >= 4 and "." not in command:
+    elif len(command) >= 4 and "." not in command and "-" not in command:
         # Les 2-3 dernières lettres = extension (PA, AS, etc)
         if command.endswith("PA"):
             ticker = command[:-2] + ".PA"
@@ -12308,7 +12328,7 @@ async def shortcut_analyser_command(update: Update, context: ContextTypes.DEFAUL
             ticker = command
     else:
         ticker = command
-    
+
     # Lancer l'analyse
     context.args = [ticker]
     await analyze_command(update, context)
