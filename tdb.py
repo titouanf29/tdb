@@ -7540,12 +7540,13 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def status_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Commande /status - Affiche le statut de tous les marchés"""
     user_name = get_user_name(update)
-    
+
     # Tester avec un ticker de chaque marché
     euronext_status = get_market_status("AI.PA")
     xetra_status = get_market_status("SAP.DE")
     us_status = get_market_status("AAPL")
-    
+    crypto_status = get_market_status("BTC-USD")
+
     message = f"""
 🕐 *STATUT DES MARCHÉS* - {user_name}
 
@@ -7561,9 +7562,13 @@ async def status_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 ━━━━━━━━━━━━━━━━
 
+{crypto_status['message']}
+
+━━━━━━━━━━━━━━━━
+
 💡 *Info*: Les analyses sont basées sur les dernières données disponibles.
 """
-    
+
     await update.message.reply_text(message, parse_mode='Markdown')
 
 # ==================== COMMANDES FAVORIS ====================
