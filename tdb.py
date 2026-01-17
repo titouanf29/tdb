@@ -5152,7 +5152,16 @@ Tapez le montant en EUR (ex: 500)
 def get_market_status(ticker):
     """Détermine si le marché est ouvert et donne les horaires"""
     now_utc = datetime.now(pytz.UTC)
-    
+
+    # Cryptomonnaies : ouvertes 24h/24 et 7j/7
+    if ticker.endswith('-USD') or ticker in CRYPTO_WATCHLIST:
+        return {
+            'is_open': True,
+            'market_name': 'Crypto',
+            'message': f"🟢 *Marché Crypto OUVERT*\n⏰ Disponible 24h/24, 7j/7",
+            'emoji': '🟢'
+        }
+
     # Déterminer le marché selon le ticker
     if ticker.endswith('.PA') or ticker.endswith('.AS'):
         # Marché Européen (Euronext)
@@ -5160,14 +5169,14 @@ def get_market_status(ticker):
         timezone = pytz.timezone('Europe/Paris')
         open_time = 9  # 9h00
         close_time = 17.5  # 17h30
-        
+
     elif ticker.endswith('.DE'):
         # Marché Allemand (XETRA)
         market_name = "XETRA (Francfort)"
         timezone = pytz.timezone('Europe/Berlin')
         open_time = 9  # 9h00
         close_time = 17.5  # 17h30
-        
+
     else:
         # Marché US (NYSE/NASDAQ)
         market_name = "NYSE/NASDAQ"
