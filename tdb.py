@@ -11553,38 +11553,50 @@ async def chartgen_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def back_to_analysis_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Retour à l'analyse"""
     query = update.callback_query
-    await query.answer()
-    
+    await query.answer("📊 Rechargement de l'analyse...")
+
     ticker = query.data.split("_")[3]
     print(f"[BACK] Retour analyse pour {ticker}")
-    
-    analysis_message = market_analyzer.generate_analysis_message(ticker)
-    
-    keyboard = []
-    
-    # Ajouter les boutons standards
-    keyboard.extend([
-        [
-            InlineKeyboardButton("📊 Graphique", callback_data=f"chart_inline_{ticker}"),
-            InlineKeyboardButton("📰 News", callback_data=f"news_inline_{ticker}")
-        ],
-        [
-            InlineKeyboardButton("⭐ Ajouter aux Favoris", callback_data=f"fav_add_{ticker}")
-        ],
-        [
-            InlineKeyboardButton("🔄 Actualiser", callback_data=f"refresh_analysis_{ticker}_1d"),
-            InlineKeyboardButton("❌ Fermer", callback_data="delete_message")
+
+    # Refaire l'analyse
+    result = analyze_stock(ticker)
+
+    if result:
+        message = format_stock_message(result)
+
+        # Recréer les boutons complets
+        keyboard = [
+            [
+                InlineKeyboardButton("🤖 Trading Companion", callback_data=f"companion_step1_{ticker}")
+            ],
+            [
+                InlineKeyboardButton("🧪 Backtest", callback_data=f"backtest_{ticker}"),
+                InlineKeyboardButton("🤖 Prédiction ML", callback_data=f"predict_{ticker}")
+            ],
+            [
+                InlineKeyboardButton("📈 Voir Graphique", callback_data=f"chart_inline_{ticker}"),
+                InlineKeyboardButton("📰 News", callback_data=f"news_inline_{ticker}")
+            ],
+            [
+                InlineKeyboardButton("⭐ Ajouter aux Favoris", callback_data=f"fav_add_{ticker}"),
+                InlineKeyboardButton("🔄 Actualiser", callback_data=f"refresh_analysis_{ticker}_1d")
+            ],
+            [
+                InlineKeyboardButton("❌ Fermer", callback_data="delete_message")
+            ]
         ]
-    ])
-    
-    try:
-        await query.edit_message_text(
-            text=analysis_message,
-            reply_markup=InlineKeyboardMarkup(keyboard),
-            parse_mode='Markdown'
-        )
-    except Exception as e:
-        print(f"Erreur back_to_analysis: {e}")
+
+        try:
+            await query.edit_message_text(
+                text=message,
+                reply_markup=InlineKeyboardMarkup(keyboard),
+                parse_mode='Markdown'
+            )
+        except Exception as e:
+            print(f"[BACK] Erreur: {e}")
+            await query.answer("❌ Erreur lors du retour", show_alert=True)
+    else:
+        await query.answer("❌ Impossible de recharger l'analyse", show_alert=True)
 
 
 async def news_inline_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
