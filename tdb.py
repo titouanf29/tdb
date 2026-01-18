@@ -7081,7 +7081,7 @@ def format_stock_message_compact(analysis):
 • Probabilité: {ai['probability']}%
 """
 
-    msg += "\n_Appuyez 'Détails' pour analyse complète_"
+    msg += "\n\n📱 _Mode Compact activé - Changez dans /menu > Paramètres_"
 
     return msg
 
@@ -7281,7 +7281,10 @@ Conviction: **{"Très forte" if abs(analysis['score']) >= 5 else "Forte" if abs(
         
         msg += "\n"
         msg += "═══════════════════════════════════\n"
-    
+
+    # Footer mode d'affichage
+    msg += "\n📊 _Mode Détaillé - Activez le Mode Compact dans /menu > Paramètres_"
+
     return msg
 
 def format_summary_message(results, top_n=10):
@@ -8096,28 +8099,26 @@ async def analyze_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Ajouter l'info du timeframe
         message = message.replace("━━━━━━━━━━━━━━━━━━━━", f"⏰ Timeframe: {timeframe_display[timeframe]}\n━━━━━━━━━━━━━━━━━━━━")
 
-        # Créer les boutons d'action (réorganisés pour meilleure UX)
+        # Créer les boutons d'action (disposition optimisée)
         keyboard = [
-            # Row 1: Actions principales
+            # Row 1: Action principale + actualiser
             [
-                InlineKeyboardButton("🔄 Actualiser", callback_data=f"refresh_analysis_{ticker}_{interval}"),
-                InlineKeyboardButton("📈 Graphique", callback_data=f"chart_{ticker}_{interval}")
+                InlineKeyboardButton("📈 Graphique", callback_data=f"chart_{ticker}_{interval}"),
+                InlineKeyboardButton("🔄 Actualiser", callback_data=f"refresh_analysis_{ticker}_{interval}")
             ],
-            # Row 2: Analyses avancées
+            # Row 2: Analyses techniques
             [
-                InlineKeyboardButton("🧪 Backtest", callback_data=f"backtest_{ticker}"),
-                InlineKeyboardButton("🔮 Prédiction", callback_data=f"predict_{ticker}")
+                InlineKeyboardButton("🧪 Backtest 1 an", callback_data=f"backtest_{ticker}"),
+                InlineKeyboardButton("🔮 Prédiction ML", callback_data=f"predict_{ticker}")
             ],
-            # Row 3: Trading & Info
+            # Row 3: Info & Trading
             [
-                InlineKeyboardButton("🤖 Trading AI", callback_data=f"companion_step1_{ticker}"),
-                InlineKeyboardButton("📰 News", callback_data=f"news_{ticker}")
+                InlineKeyboardButton("📰 News", callback_data=f"news_{ticker}"),
+                InlineKeyboardButton("🤖 Trading AI", callback_data=f"companion_step1_{ticker}")
             ],
-            # Row 4: Favoris & Mode display
+            # Row 4: Favoris
             [
-                InlineKeyboardButton("⭐ Favoris", callback_data=f"fav_add_{ticker}"),
-                InlineKeyboardButton("📱 Compact" if display_mode == 'detailed' else "📊 Détails",
-                                   callback_data=f"toggle_display_{ticker}_{interval}")
+                InlineKeyboardButton("⭐ Ajouter aux Favoris", callback_data=f"fav_add_{ticker}")
             ]
         ]
 
@@ -8146,7 +8147,7 @@ async def backtest_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ticker = context.args[0].upper()
 
     await update.message.reply_text(
-        f"🧪 *{user_name}*, backtesting de {ticker} en cours...\n\n⏱️ Simulation sur 1 an avec 10 000$ de capital initial",
+        f"🧪 *{user_name}*, lancement du backtest...\n\n💡 *Qu'est-ce qu'un backtest ?*\nSimulation de notre stratégie de trading sur les 12 derniers mois avec 10 000$ de capital initial.\n\n⏱️ Analyse en cours...",
         parse_mode='Markdown'
     )
 
@@ -8185,9 +8186,10 @@ async def backtest_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         else:
             message = f"""
 🧪 *BACKTEST - {result['ticker']}*
+_Simulation de notre stratégie sur données historiques_
 
 ━━━━━━━━━━━━━━━━━━━━
-📊 *PERFORMANCE*
+📊 *PERFORMANCE (SIMULATION)*
 ━━━━━━━━━━━━━━━━━━━━
 
 💰 Capital initial: ${result['initial_capital']:,.0f}
@@ -8197,25 +8199,28 @@ async def backtest_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 ⚡ Sharpe ratio: {result['sharpe_ratio']:.2f}
 
 ━━━━━━━━━━━━━━━━━━━━
-📊 *STATISTIQUES*
+📊 *TRADES SIMULÉS*
 ━━━━━━━━━━━━━━━━━━━━
 
 📊 Total trades: {result['total_trades']}
-   • 🟢 LONG: {result['long_trades']}
-   • 🔴 SHORT: {result['short_trades']}
+   • 🟢 LONG (achats): {result['long_trades']}
+   • 🔴 SHORT (ventes): {result['short_trades']}
 
 ✅ Trades gagnants: {result['winning_trades']}
 ❌ Trades perdants: {result['losing_trades']}
 🎯 Win rate: {result['win_rate']:.1f}%
 
 ━━━━━━━━━━━━━━━━━━━━
-📅 *PÉRIODE*
+📅 *PÉRIODE TESTÉE*
 ━━━━━━━━━━━━━━━━━━━━
 
 {result['period']}
 
-💡 _Backtest avec commission (0.1%) et slippage (0.05%)_
-⚠️ _Performances passées ne garantissent pas les résultats futurs_
+💡 *Comment ça marche ?*
+Le bot a simulé des achats/ventes automatiques basés sur notre algorithme technique (RSI, MACD, etc.) sur les 12 derniers mois.
+
+📌 _Commission: 0.1% | Slippage: 0.05%_
+⚠️ _Ces résultats sont une SIMULATION. Performances passées ≠ résultats futurs_
 """
 
         await update.message.reply_text(message, parse_mode='Markdown')
@@ -9764,13 +9769,20 @@ Win Rate: {(stats.get('winners', 0) / stats.get('total_trades', 1) * 100) if sta
         )
     
     elif action == "menu_settings":
-        # Menu paramètres simplifié
+        # Récupérer les paramètres actuels de l'utilisateur
+        user_settings = db.get_user_settings(user_id)
+        current_display_mode = user_settings.get('display_mode', 'detailed') if user_settings else 'detailed'
+
+        display_mode_text = "📱 Compact (Mobile)" if current_display_mode == 'compact' else "📊 Détaillé (Complet)"
+
+        # Menu paramètres avec mode d'affichage
         keyboard = [
+            [InlineKeyboardButton(f"📱 Mode d'affichage: {display_mode_text}", callback_data="toggle_display_mode")],
             [InlineKeyboardButton("🚨 Alertes Opportunités", callback_data="alert_settings")],
             [InlineKeyboardButton("⬅️ Retour Menu", callback_data="menu_back")]
         ]
         await query.edit_message_text(
-            "⚙️ *PARAMÈTRES*\n\nConfigurer vos préférences :",
+            f"⚙️ *PARAMÈTRES*\n\nConfigurer vos préférences :\n\n*Mode d'affichage actuel:* {display_mode_text}\n• *Compact*: Messages optimisés mobile (50% plus courts)\n• *Détaillé*: Analyse complète avec tous les détails",
             reply_markup=InlineKeyboardMarkup(keyboard),
             parse_mode='Markdown'
         )
@@ -10847,7 +10859,32 @@ Utilise les boutons ci-dessous pour gérer tes paramètres.
         
         elif query.data == "alert_settings":
             await alert_settings_start(update, context, user_id, bot, db)
-        
+
+        elif query.data == "toggle_display_mode":
+            # Basculer le mode d'affichage
+            user_settings = db.get_user_settings(user_id)
+            current_mode = user_settings.get('display_mode', 'detailed') if user_settings else 'detailed'
+            new_mode = 'compact' if current_mode == 'detailed' else 'detailed'
+
+            # Sauvegarder
+            db.set_user_setting(user_id, 'display_mode', new_mode)
+
+            mode_text = "📱 Compact (Mobile)" if new_mode == 'compact' else "📊 Détaillé (Complet)"
+            await query.answer(f"✅ Mode {mode_text} activé!", show_alert=True)
+
+            # Rafraîchir le menu
+            keyboard = [
+                [InlineKeyboardButton(f"📱 Mode d'affichage: {mode_text}", callback_data="toggle_display_mode")],
+                [InlineKeyboardButton("🚨 Alertes Opportunités", callback_data="alert_settings")],
+                [InlineKeyboardButton("⬅️ Retour Menu", callback_data="menu_back")]
+            ]
+            await query.edit_message_text(
+                f"⚙️ *PARAMÈTRES*\n\nConfigurer vos préférences :\n\n*Mode d'affichage actuel:* {mode_text}\n• *Compact*: Messages optimisés mobile (50% plus courts)\n• *Détaillé*: Analyse complète avec tous les détails",
+                reply_markup=InlineKeyboardMarkup(keyboard),
+                parse_mode='Markdown'
+            )
+            return
+
         elif query.data == "settings_score":
             await settings_score_handler(update, context, user_id, bot, db)
         
@@ -11270,81 +11307,34 @@ Utilisez /favorites pour voir vos favoris
             period_map = {"1h": "5d", "1d": "3mo", "1wk": "1y"}
             period = period_map.get(interval, "3mo")
             
+            # Récupérer le mode d'affichage de l'utilisateur
+            user_settings = db.get_user_settings(user_id)
+            display_mode = user_settings.get('display_mode', 'detailed') if user_settings else 'detailed'
+
             result = analyze_stock(ticker, period=period, interval=interval)
             if result:
-                message = format_stock_message(result)
-                
-                # Recréer les boutons
+                message = format_stock_message(result, display_mode=display_mode)
+
+                # Recréer les boutons avec disposition optimisée
                 keyboard = [
+                    # Row 1: Action principale + actualiser
                     [
-                        InlineKeyboardButton("📈 Voir Graphique", callback_data=f"chart_{ticker}_{interval}"),
+                        InlineKeyboardButton("📈 Graphique", callback_data=f"chart_{ticker}_{interval}"),
+                        InlineKeyboardButton("🔄 Actualiser", callback_data=f"refresh_analysis_{ticker}_{interval}")
                     ],
+                    # Row 2: Analyses techniques
+                    [
+                        InlineKeyboardButton("🧪 Backtest 1 an", callback_data=f"backtest_{ticker}"),
+                        InlineKeyboardButton("🔮 Prédiction ML", callback_data=f"predict_{ticker}")
+                    ],
+                    # Row 3: Info & Trading
                     [
                         InlineKeyboardButton("📰 News", callback_data=f"news_{ticker}"),
+                        InlineKeyboardButton("🤖 Trading AI", callback_data=f"companion_step1_{ticker}")
+                    ],
+                    # Row 4: Favoris
+                    [
                         InlineKeyboardButton("⭐ Ajouter aux Favoris", callback_data=f"fav_add_{ticker}")
-                    ],
-                    [
-                        InlineKeyboardButton("🔄 Actualiser", callback_data=f"refresh_analysis_{ticker}_{interval}"),
-                        InlineKeyboardButton("❌ Fermer", callback_data="delete_message")
-                    ]
-                ]
-                
-                await query.edit_message_text(
-                    text=message,
-                    parse_mode='Markdown',
-                    reply_markup=InlineKeyboardMarkup(keyboard)
-                )
-            else:
-                await query.edit_message_text(text=f"❌ Impossible d'actualiser {ticker}")
-
-        # TOGGLE DISPLAY MODE
-        elif query.data.startswith("toggle_display_"):
-            parts = query.data.replace("toggle_display_", "").split("_")
-            ticker = parts[0]
-            interval = parts[1] if len(parts) > 1 else "1d"
-
-            # Récupérer le mode actuel
-            user_settings = db.get_user_settings(user_id)
-            current_mode = user_settings.get('display_mode', 'detailed') if user_settings else 'detailed'
-
-            # Basculer le mode
-            new_mode = 'compact' if current_mode == 'detailed' else 'detailed'
-
-            # Sauvegarder dans la base de données
-            db.set_user_setting(user_id, 'display_mode', new_mode)
-
-            await query.answer(f"📱 Mode {new_mode} activé!")
-
-            # Actualiser l'analyse avec le nouveau mode
-            period_map = {"1h": "5d", "1d": "3mo", "1wk": "1y"}
-            period = period_map.get(interval, "3mo")
-
-            result = analyze_stock(ticker, period=period, interval=interval)
-            if result:
-                message = format_stock_message(result, display_mode=new_mode)
-
-                # Recréer les boutons avec le nouveau mode
-                keyboard = [
-                    # Row 1: Actions principales
-                    [
-                        InlineKeyboardButton("🔄 Actualiser", callback_data=f"refresh_analysis_{ticker}_{interval}"),
-                        InlineKeyboardButton("📈 Graphique", callback_data=f"chart_{ticker}_{interval}")
-                    ],
-                    # Row 2: Analyses avancées
-                    [
-                        InlineKeyboardButton("🧪 Backtest", callback_data=f"backtest_{ticker}"),
-                        InlineKeyboardButton("🔮 Prédiction", callback_data=f"predict_{ticker}")
-                    ],
-                    # Row 3: Trading & Info
-                    [
-                        InlineKeyboardButton("🤖 Trading AI", callback_data=f"companion_step1_{ticker}"),
-                        InlineKeyboardButton("📰 News", callback_data=f"news_{ticker}")
-                    ],
-                    # Row 4: Favoris & Mode display
-                    [
-                        InlineKeyboardButton("⭐ Favoris", callback_data=f"fav_add_{ticker}"),
-                        InlineKeyboardButton("📱 Compact" if new_mode == 'detailed' else "📊 Détails",
-                                           callback_data=f"toggle_display_{ticker}_{interval}")
                     ]
                 ]
 
@@ -11423,9 +11413,10 @@ async def backtest_inline_callback(update: Update, context: ContextTypes.DEFAULT
         else:
             message = f"""
 🧪 *BACKTEST - {result['ticker']}*
+_Simulation de notre stratégie sur données historiques_
 
 ━━━━━━━━━━━━━━━━━━━━
-📊 *PERFORMANCE*
+📊 *PERFORMANCE (SIMULATION)*
 ━━━━━━━━━━━━━━━━━━━━
 
 💰 Capital initial: ${result['initial_capital']:,.0f}
@@ -11435,25 +11426,28 @@ async def backtest_inline_callback(update: Update, context: ContextTypes.DEFAULT
 ⚡ Sharpe ratio: {result['sharpe_ratio']:.2f}
 
 ━━━━━━━━━━━━━━━━━━━━
-📊 *STATISTIQUES*
+📊 *TRADES SIMULÉS*
 ━━━━━━━━━━━━━━━━━━━━
 
 📊 Total trades: {result['total_trades']}
-   • 🟢 LONG: {result['long_trades']}
-   • 🔴 SHORT: {result['short_trades']}
+   • 🟢 LONG (achats): {result['long_trades']}
+   • 🔴 SHORT (ventes): {result['short_trades']}
 
 ✅ Trades gagnants: {result['winning_trades']}
 ❌ Trades perdants: {result['losing_trades']}
 🎯 Win rate: {result['win_rate']:.1f}%
 
 ━━━━━━━━━━━━━━━━━━━━
-📅 *PÉRIODE*
+📅 *PÉRIODE TESTÉE*
 ━━━━━━━━━━━━━━━━━━━━
 
 {result['period']}
 
-💡 _Backtest avec commission (0.1%) et slippage (0.05%)_
-⚠️ _Performances passées ne garantissent pas les résultats futurs_
+💡 *Comment ça marche ?*
+Le bot a simulé des achats/ventes automatiques basés sur notre algorithme technique (RSI, MACD, etc.) sur les 12 derniers mois.
+
+📌 _Commission: 0.1% | Slippage: 0.05%_
+⚠️ _Ces résultats sont une SIMULATION. Performances passées ≠ résultats futurs_
 """
 
         keyboard = [[InlineKeyboardButton("« Retour", callback_data=f"back_to_analysis_{ticker}")]]
@@ -11875,33 +11869,47 @@ async def back_to_analysis_callback(update: Update, context: ContextTypes.DEFAUL
     await query.answer("📊 Rechargement de l'analyse...")
 
     ticker = query.data.split("_")[3]
+    user_id = update.effective_user.id
     print(f"[BACK] Retour analyse pour {ticker}")
+
+    # Récupérer les préférences utilisateur
+    db = context.bot_data.get('db')
+    display_mode = 'detailed'  # Par défaut
+    if db:
+        try:
+            user_settings = db.get_user_settings(user_id)
+            if user_settings:
+                display_mode = user_settings.get('display_mode', 'detailed')
+        except:
+            pass
 
     # Refaire l'analyse
     result = analyze_stock(ticker)
 
     if result:
-        message = format_stock_message(result)
+        message = format_stock_message(result, display_mode=display_mode)
+        interval = "1d"  # Défaut
 
-        # Recréer les boutons complets
+        # Recréer les boutons avec disposition optimisée
         keyboard = [
+            # Row 1: Action principale + actualiser
             [
-                InlineKeyboardButton("🤖 Trading Companion", callback_data=f"companion_step1_{ticker}")
+                InlineKeyboardButton("📈 Graphique", callback_data=f"chart_{ticker}_{interval}"),
+                InlineKeyboardButton("🔄 Actualiser", callback_data=f"refresh_analysis_{ticker}_{interval}")
             ],
+            # Row 2: Analyses techniques
             [
-                InlineKeyboardButton("🧪 Backtest", callback_data=f"backtest_{ticker}"),
-                InlineKeyboardButton("🤖 Prédiction ML", callback_data=f"predict_{ticker}")
+                InlineKeyboardButton("🧪 Backtest 1 an", callback_data=f"backtest_{ticker}"),
+                InlineKeyboardButton("🔮 Prédiction ML", callback_data=f"predict_{ticker}")
             ],
+            # Row 3: Info & Trading
             [
-                InlineKeyboardButton("📈 Voir Graphique", callback_data=f"chart_inline_{ticker}"),
-                InlineKeyboardButton("📰 News", callback_data=f"news_inline_{ticker}")
+                InlineKeyboardButton("📰 News", callback_data=f"news_{ticker}"),
+                InlineKeyboardButton("🤖 Trading AI", callback_data=f"companion_step1_{ticker}")
             ],
+            # Row 4: Favoris
             [
-                InlineKeyboardButton("⭐ Ajouter aux Favoris", callback_data=f"fav_add_{ticker}"),
-                InlineKeyboardButton("🔄 Actualiser", callback_data=f"refresh_analysis_{ticker}_1d")
-            ],
-            [
-                InlineKeyboardButton("❌ Fermer", callback_data="delete_message")
+                InlineKeyboardButton("⭐ Ajouter aux Favoris", callback_data=f"fav_add_{ticker}")
             ]
         ]
 
