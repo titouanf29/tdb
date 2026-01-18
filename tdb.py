@@ -50,13 +50,58 @@ def get_cache_key():
     now = datetime.now()
     return now.replace(minute=(now.minute // 15) * 15, second=0, microsecond=0).timestamp()
 
+# ==================== NORMALISATION DES TICKERS ====================
+
+def normalize_crypto_ticker(ticker):
+    """
+    Normalise les tickers crypto pour Yahoo Finance
+    Convertit BTCUSD, SOLUSD, etc. en BTC-USD, SOL-USD
+    """
+    if not ticker:
+        return ticker
+
+    ticker_upper = ticker.upper()
+
+    # Liste des cryptos connues (symboles courts)
+    crypto_symbols = {
+        'BTC', 'ETH', 'BNB', 'SOL', 'XRP', 'ADA', 'AVAX',
+        'DOGE', 'DOT', 'LINK', 'ATOM', 'LTC', 'SHIB'
+    }
+
+    # Si le ticker se termine déjà par -USD, c'est bon
+    if ticker_upper.endswith('-USD'):
+        return ticker_upper
+
+    # Si le ticker se termine par USD sans tiret (ex: BTCUSD, SOLUSD)
+    if ticker_upper.endswith('USD') and len(ticker_upper) > 3:
+        # Extraire le symbole (tout sauf "USD")
+        symbol = ticker_upper[:-3]
+
+        # Vérifier si c'est un crypto connu
+        if symbol in crypto_symbols:
+            return f"{symbol}-USD"
+
+    # Si c'est juste le symbole (ex: BTC, SOL, ETH)
+    if ticker_upper in crypto_symbols:
+        return f"{ticker_upper}-USD"
+
+    # Sinon retourner tel quel
+    return ticker
+
+
+# ==================== RÉCUPÉRATION DONNÉES ====================
+
 def safe_fetch_yfinance(symbol, period='3mo', timeout=10, retries=3):
     """
     Récupère les données yfinance de manière sécurisée avec:
     - Timeout
     - Retries
     - Gestion d'erreurs
+    - Normalisation automatique des tickers crypto
     """
+    # Normaliser le ticker (convertir BTCUSD -> BTC-USD, etc.)
+    symbol = normalize_crypto_ticker(symbol)
+
     for attempt in range(retries):
         try:
             ticker = yf.Ticker(symbol)
@@ -6713,6 +6758,9 @@ def backtest_strategy(ticker, start_date=None, end_date=None, initial_capital=10
     Retourne: métriques de performance
     """
     try:
+        # Normaliser le ticker crypto
+        ticker = normalize_crypto_ticker(ticker)
+
         if end_date is None:
             end_date = datetime.now()
         if start_date is None:
@@ -6833,6 +6881,9 @@ def predict_ml(ticker):
     (Version simplifiée - peut être étendue avec sklearn)
     """
     try:
+        # Normaliser le ticker crypto
+        ticker = normalize_crypto_ticker(ticker)
+
         # Récupérer données
         data = safe_fetch_yfinance(ticker, period='6mo')
         if not validate_data(data):
@@ -6887,6 +6938,9 @@ def predict_ml(ticker):
 def analyze_stock(ticker, period="3mo", interval="1d"):
     """Analyse complète d'une action avec 15+ indicateurs avancés"""
     try:
+        # Normaliser le ticker crypto avant traitement
+        ticker = normalize_crypto_ticker(ticker)
+
         # Récupération sécurisée des données
         data = safe_fetch_yfinance(ticker, period=period)
 
