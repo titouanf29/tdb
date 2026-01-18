@@ -776,7 +776,7 @@ Le bot scanne automatiquement tous les marchés toutes les 15 minutes et vous al
 
 ⚙️ *Paramètres actuels*
 • Scan : Toutes les 15 min
-• Score minimum : 7/10
+• Score minimum : 8/15
 • Marchés : US, Europe, Asie, Crypto, Commodities
 
 🔔 Les alertes sont activées !
@@ -796,7 +796,7 @@ Le bot scanne automatiquement tous les marchés toutes les 15 minutes et vous al
 
 ⚙️ *Paramètres*
 • Scan : Toutes les 15 min
-• Score minimum : 7/10
+• Score minimum : 8/15
 • Actif sur tous les marchés
 """
     
@@ -918,7 +918,7 @@ def get_user_alert_settings(db, user_id):
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS alert_settings (
                 user_id INTEGER PRIMARY KEY,
-                min_score INTEGER DEFAULT 7,
+                min_score INTEGER DEFAULT 8,
                 markets TEXT DEFAULT 'us,europe,asia,crypto,commodities',
                 scan_interval INTEGER DEFAULT 900,
                 max_alerts INTEGER DEFAULT 5,
@@ -944,7 +944,7 @@ def get_user_alert_settings(db, user_id):
         else:
             # Paramètres par défaut
             return {
-                'min_score': 7,
+                'min_score': 8,
                 'markets': ['us', 'europe', 'asia', 'crypto', 'commodities'],
                 'scan_interval': 900,
                 'max_alerts': 5
@@ -952,7 +952,7 @@ def get_user_alert_settings(db, user_id):
     except Exception as e:
         print(f"[SETTINGS] Erreur lecture: {e}")
         return {
-            'min_score': 7,
+            'min_score': 8,
             'markets': ['us', 'europe', 'asia', 'crypto', 'commodities'],
             'scan_interval': 900,
             'max_alerts': 5
@@ -1058,7 +1058,7 @@ Le score minimum détermine la qualité des opportunités qui déclencheront une
 → Plusieurs alertes par jour
 → Qualité correcte
 
-🔥 *Score 9-10* : Opportunités exceptionnelles
+🔥 *Score 13-15* : Opportunités exceptionnelles
 → Peu d'alertes (1-2 par jour)
 → Très haute qualité
 
@@ -1241,7 +1241,7 @@ async def set_score_handler(update, context, user_id):
         session['data']['min_score'] = score
     SETTINGS_SESSIONS[user_id] = session
     
-    await query.answer(f"✅ Score minimum : {score}/10 - Sauvegardé")
+    await query.answer(f"✅ Score minimum : {score}/15 - Sauvegardé")
     
     # Retour au menu paramètres
     await alert_settings_start(update, context, user_id, context.bot, db)
@@ -1481,7 +1481,7 @@ Bonjour ! Je suis votre assistant de trading personnel.
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 {direction_emoji} *Direction* : {direction}
-⭐ *Score* : {score}/10
+⭐ *Score* : {score}/15
 🎯 *Signal* : {signal}
 💰 *Prix actuel* : {price:.2f} EUR
 
@@ -1601,7 +1601,7 @@ Votre capital disponible : *{balance:,.2f} EUR*
 
 🤖 *Ma recommandation* : {recommended_amount:,.2f} EUR ({recommended_pct}%)
 
-Avec un score de *{score}/10*, ma confiance dans ce trade est *{confidence}*.
+Avec un score de *{score}/15*, ma confiance dans ce trade est *{confidence}*.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -2022,7 +2022,7 @@ async def companion_execute(update, context, ticker, user_id, bot, db):
 📊 Position #{position_id} créée
 
 🎯 *{ticker}* - {direction}
-⭐ Score : {score}/10
+⭐ Score : {score}/15
 🏷️ Stratégie : {strategy}
 
 💰 Montant : {amount:,.2f} EUR
@@ -2669,7 +2669,7 @@ async def scan_asia_with_perf(update, context, user_id, bot, db):
         message += f"{{emoji}} *{{result['info']['country']}} {{result['ticker']}}* - {{result['info']['name']}}\n"
         message += f"💹 Prix: {{result['price']:.2f}} USD\n"
         message += format_performance_line(result['performances']) + "\n"
-        message += f"⭐ Score: {score}/10 - {signal}\n"
+        message += f"⭐ Score: {score}/15 - {signal}\n"
         message += f"📈 RSI: {result['rsi']:.1f}\n"
         message += f"💬 `/analyze {result['ticker']}` pour détails\n"
         message += "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
@@ -2777,7 +2777,7 @@ async def scan_europe_with_perf(update, context, user_id, bot, db):
         message += f"📂 Secteur: {{result['info']['sector']}}\n"
         message += f"💹 Prix: {{result['price']:.2f}} {{'€' if '.PA' in result['ticker'] else 'USD'}}\n"
         message += format_performance_line(result['performances']) + "\n"
-        message += f"⭐ Score: {score}/10 - {signal}\n"
+        message += f"⭐ Score: {score}/15 - {signal}\n"
         message += f"📈 RSI: {result['rsi']:.1f}\n"
         message += f"💬 `/analyze {result['ticker']}` pour détails\n"
         message += "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
@@ -2885,7 +2885,7 @@ async def scan_commodities_with_perf(update, context, user_id, bot, db):
         message += f"📂 Type: {{result['info']['type']}}\n"
         message += f"💹 Prix: {{result['price']:.2f}} USD\n"
         message += format_performance_line(result['performances']) + "\n"
-        message += f"⭐ Score: {score}/10 - {signal}\n"
+        message += f"⭐ Score: {score}/15 - {signal}\n"
         message += f"📈 RSI: {result['rsi']:.1f}\n"
         message += f"💬 `/analyze {result['ticker']}` pour détails\n"
         message += "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
@@ -2993,7 +2993,7 @@ async def scan_crypto_with_perf(update, context, user_id, bot, db):
         message += f"{{emoji}} *{{result['info']['icon']}} {{result['info']['name']}}* (#{{result['info']['rank']}})\n"
         message += f"💹 Prix: {{price_str}}\n"
         message += format_performance_line(result['performances']) + "\n"
-        message += f"⭐ Score: {score}/10 - {signal}\n"
+        message += f"⭐ Score: {score}/15 - {signal}\n"
         message += f"📈 RSI: {result['rsi']:.1f}\n"
         message += f"💬 `/analyze {result['ticker']}` pour détails\n"
         message += "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
@@ -3181,7 +3181,7 @@ async def scan_commodities_handler(update, context, user_id, bot, db):
         message += f"📂 Type: {result['type']}\n"
         message += f"💹 Prix: {result['price']:.2f} USD\n"
         message += f"📊 Performance 3M: {result['change']:+.2f}%\n"
-        message += f"⭐ Score: {score}/10 - {signal}\n"
+        message += f"⭐ Score: {score}/15 - {signal}\n"
         message += f"📈 RSI: {result['rsi']:.1f} | Volatilité: {result['volatility']:.2f}%\n"
         message += "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
         
@@ -3802,7 +3802,7 @@ def format_card_top3(result, rank, score):
     
     msg = "┏━━━━━━━━━━━━━━━━━━━━━━━━━━┓\n"
     msg += f"┃ {medal} *{result['ticker']}* • {name}\n"
-    msg += f"┃ {currency}{result['price']:.2f} • {stars} {score}/10\n"
+    msg += f"┃ {currency}{result['price']:.2f} • {stars} {score}/15\n"
     msg += f"┃\n"
     msg += f"┃ 📊 1M: {perf_1m:+.1f}% • 3M: {perf_3m:+.1f}%\n"
     msg += f"┃ 💬 {ticker_cmd}\n"
@@ -3823,7 +3823,7 @@ def format_line_compact(result, rank, score):
     perf_1m = result['performances'].get('1m', 0)
     perf_emoji = get_performance_emoji(perf_1m)
     
-    msg = f"{medal} *{name}* • {currency}{result['price']:.2f} • {perf_emoji}{perf_1m:+.1f}% • {stars} {score}/10 • {ticker_cmd}\n"
+    msg = f"{medal} *{name}* • {currency}{result['price']:.2f} • {perf_emoji}{perf_1m:+.1f}% • {stars} {score}/15 • {ticker_cmd}\n"
     
     return msg
 
@@ -3879,7 +3879,7 @@ def format_us_result_no_cmd(result, emoji, signal, score):
     msg += f"📂 Secteur: {result['info']['sector']}\n"
     msg += f"💹 Prix: ${result['price']:.2f}\n"
     msg += format_performance_line(result['performances']) + "\n"
-    msg += f"⭐ Score: {score}/10 - {signal}\n"
+    msg += f"⭐ Score: {score}/15 - {signal}\n"
     msg += f"📈 RSI: {result['rsi']:.1f}\n"
     return msg
 
@@ -3888,7 +3888,7 @@ def format_asia_result_no_cmd(result, emoji, signal, score):
     msg = f"{emoji} *{result['info']['country']} {result['ticker']}* - {result['info']['name']}\n"
     msg += f"💹 Prix: ${result['price']:.2f}\n"
     msg += format_performance_line(result['performances']) + "\n"
-    msg += f"⭐ Score: {score}/10 - {signal}\n"
+    msg += f"⭐ Score: {score}/15 - {signal}\n"
     msg += f"📈 RSI: {result['rsi']:.1f}\n"
     return msg
 
@@ -3899,7 +3899,7 @@ def format_europe_result_no_cmd(result, emoji, signal, score):
     msg += f"📂 Secteur: {result['info']['sector']}\n"
     msg += f"💹 Prix: {result['price']:.2f} {currency}\n"
     msg += format_performance_line(result['performances']) + "\n"
-    msg += f"⭐ Score: {score}/10 - {signal}\n"
+    msg += f"⭐ Score: {score}/15 - {signal}\n"
     msg += f"📈 RSI: {result['rsi']:.1f}\n"
     return msg
 
@@ -3909,7 +3909,7 @@ def format_commodities_result_no_cmd(result, emoji, signal, score):
     msg += f"📂 Type: {result['info']['type']}\n"
     msg += f"💹 Prix: ${result['price']:.2f}\n"
     msg += format_performance_line(result['performances']) + "\n"
-    msg += f"⭐ Score: {score}/10 - {signal}\n"
+    msg += f"⭐ Score: {score}/15 - {signal}\n"
     msg += f"📈 RSI: {result['rsi']:.1f}\n"
     return msg
 
@@ -5895,22 +5895,22 @@ def generate_advanced_signal(indicators):
     confidence_bonus = sum(confidence_factors)
     confidence = min(95, max(20, base_confidence + confidence_bonus))
 
-    # Générer le signal textuel
-    if score >= 10:
+    # Générer le signal textuel (seuils optimisés pour échelle -15/+15)
+    if score >= 12:        # 80% du maximum
         signal = "🚀 ACHAT TRÈS FORT"
-    elif score >= 7:
+    elif score >= 8:       # 53% du maximum
         signal = "🟢 ACHAT FORT"
-    elif score >= 4:
+    elif score >= 5:       # 33% du maximum
         signal = "🟡 ACHAT MODÉRÉ"
-    elif score >= 1:
+    elif score >= 2:       # 13% du maximum
         signal = "⚪ ACHAT FAIBLE"
-    elif score <= -10:
+    elif score <= -12:     # -80% du maximum
         signal = "💥 VENTE TRÈS FORTE"
-    elif score <= -7:
+    elif score <= -8:      # -53% du maximum
         signal = "🔴 VENTE FORTE"
-    elif score <= -4:
+    elif score <= -5:      # -33% du maximum
         signal = "🟠 VENTE MODÉRÉE"
-    elif score <= -1:
+    elif score <= -2:      # -13% du maximum
         signal = "⚪ VENTE FAIBLE"
     else:
         signal = "⚪ NEUTRE"
@@ -6040,19 +6040,19 @@ def ai_complete_analysis(ticker, data, analysis):
         current_price = analysis['price']
         df = data.tail(100)
         
-        # 1. SUPPORT ET RÉSISTANCE (calculs corrects)
-        recent_highs = df['High'].tail(20)
-        recent_lows = df['Low'].tail(20)
-        
-        # Résistances au-dessus du prix
-        resistance_levels = recent_highs[recent_highs > current_price]
-        resistance_1 = resistance_levels.quantile(0.25) if len(resistance_levels) > 0 else current_price * 1.03
-        resistance_2 = resistance_levels.max() if len(resistance_levels) > 0 else current_price * 1.05
-        
-        # Supports en-dessous du prix
-        support_levels = recent_lows[recent_lows < current_price]
-        support_1 = support_levels.quantile(0.75) if len(support_levels) > 0 else current_price * 0.97
-        support_2 = support_levels.min() if len(support_levels) > 0 else current_price * 0.95
+        # 1. SUPPORT ET RÉSISTANCE (calcul avancé avec pivots et fractales)
+        sr_levels = calculate_advanced_support_resistance(data)
+
+        # Utiliser les supports/résistances avancés
+        supports = sr_levels.get('supports', [])
+        resistances = sr_levels.get('resistances', [])
+
+        # Prendre les 2 premiers niveaux de support et résistance
+        support_1 = supports[0] if len(supports) > 0 else current_price * 0.97
+        support_2 = supports[1] if len(supports) > 1 else current_price * 0.95
+
+        resistance_1 = resistances[0] if len(resistances) > 0 else current_price * 1.03
+        resistance_2 = resistances[1] if len(resistances) > 1 else current_price * 1.05
         
         # 2. PRIX CIBLES INTELLIGENTS
         score = analysis['score']
@@ -6240,212 +6240,6 @@ def ai_complete_analysis(ticker, data, analysis):
         traceback.print_exc()
         return None
 
-
-def ai_complete_analysis(ticker, data, analysis):
-    """Analyse IA complète avec opportunités, prix cibles et recommandations"""
-    try:
-        current_price = analysis['price']
-        df = data.tail(100)
-        
-        # 1. SUPPORT ET RÉSISTANCE (calculs corrects)
-        recent_highs = df['High'].tail(20)
-        recent_lows = df['Low'].tail(20)
-        
-        # Résistances au-dessus du prix
-        resistance_levels = recent_highs[recent_highs > current_price]
-        resistance_1 = resistance_levels.quantile(0.25) if len(resistance_levels) > 0 else current_price * 1.03
-        resistance_2 = resistance_levels.max() if len(resistance_levels) > 0 else current_price * 1.05
-        
-        # Supports en-dessous du prix
-        support_levels = recent_lows[recent_lows < current_price]
-        support_1 = support_levels.quantile(0.75) if len(support_levels) > 0 else current_price * 0.97
-        support_2 = support_levels.min() if len(support_levels) > 0 else current_price * 0.95
-        
-        # 2. PRIX CIBLES INTELLIGENTS
-        score = analysis['score']
-        
-        if score > 0:  # SIGNAL ACHAT
-            # Targets progressifs vers le haut
-            tp1 = current_price * 1.03  # +3%
-            # Si résistance existe et est au-dessus, l'utiliser, sinon +5%
-            if resistance_1 > current_price * 1.04:
-                tp2 = resistance_1
-            else:
-                tp2 = current_price * 1.05
-            
-            if resistance_2 > current_price * 1.06:
-                tp3 = resistance_2
-            else:
-                tp3 = current_price * 1.08
-            
-            # Stop loss: support si en-dessous, sinon -3%
-            if support_1 < current_price * 0.98:
-                sl = support_1
-            else:
-                sl = current_price * 0.97
-            direction = "LONG"
-            
-        else:  # SIGNAL VENTE
-            # Targets progressifs vers le bas
-            tp1 = current_price * 0.97  # -3%
-            
-            # Si support existe et est en-dessous, l'utiliser
-            if support_1 < current_price * 0.96:
-                tp2 = support_1
-            else:
-                tp2 = current_price * 0.95
-            
-            if support_2 < current_price * 0.94:
-                tp3 = support_2
-            else:
-                tp3 = current_price * 0.92
-            
-            # Stop loss: résistance si au-dessus, sinon +3%
-            if resistance_1 > current_price * 1.02:
-                sl = resistance_1
-            else:
-                sl = current_price * 1.03
-            direction = "SHORT"
-        
-        # 3. PATTERNS CHANDELIERS
-        patterns = []
-        if len(df) >= 2:
-            last = df.iloc[-1]
-            prev = df.iloc[-2]
-            
-            body = abs(last['Close'] - last['Open'])
-            range_candle = last['High'] - last['Low']
-            
-            # Doji
-            if range_candle > 0 and body < range_candle * 0.1:
-                patterns.append("🕯️ Doji - Indécision")
-            
-            # Hammer (corps petit, longue mèche basse)
-            if last['Close'] > last['Open']:  # Bougie verte
-                lower_shadow = last['Open'] - last['Low']
-                if lower_shadow > body * 2:
-                    patterns.append("🔨 Hammer - Signal haussier")
-            
-            # Engulfing
-            if last['Close'] > last['Open'] and prev['Close'] < prev['Open']:
-                if last['Open'] <= prev['Close'] and last['Close'] >= prev['Open']:
-                    patterns.append("🟢 Engulfing haussier - Fort achat")
-            elif last['Close'] < last['Open'] and prev['Close'] > prev['Open']:
-                if last['Open'] >= prev['Close'] and last['Close'] <= prev['Open']:
-                    patterns.append("🔴 Engulfing baissier - Fort vente")
-        
-        # 4. PROBABILITÉ DE SUCCÈS
-        prob_score = 50
-        probability_factors = []
-        
-        score_abs = abs(score)
-        if score_abs >= 5:
-            prob_score += 20
-            probability_factors.append("Signal très fort")
-        elif score_abs >= 3:
-            prob_score += 15
-            probability_factors.append("Signal fort")
-        elif score_abs >= 1:
-            prob_score += 5
-            probability_factors.append("Signal modéré")
-        
-        vol_ratio = analysis.get('volume_ratio', 1)
-        if vol_ratio > 1.5:
-            prob_score += 10
-            probability_factors.append("Volume très élevé")
-        elif vol_ratio > 1.2:
-            prob_score += 5
-            probability_factors.append("Volume confirmant")
-        
-        if len(patterns) > 0:
-            prob_score += 5
-            probability_factors.append("Pattern favorable")
-        
-        # RSI extrême
-        rsi = analysis.get('rsi', 50)
-        if (score > 0 and rsi < 30) or (score < 0 and rsi > 70):
-            prob_score += 10
-            probability_factors.append("RSI extrême favorable")
-        
-        prob_score = min(prob_score, 85)
-        
-        # 5. HORIZON TEMPOREL
-        volatility = analysis.get('volatility', 2)
-        if volatility > 3:
-            horizon = "Court terme (1-5 jours)"
-            horizon_reason = "Forte volatilité - Mouvement rapide"
-        elif volatility > 1.5:
-            horizon = "Moyen terme (1-3 semaines)"
-            horizon_reason = "Volatilité modérée - Mouvement progressif"
-        else:
-            horizon = "Long terme (1-3 mois)"
-            horizon_reason = "Faible volatilité - Mouvement lent"
-        
-        # 6. POINT D'ENTRÉE OPTIMAL
-        if score > 0:  # ACHAT
-            dist_support = ((current_price - support_1) / support_1) * 100
-            if dist_support < 1:
-                entry_point = "🎯 EXCELLENT - Sur le support"
-                entry_price = current_price
-            elif dist_support < 3:
-                entry_point = "✅ BON - Proche du support"
-                entry_price = support_1 * 1.01
-            else:
-                entry_point = "⚠️ ATTENDRE - Trop loin du support"
-                entry_price = support_1 * 1.02
-        else:  # VENTE
-            dist_resistance = ((resistance_1 - current_price) / current_price) * 100
-            if dist_resistance < 1:
-                entry_point = "🎯 EXCELLENT - Sur la résistance"
-                entry_price = current_price
-            elif dist_resistance < 3:
-                entry_point = "✅ BON - Proche de la résistance"
-                entry_price = resistance_1 * 0.99
-            else:
-                entry_point = "⚠️ ATTENDRE - Trop loin de la résistance"
-                entry_price = resistance_1 * 0.98
-        
-        # 7. RATIO RISQUE/RÉCOMPENSE
-        potential_gain = abs(tp2 - current_price)
-        potential_loss = abs(current_price - sl)
-        risk_reward = potential_gain / potential_loss if potential_loss > 0 else 0
-        
-        if risk_reward > 2.5:
-            rr_assessment = "Excellent"
-        elif risk_reward > 2:
-            rr_assessment = "Très bon"
-        elif risk_reward > 1.5:
-            rr_assessment = "Bon"
-        elif risk_reward > 1:
-            rr_assessment = "Acceptable"
-        else:
-            rr_assessment = "Défavorable"
-        
-        return {
-            'support_1': support_1,
-            'support_2': support_2,
-            'resistance_1': resistance_1,
-            'resistance_2': resistance_2,
-            'tp1': tp1,
-            'tp2': tp2,
-            'tp3': tp3,
-            'stop_loss': sl,
-            'direction': direction,
-            'patterns': patterns,
-            'probability': prob_score,
-            'probability_factors': probability_factors,
-            'horizon': horizon,
-            'horizon_reason': horizon_reason,
-            'entry_point': entry_point,
-            'entry_price': entry_price,
-            'risk_reward': risk_reward,
-            'rr_assessment': rr_assessment
-        }
-    except Exception as e:
-        print(f"Erreur analyse IA: {e}")
-        import traceback
-        traceback.print_exc()
-        return None
 
 
 
@@ -6752,10 +6546,11 @@ def get_stock_news_OLD(ticker, limit=5):
 
 # ==================== BACKTESTING & MACHINE LEARNING ====================
 
-def backtest_strategy(ticker, start_date=None, end_date=None, initial_capital=10000):
+def backtest_strategy(ticker, start_date=None, end_date=None, initial_capital=10000, commission=0.001, slippage=0.0005):
     """
-    Backteste la stratégie sur période historique
-    Retourne: métriques de performance
+    Backteste la stratégie sur période historique avec LONG & SHORT
+    Inclut: commission, slippage, max drawdown, Sharpe ratio
+    Retourne: métriques de performance complètes
     """
     try:
         # Normaliser le ticker crypto
@@ -6772,22 +6567,23 @@ def backtest_strategy(ticker, start_date=None, end_date=None, initial_capital=10
             return None
 
         # Filtrer par dates (gérer timezone)
-        # Convertir les dates pour matcher le timezone des données
         if data.index.tz is not None:
-            # Les données ont un timezone, convertir start_date et end_date
             start_ts = pd.Timestamp(start_date).tz_localize(data.index.tz)
             end_ts = pd.Timestamp(end_date).tz_localize(data.index.tz)
         else:
-            # Pas de timezone
             start_ts = pd.Timestamp(start_date)
             end_ts = pd.Timestamp(end_date)
 
         data = data[(data.index >= start_ts) & (data.index <= end_ts)]
 
         capital = initial_capital
-        position = None  # None, 'LONG'
+        max_capital = initial_capital
+        max_drawdown = 0
+        position = None  # None, 'LONG', 'SHORT'
         entry_price = 0
+        shares = 0
         trades = []
+        equity_curve = []
 
         # Simuler jour par jour
         for i in range(100, len(data)):
@@ -6800,11 +6596,14 @@ def backtest_strategy(ticker, start_date=None, end_date=None, initial_capital=10
 
             # Gestion des positions
             if position is None:
-                # Chercher une entrée
-                if score >= 7 and confidence >= 70:
-                    # ACHAT
+                # Chercher une entrée LONG ou SHORT
+                if score >= 8 and confidence >= 70:
+                    # ACHAT (LONG)
                     position = 'LONG'
-                    entry_price = current_price
+                    entry_price = current_price * (1 + slippage)  # Slippage à l'achat
+                    shares = (capital * 0.95) / entry_price  # Utiliser 95% du capital
+                    commission_paid = entry_price * shares * commission
+                    capital -= commission_paid
 
                     # Calculer TP et SL
                     sr_levels = calculate_advanced_support_resistance(current_data)
@@ -6814,12 +6613,43 @@ def backtest_strategy(ticker, start_date=None, end_date=None, initial_capital=10
                     sl = targets['sl']
 
                     trades.append({
+                        'type': 'LONG',
                         'entry_date': current_data.index[-1],
                         'entry_price': entry_price,
+                        'shares': shares,
                         'tp': tp,
                         'sl': sl,
                         'signal': signal,
-                        'score': score
+                        'score': score,
+                        'commission_entry': commission_paid
+                    })
+
+                elif score <= -8 and confidence >= 70:
+                    # VENTE (SHORT)
+                    position = 'SHORT'
+                    entry_price = current_price * (1 - slippage)  # Slippage à la vente
+                    shares = (capital * 0.95) / entry_price
+                    commission_paid = entry_price * shares * commission
+                    capital -= commission_paid
+
+                    # Calculer TP et SL inversés pour SHORT
+                    sr_levels = calculate_advanced_support_resistance(current_data)
+                    targets = calculate_smart_targets(current_data, score, sr_levels)
+
+                    # Pour SHORT: TP en bas, SL en haut
+                    tp = targets['sl']  # Le support devient TP
+                    sl = targets['tp2']  # La résistance devient SL
+
+                    trades.append({
+                        'type': 'SHORT',
+                        'entry_date': current_data.index[-1],
+                        'entry_price': entry_price,
+                        'shares': shares,
+                        'tp': tp,
+                        'sl': sl,
+                        'signal': signal,
+                        'score': score,
+                        'commission_entry': commission_paid
                     })
 
             else:
@@ -6829,22 +6659,54 @@ def backtest_strategy(ticker, start_date=None, end_date=None, initial_capital=10
                     sl = trades[-1]['sl']
 
                     if current_price >= tp or current_price <= sl:
-                        # Sortie
-                        exit_price = current_price
-                        pnl = exit_price - entry_price
-                        pnl_percent = (pnl / entry_price) * 100
+                        # Sortie LONG
+                        exit_price = current_price * (1 - slippage)  # Slippage à la sortie
+                        commission_paid = exit_price * shares * commission
+                        pnl = (exit_price - entry_price) * shares - commission_paid - trades[-1]['commission_entry']
+                        pnl_percent = (pnl / (entry_price * shares)) * 100
 
-                        capital += (capital * pnl_percent / 100)
+                        capital += (entry_price * shares) + pnl
 
                         trades[-1].update({
                             'exit_date': current_data.index[-1],
                             'exit_price': exit_price,
+                            'commission_exit': commission_paid,
                             'pnl': pnl,
                             'pnl_percent': pnl_percent,
                             'hit_tp': current_price >= tp
                         })
 
                         position = None
+
+                elif position == 'SHORT':
+                    tp = trades[-1]['tp']
+                    sl = trades[-1]['sl']
+
+                    if current_price <= tp or current_price >= sl:
+                        # Sortie SHORT
+                        exit_price = current_price * (1 + slippage)  # Slippage à la sortie
+                        commission_paid = exit_price * shares * commission
+                        pnl = (entry_price - exit_price) * shares - commission_paid - trades[-1]['commission_entry']
+                        pnl_percent = (pnl / (entry_price * shares)) * 100
+
+                        capital += (entry_price * shares) + pnl
+
+                        trades[-1].update({
+                            'exit_date': current_data.index[-1],
+                            'exit_price': exit_price,
+                            'commission_exit': commission_paid,
+                            'pnl': pnl,
+                            'pnl_percent': pnl_percent,
+                            'hit_tp': current_price <= tp
+                        })
+
+                        position = None
+
+            # Suivre l'équité et le drawdown
+            max_capital = max(max_capital, capital)
+            drawdown = (max_capital - capital) / max_capital * 100
+            max_drawdown = max(max_drawdown, drawdown)
+            equity_curve.append(capital)
 
         # Analyser résultats
         closed_trades = [t for t in trades if 'exit_price' in t]
@@ -6854,9 +6716,14 @@ def backtest_strategy(ticker, start_date=None, end_date=None, initial_capital=10
 
         total_trades = len(closed_trades)
         winning_trades = len([t for t in closed_trades if t['pnl'] > 0])
+        losing_trades = total_trades - winning_trades
         win_rate = (winning_trades / total_trades) * 100 if total_trades > 0 else 0
 
         total_return = ((capital - initial_capital) / initial_capital) * 100
+
+        # Calcul Sharpe Ratio
+        returns = pd.Series(equity_curve).pct_change().dropna()
+        sharpe_ratio = (returns.mean() / returns.std()) * np.sqrt(252) if returns.std() > 0 else 0
 
         return {
             'ticker': ticker,
@@ -6866,8 +6733,12 @@ def backtest_strategy(ticker, start_date=None, end_date=None, initial_capital=10
             'total_return': round(total_return, 2),
             'total_trades': total_trades,
             'winning_trades': winning_trades,
-            'losing_trades': total_trades - winning_trades,
+            'losing_trades': losing_trades,
             'win_rate': round(win_rate, 2),
+            'max_drawdown': round(max_drawdown, 2),
+            'sharpe_ratio': round(sharpe_ratio, 2),
+            'long_trades': len([t for t in closed_trades if t['type'] == 'LONG']),
+            'short_trades': len([t for t in closed_trades if t['type'] == 'SHORT']),
             'trades': closed_trades
         }
 
@@ -6945,7 +6816,11 @@ def analyze_stock(ticker, period="3mo", interval="1d"):
         data = safe_fetch_yfinance(ticker, period=period)
 
         if not validate_data(data):
-            return None
+            return {
+                'error': 'no_data',
+                'ticker': ticker,
+                'message': f"Aucune donnée disponible pour {ticker}. Vérifiez que le ticker est correct."
+            }
 
         # Calcul de TOUS les indicateurs (basiques + avancés)
         indicators = calculate_all_indicators(data)
@@ -7051,59 +6926,80 @@ def analyze_stock(ticker, period="3mo", interval="1d"):
 
     except Exception as e:
         error_msg = str(e)
-        if "delisted" in error_msg.lower():
+        error_lower = error_msg.lower()
+
+        # Erreurs spécifiques avec messages clairs
+        if "delisted" in error_lower or "possibly delisted" in error_lower:
             print(f"⚠️ {ticker}: Action possiblement délistée")
-        elif "no data found" in error_msg.lower():
+            return {
+                'error': 'ticker_delisted',
+                'ticker': ticker,
+                'message': f"{ticker} est délisté ou n'existe pas sur les marchés."
+            }
+        elif "no data found" in error_lower or "no price data" in error_lower:
             print(f"⚠️ {ticker}: Aucune donnée disponible")
+            return {
+                'error': 'no_data',
+                'ticker': ticker,
+                'message': f"Aucune donnée disponible pour {ticker}. Ticker invalide ou marché fermé."
+            }
+        elif "timed out" in error_lower or "timeout" in error_lower:
+            print(f"⏱️ {ticker}: Timeout")
+            return {
+                'error': 'timeout',
+                'ticker': ticker,
+                'message': f"Délai dépassé pour {ticker}. Réessayez dans quelques secondes."
+            }
+        elif "connection" in error_lower or "network" in error_lower:
+            print(f"🌐 {ticker}: Erreur réseau")
+            return {
+                'error': 'network_error',
+                'ticker': ticker,
+                'message': f"Erreur de connexion lors de l'analyse de {ticker}. Vérifiez votre connexion internet."
+            }
         else:
-            print(f"❌ Erreur analyse {ticker}: {error_msg}")
-        return None
+            print(f"❌ Erreur analyse {ticker}: {error_msg[:100]}")
+            return {
+                'error': 'unknown',
+                'ticker': ticker,
+                'message': f"Erreur lors de l'analyse de {ticker}: {error_msg[:80]}"
+            }
 
 def scan_market(watchlist_dict, min_score=2, log_progress=False):
-    """Scanne tous les marchés et retourne les meilleures opportunités"""
+    """Scanne tous les marchés en PARALLÈLE et retourne les meilleures opportunités (10x plus rapide)"""
     all_results = []
     total_tickers = sum(len(tickers) for tickers in watchlist_dict.values())
-    scanned = 0
-    errors = []
-    
+
     for market, tickers in watchlist_dict.items():
         market_display = {
             "CAC40": "🇫🇷 CAC 40",
             "DAX": "🇩🇪 DAX",
             "US_TECH": "🇺🇸 Tech US",
-            "US_BLUE_CHIPS": "🇺🇸 Blue Chips US"
+            "US_BLUE_CHIPS": "🇺🇸 Blue Chips US",
+            "CRYPTO": "🪙 Crypto",
+            "ASIA": "🌏 Asie"
         }.get(market, market)
-        
+
         print(f"Scan du marché: {market}...")
-        
+
         if log_progress:
             # Envoyer un log asynchrone
             asyncio.create_task(log_to_channel(f"Démarrage scan {market_display} ({len(tickers)} actions)", "🔍"))
-        
-        market_results = 0
-        for ticker in tickers:
-            result = analyze_stock(ticker)
-            if result and abs(result['score']) >= min_score:
-                result['market'] = market
-                all_results.append(result)
-                market_results += 1
-            elif result is None:
-                errors.append(ticker)
-            
-            scanned += 1
-            time.sleep(0.5)  # Limite pour ne pas surcharger l'API
-        
+
+        # Utiliser scan_market_parallel pour performance 10x
+        market_results = scan_market_parallel(tickers, min_score=min_score)
+
+        # Ajouter le nom du marché à chaque résultat
+        for result in market_results:
+            result['market'] = market
+            all_results.append(result)
+
         if log_progress:
             asyncio.create_task(log_to_channel(
-                f"✅ {market_display} terminé : {market_results} opportunité(s) trouvée(s)",
+                f"✅ {market_display} terminé : {len(market_results)} opportunité(s) trouvée(s)",
                 "📊"
             ))
-    
-    # Log final
-    if log_progress and errors:
-        error_summary = f"⚠️ {len(errors)} action(s) ignorée(s) (données manquantes)"
-        asyncio.create_task(log_to_channel(error_summary, "⚠️"))
-    
+
     # Trier par score absolu (opportunités les plus fortes)
     all_results.sort(key=lambda x: abs(x['score']), reverse=True)
     return all_results
@@ -7969,12 +7865,25 @@ async def analyze_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(f"📊 *{user_name}*, j'analyse {ticker} en {timeframe_display[timeframe]}...", parse_mode='Markdown')
     
     result = analyze_stock(ticker, period=period, interval=interval)
-    
+
+    # Gérer les erreurs spécifiques
+    if result and 'error' in result:
+        error_messages = {
+            'ticker_delisted': f"❌ {ticker} est délisté ou n'existe pas sur les marchés.",
+            'no_data': f"❌ Aucune donnée disponible pour {ticker}.\n💡 Vérifiez que le ticker est correct.",
+            'timeout': f"⏱️ Délai dépassé pour {ticker}.\n🔄 Réessayez dans quelques secondes.",
+            'network_error': f"🌐 Erreur de connexion lors de l'analyse de {ticker}.\n💡 Vérifiez votre connexion internet.",
+            'unknown': result.get('message', f"❌ Erreur lors de l'analyse de {ticker}")
+        }
+        error_msg = error_messages.get(result['error'], result.get('message', f"❌ Impossible d'analyser {ticker}"))
+        await update.message.reply_text(error_msg, parse_mode='Markdown')
+        return
+
     if result:
         message = format_stock_message(result)
         # Ajouter l'info du timeframe
         message = message.replace("━━━━━━━━━━━━━━━━━━━━", f"⏰ Timeframe: {timeframe_display[timeframe]}\n━━━━━━━━━━━━━━━━━━━━")
-        
+
         # Créer les boutons d'action
         keyboard = [
             [
@@ -7996,13 +7905,13 @@ async def analyze_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 InlineKeyboardButton("❌ Fermer", callback_data="delete_message")
             ]
         ]
-        
+
         await update.message.reply_text(
-            message, 
+            message,
             parse_mode='Markdown',
             reply_markup=InlineKeyboardMarkup(keyboard)
         )
-        
+
         # Enregistrer le signal dans l'historique
 
     else:
@@ -8040,12 +7949,17 @@ async def backtest_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 💰 Capital initial: ${result['initial_capital']:,.0f}
 💵 Capital final: ${result['final_capital']:,.2f}
 📈 Rendement total: {result['total_return']:+.2f}%
+📉 Max drawdown: {result['max_drawdown']:.2f}%
+⚡ Sharpe ratio: {result['sharpe_ratio']:.2f}
 
 ━━━━━━━━━━━━━━━━━━━━
 📊 *STATISTIQUES*
 ━━━━━━━━━━━━━━━━━━━━
 
 📊 Total trades: {result['total_trades']}
+   • 🟢 LONG: {result['long_trades']}
+   • 🔴 SHORT: {result['short_trades']}
+
 ✅ Trades gagnants: {result['winning_trades']}
 ❌ Trades perdants: {result['losing_trades']}
 🎯 Win rate: {result['win_rate']:.1f}%
@@ -8056,7 +7970,7 @@ async def backtest_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 {result['period']}
 
-💡 _Backtesting sur données historiques_
+💡 _Backtest avec commission (0.1%) et slippage (0.05%)_
 ⚠️ _Performances passées ne garantissent pas les résultats futurs_
 """
 
@@ -10822,7 +10736,7 @@ Utilise les boutons ci-dessous pour gérer tes paramètres.
 
 {direction_emoji} **Direction**: {direction}
 📊 **Signal**: {signal}
-⭐ **Score**: {score}/10
+⭐ **Score**: {score}/15
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -11185,12 +11099,17 @@ async def backtest_inline_callback(update: Update, context: ContextTypes.DEFAULT
 💰 Capital initial: ${result['initial_capital']:,.0f}
 💵 Capital final: ${result['final_capital']:,.2f}
 📈 Rendement total: {result['total_return']:+.2f}%
+📉 Max drawdown: {result['max_drawdown']:.2f}%
+⚡ Sharpe ratio: {result['sharpe_ratio']:.2f}
 
 ━━━━━━━━━━━━━━━━━━━━
 📊 *STATISTIQUES*
 ━━━━━━━━━━━━━━━━━━━━
 
 📊 Total trades: {result['total_trades']}
+   • 🟢 LONG: {result['long_trades']}
+   • 🔴 SHORT: {result['short_trades']}
+
 ✅ Trades gagnants: {result['winning_trades']}
 ❌ Trades perdants: {result['losing_trades']}
 🎯 Win rate: {result['win_rate']:.1f}%
@@ -11201,7 +11120,7 @@ async def backtest_inline_callback(update: Update, context: ContextTypes.DEFAULT
 
 {result['period']}
 
-💡 _Backtesting sur données historiques_
+💡 _Backtest avec commission (0.1%) et slippage (0.05%)_
 ⚠️ _Performances passées ne garantissent pas les résultats futurs_
 """
 
@@ -12571,7 +12490,7 @@ Laissez-moi vous guider pour optimiser cette position.
 📊 **ANALYSE DE {ticker}**
 
 {direction_emoji} **Direction recommandée**: {direction}
-💯 **Score de confiance**: {score}/10
+💯 **Score de confiance**: {score}/15
 ⭐ **Signal**: {signal}
 
 Prix actuel: **{price:.2f} EUR**
