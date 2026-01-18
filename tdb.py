@@ -4351,15 +4351,19 @@ def trigger_alert(alert_id):
     finally:
         conn.close()
 
-def delete_alert(alert_id):
-    """Supprime une alerte"""
+def delete_alert(user_id, alert_id):
+    """Supprime une alerte (vérifie que l'utilisateur est propriétaire)"""
     conn = get_connection()
     c = conn.cursor()
     try:
-        c.execute("DELETE FROM alerts WHERE id = ?", (alert_id,))
+        # Vérifier que l'alerte appartient bien à l'utilisateur avant suppression
+        c.execute("DELETE FROM alerts WHERE id = ? AND user_id = ?", (alert_id, user_id))
+        deleted = c.rowcount > 0
         conn.commit()
+        return deleted
     except:
         conn.rollback()
+        return False
     finally:
         conn.close()
 
@@ -4557,8 +4561,8 @@ class Database:
     def trigger_alert(self, alert_id):
         return trigger_alert(alert_id)
     
-    def delete_alert(self, alert_id):
-        return delete_alert(alert_id)
+    def delete_alert(self, user_id, alert_id):
+        return delete_alert(user_id, alert_id)
 
 
     # Méthodes additionnelles pour compatibilité
@@ -6710,9 +6714,27 @@ def backtest_strategy(ticker, start_date=None, end_date=None, initial_capital=10
 
         # Analyser résultats
         closed_trades = [t for t in trades if 'exit_price' in t]
+        pending_trades = [t for t in trades if 'exit_price' not in t]
 
+        # Si aucun trade fermé, retourner des informations utiles
         if not closed_trades:
-            return None
+            reason = "Aucun signal suffisamment fort détecté"
+            if pending_trades:
+                reason = f"{len(pending_trades)} position(s) ouverte(s) mais pas encore fermée(s)"
+            elif len(data) < 150:
+                reason = "Pas assez de données historiques (minimum 150 jours requis)"
+
+            return {
+                'ticker': ticker,
+                'period': f"{start_date.strftime('%Y-%m-%d')} à {end_date.strftime('%Y-%m-%d')}",
+                'initial_capital': initial_capital,
+                'no_trades': True,
+                'reason': reason,
+                'pending_trades': len(pending_trades),
+                'total_signals': len(trades),
+                'min_score_required': 8,
+                'days_analyzed': len(data)
+            }
 
         total_trades = len(closed_trades)
         winning_trades = len([t for t in closed_trades if t['pnl'] > 0])
@@ -7006,8 +7028,72 @@ def scan_market(watchlist_dict, min_score=2, log_progress=False):
 
 # ==================== FORMATAGE MESSAGES TELEGRAM ====================
 
-def format_stock_message(analysis):
-    """Formate un message détaillé et expliqué pour une action"""
+def format_stock_message_compact(analysis):
+    """Version COMPACTE pour mobile (50% plus court)"""
+    market_status = get_market_status(analysis['ticker'])
+    currency = '€' if '.PA' in analysis['ticker'] or '.AS' in analysis['ticker'] else '$'
+
+    # RSI simple
+    if analysis['rsi'] < 30:
+        rsi_text = f"{analysis['rsi']:.0f} 🟢 Survendu"
+    elif analysis['rsi'] > 70:
+        rsi_text = f"{analysis['rsi']:.0f} 🔴 Suracheté"
+    else:
+        rsi_text = f"{analysis['rsi']:.0f}"
+
+    # Momentum
+    momentum = analysis.get('price_momentum', 0)
+    momentum_emoji = "🚀" if momentum > 5 else "📈" if momentum > 0 else "📉" if momentum > -5 else "💥"
+
+    # Volume
+    vol_ratio = analysis.get('volume_ratio', 1.0)
+    vol_emoji = "🔥" if vol_ratio > 1.5 else "📊" if vol_ratio > 1 else "💤"
+
+    msg = f"""
+📊 **{analysis['ticker']}** - {analysis['name'][:30]}
+{market_status['emoji']} {market_status['message'].split(chr(10))[0]}
+
+💰 **{currency}{analysis['price']:.2f}** ({'📈' if analysis['variation'] > 0 else '📉'} {analysis['variation']:+.2f}%)
+
+━━━━━━━━━━━━━━━━━━━━
+🎯 **{analysis['signal']}**
+⭐ Score: **{analysis['score']}/15** | 🎲 Confiance: {analysis.get('confidence', 0)}%
+
+📊 **Indicateurs:**
+• RSI: {rsi_text}
+• Tendance: {analysis['trend']}
+• {momentum_emoji} Momentum: {momentum:+.1f}%
+• {vol_emoji} Volume: {'+' if vol_ratio > 1 else ''}{(vol_ratio-1)*100:.0f}%
+"""
+
+    # Section IA compacte SI disponible
+    if 'ai_analysis' in analysis and analysis['ai_analysis']:
+        ai = analysis['ai_analysis']
+        tp2_pct = ((ai['tp2'] - analysis['price']) / analysis['price'] * 100)
+        sl_pct = ((ai['stop_loss'] - analysis['price']) / analysis['price'] * 100)
+
+        msg += f"""
+━━━━━━━━━━━━━━━━━━━━
+🎯 **Trading:**
+• TP: {currency}{ai['tp2']:.2f} ({tp2_pct:+.1f}%)
+• SL: {currency}{ai['stop_loss']:.2f} ({sl_pct:+.1f}%)
+• R/R: {ai['risk_reward']:.2f}
+• Probabilité: {ai['probability']}%
+"""
+
+    msg += "\n_Appuyez 'Détails' pour analyse complète_"
+
+    return msg
+
+def format_stock_message(analysis, display_mode='detailed'):
+    """
+    Formate un message pour une action
+    display_mode: 'detailed' (par défaut) ou 'compact' (mobile-friendly)
+    """
+    if display_mode == 'compact':
+        return format_stock_message_compact(analysis)
+
+    # Mode détaillé (code existant)
     market_status = get_market_status(analysis['ticker'])
     
     # Interprétations RSI
@@ -7208,7 +7294,7 @@ def format_summary_message(results, top_n=10):
             market = status['market_name']
             if market not in markets_status:
                 markets_status[market] = status
-    
+
     msg = f"""
 ╔══════════════════════════════════╗
 ║  🔍 SCAN DU MARCHÉ              ║
@@ -7216,16 +7302,34 @@ def format_summary_message(results, top_n=10):
 ╚══════════════════════════════════╝
 
 """
-    
+
     # Afficher le statut des marchés
     if markets_status:
         msg += "*STATUT DES MARCHÉS*\n"
         for market_name, status in markets_status.items():
             msg += f"{status['emoji']} {market_name}: {'OUVERT' if status['is_open'] else 'FERMÉ'}\n"
         msg += "\n"
-    
-    msg += f"\n🎯 **TOP {top_n} OPPORTUNITÉS**\n━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
-    
+
+    # Statistiques du scan
+    buy_signals = [r for r in results if "ACHAT" in r['signal']]
+    sell_signals = [r for r in results if "VENTE" in r['signal']]
+    neutral_signals = [r for r in results if r not in buy_signals and r not in sell_signals]
+
+    # Distribution par marché
+    markets_count = {}
+    for r in results:
+        market = r.get('market', 'Inconnu')
+        markets_count[market] = markets_count.get(market, 0) + 1
+
+    msg += f"📊 **STATISTIQUES**\n"
+    msg += f"• Total analysé: {len(results)}\n"
+    msg += f"• 🟢 Achats: {len(buy_signals)} | 🔴 Ventes: {len(sell_signals)} | ⚪ Neutre: {len(neutral_signals)}\n"
+    if markets_count:
+        msg += f"• Marchés: {', '.join([f'{k} ({v})' for k, v in markets_count.items()])}\n"
+    msg += "\n"
+
+    msg += f"🎯 **TOP {top_n} OPPORTUNITÉS**\n━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+
     for i, result in enumerate(results[:top_n], 1):
         ticker = result['ticker']
         name = result['name'][:25]
@@ -7234,7 +7338,10 @@ def format_summary_message(results, top_n=10):
         price = result['price']
         var = result['variation']
         rsi = result['rsi']
-        
+        trend = result.get('trend', 'N/A')
+        momentum = result.get('price_momentum', 0)
+        volume_ratio = result.get('volume_ratio', 1.0)
+
         # Emoji selon le signal
         if "ACHAT FORT" in signal:
             emoji = "🚀"
@@ -7246,16 +7353,24 @@ def format_summary_message(results, top_n=10):
             emoji = "🔴"
         else:
             emoji = "⚪"
-        
+
         # Emoji variation
         var_emoji = "📈" if var > 0 else "📉" if var < 0 else "➡️"
-        
-        # Format carte élégante
+
+        # Emoji volume
+        vol_emoji = "🔥" if volume_ratio > 1.5 else "📊" if volume_ratio > 1 else "💤"
+
+        # Emoji momentum
+        momentum_emoji = "🚀" if momentum > 5 else "📈" if momentum > 0 else "📉" if momentum > -5 else "💥"
+
+        # Format carte élégante avec plus d'infos
         msg += f"{emoji} **{ticker}** — {name}\n"
         msg += f"├ Signal: {signal} ({score:+.1f})\n"
         msg += f"├ Prix: {price:.2f}€ {var_emoji} {var:+.1f}%\n"
-        msg += f"└ RSI: {rsi:.0f} | [Analyser /{ticker.lower().replace('.', '')}]\n\n"
-    
+        msg += f"├ RSI: {rsi:.0f} | Tendance: {trend}\n"
+        msg += f"└ {momentum_emoji} Momentum: {momentum:+.1f}% | {vol_emoji} Volume: {'+' if volume_ratio > 1 else ''}{(volume_ratio-1)*100:.0f}%\n"
+        msg += f"   [Analyser /{ticker.lower().replace('.', '')}]\n\n"
+
     msg += f"\n━━━━━━━━━━━━━━━━━━━━━━━━━━\n📊 {len(results)} actions analysées"
     msg += "\n\n💡 Tapez la commande pour analyser en détail\n    Exemple: /cspa pour CS.PA"
     return msg
@@ -7761,9 +7876,94 @@ Condition: Prix {condition} {target_price:.2f}
 
 # ==================== VÉRIFICATION AUTOMATIQUE DES ALERTES ====================
 
+async def check_price_alerts(context: ContextTypes.DEFAULT_TYPE):
+    """Vérifie toutes les alertes actives et envoie des notifications"""
+    db = context.bot_data.get('db')
+    if not db:
+        return
+
+    try:
+        # Récupérer toutes les alertes actives
+        active_alerts = db.get_all_active_alerts()
+
+        if not active_alerts:
+            return
+
+        print(f"[ALERTS] Vérification de {len(active_alerts)} alerte(s) active(s)...")
+
+        # Grouper les alertes par ticker pour optimiser les requêtes API
+        alerts_by_ticker = {}
+        for alert in active_alerts:
+            ticker = alert['ticker']
+            if ticker not in alerts_by_ticker:
+                alerts_by_ticker[ticker] = []
+            alerts_by_ticker[ticker].append(alert)
+
+        # Vérifier chaque ticker
+        for ticker, ticker_alerts in alerts_by_ticker.items():
+            try:
+                # Récupérer le prix actuel
+                stock = yf.Ticker(ticker)
+                data = stock.history(period='1d', interval='1m')
+
+                if data.empty:
+                    continue
+
+                current_price = data['Close'].iloc[-1]
+
+                # Vérifier chaque alerte pour ce ticker
+                for alert in ticker_alerts:
+                    condition = alert['condition']
+                    target_price = alert['target_price']
+                    triggered = False
+
+                    if condition == '>' and current_price >= target_price:
+                        triggered = True
+                    elif condition == '<' and current_price <= target_price:
+                        triggered = True
+
+                    if triggered:
+                        # Marquer comme déclenchée
+                        db.trigger_alert(alert['id'])
+
+                        # Calculer la variation
+                        variation_pct = ((current_price - target_price) / target_price) * 100
+
+                        # Envoyer notification à l'utilisateur
+                        message = f"""
+🔔 *ALERTE DÉCLENCHÉE !*
+
+Ticker: *{ticker}*
+Condition: Prix {condition} {target_price:.2f}
+Prix actuel: *{current_price:.2f}*
+Variation: {variation_pct:+.2f}%
+
+⏰ {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}
+
+💡 Utilise /analyze {ticker} pour une analyse complète !
+"""
+
+                        try:
+                            await context.bot.send_message(
+                                chat_id=alert['user_id'],
+                                text=message,
+                                parse_mode='Markdown'
+                            )
+                            print(f"[ALERTS] ✅ Alerte #{alert['id']} déclenchée: {ticker} {condition} {target_price} (prix: {current_price:.2f})")
+                        except Exception as e:
+                            print(f"[ALERTS] ❌ Erreur envoi notification: {e}")
+
+            except Exception as e:
+                print(f"[ALERTS] Erreur vérification {ticker}: {e}")
+                continue
+
+    except Exception as e:
+        print(f"[ALERTS] Erreur générale: {e}")
+
+
 async def check_alerts_callback(context: ContextTypes.DEFAULT_TYPE):
-    """Callback check alerts - redirige vers intelligent_auto_scan"""
-    await intelligent_auto_scan(context)
+    """Callback périodique pour vérifier les alertes de prix"""
+    await check_price_alerts(context)
 
 
 async def scan_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -7833,11 +8033,23 @@ async def scan_specific_command(update: Update, context: ContextTypes.DEFAULT_TY
 async def analyze_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Commande /analyze TICKER [TIMEFRAME]"""
     user_name = get_user_name(update)
-    
+    user_id = update.effective_user.id
+
+    # Récupérer les préférences utilisateur (mode d'affichage)
+    db = context.bot_data.get('db')
+    display_mode = 'detailed'  # Par défaut
+    if db:
+        try:
+            user_settings = db.get_user_settings(user_id)
+            if user_settings:
+                display_mode = user_settings.get('display_mode', 'detailed')
+        except:
+            pass
+
     if not context.args:
         await update.message.reply_text(f"*{user_name}*, il me faut un ticker !\n\nUsage: /analyze TICKER [1h|1d|1w]\nExemple: /analyze AAPL\nExemple: /analyze AAPL 1h", parse_mode='Markdown')
         return
-    
+
     ticker = context.args[0].upper()
     
     # Déterminer le timeframe
@@ -7880,29 +8092,32 @@ async def analyze_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     if result:
-        message = format_stock_message(result)
+        message = format_stock_message(result, display_mode=display_mode)
         # Ajouter l'info du timeframe
         message = message.replace("━━━━━━━━━━━━━━━━━━━━", f"⏰ Timeframe: {timeframe_display[timeframe]}\n━━━━━━━━━━━━━━━━━━━━")
 
-        # Créer les boutons d'action
+        # Créer les boutons d'action (réorganisés pour meilleure UX)
         keyboard = [
+            # Row 1: Actions principales
             [
-                InlineKeyboardButton("🤖 Trading Companion", callback_data=f"companion_step1_{ticker}")
+                InlineKeyboardButton("🔄 Actualiser", callback_data=f"refresh_analysis_{ticker}_{interval}"),
+                InlineKeyboardButton("📈 Graphique", callback_data=f"chart_{ticker}_{interval}")
             ],
+            # Row 2: Analyses avancées
             [
                 InlineKeyboardButton("🧪 Backtest", callback_data=f"backtest_{ticker}"),
-                InlineKeyboardButton("🤖 Prédiction ML", callback_data=f"predict_{ticker}")
+                InlineKeyboardButton("🔮 Prédiction", callback_data=f"predict_{ticker}")
             ],
+            # Row 3: Trading & Info
             [
-                InlineKeyboardButton("📈 Voir Graphique", callback_data=f"chart_{ticker}_{interval}"),
+                InlineKeyboardButton("🤖 Trading AI", callback_data=f"companion_step1_{ticker}"),
                 InlineKeyboardButton("📰 News", callback_data=f"news_{ticker}")
             ],
+            # Row 4: Favoris & Mode display
             [
-                InlineKeyboardButton("⭐ Ajouter aux Favoris", callback_data=f"fav_add_{ticker}"),
-                InlineKeyboardButton("🔄 Actualiser", callback_data=f"refresh_analysis_{ticker}_{interval}")
-            ],
-            [
-                InlineKeyboardButton("❌ Fermer", callback_data="delete_message")
+                InlineKeyboardButton("⭐ Favoris", callback_data=f"fav_add_{ticker}"),
+                InlineKeyboardButton("📱 Compact" if display_mode == 'detailed' else "📊 Détails",
+                                   callback_data=f"toggle_display_{ticker}_{interval}")
             ]
         ]
 
@@ -7939,7 +8154,36 @@ async def backtest_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     result = backtest_strategy(ticker)
 
     if result:
-        message = f"""
+        # Vérifier si aucun trade n'a été exécuté
+        if result.get('no_trades'):
+            message = f"""
+🧪 *BACKTEST - {result['ticker']}*
+
+━━━━━━━━━━━━━━━━━━━━
+ℹ️ *AUCUN TRADE EXÉCUTÉ*
+━━━━━━━━━━━━━━━━━━━━
+
+📅 Période: {result['period']}
+📊 Jours analysés: {result['days_analyzed']}
+💰 Capital initial: ${result['initial_capital']:,.0f}
+
+❓ *Raison:*
+{result['reason']}
+
+📊 *Détails:*
+• Signaux détectés: {result['total_signals']}
+• Positions ouvertes: {result['pending_trades']}
+• Score minimum requis: {result['min_score_required']}/15
+
+💡 *Suggestions:*
+• Essayez une période plus longue
+• Le ticker n'a peut-être pas eu assez de signaux forts
+• Les conditions de marché étaient peut-être trop neutres
+
+⚠️ _Score requis: ≥8/15 avec confiance ≥70%_
+"""
+        else:
+            message = f"""
 🧪 *BACKTEST - {result['ticker']}*
 
 ━━━━━━━━━━━━━━━━━━━━
@@ -11052,7 +11296,66 @@ Utilisez /favorites pour voir vos favoris
                 )
             else:
                 await query.edit_message_text(text=f"❌ Impossible d'actualiser {ticker}")
-        
+
+        # TOGGLE DISPLAY MODE
+        elif query.data.startswith("toggle_display_"):
+            parts = query.data.replace("toggle_display_", "").split("_")
+            ticker = parts[0]
+            interval = parts[1] if len(parts) > 1 else "1d"
+
+            # Récupérer le mode actuel
+            user_settings = db.get_user_settings(user_id)
+            current_mode = user_settings.get('display_mode', 'detailed') if user_settings else 'detailed'
+
+            # Basculer le mode
+            new_mode = 'compact' if current_mode == 'detailed' else 'detailed'
+
+            # Sauvegarder dans la base de données
+            db.set_user_setting(user_id, 'display_mode', new_mode)
+
+            await query.answer(f"📱 Mode {new_mode} activé!")
+
+            # Actualiser l'analyse avec le nouveau mode
+            period_map = {"1h": "5d", "1d": "3mo", "1wk": "1y"}
+            period = period_map.get(interval, "3mo")
+
+            result = analyze_stock(ticker, period=period, interval=interval)
+            if result:
+                message = format_stock_message(result, display_mode=new_mode)
+
+                # Recréer les boutons avec le nouveau mode
+                keyboard = [
+                    # Row 1: Actions principales
+                    [
+                        InlineKeyboardButton("🔄 Actualiser", callback_data=f"refresh_analysis_{ticker}_{interval}"),
+                        InlineKeyboardButton("📈 Graphique", callback_data=f"chart_{ticker}_{interval}")
+                    ],
+                    # Row 2: Analyses avancées
+                    [
+                        InlineKeyboardButton("🧪 Backtest", callback_data=f"backtest_{ticker}"),
+                        InlineKeyboardButton("🔮 Prédiction", callback_data=f"predict_{ticker}")
+                    ],
+                    # Row 3: Trading & Info
+                    [
+                        InlineKeyboardButton("🤖 Trading AI", callback_data=f"companion_step1_{ticker}"),
+                        InlineKeyboardButton("📰 News", callback_data=f"news_{ticker}")
+                    ],
+                    # Row 4: Favoris & Mode display
+                    [
+                        InlineKeyboardButton("⭐ Favoris", callback_data=f"fav_add_{ticker}"),
+                        InlineKeyboardButton("📱 Compact" if new_mode == 'detailed' else "📊 Détails",
+                                           callback_data=f"toggle_display_{ticker}_{interval}")
+                    ]
+                ]
+
+                await query.edit_message_text(
+                    text=message,
+                    parse_mode='Markdown',
+                    reply_markup=InlineKeyboardMarkup(keyboard)
+                )
+            else:
+                await query.edit_message_text(text=f"❌ Impossible d'actualiser {ticker}")
+
         # DELETE MESSAGE
         elif query.data == "delete_message":
             await query.answer("✅ Fermé")
@@ -11089,7 +11392,36 @@ async def backtest_inline_callback(update: Update, context: ContextTypes.DEFAULT
     result = backtest_strategy(ticker)
 
     if result:
-        message = f"""
+        # Vérifier si aucun trade n'a été exécuté
+        if result.get('no_trades'):
+            message = f"""
+🧪 *BACKTEST - {result['ticker']}*
+
+━━━━━━━━━━━━━━━━━━━━
+ℹ️ *AUCUN TRADE EXÉCUTÉ*
+━━━━━━━━━━━━━━━━━━━━
+
+📅 Période: {result['period']}
+📊 Jours analysés: {result['days_analyzed']}
+💰 Capital initial: ${result['initial_capital']:,.0f}
+
+❓ *Raison:*
+{result['reason']}
+
+📊 *Détails:*
+• Signaux détectés: {result['total_signals']}
+• Positions ouvertes: {result['pending_trades']}
+• Score minimum requis: {result['min_score_required']}/15
+
+💡 *Suggestions:*
+• Essayez une période plus longue
+• Le ticker n'a peut-être pas eu assez de signaux forts
+• Les conditions de marché étaient peut-être trop neutres
+
+⚠️ _Score requis: ≥8/15 avec confiance ≥70%_
+"""
+        else:
+            message = f"""
 🧪 *BACKTEST - {result['ticker']}*
 
 ━━━━━━━━━━━━━━━━━━━━
