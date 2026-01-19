@@ -4201,17 +4201,13 @@ def update_initial_capital(user_id, amount):
     c.execute("SELECT user_id, initial_capital, current_cash FROM paper_portfolio WHERE user_id = ?", (user_id,))
     row = c.fetchone()
     
-    print(f"[DEBUG] update_initial_capital - user_id: {user_id}, amount: {amount}")
-    print(f"[DEBUG] Avant: {row if row else 'N/A'}")
     
     if not row:
-        print(f"[DEBUG] Création nouvelle entrée pour user {user_id}")
         c.execute("""
             INSERT INTO paper_portfolio (user_id, initial_capital, current_cash)
             VALUES (?, ?, ?)
         """, (user_id, amount, amount))
     else:
-        print(f"[DEBUG] Mise à jour entrée existante pour user {user_id}")
         c.execute("""
             UPDATE paper_portfolio 
             SET initial_capital = ?,
@@ -4224,8 +4220,6 @@ def update_initial_capital(user_id, amount):
     
     c.execute("SELECT user_id, initial_capital, current_cash FROM paper_portfolio WHERE user_id = ?", (user_id,))
     row_after = c.fetchone()
-    print(f"[DEBUG] Après: {row_after}")
-    print(f"[DEBUG] Fichier DB: {DB_FILE}")
     
     conn.close()
 
@@ -4973,6 +4967,25 @@ ENABLE_LIVE_LOGS = True  # Activer/désactiver les logs en direct sur le canal
 AUTO_SCAN_ENABLED = False  # Scans automatiques (désactivé par défaut)
 AUTO_SCAN_TIMES = ["09:00", "15:30", "17:00"]  # Heures des scans auto (format 24h)
 SMART_NOTIFICATIONS_ENABLED = False  # Notifications intelligentes (désactivé par défaut)
+
+# ==================== CACHE INTELLIGENT ====================
+# Cache des analyses avec TTL de 5 minutes pour éviter requêtes API inutiles
+ANALYSIS_CACHE = {}
+CACHE_TTL = 300  # 5 minutes en secondes
+
+def cleanup_cache():
+    """Nettoie les entrées expirées du cache (automatique)"""
+    current_time = time.time()
+    expired_keys = [
+        key for key, value in ANALYSIS_CACHE.items()
+        if current_time - value['timestamp'] > CACHE_TTL
+    ]
+    for key in expired_keys:
+        del ANALYSIS_CACHE[key]
+    if expired_keys:
+        print(f"[CACHE] 🧹 Nettoyé {len(expired_keys)} entrée(s) expirée(s)")
+    return len(expired_keys)
+
 DAILY_REPORT_ENABLED = False  # Rapport quotidien (désactivé par défaut)
 DAILY_REPORT_TIME = "08:00"  # Heure du rapport quotidien
 
@@ -6956,6 +6969,19 @@ def analyze_stock(ticker, period="3mo", interval="1d"):
         # Normaliser le ticker crypto avant traitement
         ticker = normalize_crypto_ticker(ticker)
 
+        # ============ CACHE INTELLIGENT ============
+        # Vérifier si l'analyse est déjà en cache (< 5 min)
+        cache_key = f"{ticker}_{period}_{interval}"
+        if cache_key in ANALYSIS_CACHE:
+            cached_entry = ANALYSIS_CACHE[cache_key]
+            cache_age = time.time() - cached_entry['timestamp']
+            if cache_age < CACHE_TTL:
+                print(f"[CACHE] ✅ Hit pour {ticker} (âge: {int(cache_age)}s / {CACHE_TTL}s)")
+                return cached_entry['data']
+            else:
+                print(f"[CACHE] ⚠️ Expiré pour {ticker} (âge: {int(cache_age)}s)")
+        # ============================================
+
         # Récupération sécurisée des données
         data = safe_fetch_yfinance(ticker, period=period)
 
@@ -7065,6 +7091,15 @@ def analyze_stock(ticker, period="3mo", interval="1d"):
                 result['ai_analysis'] = ai_analysis
         except Exception as e:
             print(f"[AI] Erreur analyse IA pour {ticker}: {e}")
+
+        # ============ STOCKAGE EN CACHE ============
+        # Stocker le résultat en cache pour 5 minutes
+        ANALYSIS_CACHE[cache_key] = {
+            'data': result,
+            'timestamp': time.time()
+        }
+        print(f"[CACHE] 💾 Stocké {ticker} (expires dans {CACHE_TTL}s)")
+        # ===========================================
 
         return result
 
@@ -7778,46 +7813,70 @@ async def fav_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     elif action == "scan":
         favorites = db.get_favorites(user_id)
-        
+
         if not favorites:
             await update.message.reply_text(f"*{user_name}*, tu n'as pas de favoris à scanner !\n\nUtilise: /fav add TICKER", parse_mode='Markdown')
             return
-        
-        await update.message.reply_text(f"🔍 *{user_name}*, scan de tes {len(favorites)} favoris...", parse_mode='Markdown')
-        
+
+        loading_msg = await update.message.reply_text(f"🔍 *{user_name}*, scan de tes {len(favorites)} favoris...\n\n⏳ Analyse en cours...", parse_mode='Markdown')
+
         results = []
         for ticker in favorites:
             result = analyze_stock(ticker)
-            if result:
+            if result and 'error' not in result:
                 results.append(result)
-            time.sleep(0.3)
-        
+            await asyncio.sleep(0.2)  # Throttle API
+
         if not results:
-            await update.message.reply_text("❌ Impossible d'analyser tes favoris pour le moment.", parse_mode='Markdown')
+            await loading_msg.edit_text("❌ Impossible d'analyser tes favoris pour le moment.", parse_mode='Markdown')
             return
-        
+
         # Trier par score absolu
         results.sort(key=lambda x: abs(x['score']), reverse=True)
-        
-        # Résumé
+
+        # Compter signaux forts
+        strong_signals = [r for r in results if abs(r['score']) >= 6]
+
+        # Résumé amélioré
+        scan_time = datetime.now().strftime("%H:%M")
         summary = f"""
-🔍 *SCAN DE TES FAVORIS* - {datetime.now().strftime('%d/%m/%Y %H:%M')}
+🔍 *SCAN DE TES FAVORIS*
+
+⏰ {scan_time} | 📊 {len(results)} analysés
+🎯 {len(strong_signals)} signal(s) fort(s) (≥6)
+
 ━━━━━━━━━━━━━━━━━━━━
+"""
+
+        for i, result in enumerate(results[:10], 1):
+            signal_emoji = "🟢" if result['score'] > 0 else "🔴" if result['score'] < 0 else "⚪"
+            if abs(result['score']) >= 8:
+                signal_emoji = "🚀" if result['score'] > 0 else "💥"
+
+            confidence = result.get('confidence', 0)
+            momentum = result.get('price_momentum', 0)
+
+            summary += f"""
+{i}. {signal_emoji} *{result['ticker']}*
+   Score: *{result['score']}/15* | Conf: {confidence}%
+   🚀 Momentum: {momentum:+.1f}% | 💰 {result['price']:.2f}
 
 """
-        for i, result in enumerate(results, 1):
-            summary += f"{i}. *{result['ticker']}* - {result['name'][:25]}\n"
-            summary += f"   {result['signal']} | Score: {result['score']}\n"
-            summary += f"   Prix: {result['price']:.2f} ({result['variation']:+.2f}%)\n\n"
-        
-        await update.message.reply_text(summary, parse_mode='Markdown')
-        
-        # Envoyer détails des 3 meilleurs
+
+        # Boutons interactifs pour les top 3
+        keyboard = []
         for result in results[:3]:
-            message = format_stock_message(result)
-            await update.message.reply_text(message, parse_mode='Markdown')
-            await asyncio.sleep(1)
-    
+            keyboard.append([
+                InlineKeyboardButton(f"📊 Analyser {result['ticker']}", callback_data=f"analyze_{result['ticker']}")
+            ])
+        keyboard.append([InlineKeyboardButton("🔄 Rafraîchir", callback_data="fav_scan")])
+
+        await loading_msg.edit_text(
+            summary,
+            parse_mode='Markdown',
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+
     elif action == "remove":
         if len(context.args) < 2:
             await update.message.reply_text(f"*{user_name}*, spécifie un ticker !\n\nExemple: /fav remove AAPL", parse_mode='Markdown')
@@ -10378,14 +10437,88 @@ Statut: {logs_status}
     
     elif action == "fav_scan":
         await query.answer("🔍 Scan de tes favoris lancé !")
-        # Déclencher le scan des favoris
+
+        favorites = db.get_favorites(user_id)
+
+        if not favorites:
+            bot = context.bot
+            await bot.send_message(
+                chat_id=user_id,
+                text="📌 Tu n'as pas encore de favoris !\n\nUtilise: `//fav add AAPL MSFT`",
+                parse_mode='Markdown'
+            )
+            return
+
+        # Message de chargement
         bot = context.bot
-        await bot.send_message(
+        loading_msg = await bot.send_message(
             chat_id=user_id,
-            text=f"🔍 Scan de tes favoris en cours...",
+            text=f"🔍 *SCAN DE TES FAVORIS*\n\n⏳ Analyse de {len(favorites)} ticker(s)...\n\n_Patientez quelques secondes_",
             parse_mode='Markdown'
         )
-        # Le scan sera fait via /fav scan
+
+        # Scanner tous les favoris
+        results = []
+        for ticker in favorites:
+            result = analyze_stock(ticker)
+            if result and 'error' not in result:
+                results.append(result)
+                await asyncio.sleep(0.2)  # Throttle API
+
+        if not results:
+            await loading_msg.edit_text(
+                "❌ *SCAN FAVORIS*\n\nImpossible d'analyser tes favoris pour le moment.",
+                parse_mode='Markdown'
+            )
+            return
+
+        # Trier par score
+        results.sort(key=lambda x: abs(x['score']), reverse=True)
+
+        # Formatter les résultats
+        import datetime
+        scan_time = datetime.datetime.now().strftime("%H:%M")
+
+        # Top 3 avec signaux forts
+        strong_signals = [r for r in results if abs(r['score']) >= 6]
+
+        message = f"""
+🔍 *SCAN DE TES FAVORIS*
+
+⏰ {scan_time} | 📊 {len(results)} analysés
+🎯 {len(strong_signals)} signal(s) fort(s) (≥6)
+
+━━━━━━━━━━━━━━━━━━━━
+"""
+
+        for i, result in enumerate(results[:10], 1):
+            signal_emoji = "🟢" if result['score'] > 0 else "🔴" if result['score'] < 0 else "⚪"
+            if abs(result['score']) >= 8:
+                signal_emoji = "🚀" if result['score'] > 0 else "💥"
+
+            confidence = result.get('confidence', 0)
+            momentum = result.get('price_momentum', 0)
+
+            message += f"""
+{i}. {signal_emoji} *{result['ticker']}*
+   Score: *{result['score']}/15* | Conf: {confidence}%
+   🚀 Momentum: {momentum:+.1f}% | 💰 {result['price']:.2f}
+
+"""
+
+        # Boutons pour analyser les top 3
+        keyboard = []
+        for result in results[:3]:
+            keyboard.append([
+                InlineKeyboardButton(f"📊 Analyser {result['ticker']}", callback_data=f"analyze_{result['ticker']}")
+            ])
+        keyboard.append([InlineKeyboardButton("🔄 Rafraîchir", callback_data="fav_scan")])
+
+        await loading_msg.edit_text(
+            message,
+            parse_mode='Markdown',
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
     
     elif action == "fav_add_prompt":
         await query.answer("💡 Utilise /fav add TICKER en privé")
@@ -10540,12 +10673,10 @@ async def scan_crypto_inline(update, context, user_id, bot, db):
 # Handlers pour forcer le scan d'un marché fermé
 async def force_scan_market_handler(update, context, user_id, bot, db, market_type):
     """Force le scan d'un marché même s'il est fermé"""
-    print(f"[DEBUG] force_scan_market_handler appelé - market_type: {market_type}")
     
     query = update.callback_query
     await query.answer("🔍 Scan forcé...")
     
-    print(f"[DEBUG] Récupération config pour {market_type}")
     
     # Récupérer la config du marché
     market_configs = {
@@ -10558,7 +10689,6 @@ async def force_scan_market_handler(update, context, user_id, bot, db, market_ty
     
     watchlist, market_config = market_configs.get(market_type, (None, None))
     
-    print(f"[DEBUG] Watchlist trouvée: {watchlist is not None}, Config: {market_config is not None}")
     
     if not watchlist:
         print(f"[ERROR] Marché non trouvé: {market_type}")
@@ -10668,7 +10798,6 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     
     # Debug: afficher quel bouton a été cliqué
-    print(f"[DEBUG] Button callback - query.data: {query.data}")
     
     await query.answer()
     
@@ -10773,7 +10902,6 @@ Utilise les boutons ci-dessous pour gérer tes paramètres.
         elif query.data.startswith("force_scan_"):
             # Forcer le scan d'un marché fermé
             market_type = query.data.replace("force_scan_", "")
-            print(f"[DEBUG] Force scan demandé pour marché: {market_type}")
             try:
                 await force_scan_market_handler(update, context, user_id, bot, db, market_type)
             except Exception as e:
@@ -10921,7 +11049,30 @@ Utilise les boutons ci-dessous pour gérer tes paramètres.
         
         elif query.data == "force_scan":
             await force_scan_handler(update, context, user_id, bot, db)
-        
+
+        # ============ FILTRES SCANNER ============
+        elif query.data.startswith("scan_filter_"):
+            # Changer le filtre de marché
+            market = query.data.replace("scan_filter_", "")
+            context.user_data['scan_filter_market'] = market
+            await query.answer(f"Filtre marché: {market.upper()}")
+            await force_scan_handler(update, context, user_id, bot, db)
+
+        elif query.data.startswith("scan_score_"):
+            # Changer le filtre de score
+            score = int(query.data.replace("scan_score_", ""))
+            context.user_data['scan_filter_score'] = score
+            await query.answer(f"Score minimum: {score}")
+            await force_scan_handler(update, context, user_id, bot, db)
+
+        elif query.data.startswith("scan_sort_"):
+            # Changer le tri
+            sort_by = query.data.replace("scan_sort_", "")
+            context.user_data['scan_sort'] = sort_by
+            await query.answer(f"Tri par: {sort_by}")
+            await force_scan_handler(update, context, user_id, bot, db)
+        # =========================================
+
         elif query.data == "alert_history":
             await alert_history_handler(update, context, user_id, bot, db)
         
@@ -12189,31 +12340,138 @@ Le bot scanne automatiquement les marchés toutes les {settings['scan_interval']
 
 
 async def force_scan_handler(update, context, user_id, bot, db):
-    """Force un scan immédiat"""
+    """Scanner amélioré avec filtres interactifs"""
     query = update.callback_query
     await query.answer("🔍 Lancement du scan...")
-    
+
     # Afficher message de chargement
     loading_msg = await query.edit_message_text(
-        "🔍 *SCAN EN COURS...*\n\nAnalyse des marchés ouverts...\n⏳ Patientez quelques secondes",
+        "🔍 *SCAN EN COURS...*\n\n⏳ Analyse des marchés...\n\n_Cela peut prendre 10-30 secondes_",
         parse_mode='Markdown'
     )
-    
-    # Lancer le scan
-    await intelligent_auto_scan(context)
-    
-    # Message de confirmation
+
+    # Récupérer les paramètres de filtre (ou utiliser défauts)
+    filter_market = context.user_data.get('scan_filter_market', 'all')
+    filter_score = context.user_data.get('scan_filter_score', 6)
+    sort_by = context.user_data.get('scan_sort', 'score')
+
+    # Scanner tous les marchés
+    watchlist_to_scan = WATCHLIST.copy()
+
+    # Appliquer le filtre de marché
+    if filter_market != 'all':
+        market_mapping = {
+            'cac40': 'CAC40',
+            'us': 'US_TECH',
+            'crypto': 'CRYPTO',
+            'asia': 'ASIA'
+        }
+        market_key = market_mapping.get(filter_market)
+        if market_key and market_key in WATCHLIST:
+            watchlist_to_scan = {market_key: WATCHLIST[market_key]}
+
+    # Lancer le scan avec filtre de score
+    results = scan_market(watchlist_to_scan, min_score=filter_score, log_progress=False)
+
+    # Trier selon préférence
+    if sort_by == 'score':
+        results.sort(key=lambda x: abs(x['score']), reverse=True)
+    elif sort_by == 'volume':
+        results.sort(key=lambda x: x.get('volume_ratio', 1.0), reverse=True)
+    elif sort_by == 'momentum':
+        results.sort(key=lambda x: abs(x.get('price_momentum', 0)), reverse=True)
+
+    # Limiter à top 10
+    top_results = results[:10]
+
+    # Formatter le message des résultats
     import datetime
-    scan_time = datetime.datetime.now().strftime("%H:%M:%S")
-    
+    scan_time = datetime.datetime.now().strftime("%H:%M")
+
+    if not top_results:
+        message = f"""
+🔍 *SCANNER - RÉSULTATS*
+
+⏰ Scan effectué à {scan_time}
+📊 Filtres : Marché = {filter_market.upper()}, Score ≥ {filter_score}
+
+❌ *Aucune opportunité trouvée*
+
+Essayez de réduire le score minimum ou d'élargir les marchés.
+"""
+    else:
+        message = f"""
+🔍 *SCANNER - TOP {len(top_results)} OPPORTUNITÉS*
+
+⏰ Scan à {scan_time} | 📊 {len(results)} trouvées | 🎯 Score ≥ {filter_score}
+🌍 Marchés : {filter_market.upper()} | 📈 Tri : {sort_by.upper()}
+
+━━━━━━━━━━━━━━━━━━━━
+"""
+
+        for i, result in enumerate(top_results, 1):
+            signal_emoji = "🟢" if result['score'] > 0 else "🔴" if result['score'] < 0 else "⚪"
+            market_emoji = {
+                'CAC40': '🇫🇷',
+                'US_TECH': '🇺🇸',
+                'CRYPTO': '🪙',
+                'ASIA': '🌏',
+                'DAX': '🇩🇪'
+            }.get(result.get('market', ''), '📊')
+
+            confidence = result.get('confidence', 0)
+            volume_ratio = result.get('volume_ratio', 1.0)
+            momentum = result.get('price_momentum', 0)
+
+            message += f"""
+{i}. {signal_emoji} *{result['ticker']}* {market_emoji}
+   Score: *{result['score']}/15* | Conf: {confidence}%
+   📊 Vol: {volume_ratio:.1f}x | 🚀 Mom: {momentum:+.1f}%
+
+"""
+
+    # Boutons de filtres
     keyboard = [
-        [InlineKeyboardButton("🔄 Scanner à nouveau", callback_data="force_scan")],
-        [InlineKeyboardButton("⚙️ Configurer alertes", callback_data="alert_settings")],
-        [InlineKeyboardButton("⬅️ Retour", callback_data="scan_opportunities")]
+        # Row 1: Filtres marché
+        [
+            InlineKeyboardButton("🌍 Tous" + (" ✓" if filter_market == 'all' else ""), callback_data="scan_filter_all"),
+            InlineKeyboardButton("🇫🇷 CAC40" + (" ✓" if filter_market == 'cac40' else ""), callback_data="scan_filter_cac40"),
+            InlineKeyboardButton("🇺🇸 US" + (" ✓" if filter_market == 'us' else ""), callback_data="scan_filter_us")
+        ],
+        [
+            InlineKeyboardButton("🪙 Crypto" + (" ✓" if filter_market == 'crypto' else ""), callback_data="scan_filter_crypto"),
+            InlineKeyboardButton("🌏 Asie" + (" ✓" if filter_market == 'asia' else ""), callback_data="scan_filter_asia")
+        ],
+        # Row 3: Filtres score
+        [
+            InlineKeyboardButton("Score ≥4" + (" ✓" if filter_score == 4 else ""), callback_data="scan_score_4"),
+            InlineKeyboardButton("Score ≥6" + (" ✓" if filter_score == 6 else ""), callback_data="scan_score_6"),
+            InlineKeyboardButton("Score ≥8" + (" ✓" if filter_score == 8 else ""), callback_data="scan_score_8")
+        ],
+        # Row 4: Tri
+        [
+            InlineKeyboardButton("📊 Tri: Score" + (" ✓" if sort_by == 'score' else ""), callback_data="scan_sort_score"),
+            InlineKeyboardButton("📊 Tri: Volume" + (" ✓" if sort_by == 'volume' else ""), callback_data="scan_sort_volume")
+        ],
+        # Row 5: Actions
+        [
+            InlineKeyboardButton("🔄 Rafraîchir", callback_data="force_scan"),
+            InlineKeyboardButton("⬅️ Retour", callback_data="scan_opportunities")
+        ]
     ]
-    
+
+    # Si des résultats, ajouter bouton pour voir détails
+    if top_results:
+        # Ajouter boutons pour analyser les 3 meilleurs
+        detail_buttons = []
+        for result in top_results[:3]:
+            detail_buttons.append(
+                InlineKeyboardButton(f"📊 {result['ticker']}", callback_data=f"analyze_{result['ticker']}")
+            )
+        keyboard.insert(-1, detail_buttons[:3])  # Max 3 boutons par ligne
+
     await query.edit_message_text(
-        f"✅ *SCAN TERMINÉ*\n\n⏰ Scan effectué à {scan_time}\n\n💡 Vérifiez si vous avez reçu des alertes !\n\nLes résultats détaillés sont dans la console.",
+        message,
         parse_mode='Markdown',
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
@@ -13510,7 +13768,7 @@ def main():
     # Commandes trading
     application.add_handler(CommandHandler("positions", positions_command))
     application.add_handler(CommandHandler("position", position_command))
-    
+
     # ==================== HANDLERS EXISTANTS ====================
     application.add_handler(CommandHandler("start", start_command))
     application.add_handler(CommandHandler("menu", menu_command))
@@ -13519,8 +13777,7 @@ def main():
     application.add_handler(CommandHandler("backtest", backtest_command))
     application.add_handler(CommandHandler("predict", predict_command))
 
-    # Callbacks paper trading (AVANT les autres CallbackQueryHandler)
-    # application.add_handler(CallbackQueryHandler(paper_callback_handler, pattern="^(pt_|mode_)")) # DÉSACTIVÉ - Handler manquant
+    # Callbacks
     application.add_handler(CallbackQueryHandler(delete_message_callback, pattern="^delete_message$"))
     application.add_handler(CallbackQueryHandler(backtest_inline_callback, pattern="^backtest_"))
     application.add_handler(CallbackQueryHandler(predict_inline_callback, pattern="^predict_"))
@@ -13589,10 +13846,8 @@ def main():
     application.add_handler(CommandHandler("menu", menu_command))
     application.add_handler(CommandHandler("fav", fav_command))
     application.add_handler(CommandHandler("alert", alert_command))
-    
-    # Handlers pour les boutons (ordre important !)
-    #
-    # application.add_handler(CallbackQueryHandler(trade_callback_handler, pattern="^trade_")) # DÉSACTIVÉ - Handler manquant # DÉSACTIVÉ - Handler manquant
+
+    # Handlers pour les boutons
     application.add_handler(CallbackQueryHandler(wallet_callback_handler, pattern="^wallet_"))
     application.add_handler(CallbackQueryHandler(menu_callback_handler, pattern="^menu_"))
     application.add_handler(CallbackQueryHandler(button_callback))
@@ -13608,9 +13863,13 @@ def main():
     print("📊 Monitoring des positions activé (toutes les 1 minute)")
     
     # Configurer le job_queue pour les alertes (toutes les 5 minutes)
-    job_queue.run_repeating(check_alerts_callback, interval=900, first=10)
-    print("🔔 Système d'alertes activé (vérification toutes les 5 minutes)")
-    
+    job_queue.run_repeating(check_alerts_callback, interval=300, first=10)
+    print("🔔 Système d'alertes activé (vérification toutes les 5 minutes - 3x plus réactif)")
+
+    # Configurer le nettoyage automatique du cache (toutes les 10 minutes)
+    job_queue.run_repeating(lambda context: cleanup_cache(), interval=600, first=120)
+    print("🧹 Nettoyage automatique du cache activé (toutes les 10 minutes)")
+
     # Configurer les scans automatiques programmés
     # Scans quotidiens désactivés - Le système intelligent scanne toutes les 15 min
     # for scan_time in AUTO_SCAN_TIMES:
@@ -13638,30 +13897,15 @@ def main():
     if DAILY_REPORT_ENABLED:
         print(f"📊 Rapport quotidien activé à {DAILY_REPORT_TIME}")
 
-    # ==================== NOUVEAUX HANDLERS - TRADING AVANCÉ ====================
-    
-    
-    # Handler trading interactif
-    
-    # Handler analyse avancée
+    # ==================== HANDLERS ADDITIONNELS ====================
+
+    # Handler analyse avancée et raccourcis
     application.add_handler(CommandHandler("analyser", analyze_ticker_command))
-    # Handler pour raccourcis (ex: /cspa, /alopa)
-    # Handler pour TOUS les raccourcis non gérés (doit être EN DERNIER)
-    from telegram.ext import MessageHandler, filters
     application.add_handler(MessageHandler(filters.COMMAND, shortcut_analyser_command))
 
-    
-    # Handler pour les montants (quand l'utilisateur tape un montant)
+    # Handler pour les montants de trading
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text_input))
-    
-    
-    # Message handler pour la saisie de montant (DOIT ÊTRE EN DERNIER)
-    # application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_trading_amount_message)) # DÉSACTIVÉ - Handler manquant
-    
-    # Handler pour messages texte (montants de trading)
-    from telegram.ext import MessageHandler, filters
-    # application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, trade_text_handler)) # DÉSACTIVÉ - Fonction manquante
-    
+
     # Stocker la DB dans bot_data pour accès depuis les jobs
     application.bot_data['db'] = db
     print("✅ DB stockée dans bot_data")
