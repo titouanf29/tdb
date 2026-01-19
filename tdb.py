@@ -5945,6 +5945,71 @@ def generate_advanced_signal(indicators):
     else:
         score -= 1
 
+    # ========== AMÉLIORATIONS ALGORITHMIQUES v2.0 ==========
+
+    # 11. Filtre de Volatilité Adaptatif (NOUVEAU)
+    # Évite les faux signaux en période de faible volatilité (range market)
+    atr_percent = indicators.get('atr_percent', 2.0)
+    if atr_percent < 0.8:  # Volatilité très faible
+        score = int(score * 0.5)  # Réduire drastiquement le score
+        confidence_factors.append(-15)  # Pénalité de confiance
+        print(f"[ALGO] Filtre volatilité: ATR={atr_percent:.2f}% < 0.8% - Score réduit de 50%")
+    elif atr_percent < 1.2:  # Volatilité faible
+        score = int(score * 0.75)
+        confidence_factors.append(-5)
+
+    # 12. Bonus de Confluence (NOUVEAU)
+    # Récompenser quand plusieurs indicateurs convergent dans la même direction
+    bullish_signals = 0
+    bearish_signals = 0
+
+    # Compter les signaux haussiers
+    if rsi < 30: bullish_signals += 1
+    if bb_position < 20: bullish_signals += 1
+    if stoch_k < 30: bullish_signals += 1
+    if macd > macd_signal: bullish_signals += 1
+    if current_price > sma20: bullish_signals += 1
+    if obv_trend > 0: bullish_signals += 1
+
+    # Compter les signaux baissiers
+    if rsi > 70: bearish_signals += 1
+    if bb_position > 80: bearish_signals += 1
+    if stoch_k > 70: bearish_signals += 1
+    if macd < macd_signal: bearish_signals += 1
+    if current_price < sma20: bearish_signals += 1
+    if obv_trend < 0: bearish_signals += 1
+
+    # Bonus si 4+ indicateurs dans la même direction
+    if bullish_signals >= 5:
+        score += 2
+        confidence_factors.append(15)
+        print(f"[ALGO] Confluence haussière: {bullish_signals}/6 indicateurs ➜ +2 bonus")
+    elif bullish_signals >= 4:
+        score += 1
+        confidence_factors.append(8)
+
+    if bearish_signals >= 5:
+        score -= 2
+        confidence_factors.append(15)
+        print(f"[ALGO] Confluence baissière: {bearish_signals}/6 indicateurs ➜ -2 malus")
+    elif bearish_signals >= 4:
+        score -= 1
+        confidence_factors.append(8)
+
+    # 13. Pénalité pour Signaux Contradictoires (NOUVEAU)
+    # Si signaux mixtes (3 haussiers ET 3 baissiers), réduire confiance
+    if bullish_signals >= 3 and bearish_signals >= 3:
+        confidence_factors.append(-20)
+        print(f"[ALGO] Signaux contradictoires: {bullish_signals}🟢 vs {bearish_signals}🔴 ➜ -20 confiance")
+
+    # 14. Bonus Momentum Confirmé par Volume (NOUVEAU)
+    # Si momentum fort + volume élevé = signal très fiable
+    if abs(momentum) > 5 and volume_ratio > 1.5:
+        bonus = 1 if momentum > 0 else -1
+        score += bonus
+        confidence_factors.append(10)
+        print(f"[ALGO] Momentum+Volume confirmés: {momentum:+.1f}% + {volume_ratio:.1f}x ➜ {bonus:+d} bonus")
+
     # Appliquer le multiplicateur de force de tendance
     score = int(score * trend_strength)
 
