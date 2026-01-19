@@ -4457,188 +4457,6 @@ class Database:
         """Met à jour le solde du wallet"""
         return self.update_portfolio_cash_paper(user_id, new_balance)
     
-def get_connection():
-    """Connexion à la base de données"""
-    return sqlite3.connect(DB_FILE)
-
-# ==================== USER MANAGEMENT ====================
-
-def get_or_create_user(user_id):
-    """Récupère ou crée un utilisateur"""
-    conn = get_connection()
-    c = conn.cursor()
-    
-    c.execute("SELECT * FROM users WHERE user_id = ?", (user_id,))
-    user = c.fetchone()
-    
-    if not user:
-        c.execute("INSERT INTO users (user_id, trading_mode) VALUES (?, 'paper')", (user_id,))
-        conn.commit()
-    
-    conn.close()
-    return user
-
-def get_trading_mode(user_id):
-    """Récupère le mode de trading"""
-    get_or_create_user(user_id)
-    conn = get_connection()
-    c = conn.cursor()
-    c.execute("SELECT trading_mode FROM users WHERE user_id = ?", (user_id,))
-    result = c.fetchone()
-    conn.close()
-    return result[0] if result else 'paper'
-
-def set_trading_mode(user_id, mode):
-    """Définit le mode de trading"""
-    get_or_create_user(user_id)
-    conn = get_connection()
-    c = conn.cursor()
-    c.execute("UPDATE users SET trading_mode = ? WHERE user_id = ?", (mode, user_id))
-    conn.commit()
-    conn.close()
-
-# ==================== PAPER PORTFOLIO ====================
-
-def get_portfolio_capital_paper(user_id):
-    """Récupère le capital papier"""
-    get_or_create_user(user_id)
-    conn = get_connection()
-    c = conn.cursor()
-    
-    c.execute("SELECT * FROM paper_portfolio WHERE user_id = ?", (user_id,))
-    row = c.fetchone()
-    
-    if not row:
-        c.execute("INSERT INTO paper_portfolio (user_id) VALUES (?)", (user_id,))
-        conn.commit()
-        c.execute("SELECT * FROM paper_portfolio WHERE user_id = ?", (user_id,))
-        row = c.fetchone()
-    
-    conn.close()
-    
-    return {
-        'user_id': row[0],
-        'initial_capital': row[1],
-        'current_cash': row[2],
-        'total_invested': row[3],
-        'total_pnl': row[4]
-    }
-
-def update_portfolio_cash_paper(user_id, amount):
-    """Met à jour le cash papier (+ ou -)"""
-    conn = get_connection()
-    c = conn.cursor()
-    c.execute("""
-        UPDATE paper_portfolio 
-        SET current_cash = current_cash + ?,
-            updated_at = ?
-        WHERE user_id = ?
-    """, (amount, datetime.now().isoformat(), user_id))
-    conn.commit()
-    conn.close()
-
-def update_initial_capital(user_id, amount):
-    """Met à jour le capital initial"""
-    conn = get_connection()
-    c = conn.cursor()
-    c.execute("""
-        UPDATE paper_portfolio 
-        SET initial_capital = ?,
-            current_cash = ?,
-            updated_at = ?
-        WHERE user_id = ?
-    """, (amount, amount, datetime.now().isoformat(), user_id))
-    conn.commit()
-    conn.close()
-
-# ==================== PAPER POSITIONS ====================
-
-def add_position_paper(user_id, ticker, position_type, product_type, entry_price, 
-                       leverage, amount, exposure, tp1, tp2, stop_loss, barrier_knockout, 
-                       horizon, trailing_stop):
-    """Ajoute une position papier"""
-    conn = get_connection()
-    c = conn.cursor()
-    c.execute("""
-        INSERT INTO paper_positions    
-        (user_id, ticker, position_type, product_type, entry_price, current_price,
-         leverage, amount, exposure, tp1, tp2, stop_loss, barrier_knockout, 
-         horizon, trailing_stop)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    """, (user_id, ticker, position_type, product_type, entry_price, entry_price,
-          leverage, amount, exposure, tp1, tp2, stop_loss, barrier_knockout,
-          horizon, trailing_stop))
-    
-    position_id = c.lastrowid
-    conn.commit()
-    conn.close()
-    
-    return position_id
-
-def get_user_positions_paper(user_id, status='open'):
-    """Récupère les positions d'un user"""
-    conn = get_connection()
-    c = conn.cursor()
-    c.execute("""
-        SELECT id, user_id, ticker, position_type, product_type, entry_price, 
-               current_price, leverage, amount, exposure, tp1, tp2, stop_loss, 
-               barrier_knockout, horizon, trailing_stop, pnl, pnl_pct, status, 
-               exit_price, close_reason, alert_sent_tp1, alert_sent_tp2, 
-               alert_sent_stop_loss, alert_sent_knockout, opened_at, closed_at
-        FROM paper_positions
-        WHERE user_id = ? AND status = ?
-        ORDER BY opened_at DESC
-    """, (user_id, status))
-    rows = c.fetchall()
-    conn.close()
-    
-    columns = ['id', 'user_id', 'ticker', 'position_type', 'product_type', 
-               'entry_price', 'current_price', 'leverage', 'amount', 'exposure',
-               'tp1', 'tp2', 'stop_loss', 'barrier_knockout', 'horizon', 
-               'trailing_stop', 'pnl', 'pnl_pct', 'status', 'exit_price',
-               'close_reason', 'alert_sent_tp1', 'alert_sent_tp2', 
-               'alert_sent_stop_loss', 'alert_sent_knockout', 'opened_at', 'closed_at']
-    
-    return [dict(zip(columns, row)) for row in rows]
-
-# ==================== PAPER STATS ====================
-
-def get_paper_stats(user_id):
-    """Récupère les stats papier"""
-    conn = get_connection()
-    c = conn.cursor()
-    c.execute("SELECT * FROM paper_stats WHERE user_id = ?", (user_id,))
-    row = c.fetchone()
-    
-    if not row:
-        c.execute("INSERT INTO paper_stats (user_id) VALUES (?)", (user_id,))
-        conn.commit()
-        c.execute("SELECT * FROM paper_stats WHERE user_id = ?", (user_id,))
-        row = c.fetchone()
-    
-    conn.close()
-    
-    total_trades = row[1] or 0
-    winners = row[2] or 0
-    win_rate = (winners / total_trades * 100) if total_trades > 0 else 0
-    
-    return {
-        'total_trades': total_trades,
-        'winners': winners,
-        'losers': row[3] or 0,
-        'win_rate': win_rate,
-        'best_trade': row[4] or 0,
-        'worst_trade': row[5] or 0,
-        'total_profit': row[6] or 0,
-        'total_loss': row[7] or 0
-    }
-
-# ==================== REAL PORTFOLIO (STUB) ====================
-
-def get_portfolio_capital(user_id):
-    """Stub pour mode réel"""
-    return {'current_cash': 0, 'initial_capital': 0}
-
 
 matplotlib.use('Agg')  # Mode non-interactif pour serveur
 import matplotlib.pyplot as plt
@@ -4661,6 +4479,92 @@ AUTO_SCAN_TIMES = ["09:00", "15:30", "17:00"]  # Heures des scans auto (format 2
 SMART_NOTIFICATIONS_ENABLED = False  # Notifications intelligentes (désactivé par défaut)
 DAILY_REPORT_ENABLED = False  # Rapport quotidien (désactivé par défaut)
 DAILY_REPORT_TIME = "08:00"  # Heure du rapport quotidien
+
+# ==================== VERSION ====================
+BOT_VERSION = "2.0.0"
+BOT_VERSION_DATE = "2026-01-19"
+
+# ==================== EMOJIS UNIFIÉS ====================
+EMOJI = {
+    # Signaux
+    'buy': '🟢',
+    'sell': '🔴',
+    'hold': '🟡',
+    'neutral': '⚪',
+
+    # Actions
+    'analyze': '📊',
+    'scan': '🔍',
+    'alert': '🔔',
+    'chart': '📈',
+    'news': '📰',
+    'star': '⭐',
+    'settings': '⚙️',
+    'back': '◀️',
+    'home': '🏠',
+    'close': '❌',
+    'refresh': '🔄',
+
+    # Statuts
+    'success': '✅',
+    'error': '❌',
+    'warning': '⚠️',
+    'info': 'ℹ️',
+    'loading': '⏳',
+
+    # Marchés
+    'us': '🇺🇸',
+    'europe': '🇪🇺',
+    'asia': '🌏',
+    'crypto': '₿',
+    'commodities': '⚡',
+
+    # Autres
+    'money': '💰',
+    'up': '📈',
+    'down': '📉',
+    'fire': '🔥',
+    'rocket': '🚀',
+    'brain': '🧠',
+    'target': '🎯',
+    'trophy': '🏆',
+}
+
+# ==================== TEMPLATES DE MESSAGES ====================
+class MessageTemplates:
+    """Templates réutilisables pour les messages utilisateur"""
+
+    @staticmethod
+    def error_missing_args(command, example):
+        """Erreur : argument manquant"""
+        return f"❌ Il me faut plus d'informations !\n\n💡 Usage: {command}\n📝 Exemple: {example}"
+
+    @staticmethod
+    def success_action(action, details=""):
+        """Succès d'une action"""
+        base = f"✅ {action}"
+        return f"{base}\n{details}" if details else base
+
+    @staticmethod
+    def no_data(data_type):
+        """Aucune donnée disponible"""
+        return f"📭 Tu n'as pas encore de {data_type} !\n\n💡 Commence par explorer les fonctionnalités du bot."
+
+    @staticmethod
+    def loading(action, estimated_time=None):
+        """Message de chargement"""
+        base = f"⏳ {action} en cours..."
+        if estimated_time:
+            base += f"\n🕐 Temps estimé: ~{estimated_time}s"
+        return base
+
+    @staticmethod
+    def progress_bar(current, total, width=10):
+        """Barre de progression"""
+        progress = int((current / total) * width)
+        bar = "█" * progress + "░" * (width - progress)
+        percent = int((current / total) * 100)
+        return f"{bar} {percent}% ({current}/{total})"
 
 # Liste d'actions à scanner (extensible)
 WATCHLIST = {
@@ -5197,214 +5101,6 @@ def generate_signal(rsi, macd, macd_signal, trend, current_price, sma20, sma50=N
 db = Database()
 
 # ==================== ANALYSE DES ACTIONS ====================
-
-
-def ai_complete_analysis(ticker, data, analysis):
-    """Analyse IA complète avec opportunités, prix cibles et recommandations"""
-    try:
-        current_price = analysis['price']
-        df = data.tail(100)
-        
-        # 1. SUPPORT ET RÉSISTANCE (calculs corrects)
-        recent_highs = df['High'].tail(20)
-        recent_lows = df['Low'].tail(20)
-        
-        # Résistances au-dessus du prix
-        resistance_levels = recent_highs[recent_highs > current_price]
-        resistance_1 = resistance_levels.quantile(0.25) if len(resistance_levels) > 0 else current_price * 1.03
-        resistance_2 = resistance_levels.max() if len(resistance_levels) > 0 else current_price * 1.05
-        
-        # Supports en-dessous du prix
-        support_levels = recent_lows[recent_lows < current_price]
-        support_1 = support_levels.quantile(0.75) if len(support_levels) > 0 else current_price * 0.97
-        support_2 = support_levels.min() if len(support_levels) > 0 else current_price * 0.95
-        
-        # 2. PRIX CIBLES INTELLIGENTS
-        score = analysis['score']
-        
-        if score > 0:  # SIGNAL ACHAT
-            # Targets progressifs vers le haut
-            tp1 = current_price * 1.03  # +3%
-            # Si résistance existe et est au-dessus, l'utiliser, sinon +5%
-            if resistance_1 > current_price * 1.04:
-                tp2 = resistance_1
-            else:
-                tp2 = current_price * 1.05
-            
-            if resistance_2 > current_price * 1.06:
-                tp3 = resistance_2
-            else:
-                tp3 = current_price * 1.08
-            
-            # Stop loss: support si en-dessous, sinon -3%
-            if support_1 < current_price * 0.98:
-                sl = support_1
-            else:
-                sl = current_price * 0.97
-            direction = "LONG"
-            
-        else:  # SIGNAL VENTE
-            # Targets progressifs vers le bas
-            tp1 = current_price * 0.97  # -3%
-            
-            # Si support existe et est en-dessous, l'utiliser
-            if support_1 < current_price * 0.96:
-                tp2 = support_1
-            else:
-                tp2 = current_price * 0.95
-            
-            if support_2 < current_price * 0.94:
-                tp3 = support_2
-            else:
-                tp3 = current_price * 0.92
-            
-            # Stop loss: résistance si au-dessus, sinon +3%
-            if resistance_1 > current_price * 1.02:
-                sl = resistance_1
-            else:
-                sl = current_price * 1.03
-            direction = "SHORT"
-        
-        # 3. PATTERNS CHANDELIERS
-        patterns = []
-        if len(df) >= 2:
-            last = df.iloc[-1]
-            prev = df.iloc[-2]
-            
-            body = abs(last['Close'] - last['Open'])
-            range_candle = last['High'] - last['Low']
-            
-            # Doji
-            if range_candle > 0 and body < range_candle * 0.1:
-                patterns.append("🕯️ Doji - Indécision")
-            
-            # Hammer (corps petit, longue mèche basse)
-            if last['Close'] > last['Open']:  # Bougie verte
-                lower_shadow = last['Open'] - last['Low']
-                if lower_shadow > body * 2:
-                    patterns.append("🔨 Hammer - Signal haussier")
-            
-            # Engulfing
-            if last['Close'] > last['Open'] and prev['Close'] < prev['Open']:
-                if last['Open'] <= prev['Close'] and last['Close'] >= prev['Open']:
-                    patterns.append("🟢 Engulfing haussier - Fort achat")
-            elif last['Close'] < last['Open'] and prev['Close'] > prev['Open']:
-                if last['Open'] >= prev['Close'] and last['Close'] <= prev['Open']:
-                    patterns.append("🔴 Engulfing baissier - Fort vente")
-        
-        # 4. PROBABILITÉ DE SUCCÈS
-        prob_score = 50
-        probability_factors = []
-        
-        score_abs = abs(score)
-        if score_abs >= 5:
-            prob_score += 20
-            probability_factors.append("Signal très fort")
-        elif score_abs >= 3:
-            prob_score += 15
-            probability_factors.append("Signal fort")
-        elif score_abs >= 1:
-            prob_score += 5
-            probability_factors.append("Signal modéré")
-        
-        vol_ratio = analysis.get('volume_ratio', 1)
-        if vol_ratio > 1.5:
-            prob_score += 10
-            probability_factors.append("Volume très élevé")
-        elif vol_ratio > 1.2:
-            prob_score += 5
-            probability_factors.append("Volume confirmant")
-        
-        if len(patterns) > 0:
-            prob_score += 5
-            probability_factors.append("Pattern favorable")
-        
-        # RSI extrême
-        rsi = analysis.get('rsi', 50)
-        if (score > 0 and rsi < 30) or (score < 0 and rsi > 70):
-            prob_score += 10
-            probability_factors.append("RSI extrême favorable")
-        
-        prob_score = min(prob_score, 85)
-        
-        # 5. HORIZON TEMPOREL
-        volatility = analysis.get('volatility', 2)
-        if volatility > 3:
-            horizon = "Court terme (1-5 jours)"
-            horizon_reason = "Forte volatilité - Mouvement rapide"
-        elif volatility > 1.5:
-            horizon = "Moyen terme (1-3 semaines)"
-            horizon_reason = "Volatilité modérée - Mouvement progressif"
-        else:
-            horizon = "Long terme (1-3 mois)"
-            horizon_reason = "Faible volatilité - Mouvement lent"
-        
-        # 6. POINT D'ENTRÉE OPTIMAL
-        if score > 0:  # ACHAT
-            dist_support = ((current_price - support_1) / support_1) * 100
-            if dist_support < 1:
-                entry_point = "🎯 EXCELLENT - Sur le support"
-                entry_price = current_price
-            elif dist_support < 3:
-                entry_point = "✅ BON - Proche du support"
-                entry_price = support_1 * 1.01
-            else:
-                entry_point = "⚠️ ATTENDRE - Trop loin du support"
-                entry_price = support_1 * 1.02
-        else:  # VENTE
-            dist_resistance = ((resistance_1 - current_price) / current_price) * 100
-            if dist_resistance < 1:
-                entry_point = "🎯 EXCELLENT - Sur la résistance"
-                entry_price = current_price
-            elif dist_resistance < 3:
-                entry_point = "✅ BON - Proche de la résistance"
-                entry_price = resistance_1 * 0.99
-            else:
-                entry_point = "⚠️ ATTENDRE - Trop loin de la résistance"
-                entry_price = resistance_1 * 0.98
-        
-        # 7. RATIO RISQUE/RÉCOMPENSE
-        potential_gain = abs(tp2 - current_price)
-        potential_loss = abs(current_price - sl)
-        risk_reward = potential_gain / potential_loss if potential_loss > 0 else 0
-        
-        if risk_reward > 2.5:
-            rr_assessment = "Excellent"
-        elif risk_reward > 2:
-            rr_assessment = "Très bon"
-        elif risk_reward > 1.5:
-            rr_assessment = "Bon"
-        elif risk_reward > 1:
-            rr_assessment = "Acceptable"
-        else:
-            rr_assessment = "Défavorable"
-        
-        return {
-            'support_1': support_1,
-            'support_2': support_2,
-            'resistance_1': resistance_1,
-            'resistance_2': resistance_2,
-            'tp1': tp1,
-            'tp2': tp2,
-            'tp3': tp3,
-            'stop_loss': sl,
-            'direction': direction,
-            'patterns': patterns,
-            'probability': prob_score,
-            'probability_factors': probability_factors,
-            'horizon': horizon,
-            'horizon_reason': horizon_reason,
-            'entry_point': entry_point,
-            'entry_price': entry_price,
-            'risk_reward': risk_reward,
-            'rr_assessment': rr_assessment
-        }
-    except Exception as e:
-        print(f"Erreur analyse IA: {e}")
-        import traceback
-        traceback.print_exc()
-        return None
-
 
 def ai_complete_analysis(ticker, data, analysis):
     """Analyse IA complète avec opportunités, prix cibles et recommandations"""
@@ -6350,6 +6046,35 @@ async def log_to_channel(message: str, emoji: str = "ℹ️"):
         )
     except Exception as e:
         print(f"Erreur log canal: {e}")
+
+async def send_changelog(version, changes):
+    """Envoie un récapitulatif des évolutions dans le canal principal"""
+    message = f"""
+🚀 *MISE À JOUR BOT v{version}*
+📅 {datetime.now().strftime('%d/%m/%Y %H:%M')}
+━━━━━━━━━━━━━━━━━━━━
+
+{changes}
+
+━━━━━━━━━━━━━━━━━━━━
+💡 _Redémarrez le bot pour profiter des nouveautés !_
+"""
+    try:
+        bot = Bot(token=TELEGRAM_TOKEN)
+
+        # Message principal
+        await bot.send_message(
+            chat_id=CHANNEL_ID,
+            text=message,
+            parse_mode='Markdown'
+        )
+
+        print(f"✅ Changelog v{version} envoyé sur le canal")
+        return True
+    except Exception as e:
+        print(f"❌ Erreur envoi changelog: {e}")
+        print(traceback.format_exc())
+        return False
 
 async def send_channel_menu(token: str, channel_id: str):
     """Envoie un menu interactif sur le canal"""
