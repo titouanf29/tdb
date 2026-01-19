@@ -6126,58 +6126,58 @@ Clique sur un bouton ci-dessous pour recevoir une analyse en privé !
 # ==================== BOT TELEGRAM - COMMANDES ====================
 
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Commande /start - Message de bienvenue avec menu"""
+    """Commande /start - Message de bienvenue moderne v2.0"""
     user_name = get_user_name(update)
     user_id = update.effective_user.id
-    
+
     # Ajouter l'utilisateur
     get_or_create_user(user_id)
-    
-    # Boutons du menu principal
-    # Créer le menu avec boutons
+
+    # Menu principal redesigné - v2.0
     keyboard = [
+        [InlineKeyboardButton(f"{EMOJI['analyze']} Analyser un Ticker", callback_data="quick_analyze")],
         [
-            InlineKeyboardButton("💼 Wallet", callback_data="menu_wallet"),
-            InlineKeyboardButton("🌍 Marchés", callback_data="markets_menu")
+            InlineKeyboardButton(f"{EMOJI['scan']} Scanner", callback_data="scan_opportunities"),
+            InlineKeyboardButton(f"{EMOJI['target']} Positions", callback_data="menu_wallet")
         ],
         [
-            InlineKeyboardButton("⚙️ Paramètres", callback_data="menu_settings"),
-            InlineKeyboardButton("📌 Favoris", callback_data="menu_favorites")
+            InlineKeyboardButton(f"{EMOJI['star']} Favoris", callback_data="menu_favorites"),
+            InlineKeyboardButton(f"{EMOJI['alert']} Alertes", callback_data="menu_alerts")
         ],
         [
-            InlineKeyboardButton("🔔 Alertes", callback_data="menu_alerts"),
-            InlineKeyboardButton("ℹ️ Aide", callback_data="menu_help")
-        ],
-        [
-            InlineKeyboardButton("❌ Fermer", callback_data="menu_close")
+            InlineKeyboardButton(f"{EMOJI['settings']} Paramètres", callback_data="menu_settings"),
+            InlineKeyboardButton(f"{EMOJI['info']} Aide", callback_data="menu_help")
         ]
     ]
-    
+
     reply_markup = InlineKeyboardMarkup(keyboard)
-    
-    message = f"""
-🤖 *MENU PRINCIPAL - {user_name}*
 
-━━━━━━━━━━━━━━━━━━━━
-💼 *TRADING*
+    # Message d'accueil moderne
+    welcome_message = f"""
+🚀 *TDB BOT v{BOT_VERSION}* - Bienvenue {user_name} !
 ━━━━━━━━━━━━━━━━━━━━
 
-💼 *Wallet* - Gérer votre portefeuille
-📈 *Scanner* - Scanner le marché
+{EMOJI['rocket']} *TON ASSISTANT TRADING INTELLIGENT*
+
+┌─────────────────┐
+│ {EMOJI['analyze']} ANALYSE      │ Analyse technique complète
+│ {EMOJI['scan']} SCANNER      │ Détection d'opportunités
+│ {EMOJI['target']} POSITIONS    │ Portfolio virtuel
+│ {EMOJI['star']} FAVORIS      │ Watchlist perso
+│ {EMOJI['alert']} ALERTES      │ Notifications prix
+└─────────────────┘
+
+💡 *NOUVEAU !*
+• Dashboard quotidien automatique
+• Comparaison multi-tickers
+• Mode Quick Actions
+• Stats personnelles avancées
 
 ━━━━━━━━━━━━━━━━━━━━
-⚙️ *OUTILS*
-━━━━━━━━━━━━━━━━━━━━
-
-⚙️ *Paramètres* - Configuration du bot
-📌 *Favoris* - Gérer vos favoris
-🔔 *Alertes* - Gérer vos alertes
-
-━━━━━━━━━━━━━━━━━━━━
-💡 *Utilisez les boutons ci-dessous*
+{EMOJI['info']} Tape /help pour voir toutes les commandes
+{EMOJI['home']} Tape /menu pour revenir ici
 """
 
-    
     await update.message.reply_text(
         welcome_message,
         reply_markup=reply_markup,
@@ -6642,87 +6642,124 @@ async def analyze_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(f"❌ Désolé *{user_name}*, impossible d'analyser {ticker}", parse_mode='Markdown')
 
 async def compare_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Commande /compare TICKER1 TICKER2"""
+    """Commande /compare - Comparaison multi-tickers (2-5 actifs) v2.0"""
     user_name = get_user_name(update)
-    
+
     if len(context.args) < 2:
         await update.message.reply_text(
-            f"*{user_name}*, il me faut 2 tickers !\n\nUsage: /compare TICKER1 TICKER2\nExemple: /compare AAPL MSFT",
+            MessageTemplates.error_missing_args(
+                "/compare TICKER1 TICKER2 [TICKER3...]",
+                "/compare AAPL MSFT GOOGL"
+            ),
             parse_mode='Markdown'
         )
         return
-    
-    ticker1 = context.args[0].upper()
-    ticker2 = context.args[1].upper()
-    
-    await update.message.reply_text(f"⚖️ *{user_name}*, je compare {ticker1} vs {ticker2}...", parse_mode='Markdown')
-    
-    # Analyser les deux actions
-    result1 = analyze_stock(ticker1)
-    result2 = analyze_stock(ticker2)
-    
-    if not result1 or not result2:
-        missing = []
-        if not result1:
-            missing.append(ticker1)
-        if not result2:
-            missing.append(ticker2)
-        await update.message.reply_text(f"❌ Impossible d'analyser : {', '.join(missing)}", parse_mode='Markdown')
+
+    if len(context.args) > 5:
+        await update.message.reply_text(
+            f"{EMOJI['warning']} Maximum 5 tickers à comparer !",
+            parse_mode='Markdown'
+        )
         return
-    
-    # Créer le message de comparaison
+
+    tickers = [arg.upper() for arg in context.args]
+    num_tickers = len(tickers)
+
+    await update.message.reply_text(
+        MessageTemplates.loading(
+            f"Comparaison de {num_tickers} actifs",
+            num_tickers * 2
+        ),
+        parse_mode='Markdown'
+    )
+
+    # Analyser tous les tickers
+    results = {}
+    failed = []
+
+    for ticker in tickers:
+        result = analyze_stock(ticker)
+        if result:
+            results[ticker] = result
+        else:
+            failed.append(ticker)
+
+    if len(results) < 2:
+        await update.message.reply_text(
+            f"{EMOJI['error']} Pas assez de données valides.\nÉchec: {', '.join(failed)}",
+            parse_mode='Markdown'
+        )
+        return
+
+    # Créer le message de comparaison en format tableau
     message = f"""
-⚖️ *COMPARAISON : {ticker1} vs {ticker2}*
-
+⚖️ *COMPARAISON MULTI-TICKERS*
+{EMOJI['analyze']} Analyse de {len(results)} actifs
 ━━━━━━━━━━━━━━━━━━━━
 
-*{ticker1}* - {result1['name'][:30]}
-💰 Prix: {result1['price']:.2f} ({result1['variation']:+.2f}%)
-📊 Signal: {result1['signal']}
-🎯 Score: {result1['score']}/4
-
-• RSI: {result1['rsi']:.1f} {"🔴" if result1['rsi'] > 70 else "🟢" if result1['rsi'] < 30 else "⚪"}
-• MACD: {result1['macd']:.4f}
-• Tendance: {result1['trend']}
-• Volume: {result1['volume']:,.0f}
-
-━━━━━━━━━━━━━━━━━━━━
-
-*{ticker2}* - {result2['name'][:30]}
-💰 Prix: {result2['price']:.2f} ({result2['variation']:+.2f}%)
-📊 Signal: {result2['signal']}
-🎯 Score: {result2['score']}/4
-
-• RSI: {result2['rsi']:.1f} {"🔴" if result2['rsi'] > 70 else "🟢" if result2['rsi'] < 30 else "⚪"}
-• MACD: {result2['macd']:.4f}
-• Tendance: {result2['trend']}
-• Volume: {result2['volume']:,.0f}
-
-━━━━━━━━━━━━━━━━━━━━
-
-*🏆 VERDICT*
 """
-    
-    # Comparer les scores
-    if abs(result1['score']) > abs(result2['score']):
-        winner = ticker1
-        message += f"\n✅ *{ticker1}* a un signal plus fort ({result1['score']} vs {result2['score']})"
-    elif abs(result2['score']) > abs(result1['score']):
-        winner = ticker2
-        message += f"\n✅ *{ticker2}* a un signal plus fort ({result2['score']} vs {result1['score']})"
-    else:
-        message += f"\n⚖️ Signaux équivalents ({result1['score']} = {result2['score']})"
-    
-    # Comparer la variation
-    message += f"\n📈 Variation: {ticker1} ({result1['variation']:+.2f}%) vs {ticker2} ({result2['variation']:+.2f}%)"
-    
-    # Comparer RSI
-    if result1['rsi'] < 30 and result2['rsi'] > 30:
-        message += f"\n💡 {ticker1} est survendu (RSI {result1['rsi']:.0f}), opportunité d'achat potentielle"
-    elif result2['rsi'] < 30 and result1['rsi'] > 30:
-        message += f"\n💡 {ticker2} est survendu (RSI {result2['rsi']:.0f}), opportunité d'achat potentielle"
-    
-    await update.message.reply_text(message, parse_mode='Markdown')
+
+    # Tableau de comparaison
+    message += "```\n"
+    message += f"{'Ticker':<8} {'Prix':<10} {'Var%':<8} {'Score':<6} {'RSI':<5}\n"
+    message += "─" * 45 + "\n"
+
+    for ticker, result in results.items():
+        price_str = f"${result['price']:.2f}"
+        var_str = f"{result['variation']:+.1f}%"
+        score_str = f"{result['score']}/4"
+        rsi_str = f"{result['rsi']:.0f}"
+
+        message += f"{ticker:<8} {price_str:<10} {var_str:<8} {score_str:<6} {rsi_str:<5}\n"
+
+    message += "```\n\n"
+
+    # Trouver le meilleur
+    best_ticker = max(results.items(), key=lambda x: abs(x[1]['score']))
+    best_name = best_ticker[0]
+    best_result = best_ticker[1]
+
+    message += f"{EMOJI['trophy']} *MEILLEUR: {best_name}*\n"
+    message += f"• Score: {best_result['score']}/4\n"
+    message += f"• Signal: {best_result['signal']}\n"
+    message += f"• Variation: {best_result['variation']:+.2f}%\n\n"
+
+    # Analyse comparative
+    message += f"━━━━━━━━━━━━━━━━━━━━\n"
+    message += f"{EMOJI['brain']} *ANALYSE COMPARATIVE*\n\n"
+
+    # RSI extrêmes
+    oversold = [t for t, r in results.items() if r['rsi'] < 30]
+    overbought = [t for t, r in results.items() if r['rsi'] > 70]
+
+    if oversold:
+        message += f"{EMOJI['fire']} *Survente:* {', '.join(oversold)}\n"
+    if overbought:
+        message += f"❄️ *Surachat:* {', '.join(overbought)}\n"
+
+    # Tendances
+    bullish = [t for t, r in results.items() if r['trend'] == 'Haussière']
+    bearish = [t for t, r in results.items() if r['trend'] == 'Baissière']
+
+    if bullish:
+        message += f"{EMOJI['up']} *Haussier:* {', '.join(bullish)}\n"
+    if bearish:
+        message += f"{EMOJI['down']} *Baissier:* {', '.join(bearish)}\n"
+
+    if failed:
+        message += f"\n{EMOJI['warning']} *Échec:* {', '.join(failed)}"
+
+    # Boutons d'action
+    keyboard = [
+        [InlineKeyboardButton(f"{EMOJI['analyze']} Analyser {best_name}", callback_data=f"analyze_{best_name}")],
+        [InlineKeyboardButton(f"{EMOJI['home']} Menu", callback_data="menu")]
+    ]
+
+    await update.message.reply_text(
+        message,
+        parse_mode='Markdown',
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
 
 async def history_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Commande /history TICKER - Affiche l'historique des signaux"""
@@ -7921,32 +7958,56 @@ async def top_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(f"*{user_name}*, aucune opportunité forte détectée pour le moment.", parse_mode='Markdown')
 
 async def menu_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Commande /menu - Affiche le menu principal en MP"""
+    """Commande /menu - Menu principal redesigné v2.0"""
     user_name = get_user_name(update)
     user_id = update.effective_user.id
-    
-    # Créer le menu avec boutons RESTRUCTURÉ
+
+    # Créer le menu principal v2.0
     keyboard = [
-        [InlineKeyboardButton("🌍 Marchés", callback_data="markets_menu")],
-        [InlineKeyboardButton("🚨 Scanner Opportunités", callback_data="scan_opportunities")],
-        [InlineKeyboardButton("🎯 Positions", callback_data="menu_wallet")],
-        [InlineKeyboardButton("⚙️ Paramètres", callback_data="menu_settings")],
-        [InlineKeyboardButton("❌ Fermer", callback_data="menu_close")]
+        [InlineKeyboardButton(f"{EMOJI['analyze']} Analyser", callback_data="quick_analyze")],
+        [
+            InlineKeyboardButton(f"{EMOJI['us']} US", callback_data="scan_us_inline"),
+            InlineKeyboardButton(f"{EMOJI['europe']} Europe", callback_data="scan_europe_inline"),
+            InlineKeyboardButton(f"{EMOJI['asia']} Asie", callback_data="scan_asia_inline")
+        ],
+        [
+            InlineKeyboardButton(f"{EMOJI['crypto']} Crypto", callback_data="scan_crypto_inline"),
+            InlineKeyboardButton(f"{EMOJI['commodities']} Commodities", callback_data="scan_commodities_inline")
+        ],
+        [
+            InlineKeyboardButton(f"{EMOJI['target']} Positions", callback_data="menu_wallet"),
+            InlineKeyboardButton(f"{EMOJI['star']} Favoris", callback_data="menu_favorites")
+        ],
+        [
+            InlineKeyboardButton(f"{EMOJI['alert']} Alertes", callback_data="menu_alerts"),
+            InlineKeyboardButton(f"{EMOJI['settings']} Paramètres", callback_data="menu_settings")
+        ],
+        [InlineKeyboardButton(f"{EMOJI['close']} Fermer", callback_data="menu_close")]
     ]
-    
+
     reply_markup = InlineKeyboardMarkup(keyboard)
-    
+
     message = f"""
-🤖 *TRADING BOT - MENU PRINCIPAL*
+{EMOJI['home']} *MENU PRINCIPAL v{BOT_VERSION}*
+━━━━━━━━━━━━━━━━━━━━
 
-Bienvenue {user_name} !
+Salut {user_name} ! {EMOJI['rocket']}
 
-📊 *Marchés* : Scanner et analyser les opportunités
-🚨 *Scanner* : Détection automatique + Configuration IA
-🎯 *Positions* : Gérer votre portefeuille
-⚙️ *Paramètres* : Configurer le bot
+{EMOJI['scan']} *SCANNER PAR MARCHÉ*
+{EMOJI['us']} US • {EMOJI['europe']} Europe • {EMOJI['asia']} Asie
+{EMOJI['crypto']} Crypto • {EMOJI['commodities']} Commodities
 
-💡 *Utilisez les boutons ci-dessous*
+{EMOJI['target']} *TRADING*
+• Positions actives & P&L
+• Portefeuille virtuel
+
+{EMOJI['star']} *OUTILS*
+• Favoris & Watchlist
+• Alertes de prix
+• Paramètres IA
+
+━━━━━━━━━━━━━━━━━━━━
+💡 Utilise les boutons ci-dessous
 """
     
     # Envoyer en MP (message privé)
