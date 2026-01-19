@@ -7688,35 +7688,37 @@ def detect_patterns(data, ticker):
 
 async def smart_notifications_callback(context: ContextTypes.DEFAULT_TYPE):
     """Callback périodique pour détecter et envoyer des notifications intelligentes"""
-    global SMART_NOTIFICATIONS_ENABLED
-    
-    if not SMART_NOTIFICATIONS_ENABLED:
-        return
-    
-    print("🧠 Recherche de patterns intelligents...")
-    
     try:
+        global SMART_NOTIFICATIONS_ENABLED
+
+        if not SMART_NOTIFICATIONS_ENABLED:
+            print("🧠 Notifications intelligentes désactivées, skip du scan")
+            return
+
+        print("🧠 Recherche de patterns intelligents...")
+
         all_patterns = []
-        
+
         # Scanner toutes les actions de la watchlist
         for market, tickers in WATCHLIST.items():
             for ticker in tickers[:20]:  # Limiter à 20 actions par scan pour ne pas surcharger
                 try:
                     stock = yf.Ticker(ticker)
                     data = stock.history(period="3mo", interval="1d")
-                    
+
                     if len(data) >= 50:
                         patterns = detect_patterns(data, ticker)
                         all_patterns.extend(patterns)
-                    
+
                     time.sleep(0.5)
-                except:
+                except Exception as e:
+                    print(f"⚠️ Erreur scan {ticker}: {e}")
                     continue
-        
+
         # Filtrer par priorité haute et moyenne
         high_priority = [p for p in all_patterns if p['priority'] == 'high']
         medium_priority = [p for p in all_patterns if p['priority'] == 'medium']
-        
+
         # Envoyer les notifications
         if high_priority:
             for pattern in high_priority:
@@ -7732,15 +7734,19 @@ Signal: {pattern['signal']}
 ⏰ {datetime.now().strftime('%d/%m/%Y %H:%M')}
 """
                 print(f"🧠 Pattern {pattern['type']} détecté sur {pattern['ticker']}")
-        
+
         if high_priority or medium_priority:
             await log_to_channel(
                 f"🧠 Scan patterns: {len(high_priority)} haute priorité, {len(medium_priority)} moyenne priorité",
                 "🔔"
             )
-    
+        else:
+            print("🧠 Aucun pattern détecté dans ce scan")
+
     except Exception as e:
-        print(f"Erreur notifications intelligentes: {e}")
+        print(f"❌ Erreur critique dans smart_notifications_callback: {e}")
+        import traceback
+        traceback.print_exc()
 
 async def smartnotif_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Commande /smartnotif - Gérer les notifications intelligentes"""
@@ -11974,9 +11980,9 @@ def main():
     job_queue.run_repeating(monitor_trading_positions, interval=60, first=10)
     print("📊 Monitoring des positions activé (toutes les 1 minute)")
     
-    # Configurer le job_queue pour les alertes (toutes les 5 minutes)
+    # Configurer le job_queue pour les alertes (toutes les 15 minutes)
     job_queue.run_repeating(check_alerts_callback, interval=900, first=10)
-    print("🔔 Système d'alertes activé (vérification toutes les 5 minutes)")
+    print("🔔 Système d'alertes activé (vérification toutes les 15 minutes)")
     
     # Configurer les scans automatiques programmés
     # Scans quotidiens désactivés - Le système intelligent scanne toutes les 15 min
@@ -11986,9 +11992,9 @@ def main():
     #     print(f"⏰ Scan automatique programmé à {scan_time}")
     print("✅ Scan intelligent actif (toutes les 15 min par défaut)")
     
-    # Configurer les notifications intelligentes (toutes les heures)
-    job_queue.run_repeating(smart_notifications_callback, interval=3600, first=60)
-    print("🧠 Notifications intelligentes programmées (toutes les heures)")
+    # Configurer les notifications intelligentes (toutes les 5 minutes)
+    job_queue.run_repeating(smart_notifications_callback, interval=300, first=10)
+    print("🧠 Notifications intelligentes programmées (toutes les 5 minutes)")
     
     # Configurer le rapport quotidien
     hour, minute = map(int, DAILY_REPORT_TIME.split(":"))
