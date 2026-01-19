@@ -4293,7 +4293,27 @@ COMMODITIES_WATCHLIST = {
 }
 
 
+# ==================== FONCTIONS POUR RÉCUPÉRER LES WATCHLISTS ====================
 
+def get_us_watchlist():
+    """Retourne la liste des tickers US"""
+    return list(US_WATCHLIST.keys())
+
+def get_europe_watchlist():
+    """Retourne la liste des tickers Europe"""
+    return list(EUROPE_WATCHLIST.keys())
+
+def get_asia_watchlist():
+    """Retourne la liste des tickers Asie"""
+    return list(ASIA_WATCHLIST.keys())
+
+def get_crypto_watchlist():
+    """Retourne la liste des tickers Crypto"""
+    return list(CRYPTO_WATCHLIST.keys())
+
+def get_commodities_watchlist():
+    """Retourne la liste des tickers Commodities"""
+    return list(COMMODITIES_WATCHLIST.keys())
 
 
 
