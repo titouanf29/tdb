@@ -6831,6 +6831,127 @@ async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     await update.message.reply_text(message, parse_mode='Markdown')
 
+async def mystats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Commande /mystats - Statistiques personnelles détaillées v2.0"""
+    user_name = get_user_name(update)
+    user_id = update.effective_user.id
+
+    await update.message.reply_text(
+        MessageTemplates.loading("Génération de tes stats", 2),
+        parse_mode='Markdown'
+    )
+
+    # Récupérer toutes les données
+    get_or_create_user(user_id)
+    capital = db.get_portfolio_capital_paper(user_id)
+    positions = db.get_user_positions_paper(user_id, 'open')
+    stats = db.get_paper_stats(user_id)
+    favorites = db.get_favorites(user_id) or []
+    alerts = db.get_alerts(user_id) or []
+
+    # Calculer les métriques
+    total_invested = sum(pos.get('amount', 0) for pos in positions)
+    total_pnl = sum(pos.get('pnl', 0) for pos in positions)
+    total_capital = capital['current_cash'] + total_invested + total_pnl
+    initial = capital['initial_capital']
+    performance = ((total_capital - initial) / initial * 100) if initial > 0 else 0
+
+    # Win rate
+    win_rate = stats.get('win_rate', 0)
+    total_trades = stats.get('total_trades', 0)
+    winners = stats.get('winners', 0)
+    losers = stats.get('losers', 0)
+
+    # Message principal
+    message = f"""
+{EMOJI['trophy']} *TES STATISTIQUES PERSONNELLES*
+━━━━━━━━━━━━━━━━━━━━
+
+{EMOJI['money']} *PORTEFEUILLE*
+• Capital initial: {initial:,.2f} EUR
+• Capital actuel: {total_capital:,.2f} EUR
+• Performance: {'🟢' if performance >= 0 else '🔴'} {performance:+.2f}%
+
+{EMOJI['target']} *TRADING*
+• Positions ouvertes: {len(positions)}
+• Total investi: {total_invested:,.2f} EUR
+• P&L Total: {'🟢' if total_pnl >= 0 else '🔴'} {total_pnl:+.2f} EUR
+
+━━━━━━━━━━━━━━━━━━━━
+{EMOJI['chart']} *HISTORIQUE TRADES*
+• Total trades: {total_trades}
+• Win rate: {win_rate:.1f}%
+• Gagnants: 🟢 {winners}
+• Perdants: 🔴 {losers}
+"""
+
+    if total_trades > 0:
+        best_trade = stats.get('best_trade', 0)
+        worst_trade = stats.get('worst_trade', 0)
+
+        message += f"""
+{EMOJI['trophy']} Meilleur trade: +{best_trade:.2f}%
+{EMOJI['fire']} Pire trade: {worst_trade:.2f}%
+"""
+
+    message += f"""
+━━━━━━━━━━━━━━━━━━━━
+{EMOJI['star']} *ACTIVITÉ*
+• Favoris: {len(favorites)}
+• Alertes actives: {len(alerts)}
+
+"""
+
+    # Analyse du profil
+    if total_trades >= 5:
+        if win_rate >= 70:
+            profile = f"{EMOJI['rocket']} *TRADER EXPERT*\nExcellente performance !"
+        elif win_rate >= 50:
+            profile = f"{EMOJI['target']} *BON TRADER*\nPerformance solide !"
+        else:
+            profile = f"{EMOJI['brain']} *EN APPRENTISSAGE*\nContinue à t'améliorer !"
+
+        message += f"""
+{EMOJI['brain']} *TON PROFIL*
+{profile}
+"""
+
+    # Badges
+    badges = []
+    if total_trades >= 10:
+        badges.append("🎖️ Trader Actif")
+    if win_rate >= 70 and total_trades >= 5:
+        badges.append("🏆 Expert")
+    if len(positions) >= 3:
+        badges.append("🎯 Multi-Position")
+    if len(favorites) >= 10:
+        badges.append("⭐ Collectionneur")
+
+    if badges:
+        message += f"""
+━━━━━━━━━━━━━━━━━━━━
+{EMOJI['trophy']} *TES BADGES*
+{' • '.join(badges)}
+"""
+
+    # Boutons d'action
+    keyboard = [
+        [
+            InlineKeyboardButton(f"{EMOJI['target']} Positions", callback_data="view_all_positions"),
+            InlineKeyboardButton(f"{EMOJI['star']} Favoris", callback_data="menu_favorites")
+        ],
+        [
+            InlineKeyboardButton(f"{EMOJI['refresh']} Actualiser", callback_data="refresh_mystats"),
+            InlineKeyboardButton(f"{EMOJI['home']} Menu", callback_data="menu")
+        ]
+    ]
+
+    await update.message.reply_text(
+        message,
+        parse_mode='Markdown',
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+
 async def volatile_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Commande /volatile - Actions avec plus forte volatilité"""
     user_name = get_user_name(update)
@@ -7486,21 +7607,23 @@ Le bot scanne automatiquement toutes les heures et détecte les patterns importa
 
 
 async def daily_report_callback(context: ContextTypes.DEFAULT_TYPE):
-    """Callback pour générer et envoyer le rapport quotidien AMÉLIORÉ"""
+    """Dashboard quotidien automatique v2.0 - Rapport complet"""
     global DAILY_REPORT_ENABLED
-    
+
     if not DAILY_REPORT_ENABLED:
         return
-    
-    print("📋 Génération du rapport quotidien amélioré...")
-    
-    try:
-        message = f"""
-📋 *RAPPORT QUOTIDIEN* 📋
-🗓️ {datetime.now().strftime('%d/%m/%Y %H:%M')}
 
-━━━━━━━━━━━━━━━━━━━━
-📊 *RÉSUMÉ DES MARCHÉS*
+    print(f"{EMOJI['analyze']} Génération du dashboard quotidien v2.0...")
+
+    try:
+        now = datetime.now()
+        date_str = now.strftime('%d/%m/%Y')
+        time_str = now.strftime('%H:%M')
+
+        # ===== EN-TÊTE =====
+        message = f"""
+{EMOJI['rocket']} *DASHBOARD QUOTIDIEN v{BOT_VERSION}*
+📅 {date_str} • ⏰ {time_str}
 ━━━━━━━━━━━━━━━━━━━━
 
 """
@@ -10581,11 +10704,160 @@ Tapez le montant en EUR (ex: 500)
 
 
 async def handle_text_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Gère les saisies textuelles (montant, modification solde, etc.)"""
+    """Gère les saisies textuelles avec Quick Actions v2.0"""
     user_id = update.effective_user.id
     text = update.message.text.strip()
+    text_lower = text.lower()
+    user_name = get_user_name(update)
 
-    
+    # ========== MODE QUICK ACTIONS v2.0 ==========
+    # Permet de taper directement sans commande /
+
+    # 1. DÉTECTION TICKER (2-5 lettres, pas de chiffres)
+    if len(text) >= 2 and len(text) <= 5 and text.isalpha() and text.isupper():
+        # C'est probablement un ticker
+        await update.message.reply_text(
+            MessageTemplates.loading(f"Analyse de {text}", 3),
+            parse_mode='Markdown'
+        )
+
+        result = analyze_stock(text)
+        if result:
+            message = format_stock_message(result)
+            keyboard = [
+                [
+                    InlineKeyboardButton(f"{EMOJI['chart']} Graphique", callback_data=f"chart_{text}_1d"),
+                    InlineKeyboardButton(f"{EMOJI['news']} News", callback_data=f"news_{text}")
+                ],
+                [
+                    InlineKeyboardButton(f"{EMOJI['star']} Favoris", callback_data=f"fav_add_{text}"),
+                    InlineKeyboardButton(f"{EMOJI['alert']} Alerte", callback_data=f"alert_{text}")
+                ],
+                [InlineKeyboardButton(f"{EMOJI['home']} Menu", callback_data="menu")]
+            ]
+
+            await update.message.reply_text(
+                message,
+                parse_mode='Markdown',
+                reply_markup=InlineKeyboardMarkup(keyboard)
+            )
+            return
+        else:
+            await update.message.reply_text(
+                f"{EMOJI['error']} Ticker '{text}' introuvable.\n\n💡 Utilise /analyze {text} pour plus d'options",
+                parse_mode='Markdown'
+            )
+            return
+
+    # 2. COMMANDES RAPIDES
+    quick_commands = {
+        'top': ('top 5', "🏆 Top 5 opportunités du moment"),
+        'top 5': ('top 5', "🏆 Top 5 opportunités"),
+        'top 10': ('top 10', "🏆 Top 10 opportunités"),
+        'scan': ('scan', "🔍 Scan complet de tous les marchés"),
+        'scan us': ('scan_us', f"{EMOJI['us']} Scan marché US"),
+        'scan europe': ('scan_europe', f"{EMOJI['europe']} Scan marché Europe"),
+        'scan crypto': ('scan_crypto', f"{EMOJI['crypto']} Scan crypto"),
+        'mes positions': ('positions', "🎯 Affichage de tes positions"),
+        'positions': ('positions', "🎯 Affichage de tes positions"),
+        'portfolio': ('portfolio', "💼 Ton portefeuille"),
+        'wallet': ('wallet', "💰 Ton wallet"),
+        'favoris': ('fav', "⭐ Tes favoris"),
+        'alertes': ('alerts', "🔔 Tes alertes"),
+        'menu': ('menu', "🏠 Menu principal"),
+        'aide': ('help', "ℹ️ Affichage de l'aide"),
+        'help': ('help', "ℹ️ Affichage de l'aide"),
+    }
+
+    if text_lower in quick_commands:
+        command, description = quick_commands[text_lower]
+
+        # Afficher ce qu'on va faire
+        await update.message.reply_text(
+            f"{EMOJI['loading']} {description}...",
+            parse_mode='Markdown'
+        )
+
+        # Simuler la commande
+        if command == 'top 5':
+            context.args = []
+            await top_command(update, context)
+            return
+        elif command == 'top 10':
+            # Appeler top avec plus de résultats
+            results = scan_market(WATCHLIST, min_score=1)
+            if results:
+                summary = format_summary_message(results, top_n=10)
+                await update.message.reply_text(summary, parse_mode='Markdown')
+            return
+        elif command == 'scan':
+            await scan_command(update, context)
+            return
+        elif command.startswith('scan_'):
+            # Rediriger vers les scans spécifiques
+            await update.message.reply_text(
+                f"💡 Utilise /menu puis clique sur le marché souhaité !",
+                parse_mode='Markdown'
+            )
+            return
+        elif command == 'positions':
+            await positions_command(update, context)
+            return
+        elif command == 'portfolio' or command == 'wallet':
+            await wallet_command(update, context)
+            return
+        elif command == 'fav':
+            context.args = []
+            await fav_command(update, context)
+            return
+        elif command == 'alerts':
+            await alertes_command(update, context)
+            return
+        elif command == 'menu':
+            await menu_command(update, context)
+            return
+        elif command == 'help':
+            await help_command(update, context)
+            return
+
+    # 3. RECHERCHE PARTIELLE DE TICKER (ex: "apple", "microsoft")
+    if len(text) >= 3 and text.isalpha():
+        common_stocks = {
+            'apple': 'AAPL',
+            'microsoft': 'MSFT',
+            'google': 'GOOGL',
+            'amazon': 'AMZN',
+            'tesla': 'TSLA',
+            'meta': 'META',
+            'facebook': 'META',
+            'nvidia': 'NVDA',
+            'netflix': 'NFLX',
+            'bitcoin': 'BTC-USD',
+            'ethereum': 'ETH-USD',
+        }
+
+        if text_lower in common_stocks:
+            ticker = common_stocks[text_lower]
+            await update.message.reply_text(
+                f"{EMOJI['info']} Analyse de *{text}* ({ticker})...",
+                parse_mode='Markdown'
+            )
+
+            result = analyze_stock(ticker)
+            if result:
+                message = format_stock_message(result)
+                keyboard = [
+                    [InlineKeyboardButton(f"{EMOJI['home']} Menu", callback_data="menu")]
+                ]
+                await update.message.reply_text(
+                    message,
+                    parse_mode='Markdown',
+                    reply_markup=InlineKeyboardMarkup(keyboard)
+                )
+                return
+
+    # ========== FIN QUICK ACTIONS ==========
+
     # TRADING COMPANION - Montant personnalisé
     if await companion_handle_amount_text(update, context, user_id, text, context.bot, db):
         return
@@ -11652,6 +11924,7 @@ def main():
     application.add_handler(CommandHandler("compare", compare_command))
     application.add_handler(CommandHandler("history", history_command))
     application.add_handler(CommandHandler("stats", stats_command))
+    application.add_handler(CommandHandler("mystats", mystats_command))
     application.add_handler(CommandHandler("volatile", volatile_command))
     application.add_handler(CommandHandler("gainer", gainer_command))
     application.add_handler(CommandHandler("loser", loser_command))
