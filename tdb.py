@@ -4607,13 +4607,60 @@ class Database:
         return self.get_paper_stats(user_id)
     
     def get_user_settings(self, user_id):
-        """Retourne les paramètres utilisateur (non implémenté)"""
-        return {}
-    
+        """Retourne les paramètres utilisateur"""
+        conn = get_connection()
+        c = conn.cursor()
+        try:
+            c.execute("SELECT display_mode, notifications_enabled FROM user_settings WHERE user_id = ?", (user_id,))
+            row = c.fetchone()
+            if row:
+                return {
+                    'display_mode': row[0],
+                    'notifications_enabled': row[1]
+                }
+            else:
+                # Créer les paramètres par défaut
+                c.execute("INSERT INTO user_settings (user_id) VALUES (?)", (user_id,))
+                conn.commit()
+                return {
+                    'display_mode': 'detailed',
+                    'notifications_enabled': 1
+                }
+        except Exception as e:
+            print(f"[DB] Erreur get_user_settings: {e}")
+            return {
+                'display_mode': 'detailed',
+                'notifications_enabled': 1
+            }
+        finally:
+            conn.close()
+
+    def set_user_setting(self, user_id, key, value):
+        """Met à jour un paramètre utilisateur spécifique"""
+        conn = get_connection()
+        c = conn.cursor()
+        try:
+            # Vérifier si l'utilisateur existe
+            c.execute("SELECT user_id FROM user_settings WHERE user_id = ?", (user_id,))
+            if c.fetchone():
+                # Mise à jour
+                c.execute(f"UPDATE user_settings SET {key} = ?, updated_at = CURRENT_TIMESTAMP WHERE user_id = ?", (value, user_id))
+            else:
+                # Insertion
+                c.execute(f"INSERT INTO user_settings (user_id, {key}) VALUES (?, ?)", (user_id, value))
+            conn.commit()
+            print(f"[DB] Paramètre {key}={value} enregistré pour user {user_id}")
+            return True
+        except Exception as e:
+            print(f"[DB] Erreur set_user_setting: {e}")
+            conn.rollback()
+            return False
+        finally:
+            conn.close()
+
     def update_user_setting(self, user_id, key, value):
-        """Met à jour un paramètre (non implémenté)"""
-        print(f"[DB] update_user_setting non implémenté: {user_id}, {key}")
-        return True
+        """Alias pour set_user_setting pour rétro-compatibilité"""
+        return self.set_user_setting(user_id, key, value)
     
     def reset_portfolio(self, user_id):
         """Réinitialise le portefeuille (non implémenté)"""
@@ -4710,7 +4757,17 @@ def init_database():
             total_loss REAL DEFAULT 0
         )
     ''')
-    
+
+    # Table user_settings
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS user_settings (
+            user_id INTEGER PRIMARY KEY,
+            display_mode TEXT DEFAULT 'detailed',
+            notifications_enabled INTEGER DEFAULT 1,
+            updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+
     conn.commit()
     conn.close()
     print("[DB] Base de données initialisée")
