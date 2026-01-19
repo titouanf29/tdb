@@ -7215,196 +7215,142 @@ def format_stock_message(analysis, display_mode='detailed'):
     if display_mode == 'compact':
         return format_stock_message_compact(analysis)
 
-    # Mode détaillé (code existant)
+    # Mode détaillé REFONTE v2.0 - Design moderne et épuré
     market_status = get_market_status(analysis['ticker'])
-    
-    # Interprétations RSI
+    currency = '€' if '.PA' in analysis['ticker'] or '.AS' in analysis['ticker'] else '$'
+
+    # Emojis pour le signal
+    signal_emoji = "🚀" if "TRÈS FORT" in analysis['signal'] and "ACHAT" in analysis['signal'] else \
+                   "🟢" if "FORT" in analysis['signal'] and "ACHAT" in analysis['signal'] else \
+                   "🟡" if "MODÉRÉ" in analysis['signal'] and "ACHAT" in analysis['signal'] else \
+                   "💥" if "TRÈS FORTE" in analysis['signal'] and "VENTE" in analysis['signal'] else \
+                   "🔴" if "FORTE" in analysis['signal'] and "VENTE" in analysis['signal'] else \
+                   "🟠" if "MODÉRÉE" in analysis['signal'] and "VENTE" in analysis['signal'] else "⚪"
+
+    # Emoji variation
+    var_emoji = "📈" if analysis['variation'] > 0 else "📉"
+
+    # ========== EN-TÊTE COMPACT ==========
+    msg = f"""
+🪙 **{analysis['ticker']}** | {analysis['name'][:28]}
+💰 **{currency}{analysis['price']:.2f}** | {var_emoji} **{analysis['variation']:+.2f}%**
+{market_status['emoji']} {market_status['message'].split(chr(10))[0]}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+{signal_emoji} **SIGNAL DE TRADING**
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+{analysis['signal']}
+⭐ Score: **{analysis['score']}/15** | 🎲 Confiance: **{analysis.get('confidence', 0)}%**
+📊 Tendance: {analysis['trend']}
+"""
+
+    # ========== INDICATEURS CLÉS (Simplifié) ==========
+    # RSI simplifié
     if analysis['rsi'] < 30:
-        rsi_interpretation = "Zone de survente - L'actif pourrait être sous-évalué"
+        rsi_status = f"{analysis['rsi']:.0f} 🟢 Survendu"
     elif analysis['rsi'] > 70:
-        rsi_interpretation = "Zone de surachat - L'actif pourrait être surévalué"
-    elif 45 <= analysis['rsi'] <= 55:
-        rsi_interpretation = "Zone neutre - Équilibre entre acheteurs et vendeurs"
+        rsi_status = f"{analysis['rsi']:.0f} 🔴 Suracheté"
     else:
-        rsi_interpretation = "Zone normale"
-    
-    # Interprétation MACD
-    macd_trend = "haussier ↗️" if analysis['macd'] > analysis['macd_signal'] else "baissier ↘️"
-    macd_strength = "fort" if abs(analysis['macd'] - analysis['macd_signal']) > 0.5 else "modéré"
-    
-    # Interprétation Volume
-    vol_status = analysis.get('volume_ratio', 1.0)
-    if vol_status > 1.5:
-        vol_interpretation = "Très élevé (+50%) - Forte activité"
-    elif vol_status > 1.2:
-        vol_interpretation = "Élevé (+20%) - Activité soutenue"
-    elif vol_status < 0.7:
-        vol_interpretation = "Faible (-30%) - Activité réduite"
+        rsi_status = f"{analysis['rsi']:.0f} Normal"
+
+    # MACD simplifié
+    macd_status = "Haussier ↗️" if analysis['macd'] > analysis['macd_signal'] else "Baissier ↘️"
+
+    # Position vs Moyennes
+    if analysis['price'] > analysis['sma20']:
+        sma_status = "Au-dessus 📈"
     else:
-        vol_interpretation = "Normal"
-    
-    # Momentum
-    momentum = analysis.get('price_momentum', 0)
-    if momentum > 5:
-        momentum_text = f"Très positif (+{momentum:.1f}%) - Fort élan haussier"
-    elif momentum > 2:
-        momentum_text = f"Positif (+{momentum:.1f}%)"
-    elif momentum < -5:
-        momentum_text = f"Très négatif ({momentum:.1f}%) - Fort élan baissier"
-    elif momentum < -2:
-        momentum_text = f"Négatif ({momentum:.1f}%)"
+        sma_status = "En-dessous 📉"
+
+    # Volume
+    vol_ratio = analysis.get('volume_ratio', 1.0)
+    if vol_ratio > 1.5:
+        vol_status = "Très élevé 🔥"
+    elif vol_ratio > 1.2:
+        vol_status = "Élevé 📊"
+    elif vol_ratio < 0.7:
+        vol_status = "Faible 💤"
     else:
-        momentum_text = f"Neutre ({momentum:.1f}%)"
-    
+        vol_status = "Normal"
+
     # Volatilité
     volatility = analysis.get('volatility', 0)
     if volatility > 3:
-        vol_risk = "Élevée (>3%) - Risque important"
+        vol_risk = "Élevée ⚠️"
     elif volatility > 1.5:
-        vol_risk = "Modérée (1.5-3%) - Risque moyen"
+        vol_risk = "Modérée"
     else:
-        vol_risk = "Faible (<1.5%) - Risque limité"
-    
-    msg = f"""
-╔════════════════════════════════╗
-║  {market_status['emoji']} {analysis['name'][:25]}
-║  {analysis['ticker']}
-╚════════════════════════════════╝
+        vol_risk = "Faible"
 
-{market_status['message']}
+    msg += f"""
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+📊 **INDICATEURS CLÉS**
+━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-📊 **COTATION**
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-💰 Prix actuel: **{analysis['price']:.2f} EUR**
-{'📈' if analysis['variation'] > 0 else '📉'} Variation: **{analysis['variation']:+.2f}%**
-
-📊 Volume: {analysis['volume']:,.0f}
-   └─ {vol_interpretation}
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-🔬 **INDICATEURS TECHNIQUES**
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-📈 **RSI (14 jours): {analysis['rsi']:.1f}**
-   └─ {rsi_interpretation}
-
-🌊 **MACD: {macd_trend} ({macd_strength})**
-   • MACD: {analysis['macd']:.4f}
-   • Signal: {analysis['macd_signal']:.4f}
-   • Divergence: {abs(analysis['macd'] - analysis['macd_signal']):.4f}
-
-📊 **Moyennes Mobiles**
-   • SMA(20): {analysis['sma20']:.2f} EUR
-   • SMA(50): {analysis['sma50']:.2f} EUR
-   • Position: {"Au-dessus" if analysis['price'] > analysis['sma20'] else "En-dessous"} de la SMA20
-
-🚀 **Momentum (5 jours): {momentum_text}**
-
-⚡ **Volatilité (20 jours): {volatility:.2f}%**
-   └─ {vol_risk}
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-🎯 **SIGNAL & ANALYSE**
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-**{analysis['signal']}**
-Score: **{analysis['score']}** / 10
-
-**💡 Raisons du signal:**
-{chr(10).join(['   • ' + detail for detail in analysis['signal_details']])}
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-📌 **RÉSUMÉ**
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-Tendance: **{analysis['trend']}**
-Conviction: **{"Très forte" if abs(analysis['score']) >= 5 else "Forte" if abs(analysis['score']) >= 3 else "Modérée"}**
-
+• RSI: {rsi_status}
+• MACD: {macd_status}
+• Prix vs Moyennes: {sma_status}
+• Volume: {vol_status}
+• Volatilité: {vol_risk}
 """
-    
-    # ANALYSE IA COMPLÈTE
+
+    # ========== ANALYSE IA (Si disponible) ==========
     if 'ai_analysis' in analysis and analysis['ai_analysis']:
         ai = analysis['ai_analysis']
-        
-        msg += "\n\n"
-        msg += "╔═══════════════════════════════╗\n"
-        msg += "║  🤖 ANALYSE IA COMPLÈTE      ║\n"
-        msg += "╚═══════════════════════════════╝\n"
-        msg += "\n"
-        
-        # === SECTION 1: NIVEAUX CLÉS ===
-        msg += "┌─────────────────────────────────┐\n"
-        msg += "│  📊 NIVEAUX DE PRIX CLÉS       │\n"
-        msg += "└─────────────────────────────────┘\n"
-        msg += "\n"
-        msg += f"  🔴 R2: {ai['resistance_2']:.2f} EUR\n"
-        msg += f"  🔴 R1: {ai['resistance_1']:.2f} EUR\n"
-        msg += "  ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈\n"
-        msg += f"  💰 PRIX: {analysis['price']:.2f} EUR\n"
-        msg += "  ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈\n"
-        msg += f"  🟢 S1: {ai['support_1']:.2f} EUR\n"
-        msg += f"  🟢 S2: {ai['support_2']:.2f} EUR\n"
-        msg += "\n"
-        
-        # === SECTION 2: STRATÉGIE DE TRADING ===
-        direction = "📈 LONG" if analysis['score'] > 0 else "📉 SHORT"
-        msg += "┌─────────────────────────────────┐\n"
-        msg += f"│  🎯 STRATÉGIE {direction}        │\n"
-        msg += "└─────────────────────────────────┘\n"
-        msg += "\n"
-        
+
+        # Déterminer la stratégie
+        strategy_emoji = "📈" if ai['direction'] == 'LONG' else "📉"
+        strategy_text = "LONG" if ai['direction'] == 'LONG' else "SHORT"
+
+        # Calculer les pourcentages
         tp1_pct = ((ai['tp1'] - analysis['price']) / analysis['price'] * 100)
         tp2_pct = ((ai['tp2'] - analysis['price']) / analysis['price'] * 100)
         tp3_pct = ((ai['tp3'] - analysis['price']) / analysis['price'] * 100)
         sl_pct = ((ai['stop_loss'] - analysis['price']) / analysis['price'] * 100)
-        
-        msg += "  📍 OBJECTIFS:\n"
-        msg += f"     TP1: {ai['tp1']:.2f} EUR ({tp1_pct:+.1f}%)\n"
-        msg += f"     TP2: {ai['tp2']:.2f} EUR ({tp2_pct:+.1f}%)\n"
-        msg += f"     TP3: {ai['tp3']:.2f} EUR ({tp3_pct:+.1f}%)\n"
-        msg += "\n"
-        msg += f"  🛡️ STOP LOSS: {ai['stop_loss']:.2f} EUR ({sl_pct:+.1f}%)\n"
-        msg += "\n"
-        msg += f"  ⚖️ RATIO R/R: {ai['risk_reward']:.2f} ({ai['rr_assessment']})\n"
-        msg += "\n"
-        
-        # === SECTION 3: ANALYSE DE PROBABILITÉ ===
-        msg += "┌─────────────────────────────────┐\n"
-        msg += "│  🎲 PROBABILITÉ DE SUCCÈS       │\n"
-        msg += "└─────────────────────────────────┘\n"
-        msg += "\n"
-        msg += f"  📊 {ai['probability']}%\n"
-        msg += "\n"
-        
-        if ai['probability_factors']:
-            msg += "  💡 Facteurs:\n"
-            for factor in ai['probability_factors']:
-                msg += f"     • {factor}\n"
-            msg += "\n"
-        
-        # === SECTION 4: RECOMMANDATIONS ===
-        msg += "┌─────────────────────────────────┐\n"
-        msg += "│  💼 RECOMMANDATIONS             │\n"
-        msg += "└─────────────────────────────────┘\n"
-        msg += "\n"
-        msg += f"  🕐 Horizon: {ai['horizon']}\n"
-        msg += f"     {ai['horizon_reason']}\n"
-        msg += "\n"
-        msg += f"  🎯 Point d'entrée: {ai['entry_point']}\n"
-        msg += f"     Prix optimal: {ai['entry_price']:.2f} EUR\n"
-        
-        if ai['patterns']:
-            msg += "\n"
-            msg += "  📊 Patterns détectés:\n"
-            for pattern in ai['patterns']:
-                msg += f"     {pattern}\n"
-        
-        msg += "\n"
-        msg += "═══════════════════════════════════\n"
 
-    # Footer mode d'affichage
+        # Point d'entrée
+        entry_status = ai.get('entry_point', 'OPTIMAL')
+        if "ATTENDRE" in entry_status:
+            entry_emoji = "⚠️"
+        elif "OPTIMAL" in entry_status:
+            entry_emoji = "✅"
+        else:
+            entry_emoji = "🎯"
+
+        msg += f"""
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+🤖 **RECOMMANDATION IA**
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+{strategy_emoji} **STRATÉGIE {strategy_text}**
+
+🎯 **Objectifs:**
+   • TP1: {currency}{ai['tp1']:.2f} ({tp1_pct:+.1f}%)
+   • TP2: {currency}{ai['tp2']:.2f} ({tp2_pct:+.1f}%)
+   • TP3: {currency}{ai['tp3']:.2f} ({tp3_pct:+.1f}%)
+
+🛡️ **Protection:**
+   • Stop Loss: {currency}{ai['stop_loss']:.2f} ({sl_pct:+.1f}%)
+   • Ratio R/R: {ai['risk_reward']:.2f}
+
+🕐 **Horizon:** {ai['horizon']}
+{entry_emoji} **Entrée:** {entry_status}
+"""
+        if ai.get('entry_price'):
+            msg += f"   Prix optimal: {currency}{ai['entry_price']:.2f}\n"
+
+        msg += f"""
+📊 **Probabilité de succès:** {ai['probability']}%
+"""
+
+        # Conseils si disponibles
+        if ai.get('patterns'):
+            msg += f"\n💡 **Patterns détectés:**\n"
+            for pattern in ai['patterns'][:2]:  # Max 2 patterns
+                msg += f"   • {pattern}\n"
+
+    # ========== FOOTER DISCRET ==========
     msg += "\n📊 _Mode Détaillé - Activez le Mode Compact dans /menu > Paramètres_"
 
     return msg
