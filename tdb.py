@@ -293,9 +293,6 @@ Fonctionnalités :
 - Export des résultats
 """
 
-import threading
-import schedule
-
 # ==================== CONFIGURATION SCANNER V2 ====================
 
 # Présets de configuration
@@ -11771,6 +11768,20 @@ Utilise les boutons ci-dessous pour gérer tes paramètres.
             market = query.data.replace("scanner_v2_market_", "")
             await scanner_v2_toggle_market_handler(update, context, user_id, bot, db, market)
 
+        elif query.data == "scanner_v2_set_max":
+            await scanner_v2_set_max_handler(update, context, user_id, bot, db)
+
+        elif query.data.startswith("scanner_v2_max_"):
+            max_val = int(query.data.replace("scanner_v2_max_", ""))
+            await scanner_v2_update_max_handler(update, context, user_id, bot, db, max_val)
+
+        elif query.data == "scanner_v2_set_rsi":
+            await scanner_v2_set_rsi_handler(update, context, user_id, bot, db)
+
+        elif query.data.startswith("scanner_v2_rsi_"):
+            rsi_val = int(query.data.replace("scanner_v2_rsi_", ""))
+            await scanner_v2_update_rsi_handler(update, context, user_id, bot, db, rsi_val)
+
         elif query.data == "scanner_v2_toggle_silent":
             await scanner_v2_toggle_silent_handler(update, context, user_id, bot, db)
         # ============ FIN SCANNER V2 CALLBACKS ============
@@ -13597,6 +13608,90 @@ Choisissez la fréquence :
     )
 
 
+async def scanner_v2_set_max_handler(update, context, user_id, bot, db):
+    """Configurer le nombre max de résultats"""
+    query = update.callback_query
+    await query.answer()
+
+    settings = opportunity_scanner.get_settings(user_id)
+
+    message = f"""
+📊 *NOMBRE MAX DE RÉSULTATS*
+
+Nombre actuel : *{settings['max_results']}*
+
+Définit le nombre maximum d'opportunités à afficher par scan.
+
+• 3 résultats : Focus sur le meilleur
+• 5 résultats : Vue d'ensemble (recommandé)
+• 10 résultats : Maximum d'options
+• 15 résultats : Analyse approfondie
+
+Choisissez le nombre max de résultats :
+"""
+
+    keyboard = []
+    for max_val in [3, 5, 8, 10, 15, 20]:
+        active = " ✅" if max_val == settings['max_results'] else ""
+        keyboard.append([InlineKeyboardButton(
+            f"Max {max_val} résultats{active}",
+            callback_data=f"scanner_v2_max_{max_val}"
+        )])
+
+    keyboard.append([InlineKeyboardButton("⬅️ Retour", callback_data="scanner_v2_settings")])
+
+    await query.edit_message_text(
+        message,
+        parse_mode='Markdown',
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+
+
+async def scanner_v2_set_rsi_handler(update, context, user_id, bot, db):
+    """Configurer le RSI maximum"""
+    query = update.callback_query
+    await query.answer()
+
+    settings = opportunity_scanner.get_settings(user_id)
+
+    message = f"""
+📈 *RSI MAXIMUM*
+
+RSI max actuel : *{settings['rsi_max']}*
+
+Le RSI (Relative Strength Index) mesure le surachat/survente.
+
+• RSI < 30 : Survente (potentiel achat)
+• RSI 30-70 : Zone neutre
+• RSI > 70 : Surachat (risque)
+
+Filtre les opportunités avec RSI trop élevé :
+• RSI ≤ 45 : Très conservateur
+• RSI ≤ 50 : Conservateur (recommandé)
+• RSI ≤ 55 : Modéré
+• RSI ≤ 60 : Agressif
+• RSI ≤ 70 : Très agressif
+
+Choisissez le RSI maximum :
+"""
+
+    keyboard = []
+    for rsi_val in [40, 45, 50, 55, 60, 65, 70]:
+        active = " ✅" if rsi_val == settings['rsi_max'] else ""
+        keyboard.append([InlineKeyboardButton(
+            f"RSI ≤ {rsi_val}{active}",
+            callback_data=f"scanner_v2_rsi_{rsi_val}"
+        )])
+
+    keyboard.append([InlineKeyboardButton("⬅️ Retour", callback_data="scanner_v2_settings")])
+
+    await query.edit_message_text(
+        message,
+        parse_mode='Markdown',
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+
+
 async def scanner_v2_set_markets_handler(update, context, user_id, bot, db):
     """Configurer les marchés"""
     query = update.callback_query
@@ -13682,6 +13777,28 @@ async def scanner_v2_update_freq_handler(update, context, user_id, bot, db, freq
     opportunity_scanner.update_settings(user_id, frequency=freq)
     freq_name = SCAN_FREQUENCIES.get(freq, 'Personnalisé')
     await query.answer(f"✅ Fréquence: {freq_name}")
+
+    # Retourner au menu paramètres
+    await scanner_v2_settings_handler(update, context, user_id, bot, db)
+
+
+async def scanner_v2_update_max_handler(update, context, user_id, bot, db, max_val):
+    """Met à jour le nombre max de résultats"""
+    query = update.callback_query
+
+    opportunity_scanner.update_settings(user_id, max_results=max_val)
+    await query.answer(f"✅ Max résultats: {max_val}")
+
+    # Retourner au menu paramètres
+    await scanner_v2_settings_handler(update, context, user_id, bot, db)
+
+
+async def scanner_v2_update_rsi_handler(update, context, user_id, bot, db, rsi_val):
+    """Met à jour le RSI maximum"""
+    query = update.callback_query
+
+    opportunity_scanner.update_settings(user_id, rsi_max=rsi_val)
+    await query.answer(f"✅ RSI max: {rsi_val}")
 
     # Retourner au menu paramètres
     await scanner_v2_settings_handler(update, context, user_id, bot, db)
