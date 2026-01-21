@@ -279,7 +279,7 @@ Revenez plus tard ou essayez un autre marché.
     async def show_chart(self, update: Update, context: ContextTypes.DEFAULT_TYPE, symbol: str):
         """Affiche le graphique d'un actif"""
         query = update.callback_query
-        await query.answer("Génération du graphique...")
+        await query.answer("📊 Génération du graphique...")
 
         try:
             # Récupérer les données
@@ -316,6 +316,35 @@ Revenez plus tard ou essayez un autre marché.
                 text="❌ Erreur lors de la génération du graphique."
             )
 
+    async def show_news(self, update: Update, context: ContextTypes.DEFAULT_TYPE, symbol: str):
+        """Affiche les actualités d'un actif"""
+        query = update.callback_query
+        await query.answer()
+
+        # Message en attendant l'implémentation d'une vraie API news
+        text = f"""
+📰 **ACTUALITÉS - {symbol}**
+
+🚧 Fonctionnalité en développement
+
+L'intégration des actualités en temps réel sera disponible prochainement.
+
+Pour l'instant, vous pouvez consulter :
+• Google Finance : google.com/finance
+• Yahoo Finance : finance.yahoo.com
+• TradingView : tradingview.com
+
+Recherchez : **{symbol}**
+"""
+
+        keyboard = [
+            [InlineKeyboardButton("🔙 Retour à l'analyse", callback_data=f"market_detail_{context.user_data.get('current_market', 'USA')}_{symbol}")],
+            [InlineKeyboardButton(BTN_BACK_MENU, callback_data="menu_main")]
+        ]
+
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await query.edit_message_text(text, reply_markup=reply_markup, parse_mode='Markdown')
+
     async def handle_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Gère les callbacks du module marché"""
         query = update.callback_query
@@ -332,11 +361,17 @@ Revenez plus tard ou essayez un autre marché.
             parts = data.replace("market_detail_", "").split("_", 1)
             market_code = parts[0]
             symbol = parts[1]
+            # Sauvegarder le marché actuel dans le contexte
+            context.user_data['current_market'] = market_code
             await self.show_asset_detail(update, context, market_code, symbol)
 
         elif data.startswith("chart_"):
             symbol = data.replace("chart_", "")
             await self.show_chart(update, context, symbol)
+
+        elif data.startswith("news_"):
+            symbol = data.replace("news_", "")
+            await self.show_news(update, context, symbol)
 
         elif data.startswith("favorite_add_"):
             parts = data.replace("favorite_add_", "").split("_", 1)
