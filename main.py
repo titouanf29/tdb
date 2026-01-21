@@ -4,6 +4,7 @@ Point d'entrée principal
 """
 import asyncio
 import logging
+import sys
 from telegram.ext import Application
 import config
 from database.manager import db_manager
@@ -15,12 +16,16 @@ from modules.scan_auto import ScanAutoModule
 from modules.settings import SettingsModule
 from ai.trading_companion import TradingCompanion
 
-# Configuration du logging
+# Configuration du logging compatible Windows (UTF-8)
+# Forcer l'encodage UTF-8 pour la console Windows
+if sys.platform == 'win32':
+    sys.stdout.reconfigure(encoding='utf-8')
+
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     level=logging.INFO,
     handlers=[
-        logging.FileHandler(config.LOG_FILE),
+        logging.FileHandler(config.LOG_FILE, encoding='utf-8'),
         logging.StreamHandler()
     ]
 )
