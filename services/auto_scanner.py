@@ -67,8 +67,10 @@ class AutoScannerService:
             users = await db_manager.get_users_with_scan_enabled()
 
             if not users:
+                logger.debug("Aucun utilisateur avec scan activé")
                 return
 
+            logger.info(f"🔍 Cycle de scan: {len(users)} utilisateur(s) avec scan activé")
             current_time = datetime.now()
 
             for user in users:
@@ -94,11 +96,13 @@ class AutoScannerService:
                     continue
 
                 # Lancer le scan pour cet utilisateur
+                logger.info(f"🔍 Lancement scan pour utilisateur {user_id}")
                 await self.scan_for_user(user)
                 self.last_scan_times[user_id] = current_time
+                logger.info(f"✅ Scan terminé pour utilisateur {user_id}")
 
         except Exception as e:
-            logger.error(f"❌ Erreur dans run_scan_cycle: {e}")
+            logger.error(f"❌ Erreur dans run_scan_cycle: {e}", exc_info=True)
 
     async def scan_for_user(self, user):
         """Lance un scan pour un utilisateur spécifique"""
@@ -106,14 +110,18 @@ class AutoScannerService:
             user_id = user['telegram_id']
             score_min = user['score_min']
 
+            logger.info(f"📊 Scan pour user {user_id}: score_min={score_min}")
+
             # Récupérer les marchés favoris de l'utilisateur
             favorites = await db_manager.get_user_favorites(user_id)
 
             # Si pas de favoris, scanner les marchés principaux
             if not favorites:
                 assets_to_scan = self.get_default_assets()
+                logger.info(f"📋 Aucun favori, scan des actifs par défaut: {len(assets_to_scan)} actifs")
             else:
                 assets_to_scan = [fav['asset_symbol'] for fav in favorites]
+                logger.info(f"⭐ Scan des favoris: {len(assets_to_scan)} actifs")
 
             opportunities = []
 
@@ -148,11 +156,14 @@ class AutoScannerService:
 
             # Envoyer une alerte si des opportunités trouvées
             if opportunities:
+                logger.info(f"✅ {len(opportunities)} opportunité(s) trouvée(s) pour user {user_id}")
                 await self.send_alert(user_id, opportunities)
                 self.daily_alert_counts[user_id] = self.daily_alert_counts.get(user_id, 0) + 1
+            else:
+                logger.info(f"⚪ Aucune opportunité trouvée pour user {user_id} (score_min={score_min})")
 
         except Exception as e:
-            logger.error(f"❌ Erreur scan_for_user {user_id}: {e}")
+            logger.error(f"❌ Erreur scan_for_user {user_id}: {e}", exc_info=True)
 
     async def send_alert(self, user_id: int, opportunities: list):
         """Envoie une alerte Telegram avec les opportunités trouvées"""
