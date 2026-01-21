@@ -28,29 +28,27 @@ class SettingsModule:
             await db_manager.create_user(user_id)
             settings = await db_manager.get_user_settings(user_id)
 
-        text = f"""
-⚙️ **PARAMÈTRES**
+        text = f"""⚙️ <b>PARAMÈTRES</b>
 
 ━━━━━━━━━━━━━━━━━━━━
 
-📊 **Trading**
+📊 <b>Trading</b>
 • Style: {settings['trading_style']}
 • Risque/position: {settings['risk_per_position']}%
 • Levier max: x{settings['max_leverage']}
 
 ━━━━━━━━━━━━━━━━━━━━
 
-🔔 **Notifications**
+🔔 <b>Notifications</b>
 • Globales: {"✅" if settings['notifications_enabled'] else "❌"}
 • Opportunités: {"✅" if settings['notif_opportunities'] else "❌"}
 • Positions: {"✅" if settings['notif_positions'] else "❌"}
 
 ━━━━━━━━━━━━━━━━━━━━
 
-🤖 **IA**
+🤖 <b>IA</b>
 • Agressivité: {settings['ai_aggressiveness']}
-• Niveau détail: {settings['detail_level']}
-"""
+• Niveau détail: {settings['detail_level']}"""
 
         keyboard = [
             [InlineKeyboardButton("📊 Trading & Risque", callback_data="settings_trading")],
@@ -63,9 +61,9 @@ class SettingsModule:
         reply_markup = InlineKeyboardMarkup(keyboard)
 
         if query:
-            await query.edit_message_text(text, reply_markup=reply_markup, parse_mode='Markdown')
+            await query.edit_message_text(text, reply_markup=reply_markup, parse_mode='HTML')
         else:
-            await update.message.reply_text(text, reply_markup=reply_markup, parse_mode='Markdown')
+            await update.message.reply_text(text, reply_markup=reply_markup, parse_mode='HTML')
 
     async def show_trading_settings(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Affiche les paramètres de trading"""
@@ -75,15 +73,13 @@ class SettingsModule:
         user_id = query.from_user.id
         settings = await db_manager.get_user_settings(user_id)
 
-        text = f"""
-📊 **PARAMÈTRES TRADING**
+        text = f"""📊 <b>PARAMÈTRES TRADING</b>
 
-**Style de trading:** {settings['trading_style']}
-**Risque par position:** {settings['risk_per_position']}%
-**Perte max quotidienne:** {settings['max_daily_loss']}%
-**Levier maximum:** x{settings['max_leverage']}
-**Stop Loss obligatoire:** {"✅" if settings['stop_loss_mandatory'] else "❌"}
-"""
+<b>Style de trading:</b> {settings['trading_style']}
+<b>Risque par position:</b> {settings['risk_per_position']}%
+<b>Perte max quotidienne:</b> {settings['max_daily_loss']}%
+<b>Levier maximum:</b> x{settings['max_leverage']}
+<b>Stop Loss obligatoire:</b> {"✅" if settings['stop_loss_mandatory'] else "❌"}"""
 
         keyboard = [
             [InlineKeyboardButton("📝 Modifier", callback_data="settings_trading_edit")],
@@ -91,7 +87,7 @@ class SettingsModule:
         ]
 
         reply_markup = InlineKeyboardMarkup(keyboard)
-        await query.edit_message_text(text, reply_markup=reply_markup, parse_mode='Markdown')
+        await query.edit_message_text(text, reply_markup=reply_markup, parse_mode='HTML')
 
     async def show_notification_settings(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Affiche les paramètres de notifications"""
@@ -101,20 +97,18 @@ class SettingsModule:
         user_id = query.from_user.id
         settings = await db_manager.get_user_settings(user_id)
 
-        text = f"""
-🔔 **PARAMÈTRES NOTIFICATIONS**
+        text = f"""🔔 <b>PARAMÈTRES NOTIFICATIONS</b>
 
-**Notifications globales:** {"✅" if settings['notifications_enabled'] else "❌"}
+<b>Notifications globales:</b> {"✅" if settings['notifications_enabled'] else "❌"}
 
-**Types de notifications:**
+<b>Types de notifications:</b>
 • Opportunités: {"✅" if settings['notif_opportunities'] else "❌"}
 • Breakouts: {"✅" if settings['notif_breakouts'] else "❌"}
 • Positions: {"✅" if settings['notif_positions'] else "❌"}
 • News: {"✅" if settings['notif_news'] else "❌"}
 
-**Résumé quotidien:** {"✅" if settings['notif_daily_summary'] else "❌"}
-**Heure:** {settings['summary_time']}
-"""
+<b>Résumé quotidien:</b> {"✅" if settings['notif_daily_summary'] else "❌"}
+<b>Heure:</b> {settings['summary_time']}"""
 
         keyboard = [
             [InlineKeyboardButton(
@@ -125,7 +119,7 @@ class SettingsModule:
         ]
 
         reply_markup = InlineKeyboardMarkup(keyboard)
-        await query.edit_message_text(text, reply_markup=reply_markup, parse_mode='Markdown')
+        await query.edit_message_text(text, reply_markup=reply_markup, parse_mode='HTML')
 
     async def toggle_notifications(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Active/désactive les notifications"""
@@ -152,19 +146,17 @@ class SettingsModule:
         user_id = query.from_user.id
         settings = await db_manager.get_user_settings(user_id)
 
-        text = f"""
-🤖 **PARAMÈTRES INTELLIGENCE IA**
+        text = f"""🤖 <b>PARAMÈTRES INTELLIGENCE IA</b>
 
-**Agressivité de l'IA:** {settings['ai_aggressiveness']}
+<b>Agressivité de l'IA:</b> {settings['ai_aggressiveness']}
 Définit le niveau de prise de risque dans les recommandations.
 
-**Niveau de détail:** {settings['detail_level']}
+<b>Niveau de détail:</b> {settings['detail_level']}
 Quantité d'informations dans les analyses.
 
-**Langue:** FR 🇫🇷
+<b>Langue:</b> FR 🇫🇷
 
-Ces paramètres influencent la manière dont l'IA analyse les marchés et formule ses recommandations.
-"""
+Ces paramètres influencent la manière dont l'IA analyse les marchés et formule ses recommandations."""
 
         keyboard = [
             [InlineKeyboardButton("📝 Agressivité", callback_data="settings_ai_aggro")],
@@ -173,7 +165,7 @@ Ces paramètres influencent la manière dont l'IA analyse les marchés et formul
         ]
 
         reply_markup = InlineKeyboardMarkup(keyboard)
-        await query.edit_message_text(text, reply_markup=reply_markup, parse_mode='Markdown')
+        await query.edit_message_text(text, reply_markup=reply_markup, parse_mode='HTML')
 
     async def show_ui_settings(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Affiche les paramètres d'interface"""
@@ -183,22 +175,20 @@ Ces paramètres influencent la manière dont l'IA analyse les marchés et formul
         user_id = query.from_user.id
         settings = await db_manager.get_user_settings(user_id)
 
-        text = """
-🎨 **PARAMÈTRES INTERFACE**
+        text = """🎨 <b>PARAMÈTRES INTERFACE</b>
 
-**Thème:** 🌙 Sombre
-**Emojis:** ✅ Activés
-**Graphiques:** ✅ Candlesticks
+<b>Thème:</b> 🌙 Sombre
+<b>Emojis:</b> ✅ Activés
+<b>Graphiques:</b> ✅ Candlesticks
 
-**Notifications visuelles:**
+<b>Notifications visuelles:</b>
 • Opportunités: 🔥
 • Positions gagnantes: 💰
 • Positions perdantes: ⚠️
 
-**Format des nombres:**
+<b>Format des nombres:</b>
 • Prix: 2 décimales
-• Pourcentages: 2 décimales
-"""
+• Pourcentages: 2 décimales"""
 
         keyboard = [
             [InlineKeyboardButton("🎨 Thème", callback_data="settings_ui_theme")],
@@ -207,7 +197,7 @@ Ces paramètres influencent la manière dont l'IA analyse les marchés et formul
         ]
 
         reply_markup = InlineKeyboardMarkup(keyboard)
-        await query.edit_message_text(text, reply_markup=reply_markup, parse_mode='Markdown')
+        await query.edit_message_text(text, reply_markup=reply_markup, parse_mode='HTML')
 
     async def handle_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Gère les callbacks"""
