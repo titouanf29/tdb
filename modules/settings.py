@@ -351,7 +351,9 @@ Choisissez votre style de trading préféré. Ce paramètre influence les recomm
         keyboard = []
         for key, label in styles.items():
             marker = " ✓" if key == current else ""
-            keyboard.append([InlineKeyboardButton(f"{label}{marker}", callback_data=f"set_style_{key}")])
+            # Remplacer espaces par underscores dans callback_data
+            callback_key = key.replace(' ', '_')
+            keyboard.append([InlineKeyboardButton(f"{label}{marker}", callback_data=f"set_style_{callback_key}")])
         keyboard.append([InlineKeyboardButton(BTN_BACK, callback_data="settings_trading")])
 
         reply_markup = InlineKeyboardMarkup(keyboard)
@@ -549,7 +551,9 @@ Définissez le niveau de prise de risque dans les recommandations de l'IA.
         keyboard = []
         for key, label in aggros.items():
             marker = " ✓" if key == current else ""
-            keyboard.append([InlineKeyboardButton(f"{label}{marker}", callback_data=f"set_aggro_{key}")])
+            # Remplacer espaces par underscores dans callback_data
+            callback_key = key.replace(' ', '_')
+            keyboard.append([InlineKeyboardButton(f"{label}{marker}", callback_data=f"set_aggro_{callback_key}")])
         keyboard.append([InlineKeyboardButton(BTN_BACK, callback_data="settings_ai")])
 
         reply_markup = InlineKeyboardMarkup(keyboard)
@@ -684,7 +688,7 @@ Que souhaitez-vous modifier ?"""
 
         # Mise à jour des valeurs trading
         elif data.startswith("set_style_"):
-            style = data.replace("set_style_", "")
+            style = data.replace("set_style_", "").replace('_', ' ')
             await self.update_setting(update, context, "trading_style", style, "trading")
 
         elif data.startswith("set_risk_"):
@@ -710,7 +714,7 @@ Que souhaitez-vous modifier ?"""
             await self.show_ai_detail_menu(update, context)
 
         elif data.startswith("set_aggro_"):
-            aggro = data.replace("set_aggro_", "")
+            aggro = data.replace("set_aggro_", "").replace('_', ' ')
             await self.update_setting(update, context, "ai_aggressiveness", aggro, "ai")
 
         elif data.startswith("set_detail_"):
