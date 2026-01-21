@@ -4,10 +4,17 @@ Service de génération de graphiques
 import matplotlib
 matplotlib.use('Agg')  # Backend sans interface graphique
 import matplotlib.pyplot as plt
-import mplfinance as mpf
 from io import BytesIO
 from datetime import datetime
 import pandas as pd
+
+# Import optionnel de mplfinance
+try:
+    import mplfinance as mpf
+    HAS_MPLFINANCE = True
+except ImportError:
+    HAS_MPLFINANCE = False
+    print("⚠️ mplfinance non installé - Les graphiques chandeliers ne seront pas disponibles")
 
 class ChartService:
     """Service pour générer des graphiques"""
@@ -25,6 +32,11 @@ class ChartService:
         Returns:
             BytesIO: Image du graphique
         """
+        # Si mplfinance n'est pas installé, utiliser un graphique simple
+        if not HAS_MPLFINANCE:
+            print(f"⚠️ Génération graphique simple pour {symbol} (mplfinance non installé)")
+            return await ChartService.generate_line_chart(data, symbol)
+
         try:
             # Style du graphique
             style = mpf.make_mpf_style(
