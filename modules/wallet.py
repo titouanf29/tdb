@@ -22,6 +22,11 @@ class WalletModule:
     def register_handlers(self):
         """Enregistre les handlers"""
         self.app.add_handler(CallbackQueryHandler(self.handle_callback, pattern="^wallet_"))
+        # Handler pour les codes de position tapés dans le chat
+        self.app.add_handler(MessageHandler(
+            filters.TEXT & ~filters.COMMAND,
+            self.handle_text_message
+        ))
 
     async def show_wallet(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Affiche le wallet de l'utilisateur"""
@@ -408,6 +413,110 @@ Ou tapez un montant personnalisé dans le chat (ex: 25000)
 
         await query.answer(f"✅ {format_price(amount)} USD ajouté !", show_alert=True)
         await self.show_wallet(update, context)
+
+    async def handle_text_message(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Gère les messages texte (codes de position)"""
+        user_id = update.message.from_user.id
+
+        # Vérifier s'il y a une conversation en cours (Trading Compagnon)
+        conversation_state = await db_manager.get_conversation_state(user_id)
+        if conversation_state:
+            # Il y a une conversation en cours, ne pas intercepter le message
+            return
+
+        text = update.message.text.strip().upper()
+
+        # Vérifier si c'est un code de position (8 caractères alphanumériques)
+        import re
+        if re.match(r'^[A-Z0-9]{8}$', text):
+            # C'est potentiellement un code de position
+            position = await db_manager.get_position(text)
+
+            if position:
+                # Afficher le ticket de position
+                await self.show_position_ticket(update, context, text)
+            # Ne rien faire si le code n'existe pas (éviter le spam)
+
+    async def show_position_ticket(self, update: Update, context: ContextTypes.DEFAULT_TYPE, position_code: str):
+        """Affiche le ticket d'une position (depuis message texte)"""
+        position = await db_manager.get_position(position_code)
+
+        if not position:
+            await update.message.reply_text(
+                f"❌ Position introuvable: `{position_code}`",
+                parse_mode='Markdown'
+            )
+            return
+
+        direction_emoji = EMOJI_DIRECTION[position['direction']]
+        pnl_emoji = "🟢" if position['pnl'] >= 0 else "🔴"
+
+        # Récupérer le prix actuel
+        from services.market_data import market_data_service
+        current_price = await market_data_service.get_current_price(position['asset_symbol'])
+
+        if current_price and position['status'] == 'open':
+            # Mettre à jour le prix et PnL
+            direction_multiplier = 1 if position['direction'] == 'LONG' else -1
+            pnl = (current_price - position['entry_price']) * position['amount'] * position['leverage'] * direction_multiplier
+            pnl_percent = ((current_price - position['entry_price']) / position['entry_price']) * 100 * position['leverage'] * direction_multiplier
+
+            await db_manager.update_position(
+                position_code,
+                current_price=current_price,
+                pnl=pnl,
+                pnl_percent=pnl_percent
+            )
+
+            position['current_price'] = current_price
+            position['pnl'] = pnl
+            position['pnl_percent'] = pnl_percent
+
+        status_text = "🟢 OUVERTE" if position['status'] == 'open' else "🔴 FERMÉE"
+
+        text = f"""
+🎫 **TICKET DE POSITION**
+
+**Code:** `{position['position_code']}`
+**Statut:** {status_text}
+
+━━━━━━━━━━━━━━━━━━━━
+
+{direction_emoji} **{position['asset_symbol']}** - {position['direction']}
+
+💰 **Montant:** {format_price(position['amount'])} USD
+📊 **Levier:** x{position['leverage']}
+
+**Prix d'entrée:** {format_price(position['entry_price'])}
+**Prix actuel:** {format_price(position['current_price'])}
+
+🎯 **Take Profit:**
+• TP1: {format_price(position['take_profit_1']) if position['take_profit_1'] else 'Non défini'}
+• TP2: {format_price(position['take_profit_2']) if position['take_profit_2'] else 'Non défini'}
+
+🛑 **Stop Loss:** {format_price(position['stop_loss']) if position['stop_loss'] else 'Non défini'}
+
+━━━━━━━━━━━━━━━━━━━━
+
+{pnl_emoji} **PnL:** {format_pnl(position['pnl'])}
+{pnl_emoji} **PnL %:** {format_percent(position['pnl_percent'])}
+
+📅 Ouvert le: {position['opened_at'][:16]}
+"""
+
+        if position['status'] == 'open':
+            keyboard = [
+                [InlineKeyboardButton("🔄 Actualiser", callback_data=f"position_detail_{position_code}")],
+                [InlineKeyboardButton("❌ Fermer la position", callback_data=f"position_close_{position_code}")],
+                [InlineKeyboardButton("💼 Voir Wallet", callback_data="wallet_main")]
+            ]
+        else:
+            keyboard = [
+                [InlineKeyboardButton("💼 Voir Wallet", callback_data="wallet_main")]
+            ]
+
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await update.message.reply_text(text, reply_markup=reply_markup, parse_mode='Markdown')
 
     async def handle_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Gère les callbacks du wallet"""
