@@ -326,17 +326,33 @@ Choisissez l'heure à laquelle vous souhaitez recevoir votre résumé quotidien.
         query = update.callback_query
         await query.answer()
 
-        text = """📊 <b>STYLE DE TRADING</b>
+        user_id = query.from_user.id
+        settings = await db_manager.get_user_settings(user_id)
+        current = settings.get('trading_style', 'Day Trading')
 
-Choisissez votre style de trading préféré :"""
+        text = f"""📊 <b>STYLE DE TRADING</b>
 
-        keyboard = [
-            [InlineKeyboardButton("⚡ Scalping (< 5min)", callback_data="set_style_Scalping")],
-            [InlineKeyboardButton("📈 Day Trading (< 1 jour)", callback_data="set_style_Day Trading")],
-            [InlineKeyboardButton("📊 Swing Trading (< 1 semaine)", callback_data="set_style_Swing Trading")],
-            [InlineKeyboardButton("📉 Position Trading (> 1 semaine)", callback_data="set_style_Position Trading")],
-            [InlineKeyboardButton(BTN_BACK, callback_data="settings_trading")]
-        ]
+Choisissez votre style de trading préféré. Ce paramètre influence les recommandations de l'IA et les analyses proposées.
+
+<b>Actuellement :</b> {current}
+
+<b>⚡ Scalping</b> : Positions très courtes (secondes à minutes)
+<b>📈 Day Trading</b> : Positions intraday (quelques heures)
+<b>📊 Swing Trading</b> : Positions de plusieurs jours
+<b>📉 Position Trading</b> : Positions long terme (semaines/mois)"""
+
+        styles = {
+            'Scalping': '⚡ Scalping',
+            'Day Trading': '📈 Day Trading',
+            'Swing Trading': '📊 Swing Trading',
+            'Position Trading': '📉 Position Trading'
+        }
+
+        keyboard = []
+        for key, label in styles.items():
+            marker = " ✓" if key == current else ""
+            keyboard.append([InlineKeyboardButton(f"{label}{marker}", callback_data=f"set_style_{key}")])
+        keyboard.append([InlineKeyboardButton(BTN_BACK, callback_data="settings_trading")])
 
         reply_markup = InlineKeyboardMarkup(keyboard)
         await query.edit_message_text(text, reply_markup=reply_markup, parse_mode='HTML')
@@ -346,16 +362,35 @@ Choisissez votre style de trading préféré :"""
         query = update.callback_query
         await query.answer()
 
-        text = """📊 <b>RISQUE PAR POSITION</b>
+        user_id = query.from_user.id
+        settings = await db_manager.get_user_settings(user_id)
+        current = settings.get('risk_per_position', 2)
 
-Choisissez le pourcentage maximum de votre capital à risquer par position :"""
+        text = f"""💰 <b>RISQUE PAR POSITION</b>
 
-        keyboard = [
-            [InlineKeyboardButton("1%", callback_data="set_risk_1"), InlineKeyboardButton("2%", callback_data="set_risk_2")],
-            [InlineKeyboardButton("3%", callback_data="set_risk_3"), InlineKeyboardButton("5%", callback_data="set_risk_5")],
-            [InlineKeyboardButton("10%", callback_data="set_risk_10"), InlineKeyboardButton("15%", callback_data="set_risk_15")],
-            [InlineKeyboardButton(BTN_BACK, callback_data="settings_trading")]
-        ]
+Définit le pourcentage maximum de votre capital à risquer sur une seule position.
+
+<b>Actuellement :</b> {current}%
+
+<b>Recommandations :</b>
+• 1-2% : Très prudent (débutants)
+• 3-5% : Équilibré (recommandé)
+• 10-15% : Agressif (expérimentés uniquement)
+
+⚠️ Plus le risque est élevé, plus les gains et pertes potentiels sont importants."""
+
+        risks = [1, 2, 3, 5, 10, 15]
+        keyboard = []
+        row = []
+        for risk in risks:
+            marker = " ✓" if risk == current else ""
+            row.append(InlineKeyboardButton(f"{risk}%{marker}", callback_data=f"set_risk_{risk}"))
+            if len(row) == 2:
+                keyboard.append(row)
+                row = []
+        if row:
+            keyboard.append(row)
+        keyboard.append([InlineKeyboardButton(BTN_BACK, callback_data="settings_trading")])
 
         reply_markup = InlineKeyboardMarkup(keyboard)
         await query.edit_message_text(text, reply_markup=reply_markup, parse_mode='HTML')
@@ -365,16 +400,35 @@ Choisissez le pourcentage maximum de votre capital à risquer par position :"""
         query = update.callback_query
         await query.answer()
 
-        text = """📊 <b>PERTE MAX QUOTIDIENNE</b>
+        user_id = query.from_user.id
+        settings = await db_manager.get_user_settings(user_id)
+        current = settings.get('max_daily_loss', 10)
 
-Choisissez le pourcentage maximum de perte acceptable par jour :"""
+        text = f"""📉 <b>PERTE MAX QUOTIDIENNE</b>
 
-        keyboard = [
-            [InlineKeyboardButton("5%", callback_data="set_daily_loss_5"), InlineKeyboardButton("10%", callback_data="set_daily_loss_10")],
-            [InlineKeyboardButton("15%", callback_data="set_daily_loss_15"), InlineKeyboardButton("20%", callback_data="set_daily_loss_20")],
-            [InlineKeyboardButton("25%", callback_data="set_daily_loss_25"), InlineKeyboardButton("30%", callback_data="set_daily_loss_30")],
-            [InlineKeyboardButton(BTN_BACK, callback_data="settings_trading")]
-        ]
+Limite de perte quotidienne. Si cette limite est atteinte, le bot cessera de trader pour la journée.
+
+<b>Actuellement :</b> {current}%
+
+<b>Protection du capital :</b>
+• 5-10% : Protection stricte (recommandé)
+• 15-20% : Tolérance modérée
+• 25-30% : Haute tolérance
+
+🛡️ Cette limite protège votre capital contre les mauvaises journées de trading."""
+
+        losses = [5, 10, 15, 20, 25, 30]
+        keyboard = []
+        row = []
+        for loss in losses:
+            marker = " ✓" if loss == current else ""
+            row.append(InlineKeyboardButton(f"{loss}%{marker}", callback_data=f"set_daily_loss_{loss}"))
+            if len(row) == 2:
+                keyboard.append(row)
+                row = []
+        if row:
+            keyboard.append(row)
+        keyboard.append([InlineKeyboardButton(BTN_BACK, callback_data="settings_trading")])
 
         reply_markup = InlineKeyboardMarkup(keyboard)
         await query.edit_message_text(text, reply_markup=reply_markup, parse_mode='HTML')
@@ -384,16 +438,36 @@ Choisissez le pourcentage maximum de perte acceptable par jour :"""
         query = update.callback_query
         await query.answer()
 
-        text = """📊 <b>LEVIER MAXIMUM</b>
+        user_id = query.from_user.id
+        settings = await db_manager.get_user_settings(user_id)
+        current = settings.get('max_leverage', 10)
 
-Choisissez le levier maximum autorisé pour vos positions :"""
+        text = f"""⚡ <b>LEVIER MAXIMUM</b>
 
-        keyboard = [
-            [InlineKeyboardButton("×1", callback_data="set_leverage_1"), InlineKeyboardButton("×2", callback_data="set_leverage_2"), InlineKeyboardButton("×5", callback_data="set_leverage_5")],
-            [InlineKeyboardButton("×10", callback_data="set_leverage_10"), InlineKeyboardButton("×20", callback_data="set_leverage_20"), InlineKeyboardButton("×50", callback_data="set_leverage_50")],
-            [InlineKeyboardButton("×100", callback_data="set_leverage_100"), InlineKeyboardButton("×125", callback_data="set_leverage_125")],
-            [InlineKeyboardButton(BTN_BACK, callback_data="settings_trading")]
-        ]
+Le levier multiplie votre exposition au marché. Plus le levier est élevé, plus les gains et pertes sont amplifiés.
+
+<b>Actuellement :</b> ×{current}
+
+<b>Niveaux de risque :</b>
+• ×1-2 : Sans levier / Très sécurisé
+• ×5-10 : Modéré (recommandé)
+• ×20-50 : Élevé (trader expérimentés)
+• ×100-125 : Extrême (très risqué)
+
+⚠️ ATTENTION : Un levier élevé peut liquider rapidement votre position en cas de mouvement défavorable."""
+
+        leverages = [1, 2, 5, 10, 20, 50, 100, 125]
+        keyboard = []
+        row = []
+        for lev in leverages:
+            marker = " ✓" if lev == current else ""
+            row.append(InlineKeyboardButton(f"×{lev}{marker}", callback_data=f"set_leverage_{lev}"))
+            if len(row) == 3:
+                keyboard.append(row)
+                row = []
+        if row:
+            keyboard.append(row)
+        keyboard.append([InlineKeyboardButton(BTN_BACK, callback_data="settings_trading")])
 
         reply_markup = InlineKeyboardMarkup(keyboard)
         await query.edit_message_text(text, reply_markup=reply_markup, parse_mode='HTML')
@@ -405,16 +479,28 @@ Choisissez le levier maximum autorisé pour vos positions :"""
 
         user_id = query.from_user.id
         settings = await db_manager.get_user_settings(user_id)
+        current = settings.get('stop_loss_mandatory', 1)
 
-        text = """📊 <b>STOP LOSS OBLIGATOIRE</b>
+        text = f"""🛡️ <b>STOP LOSS OBLIGATOIRE</b>
 
-Voulez-vous rendre obligatoire la définition d'un Stop Loss pour chaque position ?
+Le Stop Loss est un niveau de prix qui clôture automatiquement votre position en cas de perte, limitant ainsi vos pertes.
 
-<b>Actuellement :</b> """ + ("✅ Activé" if settings['stop_loss_mandatory'] else "❌ Désactivé")
+<b>Actuellement :</b> {("✅ Activé" if current else "❌ Désactivé")}
+
+<b>Si activé :</b>
+• Vous devrez définir un Stop Loss pour chaque position
+• Protection automatique contre les pertes excessives
+• Discipline de trading renforcée
+
+<b>Si désactivé :</b>
+• Liberté totale (risqué)
+• Nécessite une surveillance constante
+
+💡 <b>Recommandation :</b> Activé (surtout pour les débutants)"""
 
         keyboard = [
-            [InlineKeyboardButton("✅ Activer", callback_data="set_sl_1")],
-            [InlineKeyboardButton("❌ Désactiver", callback_data="set_sl_0")],
+            [InlineKeyboardButton("✅ Activer (Recommandé)" if not current else "✅ Activer ✓", callback_data="set_sl_1")],
+            [InlineKeyboardButton("❌ Désactiver" if current else "❌ Désactiver ✓", callback_data="set_sl_0")],
             [InlineKeyboardButton(BTN_BACK, callback_data="settings_trading")]
         ]
 
@@ -426,22 +512,45 @@ Voulez-vous rendre obligatoire la définition d'un Stop Loss pour chaque positio
         query = update.callback_query
         await query.answer()
 
-        text = """🤖 <b>AGRESSIVITÉ DE L'IA</b>
+        user_id = query.from_user.id
+        settings = await db_manager.get_user_settings(user_id)
+        current = settings.get('ai_aggressiveness', 'balanced')
 
-Définissez le niveau de prise de risque dans les recommandations :
+        text = f"""🤖 <b>AGRESSIVITÉ DE L'IA</b>
 
-• <b>Conservateur</b> : Privilégie la sécurité
-• <b>Modéré</b> : Équilibre risque/rendement
-• <b>Agressif</b> : Privilégie les opportunités
-• <b>Très Agressif</b> : Maximum d'opportunités"""
+Définissez le niveau de prise de risque dans les recommandations de l'IA.
 
-        keyboard = [
-            [InlineKeyboardButton("🛡️ Conservateur", callback_data="set_aggro_Conservateur")],
-            [InlineKeyboardButton("⚖️ Modéré", callback_data="set_aggro_Modéré")],
-            [InlineKeyboardButton("⚡ Agressif", callback_data="set_aggro_Agressif")],
-            [InlineKeyboardButton("🔥 Très Agressif", callback_data="set_aggro_Très Agressif")],
-            [InlineKeyboardButton(BTN_BACK, callback_data="settings_ai")]
-        ]
+<b>Actuellement :</b> {current}
+
+<b>🛡️ Conservateur</b> : Privilégie la sécurité
+• Seuil de score élevé (80+)
+• Opportunités rares mais sûres
+• Idéal pour capital limité
+
+<b>⚖️ Modéré</b> : Équilibre risque/rendement
+• Seuil standard (70+)
+• Bon compromis (recommandé)
+
+<b>⚡ Agressif</b> : Privilégie les opportunités
+• Seuil abaissé (60+)
+• Plus d'alertes, plus de risque
+
+<b>🔥 Très Agressif</b> : Maximum d'opportunités
+• Seuil bas (50+)
+• Trading intensif"""
+
+        aggros = {
+            'Conservateur': '🛡️ Conservateur',
+            'Modéré': '⚖️ Modéré',
+            'Agressif': '⚡ Agressif',
+            'Très Agressif': '🔥 Très Agressif'
+        }
+
+        keyboard = []
+        for key, label in aggros.items():
+            marker = " ✓" if key == current else ""
+            keyboard.append([InlineKeyboardButton(f"{label}{marker}", callback_data=f"set_aggro_{key}")])
+        keyboard.append([InlineKeyboardButton(BTN_BACK, callback_data="settings_ai")])
 
         reply_markup = InlineKeyboardMarkup(keyboard)
         await query.edit_message_text(text, reply_markup=reply_markup, parse_mode='HTML')
@@ -451,22 +560,44 @@ Définissez le niveau de prise de risque dans les recommandations :
         query = update.callback_query
         await query.answer()
 
-        text = """🤖 <b>NIVEAU DE DÉTAIL</b>
+        user_id = query.from_user.id
+        settings = await db_manager.get_user_settings(user_id)
+        current = settings.get('detail_level', 'normal')
 
-Choisissez la quantité d'informations dans les analyses :
+        text = f"""📊 <b>NIVEAU DE DÉTAIL</b>
 
-• <b>Minimal</b> : Essentiel uniquement
-• <b>Standard</b> : Informations principales
-• <b>Détaillé</b> : Analyse approfondie
-• <b>Complet</b> : Toutes les informations"""
+Choisissez la quantité d'informations dans les analyses de l'IA.
 
-        keyboard = [
-            [InlineKeyboardButton("📋 Minimal", callback_data="set_detail_Minimal")],
-            [InlineKeyboardButton("📊 Standard", callback_data="set_detail_Standard")],
-            [InlineKeyboardButton("📈 Détaillé", callback_data="set_detail_Détaillé")],
-            [InlineKeyboardButton("📚 Complet", callback_data="set_detail_Complet")],
-            [InlineKeyboardButton(BTN_BACK, callback_data="settings_ai")]
-        ]
+<b>Actuellement :</b> {current}
+
+<b>📋 Minimal</b> : Essentiel uniquement
+• Score + Direction + Prix
+• Lecture rapide (30 sec)
+
+<b>📊 Standard</b> : Informations principales
+• Indicateurs clés + Tendance
+• Lecture moyenne (1-2 min)
+
+<b>📈 Détaillé</b> : Analyse approfondie
+• Tous indicateurs + Contexte
+• Lecture complète (3-5 min)
+
+<b>📚 Complet</b> : Maximum d'informations
+• Analyse exhaustive + Graphiques
+• Pour traders expérimentés (5-10 min)"""
+
+        details = {
+            'Minimal': '📋 Minimal',
+            'Standard': '📊 Standard',
+            'Détaillé': '📈 Détaillé',
+            'Complet': '📚 Complet'
+        }
+
+        keyboard = []
+        for key, label in details.items():
+            marker = " ✓" if key == current else ""
+            keyboard.append([InlineKeyboardButton(f"{label}{marker}", callback_data=f"set_detail_{key}")])
+        keyboard.append([InlineKeyboardButton(BTN_BACK, callback_data="settings_ai")])
 
         reply_markup = InlineKeyboardMarkup(keyboard)
         await query.edit_message_text(text, reply_markup=reply_markup, parse_mode='HTML')
