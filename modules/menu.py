@@ -8,8 +8,14 @@ import config
 class MenuModule:
     """Gère le menu principal du bot"""
 
-    def __init__(self, application):
+    def __init__(self, application, market_module=None, wallet_module=None,
+                 favorites_module=None, scan_module=None, settings_module=None):
         self.app = application
+        self.market_module = market_module
+        self.wallet_module = wallet_module
+        self.favorites_module = favorites_module
+        self.scan_module = scan_module
+        self.settings_module = settings_module
         self.register_handlers()
 
     def register_handlers(self):
@@ -76,29 +82,18 @@ Sélectionnez une option :
             await self.show_menu(update, context)
             return
 
-        # Redirection vers les modules
-        if data == "menu_market":
-            # Import dynamique pour éviter les imports circulaires
-            from modules.market import MarketModule
-            market_module = MarketModule(self.app)
-            await market_module.show_markets(update, context)
+        # Redirection vers les modules (utilise les références existantes)
+        if data == "menu_market" and self.market_module:
+            await self.market_module.show_markets(update, context)
 
-        elif data == "menu_wallet":
-            from modules.wallet import WalletModule
-            wallet_module = WalletModule(self.app)
-            await wallet_module.show_wallet(update, context)
+        elif data == "menu_wallet" and self.wallet_module:
+            await self.wallet_module.show_wallet(update, context)
 
-        elif data == "menu_favorites":
-            from modules.favorites import FavoritesModule
-            favorites_module = FavoritesModule(self.app)
-            await favorites_module.show_favorites(update, context)
+        elif data == "menu_favorites" and self.favorites_module:
+            await self.favorites_module.show_favorites(update, context)
 
-        elif data == "menu_scan":
-            from modules.scan_auto import ScanAutoModule
-            scan_module = ScanAutoModule(self.app)
-            await scan_module.show_scan_menu(update, context)
+        elif data == "menu_scan" and self.scan_module:
+            await self.scan_module.show_scan_menu(update, context)
 
-        elif data == "menu_settings":
-            from modules.settings import SettingsModule
-            settings_module = SettingsModule(self.app)
-            await settings_module.show_settings(update, context)
+        elif data == "menu_settings" and self.settings_module:
+            await self.settings_module.show_settings(update, context)

@@ -144,6 +144,71 @@ class SettingsModule:
 
         await self.show_notification_settings(update, context)
 
+    async def show_ai_settings(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Affiche les paramètres IA"""
+        query = update.callback_query
+        await query.answer()
+
+        user_id = query.from_user.id
+        settings = await db_manager.get_user_settings(user_id)
+
+        text = f"""
+🤖 **PARAMÈTRES INTELLIGENCE IA**
+
+**Agressivité de l'IA:** {settings['ai_aggressiveness']}
+Définit le niveau de prise de risque dans les recommandations.
+
+**Niveau de détail:** {settings['detail_level']}
+Quantité d'informations dans les analyses.
+
+**Langue:** FR 🇫🇷
+
+Ces paramètres influencent la manière dont l'IA analyse les marchés et formule ses recommandations.
+"""
+
+        keyboard = [
+            [InlineKeyboardButton("📝 Agressivité", callback_data="settings_ai_aggro")],
+            [InlineKeyboardButton("📊 Niveau détail", callback_data="settings_ai_detail")],
+            [InlineKeyboardButton(BTN_BACK, callback_data="settings_main")]
+        ]
+
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await query.edit_message_text(text, reply_markup=reply_markup, parse_mode='Markdown')
+
+    async def show_ui_settings(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Affiche les paramètres d'interface"""
+        query = update.callback_query
+        await query.answer()
+
+        user_id = query.from_user.id
+        settings = await db_manager.get_user_settings(user_id)
+
+        text = """
+🎨 **PARAMÈTRES INTERFACE**
+
+**Thème:** 🌙 Sombre
+**Emojis:** ✅ Activés
+**Graphiques:** ✅ Candlesticks
+
+**Notifications visuelles:**
+• Opportunités: 🔥
+• Positions gagnantes: 💰
+• Positions perdantes: ⚠️
+
+**Format des nombres:**
+• Prix: 2 décimales
+• Pourcentages: 2 décimales
+"""
+
+        keyboard = [
+            [InlineKeyboardButton("🎨 Thème", callback_data="settings_ui_theme")],
+            [InlineKeyboardButton("📊 Graphiques", callback_data="settings_ui_charts")],
+            [InlineKeyboardButton(BTN_BACK, callback_data="settings_main")]
+        ]
+
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await query.edit_message_text(text, reply_markup=reply_markup, parse_mode='Markdown')
+
     async def handle_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Gère les callbacks"""
         query = update.callback_query
@@ -160,3 +225,13 @@ class SettingsModule:
 
         elif data == "settings_notif_toggle":
             await self.toggle_notifications(update, context)
+
+        elif data == "settings_ai":
+            await self.show_ai_settings(update, context)
+
+        elif data == "settings_ui":
+            await self.show_ui_settings(update, context)
+
+        # Sous-menus (non implémentés complètement pour l'instant)
+        elif data.startswith("settings_ai_") or data.startswith("settings_ui_") or data.startswith("settings_trading_"):
+            await query.answer("⚙️ Fonctionnalité en cours de développement", show_alert=True)

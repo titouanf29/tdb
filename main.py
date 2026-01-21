@@ -61,11 +61,7 @@ class TDBBot:
         logger.info("Configuration des modules...")
 
         try:
-            # Menu principal
-            self.menu_module = MenuModule(self.application)
-            logger.info("✅ Module Menu chargé")
-
-            # Modules principaux
+            # Modules principaux (créés en premier)
             self.market_module = MarketModule(self.application)
             logger.info("✅ Module Marché chargé")
 
@@ -84,6 +80,17 @@ class TDBBot:
             # Trading Compagnon IA
             self.trading_companion = TradingCompanion(self.application)
             logger.info("✅ Trading Compagnon IA chargé")
+
+            # Menu principal (créé en dernier avec références aux autres modules)
+            self.menu_module = MenuModule(
+                self.application,
+                market_module=self.market_module,
+                wallet_module=self.wallet_module,
+                favorites_module=self.favorites_module,
+                scan_module=self.scan_module,
+                settings_module=self.settings_module
+            )
+            logger.info("✅ Module Menu chargé")
 
             logger.info("🎉 Tous les modules sont chargés")
 
