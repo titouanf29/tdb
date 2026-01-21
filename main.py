@@ -1,0 +1,170 @@
+"""
+TDB Bot - Trading Bot Professionnel
+Point d'entrée principal
+"""
+import asyncio
+import logging
+from telegram.ext import Application
+import config
+from database.manager import db_manager
+from modules.menu import MenuModule
+from modules.market import MarketModule
+from modules.wallet import WalletModule
+from modules.favorites import FavoritesModule
+from modules.scan_auto import ScanAutoModule
+from modules.settings import SettingsModule
+from ai.trading_companion import TradingCompanion
+
+# Configuration du logging
+logging.basicConfig(
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    level=logging.INFO,
+    handlers=[
+        logging.FileHandler(config.LOG_FILE),
+        logging.StreamHandler()
+    ]
+)
+
+logger = logging.getLogger(__name__)
+
+class TDBBot:
+    """Bot TDB principal"""
+
+    def __init__(self):
+        """Initialise le bot"""
+        self.token = config.TELEGRAM_TOKEN
+        self.application = None
+
+    async def initialize_database(self):
+        """Initialise la base de données"""
+        logger.info("Initialisation de la base de données...")
+        try:
+            await db_manager.init_db()
+            logger.info("✅ Base de données initialisée")
+        except Exception as e:
+            logger.error(f"❌ Erreur initialisation BDD: {e}")
+            raise
+
+    def setup_modules(self):
+        """Configure tous les modules du bot"""
+        logger.info("Configuration des modules...")
+
+        try:
+            # Menu principal
+            self.menu_module = MenuModule(self.application)
+            logger.info("✅ Module Menu chargé")
+
+            # Modules principaux
+            self.market_module = MarketModule(self.application)
+            logger.info("✅ Module Marché chargé")
+
+            self.wallet_module = WalletModule(self.application)
+            logger.info("✅ Module Wallet chargé")
+
+            self.favorites_module = FavoritesModule(self.application)
+            logger.info("✅ Module Favoris chargé")
+
+            self.scan_module = ScanAutoModule(self.application)
+            logger.info("✅ Module Scan Auto chargé")
+
+            self.settings_module = SettingsModule(self.application)
+            logger.info("✅ Module Paramètres chargé")
+
+            # Trading Compagnon IA
+            self.trading_companion = TradingCompanion(self.application)
+            logger.info("✅ Trading Compagnon IA chargé")
+
+            logger.info("🎉 Tous les modules sont chargés")
+
+        except Exception as e:
+            logger.error(f"❌ Erreur chargement modules: {e}")
+            raise
+
+    async def error_handler(self, update, context):
+        """Gère les erreurs"""
+        logger.error(f"Exception: {context.error}")
+
+        if update and update.effective_message:
+            await update.effective_message.reply_text(
+                "❌ Une erreur s'est produite. Veuillez réessayer."
+            )
+
+    async def post_init(self, application: Application):
+        """Actions après initialisation"""
+        logger.info("Post-initialisation...")
+
+        # Initialiser la base de données
+        await self.initialize_database()
+
+        # Message de démarrage
+        logger.info("🤖 TDB Bot démarré avec succès !")
+        logger.info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+        logger.info("📊 Modules actifs:")
+        logger.info("  • Menu Principal")
+        logger.info("  • Marché (USA, EUROPE, ASIA, CRYPTO, COMMODITIES, GOLD)")
+        logger.info("  • Wallet (Paper Trading)")
+        logger.info("  • Favoris")
+        logger.info("  • Scan Automatique")
+        logger.info("  • Paramètres")
+        logger.info("  • Trading Compagnon IA")
+        logger.info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+        logger.info("✅ Le bot est prêt à recevoir des commandes")
+
+    async def run(self):
+        """Lance le bot"""
+        logger.info("🚀 Démarrage de TDB Bot...")
+
+        # Créer l'application
+        self.application = Application.builder().token(self.token).post_init(self.post_init).build()
+
+        # Configurer les modules
+        self.setup_modules()
+
+        # Ajouter le gestionnaire d'erreurs
+        self.application.add_error_handler(self.error_handler)
+
+        # Démarrer le bot
+        logger.info("🔄 Connexion à Telegram...")
+        await self.application.initialize()
+        await self.application.start()
+        await self.application.updater.start_polling(drop_pending_updates=True)
+
+        logger.info("✅ Bot connecté et en écoute")
+
+        # Garder le bot actif
+        await asyncio.Event().wait()
+
+    async def stop(self):
+        """Arrête le bot proprement"""
+        logger.info("🛑 Arrêt du bot...")
+
+        if self.application:
+            await self.application.updater.stop()
+            await self.application.stop()
+            await self.application.shutdown()
+
+        logger.info("✅ Bot arrêté proprement")
+
+async def main():
+    """Fonction principale"""
+    bot = TDBBot()
+
+    try:
+        await bot.run()
+    except KeyboardInterrupt:
+        logger.info("⌨️ Interruption clavier détectée")
+        await bot.stop()
+    except Exception as e:
+        logger.error(f"❌ Erreur fatale: {e}")
+        await bot.stop()
+        raise
+
+if __name__ == "__main__":
+    """Point d'entrée"""
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        print("\n👋 Au revoir !")
+    except Exception as e:
+        print(f"❌ Erreur: {e}")
+        exit(1)
