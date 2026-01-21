@@ -1,6 +1,7 @@
 """
 Trading Compagnon IA - Assistant conversationnel pour le paper trading
 """
+import logging
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, CallbackQueryHandler, MessageHandler, filters
 from database.manager import db_manager
@@ -8,6 +9,8 @@ from services.market_data import market_data_service
 from utils.helpers import *
 from utils.validators import *
 from utils.constants import *
+
+logger = logging.getLogger(__name__)
 
 # États de conversation
 STATE_AMOUNT = "waiting_amount"
@@ -62,6 +65,8 @@ class TradingCompanion:
             market=market
         )
 
+        logger.info(f"🤖 Trading Companion: Conversation démarrée pour user {user_id} sur {symbol}")
+
         text = f"""
 🤖 **TRADING COMPAGNON**
 
@@ -97,7 +102,10 @@ Quel montant souhaitez-vous investir ?
         state = await db_manager.get_conversation_state(user_id)
 
         if not state:
-            return  # Pas de conversation en cours
+            # Pas de conversation en cours pour le Trading Companion
+            return
+
+        logger.info(f"💬 Trading Companion: Message reçu de user {user_id}: '{text}' (état: {state['state']})")
 
         # Traiter selon l'état
         if state['state'] == STATE_AMOUNT:
@@ -106,19 +114,26 @@ Quel montant souhaitez-vous investir ?
         elif state['state'] == STATE_LEVERAGE:
             await self.handle_leverage_input(update, context, text, state)
 
+        else:
+            logger.warning(f"⚠️ État inconnu pour user {user_id}: {state['state']}")
+
     async def handle_amount_input(self, update: Update, context: ContextTypes.DEFAULT_TYPE,
                                   text: str, state: dict):
         """Traite l'entrée du montant"""
         user_id = update.message.from_user.id
 
+        logger.info(f"💰 Trading Companion: Traitement montant pour user {user_id}: '{text}'")
+
         # Valider le montant
         if not is_valid_amount(text):
+            logger.warning(f"⚠️ Montant invalide: '{text}'")
             await update.message.reply_text(
                 "❌ Montant invalide. Veuillez entrer un nombre valide (ex: 1000)."
             )
             return
 
         amount = parse_amount(text)
+        logger.info(f"✅ Montant validé: {amount}")
 
         # Vérifier le solde disponible
         wallet = await db_manager.get_wallet(user_id)
