@@ -32,6 +32,12 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
+# Réduire les logs verbeux des bibliothèques externes
+logging.getLogger('httpx').setLevel(logging.WARNING)
+logging.getLogger('httpcore').setLevel(logging.WARNING)
+logging.getLogger('telegram').setLevel(logging.WARNING)
+logging.getLogger('apscheduler').setLevel(logging.WARNING)
+
 class TDBBot:
     """Bot TDB principal"""
 
