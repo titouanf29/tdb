@@ -17,7 +17,7 @@ CREATE TABLE IF NOT EXISTS users (
 CREATE TABLE IF NOT EXISTS user_settings (
     telegram_id INTEGER PRIMARY KEY,
     -- Trading
-    trading_style TEXT DEFAULT 'day_trading', -- scalp, day_trading, swing
+    trading_style TEXT DEFAULT 'Day Trading', -- scalp, day_trading, swing
     risk_per_position REAL DEFAULT 2.0,
     max_daily_loss REAL DEFAULT 5.0,
     max_weekly_loss REAL DEFAULT 10.0,

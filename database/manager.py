@@ -29,6 +29,26 @@ class DatabaseManager:
             except:
                 pass  # La colonne existe déjà
 
+            # Migration: Corriger les anciennes valeurs de trading_style
+            try:
+                await db.execute("""
+                    UPDATE user_settings
+                    SET trading_style = 'Day Trading'
+                    WHERE trading_style = 'day_trading'
+                """)
+                await db.execute("""
+                    UPDATE user_settings
+                    SET trading_style = 'Swing Trading'
+                    WHERE trading_style = 'swing'
+                """)
+                await db.execute("""
+                    UPDATE user_settings
+                    SET trading_style = 'Scalping'
+                    WHERE trading_style = 'scalp'
+                """)
+            except:
+                pass  # Déjà mis à jour
+
             await db.commit()
 
     # ===== UTILISATEURS =====
