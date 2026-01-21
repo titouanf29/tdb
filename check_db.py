@@ -25,7 +25,12 @@ async def check_db():
                 theme,
                 chart_type,
                 notifications_enabled,
-                summary_time
+                summary_time,
+                scan_enabled,
+                scan_frequency,
+                score_min,
+                max_alerts_per_day,
+                scan_weekends
             FROM user_settings
         """) as cursor:
             rows = await cursor.fetchall()
@@ -55,6 +60,12 @@ async def check_db():
                 print(f"   🔔 Notifications:")
                 print(f"      • Activées: {'✅ Oui' if row[10] else '❌ Non'}")
                 print(f"      • Heure résumé: {row[11]}")
+                print(f"   🔍 Scan Auto:")
+                print(f"      • Activé: {'✅ Oui' if row[12] else '❌ Non'}")
+                print(f"      • Fréquence: {row[13]}s ({row[13]//60}min)" if row[13] >= 60 else f"      • Fréquence: {row[13]}s")
+                print(f"      • Score minimum: {row[14]}/100")
+                print(f"      • Alertes max/jour: {row[15]}")
+                print(f"      • Scan week-end: {'✅ Oui' if row[16] else '❌ Non'}")
                 print("=" * 80)
 
 if __name__ == "__main__":
