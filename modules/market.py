@@ -9,6 +9,7 @@ from services.market_data import market_data_service
 from services.charts import chart_service
 from utils.helpers import *
 from utils.constants import *
+from utils.asset_names import format_asset_name, get_asset_display_name, get_asset_emoji
 from database.manager import db_manager
 
 class MarketModule:
@@ -152,32 +153,64 @@ Revenez plus tard ou essayez un autre marché.
         query = update.callback_query
         market_info = config.MARKETS.get(market_code)
 
-        text = f"""
-📊 **RÉSULTATS DU SCAN - {market_info['name']}**
+        # En-tête avec statistiques
+        total_assets = len(results)
+        avg_score = sum(r['score'] for r in results) / total_assets if total_assets > 0 else 0
 
-{len(results)} opportunités détectées
+        text = f"""
+📊 **SCAN COMPLET - {market_info['name']}**
+
+🎯 **{total_assets} actifs analysés**
+📈 Score moyen: {avg_score:.1f}/100
+
+━━━━━━━━━━━━━━━━━━━━
+
+🏆 **CLASSEMENT PAR OPPORTUNITÉ**
 
 """
 
         keyboard = []
 
-        # Afficher top 10
-        for i, result in enumerate(results[:10], 1):
-            emoji = get_score_emoji(result['score'])
-            direction_emoji = EMOJI_DIRECTION[result['direction']]
+        # Afficher top 15 avec un meilleur formatage
+        for i, result in enumerate(results[:15], 1):
+            # Emojis
+            score_emoji = get_score_emoji(result['score'])
+            direction_emoji = EMOJI_DIRECTION.get(result['direction'], '⚪')
+            asset_emoji = get_asset_emoji(result['symbol'])
 
-            text += f"\n{i}. {emoji} **{result['symbol']}** - Score: {result['score']}/100"
-            text += f"\n   {direction_emoji} {result['direction']} | {result['trend'].upper()}"
-            text += f"\n   Prix: {format_price(result['current_price'])}"
+            # Nom complet de l'actif
+            asset_name = get_asset_display_name(result['symbol'])
+
+            # Déterminer la couleur du signal
+            if result['score'] >= 80:
+                strength = "🔥 FORTE"
+            elif result['score'] >= 70:
+                strength = "💪 BONNE"
+            elif result['score'] >= 60:
+                strength = "👍 MOYENNE"
+            else:
+                strength = "⚠️ FAIBLE"
+
+            # Ligne principale
+            text += f"{i}. {asset_emoji} **{asset_name}**\n"
+            text += f"   {score_emoji} Score: **{result['score']}/100** | {strength}\n"
+            text += f"   {direction_emoji} {result['direction']} • {result['trend'].upper()}\n"
+            text += f"   💰 Prix: **{format_price(result['current_price'])}**\n"
             text += f"\n"
 
-            # Bouton pour chaque actif
+            # Bouton pour chaque actif (nom court pour les boutons)
+            btn_label = f"{asset_emoji} {asset_name[:20]}" if len(asset_name) > 20 else f"{asset_emoji} {asset_name}"
             keyboard.append([
                 InlineKeyboardButton(
-                    f"{i}. {result['symbol']} ({result['score']})",
+                    f"{i}. {btn_label} ({result['score']})",
                     callback_data=f"market_detail_{market_code}_{result['symbol']}"
                 )
             ])
+
+        text += """━━━━━━━━━━━━━━━━━━━━
+
+💡 Cliquez sur un actif pour plus de détails
+"""
 
         keyboard.append([InlineKeyboardButton("🔄 Actualiser", callback_data=f"market_select_{market_code}")])
         keyboard.append([InlineKeyboardButton(BTN_BACK, callback_data="market_main")])
@@ -223,10 +256,16 @@ Revenez plus tard ou essayez un autre marché.
         trend_emoji = EMOJI_TREND[analysis['trend']]
         risk_emoji = EMOJI_RISK[analysis['risk_level']]
 
+        # Nom complet et emoji de l'actif
+        asset_emoji = get_asset_emoji(symbol)
+        asset_name = get_asset_display_name(symbol)
+        full_name = f"{asset_emoji} {asset_name}" if asset_name != symbol else f"{asset_emoji} {symbol}"
+
         text = f"""
 📊 **ANALYSE DÉTAILLÉE**
 
-**{symbol}**
+{full_name}
+_Symbole: {symbol}_
 
 {score_emoji} **Score IA: {analysis['score']}/100**
 {get_score_label(analysis['score'])}
