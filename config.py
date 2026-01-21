@@ -8,6 +8,7 @@ load_dotenv()
 
 # ===== TELEGRAM =====
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN", "YOUR_TOKEN_HERE")
+CHANNEL_ID = os.getenv("CHANNEL_ID", "")  # ID du channel pour les notifications (optionnel)
 
 # ===== BASE DE DONNÉES =====
 DATABASE_PATH = "tdb_bot.db"
