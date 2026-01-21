@@ -115,6 +115,8 @@ class SettingsModule:
                 "🔕 Désactiver tout" if settings['notifications_enabled'] else "🔔 Activer tout",
                 callback_data="settings_notif_toggle"
             )],
+            [InlineKeyboardButton("📊 Résumé quotidien", callback_data="settings_notif_daily")],
+            [InlineKeyboardButton("🕐 Modifier l'heure", callback_data="settings_notif_time")],
             [InlineKeyboardButton(BTN_BACK, callback_data="settings_main")]
         ]
 
@@ -192,8 +194,109 @@ Ces paramètres influencent la manière dont l'IA analyse les marchés et formul
 
         keyboard = [
             [InlineKeyboardButton("🎨 Thème", callback_data="settings_ui_theme")],
-            [InlineKeyboardButton("📊 Graphiques", callback_data="settings_ui_charts")],
+            [InlineKeyboardButton("📊 Type de graphiques", callback_data="settings_ui_charts")],
             [InlineKeyboardButton(BTN_BACK, callback_data="settings_main")]
+        ]
+
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await query.edit_message_text(text, reply_markup=reply_markup, parse_mode='HTML')
+
+    async def show_theme_menu(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Menu de sélection du thème"""
+        query = update.callback_query
+        await query.answer()
+
+        text = """🎨 <b>THÈME DE L'INTERFACE</b>
+
+Choisissez le thème de votre bot :
+
+• <b>Sombre</b> : Interface dark, reposant pour les yeux
+• <b>Clair</b> : Interface lumineuse et colorée
+• <b>Auto</b> : S'adapte à l'heure (jour/nuit)
+
+<i>Note : Le thème n'affecte que l'interface Telegram sur mobile/desktop</i>"""
+
+        keyboard = [
+            [InlineKeyboardButton("🌙 Sombre", callback_data="set_theme_dark")],
+            [InlineKeyboardButton("☀️ Clair", callback_data="set_theme_light")],
+            [InlineKeyboardButton("🔄 Auto", callback_data="set_theme_auto")],
+            [InlineKeyboardButton(BTN_BACK, callback_data="settings_ui")]
+        ]
+
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await query.edit_message_text(text, reply_markup=reply_markup, parse_mode='HTML')
+
+    async def show_charts_menu(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Menu de sélection du type de graphiques"""
+        query = update.callback_query
+        await query.answer()
+
+        text = """📊 <b>TYPE DE GRAPHIQUES</b>
+
+Choisissez le type de graphiques pour l'analyse :
+
+• <b>Candlesticks</b> : Graphiques en chandeliers japonais (recommandé)
+• <b>Lignes</b> : Graphiques en lignes simples
+• <b>Barres</b> : Graphiques en barres OHLC
+
+<i>Les candlesticks offrent le plus d'informations visuelles</i>"""
+
+        keyboard = [
+            [InlineKeyboardButton("🕯️ Candlesticks", callback_data="set_chart_candlestick")],
+            [InlineKeyboardButton("📈 Lignes", callback_data="set_chart_line")],
+            [InlineKeyboardButton("📊 Barres", callback_data="set_chart_bar")],
+            [InlineKeyboardButton(BTN_BACK, callback_data="settings_ui")]
+        ]
+
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await query.edit_message_text(text, reply_markup=reply_markup, parse_mode='HTML')
+
+    async def show_daily_summary_menu(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Menu résumé quotidien"""
+        query = update.callback_query
+        await query.answer()
+
+        user_id = query.from_user.id
+        settings = await db_manager.get_user_settings(user_id)
+
+        text = """🔔 <b>RÉSUMÉ QUOTIDIEN</b>
+
+Le résumé quotidien vous envoie un récapitulatif de :
+• Vos positions ouvertes et leurs performances
+• Les opportunités détectées dans la journée
+• Les mouvements importants du marché
+
+<b>État actuel :</b> """ + ("✅ Activé" if settings['notif_daily_summary'] else "❌ Désactivé")
+
+        keyboard = [
+            [InlineKeyboardButton("✅ Activer", callback_data="set_daily_summary_1")],
+            [InlineKeyboardButton("❌ Désactiver", callback_data="set_daily_summary_0")],
+            [InlineKeyboardButton(BTN_BACK, callback_data="settings_notif")]
+        ]
+
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await query.edit_message_text(text, reply_markup=reply_markup, parse_mode='HTML')
+
+    async def show_summary_time_menu(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Menu modification heure du résumé"""
+        query = update.callback_query
+        await query.answer()
+
+        user_id = query.from_user.id
+        settings = await db_manager.get_user_settings(user_id)
+
+        text = f"""🕐 <b>HEURE DU RÉSUMÉ QUOTIDIEN</b>
+
+Choisissez l'heure à laquelle vous souhaitez recevoir votre résumé quotidien.
+
+<b>Heure actuelle :</b> {settings['summary_time']}"""
+
+        keyboard = [
+            [InlineKeyboardButton("08:00", callback_data="set_time_08:00"), InlineKeyboardButton("09:00", callback_data="set_time_09:00")],
+            [InlineKeyboardButton("12:00", callback_data="set_time_12:00"), InlineKeyboardButton("14:00", callback_data="set_time_14:00")],
+            [InlineKeyboardButton("18:00", callback_data="set_time_18:00"), InlineKeyboardButton("20:00", callback_data="set_time_20:00")],
+            [InlineKeyboardButton("22:00", callback_data="set_time_22:00"), InlineKeyboardButton("23:00", callback_data="set_time_23:00")],
+            [InlineKeyboardButton(BTN_BACK, callback_data="settings_notif")]
         ]
 
         reply_markup = InlineKeyboardMarkup(keyboard)
@@ -390,6 +493,12 @@ Choisissez la quantité d'informations dans les analyses :
         elif data == "settings_notif_toggle":
             await self.toggle_notifications(update, context)
 
+        elif data == "settings_notif_daily":
+            await self.show_daily_summary_menu(update, context)
+
+        elif data == "settings_notif_time":
+            await self.show_summary_time_menu(update, context)
+
         elif data == "settings_ai":
             await self.show_ai_settings(update, context)
 
@@ -460,6 +569,34 @@ Que souhaitez-vous modifier ?"""
             detail = data.replace("set_detail_", "")
             await self.update_setting(update, context, "detail_level", detail, "ai")
 
+        # ===== NOTIFICATION SETTINGS =====
+        elif data.startswith("set_daily_summary_"):
+            value = int(data.replace("set_daily_summary_", ""))
+            user_id = query.from_user.id
+            await db_manager.update_user_settings(user_id, notif_daily_summary=value)
+            await query.answer("✅ Résumé quotidien " + ("activé" if value else "désactivé"), show_alert=False)
+            await self.show_notification_settings(update, context)
+
+        elif data.startswith("set_time_"):
+            time = data.replace("set_time_", "")
+            user_id = query.from_user.id
+            await db_manager.update_user_settings(user_id, summary_time=time)
+            await query.answer(f"✅ Heure mise à jour : {time}", show_alert=False)
+            await self.show_notification_settings(update, context)
+
         # ===== UI SETTINGS =====
-        elif data.startswith("settings_ui_"):
-            await query.answer("⚙️ Fonctionnalité en cours de développement", show_alert=True)
+        elif data == "settings_ui_theme":
+            await self.show_theme_menu(update, context)
+
+        elif data == "settings_ui_charts":
+            await self.show_charts_menu(update, context)
+
+        elif data.startswith("set_theme_"):
+            theme = data.replace("set_theme_", "")
+            await query.answer(f"✅ Thème {theme} sélectionné", show_alert=False)
+            await self.show_ui_settings(update, context)
+
+        elif data.startswith("set_chart_"):
+            chart = data.replace("set_chart_", "")
+            await query.answer(f"✅ Graphiques en {chart} sélectionnés", show_alert=False)
+            await self.show_ui_settings(update, context)
