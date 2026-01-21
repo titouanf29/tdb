@@ -21,7 +21,11 @@ class WalletModule:
 
     def register_handlers(self):
         """Enregistre les handlers"""
-        self.app.add_handler(CallbackQueryHandler(self.handle_callback, pattern="^wallet_"))
+        # Capturer tous les callbacks du module wallet ET des positions
+        self.app.add_handler(CallbackQueryHandler(
+            self.handle_callback,
+            pattern="^(wallet_|position_detail_|position_close_)"
+        ))
         # Handler pour les codes de position tapés dans le chat
         self.app.add_handler(MessageHandler(
             filters.TEXT & ~filters.COMMAND,
