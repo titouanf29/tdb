@@ -177,11 +177,28 @@ Ces paramètres influencent la manière dont l'IA analyse les marchés et formul
         user_id = query.from_user.id
         settings = await db_manager.get_user_settings(user_id)
 
-        text = """🎨 <b>PARAMÈTRES INTERFACE</b>
+        # Mapping des thèmes
+        theme_labels = {
+            'dark': '🌙 Sombre',
+            'light': '☀️ Clair',
+            'auto': '🔄 Auto'
+        }
 
-<b>Thème:</b> 🌙 Sombre
+        # Mapping des types de graphiques
+        chart_labels = {
+            'candlestick': '🕯️ Candlesticks',
+            'line': '📈 Lignes',
+            'bar': '📊 Barres'
+        }
+
+        theme = settings.get('theme', 'dark')
+        chart_type = settings.get('chart_type', 'candlestick')
+
+        text = f"""🎨 <b>PARAMÈTRES INTERFACE</b>
+
+<b>Thème:</b> {theme_labels.get(theme, theme)}
 <b>Emojis:</b> ✅ Activés
-<b>Graphiques:</b> ✅ Candlesticks
+<b>Graphiques:</b> {chart_labels.get(chart_type, chart_type)}
 
 <b>Notifications visuelles:</b>
 • Opportunités: 🔥
@@ -593,10 +610,14 @@ Que souhaitez-vous modifier ?"""
 
         elif data.startswith("set_theme_"):
             theme = data.replace("set_theme_", "")
+            user_id = query.from_user.id
+            await db_manager.update_user_settings(user_id, theme=theme)
             await query.answer(f"✅ Thème {theme} sélectionné", show_alert=False)
             await self.show_ui_settings(update, context)
 
         elif data.startswith("set_chart_"):
             chart = data.replace("set_chart_", "")
+            user_id = query.from_user.id
+            await db_manager.update_user_settings(user_id, chart_type=chart)
             await query.answer(f"✅ Graphiques en {chart} sélectionnés", show_alert=False)
             await self.show_ui_settings(update, context)

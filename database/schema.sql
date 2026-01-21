@@ -45,6 +45,7 @@ CREATE TABLE IF NOT EXISTS user_settings (
     detail_level TEXT DEFAULT 'normal', -- simple, normal, expert
     -- Interface
     theme TEXT DEFAULT 'dark',
+    chart_type TEXT DEFAULT 'candlestick',
     message_timeout INTEGER DEFAULT 30,
     -- Favoris
     favorites_daily_summary INTEGER DEFAULT 0,

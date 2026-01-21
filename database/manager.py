@@ -20,6 +20,15 @@ class DatabaseManager:
             with open(self.schema_path, 'r', encoding='utf-8') as f:
                 schema = f.read()
             await db.executescript(schema)
+
+            # Migration: Ajouter chart_type si la colonne n'existe pas
+            try:
+                await db.execute("""
+                    ALTER TABLE user_settings ADD COLUMN chart_type TEXT DEFAULT 'candlestick'
+                """)
+            except:
+                pass  # La colonne existe déjà
+
             await db.commit()
 
     # ===== UTILISATEURS =====
