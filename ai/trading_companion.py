@@ -28,10 +28,11 @@ class TradingCompanion:
     def register_handlers(self):
         """Enregistre les handlers"""
         self.app.add_handler(CallbackQueryHandler(self.handle_callback, pattern="^tc_"))
+        # Groupe 0 = priorité haute, traité AVANT le Wallet (groupe 1)
         self.app.add_handler(MessageHandler(
             filters.TEXT & ~filters.COMMAND,
             self.handle_text_input
-        ))
+        ), group=0)
 
     async def start_conversation(self, update: Update, context: ContextTypes.DEFAULT_TYPE,
                                 symbol: str, market: str):

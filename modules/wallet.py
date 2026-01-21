@@ -1,6 +1,7 @@
 """
 Module Wallet - Gestion du portefeuille virtuel (Paper Trading)
 """
+import logging
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, CallbackQueryHandler, MessageHandler, filters, ConversationHandler
 import aiosqlite
@@ -8,6 +9,8 @@ from database.manager import db_manager
 from utils.helpers import *
 from utils.constants import *
 from utils.validators import *
+
+logger = logging.getLogger(__name__)
 
 # États de conversation
 WAITING_BALANCE = 1
@@ -27,10 +30,11 @@ class WalletModule:
             pattern="^(wallet_|position_detail_|position_close_)"
         ))
         # Handler pour les codes de position tapés dans le chat
+        # Groupe 1 = priorité plus basse que Trading Companion (groupe 0)
         self.app.add_handler(MessageHandler(
             filters.TEXT & ~filters.COMMAND,
             self.handle_text_message
-        ))
+        ), group=1)
 
     async def show_wallet(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Affiche le wallet de l'utilisateur"""
