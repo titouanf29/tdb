@@ -35,7 +35,7 @@ class SettingsModule:
 📊 <b>Trading</b>
 • Style: {settings['trading_style']}
 • Risque/position: {settings['risk_per_position']}%
-• Levier max: x{settings['max_leverage']}
+• Levier max: ×{settings['max_leverage']}
 
 ━━━━━━━━━━━━━━━━━━━━
 
@@ -78,7 +78,7 @@ class SettingsModule:
 <b>Style de trading:</b> {settings['trading_style']}
 <b>Risque par position:</b> {settings['risk_per_position']}%
 <b>Perte max quotidienne:</b> {settings['max_daily_loss']}%
-<b>Levier maximum:</b> x{settings['max_leverage']}
+<b>Levier maximum:</b> ×{settings['max_leverage']}
 <b>Stop Loss obligatoire:</b> {"✅" if settings['stop_loss_mandatory'] else "❌"}"""
 
         keyboard = [
