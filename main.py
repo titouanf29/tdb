@@ -15,6 +15,7 @@ from modules.favorites import FavoritesModule
 from modules.scan_auto import ScanAutoModule
 from modules.settings import SettingsModule
 from ai.trading_companion import TradingCompanion
+from services.auto_scanner import init_auto_scanner
 
 # Configuration du logging compatible Windows (UTF-8)
 # Forcer l'encodage UTF-8 pour la console Windows
@@ -45,6 +46,7 @@ class TDBBot:
         """Initialise le bot"""
         self.token = config.TELEGRAM_TOKEN
         self.application = None
+        self.auto_scanner = None
 
     async def initialize_database(self):
         """Initialise la base de données"""
@@ -109,6 +111,11 @@ class TDBBot:
 
     async def post_init(self, application: Application):
         """Actions après initialisation"""
+        # Initialiser et démarrer le scanner automatique
+        bot = application.bot
+        self.auto_scanner = init_auto_scanner(bot)
+        self.auto_scanner.start()
+
         # Message de démarrage
         logger.info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
         logger.info("🤖 TDB Bot démarré avec succès !")
@@ -118,7 +125,7 @@ class TDBBot:
         logger.info("  • Marché (USA, EUROPE, ASIA, CRYPTO, COMMODITIES, GOLD)")
         logger.info("  • Wallet (Paper Trading)")
         logger.info("  • Favoris")
-        logger.info("  • Scan Automatique")
+        logger.info("  • Scan Automatique (🔄 Actif)")
         logger.info("  • Paramètres")
         logger.info("  • Trading Compagnon IA")
         logger.info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
@@ -156,6 +163,10 @@ class TDBBot:
     async def stop(self):
         """Arrête le bot proprement"""
         logger.info("🛑 Arrêt du bot...")
+
+        # Arrêter le scanner automatique
+        if self.auto_scanner:
+            self.auto_scanner.stop()
 
         if self.application:
             await self.application.updater.stop()

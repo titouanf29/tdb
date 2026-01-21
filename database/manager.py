@@ -361,5 +361,27 @@ class DatabaseManager:
             """, (telegram_id,))
             await db.commit()
 
+    # ===== AUTO SCANNER =====
+
+    async def get_users_with_scan_enabled(self):
+        """Récupère tous les utilisateurs avec le scan automatique activé"""
+        async with aiosqlite.connect(self.db_path) as db:
+            db.row_factory = aiosqlite.Row
+            async with db.execute("""
+                SELECT * FROM user_settings WHERE scan_enabled = 1
+            """) as cursor:
+                rows = await cursor.fetchall()
+                return [dict(row) for row in rows]
+
+    async def save_scan_result_simple(self, user_id, asset_symbol, score, signal, price):
+        """Sauvegarde un résultat de scan (version simplifiée)"""
+        async with aiosqlite.connect(self.db_path) as db:
+            await db.execute("""
+                INSERT INTO scan_results
+                (telegram_id, asset_symbol, score, direction, scan_date)
+                VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+            """, (user_id, asset_symbol, score, signal))
+            await db.commit()
+
 # Instance globale
 db_manager = DatabaseManager()
