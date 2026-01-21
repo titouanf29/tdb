@@ -3,6 +3,7 @@ Module Wallet - Gestion du portefeuille virtuel (Paper Trading)
 """
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, CallbackQueryHandler, MessageHandler, filters, ConversationHandler
+import aiosqlite
 from database.manager import db_manager
 from utils.helpers import *
 from utils.constants import *
@@ -286,6 +287,128 @@ Cette action va :
         await query.answer("✅ Wallet réinitialisé !", show_alert=True)
         await self.show_wallet(update, context)
 
+    async def show_history(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Affiche l'historique des positions fermées"""
+        query = update.callback_query
+        await query.answer()
+
+        user_id = query.from_user.id
+
+        # Récupérer l'historique depuis la base de données
+        async with aiosqlite.connect(db_manager.db_path) as db:
+            db.row_factory = aiosqlite.Row
+            async with db.execute("""
+                SELECT * FROM position_history
+                WHERE telegram_id = ?
+                ORDER BY closed_at DESC
+                LIMIT 20
+            """, (user_id,)) as cursor:
+                rows = await cursor.fetchall()
+                history = [dict(row) for row in rows]
+
+        if not history:
+            text = """
+📊 **HISTORIQUE**
+
+Aucune position fermée pour le moment.
+
+Ouvrez des positions via le module Marché et le Trading Compagnon.
+"""
+            keyboard = [[InlineKeyboardButton(BTN_BACK, callback_data="wallet_main")]]
+        else:
+            # Calculer les statistiques
+            total_trades = len(history)
+            winning_trades = len([h for h in history if h['pnl'] > 0])
+            losing_trades = len([h for h in history if h['pnl'] < 0])
+            winrate = (winning_trades / total_trades * 100) if total_trades > 0 else 0
+
+            total_pnl = sum([h['pnl'] for h in history])
+
+            text = f"""
+📊 **HISTORIQUE DES TRADES**
+
+📈 **Statistiques:**
+• Total trades: {total_trades}
+• Gagnants: {winning_trades} (🟢 {winrate:.1f}%)
+• Perdants: {losing_trades}
+• PnL total: {format_pnl(total_pnl)}
+
+━━━━━━━━━━━━━━━━━━━━
+
+**Derniers trades:**
+
+"""
+            # Afficher les 10 derniers
+            for i, trade in enumerate(history[:10], 1):
+                pnl_emoji = "🟢" if trade['pnl'] >= 0 else "🔴"
+                direction_emoji = EMOJI_DIRECTION[trade['direction']]
+
+                text += f"\n{i}. {direction_emoji} **{trade['asset_symbol']}** - {trade['direction']}"
+                text += f"\n   {pnl_emoji} {format_pnl(trade['pnl'])} ({format_percent(trade['pnl_percent'])})"
+                text += f"\n   Durée: {format_duration(trade['duration_minutes'])}"
+                text += f"\n"
+
+            keyboard = [[InlineKeyboardButton(BTN_BACK, callback_data="wallet_main")]]
+
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await query.edit_message_text(text, reply_markup=reply_markup, parse_mode='Markdown')
+
+    async def show_edit_balance(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Affiche l'interface de modification du solde"""
+        query = update.callback_query
+        await query.answer()
+
+        user_id = query.from_user.id
+        wallet = await db_manager.get_wallet(user_id)
+
+        text = f"""
+✏️ **MODIFIER LE SOLDE**
+
+Solde actuel: {format_price(wallet['balance'])} USD
+
+Pour modifier votre solde, utilisez ces raccourcis :
+
+• **+1000** - Ajouter 1000 USD
+• **+5000** - Ajouter 5000 USD
+• **+10000** - Ajouter 10000 USD
+• **Reset** - Réinitialiser à {format_price(wallet['initial_balance'])} USD
+
+Ou tapez un montant personnalisé dans le chat (ex: 25000)
+"""
+
+        keyboard = [
+            [
+                InlineKeyboardButton("+1000", callback_data="wallet_add_1000"),
+                InlineKeyboardButton("+5000", callback_data="wallet_add_5000")
+            ],
+            [
+                InlineKeyboardButton("+10000", callback_data="wallet_add_10000"),
+                InlineKeyboardButton("🔄 Reset", callback_data="wallet_reset_confirm")
+            ],
+            [InlineKeyboardButton(BTN_BACK, callback_data="wallet_main")]
+        ]
+
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await query.edit_message_text(text, reply_markup=reply_markup, parse_mode='Markdown')
+
+    async def add_balance(self, update: Update, context: ContextTypes.DEFAULT_TYPE, amount: float):
+        """Ajoute un montant au wallet"""
+        query = update.callback_query
+        user_id = query.from_user.id
+
+        wallet = await db_manager.get_wallet(user_id)
+        new_balance = wallet['balance'] + amount
+        new_available = wallet['available_balance'] + amount
+
+        await db_manager.update_wallet(
+            user_id,
+            balance=new_balance,
+            available_balance=new_available
+        )
+
+        await query.answer(f"✅ {format_price(amount)} USD ajouté !", show_alert=True)
+        await self.show_wallet(update, context)
+
     async def handle_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Gère les callbacks du wallet"""
         query = update.callback_query
@@ -296,6 +419,21 @@ Cette action va :
 
         elif data == "wallet_positions":
             await self.show_positions(update, context)
+
+        elif data == "wallet_history":
+            await self.show_history(update, context)
+
+        elif data == "wallet_edit_balance":
+            await self.show_edit_balance(update, context)
+
+        elif data == "wallet_add_1000":
+            await self.add_balance(update, context, 1000)
+
+        elif data == "wallet_add_5000":
+            await self.add_balance(update, context, 5000)
+
+        elif data == "wallet_add_10000":
+            await self.add_balance(update, context, 10000)
 
         elif data.startswith("position_detail_"):
             position_code = data.replace("position_detail_", "")
