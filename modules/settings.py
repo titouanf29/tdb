@@ -15,7 +15,8 @@ class SettingsModule:
 
     def register_handlers(self):
         """Enregistre les handlers"""
-        self.app.add_handler(CallbackQueryHandler(self.handle_callback, pattern="^settings_"))
+        # Handler pour tous les callbacks des paramètres (settings_ et set_)
+        self.app.add_handler(CallbackQueryHandler(self.handle_callback, pattern="^(settings_|set_)"))
 
     async def show_settings(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Affiche les paramètres"""
