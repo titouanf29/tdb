@@ -96,12 +96,8 @@ class TDBBot:
 
     async def post_init(self, application: Application):
         """Actions après initialisation"""
-        logger.info("Post-initialisation...")
-
-        # Initialiser la base de données
-        await self.initialize_database()
-
         # Message de démarrage
+        logger.info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
         logger.info("🤖 TDB Bot démarré avec succès !")
         logger.info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
         logger.info("📊 Modules actifs:")
@@ -118,6 +114,11 @@ class TDBBot:
     async def run(self):
         """Lance le bot"""
         logger.info("🚀 Démarrage de TDB Bot...")
+
+        # IMPORTANT : Initialiser la base de données EN PREMIER
+        logger.info("📦 Initialisation de la base de données...")
+        await self.initialize_database()
+        logger.info("✅ Base de données initialisée")
 
         # Créer l'application
         self.application = Application.builder().token(self.token).post_init(self.post_init).build()
