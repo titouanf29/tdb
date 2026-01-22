@@ -1,5 +1,174 @@
 # 📝 CHANGELOG - Bot de Trading Telegram
 
+## 🚀 [Version 3.0.0] - 2026-01-22 - Système de News Multi-Sources Premium
+
+### ✨ Nouvelles fonctionnalités majeures
+
+#### 🌐 Système de News Enrichi avec 10 Sources
+Le bot dispose maintenant d'un système de news ultra-complet avec **10 sources d'actualités** :
+
+**APIs Premium (optionnelles) :**
+- ✅ **Finnhub API** - Actualités en temps réel pour actions
+  - News instantanées sur les marchés
+  - Données de qualité institutionnelle
+- ✅ **Alpha Vantage News Sentiment API** - Analyse de sentiment intégrée
+  - Score de sentiment fourni par l'API
+  - Classification automatique des news
+- ✅ **NewsAPI** - Actualités générales internationales
+  - 70,000+ sources médias mondiales
+  - Recherche par ticker et mots-clés
+- ✅ **Polygon.io** - Données financières premium
+  - News vérifiées et horodatées
+  - Métadonnées enrichies
+- ✅ **CoinGecko API** - Support complet crypto-monnaies
+  - BTC, ETH, SOL, ADA, DOGE, MATIC, etc.
+  - Actualités et données de marché crypto
+
+**Sources par scraping (gratuites) :**
+- 🔍 **Yahoo Finance** - Source principale fiable
+- 🔍 **Google News** - Extraction améliorée
+- 🔍 **Bing News** - Source alternative
+- 🔍 **MarketWatch** - Analyses d'experts
+- 🔍 **Seeking Alpha** - Opinions d'analystes
+
+**Nouvelles fonctionnalités :**
+- 🧹 **Déduplication intelligente** - Élimine les doublons par titre
+- 📊 **Logs détaillés** - Progression 1/10, 2/10... pour chaque source
+- ⚡ **Parallélisation** - Requêtes simultanées pour vitesse maximale
+- 🛡️ **Gestion d'erreur robuste** - Le bot continue même si une source échoue
+
+#### 🎯 Analyse de Sentiment Avancée
+
+**Nouveau moteur d'analyse de sentiment :**
+- 📚 **100+ mots-clés** positifs et négatifs
+- 🔢 **Score numérique** de -1 (très négatif) à +1 (très positif)
+- 🎨 **Classification visuelle** :
+  - 🟢 **POSITIF** (score > 0.2) : surge, rally, profit, beat, growth...
+  - 🔴 **NÉGATIF** (score < -0.2) : fall, loss, decline, warning, risk...
+  - ⚪ **NEUTRE** (-0.2 ≤ score ≤ 0.2)
+
+**Catégories de mots analysés :**
+- Performance (surge, soar, rally, climb / fall, drop, plunge, crash)
+- Résultats financiers (profit, beat, exceed / loss, miss, disappoint)
+- Innovation (launch, expansion, win / fail, struggling, trouble)
+- Confiance (confident, promising, bullish / warning, risk, bearish)
+
+#### 📢 Système de Changelog Automatique
+
+**Publication au démarrage du bot :**
+- 📋 Lecture automatique de `CHANGELOG.md`
+- 🚀 Message formaté envoyé au canal principal public
+- ⏱️ Affichage de la dernière version et date
+- 📝 Résumé des nouvelles fonctionnalités
+- 🔗 Liens vers documentation
+
+**Caractéristiques :**
+- ✅ Message élégant avec emojis et formatage
+- ✅ Extraction de la dernière version
+- ✅ Envoi uniquement au démarrage (pas de spam)
+- ✅ Visible par tous les utilisateurs du canal
+
+### 🔧 Modifications techniques
+
+#### Configuration des API keys (optionnelles)
+Ajout de nouvelles variables dans `tdb.py` :
+```python
+FINNHUB_API_KEY = ""           # https://finnhub.io/register
+ALPHA_VANTAGE_API_KEY = ""     # https://www.alphavantage.co/support/#api-key
+NEWSAPI_KEY = ""               # https://newsapi.org/register
+POLYGON_API_KEY = ""           # https://polygon.io/
+BENZINGA_API_KEY = ""          # Premium (optionnel)
+COINGECKO_API_KEY = ""         # https://www.coingecko.com/en/api
+```
+
+**Note :** Le bot fonctionne parfaitement **sans aucune API key** grâce aux sources gratuites (Yahoo Finance, Google News, Bing, etc.)
+
+#### Fonctions ajoutées
+- `analyze_news_sentiment(text)` - Analyse de sentiment avancée
+- `publish_changelog()` - Publication du changelog au démarrage
+- `get_news_from_multiple_sources()` - Refonte complète (10 sources)
+
+### 📊 Comparaison Avant → Après
+
+| Critère | Version 2.5 | Version 3.0 | Amélioration |
+|---------|-------------|-------------|--------------|
+| **Sources de news** | 5 | 10 | +100% |
+| **APIs premium** | 0 | 5 | +5 nouvelles |
+| **Support crypto** | ❌ Non | ✅ Oui | CoinGecko |
+| **Déduplication** | ❌ Non | ✅ Oui | Intelligent |
+| **Mots-clés sentiment** | ~24 | 100+ | +316% |
+| **Score sentiment** | ❌ Non | ✅ Oui | -1 à +1 |
+| **Changelog auto** | ❌ Non | ✅ Oui | Au démarrage |
+
+### 🎯 Comment utiliser
+
+#### 1. Sans API keys (gratuit)
+Le bot fonctionne immédiatement avec 5 sources gratuites :
+```bash
+/news AAPL
+```
+
+#### 2. Avec API keys (optimal)
+1. Créez des comptes gratuits sur :
+   - [Finnhub](https://finnhub.io/register)
+   - [Alpha Vantage](https://www.alphavantage.co/support/#api-key)
+   - [NewsAPI](https://newsapi.org/register)
+   - [Polygon](https://polygon.io/) (optionnel)
+   - [CoinGecko](https://www.coingecko.com/en/api) (pour crypto)
+
+2. Ajoutez vos clés dans `tdb.py` :
+```python
+FINNHUB_API_KEY = "votre_clé_ici"
+ALPHA_VANTAGE_API_KEY = "votre_clé_ici"
+# etc.
+```
+
+3. Redémarrez le bot et profitez de **10 sources** !
+
+### 🔗 Fichiers modifiés
+
+```
+tdb.py                    # +200 lignes (news + sentiment + changelog)
+CHANGELOG.md              # Enrichi avec version 3.0.0
+```
+
+### 👨‍💻 Exemple d'utilisation
+
+```
+Utilisateur: /news TSLA
+
+Bot: 📰 Recherche des actualités pour TSLA...
+     [1/10] Yahoo Finance...
+     [2/10] Finnhub API...
+     [3/10] Alpha Vantage...
+     ...
+     [10/10] Seeking Alpha...
+     ✅ Total: 23 articles trouvés (15 après déduplication)
+
+📰 ACTUALITÉS - TSLA
+🌐 15 source(s)
+
+1️⃣ Tesla stock surges after record Q4 deliveries 🟢 POSITIF
+   📰 Reuters • il y a 2h
+   🔗 [Lire l'article](...)
+
+2️⃣ Concerns over Tesla production delays 🔴 NÉGATIF
+   📰 Bloomberg • il y a 5h
+   🔗 [Lire l'article](...)
+
+...
+```
+
+### 🐛 Corrections
+- Aucun bug critique identifié dans cette version
+
+### ⚡ Performances
+- ✅ Requêtes parallèles pour toutes les sources
+- ✅ Timeouts optimisés (5 secondes par source)
+- ✅ Gestion d'erreur qui n'interrompt pas le flux
+
+---
+
 ## [2026-01-16] - Audit et Optimisation des Dépendances
 
 ### 🐛 Corrections

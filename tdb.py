@@ -8,6 +8,7 @@ from telegram import Bot, Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, ContextTypes, CallbackQueryHandler, MessageHandler, filters
 import json
 import time
+import os
 import traceback
 import pytz
 import matplotlib
@@ -5633,6 +5634,15 @@ AUTO_SCAN_ENABLED = False  # Scans automatiques (désactivé par défaut)
 AUTO_SCAN_TIMES = ["09:00", "15:30", "17:00"]  # Heures des scans auto (format 24h)
 SMART_NOTIFICATIONS_ENABLED = False  # Notifications intelligentes (désactivé par défaut)
 
+# ==================== API KEYS POUR NEWS ====================
+# API keys pour les sources de news (optionnelles, le bot fonctionne sans)
+FINNHUB_API_KEY = ""  # Gratuit: https://finnhub.io/register
+ALPHA_VANTAGE_API_KEY = ""  # Gratuit: https://www.alphavantage.co/support/#api-key
+NEWSAPI_KEY = ""  # Gratuit: https://newsapi.org/register
+POLYGON_API_KEY = ""  # Gratuit: https://polygon.io/
+BENZINGA_API_KEY = ""  # Premium (optionnel)
+COINGECKO_API_KEY = ""  # Gratuit pour crypto: https://www.coingecko.com/en/api
+
 # ==================== CACHE INTELLIGENT ====================
 # Cache des analyses avec TTL de 5 minutes pour éviter requêtes API inutiles
 ANALYSIS_CACHE = {}
@@ -10055,18 +10065,115 @@ import requests
 from bs4 import BeautifulSoup
 import urllib.parse
 
-def get_news_from_multiple_sources(ticker, max_articles=5):
+# ==================== ANALYSE DE SENTIMENT AVANCÉE ====================
+
+def analyze_news_sentiment(text):
     """
-    Récupère les actualités depuis plusieurs sources :
-    1. Yahoo Finance
-    2. Recherche Google News
-    3. Finnhub (si API key disponible)
-    4. Alpha Vantage (si API key disponible)
+    Analyse le sentiment d'un texte (titre ou contenu d'article)
+    Retourne: score (-1 à 1), label (POSITIF/NÉGATIF/NEUTRE), emoji
+    """
+    if not text:
+        return 0, "NEUTRE", "⚪"
+
+    text_lower = text.lower()
+
+    # Dictionnaire exhaustif de mots positifs
+    positive_words = {
+        # Performance positive
+        'surge', 'surges', 'surging', 'soar', 'soars', 'soaring',
+        'rally', 'rallies', 'rallying', 'jump', 'jumps', 'jumping',
+        'climb', 'climbs', 'climbing', 'rise', 'rises', 'rising',
+        'gain', 'gains', 'gaining', 'up', 'higher', 'boost', 'boosted',
+
+        # Résultats financiers
+        'profit', 'profits', 'profitable', 'beat', 'beats', 'beating',
+        'exceed', 'exceeds', 'exceeded', 'outperform', 'outperforms',
+        'record', 'breakthrough', 'strong', 'stronger', 'growth',
+        'revenue', 'earnings', 'positive', 'optimistic', 'bullish',
+
+        # Innovation & succès
+        'innovation', 'innovative', 'launch', 'launches', 'launched',
+        'expansion', 'expand', 'expands', 'expanding', 'win', 'wins',
+        'success', 'successful', 'excellent', 'outstanding', 'impressive',
+        'opportunity', 'opportunities', 'upgrade', 'upgraded',
+
+        # Mots de confiance
+        'confident', 'confidence', 'promising', 'potential', 'momentum',
+        'attractive', 'favorable', 'buy', 'recommend', 'recommended',
+        'approval', 'approved', 'partnership', 'deal', 'agreement'
+    }
+
+    # Dictionnaire exhaustif de mots négatifs
+    negative_words = {
+        # Performance négative
+        'fall', 'falls', 'falling', 'drop', 'drops', 'dropping',
+        'decline', 'declines', 'declining', 'plunge', 'plunges', 'plunging',
+        'tumble', 'tumbles', 'tumbling', 'slide', 'slides', 'sliding',
+        'slump', 'slumps', 'slumping', 'crash', 'crashes', 'crashing',
+        'down', 'lower', 'weak', 'weaker', 'loss', 'losses',
+
+        # Problèmes financiers
+        'miss', 'misses', 'missed', 'underperform', 'underperforms',
+        'disappoint', 'disappoints', 'disappointing', 'deficit',
+        'debt', 'bankruptcy', 'layoff', 'layoffs', 'cut', 'cuts',
+        'reduction', 'downgrade', 'downgraded', 'bearish',
+
+        # Risques & problèmes
+        'warning', 'warns', 'warned', 'risk', 'risks', 'risky',
+        'concern', 'concerns', 'concerning', 'trouble', 'crisis',
+        'lawsuit', 'sued', 'investigation', 'fraud', 'scandal',
+        'fail', 'fails', 'failed', 'failure', 'struggling',
+
+        # Sentiment négatif
+        'negative', 'pessimistic', 'uncertain', 'uncertainty',
+        'volatile', 'volatility', 'sell', 'selling', 'avoid',
+        'caution', 'cautious', 'reject', 'rejected', 'delay'
+    }
+
+    # Mots neutres qui peuvent fausser l'analyse (à ignorer)
+    neutral_words = {
+        'stock', 'market', 'share', 'shares', 'trading', 'investor',
+        'company', 'report', 'reports', 'analysis', 'update'
+    }
+
+    # Compter les mots positifs et négatifs
+    positive_count = sum(1 for word in positive_words if word in text_lower)
+    negative_count = sum(1 for word in negative_words if word in text_lower)
+
+    # Calculer le score de sentiment (-1 à 1)
+    total_sentiment_words = positive_count + negative_count
+    if total_sentiment_words == 0:
+        score = 0
+    else:
+        score = (positive_count - negative_count) / total_sentiment_words
+
+    # Déterminer le label et l'emoji
+    if score > 0.2:
+        return score, "POSITIF", "🟢"
+    elif score < -0.2:
+        return score, "NÉGATIF", "🔴"
+    else:
+        return score, "NEUTRE", "⚪"
+
+
+def get_news_from_multiple_sources(ticker, max_articles=10):
+    """
+    Récupère les actualités depuis PLUSIEURS sources premium :
+    1. Yahoo Finance (yfinance)
+    2. Finnhub API (si clé disponible)
+    3. Alpha Vantage API (si clé disponible)
+    4. NewsAPI (si clé disponible)
+    5. Polygon.io (si clé disponible)
+    6. CoinGecko (pour crypto)
+    7. Google News (scraping)
+    8. Bing News (scraping)
+    9. MarketWatch (scraping)
+    10. Seeking Alpha (scraping)
     """
     all_news = []
-    
-    # SOURCE 1: Yahoo Finance (méthode existante)
-    print(f"📰 Recherche Yahoo Finance pour {ticker}...")
+
+    # SOURCE 1: Yahoo Finance (méthode existante - la plus fiable)
+    print(f"📰 [1/10] Recherche Yahoo Finance pour {ticker}...")
     try:
         stock = yf.Ticker(ticker)
         try:
@@ -10076,7 +10183,7 @@ def get_news_from_multiple_sources(ticker, max_articles=5):
                 news = stock.get_news()
             except:
                 news = []
-        
+
         if news:
             for article in news[:5]:
                 if isinstance(article, dict):
@@ -10084,7 +10191,7 @@ def get_news_from_multiple_sources(ticker, max_articles=5):
                     publisher = article.get('publisher') or article.get('source') or 'Yahoo Finance'
                     link = article.get('link') or article.get('url')
                     timestamp = article.get('providerPublishTime') or article.get('published')
-                    
+
                     if title and len(title) > 5:
                         all_news.append({
                             'title': title,
@@ -10095,39 +10202,142 @@ def get_news_from_multiple_sources(ticker, max_articles=5):
                         })
     except Exception as e:
         print(f"⚠️ Yahoo Finance error: {e}")
-    
-    # SOURCE 2: Google News (scraping léger)
-    print(f"📰 Recherche Google News pour {ticker}...")
+
+    # SOURCE 2: Finnhub API (excellent pour news en temps réel)
+    if FINNHUB_API_KEY:
+        print(f"📰 [2/10] Recherche Finnhub API pour {ticker}...")
+        try:
+            url = f"https://finnhub.io/api/v1/company-news?symbol={ticker}&from={datetime.now().strftime('%Y-%m-%d')}&to={datetime.now().strftime('%Y-%m-%d')}&token={FINNHUB_API_KEY}"
+            response = requests.get(url, timeout=5)
+            if response.status_code == 200:
+                finnhub_news = response.json()
+                for article in finnhub_news[:5]:
+                    all_news.append({
+                        'title': article.get('headline', ''),
+                        'publisher': article.get('source', 'Finnhub'),
+                        'link': article.get('url', ''),
+                        'timestamp': article.get('datetime'),
+                        'source': 'Finnhub API'
+                    })
+        except Exception as e:
+            print(f"⚠️ Finnhub API error: {e}")
+
+    # SOURCE 3: Alpha Vantage News Sentiment API
+    if ALPHA_VANTAGE_API_KEY:
+        print(f"📰 [3/10] Recherche Alpha Vantage pour {ticker}...")
+        try:
+            url = f"https://www.alphavantage.co/query?function=NEWS_SENTIMENT&tickers={ticker}&apikey={ALPHA_VANTAGE_API_KEY}"
+            response = requests.get(url, timeout=5)
+            if response.status_code == 200:
+                data = response.json()
+                if 'feed' in data:
+                    for article in data['feed'][:5]:
+                        all_news.append({
+                            'title': article.get('title', ''),
+                            'publisher': article.get('source', 'Alpha Vantage'),
+                            'link': article.get('url', ''),
+                            'timestamp': article.get('time_published'),
+                            'source': 'Alpha Vantage API',
+                            'sentiment': article.get('overall_sentiment_label', 'Neutral')
+                        })
+        except Exception as e:
+            print(f"⚠️ Alpha Vantage error: {e}")
+
+    # SOURCE 4: NewsAPI (excellent pour news générales)
+    if NEWSAPI_KEY:
+        print(f"📰 [4/10] Recherche NewsAPI pour {ticker}...")
+        try:
+            url = f"https://newsapi.org/v2/everything?q={ticker}&language=en&sortBy=publishedAt&apiKey={NEWSAPI_KEY}"
+            response = requests.get(url, timeout=5)
+            if response.status_code == 200:
+                data = response.json()
+                if 'articles' in data:
+                    for article in data['articles'][:5]:
+                        all_news.append({
+                            'title': article.get('title', ''),
+                            'publisher': article.get('source', {}).get('name', 'NewsAPI'),
+                            'link': article.get('url', ''),
+                            'timestamp': article.get('publishedAt'),
+                            'source': 'NewsAPI'
+                        })
+        except Exception as e:
+            print(f"⚠️ NewsAPI error: {e}")
+
+    # SOURCE 5: Polygon.io (excellent pour données financières)
+    if POLYGON_API_KEY:
+        print(f"📰 [5/10] Recherche Polygon.io pour {ticker}...")
+        try:
+            url = f"https://api.polygon.io/v2/reference/news?ticker={ticker}&limit=5&apiKey={POLYGON_API_KEY}"
+            response = requests.get(url, timeout=5)
+            if response.status_code == 200:
+                data = response.json()
+                if 'results' in data:
+                    for article in data['results']:
+                        all_news.append({
+                            'title': article.get('title', ''),
+                            'publisher': article.get('publisher', {}).get('name', 'Polygon'),
+                            'link': article.get('article_url', ''),
+                            'timestamp': article.get('published_utc'),
+                            'source': 'Polygon.io API'
+                        })
+        except Exception as e:
+            print(f"⚠️ Polygon.io error: {e}")
+
+    # SOURCE 6: CoinGecko (pour crypto uniquement)
+    print(f"📰 [6/10] Recherche CoinGecko pour {ticker} (si crypto)...")
     try:
-        # Construire l'URL de recherche Google News
+        # Essayer de détecter si c'est une crypto
+        crypto_map = {
+            'BTC': 'bitcoin', 'ETH': 'ethereum', 'USDT': 'tether',
+            'BNB': 'binancecoin', 'SOL': 'solana', 'XRP': 'ripple',
+            'ADA': 'cardano', 'DOGE': 'dogecoin', 'MATIC': 'polygon'
+        }
+
+        coin_id = crypto_map.get(ticker.upper())
+        if coin_id:
+            url = f"https://api.coingecko.com/api/v3/coins/{coin_id}"
+            if COINGECKO_API_KEY:
+                url += f"?x_cg_demo_api_key={COINGECKO_API_KEY}"
+
+            response = requests.get(url, timeout=5)
+            if response.status_code == 200:
+                data = response.json()
+                if 'description' in data and data['description'].get('en'):
+                    all_news.append({
+                        'title': f"Latest {ticker} info from CoinGecko",
+                        'publisher': 'CoinGecko',
+                        'link': f"https://www.coingecko.com/en/coins/{coin_id}",
+                        'timestamp': None,
+                        'source': 'CoinGecko API'
+                    })
+    except Exception as e:
+        print(f"⚠️ CoinGecko error: {e}")
+
+    # SOURCE 7: Google News (scraping léger)
+    print(f"📰 [7/10] Recherche Google News pour {ticker}...")
+    try:
         query = f"{ticker} stock news"
         url = f"https://www.google.com/search?q={urllib.parse.quote(query)}&tbm=nws"
-        
+
         headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
         }
-        
+
         response = requests.get(url, headers=headers, timeout=5)
         if response.status_code == 200:
             soup = BeautifulSoup(response.text, 'html.parser')
-            
-            # Trouver les articles de news
-            articles = soup.find_all('div', class_='SoaBEf')[:3]  # Limiter à 3
-            
+            articles = soup.find_all('div', class_='SoaBEf')[:3]
+
             for article in articles:
                 try:
                     title_elem = article.find('div', class_='MBeuO')
                     if title_elem:
                         title = title_elem.get_text()
-                        
-                        # Trouver la source
                         source_elem = article.find('div', class_='CEMjEf')
                         publisher = source_elem.get_text() if source_elem else 'Google News'
-                        
-                        # Trouver le lien
                         link_elem = article.find('a')
                         link = link_elem['href'] if link_elem and 'href' in link_elem.attrs else None
-                        
+
                         if title and len(title) > 10:
                             all_news.append({
                                 'title': title,
@@ -10140,34 +10350,31 @@ def get_news_from_multiple_sources(ticker, max_articles=5):
                     continue
     except Exception as e:
         print(f"⚠️ Google News error: {e}")
-    
-    # SOURCE 3: Bing News (alternative à Google)
-    print(f"📰 Recherche Bing News pour {ticker}...")
+
+    # SOURCE 8: Bing News (alternative à Google)
+    print(f"📰 [8/10] Recherche Bing News pour {ticker}...")
     try:
         query = f"{ticker} stock news"
         url = f"https://www.bing.com/news/search?q={urllib.parse.quote(query)}"
-        
+
         headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
         }
-        
+
         response = requests.get(url, headers=headers, timeout=5)
         if response.status_code == 200:
             soup = BeautifulSoup(response.text, 'html.parser')
-            
-            # Trouver les articles
             articles = soup.find_all('div', class_='news-card')[:3]
-            
+
             for article in articles:
                 try:
                     title_elem = article.find('a', class_='title')
                     if title_elem:
                         title = title_elem.get_text().strip()
                         link = title_elem['href'] if 'href' in title_elem.attrs else None
-                        
                         source_elem = article.find('div', class_='source')
                         publisher = source_elem.get_text().strip() if source_elem else 'Bing News'
-                        
+
                         if title and len(title) > 10:
                             all_news.append({
                                 'title': title,
@@ -10180,28 +10387,26 @@ def get_news_from_multiple_sources(ticker, max_articles=5):
                     continue
     except Exception as e:
         print(f"⚠️ Bing News error: {e}")
-    
-    # SOURCE 4: MarketWatch RSS
-    print(f"📰 Recherche MarketWatch pour {ticker}...")
+
+    # SOURCE 9: MarketWatch
+    print(f"📰 [9/10] Recherche MarketWatch pour {ticker}...")
     try:
         url = f"https://www.marketwatch.com/investing/stock/{ticker.lower()}"
         headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
         }
-        
+
         response = requests.get(url, headers=headers, timeout=5)
         if response.status_code == 200:
             soup = BeautifulSoup(response.text, 'html.parser')
-            
-            # Chercher les headlines
             headlines = soup.find_all('a', class_='link')[:2]
-            
+
             for headline in headlines:
                 try:
                     title = headline.get_text().strip()
                     link = headline['href'] if 'href' in headline.attrs else None
-                    
-                    if title and len(title) > 15 and 'stock' in title.lower() or ticker.lower() in title.lower():
+
+                    if title and len(title) > 15 and ('stock' in title.lower() or ticker.lower() in title.lower()):
                         all_news.append({
                             'title': title,
                             'publisher': 'MarketWatch',
@@ -10213,18 +10418,17 @@ def get_news_from_multiple_sources(ticker, max_articles=5):
                     continue
     except Exception as e:
         print(f"⚠️ MarketWatch error: {e}")
-    
-    # SOURCE 5: Seeking Alpha (contenu public)
-    print(f"📰 Recherche Seeking Alpha pour {ticker}...")
+
+    # SOURCE 10: Seeking Alpha (contenu public)
+    print(f"📰 [10/10] Recherche Seeking Alpha pour {ticker}...")
     try:
         url = f"https://seekingalpha.com/symbol/{ticker}"
         headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
         }
-        
+
         response = requests.get(url, headers=headers, timeout=5)
         if response.status_code == 200:
-            # Chercher les articles dans le HTML
             if ticker.upper() in response.text:
                 all_news.append({
                     'title': f"Latest analysis and news available on Seeking Alpha",
@@ -10235,9 +10439,18 @@ def get_news_from_multiple_sources(ticker, max_articles=5):
                 })
     except Exception as e:
         print(f"⚠️ Seeking Alpha error: {e}")
-    
-    print(f"✅ Total articles trouvés: {len(all_news)}")
-    return all_news[:max_articles]
+
+    # Déduplication par titre
+    seen_titles = set()
+    unique_news = []
+    for article in all_news:
+        title_lower = article['title'].lower()[:50]  # Premiers 50 chars
+        if title_lower not in seen_titles:
+            seen_titles.add(title_lower)
+            unique_news.append(article)
+
+    print(f"✅ Total articles trouvés: {len(unique_news)} (après déduplication)")
+    return unique_news[:max_articles]
 
 async def news_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Commande /news TICKER - Affiche les actualités depuis PLUSIEURS SOURCES"""
@@ -15072,15 +15285,92 @@ DANS MAIN(), AJOUTER:
 
 
 # 
+async def publish_changelog_on_startup(context):
+    """
+    Publie le changelog de la dernière version au démarrage du bot
+    dans le canal principal public
+    """
+    try:
+        changelog_path = "/home/user/tdb/CHANGELOG.md"
+
+        # Lire le CHANGELOG.md
+        if not os.path.exists(changelog_path):
+            print("⚠️ CHANGELOG.md introuvable")
+            return
+
+        with open(changelog_path, 'r', encoding='utf-8') as f:
+            changelog_content = f.read()
+
+        # Extraire la dernière version (entre le premier ## et le second ##)
+        lines = changelog_content.split('\n')
+
+        # Trouver le titre et la première section de version
+        version_title = ""
+        version_content = []
+        in_version = False
+        version_count = 0
+
+        for line in lines:
+            # Détecter les titres de version (## [Version X.X.X])
+            if (line.startswith('## ') and '[' in line) or line.startswith('## 🚀'):
+                version_count += 1
+                if version_count == 1:
+                    # Première version trouvée
+                    version_title = line.replace('## ', '').strip()
+                    in_version = True
+                    continue
+                elif version_count == 2:
+                    # Deuxième version = fin de la première
+                    break
+
+            # Collecter le contenu de la première version
+            if in_version and line.strip():
+                version_content.append(line)
+
+        # Limiter à ~20 lignes pour ne pas surcharger
+        if len(version_content) > 25:
+            version_content = version_content[:25]
+            version_content.append("\n_... (voir CHANGELOG.md complet pour plus de détails)_")
+
+        # Construire le message (limité à 4096 caractères Telegram)
+        message = f"🚀 **MISE À JOUR DU BOT**\n\n"
+        message += f"📋 **{version_title}**\n\n"
+
+        # Ajouter le contenu ligne par ligne jusqu'à limite
+        for line in version_content:
+            if len(message) + len(line) < 3900:  # Marge de sécurité
+                message += line + '\n'
+            else:
+                message += "\n_... (voir CHANGELOG.md pour le reste)_\n"
+                break
+
+        message += f"\n━━━━━━━━━━━━━━━━━━\n"
+        message += f"📖 Changelog complet : `CHANGELOG.md`\n"
+        message += f"💬 Questions ? Utilisez /help\n"
+        message += f"⭐ Bon trading !"
+
+        # Envoyer au canal principal
+        await context.bot.send_message(
+            chat_id=CHANNEL_ID,
+            text=message,
+            parse_mode='Markdown'
+        )
+
+        print(f"✅ Changelog publié sur le canal {CHANNEL_ID}")
+
+    except Exception as e:
+        print(f"⚠️ Erreur lors de la publication du changelog: {e}")
+
+
 def main():
     """Fonction principale"""
     print("🤖 Bot Trading démarré!")
     print(f"Actions surveillées: {sum(len(v) for v in WATCHLIST.values())}")
     print(f"Canal ID configuré: {CHANNEL_ID}")
-    
+
     # Créer l'application
     application = Application.builder().token(TELEGRAM_TOKEN).build()
-    
+
     # Ajouter les handlers
     
     # ==================== HANDLERS TRADING ====================
@@ -15180,6 +15470,10 @@ def main():
     
     # Configurer le job_queue pour les alertes (toutes les 5 minutes)
     job_queue = application.job_queue
+
+    # Publier le changelog au démarrage (une seule fois, après 5 secondes)
+    job_queue.run_once(publish_changelog_on_startup, when=5)
+    print("📋 Publication du changelog programmée au démarrage")
 
     # Job de monitoring des positions (toutes les 60 secondes)
     job_queue.run_repeating(monitor_trading_positions, interval=60, first=10)
