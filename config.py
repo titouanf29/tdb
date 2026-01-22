@@ -25,21 +25,60 @@ MARKETS = {
         "open_time": "09:00",
         "close_time": "17:30",
         "timezone": "Europe/Paris",
-        "assets": ["^FCHI", "^GDAXI", "^STOXX50E", "AIR.PA", "MC.PA", "SAN.PA"]
+        "assets": [
+            # Indices
+            "^FCHI", "^GDAXI", "^STOXX50E", "^FTSE",
+            # France
+            "MC.PA", "OR.PA", "AIR.PA", "SAN.PA", "BNP.PA", "SU.PA", "TTE.PA", "EN.PA", "CA.PA", "SAF.PA",
+            # Allemagne
+            "VOW3.DE", "SIE.DE", "BAS.DE", "BAYN.DE", "ALV.DE", "MBG.DE",
+            # UK
+            "ULVR.L", "SHEL.L", "AZN.L", "HSBA.L", "BP.L", "GSK.L"
+        ]
     },
     "USA": {
         "name": "🇺🇸 USA",
         "open_time": "09:30",
         "close_time": "16:00",
         "timezone": "America/New_York",
-        "assets": ["AAPL", "TSLA", "NVDA", "META", "GOOGL", "MSFT", "AMZN", "AMD", "SPY", "QQQ"]
+        "assets": [
+            # Indices
+            "^GSPC", "^DJI", "^IXIC",
+            # ETFs
+            "SPY", "QQQ", "DIA", "IWM",
+            # Mega Caps Tech
+            "AAPL", "MSFT", "GOOGL", "AMZN", "META", "NVDA", "TSLA",
+            # Tech
+            "AMD", "INTC", "NFLX", "CRM", "ORCL", "ADBE", "AVGO", "QCOM", "TXN", "CSCO",
+            # Finance
+            "JPM", "BAC", "WFC", "GS", "MS", "C", "BLK", "V", "MA", "AXP",
+            # Santé/Pharma
+            "JNJ", "UNH", "PFE", "ABBV", "LLY", "MRK", "TMO", "ABT",
+            # Consommation
+            "KO", "PEP", "WMT", "HD", "MCD", "NKE", "SBUX", "DIS", "COST",
+            # Énergie
+            "XOM", "CVX", "COP", "SLB",
+            # Autres
+            "BA", "CAT", "GE", "MMM", "HON"
+        ]
     },
     "ASIA": {
         "name": "🌏 ASIA",
         "open_time": "09:00",
         "close_time": "15:00",
         "timezone": "Asia/Tokyo",
-        "assets": ["^N225", "^HSI", "9988.HK", "7203.T", "005930.KS"]
+        "assets": [
+            # Indices
+            "^N225", "^HSI", "000001.SS",
+            # Japon
+            "7203.T", "9984.T", "6758.T", "6861.T", "7974.T", "9433.T",
+            # Hong Kong/Chine
+            "9988.HK", "0700.HK", "0941.HK", "1299.HK", "0939.HK", "9618.HK",
+            # Corée du Sud
+            "005930.KS", "000660.KS", "035420.KS", "051910.KS",
+            # Inde
+            "RELIANCE.NS", "TCS.NS", "INFY.NS", "HDFCBANK.NS"
+        ]
     },
     "CRYPTO": {
         "name": "🪙 CRYPTO",
@@ -47,21 +86,32 @@ MARKETS = {
         "close_time": "23:59",
         "timezone": "UTC",
         "always_open": True,
-        "assets": ["BTC-USD", "ETH-USD", "SOL-USD", "BNB-USD", "XRP-USD", "ADA-USD", "AVAX-USD", "DOT-USD"]
+        "assets": [
+            # Top Caps
+            "BTC-USD", "ETH-USD", "BNB-USD", "XRP-USD", "SOL-USD", "ADA-USD",
+            # Layer 1
+            "AVAX-USD", "DOT-USD", "MATIC-USD", "ATOM-USD", "NEAR-USD", "APT-USD",
+            # DeFi
+            "UNI-USD", "LINK-USD", "AAVE-USD", "MKR-USD",
+            # Autres
+            "DOGE-USD", "SHIB-USD", "LTC-USD", "BCH-USD", "XLM-USD", "ALGO-USD"
+        ]
     },
     "COMMODITIES": {
         "name": "🛢️ MATIÈRES PREMIÈRES",
         "open_time": "00:00",
         "close_time": "23:59",
         "timezone": "UTC",
-        "assets": ["CL=F", "NG=F", "GC=F", "SI=F", "HG=F"]
-    },
-    "GOLD": {
-        "name": "🥇 GOLD",
-        "open_time": "00:00",
-        "close_time": "23:59",
-        "timezone": "UTC",
-        "assets": ["GC=F", "SI=F"]
+        "assets": [
+            # Énergies
+            "CL=F", "NG=F", "BZ=F",
+            # Métaux précieux
+            "GC=F", "SI=F", "PL=F", "PA=F",
+            # Métaux industriels
+            "HG=F", "ALI=F",
+            # Agriculture
+            "ZC=F", "ZW=F", "ZS=F", "KC=F", "SB=F", "CT=F"
+        ]
     }
 }
 
