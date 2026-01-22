@@ -109,11 +109,35 @@ class TDBBot:
                 "❌ Une erreur s'est produite. Veuillez réessayer."
             )
 
-    async def post_init(self, application: Application):
-        """Actions après initialisation"""
-        # Initialiser et démarrer le scanner automatique
-        bot = application.bot
-        self.auto_scanner = init_auto_scanner(bot)
+    async def run(self):
+        """Lance le bot"""
+        logger.info("🚀 Démarrage de TDB Bot...")
+
+        # IMPORTANT : Initialiser la base de données EN PREMIER
+        logger.info("📦 Initialisation de la base de données...")
+        await self.initialize_database()
+        logger.info("✅ Base de données initialisée")
+
+        # Créer l'application
+        self.application = Application.builder().token(self.token).build()
+
+        # Configurer les modules
+        self.setup_modules()
+
+        # Ajouter le gestionnaire d'erreurs
+        self.application.add_error_handler(self.error_handler)
+
+        # Démarrer le bot
+        logger.info("🔄 Connexion à Telegram...")
+        await self.application.initialize()
+        await self.application.start()
+        await self.application.updater.start_polling(drop_pending_updates=True)
+
+        logger.info("✅ Bot connecté et en écoute")
+
+        # Initialiser et démarrer le scanner automatique APRÈS que le bot soit connecté
+        logger.info("🔄 Démarrage du scanner automatique...")
+        self.auto_scanner = init_auto_scanner(self.application.bot)
         self.auto_scanner.start()
 
         # Message de démarrage
@@ -130,32 +154,6 @@ class TDBBot:
         logger.info("  • Trading Compagnon IA")
         logger.info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
         logger.info("✅ Le bot est prêt à recevoir des commandes")
-
-    async def run(self):
-        """Lance le bot"""
-        logger.info("🚀 Démarrage de TDB Bot...")
-
-        # IMPORTANT : Initialiser la base de données EN PREMIER
-        logger.info("📦 Initialisation de la base de données...")
-        await self.initialize_database()
-        logger.info("✅ Base de données initialisée")
-
-        # Créer l'application
-        self.application = Application.builder().token(self.token).post_init(self.post_init).build()
-
-        # Configurer les modules
-        self.setup_modules()
-
-        # Ajouter le gestionnaire d'erreurs
-        self.application.add_error_handler(self.error_handler)
-
-        # Démarrer le bot
-        logger.info("🔄 Connexion à Telegram...")
-        await self.application.initialize()
-        await self.application.start()
-        await self.application.updater.start_polling(drop_pending_updates=True)
-
-        logger.info("✅ Bot connecté et en écoute")
 
         # Garder le bot actif
         await asyncio.Event().wait()
