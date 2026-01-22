@@ -83,16 +83,19 @@ class AutoScannerService:
                 if last_scan:
                     time_since_last = (current_time - last_scan).total_seconds()
                     if time_since_last < scan_frequency:
+                        logger.debug(f"⏱️ Trop tôt pour scanner user {user_id}: {time_since_last:.0f}s < {scan_frequency}s")
                         continue  # Pas encore le moment
 
                 # Vérifier si c'est le week-end et si l'utilisateur veut scanner
                 is_weekend = current_time.weekday() >= 5  # 5=samedi, 6=dimanche
                 if is_weekend and not user['scan_weekends']:
+                    logger.info(f"📅 User {user_id}: Week-end, scan désactivé")
                     continue
 
                 # Vérifier la limite d'alertes quotidiennes
                 alert_count = self.daily_alert_counts.get(user_id, 0)
                 if alert_count >= user['max_alerts_per_day']:
+                    logger.warning(f"🔔 User {user_id}: Limite d'alertes atteinte ({alert_count}/{user['max_alerts_per_day']})")
                     continue
 
                 # Lancer le scan pour cet utilisateur
@@ -128,9 +131,17 @@ class AutoScannerService:
             # Analyser chaque actif
             for symbol in assets_to_scan[:10]:  # Limiter à 10 actifs par scan
                 try:
+                    logger.debug(f"🔎 Analyse de {symbol}...")
                     analysis = await analyzer.analyze_asset(symbol, timeframe="1d")
 
-                    if analysis and analysis.get('score', 0) >= score_min:
+                    if not analysis:
+                        logger.warning(f"⚠️ {symbol}: Aucune analyse retournée")
+                        continue
+
+                    score = analysis.get('score', 0)
+                    logger.info(f"📈 {symbol}: Score {score}/100 (min requis: {score_min})")
+
+                    if score >= score_min:
                         opportunities.append({
                             'symbol': symbol,
                             'score': analysis['score'],
