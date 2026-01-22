@@ -123,16 +123,20 @@ class AutoScannerService:
                 assets_to_scan = self.get_default_assets()
                 logger.info(f"📋 Aucun favori, scan des actifs par défaut: {len(assets_to_scan)} actifs")
             else:
-                assets_to_scan = [fav['asset_symbol'] for fav in favorites]
+                # Convertir les favoris au même format que get_default_assets
+                assets_to_scan = [{'symbol': fav['asset_symbol'], 'market': fav['market']} for fav in favorites]
                 logger.info(f"⭐ Scan des favoris: {len(assets_to_scan)} actifs")
 
             opportunities = []
 
             # Analyser chaque actif
-            for symbol in assets_to_scan[:10]:  # Limiter à 10 actifs par scan
+            for asset in assets_to_scan[:10]:  # Limiter à 10 actifs par scan
                 try:
-                    logger.debug(f"🔎 Analyse de {symbol}...")
-                    analysis = await analyzer.analyze_asset(symbol, timeframe="1d")
+                    symbol = asset['symbol']
+                    market = asset['market']
+
+                    logger.debug(f"🔎 Analyse de {symbol} ({market})...")
+                    analysis = await analyzer.analyze_asset(symbol, market)
 
                     if not analysis:
                         logger.warning(f"⚠️ {symbol}: Aucune analyse retournée")
@@ -142,10 +146,14 @@ class AutoScannerService:
                     logger.info(f"📈 {symbol}: Score {score}/100 (min requis: {score_min})")
 
                     if score >= score_min:
+                        # Convertir direction en signal
+                        direction = analysis.get('direction', 'NEUTRAL')
+                        signal = self.convert_direction_to_signal(direction, score)
+
                         opportunities.append({
                             'symbol': symbol,
                             'score': analysis['score'],
-                            'signal': analysis.get('signal', 'NEUTRE'),
+                            'signal': signal,
                             'price': analysis.get('current_price', 0)
                         })
 
@@ -154,7 +162,7 @@ class AutoScannerService:
                             user_id=user_id,
                             asset_symbol=symbol,
                             score=analysis['score'],
-                            signal=analysis.get('signal', 'NEUTRE'),
+                            signal=signal,
                             price=analysis.get('current_price', 0)
                         )
 
@@ -204,6 +212,15 @@ class AutoScannerService:
         except Exception as e:
             logger.error(f"❌ Erreur envoi alerte à {user_id}: {e}")
 
+    def convert_direction_to_signal(self, direction: str, score: int) -> str:
+        """Convertit la direction et le score en signal"""
+        if direction == "LONG":
+            return "ACHAT FORT" if score >= 80 else "ACHAT"
+        elif direction == "SHORT":
+            return "VENTE FORT" if score >= 80 else "VENTE"
+        else:
+            return "NEUTRE"
+
     def get_signal_emoji(self, signal: str) -> str:
         """Retourne l'emoji correspondant au signal"""
         emojis = {
@@ -216,12 +233,16 @@ class AutoScannerService:
         return emojis.get(signal, '⚪')
 
     def get_default_assets(self) -> list:
-        """Retourne une liste d'actifs par défaut à scanner"""
+        """Retourne une liste d'actifs par défaut à scanner avec leur marché"""
         assets = []
 
         # Ajouter quelques actifs de chaque marché
         for market_key, market_data in config.MARKETS.items():
-            assets.extend(market_data['assets'][:3])  # 3 premiers de chaque marché
+            for symbol in market_data['assets'][:3]:  # 3 premiers de chaque marché
+                assets.append({
+                    'symbol': symbol,
+                    'market': market_key
+                })
 
         return assets
 
