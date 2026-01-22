@@ -116,7 +116,7 @@ class AutoScannerService:
             logger.info(f"📊 Scan pour user {user_id}: score_min={score_min}")
 
             # Récupérer les marchés favoris de l'utilisateur
-            favorites = await db_manager.get_user_favorites(user_id)
+            favorites = await db_manager.get_favorites(user_id)
 
             # Si pas de favoris, scanner les marchés principaux
             if not favorites:
