@@ -6,9 +6,10 @@ import logging
 from datetime import datetime, timedelta
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.interval import IntervalTrigger
-from telegram import Bot
+from telegram import Bot, InlineKeyboardButton, InlineKeyboardMarkup
 from database.manager import db_manager
 from ai.analyzer import analyzer
+from utils.asset_names import get_asset_display_name, get_asset_emoji
 import config
 
 logger = logging.getLogger(__name__)
@@ -192,19 +193,36 @@ class AutoScannerService:
 
             text = "🔔 **NOUVELLES OPPORTUNITÉS DÉTECTÉES**\n\n"
 
-            for opp in opportunities[:5]:  # Max 5 dans l'alerte
-                emoji = self.get_signal_emoji(opp['signal'])
-                text += f"{emoji} **{opp['symbol']}**\n"
-                text += f"   • Score: {opp['score']}/100\n"
-                text += f"   • Signal: {opp['signal']}\n"
-                text += f"   • Prix: ${opp['price']:.2f}\n\n"
+            # Créer les boutons pour analyser chaque actif
+            keyboard = []
 
+            for i, opp in enumerate(opportunities[:5], 1):  # Max 5 dans l'alerte
+                signal_emoji = self.get_signal_emoji(opp['signal'])
+                asset_emoji = get_asset_emoji(opp['symbol'])
+                asset_name = get_asset_display_name(opp['symbol'])
+
+                text += f"{i}. {asset_emoji} **{asset_name}**\n"
+                text += f"   {signal_emoji} Score: **{opp['score']}/100** • {opp['signal']}\n"
+                text += f"   💰 Prix: ${opp['price']:.2f}\n\n"
+
+                # Ajouter un bouton pour analyser cet actif
+                keyboard.append([
+                    InlineKeyboardButton(
+                        f"📊 Analyser {asset_name}",
+                        callback_data=f"analyze_{opp['symbol']}"
+                    )
+                ])
+
+            text += f"━━━━━━━━━━━━━━━━━━━━━━━━\n"
             text += f"_Scan automatique • {datetime.now().strftime('%H:%M')}_"
+
+            reply_markup = InlineKeyboardMarkup(keyboard)
 
             await self.bot.send_message(
                 chat_id=user_id,
                 text=text,
-                parse_mode='Markdown'
+                parse_mode='Markdown',
+                reply_markup=reply_markup
             )
 
             logger.info(f"✅ Alerte envoyée à l'utilisateur {user_id}: {len(opportunities)} opportunités")

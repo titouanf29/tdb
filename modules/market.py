@@ -19,12 +19,19 @@ class MarketModule:
         self.app = application
         self.register_handlers()
 
+    def find_market_for_symbol(self, symbol: str) -> str:
+        """Trouve le marché auquel appartient un symbole"""
+        for market_code, market_info in config.MARKETS.items():
+            if symbol in market_info['assets']:
+                return market_code
+        return None
+
     def register_handlers(self):
         """Enregistre les handlers"""
         # Capturer tous les callbacks du module marché
         self.app.add_handler(CallbackQueryHandler(
             self.handle_callback,
-            pattern="^(market_|chart_|news_|favorite_add_|trading_companion_)"
+            pattern="^(market_|chart_|news_|favorite_add_|trading_companion_|analyze_)"
         ))
 
     async def show_markets(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -433,3 +440,13 @@ Recherchez : **{symbol}**
             from ai.trading_companion import TradingCompanion
             companion = TradingCompanion(self.app)
             await companion.start_conversation(update, context, symbol, market_code)
+
+        elif data.startswith("analyze_"):
+            # Analyser un actif depuis l'alerte de scan auto
+            symbol = data.replace("analyze_", "")
+            # Trouver le marché du symbole
+            market_code = self.find_market_for_symbol(symbol)
+            if market_code:
+                await self.show_asset_detail(update, context, market_code, symbol)
+            else:
+                await query.answer("❌ Marché inconnu pour cet actif", show_alert=True)
