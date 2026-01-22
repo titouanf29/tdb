@@ -1,0 +1,48 @@
+# Requirements optimisés pour le bot de trading Telegram
+# Installation: pip install -r requirements-optimized.txt
+#
+# IMPORTANT: Ce fichier utilise des versions exactes (==) pour garantir
+# la reproductibilité et éviter les breaking changes inattendus.
+
+# ============================================
+# CORE - Trading & Data
+# ============================================
+yfinance==1.0                      # API Yahoo Finance (dernière version stable)
+pandas==2.2.3                      # Manipulation de données financières
+numpy==1.26.4                      # Calculs numériques optimisés
+
+# ============================================
+# TELEGRAM BOT
+# ============================================
+python-telegram-bot==22.5          # Framework bot Telegram (dernière version)
+
+# ============================================
+# WEB SCRAPING & HTTP
+# ============================================
+requests==2.32.5                   # Client HTTP pour API et scraping
+beautifulsoup4==4.13.0             # Parsing HTML pour actualités
+
+# Parser HTML/XML - Choisir UNE des options:
+# Option 1: html.parser intégré (RECOMMANDÉ - pas de dépendance supplémentaire)
+# Option 2: lxml==5.3.0 (plus rapide mais +10MB)
+lxml==5.3.0                        # Parser XML/HTML rapide
+
+# ============================================
+# VISUALISATION
+# ============================================
+# CHOIX À FAIRE:
+# Option A: matplotlib (complet mais lourd ~50MB)
+matplotlib==3.10.0                 # Graphiques avancés
+# Option B: pillow uniquement (léger ~10MB)
+# pillow==11.2.0                   # Manipulation d'images
+
+# ============================================
+# UTILITAIRES
+# ============================================
+pytz==2025.1                       # Gestion des fuseaux horaires
+python-dateutil==2.9.0             # Parsing et manipulation de dates
+
+# ============================================
+# SÉCURITÉ (OPTIONNEL mais RECOMMANDÉ)
+# ============================================
+# cryptography>=42.0.0             # Chiffrement sécurisé si nécessaire

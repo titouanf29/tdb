@@ -1,0 +1,35 @@
+# Requirements MINIMAUX pour le bot de trading Telegram
+# Installation: pip install -r requirements-minimal.txt
+#
+# Version allégée sans matplotlib pour réduire la taille (~100MB au lieu de ~250MB)
+# Utilisez ce fichier si vous n'avez pas besoin de graphiques complexes
+
+# ============================================
+# CORE - Trading & Data
+# ============================================
+yfinance==1.0                      # API Yahoo Finance
+pandas==2.2.3                      # Manipulation de données
+numpy==1.26.4                      # Calculs numériques
+
+# ============================================
+# TELEGRAM BOT
+# ============================================
+python-telegram-bot==22.5          # Framework bot Telegram
+
+# ============================================
+# WEB SCRAPING
+# ============================================
+requests==2.32.5                   # Client HTTP
+beautifulsoup4==4.13.0             # Parsing HTML
+# Utilise html.parser intégré (pas de lxml)
+
+# ============================================
+# VISUALISATION (LÉGER)
+# ============================================
+pillow==11.2.0                     # Manipulation d'images basique
+
+# ============================================
+# UTILITAIRES
+# ============================================
+pytz==2025.1                       # Fuseaux horaires
+python-dateutil==2.9.0             # Parsing de dates

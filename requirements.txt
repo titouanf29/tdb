@@ -1,20 +1,37 @@
-# Requirements pour le bot de trading
+# Requirements pour le bot de trading Telegram
 # Installation: pip install -r requirements.txt
+#
+# IMPORTANT: Versions mises à jour et sécurisées (2026-01-16)
+# Pour l'ancienne version, voir: requirements-original.txt
+# Pour la version minimale, voir: requirements-minimal.txt
+# Pour le développement, voir: requirements-dev.txt
 
-# Core packages (déjà installés normalement)
-yfinance>=0.2.0
-pandas>=1.5.0
-numpy>=1.23.0
-matplotlib>=3.5.0
-python-telegram-bot>=20.0
+# ============================================
+# CORE - Trading & Data
+# ============================================
+yfinance==1.0                      # API Yahoo Finance (dernière version stable)
+pandas==2.2.3                      # Manipulation de données financières
+numpy==1.26.4                      # Calculs numériques optimisés
 
-# Pour les actualités multi-sources
-requests>=2.28.0
-beautifulsoup4>=4.11.0
-lxml>=4.9.0
+# ============================================
+# TELEGRAM BOT
+# ============================================
+python-telegram-bot==22.5          # Framework bot Telegram (dernière version)
 
-# Base de données
-# sqlite3 est inclus dans Python par défaut
+# ============================================
+# WEB SCRAPING & HTTP
+# ============================================
+requests==2.32.5                   # Client HTTP pour API et scraping
+beautifulsoup4==4.13.0             # Parsing HTML pour actualités
+lxml==5.3.0                        # Parser XML/HTML rapide
 
-# Timezone
-pytz>=2022.1
+# ============================================
+# VISUALISATION
+# ============================================
+matplotlib==3.10.0                 # Graphiques avancés pour analyses techniques
+
+# ============================================
+# UTILITAIRES
+# ============================================
+pytz==2025.1                       # Gestion des fuseaux horaires
+python-dateutil==2.9.0             # Parsing et manipulation de dates

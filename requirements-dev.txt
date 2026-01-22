@@ -1,0 +1,47 @@
+# Requirements pour le DÉVELOPPEMENT
+# Installation: pip install -r requirements-dev.txt
+#
+# Ce fichier contient toutes les dépendances de production
+# plus les outils de développement, test et qualité de code
+
+# ============================================
+# DÉPENDANCES DE PRODUCTION
+# ============================================
+-r requirements-optimized.txt
+
+# ============================================
+# TESTS
+# ============================================
+pytest==8.3.0                      # Framework de tests
+pytest-asyncio==0.24.0             # Support async pour pytest
+pytest-cov==6.0.0                  # Couverture de code
+pytest-mock==3.14.0                # Mocking pour tests
+
+# ============================================
+# QUALITÉ DE CODE
+# ============================================
+black==25.1.0                      # Formatage automatique du code
+flake8==7.0.0                      # Linting et vérification de style
+pylint==3.3.0                      # Analyse statique approfondie
+mypy==1.13.0                       # Vérification des types
+isort==5.13.0                      # Tri des imports
+
+# ============================================
+# SÉCURITÉ
+# ============================================
+pip-audit==2.7.0                   # Audit des vulnérabilités
+safety==3.2.0                      # Scanner de sécurité
+bandit==1.8.0                      # Détection de problèmes de sécurité
+
+# ============================================
+# DOCUMENTATION
+# ============================================
+sphinx==8.3.0                      # Génération de documentation
+sphinx-rtd-theme==3.1.0            # Thème Read The Docs
+
+# ============================================
+# UTILITAIRES DÉVELOPPEMENT
+# ============================================
+ipython==8.31.0                    # REPL amélioré
+ipdb==0.13.13                      # Debugger interactif
+python-dotenv==1.0.0               # Gestion des variables d'environnement
