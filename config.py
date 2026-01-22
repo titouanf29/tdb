@@ -7,8 +7,8 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # ===== TELEGRAM =====
-TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN", "YOUR_TOKEN_HERE")
-CHANNEL_ID = os.getenv("CHANNEL_ID", "")  # ID du channel pour les notifications (optionnel)
+TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN", "8213431546:AAHnL4lswPUDYNubdcsLPvTwW0f1KYgjLgs")
+CHANNEL_ID = os.getenv("CHANNEL_ID", "-1003160198658")  # ID du channel pour les notifications (optionnel)
 
 # ===== BASE DE DONNÉES =====
 DATABASE_PATH = "database/trading_bot.db"
