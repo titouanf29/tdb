@@ -16,6 +16,7 @@ import numpy as np
 from datetime import datetime, timedelta
 import config
 from utils.helpers import *
+from services.news import news_service
 
 class MarketAnalyzer:
     """Analyseur de marché avancé avec IA"""
@@ -52,13 +53,18 @@ class MarketAnalyzer:
             volatility_score = self._analyze_volatility(data_1d)
             market_context_score = self._analyze_market_context(symbol, market)
 
+            # Analyse des actualités
+            news_score = self._analyze_news(symbol)
+            news_summary = self._get_news_summary(symbol)
+
             # Score final pondéré
             final_score = (
                 technical_score * self.weights['technical'] +
                 volume_score * self.weights['volume'] +
                 momentum_score * self.weights['momentum'] +
                 volatility_score * self.weights['volatility'] +
-                market_context_score * self.weights['market_context']
+                market_context_score * self.weights['market_context'] +
+                news_score * self.weights['news']
             ) * 100
 
             # Arrondir
@@ -117,12 +123,14 @@ class MarketAnalyzer:
                 'technical_summary': technical_summary,
                 'opportunity_type': opportunity_type,
                 'risk_level': risk_level,
+                'news_summary': news_summary,
                 'scores': {
                     'technical': technical_score,
                     'volume': volume_score,
                     'momentum': momentum_score,
                     'volatility': volatility_score,
-                    'market_context': market_context_score
+                    'market_context': market_context_score,
+                    'news': news_score
                 }
             }
 
@@ -435,6 +443,63 @@ class MarketAnalyzer:
             return "low"
         else:
             return "medium"
+
+    def _analyze_news(self, symbol):
+        """Analyse les actualités et retourne un score (0.0 - 1.0)"""
+        try:
+            news_summary = news_service.get_news_summary(symbol)
+
+            if news_summary['count'] == 0:
+                return 0.5  # Neutre si pas d'actualités
+
+            sentiment = news_summary.get('sentiment', 'NEUTRE')
+            impact = news_summary.get('impact_level', 'FAIBLE')
+
+            # Calcul du score basé sur sentiment et impact
+            if sentiment == 'POSITIF':
+                if impact == 'MODÉRÉ':
+                    return 0.75
+                else:
+                    return 0.65
+            elif sentiment == 'NÉGATIF':
+                if impact == 'MODÉRÉ':
+                    return 0.25
+                else:
+                    return 0.35
+            else:
+                return 0.5  # Neutre
+
+        except Exception as e:
+            print(f"[ANALYZER] Erreur analyse news: {e}")
+            return 0.5
+
+    def _get_news_summary(self, symbol):
+        """Récupère le résumé des actualités formaté pour la base de données"""
+        try:
+            news_summary = news_service.get_news_summary(symbol)
+
+            if news_summary['count'] == 0:
+                return "Aucune actualité récente"
+
+            # Formater le résumé
+            sentiment_emoji = {
+                'POSITIF': '🟢',
+                'NÉGATIF': '🔴',
+                'NEUTRE': '⚪'
+            }
+
+            emoji = sentiment_emoji.get(news_summary['sentiment'], '⚪')
+            sentiment = news_summary['sentiment']
+            impact = news_summary['impact_level']
+            count = news_summary['count']
+
+            summary = f"{emoji} Sentiment: {sentiment} | Impact: {impact} | {count} article(s) récent(s)"
+
+            return summary
+
+        except Exception as e:
+            print(f"[ANALYZER] Erreur get_news_summary: {e}")
+            return "Erreur récupération actualités"
 
 # Instance globale
 analyzer = MarketAnalyzer()

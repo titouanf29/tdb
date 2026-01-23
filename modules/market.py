@@ -7,10 +7,12 @@ import config
 from ai.analyzer import analyzer
 from services.market_data import market_data_service
 from services.charts import chart_service
+from services.news import news_service
 from utils.helpers import *
 from utils.constants import *
 from utils.asset_names import format_asset_name, get_asset_display_name, get_asset_emoji
 from database.manager import db_manager
+from datetime import datetime
 
 class MarketModule:
     """Module de gestion des marchés"""
@@ -371,21 +373,77 @@ _Symbole: {symbol}_
         query = update.callback_query
         await query.answer()
 
-        # Message en attendant l'implémentation d'une vraie API news
-        text = f"""
+        # Récupérer les actualités
+        news = news_service.get_news(symbol, limit=8)
+
+        if not news or len(news) == 0:
+            text = f"""
 📰 **ACTUALITÉS - {symbol}**
 
-🚧 Fonctionnalité en développement
+❌ Aucune actualité récente disponible
 
-L'intégration des actualités en temps réel sera disponible prochainement.
-
-Pour l'instant, vous pouvez consulter :
+Pour plus d'informations, consultez :
 • Google Finance : google.com/finance
 • Yahoo Finance : finance.yahoo.com
 • TradingView : tradingview.com
 
 Recherchez : **{symbol}**
 """
+        else:
+            # Formater les actualités
+            text = f"📰 **ACTUALITÉS - {symbol}**\n\n"
+
+            for i, article in enumerate(news, 1):
+                sentiment = article.get('sentiment', {})
+                emoji = sentiment.get('emoji', '⚪')
+                title = article['title']
+                publisher = article['publisher']
+                link = article.get('link', '')
+
+                # Date formatée
+                try:
+                    timestamp = article['published']
+                    pub_date = datetime.fromtimestamp(timestamp)
+                    now = datetime.now()
+                    diff = now - pub_date
+
+                    if diff.days == 0:
+                        if diff.seconds < 3600:
+                            time_str = f"Il y a {diff.seconds // 60}m"
+                        else:
+                            time_str = f"Il y a {diff.seconds // 3600}h"
+                    elif diff.days == 1:
+                        time_str = "Hier"
+                    else:
+                        time_str = f"Il y a {diff.days}j"
+                except:
+                    time_str = "Récent"
+
+                # Limiter le titre à 100 caractères
+                if len(title) > 100:
+                    title = title[:97] + "..."
+
+                # Formater l'article
+                text += f"{emoji} **{title}**\n"
+                text += f"   _{publisher}_ • {time_str}\n"
+
+                # Ajouter le lien si disponible (raccourci pour Telegram)
+                if link:
+                    text += f"   🔗 [Lire l'article]({link})\n"
+
+                text += "\n"
+
+            # Résumé du sentiment global
+            sentiments = [article.get('sentiment', {}) for article in news]
+            positive_count = sum(1 for s in sentiments if s.get('label') == 'Positif')
+            negative_count = sum(1 for s in sentiments if s.get('label') == 'Négatif')
+
+            if positive_count > negative_count:
+                text += f"📊 Sentiment global : 🟢 **Positif** ({positive_count}/{len(news)})\n"
+            elif negative_count > positive_count:
+                text += f"📊 Sentiment global : 🔴 **Négatif** ({negative_count}/{len(news)})\n"
+            else:
+                text += f"📊 Sentiment global : ⚪ **Neutre**\n"
 
         keyboard = [
             [InlineKeyboardButton("🔙 Retour à l'analyse", callback_data=f"market_detail_{context.user_data.get('current_market', 'USA')}_{symbol}")],
@@ -393,7 +451,7 @@ Recherchez : **{symbol}**
         ]
 
         reply_markup = InlineKeyboardMarkup(keyboard)
-        await query.edit_message_text(text, reply_markup=reply_markup, parse_mode='Markdown')
+        await query.edit_message_text(text, reply_markup=reply_markup, parse_mode='Markdown', disable_web_page_preview=True)
 
     async def handle_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Gère les callbacks du module marché"""
