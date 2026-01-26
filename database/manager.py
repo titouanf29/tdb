@@ -363,6 +363,16 @@ class DatabaseManager:
 
     # ===== AUTO SCANNER =====
 
+    async def get_all_users(self):
+        """Récupère tous les utilisateurs enregistrés"""
+        async with aiosqlite.connect(self.db_path) as db:
+            db.row_factory = aiosqlite.Row
+            async with db.execute("""
+                SELECT * FROM users ORDER BY created_at DESC
+            """) as cursor:
+                rows = await cursor.fetchall()
+                return [dict(row) for row in rows]
+
     async def get_users_with_scan_enabled(self):
         """Récupère tous les utilisateurs avec le scan automatique activé"""
         async with aiosqlite.connect(self.db_path) as db:

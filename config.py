@@ -10,6 +10,12 @@ load_dotenv()
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN", "8213431546:AAHnL4lswPUDYNubdcsLPvTwW0f1KYgjLgs")
 CHANNEL_ID = os.getenv("CHANNEL_ID", "-1003160198658")  # ID du channel pour les notifications (optionnel)
 
+# Administrateurs du bot (ajouter vos IDs Telegram ici)
+ADMIN_IDS = [
+    # Ajoutez votre ID Telegram ici
+    # Exemple: 123456789
+]
+
 # ===== BASE DE DONNÉES =====
 DATABASE_PATH = "database/trading_bot.db"
 

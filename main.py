@@ -14,8 +14,10 @@ from modules.wallet import WalletModule
 from modules.favorites import FavoritesModule
 from modules.scan_auto import ScanAutoModule
 from modules.settings import SettingsModule
+from modules.admin import AdminModule
 from ai.trading_companion import TradingCompanion
 from services.auto_scanner import init_auto_scanner
+from services.broadcast import init_broadcast_service
 
 # Configuration du logging compatible Windows (UTF-8)
 # Forcer l'encodage UTF-8 pour la console Windows
@@ -83,6 +85,10 @@ class TDBBot:
             self.trading_companion = TradingCompanion(self.application)
             logger.info("✅ Trading Compagnon IA chargé")
 
+            # Module Admin
+            self.admin_module = AdminModule(self.application)
+            logger.info("✅ Module Admin chargé")
+
             # Menu principal (créé en dernier avec références aux autres modules)
             self.menu_module = MenuModule(
                 self.application,
@@ -135,6 +141,13 @@ class TDBBot:
 
         logger.info("✅ Bot connecté et en écoute")
 
+        # Initialiser le service de broadcast
+        logger.info("🔄 Initialisation du service de broadcast...")
+        self.broadcast_service = init_broadcast_service(self.application.bot)
+        # Passer la référence au module admin
+        self.admin_module.broadcast_service = self.broadcast_service
+        logger.info("✅ Service de broadcast initialisé")
+
         # Initialiser et démarrer le scanner automatique APRÈS que le bot soit connecté
         logger.info("🔄 Démarrage du scanner automatique...")
         self.auto_scanner = init_auto_scanner(self.application.bot)
@@ -152,6 +165,7 @@ class TDBBot:
         logger.info("  • Scan Automatique (🔄 Actif)")
         logger.info("  • Paramètres")
         logger.info("  • Trading Compagnon IA")
+        logger.info("  • Admin (Broadcast & Stats)")
         logger.info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
         logger.info("✅ Le bot est prêt à recevoir des commandes")
 
