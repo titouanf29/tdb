@@ -64,6 +64,41 @@ Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/)
   - Recommandation d'action
 - Liste des 5 articles les plus récents avec liens cliquables
 
+#### 📢 Système de Broadcast (NOUVEAU!)
+
+**Service de Broadcast**
+- Envoi automatique de messages à tous les utilisateurs
+- Formatage professionnel des messages de mise à jour
+- Gestion intelligente des erreurs et des retry
+- Statistiques détaillées d'envoi (réussis/échoués/total)
+- Support de messages personnalisés
+- Respect des limites Telegram (50ms entre messages)
+
+**Commandes Admin**
+- `/send_update [version]` - Envoie les notes de mise à jour formatées
+- `/broadcast <message>` - Envoie un message personnalisé à tous
+- `/stats` - Affiche les statistiques du bot
+- Sécurité par liste d'IDs autorisés (ADMIN_IDS)
+
+**Formatage Automatique**
+- Messages de mise à jour pré-formatés pour Telegram
+- Emojis et mise en forme professionnelle
+- Liens vers le CHANGELOG GitHub
+- Messages structurés par version
+
+**Cas d'Usage**
+- Notification automatique des nouvelles versions
+- Annonces de maintenance
+- Messages importants
+- Nouvelles fonctionnalités
+
+**Documentation Complète**
+- Guide d'utilisation dans `docs/BROADCAST.md`
+- Instructions de configuration admin
+- Workflow de mise à jour
+- Best practices et exemples
+- Dépannage
+
 #### 📊 Analyse des Actifs Améliorée
 
 **Explications Pédagogiques**
@@ -188,10 +223,11 @@ Ou en cas de divergence :
 ## 📊 Statistiques
 
 ### Version 2.0.0
-- **Lignes ajoutées** : 850+
-- **Fichiers modifiés** : 3 (services/news.py, ai/analyzer.py, modules/market.py)
-- **Nouvelles fonctionnalités** : 10+
-- **Commits** : 3
+- **Lignes ajoutées** : 1500+
+- **Fichiers modifiés** : 6 (services/news.py, services/broadcast.py, ai/analyzer.py, modules/market.py, modules/admin.py, database/manager.py, config.py, main.py)
+- **Nouveaux fichiers** : 4 (services/broadcast.py, modules/admin.py, docs/BROADCAST.md, CHANGELOG.md)
+- **Nouvelles fonctionnalités** : 15+
+- **Commits** : 6
 
 ### Impact sur l'utilisateur
 - ✅ Actualités maintenant fonctionnelles (vs placeholder)
@@ -199,6 +235,8 @@ Ou en cas de divergence :
 - ✅ Analyse 10x plus détaillée avec explications
 - ✅ Recommandations personnalisées intelligentes
 - ✅ Interface pédagogique pour apprendre en tradant
+- ✅ **Notifications automatiques des mises à jour**
+- ✅ **Communication directe avec tous les utilisateurs**
 
 ---
 
