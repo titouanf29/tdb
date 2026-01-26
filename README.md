@@ -272,15 +272,34 @@ Ce bot est un **outil pédagogique** et de **simulation**.
 
 Chaque module est **indépendant** et peut être modifié sans affecter les autres.
 
+## 🆕 Nouveautés Version 2.0.0
+
+### 📰 Système d'Actualités Intelligent (NOUVEAU!)
+- ✅ Récupération multi-sources (Yahoo Finance, Finviz)
+- ✅ Analyse de sentiment automatique
+- ✅ Catégorisation des actualités (earnings, acquisitions, etc.)
+- ✅ **Prédiction de tendance future basée sur les news**
+- ✅ Recommandations d'action personnalisées
+- ✅ Résumé intelligent avec points clés
+
+### 📊 Analyse Améliorée (NOUVEAU!)
+- ✅ Explications pédagogiques pour chaque indicateur
+- ✅ Breakdown détaillé des scores par catégorie
+- ✅ Système de recommandations intelligent
+- ✅ Détection des divergences et alertes
+- ✅ Conseils de gestion du risque
+
+👉 **Voir [CHANGELOG.md](CHANGELOG.md) pour les détails complets**
+
 ## 📝 TODO / Améliorations futures
 
-- [ ] Intégration API actualités réelles
-- [ ] Machine Learning pour prédictions
+- [ ] Machine Learning pour prédictions avancées
 - [ ] Backtesting automatique
-- [ ] Statistiques avancées
+- [ ] Statistiques avancées et rapports
 - [ ] Export des données (CSV, JSON)
 - [ ] Support multi-langues
 - [ ] Interface web complémentaire
+- [ ] Alertes SMS/Email
 
 ## 🤝 Contribution
 
