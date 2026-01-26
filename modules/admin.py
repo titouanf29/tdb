@@ -29,7 +29,7 @@ class AdminModule:
     async def cmd_broadcast(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """
         Commande /broadcast <message>
-        Envoie un message personnalisé à tous les utilisateurs
+        Publie un message personnalisé dans le canal principal
         """
         user_id = update.effective_user.id
 
@@ -49,27 +49,30 @@ class AdminModule:
 
         # Confirmation
         await update.message.reply_text(
-            f"📢 Envoi du broadcast à tous les utilisateurs...\n\n"
+            f"📢 Publication dans le canal principal...\n\n"
             f"Message: {message}"
         )
 
-        # Envoyer le broadcast
+        # Publier dans le canal
         if self.broadcast_service:
-            stats = await self.broadcast_service.send_custom_broadcast(message)
+            result = await self.broadcast_service.send_custom_broadcast(message)
 
-            await update.message.reply_text(
-                f"✅ Broadcast terminé !\n\n"
-                f"📊 Statistiques :\n"
-                f"• Réussis : {stats['success']}/{stats['total']}\n"
-                f"• Échoués : {stats['failed']}/{stats['total']}"
-            )
+            if result.get('success'):
+                await update.message.reply_text(
+                    f"✅ Message publié avec succès dans le canal !\n\n"
+                    f"📢 Canal ID: {result['channel_id']}"
+                )
+            else:
+                await update.message.reply_text(
+                    f"❌ Erreur lors de la publication:\n{result.get('error', 'Erreur inconnue')}"
+                )
         else:
             await update.message.reply_text("❌ Service de broadcast non initialisé")
 
     async def cmd_send_update(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """
         Commande /send_update [version]
-        Envoie les notes de mise à jour de la version spécifiée
+        Publie les notes de mise à jour dans le canal principal
         """
         user_id = update.effective_user.id
 
@@ -81,21 +84,26 @@ class AdminModule:
         version = context.args[0] if context.args else None
 
         # Confirmation
-        version_str = version if version else "actuelle"
+        version_str = version if version else "actuelle (2.0.0)"
         await update.message.reply_text(
-            f"🎉 Envoi des notes de mise à jour (version {version_str})..."
+            f"🎉 Publication des notes de mise à jour (version {version_str}) dans le canal..."
         )
 
-        # Envoyer le broadcast
+        # Publier dans le canal
         if self.broadcast_service:
-            stats = await self.broadcast_service.send_version_update(version)
+            result = await self.broadcast_service.send_version_update(version)
 
-            await update.message.reply_text(
-                f"✅ Mise à jour envoyée !\n\n"
-                f"📊 Statistiques :\n"
-                f"• Réussis : {stats['success']}/{stats['total']}\n"
-                f"• Échoués : {stats['failed']}/{stats['total']}"
-            )
+            if result.get('success'):
+                await update.message.reply_text(
+                    f"✅ Mise à jour publiée avec succès !\n\n"
+                    f"📢 Canal ID: {result['channel_id']}\n"
+                    f"🔖 Version: {result['version']}\n\n"
+                    f"Tous les abonnés du canal peuvent maintenant voir les nouveautés ! 🎉"
+                )
+            else:
+                await update.message.reply_text(
+                    f"❌ Erreur lors de la publication:\n{result.get('error', 'Erreur inconnue')}"
+                )
         else:
             await update.message.reply_text("❌ Service de broadcast non initialisé")
 

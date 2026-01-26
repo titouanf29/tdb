@@ -1,6 +1,6 @@
 # 📢 Système de Broadcast - Guide d'utilisation
 
-Le système de broadcast permet d'envoyer des messages de mise à jour à tous les utilisateurs du bot.
+Le système de broadcast permet de publier automatiquement les messages de mise à jour dans le canal Telegram principal.
 
 ## 🔑 Configuration Admin
 
@@ -28,15 +28,15 @@ Ou utilisez [@getmyid_bot](https://t.me/getmyid_bot)
 
 ### `/send_update [version]`
 
-Envoie les notes de mise à jour formatées à tous les utilisateurs.
+Publie les notes de mise à jour formatées dans le canal principal Telegram.
 
 **Usage :**
 ```
-/send_update           # Envoie la mise à jour de la version actuelle (2.0.0)
-/send_update 2.0.0     # Envoie la mise à jour de la version 2.0.0
+/send_update           # Publie la mise à jour de la version actuelle (2.0.0)
+/send_update 2.0.0     # Publie la mise à jour de la version 2.0.0
 ```
 
-**Exemple de message envoyé :**
+**Exemple de message publié dans le canal :**
 ```
 🎉 NOUVELLE VERSION 2.0.0 DISPONIBLE !
 
@@ -54,7 +54,7 @@ Le bouton 📰 News est maintenant pleinement fonctionnel !
 
 ### `/broadcast <message>`
 
-Envoie un message personnalisé à tous les utilisateurs.
+Publie un message personnalisé dans le canal principal.
 
 **Usage :**
 ```
@@ -66,6 +66,7 @@ Envoie un message personnalisé à tous les utilisateurs.
 - Messages importants
 - Nouvelles fonctionnalités
 - Problèmes connus
+- Événements spéciaux
 
 ### `/stats`
 
@@ -111,23 +112,36 @@ def _format_update_message(self, version: str):
 """
 ```
 
+**ET** mettez à jour la version actuelle (ligne ~18) :
+
+```python
+class BroadcastService:
+    def __init__(self, bot: Bot):
+        self.bot = bot
+        self.current_version = "2.1.0"  # ← CHANGEZ ICI
+```
+
 ### Étape 3 : Déployer la mise à jour
 
 ```bash
 git add .
-git commit -m "Release: Version 2.1.0"
+git commit -m "🚀 Release: Version 2.1.0"
 git push
 ```
 
-### Étape 4 : Envoyer le broadcast
+Redémarrez le bot.
 
-Une fois que le bot est déployé et opérationnel :
+### Étape 4 : Publier dans le canal
 
 ```
-/send_update 2.1.0
+/send_update
 ```
 
-Le système enverra automatiquement le message à tous les utilisateurs !
+**✅ C'est tout !** Le message formaté sera automatiquement publié dans le canal Telegram principal.
+
+**📢 Tous les abonnés du canal verront la mise à jour !**
+
+👉 **Voir le guide complet** : [MISE_A_JOUR_VERSIONS.md](MISE_A_JOUR_VERSIONS.md)
 
 ## 📊 Statistiques d'Envoi
 

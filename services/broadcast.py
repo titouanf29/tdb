@@ -1,20 +1,22 @@
 """
-Service de broadcast pour envoyer des mises à jour à tous les utilisateurs
+Service de broadcast pour envoyer des mises à jour dans le canal principal
 """
 import asyncio
 import logging
 from telegram import Bot
 from database.manager import db_manager
+import config
 
 logger = logging.getLogger(__name__)
 
 
 class BroadcastService:
-    """Service de gestion des broadcasts (messages à tous les utilisateurs)"""
+    """Service de gestion des broadcasts (messages dans le canal principal)"""
 
     def __init__(self, bot: Bot):
         self.bot = bot
         self.current_version = "2.0.0"
+        self.channel_id = config.CHANNEL_ID
 
     async def send_update_to_all_users(self, message: str, parse_mode='Markdown'):
         """
@@ -93,7 +95,7 @@ class BroadcastService:
 
     async def send_version_update(self, version: str = None):
         """
-        Envoie les notes de mise à jour de la version spécifiée
+        Publie les notes de mise à jour dans le canal principal
 
         Args:
             version: Version à envoyer (par défaut: version actuelle)
@@ -101,13 +103,32 @@ class BroadcastService:
         if version is None:
             version = self.current_version
 
-        # Message de mise à jour formaté
-        message = self._format_update_message(version)
+        try:
+            # Message de mise à jour formaté
+            message = self._format_update_message(version)
 
-        # Envoyer à tous les utilisateurs
-        stats = await self.send_update_to_all_users(message)
+            # Publier dans le canal
+            await self.bot.send_message(
+                chat_id=self.channel_id,
+                text=message,
+                parse_mode='Markdown',
+                disable_web_page_preview=True
+            )
 
-        return stats
+            logger.info(f"✅ Mise à jour v{version} publiée dans le canal {self.channel_id}")
+
+            return {
+                'success': True,
+                'channel_id': self.channel_id,
+                'version': version
+            }
+
+        except Exception as e:
+            logger.error(f"❌ Erreur publication dans le canal: {e}")
+            return {
+                'success': False,
+                'error': str(e)
+            }
 
     def _format_update_message(self, version: str):
         """Formate le message de mise à jour pour Telegram"""
@@ -181,12 +202,33 @@ _Merci d'utiliser TDB Bot ! 🤖_
 
     async def send_custom_broadcast(self, message: str):
         """
-        Envoie un message personnalisé à tous les utilisateurs
+        Publie un message personnalisé dans le canal principal
 
         Args:
-            message: Le message à envoyer
+            message: Le message à publier
         """
-        return await self.send_update_to_all_users(message)
+        try:
+            # Publier dans le canal
+            await self.bot.send_message(
+                chat_id=self.channel_id,
+                text=message,
+                parse_mode='Markdown',
+                disable_web_page_preview=True
+            )
+
+            logger.info(f"✅ Message personnalisé publié dans le canal {self.channel_id}")
+
+            return {
+                'success': True,
+                'channel_id': self.channel_id
+            }
+
+        except Exception as e:
+            logger.error(f"❌ Erreur publication dans le canal: {e}")
+            return {
+                'success': False,
+                'error': str(e)
+            }
 
 
 # Instance globale (sera initialisée dans main.py)
