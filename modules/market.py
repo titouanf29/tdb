@@ -415,18 +415,24 @@ _Symbole: {symbol}_
             )
 
     async def show_news(self, update: Update, context: ContextTypes.DEFAULT_TYPE, symbol: str):
-        """Affiche les actualités d'un actif"""
+        """Affiche les actualités d'un actif avec résumé et prédiction de tendance"""
         query = update.callback_query
         await query.answer()
 
-        # Récupérer les actualités
-        news = news_service.get_news(symbol, limit=8)
+        # Afficher un message de chargement
+        await query.edit_message_text(
+            f"📰 Analyse des actualités de {symbol}...",
+            parse_mode='Markdown'
+        )
 
-        if not news or len(news) == 0:
+        # Récupérer l'analyse complète des actualités
+        analysis = news_service.analyze_news_comprehensive(symbol)
+
+        if not analysis.get('available', False):
             text = f"""
 📰 **ACTUALITÉS - {symbol}**
 
-❌ Aucune actualité récente disponible
+❌ {analysis.get('message', 'Aucune actualité récente disponible')}
 
 Pour plus d'informations, consultez :
 • Google Finance : google.com/finance
@@ -436,14 +442,51 @@ Pour plus d'informations, consultez :
 Recherchez : **{symbol}**
 """
         else:
-            # Formater les actualités
+            # Construire l'affichage détaillé
+            sentiment = analysis['sentiment']
+            future_trend = analysis['future_trend']
+
             text = f"📰 **ACTUALITÉS - {symbol}**\n\n"
 
-            for i, article in enumerate(news, 1):
-                sentiment = article.get('sentiment', {})
-                emoji = sentiment.get('emoji', '⚪')
+            # Sentiment global
+            text += f"━━━━━━━━━━━━━━━━━━━━\n\n"
+            text += f"{sentiment['emoji']} **SENTIMENT GLOBAL : {sentiment['label']}**\n"
+            text += f"_{sentiment['description']}_\n\n"
+
+            text += f"📊 Répartition : {analysis['positive_count']} positives • {analysis['negative_count']} négatives • {analysis['neutral_count']} neutres\n\n"
+
+            # Points clés
+            if analysis.get('key_points'):
+                text += f"━━━━━━━━━━━━━━━━━━━━\n\n"
+                text += f"🔑 **POINTS CLÉS**\n\n"
+                for point in analysis['key_points']:
+                    text += f"{point}\n"
+                text += "\n"
+
+            # Résumé
+            text += f"━━━━━━━━━━━━━━━━━━━━\n\n"
+            text += f"📝 **RÉSUMÉ**\n\n"
+            text += f"{analysis['summary']}\n\n"
+
+            # Prédiction de tendance future
+            text += f"━━━━━━━━━━━━━━━━━━━━\n\n"
+            text += f"{future_trend['emoji']} **TENDANCE FUTURE PRÉVUE**\n\n"
+            text += f"**Direction :** {future_trend['trend']}\n"
+            text += f"**Confiance :** {future_trend['confidence']}\n\n"
+            text += f"_{future_trend['description']}_\n\n"
+
+            # Recommandation
+            text += f"💡 **Recommandation :**\n{future_trend['recommendation']}\n\n"
+
+            # Articles récents
+            text += f"━━━━━━━━━━━━━━━━━━━━\n\n"
+            text += f"📋 **DERNIÈRES ACTUALITÉS**\n\n"
+
+            for i, article in enumerate(analysis.get('articles', [])[:5], 1):
+                sentiment_info = article.get('sentiment', {})
+                emoji = sentiment_info.get('emoji', '⚪')
                 title = article['title']
-                publisher = article['publisher']
+                publisher = article.get('publisher', 'Source inconnue')
                 link = article.get('link', '')
 
                 # Date formatée
@@ -465,31 +508,18 @@ Recherchez : **{symbol}**
                 except:
                     time_str = "Récent"
 
-                # Limiter le titre à 100 caractères
-                if len(title) > 100:
-                    title = title[:97] + "..."
+                # Limiter le titre
+                if len(title) > 85:
+                    title = title[:82] + "..."
 
-                # Formater l'article
-                text += f"{emoji} **{title}**\n"
+                text += f"{i}. {emoji} **{title}**\n"
                 text += f"   _{publisher}_ • {time_str}\n"
 
-                # Ajouter le lien si disponible (raccourci pour Telegram)
+                # Ajouter le lien si disponible
                 if link:
                     text += f"   🔗 [Lire l'article]({link})\n"
 
                 text += "\n"
-
-            # Résumé du sentiment global
-            sentiments = [article.get('sentiment', {}) for article in news]
-            positive_count = sum(1 for s in sentiments if s.get('label') == 'Positif')
-            negative_count = sum(1 for s in sentiments if s.get('label') == 'Négatif')
-
-            if positive_count > negative_count:
-                text += f"📊 Sentiment global : 🟢 **Positif** ({positive_count}/{len(news)})\n"
-            elif negative_count > positive_count:
-                text += f"📊 Sentiment global : 🔴 **Négatif** ({negative_count}/{len(news)})\n"
-            else:
-                text += f"📊 Sentiment global : ⚪ **Neutre**\n"
 
         keyboard = [
             [InlineKeyboardButton("🔙 Retour à l'analyse", callback_data=f"market_detail_{context.user_data.get('current_market', 'USA')}_{symbol}")],
