@@ -57,12 +57,18 @@ class NewsService:
         except:
             return {'label': 'Neutre', 'emoji': '⚪', 'score': 0}
 
+    def _is_crypto(self, ticker):
+        """Détermine si le ticker est une cryptomonnaie"""
+        crypto_suffixes = ['-USD', 'BTC', 'ETH', 'USDT', 'BNB', 'SOL', 'ADA', 'XRP', 'DOT', 'DOGE', 'AVAX', 'MATIC']
+        ticker_upper = ticker.upper()
+        return any(suffix in ticker_upper for suffix in crypto_suffixes)
+
     def get_news(self, ticker, limit=8):
         """
         Récupère les actualités depuis multiples sources avec analyse de sentiment
 
         Args:
-            ticker: Symbol de l'actif (ex: AAPL, TSLA)
+            ticker: Symbol de l'actif (ex: AAPL, TSLA, BTC-USD)
             limit: Nombre maximum d'articles à retourner
 
         Returns:
@@ -70,14 +76,19 @@ class NewsService:
         """
         try:
             all_news = []
+            is_crypto = self._is_crypto(ticker)
+
+            print(f"[NEWS] Récupération des actualités pour {ticker} (crypto: {is_crypto})")
 
             # ============ SOURCE 1: Yahoo Finance ============
             try:
+                print(f"[NEWS] Tentative Yahoo Finance pour {ticker}...")
                 stock = yf.Ticker(ticker)
                 news = stock.news
 
-                if news:
-                    for article in news[:6]:
+                if news and len(news) > 0:
+                    print(f"[NEWS] Yahoo Finance: {len(news)} articles trouvés")
+                    for article in news[:8]:
                         title = article.get('title', '')
                         if not title or title == 'Sans titre':
                             continue
@@ -104,75 +115,197 @@ class NewsService:
                             'summary': summary,
                             'source': 'Yahoo Finance'
                         })
+                else:
+                    print(f"[NEWS] Yahoo Finance: Aucun article trouvé")
             except Exception as e:
                 print(f"[NEWS] Erreur Yahoo Finance: {e}")
 
-            # ============ SOURCE 2: Finviz News ============
-            try:
-                url = f"https://finviz.com/quote.ashx?t={ticker}"
-                headers = {'User-Agent': 'Mozilla/5.0'}
-                response = requests.get(url, headers=headers, timeout=5)
+            # ============ SOURCE 2: Google News RSS ============
+            if not is_crypto:
+                try:
+                    print(f"[NEWS] Tentative Google News RSS pour {ticker}...")
+                    # Recherche Google News via RSS
+                    search_query = ticker.replace('-', ' ')
+                    url = f"https://news.google.com/rss/search?q={search_query}+stock&hl=en-US&gl=US&ceid=US:en"
 
-                if response.status_code == 200:
-                    soup = BeautifulSoup(response.content, 'html.parser')
-                    news_table = soup.find('table', {'id': 'news-table'})
+                    headers = {
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+                    }
 
-                    if news_table:
-                        rows = news_table.find_all('tr')[:8]
+                    response = requests.get(url, headers=headers, timeout=5)
 
-                        for row in rows:
-                            cells = row.find_all('td')
-                            if len(cells) >= 2:
-                                # Date/heure
-                                date_cell = cells[0].text.strip()
+                    if response.status_code == 200:
+                        soup = BeautifulSoup(response.content, 'xml')
+                        items = soup.find_all('item')[:5]
 
-                                # Titre et lien
-                                link_tag = cells[1].find('a')
-                                if link_tag:
-                                    title = link_tag.text.strip()
-                                    link = link_tag.get('href', '')
-                                    publisher = cells[1].find('span').text.strip() if cells[1].find('span') else 'Finviz'
+                        print(f"[NEWS] Google News: {len(items)} articles trouvés")
 
-                                    # Parser la date
-                                    try:
-                                        if 'Today' in date_cell or ':' in date_cell:
-                                            published = int(datetime.now().timestamp())
-                                        else:
-                                            # Format type "Jan-06-25"
-                                            date_parts = date_cell.split()
-                                            if len(date_parts) > 0:
-                                                date_str = date_parts[0]
-                                                pub_date = datetime.strptime(date_str, "%b-%d-%y")
-                                                published = int(pub_date.timestamp())
-                                            else:
-                                                published = int(datetime.now().timestamp())
-                                    except:
+                        for item in items:
+                            title_tag = item.find('title')
+                            link_tag = item.find('link')
+                            pub_date_tag = item.find('pubDate')
+                            source_tag = item.find('source')
+
+                            if title_tag and link_tag:
+                                title = title_tag.text
+                                link = link_tag.text
+                                publisher = source_tag.text if source_tag else 'Google News'
+
+                                # Parser la date
+                                try:
+                                    if pub_date_tag:
+                                        pub_date = datetime.strptime(pub_date_tag.text, '%a, %d %b %Y %H:%M:%S %Z')
+                                        published = int(pub_date.timestamp())
+                                    else:
                                         published = int(datetime.now().timestamp())
+                                except:
+                                    published = int(datetime.now().timestamp())
 
-                                    all_news.append({
-                                        'title': title,
-                                        'publisher': publisher,
-                                        'link': link,
-                                        'published': published,
-                                        'summary': '',
-                                        'source': 'Finviz'
-                                    })
-            except Exception as e:
-                print(f"[NEWS] Erreur Finviz: {e}")
+                                all_news.append({
+                                    'title': title,
+                                    'publisher': publisher,
+                                    'link': link,
+                                    'published': published,
+                                    'summary': '',
+                                    'source': 'Google News'
+                                })
+                except Exception as e:
+                    print(f"[NEWS] Erreur Google News: {e}")
+
+            # ============ SOURCE 3: CoinDesk (pour crypto uniquement) ============
+            if is_crypto:
+                try:
+                    print(f"[NEWS] Tentative CoinDesk pour {ticker}...")
+                    # Extraire le nom de la crypto (ex: BTC-USD -> bitcoin)
+                    crypto_names = {
+                        'BTC': 'bitcoin',
+                        'ETH': 'ethereum',
+                        'SOL': 'solana',
+                        'ADA': 'cardano',
+                        'XRP': 'ripple',
+                        'DOT': 'polkadot',
+                        'DOGE': 'dogecoin',
+                        'AVAX': 'avalanche',
+                        'MATIC': 'polygon'
+                    }
+
+                    crypto_symbol = ticker.split('-')[0].upper()
+                    crypto_name = crypto_names.get(crypto_symbol, crypto_symbol.lower())
+
+                    url = f"https://www.coindesk.com/tag/{crypto_name}/"
+                    headers = {
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+                    }
+
+                    response = requests.get(url, headers=headers, timeout=5)
+
+                    if response.status_code == 200:
+                        soup = BeautifulSoup(response.content, 'html.parser')
+                        articles = soup.find_all('a', class_='card-title', limit=5)
+
+                        print(f"[NEWS] CoinDesk: {len(articles)} articles trouvés")
+
+                        for article in articles:
+                            title = article.text.strip()
+                            link = article.get('href', '')
+                            if link and not link.startswith('http'):
+                                link = f"https://www.coindesk.com{link}"
+
+                            all_news.append({
+                                'title': title,
+                                'publisher': 'CoinDesk',
+                                'link': link,
+                                'published': int(datetime.now().timestamp()),
+                                'summary': '',
+                                'source': 'CoinDesk'
+                            })
+                except Exception as e:
+                    print(f"[NEWS] Erreur CoinDesk: {e}")
+
+            # ============ SOURCE 4: Finviz (pour actions uniquement) ============
+            if not is_crypto:
+                try:
+                    print(f"[NEWS] Tentative Finviz pour {ticker}...")
+                    url = f"https://finviz.com/quote.ashx?t={ticker}"
+                    headers = {'User-Agent': 'Mozilla/5.0'}
+                    response = requests.get(url, headers=headers, timeout=5)
+
+                    if response.status_code == 200:
+                        soup = BeautifulSoup(response.content, 'html.parser')
+                        news_table = soup.find('table', {'id': 'news-table'})
+
+                        if news_table:
+                            rows = news_table.find_all('tr')[:10]
+                            print(f"[NEWS] Finviz: {len(rows)} articles trouvés")
+
+                            for row in rows:
+                                cells = row.find_all('td')
+                                if len(cells) >= 2:
+                                    # Date/heure
+                                    date_cell = cells[0].text.strip()
+
+                                    # Titre et lien
+                                    link_tag = cells[1].find('a')
+                                    if link_tag:
+                                        title = link_tag.text.strip()
+                                        link = link_tag.get('href', '')
+                                        publisher = cells[1].find('span').text.strip() if cells[1].find('span') else 'Finviz'
+
+                                        # Parser la date
+                                        try:
+                                            if 'Today' in date_cell or ':' in date_cell:
+                                                published = int(datetime.now().timestamp())
+                                            else:
+                                                # Format type "Jan-06-25"
+                                                date_parts = date_cell.split()
+                                                if len(date_parts) > 0:
+                                                    date_str = date_parts[0]
+                                                    pub_date = datetime.strptime(date_str, "%b-%d-%y")
+                                                    published = int(pub_date.timestamp())
+                                                else:
+                                                    published = int(datetime.now().timestamp())
+                                        except:
+                                            published = int(datetime.now().timestamp())
+
+                                        all_news.append({
+                                            'title': title,
+                                            'publisher': publisher,
+                                            'link': link,
+                                            'published': published,
+                                            'summary': '',
+                                            'source': 'Finviz'
+                                        })
+                        else:
+                            print(f"[NEWS] Finviz: Table de news non trouvée")
+                except Exception as e:
+                    print(f"[NEWS] Erreur Finviz: {e}")
+
+            # ============ Dédupliquer par titre ============
+            seen_titles = set()
+            unique_news = []
+            for article in all_news:
+                title_lower = article['title'].lower()
+                if title_lower not in seen_titles:
+                    seen_titles.add(title_lower)
+                    unique_news.append(article)
 
             # ============ Trier et limiter ============
-            all_news.sort(key=lambda x: x['published'], reverse=True)
-            all_news = all_news[:limit]
+            unique_news.sort(key=lambda x: x['published'], reverse=True)
+            unique_news = unique_news[:limit]
+
+            print(f"[NEWS] Total: {len(unique_news)} articles uniques après déduplication")
 
             # ============ Analyse de sentiment ============
-            for article in all_news:
+            for article in unique_news:
                 sentiment = self.analyze_sentiment(article['title'], article.get('summary', ''))
                 article['sentiment'] = sentiment
 
-            return all_news
+            return unique_news
 
         except Exception as e:
             print(f"[NEWS] Erreur globale: {e}")
+            import traceback
+            traceback.print_exc()
             return []
 
     def get_news_summary(self, ticker):
