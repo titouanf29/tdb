@@ -107,6 +107,18 @@ class MarketAnalyzer:
             # Niveau de risque
             risk_level = self._calculate_risk_level(volatility_score, volume_ratio, final_score)
 
+            # Générer des explications détaillées
+            explanations = self._generate_explanations(
+                technical_score, volume_score, momentum_score, volatility_score,
+                market_context_score, news_score, rsi, volume_ratio, trend,
+                direction, atr, current_price, support, resistance
+            )
+
+            # Générer des recommandations
+            recommendations = self._generate_recommendations(
+                final_score, direction, rsi, volume_ratio, trend, risk_level
+            )
+
             return {
                 'symbol': symbol,
                 'market': market,
@@ -124,6 +136,8 @@ class MarketAnalyzer:
                 'opportunity_type': opportunity_type,
                 'risk_level': risk_level,
                 'news_summary': news_summary,
+                'explanations': explanations,
+                'recommendations': recommendations,
                 'scores': {
                     'technical': technical_score,
                     'volume': volume_score,
@@ -500,6 +514,183 @@ class MarketAnalyzer:
         except Exception as e:
             print(f"[ANALYZER] Erreur get_news_summary: {e}")
             return "Erreur récupération actualités"
+
+    def _generate_explanations(self, technical_score, volume_score, momentum_score,
+                               volatility_score, market_context_score, news_score,
+                               rsi, volume_ratio, trend, direction, atr, current_price,
+                               support, resistance):
+        """Génère des explications détaillées de l'analyse"""
+        explanations = {}
+
+        # RSI Explanation
+        if rsi < 30:
+            explanations['rsi'] = {
+                'status': 'SURVENTE',
+                'emoji': '🔴',
+                'text': f"Le RSI à {rsi:.1f} indique une zone de survente. L'actif pourrait être sous-évalué et un rebond est possible."
+            }
+        elif rsi > 70:
+            explanations['rsi'] = {
+                'status': 'SURACHAT',
+                'emoji': '🟢',
+                'text': f"Le RSI à {rsi:.1f} indique une zone de surachat. L'actif pourrait être surévalué et une correction est possible."
+            }
+        else:
+            explanations['rsi'] = {
+                'status': 'NEUTRE',
+                'emoji': '⚪',
+                'text': f"Le RSI à {rsi:.1f} est dans une zone neutre, indiquant un équilibre entre acheteurs et vendeurs."
+            }
+
+        # Volume Explanation
+        if volume_ratio > 2:
+            explanations['volume'] = {
+                'level': 'TRÈS ÉLEVÉ',
+                'emoji': '🔥',
+                'text': f"Volume x{volume_ratio:.2f} supérieur à la moyenne. Forte activité = mouvement confirmé et fiable."
+            }
+        elif volume_ratio > 1.5:
+            explanations['volume'] = {
+                'level': 'ÉLEVÉ',
+                'emoji': '📈',
+                'text': f"Volume x{volume_ratio:.2f} au-dessus de la moyenne. Mouvement soutenu par une bonne participation."
+            }
+        elif volume_ratio < 0.7:
+            explanations['volume'] = {
+                'level': 'FAIBLE',
+                'emoji': '⚠️',
+                'text': f"Volume x{volume_ratio:.2f} en dessous de la moyenne. Mouvement peu fiable, manque de conviction."
+            }
+        else:
+            explanations['volume'] = {
+                'level': 'NORMAL',
+                'emoji': '📊',
+                'text': f"Volume x{volume_ratio:.2f} proche de la moyenne. Activité normale du marché."
+            }
+
+        # Trend Explanation
+        trend_texts = {
+            'bullish': {
+                'emoji': '📈',
+                'text': "Tendance haussière confirmée. Les moyennes mobiles sont alignées à la hausse, favorisant les positions longues."
+            },
+            'bearish': {
+                'emoji': '📉',
+                'text': "Tendance baissière confirmée. Les moyennes mobiles sont alignées à la baisse, favorisant les positions courtes."
+            },
+            'neutral': {
+                'emoji': '➡️',
+                'text': "Tendance neutre ou latérale. Le marché consolide, attendre une direction claire avant d'entrer."
+            }
+        }
+        explanations['trend'] = trend_texts.get(trend, trend_texts['neutral'])
+
+        # Support/Resistance Explanation
+        if support and resistance and current_price:
+            distance_support = ((current_price - support) / support) * 100
+            distance_resistance = ((resistance - current_price) / current_price) * 100
+
+            if distance_support < 2:
+                explanations['levels'] = {
+                    'emoji': '🎯',
+                    'text': f"Prix très proche du support ({distance_support:.1f}%). Zone de rebond potentiel, opportunité d'achat si confirmé."
+                }
+            elif distance_resistance < 2:
+                explanations['levels'] = {
+                    'emoji': '🎯',
+                    'text': f"Prix très proche de la résistance ({distance_resistance:.1f}%). Zone de rejet potentiel, prudence sur les achats."
+                }
+            else:
+                range_pct = ((resistance - support) / support) * 100
+                position_in_range = ((current_price - support) / (resistance - support)) * 100
+                explanations['levels'] = {
+                    'emoji': '📏',
+                    'text': f"Prix à {position_in_range:.0f}% entre support et résistance (range de {range_pct:.1f}%)."
+                }
+
+        # Scores Breakdown
+        scores_text = []
+        score_map = [
+            (technical_score, 'Technique', '📊'),
+            (volume_score, 'Volume', '📈'),
+            (momentum_score, 'Momentum', '⚡'),
+            (volatility_score, 'Volatilité', '📉'),
+            (market_context_score, 'Contexte', '🌐'),
+            (news_score, 'Actualités', '📰')
+        ]
+
+        for score, name, emoji in score_map:
+            score_pct = score * 100
+            if score_pct >= 70:
+                strength = "Excellent"
+            elif score_pct >= 60:
+                strength = "Bon"
+            elif score_pct >= 40:
+                strength = "Moyen"
+            else:
+                strength = "Faible"
+            scores_text.append(f"{emoji} {name}: {score_pct:.0f}% ({strength})")
+
+        explanations['scores_breakdown'] = '\n'.join(scores_text)
+
+        return explanations
+
+    def _generate_recommendations(self, final_score, direction, rsi, volume_ratio,
+                                  trend, risk_level):
+        """Génère des recommandations d'action basées sur l'analyse"""
+        recommendations = []
+
+        # Recommandation principale
+        if final_score >= 80:
+            if direction == "LONG":
+                recommendations.append("🟢 SIGNAL FORT D'ACHAT - Tous les indicateurs sont alignés favorablement")
+            else:
+                recommendations.append("🔴 SIGNAL FORT DE VENTE - Tous les indicateurs suggèrent une baisse")
+        elif final_score >= 70:
+            if direction == "LONG":
+                recommendations.append("🟢 Signal d'achat - Bonne opportunité avec confirmation des indicateurs")
+            else:
+                recommendations.append("🔴 Signal de vente - Risque de baisse probable")
+        elif final_score >= 60:
+            recommendations.append("⚪ Signal modéré - Attendre des confirmations supplémentaires")
+        else:
+            recommendations.append("⚠️ Signal faible - Ne pas entrer en position, conditions incertaines")
+
+        # Recommandations RSI
+        if rsi < 30 and direction == "LONG":
+            recommendations.append("✅ RSI en survente confirme l'opportunité d'achat")
+        elif rsi > 70 and direction == "SHORT":
+            recommendations.append("✅ RSI en surachat confirme l'opportunité de vente")
+        elif rsi < 30 and direction == "SHORT":
+            recommendations.append("⚠️ Attention : RSI en survente contredit le signal de vente")
+        elif rsi > 70 and direction == "LONG":
+            recommendations.append("⚠️ Attention : RSI en surachat, risque de correction à court terme")
+
+        # Recommandations Volume
+        if volume_ratio > 1.5:
+            recommendations.append("✅ Volume élevé confirme la force du mouvement")
+        elif volume_ratio < 0.7:
+            recommendations.append("⚠️ Volume faible : attendre une confirmation avec plus d'activité")
+
+        # Recommandations Tendance
+        if trend == "bullish" and direction == "LONG":
+            recommendations.append("✅ Tendance haussière alignée avec le signal d'achat")
+        elif trend == "bearish" and direction == "SHORT":
+            recommendations.append("✅ Tendance baissière alignée avec le signal de vente")
+        elif trend == "bullish" and direction == "SHORT":
+            recommendations.append("⚠️ Signal de vente contre-tendance : risque élevé")
+        elif trend == "bearish" and direction == "LONG":
+            recommendations.append("⚠️ Signal d'achat contre-tendance : attendre retournement confirmé")
+
+        # Gestion du risque
+        if risk_level == "high":
+            recommendations.append("🛑 RISQUE ÉLEVÉ : Réduire la taille de position ou attendre de meilleures conditions")
+        elif risk_level == "medium":
+            recommendations.append("⚠️ Risque modéré : Utiliser un stop-loss serré et gérer la position activement")
+        else:
+            recommendations.append("✅ Risque faible : Conditions favorables pour une entrée")
+
+        return recommendations
 
 # Instance globale
 analyzer = MarketAnalyzer()

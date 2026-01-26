@@ -270,13 +270,17 @@ Revenez plus tard ou essayez un autre marché.
         asset_name = get_asset_display_name(symbol)
         full_name = f"{asset_emoji} {asset_name}" if asset_name != symbol else f"{asset_emoji} {symbol}"
 
+        # Récupérer les explications
+        explanations = analysis.get('explanations', {})
+        recommendations = analysis.get('recommendations', [])
+
         text = f"""
 📊 **ANALYSE DÉTAILLÉE**
 
 {full_name}
 _Symbole: {symbol}_
 
-{score_emoji} **Score IA: {analysis['score']}/100**
+{score_emoji} **Score IA: {analysis['score']:.0f}/100**
 {get_score_label(analysis['score'])}
 
 ━━━━━━━━━━━━━━━━━━━━
@@ -289,27 +293,69 @@ _Symbole: {symbol}_
 
 ━━━━━━━━━━━━━━━━━━━━
 
-📊 **Indicateurs techniques:**
-• RSI: {analysis['rsi']:.1f}
-• Volume: x{analysis['volume_ratio']:.2f} (vs moyenne)
-• Volatilité (ATR): {format_price(analysis['volatility'])}
+📊 **INDICATEURS TECHNIQUES**
 
 """
 
+        # RSI avec explication
+        if 'rsi' in explanations:
+            rsi_info = explanations['rsi']
+            text += f"{rsi_info['emoji']} **RSI: {analysis['rsi']:.1f}** ({rsi_info['status']})\n"
+            text += f"_{rsi_info['text']}_\n\n"
+        else:
+            text += f"• RSI: {analysis['rsi']:.1f}\n"
+
+        # Volume avec explication
+        if 'volume' in explanations:
+            vol_info = explanations['volume']
+            text += f"{vol_info['emoji']} **Volume: x{analysis['volume_ratio']:.2f}** ({vol_info['level']})\n"
+            text += f"_{vol_info['text']}_\n\n"
+        else:
+            text += f"• Volume: x{analysis['volume_ratio']:.2f}\n"
+
+        # Tendance avec explication
+        if 'trend' in explanations:
+            trend_info = explanations['trend']
+            text += f"{trend_info['emoji']} **Tendance**\n"
+            text += f"_{trend_info['text']}_\n\n"
+
+        # Volatilité
+        text += f"📉 **Volatilité (ATR):** {format_price(analysis['volatility'])}\n\n"
+
+        text += "━━━━━━━━━━━━━━━━━━━━\n\n"
+
+        # Niveaux clés avec explication
         if analysis['support'] and analysis['resistance']:
-            text += f"""
-🎯 **Niveaux clés:**
-• Support: {format_price(analysis['support'])}
-• Résistance: {format_price(analysis['resistance'])}
+            text += f"🎯 **NIVEAUX CLÉS**\n"
+            text += f"• Support: {format_price(analysis['support'])}\n"
+            text += f"• Résistance: {format_price(analysis['resistance'])}\n"
 
-"""
+            if 'levels' in explanations:
+                levels_info = explanations['levels']
+                text += f"\n{levels_info['emoji']} _{levels_info['text']}_\n"
 
-        text += f"""
-🔍 **Type:** {OPPORTUNITY_TYPES.get(analysis['opportunity_type'], analysis['opportunity_type'])}
-{risk_emoji} **Risque:** {analysis['risk_level'].upper()}
+            text += "\n━━━━━━━━━━━━━━━━━━━━\n\n"
 
-📝 **Résumé:** {analysis['technical_summary']}
-"""
+        # Breakdown des scores
+        text += f"📈 **DÉTAIL DES SCORES**\n\n"
+        if 'scores_breakdown' in explanations:
+            text += f"{explanations['scores_breakdown']}\n\n"
+
+        text += "━━━━━━━━━━━━━━━━━━━━\n\n"
+
+        # Type et risque
+        text += f"🔍 **Type:** {OPPORTUNITY_TYPES.get(analysis['opportunity_type'], analysis['opportunity_type'])}\n"
+        text += f"{risk_emoji} **Risque:** {analysis['risk_level'].upper()}\n\n"
+
+        # Recommandations
+        if recommendations:
+            text += "💡 **RECOMMANDATIONS**\n\n"
+            for rec in recommendations:
+                text += f"{rec}\n"
+            text += "\n━━━━━━━━━━━━━━━━━━━━\n\n"
+
+        # Résumé technique
+        text += f"📝 **Résumé:** {analysis['technical_summary']}\n"
 
         # Boutons d'action
         keyboard = [
