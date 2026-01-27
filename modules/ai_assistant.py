@@ -44,14 +44,14 @@ class AIAssistantModule:
 
         if limit_reached:
             message_text = (
-                f"⚠️ *Limite journalière atteinte*\n\n"
+                f"⚠️ Limite journalière atteinte\n\n"
                 f"Vous avez utilisé {usage['message_count']}/{config.MAX_AI_MESSAGES_PER_DAY} messages aujourd'hui.\n\n"
                 f"La limite sera réinitialisée demain. 🔄"
             )
             if is_callback:
-                await update.callback_query.message.reply_text(message_text, parse_mode='Markdown')
+                await update.callback_query.message.reply_text(message_text)
             else:
-                await update.message.reply_text(message_text, parse_mode='Markdown')
+                await update.message.reply_text(message_text)
             return
 
         # Activer le mode chat
@@ -65,7 +65,7 @@ class AIAssistantModule:
         reply_markup = InlineKeyboardMarkup(keyboard)
 
         welcome_text = (
-            f"🤖 *Assistant IA Trading Activé*\n\n"
+            f"🤖 Assistant IA Trading Activé\n\n"
             f"Posez-moi vos questions sur le trading !\n\n"
             f"📊 Exemples de questions :\n"
             f"• C'est quoi un RSI ?\n"
@@ -73,20 +73,18 @@ class AIAssistantModule:
             f"• Quelle stratégie en marché baissier ?\n"
             f"• Explique-moi les bougies japonaises\n\n"
             f"💬 Messages utilisés : {usage['message_count']}/{config.MAX_AI_MESSAGES_PER_DAY}\n\n"
-            f"⚠️ *Important* : Ceci est un outil éducatif, pas un conseil financier.\n\n"
+            f"⚠️ Important : Ceci est un outil éducatif, pas un conseil financier.\n\n"
             f"Pour arrêter le chat, cliquez sur le bouton ou envoyez /stop_ai"
         )
 
         if is_callback:
             await update.callback_query.message.reply_text(
                 welcome_text,
-                parse_mode='Markdown',
                 reply_markup=reply_markup
             )
         else:
             await update.message.reply_text(
                 welcome_text,
-                parse_mode='Markdown',
                 reply_markup=reply_markup
             )
 
@@ -98,8 +96,7 @@ class AIAssistantModule:
         await update.message.reply_text(
             "✅ Mode chat IA désactivé.\n\n"
             "Pour réactiver, utilisez /ai_assistant",
-            parse_mode='Markdown'
-        )
+                    )
 
     async def handle_ai_message(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Gère les messages quand le mode chat IA est actif"""
@@ -119,8 +116,7 @@ class AIAssistantModule:
                 f"⚠️ *Limite journalière atteinte*\n\n"
                 f"Vous avez utilisé {usage['message_count']}/{config.MAX_AI_MESSAGES_PER_DAY} messages.\n\n"
                 f"Le mode chat a été désactivé. Réessayez demain ! 🔄",
-                parse_mode='Markdown'
-            )
+                            )
             return True
 
         # Afficher un indicateur de "en train d'écrire..."
@@ -170,8 +166,7 @@ class AIAssistantModule:
                 f"{ai_response}\n\n"
                 f"━━━━━━━━━━━━━━━━━\n"
                 f"💬 Messages restants : {remaining}/{config.MAX_AI_MESSAGES_PER_DAY}",
-                parse_mode='Markdown'
-            )
+                            )
 
         except Exception as e:
             print(f"[AI_ASSISTANT] Erreur handle_message: {e}")
