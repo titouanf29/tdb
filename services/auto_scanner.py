@@ -137,7 +137,8 @@ class AutoScannerService:
                     market = asset['market']
 
                     logger.debug(f"🔎 Analyse de {symbol} ({market})...")
-                    analysis = await analyzer.analyze_asset(symbol, market)
+                    # Scan rapide sans récupération des news pour la performance
+                    analysis = await analyzer.analyze_asset(symbol, market, fetch_news=False)
 
                     if not analysis:
                         logger.warning(f"⚠️ {symbol}: Aucune analyse retournée")

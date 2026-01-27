@@ -120,11 +120,12 @@ Cela peut prendre quelques secondes...
         # Récupérer les actifs du marché
         assets = market_info.get('assets', [])
 
-        # Analyser chaque actif
+        # Analyser chaque actif (sans news pour performance)
         results = []
         for symbol in assets:
             try:
-                analysis = await analyzer.analyze_asset(symbol, market_code)
+                # Scan rapide sans récupération des news
+                analysis = await analyzer.analyze_asset(symbol, market_code, fetch_news=False)
                 if analysis and analysis['score'] >= 40:  # Seuil minimum
                     results.append(analysis)
             except Exception as e:

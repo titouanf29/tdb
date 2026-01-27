@@ -24,9 +24,16 @@ class MarketAnalyzer:
     def __init__(self):
         self.weights = config.SCORING_WEIGHTS
 
-    async def analyze_asset(self, symbol, market, timeframes=None):
+    async def analyze_asset(self, symbol, market, timeframes=None, fetch_news=True):
         """
         Analyse complète d'un actif
+
+        Args:
+            symbol: Symbole de l'actif
+            market: Marché (USA, EUROPE, ASIA, CRYPTO)
+            timeframes: Liste des timeframes à analyser
+            fetch_news: Si True, récupère et analyse les actualités (défaut: True)
+                       Si False, utilise un score neutre pour les news (plus rapide pour les scans)
 
         Returns:
             dict avec score, direction, analyses détaillées
@@ -53,9 +60,14 @@ class MarketAnalyzer:
             volatility_score = self._analyze_volatility(data_1d)
             market_context_score = self._analyze_market_context(symbol, market)
 
-            # Analyse des actualités
-            news_score = self._analyze_news(symbol)
-            news_summary = self._get_news_summary(symbol)
+            # Analyse des actualités (optionnel pour performance)
+            if fetch_news:
+                news_score = self._analyze_news(symbol)
+                news_summary = self._get_news_summary(symbol)
+            else:
+                # Score neutre si on ne récupère pas les news (scans rapides)
+                news_score = 0.5
+                news_summary = "Actualités non récupérées (scan rapide)"
 
             # Score final pondéré
             final_score = (
