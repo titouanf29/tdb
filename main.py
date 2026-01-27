@@ -67,7 +67,27 @@ class TDBBot:
         logger.info("Configuration des modules...")
 
         try:
-            # Modules principaux (créés en premier)
+            # Module Assistant IA (EN PREMIER pour priorité maximale sur les messages)
+            self.ai_assistant_module = ai_assistant_module
+            # Enregistrer les handlers pour l'assistant IA (groupe -1 = priorité maximale)
+            self.application.add_handler(MessageHandler(
+                filters.TEXT & ~filters.COMMAND,
+                self.ai_assistant_module.handle_ai_message
+            ), group=-1)
+            self.application.add_handler(CallbackQueryHandler(
+                self.ai_assistant_module.callback_ai_stop,
+                pattern="^ai_stop$"
+            ))
+            self.application.add_handler(CallbackQueryHandler(
+                self.ai_assistant_module.callback_ai_clear_history,
+                pattern="^ai_clear_history$"
+            ))
+            from telegram.ext import CommandHandler
+            self.application.add_handler(CommandHandler("ai_assistant", self.ai_assistant_module.cmd_ai_assistant))
+            self.application.add_handler(CommandHandler("stop_ai", self.ai_assistant_module.cmd_stop_ai))
+            logger.info("✅ Module Assistant IA chargé")
+
+            # Modules principaux
             self.market_module = MarketModule(self.application)
             logger.info("✅ Module Marché chargé")
 
@@ -90,26 +110,6 @@ class TDBBot:
             # Module Admin
             self.admin_module = AdminModule(self.application)
             logger.info("✅ Module Admin chargé")
-
-            # Module Assistant IA
-            self.ai_assistant_module = ai_assistant_module
-            # Enregistrer les handlers pour l'assistant IA (groupe 0 = priorité haute)
-            self.application.add_handler(MessageHandler(
-                filters.TEXT & ~filters.COMMAND,
-                self.ai_assistant_module.handle_ai_message
-            ), group=0)
-            self.application.add_handler(CallbackQueryHandler(
-                self.ai_assistant_module.callback_ai_stop,
-                pattern="^ai_stop$"
-            ))
-            self.application.add_handler(CallbackQueryHandler(
-                self.ai_assistant_module.callback_ai_clear_history,
-                pattern="^ai_clear_history$"
-            ))
-            from telegram.ext import CommandHandler
-            self.application.add_handler(CommandHandler("ai_assistant", self.ai_assistant_module.cmd_ai_assistant))
-            self.application.add_handler(CommandHandler("stop_ai", self.ai_assistant_module.cmd_stop_ai))
-            logger.info("✅ Module Assistant IA chargé")
 
             # Menu principal (créé en dernier avec références aux autres modules)
             self.menu_module = MenuModule(
