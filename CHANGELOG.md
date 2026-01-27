@@ -6,6 +6,24 @@ Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/)
 
 ---
 
+## [2.1.2] - 2026-01-27
+
+### 🐛 Corrections
+
+**Assistant IA - Chat réparé**
+
+- ✅ **Chat bloqué après activation** : Conflit de handler groups dans `python-telegram-bot` — le `MessageHandler` de `TradingCompanion` (groupe 0) capturait tous les messages texte avant celui de l'assistant IA (aussi groupe 0 par défaut). Déplacement du handler IA dans le groupe 1 pour traitement indépendant.
+- ✅ **Bouton Assistant IA** : Correction de la gestion du callback pour le bouton du menu principal
+- ✅ **Erreur de parsing Markdown** : Suppression du formatage Markdown dans le message de bienvenue qui causait des erreurs
+- ✅ **Affichage des réponses** : Correction des erreurs de parsing dans les réponses de l'assistant
+
+**Modifications techniques**
+- `main.py` : Ajout de `group=1` au `MessageHandler` de l'assistant IA
+- `modules/ai_assistant.py` : Suppression des prints de debug, nettoyage du code
+- `services/broadcast.py` : Ajout du template changelog v2.1.2, mise à jour version courante
+
+---
+
 ## [2.1.1] - 2026-01-27
 
 ### 🔄 Modifié

@@ -15,7 +15,7 @@ class BroadcastService:
 
     def __init__(self, bot: Bot):
         self.bot = bot
-        self.current_version = "2.0.0"
+        self.current_version = "2.1.2"
         self.channel_id = config.CHANNEL_ID
 
     async def send_update_to_all_users(self, message: str, parse_mode='Markdown'):
@@ -133,7 +133,39 @@ class BroadcastService:
     def _format_update_message(self, version: str):
         """Formate le message de mise à jour pour Telegram"""
 
-        if version == "2.0.0":
+        if version == "2.1.2":
+            return """
+🔧 **MISE A JOUR v2.1.2 - CORRECTIFS ASSISTANT IA**
+
+━━━━━━━━━━━━━━━━━━━━━━━━
+
+🤖 **ASSISTANT IA - CHAT REPARE !**
+
+Le mode chat de l'assistant IA est maintenant **pleinement fonctionnel** !
+
+🐛 **Bugs corrigés :**
+
+✅ **Chat bloqué** : Le chat ne répondait plus après activation - un conflit interne entre les handlers empêchait les messages d'arriver à l'assistant IA. C'est résolu !
+✅ **Bouton Assistant IA** : Le bouton du menu principal fonctionne correctement
+✅ **Affichage des réponses** : Plus d'erreurs de formatage dans les messages
+✅ **Message de bienvenue** : Affichage corrigé à l'activation du chat
+
+━━━━━━━━━━━━━━━━━━━━━━━━
+
+💡 **RAPPEL - COMMENT UTILISER ?**
+
+1️⃣ Ouvrez le menu avec /menu
+2️⃣ Cliquez sur 🤖 Assistant IA
+3️⃣ Posez vos questions sur le trading !
+4️⃣ Tapez /stop\\_ai pour arrêter le chat
+
+📊 Limite : 20 messages/jour par utilisateur
+
+━━━━━━━━━━━━━━━━━━━━━━━━
+
+_Merci de votre patience et bon trading ! 📈_
+"""
+        elif version == "2.0.0":
             return """
 🎉 **NOUVELLE VERSION 2.0.0 DISPONIBLE !**
 
