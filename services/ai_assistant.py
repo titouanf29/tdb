@@ -18,8 +18,8 @@ class AIAssistantService:
         # Initialiser le client Groq
         self.client = Groq(api_key=config.GROQ_API_KEY)
 
-        # Modèle à utiliser (llama3-70b-8192 est rapide et performant)
-        self.model = "llama3-70b-8192"
+        # Modèle à utiliser (llama-3.3-70b-versatile est rapide et performant)
+        self.model = "llama-3.3-70b-versatile"
 
         # Prompt système pour contextualiser l'assistant
         self.system_prompt = """Tu es un assistant IA spécialisé en trading et finance.
