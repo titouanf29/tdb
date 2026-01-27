@@ -33,17 +33,25 @@ class AIAssistantModule:
         """Commande /ai_assistant - Active le mode chat IA"""
         user_id = update.effective_user.id
 
+        # Déterminer si c'est un callback (bouton) ou un message (commande)
+        is_callback = update.callback_query is not None
+        if is_callback:
+            await update.callback_query.answer()
+
         # Vérifier la limite journalière
         limit_reached = await db_manager.check_ai_limit_reached(user_id)
         usage = await db_manager.get_ai_daily_usage(user_id)
 
         if limit_reached:
-            await update.message.reply_text(
+            message_text = (
                 f"⚠️ *Limite journalière atteinte*\n\n"
                 f"Vous avez utilisé {usage['message_count']}/{config.MAX_AI_MESSAGES_PER_DAY} messages aujourd'hui.\n\n"
-                f"La limite sera réinitialisée demain. 🔄",
-                parse_mode='Markdown'
+                f"La limite sera réinitialisée demain. 🔄"
             )
+            if is_callback:
+                await update.callback_query.message.reply_text(message_text, parse_mode='Markdown')
+            else:
+                await update.message.reply_text(message_text, parse_mode='Markdown')
             return
 
         # Activer le mode chat
@@ -56,7 +64,7 @@ class AIAssistantModule:
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
 
-        await update.message.reply_text(
+        welcome_text = (
             f"🤖 *Assistant IA Trading Activé*\n\n"
             f"Posez-moi vos questions sur le trading !\n\n"
             f"📊 Exemples de questions :\n"
@@ -66,10 +74,21 @@ class AIAssistantModule:
             f"• _Explique-moi les bougies japonaises_\n\n"
             f"💬 Messages utilisés : {usage['message_count']}/{config.MAX_AI_MESSAGES_PER_DAY}\n\n"
             f"⚠️ *Important* : Ceci est un outil éducatif, pas un conseil financier.\n\n"
-            f"Pour arrêter le chat, cliquez sur le bouton ou envoyez /stop_ai",
-            parse_mode='Markdown',
-            reply_markup=reply_markup
+            f"Pour arrêter le chat, cliquez sur le bouton ou envoyez /stop_ai"
         )
+
+        if is_callback:
+            await update.callback_query.message.reply_text(
+                welcome_text,
+                parse_mode='Markdown',
+                reply_markup=reply_markup
+            )
+        else:
+            await update.message.reply_text(
+                welcome_text,
+                parse_mode='Markdown',
+                reply_markup=reply_markup
+            )
 
     async def cmd_stop_ai(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Commande /stop_ai - Désactive le mode chat IA"""
