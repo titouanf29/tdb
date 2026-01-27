@@ -6,6 +6,32 @@ Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/)
 
 ---
 
+## [2.1.1] - 2026-01-27
+
+### 🔄 Modifié
+
+**Migration de l'Assistant IA : Google Gemini → Groq**
+
+- ⚡ **Performance ultra-rapide** : Réponses en <1 seconde (au lieu de 2-5s)
+- 🌍 **Disponibilité mondiale** : Groq disponible partout, y compris en France
+- 🆓 **Limite augmentée** : 6000 requêtes/jour gratuites (au lieu de 1500)
+- 🤖 **Modèle puissant** : Llama 3 70B pour des réponses de qualité
+- 🔑 **Configuration simplifiée** : Clé API Groq plus facile à obtenir
+
+**Modifications techniques**
+- Remplacement de `google-generativeai` par `groq` dans requirements.txt
+- Mise à jour de `services/ai_assistant.py` pour utiliser l'API Groq
+- Changement de `GEMINI_API_KEY` en `GROQ_API_KEY` dans config.py
+- Documentation mise à jour (README, AI_ASSISTANT.md, .env.example)
+- Logs de démarrage mis à jour
+
+**Migration utilisateur**
+1. Obtenir une clé Groq sur https://console.groq.com/
+2. Remplacer `GEMINI_API_KEY` par `GROQ_API_KEY` dans `.env`
+3. Installer la nouvelle dépendance : `pip install groq`
+
+---
+
 ## [2.1.0] - 2026-01-27
 
 ### ✨ Ajouté

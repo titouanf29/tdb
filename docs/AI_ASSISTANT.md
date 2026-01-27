@@ -91,19 +91,20 @@ Le mode chat est automatiquement désactivé.
 
 ## 🔧 Configuration (pour administrateurs)
 
-### 1. Obtenir une clé API Google Gemini
+### 1. Obtenir une clé API Groq
 
-1. Allez sur https://makersuite.google.com/app/apikey
-2. Connectez-vous avec un compte Google
-3. Cliquez sur **Create API Key**
-4. Copiez la clé générée
+1. Allez sur https://console.groq.com/
+2. Créez un compte gratuit (email suffit)
+3. Allez dans "API Keys"
+4. Cliquez sur **Create API Key**
+5. Copiez la clé générée
 
 ### 2. Configurer le bot
 
 Ajoutez la clé dans votre fichier `.env` :
 
 ```env
-GEMINI_API_KEY=votre_cle_api_ici
+GROQ_API_KEY=votre_cle_api_ici
 ```
 
 ### 3. Modifier les limites (optionnel)
@@ -190,10 +191,11 @@ Bot: 📉 Stratégies en marché baissier :
 
 ### API utilisée
 
-- **Google Gemini 1.5 Flash**
-- Gratuit jusqu'à 1500 requêtes/jour
-- Rapide et performant
+- **Groq avec Llama 3 (70B)**
+- Gratuit jusqu'à 6000 requêtes/jour
+- Ultra-rapide (<1 seconde par réponse)
 - Support multilingue
+- Disponible partout dans le monde (France incluse)
 
 ### Base de données
 
@@ -229,7 +231,7 @@ CREATE TABLE ai_usage_stats (
 1. **User envoie message** → Vérifie limite journalière
 2. **Récupère historique** → Contexte des 5 derniers messages
 3. **Détecte actif mentionné** → Enrichit avec analyse en temps réel
-4. **Envoie à Gemini** → Génère réponse contextuelle
+4. **Envoie à Groq** → Génère réponse contextuelle ultra-rapide (<1s)
 5. **Sauvegarde historique** → Incrémente compteur
 6. **Affiche réponse** → Avec compteur restant
 
@@ -267,11 +269,11 @@ print(f"Tokens: {usage['tokens_used']}")
 
 ## 🐛 Dépannage
 
-### Erreur "GEMINI_API_KEY n'est pas configuré"
+### Erreur "GROQ_API_KEY n'est pas configuré"
 
 **Solution :** Ajoutez votre clé API dans `.env`
 ```env
-GEMINI_API_KEY=votre_cle_ici
+GROQ_API_KEY=votre_cle_ici
 ```
 
 ### Limite atteinte trop rapidement
@@ -281,33 +283,41 @@ GEMINI_API_KEY=votre_cle_ici
 MAX_AI_MESSAGES_PER_DAY = 50  # Au lieu de 20
 ```
 
-### Réponses lentes
+### Réponses lentes (très rare avec Groq)
 
 **Causes possibles :**
 - Connexion internet lente
-- API Gemini temporairement surchargée
+- API Groq temporairement surchargée (très rare)
 - Historique de conversation trop long
 
 **Solutions :**
 - Effacer l'historique
-- Réessayer dans quelques minutes
+- Réessayer dans quelques instants (Groq est ultra-rapide normalement)
 
 ### Module ne se charge pas
 
 **Vérifiez :**
-1. Installation de `google-generativeai` :
+1. Installation de `groq` :
    ```bash
-   pip install google-generativeai
+   pip install groq
    ```
 2. Clé API valide dans `.env`
 3. Logs du bot pour détails d'erreur
 
 ## 📝 Notes de version
 
+### v1.1.0 - Migration vers Groq (Actuelle)
+
+⚡ **Migration vers Groq** :
+- Remplacement de Google Gemini par Groq (Llama 3 70B)
+- Réponses ultra-rapides (<1 seconde)
+- 6000 requêtes/jour gratuites au lieu de 1500
+- Disponible partout dans le monde (France incluse)
+
 ### v1.0.0 - Initial Release
 
 ✨ **Fonctionnalités** :
-- Chat conversationnel avec Gemini 1.5 Flash
+- Chat conversationnel avec IA avancée
 - Historique de conversation (5 derniers messages)
 - Détection automatique d'actifs mentionnés
 - Enrichissement avec analyse en temps réel
@@ -321,9 +331,9 @@ MAX_AI_MESSAGES_PER_DAY = 50  # Au lieu de 20
 - Limites d'usage
 
 📊 **Performance** :
-- Réponses en 2-5 secondes
+- Réponses ultra-rapides avec Groq
 - Stockage local (SQLite)
-- Support jusqu'à 1500 requêtes/jour (limite Gemini gratuite)
+- Support jusqu'à 6000 requêtes/jour (limite Groq gratuite)
 
 ## 🚀 Évolutions futures
 
@@ -341,7 +351,7 @@ Idées pour améliorer l'assistant :
 Pour toute question ou problème :
 - Ouvrir une issue sur GitHub
 - Consulter les logs du bot
-- Vérifier la documentation Gemini : https://ai.google.dev/
+- Vérifier la documentation Groq : https://console.groq.com/docs
 
 ---
 

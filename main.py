@@ -185,7 +185,7 @@ class TDBBot:
         logger.info("  • Marché (USA, EUROPE, ASIA, CRYPTO, COMMODITIES, GOLD)")
         logger.info("  • Wallet (Paper Trading)")
         logger.info("  • Favoris")
-        logger.info("  • Assistant IA Trading (🤖 Google Gemini)")
+        logger.info("  • Assistant IA Trading (⚡ Groq - Llama 3)")
         logger.info("  • Scan Automatique (🔄 Actif)")
         logger.info("  • Paramètres")
         logger.info("  • Trading Compagnon IA")

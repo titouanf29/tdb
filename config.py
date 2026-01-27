@@ -23,7 +23,7 @@ DATABASE_PATH = "database/trading_bot.db"
 # Pour récupérer les données de marché (gratuit)
 NEWS_API_KEY = os.getenv("NEWS_API_KEY", "")
 ALPHA_VANTAGE_KEY = os.getenv("ALPHA_VANTAGE_KEY", "")
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")  # Google Gemini pour l'assistant IA
+GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")  # Groq pour l'assistant IA (ultra-rapide, gratuit)
 
 # ===== MARCHÉS DISPONIBLES =====
 MARKETS = {

@@ -1,8 +1,8 @@
 """
-Service d'Assistant IA avec Google Gemini
+Service d'Assistant IA avec Groq
 Permet aux utilisateurs de poser des questions sur le trading
 """
-import google.generativeai as genai
+from groq import Groq
 import config
 from datetime import datetime
 import json
@@ -11,22 +11,15 @@ class AIAssistantService:
     """Assistant IA conversationnel pour le trading"""
 
     def __init__(self):
-        """Initialise le service avec l'API Gemini"""
-        if not config.GEMINI_API_KEY:
-            raise ValueError("GEMINI_API_KEY n'est pas configuré dans .env")
+        """Initialise le service avec l'API Groq"""
+        if not config.GROQ_API_KEY:
+            raise ValueError("GROQ_API_KEY n'est pas configuré dans .env")
 
-        genai.configure(api_key=config.GEMINI_API_KEY)
+        # Initialiser le client Groq
+        self.client = Groq(api_key=config.GROQ_API_KEY)
 
-        # Configuration du modèle Gemini
-        self.model = genai.GenerativeModel(
-            model_name='gemini-1.5-flash',
-            generation_config={
-                'temperature': 0.7,
-                'top_p': 0.95,
-                'top_k': 40,
-                'max_output_tokens': 1024,
-            }
-        )
+        # Modèle à utiliser (llama3-70b-8192 est rapide et performant)
+        self.model = "llama3-70b-8192"
 
         # Prompt système pour contextualiser l'assistant
         self.system_prompt = """Tu es un assistant IA spécialisé en trading et finance.
@@ -70,24 +63,35 @@ R: "📉 En marché baissier, plusieurs stratégies sont possibles:
             dict avec la réponse et les métadonnées
         """
         try:
-            # Construire le contexte complet
-            full_prompt = self._build_prompt(user_message, conversation_history, asset_context)
+            # Construire les messages pour Groq
+            messages = self._build_messages(user_message, conversation_history, asset_context)
 
-            # Générer la réponse
-            response = self.model.generate_content(full_prompt)
+            # Générer la réponse avec Groq
+            chat_completion = self.client.chat.completions.create(
+                messages=messages,
+                model=self.model,
+                temperature=0.7,
+                max_tokens=1024,
+                top_p=0.95,
+            )
 
-            if not response or not response.text:
+            response_text = chat_completion.choices[0].message.content
+
+            if not response_text:
                 return {
                     'success': False,
                     'error': 'Pas de réponse générée',
                     'response': None
                 }
 
+            # Calculer les tokens utilisés
+            tokens_used = chat_completion.usage.total_tokens if hasattr(chat_completion, 'usage') else 0
+
             return {
                 'success': True,
-                'response': response.text.strip(),
+                'response': response_text.strip(),
                 'timestamp': datetime.now().isoformat(),
-                'tokens_used': self._estimate_tokens(full_prompt + response.text)
+                'tokens_used': tokens_used
             }
 
         except Exception as e:
@@ -98,34 +102,37 @@ R: "📉 En marché baissier, plusieurs stratégies sont possibles:
                 'response': None
             }
 
-    def _build_prompt(self, user_message: str, conversation_history: list = None, asset_context: dict = None):
-        """Construit le prompt complet avec contexte"""
-        prompt_parts = [self.system_prompt]
+    def _build_messages(self, user_message: str, conversation_history: list = None, asset_context: dict = None):
+        """Construit les messages pour l'API Groq"""
+        messages = [
+            {"role": "system", "content": self.system_prompt}
+        ]
 
         # Ajouter l'historique de conversation
         if conversation_history:
-            prompt_parts.append("\n--- HISTORIQUE DE CONVERSATION ---")
             for msg in conversation_history[-5:]:  # Garder seulement les 5 derniers messages
-                role = "Utilisateur" if msg.get('role') == 'user' else "Assistant"
-                prompt_parts.append(f"{role}: {msg.get('content', '')}")
+                role = msg.get('role', 'user')
+                content = msg.get('content', '')
+                messages.append({"role": role, "content": content})
 
-        # Ajouter le contexte d'actif si disponible
+        # Construire le message utilisateur avec contexte actif si disponible
+        user_content = user_message
+
         if asset_context:
-            prompt_parts.append("\n--- CONTEXTE ACTIF ---")
-            prompt_parts.append(f"Actif: {asset_context.get('symbol', 'N/A')}")
-            prompt_parts.append(f"Prix: {asset_context.get('price', 'N/A')}")
-            prompt_parts.append(f"Score d'analyse: {asset_context.get('score', 'N/A')}/100")
-            prompt_parts.append(f"Direction: {asset_context.get('direction', 'N/A')}")
-            prompt_parts.append(f"RSI: {asset_context.get('rsi', 'N/A')}")
+            context_info = f"\n\n[CONTEXTE ACTIF]\n"
+            context_info += f"Actif: {asset_context.get('symbol', 'N/A')}\n"
+            context_info += f"Prix: {asset_context.get('price', 'N/A')}\n"
+            context_info += f"Score d'analyse: {asset_context.get('score', 'N/A')}/100\n"
+            context_info += f"Direction: {asset_context.get('direction', 'N/A')}\n"
+            context_info += f"RSI: {asset_context.get('rsi', 'N/A')}\n"
             if asset_context.get('news_summary'):
-                prompt_parts.append(f"Actualités: {asset_context.get('news_summary')}")
+                context_info += f"Actualités: {asset_context.get('news_summary')}\n"
 
-        # Ajouter le message actuel de l'utilisateur
-        prompt_parts.append(f"\n--- MESSAGE ACTUEL ---")
-        prompt_parts.append(f"Utilisateur: {user_message}")
-        prompt_parts.append("\nAssistant:")
+            user_content = context_info + "\n" + user_message
 
-        return "\n".join(prompt_parts)
+        messages.append({"role": "user", "content": user_content})
+
+        return messages
 
     def _estimate_tokens(self, text: str) -> int:
         """Estime le nombre de tokens (approximatif)"""

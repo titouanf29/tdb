@@ -79,14 +79,15 @@ Assistant conversationnel intelligent qui vous accompagne :
 
 ### 🤖 Assistant IA Trading (NOUVEAU !)
 
-Chat conversationnel avec Google Gemini pour poser toutes vos questions trading :
+Chat conversationnel avec **Groq (Llama 3)** pour poser toutes vos questions trading :
 
 - 💬 **Questions/Réponses** sur le trading et la finance
 - 📊 **Explications** des indicateurs techniques (RSI, MACD, etc.)
 - 📈 **Analyse d'actifs** avec contexte en temps réel
 - 💡 **Stratégies** adaptées aux différents marchés
 - 🎓 **Éducation** sur les concepts de trading
-- **GRATUIT** : 20 messages/jour par utilisateur
+- ⚡ **ULTRA-RAPIDE** : Réponses en <1 seconde avec Groq
+- **GRATUIT** : 6000 requêtes/jour gratuites (limite de 20 msg/jour/user)
 - ⚠️ **Éthique** : Aucun conseil financier personnalisé
 
 **Commandes :**
