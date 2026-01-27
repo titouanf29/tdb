@@ -15,9 +15,11 @@ from modules.favorites import FavoritesModule
 from modules.scan_auto import ScanAutoModule
 from modules.settings import SettingsModule
 from modules.admin import AdminModule
+from modules.ai_assistant import ai_assistant_module
 from ai.trading_companion import TradingCompanion
 from services.auto_scanner import init_auto_scanner
 from services.broadcast import init_broadcast_service
+from telegram.ext import MessageHandler, filters, CallbackQueryHandler
 
 # Configuration du logging compatible Windows (UTF-8)
 # Forcer l'encodage UTF-8 pour la console Windows
@@ -89,6 +91,26 @@ class TDBBot:
             self.admin_module = AdminModule(self.application)
             logger.info("✅ Module Admin chargé")
 
+            # Module Assistant IA
+            self.ai_assistant_module = ai_assistant_module
+            # Enregistrer les handlers pour l'assistant IA
+            self.application.add_handler(MessageHandler(
+                filters.TEXT & ~filters.COMMAND,
+                self.ai_assistant_module.handle_ai_message
+            ))
+            self.application.add_handler(CallbackQueryHandler(
+                self.ai_assistant_module.callback_ai_stop,
+                pattern="^ai_stop$"
+            ))
+            self.application.add_handler(CallbackQueryHandler(
+                self.ai_assistant_module.callback_ai_clear_history,
+                pattern="^ai_clear_history$"
+            ))
+            from telegram.ext import CommandHandler
+            self.application.add_handler(CommandHandler("ai_assistant", self.ai_assistant_module.cmd_ai_assistant))
+            self.application.add_handler(CommandHandler("stop_ai", self.ai_assistant_module.cmd_stop_ai))
+            logger.info("✅ Module Assistant IA chargé")
+
             # Menu principal (créé en dernier avec références aux autres modules)
             self.menu_module = MenuModule(
                 self.application,
@@ -96,7 +118,8 @@ class TDBBot:
                 wallet_module=self.wallet_module,
                 favorites_module=self.favorites_module,
                 scan_module=self.scan_module,
-                settings_module=self.settings_module
+                settings_module=self.settings_module,
+                ai_assistant_module=self.ai_assistant_module
             )
             logger.info("✅ Module Menu chargé")
 
@@ -162,6 +185,7 @@ class TDBBot:
         logger.info("  • Marché (USA, EUROPE, ASIA, CRYPTO, COMMODITIES, GOLD)")
         logger.info("  • Wallet (Paper Trading)")
         logger.info("  • Favoris")
+        logger.info("  • Assistant IA Trading (🤖 Google Gemini)")
         logger.info("  • Scan Automatique (🔄 Actif)")
         logger.info("  • Paramètres")
         logger.info("  • Trading Compagnon IA")

@@ -6,6 +6,109 @@ Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/)
 
 ---
 
+## [2.1.0] - 2026-01-27
+
+### ✨ Ajouté
+
+#### 🤖 Assistant IA Trading Conversationnel
+
+**Chat Intelligent avec Google Gemini**
+- Intégration de Google Gemini 1.5 Flash (API gratuite)
+- Mode chat conversationnel activable via `/ai_assistant`
+- Réponses en français, claires et pédagogiques
+- Support d'emojis pour une meilleure visualisation
+
+**Fonctionnalités de l'Assistant**
+- 💬 Réponses aux questions sur le trading et la finance
+- 📊 Explications détaillées des indicateurs techniques (RSI, MACD, Bollinger Bands, etc.)
+- 📈 Analyse d'actifs avec contexte en temps réel (prix, RSI, actualités)
+- 💡 Suggestions de stratégies adaptées aux différents marchés
+- 🎓 Éducation sur les concepts de trading et les bougies japonaises
+
+**Contexte et Historique**
+- Maintien d'un historique de conversation (5 derniers messages)
+- Détection automatique d'actifs mentionnés dans les questions
+- Enrichissement automatique avec analyse en temps réel
+- Contexte persistant pour des conversations naturelles
+
+**Limites et Sécurité**
+- 🔒 Limite gratuite : 20 messages/jour par utilisateur
+- ⚠️ Aucun conseil financier personnalisé
+- ✅ Avertissements systématiques "DYOR - Do Your Own Research"
+- 🔄 Reset automatique quotidien des compteurs
+
+**Interface et Commandes**
+- Bouton 🤖 Assistant IA dans le menu principal
+- `/ai_assistant` - Active le mode chat
+- `/stop_ai` - Désactive le mode chat
+- Bouton "❌ Arrêter le chat" pour sortir du mode
+- Bouton "🗑️ Effacer l'historique" pour repartir sur une conversation fraîche
+- Compteur de messages restants affiché après chaque réponse
+
+**Base de Données**
+- Nouvelle table `ai_chat_history` pour l'historique des conversations
+- Nouvelle table `ai_usage_stats` pour les compteurs journaliers
+- Index optimisés pour les performances
+
+**Configuration**
+- Variable d'environnement `GEMINI_API_KEY` dans `.env`
+- Configuration `MAX_AI_MESSAGES_PER_DAY = 20` dans `config.py`
+- Documentation complète dans `docs/AI_ASSISTANT.md`
+
+**Documentation**
+- Guide complet d'utilisation (`docs/AI_ASSISTANT.md`)
+- Exemples de questions et réponses
+- Architecture technique détaillée
+- Guide de dépannage
+- Section dans le README principal
+
+### ⚡ Optimisé
+
+**Performance des Scans de Marché**
+- Les actualités ne sont plus récupérées pendant les scans de marché
+- Gain de performance : 5-10x plus rapide
+- Nouveau paramètre `fetch_news=False` pour les scans rapides
+- Les actualités restent disponibles lors de l'analyse détaillée d'un actif
+- Score neutre (0.5) utilisé pour les news lors des scans
+
+**Impact Performance**
+- Scan de 20 actifs : ~60-90s → ~10-15s
+- Temps par actif : ~3-4s → ~0.5-0.75s
+
+### 🔧 Modifié
+
+**Analyzer (`ai/analyzer.py`)**
+- Ajout du paramètre `fetch_news=True` à la méthode `analyze_asset()`
+- Récupération conditionnelle des actualités selon le contexte
+- Documentation améliorée avec description des paramètres
+
+**Auto Scanner (`services/auto_scanner.py`)**
+- Utilise maintenant `fetch_news=False` pour les scans automatiques
+- Commentaires explicatifs sur l'optimisation
+
+**Module Market (`modules/market.py`)**
+- Scans de marché : `fetch_news=False` (rapide)
+- Analyses détaillées : `fetch_news=True` (complet)
+
+**Configuration (`config.py`)**
+- Ajout de `GEMINI_API_KEY` pour l'API Google Gemini
+- Ajout de `MAX_AI_MESSAGES_PER_DAY = 20` pour la limite journalière
+
+**Requirements (`requirements.txt`)**
+- Ajout de `google-generativeai>=0.3.0`
+
+**Menu Principal (`modules/menu.py`)**
+- Ajout du bouton "🤖 Assistant IA"
+- Intégration du module AI assistant
+- Description mise à jour
+
+**Main (`main.py`)**
+- Chargement et enregistrement du module AI assistant
+- Handlers pour les messages texte et callbacks
+- Logs de démarrage mis à jour
+
+---
+
 ## [2.0.0] - 2026-01-26
 
 ### ✨ Ajouté

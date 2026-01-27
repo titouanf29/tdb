@@ -179,6 +179,27 @@ CREATE TABLE IF NOT EXISTS conversation_states (
     FOREIGN KEY (telegram_id) REFERENCES users(telegram_id)
 );
 
+-- ===== ASSISTANT IA =====
+CREATE TABLE IF NOT EXISTS ai_chat_history (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    telegram_id INTEGER,
+    role TEXT NOT NULL, -- 'user' ou 'assistant'
+    content TEXT NOT NULL,
+    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    tokens_used INTEGER DEFAULT 0,
+    FOREIGN KEY (telegram_id) REFERENCES users(telegram_id)
+);
+
+CREATE TABLE IF NOT EXISTS ai_usage_stats (
+    telegram_id INTEGER,
+    date DATE DEFAULT CURRENT_DATE,
+    message_count INTEGER DEFAULT 0,
+    tokens_used INTEGER DEFAULT 0,
+    last_reset TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (telegram_id, date),
+    FOREIGN KEY (telegram_id) REFERENCES users(telegram_id)
+);
+
 -- ===== INDEX POUR PERFORMANCES =====
 CREATE INDEX IF NOT EXISTS idx_positions_user ON positions(telegram_id);
 CREATE INDEX IF NOT EXISTS idx_positions_status ON positions(status);
@@ -186,3 +207,5 @@ CREATE INDEX IF NOT EXISTS idx_favorites_user ON favorites(telegram_id);
 CREATE INDEX IF NOT EXISTS idx_scan_results_user ON scan_results(telegram_id);
 CREATE INDEX IF NOT EXISTS idx_scan_results_date ON scan_results(scan_date);
 CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(telegram_id);
+CREATE INDEX IF NOT EXISTS idx_ai_chat_user ON ai_chat_history(telegram_id);
+CREATE INDEX IF NOT EXISTS idx_ai_usage_user_date ON ai_usage_stats(telegram_id, date);

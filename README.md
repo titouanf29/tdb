@@ -77,6 +77,24 @@ Assistant conversationnel intelligent qui vous accompagne :
 4. **Calcul automatique** des TP et SL
 5. **Génération d'un ticket** de position unique
 
+### 🤖 Assistant IA Trading (NOUVEAU !)
+
+Chat conversationnel avec Google Gemini pour poser toutes vos questions trading :
+
+- 💬 **Questions/Réponses** sur le trading et la finance
+- 📊 **Explications** des indicateurs techniques (RSI, MACD, etc.)
+- 📈 **Analyse d'actifs** avec contexte en temps réel
+- 💡 **Stratégies** adaptées aux différents marchés
+- 🎓 **Éducation** sur les concepts de trading
+- **GRATUIT** : 20 messages/jour par utilisateur
+- ⚠️ **Éthique** : Aucun conseil financier personnalisé
+
+**Commandes :**
+- `/ai_assistant` - Activer le mode chat
+- `/stop_ai` - Désactiver le mode chat
+
+**Documentation complète :** [docs/AI_ASSISTANT.md](docs/AI_ASSISTANT.md)
+
 ### ⭐ Favoris & Watchlist
 
 - Ajouter vos actifs préférés

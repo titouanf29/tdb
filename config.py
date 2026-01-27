@@ -23,6 +23,7 @@ DATABASE_PATH = "database/trading_bot.db"
 # Pour récupérer les données de marché (gratuit)
 NEWS_API_KEY = os.getenv("NEWS_API_KEY", "")
 ALPHA_VANTAGE_KEY = os.getenv("ALPHA_VANTAGE_KEY", "")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")  # Google Gemini pour l'assistant IA
 
 # ===== MARCHÉS DISPONIBLES =====
 MARKETS = {
@@ -174,6 +175,7 @@ SCAN_FREQUENCIES = {
 MAX_POSITIONS = 10
 MAX_ALERTS_PER_DAY = 50
 MAX_FAVORITES = 20
+MAX_AI_MESSAGES_PER_DAY = 20  # Limite de messages IA par utilisateur par jour
 
 # ===== MESSAGES =====
 WELCOME_MESSAGE = """

@@ -1,0 +1,208 @@
+"""
+Module Assistant IA Trading
+Permet aux utilisateurs de converser avec un assistant IA spécialisé en trading
+"""
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import ContextTypes
+from services.ai_assistant import ai_assistant_service
+from database.manager import db_manager
+import config
+
+# État global pour savoir quels utilisateurs sont en mode chat IA
+active_chat_sessions = set()
+
+class AIAssistantModule:
+    """Gère les interactions avec l'assistant IA"""
+
+    @staticmethod
+    def is_chat_active(telegram_id):
+        """Vérifie si le chat IA est actif pour cet utilisateur"""
+        return telegram_id in active_chat_sessions
+
+    @staticmethod
+    def activate_chat(telegram_id):
+        """Active le mode chat IA"""
+        active_chat_sessions.add(telegram_id)
+
+    @staticmethod
+    def deactivate_chat(telegram_id):
+        """Désactive le mode chat IA"""
+        active_chat_sessions.discard(telegram_id)
+
+    async def cmd_ai_assistant(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Commande /ai_assistant - Active le mode chat IA"""
+        user_id = update.effective_user.id
+
+        # Vérifier la limite journalière
+        limit_reached = await db_manager.check_ai_limit_reached(user_id)
+        usage = await db_manager.get_ai_daily_usage(user_id)
+
+        if limit_reached:
+            await update.message.reply_text(
+                f"⚠️ *Limite journalière atteinte*\n\n"
+                f"Vous avez utilisé {usage['message_count']}/{config.MAX_AI_MESSAGES_PER_DAY} messages aujourd'hui.\n\n"
+                f"La limite sera réinitialisée demain. 🔄",
+                parse_mode='Markdown'
+            )
+            return
+
+        # Activer le mode chat
+        self.activate_chat(user_id)
+
+        # Afficher le message d'accueil
+        keyboard = [
+            [InlineKeyboardButton("❌ Arrêter le chat", callback_data="ai_stop")],
+            [InlineKeyboardButton("🗑️ Effacer l'historique", callback_data="ai_clear_history")],
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+
+        await update.message.reply_text(
+            f"🤖 *Assistant IA Trading Activé*\n\n"
+            f"Posez-moi vos questions sur le trading !\n\n"
+            f"📊 Exemples de questions :\n"
+            f"• _C'est quoi un RSI ?_\n"
+            f"• _Comment analyser AAPL ?_\n"
+            f"• _Quelle stratégie en marché baissier ?_\n"
+            f"• _Explique-moi les bougies japonaises_\n\n"
+            f"💬 Messages utilisés : {usage['message_count']}/{config.MAX_AI_MESSAGES_PER_DAY}\n\n"
+            f"⚠️ *Important* : Ceci est un outil éducatif, pas un conseil financier.\n\n"
+            f"Pour arrêter le chat, cliquez sur le bouton ou envoyez /stop_ai",
+            parse_mode='Markdown',
+            reply_markup=reply_markup
+        )
+
+    async def cmd_stop_ai(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Commande /stop_ai - Désactive le mode chat IA"""
+        user_id = update.effective_user.id
+        self.deactivate_chat(user_id)
+
+        await update.message.reply_text(
+            "✅ Mode chat IA désactivé.\n\n"
+            "Pour réactiver, utilisez /ai_assistant",
+            parse_mode='Markdown'
+        )
+
+    async def handle_ai_message(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Gère les messages quand le mode chat IA est actif"""
+        user_id = update.effective_user.id
+        user_message = update.message.text
+
+        # Vérifier que le mode chat est actif
+        if not self.is_chat_active(user_id):
+            return False  # Pas en mode chat, laisser les autres handlers traiter
+
+        # Vérifier la limite journalière
+        limit_reached = await db_manager.check_ai_limit_reached(user_id)
+        if limit_reached:
+            usage = await db_manager.get_ai_daily_usage(user_id)
+            self.deactivate_chat(user_id)  # Désactiver automatiquement
+            await update.message.reply_text(
+                f"⚠️ *Limite journalière atteinte*\n\n"
+                f"Vous avez utilisé {usage['message_count']}/{config.MAX_AI_MESSAGES_PER_DAY} messages.\n\n"
+                f"Le mode chat a été désactivé. Réessayez demain ! 🔄",
+                parse_mode='Markdown'
+            )
+            return True
+
+        # Afficher un indicateur de "en train d'écrire..."
+        typing_message = await update.message.reply_text("💭 Réflexion en cours...")
+
+        try:
+            # Récupérer l'historique de conversation
+            history = await db_manager.get_ai_chat_history(user_id, limit=5)
+
+            # Détecter si l'utilisateur mentionne un actif (ex: "analyse AAPL")
+            asset_context = await self._detect_asset_context(user_message)
+
+            # Envoyer au service IA
+            response = await ai_assistant_service.chat(
+                user_message=user_message,
+                conversation_history=history,
+                asset_context=asset_context
+            )
+
+            if not response['success']:
+                await typing_message.edit_text(
+                    f"❌ Erreur : {response.get('error', 'Erreur inconnue')}\n\n"
+                    f"Réessayez dans quelques instants."
+                )
+                return True
+
+            # Sauvegarder les messages dans l'historique
+            await db_manager.save_ai_message(user_id, 'user', user_message)
+            await db_manager.save_ai_message(
+                user_id, 'assistant', response['response'],
+                tokens_used=response.get('tokens_used', 0)
+            )
+
+            # Incrémenter le compteur d'utilisation
+            await db_manager.increment_ai_usage(user_id, tokens_used=response.get('tokens_used', 0))
+
+            # Afficher la réponse
+            usage = await db_manager.get_ai_daily_usage(user_id)
+            remaining = config.MAX_AI_MESSAGES_PER_DAY - usage['message_count']
+
+            # Limiter la longueur de la réponse Telegram (4096 caractères max)
+            ai_response = response['response']
+            if len(ai_response) > 3500:
+                ai_response = ai_response[:3500] + "\n\n_(Réponse tronquée pour limitation Telegram)_"
+
+            await typing_message.edit_text(
+                f"{ai_response}\n\n"
+                f"━━━━━━━━━━━━━━━━━\n"
+                f"💬 Messages restants : {remaining}/{config.MAX_AI_MESSAGES_PER_DAY}",
+                parse_mode='Markdown'
+            )
+
+        except Exception as e:
+            print(f"[AI_ASSISTANT] Erreur handle_message: {e}")
+            await typing_message.edit_text(
+                f"❌ Une erreur est survenue.\n\n"
+                f"Détails: {str(e)}"
+            )
+
+        return True  # Message traité
+
+    async def _detect_asset_context(self, message: str):
+        """Détecte si le message mentionne un actif et récupère son contexte"""
+        message_upper = message.upper()
+
+        # Rechercher des symboles d'actifs courants dans le message
+        for market_name, market_data in config.MARKETS.items():
+            for symbol in market_data['assets']:
+                # Rechercher le symbole de base (sans suffixe)
+                base_symbol = symbol.split('.')[0].split('-')[0].split('=')[0]
+                if base_symbol in message_upper and len(base_symbol) >= 3:
+                    # Actif trouvé, récupérer le contexte
+                    return await ai_assistant_service.get_asset_context(symbol)
+
+        return None
+
+    async def callback_ai_stop(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Callback pour arrêter le chat IA"""
+        query = update.callback_query
+        await query.answer()
+
+        user_id = update.effective_user.id
+        self.deactivate_chat(user_id)
+
+        await query.edit_message_text(
+            "✅ Mode chat IA désactivé.\n\n"
+            "Pour réactiver, utilisez /ai_assistant"
+        )
+
+    async def callback_ai_clear_history(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Callback pour effacer l'historique"""
+        query = update.callback_query
+        await query.answer()
+
+        user_id = update.effective_user.id
+        await db_manager.clear_ai_chat_history(user_id)
+
+        await query.edit_message_text(
+            "🗑️ Historique de conversation effacé.\n\n"
+            "Vous pouvez commencer une nouvelle conversation fraîche !"
+        )
+
+# Instance globale
+ai_assistant_module = AIAssistantModule()

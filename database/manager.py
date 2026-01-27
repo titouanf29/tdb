@@ -393,5 +393,66 @@ class DatabaseManager:
             """, (user_id, asset_symbol, score, signal))
             await db.commit()
 
+    # ===== ASSISTANT IA =====
+
+    async def save_ai_message(self, telegram_id, role, content, tokens_used=0):
+        """Sauvegarde un message de l'assistant IA"""
+        async with aiosqlite.connect(self.db_path) as db:
+            await db.execute("""
+                INSERT INTO ai_chat_history (telegram_id, role, content, tokens_used)
+                VALUES (?, ?, ?, ?)
+            """, (telegram_id, role, content, tokens_used))
+            await db.commit()
+
+    async def get_ai_chat_history(self, telegram_id, limit=10):
+        """Récupère l'historique de conversation IA"""
+        async with aiosqlite.connect(self.db_path) as db:
+            db.row_factory = aiosqlite.Row
+            async with db.execute("""
+                SELECT * FROM ai_chat_history
+                WHERE telegram_id = ?
+                ORDER BY timestamp DESC
+                LIMIT ?
+            """, (telegram_id, limit)) as cursor:
+                rows = await cursor.fetchall()
+                messages = [dict(row) for row in rows]
+                return list(reversed(messages))  # Ordre chronologique
+
+    async def clear_ai_chat_history(self, telegram_id):
+        """Efface l'historique de conversation IA"""
+        async with aiosqlite.connect(self.db_path) as db:
+            await db.execute("""
+                DELETE FROM ai_chat_history WHERE telegram_id = ?
+            """, (telegram_id,))
+            await db.commit()
+
+    async def get_ai_daily_usage(self, telegram_id):
+        """Récupère l'utilisation journalière de l'IA"""
+        async with aiosqlite.connect(self.db_path) as db:
+            db.row_factory = aiosqlite.Row
+            async with db.execute("""
+                SELECT * FROM ai_usage_stats
+                WHERE telegram_id = ? AND date = DATE('now')
+            """, (telegram_id,)) as cursor:
+                row = await cursor.fetchone()
+                return dict(row) if row else {'message_count': 0, 'tokens_used': 0}
+
+    async def increment_ai_usage(self, telegram_id, tokens_used=0):
+        """Incrémente le compteur d'utilisation IA"""
+        async with aiosqlite.connect(self.db_path) as db:
+            await db.execute("""
+                INSERT INTO ai_usage_stats (telegram_id, date, message_count, tokens_used)
+                VALUES (?, DATE('now'), 1, ?)
+                ON CONFLICT(telegram_id, date) DO UPDATE SET
+                    message_count = message_count + 1,
+                    tokens_used = tokens_used + ?
+            """, (telegram_id, tokens_used, tokens_used))
+            await db.commit()
+
+    async def check_ai_limit_reached(self, telegram_id):
+        """Vérifie si la limite journalière de messages IA est atteinte"""
+        usage = await self.get_ai_daily_usage(telegram_id)
+        return usage['message_count'] >= config.MAX_AI_MESSAGES_PER_DAY
+
 # Instance globale
 db_manager = DatabaseManager()
