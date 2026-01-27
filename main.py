@@ -94,10 +94,13 @@ class TDBBot:
             # Module Assistant IA
             self.ai_assistant_module = ai_assistant_module
             # Enregistrer les handlers pour l'assistant IA
+            # Groupe 1 pour éviter le conflit avec TradingCompanion (groupe 0)
+            # Sans groupe séparé, le MessageHandler de TradingCompanion capture
+            # tous les messages texte en premier et bloque l'assistant IA
             self.application.add_handler(MessageHandler(
                 filters.TEXT & ~filters.COMMAND,
                 self.ai_assistant_module.handle_ai_message
-            ))
+            ), group=1)
             self.application.add_handler(CallbackQueryHandler(
                 self.ai_assistant_module.callback_ai_stop,
                 pattern="^ai_stop$"

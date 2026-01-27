@@ -55,9 +55,7 @@ class AIAssistantModule:
             return
 
         # Activer le mode chat
-        print(f"[DEBUG] Activation du mode chat pour user {user_id}")
         self.activate_chat(user_id)
-        print(f"[DEBUG] Sessions actives après activation: {active_chat_sessions}")
 
         # Afficher le message d'accueil
         keyboard = [
@@ -105,13 +103,8 @@ class AIAssistantModule:
         user_id = update.effective_user.id
         user_message = update.message.text
 
-        print(f"[DEBUG] handle_ai_message appelé pour user {user_id}, message: {user_message}")
-        print(f"[DEBUG] Mode chat actif ? {self.is_chat_active(user_id)}")
-        print(f"[DEBUG] Sessions actives: {active_chat_sessions}")
-
         # Vérifier que le mode chat est actif
         if not self.is_chat_active(user_id):
-            print(f"[DEBUG] Mode chat non actif pour {user_id}, retour False")
             return False  # Pas en mode chat, laisser les autres handlers traiter
 
         # Vérifier la limite journalière
