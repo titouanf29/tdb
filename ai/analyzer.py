@@ -880,7 +880,7 @@ Reste factuel et concis. Utilise des emojis pour la lisibilite."""
 
             response = client.chat.completions.create(
                 messages=[{"role": "user", "content": prompt}],
-                model="llama3-70b-8192",
+                model="llama-3.3-70b-versatile",
                 temperature=0.7,
                 max_tokens=500
             )
