@@ -82,7 +82,9 @@ class AIAssistantModule:
             return
 
         # Activer le mode chat
+        print(f"[DEBUG AI] Activation du chat pour user {user_id}")
         self.activate_chat(user_id)
+        print(f"[DEBUG AI] Sessions apres activation: {active_chat_sessions}")
 
         # Afficher le message d'accueil
         keyboard = [
@@ -130,9 +132,16 @@ class AIAssistantModule:
         user_id = update.effective_user.id
         user_message = update.message.text
 
+        print(f"[DEBUG AI] handle_ai_message appele pour user {user_id}")
+        print(f"[DEBUG AI] Sessions actives: {active_chat_sessions}")
+        print(f"[DEBUG AI] Chat actif pour user? {self.is_chat_active(user_id)}")
+
         # Vérifier que le mode chat est actif
         if not self.is_chat_active(user_id):
+            print(f"[DEBUG AI] User {user_id} pas en mode chat, return False")
             return False  # Pas en mode chat, laisser les autres handlers traiter
+
+        print(f"[DEBUG AI] User {user_id} EN mode chat, traitement du message...")
 
         # Verifier la limite journaliere
         limit_reached = await db_manager.check_ai_limit_reached(user_id)

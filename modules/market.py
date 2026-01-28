@@ -409,12 +409,14 @@ _Symbole: {symbol}_
 
     async def show_chart(self, update: Update, context: ContextTypes.DEFAULT_TYPE, symbol: str, interval: str = '1M'):
         """Affiche le graphique d'un actif avec l'intervalle specifie"""
+        print(f"[DEBUG CHART] show_chart appele: symbol={symbol}, interval={interval}")
         query = update.callback_query
         await query.answer("Generation du graphique...")
 
         # Configuration des intervalles
         from services.charts import CHART_INTERVALS
         config_interval = CHART_INTERVALS.get(interval, CHART_INTERVALS['1M'])
+        print(f"[DEBUG CHART] config_interval: {config_interval}")
 
         try:
             # Recuperer les donnees avec l'intervalle choisi
@@ -611,12 +613,16 @@ Recherchez : **{symbol}**
 
         elif data.startswith("chartgen_"):
             # Nouveau format: chartgen_SYMBOL_INTERVAL
+            print(f"[DEBUG CHART] Callback chartgen_ recu: {data}")
             parts = data.replace("chartgen_", "").rsplit("_", 1)
+            print(f"[DEBUG CHART] Parts apres split: {parts}")
             if len(parts) == 2:
                 symbol = parts[0]
                 interval = parts[1]
+                print(f"[DEBUG CHART] Appel show_chart({symbol}, {interval})")
                 await self.show_chart(update, context, symbol, interval)
             else:
+                print(f"[DEBUG CHART] Erreur: format invalide")
                 await query.answer("Erreur format graphique", show_alert=True)
 
         elif data.startswith("chart_"):
