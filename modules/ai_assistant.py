@@ -129,12 +129,17 @@ class AIAssistantModule:
 
     async def handle_ai_message(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Gère les messages quand le mode chat IA est actif"""
-        user_id = update.effective_user.id
-        user_message = update.message.text
+        try:
+            print(f"[DEBUG AI] >>> handle_ai_message ENTRY POINT <<<")
 
-        print(f"[DEBUG AI] handle_ai_message appele pour user {user_id}")
-        print(f"[DEBUG AI] Sessions actives: {active_chat_sessions}")
-        print(f"[DEBUG AI] Chat actif pour user? {self.is_chat_active(user_id)}")
+            user_id = update.effective_user.id
+            user_message = update.message.text
+
+            print(f"[DEBUG AI] handle_ai_message appele pour user {user_id}")
+            print(f"[DEBUG AI] Sessions actives: {active_chat_sessions}")
+            print(f"[DEBUG AI] Chat actif pour user? {self.is_chat_active(user_id)}")
+        except Exception as e:
+            print(f"[DEBUG AI] ERREUR au debut de handle_ai_message: {e}")
 
         # Vérifier que le mode chat est actif
         if not self.is_chat_active(user_id):

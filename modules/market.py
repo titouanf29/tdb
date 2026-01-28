@@ -33,7 +33,7 @@ class MarketModule:
         # Capturer tous les callbacks du module marché
         self.app.add_handler(CallbackQueryHandler(
             self.handle_callback,
-            pattern="^(market_|chart_|news_|favorite_add_|trading_companion_|analyze_)"
+            pattern="^(market_|chart_|chartgen_|news_|favorite_add_|trading_companion_|analyze_)"
         ))
 
     async def show_markets(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
