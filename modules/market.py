@@ -375,44 +375,103 @@ _Symbole: {symbol}_
             parse_mode='Markdown'
         )
 
-    async def show_chart(self, update: Update, context: ContextTypes.DEFAULT_TYPE, symbol: str):
-        """Affiche le graphique d'un actif"""
+    async def show_chart_menu(self, update: Update, context: ContextTypes.DEFAULT_TYPE, symbol: str):
+        """Affiche le menu de selection d'intervalle pour le graphique"""
         query = update.callback_query
-        await query.answer("📊 Génération du graphique...")
+        await query.answer()
+
+        keyboard = [
+            [
+                InlineKeyboardButton("1J", callback_data=f"chartgen_{symbol}_1D"),
+                InlineKeyboardButton("1S", callback_data=f"chartgen_{symbol}_1W"),
+                InlineKeyboardButton("1M", callback_data=f"chartgen_{symbol}_1M"),
+            ],
+            [
+                InlineKeyboardButton("3M", callback_data=f"chartgen_{symbol}_3M"),
+                InlineKeyboardButton("1A", callback_data=f"chartgen_{symbol}_1Y"),
+                InlineKeyboardButton("MAX", callback_data=f"chartgen_{symbol}_MAX"),
+            ],
+            [InlineKeyboardButton("Retour", callback_data=f"asset_{self.find_market_for_symbol(symbol)}_{symbol}")]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+
+        await query.edit_message_text(
+            f"📊 Graphique de {symbol}\n\n"
+            f"Selectionnez l'intervalle de temps :\n\n"
+            f"• 1J = 1 Jour (bougies 15min)\n"
+            f"• 1S = 1 Semaine (bougies 1h)\n"
+            f"• 1M = 1 Mois (bougies journalieres)\n"
+            f"• 3M = 3 Mois (bougies journalieres)\n"
+            f"• 1A = 1 An (bougies hebdomadaires)\n"
+            f"• MAX = Historique complet",
+            reply_markup=reply_markup
+        )
+
+    async def show_chart(self, update: Update, context: ContextTypes.DEFAULT_TYPE, symbol: str, interval: str = '1M'):
+        """Affiche le graphique d'un actif avec l'intervalle specifie"""
+        query = update.callback_query
+        await query.answer("Generation du graphique...")
+
+        # Configuration des intervalles
+        from services.charts import CHART_INTERVALS
+        config_interval = CHART_INTERVALS.get(interval, CHART_INTERVALS['1M'])
 
         try:
-            # Récupérer les données
-            data = await market_data_service.get_asset_data(symbol, period="1mo", interval="1d")
+            # Recuperer les donnees avec l'intervalle choisi
+            data = await market_data_service.get_asset_data(
+                symbol,
+                period=config_interval['period'],
+                interval=config_interval['interval']
+            )
 
             if data is None or data.empty:
                 await context.bot.send_message(
                     chat_id=query.message.chat_id,
-                    text="❌ Impossible de générer le graphique."
+                    text="Impossible de generer le graphique - donnees indisponibles."
                 )
                 return
 
-            # Générer le graphique
+            # Generer le graphique avec indicateurs et RSI
             chart = await chart_service.generate_candlestick_chart(
-                data, symbol, indicators=['ema20', 'ema50', 'ema200']
+                data, symbol,
+                indicators=['ema20', 'ema50', 'ema200'],
+                interval_label=config_interval['label'],
+                show_rsi=True
             )
 
             if chart:
+                # Boutons pour changer d'intervalle rapidement
+                keyboard = [
+                    [
+                        InlineKeyboardButton("1J", callback_data=f"chartgen_{symbol}_1D"),
+                        InlineKeyboardButton("1S", callback_data=f"chartgen_{symbol}_1W"),
+                        InlineKeyboardButton("1M", callback_data=f"chartgen_{symbol}_1M"),
+                        InlineKeyboardButton("3M", callback_data=f"chartgen_{symbol}_3M"),
+                        InlineKeyboardButton("1A", callback_data=f"chartgen_{symbol}_1Y"),
+                    ],
+                    [InlineKeyboardButton("Retour a l'actif", callback_data=f"asset_{self.find_market_for_symbol(symbol)}_{symbol}")]
+                ]
+                reply_markup = InlineKeyboardMarkup(keyboard)
+
                 await context.bot.send_photo(
                     chat_id=query.message.chat_id,
                     photo=chart,
-                    caption=f"📈 Graphique de {symbol}"
+                    caption=f"📊 {symbol} - {config_interval['label']}\n"
+                           f"📈 EMA: 🔵20  🟠50  🔴200\n"
+                           f"📉 RSI (14) en bas",
+                    reply_markup=reply_markup
                 )
             else:
                 await context.bot.send_message(
                     chat_id=query.message.chat_id,
-                    text="❌ Erreur lors de la génération du graphique."
+                    text="Erreur lors de la generation du graphique."
                 )
 
         except Exception as e:
-            print(f"Erreur génération graphique: {e}")
+            print(f"Erreur generation graphique: {e}")
             await context.bot.send_message(
                 chat_id=query.message.chat_id,
-                text="❌ Erreur lors de la génération du graphique."
+                text="Erreur lors de la generation du graphique."
             )
 
     async def show_news(self, update: Update, context: ContextTypes.DEFAULT_TYPE, symbol: str):
@@ -550,9 +609,20 @@ Recherchez : **{symbol}**
             context.user_data['current_market'] = market_code
             await self.show_asset_detail(update, context, market_code, symbol)
 
+        elif data.startswith("chartgen_"):
+            # Nouveau format: chartgen_SYMBOL_INTERVAL
+            parts = data.replace("chartgen_", "").rsplit("_", 1)
+            if len(parts) == 2:
+                symbol = parts[0]
+                interval = parts[1]
+                await self.show_chart(update, context, symbol, interval)
+            else:
+                await query.answer("Erreur format graphique", show_alert=True)
+
         elif data.startswith("chart_"):
+            # Afficher menu de selection d'intervalle
             symbol = data.replace("chart_", "")
-            await self.show_chart(update, context, symbol)
+            await self.show_chart_menu(update, context, symbol)
 
         elif data.startswith("news_"):
             symbol = data.replace("news_", "")

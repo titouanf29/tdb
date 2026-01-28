@@ -6,7 +6,32 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 from services.ai_assistant import ai_assistant_service
 from database.manager import db_manager
+from datetime import datetime, timedelta
+import pytz
 import config
+
+
+def get_reset_time_info():
+    """Calcule le temps restant avant le reset (minuit UTC)"""
+    utc = pytz.UTC
+    now = datetime.now(utc)
+    # Prochain minuit UTC
+    tomorrow = now.replace(hour=0, minute=0, second=0, microsecond=0) + timedelta(days=1)
+    delta = tomorrow - now
+
+    hours = int(delta.total_seconds() // 3600)
+    minutes = int((delta.total_seconds() % 3600) // 60)
+
+    # Heure de Paris (pour affichage)
+    paris = pytz.timezone('Europe/Paris')
+    reset_paris = tomorrow.astimezone(paris)
+
+    return {
+        'hours': hours,
+        'minutes': minutes,
+        'reset_time_paris': reset_paris.strftime('%H:%M'),
+        'reset_time_utc': '00:00'
+    }
 
 # État global pour savoir quels utilisateurs sont en mode chat IA
 active_chat_sessions = set()
@@ -43,10 +68,12 @@ class AIAssistantModule:
         usage = await db_manager.get_ai_daily_usage(user_id)
 
         if limit_reached:
+            reset_info = get_reset_time_info()
             message_text = (
-                f"⚠️ Limite journalière atteinte\n\n"
-                f"Vous avez utilisé {usage['message_count']}/{config.MAX_AI_MESSAGES_PER_DAY} messages aujourd'hui.\n\n"
-                f"La limite sera réinitialisée demain. 🔄"
+                f"⚠️ Limite journaliere atteinte\n\n"
+                f"Vous avez utilise {usage['message_count']}/{config.MAX_AI_MESSAGES_PER_DAY} messages aujourd'hui.\n\n"
+                f"🔄 Reset dans {reset_info['hours']}h{reset_info['minutes']:02d}\n"
+                f"🕐 Prochaine disponibilite : {reset_info['reset_time_paris']} (Paris)"
             )
             if is_callback:
                 await update.callback_query.message.reply_text(message_text)
@@ -107,15 +134,18 @@ class AIAssistantModule:
         if not self.is_chat_active(user_id):
             return False  # Pas en mode chat, laisser les autres handlers traiter
 
-        # Vérifier la limite journalière
+        # Verifier la limite journaliere
         limit_reached = await db_manager.check_ai_limit_reached(user_id)
         if limit_reached:
             usage = await db_manager.get_ai_daily_usage(user_id)
-            self.deactivate_chat(user_id)  # Désactiver automatiquement
+            reset_info = get_reset_time_info()
+            self.deactivate_chat(user_id)  # Desactiver automatiquement
             await update.message.reply_text(
-                f"⚠️ Limite journalière atteinte\n\n"
-                f"Vous avez utilisé {usage['message_count']}/{config.MAX_AI_MESSAGES_PER_DAY} messages.\n\n"
-                f"Le mode chat a été désactivé. Réessayez demain ! 🔄"
+                f"⚠️ Limite journaliere atteinte\n\n"
+                f"Vous avez utilise {usage['message_count']}/{config.MAX_AI_MESSAGES_PER_DAY} messages.\n\n"
+                f"Le mode chat a ete desactive.\n\n"
+                f"🔄 Reset dans {reset_info['hours']}h{reset_info['minutes']:02d}\n"
+                f"🕐 Prochaine disponibilite : {reset_info['reset_time_paris']} (Paris)"
             )
             return True
 
@@ -153,20 +183,26 @@ class AIAssistantModule:
             # Incrémenter le compteur d'utilisation
             await db_manager.increment_ai_usage(user_id, tokens_used=response.get('tokens_used', 0))
 
-            # Afficher la réponse
+            # Afficher la reponse
             usage = await db_manager.get_ai_daily_usage(user_id)
             remaining = config.MAX_AI_MESSAGES_PER_DAY - usage['message_count']
 
-            # Limiter la longueur de la réponse Telegram (4096 caractères max)
+            # Limiter la longueur de la reponse Telegram (4096 caracteres max)
             ai_response = response['response']
             if len(ai_response) > 3500:
-                ai_response = ai_response[:3500] + "\n\n_(Réponse tronquée pour limitation Telegram)_"
+                ai_response = ai_response[:3500] + "\n\n(Reponse tronquee pour limitation Telegram)"
+
+            # Footer avec info reset si peu de messages restants
+            footer = f"💬 Messages restants : {remaining}/{config.MAX_AI_MESSAGES_PER_DAY}"
+            if remaining <= 5:
+                reset_info = get_reset_time_info()
+                footer += f"\n🔄 Reset dans {reset_info['hours']}h{reset_info['minutes']:02d}"
 
             await typing_message.edit_text(
                 f"{ai_response}\n\n"
                 f"━━━━━━━━━━━━━━━━━\n"
-                f"💬 Messages restants : {remaining}/{config.MAX_AI_MESSAGES_PER_DAY}",
-                            )
+                f"{footer}"
+            )
 
         except Exception as e:
             print(f"[AI_ASSISTANT] Erreur handle_message: {e}")

@@ -13,26 +13,58 @@ def generate_position_code(length=8):
     return ''.join(random.choices(chars, k=length))
 
 def format_price(price, decimals=2):
-    """Formate un prix avec le bon nombre de décimales"""
-    if price >= 1000:
+    """Formate un prix avec le bon nombre de decimales"""
+    if price is None:
+        return "N/A"
+    # Arrondir d'abord pour eviter les .00000001
+    price = round(price, 8)
+    if abs(price) >= 1000:
+        # Grands nombres: 2 decimales max, separateur milliers
         return f"{price:,.{decimals}f}"
-    elif price >= 1:
+    elif abs(price) >= 1:
+        # Nombres normaux: 2 decimales
         return f"{price:.{decimals}f}"
-    elif price >= 0.01:
+    elif abs(price) >= 0.01:
+        # Petits nombres: 4 decimales
         return f"{price:.4f}"
+    elif abs(price) >= 0.0001:
+        # Tres petits: 6 decimales
+        return f"{price:.6f}"
     else:
+        # Crypto tres petite valeur: 8 decimales
         return f"{price:.8f}"
 
 def format_percent(value):
     """Formate un pourcentage"""
+    if value is None:
+        return "N/A"
     sign = "+" if value >= 0 else ""
     return f"{sign}{value:.2f}%"
 
+
+def format_money(amount, currency="USD"):
+    """Formate un montant monetaire (toujours 2 decimales max)"""
+    if amount is None:
+        return "N/A"
+    amount = round(amount, 2)
+    if abs(amount) >= 1000:
+        return f"{amount:,.2f} {currency}"
+    else:
+        return f"{amount:.2f} {currency}"
+
 def format_pnl(pnl, currency="USD"):
     """Formate un PnL avec couleur emoji"""
+    if pnl is None:
+        return "N/A"
+    pnl = round(pnl, 2)
     sign = "+" if pnl >= 0 else ""
     emoji = "🟢" if pnl >= 0 else "🔴"
-    return f"{emoji} {sign}{format_price(pnl)} {currency}"
+    # Utiliser format_money pour les PnL (toujours 2 decimales)
+    if abs(pnl) >= 1000:
+        formatted = f"{pnl:,.2f}"
+    else:
+        formatted = f"{pnl:.2f}"
+    return f"{emoji} {sign}{formatted} {currency}"
 
 def is_market_open(market_code):
     """Vérifie si un marché est ouvert"""

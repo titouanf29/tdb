@@ -218,17 +218,21 @@ class DatabaseManager:
                 return
 
             # Calculer PnL
+            # IMPORTANT: amount est en devise (ex: 1000 USD), pas en unites d'actif
+            # Formule correcte: pnl = amount * (variation_prix / prix_entree) * leverage
             direction = position['direction']
             entry_price = position['entry_price']
             amount = position['amount']
             leverage = position['leverage']
 
+            # Calcul du pourcentage de variation
             if direction == 'LONG':
-                pnl = (exit_price - entry_price) * amount * leverage
                 pnl_percent = ((exit_price - entry_price) / entry_price) * 100 * leverage
             else:  # SHORT
-                pnl = (entry_price - exit_price) * amount * leverage
                 pnl_percent = ((entry_price - exit_price) / entry_price) * 100 * leverage
+
+            # PnL en valeur absolue (basé sur le montant investi)
+            pnl = amount * (pnl_percent / 100)
 
             # Fermer la position
             await db.execute("""

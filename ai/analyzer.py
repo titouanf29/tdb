@@ -103,10 +103,16 @@ class MarketAnalyzer:
             current_volume = data_1d['Volume'].iloc[-1]
             volume_ratio = current_volume / avg_volume if avg_volume > 0 else 1
 
-            # Support/Résistance
+            # Support/Resistance
             support, resistance = self._find_support_resistance(data_1d)
 
-            # Résumé technique
+            # Niveaux de Fibonacci
+            fibonacci_levels = self._calculate_fibonacci_levels(data_1d)
+
+            # Detection des signaux de retournement
+            reversal_signals = self._detect_reversal_signals(data_1d)
+
+            # Resume technique
             technical_summary = self._generate_technical_summary(
                 trend, rsi, volume_ratio, support, resistance, current_price
             )
@@ -144,6 +150,8 @@ class MarketAnalyzer:
                 'volume_ratio': float(volume_ratio),
                 'support': float(support) if support else None,
                 'resistance': float(resistance) if resistance else None,
+                'fibonacci': {k: float(v) for k, v in fibonacci_levels.items()},
+                'reversal_signals': reversal_signals,
                 'technical_summary': technical_summary,
                 'opportunity_type': opportunity_type,
                 'risk_level': risk_level,
@@ -386,11 +394,118 @@ class MarketAnalyzer:
         return obv
 
     def _find_support_resistance(self, data, lookback=20):
-        """Trouve les niveaux de support et résistance"""
+        """Trouve les niveaux de support et resistance"""
         recent_data = data.tail(lookback)
         support = recent_data['Low'].min()
         resistance = recent_data['High'].max()
         return support, resistance
+
+    def _calculate_fibonacci_levels(self, data, lookback=50):
+        """Calcule les niveaux de Fibonacci retracement"""
+        recent = data.tail(lookback)
+        high = recent['High'].max()
+        low = recent['Low'].min()
+        diff = high - low
+
+        # Niveaux de Fibonacci standard
+        levels = {
+            '0.0': high,
+            '0.236': high - (diff * 0.236),
+            '0.382': high - (diff * 0.382),
+            '0.5': high - (diff * 0.5),
+            '0.618': high - (diff * 0.618),
+            '0.786': high - (diff * 0.786),
+            '1.0': low
+        }
+        return levels
+
+    def _detect_reversal_signals(self, data, rsi_period=14):
+        """Detecte les signaux de retournement"""
+        signals = []
+
+        # RSI Divergence
+        rsi_series = self._calculate_rsi_series(data, rsi_period)
+        if len(rsi_series) >= 10:
+            # Divergence haussiere: prix fait lower low mais RSI fait higher low
+            price_ll = data['Close'].iloc[-1] < data['Close'].iloc[-5]
+            rsi_hl = rsi_series.iloc[-1] > rsi_series.iloc[-5]
+            if price_ll and rsi_hl and rsi_series.iloc[-1] < 40:
+                signals.append({
+                    'type': 'bullish_divergence',
+                    'strength': 'strong',
+                    'description': 'Divergence haussiere RSI - Signal de retournement a la hausse'
+                })
+
+            # Divergence baissiere: prix fait higher high mais RSI fait lower high
+            price_hh = data['Close'].iloc[-1] > data['Close'].iloc[-5]
+            rsi_lh = rsi_series.iloc[-1] < rsi_series.iloc[-5]
+            if price_hh and rsi_lh and rsi_series.iloc[-1] > 60:
+                signals.append({
+                    'type': 'bearish_divergence',
+                    'strength': 'strong',
+                    'description': 'Divergence baissiere RSI - Signal de retournement a la baisse'
+                })
+
+        # Double Bottom / Double Top patterns (simplifie)
+        lows = data['Low'].tail(20)
+        highs = data['High'].tail(20)
+
+        # Double bottom detection
+        min_idx = lows.idxmin()
+        min_val = lows.min()
+        second_min = lows.drop(min_idx).min() if len(lows) > 1 else min_val
+        if abs(min_val - second_min) / min_val < 0.02:  # 2% tolerance
+            signals.append({
+                'type': 'double_bottom',
+                'strength': 'moderate',
+                'description': 'Formation Double Bottom - Potentiel retournement haussier'
+            })
+
+        # Double top detection
+        max_idx = highs.idxmax()
+        max_val = highs.max()
+        second_max = highs.drop(max_idx).max() if len(highs) > 1 else max_val
+        if abs(max_val - second_max) / max_val < 0.02:
+            signals.append({
+                'type': 'double_top',
+                'strength': 'moderate',
+                'description': 'Formation Double Top - Potentiel retournement baissier'
+            })
+
+        # Hammer / Shooting Star candles
+        last_candle = data.iloc[-1]
+        body = abs(last_candle['Close'] - last_candle['Open'])
+        total_range = last_candle['High'] - last_candle['Low']
+
+        if total_range > 0:
+            lower_wick = min(last_candle['Open'], last_candle['Close']) - last_candle['Low']
+            upper_wick = last_candle['High'] - max(last_candle['Open'], last_candle['Close'])
+
+            # Hammer (bougie marteau - signal haussier)
+            if lower_wick > body * 2 and upper_wick < body * 0.5:
+                signals.append({
+                    'type': 'hammer',
+                    'strength': 'moderate',
+                    'description': 'Bougie Marteau - Signal de rebond potentiel'
+                })
+
+            # Shooting Star (signal baissier)
+            if upper_wick > body * 2 and lower_wick < body * 0.5:
+                signals.append({
+                    'type': 'shooting_star',
+                    'strength': 'moderate',
+                    'description': 'Etoile Filante - Signal de correction potentielle'
+                })
+
+        return signals
+
+    def _calculate_rsi_series(self, data, period=14):
+        """Retourne la serie RSI complete"""
+        delta = data['Close'].diff()
+        gain = (delta.where(delta > 0, 0)).rolling(window=period).mean()
+        loss = (-delta.where(delta < 0, 0)).rolling(window=period).mean()
+        rs = gain / loss
+        return 100 - (100 / (1 + rs))
 
     def _determine_direction(self, data_1d, data_1h, technical_score, momentum_score):
         """Détermine la direction suggérée"""
@@ -703,6 +818,105 @@ class MarketAnalyzer:
             recommendations.append("✅ Risque faible : Conditions favorables pour une entrée")
 
         return recommendations
+
+    async def generate_ai_market_summary(self, market_code, analyses, event_type='close'):
+        """
+        Genere un resume IA des performances du marche
+
+        Args:
+            market_code: Code du marche (USA, EUROPE, ASIA)
+            analyses: Liste des analyses d'actifs
+            event_type: 'open' ou 'close'
+
+        Returns:
+            str: Resume formate pour Telegram
+        """
+        try:
+            from groq import Groq
+            client = Groq(api_key=config.GROQ_API_KEY)
+
+            # Preparer les donnees pour l'IA
+            top_performers = sorted(analyses, key=lambda x: x.get('price_change_1d', 0), reverse=True)[:3]
+            worst_performers = sorted(analyses, key=lambda x: x.get('price_change_1d', 0))[:3]
+            opportunities = sorted(analyses, key=lambda x: x.get('score', 0), reverse=True)[:3]
+
+            # Construire le contexte
+            context = f"""Marche: {market_code}
+Event: {'Fermeture' if event_type == 'close' else 'Ouverture'}
+
+Top performers:
+{chr(10).join([f"- {a['symbol']}: {a.get('price_change_1d', 0):+.2f}% (score: {a.get('score', 0)})" for a in top_performers])}
+
+Worst performers:
+{chr(10).join([f"- {a['symbol']}: {a.get('price_change_1d', 0):+.2f}% (score: {a.get('score', 0)})" for a in worst_performers])}
+
+Meilleures opportunites (par score):
+{chr(10).join([f"- {a['symbol']}: score {a.get('score', 0)}/100, direction {a.get('direction', 'N/A')}, RSI {a.get('rsi', 0):.0f}" for a in opportunities])}
+"""
+
+            if event_type == 'open':
+                prompt = f"""En tant qu'analyste trading, donne un bref apercu (100-150 mots max) pour l'ouverture du marche {market_code}.
+
+{context}
+
+Format de reponse (sans markdown ** ni #):
+1. Contexte general du marche (1-2 phrases)
+2. 2-3 opportunites a surveiller avec justification courte
+3. Points de vigilance
+
+Reste factuel et concis. Utilise des emojis pour la lisibilite."""
+            else:
+                prompt = f"""En tant qu'analyste trading, fais un bilan de cloture (100-150 mots max) pour le marche {market_code}.
+
+{context}
+
+Format de reponse (sans markdown ** ni #):
+1. Resume de la seance (1-2 phrases)
+2. Top performers et pourquoi
+3. Actifs en difficulte
+4. Perspectives pour demain
+
+Reste factuel et concis. Utilise des emojis pour la lisibilite."""
+
+            response = client.chat.completions.create(
+                messages=[{"role": "user", "content": prompt}],
+                model="llama3-70b-8192",
+                temperature=0.7,
+                max_tokens=500
+            )
+
+            return response.choices[0].message.content.strip()
+
+        except Exception as e:
+            print(f"[ANALYZER] Erreur generation resume IA: {e}")
+            # Fallback: resume basique sans IA
+            return self._generate_basic_summary(market_code, analyses, event_type)
+
+    def _generate_basic_summary(self, market_code, analyses, event_type):
+        """Resume basique sans IA (fallback)"""
+        if not analyses:
+            return f"Pas de donnees disponibles pour le marche {market_code}"
+
+        top = sorted(analyses, key=lambda x: x.get('price_change_1d', 0), reverse=True)[:3]
+        bottom = sorted(analyses, key=lambda x: x.get('price_change_1d', 0))[:3]
+
+        if event_type == 'close':
+            text = f"📊 Cloture {market_code}\n\n"
+            text += "🏆 Top performers:\n"
+            for a in top:
+                text += f"• {a['symbol']}: {a.get('price_change_1d', 0):+.2f}%\n"
+            text += "\n📉 En baisse:\n"
+            for a in bottom:
+                text += f"• {a['symbol']}: {a.get('price_change_1d', 0):+.2f}%\n"
+        else:
+            opps = sorted(analyses, key=lambda x: x.get('score', 0), reverse=True)[:3]
+            text = f"🔔 Ouverture {market_code}\n\n"
+            text += "👀 A surveiller:\n"
+            for a in opps:
+                text += f"• {a['symbol']}: score {a.get('score', 0)}/100\n"
+
+        return text
+
 
 # Instance globale
 analyzer = MarketAnalyzer()

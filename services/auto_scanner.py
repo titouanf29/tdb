@@ -25,7 +25,7 @@ class AutoScannerService:
         self.daily_alert_counts = {}  # user_id -> count
 
     def start(self):
-        """Démarre le scheduler"""
+        """Demarre le scheduler"""
         if not self.is_running:
             # Lancer le scan toutes les 60 secondes
             self.scheduler.add_job(
@@ -35,7 +35,7 @@ class AutoScannerService:
                 replace_existing=True
             )
 
-            # Reset compteurs quotidiens à minuit
+            # Reset compteurs quotidiens a minuit
             self.scheduler.add_job(
                 self.reset_daily_counts,
                 trigger='cron',
@@ -45,9 +45,25 @@ class AutoScannerService:
                 replace_existing=True
             )
 
+            # Verifier les evenements de marche toutes les 2 minutes
+            self.scheduler.add_job(
+                self.check_market_events,
+                trigger=IntervalTrigger(seconds=120),
+                id='market_events_checker',
+                replace_existing=True
+            )
+
             self.scheduler.start()
             self.is_running = True
-            logger.info("✅ Auto Scanner démarré")
+            logger.info("Auto Scanner demarre")
+
+    async def check_market_events(self):
+        """Verifie les ouvertures/fermetures de marche"""
+        try:
+            from services.market_alerts import market_alerts_service
+            await market_alerts_service.check_market_events()
+        except Exception as e:
+            logger.error(f"Erreur check market events: {e}")
 
     def stop(self):
         """Arrête le scheduler"""

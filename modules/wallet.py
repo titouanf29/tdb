@@ -464,10 +464,13 @@ Ou tapez un montant personnalisé dans le chat (ex: 25000)
         current_price = await market_data_service.get_current_price(position['asset_symbol'])
 
         if current_price and position['status'] == 'open':
-            # Mettre à jour le prix et PnL
+            # Mettre a jour le prix et PnL
+            # IMPORTANT: amount est en devise (ex: 1000 USD), pas en unites
+            # Formule: pnl = amount * (variation_prix / prix_entree) * leverage
             direction_multiplier = 1 if position['direction'] == 'LONG' else -1
-            pnl = (current_price - position['entry_price']) * position['amount'] * position['leverage'] * direction_multiplier
-            pnl_percent = ((current_price - position['entry_price']) / position['entry_price']) * 100 * position['leverage'] * direction_multiplier
+            price_change_percent = ((current_price - position['entry_price']) / position['entry_price']) * 100
+            pnl_percent = price_change_percent * position['leverage'] * direction_multiplier
+            pnl = position['amount'] * (pnl_percent / 100)
 
             await db_manager.update_position(
                 position_code,

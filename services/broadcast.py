@@ -272,8 +272,35 @@ _Merci d'utiliser TDB Bot ! 🤖_
                 'error': str(e)
             }
 
+    async def send_to_channel(self, message: str, parse_mode: str = None):
+        """
+        Envoie un message au canal principal (sans markdown par defaut)
 
-# Instance globale (sera initialisée dans main.py)
+        Args:
+            message: Le message a envoyer
+            parse_mode: Mode de parsing (None, 'Markdown', 'HTML')
+        """
+        try:
+            if not self.bot or not self.channel_id:
+                logger.warning("Bot ou channel_id non configure")
+                return {'success': False, 'error': 'Service non initialise'}
+
+            await self.bot.send_message(
+                chat_id=self.channel_id,
+                text=message,
+                parse_mode=parse_mode,
+                disable_web_page_preview=True
+            )
+
+            logger.info(f"Message envoye au canal {self.channel_id}")
+            return {'success': True, 'channel_id': self.channel_id}
+
+        except Exception as e:
+            logger.error(f"Erreur envoi canal: {e}")
+            return {'success': False, 'error': str(e)}
+
+
+# Instance globale (sera initialisee dans main.py)
 broadcast_service = None
 
 
