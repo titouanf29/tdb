@@ -15,7 +15,7 @@ class BroadcastService:
 
     def __init__(self, bot: Bot):
         self.bot = bot
-        self.current_version = "2.1.2"
+        self.current_version = "2.2.0"
         self.channel_id = config.CHANNEL_ID
 
     async def send_update_to_all_users(self, message: str, parse_mode='Markdown'):
@@ -131,9 +131,67 @@ class BroadcastService:
             }
 
     def _format_update_message(self, version: str):
-        """Formate le message de mise à jour pour Telegram"""
+        """Formate le message de mise a jour pour Telegram"""
 
-        if version == "2.1.2":
+        if version == "2.2.0":
+            return """
+🚀 MISE A JOUR v2.2.0 - EVOLUTION MAJEURE
+
+━━━━━━━━━━━━━━━━━━━━━━━━
+
+📢 ALERTES MARCHES AUTOMATIQUES
+
+Recevez des notifications a l'ouverture et fermeture des marches !
+- 🇺🇸 US : 15h30 / 22h00 (Paris)
+- 🇪🇺 Europe : 9h00 / 17h30
+- 🇯🇵 Asie : 1h00 / 7h00
+
+Chaque alerte inclut:
+• Resume IA des opportunites
+• Top performers de la seance
+• Actifs a surveiller
+
+━━━━━━━━━━━━━━━━━━━━━━━━
+
+📊 GRAPHIQUES PROFESSIONNELS
+
+Nouveaux graphiques avec selection d'intervalle:
+• 1J, 1S, 1M, 3M, 1A, MAX
+• RSI integre en panneau inferieur
+• EMA colorees (20/50/200)
+• Theme sombre professionnel
+
+━━━━━━━━━━━━━━━━━━━━━━━━
+
+🧠 ALGORITHME AMELIORE
+
+• Niveaux Fibonacci automatiques
+• Detection retournements (divergences RSI)
+• Patterns: Double Top/Bottom, Marteau
+• Resume IA via intelligence artificielle
+
+━━━━━━━━━━━━━━━━━━━━━━━━
+
+💰 CORRECTION WALLET
+
+Bug critique corrige: le calcul des gains/pertes est maintenant exact.
+Si vous aviez des montants etranges, ils sont desormais corrects.
+
+━━━━━━━━━━━━━━━━━━━━━━━━
+
+🤖 ASSISTANT IA AMELIORE
+
+• Reponses plus lisibles et claires
+• Affichage du temps avant reset de la limite
+• Format optimise pour Telegram
+
+━━━━━━━━━━━━━━━━━━━━━━━━
+
+Utilisez /menu pour decouvrir toutes les nouveautes !
+
+Bon trading ! 📈
+"""
+        elif version == "2.1.2":
             return """
 🔧 **MISE A JOUR v2.1.2 - CORRECTIFS ASSISTANT IA**
 

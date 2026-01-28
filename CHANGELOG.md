@@ -6,6 +6,69 @@ Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/)
 
 ---
 
+## [2.2.0] - 2026-01-28
+
+### ✨ Nouveautes
+
+#### 📢 Alertes Ouverture/Fermeture Marches
+- Notification automatique a l'ouverture des marches US, Europe, Asie
+- Resume IA des opportunites a surveiller
+- Recap intelligent a la fermeture avec top performers
+- Analyse des mouvements de la journee
+
+#### 📊 Graphiques Professionnels
+- Selection d'intervalle de temps (1J, 1S, 1M, 3M, 1A, MAX)
+- RSI integre en panneau inferieur
+- Theme sombre professionnel
+- EMA colorees: bleu (20), orange (50), rouge (200)
+- Affichage variation de prix
+
+#### 🧠 Algorithme Ameliore
+- Niveaux de Fibonacci automatiques (0.236, 0.382, 0.5, 0.618, 0.786)
+- Detection signaux de retournement:
+  - Divergences RSI (haussiere/baissiere)
+  - Patterns Double Top / Double Bottom
+  - Bougies Marteau et Etoile Filante
+- Resume IA genere via Groq pour analyses
+
+### 🐛 Corrections
+
+#### 💰 Wallet - CORRECTION CRITIQUE
+- **Formule PnL corrigee**: L'ancien calcul traitait `amount` comme des unites au lieu de devise
+- Ancien: `pnl = (prix_sortie - prix_entree) * amount * leverage` (FAUX)
+- Nouveau: `pnl = amount * ((prix_sortie - prix_entree) / prix_entree) * leverage` (CORRECT)
+- Cela corrige le bug ou 1000 EUR devenait 10000+ EUR
+
+#### 🔢 Formatage Nombres
+- Reduction des decimales excessives (10000.00000000 → 10000.00)
+- Nouvelle fonction `format_money()` pour montants monetaires
+- Meilleure gestion des valeurs nulles
+
+### 🔄 Ameliorations
+
+#### 🤖 Assistant IA
+- Format des reponses plus lisible (sans formatage markdown **)
+- Affichage de l'heure de reset de la limite journaliere
+- Compte a rebours avant prochaine disponibilite
+- Instructions IA reformatees pour reponses plus claires
+
+### 📁 Nouveaux Fichiers
+- `services/market_alerts.py` - Service d'alertes marches
+
+### 📝 Fichiers Modifies
+- `ai/analyzer.py` - Fibonacci, reversals, resume IA
+- `database/manager.py` - Formule PnL corrigee
+- `modules/ai_assistant.py` - Reset time, format
+- `modules/market.py` - Menu graphiques, intervalles
+- `modules/wallet.py` - Formule PnL corrigee
+- `services/ai_assistant.py` - Prompt ameliore
+- `services/auto_scanner.py` - Integration alertes marches
+- `services/broadcast.py` - Methode send_to_channel
+- `services/charts.py` - Graphiques pro, RSI, intervalles
+- `utils/helpers.py` - format_money, decimales
+
+---
+
 ## [2.1.2] - 2026-01-27
 
 ### 🐛 Corrections
