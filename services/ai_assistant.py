@@ -98,9 +98,12 @@ Comment l'interpreter:
         """
         try:
             # Construire les messages pour Groq
+            print(f"[AI_SERVICE] Construction messages pour Groq...")
             messages = self._build_messages(user_message, conversation_history, asset_context)
+            print(f"[AI_SERVICE] Messages construits: {len(messages)} messages")
 
             # Générer la réponse avec Groq
+            print(f"[AI_SERVICE] Appel API Groq avec modele {self.model}...")
             chat_completion = self.client.chat.completions.create(
                 messages=messages,
                 model=self.model,
@@ -108,8 +111,10 @@ Comment l'interpreter:
                 max_tokens=2048,  # Augmenté pour les analyses détaillées
                 top_p=0.95,
             )
+            print(f"[AI_SERVICE] Reponse Groq recue")
 
             response_text = chat_completion.choices[0].message.content
+            print(f"[AI_SERVICE] Longueur reponse: {len(response_text) if response_text else 0} caracteres")
 
             if not response_text:
                 return {

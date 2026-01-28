@@ -164,23 +164,32 @@ class AIAssistantModule:
             return True
 
         # Afficher un indicateur de "en train d'écrire..."
+        print(f"[DEBUG AI] Envoi du message 'Reflexion en cours...'")
         typing_message = await update.message.reply_text("💭 Réflexion en cours...")
+        print(f"[DEBUG AI] Message typing envoye")
 
         try:
             # Récupérer l'historique de conversation
+            print(f"[DEBUG AI] Recuperation historique...")
             history = await db_manager.get_ai_chat_history(user_id, limit=5)
+            print(f"[DEBUG AI] Historique recupere: {len(history) if history else 0} messages")
 
             # Détecter si l'utilisateur mentionne un actif (ex: "analyse AAPL")
+            print(f"[DEBUG AI] Detection contexte actif...")
             asset_context = await self._detect_asset_context(user_message)
+            print(f"[DEBUG AI] Contexte actif: {asset_context}")
 
             # Envoyer au service IA
+            print(f"[DEBUG AI] Appel service IA avec message: '{user_message[:50]}...'")
             response = await ai_assistant_service.chat(
                 user_message=user_message,
                 conversation_history=history,
                 asset_context=asset_context
             )
+            print(f"[DEBUG AI] Reponse service IA: success={response.get('success')}")
 
             if not response['success']:
+                print(f"[DEBUG AI] Erreur IA: {response.get('error')}")
                 await typing_message.edit_text(
                     f"❌ Erreur : {response.get('error', 'Erreur inconnue')}\n\n"
                     f"Réessayez dans quelques instants."
