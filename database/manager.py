@@ -961,6 +961,232 @@ class DatabaseManager:
             """) as cursor:
                 return [dict(row) for row in await cursor.fetchall()]
 
+    # ===== HISTORIQUE ANALYSES IA =====
+
+    async def save_ai_analysis(self, telegram_id, symbol, analysis_type, content, sentiment=None, score=None):
+        """Sauvegarde une analyse IA"""
+        async with aiosqlite.connect(self.db_path) as db:
+            await db.execute("""
+                INSERT INTO ai_analysis_history (telegram_id, asset_symbol, analysis_type, analysis_content, sentiment, score)
+                VALUES (?, ?, ?, ?, ?, ?)
+            """, (telegram_id, symbol, analysis_type, content, sentiment, score))
+            await db.commit()
+
+    async def get_ai_analysis_history(self, telegram_id, limit=10):
+        """Recupere l'historique des analyses IA"""
+        async with aiosqlite.connect(self.db_path) as db:
+            db.row_factory = aiosqlite.Row
+            async with db.execute("""
+                SELECT * FROM ai_analysis_history
+                WHERE telegram_id = ?
+                ORDER BY created_at DESC
+                LIMIT ?
+            """, (telegram_id, limit)) as cursor:
+                return [dict(row) for row in await cursor.fetchall()]
+
+    async def get_ai_analysis_by_symbol(self, telegram_id, symbol, limit=5):
+        """Recupere les analyses pour un symbole specifique"""
+        async with aiosqlite.connect(self.db_path) as db:
+            db.row_factory = aiosqlite.Row
+            async with db.execute("""
+                SELECT * FROM ai_analysis_history
+                WHERE telegram_id = ? AND asset_symbol = ?
+                ORDER BY created_at DESC
+                LIMIT ?
+            """, (telegram_id, symbol, limit)) as cursor:
+                return [dict(row) for row in await cursor.fetchall()]
+
+    # ===== HISTORIQUE VALEUR PORTEFEUILLE =====
+
+    async def save_portfolio_value(self, telegram_id, total_value, daily_pnl=0, positions_count=0):
+        """Sauvegarde la valeur du portefeuille"""
+        today = datetime.now().strftime('%Y-%m-%d')
+        daily_pnl_percent = (daily_pnl / total_value * 100) if total_value > 0 else 0
+        async with aiosqlite.connect(self.db_path) as db:
+            await db.execute("""
+                INSERT OR REPLACE INTO portfolio_value_history
+                (telegram_id, date, total_value, daily_pnl, daily_pnl_percent, positions_count)
+                VALUES (?, ?, ?, ?, ?, ?)
+            """, (telegram_id, today, total_value, daily_pnl, daily_pnl_percent, positions_count))
+            await db.commit()
+
+    async def get_portfolio_history(self, telegram_id, days=30):
+        """Recupere l'historique de valeur du portefeuille"""
+        async with aiosqlite.connect(self.db_path) as db:
+            db.row_factory = aiosqlite.Row
+            async with db.execute("""
+                SELECT date, total_value as value, daily_pnl, daily_pnl_percent
+                FROM portfolio_value_history
+                WHERE telegram_id = ?
+                ORDER BY date DESC
+                LIMIT ?
+            """, (telegram_id, days)) as cursor:
+                rows = [dict(row) for row in await cursor.fetchall()]
+                return list(reversed(rows))
+
+    # ===== ALERTES DE VOLATILITE =====
+
+    async def create_volatility_alert(self, telegram_id, symbol, threshold, timeframe=60):
+        """Cree une alerte de volatilite"""
+        async with aiosqlite.connect(self.db_path) as db:
+            await db.execute("""
+                INSERT OR REPLACE INTO volatility_alerts
+                (telegram_id, asset_symbol, threshold_percent, timeframe_minutes)
+                VALUES (?, ?, ?, ?)
+            """, (telegram_id, symbol, threshold, timeframe))
+            await db.commit()
+            return True
+
+    async def get_user_volatility_alerts(self, telegram_id):
+        """Recupere les alertes de volatilite d'un utilisateur"""
+        async with aiosqlite.connect(self.db_path) as db:
+            db.row_factory = aiosqlite.Row
+            async with db.execute("""
+                SELECT * FROM volatility_alerts
+                WHERE telegram_id = ? AND is_active = 1
+            """, (telegram_id,)) as cursor:
+                return [dict(row) for row in await cursor.fetchall()]
+
+    async def get_all_volatility_alerts(self):
+        """Recupere toutes les alertes de volatilite actives"""
+        async with aiosqlite.connect(self.db_path) as db:
+            db.row_factory = aiosqlite.Row
+            async with db.execute("""
+                SELECT * FROM volatility_alerts WHERE is_active = 1
+            """) as cursor:
+                return [dict(row) for row in await cursor.fetchall()]
+
+    async def update_volatility_alert_trigger(self, alert_id):
+        """Met a jour le dernier declenchement"""
+        async with aiosqlite.connect(self.db_path) as db:
+            await db.execute("""
+                UPDATE volatility_alerts SET last_triggered = CURRENT_TIMESTAMP WHERE id = ?
+            """, (alert_id,))
+            await db.commit()
+
+    # ===== ORDRES SL/TP =====
+
+    async def create_sltp_order(self, telegram_id, position_id, symbol, quantity, entry_price, stop_loss=None, take_profit=None, trailing_stop=None):
+        """Cree un ordre SL/TP"""
+        async with aiosqlite.connect(self.db_path) as db:
+            cursor = await db.execute("""
+                INSERT INTO sltp_orders
+                (telegram_id, position_id, asset_symbol, quantity, entry_price, stop_loss, take_profit, trailing_stop_percent)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """, (telegram_id, position_id, symbol, quantity, entry_price, stop_loss, take_profit, trailing_stop))
+            await db.commit()
+            return cursor.lastrowid
+
+    async def get_pending_sltp_orders(self):
+        """Recupere tous les ordres SL/TP en attente"""
+        async with aiosqlite.connect(self.db_path) as db:
+            db.row_factory = aiosqlite.Row
+            async with db.execute("""
+                SELECT * FROM sltp_orders WHERE status = 'pending'
+            """) as cursor:
+                return [dict(row) for row in await cursor.fetchall()]
+
+    async def get_pending_conditional_orders(self):
+        """Alias pour compatibilite"""
+        return await self.get_pending_sltp_orders()
+
+    async def mark_sltp_executed(self, order_id, status, execution_price):
+        """Marque un ordre comme execute"""
+        async with aiosqlite.connect(self.db_path) as db:
+            await db.execute("""
+                UPDATE sltp_orders
+                SET status = ?, executed_at = CURRENT_TIMESTAMP, execution_price = ?
+                WHERE id = ?
+            """, (status, execution_price, order_id))
+            await db.commit()
+
+    async def mark_order_executed(self, order_id, execution_type, execution_price):
+        """Alias pour compatibilite"""
+        status = 'sl_triggered' if execution_type == 'STOP_LOSS' else 'tp_triggered'
+        await self.mark_sltp_executed(order_id, status, execution_price)
+
+    async def update_position_after_sltp(self, user_id, symbol, quantity, execution_price, pnl):
+        """Met a jour la position apres execution SL/TP"""
+        async with aiosqlite.connect(self.db_path) as db:
+            await db.execute("""
+                UPDATE positions
+                SET status = 'closed', closed_at = CURRENT_TIMESTAMP, current_price = ?, pnl = ?
+                WHERE telegram_id = ? AND asset_symbol = ? AND status = 'open'
+            """, (execution_price, pnl, user_id, symbol))
+
+            # Mettre a jour le wallet
+            await db.execute("""
+                UPDATE wallet SET total_pnl = total_pnl + ?, balance = balance + ?
+                WHERE telegram_id = ?
+            """, (pnl, (quantity * execution_price) + pnl, user_id))
+
+            await db.commit()
+
+    # ===== HISTORIQUE DES TRADES =====
+
+    async def add_trade_to_history(self, telegram_id, symbol, direction, quantity, entry_price, exit_price=None, pnl=0, notes=None):
+        """Ajoute un trade a l'historique"""
+        pnl_percent = (pnl / (entry_price * quantity) * 100) if (entry_price * quantity) > 0 else 0
+        async with aiosqlite.connect(self.db_path) as db:
+            await db.execute("""
+                INSERT INTO trades_history
+                (telegram_id, asset_symbol, direction, quantity, entry_price, exit_price, pnl, pnl_percent, notes)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (telegram_id, symbol, direction, quantity, entry_price, exit_price, pnl, pnl_percent, notes))
+            await db.commit()
+
+    async def get_user_trades_history(self, telegram_id, limit=100):
+        """Recupere l'historique des trades d'un utilisateur"""
+        async with aiosqlite.connect(self.db_path) as db:
+            db.row_factory = aiosqlite.Row
+            async with db.execute("""
+                SELECT * FROM trades_history
+                WHERE telegram_id = ?
+                ORDER BY opened_at DESC
+                LIMIT ?
+            """, (telegram_id, limit)) as cursor:
+                return [dict(row) for row in await cursor.fetchall()]
+
+    async def get_user_positions(self, telegram_id):
+        """Recupere les positions ouvertes d'un utilisateur"""
+        async with aiosqlite.connect(self.db_path) as db:
+            db.row_factory = aiosqlite.Row
+            async with db.execute("""
+                SELECT * FROM positions
+                WHERE telegram_id = ? AND status = 'open'
+            """, (telegram_id,)) as cursor:
+                return [dict(row) for row in await cursor.fetchall()]
+
+    # ===== ALERTES - METHODES COMPLEMENTAIRES =====
+
+    async def get_all_active_alerts(self):
+        """Recupere toutes les alertes actives"""
+        async with aiosqlite.connect(self.db_path) as db:
+            db.row_factory = aiosqlite.Row
+            async with db.execute("""
+                SELECT * FROM price_alerts WHERE is_active = 1
+            """) as cursor:
+                return [dict(row) for row in await cursor.fetchall()]
+
+    async def get_all_watchlist_items(self):
+        """Recupere toutes les items de watchlist actifs"""
+        async with aiosqlite.connect(self.db_path) as db:
+            db.row_factory = aiosqlite.Row
+            async with db.execute("""
+                SELECT * FROM smart_watchlist WHERE is_active = 1
+            """) as cursor:
+                return [dict(row) for row in await cursor.fetchall()]
+
+    async def deactivate_alert(self, alert_id):
+        """Desactive une alerte"""
+        async with aiosqlite.connect(self.db_path) as db:
+            await db.execute("""
+                UPDATE price_alerts
+                SET is_active = 0, triggered_at = CURRENT_TIMESTAMP, notification_sent = 1
+                WHERE id = ?
+            """, (alert_id,))
+            await db.commit()
+
 
 # Instance globale
 db_manager = DatabaseManager()

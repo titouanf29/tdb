@@ -420,9 +420,91 @@ INSERT OR IGNORE INTO quiz_questions (category, difficulty, question, options, c
 ('technical', 'hard', 'Les bandes de Bollinger mesurent...', '["La tendance","Le momentum","La volatilité","Le volume"]', 2, 'Les bandes de Bollinger mesurent la volatilité en s''écartant ou se resserrant autour de la moyenne.', 20),
 ('fundamental', 'medium', 'Une hausse des taux de la Fed est généralement...', '["Positive pour les actions","Négative pour les actions","Sans impact","Positive pour l''or"]', 1, 'Des taux plus élevés rendent les obligations plus attractives et augmentent le coût du capital pour les entreprises.', 15);
 
+-- ===== HISTORIQUE DES ANALYSES IA =====
+CREATE TABLE IF NOT EXISTS ai_analysis_history (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    telegram_id INTEGER,
+    asset_symbol TEXT NOT NULL,
+    analysis_type TEXT, -- 'technical', 'fundamental', 'sentiment', 'full'
+    analysis_content TEXT NOT NULL,
+    sentiment TEXT, -- 'bullish', 'bearish', 'neutral'
+    score INTEGER, -- 0-100
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (telegram_id) REFERENCES users(telegram_id)
+);
+
+-- ===== HISTORIQUE VALEUR PORTEFEUILLE =====
+CREATE TABLE IF NOT EXISTS portfolio_value_history (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    telegram_id INTEGER,
+    date DATE NOT NULL,
+    total_value REAL NOT NULL,
+    daily_pnl REAL DEFAULT 0,
+    daily_pnl_percent REAL DEFAULT 0,
+    positions_count INTEGER DEFAULT 0,
+    UNIQUE(telegram_id, date),
+    FOREIGN KEY (telegram_id) REFERENCES users(telegram_id)
+);
+
+-- ===== ALERTES DE VOLATILITE =====
+CREATE TABLE IF NOT EXISTS volatility_alerts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    telegram_id INTEGER,
+    asset_symbol TEXT NOT NULL,
+    threshold_percent REAL NOT NULL, -- % de mouvement pour declencher
+    timeframe_minutes INTEGER DEFAULT 60, -- fenetre de temps
+    is_active INTEGER DEFAULT 1,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    last_triggered TIMESTAMP,
+    UNIQUE(telegram_id, asset_symbol),
+    FOREIGN KEY (telegram_id) REFERENCES users(telegram_id)
+);
+
+-- ===== ORDRES SL/TP AVANCES =====
+CREATE TABLE IF NOT EXISTS sltp_orders (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    telegram_id INTEGER,
+    position_id INTEGER,
+    asset_symbol TEXT NOT NULL,
+    quantity REAL NOT NULL,
+    entry_price REAL NOT NULL,
+    stop_loss REAL,
+    take_profit REAL,
+    trailing_stop_percent REAL, -- trailing stop en %
+    status TEXT DEFAULT 'pending', -- 'pending', 'sl_triggered', 'tp_triggered', 'cancelled'
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    executed_at TIMESTAMP,
+    execution_price REAL,
+    FOREIGN KEY (telegram_id) REFERENCES users(telegram_id),
+    FOREIGN KEY (position_id) REFERENCES positions(id)
+);
+
+-- ===== HISTORIQUE DES TRADES =====
+CREATE TABLE IF NOT EXISTS trades_history (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    telegram_id INTEGER,
+    asset_symbol TEXT NOT NULL,
+    direction TEXT NOT NULL, -- 'BUY', 'SELL'
+    quantity REAL NOT NULL,
+    entry_price REAL NOT NULL,
+    exit_price REAL,
+    pnl REAL DEFAULT 0,
+    pnl_percent REAL DEFAULT 0,
+    fees REAL DEFAULT 0,
+    opened_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    closed_at TIMESTAMP,
+    notes TEXT,
+    FOREIGN KEY (telegram_id) REFERENCES users(telegram_id)
+);
+
 -- ===== INDEX SUPPLEMENTAIRES =====
 CREATE INDEX IF NOT EXISTS idx_price_alerts_user ON price_alerts(telegram_id);
 CREATE INDEX IF NOT EXISTS idx_price_alerts_active ON price_alerts(is_active);
 CREATE INDEX IF NOT EXISTS idx_leaderboard_pnl ON leaderboard(total_pnl);
 CREATE INDEX IF NOT EXISTS idx_smart_watchlist_user ON smart_watchlist(telegram_id);
 CREATE INDEX IF NOT EXISTS idx_rsi_divergences_symbol ON rsi_divergences(asset_symbol);
+CREATE INDEX IF NOT EXISTS idx_ai_analysis_user ON ai_analysis_history(telegram_id);
+CREATE INDEX IF NOT EXISTS idx_portfolio_history_user ON portfolio_value_history(telegram_id);
+CREATE INDEX IF NOT EXISTS idx_volatility_alerts_user ON volatility_alerts(telegram_id);
+CREATE INDEX IF NOT EXISTS idx_sltp_orders_user ON sltp_orders(telegram_id);
+CREATE INDEX IF NOT EXISTS idx_trades_history_user ON trades_history(telegram_id);

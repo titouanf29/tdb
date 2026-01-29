@@ -2,7 +2,7 @@
 Module Menu Principal - Hub central du bot TDB
 """
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import ContextTypes, CallbackQueryHandler, CommandHandler
+from telegram.ext import ContextTypes, CallbackQueryHandler, CommandHandler, filters
 import config
 
 class MenuModule:
@@ -23,12 +23,23 @@ class MenuModule:
 
     def register_handlers(self):
         """Enregistre les handlers du menu"""
-        self.app.add_handler(CommandHandler("menu", self.show_menu))
-        self.app.add_handler(CommandHandler("start", self.start))
+        # Menu et start uniquement en messages prives
+        self.app.add_handler(CommandHandler("menu", self.show_menu, filters=filters.ChatType.PRIVATE))
+        self.app.add_handler(CommandHandler("start", self.start, filters=filters.ChatType.PRIVATE))
+        self.app.add_handler(CommandHandler("tutorial", self.show_tutorial, filters=filters.ChatType.PRIVATE))
         self.app.add_handler(CallbackQueryHandler(self.handle_callback, pattern="^menu_"))
+        self.app.add_handler(CallbackQueryHandler(self.handle_tutorial_callback, pattern="^tuto_"))
 
     async def start(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """Commande /start"""
+        """Commande /start - uniquement en prive"""
+        # Verifier que c'est en prive
+        if update.effective_chat.type != 'private':
+            await update.message.reply_text(
+                "⚠️ Cette commande n'est disponible qu'en message privé.\n"
+                "👉 Envoyez-moi /start en MP!"
+            )
+            return
+
         await update.message.reply_text(
             config.WELCOME_MESSAGE,
             parse_mode='Markdown'
@@ -36,7 +47,15 @@ class MenuModule:
         await self.show_menu(update, context)
 
     async def show_menu(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """Affiche le menu principal"""
+        """Affiche le menu principal - uniquement en prive"""
+        # Verifier que c'est en prive (pour les messages)
+        if update.message and update.effective_chat.type != 'private':
+            await update.message.reply_text(
+                "⚠️ Le menu n'est disponible qu'en message privé.\n"
+                "👉 Envoyez-moi /menu en MP!"
+            )
+            return
+
         keyboard = [
             [InlineKeyboardButton("📊 Marché", callback_data="menu_market"),
              InlineKeyboardButton("💼 Wallet", callback_data="menu_wallet")],
@@ -44,9 +63,12 @@ class MenuModule:
              InlineKeyboardButton("🔔 Alertes", callback_data="menu_alerts")],
             [InlineKeyboardButton("🏆 Social", callback_data="menu_social"),
              InlineKeyboardButton("📈 Graphiques", callback_data="menu_charts")],
+            [InlineKeyboardButton("📰 News & Sentiment", callback_data="menu_news"),
+             InlineKeyboardButton("📉 Risk", callback_data="menu_risk")],
             [InlineKeyboardButton("🤖 Assistant IA", callback_data="menu_ai_assistant")],
             [InlineKeyboardButton("🔍 Scan Auto", callback_data="menu_scan"),
-             InlineKeyboardButton("⚙️ Paramètres", callback_data="menu_settings")]
+             InlineKeyboardButton("⚙️ Paramètres", callback_data="menu_settings")],
+            [InlineKeyboardButton("❓ Tutoriel", callback_data="menu_tutorial")]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
 
@@ -54,12 +76,15 @@ class MenuModule:
 🤖 **TDB - MENU PRINCIPAL**
 
 📊 **Marché** - Cours et analyses
-💼 **Wallet** - Paper trading
+💼 **Wallet** - Paper trading + stats
 ⭐ **Favoris** - Vos actifs suivis
-🔔 **Alertes** - Prix, watchlist, screener
+🔔 **Alertes** - Prix, volatilité, SL/TP
 🏆 **Social** - Leaderboard, badges, quiz
-📈 **Graphiques** - Heatmap, Fear&Greed
+📈 **Graphiques** - Heatmap, corrélations
+📰 **News** - Actualités & sentiment
+📉 **Risk** - Sharpe, VaR, drawdown
 🤖 **Assistant IA** - Questions trading
+❓ **Tutoriel** - Guide interactif
 """
 
         if update.message:
@@ -75,22 +100,38 @@ class MenuModule:
                 parse_mode='Markdown'
             )
 
+    async def show_tutorial(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Lance le tutoriel interactif"""
+        from services.tutorial_service import tutorial_service
+        await tutorial_service.start_tutorial(update, context)
+
+    async def handle_tutorial_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Gere les callbacks du tutoriel"""
+        query = update.callback_query
+        await query.answer()
+        from services.tutorial_service import tutorial_service
+        await tutorial_service.handle_tutorial_callback(update, context, query.data)
+
     async def show_alerts_menu(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Sous-menu Alertes & Outils"""
         keyboard = [
-            [InlineKeyboardButton("🔔 Mes Alertes Prix", callback_data="menu_my_alerts")],
-            [InlineKeyboardButton("👁️ Watchlist Intelligente", callback_data="menu_watchlist")],
-            [InlineKeyboardButton("🔍 Screener du Jour", callback_data="menu_screener")],
-            [InlineKeyboardButton("📊 Backtest", callback_data="menu_backtest")],
-            [InlineKeyboardButton("📤 Export Historique", callback_data="menu_export")],
+            [InlineKeyboardButton("🔔 Alertes Prix", callback_data="menu_my_alerts"),
+             InlineKeyboardButton("⚡ Volatilité", callback_data="menu_volatility")],
+            [InlineKeyboardButton("👁️ Watchlist", callback_data="menu_watchlist"),
+             InlineKeyboardButton("🛑 SL/TP", callback_data="menu_sltp")],
+            [InlineKeyboardButton("🔍 Screener", callback_data="menu_screener"),
+             InlineKeyboardButton("📊 Backtest", callback_data="menu_backtest")],
+            [InlineKeyboardButton("📤 Export", callback_data="menu_export")],
             [InlineKeyboardButton("🔙 Retour", callback_data="menu_main")]
         ]
 
         text = """
 🔔 **ALERTES & OUTILS**
 
-🔔 **Alertes Prix** - Notifications personnalisées
-👁️ **Watchlist** - Suivi avec alertes mouvements
+🔔 **Alertes Prix** - Cibles de prix
+⚡ **Volatilité** - Mouvements importants
+👁️ **Watchlist** - Suivi avec alertes
+🛑 **SL/TP** - Stop Loss & Take Profit auto
 🔍 **Screener** - Meilleurs setups du jour
 📊 **Backtest** - Simulation rétroactive
 📤 **Export** - Télécharger vos données
@@ -130,9 +171,10 @@ class MenuModule:
     async def show_charts_menu(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Sous-menu Graphiques Avancés"""
         keyboard = [
-            [InlineKeyboardButton("📊 Comparer Actifs", callback_data="menu_compare")],
-            [InlineKeyboardButton("🗺️ Heatmap Secteurs", callback_data="menu_heatmap")],
-            [InlineKeyboardButton("😱 Fear & Greed Index", callback_data="menu_feargreed")],
+            [InlineKeyboardButton("📊 Comparer Actifs", callback_data="menu_compare"),
+             InlineKeyboardButton("🔗 Corrélations", callback_data="menu_correlation")],
+            [InlineKeyboardButton("🗺️ Heatmap Secteurs", callback_data="menu_heatmap"),
+             InlineKeyboardButton("😱 Fear & Greed", callback_data="menu_feargreed")],
             [InlineKeyboardButton("🔙 Retour", callback_data="menu_main")]
         ]
 
@@ -140,8 +182,59 @@ class MenuModule:
 📈 **GRAPHIQUES AVANCES**
 
 📊 **Comparer** - Superposer plusieurs actifs
+🔗 **Corrélations** - Relations entre actifs
 🗺️ **Heatmap** - Vue sectorielle du marché
 😱 **Fear & Greed** - Sentiment du marché
+"""
+        await update.callback_query.edit_message_text(
+            text,
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode='Markdown'
+        )
+
+    async def show_news_menu(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Sous-menu News & Sentiment"""
+        keyboard = [
+            [InlineKeyboardButton("📰 Actualités Marché", callback_data="menu_market_news")],
+            [InlineKeyboardButton("🐂 Sentiment Reddit", callback_data="menu_reddit_sentiment")],
+            [InlineKeyboardButton("😱 Crypto Fear & Greed", callback_data="menu_crypto_fg")],
+            [InlineKeyboardButton("📊 Résumé Sentiment", callback_data="menu_sentiment_summary")],
+            [InlineKeyboardButton("🔙 Retour", callback_data="menu_main")]
+        ]
+
+        text = """
+📰 **NEWS & SENTIMENT**
+
+📰 **Actualités** - Dernières news financières
+🐂 **Sentiment Reddit** - Analyse des forums
+😱 **Crypto F&G** - Fear & Greed crypto
+📊 **Résumé** - Vue d'ensemble sentiment
+"""
+        await update.callback_query.edit_message_text(
+            text,
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode='Markdown'
+        )
+
+    async def show_risk_menu(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Sous-menu Risk Management"""
+        keyboard = [
+            [InlineKeyboardButton("📊 Rapport Risque", callback_data="menu_risk_report")],
+            [InlineKeyboardButton("📐 Sharpe Ratio", callback_data="menu_sharpe")],
+            [InlineKeyboardButton("⚠️ Value at Risk", callback_data="menu_var")],
+            [InlineKeyboardButton("📉 Drawdown", callback_data="menu_drawdown")],
+            [InlineKeyboardButton("📈 Stats Wallet", callback_data="menu_wallet_stats")],
+            [InlineKeyboardButton("🔙 Retour", callback_data="menu_main")]
+        ]
+
+        text = """
+📉 **RISK MANAGEMENT**
+
+📊 **Rapport** - Analyse complète du risque
+📐 **Sharpe Ratio** - Performance ajustée
+⚠️ **VaR** - Perte max probable
+📉 **Drawdown** - Perte max historique
+📈 **Stats Wallet** - Performance détaillée
 """
         await update.callback_query.edit_message_text(
             text,
@@ -171,6 +264,16 @@ class MenuModule:
         elif data == "menu_charts":
             await self.show_charts_menu(update, context)
             return
+        elif data == "menu_news":
+            await self.show_news_menu(update, context)
+            return
+        elif data == "menu_risk":
+            await self.show_risk_menu(update, context)
+            return
+        elif data == "menu_tutorial":
+            from services.tutorial_service import tutorial_service
+            await tutorial_service.start_tutorial(update, context)
+            return
 
         # Modules existants
         if data == "menu_market" and self.market_module:
@@ -191,13 +294,16 @@ class MenuModule:
         elif data == "menu_ai_assistant" and self.ai_assistant_module:
             await self.ai_assistant_module.cmd_ai_assistant(update, context)
 
-        # Nouvelles fonctionnalités - déléguer à features_module via callbacks dédiés
+        # Nouvelles fonctionnalités
         elif data in ["menu_my_alerts", "menu_watchlist", "menu_screener",
                       "menu_backtest", "menu_export", "menu_leaderboard",
                       "menu_badges", "menu_quiz", "menu_challenge",
                       "menu_templates", "menu_compare", "menu_heatmap",
-                      "menu_feargreed"]:
-            # Rediriger vers le module features
+                      "menu_feargreed", "menu_volatility", "menu_sltp",
+                      "menu_correlation", "menu_market_news", "menu_reddit_sentiment",
+                      "menu_crypto_fg", "menu_sentiment_summary", "menu_risk_report",
+                      "menu_sharpe", "menu_var", "menu_drawdown", "menu_wallet_stats",
+                      "menu_ai_history"]:
             await self._handle_feature_callback(update, context, data)
 
     async def _handle_feature_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE, data: str):
@@ -471,3 +577,281 @@ class MenuModule:
             except Exception as e:
                 keyboard = [[InlineKeyboardButton("🔙 Retour", callback_data="menu_charts")]]
                 await query.edit_message_text(f"❌ Erreur: {e}", reply_markup=InlineKeyboardMarkup(keyboard))
+
+        # ===== NOUVEAUX HANDLERS =====
+
+        elif data == "menu_volatility":
+            vol_alerts = await db_manager.get_user_volatility_alerts(user_id)
+            text = "⚡ **ALERTES DE VOLATILITÉ**\n━━━━━━━━━━━━━━━━━━━━\n\n"
+
+            if vol_alerts:
+                for alert in vol_alerts[:10]:
+                    text += f"• {alert['asset_symbol']}: seuil {alert['threshold_percent']}%\n"
+            else:
+                text += "Aucune alerte de volatilité configurée.\n\n"
+                text += "💡 Pour créer une alerte:\n"
+                text += "`/volatility AAPL 5` (alerte si mouvement > 5%)"
+
+            keyboard = [[InlineKeyboardButton("🔙 Retour", callback_data="menu_alerts")]]
+            await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
+
+        elif data == "menu_sltp":
+            from database.manager import db_manager as dbm
+            orders = await dbm.get_pending_sltp_orders()
+            user_orders = [o for o in orders if o.get('telegram_id') == user_id]
+
+            text = "🛑 **ORDRES SL/TP ACTIFS**\n━━━━━━━━━━━━━━━━━━━━\n\n"
+
+            if user_orders:
+                for o in user_orders[:10]:
+                    text += f"• {o['asset_symbol']}\n"
+                    if o.get('stop_loss'):
+                        text += f"  🔴 SL: ${o['stop_loss']:,.2f}\n"
+                    if o.get('take_profit'):
+                        text += f"  🟢 TP: ${o['take_profit']:,.2f}\n"
+            else:
+                text += "Aucun ordre SL/TP actif.\n\n"
+                text += "💡 Les ordres SL/TP sont créés automatiquement\n"
+                text += "lors de l'ouverture d'une position avec SL/TP."
+
+            keyboard = [[InlineKeyboardButton("🔙 Retour", callback_data="menu_alerts")]]
+            await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
+
+        elif data == "menu_correlation":
+            text = (
+                "🔗 **MATRICE DE CORRÉLATION**\n━━━━━━━━━━━━━━━━━━━━\n\n"
+                "Visualisez les corrélations entre actifs!\n\n"
+                "Envoyez:\n"
+                "`/correlation SYMBOLE1 SYMBOLE2 ...`\n\n"
+                "Exemples:\n"
+                "• `/correlation AAPL MSFT GOOGL`\n"
+                "• `/correlation BTC-USD ETH-USD SPY`"
+            )
+            keyboard = [[InlineKeyboardButton("🔙 Retour", callback_data="menu_charts")]]
+            await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
+
+        # ===== NEWS & SENTIMENT =====
+
+        elif data == "menu_market_news":
+            from services.news_service import news_service
+            await query.edit_message_text("📰 Chargement des actualités...")
+            try:
+                news = await news_service.get_market_news(limit=10)
+                text = news_service.format_news_list(news, "ACTUALITÉS MARCHÉ")
+                keyboard = [[InlineKeyboardButton("🔙 Retour", callback_data="menu_news")]]
+                await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
+            except Exception as e:
+                keyboard = [[InlineKeyboardButton("🔙 Retour", callback_data="menu_news")]]
+                await query.edit_message_text(f"❌ Erreur: {e}", reply_markup=InlineKeyboardMarkup(keyboard))
+
+        elif data == "menu_reddit_sentiment":
+            from services.sentiment_service import sentiment_service
+            await query.edit_message_text("🐂 Analyse du sentiment Reddit...")
+            try:
+                # Analyser les principaux actifs
+                summary = await sentiment_service.get_market_sentiment_summary(['SPY', 'BTC-USD', 'AAPL'])
+                text = "🐂 **SENTIMENT REDDIT**\n━━━━━━━━━━━━━━━━━━━━\n\n"
+
+                for result in summary.get('by_symbol', []):
+                    if 'error' not in result:
+                        emoji = "🟢" if result['label'] == 'bullish' else ("🔴" if result['label'] == 'bearish' else "🟡")
+                        text += f"{emoji} **{result['symbol']}**: {result['label'].upper()}\n"
+                        text += f"   Score: {result['sentiment_score']:+.2f} | Posts: {result['post_count']}\n\n"
+
+                text += f"📊 Sentiment global: **{summary['overall_label'].upper()}**"
+
+                keyboard = [[InlineKeyboardButton("🔙 Retour", callback_data="menu_news")]]
+                await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
+            except Exception as e:
+                keyboard = [[InlineKeyboardButton("🔙 Retour", callback_data="menu_news")]]
+                await query.edit_message_text(f"❌ Erreur: {e}", reply_markup=InlineKeyboardMarkup(keyboard))
+
+        elif data == "menu_crypto_fg":
+            from services.sentiment_service import sentiment_service
+            await query.edit_message_text("😱 Récupération du Fear & Greed crypto...")
+            try:
+                fg_data = await sentiment_service.get_crypto_fear_greed()
+
+                value = fg_data.get('value', 50)
+                label = fg_data.get('label', 'Neutral')
+
+                # Emoji selon le niveau
+                if value <= 25:
+                    emoji = "😱"
+                    color = "🔴"
+                elif value <= 45:
+                    emoji = "😰"
+                    color = "🟠"
+                elif value <= 55:
+                    emoji = "😐"
+                    color = "🟡"
+                elif value <= 75:
+                    emoji = "😊"
+                    color = "🟢"
+                else:
+                    emoji = "🤑"
+                    color = "🟢"
+
+                text = f"😱 **CRYPTO FEAR & GREED INDEX**\n━━━━━━━━━━━━━━━━━━━━\n\n"
+                text += f"{emoji} **Score: {value}/100**\n"
+                text += f"{color} Sentiment: **{label}**\n\n"
+                text += "━━━━━━━━━━━━━━━━━━━━\n"
+                text += "0-25: Extreme Fear 😱\n"
+                text += "26-45: Fear 😰\n"
+                text += "46-55: Neutral 😐\n"
+                text += "56-75: Greed 😊\n"
+                text += "76-100: Extreme Greed 🤑"
+
+                keyboard = [[InlineKeyboardButton("🔙 Retour", callback_data="menu_news")]]
+                await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
+            except Exception as e:
+                keyboard = [[InlineKeyboardButton("🔙 Retour", callback_data="menu_news")]]
+                await query.edit_message_text(f"❌ Erreur: {e}", reply_markup=InlineKeyboardMarkup(keyboard))
+
+        elif data == "menu_sentiment_summary":
+            from services.sentiment_service import sentiment_service
+            await query.edit_message_text("📊 Calcul du résumé sentiment...")
+            try:
+                summary = await sentiment_service.get_market_sentiment_summary()
+                crypto_fg = summary.get('crypto_fear_greed', {})
+
+                text = "📊 **RÉSUMÉ SENTIMENT MARCHÉ**\n━━━━━━━━━━━━━━━━━━━━\n\n"
+
+                # Sentiment global
+                overall = summary.get('overall_label', 'neutral').upper()
+                score = summary.get('overall_score', 0)
+                emoji = "🐂" if overall == "BULLISH" else ("🐻" if overall == "BEARISH" else "😐")
+                text += f"{emoji} **Sentiment global**: {overall} ({score:+.2f})\n\n"
+
+                # Crypto Fear & Greed
+                fg_value = crypto_fg.get('value', 50)
+                text += f"😱 **Crypto F&G**: {fg_value}/100 ({crypto_fg.get('label', 'Neutral')})\n\n"
+
+                # Par actif
+                text += "**Par actif:**\n"
+                for result in summary.get('by_symbol', [])[:5]:
+                    if 'error' not in result:
+                        symbol_emoji = "🟢" if result['label'] == 'bullish' else ("🔴" if result['label'] == 'bearish' else "🟡")
+                        text += f"{symbol_emoji} {result['symbol']}: {result['label']}\n"
+
+                keyboard = [[InlineKeyboardButton("🔙 Retour", callback_data="menu_news")]]
+                await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
+            except Exception as e:
+                keyboard = [[InlineKeyboardButton("🔙 Retour", callback_data="menu_news")]]
+                await query.edit_message_text(f"❌ Erreur: {e}", reply_markup=InlineKeyboardMarkup(keyboard))
+
+        # ===== RISK MANAGEMENT =====
+
+        elif data == "menu_risk_report":
+            from services.risk_service import risk_service
+            from services.wallet_stats_service import wallet_stats_service
+            await query.edit_message_text("📊 Calcul du rapport de risque...")
+            try:
+                positions = await db_manager.get_user_positions(user_id)
+                if positions:
+                    report = await risk_service.generate_risk_report(positions)
+                else:
+                    report = "📊 **RAPPORT DE RISQUE**\n\n⚠️ Aucune position ouverte.\nOuvrez des positions pour voir l'analyse de risque."
+
+                keyboard = [[InlineKeyboardButton("🔙 Retour", callback_data="menu_risk")]]
+                await query.edit_message_text(report, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
+            except Exception as e:
+                keyboard = [[InlineKeyboardButton("🔙 Retour", callback_data="menu_risk")]]
+                await query.edit_message_text(f"❌ Erreur: {e}", reply_markup=InlineKeyboardMarkup(keyboard))
+
+        elif data == "menu_sharpe":
+            text = (
+                "📐 **SHARPE RATIO**\n━━━━━━━━━━━━━━━━━━━━\n\n"
+                "Le Sharpe Ratio mesure la performance ajustée au risque.\n\n"
+                "**Interprétation:**\n"
+                "• < 0: Performance négative\n"
+                "• 0-0.5: Faible\n"
+                "• 0.5-1: Moyen\n"
+                "• 1-2: Bon\n"
+                "• > 2: Excellent\n\n"
+                "💡 Utilisez **Rapport Risque** pour voir votre Sharpe Ratio."
+            )
+            keyboard = [[InlineKeyboardButton("📊 Voir Rapport", callback_data="menu_risk_report")],
+                        [InlineKeyboardButton("🔙 Retour", callback_data="menu_risk")]]
+            await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
+
+        elif data == "menu_var":
+            text = (
+                "⚠️ **VALUE AT RISK (VaR)**\n━━━━━━━━━━━━━━━━━━━━\n\n"
+                "La VaR estime la perte maximale probable sur une période.\n\n"
+                "**VaR 95%** signifie:\n"
+                "\"Il y a 95% de chances que la perte quotidienne\n"
+                "ne dépasse pas ce montant.\"\n\n"
+                "💡 Utilisez **Rapport Risque** pour voir votre VaR."
+            )
+            keyboard = [[InlineKeyboardButton("📊 Voir Rapport", callback_data="menu_risk_report")],
+                        [InlineKeyboardButton("🔙 Retour", callback_data="menu_risk")]]
+            await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
+
+        elif data == "menu_drawdown":
+            text = (
+                "📉 **MAXIMUM DRAWDOWN**\n━━━━━━━━━━━━━━━━━━━━\n\n"
+                "Le drawdown max est la plus grande perte\n"
+                "entre un pic et un creux du portefeuille.\n\n"
+                "**Exemple:**\n"
+                "Si votre portefeuille passe de $10,000 à $7,000\n"
+                "avant de remonter, le drawdown est de 30%.\n\n"
+                "💡 Un drawdown faible indique une bonne gestion du risque."
+            )
+            keyboard = [[InlineKeyboardButton("📊 Voir Rapport", callback_data="menu_risk_report")],
+                        [InlineKeyboardButton("🔙 Retour", callback_data="menu_risk")]]
+            await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
+
+        elif data == "menu_wallet_stats":
+            from services.wallet_stats_service import wallet_stats_service
+            await query.edit_message_text("📈 Calcul des statistiques...")
+            try:
+                metrics = await wallet_stats_service.calculate_performance_metrics(user_id)
+                report = wallet_stats_service.format_performance_report(metrics)
+
+                # Generer le graphique
+                chart = await wallet_stats_service.generate_performance_chart(user_id)
+                if chart:
+                    await query.message.reply_photo(photo=chart, caption="📈 Performance du portefeuille")
+
+                keyboard = [
+                    [InlineKeyboardButton("📊 Allocation", callback_data="menu_allocation_chart")],
+                    [InlineKeyboardButton("🔙 Retour", callback_data="menu_risk")]
+                ]
+                await query.message.reply_text(report, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
+            except Exception as e:
+                keyboard = [[InlineKeyboardButton("🔙 Retour", callback_data="menu_risk")]]
+                await query.edit_message_text(f"❌ Erreur: {e}", reply_markup=InlineKeyboardMarkup(keyboard))
+
+        elif data == "menu_allocation_chart":
+            from services.wallet_stats_service import wallet_stats_service
+            await query.edit_message_text("📊 Génération du graphique d'allocation...")
+            try:
+                chart = await wallet_stats_service.generate_allocation_chart(user_id)
+                if chart:
+                    await query.message.reply_photo(photo=chart, caption="📊 Répartition sectorielle du portefeuille")
+                keyboard = [[InlineKeyboardButton("🔙 Retour", callback_data="menu_risk")]]
+                await query.message.reply_text("Graphique envoyé!", reply_markup=InlineKeyboardMarkup(keyboard))
+            except Exception as e:
+                keyboard = [[InlineKeyboardButton("🔙 Retour", callback_data="menu_risk")]]
+                await query.edit_message_text(f"❌ Erreur: {e}", reply_markup=InlineKeyboardMarkup(keyboard))
+
+        # ===== HISTORIQUE IA =====
+
+        elif data == "menu_ai_history":
+            history = await db_manager.get_ai_analysis_history(user_id, limit=10)
+            text = "🤖 **HISTORIQUE ANALYSES IA**\n━━━━━━━━━━━━━━━━━━━━\n\n"
+
+            if history:
+                for i, h in enumerate(history[:10], 1):
+                    date = h.get('created_at', '')[:10]
+                    symbol = h.get('asset_symbol', 'N/A')
+                    sentiment = h.get('sentiment', 'N/A')
+                    emoji = "🟢" if sentiment == 'bullish' else ("🔴" if sentiment == 'bearish' else "🟡")
+                    text += f"{i}. [{date}] {symbol} {emoji}\n"
+            else:
+                text += "Aucune analyse dans l'historique.\n\n"
+                text += "💡 Demandez des analyses à l'Assistant IA!"
+
+            keyboard = [[InlineKeyboardButton("🔙 Retour", callback_data="menu_main")]]
+            await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')

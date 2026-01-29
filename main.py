@@ -23,6 +23,8 @@ from services.alerts_service import alerts_service
 from services.screener_service import screener_service
 from services.social_service import social_service
 from services.morning_service import morning_service
+from services.notification_service import notification_service
+from services.cache_service import cache_service
 from modules.features import create_features_module
 from telegram.ext import MessageHandler, filters, CallbackQueryHandler
 
@@ -199,25 +201,31 @@ class TDBBot:
         await screener_service.start(self.application.bot)
         await social_service.start(self.application.bot)
         await morning_service.start(self.application.bot)
-        logger.info("✅ Services avancés démarrés")
+        await notification_service.start(self.application.bot)
+        await cache_service.start_cleanup_task()
+        logger.info("✅ Services avancés démarrés (alertes, screener, social, morning, notifications, cache)")
 
         # Message de démarrage
         logger.info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-        logger.info("🤖 TDB Bot démarré avec succès !")
+        logger.info("🤖 TDB Bot v4.0 démarré avec succès !")
         logger.info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
         logger.info("📊 Modules actifs:")
-        logger.info("  • Menu Principal")
+        logger.info("  • Menu Principal (MP uniquement)")
         logger.info("  • Marché (USA, EUROPE, ASIA, CRYPTO, COMMODITIES, GOLD)")
         logger.info("  • Wallet (Paper Trading + SL/TP Auto)")
         logger.info("  • Favoris + Watchlist Intelligente")
         logger.info("  • Assistant IA Trading (⚡ Groq - Llama 3.3)")
         logger.info("  • Scan Automatique + Screener Avancé")
-        logger.info("  • Alertes de Prix Personnalisées")
+        logger.info("  • Alertes (Prix + Volatilité)")
         logger.info("  • Leaderboard + Badges + Challenges")
         logger.info("  • Quiz Trading Quotidien")
-        logger.info("  • Graphiques Avancés (Heatmap, Fear&Greed)")
-        logger.info("  • Export PDF/CSV")
+        logger.info("  • Graphiques Avancés (Heatmap, Corrélations, Fear&Greed)")
+        logger.info("  • News & Sentiment (Reddit, Crypto F&G)")
+        logger.info("  • Risk Management (Sharpe, VaR, Drawdown)")
+        logger.info("  • Export PDF/CSV + Stats Wallet")
         logger.info("  • Résumé Matinal Automatique")
+        logger.info("  • Tutoriel Interactif")
+        logger.info("  • Cache + Notifications Push")
         logger.info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
         logger.info("✅ Le bot est prêt à recevoir des commandes")
 
@@ -237,6 +245,8 @@ class TDBBot:
         screener_service.stop()
         social_service.stop()
         morning_service.stop()
+        await notification_service.stop()
+        await cache_service.stop_cleanup_task()
 
         if self.application:
             await self.application.updater.stop()
