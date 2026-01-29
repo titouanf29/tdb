@@ -19,6 +19,11 @@ from modules.ai_assistant import ai_assistant_module
 from ai.trading_companion import TradingCompanion
 from services.auto_scanner import init_auto_scanner
 from services.broadcast import init_broadcast_service
+from services.alerts_service import alerts_service
+from services.screener_service import screener_service
+from services.social_service import social_service
+from services.morning_service import morning_service
+from modules.features import create_features_module
 from telegram.ext import MessageHandler, filters, CallbackQueryHandler
 
 # Configuration du logging compatible Windows (UTF-8)
@@ -118,6 +123,10 @@ class TDBBot:
             self.application.add_handler(CommandHandler("stop_ai", self.ai_assistant_module.cmd_stop_ai))
             logger.info("✅ Module Assistant IA chargé")
 
+            # Module Features (alertes, screener, quiz, leaderboard, etc.)
+            self.features_module = create_features_module(self.application)
+            logger.info("✅ Module Features chargé (alertes, quiz, leaderboard, etc.)")
+
             # Menu principal (créé en dernier avec références aux autres modules)
             self.menu_module = MenuModule(
                 self.application,
@@ -183,6 +192,14 @@ class TDBBot:
         self.auto_scanner = init_auto_scanner(self.application.bot)
         self.auto_scanner.start()
 
+        # Démarrer les nouveaux services
+        logger.info("🔄 Démarrage des services avancés...")
+        await alerts_service.start(self.application.bot)
+        await screener_service.start(self.application.bot)
+        await social_service.start(self.application.bot)
+        await morning_service.start(self.application.bot)
+        logger.info("✅ Services avancés démarrés")
+
         # Message de démarrage
         logger.info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
         logger.info("🤖 TDB Bot démarré avec succès !")
@@ -190,13 +207,16 @@ class TDBBot:
         logger.info("📊 Modules actifs:")
         logger.info("  • Menu Principal")
         logger.info("  • Marché (USA, EUROPE, ASIA, CRYPTO, COMMODITIES, GOLD)")
-        logger.info("  • Wallet (Paper Trading)")
-        logger.info("  • Favoris")
-        logger.info("  • Assistant IA Trading (⚡ Groq - Llama 3)")
-        logger.info("  • Scan Automatique (🔄 Actif)")
-        logger.info("  • Paramètres")
-        logger.info("  • Trading Compagnon IA")
-        logger.info("  • Admin (Broadcast & Stats)")
+        logger.info("  • Wallet (Paper Trading + SL/TP Auto)")
+        logger.info("  • Favoris + Watchlist Intelligente")
+        logger.info("  • Assistant IA Trading (⚡ Groq - Llama 3.3)")
+        logger.info("  • Scan Automatique + Screener Avancé")
+        logger.info("  • Alertes de Prix Personnalisées")
+        logger.info("  • Leaderboard + Badges + Challenges")
+        logger.info("  • Quiz Trading Quotidien")
+        logger.info("  • Graphiques Avancés (Heatmap, Fear&Greed)")
+        logger.info("  • Export PDF/CSV")
+        logger.info("  • Résumé Matinal Automatique")
         logger.info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
         logger.info("✅ Le bot est prêt à recevoir des commandes")
 
@@ -210,6 +230,12 @@ class TDBBot:
         # Arrêter le scanner automatique
         if self.auto_scanner:
             self.auto_scanner.stop()
+
+        # Arrêter les services avancés
+        alerts_service.stop()
+        screener_service.stop()
+        social_service.stop()
+        morning_service.stop()
 
         if self.application:
             await self.application.updater.stop()

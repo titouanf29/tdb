@@ -458,5 +458,509 @@ class DatabaseManager:
         usage = await self.get_ai_daily_usage(telegram_id)
         return usage['message_count'] >= config.MAX_AI_MESSAGES_PER_DAY
 
+    # ===== ALERTES DE PRIX =====
+
+    async def create_price_alert(self, telegram_id, symbol, market, condition, target_price):
+        """Cree une alerte de prix"""
+        async with aiosqlite.connect(self.db_path) as db:
+            cursor = await db.execute("""
+                INSERT INTO price_alerts (telegram_id, asset_symbol, market, condition, target_price)
+                VALUES (?, ?, ?, ?, ?)
+            """, (telegram_id, symbol, market, condition, target_price))
+            await db.commit()
+            return cursor.lastrowid
+
+    async def get_user_price_alerts(self, telegram_id):
+        """Recupere les alertes actives d'un utilisateur"""
+        async with aiosqlite.connect(self.db_path) as db:
+            db.row_factory = aiosqlite.Row
+            async with db.execute("""
+                SELECT * FROM price_alerts WHERE telegram_id = ? AND is_active = 1
+                ORDER BY created_at DESC
+            """, (telegram_id,)) as cursor:
+                return [dict(row) for row in await cursor.fetchall()]
+
+    async def get_all_active_alerts(self):
+        """Recupere toutes les alertes actives"""
+        async with aiosqlite.connect(self.db_path) as db:
+            db.row_factory = aiosqlite.Row
+            async with db.execute("""
+                SELECT * FROM price_alerts WHERE is_active = 1
+            """) as cursor:
+                return [dict(row) for row in await cursor.fetchall()]
+
+    async def delete_price_alert(self, alert_id, telegram_id):
+        """Supprime une alerte"""
+        async with aiosqlite.connect(self.db_path) as db:
+            await db.execute("""
+                DELETE FROM price_alerts WHERE id = ? AND telegram_id = ?
+            """, (alert_id, telegram_id))
+            await db.commit()
+            return True
+
+    async def mark_alert_triggered(self, alert_id):
+        """Marque une alerte comme declenchee"""
+        async with aiosqlite.connect(self.db_path) as db:
+            await db.execute("""
+                UPDATE price_alerts SET is_active = 0, triggered_at = CURRENT_TIMESTAMP,
+                notification_sent = 1 WHERE id = ?
+            """, (alert_id,))
+            await db.commit()
+
+    # ===== ORDRES CONDITIONNELS =====
+
+    async def create_conditional_order(self, telegram_id, position_id, order_type, trigger_price):
+        """Cree un ordre conditionnel"""
+        async with aiosqlite.connect(self.db_path) as db:
+            cursor = await db.execute("""
+                INSERT INTO conditional_orders (telegram_id, position_id, order_type, trigger_price)
+                VALUES (?, ?, ?, ?)
+            """, (telegram_id, position_id, order_type, trigger_price))
+            await db.commit()
+            return cursor.lastrowid
+
+    async def get_active_conditional_orders(self):
+        """Recupere tous les ordres conditionnels actifs"""
+        async with aiosqlite.connect(self.db_path) as db:
+            db.row_factory = aiosqlite.Row
+            async with db.execute("""
+                SELECT * FROM conditional_orders WHERE is_active = 1
+            """) as cursor:
+                return [dict(row) for row in await cursor.fetchall()]
+
+    async def get_position_by_id(self, position_id):
+        """Recupere une position par ID"""
+        async with aiosqlite.connect(self.db_path) as db:
+            db.row_factory = aiosqlite.Row
+            async with db.execute("""
+                SELECT * FROM positions WHERE id = ?
+            """, (position_id,)) as cursor:
+                row = await cursor.fetchone()
+                return dict(row) if row else None
+
+    async def deactivate_conditional_order(self, order_id):
+        """Desactive un ordre conditionnel"""
+        async with aiosqlite.connect(self.db_path) as db:
+            await db.execute("""
+                UPDATE conditional_orders SET is_active = 0 WHERE id = ?
+            """, (order_id,))
+            await db.commit()
+
+    async def mark_order_triggered(self, order_id):
+        """Marque un ordre comme declenche"""
+        async with aiosqlite.connect(self.db_path) as db:
+            await db.execute("""
+                UPDATE conditional_orders SET is_active = 0, triggered_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+            """, (order_id,))
+            await db.commit()
+
+    # ===== WATCHLIST INTELLIGENTE =====
+
+    async def add_to_smart_watchlist(self, telegram_id, symbol, market, threshold, current_price):
+        """Ajoute un actif a la watchlist intelligente"""
+        async with aiosqlite.connect(self.db_path) as db:
+            await db.execute("""
+                INSERT OR REPLACE INTO smart_watchlist
+                (telegram_id, asset_symbol, market, alert_threshold, last_price, last_check)
+                VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+            """, (telegram_id, symbol, market, threshold, current_price))
+            await db.commit()
+
+    async def get_smart_watchlist(self, telegram_id):
+        """Recupere la watchlist d'un utilisateur"""
+        async with aiosqlite.connect(self.db_path) as db:
+            db.row_factory = aiosqlite.Row
+            async with db.execute("""
+                SELECT * FROM smart_watchlist WHERE telegram_id = ? AND is_active = 1
+            """, (telegram_id,)) as cursor:
+                return [dict(row) for row in await cursor.fetchall()]
+
+    async def get_all_watchlist_items(self):
+        """Recupere tous les items de watchlist actifs"""
+        async with aiosqlite.connect(self.db_path) as db:
+            db.row_factory = aiosqlite.Row
+            async with db.execute("""
+                SELECT * FROM smart_watchlist WHERE is_active = 1
+            """) as cursor:
+                return [dict(row) for row in await cursor.fetchall()]
+
+    async def remove_from_smart_watchlist(self, telegram_id, symbol):
+        """Retire un actif de la watchlist"""
+        async with aiosqlite.connect(self.db_path) as db:
+            await db.execute("""
+                DELETE FROM smart_watchlist WHERE telegram_id = ? AND asset_symbol = ?
+            """, (telegram_id, symbol))
+            await db.commit()
+            return True
+
+    async def update_watchlist_price(self, item_id, price):
+        """Met a jour le prix dans la watchlist"""
+        async with aiosqlite.connect(self.db_path) as db:
+            await db.execute("""
+                UPDATE smart_watchlist SET last_price = ?, last_check = CURRENT_TIMESTAMP
+                WHERE id = ?
+            """, (price, item_id))
+            await db.commit()
+
+    async def increment_watchlist_alerts(self, item_id):
+        """Incremente le compteur d'alertes"""
+        async with aiosqlite.connect(self.db_path) as db:
+            await db.execute("""
+                UPDATE smart_watchlist SET alerts_today = alerts_today + 1 WHERE id = ?
+            """, (item_id,))
+            await db.commit()
+
+    # ===== LEADERBOARD =====
+
+    async def opt_in_leaderboard(self, telegram_id, display_name):
+        """Inscrit un utilisateur au leaderboard"""
+        async with aiosqlite.connect(self.db_path) as db:
+            await db.execute("""
+                INSERT OR REPLACE INTO leaderboard (telegram_id, display_name, opt_in)
+                VALUES (?, ?, 1)
+            """, (telegram_id, display_name))
+            await db.commit()
+
+    async def opt_out_leaderboard(self, telegram_id):
+        """Desinscrit un utilisateur du leaderboard"""
+        async with aiosqlite.connect(self.db_path) as db:
+            await db.execute("""
+                UPDATE leaderboard SET opt_in = 0 WHERE telegram_id = ?
+            """, (telegram_id,))
+            await db.commit()
+
+    async def get_leaderboard(self, period='weekly', limit=10):
+        """Recupere le classement"""
+        order_col = 'rank_weekly' if period == 'weekly' else 'rank_monthly' if period == 'monthly' else 'total_pnl'
+        async with aiosqlite.connect(self.db_path) as db:
+            db.row_factory = aiosqlite.Row
+            async with db.execute(f"""
+                SELECT * FROM leaderboard WHERE opt_in = 1
+                ORDER BY total_pnl DESC LIMIT ?
+            """, (limit,)) as cursor:
+                return [dict(row) for row in await cursor.fetchall()]
+
+    async def get_leaderboard_participants(self):
+        """Recupere les participants du leaderboard"""
+        async with aiosqlite.connect(self.db_path) as db:
+            db.row_factory = aiosqlite.Row
+            async with db.execute("""
+                SELECT * FROM leaderboard WHERE opt_in = 1
+            """) as cursor:
+                return [dict(row) for row in await cursor.fetchall()]
+
+    async def get_user_leaderboard_rank(self, telegram_id):
+        """Recupere le rang d'un utilisateur"""
+        async with aiosqlite.connect(self.db_path) as db:
+            db.row_factory = aiosqlite.Row
+            async with db.execute("""
+                SELECT * FROM leaderboard WHERE telegram_id = ?
+            """, (telegram_id,)) as cursor:
+                row = await cursor.fetchone()
+                return dict(row) if row else None
+
+    async def calculate_user_trading_stats(self, telegram_id):
+        """Calcule les statistiques de trading d'un utilisateur"""
+        async with aiosqlite.connect(self.db_path) as db:
+            db.row_factory = aiosqlite.Row
+
+            # Total trades et PnL
+            async with db.execute("""
+                SELECT COUNT(*) as total, SUM(pnl) as total_pnl,
+                       SUM(CASE WHEN pnl > 0 THEN 1 ELSE 0 END) as wins
+                FROM position_history WHERE telegram_id = ?
+            """, (telegram_id,)) as cursor:
+                row = await cursor.fetchone()
+                total_trades = row['total'] or 0
+                total_pnl = row['total_pnl'] or 0
+                wins = row['wins'] or 0
+
+            win_rate = (wins / total_trades * 100) if total_trades > 0 else 0
+
+            # Meilleur trade
+            async with db.execute("""
+                SELECT MAX(pnl) as best FROM position_history WHERE telegram_id = ?
+            """, (telegram_id,)) as cursor:
+                row = await cursor.fetchone()
+                best_trade = row['best'] or 0
+
+            return {
+                'total_trades': total_trades,
+                'total_pnl': total_pnl,
+                'win_rate': win_rate,
+                'best_trade': best_trade,
+                'current_streak': 0,  # TODO: calculer
+                'has_early_trade': False,
+                'has_night_trade': False
+            }
+
+    async def update_leaderboard_stats(self, telegram_id, stats):
+        """Met a jour les stats du leaderboard"""
+        async with aiosqlite.connect(self.db_path) as db:
+            await db.execute("""
+                UPDATE leaderboard SET
+                    total_pnl = ?, total_trades = ?, win_rate = ?, best_trade = ?,
+                    last_updated = CURRENT_TIMESTAMP
+                WHERE telegram_id = ?
+            """, (stats['total_pnl'], stats['total_trades'], stats['win_rate'],
+                  stats['best_trade'], telegram_id))
+            await db.commit()
+
+    # ===== BADGES =====
+
+    async def get_all_badges(self):
+        """Recupere tous les badges"""
+        async with aiosqlite.connect(self.db_path) as db:
+            db.row_factory = aiosqlite.Row
+            async with db.execute("SELECT * FROM badges") as cursor:
+                return [dict(row) for row in await cursor.fetchall()]
+
+    async def get_user_badges(self, telegram_id):
+        """Recupere les badges d'un utilisateur"""
+        async with aiosqlite.connect(self.db_path) as db:
+            db.row_factory = aiosqlite.Row
+            async with db.execute("""
+                SELECT b.*, ub.earned_at FROM badges b
+                JOIN user_badges ub ON b.id = ub.badge_id
+                WHERE ub.telegram_id = ?
+                ORDER BY ub.earned_at DESC
+            """, (telegram_id,)) as cursor:
+                return [dict(row) for row in await cursor.fetchall()]
+
+    async def award_badge(self, telegram_id, badge_id):
+        """Attribue un badge a un utilisateur"""
+        async with aiosqlite.connect(self.db_path) as db:
+            await db.execute("""
+                INSERT OR IGNORE INTO user_badges (telegram_id, badge_id)
+                VALUES (?, ?)
+            """, (telegram_id, badge_id))
+            await db.commit()
+
+    # ===== CHALLENGES =====
+
+    async def get_active_challenge(self):
+        """Recupere le challenge actif"""
+        async with aiosqlite.connect(self.db_path) as db:
+            db.row_factory = aiosqlite.Row
+            async with db.execute("""
+                SELECT * FROM weekly_challenges WHERE is_active = 1
+                ORDER BY week_start DESC LIMIT 1
+            """) as cursor:
+                row = await cursor.fetchone()
+                return dict(row) if row else None
+
+    async def create_weekly_challenge(self, week_start, week_end, challenge_type, description, prize):
+        """Cree un nouveau challenge"""
+        async with aiosqlite.connect(self.db_path) as db:
+            await db.execute("""
+                INSERT INTO weekly_challenges (week_start, week_end, challenge_type, description, prize_description)
+                VALUES (?, ?, ?, ?, ?)
+            """, (week_start, week_end, challenge_type, description, prize))
+            await db.commit()
+
+    async def join_challenge(self, challenge_id, telegram_id):
+        """Rejoint un challenge"""
+        async with aiosqlite.connect(self.db_path) as db:
+            await db.execute("""
+                INSERT OR IGNORE INTO challenge_participants (challenge_id, telegram_id)
+                VALUES (?, ?)
+            """, (challenge_id, telegram_id))
+            await db.commit()
+
+    async def get_challenge_participants(self, challenge_id):
+        """Recupere les participants d'un challenge"""
+        async with aiosqlite.connect(self.db_path) as db:
+            db.row_factory = aiosqlite.Row
+            async with db.execute("""
+                SELECT * FROM challenge_participants WHERE challenge_id = ?
+            """, (challenge_id,)) as cursor:
+                return [dict(row) for row in await cursor.fetchall()]
+
+    async def get_challenge_leaderboard(self, challenge_id):
+        """Recupere le classement d'un challenge"""
+        async with aiosqlite.connect(self.db_path) as db:
+            db.row_factory = aiosqlite.Row
+            async with db.execute("""
+                SELECT cp.*, l.display_name FROM challenge_participants cp
+                LEFT JOIN leaderboard l ON cp.telegram_id = l.telegram_id
+                WHERE cp.challenge_id = ?
+                ORDER BY cp.score DESC LIMIT 10
+            """, (challenge_id,)) as cursor:
+                return [dict(row) for row in await cursor.fetchall()]
+
+    async def update_challenge_score(self, challenge_id, telegram_id, score):
+        """Met a jour le score d'un participant"""
+        async with aiosqlite.connect(self.db_path) as db:
+            await db.execute("""
+                UPDATE challenge_participants SET score = ?
+                WHERE challenge_id = ? AND telegram_id = ?
+            """, (score, challenge_id, telegram_id))
+            await db.commit()
+
+    # ===== QUIZ =====
+
+    async def get_random_quiz_question(self):
+        """Recupere une question aleatoire"""
+        async with aiosqlite.connect(self.db_path) as db:
+            db.row_factory = aiosqlite.Row
+            async with db.execute("""
+                SELECT * FROM quiz_questions ORDER BY RANDOM() LIMIT 1
+            """) as cursor:
+                row = await cursor.fetchone()
+                return dict(row) if row else None
+
+    async def get_quiz_question(self, question_id):
+        """Recupere une question par ID"""
+        async with aiosqlite.connect(self.db_path) as db:
+            db.row_factory = aiosqlite.Row
+            async with db.execute("""
+                SELECT * FROM quiz_questions WHERE id = ?
+            """, (question_id,)) as cursor:
+                row = await cursor.fetchone()
+                return dict(row) if row else None
+
+    async def get_user_quiz_stats(self, telegram_id):
+        """Recupere les stats quiz d'un utilisateur"""
+        async with aiosqlite.connect(self.db_path) as db:
+            db.row_factory = aiosqlite.Row
+            async with db.execute("""
+                SELECT * FROM user_quiz_stats WHERE telegram_id = ?
+            """, (telegram_id,)) as cursor:
+                row = await cursor.fetchone()
+                return dict(row) if row else None
+
+    async def update_quiz_stats(self, telegram_id, is_correct, points):
+        """Met a jour les stats quiz"""
+        async with aiosqlite.connect(self.db_path) as db:
+            await db.execute("""
+                INSERT INTO user_quiz_stats (telegram_id, total_questions, correct_answers,
+                    total_points, current_streak, last_quiz_date)
+                VALUES (?, 1, ?, ?, ?, DATE('now'))
+                ON CONFLICT(telegram_id) DO UPDATE SET
+                    total_questions = total_questions + 1,
+                    correct_answers = correct_answers + ?,
+                    total_points = total_points + ?,
+                    current_streak = CASE WHEN ? THEN current_streak + 1 ELSE 0 END,
+                    best_streak = MAX(best_streak, CASE WHEN ? THEN current_streak + 1 ELSE 0 END),
+                    last_quiz_date = DATE('now')
+            """, (telegram_id, 1 if is_correct else 0, points, 1 if is_correct else 0,
+                  1 if is_correct else 0, points, is_correct, is_correct))
+            await db.commit()
+
+    # ===== DIVERGENCES RSI =====
+
+    async def save_rsi_divergence(self, divergence):
+        """Sauvegarde une divergence RSI detectee"""
+        async with aiosqlite.connect(self.db_path) as db:
+            await db.execute("""
+                INSERT INTO rsi_divergences (asset_symbol, market, divergence_type, rsi_value, price_at_detection)
+                VALUES (?, ?, ?, ?, ?)
+            """, (divergence['symbol'], divergence['market'], divergence['type'],
+                  divergence['rsi'], divergence['price']))
+            await db.commit()
+
+    async def get_recent_divergence(self, symbol, divergence_type):
+        """Verifie s'il y a une divergence recente"""
+        async with aiosqlite.connect(self.db_path) as db:
+            db.row_factory = aiosqlite.Row
+            async with db.execute("""
+                SELECT * FROM rsi_divergences
+                WHERE asset_symbol = ? AND divergence_type = ?
+                AND datetime(detected_at) > datetime('now', '-24 hours')
+            """, (symbol, divergence_type)) as cursor:
+                row = await cursor.fetchone()
+                return dict(row) if row else None
+
+    # ===== SCREENER =====
+
+    async def save_screener_result(self, setup):
+        """Sauvegarde un resultat de screener"""
+        async with aiosqlite.connect(self.db_path) as db:
+            await db.execute("""
+                INSERT INTO scan_results (telegram_id, market, asset_symbol, score, direction,
+                    opportunity_type, technical_summary)
+                VALUES (0, ?, ?, ?, ?, ?, ?)
+            """, (setup['market'], setup['symbol'], setup['score'], setup['direction'],
+                  setup['setup_type'], f"RSI: {setup['rsi']}, Conf: {setup['confidence']}"))
+            await db.commit()
+
+    async def get_best_setups(self, market=None, limit=10):
+        """Recupere les meilleurs setups du jour"""
+        async with aiosqlite.connect(self.db_path) as db:
+            db.row_factory = aiosqlite.Row
+            query = """
+                SELECT * FROM scan_results
+                WHERE DATE(scan_date) = DATE('now')
+            """
+            params = []
+            if market:
+                query += " AND market = ?"
+                params.append(market)
+            query += " ORDER BY score DESC LIMIT ?"
+            params.append(limit)
+
+            async with db.execute(query, params) as cursor:
+                return [dict(row) for row in await cursor.fetchall()]
+
+    # ===== TEMPLATES PORTEFEUILLE =====
+
+    async def get_portfolio_templates(self, category=None):
+        """Recupere les templates de portefeuille"""
+        async with aiosqlite.connect(self.db_path) as db:
+            db.row_factory = aiosqlite.Row
+            query = "SELECT * FROM portfolio_templates WHERE is_public = 1"
+            params = []
+            if category:
+                query += " AND category = ?"
+                params.append(category)
+
+            async with db.execute(query, params) as cursor:
+                return [dict(row) for row in await cursor.fetchall()]
+
+    async def get_template_by_id(self, template_id):
+        """Recupere un template par ID"""
+        async with aiosqlite.connect(self.db_path) as db:
+            db.row_factory = aiosqlite.Row
+            async with db.execute("""
+                SELECT * FROM portfolio_templates WHERE id = ?
+            """, (template_id,)) as cursor:
+                row = await cursor.fetchone()
+                return dict(row) if row else None
+
+    # ===== HISTORIQUE POSITIONS =====
+
+    async def get_position_history(self, telegram_id, from_date=None, to_date=None, limit=100):
+        """Recupere l'historique des positions"""
+        async with aiosqlite.connect(self.db_path) as db:
+            db.row_factory = aiosqlite.Row
+            query = "SELECT * FROM position_history WHERE telegram_id = ?"
+            params = [telegram_id]
+
+            if from_date:
+                query += " AND DATE(closed_at) >= ?"
+                params.append(from_date)
+            if to_date:
+                query += " AND DATE(closed_at) <= ?"
+                params.append(to_date)
+
+            query += " ORDER BY closed_at DESC LIMIT ?"
+            params.append(limit)
+
+            async with db.execute(query, params) as cursor:
+                return [dict(row) for row in await cursor.fetchall()]
+
+    # ===== RESUME MATINAL =====
+
+    async def get_users_with_daily_summary(self):
+        """Recupere les utilisateurs avec resume quotidien active"""
+        async with aiosqlite.connect(self.db_path) as db:
+            db.row_factory = aiosqlite.Row
+            async with db.execute("""
+                SELECT * FROM user_settings WHERE notif_daily_summary = 1
+            """) as cursor:
+                return [dict(row) for row in await cursor.fetchall()]
+
+
 # Instance globale
 db_manager = DatabaseManager()
