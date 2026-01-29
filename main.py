@@ -135,7 +135,8 @@ class TDBBot:
                 favorites_module=self.favorites_module,
                 scan_module=self.scan_module,
                 settings_module=self.settings_module,
-                ai_assistant_module=self.ai_assistant_module
+                ai_assistant_module=self.ai_assistant_module,
+                features_module=self.features_module
             )
             logger.info("✅ Module Menu chargé")
 
