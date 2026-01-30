@@ -31,6 +31,8 @@ class MenuModule:
         self.app.add_handler(CallbackQueryHandler(self.handle_tutorial_callback, pattern="^tuto_"))
         # Handler pour les opportunités (snooze, ignore, interested)
         self.app.add_handler(CallbackQueryHandler(self.handle_opportunity_callback, pattern="^opp_"))
+        # Handler pour la watchlist (suppression)
+        self.app.add_handler(CallbackQueryHandler(self.handle_watchlist_callback, pattern="^wl_"))
 
     async def start(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Commande /start - uniquement en prive"""
@@ -144,6 +146,38 @@ class MenuModule:
                 await query.edit_message_text(new_text, parse_mode='Markdown')
             except:
                 pass
+
+    async def handle_watchlist_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Gère les callbacks de la watchlist (suppression)"""
+        query = update.callback_query
+        await query.answer()
+        data = query.data
+        user_id = update.effective_user.id
+
+        from database.manager import db_manager
+
+        if data.startswith("wl_del_"):
+            symbol = data.replace("wl_del_", "")
+            await db_manager.remove_from_smart_watchlist(user_id, symbol)
+            await query.answer(f"✅ {symbol} supprimé de la watchlist", show_alert=True)
+
+            # Retourner à la watchlist
+            watchlist = await db_manager.get_smart_watchlist(user_id)
+            text = "👁️ **WATCHLIST INTELLIGENTE**\n━━━━━━━━━━━━━━━━━━━━\n\n"
+            if watchlist:
+                for item in watchlist:
+                    text += f"• {item['asset_symbol']} (seuil: {item['alert_threshold']}%)\n"
+                text += f"\n📊 Total: {len(watchlist)} actif(s) suivis"
+            else:
+                text += "Votre watchlist est vide.\n\n"
+                text += "💡 Envoyez: `/watchlist add AAPL 5`"
+
+            keyboard = [
+                [InlineKeyboardButton("➕ Ajouter", callback_data="menu_watchlist_help")],
+                [InlineKeyboardButton("🗑️ Supprimer", callback_data="menu_watchlist_delete")],
+                [InlineKeyboardButton("🔙 Retour", callback_data="menu_tools")]
+            ]
+            await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
 
     async def show_tools_menu(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Sous-menu Outils - Alertes, Screener, etc."""
