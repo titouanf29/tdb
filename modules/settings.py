@@ -5,6 +5,7 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, CallbackQueryHandler
 from database.manager import db_manager
 from utils.constants import *
+from utils.i18n import set_language, get_language, SUPPORTED_LANGUAGES
 
 class SettingsModule:
     """Module de gestion des paramètres"""
@@ -192,25 +193,31 @@ Ces paramètres influencent la manière dont l'IA analyse les marchés et formul
             'bar': '📊 Barres'
         }
 
+        # Mapping des langues
+        lang_labels = {
+            'fr': '🇫🇷 Français',
+            'en': '🇬🇧 English',
+            'es': '🇪🇸 Español',
+            'de': '🇩🇪 Deutsch'
+        }
+
         theme = settings.get('theme', 'dark')
         chart_type = settings.get('chart_type', 'candlestick')
+        current_lang = get_language(user_id)
 
         text = f"""🎨 <b>PARAMÈTRES INTERFACE</b>
 
+<b>Langue:</b> {lang_labels.get(current_lang, '🇫🇷 Français')}
 <b>Thème:</b> {theme_labels.get(theme, theme)}
-<b>Emojis:</b> ✅ Activés
 <b>Graphiques:</b> {chart_labels.get(chart_type, chart_type)}
 
 <b>Notifications visuelles:</b>
 • Opportunités: 🔥
 • Positions gagnantes: 💰
-• Positions perdantes: ⚠️
-
-<b>Format des nombres:</b>
-• Prix: 2 décimales
-• Pourcentages: 2 décimales"""
+• Positions perdantes: ⚠️"""
 
         keyboard = [
+            [InlineKeyboardButton("🌐 Langue", callback_data="settings_ui_lang")],
             [InlineKeyboardButton("🎨 Thème", callback_data="settings_ui_theme")],
             [InlineKeyboardButton("📊 Type de graphiques", callback_data="settings_ui_charts")],
             [InlineKeyboardButton(BTN_BACK, callback_data="settings_main")]
@@ -265,6 +272,40 @@ Choisissez le type de graphiques pour l'analyse :
             [InlineKeyboardButton("📊 Barres", callback_data="set_chart_bar")],
             [InlineKeyboardButton(BTN_BACK, callback_data="settings_ui")]
         ]
+
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await query.edit_message_text(text, reply_markup=reply_markup, parse_mode='HTML')
+
+    async def show_language_menu(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Menu de sélection de la langue"""
+        query = update.callback_query
+        await query.answer()
+
+        user_id = query.from_user.id
+        current_lang = get_language(user_id)
+
+        text = """🌐 <b>LANGUE / LANGUAGE</b>
+
+Choisissez votre langue préférée :
+Choose your preferred language:
+
+• 🇫🇷 <b>Français</b> - Interface en français
+• 🇬🇧 <b>English</b> - English interface
+• 🇪🇸 <b>Español</b> - Interfaz en español
+• 🇩🇪 <b>Deutsch</b> - Deutsche Oberfläche"""
+
+        languages = {
+            'fr': '🇫🇷 Français',
+            'en': '🇬🇧 English',
+            'es': '🇪🇸 Español',
+            'de': '🇩🇪 Deutsch'
+        }
+
+        keyboard = []
+        for code, label in languages.items():
+            marker = " ✓" if code == current_lang else ""
+            keyboard.append([InlineKeyboardButton(f"{label}{marker}", callback_data=f"set_lang_{code}")])
+        keyboard.append([InlineKeyboardButton(BTN_BACK, callback_data="settings_ui")])
 
         reply_markup = InlineKeyboardMarkup(keyboard)
         await query.edit_message_text(text, reply_markup=reply_markup, parse_mode='HTML')
@@ -744,6 +785,9 @@ Que souhaitez-vous modifier ?"""
         elif data == "settings_ui_charts":
             await self.show_charts_menu(update, context)
 
+        elif data == "settings_ui_lang":
+            await self.show_language_menu(update, context)
+
         elif data.startswith("set_theme_"):
             theme = data.replace("set_theme_", "")
             user_id = query.from_user.id
@@ -756,4 +800,21 @@ Que souhaitez-vous modifier ?"""
             user_id = query.from_user.id
             await db_manager.update_user_settings(user_id, chart_type=chart)
             await query.answer(f"✅ Graphiques en {chart} sélectionnés", show_alert=False)
+            await self.show_ui_settings(update, context)
+
+        elif data.startswith("set_lang_"):
+            lang = data.replace("set_lang_", "")
+            user_id = query.from_user.id
+            # Sauvegarder la langue
+            set_language(user_id, lang)
+            await db_manager.update_user_settings(user_id, language=lang)
+
+            # Messages de confirmation par langue
+            confirmations = {
+                'fr': "✅ Langue changée : Français",
+                'en': "✅ Language changed: English",
+                'es': "✅ Idioma cambiado: Español",
+                'de': "✅ Sprache geändert: Deutsch"
+            }
+            await query.answer(confirmations.get(lang, "✅ OK"), show_alert=True)
             await self.show_ui_settings(update, context)

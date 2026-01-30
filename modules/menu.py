@@ -60,31 +60,23 @@ class MenuModule:
             [InlineKeyboardButton("📊 Marché", callback_data="menu_market"),
              InlineKeyboardButton("💼 Wallet", callback_data="menu_wallet")],
             [InlineKeyboardButton("⭐ Favoris", callback_data="menu_favorites"),
-             InlineKeyboardButton("🔔 Alertes", callback_data="menu_alerts")],
-            [InlineKeyboardButton("🏆 Social", callback_data="menu_social"),
-             InlineKeyboardButton("📈 Graphiques", callback_data="menu_charts")],
-            [InlineKeyboardButton("📰 News & Sentiment", callback_data="menu_news"),
-             InlineKeyboardButton("📉 Risk", callback_data="menu_risk")],
-            [InlineKeyboardButton("🤖 Assistant IA", callback_data="menu_ai_assistant")],
-            [InlineKeyboardButton("🔍 Scan Auto", callback_data="menu_scan"),
-             InlineKeyboardButton("⚙️ Paramètres", callback_data="menu_settings")],
-            [InlineKeyboardButton("❓ Tutoriel", callback_data="menu_tutorial")]
+             InlineKeyboardButton("🤖 Assistant IA", callback_data="menu_ai_assistant")],
+            [InlineKeyboardButton("🛠️ Outils", callback_data="menu_tools"),
+             InlineKeyboardButton("📈 Analyses", callback_data="menu_analyses")],
+            [InlineKeyboardButton("⚙️ Paramètres", callback_data="menu_settings"),
+             InlineKeyboardButton("❓ Aide", callback_data="menu_help")]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
 
         menu_text = """
 🤖 **TDB - MENU PRINCIPAL**
 
-📊 **Marché** - Cours et analyses
-💼 **Wallet** - Paper trading + stats
+📊 **Marché** - Cours et analyses en temps réel
+💼 **Wallet** - Paper trading et historique
 ⭐ **Favoris** - Vos actifs suivis
-🔔 **Alertes** - Prix, volatilité, SL/TP
-🏆 **Social** - Leaderboard, badges, quiz
-📈 **Graphiques** - Heatmap, corrélations
-📰 **News** - Actualités & sentiment
-📉 **Risk** - Sharpe, VaR, drawdown
-🤖 **Assistant IA** - Questions trading
-❓ **Tutoriel** - Guide interactif
+🤖 **Assistant IA** - Questions et analyses IA
+🛠️ **Outils** - Alertes, screener, backtest
+📈 **Analyses** - Risk, graphiques, sentiment
 """
 
         if update.message:
@@ -112,28 +104,26 @@ class MenuModule:
         from services.tutorial_service import tutorial_service
         await tutorial_service.handle_tutorial_callback(update, context, query.data)
 
-    async def show_alerts_menu(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """Sous-menu Alertes & Outils"""
+    async def show_tools_menu(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Sous-menu Outils - Alertes, Screener, etc."""
         keyboard = [
             [InlineKeyboardButton("🔔 Alertes Prix", callback_data="menu_my_alerts"),
-             InlineKeyboardButton("⚡ Volatilité", callback_data="menu_volatility")],
-            [InlineKeyboardButton("👁️ Watchlist", callback_data="menu_watchlist"),
-             InlineKeyboardButton("🛑 SL/TP", callback_data="menu_sltp")],
+             InlineKeyboardButton("👁️ Watchlist", callback_data="menu_watchlist")],
             [InlineKeyboardButton("🔍 Screener", callback_data="menu_screener"),
              InlineKeyboardButton("📊 Backtest", callback_data="menu_backtest")],
-            [InlineKeyboardButton("📤 Export", callback_data="menu_export")],
+            [InlineKeyboardButton("🔍 Scan Auto", callback_data="menu_scan"),
+             InlineKeyboardButton("📤 Export", callback_data="menu_export")],
             [InlineKeyboardButton("🔙 Retour", callback_data="menu_main")]
         ]
 
         text = """
-🔔 **ALERTES & OUTILS**
+🛠️ **OUTILS DE TRADING**
 
-🔔 **Alertes Prix** - Cibles de prix
-⚡ **Volatilité** - Mouvements importants
-👁️ **Watchlist** - Suivi avec alertes
-🛑 **SL/TP** - Stop Loss & Take Profit auto
+🔔 **Alertes** - Notifications de prix
+👁️ **Watchlist** - Surveillance avec alertes
 🔍 **Screener** - Meilleurs setups du jour
-📊 **Backtest** - Simulation rétroactive
+📊 **Backtest** - Simuler des trades passés
+🔍 **Scan Auto** - Détection automatique
 📤 **Export** - Télécharger vos données
 """
         await update.callback_query.edit_message_text(
@@ -141,6 +131,93 @@ class MenuModule:
             reply_markup=InlineKeyboardMarkup(keyboard),
             parse_mode='Markdown'
         )
+
+    async def show_analyses_menu(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Sous-menu Analyses - Risk, Graphiques, Sentiment"""
+        keyboard = [
+            [InlineKeyboardButton("📉 Risk", callback_data="menu_risk"),
+             InlineKeyboardButton("📈 Graphiques", callback_data="menu_charts")],
+            [InlineKeyboardButton("📰 News", callback_data="menu_news"),
+             InlineKeyboardButton("🏆 Social", callback_data="menu_social")],
+            [InlineKeyboardButton("🔙 Retour", callback_data="menu_main")]
+        ]
+
+        text = """
+📈 **ANALYSES & DONNÉES**
+
+📉 **Risk** - Sharpe, VaR, drawdown
+📈 **Graphiques** - Heatmap, corrélations
+📰 **News** - Actualités et sentiment
+🏆 **Social** - Leaderboard et badges
+"""
+        await update.callback_query.edit_message_text(
+            text,
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode='Markdown'
+        )
+
+    async def show_help_menu(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Sous-menu Aide - Tutoriel et documentation"""
+        keyboard = [
+            [InlineKeyboardButton("📖 Tutoriel", callback_data="menu_tutorial")],
+            [InlineKeyboardButton("📝 Commandes", callback_data="menu_commands")],
+            [InlineKeyboardButton("🔙 Retour", callback_data="menu_main")]
+        ]
+
+        text = """
+❓ **AIDE & DOCUMENTATION**
+
+📖 **Tutoriel** - Guide interactif complet
+📝 **Commandes** - Liste des commandes
+
+💡 **Commandes rapides:**
+`/p SYMBOL` - Prix d'un actif
+`/a SYMBOL` - Analyse IA
+`/buy SYMBOL MONTANT` - Acheter
+`/sell SYMBOL %` - Vendre
+"""
+        await update.callback_query.edit_message_text(
+            text,
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode='Markdown'
+        )
+
+    async def show_commands_list(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Affiche la liste des commandes"""
+        keyboard = [[InlineKeyboardButton("🔙 Retour", callback_data="menu_help")]]
+
+        text = """
+📝 **COMMANDES DISPONIBLES**
+
+**Marché:**
+`/p SYMBOL` - Prix actuel
+`/a SYMBOL` - Analyse complète
+`/compare S1 S2...` - Comparer actifs
+`/correlation S1 S2...` - Corrélations
+
+**Trading:**
+`/buy SYMBOL MONTANT` - Acheter
+`/sell SYMBOL %` - Vendre (% position)
+`/wallet` - Voir portefeuille
+`/history` - Historique trades
+
+**Alertes:**
+`/alerts SYMBOL above/below PRIX`
+`/watchlist add SYMBOL SEUIL%`
+
+**Autres:**
+`/backtest SYMBOL JOURS MONTANT LEVIER DIR`
+`/ai QUESTION` - Poser une question à l'IA
+"""
+        await update.callback_query.edit_message_text(
+            text,
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode='Markdown'
+        )
+
+    async def show_alerts_menu(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Sous-menu Alertes & Outils (legacy redirect)"""
+        await self.show_tools_menu(update, context)
 
     async def show_social_menu(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Sous-menu Social & Gamification"""
@@ -254,9 +331,21 @@ class MenuModule:
             await self.show_menu(update, context)
             return
 
-        # Sous-menus
-        if data == "menu_alerts":
-            await self.show_alerts_menu(update, context)
+        # Sous-menus principaux
+        if data == "menu_tools":
+            await self.show_tools_menu(update, context)
+            return
+        elif data == "menu_analyses":
+            await self.show_analyses_menu(update, context)
+            return
+        elif data == "menu_help":
+            await self.show_help_menu(update, context)
+            return
+        elif data == "menu_commands":
+            await self.show_commands_list(update, context)
+            return
+        elif data == "menu_alerts":
+            await self.show_tools_menu(update, context)
             return
         elif data == "menu_social":
             await self.show_social_menu(update, context)

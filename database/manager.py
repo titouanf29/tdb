@@ -54,6 +54,15 @@ class DatabaseManager:
             except Exception:
                 pass  # Déjà mis à jour
 
+            # Migration: Ajouter la colonne language
+            try:
+                await db.execute("""
+                    ALTER TABLE user_settings ADD COLUMN language TEXT DEFAULT 'fr'
+                """)
+                logger.debug("Migration: Colonne language ajoutée")
+            except Exception:
+                pass  # La colonne existe déjà
+
             await db.commit()
 
     # ===== UTILISATEURS =====
