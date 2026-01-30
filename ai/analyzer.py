@@ -1,8 +1,12 @@
 """
-Algorithme d'Analyse IA Avancé pour TDB Bot
+Algorithme d'Analyse IA Avancé pour TDB Bot v2.0
 
-Analyse multi-paramètres :
+Analyse multi-paramètres améliorée :
 - Analyse technique (tendances, structures, indicateurs)
+- Reconnaissance de patterns (Engulfing, Doji, H&S, Triangles)
+- Smart Money Concepts (Order Blocks, FVG, Liquidity)
+- Confluence Multi-Timeframe
+- ADX / VWAP / Structure de marché
 - Volume et volatilité
 - Momentum
 - Contexte marché
@@ -21,15 +25,28 @@ from services.news import news_service
 
 logger = logging.getLogger(__name__)
 
+
 class MarketAnalyzer:
-    """Analyseur de marché avancé avec IA"""
+    """Analyseur de marché avancé avec IA v2.0"""
 
     def __init__(self):
         self.weights = config.SCORING_WEIGHTS
+        # Nouveaux poids pour l'analyse améliorée
+        self.advanced_weights = {
+            'technical': 0.25,
+            'volume': 0.15,
+            'momentum': 0.15,
+            'volatility': 0.10,
+            'market_context': 0.10,
+            'news': 0.05,
+            'patterns': 0.10,      # Nouveau
+            'smart_money': 0.05,   # Nouveau
+            'confluence': 0.05     # Nouveau
+        }
 
     async def analyze_asset(self, symbol, market, timeframes=None, fetch_news=True):
         """
-        Analyse complète d'un actif
+        Analyse complète d'un actif v2.0 avec nouvelles fonctionnalités
 
         Args:
             symbol: Symbole de l'actif
@@ -56,7 +73,7 @@ class MarketAnalyzer:
             if data_1d.empty:
                 return None
 
-            # Analyses par catégorie
+            # ===== ANALYSES CLASSIQUES =====
             technical_score = self._analyze_technical(data_1d, data_1h, data_15m)
             volume_score = self._analyze_volume(data_1d, data_1h)
             momentum_score = self._analyze_momentum(data_1d, data_1h)
@@ -68,31 +85,67 @@ class MarketAnalyzer:
                 news_score = self._analyze_news(symbol)
                 news_summary = self._get_news_summary(symbol)
             else:
-                # Score neutre si on ne récupère pas les news (scans rapides)
                 news_score = 0.5
                 news_summary = "Actualités non récupérées (scan rapide)"
 
-            # Score final pondéré
+            # ===== NOUVELLES ANALYSES AVANCÉES =====
+
+            # 1. Patterns (chandeliers + chartistes)
+            pattern_score, detected_patterns = self._analyze_patterns(data_1d)
+
+            # 2. Smart Money Concepts
+            smc_analysis = self._analyze_smart_money(data_1d)
+            smc_score = smc_analysis['score']
+
+            # 3. Confluence Multi-Timeframe
+            confluence = self._analyze_multi_timeframe_confluence(data_1d, data_1h, data_15m)
+            confluence_score = confluence['strength']
+
+            # 4. Structure de marché (BOS, CHoCH)
+            market_structure = self._analyze_market_structure(data_1d)
+
+            # 5. ADX - Force de tendance
+            adx_data = self._calculate_adx(data_1d)
+
+            # 6. VWAP
+            vwap = self._calculate_vwap(data_1d)
+            current_price = data_1d['Close'].iloc[-1]
+            vwap_position = "above" if current_price > vwap else "below"
+
+            # ===== SCORE FINAL PONDÉRÉ (nouvelle formule) =====
             final_score = (
-                technical_score * self.weights['technical'] +
-                volume_score * self.weights['volume'] +
-                momentum_score * self.weights['momentum'] +
-                volatility_score * self.weights['volatility'] +
-                market_context_score * self.weights['market_context'] +
-                news_score * self.weights['news']
+                technical_score * self.advanced_weights['technical'] +
+                volume_score * self.advanced_weights['volume'] +
+                momentum_score * self.advanced_weights['momentum'] +
+                volatility_score * self.advanced_weights['volatility'] +
+                market_context_score * self.advanced_weights['market_context'] +
+                news_score * self.advanced_weights['news'] +
+                pattern_score * self.advanced_weights['patterns'] +
+                smc_score * self.advanced_weights['smart_money'] +
+                confluence_score * self.advanced_weights['confluence']
             ) * 100
 
-            # Arrondir
-            final_score = int(final_score)
+            # Bonus/Malus basés sur la confluence et l'ADX
+            if confluence['aligned']:
+                final_score += 5  # Bonus confluence parfaite
+            if adx_data['adx'] > 25:
+                final_score += 3  # Bonus tendance forte
+            if market_structure['bos']:
+                final_score += 3  # Bonus Break of Structure
 
-            # Déterminer la direction
-            direction = self._determine_direction(data_1d, data_1h, technical_score, momentum_score)
+            # Arrondir et limiter
+            final_score = int(max(0, min(100, final_score)))
+
+            # Déterminer la direction (améliorée avec confluence)
+            direction = self._determine_direction_advanced(
+                data_1d, data_1h, technical_score, momentum_score,
+                confluence, market_structure, adx_data
+            )
 
             # Déterminer la tendance
             trend = self._determine_trend(data_1d)
 
             # Calculs supplémentaires
-            current_price = data_1d['Close'].iloc[-1]
             price_change_1d = ((current_price - data_1d['Close'].iloc[-2]) / data_1d['Close'].iloc[-2]) * 100
 
             # ATR pour volatilité
@@ -112,17 +165,19 @@ class MarketAnalyzer:
             # Niveaux de Fibonacci
             fibonacci_levels = self._calculate_fibonacci_levels(data_1d)
 
-            # Detection des signaux de retournement
+            # Detection des signaux de retournement (classique)
             reversal_signals = self._detect_reversal_signals(data_1d)
 
-            # Resume technique
-            technical_summary = self._generate_technical_summary(
-                trend, rsi, volume_ratio, support, resistance, current_price
+            # Resume technique (amélioré)
+            technical_summary = self._generate_technical_summary_advanced(
+                trend, rsi, volume_ratio, support, resistance, current_price,
+                adx_data, confluence, market_structure, detected_patterns
             )
 
             # Type d'opportunité
-            opportunity_type = self._identify_opportunity_type(
-                data_1d, data_1h, trend, rsi, volume_ratio
+            opportunity_type = self._identify_opportunity_type_advanced(
+                data_1d, data_1h, trend, rsi, volume_ratio,
+                detected_patterns, market_structure, smc_analysis
             )
 
             # Niveau de risque
@@ -135,9 +190,26 @@ class MarketAnalyzer:
                 direction, atr, current_price, support, resistance
             )
 
-            # Générer des recommandations
-            recommendations = self._generate_recommendations(
-                final_score, direction, rsi, volume_ratio, trend, risk_level
+            # Ajouter les nouvelles explications
+            explanations['adx'] = {
+                'value': adx_data['adx'],
+                'trend_strength': 'Fort' if adx_data['adx'] > 25 else 'Faible' if adx_data['adx'] < 20 else 'Modéré',
+                'plus_di': adx_data['plus_di'],
+                'minus_di': adx_data['minus_di']
+            }
+            explanations['vwap'] = {
+                'value': vwap,
+                'position': vwap_position,
+                'text': f"Prix {'au-dessus' if vwap_position == 'above' else 'en-dessous'} du VWAP - Biais {'haussier' if vwap_position == 'above' else 'baissier'}"
+            }
+            explanations['confluence'] = confluence
+            explanations['market_structure'] = market_structure
+            explanations['patterns_detected'] = detected_patterns
+
+            # Générer des recommandations (améliorées)
+            recommendations = self._generate_recommendations_advanced(
+                final_score, direction, rsi, volume_ratio, trend, risk_level,
+                confluence, adx_data, detected_patterns, market_structure
             )
 
             return {
@@ -161,19 +233,246 @@ class MarketAnalyzer:
                 'news_summary': news_summary,
                 'explanations': explanations,
                 'recommendations': recommendations,
+                # Nouvelles données v2.0
+                'adx': adx_data,
+                'vwap': float(vwap),
+                'patterns': detected_patterns,
+                'smart_money': smc_analysis,
+                'confluence': confluence,
+                'market_structure': market_structure,
                 'scores': {
                     'technical': technical_score,
                     'volume': volume_score,
                     'momentum': momentum_score,
                     'volatility': volatility_score,
                     'market_context': market_context_score,
-                    'news': news_score
+                    'news': news_score,
+                    'patterns': pattern_score,
+                    'smart_money': smc_score,
+                    'confluence': confluence_score
                 }
             }
 
         except Exception as e:
             logger.error(f"Erreur analyse {symbol}: {e}")
             return None
+
+    def _determine_direction_advanced(self, data_1d, data_1h, technical_score, momentum_score,
+                                       confluence, market_structure, adx_data):
+        """Détermine la direction avec les nouvelles analyses"""
+        # Score de base
+        base_score = (technical_score + momentum_score) / 2
+
+        # Ajuster avec confluence
+        if confluence['aligned']:
+            if confluence['direction'] == 'bullish':
+                base_score += 0.15
+            elif confluence['direction'] == 'bearish':
+                base_score -= 0.15
+        elif confluence['direction'] == 'bullish':
+            base_score += 0.08
+        elif confluence['direction'] == 'bearish':
+            base_score -= 0.08
+
+        # Ajuster avec structure de marché
+        if market_structure['bos'] == 'bullish':
+            base_score += 0.1
+        elif market_structure['bos'] == 'bearish':
+            base_score -= 0.1
+        elif market_structure['choch'] == 'bullish':
+            base_score += 0.05
+        elif market_structure['choch'] == 'bearish':
+            base_score -= 0.05
+
+        # ADX confirme la tendance
+        if adx_data['adx'] > 25:
+            if adx_data['plus_di'] > adx_data['minus_di']:
+                base_score += 0.05
+            else:
+                base_score -= 0.05
+
+        if base_score > 0.6:
+            return "LONG"
+        elif base_score < 0.4:
+            return "SHORT"
+        else:
+            return "NEUTRAL"
+
+    def _generate_technical_summary_advanced(self, trend, rsi, volume_ratio, support, resistance,
+                                             current_price, adx_data, confluence, market_structure,
+                                             patterns):
+        """Génère un résumé technique amélioré"""
+        summary = []
+
+        # Tendance
+        if trend == "bullish":
+            summary.append("📈 Tendance haussière")
+        elif trend == "bearish":
+            summary.append("📉 Tendance baissière")
+        else:
+            summary.append("➡️ Tendance neutre")
+
+        # Force de tendance (ADX)
+        if adx_data['adx'] > 25:
+            summary.append(f"💪 Tendance forte (ADX:{adx_data['adx']:.0f})")
+        elif adx_data['adx'] < 20:
+            summary.append(f"😴 Pas de tendance (ADX:{adx_data['adx']:.0f})")
+
+        # RSI
+        if rsi < 30:
+            summary.append("🔴 RSI survente")
+        elif rsi > 70:
+            summary.append("🟢 RSI surachat")
+
+        # Volume
+        if volume_ratio > 1.5:
+            summary.append("🔥 Volume élevé")
+
+        # Confluence
+        if confluence['aligned']:
+            summary.append(f"✅ Confluence {confluence['direction']}")
+
+        # Structure
+        if market_structure['bos']:
+            summary.append(f"⚡ BOS {market_structure['bos']}")
+        if market_structure['choch']:
+            summary.append(f"🔄 CHoCH {market_structure['choch']}")
+
+        # Patterns importants
+        strong_patterns = [p for p in patterns if p.get('strength', 0) >= 80]
+        if strong_patterns:
+            summary.append(f"📐 {strong_patterns[0]['name']}")
+
+        return " | ".join(summary) if summary else "Analyse en cours"
+
+    def _identify_opportunity_type_advanced(self, data_1d, data_1h, trend, rsi, volume_ratio,
+                                            patterns, market_structure, smc_analysis):
+        """Identifie le type d'opportunité avec les nouvelles analyses"""
+
+        # Vérifier les patterns de retournement
+        reversal_patterns = [p for p in patterns if p['type'] == 'reversal']
+        continuation_patterns = [p for p in patterns if p['type'] == 'continuation']
+
+        # Break of Structure = Continuation forte
+        if market_structure['bos']:
+            return "breakout"
+
+        # Change of Character = Retournement potentiel
+        if market_structure['choch']:
+            return "reversal"
+
+        # Pattern de retournement fort
+        if reversal_patterns and reversal_patterns[0].get('strength', 0) >= 80:
+            return "reversal"
+
+        # RSI extrême
+        if rsi < 30:
+            return "reversal"
+        elif rsi > 70:
+            return "reversal"
+
+        # Continuation
+        if continuation_patterns:
+            return "continuation"
+
+        # Volume breakout
+        if volume_ratio > 2:
+            return "breakout"
+
+        # Order Block proche
+        if smc_analysis['order_blocks']:
+            for ob in smc_analysis['order_blocks']:
+                if abs(ob['distance']) < 2:
+                    return "retest"
+
+        # Fair Value Gap
+        unfilled_fvg = [f for f in smc_analysis['fair_value_gaps'] if not f['filled']]
+        if unfilled_fvg:
+            return "fvg_fill"
+
+        # Consolidation
+        if volume_ratio < 0.7:
+            return "squeeze"
+
+        return "continuation"
+
+    def _generate_recommendations_advanced(self, final_score, direction, rsi, volume_ratio,
+                                           trend, risk_level, confluence, adx_data,
+                                           patterns, market_structure):
+        """Génère des recommandations améliorées"""
+        recommendations = []
+
+        # ===== SIGNAL PRINCIPAL =====
+        if final_score >= 80:
+            if direction == "LONG":
+                recommendations.append("🟢 SIGNAL FORT D'ACHAT - Confluence élevée, tous les indicateurs alignés")
+            elif direction == "SHORT":
+                recommendations.append("🔴 SIGNAL FORT DE VENTE - Confluence élevée, pression vendeuse confirmée")
+        elif final_score >= 70:
+            if direction == "LONG":
+                recommendations.append("🟢 Signal d'achat solide - Bonne opportunité avec confirmation")
+            elif direction == "SHORT":
+                recommendations.append("🔴 Signal de vente solide - Risque de baisse confirmé")
+        elif final_score >= 60:
+            recommendations.append("⚪ Signal modéré - Attendre des confirmations supplémentaires")
+        else:
+            recommendations.append("⚠️ Signal faible - Conditions incertaines, rester en observation")
+
+        # ===== CONFLUENCE =====
+        if confluence['aligned']:
+            recommendations.append(f"✅ CONFLUENCE PARFAITE - Tous timeframes alignés ({confluence['direction']})")
+        elif confluence['direction'] != 'neutral':
+            recommendations.append(f"📊 Confluence partielle {confluence['direction']} (2/3 timeframes)")
+
+        # ===== STRUCTURE DE MARCHÉ =====
+        if market_structure['bos'] == 'bullish':
+            recommendations.append("⚡ Break of Structure haussier - Continuation de tendance probable")
+        elif market_structure['bos'] == 'bearish':
+            recommendations.append("⚡ Break of Structure baissier - Continuation baissière probable")
+        elif market_structure['choch'] == 'bullish':
+            recommendations.append("🔄 Change of Character haussier - Retournement potentiel à la hausse")
+        elif market_structure['choch'] == 'bearish':
+            recommendations.append("🔄 Change of Character baissier - Retournement potentiel à la baisse")
+
+        # ===== ADX =====
+        if adx_data['adx'] > 25:
+            di_direction = "haussière" if adx_data['plus_di'] > adx_data['minus_di'] else "baissière"
+            recommendations.append(f"💪 Tendance forte (ADX: {adx_data['adx']:.0f}) - Direction {di_direction}")
+        elif adx_data['adx'] < 20:
+            recommendations.append("😴 Pas de tendance claire (ADX faible) - Éviter les trades de tendance")
+
+        # ===== PATTERNS =====
+        strong_patterns = [p for p in patterns if p.get('strength', 0) >= 75]
+        for pattern in strong_patterns[:2]:  # Max 2 patterns
+            recommendations.append(f"📐 {pattern['name']} détecté - {pattern['description']}")
+
+        # ===== RSI =====
+        if rsi < 30 and direction == "LONG":
+            recommendations.append("✅ RSI en survente confirme le potentiel de rebond")
+        elif rsi > 70 and direction == "SHORT":
+            recommendations.append("✅ RSI en surachat confirme le risque de correction")
+        elif rsi < 30 and direction == "SHORT":
+            recommendations.append("⚠️ RSI en survente - Prudence sur les ventes")
+        elif rsi > 70 and direction == "LONG":
+            recommendations.append("⚠️ RSI en surachat - Attendre pullback avant d'acheter")
+
+        # ===== VOLUME =====
+        if volume_ratio > 2:
+            recommendations.append("🔥 Volume exceptionnel - Mouvement très fiable")
+        elif volume_ratio > 1.5:
+            recommendations.append("✅ Volume élevé - Confirmation du mouvement")
+        elif volume_ratio < 0.7:
+            recommendations.append("⚠️ Volume faible - Signal moins fiable")
+
+        # ===== GESTION DU RISQUE =====
+        if risk_level == "high":
+            recommendations.append("🛑 RISQUE ÉLEVÉ - Position réduite recommandée, stop-loss serré obligatoire")
+        elif risk_level == "medium":
+            recommendations.append("⚠️ Risque modéré - Stop-loss recommandé à 2-3% du prix d'entrée")
+        else:
+            recommendations.append("✅ Risque faible - Conditions favorables pour entrée standard")
+
+        return recommendations
 
     def _analyze_technical(self, data_1d, data_1h, data_15m):
         """Analyse technique multi-timeframe"""
@@ -509,6 +808,571 @@ class MarketAnalyzer:
         loss = (-delta.where(delta < 0, 0)).rolling(window=period).mean()
         rs = gain / loss
         return 100 - (100 / (1 + rs))
+
+    # ===== NOUVEAUX INDICATEURS AVANCÉS =====
+
+    def _calculate_adx(self, data, period=14):
+        """
+        Calcule l'ADX (Average Directional Index) pour mesurer la force de la tendance
+        ADX > 25 = tendance forte, ADX < 20 = pas de tendance
+        """
+        try:
+            high = data['High']
+            low = data['Low']
+            close = data['Close']
+
+            # +DM et -DM
+            plus_dm = high.diff()
+            minus_dm = low.diff().abs() * -1
+
+            plus_dm = plus_dm.where((plus_dm > minus_dm.abs()) & (plus_dm > 0), 0)
+            minus_dm = minus_dm.abs().where((minus_dm.abs() > plus_dm) & (minus_dm < 0), 0)
+
+            # True Range
+            tr1 = high - low
+            tr2 = (high - close.shift()).abs()
+            tr3 = (low - close.shift()).abs()
+            tr = pd.concat([tr1, tr2, tr3], axis=1).max(axis=1)
+
+            # Smoothed values
+            atr = tr.rolling(window=period).mean()
+            plus_di = 100 * (plus_dm.rolling(window=period).mean() / atr)
+            minus_di = 100 * (minus_dm.rolling(window=period).mean() / atr)
+
+            # DX et ADX
+            dx = 100 * ((plus_di - minus_di).abs() / (plus_di + minus_di + 0.0001))
+            adx = dx.rolling(window=period).mean()
+
+            return {
+                'adx': adx.iloc[-1] if not np.isnan(adx.iloc[-1]) else 0,
+                'plus_di': plus_di.iloc[-1] if not np.isnan(plus_di.iloc[-1]) else 0,
+                'minus_di': minus_di.iloc[-1] if not np.isnan(minus_di.iloc[-1]) else 0
+            }
+        except Exception as e:
+            logger.debug(f"Erreur calcul ADX: {e}")
+            return {'adx': 0, 'plus_di': 0, 'minus_di': 0}
+
+    def _calculate_vwap(self, data):
+        """
+        Calcule le VWAP (Volume Weighted Average Price)
+        Prix au-dessus du VWAP = bullish, en-dessous = bearish
+        """
+        try:
+            typical_price = (data['High'] + data['Low'] + data['Close']) / 3
+            vwap = (typical_price * data['Volume']).cumsum() / data['Volume'].cumsum()
+            return vwap.iloc[-1]
+        except Exception:
+            return data['Close'].iloc[-1]
+
+    def _detect_candlestick_patterns(self, data):
+        """
+        Détecte les patterns de chandeliers japonais avancés
+        """
+        patterns = []
+
+        if len(data) < 3:
+            return patterns
+
+        # Dernières bougies
+        c0 = data.iloc[-1]  # Bougie actuelle
+        c1 = data.iloc[-2]  # Bougie précédente
+        c2 = data.iloc[-3]  # Avant-dernière
+
+        # Calculs de base
+        body0 = abs(c0['Close'] - c0['Open'])
+        body1 = abs(c1['Close'] - c1['Open'])
+        range0 = c0['High'] - c0['Low']
+        range1 = c1['High'] - c1['Low']
+
+        is_bullish0 = c0['Close'] > c0['Open']
+        is_bullish1 = c1['Close'] > c1['Open']
+
+        # 1. ENGULFING BULLISH - Signal fort de retournement haussier
+        if (not is_bullish1 and is_bullish0 and
+            c0['Open'] <= c1['Close'] and c0['Close'] >= c1['Open'] and
+            body0 > body1 * 1.1):
+            patterns.append({
+                'name': 'Bullish Engulfing',
+                'type': 'reversal',
+                'direction': 'bullish',
+                'strength': 85,
+                'description': 'Avalement haussier - Fort signal de retournement à la hausse'
+            })
+
+        # 2. ENGULFING BEARISH - Signal fort de retournement baissier
+        if (is_bullish1 and not is_bullish0 and
+            c0['Open'] >= c1['Close'] and c0['Close'] <= c1['Open'] and
+            body0 > body1 * 1.1):
+            patterns.append({
+                'name': 'Bearish Engulfing',
+                'type': 'reversal',
+                'direction': 'bearish',
+                'strength': 85,
+                'description': 'Avalement baissier - Fort signal de retournement à la baisse'
+            })
+
+        # 3. DOJI - Indécision du marché
+        if range0 > 0 and body0 / range0 < 0.1:
+            patterns.append({
+                'name': 'Doji',
+                'type': 'indecision',
+                'direction': 'neutral',
+                'strength': 50,
+                'description': 'Doji - Indécision, attendre confirmation'
+            })
+
+        # 4. MORNING STAR - Retournement haussier (3 bougies)
+        if len(data) >= 3:
+            body2 = abs(c2['Close'] - c2['Open'])
+            is_bullish2 = c2['Close'] > c2['Open']
+
+            if (not is_bullish2 and body2 > range0 * 0.5 and  # Grande bougie baissière
+                body1 < body2 * 0.3 and  # Petite bougie centrale
+                is_bullish0 and body0 > body2 * 0.5):  # Grande bougie haussière
+                patterns.append({
+                    'name': 'Morning Star',
+                    'type': 'reversal',
+                    'direction': 'bullish',
+                    'strength': 90,
+                    'description': 'Étoile du matin - Signal de retournement haussier majeur'
+                })
+
+        # 5. EVENING STAR - Retournement baissier (3 bougies)
+        if len(data) >= 3:
+            body2 = abs(c2['Close'] - c2['Open'])
+            is_bullish2 = c2['Close'] > c2['Open']
+
+            if (is_bullish2 and body2 > range0 * 0.5 and
+                body1 < body2 * 0.3 and
+                not is_bullish0 and body0 > body2 * 0.5):
+                patterns.append({
+                    'name': 'Evening Star',
+                    'type': 'reversal',
+                    'direction': 'bearish',
+                    'strength': 90,
+                    'description': 'Étoile du soir - Signal de retournement baissier majeur'
+                })
+
+        # 6. THREE WHITE SOLDIERS - Forte continuation haussière
+        if len(data) >= 3:
+            all_bullish = all(data.iloc[i]['Close'] > data.iloc[i]['Open'] for i in [-3, -2, -1])
+            higher_closes = data['Close'].iloc[-3] < data['Close'].iloc[-2] < data['Close'].iloc[-1]
+            if all_bullish and higher_closes:
+                patterns.append({
+                    'name': 'Three White Soldiers',
+                    'type': 'continuation',
+                    'direction': 'bullish',
+                    'strength': 80,
+                    'description': 'Trois soldats blancs - Forte pression acheteuse'
+                })
+
+        # 7. THREE BLACK CROWS - Forte continuation baissière
+        if len(data) >= 3:
+            all_bearish = all(data.iloc[i]['Close'] < data.iloc[i]['Open'] for i in [-3, -2, -1])
+            lower_closes = data['Close'].iloc[-3] > data['Close'].iloc[-2] > data['Close'].iloc[-1]
+            if all_bearish and lower_closes:
+                patterns.append({
+                    'name': 'Three Black Crows',
+                    'type': 'continuation',
+                    'direction': 'bearish',
+                    'strength': 80,
+                    'description': 'Trois corbeaux noirs - Forte pression vendeuse'
+                })
+
+        return patterns
+
+    def _detect_chart_patterns(self, data, lookback=50):
+        """
+        Détecte les patterns chartistes (Head & Shoulders, Triangles, etc.)
+        """
+        patterns = []
+
+        if len(data) < lookback:
+            return patterns
+
+        recent = data.tail(lookback)
+        highs = recent['High'].values
+        lows = recent['Low'].values
+        closes = recent['Close'].values
+
+        # Trouver les pivots
+        pivot_highs = []
+        pivot_lows = []
+
+        for i in range(2, len(highs) - 2):
+            if highs[i] > highs[i-1] and highs[i] > highs[i-2] and highs[i] > highs[i+1] and highs[i] > highs[i+2]:
+                pivot_highs.append((i, highs[i]))
+            if lows[i] < lows[i-1] and lows[i] < lows[i-2] and lows[i] < lows[i+1] and lows[i] < lows[i+2]:
+                pivot_lows.append((i, lows[i]))
+
+        # 1. HEAD AND SHOULDERS (besoin de 3 pivots hauts)
+        if len(pivot_highs) >= 3:
+            last_three = pivot_highs[-3:]
+            left_shoulder = last_three[0][1]
+            head = last_three[1][1]
+            right_shoulder = last_three[2][1]
+
+            # Head doit être plus haut que les épaules
+            if head > left_shoulder and head > right_shoulder:
+                # Épaules à peu près au même niveau (tolérance 5%)
+                shoulder_diff = abs(left_shoulder - right_shoulder) / left_shoulder
+                if shoulder_diff < 0.05:
+                    patterns.append({
+                        'name': 'Head and Shoulders',
+                        'type': 'reversal',
+                        'direction': 'bearish',
+                        'strength': 85,
+                        'description': 'Tête et Épaules - Signal de retournement baissier majeur'
+                    })
+
+        # 2. INVERSE HEAD AND SHOULDERS (besoin de 3 pivots bas)
+        if len(pivot_lows) >= 3:
+            last_three = pivot_lows[-3:]
+            left_shoulder = last_three[0][1]
+            head = last_three[1][1]
+            right_shoulder = last_three[2][1]
+
+            if head < left_shoulder and head < right_shoulder:
+                shoulder_diff = abs(left_shoulder - right_shoulder) / left_shoulder
+                if shoulder_diff < 0.05:
+                    patterns.append({
+                        'name': 'Inverse Head and Shoulders',
+                        'type': 'reversal',
+                        'direction': 'bullish',
+                        'strength': 85,
+                        'description': 'Tête et Épaules Inversé - Signal de retournement haussier majeur'
+                    })
+
+        # 3. TRIANGLE ASCENDANT (résistance horizontale, supports ascendants)
+        if len(pivot_highs) >= 2 and len(pivot_lows) >= 2:
+            high_diff = abs(pivot_highs[-1][1] - pivot_highs[-2][1]) / pivot_highs[-2][1]
+            low_trend = pivot_lows[-1][1] > pivot_lows[-2][1]
+
+            if high_diff < 0.02 and low_trend:  # Résistance plate, supports montants
+                patterns.append({
+                    'name': 'Ascending Triangle',
+                    'type': 'continuation',
+                    'direction': 'bullish',
+                    'strength': 75,
+                    'description': 'Triangle Ascendant - Breakout haussier probable'
+                })
+
+        # 4. TRIANGLE DESCENDANT
+        if len(pivot_highs) >= 2 and len(pivot_lows) >= 2:
+            low_diff = abs(pivot_lows[-1][1] - pivot_lows[-2][1]) / pivot_lows[-2][1]
+            high_trend = pivot_highs[-1][1] < pivot_highs[-2][1]
+
+            if low_diff < 0.02 and high_trend:
+                patterns.append({
+                    'name': 'Descending Triangle',
+                    'type': 'continuation',
+                    'direction': 'bearish',
+                    'strength': 75,
+                    'description': 'Triangle Descendant - Breakdown baissier probable'
+                })
+
+        # 5. BULL FLAG / BEAR FLAG
+        recent_10 = data.tail(10)
+        recent_30 = data.tail(30)
+
+        # Bull Flag: forte hausse puis consolidation
+        initial_move = (recent_30['Close'].iloc[10] - recent_30['Close'].iloc[0]) / recent_30['Close'].iloc[0]
+        consolidation_range = (recent_10['High'].max() - recent_10['Low'].min()) / recent_10['Close'].mean()
+
+        if initial_move > 0.05 and consolidation_range < 0.03:
+            patterns.append({
+                'name': 'Bull Flag',
+                'type': 'continuation',
+                'direction': 'bullish',
+                'strength': 70,
+                'description': 'Drapeau Haussier - Continuation probable après consolidation'
+            })
+
+        if initial_move < -0.05 and consolidation_range < 0.03:
+            patterns.append({
+                'name': 'Bear Flag',
+                'type': 'continuation',
+                'direction': 'bearish',
+                'strength': 70,
+                'description': 'Drapeau Baissier - Continuation baissière probable'
+            })
+
+        return patterns
+
+    def _analyze_smart_money(self, data):
+        """
+        Analyse Smart Money Concepts:
+        - Order Blocks (zones d'accumulation institutionnelle)
+        - Fair Value Gaps (déséquilibres de prix)
+        - Liquidity Zones (zones de liquidité)
+        """
+        smc_analysis = {
+            'order_blocks': [],
+            'fair_value_gaps': [],
+            'liquidity_zones': [],
+            'score': 0.5
+        }
+
+        if len(data) < 20:
+            return smc_analysis
+
+        current_price = data['Close'].iloc[-1]
+
+        # 1. DÉTECTION DES ORDER BLOCKS
+        # Order Block = dernière bougie opposée avant un fort mouvement
+        for i in range(len(data) - 10, len(data) - 2):
+            if i < 1:
+                continue
+
+            candle = data.iloc[i]
+            next_candles = data.iloc[i+1:i+4]
+
+            is_bullish_candle = candle['Close'] > candle['Open']
+            is_bearish_candle = candle['Close'] < candle['Open']
+
+            # Mouvement après la bougie
+            if len(next_candles) >= 3:
+                move = (next_candles['Close'].iloc[-1] - candle['Close']) / candle['Close']
+
+                # Bullish Order Block: bougie baissière suivie d'un fort mouvement haussier
+                if is_bearish_candle and move > 0.02:
+                    smc_analysis['order_blocks'].append({
+                        'type': 'bullish',
+                        'high': candle['High'],
+                        'low': candle['Low'],
+                        'distance': ((current_price - candle['High']) / candle['High']) * 100
+                    })
+
+                # Bearish Order Block
+                if is_bullish_candle and move < -0.02:
+                    smc_analysis['order_blocks'].append({
+                        'type': 'bearish',
+                        'high': candle['High'],
+                        'low': candle['Low'],
+                        'distance': ((candle['Low'] - current_price) / current_price) * 100
+                    })
+
+        # 2. DÉTECTION DES FAIR VALUE GAPS (FVG)
+        for i in range(2, len(data)):
+            c0 = data.iloc[i]
+            c2 = data.iloc[i-2]
+
+            # Bullish FVG: gap entre le high de c2 et le low de c0
+            if c0['Low'] > c2['High']:
+                gap_size = ((c0['Low'] - c2['High']) / c2['High']) * 100
+                if gap_size > 0.1:
+                    smc_analysis['fair_value_gaps'].append({
+                        'type': 'bullish',
+                        'top': c0['Low'],
+                        'bottom': c2['High'],
+                        'filled': current_price <= c0['Low']
+                    })
+
+            # Bearish FVG
+            if c0['High'] < c2['Low']:
+                gap_size = ((c2['Low'] - c0['High']) / c0['High']) * 100
+                if gap_size > 0.1:
+                    smc_analysis['fair_value_gaps'].append({
+                        'type': 'bearish',
+                        'top': c2['Low'],
+                        'bottom': c0['High'],
+                        'filled': current_price >= c0['High']
+                    })
+
+        # 3. ZONES DE LIQUIDITÉ (swing highs/lows récents)
+        highs = data['High'].tail(20)
+        lows = data['Low'].tail(20)
+
+        # Liquidité au-dessus (stop losses des shorts)
+        recent_high = highs.max()
+        smc_analysis['liquidity_zones'].append({
+            'type': 'buy_side',
+            'level': recent_high,
+            'distance': ((recent_high - current_price) / current_price) * 100
+        })
+
+        # Liquidité en-dessous (stop losses des longs)
+        recent_low = lows.min()
+        smc_analysis['liquidity_zones'].append({
+            'type': 'sell_side',
+            'level': recent_low,
+            'distance': ((current_price - recent_low) / recent_low) * 100
+        })
+
+        # Calcul du score SMC
+        score = 0.5
+
+        # Bonus si prix proche d'un Order Block bullish
+        for ob in smc_analysis['order_blocks']:
+            if ob['type'] == 'bullish' and -2 < ob['distance'] < 2:
+                score += 0.2
+            elif ob['type'] == 'bearish' and -2 < ob['distance'] < 2:
+                score -= 0.2
+
+        # Bonus si FVG non rempli proche
+        unfilled_fvg = [fvg for fvg in smc_analysis['fair_value_gaps'] if not fvg['filled']]
+        if unfilled_fvg:
+            score += 0.1
+
+        smc_analysis['score'] = max(0, min(1, score))
+        return smc_analysis
+
+    def _analyze_market_structure(self, data):
+        """
+        Analyse la structure de marché:
+        - Break of Structure (BOS)
+        - Change of Character (CHoCH)
+        - Higher Highs / Lower Lows
+        """
+        structure = {
+            'trend': 'neutral',
+            'bos': None,
+            'choch': None,
+            'hh_hl': False,
+            'll_lh': False,
+            'score': 0.5
+        }
+
+        if len(data) < 20:
+            return structure
+
+        highs = data['High'].tail(20).values
+        lows = data['Low'].tail(20).values
+
+        # Trouver les swing points
+        swing_highs = []
+        swing_lows = []
+
+        for i in range(2, len(highs) - 2):
+            if highs[i] > highs[i-1] and highs[i] > highs[i-2] and highs[i] > highs[i+1] and highs[i] > highs[i+2]:
+                swing_highs.append(highs[i])
+            if lows[i] < lows[i-1] and lows[i] < lows[i-2] and lows[i] < lows[i+1] and lows[i] < lows[i+2]:
+                swing_lows.append(lows[i])
+
+        if len(swing_highs) >= 2 and len(swing_lows) >= 2:
+            # Higher Highs + Higher Lows = Uptrend
+            hh = swing_highs[-1] > swing_highs[-2]
+            hl = swing_lows[-1] > swing_lows[-2]
+
+            # Lower Lows + Lower Highs = Downtrend
+            ll = swing_lows[-1] < swing_lows[-2]
+            lh = swing_highs[-1] < swing_highs[-2]
+
+            if hh and hl:
+                structure['trend'] = 'bullish'
+                structure['hh_hl'] = True
+                structure['score'] = 0.7
+            elif ll and lh:
+                structure['trend'] = 'bearish'
+                structure['ll_lh'] = True
+                structure['score'] = 0.3
+
+            # Break of Structure (BOS) - Continuation
+            current_price = data['Close'].iloc[-1]
+            if structure['trend'] == 'bullish' and current_price > swing_highs[-1]:
+                structure['bos'] = 'bullish'
+                structure['score'] = 0.8
+            elif structure['trend'] == 'bearish' and current_price < swing_lows[-1]:
+                structure['bos'] = 'bearish'
+                structure['score'] = 0.2
+
+            # Change of Character (CHoCH) - Reversal potentiel
+            if structure['trend'] == 'bullish' and current_price < swing_lows[-1]:
+                structure['choch'] = 'bearish'
+                structure['score'] = 0.3
+            elif structure['trend'] == 'bearish' and current_price > swing_highs[-1]:
+                structure['choch'] = 'bullish'
+                structure['score'] = 0.7
+
+        return structure
+
+    def _analyze_multi_timeframe_confluence(self, data_1d, data_1h, data_15m):
+        """
+        Analyse la confluence multi-timeframe
+        Score élevé si tous les timeframes sont alignés
+        """
+        confluence = {
+            'aligned': False,
+            'direction': 'neutral',
+            'strength': 0,
+            'details': {}
+        }
+
+        def get_tf_bias(data):
+            """Détermine le biais d'un timeframe"""
+            if len(data) < 20:
+                return 'neutral', 0.5
+
+            ema_20 = data['Close'].ewm(span=20).mean().iloc[-1]
+            ema_50 = data['Close'].ewm(span=50).mean().iloc[-1]
+            current = data['Close'].iloc[-1]
+
+            rsi = self._calculate_rsi(data)
+
+            if current > ema_20 > ema_50 and rsi > 50:
+                return 'bullish', 0.7 + (rsi - 50) / 100
+            elif current < ema_20 < ema_50 and rsi < 50:
+                return 'bearish', 0.3 - (50 - rsi) / 100
+            else:
+                return 'neutral', 0.5
+
+        # Analyser chaque timeframe
+        tf_1d_bias, tf_1d_score = get_tf_bias(data_1d)
+        tf_1h_bias, tf_1h_score = get_tf_bias(data_1h) if len(data_1h) > 0 else ('neutral', 0.5)
+        tf_15m_bias, tf_15m_score = get_tf_bias(data_15m) if len(data_15m) > 0 else ('neutral', 0.5)
+
+        confluence['details'] = {
+            '1D': tf_1d_bias,
+            '1H': tf_1h_bias,
+            '15m': tf_15m_bias
+        }
+
+        # Vérifier l'alignement
+        biases = [tf_1d_bias, tf_1h_bias, tf_15m_bias]
+
+        if all(b == 'bullish' for b in biases):
+            confluence['aligned'] = True
+            confluence['direction'] = 'bullish'
+            confluence['strength'] = 0.9
+        elif all(b == 'bearish' for b in biases):
+            confluence['aligned'] = True
+            confluence['direction'] = 'bearish'
+            confluence['strength'] = 0.9
+        elif biases.count('bullish') >= 2:
+            confluence['direction'] = 'bullish'
+            confluence['strength'] = 0.7
+        elif biases.count('bearish') >= 2:
+            confluence['direction'] = 'bearish'
+            confluence['strength'] = 0.7
+        else:
+            confluence['strength'] = 0.5
+
+        return confluence
+
+    def _analyze_patterns(self, data):
+        """
+        Score combiné des patterns détectés
+        """
+        candle_patterns = self._detect_candlestick_patterns(data)
+        chart_patterns = self._detect_chart_patterns(data)
+
+        all_patterns = candle_patterns + chart_patterns
+
+        if not all_patterns:
+            return 0.5, []
+
+        # Calculer le score basé sur les patterns
+        bullish_strength = sum(p['strength'] for p in all_patterns if p['direction'] == 'bullish')
+        bearish_strength = sum(p['strength'] for p in all_patterns if p['direction'] == 'bearish')
+
+        if bullish_strength > bearish_strength:
+            score = 0.5 + min(0.4, bullish_strength / 200)
+        elif bearish_strength > bullish_strength:
+            score = 0.5 - min(0.4, bearish_strength / 200)
+        else:
+            score = 0.5
+
+        return score, all_patterns
 
     def _determine_direction(self, data_1d, data_1h, technical_score, momentum_score):
         """Détermine la direction suggérée"""
