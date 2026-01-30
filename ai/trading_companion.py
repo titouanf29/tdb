@@ -99,14 +99,14 @@ Quel montant souhaitez-vous investir ?
         user_id = update.message.from_user.id
         text = update.message.text.strip()
 
-        print(f"[DEBUG TC] handle_text_input appele pour user {user_id}, message: '{text[:50]}...'")
+        logger.debug(f"handle_text_input pour user {user_id}, message: '{text[:50]}...'")
 
         # Récupérer l'état de conversation
         state = await db_manager.get_conversation_state(user_id)
 
         if not state:
             # Pas de conversation en cours pour le Trading Companion
-            print(f"[DEBUG TC] Pas de conversation TC active, return None pour laisser passer au groupe suivant")
+            logger.debug(f"Pas de conversation TC active pour user {user_id}")
             return
 
         logger.info(f"💬 Trading Companion: Message reçu de user {user_id}: '{text}' (état: {state['state']})")
