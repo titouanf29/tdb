@@ -838,7 +838,18 @@ class MenuModule:
             try:
                 positions = await db_manager.get_user_positions(user_id)
                 if positions:
-                    report = await risk_service.generate_risk_report(positions)
+                    # Convertir au format attendu par risk_service
+                    risk_positions = []
+                    for pos in positions:
+                        price = pos.get('current_price') or pos.get('entry_price', 0)
+                        amount = pos.get('amount', 0)
+                        value = price * amount
+                        risk_positions.append({
+                            'symbol': pos.get('asset_symbol'),
+                            'value': value,
+                            'quantity': amount
+                        })
+                    report = await risk_service.generate_risk_report(risk_positions)
                 else:
                     report = "📊 **RAPPORT DE RISQUE**\n\n⚠️ Aucune position ouverte.\nOuvrez des positions pour voir l'analyse de risque."
 
