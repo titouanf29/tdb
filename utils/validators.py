@@ -2,51 +2,66 @@
 Validateurs pour TDB Bot
 """
 import re
+import logging
 import config
+
+logger = logging.getLogger(__name__)
+
 
 def is_valid_amount(amount_str):
     """Vérifie si un montant est valide"""
     try:
         amount = float(amount_str.replace(',', '.'))
         return amount > 0
-    except:
+    except (ValueError, TypeError, AttributeError) as e:
+        logger.debug(f"Montant invalide '{amount_str}': {e}")
         return False
+
 
 def parse_amount(amount_str):
     """Parse un montant"""
     try:
         return float(amount_str.replace(',', '.'))
-    except:
+    except (ValueError, TypeError, AttributeError) as e:
+        logger.debug(f"Impossible de parser le montant '{amount_str}': {e}")
         return None
+
 
 def is_valid_leverage(leverage_str):
     """Vérifie si un levier est valide"""
     try:
         leverage = int(leverage_str)
         return 0 <= leverage <= 100
-    except:
+    except (ValueError, TypeError) as e:
+        logger.debug(f"Levier invalide '{leverage_str}': {e}")
         return False
+
 
 def parse_leverage(leverage_str):
     """Parse un levier"""
     try:
         return int(leverage_str)
-    except:
+    except (ValueError, TypeError) as e:
+        logger.debug(f"Impossible de parser le levier '{leverage_str}': {e}")
         return None
+
 
 def is_valid_percentage(percent_str):
     """Vérifie si un pourcentage est valide"""
     try:
         percent = float(percent_str.replace(',', '.').replace('%', ''))
         return 0 <= percent <= 100
-    except:
+    except (ValueError, TypeError, AttributeError) as e:
+        logger.debug(f"Pourcentage invalide '{percent_str}': {e}")
         return False
+
 
 def parse_percentage(percent_str):
     """Parse un pourcentage"""
     try:
         return float(percent_str.replace(',', '.').replace('%', ''))
-    except:
+    except (ValueError, TypeError, AttributeError) as e:
+        logger.debug(f"Impossible de parser le pourcentage '{percent_str}': {e}")
         return None
 
 def is_valid_market(market_code):
@@ -77,7 +92,8 @@ def is_valid_telegram_id(telegram_id):
     try:
         tid = int(telegram_id)
         return tid > 0
-    except:
+    except (ValueError, TypeError) as e:
+        logger.debug(f"ID Telegram invalide '{telegram_id}': {e}")
         return False
 
 def validate_position_data(data):
@@ -114,5 +130,6 @@ def is_valid_score(score):
     try:
         s = int(score)
         return 0 <= s <= 100
-    except:
+    except (ValueError, TypeError) as e:
+        logger.debug(f"Score invalide '{score}': {e}")
         return False

@@ -10,6 +10,7 @@ Analyse multi-paramètres :
 
 Système de scoring intelligent 0-100
 """
+import logging
 import yfinance as yf
 import pandas as pd
 import numpy as np
@@ -17,6 +18,8 @@ from datetime import datetime, timedelta
 import config
 from utils.helpers import *
 from services.news import news_service
+
+logger = logging.getLogger(__name__)
 
 class MarketAnalyzer:
     """Analyseur de marché avancé avec IA"""
@@ -169,7 +172,7 @@ class MarketAnalyzer:
             }
 
         except Exception as e:
-            print(f"Erreur analyse {symbol}: {e}")
+            logger.error(f"Erreur analyse {symbol}: {e}")
             return None
 
     def _analyze_technical(self, data_1d, data_1h, data_15m):
@@ -346,8 +349,8 @@ class MarketAnalyzer:
                 elif index_change < 0:
                     score -= 0.1
 
-        except:
-            pass
+        except Exception as e:
+            logger.debug(f"Impossible d'analyser contexte marché {market}: {e}")
 
         return max(0, min(1, score))
 
@@ -611,7 +614,7 @@ class MarketAnalyzer:
                 return 0.5  # Neutre
 
         except Exception as e:
-            print(f"[ANALYZER] Erreur analyse news: {e}")
+            logger.warning(f"Erreur analyse news: {e}")
             return 0.5
 
     def _get_news_summary(self, symbol):
@@ -639,7 +642,7 @@ class MarketAnalyzer:
             return summary
 
         except Exception as e:
-            print(f"[ANALYZER] Erreur get_news_summary: {e}")
+            logger.warning(f"Erreur get_news_summary: {e}")
             return "Erreur récupération actualités"
 
     def _generate_explanations(self, technical_score, volume_score, momentum_score,
@@ -888,7 +891,7 @@ Reste factuel et concis. Utilise des emojis pour la lisibilite."""
             return response.choices[0].message.content.strip()
 
         except Exception as e:
-            print(f"[ANALYZER] Erreur generation resume IA: {e}")
+            logger.error(f"Erreur generation resume IA: {e}")
             # Fallback: resume basique sans IA
             return self._generate_basic_summary(market_code, analyses, event_type)
 

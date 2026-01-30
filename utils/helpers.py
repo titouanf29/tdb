@@ -3,9 +3,12 @@ Fonctions utilitaires pour TDB Bot
 """
 import random
 import string
+import logging
 from datetime import datetime, time
 import pytz
 import config
+
+logger = logging.getLogger(__name__)
 
 def generate_position_code(length=8):
     """Génère un code unique pour une position"""
@@ -90,7 +93,8 @@ def is_market_open(market_code):
             return False
 
         return open_time <= current_time <= close_time
-    except:
+    except Exception as e:
+        logger.warning(f"Erreur vérification marché {market_code}: {e}")
         return False
 
 def get_market_status_message(market_code):

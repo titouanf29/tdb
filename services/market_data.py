@@ -1,9 +1,13 @@
 """
 Service de récupération des données de marché
 """
+import logging
 import yfinance as yf
 from datetime import datetime, timedelta
 import config
+
+logger = logging.getLogger(__name__)
+
 
 class MarketDataService:
     """Service pour récupérer les données de marché"""
@@ -16,7 +20,7 @@ class MarketDataService:
             data = ticker.history(period=period, interval=interval)
             return data if not data.empty else None
         except Exception as e:
-            print(f"Erreur récupération données {symbol}: {e}")
+            logger.error(f"Erreur récupération données {symbol}: {e}")
             return None
 
     @staticmethod
@@ -28,7 +32,8 @@ class MarketDataService:
             if not data.empty:
                 return float(data['Close'].iloc[-1])
             return None
-        except:
+        except Exception as e:
+            logger.warning(f"Erreur récupération prix {symbol}: {e}")
             return None
 
     @staticmethod
@@ -38,7 +43,8 @@ class MarketDataService:
             ticker = yf.Ticker(symbol)
             info = ticker.info
             return info
-        except:
+        except Exception as e:
+            logger.warning(f"Erreur récupération info {symbol}: {e}")
             return {}
 
     @staticmethod
@@ -52,8 +58,6 @@ class MarketDataService:
     @staticmethod
     async def search_symbol(query):
         """Recherche un symbole"""
-        # Cette fonction pourrait utiliser une API de recherche
-        # Pour l'instant, retourne une recherche basique
         try:
             ticker = yf.Ticker(query.upper())
             info = ticker.info
@@ -63,8 +67,8 @@ class MarketDataService:
                     'name': info.get('shortName', query),
                     'currency': info.get('currency', 'USD')
                 }
-        except:
-            pass
+        except Exception as e:
+            logger.debug(f"Symbole non trouvé '{query}': {e}")
         return None
 
 # Instance globale

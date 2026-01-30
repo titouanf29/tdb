@@ -106,12 +106,12 @@ class TDBBot:
             # - Groupe 0: TradingCompanion (conversation de trading)
             # - Groupe 1: Wallet (codes de position)
             # - Groupe 2: AI Assistant (chat IA)
-            print(f"[DEBUG MAIN] Enregistrement du handler AI Assistant dans groupe 2")
+            logger.debug("Enregistrement du handler AI Assistant dans groupe 2")
             self.application.add_handler(MessageHandler(
                 filters.TEXT & ~filters.COMMAND,
                 self.ai_assistant_module.handle_ai_message
             ), group=2)
-            print(f"[DEBUG MAIN] Handler AI Assistant enregistre avec succes")
+            logger.debug("Handler AI Assistant enregistré avec succès")
             self.application.add_handler(CallbackQueryHandler(
                 self.ai_assistant_module.callback_ai_stop,
                 pattern="^ai_stop$"

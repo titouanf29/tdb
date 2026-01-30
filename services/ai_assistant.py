@@ -2,10 +2,14 @@
 Service d'Assistant IA avec Groq
 Permet aux utilisateurs de poser des questions sur le trading
 """
+import logging
 from groq import Groq
 import config
 from datetime import datetime
 import json
+
+logger = logging.getLogger(__name__)
+
 
 class AIAssistantService:
     """Assistant IA conversationnel pour le trading"""
@@ -98,12 +102,12 @@ Comment l'interpreter:
         """
         try:
             # Construire les messages pour Groq
-            print(f"[AI_SERVICE] Construction messages pour Groq...")
+            logger.debug("Construction messages pour Groq...")
             messages = self._build_messages(user_message, conversation_history, asset_context)
-            print(f"[AI_SERVICE] Messages construits: {len(messages)} messages")
+            logger.debug(f"Messages construits: {len(messages)} messages")
 
             # Générer la réponse avec Groq
-            print(f"[AI_SERVICE] Appel API Groq avec modele {self.model}...")
+            logger.debug(f"Appel API Groq avec modele {self.model}...")
             chat_completion = self.client.chat.completions.create(
                 messages=messages,
                 model=self.model,
@@ -111,10 +115,10 @@ Comment l'interpreter:
                 max_tokens=2048,  # Augmenté pour les analyses détaillées
                 top_p=0.95,
             )
-            print(f"[AI_SERVICE] Reponse Groq recue")
+            logger.debug("Reponse Groq recue")
 
             response_text = chat_completion.choices[0].message.content
-            print(f"[AI_SERVICE] Longueur reponse: {len(response_text) if response_text else 0} caracteres")
+            logger.debug(f"Longueur reponse: {len(response_text) if response_text else 0} caracteres")
 
             if not response_text:
                 return {
@@ -134,7 +138,7 @@ Comment l'interpreter:
             }
 
         except Exception as e:
-            print(f"[AI_ASSISTANT] Erreur: {e}")
+            logger.error(f"Erreur chat IA: {e}")
             return {
                 'success': False,
                 'error': str(e),
@@ -215,7 +219,7 @@ Comment l'interpreter:
             }
 
         except Exception as e:
-            print(f"[AI_ASSISTANT] Erreur get_asset_context: {e}")
+            logger.error(f"Erreur get_asset_context: {e}")
             return None
 
 # Instance globale

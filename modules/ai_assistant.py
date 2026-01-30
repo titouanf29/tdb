@@ -2,6 +2,7 @@
 Module Assistant IA Trading
 Permet aux utilisateurs de converser avec un assistant IA spécialisé en trading
 """
+import logging
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 from services.ai_assistant import ai_assistant_service
@@ -9,6 +10,8 @@ from database.manager import db_manager
 from datetime import datetime, timedelta
 import pytz
 import config
+
+logger = logging.getLogger(__name__)
 
 
 def get_reset_time_info():
@@ -82,9 +85,9 @@ class AIAssistantModule:
             return
 
         # Activer le mode chat
-        print(f"[DEBUG AI] Activation du chat pour user {user_id}")
+        logger.debug(f"Activation du chat IA pour user {user_id}")
         self.activate_chat(user_id)
-        print(f"[DEBUG AI] Sessions apres activation: {active_chat_sessions}")
+        logger.debug(f"Sessions actives: {len(active_chat_sessions)}")
 
         # Afficher le message d'accueil
         keyboard = [
@@ -130,23 +133,18 @@ class AIAssistantModule:
     async def handle_ai_message(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Gère les messages quand le mode chat IA est actif"""
         try:
-            print(f"[DEBUG AI] >>> handle_ai_message ENTRY POINT <<<")
-
             user_id = update.effective_user.id
             user_message = update.message.text
-
-            print(f"[DEBUG AI] handle_ai_message appele pour user {user_id}")
-            print(f"[DEBUG AI] Sessions actives: {active_chat_sessions}")
-            print(f"[DEBUG AI] Chat actif pour user? {self.is_chat_active(user_id)}")
+            logger.debug(f"handle_ai_message pour user {user_id}, chat_actif={self.is_chat_active(user_id)}")
         except Exception as e:
-            print(f"[DEBUG AI] ERREUR au debut de handle_ai_message: {e}")
+            logger.error(f"Erreur initialisation handle_ai_message: {e}")
+            return False
 
         # Vérifier que le mode chat est actif
         if not self.is_chat_active(user_id):
-            print(f"[DEBUG AI] User {user_id} pas en mode chat, return False")
             return False  # Pas en mode chat, laisser les autres handlers traiter
 
-        print(f"[DEBUG AI] User {user_id} EN mode chat, traitement du message...")
+        logger.debug(f"User {user_id} en mode chat, traitement du message...")
 
         # Verifier la limite journaliere
         limit_reached = await db_manager.check_ai_limit_reached(user_id)
@@ -164,32 +162,26 @@ class AIAssistantModule:
             return True
 
         # Afficher un indicateur de "en train d'écrire..."
-        print(f"[DEBUG AI] Envoi du message 'Reflexion en cours...'")
         typing_message = await update.message.reply_text("💭 Réflexion en cours...")
-        print(f"[DEBUG AI] Message typing envoye")
 
         try:
             # Récupérer l'historique de conversation
-            print(f"[DEBUG AI] Recuperation historique...")
             history = await db_manager.get_ai_chat_history(user_id, limit=5)
-            print(f"[DEBUG AI] Historique recupere: {len(history) if history else 0} messages")
+            logger.debug(f"Historique: {len(history) if history else 0} messages")
 
             # Détecter si l'utilisateur mentionne un actif (ex: "analyse AAPL")
-            print(f"[DEBUG AI] Detection contexte actif...")
             asset_context = await self._detect_asset_context(user_message)
-            print(f"[DEBUG AI] Contexte actif: {asset_context}")
 
             # Envoyer au service IA
-            print(f"[DEBUG AI] Appel service IA avec message: '{user_message[:50]}...'")
+            logger.debug(f"Appel service IA: '{user_message[:50]}...'")
             response = await ai_assistant_service.chat(
                 user_message=user_message,
                 conversation_history=history,
                 asset_context=asset_context
             )
-            print(f"[DEBUG AI] Reponse service IA: success={response.get('success')}")
 
             if not response['success']:
-                print(f"[DEBUG AI] Erreur IA: {response.get('error')}")
+                logger.warning(f"Erreur IA: {response.get('error')}")
                 await typing_message.edit_text(
                     f"❌ Erreur : {response.get('error', 'Erreur inconnue')}\n\n"
                     f"Réessayez dans quelques instants."
@@ -228,7 +220,7 @@ class AIAssistantModule:
             )
 
         except Exception as e:
-            print(f"[AI_ASSISTANT] Erreur handle_message: {e}")
+            logger.error(f"Erreur handle_ai_message: {e}", exc_info=True)
             await typing_message.edit_text(
                 f"❌ Une erreur est survenue.\n\n"
                 f"Détails: {str(e)}"

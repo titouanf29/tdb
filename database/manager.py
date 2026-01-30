@@ -1,11 +1,15 @@
 """
 Gestionnaire de base de données pour TDB Bot
 """
+import logging
 import aiosqlite
 import json
 from datetime import datetime
 from pathlib import Path
 import config
+
+logger = logging.getLogger(__name__)
+
 
 class DatabaseManager:
     """Gère toutes les opérations de base de données"""
@@ -26,7 +30,8 @@ class DatabaseManager:
                 await db.execute("""
                     ALTER TABLE user_settings ADD COLUMN chart_type TEXT DEFAULT 'candlestick'
                 """)
-            except:
+                logger.debug("Migration: Colonne chart_type ajoutée")
+            except Exception:
                 pass  # La colonne existe déjà
 
             # Migration: Corriger les anciennes valeurs de trading_style
@@ -46,7 +51,7 @@ class DatabaseManager:
                     SET trading_style = 'Scalping'
                     WHERE trading_style = 'scalp'
                 """)
-            except:
+            except Exception:
                 pass  # Déjà mis à jour
 
             await db.commit()
