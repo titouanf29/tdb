@@ -5,7 +5,7 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, CallbackQueryHandler
 from database.manager import db_manager
 from utils.constants import *
-from utils.i18n import set_language, get_language, SUPPORTED_LANGUAGES
+from utils.i18n import set_language, get_language, load_language, SUPPORTED_LANGUAGES
 
 class SettingsModule:
     """Module de gestion des paramètres"""
@@ -805,16 +805,17 @@ Que souhaitez-vous modifier ?"""
         elif data.startswith("set_lang_"):
             lang = data.replace("set_lang_", "")
             user_id = query.from_user.id
-            # Sauvegarder la langue
+            # Sauvegarder la langue dans le cache ET la base de données
             set_language(user_id, lang)
+            load_language(user_id, lang)
             await db_manager.update_user_settings(user_id, language=lang)
 
             # Messages de confirmation par langue
             confirmations = {
-                'fr': "✅ Langue changée : Français",
-                'en': "✅ Language changed: English",
-                'es': "✅ Idioma cambiado: Español",
-                'de': "✅ Sprache geändert: Deutsch"
+                'fr': "✅ Langue changée : Français\n\n💡 La langue sera appliquée progressivement à l'interface.",
+                'en': "✅ Language changed: English\n\n💡 Language will be gradually applied to the interface.",
+                'es': "✅ Idioma cambiado: Español\n\n💡 El idioma se aplicará gradualmente a la interfaz.",
+                'de': "✅ Sprache geändert: Deutsch\n\n💡 Die Sprache wird schrittweise auf die Oberfläche angewendet."
             }
             await query.answer(confirmations.get(lang, "✅ OK"), show_alert=True)
             await self.show_ui_settings(update, context)

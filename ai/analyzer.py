@@ -44,7 +44,36 @@ class MarketAnalyzer:
             'confluence': 0.05     # Nouveau
         }
 
-    async def analyze_asset(self, symbol, market, timeframes=None, fetch_news=True):
+        # Seuils de score selon l'agressivité
+        self.aggressiveness_thresholds = {
+            'Conservateur': {'min_score': 80, 'risk_multiplier': 0.7},
+            'Modéré': {'min_score': 70, 'risk_multiplier': 1.0},
+            'Agressif': {'min_score': 60, 'risk_multiplier': 1.3},
+            'Très Agressif': {'min_score': 50, 'risk_multiplier': 1.5}
+        }
+
+        # Niveaux de détail
+        self.detail_levels = {
+            'Minimal': {'show_patterns': False, 'show_smc': False, 'show_targets': False, 'max_indicators': 3},
+            'Standard': {'show_patterns': True, 'show_smc': False, 'show_targets': True, 'max_indicators': 6},
+            'Détaillé': {'show_patterns': True, 'show_smc': True, 'show_targets': True, 'max_indicators': 10},
+            'Complet': {'show_patterns': True, 'show_smc': True, 'show_targets': True, 'max_indicators': 999}
+        }
+
+    def get_user_thresholds(self, user_settings=None):
+        """Retourne les seuils selon les paramètres utilisateur"""
+        if not user_settings:
+            return self.aggressiveness_thresholds['Modéré'], self.detail_levels['Standard']
+
+        aggro = user_settings.get('ai_aggressiveness', 'Modéré')
+        detail = user_settings.get('detail_level', 'Standard')
+
+        aggro_config = self.aggressiveness_thresholds.get(aggro, self.aggressiveness_thresholds['Modéré'])
+        detail_config = self.detail_levels.get(detail, self.detail_levels['Standard'])
+
+        return aggro_config, detail_config
+
+    async def analyze_asset(self, symbol, market, timeframes=None, fetch_news=True, user_settings=None):
         """
         Analyse complète d'un actif v2.0 avec nouvelles fonctionnalités
 
@@ -54,12 +83,16 @@ class MarketAnalyzer:
             timeframes: Liste des timeframes à analyser
             fetch_news: Si True, récupère et analyse les actualités (défaut: True)
                        Si False, utilise un score neutre pour les news (plus rapide pour les scans)
+            user_settings: Paramètres utilisateur (agressivité, niveau de détail)
 
         Returns:
             dict avec score, direction, analyses détaillées
         """
         if timeframes is None:
             timeframes = ["5m", "15m", "1h", "4h", "1d"]
+
+        # Récupérer les configurations utilisateur
+        aggro_config, detail_config = self.get_user_thresholds(user_settings)
 
         try:
             # Récupérer les données
@@ -212,7 +245,12 @@ class MarketAnalyzer:
                 confluence, adx_data, detected_patterns, market_structure
             )
 
-            return {
+            # Déterminer si c'est une opportunité selon l'agressivité
+            min_score = aggro_config.get('min_score', 70)
+            is_opportunity = final_score >= min_score and direction != "NEUTRAL"
+
+            # Construire le résultat selon le niveau de détail
+            result = {
                 'symbol': symbol,
                 'market': market,
                 'score': final_score,
@@ -221,37 +259,54 @@ class MarketAnalyzer:
                 'current_price': float(current_price),
                 'price_change_1d': float(price_change_1d),
                 'volatility': float(atr),
+                'atr': float(atr),
                 'rsi': float(rsi),
                 'volume_ratio': float(volume_ratio),
                 'support': float(support) if support else None,
                 'resistance': float(resistance) if resistance else None,
-                'fibonacci': {k: float(v) for k, v in fibonacci_levels.items()},
-                'reversal_signals': reversal_signals,
-                'technical_summary': technical_summary,
-                'opportunity_type': opportunity_type,
                 'risk_level': risk_level,
-                'news_summary': news_summary,
-                'explanations': explanations,
-                'recommendations': recommendations,
-                # Nouvelles données v2.0
-                'adx': adx_data,
-                'vwap': float(vwap),
-                'patterns': detected_patterns,
-                'smart_money': smc_analysis,
-                'confluence': confluence,
-                'market_structure': market_structure,
-                'scores': {
-                    'technical': technical_score,
-                    'volume': volume_score,
-                    'momentum': momentum_score,
-                    'volatility': volatility_score,
-                    'market_context': market_context_score,
-                    'news': news_score,
-                    'patterns': pattern_score,
-                    'smart_money': smc_score,
-                    'confluence': confluence_score
-                }
+                'is_opportunity': is_opportunity,
+                'min_score_threshold': min_score,
+                'user_aggressiveness': user_settings.get('ai_aggressiveness', 'Modéré') if user_settings else 'Modéré',
+                'user_detail_level': user_settings.get('detail_level', 'Standard') if user_settings else 'Standard',
             }
+
+            # Ajouter les cibles si le niveau de détail le permet
+            if detail_config.get('show_targets', True):
+                result['fibonacci'] = {k: float(v) for k, v in fibonacci_levels.items()}
+                result['reversal_signals'] = reversal_signals
+                result['technical_summary'] = technical_summary
+                result['opportunity_type'] = opportunity_type
+                result['news_summary'] = news_summary
+                result['explanations'] = explanations
+                result['recommendations'] = recommendations
+
+            # Ajouter les patterns si le niveau le permet
+            if detail_config.get('show_patterns', True):
+                result['patterns'] = detected_patterns
+                result['adx'] = adx_data
+                result['vwap'] = float(vwap)
+                result['confluence'] = confluence
+                result['market_structure'] = market_structure
+
+            # Ajouter Smart Money si niveau Détaillé ou Complet
+            if detail_config.get('show_smc', False):
+                result['smart_money'] = smc_analysis
+
+            # Toujours inclure les scores détaillés
+            result['scores'] = {
+                'technical': technical_score,
+                'volume': volume_score,
+                'momentum': momentum_score,
+                'volatility': volatility_score,
+                'market_context': market_context_score,
+                'news': news_score,
+                'patterns': pattern_score,
+                'smart_money': smc_score,
+                'confluence': confluence_score
+            }
+
+            return result
 
         except Exception as e:
             logger.error(f"Erreur analyse {symbol}: {e}")

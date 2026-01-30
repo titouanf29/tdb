@@ -1,13 +1,37 @@
 """
 Service de notifications intelligentes
 """
-from datetime import datetime
+from datetime import datetime, timedelta
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 from database.manager import db_manager
 from utils.constants import *
 from utils.helpers import *
 
+# Cache des opportunités snooze (user_id -> {symbol: datetime_expiry})
+_snoozed_opportunities = {}
+
+
 class NotificationService:
     """Service pour gérer les notifications"""
+
+    @staticmethod
+    def is_snoozed(telegram_id, symbol):
+        """Vérifie si une opportunité est snooze pour cet utilisateur"""
+        user_snoozes = _snoozed_opportunities.get(telegram_id, {})
+        if symbol in user_snoozes:
+            if datetime.now() < user_snoozes[symbol]:
+                return True
+            else:
+                # Snooze expiré, le supprimer
+                del user_snoozes[symbol]
+        return False
+
+    @staticmethod
+    def snooze_opportunity(telegram_id, symbol, hours=2):
+        """Snooze une opportunité pour X heures"""
+        if telegram_id not in _snoozed_opportunities:
+            _snoozed_opportunities[telegram_id] = {}
+        _snoozed_opportunities[telegram_id][symbol] = datetime.now() + timedelta(hours=hours)
 
     @staticmethod
     async def send_opportunity_notification(telegram_id, bot, analysis):
@@ -16,6 +40,10 @@ class NotificationService:
         score = analysis['score']
         direction = analysis['direction']
         current_price = analysis['current_price']
+
+        # Vérifier si l'opportunité est snooze
+        if NotificationService.is_snoozed(telegram_id, symbol):
+            return  # Ne pas envoyer si snooze
 
         emoji_score = get_score_emoji(score)
         emoji_dir = EMOJI_DIRECTION[direction]
@@ -28,19 +56,26 @@ class NotificationService:
 {emoji_dir} Direction: {direction}
 💰 Prix actuel: {format_price(current_price)}
 
-📊 {analysis['technical_summary']}
+📊 {analysis.get('technical_summary', 'Analyse technique disponible')}
 
-Type: {OPPORTUNITY_TYPES.get(analysis['opportunity_type'], analysis['opportunity_type'])}
-Risque: {EMOJI_RISK[analysis['risk_level']]} {analysis['risk_level'].upper()}
-
-Utilisez /menu pour analyser en détail.
+Type: {OPPORTUNITY_TYPES.get(analysis.get('opportunity_type', 'trading'), analysis.get('opportunity_type', 'Trading'))}
+Risque: {EMOJI_RISK.get(analysis.get('risk_level', 'medium'), '🟡')} {analysis.get('risk_level', 'MEDIUM').upper()}
 """
+
+        # Boutons d'action
+        keyboard = [
+            [InlineKeyboardButton("✅ Intéressé (voir /a)", callback_data=f"opp_interested_{symbol}")],
+            [InlineKeyboardButton("😴 Snooze 2h", callback_data=f"opp_snooze_{symbol}"),
+             InlineKeyboardButton("❌ Ignorer", callback_data=f"opp_ignore_{symbol}")]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
 
         try:
             await bot.send_message(
                 chat_id=telegram_id,
                 text=message,
-                parse_mode='Markdown'
+                parse_mode='Markdown',
+                reply_markup=reply_markup
             )
 
             # Sauvegarder la notification

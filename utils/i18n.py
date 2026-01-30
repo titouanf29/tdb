@@ -516,6 +516,11 @@ class I18n:
     def __init__(self, default_language: str = DEFAULT_LANGUAGE):
         self.default_language = default_language
         self._user_languages: Dict[int, str] = {}
+        self._db_manager = None
+
+    def set_db_manager(self, db_manager):
+        """Configure le gestionnaire de base de données"""
+        self._db_manager = db_manager
 
     def set_user_language(self, user_id: int, language: str) -> bool:
         """
@@ -545,7 +550,46 @@ class I18n:
         Returns:
             Code de langue
         """
-        return self._user_languages.get(user_id, self.default_language)
+        # D'abord vérifier le cache mémoire
+        if user_id in self._user_languages:
+            return self._user_languages[user_id]
+
+        # Sinon essayer de charger depuis la base de données de manière synchrone
+        # Note: Pour une utilisation async, utilisez get_user_language_async
+        return self.default_language
+
+    async def get_user_language_async(self, user_id: int) -> str:
+        """
+        Récupère la langue d'un utilisateur de manière asynchrone
+
+        Args:
+            user_id: ID Telegram
+
+        Returns:
+            Code de langue
+        """
+        # D'abord vérifier le cache mémoire
+        if user_id in self._user_languages:
+            return self._user_languages[user_id]
+
+        # Charger depuis la base de données
+        if self._db_manager:
+            try:
+                settings = await self._db_manager.get_user_settings(user_id)
+                if settings and settings.get('language'):
+                    lang = settings['language']
+                    if lang in SUPPORTED_LANGUAGES:
+                        self._user_languages[user_id] = lang
+                        return lang
+            except Exception as e:
+                logger.debug(f"Erreur chargement langue: {e}")
+
+        return self.default_language
+
+    def load_user_language(self, user_id: int, language: str):
+        """Charge une langue depuis la base de données dans le cache"""
+        if language in SUPPORTED_LANGUAGES:
+            self._user_languages[user_id] = language
 
     @lru_cache(maxsize=1000)
     def _get_translation(self, key: str, language: str) -> str:
@@ -623,3 +667,13 @@ def set_language(user_id: int, language: str) -> bool:
 def get_language(user_id: int) -> str:
     """Raccourci pour récupérer la langue d'un utilisateur"""
     return i18n.get_user_language(user_id)
+
+
+def load_language(user_id: int, language: str):
+    """Charge une langue dans le cache"""
+    i18n.load_user_language(user_id, language)
+
+
+async def get_language_async(user_id: int) -> str:
+    """Raccourci async pour récupérer la langue d'un utilisateur"""
+    return await i18n.get_user_language_async(user_id)

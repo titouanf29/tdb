@@ -29,6 +29,8 @@ class MenuModule:
         self.app.add_handler(CommandHandler("tutorial", self.show_tutorial, filters=filters.ChatType.PRIVATE))
         self.app.add_handler(CallbackQueryHandler(self.handle_callback, pattern="^menu_"))
         self.app.add_handler(CallbackQueryHandler(self.handle_tutorial_callback, pattern="^tuto_"))
+        # Handler pour les opportunités (snooze, ignore, interested)
+        self.app.add_handler(CallbackQueryHandler(self.handle_opportunity_callback, pattern="^opp_"))
 
     async def start(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Commande /start - uniquement en prive"""
@@ -103,6 +105,45 @@ class MenuModule:
         await query.answer()
         from services.tutorial_service import tutorial_service
         await tutorial_service.handle_tutorial_callback(update, context, query.data)
+
+    async def handle_opportunity_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Gère les callbacks des opportunités (snooze, ignore, interested)"""
+        query = update.callback_query
+        data = query.data
+        user_id = update.effective_user.id
+
+        from services.notifications import NotificationService
+
+        if data.startswith("opp_snooze_"):
+            symbol = data.replace("opp_snooze_", "")
+            NotificationService.snooze_opportunity(user_id, symbol, hours=2)
+            await query.answer(f"😴 {symbol} en pause pour 2h", show_alert=True)
+            # Modifier le message pour indiquer le snooze
+            new_text = query.message.text + f"\n\n✅ _Snooze 2h activé_"
+            try:
+                await query.edit_message_text(new_text, parse_mode='Markdown')
+            except:
+                pass
+
+        elif data.startswith("opp_ignore_"):
+            symbol = data.replace("opp_ignore_", "")
+            # Snooze de 24h pour ignorer
+            NotificationService.snooze_opportunity(user_id, symbol, hours=24)
+            await query.answer(f"❌ {symbol} ignoré pour 24h", show_alert=False)
+            try:
+                await query.delete_message()
+            except:
+                pass
+
+        elif data.startswith("opp_interested_"):
+            symbol = data.replace("opp_interested_", "")
+            await query.answer(f"📊 Envoyez /a {symbol} pour l'analyse complète", show_alert=True)
+            # Modifier le message
+            new_text = query.message.text + f"\n\n✅ _Utilisez `/a {symbol}` pour voir l'analyse_"
+            try:
+                await query.edit_message_text(new_text, parse_mode='Markdown')
+            except:
+                pass
 
     async def show_tools_menu(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Sous-menu Outils - Alertes, Screener, etc."""
@@ -402,7 +443,8 @@ class MenuModule:
                       "menu_sharpe", "menu_var", "menu_drawdown", "menu_wallet_stats",
                       "menu_ai_history", "menu_calendar", "menu_smart_alerts",
                       "menu_price_targets", "menu_earnings", "menu_scan_alerts",
-                      "menu_alerts_config", "menu_calc_targets"]:
+                      "menu_alerts_config", "menu_calc_targets", "menu_alerts_help",
+                      "menu_watchlist_delete", "menu_watchlist_help"] or data.startswith("wl_del_"):
             await self._handle_feature_callback(update, context, data)
 
     async def _handle_feature_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE, data: str):
@@ -458,12 +500,68 @@ class MenuModule:
             if watchlist:
                 for item in watchlist:
                     text += f"• {item['asset_symbol']} (seuil: {item['alert_threshold']}%)\n"
+                text += f"\n📊 Total: {len(watchlist)} actif(s) suivis"
             else:
                 text += "Votre watchlist est vide.\n\n"
                 text += "💡 Envoyez: `/watchlist add AAPL 5`\n"
                 text += "(Alerte si mouvement > 5%)"
 
-            keyboard = [[InlineKeyboardButton("🔙 Retour", callback_data="menu_alerts")]]
+            keyboard = [
+                [InlineKeyboardButton("➕ Ajouter (voir /watchlist)", callback_data="menu_watchlist_help")],
+                [InlineKeyboardButton("🗑️ Supprimer un actif", callback_data="menu_watchlist_delete")],
+                [InlineKeyboardButton("🔙 Retour", callback_data="menu_tools")]
+            ]
+            await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
+
+        elif data == "menu_watchlist_help":
+            text = (
+                "📝 **AJOUTER À LA WATCHLIST**\n\n"
+                "Envoyez une commande:\n"
+                "`/watchlist add SYMBOLE SEUIL%`\n\n"
+                "Exemples:\n"
+                "• `/watchlist add AAPL 5` (alerte si >5%)\n"
+                "• `/watchlist add BTC-USD 3`\n"
+                "• `/watchlist add TSLA 10`\n\n"
+                "⚠️ Si le symbole n'est pas trouvé,\nvérifiez l'orthographe (ex: BTC-USD, AAPL)"
+            )
+            keyboard = [[InlineKeyboardButton("🔙 Retour", callback_data="menu_watchlist")]]
+            await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
+
+        elif data == "menu_watchlist_delete":
+            watchlist = await db_manager.get_smart_watchlist(user_id)
+            if not watchlist:
+                text = "👁️ **SUPPRIMER DE LA WATCHLIST**\n\nVotre watchlist est vide."
+                keyboard = [[InlineKeyboardButton("🔙 Retour", callback_data="menu_watchlist")]]
+            else:
+                text = "👁️ **SUPPRIMER DE LA WATCHLIST**\n\nSélectionnez l'actif à supprimer:\n"
+                keyboard = []
+                for item in watchlist:
+                    keyboard.append([InlineKeyboardButton(
+                        f"❌ {item['asset_symbol']}",
+                        callback_data=f"wl_del_{item['asset_symbol']}"
+                    )])
+                keyboard.append([InlineKeyboardButton("🔙 Retour", callback_data="menu_watchlist")])
+            await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
+
+        elif data.startswith("wl_del_"):
+            symbol = data.replace("wl_del_", "")
+            await db_manager.remove_from_smart_watchlist(user_id, symbol)
+            await query.answer(f"✅ {symbol} supprimé de la watchlist", show_alert=True)
+            # Retourner à la watchlist
+            watchlist = await db_manager.get_smart_watchlist(user_id)
+            text = "👁️ **WATCHLIST INTELLIGENTE**\n━━━━━━━━━━━━━━━━━━━━\n\n"
+            if watchlist:
+                for item in watchlist:
+                    text += f"• {item['asset_symbol']} (seuil: {item['alert_threshold']}%)\n"
+                text += f"\n📊 Total: {len(watchlist)} actif(s) suivis"
+            else:
+                text += "Votre watchlist est vide.\n\n"
+                text += "💡 Envoyez: `/watchlist add AAPL 5`"
+            keyboard = [
+                [InlineKeyboardButton("➕ Ajouter", callback_data="menu_watchlist_help")],
+                [InlineKeyboardButton("🗑️ Supprimer", callback_data="menu_watchlist_delete")],
+                [InlineKeyboardButton("🔙 Retour", callback_data="menu_tools")]
+            ]
             await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
 
         elif data == "menu_screener":
