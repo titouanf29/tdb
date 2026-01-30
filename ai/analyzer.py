@@ -1784,6 +1784,252 @@ Reste factuel et concis. Utilise des emojis pour la lisibilite."""
 
         return text
 
+    # ===== NOUVEAUX INDICATEURS: ICHIMOKU & PRIX CIBLES =====
+
+    def _calculate_ichimoku(self, data, tenkan=9, kijun=26, senkou_b=52):
+        """
+        Calcule l'indicateur Ichimoku Cloud
+
+        Components:
+        - Tenkan-sen (Conversion Line): (9-period high + 9-period low) / 2
+        - Kijun-sen (Base Line): (26-period high + 26-period low) / 2
+        - Senkou Span A (Leading Span A): (Tenkan + Kijun) / 2, plotted 26 periods ahead
+        - Senkou Span B (Leading Span B): (52-period high + 52-period low) / 2, plotted 26 periods ahead
+        - Chikou Span (Lagging Span): Close plotted 26 periods back
+        """
+        try:
+            high = data['High']
+            low = data['Low']
+            close = data['Close']
+
+            # Tenkan-sen (Conversion Line)
+            tenkan_high = high.rolling(window=tenkan).max()
+            tenkan_low = low.rolling(window=tenkan).min()
+            tenkan_sen = (tenkan_high + tenkan_low) / 2
+
+            # Kijun-sen (Base Line)
+            kijun_high = high.rolling(window=kijun).max()
+            kijun_low = low.rolling(window=kijun).min()
+            kijun_sen = (kijun_high + kijun_low) / 2
+
+            # Senkou Span A (Leading Span A)
+            senkou_a = ((tenkan_sen + kijun_sen) / 2).shift(kijun)
+
+            # Senkou Span B (Leading Span B)
+            senkou_b_high = high.rolling(window=senkou_b).max()
+            senkou_b_low = low.rolling(window=senkou_b).min()
+            senkou_span_b = ((senkou_b_high + senkou_b_low) / 2).shift(kijun)
+
+            # Chikou Span (Lagging Span)
+            chikou = close.shift(-kijun)
+
+            current_price = close.iloc[-1]
+            current_tenkan = tenkan_sen.iloc[-1]
+            current_kijun = kijun_sen.iloc[-1]
+            current_senkou_a = senkou_a.iloc[-1] if not pd.isna(senkou_a.iloc[-1]) else current_price
+            current_senkou_b = senkou_span_b.iloc[-1] if not pd.isna(senkou_span_b.iloc[-1]) else current_price
+
+            # Déterminer le signal Ichimoku
+            cloud_top = max(current_senkou_a, current_senkou_b)
+            cloud_bottom = min(current_senkou_a, current_senkou_b)
+
+            # Signal analysis
+            signal = 'neutral'
+            strength = 50
+
+            # Prix au-dessus du nuage = bullish
+            if current_price > cloud_top:
+                signal = 'bullish'
+                strength = 70
+                # Tenkan > Kijun = confirmation
+                if current_tenkan > current_kijun:
+                    strength = 85
+            # Prix en-dessous du nuage = bearish
+            elif current_price < cloud_bottom:
+                signal = 'bearish'
+                strength = 30
+                if current_tenkan < current_kijun:
+                    strength = 15
+            # Prix dans le nuage = consolidation
+            else:
+                signal = 'neutral'
+                strength = 50
+
+            # Épaisseur du nuage (volatilité future)
+            cloud_thickness = abs(current_senkou_a - current_senkou_b)
+            cloud_thickness_pct = (cloud_thickness / current_price) * 100
+
+            return {
+                'tenkan_sen': float(current_tenkan) if not pd.isna(current_tenkan) else None,
+                'kijun_sen': float(current_kijun) if not pd.isna(current_kijun) else None,
+                'senkou_a': float(current_senkou_a),
+                'senkou_b': float(current_senkou_b),
+                'cloud_top': float(cloud_top),
+                'cloud_bottom': float(cloud_bottom),
+                'cloud_thickness_pct': round(cloud_thickness_pct, 2),
+                'signal': signal,
+                'strength': strength,
+                'price_vs_cloud': 'above' if current_price > cloud_top else 'below' if current_price < cloud_bottom else 'inside',
+                'tk_cross': 'bullish' if current_tenkan > current_kijun else 'bearish' if current_tenkan < current_kijun else 'neutral'
+            }
+
+        except Exception as e:
+            logger.debug(f"Erreur calcul Ichimoku: {e}")
+            return {
+                'signal': 'neutral',
+                'strength': 50,
+                'price_vs_cloud': 'unknown'
+            }
+
+    def calculate_price_targets(self, data, direction: str, current_price: float,
+                                 support: float, resistance: float, atr: float,
+                                 risk_reward_ratio: float = 2.0) -> dict:
+        """
+        Calcule les prix cibles (Entry, Stop-Loss, Take-Profit) basés sur l'analyse
+
+        Args:
+            data: DataFrame avec OHLCV
+            direction: 'LONG' ou 'SHORT'
+            current_price: Prix actuel
+            support: Niveau de support
+            resistance: Niveau de résistance
+            atr: Average True Range
+            risk_reward_ratio: Ratio risque/récompense (défaut 2:1)
+
+        Returns:
+            {
+                'entry': prix d'entrée suggéré,
+                'stop_loss': niveau de stop-loss,
+                'take_profit_1': premier objectif,
+                'take_profit_2': deuxième objectif,
+                'take_profit_3': troisième objectif,
+                'risk_amount': montant à risquer,
+                'risk_percent': risque en %,
+                'potential_gain_percent': gain potentiel en %,
+                'risk_reward': ratio risque/récompense
+            }
+        """
+        try:
+            # Calculer les niveaux de Fibonacci pour les cibles
+            fib_levels = self._calculate_fibonacci_levels(data)
+
+            if direction == 'LONG':
+                # Entry: Prix actuel ou légèrement en dessous (pullback)
+                entry = current_price
+
+                # Stop-Loss: En dessous du support ou basé sur ATR
+                sl_support = support * 0.995  # 0.5% sous le support
+                sl_atr = current_price - (atr * 1.5)  # 1.5x ATR
+                stop_loss = max(sl_support, sl_atr)  # Le plus proche
+
+                # Calcul du risque
+                risk_amount = entry - stop_loss
+                risk_percent = (risk_amount / entry) * 100
+
+                # Take-Profits basés sur le ratio R:R et Fibonacci
+                tp1 = entry + (risk_amount * 1.5)  # 1.5R
+                tp2 = entry + (risk_amount * risk_reward_ratio)  # 2R
+                tp3 = entry + (risk_amount * 3)  # 3R
+
+                # Ajuster avec résistance et Fibonacci si pertinent
+                if resistance and resistance > entry:
+                    tp1 = min(tp1, resistance)
+                if fib_levels.get('0.382') and fib_levels['0.382'] > entry:
+                    tp2 = max(tp2, fib_levels['0.382'])
+
+                potential_gain = ((tp2 - entry) / entry) * 100
+
+            else:  # SHORT
+                entry = current_price
+
+                # Stop-Loss: Au-dessus de la résistance ou basé sur ATR
+                sl_resistance = resistance * 1.005  # 0.5% au-dessus de la résistance
+                sl_atr = current_price + (atr * 1.5)
+                stop_loss = min(sl_resistance, sl_atr)
+
+                risk_amount = stop_loss - entry
+                risk_percent = (risk_amount / entry) * 100
+
+                # Take-Profits
+                tp1 = entry - (risk_amount * 1.5)
+                tp2 = entry - (risk_amount * risk_reward_ratio)
+                tp3 = entry - (risk_amount * 3)
+
+                # Ajuster avec support et Fibonacci
+                if support and support < entry:
+                    tp1 = max(tp1, support)
+                if fib_levels.get('0.618') and fib_levels['0.618'] < entry:
+                    tp2 = min(tp2, fib_levels['0.618'])
+
+                potential_gain = ((entry - tp2) / entry) * 100
+
+            # Calculer le ratio R:R réel
+            actual_rr = abs(tp2 - entry) / abs(entry - stop_loss) if abs(entry - stop_loss) > 0 else 0
+
+            return {
+                'entry': round(entry, 4),
+                'stop_loss': round(stop_loss, 4),
+                'take_profit_1': round(tp1, 4),
+                'take_profit_2': round(tp2, 4),
+                'take_profit_3': round(tp3, 4),
+                'risk_amount': round(risk_amount, 4),
+                'risk_percent': round(risk_percent, 2),
+                'potential_gain_percent': round(potential_gain, 2),
+                'risk_reward': round(actual_rr, 2),
+                'direction': direction
+            }
+
+        except Exception as e:
+            logger.error(f"Erreur calcul prix cibles: {e}")
+            # Valeurs par défaut basées sur ATR
+            if direction == 'LONG':
+                return {
+                    'entry': round(current_price, 4),
+                    'stop_loss': round(current_price - atr * 1.5, 4),
+                    'take_profit_1': round(current_price + atr * 2, 4),
+                    'take_profit_2': round(current_price + atr * 3, 4),
+                    'take_profit_3': round(current_price + atr * 4, 4),
+                    'risk_percent': round((atr * 1.5 / current_price) * 100, 2),
+                    'potential_gain_percent': round((atr * 3 / current_price) * 100, 2),
+                    'risk_reward': 2.0,
+                    'direction': direction
+                }
+            else:
+                return {
+                    'entry': round(current_price, 4),
+                    'stop_loss': round(current_price + atr * 1.5, 4),
+                    'take_profit_1': round(current_price - atr * 2, 4),
+                    'take_profit_2': round(current_price - atr * 3, 4),
+                    'take_profit_3': round(current_price - atr * 4, 4),
+                    'risk_percent': round((atr * 1.5 / current_price) * 100, 2),
+                    'potential_gain_percent': round((atr * 3 / current_price) * 100, 2),
+                    'risk_reward': 2.0,
+                    'direction': direction
+                }
+
+    def format_price_targets_message(self, targets: dict, symbol: str) -> str:
+        """Formate les prix cibles pour affichage Telegram"""
+        direction = targets.get('direction', 'LONG')
+        emoji = '🟢' if direction == 'LONG' else '🔴'
+
+        text = f"🎯 **PRIX CIBLES - {symbol}**\n"
+        text += "━" * 25 + "\n\n"
+
+        text += f"{emoji} **Direction:** {direction}\n\n"
+
+        text += f"📍 **Entry:** ${targets['entry']:,.4f}\n"
+        text += f"🛑 **Stop-Loss:** ${targets['stop_loss']:,.4f} ({targets['risk_percent']:.1f}%)\n\n"
+
+        text += "🎯 **Take-Profits:**\n"
+        text += f"   TP1: ${targets['take_profit_1']:,.4f}\n"
+        text += f"   TP2: ${targets['take_profit_2']:,.4f} (objectif principal)\n"
+        text += f"   TP3: ${targets['take_profit_3']:,.4f}\n\n"
+
+        text += f"📊 **Risk/Reward:** 1:{targets['risk_reward']:.1f}\n"
+        text += f"📈 **Gain potentiel:** +{targets['potential_gain_percent']:.1f}%\n"
+
+        return text
+
 
 # Instance globale
 analyzer = MarketAnalyzer()
