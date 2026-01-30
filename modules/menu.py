@@ -108,18 +108,20 @@ class MenuModule:
         """Sous-menu Outils - Alertes, Screener, etc."""
         keyboard = [
             [InlineKeyboardButton("🔔 Alertes Prix", callback_data="menu_my_alerts"),
-             InlineKeyboardButton("👁️ Watchlist", callback_data="menu_watchlist")],
-            [InlineKeyboardButton("🔍 Screener", callback_data="menu_screener"),
-             InlineKeyboardButton("📊 Backtest", callback_data="menu_backtest")],
-            [InlineKeyboardButton("🔍 Scan Auto", callback_data="menu_scan"),
-             InlineKeyboardButton("📤 Export", callback_data="menu_export")],
+             InlineKeyboardButton("⚡ Alertes Smart", callback_data="menu_smart_alerts")],
+            [InlineKeyboardButton("👁️ Watchlist", callback_data="menu_watchlist"),
+             InlineKeyboardButton("🔍 Screener", callback_data="menu_screener")],
+            [InlineKeyboardButton("📊 Backtest", callback_data="menu_backtest"),
+             InlineKeyboardButton("🔍 Scan Auto", callback_data="menu_scan")],
+            [InlineKeyboardButton("📤 Export", callback_data="menu_export")],
             [InlineKeyboardButton("🔙 Retour", callback_data="menu_main")]
         ]
 
         text = """
 🛠️ **OUTILS DE TRADING**
 
-🔔 **Alertes** - Notifications de prix
+🔔 **Alertes Prix** - Notifications de prix
+⚡ **Alertes Smart** - Patterns, confluence, SMC
 👁️ **Watchlist** - Surveillance avec alertes
 🔍 **Screener** - Meilleurs setups du jour
 📊 **Backtest** - Simuler des trades passés
@@ -137,6 +139,8 @@ class MenuModule:
         keyboard = [
             [InlineKeyboardButton("📉 Risk", callback_data="menu_risk"),
              InlineKeyboardButton("📈 Graphiques", callback_data="menu_charts")],
+            [InlineKeyboardButton("📅 Calendrier Éco", callback_data="menu_calendar"),
+             InlineKeyboardButton("🎯 Prix Cibles", callback_data="menu_price_targets")],
             [InlineKeyboardButton("📰 News", callback_data="menu_news"),
              InlineKeyboardButton("🏆 Social", callback_data="menu_social")],
             [InlineKeyboardButton("🔙 Retour", callback_data="menu_main")]
@@ -147,6 +151,8 @@ class MenuModule:
 
 📉 **Risk** - Sharpe, VaR, drawdown
 📈 **Graphiques** - Heatmap, corrélations
+📅 **Calendrier** - Fed, CPI, NFP, Earnings
+🎯 **Prix Cibles** - Entry, SL, TP automatiques
 📰 **News** - Actualités et sentiment
 🏆 **Social** - Leaderboard et badges
 """
@@ -192,6 +198,7 @@ class MenuModule:
 **Marché:**
 `/p SYMBOL` - Prix actuel
 `/a SYMBOL` - Analyse complète
+`/targets SYMBOL` - Prix cibles (Entry/SL/TP)
 `/compare S1 S2...` - Comparer actifs
 `/correlation S1 S2...` - Corrélations
 
@@ -205,7 +212,8 @@ class MenuModule:
 `/alerts SYMBOL above/below PRIX`
 `/watchlist add SYMBOL SEUIL%`
 
-**Autres:**
+**Analyses:**
+`/calendar` - Calendrier économique
 `/backtest SYMBOL JOURS MONTANT LEVIER DIR`
 `/ai QUESTION` - Poser une question à l'IA
 """
@@ -392,7 +400,9 @@ class MenuModule:
                       "menu_correlation", "menu_market_news", "menu_reddit_sentiment",
                       "menu_crypto_fg", "menu_sentiment_summary", "menu_risk_report",
                       "menu_sharpe", "menu_var", "menu_drawdown", "menu_wallet_stats",
-                      "menu_ai_history"]:
+                      "menu_ai_history", "menu_calendar", "menu_smart_alerts",
+                      "menu_price_targets", "menu_earnings", "menu_scan_alerts",
+                      "menu_alerts_config", "menu_calc_targets"]:
             await self._handle_feature_callback(update, context, data)
 
     async def _handle_feature_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE, data: str):
@@ -954,4 +964,159 @@ class MenuModule:
                 text += "💡 Demandez des analyses à l'Assistant IA!"
 
             keyboard = [[InlineKeyboardButton("🔙 Retour", callback_data="menu_main")]]
+            await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
+
+        # ===== CALENDRIER ÉCONOMIQUE =====
+
+        elif data == "menu_calendar":
+            from services.economic_calendar import economic_calendar
+            await query.edit_message_text("📅 Chargement du calendrier économique...")
+            try:
+                # Récupérer les événements à venir
+                events = await economic_calendar.get_upcoming_events(days_ahead=14)
+
+                # Formater le message
+                text = economic_calendar.format_calendar_message(events)
+
+                # Vérifier le risque d'événement
+                risk = await economic_calendar.check_event_risk()
+                if risk['risk_level'] != 'NONE':
+                    text += f"\n\n{risk['recommendation']}"
+
+                keyboard = [
+                    [InlineKeyboardButton("📊 Earnings", callback_data="menu_earnings")],
+                    [InlineKeyboardButton("🔙 Retour", callback_data="menu_analyses")]
+                ]
+                await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
+            except Exception as e:
+                keyboard = [[InlineKeyboardButton("🔙 Retour", callback_data="menu_analyses")]]
+                await query.edit_message_text(f"❌ Erreur: {e}", reply_markup=InlineKeyboardMarkup(keyboard))
+
+        elif data == "menu_earnings":
+            from services.economic_calendar import economic_calendar
+            await query.edit_message_text("📊 Chargement des earnings...")
+            try:
+                # Récupérer les earnings des favoris de l'utilisateur
+                favorites = await db_manager.get_user_favorites(user_id)
+                symbols = [f['asset_symbol'] for f in favorites] if favorites else ['AAPL', 'MSFT', 'GOOGL', 'TSLA', 'NVDA']
+
+                earnings = await economic_calendar.get_earnings_calendar(symbols[:10])
+
+                text = "📊 **CALENDRIER EARNINGS**\n━━━━━━━━━━━━━━━━━━━━\n\n"
+
+                if earnings:
+                    for e in earnings[:10]:
+                        days = e['days_until']
+                        if days == 0:
+                            days_str = "🔴 AUJOURD'HUI"
+                        elif days == 1:
+                            days_str = "🟠 DEMAIN"
+                        else:
+                            days_str = f"J-{days}"
+
+                        date_str = e['date'].strftime('%d/%m')
+                        text += f"📊 **{e['symbol']}** - {date_str} ({days_str})\n"
+                else:
+                    text += "Aucun earnings prévu pour vos favoris.\n\n"
+                    text += "💡 Ajoutez des favoris pour suivre leurs earnings!"
+
+                keyboard = [[InlineKeyboardButton("🔙 Retour", callback_data="menu_calendar")]]
+                await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
+            except Exception as e:
+                keyboard = [[InlineKeyboardButton("🔙 Retour", callback_data="menu_calendar")]]
+                await query.edit_message_text(f"❌ Erreur: {e}", reply_markup=InlineKeyboardMarkup(keyboard))
+
+        # ===== SMART ALERTS =====
+
+        elif data == "menu_smart_alerts":
+            from services.smart_alerts import smart_alerts, AlertType, AlertPriority
+            text = "⚡ **ALERTES SMART**\n━━━━━━━━━━━━━━━━━━━━\n\n"
+            text += "Les Alertes Smart détectent automatiquement:\n\n"
+            text += "📊 **Patterns** - Engulfing, H&S, Triangles...\n"
+            text += "🎯 **Confluence** - Alignement multi-timeframe\n"
+            text += "🏦 **Smart Money** - Order Blocks, FVG\n"
+            text += "📈 **Structure** - BOS, CHoCH\n\n"
+            text += "━━━━━━━━━━━━━━━━━━━━\n"
+            text += "💡 Les alertes sont générées lors de chaque analyse `/a SYMBOL`\n"
+
+            keyboard = [
+                [InlineKeyboardButton("🔍 Scanner Maintenant", callback_data="menu_scan_alerts")],
+                [InlineKeyboardButton("⚙️ Configurer Seuils", callback_data="menu_alerts_config")],
+                [InlineKeyboardButton("🔙 Retour", callback_data="menu_tools")]
+            ]
+            await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
+
+        elif data == "menu_scan_alerts":
+            from services.smart_alerts import smart_alerts
+            from ai.analyzer import analyzer
+            await query.edit_message_text("🔍 Scan des alertes en cours...")
+            try:
+                # Scanner les favoris de l'utilisateur
+                favorites = await db_manager.get_user_favorites(user_id)
+                symbols = [f['asset_symbol'] for f in favorites] if favorites else ['AAPL', 'MSFT', 'GOOGL']
+
+                all_alerts = []
+                for symbol in symbols[:5]:  # Max 5 pour éviter le timeout
+                    analysis = await analyzer.analyze_asset(symbol, 'USA', fetch_news=False)
+                    if analysis:
+                        alerts = await smart_alerts.analyze_for_alerts(symbol, analysis)
+                        all_alerts.extend(alerts)
+
+                if all_alerts:
+                    text = smart_alerts.format_alerts_summary(all_alerts)
+                else:
+                    text = "✅ **SCAN TERMINÉ**\n\nAucune alerte détectée sur vos favoris.\n\n💡 C'est bon signe - pas de signal fort actuellement."
+
+                keyboard = [[InlineKeyboardButton("🔙 Retour", callback_data="menu_smart_alerts")]]
+                await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
+            except Exception as e:
+                keyboard = [[InlineKeyboardButton("🔙 Retour", callback_data="menu_smart_alerts")]]
+                await query.edit_message_text(f"❌ Erreur: {e}", reply_markup=InlineKeyboardMarkup(keyboard))
+
+        elif data == "menu_alerts_config":
+            text = "⚙️ **CONFIGURATION ALERTES**\n━━━━━━━━━━━━━━━━━━━━\n\n"
+            text += "**Seuils actuels:**\n"
+            text += "• Confluence: score ≥ 70/100\n"
+            text += "• Patterns: confiance ≥ 70%\n"
+            text += "• Smart Money: score ≥ 60/100\n"
+            text += "• Cooldown: 1h entre alertes similaires\n\n"
+            text += "💡 Configuration avancée disponible dans les paramètres."
+
+            keyboard = [[InlineKeyboardButton("🔙 Retour", callback_data="menu_smart_alerts")]]
+            await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
+
+        # ===== PRIX CIBLES =====
+
+        elif data == "menu_price_targets":
+            text = "🎯 **PRIX CIBLES IA**\n━━━━━━━━━━━━━━━━━━━━\n\n"
+            text += "L'IA calcule automatiquement:\n\n"
+            text += "📍 **Entry** - Prix d'entrée optimal\n"
+            text += "🛑 **Stop-Loss** - Basé sur ATR et support\n"
+            text += "✅ **Take-Profit** - 3 niveaux (1.5R, 2R, 3R)\n\n"
+            text += "**Calcul basé sur:**\n"
+            text += "• ATR (volatilité)\n"
+            text += "• Support/Résistance\n"
+            text += "• Niveaux Fibonacci\n"
+            text += "• Direction du signal\n\n"
+            text += "━━━━━━━━━━━━━━━━━━━━\n"
+            text += "💡 Envoyez `/a SYMBOL` pour voir les prix cibles"
+
+            keyboard = [
+                [InlineKeyboardButton("🔍 Calculer pour un actif", callback_data="menu_calc_targets")],
+                [InlineKeyboardButton("🔙 Retour", callback_data="menu_analyses")]
+            ]
+            await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
+
+        elif data == "menu_calc_targets":
+            text = "🎯 **CALCULER PRIX CIBLES**\n━━━━━━━━━━━━━━━━━━━━\n\n"
+            text += "Pour obtenir les prix cibles d'un actif:\n\n"
+            text += "Envoyez la commande:\n"
+            text += "`/targets SYMBOL`\n\n"
+            text += "**Exemples:**\n"
+            text += "• `/targets AAPL`\n"
+            text += "• `/targets BTC-USD`\n"
+            text += "• `/targets TSLA`\n\n"
+            text += "Ou utilisez `/a SYMBOL` pour une analyse complète avec les prix cibles."
+
+            keyboard = [[InlineKeyboardButton("🔙 Retour", callback_data="menu_price_targets")]]
             await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')

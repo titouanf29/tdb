@@ -39,6 +39,9 @@ class FeaturesModule:
         self.app.add_handler(CommandHandler("export", self.cmd_export))
         self.app.add_handler(CommandHandler("templates", self.cmd_templates))
         self.app.add_handler(CommandHandler("share", self.cmd_share))
+        # Nouvelles commandes v2.0
+        self.app.add_handler(CommandHandler("targets", self.cmd_targets))
+        self.app.add_handler(CommandHandler("calendar", self.cmd_calendar))
 
         # Callbacks
         self.app.add_handler(CallbackQueryHandler(
@@ -613,6 +616,107 @@ class FeaturesModule:
                 await query.edit_message_text("✅ Vous participez au challenge!")
             else:
                 await query.edit_message_text(f"❌ {result['error']}")
+
+    # ===== PRIX CIBLES =====
+
+    async def cmd_targets(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Commande /targets - Calcul des prix cibles IA"""
+        if not context.args:
+            text = (
+                "🎯 PRIX CIBLES IA\n"
+                "━━━━━━━━━━━━━━━━━━━━\n\n"
+                "Calcule automatiquement Entry, SL et TP.\n\n"
+                "Usage: /targets SYMBOLE\n\n"
+                "Exemples:\n"
+                "• /targets AAPL\n"
+                "• /targets BTC-USD\n"
+                "• /targets TSLA"
+            )
+            await update.message.reply_text(text)
+            return
+
+        symbol = context.args[0].upper()
+        await update.message.reply_text(f"🎯 Calcul des prix cibles pour {symbol}...")
+
+        try:
+            from ai.analyzer import analyzer
+            import yfinance as yf
+
+            # Récupérer les données
+            ticker = yf.Ticker(symbol)
+            data = ticker.history(period="3mo", interval="1d")
+
+            if data.empty:
+                await update.message.reply_text(f"❌ Symbole {symbol} non trouvé.")
+                return
+
+            # Analyse rapide pour déterminer la direction
+            analysis = await analyzer.analyze_asset(symbol, 'AUTO', fetch_news=False)
+
+            if not analysis:
+                await update.message.reply_text(f"❌ Impossible d'analyser {symbol}.")
+                return
+
+            # Calculer les prix cibles
+            current_price = analysis['current_price']
+            support = analysis['support']
+            resistance = analysis['resistance']
+            atr = analysis['atr']
+            direction = analysis['direction']
+
+            targets = analyzer.calculate_price_targets(
+                data, direction, current_price, support, resistance, atr
+            )
+
+            # Formater le message
+            text = analyzer.format_price_targets_message(targets, symbol)
+
+            # Ajouter contexte
+            text += "\n━━━━━━━━━━━━━━━━━━━━\n"
+            text += f"📊 Score: {analysis['score']}/100\n"
+            text += f"📈 Tendance: {analysis['trend']}\n"
+            text += f"🎯 Support: ${support:,.2f}\n"
+            text += f"🎯 Résistance: ${resistance:,.2f}"
+
+            await update.message.reply_text(text, parse_mode='Markdown')
+
+        except Exception as e:
+            await update.message.reply_text(f"❌ Erreur: {e}")
+
+    # ===== CALENDRIER ÉCONOMIQUE =====
+
+    async def cmd_calendar(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Commande /calendar - Calendrier économique"""
+        from services.economic_calendar import economic_calendar
+
+        await update.message.reply_text("📅 Chargement du calendrier économique...")
+
+        try:
+            # Récupérer les événements
+            days = int(context.args[0]) if context.args else 14
+            events = await economic_calendar.get_upcoming_events(days_ahead=days)
+
+            # Formater le message
+            text = economic_calendar.format_calendar_message(events)
+
+            # Vérifier le risque d'événement
+            risk = await economic_calendar.check_event_risk()
+            if risk['risk_level'] != 'NONE':
+                text += f"\n\n{risk['recommendation']}"
+
+            keyboard = [
+                [InlineKeyboardButton("📊 Earnings Favoris", callback_data="menu_earnings")],
+                [InlineKeyboardButton("🔙 Menu", callback_data="menu_main")]
+            ]
+
+            await update.message.reply_text(
+                text,
+                reply_markup=InlineKeyboardMarkup(keyboard),
+                parse_mode='Markdown'
+            )
+
+        except Exception as e:
+            await update.message.reply_text(f"❌ Erreur: {e}")
 
 
 # Factory function
