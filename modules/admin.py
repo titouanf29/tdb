@@ -348,11 +348,15 @@ class AdminModule:
             log_file = getattr(config, 'LOG_FILE', 'tdb_bot.log')
             import os
             if os.path.exists(log_file):
-                with open(log_file, 'r') as f:
+                with open(log_file, 'r', encoding='utf-8', errors='ignore') as f:
                     lines = f.readlines()[-20:]
                     for line in lines:
-                        # Tronquer les lignes longues
-                        text += f"`{line[:60]}...`\n" if len(line) > 60 else f"`{line.strip()}`\n"
+                        # Nettoyer et tronquer les lignes longues
+                        clean_line = line.strip().replace('`', "'")
+                        if len(clean_line) > 60:
+                            text += f"`{clean_line[:60]}...`\n"
+                        elif clean_line:
+                            text += f"`{clean_line}`\n"
             else:
                 text += "Aucun fichier de log trouvé.\n"
         except Exception as e:
