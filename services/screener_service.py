@@ -2,6 +2,7 @@
 Service de Screener Automatique Avance
 Detecte les meilleurs setups, divergences RSI, et opportunites
 """
+import logging
 import asyncio
 from datetime import datetime, timedelta
 from typing import List, Dict, Optional
@@ -11,6 +12,8 @@ from database.manager import db_manager
 from services.market_data import market_data_service
 from ai.analyzer import analyzer
 import config
+
+logger = logging.getLogger(__name__)
 
 
 class ScreenerService:
@@ -24,13 +27,13 @@ class ScreenerService:
         """Demarre le service de screener"""
         self.bot = bot
         self.running = True
-        print("[SCREENER] Service de screener demarre")
+        logger.info("[SCREENER] Service de screener demarre")
         asyncio.create_task(self._screener_loop())
 
     def stop(self):
         """Arrete le service"""
         self.running = False
-        print("[SCREENER] Service arrete")
+        logger.info("[SCREENER] Service arrete")
 
     async def _screener_loop(self):
         """Boucle principale du screener"""
@@ -47,7 +50,7 @@ class ScreenerService:
 
     async def _run_daily_screener(self):
         """Execute le screener quotidien"""
-        print("[SCREENER] Execution du scan quotidien...")
+        logger.info("[SCREENER] Execution du scan quotidien...")
 
         best_setups = []
 
@@ -114,7 +117,7 @@ class ScreenerService:
 
     async def _detect_rsi_divergences(self):
         """Detecte les divergences RSI sur tous les actifs"""
-        print("[SCREENER] Detection des divergences RSI...")
+        logger.info("[SCREENER] Detection des divergences RSI...")
 
         for market_name, market_data in config.MARKETS.items():
             for symbol in market_data['assets'][:15]:

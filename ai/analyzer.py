@@ -457,7 +457,7 @@ class MarketAnalyzer:
         min_idx = lows.idxmin()
         min_val = lows.min()
         second_min = lows.drop(min_idx).min() if len(lows) > 1 else min_val
-        if abs(min_val - second_min) / min_val < 0.02:  # 2% tolerance
+        if min_val != 0 and abs(min_val - second_min) / abs(min_val) < 0.02:  # 2% tolerance
             signals.append({
                 'type': 'double_bottom',
                 'strength': 'moderate',
@@ -468,7 +468,7 @@ class MarketAnalyzer:
         max_idx = highs.idxmax()
         max_val = highs.max()
         second_max = highs.drop(max_idx).max() if len(highs) > 1 else max_val
-        if abs(max_val - second_max) / max_val < 0.02:
+        if max_val != 0 and abs(max_val - second_max) / abs(max_val) < 0.02:
             signals.append({
                 'type': 'double_top',
                 'strength': 'moderate',

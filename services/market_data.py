@@ -71,5 +71,30 @@ class MarketDataService:
             logger.debug(f"Symbole non trouvé '{query}': {e}")
         return None
 
+    @staticmethod
+    async def get_historical_data(symbol, period="1mo", interval="1d"):
+        """
+        Récupère les données historiques d'un actif
+
+        Args:
+            symbol: Symbole de l'actif
+            period: Période (1d, 5d, 1mo, 3mo, 6mo, 1y, 2y, 5y, 10y, ytd, max)
+            interval: Intervalle (1m, 2m, 5m, 15m, 30m, 60m, 90m, 1h, 1d, 5d, 1wk, 1mo, 3mo)
+
+        Returns:
+            DataFrame avec les données OHLCV ou None
+        """
+        try:
+            ticker = yf.Ticker(symbol)
+            data = ticker.history(period=period, interval=interval)
+            if not data.empty:
+                return data
+            logger.warning(f"Pas de données historiques pour {symbol}")
+            return None
+        except Exception as e:
+            logger.error(f"Erreur récupération historique {symbol}: {e}")
+            return None
+
+
 # Instance globale
 market_data_service = MarketDataService()
