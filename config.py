@@ -97,9 +97,9 @@ MARKETS = {
             # Top Caps
             "BTC-USD", "ETH-USD", "BNB-USD", "XRP-USD", "SOL-USD", "ADA-USD",
             # Layer 1
-            "AVAX-USD", "DOT-USD", "MATIC-USD", "ATOM-USD", "NEAR-USD", "APT-USD",
+            "AVAX-USD", "DOT-USD", "ATOM-USD", "NEAR-USD", "TRX-USD",
             # DeFi
-            "UNI-USD", "LINK-USD", "AAVE-USD", "MKR-USD",
+            "LINK-USD", "AAVE-USD", "FIL-USD", "ARB-USD",
             # Autres
             "DOGE-USD", "SHIB-USD", "LTC-USD", "BCH-USD", "XLM-USD", "ALGO-USD"
         ]
