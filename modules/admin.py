@@ -30,6 +30,8 @@ class AdminModule:
         self.app.add_handler(CommandHandler("backup", self.cmd_backup))
         self.app.add_handler(CommandHandler("users", self.cmd_users_list))
         self.app.add_handler(CommandHandler("post_welcome", self.cmd_post_welcome))
+        self.app.add_handler(CommandHandler("myid", self.cmd_myid))
+        self.app.add_handler(CommandHandler("setup_admin", self.cmd_setup_admin))
 
         # Callbacks admin
         self.app.add_handler(CallbackQueryHandler(self.callback_admin, pattern="^admin_"))
@@ -592,3 +594,79 @@ Cliquez sur le bouton ci-dessous pour démarrer le bot en message privé et conf
             await update.message.reply_text(f"✅ Message d'accueil publié dans le canal !")
         except Exception as e:
             await update.message.reply_text(f"❌ Erreur: {e}\n\nVérifiez que le bot est admin du canal.")
+
+    async def cmd_myid(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Commande /myid - Affiche l'ID Telegram de l'utilisateur"""
+        user = update.effective_user
+        chat = update.effective_chat
+
+        text = f"""🆔 <b>Vos informations Telegram</b>
+
+━━━━━━━━━━━━━━━━━━━━
+
+👤 <b>Utilisateur :</b>
+• ID : <code>{user.id}</code>
+• Username : @{user.username or 'Non défini'}
+• Prénom : {user.first_name}
+
+💬 <b>Chat actuel :</b>
+• ID : <code>{chat.id}</code>
+• Type : {chat.type}
+
+━━━━━━━━━━━━━━━━━━━━
+
+📋 <b>Pour devenir admin :</b>
+1. Copiez votre ID ci-dessus
+2. Ajoutez-le dans <code>config.py</code> :
+
+<code>ADMIN_IDS = [
+    {user.id}
+]</code>
+
+3. Redémarrez le bot"""
+
+        await update.message.reply_text(text, parse_mode='HTML')
+
+    async def cmd_setup_admin(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Commande /setup_admin - Configuration rapide admin (première fois uniquement)"""
+        user_id = update.effective_user.id
+
+        # Vérifier si des admins existent déjà
+        admin_ids = getattr(config, 'ADMIN_IDS', [])
+
+        if admin_ids and len(admin_ids) > 0:
+            if user_id in admin_ids:
+                await update.message.reply_text("✅ Vous êtes déjà administrateur.")
+            else:
+                await update.message.reply_text("❌ Un administrateur existe déjà. Contactez-le pour obtenir les droits.")
+            return
+
+        # Aucun admin - afficher les instructions
+        text = f"""⚙️ <b>Configuration Admin</b>
+
+━━━━━━━━━━━━━━━━━━━━
+
+Aucun administrateur n'est configuré.
+
+<b>Pour vous définir comme admin :</b>
+
+1️⃣ Ouvrez <code>config.py</code>
+
+2️⃣ Trouvez cette section :
+<code>ADMIN_IDS = [
+    # Ajoutez votre ID Telegram ici
+]</code>
+
+3️⃣ Remplacez par :
+<code>ADMIN_IDS = [
+    {user_id}
+]</code>
+
+4️⃣ Redémarrez le bot
+
+━━━━━━━━━━━━━━━━━━━━
+
+Votre ID : <code>{user_id}</code>
+(Cliquez pour copier)"""
+
+        await update.message.reply_text(text, parse_mode='HTML')
