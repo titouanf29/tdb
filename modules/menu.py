@@ -150,7 +150,6 @@ class MenuModule:
     async def handle_watchlist_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Gère les callbacks de la watchlist (suppression)"""
         query = update.callback_query
-        await query.answer()
         data = query.data
         user_id = update.effective_user.id
 
@@ -159,7 +158,7 @@ class MenuModule:
         if data.startswith("wl_del_"):
             symbol = data.replace("wl_del_", "")
             await db_manager.remove_from_smart_watchlist(user_id, symbol)
-            await query.answer(f"✅ {symbol} supprimé de la watchlist", show_alert=True)
+            await query.answer(f"✅ {symbol} supprimé!", show_alert=True)
 
             # Retourner à la watchlist
             watchlist = await db_manager.get_smart_watchlist(user_id)
