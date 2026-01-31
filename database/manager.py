@@ -1202,5 +1202,202 @@ class DatabaseManager:
             await db.commit()
 
 
+    # ===== ONBOARDING =====
+
+    async def get_user_onboarding(self, telegram_id):
+        """Récupère l'état d'onboarding d'un utilisateur"""
+        async with aiosqlite.connect(self.db_path) as db:
+            db.row_factory = aiosqlite.Row
+            async with db.execute("""
+                SELECT * FROM user_onboarding WHERE telegram_id = ?
+            """, (telegram_id,)) as cursor:
+                row = await cursor.fetchone()
+                if row:
+                    result = dict(row)
+                    if result.get('selected_markets'):
+                        result['selected_markets'] = json.loads(result['selected_markets'])
+                    return result
+                return None
+
+    async def create_user_onboarding(self, telegram_id, referral_code=None, referred_by=None):
+        """Crée un nouvel enregistrement d'onboarding"""
+        async with aiosqlite.connect(self.db_path) as db:
+            await db.execute("""
+                INSERT OR IGNORE INTO user_onboarding
+                (telegram_id, referral_code, referred_by)
+                VALUES (?, ?, ?)
+            """, (telegram_id, referral_code, referred_by))
+            await db.commit()
+
+    async def update_onboarding_step(self, telegram_id, step, **kwargs):
+        """Met à jour l'étape d'onboarding et les données associées"""
+        async with aiosqlite.connect(self.db_path) as db:
+            # Préparer les champs à mettre à jour
+            fields = ["current_step = ?"]
+            values = [step]
+
+            for key, value in kwargs.items():
+                if key == 'selected_markets' and isinstance(value, list):
+                    value = json.dumps(value)
+                fields.append(f"{key} = ?")
+                values.append(value)
+
+            values.append(telegram_id)
+
+            await db.execute(f"""
+                UPDATE user_onboarding SET {', '.join(fields)} WHERE telegram_id = ?
+            """, values)
+            await db.commit()
+
+    async def complete_onboarding(self, telegram_id):
+        """Marque l'onboarding comme terminé"""
+        async with aiosqlite.connect(self.db_path) as db:
+            await db.execute("""
+                UPDATE user_onboarding
+                SET current_step = 'completed', onboarding_completed = 1, completed_at = CURRENT_TIMESTAMP
+                WHERE telegram_id = ?
+            """, (telegram_id,))
+            await db.commit()
+
+    async def is_onboarding_completed(self, telegram_id):
+        """Vérifie si l'onboarding est terminé"""
+        onboarding = await self.get_user_onboarding(telegram_id)
+        return onboarding and onboarding.get('onboarding_completed', 0) == 1
+
+    # ===== FREEMIUM / SUBSCRIPTIONS =====
+
+    async def get_user_subscription(self, telegram_id):
+        """Récupère l'abonnement d'un utilisateur"""
+        async with aiosqlite.connect(self.db_path) as db:
+            db.row_factory = aiosqlite.Row
+            async with db.execute("""
+                SELECT * FROM user_subscriptions WHERE telegram_id = ?
+            """, (telegram_id,)) as cursor:
+                row = await cursor.fetchone()
+                return dict(row) if row else None
+
+    async def create_user_subscription(self, telegram_id):
+        """Crée un abonnement gratuit par défaut"""
+        import secrets
+        referral_code = f"TDB{secrets.token_hex(4).upper()}"
+        async with aiosqlite.connect(self.db_path) as db:
+            await db.execute("""
+                INSERT OR IGNORE INTO user_subscriptions (telegram_id, referral_code)
+                VALUES (?, ?)
+            """, (telegram_id, referral_code))
+            await db.commit()
+
+    async def increment_analyses_used(self, telegram_id):
+        """Incrémente le compteur d'analyses utilisées aujourd'hui"""
+        today = datetime.now().strftime('%Y-%m-%d')
+        async with aiosqlite.connect(self.db_path) as db:
+            # Réinitialiser si nouveau jour
+            await db.execute("""
+                UPDATE user_subscriptions
+                SET analyses_used_today = 0, last_analysis_reset = ?
+                WHERE telegram_id = ? AND last_analysis_reset != ?
+            """, (today, telegram_id, today))
+
+            # Incrémenter
+            await db.execute("""
+                UPDATE user_subscriptions
+                SET analyses_used_today = analyses_used_today + 1
+                WHERE telegram_id = ?
+            """, (telegram_id,))
+            await db.commit()
+
+    async def can_use_analysis(self, telegram_id):
+        """Vérifie si l'utilisateur peut encore utiliser des analyses aujourd'hui"""
+        import config
+        sub = await self.get_user_subscription(telegram_id)
+        if not sub:
+            await self.create_user_subscription(telegram_id)
+            return True
+
+        # Premium = illimité
+        if sub['tier'] == 'premium' or sub['tier'] == 'vip':
+            return True
+
+        # Réinitialiser si nouveau jour
+        today = datetime.now().strftime('%Y-%m-%d')
+        if sub['last_analysis_reset'] != today:
+            return True
+
+        # Vérifier la limite
+        limit = config.FREE_TIER.get('analyses_per_day', 3)
+        return sub['analyses_used_today'] < limit
+
+    async def get_referral_by_code(self, code):
+        """Récupère le telegram_id du parrain par son code"""
+        async with aiosqlite.connect(self.db_path) as db:
+            db.row_factory = aiosqlite.Row
+            async with db.execute("""
+                SELECT telegram_id FROM user_subscriptions WHERE referral_code = ?
+            """, (code,)) as cursor:
+                row = await cursor.fetchone()
+                return row['telegram_id'] if row else None
+
+    async def increment_referrals(self, telegram_id):
+        """Incrémente le compteur de parrainages"""
+        async with aiosqlite.connect(self.db_path) as db:
+            await db.execute("""
+                UPDATE user_subscriptions
+                SET total_referrals = total_referrals + 1
+                WHERE telegram_id = ?
+            """, (telegram_id,))
+            await db.commit()
+
+    # ===== CHANNEL WELCOME =====
+
+    async def log_channel_join(self, telegram_id, username=None, first_name=None):
+        """Enregistre un nouvel arrivant dans le canal"""
+        async with aiosqlite.connect(self.db_path) as db:
+            await db.execute("""
+                INSERT OR REPLACE INTO channel_welcome_messages
+                (telegram_id, username, first_name)
+                VALUES (?, ?, ?)
+            """, (telegram_id, username, first_name))
+            await db.commit()
+
+    async def mark_welcome_sent(self, telegram_id):
+        """Marque le message de bienvenue comme envoyé"""
+        async with aiosqlite.connect(self.db_path) as db:
+            await db.execute("""
+                UPDATE channel_welcome_messages SET welcome_sent = 1 WHERE telegram_id = ?
+            """, (telegram_id,))
+            await db.commit()
+
+    async def mark_bot_started(self, telegram_id):
+        """Marque que l'utilisateur a démarré le bot"""
+        async with aiosqlite.connect(self.db_path) as db:
+            await db.execute("""
+                UPDATE channel_welcome_messages SET started_bot = 1 WHERE telegram_id = ?
+            """, (telegram_id,))
+            await db.commit()
+
+    # ===== USAGE STATS =====
+
+    async def log_usage(self, telegram_id, action_type, details=None):
+        """Enregistre une action utilisateur"""
+        details_json = json.dumps(details) if details else None
+        async with aiosqlite.connect(self.db_path) as db:
+            await db.execute("""
+                INSERT INTO usage_stats (telegram_id, action_type, details)
+                VALUES (?, ?, ?)
+            """, (telegram_id, action_type, details_json))
+            await db.commit()
+
+    async def get_user_stats_today(self, telegram_id, action_type):
+        """Compte les actions d'un type aujourd'hui"""
+        async with aiosqlite.connect(self.db_path) as db:
+            async with db.execute("""
+                SELECT COUNT(*) as count FROM usage_stats
+                WHERE telegram_id = ? AND action_type = ?
+                AND DATE(action_date) = DATE('now')
+            """, (telegram_id, action_type)) as cursor:
+                row = await cursor.fetchone()
+                return row[0] if row else 0
+
+
 # Instance globale
 db_manager = DatabaseManager()

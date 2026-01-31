@@ -29,6 +29,7 @@ class AdminModule:
         self.app.add_handler(CommandHandler("system", self.cmd_system_status))
         self.app.add_handler(CommandHandler("backup", self.cmd_backup))
         self.app.add_handler(CommandHandler("users", self.cmd_users_list))
+        self.app.add_handler(CommandHandler("post_welcome", self.cmd_post_welcome))
 
         # Callbacks admin
         self.app.add_handler(CallbackQueryHandler(self.callback_admin, pattern="^admin_"))
@@ -532,3 +533,62 @@ class AdminModule:
             text += f"\n... et {len(users) - 20} autres"
 
         await update.message.reply_text(text, parse_mode='Markdown')
+
+    async def cmd_post_welcome(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Commande /post_welcome - Publie le message d'accueil dans le canal"""
+        user_id = update.effective_user.id
+
+        if not self.is_admin(user_id):
+            await update.message.reply_text("❌ Commande réservée aux administrateurs.")
+            return
+
+        # Récupérer l'ID du canal
+        channel_id = getattr(config, 'WELCOME_CHANNEL_ID', '') or getattr(config, 'CHANNEL_ID', '')
+
+        if not channel_id:
+            await update.message.reply_text(
+                "❌ Aucun canal configuré.\n\n"
+                "Configurez WELCOME_CHANNEL_ID ou CHANNEL_ID dans config.py"
+            )
+            return
+
+        # Récupérer le username du bot
+        bot = await context.bot.get_me()
+        bot_username = bot.username
+
+        # Message d'accueil à publier
+        welcome_text = f"""🤖 <b>Bienvenue sur TDB Trading Bot !</b>
+
+━━━━━━━━━━━━━━━━━━━━
+
+<b>Votre assistant IA de trading virtuel.</b>
+
+✨ <b>Fonctionnalités :</b>
+📊 Analyses IA en temps réel
+🎯 Alertes d'opportunités personnalisées
+📈 Paper Trading (10 000$ virtuels)
+🔔 Notifications intelligentes
+📱 Interface intuitive
+
+━━━━━━━━━━━━━━━━━━━━
+
+💡 <b>Comment commencer ?</b>
+Cliquez sur le bouton ci-dessous pour démarrer le bot en message privé et configurer votre profil !
+
+🆓 <b>Gratuit</b> - Aucune carte requise"""
+
+        keyboard = [
+            [InlineKeyboardButton("🚀 Démarrer le Bot", url=f"https://t.me/{bot_username}?start=welcome")]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+
+        try:
+            await context.bot.send_message(
+                chat_id=channel_id,
+                text=welcome_text,
+                reply_markup=reply_markup,
+                parse_mode='HTML'
+            )
+            await update.message.reply_text(f"✅ Message d'accueil publié dans le canal !")
+        except Exception as e:
+            await update.message.reply_text(f"❌ Erreur: {e}\n\nVérifiez que le bot est admin du canal.")

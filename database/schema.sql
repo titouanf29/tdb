@@ -508,3 +508,60 @@ CREATE INDEX IF NOT EXISTS idx_portfolio_history_user ON portfolio_value_history
 CREATE INDEX IF NOT EXISTS idx_volatility_alerts_user ON volatility_alerts(telegram_id);
 CREATE INDEX IF NOT EXISTS idx_sltp_orders_user ON sltp_orders(telegram_id);
 CREATE INDEX IF NOT EXISTS idx_trades_history_user ON trades_history(telegram_id);
+
+-- ===== ONBOARDING =====
+CREATE TABLE IF NOT EXISTS user_onboarding (
+    telegram_id INTEGER PRIMARY KEY,
+    current_step TEXT DEFAULT 'language', -- 'language', 'profile', 'markets', 'tutorial', 'completed'
+    selected_language TEXT DEFAULT 'fr',
+    investor_profile TEXT, -- 'conservative', 'moderate', 'aggressive', 'very_aggressive'
+    selected_markets TEXT, -- JSON: ["USA", "CRYPTO", ...]
+    tutorial_completed INTEGER DEFAULT 0,
+    onboarding_completed INTEGER DEFAULT 0,
+    started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    completed_at TIMESTAMP,
+    referral_code TEXT, -- Code de parrainage utilisé
+    referred_by INTEGER, -- Telegram ID du parrain
+    FOREIGN KEY (telegram_id) REFERENCES users(telegram_id)
+);
+
+-- ===== FREEMIUM / ABONNEMENTS =====
+CREATE TABLE IF NOT EXISTS user_subscriptions (
+    telegram_id INTEGER PRIMARY KEY,
+    tier TEXT DEFAULT 'free', -- 'free', 'premium', 'vip'
+    analyses_used_today INTEGER DEFAULT 0,
+    last_analysis_reset DATE DEFAULT CURRENT_DATE,
+    premium_since TIMESTAMP,
+    premium_until TIMESTAMP,
+    referral_code TEXT UNIQUE, -- Code personnel de parrainage
+    total_referrals INTEGER DEFAULT 0,
+    FOREIGN KEY (telegram_id) REFERENCES users(telegram_id)
+);
+
+-- ===== STATISTIQUES D'UTILISATION =====
+CREATE TABLE IF NOT EXISTS usage_stats (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    telegram_id INTEGER,
+    action_type TEXT, -- 'analysis', 'alert_create', 'watchlist_add', 'trade_open', etc.
+    action_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    details TEXT, -- JSON avec détails optionnels
+    FOREIGN KEY (telegram_id) REFERENCES users(telegram_id)
+);
+
+-- ===== MESSAGES DE BIENVENUE CANAL =====
+CREATE TABLE IF NOT EXISTS channel_welcome_messages (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    telegram_id INTEGER,
+    username TEXT,
+    first_name TEXT,
+    joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    welcome_sent INTEGER DEFAULT 0,
+    started_bot INTEGER DEFAULT 0, -- A cliqué sur "Démarrer le Bot"
+    FOREIGN KEY (telegram_id) REFERENCES users(telegram_id)
+);
+
+-- Index pour onboarding
+CREATE INDEX IF NOT EXISTS idx_onboarding_step ON user_onboarding(current_step);
+CREATE INDEX IF NOT EXISTS idx_subscriptions_tier ON user_subscriptions(tier);
+CREATE INDEX IF NOT EXISTS idx_usage_stats_user ON usage_stats(telegram_id);
+CREATE INDEX IF NOT EXISTS idx_usage_stats_date ON usage_stats(action_date);

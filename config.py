@@ -16,6 +16,47 @@ ADMIN_IDS = [
     # Exemple: 123456789
 ]
 
+# ===== CANAL D'ACCUEIL (PUBLIC) =====
+# Canal public où les nouveaux utilisateurs arrivent (read-only)
+WELCOME_CHANNEL_ID = os.getenv("WELCOME_CHANNEL_ID", "")  # Ex: @TDBTradingChannel ou -1001234567890
+# Groupe communautaire (optionnel, pour discussions)
+COMMUNITY_GROUP_ID = os.getenv("COMMUNITY_GROUP_ID", "")
+
+# ===== ONBOARDING =====
+# Étapes de l'onboarding
+ONBOARDING_STEPS = ["language", "profile", "markets", "tutorial"]
+
+# Profils investisseurs disponibles
+INVESTOR_PROFILES = {
+    "conservative": {"name": "🐢 Conservateur", "risk_multiplier": 0.7, "min_score": 80},
+    "moderate": {"name": "⚖️ Modéré", "risk_multiplier": 1.0, "min_score": 70},
+    "aggressive": {"name": "🔥 Agressif", "risk_multiplier": 1.3, "min_score": 60},
+    "very_aggressive": {"name": "⚡ Très Agressif", "risk_multiplier": 1.5, "min_score": 50}
+}
+
+# Marchés disponibles pour l'onboarding
+AVAILABLE_MARKETS = {
+    "usa": {"name": "🇺🇸 Actions US", "key": "USA"},
+    "europe": {"name": "🇪🇺 Actions EU", "key": "EUROPE"},
+    "crypto": {"name": "🪙 Crypto", "key": "CRYPTO"},
+    "commodities": {"name": "🛢️ Matières 1ères", "key": "COMMODITIES"}
+}
+
+# ===== FREEMIUM =====
+FREE_TIER = {
+    "analyses_per_day": 3,
+    "max_watchlist": 5,
+    "max_alerts": 3,
+    "features": ["basic_analysis", "simple_alerts", "daily_summary"]
+}
+
+PREMIUM_TIER = {
+    "analyses_per_day": -1,  # Illimité
+    "max_watchlist": -1,
+    "max_alerts": -1,
+    "features": ["advanced_analysis", "smart_alerts", "price_targets", "ichimoku", "smc", "priority_signals"]
+}
+
 # ===== BASE DE DONNÉES =====
 DATABASE_PATH = "database/trading_bot.db"
 

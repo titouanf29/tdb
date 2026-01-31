@@ -26,6 +26,7 @@ from services.morning_service import morning_service
 from services.notification_service import notification_service
 from services.cache_service import cache_service
 from modules.features import create_features_module
+from modules.welcome import create_welcome_module
 from telegram.ext import MessageHandler, filters, CallbackQueryHandler
 
 # Configuration du logging compatible Windows (UTF-8)
@@ -129,6 +130,10 @@ class TDBBot:
             self.features_module = create_features_module(self.application)
             logger.info("✅ Module Features chargé (alertes, quiz, leaderboard, etc.)")
 
+            # Module Welcome (accueil + onboarding)
+            self.welcome_module = create_welcome_module(self.application)
+            logger.info("✅ Module Welcome chargé (accueil, onboarding, freemium)")
+
             # Menu principal (créé en dernier avec références aux autres modules)
             self.menu_module = MenuModule(
                 self.application,
@@ -211,7 +216,8 @@ class TDBBot:
         logger.info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
         logger.info("📊 Modules actifs:")
         logger.info("  • Menu Principal (MP uniquement)")
-        logger.info("  • Marché (USA, EUROPE, ASIA, CRYPTO, COMMODITIES, GOLD)")
+        logger.info("  • Welcome + Onboarding (accueil nouveaux utilisateurs)")
+        logger.info("  • Marché (USA, EUROPE, ASIA, CRYPTO, COMMODITIES)")
         logger.info("  • Wallet (Paper Trading + SL/TP Auto)")
         logger.info("  • Favoris + Watchlist Intelligente")
         logger.info("  • Assistant IA Trading (⚡ Groq - Llama 3.3)")
@@ -225,6 +231,7 @@ class TDBBot:
         logger.info("  • Export PDF/CSV + Stats Wallet")
         logger.info("  • Résumé Matinal Automatique")
         logger.info("  • Tutoriel Interactif")
+        logger.info("  • Freemium + Parrainage")
         logger.info("  • Cache + Notifications Push")
         logger.info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
         logger.info("✅ Le bot est prêt à recevoir des commandes")
