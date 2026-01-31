@@ -32,6 +32,7 @@ class AdminModule:
         self.app.add_handler(CommandHandler("post_welcome", self.cmd_post_welcome))
         self.app.add_handler(CommandHandler("myid", self.cmd_myid))
         self.app.add_handler(CommandHandler("setup_admin", self.cmd_setup_admin))
+        self.app.add_handler(CommandHandler("reset_onboarding", self.cmd_reset_onboarding))
 
         # Callbacks admin
         self.app.add_handler(CallbackQueryHandler(self.callback_admin, pattern="^admin_"))
@@ -670,3 +671,24 @@ Votre ID : <code>{user_id}</code>
 (Cliquez pour copier)"""
 
         await update.message.reply_text(text, parse_mode='HTML')
+
+    async def cmd_reset_onboarding(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Commande /reset_onboarding - Réinitialise l'onboarding pour pouvoir le refaire"""
+        user_id = update.effective_user.id
+
+        try:
+            import aiosqlite
+            # Supprimer l'onboarding existant
+            async with aiosqlite.connect(config.DATABASE_PATH) as db:
+                await db.execute("""
+                    DELETE FROM user_onboarding WHERE telegram_id = ?
+                """, (user_id,))
+                await db.commit()
+
+            await update.message.reply_text(
+                "✅ <b>Onboarding réinitialisé !</b>\n\n"
+                "Tapez /start pour recommencer l'onboarding depuis le début.",
+                parse_mode='HTML'
+            )
+        except Exception as e:
+            await update.message.reply_text(f"❌ Erreur: {e}")
