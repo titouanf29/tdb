@@ -23,9 +23,8 @@ class MenuModule:
 
     def register_handlers(self):
         """Enregistre les handlers du menu"""
-        # Menu et start uniquement en messages prives
+        # Menu uniquement en messages prives (/start est géré par welcome.py)
         self.app.add_handler(CommandHandler("menu", self.show_menu, filters=filters.ChatType.PRIVATE))
-        self.app.add_handler(CommandHandler("start", self.start, filters=filters.ChatType.PRIVATE))
         self.app.add_handler(CommandHandler("tutorial", self.show_tutorial, filters=filters.ChatType.PRIVATE))
         self.app.add_handler(CallbackQueryHandler(self.handle_callback, pattern="^menu_"))
         self.app.add_handler(CallbackQueryHandler(self.handle_tutorial_callback, pattern="^tuto_"))
@@ -33,22 +32,6 @@ class MenuModule:
         self.app.add_handler(CallbackQueryHandler(self.handle_opportunity_callback, pattern="^opp_"))
         # Handler pour la watchlist (suppression)
         self.app.add_handler(CallbackQueryHandler(self.handle_watchlist_callback, pattern="^wl_"))
-
-    async def start(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """Commande /start - uniquement en prive"""
-        # Verifier que c'est en prive
-        if update.effective_chat.type != 'private':
-            await update.message.reply_text(
-                "⚠️ Cette commande n'est disponible qu'en message privé.\n"
-                "👉 Envoyez-moi /start en MP!"
-            )
-            return
-
-        await update.message.reply_text(
-            config.WELCOME_MESSAGE,
-            parse_mode='Markdown'
-        )
-        await self.show_menu(update, context)
 
     async def show_menu(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Affiche le menu principal - uniquement en prive"""
