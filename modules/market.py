@@ -591,6 +591,104 @@ Recherchez : **{symbol}**
         reply_markup = InlineKeyboardMarkup(keyboard)
         await query.edit_message_text(text, reply_markup=reply_markup, parse_mode='Markdown', disable_web_page_preview=True)
 
+    async def show_market_summary(self, update: Update, context: ContextTypes.DEFAULT_TYPE, market_code: str):
+        """Affiche le résumé d'un marché fermé"""
+        query = update.callback_query
+        await query.answer()
+
+        market_info = self.markets.get(market_code)
+        if not market_info:
+            await query.edit_message_text("❌ Marché inconnu")
+            return
+
+        await query.edit_message_text(
+            f"📊 **Chargement du résumé {market_info['name']}...**\n\n⏳ Veuillez patienter...",
+            parse_mode='Markdown'
+        )
+
+        # Récupérer les actifs du marché
+        assets = market_info.get('assets', [])[:10]  # Limiter à 10 pour le résumé
+
+        # Analyser les actifs pour obtenir les données
+        results = []
+        for symbol in assets:
+            try:
+                import yfinance as yf
+                ticker = yf.Ticker(symbol)
+                hist = ticker.history(period="2d")
+
+                if hist.empty or len(hist) < 2:
+                    continue
+
+                last_close = hist['Close'].iloc[-1]
+                prev_close = hist['Close'].iloc[-2]
+                change_pct = ((last_close - prev_close) / prev_close) * 100
+                volume = hist['Volume'].iloc[-1]
+
+                results.append({
+                    'symbol': symbol,
+                    'price': last_close,
+                    'change': change_pct,
+                    'volume': volume
+                })
+            except Exception as e:
+                continue
+
+        if not results:
+            await query.edit_message_text(
+                f"❌ **Impossible de charger les données**\n\nLe marché {market_info['name']} est peut-être indisponible.",
+                reply_markup=InlineKeyboardMarkup([
+                    [InlineKeyboardButton(BTN_BACK, callback_data="market_main")]
+                ]),
+                parse_mode='Markdown'
+            )
+            return
+
+        # Trier par performance
+        gainers = sorted([r for r in results if r['change'] > 0], key=lambda x: x['change'], reverse=True)[:3]
+        losers = sorted([r for r in results if r['change'] < 0], key=lambda x: x['change'])[:3]
+
+        # Calculer les stats globales
+        avg_change = sum(r['change'] for r in results) / len(results) if results else 0
+        positive_count = len([r for r in results if r['change'] > 0])
+        negative_count = len([r for r in results if r['change'] < 0])
+
+        # Construire le message
+        text = f"""📊 **RÉSUMÉ - {market_info['name']}**
+━━━━━━━━━━━━━━━━━━━━
+
+🕐 **Marché actuellement fermé**
+
+📈 **Performance moyenne:** {avg_change:+.2f}%
+✅ En hausse: {positive_count} actifs
+❌ En baisse: {negative_count} actifs
+
+"""
+
+        if gainers:
+            text += "🏆 **Top Performers:**\n"
+            for r in gainers:
+                text += f"   • {r['symbol']}: {r['change']:+.2f}%\n"
+            text += "\n"
+
+        if losers:
+            text += "📉 **Moins performants:**\n"
+            for r in losers:
+                text += f"   • {r['symbol']}: {r['change']:+.2f}%\n"
+            text += "\n"
+
+        text += """━━━━━━━━━━━━━━━━━━━━
+
+💡 **Conseil:** Attendez l'ouverture du marché pour des analyses en temps réel."""
+
+        keyboard = [
+            [InlineKeyboardButton("🔄 Actualiser", callback_data=f"market_summary_{market_code}")],
+            [InlineKeyboardButton(BTN_BACK, callback_data="market_main")]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+
+        await query.edit_message_text(text, reply_markup=reply_markup, parse_mode='Markdown')
+
     async def handle_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Gère les callbacks du module marché"""
         query = update.callback_query
@@ -661,3 +759,8 @@ Recherchez : **{symbol}**
                 await self.show_asset_detail(update, context, market_code, symbol)
             else:
                 await query.answer("❌ Marché inconnu pour cet actif", show_alert=True)
+
+        elif data.startswith("market_summary_"):
+            # Résumé d'un marché fermé
+            market_code = data.replace("market_summary_", "")
+            await self.show_market_summary(update, context, market_code)
