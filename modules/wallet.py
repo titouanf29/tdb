@@ -9,6 +9,7 @@ from database.manager import db_manager
 from utils.helpers import *
 from utils.constants import *
 from utils.validators import *
+from utils.loading import LoadingAnimation, show_loading
 
 logger = logging.getLogger(__name__)
 
@@ -308,6 +309,10 @@ Cette action va :
 
         user_id = query.from_user.id
 
+        # Animation de chargement
+        loading = LoadingAnimation(query, "portfolio")
+        await loading.start()
+
         # Récupérer l'historique depuis la base de données
         async with aiosqlite.connect(db_manager.db_path) as db:
             db.row_factory = aiosqlite.Row
@@ -373,6 +378,10 @@ Ouvrez des positions via le module Marché et le Trading Compagnon.
         await query.answer()
 
         user_id = query.from_user.id
+
+        # Animation de chargement
+        loading = LoadingAnimation(query, "portfolio")
+        await loading.start()
 
         # Récupérer le wallet et les positions
         wallet = await db_manager.get_wallet(user_id)

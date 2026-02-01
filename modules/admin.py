@@ -2,11 +2,14 @@
 Module Admin - Dashboard de monitoring et commandes administrateur
 """
 import logging
+import os
+import json
 from datetime import datetime, timedelta
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, CommandHandler, CallbackQueryHandler
 import config
 from database.manager import db_manager
+from utils.loading import show_loading, LoadingAnimation
 
 logger = logging.getLogger(__name__)
 
@@ -95,6 +98,14 @@ class AdminModule:
                 InlineKeyboardButton("📋 Logs", callback_data="admin_logs")
             ],
             [
+                InlineKeyboardButton("🗑️ Cache", callback_data="admin_cache"),
+                InlineKeyboardButton("🔧 Maintenance", callback_data="admin_maintenance")
+            ],
+            [
+                InlineKeyboardButton("⚙️ Config", callback_data="admin_config"),
+                InlineKeyboardButton("📈 Performance", callback_data="admin_performance")
+            ],
+            [
                 InlineKeyboardButton("🔄 Rafraîchir", callback_data="admin_refresh")
             ]
         ]
@@ -134,6 +145,23 @@ class AdminModule:
             await self._create_backup_now(query)
         elif action == "back":
             await self._back_to_dashboard(query)
+        elif action == "cache":
+            await self._show_cache_menu(query)
+        elif action == "cache_clear":
+            await self._clear_cache(query)
+        elif action == "maintenance":
+            await self._show_maintenance_menu(query)
+        elif action == "maintenance_optimize":
+            await self._optimize_database(query)
+        elif action == "maintenance_cleanup":
+            await self._cleanup_old_data(query)
+        elif action == "config":
+            await self._show_config_viewer(query)
+        elif action == "performance":
+            await self._show_performance_metrics(query)
+        elif action.startswith("user_detail_"):
+            user_id = int(action.replace("user_detail_", ""))
+            await self._show_user_detail(query, user_id)
 
     async def _get_system_stats(self) -> dict:
         """Récupère les statistiques système"""
@@ -184,31 +212,6 @@ class AdminModule:
             stats['alerts'].append(f"Erreur stats: {str(e)[:50]}")
 
         return stats
-
-    async def _show_users_stats(self, query):
-        """Affiche les stats utilisateurs détaillées"""
-        users = await db_manager.get_all_users()
-
-        text = "👥 **STATISTIQUES UTILISATEURS**\n"
-        text += "━━━━━━━━━━━━━━━━━━━━\n\n"
-
-        text += f"📊 **Vue d'ensemble:**\n"
-        text += f"   • Total: {len(users)}\n\n"
-
-        text += "📋 **Derniers utilisateurs:**\n"
-        for user in users[:10]:
-            username = user.get('username', 'N/A')
-            first_name = user.get('first_name', 'Inconnu')
-            created = user.get('created_at', 'N/A')
-            text += f"   • @{username} ({first_name}) - {created[:10] if created else 'N/A'}\n"
-
-        keyboard = [[InlineKeyboardButton("◀️ Retour", callback_data="admin_back")]]
-
-        await query.edit_message_text(
-            text,
-            parse_mode='Markdown',
-            reply_markup=InlineKeyboardMarkup(keyboard)
-        )
 
     async def _show_detailed_stats(self, query):
         """Affiche les stats détaillées"""
@@ -692,3 +695,399 @@ Votre ID : <code>{user_id}</code>
             )
         except Exception as e:
             await update.message.reply_text(f"❌ Erreur: {e}")
+
+    # ============ NOUVELLES FONCTIONNALITÉS ADMIN ============
+
+    async def _show_cache_menu(self, query):
+        """Affiche le menu de gestion du cache"""
+        text = "🗑️ **GESTION DU CACHE**\n"
+        text += "━━━━━━━━━━━━━━━━━━━━\n\n"
+
+        # Calculer taille du cache
+        cache_info = self._get_cache_info()
+
+        text += f"📊 **Statistiques cache:**\n"
+        text += f"   • Fichiers temporaires: {cache_info['temp_files']}\n"
+        text += f"   • Taille: {cache_info['total_size_mb']:.2f} MB\n"
+        text += f"   • Charts générés: {cache_info['charts_count']}\n\n"
+
+        text += "⚠️ Vider le cache supprimera:\n"
+        text += "   • Graphiques générés\n"
+        text += "   • Fichiers temporaires\n"
+        text += "   • Données en cache mémoire\n"
+
+        keyboard = [
+            [InlineKeyboardButton("🗑️ Vider le cache", callback_data="admin_cache_clear")],
+            [InlineKeyboardButton("◀️ Retour", callback_data="admin_back")]
+        ]
+
+        await query.edit_message_text(
+            text,
+            parse_mode='Markdown',
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+
+    def _get_cache_info(self) -> dict:
+        """Récupère les infos sur le cache"""
+        info = {
+            'temp_files': 0,
+            'total_size_mb': 0,
+            'charts_count': 0
+        }
+
+        try:
+            import tempfile
+            temp_dir = tempfile.gettempdir()
+
+            # Compter fichiers TDB
+            for f in os.listdir(temp_dir):
+                if f.startswith('tdb_') or f.startswith('chart_'):
+                    filepath = os.path.join(temp_dir, f)
+                    if os.path.isfile(filepath):
+                        info['temp_files'] += 1
+                        info['total_size_mb'] += os.path.getsize(filepath) / (1024 * 1024)
+                        if f.startswith('chart_'):
+                            info['charts_count'] += 1
+        except Exception as e:
+            logger.error(f"Erreur get_cache_info: {e}")
+
+        return info
+
+    async def _clear_cache(self, query):
+        """Vide le cache"""
+        await query.edit_message_text("⏳ Nettoyage du cache en cours...")
+
+        try:
+            import tempfile
+            temp_dir = tempfile.gettempdir()
+            cleared = 0
+
+            for f in os.listdir(temp_dir):
+                if f.startswith('tdb_') or f.startswith('chart_'):
+                    filepath = os.path.join(temp_dir, f)
+                    try:
+                        os.remove(filepath)
+                        cleared += 1
+                    except Exception:
+                        pass
+
+            await query.edit_message_text(
+                f"✅ **Cache vidé !**\n\n"
+                f"🗑️ {cleared} fichiers supprimés",
+                parse_mode='Markdown',
+                reply_markup=InlineKeyboardMarkup([[
+                    InlineKeyboardButton("◀️ Retour", callback_data="admin_cache")
+                ]])
+            )
+        except Exception as e:
+            await query.edit_message_text(f"❌ Erreur: {e}")
+
+    async def _show_maintenance_menu(self, query):
+        """Affiche le menu de maintenance"""
+        text = "🔧 **MAINTENANCE BASE DE DONNÉES**\n"
+        text += "━━━━━━━━━━━━━━━━━━━━\n\n"
+
+        # Stats DB
+        import aiosqlite
+        db_stats = {'tables': 0, 'total_rows': 0}
+
+        try:
+            async with aiosqlite.connect(config.DATABASE_PATH) as db:
+                # Compter les tables
+                cursor = await db.execute(
+                    "SELECT name FROM sqlite_master WHERE type='table'"
+                )
+                tables = await cursor.fetchall()
+                db_stats['tables'] = len(tables)
+
+                # Compter les lignes par table
+                for (table_name,) in tables:
+                    try:
+                        cursor = await db.execute(f"SELECT COUNT(*) FROM {table_name}")
+                        count = await cursor.fetchone()
+                        db_stats['total_rows'] += count[0] if count else 0
+                    except Exception:
+                        pass
+        except Exception as e:
+            logger.error(f"Erreur stats DB: {e}")
+
+        db_size_mb = os.path.getsize(config.DATABASE_PATH) / (1024 * 1024) if os.path.exists(config.DATABASE_PATH) else 0
+
+        text += f"📊 **Statistiques DB:**\n"
+        text += f"   • Tables: {db_stats['tables']}\n"
+        text += f"   • Lignes totales: {db_stats['total_rows']:,}\n"
+        text += f"   • Taille: {db_size_mb:.2f} MB\n\n"
+
+        text += "🔧 **Actions disponibles:**\n"
+        text += "   • Optimiser: VACUUM + ANALYZE\n"
+        text += "   • Nettoyer: Supprimer données > 30j\n"
+
+        keyboard = [
+            [InlineKeyboardButton("⚡ Optimiser DB", callback_data="admin_maintenance_optimize")],
+            [InlineKeyboardButton("🧹 Nettoyer anciennes données", callback_data="admin_maintenance_cleanup")],
+            [InlineKeyboardButton("◀️ Retour", callback_data="admin_back")]
+        ]
+
+        await query.edit_message_text(
+            text,
+            parse_mode='Markdown',
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+
+    async def _optimize_database(self, query):
+        """Optimise la base de données"""
+        await query.edit_message_text("⏳ Optimisation de la base de données...")
+
+        try:
+            import aiosqlite
+            async with aiosqlite.connect(config.DATABASE_PATH) as db:
+                await db.execute("VACUUM")
+                await db.execute("ANALYZE")
+                await db.commit()
+
+            # Nouvelle taille
+            new_size = os.path.getsize(config.DATABASE_PATH) / (1024 * 1024)
+
+            await query.edit_message_text(
+                f"✅ **Base de données optimisée !**\n\n"
+                f"📊 Nouvelle taille: {new_size:.2f} MB\n"
+                f"⚡ VACUUM et ANALYZE effectués",
+                parse_mode='Markdown',
+                reply_markup=InlineKeyboardMarkup([[
+                    InlineKeyboardButton("◀️ Retour", callback_data="admin_maintenance")
+                ]])
+            )
+        except Exception as e:
+            await query.edit_message_text(f"❌ Erreur: {e}")
+
+    async def _cleanup_old_data(self, query):
+        """Nettoie les anciennes données"""
+        await query.edit_message_text("⏳ Nettoyage des anciennes données...")
+
+        try:
+            import aiosqlite
+            deleted = {'search_history': 0, 'old_positions': 0}
+
+            async with aiosqlite.connect(config.DATABASE_PATH) as db:
+                # Supprimer l'historique de recherche > 30 jours
+                try:
+                    cursor = await db.execute("""
+                        DELETE FROM search_history
+                        WHERE searched_at < datetime('now', '-30 days')
+                    """)
+                    deleted['search_history'] = cursor.rowcount
+                except Exception:
+                    pass
+
+                # Supprimer les positions fermées > 90 jours
+                try:
+                    cursor = await db.execute("""
+                        DELETE FROM positions
+                        WHERE status = 'closed'
+                        AND closed_at < datetime('now', '-90 days')
+                    """)
+                    deleted['old_positions'] = cursor.rowcount
+                except Exception:
+                    pass
+
+                await db.commit()
+
+            total = deleted['search_history'] + deleted['old_positions']
+
+            await query.edit_message_text(
+                f"✅ **Nettoyage terminé !**\n\n"
+                f"🗑️ Entrées supprimées:\n"
+                f"   • Historique recherche: {deleted['search_history']}\n"
+                f"   • Anciennes positions: {deleted['old_positions']}\n"
+                f"   • **Total: {total}**",
+                parse_mode='Markdown',
+                reply_markup=InlineKeyboardMarkup([[
+                    InlineKeyboardButton("◀️ Retour", callback_data="admin_maintenance")
+                ]])
+            )
+        except Exception as e:
+            await query.edit_message_text(f"❌ Erreur: {e}")
+
+    async def _show_config_viewer(self, query):
+        """Affiche la configuration actuelle"""
+        text = "⚙️ **CONFIGURATION ACTUELLE**\n"
+        text += "━━━━━━━━━━━━━━━━━━━━\n\n"
+
+        # Afficher config (sans les secrets)
+        text += "🤖 **Bot:**\n"
+        text += f"   • Version: {getattr(config, 'BOT_VERSION', '4.5.0')}\n"
+        text += f"   • Debug: {getattr(config, 'DEBUG', False)}\n\n"
+
+        text += "📊 **Marchés configurés:**\n"
+        for market_code, market_info in config.MARKETS.items():
+            asset_count = len(market_info.get('assets', []))
+            text += f"   • {market_info['name']}: {asset_count} actifs\n"
+        text += "\n"
+
+        text += "🔐 **Sécurité:**\n"
+        admin_count = len(getattr(config, 'ADMIN_IDS', []))
+        text += f"   • Admins configurés: {admin_count}\n"
+        text += f"   • API OpenAI: {'✅' if getattr(config, 'OPENAI_API_KEY', None) else '❌'}\n"
+        text += f"   • API Alpha Vantage: {'✅' if getattr(config, 'ALPHA_VANTAGE_API_KEY', None) else '❌'}\n\n"
+
+        text += "💾 **Base de données:**\n"
+        text += f"   • Path: `{config.DATABASE_PATH}`\n"
+
+        keyboard = [[InlineKeyboardButton("◀️ Retour", callback_data="admin_back")]]
+
+        await query.edit_message_text(
+            text,
+            parse_mode='Markdown',
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+
+    async def _show_performance_metrics(self, query):
+        """Affiche les métriques de performance"""
+        import psutil
+        import sys
+
+        text = "📈 **MÉTRIQUES DE PERFORMANCE**\n"
+        text += "━━━━━━━━━━━━━━━━━━━━\n\n"
+
+        try:
+            # Métriques système
+            process = psutil.Process()
+            memory_info = process.memory_info()
+
+            text += "💻 **Ressources système:**\n"
+            text += f"   • CPU: {psutil.cpu_percent()}%\n"
+            text += f"   • RAM totale: {psutil.virtual_memory().percent}%\n"
+            text += f"   • Mémoire bot: {memory_info.rss / (1024 * 1024):.1f} MB\n\n"
+
+            # Infos process
+            text += "🔄 **Process:**\n"
+            text += f"   • PID: {process.pid}\n"
+            text += f"   • Threads: {process.num_threads()}\n"
+            create_time = datetime.fromtimestamp(process.create_time())
+            uptime = datetime.now() - create_time
+            text += f"   • Uptime: {str(uptime).split('.')[0]}\n\n"
+
+        except ImportError:
+            text += "⚠️ Module psutil non installé\n"
+            text += "Installez avec: pip install psutil\n\n"
+        except Exception as e:
+            text += f"⚠️ Erreur métriques: {e}\n\n"
+
+        # Métriques DB
+        try:
+            users = await db_manager.get_all_users()
+            positions_count = 0
+            for user in users[:20]:
+                try:
+                    positions = await db_manager.get_open_positions(user['telegram_id'])
+                    positions_count += len(positions)
+                except Exception:
+                    pass
+
+            text += "📊 **Métriques applicatives:**\n"
+            text += f"   • Utilisateurs: {len(users)}\n"
+            text += f"   • Positions ouvertes: {positions_count}\n"
+        except Exception as e:
+            text += f"⚠️ Erreur DB: {e}\n"
+
+        keyboard = [
+            [InlineKeyboardButton("🔄 Actualiser", callback_data="admin_performance")],
+            [InlineKeyboardButton("◀️ Retour", callback_data="admin_back")]
+        ]
+
+        await query.edit_message_text(
+            text,
+            parse_mode='Markdown',
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+
+    async def _show_user_detail(self, query, user_id: int):
+        """Affiche le détail d'un utilisateur"""
+        import aiosqlite
+
+        text = f"👤 **DÉTAIL UTILISATEUR #{user_id}**\n"
+        text += "━━━━━━━━━━━━━━━━━━━━\n\n"
+
+        try:
+            async with aiosqlite.connect(config.DATABASE_PATH) as db:
+                db.row_factory = aiosqlite.Row
+
+                # Info utilisateur
+                cursor = await db.execute(
+                    "SELECT * FROM users WHERE telegram_id = ?", (user_id,)
+                )
+                user = await cursor.fetchone()
+
+                if user:
+                    text += f"📋 **Informations:**\n"
+                    text += f"   • ID: `{user['telegram_id']}`\n"
+                    text += f"   • Username: @{user['username'] or 'N/A'}\n"
+                    text += f"   • Prénom: {user['first_name'] or 'N/A'}\n"
+                    text += f"   • Inscrit: {user['created_at'][:10] if user['created_at'] else 'N/A'}\n\n"
+
+                # Positions
+                cursor = await db.execute(
+                    "SELECT COUNT(*) FROM positions WHERE telegram_id = ?", (user_id,)
+                )
+                pos_count = (await cursor.fetchone())[0]
+
+                cursor = await db.execute(
+                    "SELECT COUNT(*) FROM positions WHERE telegram_id = ? AND status = 'open'", (user_id,)
+                )
+                open_pos = (await cursor.fetchone())[0]
+
+                text += f"📈 **Trading:**\n"
+                text += f"   • Positions totales: {pos_count}\n"
+                text += f"   • Positions ouvertes: {open_pos}\n\n"
+
+                # Favoris
+                cursor = await db.execute(
+                    "SELECT COUNT(*) FROM favorites WHERE telegram_id = ?", (user_id,)
+                )
+                fav_count = (await cursor.fetchone())[0]
+                text += f"⭐ **Favoris:** {fav_count}\n"
+
+        except Exception as e:
+            text += f"❌ Erreur: {e}\n"
+
+        keyboard = [[InlineKeyboardButton("◀️ Retour", callback_data="admin_users")]]
+
+        await query.edit_message_text(
+            text,
+            parse_mode='Markdown',
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+
+    async def _show_users_stats(self, query):
+        """Affiche les stats utilisateurs détaillées avec boutons de détail"""
+        users = await db_manager.get_all_users()
+
+        text = "👥 **STATISTIQUES UTILISATEURS**\n"
+        text += "━━━━━━━━━━━━━━━━━━━━\n\n"
+
+        text += f"📊 **Vue d'ensemble:**\n"
+        text += f"   • Total: {len(users)}\n\n"
+
+        text += "📋 **Derniers utilisateurs:**\n"
+        for user in users[:10]:
+            username = user.get('username', 'N/A')
+            first_name = user.get('first_name', 'Inconnu')
+            created = user.get('created_at', 'N/A')
+            text += f"   • @{username} ({first_name}) - {created[:10] if created else 'N/A'}\n"
+
+        # Créer boutons pour voir détails des utilisateurs
+        keyboard = []
+        for user in users[:5]:
+            username = user.get('username', 'N/A')
+            keyboard.append([InlineKeyboardButton(
+                f"👤 @{username}",
+                callback_data=f"admin_user_detail_{user['telegram_id']}"
+            )])
+
+        keyboard.append([InlineKeyboardButton("◀️ Retour", callback_data="admin_back")])
+
+        await query.edit_message_text(
+            text,
+            parse_mode='Markdown',
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )

@@ -11,6 +11,7 @@ from services.news import news_service
 from utils.helpers import *
 from utils.constants import *
 from utils.asset_names import format_asset_name, get_asset_display_name, get_asset_emoji
+from utils.loading import LoadingAnimation, show_loading
 from database.manager import db_manager
 from datetime import datetime
 
@@ -104,18 +105,9 @@ Souhaitez-vous voir un résumé de la dernière séance ?
             )
             return
 
-        # Marché ouvert - lancer le scan
-        await query.edit_message_text(
-            f"""
-🔍 **SCAN EN COURS...**
-
-Analyse de {market_info['name']}
-Cela peut prendre quelques secondes...
-
-⏳ Veuillez patienter...
-""",
-            parse_mode='Markdown'
-        )
+        # Marché ouvert - lancer le scan avec animation
+        loading = LoadingAnimation(query, "market")
+        await loading.start()
 
         # Récupérer les actifs du marché
         assets = market_info.get('assets', [])
@@ -239,11 +231,9 @@ Revenez plus tard ou essayez un autre marché.
         query = update.callback_query
         await query.answer()
 
-        # Envoyer message de chargement
-        await query.edit_message_text(
-            f"🔍 Analyse détaillée de {symbol}...",
-            parse_mode='Markdown'
-        )
+        # Animation de chargement
+        loading = LoadingAnimation(query, "analysis")
+        await loading.start()
 
         # Analyser l'actif
         analysis = await analyzer.analyze_asset(symbol, market_code)
@@ -481,11 +471,9 @@ _Symbole: {symbol}_
         query = update.callback_query
         await query.answer()
 
-        # Afficher un message de chargement
-        await query.edit_message_text(
-            f"📰 Analyse des actualités de {symbol}...",
-            parse_mode='Markdown'
-        )
+        # Animation de chargement recherche
+        loading = LoadingAnimation(query, "search")
+        await loading.start()
 
         # Récupérer l'analyse complète des actualités
         analysis = news_service.analyze_news_comprehensive(symbol)
@@ -601,10 +589,9 @@ Recherchez : **{symbol}**
             await query.edit_message_text("❌ Marché inconnu")
             return
 
-        await query.edit_message_text(
-            f"📊 **Chargement du résumé {market_info['name']}...**\n\n⏳ Veuillez patienter...",
-            parse_mode='Markdown'
-        )
+        # Animation de chargement
+        loading = LoadingAnimation(query, "market")
+        await loading.start()
 
         # Récupérer les actifs du marché
         assets = market_info.get('assets', [])[:10]  # Limiter à 10 pour le résumé
