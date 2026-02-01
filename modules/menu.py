@@ -32,9 +32,15 @@ class MenuModule:
         self.app.add_handler(CallbackQueryHandler(self.handle_opportunity_callback, pattern="^opp_"))
         # Handler pour la watchlist (suppression)
         self.app.add_handler(CallbackQueryHandler(self.handle_watchlist_callback, pattern="^wl_"))
+        # Handler pour les favoris rapides
+        self.app.add_handler(CallbackQueryHandler(self.handle_quick_favorite, pattern="^quick_"))
+        # Handler pour la gestion des favoris épinglés
+        self.app.add_handler(CallbackQueryHandler(self.handle_pin_callback, pattern="^pin_"))
 
     async def show_menu(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Affiche le menu principal - uniquement en prive"""
+        from database.manager import db_manager
+
         # Verifier que c'est en prive (pour les messages)
         if update.message and update.effective_chat.type != 'private':
             await update.message.reply_text(
@@ -43,40 +49,89 @@ class MenuModule:
             )
             return
 
-        keyboard = [
-            [InlineKeyboardButton("📊 Marché", callback_data="menu_market"),
-             InlineKeyboardButton("💼 Wallet", callback_data="menu_wallet")],
+        user_id = update.effective_user.id
+
+        # Récupérer les favoris épinglés
+        pinned = await db_manager.get_pinned_favorites(user_id, limit=4)
+
+        # Construire le clavier avec favoris épinglés en haut
+        keyboard = []
+
+        # Section favoris rapides (si existants)
+        if pinned:
+            pinned_row = []
+            for fav in pinned[:4]:
+                symbol = fav['asset_symbol']
+                # Raccourcir le symbole si trop long
+                display = symbol[:6] if len(symbol) > 6 else symbol
+                pinned_row.append(InlineKeyboardButton(f"⚡ {display}", callback_data=f"quick_{symbol}"))
+            keyboard.append(pinned_row)
+
+        # Menu principal avec descriptions
+        keyboard.extend([
+            [InlineKeyboardButton("📊 Marchés", callback_data="menu_market"),
+             InlineKeyboardButton("💼 Portfolio", callback_data="menu_wallet")],
             [InlineKeyboardButton("⭐ Favoris", callback_data="menu_favorites"),
              InlineKeyboardButton("🤖 Assistant IA", callback_data="menu_ai_assistant")],
             [InlineKeyboardButton("🛠️ Outils", callback_data="menu_tools"),
              InlineKeyboardButton("📈 Analyses", callback_data="menu_analyses")],
             [InlineKeyboardButton("⚙️ Paramètres", callback_data="menu_settings"),
              InlineKeyboardButton("❓ Aide", callback_data="menu_help")]
-        ]
+        ])
+
+        # Récupérer l'historique de recherche
+        history = await db_manager.get_search_history(user_id, limit=3)
+
         reply_markup = InlineKeyboardMarkup(keyboard)
 
-        menu_text = """
-🤖 **TDB - MENU PRINCIPAL**
+        # Construire le texte du menu
+        menu_text = """🤖 <b>TDB - MENU PRINCIPAL</b>
+━━━━━━━━━━━━━━━━━━━━"""
 
-📊 **Marché** - Cours et analyses en temps réel
-💼 **Wallet** - Paper trading et historique
-⭐ **Favoris** - Vos actifs suivis
-🤖 **Assistant IA** - Questions et analyses IA
-🛠️ **Outils** - Alertes, screener, backtest
-📈 **Analyses** - Risk, graphiques, sentiment
-"""
+        # Afficher les favoris rapides si présents
+        if pinned:
+            menu_text += "\n\n⚡ <b>Accès rapide:</b> Cliquez sur un favori épinglé"
+
+        menu_text += """
+
+📊 <b>Marchés</b>
+<i>Cours en temps réel, analyses techniques</i>
+
+💼 <b>Portfolio</b>
+<i>Paper trading, positions, historique</i>
+
+⭐ <b>Favoris</b>
+<i>Vos actifs suivis et alertes personnalisées</i>
+
+🤖 <b>Assistant IA</b>
+<i>Posez vos questions, obtenez des analyses</i>
+
+🛠️ <b>Outils</b>
+<i>Alertes, screener, watchlist, backtest</i>
+
+📈 <b>Analyses</b>
+<i>Risk, graphiques, calendrier économique</i>"""
+
+        # Afficher les recherches récentes
+        if history:
+            menu_text += "\n\n🔍 <b>Recherches récentes:</b>"
+            for h in history[:3]:
+                if h.get('result_symbol'):
+                    menu_text += f"\n• {h['result_symbol']}"
+
+        menu_text += "\n\n━━━━━━━━━━━━━━━━━━━━\n💡 <i>Tapez /a SYMBOL pour une analyse rapide</i>"
 
         if update.message:
             await update.message.reply_text(
                 menu_text,
                 reply_markup=reply_markup,
-                parse_mode='Markdown'
+                parse_mode='HTML'
             )
         elif update.callback_query:
             await update.callback_query.edit_message_text(
                 menu_text,
                 reply_markup=reply_markup,
-                parse_mode='Markdown'
+                parse_mode='HTML'
             )
 
     async def show_tutorial(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -161,6 +216,69 @@ class MenuModule:
             ]
             await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
 
+    async def handle_quick_favorite(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Gère le clic sur un favori rapide - affiche l'analyse"""
+        from utils.loading import show_loading
+        from database.manager import db_manager
+
+        query = update.callback_query
+        await query.answer()
+
+        symbol = query.data.replace("quick_", "")
+        user_id = query.from_user.id
+
+        # Ajouter à l'historique de recherche
+        await db_manager.add_search_history(user_id, symbol, symbol, 'quick_access')
+
+        # Afficher le chargement
+        await show_loading(query, "analysis", f"Analyse de {symbol}...")
+
+        try:
+            # Lancer l'analyse via le module market
+            if self.market_module:
+                await self.market_module.analyze_asset_for_callback(update, context, symbol)
+            else:
+                keyboard = [[InlineKeyboardButton("🔙 Menu", callback_data="menu_main")]]
+                await query.edit_message_text(
+                    f"❌ Module d'analyse non disponible.\n\nUtilisez `/a {symbol}` à la place.",
+                    reply_markup=InlineKeyboardMarkup(keyboard),
+                    parse_mode='Markdown'
+                )
+        except Exception as e:
+            keyboard = [[InlineKeyboardButton("🔙 Menu", callback_data="menu_main")]]
+            await query.edit_message_text(
+                f"❌ Erreur: {e}\n\nUtilisez `/a {symbol}` à la place.",
+                reply_markup=InlineKeyboardMarkup(keyboard),
+                parse_mode='Markdown'
+            )
+
+    async def handle_pin_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Gère l'épinglage/désépinglage des favoris"""
+        from database.manager import db_manager
+
+        query = update.callback_query
+        user_id = query.from_user.id
+        data = query.data
+
+        if data.startswith("pin_add_"):
+            # Épingler un favori
+            parts = data.replace("pin_add_", "").split("_")
+            symbol = parts[0]
+            market = parts[1] if len(parts) > 1 else "USA"
+
+            await db_manager.add_pinned_favorite(user_id, symbol, market)
+            await query.answer(f"⚡ {symbol} épinglé en accès rapide!", show_alert=True)
+
+        elif data.startswith("pin_remove_"):
+            # Désépingler un favori
+            symbol = data.replace("pin_remove_", "")
+            await db_manager.remove_pinned_favorite(user_id, symbol)
+            await query.answer(f"✅ {symbol} retiré de l'accès rapide", show_alert=True)
+
+        # Rafraîchir l'affichage des favoris
+        if self.favorites_module:
+            await self.favorites_module.show_favorites(update, context)
+
     async def show_tools_menu(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Sous-menu Outils - Alertes, Screener, etc."""
         keyboard = [
@@ -170,25 +288,42 @@ class MenuModule:
              InlineKeyboardButton("🔍 Screener", callback_data="menu_screener")],
             [InlineKeyboardButton("📊 Backtest", callback_data="menu_backtest"),
              InlineKeyboardButton("🔍 Scan Auto", callback_data="menu_scan")],
-            [InlineKeyboardButton("📤 Export", callback_data="menu_export")],
+            [InlineKeyboardButton("🔎 Recherche", callback_data="menu_search"),
+             InlineKeyboardButton("📤 Export", callback_data="menu_export")],
             [InlineKeyboardButton("🔙 Retour", callback_data="menu_main")]
         ]
 
-        text = """
-🛠️ **OUTILS DE TRADING**
+        text = """🛠️ <b>OUTILS DE TRADING</b>
+━━━━━━━━━━━━━━━━━━━━
 
-🔔 **Alertes Prix** - Notifications de prix
-⚡ **Alertes Smart** - Patterns, confluence, SMC
-👁️ **Watchlist** - Surveillance avec alertes
-🔍 **Screener** - Meilleurs setups du jour
-📊 **Backtest** - Simuler des trades passés
-🔍 **Scan Auto** - Détection automatique
-📤 **Export** - Télécharger vos données
-"""
+🔔 <b>Alertes Prix</b>
+<i>Notification quand un prix atteint votre cible</i>
+
+⚡ <b>Alertes Smart</b>
+<i>Détection auto de patterns et confluences</i>
+
+👁️ <b>Watchlist</b>
+<i>Surveillez des actifs avec alertes de mouvement</i>
+
+🔍 <b>Screener</b>
+<i>Trouvez les meilleurs setups du moment</i>
+
+📊 <b>Backtest</b>
+<i>Simulez des trades sur données historiques</i>
+
+🔍 <b>Scan Auto</b>
+<i>Scan périodique de vos marchés préférés</i>
+
+🔎 <b>Recherche</b>
+<i>Recherchez un actif par nom ou symbole</i>
+
+📤 <b>Export</b>
+<i>Téléchargez votre historique en CSV/PDF</i>"""
+
         await update.callback_query.edit_message_text(
             text,
             reply_markup=InlineKeyboardMarkup(keyboard),
-            parse_mode='Markdown'
+            parse_mode='HTML'
         )
 
     async def show_analyses_menu(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -624,6 +759,64 @@ class MenuModule:
                 reply_markup=InlineKeyboardMarkup(keyboard),
                 parse_mode='Markdown'
             )
+
+        elif data == "menu_search":
+            # Afficher l'historique de recherche et instructions
+            history = await db_manager.get_search_history(user_id, limit=5)
+
+            text = """🔎 <b>RECHERCHE D'ACTIFS</b>
+━━━━━━━━━━━━━━━━━━━━
+
+Pour rechercher un actif, envoyez:
+<code>/p SYMBOLE</code> - Prix actuel
+<code>/a SYMBOLE</code> - Analyse complète
+
+<b>Exemples:</b>
+• <code>/p AAPL</code> - Prix Apple
+• <code>/a BTC-USD</code> - Analyse Bitcoin
+• <code>/p TSLA</code> - Prix Tesla"""
+
+            if history:
+                text += "\n\n<b>🕐 Recherches récentes:</b>"
+                for h in history:
+                    symbol = h.get('result_symbol') or h.get('query')
+                    if symbol:
+                        text += f"\n• {symbol}"
+
+            keyboard = []
+            # Boutons rapides pour les recherches récentes
+            if history:
+                recent_row = []
+                for h in history[:4]:
+                    symbol = h.get('result_symbol') or h.get('query')
+                    if symbol:
+                        recent_row.append(InlineKeyboardButton(f"📊 {symbol}", callback_data=f"quick_{symbol}"))
+                if recent_row:
+                    keyboard.append(recent_row)
+
+            keyboard.append([InlineKeyboardButton("🗑️ Effacer historique", callback_data="menu_clear_history")])
+            keyboard.append([InlineKeyboardButton("🔙 Retour", callback_data="menu_tools")])
+
+            await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='HTML')
+
+        elif data == "menu_clear_history":
+            await db_manager.clear_search_history(user_id)
+            await query.answer("✅ Historique effacé", show_alert=True)
+            # Reafficher le menu recherche
+            text = """🔎 <b>RECHERCHE D'ACTIFS</b>
+━━━━━━━━━━━━━━━━━━━━
+
+Pour rechercher un actif, envoyez:
+<code>/p SYMBOLE</code> - Prix actuel
+<code>/a SYMBOLE</code> - Analyse complète
+
+<b>Exemples:</b>
+• <code>/p AAPL</code> - Prix Apple
+• <code>/a BTC-USD</code> - Analyse Bitcoin
+• <code>/p TSLA</code> - Prix Tesla"""
+
+            keyboard = [[InlineKeyboardButton("🔙 Retour", callback_data="menu_tools")]]
+            await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='HTML')
 
         elif data == "menu_leaderboard":
             leaders = await social_service.get_leaderboard(limit=10)

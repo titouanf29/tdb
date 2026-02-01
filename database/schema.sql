@@ -565,3 +565,55 @@ CREATE INDEX IF NOT EXISTS idx_onboarding_step ON user_onboarding(current_step);
 CREATE INDEX IF NOT EXISTS idx_subscriptions_tier ON user_subscriptions(tier);
 CREATE INDEX IF NOT EXISTS idx_usage_stats_user ON usage_stats(telegram_id);
 CREATE INDEX IF NOT EXISTS idx_usage_stats_date ON usage_stats(action_date);
+
+-- ===== HISTORIQUE DE RECHERCHE =====
+CREATE TABLE IF NOT EXISTS search_history (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    telegram_id INTEGER,
+    query TEXT NOT NULL,
+    result_symbol TEXT, -- Symbole sélectionné après la recherche
+    search_type TEXT DEFAULT 'asset', -- 'asset', 'news', 'analysis'
+    searched_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (telegram_id) REFERENCES users(telegram_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_search_history_user ON search_history(telegram_id);
+
+-- ===== FAVORIS RAPIDES (ÉPINGLÉS) =====
+CREATE TABLE IF NOT EXISTS pinned_favorites (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    telegram_id INTEGER,
+    asset_symbol TEXT NOT NULL,
+    market TEXT NOT NULL,
+    display_order INTEGER DEFAULT 0, -- Ordre d'affichage
+    pinned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(telegram_id, asset_symbol),
+    FOREIGN KEY (telegram_id) REFERENCES users(telegram_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_pinned_favorites_user ON pinned_favorites(telegram_id);
+
+-- ===== MODE NE PAS DÉRANGER =====
+CREATE TABLE IF NOT EXISTS dnd_settings (
+    telegram_id INTEGER PRIMARY KEY,
+    dnd_enabled INTEGER DEFAULT 0,
+    dnd_start_time TEXT DEFAULT '22:00', -- Heure de début
+    dnd_end_time TEXT DEFAULT '08:00', -- Heure de fin
+    dnd_weekends INTEGER DEFAULT 0, -- Actif aussi le weekend
+    allow_urgent INTEGER DEFAULT 1, -- Autoriser alertes urgentes (SL/TP)
+    FOREIGN KEY (telegram_id) REFERENCES users(telegram_id)
+);
+
+-- ===== RÉSUMÉ QUOTIDIEN =====
+CREATE TABLE IF NOT EXISTS daily_summary_settings (
+    telegram_id INTEGER PRIMARY KEY,
+    summary_enabled INTEGER DEFAULT 0,
+    summary_time TEXT DEFAULT '08:00',
+    include_portfolio INTEGER DEFAULT 1,
+    include_watchlist INTEGER DEFAULT 1,
+    include_alerts INTEGER DEFAULT 1,
+    include_market_overview INTEGER DEFAULT 1,
+    include_opportunities INTEGER DEFAULT 1,
+    last_sent_at TIMESTAMP,
+    FOREIGN KEY (telegram_id) REFERENCES users(telegram_id)
+);

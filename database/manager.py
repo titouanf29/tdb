@@ -1398,6 +1398,223 @@ class DatabaseManager:
                 row = await cursor.fetchone()
                 return row[0] if row else 0
 
+    # ===== HISTORIQUE DE RECHERCHE =====
+
+    async def add_search_history(self, telegram_id, query, result_symbol=None, search_type='asset'):
+        """Ajoute une recherche à l'historique"""
+        async with aiosqlite.connect(self.db_path) as db:
+            await db.execute("""
+                INSERT INTO search_history (telegram_id, query, result_symbol, search_type)
+                VALUES (?, ?, ?, ?)
+            """, (telegram_id, query, result_symbol, search_type))
+            await db.commit()
+
+    async def get_search_history(self, telegram_id, limit=10):
+        """Récupère l'historique de recherche récent"""
+        async with aiosqlite.connect(self.db_path) as db:
+            db.row_factory = aiosqlite.Row
+            async with db.execute("""
+                SELECT DISTINCT query, result_symbol, search_type, MAX(searched_at) as last_search
+                FROM search_history
+                WHERE telegram_id = ?
+                GROUP BY query
+                ORDER BY last_search DESC
+                LIMIT ?
+            """, (telegram_id, limit)) as cursor:
+                rows = await cursor.fetchall()
+                return [dict(row) for row in rows]
+
+    async def clear_search_history(self, telegram_id):
+        """Efface l'historique de recherche"""
+        async with aiosqlite.connect(self.db_path) as db:
+            await db.execute("DELETE FROM search_history WHERE telegram_id = ?", (telegram_id,))
+            await db.commit()
+
+    # ===== FAVORIS ÉPINGLÉS =====
+
+    async def add_pinned_favorite(self, telegram_id, symbol, market):
+        """Ajoute un favori épinglé"""
+        async with aiosqlite.connect(self.db_path) as db:
+            # Récupérer le prochain ordre
+            async with db.execute("""
+                SELECT COALESCE(MAX(display_order), -1) + 1 FROM pinned_favorites WHERE telegram_id = ?
+            """, (telegram_id,)) as cursor:
+                row = await cursor.fetchone()
+                order = row[0] if row else 0
+
+            await db.execute("""
+                INSERT OR REPLACE INTO pinned_favorites (telegram_id, asset_symbol, market, display_order)
+                VALUES (?, ?, ?, ?)
+            """, (telegram_id, symbol, market, order))
+            await db.commit()
+
+    async def remove_pinned_favorite(self, telegram_id, symbol):
+        """Retire un favori épinglé"""
+        async with aiosqlite.connect(self.db_path) as db:
+            await db.execute("""
+                DELETE FROM pinned_favorites WHERE telegram_id = ? AND asset_symbol = ?
+            """, (telegram_id, symbol))
+            await db.commit()
+
+    async def get_pinned_favorites(self, telegram_id, limit=5):
+        """Récupère les favoris épinglés"""
+        async with aiosqlite.connect(self.db_path) as db:
+            db.row_factory = aiosqlite.Row
+            async with db.execute("""
+                SELECT asset_symbol, market, display_order
+                FROM pinned_favorites
+                WHERE telegram_id = ?
+                ORDER BY display_order ASC
+                LIMIT ?
+            """, (telegram_id, limit)) as cursor:
+                rows = await cursor.fetchall()
+                return [dict(row) for row in rows]
+
+    async def is_pinned(self, telegram_id, symbol):
+        """Vérifie si un actif est épinglé"""
+        async with aiosqlite.connect(self.db_path) as db:
+            async with db.execute("""
+                SELECT 1 FROM pinned_favorites WHERE telegram_id = ? AND asset_symbol = ?
+            """, (telegram_id, symbol)) as cursor:
+                return await cursor.fetchone() is not None
+
+    # ===== MODE NE PAS DÉRANGER =====
+
+    async def get_dnd_settings(self, telegram_id):
+        """Récupère les paramètres Ne pas déranger"""
+        async with aiosqlite.connect(self.db_path) as db:
+            db.row_factory = aiosqlite.Row
+            async with db.execute("""
+                SELECT * FROM dnd_settings WHERE telegram_id = ?
+            """, (telegram_id,)) as cursor:
+                row = await cursor.fetchone()
+                if row:
+                    return dict(row)
+                # Créer les paramètres par défaut
+                await db.execute("""
+                    INSERT OR IGNORE INTO dnd_settings (telegram_id) VALUES (?)
+                """, (telegram_id,))
+                await db.commit()
+                return {
+                    'telegram_id': telegram_id,
+                    'dnd_enabled': 0,
+                    'dnd_start_time': '22:00',
+                    'dnd_end_time': '08:00',
+                    'dnd_weekends': 0,
+                    'allow_urgent': 1
+                }
+
+    async def update_dnd_settings(self, telegram_id, **kwargs):
+        """Met à jour les paramètres Ne pas déranger"""
+        async with aiosqlite.connect(self.db_path) as db:
+            # S'assurer que l'entrée existe
+            await db.execute("""
+                INSERT OR IGNORE INTO dnd_settings (telegram_id) VALUES (?)
+            """, (telegram_id,))
+
+            # Construire la requête de mise à jour
+            if kwargs:
+                fields = [f"{key} = ?" for key in kwargs.keys()]
+                values = list(kwargs.values()) + [telegram_id]
+                await db.execute(f"""
+                    UPDATE dnd_settings SET {', '.join(fields)} WHERE telegram_id = ?
+                """, values)
+
+            await db.commit()
+
+    async def is_dnd_active(self, telegram_id):
+        """Vérifie si le mode Ne pas déranger est actuellement actif"""
+        from datetime import datetime
+        settings = await self.get_dnd_settings(telegram_id)
+
+        if not settings.get('dnd_enabled'):
+            return False
+
+        now = datetime.now()
+        current_time = now.strftime('%H:%M')
+        start = settings['dnd_start_time']
+        end = settings['dnd_end_time']
+
+        # Vérifier si c'est le weekend
+        if now.weekday() >= 5 and not settings.get('dnd_weekends'):
+            return False
+
+        # Gérer le cas où la période traverse minuit
+        if start <= end:
+            return start <= current_time <= end
+        else:
+            return current_time >= start or current_time <= end
+
+    # ===== RÉSUMÉ QUOTIDIEN =====
+
+    async def get_daily_summary_settings(self, telegram_id):
+        """Récupère les paramètres du résumé quotidien"""
+        async with aiosqlite.connect(self.db_path) as db:
+            db.row_factory = aiosqlite.Row
+            async with db.execute("""
+                SELECT * FROM daily_summary_settings WHERE telegram_id = ?
+            """, (telegram_id,)) as cursor:
+                row = await cursor.fetchone()
+                if row:
+                    return dict(row)
+                # Créer les paramètres par défaut
+                await db.execute("""
+                    INSERT OR IGNORE INTO daily_summary_settings (telegram_id) VALUES (?)
+                """, (telegram_id,))
+                await db.commit()
+                return {
+                    'telegram_id': telegram_id,
+                    'summary_enabled': 0,
+                    'summary_time': '08:00',
+                    'include_portfolio': 1,
+                    'include_watchlist': 1,
+                    'include_alerts': 1,
+                    'include_market_overview': 1,
+                    'include_opportunities': 1,
+                    'last_sent_at': None
+                }
+
+    async def update_daily_summary_settings(self, telegram_id, **kwargs):
+        """Met à jour les paramètres du résumé quotidien"""
+        async with aiosqlite.connect(self.db_path) as db:
+            # S'assurer que l'entrée existe
+            await db.execute("""
+                INSERT OR IGNORE INTO daily_summary_settings (telegram_id) VALUES (?)
+            """, (telegram_id,))
+
+            if kwargs:
+                fields = [f"{key} = ?" for key in kwargs.keys()]
+                values = list(kwargs.values()) + [telegram_id]
+                await db.execute(f"""
+                    UPDATE daily_summary_settings SET {', '.join(fields)} WHERE telegram_id = ?
+                """, values)
+
+            await db.commit()
+
+    async def mark_daily_summary_sent(self, telegram_id):
+        """Marque le résumé quotidien comme envoyé"""
+        async with aiosqlite.connect(self.db_path) as db:
+            await db.execute("""
+                UPDATE daily_summary_settings SET last_sent_at = CURRENT_TIMESTAMP WHERE telegram_id = ?
+            """, (telegram_id,))
+            await db.commit()
+
+    async def get_users_for_daily_summary(self):
+        """Récupère les utilisateurs qui doivent recevoir un résumé maintenant"""
+        from datetime import datetime
+        current_time = datetime.now().strftime('%H:%M')
+
+        async with aiosqlite.connect(self.db_path) as db:
+            db.row_factory = aiosqlite.Row
+            async with db.execute("""
+                SELECT telegram_id FROM daily_summary_settings
+                WHERE summary_enabled = 1
+                AND summary_time = ?
+                AND (last_sent_at IS NULL OR DATE(last_sent_at) < DATE('now'))
+            """, (current_time,)) as cursor:
+                rows = await cursor.fetchall()
+                return [row['telegram_id'] for row in rows]
+
 
 # Instance globale
 db_manager = DatabaseManager()

@@ -55,6 +55,8 @@ class SettingsModule:
         keyboard = [
             [InlineKeyboardButton("📊 Trading & Risque", callback_data="settings_trading")],
             [InlineKeyboardButton("🔔 Notifications", callback_data="settings_notif")],
+            [InlineKeyboardButton("🌙 Ne pas déranger", callback_data="settings_dnd")],
+            [InlineKeyboardButton("📅 Résumé quotidien", callback_data="settings_daily_summary")],
             [InlineKeyboardButton("🤖 Intelligence IA", callback_data="settings_ai")],
             [InlineKeyboardButton("🎨 Interface", callback_data="settings_ui")],
             [InlineKeyboardButton(BTN_BACK_MENU, callback_data="menu_main")]
@@ -356,6 +358,220 @@ Choisissez l'heure à laquelle vous souhaitez recevoir votre résumé quotidien.
             [InlineKeyboardButton("18:00", callback_data="set_time_18:00"), InlineKeyboardButton("20:00", callback_data="set_time_20:00")],
             [InlineKeyboardButton("22:00", callback_data="set_time_22:00"), InlineKeyboardButton("23:00", callback_data="set_time_23:00")],
             [InlineKeyboardButton(BTN_BACK, callback_data="settings_notif")]
+        ]
+
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await query.edit_message_text(text, reply_markup=reply_markup, parse_mode='HTML')
+
+    # ============ MODE NE PAS DÉRANGER ============
+
+    async def show_dnd_settings(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Affiche les paramètres Ne pas déranger"""
+        query = update.callback_query
+        await query.answer()
+
+        user_id = query.from_user.id
+        dnd = await db_manager.get_dnd_settings(user_id)
+
+        status_emoji = "✅ Actif" if dnd['dnd_enabled'] else "❌ Inactif"
+        is_active_now = await db_manager.is_dnd_active(user_id)
+        now_status = "🌙 Actuellement en mode silencieux" if is_active_now else "🔔 Notifications actives"
+
+        text = f"""🌙 <b>MODE NE PAS DÉRANGER</b>
+━━━━━━━━━━━━━━━━━━━━
+
+<b>État:</b> {status_emoji}
+{now_status}
+
+<b>Configuration:</b>
+• Début: {dnd['dnd_start_time']}
+• Fin: {dnd['dnd_end_time']}
+• Actif le weekend: {"✅" if dnd['dnd_weekends'] else "❌"}
+• Alertes urgentes (SL/TP): {"✅" if dnd['allow_urgent'] else "❌"}
+
+━━━━━━━━━━━━━━━━━━━━
+
+<i>Pendant cette période, seules les alertes urgentes
+(stop-loss, take-profit) seront envoyées si autorisées.</i>"""
+
+        keyboard = [
+            [InlineKeyboardButton(
+                "🔕 Désactiver" if dnd['dnd_enabled'] else "🌙 Activer",
+                callback_data="set_dnd_toggle"
+            )],
+            [InlineKeyboardButton("🕐 Heures", callback_data="settings_dnd_hours")],
+            [InlineKeyboardButton(
+                f"📅 Weekend: {'✅' if dnd['dnd_weekends'] else '❌'}",
+                callback_data="set_dnd_weekend_toggle"
+            )],
+            [InlineKeyboardButton(
+                f"🚨 Alertes urgentes: {'✅' if dnd['allow_urgent'] else '❌'}",
+                callback_data="set_dnd_urgent_toggle"
+            )],
+            [InlineKeyboardButton(BTN_BACK, callback_data="settings_main")]
+        ]
+
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await query.edit_message_text(text, reply_markup=reply_markup, parse_mode='HTML')
+
+    async def show_dnd_hours_menu(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Menu de sélection des heures DND"""
+        query = update.callback_query
+        await query.answer()
+
+        user_id = query.from_user.id
+        dnd = await db_manager.get_dnd_settings(user_id)
+
+        text = f"""🕐 <b>HEURES NE PAS DÉRANGER</b>
+━━━━━━━━━━━━━━━━━━━━
+
+<b>Début actuel:</b> {dnd['dnd_start_time']}
+<b>Fin actuelle:</b> {dnd['dnd_end_time']}
+
+<b>Presets populaires:</b>"""
+
+        keyboard = [
+            [InlineKeyboardButton("🌙 22:00 → 08:00 (Nuit)", callback_data="set_dnd_preset_night")],
+            [InlineKeyboardButton("😴 23:00 → 07:00 (Sommeil)", callback_data="set_dnd_preset_sleep")],
+            [InlineKeyboardButton("💼 09:00 → 18:00 (Travail)", callback_data="set_dnd_preset_work")],
+            [InlineKeyboardButton("🎯 Personnaliser", callback_data="settings_dnd_custom")],
+            [InlineKeyboardButton(BTN_BACK, callback_data="settings_dnd")]
+        ]
+
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await query.edit_message_text(text, reply_markup=reply_markup, parse_mode='HTML')
+
+    async def show_dnd_custom_menu(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Menu personnalisé pour les heures DND"""
+        query = update.callback_query
+        await query.answer()
+
+        text = """🎯 <b>HEURES PERSONNALISÉES</b>
+━━━━━━━━━━━━━━━━━━━━
+
+<b>Choisissez l'heure de début:</b>"""
+
+        hours = ["20:00", "21:00", "22:00", "23:00", "00:00"]
+        keyboard = []
+        row = []
+        for h in hours:
+            row.append(InlineKeyboardButton(h, callback_data=f"set_dnd_start_{h}"))
+            if len(row) == 3:
+                keyboard.append(row)
+                row = []
+        if row:
+            keyboard.append(row)
+        keyboard.append([InlineKeyboardButton(BTN_BACK, callback_data="settings_dnd_hours")])
+
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await query.edit_message_text(text, reply_markup=reply_markup, parse_mode='HTML')
+
+    # ============ RÉSUMÉ QUOTIDIEN AVANCÉ ============
+
+    async def show_advanced_daily_summary(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Affiche les paramètres avancés du résumé quotidien"""
+        query = update.callback_query
+        await query.answer()
+
+        user_id = query.from_user.id
+        summary_settings = await db_manager.get_daily_summary_settings(user_id)
+
+        status = "✅ Activé" if summary_settings['summary_enabled'] else "❌ Désactivé"
+
+        text = f"""📅 <b>RÉSUMÉ QUOTIDIEN</b>
+━━━━━━━━━━━━━━━━━━━━
+
+<b>État:</b> {status}
+<b>Heure d'envoi:</b> {summary_settings['summary_time']}
+
+<b>Contenu du résumé:</b>
+• Portfolio: {"✅" if summary_settings['include_portfolio'] else "❌"}
+• Watchlist: {"✅" if summary_settings['include_watchlist'] else "❌"}
+• Alertes: {"✅" if summary_settings['include_alerts'] else "❌"}
+• Marchés: {"✅" if summary_settings['include_market_overview'] else "❌"}
+• Opportunités: {"✅" if summary_settings['include_opportunities'] else "❌"}
+
+━━━━━━━━━━━━━━━━━━━━
+
+<i>Recevez chaque matin un récapitulatif complet
+de votre activité et des opportunités du jour.</i>"""
+
+        keyboard = [
+            [InlineKeyboardButton(
+                "🔕 Désactiver" if summary_settings['summary_enabled'] else "📅 Activer",
+                callback_data="set_summary_toggle"
+            )],
+            [InlineKeyboardButton("🕐 Heure d'envoi", callback_data="settings_summary_time")],
+            [InlineKeyboardButton("📝 Contenu", callback_data="settings_summary_content")],
+            [InlineKeyboardButton(BTN_BACK, callback_data="settings_main")]
+        ]
+
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await query.edit_message_text(text, reply_markup=reply_markup, parse_mode='HTML')
+
+    async def show_summary_content_menu(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Menu de sélection du contenu du résumé"""
+        query = update.callback_query
+        await query.answer()
+
+        user_id = query.from_user.id
+        s = await db_manager.get_daily_summary_settings(user_id)
+
+        text = """📝 <b>CONTENU DU RÉSUMÉ</b>
+━━━━━━━━━━━━━━━━━━━━
+
+Sélectionnez les sections à inclure:"""
+
+        keyboard = [
+            [InlineKeyboardButton(
+                f"{'✅' if s['include_portfolio'] else '❌'} Portfolio",
+                callback_data="set_summary_portfolio_toggle"
+            )],
+            [InlineKeyboardButton(
+                f"{'✅' if s['include_watchlist'] else '❌'} Watchlist",
+                callback_data="set_summary_watchlist_toggle"
+            )],
+            [InlineKeyboardButton(
+                f"{'✅' if s['include_alerts'] else '❌'} Alertes actives",
+                callback_data="set_summary_alerts_toggle"
+            )],
+            [InlineKeyboardButton(
+                f"{'✅' if s['include_market_overview'] else '❌'} Aperçu marchés",
+                callback_data="set_summary_market_toggle"
+            )],
+            [InlineKeyboardButton(
+                f"{'✅' if s['include_opportunities'] else '❌'} Opportunités",
+                callback_data="set_summary_opps_toggle"
+            )],
+            [InlineKeyboardButton(BTN_BACK, callback_data="settings_daily_summary")]
+        ]
+
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await query.edit_message_text(text, reply_markup=reply_markup, parse_mode='HTML')
+
+    async def show_advanced_summary_time(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Menu de sélection de l'heure du résumé avancé"""
+        query = update.callback_query
+        await query.answer()
+
+        user_id = query.from_user.id
+        s = await db_manager.get_daily_summary_settings(user_id)
+
+        text = f"""🕐 <b>HEURE D'ENVOI DU RÉSUMÉ</b>
+━━━━━━━━━━━━━━━━━━━━
+
+<b>Heure actuelle:</b> {s['summary_time']}
+
+Choisissez l'heure qui vous convient:"""
+
+        keyboard = [
+            [InlineKeyboardButton("06:00", callback_data="set_summary_time_06:00"),
+             InlineKeyboardButton("07:00", callback_data="set_summary_time_07:00"),
+             InlineKeyboardButton("08:00", callback_data="set_summary_time_08:00")],
+            [InlineKeyboardButton("09:00", callback_data="set_summary_time_09:00"),
+             InlineKeyboardButton("10:00", callback_data="set_summary_time_10:00"),
+             InlineKeyboardButton("12:00", callback_data="set_summary_time_12:00")],
+            [InlineKeyboardButton(BTN_BACK, callback_data="settings_daily_summary")]
         ]
 
         reply_markup = InlineKeyboardMarkup(keyboard)
@@ -698,6 +914,130 @@ Choisissez la quantité d'informations dans les analyses de l'IA.
 
         elif data == "settings_ui":
             await self.show_ui_settings(update, context)
+
+        # ===== DND SETTINGS =====
+        elif data == "settings_dnd":
+            await self.show_dnd_settings(update, context)
+
+        elif data == "settings_dnd_hours":
+            await self.show_dnd_hours_menu(update, context)
+
+        elif data == "settings_dnd_custom":
+            await self.show_dnd_custom_menu(update, context)
+
+        elif data == "set_dnd_toggle":
+            user_id = query.from_user.id
+            dnd = await db_manager.get_dnd_settings(user_id)
+            new_state = 0 if dnd['dnd_enabled'] else 1
+            await db_manager.update_dnd_settings(user_id, dnd_enabled=new_state)
+            await query.answer("🌙 Mode activé" if new_state else "🔔 Mode désactivé", show_alert=True)
+            await self.show_dnd_settings(update, context)
+
+        elif data == "set_dnd_weekend_toggle":
+            user_id = query.from_user.id
+            dnd = await db_manager.get_dnd_settings(user_id)
+            new_state = 0 if dnd['dnd_weekends'] else 1
+            await db_manager.update_dnd_settings(user_id, dnd_weekends=new_state)
+            await query.answer("✅ Mis à jour", show_alert=False)
+            await self.show_dnd_settings(update, context)
+
+        elif data == "set_dnd_urgent_toggle":
+            user_id = query.from_user.id
+            dnd = await db_manager.get_dnd_settings(user_id)
+            new_state = 0 if dnd['allow_urgent'] else 1
+            await db_manager.update_dnd_settings(user_id, allow_urgent=new_state)
+            await query.answer("✅ Mis à jour", show_alert=False)
+            await self.show_dnd_settings(update, context)
+
+        elif data == "set_dnd_preset_night":
+            user_id = query.from_user.id
+            await db_manager.update_dnd_settings(user_id, dnd_start_time="22:00", dnd_end_time="08:00")
+            await query.answer("🌙 Preset nuit appliqué", show_alert=True)
+            await self.show_dnd_settings(update, context)
+
+        elif data == "set_dnd_preset_sleep":
+            user_id = query.from_user.id
+            await db_manager.update_dnd_settings(user_id, dnd_start_time="23:00", dnd_end_time="07:00")
+            await query.answer("😴 Preset sommeil appliqué", show_alert=True)
+            await self.show_dnd_settings(update, context)
+
+        elif data == "set_dnd_preset_work":
+            user_id = query.from_user.id
+            await db_manager.update_dnd_settings(user_id, dnd_start_time="09:00", dnd_end_time="18:00")
+            await query.answer("💼 Preset travail appliqué", show_alert=True)
+            await self.show_dnd_settings(update, context)
+
+        elif data.startswith("set_dnd_start_"):
+            user_id = query.from_user.id
+            time = data.replace("set_dnd_start_", "")
+            await db_manager.update_dnd_settings(user_id, dnd_start_time=time)
+            await query.answer(f"✅ Début: {time}", show_alert=False)
+            await self.show_dnd_settings(update, context)
+
+        # ===== DAILY SUMMARY ADVANCED =====
+        elif data == "settings_daily_summary":
+            await self.show_advanced_daily_summary(update, context)
+
+        elif data == "settings_summary_time":
+            await self.show_advanced_summary_time(update, context)
+
+        elif data == "settings_summary_content":
+            await self.show_summary_content_menu(update, context)
+
+        elif data == "set_summary_toggle":
+            user_id = query.from_user.id
+            s = await db_manager.get_daily_summary_settings(user_id)
+            new_state = 0 if s['summary_enabled'] else 1
+            await db_manager.update_daily_summary_settings(user_id, summary_enabled=new_state)
+            await query.answer("📅 Résumé activé" if new_state else "❌ Résumé désactivé", show_alert=True)
+            await self.show_advanced_daily_summary(update, context)
+
+        elif data.startswith("set_summary_time_"):
+            user_id = query.from_user.id
+            time = data.replace("set_summary_time_", "")
+            await db_manager.update_daily_summary_settings(user_id, summary_time=time)
+            await query.answer(f"✅ Heure: {time}", show_alert=False)
+            await self.show_advanced_daily_summary(update, context)
+
+        elif data == "set_summary_portfolio_toggle":
+            user_id = query.from_user.id
+            s = await db_manager.get_daily_summary_settings(user_id)
+            new_state = 0 if s['include_portfolio'] else 1
+            await db_manager.update_daily_summary_settings(user_id, include_portfolio=new_state)
+            await query.answer("✅ Mis à jour", show_alert=False)
+            await self.show_summary_content_menu(update, context)
+
+        elif data == "set_summary_watchlist_toggle":
+            user_id = query.from_user.id
+            s = await db_manager.get_daily_summary_settings(user_id)
+            new_state = 0 if s['include_watchlist'] else 1
+            await db_manager.update_daily_summary_settings(user_id, include_watchlist=new_state)
+            await query.answer("✅ Mis à jour", show_alert=False)
+            await self.show_summary_content_menu(update, context)
+
+        elif data == "set_summary_alerts_toggle":
+            user_id = query.from_user.id
+            s = await db_manager.get_daily_summary_settings(user_id)
+            new_state = 0 if s['include_alerts'] else 1
+            await db_manager.update_daily_summary_settings(user_id, include_alerts=new_state)
+            await query.answer("✅ Mis à jour", show_alert=False)
+            await self.show_summary_content_menu(update, context)
+
+        elif data == "set_summary_market_toggle":
+            user_id = query.from_user.id
+            s = await db_manager.get_daily_summary_settings(user_id)
+            new_state = 0 if s['include_market_overview'] else 1
+            await db_manager.update_daily_summary_settings(user_id, include_market_overview=new_state)
+            await query.answer("✅ Mis à jour", show_alert=False)
+            await self.show_summary_content_menu(update, context)
+
+        elif data == "set_summary_opps_toggle":
+            user_id = query.from_user.id
+            s = await db_manager.get_daily_summary_settings(user_id)
+            new_state = 0 if s['include_opportunities'] else 1
+            await db_manager.update_daily_summary_settings(user_id, include_opportunities=new_state)
+            await query.answer("✅ Mis à jour", show_alert=False)
+            await self.show_summary_content_menu(update, context)
 
         # ===== TRADING SETTINGS =====
         elif data == "settings_trading_edit":
