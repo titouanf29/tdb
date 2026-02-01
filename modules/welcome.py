@@ -250,46 +250,54 @@ Utilisez le menu ci-dessous pour accéder à toutes les fonctionnalités."""
         data = query.data
         user_id = query.from_user.id
 
-        if data == "onboard_start":
-            await self.show_language_step(update, context)
+        try:
+            if data == "onboard_start":
+                await self.show_language_step(update, context)
 
-        elif data == "onboard_skip":
-            # Configuration par défaut et fin
-            await db_manager.complete_onboarding(user_id)
-            await self.show_onboarding_complete(update, context, skipped=True)
+            elif data == "onboard_skip":
+                # Configuration par défaut et fin
+                await db_manager.complete_onboarding(user_id)
+                await self.show_onboarding_complete(update, context, skipped=True)
 
-        elif data.startswith("onboard_lang_"):
-            lang = data.replace("onboard_lang_", "")
-            await db_manager.update_onboarding_step(user_id, "profile", selected_language=lang)
-            # Aussi mettre à jour les settings utilisateur
-            await db_manager.update_user_settings(user_id, language=lang)
-            await self.show_profile_step(update, context)
+            elif data.startswith("onboard_lang_"):
+                lang = data.replace("onboard_lang_", "")
+                await db_manager.update_onboarding_step(user_id, "profile", selected_language=lang)
+                # Aussi mettre à jour les settings utilisateur
+                await db_manager.update_user_settings(user_id, language=lang)
+                await self.show_profile_step(update, context)
 
-        elif data.startswith("onboard_profile_"):
-            profile = data.replace("onboard_profile_", "")
-            await db_manager.update_onboarding_step(user_id, "markets", investor_profile=profile)
-            # Mettre à jour les settings selon le profil
-            await self.apply_profile_settings(user_id, profile)
-            await self.show_markets_step(update, context)
+            elif data.startswith("onboard_profile_"):
+                profile = data.replace("onboard_profile_", "")
+                await db_manager.update_onboarding_step(user_id, "markets", investor_profile=profile)
+                # Mettre à jour les settings selon le profil
+                await self.apply_profile_settings(user_id, profile)
+                await self.show_markets_step(update, context)
 
-        elif data.startswith("onboard_market_"):
-            await self.toggle_market(update, context)
+            elif data.startswith("onboard_market_"):
+                await self.toggle_market(update, context)
 
-        elif data == "onboard_markets_done":
-            await db_manager.update_onboarding_step(user_id, "tutorial")
-            await self.show_tutorial_step(update, context)
+            elif data == "onboard_markets_done":
+                await db_manager.update_onboarding_step(user_id, "tutorial")
+                await self.show_tutorial_step(update, context)
 
-        elif data == "onboard_tutorial_start":
-            await db_manager.update_onboarding_step(user_id, "completed", tutorial_completed=1)
-            await db_manager.complete_onboarding(user_id)
-            await self.show_quick_tutorial(update, context)
+            elif data == "onboard_tutorial_start":
+                await db_manager.update_onboarding_step(user_id, "completed", tutorial_completed=1)
+                await db_manager.complete_onboarding(user_id)
+                await self.show_quick_tutorial(update, context)
 
-        elif data == "onboard_tutorial_skip":
-            await db_manager.complete_onboarding(user_id)
-            await self.show_onboarding_complete(update, context, skipped=False)
+            elif data == "onboard_tutorial_skip":
+                await db_manager.complete_onboarding(user_id)
+                await self.show_onboarding_complete(update, context, skipped=False)
 
-        elif data == "onboard_complete":
-            await self.show_onboarding_complete(update, context, skipped=False)
+            elif data == "onboard_complete":
+                await self.show_onboarding_complete(update, context, skipped=False)
+
+        except Exception as e:
+            logger.error(f"Erreur onboarding callback: {e}")
+            await query.edit_message_text(
+                f"❌ Une erreur s'est produite: {e}\n\nTapez /start pour recommencer.",
+                parse_mode='HTML'
+            )
 
     async def show_language_step(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Étape 1: Choix de la langue"""
@@ -354,7 +362,13 @@ Score minimum: 50+"""
         user_id = query.from_user.id
 
         onboarding = await db_manager.get_user_onboarding(user_id)
-        selected = onboarding.get('selected_markets', []) if onboarding else []
+        selected = []
+        if onboarding and onboarding.get('selected_markets'):
+            selected = onboarding['selected_markets']
+
+        # S'assurer que selected est une liste
+        if not isinstance(selected, list):
+            selected = []
 
         text = """💹 <b>ÉTAPE 3/4 - MARCHÉS</b>
 
@@ -389,7 +403,13 @@ Vous pourrez modifier ces choix plus tard dans les paramètres."""
         market = query.data.replace("onboard_market_", "")
 
         onboarding = await db_manager.get_user_onboarding(user_id)
-        selected = onboarding.get('selected_markets', []) if onboarding else []
+        selected = []
+        if onboarding and onboarding.get('selected_markets'):
+            selected = onboarding['selected_markets']
+
+        # S'assurer que selected est une liste
+        if not isinstance(selected, list):
+            selected = []
 
         if market in selected:
             selected.remove(market)
