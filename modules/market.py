@@ -596,7 +596,7 @@ Recherchez : **{symbol}**
         query = update.callback_query
         await query.answer()
 
-        market_info = self.markets.get(market_code)
+        market_info = config.MARKETS.get(market_code)
         if not market_info:
             await query.edit_message_text("❌ Marché inconnu")
             return
