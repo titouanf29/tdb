@@ -75,7 +75,7 @@ def is_market_open(market_code):
     if not market:
         return False
 
-    # Marchés toujours ouverts (crypto, commodities)
+    # Marchés toujours ouverts (crypto)
     if market.get('always_open'):
         return True
 
@@ -84,13 +84,34 @@ def is_market_open(market_code):
         tz = pytz.timezone(market['timezone'])
         now = datetime.now(tz)
         current_time = now.time()
+        current_day = now.weekday()  # 0=Lundi, 6=Dimanche
 
         open_time = time.fromisoformat(market['open_time'])
         close_time = time.fromisoformat(market['close_time'])
 
-        # Vérifier si c'est un weekend
-        if now.weekday() >= 5:  # Samedi ou Dimanche
+        # Vérifier les jours fermés spécifiques
+        closed_days = market.get('closed_days', [])
+        if current_day in closed_days:
             return False
+
+        # Vérifier si le marché a des jours d'ouverture spécifiques
+        open_day = market.get('open_day')
+        close_day = market.get('close_day')
+
+        if open_day is not None and close_day is not None:
+            # Marché avec jours d'ouverture spécifiques (ex: Commodities dim-ven)
+            if open_day <= close_day:
+                # Cas normal: ex lundi(0) à vendredi(4)
+                if not (open_day <= current_day <= close_day):
+                    return False
+            else:
+                # Cas wrap: ex dimanche(6) à vendredi(4)
+                if not (current_day >= open_day or current_day <= close_day):
+                    return False
+        else:
+            # Comportement par défaut: fermé le weekend
+            if current_day >= 5:  # Samedi ou Dimanche
+                return False
 
         return open_time <= current_time <= close_time
     except Exception as e:

@@ -150,6 +150,9 @@ MARKETS = {
         "open_time": "00:00",
         "close_time": "23:59",
         "timezone": "UTC",
+        "open_day": 6,  # Dimanche (0=Lundi, 6=Dimanche)
+        "close_day": 4,  # Vendredi
+        "closed_days": [5],  # Samedi fermé
         "assets": [
             # Énergies
             "CL=F", "NG=F", "BZ=F",
