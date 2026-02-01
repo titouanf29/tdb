@@ -86,7 +86,8 @@ class WalletModule:
 
         keyboard = [
             [InlineKeyboardButton("📂 Positions ouvertes", callback_data="wallet_positions")],
-            [InlineKeyboardButton("📊 Historique", callback_data="wallet_history")],
+            [InlineKeyboardButton("📊 Historique", callback_data="wallet_history"),
+             InlineKeyboardButton("📉 Risque", callback_data="wallet_risk")],
             [InlineKeyboardButton("✏️ Modifier le solde", callback_data="wallet_edit_balance")],
             [InlineKeyboardButton("♻️ Réinitialiser", callback_data="wallet_reset_confirm")],
             [InlineKeyboardButton(BTN_BACK_MENU, callback_data="menu_main")]
@@ -366,6 +367,119 @@ Ouvrez des positions via le module Marché et le Trading Compagnon.
         reply_markup = InlineKeyboardMarkup(keyboard)
         await query.edit_message_text(text, reply_markup=reply_markup, parse_mode='Markdown')
 
+    async def show_risk_analysis(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Affiche l'analyse de risque du portefeuille"""
+        query = update.callback_query
+        await query.answer()
+
+        user_id = query.from_user.id
+
+        # Récupérer le wallet et les positions
+        wallet = await db_manager.get_wallet(user_id)
+        positions = await db_manager.get_open_positions(user_id)
+
+        if not positions:
+            text = """📉 <b>ANALYSE DE RISQUE</b>
+━━━━━━━━━━━━━━━━━━━━
+
+⚠️ Aucune position ouverte.
+
+Ouvrez des positions pour voir l'analyse de risque de votre portefeuille."""
+
+            keyboard = [[InlineKeyboardButton(BTN_BACK, callback_data="wallet_main")]]
+            await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='HTML')
+            return
+
+        # Calculer les métriques de risque
+        total_invested = sum([p['amount'] for p in positions])
+        total_pnl = sum([p['pnl'] for p in positions])
+        total_pnl_pct = (total_pnl / total_invested * 100) if total_invested > 0 else 0
+
+        # Calculer l'exposition par actif
+        exposure = {}
+        for p in positions:
+            symbol = p['asset_symbol']
+            if symbol not in exposure:
+                exposure[symbol] = 0
+            exposure[symbol] += p['amount']
+
+        # Plus grande position
+        max_position = max(exposure.values()) if exposure else 0
+        max_position_pct = (max_position / wallet['balance'] * 100) if wallet['balance'] > 0 else 0
+
+        # Calcul du risque global (simplifié)
+        risk_score = 0
+        risk_factors = []
+
+        # Facteur 1: Concentration
+        if max_position_pct > 30:
+            risk_score += 30
+            risk_factors.append(f"⚠️ Position concentrée ({max_position_pct:.1f}% sur un actif)")
+        elif max_position_pct > 20:
+            risk_score += 15
+            risk_factors.append(f"⚡ Position importante ({max_position_pct:.1f}% sur un actif)")
+
+        # Facteur 2: Exposition totale
+        exposure_pct = (total_invested / wallet['balance'] * 100) if wallet['balance'] > 0 else 0
+        if exposure_pct > 80:
+            risk_score += 30
+            risk_factors.append(f"🔴 Exposition très élevée ({exposure_pct:.1f}%)")
+        elif exposure_pct > 50:
+            risk_score += 15
+            risk_factors.append(f"🟠 Exposition modérée ({exposure_pct:.1f}%)")
+
+        # Facteur 3: Nombre de positions
+        if len(positions) < 3:
+            risk_score += 10
+            risk_factors.append(f"📊 Diversification faible ({len(positions)} positions)")
+
+        # Score de risque final
+        if risk_score >= 50:
+            risk_level = "🔴 ÉLEVÉ"
+            risk_color = "risque élevé"
+        elif risk_score >= 25:
+            risk_level = "🟠 MODÉRÉ"
+            risk_color = "risque modéré"
+        else:
+            risk_level = "🟢 FAIBLE"
+            risk_color = "risque faible"
+
+        text = f"""📉 <b>ANALYSE DE RISQUE</b>
+━━━━━━━━━━━━━━━━━━━━
+
+<b>Niveau de risque:</b> {risk_level}
+
+<b>📊 Exposition:</b>
+• Capital investi: {format_price(total_invested)} USD
+• % du portefeuille: {exposure_pct:.1f}%
+• Positions ouvertes: {len(positions)}
+
+<b>📈 Performance latente:</b>
+• PnL total: {format_pnl(total_pnl)}
+• Rendement: {total_pnl_pct:+.2f}%
+
+<b>⚖️ Concentration:</b>
+• Plus grande position: {max_position_pct:.1f}% du capital
+
+━━━━━━━━━━━━━━━━━━━━
+
+<b>🔍 Facteurs de risque:</b>
+"""
+        if risk_factors:
+            for factor in risk_factors:
+                text += f"\n{factor}"
+        else:
+            text += "\n✅ Aucun facteur de risque majeur détecté"
+
+        text += """
+
+━━━━━━━━━━━━━━━━━━━━
+<i>💡 Conseil: Diversifiez vos positions et
+évitez de dépasser 20% sur un seul actif.</i>"""
+
+        keyboard = [[InlineKeyboardButton(BTN_BACK, callback_data="wallet_main")]]
+        await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='HTML')
+
     async def show_edit_balance(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Affiche l'interface de modification du solde"""
         query = update.callback_query
@@ -542,6 +656,9 @@ Ou tapez un montant personnalisé dans le chat (ex: 25000)
 
         elif data == "wallet_history":
             await self.show_history(update, context)
+
+        elif data == "wallet_risk":
+            await self.show_risk_analysis(update, context)
 
         elif data == "wallet_edit_balance":
             await self.show_edit_balance(update, context)

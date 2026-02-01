@@ -74,7 +74,7 @@ class MenuModule:
             [InlineKeyboardButton("⭐ Favoris", callback_data="menu_favorites"),
              InlineKeyboardButton("🤖 Assistant IA", callback_data="menu_ai_assistant")],
             [InlineKeyboardButton("🛠️ Outils", callback_data="menu_tools"),
-             InlineKeyboardButton("📈 Analyses", callback_data="menu_analyses")],
+             InlineKeyboardButton("📰 Infos", callback_data="menu_infos")],
             [InlineKeyboardButton("⚙️ Paramètres", callback_data="menu_settings"),
              InlineKeyboardButton("❓ Aide", callback_data="menu_help")]
         ])
@@ -109,8 +109,8 @@ class MenuModule:
 🛠️ <b>Outils</b>
 <i>Alertes, screener, watchlist, backtest</i>
 
-📈 <b>Analyses</b>
-<i>Risk, graphiques, calendrier économique</i>"""
+📰 <b>Infos</b>
+<i>Calendrier éco, news, sentiment marché</i>"""
 
         # Afficher les recherches récentes
         if history:
@@ -326,32 +326,35 @@ class MenuModule:
             parse_mode='HTML'
         )
 
-    async def show_analyses_menu(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """Sous-menu Analyses - Risk, Graphiques, Sentiment"""
+    async def show_infos_menu(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Sous-menu Infos - Calendrier, News, Sentiment"""
         keyboard = [
-            [InlineKeyboardButton("📉 Risk", callback_data="menu_risk"),
-             InlineKeyboardButton("📈 Graphiques", callback_data="menu_charts")],
-            [InlineKeyboardButton("📅 Calendrier Éco", callback_data="menu_calendar"),
-             InlineKeyboardButton("🎯 Prix Cibles", callback_data="menu_price_targets")],
-            [InlineKeyboardButton("📰 News", callback_data="menu_news"),
-             InlineKeyboardButton("🏆 Social", callback_data="menu_social")],
+            [InlineKeyboardButton("📅 Calendrier Économique", callback_data="menu_calendar")],
+            [InlineKeyboardButton("📰 News & Actualités", callback_data="menu_news")],
+            [InlineKeyboardButton("😱 Fear & Greed Index", callback_data="menu_feargreed")],
             [InlineKeyboardButton("🔙 Retour", callback_data="menu_main")]
         ]
 
-        text = """
-📈 **ANALYSES & DONNÉES**
+        text = """📰 <b>INFOS & ACTUALITÉS</b>
+━━━━━━━━━━━━━━━━━━━━
 
-📉 **Risk** - Sharpe, VaR, drawdown
-📈 **Graphiques** - Heatmap, corrélations
-📅 **Calendrier** - Fed, CPI, NFP, Earnings
-🎯 **Prix Cibles** - Entry, SL, TP automatiques
-📰 **News** - Actualités et sentiment
-🏆 **Social** - Leaderboard et badges
-"""
+📅 <b>Calendrier Économique</b>
+<i>Fed, CPI, NFP, Earnings à venir</i>
+
+📰 <b>News & Actualités</b>
+<i>Dernières nouvelles et sentiment Reddit</i>
+
+😱 <b>Fear & Greed Index</b>
+<i>Indicateur de sentiment du marché</i>
+
+━━━━━━━━━━━━━━━━━━━━
+<i>💡 Ces infos vous aident à anticiper
+les mouvements du marché</i>"""
+
         await update.callback_query.edit_message_text(
             text,
             reply_markup=InlineKeyboardMarkup(keyboard),
-            parse_mode='Markdown'
+            parse_mode='HTML'
         )
 
     async def show_help_menu(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -535,8 +538,8 @@ class MenuModule:
         if data == "menu_tools":
             await self.show_tools_menu(update, context)
             return
-        elif data == "menu_analyses":
-            await self.show_analyses_menu(update, context)
+        elif data == "menu_infos" or data == "menu_analyses":
+            await self.show_infos_menu(update, context)
             return
         elif data == "menu_help":
             await self.show_help_menu(update, context)
