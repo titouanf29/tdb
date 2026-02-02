@@ -1293,7 +1293,7 @@ class MarketAnalyzer:
             c2 = data.iloc[i-2]
 
             # Bullish FVG: gap entre le high de c2 et le low de c0
-            if c0['Low'] > c2['High']:
+            if c0['Low'] > c2['High'] and c2['High'] > 0:
                 gap_size = ((c0['Low'] - c2['High']) / c2['High']) * 100
                 if gap_size > 0.1:
                     smc_analysis['fair_value_gaps'].append({
@@ -1304,7 +1304,7 @@ class MarketAnalyzer:
                     })
 
             # Bearish FVG
-            if c0['High'] < c2['Low']:
+            if c0['High'] < c2['Low'] and c0['High'] > 0:
                 gap_size = ((c2['Low'] - c0['High']) / c0['High']) * 100
                 if gap_size > 0.1:
                     smc_analysis['fair_value_gaps'].append({
@@ -1320,19 +1320,21 @@ class MarketAnalyzer:
 
         # Liquidité au-dessus (stop losses des shorts)
         recent_high = highs.max()
-        smc_analysis['liquidity_zones'].append({
-            'type': 'buy_side',
-            'level': recent_high,
-            'distance': ((recent_high - current_price) / current_price) * 100
-        })
+        if current_price > 0:
+            smc_analysis['liquidity_zones'].append({
+                'type': 'buy_side',
+                'level': recent_high,
+                'distance': ((recent_high - current_price) / current_price) * 100
+            })
 
         # Liquidité en-dessous (stop losses des longs)
         recent_low = lows.min()
-        smc_analysis['liquidity_zones'].append({
-            'type': 'sell_side',
-            'level': recent_low,
-            'distance': ((current_price - recent_low) / recent_low) * 100
-        })
+        if recent_low > 0:
+            smc_analysis['liquidity_zones'].append({
+                'type': 'sell_side',
+                'level': recent_low,
+                'distance': ((current_price - recent_low) / recent_low) * 100
+            })
 
         # Calcul du score SMC
         score = 0.5
