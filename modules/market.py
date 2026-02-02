@@ -1,6 +1,7 @@
 """
 Module Marché - Analyse des marchés financiers
 """
+import logging
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, CallbackQueryHandler
 import config
@@ -14,6 +15,8 @@ from utils.asset_names import format_asset_name, get_asset_display_name, get_ass
 from utils.loading import LoadingAnimation, show_loading
 from database.manager import db_manager
 from datetime import datetime
+
+logger = logging.getLogger(__name__)
 
 class MarketModule:
     """Module de gestion des marchés"""
@@ -121,7 +124,7 @@ Souhaitez-vous voir un résumé de la dernière séance ?
                 if analysis and analysis['score'] >= 40:  # Seuil minimum
                     results.append(analysis)
             except Exception as e:
-                print(f"Erreur analyse {symbol}: {e}")
+                logger.debug(f"Erreur analyse {symbol}: {e}")
                 continue
 
         if not results:
@@ -399,14 +402,12 @@ _Symbole: {symbol}_
 
     async def show_chart(self, update: Update, context: ContextTypes.DEFAULT_TYPE, symbol: str, interval: str = '1M'):
         """Affiche le graphique d'un actif avec l'intervalle specifie"""
-        print(f"[DEBUG CHART] show_chart appele: symbol={symbol}, interval={interval}")
         query = update.callback_query
         await query.answer("Generation du graphique...")
 
         # Configuration des intervalles
         from services.charts import CHART_INTERVALS
         config_interval = CHART_INTERVALS.get(interval, CHART_INTERVALS['1M'])
-        print(f"[DEBUG CHART] config_interval: {config_interval}")
 
         try:
             # Recuperer les donnees avec l'intervalle choisi
@@ -460,7 +461,7 @@ _Symbole: {symbol}_
                 )
 
         except Exception as e:
-            print(f"Erreur generation graphique: {e}")
+            logger.error(f"Erreur generation graphique {symbol}: {e}")
             await context.bot.send_message(
                 chat_id=query.message.chat_id,
                 text="Erreur lors de la generation du graphique."
@@ -555,7 +556,7 @@ Recherchez : **{symbol}**
                         time_str = "Hier"
                     else:
                         time_str = f"Il y a {diff.days}j"
-                except:
+                except (ValueError, TypeError, KeyError):
                     time_str = "Récent"
 
                 # Limiter le titre
@@ -690,24 +691,24 @@ Recherchez : **{symbol}**
 
         elif data.startswith("market_detail_"):
             parts = data.replace("market_detail_", "").split("_", 1)
-            market_code = parts[0]
-            symbol = parts[1]
-            # Sauvegarder le marché actuel dans le contexte
-            context.user_data['current_market'] = market_code
-            await self.show_asset_detail(update, context, market_code, symbol)
+            if len(parts) >= 2:
+                market_code = parts[0]
+                symbol = parts[1]
+                # Sauvegarder le marché actuel dans le contexte
+                context.user_data['current_market'] = market_code
+                await self.show_asset_detail(update, context, market_code, symbol)
+            else:
+                await query.answer("Erreur format", show_alert=True)
 
         elif data.startswith("chartgen_"):
             # Nouveau format: chartgen_SYMBOL_INTERVAL
-            print(f"[DEBUG CHART] Callback chartgen_ recu: {data}")
             parts = data.replace("chartgen_", "").rsplit("_", 1)
-            print(f"[DEBUG CHART] Parts apres split: {parts}")
             if len(parts) == 2:
                 symbol = parts[0]
                 interval = parts[1]
-                print(f"[DEBUG CHART] Appel show_chart({symbol}, {interval})")
                 await self.show_chart(update, context, symbol, interval)
             else:
-                print(f"[DEBUG CHART] Erreur: format invalide")
+                logger.warning(f"Format graphique invalide: {data}")
                 await query.answer("Erreur format graphique", show_alert=True)
 
         elif data.startswith("chart_"):
@@ -721,21 +722,27 @@ Recherchez : **{symbol}**
 
         elif data.startswith("favorite_add_"):
             parts = data.replace("favorite_add_", "").split("_", 1)
-            symbol = parts[0]
-            market_code = parts[1]
-            user_id = query.from_user.id
-            await db_manager.add_favorite(user_id, symbol, market_code)
-            await query.answer("⭐ Ajouté aux favoris !")
+            if len(parts) >= 2:
+                symbol = parts[0]
+                market_code = parts[1]
+                user_id = query.from_user.id
+                await db_manager.add_favorite(user_id, symbol, market_code)
+                await query.answer("⭐ Ajouté aux favoris !")
+            else:
+                await query.answer("Erreur format", show_alert=True)
 
         elif data.startswith("trading_companion_"):
             # Rediriger vers le Trading Compagnon
             parts = data.replace("trading_companion_", "").split("_", 1)
-            symbol = parts[0]
-            market_code = parts[1]
+            if len(parts) >= 2:
+                symbol = parts[0]
+                market_code = parts[1]
 
-            from ai.trading_companion import TradingCompanion
-            companion = TradingCompanion(self.app)
-            await companion.start_conversation(update, context, symbol, market_code)
+                from ai.trading_companion import TradingCompanion
+                companion = TradingCompanion(self.app)
+                await companion.start_conversation(update, context, symbol, market_code)
+            else:
+                await query.answer("Erreur format", show_alert=True)
 
         elif data.startswith("analyze_"):
             # Analyser un actif depuis l'alerte de scan auto
