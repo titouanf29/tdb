@@ -1,5 +1,5 @@
 """
-Algorithme d'Analyse IA Avancé pour TDB Bot v2.0
+Algorithme d'Analyse IA Avancé pour TDB Bot v3.0
 
 Analyse multi-paramètres améliorée :
 - Analyse technique (tendances, structures, indicateurs)
@@ -11,6 +11,10 @@ Analyse multi-paramètres améliorée :
 - Momentum
 - Contexte marché
 - Actualités
+- Divergences avancées (RSI, MACD, OBV)
+- Position sizing automatique (ATR + Kelly)
+- Score de fiabilité du signal
+- Détection de breakout avec confirmation
 
 Système de scoring intelligent 0-100
 """
@@ -22,6 +26,7 @@ from datetime import datetime, timedelta
 import config
 from utils.helpers import *
 from services.news import news_service
+from ai.advanced_algo import advanced_algo
 
 logger = logging.getLogger(__name__)
 
@@ -201,6 +206,46 @@ class MarketAnalyzer:
             # Detection des signaux de retournement (classique)
             reversal_signals = self._detect_reversal_signals(data_1d)
 
+            # ===== ALGORITHMES AVANCÉS v3.0 =====
+
+            # 7. Divergences avancées (RSI, MACD, OBV)
+            divergences = advanced_algo.detect_divergences(data_1d)
+            if divergences['score'] > 0:
+                # Bonus/Malus basé sur les divergences
+                if divergences['signals']:
+                    div_type = divergences['signals'][0].get('type', '')
+                    if 'bullish' in div_type and direction == 'LONG':
+                        final_score += 5
+                    elif 'bearish' in div_type and direction == 'SHORT':
+                        final_score += 5
+                    elif 'bullish' in div_type and direction == 'SHORT':
+                        final_score -= 5  # Divergence contre la direction
+                    elif 'bearish' in div_type and direction == 'LONG':
+                        final_score -= 5
+
+            # 8. Détection de breakout
+            breakout = advanced_algo.detect_breakout(data_1d)
+            if breakout['breakout_detected']:
+                if breakout['volume_confirmed']:
+                    final_score += 7  # Breakout confirmé par volume
+                else:
+                    final_score += 3  # Breakout sans confirmation
+                if breakout['squeeze_release']:
+                    final_score += 3  # Squeeze release bonus
+
+            # 9. Calcul des targets optimaux
+            optimal_targets = advanced_algo.calculate_optimal_targets(
+                entry_price=float(current_price),
+                direction=direction,
+                atr=float(atr),
+                support=float(support) if support else None,
+                resistance=float(resistance) if resistance else None,
+                fibonacci=fibonacci_levels
+            )
+
+            # Limiter le score final après les bonus
+            final_score = int(max(0, min(100, final_score)))
+
             # Resume technique (amélioré)
             technical_summary = self._generate_technical_summary_advanced(
                 trend, rsi, volume_ratio, support, resistance, current_price,
@@ -271,6 +316,21 @@ class MarketAnalyzer:
                 'user_detail_level': user_settings.get('detail_level', 'Standard') if user_settings else 'Standard',
             }
 
+            # ===== DONNÉES AVANCÉES v3.0 =====
+
+            # 10. Calculer le score de fiabilité du signal
+            signal_reliability = advanced_algo.calculate_signal_reliability(result)
+            result['signal_reliability'] = signal_reliability
+
+            # Ajouter les divergences détectées
+            result['divergences'] = divergences
+
+            # Ajouter le breakout détecté
+            result['breakout'] = breakout
+
+            # Ajouter les targets optimaux calculés
+            result['optimal_targets'] = optimal_targets
+
             # Ajouter les cibles si le niveau de détail le permet
             if detail_config.get('show_targets', True):
                 result['fibonacci'] = {k: float(v) for k, v in fibonacci_levels.items()}
@@ -303,8 +363,28 @@ class MarketAnalyzer:
                 'news': news_score,
                 'patterns': pattern_score,
                 'smart_money': smc_score,
-                'confluence': confluence_score
+                'confluence': confluence_score,
+                'divergences': divergences.get('score', 0) / 100,  # Normaliser 0-1
+                'breakout': breakout.get('strength', 0) / 100,
+                'reliability': signal_reliability.get('score', 50) / 100
             }
+
+            # Ajouter les recommandations pour divergences et breakout
+            if divergences['signals']:
+                for div_signal in divergences['signals'][:2]:
+                    recommendations.append(f"📊 {div_signal.get('description', 'Divergence détectée')}")
+
+            if breakout['breakout_detected']:
+                breakout_msg = f"⚡ Breakout {breakout['type']} détecté"
+                if breakout['volume_confirmed']:
+                    breakout_msg += " (confirmé par volume)"
+                recommendations.append(breakout_msg)
+
+            # Ajouter recommandation sur la fiabilité
+            if signal_reliability['grade'] in ['A', 'B']:
+                recommendations.append(f"✅ Signal fiable (Grade {signal_reliability['grade']}) - Confiance {signal_reliability['confidence']}")
+            elif signal_reliability['grade'] in ['D', 'F']:
+                recommendations.append(f"⚠️ Signal peu fiable (Grade {signal_reliability['grade']}) - Prudence recommandée")
 
             return result
 
