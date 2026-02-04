@@ -27,6 +27,7 @@ import config
 from utils.helpers import *
 from services.news import news_service
 from ai.advanced_algo import advanced_algo
+from ai.enhanced_analysis import enhanced_analyzer
 
 logger = logging.getLogger(__name__)
 
@@ -208,7 +209,37 @@ class MarketAnalyzer:
 
             # ===== ALGORITHMES AVANCÉS v3.0 =====
 
-            # 7. Divergences avancées (RSI, MACD, OBV)
+            # 7. Ichimoku Cloud
+            ichimoku = enhanced_analyzer.calculate_ichimoku(data_1d)
+            if ichimoku.get('available') and ichimoku.get('score', 50) > 60:
+                final_score += 3
+            elif ichimoku.get('available') and ichimoku.get('score', 50) < 40:
+                final_score -= 3
+
+            # 8. Fibonacci automatique
+            fibonacci_auto = enhanced_analyzer.calculate_fibonacci(data_1d)
+
+            # 9. Pattern Recognition avancé
+            patterns_enhanced = enhanced_analyzer.detect_patterns(data_1d)
+            if patterns_enhanced.get('patterns'):
+                for pattern in patterns_enhanced['patterns'][:2]:
+                    if pattern.get('signal') == 'BULLISH' and direction == 'LONG':
+                        final_score += 3
+                    elif pattern.get('signal') == 'BEARISH' and direction == 'SHORT':
+                        final_score += 3
+
+            # 10. Momentum Score avancé (ROC, Williams %R)
+            momentum_enhanced = enhanced_analyzer.calculate_momentum_score(data_1d)
+            if momentum_enhanced.get('available'):
+                if momentum_enhanced.get('score', 50) > 70:
+                    final_score += 5
+                elif momentum_enhanced.get('score', 50) < 30:
+                    final_score -= 5
+
+            # 11. Backtesting simplifié
+            backtest_result = enhanced_analyzer.backtest_signal(data_1d, 'EMA_CROSS')
+
+            # 12. Divergences avancées (RSI, MACD, OBV)
             divergences = advanced_algo.detect_divergences(data_1d)
             if divergences['score'] > 0:
                 # Bonus/Malus basé sur les divergences
@@ -353,6 +384,47 @@ class MarketAnalyzer:
             if detail_config.get('show_smc', False):
                 result['smart_money'] = smc_analysis
 
+            # ===== ANALYSE AVANCÉE v4.0 =====
+            # Ichimoku Cloud
+            if ichimoku.get('available'):
+                result['ichimoku'] = ichimoku
+                explanations['ichimoku'] = {
+                    'signal': ichimoku.get('position_signal', 'NEUTRAL'),
+                    'cloud_color': ichimoku.get('cloud_color', 'NEUTRAL'),
+                    'interpretation': ichimoku.get('interpretation', ''),
+                    'score': ichimoku.get('score', 50)
+                }
+
+            # Fibonacci automatique
+            if fibonacci_auto.get('available'):
+                result['fibonacci_auto'] = fibonacci_auto
+                if fibonacci_auto.get('next_support'):
+                    recommendations.append(f"📉 Support Fibo: {fibonacci_auto['next_support']['price']:.2f} ({fibonacci_auto['next_support']['level']})")
+                if fibonacci_auto.get('next_resistance'):
+                    recommendations.append(f"📈 Résistance Fibo: {fibonacci_auto['next_resistance']['price']:.2f} ({fibonacci_auto['next_resistance']['level']})")
+
+            # Patterns avancés
+            if patterns_enhanced.get('patterns'):
+                result['patterns_enhanced'] = patterns_enhanced
+                for pattern in patterns_enhanced['patterns'][:2]:
+                    recommendations.append(f"🔍 {pattern.get('name', 'Pattern')}: {pattern.get('description', '')}")
+
+            # Momentum avancé
+            if momentum_enhanced.get('available'):
+                result['momentum_enhanced'] = momentum_enhanced
+                explanations['momentum_advanced'] = {
+                    'roc_5': momentum_enhanced.get('roc_5', 0),
+                    'roc_10': momentum_enhanced.get('roc_10', 0),
+                    'williams_r': momentum_enhanced.get('williams_r', -50),
+                    'interpretation': momentum_enhanced.get('interpretation', '')
+                }
+
+            # Backtesting
+            if backtest_result.get('available'):
+                result['backtest'] = backtest_result
+                if backtest_result.get('win_rate', 0) >= 55:
+                    recommendations.append(f"📊 Backtest: {backtest_result['win_rate']:.0f}% réussite historique")
+
             # Toujours inclure les scores détaillés
             result['scores'] = {
                 'technical': technical_score,
@@ -366,7 +438,11 @@ class MarketAnalyzer:
                 'confluence': confluence_score,
                 'divergences': divergences.get('score', 0) / 100,  # Normaliser 0-1
                 'breakout': breakout.get('strength', 0) / 100,
-                'reliability': signal_reliability.get('score', 50) / 100
+                'reliability': signal_reliability.get('score', 50) / 100,
+                # Nouveaux scores v4.0
+                'ichimoku': ichimoku.get('score', 50) / 100 if ichimoku.get('available') else 0.5,
+                'momentum_enhanced': momentum_enhanced.get('score', 50) / 100 if momentum_enhanced.get('available') else 0.5,
+                'backtest_reliability': backtest_result.get('reliability', 50) / 100 if backtest_result.get('available') else 0.5
             }
 
             # Ajouter les recommandations pour divergences et breakout
