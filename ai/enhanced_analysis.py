@@ -138,107 +138,130 @@ class EnhancedAnalysis:
         - Senkou Span B (Leading Span B): 52 périodes
         - Chikou Span (Lagging Span): Prix décalé de 26 périodes
         """
-        if data is None or len(data) < 52:
+        try:
+            if data is None or len(data) < 52:
+                return {'available': False}
+
+            high = data['High']
+            low = data['Low']
+            close = data['Close']
+
+            if len(close) == 0 or pd.isna(close.iloc[-1]):
+                return {'available': False}
+
+            current_price = close.iloc[-1]
+
+            # Tenkan-sen (9 périodes)
+            tenkan = (high.rolling(9).max() + low.rolling(9).min()) / 2
+
+            # Kijun-sen (26 périodes)
+            kijun = (high.rolling(26).max() + low.rolling(26).min()) / 2
+
+            # Senkou Span A (moyenne Tenkan + Kijun, projeté 26 périodes)
+            senkou_a = ((tenkan + kijun) / 2).shift(26)
+
+            # Senkou Span B (52 périodes, projeté 26 périodes)
+            senkou_b = ((high.rolling(52).max() + low.rolling(52).min()) / 2).shift(26)
+
+            # Chikou Span (prix actuel décalé de -26 périodes)
+            chikou = close.shift(-26)
+
+            # Valeurs actuelles - avec protection contre NaN
+            current_tenkan = tenkan.iloc[-1] if not pd.isna(tenkan.iloc[-1]) else 0
+            current_kijun = kijun.iloc[-1] if not pd.isna(kijun.iloc[-1]) else 0
+
+            # Senkou avec fallback
+            if not pd.isna(senkou_a.iloc[-1]):
+                current_senkou_a = senkou_a.iloc[-1]
+            elif len(senkou_a.dropna()) > 0:
+                current_senkou_a = senkou_a.dropna().iloc[-1]
+            else:
+                current_senkou_a = current_price
+
+            if not pd.isna(senkou_b.iloc[-1]):
+                current_senkou_b = senkou_b.iloc[-1]
+            elif len(senkou_b.dropna()) > 0:
+                current_senkou_b = senkou_b.dropna().iloc[-1]
+            else:
+                current_senkou_b = current_price
+
+            # Déterminer le nuage
+            cloud_top = max(current_senkou_a, current_senkou_b)
+            cloud_bottom = min(current_senkou_a, current_senkou_b)
+            cloud_color = 'GREEN' if current_senkou_a > current_senkou_b else 'RED'
+
+            # Position du prix par rapport au nuage
+            if current_price > cloud_top:
+                price_position = 'ABOVE_CLOUD'
+                position_signal = 'BULLISH'
+            elif current_price < cloud_bottom:
+                price_position = 'BELOW_CLOUD'
+                position_signal = 'BEARISH'
+            else:
+                price_position = 'IN_CLOUD'
+                position_signal = 'NEUTRAL'
+
+            # Signaux Ichimoku
+            signals = []
+
+            # 1. TK Cross (Tenkan croise Kijun)
+            if len(tenkan) >= 2 and len(kijun) >= 2:
+                prev_tenkan = tenkan.iloc[-2] if not pd.isna(tenkan.iloc[-2]) else current_tenkan
+                prev_kijun = kijun.iloc[-2] if not pd.isna(kijun.iloc[-2]) else current_kijun
+                if prev_tenkan < prev_kijun and current_tenkan > current_kijun:
+                    signals.append({'type': 'TK_CROSS_BULLISH', 'strength': 'STRONG' if current_price > cloud_top else 'WEAK'})
+                elif prev_tenkan > prev_kijun and current_tenkan < current_kijun:
+                    signals.append({'type': 'TK_CROSS_BEARISH', 'strength': 'STRONG' if current_price < cloud_bottom else 'WEAK'})
+
+            # 2. Kumo Breakout (Prix sort du nuage)
+            if len(close) >= 2:
+                prev_price = close.iloc[-2] if not pd.isna(close.iloc[-2]) else current_price
+                if prev_price <= cloud_top and current_price > cloud_top:
+                    signals.append({'type': 'KUMO_BREAKOUT_BULLISH', 'strength': 'STRONG'})
+                elif prev_price >= cloud_bottom and current_price < cloud_bottom:
+                    signals.append({'type': 'KUMO_BREAKOUT_BEARISH', 'strength': 'STRONG'})
+
+            # Score Ichimoku
+            score = 50
+            if position_signal == 'BULLISH':
+                score += 20
+            elif position_signal == 'BEARISH':
+                score -= 20
+
+            if cloud_color == 'GREEN':
+                score += 10
+            else:
+                score -= 10
+
+            if current_tenkan > current_kijun:
+                score += 10
+            else:
+                score -= 10
+
+            for signal in signals:
+                if 'BULLISH' in signal['type']:
+                    score += 15 if signal['strength'] == 'STRONG' else 5
+                elif 'BEARISH' in signal['type']:
+                    score -= 15 if signal['strength'] == 'STRONG' else 5
+
+            return {
+                'available': True,
+                'tenkan_sen': current_tenkan,
+                'kijun_sen': current_kijun,
+                'senkou_span_a': current_senkou_a,
+                'senkou_span_b': current_senkou_b,
+                'cloud_top': cloud_top,
+                'cloud_bottom': cloud_bottom,
+                'cloud_color': cloud_color,
+                'price_position': price_position,
+                'position_signal': position_signal,
+                'signals': signals,
+                'score': max(0, min(100, score)),
+                'interpretation': self._interpret_ichimoku(position_signal, cloud_color, signals)
+            }
+
+        except Exception:
             return {'available': False}
-
-        high = data['High']
-        low = data['Low']
-        close = data['Close']
-        current_price = close.iloc[-1]
-
-        # Tenkan-sen (9 périodes)
-        tenkan = (high.rolling(9).max() + low.rolling(9).min()) / 2
-
-        # Kijun-sen (26 périodes)
-        kijun = (high.rolling(26).max() + low.rolling(26).min()) / 2
-
-        # Senkou Span A (moyenne Tenkan + Kijun, projeté 26 périodes)
-        senkou_a = ((tenkan + kijun) / 2).shift(26)
-
-        # Senkou Span B (52 périodes, projeté 26 périodes)
-        senkou_b = ((high.rolling(52).max() + low.rolling(52).min()) / 2).shift(26)
-
-        # Chikou Span (prix actuel décalé de -26 périodes)
-        chikou = close.shift(-26)
-
-        # Valeurs actuelles
-        current_tenkan = tenkan.iloc[-1]
-        current_kijun = kijun.iloc[-1]
-        current_senkou_a = senkou_a.iloc[-1] if not pd.isna(senkou_a.iloc[-1]) else senkou_a.dropna().iloc[-1]
-        current_senkou_b = senkou_b.iloc[-1] if not pd.isna(senkou_b.iloc[-1]) else senkou_b.dropna().iloc[-1]
-
-        # Déterminer le nuage
-        cloud_top = max(current_senkou_a, current_senkou_b)
-        cloud_bottom = min(current_senkou_a, current_senkou_b)
-        cloud_color = 'GREEN' if current_senkou_a > current_senkou_b else 'RED'
-
-        # Position du prix par rapport au nuage
-        if current_price > cloud_top:
-            price_position = 'ABOVE_CLOUD'
-            position_signal = 'BULLISH'
-        elif current_price < cloud_bottom:
-            price_position = 'BELOW_CLOUD'
-            position_signal = 'BEARISH'
-        else:
-            price_position = 'IN_CLOUD'
-            position_signal = 'NEUTRAL'
-
-        # Signaux Ichimoku
-        signals = []
-
-        # 1. TK Cross (Tenkan croise Kijun)
-        if len(tenkan) >= 2 and len(kijun) >= 2:
-            if tenkan.iloc[-2] < kijun.iloc[-2] and current_tenkan > current_kijun:
-                signals.append({'type': 'TK_CROSS_BULLISH', 'strength': 'STRONG' if current_price > cloud_top else 'WEAK'})
-            elif tenkan.iloc[-2] > kijun.iloc[-2] and current_tenkan < current_kijun:
-                signals.append({'type': 'TK_CROSS_BEARISH', 'strength': 'STRONG' if current_price < cloud_bottom else 'WEAK'})
-
-        # 2. Kumo Breakout (Prix sort du nuage)
-        if len(close) >= 2:
-            prev_price = close.iloc[-2]
-            if prev_price <= cloud_top and current_price > cloud_top:
-                signals.append({'type': 'KUMO_BREAKOUT_BULLISH', 'strength': 'STRONG'})
-            elif prev_price >= cloud_bottom and current_price < cloud_bottom:
-                signals.append({'type': 'KUMO_BREAKOUT_BEARISH', 'strength': 'STRONG'})
-
-        # Score Ichimoku
-        score = 50
-        if position_signal == 'BULLISH':
-            score += 20
-        elif position_signal == 'BEARISH':
-            score -= 20
-
-        if cloud_color == 'GREEN':
-            score += 10
-        else:
-            score -= 10
-
-        if current_tenkan > current_kijun:
-            score += 10
-        else:
-            score -= 10
-
-        for signal in signals:
-            if 'BULLISH' in signal['type']:
-                score += 15 if signal['strength'] == 'STRONG' else 5
-            elif 'BEARISH' in signal['type']:
-                score -= 15 if signal['strength'] == 'STRONG' else 5
-
-        return {
-            'available': True,
-            'tenkan_sen': current_tenkan,
-            'kijun_sen': current_kijun,
-            'senkou_span_a': current_senkou_a,
-            'senkou_span_b': current_senkou_b,
-            'cloud_top': cloud_top,
-            'cloud_bottom': cloud_bottom,
-            'cloud_color': cloud_color,
-            'price_position': price_position,
-            'position_signal': position_signal,
-            'signals': signals,
-            'score': max(0, min(100, score)),
-            'interpretation': self._interpret_ichimoku(position_signal, cloud_color, signals)
-        }
 
     def _interpret_ichimoku(self, position: str, cloud_color: str, signals: List) -> str:
         """Interprète les signaux Ichimoku"""
@@ -358,71 +381,79 @@ class EnhancedAnalysis:
         Calcule les niveaux de Fibonacci automatiquement
         basés sur le swing high/low récent
         """
-        if data is None or len(data) < lookback:
-            return {'available': False}
+        try:
+            if data is None or len(data) < lookback:
+                return {'available': False}
 
-        recent_data = data.tail(lookback)
-        high = recent_data['High']
-        low = recent_data['Low']
-        close = data['Close'].iloc[-1]
+            recent_data = data.tail(lookback)
+            high = recent_data['High']
+            low = recent_data['Low']
 
-        # Trouver swing high et swing low
-        swing_high = high.max()
-        swing_low = low.min()
-        swing_high_idx = high.idxmax()
-        swing_low_idx = low.idxmin()
+            if len(data) == 0 or pd.isna(data['Close'].iloc[-1]):
+                return {'available': False}
 
-        # Déterminer la direction du mouvement
-        if swing_high_idx > swing_low_idx:
-            # Mouvement haussier - retracement depuis le haut
-            trend = 'UPTREND'
-            diff = swing_high - swing_low
-            levels = {}
-            for fib in self.fibonacci_levels:
-                level = swing_high - (diff * fib)
-                levels[f'{fib:.3f}'] = round(level, 4)
-        else:
-            # Mouvement baissier - retracement depuis le bas
-            trend = 'DOWNTREND'
-            diff = swing_high - swing_low
-            levels = {}
-            for fib in self.fibonacci_levels:
-                level = swing_low + (diff * fib)
-                levels[f'{fib:.3f}'] = round(level, 4)
+            close = data['Close'].iloc[-1]
 
-        # Trouver le niveau le plus proche du prix actuel
-        closest_level = None
-        min_distance = float('inf')
-        for fib_name, level in levels.items():
-            distance = abs(close - level)
-            if distance < min_distance:
-                min_distance = distance
-                closest_level = {'level': fib_name, 'price': level}
+            # Trouver swing high et swing low
+            swing_high = high.max()
+            swing_low = low.min()
+            swing_high_idx = high.idxmax()
+            swing_low_idx = low.idxmin()
 
-        # Support et résistance basés sur Fibonacci
-        supports = []
-        resistances = []
-        for fib_name, level in levels.items():
-            if level < close:
-                supports.append({'level': fib_name, 'price': level})
+            # Déterminer la direction du mouvement
+            if swing_high_idx > swing_low_idx:
+                # Mouvement haussier - retracement depuis le haut
+                trend = 'UPTREND'
+                diff = swing_high - swing_low
+                levels = {}
+                for fib in self.fibonacci_levels:
+                    level = swing_high - (diff * fib)
+                    levels[f'{fib:.3f}'] = round(level, 4)
             else:
-                resistances.append({'level': fib_name, 'price': level})
+                # Mouvement baissier - retracement depuis le bas
+                trend = 'DOWNTREND'
+                diff = swing_high - swing_low
+                levels = {}
+                for fib in self.fibonacci_levels:
+                    level = swing_low + (diff * fib)
+                    levels[f'{fib:.3f}'] = round(level, 4)
 
-        # Trier
-        supports.sort(key=lambda x: x['price'], reverse=True)
-        resistances.sort(key=lambda x: x['price'])
+            # Trouver le niveau le plus proche du prix actuel
+            closest_level = None
+            min_distance = float('inf')
+            for fib_name, level in levels.items():
+                distance = abs(close - level)
+                if distance < min_distance:
+                    min_distance = distance
+                    closest_level = {'level': fib_name, 'price': level}
 
-        return {
-            'available': True,
-            'trend': trend,
-            'swing_high': swing_high,
-            'swing_low': swing_low,
-            'levels': levels,
-            'closest_level': closest_level,
-            'next_support': supports[0] if supports else None,
-            'next_resistance': resistances[0] if resistances else None,
-            'interpretation': self._interpret_fibonacci(close, levels, trend)
-        }
+            # Support et résistance basés sur Fibonacci
+            supports = []
+            resistances = []
+            for fib_name, level in levels.items():
+                if level < close:
+                    supports.append({'level': fib_name, 'price': level})
+                else:
+                    resistances.append({'level': fib_name, 'price': level})
+
+            # Trier
+            supports.sort(key=lambda x: x['price'], reverse=True)
+            resistances.sort(key=lambda x: x['price'])
+
+            return {
+                'available': True,
+                'trend': trend,
+                'swing_high': swing_high,
+                'swing_low': swing_low,
+                'levels': levels,
+                'closest_level': closest_level,
+                'next_support': supports[0] if supports else None,
+                'next_resistance': resistances[0] if resistances else None,
+                'interpretation': self._interpret_fibonacci(close, levels, trend)
+            }
+
+        except Exception:
+            return {'available': False}
 
     def _interpret_fibonacci(self, price: float, levels: Dict, trend: str) -> str:
         """Interprète la position par rapport aux niveaux Fibonacci"""
