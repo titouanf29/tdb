@@ -109,8 +109,9 @@ class MarketAnalyzer:
             data_1h = ticker.history(period="1mo", interval="1h")
             data_15m = ticker.history(period="5d", interval="15m")
 
-            if data_1d.empty or len(data_1d) < 5:
-                logger.debug(f"Données insuffisantes pour {symbol}: {len(data_1d) if not data_1d.empty else 0} lignes")
+            # Vérification minimum de données (besoin d'au moins 60 pour EMA200, Ichimoku, etc.)
+            if data_1d.empty or len(data_1d) < 60:
+                logger.debug(f"Données insuffisantes pour {symbol}: {len(data_1d) if not data_1d.empty else 0} lignes (min: 60)")
                 return None
 
             # ===== ANALYSES CLASSIQUES =====
@@ -690,49 +691,60 @@ class MarketAnalyzer:
         """Analyse technique multi-timeframe"""
         score = 0.5  # Neutre par défaut
 
-        # Tendance long terme (1D)
-        ema_20 = data_1d['Close'].ewm(span=20).mean()
-        ema_50 = data_1d['Close'].ewm(span=50).mean()
-        ema_200 = data_1d['Close'].ewm(span=200).mean() if len(data_1d) >= 200 else None
+        try:
+            if data_1d is None or len(data_1d) < 20:
+                return score
 
-        current_price = data_1d['Close'].iloc[-1]
+            # Tendance long terme (1D)
+            ema_20 = data_1d['Close'].ewm(span=20).mean()
+            ema_50 = data_1d['Close'].ewm(span=50).mean()
+            ema_200 = data_1d['Close'].ewm(span=200).mean() if len(data_1d) >= 200 else None
 
-        # Golden Cross / Death Cross
-        if len(ema_50) > 0:
-            if ema_20.iloc[-1] > ema_50.iloc[-1]:
-                score += 0.1
-            else:
-                score -= 0.1
+            current_price = data_1d['Close'].iloc[-1]
 
-        # Prix au-dessus/en-dessous EMA 200
-        if ema_200 is not None:
-            if current_price > ema_200.iloc[-1]:
-                score += 0.15
-            else:
-                score -= 0.15
+            # Golden Cross / Death Cross
+            if len(ema_50) > 0 and len(ema_20) > 0:
+                if ema_20.iloc[-1] > ema_50.iloc[-1]:
+                    score += 0.1
+                else:
+                    score -= 0.1
 
-        # Structure de marché (Higher Highs / Lower Lows)
-        recent_highs = data_1d['High'].tail(10)
-        recent_lows = data_1d['Low'].tail(10)
+            # Prix au-dessus/en-dessous EMA 200
+            if ema_200 is not None and len(ema_200) > 0:
+                if current_price > ema_200.iloc[-1]:
+                    score += 0.15
+                else:
+                    score -= 0.15
 
-        if recent_highs.iloc[-1] > recent_highs.iloc[-6]:  # Higher High
-            score += 0.1
-        if recent_lows.iloc[-1] > recent_lows.iloc[-6]:  # Higher Low
-            score += 0.1
+            # Structure de marché (Higher Highs / Lower Lows)
+            recent_highs = data_1d['High'].tail(10)
+            recent_lows = data_1d['Low'].tail(10)
 
-        # MACD
-        macd_line, signal_line = self._calculate_macd(data_1d)
-        if macd_line.iloc[-1] > signal_line.iloc[-1]:
-            score += 0.1
-        else:
-            score -= 0.1
+            if len(recent_highs) >= 6 and len(recent_lows) >= 6:
+                if recent_highs.iloc[-1] > recent_highs.iloc[-6]:  # Higher High
+                    score += 0.1
+                if recent_lows.iloc[-1] > recent_lows.iloc[-6]:  # Higher Low
+                    score += 0.1
 
-        # Bollinger Bands
-        bb_upper, bb_middle, bb_lower = self._calculate_bollinger_bands(data_1d)
-        if current_price > bb_middle.iloc[-1]:
-            score += 0.05
-        else:
-            score -= 0.05
+            # MACD
+            macd_line, signal_line = self._calculate_macd(data_1d)
+            if len(macd_line) > 0 and len(signal_line) > 0:
+                if macd_line.iloc[-1] > signal_line.iloc[-1]:
+                    score += 0.1
+                else:
+                    score -= 0.1
+
+            # Bollinger Bands
+            bb_upper, bb_middle, bb_lower = self._calculate_bollinger_bands(data_1d)
+            if len(bb_middle) > 0:
+                if current_price > bb_middle.iloc[-1]:
+                    score += 0.05
+                else:
+                    score -= 0.05
+
+        except Exception as e:
+            logger.debug(f"Erreur dans _analyze_technical: {e}")
+            return 0.5
 
         # Limiter entre 0 et 1
         return max(0, min(1, score))
@@ -741,28 +753,37 @@ class MarketAnalyzer:
         """Analyse du volume"""
         score = 0.5
 
-        # Volume moyen
-        avg_volume_20 = data_1d['Volume'].rolling(20).mean()
-        current_volume = data_1d['Volume'].iloc[-1]
+        try:
+            if data_1d is None or len(data_1d) < 20:
+                return score
 
-        if len(avg_volume_20) > 0 and avg_volume_20.iloc[-1] > 0:
-            volume_ratio = current_volume / avg_volume_20.iloc[-1]
+            # Volume moyen
+            avg_volume_20 = data_1d['Volume'].rolling(20).mean()
+            current_volume = data_1d['Volume'].iloc[-1]
 
-            # Volume fort = signal fort
-            if volume_ratio > 2:
-                score += 0.3
-            elif volume_ratio > 1.5:
-                score += 0.2
-            elif volume_ratio > 1:
-                score += 0.1
-            elif volume_ratio < 0.5:
-                score -= 0.2
+            if len(avg_volume_20) > 0 and not pd.isna(avg_volume_20.iloc[-1]) and avg_volume_20.iloc[-1] > 0:
+                volume_ratio = current_volume / avg_volume_20.iloc[-1]
 
-        # OBV (On Balance Volume)
-        obv = self._calculate_obv(data_1d)
-        obv_ma = obv.rolling(10).mean()
-        if obv.iloc[-1] > obv_ma.iloc[-1]:
-            score += 0.1
+                # Volume fort = signal fort
+                if volume_ratio > 2:
+                    score += 0.3
+                elif volume_ratio > 1.5:
+                    score += 0.2
+                elif volume_ratio > 1:
+                    score += 0.1
+                elif volume_ratio < 0.5:
+                    score -= 0.2
+
+            # OBV (On Balance Volume)
+            obv = self._calculate_obv(data_1d)
+            obv_ma = obv.rolling(10).mean()
+            if len(obv) > 0 and len(obv_ma) > 0 and not pd.isna(obv_ma.iloc[-1]):
+                if obv.iloc[-1] > obv_ma.iloc[-1]:
+                    score += 0.1
+
+        except Exception as e:
+            logger.debug(f"Erreur dans _analyze_volume: {e}")
+            return 0.5
 
         return max(0, min(1, score))
 
@@ -770,32 +791,41 @@ class MarketAnalyzer:
         """Analyse du momentum"""
         score = 0.5
 
-        # RSI
-        rsi = self._calculate_rsi(data_1d)
+        try:
+            if data_1d is None or len(data_1d) < 15:
+                return score
 
-        if 40 < rsi < 60:  # Zone neutre
-            score += 0
-        elif 30 < rsi < 40:  # Oversold
-            score += 0.2
-        elif rsi < 30:  # Très oversold
-            score += 0.3
-        elif 60 < rsi < 70:  # Overbought
-            score -= 0.1
-        elif rsi > 70:  # Très overbought
-            score -= 0.3
+            # RSI
+            rsi = self._calculate_rsi(data_1d)
 
-        # Rate of Change (ROC)
-        roc = ((data_1d['Close'].iloc[-1] - data_1d['Close'].iloc[-10]) /
-               data_1d['Close'].iloc[-10]) * 100
+            if 40 < rsi < 60:  # Zone neutre
+                score += 0
+            elif 30 < rsi < 40:  # Oversold
+                score += 0.2
+            elif rsi < 30:  # Très oversold
+                score += 0.3
+            elif 60 < rsi < 70:  # Overbought
+                score -= 0.1
+            elif rsi > 70:  # Très overbought
+                score -= 0.3
 
-        if roc > 5:
-            score += 0.2
-        elif roc > 2:
-            score += 0.1
-        elif roc < -5:
-            score -= 0.2
-        elif roc < -2:
-            score -= 0.1
+            # Rate of Change (ROC)
+            if len(data_1d) >= 11 and data_1d['Close'].iloc[-10] > 0:
+                roc = ((data_1d['Close'].iloc[-1] - data_1d['Close'].iloc[-10]) /
+                       data_1d['Close'].iloc[-10]) * 100
+
+                if roc > 5:
+                    score += 0.2
+                elif roc > 2:
+                    score += 0.1
+                elif roc < -5:
+                    score -= 0.2
+                elif roc < -2:
+                    score -= 0.1
+
+        except Exception as e:
+            logger.debug(f"Erreur dans _analyze_momentum: {e}")
+            return 0.5
 
         return max(0, min(1, score))
 
@@ -803,27 +833,37 @@ class MarketAnalyzer:
         """Analyse de la volatilité"""
         score = 0.5
 
-        # ATR
-        atr = self._calculate_atr(data_1d)
-        price = data_1d['Close'].iloc[-1]
-        atr_percent = (atr / price) * 100
+        try:
+            if data_1d is None or len(data_1d) < 20:
+                return score
 
-        # Volatilité modérée = meilleur score
-        if 1 < atr_percent < 3:
-            score += 0.3
-        elif 0.5 < atr_percent < 5:
-            score += 0.1
-        elif atr_percent > 10:  # Trop volatile
-            score -= 0.3
-        elif atr_percent < 0.3:  # Pas assez de mouvement
-            score -= 0.2
+            # ATR
+            atr = self._calculate_atr(data_1d)
+            price = data_1d['Close'].iloc[-1]
+            if price > 0:
+                atr_percent = (atr / price) * 100
 
-        # Bollinger Band Width
-        bb_upper, bb_middle, bb_lower = self._calculate_bollinger_bands(data_1d)
-        bb_width = (bb_upper.iloc[-1] - bb_lower.iloc[-1]) / bb_middle.iloc[-1]
+                # Volatilité modérée = meilleur score
+                if 1 < atr_percent < 3:
+                    score += 0.3
+                elif 0.5 < atr_percent < 5:
+                    score += 0.1
+                elif atr_percent > 10:  # Trop volatile
+                    score -= 0.3
+                elif atr_percent < 0.3:  # Pas assez de mouvement
+                    score -= 0.2
 
-        if 0.05 < bb_width < 0.15:
-            score += 0.1
+            # Bollinger Band Width
+            bb_upper, bb_middle, bb_lower = self._calculate_bollinger_bands(data_1d)
+            if len(bb_middle) > 0 and bb_middle.iloc[-1] > 0:
+                bb_width = (bb_upper.iloc[-1] - bb_lower.iloc[-1]) / bb_middle.iloc[-1]
+
+                if 0.05 < bb_width < 0.15:
+                    score += 0.1
+
+        except Exception as e:
+            logger.debug(f"Erreur dans _analyze_volatility: {e}")
+            return 0.5
 
         return max(0, min(1, score))
 
