@@ -109,7 +109,8 @@ class MarketAnalyzer:
             data_1h = ticker.history(period="1mo", interval="1h")
             data_15m = ticker.history(period="5d", interval="15m")
 
-            if data_1d.empty:
+            if data_1d.empty or len(data_1d) < 5:
+                logger.debug(f"Données insuffisantes pour {symbol}: {len(data_1d) if not data_1d.empty else 0} lignes")
                 return None
 
             # ===== ANALYSES CLASSIQUES =====

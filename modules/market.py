@@ -37,7 +37,7 @@ class MarketModule:
         # Capturer tous les callbacks du module marché
         self.app.add_handler(CallbackQueryHandler(
             self.handle_callback,
-            pattern="^(market_|chart_|chartgen_|news_|favorite_add_|trading_companion_|analyze_)"
+            pattern="^(market_|chart_|chartgen_|news_|favorite_add_|trading_companion_|analyze_|view_compact_|view_detailed_|refresh_)"
         ))
 
     async def show_markets(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -228,135 +228,407 @@ Revenez plus tard ou essayez un autre marché.
             parse_mode='Markdown'
         )
 
-    async def show_asset_detail(self, update: Update, context: ContextTypes.DEFAULT_TYPE,
-                               market_code: str, symbol: str):
-        """Affiche l'analyse détaillée d'un actif"""
-        query = update.callback_query
-        await query.answer()
+    def _generate_score_bar(self, score: int) -> str:
+        """Génère une barre de progression visuelle pour le score"""
+        filled = int(score / 10)
+        empty = 10 - filled
+        bar = "█" * filled + "░" * empty
+        return bar
 
-        # Animation de chargement
-        loading = LoadingAnimation(query, "analysis")
-        await loading.start()
+    def _get_verdict(self, score: int, direction: str) -> tuple:
+        """Retourne le verdict et sa couleur"""
+        if score >= 75 and direction == "LONG":
+            return "🟢 ACHETER", "Signal d'achat fort détecté"
+        elif score >= 75 and direction == "SHORT":
+            return "🔴 VENDRE", "Signal de vente fort détecté"
+        elif score >= 60 and direction == "LONG":
+            return "🟡 ACHAT POSSIBLE", "Opportunité d'achat modérée"
+        elif score >= 60 and direction == "SHORT":
+            return "🟡 VENTE POSSIBLE", "Opportunité de vente modérée"
+        else:
+            return "⚪ ATTENDRE", "Pas de signal clair, patience"
 
-        # Analyser l'actif
-        analysis = await analyzer.analyze_asset(symbol, market_code)
+    def _get_rsi_status(self, rsi: float) -> tuple:
+        """Retourne le statut RSI avec emoji"""
+        if rsi >= 70:
+            return "🔴", "Surachat"
+        elif rsi <= 30:
+            return "🟢", "Survente"
+        elif 45 <= rsi <= 55:
+            return "⚪", "Neutre"
+        elif rsi > 55:
+            return "🟡", "Haussier"
+        else:
+            return "🟡", "Baissier"
 
-        if not analysis:
-            await query.edit_message_text(
-                "❌ Impossible d'analyser cet actif.",
-                reply_markup=InlineKeyboardMarkup([
-                    [InlineKeyboardButton(BTN_BACK, callback_data=f"market_select_{market_code}")]
-                ])
-            )
-            return
+    def _get_volume_status(self, ratio: float) -> tuple:
+        """Retourne le statut du volume"""
+        if ratio >= 2.0:
+            return "🟢", "Très élevé"
+        elif ratio >= 1.5:
+            return "🟢", "Élevé"
+        elif ratio >= 0.8:
+            return "⚪", "Normal"
+        else:
+            return "🔴", "Faible"
 
-        # Sauvegarder dans le contexte
-        context.user_data[f'asset_detail_{symbol}'] = analysis
+    def _generate_compact_view(self, analysis: dict, symbol: str, market_code: str) -> str:
+        """Génère la vue compacte de l'analyse"""
+        score = analysis['score']
+        direction = analysis['direction']
 
-        # Générer le texte d'analyse
-        score_emoji = get_score_emoji(analysis['score'])
-        direction_emoji = EMOJI_DIRECTION[analysis['direction']]
-        trend_emoji = EMOJI_TREND[analysis['trend']]
-        risk_emoji = EMOJI_RISK[analysis['risk_level']]
-
-        # Nom complet et emoji de l'actif
+        # Infos de base
         asset_emoji = get_asset_emoji(symbol)
         asset_name = get_asset_display_name(symbol)
-        full_name = f"{asset_emoji} {asset_name}" if asset_name != symbol else f"{asset_emoji} {symbol}"
 
-        # Récupérer les explications
+        # Verdict
+        verdict, verdict_text = self._get_verdict(score, direction)
+
+        # Barre de score
+        score_bar = self._generate_score_bar(score)
+
+        # Indicateurs
+        rsi_emoji, rsi_status = self._get_rsi_status(analysis['rsi'])
+        vol_emoji, vol_status = self._get_volume_status(analysis['volume_ratio'])
+
+        # Grade de fiabilité
+        reliability = analysis.get('signal_reliability', {})
+        grade = reliability.get('grade', 'C')
+        grade_stars = {'A': '⭐⭐⭐⭐⭐', 'B': '⭐⭐⭐⭐☆', 'C': '⭐⭐⭐☆☆', 'D': '⭐⭐☆☆☆', 'F': '⭐☆☆☆☆'}.get(grade, '⭐⭐⭐☆☆')
+
+        # Calcul distances support/resistance
+        current_price = analysis['current_price']
+        support = analysis.get('support')
+        resistance = analysis.get('resistance')
+
+        support_dist = f"{((current_price - support) / current_price * 100):.1f}%" if support and current_price > 0 else "N/A"
+        resist_dist = f"{((resistance - current_price) / current_price * 100):.1f}%" if resistance and current_price > 0 else "N/A"
+
+        # Tendance emoji
+        trend = analysis['trend']
+        trend_emoji = "📈" if trend == "bullish" else "📉" if trend == "bearish" else "➡️"
+
+        # Construction du message compact
+        text = f"""
+{asset_emoji} **{asset_name}** ({symbol})
+
+┏━━━━━━━━━━━━━━━━━━━━━━┓
+┃  **{verdict}**
+┃  {score_bar} **{score}/100**
+┃  _{verdict_text}_
+┗━━━━━━━━━━━━━━━━━━━━━━┛
+
+💰 **{format_price(current_price)}** ({format_percent(analysis['price_change_1d'])})
+
+┌─────────┬─────────┬─────────┐
+│ **RSI**     │ **Vol.**    │ **Trend**   │
+│ {rsi_emoji} {analysis['rsi']:.0f}    │ {vol_emoji} x{analysis['volume_ratio']:.1f}  │ {trend_emoji} {trend[:4].upper()} │
+└─────────┴─────────┴─────────┘
+
+📍 **NIVEAUX DE PRIX**
+```
+  Résist. ─ {format_price(resistance) if resistance else 'N/A':>10} ⬆️ +{resist_dist}
+  ▶ PRIX ━ {format_price(current_price):>10} ◀
+  Support ─ {format_price(support) if support else 'N/A':>10} ⬇️ -{support_dist}
+```
+
+📋 **FIABILITÉ:** {grade_stars} Grade {grade}
+
+━━━━━━━━━━━━━━━━━━━━━━━━
+
+💎 **RÉSUMÉ RAPIDE**
+
+"""
+        # Points forts/faibles
+        strengths = []
+        warnings = []
+
+        if analysis['rsi'] < 35:
+            strengths.append("RSI en survente")
+        elif analysis['rsi'] > 65:
+            warnings.append("RSI en surachat")
+
+        if analysis['volume_ratio'] > 1.5:
+            strengths.append("Volume élevé")
+        elif analysis['volume_ratio'] < 0.7:
+            warnings.append("Volume faible")
+
+        if trend == "bullish" and direction == "LONG":
+            strengths.append("Tendance alignée")
+        elif trend == "bearish" and direction == "SHORT":
+            strengths.append("Tendance alignée")
+        elif trend != "neutral" and direction != "NEUTRAL":
+            warnings.append("Tendance opposée")
+
+        if score >= 70:
+            strengths.append("Score élevé")
+
+        # Ichimoku si disponible
+        ichimoku = analysis.get('ichimoku', {})
+        if ichimoku.get('available'):
+            if ichimoku.get('position_signal') == 'BULLISH':
+                strengths.append("Ichimoku haussier")
+            elif ichimoku.get('position_signal') == 'BEARISH':
+                warnings.append("Ichimoku baissier")
+
+        if strengths:
+            text += f"✅ **Points forts:** {', '.join(strengths[:3])}\n"
+        if warnings:
+            text += f"⚠️ **À surveiller:** {', '.join(warnings[:3])}\n"
+
+        # Targets
+        optimal_targets = analysis.get('optimal_targets', {})
+        if optimal_targets:
+            tp1 = optimal_targets.get('take_profit_1')
+            sl = optimal_targets.get('stop_loss')
+            if tp1:
+                text += f"🎯 **Objectif:** {format_price(tp1)}\n"
+            if sl:
+                text += f"🛑 **Stop-loss:** {format_price(sl)}\n"
+
+        return text
+
+    def _generate_detailed_view(self, analysis: dict, symbol: str, market_code: str) -> str:
+        """Génère la vue détaillée de l'analyse"""
+        score = analysis['score']
+        direction = analysis['direction']
+
+        # Infos de base
+        asset_emoji = get_asset_emoji(symbol)
+        asset_name = get_asset_display_name(symbol)
+
+        # Verdict
+        verdict, verdict_text = self._get_verdict(score, direction)
+
+        # Barre de score
+        score_bar = self._generate_score_bar(score)
+
         explanations = analysis.get('explanations', {})
         recommendations = analysis.get('recommendations', [])
 
         text = f"""
-📊 **ANALYSE DÉTAILLÉE**
+{asset_emoji} **{asset_name}** ({symbol})
 
-{full_name}
-_Symbole: {symbol}_
+┏━━━━━━━━━━━━━━━━━━━━━━┓
+┃  **{verdict}**
+┃  {score_bar} **{score}/100**
+┃  _{verdict_text}_
+┗━━━━━━━━━━━━━━━━━━━━━━┛
 
-{score_emoji} **Score IA: {analysis['score']:.0f}/100**
-{get_score_label(analysis['score'])}
+━━━━━━━━━━━━━━━━━━━━━━━━
 
-━━━━━━━━━━━━━━━━━━━━
+💰 **PRIX & VARIATION**
 
-💰 **Prix actuel:** {format_price(analysis['current_price'])}
-📈 **Variation 24h:** {format_percent(analysis['price_change_1d'])}
+• Prix actuel: **{format_price(analysis['current_price'])}**
+• Variation 24h: **{format_percent(analysis['price_change_1d'])}**
+• Direction: **{direction}** {'📈' if direction == 'LONG' else '📉' if direction == 'SHORT' else '➡️'}
+• Tendance: **{analysis['trend'].upper()}**
 
-{direction_emoji} **Direction suggérée:** {analysis['direction']}
-{trend_emoji} **Tendance:** {analysis['trend'].upper()}
-
-━━━━━━━━━━━━━━━━━━━━
+━━━━━━━━━━━━━━━━━━━━━━━━
 
 📊 **INDICATEURS TECHNIQUES**
 
 """
-
-        # RSI avec explication
+        # RSI
+        rsi_emoji, rsi_status = self._get_rsi_status(analysis['rsi'])
+        text += f"{rsi_emoji} **RSI:** {analysis['rsi']:.1f} ({rsi_status})\n"
         if 'rsi' in explanations:
-            rsi_info = explanations['rsi']
-            text += f"{rsi_info['emoji']} **RSI: {analysis['rsi']:.1f}** ({rsi_info['status']})\n"
-            text += f"_{rsi_info['text']}_\n\n"
+            text += f"   _{explanations['rsi'].get('text', '')}_\n\n"
         else:
-            text += f"• RSI: {analysis['rsi']:.1f}\n"
+            text += "\n"
 
-        # Volume avec explication
+        # Volume
+        vol_emoji, vol_status = self._get_volume_status(analysis['volume_ratio'])
+        text += f"{vol_emoji} **Volume:** x{analysis['volume_ratio']:.2f} ({vol_status})\n"
         if 'volume' in explanations:
-            vol_info = explanations['volume']
-            text += f"{vol_info['emoji']} **Volume: x{analysis['volume_ratio']:.2f}** ({vol_info['level']})\n"
-            text += f"_{vol_info['text']}_\n\n"
+            text += f"   _{explanations['volume'].get('text', '')}_\n\n"
         else:
-            text += f"• Volume: x{analysis['volume_ratio']:.2f}\n"
+            text += "\n"
 
-        # Tendance avec explication
-        if 'trend' in explanations:
-            trend_info = explanations['trend']
-            text += f"{trend_info['emoji']} **Tendance**\n"
-            text += f"_{trend_info['text']}_\n\n"
-
-        # Volatilité
+        # ATR
         text += f"📉 **Volatilité (ATR):** {format_price(analysis['volatility'])}\n\n"
 
-        text += "━━━━━━━━━━━━━━━━━━━━\n\n"
+        # ADX si disponible
+        adx = analysis.get('adx', {})
+        if adx:
+            adx_val = adx.get('adx', 0)
+            adx_strength = "Fort" if adx_val > 25 else "Faible" if adx_val < 20 else "Modéré"
+            text += f"💪 **ADX:** {adx_val:.1f} (Tendance {adx_strength})\n\n"
 
-        # Niveaux clés avec explication
-        if analysis['support'] and analysis['resistance']:
-            text += f"🎯 **NIVEAUX CLÉS**\n"
-            text += f"• Support: {format_price(analysis['support'])}\n"
-            text += f"• Résistance: {format_price(analysis['resistance'])}\n"
+        text += "━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
 
-            if 'levels' in explanations:
-                levels_info = explanations['levels']
-                text += f"\n{levels_info['emoji']} _{levels_info['text']}_\n"
+        # Niveaux clés
+        support = analysis.get('support')
+        resistance = analysis.get('resistance')
+        current_price = analysis['current_price']
 
-            text += "\n━━━━━━━━━━━━━━━━━━━━\n\n"
+        text += "📍 **NIVEAUX CLÉS**\n\n"
 
-        # Breakdown des scores
-        text += f"📈 **DÉTAIL DES SCORES**\n\n"
-        if 'scores_breakdown' in explanations:
-            text += f"{explanations['scores_breakdown']}\n\n"
+        if resistance:
+            resist_dist = ((resistance - current_price) / current_price * 100) if current_price > 0 else 0
+            text += f"🔺 Résistance: **{format_price(resistance)}** (+{resist_dist:.1f}%)\n"
 
-        text += "━━━━━━━━━━━━━━━━━━━━\n\n"
+        text += f"▶️ Prix actuel: **{format_price(current_price)}**\n"
 
-        # Type et risque
-        text += f"🔍 **Type:** {OPPORTUNITY_TYPES.get(analysis['opportunity_type'], analysis['opportunity_type'])}\n"
-        text += f"{risk_emoji} **Risque:** {analysis['risk_level'].upper()}\n\n"
+        if support:
+            support_dist = ((current_price - support) / current_price * 100) if current_price > 0 else 0
+            text += f"🔻 Support: **{format_price(support)}** (-{support_dist:.1f}%)\n"
+
+        # Fibonacci si disponible
+        fib_auto = analysis.get('fibonacci_auto', {})
+        if fib_auto.get('available'):
+            text += f"\n📐 **Fibonacci:**\n"
+            if fib_auto.get('next_resistance'):
+                text += f"   • Résist. Fibo: {format_price(fib_auto['next_resistance']['price'])} ({fib_auto['next_resistance']['level']})\n"
+            if fib_auto.get('next_support'):
+                text += f"   • Support Fibo: {format_price(fib_auto['next_support']['price'])} ({fib_auto['next_support']['level']})\n"
+
+        text += "\n━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+
+        # Ichimoku si disponible
+        ichimoku = analysis.get('ichimoku', {})
+        if ichimoku.get('available'):
+            cloud_emoji = "🟢" if ichimoku.get('cloud_color') == 'GREEN' else "🔴"
+            position = ichimoku.get('price_position', 'UNKNOWN')
+            position_text = {
+                'ABOVE_CLOUD': 'Au-dessus du nuage ✅',
+                'BELOW_CLOUD': 'En-dessous du nuage ❌',
+                'IN_CLOUD': 'Dans le nuage ⚠️'
+            }.get(position, position)
+
+            text += f"☁️ **ICHIMOKU**\n\n"
+            text += f"• Nuage: {cloud_emoji} {'Haussier' if ichimoku.get('cloud_color') == 'GREEN' else 'Baissier'}\n"
+            text += f"• Position: {position_text}\n"
+            text += f"• Score: {ichimoku.get('score', 50)}/100\n"
+            if ichimoku.get('interpretation'):
+                text += f"• _{ichimoku['interpretation']}_\n"
+            text += "\n━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+
+        # Patterns détectés
+        patterns = analysis.get('patterns_enhanced', {})
+        if patterns.get('patterns'):
+            text += "🔍 **PATTERNS DÉTECTÉS**\n\n"
+            for pattern in patterns['patterns'][:3]:
+                signal_emoji = "🟢" if pattern.get('signal') == 'BULLISH' else "🔴" if pattern.get('signal') == 'BEARISH' else "⚪"
+                text += f"• {signal_emoji} **{pattern.get('name', 'Pattern')}**\n"
+                if pattern.get('description'):
+                    text += f"   _{pattern['description']}_\n"
+            text += "\n━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+
+        # Momentum avancé
+        momentum = analysis.get('momentum_enhanced', {})
+        if momentum.get('available'):
+            text += "⚡ **MOMENTUM**\n\n"
+            text += f"• ROC (5): {momentum.get('roc_5', 0):+.2f}%\n"
+            text += f"• Williams %R: {momentum.get('williams_r', -50):.0f}\n"
+            text += f"• Score: {momentum.get('score', 50)}/100\n"
+            if momentum.get('interpretation'):
+                text += f"• _{momentum['interpretation']}_\n"
+            text += "\n━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+
+        # Fiabilité du signal
+        reliability = analysis.get('signal_reliability', {})
+        if reliability:
+            grade = reliability.get('grade', 'C')
+            grade_stars = {'A': '⭐⭐⭐⭐⭐', 'B': '⭐⭐⭐⭐☆', 'C': '⭐⭐⭐☆☆', 'D': '⭐⭐☆☆☆', 'F': '⭐☆☆☆☆'}.get(grade, '⭐⭐⭐☆☆')
+            text += f"📋 **FIABILITÉ DU SIGNAL**\n\n"
+            text += f"• Grade: {grade_stars} **{grade}**\n"
+            text += f"• Confiance: {reliability.get('confidence', 'Modérée')}\n"
+            text += f"• Score: {reliability.get('score', 50)}/100\n"
+
+            # Backtest si disponible
+            backtest = analysis.get('backtest', {})
+            if backtest.get('available') and backtest.get('win_rate', 0) > 0:
+                text += f"• Backtest: {backtest['win_rate']:.0f}% réussite historique\n"
+
+            text += "\n━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+
+        # Targets optimaux
+        optimal_targets = analysis.get('optimal_targets', {})
+        if optimal_targets:
+            text += "🎯 **OBJECTIFS & STOP-LOSS**\n\n"
+            if optimal_targets.get('take_profit_1'):
+                text += f"• TP1: **{format_price(optimal_targets['take_profit_1'])}**\n"
+            if optimal_targets.get('take_profit_2'):
+                text += f"• TP2: **{format_price(optimal_targets['take_profit_2'])}**\n"
+            if optimal_targets.get('stop_loss'):
+                text += f"• Stop-loss: **{format_price(optimal_targets['stop_loss'])}**\n"
+            if optimal_targets.get('risk_reward'):
+                text += f"• Risk/Reward: **{optimal_targets['risk_reward']:.2f}**\n"
+            text += "\n━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
 
         # Recommandations
         if recommendations:
             text += "💡 **RECOMMANDATIONS**\n\n"
-            for rec in recommendations:
-                text += f"{rec}\n"
-            text += "\n━━━━━━━━━━━━━━━━━━━━\n\n"
+            for i, rec in enumerate(recommendations[:6], 1):
+                text += f"{i}. {rec}\n"
+            text += "\n━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
 
-        # Résumé technique
-        text += f"📝 **Résumé:** {analysis['technical_summary']}\n"
+        # Risque
+        risk_level = analysis.get('risk_level', 'moderate')
+        risk_emoji = EMOJI_RISK.get(risk_level, '⚠️')
+        text += f"{risk_emoji} **Niveau de risque:** {risk_level.upper()}\n\n"
+
+        # Résumé
+        technical_summary = analysis.get('technical_summary', '')
+        if technical_summary:
+            text += f"📝 **Résumé:** _{technical_summary}_\n"
+
+        return text
+
+    async def show_asset_detail(self, update: Update, context: ContextTypes.DEFAULT_TYPE,
+                               market_code: str, symbol: str, view_mode: str = "compact"):
+        """Affiche l'analyse détaillée d'un actif"""
+        query = update.callback_query
+        await query.answer()
+
+        # Vérifier si on a déjà les données en cache
+        cached_analysis = context.user_data.get(f'asset_detail_{symbol}')
+
+        if not cached_analysis:
+            # Animation de chargement
+            loading = LoadingAnimation(query, "analysis")
+            await loading.start()
+
+            # Analyser l'actif
+            analysis = await analyzer.analyze_asset(symbol, market_code)
+
+            if not analysis:
+                await query.edit_message_text(
+                    "❌ Impossible d'analyser cet actif.",
+                    reply_markup=InlineKeyboardMarkup([
+                        [InlineKeyboardButton(BTN_BACK, callback_data=f"market_select_{market_code}")]
+                    ])
+                )
+                return
+
+            # Sauvegarder dans le contexte
+            context.user_data[f'asset_detail_{symbol}'] = analysis
+        else:
+            analysis = cached_analysis
+
+        # Générer le texte selon le mode
+        if view_mode == "compact":
+            text = self._generate_compact_view(analysis, symbol, market_code)
+            view_btn_text = "📋 Vue détaillée"
+            view_btn_callback = f"view_detailed_{market_code}_{symbol}"
+        else:
+            text = self._generate_detailed_view(analysis, symbol, market_code)
+            view_btn_text = "📊 Vue compacte"
+            view_btn_callback = f"view_compact_{market_code}_{symbol}"
 
         # Boutons d'action
         keyboard = [
+            [InlineKeyboardButton(view_btn_text, callback_data=view_btn_callback)],
+            [
+                InlineKeyboardButton("📈 Graphique", callback_data=f"chart_{symbol}"),
+                InlineKeyboardButton("📰 News", callback_data=f"news_{symbol}")
+            ],
             [InlineKeyboardButton("🤖 Trading Compagnon", callback_data=f"trading_companion_{symbol}_{market_code}")],
-            [InlineKeyboardButton("📰 News", callback_data=f"news_{symbol}")],
-            [InlineKeyboardButton("📈 Graphique", callback_data=f"chart_{symbol}")],
-            [InlineKeyboardButton("⭐ Ajouter aux Favoris", callback_data=f"favorite_add_{symbol}_{market_code}")],
+            [
+                InlineKeyboardButton("⭐ Favoris", callback_data=f"favorite_add_{symbol}_{market_code}"),
+                InlineKeyboardButton("🔄 Actualiser", callback_data=f"refresh_{market_code}_{symbol}")
+            ],
             [InlineKeyboardButton(BTN_BACK, callback_data=f"market_select_{market_code}")]
         ]
 
@@ -758,3 +1030,36 @@ Recherchez : **{symbol}**
             # Résumé d'un marché fermé
             market_code = data.replace("market_summary_", "")
             await self.show_market_summary(update, context, market_code)
+
+        elif data.startswith("view_compact_"):
+            # Switch vers vue compacte
+            parts = data.replace("view_compact_", "").split("_", 1)
+            if len(parts) >= 2:
+                market_code = parts[0]
+                symbol = parts[1]
+                await self.show_asset_detail(update, context, market_code, symbol, view_mode="compact")
+            else:
+                await query.answer("Erreur format", show_alert=True)
+
+        elif data.startswith("view_detailed_"):
+            # Switch vers vue détaillée
+            parts = data.replace("view_detailed_", "").split("_", 1)
+            if len(parts) >= 2:
+                market_code = parts[0]
+                symbol = parts[1]
+                await self.show_asset_detail(update, context, market_code, symbol, view_mode="detailed")
+            else:
+                await query.answer("Erreur format", show_alert=True)
+
+        elif data.startswith("refresh_"):
+            # Actualiser l'analyse (supprimer le cache)
+            parts = data.replace("refresh_", "").split("_", 1)
+            if len(parts) >= 2:
+                market_code = parts[0]
+                symbol = parts[1]
+                # Supprimer le cache pour forcer une nouvelle analyse
+                if f'asset_detail_{symbol}' in context.user_data:
+                    del context.user_data[f'asset_detail_{symbol}']
+                await self.show_asset_detail(update, context, market_code, symbol, view_mode="compact")
+            else:
+                await query.answer("Erreur format", show_alert=True)
