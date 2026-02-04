@@ -977,79 +977,92 @@ class MarketAnalyzer:
         """Detecte les signaux de retournement"""
         signals = []
 
-        # RSI Divergence
-        rsi_series = self._calculate_rsi_series(data, rsi_period)
-        if len(rsi_series) >= 10:
-            # Divergence haussiere: prix fait lower low mais RSI fait higher low
-            price_ll = data['Close'].iloc[-1] < data['Close'].iloc[-5]
-            rsi_hl = rsi_series.iloc[-1] > rsi_series.iloc[-5]
-            if price_ll and rsi_hl and rsi_series.iloc[-1] < 40:
+        try:
+            # Vérification de données suffisantes
+            if len(data) < 10:
+                return signals
+
+            # RSI Divergence
+            rsi_series = self._calculate_rsi_series(data, rsi_period)
+            if len(rsi_series) >= 10 and len(data) >= 6:
+                # Vérifier que les indices existent
+                rsi_current = rsi_series.iloc[-1] if not pd.isna(rsi_series.iloc[-1]) else None
+                rsi_past = rsi_series.iloc[-5] if not pd.isna(rsi_series.iloc[-5]) else None
+
+                if rsi_current is not None and rsi_past is not None:
+                    # Divergence haussiere: prix fait lower low mais RSI fait higher low
+                    price_ll = data['Close'].iloc[-1] < data['Close'].iloc[-5]
+                    rsi_hl = rsi_current > rsi_past
+                    if price_ll and rsi_hl and rsi_current < 40:
+                        signals.append({
+                            'type': 'bullish_divergence',
+                            'strength': 'strong',
+                            'description': 'Divergence haussiere RSI - Signal de retournement a la hausse'
+                        })
+
+                    # Divergence baissiere: prix fait higher high mais RSI fait lower high
+                    price_hh = data['Close'].iloc[-1] > data['Close'].iloc[-5]
+                    rsi_lh = rsi_current < rsi_past
+                    if price_hh and rsi_lh and rsi_current > 60:
+                        signals.append({
+                            'type': 'bearish_divergence',
+                            'strength': 'strong',
+                            'description': 'Divergence baissiere RSI - Signal de retournement a la baisse'
+                        })
+
+            # Double Bottom / Double Top patterns (simplifie)
+            lows = data['Low'].tail(20)
+            highs = data['High'].tail(20)
+
+            # Double bottom detection
+            min_idx = lows.idxmin()
+            min_val = lows.min()
+            second_min = lows.drop(min_idx).min() if len(lows) > 1 else min_val
+            if min_val != 0 and abs(min_val - second_min) / abs(min_val) < 0.02:  # 2% tolerance
                 signals.append({
-                    'type': 'bullish_divergence',
-                    'strength': 'strong',
-                    'description': 'Divergence haussiere RSI - Signal de retournement a la hausse'
-                })
-
-            # Divergence baissiere: prix fait higher high mais RSI fait lower high
-            price_hh = data['Close'].iloc[-1] > data['Close'].iloc[-5]
-            rsi_lh = rsi_series.iloc[-1] < rsi_series.iloc[-5]
-            if price_hh and rsi_lh and rsi_series.iloc[-1] > 60:
-                signals.append({
-                    'type': 'bearish_divergence',
-                    'strength': 'strong',
-                    'description': 'Divergence baissiere RSI - Signal de retournement a la baisse'
-                })
-
-        # Double Bottom / Double Top patterns (simplifie)
-        lows = data['Low'].tail(20)
-        highs = data['High'].tail(20)
-
-        # Double bottom detection
-        min_idx = lows.idxmin()
-        min_val = lows.min()
-        second_min = lows.drop(min_idx).min() if len(lows) > 1 else min_val
-        if min_val != 0 and abs(min_val - second_min) / abs(min_val) < 0.02:  # 2% tolerance
-            signals.append({
-                'type': 'double_bottom',
-                'strength': 'moderate',
-                'description': 'Formation Double Bottom - Potentiel retournement haussier'
-            })
-
-        # Double top detection
-        max_idx = highs.idxmax()
-        max_val = highs.max()
-        second_max = highs.drop(max_idx).max() if len(highs) > 1 else max_val
-        if max_val != 0 and abs(max_val - second_max) / abs(max_val) < 0.02:
-            signals.append({
-                'type': 'double_top',
-                'strength': 'moderate',
-                'description': 'Formation Double Top - Potentiel retournement baissier'
-            })
-
-        # Hammer / Shooting Star candles
-        last_candle = data.iloc[-1]
-        body = abs(last_candle['Close'] - last_candle['Open'])
-        total_range = last_candle['High'] - last_candle['Low']
-
-        if total_range > 0:
-            lower_wick = min(last_candle['Open'], last_candle['Close']) - last_candle['Low']
-            upper_wick = last_candle['High'] - max(last_candle['Open'], last_candle['Close'])
-
-            # Hammer (bougie marteau - signal haussier)
-            if lower_wick > body * 2 and upper_wick < body * 0.5:
-                signals.append({
-                    'type': 'hammer',
+                    'type': 'double_bottom',
                     'strength': 'moderate',
-                    'description': 'Bougie Marteau - Signal de rebond potentiel'
+                    'description': 'Formation Double Bottom - Potentiel retournement haussier'
                 })
 
-            # Shooting Star (signal baissier)
-            if upper_wick > body * 2 and lower_wick < body * 0.5:
+            # Double top detection
+            max_idx = highs.idxmax()
+            max_val = highs.max()
+            second_max = highs.drop(max_idx).max() if len(highs) > 1 else max_val
+            if max_val != 0 and abs(max_val - second_max) / abs(max_val) < 0.02:
                 signals.append({
-                    'type': 'shooting_star',
+                    'type': 'double_top',
                     'strength': 'moderate',
-                    'description': 'Etoile Filante - Signal de correction potentielle'
+                    'description': 'Formation Double Top - Potentiel retournement baissier'
                 })
+
+            # Hammer / Shooting Star candles
+            last_candle = data.iloc[-1]
+            body = abs(last_candle['Close'] - last_candle['Open'])
+            total_range = last_candle['High'] - last_candle['Low']
+
+            if total_range > 0:
+                lower_wick = min(last_candle['Open'], last_candle['Close']) - last_candle['Low']
+                upper_wick = last_candle['High'] - max(last_candle['Open'], last_candle['Close'])
+
+                # Hammer (bougie marteau - signal haussier)
+                if lower_wick > body * 2 and upper_wick < body * 0.5:
+                    signals.append({
+                        'type': 'hammer',
+                        'strength': 'moderate',
+                        'description': 'Bougie Marteau - Signal de rebond potentiel'
+                    })
+
+                # Shooting Star (signal baissier)
+                if upper_wick > body * 2 and lower_wick < body * 0.5:
+                    signals.append({
+                        'type': 'shooting_star',
+                        'strength': 'moderate',
+                        'description': 'Etoile Filante - Signal de correction potentielle'
+                    })
+
+        except Exception as e:
+            logger.debug(f"Erreur dans _detect_reversal_signals: {e}")
 
         return signals
 
@@ -1122,114 +1135,118 @@ class MarketAnalyzer:
         """
         patterns = []
 
-        if len(data) < 3:
-            return patterns
+        try:
+            if len(data) < 3:
+                return patterns
 
-        # Dernières bougies
-        c0 = data.iloc[-1]  # Bougie actuelle
-        c1 = data.iloc[-2]  # Bougie précédente
-        c2 = data.iloc[-3]  # Avant-dernière
+            # Dernières bougies
+            c0 = data.iloc[-1]  # Bougie actuelle
+            c1 = data.iloc[-2]  # Bougie précédente
+            c2 = data.iloc[-3]  # Avant-dernière
 
-        # Calculs de base
-        body0 = abs(c0['Close'] - c0['Open'])
-        body1 = abs(c1['Close'] - c1['Open'])
-        range0 = c0['High'] - c0['Low']
-        range1 = c1['High'] - c1['Low']
+            # Calculs de base
+            body0 = abs(c0['Close'] - c0['Open'])
+            body1 = abs(c1['Close'] - c1['Open'])
+            range0 = c0['High'] - c0['Low']
+            range1 = c1['High'] - c1['Low']
 
-        is_bullish0 = c0['Close'] > c0['Open']
-        is_bullish1 = c1['Close'] > c1['Open']
+            is_bullish0 = c0['Close'] > c0['Open']
+            is_bullish1 = c1['Close'] > c1['Open']
 
-        # 1. ENGULFING BULLISH - Signal fort de retournement haussier
-        if (not is_bullish1 and is_bullish0 and
-            c0['Open'] <= c1['Close'] and c0['Close'] >= c1['Open'] and
-            body0 > body1 * 1.1):
-            patterns.append({
-                'name': 'Bullish Engulfing',
-                'type': 'reversal',
-                'direction': 'bullish',
-                'strength': 85,
-                'description': 'Avalement haussier - Fort signal de retournement à la hausse'
-            })
-
-        # 2. ENGULFING BEARISH - Signal fort de retournement baissier
-        if (is_bullish1 and not is_bullish0 and
-            c0['Open'] >= c1['Close'] and c0['Close'] <= c1['Open'] and
-            body0 > body1 * 1.1):
-            patterns.append({
-                'name': 'Bearish Engulfing',
-                'type': 'reversal',
-                'direction': 'bearish',
-                'strength': 85,
-                'description': 'Avalement baissier - Fort signal de retournement à la baisse'
-            })
-
-        # 3. DOJI - Indécision du marché
-        if range0 > 0 and body0 / range0 < 0.1:
-            patterns.append({
-                'name': 'Doji',
-                'type': 'indecision',
-                'direction': 'neutral',
-                'strength': 50,
-                'description': 'Doji - Indécision, attendre confirmation'
-            })
-
-        # 4. MORNING STAR - Retournement haussier (3 bougies)
-        if len(data) >= 3:
-            body2 = abs(c2['Close'] - c2['Open'])
-            is_bullish2 = c2['Close'] > c2['Open']
-
-            if (not is_bullish2 and body2 > range0 * 0.5 and  # Grande bougie baissière
-                body1 < body2 * 0.3 and  # Petite bougie centrale
-                is_bullish0 and body0 > body2 * 0.5):  # Grande bougie haussière
+            # 1. ENGULFING BULLISH - Signal fort de retournement haussier
+            if (not is_bullish1 and is_bullish0 and
+                c0['Open'] <= c1['Close'] and c0['Close'] >= c1['Open'] and
+                body0 > body1 * 1.1):
                 patterns.append({
-                    'name': 'Morning Star',
+                    'name': 'Bullish Engulfing',
                     'type': 'reversal',
                     'direction': 'bullish',
-                    'strength': 90,
-                    'description': 'Étoile du matin - Signal de retournement haussier majeur'
+                    'strength': 85,
+                    'description': 'Avalement haussier - Fort signal de retournement à la hausse'
                 })
 
-        # 5. EVENING STAR - Retournement baissier (3 bougies)
-        if len(data) >= 3:
-            body2 = abs(c2['Close'] - c2['Open'])
-            is_bullish2 = c2['Close'] > c2['Open']
-
-            if (is_bullish2 and body2 > range0 * 0.5 and
-                body1 < body2 * 0.3 and
-                not is_bullish0 and body0 > body2 * 0.5):
+            # 2. ENGULFING BEARISH - Signal fort de retournement baissier
+            if (is_bullish1 and not is_bullish0 and
+                c0['Open'] >= c1['Close'] and c0['Close'] <= c1['Open'] and
+                body0 > body1 * 1.1):
                 patterns.append({
-                    'name': 'Evening Star',
+                    'name': 'Bearish Engulfing',
                     'type': 'reversal',
                     'direction': 'bearish',
-                    'strength': 90,
-                    'description': 'Étoile du soir - Signal de retournement baissier majeur'
+                    'strength': 85,
+                    'description': 'Avalement baissier - Fort signal de retournement à la baisse'
                 })
 
-        # 6. THREE WHITE SOLDIERS - Forte continuation haussière
-        if len(data) >= 3:
-            all_bullish = all(data.iloc[i]['Close'] > data.iloc[i]['Open'] for i in [-3, -2, -1])
-            higher_closes = data['Close'].iloc[-3] < data['Close'].iloc[-2] < data['Close'].iloc[-1]
-            if all_bullish and higher_closes:
+            # 3. DOJI - Indécision du marché
+            if range0 > 0 and body0 / range0 < 0.1:
                 patterns.append({
-                    'name': 'Three White Soldiers',
-                    'type': 'continuation',
-                    'direction': 'bullish',
-                    'strength': 80,
-                    'description': 'Trois soldats blancs - Forte pression acheteuse'
+                    'name': 'Doji',
+                    'type': 'indecision',
+                    'direction': 'neutral',
+                    'strength': 50,
+                    'description': 'Doji - Indécision, attendre confirmation'
                 })
 
-        # 7. THREE BLACK CROWS - Forte continuation baissière
-        if len(data) >= 3:
-            all_bearish = all(data.iloc[i]['Close'] < data.iloc[i]['Open'] for i in [-3, -2, -1])
-            lower_closes = data['Close'].iloc[-3] > data['Close'].iloc[-2] > data['Close'].iloc[-1]
-            if all_bearish and lower_closes:
-                patterns.append({
-                    'name': 'Three Black Crows',
-                    'type': 'continuation',
-                    'direction': 'bearish',
-                    'strength': 80,
-                    'description': 'Trois corbeaux noirs - Forte pression vendeuse'
-                })
+            # 4. MORNING STAR - Retournement haussier (3 bougies)
+            if len(data) >= 3:
+                body2 = abs(c2['Close'] - c2['Open'])
+                is_bullish2 = c2['Close'] > c2['Open']
+
+                if (not is_bullish2 and body2 > range0 * 0.5 and  # Grande bougie baissière
+                    body1 < body2 * 0.3 and  # Petite bougie centrale
+                    is_bullish0 and body0 > body2 * 0.5):  # Grande bougie haussière
+                    patterns.append({
+                        'name': 'Morning Star',
+                        'type': 'reversal',
+                        'direction': 'bullish',
+                        'strength': 90,
+                        'description': 'Étoile du matin - Signal de retournement haussier majeur'
+                    })
+
+            # 5. EVENING STAR - Retournement baissier (3 bougies)
+            if len(data) >= 3:
+                body2 = abs(c2['Close'] - c2['Open'])
+                is_bullish2 = c2['Close'] > c2['Open']
+
+                if (is_bullish2 and body2 > range0 * 0.5 and
+                    body1 < body2 * 0.3 and
+                    not is_bullish0 and body0 > body2 * 0.5):
+                    patterns.append({
+                        'name': 'Evening Star',
+                        'type': 'reversal',
+                        'direction': 'bearish',
+                        'strength': 90,
+                        'description': 'Étoile du soir - Signal de retournement baissier majeur'
+                    })
+
+            # 6. THREE WHITE SOLDIERS - Forte continuation haussière
+            if len(data) >= 3:
+                all_bullish = all(data.iloc[i]['Close'] > data.iloc[i]['Open'] for i in [-3, -2, -1])
+                higher_closes = data['Close'].iloc[-3] < data['Close'].iloc[-2] < data['Close'].iloc[-1]
+                if all_bullish and higher_closes:
+                    patterns.append({
+                        'name': 'Three White Soldiers',
+                        'type': 'continuation',
+                        'direction': 'bullish',
+                        'strength': 80,
+                        'description': 'Trois soldats blancs - Forte pression acheteuse'
+                    })
+
+            # 7. THREE BLACK CROWS - Forte continuation baissière
+            if len(data) >= 3:
+                all_bearish = all(data.iloc[i]['Close'] < data.iloc[i]['Open'] for i in [-3, -2, -1])
+                lower_closes = data['Close'].iloc[-3] > data['Close'].iloc[-2] > data['Close'].iloc[-1]
+                if all_bearish and lower_closes:
+                    patterns.append({
+                        'name': 'Three Black Crows',
+                        'type': 'continuation',
+                        'direction': 'bearish',
+                        'strength': 80,
+                        'description': 'Trois corbeaux noirs - Forte pression vendeuse'
+                    })
+
+        except Exception as e:
+            logger.debug(f"Erreur dans _detect_candlestick_patterns: {e}")
 
         return patterns
 
@@ -1365,110 +1382,117 @@ class MarketAnalyzer:
             'score': 0.5
         }
 
-        if len(data) < 20:
-            return smc_analysis
+        try:
+            if len(data) < 20:
+                return smc_analysis
 
-        current_price = data['Close'].iloc[-1]
+            current_price = data['Close'].iloc[-1]
+            if pd.isna(current_price) or current_price <= 0:
+                return smc_analysis
 
-        # 1. DÉTECTION DES ORDER BLOCKS
-        # Order Block = dernière bougie opposée avant un fort mouvement
-        for i in range(len(data) - 10, len(data) - 2):
-            if i < 1:
-                continue
+            # 1. DÉTECTION DES ORDER BLOCKS
+            # Order Block = dernière bougie opposée avant un fort mouvement
+            for i in range(len(data) - 10, len(data) - 2):
+                if i < 1:
+                    continue
 
-            candle = data.iloc[i]
-            next_candles = data.iloc[i+1:i+4]
+                candle = data.iloc[i]
+                next_candles = data.iloc[i+1:i+4]
 
-            is_bullish_candle = candle['Close'] > candle['Open']
-            is_bearish_candle = candle['Close'] < candle['Open']
+                is_bullish_candle = candle['Close'] > candle['Open']
+                is_bearish_candle = candle['Close'] < candle['Open']
 
-            # Mouvement après la bougie
-            if len(next_candles) >= 3:
-                move = (next_candles['Close'].iloc[-1] - candle['Close']) / candle['Close']
+                # Mouvement après la bougie
+                if len(next_candles) >= 3:
+                    move = (next_candles['Close'].iloc[-1] - candle['Close']) / candle['Close']
 
-                # Bullish Order Block: bougie baissière suivie d'un fort mouvement haussier
-                if is_bearish_candle and move > 0.02:
-                    smc_analysis['order_blocks'].append({
-                        'type': 'bullish',
-                        'high': candle['High'],
-                        'low': candle['Low'],
-                        'distance': ((current_price - candle['High']) / candle['High']) * 100
-                    })
+                    # Bullish Order Block: bougie baissière suivie d'un fort mouvement haussier
+                    if is_bearish_candle and move > 0.02:
+                        smc_analysis['order_blocks'].append({
+                            'type': 'bullish',
+                            'high': candle['High'],
+                            'low': candle['Low'],
+                            'distance': ((current_price - candle['High']) / candle['High']) * 100
+                        })
 
-                # Bearish Order Block
-                if is_bullish_candle and move < -0.02:
-                    smc_analysis['order_blocks'].append({
-                        'type': 'bearish',
-                        'high': candle['High'],
-                        'low': candle['Low'],
-                        'distance': ((candle['Low'] - current_price) / current_price) * 100
-                    })
+                    # Bearish Order Block
+                    if is_bullish_candle and move < -0.02:
+                        smc_analysis['order_blocks'].append({
+                            'type': 'bearish',
+                            'high': candle['High'],
+                            'low': candle['Low'],
+                            'distance': ((candle['Low'] - current_price) / current_price) * 100
+                        })
 
-        # 2. DÉTECTION DES FAIR VALUE GAPS (FVG)
-        for i in range(2, len(data)):
-            c0 = data.iloc[i]
-            c2 = data.iloc[i-2]
+            # 2. DÉTECTION DES FAIR VALUE GAPS (FVG)
+            for i in range(2, len(data)):
+                c0 = data.iloc[i]
+                c2 = data.iloc[i-2]
 
-            # Bullish FVG: gap entre le high de c2 et le low de c0
-            if c0['Low'] > c2['High'] and c2['High'] > 0:
-                gap_size = ((c0['Low'] - c2['High']) / c2['High']) * 100
-                if gap_size > 0.1:
-                    smc_analysis['fair_value_gaps'].append({
-                        'type': 'bullish',
-                        'top': c0['Low'],
-                        'bottom': c2['High'],
-                        'filled': current_price <= c0['Low']
-                    })
+                # Bullish FVG: gap entre le high de c2 et le low de c0
+                if c0['Low'] > c2['High'] and c2['High'] > 0:
+                    gap_size = ((c0['Low'] - c2['High']) / c2['High']) * 100
+                    if gap_size > 0.1:
+                        smc_analysis['fair_value_gaps'].append({
+                            'type': 'bullish',
+                            'top': c0['Low'],
+                            'bottom': c2['High'],
+                            'filled': current_price <= c0['Low']
+                        })
 
-            # Bearish FVG
-            if c0['High'] < c2['Low'] and c0['High'] > 0:
-                gap_size = ((c2['Low'] - c0['High']) / c0['High']) * 100
-                if gap_size > 0.1:
-                    smc_analysis['fair_value_gaps'].append({
-                        'type': 'bearish',
-                        'top': c2['Low'],
-                        'bottom': c0['High'],
-                        'filled': current_price >= c0['High']
-                    })
+                # Bearish FVG
+                if c0['High'] < c2['Low'] and c0['High'] > 0:
+                    gap_size = ((c2['Low'] - c0['High']) / c0['High']) * 100
+                    if gap_size > 0.1:
+                        smc_analysis['fair_value_gaps'].append({
+                            'type': 'bearish',
+                            'top': c2['Low'],
+                            'bottom': c0['High'],
+                            'filled': current_price >= c0['High']
+                        })
 
-        # 3. ZONES DE LIQUIDITÉ (swing highs/lows récents)
-        highs = data['High'].tail(20)
-        lows = data['Low'].tail(20)
+            # 3. ZONES DE LIQUIDITÉ (swing highs/lows récents)
+            highs = data['High'].tail(20)
+            lows = data['Low'].tail(20)
 
-        # Liquidité au-dessus (stop losses des shorts)
-        recent_high = highs.max()
-        if current_price > 0:
-            smc_analysis['liquidity_zones'].append({
-                'type': 'buy_side',
-                'level': recent_high,
-                'distance': ((recent_high - current_price) / current_price) * 100
-            })
+            # Liquidité au-dessus (stop losses des shorts)
+            recent_high = highs.max()
+            if current_price > 0:
+                smc_analysis['liquidity_zones'].append({
+                    'type': 'buy_side',
+                    'level': recent_high,
+                    'distance': ((recent_high - current_price) / current_price) * 100
+                })
 
-        # Liquidité en-dessous (stop losses des longs)
-        recent_low = lows.min()
-        if recent_low > 0:
-            smc_analysis['liquidity_zones'].append({
-                'type': 'sell_side',
-                'level': recent_low,
-                'distance': ((current_price - recent_low) / recent_low) * 100
-            })
+            # Liquidité en-dessous (stop losses des longs)
+            recent_low = lows.min()
+            if recent_low > 0:
+                smc_analysis['liquidity_zones'].append({
+                    'type': 'sell_side',
+                    'level': recent_low,
+                    'distance': ((current_price - recent_low) / recent_low) * 100
+                })
 
-        # Calcul du score SMC
-        score = 0.5
+            # Calcul du score SMC
+            score = 0.5
 
-        # Bonus si prix proche d'un Order Block bullish
-        for ob in smc_analysis['order_blocks']:
-            if ob['type'] == 'bullish' and -2 < ob['distance'] < 2:
-                score += 0.2
-            elif ob['type'] == 'bearish' and -2 < ob['distance'] < 2:
-                score -= 0.2
+            # Bonus si prix proche d'un Order Block bullish
+            for ob in smc_analysis['order_blocks']:
+                if ob['type'] == 'bullish' and -2 < ob['distance'] < 2:
+                    score += 0.2
+                elif ob['type'] == 'bearish' and -2 < ob['distance'] < 2:
+                    score -= 0.2
 
-        # Bonus si FVG non rempli proche
-        unfilled_fvg = [fvg for fvg in smc_analysis['fair_value_gaps'] if not fvg['filled']]
-        if unfilled_fvg:
-            score += 0.1
+            # Bonus si FVG non rempli proche
+            unfilled_fvg = [fvg for fvg in smc_analysis['fair_value_gaps'] if not fvg['filled']]
+            if unfilled_fvg:
+                score += 0.1
 
-        smc_analysis['score'] = max(0, min(1, score))
+            smc_analysis['score'] = max(0, min(1, score))
+
+        except Exception as e:
+            logger.debug(f"Erreur dans _analyze_smart_money: {e}")
+
         return smc_analysis
 
     def _analyze_market_structure(self, data):
@@ -1487,56 +1511,63 @@ class MarketAnalyzer:
             'score': 0.5
         }
 
-        if len(data) < 20:
-            return structure
+        try:
+            if len(data) < 20:
+                return structure
 
-        highs = data['High'].tail(20).values
-        lows = data['Low'].tail(20).values
+            highs = data['High'].tail(20).values
+            lows = data['Low'].tail(20).values
 
-        # Trouver les swing points
-        swing_highs = []
-        swing_lows = []
+            # Trouver les swing points
+            swing_highs = []
+            swing_lows = []
 
-        for i in range(2, len(highs) - 2):
-            if highs[i] > highs[i-1] and highs[i] > highs[i-2] and highs[i] > highs[i+1] and highs[i] > highs[i+2]:
-                swing_highs.append(highs[i])
-            if lows[i] < lows[i-1] and lows[i] < lows[i-2] and lows[i] < lows[i+1] and lows[i] < lows[i+2]:
-                swing_lows.append(lows[i])
+            for i in range(2, len(highs) - 2):
+                if highs[i] > highs[i-1] and highs[i] > highs[i-2] and highs[i] > highs[i+1] and highs[i] > highs[i+2]:
+                    swing_highs.append(highs[i])
+                if lows[i] < lows[i-1] and lows[i] < lows[i-2] and lows[i] < lows[i+1] and lows[i] < lows[i+2]:
+                    swing_lows.append(lows[i])
 
-        if len(swing_highs) >= 2 and len(swing_lows) >= 2:
-            # Higher Highs + Higher Lows = Uptrend
-            hh = swing_highs[-1] > swing_highs[-2]
-            hl = swing_lows[-1] > swing_lows[-2]
+            if len(swing_highs) >= 2 and len(swing_lows) >= 2:
+                # Higher Highs + Higher Lows = Uptrend
+                hh = swing_highs[-1] > swing_highs[-2]
+                hl = swing_lows[-1] > swing_lows[-2]
 
-            # Lower Lows + Lower Highs = Downtrend
-            ll = swing_lows[-1] < swing_lows[-2]
-            lh = swing_highs[-1] < swing_highs[-2]
+                # Lower Lows + Lower Highs = Downtrend
+                ll = swing_lows[-1] < swing_lows[-2]
+                lh = swing_highs[-1] < swing_highs[-2]
 
-            if hh and hl:
-                structure['trend'] = 'bullish'
-                structure['hh_hl'] = True
-                structure['score'] = 0.7
-            elif ll and lh:
-                structure['trend'] = 'bearish'
-                structure['ll_lh'] = True
-                structure['score'] = 0.3
+                if hh and hl:
+                    structure['trend'] = 'bullish'
+                    structure['hh_hl'] = True
+                    structure['score'] = 0.7
+                elif ll and lh:
+                    structure['trend'] = 'bearish'
+                    structure['ll_lh'] = True
+                    structure['score'] = 0.3
 
-            # Break of Structure (BOS) - Continuation
-            current_price = data['Close'].iloc[-1]
-            if structure['trend'] == 'bullish' and current_price > swing_highs[-1]:
-                structure['bos'] = 'bullish'
-                structure['score'] = 0.8
-            elif structure['trend'] == 'bearish' and current_price < swing_lows[-1]:
-                structure['bos'] = 'bearish'
-                structure['score'] = 0.2
+                # Break of Structure (BOS) - Continuation
+                current_price = data['Close'].iloc[-1]
+                if pd.isna(current_price):
+                    return structure
 
-            # Change of Character (CHoCH) - Reversal potentiel
-            if structure['trend'] == 'bullish' and current_price < swing_lows[-1]:
-                structure['choch'] = 'bearish'
-                structure['score'] = 0.3
-            elif structure['trend'] == 'bearish' and current_price > swing_highs[-1]:
-                structure['choch'] = 'bullish'
-                structure['score'] = 0.7
+                if structure['trend'] == 'bullish' and current_price > swing_highs[-1]:
+                    structure['bos'] = 'bullish'
+                    structure['score'] = 0.8
+                elif structure['trend'] == 'bearish' and current_price < swing_lows[-1]:
+                    structure['bos'] = 'bearish'
+                    structure['score'] = 0.2
+
+                # Change of Character (CHoCH) - Reversal potentiel
+                if structure['trend'] == 'bullish' and current_price < swing_lows[-1]:
+                    structure['choch'] = 'bearish'
+                    structure['score'] = 0.3
+                elif structure['trend'] == 'bearish' and current_price > swing_highs[-1]:
+                    structure['choch'] = 'bullish'
+                    structure['score'] = 0.7
+
+        except Exception as e:
+            logger.debug(f"Erreur dans _analyze_market_structure: {e}")
 
         return structure
 
@@ -1554,20 +1585,28 @@ class MarketAnalyzer:
 
         def get_tf_bias(data):
             """Détermine le biais d'un timeframe"""
-            if len(data) < 20:
-                return 'neutral', 0.5
+            try:
+                if data is None or len(data) < 20:
+                    return 'neutral', 0.5
 
-            ema_20 = data['Close'].ewm(span=20).mean().iloc[-1]
-            ema_50 = data['Close'].ewm(span=50).mean().iloc[-1]
-            current = data['Close'].iloc[-1]
+                ema_20 = data['Close'].ewm(span=20).mean().iloc[-1]
+                ema_50 = data['Close'].ewm(span=50).mean().iloc[-1]
+                current = data['Close'].iloc[-1]
 
-            rsi = self._calculate_rsi(data)
+                if pd.isna(ema_20) or pd.isna(ema_50) or pd.isna(current):
+                    return 'neutral', 0.5
 
-            if current > ema_20 > ema_50 and rsi > 50:
-                return 'bullish', 0.7 + (rsi - 50) / 100
-            elif current < ema_20 < ema_50 and rsi < 50:
-                return 'bearish', 0.3 - (50 - rsi) / 100
-            else:
+                rsi = self._calculate_rsi(data)
+                if pd.isna(rsi):
+                    rsi = 50
+
+                if current > ema_20 > ema_50 and rsi > 50:
+                    return 'bullish', 0.7 + (rsi - 50) / 100
+                elif current < ema_20 < ema_50 and rsi < 50:
+                    return 'bearish', 0.3 - (50 - rsi) / 100
+                else:
+                    return 'neutral', 0.5
+            except Exception:
                 return 'neutral', 0.5
 
         # Analyser chaque timeframe
@@ -1641,14 +1680,31 @@ class MarketAnalyzer:
 
     def _determine_trend(self, data):
         """Détermine la tendance"""
-        ema_20 = data['Close'].ewm(span=20).mean()
-        ema_50 = data['Close'].ewm(span=50).mean()
+        try:
+            if len(data) < 50:
+                return "neutral"
 
-        if ema_20.iloc[-1] > ema_50.iloc[-1] and data['Close'].iloc[-1] > ema_20.iloc[-1]:
-            return "bullish"
-        elif ema_20.iloc[-1] < ema_50.iloc[-1] and data['Close'].iloc[-1] < ema_20.iloc[-1]:
-            return "bearish"
-        else:
+            ema_20 = data['Close'].ewm(span=20).mean()
+            ema_50 = data['Close'].ewm(span=50).mean()
+
+            if len(ema_20) == 0 or len(ema_50) == 0:
+                return "neutral"
+
+            ema_20_val = ema_20.iloc[-1]
+            ema_50_val = ema_50.iloc[-1]
+            close_val = data['Close'].iloc[-1]
+
+            if pd.isna(ema_20_val) or pd.isna(ema_50_val) or pd.isna(close_val):
+                return "neutral"
+
+            if ema_20_val > ema_50_val and close_val > ema_20_val:
+                return "bullish"
+            elif ema_20_val < ema_50_val and close_val < ema_20_val:
+                return "bearish"
+            else:
+                return "neutral"
+        except Exception as e:
+            logger.debug(f"Erreur dans _determine_trend: {e}")
             return "neutral"
 
     def _generate_technical_summary(self, trend, rsi, volume_ratio, support, resistance, current_price):
