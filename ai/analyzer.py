@@ -155,7 +155,12 @@ class MarketAnalyzer:
 
             # 6. VWAP
             vwap = self._calculate_vwap(data_1d)
-            current_price = data_1d['Close'].iloc[-1]
+            try:
+                current_price = data_1d['Close'].iloc[-1] if len(data_1d) > 0 else 0
+                if pd.isna(current_price):
+                    current_price = 0
+            except Exception:
+                current_price = 0
             vwap_position = "above" if current_price > vwap else "below"
 
             # ===== SCORE FINAL PONDÉRÉ (nouvelle formule) =====
@@ -192,7 +197,13 @@ class MarketAnalyzer:
             trend = self._determine_trend(data_1d)
 
             # Calculs supplémentaires
-            price_change_1d = ((current_price - data_1d['Close'].iloc[-2]) / data_1d['Close'].iloc[-2]) * 100
+            try:
+                prev_close = data_1d['Close'].iloc[-2] if len(data_1d) > 1 else current_price
+                if pd.isna(prev_close) or prev_close == 0:
+                    prev_close = current_price if current_price > 0 else 1
+                price_change_1d = ((current_price - prev_close) / prev_close) * 100 if prev_close > 0 else 0
+            except Exception:
+                price_change_1d = 0
 
             # ATR pour volatilité
             atr = self._calculate_atr(data_1d)
@@ -201,9 +212,18 @@ class MarketAnalyzer:
             rsi = self._calculate_rsi(data_1d)
 
             # Volume
-            avg_volume = data_1d['Volume'].rolling(20).mean().iloc[-1]
-            current_volume = data_1d['Volume'].iloc[-1]
-            volume_ratio = current_volume / avg_volume if avg_volume > 0 else 1
+            try:
+                avg_volume = data_1d['Volume'].rolling(20).mean().iloc[-1] if len(data_1d) >= 20 else 0
+                current_volume = data_1d['Volume'].iloc[-1] if len(data_1d) > 0 else 0
+                if pd.isna(avg_volume):
+                    avg_volume = 0
+                if pd.isna(current_volume):
+                    current_volume = 0
+                volume_ratio = current_volume / avg_volume if avg_volume > 0 else 1
+            except Exception:
+                avg_volume = 0
+                current_volume = 0
+                volume_ratio = 1
 
             # Support/Resistance
             support, resistance = self._find_support_resistance(data_1d)
