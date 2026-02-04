@@ -114,6 +114,11 @@ class MarketAnalyzer:
                 logger.debug(f"Données insuffisantes pour {symbol}: {len(data_1d) if not data_1d.empty else 0} lignes (min: 60)")
                 return None
 
+            # Vérification supplémentaire: s'assurer que les données sont valides
+            if pd.isna(data_1d['Close'].iloc[-1]) or pd.isna(data_1d['Close'].iloc[-2]):
+                logger.debug(f"Données NaN pour {symbol}")
+                return None
+
             # ===== ANALYSES CLASSIQUES =====
             technical_score = self._analyze_technical(data_1d, data_1h, data_15m)
             volume_score = self._analyze_volume(data_1d, data_1h)
@@ -909,12 +914,18 @@ class MarketAnalyzer:
 
     def _calculate_rsi(self, data, period=14):
         """Calcule le RSI"""
-        delta = data['Close'].diff()
-        gain = (delta.where(delta > 0, 0)).rolling(window=period).mean()
-        loss = (-delta.where(delta < 0, 0)).rolling(window=period).mean()
-        rs = gain / loss
-        rsi = 100 - (100 / (1 + rs))
-        return rsi.iloc[-1]
+        try:
+            if len(data) < period + 1:
+                return 50  # Valeur neutre par défaut
+            delta = data['Close'].diff()
+            gain = (delta.where(delta > 0, 0)).rolling(window=period).mean()
+            loss = (-delta.where(delta < 0, 0)).rolling(window=period).mean()
+            rs = gain / loss
+            rsi = 100 - (100 / (1 + rs))
+            result = rsi.iloc[-1]
+            return result if not pd.isna(result) else 50
+        except Exception:
+            return 50
 
     def _calculate_macd(self, data):
         """Calcule le MACD"""
@@ -934,13 +945,19 @@ class MarketAnalyzer:
 
     def _calculate_atr(self, data, period=14):
         """Calcule l'ATR (Average True Range)"""
-        high_low = data['High'] - data['Low']
-        high_close = np.abs(data['High'] - data['Close'].shift())
-        low_close = np.abs(data['Low'] - data['Close'].shift())
-        ranges = pd.concat([high_low, high_close, low_close], axis=1)
-        true_range = np.max(ranges, axis=1)
-        atr = true_range.rolling(period).mean()
-        return atr.iloc[-1]
+        try:
+            if len(data) < period + 1:
+                return 0
+            high_low = data['High'] - data['Low']
+            high_close = np.abs(data['High'] - data['Close'].shift())
+            low_close = np.abs(data['Low'] - data['Close'].shift())
+            ranges = pd.concat([high_low, high_close, low_close], axis=1)
+            true_range = np.max(ranges, axis=1)
+            atr = true_range.rolling(period).mean()
+            result = atr.iloc[-1]
+            return result if not pd.isna(result) else 0
+        except Exception:
+            return 0
 
     def _calculate_obv(self, data):
         """Calcule l'OBV (On Balance Volume)"""
@@ -1082,6 +1099,9 @@ class MarketAnalyzer:
         ADX > 25 = tendance forte, ADX < 20 = pas de tendance
         """
         try:
+            if len(data) < period * 2:
+                return {'adx': 0, 'plus_di': 0, 'minus_di': 0}
+
             high = data['High']
             low = data['Low']
             close = data['Close']
@@ -1123,11 +1143,19 @@ class MarketAnalyzer:
         Prix au-dessus du VWAP = bullish, en-dessous = bearish
         """
         try:
+            if len(data) < 1:
+                return 0
             typical_price = (data['High'] + data['Low'] + data['Close']) / 3
             vwap = (typical_price * data['Volume']).cumsum() / data['Volume'].cumsum()
-            return vwap.iloc[-1]
+            result = vwap.iloc[-1]
+            if pd.isna(result):
+                return data['Close'].iloc[-1] if len(data) > 0 and not pd.isna(data['Close'].iloc[-1]) else 0
+            return result
         except Exception:
-            return data['Close'].iloc[-1]
+            try:
+                return data['Close'].iloc[-1] if len(data) > 0 else 0
+            except Exception:
+                return 0
 
     def _detect_candlestick_patterns(self, data):
         """
