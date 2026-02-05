@@ -12,6 +12,7 @@ import pytz
 from database.manager import db_manager
 from services.market_data import market_data_service
 from ai.analyzer import analyzer
+from utils.asset_names import get_asset_display_name
 import config
 
 # Import optionnel pour PDF
@@ -137,7 +138,9 @@ class MorningService:
             message += f"⭐ <b>Vos Favoris</b>\n"
             for fav in favorites_perfs:
                 emoji = "🟢" if fav['perf'] >= 0 else "🔴"
-                message += f"   {emoji} {fav['symbol']}: ${fav['price']:,.2f} ({fav['perf']:+.2f}%)\n"
+                name = get_asset_display_name(fav['symbol'])
+                display = f"{fav['symbol']} ({name})" if name != fav['symbol'] else fav['symbol']
+                message += f"   {emoji} {display}: ${fav['price']:,.2f} ({fav['perf']:+.2f}%)\n"
             message += "\n"
 
         # Alertes

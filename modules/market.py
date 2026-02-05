@@ -967,13 +967,17 @@ Recherchez : **{symbol}**
         if gainers:
             text += "🏆 **Top Performers:**\n"
             for r in gainers:
-                text += f"   • {r['symbol']}: {r['change']:+.2f}%\n"
+                name = get_asset_display_name(r['symbol'])
+                display = f"{r['symbol']} ({name})" if name != r['symbol'] else r['symbol']
+                text += f"   • {display}: {r['change']:+.2f}%\n"
             text += "\n"
 
         if losers:
             text += "📉 **Moins performants:**\n"
             for r in losers:
-                text += f"   • {r['symbol']}: {r['change']:+.2f}%\n"
+                name = get_asset_display_name(r['symbol'])
+                display = f"{r['symbol']} ({name})" if name != r['symbol'] else r['symbol']
+                text += f"   • {display}: {r['change']:+.2f}%\n"
             text += "\n"
 
         text += """━━━━━━━━━━━━━━━━━━━━

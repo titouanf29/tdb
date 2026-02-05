@@ -25,6 +25,7 @@ import numpy as np
 from datetime import datetime, timedelta
 import config
 from utils.helpers import *
+from utils.asset_names import get_asset_display_name
 from services.news import news_service
 from ai.advanced_algo import advanced_algo
 from ai.enhanced_analysis import enhanced_analyzer
@@ -2066,17 +2067,21 @@ class MarketAnalyzer:
             opportunities = sorted(analyses, key=lambda x: x.get('score', 0), reverse=True)[:3]
 
             # Construire le contexte
+            def fmt_sym(a):
+                name = get_asset_display_name(a['symbol'])
+                return f"{a['symbol']} ({name})" if name != a['symbol'] else a['symbol']
+
             context = f"""Marche: {market_code}
 Event: {'Fermeture' if event_type == 'close' else 'Ouverture'}
 
 Top performers:
-{chr(10).join([f"- {a['symbol']}: {a.get('price_change_1d', 0):+.2f}% (score: {a.get('score', 0)})" for a in top_performers])}
+{chr(10).join([f"- {fmt_sym(a)}: {a.get('price_change_1d', 0):+.2f}% (score: {a.get('score', 0)})" for a in top_performers])}
 
 Worst performers:
-{chr(10).join([f"- {a['symbol']}: {a.get('price_change_1d', 0):+.2f}% (score: {a.get('score', 0)})" for a in worst_performers])}
+{chr(10).join([f"- {fmt_sym(a)}: {a.get('price_change_1d', 0):+.2f}% (score: {a.get('score', 0)})" for a in worst_performers])}
 
 Meilleures opportunites (par score):
-{chr(10).join([f"- {a['symbol']}: score {a.get('score', 0)}/100, direction {a.get('direction', 'N/A')}, RSI {a.get('rsi', 0):.0f}" for a in opportunities])}
+{chr(10).join([f"- {fmt_sym(a)}: score {a.get('score', 0)}/100, direction {a.get('direction', 'N/A')}, RSI {a.get('rsi', 0):.0f}" for a in opportunities])}
 """
 
             if event_type == 'open':
@@ -2129,16 +2134,22 @@ Reste factuel et concis. Utilise des emojis pour la lisibilite."""
             text = f"📊 Cloture {market_code}\n\n"
             text += "🏆 Top performers:\n"
             for a in top:
-                text += f"• {a['symbol']}: {a.get('price_change_1d', 0):+.2f}%\n"
+                name = get_asset_display_name(a['symbol'])
+                display = f"{a['symbol']} ({name})" if name != a['symbol'] else a['symbol']
+                text += f"• {display}: {a.get('price_change_1d', 0):+.2f}%\n"
             text += "\n📉 En baisse:\n"
             for a in bottom:
-                text += f"• {a['symbol']}: {a.get('price_change_1d', 0):+.2f}%\n"
+                name = get_asset_display_name(a['symbol'])
+                display = f"{a['symbol']} ({name})" if name != a['symbol'] else a['symbol']
+                text += f"• {display}: {a.get('price_change_1d', 0):+.2f}%\n"
         else:
             opps = sorted(analyses, key=lambda x: x.get('score', 0), reverse=True)[:3]
             text = f"🔔 Ouverture {market_code}\n\n"
             text += "👀 A surveiller:\n"
             for a in opps:
-                text += f"• {a['symbol']}: score {a.get('score', 0)}/100\n"
+                name = get_asset_display_name(a['symbol'])
+                display = f"{a['symbol']} ({name})" if name != a['symbol'] else a['symbol']
+                text += f"• {display}: score {a.get('score', 0)}/100\n"
 
         return text
 

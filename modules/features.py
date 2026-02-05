@@ -13,6 +13,7 @@ from services.social_service import social_service
 from services.advanced_charts import advanced_charts_service
 from services.morning_service import morning_service
 from utils.helpers import format_price
+from utils.asset_names import get_asset_display_name
 
 
 class FeaturesModule:
@@ -572,7 +573,9 @@ class FeaturesModule:
                 text += "📊 Composition:\n"
 
                 for asset in assets:
-                    text += f"• {asset['symbol']}: {asset['weight']}%\n"
+                    name = get_asset_display_name(asset['symbol'])
+                    display = f"{asset['symbol']} ({name})" if name != asset['symbol'] else asset['symbol']
+                    text += f"• {display}: {asset['weight']}%\n"
 
                 await query.edit_message_text(text)
 
