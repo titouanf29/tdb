@@ -162,8 +162,8 @@ class MenuModule:
             new_text = query.message.text + f"\n\n✅ _Snooze 2h activé_"
             try:
                 await query.edit_message_text(new_text, parse_mode='Markdown')
-            except:
-                pass
+            except Exception:
+                pass  # Message peut avoir été supprimé
 
         elif data.startswith("opp_ignore_"):
             symbol = data.replace("opp_ignore_", "")
@@ -172,8 +172,8 @@ class MenuModule:
             await query.answer(f"❌ {symbol} ignoré pour 24h", show_alert=False)
             try:
                 await query.delete_message()
-            except:
-                pass
+            except Exception:
+                pass  # Message peut avoir été supprimé
 
         elif data.startswith("opp_interested_"):
             symbol = data.replace("opp_interested_", "")
@@ -182,8 +182,8 @@ class MenuModule:
             new_text = query.message.text + f"\n\n✅ _Utilisez `/a {symbol}` pour voir l'analyse_"
             try:
                 await query.edit_message_text(new_text, parse_mode='Markdown')
-            except:
-                pass
+            except Exception:
+                pass  # Message peut avoir été supprimé
 
     async def handle_watchlist_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Gère les callbacks de la watchlist (suppression)"""

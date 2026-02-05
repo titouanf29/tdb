@@ -10,15 +10,19 @@ import json
 
 
 class CacheService:
-    """Service de cache en memoire avec TTL"""
+    """Service de cache en memoire avec TTL et limite de taille"""
 
-    def __init__(self):
+    MAX_ENTRIES = 5000  # Limite maximale d'entrées
+
+    def __init__(self, max_entries: int = 5000):
         self._cache: Dict[str, Dict[str, Any]] = {}
         self._stats = {
             'hits': 0,
             'misses': 0,
-            'sets': 0
+            'sets': 0,
+            'evictions': 0
         }
+        self.max_entries = max_entries
         # TTL par defaut selon le type de donnees (en secondes)
         self.ttl_config = {
             'price': 30,           # Prix: 30 secondes
@@ -57,19 +61,39 @@ class CacheService:
 
     async def set(self, category: str, identifier: str, value: Any,
                   ttl: Optional[int] = None, **params):
-        """Stocke une valeur dans le cache"""
+        """Stocke une valeur dans le cache avec gestion de la limite"""
         key = self._generate_key(category, identifier, **params)
 
         if ttl is None:
             ttl = self.ttl_config.get(category, self.ttl_config['default'])
 
+        # Éviction si limite atteinte (supprimer les plus anciens)
+        if len(self._cache) >= self.max_entries and key not in self._cache:
+            await self._evict_oldest(count=100)
+
         self._cache[key] = {
             'value': value,
             'expires': datetime.now() + timedelta(seconds=ttl),
             'category': category,
-            'identifier': identifier
+            'identifier': identifier,
+            'created': datetime.now()
         }
         self._stats['sets'] += 1
+
+    async def _evict_oldest(self, count: int = 100):
+        """Supprime les entrées les plus anciennes"""
+        if not self._cache:
+            return
+
+        # Trier par date d'expiration et supprimer les plus proches d'expirer
+        sorted_keys = sorted(
+            self._cache.keys(),
+            key=lambda k: self._cache[k].get('expires', datetime.now())
+        )
+
+        for key in sorted_keys[:count]:
+            del self._cache[key]
+            self._stats['evictions'] += 1
 
     async def delete(self, category: str, identifier: str, **params):
         """Supprime une entree du cache"""
@@ -99,8 +123,11 @@ class CacheService:
             'hits': self._stats['hits'],
             'misses': self._stats['misses'],
             'sets': self._stats['sets'],
+            'evictions': self._stats['evictions'],
             'hit_rate': f"{hit_rate:.1f}%",
             'entries': len(self._cache),
+            'max_entries': self.max_entries,
+            'usage': f"{len(self._cache) / self.max_entries * 100:.1f}%",
             'categories': self._count_by_category()
         }
 

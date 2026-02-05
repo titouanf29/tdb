@@ -154,13 +154,34 @@ class TDBBot:
             raise
 
     async def error_handler(self, update, context):
-        """Gère les erreurs"""
-        logger.error(f"Exception: {context.error}")
+        """Gère les erreurs avec messages contextuels"""
+        error = context.error
+        error_type = type(error).__name__
+
+        logger.error(f"Exception [{error_type}]: {error}")
+
+        # Messages d'erreur contextuels
+        error_messages = {
+            'Timeout': "⏱️ Timeout - Le serveur met trop de temps à répondre. Réessayez.",
+            'NetworkError': "🌐 Erreur réseau - Vérifiez votre connexion internet.",
+            'BadRequest': "⚠️ Requête invalide - Vérifiez les données envoyées.",
+            'Forbidden': "🔒 Accès refusé - Vous n'avez pas les permissions nécessaires.",
+            'RetryAfter': "⏳ Trop de requêtes - Attendez quelques secondes.",
+            'TimedOut': "⏱️ Timeout - Le serveur ne répond pas. Réessayez.",
+        }
+
+        # Trouver le message approprié
+        user_message = "❌ Une erreur s'est produite. Veuillez réessayer."
+        for err_key, msg in error_messages.items():
+            if err_key.lower() in error_type.lower() or err_key.lower() in str(error).lower():
+                user_message = msg
+                break
 
         if update and update.effective_message:
-            await update.effective_message.reply_text(
-                "❌ Une erreur s'est produite. Veuillez réessayer."
-            )
+            try:
+                await update.effective_message.reply_text(user_message)
+            except Exception:
+                pass  # Éviter les erreurs en cascade
 
     async def run(self):
         """Lance le bot"""
