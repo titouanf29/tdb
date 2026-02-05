@@ -133,7 +133,54 @@ class BroadcastService:
     def _format_update_message(self, version: str):
         """Formate le message de mise a jour pour Telegram"""
 
-        if version == "2.2.0":
+        if version == "2.3.0":
+            return """
+🚀 MISE A JOUR v2.3.0 - INFRASTRUCTURE CLOUD
+
+━━━━━━━━━━━━━━━━━━━━━━━━
+
+☁️ MIGRATION SERVEUR CLOUD
+
+TDB Trading Bot est maintenant heberge sur un serveur VPS professionnel !
+
+✅ Disponibilite 24h/24, 7j/7
+✅ Temps de reponse ameliore
+✅ Stabilite renforcee
+✅ Mises a jour automatiques
+
+━━━━━━━━━━━━━━━━━━━━━━━━
+
+🔄 DEPLOIEMENT AUTOMATIQUE
+
+Les nouvelles fonctionnalites arrivent desormais instantanement :
+• Webhook GitHub integre
+• Redemarrage automatique
+• Zero interruption de service
+
+━━━━━━━━━━━━━━━━━━━━━━━━
+
+🛡️ CORRECTIONS DE STABILITE
+
+• Protection renforcee contre les erreurs d'analyse
+• Meilleure gestion des donnees manquantes
+• Animations de chargement visibles
+• Affichage complet des noms d'actifs
+
+━━━━━━━━━━━━━━━━━━━━━━━━
+
+📈 PROCHAINES ETAPES
+
+• Alertes push en temps reel
+• Nouveaux indicateurs techniques
+• Mode multi-portefeuille
+
+━━━━━━━━━━━━━━━━━━━━━━━━
+
+Utilisez /menu pour decouvrir toutes les fonctionnalites !
+
+Bon trading ! 📊
+"""
+        elif version == "2.2.0":
             return """
 🚀 MISE A JOUR v2.2.0 - EVOLUTION MAJEURE
 
