@@ -25,6 +25,7 @@ from services.social_service import social_service
 from services.morning_service import morning_service
 from services.notification_service import notification_service
 from services.cache_service import cache_service
+from services.discord_service import discord_service
 from modules.features import create_features_module
 from modules.welcome import create_welcome_module
 from telegram.ext import MessageHandler, filters, CallbackQueryHandler
@@ -230,6 +231,13 @@ class TDBBot:
         await notification_service.start(self.application.bot)
         await cache_service.start_cleanup_task()
         logger.info("✅ Services avancés démarrés (alertes, screener, social, morning, notifications, cache)")
+
+        # Démarrer le service Discord (alertes marchés)
+        if discord_service.enabled:
+            asyncio.create_task(discord_service.start_market_monitor())
+            logger.info("✅ Service Discord démarré (alertes marchés)")
+        else:
+            logger.info("ℹ️ Discord non configuré (DISCORD_WEBHOOK_URL manquant)")
 
         # Message de démarrage
         logger.info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
