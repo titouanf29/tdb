@@ -12,8 +12,7 @@ CHANNEL_ID = os.getenv("CHANNEL_ID", "-1003160198658")  # ID du channel pour les
 
 # Administrateurs du bot (ajouter vos IDs Telegram ici)
 ADMIN_IDS = [
-    # Ajoutez votre ID Telegram ici
-    # Exemple: 123456789
+    2064575502,  # Titouan
 ]
 
 # ===== CANAL D'ACCUEIL (PUBLIC) =====
