@@ -10,6 +10,7 @@ from telegram.ext import ContextTypes, CommandHandler, CallbackQueryHandler
 import config
 from database.manager import db_manager
 from utils.loading import show_loading, LoadingAnimation
+from services.discord_service import discord_service
 
 logger = logging.getLogger(__name__)
 
@@ -36,6 +37,7 @@ class AdminModule:
         self.app.add_handler(CommandHandler("myid", self.cmd_myid))
         self.app.add_handler(CommandHandler("setup_admin", self.cmd_setup_admin))
         self.app.add_handler(CommandHandler("reset_onboarding", self.cmd_reset_onboarding))
+        self.app.add_handler(CommandHandler("discord", self.cmd_discord_message))
 
         # Callbacks admin
         self.app.add_handler(CallbackQueryHandler(self.callback_admin, pattern="^admin_"))
@@ -106,6 +108,9 @@ class AdminModule:
                 InlineKeyboardButton("📈 Performance", callback_data="admin_performance")
             ],
             [
+                InlineKeyboardButton("🎮 Discord", callback_data="admin_discord")
+            ],
+            [
                 InlineKeyboardButton("🔄 Rafraîchir", callback_data="admin_refresh")
             ]
         ]
@@ -159,6 +164,10 @@ class AdminModule:
             await self._show_config_viewer(query)
         elif action == "performance":
             await self._show_performance_metrics(query)
+        elif action == "discord":
+            await self._show_discord_menu(query)
+        elif action == "discord_test":
+            await self._send_discord_test(query)
         elif action.startswith("user_detail_"):
             user_id = int(action.replace("user_detail_", ""))
             await self._show_user_detail(query, user_id)
@@ -1057,6 +1066,116 @@ Votre ID : <code>{user_id}</code>
             parse_mode='Markdown',
             reply_markup=InlineKeyboardMarkup(keyboard)
         )
+
+    async def _show_discord_menu(self, query):
+        """Affiche le menu Discord"""
+        text = "🎮 **DISCORD**\n"
+        text += "━━━━━━━━━━━━━━━━━━━━\n\n"
+
+        if discord_service.enabled:
+            text += "📡 **Status:** 🟢 Connecté\n\n"
+            text += "📋 **Marchés surveillés:**\n"
+            for key, market in discord_service.MARKETS.items():
+                if not market.get('always_open'):
+                    status = "🟢" if discord_service._is_market_open(key) else "🔴"
+                    text += f"   {market['emoji']} {market['name']}: {status}\n"
+            text += "\n"
+            text += "📝 **Envoyer un message:**\n"
+            text += "`/discord Votre message ici`\n\n"
+            text += "Exemple:\n"
+            text += "`/discord 🚀 Nouvelle mise à jour disponible !`"
+        else:
+            text += "📡 **Status:** 🔴 Non configuré\n\n"
+            text += "⚠️ Ajoutez `DISCORD_WEBHOOK_URL` dans votre `.env`"
+
+        keyboard = [
+            [InlineKeyboardButton("🧪 Envoyer un test", callback_data="admin_discord_test")],
+            [InlineKeyboardButton("◀️ Retour", callback_data="admin_back")]
+        ]
+
+        await query.edit_message_text(
+            text,
+            parse_mode='Markdown',
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+
+    async def _send_discord_test(self, query):
+        """Envoie un message de test sur Discord"""
+        if not discord_service.enabled:
+            await query.edit_message_text(
+                "❌ Discord non configuré.\n\nAjoutez `DISCORD_WEBHOOK_URL` dans votre `.env`",
+                reply_markup=InlineKeyboardMarkup([[
+                    InlineKeyboardButton("◀️ Retour", callback_data="admin_discord")
+                ]])
+            )
+            return
+
+        await query.edit_message_text("⏳ Envoi du message de test...")
+
+        success = await discord_service.send_message(
+            content="🧪 **Test depuis TDB Bot !**\n\nLa connexion Discord fonctionne correctement. ✅"
+        )
+
+        if success:
+            await query.edit_message_text(
+                "✅ **Message de test envoyé !**\n\nVérifiez votre serveur Discord.",
+                parse_mode='Markdown',
+                reply_markup=InlineKeyboardMarkup([[
+                    InlineKeyboardButton("◀️ Retour", callback_data="admin_discord")
+                ]])
+            )
+        else:
+            await query.edit_message_text(
+                "❌ **Erreur d'envoi**\n\nVérifiez votre webhook Discord.",
+                parse_mode='Markdown',
+                reply_markup=InlineKeyboardMarkup([[
+                    InlineKeyboardButton("◀️ Retour", callback_data="admin_discord")
+                ]])
+            )
+
+    async def cmd_discord_message(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Commande /discord <message> - Envoie un message sur Discord"""
+        user_id = update.effective_user.id
+
+        if not self.is_admin(user_id):
+            await update.message.reply_text("❌ Commande réservée aux administrateurs.")
+            return
+
+        if not discord_service.enabled:
+            await update.message.reply_text(
+                "❌ Discord non configuré.\n\n"
+                "Ajoutez `DISCORD_WEBHOOK_URL` dans votre `.env`"
+            )
+            return
+
+        if not context.args:
+            await update.message.reply_text(
+                "❌ **Usage:** `/discord <message>`\n\n"
+                "**Exemples:**\n"
+                "`/discord 🚀 Nouvelle mise à jour !`\n"
+                "`/discord 📊 Le marché US vient d'ouvrir`\n"
+                "`/discord ⚠️ Attention volatilité élevée`",
+                parse_mode='Markdown'
+            )
+            return
+
+        message = " ".join(context.args)
+
+        # Envoyer sur Discord avec un embed stylé
+        embed = {
+            "title": "📢 Annonce TDB",
+            "description": message,
+            "color": 0x3498DB,
+            "timestamp": datetime.utcnow().isoformat(),
+            "footer": {"text": f"Envoyé par @{update.effective_user.username or 'Admin'}"}
+        }
+
+        success = await discord_service.send_message(embed=embed)
+
+        if success:
+            await update.message.reply_text("✅ Message envoyé sur Discord !")
+        else:
+            await update.message.reply_text("❌ Erreur lors de l'envoi sur Discord.")
 
     async def _show_users_stats(self, query):
         """Affiche les stats utilisateurs détaillées avec boutons de détail"""
