@@ -598,7 +598,8 @@ les mouvements du marché</i>"""
                       "menu_ai_history", "menu_calendar", "menu_smart_alerts",
                       "menu_price_targets", "menu_earnings", "menu_scan_alerts",
                       "menu_alerts_config", "menu_calc_targets", "menu_alerts_help",
-                      "menu_watchlist_delete", "menu_watchlist_help"] or data.startswith("wl_del_"):
+                      "menu_watchlist_delete", "menu_watchlist_help",
+                      "menu_search", "menu_clear_history"] or data.startswith("wl_del_"):
             await self._handle_feature_callback(update, context, data)
 
     async def _handle_feature_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE, data: str):
