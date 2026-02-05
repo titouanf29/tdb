@@ -1,0 +1,61 @@
+# Environment variables
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
+venv/
+ENV/
+env/
+
+# Database
+*.db
+tdb_bot.db
+trading_bot.db
+
+# Logs
+*.log
+tdb_bot.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Backups
+*.backup
+backuptdb.py
+tdb.py.backup
+
+# Sessions
+trading_sessions.json
+
+# Temporary files
+*.tmp
+*.temp
