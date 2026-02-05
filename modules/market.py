@@ -282,6 +282,17 @@ Revenez plus tard ou essayez un autre marché.
         else:
             return "🔴", "Faible"
 
+    def _escape_markdown(self, text: str) -> str:
+        """Échappe les caractères spéciaux Markdown"""
+        if not text:
+            return ""
+        # Échapper les caractères spéciaux Markdown
+        special_chars = ['_', '*', '[', ']', '(', ')', '~', '`', '>', '#', '+', '-', '=', '|', '{', '}', '.', '!']
+        result = str(text)
+        for char in special_chars:
+            result = result.replace(char, f'\\{char}')
+        return result
+
     def _generate_compact_view(self, analysis: dict, symbol: str, market_code: str) -> str:
         """Génère la vue compacte de l'analyse"""
         score = analysis['score']
@@ -443,7 +454,8 @@ Revenez plus tard ou essayez un autre marché.
         rsi_emoji, rsi_status = self._get_rsi_status(analysis['rsi'])
         text += f"{rsi_emoji} **RSI:** {analysis['rsi']:.1f} ({rsi_status})\n"
         if 'rsi' in explanations:
-            text += f"   _{explanations['rsi'].get('text', '')}_\n\n"
+            rsi_text = self._escape_markdown(explanations['rsi'].get('text', ''))
+            text += f"   {rsi_text}\n\n"
         else:
             text += "\n"
 
@@ -451,7 +463,8 @@ Revenez plus tard ou essayez un autre marché.
         vol_emoji, vol_status = self._get_volume_status(analysis['volume_ratio'])
         text += f"{vol_emoji} **Volume:** x{analysis['volume_ratio']:.2f} ({vol_status})\n"
         if 'volume' in explanations:
-            text += f"   _{explanations['volume'].get('text', '')}_\n\n"
+            vol_text = self._escape_markdown(explanations['volume'].get('text', ''))
+            text += f"   {vol_text}\n\n"
         else:
             text += "\n"
 
@@ -511,7 +524,8 @@ Revenez plus tard ou essayez un autre marché.
             text += f"• Position: {position_text}\n"
             text += f"• Score: {ichimoku.get('score', 50)}/100\n"
             if ichimoku.get('interpretation'):
-                text += f"• _{ichimoku['interpretation']}_\n"
+                ichimoku_text = self._escape_markdown(ichimoku['interpretation'])
+                text += f"• {ichimoku_text}\n"
             text += "\n━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
 
         # Patterns détectés
@@ -520,9 +534,11 @@ Revenez plus tard ou essayez un autre marché.
             text += "🔍 **PATTERNS DÉTECTÉS**\n\n"
             for pattern in patterns['patterns'][:3]:
                 signal_emoji = "🟢" if pattern.get('signal') == 'BULLISH' else "🔴" if pattern.get('signal') == 'BEARISH' else "⚪"
-                text += f"• {signal_emoji} **{pattern.get('name', 'Pattern')}**\n"
+                pattern_name = self._escape_markdown(pattern.get('name', 'Pattern'))
+                text += f"• {signal_emoji} **{pattern_name}**\n"
                 if pattern.get('description'):
-                    text += f"   _{pattern['description']}_\n"
+                    pattern_desc = self._escape_markdown(pattern['description'])
+                    text += f"   {pattern_desc}\n"
             text += "\n━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
 
         # Momentum avancé
@@ -533,7 +549,8 @@ Revenez plus tard ou essayez un autre marché.
             text += f"• Williams %R: {momentum.get('williams_r', -50):.0f}\n"
             text += f"• Score: {momentum.get('score', 50)}/100\n"
             if momentum.get('interpretation'):
-                text += f"• _{momentum['interpretation']}_\n"
+                momentum_text = self._escape_markdown(momentum['interpretation'])
+                text += f"• {momentum_text}\n"
             text += "\n━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
 
         # Fiabilité du signal
@@ -571,7 +588,8 @@ Revenez plus tard ou essayez un autre marché.
         if recommendations:
             text += "💡 **RECOMMANDATIONS**\n\n"
             for i, rec in enumerate(recommendations[:6], 1):
-                text += f"{i}. {rec}\n"
+                rec_text = self._escape_markdown(rec)
+                text += f"{i}\\. {rec_text}\n"
             text += "\n━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
 
         # Risque
@@ -582,7 +600,8 @@ Revenez plus tard ou essayez un autre marché.
         # Résumé
         technical_summary = analysis.get('technical_summary', '')
         if technical_summary:
-            text += f"📝 **Résumé:** _{technical_summary}_\n"
+            summary_text = self._escape_markdown(technical_summary)
+            text += f"📝 **Résumé:** {summary_text}\n"
 
         return text
 
