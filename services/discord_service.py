@@ -73,17 +73,21 @@ class DiscordService:
         }
     }
 
-    # Actifs à surveiller pour les alertes ±3%
-    MONITORED_ASSETS = [
-        # US
-        'AAPL', 'MSFT', 'GOOGL', 'AMZN', 'NVDA', 'TSLA', 'META',
-        # Crypto
-        'BTC-USD', 'ETH-USD', 'SOL-USD',
-        # Europe
-        'MC.PA', 'OR.PA', 'TTE.PA',
-        # Indices
-        '^GSPC', '^IXIC', '^FCHI'
-    ]
+    # Actifs à surveiller pour les alertes ±3% (avec leur marché)
+    MONITORED_ASSETS = {
+        # US (ouvert 15h30-22h Paris)
+        'AAPL': 'us', 'MSFT': 'us', 'GOOGL': 'us', 'AMZN': 'us',
+        'NVDA': 'us', 'TSLA': 'us', 'META': 'us', 'JPM': 'us',
+        '^GSPC': 'us', '^IXIC': 'us', '^DJI': 'us',
+        # Europe (ouvert 9h-17h30 Paris)
+        'MC.PA': 'europe', 'OR.PA': 'europe', 'TTE.PA': 'europe',
+        'AIR.PA': 'europe', 'BNP.PA': 'europe',
+        '^FCHI': 'europe', '^GDAXI': 'europe',
+        # Asie (ouvert 2h-8h Paris environ)
+        '^N225': 'asia', '^HSI': 'asia',
+        # Crypto (24/7)
+        'BTC-USD': 'crypto', 'ETH-USD': 'crypto', 'SOL-USD': 'crypto',
+    }
 
     def __init__(self):
         self.webhook_url = getattr(config, 'DISCORD_WEBHOOK_URL', None) if config else None
@@ -398,7 +402,7 @@ class DiscordService:
         await self.send_message(embed=embed)
 
     async def check_price_alerts(self):
-        """Vérifie les alertes de prix ±3%"""
+        """Vérifie les alertes de prix ±3% (uniquement marchés ouverts)"""
         paris_tz = pytz.timezone('Europe/Paris')
         now = datetime.now(paris_tz)
 
@@ -406,13 +410,21 @@ class DiscordService:
         if now.hour == 0 and now.minute < 5:
             self._alerted_today.clear()
 
-        for symbol in self.MONITORED_ASSETS:
+        for symbol, market_key in self.MONITORED_ASSETS.items():
+            # Ne vérifier que si le marché est ouvert
+            if not self._is_market_open(market_key):
+                continue
+
             if symbol in self._alerted_today:
                 continue
 
             try:
                 data = await self._get_price_change(symbol)
                 if data and abs(data['change']) >= 3.0:
+                    # Ajouter l'info du marché
+                    market = self.MARKETS.get(market_key, {})
+                    data['market_emoji'] = market.get('emoji', '')
+                    data['market_name'] = market.get('name', '')
                     await self._send_price_alert(symbol, data)
                     self._alerted_today.add(symbol)
             except Exception as e:
@@ -424,12 +436,19 @@ class DiscordService:
         emoji = "🚀" if is_up else "💥"
         color = 0x00FF00 if is_up else 0xFF0000
         direction = "HAUSSE" if is_up else "BAISSE"
+        market_emoji = data.get('market_emoji', '')
+        market_name = data.get('market_name', '')
 
         embed = {
-            "title": f"{emoji} ALERTE {direction} {symbol}",
+            "title": f"{emoji} ALERTE {direction} {market_emoji} {symbol}",
             "description": f"**{symbol}** a bougé de **{data['change']:+.2f}%** !",
             "color": color,
             "fields": [
+                {
+                    "name": "🏛️ Marché",
+                    "value": market_name or "—",
+                    "inline": True
+                },
                 {
                     "name": "💰 Prix actuel",
                     "value": f"${data['price']:,.2f}",
@@ -439,15 +458,10 @@ class DiscordService:
                     "name": "📊 Variation",
                     "value": f"{data['change']:+.2f}%",
                     "inline": True
-                },
-                {
-                    "name": "📈 Prix précédent",
-                    "value": f"${data['previous']:,.2f}",
-                    "inline": True
                 }
             ],
             "timestamp": datetime.utcnow().isoformat(),
-            "footer": {"text": "TDB Bot - Alerte Prix"}
+            "footer": {"text": "TDB Bot - Alerte Prix (Marché ouvert)"}
         }
 
         await self.send_message(embed=embed)
