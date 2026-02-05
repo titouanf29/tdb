@@ -21,6 +21,9 @@ WELCOME_CHANNEL_ID = os.getenv("WELCOME_CHANNEL_ID", "")  # Ex: @TDBTradingChann
 # Groupe communautaire (optionnel, pour discussions)
 COMMUNITY_GROUP_ID = os.getenv("COMMUNITY_GROUP_ID", "")
 
+# ===== DISCORD =====
+DISCORD_WEBHOOK_URL = os.getenv("DISCORD_WEBHOOK_URL", "")
+
 # ===== ONBOARDING =====
 # Étapes de l'onboarding
 ONBOARDING_STEPS = ["language", "profile", "markets", "tutorial"]
