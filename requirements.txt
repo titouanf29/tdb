@@ -1,20 +1,38 @@
-# Requirements pour le bot de trading
-# Installation: pip install -r requirements.txt
+# Requirements pour TDB - Trading Bot Professionnel
+# Version Windows Compatible
+# Installation: py -m pip install -r requirements.txt
 
-# Core packages (déjà installés normalement)
+# Bot Telegram
+python-telegram-bot>=20.0
+python-dotenv>=1.0.0
+
+# Base de données
+aiosqlite>=0.19.0
+
+# Analyse de marché (versions stables Windows)
 yfinance>=0.2.0
 pandas>=1.5.0
-numpy>=1.23.0
-matplotlib>=3.5.0
-python-telegram-bot>=20.0
+numpy>=1.23.0,<2.0.0
 
-# Pour les actualités multi-sources
+# Graphiques (versions stables)
+matplotlib>=3.5.0
+mplfinance>=0.12.0
+Pillow>=9.0.0
+
+# Export PDF
+reportlab>=4.0.0
+
+# Actualités et web
 requests>=2.28.0
 beautifulsoup4>=4.11.0
 lxml>=4.9.0
 
-# Base de données
-# sqlite3 est inclus dans Python par défaut
+# Tâches planifiées
+APScheduler>=3.10.0
+pytz>=2023.3
 
-# Timezone
-pytz>=2022.1
+# Utilitaires
+python-dateutil>=2.8.0
+
+# IA - Assistant conversationnel
+groq>=0.4.0
