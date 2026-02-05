@@ -2,7 +2,26 @@
 Constantes globales du bot TDB
 """
 
-# ===== EMOJIS =====
+# ===== EMOJIS STANDARDS =====
+EMOJI_SUCCESS = "✅"
+EMOJI_ERROR = "❌"
+EMOJI_WARNING = "⚠️"
+EMOJI_INFO = "ℹ️"
+EMOJI_LOADING = "⏳"
+EMOJI_ROCKET = "🚀"
+EMOJI_FIRE = "🔥"
+EMOJI_STAR = "⭐"
+EMOJI_CHART = "📊"
+EMOJI_MONEY = "💰"
+EMOJI_LOCK = "🔒"
+EMOJI_UNLOCK = "🔓"
+EMOJI_BELL = "🔔"
+EMOJI_CLOCK = "⏰"
+EMOJI_CALENDAR = "📅"
+EMOJI_TARGET = "🎯"
+EMOJI_TROPHY = "🏆"
+
+# ===== EMOJIS MARCHÉS =====
 EMOJI_MARKET = {
     "EUROPE": "🇪🇺",
     "USA": "🇺🇸",
