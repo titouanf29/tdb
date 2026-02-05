@@ -212,7 +212,8 @@ class TDBBot:
 
         # Message de démarrage
         logger.info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-        logger.info("🤖 TDB Bot v4.0 démarré avec succès !")
+        logger.info("🤖 TDB Bot v2.3.0 démarré avec succès !")
+        logger.info("☁️  Hébergé sur serveur cloud VPS 24/7")
         logger.info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
         logger.info("📊 Modules actifs:")
         logger.info("  • Menu Principal (MP uniquement)")
