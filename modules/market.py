@@ -38,7 +38,7 @@ class MarketModule:
         # Capturer tous les callbacks du module marché
         self.app.add_handler(CallbackQueryHandler(
             self.handle_callback,
-            pattern="^(market_|chart_|chartgen_|news_|favorite_add_|trading_companion_|analyze_|view_compact_|view_detailed_|refresh_)"
+            pattern="^(market_|chart_|chartgen_|news_|favorite_add_|trading_companion_|analyze_|view_compact_|view_detailed_|refresh_|quick_alert_|quick_position_|set_alert_|open_position_)"
         ))
 
     async def show_markets(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -663,11 +663,15 @@ Revenez plus tard ou essayez un autre marché.
                 InlineKeyboardButton("📈 Graphique", callback_data=f"chart_{symbol}"),
                 InlineKeyboardButton("📰 News", callback_data=f"news_{symbol}")
             ],
-            [InlineKeyboardButton("🤖 Trading Compagnon", callback_data=f"trading_companion_{symbol}_{market_code}")],
             [
                 InlineKeyboardButton("⭐ Favoris", callback_data=f"favorite_add_{symbol}_{market_code}"),
+                InlineKeyboardButton("🔔 Alerte", callback_data=f"quick_alert_{symbol}_{market_code}")
+            ],
+            [
+                InlineKeyboardButton("💼 Ouvrir position", callback_data=f"quick_position_{symbol}_{market_code}"),
                 InlineKeyboardButton("🔄 Actualiser", callback_data=f"refresh_{market_code}_{symbol}")
             ],
+            [InlineKeyboardButton("🤖 Trading Compagnon", callback_data=f"trading_companion_{symbol}_{market_code}")],
             [InlineKeyboardButton(BTN_BACK, callback_data=f"market_select_{market_code}")]
         ]
 
@@ -1106,3 +1110,193 @@ Recherchez : **{symbol}**
                 await self.show_asset_detail(update, context, market_code, symbol, view_mode="compact")
             else:
                 await query.answer("Erreur format", show_alert=True)
+
+        elif data.startswith("quick_alert_"):
+            # Création rapide d'alerte de prix
+            parts = data.replace("quick_alert_", "").split("_", 1)
+            if len(parts) >= 2:
+                symbol = parts[0]
+                market_code = parts[1]
+                await self.show_quick_alert_menu(update, context, symbol, market_code)
+            else:
+                await query.answer("Erreur format", show_alert=True)
+
+        elif data.startswith("quick_position_"):
+            # Ouverture rapide de position
+            parts = data.replace("quick_position_", "").split("_", 1)
+            if len(parts) >= 2:
+                symbol = parts[0]
+                market_code = parts[1]
+                await self.show_quick_position_menu(update, context, symbol, market_code)
+            else:
+                await query.answer("Erreur format", show_alert=True)
+
+        elif data.startswith("set_alert_"):
+            # Définir l'alerte avec le pourcentage
+            parts = data.replace("set_alert_", "").split("_")
+            if len(parts) >= 3:
+                symbol = parts[0]
+                alert_type = parts[1]  # up ou down
+                percent = int(parts[2])
+                await self.create_quick_alert(update, context, symbol, alert_type, percent)
+            else:
+                await query.answer("Erreur format", show_alert=True)
+
+        elif data.startswith("open_position_"):
+            # Ouvrir position rapide
+            parts = data.replace("open_position_", "").split("_")
+            if len(parts) >= 3:
+                symbol = parts[0]
+                direction = parts[1]  # long ou short
+                market_code = parts[2]
+                await self.create_quick_position(update, context, symbol, direction, market_code)
+            else:
+                await query.answer("Erreur format", show_alert=True)
+
+    async def show_quick_alert_menu(self, update: Update, context: ContextTypes.DEFAULT_TYPE, symbol: str, market_code: str):
+        """Affiche le menu de création rapide d'alerte"""
+        query = update.callback_query
+        await query.answer()
+
+        # Récupérer le prix actuel
+        cached = context.user_data.get(f'asset_detail_{symbol}')
+        current_price = cached.get('current_price', 0) if cached else 0
+
+        keyboard = [
+            [InlineKeyboardButton("📈 +2%", callback_data=f"set_alert_{symbol}_up_2"),
+             InlineKeyboardButton("📈 +5%", callback_data=f"set_alert_{symbol}_up_5"),
+             InlineKeyboardButton("📈 +10%", callback_data=f"set_alert_{symbol}_up_10")],
+            [InlineKeyboardButton("📉 -2%", callback_data=f"set_alert_{symbol}_down_2"),
+             InlineKeyboardButton("📉 -5%", callback_data=f"set_alert_{symbol}_down_5"),
+             InlineKeyboardButton("📉 -10%", callback_data=f"set_alert_{symbol}_down_10")],
+            [InlineKeyboardButton("⬅️ Retour", callback_data=f"market_detail_{market_code}_{symbol}")]
+        ]
+
+        text = f"""🔔 **CRÉER UNE ALERTE - {symbol}**
+
+💰 Prix actuel: **{format_price(current_price)}**
+
+Choisissez le seuil de déclenchement :
+
+📈 **Hausse** - Alerte si le prix monte
+📉 **Baisse** - Alerte si le prix descend
+"""
+        await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
+
+    async def show_quick_position_menu(self, update: Update, context: ContextTypes.DEFAULT_TYPE, symbol: str, market_code: str):
+        """Affiche le menu d'ouverture rapide de position"""
+        query = update.callback_query
+        await query.answer()
+
+        # Récupérer l'analyse pour afficher le contexte
+        cached = context.user_data.get(f'asset_detail_{symbol}')
+        current_price = cached.get('current_price', 0) if cached else 0
+        direction = cached.get('direction', 'NEUTRAL') if cached else 'NEUTRAL'
+        score = cached.get('score', 0) if cached else 0
+
+        # Suggestion basée sur l'analyse
+        suggested = "📈 LONG" if direction == "LONG" else "📉 SHORT" if direction == "SHORT" else "➡️ NEUTRE"
+
+        keyboard = [
+            [InlineKeyboardButton("📈 LONG (Achat)", callback_data=f"open_position_{symbol}_long_{market_code}")],
+            [InlineKeyboardButton("📉 SHORT (Vente)", callback_data=f"open_position_{symbol}_short_{market_code}")],
+            [InlineKeyboardButton("⬅️ Retour", callback_data=f"market_detail_{market_code}_{symbol}")]
+        ]
+
+        text = f"""💼 **OUVRIR UNE POSITION - {symbol}**
+
+💰 Prix d'entrée: **{format_price(current_price)}**
+📊 Score IA: **{score}/100**
+🎯 Suggestion: **{suggested}**
+
+⚠️ Position avec **500$** (montant par défaut)
+Stop-loss et Take-profit automatiques
+
+Choisissez la direction :
+"""
+        await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
+
+    async def create_quick_alert(self, update: Update, context: ContextTypes.DEFAULT_TYPE, symbol: str, alert_type: str, percent: int):
+        """Crée une alerte de prix rapide"""
+        query = update.callback_query
+        user_id = query.from_user.id
+
+        # Récupérer le prix actuel
+        cached = context.user_data.get(f'asset_detail_{symbol}')
+        current_price = cached.get('current_price', 0) if cached else 0
+
+        if current_price <= 0:
+            await query.answer("❌ Prix non disponible", show_alert=True)
+            return
+
+        # Calculer le prix cible
+        multiplier = 1 + (percent / 100) if alert_type == "up" else 1 - (percent / 100)
+        target_price = current_price * multiplier
+        condition = "above" if alert_type == "up" else "below"
+
+        try:
+            from services.alerts_service import alerts_service
+            await alerts_service.create_alert(
+                user_id=user_id,
+                symbol=symbol,
+                condition=condition,
+                target_price=target_price
+            )
+            direction_emoji = "📈" if alert_type == "up" else "📉"
+            await query.answer(f"✅ Alerte créée: {direction_emoji} {symbol} à {format_price(target_price)}", show_alert=True)
+        except Exception as e:
+            await query.answer(f"❌ Erreur: {str(e)[:50]}", show_alert=True)
+
+    async def create_quick_position(self, update: Update, context: ContextTypes.DEFAULT_TYPE, symbol: str, direction: str, market_code: str):
+        """Crée une position rapide"""
+        query = update.callback_query
+        user_id = query.from_user.id
+
+        # Récupérer les données de l'analyse
+        cached = context.user_data.get(f'asset_detail_{symbol}')
+        current_price = cached.get('current_price', 0) if cached else 0
+        volatility = cached.get('volatility', 0) if cached else 0
+
+        if current_price <= 0:
+            await query.answer("❌ Prix non disponible", show_alert=True)
+            return
+
+        # Montant par défaut
+        amount = 500
+
+        # Calculer SL/TP automatiques basés sur la volatilité
+        atr_multiplier = 1.5
+        sl_distance = volatility * atr_multiplier if volatility > 0 else current_price * 0.02
+        tp_distance = sl_distance * 2  # Risk/Reward 1:2
+
+        if direction == "long":
+            stop_loss = current_price - sl_distance
+            take_profit = current_price + tp_distance
+            position_type = "LONG"
+        else:
+            stop_loss = current_price + sl_distance
+            take_profit = current_price - tp_distance
+            position_type = "SHORT"
+
+        try:
+            # Créer la position via le wallet module
+            position_data = {
+                'symbol': symbol,
+                'type': position_type,
+                'entry_price': current_price,
+                'amount': amount,
+                'stop_loss': stop_loss,
+                'take_profit': take_profit,
+                'market_code': market_code
+            }
+
+            await db_manager.open_position(user_id, position_data)
+            direction_emoji = "📈" if direction == "long" else "📉"
+            await query.answer(f"✅ Position {direction_emoji} {symbol} ouverte à {format_price(current_price)}", show_alert=True)
+
+            # Retourner à l'analyse
+            market_code = self.find_market_for_symbol(symbol) or market_code
+            await self.show_asset_detail(update, context, market_code, symbol)
+
+        except Exception as e:
+            await query.answer(f"❌ Erreur: {str(e)[:50]}", show_alert=True)
