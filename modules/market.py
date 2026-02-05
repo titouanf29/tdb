@@ -698,7 +698,7 @@ Revenez plus tard ou essayez un autre marché.
                 InlineKeyboardButton("1A", callback_data=f"chartgen_{symbol}_1Y"),
                 InlineKeyboardButton("MAX", callback_data=f"chartgen_{symbol}_MAX"),
             ],
-            [InlineKeyboardButton("Retour", callback_data=f"asset_{self.find_market_for_symbol(symbol)}_{symbol}")]
+            [InlineKeyboardButton("⬅️ Retour", callback_data=f"market_detail_{self.find_market_for_symbol(symbol)}_{symbol}")]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
 
@@ -756,7 +756,7 @@ Revenez plus tard ou essayez un autre marché.
                         InlineKeyboardButton("3M", callback_data=f"chartgen_{symbol}_3M"),
                         InlineKeyboardButton("1A", callback_data=f"chartgen_{symbol}_1Y"),
                     ],
-                    [InlineKeyboardButton("Retour a l'actif", callback_data=f"asset_{self.find_market_for_symbol(symbol)}_{symbol}")]
+                    [InlineKeyboardButton("⬅️ Retour à l'actif", callback_data=f"market_detail_{self.find_market_for_symbol(symbol)}_{symbol}")]
                 ]
                 reply_markup = InlineKeyboardMarkup(keyboard)
 

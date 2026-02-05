@@ -73,10 +73,10 @@ class EconomicCalendarService:
             }
         }
 
-        # Calendrier 2024-2025 des événements FOMC (approximatif)
-        self.fomc_dates_2025 = [
-            '2025-01-29', '2025-03-19', '2025-05-07', '2025-06-18',
-            '2025-07-30', '2025-09-17', '2025-11-05', '2025-12-17'
+        # Calendrier 2026 des événements FOMC (approximatif)
+        self.fomc_dates_2026 = [
+            '2026-01-28', '2026-03-18', '2026-05-06', '2026-06-17',
+            '2026-07-29', '2026-09-16', '2026-11-04', '2026-12-16'
         ]
 
         # CPI généralement publié le 2ème mardi du mois
@@ -97,7 +97,7 @@ class EconomicCalendarService:
         end_date = today + timedelta(days=days_ahead)
 
         # Vérifier les dates FOMC
-        for date_str in self.fomc_dates_2025:
+        for date_str in self.fomc_dates_2026:
             event_date = datetime.strptime(date_str, '%Y-%m-%d')
             if today <= event_date <= end_date:
                 days_until = (event_date - today).days

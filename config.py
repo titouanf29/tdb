@@ -15,6 +15,9 @@ ADMIN_IDS = [
     2064575502,  # Titouan
 ]
 
+# ===== DISCORD =====
+DISCORD_WEBHOOK_URL = os.getenv("DISCORD_WEBHOOK_URL", "")  # Webhook Discord pour alertes
+
 # ===== CANAL D'ACCUEIL (PUBLIC) =====
 # Canal public où les nouveaux utilisateurs arrivent (read-only)
 WELCOME_CHANNEL_ID = os.getenv("WELCOME_CHANNEL_ID", "")  # Ex: @TDBTradingChannel ou -1001234567890
