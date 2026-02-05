@@ -2,6 +2,7 @@
 Module Marché - Analyse des marchés financiers
 """
 import logging
+import asyncio
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, CallbackQueryHandler
 import config
@@ -111,14 +112,23 @@ Souhaitez-vous voir un résumé de la dernière séance ?
         # Marché ouvert - lancer le scan avec animation
         loading = LoadingAnimation(query, "market")
         await loading.start()
+        await asyncio.sleep(0.5)
 
         # Récupérer les actifs du marché
         assets = market_info.get('assets', [])
 
+        await loading.next_step()  # Étape: Récupération des cotations
+        await asyncio.sleep(0.3)
+
         # Analyser chaque actif (sans news pour performance)
         results = []
-        for symbol in assets:
+        total_assets = len(assets)
+        for i, symbol in enumerate(assets):
             try:
+                # Mise à jour du progress tous les 3 actifs
+                if i > 0 and i % 3 == 0:
+                    await loading.next_step()
+
                 # Scan rapide sans récupération des news
                 analysis = await analyzer.analyze_asset(symbol, market_code, fetch_news=False)
                 if analysis and analysis['score'] >= 40:  # Seuil minimum
@@ -586,21 +596,31 @@ Revenez plus tard ou essayez un autre marché.
         cached_analysis = context.user_data.get(f'asset_detail_{symbol}')
 
         if not cached_analysis:
-            # Animation de chargement
+            # Animation de chargement avec progression
             loading = LoadingAnimation(query, "analysis")
             await loading.start()
+            await asyncio.sleep(0.5)  # Afficher le message initial
+
+            await loading.next_step()  # Étape: Calcul des indicateurs
+            await asyncio.sleep(0.3)
 
             # Analyser l'actif
             analysis = await analyzer.analyze_asset(symbol, market_code)
 
+            await loading.next_step()  # Étape: Analyse des tendances
+            await asyncio.sleep(0.3)
+
             if not analysis:
                 await query.edit_message_text(
-                    "❌ Impossible d'analyser cet actif.",
+                    "❌ Impossible d'analyser cet actif. Données insuffisantes.",
                     reply_markup=InlineKeyboardMarkup([
                         [InlineKeyboardButton(BTN_BACK, callback_data=f"market_select_{market_code}")]
                     ])
                 )
                 return
+
+            await loading.next_step()  # Étape: Génération du rapport
+            await asyncio.sleep(0.3)
 
             # Sauvegarder dans le contexte
             context.user_data[f'asset_detail_{symbol}'] = analysis
