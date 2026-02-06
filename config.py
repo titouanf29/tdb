@@ -28,6 +28,8 @@ DISCORD_WEBHOOK_URL = os.getenv("DISCORD_WEBHOOK_URL", "")
 DISCORD_WEBHOOK_OPPORTUNITIES = os.getenv("DISCORD_WEBHOOK_OPPORTUNITIES", "")
 # Webhook actualités (news, calendrier économique)
 DISCORD_WEBHOOK_NEWS = os.getenv("DISCORD_WEBHOOK_NEWS", "")
+# Webhook admin (logs, statistiques, erreurs - réservé aux admins)
+DISCORD_WEBHOOK_ADMIN = os.getenv("DISCORD_WEBHOOK_ADMIN", "")
 
 # ===== ONBOARDING =====
 # Étapes de l'onboarding

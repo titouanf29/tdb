@@ -113,6 +113,9 @@ class MorningService:
         # 4. Alertes actives
         alerts = await db_manager.get_user_price_alerts(telegram_id)
 
+        # 5. Earnings à venir (favoris)
+        upcoming_earnings = await self._get_upcoming_earnings(favorites)
+
         # Construire le message
         message = f"☀️ <b>RESUME MATINAL</b> - {now.strftime('%d/%m/%Y')}\n"
         message += "━━━━━━━━━━━━━━━━━━━━\n\n"
@@ -147,6 +150,19 @@ class MorningService:
         if alerts:
             message += f"🔔 <b>Alertes Actives</b>: {len(alerts)}\n\n"
 
+        # Earnings à venir
+        if upcoming_earnings:
+            message += f"📊 <b>Earnings à venir</b>\n"
+            for e in upcoming_earnings[:5]:
+                if e['days_until'] == 0:
+                    day_text = "🔴 AUJOURD'HUI"
+                elif e['days_until'] == 1:
+                    day_text = "🟠 Demain"
+                else:
+                    day_text = f"J-{e['days_until']}"
+                message += f"   • {e['symbol']}: {e['date'].strftime('%d/%m')} ({day_text})\n"
+            message += "\n"
+
         # Conseil du jour (simple)
         tip = self._get_daily_tip()
         message += f"💡 <b>Conseil du jour</b>\n{tip}\n\n"
@@ -176,6 +192,62 @@ class MorningService:
                 pass
 
         return results
+
+    async def _get_upcoming_earnings(self, favorites: List[Dict]) -> List[Dict]:
+        """Récupère les earnings à venir pour les favoris de l'utilisateur"""
+        if not favorites:
+            return []
+
+        try:
+            from services.economic_calendar import economic_calendar
+            symbols = [f['asset_symbol'] for f in favorites[:10]]
+            earnings = await economic_calendar.get_earnings_calendar(symbols)
+            # Trier par date la plus proche
+            earnings.sort(key=lambda x: x['days_until'])
+            return earnings
+        except Exception as e:
+            print(f"[MORNING] Erreur earnings: {e}")
+            return []
+
+    async def send_earnings_alert(self, telegram_id: int, symbol: str, days_until: int, earnings_date: datetime):
+        """Envoie une alerte earnings spécifique"""
+        try:
+            # Vérifier si l'utilisateur n'est pas en mode vacances
+            if await db_manager.is_vacation_mode(telegram_id):
+                return
+
+            if days_until == 0:
+                urgency = "🔴 AUJOURD'HUI"
+                intro = "Les résultats sont publiés aujourd'hui !"
+            elif days_until == 1:
+                urgency = "🟠 DEMAIN"
+                intro = "Préparez-vous pour les résultats demain."
+            else:
+                urgency = f"📅 J-{days_until}"
+                intro = f"Les résultats seront publiés dans {days_until} jours."
+
+            text = f"""📊 <b>ALERTE EARNINGS - {symbol}</b>
+━━━━━━━━━━━━━━━━━━━━
+
+{urgency} - {earnings_date.strftime('%d/%m/%Y')}
+
+{intro}
+
+⚠️ <b>Attention:</b>
+• Forte volatilité attendue
+• Les options coûtent plus cher
+• Considérez réduire votre position
+• Ne pas acheter juste avant les résultats
+
+💡 Utilisez /a {symbol} pour l'analyse complète"""
+
+            await self.bot.send_message(
+                chat_id=telegram_id,
+                text=text,
+                parse_mode='HTML'
+            )
+        except Exception as e:
+            print(f"[MORNING] Erreur envoi alerte earnings: {e}")
 
     def _get_daily_tip(self) -> str:
         """Retourne un conseil aleatoire"""

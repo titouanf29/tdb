@@ -52,9 +52,14 @@ class SettingsModule:
 • Agressivité: {settings['ai_aggressiveness']}
 • Niveau détail: {settings['detail_level']}"""
 
+        # Vérifier le mode vacances
+        vacation_mode = settings.get('vacation_mode', 0)
+        vacation_btn = "🏖️ Mode Vacances: ON" if vacation_mode else "🏖️ Mode Vacances"
+
         keyboard = [
             [InlineKeyboardButton("📊 Trading & Risque", callback_data="settings_trading")],
             [InlineKeyboardButton("🔔 Notifications", callback_data="settings_notif")],
+            [InlineKeyboardButton(vacation_btn, callback_data="settings_vacation")],
             [InlineKeyboardButton("🌙 Ne pas déranger", callback_data="settings_dnd")],
             [InlineKeyboardButton("📅 Résumé quotidien", callback_data="settings_daily_summary")],
             [InlineKeyboardButton("🤖 Intelligence IA", callback_data="settings_ai")],
@@ -222,6 +227,55 @@ Ces paramètres influencent la manière dont l'IA analyse les marchés et formul
             [InlineKeyboardButton("🌐 Langue", callback_data="settings_ui_lang")],
             [InlineKeyboardButton("🎨 Thème", callback_data="settings_ui_theme")],
             [InlineKeyboardButton("📊 Type de graphiques", callback_data="settings_ui_charts")],
+            [InlineKeyboardButton(BTN_BACK, callback_data="settings_main")]
+        ]
+
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await query.edit_message_text(text, reply_markup=reply_markup, parse_mode='HTML')
+
+    async def show_vacation_settings(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Affiche les paramètres du mode vacances"""
+        query = update.callback_query
+        await query.answer()
+
+        user_id = query.from_user.id
+        settings = await db_manager.get_user_settings(user_id)
+        is_vacation = await db_manager.is_vacation_mode(user_id)
+
+        vacation_until = settings.get('vacation_until')
+        until_text = ""
+        if vacation_until and is_vacation:
+            try:
+                from datetime import datetime
+                until = datetime.fromisoformat(vacation_until)
+                until_text = f"\n📅 <b>Jusqu'au:</b> {until.strftime('%d/%m/%Y à %H:%M')}"
+            except (ValueError, TypeError):
+                pass
+
+        text = f"""🏖️ <b>MODE VACANCES</b>
+━━━━━━━━━━━━━━━━━━━━
+
+<b>Statut:</b> {"🟢 ACTIVÉ" if is_vacation else "🔴 Désactivé"}{until_text}
+
+━━━━━━━━━━━━━━━━━━━━
+
+Quand le mode vacances est activé :
+• ❌ Aucune alerte de prix
+• ❌ Aucune notification d'opportunité
+• ❌ Aucun résumé quotidien
+• ✅ Vos positions restent ouvertes
+• ✅ Le bot reste accessible manuellement
+
+💡 <i>Parfait pour profiter de vos congés sans être dérangé !</i>"""
+
+        toggle_btn = "🔕 Désactiver" if is_vacation else "🔔 Activer maintenant"
+
+        keyboard = [
+            [InlineKeyboardButton(toggle_btn, callback_data="set_vacation_toggle")],
+            [InlineKeyboardButton("📅 1 jour", callback_data="set_vacation_1d"),
+             InlineKeyboardButton("📅 3 jours", callback_data="set_vacation_3d")],
+            [InlineKeyboardButton("📅 1 semaine", callback_data="set_vacation_1w"),
+             InlineKeyboardButton("📅 2 semaines", callback_data="set_vacation_2w")],
             [InlineKeyboardButton(BTN_BACK, callback_data="settings_main")]
         ]
 
@@ -914,6 +968,40 @@ Choisissez la quantité d'informations dans les analyses de l'IA.
 
         elif data == "settings_ui":
             await self.show_ui_settings(update, context)
+
+        # ===== VACATION MODE =====
+        elif data == "settings_vacation":
+            await self.show_vacation_settings(update, context)
+
+        elif data == "set_vacation_toggle":
+            user_id = query.from_user.id
+            is_vacation = await db_manager.is_vacation_mode(user_id)
+            await db_manager.set_vacation_mode(user_id, not is_vacation)
+            if not is_vacation:
+                await query.answer("🏖️ Mode vacances activé ! Toutes les alertes sont suspendues.", show_alert=True)
+            else:
+                await query.answer("🔔 Mode vacances désactivé ! Les alertes reprennent.", show_alert=True)
+            await self.show_vacation_settings(update, context)
+
+        elif data.startswith("set_vacation_"):
+            user_id = query.from_user.id
+            duration = data.replace("set_vacation_", "")
+            from datetime import datetime, timedelta
+
+            if duration == "1d":
+                until = datetime.now() + timedelta(days=1)
+            elif duration == "3d":
+                until = datetime.now() + timedelta(days=3)
+            elif duration == "1w":
+                until = datetime.now() + timedelta(weeks=1)
+            elif duration == "2w":
+                until = datetime.now() + timedelta(weeks=2)
+            else:
+                until = None
+
+            await db_manager.set_vacation_mode(user_id, True, until.isoformat() if until else None)
+            await query.answer(f"🏖️ Mode vacances activé jusqu'au {until.strftime('%d/%m/%Y')}" if until else "🏖️ Mode vacances activé", show_alert=True)
+            await self.show_vacation_settings(update, context)
 
         # ===== DND SETTINGS =====
         elif data == "settings_dnd":

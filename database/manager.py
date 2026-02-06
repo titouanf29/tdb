@@ -63,6 +63,18 @@ class DatabaseManager:
             except Exception:
                 pass  # La colonne existe déjà
 
+            # Migration: Mode vacances (désactive toutes les alertes)
+            try:
+                await db.execute("""
+                    ALTER TABLE user_settings ADD COLUMN vacation_mode INTEGER DEFAULT 0
+                """)
+                await db.execute("""
+                    ALTER TABLE user_settings ADD COLUMN vacation_until TEXT DEFAULT NULL
+                """)
+                logger.debug("Migration: Colonnes vacation_mode ajoutées")
+            except Exception:
+                pass  # Les colonnes existent déjà
+
             await db.commit()
 
     # ===== UTILISATEURS =====
@@ -124,6 +136,56 @@ class DatabaseManager:
                 UPDATE user_settings SET {fields} WHERE telegram_id = ?
             """, values)
             await db.commit()
+
+    async def set_vacation_mode(self, telegram_id, enabled: bool, until: str = None):
+        """Active/désactive le mode vacances"""
+        async with aiosqlite.connect(self.db_path) as db:
+            await db.execute("""
+                UPDATE user_settings
+                SET vacation_mode = ?, vacation_until = ?
+                WHERE telegram_id = ?
+            """, (1 if enabled else 0, until, telegram_id))
+            await db.commit()
+
+    async def is_vacation_mode(self, telegram_id) -> bool:
+        """Vérifie si l'utilisateur est en mode vacances"""
+        from datetime import datetime
+        async with aiosqlite.connect(self.db_path) as db:
+            db.row_factory = aiosqlite.Row
+            async with db.execute("""
+                SELECT vacation_mode, vacation_until FROM user_settings WHERE telegram_id = ?
+            """, (telegram_id,)) as cursor:
+                row = await cursor.fetchone()
+                if not row:
+                    return False
+
+                # Si mode vacances désactivé
+                if not row['vacation_mode']:
+                    return False
+
+                # Si date de fin définie, vérifier si expirée
+                if row['vacation_until']:
+                    try:
+                        until = datetime.fromisoformat(row['vacation_until'])
+                        if datetime.now() > until:
+                            # Expirée - désactiver automatiquement
+                            await self.set_vacation_mode(telegram_id, False)
+                            return False
+                    except (ValueError, TypeError):
+                        pass
+
+                return True
+
+    async def get_users_not_on_vacation(self):
+        """Retourne les utilisateurs qui ne sont pas en mode vacances"""
+        async with aiosqlite.connect(self.db_path) as db:
+            db.row_factory = aiosqlite.Row
+            async with db.execute("""
+                SELECT telegram_id FROM user_settings
+                WHERE vacation_mode = 0 OR vacation_mode IS NULL
+            """) as cursor:
+                rows = await cursor.fetchall()
+                return [row['telegram_id'] for row in rows]
 
     # ===== WALLET =====
 

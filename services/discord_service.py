@@ -93,6 +93,7 @@ class DiscordService:
     CHANNEL_ANNOUNCEMENTS = "announcements"  # Ouverture/fermeture marchés, broadcasts
     CHANNEL_OPPORTUNITIES = "opportunities"  # Alertes trading, signaux, setups
     CHANNEL_NEWS = "news"  # Actualités, calendrier économique
+    CHANNEL_ADMIN = "admin"  # Logs, statistiques, erreurs (admin only)
 
     def __init__(self):
         # Webhooks pour chaque canal
@@ -100,6 +101,7 @@ class DiscordService:
             self.CHANNEL_ANNOUNCEMENTS: getattr(config, 'DISCORD_WEBHOOK_URL', None) if config else None,
             self.CHANNEL_OPPORTUNITIES: getattr(config, 'DISCORD_WEBHOOK_OPPORTUNITIES', None) if config else None,
             self.CHANNEL_NEWS: getattr(config, 'DISCORD_WEBHOOK_NEWS', None) if config else None,
+            self.CHANNEL_ADMIN: getattr(config, 'DISCORD_WEBHOOK_ADMIN', None) if config else None,
         }
         # Fallback: utiliser le webhook principal si les autres ne sont pas configurés
         main_webhook = self.webhooks[self.CHANNEL_ANNOUNCEMENTS]
@@ -113,6 +115,7 @@ class DiscordService:
         self._last_calendar_send = None
         self._last_prices = {}  # Pour tracker les variations
         self._alerted_today = set()  # Éviter les alertes répétées
+        self._last_stats_send = None  # Pour le rapport quotidien admin
 
     def get_webhook(self, channel: str = None) -> Optional[str]:
         """Retourne le webhook pour un canal donné"""
@@ -650,6 +653,148 @@ class DiscordService:
         await self.send_message(embed=embed, channel=self.CHANNEL_ANNOUNCEMENTS)
         logger.info("Discord: Bilan hebdomadaire envoyé")
 
+    # ===== ADMIN PANEL DISCORD =====
+
+    async def send_admin_notification(self, title: str, message: str, color: int = 0x3498DB,
+                                     notification_type: str = "info"):
+        """Envoie une notification au canal admin Discord"""
+        if not self.webhooks.get(self.CHANNEL_ADMIN):
+            return False
+
+        type_emojis = {
+            "info": "ℹ️",
+            "success": "✅",
+            "warning": "⚠️",
+            "error": "❌",
+            "stats": "📊",
+            "user": "👤",
+            "trade": "💰"
+        }
+
+        type_colors = {
+            "info": 0x3498DB,
+            "success": 0x27AE60,
+            "warning": 0xF39C12,
+            "error": 0xE74C3C,
+            "stats": 0x9B59B6,
+            "user": 0x1ABC9C,
+            "trade": 0xF1C40F
+        }
+
+        emoji = type_emojis.get(notification_type, "ℹ️")
+        color = type_colors.get(notification_type, color)
+
+        embed = {
+            "title": f"{emoji} {title}",
+            "description": message,
+            "color": color,
+            "timestamp": datetime.utcnow().isoformat(),
+            "footer": {"text": f"TDB Admin • {notification_type.upper()}"}
+        }
+
+        return await self.send_message(embed=embed, channel=self.CHANNEL_ADMIN, username="TDB Admin")
+
+    async def send_admin_daily_stats(self):
+        """Envoie les statistiques quotidiennes au canal admin"""
+        if not self.webhooks.get(self.CHANNEL_ADMIN):
+            return
+
+        paris_tz = pytz.timezone('Europe/Paris')
+        now = datetime.now(paris_tz)
+
+        # Éviter les doublons
+        if self._last_stats_send and self._last_stats_send.date() == now.date():
+            return
+
+        try:
+            from database.manager import db_manager
+
+            # Récupérer les stats
+            all_users = await db_manager.get_all_users()
+            total_users = len(all_users) if all_users else 0
+
+            # Compter les positions ouvertes
+            open_positions = await db_manager.count_all_open_positions()
+
+            # Stats des 24h (approximatif)
+            recent_users = 0
+            if all_users:
+                for user in all_users:
+                    created = user.get('created_at')
+                    if created:
+                        try:
+                            created_dt = datetime.fromisoformat(created.replace('Z', '+00:00'))
+                            if (now - created_dt.replace(tzinfo=None)).days == 0:
+                                recent_users += 1
+                        except:
+                            pass
+
+            embed = {
+                "title": "📊 RAPPORT QUOTIDIEN",
+                "description": f"Statistiques du {now.strftime('%d/%m/%Y')}",
+                "color": 0x9B59B6,
+                "fields": [
+                    {
+                        "name": "👥 Utilisateurs",
+                        "value": f"**Total:** {total_users}\n**Nouveaux (24h):** {recent_users}",
+                        "inline": True
+                    },
+                    {
+                        "name": "💼 Trading",
+                        "value": f"**Positions ouvertes:** {open_positions}",
+                        "inline": True
+                    },
+                    {
+                        "name": "🤖 Bot Status",
+                        "value": "✅ Opérationnel",
+                        "inline": True
+                    }
+                ],
+                "timestamp": datetime.utcnow().isoformat(),
+                "footer": {"text": "TDB Admin • Rapport Auto"}
+            }
+
+            await self.send_message(embed=embed, channel=self.CHANNEL_ADMIN, username="TDB Admin")
+            self._last_stats_send = now
+            logger.info("Discord Admin: Rapport quotidien envoyé")
+
+        except Exception as e:
+            logger.error(f"Discord Admin: Erreur rapport - {e}")
+
+    async def send_admin_error(self, error_type: str, error_message: str, user_id: int = None):
+        """Envoie une alerte d'erreur au canal admin"""
+        details = f"```\n{error_message[:1000]}\n```"
+        if user_id:
+            details = f"**User ID:** {user_id}\n{details}"
+
+        await self.send_admin_notification(
+            title=f"Erreur: {error_type}",
+            message=details,
+            notification_type="error"
+        )
+
+    async def send_admin_new_user(self, user_id: int, username: str = None):
+        """Notifie l'arrivée d'un nouvel utilisateur"""
+        user_info = f"**ID:** `{user_id}`"
+        if username:
+            user_info += f"\n**Username:** @{username}"
+
+        await self.send_admin_notification(
+            title="Nouvel utilisateur",
+            message=user_info,
+            notification_type="user"
+        )
+
+    async def send_admin_trade_alert(self, user_id: int, symbol: str, direction: str,
+                                     amount: float, entry_price: float):
+        """Notifie une nouvelle position ouverte"""
+        emoji = "🟢" if direction == "LONG" else "🔴"
+        await self.send_admin_notification(
+            title=f"Nouvelle position: {symbol}",
+            message=f"{emoji} **{direction}**\n**Montant:** ${amount:,.2f}\n**Prix:** ${entry_price:,.2f}\n**User:** `{user_id}`",
+            notification_type="trade"
+        )
+
     async def start_market_monitor(self):
         """Démarre le monitoring complet"""
         logger.info("Discord: Démarrage du monitoring des marchés")
@@ -670,6 +815,10 @@ class DiscordService:
                 # === Calendrier du matin (8h00) ===
                 if now.hour == 8 and now.minute < 2:
                     await self.send_morning_calendar()
+
+                # === Rapport admin quotidien (9h00) ===
+                if now.hour == 9 and now.minute < 2:
+                    await self.send_admin_daily_stats()
 
                 # === Alertes ouverture/fermeture marchés ===
                 for market_key, market in self.MARKETS.items():
