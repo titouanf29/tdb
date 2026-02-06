@@ -1143,7 +1143,14 @@ Votre ID : <code>{user_id}</code>
             )
             return
 
-        if not context.args:
+        # Récupérer le message complet avec les sauts de ligne
+        full_text = update.message.text
+        if full_text.startswith("/discord"):
+            message = full_text[8:].strip()  # Enlever "/discord" du début
+        else:
+            message = " ".join(context.args) if context.args else ""
+
+        if not message:
             await update.message.reply_text(
                 "❌ **Usage:** `/discord <message>`\n\n"
                 "**Exemples:**\n"
@@ -1154,9 +1161,7 @@ Votre ID : <code>{user_id}</code>
             )
             return
 
-        message = " ".join(context.args)
-
-        # Envoyer sur Discord avec un embed stylé
+        # Envoyer sur Discord avec un embed stylé (garde les sauts de ligne)
         embed = {
             "title": "📢 Annonce TDB",
             "description": message,
