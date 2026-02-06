@@ -70,6 +70,19 @@ class DiscordService:
             'indices': ['BTC-USD', 'ETH-USD'],
             'index_names': {'BTC-USD': 'Bitcoin', 'ETH-USD': 'Ethereum'},
             'top_assets': ['BTC-USD', 'ETH-USD', 'BNB-USD', 'SOL-USD', 'XRP-USD', 'ADA-USD']
+        },
+        'commodities': {
+            'name': 'Matières Premières',
+            'emoji': '🛢️',
+            'timezone': 'Europe/Paris',
+            'open_hour': 0,
+            'open_minute': 0,
+            'close_hour': 22,
+            'close_minute': 30,
+            'days': [0, 1, 2, 3, 4, 6],  # Lundi-Vendredi + Dimanche (fermé samedi)
+            'indices': ['CL=F', 'GC=F'],
+            'index_names': {'CL=F': 'Pétrole WTI', 'GC=F': 'Or'},
+            'top_assets': ['CL=F', 'GC=F', 'SI=F', 'NG=F', 'HG=F', 'ZC=F']
         }
     }
 
@@ -87,6 +100,8 @@ class DiscordService:
         '^N225': 'asia', '^HSI': 'asia',
         # Crypto (24/7)
         'BTC-USD': 'crypto', 'ETH-USD': 'crypto', 'SOL-USD': 'crypto',
+        # Matières premières
+        'CL=F': 'commodities', 'GC=F': 'commodities', 'SI=F': 'commodities',
     }
 
     # Types de canaux Discord
@@ -116,6 +131,15 @@ class DiscordService:
         self._last_prices = {}  # Pour tracker les variations
         self._alerted_today = set()  # Éviter les alertes répétées
         self._last_stats_send = None  # Pour le rapport quotidien admin
+
+        # Telegram bot reference (set via set_telegram_bot)
+        self.telegram_bot = None
+        self.telegram_channel_id = getattr(config, 'CHANNEL_ID', None) if config else None
+
+    def set_telegram_bot(self, bot):
+        """Configure le bot Telegram pour les notifications"""
+        self.telegram_bot = bot
+        logger.info("Discord: Bot Telegram configuré pour notifications cross-platform")
 
     def get_webhook(self, channel: str = None) -> Optional[str]:
         """Retourne le webhook pour un canal donné"""
@@ -265,6 +289,37 @@ class DiscordService:
 
         await self.send_message(embed=embed, channel=self.CHANNEL_ANNOUNCEMENTS)
 
+        # Notification Telegram (canal d'annonces)
+        await self._send_telegram_market_alert(market, indices_text, is_open=True)
+
+    async def _send_telegram_market_alert(self, market: Dict, indices_text: List[str], is_open: bool):
+        """Envoie une notification Telegram pour les marchés"""
+        if not self.telegram_bot or not self.telegram_channel_id:
+            return
+
+        try:
+            status = "OUVERT" if is_open else "FERMÉ"
+            emoji_status = "🟢" if is_open else "🔴"
+
+            text = f"""{market['emoji']} <b>Marché {market['name']} {status}</b> {emoji_status}
+━━━━━━━━━━━━━━━━━━━━
+
+"""
+            if indices_text:
+                text += "<b>📊 Indices:</b>\n"
+                for idx in indices_text[:5]:
+                    # Convertir le markdown Discord en HTML
+                    idx_html = idx.replace("**", "<b>").replace("**", "</b>")
+                    text += f"• {idx_html}\n"
+
+            await self.telegram_bot.send_message(
+                chat_id=self.telegram_channel_id,
+                text=text,
+                parse_mode='HTML'
+            )
+        except Exception as e:
+            logger.debug(f"Erreur notification Telegram marché: {e}")
+
     async def send_market_close_alert(self, market_key: str):
         """Envoie une alerte de fermeture avec résumé complet"""
         market = self.MARKETS.get(market_key)
@@ -325,6 +380,46 @@ class DiscordService:
         }
 
         await self.send_message(embed=embed, channel=self.CHANNEL_ANNOUNCEMENTS)
+
+        # Notification Telegram pour la fermeture
+        await self._send_telegram_close_summary(market, summary, avg)
+
+    async def _send_telegram_close_summary(self, market: Dict, summary: Dict, avg_change: float):
+        """Envoie le résumé de fermeture sur Telegram"""
+        if not self.telegram_bot or not self.telegram_channel_id:
+            return
+
+        try:
+            trend_emoji = "📈" if avg_change > 0 else "📉"
+            trend = "haussière" if avg_change > 0 else "baissière"
+
+            text = f"""{market['emoji']} <b>Fermeture {market['name']}</b> 🔴
+━━━━━━━━━━━━━━━━━━━━
+
+{trend_emoji} <b>Tendance {trend}</b> ({avg_change:+.2f}%)
+
+"""
+            # Indices
+            if summary.get('indices'):
+                text += "<b>📊 Indices:</b>\n"
+                for idx in summary['indices'][:4]:
+                    emoji = "🟢" if idx['change'] >= 0 else "🔴"
+                    text += f"• {emoji} {idx['name']}: {idx['change']:+.2f}%\n"
+                text += "\n"
+
+            # Top gainers/losers
+            if summary.get('top_gainers'):
+                text += "<b>🚀 Hausses:</b> " + ", ".join(summary['top_gainers'][:3]) + "\n"
+            if summary.get('top_losers'):
+                text += "<b>💥 Baisses:</b> " + ", ".join(summary['top_losers'][:3]) + "\n"
+
+            await self.telegram_bot.send_message(
+                chat_id=self.telegram_channel_id,
+                text=text,
+                parse_mode='HTML'
+            )
+        except Exception as e:
+            logger.debug(f"Erreur notification Telegram fermeture: {e}")
 
     async def send_morning_calendar(self):
         """Envoie le calendrier économique du matin"""

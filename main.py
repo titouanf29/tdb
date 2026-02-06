@@ -231,8 +231,10 @@ class TDBBot:
 
         # Démarrer le service Discord si configuré
         if discord_service.enabled:
+            # Configurer le bot Telegram pour les notifications cross-platform
+            discord_service.set_telegram_bot(self.application.bot)
             asyncio.create_task(discord_service.start_market_monitor())
-            logger.info("✅ Service Discord démarré (alertes marchés: Asie, Europe, US)")
+            logger.info("✅ Service Discord démarré (alertes marchés: Asie, Europe, US, Matières Premières)")
         else:
             logger.info("ℹ️ Discord non configuré (DISCORD_WEBHOOK_URL manquant)")
 
