@@ -518,6 +518,138 @@ class DiscordService:
 
         return open_time <= now <= close_time
 
+    async def _get_weekly_change(self, symbol: str) -> Optional[Dict]:
+        """Récupère la variation hebdomadaire d'un actif"""
+        try:
+            ticker = yf.Ticker(symbol)
+            hist = ticker.history(period="5d")
+            if len(hist) >= 2:
+                current = hist['Close'].iloc[-1]
+                week_start = hist['Close'].iloc[0]
+                change = ((current - week_start) / week_start) * 100
+                return {
+                    'symbol': symbol,
+                    'price': current,
+                    'change': change,
+                    'week_start': week_start
+                }
+        except Exception as e:
+            logger.debug(f"Erreur prix hebdo {symbol}: {e}")
+        return None
+
+    async def send_weekly_summary(self):
+        """Envoie le bilan hebdomadaire (vendredi soir)"""
+        paris_tz = pytz.timezone('Europe/Paris')
+        now = datetime.now(paris_tz)
+
+        # Collecter les données hebdomadaires par marché
+        all_weekly_data = []
+        indices_data = []
+
+        for market_key, market in self.MARKETS.items():
+            # Indices
+            for symbol in market.get('indices', []):
+                data = await self._get_weekly_change(symbol)
+                if data:
+                    name = market.get('index_names', {}).get(symbol, symbol)
+                    data['name'] = name
+                    data['market'] = market['emoji']
+                    indices_data.append(data)
+
+            # Top assets
+            for symbol in market.get('top_assets', [])[:8]:
+                data = await self._get_weekly_change(symbol)
+                if data:
+                    data['market'] = market['emoji']
+                    all_weekly_data.append(data)
+
+        # Trier les indices par performance
+        indices_data.sort(key=lambda x: x['change'], reverse=True)
+
+        # Trier tous les actifs
+        sorted_assets = sorted(all_weekly_data, key=lambda x: x['change'], reverse=True)
+
+        # Top 5 hausses de la semaine
+        top_gainers = [d for d in sorted_assets[:5] if d['change'] > 0]
+        # Top 5 baisses de la semaine
+        top_losers = [d for d in sorted_assets[-5:] if d['change'] < 0]
+        top_losers.reverse()
+
+        # Calculer la tendance générale
+        if indices_data:
+            avg_change = sum(d['change'] for d in indices_data) / len(indices_data)
+        else:
+            avg_change = 0
+
+        # Déterminer le sentiment
+        if avg_change > 1:
+            sentiment = "🐂 BULLISH"
+            color = 0x27AE60
+            emoji_trend = "📈"
+        elif avg_change < -1:
+            sentiment = "🐻 BEARISH"
+            color = 0xE74C3C
+            emoji_trend = "📉"
+        else:
+            sentiment = "😐 NEUTRE"
+            color = 0xF39C12
+            emoji_trend = "➡️"
+
+        # Construire les champs de l'embed
+        fields = []
+
+        # Performance des indices
+        if indices_data:
+            indices_text = []
+            for idx in indices_data[:8]:
+                emoji = "🟢" if idx['change'] >= 0 else "🔴"
+                indices_text.append(f"{idx['market']} {emoji} **{idx['name']}**: {idx['change']:+.2f}%")
+            fields.append({
+                "name": "📊 Performance Indices",
+                "value": "\n".join(indices_text),
+                "inline": False
+            })
+
+        # Meilleurs performers
+        if top_gainers:
+            gainers_text = [f"{d['market']} **{d['symbol']}**: +{d['change']:.2f}%"
+                          for d in top_gainers]
+            fields.append({
+                "name": "🏆 Stars de la Semaine",
+                "value": "\n".join(gainers_text),
+                "inline": True
+            })
+
+        # Pires performers
+        if top_losers:
+            losers_text = [f"{d['market']} **{d['symbol']}**: {d['change']:.2f}%"
+                         for d in top_losers]
+            fields.append({
+                "name": "💔 Déceptions de la Semaine",
+                "value": "\n".join(losers_text),
+                "inline": True
+            })
+
+        # Résumé
+        week_num = now.isocalendar()[1]
+        fields.append({
+            "name": f"{emoji_trend} Bilan Semaine {week_num}",
+            "value": f"Tendance globale: **{sentiment}**\nVariation moyenne indices: **{avg_change:+.2f}%**",
+            "inline": False
+        })
+
+        embed = {
+            "title": f"📅 BILAN HEBDOMADAIRE - Semaine {week_num}",
+            "description": f"Récapitulatif des marchés du {(now - timedelta(days=4)).strftime('%d/%m')} au {now.strftime('%d/%m/%Y')}",
+            "color": color,
+            "fields": fields,
+            "timestamp": datetime.utcnow().isoformat(),
+            "footer": {"text": "TDB Bot - Bon week-end ! 🎉"}
+        }
+
+        await self.send_message(embed=embed, channel=self.CHANNEL_ANNOUNCEMENTS)
+        logger.info("Discord: Bilan hebdomadaire envoyé")
+
     async def start_market_monitor(self):
         """Démarre le monitoring complet"""
         logger.info("Discord: Démarrage du monitoring des marchés")
@@ -554,6 +686,12 @@ class DiscordService:
                     elif not is_open and was_open:
                         logger.info(f"Discord: Marché {market['name']} fermé")
                         await self.send_market_close_alert(market_key)
+
+                        # Bilan hebdomadaire le vendredi à la fermeture du marché US
+                        if market_key == 'us' and now.weekday() == 4:  # Vendredi
+                            logger.info("Discord: Envoi du bilan hebdomadaire (vendredi)")
+                            await asyncio.sleep(5)  # Petit délai pour ne pas spammer
+                            await self.send_weekly_summary()
 
                     self._market_status[market_key] = is_open
 
