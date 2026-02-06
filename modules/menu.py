@@ -1430,3 +1430,7 @@ Pour rechercher un actif, envoyez:
 
             keyboard = [[InlineKeyboardButton("🔙 Retour", callback_data="menu_price_targets")]]
             await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
+
+        else:
+            # Callback non géré - afficher un message d'erreur
+            await query.answer("⚠️ Fonctionnalité en cours de développement", show_alert=True)

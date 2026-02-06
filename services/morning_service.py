@@ -196,10 +196,13 @@ class MorningService:
 
     # ===== EXPORT CSV =====
 
-    async def export_history_csv(self, telegram_id: int, period_days: int = 30) -> io.BytesIO:
+    async def export_history_csv(self, telegram_id: int, period_days: int = 30) -> Optional[io.BytesIO]:
         """Exporte l'historique des trades en CSV"""
         from_date = datetime.now() - timedelta(days=period_days)
         history = await db_manager.get_position_history(telegram_id, from_date=from_date.date())
+
+        if not history:
+            return None
 
         output = io.StringIO()
         writer = csv.writer(output)
@@ -214,19 +217,19 @@ class MorningService:
         # Donnees
         for pos in history:
             writer.writerow([
-                pos['opened_at'],
-                pos['closed_at'],
-                pos['asset_symbol'],
-                pos['market'],
-                pos['direction'],
-                f"${pos['entry_price']:,.2f}",
-                f"${pos['exit_price']:,.2f}",
-                f"${pos['amount']:,.2f}",
-                pos['leverage'],
-                f"${pos['pnl']:+,.2f}",
-                f"{pos['pnl_percent']:+.2f}%",
-                pos['duration_minutes'],
-                pos['close_reason']
+                pos.get('opened_at', ''),
+                pos.get('closed_at', ''),
+                pos.get('asset_symbol', ''),
+                pos.get('market', ''),
+                pos.get('direction', ''),
+                f"${pos.get('entry_price', 0):,.2f}",
+                f"${pos.get('exit_price', 0):,.2f}",
+                f"${pos.get('amount', 0):,.2f}",
+                pos.get('leverage', 1),
+                f"${pos.get('pnl', 0):+,.2f}",
+                f"{pos.get('pnl_percent', 0):+.2f}%",
+                pos.get('duration_minutes', 0),
+                pos.get('close_reason', '')
             ])
 
         # Statistiques

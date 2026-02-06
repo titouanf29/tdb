@@ -204,6 +204,15 @@ class DatabaseManager:
                 rows = await cursor.fetchall()
                 return [dict(row) for row in rows]
 
+    async def count_all_open_positions(self):
+        """Compte toutes les positions ouvertes (pour admin stats)"""
+        async with aiosqlite.connect(self.db_path) as db:
+            async with db.execute("""
+                SELECT COUNT(*) as total FROM positions WHERE status = 'open'
+            """) as cursor:
+                row = await cursor.fetchone()
+                return row[0] if row else 0
+
     async def update_position(self, position_code, **kwargs):
         """Met à jour une position"""
         if not kwargs:
@@ -699,14 +708,52 @@ class DatabaseManager:
                 row = await cursor.fetchone()
                 best_trade = row['best'] or 0
 
+            # Calculer le streak actuel (série de wins ou losses consécutifs)
+            current_streak = 0
+            async with db.execute("""
+                SELECT pnl FROM position_history
+                WHERE telegram_id = ?
+                ORDER BY closed_at DESC LIMIT 20
+            """, (telegram_id,)) as cursor:
+                trades = await cursor.fetchall()
+                if trades:
+                    first_result = trades[0]['pnl'] > 0  # True = win, False = loss
+                    for trade in trades:
+                        is_win = trade['pnl'] > 0
+                        if is_win == first_result:
+                            current_streak += 1 if first_result else -1
+                        else:
+                            break
+
+            # Vérifier les trades early (avant 9h) et night (après 22h)
+            has_early_trade = False
+            has_night_trade = False
+            async with db.execute("""
+                SELECT opened_at FROM position_history
+                WHERE telegram_id = ?
+                ORDER BY closed_at DESC LIMIT 50
+            """, (telegram_id,)) as cursor:
+                trades = await cursor.fetchall()
+                for trade in trades:
+                    try:
+                        opened_at = trade['opened_at']
+                        if opened_at:
+                            hour = int(opened_at[11:13]) if len(opened_at) > 13 else 0
+                            if hour < 9:
+                                has_early_trade = True
+                            if hour >= 22:
+                                has_night_trade = True
+                    except (ValueError, TypeError, IndexError):
+                        pass
+
             return {
                 'total_trades': total_trades,
                 'total_pnl': total_pnl,
                 'win_rate': win_rate,
                 'best_trade': best_trade,
-                'current_streak': 0,  # TODO: calculer
-                'has_early_trade': False,
-                'has_night_trade': False
+                'current_streak': current_streak,
+                'has_early_trade': has_early_trade,
+                'has_night_trade': has_night_trade
             }
 
     async def update_leaderboard_stats(self, telegram_id, stats):

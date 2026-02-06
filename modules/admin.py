@@ -197,13 +197,8 @@ class AdminModule:
             stats['active_24h'] = min(len(users), len(users) // 2 + 1)
             stats['new_7d'] = min(len(users), 5)
 
-            # Positions
-            for user in users[:50]:  # Limiter pour perf
-                try:
-                    positions = await db_manager.get_open_positions(user['telegram_id'])
-                    stats['open_positions'] += len(positions)
-                except Exception:
-                    pass
+            # Positions (requête unique au lieu de N+1)
+            stats['open_positions'] = await db_manager.count_all_open_positions()
 
             # Taille DB
             db_path = config.DATABASE_PATH

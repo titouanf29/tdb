@@ -510,29 +510,44 @@ class FeaturesModule:
         query = update.callback_query
         user_id = update.effective_user.id
 
-        parts = data.split("_")
-        format_type = parts[1]
-        days = int(parts[2])
+        try:
+            parts = data.split("_")
+            format_type = parts[1]
+            days = int(parts[2])
 
-        await query.edit_message_text("⏳ Generation en cours...")
+            await query.edit_message_text("⏳ Génération en cours...")
 
-        if format_type == "csv":
-            buf = await morning_service.export_history_csv(user_id, days)
-            await query.message.reply_document(
-                document=buf,
-                filename=f"trading_history_{days}d.csv",
-                caption=f"📄 Historique des {days} derniers jours"
+            if format_type == "csv":
+                buf = await morning_service.export_history_csv(user_id, days)
+                if buf:
+                    await query.message.reply_document(
+                        document=buf,
+                        filename=f"trading_history_{days}d.csv",
+                        caption=f"📄 Historique des {days} derniers jours"
+                    )
+                    await query.edit_message_text("✅ Export CSV généré avec succès !")
+                else:
+                    await query.edit_message_text("❌ Aucune donnée à exporter pour cette période.")
+
+            elif format_type == "pdf":
+                buf = await morning_service.export_history_pdf(user_id, days)
+                if buf:
+                    await query.message.reply_document(
+                        document=buf,
+                        filename=f"trading_report_{days}d.pdf",
+                        caption=f"📕 Rapport des {days} derniers jours"
+                    )
+                    await query.edit_message_text("✅ Export PDF généré avec succès !")
+                else:
+                    await query.edit_message_text(
+                        "❌ Export PDF non disponible.\n\n"
+                        "💡 Essayez l'export CSV ou vérifiez que vous avez des trades."
+                    )
+        except Exception as e:
+            await query.edit_message_text(
+                f"❌ Erreur lors de l'export.\n\n"
+                f"💡 Vérifiez que vous avez des trades sur cette période."
             )
-        elif format_type == "pdf":
-            buf = await morning_service.export_history_pdf(user_id, days)
-            if buf:
-                await query.message.reply_document(
-                    document=buf,
-                    filename=f"trading_report_{days}d.pdf",
-                    caption=f"📕 Rapport des {days} derniers jours"
-                )
-            else:
-                await query.message.reply_text("❌ Export PDF non disponible.")
 
     # ===== TEMPLATES =====
 
