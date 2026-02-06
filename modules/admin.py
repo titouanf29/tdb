@@ -429,14 +429,19 @@ class AdminModule:
             await update.message.reply_text("❌ Commande réservée aux administrateurs.")
             return
 
-        if not context.args:
+        # Récupérer le message complet avec les sauts de ligne
+        full_text = update.message.text
+        if full_text.startswith("/broadcast"):
+            message = full_text[10:].strip()  # Enlever "/broadcast" du début
+        else:
+            message = " ".join(context.args) if context.args else ""
+
+        if not message:
             await update.message.reply_text(
                 "❌ Usage: /broadcast <message>\n\n"
                 "Exemple: /broadcast Bonjour à tous !"
             )
             return
-
-        message = " ".join(context.args)
 
         if self.broadcast_service:
             result = await self.broadcast_service.send_custom_broadcast(message)
