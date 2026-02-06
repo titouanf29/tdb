@@ -74,12 +74,12 @@ class TDBBot:
     async def block_channel_commands(self, update, context):
         """Bloque les commandes et messages dans le canal d'annonces"""
         from utils.helpers import is_announcement_channel
+        from telegram.ext import ApplicationHandlerStop
 
         if update.effective_chat and is_announcement_channel(update.effective_chat.id):
             # Ignorer silencieusement les commandes dans le canal
             logger.debug(f"Message bloqué dans le canal d'annonces")
-            return True  # Stop propagation
-        return False  # Continue to other handlers
+            raise ApplicationHandlerStop()  # Stop propagation vers les autres handlers
 
     def setup_modules(self):
         """Configure tous les modules du bot"""
