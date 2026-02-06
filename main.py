@@ -71,11 +71,29 @@ class TDBBot:
             logger.error(f"❌ Erreur initialisation BDD: {e}")
             raise
 
+    async def block_channel_commands(self, update, context):
+        """Bloque les commandes et messages dans le canal d'annonces"""
+        from utils.helpers import is_announcement_channel
+
+        if update.effective_chat and is_announcement_channel(update.effective_chat.id):
+            # Ignorer silencieusement les commandes dans le canal
+            logger.debug(f"Message bloqué dans le canal d'annonces")
+            return True  # Stop propagation
+        return False  # Continue to other handlers
+
     def setup_modules(self):
         """Configure tous les modules du bot"""
         logger.info("Configuration des modules...")
 
         try:
+            # Handler prioritaire pour bloquer les commandes dans le canal d'annonces
+            # Groupe -1 = traité en premier
+            self.application.add_handler(
+                MessageHandler(filters.ALL, self.block_channel_commands),
+                group=-1
+            )
+            logger.info("✅ Filtre canal d'annonces activé (commandes bloquées)")
+
             # Modules principaux (créés en premier)
             self.market_module = MarketModule(self.application)
             logger.info("✅ Module Marché chargé")
