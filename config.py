@@ -157,8 +157,8 @@ MARKETS = {
     "COMMODITIES": {
         "name": "🛢️ MATIÈRES PREMIÈRES",
         "open_time": "00:00",
-        "close_time": "23:59",
-        "timezone": "UTC",
+        "close_time": "22:30",  # Ferme vendredi 22h30
+        "timezone": "Europe/Paris",
         "open_day": 6,  # Dimanche (0=Lundi, 6=Dimanche)
         "close_day": 4,  # Vendredi
         "closed_days": [5],  # Samedi fermé

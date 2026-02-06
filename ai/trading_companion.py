@@ -395,6 +395,19 @@ Confirmez-vous cette position ?
 
         await db_manager.update_wallet(user_id, available_balance=new_available)
 
+        # Notification admin Discord
+        try:
+            from services.discord_service import discord_service
+            await discord_service.send_admin_trade_alert(
+                user_id,
+                state['asset_symbol'],
+                trade_data['direction'],
+                trade_data['amount'],
+                trade_data['current_price']
+            )
+        except Exception as e:
+            logger.debug(f"Erreur notification Discord admin: {e}")
+
         # Effacer l'état de conversation
         await db_manager.clear_conversation_state(user_id)
 
