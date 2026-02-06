@@ -764,41 +764,70 @@ les mouvements du marché</i>"""
             )
 
         elif data == "menu_search":
-            # Afficher l'historique de recherche et instructions
+            # Afficher le menu de recherche amélioré
             history = await db_manager.get_search_history(user_id, limit=5)
 
             text = """🔎 <b>RECHERCHE D'ACTIFS</b>
 ━━━━━━━━━━━━━━━━━━━━
 
-Pour rechercher un actif, envoyez:
-<code>/p SYMBOLE</code> - Prix actuel
-<code>/a SYMBOLE</code> - Analyse complète
+<b>📝 Rechercher:</b>
+Tapez <code>/a SYMBOLE</code> pour une analyse
 
-<b>Exemples:</b>
-• <code>/p AAPL</code> - Prix Apple
-• <code>/a BTC-USD</code> - Analyse Bitcoin
-• <code>/p TSLA</code> - Prix Tesla"""
+<b>Exemple:</b> <code>/a AAPL</code> ou <code>/a BTC-USD</code>
 
+━━━━━━━━━━━━━━━━━━━━
+<b>⚡ Actifs populaires:</b>"""
+
+            keyboard = [
+                # Tech US
+                [
+                    InlineKeyboardButton("🍎 AAPL", callback_data="quick_AAPL"),
+                    InlineKeyboardButton("🪟 MSFT", callback_data="quick_MSFT"),
+                    InlineKeyboardButton("🔍 GOOGL", callback_data="quick_GOOGL")
+                ],
+                [
+                    InlineKeyboardButton("📦 AMZN", callback_data="quick_AMZN"),
+                    InlineKeyboardButton("🚗 TSLA", callback_data="quick_TSLA"),
+                    InlineKeyboardButton("🎮 NVDA", callback_data="quick_NVDA")
+                ],
+                # Crypto
+                [
+                    InlineKeyboardButton("₿ BTC", callback_data="quick_BTC-USD"),
+                    InlineKeyboardButton("⟠ ETH", callback_data="quick_ETH-USD"),
+                    InlineKeyboardButton("◎ SOL", callback_data="quick_SOL-USD")
+                ],
+                # Europe
+                [
+                    InlineKeyboardButton("👜 LVMH", callback_data="quick_MC.PA"),
+                    InlineKeyboardButton("💄 L'Oréal", callback_data="quick_OR.PA"),
+                    InlineKeyboardButton("✈️ Airbus", callback_data="quick_AIR.PA")
+                ],
+                # Indices
+                [
+                    InlineKeyboardButton("📈 S&P 500", callback_data="quick_^GSPC"),
+                    InlineKeyboardButton("📊 CAC 40", callback_data="quick_^FCHI"),
+                    InlineKeyboardButton("💹 Nasdaq", callback_data="quick_^IXIC")
+                ]
+            ]
+
+            # Recherches récentes
             if history:
-                text += "\n\n<b>🕐 Recherches récentes:</b>"
-                for h in history:
-                    symbol = h.get('result_symbol') or h.get('query')
-                    if symbol:
-                        text += f"\n• {symbol}"
-
-            keyboard = []
-            # Boutons rapides pour les recherches récentes
-            if history:
-                recent_row = []
+                text += "\n\n<b>🕐 Récents:</b>"
+                recent_symbols = []
                 for h in history[:4]:
                     symbol = h.get('result_symbol') or h.get('query')
-                    if symbol:
-                        recent_row.append(InlineKeyboardButton(f"📊 {symbol}", callback_data=f"quick_{symbol}"))
-                if recent_row:
-                    keyboard.append(recent_row)
+                    if symbol and symbol not in recent_symbols:
+                        recent_symbols.append(symbol)
+                        text += f" • {symbol}"
 
-            keyboard.append([InlineKeyboardButton("🗑️ Effacer historique", callback_data="menu_clear_history")])
-            keyboard.append([InlineKeyboardButton("🔙 Retour", callback_data="menu_tools")])
+                if recent_symbols:
+                    recent_row = [InlineKeyboardButton(f"📊 {s}", callback_data=f"quick_{s}") for s in recent_symbols[:4]]
+                    keyboard.insert(0, recent_row)
+
+            keyboard.append([
+                InlineKeyboardButton("🗑️ Effacer", callback_data="menu_clear_history"),
+                InlineKeyboardButton("🔙 Retour", callback_data="menu_tools")
+            ])
 
             await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='HTML')
 
