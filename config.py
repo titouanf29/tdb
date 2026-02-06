@@ -22,7 +22,12 @@ WELCOME_CHANNEL_ID = os.getenv("WELCOME_CHANNEL_ID", "")  # Ex: @TDBTradingChann
 COMMUNITY_GROUP_ID = os.getenv("COMMUNITY_GROUP_ID", "")
 
 # ===== DISCORD =====
+# Webhook principal (annonces marchés, ouverture/fermeture)
 DISCORD_WEBHOOK_URL = os.getenv("DISCORD_WEBHOOK_URL", "")
+# Webhook opportunités (alertes trading, signaux, setups)
+DISCORD_WEBHOOK_OPPORTUNITIES = os.getenv("DISCORD_WEBHOOK_OPPORTUNITIES", "")
+# Webhook actualités (news, calendrier économique)
+DISCORD_WEBHOOK_NEWS = os.getenv("DISCORD_WEBHOOK_NEWS", "")
 
 # ===== ONBOARDING =====
 # Étapes de l'onboarding

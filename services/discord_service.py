@@ -89,18 +89,50 @@ class DiscordService:
         'BTC-USD': 'crypto', 'ETH-USD': 'crypto', 'SOL-USD': 'crypto',
     }
 
+    # Types de canaux Discord
+    CHANNEL_ANNOUNCEMENTS = "announcements"  # Ouverture/fermeture marchés, broadcasts
+    CHANNEL_OPPORTUNITIES = "opportunities"  # Alertes trading, signaux, setups
+    CHANNEL_NEWS = "news"  # Actualités, calendrier économique
+
     def __init__(self):
-        self.webhook_url = getattr(config, 'DISCORD_WEBHOOK_URL', None) if config else None
-        self.enabled = bool(self.webhook_url)
+        # Webhooks pour chaque canal
+        self.webhooks = {
+            self.CHANNEL_ANNOUNCEMENTS: getattr(config, 'DISCORD_WEBHOOK_URL', None) if config else None,
+            self.CHANNEL_OPPORTUNITIES: getattr(config, 'DISCORD_WEBHOOK_OPPORTUNITIES', None) if config else None,
+            self.CHANNEL_NEWS: getattr(config, 'DISCORD_WEBHOOK_NEWS', None) if config else None,
+        }
+        # Fallback: utiliser le webhook principal si les autres ne sont pas configurés
+        main_webhook = self.webhooks[self.CHANNEL_ANNOUNCEMENTS]
+        for channel in [self.CHANNEL_OPPORTUNITIES, self.CHANNEL_NEWS]:
+            if not self.webhooks[channel]:
+                self.webhooks[channel] = main_webhook
+
+        self.webhook_url = main_webhook  # Rétro-compatibilité
+        self.enabled = bool(main_webhook)
         self._market_status = {}
         self._last_calendar_send = None
         self._last_prices = {}  # Pour tracker les variations
         self._alerted_today = set()  # Éviter les alertes répétées
 
-    async def send_message(self, content: str = None, embed: Optional[Dict] = None, username: str = "TDB Bot") -> bool:
-        """Envoie un message via webhook Discord"""
-        if not self.enabled:
-            logger.debug("Discord non configuré, message ignoré")
+    def get_webhook(self, channel: str = None) -> Optional[str]:
+        """Retourne le webhook pour un canal donné"""
+        if channel and channel in self.webhooks:
+            return self.webhooks[channel]
+        return self.webhook_url
+
+    async def send_message(self, content: str = None, embed: Optional[Dict] = None,
+                          username: str = "TDB Bot", channel: str = None) -> bool:
+        """Envoie un message via webhook Discord
+
+        Args:
+            content: Message texte
+            embed: Embed Discord (optionnel)
+            username: Nom du bot affiché
+            channel: Canal cible (announcements, opportunities, news)
+        """
+        webhook_url = self.get_webhook(channel)
+        if not webhook_url:
+            logger.debug(f"Discord: Webhook non configuré pour {channel or 'default'}")
             return False
 
         try:
@@ -111,15 +143,15 @@ class DiscordService:
                 payload["embeds"] = [embed]
 
             async with aiohttp.ClientSession() as session:
-                async with session.post(self.webhook_url, json=payload) as response:
+                async with session.post(webhook_url, json=payload) as response:
                     if response.status in [200, 204]:
-                        logger.info("Discord: Message envoyé avec succès")
+                        logger.info(f"Discord [{channel or 'main'}]: Message envoyé")
                         return True
                     else:
-                        logger.error(f"Discord: Erreur {response.status}")
+                        logger.error(f"Discord [{channel or 'main'}]: Erreur {response.status}")
                         return False
         except Exception as e:
-            logger.error(f"Discord: Erreur envoi - {e}")
+            logger.error(f"Discord [{channel or 'main'}]: Erreur envoi - {e}")
             return False
 
     async def _get_price_change(self, symbol: str) -> Optional[Dict]:
@@ -228,7 +260,7 @@ class DiscordService:
             "footer": {"text": "TDB Bot - Alertes Marchés"}
         }
 
-        await self.send_message(embed=embed)
+        await self.send_message(embed=embed, channel=self.CHANNEL_ANNOUNCEMENTS)
 
     async def send_market_close_alert(self, market_key: str):
         """Envoie une alerte de fermeture avec résumé complet"""
@@ -289,7 +321,7 @@ class DiscordService:
             "footer": {"text": "TDB Bot - Résumé Journalier"}
         }
 
-        await self.send_message(embed=embed)
+        await self.send_message(embed=embed, channel=self.CHANNEL_ANNOUNCEMENTS)
 
     async def send_morning_calendar(self):
         """Envoie le calendrier économique du matin"""
@@ -339,7 +371,7 @@ class DiscordService:
             "timestamp": datetime.utcnow().isoformat()
         }
 
-        success = await self.send_message(embed=embed)
+        success = await self.send_message(embed=embed, channel=self.CHANNEL_NEWS)
         if success:
             self._last_calendar_send = now
 
@@ -399,7 +431,7 @@ class DiscordService:
             "footer": {"text": "TDB Bot - Top Movers"}
         }
 
-        await self.send_message(embed=embed)
+        await self.send_message(embed=embed, channel=self.CHANNEL_OPPORTUNITIES)
 
     async def check_price_alerts(self):
         """Vérifie les alertes de prix ±3% (uniquement marchés ouverts)"""
@@ -464,7 +496,7 @@ class DiscordService:
             "footer": {"text": "TDB Bot - Alerte Prix (Marché ouvert)"}
         }
 
-        await self.send_message(embed=embed)
+        await self.send_message(embed=embed, channel=self.CHANNEL_OPPORTUNITIES)
 
     def _is_market_open(self, market_key: str) -> bool:
         """Vérifie si un marché est ouvert"""
