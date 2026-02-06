@@ -236,7 +236,27 @@ class MenuModule:
         try:
             # Lancer l'analyse via le module market
             if self.market_module:
-                await self.market_module.analyze_asset_for_callback(update, context, symbol)
+                # Trouver le marché du symbole
+                market_code = self.market_module.find_market_for_symbol(symbol)
+
+                # Si marché non trouvé, déduire par le format du symbole
+                if not market_code:
+                    if symbol.endswith('-USD'):
+                        market_code = 'CRYPTO'
+                    elif symbol.endswith('.PA'):
+                        market_code = 'EUROPE'
+                    elif symbol.startswith('^'):
+                        # Indices - deviner par le nom
+                        if symbol in ['^FCHI', '^GDAXI', '^FTSE']:
+                            market_code = 'EUROPE'
+                        elif symbol in ['^N225', '^HSI']:
+                            market_code = 'ASIA'
+                        else:
+                            market_code = 'USA'
+                    else:
+                        market_code = 'USA'  # Par défaut
+
+                await self.market_module.show_asset_detail(update, context, market_code, symbol)
             else:
                 keyboard = [[InlineKeyboardButton("🔙 Menu", callback_data="menu_main")]]
                 await query.edit_message_text(
@@ -598,7 +618,8 @@ les mouvements du marché</i>"""
                       "menu_ai_history", "menu_calendar", "menu_smart_alerts",
                       "menu_price_targets", "menu_earnings", "menu_scan_alerts",
                       "menu_alerts_config", "menu_calc_targets", "menu_alerts_help",
-                      "menu_watchlist_delete", "menu_watchlist_help"] or data.startswith("wl_del_"):
+                      "menu_watchlist_delete", "menu_watchlist_help",
+                      "menu_search", "menu_clear_history"] or data.startswith("wl_del_"):
             await self._handle_feature_callback(update, context, data)
 
     async def _handle_feature_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE, data: str):
