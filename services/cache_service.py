@@ -1,37 +1,58 @@
 """
 Service de Cache - Mise en cache des donnees marche
 Reduit les appels API et ameliore la latence
+Supporte la persistence disque pour données longue durée
 """
 import asyncio
+import logging
+import pickle
 from datetime import datetime, timedelta
 from typing import Any, Dict, Optional
+from pathlib import Path
 import hashlib
 import json
 
+logger = logging.getLogger(__name__)
+
 
 class CacheService:
-    """Service de cache en memoire avec TTL"""
+    """Service de cache en memoire avec TTL et persistence disque"""
 
-    def __init__(self):
+    def __init__(self, cache_dir: str = "data/cache"):
         self._cache: Dict[str, Dict[str, Any]] = {}
         self._stats = {
             'hits': 0,
             'misses': 0,
-            'sets': 0
+            'sets': 0,
+            'disk_hits': 0,
+            'disk_writes': 0,
+            'api_calls_saved': 0
         }
+        # Répertoire pour la persistence
+        self.cache_dir = Path(cache_dir)
+        self.cache_dir.mkdir(parents=True, exist_ok=True)
+
         # TTL par defaut selon le type de donnees (en secondes)
         self.ttl_config = {
             'price': 30,           # Prix: 30 secondes
             'quote': 60,           # Quote complete: 1 minute
             'history': 300,        # Historique: 5 minutes
+            'history_daily': 900,  # Historique daily: 15 minutes
             'chart': 300,          # Graphiques: 5 minutes
+            'info': 3600,          # Infos actif: 1 heure
+            'search': 1800,        # Recherche: 30 minutes
             'news': 600,           # News: 10 minutes
             'sentiment': 900,      # Sentiment: 15 minutes
             'fear_greed': 3600,    # Fear & Greed: 1 heure
             'heatmap': 300,        # Heatmap: 5 minutes
+            'calendar': 3600,      # Calendrier: 1 heure
             'default': 120         # Defaut: 2 minutes
         }
         self._cleanup_task = None
+
+        # Charger cache disque au démarrage
+        self._load_disk_cache()
+        logger.info(f"CacheService initialisé - {len(self._cache)} entrées en mémoire")
 
     def _generate_key(self, category: str, identifier: str, **params) -> str:
         """Genere une cle de cache unique"""
@@ -39,37 +60,101 @@ class CacheService:
         raw_key = f"{category}:{identifier}:{params_str}"
         return hashlib.md5(raw_key.encode()).hexdigest()
 
+    def _get_disk_path(self, key: str) -> Path:
+        """Retourne le chemin du fichier cache sur disque"""
+        return self.cache_dir / f"{key}.pkl"
+
+    def _load_disk_cache(self):
+        """Charge les entrées longue durée depuis le disque"""
+        loaded = 0
+        try:
+            for cache_file in self.cache_dir.glob("*.pkl"):
+                try:
+                    with open(cache_file, 'rb') as f:
+                        entry = pickle.load(f)
+                        if datetime.now() < entry.get('expires', datetime.min):
+                            key = cache_file.stem
+                            self._cache[key] = entry
+                            loaded += 1
+                            self._stats['disk_hits'] += 1
+                        else:
+                            cache_file.unlink()
+                except Exception:
+                    cache_file.unlink()
+        except Exception as e:
+            logger.warning(f"Erreur chargement cache disque: {e}")
+        if loaded > 0:
+            logger.debug(f"{loaded} entrées chargées depuis le disque")
+
+    def _save_to_disk(self, key: str, entry: Dict):
+        """Sauvegarde une entrée sur disque (TTL > 5min seulement)"""
+        try:
+            ttl_remaining = (entry['expires'] - datetime.now()).total_seconds()
+            if ttl_remaining > 300:  # Plus de 5 minutes
+                path = self._get_disk_path(key)
+                with open(path, 'wb') as f:
+                    pickle.dump(entry, f)
+                self._stats['disk_writes'] += 1
+        except Exception as e:
+            logger.debug(f"Erreur sauvegarde cache disque: {e}")
+
     async def get(self, category: str, identifier: str, **params) -> Optional[Any]:
-        """Recupere une valeur du cache"""
+        """Recupere une valeur du cache (memoire puis disque)"""
         key = self._generate_key(category, identifier, **params)
 
+        # Vérifier mémoire d'abord
         if key in self._cache:
             entry = self._cache[key]
             if datetime.now() < entry['expires']:
                 self._stats['hits'] += 1
+                self._stats['api_calls_saved'] += 1
                 return entry['value']
             else:
                 # Expire, supprimer
                 del self._cache[key]
+                disk_path = self._get_disk_path(key)
+                if disk_path.exists():
+                    disk_path.unlink()
+
+        # Vérifier disque si pas en mémoire
+        disk_path = self._get_disk_path(key)
+        if disk_path.exists():
+            try:
+                with open(disk_path, 'rb') as f:
+                    entry = pickle.load(f)
+                    if datetime.now() < entry.get('expires', datetime.min):
+                        self._cache[key] = entry
+                        self._stats['disk_hits'] += 1
+                        self._stats['api_calls_saved'] += 1
+                        return entry['value']
+                    else:
+                        disk_path.unlink()
+            except Exception:
+                disk_path.unlink()
 
         self._stats['misses'] += 1
         return None
 
     async def set(self, category: str, identifier: str, value: Any,
                   ttl: Optional[int] = None, **params):
-        """Stocke une valeur dans le cache"""
+        """Stocke une valeur dans le cache (memoire + disque si TTL long)"""
         key = self._generate_key(category, identifier, **params)
 
         if ttl is None:
             ttl = self.ttl_config.get(category, self.ttl_config['default'])
 
-        self._cache[key] = {
+        entry = {
             'value': value,
             'expires': datetime.now() + timedelta(seconds=ttl),
             'category': category,
             'identifier': identifier
         }
+
+        self._cache[key] = entry
         self._stats['sets'] += 1
+
+        # Sauvegarder sur disque si TTL > 5 minutes
+        self._save_to_disk(key, entry)
 
     async def delete(self, category: str, identifier: str, **params):
         """Supprime une entree du cache"""
@@ -101,8 +186,20 @@ class CacheService:
             'sets': self._stats['sets'],
             'hit_rate': f"{hit_rate:.1f}%",
             'entries': len(self._cache),
+            'disk_hits': self._stats['disk_hits'],
+            'disk_writes': self._stats['disk_writes'],
+            'api_calls_saved': self._stats['api_calls_saved'],
             'categories': self._count_by_category()
         }
+
+    def get_summary(self) -> str:
+        """Retourne un résumé textuel des stats"""
+        stats = self.get_stats()
+        return (
+            f"📊 Cache: {stats['entries']} entrées | "
+            f"Hit rate: {stats['hit_rate']} | "
+            f"API économisés: {stats['api_calls_saved']}"
+        )
 
     def _count_by_category(self) -> Dict[str, int]:
         """Compte les entrees par categorie"""

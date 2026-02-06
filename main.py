@@ -26,6 +26,7 @@ from services.morning_service import morning_service
 from services.notification_service import notification_service
 from services.cache_service import cache_service
 from services.discord_service import discord_service
+from services.backup_service import backup_service
 from modules.features import create_features_module
 from modules.welcome import create_welcome_module
 from telegram.ext import MessageHandler, filters, CallbackQueryHandler
@@ -227,7 +228,8 @@ class TDBBot:
         await morning_service.start(self.application.bot)
         await notification_service.start(self.application.bot)
         await cache_service.start_cleanup_task()
-        logger.info("✅ Services avancés démarrés (alertes, screener, social, morning, notifications, cache)")
+        await backup_service.start()
+        logger.info("✅ Services avancés démarrés (alertes, screener, social, morning, notifications, cache, backup)")
 
         # Démarrer le service Discord si configuré
         if discord_service.enabled:
@@ -262,6 +264,7 @@ class TDBBot:
         logger.info("  • Freemium + Parrainage")
         logger.info("  • Cache + Notifications Push")
         logger.info("  • Discord Alerts (Asie, Europe, US)")
+        logger.info("  • Backup Auto (quotidien 3h, hebdo dimanche 4h)")
         logger.info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
         logger.info("✅ Le bot est prêt à recevoir des commandes")
 
@@ -283,6 +286,7 @@ class TDBBot:
         morning_service.stop()
         await notification_service.stop()
         await cache_service.stop_cleanup_task()
+        backup_service.stop()
 
         if self.application:
             await self.application.updater.stop()
