@@ -907,13 +907,17 @@ class DiscordService:
                 paris_tz = pytz.timezone('Europe/Paris')
                 now = datetime.now(paris_tz)
 
-                # === Calendrier du matin (8h00) ===
+                # === Calendrier du matin (8h00) - sauf weekend ===
                 if now.hour == 8 and now.minute < 2:
-                    await self.send_morning_calendar()
+                    # Pas de calendrier economique le weekend (marches fermes)
+                    if now.weekday() < 5:
+                        await self.send_morning_calendar()
 
-                # === Rapport admin quotidien (9h00) ===
+                # === Rapport admin quotidien (9h00) - sauf weekend ===
                 if now.hour == 9 and now.minute < 2:
-                    await self.send_admin_daily_stats()
+                    # Pas de rapport admin le weekend (marches fermes)
+                    if now.weekday() < 5:
+                        await self.send_admin_daily_stats()
 
                 # === Alertes ouverture/fermeture marchés ===
                 for market_key, market in self.MARKETS.items():
@@ -943,9 +947,11 @@ class DiscordService:
                 if loop_count % 10 == 0:
                     await self.check_price_alerts()
 
-                # === Top Movers (12h et 18h) ===
+                # === Top Movers (12h et 18h) - sauf weekend ===
                 if now.hour in [12, 18] and now.minute < 2:
-                    await self.send_top_movers()
+                    # Pas de top movers le weekend (marches fermes)
+                    if now.weekday() < 5:
+                        await self.send_top_movers()
 
                 loop_count += 1
                 await asyncio.sleep(30)

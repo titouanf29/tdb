@@ -55,6 +55,13 @@ class MorningService:
 
                 # Verifier si c'est l'heure du resume (8h)
                 if now.hour == self.morning_hour and now.minute < 5:
+                    # Pas de resume le weekend (samedi=5, dimanche=6)
+                    # Les marches traditionnels sont fermes
+                    if now.weekday() >= 5:
+                        print(f"[MORNING] Weekend detecte ({now.strftime('%A')}) - pas de resume")
+                        await asyncio.sleep(3600)
+                        continue
+
                     await self._send_morning_summaries()
                     # Attendre 1h pour eviter les doublons
                     await asyncio.sleep(3600)
