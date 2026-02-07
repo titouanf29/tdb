@@ -1288,15 +1288,7 @@ class DatabaseManager:
                 return [dict(row) for row in await cursor.fetchall()]
 
     # ===== ALERTES - METHODES COMPLEMENTAIRES =====
-
-    async def get_all_active_alerts(self):
-        """Recupere toutes les alertes actives"""
-        async with aiosqlite.connect(self.db_path) as db:
-            db.row_factory = aiosqlite.Row
-            async with db.execute("""
-                SELECT * FROM price_alerts WHERE is_active = 1
-            """) as cursor:
-                return [dict(row) for row in await cursor.fetchall()]
+    # Note: get_all_active_alerts() est defini plus haut (ligne ~575)
 
     async def get_all_watchlist_items(self):
         """Recupere toutes les items de watchlist actifs"""
@@ -1307,16 +1299,7 @@ class DatabaseManager:
             """) as cursor:
                 return [dict(row) for row in await cursor.fetchall()]
 
-    async def deactivate_alert(self, alert_id):
-        """Desactive une alerte"""
-        async with aiosqlite.connect(self.db_path) as db:
-            await db.execute("""
-                UPDATE price_alerts
-                SET is_active = 0, triggered_at = CURRENT_TIMESTAMP, notification_sent = 1
-                WHERE id = ?
-            """, (alert_id,))
-            await db.commit()
-
+    # Note: deactivate_alert() supprime - utiliser mark_alert_triggered() a la place
 
     # ===== ONBOARDING =====
 

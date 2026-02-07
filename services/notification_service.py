@@ -95,7 +95,7 @@ class NotificationService:
 
             if triggered:
                 await self._send_price_alert(alert, current_price)
-                await db_manager.deactivate_alert(alert['id'])
+                await db_manager.mark_alert_triggered(alert['id'])
 
     async def _send_price_alert(self, alert: Dict, current_price: float):
         """Envoie une notification d'alerte de prix"""
