@@ -141,6 +141,12 @@ Quel montant souhaitez-vous investir ?
 
         # Vérifier le solde disponible
         wallet = await db_manager.get_wallet(user_id)
+        if not wallet:
+            await update.message.reply_text(
+                "❌ Erreur: Wallet introuvable. Tapez /start pour initialiser."
+            )
+            return
+
         if amount > wallet['available_balance']:
             await update.message.reply_text(
                 f"""
@@ -259,12 +265,13 @@ Souhaitez-vous utiliser un levier ?
 
         # Récupérer les paramètres utilisateur
         settings = await db_manager.get_user_settings(user_id)
-        if leverage > settings['max_leverage']:
+        max_leverage = settings['max_leverage'] if settings else 10
+        if leverage > max_leverage:
             await update.message.reply_text(
                 f"""
 ❌ **Levier trop élevé**
 
-Levier maximum autorisé dans vos paramètres: x{settings['max_leverage']}
+Levier maximum autorisé dans vos paramètres: x{max_leverage}
 
 Veuillez entrer un levier inférieur ou modifier vos paramètres.
 """,
@@ -325,6 +332,12 @@ Veuillez entrer un levier inférieur ou modifier vos paramètres.
 
         direction_emoji = EMOJI_DIRECTION[direction]
 
+        # Calcul du risque avec protection division par zero
+        if current_price and current_price > 0:
+            risk_amount = abs(current_price - stop_loss) * amount / current_price
+        else:
+            risk_amount = 0
+
         text = f"""
 📋 **CONFIRMATION DE POSITION**
 
@@ -345,7 +358,7 @@ Veuillez entrer un levier inférieur ou modifier vos paramètres.
 
 ━━━━━━━━━━━━━━━━━━━━
 
-⚠️ **Risque:** {format_price(abs(current_price - stop_loss) * amount / current_price)} USD
+⚠️ **Risque:** {format_price(risk_amount)} USD
 
 Confirmez-vous cette position ?
 """
