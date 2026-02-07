@@ -391,6 +391,10 @@ Confirmez-vous cette position ?
 
         # Déduire du wallet
         wallet = await db_manager.get_wallet(user_id)
+        if not wallet:
+            logger.error(f"Wallet introuvable pour user {user_id}")
+            return "❌ Erreur: Wallet introuvable. Tapez /start pour initialiser."
+
         new_available = wallet['available_balance'] - trade_data['amount']
 
         await db_manager.update_wallet(user_id, available_balance=new_available)

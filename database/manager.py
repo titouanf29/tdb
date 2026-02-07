@@ -300,7 +300,7 @@ class DatabaseManager:
                 position = await cursor.fetchone()
 
             if not position:
-                return
+                return (0, 0)  # Retourner tuple vide au lieu de None pour eviter crash
 
             # Calculer PnL
             # IMPORTANT: amount est en devise (ex: 1000 USD), pas en unites d'actif
@@ -309,6 +309,10 @@ class DatabaseManager:
             entry_price = position['entry_price']
             amount = position['amount']
             leverage = position['leverage']
+
+            # Protection contre division par zero
+            if not entry_price or entry_price <= 0:
+                return (0, 0)
 
             # Calcul du pourcentage de variation
             if direction == 'LONG':
@@ -438,7 +442,10 @@ class DatabaseManager:
                 if row:
                     result = dict(row)
                     if result['context']:
-                        result['context'] = json.loads(result['context'])
+                        try:
+                            result['context'] = json.loads(result['context'])
+                        except (json.JSONDecodeError, TypeError):
+                            result['context'] = {}  # Fallback si JSON corrompu
                     return result
                 return None
 
