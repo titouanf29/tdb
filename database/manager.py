@@ -1486,9 +1486,16 @@ class DatabaseManager:
     async def mark_bot_started(self, telegram_id):
         """Marque que l'utilisateur a démarré le bot"""
         async with aiosqlite.connect(self.db_path) as db:
-            await db.execute("""
+            # D'abord essayer de mettre à jour
+            cursor = await db.execute("""
                 UPDATE channel_welcome_messages SET started_bot = 1 WHERE telegram_id = ?
             """, (telegram_id,))
+            # Si aucune ligne affectée, créer l'entrée
+            if cursor.rowcount == 0:
+                await db.execute("""
+                    INSERT OR IGNORE INTO channel_welcome_messages (telegram_id, started_bot)
+                    VALUES (?, 1)
+                """, (telegram_id,))
             await db.commit()
 
     # ===== USAGE STATS =====

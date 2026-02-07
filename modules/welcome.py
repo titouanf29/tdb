@@ -155,41 +155,50 @@ class WelcomeModule:
         if chat.type != "private":
             return
 
-        # Vérifier s'il y a un deep link (ex: /start ref_ABC123)
-        referral_code = None
-        referred_by = None
-        if context.args and len(context.args) > 0:
-            arg = context.args[0]
-            if arg.startswith("ref_"):
-                referral_code = arg.replace("ref_", "")
-                referred_by = await db_manager.get_referral_by_code(referral_code)
-                if referred_by:
-                    await db_manager.increment_referrals(referred_by)
+        try:
+            # Vérifier s'il y a un deep link (ex: /start ref_ABC123)
+            referral_code = None
+            referred_by = None
+            if context.args and len(context.args) > 0:
+                arg = context.args[0]
+                if arg.startswith("ref_"):
+                    referral_code = arg.replace("ref_", "")
+                    referred_by = await db_manager.get_referral_by_code(referral_code)
+                    if referred_by:
+                        await db_manager.increment_referrals(referred_by)
 
-        # Créer l'utilisateur
-        await db_manager.create_user(
-            telegram_id=user.id,
-            username=user.username,
-            first_name=user.first_name,
-            last_name=user.last_name
-        )
+            # Créer l'utilisateur
+            await db_manager.create_user(
+                telegram_id=user.id,
+                username=user.username,
+                first_name=user.first_name,
+                last_name=user.last_name
+            )
 
-        # Créer l'abonnement
-        await db_manager.create_user_subscription(user.id)
+            # Créer l'abonnement
+            await db_manager.create_user_subscription(user.id)
 
-        # Marquer comme ayant démarré le bot
-        await db_manager.mark_bot_started(user.id)
+            # Marquer comme ayant démarré le bot
+            await db_manager.mark_bot_started(user.id)
 
-        # Vérifier si l'onboarding est déjà fait
-        onboarding = await db_manager.get_user_onboarding(user.id)
+            # Vérifier si l'onboarding est déjà fait
+            onboarding = await db_manager.get_user_onboarding(user.id)
 
-        if onboarding and onboarding.get('onboarding_completed'):
-            # Utilisateur existant - afficher le menu
-            await self.show_returning_user_message(update, context)
-        else:
-            # Nouveau utilisateur - démarrer l'onboarding
-            await db_manager.create_user_onboarding(user.id, referral_code, referred_by)
-            await self.show_welcome_message(update, context)
+            if onboarding and onboarding.get('onboarding_completed'):
+                # Utilisateur existant - afficher le menu
+                await self.show_returning_user_message(update, context)
+            else:
+                # Nouveau utilisateur - démarrer l'onboarding
+                await db_manager.create_user_onboarding(user.id, referral_code, referred_by)
+                await self.show_welcome_message(update, context)
+
+        except Exception as e:
+            print(f"[WELCOME] Erreur cmd_start pour user {user.id}: {e}")
+            # Afficher un message d'erreur convivial
+            await update.message.reply_text(
+                "⚠️ Une erreur est survenue lors de l'initialisation.\n"
+                "Veuillez réessayer avec /start ou contacter le support."
+            )
 
     async def show_welcome_message(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Affiche le message de bienvenue pour les nouveaux utilisateurs"""
