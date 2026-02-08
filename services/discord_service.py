@@ -131,6 +131,7 @@ class DiscordService:
         self._last_prices = {}  # Pour tracker les variations
         self._alerted_today = set()  # Éviter les alertes répétées
         self._last_stats_send = None  # Pour le rapport quotidien admin
+        self._last_sunday_preview = None  # Pour le message dimanche 18h
 
         # Telegram bot reference (set via set_telegram_bot)
         self.telegram_bot = None
@@ -748,6 +749,291 @@ class DiscordService:
         await self.send_message(embed=embed, channel=self.CHANNEL_ANNOUNCEMENTS)
         logger.info("Discord: Bilan hebdomadaire envoyé")
 
+    async def send_sunday_weekly_preview(self):
+        """
+        Envoie le mega message du dimanche soir (18h) pour lancer la semaine
+        - Résumé de la semaine passée
+        - Événements de la semaine à venir
+        - Actifs à surveiller
+        - Conseils et rappels
+        """
+        paris_tz = pytz.timezone('Europe/Paris')
+        now = datetime.now(paris_tz)
+
+        # Éviter les doublons
+        if self._last_sunday_preview and self._last_sunday_preview.date() == now.date():
+            return
+
+        # Calculer les dates
+        week_num = now.isocalendar()[1] + 1  # Semaine à venir
+        lundi = now + timedelta(days=1)
+        vendredi = now + timedelta(days=5)
+
+        # ===== 1. BILAN SEMAINE PASSÉE =====
+        indices_data = []
+        all_weekly_data = []
+
+        for market_key, market in self.MARKETS.items():
+            # Indices
+            for symbol in market.get('indices', []):
+                data = await self._get_weekly_change(symbol)
+                if data:
+                    name = market.get('index_names', {}).get(symbol, symbol)
+                    data['name'] = name
+                    data['market'] = market['emoji']
+                    indices_data.append(data)
+
+            # Top assets
+            for symbol in market.get('top_assets', [])[:6]:
+                data = await self._get_weekly_change(symbol)
+                if data:
+                    data['market'] = market['emoji']
+                    all_weekly_data.append(data)
+
+        # Trier
+        indices_data.sort(key=lambda x: x['change'], reverse=True)
+        sorted_assets = sorted(all_weekly_data, key=lambda x: x['change'], reverse=True)
+
+        # Top performers
+        top_gainers = [d for d in sorted_assets[:5] if d['change'] > 0]
+        top_losers = [d for d in sorted_assets[-5:] if d['change'] < 0]
+        top_losers.reverse()
+
+        # Tendance générale
+        avg_change = sum(d['change'] for d in indices_data) / len(indices_data) if indices_data else 0
+
+        if avg_change > 1:
+            sentiment = "🐂 BULLISH"
+            sentiment_text = "Les marchés étaient en hausse"
+            color = 0x27AE60
+        elif avg_change < -1:
+            sentiment = "🐻 BEARISH"
+            sentiment_text = "Les marchés étaient en baisse"
+            color = 0xE74C3C
+        else:
+            sentiment = "😐 NEUTRE"
+            sentiment_text = "Les marchés étaient stables"
+            color = 0x3498DB
+
+        # ===== 2. ÉVÉNEMENTS SEMAINE À VENIR =====
+        events_text = await self._get_week_events()
+
+        # ===== 3. ACTIFS À SURVEILLER =====
+        # Les plus volatils + ceux avec des earnings
+        watchlist = await self._get_watchlist_for_week(sorted_assets)
+
+        # ===== CONSTRUIRE L'EMBED DISCORD =====
+        fields = []
+
+        # Bilan semaine passée - Indices
+        if indices_data:
+            indices_text = []
+            for idx in indices_data[:6]:
+                emoji = "🟢" if idx['change'] >= 0 else "🔴"
+                indices_text.append(f"{idx['market']} {emoji} **{idx['name']}**: {idx['change']:+.2f}%")
+            fields.append({
+                "name": "📊 BILAN SEMAINE PASSÉE - Indices",
+                "value": "\n".join(indices_text),
+                "inline": False
+            })
+
+        # Stars et déceptions
+        if top_gainers:
+            gainers_text = [f"{d['market']} **{d['symbol']}**: +{d['change']:.2f}%" for d in top_gainers[:4]]
+            fields.append({
+                "name": "🏆 Stars de la Semaine",
+                "value": "\n".join(gainers_text),
+                "inline": True
+            })
+
+        if top_losers:
+            losers_text = [f"{d['market']} **{d['symbol']}**: {d['change']:.2f}%" for d in top_losers[:4]]
+            fields.append({
+                "name": "📉 Déceptions",
+                "value": "\n".join(losers_text),
+                "inline": True
+            })
+
+        # Événements de la semaine
+        fields.append({
+            "name": "📅 ÉVÉNEMENTS SEMAINE À VENIR",
+            "value": events_text or "Pas d'événement majeur prévu",
+            "inline": False
+        })
+
+        # Actifs à surveiller
+        if watchlist:
+            fields.append({
+                "name": "🎯 ACTIFS À SURVEILLER",
+                "value": watchlist,
+                "inline": False
+            })
+
+        # Horaires clés
+        fields.append({
+            "name": "⏰ HORAIRES CLÉS (heure Paris)",
+            "value": "🇯🇵 **Asie**: 02h00 - 08h00\n🇪🇺 **Europe**: 09h00 - 17h30\n🇺🇸 **US**: 15h30 - 22h00\n₿ **Crypto**: 24h/24",
+            "inline": True
+        })
+
+        # Conseils
+        fields.append({
+            "name": "💡 RAPPELS",
+            "value": "• Définissez vos alertes de prix\n• Respectez votre plan de trading\n• Gérez votre risque (Stop Loss)\n• Ne tradez pas sous l'émotion",
+            "inline": True
+        })
+
+        embed = {
+            "title": f"🚀 PRÉPARATION SEMAINE {week_num}",
+            "description": f"**{lundi.strftime('%d/%m')} → {vendredi.strftime('%d/%m/%Y')}**\n\n{sentiment} — {sentiment_text} la semaine dernière ({avg_change:+.2f}%)\n\n━━━━━━━━━━━━━━━━━━━━",
+            "color": color,
+            "fields": fields,
+            "timestamp": datetime.utcnow().isoformat(),
+            "footer": {"text": "TDB Bot • Bonne semaine de trading ! 📈"}
+        }
+
+        # Envoyer sur Discord
+        await self.send_message(embed=embed, channel=self.CHANNEL_ANNOUNCEMENTS)
+        logger.info("Discord: Preview hebdomadaire dimanche envoyé")
+
+        # Envoyer sur Telegram
+        await self._send_telegram_weekly_preview(
+            week_num, lundi, vendredi, sentiment, sentiment_text, avg_change,
+            indices_data, top_gainers, top_losers, events_text, watchlist
+        )
+
+        # Marquer comme envoyé pour éviter les doublons
+        self._last_sunday_preview = now
+
+    async def _get_week_events(self) -> str:
+        """Récupère les événements économiques de la semaine à venir"""
+        events = []
+
+        # Événements récurrents importants
+        events.append("🇺🇸 **Lundi**: Ouverture marchés US")
+        events.append("🇺🇸 **Mercredi**: Stocks pétrole (16h30)")
+        events.append("🇺🇸 **Jeudi**: Inscriptions chômage (14h30)")
+
+        # Essayer de récupérer le calendrier économique
+        try:
+            from services.economic_calendar import economic_calendar
+            week_events = await economic_calendar.get_week_events()
+            if week_events:
+                for event in week_events[:5]:
+                    impact_emoji = {'high': '🔴', 'medium': '🟠', 'low': '🟢'}.get(event.get('impact', 'low'), '⚪')
+                    events.append(f"{impact_emoji} **{event.get('date', '')}**: {event.get('name', '')}")
+        except Exception as e:
+            logger.debug(f"Erreur récupération événements: {e}")
+
+        return "\n".join(events[:8]) if events else None
+
+    async def _get_watchlist_for_week(self, sorted_assets: list) -> str:
+        """Génère la watchlist des actifs à surveiller"""
+        watchlist_items = []
+
+        # Les plus volatils (gros mouvements la semaine passée)
+        volatile = [a for a in sorted_assets if abs(a.get('change', 0)) > 5][:3]
+        for asset in volatile:
+            direction = "📈" if asset['change'] > 0 else "📉"
+            watchlist_items.append(f"{asset['market']} **{asset['symbol']}** {direction} Forte volatilité ({asset['change']:+.1f}%)")
+
+        # Toujours surveiller les majeurs
+        majors = [
+            ("🇺🇸", "NVDA", "Leader IA/Tech"),
+            ("🇺🇸", "TSLA", "Volatilité élevée"),
+            ("₿", "BTC-USD", "Crypto de référence"),
+            ("🇪🇺", "^FCHI", "Indice CAC 40"),
+        ]
+
+        for emoji, symbol, reason in majors[:4 - len(volatile)]:
+            watchlist_items.append(f"{emoji} **{symbol}** — {reason}")
+
+        return "\n".join(watchlist_items) if watchlist_items else None
+
+    async def _send_telegram_weekly_preview(self, week_num, lundi, vendredi, sentiment,
+                                           sentiment_text, avg_change, indices_data,
+                                           top_gainers, top_losers, events_text, watchlist):
+        """Envoie le message hebdomadaire sur Telegram"""
+        if not self.telegram_bot or not self.telegram_channel_id:
+            logger.debug("Telegram non configuré pour weekly preview")
+            return
+
+        try:
+            text = f"""🚀 <b>PRÉPARATION SEMAINE {week_num}</b>
+━━━━━━━━━━━━━━━━━━━━
+📆 <b>{lundi.strftime('%d/%m')} → {vendredi.strftime('%d/%m/%Y')}</b>
+
+{sentiment} — {sentiment_text} ({avg_change:+.2f}%)
+
+━━━━━━━━━━━━━━━━━━━━
+📊 <b>BILAN SEMAINE PASSÉE</b>
+
+"""
+            # Indices
+            if indices_data:
+                for idx in indices_data[:5]:
+                    emoji = "🟢" if idx['change'] >= 0 else "🔴"
+                    text += f"{idx['market']} {emoji} <b>{idx['name']}</b>: {idx['change']:+.2f}%\n"
+                text += "\n"
+
+            # Stars
+            if top_gainers:
+                text += "🏆 <b>Stars:</b> "
+                text += ", ".join([f"{d['symbol']} (+{d['change']:.1f}%)" for d in top_gainers[:3]])
+                text += "\n"
+
+            # Déceptions
+            if top_losers:
+                text += "📉 <b>Déceptions:</b> "
+                text += ", ".join([f"{d['symbol']} ({d['change']:.1f}%)" for d in top_losers[:3]])
+                text += "\n"
+
+            text += """
+━━━━━━━━━━━━━━━━━━━━
+📅 <b>SEMAINE À VENIR</b>
+
+"""
+            if events_text:
+                # Convertir markdown en HTML
+                events_html = events_text.replace("**", "<b>").replace("**", "</b>")
+                text += events_html + "\n"
+
+            text += """
+━━━━━━━━━━━━━━━━━━━━
+🎯 <b>À SURVEILLER</b>
+
+"""
+            if watchlist:
+                watchlist_html = watchlist.replace("**", "<b>").replace("**", "</b>")
+                text += watchlist_html + "\n"
+
+            text += """
+━━━━━━━━━━━━━━━━━━━━
+⏰ <b>HORAIRES (Paris)</b>
+🇯🇵 Asie: 02h-08h | 🇪🇺 Europe: 09h-17h30
+🇺🇸 US: 15h30-22h | ₿ Crypto: 24h/24
+
+━━━━━━━━━━━━━━━━━━━━
+💡 <b>RAPPELS</b>
+• Définissez vos alertes de prix
+• Respectez votre plan de trading
+• Gérez votre risque (Stop Loss)
+• Ne tradez pas sous l'émotion
+
+━━━━━━━━━━━━━━━━━━━━
+<i>Bonne semaine de trading ! 📈</i>
+"""
+
+            await self.telegram_bot.send_message(
+                chat_id=self.telegram_channel_id,
+                text=text,
+                parse_mode='HTML'
+            )
+            logger.info("Telegram: Preview hebdomadaire dimanche envoyé")
+
+        except Exception as e:
+            logger.error(f"Erreur envoi Telegram weekly preview: {e}")
+
     # ===== ADMIN PANEL DISCORD =====
 
     async def send_admin_notification(self, title: str, message: str, color: int = 0x3498DB,
@@ -952,6 +1238,11 @@ class DiscordService:
                     # Pas de top movers le weekend (marches fermes)
                     if now.weekday() < 5:
                         await self.send_top_movers()
+
+                # === MEGA MESSAGE DIMANCHE 18h - Préparation semaine ===
+                if now.weekday() == 6 and now.hour == 18 and now.minute < 2:
+                    logger.info("Discord: Envoi du message de préparation de semaine (dimanche 18h)")
+                    await self.send_sunday_weekly_preview()
 
                 loop_count += 1
                 await asyncio.sleep(30)
