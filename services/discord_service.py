@@ -11,6 +11,11 @@ import pytz
 import yfinance as yf
 
 try:
+    from groq import Groq
+except ImportError:
+    Groq = None
+
+try:
     import config
 except ImportError:
     config = None
@@ -815,12 +820,13 @@ class DiscordService:
             sentiment_text = "Les marchés étaient stables"
             color = 0x3498DB
 
-        # ===== 2. ÉVÉNEMENTS SEMAINE À VENIR =====
-        events_text = await self._get_week_events()
+        # ===== 2. ANALYSE IA =====
+        ai_analysis = await self._generate_ai_weekly_analysis(
+            indices_data, top_gainers, top_losers, avg_change
+        )
 
-        # ===== 3. ACTIFS À SURVEILLER =====
-        # Les plus volatils + ceux avec des earnings
-        watchlist = await self._get_watchlist_for_week(sorted_assets)
+        # ===== 3. ÉVÉNEMENTS SEMAINE À VENIR =====
+        events_text = await self._get_week_events()
 
         # ===== CONSTRUIRE L'EMBED DISCORD =====
         fields = []
@@ -832,16 +838,16 @@ class DiscordService:
                 emoji = "🟢" if idx['change'] >= 0 else "🔴"
                 indices_text.append(f"{idx['market']} {emoji} **{idx['name']}**: {idx['change']:+.2f}%")
             fields.append({
-                "name": "📊 BILAN SEMAINE PASSÉE - Indices",
+                "name": "📊 PERFORMANCE INDICES",
                 "value": "\n".join(indices_text),
                 "inline": False
             })
 
-        # Stars et déceptions
+        # Stars et déceptions côte à côte
         if top_gainers:
             gainers_text = [f"{d['market']} **{d['symbol']}**: +{d['change']:.2f}%" for d in top_gainers[:4]]
             fields.append({
-                "name": "🏆 Stars de la Semaine",
+                "name": "🏆 Top Performers",
                 "value": "\n".join(gainers_text),
                 "inline": True
             })
@@ -849,37 +855,62 @@ class DiscordService:
         if top_losers:
             losers_text = [f"{d['market']} **{d['symbol']}**: {d['change']:.2f}%" for d in top_losers[:4]]
             fields.append({
-                "name": "📉 Déceptions",
+                "name": "📉 Sous-Performers",
                 "value": "\n".join(losers_text),
                 "inline": True
             })
 
+        # ANALYSE IA - Le coeur du message
+        if ai_analysis:
+            # Découper l'analyse en sections si trop longue
+            if len(ai_analysis) > 1024:
+                # Discord limite à 1024 caractères par field
+                parts = ai_analysis.split("\n\n")
+                current_part = ""
+                part_num = 1
+                for part in parts:
+                    if len(current_part) + len(part) < 1000:
+                        current_part += part + "\n\n"
+                    else:
+                        if current_part:
+                            fields.append({
+                                "name": f"🤖 ANALYSE IA" if part_num == 1 else "​",  # Caractère invisible pour continuer
+                                "value": current_part.strip(),
+                                "inline": False
+                            })
+                            part_num += 1
+                        current_part = part + "\n\n"
+                if current_part:
+                    fields.append({
+                        "name": "​" if part_num > 1 else "🤖 ANALYSE IA",
+                        "value": current_part.strip(),
+                        "inline": False
+                    })
+            else:
+                fields.append({
+                    "name": "🤖 ANALYSE IA",
+                    "value": ai_analysis,
+                    "inline": False
+                })
+
         # Événements de la semaine
         fields.append({
-            "name": "📅 ÉVÉNEMENTS SEMAINE À VENIR",
+            "name": "📅 ÉVÉNEMENTS CLÉS",
             "value": events_text or "Pas d'événement majeur prévu",
             "inline": False
         })
 
-        # Actifs à surveiller
-        if watchlist:
-            fields.append({
-                "name": "🎯 ACTIFS À SURVEILLER",
-                "value": watchlist,
-                "inline": False
-            })
-
         # Horaires clés
         fields.append({
-            "name": "⏰ HORAIRES CLÉS (heure Paris)",
-            "value": "🇯🇵 **Asie**: 02h00 - 08h00\n🇪🇺 **Europe**: 09h00 - 17h30\n🇺🇸 **US**: 15h30 - 22h00\n₿ **Crypto**: 24h/24",
+            "name": "⏰ HORAIRES (Paris)",
+            "value": "🇯🇵 Asie: 02h-08h\n🇪🇺 Europe: 09h-17h30\n🇺🇸 US: 15h30-22h\n₿ Crypto: 24h/24",
             "inline": True
         })
 
-        # Conseils
+        # Rappels
         fields.append({
             "name": "💡 RAPPELS",
-            "value": "• Définissez vos alertes de prix\n• Respectez votre plan de trading\n• Gérez votre risque (Stop Loss)\n• Ne tradez pas sous l'émotion",
+            "value": "• Définir ses alertes\n• Respecter son plan\n• Gérer le risque (SL)\n• Pas d'émotion",
             "inline": True
         })
 
@@ -899,11 +930,90 @@ class DiscordService:
         # Envoyer sur Telegram
         await self._send_telegram_weekly_preview(
             week_num, lundi, vendredi, sentiment, sentiment_text, avg_change,
-            indices_data, top_gainers, top_losers, events_text, watchlist
+            indices_data, top_gainers, top_losers, events_text, ai_analysis
         )
 
         # Marquer comme envoyé pour éviter les doublons
         self._last_sunday_preview = now
+
+    async def _generate_ai_weekly_analysis(self, indices_data: list, top_gainers: list,
+                                           top_losers: list, avg_change: float) -> Optional[str]:
+        """Génère une vraie analyse IA de la semaine avec Groq"""
+        if not Groq or not config or not config.GROQ_API_KEY:
+            logger.debug("Groq non disponible pour l'analyse hebdo")
+            return None
+
+        try:
+            client = Groq(api_key=config.GROQ_API_KEY)
+
+            # Construire le contexte des données
+            indices_summary = "\n".join([
+                f"- {idx['name']}: {idx['change']:+.2f}%"
+                for idx in indices_data[:6]
+            ]) if indices_data else "Données non disponibles"
+
+            gainers_summary = ", ".join([
+                f"{g['symbol']} (+{g['change']:.1f}%)"
+                for g in top_gainers[:5]
+            ]) if top_gainers else "Aucun"
+
+            losers_summary = ", ".join([
+                f"{l['symbol']} ({l['change']:.1f}%)"
+                for l in top_losers[:5]
+            ]) if top_losers else "Aucun"
+
+            prompt = f"""Tu es un analyste financier professionnel. Voici les données de la semaine boursière qui vient de se terminer:
+
+PERFORMANCE DES INDICES:
+{indices_summary}
+
+VARIATION MOYENNE: {avg_change:+.2f}%
+
+TOP PERFORMERS: {gainers_summary}
+PIRES PERFORMERS: {losers_summary}
+
+Génère une analyse CONCISE et PROFESSIONNELLE pour préparer la semaine à venir.
+
+STRUCTURE EXACTE À SUIVRE (garde ce format):
+
+📊 ANALYSE DE LA SEMAINE PASSÉE
+[2-3 phrases analysant pourquoi les marchés ont évolué ainsi, contexte macro]
+
+🔮 PERSPECTIVES SEMAINE À VENIR
+[2-3 phrases sur ce qu'on peut attendre, niveaux clés à surveiller]
+
+⚠️ POINTS DE VIGILANCE
+• [Point 1]
+• [Point 2]
+• [Point 3]
+
+🎯 ACTIFS À PRIVILÉGIER
+• [Actif 1 avec raison courte]
+• [Actif 2 avec raison courte]
+
+RÈGLES:
+- Reste factuel et professionnel
+- Pas de conseil d'investissement direct
+- Maximum 250 mots
+- En français
+- Utilise les emojis indiqués"""
+
+            chat_completion = client.chat.completions.create(
+                messages=[
+                    {"role": "system", "content": "Tu es un analyste financier expert. Tes analyses sont concises, professionnelles et basées sur les données."},
+                    {"role": "user", "content": prompt}
+                ],
+                model="llama-3.3-70b-versatile",
+                temperature=0.7,
+                max_tokens=800,
+            )
+
+            response = chat_completion.choices[0].message.content
+            return response.strip() if response else None
+
+        except Exception as e:
+            logger.error(f"Erreur génération analyse IA hebdo: {e}")
+            return None
 
     async def _get_week_events(self) -> str:
         """Récupère les événements économiques de la semaine à venir"""
@@ -952,7 +1062,7 @@ class DiscordService:
 
     async def _send_telegram_weekly_preview(self, week_num, lundi, vendredi, sentiment,
                                            sentiment_text, avg_change, indices_data,
-                                           top_gainers, top_losers, events_text, watchlist):
+                                           top_gainers, top_losers, events_text, ai_analysis):
         """Envoie le message hebdomadaire sur Telegram"""
         if not self.telegram_bot or not self.telegram_channel_id:
             logger.debug("Telegram non configuré pour weekly preview")
@@ -966,7 +1076,7 @@ class DiscordService:
 {sentiment} — {sentiment_text} ({avg_change:+.2f}%)
 
 ━━━━━━━━━━━━━━━━━━━━
-📊 <b>BILAN SEMAINE PASSÉE</b>
+📊 <b>PERFORMANCE INDICES</b>
 
 """
             # Indices
@@ -978,19 +1088,30 @@ class DiscordService:
 
             # Stars
             if top_gainers:
-                text += "🏆 <b>Stars:</b> "
+                text += "🏆 <b>Top:</b> "
                 text += ", ".join([f"{d['symbol']} (+{d['change']:.1f}%)" for d in top_gainers[:3]])
                 text += "\n"
 
             # Déceptions
             if top_losers:
-                text += "📉 <b>Déceptions:</b> "
+                text += "📉 <b>Flop:</b> "
                 text += ", ".join([f"{d['symbol']} ({d['change']:.1f}%)" for d in top_losers[:3]])
                 text += "\n"
 
+            # ANALYSE IA - Le coeur du message
+            if ai_analysis:
+                text += "\n━━━━━━━━━━━━━━━━━━━━\n"
+                text += "🤖 <b>ANALYSE IA</b>\n\n"
+                # Convertir markdown en HTML et nettoyer
+                analysis_html = ai_analysis.replace("**", "").replace("*", "")
+                # Limiter la longueur pour Telegram (4096 chars max)
+                if len(analysis_html) > 2000:
+                    analysis_html = analysis_html[:1997] + "..."
+                text += analysis_html + "\n"
+
             text += """
 ━━━━━━━━━━━━━━━━━━━━
-📅 <b>SEMAINE À VENIR</b>
+📅 <b>ÉVÉNEMENTS CLÉS</b>
 
 """
             if events_text:
@@ -1000,25 +1121,9 @@ class DiscordService:
 
             text += """
 ━━━━━━━━━━━━━━━━━━━━
-🎯 <b>À SURVEILLER</b>
-
-"""
-            if watchlist:
-                watchlist_html = watchlist.replace("**", "<b>").replace("**", "</b>")
-                text += watchlist_html + "\n"
-
-            text += """
-━━━━━━━━━━━━━━━━━━━━
 ⏰ <b>HORAIRES (Paris)</b>
 🇯🇵 Asie: 02h-08h | 🇪🇺 Europe: 09h-17h30
 🇺🇸 US: 15h30-22h | ₿ Crypto: 24h/24
-
-━━━━━━━━━━━━━━━━━━━━
-💡 <b>RAPPELS</b>
-• Définissez vos alertes de prix
-• Respectez votre plan de trading
-• Gérez votre risque (Stop Loss)
-• Ne tradez pas sous l'émotion
 
 ━━━━━━━━━━━━━━━━━━━━
 <i>Bonne semaine de trading ! 📈</i>
