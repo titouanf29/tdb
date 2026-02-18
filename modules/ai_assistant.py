@@ -144,6 +144,10 @@ class AIAssistantModule:
         if not self.is_chat_active(user_id):
             return False  # Pas en mode chat, laisser les autres handlers traiter
 
+        # Ne pas intercepter si l'utilisateur est en mode recherche manuelle
+        if context.user_data.get('waiting_for_search'):
+            return False
+
         logger.debug(f"User {user_id} en mode chat, traitement du message...")
 
         # Verifier la limite journaliere

@@ -34,11 +34,12 @@ class NotificationService:
         self.running = True
 
         # Demarrer les taches de verification
-        self._price_check_task = asyncio.create_task(self._price_alert_loop())
+        # NOTE: Les alertes de prix sont gerees par alerts_service.py pour eviter les doublons
+        # self._price_check_task = asyncio.create_task(self._price_alert_loop())
         self._volatility_check_task = asyncio.create_task(self._volatility_alert_loop())
         self._sltp_check_task = asyncio.create_task(self._sltp_check_loop())
 
-        print("✅ NotificationService started")
+        print("✅ NotificationService started (volatility + SL/TP)")
 
     async def stop(self):
         """Arrete le service"""
@@ -94,7 +95,7 @@ class NotificationService:
 
             if triggered:
                 await self._send_price_alert(alert, current_price)
-                await db_manager.deactivate_alert(alert['id'])
+                await db_manager.mark_alert_triggered(alert['id'])
 
     async def _send_price_alert(self, alert: Dict, current_price: float):
         """Envoie une notification d'alerte de prix"""

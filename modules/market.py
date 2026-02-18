@@ -611,8 +611,23 @@ Revenez plus tard ou essayez un autre marché.
         query = update.callback_query
         await query.answer()
 
-        # Vérifier si on a déjà les données en cache
-        cached_analysis = context.user_data.get(f'asset_detail_{symbol}')
+        # Nettoyer le cache ancien (>10 min) pour éviter les fuites mémoire
+        import time
+        cache_keys = [k for k in context.user_data.keys() if k.startswith('asset_detail_')]
+        for key in cache_keys:
+            cached = context.user_data.get(key)
+            if cached and isinstance(cached, dict):
+                cache_time = cached.get('_cache_time', 0)
+                if time.time() - cache_time > 600:  # 10 minutes
+                    del context.user_data[key]
+
+        # Vérifier si on a déjà les données en cache (valide)
+        cached_data = context.user_data.get(f'asset_detail_{symbol}')
+        cached_analysis = None
+        if cached_data and isinstance(cached_data, dict):
+            cache_time = cached_data.get('_cache_time', 0)
+            if time.time() - cache_time < 300:  # Cache valide 5 min
+                cached_analysis = cached_data
 
         if not cached_analysis:
             # Animation de chargement avec progression
@@ -641,7 +656,8 @@ Revenez plus tard ou essayez un autre marché.
             await loading.next_step()  # Étape: Génération du rapport
             await asyncio.sleep(0.3)
 
-            # Sauvegarder dans le contexte
+            # Sauvegarder dans le contexte avec timestamp
+            analysis['_cache_time'] = time.time()
             context.user_data[f'asset_detail_{symbol}'] = analysis
         else:
             analysis = cached_analysis

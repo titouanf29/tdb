@@ -2,8 +2,9 @@
 Module Menu Principal - Hub central du bot TDB
 """
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import ContextTypes, CallbackQueryHandler, CommandHandler, filters
+from telegram.ext import ContextTypes, CallbackQueryHandler, CommandHandler, MessageHandler, filters
 import config
+import difflib
 
 class MenuModule:
     """Gère le menu principal du bot"""
@@ -36,6 +37,13 @@ class MenuModule:
         self.app.add_handler(CallbackQueryHandler(self.handle_quick_favorite, pattern="^quick_"))
         # Handler pour la gestion des favoris épinglés
         self.app.add_handler(CallbackQueryHandler(self.handle_pin_callback, pattern="^pin_"))
+        # Handler pour la demande d'ajout d'actif
+        self.app.add_handler(CallbackQueryHandler(self.handle_asset_request_callback, pattern="^asset_request_"))
+        # Handler pour la recherche manuelle (groupe 3 = après TradingCompanion/0, Wallet/1, AI/2)
+        self.app.add_handler(MessageHandler(
+            filters.TEXT & ~filters.COMMAND & filters.ChatType.PRIVATE,
+            self.handle_manual_search_input
+        ), group=3)
 
     async def show_menu(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Affiche le menu principal - uniquement en prive"""
@@ -236,7 +244,27 @@ class MenuModule:
         try:
             # Lancer l'analyse via le module market
             if self.market_module:
-                await self.market_module.analyze_asset_for_callback(update, context, symbol)
+                # Trouver le marché du symbole
+                market_code = self.market_module.find_market_for_symbol(symbol)
+
+                # Si marché non trouvé, déduire par le format du symbole
+                if not market_code:
+                    if symbol.endswith('-USD'):
+                        market_code = 'CRYPTO'
+                    elif symbol.endswith('.PA'):
+                        market_code = 'EUROPE'
+                    elif symbol.startswith('^'):
+                        # Indices - deviner par le nom
+                        if symbol in ['^FCHI', '^GDAXI', '^FTSE']:
+                            market_code = 'EUROPE'
+                        elif symbol in ['^N225', '^HSI']:
+                            market_code = 'ASIA'
+                        else:
+                            market_code = 'USA'
+                    else:
+                        market_code = 'USA'  # Par défaut
+
+                await self.market_module.show_asset_detail(update, context, market_code, symbol)
             else:
                 keyboard = [[InlineKeyboardButton("🔙 Menu", callback_data="menu_main")]]
                 await query.edit_message_text(
@@ -599,7 +627,8 @@ les mouvements du marché</i>"""
                       "menu_price_targets", "menu_earnings", "menu_scan_alerts",
                       "menu_alerts_config", "menu_calc_targets", "menu_alerts_help",
                       "menu_watchlist_delete", "menu_watchlist_help",
-                      "menu_search", "menu_clear_history"] or data.startswith("wl_del_"):
+                      "menu_search", "menu_clear_history",
+                      "menu_manual_search", "menu_cancel_search"] or data.startswith("wl_del_"):
             await self._handle_feature_callback(update, context, data)
 
     async def _handle_feature_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE, data: str):
@@ -765,41 +794,75 @@ les mouvements du marché</i>"""
             )
 
         elif data == "menu_search":
-            # Afficher l'historique de recherche et instructions
+            # Afficher le menu de recherche amélioré
             history = await db_manager.get_search_history(user_id, limit=5)
 
             text = """🔎 <b>RECHERCHE D'ACTIFS</b>
 ━━━━━━━━━━━━━━━━━━━━
 
-Pour rechercher un actif, envoyez:
-<code>/p SYMBOLE</code> - Prix actuel
-<code>/a SYMBOLE</code> - Analyse complète
+<b>📝 Rechercher:</b>
+Tapez <code>/a SYMBOLE</code> pour une analyse
 
-<b>Exemples:</b>
-• <code>/p AAPL</code> - Prix Apple
-• <code>/a BTC-USD</code> - Analyse Bitcoin
-• <code>/p TSLA</code> - Prix Tesla"""
+<b>Exemple:</b> <code>/a AAPL</code> ou <code>/a BTC-USD</code>
 
+━━━━━━━━━━━━━━━━━━━━
+<b>⚡ Actifs populaires:</b>"""
+
+            keyboard = [
+                # Tech US
+                [
+                    InlineKeyboardButton("🍎 AAPL", callback_data="quick_AAPL"),
+                    InlineKeyboardButton("🪟 MSFT", callback_data="quick_MSFT"),
+                    InlineKeyboardButton("🔍 GOOGL", callback_data="quick_GOOGL")
+                ],
+                [
+                    InlineKeyboardButton("📦 AMZN", callback_data="quick_AMZN"),
+                    InlineKeyboardButton("🚗 TSLA", callback_data="quick_TSLA"),
+                    InlineKeyboardButton("🎮 NVDA", callback_data="quick_NVDA")
+                ],
+                # Crypto
+                [
+                    InlineKeyboardButton("₿ BTC", callback_data="quick_BTC-USD"),
+                    InlineKeyboardButton("⟠ ETH", callback_data="quick_ETH-USD"),
+                    InlineKeyboardButton("◎ SOL", callback_data="quick_SOL-USD")
+                ],
+                # Europe
+                [
+                    InlineKeyboardButton("👜 LVMH", callback_data="quick_MC.PA"),
+                    InlineKeyboardButton("💄 L'Oréal", callback_data="quick_OR.PA"),
+                    InlineKeyboardButton("✈️ Airbus", callback_data="quick_AIR.PA")
+                ],
+                # Indices
+                [
+                    InlineKeyboardButton("📈 S&P 500", callback_data="quick_^GSPC"),
+                    InlineKeyboardButton("📊 CAC 40", callback_data="quick_^FCHI"),
+                    InlineKeyboardButton("💹 Nasdaq", callback_data="quick_^IXIC")
+                ]
+            ]
+
+            # Recherches récentes
             if history:
-                text += "\n\n<b>🕐 Recherches récentes:</b>"
-                for h in history:
-                    symbol = h.get('result_symbol') or h.get('query')
-                    if symbol:
-                        text += f"\n• {symbol}"
-
-            keyboard = []
-            # Boutons rapides pour les recherches récentes
-            if history:
-                recent_row = []
+                text += "\n\n<b>🕐 Récents:</b>"
+                recent_symbols = []
                 for h in history[:4]:
                     symbol = h.get('result_symbol') or h.get('query')
-                    if symbol:
-                        recent_row.append(InlineKeyboardButton(f"📊 {symbol}", callback_data=f"quick_{symbol}"))
-                if recent_row:
-                    keyboard.append(recent_row)
+                    if symbol and symbol not in recent_symbols:
+                        recent_symbols.append(symbol)
+                        text += f" • {symbol}"
 
-            keyboard.append([InlineKeyboardButton("🗑️ Effacer historique", callback_data="menu_clear_history")])
-            keyboard.append([InlineKeyboardButton("🔙 Retour", callback_data="menu_tools")])
+                if recent_symbols:
+                    recent_row = [InlineKeyboardButton(f"📊 {s}", callback_data=f"quick_{s}") for s in recent_symbols[:4]]
+                    keyboard.insert(0, recent_row)
+
+            # Bouton recherche manuelle
+            keyboard.append([
+                InlineKeyboardButton("🔍 Recherche manuelle", callback_data="menu_manual_search")
+            ])
+
+            keyboard.append([
+                InlineKeyboardButton("🗑️ Effacer", callback_data="menu_clear_history"),
+                InlineKeyboardButton("🔙 Retour", callback_data="menu_tools")
+            ])
 
             await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='HTML')
 
@@ -820,6 +883,70 @@ Pour rechercher un actif, envoyez:
 • <code>/p TSLA</code> - Prix Tesla"""
 
             keyboard = [[InlineKeyboardButton("🔙 Retour", callback_data="menu_tools")]]
+            await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='HTML')
+
+        elif data == "menu_manual_search":
+            # Activer le mode recherche manuelle pour cet utilisateur
+            context.user_data['waiting_for_search'] = True
+
+            text = """🔍 <b>RECHERCHE MANUELLE</b>
+━━━━━━━━━━━━━━━━━━━━
+
+<b>Tapez le nom d'un actif</b> dans le chat.
+
+<b>Exemples:</b>
+• <code>Apple</code> ou <code>AAPL</code>
+• <code>Bitcoin</code> ou <code>BTC</code>
+• <code>Tesla</code>, <code>Google</code>, <code>LVMH</code>...
+
+💡 <i>Je comprends même avec des fautes !</i>
+
+━━━━━━━━━━━━━━━━━━━━
+<i>Envoyez votre recherche maintenant...</i>"""
+
+            keyboard = [[InlineKeyboardButton("❌ Annuler", callback_data="menu_cancel_search")]]
+            await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='HTML')
+
+        elif data == "menu_cancel_search":
+            # Annuler le mode recherche
+            context.user_data['waiting_for_search'] = False
+            context.user_data.pop('search_query', None)
+
+            await query.answer("Recherche annulée")
+            # Retourner au menu recherche
+            from database.manager import db_manager
+            history = await db_manager.get_search_history(user_id, limit=5)
+
+            text = """🔎 <b>RECHERCHE D'ACTIFS</b>
+━━━━━━━━━━━━━━━━━━━━
+
+<b>📝 Rechercher:</b>
+Tapez <code>/a SYMBOLE</code> pour une analyse
+
+<b>Exemple:</b> <code>/a AAPL</code> ou <code>/a BTC-USD</code>
+
+━━━━━━━━━━━━━━━━━━━━
+<b>⚡ Actifs populaires:</b>"""
+
+            keyboard = [
+                [
+                    InlineKeyboardButton("🍎 AAPL", callback_data="quick_AAPL"),
+                    InlineKeyboardButton("🪟 MSFT", callback_data="quick_MSFT"),
+                    InlineKeyboardButton("🔍 GOOGL", callback_data="quick_GOOGL")
+                ],
+                [
+                    InlineKeyboardButton("₿ BTC", callback_data="quick_BTC-USD"),
+                    InlineKeyboardButton("⟠ ETH", callback_data="quick_ETH-USD"),
+                    InlineKeyboardButton("🚗 TSLA", callback_data="quick_TSLA")
+                ],
+                [
+                    InlineKeyboardButton("🔍 Recherche manuelle", callback_data="menu_manual_search")
+                ],
+                [
+                    InlineKeyboardButton("🗑️ Effacer", callback_data="menu_clear_history"),
+                    InlineKeyboardButton("🔙 Retour", callback_data="menu_tools")
+                ]
+            ]
             await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='HTML')
 
         elif data == "menu_leaderboard":
@@ -1431,3 +1558,243 @@ Pour rechercher un actif, envoyez:
 
             keyboard = [[InlineKeyboardButton("🔙 Retour", callback_data="menu_price_targets")]]
             await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
+
+        else:
+            # Callback non géré - afficher un message d'erreur
+            await query.answer("⚠️ Fonctionnalité en cours de développement", show_alert=True)
+
+    def _fuzzy_search_asset(self, query: str, threshold: float = 0.4) -> list:
+        """
+        Recherche floue d'un actif par nom ou symbole.
+        Retourne une liste de (symbol, name, score) triée par pertinence.
+        """
+        from utils.asset_names import ASSET_NAMES
+
+        query_lower = query.lower().strip()
+        results = []
+
+        # Normaliser la query (enlever caractères spéciaux)
+        query_normalized = ''.join(c for c in query_lower if c.isalnum())
+
+        # Chercher dans tous les actifs
+        for symbol, name in ASSET_NAMES.items():
+            symbol_clean = symbol.lower()
+            base_symbol = symbol.split('.')[0].split('-')[0].replace('^', '').lower()
+            name_lower = name.lower()
+            # Premier mot du nom (ex: "Apple" de "Apple Inc.")
+            first_word = name_lower.split()[0] if name_lower else ""
+
+            best_score = 0
+
+            # Match exact sur symbole (priorité maximale)
+            if query_lower == symbol_clean or query_lower == base_symbol:
+                best_score = 1.0
+            # Match exact sur nom
+            elif query_lower == name_lower or query_lower == first_word:
+                best_score = 1.0
+            # Le nom/premier mot commence par la query
+            elif name_lower.startswith(query_lower) or first_word.startswith(query_lower):
+                best_score = 0.95
+            # Le symbole commence par la query
+            elif symbol_clean.startswith(query_lower) or base_symbol.startswith(query_lower):
+                best_score = 0.92
+            else:
+                # Fuzzy matching sur le premier mot du nom (plus pertinent)
+                first_word_ratio = difflib.SequenceMatcher(None, query_lower, first_word).ratio()
+
+                # Fuzzy matching sur le nom complet
+                name_ratio = difflib.SequenceMatcher(None, query_lower, name_lower).ratio()
+
+                # Fuzzy matching sur le symbole de base
+                base_ratio = difflib.SequenceMatcher(None, query_lower, base_symbol).ratio()
+
+                # Bonus si longueur similaire à un mot clé (probable faute de frappe)
+                len_bonus = 0
+                if abs(len(query_lower) - len(first_word)) <= 2:
+                    len_bonus = 0.15
+                elif abs(len(query_lower) - len(base_symbol)) <= 1:
+                    len_bonus = 0.1
+
+                # Prendre le meilleur score
+                best_score = max(first_word_ratio + len_bonus, name_ratio, base_ratio)
+
+                # Match partiel (le nom contient la query comme sous-chaîne)
+                if query_lower in name_lower:
+                    partial_score = 0.7 + (len(query_lower) / len(name)) * 0.15
+                    best_score = max(best_score, partial_score)
+
+                # Match partiel sur symbole
+                if query_lower in symbol_clean:
+                    best_score = max(best_score, 0.7)
+
+            if best_score >= threshold:
+                results.append((symbol, name, best_score))
+
+        # Trier par score décroissant et retourner les meilleurs
+        results.sort(key=lambda x: x[2], reverse=True)
+        return results[:6]
+
+    async def handle_manual_search_input(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Gère l'entrée de recherche manuelle de l'utilisateur"""
+        from database.manager import db_manager
+        from utils.asset_names import ASSET_NAMES, get_asset_emoji
+        from telegram.ext import ApplicationHandlerStop
+
+        # Vérifier si l'utilisateur est en mode recherche
+        if not context.user_data.get('waiting_for_search'):
+            return  # Ne pas traiter, laisser les autres handlers
+
+        user_id = update.effective_user.id
+        query = update.message.text.strip()
+
+        # Désactiver le mode recherche
+        context.user_data['waiting_for_search'] = False
+
+        # Sauvegarder la query pour la demande d'ajout
+        context.user_data['last_search_query'] = query
+
+        # Effectuer la recherche floue
+        results = self._fuzzy_search_asset(query)
+
+        if results:
+            # On a trouvé des résultats
+            best_match = results[0]
+            symbol, name, score = best_match
+
+            if score >= 0.8:
+                # Très bonne correspondance - afficher directement
+                text = f"""✅ <b>ACTIF TROUVÉ</b>
+━━━━━━━━━━━━━━━━━━━━
+
+{get_asset_emoji(symbol)} <b>{name}</b>
+📌 Symbole: <code>{symbol}</code>
+
+Cliquez ci-dessous pour voir l'analyse:"""
+
+                keyboard = [
+                    [InlineKeyboardButton(f"📊 Analyser {symbol}", callback_data=f"quick_{symbol}")],
+                    [InlineKeyboardButton("🔍 Nouvelle recherche", callback_data="menu_manual_search"),
+                     InlineKeyboardButton("🔙 Menu", callback_data="menu_tools")]
+                ]
+
+                # Sauvegarder dans l'historique
+                await db_manager.save_search_history(user_id, query, symbol)
+
+            else:
+                # Correspondance moyenne - proposer plusieurs options
+                text = f"""🔍 <b>RÉSULTATS POUR "{query}"</b>
+━━━━━━━━━━━━━━━━━━━━
+
+<b>Vouliez-vous dire ?</b>
+
+"""
+                keyboard = []
+                for symbol, name, score in results[:4]:
+                    emoji = get_asset_emoji(symbol)
+                    text += f"{emoji} {name} (<code>{symbol}</code>)\n"
+                    keyboard.append([InlineKeyboardButton(f"{emoji} {name}", callback_data=f"quick_{symbol}")])
+
+                keyboard.append([InlineKeyboardButton("🔍 Nouvelle recherche", callback_data="menu_manual_search")])
+                keyboard.append([InlineKeyboardButton("❓ Pas trouvé ? Demander l'ajout", callback_data=f"asset_request_{query[:50]}")])
+                keyboard.append([InlineKeyboardButton("🔙 Menu", callback_data="menu_tools")])
+
+        else:
+            # Aucun résultat trouvé
+            text = f"""❌ <b>ACTIF NON TROUVÉ</b>
+━━━━━━━━━━━━━━━━━━━━
+
+Aucun résultat pour "<b>{query}</b>".
+
+💡 <i>L'actif n'est peut-être pas encore disponible.</i>
+
+Vous pouvez demander son ajout !"""
+
+            keyboard = [
+                [InlineKeyboardButton("📩 Demander l'ajout de cet actif", callback_data=f"asset_request_{query[:50]}")],
+                [InlineKeyboardButton("🔍 Nouvelle recherche", callback_data="menu_manual_search")],
+                [InlineKeyboardButton("🔙 Menu", callback_data="menu_tools")]
+            ]
+
+        await update.message.reply_text(
+            text,
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode='HTML'
+        )
+
+        # Stopper la propagation vers l'assistant IA
+        raise ApplicationHandlerStop()
+
+    async def handle_asset_request_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Gère la demande d'ajout d'un actif"""
+        from services.discord_service import discord_service
+
+        query = update.callback_query
+        await query.answer()
+
+        user_id = update.effective_user.id
+        username = update.effective_user.username or "Inconnu"
+        first_name = update.effective_user.first_name or "Utilisateur"
+
+        # Récupérer le nom de l'actif depuis le callback_data
+        data = query.data
+        asset_name = data.replace("asset_request_", "")
+
+        # Fallback sur la dernière recherche si le nom est tronqué
+        if len(asset_name) >= 49 and context.user_data.get('last_search_query'):
+            asset_name = context.user_data['last_search_query']
+
+        # Envoyer la demande sur Discord admin
+        embed = {
+            "title": "📩 DEMANDE D'AJOUT D'ACTIF",
+            "description": f"Un utilisateur souhaite ajouter un nouvel actif au bot.",
+            "color": 0xF39C12,  # Orange
+            "fields": [
+                {
+                    "name": "🏷️ Actif demandé",
+                    "value": f"**{asset_name}**",
+                    "inline": True
+                },
+                {
+                    "name": "👤 Demandeur",
+                    "value": f"{first_name} (@{username})\nID: `{user_id}`",
+                    "inline": True
+                }
+            ],
+            "footer": {"text": "TDB Bot - Demande utilisateur"}
+        }
+
+        success = await discord_service.send_message(
+            embed=embed,
+            channel=discord_service.CHANNEL_ADMIN,
+            username="TDB Requests"
+        )
+
+        if success:
+            text = f"""✅ <b>DEMANDE ENVOYÉE !</b>
+━━━━━━━━━━━━━━━━━━━━
+
+Votre demande d'ajout de <b>{asset_name}</b> a été transmise à l'équipe.
+
+📬 Nous examinerons votre demande prochainement.
+
+Merci pour votre contribution ! 🙏"""
+        else:
+            text = f"""⚠️ <b>DEMANDE EN ATTENTE</b>
+━━━━━━━━━━━━━━━━━━━━
+
+Votre demande pour <b>{asset_name}</b> a été enregistrée.
+
+L'équipe l'examinera prochainement.
+
+Merci ! 🙏"""
+
+        keyboard = [
+            [InlineKeyboardButton("🔍 Nouvelle recherche", callback_data="menu_manual_search")],
+            [InlineKeyboardButton("🔙 Menu principal", callback_data="menu_main")]
+        ]
+
+        await query.edit_message_text(
+            text,
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode='HTML'
+        )

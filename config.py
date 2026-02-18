@@ -7,8 +7,11 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # ===== TELEGRAM =====
-TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN", "8213431546:AAHnL4lswPUDYNubdcsLPvTwW0f1KYgjLgs")
-CHANNEL_ID = os.getenv("CHANNEL_ID", "-1003160198658")  # ID du channel pour les notifications (optionnel)
+TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")  # REQUIS - Obtenir via @BotFather
+if not TELEGRAM_TOKEN:
+    raise ValueError("TELEGRAM_TOKEN manquant! Ajoutez-le dans .env")
+
+CHANNEL_ID = os.getenv("CHANNEL_ID", "")  # ID du channel pour les notifications (optionnel)
 
 # Administrateurs du bot (ajouter vos IDs Telegram ici)
 ADMIN_IDS = [
@@ -23,6 +26,16 @@ DISCORD_WEBHOOK_URL = os.getenv("DISCORD_WEBHOOK_URL", "")  # Webhook Discord po
 WELCOME_CHANNEL_ID = os.getenv("WELCOME_CHANNEL_ID", "")  # Ex: @TDBTradingChannel ou -1001234567890
 # Groupe communautaire (optionnel, pour discussions)
 COMMUNITY_GROUP_ID = os.getenv("COMMUNITY_GROUP_ID", "")
+
+# ===== DISCORD =====
+# Webhook principal (annonces marchés, ouverture/fermeture)
+DISCORD_WEBHOOK_URL = os.getenv("DISCORD_WEBHOOK_URL", "")
+# Webhook opportunités (alertes trading, signaux, setups)
+DISCORD_WEBHOOK_OPPORTUNITIES = os.getenv("DISCORD_WEBHOOK_OPPORTUNITIES", "")
+# Webhook actualités (news, calendrier économique)
+DISCORD_WEBHOOK_NEWS = os.getenv("DISCORD_WEBHOOK_NEWS", "")
+# Webhook admin (logs, statistiques, erreurs - réservé aux admins)
+DISCORD_WEBHOOK_ADMIN = os.getenv("DISCORD_WEBHOOK_ADMIN", "")
 
 # ===== ONBOARDING =====
 # Étapes de l'onboarding
@@ -66,7 +79,7 @@ DATABASE_PATH = "database/trading_bot.db"
 # Pour récupérer les données de marché (gratuit)
 NEWS_API_KEY = os.getenv("NEWS_API_KEY", "")
 ALPHA_VANTAGE_KEY = os.getenv("ALPHA_VANTAGE_KEY", "")
-GROQ_API_KEY = os.getenv("GROQ_API_KEY", "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")  # Groq pour l'assistant IA (ultra-rapide, gratuit)
+GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")  # Groq pour l'assistant IA - obtenir sur console.groq.com
 
 # ===== MARCHÉS DISPONIBLES =====
 MARKETS = {
@@ -150,8 +163,8 @@ MARKETS = {
     "COMMODITIES": {
         "name": "🛢️ MATIÈRES PREMIÈRES",
         "open_time": "00:00",
-        "close_time": "23:59",
-        "timezone": "UTC",
+        "close_time": "22:30",  # Ferme vendredi 22h30
+        "timezone": "Europe/Paris",
         "open_day": 6,  # Dimanche (0=Lundi, 6=Dimanche)
         "close_day": 4,  # Vendredi
         "closed_days": [5],  # Samedi fermé

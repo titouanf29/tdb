@@ -1,10 +1,12 @@
 """
 Service de récupération des données de marché
+Avec cache intégré pour réduire les appels API
 """
 import logging
 import yfinance as yf
 from datetime import datetime, timedelta
 import config
+from services.cache_service import cache_service
 
 logger = logging.getLogger(__name__)
 
@@ -14,23 +16,39 @@ class MarketDataService:
 
     @staticmethod
     async def get_asset_data(symbol, period="1mo", interval="1d"):
-        """Récupère les données d'un actif"""
+        """Récupère les données d'un actif (avec cache)"""
+        # Vérifier le cache
+        cache_category = 'history_daily' if interval == '1d' else 'history'
+        cached = await cache_service.get(cache_category, symbol, period=period, interval=interval)
+        if cached is not None:
+            return cached
+
         try:
             ticker = yf.Ticker(symbol)
             data = ticker.history(period=period, interval=interval)
-            return data if not data.empty else None
+            if not data.empty:
+                await cache_service.set(cache_category, symbol, data, period=period, interval=interval)
+                return data
+            return None
         except Exception as e:
             logger.error(f"Erreur récupération données {symbol}: {e}")
             return None
 
     @staticmethod
     async def get_current_price(symbol):
-        """Récupère le prix actuel d'un actif"""
+        """Récupère le prix actuel d'un actif (avec cache 30s)"""
+        # Vérifier le cache
+        cached = await cache_service.get('price', symbol)
+        if cached is not None:
+            return cached
+
         try:
             ticker = yf.Ticker(symbol)
             data = ticker.history(period="1d", interval="1m")
             if not data.empty:
-                return float(data['Close'].iloc[-1])
+                price = float(data['Close'].iloc[-1])
+                await cache_service.set('price', symbol, price)
+                return price
             return None
         except Exception as e:
             logger.warning(f"Erreur récupération prix {symbol}: {e}")
@@ -38,10 +56,17 @@ class MarketDataService:
 
     @staticmethod
     async def get_asset_info(symbol):
-        """Récupère les informations d'un actif"""
+        """Récupère les informations d'un actif (avec cache 1h)"""
+        # Vérifier le cache
+        cached = await cache_service.get('info', symbol)
+        if cached is not None:
+            return cached
+
         try:
             ticker = yf.Ticker(symbol)
             info = ticker.info
+            if info:
+                await cache_service.set('info', symbol, info)
             return info
         except Exception as e:
             logger.warning(f"Erreur récupération info {symbol}: {e}")
@@ -57,16 +82,25 @@ class MarketDataService:
 
     @staticmethod
     async def search_symbol(query):
-        """Recherche un symbole"""
+        """Recherche un symbole (avec cache 30min)"""
+        query_upper = query.upper()
+
+        # Vérifier le cache
+        cached = await cache_service.get('search', query_upper)
+        if cached is not None:
+            return cached
+
         try:
-            ticker = yf.Ticker(query.upper())
+            ticker = yf.Ticker(query_upper)
             info = ticker.info
             if info:
-                return {
-                    'symbol': query.upper(),
+                result = {
+                    'symbol': query_upper,
                     'name': info.get('shortName', query),
                     'currency': info.get('currency', 'USD')
                 }
+                await cache_service.set('search', query_upper, result)
+                return result
         except Exception as e:
             logger.debug(f"Symbole non trouvé '{query}': {e}")
         return None
@@ -74,7 +108,7 @@ class MarketDataService:
     @staticmethod
     async def get_historical_data(symbol, period="1mo", interval="1d"):
         """
-        Récupère les données historiques d'un actif
+        Récupère les données historiques d'un actif (avec cache)
 
         Args:
             symbol: Symbole de l'actif
@@ -84,16 +118,29 @@ class MarketDataService:
         Returns:
             DataFrame avec les données OHLCV ou None
         """
+        # Vérifier le cache
+        cache_category = 'history_daily' if interval == '1d' else 'history'
+        cached = await cache_service.get(cache_category, symbol, period=period, interval=interval)
+        if cached is not None:
+            return cached
+
         try:
             ticker = yf.Ticker(symbol)
             data = ticker.history(period=period, interval=interval)
             if not data.empty:
+                await cache_service.set(cache_category, symbol, data, period=period, interval=interval)
                 return data
             logger.warning(f"Pas de données historiques pour {symbol}")
             return None
         except Exception as e:
             logger.error(f"Erreur récupération historique {symbol}: {e}")
             return None
+
+
+    @staticmethod
+    def get_cache_stats():
+        """Retourne les statistiques du cache"""
+        return cache_service.get_stats()
 
 
 # Instance globale

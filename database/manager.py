@@ -63,6 +63,18 @@ class DatabaseManager:
             except Exception:
                 pass  # La colonne existe déjà
 
+            # Migration: Mode vacances (désactive toutes les alertes)
+            try:
+                await db.execute("""
+                    ALTER TABLE user_settings ADD COLUMN vacation_mode INTEGER DEFAULT 0
+                """)
+                await db.execute("""
+                    ALTER TABLE user_settings ADD COLUMN vacation_until TEXT DEFAULT NULL
+                """)
+                logger.debug("Migration: Colonnes vacation_mode ajoutées")
+            except Exception:
+                pass  # Les colonnes existent déjà
+
             await db.commit()
 
     # ===== UTILISATEURS =====
@@ -124,6 +136,56 @@ class DatabaseManager:
                 UPDATE user_settings SET {fields} WHERE telegram_id = ?
             """, values)
             await db.commit()
+
+    async def set_vacation_mode(self, telegram_id, enabled: bool, until: str = None):
+        """Active/désactive le mode vacances"""
+        async with aiosqlite.connect(self.db_path) as db:
+            await db.execute("""
+                UPDATE user_settings
+                SET vacation_mode = ?, vacation_until = ?
+                WHERE telegram_id = ?
+            """, (1 if enabled else 0, until, telegram_id))
+            await db.commit()
+
+    async def is_vacation_mode(self, telegram_id) -> bool:
+        """Vérifie si l'utilisateur est en mode vacances"""
+        from datetime import datetime
+        async with aiosqlite.connect(self.db_path) as db:
+            db.row_factory = aiosqlite.Row
+            async with db.execute("""
+                SELECT vacation_mode, vacation_until FROM user_settings WHERE telegram_id = ?
+            """, (telegram_id,)) as cursor:
+                row = await cursor.fetchone()
+                if not row:
+                    return False
+
+                # Si mode vacances désactivé
+                if not row['vacation_mode']:
+                    return False
+
+                # Si date de fin définie, vérifier si expirée
+                if row['vacation_until']:
+                    try:
+                        until = datetime.fromisoformat(row['vacation_until'])
+                        if datetime.now() > until:
+                            # Expirée - désactiver automatiquement
+                            await self.set_vacation_mode(telegram_id, False)
+                            return False
+                    except (ValueError, TypeError):
+                        pass
+
+                return True
+
+    async def get_users_not_on_vacation(self):
+        """Retourne les utilisateurs qui ne sont pas en mode vacances"""
+        async with aiosqlite.connect(self.db_path) as db:
+            db.row_factory = aiosqlite.Row
+            async with db.execute("""
+                SELECT telegram_id FROM user_settings
+                WHERE vacation_mode = 0 OR vacation_mode IS NULL
+            """) as cursor:
+                rows = await cursor.fetchall()
+                return [row['telegram_id'] for row in rows]
 
     # ===== WALLET =====
 
@@ -204,6 +266,15 @@ class DatabaseManager:
                 rows = await cursor.fetchall()
                 return [dict(row) for row in rows]
 
+    async def count_all_open_positions(self):
+        """Compte toutes les positions ouvertes (pour admin stats)"""
+        async with aiosqlite.connect(self.db_path) as db:
+            async with db.execute("""
+                SELECT COUNT(*) as total FROM positions WHERE status = 'open'
+            """) as cursor:
+                row = await cursor.fetchone()
+                return row[0] if row else 0
+
     async def update_position(self, position_code, **kwargs):
         """Met à jour une position"""
         if not kwargs:
@@ -229,7 +300,7 @@ class DatabaseManager:
                 position = await cursor.fetchone()
 
             if not position:
-                return
+                return (0, 0)  # Retourner tuple vide au lieu de None pour eviter crash
 
             # Calculer PnL
             # IMPORTANT: amount est en devise (ex: 1000 USD), pas en unites d'actif
@@ -238,6 +309,10 @@ class DatabaseManager:
             entry_price = position['entry_price']
             amount = position['amount']
             leverage = position['leverage']
+
+            # Protection contre division par zero
+            if not entry_price or entry_price <= 0:
+                return (0, 0)
 
             # Calcul du pourcentage de variation
             if direction == 'LONG':
@@ -367,7 +442,10 @@ class DatabaseManager:
                 if row:
                     result = dict(row)
                     if result['context']:
-                        result['context'] = json.loads(result['context'])
+                        try:
+                            result['context'] = json.loads(result['context'])
+                        except (json.JSONDecodeError, TypeError):
+                            result['context'] = {}  # Fallback si JSON corrompu
                     return result
                 return None
 
@@ -699,14 +777,52 @@ class DatabaseManager:
                 row = await cursor.fetchone()
                 best_trade = row['best'] or 0
 
+            # Calculer le streak actuel (série de wins ou losses consécutifs)
+            current_streak = 0
+            async with db.execute("""
+                SELECT pnl FROM position_history
+                WHERE telegram_id = ?
+                ORDER BY closed_at DESC LIMIT 20
+            """, (telegram_id,)) as cursor:
+                trades = await cursor.fetchall()
+                if trades:
+                    first_result = trades[0]['pnl'] > 0  # True = win, False = loss
+                    for trade in trades:
+                        is_win = trade['pnl'] > 0
+                        if is_win == first_result:
+                            current_streak += 1 if first_result else -1
+                        else:
+                            break
+
+            # Vérifier les trades early (avant 9h) et night (après 22h)
+            has_early_trade = False
+            has_night_trade = False
+            async with db.execute("""
+                SELECT opened_at FROM position_history
+                WHERE telegram_id = ?
+                ORDER BY closed_at DESC LIMIT 50
+            """, (telegram_id,)) as cursor:
+                trades = await cursor.fetchall()
+                for trade in trades:
+                    try:
+                        opened_at = trade['opened_at']
+                        if opened_at:
+                            hour = int(opened_at[11:13]) if len(opened_at) > 13 else 0
+                            if hour < 9:
+                                has_early_trade = True
+                            if hour >= 22:
+                                has_night_trade = True
+                    except (ValueError, TypeError, IndexError):
+                        pass
+
             return {
                 'total_trades': total_trades,
                 'total_pnl': total_pnl,
                 'win_rate': win_rate,
                 'best_trade': best_trade,
-                'current_streak': 0,  # TODO: calculer
-                'has_early_trade': False,
-                'has_night_trade': False
+                'current_streak': current_streak,
+                'has_early_trade': has_early_trade,
+                'has_night_trade': has_night_trade
             }
 
     async def update_leaderboard_stats(self, telegram_id, stats):
@@ -1172,15 +1288,7 @@ class DatabaseManager:
                 return [dict(row) for row in await cursor.fetchall()]
 
     # ===== ALERTES - METHODES COMPLEMENTAIRES =====
-
-    async def get_all_active_alerts(self):
-        """Recupere toutes les alertes actives"""
-        async with aiosqlite.connect(self.db_path) as db:
-            db.row_factory = aiosqlite.Row
-            async with db.execute("""
-                SELECT * FROM price_alerts WHERE is_active = 1
-            """) as cursor:
-                return [dict(row) for row in await cursor.fetchall()]
+    # Note: get_all_active_alerts() est defini plus haut (ligne ~575)
 
     async def get_all_watchlist_items(self):
         """Recupere toutes les items de watchlist actifs"""
@@ -1191,16 +1299,7 @@ class DatabaseManager:
             """) as cursor:
                 return [dict(row) for row in await cursor.fetchall()]
 
-    async def deactivate_alert(self, alert_id):
-        """Desactive une alerte"""
-        async with aiosqlite.connect(self.db_path) as db:
-            await db.execute("""
-                UPDATE price_alerts
-                SET is_active = 0, triggered_at = CURRENT_TIMESTAMP, notification_sent = 1
-                WHERE id = ?
-            """, (alert_id,))
-            await db.commit()
-
+    # Note: deactivate_alert() supprime - utiliser mark_alert_triggered() a la place
 
     # ===== ONBOARDING =====
 
@@ -1370,9 +1469,16 @@ class DatabaseManager:
     async def mark_bot_started(self, telegram_id):
         """Marque que l'utilisateur a démarré le bot"""
         async with aiosqlite.connect(self.db_path) as db:
-            await db.execute("""
+            # D'abord essayer de mettre à jour
+            cursor = await db.execute("""
                 UPDATE channel_welcome_messages SET started_bot = 1 WHERE telegram_id = ?
             """, (telegram_id,))
+            # Si aucune ligne affectée, créer l'entrée
+            if cursor.rowcount == 0:
+                await db.execute("""
+                    INSERT OR IGNORE INTO channel_welcome_messages (telegram_id, started_bot)
+                    VALUES (?, 1)
+                """, (telegram_id,))
             await db.commit()
 
     # ===== USAGE STATS =====

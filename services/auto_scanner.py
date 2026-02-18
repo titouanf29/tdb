@@ -22,7 +22,7 @@ class AutoScannerService:
         self.scheduler = AsyncIOScheduler()
         self.is_running = False
         self.last_scan_times = {}  # user_id -> last_scan_timestamp
-        self.daily_alert_counts = {}  # user_id -> count
+        # Note: daily_alert_counts maintenant persiste en base via log_usage/get_user_stats_today
 
     def start(self):
         """Demarre le scheduler"""
@@ -73,9 +73,10 @@ class AutoScannerService:
             logger.info("🛑 Auto Scanner arrêté")
 
     async def reset_daily_counts(self):
-        """Reset les compteurs quotidiens"""
-        self.daily_alert_counts = {}
-        logger.info("🔄 Compteurs quotidiens réinitialisés")
+        """Reset les compteurs quotidiens (automatique via date en base)"""
+        # Les compteurs sont maintenant en base et filtrés par date du jour
+        # Cette méthode est conservée pour compatibilité mais n'a plus d'effet
+        logger.info("🔄 Nouveau jour - compteurs quotidiens réinitialisés automatiquement")
 
     async def run_scan_cycle(self):
         """Exécute un cycle de scan pour tous les utilisateurs actifs"""
@@ -109,8 +110,8 @@ class AutoScannerService:
                     logger.info(f"📅 User {user_id}: Week-end, scan désactivé")
                     continue
 
-                # Vérifier la limite d'alertes quotidiennes
-                alert_count = self.daily_alert_counts.get(user_id, 0)
+                # Vérifier la limite d'alertes quotidiennes (persisté en base)
+                alert_count = await db_manager.get_user_stats_today(user_id, 'scan_alert')
                 if alert_count >= user['max_alerts_per_day']:
                     logger.warning(f"🔔 User {user_id}: Limite d'alertes atteinte ({alert_count}/{user['max_alerts_per_day']})")
                     continue
@@ -195,7 +196,8 @@ class AutoScannerService:
             if opportunities:
                 logger.info(f"✅ {len(opportunities)} opportunité(s) trouvée(s) pour user {user_id}")
                 await self.send_alert(user_id, opportunities)
-                self.daily_alert_counts[user_id] = self.daily_alert_counts.get(user_id, 0) + 1
+                # Persister le compteur en base (survit au restart)
+                await db_manager.log_usage(user_id, 'scan_alert')
             else:
                 logger.info(f"⚪ Aucune opportunité trouvée pour user {user_id} (score_min={score_min})")
 
