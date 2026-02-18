@@ -226,7 +226,6 @@ class MenuModule:
 
     async def handle_quick_favorite(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Gère le clic sur un favori rapide - affiche l'analyse"""
-        from utils.loading import show_loading
         from database.manager import db_manager
 
         query = update.callback_query
@@ -238,8 +237,7 @@ class MenuModule:
         # Ajouter à l'historique de recherche
         await db_manager.add_search_history(user_id, symbol, symbol, 'quick_access')
 
-        # Afficher le chargement
-        await show_loading(query, "analysis", f"Analyse de {symbol}...")
+        # Note: show_asset_detail gère sa propre animation de chargement
 
         try:
             # Lancer l'analyse via le module market
