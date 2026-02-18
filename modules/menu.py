@@ -226,7 +226,6 @@ class MenuModule:
 
     async def handle_quick_favorite(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Gère le clic sur un favori rapide - affiche l'analyse"""
-        from utils.loading import show_loading
         from database.manager import db_manager
 
         query = update.callback_query
@@ -238,8 +237,7 @@ class MenuModule:
         # Ajouter à l'historique de recherche
         await db_manager.add_search_history(user_id, symbol, symbol, 'quick_access')
 
-        # Afficher le chargement
-        await show_loading(query, "analysis", f"Analyse de {symbol}...")
+        # Note: show_asset_detail gère sa propre animation de chargement
 
         try:
             # Lancer l'analyse via le module market
@@ -1669,23 +1667,23 @@ Tapez <code>/a SYMBOLE</code> pour une analyse
 {get_asset_emoji(symbol)} <b>{name}</b>
 📌 Symbole: <code>{symbol}</code>
 
-Cliquez ci-dessous pour voir l'analyse:"""
+<i>Cliquez sur Analyser pour voir les indicateurs techniques, tendances et recommandations.</i>"""
 
                 keyboard = [
                     [InlineKeyboardButton(f"📊 Analyser {symbol}", callback_data=f"quick_{symbol}")],
-                    [InlineKeyboardButton("🔍 Nouvelle recherche", callback_data="menu_manual_search"),
-                     InlineKeyboardButton("🔙 Menu", callback_data="menu_tools")]
+                    [InlineKeyboardButton("🔍 Autre recherche", callback_data="menu_manual_search")],
+                    [InlineKeyboardButton("🔙 Menu", callback_data="menu_tools")]
                 ]
 
                 # Sauvegarder dans l'historique
-                await db_manager.save_search_history(user_id, query, symbol)
+                await db_manager.add_search_history(user_id, query, symbol, 'manual_search')
 
             else:
                 # Correspondance moyenne - proposer plusieurs options
                 text = f"""🔍 <b>RÉSULTATS POUR "{query}"</b>
 ━━━━━━━━━━━━━━━━━━━━
 
-<b>Vouliez-vous dire ?</b>
+<b>Plusieurs actifs correspondent :</b>
 
 """
                 keyboard = []
@@ -1694,8 +1692,10 @@ Cliquez ci-dessous pour voir l'analyse:"""
                     text += f"{emoji} {name} (<code>{symbol}</code>)\n"
                     keyboard.append([InlineKeyboardButton(f"{emoji} {name}", callback_data=f"quick_{symbol}")])
 
-                keyboard.append([InlineKeyboardButton("🔍 Nouvelle recherche", callback_data="menu_manual_search")])
-                keyboard.append([InlineKeyboardButton("❓ Pas trouvé ? Demander l'ajout", callback_data=f"asset_request_{query[:50]}")])
+                text += "\n<i>Sélectionnez l'actif souhaité ou faites une nouvelle recherche.</i>"
+
+                keyboard.append([InlineKeyboardButton("🔍 Autre recherche", callback_data="menu_manual_search")])
+                keyboard.append([InlineKeyboardButton("❓ Demander un ajout", callback_data=f"asset_request_{query[:50]}")])
                 keyboard.append([InlineKeyboardButton("🔙 Menu", callback_data="menu_tools")])
 
         else:
@@ -1705,13 +1705,15 @@ Cliquez ci-dessous pour voir l'analyse:"""
 
 Aucun résultat pour "<b>{query}</b>".
 
-💡 <i>L'actif n'est peut-être pas encore disponible.</i>
+💡 <b>Conseils :</b>
+• Essayez le symbole exact (ex: AAPL, BTC-USD)
+• Ou le nom complet (ex: Apple, Bitcoin)
 
-Vous pouvez demander son ajout !"""
+<i>Si l'actif n'existe pas dans notre base, vous pouvez demander son ajout.</i>"""
 
             keyboard = [
-                [InlineKeyboardButton("📩 Demander l'ajout de cet actif", callback_data=f"asset_request_{query[:50]}")],
-                [InlineKeyboardButton("🔍 Nouvelle recherche", callback_data="menu_manual_search")],
+                [InlineKeyboardButton("📩 Demander l'ajout", callback_data=f"asset_request_{query[:50]}")],
+                [InlineKeyboardButton("🔍 Autre recherche", callback_data="menu_manual_search")],
                 [InlineKeyboardButton("🔙 Menu", callback_data="menu_tools")]
             ]
 
