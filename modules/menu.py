@@ -39,11 +39,11 @@ class MenuModule:
         self.app.add_handler(CallbackQueryHandler(self.handle_pin_callback, pattern="^pin_"))
         # Handler pour la demande d'ajout d'actif
         self.app.add_handler(CallbackQueryHandler(self.handle_asset_request_callback, pattern="^asset_request_"))
-        # Handler pour la recherche manuelle (capture le texte utilisateur)
+        # Handler pour la recherche manuelle (groupe 1 = avant l'assistant IA groupe 2)
         self.app.add_handler(MessageHandler(
             filters.TEXT & ~filters.COMMAND & filters.ChatType.PRIVATE,
             self.handle_manual_search_input
-        ))
+        ), group=1)
 
     async def show_menu(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Affiche le menu principal - uniquement en prive"""
@@ -627,7 +627,8 @@ les mouvements du marché</i>"""
                       "menu_price_targets", "menu_earnings", "menu_scan_alerts",
                       "menu_alerts_config", "menu_calc_targets", "menu_alerts_help",
                       "menu_watchlist_delete", "menu_watchlist_help",
-                      "menu_search", "menu_clear_history"] or data.startswith("wl_del_"):
+                      "menu_search", "menu_clear_history",
+                      "menu_manual_search", "menu_cancel_search"] or data.startswith("wl_del_"):
             await self._handle_feature_callback(update, context, data)
 
     async def _handle_feature_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE, data: str):
@@ -1637,6 +1638,7 @@ Tapez <code>/a SYMBOLE</code> pour une analyse
         """Gère l'entrée de recherche manuelle de l'utilisateur"""
         from database.manager import db_manager
         from utils.asset_names import ASSET_NAMES, get_asset_emoji
+        from telegram.ext import ApplicationHandlerStop
 
         # Vérifier si l'utilisateur est en mode recherche
         if not context.user_data.get('waiting_for_search'):
@@ -1718,6 +1720,9 @@ Vous pouvez demander son ajout !"""
             reply_markup=InlineKeyboardMarkup(keyboard),
             parse_mode='HTML'
         )
+
+        # Stopper la propagation vers l'assistant IA
+        raise ApplicationHandlerStop()
 
     async def handle_asset_request_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Gère la demande d'ajout d'un actif"""
