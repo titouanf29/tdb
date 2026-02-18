@@ -1,6 +1,7 @@
 """
 Service de récupération parallèle des données de marché
 Utilise asyncio.gather() pour optimiser les appels API
+Intégré avec le cache centralisé
 """
 import logging
 import asyncio
@@ -9,6 +10,7 @@ from datetime import datetime, timedelta
 from concurrent.futures import ThreadPoolExecutor
 import yfinance as yf
 import pandas as pd
+from services.cache_service import cache_service
 
 logger = logging.getLogger(__name__)
 
@@ -30,8 +32,6 @@ class ParallelFetcher:
         self.max_concurrent = max_concurrent
         self.timeout = timeout
         self.semaphore = asyncio.Semaphore(max_concurrent)
-        self._cache: Dict[str, tuple] = {}  # (data, timestamp)
-        self.cache_ttl = 60  # 60 secondes de cache
 
     def _fetch_sync(self, symbol: str, period: str = "1d", interval: str = "1m") -> Optional[pd.DataFrame]:
         """
@@ -72,13 +72,12 @@ class ParallelFetcher:
         Returns:
             DataFrame avec les données ou None
         """
-        # Vérifier le cache
-        cache_key = f"{symbol}_{period}_{interval}"
-        if cache_key in self._cache:
-            data, timestamp = self._cache[cache_key]
-            if (datetime.now() - timestamp).seconds < self.cache_ttl:
-                logger.debug(f"Cache hit pour {symbol}")
-                return data
+        # Vérifier le cache centralisé
+        cache_category = 'history_daily' if interval == '1d' else 'history'
+        cached = await cache_service.get(cache_category, symbol, period=period, interval=interval)
+        if cached is not None:
+            logger.debug(f"Cache hit pour {symbol}")
+            return cached
 
         async with self.semaphore:
             try:
@@ -88,9 +87,9 @@ class ParallelFetcher:
                     timeout=self.timeout
                 )
 
-                # Mettre en cache
+                # Mettre en cache centralisé
                 if data is not None:
-                    self._cache[cache_key] = (data, datetime.now())
+                    await cache_service.set(cache_category, symbol, data, period=period, interval=interval)
 
                 return data
 
@@ -229,18 +228,16 @@ class ParallelFetcher:
 
         return results
 
-    def clear_cache(self):
-        """Vide le cache"""
-        self._cache.clear()
+    async def clear_cache(self):
+        """Vide le cache centralisé"""
+        await cache_service.clear_all()
         logger.info("Cache vidé")
 
     def get_cache_stats(self) -> Dict:
-        """Retourne les statistiques du cache"""
-        return {
-            'entries': len(self._cache),
-            'max_concurrent': self.max_concurrent,
-            'cache_ttl': self.cache_ttl
-        }
+        """Retourne les statistiques du cache centralisé"""
+        stats = cache_service.get_stats()
+        stats['max_concurrent'] = self.max_concurrent
+        return stats
 
 
 # Instance globale

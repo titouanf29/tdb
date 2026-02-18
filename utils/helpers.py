@@ -5,10 +5,47 @@ import random
 import string
 import logging
 from datetime import datetime, time
+from functools import wraps
 import pytz
 import config
 
 logger = logging.getLogger(__name__)
+
+
+def is_announcement_channel(chat_id: int) -> bool:
+    """Vérifie si le chat est le canal d'annonces (read-only)"""
+    channel_id = getattr(config, 'CHANNEL_ID', None)
+    if channel_id:
+        # Convertir en int si nécessaire
+        try:
+            channel_id = int(channel_id)
+        except (ValueError, TypeError):
+            return False
+        return chat_id == channel_id
+    return False
+
+
+def block_in_channel(func):
+    """Décorateur pour bloquer les commandes dans le canal d'annonces"""
+    @wraps(func)
+    async def wrapper(self_or_update, *args, **kwargs):
+        # Gérer les deux cas: méthode de classe ou fonction simple
+        if hasattr(self_or_update, 'effective_chat'):
+            update = self_or_update
+        elif args and hasattr(args[0], 'effective_chat'):
+            update = args[0]
+        else:
+            # Pas d'update trouvé, exécuter normalement
+            return await func(self_or_update, *args, **kwargs)
+
+        # Vérifier si c'est le canal d'annonces
+        if update.effective_chat and is_announcement_channel(update.effective_chat.id):
+            logger.debug(f"Commande bloquée dans le canal d'annonces: {update.effective_chat.id}")
+            # Ne rien faire, ignorer silencieusement
+            return None
+
+        return await func(self_or_update, *args, **kwargs)
+    return wrapper
 
 def generate_position_code(length=8):
     """Génère un code unique pour une position"""

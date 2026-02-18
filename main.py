@@ -26,6 +26,7 @@ from services.morning_service import morning_service
 from services.notification_service import notification_service
 from services.cache_service import cache_service
 from services.discord_service import discord_service
+from services.backup_service import backup_service
 from modules.features import create_features_module
 from modules.welcome import create_welcome_module
 from telegram.ext import MessageHandler, filters, CallbackQueryHandler
@@ -71,11 +72,29 @@ class TDBBot:
             logger.error(f"❌ Erreur initialisation BDD: {e}")
             raise
 
+    async def block_channel_commands(self, update, context):
+        """Bloque les commandes et messages dans le canal d'annonces"""
+        from utils.helpers import is_announcement_channel
+        from telegram.ext import ApplicationHandlerStop
+
+        if update.effective_chat and is_announcement_channel(update.effective_chat.id):
+            # Ignorer silencieusement les commandes dans le canal
+            logger.debug(f"Message bloqué dans le canal d'annonces")
+            raise ApplicationHandlerStop()  # Stop propagation vers les autres handlers
+
     def setup_modules(self):
         """Configure tous les modules du bot"""
         logger.info("Configuration des modules...")
 
         try:
+            # Handler prioritaire pour bloquer les commandes dans le canal d'annonces
+            # Groupe -1 = traité en premier
+            self.application.add_handler(
+                MessageHandler(filters.ALL, self.block_channel_commands),
+                group=-1
+            )
+            logger.info("✅ Filtre canal d'annonces activé (commandes bloquées)")
+
             # Modules principaux (créés en premier)
             self.market_module = MarketModule(self.application)
             logger.info("✅ Module Marché chargé")
@@ -230,7 +249,17 @@ class TDBBot:
         await morning_service.start(self.application.bot)
         await notification_service.start(self.application.bot)
         await cache_service.start_cleanup_task()
-        logger.info("✅ Services avancés démarrés (alertes, screener, social, morning, notifications, cache)")
+        await backup_service.start()
+        logger.info("✅ Services avancés démarrés (alertes, screener, social, morning, notifications, cache, backup)")
+
+        # Démarrer le service Discord si configuré
+        if discord_service.enabled:
+            # Configurer le bot Telegram pour les notifications cross-platform
+            discord_service.set_telegram_bot(self.application.bot)
+            asyncio.create_task(discord_service.start_market_monitor())
+            logger.info("✅ Service Discord démarré (alertes marchés: Asie, Europe, US, Matières Premières)")
+        else:
+            logger.info("ℹ️ Discord non configuré (DISCORD_WEBHOOK_URL manquant)")
 
         # Démarrer le service Discord (alertes marchés)
         if discord_service.enabled:
@@ -263,6 +292,8 @@ class TDBBot:
         logger.info("  • Tutoriel Interactif")
         logger.info("  • Freemium + Parrainage")
         logger.info("  • Cache + Notifications Push")
+        logger.info("  • Discord Alerts (Asie, Europe, US)")
+        logger.info("  • Backup Auto (quotidien 3h, hebdo dimanche 4h)")
         logger.info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
         logger.info("✅ Le bot est prêt à recevoir des commandes")
 
@@ -284,6 +315,7 @@ class TDBBot:
         morning_service.stop()
         await notification_service.stop()
         await cache_service.stop_cleanup_task()
+        backup_service.stop()
 
         if self.application:
             await self.application.updater.stop()

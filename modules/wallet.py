@@ -590,10 +590,15 @@ Ou tapez un montant personnalisé dans le chat (ex: 25000)
             # Mettre a jour le prix et PnL
             # IMPORTANT: amount est en devise (ex: 1000 USD), pas en unites
             # Formule: pnl = amount * (variation_prix / prix_entree) * leverage
-            direction_multiplier = 1 if position['direction'] == 'LONG' else -1
-            price_change_percent = ((current_price - position['entry_price']) / position['entry_price']) * 100
-            pnl_percent = price_change_percent * position['leverage'] * direction_multiplier
-            pnl = position['amount'] * (pnl_percent / 100)
+            entry_price = position['entry_price']
+            if entry_price and entry_price > 0:
+                direction_multiplier = 1 if position['direction'] == 'LONG' else -1
+                price_change_percent = ((current_price - entry_price) / entry_price) * 100
+                pnl_percent = price_change_percent * position['leverage'] * direction_multiplier
+                pnl = position['amount'] * (pnl_percent / 100)
+            else:
+                pnl = 0
+                pnl_percent = 0
 
             await db_manager.update_position(
                 position_code,
