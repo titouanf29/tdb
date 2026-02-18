@@ -1635,13 +1635,19 @@ Tapez <code>/a SYMBOLE</code> pour une analyse
         """Gère l'entrée de recherche manuelle de l'utilisateur"""
         from database.manager import db_manager
         from utils.asset_names import ASSET_NAMES, get_asset_emoji
+        import logging
+        logger = logging.getLogger(__name__)
+
+        user_id = update.effective_user.id
+        logger.info(f"🔍 handle_manual_search_input: user={user_id}, waiting_for_search={context.user_data.get('waiting_for_search')}")
 
         # Vérifier si l'utilisateur est en mode recherche
         if not context.user_data.get('waiting_for_search'):
+            logger.debug(f"🔍 User {user_id} pas en mode recherche, on ignore")
             return  # Ne pas traiter, laisser les autres handlers
 
-        user_id = update.effective_user.id
         query = update.message.text.strip()
+        logger.info(f"🔍 User {user_id} recherche: '{query}'")
 
         # Désactiver le mode recherche
         context.user_data['waiting_for_search'] = False
@@ -1649,17 +1655,19 @@ Tapez <code>/a SYMBOLE</code> pour une analyse
         # Sauvegarder la query pour la demande d'ajout
         context.user_data['last_search_query'] = query
 
-        # Effectuer la recherche floue
-        results = self._fuzzy_search_asset(query)
+        try:
+            # Effectuer la recherche floue
+            results = self._fuzzy_search_asset(query)
+            logger.info(f"🔍 Résultats trouvés: {len(results) if results else 0}")
 
-        if results:
-            # On a trouvé des résultats
-            best_match = results[0]
-            symbol, name, score = best_match
+            if results:
+                # On a trouvé des résultats
+                best_match = results[0]
+                symbol, name, score = best_match
 
-            if score >= 0.8:
-                # Très bonne correspondance - afficher directement
-                text = f"""✅ <b>ACTIF TROUVÉ</b>
+                if score >= 0.8:
+                    # Très bonne correspondance - afficher directement
+                    text = f"""✅ <b>ACTIF TROUVÉ</b>
 ━━━━━━━━━━━━━━━━━━━━
 
 {get_asset_emoji(symbol)} <b>{name}</b>
@@ -1667,38 +1675,38 @@ Tapez <code>/a SYMBOLE</code> pour une analyse
 
 <i>Cliquez sur Analyser pour voir les indicateurs techniques, tendances et recommandations.</i>"""
 
-                keyboard = [
-                    [InlineKeyboardButton(f"📊 Analyser {symbol}", callback_data=f"quick_{symbol}")],
-                    [InlineKeyboardButton("🔍 Autre recherche", callback_data="menu_manual_search")],
-                    [InlineKeyboardButton("🔙 Menu", callback_data="menu_tools")]
-                ]
+                    keyboard = [
+                        [InlineKeyboardButton(f"📊 Analyser {symbol}", callback_data=f"quick_{symbol}")],
+                        [InlineKeyboardButton("🔍 Autre recherche", callback_data="menu_manual_search")],
+                        [InlineKeyboardButton("🔙 Menu", callback_data="menu_tools")]
+                    ]
 
-                # Sauvegarder dans l'historique
-                await db_manager.add_search_history(user_id, query, symbol, 'manual_search')
+                    # Sauvegarder dans l'historique
+                    await db_manager.add_search_history(user_id, query, symbol, 'manual_search')
 
-            else:
-                # Correspondance moyenne - proposer plusieurs options
-                text = f"""🔍 <b>RÉSULTATS POUR "{query}"</b>
+                else:
+                    # Correspondance moyenne - proposer plusieurs options
+                    text = f"""🔍 <b>RÉSULTATS POUR "{query}"</b>
 ━━━━━━━━━━━━━━━━━━━━
 
 <b>Plusieurs actifs correspondent :</b>
 
 """
-                keyboard = []
-                for symbol, name, score in results[:4]:
-                    emoji = get_asset_emoji(symbol)
-                    text += f"{emoji} {name} (<code>{symbol}</code>)\n"
-                    keyboard.append([InlineKeyboardButton(f"{emoji} {name}", callback_data=f"quick_{symbol}")])
+                    keyboard = []
+                    for symbol, name, score in results[:4]:
+                        emoji = get_asset_emoji(symbol)
+                        text += f"{emoji} {name} (<code>{symbol}</code>)\n"
+                        keyboard.append([InlineKeyboardButton(f"{emoji} {name}", callback_data=f"quick_{symbol}")])
 
-                text += "\n<i>Sélectionnez l'actif souhaité ou faites une nouvelle recherche.</i>"
+                    text += "\n<i>Sélectionnez l'actif souhaité ou faites une nouvelle recherche.</i>"
 
-                keyboard.append([InlineKeyboardButton("🔍 Autre recherche", callback_data="menu_manual_search")])
-                keyboard.append([InlineKeyboardButton("❓ Demander un ajout", callback_data=f"asset_request_{query[:50]}")])
-                keyboard.append([InlineKeyboardButton("🔙 Menu", callback_data="menu_tools")])
+                    keyboard.append([InlineKeyboardButton("🔍 Autre recherche", callback_data="menu_manual_search")])
+                    keyboard.append([InlineKeyboardButton("❓ Demander un ajout", callback_data=f"asset_request_{query[:50]}")])
+                    keyboard.append([InlineKeyboardButton("🔙 Menu", callback_data="menu_tools")])
 
-        else:
-            # Aucun résultat trouvé
-            text = f"""❌ <b>ACTIF NON TROUVÉ</b>
+            else:
+                # Aucun résultat trouvé
+                text = f"""❌ <b>ACTIF NON TROUVÉ</b>
 ━━━━━━━━━━━━━━━━━━━━
 
 Aucun résultat pour "<b>{query}</b>".
@@ -1709,17 +1717,22 @@ Aucun résultat pour "<b>{query}</b>".
 
 <i>Si l'actif n'existe pas dans notre base, vous pouvez demander son ajout.</i>"""
 
-            keyboard = [
-                [InlineKeyboardButton("📩 Demander l'ajout", callback_data=f"asset_request_{query[:50]}")],
-                [InlineKeyboardButton("🔍 Autre recherche", callback_data="menu_manual_search")],
-                [InlineKeyboardButton("🔙 Menu", callback_data="menu_tools")]
-            ]
+                keyboard = [
+                    [InlineKeyboardButton("📩 Demander l'ajout", callback_data=f"asset_request_{query[:50]}")],
+                    [InlineKeyboardButton("🔍 Autre recherche", callback_data="menu_manual_search")],
+                    [InlineKeyboardButton("🔙 Menu", callback_data="menu_tools")]
+                ]
 
-        await update.message.reply_text(
-            text,
-            reply_markup=InlineKeyboardMarkup(keyboard),
-            parse_mode='HTML'
-        )
+            await update.message.reply_text(
+                text,
+                reply_markup=InlineKeyboardMarkup(keyboard),
+                parse_mode='HTML'
+            )
+            logger.info(f"🔍 Réponse envoyée à user {user_id}")
+
+        except Exception as e:
+            logger.error(f"🔍 Erreur recherche manuelle: {e}")
+            await update.message.reply_text(f"❌ Erreur: {e}")
 
     async def handle_asset_request_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Gère la demande d'ajout d'un actif"""
