@@ -39,11 +39,11 @@ class MenuModule:
         self.app.add_handler(CallbackQueryHandler(self.handle_pin_callback, pattern="^pin_"))
         # Handler pour la demande d'ajout d'actif
         self.app.add_handler(CallbackQueryHandler(self.handle_asset_request_callback, pattern="^asset_request_"))
-        # Handler pour la recherche manuelle (groupe 1 = avant l'assistant IA groupe 2)
+        # Handler pour la recherche manuelle (groupe 3 = après TradingCompanion/0, Wallet/1, AI/2)
         self.app.add_handler(MessageHandler(
             filters.TEXT & ~filters.COMMAND & filters.ChatType.PRIVATE,
             self.handle_manual_search_input
-        ), group=1)
+        ), group=3)
 
     async def show_menu(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Affiche le menu principal - uniquement en prive"""

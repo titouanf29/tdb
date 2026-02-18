@@ -549,6 +549,10 @@ Ou tapez un montant personnalisé dans le chat (ex: 25000)
         """Gère les messages texte (codes de position)"""
         user_id = update.message.from_user.id
 
+        # Ne pas intercepter si l'utilisateur est en mode recherche manuelle
+        if context.user_data.get('waiting_for_search'):
+            return
+
         # Vérifier s'il y a une conversation en cours (Trading Compagnon)
         conversation_state = await db_manager.get_conversation_state(user_id)
         if conversation_state:
