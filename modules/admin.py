@@ -60,33 +60,41 @@ class AdminModule:
         # Récupérer les stats
         stats = await self._get_system_stats()
 
-        text = "🛠️ **DASHBOARD ADMINISTRATEUR**\n"
-        text += "━━━━━━━━━━━━━━━━━━━━\n\n"
+        version = config.BOT_VERSION if hasattr(config, 'BOT_VERSION') else '4.5.0'
 
-        # Stats utilisateurs
-        text += "👥 **Utilisateurs:**\n"
-        text += f"   • Total: {stats['total_users']}\n"
-        text += f"   • Actifs (24h): {stats['active_24h']}\n"
-        text += f"   • Nouveaux (7j): {stats['new_7d']}\n\n"
+        text = f"🛠️ **DASHBOARD ADMIN** — v{version}\n"
+        text += "━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
 
-        # Stats trading
-        text += "📊 **Trading:**\n"
-        text += f"   • Positions ouvertes: {stats['open_positions']}\n"
-        text += f"   • Nouveaux trades (24h): {stats['trades_24h']}\n"
-        text += f"   • Volume cumulé: ${stats['total_volume']:,.0f}\n\n"
+        # Section Utilisateurs (compacte)
+        text += "👥 **UTILISATEURS**\n"
+        text += f"┌ Total: **{stats['total_users']}** utilisateurs\n"
+        text += f"├ Actifs 24h: **{stats['active_24h']}** • 7j: **{stats['active_7d']}**\n"
+        text += f"└ Nouveaux (7j): **+{stats['new_7d']}**\n\n"
 
-        # Stats système
-        text += "⚙️ **Système:**\n"
-        text += f"   • Uptime: {stats['uptime']}\n"
-        text += f"   • Version: {config.BOT_VERSION if hasattr(config, 'BOT_VERSION') else '4.5.0'}\n"
-        text += f"   • DB Size: {stats['db_size_mb']:.2f} MB\n\n"
+        # Section Trading
+        pnl_icon = "📈" if stats['total_pnl'] >= 0 else "📉"
+        text += "📊 **TRADING**\n"
+        text += f"┌ Positions: **{stats['open_positions']}** ouvertes\n"
+        text += f"├ Trades 24h: **{stats['trades_24h']}** • Volume: **${stats['total_volume']:,.0f}**\n"
+        text += f"└ PnL total: {pnl_icon} **${stats['total_pnl']:+,.2f}** ({stats['win_rate']:.0f}% WR)\n\n"
+
+        # Section Activité
+        text += "⚡ **ACTIVITÉ**\n"
+        text += f"┌ IA: **{stats['ai_messages_today']}** messages (today)\n"
+        text += f"├ Scans: **{stats['scans_24h']}** (24h)\n"
+        text += f"└ Favoris: **{stats['total_favorites']}** total\n\n"
+
+        # Section Système
+        text += "⚙️ **SYSTÈME**\n"
+        text += f"┌ Uptime: **{stats['uptime']}**\n"
+        text += f"├ RAM: **{stats['memory_mb']:.0f}MB** • CPU: **{stats['cpu_percent']:.0f}%**\n"
+        text += f"└ DB: **{stats['db_size_mb']:.2f}MB**\n"
 
         # Alertes
         if stats['alerts']:
-            text += "⚠️ **Alertes:**\n"
+            text += "\n⚠️ **ALERTES**\n"
             for alert in stats['alerts'][:3]:
-                text += f"   • {alert}\n"
-            text += "\n"
+                text += f"• {alert}\n"
 
         keyboard = [
             [
@@ -175,19 +183,28 @@ class AdminModule:
             await self._show_user_detail(query, user_id)
 
     async def _get_system_stats(self) -> dict:
-        """Récupère les statistiques système"""
+        """Récupère les statistiques système complètes"""
         import aiosqlite
+        import psutil
 
         stats = {
             'total_users': 0,
             'active_24h': 0,
+            'active_7d': 0,
             'new_7d': 0,
             'open_positions': 0,
             'trades_24h': 0,
             'total_volume': 0,
             'uptime': 'N/A',
             'db_size_mb': 0,
-            'alerts': []
+            'alerts': [],
+            'total_favorites': 0,
+            'scans_24h': 0,
+            'ai_messages_today': 0,
+            'cpu_percent': 0,
+            'memory_mb': 0,
+            'total_pnl': 0,
+            'win_rate': 0
         }
 
         try:
@@ -202,6 +219,13 @@ class AdminModule:
                     WHERE last_seen >= datetime('now', '-24 hours')
                 """)
                 stats['active_24h'] = (await cursor.fetchone())[0]
+
+                # Actifs dans les 7 derniers jours
+                cursor = await db.execute("""
+                    SELECT COUNT(*) FROM users
+                    WHERE last_seen >= datetime('now', '-7 days')
+                """)
+                stats['active_7d'] = (await cursor.fetchone())[0]
 
                 # Nouveaux inscrits dans les 7 derniers jours
                 cursor = await db.execute("""
@@ -232,15 +256,84 @@ class AdminModule:
                 )
                 stats['total_volume'] = (await cursor.fetchone())[0]
 
+                # Total favoris
+                try:
+                    cursor = await db.execute("SELECT COUNT(*) FROM favorites")
+                    stats['total_favorites'] = (await cursor.fetchone())[0]
+                except Exception:
+                    pass
+
+                # Scans des 24h
+                try:
+                    cursor = await db.execute("""
+                        SELECT COUNT(*) FROM scan_results
+                        WHERE scan_date >= datetime('now', '-24 hours')
+                    """)
+                    stats['scans_24h'] = (await cursor.fetchone())[0]
+                except Exception:
+                    pass
+
+                # Messages IA aujourd'hui
+                try:
+                    cursor = await db.execute("""
+                        SELECT COALESCE(SUM(message_count), 0) FROM ai_usage_stats
+                        WHERE date = date('now')
+                    """)
+                    stats['ai_messages_today'] = (await cursor.fetchone())[0]
+                except Exception:
+                    pass
+
+                # PnL total et win rate
+                try:
+                    cursor = await db.execute("""
+                        SELECT
+                            COALESCE(SUM(pnl), 0) as total_pnl,
+                            COUNT(*) as closed_count,
+                            SUM(CASE WHEN pnl > 0 THEN 1 ELSE 0 END) as wins
+                        FROM positions WHERE status = 'closed'
+                    """)
+                    row = await cursor.fetchone()
+                    stats['total_pnl'] = row[0] if row else 0
+                    closed = row[1] if row else 0
+                    wins = row[2] if row else 0
+                    stats['win_rate'] = (wins / closed * 100) if closed > 0 else 0
+                except Exception:
+                    pass
+
             # Taille DB
             if os.path.exists(config.DATABASE_PATH):
                 stats['db_size_mb'] = os.path.getsize(config.DATABASE_PATH) / (1024 * 1024)
+
+            # Métriques système
+            try:
+                process = psutil.Process()
+                stats['memory_mb'] = process.memory_info().rss / (1024 * 1024)
+                stats['cpu_percent'] = psutil.cpu_percent()
+
+                # Uptime
+                create_time = datetime.fromtimestamp(process.create_time())
+                uptime = datetime.now() - create_time
+                days = uptime.days
+                hours = uptime.seconds // 3600
+                mins = (uptime.seconds % 3600) // 60
+                if days > 0:
+                    stats['uptime'] = f"{days}j {hours}h {mins}m"
+                elif hours > 0:
+                    stats['uptime'] = f"{hours}h {mins}m"
+                else:
+                    stats['uptime'] = f"{mins}m"
+            except Exception:
+                pass
 
             # Alertes système
             if stats['db_size_mb'] > 100:
                 stats['alerts'].append("DB > 100MB - Considérer archivage")
             if stats['total_users'] == 0:
                 stats['alerts'].append("Aucun utilisateur enregistré")
+            if stats['memory_mb'] > 500:
+                stats['alerts'].append(f"RAM élevée: {stats['memory_mb']:.0f}MB")
+            if stats['active_24h'] == 0 and stats['total_users'] > 0:
+                stats['alerts'].append("Aucun utilisateur actif (24h)")
 
         except Exception as e:
             logger.error(f"Erreur récupération stats: {e}")
@@ -506,33 +599,75 @@ class AdminModule:
         )
 
     async def _refresh_dashboard(self, query):
-        """Rafraîchit le dashboard"""
+        """Rafraîchit le dashboard avec le menu complet"""
         stats = await self._get_system_stats()
 
-        text = "🛠️ **DASHBOARD ADMINISTRATEUR**\n"
-        text += "━━━━━━━━━━━━━━━━━━━━\n\n"
+        version = config.BOT_VERSION if hasattr(config, 'BOT_VERSION') else '4.5.0'
 
-        text += "👥 **Utilisateurs:**\n"
-        text += f"   • Total: {stats['total_users']}\n"
-        text += f"   • Actifs (24h): {stats['active_24h']}\n\n"
+        text = f"🛠️ **DASHBOARD ADMIN** — v{version}\n"
+        text += "━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
 
-        text += "📊 **Trading:**\n"
-        text += f"   • Positions ouvertes: {stats['open_positions']}\n\n"
+        # Section Utilisateurs (compacte)
+        text += "👥 **UTILISATEURS**\n"
+        text += f"┌ Total: **{stats['total_users']}** utilisateurs\n"
+        text += f"├ Actifs 24h: **{stats['active_24h']}** • 7j: **{stats['active_7d']}**\n"
+        text += f"└ Nouveaux (7j): **+{stats['new_7d']}**\n\n"
 
-        text += "⚙️ **Système:**\n"
-        text += f"   • DB Size: {stats['db_size_mb']:.2f} MB\n"
-        text += f"\n🔄 Mis à jour: {datetime.now().strftime('%H:%M:%S')}"
+        # Section Trading
+        pnl_icon = "📈" if stats['total_pnl'] >= 0 else "📉"
+        text += "📊 **TRADING**\n"
+        text += f"┌ Positions: **{stats['open_positions']}** ouvertes\n"
+        text += f"├ Trades 24h: **{stats['trades_24h']}** • Volume: **${stats['total_volume']:,.0f}**\n"
+        text += f"└ PnL total: {pnl_icon} **${stats['total_pnl']:+,.2f}** ({stats['win_rate']:.0f}% WR)\n\n"
 
+        # Section Activité
+        text += "⚡ **ACTIVITÉ**\n"
+        text += f"┌ IA: **{stats['ai_messages_today']}** messages (today)\n"
+        text += f"├ Scans: **{stats['scans_24h']}** (24h)\n"
+        text += f"└ Favoris: **{stats['total_favorites']}** total\n\n"
+
+        # Section Système
+        text += "⚙️ **SYSTÈME**\n"
+        text += f"┌ Uptime: **{stats['uptime']}**\n"
+        text += f"├ RAM: **{stats['memory_mb']:.0f}MB** • CPU: **{stats['cpu_percent']:.0f}%**\n"
+        text += f"└ DB: **{stats['db_size_mb']:.2f}MB**\n"
+
+        # Alertes
+        if stats['alerts']:
+            text += "\n⚠️ **ALERTES**\n"
+            for alert in stats['alerts'][:3]:
+                text += f"• {alert}\n"
+
+        text += f"\n🔄 _Mis à jour: {datetime.now().strftime('%H:%M:%S')}_"
+
+        # Menu complet identique au dashboard principal
         keyboard = [
             [
                 InlineKeyboardButton("👥 Utilisateurs", callback_data="admin_users"),
-                InlineKeyboardButton("📊 Stats", callback_data="admin_stats")
+                InlineKeyboardButton("📊 Stats détaillées", callback_data="admin_stats")
             ],
             [
                 InlineKeyboardButton("💾 Backup", callback_data="admin_backup"),
                 InlineKeyboardButton("🔄 Système", callback_data="admin_system")
             ],
-            [InlineKeyboardButton("🔄 Rafraîchir", callback_data="admin_refresh")]
+            [
+                InlineKeyboardButton("📢 Broadcast", callback_data="admin_broadcast"),
+                InlineKeyboardButton("📋 Logs", callback_data="admin_logs")
+            ],
+            [
+                InlineKeyboardButton("🗑️ Cache", callback_data="admin_cache"),
+                InlineKeyboardButton("🔧 Maintenance", callback_data="admin_maintenance")
+            ],
+            [
+                InlineKeyboardButton("⚙️ Config", callback_data="admin_config"),
+                InlineKeyboardButton("📈 Performance", callback_data="admin_performance")
+            ],
+            [
+                InlineKeyboardButton("🎮 Discord", callback_data="admin_discord")
+            ],
+            [
+                InlineKeyboardButton("🔄 Rafraîchir", callback_data="admin_refresh")
+            ]
         ]
 
         await query.edit_message_text(
