@@ -38,9 +38,11 @@ class AdminModule:
         self.app.add_handler(CommandHandler("setup_admin", self.cmd_setup_admin))
         self.app.add_handler(CommandHandler("reset_onboarding", self.cmd_reset_onboarding))
         self.app.add_handler(CommandHandler("discord", self.cmd_discord_message))
+        self.app.add_handler(CommandHandler("addactif", self.cmd_addactif))
 
         # Callbacks admin
         self.app.add_handler(CallbackQueryHandler(self.callback_admin, pattern="^admin_"))
+        self.app.add_handler(CallbackQueryHandler(self.callback_addactif, pattern="^addactif_"))
 
     def is_admin(self, telegram_id: int) -> bool:
         """Vérifie si l'utilisateur est admin"""
@@ -1215,3 +1217,181 @@ Votre ID : <code>{user_id}</code>
             parse_mode='Markdown',
             reply_markup=InlineKeyboardMarkup(keyboard)
         )
+
+    # =========================================================================
+    # GESTION DES ACTIFS - /addactif
+    # =========================================================================
+
+    async def cmd_addactif(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Recherche et ajoute un actif dans asset_names.py via Yahoo Finance"""
+        user_id = update.effective_user.id
+        if not self.is_admin(user_id):
+            await update.message.reply_text("❌ Accès réservé aux administrateurs.")
+            return
+
+        if not context.args:
+            await update.message.reply_text(
+                "📋 <b>AJOUTER UN ACTIF</b>\n\n"
+                "Usage: <code>/addactif &lt;nom ou symbole&gt;</code>\n\n"
+                "Exemples:\n"
+                "• <code>/addactif Air Liquide</code>\n"
+                "• <code>/addactif AI.PA</code>\n"
+                "• <code>/addactif Rheinmetall</code>\n"
+                "• <code>/addactif DOGE</code>",
+                parse_mode='HTML'
+            )
+            return
+
+        query_text = ' '.join(context.args)
+        msg = await update.message.reply_text(f"🔍 Recherche de <b>{query_text}</b>...", parse_mode='HTML')
+
+        try:
+            import requests
+            url = "https://query2.finance.yahoo.com/v1/finance/search"
+            params = {
+                "q": query_text,
+                "quotesCount": 6,
+                "newsCount": 0,
+                "enableFuzzyQuery": True,
+            }
+            headers = {"User-Agent": "Mozilla/5.0"}
+            resp = requests.get(url, params=params, headers=headers, timeout=10)
+            data = resp.json()
+
+            quotes = data.get("quotes", [])
+            # Filtrer les types non pertinents
+            quotes = [q for q in quotes if q.get("quoteType") in ("EQUITY", "ETF", "CRYPTOCURRENCY", "FUTURE", "INDEX", "MUTUALFUND", "CURRENCY")]
+
+            if not quotes:
+                await msg.edit_text(
+                    f"❌ Aucun résultat pour <b>{query_text}</b>.\n\n"
+                    "Essayez avec le symbole exact (ex: <code>AI.PA</code> pour Air Liquide).",
+                    parse_mode='HTML'
+                )
+                return
+
+            from utils.asset_names import ASSET_NAMES
+
+            text = f"🔍 <b>RÉSULTATS POUR \"{query_text}\"</b>\n━━━━━━━━━━━━━━━━━━━━\n\n"
+            text += "Sélectionnez l'actif à ajouter :\n\n"
+
+            keyboard = []
+            for quote in quotes[:5]:
+                symbol = quote.get("symbol", "")
+                name = quote.get("longname") or quote.get("shortname") or symbol
+                exchange = quote.get("exchDisp", "")
+                quote_type = quote.get("typeDisp", "")
+
+                already = "✅ déjà ajouté" if symbol in ASSET_NAMES else ""
+                text += f"• <code>{symbol}</code> — {name} ({exchange}) {already}\n"
+
+                label = f"{'✅' if symbol in ASSET_NAMES else '➕'} {symbol} — {name[:30]}"
+                # Telegram callback_data max 64 bytes
+                callback = f"addactif_{symbol[:50]}"
+                keyboard.append([InlineKeyboardButton(label, callback_data=callback)])
+
+            keyboard.append([InlineKeyboardButton("❌ Annuler", callback_data="addactif_cancel")])
+
+            await msg.edit_text(
+                text,
+                reply_markup=InlineKeyboardMarkup(keyboard),
+                parse_mode='HTML'
+            )
+
+        except Exception as e:
+            logger.error(f"Erreur /addactif: {e}")
+            await msg.edit_text(f"❌ Erreur lors de la recherche: {e}")
+
+    async def callback_addactif(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Gère la confirmation d'ajout d'actif"""
+        query = update.callback_query
+        await query.answer()
+
+        user_id = update.effective_user.id
+        if not self.is_admin(user_id):
+            return
+
+        data = query.data
+
+        if data == "addactif_cancel":
+            await query.edit_message_text("❌ Ajout annulé.")
+            return
+
+        symbol = data.replace("addactif_", "")
+
+        # Vérifier si déjà présent
+        from utils.asset_names import ASSET_NAMES
+        if symbol in ASSET_NAMES:
+            await query.edit_message_text(
+                f"⚠️ <b>{symbol}</b> est déjà dans la base !\n"
+                f"Nom actuel : <b>{ASSET_NAMES[symbol]}</b>",
+                parse_mode='HTML'
+            )
+            return
+
+        await query.edit_message_text(f"⏳ Récupération des infos pour <code>{symbol}</code>...", parse_mode='HTML')
+
+        try:
+            import yfinance as yf
+            ticker = yf.Ticker(symbol)
+            info = ticker.info
+            name = info.get("longName") or info.get("shortName") or symbol
+            # Nettoyer le nom (supprimer suffixes inutiles)
+            name = name.replace(" Inc.", " Inc.").strip()
+
+        except Exception:
+            name = symbol
+
+        # Écrire dans asset_names.py
+        success = self._add_to_asset_names(symbol, name)
+
+        if success:
+            await query.edit_message_text(
+                f"✅ <b>ACTIF AJOUTÉ !</b>\n━━━━━━━━━━━━━━━━━━━━\n\n"
+                f"📌 Symbole : <code>{symbol}</code>\n"
+                f"📝 Nom : <b>{name}</b>\n\n"
+                f"<i>Disponible immédiatement dans la recherche.</i>",
+                parse_mode='HTML'
+            )
+            logger.info(f"✅ Admin {user_id} a ajouté l'actif {symbol} ({name})")
+        else:
+            await query.edit_message_text(
+                f"❌ Erreur lors de l'écriture dans le fichier.\nVérifiez les logs."
+            )
+
+    def _add_to_asset_names(self, symbol: str, name: str) -> bool:
+        """Ajoute un actif dans utils/asset_names.py et recharge le module"""
+        try:
+            import importlib
+            import utils.asset_names as asset_module
+
+            file_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "utils", "asset_names.py")
+
+            with open(file_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+
+            # Ligne à insérer
+            new_line = f'    "{symbol}": "{name}",\n'
+
+            # Section custom déjà présente ?
+            custom_header = "    # ===== CUSTOM - AJOUTS ADMIN =====\n"
+            if custom_header in content:
+                insert_pos = content.find(custom_header) + len(custom_header)
+                content = content[:insert_pos] + new_line + content[insert_pos:]
+            else:
+                # Ajouter la section custom juste avant le }  final
+                insert_pos = content.rfind("\n}")
+                content = content[:insert_pos] + "\n\n" + custom_header + new_line + content[insert_pos:]
+
+            with open(file_path, 'w', encoding='utf-8') as f:
+                f.write(content)
+
+            # Recharger le module pour prise en compte immédiate
+            importlib.reload(asset_module)
+            logger.info(f"Module asset_names rechargé après ajout de {symbol}")
+
+            return True
+
+        except Exception as e:
+            logger.error(f"Erreur _add_to_asset_names({symbol}): {e}")
+            return False
