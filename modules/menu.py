@@ -1733,7 +1733,11 @@ Aucun résultat pour "<b>{query}</b>".
 
         except Exception as e:
             logger.error(f"🔍 Erreur recherche manuelle: {e}")
-            await update.message.reply_text(f"❌ Erreur: {e}")
+            keyboard = [[InlineKeyboardButton("🔙 Menu", callback_data="menu_tools")]]
+            await update.message.reply_text(
+                f"❌ Erreur lors de la recherche.",
+                reply_markup=InlineKeyboardMarkup(keyboard)
+            )
 
     async def handle_asset_request_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Gère la demande d'ajout d'un actif"""

@@ -115,6 +115,20 @@ Quel montant souhaitez-vous investir ?
         if state['state'] == STATE_AMOUNT:
             await self.handle_amount_input(update, context, text, state)
 
+        elif state['state'] == STATE_DIRECTION:
+            # L'utilisateur a tapé du texte au lieu de cliquer LONG/SHORT
+            keyboard = [
+                [
+                    InlineKeyboardButton("📈 LONG", callback_data="tc_direction_LONG"),
+                    InlineKeyboardButton("📉 SHORT", callback_data="tc_direction_SHORT")
+                ],
+                [InlineKeyboardButton("❌ Annuler", callback_data="tc_cancel")]
+            ]
+            await update.message.reply_text(
+                "💡 Veuillez utiliser les boutons ci-dessous pour choisir la direction.",
+                reply_markup=InlineKeyboardMarkup(keyboard)
+            )
+
         elif state['state'] == STATE_LEVERAGE:
             await self.handle_leverage_input(update, context, text, state)
 

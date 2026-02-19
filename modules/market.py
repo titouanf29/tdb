@@ -38,7 +38,7 @@ class MarketModule:
         # Capturer tous les callbacks du module marché
         self.app.add_handler(CallbackQueryHandler(
             self.handle_callback,
-            pattern="^(market_|chart_|chartgen_|news_|favorite_add_|trading_companion_|analyze_|view_compact_|view_detailed_|refresh_)"
+            pattern="^(market_|chart_|chartgen_|news_|favorite_add_|trading_companion_|analyze_|view_compact_|view_detailed_|refresh_|asset_)"
         ))
 
     async def show_markets(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -745,9 +745,13 @@ Revenez plus tard ou essayez un autre marché.
             )
 
             if data is None or data.empty:
+                market_code = self.find_market_for_symbol(symbol)
+                back_cb = f"asset_{market_code}_{symbol}" if market_code else "market_main"
+                back_kb = InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Retour", callback_data=back_cb)]])
                 await context.bot.send_message(
                     chat_id=query.message.chat_id,
-                    text="Impossible de generer le graphique - donnees indisponibles."
+                    text="Impossible de generer le graphique - donnees indisponibles.",
+                    reply_markup=back_kb
                 )
                 return
 
@@ -782,16 +786,24 @@ Revenez plus tard ou essayez un autre marché.
                     reply_markup=reply_markup
                 )
             else:
+                market_code = self.find_market_for_symbol(symbol)
+                back_cb = f"asset_{market_code}_{symbol}" if market_code else "market_main"
+                back_kb = InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Retour", callback_data=back_cb)]])
                 await context.bot.send_message(
                     chat_id=query.message.chat_id,
-                    text="Erreur lors de la generation du graphique."
+                    text="Erreur lors de la generation du graphique.",
+                    reply_markup=back_kb
                 )
 
         except Exception as e:
             logger.error(f"Erreur generation graphique {symbol}: {e}")
+            market_code = self.find_market_for_symbol(symbol)
+            back_cb = f"asset_{market_code}_{symbol}" if market_code else "market_main"
+            back_kb = InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Retour", callback_data=back_cb)]])
             await context.bot.send_message(
                 chat_id=query.message.chat_id,
-                text="Erreur lors de la generation du graphique."
+                text="Erreur lors de la generation du graphique.",
+                reply_markup=back_kb
             )
 
     async def show_news(self, update: Update, context: ContextTypes.DEFAULT_TYPE, symbol: str):
@@ -1107,6 +1119,16 @@ Recherchez : **{symbol}**
                 market_code = parts[0]
                 symbol = parts[1]
                 await self.show_asset_detail(update, context, market_code, symbol, view_mode="detailed")
+            else:
+                await query.answer("Erreur format", show_alert=True)
+
+        elif data.startswith("asset_"):
+            # Retour vers la fiche d'un actif: asset_{market_code}_{symbol}
+            parts = data.replace("asset_", "").split("_", 1)
+            if len(parts) >= 2:
+                market_code = parts[0]
+                symbol = parts[1]
+                await self.show_asset_detail(update, context, market_code, symbol)
             else:
                 await query.answer("Erreur format", show_alert=True)
 
