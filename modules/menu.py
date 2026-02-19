@@ -1566,7 +1566,7 @@ Tapez <code>/a SYMBOLE</code> pour une analyse
         Recherche floue d'un actif par nom ou symbole.
         Retourne une liste de (symbol, name, score) triée par pertinence.
         """
-        from utils.asset_names import ASSET_NAMES
+        from utils.asset_names import get_all_assets
 
         query_lower = query.lower().strip()
         results = []
@@ -1574,8 +1574,8 @@ Tapez <code>/a SYMBOLE</code> pour une analyse
         # Normaliser la query (enlever caractères spéciaux)
         query_normalized = ''.join(c for c in query_lower if c.isalnum())
 
-        # Chercher dans tous les actifs
-        for symbol, name in ASSET_NAMES.items():
+        # Chercher dans tous les actifs (base fixe + actifs custom ajoutés par les admins)
+        for symbol, name in get_all_assets().items():
             symbol_clean = symbol.lower()
             base_symbol = symbol.split('.')[0].split('-')[0].replace('^', '').lower()
             name_lower = name.lower()

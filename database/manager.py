@@ -1722,5 +1722,33 @@ class DatabaseManager:
                 return [row['telegram_id'] for row in rows]
 
 
+    # ===== ACTIFS PERSONNALISÉS =====
+
+    async def add_custom_asset(self, symbol: str, name: str, added_by: int) -> bool:
+        """Ajoute un actif personnalisé en base"""
+        async with aiosqlite.connect(self.db_path) as db:
+            await db.execute("""
+                INSERT OR REPLACE INTO custom_assets (symbol, name, added_by)
+                VALUES (?, ?, ?)
+            """, (symbol, name, added_by))
+            await db.commit()
+        return True
+
+    async def get_custom_assets(self) -> dict:
+        """Retourne tous les actifs personnalisés sous forme {symbol: name}"""
+        async with aiosqlite.connect(self.db_path) as db:
+            db.row_factory = aiosqlite.Row
+            async with db.execute("SELECT symbol, name FROM custom_assets ORDER BY added_at") as cursor:
+                rows = await cursor.fetchall()
+                return {row['symbol']: row['name'] for row in rows}
+
+    async def remove_custom_asset(self, symbol: str) -> bool:
+        """Supprime un actif personnalisé"""
+        async with aiosqlite.connect(self.db_path) as db:
+            await db.execute("DELETE FROM custom_assets WHERE symbol = ?", (symbol,))
+            await db.commit()
+        return True
+
+
 # Instance globale
 db_manager = DatabaseManager()

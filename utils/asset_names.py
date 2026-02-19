@@ -400,9 +400,28 @@ ASSET_EMOJIS = {
     "CT=F": "🧵",
 }
 
+# Dict des actifs ajoutés dynamiquement par les admins (chargé depuis la DB au démarrage)
+CUSTOM_ASSETS: dict = {}
+
+
+async def load_custom_assets() -> None:
+    """Charge les actifs personnalisés depuis la DB dans CUSTOM_ASSETS"""
+    global CUSTOM_ASSETS
+    try:
+        from database.manager import db_manager
+        CUSTOM_ASSETS = await db_manager.get_custom_assets()
+    except Exception:
+        CUSTOM_ASSETS = {}
+
+
+def get_all_assets() -> dict:
+    """Retourne la fusion ASSET_NAMES + CUSTOM_ASSETS (custom prioritaire)"""
+    return {**ASSET_NAMES, **CUSTOM_ASSETS}
+
+
 def get_asset_display_name(symbol: str) -> str:
     """Retourne le nom complet d'un actif ou le symbole si non trouvé"""
-    return ASSET_NAMES.get(symbol, symbol)
+    return CUSTOM_ASSETS.get(symbol) or ASSET_NAMES.get(symbol, symbol)
 
 def get_asset_emoji(symbol: str) -> str:
     """Retourne l'emoji d'un actif ou une puce par défaut"""

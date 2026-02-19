@@ -617,3 +617,12 @@ CREATE TABLE IF NOT EXISTS daily_summary_settings (
     last_sent_at TIMESTAMP,
     FOREIGN KEY (telegram_id) REFERENCES users(telegram_id)
 );
+
+-- ===== ACTIFS PERSONNALISÉS (ajoutés par les admins) =====
+CREATE TABLE IF NOT EXISTS custom_assets (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    symbol TEXT NOT NULL UNIQUE,
+    name TEXT NOT NULL,
+    added_by INTEGER,  -- telegram_id de l'admin
+    added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);

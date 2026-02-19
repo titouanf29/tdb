@@ -1319,12 +1319,13 @@ Votre ID : <code>{user_id}</code>
 
         symbol = data.replace("addactif_", "")
 
-        # Vérifier si déjà présent
-        from utils.asset_names import ASSET_NAMES
-        if symbol in ASSET_NAMES:
+        # Vérifier si déjà présent (base fixe ou custom)
+        from utils.asset_names import get_all_assets
+        all_assets = get_all_assets()
+        if symbol in all_assets:
             await query.edit_message_text(
                 f"⚠️ <b>{symbol}</b> est déjà dans la base !\n"
-                f"Nom actuel : <b>{ASSET_NAMES[symbol]}</b>",
+                f"Nom actuel : <b>{all_assets[symbol]}</b>",
                 parse_mode='HTML'
             )
             return
@@ -1342,54 +1343,36 @@ Votre ID : <code>{user_id}</code>
         except Exception:
             name = symbol
 
-        # Écrire dans asset_names.py
-        success = self._add_to_asset_names(symbol, name)
+        # Sauvegarder en DB (persistant)
+        success = await self._add_to_asset_names(symbol, name, user_id)
 
         if success:
             await query.edit_message_text(
                 f"✅ <b>ACTIF AJOUTÉ !</b>\n━━━━━━━━━━━━━━━━━━━━\n\n"
                 f"📌 Symbole : <code>{symbol}</code>\n"
                 f"📝 Nom : <b>{name}</b>\n\n"
-                f"<i>Disponible immédiatement dans la recherche.</i>",
+                f"<i>Sauvegardé en base de données — persistant après redémarrage.</i>",
                 parse_mode='HTML'
             )
             logger.info(f"✅ Admin {user_id} a ajouté l'actif {symbol} ({name})")
         else:
             await query.edit_message_text(
-                f"❌ Erreur lors de l'écriture dans le fichier.\nVérifiez les logs."
+                f"❌ Erreur lors de la sauvegarde en base.\nVérifiez les logs."
             )
 
-    def _add_to_asset_names(self, symbol: str, name: str) -> bool:
-        """Ajoute un actif dans utils/asset_names.py et recharge le module"""
+    async def _add_to_asset_names(self, symbol: str, name: str, added_by: int) -> bool:
+        """Sauvegarde un actif en DB et met à jour le dict en mémoire immédiatement"""
         try:
-            import importlib
+            from database.manager import db_manager
             import utils.asset_names as asset_module
 
-            file_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "utils", "asset_names.py")
+            # Sauvegarder en base de données (persistant, survit aux git pull)
+            await db_manager.add_custom_asset(symbol, name, added_by)
 
-            with open(file_path, 'r', encoding='utf-8') as f:
-                content = f.read()
+            # Mettre à jour le dict en mémoire (effet immédiat sans redémarrage)
+            asset_module.CUSTOM_ASSETS[symbol] = name
 
-            # Ligne à insérer
-            new_line = f'    "{symbol}": "{name}",\n'
-
-            # Section custom déjà présente ?
-            custom_header = "    # ===== CUSTOM - AJOUTS ADMIN =====\n"
-            if custom_header in content:
-                insert_pos = content.find(custom_header) + len(custom_header)
-                content = content[:insert_pos] + new_line + content[insert_pos:]
-            else:
-                # Ajouter la section custom juste avant le }  final
-                insert_pos = content.rfind("\n}")
-                content = content[:insert_pos] + "\n\n" + custom_header + new_line + content[insert_pos:]
-
-            with open(file_path, 'w', encoding='utf-8') as f:
-                f.write(content)
-
-            # Recharger le module pour prise en compte immédiate
-            importlib.reload(asset_module)
-            logger.info(f"Module asset_names rechargé après ajout de {symbol}")
-
+            logger.info(f"Actif {symbol} ({name}) ajouté en DB par admin {added_by}")
             return True
 
         except Exception as e:

@@ -191,6 +191,11 @@ class TDBBot:
         await self.initialize_database()
         logger.info("✅ Base de données initialisée")
 
+        # Charger les actifs custom (ajoutés par les admins) en mémoire
+        from utils.asset_names import load_custom_assets
+        await load_custom_assets()
+        logger.info("✅ Actifs personnalisés chargés")
+
         # Créer l'application
         self.application = Application.builder().token(self.token).build()
 
