@@ -72,8 +72,8 @@ class AdminModule:
         # Stats trading
         text += "📊 **Trading:**\n"
         text += f"   • Positions ouvertes: {stats['open_positions']}\n"
-        text += f"   • Trades (24h): {stats['trades_24h']}\n"
-        text += f"   • Volume total: ${stats['total_volume']:,.0f}\n\n"
+        text += f"   • Nouveaux trades (24h): {stats['trades_24h']}\n"
+        text += f"   • Volume cumulé: ${stats['total_volume']:,.0f}\n\n"
 
         # Stats système
         text += "⚙️ **Système:**\n"
@@ -176,7 +176,7 @@ class AdminModule:
 
     async def _get_system_stats(self) -> dict:
         """Récupère les statistiques système"""
-        import os
+        import aiosqlite
 
         stats = {
             'total_users': 0,
@@ -191,21 +191,50 @@ class AdminModule:
         }
 
         try:
-            # Utilisateurs
-            users = await db_manager.get_all_users()
-            stats['total_users'] = len(users)
+            async with aiosqlite.connect(config.DATABASE_PATH) as db:
+                # Total utilisateurs
+                cursor = await db.execute("SELECT COUNT(*) FROM users")
+                stats['total_users'] = (await cursor.fetchone())[0]
 
-            # Utilisateurs actifs (approximation)
-            stats['active_24h'] = min(len(users), len(users) // 2 + 1)
-            stats['new_7d'] = min(len(users), 5)
+                # Actifs dans les 24 dernières heures (last_seen)
+                cursor = await db.execute("""
+                    SELECT COUNT(*) FROM users
+                    WHERE last_seen >= datetime('now', '-24 hours')
+                """)
+                stats['active_24h'] = (await cursor.fetchone())[0]
 
-            # Positions (requête unique au lieu de N+1)
-            stats['open_positions'] = await db_manager.count_all_open_positions()
+                # Nouveaux inscrits dans les 7 derniers jours
+                cursor = await db.execute("""
+                    SELECT COUNT(*) FROM users
+                    WHERE created_at >= datetime('now', '-7 days')
+                """)
+                stats['new_7d'] = (await cursor.fetchone())[0]
+
+                # Positions ouvertes
+                try:
+                    cursor = await db.execute(
+                        "SELECT COUNT(*) FROM positions WHERE status = 'open'"
+                    )
+                    stats['open_positions'] = (await cursor.fetchone())[0]
+                except Exception:
+                    stats['open_positions'] = await db_manager.count_all_open_positions()
+
+                # Trades des 24h
+                cursor = await db.execute("""
+                    SELECT COUNT(*) FROM positions
+                    WHERE opened_at >= datetime('now', '-24 hours')
+                """)
+                stats['trades_24h'] = (await cursor.fetchone())[0]
+
+                # Volume total (somme des montants investis)
+                cursor = await db.execute(
+                    "SELECT COALESCE(SUM(amount), 0) FROM positions"
+                )
+                stats['total_volume'] = (await cursor.fetchone())[0]
 
             # Taille DB
-            db_path = config.DATABASE_PATH
-            if os.path.exists(db_path):
-                stats['db_size_mb'] = os.path.getsize(db_path) / (1024 * 1024)
+            if os.path.exists(config.DATABASE_PATH):
+                stats['db_size_mb'] = os.path.getsize(config.DATABASE_PATH) / (1024 * 1024)
 
             # Alertes système
             if stats['db_size_mb'] > 100:
@@ -221,24 +250,117 @@ class AdminModule:
 
     async def _show_detailed_stats(self, query):
         """Affiche les stats détaillées"""
+        import aiosqlite
+
         text = "📊 **STATISTIQUES DÉTAILLÉES**\n"
         text += "━━━━━━━━━━━━━━━━━━━━\n\n"
 
-        # Stats trading
-        text += "📈 **Trading (24h):**\n"
-        text += "   • Trades exécutés: ~0\n"
-        text += "   • Volume: $0\n"
-        text += "   • PnL moyen: $0\n\n"
+        try:
+            async with aiosqlite.connect(config.DATABASE_PATH) as db:
+                db.row_factory = aiosqlite.Row
 
-        # Stats IA
-        text += "🤖 **Assistant IA (24h):**\n"
-        text += "   • Messages: ~0\n"
-        text += "   • Tokens utilisés: ~0\n\n"
+                # Trading 24h
+                cursor = await db.execute("""
+                    SELECT COUNT(*) as cnt,
+                           COALESCE(SUM(amount), 0) as volume,
+                           COALESCE(AVG(pnl), 0) as avg_pnl
+                    FROM positions
+                    WHERE opened_at >= datetime('now', '-24 hours')
+                """)
+                t24 = await cursor.fetchone()
 
-        # Stats scan
-        text += "🔍 **Scanner (24h):**\n"
-        text += "   • Scans effectués: ~0\n"
-        text += "   • Alertes envoyées: ~0\n"
+                cursor = await db.execute("""
+                    SELECT COUNT(*) as wins FROM positions
+                    WHERE status = 'closed' AND pnl > 0
+                    AND closed_at >= datetime('now', '-24 hours')
+                """)
+                wins_24h = (await cursor.fetchone())['wins']
+
+                cursor = await db.execute("""
+                    SELECT COALESCE(SUM(pnl), 0) as total_pnl FROM positions
+                    WHERE status = 'closed'
+                    AND closed_at >= datetime('now', '-24 hours')
+                """)
+                pnl_24h = (await cursor.fetchone())['total_pnl']
+
+                text += "📈 **Trading (24h):**\n"
+                text += f"   • Trades ouverts: {t24['cnt']}\n"
+                text += f"   • Volume: ${t24['volume']:,.0f}\n"
+                text += f"   • PnL clôturé: ${pnl_24h:+,.2f}\n"
+                text += f"   • Trades gagnants: {wins_24h}\n\n"
+
+                # Trading global
+                cursor = await db.execute("""
+                    SELECT COUNT(*) as total,
+                           SUM(CASE WHEN status='open' THEN 1 ELSE 0 END) as open_cnt,
+                           SUM(CASE WHEN status='closed' AND pnl>0 THEN 1 ELSE 0 END) as wins,
+                           SUM(CASE WHEN status='closed' THEN 1 ELSE 0 END) as closed_cnt,
+                           COALESCE(SUM(CASE WHEN status='closed' THEN pnl ELSE 0 END), 0) as total_pnl
+                    FROM positions
+                """)
+                tg = await cursor.fetchone()
+                global_wr = (tg['wins'] / tg['closed_cnt'] * 100) if (tg['closed_cnt'] or 0) > 0 else 0
+
+                text += "📊 **Trading (global):**\n"
+                text += f"   • Trades totaux: {tg['total']}\n"
+                text += f"   • Positions ouvertes: {tg['open_cnt']}\n"
+                text += f"   • Win rate global: {global_wr:.0f}%\n"
+                text += f"   • PnL total généré: ${tg['total_pnl']:+,.2f}\n\n"
+
+                # Assistant IA (aujourd'hui)
+                cursor = await db.execute("""
+                    SELECT COALESCE(SUM(message_count), 0) as msgs,
+                           COALESCE(SUM(tokens_used), 0) as tokens,
+                           COUNT(DISTINCT telegram_id) as users
+                    FROM ai_usage_stats
+                    WHERE date = date('now')
+                """)
+                ai = await cursor.fetchone()
+
+                cursor = await db.execute("""
+                    SELECT COALESCE(SUM(message_count), 0) as msgs_total,
+                           COALESCE(SUM(tokens_used), 0) as tokens_total
+                    FROM ai_usage_stats
+                """)
+                ai_total = await cursor.fetchone()
+
+                text += "🤖 **Assistant IA (aujourd'hui):**\n"
+                text += f"   • Messages: {ai['msgs']}\n"
+                text += f"   • Tokens: {ai['tokens']:,}\n"
+                text += f"   • Utilisateurs actifs: {ai['users']}\n"
+                text += f"   • Tokens total (all-time): {ai_total['tokens_total']:,}\n\n"
+
+                # Scanner
+                cursor = await db.execute("""
+                    SELECT COUNT(*) as scans,
+                           COUNT(DISTINCT telegram_id) as users
+                    FROM scan_results
+                    WHERE scan_date >= datetime('now', '-24 hours')
+                """)
+                scan = await cursor.fetchone()
+
+                cursor = await db.execute("""
+                    SELECT COUNT(*) FROM scan_results WHERE alert_sent = 1
+                    AND scan_date >= datetime('now', '-24 hours')
+                """)
+                alerts_sent = (await cursor.fetchone())[0]
+
+                text += "🔍 **Scanner (24h):**\n"
+                text += f"   • Scans effectués: {scan['scans']}\n"
+                text += f"   • Utilisateurs scannés: {scan['users']}\n"
+                text += f"   • Alertes envoyées: {alerts_sent}\n\n"
+
+                # Notifications
+                cursor = await db.execute("""
+                    SELECT COUNT(*) FROM notifications
+                    WHERE sent_at >= datetime('now', '-24 hours')
+                """)
+                notifs = (await cursor.fetchone())[0]
+                text += f"🔔 **Notifications (24h):** {notifs}\n"
+
+        except Exception as e:
+            logger.error(f"Erreur _show_detailed_stats: {e}")
+            text += f"❌ Erreur lors de la récupération: {e}\n"
 
         keyboard = [[InlineKeyboardButton("◀️ Retour", callback_data="admin_back")]]
 
@@ -1012,53 +1134,131 @@ Votre ID : <code>{user_id}</code>
             reply_markup=InlineKeyboardMarkup(keyboard)
         )
 
-    async def _show_user_detail(self, query, user_id: int):
-        """Affiche le détail d'un utilisateur"""
+    async def _show_user_detail(self, query, target_user_id: int):
+        """Affiche le détail complet d'un utilisateur"""
         import aiosqlite
 
-        text = f"👤 **DÉTAIL UTILISATEUR #{user_id}**\n"
+        text = f"👤 **PROFIL UTILISATEUR**\n"
         text += "━━━━━━━━━━━━━━━━━━━━\n\n"
 
         try:
             async with aiosqlite.connect(config.DATABASE_PATH) as db:
                 db.row_factory = aiosqlite.Row
 
-                # Info utilisateur
+                # Infos de base
                 cursor = await db.execute(
-                    "SELECT * FROM users WHERE telegram_id = ?", (user_id,)
+                    "SELECT * FROM users WHERE telegram_id = ?", (target_user_id,)
                 )
                 user = await cursor.fetchone()
 
-                if user:
+                if not user:
+                    text += "❌ Utilisateur introuvable."
+                else:
+                    # Calcul last_seen lisible
+                    last_seen_str = "Jamais"
+                    if user['last_seen']:
+                        try:
+                            ls = datetime.fromisoformat(user['last_seen'].replace('Z', ''))
+                            diff = datetime.now() - ls
+                            if diff.total_seconds() < 60:
+                                last_seen_str = "À l'instant"
+                            elif diff.total_seconds() < 3600:
+                                last_seen_str = f"Il y a {int(diff.total_seconds()//60)} min"
+                            elif diff.total_seconds() < 86400:
+                                last_seen_str = f"Il y a {int(diff.total_seconds()//3600)}h"
+                            else:
+                                last_seen_str = f"Il y a {diff.days} jour(s)"
+                        except Exception:
+                            last_seen_str = user['last_seen'][:16]
+
                     text += f"📋 **Informations:**\n"
                     text += f"   • ID: `{user['telegram_id']}`\n"
                     text += f"   • Username: @{user['username'] or 'N/A'}\n"
                     text += f"   • Prénom: {user['first_name'] or 'N/A'}\n"
-                    text += f"   • Inscrit: {user['created_at'][:10] if user['created_at'] else 'N/A'}\n\n"
+                    text += f"   • Inscrit le: {user['created_at'][:10] if user['created_at'] else 'N/A'}\n"
+                    text += f"   • Dernière activité: {last_seen_str}\n\n"
 
-                # Positions
-                cursor = await db.execute(
-                    "SELECT COUNT(*) FROM positions WHERE telegram_id = ?", (user_id,)
-                )
-                pos_count = (await cursor.fetchone())[0]
+                    # Abonnement
+                    cursor = await db.execute(
+                        "SELECT * FROM user_subscriptions WHERE telegram_id = ?", (target_user_id,)
+                    )
+                    sub = await cursor.fetchone()
+                    if sub:
+                        tier_icons = {'free': '🆓', 'premium': '⭐', 'vip': '💎'}
+                        tier = sub['tier'] or 'free'
+                        text += f"💎 **Abonnement:** {tier_icons.get(tier, '🆓')} {tier.upper()}\n"
+                        if sub['premium_until']:
+                            text += f"   • Expire: {sub['premium_until'][:10]}\n"
+                        text += f"   • Analyses today: {sub['analyses_used_today']}\n\n"
+                    else:
+                        text += "💎 **Abonnement:** 🆓 FREE\n\n"
 
-                cursor = await db.execute(
-                    "SELECT COUNT(*) FROM positions WHERE telegram_id = ? AND status = 'open'", (user_id,)
-                )
-                open_pos = (await cursor.fetchone())[0]
+                    # Wallet
+                    cursor = await db.execute(
+                        "SELECT * FROM wallet WHERE telegram_id = ?", (target_user_id,)
+                    )
+                    wallet = await cursor.fetchone()
+                    if wallet:
+                        pnl_icon = "📈" if wallet['total_pnl'] >= 0 else "📉"
+                        text += f"💰 **Wallet:**\n"
+                        text += f"   • Solde: ${wallet['balance']:,.2f}\n"
+                        text += f"   • PnL total: {pnl_icon} ${wallet['total_pnl']:+,.2f}\n"
+                        text += f"   • PnL jour: ${wallet['daily_pnl']:+,.2f}\n\n"
 
-                text += f"📈 **Trading:**\n"
-                text += f"   • Positions totales: {pos_count}\n"
-                text += f"   • Positions ouvertes: {open_pos}\n\n"
+                    # Trading
+                    cursor = await db.execute(
+                        "SELECT COUNT(*) FROM positions WHERE telegram_id = ?", (target_user_id,)
+                    )
+                    pos_count = (await cursor.fetchone())[0]
 
-                # Favoris
-                cursor = await db.execute(
-                    "SELECT COUNT(*) FROM favorites WHERE telegram_id = ?", (user_id,)
-                )
-                fav_count = (await cursor.fetchone())[0]
-                text += f"⭐ **Favoris:** {fav_count}\n"
+                    cursor = await db.execute(
+                        "SELECT COUNT(*) FROM positions WHERE telegram_id = ? AND status = 'open'", (target_user_id,)
+                    )
+                    open_pos = (await cursor.fetchone())[0]
+
+                    cursor = await db.execute("""
+                        SELECT COUNT(*) FROM positions
+                        WHERE telegram_id = ? AND status = 'closed'
+                        AND pnl > 0
+                    """, (target_user_id,))
+                    wins = (await cursor.fetchone())[0]
+
+                    closed_total = pos_count - open_pos
+                    winrate = (wins / closed_total * 100) if closed_total > 0 else 0
+
+                    text += f"📈 **Trading:**\n"
+                    text += f"   • Trades totaux: {pos_count}\n"
+                    text += f"   • Positions ouvertes: {open_pos}\n"
+                    text += f"   • Win rate: {winrate:.0f}%\n\n"
+
+                    # Usage IA
+                    cursor = await db.execute("""
+                        SELECT COALESCE(SUM(message_count), 0) as total_msgs,
+                               COALESCE(SUM(tokens_used), 0) as total_tokens
+                        FROM ai_usage_stats WHERE telegram_id = ?
+                    """, (target_user_id,))
+                    ai_row = await cursor.fetchone()
+                    if ai_row and ai_row['total_msgs'] > 0:
+                        text += f"🤖 **Assistant IA:**\n"
+                        text += f"   • Messages totaux: {ai_row['total_msgs']}\n"
+                        text += f"   • Tokens utilisés: {ai_row['total_tokens']:,}\n\n"
+
+                    # Favoris & scan
+                    cursor = await db.execute(
+                        "SELECT COUNT(*) FROM favorites WHERE telegram_id = ?", (target_user_id,)
+                    )
+                    fav_count = (await cursor.fetchone())[0]
+
+                    cursor = await db.execute(
+                        "SELECT scan_enabled FROM user_settings WHERE telegram_id = ?", (target_user_id,)
+                    )
+                    settings_row = await cursor.fetchone()
+                    scan_status = "🟢 Actif" if (settings_row and settings_row['scan_enabled']) else "🔴 Inactif"
+
+                    text += f"⭐ **Favoris:** {fav_count}   |   🔍 **Scan auto:** {scan_status}\n"
 
         except Exception as e:
+            logger.error(f"Erreur _show_user_detail: {e}")
             text += f"❌ Erreur: {e}\n"
 
         keyboard = [[InlineKeyboardButton("◀️ Retour", callback_data="admin_users")]]
@@ -1186,29 +1386,117 @@ Votre ID : <code>{user_id}</code>
 
     async def _show_users_stats(self, query):
         """Affiche les stats utilisateurs détaillées avec boutons de détail"""
-        users = await db_manager.get_all_users()
+        import aiosqlite
 
         text = "👥 **STATISTIQUES UTILISATEURS**\n"
         text += "━━━━━━━━━━━━━━━━━━━━\n\n"
 
-        text += f"📊 **Vue d'ensemble:**\n"
-        text += f"   • Total: {len(users)}\n\n"
+        try:
+            async with aiosqlite.connect(config.DATABASE_PATH) as db:
+                db.row_factory = aiosqlite.Row
 
-        text += "📋 **Derniers utilisateurs:**\n"
-        for user in users[:10]:
-            username = user.get('username', 'N/A')
-            first_name = user.get('first_name', 'Inconnu')
-            created = user.get('created_at', 'N/A')
-            text += f"   • @{username} ({first_name}) - {created[:10] if created else 'N/A'}\n"
+                # Compteurs globaux
+                cursor = await db.execute("SELECT COUNT(*) FROM users")
+                total = (await cursor.fetchone())[0]
 
-        # Créer boutons pour voir détails des utilisateurs
+                cursor = await db.execute("""
+                    SELECT COUNT(*) FROM users
+                    WHERE last_seen >= datetime('now', '-24 hours')
+                """)
+                active_24h = (await cursor.fetchone())[0]
+
+                cursor = await db.execute("""
+                    SELECT COUNT(*) FROM users
+                    WHERE last_seen >= datetime('now', '-7 days')
+                """)
+                active_7d = (await cursor.fetchone())[0]
+
+                cursor = await db.execute("""
+                    SELECT COUNT(*) FROM users
+                    WHERE created_at >= datetime('now', '-7 days')
+                """)
+                new_7d = (await cursor.fetchone())[0]
+
+                # Tier breakdown
+                cursor = await db.execute("""
+                    SELECT tier, COUNT(*) as cnt FROM user_subscriptions GROUP BY tier
+                """)
+                tiers = {row['tier']: row['cnt'] for row in await cursor.fetchall()}
+
+                text += f"📊 **Vue d'ensemble:**\n"
+                text += f"   • Total: **{total}**\n"
+                text += f"   • Actifs 24h: **{active_24h}**\n"
+                text += f"   • Actifs 7j: **{active_7d}**\n"
+                text += f"   • Nouveaux 7j: **{new_7d}**\n\n"
+
+                if tiers:
+                    text += "💎 **Abonnements:**\n"
+                    text += f"   • Free: {tiers.get('free', 0)}\n"
+                    text += f"   • Premium: {tiers.get('premium', 0)}\n"
+                    text += f"   • VIP: {tiers.get('vip', 0)}\n\n"
+
+                # Derniers utilisateurs avec infos enrichies
+                cursor = await db.execute("""
+                    SELECT u.telegram_id, u.username, u.first_name,
+                           u.created_at, u.last_seen,
+                           COALESCE(w.balance, 10000) as balance,
+                           COALESCE(w.total_pnl, 0) as total_pnl,
+                           COALESCE(s.tier, 'free') as tier,
+                           (SELECT COUNT(*) FROM positions p WHERE p.telegram_id = u.telegram_id) as trades
+                    FROM users u
+                    LEFT JOIN wallet w ON w.telegram_id = u.telegram_id
+                    LEFT JOIN user_subscriptions s ON s.telegram_id = u.telegram_id
+                    ORDER BY u.last_seen DESC
+                    LIMIT 8
+                """)
+                users = await cursor.fetchall()
+
+                text += "📋 **Derniers actifs:**\n"
+                for user in users:
+                    uname = f"@{user['username']}" if user['username'] else user['first_name'] or f"ID:{user['telegram_id']}"
+                    last_seen = user['last_seen']
+                    if last_seen:
+                        try:
+                            ls = datetime.fromisoformat(last_seen.replace('Z', ''))
+                            diff = datetime.now() - ls
+                            if diff.total_seconds() < 3600:
+                                seen_str = f"{int(diff.total_seconds()//60)}min"
+                            elif diff.total_seconds() < 86400:
+                                seen_str = f"{int(diff.total_seconds()//3600)}h"
+                            else:
+                                seen_str = f"{diff.days}j"
+                        except Exception:
+                            seen_str = "?"
+                    else:
+                        seen_str = "?"
+
+                    tier_icon = "💎" if user['tier'] == 'vip' else ("⭐" if user['tier'] == 'premium' else "🆓")
+                    pnl_icon = "📈" if user['total_pnl'] >= 0 else "📉"
+                    text += f"   {tier_icon} {uname} — {user['trades']} trades — {pnl_icon}${user['total_pnl']:+.0f} — vu il y a {seen_str}\n"
+
+        except Exception as e:
+            logger.error(f"Erreur _show_users_stats: {e}")
+            text += f"❌ Erreur: {e}\n"
+            users = await db_manager.get_all_users()
+
+        # Boutons de détail pour les 5 premiers utilisateurs
         keyboard = []
-        for user in users[:5]:
-            username = user.get('username', 'N/A')
-            keyboard.append([InlineKeyboardButton(
-                f"👤 @{username}",
-                callback_data=f"admin_user_detail_{user['telegram_id']}"
-            )])
+        try:
+            async with aiosqlite.connect(config.DATABASE_PATH) as db:
+                db.row_factory = aiosqlite.Row
+                cursor = await db.execute("""
+                    SELECT telegram_id, username, first_name FROM users
+                    ORDER BY last_seen DESC LIMIT 5
+                """)
+                top_users = await cursor.fetchall()
+            for u in top_users:
+                label = f"👤 @{u['username']}" if u['username'] else f"👤 {u['first_name'] or u['telegram_id']}"
+                keyboard.append([InlineKeyboardButton(
+                    label,
+                    callback_data=f"admin_user_detail_{u['telegram_id']}"
+                )])
+        except Exception:
+            pass
 
         keyboard.append([InlineKeyboardButton("◀️ Retour", callback_data="admin_back")])
 

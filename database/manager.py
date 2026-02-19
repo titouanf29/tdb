@@ -75,17 +75,31 @@ class DatabaseManager:
             except Exception:
                 pass  # Les colonnes existent déjà
 
+            # Migration: Colonne last_seen pour tracking activité
+            try:
+                await db.execute("""
+                    ALTER TABLE users ADD COLUMN last_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                """)
+                logger.debug("Migration: Colonne last_seen ajoutée")
+            except Exception:
+                pass  # La colonne existe déjà
+
             await db.commit()
 
     # ===== UTILISATEURS =====
 
     async def create_user(self, telegram_id, username=None, first_name=None, last_name=None):
-        """Crée un nouvel utilisateur"""
+        """Crée un nouvel utilisateur ou met à jour sa dernière activité"""
         async with aiosqlite.connect(self.db_path) as db:
             await db.execute("""
                 INSERT OR IGNORE INTO users (telegram_id, username, first_name, last_name)
                 VALUES (?, ?, ?, ?)
             """, (telegram_id, username, first_name, last_name))
+
+            # Mettre à jour last_seen à chaque appel (tracking activité)
+            await db.execute("""
+                UPDATE users SET last_seen = CURRENT_TIMESTAMP WHERE telegram_id = ?
+            """, (telegram_id,))
 
             # Créer les paramètres par défaut
             await db.execute("""
