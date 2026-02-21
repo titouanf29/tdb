@@ -128,6 +128,114 @@ Voici vos actifs suivis :
 
         await self.show_favorites(update, context)
 
+    async def show_favorites_settings(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Affiche les paramètres des favoris"""
+        query = update.callback_query
+        await query.answer()
+
+        user_id = query.from_user.id
+
+        # Récupérer les paramètres actuels
+        import aiosqlite
+        from config import DATABASE_PATH
+
+        settings = {
+            'alert_enabled': True,
+            'alert_threshold': 5.0,
+            'daily_summary': True
+        }
+
+        try:
+            async with aiosqlite.connect(DATABASE_PATH) as db:
+                cursor = await db.execute("""
+                    SELECT alert_threshold FROM smart_watchlist
+                    WHERE telegram_id = ? LIMIT 1
+                """, (user_id,))
+                row = await cursor.fetchone()
+                if row:
+                    settings['alert_threshold'] = row[0]
+        except Exception:
+            pass
+
+        favorites_count = len(await db_manager.get_favorites(user_id))
+
+        text = f"""
+⚙️ **PARAMÈTRES FAVORIS**
+━━━━━━━━━━━━━━━━━━━━
+
+📊 **Actifs suivis:** {favorites_count}
+
+**🔔 Alertes:**
+• Seuil d'alerte: **{settings['alert_threshold']:.1f}%** de variation
+• Alertes actives: {'✅ Oui' if settings['alert_enabled'] else '❌ Non'}
+
+**📧 Notifications:**
+• Résumé quotidien: {'✅ Oui' if settings['daily_summary'] else '❌ Non'}
+
+_Utilisez les boutons ci-dessous pour modifier les paramètres._
+"""
+
+        keyboard = [
+            [
+                InlineKeyboardButton("🔔 Seuil 3%", callback_data="fav_set_threshold_3"),
+                InlineKeyboardButton("🔔 Seuil 5%", callback_data="fav_set_threshold_5"),
+                InlineKeyboardButton("🔔 Seuil 10%", callback_data="fav_set_threshold_10")
+            ],
+            [
+                InlineKeyboardButton("🗑️ Vider tous les favoris", callback_data="fav_clear_all")
+            ],
+            [InlineKeyboardButton("◀️ Retour", callback_data="fav_main")]
+        ]
+
+        await query.edit_message_text(
+            text,
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode='Markdown'
+        )
+
+    async def set_alert_threshold(self, update: Update, context: ContextTypes.DEFAULT_TYPE, threshold: float):
+        """Modifie le seuil d'alerte"""
+        query = update.callback_query
+        user_id = query.from_user.id
+
+        import aiosqlite
+        from config import DATABASE_PATH
+
+        try:
+            async with aiosqlite.connect(DATABASE_PATH) as db:
+                # Mettre à jour le seuil pour tous les favoris
+                await db.execute("""
+                    UPDATE smart_watchlist SET alert_threshold = ?
+                    WHERE telegram_id = ?
+                """, (threshold, user_id))
+                await db.commit()
+
+            await query.answer(f"✅ Seuil d'alerte mis à {threshold}%", show_alert=True)
+        except Exception as e:
+            await query.answer(f"❌ Erreur: {e}", show_alert=True)
+
+        await self.show_favorites_settings(update, context)
+
+    async def clear_all_favorites(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Supprime tous les favoris"""
+        query = update.callback_query
+        user_id = query.from_user.id
+
+        import aiosqlite
+        from config import DATABASE_PATH
+
+        try:
+            async with aiosqlite.connect(DATABASE_PATH) as db:
+                await db.execute("DELETE FROM favorites WHERE telegram_id = ?", (user_id,))
+                await db.execute("DELETE FROM smart_watchlist WHERE telegram_id = ?", (user_id,))
+                await db.commit()
+
+            await query.answer("✅ Tous les favoris ont été supprimés", show_alert=True)
+        except Exception as e:
+            await query.answer(f"❌ Erreur: {e}", show_alert=True)
+
+        await self.show_favorites(update, context)
+
     async def handle_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Gère les callbacks"""
         query = update.callback_query
@@ -135,6 +243,16 @@ Voici vos actifs suivis :
 
         if data == "fav_main":
             await self.show_favorites(update, context)
+
+        elif data == "fav_settings":
+            await self.show_favorites_settings(update, context)
+
+        elif data.startswith("fav_set_threshold_"):
+            threshold = float(data.replace("fav_set_threshold_", ""))
+            await self.set_alert_threshold(update, context, threshold)
+
+        elif data == "fav_clear_all":
+            await self.clear_all_favorites(update, context)
 
         elif data.startswith("fav_detail_"):
             parts = data.replace("fav_detail_", "").split("_", 1)
