@@ -112,7 +112,7 @@ def is_market_open(market_code):
     if not market:
         return False
 
-    # Marchés toujours ouverts (crypto)
+    # Marchés toujours ouverts 24/7 (crypto)
     if market.get('always_open'):
         return True
 
@@ -123,32 +123,69 @@ def is_market_open(market_code):
         current_time = now.time()
         current_day = now.weekday()  # 0=Lundi, 6=Dimanche
 
-        open_time = time.fromisoformat(market['open_time'])
-        close_time = time.fromisoformat(market['close_time'])
-
         # Vérifier les jours fermés spécifiques
         closed_days = market.get('closed_days', [])
         if current_day in closed_days:
             return False
+
+        # Marchés ouverts 24h en semaine (FOREX, COMMODITIES)
+        if market.get('always_open_weekdays'):
+            # Vérifier les jours d'ouverture spécifiques
+            open_day = market.get('open_day')  # ex: 6 = dimanche
+            close_day = market.get('close_day')  # ex: 4 = vendredi
+
+            if open_day is not None and close_day is not None:
+                # FOREX/COMMODITIES: ouvert dim soir → ven soir
+                # open_day=6 (dimanche), close_day=4 (vendredi)
+                open_time = time.fromisoformat(market['open_time'])
+                close_time = time.fromisoformat(market['close_time'])
+
+                # Dimanche: ouvert seulement après open_time (23:00)
+                if current_day == open_day:
+                    return current_time >= open_time
+
+                # Vendredi: fermé après close_time (22:00)
+                elif current_day == close_day:
+                    return current_time <= close_time
+
+                # Lundi à Jeudi: toujours ouvert
+                elif current_day < close_day:
+                    return True
+
+                # Samedi: fermé (géré par closed_days ci-dessus)
+                else:
+                    return False
+            else:
+                # Pas de jours spécifiques: ouvert 24h lun-ven
+                return current_day < 5  # 0-4 = lun-ven
+
+        # Marchés avec horaires fixes (EUROPE, USA, ASIA)
+        open_time = time.fromisoformat(market['open_time'])
+        close_time = time.fromisoformat(market['close_time'])
 
         # Vérifier si le marché a des jours d'ouverture spécifiques
         open_day = market.get('open_day')
         close_day = market.get('close_day')
 
         if open_day is not None and close_day is not None:
-            # Marché avec jours d'ouverture spécifiques (ex: Commodities dim-ven)
             if open_day <= close_day:
-                # Cas normal: ex lundi(0) à vendredi(4)
                 if not (open_day <= current_day <= close_day):
                     return False
             else:
-                # Cas wrap: ex dimanche(6) à vendredi(4)
                 if not (current_day >= open_day or current_day <= close_day):
                     return False
         else:
             # Comportement par défaut: fermé le weekend
-            if current_day >= 5:  # Samedi ou Dimanche
+            if current_day >= 5:
                 return False
+
+        # Vérifier la pause déjeuner (pour marché asiatique)
+        lunch_break = market.get('lunch_break')
+        if lunch_break:
+            lunch_start = time.fromisoformat(lunch_break['start'])
+            lunch_end = time.fromisoformat(lunch_break['end'])
+            if lunch_start <= current_time <= lunch_end:
+                return False  # En pause déjeuner
 
         return open_time <= current_time <= close_time
     except Exception as e:

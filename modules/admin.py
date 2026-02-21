@@ -2224,11 +2224,11 @@ Votre ID : <code>{user_id}</code>
                 has_subs = 'user_subscriptions' in existing_tables
                 has_onboarding = 'user_onboarding' in existing_tables
 
-                # Récupérer les utilisateurs (requête de base)
+                # Récupérer les utilisateurs (requête de base - colonnes existantes uniquement)
                 cursor = await db.execute("""
-                    SELECT telegram_id, username, first_name, last_name, created_at, last_seen
+                    SELECT telegram_id, username, first_name, last_name, created_at
                     FROM users
-                    ORDER BY last_seen DESC
+                    ORDER BY created_at DESC
                 """)
                 base_users = await cursor.fetchall()
 
@@ -2241,7 +2241,7 @@ Votre ID : <code>{user_id}</code>
                         'first_name': u['first_name'],
                         'last_name': u['last_name'],
                         'created_at': u['created_at'],
-                        'last_seen': u['last_seen'],
+                        'last_seen': u['created_at'],  # Utiliser created_at comme fallback
                         'balance': 10000,
                         'initial_balance': 10000,
                         'total_pnl': 0,
@@ -2366,7 +2366,7 @@ Votre ID : <code>{user_id}</code>
                 recent_analyses = []
                 try:
                     cursor = await db.execute("""
-                        SELECT asset_symbol, market, analysis_type, created_at, telegram_id
+                        SELECT asset_symbol, analysis_type, sentiment, score, created_at, telegram_id
                         FROM ai_analysis_history
                         ORDER BY created_at DESC
                         LIMIT 20
@@ -2478,18 +2478,19 @@ Votre ID : <code>{user_id}</code>
             # Dernières analyses IA
             elements.append(Paragraph("🤖 DERNIÈRES ANALYSES IA", section_style))
             if recent_analyses:
-                analysis_data = [['Date', 'Symbole', 'Marché', 'Type', 'User ID']]
+                analysis_data = [['Date', 'Symbole', 'Type', 'Sentiment', 'Score', 'User ID']]
                 for a in recent_analyses[:10]:
                     date_str = a['created_at'][:16] if a['created_at'] else '-'
                     analysis_data.append([
                         date_str.replace('T', ' '),
                         a['asset_symbol'],
-                        a['market'] or '-',
                         a['analysis_type'] or 'full',
+                        a['sentiment'] or '-',
+                        str(a['score'] or '-'),
                         str(a['telegram_id'])
                     ])
 
-                analysis_table = Table(analysis_data, colWidths=[4*cm, 3*cm, 3*cm, 3*cm, 3*cm])
+                analysis_table = Table(analysis_data, colWidths=[4*cm, 3*cm, 2.5*cm, 2.5*cm, 2*cm, 3*cm])
                 analysis_table.setStyle(TableStyle([
                     ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#9B59B6')),
                     ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
