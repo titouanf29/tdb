@@ -13,10 +13,17 @@ if not TELEGRAM_TOKEN:
 
 CHANNEL_ID = os.getenv("CHANNEL_ID", "")  # ID du channel pour les notifications (optionnel)
 
-# Administrateurs du bot (ajouter vos IDs Telegram ici)
-ADMIN_IDS = [
-    2064575502,  # Titouan
-]
+# ===== ADMINISTRATEURS =====
+# RECOMMANDÉ: Définir ADMIN_IDS dans .env (format: "123456,789012")
+# Fallback: liste ci-dessous utilisée si ADMIN_IDS non défini dans .env
+_admin_ids_env = os.getenv("ADMIN_IDS", "")
+if _admin_ids_env:
+    ADMIN_IDS = [int(id.strip()) for id in _admin_ids_env.split(",") if id.strip()]
+else:
+    # Fallback - À MIGRER vers .env pour plus de sécurité
+    ADMIN_IDS = [
+        2064575502,  # Titouan
+    ]
 
 # ===== CANAL D'ACCUEIL (PUBLIC) =====
 # Canal public où les nouveaux utilisateurs arrivent (read-only)

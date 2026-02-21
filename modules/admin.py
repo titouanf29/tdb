@@ -1,5 +1,6 @@
 """
 Module Admin - Dashboard de monitoring et commandes administrateur
+Utilise le module de sécurité pour le contrôle d'accès
 """
 import logging
 import os
@@ -11,6 +12,8 @@ import config
 from database.manager import db_manager
 from utils.loading import show_loading, LoadingAnimation
 from services.discord_service import discord_service
+from utils.security import admin_manager, admin_required, admin_callback_required, rate_limit_admin
+from utils.error_handler import ErrorHandler, ErrorSeverity
 
 logger = logging.getLogger(__name__)
 
@@ -45,9 +48,8 @@ class AdminModule:
         self.app.add_handler(CallbackQueryHandler(self.callback_addactif, pattern="^addactif_"))
 
     def is_admin(self, telegram_id: int) -> bool:
-        """Vérifie si l'utilisateur est admin"""
-        admin_ids = getattr(config, 'ADMIN_IDS', [])
-        return telegram_id in admin_ids
+        """Vérifie si l'utilisateur est admin (utilise le module de sécurité)"""
+        return admin_manager.is_admin(telegram_id)
 
     async def cmd_admin_dashboard(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Dashboard admin principal"""
@@ -240,7 +242,8 @@ class AdminModule:
                         "SELECT COUNT(*) FROM positions WHERE status = 'open'"
                     )
                     stats['open_positions'] = (await cursor.fetchone())[0]
-                except Exception:
+                except Exception as e:
+                    ErrorHandler.log_error(e, "stats:open_positions", ErrorSeverity.LOW)
                     stats['open_positions'] = await db_manager.count_all_open_positions()
 
                 # Trades des 24h
@@ -260,8 +263,8 @@ class AdminModule:
                 try:
                     cursor = await db.execute("SELECT COUNT(*) FROM favorites")
                     stats['total_favorites'] = (await cursor.fetchone())[0]
-                except Exception:
-                    pass
+                except Exception as e:
+                    ErrorHandler.log_error(e, "stats:favorites", ErrorSeverity.LOW)
 
                 # Scans des 24h
                 try:
@@ -270,8 +273,8 @@ class AdminModule:
                         WHERE scan_date >= datetime('now', '-24 hours')
                     """)
                     stats['scans_24h'] = (await cursor.fetchone())[0]
-                except Exception:
-                    pass
+                except Exception as e:
+                    ErrorHandler.log_error(e, "stats:scans_24h", ErrorSeverity.LOW)
 
                 # Messages IA aujourd'hui
                 try:
@@ -280,8 +283,8 @@ class AdminModule:
                         WHERE date = date('now')
                     """)
                     stats['ai_messages_today'] = (await cursor.fetchone())[0]
-                except Exception:
-                    pass
+                except Exception as e:
+                    ErrorHandler.log_error(e, "stats:ai_messages", ErrorSeverity.LOW)
 
                 # PnL total et win rate
                 try:
@@ -297,8 +300,8 @@ class AdminModule:
                     closed = row[1] if row else 0
                     wins = row[2] if row else 0
                     stats['win_rate'] = (wins / closed * 100) if closed > 0 else 0
-                except Exception:
-                    pass
+                except Exception as e:
+                    ErrorHandler.log_error(e, "stats:pnl_winrate", ErrorSeverity.LOW)
 
             # Taille DB
             if os.path.exists(config.DATABASE_PATH):
@@ -322,8 +325,8 @@ class AdminModule:
                     stats['uptime'] = f"{hours}h {mins}m"
                 else:
                     stats['uptime'] = f"{mins}m"
-            except Exception:
-                pass
+            except Exception as e:
+                ErrorHandler.log_error(e, "stats:system_metrics", ErrorSeverity.LOW)
 
             # Alertes système
             if stats['db_size_mb'] > 100:

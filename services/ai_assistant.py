@@ -1,12 +1,16 @@
 """
 Service d'Assistant IA avec Groq
 Permet aux utilisateurs de poser des questions sur le trading
+Avec rate limiting et gestion d'erreurs améliorée
 """
 import logging
+import asyncio
 from groq import Groq
 import config
 from datetime import datetime
 import json
+from utils.rate_limiter import rate_limiter
+from utils.error_handler import ErrorHandler, ErrorSeverity
 
 logger = logging.getLogger(__name__)
 
@@ -90,7 +94,7 @@ Comment l'interpreter:
 
     async def chat(self, user_message: str, conversation_history: list = None, asset_context: dict = None):
         """
-        Envoie un message à l'assistant IA
+        Envoie un message à l'assistant IA avec rate limiting
 
         Args:
             user_message: Message de l'utilisateur
@@ -100,21 +104,44 @@ Comment l'interpreter:
         Returns:
             dict avec la réponse et les métadonnées
         """
+        # Vérifier le rate limit avant l'appel
+        if not await rate_limiter.acquire("groq", timeout=30.0):
+            ErrorHandler.log_error(
+                Exception("Rate limit Groq atteint"),
+                "ai_assistant.chat",
+                ErrorSeverity.MEDIUM
+            )
+            return {
+                'success': False,
+                'error': 'Assistant IA temporairement surchargé. Réessayez dans quelques instants.',
+                'response': None
+            }
+
         try:
             # Construire les messages pour Groq
             logger.debug("Construction messages pour Groq...")
             messages = self._build_messages(user_message, conversation_history, asset_context)
             logger.debug(f"Messages construits: {len(messages)} messages")
 
-            # Générer la réponse avec Groq
+            # Générer la réponse avec Groq (dans un executor pour ne pas bloquer)
             logger.debug(f"Appel API Groq avec modele {self.model}...")
-            chat_completion = self.client.chat.completions.create(
-                messages=messages,
-                model=self.model,
-                temperature=0.7,
-                max_tokens=2048,  # Augmenté pour les analyses détaillées
-                top_p=0.95,
+
+            loop = asyncio.get_event_loop()
+            chat_completion = await asyncio.wait_for(
+                loop.run_in_executor(
+                    None,
+                    lambda: self.client.chat.completions.create(
+                        messages=messages,
+                        model=self.model,
+                        temperature=0.7,
+                        max_tokens=2048,
+                        top_p=0.95,
+                    )
+                ),
+                timeout=30.0  # Timeout de 30 secondes
             )
+
+            rate_limiter.record_success("groq")
             logger.debug("Reponse Groq recue")
 
             response_text = chat_completion.choices[0].message.content
@@ -137,11 +164,25 @@ Comment l'interpreter:
                 'tokens_used': tokens_used
             }
 
-        except Exception as e:
-            logger.error(f"Erreur chat IA: {e}")
+        except asyncio.TimeoutError:
+            rate_limiter.record_timeout("groq")
+            ErrorHandler.log_error(
+                asyncio.TimeoutError("Timeout Groq API"),
+                "ai_assistant.chat",
+                ErrorSeverity.MEDIUM
+            )
             return {
                 'success': False,
-                'error': str(e),
+                'error': 'L\'assistant IA a mis trop de temps à répondre. Réessayez.',
+                'response': None
+            }
+
+        except Exception as e:
+            rate_limiter.record_error("groq", e)
+            user_message = ErrorHandler.log_error(e, "ai_assistant.chat", ErrorSeverity.HIGH)
+            return {
+                'success': False,
+                'error': user_message,
                 'response': None
             }
 
