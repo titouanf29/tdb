@@ -2182,14 +2182,14 @@ Votre ID : <code>{user_id}</code>
             await query.edit_message_text(f"❌ Erreur: {e}")
 
     async def _export_users_pdf(self, query):
-        """Exporte les utilisateurs en PDF"""
-        await query.edit_message_text("⏳ Génération du fichier PDF...")
+        """Exporte les utilisateurs en PDF avec toutes les infos"""
+        await query.edit_message_text("⏳ Génération du rapport PDF complet...")
 
         try:
             from reportlab.lib import colors
             from reportlab.lib.pagesizes import A4, landscape
             from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-            from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+            from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, PageBreak
             from reportlab.lib.units import cm
         except ImportError:
             await query.edit_message_text(
@@ -2203,89 +2203,255 @@ Votre ID : <code>{user_id}</code>
             import aiosqlite
             async with aiosqlite.connect(config.DATABASE_PATH) as db:
                 db.row_factory = aiosqlite.Row
+
+                # Récupérer les utilisateurs avec TOUTES les infos
                 cursor = await db.execute("""
-                    SELECT u.telegram_id, u.username, u.first_name, u.created_at, u.last_seen,
-                           COALESCE(w.balance, 10000) as balance,
-                           COALESCE(w.total_pnl, 0) as total_pnl,
-                           COALESCE(s.tier, 'free') as tier
+                    SELECT
+                        u.telegram_id,
+                        u.username,
+                        u.first_name,
+                        u.last_name,
+                        u.created_at,
+                        u.last_seen,
+                        COALESCE(w.balance, 10000) as balance,
+                        COALESCE(w.initial_balance, 10000) as initial_balance,
+                        COALESCE(w.total_pnl, 0) as total_pnl,
+                        COALESCE(w.daily_pnl, 0) as daily_pnl,
+                        COALESCE(s.tier, 'free') as tier,
+                        COALESCE(s.analyses_used_today, 0) as analyses_today,
+                        (SELECT COUNT(*) FROM positions p WHERE p.telegram_id = u.telegram_id AND p.status = 'open') as open_positions,
+                        (SELECT COUNT(*) FROM positions p WHERE p.telegram_id = u.telegram_id AND p.status = 'closed') as closed_positions,
+                        (SELECT COUNT(*) FROM favorites f WHERE f.telegram_id = u.telegram_id) as favorites_count,
+                        (SELECT COALESCE(SUM(message_count), 0) FROM ai_usage_stats ai WHERE ai.telegram_id = u.telegram_id) as ai_messages,
+                        (SELECT COUNT(*) FROM price_alerts pa WHERE pa.telegram_id = u.telegram_id AND pa.active = 1) as active_alerts,
+                        o.investor_profile,
+                        o.selected_markets
                     FROM users u
                     LEFT JOIN wallet w ON w.telegram_id = u.telegram_id
                     LEFT JOIN user_subscriptions s ON s.telegram_id = u.telegram_id
-                    ORDER BY u.created_at DESC
+                    LEFT JOIN user_onboarding o ON o.telegram_id = u.telegram_id
+                    ORDER BY u.last_seen DESC
                 """)
                 users = await cursor.fetchall()
 
-            # Créer PDF en mémoire
+                # Stats globales
+                cursor = await db.execute("SELECT COUNT(*) FROM positions WHERE status = 'open'")
+                total_open_positions = (await cursor.fetchone())[0]
+
+                cursor = await db.execute("SELECT COUNT(*) FROM positions WHERE status = 'closed'")
+                total_closed_positions = (await cursor.fetchone())[0]
+
+                cursor = await db.execute("SELECT COALESCE(SUM(pnl), 0) FROM positions WHERE status = 'closed'")
+                global_pnl = (await cursor.fetchone())[0]
+
+                cursor = await db.execute("""
+                    SELECT COUNT(*) FROM positions WHERE status = 'closed' AND pnl > 0
+                """)
+                winning_trades = (await cursor.fetchone())[0]
+
+                # Derniers actifs analysés
+                cursor = await db.execute("""
+                    SELECT asset_symbol, market, analysis_type, created_at, telegram_id
+                    FROM ai_analysis_history
+                    ORDER BY created_at DESC
+                    LIMIT 20
+                """)
+                recent_analyses = await cursor.fetchall()
+
+                # Actifs les plus populaires (favoris)
+                cursor = await db.execute("""
+                    SELECT asset_symbol, market, COUNT(*) as count
+                    FROM favorites
+                    GROUP BY asset_symbol, market
+                    ORDER BY count DESC
+                    LIMIT 10
+                """)
+                popular_assets = await cursor.fetchall()
+
+                # Derniers scans
+                cursor = await db.execute("""
+                    SELECT asset_symbol, market, score, signal, scan_date
+                    FROM scan_results
+                    WHERE score >= 70
+                    ORDER BY scan_date DESC
+                    LIMIT 15
+                """)
+                recent_scans = await cursor.fetchall()
+
+            # Créer PDF
             buf = io.BytesIO()
-            doc = SimpleDocTemplate(buf, pagesize=landscape(A4), topMargin=1*cm, bottomMargin=1*cm)
+            doc = SimpleDocTemplate(buf, pagesize=landscape(A4), topMargin=0.5*cm, bottomMargin=0.5*cm,
+                                   leftMargin=0.5*cm, rightMargin=0.5*cm)
             elements = []
             styles = getSampleStyleSheet()
 
-            # Titre
-            title_style = ParagraphStyle(
-                'CustomTitle',
-                parent=styles['Heading1'],
-                fontSize=18,
-                spaceAfter=20,
-                alignment=1
-            )
-            elements.append(Paragraph("RAPPORT UTILISATEURS TDB", title_style))
-            elements.append(Paragraph(f"Généré le: {datetime.now().strftime('%d/%m/%Y %H:%M')}", styles['Normal']))
-            elements.append(Paragraph(f"Total: {len(users)} utilisateurs", styles['Normal']))
-            elements.append(Spacer(1, 20))
+            # Style titre
+            title_style = ParagraphStyle('Title', parent=styles['Heading1'], fontSize=20, spaceAfter=10, alignment=1)
+            subtitle_style = ParagraphStyle('Subtitle', parent=styles['Normal'], fontSize=10, alignment=1)
+            section_style = ParagraphStyle('Section', parent=styles['Heading2'], fontSize=14, spaceBefore=15, spaceAfter=8)
 
-            # Statistiques rapides
-            total_balance = sum(u['balance'] for u in users)
-            total_pnl = sum(u['total_pnl'] for u in users)
-            profitable = len([u for u in users if u['total_pnl'] > 0])
+            # === PAGE 1: RÉSUMÉ GLOBAL ===
+            elements.append(Paragraph("📊 RAPPORT COMPLET TDB", title_style))
+            elements.append(Paragraph(f"Généré le {datetime.now().strftime('%d/%m/%Y à %H:%M')}", subtitle_style))
+            elements.append(Spacer(1, 15))
 
-            stats_data = [
-                ['Métrique', 'Valeur'],
-                ['Total utilisateurs', str(len(users))],
-                ['Balance totale', f"${total_balance:,.2f}"],
-                ['PnL total', f"${total_pnl:+,.2f}"],
-                ['Utilisateurs profitables', f"{profitable} ({profitable/len(users)*100:.1f}%)" if users else "0"],
+            # Stats globales
+            elements.append(Paragraph("📈 STATISTIQUES GLOBALES", section_style))
+
+            total_balance = sum(u['balance'] for u in users) if users else 0
+            total_pnl = sum(u['total_pnl'] for u in users) if users else 0
+            profitable_users = len([u for u in users if u['total_pnl'] > 0])
+            active_24h = len([u for u in users if u['last_seen'] and 'T' in str(u['last_seen']) and
+                             (datetime.now() - datetime.fromisoformat(u['last_seen'].replace('Z', ''))).days < 1]) if users else 0
+            win_rate = (winning_trades / total_closed_positions * 100) if total_closed_positions > 0 else 0
+
+            global_stats = [
+                ['Métrique', 'Valeur', 'Métrique', 'Valeur'],
+                ['👥 Total utilisateurs', str(len(users)), '📊 Positions ouvertes', str(total_open_positions)],
+                ['🟢 Actifs (24h)', str(active_24h), '📈 Trades fermés', str(total_closed_positions)],
+                ['💰 Balance totale', f"${total_balance:,.0f}", '💵 PnL global', f"${global_pnl:+,.0f}"],
+                ['📈 Users profitables', f"{profitable_users} ({profitable_users/len(users)*100:.0f}%)" if users else "0", '🎯 Win rate global', f"{win_rate:.1f}%"],
             ]
-            stats_table = Table(stats_data, colWidths=[8*cm, 8*cm])
+
+            stats_table = Table(global_stats, colWidths=[5*cm, 5*cm, 5*cm, 5*cm])
             stats_table.setStyle(TableStyle([
-                ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#2C3E50')),
                 ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-                ('BACKGROUND', (0, 1), (0, -1), colors.lightgrey),
-                ('GRID', (0, 0), (-1, -1), 1, colors.black),
+                ('BACKGROUND', (0, 1), (0, -1), colors.HexColor('#ECF0F1')),
+                ('BACKGROUND', (2, 1), (2, -1), colors.HexColor('#ECF0F1')),
+                ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
                 ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, -1), 9),
+                ('ALIGN', (1, 0), (1, -1), 'CENTER'),
+                ('ALIGN', (3, 0), (3, -1), 'CENTER'),
             ]))
             elements.append(stats_table)
-            elements.append(Spacer(1, 20))
+            elements.append(Spacer(1, 15))
 
-            # Liste des utilisateurs
-            elements.append(Paragraph("<b>LISTE DES UTILISATEURS</b>", styles['Heading2']))
+            # Actifs les plus populaires
+            elements.append(Paragraph("⭐ ACTIFS LES PLUS POPULAIRES (Favoris)", section_style))
+            if popular_assets:
+                pop_data = [['Rang', 'Symbole', 'Marché', 'Nb Favoris']]
+                for i, asset in enumerate(popular_assets[:10], 1):
+                    pop_data.append([f"#{i}", asset['asset_symbol'], asset['market'], str(asset['count'])])
 
-            # Header
-            user_data = [['ID', 'Username', 'Prénom', 'Inscrit', 'Dernière activité', 'Solde', 'PnL', 'Tier']]
+                pop_table = Table(pop_data, colWidths=[2*cm, 4*cm, 4*cm, 3*cm])
+                pop_table.setStyle(TableStyle([
+                    ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#27AE60')),
+                    ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                    ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+                    ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                    ('FONTSIZE', (0, 0), (-1, -1), 9),
+                    ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                ]))
+                elements.append(pop_table)
+            else:
+                elements.append(Paragraph("Aucun favori enregistré", styles['Normal']))
 
-            for u in users[:100]:  # Limiter à 100 pour le PDF
-                pnl_val = u['total_pnl']
-                user_data.append([
-                    str(u['telegram_id']),
-                    u['username'] or '-',
-                    u['first_name'] or '-',
-                    u['created_at'][:10] if u['created_at'] else '-',
-                    u['last_seen'][:10] if u['last_seen'] else '-',
-                    f"${u['balance']:,.0f}",
-                    f"${pnl_val:+,.0f}",
-                    u['tier']
-                ])
+            elements.append(Spacer(1, 15))
 
-            user_table = Table(user_data, colWidths=[2.5*cm, 3*cm, 3*cm, 2.5*cm, 2.5*cm, 2.5*cm, 2.5*cm, 2*cm])
-            user_table.setStyle(TableStyle([
-                ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
-                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-                ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
-                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-                ('FONTSIZE', (0, 0), (-1, -1), 8),
-                ('ALIGN', (5, 1), (6, -1), 'RIGHT'),
-            ]))
-            elements.append(user_table)
+            # Dernières analyses IA
+            elements.append(Paragraph("🤖 DERNIÈRES ANALYSES IA", section_style))
+            if recent_analyses:
+                analysis_data = [['Date', 'Symbole', 'Marché', 'Type', 'User ID']]
+                for a in recent_analyses[:10]:
+                    date_str = a['created_at'][:16] if a['created_at'] else '-'
+                    analysis_data.append([
+                        date_str.replace('T', ' '),
+                        a['asset_symbol'],
+                        a['market'] or '-',
+                        a['analysis_type'] or 'full',
+                        str(a['telegram_id'])
+                    ])
+
+                analysis_table = Table(analysis_data, colWidths=[4*cm, 3*cm, 3*cm, 3*cm, 3*cm])
+                analysis_table.setStyle(TableStyle([
+                    ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#9B59B6')),
+                    ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                    ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+                    ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                    ('FONTSIZE', (0, 0), (-1, -1), 8),
+                ]))
+                elements.append(analysis_table)
+            else:
+                elements.append(Paragraph("Aucune analyse récente", styles['Normal']))
+
+            # Derniers scans à fort score
+            elements.append(Spacer(1, 15))
+            elements.append(Paragraph("🔍 DERNIERS SCANS (Score ≥ 70)", section_style))
+            if recent_scans:
+                scan_data = [['Date', 'Symbole', 'Marché', 'Score', 'Signal']]
+                for s in recent_scans[:10]:
+                    date_str = s['scan_date'][:16] if s['scan_date'] else '-'
+                    signal_emoji = '🟢' if s['signal'] == 'BUY' else '🔴' if s['signal'] == 'SELL' else '⚪'
+                    scan_data.append([
+                        date_str.replace('T', ' '),
+                        s['asset_symbol'],
+                        s['market'] or '-',
+                        f"{s['score']:.0f}%",
+                        f"{signal_emoji} {s['signal'] or '-'}"
+                    ])
+
+                scan_table = Table(scan_data, colWidths=[4*cm, 3*cm, 3*cm, 2*cm, 3*cm])
+                scan_table.setStyle(TableStyle([
+                    ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#E67E22')),
+                    ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                    ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+                    ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                    ('FONTSIZE', (0, 0), (-1, -1), 8),
+                ]))
+                elements.append(scan_table)
+            else:
+                elements.append(Paragraph("Aucun scan récent", styles['Normal']))
+
+            # === PAGE 2: LISTE UTILISATEURS ===
+            elements.append(PageBreak())
+            elements.append(Paragraph("👥 LISTE COMPLÈTE DES UTILISATEURS", title_style))
+            elements.append(Spacer(1, 10))
+
+            if users:
+                # En-tête du tableau
+                user_data = [['ID', 'User', 'Nom', 'Inscrit', 'Vu', 'Balance', 'PnL', 'Pos.', 'Fav.', 'IA', 'Profil']]
+
+                for u in users:
+                    username = f"@{u['username']}" if u['username'] else '-'
+                    name = f"{u['first_name'] or ''} {u['last_name'] or ''}".strip() or '-'
+                    created = u['created_at'][:10] if u['created_at'] else '-'
+                    last_seen = u['last_seen'][:10] if u['last_seen'] else '-'
+                    balance = u['balance'] or 10000
+                    pnl = u['total_pnl'] or 0
+                    positions = f"{u['open_positions']}/{u['closed_positions']}"
+                    favorites = str(u['favorites_count'] or 0)
+                    ai_msgs = str(u['ai_messages'] or 0)
+                    profile = (u['investor_profile'] or 'N/A')[:8]
+
+                    user_data.append([
+                        str(u['telegram_id']),
+                        username[:12],
+                        name[:15],
+                        created,
+                        last_seen,
+                        f"${balance:,.0f}",
+                        f"${pnl:+,.0f}",
+                        positions,
+                        favorites,
+                        ai_msgs,
+                        profile
+                    ])
+
+                user_table = Table(user_data, colWidths=[2.2*cm, 2.5*cm, 3*cm, 2*cm, 2*cm, 2*cm, 2*cm, 1.5*cm, 1.2*cm, 1.2*cm, 1.8*cm])
+                user_table.setStyle(TableStyle([
+                    ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#2C3E50')),
+                    ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                    ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+                    ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                    ('FONTSIZE', (0, 0), (-1, -1), 7),
+                    ('ALIGN', (5, 1), (9, -1), 'RIGHT'),
+                    ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#F8F9FA')]),
+                ]))
+                elements.append(user_table)
+            else:
+                elements.append(Paragraph("Aucun utilisateur enregistré", styles['Normal']))
 
             # Générer PDF
             doc.build(elements)
@@ -2293,12 +2459,12 @@ Votre ID : <code>{user_id}</code>
 
             await query.message.reply_document(
                 document=buf,
-                filename=f"users_report_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
-                caption=f"📕 Rapport utilisateurs — {len(users)} entrées"
+                filename=f"TDB_rapport_complet_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
+                caption=f"📕 Rapport complet TDB — {len(users)} utilisateurs"
             )
 
             await query.edit_message_text(
-                f"✅ Export PDF terminé — {len(users)} utilisateurs",
+                f"✅ Rapport PDF généré — {len(users)} utilisateurs",
                 reply_markup=InlineKeyboardMarkup([[
                     InlineKeyboardButton("◀️ Retour", callback_data="admin_export_menu")
                 ]])
@@ -2306,6 +2472,8 @@ Votre ID : <code>{user_id}</code>
 
         except Exception as e:
             logger.error(f"Erreur export PDF users: {e}")
+            import traceback
+            traceback.print_exc()
             await query.edit_message_text(f"❌ Erreur: {e}")
 
     async def _export_trades_pdf(self, query):
