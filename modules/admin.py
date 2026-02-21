@@ -51,6 +51,8 @@ class AdminModule:
         self.app.add_handler(CommandHandler("export", self.cmd_export_data))
         self.app.add_handler(CommandHandler("health", self.cmd_health_check))
         self.app.add_handler(CommandHandler("audit", self.cmd_audit_log))
+        self.app.add_handler(CommandHandler("msguser", self.cmd_message_user))
+        self.app.add_handler(CommandHandler("report", self.cmd_user_report))
 
         # Callbacks admin
         self.app.add_handler(CallbackQueryHandler(self.callback_admin, pattern="^admin_"))
@@ -217,11 +219,14 @@ class AdminModule:
         elif action == "errors":
             await self._show_recent_errors(query)
         elif action.startswith("ban_"):
-            user_id = int(action.replace("ban_", ""))
-            await self._confirm_ban_user(query, user_id)
+            target_id = int(action.replace("ban_", ""))
+            await self._confirm_ban_user(query, target_id)
         elif action.startswith("reset_wallet_"):
-            user_id = int(action.replace("reset_wallet_", ""))
-            await self._confirm_reset_wallet(query, user_id)
+            target_id = int(action.replace("reset_wallet_", ""))
+            await self._confirm_reset_wallet(query, target_id)
+        elif action.startswith("msguser_"):
+            target_id = int(action.replace("msguser_", ""))
+            await self._show_msguser_prompt(query, target_id)
 
     async def _get_system_stats(self) -> dict:
         """Récupère les statistiques système complètes"""
@@ -1446,7 +1451,17 @@ Votre ID : <code>{user_id}</code>
             logger.error(f"Erreur _show_user_detail: {e}")
             text += f"❌ Erreur: {e}\n"
 
-        keyboard = [[InlineKeyboardButton("◀️ Retour", callback_data="admin_users")]]
+        keyboard = [
+            [InlineKeyboardButton(
+                "📩 Envoyer un MP",
+                callback_data=f"admin_msguser_{target_user_id}"
+            )],
+            [
+                InlineKeyboardButton("🔄 Reset Wallet", callback_data=f"admin_reset_wallet_{target_user_id}"),
+                InlineKeyboardButton("🚫 Bannir", callback_data=f"admin_ban_{target_user_id}")
+            ],
+            [InlineKeyboardButton("◀️ Retour", callback_data="admin_users")]
+        ]
 
         await query.edit_message_text(
             text,
@@ -2454,3 +2469,212 @@ Votre ID : <code>{user_id}</code>
                 text += f"`{ts}` → {cmd}\n"
 
         await update.message.reply_text(text, parse_mode='Markdown')
+
+    # =========================================================================
+    # MP ADMIN → UTILISATEUR + REPORTS UTILISATEURS
+    # =========================================================================
+
+    async def cmd_message_user(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """
+        Commande /msguser <user_id> <message>
+        Envoie un message privé à un utilisateur depuis l'admin
+        """
+        user_id = update.effective_user.id
+
+        if not self.is_admin(user_id):
+            await update.message.reply_text("❌ Commande réservée aux administrateurs.")
+            return
+
+        if len(context.args) < 2:
+            await update.message.reply_text(
+                "📋 **Usage:** `/msguser <user_id> <message>`\n\n"
+                "Exemple:\n"
+                "`/msguser 123456789 Bonjour, nous avons remarqué une activité suspecte.`",
+                parse_mode='Markdown'
+            )
+            return
+
+        try:
+            target_id = int(context.args[0])
+        except ValueError:
+            await update.message.reply_text("❌ ID utilisateur invalide.")
+            return
+
+        parts = update.message.text.split(None, 2)
+        if len(parts) < 3:
+            await update.message.reply_text("❌ Message vide.")
+            return
+        message_to_send = parts[2]
+
+        formatted_message = (
+            f"📩 **Message de l'équipe TDB**\n"
+            f"━━━━━━━━━━━━━━━━━━━━\n\n"
+            f"{message_to_send}\n\n"
+            f"━━━━━━━━━━━━━━━━━━━━\n"
+            f"_Pour répondre: /report <votre message>_"
+        )
+
+        try:
+            await context.bot.send_message(
+                chat_id=target_id,
+                text=formatted_message,
+                parse_mode='Markdown'
+            )
+            admin_manager.log_command(user_id, "msguser", f"→ {target_id}: {message_to_send[:50]}")
+            await update.message.reply_text(
+                f"✅ **Message envoyé à** `{target_id}`\n_{message_to_send[:100]}_",
+                parse_mode='Markdown'
+            )
+        except Exception as e:
+            await update.message.reply_text(
+                f"❌ Impossible d'envoyer: {e}\n_(L'utilisateur a peut-être bloqué le bot)_",
+                parse_mode='Markdown'
+            )
+
+    async def cmd_user_report(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """
+        Commande /report <message>
+        Permet à n'importe quel utilisateur d'envoyer un report à l'équipe admin
+        """
+        user = update.effective_user
+        user_id = user.id
+
+        if not context.args:
+            await update.message.reply_text(
+                "📋 **Signaler un problème**\n\n"
+                "Usage: `/report <votre message>`\n\n"
+                "Exemples:\n"
+                "• `/report Mon solde est incorrect`\n"
+                "• `/report Je ne reçois pas mes alertes`\n"
+                "• `/report Bug sur l'analyse de AAPL`\n\n"
+                "_Votre message sera transmis à l'équipe._",
+                parse_mode='Markdown'
+            )
+            return
+
+        parts = update.message.text.split(None, 1)
+        report_message = parts[1] if len(parts) > 1 else ""
+
+        if not report_message.strip():
+            await update.message.reply_text("❌ Message vide.")
+            return
+
+        display_name = f"@{user.username}" if user.username else user.first_name or str(user_id)
+
+        report_text = (
+            f"📩 **REPORT UTILISATEUR**\n"
+            f"━━━━━━━━━━━━━━━━━━━━\n\n"
+            f"👤 **De:** {display_name} (`{user_id}`)\n"
+            f"📅 **Le:** {datetime.now().strftime('%d/%m/%Y %H:%M')}\n\n"
+            f"💬 **Message:**\n{report_message}\n\n"
+            f"━━━━━━━━━━━━━━━━━━━━\n"
+            f"_Répondre: `/msguser {user_id} <réponse>`_"
+        )
+
+        # Envoyer à tous les admins Telegram
+        sent_count = 0
+        for admin_id in admin_manager.get_admin_ids():
+            try:
+                await context.bot.send_message(
+                    chat_id=admin_id,
+                    text=report_text,
+                    parse_mode='Markdown'
+                )
+                sent_count += 1
+            except Exception as e:
+                logger.warning(f"Report non envoyé à admin {admin_id}: {e}")
+
+        # Envoyer aussi sur Discord
+        await self._send_report_to_discord(user, user_id, report_message)
+
+        if sent_count > 0:
+            await update.message.reply_text(
+                "✅ **Votre report a été envoyé !**\n\n"
+                "L'équipe va examiner votre message et vous répondra directement.\n\n"
+                "_Merci pour votre retour._",
+                parse_mode='Markdown'
+            )
+        else:
+            await update.message.reply_text(
+                "⚠️ Report enregistré, l'équipe sera notifiée.",
+                parse_mode='Markdown'
+            )
+
+    async def _send_report_to_discord(self, tg_user, user_id: int, message: str):
+        """Envoie le report utilisateur sur Discord admin"""
+        import aiohttp
+
+        webhook = os.getenv("DISCORD_WEBHOOK_ADMIN", "")
+        if not webhook:
+            return
+
+        display = f"@{tg_user.username}" if tg_user.username else tg_user.first_name or str(user_id)
+
+        embed = {
+            "title": "📩 Report Utilisateur",
+            "color": 0x9B59B6,
+            "timestamp": datetime.utcnow().isoformat(),
+            "fields": [
+                {"name": "👤 Utilisateur", "value": f"**{display}**\nID: `{user_id}`", "inline": True},
+                {"name": "📅 Date", "value": datetime.now().strftime('%d/%m/%Y %H:%M'), "inline": True},
+                {"name": "💬 Message", "value": message[:500], "inline": False},
+                {"name": "↩️ Répondre", "value": f"`/msguser {user_id} <votre réponse>`", "inline": False}
+            ],
+            "footer": {"text": "TDB Bot — Reports"}
+        }
+
+        try:
+            async with aiohttp.ClientSession() as session:
+                await session.post(
+                    webhook,
+                    json={"embeds": [embed]},
+                    timeout=aiohttp.ClientTimeout(total=10)
+                )
+        except Exception as e:
+            logger.warning(f"Erreur Discord report: {e}")
+
+    async def _show_msguser_prompt(self, query, target_user_id: int):
+        """Affiche les instructions pour envoyer un MP à un utilisateur"""
+        text = (
+            f"📩 **ENVOYER UN MESSAGE PRIVÉ**\n"
+            f"━━━━━━━━━━━━━━━━━━━━\n\n"
+            f"Pour envoyer un message à l'utilisateur `{target_user_id}`:\n\n"
+            f"Utilisez la commande:\n"
+            f"`/msguser {target_user_id} Votre message ici`\n\n"
+            f"**Exemples:**\n"
+            f"`/msguser {target_user_id} Bonjour, avez-vous des questions ?`\n"
+            f"`/msguser {target_user_id} Votre compte a été vérifié.`\n\n"
+            f"_L'utilisateur recevra le message avec l'entête TDB._"
+        )
+
+        keyboard = [
+            [InlineKeyboardButton("◀️ Retour", callback_data=f"admin_user_detail_{target_user_id}")]
+        ]
+
+        await query.edit_message_text(
+            text,
+            parse_mode='Markdown',
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+
+    async def _confirm_ban_user(self, query, target_user_id: int):
+        """Confirmation avant de bannir un utilisateur"""
+        text = (
+            f"🚫 **CONFIRMER LE BAN**\n\n"
+            f"Bannir l'utilisateur `{target_user_id}` ?\n\n"
+            f"Pour confirmer, utilisez:\n"
+            f"`/banuser {target_user_id}`"
+        )
+        keyboard = [[InlineKeyboardButton("◀️ Annuler", callback_data=f"admin_user_detail_{target_user_id}")]]
+        await query.edit_message_text(text, parse_mode='Markdown', reply_markup=InlineKeyboardMarkup(keyboard))
+
+    async def _confirm_reset_wallet(self, query, target_user_id: int):
+        """Confirmation avant de reset le wallet"""
+        text = (
+            f"🔄 **CONFIRMER LE RESET**\n\n"
+            f"Réinitialiser le wallet de `{target_user_id}` à $10,000 ?\n\n"
+            f"Pour confirmer, utilisez:\n"
+            f"`/resetwallet {target_user_id}`"
+        )
+        keyboard = [[InlineKeyboardButton("◀️ Annuler", callback_data=f"admin_user_detail_{target_user_id}")]]
+        await query.edit_message_text(text, parse_mode='Markdown', reply_markup=InlineKeyboardMarkup(keyboard))

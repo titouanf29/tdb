@@ -10,6 +10,7 @@ from telegram import Bot, InlineKeyboardButton, InlineKeyboardMarkup
 from database.manager import db_manager
 from ai.analyzer import analyzer
 from utils.asset_names import get_asset_display_name, get_asset_emoji
+from services.moderation_service import moderation_service
 import config
 
 logger = logging.getLogger(__name__)
@@ -53,6 +54,15 @@ class AutoScannerService:
                 replace_existing=True
             )
 
+            # Rapport d'activité toutes les heures sur Discord
+            self.scheduler.add_job(
+                self.send_hourly_activity_digest,
+                trigger='cron',
+                minute=0,
+                id='hourly_activity_digest',
+                replace_existing=True
+            )
+
             self.scheduler.start()
             self.is_running = True
             logger.info("Auto Scanner demarre")
@@ -71,6 +81,74 @@ class AutoScannerService:
             self.scheduler.shutdown()
             self.is_running = False
             logger.info("🛑 Auto Scanner arrêté")
+
+    async def send_hourly_activity_digest(self):
+        """Envoie un résumé d'activité horaire sur Discord admin"""
+        try:
+            import aiosqlite
+            stats = {
+                'active_1h': 0, 'ai_sessions': 0, 'new_users': 0,
+                'trades_opened': 0, 'trades_closed': 0, 'pnl_net': 0,
+                'ai_messages': 0, 'mod_alerts': 0, 'top_assets': []
+            }
+
+            async with aiosqlite.connect(config.DATABASE_PATH) as db:
+                # Actifs dernière heure
+                cursor = await db.execute("""
+                    SELECT COUNT(*) FROM users
+                    WHERE last_seen >= datetime('now', '-1 hour')
+                """)
+                stats['active_1h'] = (await cursor.fetchone())[0]
+
+                # Nouveaux inscrits
+                cursor = await db.execute("""
+                    SELECT COUNT(*) FROM users
+                    WHERE created_at >= datetime('now', '-1 hour')
+                """)
+                stats['new_users'] = (await cursor.fetchone())[0]
+
+                # Trades ouverts/fermés
+                cursor = await db.execute("""
+                    SELECT
+                        SUM(CASE WHEN opened_at >= datetime('now', '-1 hour') THEN 1 ELSE 0 END),
+                        SUM(CASE WHEN closed_at >= datetime('now', '-1 hour') THEN 1 ELSE 0 END),
+                        COALESCE(SUM(CASE WHEN closed_at >= datetime('now', '-1 hour') THEN pnl ELSE 0 END), 0)
+                    FROM positions
+                """)
+                row = await cursor.fetchone()
+                stats['trades_opened'] = row[0] or 0
+                stats['trades_closed'] = row[1] or 0
+                stats['pnl_net'] = row[2] or 0
+
+                # Messages IA
+                try:
+                    cursor = await db.execute("""
+                        SELECT COALESCE(SUM(message_count), 0) FROM ai_usage_stats
+                        WHERE date = date('now')
+                    """)
+                    stats['ai_messages'] = (await cursor.fetchone())[0]
+                except Exception:
+                    pass
+
+                # Top actifs analysés
+                try:
+                    cursor = await db.execute("""
+                        SELECT asset_symbol, COUNT(*) as cnt
+                        FROM positions
+                        WHERE opened_at >= datetime('now', '-1 hour')
+                        GROUP BY asset_symbol
+                        ORDER BY cnt DESC LIMIT 5
+                    """)
+                    rows = await cursor.fetchall()
+                    stats['top_assets'] = [r[0] for r in rows]
+                except Exception:
+                    pass
+
+            await moderation_service.send_activity_digest(stats)
+            logger.debug("Digest activité horaire envoyé sur Discord")
+
+        except Exception as e:
+            logger.error(f"Erreur send_hourly_activity_digest: {e}")
 
     async def reset_daily_counts(self):
         """Reset les compteurs quotidiens (automatique via date en base)"""

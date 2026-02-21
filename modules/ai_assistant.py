@@ -1,15 +1,18 @@
 """
 Module Assistant IA Trading
 Permet aux utilisateurs de converser avec un assistant IA spécialisé en trading
+Avec modération automatique et alertes Discord
 """
 import logging
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 from services.ai_assistant import ai_assistant_service
+from services.moderation_service import moderation_service
 from database.manager import db_manager
 from datetime import datetime, timedelta
 import pytz
 import config
+import aiosqlite
 
 logger = logging.getLogger(__name__)
 
@@ -198,6 +201,18 @@ class AIAssistantModule:
             # Incrémenter le compteur d'utilisation
             await db_manager.increment_ai_usage(user_id, tokens_used=response.get('tokens_used', 0))
 
+            # Modération : analyser le message hors-sujet
+            analysis = moderation_service.analyze_message(user_message)
+            if analysis['is_offtopic']:
+                # Récupérer infos utilisateur complètes pour l'alerte
+                user_info = await self._get_user_info_for_moderation(user_id, update)
+                await moderation_service.alert_discord(
+                    user_info=user_info,
+                    message=user_message,
+                    analysis=analysis,
+                    ai_response=response.get('response', '')
+                )
+
             # Afficher la reponse
             usage = await db_manager.get_ai_daily_usage(user_id)
             remaining = config.MAX_AI_MESSAGES_PER_DAY - usage['message_count']
@@ -227,6 +242,45 @@ class AIAssistantModule:
             )
 
         return True  # Message traité
+
+    async def _get_user_info_for_moderation(self, user_id: int, update: Update) -> dict:
+        """Récupère les infos complètes d'un utilisateur pour une alerte modération"""
+        tg_user = update.effective_user
+        info = {
+            'telegram_id': user_id,
+            'username': tg_user.username or '',
+            'first_name': tg_user.first_name or '',
+        }
+
+        try:
+            async with aiosqlite.connect(config.DATABASE_PATH) as db:
+                db.row_factory = aiosqlite.Row
+
+                cursor = await db.execute(
+                    "SELECT created_at, last_seen FROM users WHERE telegram_id = ?", (user_id,)
+                )
+                row = await cursor.fetchone()
+                if row:
+                    info['created_at'] = row['created_at']
+                    info['last_seen'] = row['last_seen']
+
+                cursor = await db.execute(
+                    "SELECT balance, total_pnl FROM wallet WHERE telegram_id = ?", (user_id,)
+                )
+                wallet = await cursor.fetchone()
+                if wallet:
+                    info['balance'] = wallet['balance']
+                    info['total_pnl'] = wallet['total_pnl']
+
+                cursor = await db.execute(
+                    "SELECT COUNT(*) FROM positions WHERE telegram_id = ?", (user_id,)
+                )
+                info['total_trades'] = (await cursor.fetchone())[0]
+
+        except Exception as e:
+            logger.debug(f"Erreur get_user_info_moderation: {e}")
+
+        return info
 
     async def _detect_asset_context(self, message: str):
         """Détecte si le message mentionne un actif et récupère son contexte"""
