@@ -57,6 +57,8 @@ INVESTOR_PROFILES = {
 AVAILABLE_MARKETS = {
     "usa": {"name": "🇺🇸 Actions US", "key": "USA"},
     "europe": {"name": "🇪🇺 Actions EU", "key": "EUROPE"},
+    "asia": {"name": "🌏 Actions Asie", "key": "ASIA"},
+    "forex": {"name": "💱 Forex", "key": "FOREX"},
     "crypto": {"name": "🪙 Crypto", "key": "CRYPTO"},
     "commodities": {"name": "🛢️ Matières 1ères", "key": "COMMODITIES"}
 }
@@ -86,12 +88,15 @@ ALPHA_VANTAGE_KEY = os.getenv("ALPHA_VANTAGE_KEY", "")
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")  # Groq pour l'assistant IA - obtenir sur console.groq.com
 
 # ===== MARCHÉS DISPONIBLES =====
+# NOTE: Les horaires sont en heure de Paris (CET/CEST)
 MARKETS = {
     "EUROPE": {
         "name": "🇪🇺 EUROPE",
         "open_time": "09:00",
         "close_time": "17:30",
         "timezone": "Europe/Paris",
+        "description": "Euronext Paris, Francfort, Londres",
+        "closed_days": [5, 6],  # Samedi, Dimanche
         "assets": [
             # Indices
             "^FCHI", "^GDAXI", "^STOXX50E", "^FTSE",
@@ -105,9 +110,12 @@ MARKETS = {
     },
     "USA": {
         "name": "🇺🇸 USA",
-        "open_time": "09:30",
-        "close_time": "16:00",
+        "open_time": "15:30",  # 09:30 NY = 15:30 Paris (hiver) / 14:30 (été US)
+        "close_time": "22:00",  # 16:00 NY = 22:00 Paris (hiver) / 21:00 (été US)
         "timezone": "America/New_York",
+        "description": "NYSE, NASDAQ",
+        "closed_days": [5, 6],  # Samedi, Dimanche
+        "paris_summer_offset": -1,  # -1h quand USA en heure d'été et pas Paris
         "assets": [
             # Indices
             "^GSPC", "^DJI", "^IXIC",
@@ -131,9 +139,12 @@ MARKETS = {
     },
     "ASIA": {
         "name": "🌏 ASIA",
-        "open_time": "09:00",
-        "close_time": "15:00",
+        "open_time": "02:00",  # Tokyo 09:00 = 02:00 Paris (hiver) / 01:00 (été)
+        "close_time": "09:00",  # Tokyo 15:00 = 09:00 Paris (hiver) / 08:00 (été)
         "timezone": "Asia/Tokyo",
+        "description": "Tokyo, Hong Kong, Shanghai",
+        "closed_days": [5, 6],  # Samedi, Dimanche
+        "lunch_break": {"start": "04:30", "end": "05:30"},  # Pause déjeuner Tokyo
         "assets": [
             # Indices
             "^N225", "^HSI", "000001.SS",
@@ -147,11 +158,31 @@ MARKETS = {
             "RELIANCE.NS", "TCS.NS", "INFY.NS", "HDFCBANK.NS"
         ]
     },
+    "FOREX": {
+        "name": "💱 FOREX",
+        "open_time": "23:00",  # Ouvre dimanche 23:00
+        "close_time": "22:00",  # Ferme vendredi 22:00
+        "timezone": "Europe/Paris",
+        "description": "Devises - 24h/24 lundi-vendredi",
+        "always_open_weekdays": True,
+        "open_day": 6,  # Dimanche soir
+        "close_day": 4,  # Vendredi soir
+        "closed_days": [5],  # Samedi fermé
+        "assets": [
+            # Majeurs
+            "EURUSD=X", "GBPUSD=X", "USDJPY=X", "USDCHF=X", "AUDUSD=X", "USDCAD=X", "NZDUSD=X",
+            # Croix
+            "EURGBP=X", "EURJPY=X", "GBPJPY=X", "EURCHF=X", "AUDJPY=X",
+            # Exotiques
+            "USDMXN=X", "USDZAR=X", "USDTRY=X", "USDSEK=X", "USDNOK=X"
+        ]
+    },
     "CRYPTO": {
         "name": "🪙 CRYPTO",
         "open_time": "00:00",
         "close_time": "23:59",
         "timezone": "UTC",
+        "description": "24h/24 - 7j/7",
         "always_open": True,
         "assets": [
             # Top Caps
@@ -166,10 +197,12 @@ MARKETS = {
     },
     "COMMODITIES": {
         "name": "🛢️ MATIÈRES PREMIÈRES",
-        "open_time": "00:00",
-        "close_time": "22:30",  # Ferme vendredi 22h30
+        "open_time": "00:00",  # Ouvre dimanche 23:00
+        "close_time": "22:00",  # Ferme vendredi 22:00
         "timezone": "Europe/Paris",
-        "open_day": 6,  # Dimanche (0=Lundi, 6=Dimanche)
+        "description": "CME - Quasi 24h lundi-vendredi",
+        "always_open_weekdays": True,
+        "open_day": 6,  # Dimanche
         "close_day": 4,  # Vendredi
         "closed_days": [5],  # Samedi fermé
         "assets": [

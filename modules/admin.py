@@ -2210,79 +2210,198 @@ Votre ID : <code>{user_id}</code>
             async with aiosqlite.connect(config.DATABASE_PATH) as db:
                 db.row_factory = aiosqlite.Row
 
-                # Récupérer les utilisateurs avec TOUTES les infos
+                # Vérifier quelles tables existent
                 cursor = await db.execute("""
-                    SELECT
-                        u.telegram_id,
-                        u.username,
-                        u.first_name,
-                        u.last_name,
-                        u.created_at,
-                        u.last_seen,
-                        COALESCE(w.balance, 10000) as balance,
-                        COALESCE(w.initial_balance, 10000) as initial_balance,
-                        COALESCE(w.total_pnl, 0) as total_pnl,
-                        COALESCE(w.daily_pnl, 0) as daily_pnl,
-                        COALESCE(s.tier, 'free') as tier,
-                        COALESCE(s.analyses_used_today, 0) as analyses_today,
-                        (SELECT COUNT(*) FROM positions p WHERE p.telegram_id = u.telegram_id AND p.status = 'open') as open_positions,
-                        (SELECT COUNT(*) FROM positions p WHERE p.telegram_id = u.telegram_id AND p.status = 'closed') as closed_positions,
-                        (SELECT COUNT(*) FROM favorites f WHERE f.telegram_id = u.telegram_id) as favorites_count,
-                        (SELECT COALESCE(SUM(message_count), 0) FROM ai_usage_stats ai WHERE ai.telegram_id = u.telegram_id) as ai_messages,
-                        (SELECT COUNT(*) FROM price_alerts pa WHERE pa.telegram_id = u.telegram_id AND pa.active = 1) as active_alerts,
-                        o.investor_profile,
-                        o.selected_markets
-                    FROM users u
-                    LEFT JOIN wallet w ON w.telegram_id = u.telegram_id
-                    LEFT JOIN user_subscriptions s ON s.telegram_id = u.telegram_id
-                    LEFT JOIN user_onboarding o ON o.telegram_id = u.telegram_id
-                    ORDER BY u.last_seen DESC
+                    SELECT name FROM sqlite_master WHERE type='table'
                 """)
-                users = await cursor.fetchall()
+                existing_tables = [row[0] for row in await cursor.fetchall()]
 
-                # Stats globales
-                cursor = await db.execute("SELECT COUNT(*) FROM positions WHERE status = 'open'")
-                total_open_positions = (await cursor.fetchone())[0]
+                has_positions = 'positions' in existing_tables
+                has_favorites = 'favorites' in existing_tables
+                has_ai_stats = 'ai_usage_stats' in existing_tables
+                has_alerts = 'price_alerts' in existing_tables
+                has_wallet = 'wallet' in existing_tables
+                has_subs = 'user_subscriptions' in existing_tables
+                has_onboarding = 'user_onboarding' in existing_tables
 
-                cursor = await db.execute("SELECT COUNT(*) FROM positions WHERE status = 'closed'")
-                total_closed_positions = (await cursor.fetchone())[0]
-
-                cursor = await db.execute("SELECT COALESCE(SUM(pnl), 0) FROM positions WHERE status = 'closed'")
-                global_pnl = (await cursor.fetchone())[0]
-
+                # Récupérer les utilisateurs (requête de base)
                 cursor = await db.execute("""
-                    SELECT COUNT(*) FROM positions WHERE status = 'closed' AND pnl > 0
+                    SELECT telegram_id, username, first_name, last_name, created_at, last_seen
+                    FROM users
+                    ORDER BY last_seen DESC
                 """)
-                winning_trades = (await cursor.fetchone())[0]
+                base_users = await cursor.fetchall()
 
-                # Derniers actifs analysés
-                cursor = await db.execute("""
-                    SELECT asset_symbol, market, analysis_type, created_at, telegram_id
-                    FROM ai_analysis_history
-                    ORDER BY created_at DESC
-                    LIMIT 20
-                """)
-                recent_analyses = await cursor.fetchall()
+                # Construire les données utilisateurs avec les infos disponibles
+                users = []
+                for u in base_users:
+                    user_data = {
+                        'telegram_id': u['telegram_id'],
+                        'username': u['username'],
+                        'first_name': u['first_name'],
+                        'last_name': u['last_name'],
+                        'created_at': u['created_at'],
+                        'last_seen': u['last_seen'],
+                        'balance': 10000,
+                        'initial_balance': 10000,
+                        'total_pnl': 0,
+                        'daily_pnl': 0,
+                        'tier': 'free',
+                        'analyses_today': 0,
+                        'open_positions': 0,
+                        'closed_positions': 0,
+                        'favorites_count': 0,
+                        'ai_messages': 0,
+                        'active_alerts': 0,
+                        'investor_profile': None,
+                        'selected_markets': None
+                    }
+
+                    tid = u['telegram_id']
+
+                    # Wallet
+                    if has_wallet:
+                        try:
+                            cursor = await db.execute(
+                                "SELECT balance, initial_balance, total_pnl, daily_pnl FROM wallet WHERE telegram_id = ?",
+                                (tid,)
+                            )
+                            w = await cursor.fetchone()
+                            if w:
+                                user_data['balance'] = w['balance'] or 10000
+                                user_data['initial_balance'] = w['initial_balance'] or 10000
+                                user_data['total_pnl'] = w['total_pnl'] or 0
+                                user_data['daily_pnl'] = w['daily_pnl'] or 0
+                        except Exception:
+                            pass
+
+                    # Subscription
+                    if has_subs:
+                        try:
+                            cursor = await db.execute(
+                                "SELECT tier, analyses_used_today FROM user_subscriptions WHERE telegram_id = ?",
+                                (tid,)
+                            )
+                            s = await cursor.fetchone()
+                            if s:
+                                user_data['tier'] = s['tier'] or 'free'
+                                user_data['analyses_today'] = s['analyses_used_today'] or 0
+                        except Exception:
+                            pass
+
+                    # Positions
+                    if has_positions:
+                        try:
+                            cursor = await db.execute(
+                                "SELECT COUNT(*) FROM positions WHERE telegram_id = ? AND status = 'open'",
+                                (tid,)
+                            )
+                            user_data['open_positions'] = (await cursor.fetchone())[0]
+                            cursor = await db.execute(
+                                "SELECT COUNT(*) FROM positions WHERE telegram_id = ? AND status = 'closed'",
+                                (tid,)
+                            )
+                            user_data['closed_positions'] = (await cursor.fetchone())[0]
+                        except Exception:
+                            pass
+
+                    # Favorites
+                    if has_favorites:
+                        try:
+                            cursor = await db.execute(
+                                "SELECT COUNT(*) FROM favorites WHERE telegram_id = ?",
+                                (tid,)
+                            )
+                            user_data['favorites_count'] = (await cursor.fetchone())[0]
+                        except Exception:
+                            pass
+
+                    # AI usage
+                    if has_ai_stats:
+                        try:
+                            cursor = await db.execute(
+                                "SELECT COALESCE(SUM(message_count), 0) FROM ai_usage_stats WHERE telegram_id = ?",
+                                (tid,)
+                            )
+                            user_data['ai_messages'] = (await cursor.fetchone())[0]
+                        except Exception:
+                            pass
+
+                    # Onboarding
+                    if has_onboarding:
+                        try:
+                            cursor = await db.execute(
+                                "SELECT investor_profile, selected_markets FROM user_onboarding WHERE telegram_id = ?",
+                                (tid,)
+                            )
+                            o = await cursor.fetchone()
+                            if o:
+                                user_data['investor_profile'] = o['investor_profile']
+                                user_data['selected_markets'] = o['selected_markets']
+                        except Exception:
+                            pass
+
+                    users.append(user_data)
+
+                # Stats globales (avec gestion d'erreurs)
+                total_open_positions = 0
+                total_closed_positions = 0
+                global_pnl = 0
+                winning_trades = 0
+
+                if has_positions:
+                    try:
+                        cursor = await db.execute("SELECT COUNT(*) FROM positions WHERE status = 'open'")
+                        total_open_positions = (await cursor.fetchone())[0]
+                        cursor = await db.execute("SELECT COUNT(*) FROM positions WHERE status = 'closed'")
+                        total_closed_positions = (await cursor.fetchone())[0]
+                        cursor = await db.execute("SELECT COALESCE(SUM(pnl), 0) FROM positions WHERE status = 'closed'")
+                        global_pnl = (await cursor.fetchone())[0]
+                        cursor = await db.execute("SELECT COUNT(*) FROM positions WHERE status = 'closed' AND pnl > 0")
+                        winning_trades = (await cursor.fetchone())[0]
+                    except Exception:
+                        pass
+
+                # Derniers actifs analysés (table optionnelle)
+                recent_analyses = []
+                try:
+                    cursor = await db.execute("""
+                        SELECT asset_symbol, market, analysis_type, created_at, telegram_id
+                        FROM ai_analysis_history
+                        ORDER BY created_at DESC
+                        LIMIT 20
+                    """)
+                    recent_analyses = await cursor.fetchall()
+                except Exception as e:
+                    logger.debug(f"Table ai_analysis_history non disponible: {e}")
 
                 # Actifs les plus populaires (favoris)
-                cursor = await db.execute("""
-                    SELECT asset_symbol, market, COUNT(*) as count
-                    FROM favorites
-                    GROUP BY asset_symbol, market
-                    ORDER BY count DESC
-                    LIMIT 10
-                """)
-                popular_assets = await cursor.fetchall()
+                popular_assets = []
+                try:
+                    cursor = await db.execute("""
+                        SELECT asset_symbol, market, COUNT(*) as count
+                        FROM favorites
+                        GROUP BY asset_symbol, market
+                        ORDER BY count DESC
+                        LIMIT 10
+                    """)
+                    popular_assets = await cursor.fetchall()
+                except Exception as e:
+                    logger.debug(f"Table favorites non disponible: {e}")
 
-                # Derniers scans
-                cursor = await db.execute("""
-                    SELECT asset_symbol, market, score, signal, scan_date
-                    FROM scan_results
-                    WHERE score >= 70
-                    ORDER BY scan_date DESC
-                    LIMIT 15
-                """)
-                recent_scans = await cursor.fetchall()
+                # Derniers scans (table optionnelle)
+                recent_scans = []
+                try:
+                    cursor = await db.execute("""
+                        SELECT asset_symbol, market, score, signal, scan_date
+                        FROM scan_results
+                        WHERE score >= 70
+                        ORDER BY scan_date DESC
+                        LIMIT 15
+                    """)
+                    recent_scans = await cursor.fetchall()
+                except Exception as e:
+                    logger.debug(f"Table scan_results non disponible: {e}")
 
             # Créer PDF
             buf = io.BytesIO()
@@ -2644,28 +2763,31 @@ Votre ID : <code>{user_id}</code>
         """Menu de nettoyage du canal"""
         channel_id = config.CHANNEL_ID if hasattr(config, 'CHANNEL_ID') else os.getenv("CHANNEL_ID", "")
 
-        text = "🧹 **NETTOYER LE CANAL**\n"
+        text = "🧹 **NETTOYER UN CANAL**\n"
         text += "━━━━━━━━━━━━━━━━━━━━\n\n"
 
-        if not channel_id:
-            text += "❌ **CHANNEL_ID non configuré dans .env**\n\n"
-            text += "Ajoutez `CHANNEL_ID=-100xxxxx` dans votre fichier .env"
-        else:
-            text += f"📢 Canal: `{channel_id}`\n\n"
-            text += "⚠️ **ATTENTION:**\n"
-            text += "• Cette action va supprimer les messages récents du canal\n"
-            text += "• Les messages de plus de 48h ne peuvent pas être supprimés\n"
-            text += "• Le bot doit être admin du canal avec les droits de suppression\n\n"
-            text += "Voulez-vous continuer ?"
+        text += "Pour supprimer des messages d'un canal, utilisez la commande:\n\n"
+        text += "`/clearchannel <canal_id> <dernier_msg_id> [nb]`\n\n"
 
-        keyboard = []
+        text += "**📋 Comment trouver le message ID:**\n"
+        text += "1. Allez dans votre canal\n"
+        text += "2. Cliquez-droit sur le dernier message\n"
+        text += "3. \"Copier le lien du message\"\n"
+        text += "4. Le dernier nombre dans l'URL est l'ID\n\n"
+
+        text += "**Exemple:**\n"
+        text += "Lien: `t.me/c/1234567890/`**`542`**\n"
         if channel_id:
-            keyboard.append([
-                InlineKeyboardButton("✅ Confirmer", callback_data="admin_clear_channel_confirm"),
-                InlineKeyboardButton("❌ Annuler", callback_data="admin_back")
-            ])
+            text += f"→ `/clearchannel {channel_id} 542 50`\n\n"
         else:
-            keyboard.append([InlineKeyboardButton("◀️ Retour", callback_data="admin_back")])
+            text += "→ `/clearchannel -1001234567890 542 50`\n\n"
+
+        text += "⚠️ **Limitations:**\n"
+        text += "• Messages >48h ne peuvent pas être supprimés\n"
+        text += "• Le bot doit être admin avec droits de suppression\n"
+        text += "• Maximum 200 messages par commande"
+
+        keyboard = [[InlineKeyboardButton("◀️ Retour", callback_data="admin_back")]]
 
         await query.edit_message_text(
             text,
@@ -2674,61 +2796,8 @@ Votre ID : <code>{user_id}</code>
         )
 
     async def _execute_clear_channel(self, query, context):
-        """Exécute le nettoyage du canal"""
-        channel_id = config.CHANNEL_ID if hasattr(config, 'CHANNEL_ID') else os.getenv("CHANNEL_ID", "")
-
-        if not channel_id:
-            await query.edit_message_text("❌ CHANNEL_ID non configuré.")
-            return
-
-        await query.edit_message_text("🧹 **Nettoyage en cours...**\n\n_Suppression des messages..._")
-
-        deleted_count = 0
-        failed_count = 0
-        max_messages = 100  # Limite de sécurité
-
-        try:
-            # Méthode 1: Supprimer les messages un par un (messages récents)
-            # Note: On ne peut supprimer que les messages de moins de 48h
-            for i in range(max_messages):
-                try:
-                    # Telegram ne permet pas de lister les messages facilement
-                    # On doit connaître les message_ids à supprimer
-                    # Cette méthode suppose qu'on a stocké les IDs ou qu'on utilise une autre approche
-
-                    # Tentative de suppression par batch (si on a les IDs)
-                    pass
-                except Exception:
-                    break
-
-            # Méthode alternative: Utiliser la commande /clearchannel avec l'ID du dernier message
-            await query.edit_message_text(
-                "🧹 **NETTOYAGE DU CANAL**\n"
-                "━━━━━━━━━━━━━━━━━━━━\n\n"
-                "Pour supprimer tous les messages du canal:\n\n"
-                "**Option 1 - Manuel:**\n"
-                "1. Allez dans le canal\n"
-                "2. Sélectionnez tous les messages\n"
-                "3. Supprimez-les manuellement\n\n"
-                "**Option 2 - Commande:**\n"
-                f"`/clearchannel {channel_id} <nb_messages>`\n\n"
-                "Exemple: `/clearchannel {channel_id} 50`\n"
-                "(Supprime les 50 derniers messages)",
-                parse_mode='Markdown',
-                reply_markup=InlineKeyboardMarkup([[
-                    InlineKeyboardButton("◀️ Retour", callback_data="admin_back")
-                ]])
-            )
-
-        except Exception as e:
-            logger.error(f"Erreur clear channel: {e}")
-            await query.edit_message_text(
-                f"❌ Erreur: {e}\n\n"
-                "Assurez-vous que le bot est admin du canal avec les droits de suppression.",
-                reply_markup=InlineKeyboardMarkup([[
-                    InlineKeyboardButton("◀️ Retour", callback_data="admin_back")
-                ]])
-            )
+        """Redirige vers le menu d'instructions"""
+        await self._show_clear_channel_menu(query)
 
     async def _show_recent_errors(self, query):
         """Affiche les erreurs récentes"""
@@ -3209,8 +3278,8 @@ Votre ID : <code>{user_id}</code>
 
     async def cmd_clear_channel(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """
-        Commande /clearchannel [channel_id] [nb_messages]
-        Supprime les messages récents d'un canal
+        Commande /clearchannel <channel_id> <last_msg_id> [nb_messages]
+        Supprime les messages d'un canal en partant d'un message ID connu
         """
         user_id = update.effective_user.id
 
@@ -3218,89 +3287,117 @@ Votre ID : <code>{user_id}</code>
             await update.message.reply_text("❌ Commande réservée aux administrateurs.")
             return
 
-        # Récupérer le channel_id
-        if context.args:
-            try:
-                channel_id = int(context.args[0])
-                nb_messages = int(context.args[1]) if len(context.args) > 1 else 50
-            except (ValueError, IndexError):
-                await update.message.reply_text(
-                    "📋 **Usage:** `/clearchannel <channel_id> [nb_messages]`\n\n"
-                    "Exemple: `/clearchannel -1001234567890 50`\n\n"
-                    "⚠️ Le bot doit être admin du canal avec droits de suppression.",
-                    parse_mode='Markdown'
-                )
-                return
-        else:
-            # Utiliser le canal par défaut
-            channel_id = config.CHANNEL_ID if hasattr(config, 'CHANNEL_ID') else os.getenv("CHANNEL_ID", "")
-            if not channel_id:
-                await update.message.reply_text(
-                    "📋 **Usage:** `/clearchannel <channel_id> [nb_messages]`\n\n"
-                    "Ou configurez CHANNEL_ID dans .env",
-                    parse_mode='Markdown'
-                )
-                return
-            channel_id = int(channel_id)
-            nb_messages = 50
+        # Parser les arguments
+        if len(context.args) < 2:
+            await update.message.reply_text(
+                "🧹 **NETTOYER UN CANAL**\n"
+                "━━━━━━━━━━━━━━━━━━━━\n\n"
+                "📋 **Usage:**\n"
+                "`/clearchannel <channel_id> <last_msg_id> [nb]`\n\n"
+                "**Comment trouver le last\\_msg\\_id:**\n"
+                "1. Allez dans le canal\n"
+                "2. Cliquez sur le dernier message\n"
+                "3. Copiez le lien du message\n"
+                "4. Le dernier nombre est l'ID\n\n"
+                "**Exemple:**\n"
+                "Lien: `t.me/c/1234567890/`**`542`**\n"
+                "→ `/clearchannel -1001234567890 542 50`\n\n"
+                "⚠️ Le bot doit être admin avec droits de suppression.",
+                parse_mode='Markdown'
+            )
+            return
 
-        # Limiter à 100 messages max
-        nb_messages = min(nb_messages, 100)
+        try:
+            channel_id = int(context.args[0])
+            last_msg_id = int(context.args[1])
+            nb_messages = int(context.args[2]) if len(context.args) > 2 else 50
+        except (ValueError, IndexError):
+            await update.message.reply_text(
+                "❌ Arguments invalides.\n\n"
+                "Usage: `/clearchannel <channel_id> <last_msg_id> [nb]`",
+                parse_mode='Markdown'
+            )
+            return
+
+        # Limites de sécurité
+        nb_messages = min(nb_messages, 200)
 
         status_msg = await update.message.reply_text(
-            f"🧹 **Nettoyage du canal** `{channel_id}`\n\n"
-            f"Suppression de {nb_messages} messages en cours..."
+            f"🧹 **Nettoyage en cours...**\n\n"
+            f"Canal: `{channel_id}`\n"
+            f"Messages: {last_msg_id} → {last_msg_id - nb_messages + 1}\n"
+            f"Nombre: {nb_messages}"
         )
 
         deleted = 0
         failed = 0
+        skipped = 0
 
         try:
-            # Récupérer les messages récents du canal
-            # Note: Cette méthode ne fonctionne que si on peut itérer sur les messages
-            # Telegram ne permet pas de lister les messages facilement via l'API Bot
-
-            # Méthode alternative: supprimer par message_id décroissant
-            # On suppose que les messages ont des IDs séquentiels (approximatif)
-
-            # Essayer de supprimer les N derniers messages
-            # Cette approche tente de deviner les message_ids récents
             import asyncio
 
-            for i in range(nb_messages):
-                try:
-                    # Cette méthode nécessite de connaître les message_ids
-                    # On ne peut pas les deviner sans les avoir stockés
-                    pass
-                except Exception:
-                    pass
+            # Supprimer les messages par batch (Telegram limite à 100 par requête)
+            batch_size = 100
+            all_msg_ids = list(range(last_msg_id, last_msg_id - nb_messages, -1))
 
-            # Méthode fonctionnelle: Utiliser getUpdates pour récupérer les messages récents
-            # puis les supprimer
+            for i in range(0, len(all_msg_ids), batch_size):
+                batch = all_msg_ids[i:i + batch_size]
 
+                # Mise à jour du statut tous les 50 messages
+                if i > 0 and i % 50 == 0:
+                    await status_msg.edit_text(
+                        f"🧹 **Nettoyage en cours...**\n\n"
+                        f"Progression: {i}/{nb_messages}\n"
+                        f"✅ Supprimés: {deleted}\n"
+                        f"❌ Échecs: {failed}"
+                    )
+
+                # Essayer de supprimer le batch
+                for msg_id in batch:
+                    try:
+                        await context.bot.delete_message(
+                            chat_id=channel_id,
+                            message_id=msg_id
+                        )
+                        deleted += 1
+                        await asyncio.sleep(0.05)  # Anti-flood
+                    except Exception as e:
+                        error_str = str(e).lower()
+                        if "message to delete not found" in error_str:
+                            skipped += 1  # Message déjà supprimé ou inexistant
+                        elif "message can't be deleted" in error_str:
+                            failed += 1  # Message trop ancien (>48h)
+                        else:
+                            failed += 1
+
+                        # Si trop d'échecs consécutifs, arrêter
+                        if failed > 20 and deleted == 0:
+                            raise Exception("Trop d'échecs, vérifiez les permissions")
+
+            # Résultat final
             await status_msg.edit_text(
-                f"🧹 **NETTOYAGE DU CANAL**\n"
+                f"🧹 **NETTOYAGE TERMINÉ**\n"
                 f"━━━━━━━━━━━━━━━━━━━━\n\n"
                 f"Canal: `{channel_id}`\n\n"
-                f"⚠️ **Limitation Telegram:**\n"
-                f"L'API Bot ne permet pas de lister les messages d'un canal.\n\n"
-                f"**Solutions alternatives:**\n"
-                f"1. Supprimez manuellement via l'app Telegram\n"
-                f"2. Utilisez un userbot (Telethon/Pyrogram)\n"
-                f"3. Recréez le canal\n\n"
-                f"_Conseil: Épinglez un message de bienvenue pour garder le canal organisé._",
+                f"✅ **Supprimés:** {deleted}\n"
+                f"⏭️ **Ignorés:** {skipped} (inexistants)\n"
+                f"❌ **Échecs:** {failed} (trop anciens)\n\n"
+                f"_Messages >48h ne peuvent pas être supprimés par l'API._",
                 parse_mode='Markdown'
             )
 
-            admin_manager.log_command(user_id, "clearchannel", f"Tentative canal {channel_id}")
+            admin_manager.log_command(user_id, "clearchannel",
+                f"Canal {channel_id}: {deleted} supprimés, {failed} échecs")
 
         except Exception as e:
+            logger.error(f"Erreur clear channel: {e}")
             await status_msg.edit_text(
-                f"❌ Erreur: {e}\n\n"
+                f"❌ **Erreur:** {e}\n\n"
+                f"✅ Supprimés avant erreur: {deleted}\n\n"
                 f"Vérifiez que:\n"
                 f"• Le bot est admin du canal\n"
                 f"• Il a les droits de suppression\n"
-                f"• L'ID du canal est correct"
+                f"• L'ID du canal est correct (format: -100...)"
             )
 
     async def cmd_user_report(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
