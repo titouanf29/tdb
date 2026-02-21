@@ -1,10 +1,12 @@
 """
 Module Admin - Dashboard de monitoring et commandes administrateur
-Utilise le module de sécurité pour le contrôle d'accès
+Version améliorée avec monitoring avancé, audit, et gestion utilisateurs
 """
 import logging
 import os
 import json
+import io
+import csv
 from datetime import datetime, timedelta
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, CommandHandler, CallbackQueryHandler
@@ -14,6 +16,7 @@ from utils.loading import show_loading, LoadingAnimation
 from services.discord_service import discord_service
 from utils.security import admin_manager, admin_required, admin_callback_required, rate_limit_admin
 from utils.error_handler import ErrorHandler, ErrorSeverity
+from utils.rate_limiter import rate_limiter
 
 logger = logging.getLogger(__name__)
 
@@ -42,6 +45,12 @@ class AdminModule:
         self.app.add_handler(CommandHandler("reset_onboarding", self.cmd_reset_onboarding))
         self.app.add_handler(CommandHandler("discord", self.cmd_discord_message))
         self.app.add_handler(CommandHandler("addactif", self.cmd_addactif))
+        self.app.add_handler(CommandHandler("resetwallet", self.cmd_reset_wallet))
+        self.app.add_handler(CommandHandler("banuser", self.cmd_ban_user))
+        self.app.add_handler(CommandHandler("unbanuser", self.cmd_unban_user))
+        self.app.add_handler(CommandHandler("export", self.cmd_export_data))
+        self.app.add_handler(CommandHandler("health", self.cmd_health_check))
+        self.app.add_handler(CommandHandler("audit", self.cmd_audit_log))
 
         # Callbacks admin
         self.app.add_handler(CallbackQueryHandler(self.callback_admin, pattern="^admin_"))
@@ -104,6 +113,10 @@ class AdminModule:
                 InlineKeyboardButton("📊 Stats détaillées", callback_data="admin_stats")
             ],
             [
+                InlineKeyboardButton("🔌 API Stats", callback_data="admin_api_stats"),
+                InlineKeyboardButton("❤️ Santé", callback_data="admin_health")
+            ],
+            [
                 InlineKeyboardButton("💾 Backup", callback_data="admin_backup"),
                 InlineKeyboardButton("🔄 Système", callback_data="admin_system")
             ],
@@ -116,8 +129,12 @@ class AdminModule:
                 InlineKeyboardButton("🔧 Maintenance", callback_data="admin_maintenance")
             ],
             [
-                InlineKeyboardButton("⚙️ Config", callback_data="admin_config"),
-                InlineKeyboardButton("📈 Performance", callback_data="admin_performance")
+                InlineKeyboardButton("📜 Audit", callback_data="admin_audit"),
+                InlineKeyboardButton("⚠️ Erreurs", callback_data="admin_errors")
+            ],
+            [
+                InlineKeyboardButton("📤 Export", callback_data="admin_export_menu"),
+                InlineKeyboardButton("⚡ Actions", callback_data="admin_quick_actions")
             ],
             [
                 InlineKeyboardButton("🎮 Discord", callback_data="admin_discord")
@@ -183,6 +200,28 @@ class AdminModule:
         elif action.startswith("user_detail_"):
             user_id = int(action.replace("user_detail_", ""))
             await self._show_user_detail(query, user_id)
+        elif action == "api_stats":
+            await self._show_api_stats(query)
+        elif action == "audit":
+            await self._show_audit_log(query)
+        elif action == "health":
+            await self._show_health_check(query)
+        elif action == "export_menu":
+            await self._show_export_menu(query)
+        elif action == "export_users":
+            await self._export_users_csv(query)
+        elif action == "export_trades":
+            await self._export_trades_csv(query)
+        elif action == "quick_actions":
+            await self._show_quick_actions(query)
+        elif action == "errors":
+            await self._show_recent_errors(query)
+        elif action.startswith("ban_"):
+            user_id = int(action.replace("ban_", ""))
+            await self._confirm_ban_user(query, user_id)
+        elif action.startswith("reset_wallet_"):
+            user_id = int(action.replace("reset_wallet_", ""))
+            await self._confirm_reset_wallet(query, user_id)
 
     async def _get_system_stats(self) -> dict:
         """Récupère les statistiques système complètes"""
@@ -650,6 +689,10 @@ class AdminModule:
                 InlineKeyboardButton("📊 Stats détaillées", callback_data="admin_stats")
             ],
             [
+                InlineKeyboardButton("🔌 API Stats", callback_data="admin_api_stats"),
+                InlineKeyboardButton("❤️ Santé", callback_data="admin_health")
+            ],
+            [
                 InlineKeyboardButton("💾 Backup", callback_data="admin_backup"),
                 InlineKeyboardButton("🔄 Système", callback_data="admin_system")
             ],
@@ -662,8 +705,12 @@ class AdminModule:
                 InlineKeyboardButton("🔧 Maintenance", callback_data="admin_maintenance")
             ],
             [
-                InlineKeyboardButton("⚙️ Config", callback_data="admin_config"),
-                InlineKeyboardButton("📈 Performance", callback_data="admin_performance")
+                InlineKeyboardButton("📜 Audit", callback_data="admin_audit"),
+                InlineKeyboardButton("⚠️ Erreurs", callback_data="admin_errors")
+            ],
+            [
+                InlineKeyboardButton("📤 Export", callback_data="admin_export_menu"),
+                InlineKeyboardButton("⚡ Actions", callback_data="admin_quick_actions")
             ],
             [
                 InlineKeyboardButton("🎮 Discord", callback_data="admin_discord")
@@ -1804,3 +1851,606 @@ Votre ID : <code>{user_id}</code>
         except Exception as e:
             logger.error(f"Erreur _add_to_asset_names({symbol}): {e}")
             return False
+
+    # =========================================================================
+    # NOUVELLES FONCTIONNALITÉS ADMIN v2
+    # =========================================================================
+
+    async def _show_api_stats(self, query):
+        """Affiche les statistiques du rate limiter API"""
+        text = "🔌 **STATISTIQUES API**\n"
+        text += "━━━━━━━━━━━━━━━━━━━━\n\n"
+
+        services = ["yfinance", "groq", "news"]
+
+        for service in services:
+            stats = rate_limiter.get_stats(service)
+            if stats['requests'] > 0:
+                success_rate = (stats['success'] / stats['requests']) * 100
+                health = "🟢" if success_rate > 80 else ("🟡" if success_rate > 50 else "🔴")
+
+                text += f"{health} **{service.upper()}**\n"
+                text += f"   • Requêtes: {stats['requests']}\n"
+                text += f"   • Succès: {stats['success']} ({success_rate:.0f}%)\n"
+                text += f"   • Erreurs: {stats['errors']}\n"
+                text += f"   • Timeouts: {stats['timeouts']}\n"
+                if 'available_tokens' in stats:
+                    text += f"   • Tokens dispo: {stats['available_tokens']:.1f}\n"
+                text += "\n"
+            else:
+                text += f"⚪ **{service.upper()}** — Aucune requête\n\n"
+
+        text += "_Les stats sont réinitialisées au redémarrage_"
+
+        keyboard = [
+            [InlineKeyboardButton("🔄 Actualiser", callback_data="admin_api_stats")],
+            [InlineKeyboardButton("◀️ Retour", callback_data="admin_back")]
+        ]
+
+        await query.edit_message_text(
+            text,
+            parse_mode='Markdown',
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+
+    async def _show_audit_log(self, query):
+        """Affiche le journal d'audit admin"""
+        text = "📜 **JOURNAL D'AUDIT**\n"
+        text += "━━━━━━━━━━━━━━━━━━━━\n\n"
+
+        audit_log = admin_manager.get_audit_log(20)
+
+        if not audit_log:
+            text += "_Aucune action admin enregistrée_\n"
+        else:
+            for entry in reversed(audit_log[-15:]):
+                timestamp = entry['timestamp'][:16].replace('T', ' ')
+                action = entry['action']
+                admin_id = entry['admin_id']
+                details = entry.get('details', {})
+
+                # Format court
+                if action == "command":
+                    cmd = details.get('command', '?')
+                    text += f"`{timestamp}` 👤{admin_id} → {cmd}\n"
+                else:
+                    text += f"`{timestamp}` 👤{admin_id} → {action}\n"
+
+        keyboard = [
+            [InlineKeyboardButton("🔄 Actualiser", callback_data="admin_audit")],
+            [InlineKeyboardButton("◀️ Retour", callback_data="admin_back")]
+        ]
+
+        await query.edit_message_text(
+            text[:4000],
+            parse_mode='Markdown',
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+
+    async def _show_health_check(self, query):
+        """Affiche l'état de santé de tous les services"""
+        text = "❤️ **SANTÉ DES SERVICES**\n"
+        text += "━━━━━━━━━━━━━━━━━━━━\n\n"
+
+        checks = []
+
+        # Base de données
+        try:
+            import aiosqlite
+            async with aiosqlite.connect(config.DATABASE_PATH) as db:
+                await db.execute("SELECT 1")
+            checks.append(("Base de données", True, "Connectée"))
+        except Exception as e:
+            checks.append(("Base de données", False, str(e)[:30]))
+
+        # Groq API
+        groq_healthy = rate_limiter.is_healthy("groq")
+        groq_stats = rate_limiter.get_stats("groq")
+        if groq_stats['requests'] == 0:
+            checks.append(("Groq API", True, "Pas de requêtes"))
+        else:
+            checks.append(("Groq API", groq_healthy, f"{groq_stats['success']}/{groq_stats['requests']} OK"))
+
+        # yfinance
+        yf_healthy = rate_limiter.is_healthy("yfinance")
+        yf_stats = rate_limiter.get_stats("yfinance")
+        if yf_stats['requests'] == 0:
+            checks.append(("yfinance", True, "Pas de requêtes"))
+        else:
+            checks.append(("yfinance", yf_healthy, f"{yf_stats['success']}/{yf_stats['requests']} OK"))
+
+        # Discord
+        if discord_service.enabled:
+            checks.append(("Discord", True, "Configuré"))
+        else:
+            checks.append(("Discord", None, "Non configuré"))
+
+        # Espace disque
+        try:
+            import shutil
+            total, used, free = shutil.disk_usage("/")
+            free_gb = free // (1024**3)
+            if free_gb < 1:
+                checks.append(("Disque", False, f"{free_gb}GB libre"))
+            else:
+                checks.append(("Disque", True, f"{free_gb}GB libre"))
+        except Exception:
+            checks.append(("Disque", None, "Non vérifié"))
+
+        # Mémoire
+        try:
+            import psutil
+            mem = psutil.virtual_memory()
+            if mem.percent > 90:
+                checks.append(("Mémoire", False, f"{mem.percent}% utilisée"))
+            else:
+                checks.append(("Mémoire", True, f"{mem.percent}% utilisée"))
+        except Exception:
+            checks.append(("Mémoire", None, "Non vérifié"))
+
+        # Affichage
+        for name, status, detail in checks:
+            if status is True:
+                icon = "🟢"
+            elif status is False:
+                icon = "🔴"
+            else:
+                icon = "⚪"
+            text += f"{icon} **{name}**: {detail}\n"
+
+        # Score global
+        ok_count = sum(1 for _, s, _ in checks if s is True)
+        total_checks = sum(1 for _, s, _ in checks if s is not None)
+        score = (ok_count / total_checks * 100) if total_checks > 0 else 0
+
+        text += f"\n📊 **Score global:** {score:.0f}%"
+
+        keyboard = [
+            [InlineKeyboardButton("🔄 Actualiser", callback_data="admin_health")],
+            [InlineKeyboardButton("◀️ Retour", callback_data="admin_back")]
+        ]
+
+        await query.edit_message_text(
+            text,
+            parse_mode='Markdown',
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+
+    async def _show_export_menu(self, query):
+        """Menu d'export de données"""
+        text = "📤 **EXPORT DE DONNÉES**\n"
+        text += "━━━━━━━━━━━━━━━━━━━━\n\n"
+
+        text += "Exportez les données en CSV:\n\n"
+        text += "👥 **Utilisateurs** — Liste complète\n"
+        text += "📈 **Trades** — Historique des positions\n"
+
+        keyboard = [
+            [InlineKeyboardButton("👥 Export Utilisateurs", callback_data="admin_export_users")],
+            [InlineKeyboardButton("📈 Export Trades", callback_data="admin_export_trades")],
+            [InlineKeyboardButton("◀️ Retour", callback_data="admin_back")]
+        ]
+
+        await query.edit_message_text(
+            text,
+            parse_mode='Markdown',
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+
+    async def _export_users_csv(self, query):
+        """Exporte les utilisateurs en CSV"""
+        await query.edit_message_text("⏳ Génération du fichier CSV...")
+
+        try:
+            import aiosqlite
+            async with aiosqlite.connect(config.DATABASE_PATH) as db:
+                db.row_factory = aiosqlite.Row
+                cursor = await db.execute("""
+                    SELECT u.telegram_id, u.username, u.first_name, u.created_at, u.last_seen,
+                           COALESCE(w.balance, 10000) as balance,
+                           COALESCE(w.total_pnl, 0) as total_pnl,
+                           COALESCE(s.tier, 'free') as tier
+                    FROM users u
+                    LEFT JOIN wallet w ON w.telegram_id = u.telegram_id
+                    LEFT JOIN user_subscriptions s ON s.telegram_id = u.telegram_id
+                    ORDER BY u.created_at DESC
+                """)
+                users = await cursor.fetchall()
+
+            # Créer CSV en mémoire
+            output = io.StringIO()
+            writer = csv.writer(output)
+            writer.writerow(['ID', 'Username', 'Prénom', 'Inscrit', 'Dernière activité', 'Solde', 'PnL', 'Tier'])
+
+            for u in users:
+                writer.writerow([
+                    u['telegram_id'],
+                    u['username'] or '',
+                    u['first_name'] or '',
+                    u['created_at'][:10] if u['created_at'] else '',
+                    u['last_seen'][:16] if u['last_seen'] else '',
+                    f"{u['balance']:.2f}",
+                    f"{u['total_pnl']:.2f}",
+                    u['tier']
+                ])
+
+            # Envoyer le fichier
+            output.seek(0)
+            file_bytes = io.BytesIO(output.getvalue().encode('utf-8'))
+            file_bytes.name = f"users_export_{datetime.now().strftime('%Y%m%d_%H%M')}.csv"
+
+            await query.message.reply_document(
+                document=file_bytes,
+                filename=file_bytes.name,
+                caption=f"📤 Export utilisateurs — {len(users)} entrées"
+            )
+
+            await query.edit_message_text(
+                f"✅ Export terminé — {len(users)} utilisateurs",
+                reply_markup=InlineKeyboardMarkup([[
+                    InlineKeyboardButton("◀️ Retour", callback_data="admin_export_menu")
+                ]])
+            )
+
+        except Exception as e:
+            await query.edit_message_text(f"❌ Erreur: {e}")
+
+    async def _export_trades_csv(self, query):
+        """Exporte les trades en CSV"""
+        await query.edit_message_text("⏳ Génération du fichier CSV...")
+
+        try:
+            import aiosqlite
+            async with aiosqlite.connect(config.DATABASE_PATH) as db:
+                db.row_factory = aiosqlite.Row
+                cursor = await db.execute("""
+                    SELECT p.telegram_id, p.asset_symbol, p.market, p.direction,
+                           p.entry_price, p.current_price, p.amount, p.leverage,
+                           p.pnl, p.pnl_percent, p.status, p.opened_at, p.closed_at
+                    FROM positions p
+                    ORDER BY p.opened_at DESC
+                    LIMIT 5000
+                """)
+                trades = await cursor.fetchall()
+
+            output = io.StringIO()
+            writer = csv.writer(output)
+            writer.writerow(['User ID', 'Symbol', 'Market', 'Direction', 'Entry', 'Exit', 'Montant', 'Leverage', 'PnL', 'PnL%', 'Status', 'Ouvert', 'Fermé'])
+
+            for t in trades:
+                writer.writerow([
+                    t['telegram_id'],
+                    t['asset_symbol'],
+                    t['market'],
+                    t['direction'],
+                    f"{t['entry_price']:.4f}" if t['entry_price'] else '',
+                    f"{t['current_price']:.4f}" if t['current_price'] else '',
+                    f"{t['amount']:.2f}",
+                    t['leverage'],
+                    f"{t['pnl']:.2f}" if t['pnl'] else '',
+                    f"{t['pnl_percent']:.2f}" if t['pnl_percent'] else '',
+                    t['status'],
+                    t['opened_at'][:16] if t['opened_at'] else '',
+                    t['closed_at'][:16] if t['closed_at'] else ''
+                ])
+
+            output.seek(0)
+            file_bytes = io.BytesIO(output.getvalue().encode('utf-8'))
+            file_bytes.name = f"trades_export_{datetime.now().strftime('%Y%m%d_%H%M')}.csv"
+
+            await query.message.reply_document(
+                document=file_bytes,
+                filename=file_bytes.name,
+                caption=f"📤 Export trades — {len(trades)} entrées"
+            )
+
+            await query.edit_message_text(
+                f"✅ Export terminé — {len(trades)} trades",
+                reply_markup=InlineKeyboardMarkup([[
+                    InlineKeyboardButton("◀️ Retour", callback_data="admin_export_menu")
+                ]])
+            )
+
+        except Exception as e:
+            await query.edit_message_text(f"❌ Erreur: {e}")
+
+    async def _show_quick_actions(self, query):
+        """Menu d'actions rapides"""
+        text = "⚡ **ACTIONS RAPIDES**\n"
+        text += "━━━━━━━━━━━━━━━━━━━━\n\n"
+
+        text += "**Commandes disponibles:**\n\n"
+        text += "`/resetwallet <user_id>` — Réinitialiser wallet\n"
+        text += "`/banuser <user_id>` — Bannir utilisateur\n"
+        text += "`/unbanuser <user_id>` — Débannir\n"
+        text += "`/export users|trades` — Exporter données\n"
+        text += "`/health` — Vérifier santé\n"
+        text += "`/audit` — Journal admin\n"
+
+        keyboard = [
+            [InlineKeyboardButton("◀️ Retour", callback_data="admin_back")]
+        ]
+
+        await query.edit_message_text(
+            text,
+            parse_mode='Markdown',
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+
+    async def _show_recent_errors(self, query):
+        """Affiche les erreurs récentes"""
+        text = "⚠️ **ERREURS RÉCENTES**\n"
+        text += "━━━━━━━━━━━━━━━━━━━━\n\n"
+
+        # Lire les derniers logs d'erreur
+        try:
+            log_file = getattr(config, 'LOG_FILE', 'tdb_bot.log')
+            if os.path.exists(log_file):
+                with open(log_file, 'r', encoding='utf-8', errors='ignore') as f:
+                    lines = f.readlines()
+
+                # Filtrer les lignes ERROR et WARNING
+                error_lines = [l for l in lines if 'ERROR' in l or 'WARNING' in l][-15:]
+
+                if error_lines:
+                    for line in error_lines:
+                        # Nettoyer et tronquer
+                        clean = line.strip()[:80].replace('`', "'")
+                        text += f"`{clean}`\n"
+                else:
+                    text += "_Aucune erreur récente_\n"
+            else:
+                text += "_Fichier de log introuvable_\n"
+        except Exception as e:
+            text += f"Erreur lecture: {e}\n"
+
+        keyboard = [
+            [InlineKeyboardButton("🔄 Actualiser", callback_data="admin_errors")],
+            [InlineKeyboardButton("◀️ Retour", callback_data="admin_back")]
+        ]
+
+        await query.edit_message_text(
+            text[:4000],
+            parse_mode='Markdown',
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+
+    # =========================================================================
+    # COMMANDES GESTION UTILISATEURS
+    # =========================================================================
+
+    async def cmd_reset_wallet(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Commande /resetwallet <user_id> — Réinitialise le wallet d'un utilisateur"""
+        user_id = update.effective_user.id
+
+        if not self.is_admin(user_id):
+            await update.message.reply_text("❌ Commande réservée aux administrateurs.")
+            return
+
+        if not context.args:
+            await update.message.reply_text(
+                "📋 **Usage:** `/resetwallet <user_id>`\n\n"
+                "Exemple: `/resetwallet 123456789`",
+                parse_mode='Markdown'
+            )
+            return
+
+        try:
+            target_id = int(context.args[0])
+        except ValueError:
+            await update.message.reply_text("❌ ID utilisateur invalide.")
+            return
+
+        try:
+            import aiosqlite
+            async with aiosqlite.connect(config.DATABASE_PATH) as db:
+                # Vérifier que l'utilisateur existe
+                cursor = await db.execute("SELECT username FROM users WHERE telegram_id = ?", (target_id,))
+                user = await cursor.fetchone()
+
+                if not user:
+                    await update.message.reply_text(f"❌ Utilisateur {target_id} introuvable.")
+                    return
+
+                # Réinitialiser le wallet
+                await db.execute("""
+                    UPDATE wallet SET
+                        balance = 10000,
+                        available_balance = 10000,
+                        total_pnl = 0,
+                        daily_pnl = 0
+                    WHERE telegram_id = ?
+                """, (target_id,))
+
+                # Fermer toutes les positions
+                await db.execute("""
+                    UPDATE positions SET status = 'closed', close_reason = 'admin_reset'
+                    WHERE telegram_id = ? AND status = 'open'
+                """, (target_id,))
+
+                await db.commit()
+
+            admin_manager.log_command(user_id, "resetwallet", str(target_id))
+
+            await update.message.reply_text(
+                f"✅ Wallet de {target_id} réinitialisé!\n\n"
+                f"• Solde: $10,000\n"
+                f"• Positions fermées",
+                parse_mode='Markdown'
+            )
+
+        except Exception as e:
+            await update.message.reply_text(f"❌ Erreur: {e}")
+
+    async def cmd_ban_user(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Commande /banuser <user_id> — Bannit un utilisateur"""
+        user_id = update.effective_user.id
+
+        if not self.is_admin(user_id):
+            await update.message.reply_text("❌ Commande réservée aux administrateurs.")
+            return
+
+        if not context.args:
+            await update.message.reply_text(
+                "📋 **Usage:** `/banuser <user_id>`",
+                parse_mode='Markdown'
+            )
+            return
+
+        try:
+            target_id = int(context.args[0])
+        except ValueError:
+            await update.message.reply_text("❌ ID invalide.")
+            return
+
+        try:
+            import aiosqlite
+            async with aiosqlite.connect(config.DATABASE_PATH) as db:
+                await db.execute("""
+                    INSERT OR REPLACE INTO banned_users (telegram_id, banned_at, banned_by)
+                    VALUES (?, datetime('now'), ?)
+                """, (target_id, user_id))
+                await db.commit()
+
+            admin_manager.log_command(user_id, "banuser", str(target_id))
+            await update.message.reply_text(f"🚫 Utilisateur {target_id} banni.")
+
+        except Exception as e:
+            await update.message.reply_text(f"❌ Erreur: {e}")
+
+    async def cmd_unban_user(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Commande /unbanuser <user_id> — Débannit un utilisateur"""
+        user_id = update.effective_user.id
+
+        if not self.is_admin(user_id):
+            await update.message.reply_text("❌ Commande réservée aux administrateurs.")
+            return
+
+        if not context.args:
+            await update.message.reply_text(
+                "📋 **Usage:** `/unbanuser <user_id>`",
+                parse_mode='Markdown'
+            )
+            return
+
+        try:
+            target_id = int(context.args[0])
+        except ValueError:
+            await update.message.reply_text("❌ ID invalide.")
+            return
+
+        try:
+            import aiosqlite
+            async with aiosqlite.connect(config.DATABASE_PATH) as db:
+                await db.execute("DELETE FROM banned_users WHERE telegram_id = ?", (target_id,))
+                await db.commit()
+
+            admin_manager.log_command(user_id, "unbanuser", str(target_id))
+            await update.message.reply_text(f"✅ Utilisateur {target_id} débanni.")
+
+        except Exception as e:
+            await update.message.reply_text(f"❌ Erreur: {e}")
+
+    async def cmd_export_data(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Commande /export <type> — Exporte des données"""
+        user_id = update.effective_user.id
+
+        if not self.is_admin(user_id):
+            await update.message.reply_text("❌ Commande réservée aux administrateurs.")
+            return
+
+        if not context.args:
+            await update.message.reply_text(
+                "📋 **Usage:** `/export <type>`\n\n"
+                "Types: `users`, `trades`",
+                parse_mode='Markdown'
+            )
+            return
+
+        export_type = context.args[0].lower()
+
+        if export_type == "users":
+            await update.message.reply_text("⏳ Export en cours...")
+            # Créer un fake query pour réutiliser la méthode
+            class FakeQuery:
+                def __init__(self, message):
+                    self.message = message
+                async def edit_message_text(self, *args, **kwargs):
+                    await self.message.reply_text(args[0] if args else kwargs.get('text', ''))
+
+            await self._export_users_csv(FakeQuery(update.message))
+
+        elif export_type == "trades":
+            await update.message.reply_text("⏳ Export en cours...")
+
+            class FakeQuery:
+                def __init__(self, message):
+                    self.message = message
+                async def edit_message_text(self, *args, **kwargs):
+                    await self.message.reply_text(args[0] if args else kwargs.get('text', ''))
+
+            await self._export_trades_csv(FakeQuery(update.message))
+
+        else:
+            await update.message.reply_text("❌ Type inconnu. Utilisez `users` ou `trades`.")
+
+    async def cmd_health_check(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Commande /health — Vérification santé rapide"""
+        user_id = update.effective_user.id
+
+        if not self.is_admin(user_id):
+            await update.message.reply_text("❌ Commande réservée aux administrateurs.")
+            return
+
+        text = "❤️ **SANTÉ RAPIDE**\n\n"
+
+        # Checks rapides
+        checks = []
+
+        # DB
+        try:
+            import aiosqlite
+            async with aiosqlite.connect(config.DATABASE_PATH) as db:
+                await db.execute("SELECT 1")
+            checks.append("🟢 DB OK")
+        except Exception:
+            checks.append("🔴 DB ERROR")
+
+        # APIs
+        for service in ["yfinance", "groq"]:
+            if rate_limiter.is_healthy(service):
+                checks.append(f"🟢 {service} OK")
+            else:
+                stats = rate_limiter.get_stats(service)
+                if stats['requests'] == 0:
+                    checks.append(f"⚪ {service} (no data)")
+                else:
+                    checks.append(f"🔴 {service} ERROR")
+
+        text += "\n".join(checks)
+
+        await update.message.reply_text(text, parse_mode='Markdown')
+
+    async def cmd_audit_log(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Commande /audit — Affiche le journal d'audit"""
+        user_id = update.effective_user.id
+
+        if not self.is_admin(user_id):
+            await update.message.reply_text("❌ Commande réservée aux administrateurs.")
+            return
+
+        audit_log = admin_manager.get_audit_log(10)
+
+        text = "📜 **JOURNAL D'AUDIT**\n━━━━━━━━━━━━━━━━━━━━\n\n"
+
+        if not audit_log:
+            text += "_Aucune action enregistrée_"
+        else:
+            for entry in reversed(audit_log):
+                ts = entry['timestamp'][:16].replace('T', ' ')
+                action = entry['action']
+                details = entry.get('details', {})
+                cmd = details.get('command', action)
+                text += f"`{ts}` → {cmd}\n"
+
+        await update.message.reply_text(text, parse_mode='Markdown')
