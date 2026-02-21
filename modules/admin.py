@@ -52,6 +52,7 @@ class AdminModule:
         self.app.add_handler(CommandHandler("health", self.cmd_health_check))
         self.app.add_handler(CommandHandler("audit", self.cmd_audit_log))
         self.app.add_handler(CommandHandler("msguser", self.cmd_message_user))
+        self.app.add_handler(CommandHandler("msgall", self.cmd_message_all))
         self.app.add_handler(CommandHandler("report", self.cmd_user_report))
 
         # Callbacks admin
@@ -212,8 +213,12 @@ class AdminModule:
             await self._show_export_menu(query)
         elif action == "export_users":
             await self._export_users_csv(query)
+        elif action == "export_users_pdf":
+            await self._export_users_pdf(query)
         elif action == "export_trades":
             await self._export_trades_csv(query)
+        elif action == "export_trades_pdf":
+            await self._export_trades_pdf(query)
         elif action == "quick_actions":
             await self._show_quick_actions(query)
         elif action == "errors":
@@ -2036,13 +2041,20 @@ Votre ID : <code>{user_id}</code>
         text = "📤 **EXPORT DE DONNÉES**\n"
         text += "━━━━━━━━━━━━━━━━━━━━\n\n"
 
-        text += "Exportez les données en CSV:\n\n"
+        text += "📕 **PDF** — Rapport formaté\n"
+        text += "📄 **CSV** — Données brutes\n\n"
         text += "👥 **Utilisateurs** — Liste complète\n"
         text += "📈 **Trades** — Historique des positions\n"
 
         keyboard = [
-            [InlineKeyboardButton("👥 Export Utilisateurs", callback_data="admin_export_users")],
-            [InlineKeyboardButton("📈 Export Trades", callback_data="admin_export_trades")],
+            [
+                InlineKeyboardButton("👥 Users PDF", callback_data="admin_export_users_pdf"),
+                InlineKeyboardButton("👥 Users CSV", callback_data="admin_export_users")
+            ],
+            [
+                InlineKeyboardButton("📈 Trades PDF", callback_data="admin_export_trades_pdf"),
+                InlineKeyboardButton("📈 Trades CSV", callback_data="admin_export_trades")
+            ],
             [InlineKeyboardButton("◀️ Retour", callback_data="admin_back")]
         ]
 
@@ -2169,17 +2181,276 @@ Votre ID : <code>{user_id}</code>
         except Exception as e:
             await query.edit_message_text(f"❌ Erreur: {e}")
 
+    async def _export_users_pdf(self, query):
+        """Exporte les utilisateurs en PDF"""
+        await query.edit_message_text("⏳ Génération du fichier PDF...")
+
+        try:
+            from reportlab.lib import colors
+            from reportlab.lib.pagesizes import A4, landscape
+            from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+            from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+            from reportlab.lib.units import cm
+        except ImportError:
+            await query.edit_message_text(
+                "❌ ReportLab non installé.\n\n"
+                "Installez avec: `pip3 install reportlab`",
+                parse_mode='Markdown'
+            )
+            return
+
+        try:
+            import aiosqlite
+            async with aiosqlite.connect(config.DATABASE_PATH) as db:
+                db.row_factory = aiosqlite.Row
+                cursor = await db.execute("""
+                    SELECT u.telegram_id, u.username, u.first_name, u.created_at, u.last_seen,
+                           COALESCE(w.balance, 10000) as balance,
+                           COALESCE(w.total_pnl, 0) as total_pnl,
+                           COALESCE(s.tier, 'free') as tier
+                    FROM users u
+                    LEFT JOIN wallet w ON w.telegram_id = u.telegram_id
+                    LEFT JOIN user_subscriptions s ON s.telegram_id = u.telegram_id
+                    ORDER BY u.created_at DESC
+                """)
+                users = await cursor.fetchall()
+
+            # Créer PDF en mémoire
+            buf = io.BytesIO()
+            doc = SimpleDocTemplate(buf, pagesize=landscape(A4), topMargin=1*cm, bottomMargin=1*cm)
+            elements = []
+            styles = getSampleStyleSheet()
+
+            # Titre
+            title_style = ParagraphStyle(
+                'CustomTitle',
+                parent=styles['Heading1'],
+                fontSize=18,
+                spaceAfter=20,
+                alignment=1
+            )
+            elements.append(Paragraph("RAPPORT UTILISATEURS TDB", title_style))
+            elements.append(Paragraph(f"Généré le: {datetime.now().strftime('%d/%m/%Y %H:%M')}", styles['Normal']))
+            elements.append(Paragraph(f"Total: {len(users)} utilisateurs", styles['Normal']))
+            elements.append(Spacer(1, 20))
+
+            # Statistiques rapides
+            total_balance = sum(u['balance'] for u in users)
+            total_pnl = sum(u['total_pnl'] for u in users)
+            profitable = len([u for u in users if u['total_pnl'] > 0])
+
+            stats_data = [
+                ['Métrique', 'Valeur'],
+                ['Total utilisateurs', str(len(users))],
+                ['Balance totale', f"${total_balance:,.2f}"],
+                ['PnL total', f"${total_pnl:+,.2f}"],
+                ['Utilisateurs profitables', f"{profitable} ({profitable/len(users)*100:.1f}%)" if users else "0"],
+            ]
+            stats_table = Table(stats_data, colWidths=[8*cm, 8*cm])
+            stats_table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                ('BACKGROUND', (0, 1), (0, -1), colors.lightgrey),
+                ('GRID', (0, 0), (-1, -1), 1, colors.black),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ]))
+            elements.append(stats_table)
+            elements.append(Spacer(1, 20))
+
+            # Liste des utilisateurs
+            elements.append(Paragraph("<b>LISTE DES UTILISATEURS</b>", styles['Heading2']))
+
+            # Header
+            user_data = [['ID', 'Username', 'Prénom', 'Inscrit', 'Dernière activité', 'Solde', 'PnL', 'Tier']]
+
+            for u in users[:100]:  # Limiter à 100 pour le PDF
+                pnl_val = u['total_pnl']
+                user_data.append([
+                    str(u['telegram_id']),
+                    u['username'] or '-',
+                    u['first_name'] or '-',
+                    u['created_at'][:10] if u['created_at'] else '-',
+                    u['last_seen'][:10] if u['last_seen'] else '-',
+                    f"${u['balance']:,.0f}",
+                    f"${pnl_val:+,.0f}",
+                    u['tier']
+                ])
+
+            user_table = Table(user_data, colWidths=[2.5*cm, 3*cm, 3*cm, 2.5*cm, 2.5*cm, 2.5*cm, 2.5*cm, 2*cm])
+            user_table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, -1), 8),
+                ('ALIGN', (5, 1), (6, -1), 'RIGHT'),
+            ]))
+            elements.append(user_table)
+
+            # Générer PDF
+            doc.build(elements)
+            buf.seek(0)
+
+            await query.message.reply_document(
+                document=buf,
+                filename=f"users_report_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
+                caption=f"📕 Rapport utilisateurs — {len(users)} entrées"
+            )
+
+            await query.edit_message_text(
+                f"✅ Export PDF terminé — {len(users)} utilisateurs",
+                reply_markup=InlineKeyboardMarkup([[
+                    InlineKeyboardButton("◀️ Retour", callback_data="admin_export_menu")
+                ]])
+            )
+
+        except Exception as e:
+            logger.error(f"Erreur export PDF users: {e}")
+            await query.edit_message_text(f"❌ Erreur: {e}")
+
+    async def _export_trades_pdf(self, query):
+        """Exporte les trades en PDF"""
+        await query.edit_message_text("⏳ Génération du fichier PDF...")
+
+        try:
+            from reportlab.lib import colors
+            from reportlab.lib.pagesizes import A4, landscape
+            from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+            from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+            from reportlab.lib.units import cm
+        except ImportError:
+            await query.edit_message_text(
+                "❌ ReportLab non installé.\n\n"
+                "Installez avec: `pip3 install reportlab`",
+                parse_mode='Markdown'
+            )
+            return
+
+        try:
+            import aiosqlite
+            async with aiosqlite.connect(config.DATABASE_PATH) as db:
+                db.row_factory = aiosqlite.Row
+                cursor = await db.execute("""
+                    SELECT p.telegram_id, p.asset_symbol, p.market, p.direction,
+                           p.entry_price, p.current_price, p.amount, p.leverage,
+                           p.pnl, p.pnl_percent, p.status, p.opened_at, p.closed_at
+                    FROM positions p
+                    ORDER BY p.opened_at DESC
+                    LIMIT 500
+                """)
+                trades = await cursor.fetchall()
+
+            # Créer PDF en mémoire
+            buf = io.BytesIO()
+            doc = SimpleDocTemplate(buf, pagesize=landscape(A4), topMargin=1*cm, bottomMargin=1*cm)
+            elements = []
+            styles = getSampleStyleSheet()
+
+            # Titre
+            title_style = ParagraphStyle(
+                'CustomTitle',
+                parent=styles['Heading1'],
+                fontSize=18,
+                spaceAfter=20,
+                alignment=1
+            )
+            elements.append(Paragraph("RAPPORT DES TRADES TDB", title_style))
+            elements.append(Paragraph(f"Généré le: {datetime.now().strftime('%d/%m/%Y %H:%M')}", styles['Normal']))
+            elements.append(Paragraph(f"Total: {len(trades)} trades", styles['Normal']))
+            elements.append(Spacer(1, 20))
+
+            # Statistiques
+            total_pnl = sum(t['pnl'] or 0 for t in trades)
+            wins = len([t for t in trades if (t['pnl'] or 0) > 0])
+            losses = len([t for t in trades if (t['pnl'] or 0) < 0])
+            win_rate = (wins / len(trades) * 100) if trades else 0
+
+            stats_data = [
+                ['Métrique', 'Valeur'],
+                ['Total trades', str(len(trades))],
+                ['PnL total', f"${total_pnl:+,.2f}"],
+                ['Trades gagnants', str(wins)],
+                ['Trades perdants', str(losses)],
+                ['Win rate', f"{win_rate:.1f}%"],
+            ]
+            stats_table = Table(stats_data, colWidths=[8*cm, 8*cm])
+            stats_table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                ('BACKGROUND', (0, 1), (0, -1), colors.lightgrey),
+                ('GRID', (0, 0), (-1, -1), 1, colors.black),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ]))
+            elements.append(stats_table)
+            elements.append(Spacer(1, 20))
+
+            # Liste des trades
+            elements.append(Paragraph("<b>HISTORIQUE DES TRADES</b>", styles['Heading2']))
+
+            trade_data = [['Date', 'Symbol', 'Dir.', 'Entrée', 'Sortie', 'Montant', 'PnL', 'Status']]
+
+            for t in trades[:100]:  # Limiter à 100 pour le PDF
+                pnl = t['pnl'] or 0
+                trade_data.append([
+                    t['opened_at'][:10] if t['opened_at'] else '-',
+                    t['asset_symbol'],
+                    t['direction'],
+                    f"${t['entry_price']:,.2f}" if t['entry_price'] else '-',
+                    f"${t['current_price']:,.2f}" if t['current_price'] else '-',
+                    f"${t['amount']:,.0f}",
+                    f"${pnl:+,.2f}",
+                    t['status']
+                ])
+
+            trade_table = Table(trade_data, colWidths=[2.5*cm, 2.5*cm, 1.5*cm, 3*cm, 3*cm, 2.5*cm, 2.5*cm, 2*cm])
+            trade_table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, -1), 8),
+                ('ALIGN', (3, 1), (6, -1), 'RIGHT'),
+            ]))
+            elements.append(trade_table)
+
+            # Générer PDF
+            doc.build(elements)
+            buf.seek(0)
+
+            await query.message.reply_document(
+                document=buf,
+                filename=f"trades_report_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
+                caption=f"📕 Rapport trades — {len(trades)} entrées"
+            )
+
+            await query.edit_message_text(
+                f"✅ Export PDF terminé — {len(trades)} trades",
+                reply_markup=InlineKeyboardMarkup([[
+                    InlineKeyboardButton("◀️ Retour", callback_data="admin_export_menu")
+                ]])
+            )
+
+        except Exception as e:
+            logger.error(f"Erreur export PDF trades: {e}")
+            await query.edit_message_text(f"❌ Erreur: {e}")
+
     async def _show_quick_actions(self, query):
         """Menu d'actions rapides"""
         text = "⚡ **ACTIONS RAPIDES**\n"
         text += "━━━━━━━━━━━━━━━━━━━━\n\n"
 
-        text += "**Commandes disponibles:**\n\n"
-        text += "`/resetwallet <user_id>` — Réinitialiser wallet\n"
-        text += "`/banuser <user_id>` — Bannir utilisateur\n"
-        text += "`/unbanuser <user_id>` — Débannir\n"
-        text += "`/export users|trades` — Exporter données\n"
-        text += "`/health` — Vérifier santé\n"
+        text += "**📨 Messages:**\n"
+        text += "`/msguser <id> <msg>` — MP à un utilisateur\n"
+        text += "`/msgall <message>` — Broadcast à tous\n\n"
+
+        text += "**👤 Gestion utilisateurs:**\n"
+        text += "`/resetwallet <id>` — Reset wallet\n"
+        text += "`/banuser <id>` — Bannir\n"
+        text += "`/unbanuser <id>` — Débannir\n\n"
+
+        text += "**📊 Données:**\n"
+        text += "`/export users|trades` — Export CSV/PDF\n"
+        text += "`/health` — Santé système\n"
         text += "`/audit` — Journal admin\n"
 
         keyboard = [
@@ -2530,6 +2801,144 @@ Votre ID : <code>{user_id}</code>
                 f"❌ Impossible d'envoyer: {e}\n_(L'utilisateur a peut-être bloqué le bot)_",
                 parse_mode='Markdown'
             )
+
+    async def cmd_message_all(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """
+        Commande /msgall <message>
+        Envoie un message à TOUS les utilisateurs du bot
+        """
+        user_id = update.effective_user.id
+
+        if not self.is_admin(user_id):
+            await update.message.reply_text("❌ Commande réservée aux administrateurs.")
+            return
+
+        if not context.args:
+            await update.message.reply_text(
+                "📢 **BROADCAST — Envoyer à tous les utilisateurs**\n\n"
+                "**Usage:** `/msgall <message>`\n\n"
+                "**Exemples:**\n"
+                "`/msgall Nouvelle mise à jour disponible !`\n"
+                "`/msgall Maintenance prévue demain à 14h`\n\n"
+                "⚠️ _Ce message sera envoyé à TOUS les utilisateurs._",
+                parse_mode='Markdown'
+            )
+            return
+
+        # Récupérer le message après /msgall
+        parts = update.message.text.split(None, 1)
+        if len(parts) < 2:
+            await update.message.reply_text("❌ Message vide.")
+            return
+
+        message_to_send = parts[1]
+
+        # Confirmation avant envoi
+        await update.message.reply_text(
+            f"📢 **CONFIRMER L'ENVOI**\n\n"
+            f"Message:\n_{message_to_send[:200]}{'...' if len(message_to_send) > 200 else ''}_\n\n"
+            f"⚠️ Pour confirmer l'envoi à tous les utilisateurs:\n"
+            f"`/msgall_confirm {message_to_send[:50]}...`\n\n"
+            f"_(Tapez la commande pour envoyer)_",
+            parse_mode='Markdown'
+        )
+
+        # Stocker le message pour confirmation
+        if not hasattr(self, '_pending_broadcasts'):
+            self._pending_broadcasts = {}
+        self._pending_broadcasts[user_id] = {
+            'message': message_to_send,
+            'timestamp': datetime.now()
+        }
+
+        # Enregistrer le handler pour la confirmation
+        self.app.add_handler(CommandHandler("msgall_confirm", self._cmd_msgall_confirm))
+
+    async def _cmd_msgall_confirm(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Confirme et envoie le broadcast"""
+        user_id = update.effective_user.id
+
+        if not self.is_admin(user_id):
+            return
+
+        if not hasattr(self, '_pending_broadcasts') or user_id not in self._pending_broadcasts:
+            await update.message.reply_text("❌ Aucun broadcast en attente. Utilisez `/msgall <message>` d'abord.")
+            return
+
+        pending = self._pending_broadcasts.pop(user_id)
+
+        # Vérifier que le broadcast n'est pas trop ancien (5 minutes max)
+        if (datetime.now() - pending['timestamp']).seconds > 300:
+            await update.message.reply_text("❌ Broadcast expiré. Veuillez recommencer avec `/msgall`.")
+            return
+
+        message_to_send = pending['message']
+
+        status_msg = await update.message.reply_text("📤 **Envoi en cours...**\n\n_Préparation des messages..._")
+
+        # Récupérer tous les utilisateurs
+        try:
+            import aiosqlite
+            async with aiosqlite.connect(config.DATABASE_PATH) as db:
+                cursor = await db.execute("SELECT telegram_id FROM users")
+                users = await cursor.fetchall()
+
+            total = len(users)
+            sent = 0
+            failed = 0
+
+            formatted_message = (
+                f"📢 **Annonce TDB**\n"
+                f"━━━━━━━━━━━━━━━━━━━━\n\n"
+                f"{message_to_send}\n\n"
+                f"━━━━━━━━━━━━━━━━━━━━\n"
+                f"_— L'équipe TDB_"
+            )
+
+            # Envoyer à chaque utilisateur
+            for i, (target_id,) in enumerate(users):
+                try:
+                    await context.bot.send_message(
+                        chat_id=target_id,
+                        text=formatted_message,
+                        parse_mode='Markdown'
+                    )
+                    sent += 1
+                except Exception:
+                    failed += 1
+
+                # Mise à jour du statut tous les 10 messages
+                if (i + 1) % 10 == 0:
+                    await status_msg.edit_text(
+                        f"📤 **Envoi en cours...**\n\n"
+                        f"Progression: {i + 1}/{total}\n"
+                        f"✅ Envoyés: {sent}\n"
+                        f"❌ Échoués: {failed}"
+                    )
+                    # Petit délai pour éviter le rate limiting Telegram
+                    import asyncio
+                    await asyncio.sleep(0.05)
+
+            # Résultat final
+            admin_manager.log_command(user_id, "msgall", f"→ {sent}/{total} envoyés")
+
+            await status_msg.edit_text(
+                f"✅ **BROADCAST TERMINÉ**\n\n"
+                f"📊 **Résultat:**\n"
+                f"• Total utilisateurs: {total}\n"
+                f"• Messages envoyés: {sent}\n"
+                f"• Échecs: {failed}\n\n"
+                f"_Message: {message_to_send[:100]}..._"
+            )
+
+            # Envoyer aussi sur Discord admin
+            await discord_service.send_admin_alert(
+                f"📢 Broadcast envoyé par admin",
+                f"• Envoyés: {sent}/{total}\n• Message: {message_to_send[:100]}..."
+            )
+
+        except Exception as e:
+            await status_msg.edit_text(f"❌ Erreur lors du broadcast: {e}")
 
     async def cmd_user_report(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """
