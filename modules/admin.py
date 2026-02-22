@@ -2207,157 +2207,132 @@ Votre ID : <code>{user_id}</code>
 
         try:
             import aiosqlite
-            async with aiosqlite.connect(config.DATABASE_PATH) as db:
+            import os as _os
+            # Chemin absolu pour éviter les problèmes de répertoire courant
+            db_path = config.DATABASE_PATH
+            if not _os.path.isabs(db_path):
+                db_path = _os.path.join(_os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))), db_path)
+
+            if not _os.path.exists(db_path):
+                await query.edit_message_text(f"❌ Base de données introuvable:\n`{db_path}`", parse_mode='Markdown')
+                return
+
+            async with aiosqlite.connect(db_path) as db:
                 db.row_factory = aiosqlite.Row
 
                 # Vérifier quelles tables existent
-                cursor = await db.execute("""
-                    SELECT name FROM sqlite_master WHERE type='table'
-                """)
+                cursor = await db.execute("SELECT name FROM sqlite_master WHERE type='table'")
                 existing_tables = [row[0] for row in await cursor.fetchall()]
 
-                has_positions = 'positions' in existing_tables
-                has_favorites = 'favorites' in existing_tables
-                has_ai_stats = 'ai_usage_stats' in existing_tables
-                has_alerts = 'price_alerts' in existing_tables
-                has_wallet = 'wallet' in existing_tables
-                has_subs = 'user_subscriptions' in existing_tables
-                has_onboarding = 'user_onboarding' in existing_tables
+                # Récupérer tous les utilisateurs en UNE SEULE requête JOIN
+                # Utilise COALESCE pour gérer les valeurs NULL
+                try:
+                    cursor = await db.execute("""
+                        SELECT
+                            u.telegram_id,
+                            u.username,
+                            u.first_name,
+                            u.last_name,
+                            u.created_at,
+                            COALESCE(u.last_seen, u.created_at) as last_seen,
+                            COALESCE(w.balance, 10000) as balance,
+                            COALESCE(w.total_pnl, 0) as total_pnl,
+                            COALESCE(s.tier, 'free') as tier,
+                            COALESCE(s.analyses_used_today, 0) as analyses_today,
+                            COALESCE(o.investor_profile, '') as investor_profile
+                        FROM users u
+                        LEFT JOIN wallet w ON w.telegram_id = u.telegram_id
+                        LEFT JOIN user_subscriptions s ON s.telegram_id = u.telegram_id
+                        LEFT JOIN user_onboarding o ON o.telegram_id = u.telegram_id
+                        ORDER BY u.last_seen DESC, u.created_at DESC
+                    """)
+                    raw_users = await cursor.fetchall()
+                except Exception as e:
+                    logger.warning(f"Requête JOIN échouée ({e}), fallback simple")
+                    # Fallback: requête simple sans JOIN
+                    cursor = await db.execute("""
+                        SELECT telegram_id, username, first_name, last_name, created_at,
+                               COALESCE(last_seen, created_at) as last_seen
+                        FROM users ORDER BY created_at DESC
+                    """)
+                    raw_users = await cursor.fetchall()
 
-                # Récupérer les utilisateurs (requête de base - colonnes existantes uniquement)
-                cursor = await db.execute("""
-                    SELECT telegram_id, username, first_name, last_name, created_at
-                    FROM users
-                    ORDER BY created_at DESC
-                """)
-                base_users = await cursor.fetchall()
-
-                # Construire les données utilisateurs avec les infos disponibles
+                # Construire la liste des utilisateurs
                 users = []
-                for u in base_users:
-                    user_data = {
+                for u in raw_users:
+                    users.append({
                         'telegram_id': u['telegram_id'],
-                        'username': u['username'],
-                        'first_name': u['first_name'],
-                        'last_name': u['last_name'],
-                        'created_at': u['created_at'],
-                        'last_seen': u['created_at'],  # Utiliser created_at comme fallback
-                        'balance': 10000,
-                        'initial_balance': 10000,
-                        'total_pnl': 0,
-                        'daily_pnl': 0,
-                        'tier': 'free',
-                        'analyses_today': 0,
+                        'username': u['username'] or '',
+                        'first_name': u['first_name'] or '',
+                        'last_name': u['last_name'] or '',
+                        'created_at': u['created_at'] or '',
+                        'last_seen': u['last_seen'] or u['created_at'] or '',
+                        'balance': u['balance'] if 'balance' in u.keys() else 10000,
+                        'total_pnl': u['total_pnl'] if 'total_pnl' in u.keys() else 0,
+                        'tier': u['tier'] if 'tier' in u.keys() else 'free',
+                        'analyses_today': u['analyses_today'] if 'analyses_today' in u.keys() else 0,
                         'open_positions': 0,
                         'closed_positions': 0,
                         'favorites_count': 0,
                         'ai_messages': 0,
-                        'active_alerts': 0,
-                        'investor_profile': None,
-                        'selected_markets': None
-                    }
+                        'investor_profile': u['investor_profile'] if 'investor_profile' in u.keys() else '',
+                    })
 
-                    tid = u['telegram_id']
+                # Enrichir avec les compteurs (une requête par table, pas par user)
+                if 'positions' in existing_tables:
+                    try:
+                        cursor = await db.execute("""
+                            SELECT telegram_id,
+                                   SUM(CASE WHEN status='open' THEN 1 ELSE 0 END) as open_pos,
+                                   SUM(CASE WHEN status='closed' THEN 1 ELSE 0 END) as closed_pos
+                            FROM positions GROUP BY telegram_id
+                        """)
+                        pos_map = {row[0]: (row[1], row[2]) for row in await cursor.fetchall()}
+                        for u in users:
+                            if u['telegram_id'] in pos_map:
+                                u['open_positions'] = pos_map[u['telegram_id']][0] or 0
+                                u['closed_positions'] = pos_map[u['telegram_id']][1] or 0
+                    except Exception:
+                        pass
 
-                    # Wallet
-                    if has_wallet:
-                        try:
-                            cursor = await db.execute(
-                                "SELECT balance, initial_balance, total_pnl, daily_pnl FROM wallet WHERE telegram_id = ?",
-                                (tid,)
-                            )
-                            w = await cursor.fetchone()
-                            if w:
-                                user_data['balance'] = w['balance'] or 10000
-                                user_data['initial_balance'] = w['initial_balance'] or 10000
-                                user_data['total_pnl'] = w['total_pnl'] or 0
-                                user_data['daily_pnl'] = w['daily_pnl'] or 0
-                        except Exception:
-                            pass
+                if 'favorites' in existing_tables:
+                    try:
+                        cursor = await db.execute("""
+                            SELECT telegram_id, COUNT(*) as cnt FROM favorites GROUP BY telegram_id
+                        """)
+                        fav_map = {row[0]: row[1] for row in await cursor.fetchall()}
+                        for u in users:
+                            u['favorites_count'] = fav_map.get(u['telegram_id'], 0)
+                    except Exception:
+                        pass
 
-                    # Subscription
-                    if has_subs:
-                        try:
-                            cursor = await db.execute(
-                                "SELECT tier, analyses_used_today FROM user_subscriptions WHERE telegram_id = ?",
-                                (tid,)
-                            )
-                            s = await cursor.fetchone()
-                            if s:
-                                user_data['tier'] = s['tier'] or 'free'
-                                user_data['analyses_today'] = s['analyses_used_today'] or 0
-                        except Exception:
-                            pass
+                if 'ai_usage_stats' in existing_tables:
+                    try:
+                        cursor = await db.execute("""
+                            SELECT telegram_id, COALESCE(SUM(message_count), 0) as total
+                            FROM ai_usage_stats GROUP BY telegram_id
+                        """)
+                        ai_map = {row[0]: row[1] for row in await cursor.fetchall()}
+                        for u in users:
+                            u['ai_messages'] = ai_map.get(u['telegram_id'], 0)
+                    except Exception:
+                        pass
 
-                    # Positions
-                    if has_positions:
-                        try:
-                            cursor = await db.execute(
-                                "SELECT COUNT(*) FROM positions WHERE telegram_id = ? AND status = 'open'",
-                                (tid,)
-                            )
-                            user_data['open_positions'] = (await cursor.fetchone())[0]
-                            cursor = await db.execute(
-                                "SELECT COUNT(*) FROM positions WHERE telegram_id = ? AND status = 'closed'",
-                                (tid,)
-                            )
-                            user_data['closed_positions'] = (await cursor.fetchone())[0]
-                        except Exception:
-                            pass
-
-                    # Favorites
-                    if has_favorites:
-                        try:
-                            cursor = await db.execute(
-                                "SELECT COUNT(*) FROM favorites WHERE telegram_id = ?",
-                                (tid,)
-                            )
-                            user_data['favorites_count'] = (await cursor.fetchone())[0]
-                        except Exception:
-                            pass
-
-                    # AI usage
-                    if has_ai_stats:
-                        try:
-                            cursor = await db.execute(
-                                "SELECT COALESCE(SUM(message_count), 0) FROM ai_usage_stats WHERE telegram_id = ?",
-                                (tid,)
-                            )
-                            user_data['ai_messages'] = (await cursor.fetchone())[0]
-                        except Exception:
-                            pass
-
-                    # Onboarding
-                    if has_onboarding:
-                        try:
-                            cursor = await db.execute(
-                                "SELECT investor_profile, selected_markets FROM user_onboarding WHERE telegram_id = ?",
-                                (tid,)
-                            )
-                            o = await cursor.fetchone()
-                            if o:
-                                user_data['investor_profile'] = o['investor_profile']
-                                user_data['selected_markets'] = o['selected_markets']
-                        except Exception:
-                            pass
-
-                    users.append(user_data)
-
-                # Stats globales (avec gestion d'erreurs)
+                # Stats globales
                 total_open_positions = 0
                 total_closed_positions = 0
                 global_pnl = 0
                 winning_trades = 0
 
-                if has_positions:
+                if 'positions' in existing_tables:
                     try:
-                        cursor = await db.execute("SELECT COUNT(*) FROM positions WHERE status = 'open'")
+                        cursor = await db.execute("SELECT COUNT(*) FROM positions WHERE status='open'")
                         total_open_positions = (await cursor.fetchone())[0]
-                        cursor = await db.execute("SELECT COUNT(*) FROM positions WHERE status = 'closed'")
+                        cursor = await db.execute("SELECT COUNT(*) FROM positions WHERE status='closed'")
                         total_closed_positions = (await cursor.fetchone())[0]
-                        cursor = await db.execute("SELECT COALESCE(SUM(pnl), 0) FROM positions WHERE status = 'closed'")
+                        cursor = await db.execute("SELECT COALESCE(SUM(pnl),0) FROM positions WHERE status='closed'")
                         global_pnl = (await cursor.fetchone())[0]
-                        cursor = await db.execute("SELECT COUNT(*) FROM positions WHERE status = 'closed' AND pnl > 0")
+                        cursor = await db.execute("SELECT COUNT(*) FROM positions WHERE status='closed' AND pnl>0")
                         winning_trades = (await cursor.fetchone())[0]
                     except Exception:
                         pass
@@ -2426,8 +2401,15 @@ Votre ID : <code>{user_id}</code>
             total_balance = sum(u['balance'] for u in users) if users else 0
             total_pnl = sum(u['total_pnl'] for u in users) if users else 0
             profitable_users = len([u for u in users if u['total_pnl'] > 0])
-            active_24h = len([u for u in users if u['last_seen'] and 'T' in str(u['last_seen']) and
-                             (datetime.now() - datetime.fromisoformat(u['last_seen'].replace('Z', ''))).days < 1]) if users else 0
+            def _is_active_24h(last_seen_str):
+                if not last_seen_str:
+                    return False
+                try:
+                    ls = str(last_seen_str).replace('Z', '').replace(' ', 'T')[:19]
+                    return (datetime.now() - datetime.fromisoformat(ls)).total_seconds() < 86400
+                except Exception:
+                    return False
+            active_24h = len([u for u in users if _is_active_24h(u['last_seen'])]) if users else 0
             win_rate = (winning_trades / total_closed_positions * 100) if total_closed_positions > 0 else 0
 
             global_stats = [

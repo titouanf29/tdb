@@ -197,7 +197,7 @@ MARKETS = {
     },
     "COMMODITIES": {
         "name": "🛢️ MATIÈRES PREMIÈRES",
-        "open_time": "00:00",  # Ouvre dimanche 23:00
+        "open_time": "23:00",  # Ouvre dimanche 23:00
         "close_time": "22:00",  # Ferme vendredi 22:00
         "timezone": "Europe/Paris",
         "description": "CME - Quasi 24h lundi-vendredi",

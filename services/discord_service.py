@@ -80,14 +80,33 @@ class DiscordService:
             'name': 'Matières Premières',
             'emoji': '🛢️',
             'timezone': 'Europe/Paris',
-            'open_hour': 0,
+            'always_open_weekdays': True,  # 24h lun-ven
+            'open_day': 6,  # Dimanche
+            'close_day': 4,  # Vendredi
+            'open_hour': 23,  # Ouvre dimanche 23:00
             'open_minute': 0,
-            'close_hour': 22,
-            'close_minute': 30,
-            'days': [0, 1, 2, 3, 4, 6],  # Lundi-Vendredi + Dimanche (fermé samedi)
+            'close_hour': 22,  # Ferme vendredi 22:00
+            'close_minute': 0,
+            'closed_days': [5],  # Samedi fermé
             'indices': ['CL=F', 'GC=F'],
             'index_names': {'CL=F': 'Pétrole WTI', 'GC=F': 'Or'},
             'top_assets': ['CL=F', 'GC=F', 'SI=F', 'NG=F', 'HG=F', 'ZC=F']
+        },
+        'forex': {
+            'name': 'Forex',
+            'emoji': '💱',
+            'timezone': 'Europe/Paris',
+            'always_open_weekdays': True,  # 24h lun-ven
+            'open_day': 6,  # Dimanche
+            'close_day': 4,  # Vendredi
+            'open_hour': 23,  # Ouvre dimanche 23:00
+            'open_minute': 0,
+            'close_hour': 22,  # Ferme vendredi 22:00
+            'close_minute': 0,
+            'closed_days': [5],  # Samedi fermé
+            'indices': ['EURUSD=X', 'GBPUSD=X'],
+            'index_names': {'EURUSD=X': 'EUR/USD', 'GBPUSD=X': 'GBP/USD'},
+            'top_assets': ['EURUSD=X', 'GBPUSD=X', 'USDJPY=X', 'USDCHF=X', 'AUDUSD=X']
         }
     }
 
@@ -107,6 +126,8 @@ class DiscordService:
         'BTC-USD': 'crypto', 'ETH-USD': 'crypto', 'SOL-USD': 'crypto',
         # Matières premières
         'CL=F': 'commodities', 'GC=F': 'commodities', 'SI=F': 'commodities',
+        # Forex (dim 23h → ven 22h)
+        'EURUSD=X': 'forex', 'GBPUSD=X': 'forex', 'USDJPY=X': 'forex',
     }
 
     # Types de canaux Discord
@@ -608,13 +629,47 @@ class DiscordService:
         if not market:
             return False
 
+        # Crypto: toujours ouvert 24/7
         if market.get('always_open'):
             return True
 
         tz = pytz.timezone(market['timezone'])
         now = datetime.now(tz)
+        current_day = now.weekday()  # 0=Lun, 4=Ven, 5=Sam, 6=Dim
 
-        if now.weekday() not in market['days']:
+        # Jours fermés (ex: Samedi)
+        closed_days = market.get('closed_days', [])
+        if current_day in closed_days:
+            return False
+
+        # Marchés 24h en semaine (FOREX, COMMODITIES)
+        if market.get('always_open_weekdays'):
+            open_day = market.get('open_day')    # 6 = Dimanche
+            close_day = market.get('close_day')  # 4 = Vendredi
+            open_hour = market.get('open_hour', 23)
+            open_minute = market.get('open_minute', 0)
+            close_hour = market.get('close_hour', 22)
+            close_minute = market.get('close_minute', 0)
+
+            # Dimanche: ouvert seulement après open_hour (23:00)
+            if current_day == open_day:
+                open_dt = now.replace(hour=open_hour, minute=open_minute, second=0, microsecond=0)
+                return now >= open_dt
+
+            # Vendredi: fermé après close_hour (22:00)
+            elif current_day == close_day:
+                close_dt = now.replace(hour=close_hour, minute=close_minute, second=0, microsecond=0)
+                return now <= close_dt
+
+            # Lundi à Jeudi: toujours ouvert
+            elif current_day < close_day:
+                return True
+
+            return False
+
+        # Marchés avec horaires fixes (Europe, US, Asie)
+        days = market.get('days', [0, 1, 2, 3, 4])
+        if current_day not in days:
             return False
 
         open_time = now.replace(hour=market['open_hour'], minute=market['open_minute'], second=0, microsecond=0)
