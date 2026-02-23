@@ -562,8 +562,8 @@ class DiscordService:
         await self.send_message(embed=embed, channel=self.CHANNEL_OPPORTUNITIES)
 
     async def check_price_alerts(self):
-        """Vérifie les alertes de prix ±5% (uniquement marchés ouverts)
-        Anti-spam: max 8 alertes/jour, cooldown 4h par symbole"""
+        """Vérifie les alertes de prix ±7% (uniquement marchés ouverts)
+        Anti-spam: max 4 alertes/jour, cooldown 24h par symbole"""
         paris_tz = pytz.timezone('Europe/Paris')
         now = datetime.now(paris_tz)
 
@@ -575,12 +575,12 @@ class DiscordService:
             self._alert_cooldowns.clear()
 
         # Limite quotidienne globale
-        MAX_ALERTS_PER_DAY = 8
+        MAX_ALERTS_PER_DAY = 4
         if self._alerts_sent_today >= MAX_ALERTS_PER_DAY:
             return
 
-        # Cooldown par symbole (4 heures)
-        COOLDOWN_HOURS = 4
+        # Cooldown par symbole (24 heures — 1 alerte/symbole/jour max)
+        COOLDOWN_HOURS = 24
 
         for symbol, market_key in self.MONITORED_ASSETS.items():
             if self._alerts_sent_today >= MAX_ALERTS_PER_DAY:
@@ -590,7 +590,7 @@ class DiscordService:
             if not self._is_market_open(market_key):
                 continue
 
-            # Vérifier cooldown 4h pour ce symbole
+            # Vérifier cooldown 24h pour ce symbole
             last_alert = self._alert_cooldowns.get(symbol)
             if last_alert:
                 hours_since = (now - last_alert).total_seconds() / 3600
@@ -599,7 +599,7 @@ class DiscordService:
 
             try:
                 data = await self._get_price_change(symbol)
-                if data and abs(data['change']) >= 5.0:  # Seuil relevé à 5%
+                if data and abs(data['change']) >= 7.0:  # Seuil 7% — mouvements significatifs uniquement
                     market = self.MARKETS.get(market_key, {})
                     data['market_emoji'] = market.get('emoji', '')
                     data['market_name'] = market.get('name', '')
@@ -611,36 +611,58 @@ class DiscordService:
 
     async def _send_price_alert(self, symbol: str, data: Dict):
         """Envoie une alerte de mouvement de prix"""
+        from utils.asset_names import get_asset_display_name
         is_up = data['change'] > 0
-        emoji = "🚀" if is_up else "💥"
-        color = 0x00FF00 if is_up else 0xFF0000
+        change = abs(data['change'])
+
+        # Emoji et couleur selon intensité du mouvement
+        if change >= 10:
+            emoji = "🚨" if not is_up else "🔥"
+        elif change >= 7:
+            emoji = "📉" if not is_up else "📈"
+        else:
+            emoji = "⬇️" if not is_up else "⬆️"
+
+        color = 0x2ECC71 if is_up else 0xE74C3C  # Vert/rouge sobres
         direction = "HAUSSE" if is_up else "BAISSE"
         market_emoji = data.get('market_emoji', '')
-        market_name = data.get('market_name', '')
+        market_name = data.get('market_name', 'N/A')
+        display_name = get_asset_display_name(symbol)
+        price = data['price']
+
+        # Format du prix selon la valeur
+        if price >= 1000:
+            price_str = f"${price:,.2f}"
+        elif price >= 1:
+            price_str = f"${price:.4f}"
+        else:
+            price_str = f"${price:.6f}"
 
         embed = {
-            "title": f"{emoji} ALERTE {direction} {market_emoji} {symbol}",
-            "description": f"**{symbol}** a bougé de **{data['change']:+.2f}%** !",
+            "title": f"{emoji} {display_name} — {data['change']:+.2f}%",
+            "description": (
+                f"Mouvement **{direction}** significatif détecté sur **{display_name}** ({symbol})"
+            ),
             "color": color,
             "fields": [
                 {
+                    "name": "💰 Prix",
+                    "value": price_str,
+                    "inline": True
+                },
+                {
+                    "name": "📊 Variation 24h",
+                    "value": f"**{data['change']:+.2f}%**",
+                    "inline": True
+                },
+                {
                     "name": "🏛️ Marché",
-                    "value": market_name or "—",
-                    "inline": True
-                },
-                {
-                    "name": "💰 Prix actuel",
-                    "value": f"${data['price']:,.2f}",
-                    "inline": True
-                },
-                {
-                    "name": "📊 Variation",
-                    "value": f"{data['change']:+.2f}%",
+                    "value": f"{market_emoji} {market_name}",
                     "inline": True
                 }
             ],
             "timestamp": datetime.utcnow().isoformat(),
-            "footer": {"text": "TDB Bot - Alerte Prix (Marché ouvert)"}
+            "footer": {"text": "Prochaine alerte sur cet actif dans 24h minimum"}
         }
 
         await self.send_message(embed=embed, channel=self.CHANNEL_OPPORTUNITIES)
