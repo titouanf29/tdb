@@ -102,6 +102,7 @@ MARKETS = {
             "^FCHI", "^GDAXI", "^STOXX50E", "^FTSE",
             # France
             "MC.PA", "OR.PA", "AIR.PA", "SAN.PA", "BNP.PA", "SU.PA", "TTE.PA", "EN.PA", "CA.PA", "SAF.PA",
+            "AI.PA", "COFA.PA", "ALRIS.PA",
             # Allemagne
             "VOW3.DE", "SIE.DE", "BAS.DE", "BAYN.DE", "ALV.DE", "MBG.DE",
             # UK

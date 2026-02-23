@@ -97,6 +97,9 @@ ASSET_NAMES = {
     "EN.PA": "Bouygues SA",
     "CA.PA": "Carrefour SA",
     "SAF.PA": "Safran SA",
+    "AI.PA": "Air Liquide SA",
+    "COFA.PA": "Coface SA",
+    "ALRIS.PA": "Rising Stone SA",
 
     # ===== EUROPE - ALLEMAGNE =====
     "VOW3.DE": "Volkswagen AG",
@@ -322,6 +325,9 @@ ASSET_EMOJIS = {
     "EN.PA": "🏗️",
     "CA.PA": "🛒",
     "SAF.PA": "🛫",
+    "AI.PA": "💨",
+    "COFA.PA": "🛡️",
+    "ALRIS.PA": "🏔️",
 
     # ===== ALLEMAGNE =====
     "VOW3.DE": "🚗",
