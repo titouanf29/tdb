@@ -376,17 +376,17 @@ class ModerationService:
 
         now = datetime.now()
 
+        date_str = now.strftime('%d/%m/%Y')
         embed = {
-            "title": "📊 Activité utilisateurs — Dernière heure",
+            "title": f"📊 Récap journalier — {date_str}",
             "color": 0x3498DB,
             "timestamp": datetime.utcnow().isoformat(),
             "fields": [
                 {
-                    "name": "👥 Présence",
+                    "name": "👥 Utilisateurs",
                     "value": (
-                        f"Actifs: **{stats.get('active_1h', 0)}**\n"
-                        f"Sessions IA: **{stats.get('ai_sessions', 0)}**\n"
-                        f"Nouveaux: **{stats.get('new_users', 0)}**"
+                        f"Actifs aujourd'hui: **{stats.get('active_today', stats.get('active_1h', 0))}**\n"
+                        f"Nouveaux inscrits: **{stats.get('new_users', 0)}**"
                     ),
                     "inline": True
                 },
@@ -409,7 +409,7 @@ class ModerationService:
                 },
             ],
             "footer": {
-                "text": f"TDB Bot • {now.strftime('%d/%m %H:%M')}"
+                "text": f"TDB Bot • Récap quotidien 18h00"
             }
         }
 

@@ -54,10 +54,11 @@ class AutoScannerService:
                 replace_existing=True
             )
 
-            # Rapport d'activité toutes les heures sur Discord
+            # Rapport d'activité une fois par jour à 18h sur Discord
             self.scheduler.add_job(
                 self.send_hourly_activity_digest,
                 trigger='cron',
+                hour=18,
                 minute=0,
                 id='hourly_activity_digest',
                 replace_existing=True
@@ -83,36 +84,36 @@ class AutoScannerService:
             logger.info("🛑 Auto Scanner arrêté")
 
     async def send_hourly_activity_digest(self):
-        """Envoie un résumé d'activité horaire sur Discord admin"""
+        """Envoie un résumé d'activité journalier sur Discord admin (une fois à 18h)"""
         try:
             import aiosqlite
             stats = {
-                'active_1h': 0, 'ai_sessions': 0, 'new_users': 0,
+                'active_today': 0, 'ai_sessions': 0, 'new_users': 0,
                 'trades_opened': 0, 'trades_closed': 0, 'pnl_net': 0,
                 'ai_messages': 0, 'mod_alerts': 0, 'top_assets': []
             }
 
             async with aiosqlite.connect(config.DATABASE_PATH) as db:
-                # Actifs dernière heure
+                # Actifs aujourd'hui
                 cursor = await db.execute("""
                     SELECT COUNT(*) FROM users
-                    WHERE last_seen >= datetime('now', '-1 hour')
+                    WHERE last_seen >= date('now')
                 """)
-                stats['active_1h'] = (await cursor.fetchone())[0]
+                stats['active_today'] = (await cursor.fetchone())[0]
 
-                # Nouveaux inscrits
+                # Nouveaux inscrits aujourd'hui
                 cursor = await db.execute("""
                     SELECT COUNT(*) FROM users
-                    WHERE created_at >= datetime('now', '-1 hour')
+                    WHERE created_at >= date('now')
                 """)
                 stats['new_users'] = (await cursor.fetchone())[0]
 
-                # Trades ouverts/fermés
+                # Trades ouverts/fermés aujourd'hui
                 cursor = await db.execute("""
                     SELECT
-                        SUM(CASE WHEN opened_at >= datetime('now', '-1 hour') THEN 1 ELSE 0 END),
-                        SUM(CASE WHEN closed_at >= datetime('now', '-1 hour') THEN 1 ELSE 0 END),
-                        COALESCE(SUM(CASE WHEN closed_at >= datetime('now', '-1 hour') THEN pnl ELSE 0 END), 0)
+                        SUM(CASE WHEN opened_at >= date('now') THEN 1 ELSE 0 END),
+                        SUM(CASE WHEN closed_at >= date('now') THEN 1 ELSE 0 END),
+                        COALESCE(SUM(CASE WHEN closed_at >= date('now') THEN pnl ELSE 0 END), 0)
                     FROM positions
                 """)
                 row = await cursor.fetchone()
@@ -120,7 +121,7 @@ class AutoScannerService:
                 stats['trades_closed'] = row[1] or 0
                 stats['pnl_net'] = row[2] or 0
 
-                # Messages IA
+                # Messages IA aujourd'hui
                 try:
                     cursor = await db.execute("""
                         SELECT COALESCE(SUM(message_count), 0) FROM ai_usage_stats
@@ -130,12 +131,12 @@ class AutoScannerService:
                 except Exception:
                     pass
 
-                # Top actifs analysés
+                # Top actifs analysés aujourd'hui
                 try:
                     cursor = await db.execute("""
                         SELECT asset_symbol, COUNT(*) as cnt
                         FROM positions
-                        WHERE opened_at >= datetime('now', '-1 hour')
+                        WHERE opened_at >= date('now')
                         GROUP BY asset_symbol
                         ORDER BY cnt DESC LIMIT 5
                     """)
@@ -144,8 +145,20 @@ class AutoScannerService:
                 except Exception:
                     pass
 
+            # Ne pas envoyer si aucune activité du tout
+            has_activity = (
+                stats['active_today'] > 0
+                or stats['new_users'] > 0
+                or stats['trades_opened'] > 0
+                or stats['trades_closed'] > 0
+                or stats['ai_messages'] > 0
+            )
+            if not has_activity:
+                logger.debug("Digest journalier: aucune activité, envoi annulé")
+                return
+
             await moderation_service.send_activity_digest(stats)
-            logger.debug("Digest activité horaire envoyé sur Discord")
+            logger.debug("Digest activité journalier envoyé sur Discord")
 
         except Exception as e:
             logger.error(f"Erreur send_hourly_activity_digest: {e}")
