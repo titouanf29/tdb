@@ -84,6 +84,15 @@ class DatabaseManager:
             except Exception:
                 pass  # La colonne existe déjà
 
+            # Migration: Notifications événements économiques (opt-in/out)
+            try:
+                await db.execute("""
+                    ALTER TABLE user_settings ADD COLUMN notif_economic_events INTEGER DEFAULT 1
+                """)
+                logger.debug("Migration: Colonne notif_economic_events ajoutée")
+            except Exception:
+                pass  # La colonne existe déjà
+
             await db.commit()
 
     # ===== UTILISATEURS =====

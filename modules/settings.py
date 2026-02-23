@@ -106,6 +106,7 @@ class SettingsModule:
         user_id = query.from_user.id
         settings = await db_manager.get_user_settings(user_id)
 
+        notif_eco = settings.get('notif_economic_events', 1)
         text = f"""🔔 <b>PARAMÈTRES NOTIFICATIONS</b>
 
 <b>Notifications globales:</b> {"✅" if settings['notifications_enabled'] else "❌"}
@@ -115,6 +116,7 @@ class SettingsModule:
 • Breakouts: {"✅" if settings['notif_breakouts'] else "❌"}
 • Positions: {"✅" if settings['notif_positions'] else "❌"}
 • News: {"✅" if settings['notif_news'] else "❌"}
+• Événements macro: {"✅" if notif_eco else "❌"}
 
 <b>Résumé quotidien:</b> {"✅" if settings['notif_daily_summary'] else "❌"}
 <b>Heure:</b> {settings['summary_time']}"""
@@ -123,6 +125,10 @@ class SettingsModule:
             [InlineKeyboardButton(
                 "🔕 Désactiver tout" if settings['notifications_enabled'] else "🔔 Activer tout",
                 callback_data="settings_notif_toggle"
+            )],
+            [InlineKeyboardButton(
+                f"📅 Événements macro: {'✅' if notif_eco else '❌'}",
+                callback_data="settings_notif_eco_toggle"
             )],
             [InlineKeyboardButton("📊 Résumé quotidien", callback_data="settings_notif_daily")],
             [InlineKeyboardButton("🕐 Modifier l'heure", callback_data="settings_notif_time")],
@@ -956,6 +962,17 @@ Choisissez la quantité d'informations dans les analyses de l'IA.
 
         elif data == "settings_notif_toggle":
             await self.toggle_notifications(update, context)
+
+        elif data == "settings_notif_eco_toggle":
+            user_id = query.from_user.id
+            settings = await db_manager.get_user_settings(user_id)
+            new_state = 0 if settings.get('notif_economic_events', 1) else 1
+            await db_manager.update_user_settings(user_id, notif_economic_events=new_state)
+            await query.answer(
+                "📅 Alertes macro activées" if new_state else "🔕 Alertes macro désactivées",
+                show_alert=True
+            )
+            await self.show_notification_settings(update, context)
 
         elif data == "settings_notif_daily":
             await self.show_daily_summary_menu(update, context)

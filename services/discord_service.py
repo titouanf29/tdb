@@ -155,7 +155,10 @@ class DiscordService:
         self._market_status = {}
         self._last_calendar_send = None
         self._last_prices = {}  # Pour tracker les variations
-        self._alerted_today = set()  # Éviter les alertes répétées
+        self._alerted_today = set()  # Rétro-compat (non utilisé)
+        self._alert_cooldowns = {}  # symbol → datetime dernière alerte
+        self._alerts_sent_today = 0  # Compteur global alertes du jour
+        self._alerts_day = None  # Jour courant pour reset du compteur
         self._last_stats_send = None  # Pour le rapport quotidien admin
         self._last_sunday_preview = None  # Pour le message dimanche 18h
 
@@ -559,31 +562,50 @@ class DiscordService:
         await self.send_message(embed=embed, channel=self.CHANNEL_OPPORTUNITIES)
 
     async def check_price_alerts(self):
-        """Vérifie les alertes de prix ±3% (uniquement marchés ouverts)"""
+        """Vérifie les alertes de prix ±5% (uniquement marchés ouverts)
+        Anti-spam: max 8 alertes/jour, cooldown 4h par symbole"""
         paris_tz = pytz.timezone('Europe/Paris')
         now = datetime.now(paris_tz)
 
-        # Reset des alertes à minuit
-        if now.hour == 0 and now.minute < 5:
-            self._alerted_today.clear()
+        # Reset du compteur quotidien à minuit
+        today = now.date()
+        if self._alerts_day != today:
+            self._alerts_day = today
+            self._alerts_sent_today = 0
+            self._alert_cooldowns.clear()
+
+        # Limite quotidienne globale
+        MAX_ALERTS_PER_DAY = 8
+        if self._alerts_sent_today >= MAX_ALERTS_PER_DAY:
+            return
+
+        # Cooldown par symbole (4 heures)
+        COOLDOWN_HOURS = 4
 
         for symbol, market_key in self.MONITORED_ASSETS.items():
+            if self._alerts_sent_today >= MAX_ALERTS_PER_DAY:
+                break
+
             # Ne vérifier que si le marché est ouvert
             if not self._is_market_open(market_key):
                 continue
 
-            if symbol in self._alerted_today:
-                continue
+            # Vérifier cooldown 4h pour ce symbole
+            last_alert = self._alert_cooldowns.get(symbol)
+            if last_alert:
+                hours_since = (now - last_alert).total_seconds() / 3600
+                if hours_since < COOLDOWN_HOURS:
+                    continue
 
             try:
                 data = await self._get_price_change(symbol)
-                if data and abs(data['change']) >= 3.0:
-                    # Ajouter l'info du marché
+                if data and abs(data['change']) >= 5.0:  # Seuil relevé à 5%
                     market = self.MARKETS.get(market_key, {})
                     data['market_emoji'] = market.get('emoji', '')
                     data['market_name'] = market.get('name', '')
                     await self._send_price_alert(symbol, data)
-                    self._alerted_today.add(symbol)
+                    self._alert_cooldowns[symbol] = now
+                    self._alerts_sent_today += 1
             except Exception as e:
                 logger.debug(f"Erreur alerte {symbol}: {e}")
 
@@ -1336,6 +1358,85 @@ RÈGLES:
             notification_type="trade"
         )
 
+    async def _check_economic_event_alerts(self):
+        """Vérifie et envoie les alertes pré-événement économique (Telegram + Discord)"""
+        try:
+            from services.economic_calendar import economic_calendar
+            to_notify = await economic_calendar.check_upcoming_notifications()
+
+            for event in to_notify:
+                hours = event.get('alert_threshold', event.get('hours_until', 0))
+                msg = economic_calendar.format_event_alert(event, hours)
+                impact = event.get('impact', 'MOYEN')
+
+                # Envoyer sur Discord (canal announcements)
+                color = 0xFF0000 if impact in ('CRITIQUE', 'ÉLEVÉ') else 0xFFA500
+                embed = {
+                    "title": f"⚡ ALERTE MACRO — {event.get('name', 'Événement')}",
+                    "description": msg,
+                    "color": color,
+                }
+                await self.send_message(embed=embed, channel=self.CHANNEL_ANNOUNCEMENTS)
+
+                # Envoyer sur Telegram canal principal (aux users qui ont notif_news=1)
+                if self.telegram_bot and self.telegram_channel_id:
+                    try:
+                        await self.telegram_bot.send_message(
+                            chat_id=self.telegram_channel_id,
+                            text=msg,
+                            parse_mode='Markdown'
+                        )
+                    except Exception as e:
+                        logger.debug(f"Erreur envoi Telegram alerte événement: {e}")
+
+                logger.info(f"Alerte économique envoyée: {event.get('name')} ({hours}h avant)")
+
+        except Exception as e:
+            logger.error(f"Erreur check alertes économiques: {e}")
+
+    async def _check_event_summaries(self):
+        """Vérifie et envoie les résumés post-événement économique"""
+        try:
+            from services.economic_calendar import economic_calendar
+            to_summarize = await economic_calendar.check_events_to_summarize()
+
+            for event in to_summarize:
+                logger.info(f"Génération résumé pour: {event.get('name')}")
+
+                # Générer résumé via IA
+                summary = await economic_calendar.generate_event_summary(event)
+                if not summary:
+                    continue
+
+                # Marquer comme envoyé AVANT l'envoi pour éviter les doublons
+                economic_calendar.mark_summary_sent(event)
+
+                # Envoyer sur Discord
+                embed = {
+                    "title": f"{event.get('emoji','📌')} RÉSUMÉ POST-ÉVÉNEMENT",
+                    "description": summary[:4000],
+                    "color": 0x2ECC71,
+                    "footer": {"text": "Sources: Fed, Reuters, Bloomberg — Non un conseil en investissement"}
+                }
+                await self.send_message(embed=embed, channel=self.CHANNEL_ANNOUNCEMENTS)
+
+                # Publier dans le canal Telegram principal
+                if self.telegram_bot and self.telegram_channel_id:
+                    try:
+                        # Tronquer pour Telegram (4096 chars max)
+                        tg_msg = summary[:4000]
+                        await self.telegram_bot.send_message(
+                            chat_id=self.telegram_channel_id,
+                            text=tg_msg,
+                            parse_mode='Markdown'
+                        )
+                        logger.info(f"Résumé publié sur Telegram canal: {event.get('name')}")
+                    except Exception as e:
+                        logger.error(f"Erreur envoi résumé Telegram: {e}")
+
+        except Exception as e:
+            logger.error(f"Erreur check résumés économiques: {e}")
+
     async def start_market_monitor(self):
         """Démarre le monitoring complet"""
         logger.info("Discord: Démarrage du monitoring des marchés")
@@ -1359,8 +1460,8 @@ RÈGLES:
                     if now.weekday() < 5:
                         await self.send_morning_calendar()
 
-                # === Rapport admin quotidien (9h00) - sauf weekend ===
-                if now.hour == 9 and now.minute < 2:
+                # === Rapport admin quotidien (17h00) - sauf weekend ===
+                if now.hour == 17 and now.minute < 2:
                     # Pas de rapport admin le weekend (marches fermes)
                     if now.weekday() < 5:
                         await self.send_admin_daily_stats()
@@ -1389,9 +1490,17 @@ RÈGLES:
 
                     self._market_status[market_key] = is_open
 
-                # === Alertes prix ±3% (toutes les 5 minutes) ===
+                # === Alertes prix ±5% (toutes les 5 minutes) ===
                 if loop_count % 10 == 0:
                     await self.check_price_alerts()
+
+                # === Calendrier économique — alertes pré-événement (toutes les 5 min) ===
+                if loop_count % 10 == 0:
+                    await self._check_economic_event_alerts()
+
+                # === Résumés post-événement (toutes les 5 min) ===
+                if loop_count % 10 == 0:
+                    await self._check_event_summaries()
 
                 # === Top Movers (12h et 18h) - sauf weekend ===
                 if now.hour in [12, 18] and now.minute < 2:

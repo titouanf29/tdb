@@ -177,6 +177,32 @@ ASSET_NAMES = {
     "XLM-USD": "Stellar",
     "ALGO-USD": "Algorand",
 
+    # ===== FOREX - PAIRES MAJEURES =====
+    "EURUSD=X": "EUR/USD",
+    "GBPUSD=X": "GBP/USD",
+    "USDJPY=X": "USD/JPY",
+    "USDCHF=X": "USD/CHF",
+    "AUDUSD=X": "AUD/USD",
+    "USDCAD=X": "USD/CAD",
+    "NZDUSD=X": "NZD/USD",
+
+    # ===== FOREX - PAIRES CROISÉES =====
+    "EURGBP=X": "EUR/GBP",
+    "EURJPY=X": "EUR/JPY",
+    "GBPJPY=X": "GBP/JPY",
+    "EURCHF=X": "EUR/CHF",
+    "AUDJPY=X": "AUD/JPY",
+    "EURSEK=X": "EUR/SEK",
+    "EURNOK=X": "EUR/NOK",
+
+    # ===== FOREX - PAIRES EXOTIQUES =====
+    "USDMXN=X": "USD/MXN",
+    "USDZAR=X": "USD/ZAR",
+    "USDTRY=X": "USD/TRY",
+    "USDSEK=X": "USD/SEK",
+    "USDNOK=X": "USD/NOK",
+    "USDPLN=X": "USD/PLN",
+
     # ===== COMMODITIES - ÉNERGIES =====
     "CL=F": "Crude Oil WTI",
     "NG=F": "Natural Gas",
@@ -398,6 +424,14 @@ ASSET_EMOJIS = {
     "KC=F": "☕",
     "SB=F": "🍬",
     "CT=F": "🧵",
+
+    # ===== FOREX =====
+    "EURUSD=X": "💱", "GBPUSD=X": "💱", "USDJPY=X": "💱",
+    "USDCHF=X": "💱", "AUDUSD=X": "💱", "USDCAD=X": "💱",
+    "NZDUSD=X": "💱", "EURGBP=X": "💱", "EURJPY=X": "💱",
+    "GBPJPY=X": "💱", "EURCHF=X": "💱", "AUDJPY=X": "💱",
+    "USDMXN=X": "💱", "USDZAR=X": "💱", "USDTRY=X": "💱",
+    "USDSEK=X": "💱", "USDNOK=X": "💱",
 }
 
 # Dict des actifs ajoutés dynamiquement par les admins (chargé depuis la DB au démarrage)

@@ -1,291 +1,644 @@
 """
-Service Calendrier Économique - Événements macro et earnings
-Fed, CPI, NFP, GDP, Earnings dates
+Service Calendrier Économique - Événements macro, banques centrales, FED speeches
+Dates 2025-2026, horaires UTC, résumés IA, opt-in/out notifications
 """
 import logging
-import aiohttp
 import asyncio
-from datetime import datetime, timedelta
+import aiohttp
+from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional
 import yfinance as yf
 
 logger = logging.getLogger(__name__)
 
+# ============================================================
+# CALENDRIER FIXE 2025-2026
+# Toutes les heures sont en UTC
+# ============================================================
+
+# FOMC meetings 2025 (décision taux 14h00 UTC, conférence de presse 14h30 UTC)
+FOMC_DATES_2025 = [
+    {"date": "2025-01-29", "time_utc": "19:00", "press_conf": True},
+    {"date": "2025-03-19", "time_utc": "18:00", "press_conf": True},
+    {"date": "2025-05-07", "time_utc": "18:00", "press_conf": True},
+    {"date": "2025-06-18", "time_utc": "18:00", "press_conf": True},
+    {"date": "2025-07-30", "time_utc": "18:00", "press_conf": True},
+    {"date": "2025-09-17", "time_utc": "18:00", "press_conf": True},
+    {"date": "2025-11-05", "time_utc": "19:00", "press_conf": True},
+    {"date": "2025-12-17", "time_utc": "19:00", "press_conf": True},
+]
+
+# FOMC meetings 2026
+FOMC_DATES_2026 = [
+    {"date": "2026-01-28", "time_utc": "19:00", "press_conf": True},
+    {"date": "2026-03-18", "time_utc": "18:00", "press_conf": True},
+    {"date": "2026-04-29", "time_utc": "18:00", "press_conf": True},
+    {"date": "2026-06-17", "time_utc": "18:00", "press_conf": True},
+    {"date": "2026-07-29", "time_utc": "18:00", "press_conf": True},
+    {"date": "2026-09-16", "time_utc": "18:00", "press_conf": True},
+    {"date": "2026-11-04", "time_utc": "19:00", "press_conf": True},
+    {"date": "2026-12-16", "time_utc": "19:00", "press_conf": True},
+]
+
+# Discours importants FED 2025-2026 (Jackson Hole, témoignages Congrès, etc.)
+FED_SPEECHES_2025_2026 = [
+    # Jackson Hole Symposium (fin août chaque année ~14:00 UTC)
+    {"date": "2025-08-22", "time_utc": "14:00", "name": "Discours Powell - Jackson Hole", "type": "FED_SPEECH"},
+    {"date": "2026-08-28", "time_utc": "14:00", "name": "Discours Powell - Jackson Hole", "type": "FED_SPEECH"},
+    # Témoignages Humphrey-Hawkins devant le Congrès (2x/an, ~15:00 UTC)
+    {"date": "2025-02-11", "time_utc": "15:00", "name": "Témoignage Powell - Sénat", "type": "FED_TESTIMONY"},
+    {"date": "2025-02-12", "time_utc": "15:00", "name": "Témoignage Powell - Chambre", "type": "FED_TESTIMONY"},
+    {"date": "2025-07-08", "time_utc": "14:00", "name": "Témoignage Powell - Sénat", "type": "FED_TESTIMONY"},
+    {"date": "2025-07-09", "time_utc": "14:00", "name": "Témoignage Powell - Chambre", "type": "FED_TESTIMONY"},
+    {"date": "2026-02-10", "time_utc": "15:00", "name": "Témoignage Powell - Sénat", "type": "FED_TESTIMONY"},
+    {"date": "2026-07-07", "time_utc": "14:00", "name": "Témoignage Powell - Sénat", "type": "FED_TESTIMONY"},
+]
+
+# Réunions BCE (Banque Centrale Européenne) 2025-2026 (13:15 UTC décision, 13:45 UTC conf)
+ECB_DATES_2025 = [
+    {"date": "2025-01-30", "time_utc": "13:15"},
+    {"date": "2025-03-06", "time_utc": "13:15"},
+    {"date": "2025-04-17", "time_utc": "13:15"},
+    {"date": "2025-06-05", "time_utc": "13:15"},
+    {"date": "2025-07-24", "time_utc": "13:15"},
+    {"date": "2025-09-11", "time_utc": "13:15"},
+    {"date": "2025-10-30", "time_utc": "13:15"},
+    {"date": "2025-12-18", "time_utc": "13:15"},
+]
+
+ECB_DATES_2026 = [
+    {"date": "2026-01-29", "time_utc": "13:15"},
+    {"date": "2026-03-05", "time_utc": "13:15"},
+    {"date": "2026-04-16", "time_utc": "13:15"},
+    {"date": "2026-06-04", "time_utc": "13:15"},
+    {"date": "2026-07-23", "time_utc": "13:15"},
+    {"date": "2026-09-10", "time_utc": "13:15"},
+    {"date": "2026-10-29", "time_utc": "13:15"},
+    {"date": "2026-12-17", "time_utc": "13:15"},
+]
+
+# Banque d'Angleterre (BOE) 2025-2026 (12:00 UTC)
+BOE_DATES_2025 = [
+    {"date": "2025-02-06", "time_utc": "12:00"},
+    {"date": "2025-03-20", "time_utc": "12:00"},
+    {"date": "2025-05-08", "time_utc": "11:00"},
+    {"date": "2025-06-19", "time_utc": "11:00"},
+    {"date": "2025-08-07", "time_utc": "11:00"},
+    {"date": "2025-09-18", "time_utc": "11:00"},
+    {"date": "2025-11-06", "time_utc": "12:00"},
+    {"date": "2025-12-18", "time_utc": "12:00"},
+]
+
+# Sources news économiques (pour résumés)
+NEWS_SOURCES = {
+    "FED": [
+        "https://www.federalreserve.gov/newsevents/pressreleases.htm",
+        "https://www.reuters.com/markets/us",
+        "https://www.bloomberg.com/economics"
+    ],
+    "ECB": [
+        "https://www.ecb.europa.eu/press/pr/date/",
+        "https://www.reuters.com/markets/europe"
+    ]
+}
+
 
 class EconomicCalendarService:
-    """Service pour récupérer les événements économiques importants"""
+    """Service calendrier économique avec événements FED, BCE, données macro"""
 
     def __init__(self):
-        # Cache pour éviter trop de requêtes
         self._cache = {}
-        self._cache_ttl = 3600  # 1 heure
+        self._cache_ttl = 3600
+        # Tracking des événements pour lesquels un résumé a été publié
+        self._summaries_sent = set()  # "EVENT_DATE" strings
+        self._upcoming_notifs_sent = set()  # Pour les alertes "dans X heures"
 
-        # Événements économiques majeurs (dates approximatives récurrentes)
         self.major_events = {
             'FOMC': {
-                'name': 'Réunion Fed (FOMC)',
-                'impact': 'HIGH',
+                'name': '🏛️ FOMC — Décision taux Fed',
+                'impact': 'CRITIQUE',
                 'emoji': '🏛️',
-                'description': 'Décision sur les taux directeurs',
-                'affects': ['USD', 'STOCKS', 'CRYPTO', 'BONDS']
+                'description': 'Décision Fed sur les taux + conférence de presse Powell',
+                'affects': ['USD', 'STOCKS', 'CRYPTO', 'BONDS', 'FOREX', 'GOLD'],
+                'source': 'federalreserve.gov'
+            },
+            'FED_SPEECH': {
+                'name': '🎤 Discours Powell (Jackson Hole)',
+                'impact': 'CRITIQUE',
+                'emoji': '🎤',
+                'description': 'Discours du président de la Fed — orientation politique monétaire',
+                'affects': ['USD', 'STOCKS', 'CRYPTO', 'BONDS', 'FOREX'],
+                'source': 'federalreserve.gov'
+            },
+            'FED_TESTIMONY': {
+                'name': '🏛️ Témoignage Powell — Congrès',
+                'impact': 'ÉLEVÉ',
+                'emoji': '🏛️',
+                'description': 'Témoignage semestriel devant le Congrès sur la politique monétaire',
+                'affects': ['USD', 'STOCKS', 'FOREX'],
+                'source': 'federalreserve.gov'
+            },
+            'ECB': {
+                'name': '🇪🇺 BCE — Décision taux',
+                'impact': 'CRITIQUE',
+                'emoji': '🇪🇺',
+                'description': 'Réunion BCE: décision taux + conférence de presse Lagarde',
+                'affects': ['EUR', 'STOCKS EU', 'BONDS EU', 'FOREX'],
+                'source': 'ecb.europa.eu'
+            },
+            'BOE': {
+                'name': '🇬🇧 BOE — Décision taux',
+                'impact': 'ÉLEVÉ',
+                'emoji': '🇬🇧',
+                'description': 'Banque d\'Angleterre: décision taux directeurs',
+                'affects': ['GBP', 'FOREX'],
+                'source': 'bankofengland.co.uk'
             },
             'CPI': {
-                'name': 'Inflation (CPI)',
-                'impact': 'HIGH',
+                'name': '📊 CPI USA — Inflation',
+                'impact': 'ÉLEVÉ',
                 'emoji': '📊',
-                'description': 'Indice des prix à la consommation',
-                'affects': ['USD', 'STOCKS', 'BONDS']
+                'description': 'Indice des prix à la consommation US (8:30 AM ET / 13:30 UTC)',
+                'affects': ['USD', 'STOCKS', 'BONDS'],
+                'source': 'bls.gov'
             },
             'NFP': {
-                'name': 'Emploi US (NFP)',
-                'impact': 'HIGH',
+                'name': '👷 NFP — Emploi US',
+                'impact': 'ÉLEVÉ',
                 'emoji': '👷',
-                'description': 'Non-Farm Payrolls - Créations d\'emplois',
-                'affects': ['USD', 'STOCKS']
+                'description': 'Non-Farm Payrolls (8:30 AM ET / 13:30 UTC)',
+                'affects': ['USD', 'STOCKS', 'FOREX'],
+                'source': 'bls.gov'
             },
             'GDP': {
-                'name': 'PIB US',
-                'impact': 'MEDIUM',
+                'name': '📈 PIB US — Croissance',
+                'impact': 'MOYEN',
                 'emoji': '📈',
-                'description': 'Croissance économique trimestrielle',
-                'affects': ['USD', 'STOCKS']
-            },
-            'RETAIL': {
-                'name': 'Ventes au détail',
-                'impact': 'MEDIUM',
-                'emoji': '🛒',
-                'description': 'Consommation des ménages',
-                'affects': ['USD', 'STOCKS']
+                'description': 'Rapport PIB trimestriel US',
+                'affects': ['USD', 'STOCKS'],
+                'source': 'bea.gov'
             },
             'PMI': {
-                'name': 'PMI Manufacturier',
-                'impact': 'MEDIUM',
+                'name': '🏭 PMI — Activité éco',
+                'impact': 'MOYEN',
                 'emoji': '🏭',
-                'description': 'Indice des directeurs d\'achats',
-                'affects': ['USD', 'STOCKS']
+                'description': 'Indice directeurs d\'achats',
+                'affects': ['USD', 'STOCKS'],
+                'source': 'ismworld.org'
             },
-            'JOBLESS': {
-                'name': 'Inscriptions chômage',
-                'impact': 'LOW',
-                'emoji': '📋',
-                'description': 'Demandes hebdomadaires d\'allocations',
-                'affects': ['USD']
-            }
         }
 
-        # Calendrier 2024-2025 des événements FOMC (approximatif)
-        self.fomc_dates_2025 = [
-            '2025-01-29', '2025-03-19', '2025-05-07', '2025-06-18',
-            '2025-07-30', '2025-09-17', '2025-11-05', '2025-12-17'
-        ]
+    # ============================================================
+    # RÉCUPÉRATION DES ÉVÉNEMENTS
+    # ============================================================
 
-        # CPI généralement publié le 2ème mardi du mois
-        # NFP généralement publié le 1er vendredi du mois
+    def _all_events_list(self) -> List[Dict]:
+        """Retourne la liste complète de tous les événements hardcodés"""
+        all_events = []
 
-    async def get_upcoming_events(self, days_ahead: int = 7) -> List[Dict]:
-        """
-        Récupère les événements économiques à venir
+        # FOMC
+        for e in FOMC_DATES_2025 + FOMC_DATES_2026:
+            all_events.append({
+                'type': 'FOMC',
+                'date_str': e['date'],
+                'time_utc': e['time_utc'],
+                'press_conf': e.get('press_conf', False),
+                **self.major_events['FOMC']
+            })
 
-        Args:
-            days_ahead: Nombre de jours à regarder
+        # FED speeches
+        for e in FED_SPEECHES_2025_2026:
+            ev_type = e['type']
+            all_events.append({
+                'type': ev_type,
+                'date_str': e['date'],
+                'time_utc': e['time_utc'],
+                'name': e['name'],
+                **{k: v for k, v in self.major_events.get(ev_type, self.major_events['FED_SPEECH']).items() if k != 'name'}
+            })
 
-        Returns:
-            Liste des événements triés par date
-        """
+        # ECB
+        for e in ECB_DATES_2025 + ECB_DATES_2026:
+            all_events.append({
+                'type': 'ECB',
+                'date_str': e['date'],
+                'time_utc': e['time_utc'],
+                **self.major_events['ECB']
+            })
+
+        # BOE
+        for e in BOE_DATES_2025:
+            all_events.append({
+                'type': 'BOE',
+                'date_str': e['date'],
+                'time_utc': e['time_utc'],
+                **self.major_events['BOE']
+            })
+
+        return all_events
+
+    async def get_upcoming_events(self, days_ahead: int = 14) -> List[Dict]:
+        """Récupère les événements à venir avec heures UTC"""
         events = []
-        today = datetime.now()
-        end_date = today + timedelta(days=days_ahead)
+        now_utc = datetime.now(timezone.utc)
+        end_utc = now_utc + timedelta(days=days_ahead)
 
-        # Vérifier les dates FOMC
-        for date_str in self.fomc_dates_2025:
-            event_date = datetime.strptime(date_str, '%Y-%m-%d')
-            if today <= event_date <= end_date:
-                days_until = (event_date - today).days
+        for e in self._all_events_list():
+            try:
+                dt_str = f"{e['date_str']} {e['time_utc']}"
+                event_dt = datetime.strptime(dt_str, '%Y-%m-%d %H:%M').replace(tzinfo=timezone.utc)
+
+                if now_utc <= event_dt <= end_utc:
+                    days_until = (event_dt - now_utc).days
+                    hours_until = (event_dt - now_utc).total_seconds() / 3600
+
+                    events.append({
+                        **e,
+                        'datetime_utc': event_dt,
+                        'days_until': days_until,
+                        'hours_until': round(hours_until, 1),
+                    })
+            except Exception as ex:
+                logger.debug(f"Erreur parsing event {e}: {ex}")
+
+        # Ajouter NFP et CPI dynamiquement
+        events.extend(await self._get_recurring_events(now_utc, end_utc))
+
+        events.sort(key=lambda x: x['datetime_utc'])
+        return events
+
+    async def _get_recurring_events(self, now_utc: datetime, end_utc: datetime) -> List[Dict]:
+        """Calcule les dates récurrentes (NFP, CPI) pour la fenêtre donnée"""
+        events = []
+
+        for month_offset in range(3):
+            check = now_utc + timedelta(days=30 * month_offset)
+
+            # NFP: 1er vendredi du mois à 13:30 UTC
+            nfp_dt = self._get_first_weekday(check.year, check.month, weekday=4)  # vendredi
+            nfp_dt = nfp_dt.replace(hour=13, minute=30, tzinfo=timezone.utc)
+            if now_utc <= nfp_dt <= end_utc:
                 events.append({
-                    'type': 'FOMC',
-                    'date': event_date,
-                    'days_until': days_until,
-                    **self.major_events['FOMC']
-                })
-
-        # Calculer les dates CPI et NFP pour le mois en cours et suivant
-        for month_offset in range(2):
-            check_date = today + timedelta(days=30 * month_offset)
-
-            # NFP: 1er vendredi du mois
-            nfp_date = self._get_first_friday(check_date.year, check_date.month)
-            if today <= nfp_date <= end_date:
-                days_until = (nfp_date - today).days
-                events.append({
-                    'type': 'NFP',
-                    'date': nfp_date,
-                    'days_until': days_until,
+                    'type': 'NFP', 'date_str': nfp_dt.strftime('%Y-%m-%d'),
+                    'time_utc': '13:30', 'datetime_utc': nfp_dt,
+                    'days_until': (nfp_dt - now_utc).days,
+                    'hours_until': round((nfp_dt - now_utc).total_seconds() / 3600, 1),
                     **self.major_events['NFP']
                 })
 
-            # CPI: ~13ème jour du mois (approximatif)
-            cpi_date = datetime(check_date.year, check_date.month, 13)
-            if today <= cpi_date <= end_date:
-                days_until = (cpi_date - today).days
-                events.append({
-                    'type': 'CPI',
-                    'date': cpi_date,
-                    'days_until': days_until,
-                    **self.major_events['CPI']
-                })
-
-        # Trier par date
-        events.sort(key=lambda x: x['date'])
+            # CPI: ~2ème semaine du mois à 13:30 UTC (vers le 11-15)
+            for day in range(10, 16):
+                try:
+                    cpi_dt = datetime(check.year, check.month, day, 13, 30, tzinfo=timezone.utc)
+                    if cpi_dt.weekday() in (1, 2, 3):  # Mar/Mer/Jeu
+                        if now_utc <= cpi_dt <= end_utc:
+                            events.append({
+                                'type': 'CPI', 'date_str': cpi_dt.strftime('%Y-%m-%d'),
+                                'time_utc': '13:30', 'datetime_utc': cpi_dt,
+                                'days_until': (cpi_dt - now_utc).days,
+                                'hours_until': round((cpi_dt - now_utc).total_seconds() / 3600, 1),
+                                **self.major_events['CPI']
+                            })
+                        break
+                except Exception:
+                    pass
 
         return events
 
-    def _get_first_friday(self, year: int, month: int) -> datetime:
-        """Trouve le premier vendredi du mois"""
-        first_day = datetime(year, month, 1)
-        days_until_friday = (4 - first_day.weekday()) % 7
-        return first_day + timedelta(days=days_until_friday)
+    def _get_first_weekday(self, year: int, month: int, weekday: int) -> datetime:
+        """Retourne le premier jour de la semaine (0=lun, 4=ven) du mois"""
+        first = datetime(year, month, 1)
+        days_ahead = (weekday - first.weekday()) % 7
+        return first + timedelta(days=days_ahead)
 
-    async def get_earnings_calendar(self, symbols: List[str]) -> List[Dict]:
+    # ============================================================
+    # FORMATAGE POUR TELEGRAM
+    # ============================================================
+
+    def format_calendar_message(self, events: List[Dict], compact: bool = False) -> str:
+        """Formate les événements pour affichage Telegram avec heures UTC + Paris"""
+        if not events:
+            return (
+                "📅 **CALENDRIER ÉCONOMIQUE**\n\n"
+                "✅ Aucun événement majeur prévu cette semaine."
+            )
+
+        text = "📅 **CALENDRIER ÉCONOMIQUE**\n"
+        text += "━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+
+        # Icône d'impact
+        impact_map = {
+            'CRITIQUE': '🔴🔴', 'ÉLEVÉ': '🔴', 'MOYEN': '🟡', 'LOW': '🟢', 'HIGH': '🔴', 'MEDIUM': '🟡'
+        }
+
+        for event in events[:12]:
+            emoji = event.get('emoji', '📌')
+            name = event.get('name', 'Événement')
+            impact = event.get('impact', 'MOYEN')
+            days = event.get('days_until', 0)
+            hours = event.get('hours_until', 0)
+            ev_type = event.get('type', '')
+
+            # Heure UTC et Paris
+            dt_utc = event.get('datetime_utc')
+            if dt_utc:
+                time_utc = dt_utc.strftime('%H:%M UTC')
+                # Convertir en heure Paris (UTC+1 hiver / UTC+2 été — approximation simple)
+                from datetime import date as dt_date
+                paris_offset = 2 if dt_utc.month in range(3, 11) else 1
+                time_paris = (dt_utc + timedelta(hours=paris_offset)).strftime('%H:%M')
+                date_str = dt_utc.strftime('%d/%m/%Y')
+                time_display = f"{time_utc} ({time_paris} Paris)"
+            else:
+                date_str = event.get('date_str', '?')
+                time_display = event.get('time_utc', '?') + ' UTC'
+
+            # Timing
+            if hours < 1:
+                timing = "🔴 **MAINTENANT**"
+            elif hours < 24:
+                timing = f"⏰ Dans **{hours:.0f}h**"
+            elif days == 1:
+                timing = "📅 **DEMAIN**"
+            else:
+                timing = f"📅 Dans {days}j"
+
+            impact_icon = impact_map.get(impact, '🟡')
+
+            text += f"{emoji} **{name}**\n"
+            text += f"   {impact_icon} {date_str} — {time_display}\n"
+            text += f"   {timing}"
+
+            # Note conférence de presse pour FOMC
+            if ev_type == 'FOMC' and event.get('press_conf'):
+                text += " | 🎤 +30min conf. presse"
+
+            text += "\n\n"
+
+        text += "━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+        text += "🔴🔴 Critique | 🔴 Élevé | 🟡 Moyen\n"
+        text += "_Heures en UTC (Temps Universel Coordonné)_"
+
+        return text
+
+    def format_event_alert(self, event: Dict, hours_before: float) -> str:
+        """Formate une alerte pré-événement"""
+        emoji = event.get('emoji', '📌')
+        name = event.get('name', 'Événement')
+        dt_utc = event.get('datetime_utc')
+        affects = event.get('affects', [])
+
+        paris_offset = 2 if dt_utc and dt_utc.month in range(3, 11) else 1
+        if dt_utc:
+            time_utc = dt_utc.strftime('%H:%M UTC')
+            time_paris = (dt_utc + timedelta(hours=paris_offset)).strftime('%H:%M')
+        else:
+            time_utc = time_paris = '?'
+
+        if hours_before < 1:
+            timing_text = f"dans **{int(hours_before * 60)} minutes**"
+        else:
+            timing_text = f"dans **{hours_before:.0f} heure(s)**"
+
+        text = f"⚡ **ALERTE ÉVÉNEMENT MAJEUR**\n\n"
+        text += f"{emoji} **{name}**\n\n"
+        text += f"⏰ **Heure:** {time_utc} ({time_paris} Paris)\n"
+        text += f"📍 **Timing:** {timing_text}\n"
+
+        if affects:
+            text += f"📊 **Marchés impactés:** {', '.join(affects)}\n"
+
+        text += f"\n💡 _Surveillez les marchés — forte volatilité attendue_"
+        return text
+
+    # ============================================================
+    # RÉSUMÉS POST-ÉVÉNEMENT (via IA)
+    # ============================================================
+
+    async def generate_event_summary(self, event: Dict, groq_api_key: str = None) -> Optional[str]:
         """
-        Récupère les dates de publication des résultats pour une liste de symboles
-
-        Args:
-            symbols: Liste des symboles à vérifier
-
-        Returns:
-            Liste des earnings à venir
+        Génère un résumé de l'événement après qu'il ait eu lieu.
+        Utilise GROQ/news pour créer un résumé sourcé avec avis IA.
         """
-        earnings = []
+        ev_type = event.get('type', '')
+        name = event.get('name', 'Événement')
+        dt_utc = event.get('datetime_utc')
 
-        for symbol in symbols:
+        if not groq_api_key:
             try:
-                ticker = yf.Ticker(symbol)
-                calendar = ticker.calendar
+                import config as cfg
+                groq_api_key = getattr(cfg, 'GROQ_API_KEY', None)
+            except Exception:
+                pass
 
-                if calendar is not None and not calendar.empty:
-                    # Récupérer la date des earnings
-                    if 'Earnings Date' in calendar.index:
-                        earnings_date = calendar.loc['Earnings Date']
-                        if isinstance(earnings_date, (list, tuple)) and len(earnings_date) > 0:
-                            next_earnings = earnings_date[0]
-                            if isinstance(next_earnings, datetime):
-                                days_until = (next_earnings - datetime.now()).days
-                                if 0 <= days_until <= 30:  # Dans les 30 prochains jours
-                                    earnings.append({
-                                        'symbol': symbol,
-                                        'date': next_earnings,
-                                        'days_until': days_until,
-                                        'type': 'EARNINGS',
-                                        'name': f'Résultats {symbol}',
-                                        'impact': 'HIGH',
-                                        'emoji': '📊'
-                                    })
-            except Exception as e:
-                logger.debug(f"Erreur récupération earnings {symbol}: {e}")
-                continue
+        if not groq_api_key:
+            return self._generate_basic_summary(event)
 
-        # Trier par date
-        earnings.sort(key=lambda x: x['date'])
+        # Construire le prompt pour l'IA
+        date_str = dt_utc.strftime('%d %B %Y') if dt_utc else 'récemment'
 
-        return earnings
+        prompts_by_type = {
+            'FOMC': f"""Résume la réunion FOMC de la Fed du {date_str}.
+Inclus: décision sur les taux, ton Powell (hawkish/dovish), perspectives économiques, réaction des marchés.
+Format: 3-4 paragraphes, sourcé (Fed, Bloomberg, Reuters).
+Termine par: "🤖 Analyse IA: [conséquences probables pour USD, actions, crypto]" """,
+
+            'FED_SPEECH': f"""Résume le discours de Jerome Powell du {date_str}.
+Inclus: thèmes principaux, signal sur la politique monétaire, réaction des marchés.
+Format: 2-3 paragraphes concis, sourcé.
+Termine par: "🤖 Analyse IA: [impact probable sur les marchés]" """,
+
+            'ECB': f"""Résume la réunion de la BCE du {date_str}.
+Inclus: décision sur les taux, déclarations Lagarde, perspectives économiques eurozone.
+Format: 3 paragraphes, sourcé (ECB, Bloomberg, Reuters).
+Termine par: "🤖 Analyse IA: [conséquences pour EUR, marchés européens]" """,
+
+            'CPI': f"""Résume les données d'inflation CPI US publiées le {date_str}.
+Inclus: chiffre publié vs estimations, composantes principales, implications pour la Fed.
+Format: 2-3 paragraphes, sourcé (BLS.gov, Bloomberg).
+Termine par: "🤖 Analyse IA: [impact probable sur USD, taux, marchés]" """,
+
+            'NFP': f"""Résume le rapport emploi NFP américain du {date_str}.
+Inclus: créations d'emplois (vs estimations), taux chômage, salaires horaires.
+Format: 2-3 paragraphes, sourcé (BLS.gov, Reuters).
+Termine par: "🤖 Analyse IA: [implications pour politique Fed et marchés]" """,
+        }
+
+        prompt = prompts_by_type.get(ev_type, f"""Résume l'événement économique "{name}" du {date_str}.
+Inclus les points clés et réaction des marchés.
+Termine par: "🤖 Analyse IA: [conséquences pour les marchés]" """)
+
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.post(
+                    "https://api.groq.com/openai/v1/chat/completions",
+                    headers={
+                        "Authorization": f"Bearer {groq_api_key}",
+                        "Content-Type": "application/json"
+                    },
+                    json={
+                        "model": "llama-3.1-8b-instant",
+                        "messages": [
+                            {
+                                "role": "system",
+                                "content": "Tu es un analyste financier expert. Tes résumés sont précis, sourcés (Reuters, Bloomberg, Fed, BCE) et accessibles. Tu fournis toujours un avis IA sur les conséquences marchés."
+                            },
+                            {"role": "user", "content": prompt}
+                        ],
+                        "max_tokens": 600,
+                        "temperature": 0.3
+                    },
+                    timeout=aiohttp.ClientTimeout(total=20)
+                ) as resp:
+                    if resp.status == 200:
+                        data = await resp.json()
+                        content = data['choices'][0]['message']['content']
+                        return self._format_summary_message(event, content)
+        except Exception as e:
+            logger.error(f"Erreur génération résumé IA: {e}")
+
+        return self._generate_basic_summary(event)
+
+    def _generate_basic_summary(self, event: Dict) -> str:
+        """Résumé basique si l'API IA n'est pas disponible"""
+        emoji = event.get('emoji', '📌')
+        name = event.get('name', 'Événement')
+        return (
+            f"{emoji} **RÉSUMÉ — {name}**\n\n"
+            f"L'événement vient de se terminer.\n\n"
+            f"📰 _Pour un résumé complet, consultez:_\n"
+            f"• Reuters.com/markets\n"
+            f"• Bloomberg.com/economics\n"
+            f"• federalreserve.gov (pour les événements Fed)"
+        )
+
+    def _format_summary_message(self, event: Dict, ai_content: str) -> str:
+        """Formate le message de résumé complet"""
+        emoji = event.get('emoji', '📌')
+        name = event.get('name', 'Événement')
+        source = event.get('source', 'Reuters / Bloomberg')
+        dt_utc = event.get('datetime_utc')
+        date_str = dt_utc.strftime('%d/%m/%Y à %H:%M UTC') if dt_utc else 'récemment'
+
+        header = (
+            f"{emoji} **RÉSUMÉ POST-ÉVÉNEMENT**\n"
+            f"**{name}**\n"
+            f"_{date_str}_\n"
+            f"━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+        )
+
+        footer = (
+            f"\n━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+            f"📰 Sources: {source}, Reuters, Bloomberg\n"
+            f"_Résumé généré automatiquement — non un conseil en investissement_"
+        )
+
+        return header + ai_content + footer
+
+    # ============================================================
+    # VÉRIFICATION ÉVÉNEMENTS IMMINENTS (pour loop de notification)
+    # ============================================================
+
+    async def check_upcoming_notifications(self) -> List[Dict]:
+        """
+        Vérifie s'il faut envoyer des alertes pré-événement.
+        Retourne la liste des événements à notifier maintenant.
+        """
+        events = await self.get_upcoming_events(days_ahead=2)
+        to_notify = []
+
+        for event in events:
+            hours = event.get('hours_until', 999)
+            ev_key = f"{event['type']}_{event['date_str']}"
+
+            # Alertes: 24h avant, 2h avant, 30min avant
+            for threshold_h, threshold_label in [(24, '24h'), (2, '2h'), (0.5, '30min')]:
+                notif_key = f"{ev_key}_{threshold_label}"
+                if notif_key not in self._upcoming_notifs_sent:
+                    # Fenêtre de 10 minutes autour du seuil
+                    if threshold_h - 0.17 <= hours <= threshold_h + 0.17:
+                        to_notify.append({**event, 'alert_threshold': threshold_h})
+                        self._upcoming_notifs_sent.add(notif_key)
+                        break
+
+        return to_notify
+
+    async def check_events_to_summarize(self) -> List[Dict]:
+        """
+        Vérifie si un événement vient de se terminer et nécessite un résumé.
+        Retourne les événements à résumer (passés depuis 30-90 min).
+        """
+        now_utc = datetime.now(timezone.utc)
+        # Chercher dans les dernières 24h
+        past_start = now_utc - timedelta(hours=24)
+
+        to_summarize = []
+        for e in self._all_events_list():
+            try:
+                dt_str = f"{e['date_str']} {e['time_utc']}"
+                event_dt = datetime.strptime(dt_str, '%Y-%m-%d %H:%M').replace(tzinfo=timezone.utc)
+                ev_key = f"{e['type']}_{e['date_str']}"
+
+                # L'événement a eu lieu dans les 30-90 minutes
+                elapsed_min = (now_utc - event_dt).total_seconds() / 60
+                if 30 <= elapsed_min <= 90 and ev_key not in self._summaries_sent:
+                    to_summarize.append({
+                        **e, 'datetime_utc': event_dt,
+                        'days_until': -1, 'hours_until': -elapsed_min / 60
+                    })
+                    # Ne pas marquer tout de suite — le caller marquera après envoi
+            except Exception:
+                pass
+
+        return to_summarize
+
+    def mark_summary_sent(self, event: Dict):
+        """Marque un événement comme résumé envoyé"""
+        ev_key = f"{event['type']}_{event['date_str']}"
+        self._summaries_sent.add(ev_key)
+
+    # ============================================================
+    # RISQUE ÉVÉNEMENT (pour analyses IA)
+    # ============================================================
 
     async def check_event_risk(self, symbol: str = None, market: str = None) -> Dict:
-        """
-        Vérifie le risque d'événement pour un symbole ou marché
-
-        Returns:
-            {
-                'risk_level': 'HIGH' | 'MEDIUM' | 'LOW' | 'NONE',
-                'events': [...],
-                'recommendation': str
-            }
-        """
+        """Évalue le risque d'événement pour un actif/marché"""
         events = await self.get_upcoming_events(days_ahead=3)
+        relevant = []
 
-        # Filtrer les événements pertinents
-        relevant_events = []
         for event in events:
             affects = event.get('affects', [])
             if market == 'CRYPTO' and 'CRYPTO' in affects:
-                relevant_events.append(event)
-            elif market in ['USA', 'EUROPE'] and ('USD' in affects or 'STOCKS' in affects):
-                relevant_events.append(event)
-            elif not market:  # Si pas de marché spécifié, inclure tous
-                relevant_events.append(event)
+                relevant.append(event)
+            elif market in ['USA', 'EUROPE'] and any(a in affects for a in ['USD', 'STOCKS', 'EUR']):
+                relevant.append(event)
+            elif market == 'FOREX' and any(a in affects for a in ['USD', 'EUR', 'GBP', 'FOREX']):
+                relevant.append(event)
+            elif not market:
+                relevant.append(event)
 
-        # Vérifier les earnings si symbole fourni
-        if symbol:
-            earnings = await self.get_earnings_calendar([symbol])
-            relevant_events.extend(earnings)
-
-        # Déterminer le niveau de risque
-        risk_level = 'NONE'
-        high_impact_soon = any(
-            e['impact'] == 'HIGH' and e['days_until'] <= 1
-            for e in relevant_events
+        impact_vals = {'CRITIQUE': 3, 'ÉLEVÉ': 2, 'HIGH': 2, 'MOYEN': 1, 'MEDIUM': 1}
+        critical_soon = any(
+            impact_vals.get(e['impact'], 0) >= 3 and e['hours_until'] <= 24
+            for e in relevant
         )
-        medium_impact_soon = any(
-            e['impact'] in ['HIGH', 'MEDIUM'] and e['days_until'] <= 2
-            for e in relevant_events
+        high_soon = any(
+            impact_vals.get(e['impact'], 0) >= 2 and e['hours_until'] <= 48
+            for e in relevant
         )
 
-        if high_impact_soon:
-            risk_level = 'HIGH'
-            recommendation = "⚠️ ATTENTION: Événement majeur imminent. Éviter de prendre de nouvelles positions ou réduire l'exposition."
-        elif medium_impact_soon:
-            risk_level = 'MEDIUM'
-            recommendation = "📊 Événement à surveiller. Gérer le risque avec des stops serrés."
-        elif relevant_events:
-            risk_level = 'LOW'
-            recommendation = "📅 Événements à venir cette semaine. Rester vigilant."
+        if critical_soon:
+            return {'risk_level': 'CRITIQUE', 'events': relevant,
+                    'recommendation': '⛔ Événement CRITIQUE imminent. Réduire exposition ou stopper le trading.'}
+        elif high_soon:
+            return {'risk_level': 'ÉLEVÉ', 'events': relevant,
+                    'recommendation': '⚠️ Événement majeur dans 48h. Gérer le risque avec des stops serrés.'}
+        elif relevant:
+            return {'risk_level': 'MOYEN', 'events': relevant,
+                    'recommendation': '📅 Événements à surveiller cette semaine.'}
         else:
-            recommendation = "✅ Pas d'événement majeur prévu. Conditions normales de trading."
-
-        return {
-            'risk_level': risk_level,
-            'events': relevant_events,
-            'recommendation': recommendation
-        }
-
-    def format_calendar_message(self, events: List[Dict]) -> str:
-        """Formate les événements pour affichage Telegram"""
-        if not events:
-            return "📅 **CALENDRIER ÉCONOMIQUE**\n\n✅ Aucun événement majeur prévu cette semaine."
-
-        text = "📅 **CALENDRIER ÉCONOMIQUE**\n"
-        text += "━" * 25 + "\n\n"
-
-        for event in events[:10]:  # Max 10 événements
-            emoji = event.get('emoji', '📌')
-            name = event.get('name', 'Événement')
-            date = event.get('date')
-            days = event.get('days_until', 0)
-            impact = event.get('impact', 'MEDIUM')
-
-            # Format date
-            if isinstance(date, datetime):
-                date_str = date.strftime('%d/%m %H:%M') if date.hour else date.strftime('%d/%m')
-            else:
-                date_str = str(date)
-
-            # Impact indicator
-            impact_emoji = '🔴' if impact == 'HIGH' else '🟡' if impact == 'MEDIUM' else '🟢'
-
-            # Days indicator
-            if days == 0:
-                days_str = "AUJOURD'HUI"
-            elif days == 1:
-                days_str = "DEMAIN"
-            else:
-                days_str = f"J-{days}"
-
-            text += f"{emoji} **{name}**\n"
-            text += f"   {impact_emoji} {date_str} ({days_str})\n\n"
-
-        text += "━" * 25 + "\n"
-        text += "🔴 Impact élevé | 🟡 Modéré | 🟢 Faible"
-
-        return text
+            return {'risk_level': 'FAIBLE', 'events': [],
+                    'recommendation': '✅ Pas d\'événement majeur prévu. Conditions normales.'}
 
 
 # Instance globale

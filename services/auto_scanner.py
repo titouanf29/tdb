@@ -171,7 +171,8 @@ class AutoScannerService:
 
             for user in users:
                 user_id = user['telegram_id']
-                scan_frequency = user['scan_frequency']
+                # Minimum 5 minutes entre chaque scan (optimisation serveur)
+                scan_frequency = max(user['scan_frequency'], 300)
 
                 # Vérifier si c'est le moment de scanner pour cet utilisateur
                 last_scan = self.last_scan_times.get(user_id)
