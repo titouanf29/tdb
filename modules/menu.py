@@ -312,11 +312,10 @@ class MenuModule:
             [InlineKeyboardButton("🔔 Alertes Prix", callback_data="menu_my_alerts"),
              InlineKeyboardButton("⚡ Alertes Smart", callback_data="menu_smart_alerts")],
             [InlineKeyboardButton("👁️ Watchlist", callback_data="menu_watchlist"),
-             InlineKeyboardButton("🔍 Screener", callback_data="menu_screener")],
-            [InlineKeyboardButton("📊 Backtest", callback_data="menu_backtest"),
-             InlineKeyboardButton("🔍 Scan Auto", callback_data="menu_scan")],
-            [InlineKeyboardButton("🔎 Recherche", callback_data="menu_search"),
-             InlineKeyboardButton("📤 Export", callback_data="menu_export")],
+             InlineKeyboardButton("📊 Backtest", callback_data="menu_backtest")],
+            [InlineKeyboardButton("🔍 Scan Auto", callback_data="menu_scan"),
+             InlineKeyboardButton("🔎 Recherche", callback_data="menu_search")],
+            [InlineKeyboardButton("📤 Export", callback_data="menu_export")],
             [InlineKeyboardButton("🔙 Retour", callback_data="menu_main")]
         ]
 
@@ -744,24 +743,6 @@ les mouvements du marché</i>"""
                 [InlineKeyboardButton("🗑️ Supprimer", callback_data="menu_watchlist_delete")],
                 [InlineKeyboardButton("🔙 Retour", callback_data="menu_tools")]
             ]
-            await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
-
-        elif data == "menu_screener":
-            await query.edit_message_text("🔍 Analyse en cours...")
-            setups = await db_manager.get_best_setups(limit=10)
-
-            text = "📊 **MEILLEURS SETUPS DU JOUR**\n━━━━━━━━━━━━━━━━━━━━\n\n"
-
-            if setups:
-                for i, setup in enumerate(setups, 1):
-                    emoji = "🟢" if setup['direction'] == 'LONG' else "🔴"
-                    text += f"{i}. {emoji} {setup['asset_symbol']}\n"
-                    text += f"   Score: {setup['score']}/100 | {setup['direction']}\n\n"
-            else:
-                text += "Aucun setup détecté aujourd'hui.\n"
-                text += "Le screener s'exécute toutes les heures."
-
-            keyboard = [[InlineKeyboardButton("🔙 Retour", callback_data="menu_alerts")]]
             await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
 
         elif data == "menu_backtest":

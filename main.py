@@ -20,7 +20,6 @@ from ai.trading_companion import TradingCompanion
 from services.auto_scanner import init_auto_scanner
 from services.broadcast import init_broadcast_service
 from services.alerts_service import alerts_service
-from services.screener_service import screener_service
 from services.social_service import social_service
 from services.morning_service import morning_service
 from services.notification_service import notification_service
@@ -228,13 +227,12 @@ class TDBBot:
         # Démarrer les nouveaux services
         logger.info("🔄 Démarrage des services avancés...")
         await alerts_service.start(self.application.bot)
-        await screener_service.start(self.application.bot)
         await social_service.start(self.application.bot)
         await morning_service.start(self.application.bot)
         await notification_service.start(self.application.bot)
         await cache_service.start_cleanup_task()
         await backup_service.start()
-        logger.info("✅ Services avancés démarrés (alertes, screener, social, morning, notifications, cache, backup)")
+        logger.info("✅ Services avancés démarrés (alertes, social, morning, notifications, cache, backup)")
 
         # Démarrer le service Discord si configuré
         if discord_service.enabled:
@@ -256,7 +254,7 @@ class TDBBot:
         logger.info("  • Wallet (Paper Trading + SL/TP Auto)")
         logger.info("  • Favoris + Watchlist Intelligente")
         logger.info("  • Assistant IA Trading (⚡ Groq - Llama 3.3)")
-        logger.info("  • Scan Automatique + Screener Avancé")
+        logger.info("  • Scan Automatique")
         logger.info("  • Alertes (Prix + Volatilité)")
         logger.info("  • Leaderboard + Badges + Challenges")
         logger.info("  • Quiz Trading Quotidien")
@@ -286,7 +284,6 @@ class TDBBot:
 
         # Arrêter les services avancés
         alerts_service.stop()
-        screener_service.stop()
         social_service.stop()
         morning_service.stop()
         await notification_service.stop()

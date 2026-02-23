@@ -8,7 +8,6 @@ from telegram.ext import ContextTypes, CallbackQueryHandler, CommandHandler
 
 from database.manager import db_manager
 from services.alerts_service import alerts_service
-from services.screener_service import screener_service
 from services.social_service import social_service
 from services.advanced_charts import advanced_charts_service
 from services.morning_service import morning_service
@@ -28,7 +27,6 @@ class FeaturesModule:
         # Commandes
         self.app.add_handler(CommandHandler("alerts", self.cmd_alerts))
         self.app.add_handler(CommandHandler("watchlist", self.cmd_watchlist))
-        self.app.add_handler(CommandHandler("screener", self.cmd_screener))
         self.app.add_handler(CommandHandler("backtest", self.cmd_backtest))
         self.app.add_handler(CommandHandler("leaderboard", self.cmd_leaderboard))
         self.app.add_handler(CommandHandler("badges", self.cmd_badges))
@@ -190,29 +188,6 @@ class FeaturesModule:
             elif action == 'remove':
                 await db_manager.remove_from_smart_watchlist(user_id, symbol)
                 text = f"✅ {symbol} retire de la watchlist"
-
-        await update.message.reply_text(text)
-
-    # ===== SCREENER =====
-
-    async def cmd_screener(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """Commande /screener - Meilleurs setups du jour"""
-        await update.message.reply_text("🔍 Analyse en cours...")
-
-        setups = await db_manager.get_best_setups(limit=10)
-
-        text = "📊 MEILLEURS SETUPS DU JOUR\n"
-        text += "━━━━━━━━━━━━━━━━━━━━\n\n"
-
-        if setups:
-            for i, setup in enumerate(setups, 1):
-                emoji = "🟢" if setup['direction'] == 'LONG' else "🔴"
-                text += f"{i}. {emoji} {setup['asset_symbol']}\n"
-                text += f"   Score: {setup['score']}/100 | {setup['direction']}\n"
-                text += f"   Type: {setup.get('opportunity_type', 'N/A')}\n\n"
-        else:
-            text += "Aucun setup detecte aujourd'hui.\n"
-            text += "Le screener s'execute automatiquement toutes les heures."
 
         await update.message.reply_text(text)
 

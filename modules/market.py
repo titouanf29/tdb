@@ -295,8 +295,19 @@ Revenez plus tard ou essayez un autre marché.
 
     def _generate_compact_view(self, analysis: dict, symbol: str, market_code: str) -> str:
         """Génère la vue compacte de l'analyse"""
-        score = analysis['score']
-        direction = analysis['direction']
+        # Protection contre données manquantes
+        score = analysis.get('score', 0)
+        direction = analysis.get('direction', 'NEUTRE')
+        current_price = analysis.get('current_price', 0)
+
+        if not current_price or current_price == 0:
+            asset_name = get_asset_display_name(symbol)
+            return f"""❌ **Données incomplètes**
+
+**{asset_name}** ({symbol})
+
+Les données de prix ne sont pas disponibles pour cet actif.
+Veuillez réessayer ultérieurement."""
 
         # Infos de base
         asset_emoji = get_asset_emoji(symbol)
@@ -309,16 +320,13 @@ Revenez plus tard ou essayez un autre marché.
         score_bar = self._generate_score_bar(score)
 
         # Indicateurs
-        rsi_emoji, rsi_status = self._get_rsi_status(analysis['rsi'])
-        vol_emoji, vol_status = self._get_volume_status(analysis['volume_ratio'])
+        rsi_emoji, rsi_status = self._get_rsi_status(analysis.get('rsi', 50))
+        vol_emoji, vol_status = self._get_volume_status(analysis.get('volume_ratio', 1.0))
 
         # Grade de fiabilité
         reliability = analysis.get('signal_reliability', {})
         grade = reliability.get('grade', 'C')
         grade_stars = {'A': '⭐⭐⭐⭐⭐', 'B': '⭐⭐⭐⭐☆', 'C': '⭐⭐⭐☆☆', 'D': '⭐⭐☆☆☆', 'F': '⭐☆☆☆☆'}.get(grade, '⭐⭐⭐☆☆')
-
-        # Calcul distances support/resistance
-        current_price = analysis['current_price']
         support = analysis.get('support')
         resistance = analysis.get('resistance')
 
@@ -326,8 +334,13 @@ Revenez plus tard ou essayez un autre marché.
         resist_dist = f"{((resistance - current_price) / current_price * 100):.1f}%" if resistance and current_price > 0 else "N/A"
 
         # Tendance emoji
-        trend = analysis['trend']
+        trend = analysis.get('trend', 'neutral')
         trend_emoji = "📈" if trend == "bullish" else "📉" if trend == "bearish" else "➡️"
+
+        # Données pour affichage
+        rsi_val = analysis.get('rsi', 50)
+        vol_ratio = analysis.get('volume_ratio', 1.0)
+        price_change = analysis.get('price_change_1d', 0)
 
         # Construction du message compact
         text = f"""
@@ -339,11 +352,11 @@ Revenez plus tard ou essayez un autre marché.
 ┃  _{verdict_text}_
 ┗━━━━━━━━━━━━━━━━━━━━━━┛
 
-💰 **{format_price(current_price)}** ({format_percent(analysis['price_change_1d'])})
+💰 **{format_price(current_price)}** ({format_percent(price_change)})
 
 ┌─────────┬─────────┬─────────┐
 │ **RSI**     │ **Vol.**    │ **Trend**   │
-│ {rsi_emoji} {analysis['rsi']:.0f}    │ {vol_emoji} x{analysis['volume_ratio']:.1f}  │ {trend_emoji} {trend[:4].upper()} │
+│ {rsi_emoji} {rsi_val:.0f}    │ {vol_emoji} x{vol_ratio:.1f}  │ {trend_emoji} {trend[:4].upper()} │
 └─────────┴─────────┴─────────┘
 
 📍 **NIVEAUX DE PRIX**
@@ -411,8 +424,19 @@ Revenez plus tard ou essayez un autre marché.
 
     def _generate_detailed_view(self, analysis: dict, symbol: str, market_code: str) -> str:
         """Génère la vue détaillée de l'analyse"""
-        score = analysis['score']
-        direction = analysis['direction']
+        # Protection contre données manquantes
+        score = analysis.get('score', 0)
+        direction = analysis.get('direction', 'NEUTRE')
+        current_price = analysis.get('current_price', 0)
+
+        if not current_price or current_price == 0:
+            asset_name = get_asset_display_name(symbol)
+            return f"""❌ **Données incomplètes**
+
+**{asset_name}** ({symbol})
+
+Les données de prix ne sont pas disponibles pour cet actif.
+Veuillez réessayer ultérieurement."""
 
         # Infos de base
         asset_emoji = get_asset_emoji(symbol)
@@ -427,6 +451,13 @@ Revenez plus tard ou essayez un autre marché.
         explanations = analysis.get('explanations', {})
         recommendations = analysis.get('recommendations', [])
 
+        # Données avec valeurs par défaut
+        price_change = analysis.get('price_change_1d', 0)
+        trend = analysis.get('trend', 'neutral')
+        rsi_val = analysis.get('rsi', 50)
+        vol_ratio = analysis.get('volume_ratio', 1.0)
+        volatility = analysis.get('volatility', 0)
+
         text = f"""
 {asset_emoji} **{asset_name}** ({symbol})
 
@@ -440,10 +471,10 @@ Revenez plus tard ou essayez un autre marché.
 
 💰 **PRIX & VARIATION**
 
-• Prix actuel: **{format_price(analysis['current_price'])}**
-• Variation 24h: **{format_percent(analysis['price_change_1d'])}**
+• Prix actuel: **{format_price(current_price)}**
+• Variation 24h: **{format_percent(price_change)}**
 • Direction: **{direction}** {'📈' if direction == 'LONG' else '📉' if direction == 'SHORT' else '➡️'}
-• Tendance: **{analysis['trend'].upper()}**
+• Tendance: **{trend.upper()}**
 
 ━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -451,8 +482,8 @@ Revenez plus tard ou essayez un autre marché.
 
 """
         # RSI
-        rsi_emoji, rsi_status = self._get_rsi_status(analysis['rsi'])
-        text += f"{rsi_emoji} **RSI:** {analysis['rsi']:.1f} ({rsi_status})\n"
+        rsi_emoji, rsi_status = self._get_rsi_status(rsi_val)
+        text += f"{rsi_emoji} **RSI:** {rsi_val:.1f} ({rsi_status})\n"
         if 'rsi' in explanations:
             rsi_text = self._escape_markdown(explanations['rsi'].get('text', ''))
             text += f"   {rsi_text}\n\n"
@@ -460,8 +491,8 @@ Revenez plus tard ou essayez un autre marché.
             text += "\n"
 
         # Volume
-        vol_emoji, vol_status = self._get_volume_status(analysis['volume_ratio'])
-        text += f"{vol_emoji} **Volume:** x{analysis['volume_ratio']:.2f} ({vol_status})\n"
+        vol_emoji, vol_status = self._get_volume_status(vol_ratio)
+        text += f"{vol_emoji} **Volume:** x{vol_ratio:.2f} ({vol_status})\n"
         if 'volume' in explanations:
             vol_text = self._escape_markdown(explanations['volume'].get('text', ''))
             text += f"   {vol_text}\n\n"
@@ -469,7 +500,7 @@ Revenez plus tard ou essayez un autre marché.
             text += "\n"
 
         # ATR
-        text += f"📉 **Volatilité (ATR):** {format_price(analysis['volatility'])}\n\n"
+        text += f"📉 **Volatilité (ATR):** {format_price(volatility)}\n\n"
 
         # ADX si disponible
         adx = analysis.get('adx', {})
@@ -483,7 +514,6 @@ Revenez plus tard ou essayez un autre marché.
         # Niveaux clés
         support = analysis.get('support')
         resistance = analysis.get('resistance')
-        current_price = analysis['current_price']
 
         text += "📍 **NIVEAUX CLÉS**\n\n"
 
@@ -645,11 +675,27 @@ Revenez plus tard ou essayez un autre marché.
             await asyncio.sleep(0.3)
 
             if not analysis:
+                asset_name = get_asset_display_name(symbol)
+                error_text = f"""❌ **Analyse indisponible**
+
+**{asset_name}** ({symbol})
+
+Les données de marché pour cet actif ne sont pas accessibles actuellement.
+
+**Causes possibles :**
+• Marché fermé (weekend, jours fériés)
+• Actif non supporté par le fournisseur
+• Problème temporaire de connexion
+
+💡 **Astuce :** Réessayez dans quelques minutes ou choisissez un autre actif."""
+
                 await query.edit_message_text(
-                    "❌ Impossible d'analyser cet actif. Données insuffisantes.",
+                    error_text,
                     reply_markup=InlineKeyboardMarkup([
+                        [InlineKeyboardButton("🔄 Réessayer", callback_data=f"asset_{market_code}_{symbol}")],
                         [InlineKeyboardButton(BTN_BACK, callback_data=f"market_select_{market_code}")]
-                    ])
+                    ]),
+                    parse_mode='Markdown'
                 )
                 return
 
