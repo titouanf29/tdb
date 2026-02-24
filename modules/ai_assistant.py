@@ -406,6 +406,20 @@ class AIAssistantModule:
             logger.error(f"Erreur initialisation handle_ai_message: {e}")
             return False
 
+        # === RECHERCHE FAVORIS (prioritaire, avant tout) ===
+        # Vérifie si l'utilisateur est en mode recherche de favoris
+        try:
+            from modules.favorites import FavoritesModule
+            # Accéder au module favoris via bot_data si disponible
+            favorites_module = context.application.bot_data.get('favorites_module')
+            if favorites_module and favorites_module.is_search_pending(user_id):
+                logger.info(f"Recherche favoris detectee pour user {user_id}: {user_message}")
+                await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
+                await favorites_module.handle_search_input(update, context)
+                return True  # Message traité
+        except Exception as e:
+            logger.error(f"Erreur recherche favoris: {e}")
+
         # Vérifier que le mode chat est actif
         if not self.is_chat_active(user_id):
             return False  # Pas en mode chat, laisser les autres handlers traiter

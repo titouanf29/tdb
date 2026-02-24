@@ -2,7 +2,7 @@
 Module Favoris - Gestion des actifs favoris avec alertes personnalisees
 """
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import ContextTypes, CallbackQueryHandler, MessageHandler, filters, ApplicationHandlerStop
+from telegram.ext import ContextTypes, CallbackQueryHandler
 from database.manager import db_manager
 from ai.analyzer import analyzer
 from utils.helpers import *
@@ -25,11 +25,6 @@ class FavoritesModule:
     def register_handlers(self):
         """Enregistre les handlers"""
         self.app.add_handler(CallbackQueryHandler(self.handle_callback, pattern="^fav_"))
-        # Handler pour la recherche par nom (priorite haute, groupe -1)
-        self.app.add_handler(MessageHandler(
-            filters.TEXT & ~filters.COMMAND,
-            self._handle_search_message
-        ), group=-1)
 
     async def show_favorites(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Affiche les favoris de l'utilisateur avec seuils d'alerte"""
@@ -522,27 +517,6 @@ _Si l'actif n'est pas disponible, tu peux demander son ajout._
 
         await update.message.reply_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
         return True
-
-    async def _handle_search_message(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """Handler de messages pour la recherche d'actifs"""
-        if not update.message or not update.message.text:
-            return  # Laisser passer aux autres handlers
-
-        user_id = update.message.from_user.id
-
-        # Verifier si une recherche est en attente pour cet utilisateur
-        if user_id not in self._search_pending:
-            return  # Pas de recherche en attente, laisser passer
-
-        logger.info(f"Recherche favoris pour user {user_id}: {update.message.text}")
-
-        # Envoyer un indicateur de traitement
-        await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
-
-        # Traiter la recherche
-        await self.handle_search_input(update, context)
-        # Lever une exception pour arreter la propagation aux autres handlers
-        raise ApplicationHandlerStop()
 
     async def handle_asset_request(self, update: Update, context: ContextTypes.DEFAULT_TYPE, asset_name: str):
         """Gere la demande d'ajout d'un actif"""

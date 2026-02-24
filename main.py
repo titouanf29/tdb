@@ -102,6 +102,8 @@ class TDBBot:
             logger.info("✅ Module Wallet chargé")
 
             self.favorites_module = FavoritesModule(self.application)
+            # Enregistrer dans bot_data pour accès depuis autres modules
+            self.application.bot_data['favorites_module'] = self.favorites_module
             logger.info("✅ Module Favoris chargé")
 
             self.scan_module = ScanAutoModule(self.application)
