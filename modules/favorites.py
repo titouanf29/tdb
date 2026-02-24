@@ -506,69 +506,17 @@ Aucun actif correspondant a "{search_query}".
 _Si l'actif n'est pas disponible, tu peux demander son ajout._
 """
             # Encoder la recherche pour le callback (max 64 chars)
-            search_encoded = search_query[:30].replace(" ", "_")
+            search_encoded = search_query[:50]
 
             keyboard = [
                 [InlineKeyboardButton("🔍 Nouvelle recherche", callback_data="fav_manual_search")],
                 [InlineKeyboardButton("📋 Voir les categories", callback_data="fav_search")],
-                [InlineKeyboardButton(f"📩 Demander l'ajout de \"{search_query[:15]}\"", callback_data=f"fav_request_{search_encoded}")],
+                [InlineKeyboardButton(f"📩 Demander l'ajout", callback_data=f"asset_request_{search_encoded}")],
                 [InlineKeyboardButton("◀️ Retour", callback_data="fav_main")]
             ]
 
         await update.message.reply_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
         return True
-
-    async def handle_asset_request(self, update: Update, context: ContextTypes.DEFAULT_TYPE, asset_name: str):
-        """Gere la demande d'ajout d'un actif"""
-        query = update.callback_query
-        user_id = query.from_user.id
-        username = query.from_user.username or query.from_user.first_name
-
-        # Enregistrer la demande dans la base de donnees
-        import aiosqlite
-        from config import DATABASE_PATH
-
-        try:
-            async with aiosqlite.connect(DATABASE_PATH) as db:
-                await db.execute("""
-                    CREATE TABLE IF NOT EXISTS asset_requests (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        telegram_id INTEGER,
-                        username TEXT,
-                        asset_name TEXT,
-                        status TEXT DEFAULT 'pending',
-                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                    )
-                """)
-                await db.execute("""
-                    INSERT INTO asset_requests (telegram_id, username, asset_name)
-                    VALUES (?, ?, ?)
-                """, (user_id, username, asset_name))
-                await db.commit()
-
-            text = f"""
-✅ **Demande envoyee !**
-
-Ta demande pour ajouter **"{asset_name}"** a ete enregistree.
-
-L'equipe examinera ta demande et l'actif sera ajoute s'il est disponible sur les marches supportes.
-
-_Merci pour ta contribution !_
-"""
-        except Exception as e:
-            logger.error(f"Erreur demande actif: {e}")
-            text = f"""
-❌ **Erreur**
-
-Impossible d'enregistrer ta demande. Reessaie plus tard.
-"""
-
-        keyboard = [
-            [InlineKeyboardButton("🔍 Nouvelle recherche", callback_data="fav_manual_search")],
-            [InlineKeyboardButton("◀️ Retour aux favoris", callback_data="fav_main")]
-        ]
-
-        await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
 
     def is_search_pending(self, user_id: int) -> bool:
         """Verifie si une recherche est en attente pour cet utilisateur"""
@@ -635,6 +583,3 @@ Impossible d'enregistrer ta demande. Reessaie plus tard.
             symbol = data.replace("fav_remove_", "")
             await self.remove_favorite(update, context, symbol)
 
-        elif data.startswith("fav_request_"):
-            asset_name = data.replace("fav_request_", "").replace("_", " ")
-            await self.handle_asset_request(update, context, asset_name)
