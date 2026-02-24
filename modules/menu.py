@@ -307,15 +307,13 @@ class MenuModule:
             await self.favorites_module.show_favorites(update, context)
 
     async def show_tools_menu(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """Sous-menu Outils - Alertes, Screener, etc."""
+        """Sous-menu Outils - Alertes, Watchlist, etc."""
         keyboard = [
             [InlineKeyboardButton("🔔 Alertes Prix", callback_data="menu_my_alerts"),
              InlineKeyboardButton("⚡ Alertes Smart", callback_data="menu_smart_alerts")],
-            [InlineKeyboardButton("👁️ Watchlist", callback_data="menu_watchlist"),
-             InlineKeyboardButton("📊 Backtest", callback_data="menu_backtest")],
-            [InlineKeyboardButton("🔍 Scan Auto", callback_data="menu_scan"),
-             InlineKeyboardButton("🔎 Recherche", callback_data="menu_search")],
-            [InlineKeyboardButton("📤 Export", callback_data="menu_export")],
+            [InlineKeyboardButton("🔍 Scan Auto", callback_data="menu_scan")],
+            [InlineKeyboardButton("🔎 Recherche", callback_data="menu_search"),
+             InlineKeyboardButton("📤 Export", callback_data="menu_export")],
             [InlineKeyboardButton("🔙 Retour", callback_data="menu_main")]
         ]
 
@@ -327,15 +325,6 @@ class MenuModule:
 
 ⚡ <b>Alertes Smart</b>
 <i>Détection auto de patterns et confluences</i>
-
-👁️ <b>Watchlist</b>
-<i>Surveillez des actifs avec alertes de mouvement</i>
-
-🔍 <b>Screener</b>
-<i>Trouvez les meilleurs setups du moment</i>
-
-📊 <b>Backtest</b>
-<i>Simulez des trades sur données historiques</i>
 
 🔍 <b>Scan Auto</b>
 <i>Scan périodique de vos marchés préférés</i>
@@ -613,8 +602,8 @@ les mouvements du marché</i>"""
             await self.ai_assistant_module.cmd_ai_assistant(update, context)
 
         # Nouvelles fonctionnalités
-        elif data in ["menu_my_alerts", "menu_watchlist", "menu_screener",
-                      "menu_backtest", "menu_export", "menu_leaderboard",
+        elif data in ["menu_my_alerts",
+                      "menu_export", "menu_leaderboard",
                       "menu_badges", "menu_quiz", "menu_challenge",
                       "menu_templates", "menu_compare", "menu_heatmap",
                       "menu_feargreed", "menu_volatility", "menu_sltp",
@@ -624,8 +613,7 @@ les mouvements du marché</i>"""
                       "menu_ai_history", "menu_calendar", "menu_smart_alerts",
                       "menu_price_targets", "menu_earnings", "menu_scan_alerts",
                       "menu_alerts_config", "menu_calc_targets", "menu_alerts_help",
-                      "menu_watchlist_delete", "menu_watchlist_help",
-                      "menu_search", "menu_clear_history", "menu_manual_search", "menu_cancel_search"] or data.startswith("wl_del_"):
+                      "menu_search", "menu_clear_history", "menu_manual_search", "menu_cancel_search"]:
             await self._handle_feature_callback(update, context, data)
 
     async def _handle_feature_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE, data: str):
@@ -672,91 +660,6 @@ les mouvements du marché</i>"""
                 "• `/alerts TSLA below 150`"
             )
             keyboard = [[InlineKeyboardButton("🔙 Retour", callback_data="menu_my_alerts")]]
-            await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
-
-        elif data == "menu_watchlist":
-            watchlist = await db_manager.get_smart_watchlist(user_id)
-            text = "👁️ **WATCHLIST INTELLIGENTE**\n━━━━━━━━━━━━━━━━━━━━\n\n"
-
-            if watchlist:
-                for item in watchlist:
-                    text += f"• {item['asset_symbol']} (seuil: {item['alert_threshold']}%)\n"
-                text += f"\n📊 Total: {len(watchlist)} actif(s) suivis"
-            else:
-                text += "Votre watchlist est vide.\n\n"
-                text += "💡 Envoyez: `/watchlist add AAPL 5`\n"
-                text += "(Alerte si mouvement > 5%)"
-
-            keyboard = [
-                [InlineKeyboardButton("➕ Ajouter (voir /watchlist)", callback_data="menu_watchlist_help")],
-                [InlineKeyboardButton("🗑️ Supprimer un actif", callback_data="menu_watchlist_delete")],
-                [InlineKeyboardButton("🔙 Retour", callback_data="menu_tools")]
-            ]
-            await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
-
-        elif data == "menu_watchlist_help":
-            text = (
-                "📝 **AJOUTER À LA WATCHLIST**\n\n"
-                "Envoyez une commande:\n"
-                "`/watchlist add SYMBOLE SEUIL%`\n\n"
-                "Exemples:\n"
-                "• `/watchlist add AAPL 5` (alerte si >5%)\n"
-                "• `/watchlist add BTC-USD 3`\n"
-                "• `/watchlist add TSLA 10`\n\n"
-                "⚠️ Si le symbole n'est pas trouvé,\nvérifiez l'orthographe (ex: BTC-USD, AAPL)"
-            )
-            keyboard = [[InlineKeyboardButton("🔙 Retour", callback_data="menu_watchlist")]]
-            await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
-
-        elif data == "menu_watchlist_delete":
-            watchlist = await db_manager.get_smart_watchlist(user_id)
-            if not watchlist:
-                text = "👁️ **SUPPRIMER DE LA WATCHLIST**\n\nVotre watchlist est vide."
-                keyboard = [[InlineKeyboardButton("🔙 Retour", callback_data="menu_watchlist")]]
-            else:
-                text = "👁️ **SUPPRIMER DE LA WATCHLIST**\n\nSélectionnez l'actif à supprimer:\n"
-                keyboard = []
-                for item in watchlist:
-                    keyboard.append([InlineKeyboardButton(
-                        f"❌ {item['asset_symbol']}",
-                        callback_data=f"wl_del_{item['asset_symbol']}"
-                    )])
-                keyboard.append([InlineKeyboardButton("🔙 Retour", callback_data="menu_watchlist")])
-            await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
-
-        elif data.startswith("wl_del_"):
-            symbol = data.replace("wl_del_", "")
-            await db_manager.remove_from_smart_watchlist(user_id, symbol)
-            await query.answer(f"✅ {symbol} supprimé de la watchlist", show_alert=True)
-            # Retourner à la watchlist
-            watchlist = await db_manager.get_smart_watchlist(user_id)
-            text = "👁️ **WATCHLIST INTELLIGENTE**\n━━━━━━━━━━━━━━━━━━━━\n\n"
-            if watchlist:
-                for item in watchlist:
-                    text += f"• {item['asset_symbol']} (seuil: {item['alert_threshold']}%)\n"
-                text += f"\n📊 Total: {len(watchlist)} actif(s) suivis"
-            else:
-                text += "Votre watchlist est vide.\n\n"
-                text += "💡 Envoyez: `/watchlist add AAPL 5`"
-            keyboard = [
-                [InlineKeyboardButton("➕ Ajouter", callback_data="menu_watchlist_help")],
-                [InlineKeyboardButton("🗑️ Supprimer", callback_data="menu_watchlist_delete")],
-                [InlineKeyboardButton("🔙 Retour", callback_data="menu_tools")]
-            ]
-            await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
-
-        elif data == "menu_backtest":
-            text = (
-                "📈 **BACKTESTING SIMPLIFIE**\n━━━━━━━━━━━━━━━━━━━━\n\n"
-                "Simulez un trade passé!\n\n"
-                "Envoyez:\n"
-                "`/backtest SYMBOLE JOURS MONTANT LEVIER DIRECTION`\n\n"
-                "Exemples:\n"
-                "• `/backtest AAPL 30 1000 1 LONG`\n"
-                "• `/backtest BTC-USD 90 500 2 LONG`\n"
-                "• `/backtest TSLA 180 1000 5 SHORT`"
-            )
-            keyboard = [[InlineKeyboardButton("🔙 Retour", callback_data="menu_alerts")]]
             await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
 
         elif data == "menu_export":
@@ -1469,7 +1372,7 @@ Tapez <code>/a SYMBOLE</code> pour une analyse
             await query.edit_message_text("🔍 Scan des alertes en cours...")
             try:
                 # Scanner les favoris de l'utilisateur
-                favorites = await db_manager.get_user_favorites(user_id)
+                favorites = await db_manager.get_favorites(user_id)
                 symbols = [f['asset_symbol'] for f in favorites] if favorites else ['AAPL', 'MSFT', 'GOOGL']
 
                 all_alerts = []

@@ -1,67 +1,96 @@
 """
-Module Favoris - Gestion des actifs favoris
+Module Favoris - Gestion des actifs favoris avec alertes personnalisees
 """
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import ContextTypes, CallbackQueryHandler
+from telegram.ext import ContextTypes, CallbackQueryHandler, MessageHandler, filters
 from database.manager import db_manager
 from ai.analyzer import analyzer
 from utils.helpers import *
 from utils.constants import *
+from utils.asset_names import get_asset_display_name, get_asset_emoji, find_symbol_from_name
+import logging
+
+logger = logging.getLogger(__name__)
+
 
 class FavoritesModule:
-    """Module de gestion des favoris"""
+    """Module de gestion des favoris avec alertes"""
 
     def __init__(self, application):
         self.app = application
         self.register_handlers()
+        # Cache pour les recherches en cours
+        self._search_pending = {}
 
     def register_handlers(self):
         """Enregistre les handlers"""
         self.app.add_handler(CallbackQueryHandler(self.handle_callback, pattern="^fav_"))
 
     async def show_favorites(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """Affiche les favoris de l'utilisateur"""
+        """Affiche les favoris de l'utilisateur avec seuils d'alerte"""
         query = update.callback_query
         user_id = query.from_user.id if query else update.message.from_user.id
 
-        favorites = await db_manager.get_favorites(user_id)
+        # Utiliser smart_watchlist qui contient les seuils
+        watchlist = await db_manager.get_smart_watchlist(user_id)
 
-        if not favorites:
+        if not watchlist:
             text = """
 ⭐ **MES FAVORIS**
+━━━━━━━━━━━━━━━━━━━━
 
-Vous n'avez pas encore d'actifs favoris.
+_Tu n'as pas encore d'actifs favoris._
 
-Ajoutez des actifs depuis le module Marché pour créer votre watchlist personnalisée.
+Ajoute des actifs pour recevoir des alertes quand ils bougent !
+
+💡 **Comment ca marche ?**
+1. Clique sur "➕ Ajouter un actif"
+2. Choisis un actif
+3. Definis ton seuil d'alerte (ex: 5%)
+4. Recois une notif si l'actif varie de +/-5%
 """
-            keyboard = [[InlineKeyboardButton(BTN_BACK_MENU, callback_data="menu_main")]]
+            keyboard = [
+                [InlineKeyboardButton("➕ Ajouter un actif", callback_data="fav_search")],
+                [InlineKeyboardButton(BTN_BACK_MENU, callback_data="menu_main")]
+            ]
         else:
-            text = f"""
-⭐ **MES FAVORIS** ({len(favorites)})
+            from services.market_data import market_data_service
 
-Voici vos actifs suivis :
+            text = f"⭐ **MES FAVORIS** ({len(watchlist)})\n"
+            text += "━━━━━━━━━━━━━━━━━━━━\n\n"
 
-"""
             keyboard = []
+            for item in watchlist:
+                symbol = item['asset_symbol']
+                threshold = item.get('alert_threshold', 5.0)
+                last_price = item.get('last_price', 0)
 
-            for fav in favorites:
-                # Récupérer prix actuel rapidement
-                from services.market_data import market_data_service
-                price = await market_data_service.get_current_price(fav['asset_symbol'])
+                emoji = get_asset_emoji(symbol)
+                name = get_asset_display_name(symbol)
 
-                if price:
-                    text += f"\n📊 **{fav['asset_symbol']}** - {format_price(price)}"
+                # Recuperer le prix actuel
+                current_price = await market_data_service.get_current_price(symbol)
+                if current_price:
+                    price_low = current_price * (1 - threshold / 100)
+                    price_high = current_price * (1 + threshold / 100)
+                    text += f"{emoji} **{name}**\n"
+                    text += f"   Prix: {format_price(current_price)}\n"
+                    text += f"   Alerte: ±{threshold:.0f}% ({format_price(price_low)} - {format_price(price_high)})\n\n"
                 else:
-                    text += f"\n📊 **{fav['asset_symbol']}**"
+                    text += f"{emoji} **{name}** — seuil: ±{threshold:.0f}%\n\n"
 
                 keyboard.append([
                     InlineKeyboardButton(
-                        f"📊 {fav['asset_symbol']}",
-                        callback_data=f"fav_detail_{fav['asset_symbol']}_{fav['market']}"
+                        f"{emoji} {name}",
+                        callback_data=f"fav_detail_{symbol}_{item.get('market', 'USA')}"
                     )
                 ])
 
-            keyboard.append([InlineKeyboardButton("⚙️ Paramètres Favoris", callback_data="fav_settings")])
+            text += "━━━━━━━━━━━━━━━━━━━━\n"
+            text += "🔔 _Tu seras notifie si un actif depasse son seuil._"
+
+            keyboard.append([InlineKeyboardButton("➕ Ajouter un actif", callback_data="fav_search")])
+            keyboard.append([InlineKeyboardButton("⚙️ Parametres", callback_data="fav_settings")])
             keyboard.append([InlineKeyboardButton(BTN_BACK_MENU, callback_data="menu_main")])
 
         reply_markup = InlineKeyboardMarkup(keyboard)
@@ -71,119 +100,304 @@ Voici vos actifs suivis :
         else:
             await update.message.reply_text(text, reply_markup=reply_markup, parse_mode='Markdown')
 
-    async def show_favorite_detail(self, update: Update, context: ContextTypes.DEFAULT_TYPE,
-                                  symbol: str, market: str):
-        """Affiche le détail d'un favori"""
+    async def show_search_menu(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Affiche le menu de recherche d'actifs"""
         query = update.callback_query
         await query.answer()
 
-        await query.edit_message_text(f"🔍 Analyse de {symbol}...", parse_mode='Markdown')
+        text = """
+🔍 **AJOUTER UN ACTIF**
+━━━━━━━━━━━━━━━━━━━━
 
-        # Analyser l'actif
-        analysis = await analyzer.analyze_asset(symbol, market)
-
-        if not analysis:
-            await query.edit_message_text(
-                "❌ Impossible d'analyser cet actif.",
-                reply_markup=InlineKeyboardMarkup([[
-                    InlineKeyboardButton(BTN_BACK, callback_data="fav_main")
-                ]])
-            )
-            return
-
-        score_emoji = get_score_emoji(analysis['score'])
-        direction_emoji = EMOJI_DIRECTION[analysis['direction']]
-        trend_emoji = EMOJI_TREND[analysis['trend']]
-
-        text = f"""
-⭐ **FAVORI - {symbol}**
-
-{score_emoji} **Score:** {analysis['score']}/100
-{direction_emoji} **Direction:** {analysis['direction']}
-{trend_emoji} **Tendance:** {analysis['trend'].upper()}
-
-💰 **Prix:** {format_price(analysis['current_price'])}
-📈 **Variation 24h:** {format_percent(analysis['price_change_1d'])}
-
-📊 **Résumé:** {analysis['technical_summary']}
+Choisis une categorie ou recherche par nom :
 """
 
         keyboard = [
-            [InlineKeyboardButton("📊 Analyse complète", callback_data=f"market_detail_{market}_{symbol}")],
-            [InlineKeyboardButton("🤖 Trading Compagnon", callback_data=f"trading_companion_{symbol}_{market}")],
+            [
+                InlineKeyboardButton("🇺🇸 Actions US", callback_data="fav_cat_USA"),
+                InlineKeyboardButton("🇫🇷 Actions FR", callback_data="fav_cat_EUROPE")
+            ],
+            [
+                InlineKeyboardButton("₿ Crypto", callback_data="fav_cat_CRYPTO"),
+                InlineKeyboardButton("💱 Forex", callback_data="fav_cat_FOREX")
+            ],
+            [
+                InlineKeyboardButton("🔎 Recherche par nom", callback_data="fav_manual_search")
+            ],
+            [InlineKeyboardButton("◀️ Retour", callback_data="fav_main")]
+        ]
+
+        await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
+
+    async def show_category_assets(self, update: Update, context: ContextTypes.DEFAULT_TYPE, market: str):
+        """Affiche les actifs d'une categorie"""
+        query = update.callback_query
+        await query.answer()
+
+        from config import SUPPORTED_ASSETS
+
+        assets = SUPPORTED_ASSETS.get(market, [])
+
+        market_names = {
+            "USA": "🇺🇸 Actions US",
+            "EUROPE": "🇫🇷 Actions Europeennes",
+            "CRYPTO": "₿ Cryptomonnaies",
+            "FOREX": "💱 Forex"
+        }
+
+        text = f"""
+{market_names.get(market, market)}
+━━━━━━━━━━━━━━━━━━━━
+
+Selectionne l'actif a ajouter :
+"""
+
+        keyboard = []
+        row = []
+        for i, symbol in enumerate(assets[:20]):  # Max 20 actifs
+            emoji = get_asset_emoji(symbol)
+            name = get_asset_display_name(symbol)
+            short_name = name[:12] + "..." if len(name) > 15 else name
+
+            row.append(InlineKeyboardButton(
+                f"{emoji} {short_name}",
+                callback_data=f"fav_add_{symbol}_{market}"
+            ))
+
+            if len(row) == 2:
+                keyboard.append(row)
+                row = []
+
+        if row:
+            keyboard.append(row)
+
+        keyboard.append([InlineKeyboardButton("◀️ Retour", callback_data="fav_search")])
+
+        await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
+
+    async def show_threshold_selection(self, update: Update, context: ContextTypes.DEFAULT_TYPE,
+                                       symbol: str, market: str):
+        """Permet de choisir le seuil d'alerte pour un actif"""
+        query = update.callback_query
+        await query.answer()
+
+        from services.market_data import market_data_service
+
+        emoji = get_asset_emoji(symbol)
+        name = get_asset_display_name(symbol)
+
+        # Prix actuel
+        current_price = await market_data_service.get_current_price(symbol)
+
+        text = f"""
+⚙️ **SEUIL D'ALERTE**
+━━━━━━━━━━━━━━━━━━━━
+
+{emoji} **{name}** ({symbol})
+"""
+        if current_price:
+            text += f"Prix actuel: {format_price(current_price)}\n\n"
+        else:
+            text += "\n"
+
+        text += """
+Choisis le seuil de variation pour recevoir une alerte :
+
+• **3%** - Alertes frequentes
+• **5%** - Equilibre (recommande)
+• **10%** - Mouvements importants
+• **15%** - Mouvements majeurs
+"""
+
+        keyboard = [
+            [
+                InlineKeyboardButton("3%", callback_data=f"fav_confirm_{symbol}_{market}_3"),
+                InlineKeyboardButton("5% ✓", callback_data=f"fav_confirm_{symbol}_{market}_5"),
+            ],
+            [
+                InlineKeyboardButton("10%", callback_data=f"fav_confirm_{symbol}_{market}_10"),
+                InlineKeyboardButton("15%", callback_data=f"fav_confirm_{symbol}_{market}_15"),
+            ],
+            [InlineKeyboardButton("◀️ Annuler", callback_data="fav_search")]
+        ]
+
+        await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
+
+    async def add_to_favorites(self, update: Update, context: ContextTypes.DEFAULT_TYPE,
+                               symbol: str, market: str, threshold: float):
+        """Ajoute un actif aux favoris avec seuil"""
+        query = update.callback_query
+        user_id = query.from_user.id
+
+        from services.market_data import market_data_service
+
+        # Prix actuel
+        current_price = await market_data_service.get_current_price(symbol) or 0
+
+        # Ajouter dans smart_watchlist
+        await db_manager.add_to_smart_watchlist(user_id, symbol, market, threshold, current_price)
+
+        # Aussi dans favorites pour compatibilite
+        await db_manager.add_favorite(user_id, symbol, market)
+
+        emoji = get_asset_emoji(symbol)
+        name = get_asset_display_name(symbol)
+
+        await query.answer(f"✅ {name} ajoute avec alerte a ±{threshold}%", show_alert=True)
+
+        # Retour a la liste
+        await self.show_favorites(update, context)
+
+    async def show_favorite_detail(self, update: Update, context: ContextTypes.DEFAULT_TYPE,
+                                  symbol: str, market: str):
+        """Affiche le detail d'un favori avec options"""
+        query = update.callback_query
+        await query.answer()
+
+        user_id = query.from_user.id
+        emoji = get_asset_emoji(symbol)
+        name = get_asset_display_name(symbol)
+
+        await query.edit_message_text(f"🔍 Chargement de {name}...", parse_mode='Markdown')
+
+        # Recuperer le seuil actuel
+        watchlist = await db_manager.get_smart_watchlist(user_id)
+        current_threshold = 5.0
+        for item in watchlist:
+            if item['asset_symbol'] == symbol:
+                current_threshold = item.get('alert_threshold', 5.0)
+                break
+
+        # Analyser l'actif
+        from services.market_data import market_data_service
+        current_price = await market_data_service.get_current_price(symbol)
+
+        text = f"""
+{emoji} **{name}**
+━━━━━━━━━━━━━━━━━━━━
+
+"""
+        if current_price:
+            price_low = current_price * (1 - current_threshold / 100)
+            price_high = current_price * (1 + current_threshold / 100)
+            text += f"💰 **Prix actuel:** {format_price(current_price)}\n\n"
+            text += f"🔔 **Seuil d'alerte:** ±{current_threshold:.0f}%\n"
+            text += f"📊 **Alerte si:** < {format_price(price_low)} ou > {format_price(price_high)}\n"
+        else:
+            text += f"🔔 **Seuil d'alerte:** ±{current_threshold:.0f}%\n"
+
+        text += "\n━━━━━━━━━━━━━━━━━━━━"
+
+        keyboard = [
+            [InlineKeyboardButton("📊 Analyser", callback_data=f"market_detail_{market}_{symbol}")],
+            [InlineKeyboardButton("⚙️ Modifier le seuil", callback_data=f"fav_edit_threshold_{symbol}_{market}")],
             [InlineKeyboardButton("❌ Retirer des favoris", callback_data=f"fav_remove_{symbol}")],
-            [InlineKeyboardButton(BTN_BACK, callback_data="fav_main")]
+            [InlineKeyboardButton("◀️ Retour", callback_data="fav_main")]
         ]
 
         reply_markup = InlineKeyboardMarkup(keyboard)
         await query.edit_message_text(text, reply_markup=reply_markup, parse_mode='Markdown')
+
+    async def show_edit_threshold(self, update: Update, context: ContextTypes.DEFAULT_TYPE,
+                                  symbol: str, market: str):
+        """Permet de modifier le seuil d'un favori existant"""
+        query = update.callback_query
+        await query.answer()
+
+        emoji = get_asset_emoji(symbol)
+        name = get_asset_display_name(symbol)
+
+        text = f"""
+⚙️ **MODIFIER LE SEUIL**
+━━━━━━━━━━━━━━━━━━━━
+
+{emoji} **{name}**
+
+Choisis le nouveau seuil de variation :
+"""
+
+        keyboard = [
+            [
+                InlineKeyboardButton("3%", callback_data=f"fav_update_threshold_{symbol}_{market}_3"),
+                InlineKeyboardButton("5%", callback_data=f"fav_update_threshold_{symbol}_{market}_5"),
+            ],
+            [
+                InlineKeyboardButton("7%", callback_data=f"fav_update_threshold_{symbol}_{market}_7"),
+                InlineKeyboardButton("10%", callback_data=f"fav_update_threshold_{symbol}_{market}_10"),
+            ],
+            [
+                InlineKeyboardButton("15%", callback_data=f"fav_update_threshold_{symbol}_{market}_15"),
+                InlineKeyboardButton("20%", callback_data=f"fav_update_threshold_{symbol}_{market}_20"),
+            ],
+            [InlineKeyboardButton("◀️ Annuler", callback_data=f"fav_detail_{symbol}_{market}")]
+        ]
+
+        await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
+
+    async def update_threshold(self, update: Update, context: ContextTypes.DEFAULT_TYPE,
+                              symbol: str, market: str, threshold: float):
+        """Met a jour le seuil d'un favori"""
+        query = update.callback_query
+        user_id = query.from_user.id
+
+        import aiosqlite
+        from config import DATABASE_PATH
+
+        try:
+            async with aiosqlite.connect(DATABASE_PATH) as db:
+                await db.execute("""
+                    UPDATE smart_watchlist SET alert_threshold = ?
+                    WHERE telegram_id = ? AND asset_symbol = ?
+                """, (threshold, user_id, symbol))
+                await db.commit()
+
+            name = get_asset_display_name(symbol)
+            await query.answer(f"✅ Seuil de {name} mis a {threshold}%", show_alert=True)
+        except Exception as e:
+            await query.answer(f"❌ Erreur: {e}", show_alert=True)
+
+        await self.show_favorite_detail(update, context, symbol, market)
 
     async def remove_favorite(self, update: Update, context: ContextTypes.DEFAULT_TYPE, symbol: str):
         """Retire un actif des favoris"""
         query = update.callback_query
         user_id = query.from_user.id
 
+        # Supprimer des deux tables
         await db_manager.remove_favorite(user_id, symbol)
-        await query.answer(f"✅ {symbol} retiré des favoris", show_alert=True)
+        await db_manager.remove_from_smart_watchlist(user_id, symbol)
+
+        name = get_asset_display_name(symbol)
+        await query.answer(f"✅ {name} retire des favoris", show_alert=True)
 
         await self.show_favorites(update, context)
 
     async def show_favorites_settings(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """Affiche les paramètres des favoris"""
+        """Affiche les parametres des favoris"""
         query = update.callback_query
         await query.answer()
 
         user_id = query.from_user.id
-
-        # Récupérer les paramètres actuels
-        import aiosqlite
-        from config import DATABASE_PATH
-
-        settings = {
-            'alert_enabled': True,
-            'alert_threshold': 5.0,
-            'daily_summary': True
-        }
-
-        try:
-            async with aiosqlite.connect(DATABASE_PATH) as db:
-                cursor = await db.execute("""
-                    SELECT alert_threshold FROM smart_watchlist
-                    WHERE telegram_id = ? LIMIT 1
-                """, (user_id,))
-                row = await cursor.fetchone()
-                if row:
-                    settings['alert_threshold'] = row[0]
-        except Exception:
-            pass
-
-        favorites_count = len(await db_manager.get_favorites(user_id))
+        watchlist = await db_manager.get_smart_watchlist(user_id)
 
         text = f"""
-⚙️ **PARAMÈTRES FAVORIS**
+⚙️ **PARAMETRES FAVORIS**
 ━━━━━━━━━━━━━━━━━━━━
 
-📊 **Actifs suivis:** {favorites_count}
+📊 **Actifs suivis:** {len(watchlist)}
 
-**🔔 Alertes:**
-• Seuil d'alerte: **{settings['alert_threshold']:.1f}%** de variation
-• Alertes actives: {'✅ Oui' if settings['alert_enabled'] else '❌ Non'}
+**🔔 Comment ca marche ?**
+Tu recois une notification Telegram quand un de tes actifs varie au-dela de son seuil defini.
 
-**📧 Notifications:**
-• Résumé quotidien: {'✅ Oui' if settings['daily_summary'] else '❌ Non'}
+**Exemples:**
+• Apple avec seuil 5% : alerte si +5% ou -5%
+• Bitcoin avec seuil 10% : alerte si +10% ou -10%
 
-_Utilisez les boutons ci-dessous pour modifier les paramètres._
+_Chaque actif peut avoir son propre seuil._
 """
 
         keyboard = [
-            [
-                InlineKeyboardButton("🔔 Seuil 3%", callback_data="fav_set_threshold_3"),
-                InlineKeyboardButton("🔔 Seuil 5%", callback_data="fav_set_threshold_5"),
-                InlineKeyboardButton("🔔 Seuil 10%", callback_data="fav_set_threshold_10")
-            ],
-            [
-                InlineKeyboardButton("🗑️ Vider tous les favoris", callback_data="fav_clear_all")
-            ],
+            [InlineKeyboardButton("🗑️ Vider tous les favoris", callback_data="fav_clear_all")],
             [InlineKeyboardButton("◀️ Retour", callback_data="fav_main")]
         ]
 
@@ -192,29 +406,6 @@ _Utilisez les boutons ci-dessous pour modifier les paramètres._
             reply_markup=InlineKeyboardMarkup(keyboard),
             parse_mode='Markdown'
         )
-
-    async def set_alert_threshold(self, update: Update, context: ContextTypes.DEFAULT_TYPE, threshold: float):
-        """Modifie le seuil d'alerte"""
-        query = update.callback_query
-        user_id = query.from_user.id
-
-        import aiosqlite
-        from config import DATABASE_PATH
-
-        try:
-            async with aiosqlite.connect(DATABASE_PATH) as db:
-                # Mettre à jour le seuil pour tous les favoris
-                await db.execute("""
-                    UPDATE smart_watchlist SET alert_threshold = ?
-                    WHERE telegram_id = ?
-                """, (threshold, user_id))
-                await db.commit()
-
-            await query.answer(f"✅ Seuil d'alerte mis à {threshold}%", show_alert=True)
-        except Exception as e:
-            await query.answer(f"❌ Erreur: {e}", show_alert=True)
-
-        await self.show_favorites_settings(update, context)
 
     async def clear_all_favorites(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Supprime tous les favoris"""
@@ -230,26 +421,135 @@ _Utilisez les boutons ci-dessous pour modifier les paramètres._
                 await db.execute("DELETE FROM smart_watchlist WHERE telegram_id = ?", (user_id,))
                 await db.commit()
 
-            await query.answer("✅ Tous les favoris ont été supprimés", show_alert=True)
+            await query.answer("✅ Tous les favoris ont ete supprimes", show_alert=True)
         except Exception as e:
             await query.answer(f"❌ Erreur: {e}", show_alert=True)
 
         await self.show_favorites(update, context)
 
+    async def show_manual_search(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Lance une recherche manuelle"""
+        query = update.callback_query
+        user_id = query.from_user.id
+        await query.answer()
+
+        # Marquer que l'utilisateur est en mode recherche
+        self._search_pending[user_id] = True
+
+        text = """
+🔎 **RECHERCHE D'ACTIF**
+━━━━━━━━━━━━━━━━━━━━
+
+Envoie le nom de l'actif que tu cherches :
+
+**Exemples:**
+• _Apple_
+• _Tesla_
+• _Bitcoin_
+• _Air Liquide_
+• _EUR/USD_
+
+"""
+
+        keyboard = [[InlineKeyboardButton("❌ Annuler", callback_data="fav_search")]]
+
+        await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
+
+    async def handle_search_input(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:
+        """Gere la saisie de recherche (appele depuis ai_assistant)"""
+        user_id = update.message.from_user.id
+
+        if user_id not in self._search_pending:
+            return False
+
+        del self._search_pending[user_id]
+
+        search_query = update.message.text.strip()
+        symbol, market = find_symbol_from_name(search_query)
+
+        if symbol:
+            emoji = get_asset_emoji(symbol)
+            name = get_asset_display_name(symbol)
+
+            text = f"""
+✅ **Actif trouve !**
+
+{emoji} **{name}** ({symbol})
+Marche: {market}
+
+Choisis le seuil d'alerte :
+"""
+
+            keyboard = [
+                [
+                    InlineKeyboardButton("3%", callback_data=f"fav_confirm_{symbol}_{market}_3"),
+                    InlineKeyboardButton("5% ✓", callback_data=f"fav_confirm_{symbol}_{market}_5"),
+                ],
+                [
+                    InlineKeyboardButton("10%", callback_data=f"fav_confirm_{symbol}_{market}_10"),
+                    InlineKeyboardButton("15%", callback_data=f"fav_confirm_{symbol}_{market}_15"),
+                ],
+                [InlineKeyboardButton("🔍 Autre recherche", callback_data="fav_manual_search")],
+                [InlineKeyboardButton("◀️ Retour", callback_data="fav_search")]
+            ]
+        else:
+            text = f"""
+❌ **Actif non trouve**
+
+Aucun actif correspondant a "{search_query}".
+
+**Essaie avec:**
+• Le nom complet (ex: "Apple")
+• Le symbole (ex: "AAPL")
+• Un nom partiel (ex: "Liqui" pour Air Liquide)
+"""
+
+            keyboard = [
+                [InlineKeyboardButton("🔍 Nouvelle recherche", callback_data="fav_manual_search")],
+                [InlineKeyboardButton("📋 Voir les categories", callback_data="fav_search")],
+                [InlineKeyboardButton("◀️ Retour", callback_data="fav_main")]
+            ]
+
+        await update.message.reply_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
+        return True
+
+    def is_search_pending(self, user_id: int) -> bool:
+        """Verifie si une recherche est en attente pour cet utilisateur"""
+        return user_id in self._search_pending
+
     async def handle_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """Gère les callbacks"""
+        """Gere les callbacks"""
         query = update.callback_query
         data = query.data
 
         if data == "fav_main":
             await self.show_favorites(update, context)
 
+        elif data == "fav_search":
+            await self.show_search_menu(update, context)
+
+        elif data == "fav_manual_search":
+            await self.show_manual_search(update, context)
+
+        elif data.startswith("fav_cat_"):
+            market = data.replace("fav_cat_", "")
+            await self.show_category_assets(update, context, market)
+
+        elif data.startswith("fav_add_"):
+            parts = data.replace("fav_add_", "").split("_")
+            symbol = parts[0]
+            market = parts[1] if len(parts) > 1 else "USA"
+            await self.show_threshold_selection(update, context, symbol, market)
+
+        elif data.startswith("fav_confirm_"):
+            parts = data.replace("fav_confirm_", "").split("_")
+            symbol = parts[0]
+            market = parts[1] if len(parts) > 1 else "USA"
+            threshold = float(parts[2]) if len(parts) > 2 else 5.0
+            await self.add_to_favorites(update, context, symbol, market, threshold)
+
         elif data == "fav_settings":
             await self.show_favorites_settings(update, context)
-
-        elif data.startswith("fav_set_threshold_"):
-            threshold = float(data.replace("fav_set_threshold_", ""))
-            await self.set_alert_threshold(update, context, threshold)
 
         elif data == "fav_clear_all":
             await self.clear_all_favorites(update, context)
@@ -257,8 +557,21 @@ _Utilisez les boutons ci-dessous pour modifier les paramètres._
         elif data.startswith("fav_detail_"):
             parts = data.replace("fav_detail_", "").split("_", 1)
             symbol = parts[0]
-            market = parts[1]
+            market = parts[1] if len(parts) > 1 else "USA"
             await self.show_favorite_detail(update, context, symbol, market)
+
+        elif data.startswith("fav_edit_threshold_"):
+            parts = data.replace("fav_edit_threshold_", "").split("_")
+            symbol = parts[0]
+            market = parts[1] if len(parts) > 1 else "USA"
+            await self.show_edit_threshold(update, context, symbol, market)
+
+        elif data.startswith("fav_update_threshold_"):
+            parts = data.replace("fav_update_threshold_", "").split("_")
+            symbol = parts[0]
+            market = parts[1] if len(parts) > 1 else "USA"
+            threshold = float(parts[2]) if len(parts) > 2 else 5.0
+            await self.update_threshold(update, context, symbol, market, threshold)
 
         elif data.startswith("fav_remove_"):
             symbol = data.replace("fav_remove_", "")
