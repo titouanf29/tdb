@@ -9,6 +9,7 @@ import json
 
 from database.manager import db_manager
 from services.market_data import market_data_service
+from utils.asset_names import get_asset_display_name, get_asset_emoji
 import config
 
 
@@ -159,19 +160,36 @@ class AlertsService:
 
     async def _send_watchlist_alert(self, item: Dict, price: float, change: float):
         """Envoie une alerte de mouvement watchlist"""
-        emoji = "🟢" if change > 0 else "🔴"
-        direction = "hausse" if change > 0 else "baisse"
+        from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+
+        symbol = item['asset_symbol']
+        market = item.get('market', 'USA')
+        asset_emoji = get_asset_emoji(symbol)
+        name = get_asset_display_name(symbol)
+
+        direction_emoji = "🟢" if change > 0 else "🔴"
+        direction = "en hausse" if change > 0 else "en baisse"
+        arrow = "📈" if change > 0 else "📉"
 
         message = (
-            f"{emoji} MOUVEMENT DETECTE!\n\n"
-            f"📊 {item['asset_symbol']}\n"
-            f"💰 Prix: ${price:,.2f}\n"
-            f"📈 Variation: {change:+.2f}% ({direction})\n"
-            f"⏰ Seuil configure: {item['alert_threshold']}%"
+            f"{direction_emoji} **ALERTE FAVORI**\n\n"
+            f"{asset_emoji} **{name}** ({symbol})\n"
+            f"💰 Prix: {price:,.2f}\n"
+            f"{arrow} Variation: {change:+.2f}% ({direction})\n"
+            f"⚡ Seuil déclenché: ±{item['alert_threshold']}%"
         )
 
+        keyboard = InlineKeyboardMarkup([
+            [InlineKeyboardButton(f"📊 Analyser {symbol}", callback_data=f"market_detail_{market}_{symbol}")]
+        ])
+
         try:
-            await self.bot.send_message(chat_id=item['telegram_id'], text=message)
+            await self.bot.send_message(
+                chat_id=item['telegram_id'],
+                text=message,
+                parse_mode='Markdown',
+                reply_markup=keyboard
+            )
         except Exception as e:
             print(f"[ALERTS] Erreur envoi watchlist alert: {e}")
 
