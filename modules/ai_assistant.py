@@ -2,19 +2,138 @@
 Module Assistant IA Trading
 Permet aux utilisateurs de converser avec un assistant IA spécialisé en trading
 Avec modération automatique et alertes Discord
++ Gestion watchlist en langage naturel
 """
 import logging
+import re
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 from services.ai_assistant import ai_assistant_service
 from services.moderation_service import moderation_service
 from database.manager import db_manager
+from utils.asset_names import find_symbol_from_name, get_asset_display_name, get_asset_emoji
+from services.market_data import market_data_service
 from datetime import datetime, timedelta
 import pytz
 import config
 import aiosqlite
 
 logger = logging.getLogger(__name__)
+
+
+def parse_watchlist_command(message: str) -> dict:
+    """
+    Parse une commande watchlist en langage naturel.
+
+    Exemples supportés:
+    - "Ajoute Air Liquide avec une alerte à 3%"
+    - "Ajoute Tesla à ma watchlist avec un seuil de 5%"
+    - "Mets Apple dans mes favoris"
+    - "Supprime Microsoft de ma watchlist"
+    - "Retire BTC de mes favoris"
+    - "Change le seuil de Tesla à 10%"
+    - "Modifie l'alerte de AAPL à 2%"
+    - "Montre ma watchlist"
+    - "Liste mes favoris"
+
+    Retourne: {
+        'action': 'add'|'remove'|'modify'|'list'|None,
+        'asset_query': str|None,
+        'threshold': float|None
+    }
+    """
+    msg = message.lower().strip()
+
+    # Patterns de détection
+    result = {'action': None, 'asset_query': None, 'threshold': None}
+
+    # === LISTE / VOIR ===
+    list_patterns = [
+        r"(montre|affiche|voir|liste|show|donne).*(watchlist|favoris|watch.?list)",
+        r"(ma|mes)\s+(watchlist|favoris)",
+        r"qu.*(est|sont).*(watchlist|favoris|surveillé)",
+    ]
+    for pattern in list_patterns:
+        if re.search(pattern, msg):
+            result['action'] = 'list'
+            return result
+
+    # === AJOUT ===
+    add_patterns = [
+        r"(ajoute|ajout|ajouter|mets|met|mettre|add|rajoute|rajouter)\s+(.+?)(?:\s+(?:à|a|dans|sur|with|avec)\s+(?:ma\s+)?(?:watchlist|favoris|watch.?list))?(?:\s+(?:avec|à|a|with)\s+(?:une?\s+)?(?:alerte|seuil|threshold)\s+(?:de\s+|à\s+|si\s+(?:il\s+fait\s+)?)?(?:\+|-)?\s*(\d+(?:[.,]\d+)?)\s*%)?",
+        r"(ajoute|ajout|add|mets|met)\s+(.+?)(?:\s+(\d+(?:[.,]\d+)?)\s*%)?",
+        r"surveille\s+(.+?)(?:\s+(?:à|a)\s+(\d+(?:[.,]\d+)?)\s*%)?",
+    ]
+
+    for pattern in add_patterns:
+        match = re.search(pattern, msg)
+        if match:
+            groups = match.groups()
+            result['action'] = 'add'
+
+            # Extraire l'actif et le seuil selon le pattern
+            if len(groups) >= 2:
+                result['asset_query'] = groups[1].strip() if groups[1] else None
+            if len(groups) >= 3 and groups[2]:
+                try:
+                    result['threshold'] = float(groups[2].replace(',', '.'))
+                except ValueError:
+                    pass
+            elif len(groups) == 2 and groups[1]:
+                # Chercher un pourcentage dans le message original
+                pct_match = re.search(r'(\d+(?:[.,]\d+)?)\s*%', msg)
+                if pct_match:
+                    result['threshold'] = float(pct_match.group(1).replace(',', '.'))
+
+            # Nettoyer l'asset_query
+            if result['asset_query']:
+                # Retirer les mots parasites
+                clean = result['asset_query']
+                for word in ['à ma watchlist', 'dans ma watchlist', 'aux favoris', 'dans mes favoris',
+                             'à mes favoris', 'avec une alerte', 'avec un seuil', 'alerte', 'seuil']:
+                    clean = clean.replace(word, '').strip()
+                result['asset_query'] = clean.strip()
+
+            if result['asset_query']:
+                return result
+
+    # === SUPPRESSION ===
+    remove_patterns = [
+        r"(supprime|supprimer|retire|retirer|enlève|enlever|remove|delete)\s+(.+?)(?:\s+(?:de|from)\s+(?:ma\s+)?(?:watchlist|favoris|watch.?list))?",
+        r"(vire|virer)\s+(.+)",
+    ]
+
+    for pattern in remove_patterns:
+        match = re.search(pattern, msg)
+        if match:
+            result['action'] = 'remove'
+            asset = match.group(2).strip()
+            # Nettoyer
+            for word in ['de ma watchlist', 'de mes favoris', 'des favoris']:
+                asset = asset.replace(word, '').strip()
+            result['asset_query'] = asset
+            if result['asset_query']:
+                return result
+
+    # === MODIFICATION SEUIL ===
+    modify_patterns = [
+        r"(change|changer|modifie|modifier|update|met|mets)\s+(?:le\s+)?(?:seuil|alerte|threshold)\s+(?:de\s+)?(.+?)\s+(?:à|a|to)\s+(\d+(?:[.,]\d+)?)\s*%",
+        r"(change|modifie)\s+(.+?)\s+(?:à|a)\s+(\d+(?:[.,]\d+)?)\s*%",
+    ]
+
+    for pattern in modify_patterns:
+        match = re.search(pattern, msg)
+        if match:
+            result['action'] = 'modify'
+            result['asset_query'] = match.group(2).strip()
+            try:
+                result['threshold'] = float(match.group(3).replace(',', '.'))
+            except ValueError:
+                pass
+            if result['asset_query'] and result['threshold']:
+                return result
+
+    return result
 
 
 def get_reset_time_info():
@@ -59,6 +178,147 @@ class AIAssistantModule:
     def deactivate_chat(telegram_id):
         """Désactive le mode chat IA"""
         active_chat_sessions.discard(telegram_id)
+
+    async def handle_watchlist_command(self, user_id: int, message: str) -> str:
+        """
+        Gère les commandes watchlist en langage naturel.
+        Retourne une réponse texte ou None si ce n'est pas une commande watchlist.
+        """
+        parsed = parse_watchlist_command(message)
+
+        if not parsed['action']:
+            return None
+
+        # === LISTE ===
+        if parsed['action'] == 'list':
+            favorites = await db_manager.get_favorites(user_id)
+            if not favorites:
+                return (
+                    "📋 **Ta watchlist est vide !**\n\n"
+                    "Pour ajouter un actif, dis-moi par exemple :\n"
+                    "• _\"Ajoute Tesla avec une alerte à 5%\"_\n"
+                    "• _\"Surveille Air Liquide à 3%\"_"
+                )
+
+            text = "📋 **Ta watchlist**\n\n"
+            for fav in favorites[:15]:  # Max 15
+                emoji = get_asset_emoji(fav['asset_symbol'])
+                name = get_asset_display_name(fav['asset_symbol'])
+                text += f"{emoji} **{name}** ({fav['asset_symbol']})\n"
+
+            text += f"\n_Total : {len(favorites)} actif(s)_"
+            return text
+
+        # === AJOUT ===
+        if parsed['action'] == 'add':
+            if not parsed['asset_query']:
+                return "❓ Quel actif veux-tu ajouter ? Exemple : _\"Ajoute Tesla à 5%\"_"
+
+            symbol, market = find_symbol_from_name(parsed['asset_query'])
+            if not symbol:
+                return (
+                    f"❌ Je n'ai pas trouvé **{parsed['asset_query']}**.\n\n"
+                    "Essaie avec le symbole exact (AAPL, TSLA, AI.PA...) "
+                    "ou un nom plus précis."
+                )
+
+            # Vérifier si déjà dans les favoris
+            favorites = await db_manager.get_favorites(user_id)
+            existing_symbols = [f['asset_symbol'] for f in favorites]
+            if symbol in existing_symbols:
+                name = get_asset_display_name(symbol)
+                return f"ℹ️ **{name}** est déjà dans ta watchlist !"
+
+            # Ajouter aux favoris
+            await db_manager.add_favorite(user_id, symbol, market)
+
+            # Ajouter à la smart watchlist si seuil spécifié
+            threshold = parsed['threshold'] or 5.0  # Par défaut 5%
+            try:
+                current_price = await market_data_service.get_current_price(symbol)
+                if current_price:
+                    await db_manager.add_to_smart_watchlist(
+                        user_id, symbol, market, threshold, current_price
+                    )
+            except Exception as e:
+                logger.warning(f"Erreur ajout smart watchlist: {e}")
+
+            emoji = get_asset_emoji(symbol)
+            name = get_asset_display_name(symbol)
+            return (
+                f"✅ **{name}** ajouté à ta watchlist !\n\n"
+                f"{emoji} {symbol} • Seuil d'alerte : **±{threshold}%**\n\n"
+                f"_Tu recevras une notification si le prix bouge de {threshold}% ou plus._"
+            )
+
+        # === SUPPRESSION ===
+        if parsed['action'] == 'remove':
+            if not parsed['asset_query']:
+                return "❓ Quel actif veux-tu retirer ? Exemple : _\"Supprime Tesla\"_"
+
+            symbol, market = find_symbol_from_name(parsed['asset_query'])
+            if not symbol:
+                # Peut-être que c'est déjà le symbole exact
+                symbol = parsed['asset_query'].upper()
+
+            # Vérifier si dans les favoris
+            favorites = await db_manager.get_favorites(user_id)
+            existing_symbols = [f['asset_symbol'] for f in favorites]
+
+            if symbol not in existing_symbols:
+                name = get_asset_display_name(symbol)
+                return f"❌ **{name}** n'est pas dans ta watchlist."
+
+            # Supprimer
+            await db_manager.remove_favorite(user_id, symbol)
+            try:
+                await db_manager.remove_from_smart_watchlist(user_id, symbol)
+            except Exception:
+                pass
+
+            emoji = get_asset_emoji(symbol)
+            name = get_asset_display_name(symbol)
+            return f"🗑️ **{name}** retiré de ta watchlist."
+
+        # === MODIFICATION SEUIL ===
+        if parsed['action'] == 'modify':
+            if not parsed['asset_query'] or not parsed['threshold']:
+                return "❓ Précise l'actif et le seuil. Exemple : _\"Change Tesla à 10%\"_"
+
+            symbol, market = find_symbol_from_name(parsed['asset_query'])
+            if not symbol:
+                symbol = parsed['asset_query'].upper()
+
+            # Vérifier si dans les favoris
+            favorites = await db_manager.get_favorites(user_id)
+            existing_symbols = [f['asset_symbol'] for f in favorites]
+
+            if symbol not in existing_symbols:
+                name = get_asset_display_name(symbol)
+                return f"❌ **{name}** n'est pas dans ta watchlist. Ajoute-le d'abord !"
+
+            # Mettre à jour le seuil dans smart_watchlist
+            threshold = parsed['threshold']
+            try:
+                async with aiosqlite.connect(config.DATABASE_PATH) as db:
+                    await db.execute("""
+                        UPDATE smart_watchlist
+                        SET alert_threshold = ?
+                        WHERE telegram_id = ? AND asset_symbol = ?
+                    """, (threshold, user_id, symbol))
+                    await db.commit()
+            except Exception as e:
+                logger.error(f"Erreur modification seuil: {e}")
+                return "❌ Erreur lors de la modification du seuil."
+
+            emoji = get_asset_emoji(symbol)
+            name = get_asset_display_name(symbol)
+            return (
+                f"✅ Seuil d'alerte modifié !\n\n"
+                f"{emoji} **{name}** : **±{threshold}%**"
+            )
+
+        return None
 
     async def cmd_ai_assistant(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Commande /ai_assistant - Active le mode chat IA"""
@@ -105,11 +365,14 @@ class AIAssistantModule:
             f"📊 Exemples de questions :\n"
             f"• C'est quoi un RSI ?\n"
             f"• Comment analyser AAPL ?\n"
-            f"• Quelle stratégie en marché baissier ?\n"
-            f"• Explique-moi les bougies japonaises\n\n"
-            f"💬 Messages utilisés : {usage['message_count']}/{config.MAX_AI_MESSAGES_PER_DAY}\n\n"
-            f"⚠️ Important : Ceci est un outil éducatif, pas un conseil financier.\n\n"
-            f"Pour arrêter le chat, cliquez sur le bouton ou envoyez /stop_ai"
+            f"• Quelle stratégie en marché baissier ?\n\n"
+            f"⭐ Gérer ta watchlist :\n"
+            f"• \"Ajoute Tesla avec une alerte à 5%\"\n"
+            f"• \"Supprime Apple de ma watchlist\"\n"
+            f"• \"Montre ma watchlist\"\n\n"
+            f"💬 Messages IA : {usage['message_count']}/{config.MAX_AI_MESSAGES_PER_DAY}\n"
+            f"(Les commandes watchlist ne consomment pas de quota)\n\n"
+            f"Pour arrêter, cliquez le bouton ou envoyez /stop_ai"
         )
 
         if is_callback:
@@ -148,6 +411,21 @@ class AIAssistantModule:
             return False  # Pas en mode chat, laisser les autres handlers traiter
 
         logger.debug(f"User {user_id} en mode chat, traitement du message...")
+
+        # === GESTION WATCHLIST EN LANGAGE NATUREL ===
+        # Intercepter les commandes watchlist AVANT d'appeler l'API IA
+        # (ne consomme pas de quota messages IA)
+        try:
+            watchlist_response = await self.handle_watchlist_command(user_id, user_message)
+            if watchlist_response:
+                await update.message.reply_text(
+                    watchlist_response,
+                    parse_mode='Markdown'
+                )
+                return True  # Commande traitée, ne pas envoyer à l'IA
+        except Exception as e:
+            logger.error(f"Erreur commande watchlist: {e}")
+            # Continuer vers l'IA en cas d'erreur
 
         # Verifier la limite journaliere
         limit_reached = await db_manager.check_ai_limit_reached(user_id)

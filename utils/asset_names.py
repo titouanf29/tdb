@@ -463,6 +463,131 @@ def get_asset_display_name(symbol: str) -> str:
     """Retourne le nom complet d'un actif ou le symbole si non trouvé"""
     return CUSTOM_ASSETS.get(symbol) or ASSET_NAMES.get(symbol, symbol)
 
+
+def find_symbol_from_name(query: str) -> tuple:
+    """
+    Trouve un symbole à partir d'un nom partiel ou alias.
+    Retourne (symbol, market) ou (None, None) si non trouvé.
+
+    Exemples:
+    - "Air Liquide" → ("AI.PA", "EUROPE")
+    - "Apple" → ("AAPL", "USA")
+    - "Tesla" → ("TSLA", "USA")
+    - "BTC" → ("BTC-USD", "CRYPTO")
+    """
+    import config
+    query_lower = query.lower().strip()
+
+    # Mapping d'alias courants
+    ALIASES = {
+        "air liquide": "AI.PA",
+        "airliquide": "AI.PA",
+        "coface": "COFA.PA",
+        "rising stone": "ALRIS.PA",
+        "risingstone": "ALRIS.PA",
+        "apple": "AAPL",
+        "microsoft": "MSFT",
+        "google": "GOOGL",
+        "alphabet": "GOOGL",
+        "amazon": "AMZN",
+        "meta": "META",
+        "facebook": "META",
+        "nvidia": "NVDA",
+        "tesla": "TSLA",
+        "netflix": "NFLX",
+        "bitcoin": "BTC-USD",
+        "btc": "BTC-USD",
+        "ethereum": "ETHER-USD",
+        "eth": "ETH-USD",
+        "solana": "SOL-USD",
+        "sol": "SOL-USD",
+        "or": "GC=F",
+        "gold": "GC=F",
+        "petrole": "CL=F",
+        "oil": "CL=F",
+        "crude": "CL=F",
+        "euro dollar": "EURUSD=X",
+        "eurusd": "EURUSD=X",
+        "lvmh": "MC.PA",
+        "louis vuitton": "MC.PA",
+        "loreal": "OR.PA",
+        "l'oreal": "OR.PA",
+        "total": "TTE.PA",
+        "totalenergies": "TTE.PA",
+        "bnp": "BNP.PA",
+        "bnp paribas": "BNP.PA",
+        "sanofi": "SAN.PA",
+        "airbus": "AIR.PA",
+        "safran": "SAF.PA",
+        "carrefour": "CA.PA",
+        "schneider": "SU.PA",
+        "bouygues": "EN.PA",
+        "cac": "^FCHI",
+        "cac 40": "^FCHI",
+        "cac40": "^FCHI",
+        "dax": "^GDAXI",
+        "sp500": "^GSPC",
+        "s&p 500": "^GSPC",
+        "s&p500": "^GSPC",
+        "dow jones": "^DJI",
+        "dowjones": "^DJI",
+        "nasdaq": "^IXIC",
+    }
+
+    # 1. Vérifier les alias
+    if query_lower in ALIASES:
+        symbol = ALIASES[query_lower]
+    else:
+        # 2. Vérifier si c'est déjà un symbole valide (exact match)
+        all_assets = get_all_assets()
+        if query.upper() in all_assets or query in all_assets:
+            symbol = query.upper() if query.upper() in all_assets else query
+        else:
+            # 3. Recherche dans les noms complets
+            symbol = None
+            for sym, name in all_assets.items():
+                if query_lower in name.lower() or query_lower == sym.lower():
+                    symbol = sym
+                    break
+
+            # 4. Recherche partielle plus souple
+            if not symbol:
+                for sym, name in all_assets.items():
+                    # Vérifier si tous les mots de la query sont dans le nom
+                    query_words = query_lower.split()
+                    name_lower = name.lower()
+                    if all(word in name_lower for word in query_words):
+                        symbol = sym
+                        break
+
+    if not symbol:
+        return (None, None)
+
+    # Déterminer le marché
+    for market_code, market_data in config.MARKETS.items():
+        if 'assets' in market_data and symbol in market_data['assets']:
+            return (symbol, market_code)
+
+    # Si pas trouvé dans les marchés, deviner par le suffixe
+    if symbol.endswith('.PA'):
+        return (symbol, 'EUROPE')
+    elif symbol.endswith('.DE') or symbol.endswith('.L'):
+        return (symbol, 'EUROPE')
+    elif symbol.endswith('-USD'):
+        return (symbol, 'CRYPTO')
+    elif symbol.endswith('=X'):
+        return (symbol, 'FOREX')
+    elif symbol.endswith('=F'):
+        return (symbol, 'COMMODITIES')
+    elif symbol.startswith('^'):
+        # Indices - déterminer par le symbole
+        if symbol in ['^FCHI', '^GDAXI', '^STOXX50E', '^FTSE']:
+            return (symbol, 'EUROPE')
+        else:
+            return (symbol, 'USA')
+    else:
+        return (symbol, 'USA')  # Par défaut USA
+
 def get_asset_emoji(symbol: str) -> str:
     """Retourne l'emoji d'un actif ou une puce par défaut"""
     return ASSET_EMOJIS.get(symbol, "•")
