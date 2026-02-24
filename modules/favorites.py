@@ -2,7 +2,7 @@
 Module Favoris - Gestion des actifs favoris avec alertes personnalisees
 """
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import ContextTypes, CallbackQueryHandler, MessageHandler, filters
+from telegram.ext import ContextTypes, CallbackQueryHandler, MessageHandler, filters, ApplicationHandlerStop
 from database.manager import db_manager
 from ai.analyzer import analyzer
 from utils.helpers import *
@@ -25,6 +25,11 @@ class FavoritesModule:
     def register_handlers(self):
         """Enregistre les handlers"""
         self.app.add_handler(CallbackQueryHandler(self.handle_callback, pattern="^fav_"))
+        # Handler pour la recherche par nom (priorite haute, groupe -1)
+        self.app.add_handler(MessageHandler(
+            filters.TEXT & ~filters.COMMAND,
+            self._handle_search_message
+        ), group=-1)
 
     async def show_favorites(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Affiche les favoris de l'utilisateur avec seuils d'alerte"""
@@ -513,6 +518,22 @@ Aucun actif correspondant a "{search_query}".
         await update.message.reply_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
         return True
 
+    async def _handle_search_message(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Handler de messages pour la recherche d'actifs"""
+        if not update.message or not update.message.text:
+            return  # Laisser passer aux autres handlers
+
+        user_id = update.message.from_user.id
+
+        # Verifier si une recherche est en attente pour cet utilisateur
+        if user_id not in self._search_pending:
+            return  # Pas de recherche en attente, laisser passer
+
+        # Traiter la recherche
+        await self.handle_search_input(update, context)
+        # Lever une exception pour arreter la propagation aux autres handlers
+        raise ApplicationHandlerStop()
+
     def is_search_pending(self, user_id: int) -> bool:
         """Verifie si une recherche est en attente pour cet utilisateur"""
         return user_id in self._search_pending
@@ -520,6 +541,7 @@ Aucun actif correspondant a "{search_query}".
     async def handle_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Gere les callbacks"""
         query = update.callback_query
+        await query.answer()  # Repondre immediatement pour eviter timeout
         data = query.data
 
         if data == "fav_main":
