@@ -137,11 +137,11 @@ Choisis une categorie ou recherche par nom :
     async def show_category_assets(self, update: Update, context: ContextTypes.DEFAULT_TYPE, market: str):
         """Affiche les actifs d'une categorie"""
         query = update.callback_query
-        await query.answer()
 
-        from config import SUPPORTED_ASSETS
+        from config import MARKETS
 
-        assets = SUPPORTED_ASSETS.get(market, [])
+        market_data = MARKETS.get(market, {})
+        assets = market_data.get("assets", [])
 
         market_names = {
             "USA": "🇺🇸 Actions US",
