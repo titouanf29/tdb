@@ -38,7 +38,7 @@ class MenuModule:
         # Handler pour la gestion des favoris épinglés
         self.app.add_handler(CallbackQueryHandler(self.handle_pin_callback, pattern="^pin_"))
         # Handler pour la demande d'ajout d'actif
-        self.app.add_handler(CallbackQueryHandler(self.handle_asset_request_callback, pattern="^asset_request_"))
+        self.app.add_handler(CallbackQueryHandler(self.handle_asset_request_callback, pattern="^req_asset_"))
         # Handler pour la recherche manuelle (capture le texte utilisateur)
         # Groupe 3 pour éviter le conflit avec TradingCompanion (groupe 0), Wallet (groupe 1) et AI Assistant (groupe 2)
         self.app.add_handler(MessageHandler(
@@ -1586,7 +1586,7 @@ Tapez <code>/a SYMBOLE</code> pour une analyse
                     text += "\n<i>Sélectionnez l'actif souhaité ou faites une nouvelle recherche.</i>"
 
                     keyboard.append([InlineKeyboardButton("🔍 Autre recherche", callback_data="menu_manual_search")])
-                    keyboard.append([InlineKeyboardButton("❓ Demander un ajout", callback_data=f"asset_request_{query[:50]}")])
+                    keyboard.append([InlineKeyboardButton("❓ Demander un ajout", callback_data=f"req_asset_{query[:50]}")])
                     keyboard.append([InlineKeyboardButton("🔙 Menu", callback_data="menu_tools")])
 
             else:
@@ -1603,7 +1603,7 @@ Aucun résultat pour "<b>{query}</b>".
 <i>Si l'actif n'existe pas dans notre base, vous pouvez demander son ajout.</i>"""
 
                 keyboard = [
-                    [InlineKeyboardButton("📩 Demander l'ajout", callback_data=f"asset_request_{query[:50]}")],
+                    [InlineKeyboardButton("📩 Demander l'ajout", callback_data=f"req_asset_{query[:50]}")],
                     [InlineKeyboardButton("🔍 Autre recherche", callback_data="menu_manual_search")],
                     [InlineKeyboardButton("🔙 Menu", callback_data="menu_tools")]
                 ]
@@ -1636,7 +1636,7 @@ Aucun résultat pour "<b>{query}</b>".
 
         # Récupérer le nom de l'actif depuis le callback_data
         data = query.data
-        asset_name = data.replace("asset_request_", "")
+        asset_name = data.replace("req_asset_", "")
 
         # Fallback sur la dernière recherche si le nom est tronqué
         if len(asset_name) >= 49 and context.user_data.get('last_search_query'):

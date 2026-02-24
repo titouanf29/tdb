@@ -511,7 +511,7 @@ _Si l'actif n'est pas disponible, tu peux demander son ajout._
             keyboard = [
                 [InlineKeyboardButton("🔍 Nouvelle recherche", callback_data="fav_manual_search")],
                 [InlineKeyboardButton("📋 Voir les categories", callback_data="fav_search")],
-                [InlineKeyboardButton(f"📩 Demander l'ajout", callback_data=f"asset_request_{search_encoded}")],
+                [InlineKeyboardButton(f"📩 Demander l'ajout", callback_data=f"req_asset_{search_encoded}")],
                 [InlineKeyboardButton("◀️ Retour", callback_data="fav_main")]
             ]
 
