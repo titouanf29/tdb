@@ -111,12 +111,11 @@ MARKETS = {
     },
     "USA": {
         "name": "🇺🇸 USA",
-        "open_time": "15:30",  # 09:30 NY = 15:30 Paris (hiver) / 14:30 (été US)
-        "close_time": "22:00",  # 16:00 NY = 22:00 Paris (hiver) / 21:00 (été US)
+        "open_time": "09:30",  # 09:30 NY (heure locale)
+        "close_time": "16:00",  # 16:00 NY (heure locale)
         "timezone": "America/New_York",
         "description": "NYSE, NASDAQ",
         "closed_days": [5, 6],  # Samedi, Dimanche
-        "paris_summer_offset": -1,  # -1h quand USA en heure d'été et pas Paris
         "assets": [
             # Indices
             "^GSPC", "^DJI", "^IXIC",
@@ -140,12 +139,12 @@ MARKETS = {
     },
     "ASIA": {
         "name": "🌏 ASIA",
-        "open_time": "02:00",  # Tokyo 09:00 = 02:00 Paris (hiver) / 01:00 (été)
-        "close_time": "09:00",  # Tokyo 15:00 = 09:00 Paris (hiver) / 08:00 (été)
+        "open_time": "09:00",  # 09:00 Tokyo (heure locale)
+        "close_time": "15:00",  # 15:00 Tokyo (heure locale)
         "timezone": "Asia/Tokyo",
         "description": "Tokyo, Hong Kong, Shanghai",
         "closed_days": [5, 6],  # Samedi, Dimanche
-        "lunch_break": {"start": "04:30", "end": "05:30"},  # Pause déjeuner Tokyo
+        "lunch_break": {"start": "11:30", "end": "12:30"},  # Pause déjeuner Tokyo
         "assets": [
             # Indices
             "^N225", "^HSI", "000001.SS",
