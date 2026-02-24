@@ -507,11 +507,16 @@ Aucun actif correspondant a "{search_query}".
 • Le nom complet (ex: "Apple")
 • Le symbole (ex: "AAPL")
 • Un nom partiel (ex: "Liqui" pour Air Liquide)
+
+_Si l'actif n'est pas disponible, tu peux demander son ajout._
 """
+            # Encoder la recherche pour le callback (max 64 chars)
+            search_encoded = search_query[:30].replace(" ", "_")
 
             keyboard = [
                 [InlineKeyboardButton("🔍 Nouvelle recherche", callback_data="fav_manual_search")],
                 [InlineKeyboardButton("📋 Voir les categories", callback_data="fav_search")],
+                [InlineKeyboardButton(f"📩 Demander l'ajout de \"{search_query[:15]}\"", callback_data=f"fav_request_{search_encoded}")],
                 [InlineKeyboardButton("◀️ Retour", callback_data="fav_main")]
             ]
 
@@ -529,10 +534,67 @@ Aucun actif correspondant a "{search_query}".
         if user_id not in self._search_pending:
             return  # Pas de recherche en attente, laisser passer
 
+        logger.info(f"Recherche favoris pour user {user_id}: {update.message.text}")
+
+        # Envoyer un indicateur de traitement
+        await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
+
         # Traiter la recherche
         await self.handle_search_input(update, context)
         # Lever une exception pour arreter la propagation aux autres handlers
         raise ApplicationHandlerStop()
+
+    async def handle_asset_request(self, update: Update, context: ContextTypes.DEFAULT_TYPE, asset_name: str):
+        """Gere la demande d'ajout d'un actif"""
+        query = update.callback_query
+        user_id = query.from_user.id
+        username = query.from_user.username or query.from_user.first_name
+
+        # Enregistrer la demande dans la base de donnees
+        import aiosqlite
+        from config import DATABASE_PATH
+
+        try:
+            async with aiosqlite.connect(DATABASE_PATH) as db:
+                await db.execute("""
+                    CREATE TABLE IF NOT EXISTS asset_requests (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        telegram_id INTEGER,
+                        username TEXT,
+                        asset_name TEXT,
+                        status TEXT DEFAULT 'pending',
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    )
+                """)
+                await db.execute("""
+                    INSERT INTO asset_requests (telegram_id, username, asset_name)
+                    VALUES (?, ?, ?)
+                """, (user_id, username, asset_name))
+                await db.commit()
+
+            text = f"""
+✅ **Demande envoyee !**
+
+Ta demande pour ajouter **"{asset_name}"** a ete enregistree.
+
+L'equipe examinera ta demande et l'actif sera ajoute s'il est disponible sur les marches supportes.
+
+_Merci pour ta contribution !_
+"""
+        except Exception as e:
+            logger.error(f"Erreur demande actif: {e}")
+            text = f"""
+❌ **Erreur**
+
+Impossible d'enregistrer ta demande. Reessaie plus tard.
+"""
+
+        keyboard = [
+            [InlineKeyboardButton("🔍 Nouvelle recherche", callback_data="fav_manual_search")],
+            [InlineKeyboardButton("◀️ Retour aux favoris", callback_data="fav_main")]
+        ]
+
+        await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
 
     def is_search_pending(self, user_id: int) -> bool:
         """Verifie si une recherche est en attente pour cet utilisateur"""
@@ -598,3 +660,7 @@ Aucun actif correspondant a "{search_query}".
         elif data.startswith("fav_remove_"):
             symbol = data.replace("fav_remove_", "")
             await self.remove_favorite(update, context, symbol)
+
+        elif data.startswith("fav_request_"):
+            asset_name = data.replace("fav_request_", "").replace("_", " ")
+            await self.handle_asset_request(update, context, asset_name)
