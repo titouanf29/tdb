@@ -221,6 +221,22 @@ class EnhancedAnalysis:
                 elif prev_price >= cloud_bottom and current_price < cloud_bottom:
                     signals.append({'type': 'KUMO_BREAKOUT_BEARISH', 'strength': 'STRONG'})
 
+            # 3. Chikou Span Confirmation (Lagging Span)
+            # Le Chikou Span d'il y a 26 périodes est le prix actuel
+            # On vérifie si le prix actuel est au-dessus/en-dessous du prix d'il y a 26 périodes
+            chikou_confirmation = 'NEUTRAL'
+            if len(close) >= 27:
+                price_26_ago = close.iloc[-27] if not pd.isna(close.iloc[-27]) else current_price
+                if current_price > price_26_ago * 1.01:  # Prix actuel > prix il y a 26 périodes + 1%
+                    chikou_confirmation = 'BULLISH'
+                    signals.append({'type': 'CHIKOU_ABOVE', 'strength': 'STRONG' if current_price > price_26_ago * 1.03 else 'WEAK'})
+                elif current_price < price_26_ago * 0.99:  # Prix actuel < prix il y a 26 périodes - 1%
+                    chikou_confirmation = 'BEARISH'
+                    signals.append({'type': 'CHIKOU_BELOW', 'strength': 'STRONG' if current_price < price_26_ago * 0.97 else 'WEAK'})
+
+            # 4. Nuage futur (tendance future)
+            future_cloud_bullish = current_senkou_a > current_senkou_b
+
             # Score Ichimoku
             score = 50
             if position_signal == 'BULLISH':
@@ -239,10 +255,14 @@ class EnhancedAnalysis:
                 score -= 10
 
             for signal in signals:
-                if 'BULLISH' in signal['type']:
+                if 'BULLISH' in signal['type'] or signal['type'] == 'CHIKOU_ABOVE':
                     score += 15 if signal['strength'] == 'STRONG' else 5
-                elif 'BEARISH' in signal['type']:
+                elif 'BEARISH' in signal['type'] or signal['type'] == 'CHIKOU_BELOW':
                     score -= 15 if signal['strength'] == 'STRONG' else 5
+
+            # Bonus si Chikou confirme la direction du prix vs nuage
+            if chikou_confirmation == position_signal and position_signal != 'NEUTRAL':
+                score += 10  # Double confirmation
 
             return {
                 'available': True,
@@ -255,27 +275,40 @@ class EnhancedAnalysis:
                 'cloud_color': cloud_color,
                 'price_position': price_position,
                 'position_signal': position_signal,
+                'chikou_confirmation': chikou_confirmation,
+                'future_cloud_bullish': future_cloud_bullish,
                 'signals': signals,
                 'score': max(0, min(100, score)),
-                'interpretation': self._interpret_ichimoku(position_signal, cloud_color, signals)
+                'interpretation': self._interpret_ichimoku(position_signal, cloud_color, signals, chikou_confirmation)
             }
 
         except Exception:
             return {'available': False}
 
-    def _interpret_ichimoku(self, position: str, cloud_color: str, signals: List) -> str:
-        """Interprète les signaux Ichimoku"""
+    def _interpret_ichimoku(self, position: str, cloud_color: str, signals: List, chikou: str = 'NEUTRAL') -> str:
+        """Interprète les signaux Ichimoku avec Chikou Span"""
+        base_interpretation = ""
+
         if position == 'BULLISH' and cloud_color == 'GREEN':
-            return "Tendance haussière forte - Prix au-dessus du nuage vert"
+            base_interpretation = "Tendance haussière forte - Prix au-dessus du nuage vert"
         elif position == 'BEARISH' and cloud_color == 'RED':
-            return "Tendance baissière forte - Prix sous le nuage rouge"
+            base_interpretation = "Tendance baissière forte - Prix sous le nuage rouge"
         elif position == 'IN_CLOUD':
-            return "Zone d'indécision - Prix dans le nuage, attendre sortie"
+            base_interpretation = "Zone d'indécision - Prix dans le nuage, attendre sortie"
         elif position == 'BULLISH':
-            return "Tendance haussière - Prix au-dessus du nuage"
+            base_interpretation = "Tendance haussière - Prix au-dessus du nuage"
         elif position == 'BEARISH':
-            return "Tendance baissière - Prix sous le nuage"
-        return "Tendance neutre"
+            base_interpretation = "Tendance baissière - Prix sous le nuage"
+        else:
+            base_interpretation = "Tendance neutre"
+
+        # Ajouter confirmation Chikou
+        if chikou == position and position != 'NEUTRAL':
+            base_interpretation += " (Chikou confirme)"
+        elif chikou != 'NEUTRAL' and chikou != position:
+            base_interpretation += " (Chikou diverge - prudence)"
+
+        return base_interpretation
 
     # ==========================================
     # 3. CORRELATION ANALYSIS

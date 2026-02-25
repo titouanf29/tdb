@@ -302,10 +302,49 @@ class MarketAnalyzer:
                 fibonacci=fibonacci_levels
             )
 
+            # ===== NOUVELLES ANALYSES v5.0 =====
+
+            # 13. Régime de marché (SMA200)
+            market_regime = self._analyze_market_regime(data_1d)
+            if market_regime['regime'] == 'STRONG_BULL' and direction == 'LONG':
+                final_score += 5
+            elif market_regime['regime'] == 'BULL' and direction == 'LONG':
+                final_score += 3
+            elif market_regime['regime'] == 'STRONG_BEAR' and direction == 'SHORT':
+                final_score += 5
+            elif market_regime['regime'] == 'BEAR' and direction == 'SHORT':
+                final_score += 3
+            elif market_regime['regime'] == 'STRONG_BULL' and direction == 'SHORT':
+                final_score -= 5  # Contre-tendance en bull fort
+            elif market_regime['regime'] == 'STRONG_BEAR' and direction == 'LONG':
+                final_score -= 5  # Contre-tendance en bear fort
+
+            # 14. Contexte VIX (volatilité du marché)
+            vix_context = await self._get_vix_context()
+            if vix_context.get('available'):
+                if vix_context['level'] == 'extreme':
+                    final_score -= 5  # Prudence en volatilité extrême
+                elif vix_context['level'] == 'high':
+                    final_score -= 3
+                elif vix_context['level'] == 'very_low':
+                    final_score -= 2  # Marché complaisant
+
+            # 15. Force Relative vs Indice
+            relative_strength = await self._get_relative_strength(symbol, market, data_1d)
+            if relative_strength.get('available'):
+                if relative_strength['trend'] == 'strong_outperform' and direction == 'LONG':
+                    final_score += 5
+                elif relative_strength['trend'] == 'outperform' and direction == 'LONG':
+                    final_score += 3
+                elif relative_strength['trend'] == 'strong_underperform' and direction == 'SHORT':
+                    final_score += 3
+                elif relative_strength['trend'] == 'strong_outperform' and direction == 'SHORT':
+                    final_score -= 3  # Vendre un leader
+
             # Limiter le score final après les bonus
             final_score = int(max(0, min(100, final_score)))
 
-            # Resume technique (amélioré)
+            # Resume technique (amélioré avec nouvelles données)
             technical_summary = self._generate_technical_summary_advanced(
                 trend, rsi, volume_ratio, support, resistance, current_price,
                 adx_data, confluence, market_structure, detected_patterns
@@ -342,6 +381,26 @@ class MarketAnalyzer:
             explanations['confluence'] = confluence
             explanations['market_structure'] = market_structure
             explanations['patterns_detected'] = detected_patterns
+
+            # Ajouter les nouvelles explications v5.0
+            explanations['market_regime'] = {
+                'regime': market_regime['regime'],
+                'sma200': market_regime.get('sma200'),
+                'distance_pct': market_regime['distance_pct'],
+                'description': market_regime['description']
+            }
+            if vix_context.get('available'):
+                explanations['vix'] = {
+                    'value': vix_context['vix'],
+                    'level': vix_context['level'],
+                    'interpretation': vix_context['interpretation']
+                }
+            if relative_strength.get('available'):
+                explanations['relative_strength'] = {
+                    'rs_ratio': relative_strength['rs_ratio'],
+                    'outperforming': relative_strength['outperforming'],
+                    'description': relative_strength['description']
+                }
 
             # Générer des recommandations (améliorées)
             recommendations = self._generate_recommendations_advanced(
@@ -411,6 +470,18 @@ class MarketAnalyzer:
             # Ajouter Smart Money si niveau Détaillé ou Complet
             if detail_config.get('show_smc', False):
                 result['smart_money'] = smc_analysis
+
+            # ===== DONNÉES v5.0 =====
+            # Régime de marché
+            result['market_regime'] = market_regime
+
+            # VIX Context
+            if vix_context.get('available'):
+                result['vix_context'] = vix_context
+
+            # Force Relative
+            if relative_strength.get('available'):
+                result['relative_strength'] = relative_strength
 
             # ===== ANALYSE AVANCÉE v4.0 =====
             # Ichimoku Cloud
@@ -489,6 +560,39 @@ class MarketAnalyzer:
                 recommendations.append(f"✅ Signal fiable (Grade {signal_reliability['grade']}) - Confiance {signal_reliability['confidence']}")
             elif signal_reliability['grade'] in ['D', 'F']:
                 recommendations.append(f"⚠️ Signal peu fiable (Grade {signal_reliability['grade']}) - Prudence recommandée")
+
+            # ===== RECOMMANDATIONS v5.0 =====
+
+            # Recommandation régime de marché
+            if market_regime['regime'] == 'STRONG_BULL':
+                recommendations.append("🐂 Régime BULL fort - Favoriser les achats, éviter les shorts")
+            elif market_regime['regime'] == 'STRONG_BEAR':
+                recommendations.append("🐻 Régime BEAR fort - Favoriser les ventes, éviter les longs")
+            elif market_regime['regime'] == 'SIDEWAYS':
+                recommendations.append("↔️ Marché latéral - Stratégies de range recommandées")
+
+            # Recommandation VIX
+            if vix_context.get('available'):
+                if vix_context['level'] == 'extreme':
+                    recommendations.append(f"⚠️ VIX extrême ({vix_context['vix']}) - Réduire positions, stops larges")
+                elif vix_context['level'] == 'high':
+                    recommendations.append(f"📊 VIX élevé ({vix_context['vix']}) - Volatilité accrue, prudence")
+                elif vix_context['level'] == 'very_low':
+                    recommendations.append(f"😴 VIX très bas ({vix_context['vix']}) - Marché complaisant, attention corrections")
+
+            # Recommandation force relative
+            if relative_strength.get('available'):
+                if relative_strength['trend'] == 'strong_outperform':
+                    recommendations.append(f"💪 Force relative forte - Leader du marché")
+                elif relative_strength['trend'] == 'strong_underperform':
+                    recommendations.append(f"📉 Sous-performance - Retardataire du marché")
+
+            # Ajouter les nouveaux scores v5.0
+            result['scores']['market_regime'] = market_regime.get('strength', 50) / 100
+            if vix_context.get('available'):
+                result['scores']['vix_level'] = (100 - min(vix_context['vix'], 50) * 2) / 100  # Normaliser
+            if relative_strength.get('available'):
+                result['scores']['relative_strength'] = relative_strength['rs_ratio']
 
             return result
 
@@ -712,6 +816,200 @@ class MarketAnalyzer:
             recommendations.append("✅ Risque faible - Conditions favorables pour entrée standard")
 
         return recommendations
+
+    # ===== NOUVELLES MÉTHODES v5.0 =====
+
+    def _analyze_market_regime(self, data):
+        """
+        Détecte le régime de marché via SMA200
+        - BULL: Prix > SMA200 et SMA200 en hausse
+        - BEAR: Prix < SMA200 et SMA200 en baisse
+        - SIDEWAYS: Prix autour de SMA200 ou SMA200 plate
+        """
+        regime = {
+            'regime': 'SIDEWAYS',
+            'strength': 0,
+            'sma200': None,
+            'distance_pct': 0,
+            'sma200_slope': 'flat',
+            'description': 'Marché sans direction claire'
+        }
+
+        try:
+            if data is None or len(data) < 200:
+                return regime
+
+            close = data['Close']
+            sma200 = close.rolling(window=200).mean()
+
+            if pd.isna(sma200.iloc[-1]):
+                return regime
+
+            current_price = close.iloc[-1]
+            current_sma200 = sma200.iloc[-1]
+            regime['sma200'] = float(current_sma200)
+
+            # Distance au SMA200
+            distance_pct = ((current_price - current_sma200) / current_sma200) * 100
+            regime['distance_pct'] = round(distance_pct, 2)
+
+            # Pente du SMA200 (sur 20 jours)
+            if len(sma200) >= 220:
+                sma200_20_days_ago = sma200.iloc[-20]
+                if not pd.isna(sma200_20_days_ago):
+                    slope_pct = ((current_sma200 - sma200_20_days_ago) / sma200_20_days_ago) * 100
+                    if slope_pct > 0.5:
+                        regime['sma200_slope'] = 'rising'
+                    elif slope_pct < -0.5:
+                        regime['sma200_slope'] = 'falling'
+                    else:
+                        regime['sma200_slope'] = 'flat'
+
+            # Déterminer le régime
+            if distance_pct > 5 and regime['sma200_slope'] == 'rising':
+                regime['regime'] = 'STRONG_BULL'
+                regime['strength'] = 90
+                regime['description'] = 'Marché haussier fort - Prix bien au-dessus de SMA200'
+            elif distance_pct > 0 and regime['sma200_slope'] in ['rising', 'flat']:
+                regime['regime'] = 'BULL'
+                regime['strength'] = 70
+                regime['description'] = 'Marché haussier - Prix au-dessus de SMA200'
+            elif distance_pct < -5 and regime['sma200_slope'] == 'falling':
+                regime['regime'] = 'STRONG_BEAR'
+                regime['strength'] = 10
+                regime['description'] = 'Marché baissier fort - Prix bien en-dessous de SMA200'
+            elif distance_pct < 0 and regime['sma200_slope'] in ['falling', 'flat']:
+                regime['regime'] = 'BEAR'
+                regime['strength'] = 30
+                regime['description'] = 'Marché baissier - Prix sous SMA200'
+            else:
+                regime['regime'] = 'SIDEWAYS'
+                regime['strength'] = 50
+                regime['description'] = 'Marché latéral - Zone de transition'
+
+        except Exception as e:
+            logger.debug(f"Erreur _analyze_market_regime: {e}")
+
+        return regime
+
+    async def _get_vix_context(self):
+        """
+        Récupère le contexte VIX (indice de volatilité)
+        - VIX < 15: Faible volatilité, marché complaisant
+        - VIX 15-20: Volatilité normale
+        - VIX 20-30: Volatilité élevée, prudence
+        - VIX > 30: Volatilité extrême, panique potentielle
+        """
+        vix_context = {
+            'available': False,
+            'vix': None,
+            'level': 'normal',
+            'interpretation': 'Données VIX non disponibles',
+            'trading_impact': 'neutral'
+        }
+
+        try:
+            vix_data = yf.Ticker("^VIX").history(period="5d", interval="1d")
+
+            if vix_data.empty:
+                return vix_context
+
+            current_vix = vix_data['Close'].iloc[-1]
+            if pd.isna(current_vix):
+                return vix_context
+
+            vix_context['available'] = True
+            vix_context['vix'] = round(float(current_vix), 2)
+
+            # Variation VIX
+            if len(vix_data) >= 2:
+                prev_vix = vix_data['Close'].iloc[-2]
+                vix_change = ((current_vix - prev_vix) / prev_vix) * 100
+                vix_context['change'] = round(vix_change, 2)
+
+            # Interprétation
+            if current_vix < 15:
+                vix_context['level'] = 'very_low'
+                vix_context['interpretation'] = 'VIX très bas - Marché complaisant, possibles corrections'
+                vix_context['trading_impact'] = 'caution_bull'
+            elif current_vix < 20:
+                vix_context['level'] = 'normal'
+                vix_context['interpretation'] = 'VIX normal - Conditions de trading standards'
+                vix_context['trading_impact'] = 'neutral'
+            elif current_vix < 25:
+                vix_context['level'] = 'elevated'
+                vix_context['interpretation'] = 'VIX élevé - Volatilité accrue, positions réduites'
+                vix_context['trading_impact'] = 'reduce_size'
+            elif current_vix < 30:
+                vix_context['level'] = 'high'
+                vix_context['interpretation'] = 'VIX haut - Forte volatilité, prudence maximale'
+                vix_context['trading_impact'] = 'caution'
+            else:
+                vix_context['level'] = 'extreme'
+                vix_context['interpretation'] = 'VIX extrême - Panique marché, opportunités contrariantes'
+                vix_context['trading_impact'] = 'extreme_caution'
+
+        except Exception as e:
+            logger.debug(f"Erreur _get_vix_context: {e}")
+
+        return vix_context
+
+    async def _get_relative_strength(self, symbol, market, data):
+        """
+        Calcule la force relative de l'actif vs son indice de référence
+        """
+        rs_data = {
+            'available': False,
+            'rs_ratio': 1.0,
+            'outperforming': False,
+            'description': 'Force relative non disponible'
+        }
+
+        try:
+            # Déterminer l'indice de référence
+            index_map = {
+                'USA': '^GSPC',
+                'EUROPE': '^STOXX50E',
+                'ASIA': '^N225',
+                'CRYPTO': 'BTC-USD',
+                'FOREX': 'EURUSD=X'
+            }
+
+            index_symbol = index_map.get(market)
+            if not index_symbol or symbol == index_symbol:
+                return rs_data
+
+            # Récupérer les données de l'indice
+            index_data = yf.Ticker(index_symbol).history(period="1mo", interval="1d")
+
+            if index_data.empty or len(index_data) < 20 or len(data) < 20:
+                return rs_data
+
+            # Utiliser l'algorithme avancé pour calculer la force relative
+            rs_result = advanced_algo.calculate_relative_strength(data, index_data, lookback=20)
+
+            rs_data['available'] = True
+            rs_data['rs_ratio'] = rs_result['rs_ratio']
+            rs_data['outperforming'] = rs_result['outperforming']
+            rs_data['rs_momentum'] = rs_result['rs_momentum']
+            rs_data['trend'] = rs_result['trend']
+
+            # Description
+            if rs_result['trend'] == 'strong_outperform':
+                rs_data['description'] = f"Surperformance forte vs {index_symbol} (RS: {rs_result['rs_ratio']:.2f})"
+            elif rs_result['trend'] == 'outperform':
+                rs_data['description'] = f"Surperformance vs {index_symbol} (RS: {rs_result['rs_ratio']:.2f})"
+            elif rs_result['trend'] == 'strong_underperform':
+                rs_data['description'] = f"Sous-performance forte vs {index_symbol} (RS: {rs_result['rs_ratio']:.2f})"
+            elif rs_result['trend'] == 'underperform':
+                rs_data['description'] = f"Sous-performance vs {index_symbol} (RS: {rs_result['rs_ratio']:.2f})"
+            else:
+                rs_data['description'] = f"Performance neutre vs {index_symbol} (RS: {rs_result['rs_ratio']:.2f})"
+
+        except Exception as e:
+            logger.debug(f"Erreur _get_relative_strength: {e}")
+
+        return rs_data
 
     def _analyze_technical(self, data_1d, data_1h, data_15m):
         """Analyse technique multi-timeframe"""
@@ -1439,9 +1737,10 @@ class MarketAnalyzer:
             if pd.isna(current_price) or current_price <= 0:
                 return smc_analysis
 
-            # 1. DÉTECTION DES ORDER BLOCKS
+            # 1. DÉTECTION DES ORDER BLOCKS (étendu à 50 bougies)
             # Order Block = dernière bougie opposée avant un fort mouvement
-            for i in range(len(data) - 10, len(data) - 2):
+            lookback_ob = min(50, len(data) - 3)  # Étendu de 10 à 50 pour détecter plus de zones
+            for i in range(len(data) - lookback_ob, len(data) - 2):
                 if i < 1:
                     continue
 
