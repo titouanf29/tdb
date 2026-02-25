@@ -100,7 +100,7 @@ ASSET_NAMES = {
     "AI.PA": "Air Liquide SA",
     "COFA.PA": "Coface SA",
     "ALRIS.PA": "Rising Stone SA",
-    "FDJ.PA": "Française des Jeux",
+    "FDJU.PA": "FDJ United",
 
     # ===== EUROPE - ALLEMAGNE =====
     "VOW3.DE": "Volkswagen AG",
@@ -329,7 +329,7 @@ ASSET_EMOJIS = {
     "AI.PA": "💨",
     "COFA.PA": "🛡️",
     "ALRIS.PA": "🏔️",
-    "FDJ.PA": "🎰",
+    "FDJU.PA": "🎰",
 
     # ===== ALLEMAGNE =====
     "VOW3.DE": "🚗",
@@ -487,9 +487,10 @@ def find_symbol_from_name(query: str) -> tuple:
         "coface": "COFA.PA",
         "rising stone": "ALRIS.PA",
         "risingstone": "ALRIS.PA",
-        "fdj": "FDJ.PA",
-        "française des jeux": "FDJ.PA",
-        "francaise des jeux": "FDJ.PA",
+        "fdj": "FDJU.PA",
+        "fdj united": "FDJU.PA",
+        "française des jeux": "FDJU.PA",
+        "francaise des jeux": "FDJU.PA",
         "apple": "AAPL",
         "microsoft": "MSFT",
         "google": "GOOGL",
