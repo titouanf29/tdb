@@ -245,8 +245,61 @@ Revenez plus tard ou essayez un autre marché.
         bar = "█" * filled + "░" * empty
         return bar
 
-    def _get_verdict(self, score: int, direction: str) -> tuple:
-        """Retourne le verdict et sa couleur"""
+    def _get_verdict(self, score: int, direction: str, analysis: dict = None) -> tuple:
+        """Retourne le verdict cohérent avec le verdict final"""
+        # Si on a l'analyse complète, utiliser la même logique que _generate_final_verdict
+        if analysis:
+            reliability = analysis.get('signal_reliability', {})
+            grade = reliability.get('grade', 'C')
+            trend = analysis.get('trend', 'neutral')
+            rsi = analysis.get('rsi', 50)
+            vol_ratio = analysis.get('volume_ratio', 1.0)
+            adx = analysis.get('adx', {})
+            ichimoku = analysis.get('ichimoku', {})
+
+            # Calculer pros/cons comme dans _generate_final_verdict
+            pros = []
+            cons = []
+
+            if score >= 75:
+                pros.append("Score élevé")
+            elif score < 50:
+                cons.append("Score faible")
+
+            if (trend == "bullish" and direction == "LONG") or (trend == "bearish" and direction == "SHORT"):
+                pros.append("Tendance alignée")
+            elif trend != "neutral" and direction != "NEUTRAL":
+                cons.append("Tendance opposée")
+
+            if vol_ratio >= 1.5:
+                pros.append("Fort volume")
+            elif vol_ratio < 0.7:
+                cons.append("Volume faible")
+
+            if adx.get('adx', 0) > 25:
+                pros.append("Tendance forte")
+
+            if ichimoku.get('price_position') == 'IN_CLOUD':
+                cons.append("Dans le nuage")
+
+            if grade in ['D', 'F']:
+                cons.append(f"Grade {grade}")
+
+            # Même logique de décision que _generate_final_verdict
+            if score >= 75 and direction != "NEUTRAL" and len(pros) >= 3 and grade in ['A', 'B', 'C']:
+                if direction == "LONG":
+                    return "🟢 ACHETER", "Signal d'achat fort confirmé"
+                else:
+                    return "🔴 VENDRE", "Signal de vente fort confirmé"
+            elif score >= 60 and direction != "NEUTRAL" and len(cons) <= len(pros):
+                if direction == "LONG":
+                    return "🟡 SURVEILLER", "Setup intéressant, attendre confirmation"
+                else:
+                    return "🟡 SURVEILLER", "Signal de vente potentiel"
+            else:
+                return "⚪ ATTENDRE", "Conditions non réunies"
+
+        # Fallback sans analyse complète (ne devrait plus arriver)
         if score >= 75 and direction == "LONG":
             return "🟢 ACHETER", "Signal d'achat fort détecté"
         elif score >= 75 and direction == "SHORT":
@@ -313,8 +366,8 @@ Veuillez réessayer ultérieurement."""
         asset_emoji = get_asset_emoji(symbol)
         asset_name = get_asset_display_name(symbol)
 
-        # Verdict
-        verdict, verdict_text = self._get_verdict(score, direction)
+        # Verdict (avec analyse complète pour cohérence)
+        verdict, verdict_text = self._get_verdict(score, direction, analysis)
 
         # Barre de score
         score_bar = self._generate_score_bar(score)
@@ -442,8 +495,8 @@ Veuillez réessayer ultérieurement."""
         asset_emoji = get_asset_emoji(symbol)
         asset_name = get_asset_display_name(symbol)
 
-        # Verdict
-        verdict, verdict_text = self._get_verdict(score, direction)
+        # Verdict (avec analyse complète pour cohérence)
+        verdict, verdict_text = self._get_verdict(score, direction, analysis)
 
         # Barre de score
         score_bar = self._generate_score_bar(score)
