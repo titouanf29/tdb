@@ -485,8 +485,8 @@ class TDBBot:
         else:
             logger.info("ℹ️ Discord non configuré (DISCORD_WEBHOOK_URL manquant)")
 
-        # Envoyer la notification de démarrage dans le canal principal
-        await self.send_startup_notification()
+        # Notification de démarrage désactivée
+        # await self.send_startup_notification()
 
         # Message de démarrage
         logger.info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
