@@ -423,7 +423,7 @@ Veuillez réessayer ultérieurement."""
         return text
 
     def _generate_detailed_view(self, analysis: dict, symbol: str, market_code: str) -> str:
-        """Génère la vue détaillée de l'analyse"""
+        """Génère la vue détaillée de l'analyse - Version réorganisée et claire"""
         # Protection contre données manquantes
         score = analysis.get('score', 0)
         direction = analysis.get('direction', 'NEUTRE')
@@ -457,7 +457,13 @@ Veuillez réessayer ultérieurement."""
         rsi_val = analysis.get('rsi', 50)
         vol_ratio = analysis.get('volume_ratio', 1.0)
         volatility = analysis.get('volatility', 0)
+        risk_level = analysis.get('risk_level', 'moderate')
+        reliability = analysis.get('signal_reliability', {})
+        optimal_targets = analysis.get('optimal_targets', {})
 
+        # ═══════════════════════════════════════════════════
+        # SECTION 1: EN-TÊTE + SCORE
+        # ═══════════════════════════════════════════════════
         text = f"""
 {asset_emoji} **{asset_name}** ({symbol})
 
@@ -467,55 +473,93 @@ Veuillez réessayer ultérieurement."""
 ┃  _{verdict_text}_
 ┗━━━━━━━━━━━━━━━━━━━━━━┛
 
-━━━━━━━━━━━━━━━━━━━━━━━━
-
-💰 **PRIX & VARIATION**
-
-• Prix actuel: **{format_price(current_price)}**
-• Variation 24h: **{format_percent(price_change)}**
-• Direction: **{direction}** {'📈' if direction == 'LONG' else '📉' if direction == 'SHORT' else '➡️'}
-• Tendance: **{trend.upper()}**
-
-━━━━━━━━━━━━━━━━━━━━━━━━
-
-📊 **INDICATEURS TECHNIQUES**
+💰 **{format_price(current_price)}** ({format_percent(price_change)})
 
 """
-        # RSI
+
+        # ═══════════════════════════════════════════════════
+        # SECTION 2: VERDICT FINAL - LA DÉCISION
+        # ═══════════════════════════════════════════════════
+        text += self._generate_final_verdict(analysis, symbol)
+
+        # ═══════════════════════════════════════════════════
+        # SECTION 3: NIVEAUX D'ENTRÉE (Si opportunité)
+        # ═══════════════════════════════════════════════════
+        if optimal_targets and score >= 60:
+            text += "━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+            text += "🎯 **NIVEAUX D'ENTRÉE**\n\n"
+
+            support = analysis.get('support')
+            resistance = analysis.get('resistance')
+
+            if direction == "LONG" and support:
+                text += f"📍 Zone d'achat idéale: **{format_price(support)}** - **{format_price(current_price)}**\n"
+            elif direction == "SHORT" and resistance:
+                text += f"📍 Zone de vente idéale: **{format_price(current_price)}** - **{format_price(resistance)}**\n"
+
+            if optimal_targets.get('take_profit_1'):
+                text += f"🎯 Objectif 1: **{format_price(optimal_targets['take_profit_1'])}**\n"
+            if optimal_targets.get('take_profit_2'):
+                text += f"🎯 Objectif 2: **{format_price(optimal_targets['take_profit_2'])}**\n"
+            if optimal_targets.get('stop_loss'):
+                text += f"🛑 Stop-loss: **{format_price(optimal_targets['stop_loss'])}**\n"
+            if optimal_targets.get('risk_reward'):
+                rr = optimal_targets['risk_reward']
+                rr_quality = "Excellent" if rr >= 2.5 else "Bon" if rr >= 1.5 else "Acceptable" if rr >= 1 else "Faible"
+                text += f"⚖️ Risk/Reward: **{rr:.2f}** ({rr_quality})\n"
+            text += "\n"
+
+        # ═══════════════════════════════════════════════════
+        # SECTION 4: ANALYSE TECHNIQUE DÉTAILLÉE
+        # ═══════════════════════════════════════════════════
+        text += "━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+        text += "📊 **ANALYSE TECHNIQUE**\n\n"
+
+        # Tendance + Direction
+        trend_emoji = "📈" if trend == "bullish" else "📉" if trend == "bearish" else "➡️"
+        text += f"{trend_emoji} **Tendance:** {trend.upper()}\n"
+
+        # RSI avec contexte
         rsi_emoji, rsi_status = self._get_rsi_status(rsi_val)
-        text += f"{rsi_emoji} **RSI:** {rsi_val:.1f} ({rsi_status})\n"
-        if 'rsi' in explanations:
-            rsi_text = self._escape_markdown(explanations['rsi'].get('text', ''))
-            text += f"   {rsi_text}\n\n"
-        else:
-            text += "\n"
+        rsi_context = ""
+        if rsi_val < 30:
+            rsi_context = " → Zone d'achat potentielle"
+        elif rsi_val > 70:
+            rsi_context = " → Zone de vente potentielle"
+        elif 45 <= rsi_val <= 55:
+            rsi_context = " → Zone neutre"
+        text += f"{rsi_emoji} **RSI:** {rsi_val:.1f} ({rsi_status}){rsi_context}\n"
 
-        # Volume
+        # Volume avec contexte
         vol_emoji, vol_status = self._get_volume_status(vol_ratio)
-        text += f"{vol_emoji} **Volume:** x{vol_ratio:.2f} ({vol_status})\n"
-        if 'volume' in explanations:
-            vol_text = self._escape_markdown(explanations['volume'].get('text', ''))
-            text += f"   {vol_text}\n\n"
-        else:
-            text += "\n"
-
-        # ATR
-        text += f"📉 **Volatilité (ATR):** {format_price(volatility)}\n\n"
+        vol_context = ""
+        if vol_ratio > 1.5:
+            vol_context = " → Signal confirmé"
+        elif vol_ratio < 0.7:
+            vol_context = " → Prudence requise"
+        text += f"{vol_emoji} **Volume:** x{vol_ratio:.2f} ({vol_status}){vol_context}\n"
 
         # ADX si disponible
         adx = analysis.get('adx', {})
-        if adx:
+        if adx and adx.get('adx', 0) > 0:
             adx_val = adx.get('adx', 0)
-            adx_strength = "Fort" if adx_val > 25 else "Faible" if adx_val < 20 else "Modéré"
-            text += f"💪 **ADX:** {adx_val:.1f} (Tendance {adx_strength})\n\n"
+            if adx_val > 25:
+                text += f"💪 **ADX:** {adx_val:.1f} → Tendance forte, suivre le mouvement\n"
+            elif adx_val < 20:
+                text += f"😴 **ADX:** {adx_val:.1f} → Pas de tendance, éviter les trades directionnels\n"
+            else:
+                text += f"📊 **ADX:** {adx_val:.1f} → Tendance modérée\n"
 
+        text += "\n"
+
+        # ═══════════════════════════════════════════════════
+        # SECTION 5: NIVEAUX CLÉS
+        # ═══════════════════════════════════════════════════
         text += "━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+        text += "📍 **NIVEAUX CLÉS**\n\n"
 
-        # Niveaux clés
         support = analysis.get('support')
         resistance = analysis.get('resistance')
-
-        text += "📍 **NIVEAUX CLÉS**\n\n"
 
         if resistance:
             resist_dist = ((resistance - current_price) / current_price * 100) if current_price > 0 else 0
@@ -536,11 +580,16 @@ Veuillez réessayer ultérieurement."""
             if fib_auto.get('next_support'):
                 text += f"   • Support Fibo: {format_price(fib_auto['next_support']['price'])} ({fib_auto['next_support']['level']})\n"
 
-        text += "\n━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+        text += "\n"
+
+        # ═══════════════════════════════════════════════════
+        # SECTION 6: INDICATEURS AVANCÉS (accordéon-like)
+        # ═══════════════════════════════════════════════════
 
         # Ichimoku si disponible
         ichimoku = analysis.get('ichimoku', {})
         if ichimoku.get('available'):
+            text += "━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
             cloud_emoji = "🟢" if ichimoku.get('cloud_color') == 'GREEN' else "🔴"
             position = ichimoku.get('price_position', 'UNKNOWN')
             position_text = {
@@ -549,90 +598,233 @@ Veuillez réessayer ultérieurement."""
                 'IN_CLOUD': 'Dans le nuage ⚠️'
             }.get(position, position)
 
-            text += f"☁️ **ICHIMOKU**\n\n"
-            text += f"• Nuage: {cloud_emoji} {'Haussier' if ichimoku.get('cloud_color') == 'GREEN' else 'Baissier'}\n"
-            text += f"• Position: {position_text}\n"
-            text += f"• Score: {ichimoku.get('score', 50)}/100\n"
+            text += f"☁️ **ICHIMOKU:** {cloud_emoji} {'Haussier' if ichimoku.get('cloud_color') == 'GREEN' else 'Baissier'} | {position_text}\n"
             if ichimoku.get('interpretation'):
                 ichimoku_text = self._escape_markdown(ichimoku['interpretation'])
-                text += f"• {ichimoku_text}\n"
-            text += "\n━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+                text += f"   → {ichimoku_text}\n"
+            text += "\n"
 
         # Patterns détectés
         patterns = analysis.get('patterns_enhanced', {})
         if patterns.get('patterns'):
+            text += "━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
             text += "🔍 **PATTERNS DÉTECTÉS**\n\n"
             for pattern in patterns['patterns'][:3]:
                 signal_emoji = "🟢" if pattern.get('signal') == 'BULLISH' else "🔴" if pattern.get('signal') == 'BEARISH' else "⚪"
                 pattern_name = self._escape_markdown(pattern.get('name', 'Pattern'))
-                text += f"• {signal_emoji} **{pattern_name}**\n"
+                text += f"• {signal_emoji} **{pattern_name}**"
                 if pattern.get('description'):
                     pattern_desc = self._escape_markdown(pattern['description'])
-                    text += f"   {pattern_desc}\n"
-            text += "\n━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+                    text += f" → {pattern_desc}"
+                text += "\n"
+            text += "\n"
 
         # Momentum avancé
         momentum = analysis.get('momentum_enhanced', {})
         if momentum.get('available'):
-            text += "⚡ **MOMENTUM**\n\n"
-            text += f"• ROC (5): {momentum.get('roc_5', 0):+.2f}%\n"
-            text += f"• Williams %R: {momentum.get('williams_r', -50):.0f}\n"
-            text += f"• Score: {momentum.get('score', 50)}/100\n"
+            text += "━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+            text += f"⚡ **MOMENTUM:** Score {momentum.get('score', 50)}/100\n"
             if momentum.get('interpretation'):
                 momentum_text = self._escape_markdown(momentum['interpretation'])
-                text += f"• {momentum_text}\n"
-            text += "\n━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+                text += f"   → {momentum_text}\n"
+            text += "\n"
 
-        # Fiabilité du signal
-        reliability = analysis.get('signal_reliability', {})
+        # ═══════════════════════════════════════════════════
+        # SECTION 7: FIABILITÉ
+        # ═══════════════════════════════════════════════════
         if reliability:
+            text += "━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
             grade = reliability.get('grade', 'C')
             grade_stars = {'A': '⭐⭐⭐⭐⭐', 'B': '⭐⭐⭐⭐☆', 'C': '⭐⭐⭐☆☆', 'D': '⭐⭐☆☆☆', 'F': '⭐☆☆☆☆'}.get(grade, '⭐⭐⭐☆☆')
-            text += f"📋 **FIABILITÉ DU SIGNAL**\n\n"
-            text += f"• Grade: {grade_stars} **{grade}**\n"
-            text += f"• Confiance: {reliability.get('confidence', 'Modérée')}\n"
-            text += f"• Score: {reliability.get('score', 50)}/100\n"
+            text += f"📋 **FIABILITÉ:** {grade_stars} Grade **{grade}**\n"
 
             # Backtest si disponible
             backtest = analysis.get('backtest', {})
             if backtest.get('available') and backtest.get('win_rate', 0) > 0:
-                text += f"• Backtest: {backtest['win_rate']:.0f}% réussite historique\n"
+                text += f"   → Backtest: {backtest['win_rate']:.0f}% réussite historique\n"
+            text += "\n"
 
-            text += "\n━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
-
-        # Targets optimaux
-        optimal_targets = analysis.get('optimal_targets', {})
-        if optimal_targets:
-            text += "🎯 **OBJECTIFS & STOP-LOSS**\n\n"
-            if optimal_targets.get('take_profit_1'):
-                text += f"• TP1: **{format_price(optimal_targets['take_profit_1'])}**\n"
-            if optimal_targets.get('take_profit_2'):
-                text += f"• TP2: **{format_price(optimal_targets['take_profit_2'])}**\n"
-            if optimal_targets.get('stop_loss'):
-                text += f"• Stop-loss: **{format_price(optimal_targets['stop_loss'])}**\n"
-            if optimal_targets.get('risk_reward'):
-                text += f"• Risk/Reward: **{optimal_targets['risk_reward']:.2f}**\n"
-            text += "\n━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
-
-        # Recommandations
-        if recommendations:
-            text += "💡 **RECOMMANDATIONS**\n\n"
-            for i, rec in enumerate(recommendations[:6], 1):
-                rec_text = self._escape_markdown(rec)
-                text += f"{i}\\. {rec_text}\n"
-            text += "\n━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
-
-        # Risque
-        risk_level = analysis.get('risk_level', 'moderate')
+        # ═══════════════════════════════════════════════════
+        # SECTION 8: AVERTISSEMENTS & RISQUES
+        # ═══════════════════════════════════════════════════
+        text += "━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
         risk_emoji = EMOJI_RISK.get(risk_level, '⚠️')
-        text += f"{risk_emoji} **Niveau de risque:** {risk_level.upper()}\n\n"
+        risk_text = {
+            'low': 'Faible - Conditions favorables',
+            'moderate': 'Modéré - Stop-loss recommandé',
+            'medium': 'Moyen - Vigilance requise',
+            'high': 'Élevé - Position réduite conseillée'
+        }.get(risk_level, risk_level.upper())
+        text += f"{risk_emoji} **Risque:** {risk_text}\n\n"
 
-        # Résumé
+        # ═══════════════════════════════════════════════════
+        # SECTION 9: RÉSUMÉ TECHNIQUE (si disponible)
+        # ═══════════════════════════════════════════════════
         technical_summary = analysis.get('technical_summary', '')
         if technical_summary:
             summary_text = self._escape_markdown(technical_summary)
-            text += f"📝 **Résumé:** {summary_text}\n"
+            text += f"📝 {summary_text}\n"
 
+        return text
+
+    def _generate_final_verdict(self, analysis: dict, symbol: str) -> str:
+        """Génère le verdict final avec recommandation claire: ACHETER / ATTENDRE / NE PAS RENTRER"""
+        score = analysis.get('score', 0)
+        direction = analysis.get('direction', 'NEUTRE')
+        trend = analysis.get('trend', 'neutral')
+        rsi = analysis.get('rsi', 50)
+        vol_ratio = analysis.get('volume_ratio', 1.0)
+        risk_level = analysis.get('risk_level', 'moderate')
+        reliability = analysis.get('signal_reliability', {})
+        grade = reliability.get('grade', 'C')
+        optimal_targets = analysis.get('optimal_targets', {})
+        adx = analysis.get('adx', {})
+        ichimoku = analysis.get('ichimoku', {})
+        confluence = analysis.get('confluence', {})
+
+        # Calculer les points positifs et négatifs
+        pros = []
+        cons = []
+
+        # Analyse du score
+        if score >= 75:
+            pros.append("Score élevé")
+        elif score < 50:
+            cons.append("Score faible")
+
+        # Tendance vs Direction
+        if (trend == "bullish" and direction == "LONG") or (trend == "bearish" and direction == "SHORT"):
+            pros.append("Tendance alignée")
+        elif trend != "neutral" and direction != "NEUTRAL" and trend != direction.lower():
+            cons.append("Tendance opposée")
+
+        # RSI
+        if rsi < 35 and direction == "LONG":
+            pros.append("RSI en zone d'achat")
+        elif rsi > 65 and direction == "SHORT":
+            pros.append("RSI en zone de vente")
+        elif rsi > 70 and direction == "LONG":
+            cons.append("RSI en surachat")
+        elif rsi < 30 and direction == "SHORT":
+            cons.append("RSI en survente")
+
+        # Volume
+        if vol_ratio >= 1.5:
+            pros.append("Fort volume")
+        elif vol_ratio < 0.7:
+            cons.append("Volume faible")
+
+        # ADX
+        if adx.get('adx', 0) > 25:
+            pros.append("Tendance forte (ADX)")
+        elif adx.get('adx', 0) < 20:
+            cons.append("Pas de tendance (ADX)")
+
+        # Ichimoku
+        if ichimoku.get('available'):
+            if ichimoku.get('position_signal') == 'BULLISH' and direction == "LONG":
+                pros.append("Ichimoku haussier")
+            elif ichimoku.get('position_signal') == 'BEARISH' and direction == "SHORT":
+                pros.append("Ichimoku baissier")
+            elif ichimoku.get('price_position') == 'IN_CLOUD':
+                cons.append("Prix dans le nuage")
+
+        # Confluence
+        if confluence.get('aligned'):
+            pros.append("Confluence parfaite")
+
+        # Fiabilité
+        if grade in ['A', 'B']:
+            pros.append(f"Grade {grade}")
+        elif grade in ['D', 'F']:
+            cons.append(f"Grade {grade}")
+
+        # Risk/Reward
+        rr = optimal_targets.get('risk_reward', 0)
+        if rr >= 2:
+            pros.append(f"R/R excellent ({rr:.1f})")
+        elif rr > 0 and rr < 1:
+            cons.append(f"R/R défavorable ({rr:.1f})")
+
+        # Risque
+        if risk_level == "high":
+            cons.append("Risque élevé")
+        elif risk_level == "low":
+            pros.append("Risque faible")
+
+        # ═══════════════════════════════════════════════════
+        # DÉTERMINER LA RECOMMANDATION
+        # ═══════════════════════════════════════════════════
+
+        text = "━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+
+        # Logique de décision
+        if score >= 75 and direction != "NEUTRAL" and len(pros) >= 3 and grade in ['A', 'B', 'C']:
+            # ACHETER / VENDRE - Signal fort
+            if direction == "LONG":
+                text += "🟢 **VERDICT: ACHETER**\n\n"
+                text += "**Pourquoi entrer maintenant:**\n"
+            else:
+                text += "🔴 **VERDICT: VENDRE**\n\n"
+                text += "**Pourquoi shorter:**\n"
+
+            for pro in pros[:4]:
+                text += f"✅ {pro}\n"
+
+            if cons:
+                text += "\n**Points de vigilance:**\n"
+                for con in cons[:2]:
+                    text += f"⚠️ {con}\n"
+
+        elif score >= 60 and direction != "NEUTRAL" and len(cons) <= len(pros):
+            # ATTENDRE - Signal modéré
+            text += "🟡 **VERDICT: ATTENDRE**\n\n"
+
+            if direction == "LONG":
+                text += "**Le setup est intéressant mais:**\n"
+            else:
+                text += "**Signal de vente potentiel mais:**\n"
+
+            if cons:
+                for con in cons[:3]:
+                    text += f"⚠️ {con}\n"
+
+            text += "\n**Ce qui est positif:**\n"
+            for pro in pros[:3]:
+                text += f"✅ {pro}\n"
+
+            text += "\n💡 **Conseil:** "
+            if vol_ratio < 1:
+                text += "Attendre une augmentation du volume pour confirmer."
+            elif rsi > 60 and direction == "LONG":
+                text += "Attendre un pullback pour un meilleur point d'entrée."
+            elif rsi < 40 and direction == "SHORT":
+                text += "Attendre un rebond technique avant de shorter."
+            else:
+                text += "Patienter pour plus de confirmations."
+
+        else:
+            # NE PAS RENTRER - Conditions défavorables
+            text += "🔴 **VERDICT: NE PAS RENTRER**\n\n"
+            text += "**Pourquoi éviter ce trade:**\n"
+
+            if not cons:
+                if score < 50:
+                    cons.append("Score trop faible")
+                if direction == "NEUTRAL":
+                    cons.append("Pas de direction claire")
+
+            for con in cons[:4]:
+                text += f"❌ {con}\n"
+
+            if pros:
+                text += "\n**Éléments positifs malgré tout:**\n"
+                for pro in pros[:2]:
+                    text += f"• {pro}\n"
+
+            text += "\n💡 **Conseil:** Garder en watchlist et surveiller l'évolution."
+
+        text += "\n"
         return text
 
     async def show_asset_detail(self, update: Update, context: ContextTypes.DEFAULT_TYPE,

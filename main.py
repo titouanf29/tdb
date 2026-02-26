@@ -60,6 +60,11 @@ class TDBBot:
         self.token = config.TELEGRAM_TOKEN
         self.application = None
         self.auto_scanner = None
+        self.startup_status = {
+            'modules': {},
+            'services': {},
+            'errors': []
+        }
 
     async def initialize_database(self):
         """Initialise la base de données"""
@@ -85,41 +90,83 @@ class TDBBot:
         """Configure tous les modules du bot"""
         logger.info("Configuration des modules...")
 
+        # Handler prioritaire pour bloquer les commandes dans le canal d'annonces
+        # Groupe -1 = traité en premier
+        self.application.add_handler(
+            MessageHandler(filters.ALL, self.block_channel_commands),
+            group=-1
+        )
+        logger.info("✅ Filtre canal d'annonces activé (commandes bloquées)")
+
+        # Modules principaux (créés en premier)
         try:
-            # Handler prioritaire pour bloquer les commandes dans le canal d'annonces
-            # Groupe -1 = traité en premier
-            self.application.add_handler(
-                MessageHandler(filters.ALL, self.block_channel_commands),
-                group=-1
-            )
-            logger.info("✅ Filtre canal d'annonces activé (commandes bloquées)")
-
-            # Modules principaux (créés en premier)
             self.market_module = MarketModule(self.application)
+            self.startup_status['modules']['Marché'] = True
             logger.info("✅ Module Marché chargé")
+        except Exception as e:
+            self.startup_status['modules']['Marché'] = False
+            self.startup_status['errors'].append(f"Marché: {str(e)[:50]}")
+            logger.error(f"❌ Module Marché: {e}")
 
+        try:
             self.wallet_module = WalletModule(self.application)
+            self.startup_status['modules']['Wallet'] = True
             logger.info("✅ Module Wallet chargé")
+        except Exception as e:
+            self.startup_status['modules']['Wallet'] = False
+            self.startup_status['errors'].append(f"Wallet: {str(e)[:50]}")
+            logger.error(f"❌ Module Wallet: {e}")
 
+        try:
             self.favorites_module = FavoritesModule(self.application)
             # Enregistrer dans bot_data pour accès depuis autres modules
             self.application.bot_data['favorites_module'] = self.favorites_module
+            self.startup_status['modules']['Favoris'] = True
             logger.info("✅ Module Favoris chargé")
+        except Exception as e:
+            self.startup_status['modules']['Favoris'] = False
+            self.startup_status['errors'].append(f"Favoris: {str(e)[:50]}")
+            logger.error(f"❌ Module Favoris: {e}")
 
+        try:
             self.scan_module = ScanAutoModule(self.application)
+            self.startup_status['modules']['Scan Auto'] = True
             logger.info("✅ Module Scan Auto chargé")
+        except Exception as e:
+            self.startup_status['modules']['Scan Auto'] = False
+            self.startup_status['errors'].append(f"Scan Auto: {str(e)[:50]}")
+            logger.error(f"❌ Module Scan Auto: {e}")
 
+        try:
             self.settings_module = SettingsModule(self.application)
+            self.startup_status['modules']['Paramètres'] = True
             logger.info("✅ Module Paramètres chargé")
+        except Exception as e:
+            self.startup_status['modules']['Paramètres'] = False
+            self.startup_status['errors'].append(f"Paramètres: {str(e)[:50]}")
+            logger.error(f"❌ Module Paramètres: {e}")
 
+        try:
             # Trading Compagnon IA
             self.trading_companion = TradingCompanion(self.application)
+            self.startup_status['modules']['Trading Compagnon'] = True
             logger.info("✅ Trading Compagnon IA chargé")
+        except Exception as e:
+            self.startup_status['modules']['Trading Compagnon'] = False
+            self.startup_status['errors'].append(f"Trading Compagnon: {str(e)[:50]}")
+            logger.error(f"❌ Trading Compagnon: {e}")
 
+        try:
             # Module Admin
             self.admin_module = AdminModule(self.application)
+            self.startup_status['modules']['Admin'] = True
             logger.info("✅ Module Admin chargé")
+        except Exception as e:
+            self.startup_status['modules']['Admin'] = False
+            self.startup_status['errors'].append(f"Admin: {str(e)[:50]}")
+            logger.error(f"❌ Module Admin: {e}")
 
+        try:
             # Module Assistant IA
             self.ai_assistant_module = ai_assistant_module
             # Enregistrer les handlers pour l'assistant IA
@@ -145,34 +192,55 @@ class TDBBot:
             from telegram.ext import CommandHandler
             self.application.add_handler(CommandHandler("ai_assistant", self.ai_assistant_module.cmd_ai_assistant))
             self.application.add_handler(CommandHandler("stop_ai", self.ai_assistant_module.cmd_stop_ai))
+            self.startup_status['modules']['Assistant IA'] = True
             logger.info("✅ Module Assistant IA chargé")
+        except Exception as e:
+            self.startup_status['modules']['Assistant IA'] = False
+            self.startup_status['errors'].append(f"Assistant IA: {str(e)[:50]}")
+            logger.error(f"❌ Module Assistant IA: {e}")
 
+        try:
             # Module Features (alertes, screener, quiz, leaderboard, etc.)
             self.features_module = create_features_module(self.application)
+            self.startup_status['modules']['Features'] = True
             logger.info("✅ Module Features chargé (alertes, quiz, leaderboard, etc.)")
+        except Exception as e:
+            self.startup_status['modules']['Features'] = False
+            self.startup_status['errors'].append(f"Features: {str(e)[:50]}")
+            logger.error(f"❌ Module Features: {e}")
 
+        try:
             # Module Welcome (accueil + onboarding)
             self.welcome_module = create_welcome_module(self.application)
+            self.startup_status['modules']['Welcome'] = True
             logger.info("✅ Module Welcome chargé (accueil, onboarding, freemium)")
+        except Exception as e:
+            self.startup_status['modules']['Welcome'] = False
+            self.startup_status['errors'].append(f"Welcome: {str(e)[:50]}")
+            logger.error(f"❌ Module Welcome: {e}")
 
+        try:
             # Menu principal (créé en dernier avec références aux autres modules)
             self.menu_module = MenuModule(
                 self.application,
-                market_module=self.market_module,
-                wallet_module=self.wallet_module,
-                favorites_module=self.favorites_module,
-                scan_module=self.scan_module,
-                settings_module=self.settings_module,
-                ai_assistant_module=self.ai_assistant_module,
-                features_module=self.features_module
+                market_module=getattr(self, 'market_module', None),
+                wallet_module=getattr(self, 'wallet_module', None),
+                favorites_module=getattr(self, 'favorites_module', None),
+                scan_module=getattr(self, 'scan_module', None),
+                settings_module=getattr(self, 'settings_module', None),
+                ai_assistant_module=getattr(self, 'ai_assistant_module', None),
+                features_module=getattr(self, 'features_module', None)
             )
+            self.startup_status['modules']['Menu'] = True
             logger.info("✅ Module Menu chargé")
-
-            logger.info("🎉 Tous les modules sont chargés")
-
         except Exception as e:
-            logger.error(f"❌ Erreur chargement modules: {e}")
-            raise
+            self.startup_status['modules']['Menu'] = False
+            self.startup_status['errors'].append(f"Menu: {str(e)[:50]}")
+            logger.error(f"❌ Module Menu: {e}")
+
+        modules_ok = sum(1 for v in self.startup_status['modules'].values() if v)
+        modules_total = len(self.startup_status['modules'])
+        logger.info(f"🎉 Modules chargés: {modules_ok}/{modules_total}")
 
     async def error_handler(self, update, context):
         """Gère les erreurs"""
@@ -182,6 +250,73 @@ class TDBBot:
             await update.effective_message.reply_text(
                 "❌ Une erreur s'est produite. Veuillez réessayer."
             )
+
+    async def send_startup_notification(self):
+        """Envoie une notification de redémarrage dans le canal principal"""
+        if not config.CHANNEL_ID:
+            logger.info("ℹ️ CHANNEL_ID non configuré - Notification de démarrage ignorée")
+            return
+
+        try:
+            from datetime import datetime
+
+            # Compter les succès et échecs
+            modules_ok = sum(1 for v in self.startup_status['modules'].values() if v)
+            modules_total = len(self.startup_status['modules'])
+            services_ok = sum(1 for v in self.startup_status['services'].values() if v)
+            services_total = len(self.startup_status['services'])
+
+            # Déterminer le statut global
+            all_ok = len(self.startup_status['errors']) == 0
+
+            if all_ok:
+                status_emoji = "✅"
+                status_text = "Opérationnel"
+            else:
+                status_emoji = "⚠️"
+                status_text = "Partiellement opérationnel"
+
+            # Construire le message
+            message = f"""
+{status_emoji} **TDB Bot - Redémarrage**
+
+🕐 {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}
+
+**Statut:** {status_text}
+
+📦 **Modules:** {modules_ok}/{modules_total} actifs
+"""
+            # Lister les modules défaillants si besoin
+            failed_modules = [k for k, v in self.startup_status['modules'].items() if not v]
+            if failed_modules:
+                message += f"   ❌ Échecs: {', '.join(failed_modules)}\n"
+
+            message += f"""
+⚙️ **Services:** {services_ok}/{services_total} actifs
+"""
+            # Lister les services défaillants si besoin
+            failed_services = [k for k, v in self.startup_status['services'].items() if not v]
+            if failed_services:
+                message += f"   ❌ Échecs: {', '.join(failed_services)}\n"
+
+            # Ajouter les erreurs critiques si présentes
+            if self.startup_status['errors']:
+                message += "\n⚠️ **Problèmes détectés:**\n"
+                for error in self.startup_status['errors'][:3]:  # Max 3 erreurs
+                    message += f"   • {error}\n"
+
+            message += "\n🤖 Le bot est prêt à recevoir des commandes."
+
+            # Envoyer au canal
+            await self.application.bot.send_message(
+                chat_id=config.CHANNEL_ID,
+                text=message,
+                parse_mode='Markdown'
+            )
+            logger.info(f"✅ Notification de démarrage envoyée au canal {config.CHANNEL_ID}")
+
+        except Exception as e:
+            logger.error(f"❌ Erreur envoi notification démarrage: {e}")
 
     async def run(self):
         """Lance le bot"""
@@ -216,34 +351,102 @@ class TDBBot:
 
         # Initialiser le service de broadcast
         logger.info("🔄 Initialisation du service de broadcast...")
-        self.broadcast_service = init_broadcast_service(self.application.bot)
-        # Passer la référence au module admin
-        self.admin_module.broadcast_service = self.broadcast_service
-        logger.info("✅ Service de broadcast initialisé")
+        try:
+            self.broadcast_service = init_broadcast_service(self.application.bot)
+            # Passer la référence au module admin
+            if hasattr(self, 'admin_module'):
+                self.admin_module.broadcast_service = self.broadcast_service
+            self.startup_status['services']['Broadcast'] = True
+            logger.info("✅ Service de broadcast initialisé")
+        except Exception as e:
+            self.startup_status['services']['Broadcast'] = False
+            self.startup_status['errors'].append(f"Broadcast: {str(e)[:50]}")
+            logger.error(f"❌ Service Broadcast: {e}")
 
         # Initialiser et démarrer le scanner automatique APRÈS que le bot soit connecté
         logger.info("🔄 Démarrage du scanner automatique...")
-        self.auto_scanner = init_auto_scanner(self.application.bot)
-        self.auto_scanner.start()
+        try:
+            self.auto_scanner = init_auto_scanner(self.application.bot)
+            self.auto_scanner.start()
+            self.startup_status['services']['Scanner Auto'] = True
+            logger.info("✅ Scanner automatique démarré")
+        except Exception as e:
+            self.startup_status['services']['Scanner Auto'] = False
+            self.startup_status['errors'].append(f"Scanner Auto: {str(e)[:50]}")
+            logger.error(f"❌ Service Scanner Auto: {e}")
 
         # Démarrer les nouveaux services
         logger.info("🔄 Démarrage des services avancés...")
-        await alerts_service.start(self.application.bot)
-        await social_service.start(self.application.bot)
-        await morning_service.start(self.application.bot)
-        await notification_service.start(self.application.bot)
-        await cache_service.start_cleanup_task()
-        await backup_service.start()
-        logger.info("✅ Services avancés démarrés (alertes, social, morning, notifications, cache, backup)")
+
+        try:
+            await alerts_service.start(self.application.bot)
+            self.startup_status['services']['Alertes'] = True
+        except Exception as e:
+            self.startup_status['services']['Alertes'] = False
+            self.startup_status['errors'].append(f"Alertes: {str(e)[:50]}")
+            logger.error(f"❌ Service Alertes: {e}")
+
+        try:
+            await social_service.start(self.application.bot)
+            self.startup_status['services']['Social'] = True
+        except Exception as e:
+            self.startup_status['services']['Social'] = False
+            self.startup_status['errors'].append(f"Social: {str(e)[:50]}")
+            logger.error(f"❌ Service Social: {e}")
+
+        try:
+            await morning_service.start(self.application.bot)
+            self.startup_status['services']['Morning'] = True
+        except Exception as e:
+            self.startup_status['services']['Morning'] = False
+            self.startup_status['errors'].append(f"Morning: {str(e)[:50]}")
+            logger.error(f"❌ Service Morning: {e}")
+
+        try:
+            await notification_service.start(self.application.bot)
+            self.startup_status['services']['Notifications'] = True
+        except Exception as e:
+            self.startup_status['services']['Notifications'] = False
+            self.startup_status['errors'].append(f"Notifications: {str(e)[:50]}")
+            logger.error(f"❌ Service Notifications: {e}")
+
+        try:
+            await cache_service.start_cleanup_task()
+            self.startup_status['services']['Cache'] = True
+        except Exception as e:
+            self.startup_status['services']['Cache'] = False
+            self.startup_status['errors'].append(f"Cache: {str(e)[:50]}")
+            logger.error(f"❌ Service Cache: {e}")
+
+        try:
+            await backup_service.start()
+            self.startup_status['services']['Backup'] = True
+        except Exception as e:
+            self.startup_status['services']['Backup'] = False
+            self.startup_status['errors'].append(f"Backup: {str(e)[:50]}")
+            logger.error(f"❌ Service Backup: {e}")
+
+        services_ok = sum(1 for v in self.startup_status['services'].values() if v)
+        services_total = len(self.startup_status['services'])
+        logger.info(f"✅ Services avancés: {services_ok}/{services_total} démarrés")
 
         # Démarrer le service Discord si configuré
         if discord_service.enabled:
-            # Configurer le bot Telegram pour les notifications cross-platform
-            discord_service.set_telegram_bot(self.application.bot)
-            asyncio.create_task(discord_service.start_market_monitor())
-            logger.info("✅ Service Discord démarré (alertes marchés: Asie, Europe, US, Matières Premières)")
+            try:
+                # Configurer le bot Telegram pour les notifications cross-platform
+                discord_service.set_telegram_bot(self.application.bot)
+                asyncio.create_task(discord_service.start_market_monitor())
+                self.startup_status['services']['Discord'] = True
+                logger.info("✅ Service Discord démarré (alertes marchés: Asie, Europe, US, Matières Premières)")
+            except Exception as e:
+                self.startup_status['services']['Discord'] = False
+                self.startup_status['errors'].append(f"Discord: {str(e)[:50]}")
+                logger.error(f"❌ Service Discord: {e}")
         else:
             logger.info("ℹ️ Discord non configuré (DISCORD_WEBHOOK_URL manquant)")
+
+        # Envoyer la notification de démarrage dans le canal principal
+        await self.send_startup_notification()
 
         # Message de démarrage
         logger.info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
