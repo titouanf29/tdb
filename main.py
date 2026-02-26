@@ -260,31 +260,45 @@ class TDBBot:
         try:
             from datetime import datetime
             import aiosqlite
-            import os
 
-            # Vérifier si une notification a déjà été envoyée récemment (5 min)
-            # On utilise un fichier dans le dossier du projet pour persister
-            from pathlib import Path
-            startup_flag_file = Path(__file__).parent / ".last_startup_notification"
             current_time = datetime.now()
 
-            if startup_flag_file.exists():
-                try:
-                    last_notification_str = startup_flag_file.read_text().strip()
-                    last_notification = datetime.fromisoformat(last_notification_str)
-                    time_diff = (current_time - last_notification).total_seconds()
+            # Utiliser la base de données pour stocker le dernier timestamp
+            # Plus fiable qu'un fichier qui peut être supprimé par les redéploiements
+            async with aiosqlite.connect(config.DATABASE_PATH) as db:
+                # Créer la table si elle n'existe pas
+                await db.execute("""
+                    CREATE TABLE IF NOT EXISTS bot_settings (
+                        key TEXT PRIMARY KEY,
+                        value TEXT,
+                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    )
+                """)
+                await db.commit()
 
-                    if time_diff < 300:  # Moins de 5 minutes
-                        logger.info(f"⏭️ Notification de démarrage ignorée (dernière il y a {time_diff:.0f}s)")
-                        return
-                except Exception as e:
-                    logger.debug(f"Erreur lecture flag: {e}")
+                # Vérifier la dernière notification
+                async with db.execute(
+                    "SELECT value FROM bot_settings WHERE key = 'last_startup_notification'"
+                ) as cursor:
+                    row = await cursor.fetchone()
 
-            # Enregistrer le timestamp de cette notification
-            try:
-                startup_flag_file.write_text(current_time.isoformat())
-            except Exception as e:
-                logger.debug(f"Erreur écriture flag: {e}")
+                if row:
+                    try:
+                        last_notification = datetime.fromisoformat(row[0])
+                        time_diff = (current_time - last_notification).total_seconds()
+
+                        if time_diff < 300:  # Moins de 5 minutes
+                            logger.info(f"⏭️ Notification de démarrage ignorée (dernière il y a {time_diff:.0f}s)")
+                            return
+                    except Exception as e:
+                        logger.debug(f"Erreur parsing timestamp: {e}")
+
+                # Enregistrer le nouveau timestamp
+                await db.execute("""
+                    INSERT OR REPLACE INTO bot_settings (key, value, updated_at)
+                    VALUES ('last_startup_notification', ?, CURRENT_TIMESTAMP)
+                """, (current_time.isoformat(),))
+                await db.commit()
 
             # Compter les succès et échecs
             modules_ok = sum(1 for v in self.startup_status['modules'].values() if v)
