@@ -259,6 +259,33 @@ class TDBBot:
 
         try:
             from datetime import datetime
+            import aiosqlite
+            import os
+
+            # Vérifier si une notification a déjà été envoyée récemment (5 min)
+            # On utilise un fichier temporaire pour persister entre les redémarrages
+            startup_flag_file = "/tmp/tdb_startup_notification.txt"
+            current_time = datetime.now()
+
+            if os.path.exists(startup_flag_file):
+                try:
+                    with open(startup_flag_file, 'r') as f:
+                        last_notification_str = f.read().strip()
+                        last_notification = datetime.fromisoformat(last_notification_str)
+                        time_diff = (current_time - last_notification).total_seconds()
+
+                        if time_diff < 300:  # Moins de 5 minutes
+                            logger.info(f"⏭️ Notification de démarrage ignorée (dernière il y a {time_diff:.0f}s)")
+                            return
+                except Exception:
+                    pass  # Si erreur lecture, on continue
+
+            # Enregistrer le timestamp de cette notification
+            try:
+                with open(startup_flag_file, 'w') as f:
+                    f.write(current_time.isoformat())
+            except Exception:
+                pass  # Ignorer les erreurs d'écriture
 
             # Compter les succès et échecs
             modules_ok = sum(1 for v in self.startup_status['modules'].values() if v)
