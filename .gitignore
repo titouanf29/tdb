@@ -59,3 +59,4 @@ trading_sessions.json
 # Temporary files
 *.tmp
 *.temp
+.last_startup_notification

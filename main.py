@@ -263,29 +263,28 @@ class TDBBot:
             import os
 
             # Vérifier si une notification a déjà été envoyée récemment (5 min)
-            # On utilise un fichier temporaire pour persister entre les redémarrages
-            startup_flag_file = "/tmp/tdb_startup_notification.txt"
+            # On utilise un fichier dans le dossier du projet pour persister
+            from pathlib import Path
+            startup_flag_file = Path(__file__).parent / ".last_startup_notification"
             current_time = datetime.now()
 
-            if os.path.exists(startup_flag_file):
+            if startup_flag_file.exists():
                 try:
-                    with open(startup_flag_file, 'r') as f:
-                        last_notification_str = f.read().strip()
-                        last_notification = datetime.fromisoformat(last_notification_str)
-                        time_diff = (current_time - last_notification).total_seconds()
+                    last_notification_str = startup_flag_file.read_text().strip()
+                    last_notification = datetime.fromisoformat(last_notification_str)
+                    time_diff = (current_time - last_notification).total_seconds()
 
-                        if time_diff < 300:  # Moins de 5 minutes
-                            logger.info(f"⏭️ Notification de démarrage ignorée (dernière il y a {time_diff:.0f}s)")
-                            return
-                except Exception:
-                    pass  # Si erreur lecture, on continue
+                    if time_diff < 300:  # Moins de 5 minutes
+                        logger.info(f"⏭️ Notification de démarrage ignorée (dernière il y a {time_diff:.0f}s)")
+                        return
+                except Exception as e:
+                    logger.debug(f"Erreur lecture flag: {e}")
 
             # Enregistrer le timestamp de cette notification
             try:
-                with open(startup_flag_file, 'w') as f:
-                    f.write(current_time.isoformat())
-            except Exception:
-                pass  # Ignorer les erreurs d'écriture
+                startup_flag_file.write_text(current_time.isoformat())
+            except Exception as e:
+                logger.debug(f"Erreur écriture flag: {e}")
 
             # Compter les succès et échecs
             modules_ok = sum(1 for v in self.startup_status['modules'].values() if v)
