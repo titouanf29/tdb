@@ -735,75 +735,81 @@ Veuillez réessayer ultérieurement."""
         ichimoku = analysis.get('ichimoku', {})
         confluence = analysis.get('confluence', {})
 
-        # Calculer les points positifs et négatifs
+        # Calculer les points positifs et négatifs avec explications détaillées
         pros = []
         cons = []
 
         # Analyse du score
         if score >= 75:
-            pros.append("Score élevé")
+            pros.append(f"Score technique de {score}/100 : les indicateurs sont majoritairement favorables")
         elif score < 50:
-            cons.append("Score faible")
+            cons.append(f"Score technique faible ({score}/100) : peu d'indicateurs confirment le mouvement")
 
         # Tendance vs Direction
         if (trend == "bullish" and direction == "LONG") or (trend == "bearish" and direction == "SHORT"):
-            pros.append("Tendance alignée")
+            trend_txt = "haussière" if trend == "bullish" else "baissière"
+            pros.append(f"La tendance {trend_txt} confirme le signal → on trade dans le sens du marché")
         elif trend != "neutral" and direction != "NEUTRAL" and trend != direction.lower():
-            cons.append("Tendance opposée")
+            cons.append("Le signal va contre la tendance principale → risque de correction")
 
         # RSI
         if rsi < 35 and direction == "LONG":
-            pros.append("RSI en zone d'achat")
+            pros.append(f"RSI à {rsi:.0f} (survente) : le prix est sous-évalué, potentiel de rebond")
         elif rsi > 65 and direction == "SHORT":
-            pros.append("RSI en zone de vente")
+            pros.append(f"RSI à {rsi:.0f} (surachat) : le prix est surévalué, correction probable")
         elif rsi > 70 and direction == "LONG":
-            cons.append("RSI en surachat")
+            cons.append(f"RSI à {rsi:.0f} (surachat) : risque de correction après une montée excessive")
         elif rsi < 30 and direction == "SHORT":
-            cons.append("RSI en survente")
+            cons.append(f"RSI à {rsi:.0f} (survente) : un rebond technique est probable")
 
         # Volume
         if vol_ratio >= 1.5:
-            pros.append("Fort volume")
+            pros.append(f"Volume {vol_ratio:.1f}x supérieur à la moyenne : le mouvement est soutenu par les échanges")
         elif vol_ratio < 0.7:
-            cons.append("Volume faible")
+            cons.append(f"Volume faible ({vol_ratio:.1f}x la moyenne) : manque de conviction du marché")
 
         # ADX
-        if adx.get('adx', 0) > 25:
-            pros.append("Tendance forte (ADX)")
-        elif adx.get('adx', 0) < 20:
-            cons.append("Pas de tendance (ADX)")
+        adx_value = adx.get('adx', 0)
+        if adx_value > 25:
+            pros.append(f"ADX à {adx_value:.0f} : tendance forte et bien établie")
+        elif adx_value < 20:
+            cons.append(f"ADX à {adx_value:.0f} : pas de tendance claire, marché en range")
 
         # Ichimoku
         if ichimoku.get('available'):
             if ichimoku.get('position_signal') == 'BULLISH' and direction == "LONG":
-                pros.append("Ichimoku haussier")
+                pros.append("Ichimoku haussier : prix au-dessus du nuage, momentum favorable")
             elif ichimoku.get('position_signal') == 'BEARISH' and direction == "SHORT":
-                pros.append("Ichimoku baissier")
+                pros.append("Ichimoku baissier : prix sous le nuage, pression vendeuse confirmée")
             elif ichimoku.get('price_position') == 'IN_CLOUD':
-                cons.append("Prix dans le nuage")
+                cons.append("Prix dans le nuage Ichimoku : zone d'incertitude, attendre une sortie claire")
 
         # Confluence
         if confluence.get('aligned'):
-            pros.append("Confluence parfaite")
+            pros.append("Confluence parfaite : plusieurs indicateurs pointent dans la même direction")
 
         # Fiabilité
-        if grade in ['A', 'B']:
-            pros.append(f"Grade {grade}")
-        elif grade in ['D', 'F']:
-            cons.append(f"Grade {grade}")
+        if grade == 'A':
+            pros.append("Grade A : signal très fiable avec forte probabilité de succès")
+        elif grade == 'B':
+            pros.append("Grade B : signal fiable avec de bonnes chances de réussite")
+        elif grade == 'D':
+            cons.append("Grade D : signal peu fiable, conditions défavorables")
+        elif grade == 'F':
+            cons.append("Grade F : signal très risqué, à éviter")
 
         # Risk/Reward
         rr = optimal_targets.get('risk_reward', 0)
         if rr >= 2:
-            pros.append(f"R/R excellent ({rr:.1f})")
+            pros.append(f"Ratio risque/gain de {rr:.1f} : gain potentiel {rr:.1f}x supérieur au risque")
         elif rr > 0 and rr < 1:
-            cons.append(f"R/R défavorable ({rr:.1f})")
+            cons.append(f"Ratio risque/gain de {rr:.1f} : le risque dépasse le gain potentiel")
 
         # Risque
         if risk_level == "high":
-            cons.append("Risque élevé")
+            cons.append("Risque élevé : volatilité importante, adapter la taille de position")
         elif risk_level == "low":
-            pros.append("Risque faible")
+            pros.append("Risque faible : conditions stables pour une entrée sereine")
 
         # ═══════════════════════════════════════════════════
         # DÉTERMINER LA RECOMMANDATION
@@ -816,66 +822,75 @@ Veuillez réessayer ultérieurement."""
             # ACHETER / VENDRE - Signal fort
             if direction == "LONG":
                 text += "🟢 **VERDICT: ACHETER**\n\n"
-                text += "**Pourquoi entrer maintenant:**\n"
+                text += "Les conditions sont réunies pour une entrée à l'achat.\n\n"
+                text += "**Arguments en faveur de l'achat :**\n"
             else:
-                text += "🔴 **VERDICT: VENDRE**\n\n"
-                text += "**Pourquoi shorter:**\n"
+                text += "🔴 **VERDICT: VENDRE (SHORT)**\n\n"
+                text += "Les conditions sont réunies pour une position vendeuse.\n\n"
+                text += "**Arguments en faveur de la vente :**\n"
 
             for pro in pros[:4]:
                 text += f"✅ {pro}\n"
 
             if cons:
-                text += "\n**Points de vigilance:**\n"
+                text += "\n**Points de vigilance à surveiller :**\n"
                 for con in cons[:2]:
                     text += f"⚠️ {con}\n"
+
+            # Conseil d'exécution
+            text += "\n💡 **Comment entrer :** Placer un ordre limit proche du prix actuel. "
+            text += "Définir un stop-loss et respecter la taille de position recommandée."
 
         elif score >= 60 and direction != "NEUTRAL" and len(cons) <= len(pros):
             # ATTENDRE - Signal modéré
             text += "🟡 **VERDICT: ATTENDRE**\n\n"
+            text += "Le setup montre du potentiel mais n'est pas encore optimal.\n\n"
 
             if direction == "LONG":
-                text += "**Le setup est intéressant mais:**\n"
+                text += "**Ce qui freine l'entrée à l'achat :**\n"
             else:
-                text += "**Signal de vente potentiel mais:**\n"
+                text += "**Ce qui freine l'entrée en short :**\n"
 
             if cons:
                 for con in cons[:3]:
                     text += f"⚠️ {con}\n"
 
-            text += "\n**Ce qui est positif:**\n"
+            text += "\n**Ce qui est encourageant :**\n"
             for pro in pros[:3]:
                 text += f"✅ {pro}\n"
 
-            text += "\n💡 **Conseil:** "
+            text += "\n💡 **Que faire maintenant ?** "
             if vol_ratio < 1:
-                text += "Attendre une augmentation du volume pour confirmer."
+                text += "Le volume est insuffisant. Attendre que les échanges s'intensifient pour valider le mouvement. Un volume faible peut signifier un faux signal."
             elif rsi > 60 and direction == "LONG":
-                text += "Attendre un pullback pour un meilleur point d'entrée."
+                text += "Le RSI est déjà élevé. Attendre une correction (pullback) vers un support pour obtenir un meilleur prix d'entrée et réduire le risque."
             elif rsi < 40 and direction == "SHORT":
-                text += "Attendre un rebond technique avant de shorter."
+                text += "Le RSI est déjà bas. Attendre un rebond technique vers une résistance pour shorter à un meilleur niveau."
             else:
-                text += "Patienter pour plus de confirmations."
+                text += "Mettre en alerte et patienter. Les conditions peuvent s'améliorer rapidement. Vérifier les prochaines bougies pour plus de confirmations."
 
         else:
             # NE PAS RENTRER - Conditions défavorables
             text += "🔴 **VERDICT: NE PAS RENTRER**\n\n"
-            text += "**Pourquoi éviter ce trade:**\n"
+            text += "Les conditions actuelles ne sont pas favorables pour un trade.\n\n"
+            text += "**Raisons d'éviter ce trade :**\n"
 
             if not cons:
                 if score < 50:
-                    cons.append("Score trop faible")
+                    cons.append("Score technique insuffisant : les indicateurs ne confirment pas le mouvement")
                 if direction == "NEUTRAL":
-                    cons.append("Pas de direction claire")
+                    cons.append("Aucune direction claire : le marché hésite entre acheteurs et vendeurs")
 
             for con in cons[:4]:
                 text += f"❌ {con}\n"
 
             if pros:
-                text += "\n**Éléments positifs malgré tout:**\n"
+                text += "\n**Éléments positifs malgré tout :**\n"
                 for pro in pros[:2]:
                     text += f"• {pro}\n"
 
-            text += "\n💡 **Conseil:** Garder en watchlist et surveiller l'évolution."
+            text += "\n💡 **Que faire ?** Ajouter cet actif à votre watchlist. "
+            text += "Les conditions peuvent changer rapidement. Surveiller l'évolution du score et des indicateurs pour identifier un meilleur point d'entrée."
 
         text += "\n"
         return text
