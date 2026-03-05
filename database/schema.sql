@@ -626,3 +626,14 @@ CREATE TABLE IF NOT EXISTS custom_assets (
     added_by INTEGER,  -- telegram_id de l'admin
     added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+-- ===== RÉSUMÉS D'ÉVÉNEMENTS ÉCONOMIQUES ENVOYÉS =====
+CREATE TABLE IF NOT EXISTS event_summaries_sent (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    event_key TEXT NOT NULL UNIQUE, -- Format: "TYPE_DATE" ex: "FOMC_2026-03-18"
+    event_type TEXT NOT NULL,
+    event_date TEXT NOT NULL,
+    sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_event_summaries_key ON event_summaries_sent(event_key);

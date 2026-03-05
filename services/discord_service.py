@@ -1431,7 +1431,7 @@ RÈGLES:
                     continue
 
                 # Marquer comme envoyé AVANT l'envoi pour éviter les doublons
-                economic_calendar.mark_summary_sent(event)
+                await economic_calendar.mark_summary_sent(event)
 
                 # Envoyer sur Discord
                 embed = {

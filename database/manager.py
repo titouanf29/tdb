@@ -1772,6 +1772,25 @@ class DatabaseManager:
             await db.commit()
         return True
 
+    # ===== RÉSUMÉS ÉVÉNEMENTS ÉCONOMIQUES =====
+
+    async def is_event_summary_sent(self, event_key: str) -> bool:
+        """Vérifie si un résumé d'événement a déjà été envoyé"""
+        async with aiosqlite.connect(self.db_path) as db:
+            async with db.execute(
+                "SELECT 1 FROM event_summaries_sent WHERE event_key = ?", (event_key,)
+            ) as cursor:
+                return await cursor.fetchone() is not None
+
+    async def mark_event_summary_sent(self, event_key: str, event_type: str, event_date: str):
+        """Marque un résumé d'événement comme envoyé"""
+        async with aiosqlite.connect(self.db_path) as db:
+            await db.execute("""
+                INSERT OR IGNORE INTO event_summaries_sent (event_key, event_type, event_date)
+                VALUES (?, ?, ?)
+            """, (event_key, event_type, event_date))
+            await db.commit()
+
 
 # Instance globale
 db_manager = DatabaseManager()

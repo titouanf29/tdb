@@ -567,10 +567,10 @@ Termine par: "🤖 Analyse IA: [conséquences pour les marchés]" """)
         """
         Vérifie si un événement vient de se terminer et nécessite un résumé.
         Retourne les événements à résumer (passés depuis 30-90 min).
+        Utilise la DB pour éviter les doublons après redémarrage.
         """
+        from database.manager import db_manager
         now_utc = datetime.now(timezone.utc)
-        # Chercher dans les dernières 24h
-        past_start = now_utc - timedelta(hours=24)
 
         to_summarize = []
         for e in self._all_events_list():
@@ -581,20 +581,24 @@ Termine par: "🤖 Analyse IA: [conséquences pour les marchés]" """)
 
                 # L'événement a eu lieu dans les 30-90 minutes
                 elapsed_min = (now_utc - event_dt).total_seconds() / 60
-                if 30 <= elapsed_min <= 90 and ev_key not in self._summaries_sent:
+                # Vérifier en DB si déjà envoyé (persistant après redémarrage)
+                already_sent = await db_manager.is_event_summary_sent(ev_key)
+                if 30 <= elapsed_min <= 90 and not already_sent:
                     to_summarize.append({
                         **e, 'datetime_utc': event_dt,
                         'days_until': -1, 'hours_until': -elapsed_min / 60
                     })
-                    # Ne pas marquer tout de suite — le caller marquera après envoi
             except Exception:
                 pass
 
         return to_summarize
 
-    def mark_summary_sent(self, event: Dict):
-        """Marque un événement comme résumé envoyé"""
+    async def mark_summary_sent(self, event: Dict):
+        """Marque un événement comme résumé envoyé (persisté en DB)"""
+        from database.manager import db_manager
         ev_key = f"{event['type']}_{event['date_str']}"
+        await db_manager.mark_event_summary_sent(ev_key, event['type'], event['date_str'])
+        # Garder aussi en mémoire pour éviter les appels DB redondants
         self._summaries_sent.add(ev_key)
 
     # ============================================================
