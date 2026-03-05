@@ -551,8 +551,8 @@ Termine par: "🤖 Analyse IA: [conséquences pour les marchés]" """)
             hours = event.get('hours_until', 999)
             ev_key = f"{event['type']}_{event['date_str']}"
 
-            # Alertes: 24h avant, 2h avant, 30min avant
-            for threshold_h, threshold_label in [(24, '24h'), (2, '2h'), (0.5, '30min')]:
+            # Alerte unique: 2h avant l'événement (évite trop de notifications)
+            for threshold_h, threshold_label in [(2, '2h')]:
                 notif_key = f"{ev_key}_{threshold_label}"
                 if notif_key not in self._upcoming_notifs_sent:
                     # Fenêtre de 10 minutes autour du seuil
