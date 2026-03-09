@@ -1,0 +1,40 @@
+version: '3.8'
+
+services:
+  # Backend FastAPI
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - JWT_SECRET=${JWT_SECRET:-change-this-secret}
+      - FRONTEND_URL=${FRONTEND_URL:-http://localhost:3000}
+      - TELEGRAM_TOKEN=${TELEGRAM_TOKEN}
+    volumes:
+      - ../trading_bot.db:/app/database/trading_bot.db
+      - ../.env:/app/.env:ro
+    restart: unless-stopped
+    networks:
+      - tdb-network
+
+  # Frontend Next.js
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://backend:8000
+      - NEXT_PUBLIC_WS_URL=ws://backend:8000/ws
+    depends_on:
+      - backend
+    restart: unless-stopped
+    networks:
+      - tdb-network
+
+networks:
+  tdb-network:
+    driver: bridge
