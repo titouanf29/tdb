@@ -60,3 +60,9 @@ trading_sessions.json
 *.tmp
 *.temp
 .last_startup_notification
+
+# Node.js / Next.js
+node_modules/
+.next/
+package-lock.json
+tsconfig.tsbuildinfo
