@@ -79,9 +79,9 @@ async def health():
 
 if __name__ == "__main__":
     import uvicorn
+    # Use app object directly to avoid path conflicts with root main.py
     uvicorn.run(
-        "main:app",
+        app,
         host="0.0.0.0",
-        port=8000,
-        reload=True
+        port=8000
     )
