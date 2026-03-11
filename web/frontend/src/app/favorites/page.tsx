@@ -13,11 +13,13 @@ import {
   Search,
   RefreshCw,
 } from "lucide-react";
-import { cn, formatCurrency, formatPercent } from "@/lib/utils";
+import { cn, formatPercent } from "@/lib/utils";
 import { favoritesAPI, Favorite } from "@/lib/api";
+import { useFormatCurrency } from "@/lib/SettingsContext";
 
 export default function FavoritesPage() {
   const router = useRouter();
+  const formatCurrency = useFormatCurrency();
   const [favorites, setFavorites] = useState<Favorite[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);

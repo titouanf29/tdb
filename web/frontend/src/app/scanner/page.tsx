@@ -14,8 +14,9 @@ import {
   Loader2,
   RefreshCw,
 } from "lucide-react";
-import { cn, formatCurrency, formatPercent } from "@/lib/utils";
+import { cn, formatPercent } from "@/lib/utils";
 import { analysisAPI, marketAPI, Market } from "@/lib/api";
+import { useFormatCurrency } from "@/lib/SettingsContext";
 
 interface ScanResult {
   symbol: string;
@@ -27,6 +28,7 @@ interface ScanResult {
 
 export default function ScannerPage() {
   const router = useRouter();
+  const formatCurrency = useFormatCurrency();
   const [markets, setMarkets] = useState<Market[]>([]);
   const [selectedMarket, setSelectedMarket] = useState("USA");
   const [minScore, setMinScore] = useState(60);

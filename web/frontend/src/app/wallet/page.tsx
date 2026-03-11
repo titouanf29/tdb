@@ -13,10 +13,12 @@ import {
   RefreshCw,
   History,
 } from "lucide-react";
-import { cn, formatCurrency, formatPercent } from "@/lib/utils";
+import { cn, formatPercent } from "@/lib/utils";
 import { walletAPI, WalletBalance, Position, TradingStats } from "@/lib/api";
+import { useFormatCurrency } from "@/lib/SettingsContext";
 
 export default function WalletPage() {
+  const formatCurrency = useFormatCurrency();
   const [balance, setBalance] = useState<WalletBalance | null>(null);
   const [positions, setPositions] = useState<Position[]>([]);
   const [history, setHistory] = useState<Position[]>([]);

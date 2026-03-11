@@ -15,8 +15,9 @@ import {
   RefreshCw,
   Loader2,
 } from "lucide-react";
-import { cn, formatCurrency, formatPercent } from "@/lib/utils";
+import { cn, formatPercent } from "@/lib/utils";
 import { walletAPI, analysisAPI, WalletBalance, Position, TradingStats } from "@/lib/api";
+import { useFormatCurrency } from "@/lib/SettingsContext";
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -32,6 +33,7 @@ const itemVariants = {
 };
 
 export default function Dashboard() {
+  const formatCurrency = useFormatCurrency();
   const [balance, setBalance] = useState<WalletBalance | null>(null);
   const [positions, setPositions] = useState<Position[]>([]);
   const [stats, setStats] = useState<TradingStats | null>(null);
@@ -161,7 +163,7 @@ export default function Dashboard() {
             ) : (
               <div className="space-y-3">
                 {positions.slice(0, 5).map((pos) => (
-                  <PositionCard key={pos.id} position={pos} />
+                  <PositionCard key={pos.id} position={pos} formatCurrency={formatCurrency} />
                 ))}
               </div>
             )}
@@ -266,7 +268,7 @@ function StatCard({
   );
 }
 
-function PositionCard({ position }: { position: Position }) {
+function PositionCard({ position, formatCurrency }: { position: Position; formatCurrency: (value: number) => string }) {
   const isProfit = (position.unrealized_pnl || 0) >= 0;
 
   return (

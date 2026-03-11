@@ -24,13 +24,15 @@ import {
   Gauge,
   LineChart,
 } from "lucide-react";
-import { cn, formatCurrency, formatPercent } from "@/lib/utils";
+import { cn, formatPercent } from "@/lib/utils";
 import { analysisAPI, favoritesAPI, Analysis } from "@/lib/api";
 import { getAssetInfo, getAssetLogo } from "@/lib/assetInfo";
+import { useFormatCurrency } from "@/lib/SettingsContext";
 
 export default function AnalysisPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const formatCurrency = useFormatCurrency();
 
   const [symbol, setSymbol] = useState(searchParams.get("symbol") || "");
   const [timeframe, setTimeframe] = useState("1d");
@@ -144,7 +146,7 @@ export default function AnalysisPage() {
       {analysis && (
         <>
           {/* Asset Header */}
-          <AssetHeader analysis={analysis} isFavorite={isFavorite} toggleFavorite={toggleFavorite} />
+          <AssetHeader analysis={analysis} isFavorite={isFavorite} toggleFavorite={toggleFavorite} formatCurrency={formatCurrency} />
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Main score card */}
@@ -347,7 +349,7 @@ export default function AnalysisPage() {
           </motion.div>
 
           {/* Detailed Analysis */}
-          <DetailedAnalysis analysis={analysis} />
+          <DetailedAnalysis analysis={analysis} formatCurrency={formatCurrency} />
         </>
       )}
 
@@ -430,11 +432,13 @@ function IndicatorCard({
 function AssetHeader({
   analysis,
   isFavorite,
-  toggleFavorite
+  toggleFavorite,
+  formatCurrency
 }: {
   analysis: Analysis;
   isFavorite: boolean;
   toggleFavorite: () => void;
+  formatCurrency: (value: number) => string;
 }) {
   const assetInfo = getAssetInfo(analysis.symbol);
   const logoUrl = getAssetLogo(analysis.symbol);
@@ -504,7 +508,7 @@ function AssetHeader({
 }
 
 // Detailed Analysis with explanations
-function DetailedAnalysis({ analysis }: { analysis: Analysis }) {
+function DetailedAnalysis({ analysis, formatCurrency }: { analysis: Analysis; formatCurrency: (value: number) => string }) {
   const getRSIInterpretation = () => {
     const rsi = analysis.indicators.rsi.value;
     if (rsi < 30) {

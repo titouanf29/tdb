@@ -15,10 +15,11 @@ import {
   Clock,
   Circle,
 } from "lucide-react";
-import { cn, formatCurrency, formatPercent, formatVolume } from "@/lib/utils";
+import { cn, formatPercent, formatVolume } from "@/lib/utils";
 import { marketAPI, favoritesAPI, Market, Asset } from "@/lib/api";
 import { getAssetInfo, getAssetLogo } from "@/lib/assetInfo";
 import { isMarketOpen, getMarketHoursDisplay, getTimeUntilChange } from "@/lib/marketStatus";
+import { useFormatCurrency } from "@/lib/SettingsContext";
 
 const marketIcons: Record<string, string> = {
   USA: "🇺🇸",
@@ -31,6 +32,7 @@ const marketIcons: Record<string, string> = {
 
 export default function MarketsPage() {
   const router = useRouter();
+  const formatCurrency = useFormatCurrency();
   const [markets, setMarkets] = useState<Market[]>([]);
   const [selectedMarket, setSelectedMarket] = useState<string>("");
   const [assets, setAssets] = useState<Asset[]>([]);

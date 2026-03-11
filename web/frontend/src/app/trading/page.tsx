@@ -14,12 +14,14 @@ import {
   Check,
   AlertCircle,
 } from "lucide-react";
-import { cn, formatCurrency, formatPercent } from "@/lib/utils";
+import { cn, formatPercent } from "@/lib/utils";
 import { walletAPI, marketAPI, WalletBalance, Quote } from "@/lib/api";
+import { useFormatCurrency } from "@/lib/SettingsContext";
 
 export default function TradingPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const formatCurrency = useFormatCurrency();
 
   const [symbol, setSymbol] = useState(searchParams.get("symbol") || "AAPL");
   const [direction, setDirection] = useState<"LONG" | "SHORT">("LONG");
