@@ -122,16 +122,25 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
 
 async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
     """Get current authenticated user from JWT"""
+    print(f"[AUTH] get_current_user called")
+    print(f"[AUTH] credentials: {credentials}")
+
     if not credentials:
+        print("[AUTH] No credentials provided")
         raise HTTPException(status_code=401, detail="Not authenticated")
+
+    print(f"[AUTH] Token: {credentials.credentials[:50]}...")
 
     try:
         payload = jwt.decode(credentials.credentials, SECRET_KEY, algorithms=[ALGORITHM])
+        print(f"[AUTH] Decoded payload: {payload}")
         user_id = payload.get("sub")
         user_type = payload.get("type", "telegram")  # email or telegram
         if user_id is None:
+            print("[AUTH] user_id is None")
             raise HTTPException(status_code=401, detail="Invalid token")
-    except JWTError:
+    except JWTError as e:
+        print(f"[AUTH] JWTError: {e}")
         raise HTTPException(status_code=401, detail="Invalid token")
 
     if user_type == "email":
