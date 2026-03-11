@@ -1,24 +1,18 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { motion } from "framer-motion";
 import { Eye, EyeOff, TrendingUp, Loader2 } from "lucide-react";
 import { login } from "@/lib/auth";
 
 export default function LoginPage() {
   const router = useRouter();
-  const [mounted, setMounted] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -35,20 +29,8 @@ export default function LoginPage() {
     }
   };
 
-  if (!mounted) {
-    return (
-      <div className="w-full max-w-md opacity-0">
-        <div className="glass-card p-8" />
-      </div>
-    );
-  }
-
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="w-full max-w-md"
-    >
+    <div className="w-full max-w-md animate-fade-in">
       <div className="glass-card p-8">
         {/* Logo */}
         <div className="text-center mb-8">
@@ -66,13 +48,9 @@ export default function LoginPage() {
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-4">
           {error && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm"
-            >
+            <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm animate-fade-in">
               {error}
-            </motion.div>
+            </div>
           )}
 
           <div>
@@ -143,6 +121,6 @@ export default function LoginPage() {
       <p className="text-center text-xs text-muted-foreground mt-4">
         Paper Trading uniquement - Aucun risque financier reel
       </p>
-    </motion.div>
+    </div>
   );
 }
