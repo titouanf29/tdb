@@ -71,6 +71,16 @@ async def init_web_tables():
             )
         """)
 
+        # Wallet for web users
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS wallet (
+                user_id TEXT PRIMARY KEY,
+                balance REAL DEFAULT 10000.0,
+                currency TEXT DEFAULT 'USD',
+                created_at TEXT NOT NULL
+            )
+        """)
+
         await db.commit()
         _initialized = True
 

@@ -18,12 +18,15 @@ load_dotenv(Path(__file__).parent.parent.parent / ".env")
 
 from api.routes import auth, market, wallet, analysis, users, ai_assistant, favorites
 from api.websocket import websocket_router
+from api.database import init_web_tables
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Startup and shutdown events"""
     print("🚀 TDB Web API starting...")
+    await init_web_tables()
+    print("✅ Database tables initialized")
     yield
     print("👋 TDB Web API shutting down...")
 
