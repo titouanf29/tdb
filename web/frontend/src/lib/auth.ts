@@ -115,11 +115,17 @@ export async function getMe(): Promise<User | null> {
 
   try {
     const response = await fetch(`${API_URL}/api/auth/me`, {
-      headers: { Authorization: `Bearer ${token}` },
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
     });
 
     if (!response.ok) {
-      removeToken();
+      // Only remove token on explicit 401, not other errors
+      if (response.status === 401) {
+        removeToken();
+      }
       return null;
     }
 
@@ -127,7 +133,7 @@ export async function getMe(): Promise<User | null> {
     setUser(user);
     return user;
   } catch {
-    removeToken();
+    // Don't remove token on network errors
     return null;
   }
 }
