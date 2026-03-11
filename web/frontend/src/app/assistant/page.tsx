@@ -2,29 +2,15 @@
 
 import { useState, useRef, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Bot, Send, User, Sparkles, Loader2 } from "lucide-react";
+import { Bot, Send, User, Sparkles, Loader2, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-
-interface Message {
-  id: number;
-  role: "user" | "assistant";
-  content: string;
-  timestamp: Date;
-}
-
-const initialMessages: Message[] = [
-  {
-    id: 1,
-    role: "assistant",
-    content: "Bonjour ! Je suis votre assistant trading IA. Je peux vous aider avec :\n\n- Analyse d'actifs\n- Explications des indicateurs techniques\n- Stratégies de trading\n- Questions sur les marchés\n\nComment puis-je vous aider ?",
-    timestamp: new Date(),
-  },
-];
+import { aiAPI, ChatMessage } from "@/lib/api";
 
 export default function AssistantPage() {
-  const [messages, setMessages] = useState<Message[]>(initialMessages);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -35,32 +21,75 @@ export default function AssistantPage() {
     scrollToBottom();
   }, [messages]);
 
+  // Load chat history on mount
+  useEffect(() => {
+    const loadHistory = async () => {
+      try {
+        const data = await aiAPI.getHistory(50);
+        setMessages(data.messages);
+      } catch (error) {
+        console.error("Error loading history:", error);
+      } finally {
+        setIsLoadingHistory(false);
+      }
+    };
+    loadHistory();
+  }, []);
+
   const handleSend = async () => {
     if (!input.trim() || isLoading) return;
 
-    const userMessage: Message = {
-      id: messages.length + 1,
+    const userMessage: ChatMessage = {
       role: "user",
       content: input,
-      timestamp: new Date(),
+      created_at: new Date().toISOString(),
     };
 
     setMessages((prev) => [...prev, userMessage]);
     setInput("");
     setIsLoading(true);
 
-    // Simulate AI response
-    setTimeout(() => {
-      const aiResponse: Message = {
-        id: messages.length + 2,
+    try {
+      const response = await aiAPI.chat(input);
+
+      const aiMessage: ChatMessage = {
         role: "assistant",
-        content: getAIResponse(input),
-        timestamp: new Date(),
+        content: response.response,
+        created_at: new Date().toISOString(),
       };
-      setMessages((prev) => [...prev, aiResponse]);
+
+      setMessages((prev) => [...prev, aiMessage]);
+    } catch (error) {
+      console.error("Error sending message:", error);
+
+      const errorMessage: ChatMessage = {
+        role: "assistant",
+        content: "Desole, une erreur s'est produite. Veuillez reessayer.",
+        created_at: new Date().toISOString(),
+      };
+
+      setMessages((prev) => [...prev, errorMessage]);
+    } finally {
       setIsLoading(false);
-    }, 1500);
+    }
   };
+
+  const clearHistory = async () => {
+    try {
+      await aiAPI.clearHistory();
+      setMessages([]);
+    } catch (error) {
+      console.error("Error clearing history:", error);
+    }
+  };
+
+  if (isLoadingHistory) {
+    return (
+      <div className="flex items-center justify-center min-h-[50vh]">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <motion.div
@@ -70,27 +99,67 @@ export default function AssistantPage() {
     >
       {/* Header */}
       <div className="glass-card p-4 mb-4">
-        <div className="flex items-center gap-3">
-          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary to-purple-500 flex items-center justify-center">
-            <Bot className="w-6 h-6 text-white" />
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary to-purple-500 flex items-center justify-center">
+              <Bot className="w-6 h-6 text-white" />
+            </div>
+            <div>
+              <h1 className="font-bold flex items-center gap-2">
+                Assistant IA Trading
+                <Sparkles className="w-4 h-4 text-yellow-500" />
+              </h1>
+              <p className="text-sm text-muted-foreground">
+                Powered by Groq (Llama 3)
+              </p>
+            </div>
           </div>
-          <div>
-            <h1 className="font-bold flex items-center gap-2">
-              Assistant IA Trading
-              <Sparkles className="w-4 h-4 text-yellow-500" />
-            </h1>
-            <p className="text-sm text-muted-foreground">
-              Powered by Groq (Llama 3)
-            </p>
-          </div>
+          {messages.length > 0 && (
+            <button
+              onClick={clearHistory}
+              className="p-2 rounded-lg hover:bg-white/5 text-muted-foreground hover:text-foreground transition-colors"
+              title="Effacer l'historique"
+            >
+              <Trash2 className="w-5 h-5" />
+            </button>
+          )}
         </div>
       </div>
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto space-y-4 pr-2">
-        {messages.map((message) => (
+        {messages.length === 0 && (
+          <div className="text-center py-12">
+            <Bot className="w-16 h-16 mx-auto mb-4 text-muted-foreground opacity-50" />
+            <h2 className="text-lg font-semibold mb-2">
+              Bienvenue ! Je suis votre assistant trading IA
+            </h2>
+            <p className="text-muted-foreground max-w-md mx-auto">
+              Posez-moi des questions sur le trading, les indicateurs techniques,
+              les strategies, ou demandez une analyse d'actif.
+            </p>
+            <div className="flex flex-wrap justify-center gap-2 mt-6">
+              {[
+                "Explique-moi le RSI",
+                "Qu'est-ce que le MACD ?",
+                "Analyse AAPL",
+                "Strategies de trading"
+              ].map((suggestion) => (
+                <button
+                  key={suggestion}
+                  onClick={() => setInput(suggestion)}
+                  className="px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-sm transition-colors"
+                >
+                  {suggestion}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {messages.map((message, index) => (
           <motion.div
-            key={message.id}
+            key={index}
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             className={cn(
@@ -129,7 +198,7 @@ export default function AssistantPage() {
                     : "text-muted-foreground"
                 )}
               >
-                {message.timestamp.toLocaleTimeString("fr-FR", {
+                {new Date(message.created_at).toLocaleTimeString("fr-FR", {
                   hour: "2-digit",
                   minute: "2-digit",
                 })}
@@ -173,37 +242,19 @@ export default function AssistantPage() {
             whileTap={{ scale: 0.95 }}
             onClick={handleSend}
             disabled={!input.trim() || isLoading}
-            className="btn-primary px-6"
+            className="btn-primary px-6 disabled:opacity-50"
           >
-            <Send className="w-4 h-4" />
+            {isLoading ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Send className="w-4 h-4" />
+            )}
           </motion.button>
         </div>
         <p className="text-xs text-muted-foreground mt-2 text-center">
-          L'assistant ne donne pas de conseils financiers personnalisés
+          L'assistant ne donne pas de conseils financiers personnalises
         </p>
       </div>
     </motion.div>
   );
-}
-
-function getAIResponse(input: string): string {
-  const lowerInput = input.toLowerCase();
-
-  if (lowerInput.includes("rsi")) {
-    return "Le **RSI (Relative Strength Index)** est un indicateur de momentum qui mesure la vitesse et le changement des mouvements de prix.\n\n**Interprétation :**\n- RSI > 70 : Zone de surachat (signal de vente potentiel)\n- RSI < 30 : Zone de survente (signal d'achat potentiel)\n- RSI entre 40-60 : Zone neutre\n\n**Conseil :** Ne jamais utiliser le RSI seul, combinez-le avec d'autres indicateurs !";
-  }
-
-  if (lowerInput.includes("macd")) {
-    return "Le **MACD (Moving Average Convergence Divergence)** est un indicateur de tendance et de momentum.\n\n**Composants :**\n- Ligne MACD : EMA(12) - EMA(26)\n- Ligne Signal : EMA(9) du MACD\n- Histogramme : MACD - Signal\n\n**Signaux :**\n- Croisement haussier : MACD passe au-dessus du Signal\n- Croisement baissier : MACD passe en-dessous du Signal\n- Divergences : Indiquent un potentiel retournement";
-  }
-
-  if (lowerInput.includes("bitcoin") || lowerInput.includes("btc")) {
-    return "**Bitcoin (BTC)** est la première et plus grande cryptomonnaie par capitalisation.\n\n**Points clés :**\n- Actif très volatile\n- Marché 24/7\n- Corrélé aux marchés traditionnels en période de stress\n- Halving tous les 4 ans\n\nVoulez-vous que j'analyse le BTC en détail ?";
-  }
-
-  if (lowerInput.includes("stratégie") || lowerInput.includes("strategy")) {
-    return "Voici quelques **stratégies populaires** :\n\n**1. Trend Following**\n- Suivre la tendance dominante\n- Utiliser EMA 20/50/200\n\n**2. Mean Reversion**\n- Acheter les dips dans une tendance haussière\n- Utiliser RSI et Bollinger Bands\n\n**3. Breakout Trading**\n- Trader les cassures de niveaux clés\n- Volume important requis\n\nQuelle stratégie vous intéresse ?";
-  }
-
-  return "Je comprends votre question. Pour vous aider au mieux, pourriez-vous me donner plus de détails ?\n\nJe peux vous aider avec :\n- L'analyse d'un actif spécifique\n- L'explication d'indicateurs techniques\n- Des stratégies de trading\n- La gestion du risque\n\nN'hésitez pas à me poser des questions précises !";
 }

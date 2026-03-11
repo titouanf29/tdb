@@ -1,31 +1,84 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import {
   ScanLine,
   Play,
   Pause,
-  Settings,
   TrendingUp,
   TrendingDown,
   Zap,
   Filter,
+  Loader2,
+  RefreshCw,
 } from "lucide-react";
 import { cn, formatCurrency, formatPercent } from "@/lib/utils";
+import { analysisAPI, marketAPI, Market } from "@/lib/api";
 
-const mockResults = [
-  { symbol: "SOL-USD", score: 92, change: 8.5, signal: "STRONG BUY", price: 142.5 },
-  { symbol: "NVDA", score: 87, change: 4.2, signal: "STRONG BUY", price: 875.4 },
-  { symbol: "AMD", score: 82, change: 3.8, signal: "BUY", price: 178.9 },
-  { symbol: "META", score: 78, change: 2.1, signal: "BUY", price: 502.3 },
-  { symbol: "AAPL", score: 72, change: 1.2, signal: "BUY", price: 182.5 },
-];
+interface ScanResult {
+  symbol: string;
+  price: number;
+  change: number;
+  score: number;
+  rsi: number;
+}
 
 export default function ScannerPage() {
-  const [isScanning, setIsScanning] = useState(false);
-  const [selectedMarket, setSelectedMarket] = useState("ALL");
+  const router = useRouter();
+  const [markets, setMarkets] = useState<Market[]>([]);
+  const [selectedMarket, setSelectedMarket] = useState("USA");
   const [minScore, setMinScore] = useState(60);
+  const [results, setResults] = useState<ScanResult[]>([]);
+  const [isScanning, setIsScanning] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [autoScan, setAutoScan] = useState(false);
+
+  // Load markets
+  useEffect(() => {
+    marketAPI.getMarkets().then((data) => {
+      setMarkets(data.markets);
+      setIsLoading(false);
+    }).catch(console.error);
+  }, []);
+
+  // Scan function
+  const runScan = async () => {
+    setIsScanning(true);
+    try {
+      const data = await analysisAPI.scan(selectedMarket, minScore, 20);
+      setResults(data.results);
+    } catch (error) {
+      console.error("Error scanning:", error);
+    } finally {
+      setIsScanning(false);
+    }
+  };
+
+  // Auto-scan
+  useEffect(() => {
+    if (!autoScan) return;
+
+    runScan();
+    const interval = setInterval(runScan, 60000); // Every minute
+    return () => clearInterval(interval);
+  }, [autoScan, selectedMarket, minScore]);
+
+  const getSignal = (score: number) => {
+    if (score >= 75) return "STRONG BUY";
+    if (score >= 60) return "BUY";
+    if (score >= 40) return "HOLD";
+    return "SELL";
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[50vh]">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <motion.div
@@ -38,35 +91,51 @@ export default function ScannerPage() {
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2">
             <ScanLine className="w-6 h-6 text-primary" />
-            Scanner de Marchés
+            Scanner de Marches
           </h1>
           <p className="text-muted-foreground">
-            Détection automatique des meilleures opportunités
+            Detection automatique des meilleures opportunites
           </p>
         </div>
-        <motion.button
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-          onClick={() => setIsScanning(!isScanning)}
-          className={cn(
-            "px-6 py-3 rounded-xl font-bold flex items-center gap-2 transition-all",
-            isScanning
-              ? "bg-loss text-white shadow-[0_0_30px_rgba(239,68,68,0.3)]"
-              : "bg-profit text-white shadow-[0_0_30px_rgba(16,185,129,0.3)]"
-          )}
-        >
-          {isScanning ? (
-            <>
-              <Pause className="w-5 h-5" />
-              Arrêter
-            </>
-          ) : (
-            <>
-              <Play className="w-5 h-5" />
-              Lancer le Scan
-            </>
-          )}
-        </motion.button>
+        <div className="flex gap-3">
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={runScan}
+            disabled={isScanning}
+            className="px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 flex items-center gap-2 disabled:opacity-50"
+          >
+            {isScanning ? (
+              <Loader2 className="w-5 h-5 animate-spin" />
+            ) : (
+              <RefreshCw className="w-5 h-5" />
+            )}
+            Scanner
+          </motion.button>
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => setAutoScan(!autoScan)}
+            className={cn(
+              "px-6 py-2 rounded-xl font-bold flex items-center gap-2 transition-all",
+              autoScan
+                ? "bg-loss text-white shadow-[0_0_30px_rgba(239,68,68,0.3)]"
+                : "bg-profit text-white shadow-[0_0_30px_rgba(16,185,129,0.3)]"
+            )}
+          >
+            {autoScan ? (
+              <>
+                <Pause className="w-5 h-5" />
+                Arreter
+              </>
+            ) : (
+              <>
+                <Play className="w-5 h-5" />
+                Auto-Scan
+              </>
+            )}
+          </motion.button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -74,22 +143,22 @@ export default function ScannerPage() {
         <div className="flex flex-wrap gap-4 items-center">
           <div className="flex items-center gap-2">
             <Filter className="w-4 h-4 text-muted-foreground" />
-            <span className="text-sm text-muted-foreground">Filtres:</span>
+            <span className="text-sm text-muted-foreground">Marche:</span>
           </div>
 
-          <div className="flex gap-2">
-            {["ALL", "USA", "CRYPTO", "EUROPE", "FOREX"].map((market) => (
+          <div className="flex flex-wrap gap-2">
+            {markets.map((market) => (
               <button
-                key={market}
-                onClick={() => setSelectedMarket(market)}
+                key={market.key}
+                onClick={() => setSelectedMarket(market.key)}
                 className={cn(
                   "px-3 py-1.5 rounded-lg text-sm font-medium transition-all",
-                  selectedMarket === market
+                  selectedMarket === market.key
                     ? "bg-primary text-white"
                     : "bg-white/5 hover:bg-white/10"
                 )}
               >
-                {market}
+                {market.name}
               </button>
             ))}
           </div>
@@ -110,7 +179,7 @@ export default function ScannerPage() {
       </div>
 
       {/* Scanning animation */}
-      {isScanning && (
+      {isScanning && autoScan && (
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -128,7 +197,7 @@ export default function ScannerPage() {
           </div>
           <p className="text-lg font-semibold">Scan en cours...</p>
           <p className="text-sm text-muted-foreground">
-            Analyse de 150+ actifs sur {selectedMarket}
+            Analyse des actifs sur {selectedMarket}
           </p>
         </motion.div>
       )}
@@ -137,70 +206,82 @@ export default function ScannerPage() {
       <div className="glass-card p-6">
         <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
           <Zap className="w-5 h-5 text-warning" />
-          Opportunités Détectées ({mockResults.length})
+          Opportunites Detectees ({results.length})
         </h2>
 
-        <div className="space-y-3">
-          {mockResults.map((result, index) => (
-            <motion.div
-              key={result.symbol}
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: index * 0.1 }}
-              className="p-4 rounded-xl bg-white/5 hover:bg-white/10 transition-all cursor-pointer group"
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <div
-                    className={cn(
-                      "w-14 h-14 rounded-xl flex items-center justify-center font-bold text-lg border-2",
-                      result.score >= 80
-                        ? "bg-profit/20 border-profit text-profit"
-                        : result.score >= 60
-                        ? "bg-green-400/20 border-green-400 text-green-400"
-                        : "bg-warning/20 border-warning text-warning"
-                    )}
-                  >
-                    {result.score}
-                  </div>
-                  <div>
-                    <p className="font-bold text-lg">{result.symbol}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {result.signal}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-6">
-                  <div className="text-right">
-                    <p className="font-semibold">{formatCurrency(result.price)}</p>
-                    <p
+        {results.length === 0 ? (
+          <div className="text-center py-12 text-muted-foreground">
+            <ScanLine className="w-12 h-12 mx-auto mb-4 opacity-50" />
+            <p>Cliquez sur "Scanner" pour detecter les opportunites</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {results.map((result, index) => (
+              <motion.div
+                key={result.symbol}
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: index * 0.05 }}
+                onClick={() => router.push(`/analysis?symbol=${result.symbol}`)}
+                className="p-4 rounded-xl bg-white/5 hover:bg-white/10 transition-all cursor-pointer group"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <div
                       className={cn(
-                        "text-sm flex items-center justify-end gap-1",
-                        result.change >= 0 ? "text-profit" : "text-loss"
+                        "w-14 h-14 rounded-xl flex items-center justify-center font-bold text-lg border-2",
+                        result.score >= 80
+                          ? "bg-profit/20 border-profit text-profit"
+                          : result.score >= 60
+                          ? "bg-green-400/20 border-green-400 text-green-400"
+                          : "bg-warning/20 border-warning text-warning"
                       )}
                     >
-                      {result.change >= 0 ? (
-                        <TrendingUp className="w-4 h-4" />
-                      ) : (
-                        <TrendingDown className="w-4 h-4" />
-                      )}
-                      {formatPercent(result.change)}
-                    </p>
+                      {result.score}
+                    </div>
+                    <div>
+                      <p className="font-bold text-lg">{result.symbol}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {getSignal(result.score)} | RSI: {result.rsi.toFixed(1)}
+                      </p>
+                    </div>
                   </div>
 
-                  <motion.button
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    className="btn-primary opacity-0 group-hover:opacity-100 transition-opacity"
-                  >
-                    Analyser
-                  </motion.button>
+                  <div className="flex items-center gap-6">
+                    <div className="text-right">
+                      <p className="font-semibold">{formatCurrency(result.price)}</p>
+                      <p
+                        className={cn(
+                          "text-sm flex items-center justify-end gap-1",
+                          result.change >= 0 ? "text-profit" : "text-loss"
+                        )}
+                      >
+                        {result.change >= 0 ? (
+                          <TrendingUp className="w-4 h-4" />
+                        ) : (
+                          <TrendingDown className="w-4 h-4" />
+                        )}
+                        {formatPercent(result.change)}
+                      </p>
+                    </div>
+
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      className="btn-primary opacity-0 group-hover:opacity-100 transition-opacity"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        router.push(`/trading?symbol=${result.symbol}`);
+                      }}
+                    >
+                      Trader
+                    </motion.button>
+                  </div>
                 </div>
-              </div>
-            </motion.div>
-          ))}
-        </div>
+              </motion.div>
+            ))}
+          </div>
+        )}
       </div>
     </motion.div>
   );

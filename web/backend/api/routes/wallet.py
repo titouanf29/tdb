@@ -12,6 +12,13 @@ from .auth import get_current_user
 router = APIRouter()
 
 
+def get_user_id(user: dict) -> str:
+    """Get unified user ID for database queries"""
+    if user.get("user_type") == "email":
+        return f"web_{user['id']}"
+    return str(user.get("telegram_id", user.get("id")))
+
+
 class OpenPositionRequest(BaseModel):
     symbol: str
     direction: str  # "LONG" or "SHORT"
@@ -28,9 +35,11 @@ class ClosePositionRequest(BaseModel):
 @router.get("/balance")
 async def get_wallet_balance(current_user: dict = Depends(get_current_user)):
     """Get user's wallet balance"""
+    user_id = get_user_id(current_user)
+
     wallets = await execute_query(
         "SELECT * FROM wallet WHERE user_id = ?",
-        (current_user["telegram_id"],)
+        (user_id,)
     )
 
     if not wallets:
@@ -38,7 +47,7 @@ async def get_wallet_balance(current_user: dict = Depends(get_current_user)):
         await execute_write(
             """INSERT INTO wallet (user_id, balance, currency, created_at)
                VALUES (?, 10000.0, 'USD', ?)""",
-            (current_user["telegram_id"], datetime.utcnow().isoformat())
+            (user_id, datetime.utcnow().isoformat())
         )
         return {
             "balance": 10000.0,
@@ -52,7 +61,7 @@ async def get_wallet_balance(current_user: dict = Depends(get_current_user)):
     # Calculate total positions value
     positions = await execute_query(
         "SELECT * FROM positions WHERE user_id = ? AND status = 'open'",
-        (current_user["telegram_id"],)
+        (user_id,)
     )
 
     positions_value = sum(p.get("current_value", 0) or 0 for p in positions)
@@ -73,9 +82,11 @@ async def get_positions(
     current_user: dict = Depends(get_current_user)
 ):
     """Get user's positions"""
+    user_id = get_user_id(current_user)
+
     positions = await execute_query(
         "SELECT * FROM positions WHERE user_id = ? AND status = ? ORDER BY created_at DESC",
-        (current_user["telegram_id"], status)
+        (user_id, status)
     )
 
     # Update current prices for open positions
@@ -126,10 +137,12 @@ async def open_position(
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Invalid symbol: {str(e)}")
 
+    user_id = get_user_id(current_user)
+
     # Check balance
     wallets = await execute_query(
         "SELECT * FROM wallet WHERE user_id = ?",
-        (current_user["telegram_id"],)
+        (user_id,)
     )
 
     if not wallets or wallets[0]["balance"] < request.amount:
@@ -144,7 +157,7 @@ async def open_position(
            (user_id, symbol, direction, entry_price, quantity, amount, leverage,
             take_profit, stop_loss, status, created_at)
            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'open', ?)""",
-        (current_user["telegram_id"], request.symbol, request.direction.upper(),
+        (user_id, request.symbol, request.direction.upper(),
          current_price, quantity, request.amount, request.leverage,
          request.take_profit, request.stop_loss, datetime.utcnow().isoformat())
     )
@@ -153,7 +166,7 @@ async def open_position(
     new_balance = wallets[0]["balance"] - request.amount
     await execute_write(
         "UPDATE wallet SET balance = ? WHERE user_id = ?",
-        (new_balance, current_user["telegram_id"])
+        (new_balance, user_id)
     )
 
     return {
@@ -173,10 +186,12 @@ async def close_position(
     """Close an existing position"""
     import yfinance as yf
 
+    user_id = get_user_id(current_user)
+
     # Get position
     positions = await execute_query(
         "SELECT * FROM positions WHERE id = ? AND user_id = ? AND status = 'open'",
-        (request.position_id, current_user["telegram_id"])
+        (request.position_id, user_id)
     )
 
     if not positions:
@@ -212,13 +227,13 @@ async def close_position(
     # Update balance
     wallets = await execute_query(
         "SELECT * FROM wallet WHERE user_id = ?",
-        (current_user["telegram_id"],)
+        (user_id,)
     )
 
     new_balance = wallets[0]["balance"] + position["amount"] + pnl
     await execute_write(
         "UPDATE wallet SET balance = ? WHERE user_id = ?",
-        (new_balance, current_user["telegram_id"])
+        (new_balance, user_id)
     )
 
     return {
@@ -236,12 +251,14 @@ async def get_trade_history(
     current_user: dict = Depends(get_current_user)
 ):
     """Get trading history"""
+    user_id = get_user_id(current_user)
+
     positions = await execute_query(
         """SELECT * FROM positions
            WHERE user_id = ? AND status = 'closed'
            ORDER BY closed_at DESC
            LIMIT ?""",
-        (current_user["telegram_id"], limit)
+        (user_id, limit)
     )
 
     return {"history": positions}
@@ -250,10 +267,12 @@ async def get_trade_history(
 @router.get("/stats")
 async def get_trading_stats(current_user: dict = Depends(get_current_user)):
     """Get trading statistics"""
+    user_id = get_user_id(current_user)
+
     # Get all closed positions
     positions = await execute_query(
         "SELECT * FROM positions WHERE user_id = ? AND status = 'closed'",
-        (current_user["telegram_id"],)
+        (user_id,)
     )
 
     if not positions:

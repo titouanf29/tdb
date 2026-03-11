@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import {
   TrendingUp,
@@ -9,20 +10,108 @@ import {
   Shield,
   Zap,
   Info,
-  ChevronDown,
+  Loader2,
+  Check,
+  AlertCircle,
 } from "lucide-react";
 import { cn, formatCurrency, formatPercent } from "@/lib/utils";
+import { walletAPI, marketAPI, WalletBalance, Quote } from "@/lib/api";
 
 export default function TradingPage() {
-  const [symbol, setSymbol] = useState("AAPL");
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  const [symbol, setSymbol] = useState(searchParams.get("symbol") || "AAPL");
   const [direction, setDirection] = useState<"LONG" | "SHORT">("LONG");
   const [amount, setAmount] = useState(1000);
   const [leverage, setLeverage] = useState(1);
+  const [takeProfit, setTakeProfit] = useState<number | null>(null);
+  const [stopLoss, setStopLoss] = useState<number | null>(null);
+  const [useTP, setUseTP] = useState(false);
+  const [useSL, setUseSL] = useState(false);
 
-  const currentPrice = 182.52;
-  const quantity = (amount * leverage) / currentPrice;
-  const suggestedTP = direction === "LONG" ? currentPrice * 1.05 : currentPrice * 0.95;
-  const suggestedSL = direction === "LONG" ? currentPrice * 0.97 : currentPrice * 1.03;
+  const [balance, setBalance] = useState<WalletBalance | null>(null);
+  const [quote, setQuote] = useState<Quote | null>(null);
+  const [isLoadingQuote, setIsLoadingQuote] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+
+  // Load balance
+  useEffect(() => {
+    walletAPI.getBalance().then(setBalance).catch(console.error);
+  }, []);
+
+  // Load quote when symbol changes
+  useEffect(() => {
+    const loadQuote = async () => {
+      if (!symbol || symbol.length < 1) return;
+      setIsLoadingQuote(true);
+      try {
+        const data = await marketAPI.getQuote(symbol);
+        setQuote(data);
+
+        // Set suggested TP/SL
+        const tp = direction === "LONG" ? data.price * 1.05 : data.price * 0.95;
+        const sl = direction === "LONG" ? data.price * 0.97 : data.price * 1.03;
+        setTakeProfit(Math.round(tp * 100) / 100);
+        setStopLoss(Math.round(sl * 100) / 100);
+      } catch (error) {
+        console.error("Error loading quote:", error);
+        setQuote(null);
+      } finally {
+        setIsLoadingQuote(false);
+      }
+    };
+
+    const debounce = setTimeout(loadQuote, 500);
+    return () => clearTimeout(debounce);
+  }, [symbol, direction]);
+
+  const currentPrice = quote?.price || 0;
+  const quantity = currentPrice > 0 ? (amount * leverage) / currentPrice : 0;
+
+  const handleSubmit = async () => {
+    if (!quote || currentPrice <= 0) {
+      setError("Veuillez entrer un symbole valide");
+      return;
+    }
+
+    if (amount > (balance?.balance || 0)) {
+      setError("Solde insuffisant");
+      return;
+    }
+
+    if (amount < 10) {
+      setError("Montant minimum: $10");
+      return;
+    }
+
+    setError("");
+    setSuccess("");
+    setIsSubmitting(true);
+
+    try {
+      const result = await walletAPI.openPosition({
+        symbol: symbol.toUpperCase(),
+        direction,
+        amount,
+        leverage,
+        take_profit: useTP ? takeProfit : undefined,
+        stop_loss: useSL ? stopLoss : undefined,
+      });
+
+      setSuccess(`Position ouverte ! Entree: ${formatCurrency(result.entry_price || currentPrice)}`);
+      setBalance({ ...balance!, balance: result.new_balance });
+
+      // Redirect to wallet after 2 seconds
+      setTimeout(() => router.push("/wallet"), 2000);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erreur lors de l'ouverture");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   return (
     <motion.div
@@ -34,7 +123,38 @@ export default function TradingPage() {
       <div className="text-center">
         <h1 className="text-2xl font-bold">Trading Companion</h1>
         <p className="text-muted-foreground">Ouvrez une nouvelle position</p>
+        {balance && (
+          <p className="text-sm mt-2">
+            Solde disponible:{" "}
+            <span className="font-semibold text-primary">
+              {formatCurrency(balance.balance)}
+            </span>
+          </p>
+        )}
       </div>
+
+      {/* Messages */}
+      {error && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="p-4 rounded-xl bg-loss/10 border border-loss/30 flex items-center gap-3 text-loss"
+        >
+          <AlertCircle className="w-5 h-5" />
+          {error}
+        </motion.div>
+      )}
+
+      {success && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="p-4 rounded-xl bg-profit/10 border border-profit/30 flex items-center gap-3 text-profit"
+        >
+          <Check className="w-5 h-5" />
+          {success}
+        </motion.div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Trading form */}
@@ -50,10 +170,24 @@ export default function TradingPage() {
                 className="w-full input text-lg font-bold"
                 placeholder="Ex: AAPL, BTC-USD"
               />
-              <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2">
-                <span className="text-sm text-muted-foreground">{formatCurrency(currentPrice)}</span>
-                <span className="text-sm text-profit">+1.24%</span>
-              </div>
+              {isLoadingQuote && (
+                <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 animate-spin text-muted-foreground" />
+              )}
+              {quote && !isLoadingQuote && (
+                <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2">
+                  <span className="text-sm text-muted-foreground">
+                    {formatCurrency(quote.price)}
+                  </span>
+                  <span
+                    className={cn(
+                      "text-sm",
+                      quote.change >= 0 ? "text-profit" : "text-loss"
+                    )}
+                  >
+                    {formatPercent(quote.change)}
+                  </span>
+                </div>
+              )}
             </div>
           </div>
 
@@ -146,7 +280,7 @@ export default function TradingPage() {
             {leverage > 3 && (
               <p className="text-warning text-xs mt-2 flex items-center gap-1">
                 <Info className="w-3 h-3" />
-                Levier élevé = risque élevé
+                Levier eleve = risque eleve
               </p>
             )}
           </div>
@@ -155,14 +289,22 @@ export default function TradingPage() {
           <motion.button
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
+            onClick={handleSubmit}
+            disabled={isSubmitting || !quote || currentPrice <= 0}
             className={cn(
-              "w-full py-4 rounded-xl font-bold text-lg transition-all",
+              "w-full py-4 rounded-xl font-bold text-lg transition-all flex items-center justify-center gap-2 disabled:opacity-50",
               direction === "LONG"
                 ? "bg-profit hover:bg-profit/90 text-white shadow-[0_0_30px_rgba(16,185,129,0.3)]"
                 : "bg-loss hover:bg-loss/90 text-white shadow-[0_0_30px_rgba(239,68,68,0.3)]"
             )}
           >
-            {direction === "LONG" ? "Acheter" : "Vendre"} {symbol}
+            {isSubmitting ? (
+              <Loader2 className="w-5 h-5 animate-spin" />
+            ) : (
+              <>
+                {direction === "LONG" ? "Acheter" : "Vendre"} {symbol}
+              </>
+            )}
           </motion.button>
         </div>
 
@@ -172,25 +314,32 @@ export default function TradingPage() {
           <div className="glass-card p-6">
             <h3 className="font-semibold mb-4 flex items-center gap-2">
               <Target className="w-5 h-5 text-primary" />
-              Aperçu de la Position
+              Apercu de la Position
             </h3>
             <div className="space-y-3">
               <div className="flex justify-between py-2 border-b border-white/5">
                 <span className="text-muted-foreground">Actif</span>
-                <span className="font-semibold">{symbol}</span>
+                <span className="font-semibold">{symbol || "-"}</span>
               </div>
               <div className="flex justify-between py-2 border-b border-white/5">
                 <span className="text-muted-foreground">Direction</span>
-                <span className={cn("font-semibold", direction === "LONG" ? "text-profit" : "text-loss")}>
+                <span
+                  className={cn(
+                    "font-semibold",
+                    direction === "LONG" ? "text-profit" : "text-loss"
+                  )}
+                >
                   {direction}
                 </span>
               </div>
               <div className="flex justify-between py-2 border-b border-white/5">
-                <span className="text-muted-foreground">Prix d'entrée</span>
-                <span className="font-semibold">{formatCurrency(currentPrice)}</span>
+                <span className="text-muted-foreground">Prix d'entree</span>
+                <span className="font-semibold">
+                  {quote ? formatCurrency(currentPrice) : "-"}
+                </span>
               </div>
               <div className="flex justify-between py-2 border-b border-white/5">
-                <span className="text-muted-foreground">Quantité</span>
+                <span className="text-muted-foreground">Quantite</span>
                 <span className="font-semibold">{quantity.toFixed(4)}</span>
               </div>
               <div className="flex justify-between py-2 border-b border-white/5">
@@ -198,7 +347,7 @@ export default function TradingPage() {
                 <span className="font-semibold">{formatCurrency(amount * leverage)}</span>
               </div>
               <div className="flex justify-between py-2 border-b border-white/5">
-                <span className="text-muted-foreground">Marge utilisée</span>
+                <span className="text-muted-foreground">Marge utilisee</span>
                 <span className="font-semibold">{formatCurrency(amount)}</span>
               </div>
             </div>
@@ -212,33 +361,71 @@ export default function TradingPage() {
             </h3>
             <div className="space-y-4">
               <div>
-                <div className="flex justify-between mb-2">
-                  <span className="text-sm text-muted-foreground">Take Profit suggéré</span>
-                  <span className="text-profit font-semibold">{formatCurrency(suggestedTP)}</span>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={useTP}
+                      onChange={(e) => setUseTP(e.target.checked)}
+                      className="rounded"
+                    />
+                    <span className="text-sm text-muted-foreground">Take Profit</span>
+                  </label>
+                  <span className="text-profit font-semibold">
+                    {takeProfit ? formatCurrency(takeProfit) : "-"}
+                  </span>
                 </div>
-                <div className="h-2 bg-white/5 rounded-full overflow-hidden">
-                  <div className="h-full w-2/3 bg-gradient-to-r from-profit/50 to-profit rounded-full" />
-                </div>
-                <p className="text-xs text-profit mt-1">+{formatPercent(5)}</p>
+                {useTP && (
+                  <input
+                    type="number"
+                    value={takeProfit || ""}
+                    onChange={(e) => setTakeProfit(Number(e.target.value))}
+                    className="w-full input text-sm"
+                    step={0.01}
+                  />
+                )}
               </div>
 
               <div>
-                <div className="flex justify-between mb-2">
-                  <span className="text-sm text-muted-foreground">Stop Loss suggéré</span>
-                  <span className="text-loss font-semibold">{formatCurrency(suggestedSL)}</span>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={useSL}
+                      onChange={(e) => setUseSL(e.target.checked)}
+                      className="rounded"
+                    />
+                    <span className="text-sm text-muted-foreground">Stop Loss</span>
+                  </label>
+                  <span className="text-loss font-semibold">
+                    {stopLoss ? formatCurrency(stopLoss) : "-"}
+                  </span>
                 </div>
-                <div className="h-2 bg-white/5 rounded-full overflow-hidden">
-                  <div className="h-full w-1/3 bg-gradient-to-r from-loss/50 to-loss rounded-full" />
-                </div>
-                <p className="text-xs text-loss mt-1">{formatPercent(-3)}</p>
+                {useSL && (
+                  <input
+                    type="number"
+                    value={stopLoss || ""}
+                    onChange={(e) => setStopLoss(Number(e.target.value))}
+                    className="w-full input text-sm"
+                    step={0.01}
+                  />
+                )}
               </div>
 
-              <div className="p-3 bg-primary/10 rounded-lg border border-primary/20">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm">Ratio risque/récompense</span>
-                  <span className="font-bold text-primary">1:1.67</span>
+              {useTP && useSL && takeProfit && stopLoss && currentPrice > 0 && (
+                <div className="p-3 bg-primary/10 rounded-lg border border-primary/20">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm">Ratio risque/recompense</span>
+                    <span className="font-bold text-primary">
+                      1:
+                      {(
+                        Math.abs(takeProfit - currentPrice) /
+                        Math.abs(stopLoss - currentPrice)
+                      ).toFixed(2)}
+                    </span>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           </div>
         </div>

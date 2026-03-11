@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { motion } from "framer-motion";
 import {
   Bell,
@@ -13,28 +15,47 @@ import {
   WifiOff,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/lib/AuthContext";
 
 export function Header() {
+  const { user, logout } = useAuth();
+  const router = useRouter();
   const [showNotifications, setShowNotifications] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
   const [isConnected] = useState(true); // WebSocket connection status
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const handleLogout = async () => {
+    await logout();
+    router.push("/login");
+  };
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      router.push(`/analysis?symbol=${searchQuery.toUpperCase()}`);
+      setSearchQuery("");
+    }
+  };
 
   return (
     <header className="h-16 border-b border-white/10 bg-card/30 backdrop-blur-xl px-6 flex items-center justify-between">
       {/* Search */}
-      <div className="flex-1 max-w-md">
+      <form onSubmit={handleSearch} className="flex-1 max-w-md">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <input
             type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Rechercher un actif... (ex: AAPL, BTC)"
             className="w-full input pl-10 py-2 text-sm"
           />
           <kbd className="absolute right-3 top-1/2 -translate-y-1/2 hidden sm:inline-flex items-center gap-1 px-2 py-0.5 text-xs text-muted-foreground bg-secondary rounded">
-            <span>⌘</span>K
+            Enter
           </kbd>
         </div>
-      </div>
+      </form>
 
       {/* Right side */}
       <div className="flex items-center gap-4">
@@ -111,9 +132,13 @@ export function Header() {
             className="flex items-center gap-2 px-3 py-1.5 rounded-lg hover:bg-white/5 transition-colors"
           >
             <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-purple-500 flex items-center justify-center">
-              <User className="w-4 h-4 text-white" />
+              <span className="text-white text-sm font-bold">
+                {user?.username?.[0]?.toUpperCase() || user?.first_name?.[0]?.toUpperCase() || "U"}
+              </span>
             </div>
-            <span className="text-sm font-medium hidden sm:block">Trader</span>
+            <span className="text-sm font-medium hidden sm:block">
+              {user?.username || user?.first_name || "Trader"}
+            </span>
             <ChevronDown className="w-4 h-4 text-muted-foreground" />
           </button>
 
@@ -123,18 +148,23 @@ export function Header() {
               animate={{ opacity: 1, y: 0, scale: 1 }}
               className="absolute right-0 top-12 w-48 glass-card p-2 z-50"
             >
-              <button className="w-full flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-white/5 text-sm">
-                <User className="w-4 h-4" />
-                Mon profil
-              </button>
-              <button className="w-full flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-white/5 text-sm">
-                <Settings className="w-4 h-4" />
-                Paramètres
-              </button>
+              <div className="px-3 py-2 border-b border-white/10 mb-2">
+                <p className="text-sm font-medium">{user?.username || user?.first_name}</p>
+                <p className="text-xs text-muted-foreground">{user?.email}</p>
+              </div>
+              <Link href="/settings" onClick={() => setShowProfile(false)}>
+                <button className="w-full flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-white/5 text-sm">
+                  <Settings className="w-4 h-4" />
+                  Parametres
+                </button>
+              </Link>
               <hr className="my-2 border-white/10" />
-              <button className="w-full flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-loss/10 text-loss text-sm">
+              <button
+                onClick={handleLogout}
+                className="w-full flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-loss/10 text-loss text-sm"
+              >
                 <LogOut className="w-4 h-4" />
-                Déconnexion
+                Deconnexion
               </button>
             </motion.div>
           )}

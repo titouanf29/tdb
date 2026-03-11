@@ -1,79 +1,78 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import {
   Wallet,
   TrendingUp,
   TrendingDown,
-  Plus,
-  ArrowUpRight,
-  ArrowDownRight,
-  History,
-  PieChart,
+  DollarSign,
   Target,
-  Percent,
+  X,
+  Loader2,
+  RefreshCw,
+  History,
 } from "lucide-react";
 import { cn, formatCurrency, formatPercent } from "@/lib/utils";
-
-const mockPositions = [
-  {
-    id: 1,
-    symbol: "AAPL",
-    name: "Apple Inc.",
-    direction: "LONG",
-    entryPrice: 178.5,
-    currentPrice: 182.3,
-    quantity: 10,
-    amount: 1785,
-    pnl: 38,
-    pnlPercent: 2.13,
-    leverage: 1,
-    openedAt: "2024-01-15 10:30",
-  },
-  {
-    id: 2,
-    symbol: "BTC-USD",
-    name: "Bitcoin",
-    direction: "LONG",
-    entryPrice: 62500,
-    currentPrice: 64200,
-    quantity: 0.05,
-    amount: 3125,
-    pnl: 85,
-    pnlPercent: 2.72,
-    leverage: 2,
-    openedAt: "2024-01-14 15:45",
-  },
-  {
-    id: 3,
-    symbol: "NVDA",
-    name: "NVIDIA",
-    direction: "SHORT",
-    entryPrice: 890,
-    currentPrice: 875,
-    quantity: 5,
-    amount: 4450,
-    pnl: 75,
-    pnlPercent: 1.69,
-    leverage: 1,
-    openedAt: "2024-01-13 09:15",
-  },
-];
-
-const mockHistory = [
-  { symbol: "TSLA", direction: "LONG", pnl: 156.5, pnlPercent: 3.2, closedAt: "2024-01-12" },
-  { symbol: "META", direction: "SHORT", pnl: -45.2, pnlPercent: -1.8, closedAt: "2024-01-11" },
-  { symbol: "AMD", direction: "LONG", pnl: 89.0, pnlPercent: 2.1, closedAt: "2024-01-10" },
-  { symbol: "GOOGL", direction: "LONG", pnl: 234.5, pnlPercent: 4.5, closedAt: "2024-01-09" },
-];
+import { walletAPI, WalletBalance, Position, TradingStats } from "@/lib/api";
 
 export default function WalletPage() {
-  const [activeTab, setActiveTab] = useState<"positions" | "history">("positions");
+  const [balance, setBalance] = useState<WalletBalance | null>(null);
+  const [positions, setPositions] = useState<Position[]>([]);
+  const [history, setHistory] = useState<Position[]>([]);
+  const [stats, setStats] = useState<TradingStats | null>(null);
+  const [activeTab, setActiveTab] = useState<"open" | "closed">("open");
+  const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [closingPosition, setClosingPosition] = useState<number | null>(null);
 
-  const totalBalance = 12450.5;
-  const totalPnL = mockPositions.reduce((sum, p) => sum + p.pnl, 0);
-  const totalInvested = mockPositions.reduce((sum, p) => sum + p.amount, 0);
+  const loadData = async (showRefresh = false) => {
+    if (showRefresh) setIsRefreshing(true);
+    try {
+      const [balanceData, positionsData, historyData, statsData] = await Promise.all([
+        walletAPI.getBalance(),
+        walletAPI.getPositions("open"),
+        walletAPI.getHistory(20),
+        walletAPI.getStats(),
+      ]);
+
+      setBalance(balanceData);
+      setPositions(positionsData.positions);
+      setHistory(historyData.history);
+      setStats(statsData);
+    } catch (error) {
+      console.error("Error loading wallet:", error);
+    } finally {
+      setIsLoading(false);
+      setIsRefreshing(false);
+    }
+  };
+
+  useEffect(() => {
+    loadData();
+    const interval = setInterval(() => loadData(), 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const closePosition = async (positionId: number) => {
+    setClosingPosition(positionId);
+    try {
+      await walletAPI.closePosition(positionId);
+      await loadData();
+    } catch (error) {
+      console.error("Error closing position:", error);
+    } finally {
+      setClosingPosition(null);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[50vh]">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <motion.div
@@ -81,223 +80,339 @@ export default function WalletPage() {
       animate={{ opacity: 1 }}
       className="space-y-6"
     >
-      {/* Header stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="glass-card p-6 md:col-span-2"
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold">Wallet</h1>
+          <p className="text-muted-foreground">Gerez votre portefeuille virtuel</p>
+        </div>
+        <button
+          onClick={() => loadData(true)}
+          disabled={isRefreshing}
+          className="p-2 rounded-lg hover:bg-white/5 transition-colors"
         >
-          <div className="flex items-center gap-4">
-            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary to-purple-500 flex items-center justify-center shadow-glow">
-              <Wallet className="w-8 h-8 text-white" />
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Solde Total</p>
-              <p className="text-3xl font-bold">{formatCurrency(totalBalance)}</p>
-              <div className="flex items-center gap-2 mt-1">
-                <span className={cn("flex items-center gap-1 text-sm", totalPnL >= 0 ? "text-profit" : "text-loss")}>
-                  {totalPnL >= 0 ? <ArrowUpRight className="w-4 h-4" /> : <ArrowDownRight className="w-4 h-4" />}
-                  {formatCurrency(Math.abs(totalPnL))} ({formatPercent(totalPnL / totalBalance * 100)})
-                </span>
-                <span className="text-muted-foreground text-sm">aujourd'hui</span>
-              </div>
-            </div>
-          </div>
-        </motion.div>
+          <RefreshCw className={cn("w-5 h-5", isRefreshing && "animate-spin")} />
+        </button>
+      </div>
 
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="glass-card p-6"
-        >
-          <div className="flex items-center justify-between mb-2">
-            <p className="text-sm text-muted-foreground">Positions</p>
-            <PieChart className="w-4 h-4 text-primary" />
-          </div>
-          <p className="text-2xl font-bold">{mockPositions.length}</p>
-          <p className="text-sm text-muted-foreground mt-1">
-            {formatCurrency(totalInvested)} investis
-          </p>
-        </motion.div>
+      {/* Balance cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <BalanceCard
+          title="Solde Disponible"
+          value={formatCurrency(balance?.balance || 0)}
+          icon={Wallet}
+          color="primary"
+        />
+        <BalanceCard
+          title="Valeur Positions"
+          value={formatCurrency(balance?.positions_value || 0)}
+          icon={DollarSign}
+          color="blue"
+        />
+        <BalanceCard
+          title="P&L Non Realise"
+          value={formatCurrency(balance?.total_pnl || 0)}
+          icon={balance?.total_pnl && balance.total_pnl >= 0 ? TrendingUp : TrendingDown}
+          color={balance?.total_pnl && balance.total_pnl >= 0 ? "green" : "red"}
+        />
+        <BalanceCard
+          title="Equity Totale"
+          value={formatCurrency(balance?.total_equity || (balance?.balance || 0) + (balance?.positions_value || 0))}
+          icon={Target}
+          color="purple"
+        />
+      </div>
 
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="glass-card p-6"
-        >
-          <div className="flex items-center justify-between mb-2">
-            <p className="text-sm text-muted-foreground">Win Rate</p>
-            <Target className="w-4 h-4 text-profit" />
-          </div>
-          <p className="text-2xl font-bold">68%</p>
-          <p className="text-sm text-muted-foreground mt-1">34 trades fermés</p>
-        </motion.div>
+      {/* Stats */}
+      <div className="glass-card p-6">
+        <h2 className="text-lg font-semibold mb-4">Statistiques de Trading</h2>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <StatItem label="Total Trades" value={stats?.total_trades || 0} />
+          <StatItem label="Trades Gagnants" value={stats?.winning_trades || 0} color="green" />
+          <StatItem label="Trades Perdants" value={stats?.losing_trades || 0} color="red" />
+          <StatItem label="Win Rate" value={`${stats?.win_rate || 0}%`} />
+          <StatItem label="P&L Total" value={formatCurrency(stats?.total_pnl || 0)} color={stats?.total_pnl && stats.total_pnl >= 0 ? "green" : "red"} />
+          <StatItem label="Meilleur Trade" value={formatCurrency(stats?.best_trade || 0)} color="green" />
+          <StatItem label="Pire Trade" value={formatCurrency(stats?.worst_trade || 0)} color="red" />
+          <StatItem label="P&L Moyen" value={formatCurrency(stats?.avg_pnl || 0)} />
+        </div>
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-2">
+      <div className="flex gap-4 border-b border-white/10">
         <button
-          onClick={() => setActiveTab("positions")}
+          onClick={() => setActiveTab("open")}
           className={cn(
-            "px-4 py-2 rounded-lg font-medium transition-all",
-            activeTab === "positions"
-              ? "bg-primary text-white"
-              : "bg-white/5 text-muted-foreground hover:bg-white/10"
+            "pb-3 px-1 text-sm font-medium transition-colors relative",
+            activeTab === "open"
+              ? "text-primary"
+              : "text-muted-foreground hover:text-foreground"
           )}
         >
-          <span className="flex items-center gap-2">
-            <TrendingUp className="w-4 h-4" />
-            Positions Ouvertes
-          </span>
+          Positions Ouvertes ({positions.length})
+          {activeTab === "open" && (
+            <motion.div
+              layoutId="activeTab"
+              className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary"
+            />
+          )}
         </button>
         <button
-          onClick={() => setActiveTab("history")}
+          onClick={() => setActiveTab("closed")}
           className={cn(
-            "px-4 py-2 rounded-lg font-medium transition-all",
-            activeTab === "history"
-              ? "bg-primary text-white"
-              : "bg-white/5 text-muted-foreground hover:bg-white/10"
+            "pb-3 px-1 text-sm font-medium transition-colors relative",
+            activeTab === "closed"
+              ? "text-primary"
+              : "text-muted-foreground hover:text-foreground"
           )}
         >
-          <span className="flex items-center gap-2">
-            <History className="w-4 h-4" />
-            Historique
-          </span>
+          Historique ({history.length})
+          {activeTab === "closed" && (
+            <motion.div
+              layoutId="activeTab"
+              className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary"
+            />
+          )}
         </button>
       </div>
 
-      {/* Content */}
-      {activeTab === "positions" ? (
-        <div className="space-y-4">
-          {mockPositions.map((position, index) => (
-            <motion.div
-              key={position.id}
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: index * 0.1 }}
-              className="glass-card p-5"
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-xl bg-secondary flex items-center justify-center font-bold">
-                    {position.symbol.slice(0, 2)}
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-bold text-lg">{position.symbol}</span>
-                      <span
-                        className={cn(
-                          "px-2 py-0.5 rounded text-xs font-bold",
-                          position.direction === "LONG"
-                            ? "bg-profit/20 text-profit"
-                            : "bg-loss/20 text-loss"
-                        )}
-                      >
-                        {position.direction}
-                      </span>
-                      {position.leverage > 1 && (
-                        <span className="px-2 py-0.5 rounded text-xs font-bold bg-primary/20 text-primary">
-                          {position.leverage}x
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-sm text-muted-foreground">{position.name}</p>
-                  </div>
-                </div>
+      {/* Positions */}
+      <div className="space-y-3">
+        {activeTab === "open" ? (
+          positions.length === 0 ? (
+            <div className="glass-card p-12 text-center">
+              <Wallet className="w-12 h-12 mx-auto mb-4 text-muted-foreground opacity-50" />
+              <p className="text-muted-foreground">Aucune position ouverte</p>
+            </div>
+          ) : (
+            positions.map((position) => (
+              <PositionCard
+                key={position.id}
+                position={position}
+                onClose={() => closePosition(position.id)}
+                isClosing={closingPosition === position.id}
+              />
+            ))
+          )
+        ) : history.length === 0 ? (
+          <div className="glass-card p-12 text-center">
+            <History className="w-12 h-12 mx-auto mb-4 text-muted-foreground opacity-50" />
+            <p className="text-muted-foreground">Aucun historique</p>
+          </div>
+        ) : (
+          history.map((position) => (
+            <HistoryCard key={position.id} position={position} />
+          ))
+        )}
+      </div>
+    </motion.div>
+  );
+}
 
-                <div className="grid grid-cols-4 gap-8 text-right">
-                  <div>
-                    <p className="text-xs text-muted-foreground">Entrée</p>
-                    <p className="font-semibold">{formatCurrency(position.entryPrice)}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Actuel</p>
-                    <p className="font-semibold">{formatCurrency(position.currentPrice)}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Quantité</p>
-                    <p className="font-semibold">{position.quantity}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">P&L</p>
-                    <p
-                      className={cn(
-                        "font-bold flex items-center justify-end gap-1",
-                        position.pnl >= 0 ? "text-profit" : "text-loss"
-                      )}
-                    >
-                      {position.pnl >= 0 ? (
-                        <TrendingUp className="w-4 h-4" />
-                      ) : (
-                        <TrendingDown className="w-4 h-4" />
-                      )}
-                      {formatCurrency(position.pnl)}
-                      <span className="text-xs">({formatPercent(position.pnlPercent)})</span>
-                    </p>
-                  </div>
-                </div>
+function BalanceCard({
+  title,
+  value,
+  icon: Icon,
+  color,
+}: {
+  title: string;
+  value: string;
+  icon: React.ElementType;
+  color: "primary" | "blue" | "green" | "red" | "purple";
+}) {
+  const colors = {
+    primary: "bg-primary/10 text-primary",
+    blue: "bg-blue-500/10 text-blue-400",
+    green: "bg-green-500/10 text-green-400",
+    red: "bg-red-500/10 text-red-400",
+    purple: "bg-purple-500/10 text-purple-400",
+  };
 
-                <button className="btn-secondary ml-4">Fermer</button>
-              </div>
-            </motion.div>
-          ))}
+  return (
+    <div className="glass-card p-5">
+      <div className="flex items-center gap-3">
+        <div className={cn("p-3 rounded-xl", colors[color])}>
+          <Icon className="w-5 h-5" />
         </div>
-      ) : (
-        <div className="glass-card overflow-hidden">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-white/10">
-                <th className="text-left p-4 text-sm text-muted-foreground">Trade</th>
-                <th className="text-right p-4 text-sm text-muted-foreground">P&L</th>
-                <th className="text-right p-4 text-sm text-muted-foreground">Date</th>
-              </tr>
-            </thead>
-            <tbody>
-              {mockHistory.map((trade, index) => (
-                <motion.tr
-                  key={index}
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ delay: index * 0.05 }}
-                  className="border-b border-white/5"
-                >
-                  <td className="p-4">
-                    <div className="flex items-center gap-3">
-                      <span className="font-semibold">{trade.symbol}</span>
-                      <span
-                        className={cn(
-                          "px-2 py-0.5 rounded text-xs font-medium",
-                          trade.direction === "LONG"
-                            ? "bg-profit/20 text-profit"
-                            : "bg-loss/20 text-loss"
-                        )}
-                      >
-                        {trade.direction}
-                      </span>
-                    </div>
-                  </td>
-                  <td className="p-4 text-right">
-                    <span
-                      className={cn(
-                        "font-semibold",
-                        trade.pnl >= 0 ? "text-profit" : "text-loss"
-                      )}
-                    >
-                      {formatCurrency(trade.pnl)} ({formatPercent(trade.pnlPercent)})
-                    </span>
-                  </td>
-                  <td className="p-4 text-right text-muted-foreground">
-                    {trade.closedAt}
-                  </td>
-                </motion.tr>
-              ))}
-            </tbody>
-          </table>
+        <div>
+          <p className="text-sm text-muted-foreground">{title}</p>
+          <p className="text-xl font-bold">{value}</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function StatItem({
+  label,
+  value,
+  color,
+}: {
+  label: string;
+  value: string | number;
+  color?: "green" | "red";
+}) {
+  return (
+    <div className="p-4 rounded-xl bg-white/5">
+      <p className="text-sm text-muted-foreground">{label}</p>
+      <p
+        className={cn(
+          "text-lg font-semibold mt-1",
+          color === "green" && "text-profit",
+          color === "red" && "text-loss"
+        )}
+      >
+        {value}
+      </p>
+    </div>
+  );
+}
+
+function PositionCard({
+  position,
+  onClose,
+  isClosing,
+}: {
+  position: Position;
+  onClose: () => void;
+  isClosing: boolean;
+}) {
+  const isProfit = (position.unrealized_pnl || 0) >= 0;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="glass-card p-4"
+    >
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <div className="w-12 h-12 rounded-xl bg-secondary flex items-center justify-center font-bold">
+            {position.symbol.slice(0, 2)}
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="font-semibold text-lg">{position.symbol}</span>
+              <span
+                className={cn(
+                  "px-2 py-0.5 rounded text-xs font-medium",
+                  position.direction === "LONG"
+                    ? "bg-profit/20 text-profit"
+                    : "bg-loss/20 text-loss"
+                )}
+              >
+                {position.direction}
+              </span>
+              {position.leverage > 1 && (
+                <span className="px-2 py-0.5 rounded text-xs font-medium bg-primary/20 text-primary">
+                  {position.leverage}x
+                </span>
+              )}
+            </div>
+            <div className="flex gap-4 text-sm text-muted-foreground mt-1">
+              <span>Entree: {formatCurrency(position.entry_price)}</span>
+              <span>Qte: {position.quantity.toFixed(4)}</span>
+              <span>Montant: {formatCurrency(position.amount)}</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-6">
+          <div className="text-right">
+            <p className="font-semibold text-lg">
+              {formatCurrency(position.current_price || position.entry_price)}
+            </p>
+            <p
+              className={cn(
+                "flex items-center justify-end gap-1",
+                isProfit ? "text-profit" : "text-loss"
+              )}
+            >
+              {isProfit ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
+              {formatCurrency(position.unrealized_pnl || 0)} ({formatPercent(position.pnl_percent || 0)})
+            </p>
+          </div>
+
+          <button
+            onClick={onClose}
+            disabled={isClosing}
+            className="px-4 py-2 rounded-lg bg-loss/20 text-loss hover:bg-loss/30 transition-colors flex items-center gap-2 disabled:opacity-50"
+          >
+            {isClosing ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <X className="w-4 h-4" />
+            )}
+            Fermer
+          </button>
+        </div>
+      </div>
+
+      {/* TP/SL info */}
+      {(position.take_profit || position.stop_loss) && (
+        <div className="flex gap-4 mt-3 pt-3 border-t border-white/10 text-sm">
+          {position.take_profit && (
+            <span className="text-profit">
+              TP: {formatCurrency(position.take_profit)}
+            </span>
+          )}
+          {position.stop_loss && (
+            <span className="text-loss">
+              SL: {formatCurrency(position.stop_loss)}
+            </span>
+          )}
         </div>
       )}
     </motion.div>
+  );
+}
+
+function HistoryCard({ position }: { position: Position }) {
+  const isProfit = (position.realized_pnl || 0) >= 0;
+
+  return (
+    <div className="glass-card p-4 opacity-80">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <div className="w-12 h-12 rounded-xl bg-secondary/50 flex items-center justify-center font-bold">
+            {position.symbol.slice(0, 2)}
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="font-semibold">{position.symbol}</span>
+              <span
+                className={cn(
+                  "px-2 py-0.5 rounded text-xs font-medium",
+                  position.direction === "LONG"
+                    ? "bg-profit/20 text-profit"
+                    : "bg-loss/20 text-loss"
+                )}
+              >
+                {position.direction}
+              </span>
+            </div>
+            <div className="flex gap-4 text-sm text-muted-foreground mt-1">
+              <span>Entree: {formatCurrency(position.entry_price)}</span>
+              <span>Sortie: {formatCurrency(position.exit_price || 0)}</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="text-right">
+          <p
+            className={cn(
+              "font-semibold text-lg flex items-center justify-end gap-1",
+              isProfit ? "text-profit" : "text-loss"
+            )}
+          >
+            {isProfit ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
+            {formatCurrency(position.realized_pnl || 0)}
+          </p>
+          <p className="text-xs text-muted-foreground">
+            {position.closed_at ? new Date(position.closed_at).toLocaleDateString() : ""}
+          </p>
+        </div>
+      </div>
+    </div>
   );
 }
