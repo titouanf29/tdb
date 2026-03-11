@@ -4,10 +4,11 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Eye, EyeOff, TrendingUp, Loader2, Check } from "lucide-react";
-import { register } from "@/lib/auth";
+import { useAuth } from "@/lib/AuthContext";
 
 export default function RegisterPage() {
   const router = useRouter();
+  const { register } = useAuth();
   const [formData, setFormData] = useState({
     username: "",
     email: "",
