@@ -46,7 +46,8 @@ export default function RegisterPage() {
         formData.username,
         formData.username
       );
-      router.push("/");
+      // Use full page reload to ensure auth state is properly loaded
+      window.location.href = "/";
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erreur d'inscription");
     } finally {
