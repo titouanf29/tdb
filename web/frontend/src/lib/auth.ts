@@ -51,8 +51,6 @@ export async function register(
   username: string,
   firstName?: string
 ): Promise<AuthResponse> {
-  console.log("[auth.ts] register() called");
-
   const response = await fetch(`${API_URL}/api/auth/register`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -64,24 +62,14 @@ export async function register(
     }),
   });
 
-  console.log("[auth.ts] Register response status:", response.status);
-
   if (!response.ok) {
     const error = await response.json();
-    console.log("[auth.ts] Register error:", error);
     throw new Error(error.detail || "Registration failed");
   }
 
   const data: AuthResponse = await response.json();
-  console.log("[auth.ts] Register response data:", data);
-  console.log("[auth.ts] access_token exists:", !!data.access_token);
-
   setToken(data.access_token);
-  console.log("[auth.ts] Token saved. Checking localStorage:", localStorage.getItem("tdb_token"));
-
   setUser(data.user);
-  console.log("[auth.ts] User saved. Checking localStorage:", localStorage.getItem("tdb_user"));
-
   return data;
 }
 
@@ -89,32 +77,20 @@ export async function login(
   email: string,
   password: string
 ): Promise<AuthResponse> {
-  console.log("[auth.ts] login() called with email:", email);
-
   const response = await fetch(`${API_URL}/api/auth/login`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email, password }),
   });
 
-  console.log("[auth.ts] Response status:", response.status);
-
   if (!response.ok) {
     const error = await response.json();
-    console.log("[auth.ts] Login error:", error);
     throw new Error(error.detail || "Login failed");
   }
 
   const data: AuthResponse = await response.json();
-  console.log("[auth.ts] Login response data:", data);
-  console.log("[auth.ts] access_token exists:", !!data.access_token);
-
   setToken(data.access_token);
-  console.log("[auth.ts] Token saved. Checking localStorage:", localStorage.getItem("tdb_token"));
-
   setUser(data.user);
-  console.log("[auth.ts] User saved. Checking localStorage:", localStorage.getItem("tdb_user"));
-
   return data;
 }
 
