@@ -40,15 +40,20 @@ export default function RegisterPage() {
     setIsLoading(true);
 
     try {
+      console.log("[RegisterPage] Calling register()...");
       await register(
         formData.email,
         formData.password,
         formData.username,
         formData.username
       );
+      console.log("[RegisterPage] Register successful!");
+      console.log("[RegisterPage] localStorage token:", localStorage.getItem("tdb_token"));
+      console.log("[RegisterPage] Redirecting to /");
       // Use full page reload to ensure auth state is properly loaded
       window.location.href = "/";
     } catch (err) {
+      console.error("[RegisterPage] Register error:", err);
       setError(err instanceof Error ? err.message : "Erreur d'inscription");
     } finally {
       setIsLoading(false);

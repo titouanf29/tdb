@@ -34,14 +34,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     // Check for existing session
     const initAuth = async () => {
+      console.log("[AuthContext] initAuth() starting");
       const token = getToken();
+      console.log("[AuthContext] Token from localStorage:", token ? "exists" : "null");
+
       if (token) {
         const savedUser = getUser();
+        console.log("[AuthContext] Saved user:", savedUser);
         if (savedUser) {
           setUser(savedUser);
         }
         // Verify token is still valid
+        console.log("[AuthContext] Verifying token with getMe()...");
         const currentUser = await getMe();
+        console.log("[AuthContext] getMe() returned:", currentUser);
         if (currentUser) {
           setUser(currentUser);
         } else {
@@ -49,14 +55,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       }
       setIsLoading(false);
+      console.log("[AuthContext] initAuth() complete");
     };
 
     initAuth();
   }, []);
 
   const login = async (email: string, password: string) => {
-    const response = await authLogin(email, password);
-    setUser(response.user);
+    console.log("[AuthContext] login() called");
+    try {
+      const response = await authLogin(email, password);
+      console.log("[AuthContext] authLogin returned:", response);
+      setUser(response.user);
+      console.log("[AuthContext] User state updated");
+    } catch (error) {
+      console.error("[AuthContext] login error:", error);
+      throw error;
+    }
   };
 
   const register = async (
@@ -65,8 +80,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     username: string,
     firstName?: string
   ) => {
-    const response = await authRegister(email, password, username, firstName);
-    setUser(response.user);
+    console.log("[AuthContext] register() called");
+    try {
+      const response = await authRegister(email, password, username, firstName);
+      console.log("[AuthContext] authRegister returned:", response);
+      setUser(response.user);
+      console.log("[AuthContext] User state updated");
+    } catch (error) {
+      console.error("[AuthContext] register error:", error);
+      throw error;
+    }
   };
 
   const logout = async () => {

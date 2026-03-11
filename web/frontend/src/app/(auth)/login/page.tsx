@@ -21,10 +21,15 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
+      console.log("[LoginPage] Calling login()...");
       await login(email, password);
+      console.log("[LoginPage] Login successful!");
+      console.log("[LoginPage] localStorage token:", localStorage.getItem("tdb_token"));
+      console.log("[LoginPage] Redirecting to /");
       // Use full page reload to ensure auth state is properly loaded
       window.location.href = "/";
     } catch (err) {
+      console.error("[LoginPage] Login error:", err);
       setError(err instanceof Error ? err.message : "Erreur de connexion");
     } finally {
       setIsLoading(false);
