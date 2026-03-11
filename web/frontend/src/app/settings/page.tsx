@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/AuthContext";
+import { useSettings, Currency } from "@/lib/SettingsContext";
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState("profile");
@@ -139,13 +140,42 @@ function ProfileSettings() {
 }
 
 function TradingSettings() {
-  const [tradingStyle, setTradingStyle] = useState("day");
-  const [riskLevel, setRiskLevel] = useState("moderate");
-  const [defaultLeverage, setDefaultLeverage] = useState("1");
+  const { settings, setCurrency, setTradingStyle, setRiskLevel, setDefaultLeverage } = useSettings();
+  const [isSaved, setIsSaved] = useState(false);
+
+  const handleSave = () => {
+    setIsSaved(true);
+    setTimeout(() => setIsSaved(false), 2000);
+  };
 
   return (
     <div className="space-y-6">
       <h2 className="text-lg font-semibold">Parametres de Trading</h2>
+
+      {/* Currency selector */}
+      <div>
+        <label className="block text-sm font-medium mb-2">Devise d'affichage</label>
+        <div className="grid grid-cols-2 gap-2">
+          {[
+            { id: "EUR", label: "Euro", symbol: "€" },
+            { id: "USD", label: "Dollar US", symbol: "$" },
+          ].map((curr) => (
+            <button
+              key={curr.id}
+              onClick={() => setCurrency(curr.id as Currency)}
+              className={cn(
+                "p-4 rounded-lg text-center transition-all flex items-center justify-center gap-3",
+                settings.currency === curr.id
+                  ? "bg-primary text-white"
+                  : "bg-white/5 hover:bg-white/10"
+              )}
+            >
+              <span className="text-2xl font-bold">{curr.symbol}</span>
+              <span>{curr.label}</span>
+            </button>
+          ))}
+        </div>
+      </div>
 
       <div>
         <label className="block text-sm font-medium mb-2">Style de trading</label>
@@ -160,7 +190,7 @@ function TradingSettings() {
               onClick={() => setTradingStyle(style.id)}
               className={cn(
                 "p-3 rounded-lg text-center transition-all",
-                tradingStyle === style.id
+                settings.tradingStyle === style.id
                   ? "bg-primary text-white"
                   : "bg-white/5 hover:bg-white/10"
               )}
@@ -185,7 +215,7 @@ function TradingSettings() {
               onClick={() => setRiskLevel(level.id)}
               className={cn(
                 "p-3 rounded-lg text-center transition-all",
-                riskLevel === level.id
+                settings.riskLevel === level.id
                   ? "bg-primary text-white"
                   : "bg-white/5 hover:bg-white/10"
               )}
@@ -200,7 +230,7 @@ function TradingSettings() {
       <div>
         <label className="block text-sm font-medium mb-2">Levier par defaut</label>
         <select
-          value={defaultLeverage}
+          value={settings.defaultLeverage}
           onChange={(e) => setDefaultLeverage(e.target.value)}
           className="input w-full"
         >
@@ -211,9 +241,9 @@ function TradingSettings() {
         </select>
       </div>
 
-      <button className="btn-primary flex items-center gap-2">
+      <button onClick={handleSave} className="btn-primary flex items-center gap-2">
         <Save className="w-4 h-4" />
-        Sauvegarder
+        {isSaved ? "Sauvegarde !" : "Sauvegarder"}
       </button>
     </div>
   );
