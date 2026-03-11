@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion } from "framer-motion";
@@ -9,6 +9,7 @@ import { register } from "@/lib/auth";
 
 export default function RegisterPage() {
   const router = useRouter();
+  const [mounted, setMounted] = useState(false);
   const [formData, setFormData] = useState({
     username: "",
     email: "",
@@ -18,6 +19,10 @@ export default function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const passwordRequirements = [
     { label: "Au moins 6 caracteres", met: formData.password.length >= 6 },
@@ -53,6 +58,14 @@ export default function RegisterPage() {
       setIsLoading(false);
     }
   };
+
+  if (!mounted) {
+    return (
+      <div className="w-full max-w-md opacity-0">
+        <div className="glass-card p-8" />
+      </div>
+    );
+  }
 
   return (
     <motion.div

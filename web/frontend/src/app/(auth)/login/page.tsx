@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion } from "framer-motion";
@@ -9,11 +9,16 @@ import { login } from "@/lib/auth";
 
 export default function LoginPage() {
   const router = useRouter();
+  const [mounted, setMounted] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -29,6 +34,14 @@ export default function LoginPage() {
       setIsLoading(false);
     }
   };
+
+  if (!mounted) {
+    return (
+      <div className="w-full max-w-md opacity-0">
+        <div className="glass-card p-8" />
+      </div>
+    );
+  }
 
   return (
     <motion.div
