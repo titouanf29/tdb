@@ -157,9 +157,138 @@ async def analyze_asset(
             signal_text = "STRONG SELL"
             signal_emoji = "🔴"
 
+        # Get fundamental data
+        info = ticker.info
+
+        # Fundamental metrics
+        fundamentals = {
+            "market_cap": info.get("marketCap"),
+            "pe_ratio": info.get("trailingPE"),
+            "forward_pe": info.get("forwardPE"),
+            "peg_ratio": info.get("pegRatio"),
+            "price_to_book": info.get("priceToBook"),
+            "dividend_yield": info.get("dividendYield"),
+            "profit_margin": info.get("profitMargins"),
+            "revenue_growth": info.get("revenueGrowth"),
+            "earnings_growth": info.get("earningsGrowth"),
+            "debt_to_equity": info.get("debtToEquity"),
+            "current_ratio": info.get("currentRatio"),
+            "roe": info.get("returnOnEquity"),
+            "roa": info.get("returnOnAssets"),
+            "beta": info.get("beta"),
+            "52w_high": info.get("fiftyTwoWeekHigh"),
+            "52w_low": info.get("fiftyTwoWeekLow"),
+            "50d_avg": info.get("fiftyDayAverage"),
+            "200d_avg": info.get("twoHundredDayAverage"),
+            "avg_volume": info.get("averageVolume"),
+            "shares_outstanding": info.get("sharesOutstanding"),
+            "short_ratio": info.get("shortRatio"),
+            "target_price": info.get("targetMeanPrice"),
+            "target_high": info.get("targetHighPrice"),
+            "target_low": info.get("targetLowPrice"),
+            "recommendation": info.get("recommendationKey"),
+            "num_analysts": info.get("numberOfAnalystOpinions"),
+        }
+
+        # Company info
+        company_info = {
+            "name": info.get("shortName") or info.get("longName"),
+            "sector": info.get("sector"),
+            "industry": info.get("industry"),
+            "country": info.get("country"),
+            "employees": info.get("fullTimeEmployees"),
+            "description": info.get("longBusinessSummary"),
+            "website": info.get("website"),
+        }
+
+        # Get recent news
+        news_items = []
+        try:
+            news = ticker.news[:5] if hasattr(ticker, 'news') and ticker.news else []
+            for item in news:
+                news_items.append({
+                    "title": item.get("title"),
+                    "publisher": item.get("publisher"),
+                    "link": item.get("link"),
+                    "date": item.get("providerPublishTime"),
+                    "type": item.get("type"),
+                })
+        except Exception:
+            pass
+
+        # Historical performance
+        hist_1m = ((close.iloc[-1] - close.iloc[-22]) / close.iloc[-22] * 100) if len(close) > 22 else None
+        hist_3m = ((close.iloc[-1] - close.iloc[-66]) / close.iloc[-66] * 100) if len(close) > 66 else None
+        hist_6m = ((close.iloc[-1] - close.iloc[-132]) / close.iloc[-132] * 100) if len(close) > 132 else None
+        hist_ytd = None
+        try:
+            ytd_start = close[close.index.year == close.index[-1].year].iloc[0]
+            hist_ytd = ((close.iloc[-1] - ytd_start) / ytd_start * 100)
+        except Exception:
+            pass
+
+        performance = {
+            "1d": round(price_change, 2),
+            "1w": round(((close.iloc[-1] - close.iloc[-6]) / close.iloc[-6] * 100), 2) if len(close) > 6 else None,
+            "1m": round(hist_1m, 2) if hist_1m else None,
+            "3m": round(hist_3m, 2) if hist_3m else None,
+            "6m": round(hist_6m, 2) if hist_6m else None,
+            "ytd": round(hist_ytd, 2) if hist_ytd else None,
+        }
+
+        # Volatility analysis
+        daily_returns = close.pct_change().dropna()
+        volatility_20d = daily_returns.tail(20).std() * np.sqrt(252) * 100
+        volatility_60d = daily_returns.tail(60).std() * np.sqrt(252) * 100 if len(daily_returns) > 60 else None
+
+        # Price targets based on technicals
+        target_bull = round(current_price * 1.15, 2)  # +15%
+        target_base = round(current_price * 1.05, 2)  # +5%
+        target_bear = round(current_price * 0.90, 2)  # -10%
+
+        # Adjust based on trend
+        if trend == "BULLISH":
+            target_bull = round(current_price * 1.20, 2)
+            target_base = round(current_price * 1.10, 2)
+        elif trend == "BEARISH":
+            target_base = round(current_price * 0.95, 2)
+            target_bear = round(current_price * 0.80, 2)
+
+        # Fundamental score
+        fundamental_score = 50
+        if fundamentals.get("pe_ratio"):
+            pe = fundamentals["pe_ratio"]
+            if pe < 15:
+                fundamental_score += 10
+            elif pe > 30:
+                fundamental_score -= 10
+        if fundamentals.get("revenue_growth"):
+            rg = fundamentals["revenue_growth"]
+            if rg > 0.1:
+                fundamental_score += 10
+            elif rg < 0:
+                fundamental_score -= 10
+        if fundamentals.get("profit_margin"):
+            pm = fundamentals["profit_margin"]
+            if pm > 0.15:
+                fundamental_score += 5
+            elif pm < 0:
+                fundamental_score -= 10
+        fundamental_score = max(0, min(100, fundamental_score))
+
+        # Analyst sentiment
+        analyst_sentiment = "neutral"
+        if fundamentals.get("recommendation"):
+            rec = fundamentals["recommendation"].lower()
+            if "buy" in rec or "strong" in rec:
+                analyst_sentiment = "bullish"
+            elif "sell" in rec or "under" in rec:
+                analyst_sentiment = "bearish"
+
         return {
             "symbol": symbol,
             "timeframe": timeframe,
+            "company": company_info,
             "price": {
                 "current": round(current_price, 2),
                 "change": round(price_change, 2),
@@ -170,7 +299,8 @@ async def analyze_asset(
                 "total": final_score,
                 "technical": int(technical_score),
                 "volume": volume_score,
-                "momentum": int(momentum_score)
+                "momentum": int(momentum_score),
+                "fundamental": fundamental_score
             },
             "signal": {
                 "text": signal_text,
@@ -211,7 +341,23 @@ async def analyze_asset(
                 "suggested_sl": round(current_price - (atr * 2), 2),
                 "suggested_tp": round(current_price + (atr * 3), 2),
                 "risk_reward": 1.5
-            }
+            },
+            "fundamentals": fundamentals,
+            "performance": performance,
+            "volatility": {
+                "20d": round(volatility_20d, 2),
+                "60d": round(volatility_60d, 2) if volatility_60d else None,
+            },
+            "targets": {
+                "bull": target_bull,
+                "base": target_base,
+                "bear": target_bear,
+                "analyst_mean": fundamentals.get("target_price"),
+                "analyst_high": fundamentals.get("target_high"),
+                "analyst_low": fundamentals.get("target_low"),
+            },
+            "analyst_sentiment": analyst_sentiment,
+            "news": news_items,
         }
 
     except HTTPException:

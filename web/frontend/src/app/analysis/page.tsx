@@ -23,9 +23,32 @@ import {
   TrendingUpIcon,
   Gauge,
   LineChart,
+  Calendar,
+  Globe,
+  Shield,
+  Clock,
+  DollarSign,
+  PieChart,
+  Briefcase,
+  Eye,
+  TrendingUp as TrendUp,
+  Percent,
+  ArrowUpRight,
+  ArrowDownRight,
+  Scale,
+  Lightbulb,
+  BookOpen,
+  Newspaper,
+  ChevronDown,
+  ChevronUp,
+  Flame,
+  Sparkles,
+  Brain,
+  CircleDot,
+  AlertCircle,
 } from "lucide-react";
 import { cn, formatPercent } from "@/lib/utils";
-import { analysisAPI, favoritesAPI, Analysis } from "@/lib/api";
+import { analysisAPI, favoritesAPI, aiAPI, Analysis } from "@/lib/api";
 import { getAssetInfo, getAssetLogo } from "@/lib/assetInfo";
 import { useFormatCurrency } from "@/lib/SettingsContext";
 
@@ -40,6 +63,21 @@ export default function AnalysisPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const [isFavorite, setIsFavorite] = useState(false);
+  const [aiInsight, setAiInsight] = useState<string | null>(null);
+  const [isLoadingAI, setIsLoadingAI] = useState(false);
+  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(["main"]));
+
+  const toggleSection = (section: string) => {
+    setExpandedSections(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(section)) {
+        newSet.delete(section);
+      } else {
+        newSet.add(section);
+      }
+      return newSet;
+    });
+  };
 
   // Auto-load if symbol in URL
   useEffect(() => {
@@ -56,6 +94,7 @@ export default function AnalysisPage() {
 
     setIsLoading(true);
     setError("");
+    setAiInsight(null);
 
     try {
       const data = await analysisAPI.analyze(s, timeframe);
@@ -64,11 +103,31 @@ export default function AnalysisPage() {
       // Check if favorite
       const favCheck = await favoritesAPI.checkFavorite(s);
       setIsFavorite(favCheck.is_favorite);
+
+      // Get AI insight in background
+      loadAIInsight(s, data);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erreur d'analyse");
       setAnalysis(null);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const loadAIInsight = async (sym: string, data: Analysis) => {
+    setIsLoadingAI(true);
+    try {
+      const context = `Analyse technique de ${sym}: Score ${data.score.total}/100, Signal ${data.signal.text}, Tendance ${data.trend}, RSI ${data.indicators.rsi.value.toFixed(1)}, Prix actuel ${data.price.current}, Support ${data.levels.support}, Resistance ${data.levels.resistance}. ${data.company?.description ? `Description: ${data.company.description.substring(0, 200)}` : ''}`;
+
+      const response = await aiAPI.chat(
+        `En tant qu'analyste financier expert, donne une analyse approfondie et des previsions pour ${sym} en 3-4 paragraphes. Inclus: 1) Contexte de marche actuel 2) Perspectives a court terme (1-2 semaines) 3) Perspectives a moyen terme (1-3 mois) 4) Risques majeurs a surveiller. Sois precis et factuel.`,
+        context
+      );
+      setAiInsight(response.response);
+    } catch (err) {
+      console.error("Error loading AI insight:", err);
+    } finally {
+      setIsLoadingAI(false);
     }
   };
 
@@ -348,8 +407,55 @@ export default function AnalysisPage() {
             </Link>
           </motion.div>
 
+          {/* AI Insight - Future Predictions */}
+          <AIInsightSection
+            aiInsight={aiInsight}
+            isLoading={isLoadingAI}
+            symbol={analysis.symbol}
+            onReload={() => loadAIInsight(analysis.symbol, analysis)}
+          />
+
           {/* Detailed Analysis */}
           <DetailedAnalysis analysis={analysis} formatCurrency={formatCurrency} />
+
+          {/* Market Context & Economic Analysis */}
+          <MarketContextSection analysis={analysis} formatCurrency={formatCurrency} />
+
+          {/* Risk Assessment */}
+          <RiskAssessmentSection analysis={analysis} formatCurrency={formatCurrency} />
+
+          {/* Fundamental Analysis */}
+          {analysis.fundamentals && (
+            <FundamentalAnalysisEnhanced analysis={analysis} formatCurrency={formatCurrency} />
+          )}
+
+          {/* Investment Thesis */}
+          <InvestmentThesisSection analysis={analysis} formatCurrency={formatCurrency} />
+
+          {/* Performance & Targets */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <PerformanceSection analysis={analysis} />
+            <PriceTargets analysis={analysis} formatCurrency={formatCurrency} />
+          </div>
+
+          {/* Sector & Comparative Analysis */}
+          <SectorComparisonSection analysis={analysis} />
+
+          {/* Trading Strategies */}
+          <TradingStrategiesSection analysis={analysis} formatCurrency={formatCurrency} />
+
+          {/* Company Description */}
+          {analysis.company?.description && (
+            <CompanyDescription analysis={analysis} />
+          )}
+
+          {/* News Section with Sentiment */}
+          {analysis.news && analysis.news.length > 0 && (
+            <NewsSentimentSection news={analysis.news} symbol={analysis.symbol} />
+          )}
+
+          {/* Educational Section */}
+          <EducationalSection analysis={analysis} />
         </>
       )}
 
@@ -754,6 +860,1574 @@ function DetailedAnalysis({ analysis, formatCurrency }: { analysis: Analysis; fo
           )}
         </p>
       </div>
+    </motion.div>
+  );
+}
+
+// Fundamental Analysis Section
+function FundamentalAnalysis({ analysis, formatCurrency }: { analysis: Analysis; formatCurrency: (value: number) => string }) {
+  const f = analysis.fundamentals;
+  if (!f) return null;
+
+  const formatLargeNumber = (num: number | undefined) => {
+    if (!num) return "N/A";
+    if (num >= 1e12) return `${(num / 1e12).toFixed(2)}T`;
+    if (num >= 1e9) return `${(num / 1e9).toFixed(2)}B`;
+    if (num >= 1e6) return `${(num / 1e6).toFixed(2)}M`;
+    return num.toLocaleString();
+  };
+
+  const formatPct = (num: number | undefined) => {
+    if (num === undefined || num === null) return "N/A";
+    return `${(num * 100).toFixed(2)}%`;
+  };
+
+  const getValueColor = (value: number | undefined, goodAbove: number, badBelow: number) => {
+    if (value === undefined) return "text-muted-foreground";
+    if (value >= goodAbove) return "text-profit";
+    if (value <= badBelow) return "text-loss";
+    return "text-warning";
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.6 }}
+      className="glass-card p-6"
+    >
+      <h3 className="font-semibold mb-6 flex items-center gap-2 text-lg">
+        <BarChart3 className="w-5 h-5 text-primary" />
+        Analyse Fondamentale
+      </h3>
+
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {/* Market Cap */}
+        <div className="p-3 bg-white/5 rounded-lg">
+          <p className="text-xs text-muted-foreground">Capitalisation</p>
+          <p className="font-bold text-lg">{formatLargeNumber(f.market_cap)}</p>
+        </div>
+
+        {/* P/E Ratio */}
+        <div className="p-3 bg-white/5 rounded-lg">
+          <p className="text-xs text-muted-foreground">P/E Ratio</p>
+          <p className={cn("font-bold text-lg", getValueColor(f.pe_ratio, 25, 10))}>
+            {f.pe_ratio?.toFixed(2) || "N/A"}
+          </p>
+        </div>
+
+        {/* Forward P/E */}
+        <div className="p-3 bg-white/5 rounded-lg">
+          <p className="text-xs text-muted-foreground">Forward P/E</p>
+          <p className="font-bold text-lg">{f.forward_pe?.toFixed(2) || "N/A"}</p>
+        </div>
+
+        {/* PEG Ratio */}
+        <div className="p-3 bg-white/5 rounded-lg">
+          <p className="text-xs text-muted-foreground">PEG Ratio</p>
+          <p className={cn("font-bold text-lg", f.peg_ratio && f.peg_ratio < 1 ? "text-profit" : f.peg_ratio && f.peg_ratio > 2 ? "text-loss" : "")}>
+            {f.peg_ratio?.toFixed(2) || "N/A"}
+          </p>
+        </div>
+
+        {/* Revenue Growth */}
+        <div className="p-3 bg-white/5 rounded-lg">
+          <p className="text-xs text-muted-foreground">Croissance CA</p>
+          <p className={cn("font-bold text-lg", f.revenue_growth && f.revenue_growth > 0 ? "text-profit" : "text-loss")}>
+            {formatPct(f.revenue_growth)}
+          </p>
+        </div>
+
+        {/* Profit Margin */}
+        <div className="p-3 bg-white/5 rounded-lg">
+          <p className="text-xs text-muted-foreground">Marge nette</p>
+          <p className={cn("font-bold text-lg", f.profit_margin && f.profit_margin > 0.1 ? "text-profit" : "text-loss")}>
+            {formatPct(f.profit_margin)}
+          </p>
+        </div>
+
+        {/* ROE */}
+        <div className="p-3 bg-white/5 rounded-lg">
+          <p className="text-xs text-muted-foreground">ROE</p>
+          <p className={cn("font-bold text-lg", f.roe && f.roe > 0.15 ? "text-profit" : "")}>
+            {formatPct(f.roe)}
+          </p>
+        </div>
+
+        {/* Dividend Yield */}
+        <div className="p-3 bg-white/5 rounded-lg">
+          <p className="text-xs text-muted-foreground">Dividende</p>
+          <p className="font-bold text-lg">{formatPct(f.dividend_yield)}</p>
+        </div>
+
+        {/* Debt/Equity */}
+        <div className="p-3 bg-white/5 rounded-lg">
+          <p className="text-xs text-muted-foreground">Dette/Equity</p>
+          <p className={cn("font-bold text-lg", f.debt_to_equity && f.debt_to_equity > 100 ? "text-loss" : "text-profit")}>
+            {f.debt_to_equity?.toFixed(2) || "N/A"}
+          </p>
+        </div>
+
+        {/* Beta */}
+        <div className="p-3 bg-white/5 rounded-lg">
+          <p className="text-xs text-muted-foreground">Beta</p>
+          <p className={cn("font-bold text-lg", f.beta && f.beta > 1.5 ? "text-warning" : "")}>
+            {f.beta?.toFixed(2) || "N/A"}
+          </p>
+        </div>
+
+        {/* 52W High */}
+        <div className="p-3 bg-white/5 rounded-lg">
+          <p className="text-xs text-muted-foreground">Plus haut 52s</p>
+          <p className="font-bold text-lg">{f["52w_high"] ? formatCurrency(f["52w_high"]) : "N/A"}</p>
+        </div>
+
+        {/* 52W Low */}
+        <div className="p-3 bg-white/5 rounded-lg">
+          <p className="text-xs text-muted-foreground">Plus bas 52s</p>
+          <p className="font-bold text-lg">{f["52w_low"] ? formatCurrency(f["52w_low"]) : "N/A"}</p>
+        </div>
+      </div>
+
+      {/* Analyst Recommendation */}
+      {f.recommendation && (
+        <div className="mt-4 p-4 bg-white/5 rounded-xl">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-muted-foreground">Recommandation des analystes</p>
+              <p className={cn(
+                "font-bold text-xl mt-1",
+                f.recommendation.includes("buy") ? "text-profit" :
+                f.recommendation.includes("sell") ? "text-loss" : "text-warning"
+              )}>
+                {f.recommendation.toUpperCase()}
+              </p>
+            </div>
+            {f.num_analysts && (
+              <p className="text-sm text-muted-foreground">{f.num_analysts} analystes</p>
+            )}
+          </div>
+        </div>
+      )}
+    </motion.div>
+  );
+}
+
+// Performance Section
+function PerformanceSection({ analysis }: { analysis: Analysis }) {
+  const p = analysis.performance;
+  const v = analysis.volatility;
+
+  const formatPct = (num: number | undefined | null) => {
+    if (num === undefined || num === null) return "N/A";
+    const sign = num >= 0 ? "+" : "";
+    return `${sign}${num.toFixed(2)}%`;
+  };
+
+  const getColor = (num: number | undefined | null) => {
+    if (num === undefined || num === null) return "text-muted-foreground";
+    return num >= 0 ? "text-profit" : "text-loss";
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.7 }}
+      className="glass-card p-6"
+    >
+      <h3 className="font-semibold mb-4 flex items-center gap-2">
+        <TrendingUp className="w-5 h-5 text-primary" />
+        Performance Historique
+      </h3>
+
+      <div className="space-y-3">
+        {[
+          { label: "1 jour", value: p?.["1d"] },
+          { label: "1 semaine", value: p?.["1w"] },
+          { label: "1 mois", value: p?.["1m"] },
+          { label: "3 mois", value: p?.["3m"] },
+          { label: "6 mois", value: p?.["6m"] },
+          { label: "YTD", value: p?.ytd },
+        ].map((item) => (
+          <div key={item.label} className="flex items-center justify-between p-2 bg-white/5 rounded-lg">
+            <span className="text-sm text-muted-foreground">{item.label}</span>
+            <span className={cn("font-semibold", getColor(item.value))}>
+              {formatPct(item.value)}
+            </span>
+          </div>
+        ))}
+      </div>
+
+      {v && (
+        <div className="mt-4 pt-4 border-t border-white/10">
+          <p className="text-sm text-muted-foreground mb-2">Volatilite annualisee</p>
+          <div className="flex gap-4">
+            <div className="flex-1 p-2 bg-white/5 rounded-lg text-center">
+              <p className="text-xs text-muted-foreground">20 jours</p>
+              <p className="font-semibold">{v["20d"]?.toFixed(1)}%</p>
+            </div>
+            {v["60d"] && (
+              <div className="flex-1 p-2 bg-white/5 rounded-lg text-center">
+                <p className="text-xs text-muted-foreground">60 jours</p>
+                <p className="font-semibold">{v["60d"]?.toFixed(1)}%</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </motion.div>
+  );
+}
+
+// Price Targets Section
+function PriceTargets({ analysis, formatCurrency }: { analysis: Analysis; formatCurrency: (value: number) => string }) {
+  const t = analysis.targets;
+  const currentPrice = analysis.price.current;
+
+  const getPctFromCurrent = (target: number | undefined) => {
+    if (!target) return null;
+    return ((target - currentPrice) / currentPrice * 100).toFixed(1);
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.8 }}
+      className="glass-card p-6"
+    >
+      <h3 className="font-semibold mb-4 flex items-center gap-2">
+        <Target className="w-5 h-5 text-primary" />
+        Objectifs de Prix
+      </h3>
+
+      {/* Technical Targets */}
+      <div className="space-y-3 mb-4">
+        <p className="text-xs text-muted-foreground uppercase tracking-wide">Objectifs techniques</p>
+        {t?.bull && (
+          <div className="flex items-center justify-between p-3 bg-profit/10 rounded-lg border border-profit/20">
+            <div>
+              <span className="text-sm text-muted-foreground">Scenario haussier</span>
+              <p className="font-bold text-profit">{formatCurrency(t.bull)}</p>
+            </div>
+            <span className="text-profit text-sm">+{getPctFromCurrent(t.bull)}%</span>
+          </div>
+        )}
+        {t?.base && (
+          <div className="flex items-center justify-between p-3 bg-primary/10 rounded-lg border border-primary/20">
+            <div>
+              <span className="text-sm text-muted-foreground">Scenario base</span>
+              <p className="font-bold text-primary">{formatCurrency(t.base)}</p>
+            </div>
+            <span className="text-primary text-sm">+{getPctFromCurrent(t.base)}%</span>
+          </div>
+        )}
+        {t?.bear && (
+          <div className="flex items-center justify-between p-3 bg-loss/10 rounded-lg border border-loss/20">
+            <div>
+              <span className="text-sm text-muted-foreground">Scenario baissier</span>
+              <p className="font-bold text-loss">{formatCurrency(t.bear)}</p>
+            </div>
+            <span className="text-loss text-sm">{getPctFromCurrent(t.bear)}%</span>
+          </div>
+        )}
+      </div>
+
+      {/* Analyst Targets */}
+      {t?.analyst_mean && (
+        <div className="pt-4 border-t border-white/10">
+          <p className="text-xs text-muted-foreground uppercase tracking-wide mb-3">Objectifs analystes</p>
+          <div className="grid grid-cols-3 gap-2">
+            <div className="p-2 bg-white/5 rounded-lg text-center">
+              <p className="text-xs text-muted-foreground">Bas</p>
+              <p className="font-semibold text-loss">{formatCurrency(t.analyst_low || 0)}</p>
+            </div>
+            <div className="p-2 bg-white/5 rounded-lg text-center">
+              <p className="text-xs text-muted-foreground">Moyen</p>
+              <p className="font-semibold">{formatCurrency(t.analyst_mean)}</p>
+            </div>
+            <div className="p-2 bg-white/5 rounded-lg text-center">
+              <p className="text-xs text-muted-foreground">Haut</p>
+              <p className="font-semibold text-profit">{formatCurrency(t.analyst_high || 0)}</p>
+            </div>
+          </div>
+        </div>
+      )}
+    </motion.div>
+  );
+}
+
+// Company Description
+function CompanyDescription({ analysis }: { analysis: Analysis }) {
+  const c = analysis.company;
+  if (!c?.description) return null;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.9 }}
+      className="glass-card p-6"
+    >
+      <h3 className="font-semibold mb-4 flex items-center gap-2">
+        <Info className="w-5 h-5 text-primary" />
+        A propos de {c.name || analysis.symbol}
+      </h3>
+
+      <div className="flex flex-wrap gap-2 mb-4">
+        {c.sector && (
+          <span className="px-3 py-1 bg-primary/20 text-primary rounded-full text-sm">{c.sector}</span>
+        )}
+        {c.industry && (
+          <span className="px-3 py-1 bg-white/10 rounded-full text-sm">{c.industry}</span>
+        )}
+        {c.country && (
+          <span className="px-3 py-1 bg-white/10 rounded-full text-sm">{c.country}</span>
+        )}
+        {c.employees && (
+          <span className="px-3 py-1 bg-white/10 rounded-full text-sm">{c.employees.toLocaleString()} employes</span>
+        )}
+      </div>
+
+      <p className="text-sm text-muted-foreground leading-relaxed">
+        {c.description.length > 500 ? c.description.substring(0, 500) + "..." : c.description}
+      </p>
+
+      {c.website && (
+        <a
+          href={c.website}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1 mt-3 text-primary hover:underline text-sm"
+        >
+          Visiter le site web
+          <ArrowRight className="w-3 h-3" />
+        </a>
+      )}
+    </motion.div>
+  );
+}
+
+// AI Insight Section - Future Predictions
+function AIInsightSection({
+  aiInsight,
+  isLoading,
+  symbol,
+  onReload
+}: {
+  aiInsight: string | null;
+  isLoading: boolean;
+  symbol: string;
+  onReload: () => void;
+}) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.45 }}
+      className="glass-card p-6 relative overflow-hidden"
+    >
+      <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-purple-500/20 to-transparent rounded-full blur-2xl" />
+      <div className="relative">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-semibold flex items-center gap-2 text-lg">
+            <Brain className="w-5 h-5 text-purple-400" />
+            Analyse IA & Previsions
+            <span className="px-2 py-0.5 bg-purple-500/20 text-purple-400 text-xs rounded-full">Premium</span>
+          </h3>
+          <button
+            onClick={onReload}
+            disabled={isLoading}
+            className="p-2 rounded-lg hover:bg-white/10 transition-colors"
+          >
+            <Sparkles className={cn("w-4 h-4 text-purple-400", isLoading && "animate-spin")} />
+          </button>
+        </div>
+
+        {isLoading ? (
+          <div className="flex items-center gap-3 py-8 justify-center">
+            <Loader2 className="w-5 h-5 animate-spin text-purple-400" />
+            <span className="text-muted-foreground">Analyse en cours par l'IA...</span>
+          </div>
+        ) : aiInsight ? (
+          <div className="space-y-4">
+            <div className="prose prose-invert max-w-none">
+              {aiInsight.split('\n\n').map((paragraph, idx) => (
+                <p key={idx} className="text-sm text-muted-foreground leading-relaxed">
+                  {paragraph}
+                </p>
+              ))}
+            </div>
+
+            <div className="flex items-center gap-2 pt-4 border-t border-white/10">
+              <AlertCircle className="w-4 h-4 text-warning" />
+              <p className="text-xs text-muted-foreground">
+                Cette analyse est generee par IA a titre informatif. Elle ne constitue pas un conseil financier.
+              </p>
+            </div>
+          </div>
+        ) : (
+          <div className="text-center py-6 text-muted-foreground">
+            <Brain className="w-8 h-8 mx-auto mb-2 opacity-50" />
+            <p className="text-sm">Cliquez sur l'icone pour generer une analyse IA</p>
+          </div>
+        )}
+      </div>
+    </motion.div>
+  );
+}
+
+// Market Context & Economic Analysis
+function MarketContextSection({ analysis, formatCurrency }: { analysis: Analysis; formatCurrency: (value: number) => string }) {
+  const getMarketPhase = () => {
+    const score = analysis.score.total;
+    const rsi = analysis.indicators.rsi.value;
+    const trend = analysis.trend;
+
+    if (score >= 75 && trend === "BULLISH") {
+      return {
+        phase: "Expansion",
+        icon: <TrendingUp className="w-5 h-5 text-profit" />,
+        description: "Le marche est en phase d'expansion avec une forte dynamique haussiere. Les acheteurs dominent et la confiance est elevee.",
+        color: "text-profit",
+        bgColor: "bg-profit/10 border-profit/20"
+      };
+    } else if (score >= 60 && rsi > 50) {
+      return {
+        phase: "Croissance",
+        icon: <ArrowUpRight className="w-5 h-5 text-green-400" />,
+        description: "Phase de croissance moderee. Le marche montre des signes positifs mais sans exuberance excessive.",
+        color: "text-green-400",
+        bgColor: "bg-green-400/10 border-green-400/20"
+      };
+    } else if (score >= 40) {
+      return {
+        phase: "Consolidation",
+        icon: <Activity className="w-5 h-5 text-warning" />,
+        description: "Le marche consolide sans direction claire. Phase d'accumulation ou de distribution possible.",
+        color: "text-warning",
+        bgColor: "bg-warning/10 border-warning/20"
+      };
+    } else if (score >= 25) {
+      return {
+        phase: "Correction",
+        icon: <ArrowDownRight className="w-5 h-5 text-orange-400" />,
+        description: "Phase de correction en cours. Les vendeurs prennent le controle mais sans panique generalisee.",
+        color: "text-orange-400",
+        bgColor: "bg-orange-400/10 border-orange-400/20"
+      };
+    } else {
+      return {
+        phase: "Contraction",
+        icon: <TrendingDown className="w-5 h-5 text-loss" />,
+        description: "Marche en contraction avec forte pression vendeuse. Prudence maximale recommandee.",
+        color: "text-loss",
+        bgColor: "bg-loss/10 border-loss/20"
+      };
+    }
+  };
+
+  const getVolatilityContext = () => {
+    const atr = analysis.indicators.atr;
+    const price = analysis.price.current;
+    const atrPercent = (atr / price) * 100;
+
+    if (atrPercent > 5) {
+      return { level: "Tres elevee", color: "text-loss", description: "Marche tres volatile - risque eleve mais opportunites importantes" };
+    } else if (atrPercent > 3) {
+      return { level: "Elevee", color: "text-warning", description: "Volatilite superieure a la normale - prudence recommandee" };
+    } else if (atrPercent > 1.5) {
+      return { level: "Moderee", color: "text-primary", description: "Volatilite normale pour ce type d'actif" };
+    } else {
+      return { level: "Faible", color: "text-profit", description: "Marche calme - mouvements limites attendus" };
+    }
+  };
+
+  const getLiquidityContext = () => {
+    const ratio = analysis.indicators.volume_ratio;
+    if (ratio > 2) {
+      return { level: "Excellente", color: "text-profit", description: "Volume tres eleve - forte liquidite et interet institutionnel probable" };
+    } else if (ratio > 1) {
+      return { level: "Bonne", color: "text-primary", description: "Volume superieur a la moyenne - bonnes conditions de trading" };
+    } else if (ratio > 0.5) {
+      return { level: "Correcte", color: "text-warning", description: "Volume dans la moyenne - conditions normales" };
+    } else {
+      return { level: "Limitee", color: "text-loss", description: "Faible volume - spreads potentiellement eleves, slippage possible" };
+    }
+  };
+
+  const marketPhase = getMarketPhase();
+  const volatility = getVolatilityContext();
+  const liquidity = getLiquidityContext();
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.55 }}
+      className="glass-card p-6"
+    >
+      <h3 className="font-semibold mb-6 flex items-center gap-2 text-lg">
+        <Globe className="w-5 h-5 text-primary" />
+        Contexte de Marche & Economique
+      </h3>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        {/* Market Phase */}
+        <div className={cn("p-4 rounded-xl border", marketPhase.bgColor)}>
+          <div className="flex items-center gap-2 mb-2">
+            {marketPhase.icon}
+            <span className={cn("font-semibold", marketPhase.color)}>Phase: {marketPhase.phase}</span>
+          </div>
+          <p className="text-xs text-muted-foreground">{marketPhase.description}</p>
+        </div>
+
+        {/* Volatility */}
+        <div className="p-4 rounded-xl bg-white/5 border border-white/10">
+          <div className="flex items-center gap-2 mb-2">
+            <Activity className="w-5 h-5 text-primary" />
+            <span className="font-semibold">Volatilite: <span className={volatility.color}>{volatility.level}</span></span>
+          </div>
+          <p className="text-xs text-muted-foreground">{volatility.description}</p>
+          <p className="text-xs mt-1 text-muted-foreground">ATR: {formatCurrency(analysis.indicators.atr)}</p>
+        </div>
+
+        {/* Liquidity */}
+        <div className="p-4 rounded-xl bg-white/5 border border-white/10">
+          <div className="flex items-center gap-2 mb-2">
+            <DollarSign className="w-5 h-5 text-primary" />
+            <span className="font-semibold">Liquidite: <span className={liquidity.color}>{liquidity.level}</span></span>
+          </div>
+          <p className="text-xs text-muted-foreground">{liquidity.description}</p>
+          <p className="text-xs mt-1 text-muted-foreground">Ratio: {analysis.indicators.volume_ratio.toFixed(2)}x moyenne</p>
+        </div>
+      </div>
+
+      {/* Economic Factors */}
+      <div className="space-y-3">
+        <h4 className="text-sm font-semibold text-muted-foreground flex items-center gap-2">
+          <PieChart className="w-4 h-4" />
+          Facteurs Economiques a Considerer
+        </h4>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div className="p-3 bg-white/5 rounded-lg">
+            <p className="text-xs text-muted-foreground mb-1">Position dans le range 52 semaines</p>
+            {analysis.fundamentals?.["52w_high"] && analysis.fundamentals?.["52w_low"] ? (
+              <div>
+                <div className="h-2 bg-white/10 rounded-full mb-2 relative">
+                  <div
+                    className="absolute h-full bg-gradient-to-r from-loss via-warning to-profit rounded-full"
+                    style={{ width: '100%' }}
+                  />
+                  <div
+                    className="absolute w-3 h-3 bg-primary rounded-full -top-0.5 shadow-lg shadow-primary/50"
+                    style={{
+                      left: `${Math.max(0, Math.min(100, ((analysis.price.current - analysis.fundamentals["52w_low"]) / (analysis.fundamentals["52w_high"] - analysis.fundamentals["52w_low"])) * 100))}%`,
+                      transform: 'translateX(-50%)'
+                    }}
+                  />
+                </div>
+                <div className="flex justify-between text-xs">
+                  <span className="text-loss">{formatCurrency(analysis.fundamentals["52w_low"])}</span>
+                  <span className="text-profit">{formatCurrency(analysis.fundamentals["52w_high"])}</span>
+                </div>
+              </div>
+            ) : (
+              <p className="text-sm font-semibold">N/A</p>
+            )}
+          </div>
+
+          <div className="p-3 bg-white/5 rounded-lg">
+            <p className="text-xs text-muted-foreground mb-1">Distance aux moyennes mobiles</p>
+            <div className="space-y-1">
+              <div className="flex justify-between text-xs">
+                <span>EMA20:</span>
+                <span className={analysis.price.current > analysis.indicators.ema.ema20 ? "text-profit" : "text-loss"}>
+                  {((analysis.price.current - analysis.indicators.ema.ema20) / analysis.indicators.ema.ema20 * 100).toFixed(2)}%
+                </span>
+              </div>
+              <div className="flex justify-between text-xs">
+                <span>EMA50:</span>
+                <span className={analysis.price.current > analysis.indicators.ema.ema50 ? "text-profit" : "text-loss"}>
+                  {((analysis.price.current - analysis.indicators.ema.ema50) / analysis.indicators.ema.ema50 * 100).toFixed(2)}%
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
+// Risk Assessment Section
+function RiskAssessmentSection({ analysis, formatCurrency }: { analysis: Analysis; formatCurrency: (value: number) => string }) {
+  const calculateRiskScore = () => {
+    let score = 50; // Base score
+
+    // RSI risk
+    if (analysis.indicators.rsi.value > 80) score += 20;
+    else if (analysis.indicators.rsi.value > 70) score += 10;
+    else if (analysis.indicators.rsi.value < 20) score += 15;
+    else if (analysis.indicators.rsi.value < 30) score += 5;
+
+    // Volatility risk (ATR based)
+    const atrPercent = (analysis.indicators.atr / analysis.price.current) * 100;
+    if (atrPercent > 5) score += 20;
+    else if (atrPercent > 3) score += 10;
+
+    // Volume risk
+    if (analysis.indicators.volume_ratio < 0.5) score += 10;
+
+    // Beta risk
+    if (analysis.fundamentals?.beta) {
+      if (analysis.fundamentals.beta > 2) score += 15;
+      else if (analysis.fundamentals.beta > 1.5) score += 10;
+      else if (analysis.fundamentals.beta < 0.5) score -= 10;
+    }
+
+    // Debt risk
+    if (analysis.fundamentals?.debt_to_equity) {
+      if (analysis.fundamentals.debt_to_equity > 200) score += 15;
+      else if (analysis.fundamentals.debt_to_equity > 100) score += 5;
+    }
+
+    return Math.min(100, Math.max(0, score));
+  };
+
+  const riskScore = calculateRiskScore();
+
+  const getRiskLevel = (score: number) => {
+    if (score >= 75) return { level: "Tres eleve", color: "text-loss", bg: "bg-loss" };
+    if (score >= 60) return { level: "Eleve", color: "text-orange-400", bg: "bg-orange-400" };
+    if (score >= 40) return { level: "Modere", color: "text-warning", bg: "bg-warning" };
+    if (score >= 25) return { level: "Faible", color: "text-green-400", bg: "bg-green-400" };
+    return { level: "Tres faible", color: "text-profit", bg: "bg-profit" };
+  };
+
+  const risk = getRiskLevel(riskScore);
+
+  const riskFactors = [
+    {
+      name: "Volatilite",
+      value: (analysis.indicators.atr / analysis.price.current) * 100,
+      threshold: 3,
+      isHigh: (analysis.indicators.atr / analysis.price.current) * 100 > 3,
+      description: "Amplitude moyenne des mouvements de prix"
+    },
+    {
+      name: "Liquidite",
+      value: analysis.indicators.volume_ratio,
+      threshold: 0.7,
+      isHigh: analysis.indicators.volume_ratio < 0.7,
+      description: "Capacite a entrer/sortir sans impact sur le prix"
+    },
+    {
+      name: "Surachat/Survente",
+      value: analysis.indicators.rsi.value,
+      threshold: 70,
+      isHigh: analysis.indicators.rsi.value > 70 || analysis.indicators.rsi.value < 30,
+      description: "Niveau extreme du RSI"
+    },
+    ...(analysis.fundamentals?.beta ? [{
+      name: "Beta",
+      value: analysis.fundamentals.beta,
+      threshold: 1.5,
+      isHigh: analysis.fundamentals.beta > 1.5,
+      description: "Sensibilite aux mouvements du marche"
+    }] : []),
+    ...(analysis.fundamentals?.debt_to_equity ? [{
+      name: "Endettement",
+      value: analysis.fundamentals.debt_to_equity,
+      threshold: 100,
+      isHigh: analysis.fundamentals.debt_to_equity > 100,
+      description: "Ratio dette/capitaux propres"
+    }] : [])
+  ];
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.6 }}
+      className="glass-card p-6"
+    >
+      <h3 className="font-semibold mb-6 flex items-center gap-2 text-lg">
+        <Shield className="w-5 h-5 text-primary" />
+        Evaluation des Risques
+      </h3>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Risk Gauge */}
+        <div className="flex flex-col items-center">
+          <div className="relative w-32 h-32">
+            <svg className="w-full h-full -rotate-90">
+              <circle
+                cx="64"
+                cy="64"
+                r="56"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="12"
+                className="text-white/10"
+              />
+              <circle
+                cx="64"
+                cy="64"
+                r="56"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="12"
+                strokeLinecap="round"
+                strokeDasharray={`${(riskScore / 100) * 352} 352`}
+                className={risk.bg}
+              />
+            </svg>
+            <div className="absolute inset-0 flex flex-col items-center justify-center">
+              <span className={cn("text-3xl font-bold", risk.color)}>{riskScore}</span>
+              <span className="text-xs text-muted-foreground">/ 100</span>
+            </div>
+          </div>
+          <p className={cn("font-semibold mt-2", risk.color)}>Risque {risk.level}</p>
+        </div>
+
+        {/* Risk Factors */}
+        <div className="lg:col-span-2 space-y-3">
+          {riskFactors.map((factor, idx) => (
+            <div key={idx} className="p-3 bg-white/5 rounded-lg">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-sm font-medium">{factor.name}</span>
+                <span className={cn(
+                  "px-2 py-0.5 rounded text-xs font-medium",
+                  factor.isHigh ? "bg-loss/20 text-loss" : "bg-profit/20 text-profit"
+                )}>
+                  {factor.isHigh ? "Attention" : "OK"}
+                </span>
+              </div>
+              <p className="text-xs text-muted-foreground">{factor.description}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Risk Management Suggestions */}
+      <div className="mt-6 p-4 bg-primary/10 rounded-xl border border-primary/20">
+        <h4 className="font-semibold mb-3 flex items-center gap-2">
+          <Lightbulb className="w-4 h-4 text-primary" />
+          Recommandations de Gestion du Risque
+        </h4>
+        <ul className="space-y-2 text-sm text-muted-foreground">
+          <li className="flex items-start gap-2">
+            <CircleDot className="w-3 h-3 mt-1.5 text-primary flex-shrink-0" />
+            <span>Taille de position recommandee: <strong className="text-foreground">{riskScore > 60 ? "1-2%" : riskScore > 40 ? "2-3%" : "3-5%"}</strong> du capital</span>
+          </li>
+          <li className="flex items-start gap-2">
+            <CircleDot className="w-3 h-3 mt-1.5 text-primary flex-shrink-0" />
+            <span>Stop loss suggere: <strong className="text-foreground">{formatCurrency(analysis.risk.suggested_sl)}</strong> ({(((analysis.price.current - analysis.risk.suggested_sl) / analysis.price.current) * 100).toFixed(1)}% du prix)</span>
+          </li>
+          <li className="flex items-start gap-2">
+            <CircleDot className="w-3 h-3 mt-1.5 text-primary flex-shrink-0" />
+            <span>Diversification: <strong className="text-foreground">{analysis.fundamentals?.beta && analysis.fundamentals.beta > 1.2 ? "Fortement recommandee" : "Standard"}</strong></span>
+          </li>
+        </ul>
+      </div>
+    </motion.div>
+  );
+}
+
+// Enhanced Fundamental Analysis
+function FundamentalAnalysisEnhanced({ analysis, formatCurrency }: { analysis: Analysis; formatCurrency: (value: number) => string }) {
+  const f = analysis.fundamentals;
+  if (!f) return null;
+
+  const formatLargeNumber = (num: number | undefined) => {
+    if (!num) return "N/A";
+    if (num >= 1e12) return `${(num / 1e12).toFixed(2)}T`;
+    if (num >= 1e9) return `${(num / 1e9).toFixed(2)}B`;
+    if (num >= 1e6) return `${(num / 1e6).toFixed(2)}M`;
+    return num.toLocaleString();
+  };
+
+  const formatPct = (num: number | undefined) => {
+    if (num === undefined || num === null) return "N/A";
+    return `${(num * 100).toFixed(2)}%`;
+  };
+
+  // Valuation Analysis
+  const getValuationAnalysis = () => {
+    if (!f.pe_ratio) return null;
+
+    let assessment = "";
+    let color = "text-warning";
+
+    if (f.pe_ratio < 15) {
+      assessment = "L'action semble sous-evaluee avec un P/E inferieur a la moyenne historique du marche (15-20). Cela peut indiquer une opportunite d'achat ou des inquietudes du marche sur la croissance future.";
+      color = "text-profit";
+    } else if (f.pe_ratio < 25) {
+      assessment = "Le P/E est dans une fourchette raisonnable. L'action est evaluee a sa juste valeur par rapport a ses benefices actuels.";
+      color = "text-primary";
+    } else if (f.pe_ratio < 40) {
+      assessment = "Le P/E eleve suggere que les investisseurs anticipent une forte croissance future. Attention au risque de correction si les attentes ne sont pas respectees.";
+      color = "text-warning";
+    } else {
+      assessment = "Le P/E tres eleve indique une valorisation speculative. Le marche price une croissance exceptionnelle. Risque de volatilite important.";
+      color = "text-loss";
+    }
+
+    return { assessment, color };
+  };
+
+  // Growth Analysis
+  const getGrowthAnalysis = () => {
+    const growth = f.revenue_growth;
+    if (!growth) return null;
+
+    if (growth > 0.3) {
+      return { text: "Croissance exceptionnelle (>30%)", color: "text-profit" };
+    } else if (growth > 0.15) {
+      return { text: "Forte croissance (15-30%)", color: "text-green-400" };
+    } else if (growth > 0.05) {
+      return { text: "Croissance moderee (5-15%)", color: "text-primary" };
+    } else if (growth > 0) {
+      return { text: "Croissance faible (<5%)", color: "text-warning" };
+    } else {
+      return { text: "Decroissance", color: "text-loss" };
+    }
+  };
+
+  // Profitability Analysis
+  const getProfitabilityAnalysis = () => {
+    const margin = f.profit_margin;
+    if (!margin) return null;
+
+    if (margin > 0.2) {
+      return { text: "Excellente rentabilite (>20%)", color: "text-profit", score: 5 };
+    } else if (margin > 0.1) {
+      return { text: "Bonne rentabilite (10-20%)", color: "text-green-400", score: 4 };
+    } else if (margin > 0.05) {
+      return { text: "Rentabilite correcte (5-10%)", color: "text-primary", score: 3 };
+    } else if (margin > 0) {
+      return { text: "Rentabilite faible (<5%)", color: "text-warning", score: 2 };
+    } else {
+      return { text: "Non rentable", color: "text-loss", score: 1 };
+    }
+  };
+
+  const valuation = getValuationAnalysis();
+  const growth = getGrowthAnalysis();
+  const profitability = getProfitabilityAnalysis();
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.65 }}
+      className="glass-card p-6"
+    >
+      <h3 className="font-semibold mb-6 flex items-center gap-2 text-lg">
+        <BarChart3 className="w-5 h-5 text-primary" />
+        Analyse Fondamentale Approfondie
+      </h3>
+
+      {/* Key Metrics Grid */}
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 mb-6">
+        <div className="p-3 bg-white/5 rounded-lg">
+          <p className="text-xs text-muted-foreground">Capitalisation</p>
+          <p className="font-bold text-lg">{formatLargeNumber(f.market_cap)}</p>
+        </div>
+        <div className="p-3 bg-white/5 rounded-lg">
+          <p className="text-xs text-muted-foreground">P/E Ratio</p>
+          <p className={cn("font-bold text-lg", f.pe_ratio && f.pe_ratio > 30 ? "text-warning" : f.pe_ratio && f.pe_ratio < 15 ? "text-profit" : "")}>
+            {f.pe_ratio?.toFixed(2) || "N/A"}
+          </p>
+        </div>
+        <div className="p-3 bg-white/5 rounded-lg">
+          <p className="text-xs text-muted-foreground">Forward P/E</p>
+          <p className="font-bold text-lg">{f.forward_pe?.toFixed(2) || "N/A"}</p>
+        </div>
+        <div className="p-3 bg-white/5 rounded-lg">
+          <p className="text-xs text-muted-foreground">PEG Ratio</p>
+          <p className={cn("font-bold text-lg", f.peg_ratio && f.peg_ratio < 1 ? "text-profit" : f.peg_ratio && f.peg_ratio > 2 ? "text-loss" : "")}>
+            {f.peg_ratio?.toFixed(2) || "N/A"}
+          </p>
+        </div>
+        <div className="p-3 bg-white/5 rounded-lg">
+          <p className="text-xs text-muted-foreground">Prix/Book</p>
+          <p className="font-bold text-lg">{f.price_to_book?.toFixed(2) || "N/A"}</p>
+        </div>
+        <div className="p-3 bg-white/5 rounded-lg">
+          <p className="text-xs text-muted-foreground">Dividende</p>
+          <p className="font-bold text-lg">{formatPct(f.dividend_yield)}</p>
+        </div>
+      </div>
+
+      {/* Analysis Sections */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
+        {/* Valuation */}
+        <div className="p-4 bg-white/5 rounded-xl">
+          <h4 className="font-semibold mb-2 flex items-center gap-2">
+            <Scale className="w-4 h-4 text-primary" />
+            Valorisation
+          </h4>
+          {valuation ? (
+            <p className="text-sm text-muted-foreground">{valuation.assessment}</p>
+          ) : (
+            <p className="text-sm text-muted-foreground">Donnees insuffisantes</p>
+          )}
+        </div>
+
+        {/* Growth */}
+        <div className="p-4 bg-white/5 rounded-xl">
+          <h4 className="font-semibold mb-2 flex items-center gap-2">
+            <TrendingUp className="w-4 h-4 text-primary" />
+            Croissance
+          </h4>
+          {growth ? (
+            <>
+              <p className={cn("font-semibold mb-1", growth.color)}>{growth.text}</p>
+              <p className="text-sm text-muted-foreground">CA: {formatPct(f.revenue_growth)}</p>
+              {f.earnings_growth && <p className="text-sm text-muted-foreground">Benefices: {formatPct(f.earnings_growth)}</p>}
+            </>
+          ) : (
+            <p className="text-sm text-muted-foreground">Donnees insuffisantes</p>
+          )}
+        </div>
+
+        {/* Profitability */}
+        <div className="p-4 bg-white/5 rounded-xl">
+          <h4 className="font-semibold mb-2 flex items-center gap-2">
+            <DollarSign className="w-4 h-4 text-primary" />
+            Rentabilite
+          </h4>
+          {profitability ? (
+            <>
+              <p className={cn("font-semibold mb-1", profitability.color)}>{profitability.text}</p>
+              <p className="text-sm text-muted-foreground">ROE: {formatPct(f.roe)}</p>
+              <p className="text-sm text-muted-foreground">ROA: {formatPct(f.roa)}</p>
+            </>
+          ) : (
+            <p className="text-sm text-muted-foreground">Donnees insuffisantes</p>
+          )}
+        </div>
+      </div>
+
+      {/* Health Indicators */}
+      <div className="p-4 bg-white/5 rounded-xl">
+        <h4 className="font-semibold mb-3 flex items-center gap-2">
+          <Activity className="w-4 h-4 text-primary" />
+          Sante Financiere
+        </h4>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div>
+            <p className="text-xs text-muted-foreground">Dette/Equity</p>
+            <p className={cn("font-bold", f.debt_to_equity && f.debt_to_equity > 100 ? "text-loss" : "text-profit")}>
+              {f.debt_to_equity?.toFixed(2) || "N/A"}
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">
+              {f.debt_to_equity && f.debt_to_equity > 100 ? "Endettement eleve" : f.debt_to_equity ? "Endettement sain" : ""}
+            </p>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground">Current Ratio</p>
+            <p className={cn("font-bold", f.current_ratio && f.current_ratio > 1.5 ? "text-profit" : f.current_ratio && f.current_ratio < 1 ? "text-loss" : "")}>
+              {f.current_ratio?.toFixed(2) || "N/A"}
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">
+              {f.current_ratio && f.current_ratio > 1.5 ? "Bonne liquidite" : f.current_ratio && f.current_ratio < 1 ? "Liquidite tendue" : ""}
+            </p>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground">Beta</p>
+            <p className={cn("font-bold", f.beta && f.beta > 1.5 ? "text-warning" : "")}>
+              {f.beta?.toFixed(2) || "N/A"}
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">
+              {f.beta && f.beta > 1.5 ? "Volatile" : f.beta && f.beta < 0.8 ? "Defensif" : f.beta ? "Normal" : ""}
+            </p>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground">Short Ratio</p>
+            <p className={cn("font-bold", f.short_ratio && f.short_ratio > 5 ? "text-warning" : "")}>
+              {f.short_ratio?.toFixed(2) || "N/A"}
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">
+              {f.short_ratio && f.short_ratio > 5 ? "Short squeeze possible" : ""}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Analyst Consensus */}
+      {f.recommendation && (
+        <div className="mt-4 p-4 bg-primary/10 rounded-xl border border-primary/20">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-muted-foreground">Consensus analystes ({f.num_analysts || 0} analystes)</p>
+              <p className={cn(
+                "font-bold text-xl mt-1",
+                f.recommendation.includes("buy") ? "text-profit" :
+                f.recommendation.includes("sell") ? "text-loss" : "text-warning"
+              )}>
+                {f.recommendation.toUpperCase()}
+              </p>
+            </div>
+            {f.target_price && (
+              <div className="text-right">
+                <p className="text-sm text-muted-foreground">Objectif moyen</p>
+                <p className="font-bold text-xl">{formatCurrency(f.target_price)}</p>
+                <p className={cn(
+                  "text-sm",
+                  f.target_price > analysis.price.current ? "text-profit" : "text-loss"
+                )}>
+                  {f.target_price > analysis.price.current ? "+" : ""}{((f.target_price - analysis.price.current) / analysis.price.current * 100).toFixed(1)}%
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </motion.div>
+  );
+}
+
+// Investment Thesis Section
+function InvestmentThesisSection({ analysis, formatCurrency }: { analysis: Analysis; formatCurrency: (value: number) => string }) {
+  const getBullCase = () => {
+    const points = [];
+
+    if (analysis.score.total >= 60) {
+      points.push("Les indicateurs techniques convergent vers un signal positif");
+    }
+    if (analysis.indicators.rsi.value < 40) {
+      points.push("RSI en zone de survente - potentiel de rebond");
+    }
+    if (analysis.trend === "BULLISH") {
+      points.push("Tendance haussiere etablie avec structure de prix favorable");
+    }
+    if (analysis.indicators.volume_ratio > 1.2) {
+      points.push("Volume superieur a la moyenne confirmant l'interet acheteur");
+    }
+    if (analysis.fundamentals?.revenue_growth && analysis.fundamentals.revenue_growth > 0.1) {
+      points.push("Croissance du chiffre d'affaires superieure a 10%");
+    }
+    if (analysis.fundamentals?.profit_margin && analysis.fundamentals.profit_margin > 0.15) {
+      points.push("Marges beneficiaires solides (>15%)");
+    }
+    if (analysis.price.current < analysis.levels.resistance) {
+      points.push(`Potentiel haussier vers la resistance a ${formatCurrency(analysis.levels.resistance)}`);
+    }
+
+    return points.length > 0 ? points : ["Signaux positifs limites dans l'environnement actuel"];
+  };
+
+  const getBearCase = () => {
+    const points = [];
+
+    if (analysis.score.total < 40) {
+      points.push("Score technique faible indiquant une pression vendeuse");
+    }
+    if (analysis.indicators.rsi.value > 70) {
+      points.push("RSI en zone de surachat - risque de correction");
+    }
+    if (analysis.trend === "BEARISH") {
+      points.push("Tendance baissiere dominante");
+    }
+    if (analysis.fundamentals?.debt_to_equity && analysis.fundamentals.debt_to_equity > 100) {
+      points.push("Niveau d'endettement eleve pesant sur le bilan");
+    }
+    if (analysis.fundamentals?.pe_ratio && analysis.fundamentals.pe_ratio > 40) {
+      points.push("Valorisation elevee vulnerabl aux deceptions");
+    }
+    if (analysis.indicators.volume_ratio < 0.7) {
+      points.push("Faible volume pouvant amplifier les mouvements baissiers");
+    }
+
+    return points.length > 0 ? points : ["Risques identifies limites"];
+  };
+
+  const getCatalysts = () => {
+    const catalysts = [];
+
+    if (analysis.news && analysis.news.length > 0) {
+      catalysts.push("Publications de resultats a venir");
+    }
+    catalysts.push("Evolution des taux d'interet");
+    catalysts.push("Sentiment global du marche");
+    if (analysis.company?.sector === "Technology") {
+      catalysts.push("Innovations technologiques et nouveaux produits");
+    }
+
+    return catalysts;
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.7 }}
+      className="glass-card p-6"
+    >
+      <h3 className="font-semibold mb-6 flex items-center gap-2 text-lg">
+        <BookOpen className="w-5 h-5 text-primary" />
+        These d'Investissement
+      </h3>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Bull Case */}
+        <div className="p-4 bg-profit/10 rounded-xl border border-profit/20">
+          <h4 className="font-semibold text-profit mb-3 flex items-center gap-2">
+            <TrendingUp className="w-4 h-4" />
+            Scenario Haussier
+          </h4>
+          <ul className="space-y-2">
+            {getBullCase().map((point, idx) => (
+              <li key={idx} className="flex items-start gap-2 text-sm text-muted-foreground">
+                <CheckCircle className="w-4 h-4 text-profit mt-0.5 flex-shrink-0" />
+                <span>{point}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        {/* Bear Case */}
+        <div className="p-4 bg-loss/10 rounded-xl border border-loss/20">
+          <h4 className="font-semibold text-loss mb-3 flex items-center gap-2">
+            <TrendingDown className="w-4 h-4" />
+            Scenario Baissier
+          </h4>
+          <ul className="space-y-2">
+            {getBearCase().map((point, idx) => (
+              <li key={idx} className="flex items-start gap-2 text-sm text-muted-foreground">
+                <AlertTriangle className="w-4 h-4 text-loss mt-0.5 flex-shrink-0" />
+                <span>{point}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+
+      {/* Catalysts */}
+      <div className="mt-4 p-4 bg-white/5 rounded-xl">
+        <h4 className="font-semibold mb-3 flex items-center gap-2">
+          <Flame className="w-4 h-4 text-orange-400" />
+          Catalyseurs a Surveiller
+        </h4>
+        <div className="flex flex-wrap gap-2">
+          {getCatalysts().map((catalyst, idx) => (
+            <span key={idx} className="px-3 py-1 bg-orange-400/20 text-orange-400 rounded-full text-sm">
+              {catalyst}
+            </span>
+          ))}
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
+// Sector Comparison Section
+function SectorComparisonSection({ analysis }: { analysis: Analysis }) {
+  const getSectorContext = () => {
+    const sector = analysis.company?.sector || "General";
+    const industry = analysis.company?.industry || "";
+
+    const sectorInfo: Record<string, { description: string; typical_pe: string; growth_expectation: string }> = {
+      "Technology": {
+        description: "Le secteur technologique est caracterise par une forte croissance mais une volatilite elevee. Les valorisations sont souvent premieres.",
+        typical_pe: "25-40",
+        growth_expectation: "15-25%"
+      },
+      "Financial Services": {
+        description: "Le secteur financier est sensible aux taux d'interet et aux cycles economiques. Dividendes generalement stables.",
+        typical_pe: "10-15",
+        growth_expectation: "5-10%"
+      },
+      "Healthcare": {
+        description: "Secteur defensif avec une demande stable. Les biotechs offrent un potentiel de croissance eleve mais risque.",
+        typical_pe: "15-25",
+        growth_expectation: "8-15%"
+      },
+      "Consumer Cyclical": {
+        description: "Sensible aux cycles economiques. Performance correlee a la confiance des consommateurs.",
+        typical_pe: "15-25",
+        growth_expectation: "5-15%"
+      },
+      "Energy": {
+        description: "Secteur cyclique fortement influence par les prix du petrole et la transition energetique.",
+        typical_pe: "8-15",
+        growth_expectation: "Variable"
+      },
+      "General": {
+        description: "Analyse le contexte specifique de l'actif et son positionnement competitif.",
+        typical_pe: "15-20",
+        growth_expectation: "5-10%"
+      }
+    };
+
+    return sectorInfo[sector] || sectorInfo["General"];
+  };
+
+  const sectorContext = getSectorContext();
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.85 }}
+      className="glass-card p-6"
+    >
+      <h3 className="font-semibold mb-4 flex items-center gap-2 text-lg">
+        <Briefcase className="w-5 h-5 text-primary" />
+        Contexte Sectoriel
+      </h3>
+
+      <div className="p-4 bg-white/5 rounded-xl mb-4">
+        <div className="flex items-center gap-3 mb-2">
+          {analysis.company?.sector && (
+            <span className="px-3 py-1 bg-primary/20 text-primary rounded-full text-sm font-medium">
+              {analysis.company.sector}
+            </span>
+          )}
+          {analysis.company?.industry && (
+            <span className="px-3 py-1 bg-white/10 rounded-full text-sm">
+              {analysis.company.industry}
+            </span>
+          )}
+        </div>
+        <p className="text-sm text-muted-foreground leading-relaxed">{sectorContext.description}</p>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div className="p-3 bg-white/5 rounded-lg">
+          <p className="text-xs text-muted-foreground">P/E typique du secteur</p>
+          <p className="font-bold">{sectorContext.typical_pe}</p>
+          {analysis.fundamentals?.pe_ratio && (
+            <p className={cn(
+              "text-xs mt-1",
+              analysis.fundamentals.pe_ratio > 30 ? "text-warning" : "text-profit"
+            )}>
+              Actuel: {analysis.fundamentals.pe_ratio.toFixed(1)}
+            </p>
+          )}
+        </div>
+        <div className="p-3 bg-white/5 rounded-lg">
+          <p className="text-xs text-muted-foreground">Croissance attendue</p>
+          <p className="font-bold">{sectorContext.growth_expectation}</p>
+          {analysis.fundamentals?.revenue_growth && (
+            <p className={cn(
+              "text-xs mt-1",
+              analysis.fundamentals.revenue_growth > 0.1 ? "text-profit" : "text-warning"
+            )}>
+              Actuel: {(analysis.fundamentals.revenue_growth * 100).toFixed(1)}%
+            </p>
+          )}
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
+// Trading Strategies Section
+function TradingStrategiesSection({ analysis, formatCurrency }: { analysis: Analysis; formatCurrency: (value: number) => string }) {
+  const getStrategies = () => {
+    const strategies = [];
+
+    // Swing Trading Strategy
+    if (analysis.score.total >= 60 && analysis.trend === "BULLISH") {
+      strategies.push({
+        name: "Swing Trading Long",
+        timeframe: "1-2 semaines",
+        entry: `Sur pullback vers ${formatCurrency(analysis.indicators.ema.ema20)}`,
+        target: formatCurrency(analysis.risk.suggested_tp),
+        stop: formatCurrency(analysis.risk.suggested_sl),
+        rr: analysis.risk.risk_reward,
+        probability: "65-70%",
+        color: "bg-profit/10 border-profit/20"
+      });
+    }
+
+    // Breakout Strategy
+    if (analysis.price.current > analysis.indicators.ema.ema50 && analysis.indicators.volume_ratio > 1) {
+      strategies.push({
+        name: "Breakout",
+        timeframe: "1-5 jours",
+        entry: `Sur cassure de ${formatCurrency(analysis.levels.resistance)}`,
+        target: formatCurrency(analysis.levels.resistance * 1.05),
+        stop: formatCurrency(analysis.levels.pivot),
+        rr: 2,
+        probability: "55-60%",
+        color: "bg-primary/10 border-primary/20"
+      });
+    }
+
+    // Mean Reversion
+    if (analysis.indicators.rsi.value < 35 || analysis.indicators.rsi.value > 65) {
+      const isOversold = analysis.indicators.rsi.value < 35;
+      strategies.push({
+        name: isOversold ? "Rebond Technique" : "Prise de Profits",
+        timeframe: "1-3 jours",
+        entry: isOversold ? "Achat immediat ou sur confirmation" : "Vente sur resistance",
+        target: isOversold ? formatCurrency(analysis.indicators.bollinger.middle) : formatCurrency(analysis.indicators.bollinger.lower),
+        stop: isOversold ? formatCurrency(analysis.levels.support * 0.98) : formatCurrency(analysis.levels.resistance * 1.02),
+        rr: 1.5,
+        probability: "60-65%",
+        color: isOversold ? "bg-profit/10 border-profit/20" : "bg-loss/10 border-loss/20"
+      });
+    }
+
+    // Conservative Hold
+    if (analysis.score.total >= 40 && analysis.score.total < 60) {
+      strategies.push({
+        name: "Attente / Observation",
+        timeframe: "Indefini",
+        entry: "Attendre un signal plus clair",
+        target: "-",
+        stop: "-",
+        rr: 0,
+        probability: "-",
+        color: "bg-warning/10 border-warning/20"
+      });
+    }
+
+    return strategies;
+  };
+
+  const strategies = getStrategies();
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.9 }}
+      className="glass-card p-6"
+    >
+      <h3 className="font-semibold mb-6 flex items-center gap-2 text-lg">
+        <Target className="w-5 h-5 text-primary" />
+        Strategies de Trading Suggerees
+      </h3>
+
+      <div className="space-y-4">
+        {strategies.map((strategy, idx) => (
+          <div key={idx} className={cn("p-4 rounded-xl border", strategy.color)}>
+            <div className="flex items-center justify-between mb-3">
+              <h4 className="font-semibold">{strategy.name}</h4>
+              <span className="text-xs px-2 py-1 bg-white/10 rounded-full">{strategy.timeframe}</span>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+              <div>
+                <p className="text-xs text-muted-foreground">Entree</p>
+                <p className="font-medium">{strategy.entry}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Objectif</p>
+                <p className="font-medium text-profit">{strategy.target}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Stop Loss</p>
+                <p className="font-medium text-loss">{strategy.stop}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">R/R</p>
+                <p className="font-medium">1:{strategy.rr}</p>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="mt-4 p-3 bg-warning/10 rounded-lg border border-warning/20">
+        <p className="text-xs text-muted-foreground flex items-center gap-2">
+          <AlertTriangle className="w-4 h-4 text-warning" />
+          Ces strategies sont fournies a titre indicatif. Adaptez-les a votre profil de risque et votre capital.
+        </p>
+      </div>
+    </motion.div>
+  );
+}
+
+// News Section with Sentiment
+function NewsSentimentSection({ news, symbol }: { news: Analysis["news"]; symbol: string }) {
+  if (!news || news.length === 0) return null;
+
+  const formatDate = (timestamp: number | undefined) => {
+    if (!timestamp) return "";
+    const date = new Date(timestamp * 1000);
+    return date.toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" });
+  };
+
+  // Simple sentiment analysis based on title keywords
+  const analyzeSentiment = (title: string) => {
+    const positiveWords = ["surge", "gain", "rise", "jump", "soar", "beat", "strong", "growth", "profit", "success", "up", "high", "buy", "bullish", "record"];
+    const negativeWords = ["drop", "fall", "decline", "plunge", "crash", "miss", "weak", "loss", "fail", "down", "low", "sell", "bearish", "concern", "risk", "warn"];
+
+    const titleLower = title.toLowerCase();
+    let score = 0;
+
+    positiveWords.forEach(word => {
+      if (titleLower.includes(word)) score++;
+    });
+
+    negativeWords.forEach(word => {
+      if (titleLower.includes(word)) score--;
+    });
+
+    if (score > 0) return { sentiment: "Positif", color: "text-profit", bg: "bg-profit/20" };
+    if (score < 0) return { sentiment: "Negatif", color: "text-loss", bg: "bg-loss/20" };
+    return { sentiment: "Neutre", color: "text-muted-foreground", bg: "bg-white/10" };
+  };
+
+  const overallSentiment = news.reduce((acc, item) => {
+    const s = analyzeSentiment(item.title || "");
+    if (s.sentiment === "Positif") return acc + 1;
+    if (s.sentiment === "Negatif") return acc - 1;
+    return acc;
+  }, 0);
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 1 }}
+      className="glass-card p-6"
+    >
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="font-semibold flex items-center gap-2 text-lg">
+          <Newspaper className="w-5 h-5 text-primary" />
+          Actualites & Sentiment
+        </h3>
+        <div className={cn(
+          "px-3 py-1 rounded-full text-sm font-medium",
+          overallSentiment > 0 ? "bg-profit/20 text-profit" :
+          overallSentiment < 0 ? "bg-loss/20 text-loss" : "bg-white/10"
+        )}>
+          Sentiment: {overallSentiment > 0 ? "Positif" : overallSentiment < 0 ? "Negatif" : "Neutre"}
+        </div>
+      </div>
+
+      <div className="space-y-3">
+        {news.map((item, index) => {
+          const sentiment = analyzeSentiment(item.title || "");
+
+          return (
+            <a
+              key={index}
+              href={item.link}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block p-4 bg-white/5 rounded-xl hover:bg-white/10 transition-colors group"
+            >
+              <div className="flex items-start gap-3">
+                <div className={cn("px-2 py-0.5 rounded text-xs font-medium flex-shrink-0", sentiment.bg, sentiment.color)}>
+                  {sentiment.sentiment}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium text-sm line-clamp-2 group-hover:text-primary transition-colors">{item.title}</p>
+                  <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
+                    {item.publisher && <span>{item.publisher}</span>}
+                    {item.date && (
+                      <>
+                        <span>-</span>
+                        <span>{formatDate(item.date)}</span>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </a>
+          );
+        })}
+      </div>
+
+      <div className="mt-4 p-3 bg-white/5 rounded-lg">
+        <p className="text-xs text-muted-foreground">
+          L'analyse de sentiment est basee sur les mots-cles des titres. Elle ne remplace pas une lecture approfondie des articles.
+        </p>
+      </div>
+    </motion.div>
+  );
+}
+
+// Educational Section
+function EducationalSection({ analysis }: { analysis: Analysis }) {
+  const [expanded, setExpanded] = useState(false);
+
+  const getEducationalContent = () => {
+    const content = [];
+
+    // RSI Education
+    content.push({
+      indicator: "RSI (Relative Strength Index)",
+      description: "Le RSI mesure la vitesse et le changement des mouvements de prix. Il oscille entre 0 et 100.",
+      interpretation: "En dessous de 30 = survente (achat potentiel). Au-dessus de 70 = surachat (vente potentielle).",
+      currentValue: `${analysis.indicators.rsi.value.toFixed(1)}`,
+      currentInterpretation: analysis.indicators.rsi.value < 30 ? "Zone de survente" : analysis.indicators.rsi.value > 70 ? "Zone de surachat" : "Zone neutre"
+    });
+
+    // MACD Education
+    content.push({
+      indicator: "MACD (Moving Average Convergence Divergence)",
+      description: "Le MACD montre la relation entre deux moyennes mobiles exponentielles du prix.",
+      interpretation: "Signal haussier quand la ligne MACD croise au-dessus de la ligne de signal. Baissier dans le cas contraire.",
+      currentValue: `${analysis.indicators.macd.value.toFixed(4)}`,
+      currentInterpretation: analysis.indicators.macd.histogram > 0 ? "Signal haussier" : "Signal baissier"
+    });
+
+    // Bollinger Bands Education
+    content.push({
+      indicator: "Bandes de Bollinger",
+      description: "Les bandes de Bollinger encadrent le prix avec des niveaux de deviation standard.",
+      interpretation: "Prix proche de la bande superieure = potentiel surachat. Prix proche de la bande inferieure = potentiel survente.",
+      currentValue: `Position: ${analysis.indicators.bollinger.position}`,
+      currentInterpretation: analysis.indicators.bollinger.position === "upper" ? "Proche de la resistance" : analysis.indicators.bollinger.position === "lower" ? "Proche du support" : "Dans le canal"
+    });
+
+    return content;
+  };
+
+  const educationalContent = getEducationalContent();
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 1.1 }}
+      className="glass-card p-6"
+    >
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="w-full flex items-center justify-between"
+      >
+        <h3 className="font-semibold flex items-center gap-2 text-lg">
+          <BookOpen className="w-5 h-5 text-primary" />
+          Comprendre les Indicateurs
+        </h3>
+        {expanded ? (
+          <ChevronUp className="w-5 h-5 text-muted-foreground" />
+        ) : (
+          <ChevronDown className="w-5 h-5 text-muted-foreground" />
+        )}
+      </button>
+
+      {expanded && (
+        <motion.div
+          initial={{ opacity: 0, height: 0 }}
+          animate={{ opacity: 1, height: "auto" }}
+          className="mt-4 space-y-4"
+        >
+          {educationalContent.map((item, idx) => (
+            <div key={idx} className="p-4 bg-white/5 rounded-xl">
+              <h4 className="font-semibold text-primary mb-2">{item.indicator}</h4>
+              <p className="text-sm text-muted-foreground mb-2">{item.description}</p>
+              <p className="text-sm text-muted-foreground mb-3"><strong>Interpretation:</strong> {item.interpretation}</p>
+              <div className="flex items-center justify-between p-2 bg-white/5 rounded-lg">
+                <span className="text-sm">Valeur actuelle: <strong>{item.currentValue}</strong></span>
+                <span className="text-sm px-2 py-0.5 bg-primary/20 text-primary rounded">{item.currentInterpretation}</span>
+              </div>
+            </div>
+          ))}
+        </motion.div>
+      )}
     </motion.div>
   );
 }

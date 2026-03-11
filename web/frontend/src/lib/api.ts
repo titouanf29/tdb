@@ -253,6 +253,15 @@ export interface TradingStats {
 export interface Analysis {
   symbol: string;
   timeframe: string;
+  company?: {
+    name?: string;
+    sector?: string;
+    industry?: string;
+    country?: string;
+    employees?: number;
+    description?: string;
+    website?: string;
+  };
   price: {
     current: number;
     change: number;
@@ -264,6 +273,7 @@ export interface Analysis {
     technical: number;
     volume: number;
     momentum: number;
+    fundamental?: number;
   };
   signal: {
     text: string;
@@ -298,6 +308,62 @@ export interface Analysis {
     suggested_tp: number;
     risk_reward: number;
   };
+  fundamentals?: {
+    market_cap?: number;
+    pe_ratio?: number;
+    forward_pe?: number;
+    peg_ratio?: number;
+    price_to_book?: number;
+    dividend_yield?: number;
+    profit_margin?: number;
+    revenue_growth?: number;
+    earnings_growth?: number;
+    debt_to_equity?: number;
+    current_ratio?: number;
+    roe?: number;
+    roa?: number;
+    beta?: number;
+    "52w_high"?: number;
+    "52w_low"?: number;
+    "50d_avg"?: number;
+    "200d_avg"?: number;
+    avg_volume?: number;
+    shares_outstanding?: number;
+    short_ratio?: number;
+    target_price?: number;
+    target_high?: number;
+    target_low?: number;
+    recommendation?: string;
+    num_analysts?: number;
+  };
+  performance?: {
+    "1d"?: number;
+    "1w"?: number;
+    "1m"?: number;
+    "3m"?: number;
+    "6m"?: number;
+    ytd?: number;
+  };
+  volatility?: {
+    "20d"?: number;
+    "60d"?: number;
+  };
+  targets?: {
+    bull?: number;
+    base?: number;
+    bear?: number;
+    analyst_mean?: number;
+    analyst_high?: number;
+    analyst_low?: number;
+  };
+  analyst_sentiment?: string;
+  news?: {
+    title?: string;
+    publisher?: string;
+    link?: string;
+    date?: number;
+    type?: string;
+  }[];
 }
 
 export interface ScanResult {
