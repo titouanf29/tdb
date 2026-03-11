@@ -146,12 +146,12 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
     if user_type == "email":
         users = await execute_query(
             "SELECT * FROM web_users WHERE id = ?",
-            (user_id,)
+            (int(user_id),)  # Convert string back to int for DB query
         )
     else:
         users = await execute_query(
             "SELECT * FROM users WHERE telegram_id = ?",
-            (user_id,)
+            (int(user_id),)  # Convert string back to int for DB query
         )
 
     if not users:
@@ -216,8 +216,8 @@ async def register(data: RegisterRequest):
         (f"web_{user['id']}", datetime.utcnow().isoformat())
     )
 
-    # Create JWT token
-    access_token = create_access_token({"sub": user["id"], "type": "email"})
+    # Create JWT token (sub must be a string)
+    access_token = create_access_token({"sub": str(user["id"]), "type": "email"})
 
     return TokenResponse(
         access_token=access_token,
@@ -247,8 +247,8 @@ async def login(data: LoginRequest):
     if not verify_password(data.password, user["password_hash"]):
         raise HTTPException(status_code=401, detail="Invalid email or password")
 
-    # Create JWT token
-    access_token = create_access_token({"sub": user["id"], "type": "email"})
+    # Create JWT token (sub must be a string)
+    access_token = create_access_token({"sub": str(user["id"]), "type": "email"})
 
     return TokenResponse(
         access_token=access_token,
