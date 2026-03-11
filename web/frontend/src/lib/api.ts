@@ -28,9 +28,16 @@ async function fetchAPI<T>(
   });
 
   if (response.status === 401) {
-    removeToken();
-    if (typeof window !== "undefined") {
-      window.location.href = "/login";
+    // Don't redirect if already on auth pages
+    const isAuthPage = typeof window !== "undefined" &&
+      (window.location.pathname.startsWith("/login") ||
+       window.location.pathname.startsWith("/register"));
+
+    if (!isAuthPage) {
+      removeToken();
+      if (typeof window !== "undefined") {
+        window.location.href = "/login";
+      }
     }
     throw new APIError("Unauthorized", 401);
   }
