@@ -114,7 +114,7 @@ export default function AnalysisPage() {
     }
   };
 
-  const loadAIInsight = async (sym: string, data: Analysis) => {
+  const loadAIInsight = async (sym: string, data: Analysis): Promise<void> => {
     setIsLoadingAI(true);
     try {
       const context = `Analyse technique de ${sym}: Score ${data.score.total}/100, Signal ${data.signal.text}, Tendance ${data.trend}, RSI ${data.indicators.rsi.value.toFixed(1)}, Prix actuel ${data.price.current}, Support ${data.levels.support}, Resistance ${data.levels.resistance}. ${data.company?.description ? `Description: ${data.company.description.substring(0, 200)}` : ''}`;
@@ -126,6 +126,7 @@ export default function AnalysisPage() {
       setAiInsight(response.response);
     } catch (err) {
       console.error("Error loading AI insight:", err);
+      throw err; // Re-throw to let the component handle the error
     } finally {
       setIsLoadingAI(false);
     }
@@ -1221,6 +1222,17 @@ function AIInsightSection({
   symbol: string;
   onReload: () => void;
 }) {
+  const [error, setError] = useState<string | null>(null);
+
+  const handleReload = async () => {
+    setError(null);
+    try {
+      await onReload();
+    } catch (err) {
+      setError("Erreur lors de la generation de l'analyse");
+    }
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -1236,41 +1248,74 @@ function AIInsightSection({
             Analyse IA & Previsions
             <span className="px-2 py-0.5 bg-purple-500/20 text-purple-400 text-xs rounded-full">Premium</span>
           </h3>
-          <button
-            onClick={onReload}
-            disabled={isLoading}
-            className="p-2 rounded-lg hover:bg-white/10 transition-colors"
-          >
-            <Sparkles className={cn("w-4 h-4 text-purple-400", isLoading && "animate-spin")} />
-          </button>
+          {aiInsight && (
+            <button
+              onClick={handleReload}
+              disabled={isLoading}
+              className="p-2 rounded-lg hover:bg-white/10 transition-colors"
+              title="Regenerer l'analyse"
+            >
+              <Sparkles className={cn("w-4 h-4 text-purple-400", isLoading && "animate-spin")} />
+            </button>
+          )}
         </div>
 
         {isLoading ? (
-          <div className="flex items-center gap-3 py-8 justify-center">
-            <Loader2 className="w-5 h-5 animate-spin text-purple-400" />
-            <span className="text-muted-foreground">Analyse en cours par l'IA...</span>
+          <div className="flex flex-col items-center gap-3 py-8">
+            <div className="relative">
+              <div className="w-16 h-16 rounded-full bg-purple-500/20 flex items-center justify-center">
+                <Brain className="w-8 h-8 text-purple-400 animate-pulse" />
+              </div>
+              <div className="absolute inset-0 rounded-full border-2 border-purple-400/30 border-t-purple-400 animate-spin" />
+            </div>
+            <span className="text-muted-foreground">L'IA analyse {symbol}...</span>
+            <p className="text-xs text-muted-foreground">Cela peut prendre quelques secondes</p>
           </div>
         ) : aiInsight ? (
           <div className="space-y-4">
             <div className="prose prose-invert max-w-none">
               {aiInsight.split('\n\n').map((paragraph, idx) => (
-                <p key={idx} className="text-sm text-muted-foreground leading-relaxed">
+                <p key={idx} className="text-sm text-muted-foreground leading-relaxed mb-3">
                   {paragraph}
                 </p>
               ))}
             </div>
 
             <div className="flex items-center gap-2 pt-4 border-t border-white/10">
-              <AlertCircle className="w-4 h-4 text-warning" />
+              <AlertCircle className="w-4 h-4 text-warning flex-shrink-0" />
               <p className="text-xs text-muted-foreground">
                 Cette analyse est generee par IA a titre informatif. Elle ne constitue pas un conseil financier.
               </p>
             </div>
           </div>
+        ) : error ? (
+          <div className="text-center py-6">
+            <AlertCircle className="w-8 h-8 mx-auto mb-2 text-loss" />
+            <p className="text-sm text-loss mb-3">{error}</p>
+            <button
+              onClick={handleReload}
+              className="btn-primary px-4 py-2"
+            >
+              Reessayer
+            </button>
+          </div>
         ) : (
-          <div className="text-center py-6 text-muted-foreground">
-            <Brain className="w-8 h-8 mx-auto mb-2 opacity-50" />
-            <p className="text-sm">Cliquez sur l'icone pour generer une analyse IA</p>
+          <div className="text-center py-8">
+            <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-purple-500/10 flex items-center justify-center">
+              <Brain className="w-10 h-10 text-purple-400" />
+            </div>
+            <h4 className="font-semibold mb-2">Analyse predictive par IA</h4>
+            <p className="text-sm text-muted-foreground mb-4 max-w-md mx-auto">
+              Obtenez une analyse approfondie avec des previsions sur le court et moyen terme, les risques et opportunites.
+            </p>
+            <button
+              onClick={handleReload}
+              disabled={isLoading}
+              className="btn-primary px-6 py-3 flex items-center gap-2 mx-auto"
+            >
+              <Sparkles className="w-4 h-4" />
+              Generer l'analyse IA
+            </button>
           </div>
         )}
       </div>
@@ -2256,10 +2301,20 @@ function NewsSentimentSection({ news, symbol }: { news: Analysis["news"]; symbol
     return date.toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" });
   };
 
+  const getRelativeTime = (timestamp: number | undefined) => {
+    if (!timestamp) return "";
+    const now = Date.now() / 1000;
+    const diff = now - timestamp;
+    if (diff < 3600) return `Il y a ${Math.floor(diff / 60)} min`;
+    if (diff < 86400) return `Il y a ${Math.floor(diff / 3600)}h`;
+    if (diff < 604800) return `Il y a ${Math.floor(diff / 86400)} jours`;
+    return formatDate(timestamp);
+  };
+
   // Simple sentiment analysis based on title keywords
   const analyzeSentiment = (title: string) => {
-    const positiveWords = ["surge", "gain", "rise", "jump", "soar", "beat", "strong", "growth", "profit", "success", "up", "high", "buy", "bullish", "record"];
-    const negativeWords = ["drop", "fall", "decline", "plunge", "crash", "miss", "weak", "loss", "fail", "down", "low", "sell", "bearish", "concern", "risk", "warn"];
+    const positiveWords = ["surge", "gain", "rise", "jump", "soar", "beat", "strong", "growth", "profit", "success", "up", "high", "buy", "bullish", "record", "rally", "boost", "outperform"];
+    const negativeWords = ["drop", "fall", "decline", "plunge", "crash", "miss", "weak", "loss", "fail", "down", "low", "sell", "bearish", "concern", "risk", "warn", "cut", "layoff", "slump"];
 
     const titleLower = title.toLowerCase();
     let score = 0;
@@ -2272,17 +2327,57 @@ function NewsSentimentSection({ news, symbol }: { news: Analysis["news"]; symbol
       if (titleLower.includes(word)) score--;
     });
 
-    if (score > 0) return { sentiment: "Positif", color: "text-profit", bg: "bg-profit/20" };
-    if (score < 0) return { sentiment: "Negatif", color: "text-loss", bg: "bg-loss/20" };
-    return { sentiment: "Neutre", color: "text-muted-foreground", bg: "bg-white/10" };
+    if (score > 0) return { sentiment: "Positif", color: "text-profit", bg: "bg-profit/20", icon: "📈" };
+    if (score < 0) return { sentiment: "Negatif", color: "text-loss", bg: "bg-loss/20", icon: "📉" };
+    return { sentiment: "Neutre", color: "text-muted-foreground", bg: "bg-white/10", icon: "📰" };
   };
 
-  const overallSentiment = news.reduce((acc, item) => {
-    const s = analyzeSentiment(item.title || "");
-    if (s.sentiment === "Positif") return acc + 1;
-    if (s.sentiment === "Negatif") return acc - 1;
-    return acc;
-  }, 0);
+  // Generate a summary based on title
+  const generateSummary = (title: string, publisher: string | undefined) => {
+    const sentiment = analyzeSentiment(title);
+    const titleLower = title.toLowerCase();
+
+    // Extract key themes
+    let theme = "";
+    if (titleLower.includes("earning") || titleLower.includes("revenue") || titleLower.includes("profit")) {
+      theme = "Resultats financiers";
+    } else if (titleLower.includes("analyst") || titleLower.includes("rating") || titleLower.includes("target")) {
+      theme = "Recommandation analyste";
+    } else if (titleLower.includes("ceo") || titleLower.includes("executive") || titleLower.includes("management")) {
+      theme = "Actualite dirigeants";
+    } else if (titleLower.includes("product") || titleLower.includes("launch") || titleLower.includes("release")) {
+      theme = "Produit/Innovation";
+    } else if (titleLower.includes("market") || titleLower.includes("stock") || titleLower.includes("share")) {
+      theme = "Evolution du cours";
+    } else if (titleLower.includes("deal") || titleLower.includes("acquisition") || titleLower.includes("merger")) {
+      theme = "Fusion/Acquisition";
+    } else {
+      theme = "Actualite generale";
+    }
+
+    return { theme, sentiment };
+  };
+
+  const positiveCount = news.filter(item => analyzeSentiment(item.title || "").sentiment === "Positif").length;
+  const negativeCount = news.filter(item => analyzeSentiment(item.title || "").sentiment === "Negatif").length;
+  const neutralCount = news.length - positiveCount - negativeCount;
+
+  const overallSentiment = positiveCount - negativeCount;
+
+  // Generate overall summary
+  const getOverallSummary = () => {
+    if (positiveCount > negativeCount * 2) {
+      return `Couverture mediatique tres positive avec ${positiveCount} article(s) favorable(s). Le sentiment general est optimiste concernant ${symbol}.`;
+    } else if (positiveCount > negativeCount) {
+      return `Couverture legerement positive avec ${positiveCount} article(s) favorable(s) contre ${negativeCount} negatif(s). Tendance moderement optimiste.`;
+    } else if (negativeCount > positiveCount * 2) {
+      return `Couverture mediatique preoccupante avec ${negativeCount} article(s) negatif(s). Vigilance recommandee sur ${symbol}.`;
+    } else if (negativeCount > positiveCount) {
+      return `Couverture legerement negative avec ${negativeCount} article(s) defavorable(s). Quelques inquietudes a surveiller.`;
+    } else {
+      return `Couverture equilibree avec ${positiveCount} article(s) positif(s) et ${negativeCount} negatif(s). Pas de tendance claire dans les actualites.`;
+    }
+  };
 
   return (
     <motion.div
@@ -2301,47 +2396,108 @@ function NewsSentimentSection({ news, symbol }: { news: Analysis["news"]; symbol
           overallSentiment > 0 ? "bg-profit/20 text-profit" :
           overallSentiment < 0 ? "bg-loss/20 text-loss" : "bg-white/10"
         )}>
-          Sentiment: {overallSentiment > 0 ? "Positif" : overallSentiment < 0 ? "Negatif" : "Neutre"}
+          {overallSentiment > 0 ? "📈 Positif" : overallSentiment < 0 ? "📉 Negatif" : "➖ Neutre"}
         </div>
       </div>
 
-      <div className="space-y-3">
+      {/* Summary Box */}
+      <div className="p-4 bg-primary/10 rounded-xl border border-primary/20 mb-6">
+        <h4 className="font-semibold mb-2 flex items-center gap-2">
+          <Eye className="w-4 h-4 text-primary" />
+          Resume des actualites
+        </h4>
+        <p className="text-sm text-muted-foreground mb-3">{getOverallSummary()}</p>
+        <div className="flex gap-4 text-xs">
+          <span className="flex items-center gap-1">
+            <span className="w-2 h-2 rounded-full bg-profit" />
+            {positiveCount} positif(s)
+          </span>
+          <span className="flex items-center gap-1">
+            <span className="w-2 h-2 rounded-full bg-white/50" />
+            {neutralCount} neutre(s)
+          </span>
+          <span className="flex items-center gap-1">
+            <span className="w-2 h-2 rounded-full bg-loss" />
+            {negativeCount} negatif(s)
+          </span>
+        </div>
+      </div>
+
+      {/* News List */}
+      <div className="space-y-4">
         {news.map((item, index) => {
-          const sentiment = analyzeSentiment(item.title || "");
+          const { theme, sentiment } = generateSummary(item.title || "", item.publisher);
 
           return (
-            <a
+            <div
               key={index}
-              href={item.link}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="block p-4 bg-white/5 rounded-xl hover:bg-white/10 transition-colors group"
+              className="p-4 bg-white/5 rounded-xl hover:bg-white/10 transition-colors"
             >
               <div className="flex items-start gap-3">
-                <div className={cn("px-2 py-0.5 rounded text-xs font-medium flex-shrink-0", sentiment.bg, sentiment.color)}>
-                  {sentiment.sentiment}
-                </div>
+                <div className="text-2xl flex-shrink-0">{sentiment.icon}</div>
                 <div className="flex-1 min-w-0">
-                  <p className="font-medium text-sm line-clamp-2 group-hover:text-primary transition-colors">{item.title}</p>
-                  <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
-                    {item.publisher && <span>{item.publisher}</span>}
-                    {item.date && (
-                      <>
-                        <span>-</span>
-                        <span>{formatDate(item.date)}</span>
-                      </>
+                  {/* Theme tag */}
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className={cn("px-2 py-0.5 rounded text-xs font-medium", sentiment.bg, sentiment.color)}>
+                      {sentiment.sentiment}
+                    </span>
+                    <span className="px-2 py-0.5 rounded text-xs bg-white/10 text-muted-foreground">
+                      {theme}
+                    </span>
+                  </div>
+
+                  {/* Title */}
+                  <p className="font-medium text-sm mb-2">{item.title}</p>
+
+                  {/* Summary based on title */}
+                  <p className="text-xs text-muted-foreground mb-3 line-clamp-2">
+                    {item.title && item.title.length > 50
+                      ? `Cet article de ${item.publisher || "source inconnue"} traite ${
+                          theme === "Resultats financiers" ? "des performances financieres" :
+                          theme === "Recommandation analyste" ? "d'une analyse de marche" :
+                          theme === "Produit/Innovation" ? "d'une nouveaute produit" :
+                          theme === "Fusion/Acquisition" ? "d'une operation strategique" :
+                          "de l'actualite"
+                        } de ${symbol}.`
+                      : `Article concernant ${symbol} publie par ${item.publisher || "source inconnue"}.`
+                    }
+                  </p>
+
+                  {/* Meta info and link */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      {item.publisher && (
+                        <span className="font-medium">{item.publisher}</span>
+                      )}
+                      {item.date && (
+                        <>
+                          <span>•</span>
+                          <span>{getRelativeTime(item.date)}</span>
+                        </>
+                      )}
+                    </div>
+                    {item.link && (
+                      <a
+                        href={item.link}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-1 text-xs text-primary hover:underline font-medium"
+                      >
+                        Lire l'article
+                        <ArrowRight className="w-3 h-3" />
+                      </a>
                     )}
                   </div>
                 </div>
               </div>
-            </a>
+            </div>
           );
         })}
       </div>
 
       <div className="mt-4 p-3 bg-white/5 rounded-lg">
         <p className="text-xs text-muted-foreground">
-          L'analyse de sentiment est basee sur les mots-cles des titres. Elle ne remplace pas une lecture approfondie des articles.
+          L'analyse de sentiment est basee sur les mots-cles des titres. Elle ne remplace pas une lecture approfondie des articles. Cliquez sur "Lire l'article" pour acceder a la source complete.
         </p>
       </div>
     </motion.div>
