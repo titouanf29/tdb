@@ -391,3 +391,214 @@ export interface Favorite {
   added_at: string;
   error?: boolean;
 }
+
+// Admin API
+export const adminAPI = {
+  // Dashboard
+  getDashboard: () => fetchAPI<AdminDashboard>("/api/admin/dashboard"),
+
+  // Users
+  getUsers: (page = 1, limit = 50, search = "") =>
+    fetchAPI<AdminUsersResponse>(`/api/admin/users?page=${page}&limit=${limit}&search=${search}`),
+
+  getUserDetails: (userId: number) =>
+    fetchAPI<AdminUserDetails>(`/api/admin/users/${userId}`),
+
+  performUserAction: (userId: number, action: string, reason?: string) =>
+    fetchAPI<{ success: boolean; message: string }>("/api/admin/users/action", {
+      method: "POST",
+      body: JSON.stringify({ user_id: userId, action, reason }),
+    }),
+
+  adjustWallet: (userId: number, amount: number, reason: string) =>
+    fetchAPI<{ success: boolean; previous_balance: number; new_balance: number }>(
+      `/api/admin/users/${userId}/adjust-wallet`,
+      {
+        method: "POST",
+        body: JSON.stringify({ user_id: userId, amount, reason }),
+      }
+    ),
+
+  // Broadcasts
+  sendBroadcast: (title: string, message: string, type = "info") =>
+    fetchAPI<{ success: boolean }>("/api/admin/broadcast", {
+      method: "POST",
+      body: JSON.stringify({ title, message, type }),
+    }),
+
+  getBroadcasts: (limit = 20) =>
+    fetchAPI<{ broadcasts: AdminBroadcast[] }>(`/api/admin/broadcasts?limit=${limit}`),
+
+  // Settings
+  getSettings: () => fetchAPI<{ settings: AdminSetting[] }>("/api/admin/settings"),
+
+  updateSetting: (key: string, value: string) =>
+    fetchAPI<{ success: boolean }>("/api/admin/settings", {
+      method: "POST",
+      body: JSON.stringify({ key, value }),
+    }),
+
+  // Analytics
+  getUserAnalytics: (days = 30) =>
+    fetchAPI<AdminUserAnalytics>(`/api/admin/analytics/users?days=${days}`),
+
+  getTradingAnalytics: (days = 30) =>
+    fetchAPI<AdminTradingAnalytics>(`/api/admin/analytics/trading?days=${days}`),
+
+  getAIAnalytics: (days = 30) =>
+    fetchAPI<AdminAIAnalytics>(`/api/admin/analytics/ai?days=${days}`),
+
+  // Audit Log
+  getAuditLog: (page = 1, limit = 50) =>
+    fetchAPI<AdminAuditLogResponse>(`/api/admin/audit-log?page=${page}&limit=${limit}`),
+
+  // Positions
+  getPositions: (status = "all", page = 1, limit = 50) =>
+    fetchAPI<AdminPositionsResponse>(`/api/admin/positions?status=${status}&page=${page}&limit=${limit}`),
+
+  forceClosePosition: (positionId: number) =>
+    fetchAPI<{ success: boolean; message: string }>(`/api/admin/positions/${positionId}/close`, {
+      method: "POST",
+    }),
+};
+
+// Admin Types
+export interface AdminDashboard {
+  stats: {
+    users: {
+      total: number;
+      active_24h: number;
+      active_7d: number;
+      new_7d: number;
+    };
+    trading: {
+      open_positions: number;
+      trades_24h: number;
+      volume_7d: number;
+    };
+    wallets: {
+      total_balance: number;
+    };
+    ai: {
+      total_messages: number;
+      messages_24h: number;
+    };
+    favorites: {
+      total: number;
+    };
+  };
+  recent_users: AdminUser[];
+  recent_trades: AdminPosition[];
+  admin_email: string;
+}
+
+export interface AdminUser {
+  id: number;
+  email: string;
+  username: string;
+  first_name?: string;
+  last_name?: string;
+  avatar_url?: string;
+  created_at: string;
+  last_login?: string;
+  is_active: number;
+  balance?: number;
+  open_positions?: number;
+  favorites_count?: number;
+}
+
+export interface AdminUserDetails {
+  user: AdminUser;
+  wallet: { user_id: string; balance: number; currency: string; created_at: string } | null;
+  positions: AdminPosition[];
+  favorites: { id: number; user_id: number; symbol: string; added_at: string }[];
+  chat_history: { id: number; user_id: number; role: string; content: string; created_at: string }[];
+  settings: any;
+  trading_stats: {
+    total_trades: number;
+    winning_trades: number;
+    losing_trades: number;
+    total_pnl: number;
+    best_trade: number;
+    worst_trade: number;
+  } | null;
+}
+
+export interface AdminPosition {
+  id: number;
+  user_id: number;
+  symbol: string;
+  direction: string;
+  entry_price: number;
+  quantity: number;
+  amount: number;
+  leverage: number;
+  status: string;
+  realized_pnl?: number;
+  created_at: string;
+  closed_at?: string;
+  email?: string;
+  username?: string;
+}
+
+export interface AdminUsersResponse {
+  users: AdminUser[];
+  total: number;
+  page: number;
+  limit: number;
+  pages: number;
+}
+
+export interface AdminBroadcast {
+  id: number;
+  admin_id: number;
+  title: string;
+  message: string;
+  type: string;
+  created_at: string;
+  admin_email?: string;
+}
+
+export interface AdminSetting {
+  key: string;
+  value: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AdminUserAnalytics {
+  registrations: { date: string; count: number }[];
+  active_users: { date: string; count: number }[];
+}
+
+export interface AdminTradingAnalytics {
+  daily_trades: { date: string; count: number; volume: number }[];
+  top_symbols: { symbol: string; count: number; volume: number }[];
+  pnl_distribution: { category: string; count: number }[];
+}
+
+export interface AdminAIAnalytics {
+  daily_messages: { date: string; count: number }[];
+  top_users: { user_id: number; email: string; username: string; message_count: number }[];
+}
+
+export interface AdminAuditLogResponse {
+  logs: {
+    id: number;
+    admin_id: number;
+    action: string;
+    details: string;
+    created_at: string;
+    admin_email?: string;
+  }[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
+export interface AdminPositionsResponse {
+  positions: AdminPosition[];
+  total: number;
+  page: number;
+  limit: number;
+}

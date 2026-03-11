@@ -7,7 +7,7 @@ import os
 from dotenv import load_dotenv
 
 from .database import init_db, init_web_tables
-from .routes import auth, market, wallet, analysis, users, favorites, ai_assistant
+from .routes import auth, market, wallet, analysis, users, favorites, ai_assistant, admin
 
 load_dotenv()
 
@@ -35,6 +35,7 @@ app.include_router(analysis.router, prefix="/analysis", tags=["Analysis"])
 app.include_router(users.router, prefix="/users", tags=["Users"])
 app.include_router(favorites.router, prefix="/favorites", tags=["Favorites"])
 app.include_router(ai_assistant.router, prefix="/ai", tags=["AI Assistant"])
+app.include_router(admin.router, prefix="/admin", tags=["Admin"])
 
 
 @app.on_event("startup")

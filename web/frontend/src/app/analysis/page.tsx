@@ -104,8 +104,8 @@ export default function AnalysisPage() {
       const favCheck = await favoritesAPI.checkFavorite(s);
       setIsFavorite(favCheck.is_favorite);
 
-      // Get AI insight in background
-      loadAIInsight(s, data);
+      // Don't auto-load AI insight - let user click the button
+      // This avoids errors if GROQ_API_KEY is not configured
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erreur d'analyse");
       setAnalysis(null);
@@ -1228,8 +1228,13 @@ function AIInsightSection({
     setError(null);
     try {
       await onReload();
-    } catch (err) {
-      setError("Erreur lors de la generation de l'analyse");
+    } catch (err: any) {
+      // Check if it's an API configuration error
+      if (err.message?.includes("not configured") || err.message?.includes("API_KEY")) {
+        setError("L'assistant IA n'est pas configure. Contactez l'administrateur pour configurer la cle API GROQ.");
+      } else {
+        setError(err.message || "Erreur lors de la generation de l'analyse");
+      }
     }
   };
 

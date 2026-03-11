@@ -81,6 +81,41 @@ async def init_web_tables():
             )
         """)
 
+        # Admin audit log
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS admin_audit_log (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                admin_id INTEGER NOT NULL,
+                action TEXT NOT NULL,
+                details TEXT,
+                created_at TEXT NOT NULL,
+                FOREIGN KEY (admin_id) REFERENCES web_users(id)
+            )
+        """)
+
+        # Admin broadcasts
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS admin_broadcasts (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                admin_id INTEGER NOT NULL,
+                title TEXT NOT NULL,
+                message TEXT NOT NULL,
+                type TEXT DEFAULT 'info',
+                created_at TEXT NOT NULL,
+                FOREIGN KEY (admin_id) REFERENCES web_users(id)
+            )
+        """)
+
+        # Admin settings
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS admin_settings (
+                key TEXT PRIMARY KEY,
+                value TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            )
+        """)
+
         await db.commit()
         _initialized = True
 
