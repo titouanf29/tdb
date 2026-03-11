@@ -12,17 +12,21 @@ import {
   ChevronRight,
   Loader2,
   RefreshCw,
+  Clock,
+  Circle,
 } from "lucide-react";
 import { cn, formatCurrency, formatPercent, formatVolume } from "@/lib/utils";
 import { marketAPI, favoritesAPI, Market, Asset } from "@/lib/api";
+import { getAssetInfo, getAssetLogo } from "@/lib/assetInfo";
+import { isMarketOpen, getMarketHoursDisplay, getTimeUntilChange } from "@/lib/marketStatus";
 
 const marketIcons: Record<string, string> = {
   USA: "🇺🇸",
   EUROPE: "🇪🇺",
   ASIA: "🌏",
   CRYPTO: "🪙",
-  MATIERES: "🛢️",
-  OR: "🏆",
+  FOREX: "💱",
+  COMMODITIES: "🛢️",
 };
 
 export default function MarketsPage() {
@@ -101,10 +105,13 @@ export default function MarketsPage() {
     }
   };
 
-  const filteredAssets = assets.filter(
-    (asset) =>
-      asset.symbol.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredAssets = assets.filter((asset) => {
+    const info = getAssetInfo(asset.symbol);
+    return (
+      asset.symbol.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      info.name.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  });
 
   if (isLoading) {
     return (
@@ -130,26 +137,67 @@ export default function MarketsPage() {
 
       {/* Market selector */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-        {markets.map((market) => (
-          <motion.button
-            key={market.key}
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            onClick={() => setSelectedMarket(market.key)}
-            className={cn(
-              "p-4 rounded-xl text-left transition-all",
-              selectedMarket === market.key
-                ? "glass-card border-primary/50 shadow-glow-sm"
-                : "bg-white/5 hover:bg-white/10 border border-transparent"
-            )}
-          >
-            <span className="text-2xl">{marketIcons[market.key] || "📈"}</span>
-            <p className="font-semibold mt-2">{market.name}</p>
-            <p className="text-xs text-muted-foreground">
-              {market.asset_count} actifs
-            </p>
-          </motion.button>
-        ))}
+        {markets.map((market) => {
+          const isOpen = isMarketOpen(market.key);
+          const hoursDisplay = getMarketHoursDisplay(market.key);
+          const timeUntil = getTimeUntilChange(market.key);
+
+          return (
+            <motion.button
+              key={market.key}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => setSelectedMarket(market.key)}
+              className={cn(
+                "p-4 rounded-xl text-left transition-all relative group",
+                selectedMarket === market.key
+                  ? "glass-card border-primary/50 shadow-glow-sm"
+                  : "bg-white/5 hover:bg-white/10 border border-transparent"
+              )}
+            >
+              <div className="flex items-start justify-between">
+                <span className="text-2xl">{marketIcons[market.key] || "📈"}</span>
+                <div className="flex items-center gap-1.5">
+                  <Circle
+                    className={cn(
+                      "w-2.5 h-2.5 fill-current",
+                      isOpen ? "text-profit" : "text-loss"
+                    )}
+                  />
+                  <span className={cn(
+                    "text-xs font-medium",
+                    isOpen ? "text-profit" : "text-loss"
+                  )}>
+                    {isOpen ? "Ouvert" : "Ferme"}
+                  </span>
+                </div>
+              </div>
+              <p className="font-semibold mt-2">{market.name}</p>
+              <p className="text-xs text-muted-foreground">
+                {market.asset_count} actifs
+              </p>
+
+              {/* Tooltip on hover */}
+              <div className="absolute left-0 right-0 bottom-full mb-2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
+                <div className="bg-background/95 backdrop-blur-sm border border-white/10 rounded-lg p-3 shadow-xl mx-2">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Clock className="w-3.5 h-3.5 text-primary" />
+                    <span className="text-xs font-medium">Horaires</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground">{hoursDisplay}</p>
+                  {timeUntil && (
+                    <p className={cn(
+                      "text-xs mt-1 font-medium",
+                      isOpen ? "text-yellow-400" : "text-profit"
+                    )}>
+                      {timeUntil}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </motion.button>
+          );
+        })}
       </div>
 
       {/* Search */}
@@ -185,7 +233,11 @@ export default function MarketsPage() {
                 </tr>
               </thead>
               <tbody>
-                {filteredAssets.map((asset, index) => (
+                {filteredAssets.map((asset, index) => {
+                  const assetInfo = getAssetInfo(asset.symbol);
+                  const logoUrl = getAssetLogo(asset.symbol);
+
+                  return (
                   <motion.tr
                     key={asset.symbol}
                     initial={{ opacity: 0, x: -20 }}
@@ -196,11 +248,28 @@ export default function MarketsPage() {
                   >
                     <td className="p-4">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-secondary flex items-center justify-center font-bold text-sm">
-                          {asset.symbol.slice(0, 2)}
-                        </div>
+                        {logoUrl ? (
+                          <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center overflow-hidden">
+                            <img
+                              src={logoUrl}
+                              alt={assetInfo.name}
+                              className="w-7 h-7 object-contain"
+                              onError={(e) => {
+                                // Fallback to initials if logo fails
+                                const target = e.target as HTMLImageElement;
+                                target.style.display = 'none';
+                                target.parentElement!.innerHTML = `<span class="font-bold text-sm">${asset.symbol.slice(0, 2)}</span>`;
+                              }}
+                            />
+                          </div>
+                        ) : (
+                          <div className="w-10 h-10 rounded-xl bg-secondary flex items-center justify-center font-bold text-sm">
+                            {asset.symbol.slice(0, 2)}
+                          </div>
+                        )}
                         <div>
-                          <p className="font-semibold">{asset.symbol}</p>
+                          <p className="font-semibold">{assetInfo.name}</p>
+                          <p className="text-xs text-muted-foreground">{asset.symbol}</p>
                         </div>
                       </div>
                     </td>
@@ -250,7 +319,8 @@ export default function MarketsPage() {
                       </div>
                     </td>
                   </motion.tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>
