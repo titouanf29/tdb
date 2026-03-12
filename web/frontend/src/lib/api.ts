@@ -143,6 +143,7 @@ export const favoritesAPI = {
   addFavorite: (symbol: string) =>
     fetchAPI<{ message: string }>("/api/favorites/", {
       method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ symbol }),
     }),
 
@@ -420,6 +421,7 @@ export const adminAPI = {
   performUserAction: (userId: number, action: string, reason?: string) =>
     fetchAPI<{ success: boolean; message: string }>("/api/admin/users/action", {
       method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ user_id: userId, action, reason }),
     }),
 
@@ -428,6 +430,7 @@ export const adminAPI = {
       `/api/admin/users/${userId}/adjust-wallet`,
       {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ user_id: userId, amount, reason }),
       }
     ),
@@ -436,6 +439,7 @@ export const adminAPI = {
   sendBroadcast: (title: string, message: string, type = "info") =>
     fetchAPI<{ success: boolean }>("/api/admin/broadcast", {
       method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ title, message, type }),
     }),
 
@@ -448,6 +452,7 @@ export const adminAPI = {
   updateSetting: (key: string, value: string) =>
     fetchAPI<{ success: boolean }>("/api/admin/settings", {
       method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ key, value }),
     }),
 
