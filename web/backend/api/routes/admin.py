@@ -387,6 +387,20 @@ async def get_broadcasts(limit: int = 20, admin: dict = Depends(get_admin_user))
     return {"broadcasts": broadcasts or []}
 
 
+@router.get("/broadcasts/public")
+async def get_public_broadcasts(limit: int = 5, current_user: dict = Depends(get_current_user)):
+    """Get recent broadcasts for all authenticated users"""
+
+    broadcasts = await execute_query("""
+        SELECT id, title, message, type, created_at
+        FROM admin_broadcasts
+        ORDER BY created_at DESC
+        LIMIT ?
+    """, (limit,))
+
+    return {"broadcasts": broadcasts or []}
+
+
 # ============== SYSTEM SETTINGS ==============
 
 @router.get("/settings")

@@ -6,6 +6,46 @@ import { Bot, Send, User, Sparkles, Loader2, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { aiAPI, ChatMessage } from "@/lib/api";
 
+// Simple markdown renderer for chat messages
+function renderMarkdown(text: string): React.ReactNode {
+  // Split by code blocks first
+  const parts = text.split(/(```[\s\S]*?```|`[^`]+`)/g);
+
+  return parts.map((part, i) => {
+    // Code block
+    if (part.startsWith("```") && part.endsWith("```")) {
+      const code = part.slice(3, -3).replace(/^\w+\n/, ""); // Remove language identifier
+      return (
+        <pre key={i} className="bg-black/30 rounded-lg p-3 my-2 overflow-x-auto text-sm">
+          <code>{code}</code>
+        </pre>
+      );
+    }
+    // Inline code
+    if (part.startsWith("`") && part.endsWith("`")) {
+      return (
+        <code key={i} className="bg-black/30 px-1.5 py-0.5 rounded text-sm">
+          {part.slice(1, -1)}
+        </code>
+      );
+    }
+    // Regular text with bold/italic
+    return (
+      <span key={i}>
+        {part.split(/(\*\*[^*]+\*\*|\*[^*]+\*)/g).map((segment, j) => {
+          if (segment.startsWith("**") && segment.endsWith("**")) {
+            return <strong key={j}>{segment.slice(2, -2)}</strong>;
+          }
+          if (segment.startsWith("*") && segment.endsWith("*") && segment.length > 2) {
+            return <em key={j}>{segment.slice(1, -1)}</em>;
+          }
+          return segment;
+        })}
+      </span>
+    );
+  });
+}
+
 export default function AssistantPage() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
@@ -189,7 +229,7 @@ export default function AssistantPage() {
                   : "glass-card rounded-bl-none"
               )}
             >
-              <p className="whitespace-pre-wrap">{message.content}</p>
+              <div className="whitespace-pre-wrap">{renderMarkdown(message.content)}</div>
               <p
                 className={cn(
                   "text-xs mt-2",

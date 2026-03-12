@@ -5,6 +5,7 @@ import { useRouter, usePathname } from "next/navigation";
 import { useAuth } from "@/lib/AuthContext";
 import { Sidebar } from "./Sidebar";
 import { Header } from "./Header";
+import { BroadcastBanner } from "./BroadcastBanner";
 import { Loader2 } from "lucide-react";
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
@@ -53,7 +54,10 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       <Sidebar />
       <div className="flex flex-col flex-1 overflow-hidden">
         <Header />
-        <main className="flex-1 overflow-auto p-6">{children}</main>
+        <main className="flex-1 overflow-auto p-6">
+          <BroadcastBanner />
+          {children}
+        </main>
       </div>
     </div>
   );
