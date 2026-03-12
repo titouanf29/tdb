@@ -25,11 +25,41 @@ if env_admins:
     ADMIN_WHITELIST.extend([e.strip() for e in env_admins.split(",") if e.strip()])
 
 
+async def is_first_user(user_id: int) -> bool:
+    """Check if this user is the first registered user (auto-admin)"""
+    first_user = await execute_query("SELECT id FROM web_users ORDER BY id ASC LIMIT 1")
+    return first_user and first_user[0]["id"] == user_id
+
+
+async def check_if_admin(user: dict) -> bool:
+    """Check if user is admin via whitelist, env vars, or first user"""
+    user_email = (user.get("email") or "").lower()
+    user_id = user.get("id")
+
+    # Check whitelist first
+    if user_email in [e.lower() for e in ADMIN_WHITELIST]:
+        return True
+
+    # Check if first user (auto-admin)
+    if user_id and await is_first_user(user_id):
+        return True
+
+    # Check if user is marked as admin in database
+    admin_check = await execute_query(
+        "SELECT is_admin FROM web_users WHERE id = ?",
+        (user_id,)
+    )
+    if admin_check and admin_check[0].get("is_admin"):
+        return True
+
+    return False
+
+
 async def get_admin_user(current_user: dict = Depends(get_current_user)):
     """Dependency to check if current user is an admin"""
-    user_email = (current_user.get("email") or "").lower()
+    is_admin = await check_if_admin(current_user)
 
-    if user_email not in [e.lower() for e in ADMIN_WHITELIST]:
+    if not is_admin:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Access denied. Admin privileges required."
@@ -66,7 +96,7 @@ class WalletAdjustment(BaseModel):
 async def check_admin_status(current_user: dict = Depends(get_current_user)):
     """Check if current user has admin privileges"""
     user_email = (current_user.get("email") or "").lower()
-    is_admin = user_email in [e.lower() for e in ADMIN_WHITELIST]
+    is_admin = await check_if_admin(current_user)
 
     return {
         "is_admin": is_admin,
@@ -650,3 +680,105 @@ async def log_admin_action(admin_id: int, action: str, details: str):
         INSERT INTO admin_audit_log (admin_id, action, details, created_at)
         VALUES (?, ?, ?, datetime('now'))
     """, (admin_id, action, details))
+
+
+# ============== ADMIN MANAGEMENT ==============
+
+class PromoteAdmin(BaseModel):
+    user_id: int
+    promote: bool = True  # True to promote, False to demote
+
+
+@router.post("/promote")
+async def promote_user_to_admin(data: PromoteAdmin, admin: dict = Depends(get_admin_user)):
+    """Promote or demote a user to/from admin"""
+    user = await execute_query("SELECT * FROM web_users WHERE id = ?", (data.user_id,))
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    await execute_write(
+        "UPDATE web_users SET is_admin = ? WHERE id = ?",
+        (1 if data.promote else 0, data.user_id)
+    )
+
+    action = "promote_admin" if data.promote else "demote_admin"
+    await log_admin_action(admin["id"], action, f"User {data.user_id} {'promoted to' if data.promote else 'demoted from'} admin")
+
+    return {
+        "success": True,
+        "message": f"User {data.user_id} has been {'promoted to admin' if data.promote else 'demoted from admin'}"
+    }
+
+
+# ============== ASSET REQUESTS ==============
+
+class AssetRequestAction(BaseModel):
+    request_id: int
+    status: str  # approved, rejected
+    admin_notes: Optional[str] = None
+
+
+@router.get("/asset-requests")
+async def get_asset_requests(
+    status: str = "all",
+    page: int = 1,
+    limit: int = 20,
+    admin: dict = Depends(get_admin_user)
+):
+    """Get all asset requests"""
+    offset = (page - 1) * limit
+
+    if status == "all":
+        requests = await execute_query("""
+            SELECT r.*, u.email, u.username
+            FROM asset_requests r
+            LEFT JOIN web_users u ON r.user_id = u.id
+            ORDER BY r.created_at DESC
+            LIMIT ? OFFSET ?
+        """, (limit, offset))
+        total = await execute_query("SELECT COUNT(*) as count FROM asset_requests")
+    else:
+        requests = await execute_query("""
+            SELECT r.*, u.email, u.username
+            FROM asset_requests r
+            LEFT JOIN web_users u ON r.user_id = u.id
+            WHERE r.status = ?
+            ORDER BY r.created_at DESC
+            LIMIT ? OFFSET ?
+        """, (status, limit, offset))
+        total = await execute_query(
+            "SELECT COUNT(*) as count FROM asset_requests WHERE status = ?",
+            (status,)
+        )
+
+    return {
+        "requests": requests or [],
+        "total": total[0]["count"] if total else 0,
+        "page": page,
+        "limit": limit
+    }
+
+
+@router.post("/asset-requests/action")
+async def process_asset_request(data: AssetRequestAction, admin: dict = Depends(get_admin_user)):
+    """Process an asset request (approve/reject)"""
+    request = await execute_query(
+        "SELECT * FROM asset_requests WHERE id = ?",
+        (data.request_id,)
+    )
+    if not request:
+        raise HTTPException(status_code=404, detail="Request not found")
+
+    await execute_write("""
+        UPDATE asset_requests
+        SET status = ?, admin_notes = ?, processed_at = datetime('now'), processed_by = ?
+        WHERE id = ?
+    """, (data.status, data.admin_notes, admin["id"], data.request_id))
+
+    await log_admin_action(
+        admin["id"],
+        f"asset_request_{data.status}",
+        f"Processed asset request {data.request_id}: {data.status}"
+    )
+
+    return {"success": True, "message": f"Request {data.status}"}

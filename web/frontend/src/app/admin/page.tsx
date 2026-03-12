@@ -47,7 +47,7 @@ import {
 } from "@/lib/api";
 import { useFormatCurrency } from "@/lib/SettingsContext";
 
-type TabType = "dashboard" | "users" | "positions" | "broadcasts" | "analytics" | "audit" | "settings";
+type TabType = "dashboard" | "users" | "positions" | "broadcasts" | "asset-requests" | "analytics" | "audit" | "settings";
 
 export default function AdminPage() {
   const router = useRouter();
@@ -106,6 +106,7 @@ export default function AdminPage() {
     { id: "users", label: "Utilisateurs", icon: Users },
     { id: "positions", label: "Positions", icon: TrendingUp },
     { id: "broadcasts", label: "Broadcasts", icon: Megaphone },
+    { id: "asset-requests", label: "Demandes Actifs", icon: Database },
     { id: "analytics", label: "Analytics", icon: BarChart3 },
     { id: "audit", label: "Audit Log", icon: FileText },
     { id: "settings", label: "Parametres", icon: Settings },
@@ -166,6 +167,7 @@ export default function AdminPage() {
       {activeTab === "users" && <UsersTab formatCurrency={formatCurrency} />}
       {activeTab === "positions" && <PositionsTab formatCurrency={formatCurrency} />}
       {activeTab === "broadcasts" && <BroadcastsTab />}
+      {activeTab === "asset-requests" && <AssetRequestsTab />}
       {activeTab === "analytics" && <AnalyticsTab />}
       {activeTab === "audit" && <AuditTab />}
       {activeTab === "settings" && <SettingsTab />}
@@ -1123,6 +1125,162 @@ function SettingsTab() {
                   </button>
                 </div>
                 <p className="text-sm text-muted-foreground mt-1">{s.value}</p>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// Asset Requests Tab
+function AssetRequestsTab() {
+  const [requests, setRequests] = useState<any[]>([]);
+  const [status, setStatus] = useState("all");
+  const [isLoading, setIsLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState<number | null>(null);
+
+  const loadRequests = async () => {
+    setIsLoading(true);
+    try {
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/admin/asset-requests?status=${status}`,
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("tdb_token")}`,
+          },
+        }
+      );
+      const data = await response.json();
+      setRequests(data.requests || []);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadRequests();
+  }, [status]);
+
+  const processRequest = async (requestId: number, newStatus: string, notes?: string) => {
+    setActionLoading(requestId);
+    try {
+      await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/admin/asset-requests/action`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${localStorage.getItem("tdb_token")}`,
+          },
+          body: JSON.stringify({
+            request_id: requestId,
+            status: newStatus,
+            admin_notes: notes,
+          }),
+        }
+      );
+      loadRequests();
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Filters */}
+      <div className="glass-card p-4">
+        <div className="flex gap-2">
+          {["all", "pending", "approved", "rejected"].map((s) => (
+            <button
+              key={s}
+              onClick={() => setStatus(s)}
+              className={cn(
+                "px-4 py-2 rounded-lg capitalize",
+                status === s ? "bg-primary text-white" : "bg-white/5 hover:bg-white/10"
+              )}
+            >
+              {s === "all" ? "Toutes" : s === "pending" ? "En attente" : s === "approved" ? "Approuvees" : "Rejetees"}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Requests List */}
+      <div className="glass-card p-6">
+        <h3 className="font-semibold mb-4 flex items-center gap-2">
+          <Database className="w-5 h-5 text-primary" />
+          Demandes d'ajout d'actifs
+        </h3>
+
+        {isLoading ? (
+          <div className="flex justify-center py-8">
+            <Loader2 className="w-6 h-6 animate-spin" />
+          </div>
+        ) : requests.length === 0 ? (
+          <p className="text-muted-foreground text-center py-8">Aucune demande</p>
+        ) : (
+          <div className="space-y-3">
+            {requests.map((req) => (
+              <div key={req.id} className="p-4 bg-white/5 rounded-lg">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-lg">{req.symbol}</span>
+                      <span
+                        className={cn(
+                          "px-2 py-0.5 rounded text-xs",
+                          req.status === "pending"
+                            ? "bg-warning/20 text-warning"
+                            : req.status === "approved"
+                            ? "bg-profit/20 text-profit"
+                            : "bg-loss/20 text-loss"
+                        )}
+                      >
+                        {req.status === "pending" ? "En attente" : req.status === "approved" ? "Approuve" : "Rejete"}
+                      </span>
+                    </div>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Type: {req.asset_type || "Non specifie"} | Par: {req.username || req.email}
+                    </p>
+                    {req.reason && (
+                      <p className="text-sm mt-2 p-2 bg-white/5 rounded">
+                        <span className="text-muted-foreground">Raison:</span> {req.reason}
+                      </p>
+                    )}
+                    <p className="text-xs text-muted-foreground mt-2">
+                      Demande le: {new Date(req.created_at).toLocaleString("fr-FR")}
+                    </p>
+                  </div>
+
+                  {req.status === "pending" && (
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => processRequest(req.id, "approved")}
+                        disabled={actionLoading === req.id}
+                        className="p-2 rounded-lg bg-profit/20 text-profit hover:bg-profit/30"
+                      >
+                        {actionLoading === req.id ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <CheckCircle className="w-4 h-4" />
+                        )}
+                      </button>
+                      <button
+                        onClick={() => processRequest(req.id, "rejected")}
+                        disabled={actionLoading === req.id}
+                        className="p-2 rounded-lg bg-loss/20 text-loss hover:bg-loss/30"
+                      >
+                        <XCircle className="w-4 h-4" />
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
             ))}
           </div>

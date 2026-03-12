@@ -67,7 +67,37 @@ export const marketAPI = {
     fetchAPI<ChartData>(
       `/api/market/chart/${symbol}?period=${period}&interval=${interval}`
     ),
+
+  requestAsset: (data: AssetRequestData) =>
+    fetchAPI<{ success: boolean; message: string }>("/api/market/request-asset", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    }),
+
+  getMyAssetRequests: () =>
+    fetchAPI<{ requests: AssetRequest[] }>("/api/market/my-requests"),
 };
+
+export interface AssetRequestData {
+  symbol: string;
+  asset_name?: string;
+  asset_type?: string;
+  reason?: string;
+}
+
+export interface AssetRequest {
+  id: number;
+  user_id: number;
+  symbol: string;
+  asset_name?: string;
+  asset_type?: string;
+  reason?: string;
+  status: string;
+  admin_notes?: string;
+  created_at: string;
+  processed_at?: string;
+}
 
 // Wallet API
 export const walletAPI = {
@@ -134,7 +164,22 @@ export const aiAPI = {
       `/api/ai/quick-analysis?symbol=${symbol}`,
       { method: "POST", headers: { "Content-Type": "application/json" } }
     ),
+
+  getMarketNews: () =>
+    fetchAPI<MarketNews>("/api/ai/market-news"),
 };
+
+export interface MarketNews {
+  news: {
+    title: string;
+    publisher: string;
+    link: string;
+    timestamp: number;
+    related: string;
+  }[];
+  summary: string | null;
+  generated_at: string;
+}
 
 // Favorites API
 export const favoritesAPI = {

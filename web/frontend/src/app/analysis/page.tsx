@@ -46,9 +46,10 @@ import {
   Brain,
   CircleDot,
   AlertCircle,
+  Plus,
 } from "lucide-react";
 import { cn, formatPercent } from "@/lib/utils";
-import { analysisAPI, favoritesAPI, aiAPI, Analysis } from "@/lib/api";
+import { analysisAPI, favoritesAPI, aiAPI, marketAPI, Analysis } from "@/lib/api";
 import { getAssetInfo, getAssetLogo } from "@/lib/assetInfo";
 import { useFormatCurrency } from "@/lib/SettingsContext";
 
@@ -66,6 +67,11 @@ export default function AnalysisPage() {
   const [aiInsight, setAiInsight] = useState<string | null>(null);
   const [isLoadingAI, setIsLoadingAI] = useState(false);
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(["main"]));
+  const [showRequestForm, setShowRequestForm] = useState(false);
+  const [requestReason, setRequestReason] = useState("");
+  const [requestAssetType, setRequestAssetType] = useState("stock");
+  const [isSubmittingRequest, setIsSubmittingRequest] = useState(false);
+  const [requestSuccess, setRequestSuccess] = useState(false);
 
   const toggleSection = (section: string) => {
     setExpandedSections(prev => {
@@ -117,16 +123,115 @@ export default function AnalysisPage() {
   const loadAIInsight = async (sym: string, data: Analysis): Promise<void> => {
     setIsLoadingAI(true);
     try {
-      const context = `Analyse technique de ${sym}: Score ${data.score.total}/100, Signal ${data.signal.text}, Tendance ${data.trend}, RSI ${data.indicators.rsi.value.toFixed(1)}, Prix actuel ${data.price.current}, Support ${data.levels.support}, Resistance ${data.levels.resistance}. ${data.company?.description ? `Description: ${data.company.description.substring(0, 200)}` : ''}`;
+      const fundamentalsInfo = data.fundamentals ? `
+Fondamentaux:
+- P/E Ratio: ${data.fundamentals.pe_ratio || 'N/A'}
+- Forward P/E: ${data.fundamentals.forward_pe || 'N/A'}
+- Dividend Yield: ${data.fundamentals.dividend_yield ? (data.fundamentals.dividend_yield * 100).toFixed(2) + '%' : 'N/A'}
+- Market Cap: $${data.fundamentals.market_cap?.toLocaleString() || 'N/A'}
+- Beta: ${data.fundamentals.beta || 'N/A'}
+- 52w High: $${data.fundamentals["52w_high"] || 'N/A'}
+- 52w Low: $${data.fundamentals["52w_low"] || 'N/A'}
+- Target Price Analyst: $${data.fundamentals.target_price || 'N/A'}
+- Recommendation: ${data.fundamentals.recommendation || 'N/A'}
+` : '';
+
+      const performanceInfo = data.performance ? `
+Performance:
+- 1 jour: ${data.performance["1d"]?.toFixed(2) || 'N/A'}%
+- 1 semaine: ${data.performance["1w"]?.toFixed(2) || 'N/A'}%
+- 1 mois: ${data.performance["1m"]?.toFixed(2) || 'N/A'}%
+- 3 mois: ${data.performance["3m"]?.toFixed(2) || 'N/A'}%
+- YTD: ${data.performance.ytd?.toFixed(2) || 'N/A'}%
+` : '';
+
+      const context = `
+=== ANALYSE COMPLETE DE ${sym} ===
+
+Informations de base:
+- Nom: ${data.company?.name || sym}
+- Secteur: ${data.company?.sector || 'N/A'}
+- Industrie: ${data.company?.industry || 'N/A'}
+
+Prix et tendance:
+- Prix actuel: $${data.price.current}
+- Variation 24h: ${data.price.change.toFixed(2)}%
+- Plus haut 24h: $${data.price.high_24h}
+- Plus bas 24h: $${data.price.low_24h}
+- Tendance: ${data.trend}
+
+Scores:
+- Score Global: ${data.score.total}/100
+- Score Technique: ${data.score.technical}/100
+- Score Volume: ${data.score.volume}/100
+- Score Momentum: ${data.score.momentum}/100
+- Signal: ${data.signal.text}
+
+Indicateurs techniques:
+- RSI (14): ${data.indicators.rsi.value.toFixed(1)} (${data.indicators.rsi.signal})
+- MACD: ${data.indicators.macd.value.toFixed(4)} (Signal: ${data.indicators.macd.signal})
+- EMA 20: $${data.indicators.ema.ema20.toFixed(2)}
+- EMA 50: $${data.indicators.ema.ema50.toFixed(2)}
+- ATR: ${data.indicators.atr.toFixed(4)}
+- Volume Ratio: ${data.indicators.volume_ratio.toFixed(2)}x
+- Bollinger: Position ${data.indicators.bollinger.position}
+
+Niveaux cles:
+- Resistance: $${data.levels.resistance}
+- Pivot: $${data.levels.pivot}
+- Support: $${data.levels.support}
+
+Gestion du risque:
+- Stop Loss suggere: $${data.risk.suggested_sl}
+- Take Profit suggere: $${data.risk.suggested_tp}
+- Ratio R/R: 1:${data.risk.risk_reward}
+${fundamentalsInfo}
+${performanceInfo}
+${data.company?.description ? `\nDescription: ${data.company.description}` : ''}
+`;
 
       const response = await aiAPI.chat(
-        `En tant qu'analyste financier expert, donne une analyse approfondie et des previsions pour ${sym} en 3-4 paragraphes. Inclus: 1) Contexte de marche actuel 2) Perspectives a court terme (1-2 semaines) 3) Perspectives a moyen terme (1-3 mois) 4) Risques majeurs a surveiller. Sois precis et factuel.`,
+        `Tu es un analyste financier senior avec 20 ans d'experience. Fournis une analyse COMPLETE et DETAILLEE pour ${sym}:
+
+## 1. SYNTHESE EXECUTIVE
+Resume en 3-4 phrases la situation actuelle, le contexte et les enjeux principaux.
+
+## 2. ANALYSE DE LA TENDANCE
+- Tendance actuelle et sa force
+- Signaux techniques convergents/divergents
+- Niveaux techniques importants
+
+## 3. CATALYSEURS A COURT TERME (1-4 semaines)
+- Evenements a surveiller
+- Niveaux de prix cibles
+- Probabilite de mouvement directionnel
+
+## 4. PERSPECTIVES A MOYEN TERME (1-3 mois)
+- Contexte sectoriel
+- Dynamique fondamentale
+- Objectifs de prix realistes
+
+## 5. ANALYSE DES RISQUES
+- Risques techniques (gaps, supports)
+- Risques fondamentaux (resultats, concurrence)
+- Risques macro (taux, inflation, geopolitique)
+
+## 6. STRATEGIE RECOMMANDEE
+- Action a prendre (Acheter/Vendre/Attendre)
+- Points d'entree optimaux
+- Niveaux de stop-loss et take-profit
+- Horizon de temps recommande
+
+## 7. CONVICTION ET CONFIANCE
+Donne une note de conviction de 1 a 10 avec justification.
+
+Sois precis, factuel et professionnel. Utilise des emojis pour rendre l'analyse plus lisible.`,
         context
       );
       setAiInsight(response.response);
     } catch (err) {
       console.error("Error loading AI insight:", err);
-      throw err; // Re-throw to let the component handle the error
+      throw err;
     } finally {
       setIsLoadingAI(false);
     }
@@ -143,6 +248,25 @@ export default function AnalysisPage() {
       setIsFavorite(!isFavorite);
     } catch (error) {
       console.error("Error toggling favorite:", error);
+    }
+  };
+
+  const handleRequestAsset = async () => {
+    if (!symbol.trim()) return;
+    setIsSubmittingRequest(true);
+    try {
+      await marketAPI.requestAsset({
+        symbol: symbol.trim().toUpperCase(),
+        asset_type: requestAssetType,
+        reason: requestReason || undefined,
+      });
+      setRequestSuccess(true);
+      setShowRequestForm(false);
+      setRequestReason("");
+    } catch (err: any) {
+      setError(err.message || "Erreur lors de la demande");
+    } finally {
+      setIsSubmittingRequest(false);
     }
   };
 
@@ -195,10 +319,86 @@ export default function AnalysisPage() {
         </div>
       </div>
 
-      {/* Error */}
+      {/* Error with Request Asset Option */}
       {error && (
-        <div className="p-4 rounded-xl bg-loss/10 border border-loss/30 text-loss">
-          {error}
+        <div className="glass-card p-6">
+          <div className="flex items-start gap-3 text-loss mb-4">
+            <AlertCircle className="w-5 h-5 mt-0.5 flex-shrink-0" />
+            <div>
+              <p className="font-medium">{error}</p>
+              <p className="text-sm text-muted-foreground mt-1">
+                L'actif "{symbol}" n'est pas disponible ou n'existe pas.
+              </p>
+            </div>
+          </div>
+
+          {requestSuccess ? (
+            <div className="p-4 rounded-xl bg-profit/10 border border-profit/30 text-profit">
+              <p className="font-medium">Demande envoyee avec succes!</p>
+              <p className="text-sm mt-1">
+                Un administrateur examinera votre demande d'ajout de {symbol}.
+              </p>
+            </div>
+          ) : !showRequestForm ? (
+            <button
+              onClick={() => setShowRequestForm(true)}
+              className="btn-primary flex items-center gap-2"
+            >
+              <Plus className="w-4 h-4" />
+              Demander l'ajout de cet actif
+            </button>
+          ) : (
+            <div className="space-y-4 p-4 rounded-xl bg-white/5">
+              <h3 className="font-semibold">Demander l'ajout de "{symbol}"</h3>
+
+              <div>
+                <label className="text-sm text-muted-foreground">Type d'actif</label>
+                <select
+                  value={requestAssetType}
+                  onChange={(e) => setRequestAssetType(e.target.value)}
+                  className="w-full input mt-1"
+                >
+                  <option value="stock">Action</option>
+                  <option value="crypto">Crypto-monnaie</option>
+                  <option value="etf">ETF</option>
+                  <option value="forex">Forex</option>
+                  <option value="commodity">Matiere premiere</option>
+                  <option value="index">Indice</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="text-sm text-muted-foreground">Raison (optionnel)</label>
+                <textarea
+                  value={requestReason}
+                  onChange={(e) => setRequestReason(e.target.value)}
+                  placeholder="Pourquoi souhaitez-vous suivre cet actif?"
+                  className="w-full input mt-1 min-h-[80px]"
+                />
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={handleRequestAsset}
+                  disabled={isSubmittingRequest}
+                  className="btn-primary flex items-center gap-2"
+                >
+                  {isSubmittingRequest ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <ArrowRight className="w-4 h-4" />
+                  )}
+                  Envoyer la demande
+                </button>
+                <button
+                  onClick={() => setShowRequestForm(false)}
+                  className="btn-ghost"
+                >
+                  Annuler
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

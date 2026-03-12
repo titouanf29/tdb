@@ -187,8 +187,9 @@ async def quick_analysis(
     symbol: str,
     current_user: dict = Depends(get_current_user)
 ):
-    """Get a quick AI analysis for a symbol"""
+    """Get a detailed AI analysis for a symbol"""
     import yfinance as yf
+    import numpy as np
 
     api_key = get_groq_api_key()
     if not api_key:
@@ -197,32 +198,127 @@ async def quick_analysis(
             detail="AI Assistant not configured"
         )
 
-    # Get market data
+    # Get comprehensive market data
     try:
         ticker = yf.Ticker(symbol)
         info = ticker.info
-        hist = ticker.history(period="5d")
+        hist = ticker.history(period="3mo")
 
         if hist.empty:
             raise HTTPException(status_code=404, detail="Symbol not found")
 
         current_price = hist['Close'].iloc[-1]
         prev_price = hist['Close'].iloc[-2]
-        change = ((current_price - prev_price) / prev_price) * 100
+        change_1d = ((current_price - prev_price) / prev_price) * 100
+
+        # Calculate additional metrics
+        change_1w = ((current_price - hist['Close'].iloc[-5]) / hist['Close'].iloc[-5]) * 100 if len(hist) >= 5 else 0
+        change_1m = ((current_price - hist['Close'].iloc[-22]) / hist['Close'].iloc[-22]) * 100 if len(hist) >= 22 else 0
+
+        # RSI calculation
+        delta = hist['Close'].diff()
+        gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
+        loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
+        rs = gain / loss
+        rsi = 100 - (100 / (1 + rs.iloc[-1])) if loss.iloc[-1] != 0 else 50
+
+        # Moving averages
+        sma_20 = hist['Close'].rolling(window=20).mean().iloc[-1]
+        sma_50 = hist['Close'].rolling(window=50).mean().iloc[-1] if len(hist) >= 50 else None
+
+        # Volatility
+        volatility = hist['Close'].pct_change().std() * np.sqrt(252) * 100
+
+        # Volume analysis
+        avg_volume = hist['Volume'].mean()
+        current_volume = hist['Volume'].iloc[-1]
+        volume_ratio = current_volume / avg_volume if avg_volume > 0 else 1
 
         market_context = f"""
-Symbole: {symbol}
-Nom: {info.get('shortName', symbol)}
-Prix actuel: ${current_price:.2f}
-Variation 24h: {change:+.2f}%
-Volume: {hist['Volume'].iloc[-1]:,.0f}
-Plus haut 52 sem: ${info.get('fiftyTwoWeekHigh', 'N/A')}
-Plus bas 52 sem: ${info.get('fiftyTwoWeekLow', 'N/A')}
+=== ANALYSE DETAILLEE: {symbol} ===
+
+INFORMATIONS GENERALES:
+- Nom: {info.get('shortName', symbol)}
+- Secteur: {info.get('sector', 'N/A')}
+- Industrie: {info.get('industry', 'N/A')}
+- Capitalisation: ${info.get('marketCap', 0):,.0f}
+
+PRIX ET PERFORMANCE:
+- Prix actuel: ${current_price:.2f}
+- Variation 24h: {change_1d:+.2f}%
+- Variation 1 semaine: {change_1w:+.2f}%
+- Variation 1 mois: {change_1m:+.2f}%
+- Plus haut 52 sem: ${info.get('fiftyTwoWeekHigh', 0):.2f}
+- Plus bas 52 sem: ${info.get('fiftyTwoWeekLow', 0):.2f}
+
+INDICATEURS TECHNIQUES:
+- RSI (14): {rsi:.1f} {'(Suracheté)' if rsi > 70 else '(Survendu)' if rsi < 30 else '(Neutre)'}
+- SMA 20: ${sma_20:.2f} {'(Prix au-dessus)' if current_price > sma_20 else '(Prix en-dessous)'}
+- SMA 50: ${sma_50:.2f if sma_50 else 'N/A'}
+- Volatilité annualisée: {volatility:.1f}%
+
+VOLUME:
+- Volume actuel: {current_volume:,.0f}
+- Volume moyen: {avg_volume:,.0f}
+- Ratio volume: {volume_ratio:.2f}x {'(Volume élevé)' if volume_ratio > 1.5 else '(Volume faible)' if volume_ratio < 0.5 else ''}
+
+FONDAMENTAUX:
+- P/E Ratio: {info.get('trailingPE', 'N/A')}
+- Forward P/E: {info.get('forwardPE', 'N/A')}
+- Dividend Yield: {info.get('dividendYield', 0) * 100 if info.get('dividendYield') else 0:.2f}%
+- Beta: {info.get('beta', 'N/A')}
 """
     except Exception as e:
-        market_context = f"Symbole: {symbol} - Données non disponibles"
+        market_context = f"Symbole: {symbol} - Données partiellement disponibles"
 
-    prompt = f"Donne-moi une analyse rapide (3-4 phrases) de {symbol} basée sur ces données:\n{market_context}"
+    prompt = f"""Tu es un analyste financier senior avec 20 ans d'experience. Fournis une analyse COMPLETE et DETAILLEE de cet actif:
+
+## 1. SYNTHESE EXECUTIVE (3-4 phrases)
+Resume la situation actuelle, le contexte de marche et les enjeux cles pour cet actif.
+
+## 2. ANALYSE TECHNIQUE APPROFONDIE
+- **Tendance principale**: Haussiere/Baissiere/Neutre avec justification detaillee
+- **Structure de prix**: Analyse des plus hauts/plus bas recents, patterns identifies
+- **Moyennes mobiles**: Position du prix par rapport aux EMA 20/50/200, croisements significatifs
+- **RSI**: Interpretation detaillee (survente <30, surachat >70, divergences potentielles)
+- **MACD**: Signal actuel, croisements recents, force de la tendance
+- **Bandes de Bollinger**: Position du prix, squeeze potentiel, volatilite
+- **Volume**: Confirmation ou divergence avec le prix
+
+## 3. NIVEAUX CLES A SURVEILLER
+- **Resistances**: 3 niveaux avec importance (R1, R2, R3)
+- **Supports**: 3 niveaux avec importance (S1, S2, S3)
+- **Zones de liquidite**: Ou se concentrent les ordres
+
+## 4. SCENARIOS DE MARCHE
+### Scenario haussier (probabilite X%)
+- Catalyseurs, objectifs, invalidation
+### Scenario baissier (probabilite X%)
+- Catalyseurs, objectifs, invalidation
+
+## 5. ANALYSE DES RISQUES
+- Risques techniques (gaps, divergences)
+- Risques fondamentaux (resultats, secteur)
+- Risques macro (taux, geopolitique)
+- Volatilite attendue
+
+## 6. STRATEGIE DE TRADING RECOMMANDEE
+- **Point d'entree optimal**: Prix et conditions
+- **Stop-loss**: Niveau et justification
+- **Take-profit**: Objectifs T1, T2, T3
+- **Ratio risque/reward**: Calcul precis
+- **Taille de position suggere**: % du portefeuille
+
+## 7. VERDICT FINAL
+- **Recommandation**: ACHAT FORT / ACHAT / NEUTRE / VENTE / VENTE FORTE
+- **Horizon temporel**: Court/Moyen/Long terme
+- **Niveau de confiance**: 1-10 avec justification
+- **Action immediate**: Ce que le trader doit faire maintenant
+
+Donnees de marche:
+{market_context}
+
+Sois precis, factuel et professionnel. Utilise des emojis pour rendre l'analyse plus lisible."""
 
     # Call AI
     try:
@@ -240,7 +336,7 @@ Plus bas 52 sem: ${info.get('fiftyTwoWeekLow', 'N/A')}
                         {"role": "user", "content": prompt}
                     ],
                     "temperature": 0.5,
-                    "max_tokens": 300
+                    "max_tokens": 3000
                 }
             )
 
@@ -255,3 +351,70 @@ Plus bas 52 sem: ${info.get('fiftyTwoWeekLow', 'N/A')}
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/market-news")
+async def get_market_news(current_user: dict = Depends(get_current_user)):
+    """Get economic news with AI summary"""
+    import yfinance as yf
+
+    api_key = get_groq_api_key()
+
+    # Fetch news from major indices
+    news_items = []
+    symbols = ["^GSPC", "^DJI", "^IXIC", "GC=F", "CL=F", "BTC-USD"]
+
+    for symbol in symbols:
+        try:
+            ticker = yf.Ticker(symbol)
+            news = ticker.news[:2] if hasattr(ticker, 'news') else []
+            for item in news:
+                news_items.append({
+                    "title": item.get("title", ""),
+                    "publisher": item.get("publisher", ""),
+                    "link": item.get("link", ""),
+                    "timestamp": item.get("providerPublishTime", 0),
+                    "related": symbol
+                })
+        except:
+            continue
+
+    # Sort by timestamp and get latest 10
+    news_items.sort(key=lambda x: x.get("timestamp", 0), reverse=True)
+    news_items = news_items[:10]
+
+    # Generate AI summary if we have news and API key
+    summary = None
+    if news_items and api_key:
+        news_text = "\n".join([f"- {item['title']} ({item['publisher']})" for item in news_items[:8]])
+
+        try:
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                response = await client.post(
+                    GROQ_API_URL,
+                    headers={
+                        "Authorization": f"Bearer {api_key}",
+                        "Content-Type": "application/json"
+                    },
+                    json={
+                        "model": MODEL,
+                        "messages": [
+                            {"role": "system", "content": "Tu es un analyste financier. Résume les actualités économiques de manière concise et pertinente pour les traders. Réponds en français."},
+                            {"role": "user", "content": f"Voici les dernières actualités économiques. Fais un résumé en 3-4 points clés des tendances importantes pour les marchés:\n\n{news_text}"}
+                        ],
+                        "temperature": 0.3,
+                        "max_tokens": 500
+                    }
+                )
+
+                if response.status_code == 200:
+                    data = response.json()
+                    summary = data["choices"][0]["message"]["content"]
+        except:
+            summary = None
+
+    return {
+        "news": news_items,
+        "summary": summary,
+        "generated_at": datetime.utcnow().isoformat()
+    }

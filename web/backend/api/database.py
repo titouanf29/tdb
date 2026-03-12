@@ -142,6 +142,31 @@ async def init_web_tables():
             )
         """)
 
+        # Asset requests table for users to request new assets
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS asset_requests (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                symbol TEXT NOT NULL,
+                asset_name TEXT,
+                asset_type TEXT,
+                reason TEXT,
+                status TEXT DEFAULT 'pending',
+                admin_notes TEXT,
+                created_at TEXT NOT NULL,
+                processed_at TEXT,
+                processed_by INTEGER,
+                FOREIGN KEY (user_id) REFERENCES web_users(id),
+                FOREIGN KEY (processed_by) REFERENCES web_users(id)
+            )
+        """)
+
+        # Add is_admin column to web_users if not exists
+        try:
+            await db.execute("ALTER TABLE web_users ADD COLUMN is_admin INTEGER DEFAULT 0")
+        except:
+            pass  # Column already exists
+
         await db.commit()
         _initialized = True
 

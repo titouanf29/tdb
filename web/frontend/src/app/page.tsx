@@ -21,7 +21,7 @@ import {
   Bot,
 } from "lucide-react";
 import { cn, formatPercent } from "@/lib/utils";
-import { walletAPI, favoritesAPI, adminAPI, WalletBalance, TradingStats, Favorite } from "@/lib/api";
+import { walletAPI, favoritesAPI, adminAPI, aiAPI, WalletBalance, TradingStats, Favorite, MarketNews } from "@/lib/api";
 import { useFormatCurrency } from "@/lib/SettingsContext";
 
 const containerVariants = {
@@ -37,13 +37,6 @@ const itemVariants = {
   show: { opacity: 1, y: 0 },
 };
 
-// World news topics for market context
-const newsTopics = [
-  { category: "Geopolitique", icon: Globe, color: "text-blue-400" },
-  { category: "Economie", icon: TrendingUp, color: "text-green-400" },
-  { category: "Technologie", icon: Activity, color: "text-purple-400" },
-  { category: "Energie", icon: Target, color: "text-orange-400" },
-];
 
 export default function Dashboard() {
   const formatCurrency = useFormatCurrency();
@@ -53,6 +46,8 @@ export default function Dashboard() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [marketNews, setMarketNews] = useState<MarketNews | null>(null);
+  const [isLoadingNews, setIsLoadingNews] = useState(false);
 
   const loadData = async (showRefresh = false) => {
     if (showRefresh) setIsRefreshing(true);
@@ -68,11 +63,26 @@ export default function Dashboard() {
       setStats(statsData);
       setFavorites(favoritesData.favorites || []);
       setIsAdmin(adminData.is_admin);
+
+      // Load market news in background
+      loadMarketNews();
     } catch (error) {
       console.error("Error loading dashboard:", error);
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
+    }
+  };
+
+  const loadMarketNews = async () => {
+    setIsLoadingNews(true);
+    try {
+      const newsData = await aiAPI.getMarketNews();
+      setMarketNews(newsData);
+    } catch (error) {
+      console.error("Error loading market news:", error);
+    } finally {
+      setIsLoadingNews(false);
     }
   };
 
@@ -216,39 +226,75 @@ export default function Dashboard() {
           </div>
         </motion.div>
 
-        {/* Market News & Themes */}
+        {/* Market News with AI Summary */}
         <motion.div variants={itemVariants}>
           <div className="glass-card p-6">
-            <div className="flex items-center gap-2 mb-4">
-              <Newspaper className="w-5 h-5 text-primary" />
-              <h2 className="text-lg font-semibold">Themes du Marche</h2>
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <Newspaper className="w-5 h-5 text-primary" />
+                <h2 className="text-lg font-semibold">Actualites Economiques</h2>
+              </div>
+              <button
+                onClick={loadMarketNews}
+                disabled={isLoadingNews}
+                className="p-1.5 rounded-lg hover:bg-white/5 transition-colors"
+              >
+                <RefreshCw className={cn("w-4 h-4", isLoadingNews && "animate-spin")} />
+              </button>
             </div>
-            <div className="space-y-3">
-              {newsTopics.map((topic, i) => (
-                <div
-                  key={i}
-                  className="p-3 rounded-xl bg-white/5 hover:bg-white/10 transition-colors cursor-pointer"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className={cn("p-2 rounded-lg bg-white/10", topic.color)}>
-                      <topic.icon className="w-4 h-4" />
+
+            {isLoadingNews && !marketNews ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="w-6 h-6 animate-spin text-primary" />
+              </div>
+            ) : marketNews ? (
+              <div className="space-y-4">
+                {/* AI Summary */}
+                {marketNews.summary && (
+                  <div className="p-4 rounded-xl bg-primary/10 border border-primary/20">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Bot className="w-4 h-4 text-primary" />
+                      <span className="text-xs font-semibold text-primary">Resume IA</span>
                     </div>
-                    <div className="flex-1">
-                      <p className="font-medium text-sm">{topic.category}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {topic.category === "Geopolitique" && "Tensions, accords commerciaux"}
-                        {topic.category === "Economie" && "Inflation, taux d'interet"}
-                        {topic.category === "Technologie" && "IA, semiconducteurs"}
-                        {topic.category === "Energie" && "Petrole, renouvelables"}
-                      </p>
-                    </div>
+                    <p className="text-sm leading-relaxed whitespace-pre-line">{marketNews.summary}</p>
                   </div>
+                )}
+
+                {/* News List */}
+                <div className="space-y-2 max-h-[300px] overflow-y-auto">
+                  {marketNews.news.slice(0, 6).map((item, i) => (
+                    <a
+                      key={i}
+                      href={item.link}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block p-3 rounded-xl bg-white/5 hover:bg-white/10 transition-colors"
+                    >
+                      <p className="text-sm font-medium line-clamp-2">{item.title}</p>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className="text-xs text-muted-foreground">{item.publisher}</span>
+                        {item.related && (
+                          <span className="text-xs px-1.5 py-0.5 rounded bg-primary/20 text-primary">
+                            {item.related}
+                          </span>
+                        )}
+                      </div>
+                    </a>
+                  ))}
                 </div>
-              ))}
-            </div>
-            <Link href="/markets" className="block mt-4 text-center text-sm text-primary hover:underline">
-              Explorer les marches
-            </Link>
+
+                {marketNews.generated_at && (
+                  <p className="text-xs text-muted-foreground text-center">
+                    Mis a jour: {new Date(marketNews.generated_at).toLocaleString("fr-FR")}
+                  </p>
+                )}
+              </div>
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">
+                <Newspaper className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                <p className="text-sm">Cliquez sur actualiser pour charger les actualites</p>
+              </div>
+            )}
           </div>
         </motion.div>
       </div>
