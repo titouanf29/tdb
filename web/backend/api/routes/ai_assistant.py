@@ -3,13 +3,14 @@ AI Assistant routes - Chat with Groq (Llama)
 """
 import os
 import httpx
-from datetime import datetime
+from datetime import datetime, date
 from typing import List, Optional
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 
 from ..database import execute_query, execute_write
 from .auth import get_current_user
+from .premium import is_user_premium, get_user_limits
 
 router = APIRouter()
 
@@ -59,6 +60,52 @@ def get_user_id(user: dict) -> int:
     return user.get("id")
 
 
+async def get_user_messages_today(user_id: int) -> int:
+    """Count messages sent by user today"""
+    result = await execute_query(
+        """SELECT COUNT(*) as count FROM web_ai_chat
+           WHERE user_id = ? AND role = 'user'
+           AND DATE(created_at) = DATE('now')""",
+        (user_id,)
+    )
+    return result[0]["count"] if result else 0
+
+
+async def check_ai_limit(user: dict) -> dict:
+    """Check if user can send AI messages. Returns remaining count and limit info."""
+    user_id = get_user_id(user)
+    is_premium = await is_user_premium(user)
+    limits = await get_user_limits(user)
+
+    messages_today = await get_user_messages_today(user_id)
+    daily_limit = limits.get("ai_messages_per_day", 10)
+
+    # -1 means unlimited (premium)
+    if daily_limit == -1:
+        return {
+            "can_send": True,
+            "messages_today": messages_today,
+            "daily_limit": -1,
+            "remaining": -1,
+            "is_premium": is_premium
+        }
+
+    remaining = max(0, daily_limit - messages_today)
+    return {
+        "can_send": remaining > 0,
+        "messages_today": messages_today,
+        "daily_limit": daily_limit,
+        "remaining": remaining,
+        "is_premium": is_premium
+    }
+
+
+@router.get("/limit")
+async def get_ai_limit(current_user: dict = Depends(get_current_user)):
+    """Get user's AI message limit status"""
+    return await check_ai_limit(current_user)
+
+
 @router.post("/chat", response_model=ChatResponse)
 async def chat_with_assistant(
     request: ChatRequest,
@@ -70,6 +117,19 @@ async def chat_with_assistant(
         raise HTTPException(
             status_code=503,
             detail="AI Assistant not configured. Please set GROQ_API_KEY."
+        )
+
+    # Check message limit for free users
+    limit_status = await check_ai_limit(current_user)
+    if not limit_status["can_send"]:
+        raise HTTPException(
+            status_code=429,
+            detail={
+                "message": "Limite quotidienne atteinte. Passez Premium pour des messages illimites.",
+                "messages_today": limit_status["messages_today"],
+                "daily_limit": limit_status["daily_limit"],
+                "remaining": 0
+            }
         )
 
     user_id = get_user_id(current_user)

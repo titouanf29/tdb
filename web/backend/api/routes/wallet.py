@@ -8,6 +8,7 @@ from pydantic import BaseModel
 
 from ..database import execute_query, execute_write
 from .auth import get_current_user
+from .premium import get_user_limits
 
 router = APIRouter()
 
@@ -128,6 +129,24 @@ async def open_position(
     """Open a new trading position"""
     import yfinance as yf
 
+    user_id = get_user_id(current_user)
+
+    # Check positions limit
+    limits = await get_user_limits(current_user)
+    max_positions = limits.get("max_positions", 5)
+
+    open_positions = await execute_query(
+        "SELECT COUNT(*) as count FROM positions WHERE user_id = ? AND status = 'open'",
+        (user_id,)
+    )
+    count = open_positions[0]["count"] if open_positions else 0
+
+    if count >= max_positions:
+        raise HTTPException(
+            status_code=403,
+            detail=f"Limite de positions atteinte ({max_positions}). Passez Premium pour en ouvrir plus."
+        )
+
     # Get current price
     try:
         ticker = yf.Ticker(request.symbol)
@@ -136,8 +155,6 @@ async def open_position(
             raise HTTPException(status_code=400, detail="Cannot get price for symbol")
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Invalid symbol: {str(e)}")
-
-    user_id = get_user_id(current_user)
 
     # Check balance
     wallets = await execute_query(

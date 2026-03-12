@@ -53,13 +53,22 @@ async def calculate_pivot_points(
 ):
     """
     Calculate pivot points for a symbol using different methods:
-    - standard: Classic pivot points
-    - fibonacci: Fibonacci-based pivots
-    - woodie: Woodie's pivot points
-    - camarilla: Camarilla pivots
-    - demark: DeMark pivots
+    - standard: Classic pivot points (FREE)
+    - fibonacci: Fibonacci-based pivots (PREMIUM)
+    - woodie: Woodie's pivot points (PREMIUM)
+    - camarilla: Camarilla pivots (PREMIUM)
+    - demark: DeMark pivots (PREMIUM)
     """
     import yfinance as yf
+
+    # Check if advanced pivots are allowed
+    if method != "standard":
+        limits = await get_user_limits(current_user)
+        if not limits.get("advanced_pivots", False):
+            raise HTTPException(
+                status_code=403,
+                detail=f"La methode '{method}' est reservee aux membres Premium. Utilisez 'standard' ou passez Premium."
+            )
 
     try:
         ticker = yf.Ticker(symbol)
@@ -461,8 +470,16 @@ async def get_economic_calendar(
 
 @router.get("/geopolitical")
 async def get_geopolitical_analysis(current_user: dict = Depends(get_current_user)):
-    """Get geopolitical analysis with market impact"""
+    """Get geopolitical analysis with market impact (PREMIUM)"""
     import yfinance as yf
+
+    # Check if geopolitical analysis is allowed
+    limits = await get_user_limits(current_user)
+    if not limits.get("geopolitical_enabled", False):
+        raise HTTPException(
+            status_code=403,
+            detail="L'analyse geopolitique est reservee aux membres Premium."
+        )
 
     api_key = get_groq_api_key()
     if not api_key:
@@ -585,9 +602,17 @@ async def run_backtest(
     request: BacktestRequest,
     current_user: dict = Depends(get_current_user)
 ):
-    """Run a simple backtest simulation"""
+    """Run a simple backtest simulation (PREMIUM)"""
     import yfinance as yf
     import numpy as np
+
+    # Check if backtest is allowed
+    limits = await get_user_limits(current_user)
+    if not limits.get("backtest_enabled", False):
+        raise HTTPException(
+            status_code=403,
+            detail="Le Backtest est reserve aux membres Premium."
+        )
 
     try:
         ticker = yf.Ticker(request.symbol)

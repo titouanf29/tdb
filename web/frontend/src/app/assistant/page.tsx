@@ -2,9 +2,10 @@
 
 import { useState, useRef, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Bot, Send, User, Sparkles, Loader2, Trash2 } from "lucide-react";
+import { Bot, Send, User, Sparkles, Loader2, Trash2, Crown, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { aiAPI, ChatMessage } from "@/lib/api";
+import { aiAPI, ChatMessage, AILimitStatus } from "@/lib/api";
+import Link from "next/link";
 
 // Simple markdown renderer for chat messages
 function renderMarkdown(text: string): React.ReactNode {
@@ -51,6 +52,7 @@ export default function AssistantPage() {
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingHistory, setIsLoadingHistory] = useState(true);
+  const [limitStatus, setLimitStatus] = useState<AILimitStatus | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -61,23 +63,42 @@ export default function AssistantPage() {
     scrollToBottom();
   }, [messages]);
 
-  // Load chat history on mount
+  // Load chat history and limit status on mount
   useEffect(() => {
-    const loadHistory = async () => {
+    const loadData = async () => {
       try {
-        const data = await aiAPI.getHistory(50);
-        setMessages(data.messages);
+        const [historyData, limitData] = await Promise.all([
+          aiAPI.getHistory(50),
+          aiAPI.getLimit()
+        ]);
+        setMessages(historyData.messages);
+        setLimitStatus(limitData);
       } catch (error) {
-        console.error("Error loading history:", error);
+        console.error("Error loading data:", error);
       } finally {
         setIsLoadingHistory(false);
       }
     };
-    loadHistory();
+    loadData();
   }, []);
+
+  // Refresh limit status
+  const refreshLimit = async () => {
+    try {
+      const limitData = await aiAPI.getLimit();
+      setLimitStatus(limitData);
+    } catch (error) {
+      console.error("Error refreshing limit:", error);
+    }
+  };
 
   const handleSend = async () => {
     if (!input.trim() || isLoading) return;
+
+    // Check limit before sending
+    if (limitStatus && !limitStatus.is_premium && limitStatus.remaining === 0) {
+      return;
+    }
 
     const userMessage: ChatMessage = {
       role: "user",
@@ -99,12 +120,23 @@ export default function AssistantPage() {
       };
 
       setMessages((prev) => [...prev, aiMessage]);
-    } catch (error) {
+
+      // Refresh limit after successful message
+      await refreshLimit();
+    } catch (error: any) {
       console.error("Error sending message:", error);
+
+      let errorContent = "Desole, une erreur s'est produite. Veuillez reessayer.";
+
+      // Handle rate limit error (429)
+      if (error.status === 429) {
+        errorContent = "Vous avez atteint votre limite quotidienne de messages. Passez Premium pour des messages illimites !";
+        await refreshLimit();
+      }
 
       const errorMessage: ChatMessage = {
         role: "assistant",
-        content: "Desole, une erreur s'est produite. Veuillez reessayer.",
+        content: errorContent,
         created_at: new Date().toISOString(),
       };
 
@@ -154,17 +186,66 @@ export default function AssistantPage() {
               </p>
             </div>
           </div>
-          {messages.length > 0 && (
-            <button
-              onClick={clearHistory}
-              className="p-2 rounded-lg hover:bg-white/5 text-muted-foreground hover:text-foreground transition-colors"
-              title="Effacer l'historique"
-            >
-              <Trash2 className="w-5 h-5" />
-            </button>
-          )}
+          <div className="flex items-center gap-3">
+            {/* Message limit indicator */}
+            {limitStatus && (
+              <div className={cn(
+                "flex items-center gap-2 px-3 py-1.5 rounded-full text-xs",
+                limitStatus.is_premium
+                  ? "bg-yellow-500/20 text-yellow-400 border border-yellow-500/30"
+                  : limitStatus.remaining > 3
+                    ? "bg-white/5 text-muted-foreground"
+                    : limitStatus.remaining > 0
+                      ? "bg-orange-500/20 text-orange-400 border border-orange-500/30"
+                      : "bg-loss/20 text-loss border border-loss/30"
+              )}>
+                {limitStatus.is_premium ? (
+                  <>
+                    <Crown className="w-3.5 h-3.5" />
+                    <span>Illimite</span>
+                  </>
+                ) : (
+                  <>
+                    {limitStatus.remaining === 0 && <AlertTriangle className="w-3.5 h-3.5" />}
+                    <span>{limitStatus.remaining}/{limitStatus.daily_limit} messages</span>
+                  </>
+                )}
+              </div>
+            )}
+            {messages.length > 0 && (
+              <button
+                onClick={clearHistory}
+                className="p-2 rounded-lg hover:bg-white/5 text-muted-foreground hover:text-foreground transition-colors"
+                title="Effacer l'historique"
+              >
+                <Trash2 className="w-5 h-5" />
+              </button>
+            )}
+          </div>
         </div>
       </div>
+
+      {/* Limit reached warning */}
+      {limitStatus && !limitStatus.is_premium && limitStatus.remaining === 0 && (
+        <div className="glass-card p-4 mb-4 bg-loss/10 border border-loss/30">
+          <div className="flex items-center gap-3">
+            <AlertTriangle className="w-6 h-6 text-loss shrink-0" />
+            <div className="flex-1">
+              <p className="font-semibold text-loss">Limite quotidienne atteinte</p>
+              <p className="text-sm text-muted-foreground">
+                Vous avez utilise vos {limitStatus.daily_limit} messages gratuits du jour.
+                La limite se reinitialise a minuit.
+              </p>
+            </div>
+            <Link href="/premium">
+              <button className="btn-primary flex items-center gap-2 whitespace-nowrap">
+                <Crown className="w-4 h-4" />
+                Passer Premium
+              </button>
+            </Link>
+          </div>
+        </div>
+      )}
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto space-y-4 pr-2">
@@ -273,15 +354,19 @@ export default function AssistantPage() {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyPress={(e) => e.key === "Enter" && handleSend()}
-            placeholder="Posez votre question..."
+            placeholder={
+              limitStatus && !limitStatus.is_premium && limitStatus.remaining === 0
+                ? "Limite atteinte - Passez Premium pour continuer"
+                : "Posez votre question..."
+            }
             className="flex-1 input"
-            disabled={isLoading}
+            disabled={isLoading || (limitStatus && !limitStatus.is_premium && limitStatus.remaining === 0)}
           />
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={handleSend}
-            disabled={!input.trim() || isLoading}
+            disabled={!input.trim() || isLoading || (limitStatus && !limitStatus.is_premium && limitStatus.remaining === 0)}
             className="btn-primary px-6 disabled:opacity-50"
           >
             {isLoading ? (

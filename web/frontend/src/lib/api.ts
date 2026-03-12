@@ -144,6 +144,15 @@ export const analysisAPI = {
     ),
 };
 
+// AI Limit Status
+export interface AILimitStatus {
+  can_send: boolean;
+  messages_today: number;
+  daily_limit: number;
+  remaining: number;
+  is_premium: boolean;
+}
+
 // AI Assistant API
 export const aiAPI = {
   chat: (message: string, context?: string) =>
@@ -167,6 +176,9 @@ export const aiAPI = {
 
   getMarketNews: () =>
     fetchAPI<MarketNews>("/api/ai/market-news"),
+
+  getLimit: () =>
+    fetchAPI<AILimitStatus>("/api/ai/limit"),
 };
 
 export interface MarketNews {

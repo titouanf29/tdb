@@ -8,6 +8,7 @@ from pydantic import BaseModel
 
 from ..database import execute_query, execute_write
 from .auth import get_current_user
+from .premium import get_user_limits
 
 router = APIRouter()
 
@@ -79,6 +80,22 @@ async def add_favorite(
 
     user_id = get_user_id(current_user)
     symbol = request.symbol.upper()
+
+    # Check favorites limit
+    limits = await get_user_limits(current_user)
+    max_favorites = limits.get("max_favorites", 10)
+
+    current_count = await execute_query(
+        "SELECT COUNT(*) as count FROM web_favorites WHERE user_id = ?",
+        (user_id,)
+    )
+    count = current_count[0]["count"] if current_count else 0
+
+    if count >= max_favorites:
+        raise HTTPException(
+            status_code=403,
+            detail=f"Limite de favoris atteinte ({max_favorites}). Passez Premium pour en ajouter plus."
+        )
 
     # Verify symbol exists
     try:
