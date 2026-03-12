@@ -1,15 +1,21 @@
 """
 TDB Web Backend - Main FastAPI Application
 """
+import os
+from pathlib import Path
+from dotenv import load_dotenv
+
+# Load .env BEFORE importing routes (so they can read env vars)
+env_path = Path(__file__).parent.parent.parent.parent / ".env"
+load_dotenv(env_path)
+# Also try local .env
+load_dotenv()
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-import os
-from dotenv import load_dotenv
 
 from .database import init_db, init_web_tables
 from .routes import auth, market, wallet, analysis, users, favorites, ai_assistant, admin
-
-load_dotenv()
 
 app = FastAPI(
     title="TDB Web API",

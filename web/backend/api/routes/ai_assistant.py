@@ -14,9 +14,12 @@ from .auth import get_current_user
 router = APIRouter()
 
 # xAI API Configuration
-XAI_API_KEY = os.getenv("GROQ_API_KEY", "")  # Using same env var for compatibility
 XAI_API_URL = "https://api.x.ai/v1/chat/completions"
 MODEL = "grok-2-latest"
+
+def get_xai_api_key():
+    """Get xAI API key from environment"""
+    return os.getenv("GROQ_API_KEY", "")
 
 # System prompt for trading assistant
 SYSTEM_PROMPT = """Tu es TDB Assistant, un expert en trading et marchés financiers.
@@ -62,7 +65,8 @@ async def chat_with_assistant(
     current_user: dict = Depends(get_current_user)
 ):
     """Send a message to the AI assistant"""
-    if not XAI_API_KEY:
+    api_key = get_xai_api_key()
+    if not api_key:
         raise HTTPException(
             status_code=503,
             detail="AI Assistant not configured. Please set GROQ_API_KEY."
@@ -102,7 +106,7 @@ async def chat_with_assistant(
             response = await client.post(
                 XAI_API_URL,
                 headers={
-                    "Authorization": f"Bearer {XAI_API_KEY}",
+                    "Authorization": f"Bearer {api_key}",
                     "Content-Type": "application/json"
                 },
                 json={
@@ -186,7 +190,8 @@ async def quick_analysis(
     """Get a quick AI analysis for a symbol"""
     import yfinance as yf
 
-    if not XAI_API_KEY:
+    api_key = get_xai_api_key()
+    if not api_key:
         raise HTTPException(
             status_code=503,
             detail="AI Assistant not configured"
@@ -225,7 +230,7 @@ Plus bas 52 sem: ${info.get('fiftyTwoWeekLow', 'N/A')}
             response = await client.post(
                 XAI_API_URL,
                 headers={
-                    "Authorization": f"Bearer {XAI_API_KEY}",
+                    "Authorization": f"Bearer {api_key}",
                     "Content-Type": "application/json"
                 },
                 json={
