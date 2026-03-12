@@ -1,5 +1,5 @@
 """
-AI Assistant routes - Chat with Groq/Llama
+AI Assistant routes - Chat with xAI (Grok)
 """
 import os
 import httpx
@@ -13,10 +13,10 @@ from .auth import get_current_user
 
 router = APIRouter()
 
-# Groq API Configuration
-GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
-GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
-MODEL = "llama-3.1-70b-versatile"
+# xAI API Configuration
+XAI_API_KEY = os.getenv("GROQ_API_KEY", "")  # Using same env var for compatibility
+XAI_API_URL = "https://api.x.ai/v1/chat/completions"
+MODEL = "grok-2-latest"
 
 # System prompt for trading assistant
 SYSTEM_PROMPT = """Tu es TDB Assistant, un expert en trading et marchés financiers.
@@ -62,7 +62,7 @@ async def chat_with_assistant(
     current_user: dict = Depends(get_current_user)
 ):
     """Send a message to the AI assistant"""
-    if not GROQ_API_KEY:
+    if not XAI_API_KEY:
         raise HTTPException(
             status_code=503,
             detail="AI Assistant not configured. Please set GROQ_API_KEY."
@@ -98,11 +98,11 @@ async def chat_with_assistant(
     messages.append({"role": "user", "content": request.message})
 
     try:
-        async with httpx.AsyncClient(timeout=30.0) as client:
+        async with httpx.AsyncClient(timeout=60.0) as client:
             response = await client.post(
-                GROQ_API_URL,
+                XAI_API_URL,
                 headers={
-                    "Authorization": f"Bearer {GROQ_API_KEY}",
+                    "Authorization": f"Bearer {XAI_API_KEY}",
                     "Content-Type": "application/json"
                 },
                 json={
@@ -186,7 +186,7 @@ async def quick_analysis(
     """Get a quick AI analysis for a symbol"""
     import yfinance as yf
 
-    if not GROQ_API_KEY:
+    if not XAI_API_KEY:
         raise HTTPException(
             status_code=503,
             detail="AI Assistant not configured"
@@ -221,11 +221,11 @@ Plus bas 52 sem: ${info.get('fiftyTwoWeekLow', 'N/A')}
 
     # Call AI
     try:
-        async with httpx.AsyncClient(timeout=30.0) as client:
+        async with httpx.AsyncClient(timeout=60.0) as client:
             response = await client.post(
-                GROQ_API_URL,
+                XAI_API_URL,
                 headers={
-                    "Authorization": f"Bearer {GROQ_API_KEY}",
+                    "Authorization": f"Bearer {XAI_API_KEY}",
                     "Content-Type": "application/json"
                 },
                 json={
