@@ -758,9 +758,174 @@ async def run_backtest(
 TRADING_ADVICE = [
     {
         "id": 1,
+        "category": "debutant",
+        "title": "Introduction au Trading",
+        "icon": "book-open",
+        "summary": "Les bases essentielles pour debuter en trading en toute securite.",
+        "content": """## Introduction au Trading - Guide du Debutant
+
+### Qu'est-ce que le trading ?
+Le trading consiste a acheter et vendre des actifs financiers (actions, devises, crypto, matieres premieres) dans le but de realiser un profit.
+
+### Les differents marches
+1. **Actions (Bourse)**: Parts de propriete d'entreprises cotees
+2. **Forex**: Marche des devises (EUR/USD, GBP/USD...)
+3. **Crypto-monnaies**: Bitcoin, Ethereum et autres actifs numeriques
+4. **Matieres premieres**: Or, petrole, ble, etc.
+5. **Indices**: S&P 500, CAC 40, etc.
+
+### Les types de traders
+- **Scalper**: Trades de quelques secondes/minutes
+- **Day Trader**: Cloture toutes ses positions chaque jour
+- **Swing Trader**: Garde ses positions plusieurs jours/semaines
+- **Investisseur**: Vision long terme (mois/annees)
+
+### Les outils essentiels
+1. **Plateforme de trading**: Pour passer vos ordres
+2. **Graphiques**: Pour analyser les prix
+3. **Calendrier economique**: Suivre les evenements
+4. **Journal de trading**: Noter tous vos trades
+
+### Les 5 regles d'or du debutant
+1. **Apprenez avant de trader** - Ne jamais investir sans comprendre
+2. **Commencez en demo** - Pratiquez sans risque
+3. **Risquez peu** - Max 1-2% par trade
+4. **Ayez un plan** - Entree, sortie, stop loss definis
+5. **Controlez vos emotions** - La discipline est la cle
+
+### Erreurs a eviter absolument
+- Trader sans plan
+- Risquer trop sur un seul trade
+- Suivre les conseils aveuglement
+- Revenge trading (trader pour recuperer ses pertes)
+- Utiliser un levier excessif
+
+### Ressources pour progresser
+- Livres classiques de trading
+- Formation structuree
+- Paper trading intensif
+- Communautes de traders serieux""",
+        "premium_only": False
+    },
+    {
+        "id": 2,
+        "category": "analyse_technique",
+        "title": "Comprendre les Tendances de Marche",
+        "icon": "trending-up",
+        "summary": "Identifier et suivre les tendances pour trader dans le bon sens.",
+        "content": """## Les Tendances de Marche
+
+### Qu'est-ce qu'une tendance ?
+Une tendance represente la direction generale dans laquelle evolue un prix sur une periode donnee.
+
+### Les 3 types de tendances
+1. **Tendance haussiere (Bull market)**
+   - Serie de sommets de plus en plus hauts
+   - Serie de creux de plus en plus hauts
+   - Prix au-dessus des moyennes mobiles
+
+2. **Tendance baissiere (Bear market)**
+   - Serie de sommets de plus en plus bas
+   - Serie de creux de plus en plus bas
+   - Prix en-dessous des moyennes mobiles
+
+3. **Range (Consolidation)**
+   - Prix evolue entre support et resistance
+   - Pas de direction claire
+   - Faible volume souvent
+
+### Comment identifier une tendance
+1. **Visuellement**: Tracer les lignes de tendance
+2. **Moyennes mobiles**: MA20 > MA50 > MA200 = tendance haussiere
+3. **Indicateurs**: ADX > 25 = tendance forte
+4. **Structure**: Analyser les sommets et creux
+
+### La regle d'or: "Trend is your friend"
+- Ne jamais aller contre la tendance principale
+- Chercher des points d'entree dans le sens de la tendance
+- Attendre les pullbacks pour entrer
+
+### Les lignes de tendance
+**Comment les tracer:**
+- Relier au moins 2 points (idealement 3)
+- Plus une ligne est testee, plus elle est forte
+- La cassure d'une ligne majeure signale un changement
+
+### Exercice pratique
+1. Ouvrez un graphique journalier
+2. Identifiez la tendance generale (plus de 6 mois)
+3. Tracez la ligne de tendance principale
+4. Reperez les zones de pullback
+
+### Conseil de pro
+Tradez toujours dans le sens de la tendance du timeframe superieur. Si vous tradez en H1, verifiez la tendance en Daily.""",
+        "premium_only": False
+    },
+    {
+        "id": 3,
+        "category": "analyse_technique",
+        "title": "Supports et Resistances",
+        "icon": "minus",
+        "summary": "Les niveaux cles ou le prix reagit et rebondit.",
+        "content": """## Supports et Resistances - Niveaux Cles
+
+### Definitions
+- **Support**: Niveau de prix ou la demande empeche le prix de baisser davantage
+- **Resistance**: Niveau de prix ou l'offre empeche le prix de monter davantage
+
+### Pourquoi ces niveaux fonctionnent ?
+Les supports et resistances representent des zones de memoire du marche ou:
+- Des ordres importants ont ete places
+- De nombreux traders ont pris des decisions
+- Les institutionnels defendent leurs positions
+
+### Comment identifier les niveaux cles
+1. **Sommets et creux precedents**: Les plus evidents
+2. **Niveaux ronds**: 100$, 50$, 10,000 points
+3. **Moyennes mobiles**: MA50, MA100, MA200
+4. **Points pivots**: Calcules mathematiquement
+5. **Zones de fort volume**: Visible sur le profil de volume
+
+### La regle de la polarite
+Quand un support est casse, il devient resistance (et vice-versa)
+- Exemple: L'action casse les 100$ a la baisse
+- Le niveau 100$ devient maintenant une resistance
+
+### Types de zones
+**Support/Resistance fort:**
+- Teste plusieurs fois
+- Sur un timeframe eleve (Daily, Weekly)
+- Associe a un fort volume
+
+**Support/Resistance faible:**
+- Teste une seule fois
+- Sur un timeframe bas (M15, H1)
+- Faible volume associe
+
+### Comment trader ces niveaux
+**Strategie de rebond:**
+1. Attendre que le prix atteigne le niveau
+2. Chercher des signes de rejet (meches, patterns)
+3. Entrer avec un stop sous le niveau
+4. Viser le prochain niveau
+
+**Strategie de cassure:**
+1. Attendre la cassure claire (cloture)
+2. Entrer sur le retest du niveau
+3. Stop de l'autre cote du niveau
+4. Viser une extension du mouvement
+
+### Erreurs courantes
+- Considerer un seul prix au lieu d'une zone
+- Ne pas tenir compte du contexte (tendance)
+- Ignorer le volume lors des tests""",
+        "premium_only": False
+    },
+    {
+        "id": 4,
         "category": "analyse_technique",
         "title": "Maitriser les Moyennes Mobiles",
-        "icon": "trending-up",
+        "icon": "chart-line",
         "summary": "Les moyennes mobiles sont des indicateurs essentiels pour identifier les tendances.",
         "content": """## Les Moyennes Mobiles Expliquees
 
@@ -785,7 +950,7 @@ Une moyenne mobile est un indicateur technique qui lisse les fluctuations de pri
         "premium_only": False
     },
     {
-        "id": 2,
+        "id": 5,
         "category": "analyse_technique",
         "title": "Le RSI et ses secrets",
         "icon": "activity",
@@ -818,7 +983,63 @@ Le RSI mesure la force relative des mouvements haussiers par rapport aux mouveme
         "premium_only": False
     },
     {
-        "id": 3,
+        "id": 6,
+        "category": "analyse_technique",
+        "title": "Le MACD Explique",
+        "icon": "activity",
+        "summary": "Comprendre et utiliser le MACD pour detecter les changements de tendance.",
+        "content": """## Le MACD (Moving Average Convergence Divergence)
+
+### Qu'est-ce que le MACD ?
+Le MACD est un indicateur de momentum qui montre la relation entre deux moyennes mobiles exponentielles.
+
+### Les composants du MACD
+1. **Ligne MACD**: EMA12 - EMA26 (ligne rapide)
+2. **Ligne de signal**: EMA9 du MACD (ligne lente)
+3. **Histogramme**: MACD - Ligne de signal
+
+### Configuration standard
+- EMA courte: 12 periodes
+- EMA longue: 26 periodes
+- Ligne de signal: 9 periodes
+
+### Interpretation de base
+**Croisements:**
+- MACD croise au-dessus du signal = Signal d'achat
+- MACD croise en-dessous du signal = Signal de vente
+
+**Ligne zero:**
+- MACD au-dessus de 0 = Momentum haussier
+- MACD en-dessous de 0 = Momentum baissier
+
+**Histogramme:**
+- Barres croissantes = Momentum accelere
+- Barres decroissantes = Momentum ralentit
+
+### Signaux avances
+**Divergences (tres importantes):**
+- Divergence haussiere: Prix fait un nouveau bas, MACD non
+- Divergence baissiere: Prix fait un nouveau haut, MACD non
+- Les divergences precedent souvent les retournements
+
+**Croisement de la ligne zero:**
+- Plus significatif que les croisements standard
+- Confirme le changement de tendance
+
+### Combiner avec d'autres indicateurs
+- MACD + RSI: Confirmation des signaux
+- MACD + Volume: Validation de la force
+- MACD + Support/Resistance: Points d'entree precis
+
+### Conseils d'utilisation
+1. Ne pas utiliser seul - toujours confirmer
+2. Plus efficace en tendance qu'en range
+3. Les divergences sont les signaux les plus fiables
+4. Adapter les periodes selon le timeframe""",
+        "premium_only": False
+    },
+    {
+        "id": 7,
         "category": "gestion_risque",
         "title": "Gestion du Risque: Les Fondamentaux",
         "icon": "shield",
@@ -858,7 +1079,75 @@ Taille = (Capital x % Risque) / (Prix entree - Stop Loss)
         "premium_only": False
     },
     {
-        "id": 4,
+        "id": 8,
+        "category": "analyse_technique",
+        "title": "Comprendre la Volatilite",
+        "icon": "zap",
+        "summary": "La volatilite mesure l'amplitude des variations de prix.",
+        "content": """## La Volatilite en Trading
+
+### Qu'est-ce que la volatilite ?
+La volatilite mesure l'amplitude et la frequence des variations de prix d'un actif sur une periode donnee.
+
+### Volatilite haute vs basse
+**Forte volatilite:**
+- Grandes variations de prix
+- Opportunites de profit (et de perte)
+- Plus de risque
+- Spreads souvent plus larges
+
+**Faible volatilite:**
+- Prix stables
+- Moins d'opportunites
+- Moins de risque
+- Souvent precede un mouvement fort
+
+### Indicateurs de volatilite
+**ATR (Average True Range)**
+- Mesure la volatilite moyenne sur N periodes
+- Utile pour placer les stop loss
+- ATR elevé = volatilite haute
+
+**Bandes de Bollinger**
+- Ecartement des bandes = volatilite haute
+- Resserrement des bandes = volatilite basse
+- Le "Squeeze" precede souvent un grand mouvement
+
+**VIX (Indice de peur)**
+- Mesure la volatilite attendue du S&P 500
+- VIX > 20: Marche nerveux
+- VIX > 30: Panique sur les marches
+- VIX < 15: Marche calme/complacement
+
+### Adapter son trading a la volatilite
+**En periode de forte volatilite:**
+- Reduire la taille des positions
+- Elargir les stops (utiliser ATR)
+- Eviter le scalping
+- Etre tres selectif
+
+**En periode de faible volatilite:**
+- Strategies de breakout
+- Surveiller le squeeze des Bollinger
+- Positions plus longues possibles
+- Stops plus serres
+
+### Le Squeeze de volatilite
+Quand les bandes de Bollinger se resserrent fortement:
+1. Indique une compression de prix
+2. Un mouvement explosif approche
+3. La direction est inconnue
+4. Attendre la cassure pour entrer
+
+### Utiliser l'ATR pour les stops
+Regle pratique:
+- Stop Loss = 1.5 x ATR sous/au-dessus l'entree
+- Take Profit = 2-3 x ATR
+- Ajuster selon le contexte""",
+        "premium_only": False
+    },
+    {
+        "id": 9,
         "category": "psychologie",
         "title": "Psychologie du Trading",
         "icon": "brain",
@@ -893,7 +1182,81 @@ Taille = (Capital x % Risque) / (Prix entree - Stop Loss)
         "premium_only": False
     },
     {
-        "id": 5,
+        "id": 10,
+        "category": "debutant",
+        "title": "Les Erreurs Frequentes des Debutants",
+        "icon": "alert-triangle",
+        "summary": "Evitez les pieges classiques qui font echouer la plupart des nouveaux traders.",
+        "content": """## Les 10 Erreurs Fatales des Debutants
+
+### Erreur 1: Trader sans plan
+**Le probleme:** Entrer en position sur un coup de tete
+**La solution:** Definir avant chaque trade:
+- Point d'entree precis
+- Stop loss
+- Take profit
+- Taille de position
+
+### Erreur 2: Risquer trop par trade
+**Le probleme:** Mettre 10%, 20% ou plus sur un seul trade
+**La solution:** Ne jamais risquer plus de 1-2% de votre capital
+- Avec 2% par trade, il faut 36 pertes consecutives pour perdre 50%
+
+### Erreur 3: Ne pas utiliser de stop loss
+**Le probleme:** "Je vais surveiller..." - Non, vous ne le ferez pas
+**La solution:** TOUJOURS placer un stop loss AVANT d'entrer
+- Un trade sans stop est une bombe a retardement
+
+### Erreur 4: Le revenge trading
+**Le probleme:** Vouloir recuperer ses pertes immediatement
+**La solution:**
+- Fixer une limite de perte journaliere
+- Arreter apres 2-3 pertes consecutives
+- Faire une pause de 24h minimum
+
+### Erreur 5: Surtrading
+**Le probleme:** Trader trop souvent, par ennui ou addiction
+**La solution:**
+- Qualite > Quantite
+- Attendre les meilleures setups
+- Fixer un nombre max de trades/jour
+
+### Erreur 6: Ignorer la gestion de capital
+**Le probleme:** Position sizing au hasard
+**La solution:**
+- Calculer la taille avant chaque trade
+- Formule: Risque / Distance au stop = Taille
+
+### Erreur 7: Suivre les "gourous"
+**Le probleme:** Copier les trades sans comprendre
+**La solution:**
+- Developper VOTRE propre strategie
+- Comprendre le POURQUOI de chaque trade
+
+### Erreur 8: Utiliser trop de levier
+**Le probleme:** x10, x50, x100... jusqu'a la liquidation
+**La solution:**
+- Debutant: Pas de levier ou max x2
+- Intermediaire: Max x5
+- Le levier amplifie aussi les pertes
+
+### Erreur 9: Ne pas tenir de journal
+**Le probleme:** Repeter les memes erreurs
+**La solution:** Noter pour CHAQUE trade:
+- Raison d'entree
+- Emotions ressenties
+- Resultat et lecons
+
+### Erreur 10: Vouloir devenir riche rapidement
+**Le probleme:** Attentes irrealistes
+**La realite:**
+- La plupart des traders mettent 2-3 ans a devenir profitables
+- Les vrais pros visent 20-50%/an
+- La patience est votre meilleur allie""",
+        "premium_only": False
+    },
+    {
+        "id": 11,
         "category": "analyse_technique",
         "title": "Les Figures Chartistes",
         "icon": "chart",
@@ -933,7 +1296,7 @@ Taille = (Capital x % Risque) / (Prix entree - Stop Loss)
         "premium_only": True
     },
     {
-        "id": 6,
+        "id": 12,
         "category": "fondamentaux",
         "title": "Analyse Fondamentale: Les Ratios Cles",
         "icon": "bar-chart",
@@ -981,7 +1344,7 @@ Taille = (Capital x % Risque) / (Prix entree - Stop Loss)
         "premium_only": True
     },
     {
-        "id": 7,
+        "id": 13,
         "category": "strategies",
         "title": "Strategies de Trading Populaires",
         "icon": "target",
@@ -1018,7 +1381,7 @@ Taille = (Capital x % Risque) / (Prix entree - Stop Loss)
         "premium_only": True
     },
     {
-        "id": 8,
+        "id": 14,
         "category": "macro",
         "title": "Impact des Taux d'Interet",
         "icon": "percent",
@@ -1095,6 +1458,7 @@ async def get_trading_advice(
     return {
         "advice": result,
         "categories": [
+            {"key": "debutant", "label": "Pour Debutants"},
             {"key": "analyse_technique", "label": "Analyse Technique"},
             {"key": "gestion_risque", "label": "Gestion du Risque"},
             {"key": "psychologie", "label": "Psychologie"},
