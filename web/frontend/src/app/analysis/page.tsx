@@ -816,6 +816,124 @@ function AssetHeader({
 
 // Detailed Analysis with explanations
 function DetailedAnalysis({ analysis, formatCurrency }: { analysis: Analysis; formatCurrency: (value: number) => string }) {
+  const [expandedModules, setExpandedModules] = useState<Set<string>>(new Set());
+
+  const toggleModule = (module: string) => {
+    setExpandedModules(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(module)) {
+        newSet.delete(module);
+      } else {
+        newSet.add(module);
+      }
+      return newSet;
+    });
+  };
+
+  // Educational content for each indicator
+  const indicatorEducation = {
+    rsi: {
+      title: "RSI (Relative Strength Index)",
+      formula: "RSI = 100 - (100 / (1 + RS)) ou RS = Moyenne gains / Moyenne pertes",
+      basics: [
+        "Le RSI mesure la vitesse et l'amplitude des mouvements de prix recents",
+        "Il oscille entre 0 et 100",
+        "Periode standard: 14 (parametre par defaut de Wilder)"
+      ],
+      interpretation: [
+        { condition: "RSI < 30", meaning: "Zone de survente - Signal d'achat potentiel" },
+        { condition: "RSI > 70", meaning: "Zone de surachat - Signal de vente potentiel" },
+        { condition: "RSI ~ 50", meaning: "Zone neutre - Pas de signal extreme" }
+      ],
+      advanced: [
+        "Les divergences RSI/Prix sont des signaux tres fiables",
+        "En tendance forte, utilisez 80/20 au lieu de 70/30",
+        "Le RSI peut rester en zone extreme longtemps en tendance"
+      ],
+      tips: "Ne jamais trader uniquement sur les niveaux 30/70. Confirmez toujours avec la tendance generale."
+    },
+    macd: {
+      title: "MACD (Moving Average Convergence Divergence)",
+      formula: "MACD = EMA(12) - EMA(26) | Signal = EMA(9) du MACD",
+      basics: [
+        "Le MACD montre la relation entre deux moyennes mobiles exponentielles",
+        "Compose de: Ligne MACD, Ligne Signal, Histogramme",
+        "Cree par Gerald Appel en 1979"
+      ],
+      interpretation: [
+        { condition: "MACD > Signal", meaning: "Signal haussier - Momentum positif" },
+        { condition: "MACD < Signal", meaning: "Signal baissier - Momentum negatif" },
+        { condition: "MACD > 0", meaning: "Tendance haussiere dominante" }
+      ],
+      advanced: [
+        "Les croisements de la ligne zero sont plus significatifs",
+        "L'histogramme predit souvent les croisements a venir",
+        "Les divergences MACD/Prix precedent les retournements"
+      ],
+      tips: "L'histogramme est predictif - quand il diminue, le croisement approche. Surveillez-le!"
+    },
+    bollinger: {
+      title: "Bandes de Bollinger",
+      formula: "Bande Haute = SMA(20) + 2σ | Bande Basse = SMA(20) - 2σ",
+      basics: [
+        "Les bandes encadrent le prix avec des niveaux de deviation standard",
+        "Elles s'adaptent automatiquement a la volatilite",
+        "95% du temps, le prix reste dans les bandes"
+      ],
+      interpretation: [
+        { condition: "Prix > Bande haute", meaning: "Potentiel surachat - Extension du mouvement" },
+        { condition: "Prix < Bande basse", meaning: "Potentiel survente - Rebond possible" },
+        { condition: "Bandes resserrees", meaning: "Squeeze - Explosion a venir" }
+      ],
+      advanced: [
+        "Le Squeeze (bandes etroites) precede souvent un grand mouvement",
+        "Utilisez avec le volume pour confirmer les cassures",
+        "Les touches de bande ne sont pas des signaux automatiques"
+      ],
+      tips: "Le meilleur signal: Squeeze + Cassure avec volume = Mouvement explosif probable!"
+    },
+    volume: {
+      title: "Analyse du Volume",
+      formula: "Volume Ratio = Volume Actuel / Moyenne Volume (20 periodes)",
+      basics: [
+        "Le volume mesure l'activite et l'interet du marche",
+        "Un mouvement avec volume est plus fiable",
+        "Le volume confirme ou infirme les mouvements de prix"
+      ],
+      interpretation: [
+        { condition: "Volume > 1.5x moyenne", meaning: "Fort interet - Mouvement significatif" },
+        { condition: "Volume < 0.7x moyenne", meaning: "Faible interet - Mouvement suspect" },
+        { condition: "Volume normal", meaning: "Activite standard du marche" }
+      ],
+      advanced: [
+        "Volume croissant en tendance = Tendance saine",
+        "Volume decroissant en tendance = Essoufflement",
+        "Divergence prix/volume = Signal de retournement"
+      ],
+      tips: "Regle d'or: Ne jamais faire confiance a un mouvement sans volume!"
+    },
+    trend: {
+      title: "Analyse de Tendance (EMA)",
+      formula: "EMA = Prix × k + EMA(hier) × (1-k) ou k = 2/(n+1)",
+      basics: [
+        "Les EMAs donnent plus de poids aux prix recents",
+        "EMA20 pour le court terme, EMA50 pour le moyen terme",
+        "Prix > EMAs = Tendance haussiere | Prix < EMAs = Tendance baissiere"
+      ],
+      interpretation: [
+        { condition: "Prix > EMA20 > EMA50", meaning: "Tendance haussiere forte" },
+        { condition: "Prix < EMA20 < EMA50", meaning: "Tendance baissiere forte" },
+        { condition: "EMAs entremelees", meaning: "Pas de tendance claire (range)" }
+      ],
+      advanced: [
+        "Golden Cross: EMA50 croise EMA200 vers le haut = Signal bullish majeur",
+        "Death Cross: EMA50 croise EMA200 vers le bas = Signal bearish majeur",
+        "Les pullbacks vers l'EMA20 sont des opportunites d'entree"
+      ],
+      tips: "Tradez toujours DANS le sens de la tendance. 'Trend is your friend!'"
+    }
+  };
+
   const getRSIInterpretation = () => {
     const rsi = analysis.indicators.rsi.value;
     if (rsi < 30) {
@@ -985,59 +1103,389 @@ function DetailedAnalysis({ analysis, formatCurrency }: { analysis: Analysis; fo
       </h3>
 
       <div className="space-y-4">
-        {/* Trend Analysis */}
-        <div className={cn("p-4 rounded-xl border", trendInfo.bgColor)}>
-          <div className="flex items-start gap-3">
-            {trendInfo.icon}
-            <div>
-              <h4 className={cn("font-semibold", trendInfo.color)}>{trendInfo.title}</h4>
-              <p className="text-sm text-muted-foreground mt-1">{trendInfo.description}</p>
+        {/* Trend Analysis - Interactive Module */}
+        <div
+          className={cn("p-4 rounded-xl border cursor-pointer transition-all hover:scale-[1.01]", trendInfo.bgColor)}
+          onClick={() => toggleModule('trend')}
+        >
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-start gap-3 flex-1">
+              {trendInfo.icon}
+              <div>
+                <h4 className={cn("font-semibold", trendInfo.color)}>{trendInfo.title}</h4>
+                <p className="text-sm text-muted-foreground mt-1">{trendInfo.description}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground">Cliquez pour en savoir +</span>
+              {expandedModules.has('trend') ? (
+                <ChevronUp className="w-4 h-4 text-muted-foreground" />
+              ) : (
+                <ChevronDown className="w-4 h-4 text-muted-foreground" />
+              )}
             </div>
           </div>
+          {expandedModules.has('trend') && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              className="mt-4 pt-4 border-t border-white/10"
+            >
+              <div className="space-y-4">
+                <div className="p-3 bg-white/5 rounded-lg">
+                  <h5 className="text-sm font-semibold text-primary mb-2">{indicatorEducation.trend.title}</h5>
+                  <p className="text-xs text-muted-foreground font-mono mb-2">{indicatorEducation.trend.formula}</p>
+                </div>
+                <div>
+                  <h6 className="text-xs font-semibold mb-2">Les bases:</h6>
+                  <ul className="text-xs text-muted-foreground space-y-1">
+                    {indicatorEducation.trend.basics.map((item, i) => (
+                      <li key={i} className="flex items-start gap-2">
+                        <CircleDot className="w-3 h-3 mt-0.5 text-primary shrink-0" />
+                        {item}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                <div>
+                  <h6 className="text-xs font-semibold mb-2">Interpretation:</h6>
+                  <div className="space-y-2">
+                    {indicatorEducation.trend.interpretation.map((item, i) => (
+                      <div key={i} className="flex items-center gap-2 text-xs">
+                        <code className="px-2 py-0.5 bg-primary/20 text-primary rounded">{item.condition}</code>
+                        <span className="text-muted-foreground">{item.meaning}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <h6 className="text-xs font-semibold mb-2">Techniques avancees:</h6>
+                  <ul className="text-xs text-muted-foreground space-y-1">
+                    {indicatorEducation.trend.advanced.map((item, i) => (
+                      <li key={i} className="flex items-start gap-2">
+                        <Sparkles className="w-3 h-3 mt-0.5 text-yellow-400 shrink-0" />
+                        {item}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                <div className="p-3 bg-primary/10 rounded-lg">
+                  <div className="flex items-start gap-2">
+                    <Lightbulb className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                    <p className="text-xs font-medium">{indicatorEducation.trend.tips}</p>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          )}
         </div>
 
-        {/* RSI Analysis */}
-        <div className={cn("p-4 rounded-xl border", rsiInfo.bgColor)}>
-          <div className="flex items-start gap-3">
-            {rsiInfo.icon}
-            <div>
-              <h4 className={cn("font-semibold", rsiInfo.color)}>RSI: {rsiInfo.title}</h4>
-              <p className="text-sm text-muted-foreground mt-1">{rsiInfo.description}</p>
+        {/* RSI Analysis - Interactive Module */}
+        <div
+          className={cn("p-4 rounded-xl border cursor-pointer transition-all hover:scale-[1.01]", rsiInfo.bgColor)}
+          onClick={() => toggleModule('rsi')}
+        >
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-start gap-3 flex-1">
+              {rsiInfo.icon}
+              <div>
+                <h4 className={cn("font-semibold", rsiInfo.color)}>RSI: {rsiInfo.title}</h4>
+                <p className="text-sm text-muted-foreground mt-1">{rsiInfo.description}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground">Cliquez pour en savoir +</span>
+              {expandedModules.has('rsi') ? (
+                <ChevronUp className="w-4 h-4 text-muted-foreground" />
+              ) : (
+                <ChevronDown className="w-4 h-4 text-muted-foreground" />
+              )}
             </div>
           </div>
+          {expandedModules.has('rsi') && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              className="mt-4 pt-4 border-t border-white/10"
+            >
+              <div className="space-y-4">
+                <div className="p-3 bg-white/5 rounded-lg">
+                  <h5 className="text-sm font-semibold text-primary mb-2">{indicatorEducation.rsi.title}</h5>
+                  <p className="text-xs text-muted-foreground font-mono mb-2">{indicatorEducation.rsi.formula}</p>
+                </div>
+                <div>
+                  <h6 className="text-xs font-semibold mb-2">Les bases:</h6>
+                  <ul className="text-xs text-muted-foreground space-y-1">
+                    {indicatorEducation.rsi.basics.map((item, i) => (
+                      <li key={i} className="flex items-start gap-2">
+                        <CircleDot className="w-3 h-3 mt-0.5 text-primary shrink-0" />
+                        {item}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                <div>
+                  <h6 className="text-xs font-semibold mb-2">Interpretation:</h6>
+                  <div className="space-y-2">
+                    {indicatorEducation.rsi.interpretation.map((item, i) => (
+                      <div key={i} className="flex items-center gap-2 text-xs">
+                        <code className="px-2 py-0.5 bg-primary/20 text-primary rounded">{item.condition}</code>
+                        <span className="text-muted-foreground">{item.meaning}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <h6 className="text-xs font-semibold mb-2">Techniques avancees:</h6>
+                  <ul className="text-xs text-muted-foreground space-y-1">
+                    {indicatorEducation.rsi.advanced.map((item, i) => (
+                      <li key={i} className="flex items-start gap-2">
+                        <Sparkles className="w-3 h-3 mt-0.5 text-yellow-400 shrink-0" />
+                        {item}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                <div className="p-3 bg-primary/10 rounded-lg">
+                  <div className="flex items-start gap-2">
+                    <Lightbulb className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                    <p className="text-xs font-medium">{indicatorEducation.rsi.tips}</p>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          )}
         </div>
 
-        {/* MACD Analysis */}
-        <div className={cn("p-4 rounded-xl border", macdInfo.bgColor)}>
-          <div className="flex items-start gap-3">
-            {macdInfo.icon}
-            <div>
-              <h4 className={cn("font-semibold", macdInfo.color)}>MACD: {macdInfo.title}</h4>
-              <p className="text-sm text-muted-foreground mt-1">{macdInfo.description}</p>
+        {/* MACD Analysis - Interactive Module */}
+        <div
+          className={cn("p-4 rounded-xl border cursor-pointer transition-all hover:scale-[1.01]", macdInfo.bgColor)}
+          onClick={() => toggleModule('macd')}
+        >
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-start gap-3 flex-1">
+              {macdInfo.icon}
+              <div>
+                <h4 className={cn("font-semibold", macdInfo.color)}>MACD: {macdInfo.title}</h4>
+                <p className="text-sm text-muted-foreground mt-1">{macdInfo.description}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground">Cliquez pour en savoir +</span>
+              {expandedModules.has('macd') ? (
+                <ChevronUp className="w-4 h-4 text-muted-foreground" />
+              ) : (
+                <ChevronDown className="w-4 h-4 text-muted-foreground" />
+              )}
             </div>
           </div>
+          {expandedModules.has('macd') && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              className="mt-4 pt-4 border-t border-white/10"
+            >
+              <div className="space-y-4">
+                <div className="p-3 bg-white/5 rounded-lg">
+                  <h5 className="text-sm font-semibold text-primary mb-2">{indicatorEducation.macd.title}</h5>
+                  <p className="text-xs text-muted-foreground font-mono mb-2">{indicatorEducation.macd.formula}</p>
+                </div>
+                <div>
+                  <h6 className="text-xs font-semibold mb-2">Les bases:</h6>
+                  <ul className="text-xs text-muted-foreground space-y-1">
+                    {indicatorEducation.macd.basics.map((item, i) => (
+                      <li key={i} className="flex items-start gap-2">
+                        <CircleDot className="w-3 h-3 mt-0.5 text-primary shrink-0" />
+                        {item}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                <div>
+                  <h6 className="text-xs font-semibold mb-2">Interpretation:</h6>
+                  <div className="space-y-2">
+                    {indicatorEducation.macd.interpretation.map((item, i) => (
+                      <div key={i} className="flex items-center gap-2 text-xs">
+                        <code className="px-2 py-0.5 bg-primary/20 text-primary rounded">{item.condition}</code>
+                        <span className="text-muted-foreground">{item.meaning}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <h6 className="text-xs font-semibold mb-2">Techniques avancees:</h6>
+                  <ul className="text-xs text-muted-foreground space-y-1">
+                    {indicatorEducation.macd.advanced.map((item, i) => (
+                      <li key={i} className="flex items-start gap-2">
+                        <Sparkles className="w-3 h-3 mt-0.5 text-yellow-400 shrink-0" />
+                        {item}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                <div className="p-3 bg-primary/10 rounded-lg">
+                  <div className="flex items-start gap-2">
+                    <Lightbulb className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                    <p className="text-xs font-medium">{indicatorEducation.macd.tips}</p>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          )}
         </div>
 
-        {/* Bollinger Analysis */}
-        <div className={cn("p-4 rounded-xl border", bbInfo.bgColor)}>
-          <div className="flex items-start gap-3">
-            {bbInfo.icon}
-            <div>
-              <h4 className={cn("font-semibold", bbInfo.color)}>Bollinger: {bbInfo.title}</h4>
-              <p className="text-sm text-muted-foreground mt-1">{bbInfo.description}</p>
+        {/* Bollinger Analysis - Interactive Module */}
+        <div
+          className={cn("p-4 rounded-xl border cursor-pointer transition-all hover:scale-[1.01]", bbInfo.bgColor)}
+          onClick={() => toggleModule('bollinger')}
+        >
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-start gap-3 flex-1">
+              {bbInfo.icon}
+              <div>
+                <h4 className={cn("font-semibold", bbInfo.color)}>Bollinger: {bbInfo.title}</h4>
+                <p className="text-sm text-muted-foreground mt-1">{bbInfo.description}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground">Cliquez pour en savoir +</span>
+              {expandedModules.has('bollinger') ? (
+                <ChevronUp className="w-4 h-4 text-muted-foreground" />
+              ) : (
+                <ChevronDown className="w-4 h-4 text-muted-foreground" />
+              )}
             </div>
           </div>
+          {expandedModules.has('bollinger') && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              className="mt-4 pt-4 border-t border-white/10"
+            >
+              <div className="space-y-4">
+                <div className="p-3 bg-white/5 rounded-lg">
+                  <h5 className="text-sm font-semibold text-primary mb-2">{indicatorEducation.bollinger.title}</h5>
+                  <p className="text-xs text-muted-foreground font-mono mb-2">{indicatorEducation.bollinger.formula}</p>
+                </div>
+                <div>
+                  <h6 className="text-xs font-semibold mb-2">Les bases:</h6>
+                  <ul className="text-xs text-muted-foreground space-y-1">
+                    {indicatorEducation.bollinger.basics.map((item, i) => (
+                      <li key={i} className="flex items-start gap-2">
+                        <CircleDot className="w-3 h-3 mt-0.5 text-primary shrink-0" />
+                        {item}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                <div>
+                  <h6 className="text-xs font-semibold mb-2">Interpretation:</h6>
+                  <div className="space-y-2">
+                    {indicatorEducation.bollinger.interpretation.map((item, i) => (
+                      <div key={i} className="flex items-center gap-2 text-xs">
+                        <code className="px-2 py-0.5 bg-primary/20 text-primary rounded">{item.condition}</code>
+                        <span className="text-muted-foreground">{item.meaning}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <h6 className="text-xs font-semibold mb-2">Techniques avancees:</h6>
+                  <ul className="text-xs text-muted-foreground space-y-1">
+                    {indicatorEducation.bollinger.advanced.map((item, i) => (
+                      <li key={i} className="flex items-start gap-2">
+                        <Sparkles className="w-3 h-3 mt-0.5 text-yellow-400 shrink-0" />
+                        {item}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                <div className="p-3 bg-primary/10 rounded-lg">
+                  <div className="flex items-start gap-2">
+                    <Lightbulb className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                    <p className="text-xs font-medium">{indicatorEducation.bollinger.tips}</p>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          )}
         </div>
 
-        {/* Volume Analysis */}
-        <div className={cn("p-4 rounded-xl border", volumeInfo.bgColor)}>
-          <div className="flex items-start gap-3">
-            {volumeInfo.icon}
-            <div>
-              <h4 className={cn("font-semibold", volumeInfo.color)}>{volumeInfo.title}</h4>
-              <p className="text-sm text-muted-foreground mt-1">{volumeInfo.description}</p>
+        {/* Volume Analysis - Interactive Module */}
+        <div
+          className={cn("p-4 rounded-xl border cursor-pointer transition-all hover:scale-[1.01]", volumeInfo.bgColor)}
+          onClick={() => toggleModule('volume')}
+        >
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-start gap-3 flex-1">
+              {volumeInfo.icon}
+              <div>
+                <h4 className={cn("font-semibold", volumeInfo.color)}>{volumeInfo.title}</h4>
+                <p className="text-sm text-muted-foreground mt-1">{volumeInfo.description}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground">Cliquez pour en savoir +</span>
+              {expandedModules.has('volume') ? (
+                <ChevronUp className="w-4 h-4 text-muted-foreground" />
+              ) : (
+                <ChevronDown className="w-4 h-4 text-muted-foreground" />
+              )}
             </div>
           </div>
+          {expandedModules.has('volume') && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              className="mt-4 pt-4 border-t border-white/10"
+            >
+              <div className="space-y-4">
+                <div className="p-3 bg-white/5 rounded-lg">
+                  <h5 className="text-sm font-semibold text-primary mb-2">{indicatorEducation.volume.title}</h5>
+                  <p className="text-xs text-muted-foreground font-mono mb-2">{indicatorEducation.volume.formula}</p>
+                </div>
+                <div>
+                  <h6 className="text-xs font-semibold mb-2">Les bases:</h6>
+                  <ul className="text-xs text-muted-foreground space-y-1">
+                    {indicatorEducation.volume.basics.map((item, i) => (
+                      <li key={i} className="flex items-start gap-2">
+                        <CircleDot className="w-3 h-3 mt-0.5 text-primary shrink-0" />
+                        {item}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                <div>
+                  <h6 className="text-xs font-semibold mb-2">Interpretation:</h6>
+                  <div className="space-y-2">
+                    {indicatorEducation.volume.interpretation.map((item, i) => (
+                      <div key={i} className="flex items-center gap-2 text-xs">
+                        <code className="px-2 py-0.5 bg-primary/20 text-primary rounded">{item.condition}</code>
+                        <span className="text-muted-foreground">{item.meaning}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <h6 className="text-xs font-semibold mb-2">Techniques avancees:</h6>
+                  <ul className="text-xs text-muted-foreground space-y-1">
+                    {indicatorEducation.volume.advanced.map((item, i) => (
+                      <li key={i} className="flex items-start gap-2">
+                        <Sparkles className="w-3 h-3 mt-0.5 text-yellow-400 shrink-0" />
+                        {item}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                <div className="p-3 bg-primary/10 rounded-lg">
+                  <div className="flex items-start gap-2">
+                    <Lightbulb className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                    <p className="text-xs font-medium">{indicatorEducation.volume.tips}</p>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          )}
         </div>
       </div>
 
