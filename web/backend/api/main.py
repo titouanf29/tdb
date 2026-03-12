@@ -28,14 +28,14 @@ app.add_middleware(
 )
 
 # Include routers
-app.include_router(auth.router, prefix="/auth", tags=["Authentication"])
-app.include_router(market.router, prefix="/market", tags=["Market Data"])
-app.include_router(wallet.router, prefix="/wallet", tags=["Wallet"])
-app.include_router(analysis.router, prefix="/analysis", tags=["Analysis"])
-app.include_router(users.router, prefix="/users", tags=["Users"])
-app.include_router(favorites.router, prefix="/favorites", tags=["Favorites"])
-app.include_router(ai_assistant.router, prefix="/ai", tags=["AI Assistant"])
-app.include_router(admin.router, prefix="/admin", tags=["Admin"])
+app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
+app.include_router(market.router, prefix="/api/market", tags=["Market Data"])
+app.include_router(wallet.router, prefix="/api/wallet", tags=["Wallet"])
+app.include_router(analysis.router, prefix="/api/analysis", tags=["Analysis"])
+app.include_router(users.router, prefix="/api/users", tags=["Users"])
+app.include_router(favorites.router, prefix="/api/favorites", tags=["Favorites"])
+app.include_router(ai_assistant.router, prefix="/api/ai", tags=["AI Assistant"])
+app.include_router(admin.router, prefix="/api/admin", tags=["Admin"])
 
 
 @app.on_event("startup")
