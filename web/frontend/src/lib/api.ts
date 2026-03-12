@@ -973,3 +973,96 @@ export interface PremiumUser {
   premium_expires: string | null;
   created_at: string;
 }
+
+// Community API
+export const communityAPI = {
+  // Get chat messages
+  getMessages: (limit = 50, beforeId?: number) =>
+    fetchAPI<{ messages: CommunityMessage[] }>(
+      `/api/community/messages?limit=${limit}${beforeId ? `&before_id=${beforeId}` : ""}`
+    ),
+
+  // Send a message
+  sendMessage: (content: string, replyTo?: number) =>
+    fetchAPI<{ success: boolean; message: CommunityMessage }>("/api/community/messages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ content, reply_to: replyTo }),
+    }),
+
+  // Delete a message
+  deleteMessage: (messageId: number) =>
+    fetchAPI<{ success: boolean }>(`/api/community/messages/${messageId}`, {
+      method: "DELETE",
+    }),
+
+  // Like/unlike a message
+  likeMessage: (messageId: number) =>
+    fetchAPI<{ liked: boolean }>(`/api/community/messages/${messageId}/like`, {
+      method: "POST",
+    }),
+
+  // Get online count
+  getOnlineCount: () =>
+    fetchAPI<{ online_count: number }>("/api/community/online-count"),
+
+  // Contact admin
+  contactAdmin: (subject: string, message: string) =>
+    fetchAPI<{ success: boolean; ticket_id: number; message: string }>("/api/community/contact-admin", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ subject, message }),
+    }),
+
+  // Get my tickets
+  getMyTickets: () =>
+    fetchAPI<{ tickets: SupportTicket[] }>("/api/community/my-tickets"),
+
+  // Get ticket messages
+  getTicketMessages: (ticketId: number) =>
+    fetchAPI<{ ticket: SupportTicket; messages: TicketMessage[] }>(`/api/community/tickets/${ticketId}`),
+
+  // Reply to ticket
+  replyToTicket: (ticketId: number, content: string) =>
+    fetchAPI<{ success: boolean }>(`/api/community/tickets/${ticketId}/reply`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ content }),
+    }),
+};
+
+// Community Types
+export interface CommunityMessage {
+  id: number;
+  user_id: number;
+  username: string;
+  content: string;
+  reply_to: number | null;
+  created_at: string;
+  is_premium: boolean;
+  is_admin: boolean;
+  likes: number;
+  user_liked: boolean;
+}
+
+export interface SupportTicket {
+  id: number;
+  user_id: number;
+  subject: string;
+  status: string;
+  created_at: string;
+  updated_at: string;
+  message_count?: number;
+  last_message?: string;
+  last_from_admin?: boolean;
+}
+
+export interface TicketMessage {
+  id: number;
+  ticket_id: number;
+  user_id: number;
+  username: string;
+  message: string;
+  is_admin: boolean;
+  created_at: string;
+}

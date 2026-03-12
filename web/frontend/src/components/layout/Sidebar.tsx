@@ -18,6 +18,7 @@ import {
   Globe,
   Shield,
   Wrench,
+  Users,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { adminAPI } from "@/lib/api";
@@ -32,6 +33,7 @@ const menuItems = [
   { icon: BarChart3, label: "Analyse", href: "/analysis" },
   { icon: Wrench, label: "Outils", href: "/tools" },
   { icon: Bot, label: "Assistant IA", href: "/assistant" },
+  { icon: Users, label: "Communaute", href: "/community" },
   { icon: Settings, label: "Paramètres", href: "/settings" },
 ];
 

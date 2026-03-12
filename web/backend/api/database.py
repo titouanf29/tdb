@@ -221,6 +221,60 @@ async def init_web_tables():
             )
         """)
 
+        # Community chat messages
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS community_messages (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                content TEXT NOT NULL,
+                reply_to INTEGER,
+                created_at TEXT NOT NULL,
+                is_deleted INTEGER DEFAULT 0,
+                FOREIGN KEY (user_id) REFERENCES web_users(id),
+                FOREIGN KEY (reply_to) REFERENCES community_messages(id)
+            )
+        """)
+
+        # Community message likes
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS community_message_likes (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                message_id INTEGER NOT NULL,
+                user_id INTEGER NOT NULL,
+                created_at TEXT NOT NULL,
+                UNIQUE(message_id, user_id),
+                FOREIGN KEY (message_id) REFERENCES community_messages(id),
+                FOREIGN KEY (user_id) REFERENCES web_users(id)
+            )
+        """)
+
+        # Admin support tickets
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS admin_tickets (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                subject TEXT NOT NULL,
+                status TEXT DEFAULT 'open',
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                FOREIGN KEY (user_id) REFERENCES web_users(id)
+            )
+        """)
+
+        # Ticket messages
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS admin_ticket_messages (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                ticket_id INTEGER NOT NULL,
+                user_id INTEGER NOT NULL,
+                message TEXT NOT NULL,
+                is_admin INTEGER DEFAULT 0,
+                created_at TEXT NOT NULL,
+                FOREIGN KEY (ticket_id) REFERENCES admin_tickets(id),
+                FOREIGN KEY (user_id) REFERENCES web_users(id)
+            )
+        """)
+
         await db.commit()
         _initialized = True
 
