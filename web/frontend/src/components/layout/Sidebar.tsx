@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
@@ -16,8 +16,10 @@ import {
   ChevronRight,
   BarChart3,
   Globe,
+  Shield,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { adminAPI } from "@/lib/api";
 
 const menuItems = [
   { icon: LayoutDashboard, label: "Dashboard", href: "/" },
@@ -33,7 +35,20 @@ const menuItems = [
 
 export function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
   const pathname = usePathname();
+
+  useEffect(() => {
+    const checkAdminStatus = async () => {
+      try {
+        const result = await adminAPI.checkAdmin();
+        setIsAdmin(result.is_admin);
+      } catch {
+        setIsAdmin(false);
+      }
+    };
+    checkAdminStatus();
+  }, []);
 
   return (
     <motion.aside
@@ -110,6 +125,42 @@ export function Sidebar() {
             </Link>
           );
         })}
+
+        {/* Admin link - only visible to admins */}
+        {isAdmin && (
+          <Link href="/admin">
+            <motion.div
+              whileHover={{ x: 4 }}
+              whileTap={{ scale: 0.98 }}
+              className={cn(
+                "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group mt-4 border border-yellow-500/30",
+                pathname === "/admin"
+                  ? "bg-yellow-500/20 text-yellow-500"
+                  : "text-yellow-500/70 hover:bg-yellow-500/10 hover:text-yellow-500"
+              )}
+            >
+              <Shield className="w-5 h-5" />
+              <AnimatePresence>
+                {!collapsed && (
+                  <motion.span
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -10 }}
+                    className="font-medium text-sm"
+                  >
+                    Administration
+                  </motion.span>
+                )}
+              </AnimatePresence>
+              {pathname === "/admin" && !collapsed && (
+                <motion.div
+                  layoutId="activeIndicator"
+                  className="ml-auto w-1.5 h-1.5 rounded-full bg-yellow-500"
+                />
+              )}
+            </motion.div>
+          </Link>
+        )}
       </nav>
 
       {/* Collapse button */}

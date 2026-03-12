@@ -6,17 +6,22 @@ import { motion } from "framer-motion";
 import {
   TrendingUp,
   TrendingDown,
-  DollarSign,
+  Star,
   Activity,
   ArrowUpRight,
   ArrowDownRight,
   Target,
-  Flame,
   RefreshCw,
   Loader2,
+  Globe,
+  Newspaper,
+  Shield,
+  Plus,
+  Wallet,
+  Bot,
 } from "lucide-react";
 import { cn, formatPercent } from "@/lib/utils";
-import { walletAPI, analysisAPI, WalletBalance, Position, TradingStats } from "@/lib/api";
+import { walletAPI, favoritesAPI, adminAPI, WalletBalance, TradingStats, Favorite } from "@/lib/api";
 import { useFormatCurrency } from "@/lib/SettingsContext";
 
 const containerVariants = {
@@ -32,29 +37,37 @@ const itemVariants = {
   show: { opacity: 1, y: 0 },
 };
 
+// World news topics for market context
+const newsTopics = [
+  { category: "Geopolitique", icon: Globe, color: "text-blue-400" },
+  { category: "Economie", icon: TrendingUp, color: "text-green-400" },
+  { category: "Technologie", icon: Activity, color: "text-purple-400" },
+  { category: "Energie", icon: Target, color: "text-orange-400" },
+];
+
 export default function Dashboard() {
   const formatCurrency = useFormatCurrency();
   const [balance, setBalance] = useState<WalletBalance | null>(null);
-  const [positions, setPositions] = useState<Position[]>([]);
   const [stats, setStats] = useState<TradingStats | null>(null);
-  const [opportunities, setOpportunities] = useState<any[]>([]);
+  const [favorites, setFavorites] = useState<Favorite[]>([]);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   const loadData = async (showRefresh = false) => {
     if (showRefresh) setIsRefreshing(true);
     try {
-      const [balanceData, positionsData, statsData, scanData] = await Promise.all([
+      const [balanceData, statsData, favoritesData, adminData] = await Promise.all([
         walletAPI.getBalance(),
-        walletAPI.getPositions("open"),
         walletAPI.getStats(),
-        analysisAPI.scan("USA", 60, 5).catch(() => ({ results: [] })),
+        favoritesAPI.getFavorites().catch(() => ({ favorites: [] })),
+        adminAPI.checkAdmin().catch(() => ({ is_admin: false })),
       ]);
 
       setBalance(balanceData);
-      setPositions(positionsData.positions);
       setStats(statsData);
-      setOpportunities(scanData.results || []);
+      setFavorites(favoritesData.favorites || []);
+      setIsAdmin(adminData.is_admin);
     } catch (error) {
       console.error("Error loading dashboard:", error);
     } finally {
@@ -65,8 +78,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     loadData();
-    // Refresh every 30 seconds
-    const interval = setInterval(() => loadData(), 30000);
+    const interval = setInterval(() => loadData(), 60000);
     return () => clearInterval(interval);
   }, []);
 
@@ -77,6 +89,11 @@ export default function Dashboard() {
       </div>
     );
   }
+
+  // Calculate favorites stats
+  const avgFavChange = favorites.length > 0
+    ? favorites.filter(f => !f.error).reduce((sum, f) => sum + f.change, 0) / favorites.filter(f => !f.error).length
+    : 0;
 
   return (
     <motion.div
@@ -97,7 +114,7 @@ export default function Dashboard() {
               Bienvenue sur <span className="gradient-text">TDB</span>
             </h1>
             <p className="text-muted-foreground">
-              Votre assistant de trading IA - Paper Trading
+              Suivez vos actifs favoris et restez informe des marches
             </p>
           </div>
           <button
@@ -110,28 +127,48 @@ export default function Dashboard() {
         </div>
       </motion.div>
 
-      {/* Stats cards */}
+      {/* Admin Card - Only visible to admins */}
+      {isAdmin && (
+        <motion.div variants={itemVariants}>
+          <Link href="/admin">
+            <div className="glass-card p-5 border border-yellow-500/30 hover:border-yellow-500/50 transition-all cursor-pointer group">
+              <div className="flex items-center gap-4">
+                <div className="p-3 rounded-xl bg-yellow-500/20">
+                  <Shield className="w-6 h-6 text-yellow-500" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-semibold text-yellow-500">Panneau d'Administration</h3>
+                  <p className="text-sm text-muted-foreground">Gerez les utilisateurs, consultez les statistiques</p>
+                </div>
+                <ArrowUpRight className="w-5 h-5 text-yellow-500 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
+              </div>
+            </div>
+          </Link>
+        </motion.div>
+      )}
+
+      {/* Quick Stats */}
       <motion.div
         variants={itemVariants}
-        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4"
+        className="grid grid-cols-2 md:grid-cols-4 gap-4"
       >
         <StatCard
-          title="Solde Total"
-          value={formatCurrency(balance?.total_equity || balance?.balance || 0)}
-          change={balance?.total_pnl ? (balance.total_pnl / (balance.balance || 1)) * 100 : 0}
-          icon={DollarSign}
+          title="Actifs Suivis"
+          value={String(favorites.length)}
+          icon={Star}
+          href="/favorites"
         />
         <StatCard
-          title="P&L Total"
-          value={formatCurrency(balance?.total_pnl || 0)}
-          change={balance?.total_pnl ? (balance.total_pnl > 0 ? 1 : -1) : 0}
+          title="Perf. Moyenne"
+          value={formatPercent(avgFavChange)}
+          change={avgFavChange}
           icon={TrendingUp}
         />
         <StatCard
-          title="Positions Ouvertes"
-          value={String(positions.length)}
-          subtitle={`${formatCurrency(balance?.positions_value || 0)} investis`}
-          icon={Activity}
+          title="Solde Wallet"
+          value={formatCurrency(balance?.total_equity || balance?.balance || 0)}
+          icon={Wallet}
+          href="/wallet"
         />
         <StatCard
           title="Win Rate"
@@ -143,53 +180,74 @@ export default function Dashboard() {
 
       {/* Main content grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Open positions */}
+        {/* Favorites / Watchlist */}
         <motion.div variants={itemVariants} className="lg:col-span-2">
           <div className="glass-card p-6">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold">Positions Ouvertes</h2>
-              <Link href="/wallet" className="btn-ghost text-sm">
+              <div className="flex items-center gap-2">
+                <Star className="w-5 h-5 text-yellow-500 fill-yellow-500" />
+                <h2 className="text-lg font-semibold">Mes Favoris</h2>
+              </div>
+              <Link href="/favorites" className="btn-ghost text-sm">
                 Voir tout
               </Link>
             </div>
-            {positions.length === 0 ? (
+            {favorites.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
-                <Activity className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                <p>Aucune position ouverte</p>
-                <Link href="/trading" className="text-primary hover:underline text-sm">
-                  Ouvrir une position
+                <Star className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                <p>Aucun actif suivi</p>
+                <Link href="/favorites" className="text-primary hover:underline text-sm flex items-center justify-center gap-1 mt-2">
+                  <Plus className="w-4 h-4" />
+                  Ajouter des favoris
                 </Link>
               </div>
             ) : (
-              <div className="space-y-3">
-                {positions.slice(0, 5).map((pos) => (
-                  <PositionCard key={pos.id} position={pos} formatCurrency={formatCurrency} />
+              <div className="space-y-2">
+                {favorites.slice(0, 6).map((fav) => (
+                  <FavoriteCard key={fav.symbol} favorite={fav} formatCurrency={formatCurrency} />
                 ))}
+                {favorites.length > 6 && (
+                  <Link href="/favorites" className="block text-center text-sm text-primary hover:underline pt-2">
+                    +{favorites.length - 6} autres actifs
+                  </Link>
+                )}
               </div>
             )}
           </div>
         </motion.div>
 
-        {/* Hot opportunities */}
+        {/* Market News & Themes */}
         <motion.div variants={itemVariants}>
           <div className="glass-card p-6">
             <div className="flex items-center gap-2 mb-4">
-              <Flame className="w-5 h-5 text-orange-500" />
-              <h2 className="text-lg font-semibold">Opportunites</h2>
+              <Newspaper className="w-5 h-5 text-primary" />
+              <h2 className="text-lg font-semibold">Themes du Marche</h2>
             </div>
-            {opportunities.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
-                <p className="text-sm">Scanner en cours...</p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {opportunities.map((opp, i) => (
-                  <OpportunityCard key={i} opportunity={opp} />
-                ))}
-              </div>
-            )}
-            <Link href="/scanner" className="block mt-4 text-center text-sm text-primary hover:underline">
-              Voir le scanner complet
+            <div className="space-y-3">
+              {newsTopics.map((topic, i) => (
+                <div
+                  key={i}
+                  className="p-3 rounded-xl bg-white/5 hover:bg-white/10 transition-colors cursor-pointer"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className={cn("p-2 rounded-lg bg-white/10", topic.color)}>
+                      <topic.icon className="w-4 h-4" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-medium text-sm">{topic.category}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {topic.category === "Geopolitique" && "Tensions, accords commerciaux"}
+                        {topic.category === "Economie" && "Inflation, taux d'interet"}
+                        {topic.category === "Technologie" && "IA, semiconducteurs"}
+                        {topic.category === "Energie" && "Petrole, renouvelables"}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <Link href="/markets" className="block mt-4 text-center text-sm text-primary hover:underline">
+              Explorer les marches
             </Link>
           </div>
         </motion.div>
@@ -200,21 +258,58 @@ export default function Dashboard() {
         <div className="glass-card p-6">
           <h2 className="text-lg font-semibold mb-4">Actions Rapides</h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <Link href="/favorites">
+              <QuickActionCard title="Ajouter un Favori" icon="star" />
+            </Link>
             <Link href="/markets">
               <QuickActionCard title="Explorer les Marches" icon="globe" />
-            </Link>
-            <Link href="/trading">
-              <QuickActionCard title="Ouvrir un Trade" icon="trade" />
             </Link>
             <Link href="/analysis">
               <QuickActionCard title="Analyser un Actif" icon="chart" />
             </Link>
             <Link href="/assistant">
-              <QuickActionCard title="Poser une Question" icon="bot" />
+              <QuickActionCard title="Assistant IA" icon="bot" />
             </Link>
           </div>
         </div>
       </motion.div>
+
+      {/* Trading Summary - More subtle */}
+      {(stats?.total_trades || 0) > 0 && (
+        <motion.div variants={itemVariants}>
+          <div className="glass-card p-6 opacity-80">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-muted-foreground">Resume Trading</h2>
+              <Link href="/wallet" className="btn-ghost text-sm">
+                Voir le wallet
+              </Link>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+              <div>
+                <p className="text-muted-foreground">Trades</p>
+                <p className="font-semibold">{stats?.total_trades || 0}</p>
+              </div>
+              <div>
+                <p className="text-muted-foreground">Gagnes</p>
+                <p className="font-semibold text-profit">{stats?.winning_trades || 0}</p>
+              </div>
+              <div>
+                <p className="text-muted-foreground">Perdus</p>
+                <p className="font-semibold text-loss">{stats?.losing_trades || 0}</p>
+              </div>
+              <div>
+                <p className="text-muted-foreground">P&L Total</p>
+                <p className={cn(
+                  "font-semibold",
+                  (stats?.total_pnl || 0) >= 0 ? "text-profit" : "text-loss"
+                )}>
+                  {formatCurrency(stats?.total_pnl || 0)}
+                </p>
+              </div>
+            </div>
+          </div>
+        </motion.div>
+      )}
     </motion.div>
   );
 }
@@ -225,17 +320,19 @@ function StatCard({
   change,
   subtitle,
   icon: Icon,
+  href,
 }: {
   title: string;
   value: string;
   change?: number;
   subtitle?: string;
   icon: React.ElementType;
+  href?: string;
 }) {
   const isPositive = change !== undefined ? change >= 0 : true;
 
-  return (
-    <div className="glass-card-hover p-5">
+  const content = (
+    <div className={cn("glass-card-hover p-5", href && "cursor-pointer")}>
       <div className="flex items-start justify-between">
         <div>
           <p className="text-sm text-muted-foreground">{title}</p>
@@ -266,107 +363,45 @@ function StatCard({
       </div>
     </div>
   );
+
+  if (href) {
+    return <Link href={href}>{content}</Link>;
+  }
+  return content;
 }
 
-function PositionCard({ position, formatCurrency }: { position: Position; formatCurrency: (value: number) => string }) {
-  const isProfit = (position.unrealized_pnl || 0) >= 0;
+function FavoriteCard({ favorite, formatCurrency }: { favorite: Favorite; formatCurrency: (value: number) => string }) {
+  const isProfit = favorite.change >= 0;
 
   return (
-    <Link href={`/wallet`}>
-      <div className="p-4 rounded-xl bg-white/5 hover:bg-white/10 transition-colors cursor-pointer">
+    <Link href={`/analysis?symbol=${favorite.symbol}`}>
+      <div className="p-3 rounded-xl bg-white/5 hover:bg-white/10 transition-colors cursor-pointer">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-secondary flex items-center justify-center font-bold text-sm">
-              {position.symbol.slice(0, 2)}
-            </div>
+            <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />
             <div>
-              <div className="flex items-center gap-2">
-                <span className="font-semibold">{position.symbol}</span>
-                <span
-                  className={cn(
-                    "px-2 py-0.5 rounded text-xs font-medium",
-                    position.direction === "LONG"
-                      ? "bg-profit/20 text-profit"
-                      : "bg-loss/20 text-loss"
-                  )}
-                >
-                  {position.direction}
-                </span>
-                {position.leverage > 1 && (
-                  <span className="px-2 py-0.5 rounded text-xs font-medium bg-primary/20 text-primary">
-                    {position.leverage}x
-                  </span>
-                )}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Entree: {formatCurrency(position.entry_price)}
-              </p>
+              <span className="font-semibold">{favorite.symbol}</span>
             </div>
           </div>
           <div className="text-right">
             <p className="font-semibold">
-              {formatCurrency(position.current_price || position.entry_price)}
+              {favorite.error ? "N/A" : formatCurrency(favorite.price)}
             </p>
-            <p
-              className={cn(
-                "text-sm flex items-center justify-end gap-1",
-                isProfit ? "text-profit" : "text-loss"
-              )}
-            >
-              {isProfit ? (
-                <TrendingUp className="w-3 h-3" />
-              ) : (
-                <TrendingDown className="w-3 h-3" />
-              )}
-              {formatCurrency(position.unrealized_pnl || 0)} ({formatPercent(position.pnl_percent || 0)})
-            </p>
-          </div>
-        </div>
-      </div>
-    </Link>
-  );
-}
-
-function OpportunityCard({ opportunity }: { opportunity: any }) {
-  const getScoreColor = (s: number) => {
-    if (s >= 75) return "text-profit border-profit/30 bg-profit/10";
-    if (s >= 60) return "text-green-400 border-green-400/30 bg-green-400/10";
-    if (s >= 40) return "text-warning border-warning/30 bg-warning/10";
-    return "text-loss border-loss/30 bg-loss/10";
-  };
-
-  const getSignal = (score: number) => {
-    if (score >= 75) return "STRONG BUY";
-    if (score >= 60) return "BUY";
-    if (score >= 40) return "HOLD";
-    return "SELL";
-  };
-
-  return (
-    <Link href={`/analysis?symbol=${opportunity.symbol}`}>
-      <div className="p-3 rounded-xl bg-white/5 hover:bg-white/10 transition-all hover:scale-[1.02] cursor-pointer">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div
-              className={cn(
-                "w-12 h-12 rounded-xl flex items-center justify-center font-bold border",
-                getScoreColor(opportunity.score)
-              )}
-            >
-              {opportunity.score}
-            </div>
-            <div>
-              <p className="font-semibold">{opportunity.symbol}</p>
-              <p className="text-xs text-muted-foreground">{getSignal(opportunity.score)}</p>
-            </div>
-          </div>
-          <div
-            className={cn(
-              "text-sm font-medium",
-              opportunity.change >= 0 ? "text-profit" : "text-loss"
+            {!favorite.error && (
+              <p
+                className={cn(
+                  "text-sm flex items-center justify-end gap-1",
+                  isProfit ? "text-profit" : "text-loss"
+                )}
+              >
+                {isProfit ? (
+                  <TrendingUp className="w-3 h-3" />
+                ) : (
+                  <TrendingDown className="w-3 h-3" />
+                )}
+                {formatPercent(favorite.change)}
+              </p>
             )}
-          >
-            {formatPercent(opportunity.change)}
           </div>
         </div>
       </div>
@@ -376,10 +411,10 @@ function OpportunityCard({ opportunity }: { opportunity: any }) {
 
 function QuickActionCard({ title, icon }: { title: string; icon: string }) {
   const icons: Record<string, React.ReactNode> = {
-    globe: <Activity className="w-6 h-6" />,
-    trade: <TrendingUp className="w-6 h-6" />,
+    star: <Star className="w-6 h-6" />,
+    globe: <Globe className="w-6 h-6" />,
     chart: <Target className="w-6 h-6" />,
-    bot: <Flame className="w-6 h-6" />,
+    bot: <Bot className="w-6 h-6" />,
   };
 
   return (

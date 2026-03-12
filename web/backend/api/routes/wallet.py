@@ -264,6 +264,57 @@ async def get_trade_history(
     return {"history": positions}
 
 
+class AddFundsRequest(BaseModel):
+    amount: float
+
+
+@router.post("/add-funds")
+async def add_funds_to_wallet(
+    request: AddFundsRequest,
+    current_user: dict = Depends(get_current_user)
+):
+    """Add funds to user's wallet (paper trading)"""
+    if request.amount <= 0:
+        raise HTTPException(status_code=400, detail="Amount must be positive")
+
+    if request.amount > 100000:
+        raise HTTPException(status_code=400, detail="Maximum 100,000$ per transaction")
+
+    user_id = get_user_id(current_user)
+
+    # Get or create wallet
+    wallets = await execute_query(
+        "SELECT * FROM wallet WHERE user_id = ?",
+        (user_id,)
+    )
+
+    if not wallets:
+        # Create wallet with the amount
+        await execute_write(
+            """INSERT INTO wallet (user_id, balance, currency, created_at)
+               VALUES (?, ?, 'USD', ?)""",
+            (user_id, request.amount, datetime.utcnow().isoformat())
+        )
+        return {
+            "success": True,
+            "message": f"${request.amount:,.2f} added to wallet",
+            "new_balance": request.amount
+        }
+
+    new_balance = wallets[0]["balance"] + request.amount
+    await execute_write(
+        "UPDATE wallet SET balance = ? WHERE user_id = ?",
+        (new_balance, user_id)
+    )
+
+    return {
+        "success": True,
+        "message": f"${request.amount:,.2f} added to wallet",
+        "previous_balance": wallets[0]["balance"],
+        "new_balance": new_balance
+    }
+
+
 @router.get("/stats")
 async def get_trading_stats(current_user: dict = Depends(get_current_user)):
     """Get trading statistics"""

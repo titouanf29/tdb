@@ -12,6 +12,8 @@ import {
   Loader2,
   RefreshCw,
   History,
+  Plus,
+  Banknote,
 } from "lucide-react";
 import { cn, formatPercent } from "@/lib/utils";
 import { walletAPI, WalletBalance, Position, TradingStats } from "@/lib/api";
@@ -27,6 +29,10 @@ export default function WalletPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [closingPosition, setClosingPosition] = useState<number | null>(null);
+  const [showAddFundsModal, setShowAddFundsModal] = useState(false);
+  const [addFundsAmount, setAddFundsAmount] = useState("");
+  const [isAddingFunds, setIsAddingFunds] = useState(false);
+  const [addFundsError, setAddFundsError] = useState("");
 
   const loadData = async (showRefresh = false) => {
     if (showRefresh) setIsRefreshing(true);
@@ -68,6 +74,32 @@ export default function WalletPage() {
     }
   };
 
+  const addFunds = async () => {
+    const amount = parseFloat(addFundsAmount);
+    if (isNaN(amount) || amount <= 0) {
+      setAddFundsError("Veuillez entrer un montant valide");
+      return;
+    }
+    if (amount > 100000) {
+      setAddFundsError("Maximum 100,000$ par transaction");
+      return;
+    }
+
+    setIsAddingFunds(true);
+    setAddFundsError("");
+
+    try {
+      await walletAPI.addFunds(amount);
+      await loadData();
+      setShowAddFundsModal(false);
+      setAddFundsAmount("");
+    } catch (error) {
+      setAddFundsError(error instanceof Error ? error.message : "Erreur lors de l'ajout");
+    } finally {
+      setIsAddingFunds(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[50vh]">
@@ -88,13 +120,22 @@ export default function WalletPage() {
           <h1 className="text-2xl font-bold">Wallet</h1>
           <p className="text-muted-foreground">Gerez votre portefeuille virtuel</p>
         </div>
-        <button
-          onClick={() => loadData(true)}
-          disabled={isRefreshing}
-          className="p-2 rounded-lg hover:bg-white/5 transition-colors"
-        >
-          <RefreshCw className={cn("w-5 h-5", isRefreshing && "animate-spin")} />
-        </button>
+        <div className="flex gap-3">
+          <button
+            onClick={() => setShowAddFundsModal(true)}
+            className="btn-primary flex items-center gap-2"
+          >
+            <Plus className="w-4 h-4" />
+            Ajouter des fonds
+          </button>
+          <button
+            onClick={() => loadData(true)}
+            disabled={isRefreshing}
+            className="p-2 rounded-lg hover:bg-white/5 transition-colors"
+          >
+            <RefreshCw className={cn("w-5 h-5", isRefreshing && "animate-spin")} />
+          </button>
+        </div>
       </div>
 
       {/* Balance cards */}
@@ -193,6 +234,7 @@ export default function WalletPage() {
                 position={position}
                 onClose={() => closePosition(position.id)}
                 isClosing={closingPosition === position.id}
+                formatCurrency={formatCurrency}
               />
             ))
           )
@@ -203,10 +245,89 @@ export default function WalletPage() {
           </div>
         ) : (
           history.map((position) => (
-            <HistoryCard key={position.id} position={position} />
+            <HistoryCard key={position.id} position={position} formatCurrency={formatCurrency} />
           ))
         )}
       </div>
+
+      {/* Add Funds Modal */}
+      {showAddFundsModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="glass-card p-6 w-full max-w-md"
+          >
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-3 rounded-xl bg-primary/20">
+                <Banknote className="w-6 h-6 text-primary" />
+              </div>
+              <div>
+                <h2 className="text-lg font-semibold">Ajouter des fonds</h2>
+                <p className="text-sm text-muted-foreground">Paper Trading - Argent virtuel</p>
+              </div>
+            </div>
+
+            {addFundsError && (
+              <div className="p-3 rounded-lg bg-loss/10 border border-loss/30 text-loss text-sm mb-4">
+                {addFundsError}
+              </div>
+            )}
+
+            <div className="mb-4">
+              <label className="block text-sm text-muted-foreground mb-2">Montant (USD)</label>
+              <input
+                type="number"
+                value={addFundsAmount}
+                onChange={(e) => setAddFundsAmount(e.target.value)}
+                placeholder="Ex: 10000"
+                className="w-full input"
+                min="1"
+                max="100000"
+              />
+            </div>
+
+            <div className="flex flex-wrap gap-2 mb-4">
+              {[1000, 5000, 10000, 25000, 50000].map((amount) => (
+                <button
+                  key={amount}
+                  onClick={() => setAddFundsAmount(String(amount))}
+                  className="px-3 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-sm transition-colors"
+                >
+                  ${amount.toLocaleString()}
+                </button>
+              ))}
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setShowAddFundsModal(false);
+                  setAddFundsAmount("");
+                  setAddFundsError("");
+                }}
+                className="flex-1 btn-secondary"
+              >
+                Annuler
+              </button>
+              <button
+                onClick={addFunds}
+                disabled={isAddingFunds || !addFundsAmount}
+                className="flex-1 btn-primary flex items-center justify-center gap-2 disabled:opacity-50"
+              >
+                {isAddingFunds ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <>
+                    <Plus className="w-4 h-4" />
+                    Ajouter
+                  </>
+                )}
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
     </motion.div>
   );
 }
@@ -274,10 +395,12 @@ function PositionCard({
   position,
   onClose,
   isClosing,
+  formatCurrency,
 }: {
   position: Position;
   onClose: () => void;
   isClosing: boolean;
+  formatCurrency: (value: number) => string;
 }) {
   const isProfit = (position.unrealized_pnl || 0) >= 0;
 
@@ -369,7 +492,7 @@ function PositionCard({
   );
 }
 
-function HistoryCard({ position }: { position: Position }) {
+function HistoryCard({ position, formatCurrency }: { position: Position; formatCurrency: (value: number) => string }) {
   const isProfit = (position.realized_pnl || 0) >= 0;
 
   return (

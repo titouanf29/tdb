@@ -79,12 +79,14 @@ export const walletAPI = {
   openPosition: (data: OpenPositionData) =>
     fetchAPI<PositionResult>("/api/wallet/positions/open", {
       method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
     }),
 
   closePosition: (positionId: number) =>
     fetchAPI<PositionResult>("/api/wallet/positions/close", {
       method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ position_id: positionId }),
     }),
 
@@ -92,6 +94,13 @@ export const walletAPI = {
     fetchAPI<{ history: Position[] }>(`/api/wallet/history?limit=${limit}`),
 
   getStats: () => fetchAPI<TradingStats>("/api/wallet/stats"),
+
+  addFunds: (amount: number) =>
+    fetchAPI<{ success: boolean; message: string; new_balance: number }>("/api/wallet/add-funds", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ amount }),
+    }),
 };
 
 // Analysis API
@@ -110,6 +119,7 @@ export const aiAPI = {
   chat: (message: string, context?: string) =>
     fetchAPI<{ response: string; usage?: object }>("/api/ai/chat", {
       method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ message, context }),
     }),
 
@@ -122,7 +132,7 @@ export const aiAPI = {
   quickAnalysis: (symbol: string) =>
     fetchAPI<{ symbol: string; analysis: string }>(
       `/api/ai/quick-analysis?symbol=${symbol}`,
-      { method: "POST" }
+      { method: "POST", headers: { "Content-Type": "application/json" } }
     ),
 };
 
@@ -394,6 +404,9 @@ export interface Favorite {
 
 // Admin API
 export const adminAPI = {
+  // Check admin status
+  checkAdmin: () => fetchAPI<{ is_admin: boolean; email?: string }>("/api/admin/check"),
+
   // Dashboard
   getDashboard: () => fetchAPI<AdminDashboard>("/api/admin/dashboard"),
 

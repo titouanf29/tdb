@@ -60,6 +60,20 @@ class WalletAdjustment(BaseModel):
     reason: str
 
 
+# ============== CHECK ADMIN ==============
+
+@router.get("/check")
+async def check_admin_status(current_user: dict = Depends(get_current_user)):
+    """Check if current user has admin privileges"""
+    user_email = current_user.get("email", "")
+    is_admin = user_email in ADMIN_WHITELIST
+
+    return {
+        "is_admin": is_admin,
+        "email": user_email if is_admin else None
+    }
+
+
 # ============== DASHBOARD ==============
 
 @router.get("/dashboard")
