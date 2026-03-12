@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 320" style="background:#0a0a0f">
+  <!-- Title -->
+  <text x="300" y="25" fill="#fff" font-size="14" text-anchor="middle" font-weight="bold">Tendance Haussiere: Prix > EMA20 > EMA50</text>
+
+  <!-- EMA 50 (slower, wider) -->
+  <path d="M50,250 Q120,245 180,230 T280,190 T380,140 T480,100 T550,70"
+        fill="none" stroke="#f97316" stroke-width="3"/>
+
+  <!-- EMA 20 (faster, closer to price) -->
+  <path d="M50,240 Q100,230 150,210 T250,165 T350,120 T450,85 T550,55"
+        fill="none" stroke="#3b82f6" stroke-width="3"/>
+
+  <!-- Price line with some volatility -->
+  <path d="M50,230 Q80,220 100,200 T150,190 T200,170 T250,155 T300,145 T350,115 T400,100 T450,80 T500,60 T550,45"
+        fill="none" stroke="#22c55e" stroke-width="2.5"/>
+
+  <!-- Pullback zones (good entry points) -->
+  <ellipse cx="200" cy="175" rx="25" ry="15" fill="#22c55e" fill-opacity="0.2" stroke="#22c55e" stroke-width="1"/>
+  <ellipse cx="350" cy="115" rx="25" ry="15" fill="#22c55e" fill-opacity="0.2" stroke="#22c55e" stroke-width="1"/>
+  <ellipse cx="500" cy="65" rx="25" ry="15" fill="#22c55e" fill-opacity="0.2" stroke="#22c55e" stroke-width="1"/>
+
+  <!-- Entry arrows -->
+  <path d="M200,205 L200,190" fill="none" stroke="#22c55e" stroke-width="2" marker-end="url(#arrowUp)"/>
+  <path d="M350,145 L350,130" fill="none" stroke="#22c55e" stroke-width="2" marker-end="url(#arrowUp)"/>
+  <path d="M500,95 L500,80" fill="none" stroke="#22c55e" stroke-width="2" marker-end="url(#arrowUp)"/>
+
+  <defs>
+    <marker id="arrowUp" markerWidth="10" markerHeight="7" refX="5" refY="7" orient="auto">
+      <polygon points="0 7, 5 0, 10 7" fill="#22c55e"/>
+    </marker>
+  </defs>
+
+  <!-- Labels for pullbacks -->
+  <text x="200" y="225" fill="#22c55e" font-size="9" text-anchor="middle">Entree 1</text>
+  <text x="350" y="165" fill="#22c55e" font-size="9" text-anchor="middle">Entree 2</text>
+  <text x="500" y="115" fill="#22c55e" font-size="9" text-anchor="middle">Entree 3</text>
+
+  <!-- Legend -->
+  <rect x="50" y="265" width="180" height="50" fill="#111" rx="5"/>
+  <line x1="60" y1="282" x2="100" y2="282" stroke="#22c55e" stroke-width="2.5"/>
+  <text x="110" y="286" fill="#888" font-size="10">Prix</text>
+  <line x1="60" y1="298" x2="100" y2="298" stroke="#3b82f6" stroke-width="3"/>
+  <text x="110" y="302" fill="#888" font-size="10">EMA 20 (rapide)</text>
+
+  <rect x="240" y="265" width="150" height="50" fill="#111" rx="5"/>
+  <line x1="250" y1="282" x2="290" y2="282" stroke="#f97316" stroke-width="3"/>
+  <text x="300" y="286" fill="#888" font-size="10">EMA 50 (lente)</text>
+  <ellipse cx="265" cy="298" rx="12" ry="8" fill="#22c55e" fill-opacity="0.3" stroke="#22c55e"/>
+  <text x="300" y="302" fill="#888" font-size="10">Pullback = Entree</text>
+
+  <!-- Info box -->
+  <rect x="420" y="265" width="130" height="50" fill="#111" rx="5"/>
+  <text x="485" y="283" fill="#22c55e" font-size="9" text-anchor="middle" font-weight="bold">HAUSSIER:</text>
+  <text x="485" y="298" fill="#888" font-size="8" text-anchor="middle">Prix > EMA20 > EMA50</text>
+  <text x="485" y="310" fill="#888" font-size="8" text-anchor="middle">Achetez les pullbacks!</text>
+</svg>
