@@ -110,7 +110,7 @@ export default function AssistantPage() {
                 <Sparkles className="w-4 h-4 text-yellow-500" />
               </h1>
               <p className="text-sm text-muted-foreground">
-                Powered by xAI (Grok)
+                Powered by Groq (Llama 3.3)
               </p>
             </div>
           </div>

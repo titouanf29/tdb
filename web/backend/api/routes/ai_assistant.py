@@ -1,5 +1,5 @@
 """
-AI Assistant routes - Chat with xAI (Grok)
+AI Assistant routes - Chat with Groq (Llama)
 """
 import os
 import httpx
@@ -13,12 +13,12 @@ from .auth import get_current_user
 
 router = APIRouter()
 
-# xAI API Configuration
-XAI_API_URL = "https://api.x.ai/v1/chat/completions"
-MODEL = "grok-2-latest"
+# Groq API Configuration
+GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
+MODEL = "llama-3.3-70b-versatile"
 
-def get_xai_api_key():
-    """Get xAI API key from environment"""
+def get_groq_api_key():
+    """Get Groq API key from environment"""
     return os.getenv("GROQ_API_KEY", "")
 
 # System prompt for trading assistant
@@ -65,7 +65,7 @@ async def chat_with_assistant(
     current_user: dict = Depends(get_current_user)
 ):
     """Send a message to the AI assistant"""
-    api_key = get_xai_api_key()
+    api_key = get_groq_api_key()
     if not api_key:
         raise HTTPException(
             status_code=503,
@@ -104,7 +104,7 @@ async def chat_with_assistant(
     try:
         async with httpx.AsyncClient(timeout=60.0) as client:
             response = await client.post(
-                XAI_API_URL,
+                GROQ_API_URL,
                 headers={
                     "Authorization": f"Bearer {api_key}",
                     "Content-Type": "application/json"
@@ -190,7 +190,7 @@ async def quick_analysis(
     """Get a quick AI analysis for a symbol"""
     import yfinance as yf
 
-    api_key = get_xai_api_key()
+    api_key = get_groq_api_key()
     if not api_key:
         raise HTTPException(
             status_code=503,
@@ -228,7 +228,7 @@ Plus bas 52 sem: ${info.get('fiftyTwoWeekLow', 'N/A')}
     try:
         async with httpx.AsyncClient(timeout=60.0) as client:
             response = await client.post(
-                XAI_API_URL,
+                GROQ_API_URL,
                 headers={
                     "Authorization": f"Bearer {api_key}",
                     "Content-Type": "application/json"
