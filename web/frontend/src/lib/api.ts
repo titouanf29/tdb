@@ -665,3 +665,299 @@ export interface AdminPositionsResponse {
   page: number;
   limit: number;
 }
+
+// Trading Tools API
+export const toolsAPI = {
+  // Pivot Points
+  getPivotPoints: (symbol: string, method = "standard") =>
+    fetchAPI<PivotPointsData>(`/api/tools/pivot-points/${symbol}?method=${method}`),
+
+  // P/E Rankings
+  getPERankings: (sector?: string, limit = 20, sort = "asc") =>
+    fetchAPI<PERankingsData>(
+      `/api/tools/per-rankings?limit=${limit}&sort=${sort}${sector ? `&sector=${sector}` : ""}`
+    ),
+
+  // Market Trends
+  getTrends: () => fetchAPI<TrendsData>("/api/tools/trends"),
+
+  // Economic Calendar
+  getEconomicCalendar: (days = 7) =>
+    fetchAPI<EconomicCalendarData>(`/api/tools/economic-calendar?days=${days}`),
+
+  // Get event summary (premium)
+  getEventSummary: (eventId: string) =>
+    fetchAPI<EventSummary>(`/api/tools/economic-calendar/event/${eventId}/summary`),
+
+  // Geopolitical Analysis
+  getGeopoliticalAnalysis: () =>
+    fetchAPI<GeopoliticalData>("/api/tools/geopolitical"),
+
+  // Backtest
+  runBacktest: (data: BacktestRequest) =>
+    fetchAPI<BacktestResult>("/api/tools/backtest", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    }),
+
+  // Trading Advice Cards (Fiches conseils)
+  getAdvice: (category?: string) =>
+    fetchAPI<AdviceData>(`/api/tools/advice${category ? `?category=${category}` : ""}`),
+
+  getAdviceDetail: (adviceId: number) =>
+    fetchAPI<AdviceCard>(`/api/tools/advice/${adviceId}`),
+};
+
+export interface EventSummary {
+  event_id: string;
+  summary: string;
+  generated_at: string;
+}
+
+export interface AdviceData {
+  advice: AdviceCard[];
+  categories: { key: string; label: string }[];
+  is_premium: boolean;
+}
+
+export interface AdviceCard {
+  id: number;
+  category: string;
+  title: string;
+  icon: string;
+  summary: string;
+  content: string | null;
+  premium_only: boolean;
+  locked?: boolean;
+  lock_message?: string;
+}
+
+// Tools Types
+export interface PivotPointsData {
+  symbol: string;
+  pivot: number;
+  r1: number;
+  r2: number;
+  r3: number;
+  s1: number;
+  s2: number;
+  s3: number;
+  high: number;
+  low: number;
+  close: number;
+  current_price: number;
+  method: string;
+  date: string;
+}
+
+export interface PERankingsData {
+  rankings: {
+    symbol: string;
+    name: string;
+    sector: string;
+    pe_ratio: number;
+    forward_pe: number | null;
+    price: number;
+    market_cap: number;
+    dividend_yield: number;
+  }[];
+  total: number;
+  sort: string;
+  sectors: string[];
+}
+
+export interface TrendsData {
+  indices: {
+    symbol: string;
+    name: string;
+    price: number;
+    change_1d: number;
+    change_1w: number;
+    change_1m: number;
+    sma_20: number;
+    sma_50: number | null;
+    trend: "bullish" | "bearish" | "neutral";
+  }[];
+  sectors: {
+    symbol: string;
+    name: string;
+    price: number;
+    change_1d: number;
+    change_1w: number;
+  }[];
+  analysis: string | null;
+}
+
+export interface EconomicCalendarData {
+  events: {
+    date: string;
+    time: string;
+    event: string;
+    country: string;
+    importance: "high" | "medium" | "low";
+    previous: string;
+    forecast: string;
+    impact: string;
+  }[];
+  total: number;
+  date_range: {
+    from: string;
+    to: string;
+  };
+}
+
+export interface GeopoliticalData {
+  analysis: string;
+  market_data: Record<string, { price: number; change: number }>;
+  generated_at: string;
+}
+
+export interface BacktestRequest {
+  symbol: string;
+  strategy: "sma_crossover" | "rsi" | "macd" | "bollinger";
+  period?: string;
+  initial_capital?: number;
+  sma_short?: number;
+  sma_long?: number;
+  rsi_oversold?: number;
+  rsi_overbought?: number;
+}
+
+export interface BacktestResult {
+  symbol: string;
+  strategy: string;
+  period: string;
+  initial_capital: number;
+  final_equity: number;
+  total_return: number;
+  num_trades: number;
+  win_rate: number;
+  max_drawdown: number;
+  trades: {
+    date: string;
+    type: "BUY" | "SELL";
+    price: number;
+    shares: number;
+    value: number;
+  }[];
+  equity_curve: {
+    date: string;
+    equity: number;
+  }[];
+}
+
+// Premium API
+export const premiumAPI = {
+  // Check premium status
+  getStatus: () => fetchAPI<PremiumStatus>("/api/premium/status"),
+
+  // Get features comparison
+  getFeatures: () => fetchAPI<PremiumFeatures>("/api/premium/features"),
+
+  // Contact admin for premium
+  contact: (message: string) =>
+    fetchAPI<{ success: boolean; message: string }>("/api/premium/contact", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message }),
+    }),
+
+  // Get my premium requests
+  getMyRequests: () =>
+    fetchAPI<{ requests: PremiumRequest[] }>("/api/premium/my-requests"),
+
+  // Admin: Get all premium requests
+  getAdminRequests: (status = "all", page = 1, limit = 20) =>
+    fetchAPI<PremiumRequestsResponse>(
+      `/api/premium/admin/requests?status=${status}&page=${page}&limit=${limit}`
+    ),
+
+  // Admin: Process premium request
+  processRequest: (requestId: number, status: string, response?: string) =>
+    fetchAPI<{ success: boolean }>("/api/premium/admin/requests/action", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ request_id: requestId, status, response }),
+    }),
+
+  // Admin: Grant/revoke premium
+  grantPremium: (userId: number, action: "grant" | "revoke", durationDays?: number) =>
+    fetchAPI<{ success: boolean; message: string }>("/api/premium/admin/grant", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ user_id: userId, action, duration_days: durationDays }),
+    }),
+
+  // Admin: Get premium users
+  getPremiumUsers: () =>
+    fetchAPI<{ users: PremiumUser[] }>("/api/premium/admin/users"),
+};
+
+// Premium Types
+export interface PremiumStatus {
+  is_premium: boolean;
+  is_admin: boolean;
+  limits: PremiumLimits;
+  premium_info: {
+    since: string | null;
+    expires: string | null;
+  } | null;
+  features: {
+    free: PremiumLimits;
+    premium: PremiumLimits;
+  };
+}
+
+export interface PremiumLimits {
+  max_positions: number;
+  max_favorites: number;
+  ai_messages_per_day: number;
+  backtest_enabled: boolean;
+  geopolitical_enabled: boolean;
+  advanced_pivots: boolean;
+  per_rankings_limit: number;
+  economic_calendar_days: number;
+  alerts_enabled: boolean;
+  priority_support: boolean;
+}
+
+export interface PremiumFeatures {
+  free: PremiumLimits;
+  premium: PremiumLimits;
+  benefits: {
+    icon: string;
+    title: string;
+    description: string;
+  }[];
+}
+
+export interface PremiumRequest {
+  id: number;
+  user_id: number;
+  message: string;
+  status: string;
+  admin_response?: string;
+  created_at: string;
+  processed_at?: string;
+  email?: string;
+  username?: string;
+}
+
+export interface PremiumRequestsResponse {
+  requests: PremiumRequest[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
+export interface PremiumUser {
+  id: number;
+  email: string;
+  username: string;
+  is_premium: boolean;
+  is_admin: boolean;
+  premium_since: string | null;
+  premium_expires: string | null;
+  created_at: string;
+}

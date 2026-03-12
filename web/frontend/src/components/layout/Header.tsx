@@ -13,12 +13,16 @@ import {
   ChevronDown,
   Wifi,
   WifiOff,
+  Crown,
+  Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/AuthContext";
+import { usePremium } from "@/lib/PremiumContext";
 
 export function Header() {
   const { user, logout } = useAuth();
+  const { isPremium, isAdmin } = usePremium();
   const router = useRouter();
   const [showNotifications, setShowNotifications] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
@@ -80,6 +84,30 @@ export function Header() {
             </>
           )}
         </div>
+
+        {/* Premium Badge or Button */}
+        {isAdmin ? (
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs bg-gradient-to-r from-purple-600/20 to-pink-600/20 text-purple-400 border border-purple-500/30">
+            <Crown className="w-3.5 h-3.5" />
+            <span className="font-semibold">Admin</span>
+          </div>
+        ) : isPremium ? (
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs bg-gradient-to-r from-yellow-600/20 to-orange-600/20 text-yellow-400 border border-yellow-500/30">
+            <Crown className="w-3.5 h-3.5" />
+            <span className="font-semibold">Premium</span>
+          </div>
+        ) : (
+          <Link href="/premium">
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              className="flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-semibold bg-gradient-to-r from-yellow-500 to-orange-500 text-black hover:from-yellow-400 hover:to-orange-400 transition-all shadow-lg shadow-yellow-500/20"
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>Premium</span>
+            </motion.button>
+          </Link>
+        )}
 
         {/* Notifications */}
         <div className="relative">

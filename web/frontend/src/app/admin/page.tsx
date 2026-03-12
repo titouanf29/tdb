@@ -35,19 +35,23 @@ import {
   Target,
   Brain,
   Lock,
+  Crown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   adminAPI,
+  premiumAPI,
   AdminDashboard,
   AdminUser,
   AdminUserDetails,
   AdminPosition,
   AdminBroadcast,
+  PremiumRequest,
+  PremiumUser,
 } from "@/lib/api";
 import { useFormatCurrency } from "@/lib/SettingsContext";
 
-type TabType = "dashboard" | "users" | "positions" | "broadcasts" | "asset-requests" | "analytics" | "audit" | "settings";
+type TabType = "dashboard" | "users" | "positions" | "premium" | "broadcasts" | "asset-requests" | "analytics" | "audit" | "settings";
 
 export default function AdminPage() {
   const router = useRouter();
@@ -105,6 +109,7 @@ export default function AdminPage() {
     { id: "dashboard", label: "Dashboard", icon: Activity },
     { id: "users", label: "Utilisateurs", icon: Users },
     { id: "positions", label: "Positions", icon: TrendingUp },
+    { id: "premium", label: "Premium", icon: Crown },
     { id: "broadcasts", label: "Broadcasts", icon: Megaphone },
     { id: "asset-requests", label: "Demandes Actifs", icon: Database },
     { id: "analytics", label: "Analytics", icon: BarChart3 },
@@ -166,6 +171,7 @@ export default function AdminPage() {
       )}
       {activeTab === "users" && <UsersTab formatCurrency={formatCurrency} />}
       {activeTab === "positions" && <PositionsTab formatCurrency={formatCurrency} />}
+      {activeTab === "premium" && <PremiumTab />}
       {activeTab === "broadcasts" && <BroadcastsTab />}
       {activeTab === "asset-requests" && <AssetRequestsTab />}
       {activeTab === "analytics" && <AnalyticsTab />}
@@ -1286,6 +1292,331 @@ function AssetRequestsTab() {
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+// Premium Tab
+function PremiumTab() {
+  const [requests, setRequests] = useState<PremiumRequest[]>([]);
+  const [premiumUsers, setPremiumUsers] = useState<PremiumUser[]>([]);
+  const [status, setStatus] = useState("all");
+  const [isLoading, setIsLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState<number | null>(null);
+  const [showGrantModal, setShowGrantModal] = useState(false);
+  const [grantUserId, setGrantUserId] = useState<number | null>(null);
+  const [grantDays, setGrantDays] = useState<string>("");
+  const [response, setResponse] = useState("");
+
+  const loadData = async () => {
+    setIsLoading(true);
+    try {
+      const [reqData, usersData] = await Promise.all([
+        premiumAPI.getAdminRequests(status),
+        premiumAPI.getPremiumUsers(),
+      ]);
+      setRequests(reqData.requests);
+      setPremiumUsers(usersData.users);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadData();
+  }, [status]);
+
+  const processRequest = async (requestId: number, newStatus: string) => {
+    setActionLoading(requestId);
+    try {
+      await premiumAPI.processRequest(requestId, newStatus, response);
+      setResponse("");
+      loadData();
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const grantPremium = async () => {
+    if (!grantUserId) return;
+    setActionLoading(grantUserId);
+    try {
+      const days = grantDays ? parseInt(grantDays) : undefined;
+      await premiumAPI.grantPremium(grantUserId, "grant", days);
+      setShowGrantModal(false);
+      setGrantUserId(null);
+      setGrantDays("");
+      loadData();
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const revokePremium = async (userId: number) => {
+    if (!confirm("Voulez-vous vraiment retirer le premium a cet utilisateur ?")) return;
+    setActionLoading(userId);
+    try {
+      await premiumAPI.grantPremium(userId, "revoke");
+      loadData();
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Premium Users */}
+      <div className="glass-card p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-semibold flex items-center gap-2">
+            <Crown className="w-5 h-5 text-yellow-400" />
+            Utilisateurs Premium ({premiumUsers.length})
+          </h3>
+          <button
+            onClick={() => setShowGrantModal(true)}
+            className="btn-primary text-sm"
+          >
+            + Ajouter Premium
+          </button>
+        </div>
+
+        {isLoading ? (
+          <div className="flex justify-center py-8">
+            <Loader2 className="w-6 h-6 animate-spin" />
+          </div>
+        ) : premiumUsers.length === 0 ? (
+          <p className="text-muted-foreground text-center py-8">Aucun utilisateur premium</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-white/10">
+                  <th className="text-left py-2 px-2 text-sm text-muted-foreground">Utilisateur</th>
+                  <th className="text-left py-2 px-2 text-sm text-muted-foreground">Type</th>
+                  <th className="text-left py-2 px-2 text-sm text-muted-foreground">Depuis</th>
+                  <th className="text-left py-2 px-2 text-sm text-muted-foreground">Expire</th>
+                  <th className="text-right py-2 px-2 text-sm text-muted-foreground">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {premiumUsers.map((user) => (
+                  <tr key={user.id} className="border-b border-white/5 hover:bg-white/5">
+                    <td className="py-3 px-2">
+                      <div>
+                        <p className="font-semibold">{user.username}</p>
+                        <p className="text-xs text-muted-foreground">{user.email}</p>
+                      </div>
+                    </td>
+                    <td className="py-3 px-2">
+                      {user.is_admin ? (
+                        <span className="px-2 py-1 rounded-full text-xs bg-purple-500/20 text-purple-400">
+                          Admin
+                        </span>
+                      ) : (
+                        <span className="px-2 py-1 rounded-full text-xs bg-yellow-500/20 text-yellow-400">
+                          Premium
+                        </span>
+                      )}
+                    </td>
+                    <td className="py-3 px-2 text-sm text-muted-foreground">
+                      {user.premium_since
+                        ? new Date(user.premium_since).toLocaleDateString("fr-FR")
+                        : "-"}
+                    </td>
+                    <td className="py-3 px-2 text-sm">
+                      {user.premium_expires ? (
+                        <span className="text-warning">
+                          {new Date(user.premium_expires).toLocaleDateString("fr-FR")}
+                        </span>
+                      ) : (
+                        <span className="text-profit">A vie</span>
+                      )}
+                    </td>
+                    <td className="py-3 px-2 text-right">
+                      {!user.is_admin && (
+                        <button
+                          onClick={() => revokePremium(user.id)}
+                          disabled={actionLoading === user.id}
+                          className="p-1.5 rounded-lg bg-loss/20 text-loss hover:bg-loss/30"
+                        >
+                          {actionLoading === user.id ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <XCircle className="w-4 h-4" />
+                          )}
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* Premium Requests */}
+      <div className="glass-card p-6">
+        <h3 className="font-semibold mb-4 flex items-center gap-2">
+          <MessageSquare className="w-5 h-5 text-primary" />
+          Demandes Premium
+        </h3>
+
+        {/* Filters */}
+        <div className="flex gap-2 mb-4">
+          {["all", "pending", "approved", "rejected"].map((s) => (
+            <button
+              key={s}
+              onClick={() => setStatus(s)}
+              className={cn(
+                "px-3 py-1.5 rounded-lg text-sm capitalize",
+                status === s ? "bg-primary text-white" : "bg-white/5 hover:bg-white/10"
+              )}
+            >
+              {s === "all" ? "Toutes" : s === "pending" ? "En attente" : s === "approved" ? "Approuvees" : "Rejetees"}
+            </button>
+          ))}
+        </div>
+
+        {requests.length === 0 ? (
+          <p className="text-muted-foreground text-center py-8">Aucune demande</p>
+        ) : (
+          <div className="space-y-3">
+            {requests.map((req) => (
+              <div key={req.id} className="p-4 bg-white/5 rounded-lg">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="font-semibold">{req.username || req.email}</span>
+                      <span
+                        className={cn(
+                          "px-2 py-0.5 rounded text-xs",
+                          req.status === "pending"
+                            ? "bg-warning/20 text-warning"
+                            : req.status === "approved"
+                            ? "bg-profit/20 text-profit"
+                            : "bg-loss/20 text-loss"
+                        )}
+                      >
+                        {req.status === "pending" ? "En attente" : req.status === "approved" ? "Approuve" : "Rejete"}
+                      </span>
+                    </div>
+                    <p className="text-sm p-2 bg-white/5 rounded">{req.message}</p>
+                    <p className="text-xs text-muted-foreground mt-2">
+                      {new Date(req.created_at).toLocaleString("fr-FR")}
+                    </p>
+                  </div>
+
+                  {req.status === "pending" && (
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => {
+                          setGrantUserId(req.user_id);
+                          setShowGrantModal(true);
+                          processRequest(req.id, "approved");
+                        }}
+                        disabled={actionLoading === req.id}
+                        className="p-2 rounded-lg bg-profit/20 text-profit hover:bg-profit/30"
+                        title="Approuver et accorder Premium"
+                      >
+                        {actionLoading === req.id ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <CheckCircle className="w-4 h-4" />
+                        )}
+                      </button>
+                      <button
+                        onClick={() => processRequest(req.id, "rejected")}
+                        disabled={actionLoading === req.id}
+                        className="p-2 rounded-lg bg-loss/20 text-loss hover:bg-loss/30"
+                        title="Rejeter"
+                      >
+                        <XCircle className="w-4 h-4" />
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Grant Premium Modal */}
+      {showGrantModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="glass-card p-6 w-full max-w-md mx-4"
+          >
+            <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+              <Crown className="w-5 h-5 text-yellow-400" />
+              Accorder Premium
+            </h3>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm text-muted-foreground mb-2">ID Utilisateur</label>
+                <input
+                  type="number"
+                  value={grantUserId || ""}
+                  onChange={(e) => setGrantUserId(parseInt(e.target.value) || null)}
+                  className="w-full px-4 py-2 rounded-lg bg-white/5 border border-white/10"
+                  placeholder="ID de l'utilisateur"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm text-muted-foreground mb-2">Duree (jours)</label>
+                <input
+                  type="number"
+                  value={grantDays}
+                  onChange={(e) => setGrantDays(e.target.value)}
+                  className="w-full px-4 py-2 rounded-lg bg-white/5 border border-white/10"
+                  placeholder="Vide = a vie"
+                />
+                <p className="text-xs text-muted-foreground mt-1">Laissez vide pour un acces a vie</p>
+              </div>
+
+              <div className="flex gap-2">
+                <button
+                  onClick={() => {
+                    setShowGrantModal(false);
+                    setGrantUserId(null);
+                    setGrantDays("");
+                  }}
+                  className="flex-1 px-4 py-2 rounded-lg bg-white/5 hover:bg-white/10"
+                >
+                  Annuler
+                </button>
+                <button
+                  onClick={grantPremium}
+                  disabled={!grantUserId || actionLoading !== null}
+                  className="flex-1 btn-primary flex items-center justify-center gap-2"
+                >
+                  {actionLoading ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <>
+                      <Crown className="w-4 h-4" />
+                      Accorder
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      )}
     </div>
   );
 }

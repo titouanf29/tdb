@@ -167,6 +167,60 @@ async def init_web_tables():
         except:
             pass  # Column already exists
 
+        # Add is_premium column to web_users if not exists
+        try:
+            await db.execute("ALTER TABLE web_users ADD COLUMN is_premium INTEGER DEFAULT 0")
+        except:
+            pass  # Column already exists
+
+        # Add premium_since column to web_users if not exists
+        try:
+            await db.execute("ALTER TABLE web_users ADD COLUMN premium_since TEXT")
+        except:
+            pass  # Column already exists
+
+        # Add premium_expires column to web_users if not exists
+        try:
+            await db.execute("ALTER TABLE web_users ADD COLUMN premium_expires TEXT")
+        except:
+            pass  # Column already exists
+
+        # Premium contact requests table
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS premium_requests (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                message TEXT,
+                status TEXT DEFAULT 'pending',
+                admin_response TEXT,
+                created_at TEXT NOT NULL,
+                processed_at TEXT,
+                processed_by INTEGER,
+                FOREIGN KEY (user_id) REFERENCES web_users(id),
+                FOREIGN KEY (processed_by) REFERENCES web_users(id)
+            )
+        """)
+
+        # Economic calendar events with actual results
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS economic_events (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                event_key TEXT UNIQUE NOT NULL,
+                date TEXT NOT NULL,
+                time TEXT,
+                event TEXT NOT NULL,
+                country TEXT,
+                importance TEXT,
+                previous TEXT,
+                forecast TEXT,
+                actual TEXT,
+                impact TEXT,
+                summary TEXT,
+                market_reaction TEXT,
+                updated_at TEXT
+            )
+        """)
+
         await db.commit()
         _initialized = True
 
