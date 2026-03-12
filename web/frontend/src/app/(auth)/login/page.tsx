@@ -39,10 +39,10 @@ export default function LoginPage() {
             <TrendingUp className="w-8 h-8 text-primary" />
           </div>
           <h1 className="text-2xl font-bold">
-            Bienvenue sur <span className="gradient-text">TDB</span>
+            Bienvenue sur <span className="gradient-text">CaptenTrading</span>
           </h1>
           <p className="text-muted-foreground mt-2">
-            Connectez-vous pour acceder a votre espace trading
+            Connectez-vous pour acceder a votre espace de formation
           </p>
         </div>
 
@@ -121,6 +121,8 @@ export default function LoginPage() {
       {/* Footer */}
       <p className="text-center text-xs text-muted-foreground mt-4">
         Paper Trading uniquement - Aucun risque financier reel
+        <br />
+        <span className="text-primary">CaptenTrading</span> par CaptenQwark
       </p>
     </div>
   );

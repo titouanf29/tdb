@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Eye, EyeOff, TrendingUp, Loader2, Check } from "lucide-react";
+import { Eye, EyeOff, TrendingUp, Loader2, Check, AlertTriangle } from "lucide-react";
 import { useAuth } from "@/lib/AuthContext";
 
 export default function RegisterPage() {
@@ -16,6 +16,8 @@ export default function RegisterPage() {
     confirmPassword: "",
   });
   const [showPassword, setShowPassword] = useState(false);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [showTerms, setShowTerms] = useState(false);
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
@@ -34,6 +36,11 @@ export default function RegisterPage() {
 
     if (formData.password.length < 6) {
       setError("Le mot de passe doit contenir au moins 6 caracteres");
+      return;
+    }
+
+    if (!acceptedTerms) {
+      setError("Vous devez accepter les conditions d'utilisation");
       return;
     }
 
@@ -63,10 +70,10 @@ export default function RegisterPage() {
             <TrendingUp className="w-8 h-8 text-primary" />
           </div>
           <h1 className="text-2xl font-bold">
-            Rejoignez <span className="gradient-text">TDB</span>
+            Rejoignez <span className="gradient-text">CaptenTrading</span>
           </h1>
           <p className="text-muted-foreground mt-2">
-            Creez votre compte et commencez a trader
+            Creez votre compte et apprenez le trading
           </p>
         </div>
 
@@ -171,9 +178,43 @@ export default function RegisterPage() {
             />
           </div>
 
+          {/* Terms acceptance */}
+          <div className="space-y-3">
+            <label className="flex items-start gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={acceptedTerms}
+                onChange={(e) => setAcceptedTerms(e.target.checked)}
+                className="mt-1 w-4 h-4 rounded border-white/20 bg-white/5 text-primary focus:ring-primary"
+              />
+              <span className="text-sm text-muted-foreground">
+                J'accepte les{" "}
+                <button
+                  type="button"
+                  onClick={() => setShowTerms(true)}
+                  className="text-primary hover:underline"
+                >
+                  conditions d'utilisation
+                </button>
+                , la politique de confidentialite et le disclaimer financier.
+              </span>
+            </label>
+
+            {/* Legal notice */}
+            <div className="p-3 rounded-lg bg-yellow-500/10 border border-yellow-500/20">
+              <div className="flex items-start gap-2">
+                <AlertTriangle className="w-4 h-4 text-yellow-400 mt-0.5 shrink-0" />
+                <p className="text-xs text-yellow-400/90">
+                  Ce site est a but educatif uniquement. CaptenTrading ne fournit pas de conseils financiers.
+                  Les utilisateurs sont responsables de leurs propres decisions d'investissement.
+                </p>
+              </div>
+            </div>
+          </div>
+
           <button
             type="submit"
-            disabled={isLoading}
+            disabled={isLoading || !acceptedTerms}
             className="w-full py-3 px-4 rounded-xl bg-primary hover:bg-primary/90 text-white font-medium transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
           >
             {isLoading ? (
@@ -186,6 +227,92 @@ export default function RegisterPage() {
             )}
           </button>
         </form>
+
+        {/* Terms Modal */}
+        {showTerms && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80">
+            <div className="bg-background border border-white/10 rounded-2xl max-w-2xl w-full max-h-[80vh] overflow-hidden">
+              <div className="p-6 border-b border-white/10">
+                <h2 className="text-xl font-bold">Conditions d'utilisation - CaptenTrading</h2>
+              </div>
+              <div className="p-6 overflow-y-auto max-h-[60vh] space-y-4 text-sm text-muted-foreground">
+                <div>
+                  <h3 className="font-semibold text-foreground mb-2">1. Disclaimer Financier</h3>
+                  <p>
+                    CaptenTrading est une plateforme educative. Les informations, analyses et outils fournis
+                    sont destines uniquement a des fins d'apprentissage et ne constituent en aucun cas des
+                    conseils financiers, d'investissement ou de trading.
+                  </p>
+                </div>
+
+                <div>
+                  <h3 className="font-semibold text-foreground mb-2">2. Responsabilite de l'utilisateur</h3>
+                  <p>
+                    L'utilisateur est seul responsable de ses decisions d'investissement. Toute operation
+                    realisee sur les marches financiers reels comporte des risques de perte en capital.
+                    CaptenTrading ne saurait etre tenu responsable des pertes financieres.
+                  </p>
+                </div>
+
+                <div>
+                  <h3 className="font-semibold text-foreground mb-2">3. Paper Trading</h3>
+                  <p>
+                    Le portefeuille virtuel utilise de l'argent fictif. Les performances realisees en
+                    paper trading ne garantissent pas les memes resultats sur les marches reels.
+                  </p>
+                </div>
+
+                <div>
+                  <h3 className="font-semibold text-foreground mb-2">4. Regles de la communaute</h3>
+                  <ul className="list-disc pl-5 space-y-1">
+                    <li>Respecter les autres membres de la communaute</li>
+                    <li>Ne pas partager de fausses informations ou de manipulation</li>
+                    <li>Ne pas faire de spam ou de publicite non autorisee</li>
+                    <li>Signaler tout comportement problematique aux administrateurs</li>
+                  </ul>
+                </div>
+
+                <div>
+                  <h3 className="font-semibold text-foreground mb-2">5. Donnees personnelles</h3>
+                  <p>
+                    Vos donnees personnelles sont utilisees uniquement pour le fonctionnement de la
+                    plateforme. Nous ne vendons pas vos donnees a des tiers.
+                  </p>
+                </div>
+
+                <div>
+                  <h3 className="font-semibold text-foreground mb-2">6. Contact</h3>
+                  <p>
+                    Pour toute question, utilisez la section "Communaute" puis "Contacter Admin".
+                  </p>
+                </div>
+
+                <div className="pt-4 border-t border-white/10">
+                  <p className="text-xs">
+                    Fait par <span className="text-primary font-semibold">CaptenQwark</span> - CaptenTrading
+                  </p>
+                </div>
+              </div>
+              <div className="p-6 border-t border-white/10 flex justify-end gap-3">
+                <button
+                  onClick={() => setShowTerms(false)}
+                  className="px-4 py-2 rounded-lg bg-white/5 hover:bg-white/10 transition-colors"
+                >
+                  Fermer
+                </button>
+                <button
+                  onClick={() => {
+                    setAcceptedTerms(true);
+                    setShowTerms(false);
+                  }}
+                  className="px-4 py-2 rounded-lg bg-primary hover:bg-primary/90 text-white transition-colors"
+                >
+                  Accepter
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Login link */}
         <p className="text-center text-sm text-muted-foreground mt-6">
@@ -206,6 +333,8 @@ export default function RegisterPage() {
       {/* Footer */}
       <p className="text-center text-xs text-muted-foreground mt-4">
         Paper Trading uniquement - Aucun risque financier reel
+        <br />
+        <span className="text-primary">CaptenTrading</span> par CaptenQwark
       </p>
     </div>
   );

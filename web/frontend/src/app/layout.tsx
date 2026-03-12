@@ -9,8 +9,8 @@ import { AppLayout } from "@/components/layout/AppLayout";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "TDB - Trading Bot Dashboard",
-  description: "Bot de trading virtuel avec analyse IA",
+  title: "CaptenTrading - Trading Education Platform",
+  description: "Plateforme educative de trading par CaptenQwark - Analyses, formations et communaute",
   icons: {
     icon: "/favicon.ico",
   },
