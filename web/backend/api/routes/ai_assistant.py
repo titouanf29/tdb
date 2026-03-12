@@ -360,33 +360,82 @@ async def get_market_news(current_user: dict = Depends(get_current_user)):
 
     api_key = get_groq_api_key()
 
-    # Fetch news from major indices
+    # Fetch news from major indices and popular stocks
     news_items = []
-    symbols = ["^GSPC", "^DJI", "^IXIC", "GC=F", "CL=F", "BTC-USD"]
+    symbols = ["^GSPC", "^DJI", "^IXIC", "GC=F", "CL=F", "BTC-USD", "AAPL", "MSFT", "NVDA", "TSLA"]
+    symbol_names = {
+        "^GSPC": "S&P 500",
+        "^DJI": "Dow Jones",
+        "^IXIC": "NASDAQ",
+        "GC=F": "Or",
+        "CL=F": "Petrole",
+        "BTC-USD": "Bitcoin",
+        "AAPL": "Apple",
+        "MSFT": "Microsoft",
+        "NVDA": "Nvidia",
+        "TSLA": "Tesla"
+    }
 
     for symbol in symbols:
         try:
             ticker = yf.Ticker(symbol)
-            news = ticker.news[:2] if hasattr(ticker, 'news') else []
+            # Try different methods to get news
+            news = []
+            if hasattr(ticker, 'news') and ticker.news:
+                news = ticker.news[:3]
+
             for item in news:
-                news_items.append({
-                    "title": item.get("title", ""),
-                    "publisher": item.get("publisher", ""),
-                    "link": item.get("link", ""),
-                    "timestamp": item.get("providerPublishTime", 0),
-                    "related": symbol
-                })
-        except:
+                if item.get("title"):
+                    news_items.append({
+                        "title": item.get("title", ""),
+                        "publisher": item.get("publisher", "Yahoo Finance"),
+                        "link": item.get("link", ""),
+                        "timestamp": item.get("providerPublishTime", 0),
+                        "related": symbol_names.get(symbol, symbol)
+                    })
+        except Exception as e:
+            print(f"[NEWS] Error fetching news for {symbol}: {e}")
             continue
 
-    # Sort by timestamp and get latest 10
-    news_items.sort(key=lambda x: x.get("timestamp", 0), reverse=True)
-    news_items = news_items[:10]
+    # Remove duplicates by title
+    seen_titles = set()
+    unique_news = []
+    for item in news_items:
+        if item["title"] not in seen_titles:
+            seen_titles.add(item["title"])
+            unique_news.append(item)
+    news_items = unique_news
 
-    # Generate AI summary if we have news and API key
+    # Sort by timestamp and get latest 12
+    news_items.sort(key=lambda x: x.get("timestamp", 0), reverse=True)
+    news_items = news_items[:12]
+
+    # Generate AI summary
     summary = None
-    if news_items and api_key:
-        news_text = "\n".join([f"- {item['title']} ({item['publisher']})" for item in news_items[:8]])
+    if api_key:
+        # Build context for AI - either from news or market data
+        if news_items:
+            news_text = "\n".join([f"- {item['title']} (Source: {item['publisher']}, Marche: {item['related']})" for item in news_items[:10]])
+            ai_prompt = f"Voici les dernieres actualites economiques et financieres:\n\n{news_text}\n\nFais un resume en 3-4 points cles des tendances importantes pour les marches financiers aujourd'hui."
+        else:
+            # No news available, get market data instead
+            market_summary = []
+            for symbol in ["^GSPC", "^DJI", "BTC-USD", "GC=F"]:
+                try:
+                    ticker = yf.Ticker(symbol)
+                    hist = ticker.history(period="2d")
+                    if len(hist) >= 2:
+                        current = hist['Close'].iloc[-1]
+                        prev = hist['Close'].iloc[-2]
+                        change = ((current - prev) / prev) * 100
+                        market_summary.append(f"- {symbol_names.get(symbol, symbol)}: {change:+.2f}%")
+                except:
+                    continue
+
+            if market_summary:
+                ai_prompt = f"Voici les mouvements des marches aujourd'hui:\n\n" + "\n".join(market_summary) + "\n\nAnalyse ces mouvements et donne un resume de la situation des marches en 3-4 points cles."
+            else:
+                ai_prompt = "Donne un apercu general des marches financiers mondiaux en 3-4 points cles, incluant les tendances recentes des indices, crypto et matieres premieres."
 
         try:
             async with httpx.AsyncClient(timeout=30.0) as client:
@@ -399,22 +448,25 @@ async def get_market_news(current_user: dict = Depends(get_current_user)):
                     json={
                         "model": MODEL,
                         "messages": [
-                            {"role": "system", "content": "Tu es un analyste financier. Résume les actualités économiques de manière concise et pertinente pour les traders. Réponds en français."},
-                            {"role": "user", "content": f"Voici les dernières actualités économiques. Fais un résumé en 3-4 points clés des tendances importantes pour les marchés:\n\n{news_text}"}
+                            {"role": "system", "content": "Tu es un analyste financier senior. Resume les informations de marche de maniere concise et actionnable pour les traders. Reponds en francais. Sois factuel et precis."},
+                            {"role": "user", "content": ai_prompt}
                         ],
                         "temperature": 0.3,
-                        "max_tokens": 500
+                        "max_tokens": 600
                     }
                 )
 
                 if response.status_code == 200:
                     data = response.json()
                     summary = data["choices"][0]["message"]["content"]
-        except:
+                else:
+                    print(f"[NEWS] AI API error: {response.status_code} - {response.text}")
+        except Exception as e:
+            print(f"[NEWS] Error generating summary: {e}")
             summary = None
 
     return {
         "news": news_items,
-        "summary": summary,
+        "summary": summary or "Impossible de generer le resume. Verifiez la configuration de l'API.",
         "generated_at": datetime.utcnow().isoformat()
     }
