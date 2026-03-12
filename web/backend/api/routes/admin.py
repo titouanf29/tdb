@@ -27,9 +27,9 @@ if env_admins:
 
 async def get_admin_user(current_user: dict = Depends(get_current_user)):
     """Dependency to check if current user is an admin"""
-    user_email = current_user.get("email", "")
+    user_email = (current_user.get("email") or "").lower()
 
-    if user_email not in ADMIN_WHITELIST:
+    if user_email not in [e.lower() for e in ADMIN_WHITELIST]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Access denied. Admin privileges required."
@@ -65,8 +65,8 @@ class WalletAdjustment(BaseModel):
 @router.get("/check")
 async def check_admin_status(current_user: dict = Depends(get_current_user)):
     """Check if current user has admin privileges"""
-    user_email = current_user.get("email", "")
-    is_admin = user_email in ADMIN_WHITELIST
+    user_email = (current_user.get("email") or "").lower()
+    is_admin = user_email in [e.lower() for e in ADMIN_WHITELIST]
 
     return {
         "is_admin": is_admin,

@@ -50,7 +50,7 @@ export function BroadcastBanner() {
     // Fetch broadcasts
     const fetchBroadcasts = async () => {
       try {
-        const token = localStorage.getItem("token");
+        const token = localStorage.getItem("tdb_token");
         if (!token) return;
 
         const response = await fetch("/api/admin/broadcasts/public?limit=5", {
