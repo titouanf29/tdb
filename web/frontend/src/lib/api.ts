@@ -535,6 +535,33 @@ export const adminAPI = {
     fetchAPI<{ success: boolean; message: string }>(`/api/admin/positions/${positionId}/close`, {
       method: "POST",
     }),
+
+  // Support Tickets
+  getTickets: (status = "all", page = 1, limit = 20) =>
+    fetchAPI<AdminTicketsResponse>(`/api/admin/tickets?status=${status}&page=${page}&limit=${limit}`),
+
+  getTicketStats: () =>
+    fetchAPI<AdminTicketStats>("/api/admin/tickets/stats"),
+
+  getTicketDetail: (ticketId: number) =>
+    fetchAPI<AdminTicketDetail>(`/api/admin/tickets/${ticketId}`),
+
+  replyToTicket: (ticketId: number, message: string) =>
+    fetchAPI<{ success: boolean }>(`/api/admin/tickets/${ticketId}/reply`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message }),
+    }),
+
+  closeTicket: (ticketId: number) =>
+    fetchAPI<{ success: boolean }>(`/api/admin/tickets/${ticketId}/close`, {
+      method: "POST",
+    }),
+
+  reopenTicket: (ticketId: number) =>
+    fetchAPI<{ success: boolean }>(`/api/admin/tickets/${ticketId}/reopen`, {
+      method: "POST",
+    }),
 };
 
 // Admin Types
@@ -560,6 +587,10 @@ export interface AdminDashboard {
     };
     favorites: {
       total: number;
+    };
+    tickets?: {
+      open: number;
+      awaiting_response: number;
     };
   };
   recent_users: AdminUser[];
@@ -676,6 +707,47 @@ export interface AdminPositionsResponse {
   total: number;
   page: number;
   limit: number;
+}
+
+// Admin Tickets Types
+export interface AdminTicket {
+  id: number;
+  user_id: number;
+  subject: string;
+  status: string;
+  created_at: string;
+  updated_at: string;
+  email?: string;
+  username?: string;
+  message_count?: number;
+  last_message?: string;
+  last_from_admin?: boolean;
+}
+
+export interface AdminTicketsResponse {
+  tickets: AdminTicket[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
+export interface AdminTicketStats {
+  open: number;
+  total: number;
+  awaiting_response: number;
+}
+
+export interface AdminTicketDetail {
+  ticket: AdminTicket;
+  messages: {
+    id: number;
+    ticket_id: number;
+    user_id: number;
+    username: string;
+    message: string;
+    is_admin: boolean;
+    created_at: string;
+  }[];
 }
 
 // Trading Tools API

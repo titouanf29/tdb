@@ -166,6 +166,16 @@ async def get_admin_dashboard(admin: dict = Depends(get_admin_user)):
     # Favorites stats
     total_favorites = await execute_query("SELECT COUNT(*) as count FROM web_favorites")
 
+    # Support tickets stats
+    open_tickets = await execute_query(
+        "SELECT COUNT(*) as count FROM admin_tickets WHERE status = 'open'"
+    )
+    awaiting_response = await execute_query("""
+        SELECT COUNT(*) as count FROM admin_tickets t
+        WHERE t.status = 'open'
+        AND (SELECT is_admin FROM admin_ticket_messages WHERE ticket_id = t.id ORDER BY created_at DESC LIMIT 1) = 0
+    """)
+
     # Recent activity
     recent_users = await execute_query("""
         SELECT id, email, username, created_at, last_login, is_active
@@ -204,6 +214,10 @@ async def get_admin_dashboard(admin: dict = Depends(get_admin_user)):
             },
             "favorites": {
                 "total": total_favorites[0]["count"] if total_favorites else 0,
+            },
+            "tickets": {
+                "open": open_tickets[0]["count"] if open_tickets else 0,
+                "awaiting_response": awaiting_response[0]["count"] if awaiting_response else 0,
             }
         },
         "recent_users": recent_users or [],
@@ -799,3 +813,150 @@ async def process_asset_request(data: AssetRequestAction, admin: dict = Depends(
     )
 
     return {"success": True, "message": f"Request {data.status}"}
+
+
+# ============== SUPPORT TICKETS ==============
+
+@router.get("/tickets")
+async def get_admin_tickets(
+    status: str = "all",
+    page: int = 1,
+    limit: int = 20,
+    admin: dict = Depends(get_admin_user)
+):
+    """Get all support tickets (admin)"""
+    offset = (page - 1) * limit
+
+    if status == "all":
+        tickets = await execute_query("""
+            SELECT t.*, u.email, u.username,
+                   (SELECT COUNT(*) FROM admin_ticket_messages WHERE ticket_id = t.id) as message_count,
+                   (SELECT message FROM admin_ticket_messages WHERE ticket_id = t.id ORDER BY created_at DESC LIMIT 1) as last_message,
+                   (SELECT is_admin FROM admin_ticket_messages WHERE ticket_id = t.id ORDER BY created_at DESC LIMIT 1) as last_from_admin
+            FROM admin_tickets t
+            LEFT JOIN web_users u ON t.user_id = u.id
+            ORDER BY t.updated_at DESC
+            LIMIT ? OFFSET ?
+        """, (limit, offset))
+        total = await execute_query("SELECT COUNT(*) as count FROM admin_tickets")
+    else:
+        tickets = await execute_query("""
+            SELECT t.*, u.email, u.username,
+                   (SELECT COUNT(*) FROM admin_ticket_messages WHERE ticket_id = t.id) as message_count,
+                   (SELECT message FROM admin_ticket_messages WHERE ticket_id = t.id ORDER BY created_at DESC LIMIT 1) as last_message,
+                   (SELECT is_admin FROM admin_ticket_messages WHERE ticket_id = t.id ORDER BY created_at DESC LIMIT 1) as last_from_admin
+            FROM admin_tickets t
+            LEFT JOIN web_users u ON t.user_id = u.id
+            WHERE t.status = ?
+            ORDER BY t.updated_at DESC
+            LIMIT ? OFFSET ?
+        """, (status, limit, offset))
+        total = await execute_query(
+            "SELECT COUNT(*) as count FROM admin_tickets WHERE status = ?",
+            (status,)
+        )
+
+    return {
+        "tickets": tickets or [],
+        "total": total[0]["count"] if total else 0,
+        "page": page,
+        "limit": limit
+    }
+
+
+@router.get("/tickets/stats")
+async def get_ticket_stats(admin: dict = Depends(get_admin_user)):
+    """Get ticket statistics for admin dashboard"""
+    open_tickets = await execute_query(
+        "SELECT COUNT(*) as count FROM admin_tickets WHERE status = 'open'"
+    )
+    total_tickets = await execute_query(
+        "SELECT COUNT(*) as count FROM admin_tickets"
+    )
+    # Tickets awaiting admin response (last message from user)
+    awaiting_response = await execute_query("""
+        SELECT COUNT(*) as count FROM admin_tickets t
+        WHERE t.status = 'open'
+        AND (SELECT is_admin FROM admin_ticket_messages WHERE ticket_id = t.id ORDER BY created_at DESC LIMIT 1) = 0
+    """)
+
+    return {
+        "open": open_tickets[0]["count"] if open_tickets else 0,
+        "total": total_tickets[0]["count"] if total_tickets else 0,
+        "awaiting_response": awaiting_response[0]["count"] if awaiting_response else 0
+    }
+
+
+@router.get("/tickets/{ticket_id}")
+async def get_ticket_detail(ticket_id: int, admin: dict = Depends(get_admin_user)):
+    """Get ticket detail with messages"""
+    ticket = await execute_query("""
+        SELECT t.*, u.email, u.username
+        FROM admin_tickets t
+        LEFT JOIN web_users u ON t.user_id = u.id
+        WHERE t.id = ?
+    """, (ticket_id,))
+
+    if not ticket:
+        raise HTTPException(status_code=404, detail="Ticket not found")
+
+    messages = await execute_query("""
+        SELECT m.*, u.username
+        FROM admin_ticket_messages m
+        LEFT JOIN web_users u ON m.user_id = u.id
+        WHERE m.ticket_id = ?
+        ORDER BY m.created_at ASC
+    """, (ticket_id,))
+
+    return {
+        "ticket": ticket[0],
+        "messages": messages or []
+    }
+
+
+class TicketReplyRequest(BaseModel):
+    message: str
+
+
+@router.post("/tickets/{ticket_id}/reply")
+async def admin_reply_ticket(ticket_id: int, data: TicketReplyRequest, admin: dict = Depends(get_admin_user)):
+    """Admin reply to a ticket"""
+    ticket = await execute_query("SELECT * FROM admin_tickets WHERE id = ?", (ticket_id,))
+    if not ticket:
+        raise HTTPException(status_code=404, detail="Ticket not found")
+
+    await execute_write("""
+        INSERT INTO admin_ticket_messages (ticket_id, user_id, message, is_admin, created_at)
+        VALUES (?, ?, ?, 1, datetime('now'))
+    """, (ticket_id, admin["id"], data.message))
+
+    await execute_write(
+        "UPDATE admin_tickets SET updated_at = datetime('now') WHERE id = ?",
+        (ticket_id,)
+    )
+
+    await log_admin_action(admin["id"], "ticket_reply", f"Replied to ticket {ticket_id}")
+
+    return {"success": True}
+
+
+@router.post("/tickets/{ticket_id}/close")
+async def admin_close_ticket(ticket_id: int, admin: dict = Depends(get_admin_user)):
+    """Close a ticket"""
+    await execute_write(
+        "UPDATE admin_tickets SET status = 'closed', updated_at = datetime('now') WHERE id = ?",
+        (ticket_id,)
+    )
+    await log_admin_action(admin["id"], "ticket_close", f"Closed ticket {ticket_id}")
+    return {"success": True}
+
+
+@router.post("/tickets/{ticket_id}/reopen")
+async def admin_reopen_ticket(ticket_id: int, admin: dict = Depends(get_admin_user)):
+    """Reopen a ticket"""
+    await execute_write(
+        "UPDATE admin_tickets SET status = 'open', updated_at = datetime('now') WHERE id = ?",
+        (ticket_id,)
+    )
+    await log_admin_action(admin["id"], "ticket_reopen", f"Reopened ticket {ticket_id}")
+    return {"success": True}

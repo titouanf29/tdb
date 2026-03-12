@@ -36,6 +36,8 @@ import {
   Brain,
   Lock,
   Crown,
+  Mail,
+  MessageCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -48,10 +50,12 @@ import {
   AdminBroadcast,
   PremiumRequest,
   PremiumUser,
+  AdminTicket,
+  AdminTicketDetail,
 } from "@/lib/api";
 import { useFormatCurrency } from "@/lib/SettingsContext";
 
-type TabType = "dashboard" | "users" | "positions" | "premium" | "broadcasts" | "asset-requests" | "analytics" | "audit" | "settings";
+type TabType = "dashboard" | "users" | "positions" | "tickets" | "premium" | "broadcasts" | "asset-requests" | "analytics" | "audit" | "settings";
 
 export default function AdminPage() {
   const router = useRouter();
@@ -105,10 +109,13 @@ export default function AdminPage() {
     );
   }
 
+  const ticketCount = dashboard?.stats?.tickets?.awaiting_response || 0;
+
   const tabs = [
     { id: "dashboard", label: "Dashboard", icon: Activity },
     { id: "users", label: "Utilisateurs", icon: Users },
     { id: "positions", label: "Positions", icon: TrendingUp },
+    { id: "tickets", label: "Tickets", icon: Mail, badge: ticketCount > 0 ? ticketCount : undefined },
     { id: "premium", label: "Premium", icon: Crown },
     { id: "broadcasts", label: "Broadcasts", icon: Megaphone },
     { id: "asset-requests", label: "Demandes Actifs", icon: Database },
@@ -153,7 +160,7 @@ export default function AdminPage() {
             key={tab.id}
             onClick={() => setActiveTab(tab.id as TabType)}
             className={cn(
-              "flex items-center gap-2 px-4 py-2 rounded-lg whitespace-nowrap transition-all",
+              "flex items-center gap-2 px-4 py-2 rounded-lg whitespace-nowrap transition-all relative",
               activeTab === tab.id
                 ? "bg-primary text-white"
                 : "bg-white/5 hover:bg-white/10"
@@ -161,6 +168,11 @@ export default function AdminPage() {
           >
             <tab.icon className="w-4 h-4" />
             {tab.label}
+            {tab.badge && (
+              <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-loss text-white text-xs flex items-center justify-center animate-pulse">
+                {tab.badge}
+              </span>
+            )}
           </button>
         ))}
       </div>
@@ -171,6 +183,7 @@ export default function AdminPage() {
       )}
       {activeTab === "users" && <UsersTab formatCurrency={formatCurrency} />}
       {activeTab === "positions" && <PositionsTab formatCurrency={formatCurrency} />}
+      {activeTab === "tickets" && <TicketsTab />}
       {activeTab === "premium" && <PremiumTab />}
       {activeTab === "broadcasts" && <BroadcastsTab />}
       {activeTab === "asset-requests" && <AssetRequestsTab />}
@@ -231,6 +244,14 @@ function DashboardTab({
           icon={Brain}
           color="text-pink-400"
         />
+        {stats.tickets && (
+          <StatCard
+            title="Tickets Ouverts"
+            value={stats.tickets.open}
+            icon={Mail}
+            color={stats.tickets.awaiting_response > 0 ? "text-warning" : "text-primary"}
+          />
+        )}
       </div>
 
       {/* Volume & Balance */}
@@ -766,6 +787,275 @@ function PositionsTab({ formatCurrency }: { formatCurrency: (v: number) => strin
                 ))}
               </tbody>
             </table>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// Tickets Tab
+function TicketsTab() {
+  const [tickets, setTickets] = useState<AdminTicket[]>([]);
+  const [total, setTotal] = useState(0);
+  const [status, setStatus] = useState("all");
+  const [page, setPage] = useState(1);
+  const [isLoading, setIsLoading] = useState(true);
+  const [selectedTicket, setSelectedTicket] = useState<AdminTicketDetail | null>(null);
+  const [replyMessage, setReplyMessage] = useState("");
+  const [isSending, setIsSending] = useState(false);
+
+  const loadTickets = async () => {
+    setIsLoading(true);
+    try {
+      const data = await adminAPI.getTickets(status, page, 20);
+      setTickets(data.tickets);
+      setTotal(data.total);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadTickets();
+  }, [status, page]);
+
+  const loadTicketDetail = async (ticketId: number) => {
+    try {
+      const data = await adminAPI.getTicketDetail(ticketId);
+      setSelectedTicket(data);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const sendReply = async () => {
+    if (!selectedTicket || !replyMessage.trim()) return;
+    setIsSending(true);
+    try {
+      await adminAPI.replyToTicket(selectedTicket.ticket.id, replyMessage);
+      setReplyMessage("");
+      loadTicketDetail(selectedTicket.ticket.id);
+      loadTickets();
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  const closeTicket = async (ticketId: number) => {
+    try {
+      await adminAPI.closeTicket(ticketId);
+      loadTickets();
+      if (selectedTicket?.ticket.id === ticketId) {
+        loadTicketDetail(ticketId);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const reopenTicket = async (ticketId: number) => {
+    try {
+      await adminAPI.reopenTicket(ticketId);
+      loadTickets();
+      if (selectedTicket?.ticket.id === ticketId) {
+        loadTicketDetail(ticketId);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const formatTime = (dateStr: string) => {
+    const date = new Date(dateStr);
+    const now = new Date();
+    const diff = now.getTime() - date.getTime();
+    const minutes = Math.floor(diff / 60000);
+    const hours = Math.floor(diff / 3600000);
+    const days = Math.floor(diff / 86400000);
+
+    if (minutes < 1) return "A l'instant";
+    if (minutes < 60) return `il y a ${minutes}min`;
+    if (hours < 24) return `il y a ${hours}h`;
+    if (days < 7) return `il y a ${days}j`;
+    return date.toLocaleDateString("fr-FR");
+  };
+
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      {/* Tickets List */}
+      <div className="lg:col-span-1 glass-card p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-semibold flex items-center gap-2">
+            <Mail className="w-5 h-5 text-primary" />
+            Tickets ({total})
+          </h3>
+          <button onClick={loadTickets} className="p-2 hover:bg-white/10 rounded-lg">
+            <RefreshCw className="w-4 h-4" />
+          </button>
+        </div>
+
+        {/* Status filter */}
+        <div className="flex gap-2 mb-4">
+          {["all", "open", "closed"].map((s) => (
+            <button
+              key={s}
+              onClick={() => setStatus(s)}
+              className={cn(
+                "px-3 py-1 rounded-lg text-sm transition-colors",
+                status === s
+                  ? "bg-primary text-white"
+                  : "bg-white/5 hover:bg-white/10"
+              )}
+            >
+              {s === "all" ? "Tous" : s === "open" ? "Ouverts" : "Fermes"}
+            </button>
+          ))}
+        </div>
+
+        {isLoading ? (
+          <div className="flex justify-center py-8">
+            <Loader2 className="w-6 h-6 animate-spin" />
+          </div>
+        ) : tickets.length === 0 ? (
+          <div className="text-center py-8 text-muted-foreground">
+            <Mail className="w-12 h-12 mx-auto mb-2 opacity-50" />
+            <p>Aucun ticket</p>
+          </div>
+        ) : (
+          <div className="space-y-2 max-h-[500px] overflow-y-auto">
+            {tickets.map((ticket) => (
+              <div
+                key={ticket.id}
+                onClick={() => loadTicketDetail(ticket.id)}
+                className={cn(
+                  "p-3 rounded-lg cursor-pointer transition-colors",
+                  selectedTicket?.ticket.id === ticket.id
+                    ? "bg-primary/20 border border-primary/50"
+                    : "bg-white/5 hover:bg-white/10",
+                  !ticket.last_from_admin && ticket.status === "open" && "border-l-4 border-l-warning"
+                )}
+              >
+                <div className="flex items-center justify-between mb-1">
+                  <span className="font-medium text-sm truncate">{ticket.subject}</span>
+                  <span
+                    className={cn(
+                      "px-2 py-0.5 rounded text-xs",
+                      ticket.status === "open"
+                        ? "bg-profit/20 text-profit"
+                        : "bg-white/10 text-muted-foreground"
+                    )}
+                  >
+                    {ticket.status === "open" ? "Ouvert" : "Ferme"}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <span>{ticket.username}</span>
+                  <span>{formatTime(ticket.updated_at)}</span>
+                </div>
+                {!ticket.last_from_admin && ticket.status === "open" && (
+                  <span className="text-xs text-warning flex items-center gap-1 mt-1">
+                    <AlertTriangle className="w-3 h-3" />
+                    En attente de reponse
+                  </span>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Ticket Detail */}
+      <div className="lg:col-span-2 glass-card p-6">
+        {selectedTicket ? (
+          <div className="h-full flex flex-col">
+            {/* Header */}
+            <div className="flex items-center justify-between mb-4 pb-4 border-b border-white/10">
+              <div>
+                <h3 className="font-semibold">{selectedTicket.ticket.subject}</h3>
+                <p className="text-sm text-muted-foreground">
+                  {selectedTicket.ticket.username} - {selectedTicket.ticket.email}
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                {selectedTicket.ticket.status === "open" ? (
+                  <button
+                    onClick={() => closeTicket(selectedTicket.ticket.id)}
+                    className="px-3 py-1 bg-loss/20 text-loss rounded-lg text-sm hover:bg-loss/30"
+                  >
+                    Fermer
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => reopenTicket(selectedTicket.ticket.id)}
+                    className="px-3 py-1 bg-profit/20 text-profit rounded-lg text-sm hover:bg-profit/30"
+                  >
+                    Rouvrir
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Messages */}
+            <div className="flex-1 overflow-y-auto space-y-3 mb-4 max-h-[400px]">
+              {selectedTicket.messages.map((msg) => (
+                <div
+                  key={msg.id}
+                  className={cn(
+                    "p-3 rounded-lg",
+                    msg.is_admin
+                      ? "bg-primary/20 border border-primary/30 ml-8"
+                      : "bg-white/5 mr-8"
+                  )}
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-medium flex items-center gap-2">
+                      {msg.is_admin && <Shield className="w-3 h-3 text-primary" />}
+                      {msg.username}
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                      {formatTime(msg.created_at)}
+                    </span>
+                  </div>
+                  <p className="text-sm whitespace-pre-wrap">{msg.message}</p>
+                </div>
+              ))}
+            </div>
+
+            {/* Reply form */}
+            {selectedTicket.ticket.status === "open" && (
+              <div className="flex gap-3 pt-4 border-t border-white/10">
+                <input
+                  type="text"
+                  value={replyMessage}
+                  onChange={(e) => setReplyMessage(e.target.value)}
+                  onKeyPress={(e) => e.key === "Enter" && sendReply()}
+                  placeholder="Votre reponse..."
+                  className="flex-1 input"
+                  disabled={isSending}
+                />
+                <button
+                  onClick={sendReply}
+                  disabled={!replyMessage.trim() || isSending}
+                  className="btn-primary px-6 disabled:opacity-50"
+                >
+                  {isSending ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Send className="w-4 h-4" />
+                  )}
+                </button>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="flex flex-col items-center justify-center h-full py-12 text-muted-foreground">
+            <MessageCircle className="w-16 h-16 mb-4 opacity-50" />
+            <p>Selectionnez un ticket pour voir les details</p>
           </div>
         )}
       </div>
