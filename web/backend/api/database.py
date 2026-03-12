@@ -11,6 +11,11 @@ DATABASE_PATH = Path(__file__).parent.parent.parent.parent / "trading_bot.db"
 _initialized = False
 
 
+async def init_db():
+    """Initialize the database (creates tables if needed via init_web_tables)"""
+    await init_web_tables()
+
+
 async def init_web_tables():
     """Initialize web-specific tables"""
     global _initialized
@@ -78,6 +83,27 @@ async def init_web_tables():
                 balance REAL DEFAULT 10000.0,
                 currency TEXT DEFAULT 'USD',
                 created_at TEXT NOT NULL
+            )
+        """)
+
+        # Positions table
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS positions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id TEXT NOT NULL,
+                symbol TEXT NOT NULL,
+                direction TEXT NOT NULL,
+                entry_price REAL NOT NULL,
+                quantity REAL NOT NULL,
+                amount REAL NOT NULL,
+                leverage INTEGER DEFAULT 1,
+                take_profit REAL,
+                stop_loss REAL,
+                status TEXT DEFAULT 'open',
+                exit_price REAL,
+                realized_pnl REAL,
+                created_at TEXT NOT NULL,
+                closed_at TEXT
             )
         """)
 
