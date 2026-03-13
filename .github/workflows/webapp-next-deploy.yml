@@ -1,0 +1,38 @@
+name: webapp-next-deploy
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'webapp-next/**'
+      - '.github/workflows/webapp-next-deploy.yml'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy on VPS via SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: ${{ secrets.VPS_PORT }}
+          script: |
+            set -euo pipefail
+
+            if [ ! -d /var/www/tdb/.git ]; then
+              echo "Repository missing at /var/www/tdb"
+              exit 1
+            fi
+
+            cd /var/www/tdb
+            git fetch origin
+            git checkout main
+            git pull origin main
+
+            cd /var/www/tdb/webapp-next
+            bash deploy/deploy-docker.sh
+
+            docker compose ps

@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import {
   Calculator,
   TrendingUp,
@@ -1168,10 +1170,42 @@ function AdviceTab() {
                   </button>
                 </div>
 
-                <div className="prose prose-invert max-w-none">
-                  <div className="whitespace-pre-line leading-relaxed">
+                <div className="prose prose-invert max-w-none prose-headings:text-foreground prose-p:text-muted-foreground prose-strong:text-foreground prose-code:text-primary prose-code:bg-primary/10 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-pre:bg-white/5 prose-pre:border prose-pre:border-white/10 prose-table:text-sm prose-th:bg-white/5 prose-th:p-2 prose-td:p-2 prose-td:border-white/10 prose-img:rounded-xl prose-img:border prose-img:border-white/10">
+                  <ReactMarkdown
+                    remarkPlugins={[remarkGfm]}
+                    components={{
+                      img: ({ node, ...props }) => (
+                        <img {...props} className="max-w-full h-auto rounded-xl border border-white/10 my-4" loading="lazy" />
+                      ),
+                      table: ({ node, ...props }) => (
+                        <div className="overflow-x-auto my-4">
+                          <table {...props} className="w-full border-collapse border border-white/10 rounded-lg overflow-hidden" />
+                        </div>
+                      ),
+                      th: ({ node, ...props }) => (
+                        <th {...props} className="bg-white/5 p-2 text-left font-semibold border border-white/10" />
+                      ),
+                      td: ({ node, ...props }) => (
+                        <td {...props} className="p-2 border border-white/10" />
+                      ),
+                      code: ({ node, inline, ...props }: any) => (
+                        inline
+                          ? <code {...props} className="text-primary bg-primary/10 px-1.5 py-0.5 rounded text-sm" />
+                          : <code {...props} className="block bg-white/5 p-4 rounded-lg border border-white/10 overflow-x-auto text-sm" />
+                      ),
+                      blockquote: ({ node, ...props }) => (
+                        <blockquote {...props} className="border-l-4 border-primary pl-4 italic text-muted-foreground my-4" />
+                      ),
+                      ul: ({ node, ...props }) => (
+                        <ul {...props} className="list-disc list-inside space-y-1 my-2" />
+                      ),
+                      ol: ({ node, ...props }) => (
+                        <ol {...props} className="list-decimal list-inside space-y-1 my-2" />
+                      ),
+                    }}
+                  >
                     {selectedCard.content}
-                  </div>
+                  </ReactMarkdown>
                 </div>
               </>
             )}

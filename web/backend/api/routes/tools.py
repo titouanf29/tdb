@@ -946,6 +946,8 @@ Notez pour CHAQUE trade:
 ### Qu'est-ce qu'une tendance ?
 Une tendance represente la direction generale dans laquelle evolue un prix sur une periode donnee. C'est le concept le plus fondamental de l'analyse technique.
 
+![Tendance Haussiere EMA](/education/ema-trend.svg)
+
 **Principe de base de Dow:**
 > "Une tendance est en place jusqu'a preuve du contraire"
 
@@ -1146,17 +1148,7 @@ Support ════════════════════════
 
 **Resistance**: Zone de prix ou l'OFFRE (vendeurs) est suffisamment forte pour empecher le prix de monter davantage.
 
-```
-RESISTANCE ═══════════════════════════════
-     ↑ Vendeurs dominent ici ↑
-     Les acheteurs n'arrivent pas a pousser plus haut
-
-     Prix oscille entre les deux
-
-     ↓ Acheteurs dominent ici ↓
-     Les vendeurs n'arrivent pas a pousser plus bas
-SUPPORT ════════════════════════════════════
-```
+![Supports et Resistances](/education/support-resistance.svg)
 
 ---
 
@@ -1615,6 +1607,8 @@ Prix
 
 Le RSI (Indice de Force Relative) mesure la vitesse et l'amplitude des mouvements de prix recents pour evaluer si un actif est suracheté ou survendu.
 
+![Zones RSI](/education/rsi-zones.svg)
+
 **Formule:**
 ```
 RSI = 100 - (100 / (1 + RS))
@@ -1660,32 +1654,19 @@ En TENDANCE BAISSIERE forte:
 
 Les divergences sont les signaux RSI les PLUS FIABLES. Elles precedent souvent les retournements.
 
-#### Divergence Haussiere (Bullish Divergence)
-```
-Prix:    \\
-          \\  Nouveau plus bas
-           \\___
+![Divergence RSI](/education/rsi-divergence.svg)
 
-RSI:     \\
-          \\___ Plus bas PLUS HAUT
-              /
-             /  = Signal d'achat
-```
+#### Divergence Haussiere (Bullish Divergence)
 **Le prix fait un nouveau bas, mais le RSI fait un bas plus haut.**
-→ La pression vendeuse s'affaiblit = Retournement probable
+- La pression vendeuse s'affaiblit
+- Signal d'achat potentiel
+- Retournement haussier probable!
 
 #### Divergence Baissiere (Bearish Divergence)
-```
-Prix:        /\\
-            /  \\  Nouveau plus haut
-           /
-
-RSI:     /\\
-        /  \\___ Plus haut PLUS BAS
-                = Signal de vente
-```
 **Le prix fait un nouveau haut, mais le RSI fait un haut plus bas.**
-→ La pression acheteuse s'affaiblit = Correction probable
+- La pression acheteuse s'affaiblit
+- Signal de vente potentiel
+- Correction baissiere probable!
 
 #### Divergence Cachee (Hidden Divergence)
 - Confirme la CONTINUATION de tendance
@@ -1844,28 +1825,11 @@ Le RSI forme ses propres niveaux de S/R!
 ### Qu'est-ce que le MACD ?
 Le MACD est un indicateur de momentum tendanciel cree par Gerald Appel en 1979. Il montre la relation entre deux moyennes mobiles exponentielles et aide a identifier les changements de tendance.
 
+![Signaux MACD](/education/macd-signals.svg)
+
 ---
 
 ### Anatomie du MACD
-
-```
-            Ligne MACD (bleue)
-              \\    /\\
-               \\  /  \\    /\\
-                \\/    \\  /  \\
-Ligne Zero ════════════\\/═══════════
-                        /
-     Ligne Signal (orange)
-                       /\\
-                      /  \\
-
-      Histogramme
-       ||| |||
-       ||| |||
-═══════════════════════════════════
-       ||| |||
-       ||| |||
-```
 
 #### Les 3 composants:
 
@@ -2353,6 +2317,8 @@ Repondez pour VOTRE situation:
 ### Qu'est-ce que la volatilite ?
 
 La volatilite mesure l'amplitude et la frequence des variations de prix d'un actif. C'est une mesure du RISQUE mais aussi des OPPORTUNITES.
+
+![Bandes de Bollinger](/education/bollinger-bands.svg)
 
 **Analogie:** La volatilite c'est comme les vagues de l'ocean.
 - Mer calme = Faible volatilite (facile a naviguer, peu de progression)

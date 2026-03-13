@@ -1,0 +1,42 @@
+name: webapp-next-ci
+
+on:
+  pull_request:
+    paths:
+      - 'webapp-next/**'
+      - '.github/workflows/webapp-next-ci.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'webapp-next/**'
+      - '.github/workflows/webapp-next-ci.yml'
+
+jobs:
+  build-and-lint:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: webapp-next
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install
+        run: |
+          if [ -f package-lock.json ]; then
+            npm ci
+          else
+            npm install
+          fi
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build
+        run: npm run build
