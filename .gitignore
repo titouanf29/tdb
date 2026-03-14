@@ -60,3 +60,6 @@ trading_sessions.json
 # Temporary files
 *.tmp
 *.temp
+
+# Node modules
+node_modules/
