@@ -12,6 +12,7 @@ import {
 } from 'lightweight-charts';
 import { TrendingUp, Lock, BarChart2, Activity, Eye, EyeOff, RefreshCw } from 'lucide-react';
 import { usePremium } from '@/lib/PremiumContext';
+import { authHeaders } from '@/lib/auth';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -111,10 +112,9 @@ export default function PremiumChart({ symbol, timeframe }: PremiumChartProps) {
     setLoading(true);
     setError(null);
     try {
-      const token = localStorage.getItem('token');
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/analysis/${encodeURIComponent(symbol)}/chart?timeframe=${timeframe}`,
-        { headers: { Authorization: `Bearer ${token}` } }
+        `/api/analysis/${encodeURIComponent(symbol)}/chart?timeframe=${timeframe}`,
+        { headers: { ...authHeaders() } }
       );
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
