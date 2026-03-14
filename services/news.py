@@ -319,6 +319,24 @@ class NewsService:
 
             print(f"[NEWS] Total: {len(unique_news)} articles uniques après déduplication")
 
+            # ============ Traduction en français ============
+            try:
+                from deep_translator import GoogleTranslator
+                translator = GoogleTranslator(source="auto", target="fr")
+                for article in unique_news:
+                    if article.get('title'):
+                        try:
+                            article['title'] = translator.translate(article['title']) or article['title']
+                        except Exception:
+                            pass
+                    if article.get('summary'):
+                        try:
+                            article['summary'] = translator.translate(article['summary']) or article['summary']
+                        except Exception:
+                            pass
+            except Exception as e:
+                print(f"[NEWS] Traduction ignorée: {e}")
+
             # ============ Analyse de sentiment ============
             for article in unique_news:
                 sentiment = self.analyze_sentiment(article['title'], article.get('summary', ''))

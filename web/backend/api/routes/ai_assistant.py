@@ -445,14 +445,41 @@ async def get_market_news(current_user: dict = Depends(get_current_user)):
                 news = ticker.news[:3]
 
             for item in news:
-                if item.get("title"):
-                    news_items.append({
-                        "title": item.get("title", ""),
-                        "publisher": item.get("publisher", "Yahoo Finance"),
-                        "link": item.get("link", ""),
-                        "timestamp": item.get("providerPublishTime", 0),
-                        "related": symbol_names.get(symbol, symbol)
-                    })
+                content = item.get("content") or {}
+                provider = content.get("provider") or {}
+
+                title = item.get("title") or content.get("title") or ""
+                if not title:
+                    continue
+
+                publisher = (
+                    item.get("publisher")
+                    or provider.get("displayName")
+                    or "Yahoo Finance"
+                )
+
+                link = item.get("link") or content.get("url") or ""
+                if isinstance(link, dict):
+                    link = link.get("url", "")
+
+                timestamp = item.get("providerPublishTime") or 0
+                if not timestamp:
+                    from datetime import datetime
+                    pub_date_str = item.get("pubDate") or content.get("pubDate") or ""
+                    if pub_date_str:
+                        try:
+                            dt = datetime.fromisoformat(pub_date_str.replace("Z", "+00:00"))
+                            timestamp = int(dt.timestamp())
+                        except Exception:
+                            timestamp = 0
+
+                news_items.append({
+                    "title": title,
+                    "publisher": publisher,
+                    "link": link,
+                    "timestamp": timestamp,
+                    "related": symbol_names.get(symbol, symbol)
+                })
         except Exception as e:
             print(f"[NEWS] Error fetching news for {symbol}: {e}")
             continue
@@ -469,6 +496,19 @@ async def get_market_news(current_user: dict = Depends(get_current_user)):
     # Sort by timestamp and get latest 12
     news_items.sort(key=lambda x: x.get("timestamp", 0), reverse=True)
     news_items = news_items[:12]
+
+    # Translate titles to French
+    try:
+        from deep_translator import GoogleTranslator
+        translator = GoogleTranslator(source="auto", target="fr")
+        for item in news_items:
+            if item.get("title"):
+                try:
+                    item["title"] = translator.translate(item["title"]) or item["title"]
+                except Exception:
+                    pass
+    except Exception:
+        pass
 
     # Generate AI summary
     summary = None

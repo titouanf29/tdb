@@ -13,3 +13,4 @@ httpx>=0.26.0
 yfinance>=0.2.36
 pandas>=2.1.4
 numpy>=1.26.3
+deep-translator>=1.11.4

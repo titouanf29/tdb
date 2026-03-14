@@ -245,6 +245,15 @@ async def analyze_asset(
                         "date": date,
                         "type": item_type,
                     })
+
+            # Translate titles to French
+            try:
+                import sys
+                sys.path.insert(0, "/app")
+                from utils.translate import translate_news_items
+                news_items = translate_news_items(news_items)
+            except Exception:
+                pass
         except Exception:
             pass
 
