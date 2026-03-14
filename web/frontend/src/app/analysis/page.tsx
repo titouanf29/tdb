@@ -52,6 +52,7 @@ import { cn, formatPercent } from "@/lib/utils";
 import { analysisAPI, favoritesAPI, aiAPI, marketAPI, Analysis } from "@/lib/api";
 import { getAssetInfo, getAssetLogo } from "@/lib/assetInfo";
 import { useFormatCurrency } from "@/lib/SettingsContext";
+import { authHeaders } from "@/lib/auth";
 import PremiumChart from "@/components/PremiumChart";
 
 export default function AnalysisPage() {
@@ -105,7 +106,7 @@ export default function AnalysisPage() {
     setIsSearching(true);
     try {
       const res = await fetch(`/api/market/search?q=${encodeURIComponent(q)}`, {
-        headers: { ...(() => { const t = localStorage.getItem('token'); return t ? { Authorization: `Bearer ${t}` } : {}; })() }
+        headers: authHeaders() as HeadersInit,
       });
       if (res.ok) {
         const data = await res.json();
