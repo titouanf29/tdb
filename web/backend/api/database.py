@@ -139,7 +139,18 @@ async def _init_postgres():
                 is_admin INTEGER DEFAULT 0,
                 is_premium INTEGER DEFAULT 0,
                 premium_since TEXT,
-                premium_expires TEXT
+                premium_expires TEXT,
+                email_verified INTEGER DEFAULT 0
+            )
+        """)
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS email_verification_tokens (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER NOT NULL,
+                token TEXT UNIQUE NOT NULL,
+                expires_at TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                FOREIGN KEY (user_id) REFERENCES web_users(id)
             )
         """)
         await conn.execute("""
@@ -339,6 +350,16 @@ async def _init_sqlite():
             )
         """)
         await db.execute("""
+            CREATE TABLE IF NOT EXISTS email_verification_tokens (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                token TEXT UNIQUE NOT NULL,
+                expires_at TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                FOREIGN KEY (user_id) REFERENCES web_users(id)
+            )
+        """)
+        await db.execute("""
             CREATE TABLE IF NOT EXISTS web_user_settings (
                 user_id INTEGER PRIMARY KEY,
                 trading_style TEXT DEFAULT 'Day Trading',
@@ -526,6 +547,7 @@ async def _init_sqlite():
             ("is_premium", "INTEGER DEFAULT 0"),
             ("premium_since", "TEXT"),
             ("premium_expires", "TEXT"),
+            ("email_verified", "INTEGER DEFAULT 0"),
         ]:
             try:
                 await db.execute(f"ALTER TABLE web_users ADD COLUMN {col} {definition}")

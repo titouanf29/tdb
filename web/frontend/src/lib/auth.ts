@@ -23,6 +23,16 @@ export interface AuthResponse {
   user: User;
 }
 
+export interface RegisterResponse {
+  requires_verification?: boolean;
+  message?: string;
+  email?: string;
+  // also extends AuthResponse fields when auto-verified (dev mode)
+  access_token?: string;
+  token_type?: string;
+  user?: User;
+}
+
 // Token storage
 export const getToken = (): string | null => {
   if (typeof window === "undefined") return null;
@@ -54,7 +64,7 @@ export async function register(
   password: string,
   username: string,
   firstName?: string
-): Promise<AuthResponse> {
+): Promise<RegisterResponse> {
   const response = await fetch(`${API_URL}/api/auth/register`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -71,10 +81,25 @@ export async function register(
     throw new Error(error.detail || "Registration failed");
   }
 
-  const data: AuthResponse = await response.json();
-  setToken(data.access_token);
-  setUser(data.user);
+  const data: RegisterResponse = await response.json();
+  // Auto-verified (dev mode without SMTP): store token immediately
+  if (data.access_token && data.user) {
+    setToken(data.access_token);
+    setUser(data.user);
+  }
   return data;
+}
+
+export async function resendVerification(email: string): Promise<void> {
+  const response = await fetch(`${API_URL}/api/auth/resend-verification`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email }),
+  });
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.detail || "Erreur lors du renvoi");
+  }
 }
 
 export async function login(

@@ -3,8 +3,9 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Eye, EyeOff, TrendingUp, Loader2, Check, AlertTriangle } from "lucide-react";
+import { Eye, EyeOff, TrendingUp, Loader2, Check, Mail } from "lucide-react";
 import { useAuth } from "@/lib/AuthContext";
+import { resendVerification } from "@/lib/auth";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -20,6 +21,9 @@ export default function RegisterPage() {
   const [showTerms, setShowTerms] = useState(false);
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [pendingEmail, setPendingEmail] = useState<string | null>(null);
+  const [resendLoading, setResendLoading] = useState(false);
+  const [resendSuccess, setResendSuccess] = useState(false);
 
   const passwordRequirements = [
     { label: "Au moins 6 caracteres", met: formData.password.length >= 6 },
@@ -47,19 +51,79 @@ export default function RegisterPage() {
     setIsLoading(true);
 
     try {
-      await register(
+      const result = await register(
         formData.email,
         formData.password,
         formData.username,
         formData.username
       );
-      window.location.href = "/";
+      if (result.requires_verification) {
+        setPendingEmail(result.email || formData.email);
+      } else {
+        window.location.href = "/";
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erreur d'inscription");
     } finally {
       setIsLoading(false);
     }
   };
+
+  const handleResend = async () => {
+    if (!pendingEmail) return;
+    setResendLoading(true);
+    setResendSuccess(false);
+    try {
+      await resendVerification(pendingEmail);
+      setResendSuccess(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erreur lors du renvoi");
+    } finally {
+      setResendLoading(false);
+    }
+  };
+  };
+
+  // ── Email verification pending screen ───────────────────────────────────
+  if (pendingEmail) {
+    return (
+      <div className="w-full max-w-md animate-fade-in">
+        <div className="glass-card p-8 text-center">
+          <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-primary/20 mb-6">
+            <Mail className="w-10 h-10 text-primary" />
+          </div>
+          <h1 className="text-2xl font-bold mb-2">Vérifiez votre email</h1>
+          <p className="text-muted-foreground mb-1">Un lien de confirmation a été envoyé à</p>
+          <p className="font-semibold text-primary mb-6">{pendingEmail}</p>
+          <p className="text-sm text-muted-foreground mb-6">
+            Cliquez sur le lien dans l&apos;email pour activer votre compte.
+            Vérifiez aussi vos spams si vous ne le trouvez pas.
+          </p>
+          {error && (
+            <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm mb-4">
+              {error}
+            </div>
+          )}
+          {resendSuccess && (
+            <div className="p-3 rounded-lg bg-green-500/10 border border-green-500/20 text-green-400 text-sm mb-4">
+              Email renvoyé ! Vérifiez votre boîte mail.
+            </div>
+          )}
+          <button
+            onClick={handleResend}
+            disabled={resendLoading}
+            className="w-full py-3 px-4 rounded-xl border border-white/10 hover:bg-white/5 text-sm font-medium transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+          >
+            {resendLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Mail className="w-4 h-4" />}
+            Renvoyer l&apos;email
+          </button>
+          <p className="text-center text-sm text-muted-foreground mt-4">
+            <a href="/login" className="text-primary hover:underline">Retour à la connexion</a>
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full max-w-md animate-fade-in">
