@@ -574,9 +574,29 @@ export const adminAPI = {
     fetchAPI<{ success: boolean }>(`/api/admin/tickets/${ticketId}/reopen`, {
       method: "POST",
     }),
+
+  // Notifications
+  getNotifications: () =>
+    fetchAPI<{ notifications: AdminNotification[]; unread_count: number }>("/api/admin/notifications"),
+
+  markNotificationRead: (notifId: number) =>
+    fetchAPI<{ success: boolean }>(`/api/admin/notifications/${notifId}/read`, { method: "POST" }),
+
+  markAllNotificationsRead: () =>
+    fetchAPI<{ success: boolean }>("/api/admin/notifications/read-all", { method: "POST" }),
 };
 
 // Admin Types
+export interface AdminNotification {
+  id: number;
+  type: "new_user" | "premium_request" | "new_ticket" | string;
+  title: string;
+  message: string;
+  link: string | null;
+  is_read: number;
+  created_at: string;
+}
+
 export interface AdminDashboard {
   stats: {
     users: {

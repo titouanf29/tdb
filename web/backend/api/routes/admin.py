@@ -9,7 +9,7 @@ from typing import Optional, List
 from datetime import datetime, timedelta
 import os
 
-from ..database import execute_query, execute_write
+from ..database import execute_query, execute_write, create_admin_notification
 from .auth import get_current_user
 
 router = APIRouter()
@@ -959,4 +959,38 @@ async def admin_reopen_ticket(ticket_id: int, admin: dict = Depends(get_admin_us
         (ticket_id,)
     )
     await log_admin_action(admin["id"], "ticket_reopen", f"Reopened ticket {ticket_id}")
+    return {"success": True}
+
+
+# ============== ADMIN NOTIFICATIONS ==============
+
+@router.get("/notifications")
+async def get_admin_notifications(admin: dict = Depends(get_admin_user)):
+    """Get admin notifications (unread first, then recent)"""
+    notifications = await execute_query("""
+        SELECT * FROM admin_notifications
+        ORDER BY is_read ASC, created_at DESC
+        LIMIT 50
+    """)
+    unread_count = sum(1 for n in notifications if not n["is_read"])
+    return {
+        "notifications": notifications,
+        "unread_count": unread_count
+    }
+
+
+@router.post("/notifications/{notif_id}/read")
+async def mark_notification_read(notif_id: int, admin: dict = Depends(get_admin_user)):
+    """Mark a single notification as read"""
+    await execute_write(
+        "UPDATE admin_notifications SET is_read = 1 WHERE id = ?",
+        (notif_id,)
+    )
+    return {"success": True}
+
+
+@router.post("/notifications/read-all")
+async def mark_all_notifications_read(admin: dict = Depends(get_admin_user)):
+    """Mark all notifications as read"""
+    await execute_write("UPDATE admin_notifications SET is_read = 1", ())
     return {"success": True}

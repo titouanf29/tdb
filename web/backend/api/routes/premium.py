@@ -8,7 +8,7 @@ from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime
 
-from ..database import execute_query, execute_write
+from ..database import execute_query, execute_write, create_admin_notification
 from .auth import get_current_user
 from .admin import get_admin_user, log_admin_action
 
@@ -230,6 +230,13 @@ async def contact_for_premium(
         INSERT INTO premium_requests (user_id, message, status, created_at)
         VALUES (?, ?, 'pending', datetime('now'))
     """, (current_user["id"], request.message))
+
+    await create_admin_notification(
+        type="premium_request",
+        title="Demande Premium",
+        message=f"{current_user.get('username', current_user['email'])} souhaite passer Premium",
+        link="/admin?tab=premium"
+    )
 
     return {
         "success": True,

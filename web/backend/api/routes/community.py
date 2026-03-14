@@ -6,7 +6,7 @@ from typing import Optional, List
 from fastapi import APIRouter, HTTPException, Depends, Query
 from pydantic import BaseModel
 
-from ..database import execute_query, execute_write
+from ..database import execute_query, execute_write, create_admin_notification
 from .auth import get_current_user
 from .admin import get_admin_user
 
@@ -237,6 +237,14 @@ async def contact_admin(
             INSERT INTO admin_ticket_messages (ticket_id, user_id, message, is_admin, created_at)
             VALUES (?, ?, ?, 0, datetime('now'))
         """, (ticket[0]["id"], user_id, request.message))
+
+        username = current_user.get("username") or current_user.get("email", "Utilisateur")
+        await create_admin_notification(
+            type="new_ticket",
+            title="Nouveau ticket support",
+            message=f"{username} : {request.subject}",
+            link=f"/admin?tab=tickets"
+        )
 
     return {
         "success": True,

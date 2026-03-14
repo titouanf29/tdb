@@ -329,6 +329,17 @@ async def _init_postgres():
                 created_at TEXT
             )
         """)
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS admin_notifications (
+                id SERIAL PRIMARY KEY,
+                type TEXT NOT NULL,
+                title TEXT NOT NULL,
+                message TEXT NOT NULL,
+                link TEXT,
+                is_read INTEGER DEFAULT 0,
+                created_at TEXT NOT NULL
+            )
+        """)
         print("PostgreSQL tables ready")
 
 
@@ -541,6 +552,17 @@ async def _init_sqlite():
                 FOREIGN KEY (user_id) REFERENCES web_users(id)
             )
         """)
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS admin_notifications (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                type TEXT NOT NULL,
+                title TEXT NOT NULL,
+                message TEXT NOT NULL,
+                link TEXT,
+                is_read INTEGER DEFAULT 0,
+                created_at TEXT NOT NULL
+            )
+        """)
         # Add new columns to existing tables if upgrading from older schema
         for col, definition in [
             ("is_admin", "INTEGER DEFAULT 0"),
@@ -555,3 +577,15 @@ async def _init_sqlite():
                 pass  # Column already exists
         await db.commit()
         print("SQLite tables ready")
+
+
+async def create_admin_notification(type: str, title: str, message: str, link: str = None):
+    """Insert a notification for admins."""
+    from datetime import datetime
+    try:
+        await execute_write(
+            "INSERT INTO admin_notifications (type, title, message, link, is_read, created_at) VALUES (?, ?, ?, ?, 0, ?)",
+            (type, title, message, link, datetime.utcnow().isoformat()),
+        )
+    except Exception as e:
+        print(f"[NOTIF] Failed to create admin notification: {e}")

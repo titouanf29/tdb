@@ -14,7 +14,7 @@ import bcrypt
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 
-from ..database import execute_query, execute_write
+from ..database import execute_query, execute_write, create_admin_notification
 from ..email_service import send_verification_email, EMAIL_ENABLED
 
 router = APIRouter()
@@ -146,6 +146,14 @@ async def register(request: Request, data: RegisterRequest):
     await execute_write(
         "INSERT INTO wallet (user_id, balance, currency, created_at) VALUES (?, 10000.0, 'USD', ?)",
         (f"web_{user['id']}", datetime.utcnow().isoformat())
+    )
+
+    # Notify admins of new registration
+    await create_admin_notification(
+        type="new_user",
+        title="Nouvel utilisateur",
+        message=f"{data.username} vient de s'inscrire ({data.email.lower()})",
+        link="/admin?tab=users"
     )
 
     # Send verification email (or skip if SMTP not configured)

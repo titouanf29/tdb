@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion } from "framer-motion";
@@ -16,10 +16,27 @@ import {
   Crown,
   Sparkles,
   Menu,
+  UserPlus,
+  Ticket,
+  Check,
+  CheckCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/AuthContext";
 import { usePremium } from "@/lib/PremiumContext";
+import { adminAPI, AdminNotification } from "@/lib/api";
+
+const NOTIF_ICONS: Record<string, React.ReactNode> = {
+  new_user: <UserPlus className="w-3.5 h-3.5 text-profit" />,
+  premium_request: <Crown className="w-3.5 h-3.5 text-yellow-400" />,
+  new_ticket: <Ticket className="w-3.5 h-3.5 text-primary" />,
+};
+
+const NOTIF_COLORS: Record<string, string> = {
+  new_user: "bg-profit/10 border-profit/20",
+  premium_request: "bg-yellow-500/10 border-yellow-500/20",
+  new_ticket: "bg-primary/10 border-primary/20",
+};
 
 export function Header({ onMenuToggle }: { onMenuToggle?: () => void }) {
   const { user, logout } = useAuth();
@@ -27,8 +44,39 @@ export function Header({ onMenuToggle }: { onMenuToggle?: () => void }) {
   const router = useRouter();
   const [showNotifications, setShowNotifications] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
-  const [isConnected] = useState(true); // WebSocket connection status
+  const [isConnected] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+  const [notifications, setNotifications] = useState<AdminNotification[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const pollRef = useRef<NodeJS.Timeout | null>(null);
+
+  const loadNotifications = async () => {
+    if (!isAdmin) return;
+    try {
+      const data = await adminAPI.getNotifications();
+      setNotifications(data.notifications);
+      setUnreadCount(data.unread_count);
+    } catch {}
+  };
+
+  useEffect(() => {
+    if (!isAdmin) return;
+    loadNotifications();
+    pollRef.current = setInterval(loadNotifications, 30000);
+    return () => { if (pollRef.current) clearInterval(pollRef.current); };
+  }, [isAdmin]);
+
+  const handleMarkRead = async (id: number) => {
+    await adminAPI.markNotificationRead(id);
+    setNotifications((prev) => prev.map((n) => n.id === id ? { ...n, is_read: 1 } : n));
+    setUnreadCount((c) => Math.max(0, c - 1));
+  };
+
+  const handleMarkAllRead = async () => {
+    await adminAPI.markAllNotificationsRead();
+    setNotifications((prev) => prev.map((n) => ({ ...n, is_read: 1 })));
+    setUnreadCount(0);
+  };
 
   const handleLogout = async () => {
     await logout();
@@ -115,49 +163,88 @@ export function Header({ onMenuToggle }: { onMenuToggle?: () => void }) {
           </Link>
         )}
 
-        {/* Notifications */}
-        <div className="relative">
-          <button
-            onClick={() => setShowNotifications(!showNotifications)}
-            className="relative p-2 rounded-lg hover:bg-white/5 transition-colors"
-          >
-            <Bell className="w-5 h-5 text-muted-foreground" />
-            <span className="absolute top-1 right-1 w-2 h-2 bg-primary rounded-full animate-pulse" />
-          </button>
-
-          {showNotifications && (
-            <motion.div
-              initial={{ opacity: 0, y: 10, scale: 0.95 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              className="absolute right-0 top-12 w-[calc(100vw-2rem)] sm:w-80 glass-card p-4 z-50"
+        {/* Notifications (admin only) */}
+        {isAdmin && (
+          <div className="relative">
+            <button
+              onClick={() => { setShowNotifications(!showNotifications); if (!showNotifications) loadNotifications(); }}
+              className="relative p-2 rounded-lg hover:bg-white/5 transition-colors"
             >
-              <h3 className="font-semibold mb-3">Notifications</h3>
-              <div className="space-y-3">
-                <NotificationItem
-                  title="Alerte BTC"
-                  message="BTC a atteint 65,000$"
-                  time="Il y a 5m"
-                  type="alert"
-                />
-                <NotificationItem
-                  title="Position fermée"
-                  message="AAPL +2.5% (+$125)"
-                  time="Il y a 15m"
-                  type="success"
-                />
-                <NotificationItem
-                  title="Nouveau signal"
-                  message="NVDA score 85/100"
-                  time="Il y a 1h"
-                  type="info"
-                />
-              </div>
-              <button className="w-full mt-3 text-sm text-primary hover:underline">
-                Voir toutes les notifications
-              </button>
-            </motion.div>
-          )}
-        </div>
+              <Bell className="w-5 h-5 text-muted-foreground" />
+              {unreadCount > 0 && (
+                <span className="absolute top-0.5 right-0.5 min-w-[16px] h-4 px-0.5 bg-loss rounded-full flex items-center justify-center text-[10px] font-bold text-white animate-pulse">
+                  {unreadCount > 9 ? "9+" : unreadCount}
+                </span>
+              )}
+            </button>
+
+            {showNotifications && (
+              <motion.div
+                initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                className="absolute right-0 top-12 w-[calc(100vw-2rem)] sm:w-96 glass-card p-4 z-50"
+              >
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="font-semibold">Notifications Admin</h3>
+                  {unreadCount > 0 && (
+                    <button
+                      onClick={handleMarkAllRead}
+                      className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      <CheckCheck className="w-3.5 h-3.5" />
+                      Tout marquer lu
+                    </button>
+                  )}
+                </div>
+                <div className="space-y-2 max-h-80 overflow-y-auto">
+                  {notifications.length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-4">Aucune notification</p>
+                  ) : (
+                    notifications.slice(0, 20).map((n) => (
+                      <div
+                        key={n.id}
+                        className={cn(
+                          "flex items-start gap-2.5 p-2.5 rounded-lg border transition-all cursor-pointer",
+                          NOTIF_COLORS[n.type] || "bg-white/5 border-white/10",
+                          n.is_read ? "opacity-60" : "opacity-100"
+                        )}
+                        onClick={() => {
+                          if (!n.is_read) handleMarkRead(n.id);
+                          if (n.link) router.push(n.link);
+                          setShowNotifications(false);
+                        }}
+                      >
+                        <div className="mt-0.5 flex-shrink-0">
+                          {NOTIF_ICONS[n.type] || <Bell className="w-3.5 h-3.5 text-muted-foreground" />}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-semibold">{n.title}</p>
+                          <p className="text-xs text-muted-foreground truncate">{n.message}</p>
+                          <p className="text-[10px] text-muted-foreground mt-0.5">
+                            {new Date(n.created_at).toLocaleString("fr-FR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
+                          </p>
+                        </div>
+                        {!n.is_read && (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handleMarkRead(n.id); }}
+                            className="flex-shrink-0 p-1 hover:bg-white/10 rounded"
+                          >
+                            <Check className="w-3 h-3 text-muted-foreground" />
+                          </button>
+                        )}
+                      </div>
+                    ))
+                  )}
+                </div>
+                <Link href="/admin?tab=users" onClick={() => setShowNotifications(false)}>
+                  <button className="w-full mt-3 text-xs text-primary hover:underline">
+                    Aller au panel admin →
+                  </button>
+                </Link>
+              </motion.div>
+            )}
+          </div>
+        )}
 
         {/* Profile */}
         <div className="relative">
@@ -208,30 +295,3 @@ export function Header({ onMenuToggle }: { onMenuToggle?: () => void }) {
   );
 }
 
-function NotificationItem({
-  title,
-  message,
-  time,
-  type,
-}: {
-  title: string;
-  message: string;
-  time: string;
-  type: "alert" | "success" | "info";
-}) {
-  const colors = {
-    alert: "bg-warning/10 border-warning/30",
-    success: "bg-profit/10 border-profit/30",
-    info: "bg-primary/10 border-primary/30",
-  };
-
-  return (
-    <div className={cn("p-3 rounded-lg border", colors[type])}>
-      <div className="flex justify-between items-start">
-        <h4 className="font-medium text-sm">{title}</h4>
-        <span className="text-xs text-muted-foreground">{time}</span>
-      </div>
-      <p className="text-xs text-muted-foreground mt-1">{message}</p>
-    </div>
-  );
-}
