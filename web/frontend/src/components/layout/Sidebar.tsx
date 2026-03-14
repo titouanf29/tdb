@@ -23,25 +23,44 @@ import {
 
 function CaptenIcon() {
   return (
-    <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-8 h-8">
-      {/* Corps inspiré Twitch : rectangle arrondi avec encoche en bas à droite */}
-      <path
-        d="M4 4 H36 V28 H24 L20 34 L16 28 H4 Z"
-        fill="url(#capten-gradient)"
-        rx="4"
-      />
+    <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-9 h-9">
       <defs>
-        <linearGradient id="capten-gradient" x1="4" y1="4" x2="36" y2="34" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stopColor="#f59e0b" />
-          <stop offset="100%" stopColor="#d97706" />
+        <linearGradient id="anchor-grad" x1="0" y1="0" x2="40" y2="40" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#38bdf8" />
+          <stop offset="100%" stopColor="#0369a1" />
         </linearGradient>
       </defs>
-      {/* Chapeau de capitaine */}
-      <rect x="11" y="9" width="18" height="3" rx="1.5" fill="white" opacity="0.95" />
-      <path d="M15 9 L20 3 L25 9 Z" fill="white" opacity="0.95" />
+
+      {/* Anneau du haut (chapeau) */}
+      <circle cx="20" cy="5" r="3.2" stroke="url(#anchor-grad)" strokeWidth="2" fill="none" />
+
+      {/* Tête */}
+      <circle cx="20" cy="13" r="6.5" fill="url(#anchor-grad)" />
+
       {/* Yeux */}
-      <rect x="12" y="16" width="5" height="5" rx="1" fill="white" />
-      <rect x="23" y="16" width="5" height="5" rx="1" fill="white" />
+      <circle cx="17.5" cy="12" r="1.4" fill="white" />
+      <circle cx="22.5" cy="12" r="1.4" fill="white" />
+      <circle cx="17.9" cy="12.4" r="0.7" fill="#0c4a6e" />
+      <circle cx="22.9" cy="12.4" r="0.7" fill="#0c4a6e" />
+
+      {/* Sourire */}
+      <path d="M17 15.5 Q20 18 23 15.5" stroke="white" strokeWidth="1.3" strokeLinecap="round" fill="none" />
+
+      {/* Tige verticale (corps) */}
+      <rect x="18.8" y="19" width="2.4" height="12" rx="1.2" fill="url(#anchor-grad)" />
+
+      {/* Barre horizontale (bras) */}
+      <rect x="8" y="21" width="24" height="2.5" rx="1.25" fill="url(#anchor-grad)" />
+      {/* Mains */}
+      <circle cx="8.5" cy="22.25" r="2.2" fill="url(#anchor-grad)" />
+      <circle cx="31.5" cy="22.25" r="2.2" fill="url(#anchor-grad)" />
+
+      {/* Petite roue au centre de la tige */}
+      <circle cx="20" cy="28" r="2" stroke="url(#anchor-grad)" strokeWidth="1.8" fill="white" />
+
+      {/* Pattes de l'ancre (pieds) */}
+      <path d="M20 31 Q13 33 11 38" stroke="url(#anchor-grad)" strokeWidth="2.5" strokeLinecap="round" fill="none" />
+      <path d="M20 31 Q27 33 29 38" stroke="url(#anchor-grad)" strokeWidth="2.5" strokeLinecap="round" fill="none" />
     </svg>
   );
 }
