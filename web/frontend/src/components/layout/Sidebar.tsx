@@ -19,8 +19,32 @@ import {
   Wrench,
   Users,
   Bot,
-  Smile,
 } from "lucide-react";
+
+function CaptenIcon() {
+  return (
+    <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-8 h-8">
+      {/* Corps inspiré Twitch : rectangle arrondi avec encoche en bas à droite */}
+      <path
+        d="M4 4 H36 V28 H24 L20 34 L16 28 H4 Z"
+        fill="url(#capten-gradient)"
+        rx="4"
+      />
+      <defs>
+        <linearGradient id="capten-gradient" x1="4" y1="4" x2="36" y2="34" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#f59e0b" />
+          <stop offset="100%" stopColor="#d97706" />
+        </linearGradient>
+      </defs>
+      {/* Chapeau de capitaine */}
+      <rect x="11" y="9" width="18" height="3" rx="1.5" fill="white" opacity="0.95" />
+      <path d="M15 9 L20 3 L25 9 Z" fill="white" opacity="0.95" />
+      {/* Yeux */}
+      <rect x="12" y="16" width="5" height="5" rx="1" fill="white" />
+      <rect x="23" y="16" width="5" height="5" rx="1" fill="white" />
+    </svg>
+  );
+}
 import { cn } from "@/lib/utils";
 import { adminAPI } from "@/lib/api";
 
@@ -65,9 +89,9 @@ export function Sidebar() {
       <div className="p-4 flex items-center gap-3 border-b border-white/10">
         <motion.div
           whileHover={{ scale: 1.1 }}
-          className="w-10 h-10 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shadow-lg"
+          className="flex items-center justify-center"
         >
-          <Smile className="w-6 h-6 text-white" />
+          <CaptenIcon />
         </motion.div>
         <AnimatePresence>
           {!collapsed && (
