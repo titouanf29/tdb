@@ -360,7 +360,7 @@ export default function AssistantPage() {
                 : "Posez votre question..."
             }
             className="flex-1 input"
-            disabled={isLoading || (limitStatus && !limitStatus.is_premium && limitStatus.remaining === 0)}
+            disabled={isLoading || (limitStatus != null && !limitStatus.is_premium && limitStatus.remaining === 0)}
           />
           <motion.button
             whileHover={{ scale: 1.05 }}
