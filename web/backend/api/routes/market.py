@@ -30,7 +30,7 @@ async def get_markets():
             {
                 "key": key,
                 "name": market["name"],
-                "description": market["description"],
+                "description": market.get("description", market["name"]),
                 "asset_count": len(market["assets"]),
                 "always_open": market.get("always_open", False)
             }

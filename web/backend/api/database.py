@@ -4,8 +4,13 @@ Database connection - Shared with Telegram bot
 import aiosqlite
 from pathlib import Path
 
-# Path to the shared database (same as bot)
-DATABASE_PATH = Path(__file__).parent.parent.parent.parent / "trading_bot.db"
+# Path to the database - use DATABASE_PATH env var for Railway persistent volume
+import os
+_db_env = os.getenv("DATABASE_PATH")
+if _db_env:
+    DATABASE_PATH = Path(_db_env)
+else:
+    DATABASE_PATH = Path(__file__).parent.parent.parent.parent / "trading_bot.db"
 
 # Flag to track initialization
 _initialized = False
