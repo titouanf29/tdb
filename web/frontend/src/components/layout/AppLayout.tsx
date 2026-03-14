@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { useAuth } from "@/lib/AuthContext";
 import { Sidebar } from "./Sidebar";
@@ -12,8 +12,8 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  // Auth pages don't need the app layout
   const isAuthPage = pathname?.startsWith("/login") || pathname?.startsWith("/register");
 
   useEffect(() => {
@@ -22,7 +22,11 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     }
   }, [isAuthenticated, isLoading, isAuthPage, router]);
 
-  // Loading state
+  // Close mobile menu on route change
+  useEffect(() => {
+    setMobileMenuOpen(false);
+  }, [pathname]);
+
   if (isLoading && !isAuthPage) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -34,7 +38,6 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // Auth pages - render without app chrome
   if (isAuthPage) {
     return (
       <div className="min-h-screen flex items-center justify-center p-4">
@@ -43,21 +46,27 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // Not authenticated - don't render anything (redirect will happen)
   if (!isAuthenticated) {
     return null;
   }
 
-  // Authenticated - render full app layout
   return (
     <div className="flex h-screen overflow-hidden">
-      <Sidebar />
+      {/* Mobile overlay */}
+      {mobileMenuOpen && (
+        <div
+          className="fixed inset-0 bg-black/60 z-40 lg:hidden"
+          onClick={() => setMobileMenuOpen(false)}
+        />
+      )}
+
+      <Sidebar mobileOpen={mobileMenuOpen} onMobileClose={() => setMobileMenuOpen(false)} />
+
       <div className="flex flex-col flex-1 overflow-hidden">
-        <Header />
-        <main className="flex-1 overflow-auto p-6">
+        <Header onMenuToggle={() => setMobileMenuOpen(!mobileMenuOpen)} />
+        <main className="flex-1 overflow-auto p-4 md:p-6">
           <BroadcastBanner />
           {children}
-          {/* Footer */}
           <footer className="mt-8 pt-4 border-t border-white/10 text-center text-xs text-muted-foreground">
             <p>Fait par <span className="text-primary font-semibold">CaptenQwark</span> - CaptenTDB</p>
             <p className="mt-1">Les analyses sont a but educatif uniquement. Ce site ne fournit pas de conseils financiers.</p>

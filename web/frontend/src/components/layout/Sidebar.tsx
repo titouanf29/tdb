@@ -81,7 +81,13 @@ const menuItems = [
   { icon: Settings, label: "Paramètres", href: "/settings" },
 ];
 
-export function Sidebar() {
+export function Sidebar({
+  mobileOpen = false,
+  onMobileClose,
+}: {
+  mobileOpen?: boolean;
+  onMobileClose?: () => void;
+}) {
   const [collapsed, setCollapsed] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const pathname = usePathname();
@@ -102,7 +108,10 @@ export function Sidebar() {
     <motion.aside
       initial={false}
       animate={{ width: collapsed ? 80 : 260 }}
-      className="h-screen bg-card/50 backdrop-blur-xl border-r border-white/10 flex flex-col"
+      className={`h-screen bg-card/50 backdrop-blur-xl border-r border-white/10 flex flex-col
+        fixed lg:relative z-50 lg:z-auto
+        ${mobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}
+        transition-transform lg:transition-none duration-300`}
     >
       {/* Logo */}
       <div className="p-4 flex items-center gap-3 border-b border-white/10">

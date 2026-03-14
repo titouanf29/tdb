@@ -15,12 +15,13 @@ import {
   WifiOff,
   Crown,
   Sparkles,
+  Menu,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/AuthContext";
 import { usePremium } from "@/lib/PremiumContext";
 
-export function Header() {
+export function Header({ onMenuToggle }: { onMenuToggle?: () => void }) {
   const { user, logout } = useAuth();
   const { isPremium, isAdmin } = usePremium();
   const router = useRouter();
@@ -43,9 +44,17 @@ export function Header() {
   };
 
   return (
-    <header className="h-16 border-b border-white/10 bg-card/30 backdrop-blur-xl px-6 flex items-center justify-between">
+    <header className="h-16 border-b border-white/10 bg-card/30 backdrop-blur-xl px-4 md:px-6 flex items-center justify-between gap-3">
+      {/* Hamburger mobile */}
+      <button
+        onClick={onMenuToggle}
+        className="lg:hidden p-2 rounded-lg hover:bg-white/5 transition-colors flex-shrink-0"
+      >
+        <Menu className="w-5 h-5 text-muted-foreground" />
+      </button>
+
       {/* Search */}
-      <form onSubmit={handleSearch} className="flex-1 max-w-md">
+      <form onSubmit={handleSearch} className="hidden sm:flex flex-1 max-w-md">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <input
@@ -62,11 +71,11 @@ export function Header() {
       </form>
 
       {/* Right side */}
-      <div className="flex items-center gap-4">
-        {/* Connection status */}
+      <div className="flex items-center gap-2 md:gap-4 ml-auto">
+        {/* Connection status - hidden on mobile */}
         <div
           className={cn(
-            "flex items-center gap-2 px-3 py-1.5 rounded-full text-xs",
+            "hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full text-xs",
             isConnected
               ? "bg-profit/10 text-profit"
               : "bg-loss/10 text-loss"
@@ -85,20 +94,20 @@ export function Header() {
           )}
         </div>
 
-        {/* Status Badge */}
+        {/* Status Badge - hidden on mobile */}
         {isAdmin ? (
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs bg-gradient-to-r from-purple-600/20 to-pink-600/20 text-purple-400 border border-purple-500/30">
+          <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full text-xs bg-gradient-to-r from-purple-600/20 to-pink-600/20 text-purple-400 border border-purple-500/30">
             <Crown className="w-3.5 h-3.5" />
             <span className="font-semibold">Admin</span>
           </div>
         ) : isPremium ? (
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs bg-gradient-to-r from-yellow-600/20 to-orange-600/20 text-yellow-400 border border-yellow-500/30">
+          <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full text-xs bg-gradient-to-r from-yellow-600/20 to-orange-600/20 text-yellow-400 border border-yellow-500/30">
             <Crown className="w-3.5 h-3.5" />
             <span className="font-semibold">Premium</span>
           </div>
         ) : (
           <Link href="/premium">
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs bg-white/5 text-muted-foreground border border-white/10 hover:bg-white/10 hover:border-yellow-500/30 hover:text-yellow-400 transition-all cursor-pointer">
+            <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full text-xs bg-white/5 text-muted-foreground border border-white/10 hover:bg-white/10 hover:border-yellow-500/30 hover:text-yellow-400 transition-all cursor-pointer">
               <User className="w-3.5 h-3.5" />
               <span className="font-semibold">FREE</span>
               <Sparkles className="w-3 h-3 text-yellow-500" />
@@ -120,7 +129,7 @@ export function Header() {
             <motion.div
               initial={{ opacity: 0, y: 10, scale: 0.95 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
-              className="absolute right-0 top-12 w-80 glass-card p-4 z-50"
+              className="absolute right-0 top-12 w-[calc(100vw-2rem)] sm:w-80 glass-card p-4 z-50"
             >
               <h3 className="font-semibold mb-3">Notifications</h3>
               <div className="space-y-3">
