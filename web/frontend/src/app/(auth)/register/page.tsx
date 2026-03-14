@@ -82,7 +82,6 @@ export default function RegisterPage() {
       setResendLoading(false);
     }
   };
-  };
 
   // ── Email verification pending screen ───────────────────────────────────
   if (pendingEmail) {
