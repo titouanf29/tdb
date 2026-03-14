@@ -9,7 +9,7 @@ import { AppLayout } from "@/components/layout/AppLayout";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "CaptenTrading - Trading Education Platform",
+  title: "CaptenTDB - Trading Education Platform",
   description: "Plateforme educative de trading par CaptenQwark - Analyses, formations et communaute",
   icons: {
     icon: "/favicon.ico",

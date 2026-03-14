@@ -76,7 +76,7 @@ export function Sidebar() {
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -10 }}
             >
-              <h1 className="font-bold text-xl gradient-text">CaptenTrading</h1>
+              <h1 className="font-bold text-xl gradient-text">CaptenTDB</h1>
               <p className="text-xs text-muted-foreground">par CaptenQwark</p>
             </motion.div>
           )}

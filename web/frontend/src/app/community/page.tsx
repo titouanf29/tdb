@@ -238,7 +238,7 @@ export default function CommunityPage() {
               <Users className="w-6 h-6 text-white" />
             </div>
             <div>
-              <h1 className="font-bold">Communaute CaptenTrading</h1>
+              <h1 className="font-bold">Communaute CaptenTDB</h1>
               <p className="text-sm text-muted-foreground">
                 Echangez avec d'autres traders
               </p>
@@ -739,7 +739,7 @@ export default function CommunityPage() {
 
       {/* Footer */}
       <div className="mt-4 text-center text-xs text-muted-foreground">
-        Fait par CaptenQwark - CaptenTrading
+        Fait par CaptenQwark - CaptenTDB
       </div>
     </motion.div>
   );

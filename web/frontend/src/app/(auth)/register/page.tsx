@@ -70,7 +70,7 @@ export default function RegisterPage() {
             <TrendingUp className="w-8 h-8 text-primary" />
           </div>
           <h1 className="text-2xl font-bold">
-            Rejoignez <span className="gradient-text">CaptenTrading</span>
+            Rejoignez <span className="gradient-text">CaptenTDB</span>
           </h1>
           <p className="text-muted-foreground mt-2">
             Creez votre compte et apprenez le trading
@@ -205,7 +205,7 @@ export default function RegisterPage() {
               <div className="flex items-start gap-2">
                 <AlertTriangle className="w-4 h-4 text-yellow-400 mt-0.5 shrink-0" />
                 <p className="text-xs text-yellow-400/90">
-                  Ce site est a but educatif uniquement. CaptenTrading ne fournit pas de conseils financiers.
+                  Ce site est a but educatif uniquement. CaptenTDB ne fournit pas de conseils financiers.
                   Les utilisateurs sont responsables de leurs propres decisions d'investissement.
                 </p>
               </div>
@@ -233,13 +233,13 @@ export default function RegisterPage() {
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80">
             <div className="bg-background border border-white/10 rounded-2xl max-w-2xl w-full max-h-[80vh] overflow-hidden">
               <div className="p-6 border-b border-white/10">
-                <h2 className="text-xl font-bold">Conditions d'utilisation - CaptenTrading</h2>
+                <h2 className="text-xl font-bold">Conditions d'utilisation - CaptenTDB</h2>
               </div>
               <div className="p-6 overflow-y-auto max-h-[60vh] space-y-4 text-sm text-muted-foreground">
                 <div>
                   <h3 className="font-semibold text-foreground mb-2">1. Disclaimer Financier</h3>
                   <p>
-                    CaptenTrading est une plateforme educative. Les informations, analyses et outils fournis
+                    CaptenTDB est une plateforme educative. Les informations, analyses et outils fournis
                     sont destines uniquement a des fins d'apprentissage et ne constituent en aucun cas des
                     conseils financiers, d'investissement ou de trading.
                   </p>
@@ -250,7 +250,7 @@ export default function RegisterPage() {
                   <p>
                     L'utilisateur est seul responsable de ses decisions d'investissement. Toute operation
                     realisee sur les marches financiers reels comporte des risques de perte en capital.
-                    CaptenTrading ne saurait etre tenu responsable des pertes financieres.
+                    CaptenTDB ne saurait etre tenu responsable des pertes financieres.
                   </p>
                 </div>
 
@@ -289,7 +289,7 @@ export default function RegisterPage() {
 
                 <div className="pt-4 border-t border-white/10">
                   <p className="text-xs">
-                    Fait par <span className="text-primary font-semibold">CaptenQwark</span> - CaptenTrading
+                    Fait par <span className="text-primary font-semibold">CaptenQwark</span> - CaptenTDB
                   </p>
                 </div>
               </div>
@@ -334,7 +334,7 @@ export default function RegisterPage() {
       <p className="text-center text-xs text-muted-foreground mt-4">
         Paper Trading uniquement - Aucun risque financier reel
         <br />
-        <span className="text-primary">CaptenTrading</span> par CaptenQwark
+        <span className="text-primary">CaptenTDB</span> par CaptenQwark
       </p>
     </div>
   );

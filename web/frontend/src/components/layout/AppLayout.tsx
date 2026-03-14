@@ -59,7 +59,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           {children}
           {/* Footer */}
           <footer className="mt-8 pt-4 border-t border-white/10 text-center text-xs text-muted-foreground">
-            <p>Fait par <span className="text-primary font-semibold">CaptenQwark</span> - CaptenTrading</p>
+            <p>Fait par <span className="text-primary font-semibold">CaptenQwark</span> - CaptenTDB</p>
             <p className="mt-1">Les analyses sont a but educatif uniquement. Ce site ne fournit pas de conseils financiers.</p>
           </footer>
         </main>
