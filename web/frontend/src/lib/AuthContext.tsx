@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import {
   User,
+  RegisterResponse,
   getUser,
   getMe,
   login as authLogin,
@@ -21,7 +22,7 @@ interface AuthContextType {
     password: string,
     username: string,
     firstName?: string
-  ) => Promise<void>;
+  ) => Promise<RegisterResponse>;
   logout: () => Promise<void>;
 }
 
@@ -64,9 +65,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     password: string,
     username: string,
     firstName?: string
-  ) => {
+  ): Promise<RegisterResponse> => {
     const response = await authRegister(email, password, username, firstName);
-    setUser(response.user);
+    if (response.user) setUser(response.user);
+    return response;
   };
 
   const logout = async () => {
