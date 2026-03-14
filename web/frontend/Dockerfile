@@ -13,13 +13,16 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Build-time environment variables (passed from Railway)
-ARG NEXT_PUBLIC_API_URL
-ARG NEXT_PUBLIC_WS_URL
+# Build-time environment variables (Railway overrides, with production defaults)
+ARG NEXT_PUBLIC_API_URL=https://backend-production-2cbc8.up.railway.app
+ARG NEXT_PUBLIC_WS_URL=wss://backend-production-2cbc8.up.railway.app/ws
 ARG NEXT_PUBLIC_TELEGRAM_BOT_NAME
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 ENV NEXT_PUBLIC_WS_URL=$NEXT_PUBLIC_WS_URL
 ENV NEXT_PUBLIC_TELEGRAM_BOT_NAME=$NEXT_PUBLIC_TELEGRAM_BOT_NAME
+
+# Remove .env.local so Docker ENV takes priority over local overrides
+RUN rm -f .env.local
 
 ENV NEXT_TELEMETRY_DISABLED 1
 
