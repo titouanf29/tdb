@@ -1,0 +1,211 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 222 47% 6%;
+    --foreground: 210 40% 98%;
+    --card: 222 47% 8%;
+    --card-foreground: 210 40% 98%;
+    --primary: 243 75% 59%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 217 33% 17%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 217 33% 17%;
+    --muted-foreground: 215 20% 65%;
+    --accent: 243 75% 59%;
+    --accent-foreground: 0 0% 100%;
+    --border: 217 33% 17%;
+    --ring: 243 75% 59%;
+    --radius: 0.75rem;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-background;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-secondary rounded-full;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-muted-foreground/50;
+  }
+}
+
+@layer components {
+  /* Glassmorphism card */
+  .glass-card {
+    @apply bg-card/50 backdrop-blur-xl border border-white/10 rounded-xl shadow-glass;
+  }
+
+  .glass-card-hover {
+    @apply glass-card transition-all duration-300 hover:bg-card/70 hover:border-white/20 hover:shadow-glow-sm;
+  }
+
+  /* Glow effects */
+  .glow {
+    @apply relative;
+  }
+
+  .glow::before {
+    content: "";
+    @apply absolute inset-0 -z-10 rounded-xl bg-primary/20 blur-xl opacity-0 transition-opacity duration-300;
+  }
+
+  .glow:hover::before {
+    @apply opacity-100;
+  }
+
+  /* Gradient text */
+  .gradient-text {
+    @apply bg-gradient-to-r from-primary via-purple-500 to-pink-500 bg-clip-text text-transparent;
+  }
+
+  /* Trading colors */
+  .profit {
+    @apply text-profit;
+  }
+
+  .loss {
+    @apply text-loss;
+  }
+
+  /* Shimmer effect */
+  .shimmer {
+    @apply animate-shimmer bg-gradient-to-r from-transparent via-white/10 to-transparent bg-[length:200%_100%];
+  }
+
+  /* Price change animations */
+  .price-up {
+    animation: priceUp 0.5s ease-out;
+  }
+
+  .price-down {
+    animation: priceDown 0.5s ease-out;
+  }
+
+  @keyframes priceUp {
+    0% { @apply bg-profit/30; }
+    100% { @apply bg-transparent; }
+  }
+
+  @keyframes priceDown {
+    0% { @apply bg-loss/30; }
+    100% { @apply bg-transparent; }
+  }
+
+  /* Neon border */
+  .neon-border {
+    @apply relative;
+  }
+
+  .neon-border::after {
+    content: "";
+    @apply absolute inset-0 rounded-xl;
+    background: linear-gradient(45deg,
+      rgba(99, 102, 241, 0.5),
+      rgba(139, 92, 246, 0.5),
+      rgba(236, 72, 153, 0.5),
+      rgba(99, 102, 241, 0.5)
+    );
+    background-size: 300% 300%;
+    z-index: -1;
+    filter: blur(10px);
+    animation: neonGlow 3s ease infinite;
+  }
+
+  @keyframes neonGlow {
+    0%, 100% { background-position: 0% 50%; opacity: 0.5; }
+    50% { background-position: 100% 50%; opacity: 1; }
+  }
+
+  /* Score badge styles */
+  .score-badge {
+    @apply px-3 py-1 rounded-full text-sm font-bold;
+  }
+
+  .score-high {
+    @apply bg-profit/20 text-profit border border-profit/30;
+  }
+
+  .score-medium {
+    @apply bg-warning/20 text-warning border border-warning/30;
+  }
+
+  .score-low {
+    @apply bg-loss/20 text-loss border border-loss/30;
+  }
+
+  /* Button styles */
+  .btn-primary {
+    @apply bg-primary hover:bg-primary/90 text-white font-medium px-6 py-2 rounded-lg transition-all duration-200 hover:shadow-glow-sm active:scale-95;
+  }
+
+  .btn-secondary {
+    @apply bg-secondary hover:bg-secondary/80 text-white font-medium px-6 py-2 rounded-lg transition-all duration-200 border border-white/10;
+  }
+
+  .btn-ghost {
+    @apply hover:bg-white/10 text-muted-foreground hover:text-foreground px-4 py-2 rounded-lg transition-all duration-200;
+  }
+
+  /* Input styles */
+  .input {
+    @apply bg-secondary/50 border border-white/10 rounded-lg px-4 py-2 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all duration-200;
+  }
+
+  /* Chart container */
+  .chart-container {
+    @apply glass-card p-4 rounded-xl;
+  }
+}
+
+@layer utilities {
+  /* Hide scrollbar but keep functionality */
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  /* Aspect ratios */
+  .aspect-trading-chart {
+    aspect-ratio: 16/9;
+  }
+
+  /* Fade in animation */
+  .animate-fade-in {
+    animation: fadeIn 0.3s ease-out;
+  }
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+}
