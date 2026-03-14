@@ -579,28 +579,60 @@ async def get_chart_data(
         resistance = round(float(recent["High"].max()), 4)
         pivot      = round((resistance + support + float(close.iloc[-1])) / 3, 4)
 
-        # ── Future projection (linear regression + volatility bands) ──────────
-        x = np.arange(n, dtype=float)
-        coeffs = np.polyfit(x, close.values.astype(float), 1)
-        slope = coeffs[0]
-
-        # Annualised → per-bar volatility
-        bar_vol = close.pct_change().dropna().std()
+        # ── Future projection (précision améliorée) ────────────────────────────
         last_price = float(close.iloc[-1])
         last_ts    = hist.index[-1]
 
-        # Time delta between bars
+        # -- 1. Régression quadratique à poids exponentiels -------------------
+        #    Les données récentes ont un poids proche de 1, les anciennes ~e^-2
+        x = np.arange(n, dtype=float)
+        w = np.exp(np.linspace(-2.0, 0.0, n))          # poids décroissants vers le passé
+        coeffs2 = np.polyfit(x, close.values.astype(float), 2, w=w)
+
+        # Dérivée du polynôme en x=n-1 → tendance instantanée (pente locale)
+        # poly ax²+bx+c → dérivée 2ax+b
+        local_slope = 2 * coeffs2[0] * (n - 1) + coeffs2[1]
+
+        # -- 2. ATR sur 14 périodes (volatilité réelle des traders) -----------
+        tr = pd.concat([
+            hist["High"] - hist["Low"],
+            (hist["High"] - hist["Close"].shift(1)).abs(),
+            (hist["Low"]  - hist["Close"].shift(1)).abs(),
+        ], axis=1).max(axis=1)
+        atr14 = float(tr.rolling(14).mean().iloc[-1])
+        if np.isnan(atr14) or atr14 == 0:
+            atr14 = float(close.std()) * 0.01
+
+        # -- 3. Facteur RSI : dévie légèrement la trajectoire ----------------
+        #    RSI > 60 → léger biais haussier, RSI < 40 → léger biais baissier
+        rsi_raw = 100 - 100 / (1 + (
+            close.diff().clip(lower=0).rolling(14).mean() /
+            (-close.diff().clip(upper=0).rolling(14).mean()).replace(0, 1e-9)
+        ))
+        current_rsi = float(rsi_raw.iloc[-1]) if not np.isnan(rsi_raw.iloc[-1]) else 50.0
+        momentum_bias = (current_rsi - 50) / 50 * atr14 * 0.15  # ±15 % d'ATR max
+
+        # -- 4. Mean-reversion vers EMA20 ------------------------------------
+        ema20_last = float(close.ewm(span=20, adjust=False).mean().iloc[-1])
+        mean_rev_force = (ema20_last - last_price) * 0.08  # rappel doux
+
+        # -- 5. Temps delta entre bougies ------------------------------------
         if n >= 2:
             delta_sec = int((hist.index[-1] - hist.index[-2]).total_seconds())
         else:
             delta_sec = 86400
 
-        n_future = max(5, n // 6)   # project ~1/6 of history
+        # -- 6. Génération des points de projection --------------------------
+        n_future = max(8, n // 5)
         projection = []
         for i in range(1, n_future + 1):
-            trend     = slope * i
-            base      = last_price + trend
-            band      = bar_vol * last_price * (i ** 0.5) * 1.96   # 95% CI
+            # Tendance quadratique projetée depuis le dernier point
+            trend = local_slope * i + coeffs2[0] * i * i * 0.3  # amortir le quadratique
+            # Rappel progressif vers EMA + biais RSI (effet décroissant)
+            correction = (mean_rev_force + momentum_bias) * np.exp(-i / (n_future * 0.6))
+            base = last_price + trend + correction
+            # Bandes ATR : s'élargissent en racine du temps (marche aléatoire)
+            band = atr14 * (i ** 0.5) * 1.5
             future_ts = int(last_ts.timestamp()) + delta_sec * i
             projection.append({
                 "time":  future_ts,
@@ -608,6 +640,9 @@ async def get_chart_data(
                 "upper": round(max(base + band, 0.0001), 4),
                 "lower": round(max(base - band, 0.0001), 4),
             })
+
+        # Tendance générale de la projection
+        proj_trend = "bullish" if local_slope > 0 else "bearish"
 
         return {
             "symbol":     symbol.upper(),
@@ -618,6 +653,14 @@ async def get_chart_data(
             "ema200":     ema200_data,
             "bollinger":  bollinger,
             "projection": projection,
+            "projection_meta": {
+                "trend":         proj_trend,
+                "rsi":           round(current_rsi, 1),
+                "atr":           round(atr14, 4),
+                "target":        round(projection[-1]["value"], 4) if projection else last_price,
+                "target_upper":  round(projection[-1]["upper"], 4) if projection else last_price,
+                "target_lower":  round(projection[-1]["lower"], 4) if projection else last_price,
+            },
             "levels": {
                 "support":    support,
                 "resistance": resistance,

@@ -43,6 +43,15 @@ interface Levels {
   pivot: number;
 }
 
+interface ProjectionMeta {
+  trend: 'bullish' | 'bearish';
+  rsi: number;
+  atr: number;
+  target: number;
+  target_upper: number;
+  target_lower: number;
+}
+
 interface ChartData {
   symbol: string;
   timeframe: string;
@@ -52,6 +61,7 @@ interface ChartData {
   ema200: LinePoint[];
   bollinger: { upper: LinePoint[]; middle: LinePoint[]; lower: LinePoint[] };
   projection: ProjectionPoint[];
+  projection_meta: ProjectionMeta;
   levels: Levels;
 }
 
@@ -385,6 +395,46 @@ export default function PremiumChart({ symbol, timeframe }: PremiumChartProps) {
               {label}
             </button>
           ))}
+        </div>
+      )}
+
+      {/* Projection stats */}
+      {chartData?.projection_meta && !loading && !error && (
+        <div className="flex flex-wrap gap-3 mb-4 p-3 rounded-xl bg-white/5 border border-white/10">
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-slate-500">Tendance</span>
+            <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
+              chartData.projection_meta.trend === 'bullish'
+                ? 'bg-green-500/20 text-green-400'
+                : 'bg-red-500/20 text-red-400'
+            }`}>
+              {chartData.projection_meta.trend === 'bullish' ? '▲ Haussière' : '▼ Baissière'}
+            </span>
+          </div>
+          <div className="flex items-center gap-1.5 text-xs">
+            <span className="text-slate-500">Cible</span>
+            <span className="font-semibold text-cyan-400">{chartData.projection_meta.target.toLocaleString()}</span>
+          </div>
+          <div className="flex items-center gap-1.5 text-xs">
+            <span className="text-slate-500">Zone haute</span>
+            <span className="font-semibold text-green-400">{chartData.projection_meta.target_upper.toLocaleString()}</span>
+          </div>
+          <div className="flex items-center gap-1.5 text-xs">
+            <span className="text-slate-500">Zone basse</span>
+            <span className="font-semibold text-red-400">{chartData.projection_meta.target_lower.toLocaleString()}</span>
+          </div>
+          <div className="flex items-center gap-1.5 text-xs">
+            <span className="text-slate-500">RSI</span>
+            <span className={`font-semibold ${
+              chartData.projection_meta.rsi > 70 ? 'text-red-400'
+              : chartData.projection_meta.rsi < 30 ? 'text-green-400'
+              : 'text-slate-300'
+            }`}>{chartData.projection_meta.rsi}</span>
+          </div>
+          <div className="flex items-center gap-1.5 text-xs">
+            <span className="text-slate-500">ATR</span>
+            <span className="text-slate-300 font-semibold">{chartData.projection_meta.atr.toLocaleString()}</span>
+          </div>
         </div>
       )}
 
