@@ -42,7 +42,7 @@ async def get_favorites(current_user: dict = Depends(get_current_user)):
         symbol = fav["symbol"]
         try:
             ticker = yf.Ticker(symbol)
-            hist = ticker.history(period="2d")
+            hist = ticker.history(period="5d")
 
             if len(hist) >= 2:
                 current_price = hist['Close'].iloc[-1]
@@ -97,14 +97,15 @@ async def add_favorite(
             detail=f"Limite de favoris atteinte ({max_favorites}). Passez Premium pour en ajouter plus."
         )
 
-    # Verify symbol exists
+    # Verify symbol exists (use 5d to avoid empty results on weekends/after market close)
     try:
         ticker = yf.Ticker(symbol)
-        hist = ticker.history(period="1d")
-        if hist.empty:
-            raise HTTPException(status_code=404, detail="Symbol not found")
+        hist = ticker.history(period="5d")
     except Exception:
         raise HTTPException(status_code=404, detail="Invalid symbol")
+
+    if hist.empty:
+        raise HTTPException(status_code=404, detail="Symbol not found")
 
     # Check if already in favorites
     existing = await execute_query(
