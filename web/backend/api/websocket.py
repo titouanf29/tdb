@@ -2,8 +2,12 @@
 WebSocket routes for real-time updates
 """
 import asyncio
+import base64
+import hashlib
+import hmac
 import json
-from typing import Dict, Set
+import os
+from typing import Dict, Set, Optional
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
 router = APIRouter()
@@ -39,6 +43,38 @@ class ConnectionManager:
 
 
 manager = ConnectionManager()
+
+_JWT_SECRET = os.getenv("JWT_SECRET", "tdb-secret-key-change-in-production")
+
+
+def _b64url_decode(s: str) -> bytes:
+    padding = 4 - len(s) % 4
+    if padding != 4:
+        s += "=" * padding
+    return base64.urlsafe_b64decode(s)
+
+
+def _get_user_id_from_token(token: Optional[str]) -> Optional[int]:
+    """Verify HS256 JWT and return user_id, or None if invalid/tampered."""
+    if not token:
+        return None
+    try:
+        parts = token.split(".")
+        if len(parts) != 3:
+            return None
+        header_b64, payload_b64, sig_b64 = parts
+        message = f"{header_b64}.{payload_b64}".encode()
+        expected_sig = hmac.new(
+            _JWT_SECRET.encode(), message, hashlib.sha256
+        ).digest()
+        actual_sig = _b64url_decode(sig_b64)
+        if not hmac.compare_digest(expected_sig, actual_sig):
+            return None
+        payload = json.loads(_b64url_decode(payload_b64))
+        sub = payload.get("sub")
+        return int(sub) if sub is not None else None
+    except Exception:
+        return None
 
 
 websocket_router = APIRouter()
@@ -82,10 +118,15 @@ async def websocket_prices(websocket: WebSocket, symbols: str):
 
 
 @websocket_router.websocket("/portfolio/{user_id}")
-async def websocket_portfolio(websocket: WebSocket, user_id: int):
+async def websocket_portfolio(websocket: WebSocket, user_id: int, token: Optional[str] = None):
     """
-    Real-time portfolio updates for a user
+    Real-time portfolio updates for a user — requires valid JWT matching user_id.
     """
+    authenticated_id = _get_user_id_from_token(token)
+    if authenticated_id is None or authenticated_id != user_id:
+        await websocket.close(code=4401)
+        return
+
     await manager.connect(websocket, f"portfolio:{user_id}")
 
     try:
@@ -145,10 +186,15 @@ async def websocket_portfolio(websocket: WebSocket, user_id: int):
 
 
 @websocket_router.websocket("/alerts/{user_id}")
-async def websocket_alerts(websocket: WebSocket, user_id: int):
+async def websocket_alerts(websocket: WebSocket, user_id: int, token: Optional[str] = None):
     """
-    Real-time alerts for a user
+    Real-time alerts for a user — requires valid JWT matching user_id.
     """
+    authenticated_id = _get_user_id_from_token(token)
+    if authenticated_id is None or authenticated_id != user_id:
+        await websocket.close(code=4401)
+        return
+
     await manager.connect(websocket, f"alerts:{user_id}")
     manager.user_connections[user_id] = websocket
 

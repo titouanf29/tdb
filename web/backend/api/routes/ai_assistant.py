@@ -5,14 +5,17 @@ import os
 import httpx
 from datetime import datetime, date
 from typing import List, Optional
-from fastapi import APIRouter, HTTPException, Depends
-from pydantic import BaseModel
+from fastapi import APIRouter, HTTPException, Depends, Request
+from pydantic import BaseModel, field_validator
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 
 from ..database import execute_query, execute_write
 from .auth import get_current_user
 from .premium import is_user_premium, get_user_limits
 
 router = APIRouter()
+limiter = Limiter(key_func=get_remote_address)
 
 # Groq API Configuration
 GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
@@ -48,6 +51,20 @@ class ChatMessage(BaseModel):
 class ChatRequest(BaseModel):
     message: str
     context: Optional[str] = None  # Optional market context
+
+    @field_validator("message")
+    @classmethod
+    def message_max_length(cls, v: str) -> str:
+        if len(v) > 1000:
+            raise ValueError("Message trop long (max 1000 caractères)")
+        return v
+
+    @field_validator("context")
+    @classmethod
+    def context_max_length(cls, v: Optional[str]) -> Optional[str]:
+        if v and len(v) > 2000:
+            raise ValueError("Contexte trop long (max 2000 caractères)")
+        return v
 
 
 class ChatResponse(BaseModel):
@@ -107,7 +124,9 @@ async def get_ai_limit(current_user: dict = Depends(get_current_user)):
 
 
 @router.post("/chat", response_model=ChatResponse)
+@limiter.limit("5/minute")
 async def chat_with_assistant(
+    http_request: Request,
     request: ChatRequest,
     current_user: dict = Depends(get_current_user)
 ):
@@ -243,7 +262,9 @@ async def clear_chat_history(current_user: dict = Depends(get_current_user)):
 
 
 @router.post("/quick-analysis")
+@limiter.limit("3/minute")
 async def quick_analysis(
+    request: Request,
     symbol: str,
     current_user: dict = Depends(get_current_user)
 ):
@@ -414,7 +435,8 @@ Sois precis, factuel et professionnel. Utilise des emojis pour rendre l'analyse 
 
 
 @router.get("/market-news")
-async def get_market_news(current_user: dict = Depends(get_current_user)):
+@limiter.limit("2/minute")
+async def get_market_news(request: Request, current_user: dict = Depends(get_current_user)):
     """Get economic news with AI summary"""
     import yfinance as yf
 

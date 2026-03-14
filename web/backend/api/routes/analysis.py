@@ -1,22 +1,32 @@
 """
 AI Analysis routes - Using the same analyzer as the bot
 """
+import re
 import sys
 from pathlib import Path
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 from .auth import get_current_user
 from .premium import is_user_premium
 
-
 router = APIRouter()
+limiter = Limiter(key_func=get_remote_address)
+
+_SYMBOL_RE = re.compile(r'^[\^A-Z0-9.\-=]{1,30}$')
 
 
 @router.get("/{symbol}")
+@limiter.limit("10/minute")
 async def analyze_asset(
+    request: Request,
     symbol: str,
     timeframe: str = Query(default="1d", regex="^(5m|15m|1h|4h|1d)$")
 ):
     """Get AI analysis for an asset"""
+    if not _SYMBOL_RE.match(symbol.upper()):
+        raise HTTPException(status_code=400, detail="Symbole invalide")
+    symbol = symbol.upper()
     import yfinance as yf
     import pandas as pd
     import numpy as np
@@ -410,7 +420,9 @@ async def analyze_asset(
 
 
 @router.get("/scan/{market_key}")
+@limiter.limit("2/minute")
 async def scan_market(
+    request: Request,
     market_key: str,
     min_score: int = Query(default=60, ge=0, le=100),
     limit: int = Query(default=10, le=50)
@@ -485,12 +497,17 @@ async def scan_market(
 
 
 @router.get("/{symbol}/chart")
+@limiter.limit("10/minute")
 async def get_chart_data(
+    request: Request,
     symbol: str,
     timeframe: str = Query(default="1d", regex="^(5m|15m|1h|4h|1d)$"),
     current_user: dict = Depends(get_current_user),
 ):
     """Return OHLCV candles + technical overlays + future projection (premium only)."""
+    if not _SYMBOL_RE.match(symbol.upper()):
+        raise HTTPException(status_code=400, detail="Symbole invalide")
+    symbol = symbol.upper()
     if not await is_user_premium(current_user):
         raise HTTPException(
             status_code=403, detail="Cette fonctionnalité est réservée aux membres Premium"

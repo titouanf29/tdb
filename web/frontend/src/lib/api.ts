@@ -2,7 +2,7 @@
  * API client for TDB backend
  */
 
-import { authHeaders, removeToken } from "./auth";
+import { authHeaders, removeToken, getToken } from "./auth";
 
 // In the browser, use relative URLs so requests go through Next.js proxy (no CORS).
 // During SSR, call the backend directly.
@@ -1169,4 +1169,19 @@ export interface TicketMessage {
   message: string;
   is_admin: boolean;
   created_at: string;
+}
+
+/**
+ * Create an authenticated WebSocket URL for private endpoints
+ * (portfolio, alerts). Passes the JWT as a query param since
+ * WebSocket connections cannot send Authorization headers.
+ */
+export function createAuthenticatedWsUrl(path: string): string {
+  const wsBase =
+    typeof window !== "undefined"
+      ? `${window.location.protocol === "https:" ? "wss" : "ws"}://${window.location.host}`
+      : "ws://localhost:8000";
+  const token = getToken();
+  const sep = path.includes("?") ? "&" : "?";
+  return token ? `${wsBase}${path}${sep}token=${encodeURIComponent(token)}` : `${wsBase}${path}`;
 }

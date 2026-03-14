@@ -11,8 +11,13 @@ load_dotenv(env_path)
 # Also try local .env
 load_dotenv()
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from slowapi import Limiter
+from slowapi.util import get_remote_address
+from slowapi.middleware import SlowAPIMiddleware
+from slowapi.errors import RateLimitExceeded
 
 from .database import init_db, init_web_tables
 from .routes import auth, market, wallet, analysis, users, favorites, ai_assistant, admin, premium, community
@@ -22,6 +27,18 @@ app = FastAPI(
     description="Trading Dashboard Bot - Web API",
     version="1.0.0"
 )
+
+# Global rate limiter (shared across all route limiters)
+limiter = Limiter(key_func=get_remote_address)
+app.state.limiter = limiter
+app.add_middleware(SlowAPIMiddleware)
+
+@app.exception_handler(RateLimitExceeded)
+async def rate_limit_handler(request: Request, exc: RateLimitExceeded):
+    return JSONResponse(
+        status_code=429,
+        content={"detail": f"Trop de requêtes. Limite : {exc.detail}"}
+    )
 
 # CORS configuration
 # FRONTEND_URL can be comma-separated for multiple origins, or "*" for all
