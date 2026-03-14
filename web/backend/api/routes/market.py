@@ -44,6 +44,103 @@ async def get_markets():
     }
 
 
+@router.get("/search")
+@limiter.limit("10/minute")
+async def search_assets(request: Request, q: str = Query(..., min_length=2, max_length=100)):
+    """Search assets by name or symbol — Yahoo Finance with local fallback."""
+    import httpx
+
+    q_upper = q.strip().upper()
+
+    # --- Local fallback: search among known MARKETS assets by symbol prefix/contains ---
+    def _local_search(query: str) -> list:
+        query = query.upper()
+        hits = []
+        seen = set()
+        for market_key, market in MARKETS.items():
+            for sym in market["assets"]:
+                if sym in seen:
+                    continue
+                if query in sym or sym.startswith(query):
+                    seen.add(sym)
+                    hits.append({"symbol": sym, "name": sym, "exchange": market_key, "type": "EQUITY"})
+        return hits[:10]
+
+    # --- Yahoo Finance search ---
+    base_urls = [
+        "https://query1.finance.yahoo.com/v1/finance/search",
+        "https://query2.finance.yahoo.com/v1/finance/search",
+    ]
+    params = {
+        "q": q,
+        "lang": "en-US",
+        "region": "US",
+        "quotesCount": 15,
+        "newsCount": 0,
+        "enableFuzzyQuery": True,
+        "quotesQueryId": "tss_match_phrase_query",
+    }
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Accept": "application/json",
+        "Accept-Language": "en-US,en;q=0.9",
+        "Referer": "https://finance.yahoo.com/",
+    }
+
+    data = None
+    async with httpx.AsyncClient(timeout=8) as client:
+        for url in base_urls:
+            try:
+                resp = await client.get(url, params=params, headers=headers)
+                if resp.status_code == 200:
+                    data = resp.json()
+                    break
+            except Exception:
+                continue
+
+    allowed = {"EQUITY", "ETF", "CRYPTOCURRENCY", "MUTUALFUND", "INDEX", "FUTURE", "CURRENCY"}
+    results = []
+    seen = set()
+
+    if data:
+        for quote in data.get("quotes", []):
+            symbol = quote.get("symbol", "")
+            if not symbol or symbol in seen:
+                continue
+            qtype = quote.get("quoteType", "EQUITY")
+            if qtype not in allowed:
+                continue
+            seen.add(symbol)
+            results.append({
+                "symbol":   symbol,
+                "name":     quote.get("longname") or quote.get("shortname") or symbol,
+                "exchange": quote.get("exchDisp") or quote.get("exchange", ""),
+                "type":     qtype,
+            })
+
+    # If Yahoo returned nothing, use local fallback
+    if not results:
+        results = _local_search(q_upper)
+
+    return {"results": results}
+
+
+@router.get("/my-requests")
+async def get_my_asset_requests(
+    current_user: dict = Depends(get_current_user)
+):
+    """Get user's asset requests"""
+    user_id = current_user.get("id")
+
+    requests = await execute_query("""
+        SELECT * FROM asset_requests
+        WHERE user_id = ?
+        ORDER BY created_at DESC
+    """, (user_id,))
+
+    return {"requests": requests or []}
+
+
 @router.get("/{market_key}")
 async def get_market_info(market_key: str):
     """Get detailed info for a specific market"""
@@ -229,81 +326,3 @@ async def request_new_asset(
     }
 
 
-@router.get("/my-requests")
-async def get_my_asset_requests(
-    current_user: dict = Depends(get_current_user)
-):
-    """Get user's asset requests"""
-    user_id = current_user.get("id")
-
-    requests = await execute_query("""
-        SELECT * FROM asset_requests
-        WHERE user_id = ?
-        ORDER BY created_at DESC
-    """, (user_id,))
-
-    return {"requests": requests or []}
-
-
-@router.get("/search")
-@limiter.limit("10/minute")
-async def search_assets(request: Request, q: str = Query(..., min_length=2, max_length=100)):
-    """Search assets by name or symbol using Yahoo Finance."""
-    import httpx
-
-    # On essaie query1 puis query2 en fallback
-    base_urls = [
-        "https://query1.finance.yahoo.com/v1/finance/search",
-        "https://query2.finance.yahoo.com/v1/finance/search",
-    ]
-    params = {
-        "q": q,
-        "lang": "en-US",
-        "region": "US",
-        "quotesCount": 15,
-        "newsCount": 0,
-        "enableFuzzyQuery": True,
-        "quotesQueryId": "tss_match_phrase_query",
-    }
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Accept": "application/json",
-        "Accept-Language": "en-US,en;q=0.9",
-        "Referer": "https://finance.yahoo.com/",
-    }
-
-    data = None
-    async with httpx.AsyncClient(timeout=8) as client:
-        for url in base_urls:
-            try:
-                resp = await client.get(url, params=params, headers=headers)
-                if resp.status_code == 200:
-                    data = resp.json()
-                    break
-            except Exception:
-                continue
-
-    if data is None:
-        raise HTTPException(status_code=502, detail="Service de recherche temporairement indisponible")
-
-    # Types autorisés (large pour ne rien manquer)
-    allowed = {"EQUITY", "ETF", "CRYPTOCURRENCY", "MUTUALFUND", "INDEX", "FUTURE", "CURRENCY"}
-
-    results = []
-    seen = set()
-    for quote in data.get("quotes", []):
-        symbol = quote.get("symbol", "")
-        if not symbol or symbol in seen:
-            continue
-        qtype = quote.get("quoteType", "EQUITY")
-        if qtype not in allowed:
-            continue
-        seen.add(symbol)
-        results.append({
-            "symbol":   symbol,
-            "name":     quote.get("longname") or quote.get("shortname") or symbol,
-            "exchange": quote.get("exchDisp") or quote.get("exchange", ""),
-            "type":     qtype,
-        })
-
-    return {"results": results}
