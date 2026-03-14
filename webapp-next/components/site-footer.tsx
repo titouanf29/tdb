@@ -16,6 +16,7 @@ export function SiteFooter() {
           <a href={`mailto:${siteConfig.contactEmail}`}>Contact</a>
           <Link href="/legal/mentions-legales">Mentions legales</Link>
           <Link href="/legal/confidentialite">Confidentialite</Link>
+          <Link href="/legal/disclaimer">Disclaimer</Link>
         </div>
       </div>
     </footer>
