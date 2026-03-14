@@ -15,7 +15,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .database import init_db, init_web_tables
-from .routes import auth, market, wallet, analysis, users, favorites, ai_assistant, admin
+from .routes import auth, market, wallet, analysis, users, favorites, ai_assistant, admin, premium, community
 
 app = FastAPI(
     title="TDB Web API",
@@ -49,6 +49,8 @@ app.include_router(users.router, prefix="/api/users", tags=["Users"])
 app.include_router(favorites.router, prefix="/api/favorites", tags=["Favorites"])
 app.include_router(ai_assistant.router, prefix="/api/ai", tags=["AI Assistant"])
 app.include_router(admin.router, prefix="/api/admin", tags=["Admin"])
+app.include_router(premium.router, prefix="/api/premium", tags=["Premium"])
+app.include_router(community.router, prefix="/api/community", tags=["Community"])
 
 
 @app.on_event("startup")

@@ -1,6 +1,7 @@
 """
 Favorites/Watchlist routes
 """
+import asyncio
 from datetime import datetime
 from typing import List
 from fastapi import APIRouter, HTTPException, Depends
@@ -22,11 +23,35 @@ def get_user_id(user: dict) -> int:
     return user.get("id")
 
 
+async def _fetch_price(symbol: str, added_at: str) -> dict:
+    """Fetch live price for a symbol via yfinance in a thread."""
+    import yfinance as yf
+    try:
+        hist = await asyncio.get_event_loop().run_in_executor(
+            None, lambda: yf.Ticker(symbol).history(period="5d")
+        )
+        if len(hist) >= 2:
+            current_price = float(hist['Close'].iloc[-1])
+            prev_price = float(hist['Close'].iloc[-2])
+            change = ((current_price - prev_price) / prev_price) * 100
+        elif len(hist) == 1:
+            current_price = float(hist['Close'].iloc[-1])
+            change = 0.0
+        else:
+            return {"symbol": symbol, "price": 0, "change": 0, "added_at": added_at, "error": True}
+        return {
+            "symbol": symbol,
+            "price": round(current_price, 2),
+            "change": round(change, 2),
+            "added_at": added_at
+        }
+    except Exception:
+        return {"symbol": symbol, "price": 0, "change": 0, "added_at": added_at, "error": True}
+
+
 @router.get("/")
 async def get_favorites(current_user: dict = Depends(get_current_user)):
-    """Get user's favorites with live prices"""
-    import yfinance as yf
-
+    """Get user's favorites with live prices (parallel fetching)"""
     user_id = get_user_id(current_user)
 
     favorites = await execute_query(
@@ -36,39 +61,17 @@ async def get_favorites(current_user: dict = Depends(get_current_user)):
         (user_id,)
     )
 
-    # Get live prices
-    result = []
-    for fav in favorites:
-        symbol = fav["symbol"]
-        try:
-            ticker = yf.Ticker(symbol)
-            hist = ticker.history(period="5d")
+    if not favorites:
+        return {"favorites": []}
 
-            if len(hist) >= 2:
-                current_price = hist['Close'].iloc[-1]
-                prev_price = hist['Close'].iloc[-2]
-                change = ((current_price - prev_price) / prev_price) * 100
-            else:
-                current_price = 0
-                change = 0
+    # Fetch all prices in parallel
+    results = await asyncio.gather(*[
+        _fetch_price(fav["symbol"], fav["added_at"]) for fav in favorites
+    ])
+    return {"favorites": list(results)}
 
-            result.append({
-                "symbol": symbol,
-                "price": round(current_price, 2),
-                "change": round(change, 2),
-                "added_at": fav["added_at"]
-            })
-        except Exception:
-            result.append({
-                "symbol": symbol,
-                "price": 0,
-                "change": 0,
-                "added_at": fav["added_at"],
-                "error": True
-            })
 
-    return {"favorites": result}
-
+import re as _re
 
 @router.post("/")
 async def add_favorite(
@@ -76,10 +79,12 @@ async def add_favorite(
     current_user: dict = Depends(get_current_user)
 ):
     """Add a symbol to favorites"""
-    import yfinance as yf
-
     user_id = get_user_id(current_user)
-    symbol = request.symbol.upper()
+    symbol = request.symbol.upper().strip()
+
+    # Basic symbol format validation (letters, digits, dash, dot — no yfinance call needed)
+    if not symbol or not _re.match(r'^[A-Z0-9.\-]{1,20}$', symbol):
+        raise HTTPException(status_code=400, detail="Symbole invalide")
 
     # Check favorites limit
     limits = await get_user_limits(current_user)
@@ -97,24 +102,13 @@ async def add_favorite(
             detail=f"Limite de favoris atteinte ({max_favorites}). Passez Premium pour en ajouter plus."
         )
 
-    # Verify symbol exists (use 5d to avoid empty results on weekends/after market close)
-    try:
-        ticker = yf.Ticker(symbol)
-        hist = ticker.history(period="5d")
-    except Exception:
-        raise HTTPException(status_code=404, detail="Invalid symbol")
-
-    if hist.empty:
-        raise HTTPException(status_code=404, detail="Symbol not found")
-
     # Check if already in favorites
     existing = await execute_query(
         "SELECT id FROM web_favorites WHERE user_id = ? AND symbol = ?",
         (user_id, symbol)
     )
-
     if existing:
-        raise HTTPException(status_code=400, detail="Already in favorites")
+        raise HTTPException(status_code=400, detail="Déjà dans vos favoris")
 
     # Add to favorites
     await execute_write(
@@ -123,7 +117,7 @@ async def add_favorite(
         (user_id, symbol, datetime.utcnow().isoformat())
     )
 
-    return {"message": f"{symbol} added to favorites"}
+    return {"message": f"{symbol} ajouté aux favoris"}
 
 
 @router.delete("/{symbol}")
@@ -135,15 +129,19 @@ async def remove_favorite(
     user_id = get_user_id(current_user)
     symbol = symbol.upper()
 
-    result = await execute_write(
+    # Verify it exists before deleting
+    existing = await execute_query(
+        "SELECT id FROM web_favorites WHERE user_id = ? AND symbol = ?",
+        (user_id, symbol)
+    )
+    if not existing:
+        raise HTTPException(status_code=404, detail="Favori introuvable")
+
+    await execute_write(
         "DELETE FROM web_favorites WHERE user_id = ? AND symbol = ?",
         (user_id, symbol)
     )
-
-    if result == 0:
-        raise HTTPException(status_code=404, detail="Favorite not found")
-
-    return {"message": f"{symbol} removed from favorites"}
+    return {"message": f"{symbol} retiré des favoris"}
 
 
 @router.get("/check/{symbol}")
