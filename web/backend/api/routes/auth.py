@@ -8,16 +8,20 @@ import secrets
 from datetime import datetime, timedelta
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel, EmailStr, Field
 from jose import JWTError, jwt
 import bcrypt
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 
 from ..database import execute_query, execute_write
 
 router = APIRouter()
 security = HTTPBearer(auto_error=False)
+# Module-level limiter; main.py replaces this with the app-wide limiter
+limiter = Limiter(key_func=get_remote_address)
 
 # JWT Configuration
 SECRET_KEY = os.getenv("JWT_SECRET", "tdb-secret-key-change-in-production")
@@ -166,7 +170,8 @@ async def get_current_user_optional(credentials: HTTPAuthorizationCredentials = 
 # === Email/Password Routes ===
 
 @router.post("/register", response_model=TokenResponse)
-async def register(data: RegisterRequest):
+@limiter.limit("5/minute")
+async def register(request: Request, data: RegisterRequest):
     """Register a new user with email/password"""
     # Check if email already exists
     existing = await execute_query(
@@ -223,7 +228,8 @@ async def register(data: RegisterRequest):
 
 
 @router.post("/login", response_model=TokenResponse)
-async def login(data: LoginRequest):
+@limiter.limit("10/minute")
+async def login(request: Request, data: LoginRequest):
     """Login with email/password"""
     users = await execute_query(
         "SELECT * FROM web_users WHERE email = ?",
@@ -254,14 +260,15 @@ async def login(data: LoginRequest):
 
 
 @router.post("/telegram", response_model=TokenResponse)
-async def login_with_telegram(auth_data: TelegramAuth):
+@limiter.limit("10/minute")
+async def login_with_telegram(request: Request, auth_data: TelegramAuth):
     """
     Authenticate with Telegram Login Widget
     This links the Telegram account to the web session
     """
-    # Verify auth (disabled in dev for testing)
-    # if not verify_telegram_auth(auth_data):
-    #     raise HTTPException(status_code=401, detail="Invalid Telegram authentication")
+    # Verify Telegram signature
+    if not verify_telegram_auth(auth_data):
+        raise HTTPException(status_code=401, detail="Invalid Telegram authentication")
 
     # Check if auth is not too old (1 day max)
     if datetime.utcnow().timestamp() - auth_data.auth_date > 86400:

@@ -7,8 +7,12 @@ import sys
 from pathlib import Path
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 
 # Add parent directory to path for shared modules
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
@@ -19,6 +23,11 @@ load_dotenv(Path(__file__).parent.parent.parent / ".env")
 from api.routes import auth, market, wallet, analysis, users, ai_assistant, favorites, admin, tools, premium, community
 from api.websocket import websocket_router
 from api.database import init_web_tables
+
+# Global rate limiter (IP-based)
+limiter = Limiter(key_func=get_remote_address)
+
+IS_PRODUCTION = os.getenv("ENV", "development").lower() == "production"
 
 
 @asynccontextmanager
@@ -35,8 +44,16 @@ app = FastAPI(
     title="TDB Trading Bot API",
     description="API pour le site web TDB - synchronisé avec le bot Telegram",
     version="1.0.0",
-    lifespan=lifespan
+    lifespan=lifespan,
+    # Disable interactive docs in production
+    docs_url=None if IS_PRODUCTION else "/docs",
+    redoc_url=None if IS_PRODUCTION else "/redoc",
+    openapi_url=None if IS_PRODUCTION else "/openapi.json",
 )
+
+# Attach rate limiter to app
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # CORS for frontend
 # FRONTEND_URL can be comma-separated or omitted to allow all origins
@@ -51,9 +68,28 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=_cors_origins,
     allow_credentials=_cors_origins != ["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", "Accept"],
 )
+
+
+# Security headers middleware
+@app.middleware("http")
+async def security_headers(request: Request, call_next):
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["X-XSS-Protection"] = "1; mode=block"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
+    if IS_PRODUCTION:
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    return response
+
+
+# Make limiter available to routers via app state
+# Export it so routes can import it
+auth.limiter = limiter
 
 # Include routers
 app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
@@ -76,7 +112,6 @@ async def root():
         "name": "TDB Trading Bot API",
         "version": "1.0.0",
         "status": "online",
-        "docs": "/docs"
     }
 
 
