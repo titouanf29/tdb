@@ -2,7 +2,11 @@
  * Authentication utilities
  */
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+// In the browser, use relative URLs so requests go through Next.js proxy (no CORS).
+// During SSR, call the backend directly.
+const API_URL = typeof window !== "undefined"
+  ? ""
+  : (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000");
 
 export interface User {
   id: number;
