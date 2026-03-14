@@ -90,19 +90,26 @@ export default function MarketsPage() {
   }, [selectedMarket]);
 
   const toggleFavorite = async (symbol: string) => {
+    const wasFavorite = favorites.has(symbol);
+    // optimistic update
+    setFavorites((prev) => {
+      const next = new Set(prev);
+      if (wasFavorite) next.delete(symbol); else next.add(symbol);
+      return next;
+    });
     try {
-      if (favorites.has(symbol)) {
+      if (wasFavorite) {
         await favoritesAPI.removeFavorite(symbol);
-        setFavorites((prev) => {
-          const newSet = new Set(prev);
-          newSet.delete(symbol);
-          return newSet;
-        });
       } else {
         await favoritesAPI.addFavorite(symbol);
-        setFavorites((prev) => new Set(prev).add(symbol));
       }
     } catch (error) {
+      // revert on error
+      setFavorites((prev) => {
+        const next = new Set(prev);
+        if (wasFavorite) next.add(symbol); else next.delete(symbol);
+        return next;
+      });
       console.error("Error toggling favorite:", error);
     }
   };

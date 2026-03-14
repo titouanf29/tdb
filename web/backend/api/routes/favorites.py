@@ -82,8 +82,8 @@ async def add_favorite(
     user_id = get_user_id(current_user)
     symbol = request.symbol.upper().strip()
 
-    # Basic symbol format validation (letters, digits, dash, dot — no yfinance call needed)
-    if not symbol or not _re.match(r'^[A-Z0-9.\-]{1,20}$', symbol):
+    # Basic symbol format validation — allow indices (^GSPC), futures (CL=F), Asian/EU stocks
+    if not symbol or not _re.match(r'^[\^A-Z0-9.\-=]{1,30}$', symbol):
         raise HTTPException(status_code=400, detail="Symbole invalide")
 
     # Check favorites limit

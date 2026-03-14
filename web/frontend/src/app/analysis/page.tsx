@@ -281,14 +281,16 @@ Sois precis, factuel et professionnel. Utilise des emojis pour rendre l'analyse 
 
   const toggleFavorite = async () => {
     if (!analysis) return;
+    const prev = isFavorite;
+    setIsFavorite(!prev); // optimistic update
     try {
-      if (isFavorite) {
+      if (prev) {
         await favoritesAPI.removeFavorite(analysis.symbol);
       } else {
         await favoritesAPI.addFavorite(analysis.symbol);
       }
-      setIsFavorite(!isFavorite);
     } catch (error) {
+      setIsFavorite(prev); // revert on error
       console.error("Error toggling favorite:", error);
     }
   };
