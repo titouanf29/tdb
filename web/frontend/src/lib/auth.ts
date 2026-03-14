@@ -14,7 +14,7 @@ export interface User {
   username?: string;
   first_name?: string;
   last_name?: string;
-  user_type: "email" | "telegram";
+  user_type: "email";
 }
 
 export interface AuthResponse {
