@@ -1,11 +1,14 @@
 """
 Market data routes
 """
+import re
 import sys
 from pathlib import Path
 from typing import Optional, List
-from fastapi import APIRouter, HTTPException, Query, Depends
+from fastapi import APIRouter, HTTPException, Query, Depends, Request
 from pydantic import BaseModel
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 
 from config import MARKETS
 
@@ -13,6 +16,8 @@ from ..database import execute_query, execute_write
 from .auth import get_current_user
 
 router = APIRouter()
+limiter = Limiter(key_func=get_remote_address)
+_SYMBOL_RE = re.compile(r'^[\^A-Z0-9.\-=]{1,30}$')
 
 
 class AssetRequestCreate(BaseModel):
@@ -102,8 +107,12 @@ async def get_market_assets(
 
 
 @router.get("/quote/{symbol}")
-async def get_quote(symbol: str):
+@limiter.limit("20/minute")
+async def get_quote(request: Request, symbol: str):
     """Get real-time quote for a symbol"""
+    if not _SYMBOL_RE.match(symbol.upper()):
+        raise HTTPException(status_code=400, detail="Symbole invalide")
+    symbol = symbol.upper()
     import yfinance as yf
 
     try:
@@ -138,12 +147,17 @@ async def get_quote(symbol: str):
 
 
 @router.get("/chart/{symbol}")
+@limiter.limit("10/minute")
 async def get_chart_data(
+    request: Request,
     symbol: str,
     period: str = Query(default="1mo", regex="^(1d|5d|1mo|3mo|6mo|1y|2y|5y|max)$"),
     interval: str = Query(default="1d", regex="^(1m|5m|15m|1h|1d|1wk|1mo)$")
 ):
     """Get OHLCV chart data for a symbol"""
+    if not _SYMBOL_RE.match(symbol.upper()):
+        raise HTTPException(status_code=400, detail="Symbole invalide")
+    symbol = symbol.upper()
     import yfinance as yf
 
     try:
@@ -232,7 +246,8 @@ async def get_my_asset_requests(
 
 
 @router.get("/search")
-async def search_assets(q: str = Query(..., min_length=2, max_length=100)):
+@limiter.limit("10/minute")
+async def search_assets(request: Request, q: str = Query(..., min_length=2, max_length=100)):
     """Search assets by name or symbol using Yahoo Finance."""
     import httpx
 

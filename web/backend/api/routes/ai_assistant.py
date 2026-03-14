@@ -2,7 +2,10 @@
 AI Assistant routes - Chat with Groq (Llama)
 """
 import os
+import re
 import httpx
+
+_SYMBOL_RE = re.compile(r'^[\^A-Z0-9.\-=]{1,30}$')
 from datetime import datetime, date
 from typing import List, Optional
 from fastapi import APIRouter, HTTPException, Depends, Request
@@ -231,7 +234,7 @@ async def chat_with_assistant(
 
 @router.get("/history")
 async def get_chat_history(
-    limit: int = 50,
+    limit: int = Query(default=50, ge=1, le=200),
     current_user: dict = Depends(get_current_user)
 ):
     """Get chat history"""
@@ -269,6 +272,9 @@ async def quick_analysis(
     current_user: dict = Depends(get_current_user)
 ):
     """Get a detailed AI analysis for a symbol"""
+    if not _SYMBOL_RE.match(symbol.upper()):
+        raise HTTPException(status_code=400, detail="Symbole invalide")
+    symbol = symbol.upper()
     import yfinance as yf
     import numpy as np
 
