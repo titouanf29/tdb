@@ -229,3 +229,46 @@ async def get_my_asset_requests(
     """, (user_id,))
 
     return {"requests": requests or []}
+
+
+@router.get("/search")
+async def search_assets(q: str = Query(..., min_length=2, max_length=100)):
+    """Search assets by name or symbol using Yahoo Finance."""
+    import httpx
+
+    try:
+        url = "https://query2.finance.yahoo.com/v1/finance/search"
+        params = {
+            "q": q,
+            "lang": "fr-FR",
+            "region": "FR",
+            "quotesCount": 10,
+            "newsCount": 0,
+            "enableFuzzyQuery": True,
+            "quotesQueryId": "tss_match_phrase_query",
+        }
+        headers = {
+            "User-Agent": "Mozilla/5.0",
+            "Accept": "application/json",
+        }
+        async with httpx.AsyncClient(timeout=5) as client:
+            resp = await client.get(url, params=params, headers=headers)
+            resp.raise_for_status()
+            data = resp.json()
+
+        results = []
+        for quote in data.get("quotes", []):
+            qtype = quote.get("quoteType", "")
+            if qtype not in ("EQUITY", "ETF", "CRYPTOCURRENCY", "MUTUALFUND", "INDEX", "FUTURE", "CURRENCY"):
+                continue
+            results.append({
+                "symbol":   quote.get("symbol", ""),
+                "name":     quote.get("longname") or quote.get("shortname") or quote.get("symbol", ""),
+                "exchange": quote.get("exchDisp") or quote.get("exchange", ""),
+                "type":     qtype,
+            })
+
+        return {"results": results}
+
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Erreur de recherche : {str(e)}")

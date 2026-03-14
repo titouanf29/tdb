@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { motion } from "framer-motion";
@@ -60,6 +60,11 @@ export default function AnalysisPage() {
   const formatCurrency = useFormatCurrency();
 
   const [symbol, setSymbol] = useState(searchParams.get("symbol") || "");
+  const [searchQuery, setSearchQuery] = useState(searchParams.get("symbol") || "");
+  const [suggestions, setSuggestions] = useState<{symbol: string; name: string; exchange: string; type: string}[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
+  const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [timeframe, setTimeframe] = useState("1d");
   const [analysis, setAnalysis] = useState<Analysis | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -94,6 +99,41 @@ export default function AnalysisPage() {
       handleSearch(urlSymbol);
     }
   }, [searchParams]);
+
+  const fetchSuggestions = useCallback(async (q: string) => {
+    if (q.trim().length < 2) { setSuggestions([]); return; }
+    setIsSearching(true);
+    try {
+      const res = await fetch(`/api/market/search?q=${encodeURIComponent(q)}`, {
+        headers: { ...(() => { const t = localStorage.getItem('token'); return t ? { Authorization: `Bearer ${t}` } : {}; })() }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setSuggestions(data.results || []);
+        setShowSuggestions(true);
+      }
+    } catch { /* ignore */ } finally {
+      setIsSearching(false);
+    }
+  }, []);
+
+  const handleQueryChange = (value: string) => {
+    setSearchQuery(value);
+    // If it looks like a pure symbol (all caps, no spaces) update symbol directly too
+    if (/^[A-Z0-9.\-^=]+$/.test(value.toUpperCase()) && !value.includes(' ')) {
+      setSymbol(value.toUpperCase());
+    }
+    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    searchDebounceRef.current = setTimeout(() => fetchSuggestions(value), 300);
+  };
+
+  const handleSelectSuggestion = (s: { symbol: string; name: string }) => {
+    setSymbol(s.symbol);
+    setSearchQuery(`${s.symbol} – ${s.name}`);
+    setSuggestions([]);
+    setShowSuggestions(false);
+    handleSearch(s.symbol);
+  };
 
   const handleSearch = async (searchSymbol?: string) => {
     const s = (searchSymbol || symbol).trim().toUpperCase();
@@ -282,15 +322,44 @@ Sois precis, factuel et professionnel. Utilise des emojis pour rendre l'analyse 
         <h2 className="text-lg font-semibold mb-4">Analyse IA</h2>
         <div className="flex flex-col md:flex-row gap-3">
           <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+            {isSearching
+              ? <Loader2 className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground animate-spin" />
+              : <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+            }
             <input
               type="text"
-              value={symbol}
-              onChange={(e) => setSymbol(e.target.value.toUpperCase())}
-              placeholder="Entrez un symbole (ex: AAPL, BTC-USD)"
+              value={searchQuery}
+              onChange={(e) => handleQueryChange(e.target.value)}
+              onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
+              onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
+              placeholder="Symbole ou nom (ex: AAPL, Air Liquide, Bitcoin…)"
               className="w-full input pl-11 text-lg"
-              onKeyPress={(e) => e.key === "Enter" && handleSearch()}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") { setShowSuggestions(false); handleSearch(); }
+                if (e.key === "Escape") setShowSuggestions(false);
+              }}
             />
+            {/* Suggestions dropdown */}
+            {showSuggestions && suggestions.length > 0 && (
+              <div className="absolute top-full left-0 right-0 mt-1 z-50 glass-card border border-white/10 rounded-xl overflow-hidden shadow-2xl">
+                {suggestions.map((s) => (
+                  <button
+                    key={s.symbol}
+                    onMouseDown={() => handleSelectSuggestion(s)}
+                    className="w-full flex items-center justify-between px-4 py-3 hover:bg-white/10 transition-colors text-left border-b border-white/5 last:border-0"
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="font-mono font-bold text-primary text-sm min-w-[80px]">{s.symbol}</span>
+                      <span className="text-sm text-slate-300 truncate max-w-[200px]">{s.name}</span>
+                    </div>
+                    <div className="flex items-center gap-2 flex-shrink-0 ml-2">
+                      <span className="text-xs text-slate-500">{s.exchange}</span>
+                      <span className="text-xs px-1.5 py-0.5 rounded bg-white/10 text-slate-400">{s.type === 'EQUITY' ? 'Action' : s.type === 'ETF' ? 'ETF' : s.type === 'CRYPTOCURRENCY' ? 'Crypto' : s.type === 'INDEX' ? 'Indice' : s.type}</span>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
           <select
             value={timeframe}
