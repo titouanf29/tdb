@@ -283,6 +283,7 @@ export interface Position {
   current_price?: number;
   unrealized_pnl?: number;
   pnl_percent?: number;
+  exit_price?: number;
   realized_pnl?: number;
   created_at: string;
   closed_at?: string;

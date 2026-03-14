@@ -99,8 +99,8 @@ export default function TradingPage() {
         direction,
         amount,
         leverage,
-        take_profit: useTP ? takeProfit : undefined,
-        stop_loss: useSL ? stopLoss : undefined,
+        take_profit: useTP ? takeProfit ?? undefined : undefined,
+        stop_loss: useSL ? stopLoss ?? undefined : undefined,
       });
 
       setSuccess(`Position ouverte ! Entree: ${formatCurrency(result.entry_price || currentPrice)}`);
