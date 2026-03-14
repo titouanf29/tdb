@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Eye, EyeOff, TrendingUp, Loader2, Check, Mail } from "lucide-react";
+import { Eye, EyeOff, TrendingUp, Loader2, Check, Mail, AlertTriangle } from "lucide-react";
 import { useAuth } from "@/lib/AuthContext";
 import { resendVerification } from "@/lib/auth";
 
