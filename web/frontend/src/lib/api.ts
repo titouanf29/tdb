@@ -185,6 +185,12 @@ export const aiAPI = {
     fetchAPI<AILimitStatus>("/api/ai/limit"),
 };
 
+export interface SummaryPoint {
+  title: string;
+  text: string;
+  assets: { name: string; symbol: string }[];
+}
+
 export interface MarketNews {
   news: {
     title: string;
@@ -194,6 +200,7 @@ export interface MarketNews {
     related: string;
   }[];
   summary: string | null;
+  summary_points: SummaryPoint[] | null;
   generated_at: string;
 }
 

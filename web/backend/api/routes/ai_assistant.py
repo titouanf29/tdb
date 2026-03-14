@@ -512,6 +512,7 @@ async def get_market_news(current_user: dict = Depends(get_current_user)):
 
     # Generate AI summary
     summary = None
+    summary_points = None
     if api_key:
         # Build context for AI - either from news or market data
         if news_items:
@@ -537,6 +538,14 @@ async def get_market_news(current_user: dict = Depends(get_current_user)):
             else:
                 ai_prompt = "Donne un apercu general des marches financiers mondiaux en 3-4 points cles, incluant les tendances recentes des indices, crypto et matieres premieres."
 
+        structured_system = (
+            "Tu es un analyste financier senior. Reponds UNIQUEMENT avec un tableau JSON valide, sans markdown, sans backticks, sans texte avant ou apres. "
+            "Format strict: [{\"title\": \"Titre court\", \"text\": \"Explication concise sans asterisques ni markdown.\", "
+            "\"assets\": [{\"name\": \"Nom affiche\", \"symbol\": \"TICKER_YAHOO\"}]}]. "
+            "3 a 4 elements. Inclure dans 'assets' les actifs concretement mentionnes avec leur ticker Yahoo Finance exact (ex: NVDA, TSLA, BTC-USD, GC=F, AIR.PA). "
+            "Reponds en francais. Sois factuel et precis."
+        )
+
         try:
             async with httpx.AsyncClient(timeout=30.0) as client:
                 response = await client.post(
@@ -548,25 +557,35 @@ async def get_market_news(current_user: dict = Depends(get_current_user)):
                     json={
                         "model": MODEL,
                         "messages": [
-                            {"role": "system", "content": "Tu es un analyste financier senior. Resume les informations de marche de maniere concise et actionnable pour les traders. Reponds en francais. Sois factuel et precis."},
+                            {"role": "system", "content": structured_system},
                             {"role": "user", "content": ai_prompt}
                         ],
                         "temperature": 0.3,
-                        "max_tokens": 600
+                        "max_tokens": 700
                     }
                 )
 
                 if response.status_code == 200:
                     data = response.json()
-                    summary = data["choices"][0]["message"]["content"]
+                    raw = data["choices"][0]["message"]["content"].strip()
+                    # Try to parse as structured JSON
+                    try:
+                        import json as _json
+                        parsed = _json.loads(raw)
+                        if isinstance(parsed, list):
+                            summary_points = parsed
+                        else:
+                            summary = raw
+                    except Exception:
+                        summary = raw
                 else:
                     print(f"[NEWS] AI API error: {response.status_code} - {response.text}")
         except Exception as e:
             print(f"[NEWS] Error generating summary: {e}")
-            summary = None
 
     return {
         "news": news_items,
-        "summary": summary or "Impossible de generer le resume. Verifiez la configuration de l'API.",
+        "summary": summary,
+        "summary_points": summary_points,
         "generated_at": datetime.utcnow().isoformat()
     }

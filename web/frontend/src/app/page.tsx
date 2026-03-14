@@ -21,7 +21,7 @@ import {
   Bot,
 } from "lucide-react";
 import { cn, formatPercent } from "@/lib/utils";
-import { walletAPI, favoritesAPI, adminAPI, aiAPI, WalletBalance, TradingStats, Favorite, MarketNews } from "@/lib/api";
+import { walletAPI, favoritesAPI, adminAPI, aiAPI, WalletBalance, TradingStats, Favorite, MarketNews, SummaryPoint } from "@/lib/api";
 import { useFormatCurrency } from "@/lib/SettingsContext";
 
 const containerVariants = {
@@ -250,13 +250,43 @@ export default function Dashboard() {
             ) : marketNews ? (
               <div className="space-y-4">
                 {/* AI Summary */}
-                {marketNews.summary && (
+                {(marketNews.summary_points || marketNews.summary) && (
                   <div className="p-4 rounded-xl bg-primary/10 border border-primary/20">
-                    <div className="flex items-center gap-2 mb-2">
+                    <div className="flex items-center gap-2 mb-3">
                       <Bot className="w-4 h-4 text-primary" />
-                      <span className="text-xs font-semibold text-primary">Resume IA</span>
+                      <span className="text-xs font-semibold text-primary uppercase tracking-wider">Résumé IA</span>
                     </div>
-                    <p className="text-sm leading-relaxed whitespace-pre-line">{marketNews.summary}</p>
+                    {marketNews.summary_points ? (
+                      <div className="space-y-3">
+                        {marketNews.summary_points.map((point: SummaryPoint, idx: number) => (
+                          <div key={idx} className="flex gap-3">
+                            <div className="mt-1 w-5 h-5 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">
+                              <span className="text-[10px] font-bold text-primary">{idx + 1}</span>
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-semibold text-foreground mb-0.5">{point.title}</p>
+                              <p className="text-xs text-muted-foreground leading-relaxed">{point.text}</p>
+                              {point.assets && point.assets.length > 0 && (
+                                <div className="flex flex-wrap gap-1.5 mt-1.5">
+                                  {point.assets.map((asset) => (
+                                    <Link
+                                      key={asset.symbol}
+                                      href={`/analysis?q=${encodeURIComponent(asset.symbol)}`}
+                                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/15 hover:bg-primary/30 border border-primary/30 text-primary text-[11px] font-medium transition-colors"
+                                    >
+                                      <TrendingUp className="w-2.5 h-2.5" />
+                                      {asset.name}
+                                    </Link>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-sm leading-relaxed whitespace-pre-line">{marketNews.summary}</p>
+                    )}
                   </div>
                 )}
 
