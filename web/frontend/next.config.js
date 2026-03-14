@@ -6,10 +6,11 @@ const nextConfig = {
     domains: ['t.me', 'telegram.org'],
   },
   async rewrites() {
+    const backendUrl = process.env.BACKEND_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
     return [
       {
         source: '/api/:path*',
-        destination: (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000') + '/api/:path*',
+        destination: backendUrl + '/api/:path*',
       },
     ];
   },
