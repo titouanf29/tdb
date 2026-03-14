@@ -8,7 +8,7 @@ import httpx
 _SYMBOL_RE = re.compile(r'^[\^A-Z0-9.\-=]{1,30}$')
 from datetime import datetime, date
 from typing import List, Optional
-from fastapi import APIRouter, HTTPException, Depends, Request
+from fastapi import APIRouter, HTTPException, Depends, Request, Query
 from pydantic import BaseModel, field_validator
 from slowapi import Limiter
 from slowapi.util import get_remote_address

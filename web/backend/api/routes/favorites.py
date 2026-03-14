@@ -49,7 +49,7 @@ async def _fetch_price(symbol: str, added_at: str) -> dict:
         return {"symbol": symbol, "price": 0, "change": 0, "added_at": added_at, "error": True}
 
 
-@router.get("/")
+@router.get("")
 async def get_favorites(current_user: dict = Depends(get_current_user)):
     """Get user's favorites with live prices (parallel fetching)"""
     user_id = get_user_id(current_user)
@@ -73,7 +73,7 @@ async def get_favorites(current_user: dict = Depends(get_current_user)):
 
 import re as _re
 
-@router.post("/")
+@router.post("")
 async def add_favorite(
     request: AddFavoriteRequest,
     current_user: dict = Depends(get_current_user)

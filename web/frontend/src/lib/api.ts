@@ -206,10 +206,10 @@ export interface MarketNews {
 
 // Favorites API
 export const favoritesAPI = {
-  getFavorites: () => fetchAPI<{ favorites: Favorite[] }>("/api/favorites/"),
+  getFavorites: () => fetchAPI<{ favorites: Favorite[] }>("/api/favorites"),
 
   addFavorite: (symbol: string) =>
-    fetchAPI<{ message: string }>("/api/favorites/", {
+    fetchAPI<{ message: string }>("/api/favorites", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ symbol }),
