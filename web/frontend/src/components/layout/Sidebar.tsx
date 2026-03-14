@@ -11,7 +11,6 @@ import {
   Star,
   ScanLine,
   Settings,
-  Bot,
   ChevronLeft,
   ChevronRight,
   BarChart3,
@@ -19,7 +18,30 @@ import {
   Shield,
   Wrench,
   Users,
+  Bot,
 } from "lucide-react";
+
+function CaptenLogo({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 40 40"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      className={className}
+    >
+      {/* Captain hat */}
+      <path d="M10 17 L20 8 L30 17 Z" fill="white" opacity="0.95" />
+      <rect x="8" y="16" width="24" height="4" rx="2" fill="white" opacity="0.95" />
+      {/* Head */}
+      <ellipse cx="20" cy="26" rx="9" ry="10" fill="white" opacity="0.9" />
+      {/* Eyes */}
+      <circle cx="16.5" cy="24" r="1.5" fill="#7c3aed" />
+      <circle cx="23.5" cy="24" r="1.5" fill="#7c3aed" />
+      {/* Smile */}
+      <path d="M16 29 Q20 32 24 29" stroke="#7c3aed" strokeWidth="1.5" strokeLinecap="round" fill="none" />
+    </svg>
+  );
+}
 import { cn } from "@/lib/utils";
 import { adminAPI } from "@/lib/api";
 
@@ -67,7 +89,7 @@ export function Sidebar() {
           transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
           className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-purple-500 flex items-center justify-center shadow-glow"
         >
-          <Bot className="w-6 h-6 text-white" />
+          <CaptenLogo className="w-7 h-7" />
         </motion.div>
         <AnimatePresence>
           {!collapsed && (
