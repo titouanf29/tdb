@@ -24,11 +24,18 @@ app = FastAPI(
 )
 
 # CORS configuration
-frontend_url = os.getenv("FRONTEND_URL", "http://localhost:3000")
+# FRONTEND_URL can be comma-separated for multiple origins, or "*" for all
+_frontend_env = os.getenv("FRONTEND_URL", "*")
+if _frontend_env == "*":
+    _origins = ["*"]
+else:
+    _origins = [u.strip() for u in _frontend_env.split(",") if u.strip()]
+    _origins += ["http://localhost:3000", "http://127.0.0.1:3000"]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[frontend_url, "http://localhost:3000", "http://127.0.0.1:3000"],
-    allow_credentials=True,
+    allow_origins=_origins,
+    allow_credentials=_origins != ["*"],  # credentials incompatible with wildcard
     allow_methods=["*"],
     allow_headers=["*"],
 )
