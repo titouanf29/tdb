@@ -1,34 +1,329 @@
 """
-Database connection - Shared with Telegram bot
+Database connection - supports PostgreSQL (production) and SQLite (development)
+
+Set DATABASE_URL env var to use PostgreSQL:
+  postgresql://user:password@host:5432/dbname
+
+Leave it unset to use SQLite (local dev only).
 """
-import aiosqlite
+import os
+import re
 from pathlib import Path
 
-# Path to the database - use DATABASE_PATH env var for Railway persistent volume
-import os
+DATABASE_URL = os.getenv("DATABASE_URL", "")
+
+# Normalize Railway-style postgres:// -> postgresql://
+if DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+
+USE_POSTGRES = bool(DATABASE_URL)
+
+# SQLite fallback path (dev only)
 _db_env = os.getenv("DATABASE_PATH")
 if _db_env:
     DATABASE_PATH = Path(_db_env)
 else:
     DATABASE_PATH = Path(__file__).parent.parent.parent.parent / "trading_bot.db"
 
-# Flag to track initialization
 _initialized = False
+_pg_pool = None  # asyncpg connection pool
 
+
+# -- PostgreSQL helpers -------------------------------------------------------
+
+def _to_pg(query: str) -> str:
+    """Convert SQLite ? placeholders to PostgreSQL $1, $2, ... format."""
+    counter = 0
+
+    def _replace(_match):
+        nonlocal counter
+        counter += 1
+        return f"${counter}"
+
+    return re.sub(r"\?", _replace, query)
+
+
+async def _get_pool():
+    """Return (and lazily create) the asyncpg connection pool."""
+    global _pg_pool
+    if _pg_pool is None:
+        import asyncpg
+        _pg_pool = await asyncpg.create_pool(DATABASE_URL, min_size=2, max_size=10)
+    return _pg_pool
+
+
+# -- Public API ----------------------------------------------------------------
+
+async def execute_query(query: str, params: tuple = ()):
+    """Execute a SELECT query and return a list of dicts."""
+    await init_web_tables()
+    if USE_POSTGRES:
+        pool = await _get_pool()
+        async with pool.acquire() as conn:
+            rows = await conn.fetch(_to_pg(query), *params)
+            return [dict(row) for row in rows]
+    else:
+        import aiosqlite
+        async with aiosqlite.connect(DATABASE_PATH) as db:
+            db.row_factory = aiosqlite.Row
+            async with db.execute(query, params) as cursor:
+                rows = await cursor.fetchall()
+                return [dict(row) for row in rows]
+
+
+async def execute_write(query: str, params: tuple = ()):
+    """Execute an INSERT / UPDATE / DELETE query."""
+    await init_web_tables()
+    if USE_POSTGRES:
+        pool = await _get_pool()
+        async with pool.acquire() as conn:
+            await conn.execute(_to_pg(query), *params)
+    else:
+        import aiosqlite
+        async with aiosqlite.connect(DATABASE_PATH) as db:
+            await db.execute(query, params)
+            await db.commit()
+
+
+async def get_db():
+    """Yield a raw connection (used by older code paths)."""
+    await init_web_tables()
+    if USE_POSTGRES:
+        pool = await _get_pool()
+        async with pool.acquire() as conn:
+            yield conn
+    else:
+        import aiosqlite
+        db = await aiosqlite.connect(DATABASE_PATH)
+        db.row_factory = aiosqlite.Row
+        try:
+            yield db
+        finally:
+            await db.close()
+
+
+# -- Schema init ---------------------------------------------------------------
 
 async def init_db():
-    """Initialize the database (creates tables if needed via init_web_tables)"""
     await init_web_tables()
 
 
 async def init_web_tables():
-    """Initialize web-specific tables"""
     global _initialized
     if _initialized:
         return
 
+    if USE_POSTGRES:
+        await _init_postgres()
+    else:
+        await _init_sqlite()
+
+    _initialized = True
+
+
+async def _init_postgres():
+    pool = await _get_pool()
+    async with pool.acquire() as conn:
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS web_users (
+                id SERIAL PRIMARY KEY,
+                email TEXT UNIQUE NOT NULL,
+                username TEXT UNIQUE NOT NULL,
+                password_hash TEXT NOT NULL,
+                first_name TEXT,
+                last_name TEXT,
+                avatar_url TEXT,
+                created_at TEXT NOT NULL,
+                last_login TEXT,
+                is_active INTEGER DEFAULT 1,
+                is_admin INTEGER DEFAULT 0,
+                is_premium INTEGER DEFAULT 0,
+                premium_since TEXT,
+                premium_expires TEXT
+            )
+        """)
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS web_user_settings (
+                user_id INTEGER PRIMARY KEY,
+                trading_style TEXT DEFAULT 'Day Trading',
+                risk_level TEXT DEFAULT 'moderate',
+                notifications_enabled INTEGER DEFAULT 1,
+                theme TEXT DEFAULT 'dark',
+                language TEXT DEFAULT 'fr'
+            )
+        """)
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS web_favorites (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER NOT NULL,
+                symbol TEXT NOT NULL,
+                added_at TEXT NOT NULL,
+                UNIQUE(user_id, symbol)
+            )
+        """)
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS web_ai_chat (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER NOT NULL,
+                role TEXT NOT NULL,
+                content TEXT NOT NULL,
+                created_at TEXT NOT NULL
+            )
+        """)
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS wallet (
+                user_id TEXT PRIMARY KEY,
+                balance FLOAT DEFAULT 10000.0,
+                currency TEXT DEFAULT 'USD',
+                created_at TEXT NOT NULL
+            )
+        """)
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS positions (
+                id SERIAL PRIMARY KEY,
+                user_id TEXT NOT NULL,
+                symbol TEXT NOT NULL,
+                direction TEXT NOT NULL,
+                entry_price FLOAT NOT NULL,
+                quantity FLOAT NOT NULL,
+                amount FLOAT NOT NULL,
+                leverage INTEGER DEFAULT 1,
+                take_profit FLOAT,
+                stop_loss FLOAT,
+                status TEXT DEFAULT 'open',
+                exit_price FLOAT,
+                realized_pnl FLOAT,
+                created_at TEXT NOT NULL,
+                closed_at TEXT
+            )
+        """)
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS admin_audit_log (
+                id SERIAL PRIMARY KEY,
+                admin_id INTEGER NOT NULL,
+                action TEXT NOT NULL,
+                details TEXT,
+                created_at TEXT NOT NULL
+            )
+        """)
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS admin_broadcasts (
+                id SERIAL PRIMARY KEY,
+                admin_id INTEGER NOT NULL,
+                title TEXT NOT NULL,
+                message TEXT NOT NULL,
+                type TEXT DEFAULT 'info',
+                created_at TEXT NOT NULL
+            )
+        """)
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS admin_settings (
+                key TEXT PRIMARY KEY,
+                value TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            )
+        """)
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS asset_requests (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER NOT NULL,
+                symbol TEXT NOT NULL,
+                asset_name TEXT,
+                asset_type TEXT,
+                reason TEXT,
+                status TEXT DEFAULT 'pending',
+                admin_notes TEXT,
+                created_at TEXT NOT NULL,
+                processed_at TEXT,
+                processed_by INTEGER
+            )
+        """)
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS premium_requests (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER NOT NULL,
+                message TEXT,
+                status TEXT DEFAULT 'pending',
+                admin_response TEXT,
+                created_at TEXT NOT NULL,
+                processed_at TEXT,
+                processed_by INTEGER
+            )
+        """)
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS economic_events (
+                id SERIAL PRIMARY KEY,
+                event_key TEXT UNIQUE NOT NULL,
+                date TEXT NOT NULL,
+                time TEXT,
+                event TEXT NOT NULL,
+                country TEXT,
+                importance TEXT,
+                previous TEXT,
+                forecast TEXT,
+                actual TEXT,
+                impact TEXT,
+                summary TEXT,
+                market_reaction TEXT,
+                updated_at TEXT
+            )
+        """)
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS community_messages (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER NOT NULL,
+                content TEXT NOT NULL,
+                reply_to INTEGER,
+                created_at TEXT NOT NULL,
+                is_deleted INTEGER DEFAULT 0
+            )
+        """)
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS community_message_likes (
+                id SERIAL PRIMARY KEY,
+                message_id INTEGER NOT NULL,
+                user_id INTEGER NOT NULL,
+                created_at TEXT NOT NULL,
+                UNIQUE(message_id, user_id)
+            )
+        """)
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS admin_tickets (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER NOT NULL,
+                subject TEXT NOT NULL,
+                status TEXT DEFAULT 'open',
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            )
+        """)
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS admin_ticket_messages (
+                id SERIAL PRIMARY KEY,
+                ticket_id INTEGER NOT NULL,
+                user_id INTEGER NOT NULL,
+                message TEXT NOT NULL,
+                is_admin INTEGER DEFAULT 0,
+                created_at TEXT NOT NULL
+            )
+        """)
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS users (
+                id SERIAL PRIMARY KEY,
+                telegram_id BIGINT UNIQUE,
+                username TEXT,
+                first_name TEXT,
+                last_name TEXT,
+                created_at TEXT
+            )
+        """)
+        print("PostgreSQL tables ready")
+
+
+async def _init_sqlite():
+    import aiosqlite
     async with aiosqlite.connect(DATABASE_PATH) as db:
-        # Web users table (for email/password auth)
         await db.execute("""
             CREATE TABLE IF NOT EXISTS web_users (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -43,8 +338,6 @@ async def init_web_tables():
                 is_active INTEGER DEFAULT 1
             )
         """)
-
-        # User settings for web users
         await db.execute("""
             CREATE TABLE IF NOT EXISTS web_user_settings (
                 user_id INTEGER PRIMARY KEY,
@@ -56,8 +349,6 @@ async def init_web_tables():
                 FOREIGN KEY (user_id) REFERENCES web_users(id)
             )
         """)
-
-        # User favorites for web users
         await db.execute("""
             CREATE TABLE IF NOT EXISTS web_favorites (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -68,8 +359,6 @@ async def init_web_tables():
                 FOREIGN KEY (user_id) REFERENCES web_users(id)
             )
         """)
-
-        # AI chat history for web users
         await db.execute("""
             CREATE TABLE IF NOT EXISTS web_ai_chat (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -80,8 +369,6 @@ async def init_web_tables():
                 FOREIGN KEY (user_id) REFERENCES web_users(id)
             )
         """)
-
-        # Wallet for web users
         await db.execute("""
             CREATE TABLE IF NOT EXISTS wallet (
                 user_id TEXT PRIMARY KEY,
@@ -90,8 +377,6 @@ async def init_web_tables():
                 created_at TEXT NOT NULL
             )
         """)
-
-        # Positions table
         await db.execute("""
             CREATE TABLE IF NOT EXISTS positions (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -111,8 +396,6 @@ async def init_web_tables():
                 closed_at TEXT
             )
         """)
-
-        # Admin audit log
         await db.execute("""
             CREATE TABLE IF NOT EXISTS admin_audit_log (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -123,8 +406,6 @@ async def init_web_tables():
                 FOREIGN KEY (admin_id) REFERENCES web_users(id)
             )
         """)
-
-        # Admin broadcasts
         await db.execute("""
             CREATE TABLE IF NOT EXISTS admin_broadcasts (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -136,8 +417,6 @@ async def init_web_tables():
                 FOREIGN KEY (admin_id) REFERENCES web_users(id)
             )
         """)
-
-        # Admin settings
         await db.execute("""
             CREATE TABLE IF NOT EXISTS admin_settings (
                 key TEXT PRIMARY KEY,
@@ -146,8 +425,6 @@ async def init_web_tables():
                 updated_at TEXT NOT NULL
             )
         """)
-
-        # Asset requests table for users to request new assets
         await db.execute("""
             CREATE TABLE IF NOT EXISTS asset_requests (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -165,32 +442,6 @@ async def init_web_tables():
                 FOREIGN KEY (processed_by) REFERENCES web_users(id)
             )
         """)
-
-        # Add is_admin column to web_users if not exists
-        try:
-            await db.execute("ALTER TABLE web_users ADD COLUMN is_admin INTEGER DEFAULT 0")
-        except:
-            pass  # Column already exists
-
-        # Add is_premium column to web_users if not exists
-        try:
-            await db.execute("ALTER TABLE web_users ADD COLUMN is_premium INTEGER DEFAULT 0")
-        except:
-            pass  # Column already exists
-
-        # Add premium_since column to web_users if not exists
-        try:
-            await db.execute("ALTER TABLE web_users ADD COLUMN premium_since TEXT")
-        except:
-            pass  # Column already exists
-
-        # Add premium_expires column to web_users if not exists
-        try:
-            await db.execute("ALTER TABLE web_users ADD COLUMN premium_expires TEXT")
-        except:
-            pass  # Column already exists
-
-        # Premium contact requests table
         await db.execute("""
             CREATE TABLE IF NOT EXISTS premium_requests (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -205,8 +456,6 @@ async def init_web_tables():
                 FOREIGN KEY (processed_by) REFERENCES web_users(id)
             )
         """)
-
-        # Economic calendar events with actual results
         await db.execute("""
             CREATE TABLE IF NOT EXISTS economic_events (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -225,8 +474,6 @@ async def init_web_tables():
                 updated_at TEXT
             )
         """)
-
-        # Community chat messages
         await db.execute("""
             CREATE TABLE IF NOT EXISTS community_messages (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -239,8 +486,6 @@ async def init_web_tables():
                 FOREIGN KEY (reply_to) REFERENCES community_messages(id)
             )
         """)
-
-        # Community message likes
         await db.execute("""
             CREATE TABLE IF NOT EXISTS community_message_likes (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -252,8 +497,6 @@ async def init_web_tables():
                 FOREIGN KEY (user_id) REFERENCES web_users(id)
             )
         """)
-
-        # Admin support tickets
         await db.execute("""
             CREATE TABLE IF NOT EXISTS admin_tickets (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -265,8 +508,6 @@ async def init_web_tables():
                 FOREIGN KEY (user_id) REFERENCES web_users(id)
             )
         """)
-
-        # Ticket messages
         await db.execute("""
             CREATE TABLE IF NOT EXISTS admin_ticket_messages (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -279,36 +520,16 @@ async def init_web_tables():
                 FOREIGN KEY (user_id) REFERENCES web_users(id)
             )
         """)
-
+        # Add new columns to existing tables if upgrading from older schema
+        for col, definition in [
+            ("is_admin", "INTEGER DEFAULT 0"),
+            ("is_premium", "INTEGER DEFAULT 0"),
+            ("premium_since", "TEXT"),
+            ("premium_expires", "TEXT"),
+        ]:
+            try:
+                await db.execute(f"ALTER TABLE web_users ADD COLUMN {col} {definition}")
+            except Exception:
+                pass  # Column already exists
         await db.commit()
-        _initialized = True
-
-
-async def get_db():
-    """Get database connection"""
-    await init_web_tables()
-    db = await aiosqlite.connect(DATABASE_PATH)
-    db.row_factory = aiosqlite.Row
-    try:
-        yield db
-    finally:
-        await db.close()
-
-
-async def execute_query(query: str, params: tuple = ()):
-    """Execute a query and return results"""
-    await init_web_tables()
-    async with aiosqlite.connect(DATABASE_PATH) as db:
-        db.row_factory = aiosqlite.Row
-        async with db.execute(query, params) as cursor:
-            rows = await cursor.fetchall()
-            return [dict(row) for row in rows]
-
-
-async def execute_write(query: str, params: tuple = ()):
-    """Execute a write query"""
-    await init_web_tables()
-    async with aiosqlite.connect(DATABASE_PATH) as db:
-        await db.execute(query, params)
-        await db.commit()
-        return db.total_changes
+        print("SQLite tables ready")
