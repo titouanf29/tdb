@@ -52,6 +52,7 @@ import { cn, formatPercent } from "@/lib/utils";
 import { analysisAPI, favoritesAPI, aiAPI, marketAPI, Analysis } from "@/lib/api";
 import { getAssetInfo, getAssetLogo } from "@/lib/assetInfo";
 import { useFormatCurrency } from "@/lib/SettingsContext";
+import PremiumChart from "@/components/PremiumChart";
 
 export default function AnalysisPage() {
   const router = useRouter();
@@ -607,6 +608,9 @@ Sois precis, factuel et professionnel. Utilise des emojis pour rendre l'analyse 
               </motion.button>
             </Link>
           </motion.div>
+
+          {/* Premium Chart */}
+          <PremiumChart symbol={analysis.symbol} timeframe={timeframe} />
 
           {/* AI Insight - Future Predictions */}
           <AIInsightSection

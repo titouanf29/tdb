@@ -3,7 +3,9 @@ AI Analysis routes - Using the same analyzer as the bot
 """
 import sys
 from pathlib import Path
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
+from .auth import get_current_user
+from .premium import is_user_premium
 
 
 router = APIRouter()
@@ -480,3 +482,150 @@ async def scan_market(
         "min_score": min_score,
         "results": results[:limit]
     }
+
+
+@router.get("/{symbol}/chart")
+async def get_chart_data(
+    symbol: str,
+    timeframe: str = Query(default="1d", regex="^(5m|15m|1h|4h|1d)$"),
+    current_user: dict = Depends(get_current_user),
+):
+    """Return OHLCV candles + technical overlays + future projection (premium only)."""
+    if not await is_user_premium(current_user):
+        raise HTTPException(
+            status_code=403, detail="Cette fonctionnalité est réservée aux membres Premium"
+        )
+
+    import yfinance as yf
+    import pandas as pd
+    import numpy as np
+    from fastapi import HTTPException
+
+    period_map = {
+        "5m":  ("5d",   "5m"),
+        "15m": ("10d",  "15m"),
+        "1h":  ("2mo",  "1h"),
+        "4h":  ("3mo",  "1h"),   # yfinance has no 4h; we resample below
+        "1d":  ("1y",   "1d"),
+    }
+    fetch_period, fetch_interval = period_map[timeframe]
+
+    try:
+        ticker = yf.Ticker(symbol)
+        hist = ticker.history(period=fetch_period, interval=fetch_interval)
+
+        if hist.empty or len(hist) < 10:
+            raise HTTPException(status_code=400, detail="Données insuffisantes pour ce symbole")
+
+        # Resample to 4h if requested
+        if timeframe == "4h":
+            hist = hist.resample("4h").agg({
+                "Open": "first", "High": "max", "Low": "min",
+                "Close": "last", "Volume": "sum"
+            }).dropna()
+
+        hist.index = hist.index.tz_localize(None) if hist.index.tzinfo is not None else hist.index
+
+        close = hist["Close"]
+        n = len(close)
+
+        # ── Candles ────────────────────────────────────────────────────────────
+        candles = []
+        for ts, row in hist.iterrows():
+            candles.append({
+                "time":   int(ts.timestamp()),
+                "open":   round(float(row["Open"]),   4),
+                "high":   round(float(row["High"]),   4),
+                "low":    round(float(row["Low"]),     4),
+                "close":  round(float(row["Close"]),  4),
+                "volume": int(row["Volume"]),
+            })
+
+        # ── EMA overlays ───────────────────────────────────────────────────────
+        def _ema_series(span):
+            vals = close.ewm(span=span, adjust=False).mean()
+            return [
+                {"time": int(ts.timestamp()), "value": round(float(v), 4)}
+                for ts, v in zip(hist.index, vals)
+                if not np.isnan(v)
+            ]
+
+        ema20_data  = _ema_series(20)
+        ema50_data  = _ema_series(50)
+        ema200_data = _ema_series(200) if n >= 200 else []
+
+        # ── Bollinger Bands (20, 2σ) ───────────────────────────────────────────
+        bb_mid  = close.rolling(20).mean()
+        bb_std  = close.rolling(20).std()
+        bb_upper = bb_mid + 2 * bb_std
+        bb_lower = bb_mid - 2 * bb_std
+
+        def _bb_series(s):
+            return [
+                {"time": int(ts.timestamp()), "value": round(float(v), 4)}
+                for ts, v in zip(hist.index, s)
+                if not np.isnan(v)
+            ]
+
+        bollinger = {
+            "upper":  _bb_series(bb_upper),
+            "middle": _bb_series(bb_mid),
+            "lower":  _bb_series(bb_lower),
+        }
+
+        # ── Key levels ────────────────────────────────────────────────────────
+        recent = hist.tail(20)
+        support    = round(float(recent["Low"].min()), 4)
+        resistance = round(float(recent["High"].max()), 4)
+        pivot      = round((resistance + support + float(close.iloc[-1])) / 3, 4)
+
+        # ── Future projection (linear regression + volatility bands) ──────────
+        x = np.arange(n, dtype=float)
+        coeffs = np.polyfit(x, close.values.astype(float), 1)
+        slope = coeffs[0]
+
+        # Annualised → per-bar volatility
+        bar_vol = close.pct_change().dropna().std()
+        last_price = float(close.iloc[-1])
+        last_ts    = hist.index[-1]
+
+        # Time delta between bars
+        if n >= 2:
+            delta_sec = int((hist.index[-1] - hist.index[-2]).total_seconds())
+        else:
+            delta_sec = 86400
+
+        n_future = max(5, n // 6)   # project ~1/6 of history
+        projection = []
+        for i in range(1, n_future + 1):
+            trend     = slope * i
+            base      = last_price + trend
+            band      = bar_vol * last_price * (i ** 0.5) * 1.96   # 95% CI
+            future_ts = int(last_ts.timestamp()) + delta_sec * i
+            projection.append({
+                "time":  future_ts,
+                "value": round(max(base, 0.0001), 4),
+                "upper": round(max(base + band, 0.0001), 4),
+                "lower": round(max(base - band, 0.0001), 4),
+            })
+
+        return {
+            "symbol":     symbol.upper(),
+            "timeframe":  timeframe,
+            "candles":    candles,
+            "ema20":      ema20_data,
+            "ema50":      ema50_data,
+            "ema200":     ema200_data,
+            "bollinger":  bollinger,
+            "projection": projection,
+            "levels": {
+                "support":    support,
+                "resistance": resistance,
+                "pivot":      pivot,
+            },
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erreur lors de la récupération des données: {str(e)}")
