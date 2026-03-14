@@ -34,6 +34,17 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  Cell,
+  ReferenceLine,
+} from "recharts";
+import {
   toolsAPI,
   PivotPointsData,
   PERankingsData,
@@ -633,6 +644,23 @@ function EconomicCalendarTab() {
 }
 
 // ============== GEOPOLITICAL TAB ==============
+
+const REGIONS = [
+  { key: "americas", label: "Amériques", flag: "🌎", keywords: ["états-unis", "usa", "canada", "mexique", "brésil", "amérique"] },
+  { key: "europe", label: "Europe", flag: "🌍", keywords: ["europe", "zone euro", "BCE", "allemagne", "france", "royaume-uni", "ukraine"] },
+  { key: "asia", label: "Asie", flag: "🌏", keywords: ["chine", "japon", "asie", "inde", "corée", "taiwan", "banque du japon"] },
+  { key: "mideast", label: "Moyen-Orient", flag: "🕌", keywords: ["pétrole", "opep", "iran", "israël", "arabie", "moyen-orient", "golfe"] },
+  { key: "africa", label: "Afrique", flag: "🌍", keywords: ["afrique", "nigeria", "égypte", "or", "matières premières"] },
+];
+
+function getRegionImpact(analysis: string, keywords: string[]): "high" | "medium" | "low" {
+  const lower = analysis.toLowerCase();
+  const count = keywords.filter((k) => lower.includes(k.toLowerCase())).length;
+  if (count >= 3) return "high";
+  if (count >= 1) return "medium";
+  return "low";
+}
+
 function GeopoliticalTab() {
   const formatCurrency = useFormatCurrency();
   const [data, setData] = useState<GeopoliticalData | null>(null);
@@ -656,67 +684,179 @@ function GeopoliticalTab() {
     load();
   }, []);
 
+  const chartData = data?.market_data
+    ? Object.entries(data.market_data).map(([name, info]) => ({
+        name,
+        change: info.change,
+        price: info.price,
+      }))
+    : [];
+
   return (
     <div className="space-y-6">
-      {/* Market Data */}
-      {data?.market_data && (
-        <div className="glass-card p-6">
-          <div className="flex items-center gap-2 mb-4">
-            <Activity className="w-5 h-5 text-primary" />
-            <h2 className="text-lg font-semibold">Indicateurs Cles</h2>
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-            {Object.entries(data.market_data).map(([name, info]) => (
-              <div key={name} className="p-3 rounded-xl bg-white/5 text-center">
-                <p className="text-xs text-muted-foreground mb-1">{name}</p>
-                <p className="font-bold">{formatCurrency(info.price)}</p>
-                <p className={cn(
-                  "text-sm",
-                  info.change >= 0 ? "text-green-500" : "text-red-500"
-                )}>
-                  {info.change >= 0 ? "+" : ""}{info.change}%
-                </p>
-              </div>
-            ))}
-          </div>
+      {/* Loading */}
+      {isLoading && !data && (
+        <div className="flex flex-col items-center justify-center py-20">
+          <Loader2 className="w-10 h-10 animate-spin text-primary mb-4" />
+          <p className="text-muted-foreground">Analyse géopolitique en cours...</p>
         </div>
       )}
 
-      {/* Analysis */}
-      <div className="glass-card p-6">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
-            <Globe className="w-5 h-5 text-primary" />
-            <h2 className="text-lg font-semibold">Analyse Geopolitique</h2>
-          </div>
-          <button onClick={load} disabled={isLoading} className="p-2 rounded-lg hover:bg-white/10">
-            <RefreshCw className={cn("w-4 h-4", isLoading && "animate-spin")} />
-          </button>
+      {/* Error */}
+      {error && (
+        <div className="p-4 rounded-lg bg-red-500/20 text-red-400 flex items-center gap-2">
+          <AlertTriangle className="w-4 h-4" />
+          {error}
         </div>
+      )}
 
-        {error && (
-          <div className="p-4 rounded-lg bg-red-500/20 text-red-400 flex items-center gap-2">
-            <AlertTriangle className="w-4 h-4" />
-            {error}
-          </div>
-        )}
+      {data && (
+        <>
+          {/* Indicateurs de marché - grille + graphique */}
+          {data.market_data && (
+            <div className="glass-card p-6">
+              <div className="flex items-center gap-2 mb-6">
+                <Activity className="w-5 h-5 text-primary" />
+                <h2 className="text-lg font-semibold">Indicateurs Clés du Marché</h2>
+              </div>
 
-        {isLoading && !data ? (
-          <div className="flex flex-col items-center justify-center py-12">
-            <Loader2 className="w-8 h-8 animate-spin text-primary mb-4" />
-            <p className="text-muted-foreground">Analyse en cours...</p>
-          </div>
-        ) : data?.analysis ? (
-          <div className="prose prose-invert max-w-none">
-            <div className="p-6 rounded-xl bg-white/5 whitespace-pre-line leading-relaxed">
-              {data.analysis}
+              {/* Cartes indicateurs */}
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
+                {Object.entries(data.market_data).map(([name, info]) => (
+                  <div key={name} className="p-4 rounded-xl bg-white/5 text-center border border-white/5 hover:border-primary/20 transition-colors">
+                    <p className="text-xs text-muted-foreground mb-2 truncate">{name}</p>
+                    <p className="font-bold text-sm">{formatCurrency(info.price)}</p>
+                    <div className={cn(
+                      "mt-1 inline-flex items-center gap-1 text-sm font-semibold",
+                      info.change >= 0 ? "text-green-400" : "text-red-400"
+                    )}>
+                      {info.change >= 0
+                        ? <ArrowUp className="w-3 h-3" />
+                        : <ArrowDown className="w-3 h-3" />}
+                      {Math.abs(info.change)}%
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Graphique des variations */}
+              <div>
+                <p className="text-sm text-muted-foreground mb-3">Variation journalière (%)</p>
+                <ResponsiveContainer width="100%" height={220}>
+                  <BarChart data={chartData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+                    <XAxis
+                      dataKey="name"
+                      tick={{ fontSize: 11, fill: "#9ca3af" }}
+                      axisLine={false}
+                      tickLine={false}
+                    />
+                    <YAxis
+                      tick={{ fontSize: 11, fill: "#9ca3af" }}
+                      axisLine={false}
+                      tickLine={false}
+                      tickFormatter={(v) => `${v}%`}
+                    />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: "#1a1a2e",
+                        border: "1px solid rgba(255,255,255,0.1)",
+                        borderRadius: "8px",
+                        fontSize: "12px",
+                      }}
+                      formatter={(value: number) => [`${value > 0 ? "+" : ""}${value}%`, "Variation"]}
+                      cursor={{ fill: "rgba(255,255,255,0.03)" }}
+                    />
+                    <ReferenceLine y={0} stroke="rgba(255,255,255,0.2)" />
+                    <Bar dataKey="change" radius={[4, 4, 0, 0]}>
+                      {chartData.map((entry, index) => (
+                        <Cell
+                          key={index}
+                          fill={entry.change >= 0 ? "#22c55e" : "#ef4444"}
+                          fillOpacity={0.8}
+                        />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
             </div>
-            <p className="text-xs text-muted-foreground mt-4 text-right">
-              Genere le: {new Date(data.generated_at).toLocaleString("fr-FR")}
+          )}
+
+          {/* Carte d'impact régional */}
+          <div className="glass-card p-6">
+            <div className="flex items-center gap-2 mb-6">
+              <Globe className="w-5 h-5 text-primary" />
+              <h2 className="text-lg font-semibold">Impact par Région</h2>
+            </div>
+
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+              {REGIONS.map((region) => {
+                const impact = getRegionImpact(data.analysis, region.keywords);
+                const impactConfig = {
+                  high: { label: "Élevé", color: "text-red-400", bg: "bg-red-500/10 border-red-500/30", bar: "bg-red-500", width: "w-full" },
+                  medium: { label: "Modéré", color: "text-yellow-400", bg: "bg-yellow-500/10 border-yellow-500/30", bar: "bg-yellow-500", width: "w-2/3" },
+                  low: { label: "Faible", color: "text-green-400", bg: "bg-green-500/10 border-green-500/30", bar: "bg-green-500", width: "w-1/3" },
+                }[impact];
+
+                return (
+                  <div
+                    key={region.key}
+                    className={cn("p-4 rounded-xl border", impactConfig.bg)}
+                  >
+                    <div className="text-2xl mb-2">{region.flag}</div>
+                    <p className="font-semibold text-sm">{region.label}</p>
+                    <p className={cn("text-xs mt-1", impactConfig.color)}>{impactConfig.label}</p>
+                    <div className="mt-3 h-1.5 rounded-full bg-white/10 overflow-hidden">
+                      <div className={cn("h-full rounded-full transition-all", impactConfig.bar, impactConfig.width)} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <p className="text-xs text-muted-foreground mt-4">
+              Impact estimé basé sur la fréquence de mention dans l'analyse IA
             </p>
           </div>
-        ) : null}
-      </div>
+
+          {/* Analyse textuelle avec ReactMarkdown */}
+          <div className="glass-card p-6">
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-2">
+                <Brain className="w-5 h-5 text-primary" />
+                <h2 className="text-lg font-semibold">Analyse Géopolitique Détaillée</h2>
+              </div>
+              <button
+                onClick={load}
+                disabled={isLoading}
+                className="flex items-center gap-2 px-3 py-1.5 rounded-lg hover:bg-white/10 text-sm text-muted-foreground transition-colors"
+              >
+                <RefreshCw className={cn("w-4 h-4", isLoading && "animate-spin")} />
+                <span className="hidden sm:inline">Actualiser</span>
+              </button>
+            </div>
+
+            <div className="prose prose-invert max-w-none
+              prose-headings:text-foreground prose-headings:font-semibold
+              prose-h2:text-base prose-h2:mt-6 prose-h2:mb-3 prose-h2:border-b prose-h2:border-white/10 prose-h2:pb-2
+              prose-h3:text-sm prose-h3:mt-4 prose-h3:mb-2 prose-h3:text-primary
+              prose-p:text-muted-foreground prose-p:leading-relaxed prose-p:text-sm
+              prose-strong:text-foreground prose-strong:font-semibold
+              prose-li:text-muted-foreground prose-li:text-sm
+              prose-ul:my-3 prose-ol:my-3
+              prose-hr:border-white/10">
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                {data.analysis}
+              </ReactMarkdown>
+            </div>
+
+            <p className="text-xs text-muted-foreground mt-6 pt-4 border-t border-white/10 text-right">
+              Généré le : {new Date(data.generated_at).toLocaleString("fr-FR")}
+            </p>
+          </div>
+        </>
+      )}
     </div>
   );
 }
