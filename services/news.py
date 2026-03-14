@@ -89,19 +89,43 @@ class NewsService:
                 if news and len(news) > 0:
                     print(f"[NEWS] Yahoo Finance: {len(news)} articles trouvés")
                     for article in news[:8]:
-                        title = article.get('title', '')
+                        # Handle both old and new yfinance formats
+                        content = article.get('content') or {}
+                        provider = content.get('provider') or {}
+
+                        title = article.get('title', '') or content.get('title', '')
                         if not title or title == 'Sans titre':
                             continue
 
-                        # Date valide
+                        # Publisher: top-level or nested
+                        publisher = (
+                            article.get('publisher')
+                            or provider.get('displayName')
+                            or 'Yahoo Finance'
+                        )
+
+                        # Link: top-level or nested
+                        link = article.get('link', '') or content.get('url', '')
+                        if isinstance(link, dict):
+                            link = link.get('url', '')
+
+                        # Date: Unix timestamp or ISO string
                         published = article.get('providerPublishTime', 0)
-                        if published < 1000000000:  # Timestamp invalide
-                            published = int(datetime.now().timestamp())
+                        if not published or published < 1000000000:
+                            pub_date_str = article.get('pubDate') or content.get('pubDate') or ''
+                            if pub_date_str:
+                                try:
+                                    pub_dt = datetime.fromisoformat(pub_date_str.replace('Z', '+00:00'))
+                                    published = int(pub_dt.timestamp())
+                                except Exception:
+                                    published = int(datetime.now().timestamp())
+                            else:
+                                published = int(datetime.now().timestamp())
 
                         # Résumé
-                        summary = article.get('summary', '')
+                        summary = article.get('summary', '') or content.get('summary', '')
                         if not summary:
-                            summary = article.get('content', '')
+                            summary = ''
 
                         # Limiter le résumé
                         if len(summary) > 200:
@@ -109,8 +133,8 @@ class NewsService:
 
                         all_news.append({
                             'title': title,
-                            'publisher': article.get('publisher', 'Yahoo Finance'),
-                            'link': article.get('link', ''),
+                            'publisher': publisher,
+                            'link': link,
                             'published': published,
                             'summary': summary,
                             'source': 'Yahoo Finance'

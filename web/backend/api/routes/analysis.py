@@ -199,18 +199,52 @@ async def analyze_asset(
             "website": info.get("website"),
         }
 
-        # Get recent news
+        # Get recent news (handles both old and new yfinance formats)
         news_items = []
         try:
             news = ticker.news[:5] if hasattr(ticker, 'news') and ticker.news else []
             for item in news:
-                news_items.append({
-                    "title": item.get("title"),
-                    "publisher": item.get("publisher"),
-                    "link": item.get("link"),
-                    "date": item.get("providerPublishTime"),
-                    "type": item.get("type"),
-                })
+                content = item.get("content") or {}
+                provider = content.get("provider") or {}
+
+                # Title: top-level or nested
+                title = item.get("title") or content.get("title") or ""
+
+                # Publisher: top-level or nested
+                publisher = (
+                    item.get("publisher")
+                    or provider.get("displayName")
+                    or "Yahoo Finance"
+                )
+
+                # Link: top-level or nested
+                link = item.get("link") or content.get("url") or ""
+                if isinstance(link, dict):
+                    link = link.get("url", "")
+
+                # Date: Unix timestamp or ISO string
+                date = item.get("providerPublishTime")
+                if not date:
+                    pub_date_str = item.get("pubDate") or content.get("pubDate") or ""
+                    if pub_date_str:
+                        try:
+                            from datetime import timezone
+                            dt = datetime.fromisoformat(pub_date_str.replace("Z", "+00:00"))
+                            date = int(dt.timestamp())
+                        except Exception:
+                            date = None
+
+                # Type
+                item_type = item.get("type") or item.get("contentType") or ""
+
+                if title:
+                    news_items.append({
+                        "title": title,
+                        "publisher": publisher,
+                        "link": link,
+                        "date": date,
+                        "type": item_type,
+                    })
         except Exception:
             pass
 
