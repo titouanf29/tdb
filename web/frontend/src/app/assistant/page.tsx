@@ -366,7 +366,7 @@ export default function AssistantPage() {
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={handleSend}
-            disabled={!input.trim() || isLoading || (limitStatus && !limitStatus.is_premium && limitStatus.remaining === 0)}
+            disabled={!input.trim() || isLoading || (limitStatus != null && !limitStatus.is_premium && limitStatus.remaining === 0)}
             className="btn-primary px-6 disabled:opacity-50"
           >
             {isLoading ? (
