@@ -108,13 +108,18 @@ export function Sidebar({
     <motion.aside
       initial={false}
       animate={{ width: collapsed ? 80 : 260 }}
-      className={`h-screen bg-card/50 backdrop-blur-xl border-r border-white/10 flex flex-col
+      className={`h-screen flex flex-col
         fixed lg:relative z-50 lg:z-auto
         ${mobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}
         transition-transform lg:transition-none duration-300`}
+      style={{
+        background: "linear-gradient(180deg, hsl(220 50% 5.5%) 0%, hsl(220 45% 4.5%) 100%)",
+        borderRight: "1px solid rgba(99,140,255,0.12)",
+        boxShadow: "4px 0 24px rgba(0,0,0,0.4), inset -1px 0 0 rgba(99,140,255,0.06)"
+      }}
     >
       {/* Logo */}
-      <div className="p-4 flex items-center gap-3 border-b border-white/10">
+      <div className="p-4 flex items-center gap-3" style={{borderBottom: "1px solid rgba(99,140,255,0.1)"}}>
         <motion.div
           whileHover={{ scale: 1.1 }}
           className="flex items-center justify-center"
@@ -147,17 +152,20 @@ export function Sidebar({
                 whileHover={{ x: 4 }}
                 whileTap={{ scale: 0.98 }}
                 className={cn(
-                  "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group",
+                  "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group relative",
                   isActive
-                    ? "bg-primary/20 text-primary border border-primary/30"
-                    : "text-muted-foreground hover:bg-white/5 hover:text-foreground"
+                    ? "text-white"
+                    : "text-muted-foreground hover:text-foreground"
                 )}
+                style={isActive ? {
+                  background: "linear-gradient(135deg, rgba(99,140,255,0.18) 0%, rgba(139,92,246,0.10) 100%)",
+                  border: "1px solid rgba(99,140,255,0.30)",
+                  boxShadow: "0 0 16px rgba(99,140,255,0.12), inset 0 1px 0 rgba(255,255,255,0.05)"
+                } : undefined}
               >
                 <Icon
-                  className={cn(
-                    "w-5 h-5 transition-colors",
-                    isActive && "text-primary"
-                  )}
+                  className={cn("w-5 h-5 transition-colors flex-shrink-0", isActive && "text-primary")}
+                  style={isActive ? {filter: "drop-shadow(0 0 6px rgba(99,140,255,0.7))"} : undefined}
                 />
                 <AnimatePresence>
                   {!collapsed && (
@@ -174,7 +182,8 @@ export function Sidebar({
                 {isActive && !collapsed && (
                   <motion.div
                     layoutId="activeIndicator"
-                    className="ml-auto w-1.5 h-1.5 rounded-full bg-primary"
+                    className="ml-auto w-1.5 h-1.5 rounded-full"
+                    style={{background: "hsl(var(--neon-cyan))", boxShadow: "0 0 6px hsl(var(--neon-cyan))"}}
                   />
                 )}
               </motion.div>
@@ -220,7 +229,7 @@ export function Sidebar({
       </nav>
 
       {/* Collapse button */}
-      <div className="p-3 border-t border-white/10">
+      <div className="p-3" style={{borderTop: "1px solid rgba(99,140,255,0.1)"}}>
         <button
           onClick={() => setCollapsed(!collapsed)}
           className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-muted-foreground hover:bg-white/5 hover:text-foreground transition-colors"

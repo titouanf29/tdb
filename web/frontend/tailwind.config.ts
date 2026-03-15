@@ -41,6 +41,13 @@ const config: Config = {
         warning: "#f59e0b",
         bull: "#22c55e",
         bear: "#ef4444",
+        // Neon accents
+        neon: {
+          blue:   "#638cff",
+          cyan:   "#00d2ff",
+          purple: "#a855f7",
+          green:  "#00ff9d",
+        },
       },
       borderRadius: {
         lg: "var(--radius)",
@@ -54,9 +61,12 @@ const config: Config = {
         "glow": "radial-gradient(circle at center, rgba(99, 102, 241, 0.15) 0%, transparent 70%)",
       },
       boxShadow: {
-        glow: "0 0 40px rgba(99, 102, 241, 0.3)",
-        "glow-sm": "0 0 20px rgba(99, 102, 241, 0.2)",
-        glass: "0 8px 32px rgba(0, 0, 0, 0.3)",
+        glow:          "0 0 40px rgba(99, 140, 255, 0.35)",
+        "glow-sm":     "0 0 20px rgba(99, 140, 255, 0.25)",
+        "glow-cyan":   "0 0 24px rgba(0, 210, 255, 0.35)",
+        "glow-purple": "0 0 24px rgba(139, 92, 246, 0.35)",
+        glass:         "0 8px 32px rgba(0, 0, 0, 0.4)",
+        "neon-card":   "0 0 20px rgba(99,140,255,0.10), inset 0 1px 0 rgba(255,255,255,0.05)",
       },
       animation: {
         "pulse-slow": "pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite",

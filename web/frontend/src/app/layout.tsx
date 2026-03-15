@@ -25,10 +25,15 @@ export default function RootLayout({
     <html lang="fr" className="dark">
       <body className={`${inter.className} min-h-screen bg-background`}>
         {/* Background effects */}
-        <div className="fixed inset-0 -z-10">
-          <div className="absolute top-0 left-1/4 w-96 h-96 bg-primary/10 rounded-full blur-3xl" />
-          <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl" />
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-gradient-radial from-primary/5 to-transparent" />
+        <div className="fixed inset-0 -z-10 overflow-hidden">
+          {/* Subtle grid */}
+          <div className="absolute inset-0 opacity-[0.025]"
+            style={{backgroundImage: "linear-gradient(rgba(99,140,255,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(99,140,255,0.5) 1px, transparent 1px)", backgroundSize: "64px 64px"}} />
+          {/* Neon orbs */}
+          <div className="absolute top-[-10%] left-[15%] w-[500px] h-[500px] rounded-full blur-3xl" style={{background: "radial-gradient(circle, rgba(99,140,255,0.12) 0%, transparent 70%)"}} />
+          <div className="absolute bottom-[-5%] right-[10%] w-[450px] h-[450px] rounded-full blur-3xl" style={{background: "radial-gradient(circle, rgba(139,92,246,0.1) 0%, transparent 70%)"}} />
+          <div className="absolute top-[40%] right-[5%] w-[300px] h-[300px] rounded-full blur-3xl" style={{background: "radial-gradient(circle, rgba(0,210,255,0.07) 0%, transparent 70%)"}} />
+          <div className="absolute bottom-[20%] left-[5%] w-[250px] h-[250px] rounded-full blur-3xl" style={{background: "radial-gradient(circle, rgba(99,140,255,0.06) 0%, transparent 70%)"}} />
         </div>
 
         <AuthProvider>
