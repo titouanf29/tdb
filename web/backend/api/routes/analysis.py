@@ -3,6 +3,7 @@ AI Analysis routes - Using the same analyzer as the bot
 """
 import re
 import sys
+import asyncio
 from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from slowapi import Limiter
@@ -166,7 +167,11 @@ async def analyze_asset(
             signal_emoji = "🔴"
 
         # Get fundamental data
-        info = ticker.info
+        import yfinance as yf
+        ticker = await asyncio.get_event_loop().run_in_executor(
+            None, lambda: yf.Ticker(symbol)
+        )
+        info = ticker.info or {}
 
         # Fundamental metrics
         fundamentals = {
