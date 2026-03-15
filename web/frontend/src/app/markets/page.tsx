@@ -126,6 +126,19 @@ export default function MarketsPage() {
       const data = await marketAPI.getAssets(selectedMarket, PAGE_SIZE, assets.length);
       setAssets((prev) => [...prev, ...data.assets]);
       setHasMore(data.offset + data.limit < data.total);
+
+      // Fetch prices for the newly loaded assets
+      const symbols = data.assets.map((a: Asset) => a.symbol);
+      if (symbols.length > 0) {
+        marketAPI.getPrices(symbols)
+          .then((priceData) => {
+            setAssets((prev) => prev.map((a) => {
+              const p = priceData.prices[a.symbol];
+              return p ? { ...a, price: p.price, change: p.change, volume: p.volume } : a;
+            }));
+          })
+          .catch(() => {});
+      }
     } catch (error) {
       console.error("Error loading more assets:", error);
     } finally {
