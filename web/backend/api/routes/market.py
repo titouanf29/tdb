@@ -522,76 +522,13 @@ async def get_market_info(market_key: str):
     }
 
 
-def _batch_fetch(symbols: list) -> list:
-    """Fetch live data for a batch of symbols via a single yf.download() call."""
-    import yfinance as yf
-    import pandas as pd
-
-    if not symbols:
-        return []
-
-    try:
-        raw = yf.download(
-            tickers=symbols,
-            period="2d",
-            auto_adjust=True,
-            progress=False,
-            threads=True,
-            timeout=10,
-        )
-    except Exception:
-        return [{"symbol": s, "price": 0, "change": 0, "volume": 0, "error": True} for s in symbols]
-
-    results = []
-    for symbol in symbols:
-        try:
-            # yf.download returns a flat DataFrame for one ticker, MultiIndex for many
-            if len(symbols) == 1:
-                hist = raw
-            else:
-                lvl0 = raw.columns.get_level_values(0)
-                if symbol in lvl0:
-                    hist = raw[symbol]
-                else:
-                    hist = pd.DataFrame()
-
-            hist = hist.dropna(subset=["Close"])
-
-            if len(hist) >= 2:
-                current_price = float(hist["Close"].iloc[-1])
-                prev_price = float(hist["Close"].iloc[-2])
-                change = ((current_price - prev_price) / prev_price) * 100
-                volume = int(hist["Volume"].iloc[-1])
-            elif len(hist) == 1:
-                current_price = float(hist["Close"].iloc[-1])
-                change = 0.0
-                volume = int(hist["Volume"].iloc[-1])
-            else:
-                current_price = 0.0
-                change = 0.0
-                volume = 0
-
-            results.append({
-                "symbol": symbol,
-                "price": round(current_price, 4),
-                "change": round(change, 2),
-                "volume": volume,
-            })
-        except Exception:
-            results.append({"symbol": symbol, "price": 0, "change": 0, "volume": 0, "error": True})
-
-    return results
-
-
 @router.get("/{market_key}/assets")
 async def get_market_assets(
     market_key: str,
     limit: int = Query(default=20, le=100),
     offset: int = Query(default=0, ge=0)
 ):
-    """Get assets for a market via a single batch yf.download() call."""
-    import asyncio
-
+    """Return asset list instantly from config — no live prices, no yfinance."""
     market_key = market_key.upper()
     if market_key not in MARKETS:
         raise HTTPException(status_code=404, detail="Market not found")
@@ -600,13 +537,72 @@ async def get_market_assets(
     total = len(all_assets)
     batch = all_assets[offset:offset + limit]
 
-    if not batch:
-        return {"assets": [], "total": total, "offset": offset, "limit": limit}
+    result = [
+        {
+            "symbol": s,
+            "name": SYMBOL_NAMES.get(s, s),
+            "price": None,
+            "change": None,
+            "volume": None,
+        }
+        for s in batch
+    ]
+    return {"assets": result, "total": total, "offset": offset, "limit": limit}
+
+
+def _fetch_prices_sync(symbols: list) -> dict:
+    """Fetch prices for a list of symbols, returns {symbol: {price, change, volume}}."""
+    import yfinance as yf
+    import pandas as pd
+
+    if not symbols:
+        return {}
+
+    try:
+        raw = yf.download(
+            tickers=symbols,
+            period="2d",
+            auto_adjust=True,
+            progress=False,
+            threads=True,
+            timeout=8,
+        )
+    except Exception:
+        return {}
+
+    prices = {}
+    for symbol in symbols:
+        try:
+            hist = raw if len(symbols) == 1 else (raw[symbol] if symbol in raw.columns.get_level_values(0) else pd.DataFrame())
+            hist = hist.dropna(subset=["Close"])
+            if len(hist) >= 2:
+                p = float(hist["Close"].iloc[-1])
+                change = ((p - float(hist["Close"].iloc[-2])) / float(hist["Close"].iloc[-2])) * 100
+                vol = int(hist["Volume"].iloc[-1])
+            elif len(hist) == 1:
+                p = float(hist["Close"].iloc[-1])
+                change = 0.0
+                vol = int(hist["Volume"].iloc[-1])
+            else:
+                continue
+            prices[symbol] = {"price": round(p, 4), "change": round(change, 2), "volume": vol}
+        except Exception:
+            continue
+    return prices
+
+
+@router.get("/prices")
+async def get_prices(symbols: str = Query(..., description="Comma-separated symbols")):
+    """Return live prices for a comma-separated list of symbols."""
+    import asyncio
+
+    raw_symbols = [s.strip().upper() for s in symbols.split(",") if s.strip()][:50]
+    if not raw_symbols:
+        return {"prices": {}}
 
     loop = asyncio.get_running_loop()
-    result = await loop.run_in_executor(None, _batch_fetch, batch)
-
-    return {"assets": result, "total": total, "offset": offset, "limit": limit}
+    prices = await loop.run_in_executor(None, _fetch_prices_sync, raw_symbols)
+    return {"prices": prices}
 
 
 @router.get("/quote/{symbol}")
