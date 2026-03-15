@@ -82,11 +82,13 @@ def get_user_id(user: dict) -> int:
 
 async def get_user_messages_today(user_id: int) -> int:
     """Count messages sent by user today"""
+    from datetime import date
+    today = date.today().isoformat()  # '2025-03-15'
     result = await execute_query(
         """SELECT COUNT(*) as count FROM web_ai_chat
            WHERE user_id = ? AND role = 'user'
-           AND DATE(created_at) = DATE('now')""",
-        (user_id,)
+           AND created_at LIKE ?""",
+        (user_id, f"{today}%")
     )
     return result[0]["count"] if result else 0
 
@@ -134,56 +136,56 @@ async def chat_with_assistant(
     current_user: dict = Depends(get_current_user)
 ):
     """Send a message to the AI assistant"""
-    api_key = get_groq_api_key()
-    if not api_key:
-        raise HTTPException(
-            status_code=503,
-            detail="AI Assistant not configured. Please set GROQ_API_KEY."
-        )
-
-    # Check message limit for free users
-    limit_status = await check_ai_limit(current_user)
-    if not limit_status["can_send"]:
-        raise HTTPException(
-            status_code=429,
-            detail={
-                "message": "Limite quotidienne atteinte. Passez Premium pour des messages illimites.",
-                "messages_today": limit_status["messages_today"],
-                "daily_limit": limit_status["daily_limit"],
-                "remaining": 0
-            }
-        )
-
-    user_id = get_user_id(current_user)
-
-    # Get conversation history (last 10 messages)
-    history = await execute_query(
-        """SELECT role, content FROM web_ai_chat
-           WHERE user_id = ?
-           ORDER BY created_at DESC
-           LIMIT 10""",
-        (user_id,)
-    )
-    history = list(reversed(history))
-
-    # Build messages array
-    messages = [{"role": "system", "content": SYSTEM_PROMPT}]
-
-    # Add optional context
-    if request.context:
-        messages.append({
-            "role": "system",
-            "content": f"Contexte actuel du marché:\n{request.context}"
-        })
-
-    # Add conversation history
-    for msg in history:
-        messages.append({"role": msg["role"], "content": msg["content"]})
-
-    # Add new user message
-    messages.append({"role": "user", "content": request.message})
-
     try:
+        api_key = get_groq_api_key()
+        if not api_key:
+            raise HTTPException(
+                status_code=503,
+                detail="AI Assistant not configured. Please set GROQ_API_KEY."
+            )
+
+        # Check message limit for free users
+        limit_status = await check_ai_limit(current_user)
+        if not limit_status["can_send"]:
+            raise HTTPException(
+                status_code=429,
+                detail={
+                    "message": "Limite quotidienne atteinte. Passez Premium pour des messages illimites.",
+                    "messages_today": limit_status["messages_today"],
+                    "daily_limit": limit_status["daily_limit"],
+                    "remaining": 0
+                }
+            )
+
+        user_id = get_user_id(current_user)
+
+        # Get conversation history (last 10 messages)
+        history = await execute_query(
+            """SELECT role, content FROM web_ai_chat
+               WHERE user_id = ?
+               ORDER BY created_at DESC
+               LIMIT 10""",
+            (user_id,)
+        )
+        history = list(reversed(history))
+
+        # Build messages array
+        messages = [{"role": "system", "content": SYSTEM_PROMPT}]
+
+        # Add optional context
+        if request.context:
+            messages.append({
+                "role": "system",
+                "content": f"Contexte actuel du marché:\n{request.context}"
+            })
+
+        # Add conversation history
+        for msg in history:
+            messages.append({"role": msg["role"], "content": msg["content"]})
+
+        # Add new user message
+        messages.append({"role": "user", "content": request.message})
+
         async with httpx.AsyncClient(timeout=60.0) as client:
             response = await client.post(
                 GROQ_API_URL,
@@ -229,9 +231,12 @@ async def chat_with_assistant(
                 usage=data.get("usage")
             )
 
+    except HTTPException:
+        raise
     except httpx.TimeoutException:
         raise HTTPException(status_code=504, detail="AI request timeout")
     except Exception as e:
+        print(f"[AI] Unexpected error in chat_with_assistant: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
