@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import {
   Crown,
@@ -17,11 +16,6 @@ import {
   Headphones,
   Sparkles,
   Loader2,
-  CheckCircle,
-  XCircle,
-  CreditCard,
-  Shield,
-  Zap,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { usePremium } from "@/lib/PremiumContext";
@@ -40,12 +34,8 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
 
 export default function PremiumPage() {
   const { isPremium, isAdmin, premiumInfo } = usePremium();
-  const searchParams = useSearchParams();
   const [features, setFeatures] = useState<PremiumFeatures | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [isCheckingOut, setIsCheckingOut] = useState(false);
-  const paymentSuccess = searchParams.get("success") === "1";
-  const paymentCanceled = searchParams.get("canceled") === "1";
 
   useEffect(() => {
     loadData();
@@ -59,17 +49,6 @@ export default function PremiumPage() {
       console.error("Error loading premium data:", error);
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  const handleCheckout = async () => {
-    setIsCheckingOut(true);
-    try {
-      const { url } = await premiumAPI.createCheckout();
-      window.location.href = url;
-    } catch (error: any) {
-      alert(error.message || "Erreur lors de la redirection vers le paiement");
-      setIsCheckingOut(false);
     }
   };
 
@@ -302,61 +281,17 @@ export default function PremiumPage() {
         className="glass-card p-8"
       >
         <div className="max-w-lg mx-auto text-center">
-
-          {paymentSuccess ? (
-            <div className="p-6 rounded-xl bg-green-500/20 border border-green-500/30">
-              <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
-              <h3 className="text-2xl font-bold mb-2">Paiement confirmé !</h3>
-              <p className="text-muted-foreground">
-                Votre compte Premium est en cours d&apos;activation. Rafraîchissez la page dans quelques secondes.
-              </p>
+          <div className="inline-flex items-center gap-3 bg-gradient-to-r from-yellow-500/20 to-orange-500/20 border border-yellow-500/30 rounded-2xl px-8 py-4 mb-6">
+            <Crown className="w-8 h-8 text-yellow-400" />
+            <div className="text-left">
+              <p className="text-2xl font-bold text-yellow-400">5€ <span className="text-base font-normal text-muted-foreground">/ mois</span></p>
+              <p className="text-sm text-muted-foreground">Résiliable à tout moment</p>
             </div>
-          ) : paymentCanceled ? (
-            <div className="p-6 rounded-xl bg-red-500/20 border border-red-500/30">
-              <XCircle className="w-16 h-16 text-red-400 mx-auto mb-4" />
-              <h3 className="text-xl font-bold mb-2">Paiement annulé</h3>
-              <p className="text-muted-foreground mb-6">
-                Aucun montant n&apos;a été débité. Vous pouvez réessayer quand vous le souhaitez.
-              </p>
-              <button onClick={handleCheckout} disabled={isCheckingOut} className="btn-primary flex items-center justify-center gap-2 mx-auto px-8 py-3">
-                {isCheckingOut ? <Loader2 className="w-5 h-5 animate-spin" /> : <CreditCard className="w-5 h-5" />}
-                Réessayer
-              </button>
-            </div>
-          ) : (
-            <>
-              <div className="mb-8">
-                <div className="inline-flex items-center gap-3 bg-gradient-to-r from-yellow-500/20 to-orange-500/20 border border-yellow-500/30 rounded-2xl px-8 py-4 mb-4">
-                  <Crown className="w-8 h-8 text-yellow-400" />
-                  <div className="text-left">
-                    <p className="text-2xl font-bold text-yellow-400">5€ <span className="text-base font-normal text-muted-foreground">/ mois</span></p>
-                    <p className="text-sm text-muted-foreground">Résiliable à tout moment</p>
-                  </div>
-                </div>
-                <h2 className="text-2xl font-bold mb-2">Passer Premium</h2>
-                <p className="text-muted-foreground">Paiement sécurisé par Stripe. Aucune information bancaire stockée sur nos serveurs.</p>
-              </div>
-
-              <button
-                onClick={handleCheckout}
-                disabled={isCheckingOut}
-                className="w-full btn-primary flex items-center justify-center gap-3 py-4 text-lg font-semibold rounded-xl"
-              >
-                {isCheckingOut ? (
-                  <Loader2 className="w-6 h-6 animate-spin" />
-                ) : (
-                  <CreditCard className="w-6 h-6" />
-                )}
-                {isCheckingOut ? "Redirection en cours..." : "Payer 5€ / mois"}
-              </button>
-
-              <div className="flex items-center justify-center gap-6 mt-4 text-xs text-muted-foreground">
-                <span className="flex items-center gap-1"><Shield className="w-3 h-3" /> Paiement sécurisé SSL</span>
-                <span className="flex items-center gap-1"><Zap className="w-3 h-3" /> Activation instantanée</span>
-                <span className="flex items-center gap-1"><XCircle className="w-3 h-3" /> Résiliable quand vous voulez</span>
-              </div>
-            </>
-          )}
+          </div>
+          <h2 className="text-2xl font-bold mb-3">Bientôt disponible</h2>
+          <p className="text-muted-foreground">
+            Le paiement en ligne arrive très prochainement. En attendant, contactez-nous directement pour obtenir votre accès Premium.
+          </p>
         </div>
       </motion.div>
 
