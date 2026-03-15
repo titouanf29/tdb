@@ -300,6 +300,28 @@ export default function PremiumPage() {
         })}
       </motion.div>
 
+      {/* Why Premium section */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.35 }}
+        className="glass-card p-8 border border-yellow-500/20"
+      >
+        <div className="max-w-3xl mx-auto text-center">
+          <div className="w-14 h-14 mx-auto mb-4 rounded-full bg-gradient-to-r from-yellow-500/20 to-orange-500/20 flex items-center justify-center">
+            <Sparkles className="w-7 h-7 text-yellow-400" />
+          </div>
+          <h2 className="text-2xl font-bold mb-3">Pourquoi un abonnement ?</h2>
+          <p className="text-muted-foreground leading-relaxed mb-4">
+            TDB est un projet indépendant, développé et maintenu par une seule personne. L'abonnement Premium à{" "}
+            <span className="text-yellow-400 font-semibold">5€ / mois</span> couvre les frais de serveur, de base de données et d'API (données financières en temps réel, IA Groq, etc.).
+          </p>
+          <p className="text-muted-foreground leading-relaxed">
+            En passant Premium, vous aidez directement à garder la plateforme en ligne et à financer de nouvelles fonctionnalités. Merci pour votre soutien !
+          </p>
+        </div>
+      </motion.div>
+
       {/* Contact Section */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}

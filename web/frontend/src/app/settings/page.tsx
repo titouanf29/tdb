@@ -356,7 +356,7 @@ function SecuritySettings() {
   const handleLogout = async () => {
     setIsLoggingOut(true);
     await logout();
-    router.push("/login");
+    router.push("/");
   };
 
   return (

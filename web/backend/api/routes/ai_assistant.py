@@ -236,8 +236,11 @@ async def chat_with_assistant(
     except httpx.TimeoutException:
         raise HTTPException(status_code=504, detail="AI request timeout")
     except Exception as e:
-        print(f"[AI] Unexpected error in chat_with_assistant: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        import traceback
+        detail_msg = str(e) or f"{type(e).__name__} (no message)"
+        print(f"[AI] Unexpected error in chat_with_assistant ({type(e).__name__}): {detail_msg}")
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=detail_msg)
 
 
 @router.get("/history")
