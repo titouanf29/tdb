@@ -275,8 +275,8 @@ async def quick_analysis(
     if not _SYMBOL_RE.match(symbol.upper()):
         raise HTTPException(status_code=400, detail="Symbole invalide")
     symbol = symbol.upper()
-    import yfinance as yf
     import numpy as np
+    from ._prices import fetch_ohlcv
 
     api_key = get_groq_api_key()
     if not api_key:
@@ -287,9 +287,7 @@ async def quick_analysis(
 
     # Get comprehensive market data
     try:
-        ticker = yf.Ticker(symbol)
-        info = ticker.info
-        hist = ticker.history(period="3mo")
+        hist = await fetch_ohlcv(symbol, period="3mo", interval="1d")
 
         if hist.empty:
             raise HTTPException(status_code=404, detail="Symbol not found")
@@ -321,22 +319,22 @@ async def quick_analysis(
         current_volume = hist['Volume'].iloc[-1]
         volume_ratio = current_volume / avg_volume if avg_volume > 0 else 1
 
+        high_52w = float(hist['High'].max())
+        low_52w = float(hist['Low'].min())
+
         market_context = f"""
 === ANALYSE DETAILLEE: {symbol} ===
 
 INFORMATIONS GENERALES:
-- Nom: {info.get('shortName', symbol)}
-- Secteur: {info.get('sector', 'N/A')}
-- Industrie: {info.get('industry', 'N/A')}
-- Capitalisation: ${info.get('marketCap', 0):,.0f}
+- Symbole: {symbol}
 
 PRIX ET PERFORMANCE:
 - Prix actuel: ${current_price:.2f}
 - Variation 24h: {change_1d:+.2f}%
 - Variation 1 semaine: {change_1w:+.2f}%
 - Variation 1 mois: {change_1m:+.2f}%
-- Plus haut 52 sem: ${info.get('fiftyTwoWeekHigh', 0):.2f}
-- Plus bas 52 sem: ${info.get('fiftyTwoWeekLow', 0):.2f}
+- Plus haut 3 mois: ${high_52w:.2f}
+- Plus bas 3 mois: ${low_52w:.2f}
 
 INDICATEURS TECHNIQUES:
 - RSI (14): {rsi:.1f} {'(Suracheté)' if rsi > 70 else '(Survendu)' if rsi < 30 else '(Neutre)'}
@@ -350,10 +348,10 @@ VOLUME:
 - Ratio volume: {volume_ratio:.2f}x {'(Volume élevé)' if volume_ratio > 1.5 else '(Volume faible)' if volume_ratio < 0.5 else ''}
 
 FONDAMENTAUX:
-- P/E Ratio: {info.get('trailingPE', 'N/A')}
-- Forward P/E: {info.get('forwardPE', 'N/A')}
-- Dividend Yield: {info.get('dividendYield', 0) * 100 if info.get('dividendYield') else 0:.2f}%
-- Beta: {info.get('beta', 'N/A')}
+- P/E Ratio: N/A
+- Forward P/E: N/A
+- Dividend Yield: N/A
+- Beta: N/A
 """
     except Exception as e:
         market_context = f"Symbole: {symbol} - Données partiellement disponibles"
@@ -444,127 +442,41 @@ Sois precis, factuel et professionnel. Utilise des emojis pour rendre l'analyse 
 @limiter.limit("2/minute")
 async def get_market_news(request: Request, current_user: dict = Depends(get_current_user)):
     """Get economic news with AI summary"""
-    import yfinance as yf
+    from ._prices import fetch_prices
 
     api_key = get_groq_api_key()
 
-    # Fetch news from major indices and popular stocks
-    news_items = []
-    symbols = ["^GSPC", "^DJI", "^IXIC", "GC=F", "CL=F", "BTC-USD", "AAPL", "MSFT", "NVDA", "TSLA"]
     symbol_names = {
         "^GSPC": "S&P 500",
         "^DJI": "Dow Jones",
-        "^IXIC": "NASDAQ",
+        "BTC-USD": "Bitcoin",
         "GC=F": "Or",
         "CL=F": "Petrole",
-        "BTC-USD": "Bitcoin",
         "AAPL": "Apple",
         "MSFT": "Microsoft",
         "NVDA": "Nvidia",
         "TSLA": "Tesla"
     }
 
-    for symbol in symbols:
-        try:
-            ticker = yf.Ticker(symbol)
-            # Try different methods to get news
-            news = []
-            if hasattr(ticker, 'news') and ticker.news:
-                news = ticker.news[:3]
-
-            for item in news:
-                content = item.get("content") or {}
-                provider = content.get("provider") or {}
-
-                title = item.get("title") or content.get("title") or ""
-                if not title:
-                    continue
-
-                publisher = (
-                    item.get("publisher")
-                    or provider.get("displayName")
-                    or "Yahoo Finance"
-                )
-
-                link = item.get("link") or content.get("url") or ""
-                if isinstance(link, dict):
-                    link = link.get("url", "")
-
-                timestamp = item.get("providerPublishTime") or 0
-                if not timestamp:
-                    from datetime import datetime
-                    pub_date_str = item.get("pubDate") or content.get("pubDate") or ""
-                    if pub_date_str:
-                        try:
-                            dt = datetime.fromisoformat(pub_date_str.replace("Z", "+00:00"))
-                            timestamp = int(dt.timestamp())
-                        except Exception:
-                            timestamp = 0
-
-                news_items.append({
-                    "title": title,
-                    "publisher": publisher,
-                    "link": link,
-                    "timestamp": timestamp,
-                    "related": symbol_names.get(symbol, symbol)
-                })
-        except Exception as e:
-            print(f"[NEWS] Error fetching news for {symbol}: {e}")
-            continue
-
-    # Remove duplicates by title
-    seen_titles = set()
-    unique_news = []
-    for item in news_items:
-        if item["title"] not in seen_titles:
-            seen_titles.add(item["title"])
-            unique_news.append(item)
-    news_items = unique_news
-
-    # Sort by timestamp and get latest 12
-    news_items.sort(key=lambda x: x.get("timestamp", 0), reverse=True)
-    news_items = news_items[:12]
-
-    # Translate titles to French
-    try:
-        from deep_translator import GoogleTranslator
-        translator = GoogleTranslator(source="auto", target="fr")
-        for item in news_items:
-            if item.get("title"):
-                try:
-                    item["title"] = translator.translate(item["title"]) or item["title"]
-                except Exception:
-                    pass
-    except Exception:
-        pass
+    # No news source available — use live market prices for AI context
+    news_items = []
 
     # Generate AI summary
     summary = None
     summary_points = None
     if api_key:
-        # Build context for AI - either from news or market data
-        if news_items:
-            news_text = "\n".join([f"- {item['title']} (Source: {item['publisher']}, Marche: {item['related']})" for item in news_items[:10]])
-            ai_prompt = f"Voici les dernieres actualites economiques et financieres:\n\n{news_text}\n\nFais un resume en 3-4 points cles des tendances importantes pour les marches financiers aujourd'hui."
-        else:
-            # No news available, get market data instead
-            market_summary = []
-            for symbol in ["^GSPC", "^DJI", "BTC-USD", "GC=F"]:
-                try:
-                    ticker = yf.Ticker(symbol)
-                    hist = ticker.history(period="2d")
-                    if len(hist) >= 2:
-                        current = hist['Close'].iloc[-1]
-                        prev = hist['Close'].iloc[-2]
-                        change = ((current - prev) / prev) * 100
-                        market_summary.append(f"- {symbol_names.get(symbol, symbol)}: {change:+.2f}%")
-                except:
-                    continue
+        # Get market data for AI context
+        market_summary = []
+        prices = await fetch_prices(list(symbol_names.keys()))
+        for symbol, name in symbol_names.items():
+            p = prices.get(symbol, {})
+            if p.get("price"):
+                market_summary.append(f"- {name}: {p['price']:.2f} ({p.get('change', 0):+.2f}%)")
 
-            if market_summary:
-                ai_prompt = f"Voici les mouvements des marches aujourd'hui:\n\n" + "\n".join(market_summary) + "\n\nAnalyse ces mouvements et donne un resume de la situation des marches en 3-4 points cles."
-            else:
-                ai_prompt = "Donne un apercu general des marches financiers mondiaux en 3-4 points cles, incluant les tendances recentes des indices, crypto et matieres premieres."
+        if market_summary:
+            ai_prompt = f"Voici les mouvements des marches aujourd'hui:\n\n" + "\n".join(market_summary) + "\n\nAnalyse ces mouvements et donne un resume de la situation des marches en 3-4 points cles."
+        else:
+            ai_prompt = "Donne un apercu general des marches financiers mondiaux en 3-4 points cles, incluant les tendances recentes des indices, crypto et matieres premieres."
 
         structured_system = (
             "Tu es un analyste financier senior. Reponds UNIQUEMENT avec un tableau JSON valide, sans markdown, sans backticks, sans texte avant ou apres. "

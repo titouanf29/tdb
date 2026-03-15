@@ -59,7 +59,7 @@ async def calculate_pivot_points(
     - camarilla: Camarilla pivots (PREMIUM)
     - demark: DeMark pivots (PREMIUM)
     """
-    import yfinance as yf
+    from ._prices import fetch_ohlcv
 
     # Check if advanced pivots are allowed
     if method != "standard":
@@ -71,8 +71,7 @@ async def calculate_pivot_points(
             )
 
     try:
-        ticker = yf.Ticker(symbol)
-        hist = ticker.history(period="5d")
+        hist = await fetch_ohlcv(symbol, period="5d", interval="1d")
 
         if hist.empty or len(hist) < 2:
             raise HTTPException(status_code=404, detail="Symbol not found or insufficient data")
@@ -169,8 +168,8 @@ async def get_per_rankings(
     sort: str = Query(default="asc", regex="^(asc|desc)$"),
     current_user: dict = Depends(get_current_user)
 ):
-    """Get stocks ranked by P/E ratio"""
-    import yfinance as yf
+    """Get stocks ranked by P/E ratio (price data only — P/E requires premium data provider)"""
+    from ._prices import fetch_prices
 
     # Popular stocks to analyze
     symbols = [
@@ -180,41 +179,29 @@ async def get_per_rankings(
         "NKE", "KO", "PEP", "MCD", "SBUX", "CAT", "XOM", "CVX"
     ]
 
+    prices = await fetch_prices(symbols)
     results = []
-    for symbol in symbols:
-        try:
-            ticker = yf.Ticker(symbol)
-            info = ticker.info
-
-            pe = info.get("trailingPE")
-            forward_pe = info.get("forwardPE")
-            sector_name = info.get("sector", "Unknown")
-
-            if pe and pe > 0 and pe < 1000:  # Filter unrealistic values
-                if sector and sector.lower() not in sector_name.lower():
-                    continue
-
-                results.append({
-                    "symbol": symbol,
-                    "name": info.get("shortName", symbol),
-                    "sector": sector_name,
-                    "pe_ratio": round(pe, 2),
-                    "forward_pe": round(forward_pe, 2) if forward_pe else None,
-                    "price": round(info.get("currentPrice", 0), 2),
-                    "market_cap": info.get("marketCap", 0),
-                    "dividend_yield": round((info.get("dividendYield") or 0) * 100, 2)
-                })
-        except:
+    for sym in symbols:
+        p = prices.get(sym, {})
+        if not p.get("price"):
             continue
-
-    # Sort by P/E
-    results.sort(key=lambda x: x["pe_ratio"], reverse=(sort == "desc"))
+        results.append({
+            "symbol": sym,
+            "name": sym,
+            "sector": "Unknown",
+            "pe_ratio": None,
+            "forward_pe": None,
+            "price": round(p["price"], 2),
+            "change": round(p.get("change", 0), 2),
+            "market_cap": None,
+            "dividend_yield": None
+        })
 
     return {
         "rankings": results[:limit],
         "total": len(results),
         "sort": sort,
-        "sectors": list(set(r["sector"] for r in results))
+        "sectors": []
     }
 
 
@@ -223,7 +210,7 @@ async def get_per_rankings(
 @router.get("/trends")
 async def get_market_trends(current_user: dict = Depends(get_current_user)):
     """Get market trends analysis"""
-    import yfinance as yf
+    from ._prices import fetch_ohlcv
     import numpy as np
 
     indices = {
@@ -251,8 +238,7 @@ async def get_market_trends(current_user: dict = Depends(get_current_user)):
     # Analyze indices
     for symbol, name in indices.items():
         try:
-            ticker = yf.Ticker(symbol)
-            hist = ticker.history(period="3mo")
+            hist = await fetch_ohlcv(symbol, period="3mo", interval="1d")
 
             if len(hist) < 20:
                 continue
@@ -290,8 +276,7 @@ async def get_market_trends(current_user: dict = Depends(get_current_user)):
     # Analyze sectors
     for symbol, name in sectors.items():
         try:
-            ticker = yf.Ticker(symbol)
-            hist = ticker.history(period="1mo")
+            hist = await fetch_ohlcv(symbol, period="1mo", interval="1d")
 
             if len(hist) < 5:
                 continue
@@ -471,7 +456,7 @@ async def get_economic_calendar(
 @router.get("/geopolitical")
 async def get_geopolitical_analysis(current_user: dict = Depends(get_current_user)):
     """Get geopolitical analysis with market impact (PREMIUM)"""
-    import yfinance as yf
+    from ._prices import fetch_prices
 
     # Check if geopolitical analysis is allowed
     limits = await get_user_limits(current_user)
@@ -487,26 +472,19 @@ async def get_geopolitical_analysis(current_user: dict = Depends(get_current_use
 
     # Get market data for context
     market_data = {}
-    symbols = {
+    symbol_names = {
         "^GSPC": "S&P 500",
         "^DJI": "Dow Jones",
         "GC=F": "Or",
         "CL=F": "Petrole WTI",
-        "DX-Y.NYB": "Dollar Index",
         "^TNX": "US 10Y Treasury"
     }
 
-    for symbol, name in symbols.items():
-        try:
-            ticker = yf.Ticker(symbol)
-            hist = ticker.history(period="5d")
-            if len(hist) >= 2:
-                current = hist['Close'].iloc[-1]
-                prev = hist['Close'].iloc[-2]
-                change = ((current - prev) / prev) * 100
-                market_data[name] = {"price": round(current, 2), "change": round(change, 2)}
-        except:
-            continue
+    prices = await fetch_prices(list(symbol_names.keys()))
+    for symbol, name in symbol_names.items():
+        p = prices.get(symbol, {})
+        if p.get("price"):
+            market_data[name] = {"price": p["price"], "change": p.get("change", 0)}
 
     market_context = "\n".join([
         f"- {name}: {data['price']} ({data['change']:+.2f}%)"
@@ -613,7 +591,7 @@ async def run_backtest(
     current_user: dict = Depends(get_current_user)
 ):
     """Run a simple backtest simulation (PREMIUM)"""
-    import yfinance as yf
+    from ._prices import fetch_ohlcv
     import numpy as np
 
     # Check if backtest is allowed
@@ -625,8 +603,7 @@ async def run_backtest(
         )
 
     try:
-        ticker = yf.Ticker(request.symbol)
-        hist = ticker.history(period=request.period)
+        hist = await fetch_ohlcv(request.symbol, period=request.period, interval="1d")
 
         if hist.empty or len(hist) < 60:
             raise HTTPException(status_code=400, detail="Insufficient data for backtest")

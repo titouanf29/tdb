@@ -91,27 +91,24 @@ async def websocket_prices(websocket: WebSocket, symbols: str):
     symbol_list = [s.strip().upper() for s in symbols.split(",")]
 
     try:
-        import yfinance as yf
+        from .routes._prices import fetch_prices
 
         while True:
+            price_data = await fetch_prices(symbol_list[:10])
             prices = {}
-            for symbol in symbol_list[:10]:  # Limit to 10 symbols
-                try:
-                    ticker = yf.Ticker(symbol)
-                    info = ticker.fast_info
-                    prices[symbol] = {
-                        "price": round(info.last_price or 0, 2),
-                        "change": round(getattr(info, 'day_change', 0) or 0, 2)
-                    }
-                except Exception:
-                    prices[symbol] = {"price": 0, "change": 0, "error": True}
+            for symbol in symbol_list[:10]:
+                p = price_data.get(symbol, {})
+                prices[symbol] = {
+                    "price": round(p.get("price", 0), 2),
+                    "change": round(p.get("change", 0), 2)
+                }
 
             await websocket.send_json({
                 "type": "prices",
                 "data": prices
             })
 
-            await asyncio.sleep(5)  # Update every 5 seconds
+            await asyncio.sleep(15)  # Update every 15 seconds
 
     except WebSocketDisconnect:
         manager.disconnect(websocket, f"prices:{symbols}")
@@ -131,7 +128,7 @@ async def websocket_portfolio(websocket: WebSocket, user_id: int, token: Optiona
 
     try:
         from .database import execute_query
-        import yfinance as yf
+        from .routes._prices import fetch_prices
 
         while True:
             # Get open positions
@@ -144,10 +141,13 @@ async def websocket_portfolio(websocket: WebSocket, user_id: int, token: Optiona
             total_pnl = 0
             position_data = []
 
-            for pos in positions:
-                try:
-                    ticker = yf.Ticker(pos["symbol"])
-                    current_price = ticker.fast_info.last_price or pos["entry_price"]
+            if positions:
+                symbols = list({pos["symbol"] for pos in positions})
+                price_data = await fetch_prices(symbols)
+
+                for pos in positions:
+                    p = price_data.get(pos["symbol"], {})
+                    current_price = p.get("price") or pos["entry_price"]
 
                     if pos["direction"] == "LONG":
                         pnl = (current_price - pos["entry_price"]) * pos["quantity"]
@@ -167,8 +167,6 @@ async def websocket_portfolio(websocket: WebSocket, user_id: int, token: Optiona
                         "pnl": round(pnl, 2),
                         "pnl_percent": round((pnl / (pos["entry_price"] * pos["quantity"])) * 100, 2)
                     })
-                except Exception:
-                    continue
 
             await websocket.send_json({
                 "type": "portfolio",
@@ -179,7 +177,7 @@ async def websocket_portfolio(websocket: WebSocket, user_id: int, token: Optiona
                 }
             })
 
-            await asyncio.sleep(10)  # Update every 10 seconds
+            await asyncio.sleep(15)  # Update every 15 seconds
 
     except WebSocketDisconnect:
         manager.disconnect(websocket, f"portfolio:{user_id}")

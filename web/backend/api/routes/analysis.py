@@ -27,19 +27,17 @@ async def analyze_asset(
     if not _SYMBOL_RE.match(symbol.upper()):
         raise HTTPException(status_code=400, detail="Symbole invalide")
     symbol = symbol.upper()
-    import yfinance as yf
     import pandas as pd
     import numpy as np
+    from ._prices import fetch_ohlcv
 
     try:
-        ticker = yf.Ticker(symbol)
-
         # Get historical data
         period_map = {
             "5m": "5d", "15m": "5d", "1h": "1mo",
             "4h": "3mo", "1d": "6mo"
         }
-        hist = ticker.history(period=period_map.get(timeframe, "1mo"), interval=timeframe)
+        hist = await fetch_ohlcv(symbol, period=period_map.get(timeframe, "1mo"), interval=timeframe)
 
         if hist.empty or len(hist) < 20:
             raise HTTPException(status_code=400, detail="Insufficient data for analysis")
@@ -429,7 +427,8 @@ async def scan_market(
 ):
     """Scan a market for opportunities"""
     from config import MARKETS
-    import yfinance as yf
+    from ._prices import fetch_ohlcv
+    import asyncio
 
     market_key = market_key.upper()
     if market_key not in MARKETS:
@@ -441,8 +440,7 @@ async def scan_market(
     for symbol in assets[:20]:  # Limit to 20 for performance
         try:
             # Quick analysis
-            ticker = yf.Ticker(symbol)
-            hist = ticker.history(period="1mo", interval="1d")
+            hist = await fetch_ohlcv(symbol, period="1mo", interval="1d")
 
             if len(hist) < 14:
                 continue
@@ -513,23 +511,22 @@ async def get_chart_data(
             status_code=403, detail="Cette fonctionnalité est réservée aux membres Premium"
         )
 
-    import yfinance as yf
     import pandas as pd
     import numpy as np
     from fastapi import HTTPException
+    from ._prices import fetch_ohlcv
 
     period_map = {
         "5m":  ("5d",   "5m"),
         "15m": ("10d",  "15m"),
         "1h":  ("2mo",  "1h"),
-        "4h":  ("3mo",  "1h"),   # yfinance has no 4h; we resample below
+        "4h":  ("3mo",  "1h"),
         "1d":  ("1y",   "1d"),
     }
     fetch_period, fetch_interval = period_map[timeframe]
 
     try:
-        ticker = yf.Ticker(symbol)
-        hist = ticker.history(period=fetch_period, interval=fetch_interval)
+        hist = await fetch_ohlcv(symbol, period=fetch_period, interval=fetch_interval)
 
         if hist.empty or len(hist) < 10:
             raise HTTPException(status_code=400, detail="Données insuffisantes pour ce symbole")

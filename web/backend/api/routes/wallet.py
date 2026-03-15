@@ -119,7 +119,7 @@ async def open_position(
     current_user: dict = Depends(get_current_user)
 ):
     """Open a new trading position"""
-    import yfinance as yf
+    from ._prices import fetch_prices
 
     user_id = get_user_id(current_user)
 
@@ -140,13 +140,11 @@ async def open_position(
         )
 
     # Get current price
-    try:
-        ticker = yf.Ticker(request.symbol)
-        current_price = ticker.fast_info.last_price
-        if not current_price:
-            raise HTTPException(status_code=400, detail="Cannot get price for symbol")
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Invalid symbol: {str(e)}")
+    prices = await fetch_prices([request.symbol.upper()])
+    p = prices.get(request.symbol.upper(), {})
+    current_price = p.get("price")
+    if not current_price:
+        raise HTTPException(status_code=400, detail="Cannot get price for symbol")
 
     # Check balance
     wallets = await execute_query(
@@ -193,7 +191,7 @@ async def close_position(
     current_user: dict = Depends(get_current_user)
 ):
     """Close an existing position"""
-    import yfinance as yf
+    from ._prices import fetch_prices
 
     user_id = get_user_id(current_user)
 
@@ -209,11 +207,9 @@ async def close_position(
     position = positions[0]
 
     # Get current price
-    try:
-        ticker = yf.Ticker(position["symbol"])
-        exit_price = ticker.fast_info.last_price
-    except Exception:
-        exit_price = position["entry_price"]
+    prices = await fetch_prices([position["symbol"]])
+    p = prices.get(position["symbol"], {})
+    exit_price = p.get("price") or position["entry_price"]
 
     # Calculate P&L
     entry_price = position["entry_price"]

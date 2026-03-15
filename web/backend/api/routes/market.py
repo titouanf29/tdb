@@ -3,6 +3,7 @@ Market data routes
 """
 import re
 import sys
+import httpx
 from pathlib import Path
 from typing import Optional, List
 from fastapi import APIRouter, HTTPException, Query, Depends, Request
@@ -659,58 +660,16 @@ async def get_market_assets(
     return {"assets": result, "total": total, "offset": offset, "limit": limit}
 
 
-def _fetch_prices_sync(symbols: list) -> dict:
-    """Fetch prices for a list of symbols, returns {symbol: {price, change, volume}}."""
-    import yfinance as yf
-    import pandas as pd
-
-    if not symbols:
-        return {}
-
-    try:
-        raw = yf.download(
-            tickers=symbols,
-            period="2d",
-            auto_adjust=True,
-            progress=False,
-            threads=True,
-            timeout=8,
-        )
-    except Exception:
-        return {}
-
-    prices = {}
-    for symbol in symbols:
-        try:
-            hist = raw if len(symbols) == 1 else (raw[symbol] if symbol in raw.columns.get_level_values(0) else pd.DataFrame())
-            hist = hist.dropna(subset=["Close"])
-            if len(hist) >= 2:
-                p = float(hist["Close"].iloc[-1])
-                change = ((p - float(hist["Close"].iloc[-2])) / float(hist["Close"].iloc[-2])) * 100
-                vol = int(hist["Volume"].iloc[-1])
-            elif len(hist) == 1:
-                p = float(hist["Close"].iloc[-1])
-                change = 0.0
-                vol = int(hist["Volume"].iloc[-1])
-            else:
-                continue
-            prices[symbol] = {"price": round(p, 4), "change": round(change, 2), "volume": vol}
-        except Exception:
-            continue
-    return prices
-
-
 @router.get("/prices")
 async def get_prices(symbols: str = Query(..., description="Comma-separated symbols")):
-    """Return live prices for a comma-separated list of symbols."""
-    import asyncio
+    """Return live prices via Polygon.io + Twelve Data."""
+    from ._prices import fetch_prices
 
     raw_symbols = [s.strip().upper() for s in symbols.split(",") if s.strip()][:50]
     if not raw_symbols:
         return {"prices": {}}
 
-    loop = asyncio.get_running_loop()
-    prices = await loop.run_in_executor(None, _fetch_prices_sync, raw_symbols)
+    prices = await fetch_prices(raw_symbols)
     return {"prices": prices}
 
 
@@ -721,35 +680,74 @@ async def get_quote(request: Request, symbol: str):
     if not _SYMBOL_RE.match(symbol.upper()):
         raise HTTPException(status_code=400, detail="Symbole invalide")
     symbol = symbol.upper()
-    import yfinance as yf
+    from config import POLYGON_API_KEY, TWELVEDATA_API_KEY
+    from ._prices import EXCHANGE_MAP, _yf_to_td
 
     try:
-        ticker = yf.Ticker(symbol)
-        info = ticker.info
-        hist = ticker.history(period="5d")
+        async with httpx.AsyncClient(timeout=8.0) as client:
+            # International stock via Twelve Data
+            base, exchange = _yf_to_td(symbol)
+            if base and exchange and TWELVEDATA_API_KEY:
+                r = await client.get(
+                    "https://api.twelvedata.com/quote",
+                    params={"symbol": f"{base}:{exchange}", "apikey": TWELVEDATA_API_KEY}
+                )
+                if r.status_code == 200:
+                    d = r.json()
+                    if "close" in d:
+                        price = float(d.get("close") or 0)
+                        prev_close = float(d.get("previous_close") or price)
+                        change = float(d.get("percent_change") or 0)
+                        fw = d.get("fifty_two_week", {})
+                        return {
+                            "symbol": symbol,
+                            "name": d.get("name", symbol),
+                            "price": round(price, 4),
+                            "change": round(change, 2),
+                            "change_amount": round(price - prev_close, 4),
+                            "high": float(d.get("high") or 0),
+                            "low": float(d.get("low") or 0),
+                            "open": float(d.get("open") or 0),
+                            "volume": int(float(d.get("volume") or 0)),
+                            "market_cap": None,
+                            "pe_ratio": None,
+                            "52w_high": float(fw.get("high") or 0) if fw else None,
+                            "52w_low": float(fw.get("low") or 0) if fw else None,
+                        }
 
-        if hist.empty:
-            raise HTTPException(status_code=404, detail="Symbol not found")
+            # US stock via Polygon.io
+            if POLYGON_API_KEY:
+                r = await client.get(
+                    f"https://api.polygon.io/v2/snapshot/locale/us/markets/stocks/tickers/{symbol}",
+                    params={"apiKey": POLYGON_API_KEY}
+                )
+                if r.status_code == 200:
+                    t = r.json().get("ticker", {})
+                    day = t.get("day", {})
+                    prev = t.get("prevDay", {})
+                    price = day.get("c") or t.get("lastTrade", {}).get("p") or 0
+                    prev_c = prev.get("c") or 0
+                    change = ((price - prev_c) / prev_c * 100) if prev_c else 0
+                    if price:
+                        return {
+                            "symbol": symbol,
+                            "name": SYMBOL_NAMES.get(symbol, symbol),
+                            "price": round(float(price), 4),
+                            "change": round(change, 2),
+                            "change_amount": round(float(price) - float(prev_c), 4),
+                            "high": float(day.get("h") or 0),
+                            "low": float(day.get("l") or 0),
+                            "open": float(day.get("o") or 0),
+                            "volume": int(day.get("v") or 0),
+                            "market_cap": None,
+                            "pe_ratio": None,
+                            "52w_high": None,
+                            "52w_low": None,
+                        }
 
-        current = hist['Close'].iloc[-1]
-        prev = hist['Close'].iloc[-2] if len(hist) > 1 else current
-        change = ((current - prev) / prev) * 100
-
-        return {
-            "symbol": symbol,
-            "name": info.get("shortName", symbol),
-            "price": round(current, 2),
-            "change": round(change, 2),
-            "change_amount": round(current - prev, 2),
-            "high": round(hist['High'].iloc[-1], 2),
-            "low": round(hist['Low'].iloc[-1], 2),
-            "open": round(hist['Open'].iloc[-1], 2),
-            "volume": int(hist['Volume'].iloc[-1]),
-            "market_cap": info.get("marketCap"),
-            "pe_ratio": info.get("trailingPE"),
-            "52w_high": info.get("fiftyTwoWeekHigh"),
-            "52w_low": info.get("fiftyTwoWeekLow")
-        }
+        raise HTTPException(status_code=404, detail="Symbol not found")
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -766,31 +764,81 @@ async def get_chart_data(
     if not _SYMBOL_RE.match(symbol.upper()):
         raise HTTPException(status_code=400, detail="Symbole invalide")
     symbol = symbol.upper()
-    import yfinance as yf
+    from datetime import date, timedelta
+    from config import POLYGON_API_KEY, TWELVEDATA_API_KEY
+    from ._prices import _yf_to_td
+
+    # Convert period to date range
+    period_days = {"1d": 1, "5d": 5, "1mo": 30, "3mo": 90, "6mo": 180, "1y": 365, "2y": 730, "5y": 1825, "max": 1825}
+    days = period_days.get(period, 30)
+    date_from = (date.today() - timedelta(days=days)).isoformat()
+    date_to = date.today().isoformat()
+
+    # Polygon interval mapping
+    interval_map = {"1m": ("minute", 1), "5m": ("minute", 5), "15m": ("minute", 15),
+                    "1h": ("hour", 1), "1d": ("day", 1), "1wk": ("week", 1), "1mo": ("month", 1)}
+    timespan, multiplier = interval_map.get(interval, ("day", 1))
 
     try:
-        ticker = yf.Ticker(symbol)
-        hist = ticker.history(period=period, interval=interval)
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            # International via Twelve Data
+            base, exchange = _yf_to_td(symbol)
+            if base and exchange and TWELVEDATA_API_KEY:
+                td_interval_map = {"1m": "1min", "5m": "5min", "15m": "15min",
+                                   "1h": "1h", "1d": "1day", "1wk": "1week", "1mo": "1month"}
+                td_interval = td_interval_map.get(interval, "1day")
+                r = await client.get(
+                    "https://api.twelvedata.com/time_series",
+                    params={
+                        "symbol": f"{base}:{exchange}",
+                        "interval": td_interval,
+                        "start_date": date_from,
+                        "end_date": date_to,
+                        "outputsize": 500,
+                        "apikey": TWELVEDATA_API_KEY,
+                    }
+                )
+                if r.status_code == 200:
+                    d = r.json()
+                    values = d.get("values", [])
+                    if values:
+                        from datetime import datetime as dt
+                        return {
+                            "symbol": symbol, "period": period, "interval": interval,
+                            "data": [{
+                                "timestamp": int(dt.fromisoformat(v["datetime"]).timestamp() * 1000),
+                                "open": float(v.get("open", 0)),
+                                "high": float(v.get("high", 0)),
+                                "low": float(v.get("low", 0)),
+                                "close": float(v.get("close", 0)),
+                                "volume": int(float(v.get("volume", 0)))
+                            } for v in reversed(values)]
+                        }
 
-        if hist.empty:
-            raise HTTPException(status_code=404, detail="No data found")
+            # US stock via Polygon.io
+            if POLYGON_API_KEY:
+                r = await client.get(
+                    f"https://api.polygon.io/v2/aggs/ticker/{symbol}/range/{multiplier}/{timespan}/{date_from}/{date_to}",
+                    params={"adjusted": "true", "sort": "asc", "limit": 500, "apiKey": POLYGON_API_KEY}
+                )
+                if r.status_code == 200:
+                    results = r.json().get("results", [])
+                    if results:
+                        return {
+                            "symbol": symbol, "period": period, "interval": interval,
+                            "data": [{
+                                "timestamp": int(bar.get("t", 0)),
+                                "open": round(float(bar.get("o", 0)), 4),
+                                "high": round(float(bar.get("h", 0)), 4),
+                                "low": round(float(bar.get("l", 0)), 4),
+                                "close": round(float(bar.get("c", 0)), 4),
+                                "volume": int(bar.get("v", 0))
+                            } for bar in results]
+                        }
 
-        return {
-            "symbol": symbol,
-            "period": period,
-            "interval": interval,
-            "data": [
-                {
-                    "timestamp": int(idx.timestamp() * 1000),
-                    "open": round(row["Open"], 4),
-                    "high": round(row["High"], 4),
-                    "low": round(row["Low"], 4),
-                    "close": round(row["Close"], 4),
-                    "volume": int(row["Volume"])
-                }
-                for idx, row in hist.iterrows()
-            ]
-        }
+        raise HTTPException(status_code=404, detail="No data found")
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
