@@ -366,6 +366,15 @@ async def _init_postgres():
                 PRIMARY KEY (user_id, changelog_id)
             )
         """)
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS web_scan_usage (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER NOT NULL,
+                market TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                FOREIGN KEY (user_id) REFERENCES web_users(id)
+            )
+        """)
         print("PostgreSQL tables ready")
 
 
@@ -615,6 +624,15 @@ async def _init_sqlite():
                 PRIMARY KEY (user_id, changelog_id),
                 FOREIGN KEY (user_id) REFERENCES web_users(id),
                 FOREIGN KEY (changelog_id) REFERENCES admin_changelogs(id)
+            )
+        """)
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS web_scan_usage (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                market TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                FOREIGN KEY (user_id) REFERENCES web_users(id)
             )
         """)
         # Add new columns to existing tables if upgrading from older schema

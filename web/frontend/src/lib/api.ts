@@ -167,6 +167,9 @@ export const analysisAPI = {
     fetchAPI<ScanResult>(
       `/api/analysis/scan/${marketKey}?min_score=${minScore}&limit=${limit}&opportunity_type=${oppType}`
     ),
+
+  getScanLimit: () =>
+    fetchAPI<ScanQuota>("/api/analysis/scan-limit"),
 };
 
 // AI Limit Status
@@ -493,11 +496,19 @@ export interface ScanResultItem {
   pct_from_high: number;
 }
 
+export interface ScanQuota {
+  scans_today: number;
+  daily_limit: number;
+  remaining: number;
+  is_premium: boolean;
+}
+
 export interface ScanResult {
   market: string;
   min_score: number;
   total_scanned: number;
   results: ScanResultItem[];
+  quota?: ScanQuota;
 }
 
 export interface ChatMessage {

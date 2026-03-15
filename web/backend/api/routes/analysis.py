@@ -9,12 +9,51 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 from .auth import get_current_user
-from .premium import is_user_premium
+from .premium import is_user_premium, get_user_limits
+from ..database import execute_query, execute_write
 
 router = APIRouter()
 limiter = Limiter(key_func=get_remote_address)
 
 _SYMBOL_RE = re.compile(r'^[\^A-Z0-9.\-=]{1,30}$')
+
+
+# ── Scan quota helpers ──────────────────────────────────────────────────────
+
+async def _get_scans_today(user_id: int) -> int:
+    from datetime import date
+    today = date.today().isoformat()
+    result = await execute_query(
+        "SELECT COUNT(*) as cnt FROM web_scan_usage WHERE user_id = ? AND created_at LIKE ?",
+        (user_id, f"{today}%")
+    )
+    return result[0]["cnt"] if result else 0
+
+
+async def _check_scan_limit(user: dict) -> dict:
+    user_id = user.get("id")
+    limits  = await get_user_limits(user)
+    daily   = limits.get("scanner_scans_per_day", 2)
+    scans   = await _get_scans_today(user_id)
+    if daily == -1:
+        return {"can_scan": True, "scans_today": scans, "daily_limit": -1, "remaining": -1, "is_premium": True}
+    remaining = max(0, daily - scans)
+    return {
+        "can_scan":    remaining > 0,
+        "scans_today": scans,
+        "daily_limit": daily,
+        "remaining":   remaining,
+        "is_premium":  False,
+    }
+
+
+async def _record_scan(user_id: int, market: str) -> None:
+    from datetime import datetime
+    now = datetime.utcnow().isoformat()
+    await execute_write(
+        "INSERT INTO web_scan_usage (user_id, market, created_at) VALUES (?, ?, ?)",
+        (user_id, market, now)
+    )
 
 
 @router.get("/{symbol}")
@@ -491,6 +530,12 @@ async def analyze_asset(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.get("/scan-limit")
+async def get_scan_limit(current_user: dict = Depends(get_current_user)):
+    """Get user's remaining daily scan quota."""
+    return await _check_scan_limit(current_user)
+
+
 @router.get("/scan/{market_key}")
 @limiter.limit("2/minute")
 async def scan_market(
@@ -498,13 +543,27 @@ async def scan_market(
     market_key: str,
     min_score: int = Query(default=60, ge=0, le=100),
     limit: int = Query(default=20, le=50),
-    opportunity_type: str = Query(default="all")
+    opportunity_type: str = Query(default="all"),
+    current_user: dict = Depends(get_current_user),
 ):
     """Scan a market for opportunities — parallel, enriched scoring (RSI+MACD+EMA+Volume+Momentum)"""
     from config import MARKETS
     from ._prices import fetch_ohlcv
     import asyncio
     import numpy as np
+
+    # ── Quota check ────────────────────────────────────────────────────────
+    quota = await _check_scan_limit(current_user)
+    if not quota["can_scan"]:
+        raise HTTPException(
+            status_code=429,
+            detail={
+                "message": "Limite quotidienne atteinte. Passez Premium pour des scans illimités.",
+                "scans_today": quota["scans_today"],
+                "daily_limit": quota["daily_limit"],
+                "remaining": 0,
+            }
+        )
 
     market_key = market_key.upper()
     if market_key not in MARKETS:
@@ -688,11 +747,22 @@ async def scan_market(
 
     results.sort(key=lambda x: x["score"], reverse=True)
 
+    # Record the scan usage (non-blocking)
+    await _record_scan(current_user["id"], market_key)
+    # Refresh quota after recording
+    new_quota = await _check_scan_limit(current_user)
+
     return {
         "market":         market_key,
         "min_score":      min_score,
         "total_scanned":  len(assets),
-        "results":        results[:limit]
+        "results":        results[:limit],
+        "quota": {
+            "scans_today": new_quota["scans_today"],
+            "daily_limit": new_quota["daily_limit"],
+            "remaining":   new_quota["remaining"],
+            "is_premium":  new_quota["is_premium"],
+        }
     }
 
 

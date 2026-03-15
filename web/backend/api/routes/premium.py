@@ -41,6 +41,7 @@ PREMIUM_FEATURES = {
         "max_positions": 5,
         "max_favorites": 10,
         "ai_messages_per_day": 10,
+        "scanner_scans_per_day": 2,      # Free: 2 scans/day
         "backtest_enabled": False,
         "geopolitical_enabled": False,
         "advanced_pivots": False,  # Only standard method
@@ -52,7 +53,8 @@ PREMIUM_FEATURES = {
     "premium": {
         "max_positions": 50,
         "max_favorites": 100,
-        "ai_messages_per_day": -1,  # Unlimited
+        "ai_messages_per_day": -1,       # Unlimited
+        "scanner_scans_per_day": -1,     # Premium: unlimited scans
         "backtest_enabled": True,
         "geopolitical_enabled": True,
         "advanced_pivots": True,  # All methods

@@ -14,17 +14,17 @@ import {
   Loader2,
   RefreshCw,
   BarChart2,
-  Activity,
   Volume2,
   ChevronUp,
   ChevronDown,
   ChevronRight,
   Rocket,
-  RotateCcw,
   Search,
+  Crown,
+  Lock,
 } from "lucide-react";
 import { cn, formatPercent } from "@/lib/utils";
-import { analysisAPI, marketAPI, Market, ScanResultItem } from "@/lib/api";
+import { analysisAPI, marketAPI, Market, ScanResultItem, ScanQuota } from "@/lib/api";
 import { useFormatCurrency } from "@/lib/SettingsContext";
 
 type SortKey = "score" | "change" | "change_1w" | "rsi" | "volume_ratio";
@@ -59,6 +59,7 @@ export default function ScannerPage() {
   const [oppFilter, setOppFilter] = useState<OppFilter>("all");
   const [results, setResults] = useState<ScanResultItem[]>([]);
   const [totalScanned, setTotalScanned] = useState(0);
+  const [quota, setQuota] = useState<ScanQuota | null>(null);
   const [isScanning, setIsScanning] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [autoScan, setAutoScan] = useState(false);
@@ -68,20 +69,32 @@ export default function ScannerPage() {
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
-    marketAPI.getMarkets().then((data) => {
-      setMarkets(data.markets);
+    Promise.all([
+      marketAPI.getMarkets(),
+      analysisAPI.getScanLimit(),
+    ]).then(([mData, qData]) => {
+      setMarkets(mData.markets);
+      setQuota(qData);
       setIsLoading(false);
     }).catch(console.error);
   }, []);
 
   const runScan = async () => {
+    if (quota && !quota.is_premium && quota.remaining <= 0) return;
     setIsScanning(true);
     try {
       const data = await analysisAPI.scan(selectedMarket, minScore, 40, oppFilter);
       setResults(data.results);
       setTotalScanned(data.total_scanned ?? 0);
-    } catch (error) {
-      console.error("Error scanning:", error);
+      if (data.quota) setQuota(data.quota);
+    } catch (err: unknown) {
+      const error = err as { status?: number; data?: { detail?: { message?: string } } };
+      if (error?.status === 429) {
+        // Quota exceeded — refresh limit display
+        const q = await analysisAPI.getScanLimit().catch(() => null);
+        if (q) setQuota(q);
+      }
+      console.error("Error scanning:", err);
     } finally {
       setIsScanning(false);
     }
@@ -174,8 +187,86 @@ export default function ScannerPage() {
         </div>
       </div>
 
-      {/* Filters */}
-      <div className="glass-card p-4 space-y-3">
+      {/* Quota banner */}
+      {quota && !quota.is_premium && (
+        <motion.div
+          initial={{ opacity: 0, y: -8 }}
+          animate={{ opacity: 1, y: 0 }}
+          className={cn(
+            "glass-card px-4 py-3 flex items-center justify-between gap-4 border",
+            quota.remaining === 0
+              ? "border-loss/40 bg-loss/5"
+              : quota.remaining === 1
+              ? "border-warning/40 bg-warning/5"
+              : "border-white/10"
+          )}
+        >
+          <div className="flex items-center gap-3">
+            {quota.remaining === 0 ? (
+              <Lock className="w-5 h-5 text-loss shrink-0" />
+            ) : (
+              <ScanLine className="w-5 h-5 text-primary shrink-0" />
+            )}
+            <div>
+              <p className="text-sm font-medium">
+                {quota.remaining === 0
+                  ? "Limite journalière atteinte"
+                  : `${quota.remaining} scan${quota.remaining > 1 ? "s" : ""} restant${quota.remaining > 1 ? "s" : ""} aujourd'hui`}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {quota.scans_today} / {quota.daily_limit} scans utilisés · Renouvellement à minuit
+              </p>
+            </div>
+          </div>
+
+          {/* Dots gauge */}
+          <div className="flex items-center gap-3">
+            <div className="flex gap-1.5">
+              {Array.from({ length: quota.daily_limit }).map((_, i) => (
+                <div
+                  key={i}
+                  className={cn(
+                    "w-3 h-3 rounded-full",
+                    i < quota.scans_today ? "bg-primary/40" : "bg-primary"
+                  )}
+                />
+              ))}
+            </div>
+            <button
+              onClick={() => router.push("/premium")}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-yellow-500/20 to-orange-500/20 border border-yellow-500/30 text-yellow-400 text-xs font-semibold hover:from-yellow-500/30 hover:to-orange-500/30 transition-all whitespace-nowrap"
+            >
+              <Crown className="w-3.5 h-3.5" />
+              Scans illimités
+            </button>
+          </div>
+        </motion.div>
+      )}
+
+      {/* Quota exhausted overlay — disable scan buttons */}
+      {quota && !quota.is_premium && quota.remaining === 0 && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="glass-card p-8 text-center border border-loss/30"
+        >
+          <Lock className="w-12 h-12 mx-auto mb-4 text-loss/60" />
+          <p className="text-lg font-semibold mb-1">Limite de 2 scans/jour atteinte</p>
+          <p className="text-sm text-muted-foreground mb-4">
+            Passez Premium pour des scans illimités, l'accès à plus d'actifs et des signaux avancés.
+          </p>
+          <button
+            onClick={() => router.push("/premium")}
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-yellow-500 to-orange-500 text-black font-bold hover:opacity-90 transition-opacity"
+          >
+            <Crown className="w-4 h-4" />
+            Passer Premium
+          </button>
+        </motion.div>
+      )}
+
+      {/* Filters — hidden when quota exhausted */}
+      {(!quota || quota.is_premium || quota.remaining > 0) && <div className="glass-card p-4 space-y-3">
         {/* Market selector */}
         <div className="flex items-center gap-2 flex-wrap">
           <Filter className="w-4 h-4 text-muted-foreground shrink-0" />
@@ -238,7 +329,10 @@ export default function ScannerPage() {
             />
           </div>
         </div>
-      </div>
+      </div>}
+
+      {/* Scanning animation + results — only shown when quota ok */}
+      {(!quota || quota.is_premium || quota.remaining > 0) && <>
 
       {/* Scanning animation */}
       {isScanning && (
@@ -416,6 +510,8 @@ export default function ScannerPage() {
           )}
         </AnimatePresence>
       </div>
+
+      </>}
     </motion.div>
   );
 }
