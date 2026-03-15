@@ -522,55 +522,60 @@ async def get_market_info(market_key: str):
     }
 
 
+def _fetch_symbol(symbol: str) -> dict:
+    """Fetch live data for a single symbol (runs in thread pool)."""
+    import yfinance as yf
+    try:
+        ticker = yf.Ticker(symbol)
+        hist = ticker.history(period="2d")
+        if len(hist) >= 2:
+            current_price = float(hist['Close'].iloc[-1])
+            prev_price = float(hist['Close'].iloc[-2])
+            change = ((current_price - prev_price) / prev_price) * 100
+            volume = int(hist['Volume'].iloc[-1])
+        elif len(hist) == 1:
+            current_price = float(hist['Close'].iloc[-1])
+            change = 0.0
+            volume = int(hist['Volume'].iloc[-1])
+        else:
+            info = ticker.fast_info
+            current_price = float(getattr(info, 'last_price', 0) or 0)
+            change = 0.0
+            volume = 0
+        return {
+            "symbol": symbol,
+            "price": round(current_price, 4),
+            "change": round(change, 2),
+            "volume": volume,
+        }
+    except Exception:
+        return {"symbol": symbol, "price": 0, "change": 0, "volume": 0, "error": True}
+
+
 @router.get("/{market_key}/assets")
 async def get_market_assets(
     market_key: str,
     limit: int = Query(default=20, le=100),
     offset: int = Query(default=0, ge=0)
 ):
-    """Get assets for a market with live prices"""
+    """Get assets for a market with live prices (parallel fetching)."""
+    import asyncio
+    from concurrent.futures import ThreadPoolExecutor
+
     market_key = market_key.upper()
     if market_key not in MARKETS:
         raise HTTPException(status_code=404, detail="Market not found")
 
     all_assets = MARKETS[market_key]["assets"]
     total = len(all_assets)
-    assets = all_assets[offset:offset + limit]
+    batch = all_assets[offset:offset + limit]
 
-    # Import yfinance to get live data
-    import yfinance as yf
+    loop = asyncio.get_event_loop()
+    with ThreadPoolExecutor(max_workers=min(len(batch), 10)) as executor:
+        tasks = [loop.run_in_executor(executor, _fetch_symbol, sym) for sym in batch]
+        result = await asyncio.gather(*tasks)
 
-    result = []
-    for symbol in assets:
-        try:
-            ticker = yf.Ticker(symbol)
-            info = ticker.fast_info
-            hist = ticker.history(period="2d")
-
-            if len(hist) >= 2:
-                current_price = hist['Close'].iloc[-1]
-                prev_price = hist['Close'].iloc[-2]
-                change = ((current_price - prev_price) / prev_price) * 100
-            else:
-                current_price = getattr(info, 'last_price', 0) or 0
-                change = 0
-
-            result.append({
-                "symbol": symbol,
-                "price": round(current_price, 2),
-                "change": round(change, 2),
-                "volume": int(hist['Volume'].iloc[-1]) if len(hist) > 0 else 0
-            })
-        except Exception:
-            result.append({
-                "symbol": symbol,
-                "price": 0,
-                "change": 0,
-                "volume": 0,
-                "error": True
-            })
-
-    return {"assets": result, "total": total, "offset": offset, "limit": limit}
+    return {"assets": list(result), "total": total, "offset": offset, "limit": limit}
 
 
 @router.get("/quote/{symbol}")
