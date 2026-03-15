@@ -501,18 +501,7 @@ Sois precis, factuel et professionnel. Utilise des emojis pour rendre l'analyse 
           {/* 1. Asset Header */}
           <AssetHeader analysis={analysis} isFavorite={isFavorite} toggleFavorite={toggleFavorite} formatCurrency={formatCurrency} />
 
-          {/* 2. Premium Chart */}
-          <PremiumChart symbol={analysis.symbol} timeframe={timeframe} />
-
-          {/* 3. AI Insight */}
-          <AIInsightSection
-            aiInsight={aiInsight}
-            isLoading={isLoadingAI}
-            symbol={analysis.symbol}
-            onReload={() => loadAIInsight(analysis.symbol, analysis)}
-          />
-
-          {/* 4. Score cards */}
+          {/* 2. Score cards */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Main score card */}
             <motion.div
@@ -632,6 +621,17 @@ Sois precis, factuel et professionnel. Utilise des emojis pour rendre l'analyse 
               </div>
             </motion.div>
           </div>
+
+          {/* 3. Premium Chart */}
+          <PremiumChart symbol={analysis.symbol} timeframe={timeframe} />
+
+          {/* 4. AI Insight */}
+          <AIInsightSection
+            aiInsight={aiInsight}
+            isLoading={isLoadingAI}
+            symbol={analysis.symbol}
+            onReload={() => loadAIInsight(analysis.symbol, analysis)}
+          />
 
           {/* Indicators */}
           <motion.div
