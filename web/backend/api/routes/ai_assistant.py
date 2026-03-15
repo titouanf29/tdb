@@ -855,6 +855,86 @@ async def quick_analysis(
     tp2 = price + (price - sl_price) * 2.5
     tp3 = price + (price - sl_price) * 4.0
 
+    # Pre-compute style-conditional text blocks (Python 3.11 forbids backslashes inside f-string {})
+    ema50_str  = f"{ema50:.2f}"  if ema50  else "N/A"
+    sma200_str = f"{sma200:.2f}" if sma200 else "N/A"
+
+    if _style == "scalp":
+        _rsi_block      = f"RSI à {rsi:.1f} (15min/1h pour scalp): timing d'entrée précis? Zone de retournement court terme?"
+        _stoch_block    = f"Stochastique {stoch_k:.1f}/{stoch_d:.1f} + Williams %R {wr:.1f}: micro-timing d'entrée pour le scalp — confirmation ou divergence?"
+        _adx_block      = ""
+        _structure_block = f"Micro-niveaux immédiats: R1 ${r1:.2f} / PP ${pp:.2f} / S1 ${s1:.2f}. Où est la prochaine zone de rebond ou résistance à 5-15 minutes?"
+        _vol_comment    = "Spike de volume = signal fort pour le scalp. Absence de volume = danger. Analyse le volume des dernières bougies."
+        _fund_title     = "## 💼 FONDAMENTAUX (résumé rapide)"
+        _fund_block     = f"Prochains résultats: {earnings_date} — risque binaire à éviter ou opportunity? Dividende: {dividend_yield}%."
+        _analyst_extra  = f"Court circuit: {short_pct_str} du float — court squeeze potentiel?"
+        _news_filter    = "Filtre: seulement les news qui impactent les PROCHAINES MINUTES/HEURES. Catalyseur immédiat ou non?"
+        _scenario_range = "### ⚪ Scénario range (probabilité X%)\nBornes du range, durée estimée, signal de breakout."
+        _risks          = (
+            "- Risque n°1: gap d'ouverture ou spread élargi qui déclenche le stop avant l'entrée\n"
+            "- Risque n°2: absence de volume = setup nul, ne pas entrer\n"
+            "- Risque n°3: annonce macro (CPI, NFP, FOMC) dans la session — vérifier le calendrier économique"
+        )
+        _action_time    = "5-30 minutes"
+    elif _style == "day":
+        _rsi_block      = f"RSI à {rsi:.1f} (15min/1h): momentum intraday, signal d'entrée ou sortie dans la session?"
+        _stoch_block    = f"Stochastique {stoch_k:.1f}/{stoch_d:.1f} + Williams %R {wr:.1f}: micro-timing d'entrée pour le day trade — confirmation ou divergence?"
+        _adx_block      = ""
+        _structure_block = f"Range journalier actuel. Niveaux pivot PP ${pp:.2f} / R1 ${r1:.2f} / S1 ${s1:.2f}. Le prix est-il en début ou fin de range journalier?"
+        _vol_comment    = "Le volume confirme-t-il la direction intraday? Accumulation ou distribution institutionnelle visible?"
+        _fund_title     = "## 💼 FONDAMENTAUX (résumé rapide)"
+        _fund_block     = f"Prochains résultats: {earnings_date} — risque binaire à éviter ou opportunity? Dividende: {dividend_yield}%."
+        _analyst_extra  = f"Court circuit: {short_pct_str} du float — court squeeze potentiel?"
+        _news_filter    = "Filtre: seulement les news qui impactent les PROCHAINES MINUTES/HEURES. Catalyseur immédiat ou non?"
+        _scenario_range = "### ⚪ Scénario range (probabilité X%)\nBornes du range, durée estimée, signal de breakout."
+        _risks          = (
+            "- Risque n°1: gap overnight si position maintenue (éviter)\n"
+            "- Risque n°2: renversement de session (London/NY close)\n"
+            f"- Risque résultats: {earnings_date}"
+        )
+        _action_time    = "prochaines heures"
+    elif _style == "swing":
+        _rsi_block      = f"RSI à {rsi:.1f} (daily): divergence haussière/baissière avec le prix sur plusieurs jours? Pullback en zone de survente ou surachat?"
+        _stoch_block    = ""
+        _adx_block      = f"ADX {adx:.1f} (DI+{plus_di:.1f}/DI-{minus_di:.1f}): force de tendance — le swing est-il dans un marché tendanciel ou en range?"
+        _structure_block = f"EMA20 ${ema20:.2f} / EMA50 {ema50_str}: le prix est-il sur un pullback valide vers ces EMA? Structure de marché HH/HL ou LH/LL?"
+        _vol_comment    = "Le volume confirme-t-il la direction intraday? Accumulation ou distribution institutionnelle visible?"
+        _fund_title     = "## 💼 FONDAMENTAUX (résumé rapide)"
+        _fund_block     = f"Prochains résultats: {earnings_date} — risque binaire à éviter ou opportunity? Dividende: {dividend_yield}%."
+        _analyst_extra  = f"Institutionnels {inst_str} — signal de confiance ou de distribution progressive?"
+        _news_filter    = "Filtre: seulement les news qui impactent les PROCHAINS JOURS. Signal de momentum ou de changement de tendance?"
+        _scenario_range = ""
+        _risks          = (
+            "- Risque n°1: faux pullback qui ne rebondit pas sur l'EMA\n"
+            "- Risque n°2: cassure de support swing sans rebond\n"
+            f"- Risque résultats: {earnings_date} durant le swing"
+        )
+        _action_time    = "1-3 jours"
+    else:  # long
+        _rsi_block      = f"RSI à {rsi:.1f} (weekly): tendance de fond haussière/baissière? Niveau extrême justifiant une entrée long terme?"
+        _stoch_block    = ""
+        _adx_block      = ""
+        _structure_block = f"SMA200 ${sma200_str}: le titre est-il dans une tendance long terme haussière? {cross_signal}. Fibonacci 52w: niveau actuel {nearest_fib[0]} (${nearest_fib[1]})."
+        _vol_comment    = "Volume croissant sur les hausses et décroissant sur les baisses = tendance saine à long terme?"
+        _fund_title     = "## 💼 ANALYSE FONDAMENTALE (CRITIQUE pour ce style)"
+        _fund_block     = (
+            f"P/E {pe} vs secteur {sector}: valorisation juste/excessive/bradée? PEG {peg} — la croissance justifie-t-elle la valorisation? "
+            f"Marge {profit_margin}%, ROE {roe}%, FCF {fcf_str}: qualité du business. "
+            f"Croissance revenus {revenue_growth}% / BPA {earnings_growth}%. D/E {debt_equity}: solidité du bilan. "
+            f"Prochains résultats {earnings_date} — catalyseur positif ou risque binaire?"
+        )
+        _analyst_extra  = f"Institutionnels {inst_str} — signal de confiance ou de distribution progressive?"
+        _news_filter    = "Analyse TOUTES les news: impact sur les perspectives à 3-12 mois. Changement fondamental positif ou négatif?"
+        _scenario_range = ""
+        _risks          = (
+            "- Risque n°1: détérioration fondamentale (révision BPA, marges, concurrence)\n"
+            "- Risque n°2: retournement macro (hausse des taux qui pèse sur la valorisation)\n"
+            f"- Risque n°3: décote de secteur {sector}"
+        )
+        _action_time    = "1-2 semaines"
+
+    _target_mean_str = f"${target_mean:.2f}" if isinstance(target_mean, float) else "N/A"
+
     prompt = f"""Tu es TDB Senior Analyst — {sm['persona']}.
 Profil utilisateur: **{sm['label']}** | Risque: **{rm['label']}**
 
@@ -877,40 +957,29 @@ Génère l'analyse complète pour un trader **{sm['label']}** avec profil de ris
 ## 📈 ANALYSE TECHNIQUE ({sm['label'].upper()})
 
 ### Indicateurs clés pour ce style
-{"RSI à " + str(round(rsi,1)) + " (15min/1h pour scalp): timing d'entrée précis? Zone de retournement court terme?" if _style == "scalp" else ""}
-{"RSI à " + str(round(rsi,1)) + " (15min/1h): momentum intraday, signal d'entrée ou sortie dans la session?" if _style == "day" else ""}
-{"RSI à " + str(round(rsi,1)) + " (daily): divergence haussière/baissière avec le prix sur plusieurs jours? Pullback en zone de survente ou surachat?" if _style == "swing" else ""}
-{"RSI à " + str(round(rsi,1)) + " (weekly): tendance de fond haussière/baissière? Niveau extrême justifiant une entrée long terme?" if _style == "long" else ""}
+{_rsi_block}
 
 MACD {macd_val:+.4f} vs signal {sig_val:+.4f} (histogramme {hist_val:+.4f}): croisement récent ou imminent? Momentum en expansion ou contraction?
 
-{"Stochastique " + str(round(stoch_k,1)) + "/" + str(round(stoch_d,1)) + " + Williams %R " + str(round(wr,1)) + ": micro-timing d'entrée pour le scalp — confirmation ou divergence?" if _style in ("scalp", "day") else ""}
-{"ADX " + str(round(adx,1)) + " (DI+" + str(round(plus_di,1)) + "/DI-" + str(round(minus_di,1)) + "): force de tendance — le swing est-il dans un marché tendanciel ou en range?" if _style == "swing" else ""}
+{_stoch_block}
+{_adx_block}
 
 ### Structure de prix
-{"Micro-niveaux immédiats: R1 ${r1:.2f} / PP ${pp:.2f} / S1 ${s1:.2f}. Où est la prochaine zone de rebond ou résistance à 5-15 minutes?" if _style == "scalp" else ""}
-{"Range journalier actuel. Niveaux pivot PP ${pp:.2f} / R1 ${r1:.2f} / S1 ${s1:.2f}. Le prix est-il en début ou fin de range journalier?" if _style == "day" else ""}
-{"EMA20 ${ema20:.2f} / EMA50 ${ema50:.2f if ema50 else 'N/A'}: le prix est-il sur un pullback valide vers ces EMA? Structure de marché HH/HL ou LH/LL?" if _style == "swing" else ""}
-{"SMA200 ${sma200:.2f if sma200 else 'N/A'}: le titre est-il dans une tendance long terme haussière? {cross_signal}. Fibonacci 52w: niveau actuel {nearest_fib[0]} (${nearest_fib[1]})." if _style == "long" else ""}
+{_structure_block}
 
 ### Volume & Momentum
 Volume {vol_ratio:.2f}x la moyenne. OBV: {obv_trend}.
-{"Spike de volume = signal fort pour le scalp. Absence de volume = danger. Analyse le volume des dernières bougies." if _style == "scalp" else ""}
-{"Le volume confirme-t-il la direction intraday? Accumulation ou distribution institutionnelle visible?" if _style in ("day", "swing") else ""}
-{"Volume croissant sur les hausses et décroissant sur les baisses = tendance saine à long terme?" if _style == "long" else ""}
+{_vol_comment}
 
-{"## 💼 ANALYSE FONDAMENTALE (CRITIQUE pour ce style)" if _style == "long" else "## 💼 FONDAMENTAUX (résumé rapide)"}
-{"P/E " + str(pe) + " vs secteur " + str(sector) + ": valorisation juste/excessive/bradée? PEG " + str(peg) + " — la croissance justifie-t-elle la valorisation? Marge " + str(profit_margin) + "%, ROE " + str(roe) + "%, FCF " + str(fcf_str) + ": qualité du business. Croissance revenus " + str(revenue_growth) + "% / BPA " + str(earnings_growth) + "%. D/E " + str(debt_equity) + ": solidité du bilan. Prochains résultats " + str(earnings_date) + " — catalyseur positif ou risque binaire?" if _style == "long" else "Prochains résultats: " + str(earnings_date) + " — risque binaire à éviter ou opportunity? Dividende: " + str(dividend_yield) + "%."}
+{_fund_title}
+{_fund_block}
 
 ## 🎯 CONSENSUS ANALYSTES
-Recommandation {rec_key} | Objectif ${f'{target_mean:.2f}' if isinstance(target_mean, float) else 'N/A'} (potentiel {upside_str}).
-{"Court circuit: " + str(short_pct_str) + " du float — court squeeze potentiel?" if _style in ("scalp", "day") else ""}
-{"Institutionnels " + str(inst_str) + " — signal de confiance ou de distribution progressive?" if _style in ("swing", "long") else ""}
+Recommandation {rec_key} | Objectif {_target_mean_str} (potentiel {upside_str}).
+{_analyst_extra}
 
 ## 📰 ACTUALITÉS ({sm['label']})
-{"Filtre: seulement les news qui impactent les PROCHAINES MINUTES/HEURES. Catalyseur immédiat ou non?" if _style in ("scalp", "day") else ""}
-{"Filtre: seulement les news qui impactent les PROCHAINS JOURS. Signal de momentum ou de changement de tendance?" if _style == "swing" else ""}
-{"Analyse TOUTES les news: impact sur les perspectives à 3-12 mois. Changement fondamental positif ou négatif?" if _style == "long" else ""}
+{_news_filter}
 Analyse les {len(news_lines)} actualités disponibles dans ce filtre.
 
 ## 📆 SCÉNARIOS ({sm['label']} — horizon {sm['horizon']})
@@ -921,7 +990,7 @@ Conditions d'entrée précises pour ce style, objectifs T1/T2/T3 adaptés à l'h
 ### 🔴 Scénario baissier (probabilité X%)
 Déclencheurs précis, objectifs de prix, niveau d'invalidation.
 
-{"### ⚪ Scénario range (probabilité X%)\nBornes du range, durée estimée, signal de breakout." if _style in ("scalp", "day") else ""}
+{_scenario_range}
 
 ## 🎯 STRATÉGIE {sm['strategy_name'].upper()} — PRÉCISE
 
@@ -937,16 +1006,13 @@ Déclencheurs précis, objectifs de prix, niveau d'invalidation.
 - **R/R cible**: {sm['tp_rr']} | R/R minimum requis: {rm['min_rr']}
 
 ## ⚠️ RISQUES POUR CE STYLE ({sm['label']})
-{"- Risque n°1: gap d'ouverture ou spread élargi qui déclenche le stop avant l'entrée\n- Risque n°2: absence de volume = setup nul, ne pas entrer\n- Risque n°3: annonce macro (CPI, NFP, FOMC) dans la session — vérifier le calendrier économique" if _style == "scalp" else ""}
-{"- Risque n°1: gap overnight si position maintenue (éviter)\n- Risque n°2: renversement de session (London/NY close)\n- Risque résultats: " + str(earnings_date) if _style == "day" else ""}
-{"- Risque n°1: faux pullback qui ne rebondit pas sur l'EMA\n- Risque n°2: cassure de support swing sans rebond\n- Risque résultats: " + str(earnings_date) + " durant le swing" if _style == "swing" else ""}
-{"- Risque n°1: détérioration fondamentale (révision BPA, marges, concurrence)\n- Risque n°2: retournement macro (hausse des taux qui pèse sur la valorisation)\n- Risque n°3: décote de secteur " + str(sector) if _style == "long" else ""}
+{_risks}
 - Risque sectoriel: dynamiques {sector} défavorables
 - Risque macro: taux d'intérêt, inflation, géopolitique
 
 ## 💡 VERDICT FINAL ({sm['label']} | Risque {rm['label']})
 - **Conviction**: X/10 — quels signaux convergent pour CE style spécifiquement?
-- **Action dans les {"5-30 minutes" if _style == "scalp" else "prochaines heures" if _style == "day" else "1-3 jours" if _style == "swing" else "1-2 semaines"}**: exactement quoi surveiller
+- **Action dans les {_action_time}**: exactement quoi surveiller
 - **Qualité du setup {sm['strategy_name']}**: excellent / correct / sous-optimal — pourquoi?
 
 ⚠️ *Analyse TDB Premium ({sm['label']} | {rm['label']}) — éducative uniquement, pas un conseil financier personnalisé.*"""
