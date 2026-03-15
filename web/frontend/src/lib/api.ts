@@ -65,6 +65,11 @@ export const marketAPI = {
       `/api/market/${marketKey}/assets?limit=${limit}&offset=${offset}`
     ),
 
+  getPrices: (symbols: string[]) =>
+    fetchAPI<{ prices: Record<string, { price: number; change: number; volume: number }> }>(
+      `/api/market/prices?symbols=${symbols.join(",")}`
+    ),
+
   getQuote: (symbol: string) => fetchAPI<Quote>(`/api/market/quote/${symbol}`),
 
   getChart: (symbol: string, period = "1mo", interval = "1d") =>
