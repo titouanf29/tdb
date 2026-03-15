@@ -52,7 +52,7 @@ import {
 import { cn, formatPercent } from "@/lib/utils";
 import { analysisAPI, favoritesAPI, aiAPI, marketAPI, Analysis } from "@/lib/api";
 import { getAssetInfo, getAssetLogo } from "@/lib/assetInfo";
-import { useFormatCurrency } from "@/lib/SettingsContext";
+import { useFormatCurrency, useSettings } from "@/lib/SettingsContext";
 import { authHeaders } from "@/lib/auth";
 import PremiumChart from "@/components/PremiumChart";
 
@@ -60,6 +60,7 @@ export default function AnalysisPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const formatCurrency = useFormatCurrency();
+  const { settings } = useSettings();
 
   const [symbol, setSymbol] = useState(searchParams.get("symbol") || "");
   const [searchQuery, setSearchQuery] = useState(searchParams.get("symbol") || "");
@@ -173,7 +174,7 @@ export default function AnalysisPage() {
     try {
       // Use the premium quick-analysis endpoint which fetches full yfinance data
       // (fundamentals, analyst consensus, news, earnings, advanced indicators)
-      const response = await aiAPI.quickAnalysis(sym);
+      const response = await aiAPI.quickAnalysis(sym, settings.tradingStyle, settings.riskLevel);
       setAiInsight(response.analysis);
     } catch (err) {
       console.error("Error loading AI insight:", err);
@@ -528,6 +529,8 @@ export default function AnalysisPage() {
             aiInsight={aiInsight}
             isLoading={isLoadingAI}
             symbol={analysis.symbol}
+            tradingStyle={settings.tradingStyle}
+            riskLevel={settings.riskLevel}
             onReload={() => loadAIInsight(analysis.symbol, analysis)}
           />
 
@@ -2078,16 +2081,33 @@ function renderAIText(text: string): React.ReactNode {
 
 // ─────────────────────────────────────────────────────────────────────────────
 
+const STYLE_LABELS: Record<string, { label: string; emoji: string }> = {
+  scalp: { label: "Scalping", emoji: "⚡" },
+  day:   { label: "Day Trading", emoji: "📈" },
+  swing: { label: "Swing", emoji: "🔄" },
+  long:  { label: "Long Terme", emoji: "🏦" },
+};
+const RISK_LABELS: Record<string, string> = {
+  conservative: "Conservateur",
+  moderate: "Modéré",
+  aggressive: "Agressif",
+  very_aggressive: "Très Agressif",
+};
+
 // AI Insight Section - Future Predictions
 function AIInsightSection({
   aiInsight,
   isLoading,
   symbol,
+  tradingStyle = "day",
+  riskLevel = "moderate",
   onReload
 }: {
   aiInsight: string | null;
   isLoading: boolean;
   symbol: string;
+  tradingStyle?: string;
+  riskLevel?: string;
   onReload: () => void;
 }) {
   const [error, setError] = useState<string | null>(null);
@@ -2122,10 +2142,15 @@ function AIInsightSection({
       <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-purple-500/20 to-transparent rounded-full blur-2xl" />
       <div className="relative">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="font-semibold flex items-center gap-2 text-lg">
+          <h3 className="font-semibold flex items-center gap-2 text-lg flex-wrap">
             <Brain className="w-5 h-5 text-purple-400" />
-            Analyse IA & Previsions
+            Analyse IA & Prévisions
             <span className="px-2 py-0.5 bg-purple-500/20 text-purple-400 text-xs rounded-full">Premium</span>
+            {/* Active style badge */}
+            <span className="px-2 py-0.5 bg-white/10 text-xs rounded-full text-muted-foreground font-normal">
+              {STYLE_LABELS[tradingStyle]?.emoji ?? "📈"} {STYLE_LABELS[tradingStyle]?.label ?? tradingStyle}
+              {" · "}{RISK_LABELS[riskLevel] ?? riskLevel}
+            </span>
           </h3>
           {aiInsight && (
             <button

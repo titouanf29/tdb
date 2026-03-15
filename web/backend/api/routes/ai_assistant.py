@@ -397,9 +397,12 @@ async def clear_chat_history(current_user: dict = Depends(get_current_user)):
 async def quick_analysis(
     request: Request,
     symbol: str,
+    trading_style: str = "day",
+    risk_level: str = "moderate",
     current_user: dict = Depends(get_current_user)
 ):
-    """Premium AI analysis — fetches full market, technical, fundamental and news data."""
+    """Premium AI analysis — fetches full market, technical, fundamental and news data.
+    Adapts entirely to the user's trading style (scalp/day/swing/long) and risk level."""
     if not _SYMBOL_RE.match(symbol.upper()):
         raise HTTPException(status_code=400, detail="Symbole invalide")
     symbol = symbol.upper()
@@ -752,8 +755,113 @@ async def quick_analysis(
 {description or 'N/A'}
 """
 
-    # ── 9. Premium prompt ───────────────────────────────────────────────────
-    prompt = f"""Tu es TDB Senior Analyst, l'analyste financier le plus rigoureux de la plateforme premium TDB. Ton analyse doit être IRRÉPROCHABLE, ultra-précise et apporter une réelle valeur ajoutée — l'utilisateur paye pour cette analyse.
+    # ── 9. Style-adaptive prompt ────────────────────────────────────────────
+
+    # --- Style configuration --------------------------------------------------
+    _style = (trading_style or "day").lower().strip()
+    _risk  = (risk_level or "moderate").lower().strip()
+
+    _STYLE_META = {
+        "scalp": {
+            "label":     "Scalping",
+            "horizon":   "1 à 30 minutes",
+            "persona":   "spécialiste du scalping ultra-court terme, expert des micro-niveaux et du momentum intraday",
+            "focus":     "momentum 5-15 minutes, zones de liquidité immédiates, order flow, bid-ask spread, entrées précises à la seconde",
+            "ignore":    "Les fondamentaux (P/E, croissance, macro) sont SECONDAIRES pour ce style. Ignore ou mentionne en 1 ligne max.",
+            "indicators":"RSI court terme (5-9 périodes si possible), MACD 1min/5min, Stochastique, Williams %R, OBV, volume spike",
+            "sl_mult":   0.4,
+            "tp_rr":     "1:1 à 1:1.5 (scalping)",
+            "size_pct":  "1-2% du portefeuille (risque par trade très court)",
+            "horizon_trade": "minutes à max 2h, pas de position overnight",
+            "stop_note": "Stop ultra-serré à 0.4×ATR",
+            "strategy_name": "Setup de scalp",
+        },
+        "day": {
+            "label":     "Day Trading",
+            "horizon":   "quelques heures à une journée",
+            "persona":   "day trader professionnel, expert des ranges journaliers et des niveaux intraday",
+            "focus":     "range journalier (High/Low du jour), VWAP comme support/résistance dynamique, niveaux pivot journaliers, sessions Asia/London/NY",
+            "ignore":    "Les fondamentaux long terme (croissance des revenus, dividendes) sont peu pertinents. Concentre-toi sur le technique intraday.",
+            "indicators":"RSI 14 sur 15min/1h, MACD 15min, EMA 9/20 intraday, VWAP, volume par session, ATR journalier",
+            "sl_mult":   1.0,
+            "tp_rr":     "1:1.5 à 1:2 (day trading)",
+            "size_pct":  "3-5% du portefeuille",
+            "horizon_trade": "quelques heures, clôture AVANT la fin de session",
+            "stop_note": "Stop à 1×ATR (range intraday normal)",
+            "strategy_name": "Setup day trade",
+        },
+        "swing": {
+            "label":     "Swing Trading",
+            "horizon":   "2 à 10 jours",
+            "persona":   "swing trader expert, maîtrisant les tendances 4h/daily et les pullbacks sur zones clés",
+            "focus":     "tendances sur graphiques 4h et daily, retracements Fibonacci, pullbacks sur EMA20/50, structure de marché (HH/HL vs LH/LL), divergences RSI/prix",
+            "ignore":    "Les signaux ultra-court terme (1min, 5min) sont du bruit. Ne les mentionne pas.",
+            "indicators":"RSI daily, MACD daily, EMA20/50/200 daily, Bollinger Bands daily, ATR daily, niveaux hebdomadaires",
+            "sl_mult":   1.5,
+            "tp_rr":     "1:2 à 1:3 (swing)",
+            "size_pct":  "5-7% du portefeuille",
+            "horizon_trade": "2 à 10 jours, clôture partielle sur T1 puis laisser courir",
+            "stop_note": "Stop à 1.5×ATR (permet d'absorber la volatilité journalière sans sortie prématurée)",
+            "strategy_name": "Setup swing",
+        },
+        "long": {
+            "label":     "Long Terme / Investissement",
+            "horizon":   "semaines à plusieurs mois",
+            "persona":   "analyste fondamental senior, spécialiste de l'investissement value et growth long terme",
+            "focus":     "fondamentaux (croissance revenus, marges, FCF, bilan, D/E), positionnement sectoriel, catalyseurs macro (taux, inflation, dollar), qualité du management, moat concurrentiel, valorisation relative au secteur",
+            "ignore":    "Les micro-oscillateurs (Stochastique, Williams %R sur 15min) sont NON PERTINENTS pour ce style. Concentre-toi sur la vision weekly/monthly.",
+            "indicators":"RSI weekly, MACD weekly, SMA 50/200, tendances multi-mois, P/E vs croissance (PEG), EV/EBITDA vs historique, insider buying/selling",
+            "sl_mult":   2.5,
+            "tp_rr":     "1:3 à 1:5+ (investissement long terme)",
+            "size_pct":  "5-10% du portefeuille (conviction élevée nécessaire)",
+            "horizon_trade": "plusieurs semaines à mois, renforcement sur les pullbacks",
+            "stop_note": "Stop à 2.5×ATR (éviter les stop-hunts sur faux mouvements) ou stop mental sur cassure fondamentale",
+            "strategy_name": "Position d'investissement",
+        },
+    }
+
+    _RISK_META = {
+        "conservative": {
+            "label": "Conservateur",
+            "size_adj": "RÉDUIS les tailles de position suggérées de 30-40%. Préfère les actifs stables (blue chips, dividendes, faible beta). Stop plus large pour éviter les faux signaux.",
+            "leverage": "0 levier recommandé.",
+            "min_rr": "R/R minimum 1:2 exigé avant d'entrer.",
+        },
+        "moderate": {
+            "label": "Modéré",
+            "size_adj": "Utilise les tailles standard suggérées.",
+            "leverage": "Levier faible acceptable (1x-2x max).",
+            "min_rr": "R/R minimum 1:1.5.",
+        },
+        "aggressive": {
+            "label": "Agressif",
+            "size_adj": "Peut augmenter les tailles de 20-30% sur les setups à haute conviction (score >75). Accepte les actifs volatils.",
+            "leverage": "Levier modéré acceptable (2x-3x max).",
+            "min_rr": "R/R minimum 1:1.2.",
+        },
+        "very_aggressive": {
+            "label": "Très Agressif",
+            "size_adj": "Positions maximales possibles sur les meilleurs setups. Haute volatilité acceptée, actifs spéculatifs inclus.",
+            "leverage": "Levier élevé possible (3x-5x) sur setups de conviction maximale.",
+            "min_rr": "R/R minimum 1:1 (vitesse prime sur sécurité).",
+        },
+    }
+
+    sm = _STYLE_META.get(_style, _STYLE_META["day"])
+    rm = _RISK_META.get(_risk, _RISK_META["moderate"])
+
+    sl_price = price - sm["sl_mult"] * atr
+    tp1 = price + (price - sl_price) * 1.5
+    tp2 = price + (price - sl_price) * 2.5
+    tp3 = price + (price - sl_price) * 4.0
+
+    prompt = f"""Tu es TDB Senior Analyst — {sm['persona']}.
+Profil utilisateur: **{sm['label']}** | Risque: **{rm['label']}**
+
+⚠️ RÈGLE ABSOLUE: Toute l'analyse doit être adaptée au style {sm['label'].upper()} (horizon {sm['horizon']}).
+Focus prioritaire: {sm['focus']}
+{sm['ignore']}
+Indicateurs prioritaires pour ce style: {sm['indicators']}
 
 RÈGLE D'OR: Utilise CHAQUE chiffre fourni dans les données. Une analyse vague = analyse nulle.
 
@@ -761,96 +869,87 @@ RÈGLE D'OR: Utilise CHAQUE chiffre fourni dans les données. Une analyse vague 
 
 ---
 
-Génère maintenant l'analyse complète en suivant EXACTEMENT cette structure:
+Génère l'analyse complète pour un trader **{sm['label']}** avec profil de risque **{rm['label']}**.
 
-## 📊 SYNTHÈSE EXÉCUTIVE
-4 à 5 phrases percutantes: prix exact, performance récente dans son contexte, conviction globale sur la tendance (les indicateurs convergent-ils?), positionnement du titre dans son cycle (tendance primaire/secondaire), verdict immédiat pour un trader. Mentionne si le titre est proche d'un niveau Fibonacci clé.
+## 📊 SYNTHÈSE EXÉCUTIVE ({sm['label']})
+4-5 phrases percutantes adaptées à l'horizon {sm['horizon']}: prix exact ${price:.4f}, performances récentes dans ce contexte, conviction sur la direction, verdict immédiat. Est-ce un bon {sm['strategy_name']} en ce moment?
 
-## 📈 ANALYSE TECHNIQUE COMPLÈTE
+## 📈 ANALYSE TECHNIQUE ({sm['label'].upper()})
 
-### Momentum & Oscillateurs
-RSI à {rsi:.1f}: explique précisément ce niveau (pas juste "neutre"). Divergence haussière ou baissière détectable avec le prix? Zone d'extrême (< 30 ou > 70)?
-MACD ({macd_val:+.4f} vs signal {sig_val:+.4f}, histogramme {hist_val:+.4f}): histogramme en expansion ou contraction? Croisement récent ou imminent? Force du momentum.
-Stochastique %K/{stoch_k:.1f} %D/{stoch_d:.1f}: signal de sur-achat/survente, croisement récent?
-Williams %R à {wr:.1f}: confirmation ou divergence avec RSI/Stochastique?
+### Indicateurs clés pour ce style
+{"RSI à " + str(round(rsi,1)) + " (15min/1h pour scalp): timing d'entrée précis? Zone de retournement court terme?" if _style == "scalp" else ""}
+{"RSI à " + str(round(rsi,1)) + " (15min/1h): momentum intraday, signal d'entrée ou sortie dans la session?" if _style == "day" else ""}
+{"RSI à " + str(round(rsi,1)) + " (daily): divergence haussière/baissière avec le prix sur plusieurs jours? Pullback en zone de survente ou surachat?" if _style == "swing" else ""}
+{"RSI à " + str(round(rsi,1)) + " (weekly): tendance de fond haussière/baissière? Niveau extrême justifiant une entrée long terme?" if _style == "long" else ""}
 
-### Tendance & Structure
-EMA20/50/200 — structure complète de tendance: le titre est-il en phase haussière confirmée ou en correction?
-{cross_signal} — implications concrètes pour les positionnements long terme.
-Structure 20 sessions: {trend_structure}. Analyse des plus hauts/bas récents.
-ADX {adx:.1f} (DI+{plus_di:.1f}/DI-{minus_di:.1f}): force de tendance et direction dominante.
+MACD {macd_val:+.4f} vs signal {sig_val:+.4f} (histogramme {hist_val:+.4f}): croisement récent ou imminent? Momentum en expansion ou contraction?
 
-### Volatilité & Volume
-Bollinger %B {bb_pct:.1f}% (width {bb_width:.1f}%): risque de squeeze? Expansion imminente?
-ATR ${atr:.4f}: calibration des stops. Stop ATR×1.5 = ${price - 1.5*atr:.2f}, ATR×2 = ${price - 2*atr:.2f}
-Volume {vol_ratio:.2f}x la moyenne + OBV {obv_trend}: le volume confirme-t-il la tendance? Signal institutionnel?
+{"Stochastique " + str(round(stoch_k,1)) + "/" + str(round(stoch_d,1)) + " + Williams %R " + str(round(wr,1)) + ": micro-timing d'entrée pour le scalp — confirmation ou divergence?" if _style in ("scalp", "day") else ""}
+{"ADX " + str(round(adx,1)) + " (DI+" + str(round(plus_di,1)) + "/DI-" + str(round(minus_di,1)) + "): force de tendance — le swing est-il dans un marché tendanciel ou en range?" if _style == "swing" else ""}
 
-## 📍 NIVEAUX CLÉS ET ZONES STRATÉGIQUES
+### Structure de prix
+{"Micro-niveaux immédiats: R1 ${r1:.2f} / PP ${pp:.2f} / S1 ${s1:.2f}. Où est la prochaine zone de rebond ou résistance à 5-15 minutes?" if _style == "scalp" else ""}
+{"Range journalier actuel. Niveaux pivot PP ${pp:.2f} / R1 ${r1:.2f} / S1 ${s1:.2f}. Le prix est-il en début ou fin de range journalier?" if _style == "day" else ""}
+{"EMA20 ${ema20:.2f} / EMA50 ${ema50:.2f if ema50 else 'N/A'}: le prix est-il sur un pullback valide vers ces EMA? Structure de marché HH/HL ou LH/LL?" if _style == "swing" else ""}
+{"SMA200 ${sma200:.2f if sma200 else 'N/A'}: le titre est-il dans une tendance long terme haussière? {cross_signal}. Fibonacci 52w: niveau actuel {nearest_fib[0]} (${nearest_fib[1]})." if _style == "long" else ""}
 
-### Points Pivot (classiques)
-R3: ${r3:.2f} | R2: ${r2:.2f} | R1: ${r1:.2f} | PP: ${pp:.2f} | S1: ${s1:.2f} | S2: ${s2:.2f} | S3: ${s3:.2f}
-Explique quel niveau est le plus pertinent à surveiller aujourd'hui et pourquoi.
+### Volume & Momentum
+Volume {vol_ratio:.2f}x la moyenne. OBV: {obv_trend}.
+{"Spike de volume = signal fort pour le scalp. Absence de volume = danger. Analyse le volume des dernières bougies." if _style == "scalp" else ""}
+{"Le volume confirme-t-il la direction intraday? Accumulation ou distribution institutionnelle visible?" if _style in ("day", "swing") else ""}
+{"Volume croissant sur les hausses et décroissant sur les baisses = tendance saine à long terme?" if _style == "long" else ""}
 
-### Fibonacci 52 semaines
-Le prix est actuellement proche du niveau {nearest_fib[0]} (${nearest_fib[1]}).
-Quels niveaux Fibonacci servent de support/résistance dynamiques? Probabilité de réaction?
+{"## 💼 ANALYSE FONDAMENTALE (CRITIQUE pour ce style)" if _style == "long" else "## 💼 FONDAMENTAUX (résumé rapide)"}
+{"P/E " + str(pe) + " vs secteur " + str(sector) + ": valorisation juste/excessive/bradée? PEG " + str(peg) + " — la croissance justifie-t-elle la valorisation? Marge " + str(profit_margin) + "%, ROE " + str(roe) + "%, FCF " + str(fcf_str) + ": qualité du business. Croissance revenus " + str(revenue_growth) + "% / BPA " + str(earnings_growth) + "%. D/E " + str(debt_equity) + ": solidité du bilan. Prochains résultats " + str(earnings_date) + " — catalyseur positif ou risque binaire?" if _style == "long" else "Prochains résultats: " + str(earnings_date) + " — risque binaire à éviter ou opportunity? Dividende: " + str(dividend_yield) + "%."}
 
-### Zones de liquidité
-Où se concentrent probablement les stops et ordres institutionnels? Quels niveaux sont des "zones de chasse"?
+## 🎯 CONSENSUS ANALYSTES
+Recommandation {rec_key} | Objectif ${f'{target_mean:.2f}' if isinstance(target_mean, float) else 'N/A'} (potentiel {upside_str}).
+{"Court circuit: " + str(short_pct_str) + " du float — court squeeze potentiel?" if _style in ("scalp", "day") else ""}
+{"Institutionnels " + str(inst_str) + " — signal de confiance ou de distribution progressive?" if _style in ("swing", "long") else ""}
 
-## 💼 ANALYSE FONDAMENTALE
+## 📰 ACTUALITÉS ({sm['label']})
+{"Filtre: seulement les news qui impactent les PROCHAINES MINUTES/HEURES. Catalyseur immédiat ou non?" if _style in ("scalp", "day") else ""}
+{"Filtre: seulement les news qui impactent les PROCHAINS JOURS. Signal de momentum ou de changement de tendance?" if _style == "swing" else ""}
+{"Analyse TOUTES les news: impact sur les perspectives à 3-12 mois. Changement fondamental positif ou négatif?" if _style == "long" else ""}
+Analyse les {len(news_lines)} actualités disponibles dans ce filtre.
 
-Valorisation: P/E {pe} vs secteur {sector} (sous/surévalué?), Forward P/E {forward_pe}, PEG {peg} (< 1 = potentiellement sous-évalué), EV/EBITDA {ev_ebitda}.
-Qualité: marge {profit_margin}%, ROE {roe}%, FCF {fcf_str}. La société génère-t-elle vraiment de la valeur?
-Croissance: revenus +{revenue_growth}%, BPA +{earnings_growth}%. Croissance cohérente avec la valorisation?
-Endettement: D/E {debt_equity}. Risque financier?
-Catalyseur dividende: {dividend_yield}% — attractif pour les income investors?
-Prochains résultats: {earnings_date} — événement binaire à anticiper.
-
-## 🎯 CONSENSUS ANALYSTES ET POSITIONNEMENT
-
-Recommandation: {rec_key} — détaille ce que cela signifie.
-Objectif consensus ${f'{target_mean:.2f}' if isinstance(target_mean, float) else 'N/A'} (+{upside_str} de potentiel): objectif réaliste ou trop optimiste?
-Vente à découvert: {short_pct_str} du float — signal d'alerte ou "short squeeze" potentiel?
-Institutionnels à {inst_str}: signal de confiance ou de distribution?
-
-## 📰 IMPACT DES ACTUALITÉS
-Analyse les {len(news_lines)} dernières actualités récupérées. Quel est leur impact probable sur le cours? Sentiment global positif, négatif ou neutre?
-
-## 📆 SCÉNARIOS DE MARCHÉ
+## 📆 SCÉNARIOS ({sm['label']} — horizon {sm['horizon']})
 
 ### 🟢 Scénario haussier (probabilité X%)
-Conditions exactes (quel indicateur, quel niveau), catalyseurs (fondamentaux, actualités), objectifs précis T1/T2/T3, niveau d'invalidation.
+Conditions d'entrée précises pour ce style, objectifs T1/T2/T3 adaptés à l'horizon {sm['horizon']}, niveau d'invalidation.
 
 ### 🔴 Scénario baissier (probabilité X%)
-Déclencheurs précis (quel support casse, quel signal), objectifs de prix à la baisse, risque majeur à surveiller, niveau d'invalidation.
+Déclencheurs précis, objectifs de prix, niveau d'invalidation.
 
-### ⚪ Scénario de consolidation (probabilité X%)
-Range probable, durée estimée, signal de sortie.
+{"### ⚪ Scénario range (probabilité X%)\nBornes du range, durée estimée, signal de breakout." if _style in ("scalp", "day") else ""}
 
-## 🎯 STRATÉGIE DE TRADING PRÉCISE
-- **Signal**: ACHAT FORT / ACHAT / NEUTRE / VENTE / VENTE FORTE — avec justification en 1 phrase
-- **Zone d'entrée optimale**: $X.XX – $X.XX (justification technique)
-- **Stop-loss**: $X.XX (sous quel support/niveau? Ratio ATR utilisé?)
-- **Take-profit T1**: $X.XX → R/R 1:X
-- **Take-profit T2**: $X.XX → R/R 1:X
-- **Take-profit T3**: $X.XX → R/R 1:X
-- **Taille de position suggérée**: X% du portefeuille (basé sur le risque et la volatilité)
-- **Horizon**: X semaines/mois avec point de revue intermédiaire
+## 🎯 STRATÉGIE {sm['strategy_name'].upper()} — PRÉCISE
 
-## ⚠️ RISQUES SPÉCIFIQUES À SURVEILLER
-- Risque technique n°1: quel niveau NE DOIT PAS casser et pourquoi?
-- Risque résultats: impact potentiel de la date {earnings_date} sur le cours
-- Risque sectoriel: tendances {sector} qui pourraient impacter négativement
-- Risque macro: inflation, taux, géopolitique — impact spécifique sur ce titre
-- Risque short squeeze / squeeze institutionnel
+- **Signal**: ACHAT FORT / ACHAT / NEUTRE / VENTE / VENTE FORTE
+- **Zone d'entrée**: $X.XX – $X.XX (condition technique précise d'entrée)
+- **Stop-loss**: ${sl_price:.4f} ({sm['stop_note']}, {sm['sl_mult']}×ATR ${atr:.4f})
+- **Take-profit T1**: ${tp1:.4f} → R/R calculé
+- **Take-profit T2**: ${tp2:.4f} → R/R calculé
+- **Take-profit T3**: ${tp3:.4f} → R/R calculé (optionnel, laisser courir)
+- **Taille de position**: {sm['size_pct']} — {rm['size_adj']}
+- **Levier**: {rm['leverage']}
+- **Horizon**: {sm['horizon_trade']}
+- **R/R cible**: {sm['tp_rr']} | R/R minimum requis: {rm['min_rr']}
 
-## 💡 VERDICT FINAL
-- **Conviction**: X/10 — justification précise (quels signaux convergent, lesquels divergent?)
-- **Signal prioritaire à surveiller dans les 24-48h**: exactement quoi observer
-- **Avantage informationnel**: qu'est-ce que cette analyse révèle que le marché n'a peut-être pas encore intégré?
+## ⚠️ RISQUES POUR CE STYLE ({sm['label']})
+{"- Risque n°1: gap d'ouverture ou spread élargi qui déclenche le stop avant l'entrée\n- Risque n°2: absence de volume = setup nul, ne pas entrer\n- Risque n°3: annonce macro (CPI, NFP, FOMC) dans la session — vérifier le calendrier économique" if _style == "scalp" else ""}
+{"- Risque n°1: gap overnight si position maintenue (éviter)\n- Risque n°2: renversement de session (London/NY close)\n- Risque résultats: " + str(earnings_date) if _style == "day" else ""}
+{"- Risque n°1: faux pullback qui ne rebondit pas sur l'EMA\n- Risque n°2: cassure de support swing sans rebond\n- Risque résultats: " + str(earnings_date) + " durant le swing" if _style == "swing" else ""}
+{"- Risque n°1: détérioration fondamentale (révision BPA, marges, concurrence)\n- Risque n°2: retournement macro (hausse des taux qui pèse sur la valorisation)\n- Risque n°3: décote de secteur " + str(sector) if _style == "long" else ""}
+- Risque sectoriel: dynamiques {sector} défavorables
+- Risque macro: taux d'intérêt, inflation, géopolitique
 
-⚠️ *Analyse TDB Premium — éducative uniquement, pas un conseil financier personnalisé.*"""
+## 💡 VERDICT FINAL ({sm['label']} | Risque {rm['label']})
+- **Conviction**: X/10 — quels signaux convergent pour CE style spécifiquement?
+- **Action dans les {"5-30 minutes" if _style == "scalp" else "prochaines heures" if _style == "day" else "1-3 jours" if _style == "swing" else "1-2 semaines"}**: exactement quoi surveiller
+- **Qualité du setup {sm['strategy_name']}**: excellent / correct / sous-optimal — pourquoi?
+
+⚠️ *Analyse TDB Premium ({sm['label']} | {rm['label']}) — éducative uniquement, pas un conseil financier personnalisé.*"""
 
     # ── 10. Call Groq ───────────────────────────────────────────────────────
     try:

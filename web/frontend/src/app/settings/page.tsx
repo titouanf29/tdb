@@ -139,112 +139,153 @@ function ProfileSettings() {
   );
 }
 
+const TRADING_STYLES = [
+  {
+    id: "scalp",
+    label: "Scalping",
+    emoji: "⚡",
+    horizon: "1 – 30 min",
+    description: "Trades ultra-rapides sur micro-niveaux. L'IA se concentre sur le momentum court terme, les zones de liquidité et des stops très serrés (×0.4 ATR). R/R cible 1:1 – 1:1.5.",
+  },
+  {
+    id: "day",
+    label: "Day Trading",
+    emoji: "📈",
+    horizon: "Quelques heures",
+    description: "Ouverture et clôture dans la même journée. Focus sur le range journalier, le VWAP et les niveaux pivot. Stops à 1×ATR. R/R cible 1:1.5 – 1:2.",
+  },
+  {
+    id: "swing",
+    label: "Swing Trading",
+    emoji: "🔄",
+    horizon: "2 – 10 jours",
+    description: "Capture des tendances sur plusieurs jours. L'IA analyse les 4h/daily, les retracements Fibonacci et les pullbacks sur EMA. Stops à 1.5×ATR. R/R cible 1:2 – 1:3.",
+  },
+  {
+    id: "long",
+    label: "Long Terme",
+    emoji: "🏦",
+    horizon: "Semaines – mois",
+    description: "Investissement fondamental. L'IA priorise les bilans, la croissance des revenus, le secteur et la macro. Les fondamentaux priment sur le technique. R/R cible 1:3 – 1:5+.",
+  },
+];
+
+const RISK_LEVELS = [
+  { id: "conservative", label: "Conservateur", emoji: "🐢", tip: "2-3% du portfolio max par position, actifs stables" },
+  { id: "moderate",     label: "Modéré",       emoji: "⚖️", tip: "5% du portfolio par position, mix équilibré" },
+  { id: "aggressive",   label: "Agressif",     emoji: "🔥", tip: "7-8% du portfolio, actifs plus volatils acceptés" },
+  { id: "very_aggressive", label: "Très Agressif", emoji: "⚡", tip: "10%+ du portfolio, levier et haute volatilité" },
+];
+
 function TradingSettings() {
   const { settings, setCurrency, setTradingStyle, setRiskLevel, setDefaultLeverage } = useSettings();
-  const [isSaved, setIsSaved] = useState(false);
+  const [saved, setSaved] = useState<string | null>(null);
 
-  const handleSave = () => {
-    setIsSaved(true);
-    setTimeout(() => setIsSaved(false), 2000);
+  const handleStyle = (id: string) => {
+    setTradingStyle(id);
+    setSaved("style");
+    setTimeout(() => setSaved(null), 1800);
+  };
+  const handleRisk = (id: string) => {
+    setRiskLevel(id);
+    setSaved("risk");
+    setTimeout(() => setSaved(null), 1800);
   };
 
+  const activeStyle = TRADING_STYLES.find((s) => s.id === settings.tradingStyle);
+
   return (
-    <div className="space-y-6">
-      <h2 className="text-lg font-semibold">Parametres de Trading</h2>
+    <div className="space-y-8">
+      <h2 className="text-lg font-semibold">Paramètres de Trading</h2>
 
-      {/* Currency selector */}
+      {/* Currency */}
       <div>
-        <label className="block text-sm font-medium mb-2">Devise d'affichage</label>
+        <label className="block text-sm font-medium mb-3">Devise d'affichage</label>
         <div className="grid grid-cols-2 gap-2">
-          {[
-            { id: "EUR", label: "Euro", symbol: "€" },
-            { id: "USD", label: "Dollar US", symbol: "$" },
-          ].map((curr) => (
-            <button
-              key={curr.id}
-              onClick={() => setCurrency(curr.id as Currency)}
-              className={cn(
-                "p-4 rounded-lg text-center transition-all flex items-center justify-center gap-3",
-                settings.currency === curr.id
-                  ? "bg-primary text-white"
-                  : "bg-white/5 hover:bg-white/10"
-              )}
-            >
-              <span className="text-2xl font-bold">{curr.symbol}</span>
-              <span>{curr.label}</span>
+          {[{ id: "EUR", label: "Euro", symbol: "€" }, { id: "USD", label: "Dollar US", symbol: "$" }].map((c) => (
+            <button key={c.id} onClick={() => setCurrency(c.id as Currency)}
+              className={cn("p-4 rounded-xl text-center transition-all flex items-center justify-center gap-3 border",
+                settings.currency === c.id ? "bg-primary text-white border-primary" : "bg-white/5 hover:bg-white/10 border-white/10"
+              )}>
+              <span className="text-2xl font-bold">{c.symbol}</span>
+              <span className="font-medium">{c.label}</span>
             </button>
           ))}
         </div>
       </div>
 
+      {/* Trading Style */}
       <div>
-        <label className="block text-sm font-medium mb-2">Style de trading</label>
-        <div className="grid grid-cols-3 gap-2">
-          {[
-            { id: "scalp", label: "Scalping" },
-            { id: "day", label: "Day Trading" },
-            { id: "swing", label: "Swing" },
-          ].map((style) => (
-            <button
-              key={style.id}
-              onClick={() => setTradingStyle(style.id)}
+        <div className="flex items-center justify-between mb-3">
+          <label className="text-sm font-medium">Style de trading</label>
+          {saved === "style" && <span className="text-xs text-profit font-medium">✓ Sauvegardé</span>}
+        </div>
+        <p className="text-xs text-muted-foreground mb-3">
+          Ce réglage adapte toutes les analyses IA à votre horizon et votre méthode — stops, R/R, indicateurs et langage changent selon votre style.
+        </p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {TRADING_STYLES.map((style) => (
+            <button key={style.id} onClick={() => handleStyle(style.id)}
               className={cn(
-                "p-3 rounded-lg text-center transition-all",
+                "p-4 rounded-xl text-left transition-all border",
                 settings.tradingStyle === style.id
-                  ? "bg-primary text-white"
-                  : "bg-white/5 hover:bg-white/10"
+                  ? "bg-primary/15 border-primary"
+                  : "bg-white/5 hover:bg-white/10 border-white/10"
               )}
             >
-              {style.label}
+              <div className="flex items-center gap-2 mb-1">
+                <span className="text-lg">{style.emoji}</span>
+                <span className="font-semibold">{style.label}</span>
+                <span className="ml-auto text-[10px] text-muted-foreground bg-white/10 px-2 py-0.5 rounded-full">{style.horizon}</span>
+              </div>
+              <p className="text-xs text-muted-foreground leading-relaxed">{style.description}</p>
             </button>
           ))}
         </div>
+
+        {/* Active style preview */}
+        {activeStyle && (
+          <div className="mt-3 p-3 rounded-xl bg-primary/5 border border-primary/20 text-xs text-primary/80">
+            <span className="font-semibold">{activeStyle.emoji} {activeStyle.label} activé</span>
+            {" — "}Les analyses IA utilisent maintenant ce profil (horizon {activeStyle.horizon}, stops et R/R adaptés).
+          </div>
+        )}
       </div>
 
+      {/* Risk Level */}
       <div>
-        <label className="block text-sm font-medium mb-2">Niveau de risque</label>
+        <div className="flex items-center justify-between mb-3">
+          <label className="text-sm font-medium">Niveau de risque</label>
+          {saved === "risk" && <span className="text-xs text-profit font-medium">✓ Sauvegardé</span>}
+        </div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-          {[
-            { id: "conservative", label: "Conservateur", emoji: "🐢" },
-            { id: "moderate", label: "Modere", emoji: "⚖️" },
-            { id: "aggressive", label: "Agressif", emoji: "🔥" },
-            { id: "very_aggressive", label: "Tres Agressif", emoji: "⚡" },
-          ].map((level) => (
-            <button
-              key={level.id}
-              onClick={() => setRiskLevel(level.id)}
+          {RISK_LEVELS.map((level) => (
+            <button key={level.id} onClick={() => handleRisk(level.id)}
               className={cn(
-                "p-3 rounded-lg text-center transition-all",
+                "p-3 rounded-xl text-center transition-all border group relative",
                 settings.riskLevel === level.id
-                  ? "bg-primary text-white"
-                  : "bg-white/5 hover:bg-white/10"
+                  ? "bg-primary/15 border-primary"
+                  : "bg-white/5 hover:bg-white/10 border-white/10"
               )}
             >
               <span className="text-xl mb-1 block">{level.emoji}</span>
-              <span className="text-xs">{level.label}</span>
+              <span className="text-xs font-medium block">{level.label}</span>
+              <span className="text-[10px] text-muted-foreground mt-1 block leading-tight">{level.tip}</span>
             </button>
           ))}
         </div>
       </div>
 
+      {/* Default Leverage */}
       <div>
-        <label className="block text-sm font-medium mb-2">Levier par defaut</label>
-        <select
-          value={settings.defaultLeverage}
-          onChange={(e) => setDefaultLeverage(e.target.value)}
-          className="input w-full"
-        >
-          <option value="1">1x (pas de levier)</option>
+        <label className="block text-sm font-medium mb-2">Levier par défaut</label>
+        <select value={settings.defaultLeverage} onChange={(e) => setDefaultLeverage(e.target.value)} className="input w-full">
+          <option value="1">1x (sans levier)</option>
           <option value="2">2x</option>
           <option value="5">5x</option>
           <option value="10">10x</option>
         </select>
       </div>
-
-      <button onClick={handleSave} className="btn-primary flex items-center gap-2">
-        <Save className="w-4 h-4" />
-        {isSaved ? "Sauvegarde !" : "Sauvegarder"}
-      </button>
     </div>
   );
 }

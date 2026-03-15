@@ -158,6 +158,26 @@ export const walletAPI = {
     }),
 };
 
+// User Settings API
+export interface UserSettings {
+  trading_style: string;
+  risk_level: string;
+  notifications_enabled: boolean;
+  theme: string;
+  default_leverage: string;
+}
+
+export const settingsAPI = {
+  get: () => fetchAPI<UserSettings>("/api/users/settings"),
+
+  update: (data: Partial<UserSettings>) =>
+    fetchAPI<{ success: boolean }>("/api/users/settings", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    }),
+};
+
 // Analysis API
 export const analysisAPI = {
   analyze: (symbol: string, timeframe = "1d") =>
@@ -196,9 +216,9 @@ export const aiAPI = {
   clearHistory: () =>
     fetchAPI<{ message: string }>("/api/ai/history", { method: "DELETE" }),
 
-  quickAnalysis: (symbol: string) =>
+  quickAnalysis: (symbol: string, tradingStyle = "day", riskLevel = "moderate") =>
     fetchAPI<{ symbol: string; analysis: string }>(
-      `/api/ai/quick-analysis?symbol=${symbol}`,
+      `/api/ai/quick-analysis?symbol=${symbol}&trading_style=${tradingStyle}&risk_level=${riskLevel}`,
       { method: "POST", headers: { "Content-Type": "application/json" } }
     ),
 

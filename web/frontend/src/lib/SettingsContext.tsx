@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { settingsAPI } from "./api";
 
 export type Currency = "USD" | "EUR";
 
@@ -35,57 +36,68 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   const [settings, setSettings] = useState<Settings>(defaultSettings);
   const [isLoaded, setIsLoaded] = useState(false);
 
-  // Load settings from localStorage on mount
+  // On mount: load from backend first, fallback to localStorage
   useEffect(() => {
     const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      try {
-        const parsed = JSON.parse(stored);
-        setSettings({ ...defaultSettings, ...parsed });
-      } catch {
-        // Invalid JSON, use defaults
-      }
-    }
-    setIsLoaded(true);
+    const local: Partial<Settings> = stored ? JSON.parse(stored) : {};
+
+    settingsAPI.get()
+      .then((remote) => {
+        // Merge: backend wins for trading_style / risk_level, local wins for currency/leverage
+        setSettings({
+          currency: local.currency ?? defaultSettings.currency,
+          tradingStyle: remote.trading_style ?? local.tradingStyle ?? defaultSettings.tradingStyle,
+          riskLevel: remote.risk_level ?? local.riskLevel ?? defaultSettings.riskLevel,
+          defaultLeverage: local.defaultLeverage ?? defaultSettings.defaultLeverage,
+        });
+      })
+      .catch(() => {
+        // Not authenticated or backend unreachable — use localStorage
+        setSettings({ ...defaultSettings, ...local });
+      })
+      .finally(() => setIsLoaded(true));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Save settings to localStorage when they change
+  // Persist to localStorage on every change
   useEffect(() => {
     if (isLoaded) {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
     }
   }, [settings, isLoaded]);
 
-  const setCurrency = (currency: Currency) => {
-    setSettings((prev) => ({ ...prev, currency }));
+  // Sync trading_style + risk_level to backend (debounced via direct call)
+  const syncToBackend = (patch: { trading_style?: string; risk_level?: string }) => {
+    settingsAPI.update(patch).catch(() => {/* silent */});
   };
+
+  const setCurrency = (currency: Currency) =>
+    setSettings((prev) => ({ ...prev, currency }));
 
   const setTradingStyle = (tradingStyle: string) => {
     setSettings((prev) => ({ ...prev, tradingStyle }));
+    syncToBackend({ trading_style: tradingStyle });
   };
 
   const setRiskLevel = (riskLevel: string) => {
     setSettings((prev) => ({ ...prev, riskLevel }));
+    syncToBackend({ risk_level: riskLevel });
   };
 
-  const setDefaultLeverage = (defaultLeverage: string) => {
+  const setDefaultLeverage = (defaultLeverage: string) =>
     setSettings((prev) => ({ ...prev, defaultLeverage }));
-  };
 
   const updateSettings = (updates: Partial<Settings>) => {
     setSettings((prev) => ({ ...prev, ...updates }));
+    const patch: Record<string, string> = {};
+    if (updates.tradingStyle) patch.trading_style = updates.tradingStyle;
+    if (updates.riskLevel) patch.risk_level = updates.riskLevel;
+    if (Object.keys(patch).length) syncToBackend(patch);
   };
 
   return (
     <SettingsContext.Provider
-      value={{
-        settings,
-        setCurrency,
-        setTradingStyle,
-        setRiskLevel,
-        setDefaultLeverage,
-        updateSettings,
-      }}
+      value={{ settings, setCurrency, setTradingStyle, setRiskLevel, setDefaultLeverage, updateSettings }}
     >
       {children}
     </SettingsContext.Provider>
@@ -94,9 +106,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
 
 export function useSettings() {
   const context = useContext(SettingsContext);
-  if (!context) {
-    throw new Error("useSettings must be used within a SettingsProvider");
-  }
+  if (!context) throw new Error("useSettings must be used within a SettingsProvider");
   return context;
 }
 
@@ -108,8 +118,7 @@ const CONVERSION_RATES: Record<string, number> = {
 
 export function convertCurrency(amount: number, from: Currency, to: Currency): number {
   if (from === to) return amount;
-  const key = `${from}_${to}`;
-  const rate = CONVERSION_RATES[key] || 1;
+  const rate = CONVERSION_RATES[`${from}_${to}`] || 1;
   return amount * rate;
 }
 
@@ -118,12 +127,8 @@ export const CURRENCY_SYMBOLS: Record<Currency, string> = {
   EUR: "€",
 };
 
-/**
- * Hook to format currency using user's preferred currency
- */
 export function useFormatCurrency() {
   const { settings } = useSettings();
-
   return (value: number, originalCurrency: Currency = "USD"): string => {
     const converted = convertCurrency(value, originalCurrency, settings.currency);
     return new Intl.NumberFormat("fr-FR", {
