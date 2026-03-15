@@ -570,7 +570,10 @@ async def get_market_assets(
     total = len(all_assets)
     batch = all_assets[offset:offset + limit]
 
-    loop = asyncio.get_event_loop()
+    if not batch:
+        return {"assets": [], "total": total, "offset": offset, "limit": limit}
+
+    loop = asyncio.get_running_loop()
     with ThreadPoolExecutor(max_workers=min(len(batch), 10)) as executor:
         tasks = [loop.run_in_executor(executor, _fetch_symbol, sym) for sym in batch]
         result = await asyncio.gather(*tasks)
