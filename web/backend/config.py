@@ -21,7 +21,7 @@ DATABASE_PATH = "database/trading_bot.db"
 
 # ===== API KEYS =====
 # Pour récupérer les données de marché (gratuit)
-NEWS_API_KEY = os.getenv("NEWS_API_KEY", "")
+NEWS_API_KEY = os.getenv("NEWS_API_KEY", "7c3bc1552827489ebcc009e8c7d1cffe")
 ALPHA_VANTAGE_KEY = os.getenv("ALPHA_VANTAGE_KEY", "")
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "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")
 POLYGON_API_KEY = os.getenv("POLYGON_API_KEY", "")

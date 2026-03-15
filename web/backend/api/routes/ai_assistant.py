@@ -442,39 +442,73 @@ Sois precis, factuel et professionnel. Utilise des emojis pour rendre l'analyse 
 @limiter.limit("2/minute")
 async def get_market_news(request: Request, current_user: dict = Depends(get_current_user)):
     """Get economic news with AI summary"""
-    from ._prices import fetch_prices
+    from config import NEWS_API_KEY
 
     api_key = get_groq_api_key()
 
-    symbol_names = {
-        "^GSPC": "S&P 500",
-        "^DJI": "Dow Jones",
-        "BTC-USD": "Bitcoin",
-        "GC=F": "Or",
-        "CL=F": "Petrole",
-        "AAPL": "Apple",
-        "MSFT": "Microsoft",
-        "NVDA": "Nvidia",
-        "TSLA": "Tesla"
-    }
-
-    # No news source available — use live market prices for AI context
+    # Fetch news from NewsAPI.org
     news_items = []
+    if NEWS_API_KEY:
+        try:
+            async with httpx.AsyncClient(timeout=8.0) as client:
+                r = await client.get(
+                    "https://newsapi.org/v2/top-headlines",
+                    params={
+                        "category": "business",
+                        "language": "fr",
+                        "pageSize": 20,
+                        "apiKey": NEWS_API_KEY,
+                    }
+                )
+                if r.status_code == 200:
+                    articles = r.json().get("articles", [])
+                    for a in articles:
+                        title = a.get("title", "")
+                        if not title or title == "[Removed]":
+                            continue
+                        news_items.append({
+                            "title": title,
+                            "publisher": a.get("source", {}).get("name", ""),
+                            "link": a.get("url", ""),
+                            "timestamp": 0,
+                            "related": "Marchés"
+                        })
+
+                # If no French results, fallback to English financial news
+                if not news_items:
+                    r = await client.get(
+                        "https://newsapi.org/v2/top-headlines",
+                        params={
+                            "category": "business",
+                            "language": "en",
+                            "pageSize": 15,
+                            "apiKey": NEWS_API_KEY,
+                        }
+                    )
+                    if r.status_code == 200:
+                        for a in r.json().get("articles", []):
+                            title = a.get("title", "")
+                            if not title or title == "[Removed]":
+                                continue
+                            news_items.append({
+                                "title": title,
+                                "publisher": a.get("source", {}).get("name", ""),
+                                "link": a.get("url", ""),
+                                "timestamp": 0,
+                                "related": "Markets"
+                            })
+        except Exception as e:
+            print(f"[NEWS] NewsAPI error: {e}")
+
+    news_items = news_items[:12]
 
     # Generate AI summary
     summary = None
     summary_points = None
     if api_key:
-        # Get market data for AI context
-        market_summary = []
-        prices = await fetch_prices(list(symbol_names.keys()))
-        for symbol, name in symbol_names.items():
-            p = prices.get(symbol, {})
-            if p.get("price"):
-                market_summary.append(f"- {name}: {p['price']:.2f} ({p.get('change', 0):+.2f}%)")
-
-        if market_summary:
-            ai_prompt = f"Voici les mouvements des marches aujourd'hui:\n\n" + "\n".join(market_summary) + "\n\nAnalyse ces mouvements et donne un resume de la situation des marches en 3-4 points cles."
+        if news_items:
+            news_text = "\n".join([f"- {item['title']} (Source: {item['publisher']})" for item in news_items[:10]])
+            ai_prompt = f"Voici les dernieres actualites economiques et financieres:\n\n{news_text}\n\nFais un resume en 3-4 points cles des tendances importantes pour les marches financiers aujourd'hui."
         else:
             ai_prompt = "Donne un apercu general des marches financiers mondiaux en 3-4 points cles, incluant les tendances recentes des indices, crypto et matieres premieres."
 
