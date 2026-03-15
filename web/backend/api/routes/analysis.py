@@ -536,6 +536,112 @@ async def get_scan_limit(current_user: dict = Depends(get_current_user)):
     return await _check_scan_limit(current_user)
 
 
+ASSET_NAMES: dict[str, str] = {
+    # ── Indices ────────────────────────────────────────────────────────────
+    "^FCHI": "CAC 40", "^GDAXI": "DAX 40", "^STOXX50E": "Euro Stoxx 50",
+    "^FTSE": "FTSE 100", "^N225": "Nikkei 225", "^HSI": "Hang Seng",
+    "000001.SS": "Shanghai Composite", "^KS11": "KOSPI", "^BSESN": "SENSEX",
+    "^GSPC": "S&P 500", "^DJI": "Dow Jones", "^IXIC": "NASDAQ Composite",
+    "^RUT": "Russell 2000",
+    # ── ETFs ───────────────────────────────────────────────────────────────
+    "SPY": "SPDR S&P 500", "QQQ": "Invesco QQQ (NASDAQ)", "DIA": "SPDR Dow Jones",
+    "IWM": "iShares Russell 2000", "XLK": "Tech Select SPDR", "XLF": "Financial Select SPDR",
+    "XLE": "Energy Select SPDR",
+    # ── Commodities ────────────────────────────────────────────────────────
+    "GC=F": "Or (Gold)", "SI=F": "Argent (Silver)", "PL=F": "Platine",
+    "PA=F": "Palladium", "CL=F": "Pétrole Brut WTI", "BZ=F": "Pétrole Brent",
+    "NG=F": "Gaz Naturel", "HO=F": "Fioul de Chauffage", "RB=F": "Essence (Gasoline)",
+    "HG=F": "Cuivre", "ALI=F": "Aluminium",
+    "ZC=F": "Maïs", "ZW=F": "Blé", "ZS=F": "Soja",
+    "KC=F": "Café", "SB=F": "Sucre", "CT=F": "Coton",
+    "OJ=F": "Jus d'Orange", "CC=F": "Cacao", "LBS=F": "Bois d'Œuvre",
+    "LE=F": "Bœuf (Live Cattle)", "GF=F": "Bœuf Engraissé", "HE=F": "Porc (Lean Hogs)",
+    # ── Crypto ─────────────────────────────────────────────────────────────
+    "BTC-USD": "Bitcoin", "ETH-USD": "Ethereum", "BNB-USD": "BNB", "XRP-USD": "XRP",
+    "SOL-USD": "Solana", "ADA-USD": "Cardano", "AVAX-USD": "Avalanche",
+    "DOT-USD": "Polkadot", "MATIC-USD": "Polygon", "ATOM-USD": "Cosmos",
+    "NEAR-USD": "NEAR Protocol", "APT-USD": "Aptos", "SUI-USD": "Sui",
+    "SEI-USD": "Sei", "TIA-USD": "Celestia", "INJ-USD": "Injective",
+    "MINA-USD": "Mina Protocol", "EGLD-USD": "MultiversX", "FTM-USD": "Fantom",
+    "HBAR-USD": "Hedera", "ALGO-USD": "Algorand", "ICP-USD": "Internet Computer",
+    "ARB-USD": "Arbitrum", "OP-USD": "Optimism",
+    "UNI-USD": "Uniswap", "LINK-USD": "Chainlink", "AAVE-USD": "Aave",
+    "MKR-USD": "Maker", "CRV-USD": "Curve DAO", "LDO-USD": "Lido DAO",
+    "GMX-USD": "GMX", "DYDX-USD": "dYdX", "PENDLE-USD": "Pendle",
+    "JUP-USD": "Jupiter", "ORCA-USD": "Orca",
+    "GRT-USD": "The Graph", "FIL-USD": "Filecoin", "RNDR-USD": "Render",
+    "OCEAN-USD": "Ocean Protocol", "ROSE-USD": "Oasis Network",
+    "ANKR-USD": "Ankr", "ENS-USD": "Ethereum Name Service", "SNX-USD": "Synthetix",
+    "IMX-USD": "Immutable X", "SAND-USD": "The Sandbox", "MANA-USD": "Decentraland",
+    "AXS-USD": "Axie Infinity", "GALA-USD": "Gala Games",
+    "BEAM-USD": "Beam", "MAGIC-USD": "Treasure (MAGIC)", "PRIME-USD": "Echelon Prime",
+    "DOGE-USD": "Dogecoin", "SHIB-USD": "Shiba Inu", "PEPE-USD": "Pepe",
+    "FLOKI-USD": "Floki", "BONK-USD": "Bonk", "WIF-USD": "dogwifhat",
+    "LTC-USD": "Litecoin", "BCH-USD": "Bitcoin Cash", "XLM-USD": "Stellar",
+    "ETC-USD": "Ethereum Classic", "XMR-USD": "Monero", "ZEC-USD": "Zcash",
+    "BAT-USD": "Basic Attention Token", "ZIL-USD": "Zilliqa",
+    "IOTA-USD": "IOTA", "VET-USD": "VeChain", "HOT-USD": "Holo",
+    # ── Japon ──────────────────────────────────────────────────────────────
+    "7203.T": "Toyota", "9984.T": "SoftBank Group", "6758.T": "Sony Group",
+    "6861.T": "Keyence", "7974.T": "Nintendo", "9433.T": "KDDI",
+    "6501.T": "Hitachi", "6702.T": "Fujitsu", "6752.T": "Panasonic",
+    "4063.T": "Shin-Etsu Chemical", "8306.T": "Mitsubishi UFJ", "9432.T": "NTT",
+    "7267.T": "Honda Motor", "2914.T": "Japan Tobacco", "6594.T": "Nidec",
+    "6367.T": "Daikin Industries",
+    # ── Hong Kong / Chine ──────────────────────────────────────────────────
+    "9988.HK": "Alibaba Group", "0700.HK": "Tencent Holdings",
+    "0941.HK": "China Mobile", "1299.HK": "AIA Group",
+    "0939.HK": "CCB (Construction Bank)", "9618.HK": "JD.com",
+    "3690.HK": "Meituan", "9999.HK": "NetEase", "6690.HK": "Haier Smart Home",
+    "1810.HK": "Xiaomi", "9888.HK": "Baidu",
+    # ── Corée du Sud ───────────────────────────────────────────────────────
+    "005930.KS": "Samsung Electronics", "000660.KS": "SK Hynix",
+    "035420.KS": "NAVER", "051910.KS": "LG Chem",
+    "035720.KS": "Kakao", "068270.KS": "Celltrion",
+    "207940.KS": "Samsung Biologics", "003670.KS": "POSCO Holdings",
+    # ── Inde ───────────────────────────────────────────────────────────────
+    "RELIANCE.NS": "Reliance Industries", "TCS.NS": "Tata Consultancy",
+    "INFY.NS": "Infosys", "HDFCBANK.NS": "HDFC Bank",
+    "WIPRO.NS": "Wipro", "ICICIBANK.NS": "ICICI Bank",
+    "BHARTIARTL.NS": "Bharti Airtel", "ADANIENT.NS": "Adani Enterprises",
+    "TATAMOTORS.NS": "Tata Motors", "BAJFINANCE.NS": "Bajaj Finance",
+    "SUNPHARMA.NS": "Sun Pharma", "LTIM.NS": "LTIMindtree",
+    # ── Singapour / Taïwan / Australie ─────────────────────────────────────
+    "D05.SI": "DBS Group", "O39.SI": "OCBC Bank", "U11.SI": "UOB",
+    "2330.TW": "TSMC", "2317.TW": "Hon Hai (Foxconn)", "2308.TW": "Delta Electronics",
+    "CBA.AX": "Commonwealth Bank", "BHP.AX": "BHP Group",
+    "CSL.AX": "CSL Limited", "WES.AX": "Wesfarmers", "ANZ.AX": "ANZ Bank",
+    # ── Europe (tickers peu lisibles) ──────────────────────────────────────
+    "ASML.AS": "ASML Holding", "INGA.AS": "ING Groep",
+    "PHIA.AS": "Philips", "AD.AS": "Ahold Delhaize",
+    "UMI.BR": "Umicore", "ABI.BR": "AB InBev",
+    "NESN.SW": "Nestlé", "ROG.SW": "Roche", "NOVN.SW": "Novartis", "UHR.SW": "Swatch Group",
+    "SAN.MC": "Banco Santander", "IBE.MC": "Iberdrola", "TEF.MC": "Telefónica",
+    "ISP.MI": "Intesa Sanpaolo", "ENI.MI": "Eni", "ENEL.MI": "Enel",
+    "VOW3.DE": "Volkswagen", "SIE.DE": "Siemens", "BAS.DE": "BASF",
+    "BAYN.DE": "Bayer", "ALV.DE": "Allianz", "MBG.DE": "Mercedes-Benz",
+    "SAP.DE": "SAP", "ADS.DE": "Adidas", "IFX.DE": "Infineon",
+    "DHER.DE": "Delivery Hero", "DBK.DE": "Deutsche Bank",
+    "ENR.DE": "Siemens Energy", "RWE.DE": "RWE",
+    "ULVR.L": "Unilever", "SHEL.L": "Shell", "AZN.L": "AstraZeneca",
+    "HSBA.L": "HSBC", "BP.L": "BP", "GSK.L": "GSK",
+    "LSEG.L": "London Stock Exchange", "RIO.L": "Rio Tinto",
+    "GLEN.L": "Glencore", "DGE.L": "Diageo", "BA.L": "BAE Systems",
+    "TSCO.L": "Tesco",
+    "MC.PA": "LVMH", "OR.PA": "L'Oréal", "AIR.PA": "Airbus",
+    "SAN.PA": "Sanofi", "BNP.PA": "BNP Paribas", "SU.PA": "Schneider Electric",
+    "TTE.PA": "TotalEnergies", "EN.PA": "Bouygues", "CA.PA": "Carrefour",
+    "SAF.PA": "Safran", "RMS.PA": "Hermès", "CS.PA": "AXA",
+    "DSY.PA": "Dassault Systèmes", "EL.PA": "EssilorLuxottica",
+    "SGO.PA": "Saint-Gobain", "STM.PA": "STMicroelectronics",
+    "VIE.PA": "Veolia", "RI.PA": "Pernod Ricard",
+    "ACA.PA": "Crédit Agricole", "GLE.PA": "Société Générale",
+    "HO.PA": "Thales", "ERF.PA": "Eurofins Scientific",
+    "ALO.PA": "Alstom", "TCH.PA": "Téléperformance",
+    "EDEN.PA": "Edenred", "CRBP2.PA": "Crédit Agricole Île-de-France",
+}
+
+
 @router.get("/scan/{market_key}")
 @limiter.limit("2/minute")
 async def scan_market(
@@ -713,6 +819,7 @@ async def scan_market(
 
             return {
                 "symbol":       symbol,
+                "name":         ASSET_NAMES.get(symbol, symbol),
                 "price":        round(price, 4),
                 "change":       round(chg_1d, 2),
                 "change_1w":    round(chg_1w, 2),

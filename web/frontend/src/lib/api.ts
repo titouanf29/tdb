@@ -500,6 +500,7 @@ export interface Analysis {
 
 export interface ScanResultItem {
   symbol: string;
+  name?: string;
   price: number;
   change: number;
   change_1w: number;

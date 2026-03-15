@@ -119,7 +119,10 @@ export default function ScannerPage() {
     sortKey === k ? (sortAsc ? <ChevronUp className="w-3 h-3 inline ml-0.5" /> : <ChevronDown className="w-3 h-3 inline ml-0.5" />) : null;
 
   const filtered = results
-    .filter((r) => !searchQuery || r.symbol.toLowerCase().includes(searchQuery.toLowerCase()))
+    .filter((r) => !searchQuery ||
+      r.symbol.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (r.name && r.name.toLowerCase().includes(searchQuery.toLowerCase()))
+    )
     .sort((a, b) => {
       const va = a[sortKey] as number;
       const vb = b[sortKey] as number;
@@ -427,6 +430,9 @@ export default function ScannerPage() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="font-bold text-base">{r.symbol}</span>
+                        {r.name && r.name !== r.symbol && (
+                          <span className="text-xs text-muted-foreground truncate max-w-[140px]">{r.name}</span>
+                        )}
 
                         {/* Trend pill */}
                         <span className={cn("text-xs font-semibold", TREND_COLORS[r.trend])}>
