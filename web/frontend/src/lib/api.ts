@@ -163,9 +163,9 @@ export const analysisAPI = {
   analyze: (symbol: string, timeframe = "1d") =>
     fetchAPI<Analysis>(`/api/analysis/${symbol}?timeframe=${timeframe}`),
 
-  scan: (marketKey: string, minScore = 60, limit = 10) =>
+  scan: (marketKey: string, minScore = 60, limit = 20, oppType = "all") =>
     fetchAPI<ScanResult>(
-      `/api/analysis/scan/${marketKey}?min_score=${minScore}&limit=${limit}`
+      `/api/analysis/scan/${marketKey}?min_score=${minScore}&limit=${limit}&opportunity_type=${oppType}`
     ),
 };
 
@@ -475,16 +475,29 @@ export interface Analysis {
   }[];
 }
 
+export interface ScanResultItem {
+  symbol: string;
+  price: number;
+  change: number;
+  change_1w: number;
+  change_1m: number;
+  score: number;
+  signal: string;
+  rsi: number;
+  volume_ratio: number;
+  trend: "HAUSSIER" | "BAISSIER" | "NEUTRE";
+  opportunity: string;
+  opp_type: "breakout" | "reversal" | "momentum";
+  macd_signal: "HAUSSIER" | "BAISSIER";
+  near_breakout: boolean;
+  pct_from_high: number;
+}
+
 export interface ScanResult {
   market: string;
   min_score: number;
-  results: {
-    symbol: string;
-    price: number;
-    change: number;
-    score: number;
-    rsi: number;
-  }[];
+  total_scanned: number;
+  results: ScanResultItem[];
 }
 
 export interface ChatMessage {

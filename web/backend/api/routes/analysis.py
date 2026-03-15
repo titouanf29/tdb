@@ -497,74 +497,202 @@ async def scan_market(
     request: Request,
     market_key: str,
     min_score: int = Query(default=60, ge=0, le=100),
-    limit: int = Query(default=10, le=50)
+    limit: int = Query(default=20, le=50),
+    opportunity_type: str = Query(default="all")
 ):
-    """Scan a market for opportunities"""
+    """Scan a market for opportunities — parallel, enriched scoring (RSI+MACD+EMA+Volume+Momentum)"""
     from config import MARKETS
     from ._prices import fetch_ohlcv
     import asyncio
+    import numpy as np
 
     market_key = market_key.upper()
     if market_key not in MARKETS:
         raise HTTPException(status_code=404, detail="Market not found")
 
     assets = MARKETS[market_key]["assets"]
-    results = []
 
-    for symbol in assets[:20]:  # Limit to 20 for performance
+    async def _analyze(symbol: str):
         try:
-            # Quick analysis
-            hist = await fetch_ohlcv(symbol, period="1mo", interval="1d")
+            hist = await fetch_ohlcv(symbol, period="3mo", interval="1d")
+            if hist is None or len(hist) < 20:
+                return None
 
-            if len(hist) < 14:
-                continue
+            close  = hist["Close"].astype(float)
+            high   = hist["High"].astype(float)
+            low    = hist["Low"].astype(float)
+            vol    = hist["Volume"].astype(float)
+            n      = len(close)
 
-            close = hist['Close']
+            price    = float(close.iloc[-1])
+            if price <= 0:
+                return None
 
-            # Quick RSI
+            # ── Performance ────────────────────────────────
+            chg_1d = float((price - close.iloc[-2]) / close.iloc[-2] * 100) if n >= 2 else 0.0
+            chg_1w = float((price - close.iloc[-5]) / close.iloc[-5] * 100) if n >= 5 else 0.0
+            chg_1m = float((price - close.iloc[-22]) / close.iloc[-22] * 100) if n >= 22 else 0.0
+
+            # ── RSI ────────────────────────────────────────
             delta = close.diff()
-            gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
-            loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
-            rs = gain / loss
-            rsi = 100 - (100 / (1 + rs))
+            gain  = delta.where(delta > 0, 0.0).rolling(14).mean()
+            loss  = (-delta.where(delta < 0, 0.0)).rolling(14).mean()
+            rsi   = float(100 - 100 / (1 + gain.iloc[-1] / loss.iloc[-1])) if float(loss.iloc[-1]) > 0 else 50.0
 
-            # Quick score
-            current_price = close.iloc[-1]
-            prev_price = close.iloc[-2]
-            change = ((current_price - prev_price) / prev_price) * 100
+            # ── MACD ───────────────────────────────────────
+            ema12 = close.ewm(span=12, adjust=False).mean()
+            ema26 = close.ewm(span=26, adjust=False).mean()
+            macd  = ema12 - ema26
+            sig   = macd.ewm(span=9, adjust=False).mean()
+            macd_val    = float(macd.iloc[-1])
+            macd_above  = macd_val > float(sig.iloc[-1])
+            macd_cross  = macd_above and float(macd.iloc[-2]) <= float(sig.iloc[-2])  # fresh bull cross
 
+            # ── EMA trend ──────────────────────────────────
+            ema20  = float(close.ewm(span=20, adjust=False).mean().iloc[-1])
+            ema50  = float(close.ewm(span=50, adjust=False).mean().iloc[-1]) if n >= 50 else ema20
+            above_ema20 = price > ema20
+            above_ema50 = price > ema50
+
+            # ── Volume ─────────────────────────────────────
+            avg_vol   = float(vol.mean())
+            cur_vol   = float(vol.iloc[-1])
+            vol_ratio = cur_vol / avg_vol if avg_vol > 0 else 1.0
+            vol_spike = vol_ratio > 1.8
+
+            # ── 52-week range ──────────────────────────────
+            high_52w = float(high.max())
+            low_52w  = float(low.min())
+            near_breakout  = (price / high_52w) >= 0.96   # within 4% of 52w high
+            near_support   = (price / low_52w) <= 1.10    # within 10% of 52w low
+            pct_from_high  = (price - high_52w) / high_52w * 100
+
+            # ── Bollinger Band ─────────────────────────────
+            bb_mid  = close.rolling(20).mean()
+            bb_std  = close.rolling(20).std()
+            bb_up   = float((bb_mid + 2 * bb_std).iloc[-1])
+            bb_low_ = float((bb_mid - 2 * bb_std).iloc[-1])
+            bb_pct  = float((price - bb_low_) / (bb_up - bb_low_) * 100) if bb_up != bb_low_ else 50.0
+            bb_squeeze = float((bb_up - bb_low_) / float(bb_mid.iloc[-1]) * 100) < 5.0
+
+            # ── Scoring ────────────────────────────────────
             score = 50
-            current_rsi = rsi.iloc[-1]
-            if current_rsi < 30:
-                score += 20
-            elif current_rsi > 70:
-                score -= 20
 
-            if change > 0:
-                score += min(15, change * 3)
-            else:
-                score += max(-15, change * 3)
+            # RSI (max ±25)
+            if rsi < 25:        score += 25
+            elif rsi < 32:      score += 18
+            elif rsi < 40:      score += 10
+            elif rsi > 78:      score -= 22
+            elif rsi > 70:      score -= 12
+            elif rsi > 60:      score -= 5
+
+            # MACD (max +18)
+            if macd_cross:      score += 18
+            elif macd_above:    score += 9
+            else:               score -= 8
+
+            # EMA trend (max +12)
+            if above_ema20 and above_ema50: score += 12
+            elif above_ema20:               score += 6
+            elif not above_ema20 and not above_ema50: score -= 10
+
+            # Volume (max +10)
+            if vol_spike:               score += 10
+            elif vol_ratio > 1.3:       score += 5
+            elif vol_ratio < 0.6:       score -= 5
+
+            # Momentum 1 week (max +10)
+            if chg_1w > 8:      score += 10
+            elif chg_1w > 4:    score += 6
+            elif chg_1w > 1.5:  score += 3
+            elif chg_1w < -8:   score -= 10
+            elif chg_1w < -4:   score -= 6
+
+            # Near breakout bonus / near support bounce bonus
+            if near_breakout and macd_above:  score += 5
+            if near_support and rsi < 40:     score += 5
+
+            # Bollinger squeeze pending breakout
+            if bb_squeeze and vol_spike:  score += 5
 
             score = max(0, min(100, int(score)))
 
-            if score >= min_score:
-                results.append({
-                    "symbol": symbol,
-                    "price": round(current_price, 2),
-                    "change": round(change, 2),
-                    "score": score,
-                    "rsi": round(current_rsi, 1)
-                })
-        except Exception:
-            continue
+            # ── Signal & trend label ───────────────────────
+            if score >= 80:   signal = "STRONG BUY"
+            elif score >= 65: signal = "BUY"
+            elif score >= 45: signal = "HOLD"
+            elif score >= 30: signal = "SELL"
+            else:             signal = "STRONG SELL"
 
-    # Sort by score
+            if above_ema20 and above_ema50 and macd_above:    trend = "HAUSSIER"
+            elif not above_ema20 and not above_ema50:          trend = "BAISSIER"
+            else:                                               trend = "NEUTRE"
+
+            # ── Opportunity tags ───────────────────────────
+            tags = []
+            opp_type = "momentum"
+            if macd_cross:
+                tags.append("Croisement MACD")
+                opp_type = "breakout"
+            if rsi < 35:
+                tags.append(f"RSI survendu ({rsi:.0f})")
+                opp_type = "reversal"
+            if vol_spike:
+                tags.append(f"Vol. x{vol_ratio:.1f}")
+            if near_breakout:
+                tags.append("Proche 52w high")
+                opp_type = "breakout"
+            if bb_squeeze:
+                tags.append("Squeeze BB")
+                opp_type = "breakout"
+            if chg_1w > 5 and not tags:
+                tags.append(f"+{chg_1w:.1f}% / semaine")
+            if near_support and rsi < 40:
+                tags.append("Rebond support")
+                opp_type = "reversal"
+            opportunity = " · ".join(tags[:2]) if tags else "Momentum"
+
+            return {
+                "symbol":       symbol,
+                "price":        round(price, 4),
+                "change":       round(chg_1d, 2),
+                "change_1w":    round(chg_1w, 2),
+                "change_1m":    round(chg_1m, 2),
+                "score":        score,
+                "signal":       signal,
+                "rsi":          round(rsi, 1),
+                "volume_ratio": round(vol_ratio, 2),
+                "trend":        trend,
+                "opportunity":  opportunity,
+                "opp_type":     opp_type,
+                "macd_signal":  "HAUSSIER" if macd_above else "BAISSIER",
+                "near_breakout": near_breakout,
+                "pct_from_high": round(pct_from_high, 1),
+            }
+        except Exception:
+            return None
+
+    # ── Run ALL assets in parallel (batches of 30) ──────────────────────
+    batch_size = 30
+    all_results = []
+    for i in range(0, len(assets), batch_size):
+        batch = assets[i:i + batch_size]
+        batch_res = await asyncio.gather(*[_analyze(s) for s in batch])
+        all_results.extend(batch_res)
+
+    results = [r for r in all_results if r is not None and r["score"] >= min_score]
+
+    # Filter by opportunity type if requested
+    if opportunity_type != "all":
+        results = [r for r in results if r["opp_type"] == opportunity_type]
+
     results.sort(key=lambda x: x["score"], reverse=True)
 
     return {
-        "market": market_key,
-        "min_score": min_score,
-        "results": results[:limit]
+        "market":         market_key,
+        "min_score":      min_score,
+        "total_scanned":  len(assets),
+        "results":        results[:limit]
     }
 
 

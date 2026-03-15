@@ -35,12 +35,24 @@ MARKETS = {
         "assets": [
             # Indices
             "^FCHI", "^GDAXI", "^STOXX50E", "^FTSE",
-            # France
-            "MC.PA", "OR.PA", "AIR.PA", "SAN.PA", "BNP.PA", "SU.PA", "TTE.PA", "EN.PA", "CA.PA", "SAF.PA",
+            # France large caps
+            "MC.PA", "OR.PA", "AIR.PA", "SAN.PA", "BNP.PA", "SU.PA", "TTE.PA", "EN.PA",
+            "CA.PA", "SAF.PA", "RMS.PA", "CS.PA", "DSY.PA", "EL.PA", "SGO.PA",
+            "STM.PA", "VIE.PA", "RI.PA", "ACA.PA", "GLE.PA",
+            # France mid caps
+            "HO.PA", "ERF.PA", "ALO.PA", "TCH.PA", "EDEN.PA", "CRBP2.PA",
             # Allemagne
             "VOW3.DE", "SIE.DE", "BAS.DE", "BAYN.DE", "ALV.DE", "MBG.DE",
+            "SAP.DE", "ADS.DE", "IFX.DE", "DHER.DE", "DBK.DE", "ENR.DE", "RWE.DE",
             # UK
-            "ULVR.L", "SHEL.L", "AZN.L", "HSBA.L", "BP.L", "GSK.L"
+            "ULVR.L", "SHEL.L", "AZN.L", "HSBA.L", "BP.L", "GSK.L",
+            "LSEG.L", "RIO.L", "GLEN.L", "DGE.L", "BA.L", "TSCO.L",
+            # Pays-Bas / Belgique
+            "ASML.AS", "INGA.AS", "PHIA.AS", "AD.AS", "UMI.BR", "ABI.BR",
+            # Suisse
+            "NESN.SW", "ROG.SW", "NOVN.SW", "UHR.SW",
+            # Espagne / Italie
+            "SAN.MC", "IBE.MC", "TEF.MC", "ISP.MI", "ENI.MI", "ENEL.MI"
         ]
     },
     "USA": {
@@ -49,24 +61,41 @@ MARKETS = {
         "close_time": "16:00",
         "timezone": "America/New_York",
         "assets": [
-            # Indices
-            "^GSPC", "^DJI", "^IXIC",
-            # ETFs
-            "SPY", "QQQ", "DIA", "IWM",
+            # Indices & ETFs
+            "^GSPC", "^DJI", "^IXIC", "^RUT",
+            "SPY", "QQQ", "DIA", "IWM", "XLK", "XLF", "XLE",
             # Mega Caps Tech
             "AAPL", "MSFT", "GOOGL", "AMZN", "META", "NVDA", "TSLA",
-            # Tech
+            # Tech établi
             "AMD", "INTC", "NFLX", "CRM", "ORCL", "ADBE", "AVGO", "QCOM", "TXN", "CSCO",
-            # Finance
+            "MU", "AMAT", "LRCX", "KLAC", "SNPS", "CDNS", "FTNT", "PANW", "ZS",
+            # IA & Cloud émergent
+            "PLTR", "SNOW", "DDOG", "NET", "CRWD", "S", "GTLB", "PATH", "AI",
+            "SOUN", "BBAI", "IONQ", "RGTI", "QUBT", "QBTS", "ARQQ",
+            # Fintech & Finance
             "JPM", "BAC", "WFC", "GS", "MS", "C", "BLK", "V", "MA", "AXP",
-            # Santé/Pharma
+            "PYPL", "SQ", "SOFI", "HOOD", "AFRM", "UPST", "LC", "MSTR", "COIN",
+            "NU", "SMAR", "FIS", "FISV", "GPN",
+            # Santé & Biotech
             "JNJ", "UNH", "PFE", "ABBV", "LLY", "MRK", "TMO", "ABT",
+            "MRNA", "BNTX", "VRTX", "REGN", "GILD", "ILMN", "BIIB", "BMRN",
+            "EXAS", "PACB", "BEAM", "NTLA", "EDIT", "CRSP",
             # Consommation
             "KO", "PEP", "WMT", "HD", "MCD", "NKE", "SBUX", "DIS", "COST",
-            # Énergie
+            "SHOP", "ETSY", "W", "CHWY", "ABNB", "BKNG", "UBER", "LYFT",
+            # Énergie & Transition
             "XOM", "CVX", "COP", "SLB",
-            # Autres
-            "BA", "CAT", "GE", "MMM", "HON"
+            "ENPH", "FSLR", "SEDG", "BE", "PLUG", "BLNK", "CHPT", "EVGO",
+            "RUN", "ARRY", "STEM",
+            # Défense & Industrie
+            "BA", "CAT", "GE", "MMM", "HON", "LMT", "RTX", "NOC", "GD", "AXON",
+            # Immobilier & REIT
+            "AMT", "PLD", "EQIX", "SPG", "O", "VICI",
+            # Télécoms & Média
+            "T", "VZ", "TMUS", "CMCSA", "NFLX", "PARA", "WBD",
+            # Petites/moyennes caps momentum
+            "SMCI", "ONTO", "CLOV", "OPEN", "JOBY", "LILM", "ACHR",
+            "RKLB", "ASTS", "LUNR", "RDW", "MNTS",
         ]
     },
     "ASIA": {
@@ -76,15 +105,25 @@ MARKETS = {
         "timezone": "Asia/Tokyo",
         "assets": [
             # Indices
-            "^N225", "^HSI", "000001.SS",
+            "^N225", "^HSI", "000001.SS", "^KS11", "^BSESN",
             # Japon
             "7203.T", "9984.T", "6758.T", "6861.T", "7974.T", "9433.T",
-            # Hong Kong/Chine
+            "6501.T", "6702.T", "6752.T", "4063.T", "8306.T", "9432.T",
+            "7267.T", "2914.T", "6594.T", "6367.T",
+            # Hong Kong / Chine
             "9988.HK", "0700.HK", "0941.HK", "1299.HK", "0939.HK", "9618.HK",
+            "3690.HK", "9999.HK", "6690.HK", "1810.HK", "9888.HK",
             # Corée du Sud
             "005930.KS", "000660.KS", "035420.KS", "051910.KS",
+            "035720.KS", "068270.KS", "207940.KS", "003670.KS",
             # Inde
-            "RELIANCE.NS", "TCS.NS", "INFY.NS", "HDFCBANK.NS"
+            "RELIANCE.NS", "TCS.NS", "INFY.NS", "HDFCBANK.NS",
+            "WIPRO.NS", "ICICIBANK.NS", "BHARTIARTL.NS", "ADANIENT.NS",
+            "TATAMOTORS.NS", "BAJFINANCE.NS", "SUNPHARMA.NS", "LTIM.NS",
+            # Singapour / Taïwan / Australie
+            "D05.SI", "O39.SI", "U11.SI",
+            "2330.TW", "2317.TW", "2308.TW",
+            "CBA.AX", "BHP.AX", "CSL.AX", "WES.AX", "ANZ.AX"
         ]
     },
     "CRYPTO": {
@@ -96,12 +135,24 @@ MARKETS = {
         "assets": [
             # Top Caps
             "BTC-USD", "ETH-USD", "BNB-USD", "XRP-USD", "SOL-USD", "ADA-USD",
-            # Layer 1
+            # Layer 1 / Layer 2
             "AVAX-USD", "DOT-USD", "MATIC-USD", "ATOM-USD", "NEAR-USD", "APT-USD",
+            "SUI-USD", "SEI-USD", "TIA-USD", "INJ-USD", "MINA-USD", "EGLD-USD",
+            "FTM-USD", "HBAR-USD", "ALGO-USD", "ICP-USD", "ARB-USD", "OP-USD",
             # DeFi
-            "UNI-USD", "LINK-USD", "AAVE-USD", "MKR-USD",
-            # Autres
-            "DOGE-USD", "SHIB-USD", "LTC-USD", "BCH-USD", "XLM-USD", "ALGO-USD"
+            "UNI-USD", "LINK-USD", "AAVE-USD", "MKR-USD", "CRV-USD", "LDO-USD",
+            "GMX-USD", "DYDX-USD", "PENDLE-USD", "JUP-USD", "ORCA-USD",
+            # RWA & Infra
+            "GRT-USD", "FIL-USD", "RNDR-USD", "OCEAN-USD", "ROSE-USD",
+            "ANKR-USD", "ENS-USD", "SNX-USD",
+            # Gaming & NFT
+            "IMX-USD", "SAND-USD", "MANA-USD", "AXS-USD", "GALA-USD",
+            "BEAM-USD", "MAGIC-USD", "PRIME-USD",
+            # Meme & Speculatif
+            "DOGE-USD", "SHIB-USD", "PEPE-USD", "FLOKI-USD", "BONK-USD", "WIF-USD",
+            # Autres établis
+            "LTC-USD", "BCH-USD", "XLM-USD", "ETC-USD", "XMR-USD", "ZEC-USD",
+            "BAT-USD", "ZIL-USD", "IOTA-USD", "VET-USD", "HOT-USD"
         ]
     },
     "COMMODITIES": {
@@ -111,13 +162,16 @@ MARKETS = {
         "timezone": "UTC",
         "assets": [
             # Énergies
-            "CL=F", "NG=F", "BZ=F",
+            "CL=F", "NG=F", "BZ=F", "HO=F", "RB=F",
             # Métaux précieux
             "GC=F", "SI=F", "PL=F", "PA=F",
             # Métaux industriels
             "HG=F", "ALI=F",
             # Agriculture
-            "ZC=F", "ZW=F", "ZS=F", "KC=F", "SB=F", "CT=F"
+            "ZC=F", "ZW=F", "ZS=F", "KC=F", "SB=F", "CT=F",
+            "OJ=F", "CC=F", "LBS=F",
+            # Bétail
+            "LE=F", "GF=F", "HE=F"
         ]
     }
 }
