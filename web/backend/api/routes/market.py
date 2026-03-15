@@ -638,10 +638,11 @@ async def request_new_asset(
         )
 
     # Create the request
+    from datetime import datetime as _dt
     await execute_write("""
         INSERT INTO asset_requests (user_id, symbol, asset_name, asset_type, reason, created_at)
-        VALUES (?, ?, ?, ?, ?, datetime('now'))
-    """, (user_id, symbol_upper, request.asset_name, request.asset_type, request.reason))
+        VALUES (?, ?, ?, ?, ?, ?)
+    """, (user_id, symbol_upper, request.asset_name, request.asset_type, request.reason, _dt.utcnow().isoformat()))
 
     return {
         "success": True,

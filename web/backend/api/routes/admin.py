@@ -6,7 +6,7 @@ Only whitelisted admin emails can access these routes
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 from typing import Optional, List
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import os
 
 from ..database import execute_query, execute_write, create_admin_notification
@@ -132,41 +132,46 @@ async def check_admin_status(current_user: dict = Depends(get_current_user)):
 async def get_admin_dashboard(admin: dict = Depends(get_admin_user)):
     """Get admin dashboard with all stats"""
 
+    # Compute cutoff datetimes in Python (works for both SQLite and PostgreSQL)
+    now = datetime.utcnow()
+    cutoff_1d = (now - timedelta(days=1)).isoformat()
+    cutoff_7d = (now - timedelta(days=7)).isoformat()
+
     # User stats
     total_users = await execute_query("SELECT COUNT(*) as count FROM web_users")
-    active_24h = await execute_query("""
-        SELECT COUNT(*) as count FROM web_users
-        WHERE last_login > datetime('now', '-1 day')
-    """)
-    active_7d = await execute_query("""
-        SELECT COUNT(*) as count FROM web_users
-        WHERE last_login > datetime('now', '-7 days')
-    """)
-    new_users_7d = await execute_query("""
-        SELECT COUNT(*) as count FROM web_users
-        WHERE created_at > datetime('now', '-7 days')
-    """)
+    active_24h = await execute_query(
+        "SELECT COUNT(*) as count FROM web_users WHERE last_login > ?",
+        (cutoff_1d,)
+    )
+    active_7d = await execute_query(
+        "SELECT COUNT(*) as count FROM web_users WHERE last_login > ?",
+        (cutoff_7d,)
+    )
+    new_users_7d = await execute_query(
+        "SELECT COUNT(*) as count FROM web_users WHERE created_at > ?",
+        (cutoff_7d,)
+    )
 
     # Trading stats
     total_positions = await execute_query("SELECT COUNT(*) as count FROM positions WHERE status = 'open'")
-    trades_24h = await execute_query("""
-        SELECT COUNT(*) as count FROM positions
-        WHERE created_at > datetime('now', '-1 day')
-    """)
-    total_volume = await execute_query("""
-        SELECT COALESCE(SUM(amount), 0) as total FROM positions
-        WHERE created_at > datetime('now', '-7 days')
-    """)
+    trades_24h = await execute_query(
+        "SELECT COUNT(*) as count FROM positions WHERE created_at > ?",
+        (cutoff_1d,)
+    )
+    total_volume = await execute_query(
+        "SELECT COALESCE(SUM(amount), 0) as total FROM positions WHERE created_at > ?",
+        (cutoff_7d,)
+    )
 
     # Wallet stats
     total_balance = await execute_query("SELECT COALESCE(SUM(balance), 0) as total FROM wallet")
 
     # AI Chat stats
     ai_messages = await execute_query("SELECT COUNT(*) as count FROM web_ai_chat")
-    ai_messages_24h = await execute_query("""
-        SELECT COUNT(*) as count FROM web_ai_chat
-        WHERE created_at > datetime('now', '-1 day')
-    """)
+    ai_messages_24h = await execute_query(
+        "SELECT COUNT(*) as count FROM web_ai_chat WHERE created_at > ?",
+        (cutoff_1d,)
+    )
 
     # Favorites stats
     total_favorites = await execute_query("SELECT COUNT(*) as count FROM web_favorites")
@@ -427,8 +432,8 @@ async def send_broadcast(message: BroadcastMessage, admin: dict = Depends(get_ad
     # Store broadcast in database
     await execute_write("""
         INSERT INTO admin_broadcasts (admin_id, title, message, type, created_at)
-        VALUES (?, ?, ?, ?, datetime('now'))
-    """, (admin["id"], message.title, message.message, message.type))
+        VALUES (?, ?, ?, ?, ?)
+    """, (admin["id"], message.title, message.message, message.type, datetime.utcnow().isoformat()))
 
     await log_admin_action(admin["id"], "broadcast", f"Sent broadcast: {message.title}")
 
@@ -474,8 +479,8 @@ async def create_changelog(data: ChangelogCreate, admin: dict = Depends(get_admi
     """Create a new changelog entry visible to all users on next login."""
     await execute_write("""
         INSERT INTO admin_changelogs (admin_id, title, content, version, created_at)
-        VALUES (?, ?, ?, ?, datetime('now'))
-    """, (admin["id"], data.title, data.content, data.version))
+        VALUES (?, ?, ?, ?, ?)
+    """, (admin["id"], data.title, data.content, data.version, datetime.utcnow().isoformat()))
 
     await log_admin_action(admin["id"], "create_changelog", f"Changelog created: {data.title}")
 
@@ -526,9 +531,10 @@ async def mark_changelog_read(changelog_id: int, current_user: dict = Depends(ge
     user_id = current_user["id"]
     try:
         await execute_write("""
-            INSERT OR IGNORE INTO user_changelog_reads (user_id, changelog_id, read_at)
-            VALUES (?, ?, datetime('now'))
-        """, (user_id, changelog_id))
+            INSERT INTO user_changelog_reads (user_id, changelog_id, read_at)
+            VALUES (?, ?, ?)
+            ON CONFLICT (user_id, changelog_id) DO NOTHING
+        """, (user_id, changelog_id, datetime.utcnow().isoformat()))
     except Exception:
         pass  # Already read (unique constraint)
     return {"success": True}
@@ -554,15 +560,16 @@ async def update_system_setting(setting: SystemSetting, admin: dict = Depends(ge
         (setting.key,)
     )
 
+    _now = datetime.utcnow().isoformat()
     if existing:
         await execute_write(
-            "UPDATE admin_settings SET value = ?, updated_at = datetime('now') WHERE key = ?",
-            (setting.value, setting.key)
+            "UPDATE admin_settings SET value = ?, updated_at = ? WHERE key = ?",
+            (setting.value, _now, setting.key)
         )
     else:
         await execute_write(
-            "INSERT INTO admin_settings (key, value, created_at, updated_at) VALUES (?, ?, datetime('now'), datetime('now'))",
-            (setting.key, setting.value)
+            "INSERT INTO admin_settings (key, value, created_at, updated_at) VALUES (?, ?, ?, ?)",
+            (setting.key, setting.value, _now, _now)
         )
 
     await log_admin_action(admin["id"], "update_setting", f"Updated setting {setting.key}")
@@ -576,23 +583,25 @@ async def update_system_setting(setting: SystemSetting, admin: dict = Depends(ge
 async def get_user_analytics(days: int = 30, admin: dict = Depends(get_admin_user)):
     """Get user registration and activity analytics"""
 
+    cutoff = (datetime.utcnow() - timedelta(days=days)).isoformat()
+
     # Daily registrations
     registrations = await execute_query("""
         SELECT DATE(created_at) as date, COUNT(*) as count
         FROM web_users
-        WHERE created_at > datetime('now', ?)
+        WHERE created_at > ?
         GROUP BY DATE(created_at)
         ORDER BY date
-    """, (f"-{days} days",))
+    """, (cutoff,))
 
     # Daily active users
     active_users = await execute_query("""
         SELECT DATE(last_login) as date, COUNT(*) as count
         FROM web_users
-        WHERE last_login > datetime('now', ?)
+        WHERE last_login > ?
         GROUP BY DATE(last_login)
         ORDER BY date
-    """, (f"-{days} days",))
+    """, (cutoff,))
 
     return {
         "registrations": registrations or [],
@@ -604,24 +613,26 @@ async def get_user_analytics(days: int = 30, admin: dict = Depends(get_admin_use
 async def get_trading_analytics(days: int = 30, admin: dict = Depends(get_admin_user)):
     """Get trading analytics"""
 
+    cutoff = (datetime.utcnow() - timedelta(days=days)).isoformat()
+
     # Daily trades
     trades = await execute_query("""
         SELECT DATE(created_at) as date, COUNT(*) as count, SUM(amount) as volume
         FROM positions
-        WHERE created_at > datetime('now', ?)
+        WHERE created_at > ?
         GROUP BY DATE(created_at)
         ORDER BY date
-    """, (f"-{days} days",))
+    """, (cutoff,))
 
     # Most traded symbols
     top_symbols = await execute_query("""
         SELECT symbol, COUNT(*) as count, SUM(amount) as volume
         FROM positions
-        WHERE created_at > datetime('now', ?)
+        WHERE created_at > ?
         GROUP BY symbol
         ORDER BY count DESC
         LIMIT 10
-    """, (f"-{days} days",))
+    """, (cutoff,))
 
     # PnL distribution
     pnl_distribution = await execute_query("""
@@ -637,9 +648,9 @@ async def get_trading_analytics(days: int = 30, admin: dict = Depends(get_admin_
             END as category,
             COUNT(*) as count
         FROM positions
-        WHERE status = 'closed' AND created_at > datetime('now', ?)
+        WHERE status = 'closed' AND created_at > ?
         GROUP BY category
-    """, (f"-{days} days",))
+    """, (cutoff,))
 
     return {
         "daily_trades": trades or [],
@@ -652,25 +663,27 @@ async def get_trading_analytics(days: int = 30, admin: dict = Depends(get_admin_
 async def get_ai_analytics(days: int = 30, admin: dict = Depends(get_admin_user)):
     """Get AI assistant usage analytics"""
 
+    cutoff = (datetime.utcnow() - timedelta(days=days)).isoformat()
+
     # Daily messages
     messages = await execute_query("""
         SELECT DATE(created_at) as date, COUNT(*) as count
         FROM web_ai_chat
-        WHERE created_at > datetime('now', ?)
+        WHERE created_at > ?
         GROUP BY DATE(created_at)
         ORDER BY date
-    """, (f"-{days} days",))
+    """, (cutoff,))
 
     # Top users by AI usage
     top_users = await execute_query("""
         SELECT c.user_id, u.email, u.username, COUNT(*) as message_count
         FROM web_ai_chat c
         LEFT JOIN web_users u ON c.user_id = u.id
-        WHERE c.created_at > datetime('now', ?)
+        WHERE c.created_at > ?
         GROUP BY c.user_id
         ORDER BY message_count DESC
         LIMIT 10
-    """, (f"-{days} days",))
+    """, (cutoff,))
 
     return {
         "daily_messages": messages or [],
@@ -761,9 +774,9 @@ async def force_close_position(position_id: int, admin: dict = Depends(get_admin
     # Close with 0 PnL (admin force close)
     await execute_write("""
         UPDATE positions
-        SET status = 'closed', realized_pnl = 0, closed_at = datetime('now')
+        SET status = 'closed', realized_pnl = 0, closed_at = ?
         WHERE id = ?
-    """, (position_id,))
+    """, (datetime.utcnow().isoformat(), position_id))
 
     # Return amount to user wallet
     await execute_write("""
@@ -781,8 +794,8 @@ async def log_admin_action(admin_id: int, action: str, details: str):
     """Log admin action to audit log"""
     await execute_write("""
         INSERT INTO admin_audit_log (admin_id, action, details, created_at)
-        VALUES (?, ?, ?, datetime('now'))
-    """, (admin_id, action, details))
+        VALUES (?, ?, ?, ?)
+    """, (admin_id, action, details, datetime.utcnow().isoformat()))
 
 
 # ============== ADMIN MANAGEMENT ==============
@@ -874,9 +887,9 @@ async def process_asset_request(data: AssetRequestAction, admin: dict = Depends(
 
     await execute_write("""
         UPDATE asset_requests
-        SET status = ?, admin_notes = ?, processed_at = datetime('now'), processed_by = ?
+        SET status = ?, admin_notes = ?, processed_at = ?, processed_by = ?
         WHERE id = ?
-    """, (data.status, data.admin_notes, admin["id"], data.request_id))
+    """, (data.status, data.admin_notes, datetime.utcnow().isoformat(), admin["id"], data.request_id))
 
     await log_admin_action(
         admin["id"],
@@ -997,14 +1010,15 @@ async def admin_reply_ticket(ticket_id: int, data: TicketReplyRequest, admin: di
     if not ticket:
         raise HTTPException(status_code=404, detail="Ticket not found")
 
+    _now = datetime.utcnow().isoformat()
     await execute_write("""
         INSERT INTO admin_ticket_messages (ticket_id, user_id, message, is_admin, created_at)
-        VALUES (?, ?, ?, 1, datetime('now'))
-    """, (ticket_id, admin["id"], data.message))
+        VALUES (?, ?, ?, 1, ?)
+    """, (ticket_id, admin["id"], data.message, _now))
 
     await execute_write(
-        "UPDATE admin_tickets SET updated_at = datetime('now') WHERE id = ?",
-        (ticket_id,)
+        "UPDATE admin_tickets SET updated_at = ? WHERE id = ?",
+        (_now, ticket_id)
     )
 
     await log_admin_action(admin["id"], "ticket_reply", f"Replied to ticket {ticket_id}")
@@ -1016,8 +1030,8 @@ async def admin_reply_ticket(ticket_id: int, data: TicketReplyRequest, admin: di
 async def admin_close_ticket(ticket_id: int, admin: dict = Depends(get_admin_user)):
     """Close a ticket"""
     await execute_write(
-        "UPDATE admin_tickets SET status = 'closed', updated_at = datetime('now') WHERE id = ?",
-        (ticket_id,)
+        "UPDATE admin_tickets SET status = 'closed', updated_at = ? WHERE id = ?",
+        (datetime.utcnow().isoformat(), ticket_id)
     )
     await log_admin_action(admin["id"], "ticket_close", f"Closed ticket {ticket_id}")
     return {"success": True}
@@ -1027,8 +1041,8 @@ async def admin_close_ticket(ticket_id: int, admin: dict = Depends(get_admin_use
 async def admin_reopen_ticket(ticket_id: int, admin: dict = Depends(get_admin_user)):
     """Reopen a ticket"""
     await execute_write(
-        "UPDATE admin_tickets SET status = 'open', updated_at = datetime('now') WHERE id = ?",
-        (ticket_id,)
+        "UPDATE admin_tickets SET status = 'open', updated_at = ? WHERE id = ?",
+        (datetime.utcnow().isoformat(), ticket_id)
     )
     await log_admin_action(admin["id"], "ticket_reopen", f"Reopened ticket {ticket_id}")
     return {"success": True}

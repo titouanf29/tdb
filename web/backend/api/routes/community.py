@@ -86,10 +86,12 @@ async def send_chat_message(
         raise HTTPException(status_code=400, detail="Message too long (max 1000 characters)")
 
     # Check for spam (max 5 messages per minute)
-    recent = await execute_query("""
-        SELECT COUNT(*) as count FROM community_messages
-        WHERE user_id = ? AND created_at > datetime('now', '-1 minute')
-    """, (user_id,))
+    from datetime import timedelta
+    _1min_ago = (datetime.utcnow() - timedelta(minutes=1)).isoformat()
+    recent = await execute_query(
+        "SELECT COUNT(*) as count FROM community_messages WHERE user_id = ? AND created_at > ?",
+        (user_id, _1min_ago)
+    )
 
     if recent and recent[0]["count"] >= 5:
         raise HTTPException(status_code=429, detail="Too many messages. Please wait a moment.")
@@ -97,8 +99,8 @@ async def send_chat_message(
     # Insert message
     await execute_write("""
         INSERT INTO community_messages (user_id, content, reply_to, created_at, is_deleted)
-        VALUES (?, ?, ?, datetime('now'), 0)
-    """, (user_id, content, request.reply_to))
+        VALUES (?, ?, ?, ?, 0)
+    """, (user_id, content, request.reply_to, datetime.utcnow().isoformat()))
 
     # Get the inserted message
     new_message = await execute_query("""
@@ -165,8 +167,8 @@ async def like_message(
     else:
         # Like
         await execute_write(
-            "INSERT INTO community_message_likes (message_id, user_id, created_at) VALUES (?, ?, datetime('now'))",
-            (message_id, user_id)
+            "INSERT INTO community_message_likes (message_id, user_id, created_at) VALUES (?, ?, ?)",
+            (message_id, user_id, datetime.utcnow().isoformat())
         )
         return {"liked": True}
 
@@ -175,10 +177,12 @@ async def like_message(
 async def get_online_count(current_user: dict = Depends(get_current_user)):
     """Get approximate online users count"""
     # Count users active in last 5 minutes
-    result = await execute_query("""
-        SELECT COUNT(DISTINCT user_id) as count FROM community_messages
-        WHERE created_at > datetime('now', '-5 minutes')
-    """)
+    from datetime import timedelta
+    _5min_ago = (datetime.utcnow() - timedelta(minutes=5)).isoformat()
+    result = await execute_query(
+        "SELECT COUNT(DISTINCT user_id) as count FROM community_messages WHERE created_at > ?",
+        (_5min_ago,)
+    )
 
     # Also count from last_seen if we track it
     online = result[0]["count"] if result else 0
@@ -211,8 +215,8 @@ async def contact_admin(
         # Add to existing ticket
         await execute_write("""
             INSERT INTO admin_ticket_messages (ticket_id, user_id, message, is_admin, created_at)
-            VALUES (?, ?, ?, 0, datetime('now'))
-        """, (existing[0]["id"], user_id, f"[{request.subject}]\n\n{request.message}"))
+            VALUES (?, ?, ?, 0, ?)
+        """, (existing[0]["id"], user_id, f"[{request.subject}]\n\n{request.message}", datetime.utcnow().isoformat()))
 
         return {
             "success": True,
@@ -221,10 +225,11 @@ async def contact_admin(
         }
 
     # Create new ticket
+    _now = datetime.utcnow().isoformat()
     await execute_write("""
         INSERT INTO admin_tickets (user_id, subject, status, created_at, updated_at)
-        VALUES (?, ?, 'open', datetime('now'), datetime('now'))
-    """, (user_id, request.subject))
+        VALUES (?, ?, 'open', ?, ?)
+    """, (user_id, request.subject, _now, _now))
 
     # Get ticket ID
     ticket = await execute_query(
@@ -235,8 +240,8 @@ async def contact_admin(
     if ticket:
         await execute_write("""
             INSERT INTO admin_ticket_messages (ticket_id, user_id, message, is_admin, created_at)
-            VALUES (?, ?, ?, 0, datetime('now'))
-        """, (ticket[0]["id"], user_id, request.message))
+            VALUES (?, ?, ?, 0, ?)
+        """, (ticket[0]["id"], user_id, request.message, datetime.utcnow().isoformat()))
 
         username = current_user.get("username") or current_user.get("email", "Utilisateur")
         await create_admin_notification(
@@ -328,15 +333,16 @@ async def reply_to_ticket(
     if ticket[0]["user_id"] != user_id and not is_admin:
         raise HTTPException(status_code=403, detail="Access denied")
 
+    _now = datetime.utcnow().isoformat()
     await execute_write("""
         INSERT INTO admin_ticket_messages (ticket_id, user_id, message, is_admin, created_at)
-        VALUES (?, ?, ?, ?, datetime('now'))
-    """, (ticket_id, user_id, request.content, 1 if is_admin else 0))
+        VALUES (?, ?, ?, ?, ?)
+    """, (ticket_id, user_id, request.content, 1 if is_admin else 0, _now))
 
     # Update ticket
     await execute_write(
-        "UPDATE admin_tickets SET updated_at = datetime('now') WHERE id = ?",
-        (ticket_id,)
+        "UPDATE admin_tickets SET updated_at = ? WHERE id = ?",
+        (_now, ticket_id)
     )
 
     return {"success": True}
@@ -378,8 +384,8 @@ async def admin_close_ticket(
 ):
     """Close a support ticket"""
     await execute_write(
-        "UPDATE admin_tickets SET status = 'closed', updated_at = datetime('now') WHERE id = ?",
-        (ticket_id,)
+        "UPDATE admin_tickets SET status = 'closed', updated_at = ? WHERE id = ?",
+        (datetime.utcnow().isoformat(), ticket_id)
     )
     return {"success": True}
 
@@ -391,7 +397,7 @@ async def admin_reopen_ticket(
 ):
     """Reopen a support ticket"""
     await execute_write(
-        "UPDATE admin_tickets SET status = 'open', updated_at = datetime('now') WHERE id = ?",
-        (ticket_id,)
+        "UPDATE admin_tickets SET status = 'open', updated_at = ? WHERE id = ?",
+        (datetime.utcnow().isoformat(), ticket_id)
     )
     return {"success": True}

@@ -7,9 +7,12 @@ import sys
 from pathlib import Path
 from contextlib import asynccontextmanager
 
+import traceback
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.exceptions import RequestValidationError
+from starlette.exceptions import HTTPException as StarletteHTTPException
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
@@ -85,6 +88,17 @@ async def security_headers(request: Request, call_next):
     if IS_PRODUCTION:
         response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
     return response
+
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    """Catch all unhandled exceptions and return JSON instead of plain text."""
+    print(f"[ERROR] Unhandled exception on {request.method} {request.url.path}: {type(exc).__name__}: {exc}")
+    traceback.print_exc()
+    return JSONResponse(
+        status_code=500,
+        content={"detail": f"{type(exc).__name__}: {str(exc)}"}
+    )
 
 
 # Make limiter available to routers via app state

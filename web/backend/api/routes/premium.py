@@ -335,8 +335,8 @@ async def contact_for_premium(
     # Create request
     await execute_write("""
         INSERT INTO premium_requests (user_id, message, status, created_at)
-        VALUES (?, ?, 'pending', datetime('now'))
-    """, (current_user["id"], request.message))
+        VALUES (?, ?, 'pending', ?)
+    """, (current_user["id"], request.message, datetime.utcnow().isoformat()))
 
     await create_admin_notification(
         type="premium_request",
@@ -424,9 +424,9 @@ async def process_premium_request(
 
     await execute_write("""
         UPDATE premium_requests
-        SET status = ?, admin_response = ?, processed_at = datetime('now'), processed_by = ?
+        SET status = ?, admin_response = ?, processed_at = ?, processed_by = ?
         WHERE id = ?
-    """, (data.status, data.response, admin["id"], data.request_id))
+    """, (data.status, data.response, datetime.utcnow().isoformat(), admin["id"], data.request_id))
 
     await log_admin_action(
         admin["id"],
@@ -457,9 +457,9 @@ async def grant_premium(
 
         await execute_write("""
             UPDATE web_users
-            SET is_premium = 1, premium_since = datetime('now'), premium_expires = ?
+            SET is_premium = 1, premium_since = ?, premium_expires = ?
             WHERE id = ?
-        """, (expires, data.user_id))
+        """, (datetime.utcnow().isoformat(), expires, data.user_id))
 
         await log_admin_action(
             admin["id"],
