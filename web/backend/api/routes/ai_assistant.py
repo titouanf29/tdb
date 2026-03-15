@@ -248,8 +248,8 @@ async def get_ai_limit(current_user: dict = Depends(get_current_user)):
 @router.post("/chat", response_model=ChatResponse)
 @limiter.limit("5/minute")
 async def chat_with_assistant(
-    http_request: Request,
-    request: ChatRequest,
+    request: Request,
+    body: ChatRequest,
     current_user: dict = Depends(get_current_user)
 ):
     """Send a message to the AI assistant"""
@@ -290,10 +290,10 @@ async def chat_with_assistant(
         messages = [{"role": "system", "content": SYSTEM_PROMPT}]
 
         # Add optional context
-        if request.context:
+        if body.context:
             messages.append({
                 "role": "system",
-                "content": f"Contexte actuel du marché:\n{request.context}"
+                "content": f"Contexte actuel du marché:\n{body.context}"
             })
 
         # Add conversation history
@@ -301,7 +301,7 @@ async def chat_with_assistant(
             messages.append({"role": msg["role"], "content": msg["content"]})
 
         # Add new user message
-        messages.append({"role": "user", "content": request.message})
+        messages.append({"role": "user", "content": body.message})
 
         async with httpx.AsyncClient(timeout=60.0) as client:
             response = await client.post(
@@ -335,7 +335,7 @@ async def chat_with_assistant(
             await execute_write(
                 """INSERT INTO web_ai_chat (user_id, role, content, created_at)
                    VALUES (?, 'user', ?, ?)""",
-                (user_id, request.message, now)
+                (user_id, body.message, now)
             )
             await execute_write(
                 """INSERT INTO web_ai_chat (user_id, role, content, created_at)
