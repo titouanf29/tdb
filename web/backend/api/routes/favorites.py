@@ -1,7 +1,6 @@
 """
 Favorites/Watchlist routes
 """
-import asyncio
 from datetime import datetime
 from typing import List
 from fastapi import APIRouter, HTTPException, Depends
@@ -23,35 +22,11 @@ def get_user_id(user: dict) -> int:
     return user.get("id")
 
 
-async def _fetch_price(symbol: str, added_at: str) -> dict:
-    """Fetch live price for a symbol via yfinance in a thread."""
-    import yfinance as yf
-    try:
-        hist = await asyncio.get_event_loop().run_in_executor(
-            None, lambda: yf.Ticker(symbol).history(period="5d")
-        )
-        if len(hist) >= 2:
-            current_price = float(hist['Close'].iloc[-1])
-            prev_price = float(hist['Close'].iloc[-2])
-            change = ((current_price - prev_price) / prev_price) * 100
-        elif len(hist) == 1:
-            current_price = float(hist['Close'].iloc[-1])
-            change = 0.0
-        else:
-            return {"symbol": symbol, "price": 0, "change": 0, "added_at": added_at, "error": True}
-        return {
-            "symbol": symbol,
-            "price": round(current_price, 2),
-            "change": round(change, 2),
-            "added_at": added_at
-        }
-    except Exception:
-        return {"symbol": symbol, "price": 0, "change": 0, "added_at": added_at, "error": True}
-
-
 @router.get("")
 async def get_favorites(current_user: dict = Depends(get_current_user)):
-    """Get user's favorites with live prices (parallel fetching)"""
+    """Get user's favorites with live prices via Polygon.io + Twelve Data."""
+    from ._prices import fetch_prices
+
     user_id = get_user_id(current_user)
 
     favorites = await execute_query(
@@ -64,11 +39,22 @@ async def get_favorites(current_user: dict = Depends(get_current_user)):
     if not favorites:
         return {"favorites": []}
 
-    # Fetch all prices in parallel
-    results = await asyncio.gather(*[
-        _fetch_price(fav["symbol"], fav["added_at"]) for fav in favorites
-    ])
-    return {"favorites": list(results)}
+    symbols = [f["symbol"] for f in favorites]
+    prices = await fetch_prices(symbols)
+
+    results = []
+    for fav in favorites:
+        sym = fav["symbol"]
+        p = prices.get(sym, {})
+        results.append({
+            "symbol": sym,
+            "price": p.get("price", 0),
+            "change": p.get("change", 0),
+            "volume": p.get("volume", 0),
+            "added_at": fav["added_at"],
+        })
+
+    return {"favorites": results}
 
 
 import re as _re

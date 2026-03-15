@@ -90,33 +90,25 @@ async def get_positions(
         (user_id, status)
     )
 
-    # Update current prices for open positions
-    if status == "open":
-        import yfinance as yf
+    # Update current prices for open positions via Polygon.io + Twelve Data
+    if status == "open" and positions:
+        from ._prices import fetch_prices as fetch_prices_safe
+        symbols = list({pos["symbol"] for pos in positions})
+        prices = await fetch_prices_safe(symbols)
         for pos in positions:
-            try:
-                ticker = yf.Ticker(pos["symbol"])
-                current_price = ticker.fast_info.last_price or 0
-
-                # Calculate P&L
-                entry_price = pos["entry_price"]
-                quantity = pos["quantity"]
-                direction = pos["direction"]
-
-                if direction == "LONG":
-                    pnl = (current_price - entry_price) * quantity
-                else:
-                    pnl = (entry_price - current_price) * quantity
-
-                pnl_percent = (pnl / (entry_price * quantity)) * 100 if entry_price else 0
-
-                pos["current_price"] = round(current_price, 2)
-                pos["unrealized_pnl"] = round(pnl, 2)
-                pos["pnl_percent"] = round(pnl_percent, 2)
-            except Exception:
-                pos["current_price"] = pos["entry_price"]
-                pos["unrealized_pnl"] = 0
-                pos["pnl_percent"] = 0
+            p = prices.get(pos["symbol"])
+            current_price = p["price"] if p else pos.get("entry_price", 0)
+            entry_price = pos["entry_price"]
+            quantity = pos["quantity"]
+            direction = pos["direction"]
+            if current_price and entry_price:
+                pnl = (current_price - entry_price) * quantity if direction == "LONG" else (entry_price - current_price) * quantity
+                pnl_percent = (pnl / (entry_price * quantity)) * 100
+            else:
+                pnl, pnl_percent = 0, 0
+            pos["current_price"] = round(current_price, 2)
+            pos["unrealized_pnl"] = round(pnl, 2)
+            pos["pnl_percent"] = round(pnl_percent, 2)
 
     return {"positions": positions}
 
