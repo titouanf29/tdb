@@ -522,34 +522,64 @@ async def get_market_info(market_key: str):
     }
 
 
-def _fetch_symbol(symbol: str) -> dict:
-    """Fetch live data for a single symbol (runs in thread pool)."""
+def _batch_fetch(symbols: list) -> list:
+    """Fetch live data for a batch of symbols via a single yf.download() call."""
     import yfinance as yf
+    import pandas as pd
+
+    if not symbols:
+        return []
+
     try:
-        ticker = yf.Ticker(symbol)
-        hist = ticker.history(period="2d")
-        if len(hist) >= 2:
-            current_price = float(hist['Close'].iloc[-1])
-            prev_price = float(hist['Close'].iloc[-2])
-            change = ((current_price - prev_price) / prev_price) * 100
-            volume = int(hist['Volume'].iloc[-1])
-        elif len(hist) == 1:
-            current_price = float(hist['Close'].iloc[-1])
-            change = 0.0
-            volume = int(hist['Volume'].iloc[-1])
-        else:
-            info = ticker.fast_info
-            current_price = float(getattr(info, 'last_price', 0) or 0)
-            change = 0.0
-            volume = 0
-        return {
-            "symbol": symbol,
-            "price": round(current_price, 4),
-            "change": round(change, 2),
-            "volume": volume,
-        }
+        raw = yf.download(
+            tickers=symbols,
+            period="2d",
+            auto_adjust=True,
+            progress=False,
+            threads=True,
+        )
     except Exception:
-        return {"symbol": symbol, "price": 0, "change": 0, "volume": 0, "error": True}
+        return [{"symbol": s, "price": 0, "change": 0, "volume": 0, "error": True} for s in symbols]
+
+    results = []
+    for symbol in symbols:
+        try:
+            # yf.download returns a flat DataFrame for one ticker, MultiIndex for many
+            if len(symbols) == 1:
+                hist = raw
+            else:
+                lvl0 = raw.columns.get_level_values(0)
+                if symbol in lvl0:
+                    hist = raw[symbol]
+                else:
+                    hist = pd.DataFrame()
+
+            hist = hist.dropna(subset=["Close"])
+
+            if len(hist) >= 2:
+                current_price = float(hist["Close"].iloc[-1])
+                prev_price = float(hist["Close"].iloc[-2])
+                change = ((current_price - prev_price) / prev_price) * 100
+                volume = int(hist["Volume"].iloc[-1])
+            elif len(hist) == 1:
+                current_price = float(hist["Close"].iloc[-1])
+                change = 0.0
+                volume = int(hist["Volume"].iloc[-1])
+            else:
+                current_price = 0.0
+                change = 0.0
+                volume = 0
+
+            results.append({
+                "symbol": symbol,
+                "price": round(current_price, 4),
+                "change": round(change, 2),
+                "volume": volume,
+            })
+        except Exception:
+            results.append({"symbol": symbol, "price": 0, "change": 0, "volume": 0, "error": True})
+
+    return results
 
 
 @router.get("/{market_key}/assets")
@@ -558,9 +588,8 @@ async def get_market_assets(
     limit: int = Query(default=20, le=100),
     offset: int = Query(default=0, ge=0)
 ):
-    """Get assets for a market with live prices (parallel fetching)."""
+    """Get assets for a market via a single batch yf.download() call."""
     import asyncio
-    from concurrent.futures import ThreadPoolExecutor
 
     market_key = market_key.upper()
     if market_key not in MARKETS:
@@ -574,11 +603,9 @@ async def get_market_assets(
         return {"assets": [], "total": total, "offset": offset, "limit": limit}
 
     loop = asyncio.get_running_loop()
-    with ThreadPoolExecutor(max_workers=min(len(batch), 10)) as executor:
-        tasks = [loop.run_in_executor(executor, _fetch_symbol, sym) for sym in batch]
-        result = await asyncio.gather(*tasks)
+    result = await loop.run_in_executor(None, _batch_fetch, batch)
 
-    return {"assets": list(result), "total": total, "offset": offset, "limit": limit}
+    return {"assets": result, "total": total, "offset": offset, "limit": limit}
 
 
 @router.get("/quote/{symbol}")
