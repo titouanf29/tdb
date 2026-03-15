@@ -16,7 +16,12 @@ import {
   Headphones,
   Sparkles,
   Loader2,
+  Send,
+  MessageSquare,
+  CheckCircle,
+  Clock,
 } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import { usePremium } from "@/lib/PremiumContext";
 import { premiumAPI, PremiumFeatures, PremiumRequest } from "@/lib/api";
@@ -36,6 +41,10 @@ export default function PremiumPage() {
   const { isPremium, isAdmin, premiumInfo } = usePremium();
   const [features, setFeatures] = useState<PremiumFeatures | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [message, setMessage] = useState("");
+  const [isSending, setIsSending] = useState(false);
+  const [sendSuccess, setSendSuccess] = useState(false);
+  const [myRequests, setMyRequests] = useState<PremiumRequest[]>([]);
 
   useEffect(() => {
     loadData();
@@ -43,12 +52,31 @@ export default function PremiumPage() {
 
   const loadData = async () => {
     try {
-      const featuresData = await premiumAPI.getFeatures();
+      const [featuresData, requestsData] = await Promise.all([
+        premiumAPI.getFeatures(),
+        premiumAPI.getMyRequests().catch(() => ({ requests: [] })),
+      ]);
       setFeatures(featuresData);
+      setMyRequests(requestsData.requests);
     } catch (error) {
       console.error("Error loading premium data:", error);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleContact = async () => {
+    if (!message.trim()) return;
+    setIsSending(true);
+    try {
+      await premiumAPI.contact(message);
+      setSendSuccess(true);
+      setMessage("");
+      loadData();
+    } catch (error: any) {
+      alert(error.message || "Erreur lors de l'envoi");
+    } finally {
+      setIsSending(false);
     }
   };
 
@@ -273,27 +301,105 @@ export default function PremiumPage() {
         })}
       </motion.div>
 
-      {/* Stripe Checkout Section */}
+      {/* Contact Section */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.4 }}
         className="glass-card p-8"
       >
-        <div className="max-w-lg mx-auto text-center">
-          <div className="inline-flex items-center gap-3 bg-gradient-to-r from-yellow-500/20 to-orange-500/20 border border-yellow-500/30 rounded-2xl px-8 py-4 mb-6">
-            <Crown className="w-8 h-8 text-yellow-400" />
-            <div className="text-left">
-              <p className="text-2xl font-bold text-yellow-400">5€ <span className="text-base font-normal text-muted-foreground">/ mois</span></p>
-              <p className="text-sm text-muted-foreground">Résiliable à tout moment</p>
+        <div className="max-w-2xl mx-auto">
+          <div className="text-center mb-6">
+            <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-r from-yellow-500/20 to-orange-500/20 flex items-center justify-center">
+              <MessageSquare className="w-8 h-8 text-yellow-400" />
             </div>
+            <h2 className="text-2xl font-bold mb-2">Obtenir Premium</h2>
+            <p className="text-muted-foreground">
+              Envoyez un message pour obtenir votre accès Premium à <span className="text-yellow-400 font-semibold">5€ / mois</span>. Un admin vous répondra rapidement.
+            </p>
           </div>
-          <h2 className="text-2xl font-bold mb-3">Bientôt disponible</h2>
-          <p className="text-muted-foreground">
-            Le paiement en ligne arrive très prochainement. En attendant, contactez-nous directement pour obtenir votre accès Premium.
-          </p>
+
+          {sendSuccess ? (
+            <div className="p-6 rounded-xl bg-green-500/20 border border-green-500/30 text-center">
+              <CheckCircle className="w-12 h-12 text-green-500 mx-auto mb-4" />
+              <h3 className="text-lg font-semibold mb-2">Message envoyé !</h3>
+              <p className="text-muted-foreground">Un administrateur vous contactera bientôt.</p>
+              <button onClick={() => setSendSuccess(false)} className="mt-4 text-sm text-primary hover:underline">
+                Envoyer un autre message
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <textarea
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                placeholder="Bonjour, je suis intéressé par l'offre Premium..."
+                className="w-full h-32 px-4 py-3 rounded-xl bg-white/5 border border-white/10 focus:border-primary focus:outline-none resize-none"
+              />
+              <button
+                onClick={handleContact}
+                disabled={isSending || !message.trim()}
+                className="w-full btn-primary flex items-center justify-center gap-2 py-3"
+              >
+                {isSending ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
+                Envoyer ma demande
+              </button>
+            </div>
+          )}
         </div>
       </motion.div>
+
+      {/* My Requests */}
+      {myRequests.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.5 }}
+          className="glass-card p-6"
+        >
+          <h2 className="text-lg font-bold mb-4">Mes demandes</h2>
+          <div className="space-y-3">
+            {myRequests.map((req) => (
+              <div
+                key={req.id}
+                className={cn(
+                  "p-4 rounded-xl border",
+                  req.status === "pending"
+                    ? "bg-yellow-500/10 border-yellow-500/30"
+                    : req.status === "approved"
+                    ? "bg-green-500/10 border-green-500/30"
+                    : "bg-red-500/10 border-red-500/30"
+                )}
+              >
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex-1">
+                    <p className="text-sm mb-2">{req.message}</p>
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <Clock className="w-3 h-3" />
+                      {new Date(req.created_at).toLocaleDateString("fr-FR")}
+                    </div>
+                  </div>
+                  <div>
+                    {req.status === "pending" ? (
+                      <span className="px-2 py-1 rounded-full text-xs bg-yellow-500/20 text-yellow-400">En attente</span>
+                    ) : req.status === "approved" ? (
+                      <span className="px-2 py-1 rounded-full text-xs bg-green-500/20 text-green-400">Approuvé</span>
+                    ) : (
+                      <span className="px-2 py-1 rounded-full text-xs bg-red-500/20 text-red-400">Refusé</span>
+                    )}
+                  </div>
+                </div>
+                {req.admin_response && (
+                  <div className="mt-3 pt-3 border-t border-white/10">
+                    <p className="text-xs text-muted-foreground mb-1">Réponse admin :</p>
+                    <p className="text-sm">{req.admin_response}</p>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </motion.div>
+      )}
 
     </div>
   );
