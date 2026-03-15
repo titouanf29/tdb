@@ -200,10 +200,13 @@ async def chat_with_assistant(
             )
 
             if response.status_code != 200:
-                raise HTTPException(
-                    status_code=response.status_code,
-                    detail=f"AI API error: {response.text}"
-                )
+                print(f"[AI] Groq API error {response.status_code}: {response.text[:200]}")
+                if response.status_code == 401:
+                    raise HTTPException(status_code=503, detail="Cle API Groq invalide. Verifiez GROQ_API_KEY.")
+                elif response.status_code == 429:
+                    raise HTTPException(status_code=429, detail="Limite Groq atteinte. Reessayez dans quelques secondes.")
+                else:
+                    raise HTTPException(status_code=502, detail=f"Erreur IA ({response.status_code}): {response.text[:200]}")
 
             data = response.json()
             assistant_message = data["choices"][0]["message"]["content"]

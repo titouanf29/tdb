@@ -1973,11 +1973,17 @@ function AIInsightSection({
     try {
       await onReload();
     } catch (err: any) {
-      // Check if it's an API configuration error
-      if (err.message?.includes("not configured") || err.message?.includes("API_KEY")) {
-        setError("L'assistant IA n'est pas configure. Contactez l'administrateur pour configurer la cle API GROQ.");
+      const msg: string = err.message || "";
+      if (msg.includes("not configured") || msg.includes("API_KEY") || msg.includes("GROQ")) {
+        setError("L'assistant IA n'est pas configure. Contactez l'administrateur.");
+      } else if (msg.includes("503") || err.status === 503) {
+        setError("L'assistant IA n'est pas disponible. Verifiez la configuration GROQ_API_KEY.");
+      } else if (msg.includes("429") || err.status === 429) {
+        setError("Limite de messages atteinte. Reessayez dans quelques minutes.");
+      } else if (msg.includes("timeout") || msg.includes("504")) {
+        setError("L'analyse a pris trop de temps. Reessayez.");
       } else {
-        setError(err.message || "Erreur lors de la generation de l'analyse");
+        setError(msg || "Erreur lors de la generation de l'analyse. Verifiez que GROQ_API_KEY est configure.");
       }
     }
   };

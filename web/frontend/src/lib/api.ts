@@ -47,8 +47,9 @@ async function fetchAPI<T>(
   }
 
   if (!response.ok) {
-    const error = await response.json().catch(() => ({ detail: "API Error" }));
-    const detail = error.detail;
+    const rawText = await response.text().catch(() => "");
+    let detail: any = null;
+    try { detail = JSON.parse(rawText).detail; } catch {}
     let message: string;
     if (typeof detail === "string") {
       message = detail;
@@ -56,8 +57,12 @@ async function fetchAPI<T>(
       message = detail.map((e: any) => e.msg || JSON.stringify(e)).join("; ");
     } else if (detail && typeof detail === "object") {
       message = (detail as any).message || JSON.stringify(detail);
+    } else if (rawText) {
+      // Non-JSON response (HTML error page, plain text, etc.)
+      message = `Erreur serveur (${response.status})`;
+      console.error(`[API] Non-JSON response for ${endpoint}:`, rawText.slice(0, 200));
     } else {
-      message = "Request failed";
+      message = `Erreur serveur (${response.status})`;
     }
     throw new APIError(message, response.status);
   }
