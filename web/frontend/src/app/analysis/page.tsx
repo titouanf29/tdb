@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { motion } from "framer-motion";
@@ -66,6 +67,8 @@ export default function AnalysisPage() {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
   const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const searchContainerRef = useRef<HTMLDivElement>(null);
+  const [dropdownRect, setDropdownRect] = useState<DOMRect | null>(null);
   const [timeframe, setTimeframe] = useState("1d");
   const [analysis, setAnalysis] = useState<Analysis | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -111,6 +114,9 @@ export default function AnalysisPage() {
       if (res.ok) {
         const data = await res.json();
         setSuggestions(data.results || []);
+        if (searchContainerRef.current) {
+          setDropdownRect(searchContainerRef.current.getBoundingClientRect());
+        }
         setShowSuggestions(true);
       }
     } catch { /* ignore */ } finally {
@@ -324,7 +330,7 @@ Sois precis, factuel et professionnel. Utilise des emojis pour rendre l'analyse 
       <div className="glass-card p-6">
         <h2 className="text-lg font-semibold mb-4">Analyse IA</h2>
         <div className="flex flex-col md:flex-row gap-3">
-          <div className="flex-1 relative">
+          <div className="flex-1 relative" ref={searchContainerRef}>
             {isSearching
               ? <Loader2 className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground animate-spin" />
               : <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
@@ -333,7 +339,12 @@ Sois precis, factuel et professionnel. Utilise des emojis pour rendre l'analyse 
               type="text"
               value={searchQuery}
               onChange={(e) => handleQueryChange(e.target.value)}
-              onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
+              onFocus={() => {
+                if (suggestions.length > 0) {
+                  if (searchContainerRef.current) setDropdownRect(searchContainerRef.current.getBoundingClientRect());
+                  setShowSuggestions(true);
+                }
+              }}
               onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
               placeholder="Symbole ou nom (ex: AAPL, Air Liquide, Bitcoin…)"
               className="w-full input pl-11 text-lg"
@@ -342,9 +353,17 @@ Sois precis, factuel et professionnel. Utilise des emojis pour rendre l'analyse 
                 if (e.key === "Escape") setShowSuggestions(false);
               }}
             />
-            {/* Suggestions dropdown */}
-            {showSuggestions && suggestions.length > 0 && (
-              <div className="absolute top-full left-0 right-0 mt-1 z-50 glass-card border border-white/10 rounded-xl overflow-hidden shadow-2xl">
+            {/* Suggestions dropdown — rendu via portal pour passer au-dessus de tous les stacking contexts */}
+            {showSuggestions && suggestions.length > 0 && dropdownRect && typeof document !== "undefined" && createPortal(
+              <div
+                style={{
+                  position: "fixed",
+                  top: dropdownRect.bottom + 4,
+                  left: dropdownRect.left,
+                  width: dropdownRect.width,
+                  zIndex: 9999,
+                }}
+                className="glass-card border border-white/10 rounded-xl overflow-hidden shadow-2xl">
                 {suggestions.map((s) => (
                   <button
                     key={s.symbol}
@@ -361,7 +380,8 @@ Sois precis, factuel et professionnel. Utilise des emojis pour rendre l'analyse 
                     </div>
                   </button>
                 ))}
-              </div>
+              </div>,
+              document.body
             )}
           </div>
           <select
