@@ -354,7 +354,7 @@ export default function AnalysisPage() {
                   <option value="crypto">Crypto-monnaie</option>
                   <option value="etf">ETF</option>
                   <option value="forex">Forex</option>
-                  <option value="commodity">Matiere premiere</option>
+                  <option value="commodity">Matière première</option>
                   <option value="index">Indice</option>
                 </select>
               </div>
@@ -997,12 +997,12 @@ function DetailedAnalysis({ analysis, formatCurrency }: { analysis: Analysis; fo
       interpretation: [
         { condition: "RSI < 30", meaning: "Zone de survente - Signal d'achat potentiel" },
         { condition: "RSI > 70", meaning: "Zone de surachat - Signal de vente potentiel" },
-        { condition: "RSI ~ 50", meaning: "Zone neutre - Pas de signal extreme" }
+        { condition: "RSI ~ 50", meaning: "Zone neutre - Pas de signal extrême" }
       ],
       advanced: [
         "Les divergences RSI/Prix sont des signaux tres fiables",
         "En tendance forte, utilisez 80/20 au lieu de 70/30",
-        "Le RSI peut rester en zone extreme longtemps en tendance"
+        "Le RSI peut rester en zone extrême longtemps en tendance"
       ],
       tips: "Ne jamais trader uniquement sur les niveaux 30/70. Confirmez toujours avec la tendance generale."
     },
@@ -1012,16 +1012,16 @@ function DetailedAnalysis({ analysis, formatCurrency }: { analysis: Analysis; fo
       basics: [
         "Le MACD montre la relation entre deux moyennes mobiles exponentielles",
         "Compose de: Ligne MACD, Ligne Signal, Histogramme",
-        "Cree par Gerald Appel en 1979"
+        "Créé par Gerald Appel en 1979"
       ],
       interpretation: [
         { condition: "MACD > Signal", meaning: "Signal haussier - Momentum positif" },
-        { condition: "MACD < Signal", meaning: "Signal baissier - Momentum negatif" },
-        { condition: "MACD > 0", meaning: "Tendance haussiere dominante" }
+        { condition: "MACD < Signal", meaning: "Signal baissier - Momentum négatif" },
+        { condition: "MACD > 0", meaning: "Tendance haussière dominante" }
       ],
       advanced: [
-        "Les croisements de la ligne zero sont plus significatifs",
-        "L'histogramme predit souvent les croisements a venir",
+        "Les croisements de la ligne zéro sont plus significatifs",
+        "L'histogramme prédit souvent les croisements à venir",
         "Les divergences MACD/Prix precedent les retournements"
       ],
       tips: "L'histogramme est predictif - quand il diminue, le croisement approche. Surveillez-le!"
@@ -1031,7 +1031,7 @@ function DetailedAnalysis({ analysis, formatCurrency }: { analysis: Analysis; fo
       formula: "Bande Haute = SMA(20) + 2σ | Bande Basse = SMA(20) - 2σ",
       basics: [
         "Les bandes encadrent le prix avec des niveaux de deviation standard",
-        "Elles s'adaptent automatiquement a la volatilite",
+        "Elles s'adaptent automatiquement à la volatilité",
         "95% du temps, le prix reste dans les bandes"
       ],
       interpretation: [
@@ -1050,7 +1050,7 @@ function DetailedAnalysis({ analysis, formatCurrency }: { analysis: Analysis; fo
       title: "Analyse du Volume",
       formula: "Volume Ratio = Volume Actuel / Moyenne Volume (20 periodes)",
       basics: [
-        "Le volume mesure l'activite et l'interet du marche",
+        "Le volume mesure l'activité et l'intérêt du marché",
         "Un mouvement avec volume est plus fiable",
         "Le volume confirme ou infirme les mouvements de prix"
       ],
@@ -1072,17 +1072,17 @@ function DetailedAnalysis({ analysis, formatCurrency }: { analysis: Analysis; fo
       basics: [
         "Les EMAs donnent plus de poids aux prix recents",
         "EMA20 pour le court terme, EMA50 pour le moyen terme",
-        "Prix > EMAs = Tendance haussiere | Prix < EMAs = Tendance baissiere"
+        "Prix > EMAs = Tendance haussière | Prix < EMAs = Tendance baissière"
       ],
       interpretation: [
-        { condition: "Prix > EMA20 > EMA50", meaning: "Tendance haussiere forte" },
-        { condition: "Prix < EMA20 < EMA50", meaning: "Tendance baissiere forte" },
+        { condition: "Prix > EMA20 > EMA50", meaning: "Tendance haussière forte" },
+        { condition: "Prix < EMA20 < EMA50", meaning: "Tendance baissière forte" },
         { condition: "EMAs entremelees", meaning: "Pas de tendance claire (range)" }
       ],
       advanced: [
         "Golden Cross: EMA50 croise EMA200 vers le haut = Signal bullish majeur",
         "Death Cross: EMA50 croise EMA200 vers le bas = Signal bearish majeur",
-        "Les pullbacks vers l'EMA20 sont des opportunites d'entree"
+        "Les pullbacks vers l'EMA20 sont des opportunités d'entrée"
       ],
       tips: "Tradez toujours DANS le sens de la tendance. 'Trend is your friend!'"
     }
@@ -1095,7 +1095,7 @@ function DetailedAnalysis({ analysis, formatCurrency }: { analysis: Analysis; fo
         status: "oversold",
         icon: <CheckCircle className="w-5 h-5 text-profit" />,
         title: "Zone de survente",
-        description: `Le RSI a ${rsi.toFixed(1)} indique que l'actif est survendu. Cela suggere un potentiel rebond haussier. Les acheteurs pourraient bientot reprendre le controle.`,
+        description: `Le RSI à ${rsi.toFixed(1)} indique que l'actif est survendu. Cela suggère un potentiel rebond haussier. Les acheteurs pourraient bientôt reprendre le contrôle.`,
         color: "text-profit",
         bgColor: "bg-profit/10 border-profit/20"
       };
@@ -1104,7 +1104,7 @@ function DetailedAnalysis({ analysis, formatCurrency }: { analysis: Analysis; fo
         status: "overbought",
         icon: <AlertTriangle className="w-5 h-5 text-loss" />,
         title: "Zone de surachat",
-        description: `Le RSI a ${rsi.toFixed(1)} indique que l'actif est surachete. Une correction baissiere est probable. Prudence recommandee pour les nouvelles positions longues.`,
+        description: `Le RSI à ${rsi.toFixed(1)} indique que l'actif est suracheté. Une correction baissière est probable. Prudence recommandée pour les nouvelles positions longues.`,
         color: "text-loss",
         bgColor: "bg-loss/10 border-loss/20"
       };
@@ -1113,7 +1113,7 @@ function DetailedAnalysis({ analysis, formatCurrency }: { analysis: Analysis; fo
         status: "neutral",
         icon: <Activity className="w-5 h-5 text-primary" />,
         title: "Zone neutre",
-        description: `Le RSI a ${rsi.toFixed(1)} se situe dans une zone neutre. Pas de signal extreme de surachat ou de survente. L'actif evolue normalement.`,
+        description: `Le RSI à ${rsi.toFixed(1)} se situe dans une zone neutre. Pas de signal extrême de surachat ou de survente. L'actif évolue normalement.`,
         color: "text-primary",
         bgColor: "bg-primary/10 border-primary/20"
       };
@@ -1129,7 +1129,7 @@ function DetailedAnalysis({ analysis, formatCurrency }: { analysis: Analysis; fo
       return {
         icon: <TrendingUp className="w-5 h-5 text-profit" />,
         title: "Signal haussier",
-        description: `Le MACD (${macd.value.toFixed(4)}) est au-dessus de sa ligne de signal (${macd.signal_line.toFixed(4)}). L'histogramme positif confirme la dynamique haussiere. Bon moment pour considerer des positions longues.`,
+        description: `Le MACD (${macd.value.toFixed(4)}) est au-dessus de sa ligne de signal (${macd.signal_line.toFixed(4)}). L'histogramme positif confirme la dynamique haussière. Bon moment pour considérer des positions longues.`,
         color: "text-profit",
         bgColor: "bg-profit/10 border-profit/20"
       };
@@ -1137,7 +1137,7 @@ function DetailedAnalysis({ analysis, formatCurrency }: { analysis: Analysis; fo
       return {
         icon: <TrendingDown className="w-5 h-5 text-loss" />,
         title: "Signal baissier",
-        description: `Le MACD (${macd.value.toFixed(4)}) est en dessous de sa ligne de signal (${macd.signal_line.toFixed(4)}). L'histogramme negatif indique une pression vendeuse. Prudence recommandee.`,
+        description: `Le MACD (${macd.value.toFixed(4)}) est en dessous de sa ligne de signal (${macd.signal_line.toFixed(4)}). L'histogramme négatif indique une pression vendeuse. Prudence recommandée.`,
         color: "text-loss",
         bgColor: "bg-loss/10 border-loss/20"
       };
@@ -1152,8 +1152,8 @@ function DetailedAnalysis({ analysis, formatCurrency }: { analysis: Analysis; fo
     if (position === "upper") {
       return {
         icon: <AlertTriangle className="w-5 h-5 text-warning" />,
-        title: "Proche de la bande superieure",
-        description: `Le prix (${formatCurrency(price)}) est proche ou au-dessus de la bande superieure (${formatCurrency(bb.upper)}). Cela peut indiquer une surchauffe du marche. Un retour vers la moyenne (${formatCurrency(bb.middle)}) est possible.`,
+        title: "Proche de la bande supérieure",
+        description: `Le prix (${formatCurrency(price)}) est proche ou au-dessus de la bande supérieure (${formatCurrency(bb.upper)}). Cela peut indiquer une surchauffe du marché. Un retour vers la moyenne (${formatCurrency(bb.middle)}) est possible.`,
         color: "text-warning",
         bgColor: "bg-warning/10 border-warning/20"
       };
@@ -1169,7 +1169,7 @@ function DetailedAnalysis({ analysis, formatCurrency }: { analysis: Analysis; fo
       return {
         icon: <Activity className="w-5 h-5 text-primary" />,
         title: "Dans le canal",
-        description: `Le prix (${formatCurrency(price)}) evolue entre les bandes de Bollinger (${formatCurrency(bb.lower)} - ${formatCurrency(bb.upper)}). Le marche est dans une phase normale avec une volatilite moderee.`,
+        description: `Le prix (${formatCurrency(price)}) évolue entre les bandes de Bollinger (${formatCurrency(bb.lower)} - ${formatCurrency(bb.upper)}). Le marché est dans une phase normale avec une volatilité modérée.`,
         color: "text-primary",
         bgColor: "bg-primary/10 border-primary/20"
       };
@@ -1184,16 +1184,16 @@ function DetailedAnalysis({ analysis, formatCurrency }: { analysis: Analysis; fo
     if (trend === "BULLISH") {
       return {
         icon: <TrendingUp className="w-5 h-5 text-profit" />,
-        title: "Tendance haussiere",
-        description: `Le prix (${formatCurrency(price)}) est au-dessus des moyennes mobiles EMA20 (${formatCurrency(ema.ema20)}) et EMA50 (${formatCurrency(ema.ema50)}). La structure du marche est haussiere. Les corrections peuvent etre des opportunites d'achat.`,
+        title: "Tendance haussière",
+        description: `Le prix (${formatCurrency(price)}) est au-dessus des moyennes mobiles EMA20 (${formatCurrency(ema.ema20)}) et EMA50 (${formatCurrency(ema.ema50)}). La structure du marché est haussière. Les corrections peuvent être des opportunités d'achat.`,
         color: "text-profit",
         bgColor: "bg-profit/10 border-profit/20"
       };
     } else if (trend === "BEARISH") {
       return {
         icon: <TrendingDown className="w-5 h-5 text-loss" />,
-        title: "Tendance baissiere",
-        description: `Le prix (${formatCurrency(price)}) est en dessous des moyennes mobiles EMA20 (${formatCurrency(ema.ema20)}) et EMA50 (${formatCurrency(ema.ema50)}). La structure du marche est baissiere. Evitez les positions longues jusqu'a un retournement confirme.`,
+        title: "Tendance baissière",
+        description: `Le prix (${formatCurrency(price)}) est en dessous des moyennes mobiles EMA20 (${formatCurrency(ema.ema20)}) et EMA50 (${formatCurrency(ema.ema50)}). La structure du marché est baissière. Évitez les positions longues jusqu'à un retournement confirmé.`,
         color: "text-loss",
         bgColor: "bg-loss/10 border-loss/20"
       };
@@ -1201,7 +1201,7 @@ function DetailedAnalysis({ analysis, formatCurrency }: { analysis: Analysis; fo
       return {
         icon: <Activity className="w-5 h-5 text-warning" />,
         title: "Tendance neutre / Consolidation",
-        description: `Le prix oscille autour des moyennes mobiles sans direction claire. Le marche est en phase de consolidation. Attendez une cassure nette avant de prendre position.`,
+        description: `Le prix oscille autour des moyennes mobiles sans direction claire. Le marché est en phase de consolidation. Attendez une cassure nette avant de prendre position.`,
         color: "text-warning",
         bgColor: "bg-warning/10 border-warning/20"
       };
@@ -1214,8 +1214,8 @@ function DetailedAnalysis({ analysis, formatCurrency }: { analysis: Analysis; fo
     if (ratio > 1.5) {
       return {
         icon: <BarChart3 className="w-5 h-5 text-profit" />,
-        title: "Volume eleve",
-        description: `Le volume actuel est ${ratio.toFixed(2)}x superieur a la moyenne. Un fort volume confirme la validite du mouvement en cours. Les mouvements avec volume sont plus fiables.`,
+        title: "Volume élevé",
+        description: `Le volume actuel est ${ratio.toFixed(2)}x supérieur à la moyenne. Un fort volume confirme la validité du mouvement en cours. Les mouvements avec volume sont plus fiables.`,
         color: "text-profit",
         bgColor: "bg-profit/10 border-profit/20"
       };
@@ -1231,7 +1231,7 @@ function DetailedAnalysis({ analysis, formatCurrency }: { analysis: Analysis; fo
       return {
         icon: <BarChart3 className="w-5 h-5 text-primary" />,
         title: "Volume normal",
-        description: `Le volume actuel (${ratio.toFixed(2)}x la moyenne) est dans la norme. L'activite du marche est standard sans exces ni manque de liquidite.`,
+        description: `Le volume actuel (${ratio.toFixed(2)}x la moyenne) est dans la norme. L'activité du marché est standard sans excès ni manque de liquidité.`,
         color: "text-primary",
         bgColor: "bg-primary/10 border-primary/20"
       };
@@ -1647,19 +1647,19 @@ function DetailedAnalysis({ analysis, formatCurrency }: { analysis: Analysis; fo
       <div className="mt-6 p-4 bg-white/5 rounded-xl border border-white/10">
         <h4 className="font-semibold mb-2 flex items-center gap-2">
           <Gauge className="w-4 h-4 text-primary" />
-          Resume de l'analyse
+          Résumé de l'analyse
         </h4>
         <p className="text-sm text-muted-foreground">
           {analysis.score.total >= 75 ? (
             <>L'ensemble des indicateurs techniques convergent vers un signal <span className="text-profit font-semibold">fortement haussier</span>. Les conditions sont favorables pour une prise de position longue avec un ratio risque/rendement de 1:{analysis.risk.risk_reward}.</>
           ) : analysis.score.total >= 60 ? (
-            <>Les indicateurs montrent une tendance <span className="text-profit font-semibold">moderement haussiere</span>. Le marche presente des opportunites mais avec une conviction moins forte. Gerez votre risque avec attention.</>
+            <>Les indicateurs montrent une tendance <span className="text-profit font-semibold">modérément haussière</span>. Le marché présente des opportunités mais avec une conviction moins forte. Gérez votre risque avec attention.</>
           ) : analysis.score.total >= 40 ? (
-            <>Le marche est actuellement en <span className="text-warning font-semibold">phase neutre</span>. Aucune direction claire ne se degage. Il est preferable d'attendre un signal plus net avant de prendre position.</>
+            <>Le marché est actuellement en <span className="text-warning font-semibold">phase neutre</span>. Aucune direction claire ne se dégage. Il est préférable d'attendre un signal plus net avant de prendre position.</>
           ) : analysis.score.total >= 25 ? (
-            <>Les indicateurs pointent vers une tendance <span className="text-loss font-semibold">moderement baissiere</span>. Evitez les positions longues et considerez des strategies de couverture.</>
+            <>Les indicateurs pointent vers une tendance <span className="text-loss font-semibold">modérément baissière</span>. Évitez les positions longues et considérez des stratégies de couverture.</>
           ) : (
-            <>L'ensemble des signaux indiquent une <span className="text-loss font-semibold">forte pression vendeuse</span>. Il est fortement deconseille de prendre des positions longues dans ces conditions.</>
+            <>L'ensemble des signaux indiquent une <span className="text-loss font-semibold">forte pression vendeuse</span>. Il est fortement déconseillé de prendre des positions longues dans ces conditions.</>
           )}
         </p>
       </div>
@@ -2119,15 +2119,15 @@ function AIInsightSection({
     } catch (err: any) {
       const msg: string = err.message || "";
       if (msg.includes("not configured") || msg.includes("API_KEY") || msg.includes("GROQ")) {
-        setError("L'assistant IA n'est pas configure. Contactez l'administrateur.");
+        setError("L'assistant IA n'est pas configuré. Contactez l'administrateur.");
       } else if (msg.includes("503") || err.status === 503) {
-        setError("L'assistant IA n'est pas disponible. Verifiez la configuration GROQ_API_KEY.");
+        setError("L'assistant IA n'est pas disponible. Vérifiez la configuration GROQ_API_KEY.");
       } else if (msg.includes("429") || err.status === 429) {
         setError("Limite de messages atteinte. Reessayez dans quelques minutes.");
       } else if (msg.includes("timeout") || msg.includes("504")) {
         setError("L'analyse a pris trop de temps. Reessayez.");
       } else {
-        setError(msg || "Erreur lors de la generation de l'analyse. Verifiez que GROQ_API_KEY est configure.");
+        setError(msg || "Erreur lors de la génération de l'analyse. Vérifiez que GROQ_API_KEY est configuré.");
       }
     }
   };
@@ -2157,7 +2157,7 @@ function AIInsightSection({
               onClick={handleReload}
               disabled={isLoading}
               className="p-2 rounded-lg hover:bg-white/10 transition-colors"
-              title="Regenerer l'analyse"
+              title="Régénérer l'analyse"
             >
               <Sparkles className={cn("w-4 h-4 text-purple-400", isLoading && "animate-spin")} />
             </button>
@@ -2206,7 +2206,7 @@ function AIInsightSection({
             </div>
             <h4 className="font-semibold mb-2">Analyse predictive par IA</h4>
             <p className="text-sm text-muted-foreground mb-4 max-w-md mx-auto">
-              Obtenez une analyse approfondie avec des previsions sur le court et moyen terme, les risques et opportunites.
+              Obtenez une analyse approfondie avec des prévisions sur le court et moyen terme, les risques et opportunités.
             </p>
             <button
               onClick={handleReload}
@@ -2234,7 +2234,7 @@ function MarketContextSection({ analysis, formatCurrency }: { analysis: Analysis
       return {
         phase: "Expansion",
         icon: <TrendingUp className="w-5 h-5 text-profit" />,
-        description: "Le marche est en phase d'expansion avec une forte dynamique haussiere. Les acheteurs dominent et la confiance est elevee.",
+        description: "Le marché est en phase d'expansion avec une forte dynamique haussière. Les acheteurs dominent et la confiance est élevée.",
         color: "text-profit",
         bgColor: "bg-profit/10 border-profit/20"
       };
@@ -2242,7 +2242,7 @@ function MarketContextSection({ analysis, formatCurrency }: { analysis: Analysis
       return {
         phase: "Croissance",
         icon: <ArrowUpRight className="w-5 h-5 text-green-400" />,
-        description: "Phase de croissance moderee. Le marche montre des signes positifs mais sans exuberance excessive.",
+        description: "Phase de croissance modérée. Le marché montre des signes positifs mais sans exubérance excessive.",
         color: "text-green-400",
         bgColor: "bg-green-400/10 border-green-400/20"
       };
@@ -2250,7 +2250,7 @@ function MarketContextSection({ analysis, formatCurrency }: { analysis: Analysis
       return {
         phase: "Consolidation",
         icon: <Activity className="w-5 h-5 text-warning" />,
-        description: "Le marche consolide sans direction claire. Phase d'accumulation ou de distribution possible.",
+        description: "Le marché consolide sans direction claire. Phase d'accumulation ou de distribution possible.",
         color: "text-warning",
         bgColor: "bg-warning/10 border-warning/20"
       };
@@ -2258,7 +2258,7 @@ function MarketContextSection({ analysis, formatCurrency }: { analysis: Analysis
       return {
         phase: "Correction",
         icon: <ArrowDownRight className="w-5 h-5 text-orange-400" />,
-        description: "Phase de correction en cours. Les vendeurs prennent le controle mais sans panique generalisee.",
+        description: "Phase de correction en cours. Les vendeurs prennent le contrôle mais sans panique généralisée.",
         color: "text-orange-400",
         bgColor: "bg-orange-400/10 border-orange-400/20"
       };
@@ -2266,7 +2266,7 @@ function MarketContextSection({ analysis, formatCurrency }: { analysis: Analysis
       return {
         phase: "Contraction",
         icon: <TrendingDown className="w-5 h-5 text-loss" />,
-        description: "Marche en contraction avec forte pression vendeuse. Prudence maximale recommandee.",
+        description: "Marché en contraction avec forte pression vendeuse. Prudence maximale recommandée.",
         color: "text-loss",
         bgColor: "bg-loss/10 border-loss/20"
       };
@@ -2279,9 +2279,9 @@ function MarketContextSection({ analysis, formatCurrency }: { analysis: Analysis
     const atrPercent = (atr / price) * 100;
 
     if (atrPercent > 5) {
-      return { level: "Tres elevee", color: "text-loss", description: "Marche tres volatile - risque eleve mais opportunites importantes" };
+      return { level: "Très élevée", color: "text-loss", description: "Marché très volatile - risque élevé mais opportunités importantes" };
     } else if (atrPercent > 3) {
-      return { level: "Elevee", color: "text-warning", description: "Volatilite superieure a la normale - prudence recommandee" };
+      return { level: "Élevée", color: "text-warning", description: "Volatilité supérieure à la normale - prudence recommandée" };
     } else if (atrPercent > 1.5) {
       return { level: "Moderee", color: "text-primary", description: "Volatilite normale pour ce type d'actif" };
     } else {
@@ -2292,9 +2292,9 @@ function MarketContextSection({ analysis, formatCurrency }: { analysis: Analysis
   const getLiquidityContext = () => {
     const ratio = analysis.indicators.volume_ratio;
     if (ratio > 2) {
-      return { level: "Excellente", color: "text-profit", description: "Volume tres eleve - forte liquidite et interet institutionnel probable" };
+      return { level: "Excellente", color: "text-profit", description: "Volume très élevé - forte liquidité et intérêt institutionnel probable" };
     } else if (ratio > 1) {
-      return { level: "Bonne", color: "text-primary", description: "Volume superieur a la moyenne - bonnes conditions de trading" };
+      return { level: "Bonne", color: "text-primary", description: "Volume supérieur à la moyenne - bonnes conditions de trading" };
     } else if (ratio > 0.5) {
       return { level: "Correcte", color: "text-warning", description: "Volume dans la moyenne - conditions normales" };
     } else {
@@ -2445,7 +2445,7 @@ function RiskAssessmentSection({ analysis, formatCurrency }: { analysis: Analysi
   const riskScore = calculateRiskScore();
 
   const getRiskLevel = (score: number) => {
-    if (score >= 75) return { level: "Tres eleve", color: "text-loss", bg: "bg-loss" };
+    if (score >= 75) return { level: "Très élevé", color: "text-loss", bg: "bg-loss" };
     if (score >= 60) return { level: "Eleve", color: "text-orange-400", bg: "bg-orange-400" };
     if (score >= 40) return { level: "Modere", color: "text-warning", bg: "bg-warning" };
     if (score >= 25) return { level: "Faible", color: "text-green-400", bg: "bg-green-400" };
@@ -2474,7 +2474,7 @@ function RiskAssessmentSection({ analysis, formatCurrency }: { analysis: Analysi
       value: analysis.indicators.rsi.value,
       threshold: 70,
       isHigh: analysis.indicators.rsi.value > 70 || analysis.indicators.rsi.value < 30,
-      description: "Niveau extreme du RSI"
+      description: "Niveau extrême du RSI"
     },
     ...(analysis.fundamentals?.beta ? [{
       name: "Beta",
@@ -2566,7 +2566,7 @@ function RiskAssessmentSection({ analysis, formatCurrency }: { analysis: Analysi
         <ul className="space-y-2 text-sm text-muted-foreground">
           <li className="flex items-start gap-2">
             <CircleDot className="w-3 h-3 mt-1.5 text-primary flex-shrink-0" />
-            <span>Taille de position recommandee: <strong className="text-foreground">{riskScore > 60 ? "1-2%" : riskScore > 40 ? "2-3%" : "3-5%"}</strong> du capital</span>
+            <span>Taille de position recommandée : <strong className="text-foreground">{riskScore > 60 ? "1-2%" : riskScore > 40 ? "2-3%" : "3-5%"}</strong> du capital</span>
           </li>
           <li className="flex items-start gap-2">
             <CircleDot className="w-3 h-3 mt-1.5 text-primary flex-shrink-0" />
@@ -2574,7 +2574,7 @@ function RiskAssessmentSection({ analysis, formatCurrency }: { analysis: Analysi
           </li>
           <li className="flex items-start gap-2">
             <CircleDot className="w-3 h-3 mt-1.5 text-primary flex-shrink-0" />
-            <span>Diversification: <strong className="text-foreground">{analysis.fundamentals?.beta && analysis.fundamentals.beta > 1.2 ? "Fortement recommandee" : "Standard"}</strong></span>
+            <span>Diversification : <strong className="text-foreground">{analysis.fundamentals?.beta && analysis.fundamentals.beta > 1.2 ? "Fortement recommandée" : "Standard"}</strong></span>
           </li>
         </ul>
       </div>
@@ -2608,16 +2608,16 @@ function FundamentalAnalysisEnhanced({ analysis, formatCurrency }: { analysis: A
     let color = "text-warning";
 
     if (f.pe_ratio < 15) {
-      assessment = "L'action semble sous-evaluee avec un P/E inferieur a la moyenne historique du marche (15-20). Cela peut indiquer une opportunite d'achat ou des inquietudes du marche sur la croissance future.";
+      assessment = "L'action semble sous-évaluée avec un P/E inférieur à la moyenne historique du marché (15-20). Cela peut indiquer une opportunité d'achat ou des inquiétudes du marché sur la croissance future.";
       color = "text-profit";
     } else if (f.pe_ratio < 25) {
       assessment = "Le P/E est dans une fourchette raisonnable. L'action est evaluee a sa juste valeur par rapport a ses benefices actuels.";
       color = "text-primary";
     } else if (f.pe_ratio < 40) {
-      assessment = "Le P/E eleve suggere que les investisseurs anticipent une forte croissance future. Attention au risque de correction si les attentes ne sont pas respectees.";
+      assessment = "Le P/E élevé suggère que les investisseurs anticipent une forte croissance future. Attention au risque de correction si les attentes ne sont pas respectées.";
       color = "text-warning";
     } else {
-      assessment = "Le P/E tres eleve indique une valorisation speculative. Le marche price une croissance exceptionnelle. Risque de volatilite important.";
+      assessment = "Le P/E très élevé indique une valorisation spéculative. Le marché price une croissance exceptionnelle. Risque de volatilité important.";
       color = "text-loss";
     }
 
@@ -2634,11 +2634,11 @@ function FundamentalAnalysisEnhanced({ analysis, formatCurrency }: { analysis: A
     } else if (growth > 0.15) {
       return { text: "Forte croissance (15-30%)", color: "text-green-400" };
     } else if (growth > 0.05) {
-      return { text: "Croissance moderee (5-15%)", color: "text-primary" };
+      return { text: "Croissance modérée (5-15%)", color: "text-primary" };
     } else if (growth > 0) {
       return { text: "Croissance faible (<5%)", color: "text-warning" };
     } else {
-      return { text: "Decroissance", color: "text-loss" };
+      return { text: "Décroissance", color: "text-loss" };
     }
   };
 
@@ -2771,7 +2771,7 @@ function FundamentalAnalysisEnhanced({ analysis, formatCurrency }: { analysis: A
               {f.debt_to_equity?.toFixed(2) || "N/A"}
             </p>
             <p className="text-xs text-muted-foreground mt-1">
-              {f.debt_to_equity && f.debt_to_equity > 100 ? "Endettement eleve" : f.debt_to_equity ? "Endettement sain" : ""}
+              {f.debt_to_equity && f.debt_to_equity > 100 ? "Endettement élevé" : f.debt_to_equity ? "Endettement sain" : ""}
             </p>
           </div>
           <div>
@@ -2780,7 +2780,7 @@ function FundamentalAnalysisEnhanced({ analysis, formatCurrency }: { analysis: A
               {f.current_ratio?.toFixed(2) || "N/A"}
             </p>
             <p className="text-xs text-muted-foreground mt-1">
-              {f.current_ratio && f.current_ratio > 1.5 ? "Bonne liquidite" : f.current_ratio && f.current_ratio < 1 ? "Liquidite tendue" : ""}
+              {f.current_ratio && f.current_ratio > 1.5 ? "Bonne liquidité" : f.current_ratio && f.current_ratio < 1 ? "Liquidité tendue" : ""}
             </p>
           </div>
           <div>
@@ -2849,16 +2849,16 @@ function InvestmentThesisSection({ analysis, formatCurrency }: { analysis: Analy
       points.push("RSI en zone de survente - potentiel de rebond");
     }
     if (analysis.trend === "BULLISH") {
-      points.push("Tendance haussiere etablie avec structure de prix favorable");
+      points.push("Tendance haussière établie avec structure de prix favorable");
     }
     if (analysis.indicators.volume_ratio > 1.2) {
-      points.push("Volume superieur a la moyenne confirmant l'interet acheteur");
+      points.push("Volume supérieur à la moyenne confirmant l'intérêt acheteur");
     }
     if (analysis.fundamentals?.revenue_growth && analysis.fundamentals.revenue_growth > 0.1) {
-      points.push("Croissance du chiffre d'affaires superieure a 10%");
+      points.push("Croissance du chiffre d'affaires supérieure à 10%");
     }
     if (analysis.fundamentals?.profit_margin && analysis.fundamentals.profit_margin > 0.15) {
-      points.push("Marges beneficiaires solides (>15%)");
+      points.push("Marges bénéficiaires solides (>15%)");
     }
     if (analysis.price.current < analysis.levels.resistance) {
       points.push(`Potentiel haussier vers la resistance a ${formatCurrency(analysis.levels.resistance)}`);
@@ -2877,13 +2877,13 @@ function InvestmentThesisSection({ analysis, formatCurrency }: { analysis: Analy
       points.push("RSI en zone de surachat - risque de correction");
     }
     if (analysis.trend === "BEARISH") {
-      points.push("Tendance baissiere dominante");
+      points.push("Tendance baissière dominante");
     }
     if (analysis.fundamentals?.debt_to_equity && analysis.fundamentals.debt_to_equity > 100) {
-      points.push("Niveau d'endettement eleve pesant sur le bilan");
+      points.push("Niveau d'endettement élevé pesant sur le bilan");
     }
     if (analysis.fundamentals?.pe_ratio && analysis.fundamentals.pe_ratio > 40) {
-      points.push("Valorisation elevee vulnerabl aux deceptions");
+      points.push("Valorisation élevée, vulnérable aux déceptions");
     }
     if (analysis.indicators.volume_ratio < 0.7) {
       points.push("Faible volume pouvant amplifier les mouvements baissiers");
@@ -2896,9 +2896,9 @@ function InvestmentThesisSection({ analysis, formatCurrency }: { analysis: Analy
     const catalysts = [];
 
     if (analysis.news && analysis.news.length > 0) {
-      catalysts.push("Publications de resultats a venir");
+      catalysts.push("Publications de résultats à venir");
     }
-    catalysts.push("Evolution des taux d'interet");
+    catalysts.push("Évolution des taux d'intérêt");
     catalysts.push("Sentiment global du marche");
     if (analysis.company?.sector === "Technology") {
       catalysts.push("Innovations technologiques et nouveaux produits");
@@ -2979,7 +2979,7 @@ function SectorComparisonSection({ analysis }: { analysis: Analysis }) {
 
     const sectorInfo: Record<string, { description: string; typical_pe: string; growth_expectation: string }> = {
       "Technology": {
-        description: "Le secteur technologique est caracterise par une forte croissance mais une volatilite elevee. Les valorisations sont souvent premieres.",
+        description: "Le secteur technologique est caractérisé par une forte croissance mais une volatilité élevée. Les valorisations sont souvent élevées en premier.",
         typical_pe: "25-40",
         growth_expectation: "15-25%"
       },
@@ -2989,7 +2989,7 @@ function SectorComparisonSection({ analysis }: { analysis: Analysis }) {
         growth_expectation: "5-10%"
       },
       "Healthcare": {
-        description: "Secteur defensif avec une demande stable. Les biotechs offrent un potentiel de croissance eleve mais risque.",
+        description: "Secteur défensif avec une demande stable. Les biotechs offrent un potentiel de croissance élevé mais risqué.",
         typical_pe: "15-25",
         growth_expectation: "8-15%"
       },
@@ -3248,7 +3248,7 @@ function NewsSentimentSection({ news, symbol }: { news: Analysis["news"]; symbol
     } else if (titleLower.includes("product") || titleLower.includes("launch") || titleLower.includes("release")) {
       theme = "Produit/Innovation";
     } else if (titleLower.includes("market") || titleLower.includes("stock") || titleLower.includes("share")) {
-      theme = "Evolution du cours";
+      theme = "Évolution du cours";
     } else if (titleLower.includes("deal") || titleLower.includes("acquisition") || titleLower.includes("merger")) {
       theme = "Fusion/Acquisition";
     } else {
@@ -3267,15 +3267,15 @@ function NewsSentimentSection({ news, symbol }: { news: Analysis["news"]; symbol
   // Generate overall summary
   const getOverallSummary = () => {
     if (positiveCount > negativeCount * 2) {
-      return `Couverture mediatique tres positive avec ${positiveCount} article(s) favorable(s). Le sentiment general est optimiste concernant ${symbol}.`;
+      return `Couverture médiatique très positive avec ${positiveCount} article(s) favorable(s). Le sentiment général est optimiste concernant ${symbol}.`;
     } else if (positiveCount > negativeCount) {
-      return `Couverture legerement positive avec ${positiveCount} article(s) favorable(s) contre ${negativeCount} negatif(s). Tendance moderement optimiste.`;
+      return `Couverture légèrement positive avec ${positiveCount} article(s) favorable(s) contre ${negativeCount} négatif(s). Tendance modérément optimiste.`;
     } else if (negativeCount > positiveCount * 2) {
-      return `Couverture mediatique preoccupante avec ${negativeCount} article(s) negatif(s). Vigilance recommandee sur ${symbol}.`;
+      return `Couverture médiatique préoccupante avec ${negativeCount} article(s) négatif(s). Vigilance recommandée sur ${symbol}.`;
     } else if (negativeCount > positiveCount) {
-      return `Couverture legerement negative avec ${negativeCount} article(s) defavorable(s). Quelques inquietudes a surveiller.`;
+      return `Couverture légèrement négative avec ${negativeCount} article(s) défavorable(s). Quelques inquiétudes à surveiller.`;
     } else {
-      return `Couverture equilibree avec ${positiveCount} article(s) positif(s) et ${negativeCount} negatif(s). Pas de tendance claire dans les actualites.`;
+      return `Couverture équilibrée avec ${positiveCount} article(s) positif(s) et ${negativeCount} négatif(s). Pas de tendance claire dans les actualités.`;
     }
   };
 
@@ -3289,14 +3289,14 @@ function NewsSentimentSection({ news, symbol }: { news: Analysis["news"]; symbol
       <div className="flex items-center justify-between mb-4">
         <h3 className="font-semibold flex items-center gap-2 text-lg">
           <Newspaper className="w-5 h-5 text-primary" />
-          Actualites & Sentiment
+          Actualités & Sentiment
         </h3>
         <div className={cn(
           "px-3 py-1 rounded-full text-sm font-medium",
           overallSentiment > 0 ? "bg-profit/20 text-profit" :
           overallSentiment < 0 ? "bg-loss/20 text-loss" : "bg-white/10"
         )}>
-          {overallSentiment > 0 ? "📈 Positif" : overallSentiment < 0 ? "📉 Negatif" : "➖ Neutre"}
+          {overallSentiment > 0 ? "📈 Positif" : overallSentiment < 0 ? "📉 Négatif" : "➖ Neutre"}
         </div>
       </div>
 
@@ -3304,7 +3304,7 @@ function NewsSentimentSection({ news, symbol }: { news: Analysis["news"]; symbol
       <div className="p-4 bg-primary/10 rounded-xl border border-primary/20 mb-6">
         <h4 className="font-semibold mb-2 flex items-center gap-2">
           <Eye className="w-4 h-4 text-primary" />
-          Resume des actualites
+          Résumé des actualités
         </h4>
         <p className="text-sm text-muted-foreground mb-3">{getOverallSummary()}</p>
         <div className="flex gap-4 text-xs">
@@ -3318,7 +3318,7 @@ function NewsSentimentSection({ news, symbol }: { news: Analysis["news"]; symbol
           </span>
           <span className="flex items-center gap-1">
             <span className="w-2 h-2 rounded-full bg-loss" />
-            {negativeCount} negatif(s)
+            {negativeCount} négatif(s)
           </span>
         </div>
       </div>
@@ -3433,7 +3433,7 @@ function EducationalSection({ analysis }: { analysis: Analysis }) {
     content.push({
       indicator: "Bandes de Bollinger",
       description: "Les bandes de Bollinger encadrent le prix avec des niveaux de deviation standard.",
-      interpretation: "Prix proche de la bande superieure = potentiel surachat. Prix proche de la bande inferieure = potentiel survente.",
+      interpretation: "Prix proche de la bande supérieure = potentiel surachat. Prix proche de la bande inférieure = potentiel survente.",
       currentValue: `Position: ${analysis.indicators.bollinger.position}`,
       currentInterpretation: analysis.indicators.bollinger.position === "upper" ? "Proche de la resistance" : analysis.indicators.bollinger.position === "lower" ? "Proche du support" : "Dans le canal"
     });
