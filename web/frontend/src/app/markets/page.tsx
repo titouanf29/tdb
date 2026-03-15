@@ -43,6 +43,7 @@ export default function MarketsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingAssets, setIsLoadingAssets] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [isLoadingPrices, setIsLoadingPrices] = useState(false);
   const [hasMore, setHasMore] = useState(false);
   const [totalAssets, setTotalAssets] = useState(0);
 
@@ -92,6 +93,20 @@ export default function MarketsPage() {
         setTotalAssets(data.total);
         setHasMore(data.offset + data.limit < data.total);
 
+        // Charger les prix en arrière-plan via Polygon.io
+        const symbols = data.assets.map((a: Asset) => a.symbol);
+        if (symbols.length > 0) {
+          setIsLoadingPrices(true);
+          marketAPI.getPrices(symbols)
+            .then((priceData) => {
+              setAssets((prev) => prev.map((a) => {
+                const p = priceData.prices[a.symbol];
+                return p ? { ...a, price: p.price, change: p.change, volume: p.volume } : a;
+              }));
+            })
+            .catch(() => {})
+            .finally(() => setIsLoadingPrices(false));
+        }
       } catch (error) {
         console.error("Error loading assets:", error);
       } finally {
@@ -371,6 +386,7 @@ export default function MarketsPage() {
               <div className="flex flex-col items-center gap-3 py-5 border-t border-white/10">
                 <p className="text-sm text-muted-foreground flex items-center gap-2">
                   {assets.length} / {totalAssets} actifs chargés
+                  {isLoadingPrices && <Loader2 className="w-3 h-3 animate-spin inline ml-1" />}
                 </p>
                 {hasMore && (
                   <button

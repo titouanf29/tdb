@@ -508,6 +508,81 @@ async def get_my_asset_requests(
     return {"requests": requests or []}
 
 
+@router.get("/prices")
+async def get_prices(symbols: str = Query(..., description="Comma-separated symbols")):
+    """Return live prices via Polygon.io (US stocks + crypto). Others return price=0."""
+    import httpx
+    from config import POLYGON_API_KEY
+
+    raw = [s.strip().upper() for s in symbols.split(",") if s.strip()][:50]
+    if not raw:
+        return {"prices": {}}
+
+    if not POLYGON_API_KEY:
+        return {"prices": {}}
+
+    prices: dict = {}
+
+    # --- Classify symbols ---
+    crypto_symbols = [s for s in raw if s.endswith("-USD")]
+    stock_symbols = [
+        s for s in raw
+        if not s.endswith("-USD")
+        and not s.startswith("^")
+        and "." not in s
+        and "=" not in s
+    ]
+
+    async with httpx.AsyncClient(timeout=10.0) as client:
+
+        # US Stocks snapshot
+        if stock_symbols:
+            try:
+                tickers_param = ",".join(stock_symbols)
+                resp = await client.get(
+                    "https://api.polygon.io/v2/snapshot/locale/us/markets/stocks/tickers",
+                    params={"tickers": tickers_param, "apiKey": POLYGON_API_KEY},
+                )
+                if resp.status_code == 200:
+                    for t in resp.json().get("tickers", []):
+                        sym = t.get("ticker", "")
+                        day = t.get("day", {})
+                        prev = t.get("prevDay", {})
+                        price = day.get("c") or t.get("lastTrade", {}).get("p") or 0
+                        prev_close = prev.get("c") or 0
+                        change = ((price - prev_close) / prev_close * 100) if prev_close else 0
+                        volume = int(day.get("v") or 0)
+                        if price:
+                            prices[sym] = {"price": round(price, 4), "change": round(change, 2), "volume": volume}
+            except Exception:
+                pass
+
+        # Crypto snapshot  (BTC-USD → X:BTCUSD)
+        if crypto_symbols:
+            try:
+                poly_tickers = ["X:" + s.replace("-USD", "USD") for s in crypto_symbols]
+                resp = await client.get(
+                    "https://api.polygon.io/v2/snapshot/locale/global/markets/crypto/tickers",
+                    params={"tickers": ",".join(poly_tickers), "apiKey": POLYGON_API_KEY},
+                )
+                if resp.status_code == 200:
+                    for t in resp.json().get("tickers", []):
+                        poly_sym = t.get("ticker", "")          # X:BTCUSD
+                        orig_sym = poly_sym[2:-3] + "-USD"      # BTC-USD
+                        day = t.get("day", {})
+                        prev = t.get("prevDay", {})
+                        price = day.get("c") or 0
+                        prev_close = prev.get("c") or 0
+                        change = ((price - prev_close) / prev_close * 100) if prev_close else 0
+                        volume = int(day.get("v") or 0)
+                        if price:
+                            prices[orig_sym] = {"price": round(price, 4), "change": round(change, 2), "volume": volume}
+            except Exception:
+                pass
+
+    return {"prices": prices}
+
+
 @router.get("/{market_key}")
 async def get_market_info(market_key: str):
     """Get detailed info for a specific market"""
