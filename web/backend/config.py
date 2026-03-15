@@ -25,380 +25,82 @@ NEWS_API_KEY = os.getenv("NEWS_API_KEY", "")
 ALPHA_VANTAGE_KEY = os.getenv("ALPHA_VANTAGE_KEY", "")
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "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")  # Groq pour l'assistant IA (ultra-rapide, gratuit)
 
-# ===== MARCHÉS DISPONIBLES =====
+# ===== MARCHES DISPONIBLES =====
 MARKETS = {
-    # ------------------------------------------------------------------ #
-    #  FRANCE — CAC 40 + blue chips SBF 120                              #
-    # ------------------------------------------------------------------ #
-    "FRANCE": {
-        "name": "🇫🇷 FRANCE",
-        "open_time": "09:00",
+    "EUROPE": {
+        "name": "🇪🇺 EUROPE",
+        "open_time": "08:00",
         "close_time": "17:30",
         "timezone": "Europe/Paris",
         "assets": [
-            # Indices
-            "^FCHI", "^SBF120",
-            # === CAC 40 (40 valeurs) ===
-            "AI.PA",    # Air Liquide
-            "AIR.PA",   # Airbus
-            "ALO.PA",   # Alstom
-            "MT.AS",    # ArcelorMittal
-            "CS.PA",    # AXA
-            "BNP.PA",   # BNP Paribas
-            "EN.PA",    # Bouygues
-            "CAP.PA",   # Capgemini
-            "CA.PA",    # Carrefour
-            "SGO.PA",   # Saint-Gobain
-            "ACA.PA",   # Crédit Agricole
-            "BN.PA",    # Danone
-            "DSY.PA",   # Dassault Systèmes
-            "EDEN.PA",  # Edenred
-            "ENGI.PA",  # Engie
-            "EL.PA",    # EssilorLuxottica
-            "ERF.PA",   # Eurofins Scientific
-            "RMS.PA",   # Hermès International
-            "KER.PA",   # Kering
-            "LR.PA",    # Legrand
-            "OR.PA",    # L'Oréal
-            "MC.PA",    # LVMH
-            "ML.PA",    # Michelin
-            "ORA.PA",   # Orange
-            "RI.PA",    # Pernod Ricard
-            "PUB.PA",   # Publicis Groupe
-            "RNO.PA",   # Renault
-            "SAF.PA",   # Safran
-            "SAN.PA",   # Sanofi
-            "SU.PA",    # Schneider Electric
-            "GLE.PA",   # Société Générale
-            "STLA",     # Stellantis (NYSE)
-            "STM.PA",   # STMicroelectronics
-            "HO.PA",    # Thales
-            "TTE.PA",   # TotalEnergies
-            "URW.PA",   # Unibail-Rodamco-Westfield
-            "VIE.PA",   # Veolia
-            "DG.PA",    # Vinci
-            "VIV.PA",   # Vivendi
-            "SW.PA",    # Sodexo
-            # === SBF 120 / autres blue chips français ===
-            "AF.PA",    # Air France-KLM
-            "AM.PA",    # Dassault Aviation
-            "BIM.PA",   # BioMérieux
-            "BVI.PA",   # Bureau Veritas
-            "CNP.PA",   # CNP Assurances
-            "COX.PA",   # Covivio
-            "DBG.PA",   # Dbv Technologies (skip if uncertain)
-            "DEC.PA",   # JCDecaux
-            "FDJ.PA",   # FDJ (Française des Jeux)
-
-            "GFC.PA",   # Gecina
-            "GTT.PA",   # GTT
-            "ILD.PA",   # Iliad
-            "IMRG.PA",  # Interparfums
-            "INF.PA",   # Ipsen
-            "LI.PA",    # Klepierre
-            "NEOEN.PA", # Neoen
-            "NEX.PA",   # Nexans
-            "NK.PA",    # Imerys
-            "OPX.PA",   # Orpea (en restructuration)
-            "ORO.PA",   # L'Occitane (ex-ORPEA)
-            "OSE.PA",   # OSE Immunotherapeutics
-            "RECY.PA",  # Séché Environnement
-            "ROBO.PA",  # Icade
-            "RUI.PA",   # Rubis
-
-            "SEB.PA",   # Groupe SEB
-            "SOLB.PA",  # Solvay (Paris)
-            "SQLI.PA",  # SQLI
-            "TFI.PA",   # TF1
-            "TKO.PA",   # Technip Energies
-            "UBI.PA",   # Ubisoft
-            "VK.PA",    # Vallourec
-            "VLOF.PA",  # Verallia
-            "VPK.PA",   # Vopak (Amsterdam)
-            "ATOS.PA",  # Atos
+            # === Indices ===
+            "^FCHI", "^SBF120", "^GDAXI", "^FTSE", "^AEX", "^BFX",
+            "^IBEX", "^FTSEMIB", "^SSMI", "^STOXX50E",
+            # === CAC 40 (France) ===
+            "AI.PA", "AIR.PA", "ALO.PA", "MT.AS", "CS.PA",
+            "BNP.PA", "EN.PA", "CAP.PA", "CA.PA", "SGO.PA",
+            "ACA.PA", "BN.PA", "DSY.PA", "EDEN.PA", "ENGI.PA",
+            "EL.PA", "ERF.PA", "RMS.PA", "KER.PA", "LR.PA",
+            "OR.PA", "MC.PA", "ML.PA", "ORA.PA", "RI.PA",
+            "PUB.PA", "RNO.PA", "SAF.PA", "SAN.PA", "SU.PA",
+            "GLE.PA", "STLA", "STM.PA", "HO.PA", "TTE.PA",
+            "URW.PA", "VIE.PA", "DG.PA", "VIV.PA", "SW.PA",
+            # === SBF 120 / blue chips francais ===
+            "AF.PA", "AM.PA", "BIM.PA", "BVI.PA", "CNP.PA",
+            "DEC.PA", "FDJ.PA", "GTT.PA", "ILD.PA", "NK.PA",
+            "NEX.PA", "RUI.PA", "SEB.PA", "TFI.PA", "TKO.PA",
+            "UBI.PA", "ATOS.PA",
+            # === AEX - Amsterdam ===
+            "ASML.AS", "ADYEN.AS", "HEIA.AS", "SHEL.AS", "INGA.AS",
+            "WKL.AS", "NN.AS", "AGN.AS", "RAND.AS", "PHIA.AS",
+            "ABN.AS", "AKZA.AS", "UMG.AS", "BESI.AS", "IMCD.AS",
+            "ASRNL.AS", "LIGHT.AS", "DSFIR.AS", "TKWY.AS", "GLPG.AS",
+            # === BEL 20 - Bruxelles ===
+            "ABI.BR", "UCB.BR", "KBC.BR", "APAM.BR", "AGS.BR",
+            "ACKB.BR", "COLR.BR", "AED.BR", "BEKB.BR", "GBLB.BR",
+            "PROX.BR", "SOF.BR", "UMI.BR", "WDP.BR", "SOLB.BR",
+            "MELE.BR",
+            # === PSI - Lisbonne ===
+            "EDP.LS", "GALP.LS", "JMT.LS", "NOS.LS", "SON.LS",
+            "BCP.LS", "EDPR.LS",
+            # === DAX 40 - Allemagne ===
+            "ADS.DE", "ALV.DE", "BAS.DE", "BAYN.DE", "BEI.DE",
+            "BMW.DE", "BNR.DE", "CON.DE", "DTG.DE", "DBK.DE",
+            "DB1.DE", "DHL.DE", "DTE.DE", "EOAN.DE", "FRE.DE",
+            "HNR1.DE", "HEIDELG.DE", "HEN3.DE", "IFX.DE", "MBG.DE",
+            "MRK.DE", "MTX.DE", "MUV2.DE", "P911.DE", "PAH3.DE",
+            "QIA.DE", "RHM.DE", "RWE.DE", "SAP.DE", "SRT3.DE",
+            "SIE.DE", "ENR.DE", "SHL.DE", "SY1.DE", "VOW3.DE",
+            "VNA.DE", "ZAL.DE", "1COV.DE", "PUM.DE",
+            # === FTSE 100 - Royaume-Uni ===
+            "AZN.L", "SHEL.L", "BP.L", "GSK.L", "ULVR.L",
+            "HSBA.L", "RIO.L", "BHP.L", "AAL.L", "GLEN.L",
+            "DGE.L", "REL.L", "LSEG.L", "NG.L", "CPG.L",
+            "BA.L", "RR.L", "VOD.L", "BT-A.L", "BARC.L",
+            "LLOY.L", "STAN.L", "NWG.L", "PRU.L", "LGEN.L",
+            "AV.L", "ADM.L", "FLTR.L", "RMV.L", "SGRO.L",
+            "RKT.L", "SN.L", "HLN.L", "NXT.L", "JD.L",
+            "KGF.L", "MKS.L", "TW.L", "PSN.L", "HL.L",
+            "IMB.L", "BATS.L", "EXPN.L", "WPP.L", "IAG.L",
+            "EZJ.L", "RTO.L", "HLMA.L", "TSCO.L", "SBRY.L",
+            "ABF.L", "SSE.L",
+            # === IBEX 35 - Espagne ===
+            "ITX.MC", "IBE.MC", "SAN.MC", "BBVA.MC", "CLNX.MC",
+            "CABK.MC", "FER.MC", "ACS.MC", "REP.MC", "ELE.MC",
+            "REE.MC", "AMS.MC", "MAP.MC", "NTGY.MC", "SAB.MC",
+            "GRF.MC", "IAG.MC", "ANA.MC", "IDR.MC",
+            # === FTSE MIB - Italie ===
+            "ENI.MI", "ENEL.MI", "RACE.MI", "ISP.MI", "UCG.MI",
+            "MB.MI", "G.MI", "STM.MI", "PRY.MI", "MONC.MI",
+            "BC.MI", "FBK.MI", "LDO.MI", "NEXI.MI", "CPR.MI",
+            "SRG.MI", "TRN.MI", "BAMI.MI", "STLAM.MI",
+            # === SMI - Suisse ===
+            "NESN.SW", "NOVN.SW", "ROG.SW", "UBSG.SW", "ZURN.SW",
+            "ABBN.SW", "CFR.SW", "LONN.SW", "SIKA.SW", "PGHN.SW",
+            "KNIN.SW", "GIVN.SW", "SREN.SW", "HOLN.SW", "GEBN.SW",
+            "SOON.SW", "LISN.SW",
         ]
     },
-
-    # ------------------------------------------------------------------ #
-    #  EURONEXT — Amsterdam · Bruxelles · Lisbonne                       #
-    # ------------------------------------------------------------------ #
-    "EURONEXT": {
-        "name": "🇳🇱 EURONEXT",
-        "open_time": "09:00",
-        "close_time": "17:30",
-        "timezone": "Europe/Amsterdam",
-        "assets": [
-            # Indice
-            "^AEX", "^BFX",
-            # === AEX (Amsterdam) ===
-            "ASML.AS",  # ASML Holding
-            "ADYEN.AS", # Adyen
-            "HEIA.AS",  # Heineken
-            "SHEL.AS",  # Shell (Amsterdam)
-            "INGA.AS",  # ING Groep
-            "WKL.AS",   # Wolters Kluwer
-            "NN.AS",    # NN Group
-            "AGN.AS",   # Aegon
-            "RAND.AS",  # Randstad
-            "PHIA.AS",  # Philips
-            "ABN.AS",   # ABN AMRO
-            "AKZA.AS",  # Akzo Nobel
-            "UMG.AS",   # Universal Music Group
-            "BESI.AS",  # BE Semiconductor (Besi)
-            "IMCD.AS",  # IMCD
-            "ASRNL.AS", # ASR Nederland
-            "LIGHT.AS", # Signify (Philips Lighting)
-            "DSFIR.AS", # DSM-Firmenich
-            "TKWY.AS",  # Just Eat Takeaway
-            "MT.AS",    # ArcelorMittal
-            "RDSA.AS",  # Royal Dutch Shell (ex)
-            "URW.AS",   # Unibail-Rodamco-Westfield (Amsterdam)
-            "FLOW.AS",  # Flow Traders
-            "CRBN.AS",  # Corbion
-            "GLPG.AS",  # Galapagos
-            # === BEL 20 (Bruxelles) ===
-            "ABI.BR",   # AB InBev
-            "UCB.BR",   # UCB
-            "KBC.BR",   # KBC Groep
-            "APAM.BR",  # Aperam
-            "AGS.BR",   # Ageas
-            "ACKB.BR",  # Ackermans & van Haaren
-            "COLR.BR",  # Colruyt
-            "AED.BR",   # Aedifica
-            "BEKB.BR",  # Bekaert
-            "GBLB.BR",  # GBL
-            "PROX.BR",  # Proximus
-            "SOF.BR",   # Sofina
-            "UMI.BR",   # Umicore
-            "WDP.BR",   # Warehouses De Pauw
-            "SOLB.BR",  # Solvay (Bruxelles)
-            "MELE.BR",  # Melexis
-            # === PSI (Lisbonne) ===
-            "EDP.LS",   # EDP
-            "GALP.LS",  # Galp Energia
-            "JMT.LS",   # Jerónimo Martins
-            "NOS.LS",   # NOS
-            "SON.LS",   # Sonae
-            "BCP.LS",   # Millennium BCP
-            "EDPR.LS",  # EDP Renováveis
-        ]
-    },
-
-    # ------------------------------------------------------------------ #
-    #  ALLEMAGNE — DAX 40                                                 #
-    # ------------------------------------------------------------------ #
-    "GERMANY": {
-        "name": "🇩🇪 ALLEMAGNE",
-        "open_time": "09:00",
-        "close_time": "17:30",
-        "timezone": "Europe/Berlin",
-        "assets": [
-            # Indice
-            "^GDAXI", "^MDAXI",
-            # === DAX 40 ===
-            "ADS.DE",   # Adidas
-            "ALV.DE",   # Allianz
-            "BAS.DE",   # BASF
-            "BAYN.DE",  # Bayer
-            "BEI.DE",   # Beiersdorf
-            "BMW.DE",   # BMW
-            "BNR.DE",   # Brenntag
-            "CON.DE",   # Continental
-            "DTG.DE",   # Daimler Truck
-            "DBK.DE",   # Deutsche Bank
-            "DB1.DE",   # Deutsche Börse
-            "DHL.DE",   # Deutsche Post (DHL)
-            "DTE.DE",   # Deutsche Telekom
-            "EOAN.DE",  # E.ON
-            "FRE.DE",   # Fresenius
-            "HNR1.DE",  # Hannover Re
-            "HEIDELG.DE",# HeidelbergMaterials
-            "HEN3.DE",  # Henkel
-            "IFX.DE",   # Infineon Technologies
-            "MBG.DE",   # Mercedes-Benz
-            "MRK.DE",   # Merck KGaA
-            "MTX.DE",   # MTU Aero Engines
-            "MUV2.DE",  # Munich Re
-            "P911.DE",  # Porsche AG
-            "PAH3.DE",  # Porsche SE (Holding)
-            "QIA.DE",   # Qiagen
-            "RHM.DE",   # Rheinmetall
-            "RWE.DE",   # RWE
-            "SAP.DE",   # SAP
-            "SRT3.DE",  # Sartorius
-            "SIE.DE",   # Siemens
-            "ENR.DE",   # Siemens Energy
-            "SHL.DE",   # Siemens Healthineers
-            "SY1.DE",   # Symrise
-            "VOW3.DE",  # Volkswagen
-            "VNA.DE",   # Vonovia
-            "ZAL.DE",   # Zalando
-            "1COV.DE",  # Covestro
-            "AIR.DE",   # Airbus (Frankfurt)
-            "PUM.DE",   # Puma
-        ]
-    },
-
-    # ------------------------------------------------------------------ #
-    #  ROYAUME-UNI — FTSE 100                                             #
-    # ------------------------------------------------------------------ #
-    "UK": {
-        "name": "🇬🇧 ROYAUME-UNI",
-        "open_time": "08:00",
-        "close_time": "16:30",
-        "timezone": "Europe/London",
-        "assets": [
-            # Indices
-            "^FTSE", "^FTMC",
-            # === FTSE 100 ===
-            "AZN.L",    # AstraZeneca
-            "SHEL.L",   # Shell
-            "BP.L",     # BP
-            "GSK.L",    # GSK
-            "ULVR.L",   # Unilever
-            "HSBA.L",   # HSBC
-            "RIO.L",    # Rio Tinto
-            "BHP.L",    # BHP
-            "AAL.L",    # Anglo American
-            "GLEN.L",   # Glencore
-            "DGE.L",    # Diageo
-            "REL.L",    # RELX
-            "LSEG.L",   # London Stock Exchange Group
-            "NG.L",     # National Grid
-            "CPG.L",    # Compass Group
-            "BA.L",     # BAE Systems
-            "RR.L",     # Rolls-Royce
-            "VOD.L",    # Vodafone
-            "BT-A.L",   # BT Group
-            "BARC.L",   # Barclays
-            "LLOY.L",   # Lloyds Banking Group
-            "STAN.L",   # Standard Chartered
-            "NWG.L",    # NatWest Group
-            "PRU.L",    # Prudential
-            "LGEN.L",   # Legal & General
-            "AV.L",     # Aviva
-            "ADM.L",    # Admiral Group
-            "FLTR.L",   # Flutter Entertainment
-            "RMV.L",    # Rightmove
-            "SGRO.L",   # Segro
-            "RKT.L",    # Reckitt
-            "SN.L",     # Smith & Nephew
-            "HLN.L",    # Haleon
-            "NXT.L",    # Next
-            "JD.L",     # JD Sports
-            "KGF.L",    # Kingfisher
-            "MKS.L",    # Marks & Spencer
-            "TW.L",     # Taylor Wimpey
-            "PSN.L",    # Persimmon
-            "HL.L",     # Hargreaves Lansdown
-            "BKG.L",    # Berkeley Group
-            "IMB.L",    # Imperial Brands
-            "BATS.L",   # British American Tobacco
-            "MNG.L",    # M&G
-            "EXPN.L",   # Experian
-            "WPP.L",    # WPP
-            "ITV.L",    # ITV
-            "IAG.L",    # International Airlines Group
-            "EZJ.L",    # easyJet
-            "RTO.L",    # Rentokil
-            "HLMA.L",   # Halma
-            "SMT.L",    # Scottish Mortgage Trust
-            "III.L",    # 3i Group
-            "LAND.L",   # Land Securities
-            "BLND.L",   # British Land
-            "SBRY.L",   # Sainsbury's
-            "TSCO.L",   # Tesco
-            "ABF.L",    # Associated British Foods
-            "CNA.L",    # Centrica
-            "SSE.L",    # SSE
-            "SVT.L",    # Severn Trent
-            "UU.L",     # United Utilities
-        ]
-    },
-
-    # ------------------------------------------------------------------ #
-    #  EUROPE SUD — IBEX 35 · FTSE MIB · SMI                            #
-    # ------------------------------------------------------------------ #
-    "EUROPE_SUD": {
-        "name": "🌍 EUROPE SUD",
-        "open_time": "09:00",
-        "close_time": "17:30",
-        "timezone": "Europe/Madrid",
-        "assets": [
-            # Indices
-            "^IBEX", "^FTSEMIB", "^SSMI",
-            # === IBEX 35 (Espagne) ===
-            "ITX.MC",   # Inditex (Zara)
-            "IBE.MC",   # Iberdrola
-            "SAN.MC",   # Banco Santander
-            "BBVA.MC",  # BBVA
-            "CLNX.MC",  # Cellnex Telecom
-            "CABK.MC",  # CaixaBank
-            "FER.MC",   # Ferrovial
-            "ACS.MC",   # ACS
-            "REP.MC",   # Repsol
-            "ELE.MC",   # Endesa
-            "REE.MC",   # Redeia (Red Eléctrica)
-            "AMS.MC",   # Amadeus IT
-            "MAP.MC",   # Mapfre
-            "NTGY.MC",  # Naturgy
-            "SAB.MC",   # Banco Sabadell
-            "GRF.MC",   # Grifols
-            "IAG.MC",   # IAG (Iberia)
-            "MEL.MC",   # Meliá Hotels
-            "ANA.MC",   # Acciona
-            "ANE.MC",   # Acciona Energía
-            "IDR.MC",   # Indra
-            "PUIG.MC",  # Puig Brands
-            "SOLARIA.MC", # Solaria
-            # === FTSE MIB (Italie) ===
-            "ENI.MI",   # ENI
-            "ENEL.MI",  # Enel
-            "RACE.MI",  # Ferrari
-            "ISP.MI",   # Intesa Sanpaolo
-            "UCG.MI",   # UniCredit
-            "MB.MI",    # Mediobanca
-            "G.MI",     # Generali
-            "STM.MI",   # STMicroelectronics (Milan)
-            "PRY.MI",   # Prysmian
-            "MONC.MI",  # Moncler
-            "BC.MI",    # Brunello Cucinelli
-            "FBK.MI",   # FinecoBank
-            "REC.MI",   # Recordati
-            "LDO.MI",   # Leonardo
-            "NEXI.MI",  # Nexi
-            "CPR.MI",   # Campari
-            "HER.MI",   # Hera
-            "SRG.MI",   # Snam
-            "TRN.MI",   # Terna
-            "BAMI.MI",  # Banco BPM
-            "STLAM.MI", # Stellantis (Milan)
-            # === SMI (Suisse) ===
-            "NESN.SW",  # Nestlé
-            "NOVN.SW",  # Novartis
-            "ROG.SW",   # Roche
-            "UBSG.SW",  # UBS Group
-            "ZURN.SW",  # Zurich Insurance
-            "ABBN.SW",  # ABB
-            "CFR.SW",   # Richemont
-            "LONN.SW",  # Lonza
-            "SIKA.SW",  # Sika
-            "PGHN.SW",  # Partners Group
-            "KNIN.SW",  # Kühne+Nagel
-            "GIVN.SW",  # Givaudan
-            "SREN.SW",  # Swiss Re
-            "HOLN.SW",  # Holcim
-            "GEBN.SW",  # Geberit
-            "SOON.SW",  # Sonova
-            "STMN.SW",  # Straumann
-            "LISN.SW",  # Lindt & Sprüngli
-            "TEMN.SW",  # Temenos
-        ]
-    },
-
-    # ------------------------------------------------------------------ #
-    #  USA — S&P 500 (large coverage) + indices + ETFs                   #
-    # ------------------------------------------------------------------ #
     "USA": {
         "name": "🇺🇸 USA",
         "open_time": "09:30",

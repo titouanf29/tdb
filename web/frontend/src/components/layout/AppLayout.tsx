@@ -15,19 +15,20 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const isAuthPage = pathname?.startsWith("/login") || pathname?.startsWith("/register");
+  const isLandingPage = pathname === "/";
 
   useEffect(() => {
-    if (!isLoading && !isAuthenticated && !isAuthPage) {
+    if (!isLoading && !isAuthenticated && !isAuthPage && !isLandingPage) {
       router.push("/login");
     }
-  }, [isAuthenticated, isLoading, isAuthPage, router]);
+  }, [isAuthenticated, isLoading, isAuthPage, isLandingPage, router]);
 
   // Close mobile menu on route change
   useEffect(() => {
     setMobileMenuOpen(false);
   }, [pathname]);
 
-  if (isLoading && !isAuthPage) {
+  if (isLoading && !isAuthPage && !isLandingPage) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
@@ -44,6 +45,11 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         {children}
       </div>
     );
+  }
+
+  // Landing page — full screen, no sidebar (auth checked inside page.tsx)
+  if (isLandingPage && !isAuthenticated) {
+    return <>{children}</>;
   }
 
   if (!isAuthenticated) {
