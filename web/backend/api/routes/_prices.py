@@ -5,6 +5,37 @@ crypto (-USD), commodities (=F), forex (=X).
 """
 import asyncio
 
+# Mapping yfinance exchange suffix → Twelve Data exchange code
+EXCHANGE_MAP = {
+    ".PA": "XPAR",   # Euronext Paris
+    ".L":  "XLON",   # London Stock Exchange
+    ".DE": "XETR",   # Deutsche Boerse XETRA
+    ".AS": "XAMS",   # Euronext Amsterdam
+    ".BR": "XBRU",   # Euronext Brussels
+    ".LS": "XLIS",   # Euronext Lisbon
+    ".MC": "XMAD",   # Bolsa de Madrid
+    ".MI": "XMIL",   # Borsa Italiana
+    ".SW": "XSWX",   # SIX Swiss Exchange
+    ".T":  "XTKS",   # Tokyo Stock Exchange
+    ".HK": "XHKG",   # Hong Kong Stock Exchange
+    ".KS": "XKRX",   # Korea Exchange
+    ".NS": "XNSE",   # NSE India
+    ".SS": "XSHG",   # Shanghai Stock Exchange
+}
+
+
+def _yf_to_td(symbol: str) -> tuple:
+    """Convert a yfinance symbol to (base_symbol, exchange_code) for Twelve Data.
+    Returns ('', '') for US stocks (no suffix needed).
+    Example: 'COFA.PA' → ('COFA', 'XPAR')
+    """
+    s = symbol.upper()
+    for suffix, exchange in EXCHANGE_MAP.items():
+        if s.endswith(suffix.upper()):
+            base = symbol[: len(symbol) - len(suffix)]
+            return base, exchange
+    return "", ""
+
 
 async def fetch_prices(symbols: list[str]) -> dict[str, dict]:
     """
@@ -25,7 +56,7 @@ async def fetch_prices(symbols: list[str]) -> dict[str, dict]:
                 tickers=tickers_str,
                 period="5d",
                 interval="1d",
-                auto_adjust=True,
+                auto_adjust=False,
                 progress=False,
                 threads=True,
             )
@@ -115,7 +146,7 @@ async def fetch_ohlcv(symbol: str, period: str = "1mo", interval: str = "1d"):
                 tickers=symbol,
                 period=period,
                 interval=interval,
-                auto_adjust=True,
+                auto_adjust=False,
                 progress=False,
             )
             if data.empty:

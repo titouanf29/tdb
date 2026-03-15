@@ -52,7 +52,7 @@ SYMBOL_NAMES: dict = {
     "FDJ.PA": "Francaise des Jeux", "GTT.PA": "GTT", "ILD.PA": "Iliad",
     "NK.PA": "Imerys", "NEX.PA": "Nexans", "RUI.PA": "Rubis",
     "SEB.PA": "SEB", "TFI.PA": "TF1", "TKO.PA": "Technip Energies",
-    "UBI.PA": "Ubisoft", "ATOS.PA": "Atos",
+    "UBI.PA": "Ubisoft", "ATOS.PA": "Atos", "COFA.PA": "Coface",
     # ---- Netherlands AEX ----
     "ASML.AS": "ASML Holding", "ADYEN.AS": "Adyen", "HEIA.AS": "Heineken",
     "SHEL.AS": "Shell", "INGA.AS": "ING Groep", "WKL.AS": "Wolters Kluwer",
@@ -455,6 +455,19 @@ async def search_assets(request: Request, q: str = Query(..., min_length=2, max_
         "Referer": "https://finance.yahoo.com/",
     }
 
+    # Build a set of all registered symbols for fast lookup
+    registered_symbols = {
+        sym.upper()
+        for market in MARKETS.values()
+        for sym in market["assets"]
+    }
+
+    # Start with local search (guaranteed to only return registered assets)
+    results = _local_search(q_upper)
+    seen = {r["symbol"].upper() for r in results}
+
+    # Also try Yahoo Finance to get better fuzzy name-matching,
+    # but ONLY keep results that are registered on TDB
     data = None
     async with httpx.AsyncClient(timeout=8) as client:
         for url in base_urls:
@@ -466,31 +479,24 @@ async def search_assets(request: Request, q: str = Query(..., min_length=2, max_
             except Exception:
                 continue
 
-    allowed = {"EQUITY", "ETF", "CRYPTOCURRENCY", "MUTUALFUND", "INDEX", "FUTURE", "CURRENCY"}
-    results = []
-    seen = set()
-
     if data:
         for quote in data.get("quotes", []):
             symbol = quote.get("symbol", "")
-            if not symbol or symbol in seen:
+            if not symbol:
                 continue
-            qtype = quote.get("quoteType", "EQUITY")
-            if qtype not in allowed:
+            sym_upper = symbol.upper()
+            # Only include assets registered on TDB
+            if sym_upper not in registered_symbols or sym_upper in seen:
                 continue
-            seen.add(symbol)
+            seen.add(sym_upper)
             results.append({
                 "symbol":   symbol,
-                "name":     quote.get("longname") or quote.get("shortname") or symbol,
+                "name":     quote.get("longname") or quote.get("shortname") or SYMBOL_NAMES.get(symbol, symbol),
                 "exchange": quote.get("exchDisp") or quote.get("exchange", ""),
-                "type":     qtype,
+                "type":     quote.get("quoteType", "EQUITY"),
             })
 
-    # If Yahoo returned nothing, use local fallback
-    if not results:
-        results = _local_search(q_upper)
-
-    return {"results": results}
+    return {"results": results[:15]}
 
 
 @router.get("/my-requests")

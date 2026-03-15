@@ -57,7 +57,7 @@ MARKETS = {
             "AF.PA", "AM.PA", "BIM.PA", "BVI.PA", "CNP.PA",
             "DEC.PA", "FDJ.PA", "GTT.PA", "ILD.PA", "NK.PA",
             "NEX.PA", "RUI.PA", "SEB.PA", "TFI.PA", "TKO.PA",
-            "UBI.PA", "ATOS.PA",
+            "UBI.PA", "ATOS.PA", "COFA.PA",
             # === AEX - Amsterdam ===
             "ASML.AS", "ADYEN.AS", "HEIA.AS", "SHEL.AS", "INGA.AS",
             "WKL.AS", "NN.AS", "AGN.AS", "RAND.AS", "PHIA.AS",
