@@ -631,37 +631,77 @@ Sois precis, factuel et professionnel. Utilise des emojis pour rendre l'analyse 
             <h3 className="font-semibold mb-4">Indicateurs Techniques</h3>
             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
               <IndicatorCard
-                name="RSI"
+                name="RSI (14)"
                 value={analysis.indicators.rsi.value.toFixed(1)}
                 signal={analysis.indicators.rsi.signal as any}
+                tooltip={analysis.indicators.rsi.value < 30 ? "Survendu — rebond potentiel" : analysis.indicators.rsi.value > 70 ? "Suracheté — prudence" : "Zone neutre"}
               />
               <IndicatorCard
                 name="MACD"
                 value={analysis.indicators.macd.value.toFixed(2)}
                 signal={analysis.indicators.macd.signal as any}
+                tooltip={`Histogramme: ${analysis.indicators.macd.histogram.toFixed(4)} — ${analysis.indicators.macd.signal === "bullish" ? "momentum haussier" : "momentum baissier"}`}
               />
               <IndicatorCard
                 name="EMA 20"
                 value={formatCurrency(analysis.indicators.ema.ema20)}
                 signal={analysis.price.current > analysis.indicators.ema.ema20 ? "bullish" : "bearish"}
+                tooltip={analysis.price.current > analysis.indicators.ema.ema20 ? "Prix au-dessus de l'EMA20 — tendance court terme haussière" : "Prix en-dessous de l'EMA20 — pression baissière CT"}
               />
               <IndicatorCard
                 name="EMA 50"
                 value={formatCurrency(analysis.indicators.ema.ema50)}
                 signal={analysis.price.current > analysis.indicators.ema.ema50 ? "bullish" : "bearish"}
+                tooltip={analysis.price.current > analysis.indicators.ema.ema50 ? "Prix au-dessus de l'EMA50 — tendance MT haussière" : "Prix en-dessous de l'EMA50 — pression baissière MT"}
               />
+              {analysis.indicators.adx && (
+                <IndicatorCard
+                  name="ADX"
+                  value={analysis.indicators.adx.value.toFixed(1)}
+                  signal={analysis.indicators.adx.value > 25 ? (analysis.indicators.adx.plus_di > analysis.indicators.adx.minus_di ? "bullish" : "bearish") : "neutral"}
+                  tooltip={`Force de tendance: ${analysis.indicators.adx.value > 50 ? "Très forte" : analysis.indicators.adx.value > 25 ? "Forte" : analysis.indicators.adx.value > 15 ? "Modérée" : "Faible"} — DI+: ${analysis.indicators.adx.plus_di.toFixed(1)} / DI-: ${analysis.indicators.adx.minus_di.toFixed(1)}`}
+                />
+              )}
+              {analysis.indicators.stochastic && (
+                <IndicatorCard
+                  name="Stoch %K"
+                  value={`${analysis.indicators.stochastic.k.toFixed(1)} / ${analysis.indicators.stochastic.d.toFixed(1)}`}
+                  signal={analysis.indicators.stochastic.signal as any}
+                  tooltip={`%K: ${analysis.indicators.stochastic.k.toFixed(1)} / %D: ${analysis.indicators.stochastic.d.toFixed(1)} — ${analysis.indicators.stochastic.k < 20 ? "Zone de survente" : analysis.indicators.stochastic.k > 80 ? "Zone de surachat" : "Zone neutre"}`}
+                />
+              )}
+              {analysis.indicators.bollinger.percent_b !== undefined && (
+                <IndicatorCard
+                  name="BB %B"
+                  value={`${analysis.indicators.bollinger.percent_b.toFixed(1)}%`}
+                  signal={analysis.indicators.bollinger.percent_b > 80 ? "bearish" : analysis.indicators.bollinger.percent_b < 20 ? "bullish" : "neutral"}
+                  tooltip={`Position dans les Bandes de Bollinger: 0%=bande basse, 100%=bande haute — ${analysis.indicators.bollinger.percent_b > 100 ? "Au-dessus des bandes" : analysis.indicators.bollinger.percent_b < 0 ? "En-dessous des bandes" : "Dans les bandes"}`}
+                />
+              )}
               <IndicatorCard
                 name="ATR"
                 value={analysis.indicators.atr.toFixed(2)}
                 signal="neutral"
+                tooltip={`Volatilité moyenne sur 14 jours. Stop-loss suggéré: ${(analysis.indicators.atr * 1.5).toFixed(2)} (1.5x ATR)`}
               />
               <IndicatorCard
                 name="Volume"
                 value={`${analysis.indicators.volume_ratio.toFixed(2)}x`}
-                signal={analysis.indicators.volume_ratio > 1 ? "bullish" : "neutral"}
+                signal={analysis.indicators.volume_ratio > 1.5 ? "bullish" : analysis.indicators.volume_ratio < 0.7 ? "bearish" : "neutral"}
+                tooltip={`Volume actuel / volume moyen 20j. ${analysis.indicators.volume_ratio > 1.5 ? "Volume élevé — signal fort" : analysis.indicators.volume_ratio < 0.7 ? "Volume faible — signal peu fiable" : "Volume normal"}`}
               />
             </div>
           </motion.div>
+
+          {/* Fibonacci Levels */}
+          {analysis.fibonacci && (
+            <FibonacciSection analysis={analysis} formatCurrency={formatCurrency} />
+          )}
+
+          {/* 52-week range bar */}
+          {analysis.fundamentals?.["52w_high"] && analysis.fundamentals?.["52w_low"] && (
+            <WeekRangeSection analysis={analysis} formatCurrency={formatCurrency} />
+          )}
 
           {/* Risk suggestion */}
           <motion.div
@@ -799,10 +839,12 @@ function IndicatorCard({
   name,
   value,
   signal,
+  tooltip,
 }: {
   name: string;
   value: string;
   signal: "bullish" | "bearish" | "neutral" | "oversold" | "overbought";
+  tooltip?: string;
 }) {
   const normalizedSignal =
     signal === "oversold" ? "bullish" :
@@ -821,13 +863,130 @@ function IndicatorCard({
   };
 
   return (
-    <div className={cn("p-4 rounded-xl border", signalColors[normalizedSignal])}>
+    <div className={cn("p-4 rounded-xl border", signalColors[normalizedSignal])} title={tooltip}>
       <div className="flex items-center justify-between mb-2">
         <span className="text-sm text-muted-foreground">{name}</span>
         {signalIcons[normalizedSignal]}
       </div>
       <p className="font-bold">{value}</p>
+      {tooltip && <p className="text-xs text-muted-foreground mt-1 line-clamp-2 leading-tight">{tooltip}</p>}
     </div>
+  );
+}
+
+function FibonacciSection({ analysis, formatCurrency }: { analysis: Analysis; formatCurrency: (v: number) => string }) {
+  const fib = analysis.fibonacci!;
+  const price = analysis.price.current;
+  const fibEntries = Object.entries(fib.levels).sort((a, b) => b[1] - a[1]); // descending price
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="glass-card p-6"
+    >
+      <h3 className="font-semibold mb-1 flex items-center gap-2">
+        <Scale className="w-5 h-5 text-primary" />
+        Niveaux de Fibonacci
+      </h3>
+      <p className="text-xs text-muted-foreground mb-4">
+        Calculés sur le plus haut ({formatCurrency(fib.high)}) et le plus bas ({formatCurrency(fib.low)}) des {Math.min(60, 60)} dernières séances
+      </p>
+      <div className="space-y-2">
+        {fibEntries.map(([level, lvlPrice]) => {
+          const isNearPrice = Math.abs(lvlPrice - price) / price < 0.015; // within 1.5%
+          const isPriceAbove = price >= lvlPrice;
+          return (
+            <div
+              key={level}
+              className={cn(
+                "flex items-center gap-3 p-2 rounded-lg transition-colors",
+                isNearPrice ? "bg-primary/20 border border-primary/40" : "bg-white/5"
+              )}
+            >
+              <span className={cn(
+                "text-xs font-mono w-12 text-right",
+                level === "0" || level === "100" ? "text-muted-foreground" : "text-primary"
+              )}>
+                {level}%
+              </span>
+              <div className="flex-1 h-1.5 bg-white/10 rounded-full overflow-hidden">
+                <div
+                  className={cn(
+                    "h-full rounded-full",
+                    level === "61.8" || level === "38.2" ? "bg-primary" :
+                    level === "50.0" ? "bg-warning" : "bg-white/30"
+                  )}
+                  style={{ width: `${100 - parseFloat(level)}%` }}
+                />
+              </div>
+              <span className={cn(
+                "font-semibold text-sm w-24 text-right",
+                isNearPrice ? "text-primary" : isPriceAbove ? "text-profit/80" : "text-loss/80"
+              )}>
+                {formatCurrency(lvlPrice)}
+              </span>
+              {isNearPrice && (
+                <span className="text-xs px-1.5 py-0.5 rounded bg-primary/30 text-primary">← Prix actuel</span>
+              )}
+            </div>
+          );
+        })}
+      </div>
+      <p className="text-xs text-muted-foreground mt-3">
+        💡 Les niveaux 38.2% et 61.8% sont les plus importants. Ils agissent souvent comme supports ou résistances lors d&apos;une correction.
+      </p>
+    </motion.div>
+  );
+}
+
+function WeekRangeSection({ analysis, formatCurrency }: { analysis: Analysis; formatCurrency: (v: number) => string }) {
+  const low52 = analysis.fundamentals!["52w_low"]!;
+  const high52 = analysis.fundamentals!["52w_high"]!;
+  const price = analysis.price.current;
+  const rangeSize = high52 - low52;
+  const position = rangeSize > 0 ? Math.min(100, Math.max(0, ((price - low52) / rangeSize) * 100)) : 50;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="glass-card p-6"
+    >
+      <h3 className="font-semibold mb-4 flex items-center gap-2">
+        <Gauge className="w-5 h-5 text-primary" />
+        Position 52 semaines
+      </h3>
+      <div className="space-y-3">
+        <div className="flex justify-between text-sm text-muted-foreground">
+          <span>Plus bas 52s: <span className="text-loss font-semibold">{formatCurrency(low52)}</span></span>
+          <span>Plus haut 52s: <span className="text-profit font-semibold">{formatCurrency(high52)}</span></span>
+        </div>
+        <div className="relative h-6 bg-white/10 rounded-full overflow-visible">
+          {/* gradient track */}
+          <div className="absolute inset-0 rounded-full bg-gradient-to-r from-loss/40 via-warning/40 to-profit/40" />
+          {/* price marker */}
+          <div
+            className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 z-10"
+            style={{ left: `${position}%` }}
+          >
+            <div className="w-5 h-5 rounded-full bg-white border-2 border-primary shadow-lg shadow-primary/50 flex items-center justify-center">
+              <div className="w-2 h-2 rounded-full bg-primary" />
+            </div>
+          </div>
+        </div>
+        <div className="flex justify-between items-center">
+          <span className="text-xs text-muted-foreground">0%</span>
+          <div className="text-center">
+            <p className="text-lg font-bold">{formatCurrency(price)}</p>
+            <p className="text-xs text-muted-foreground">
+              {position.toFixed(0)}% du range annuel — {position > 80 ? "Près du sommet annuel" : position < 20 ? "Près du plancher annuel" : "Zone médiane"}
+            </p>
+          </div>
+          <span className="text-xs text-muted-foreground">100%</span>
+        </div>
+      </div>
+    </motion.div>
   );
 }
 

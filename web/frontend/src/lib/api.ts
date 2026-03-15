@@ -395,9 +395,17 @@ export interface Analysis {
       middle: number;
       lower: number;
       position: string;
+      percent_b?: number;
     };
+    adx?: { value: number; plus_di: number; minus_di: number; signal: string };
+    stochastic?: { k: number; d: number; signal: string };
     atr: number;
     volume_ratio: number;
+  };
+  fibonacci?: {
+    high: number;
+    low: number;
+    levels: Record<string, number>;
   };
   levels: {
     support: number;

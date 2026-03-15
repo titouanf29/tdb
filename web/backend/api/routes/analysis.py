@@ -83,6 +83,62 @@ async def analyze_asset(
         ], axis=1).max(axis=1)
         atr = tr.rolling(window=14).mean().iloc[-1]
 
+        # ADX
+        adx_period = 14
+        plus_dm = pd.Series(
+            np.where((high.diff() > -low.diff()) & (high.diff() > 0), high.diff(), 0.0),
+            index=high.index
+        )
+        minus_dm = pd.Series(
+            np.where((-low.diff() > high.diff()) & (-low.diff() > 0), -low.diff(), 0.0),
+            index=low.index
+        )
+        atr14 = tr.rolling(adx_period).mean()
+        plus_di = 100 * (plus_dm.rolling(adx_period).mean() / atr14.replace(0, np.nan))
+        minus_di = 100 * (minus_dm.rolling(adx_period).mean() / atr14.replace(0, np.nan))
+        di_sum = (plus_di + minus_di).replace(0, np.nan)
+        dx = 100 * (plus_di - minus_di).abs() / di_sum
+        adx_val = float(dx.rolling(adx_period).mean().iloc[-1])
+        if np.isnan(adx_val):
+            adx_val = 0.0
+        current_plus_di = float(plus_di.iloc[-1]) if not np.isnan(plus_di.iloc[-1]) else 0.0
+        current_minus_di = float(minus_di.iloc[-1]) if not np.isnan(minus_di.iloc[-1]) else 0.0
+
+        # Stochastic Oscillator (%K and %D)
+        stoch_period = 14
+        stoch_high = high.rolling(stoch_period).max()
+        stoch_low = low.rolling(stoch_period).min()
+        stoch_range = (stoch_high - stoch_low).replace(0, np.nan)
+        stoch_k = 100 * (close - stoch_low) / stoch_range
+        stoch_d = stoch_k.rolling(3).mean()
+        current_stoch_k = float(stoch_k.iloc[-1]) if not np.isnan(stoch_k.iloc[-1]) else 50.0
+        current_stoch_d = float(stoch_d.iloc[-1]) if not np.isnan(stoch_d.iloc[-1]) else 50.0
+
+        # Bollinger %B
+        bb_range = (bb_upper - bb_lower).replace(0, np.nan)
+        bb_percent_b = float(((close.iloc[-1] - bb_lower.iloc[-1]) / (bb_upper.iloc[-1] - bb_lower.iloc[-1])) * 100)
+        if np.isnan(bb_percent_b):
+            bb_percent_b = 50.0
+
+        # Fibonacci retracement levels (from 3-month high/low)
+        lookback = min(60, len(close))
+        fib_high = float(high.tail(lookback).max())
+        fib_low = float(low.tail(lookback).min())
+        fib_range_val = fib_high - fib_low
+        fibonacci = {
+            "high": round(fib_high, 2),
+            "low": round(fib_low, 2),
+            "levels": {
+                "0": round(fib_high, 2),
+                "23.6": round(fib_high - 0.236 * fib_range_val, 2),
+                "38.2": round(fib_high - 0.382 * fib_range_val, 2),
+                "50.0": round(fib_high - 0.5 * fib_range_val, 2),
+                "61.8": round(fib_high - 0.618 * fib_range_val, 2),
+                "78.6": round(fib_high - 0.786 * fib_range_val, 2),
+                "100": round(fib_low, 2),
+            }
+        }
+
         # Current values
         current_price = close.iloc[-1]
         prev_price = close.iloc[-2]
@@ -383,11 +439,24 @@ async def analyze_asset(
                     "upper": round(bb_upper.iloc[-1], 2),
                     "middle": round(bb_mid.iloc[-1], 2),
                     "lower": round(bb_lower.iloc[-1], 2),
-                    "position": "upper" if current_price > bb_upper.iloc[-1] else "lower" if current_price < bb_lower.iloc[-1] else "middle"
+                    "position": "upper" if current_price > bb_upper.iloc[-1] else "lower" if current_price < bb_lower.iloc[-1] else "middle",
+                    "percent_b": round(bb_percent_b, 1),
+                },
+                "adx": {
+                    "value": round(adx_val, 1),
+                    "plus_di": round(current_plus_di, 1),
+                    "minus_di": round(current_minus_di, 1),
+                    "signal": "strong" if adx_val > 25 else "weak",
+                },
+                "stochastic": {
+                    "k": round(current_stoch_k, 1),
+                    "d": round(current_stoch_d, 1),
+                    "signal": "oversold" if current_stoch_k < 20 else "overbought" if current_stoch_k > 80 else "neutral",
                 },
                 "atr": round(atr, 4),
                 "volume_ratio": round(volume_ratio, 2)
             },
+            "fibonacci": fibonacci,
             "levels": {
                 "support": round(recent_low, 2),
                 "resistance": round(recent_high, 2),
