@@ -48,7 +48,7 @@ class PivotPointsResponse(BaseModel):
 @router.get("/pivot-points/{symbol}")
 async def calculate_pivot_points(
     symbol: str,
-    method: str = Query(default="standard", regex="^(standard|fibonacci|woodie|camarilla|demark)$"),
+    method: str = Query(default="standard", pattern="^(standard|fibonacci|woodie|camarilla|demark)$"),
     current_user: dict = Depends(get_current_user)
 ):
     """
@@ -165,7 +165,7 @@ async def calculate_pivot_points(
 async def get_per_rankings(
     sector: Optional[str] = None,
     limit: int = Query(default=20, le=50),
-    sort: str = Query(default="asc", regex="^(asc|desc)$"),
+    sort: str = Query(default="asc", pattern="^(asc|desc)$"),
     current_user: dict = Depends(get_current_user)
 ):
     """Get stocks ranked by P/E ratio (price data only — P/E requires premium data provider)"""

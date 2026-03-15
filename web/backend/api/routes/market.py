@@ -757,8 +757,8 @@ async def get_quote(request: Request, symbol: str):
 async def get_chart_data(
     request: Request,
     symbol: str,
-    period: str = Query(default="1mo", regex="^(1d|5d|1mo|3mo|6mo|1y|2y|5y|max)$"),
-    interval: str = Query(default="1d", regex="^(1m|5m|15m|1h|1d|1wk|1mo)$")
+    period: str = Query(default="1mo", pattern="^(1d|5d|1mo|3mo|6mo|1y|2y|5y|max)$"),
+    interval: str = Query(default="1d", pattern="^(1m|5m|15m|1h|1d|1wk|1mo)$")
 ):
     """Get OHLCV chart data for a symbol"""
     if not _SYMBOL_RE.match(symbol.upper()):

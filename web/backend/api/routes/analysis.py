@@ -21,7 +21,7 @@ _SYMBOL_RE = re.compile(r'^[\^A-Z0-9.\-=]{1,30}$')
 async def analyze_asset(
     request: Request,
     symbol: str,
-    timeframe: str = Query(default="1d", regex="^(5m|15m|1h|4h|1d)$")
+    timeframe: str = Query(default="1d", pattern="^(5m|15m|1h|4h|1d)$")
 ):
     """Get AI analysis for an asset"""
     if not _SYMBOL_RE.match(symbol.upper()):
@@ -499,7 +499,7 @@ async def scan_market(
 async def get_chart_data(
     request: Request,
     symbol: str,
-    timeframe: str = Query(default="1d", regex="^(5m|15m|1h|4h|1d)$"),
+    timeframe: str = Query(default="1d", pattern="^(5m|15m|1h|4h|1d)$"),
     current_user: dict = Depends(get_current_user),
 ):
     """Return OHLCV candles + technical overlays + future projection (premium only)."""
