@@ -2,12 +2,12 @@
 
 import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
-import { motion, useScroll, useTransform, AnimatePresence } from "framer-motion";
+import { motion, useScroll, useTransform, AnimatePresence, useMotionValue, useSpring } from "framer-motion";
 import {
   TrendingUp, TrendingDown, Star, Activity, ArrowUpRight, ArrowDownRight,
   Target, RefreshCw, Loader2, Globe, Newspaper, Shield, Plus, Wallet,
   Bot, BarChart3, Zap, Users, Brain, Lock, ChevronRight, LineChart,
-  Sparkles, Bell, BookOpen, ArrowRight, CheckCircle2, Play,
+  Sparkles, Bell, BookOpen, ArrowRight, CheckCircle2, Play, Crown, X,
 } from "lucide-react";
 import { cn, formatPercent } from "@/lib/utils";
 import { walletAPI, favoritesAPI, adminAPI, aiAPI, WalletBalance, TradingStats, Favorite, MarketNews, SummaryPoint } from "@/lib/api";
@@ -85,8 +85,8 @@ const FEATURES = [
 const STATS = [
   { value: "842+", label: "Actifs disponibles" },
   { value: "9", label: "Marchés couverts" },
-  { value: "100%", label: "Gratuit" },
-  { value: "∞", label: "Analyses illimitées" },
+  { value: "Gratuit", label: "Pour commencer" },
+  { value: "Premium", label: "Pour aller plus loin" },
 ];
 
 const MARKETS_PREVIEW = [
@@ -124,6 +124,50 @@ function FloatingOrb({ className }: { className?: string }) {
       className
     )} />
   );
+}
+
+function Particles() {
+  const particles = Array.from({ length: 20 }, (_, i) => ({
+    id: i,
+    x: Math.random() * 100,
+    y: Math.random() * 100,
+    size: Math.random() * 3 + 1,
+    duration: Math.random() * 8 + 6,
+    delay: Math.random() * 4,
+  }));
+  return (
+    <div className="absolute inset-0 overflow-hidden pointer-events-none">
+      {particles.map(p => (
+        <motion.div
+          key={p.id}
+          className="absolute rounded-full bg-primary/40"
+          style={{ left: `${p.x}%`, top: `${p.y}%`, width: p.size, height: p.size }}
+          animate={{ y: [0, -40, 0], opacity: [0, 0.8, 0] }}
+          transition={{ duration: p.duration, delay: p.delay, repeat: Infinity, ease: "easeInOut" }}
+        />
+      ))}
+    </div>
+  );
+}
+
+function AnimatedCounter({ target }: { target: string }) {
+  const isNum = /^\d+/.test(target);
+  const num = isNum ? parseInt(target.replace(/\D/g, "")) : null;
+  const [display, setDisplay] = useState(isNum ? "0" : target);
+
+  useEffect(() => {
+    if (!isNum || !num) return;
+    let start = 0;
+    const step = Math.ceil(num / 40);
+    const timer = setInterval(() => {
+      start = Math.min(start + step, num);
+      setDisplay(target.replace(/\d+/, String(start)));
+      if (start >= num) clearInterval(timer);
+    }, 30);
+    return () => clearInterval(timer);
+  }, [num, isNum, target]);
+
+  return <>{display}</>;
 }
 
 function AnimatedChart() {
@@ -238,13 +282,17 @@ function LandingPage() {
         style={{ opacity: heroOpacity, y: heroY }}
         className="relative flex flex-col items-center text-center px-6 pt-20 pb-32 md:pt-28 md:pb-40"
       >
+        <Particles />
+
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.5 }}
           className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-primary/30 bg-primary/10 text-primary text-xs font-semibold mb-6 uppercase tracking-widest"
         >
-          <Sparkles className="w-3 h-3" />
+          <motion.span animate={{ rotate: [0, 15, -15, 0] }} transition={{ duration: 2, repeat: Infinity, repeatDelay: 3 }}>
+            <Sparkles className="w-3 h-3" />
+          </motion.span>
           Plateforme éducative de trading
         </motion.div>
 
@@ -253,7 +301,14 @@ function LandingPage() {
           className="text-5xl md:text-7xl font-black leading-tight tracking-tight max-w-4xl"
         >
           Apprenez à lire{" "}
-          <span className="gradient-text">les marchés</span>
+          <motion.span
+            className="gradient-text inline-block"
+            animate={{ backgroundPosition: ["0% 50%", "100% 50%", "0% 50%"] }}
+            transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
+            style={{ backgroundSize: "200%" }}
+          >
+            les marchés
+          </motion.span>
           <br />comme un pro.
         </motion.h1>
 
@@ -262,7 +317,7 @@ function LandingPage() {
           className="mt-6 text-lg md:text-xl text-white/60 max-w-2xl leading-relaxed"
         >
           Analyses IA, watchlist temps réel, wallet virtuel et scanner de marchés
-          — tout ce qu'il faut pour progresser en trading sans risque.
+          — tout ce qu'il faut pour progresser en trading, gratuitement et sans risque.
         </motion.p>
 
         <motion.div
@@ -364,13 +419,24 @@ function LandingPage() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.07 }}
-                className="flex flex-col items-center p-3 rounded-xl bg-white/5 border border-white/5 hover:border-white/15 transition-all"
+                whileHover={{ scale: 1.06, y: -2 }}
+                className="flex flex-col items-center p-3 rounded-xl bg-white/5 border border-white/5 hover:border-white/20 transition-all cursor-default"
               >
-                <span className="text-xl mb-1">{m.flag}</span>
+                <motion.span
+                  className="text-xl mb-1"
+                  animate={{ rotate: [0, -5, 5, 0] }}
+                  transition={{ duration: 2, delay: i * 0.3, repeat: Infinity, repeatDelay: 4 }}
+                >
+                  {m.flag}
+                </motion.span>
                 <span className="text-xs font-semibold text-white/80">{m.name}</span>
-                <span className={cn("text-xs mt-0.5 font-mono font-bold", m.up ? "text-emerald-400" : "text-rose-400")}>
+                <motion.span
+                  className={cn("text-xs mt-0.5 font-mono font-bold", m.up ? "text-emerald-400" : "text-rose-400")}
+                  animate={{ opacity: [1, 0.5, 1] }}
+                  transition={{ duration: 2, repeat: Infinity, delay: i * 0.2 }}
+                >
                   {m.change}
-                </span>
+                </motion.span>
               </motion.div>
             ))}
           </div>
@@ -390,7 +456,9 @@ function LandingPage() {
                 transition={{ delay: i * 0.1, duration: 0.5 }}
                 className="text-center"
               >
-                <p className="text-4xl md:text-5xl font-black gradient-text mb-2">{s.value}</p>
+                <p className="text-4xl md:text-5xl font-black gradient-text mb-2">
+                  <AnimatedCounter target={s.value} />
+                </p>
                 <p className="text-sm text-white/50">{s.label}</p>
               </motion.div>
             ))}
@@ -424,15 +492,20 @@ function LandingPage() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.1, duration: 0.5 }}
-                whileHover={{ y: -4, transition: { duration: 0.2 } }}
+                whileHover={{ y: -6, scale: 1.01, transition: { duration: 0.2 } }}
                 className={cn(
                   "relative p-6 rounded-2xl border bg-gradient-to-br overflow-hidden group cursor-default",
                   f.color, f.border
                 )}
               >
-                <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-white/5" />
-                <div className={cn("w-12 h-12 rounded-xl flex items-center justify-center mb-4 bg-white/5", f.border, "border")}>
-                  <f.icon className={cn("w-6 h-6", f.iconColor)} />
+                {/* Hover glow */}
+                <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-all duration-500 bg-white/5" />
+                <div className="absolute -inset-px opacity-0 group-hover:opacity-100 transition-all duration-500 rounded-2xl bg-gradient-to-br from-white/10 to-transparent" />
+                <div className={cn(
+                  "w-12 h-12 rounded-xl flex items-center justify-center mb-4 bg-white/5 border transition-all duration-300 group-hover:scale-110 group-hover:bg-white/10",
+                  f.border
+                )}>
+                  <f.icon className={cn("w-6 h-6 transition-transform duration-300 group-hover:rotate-6", f.iconColor)} />
                 </div>
                 <h3 className="text-base font-bold mb-2 text-white">{f.title}</h3>
                 <p className="text-sm text-white/55 leading-relaxed">{f.desc}</p>
@@ -584,6 +657,104 @@ function LandingPage() {
         </div>
       </section>
 
+      {/* ── Pricing ─────────────────────────────────────────────── */}
+      <section className="py-20 px-6 bg-black/20 border-y border-white/5">
+        <div className="max-w-5xl mx-auto">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="text-center mb-14"
+          >
+            <h2 className="text-3xl md:text-5xl font-black mb-4">
+              Commencez <span className="gradient-text">gratuitement</span>,
+              <br />évoluez avec <span className="text-yellow-400">Premium</span>
+            </h2>
+            <p className="text-white/50 text-lg max-w-xl mx-auto">
+              Les bases sont accessibles à tous. Le Premium débloque les outils avancés.
+            </p>
+          </motion.div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-3xl mx-auto">
+            {/* Free */}
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.5 }}
+              className="glass-card p-8 rounded-2xl border border-white/10"
+            >
+              <div className="mb-6">
+                <p className="text-sm text-white/50 font-semibold uppercase tracking-widest mb-2">Gratuit</p>
+                <p className="text-4xl font-black">0 €<span className="text-lg font-normal text-white/40"> / mois</span></p>
+              </div>
+              <div className="space-y-3 mb-8">
+                {[
+                  "Watchlist jusqu'à 20 actifs",
+                  "Analyses techniques de base",
+                  "Wallet virtuel (10 000 $)",
+                  "Marchés mondiaux (800+ actifs)",
+                  "Assistant IA (20 msg/jour)",
+                  "Actualités économiques",
+                ].map((f, i) => (
+                  <div key={i} className="flex items-center gap-3">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+                    <span className="text-sm text-white/70">{f}</span>
+                  </div>
+                ))}
+              </div>
+              <Link href="/register" className="block w-full text-center px-6 py-3 rounded-xl border border-white/15 hover:bg-white/5 font-semibold transition-all text-sm">
+                Commencer gratuitement
+              </Link>
+            </motion.div>
+
+            {/* Premium */}
+            <motion.div
+              initial={{ opacity: 0, x: 20 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.5 }}
+              className="relative rounded-2xl overflow-hidden"
+            >
+              {/* Animated gradient border */}
+              <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-yellow-400 via-primary to-purple-500 p-[1px]">
+                <div className="w-full h-full rounded-2xl bg-card/95" />
+              </div>
+              <div className="relative p-8">
+                <div className="absolute top-4 right-4">
+                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-yellow-400/20 border border-yellow-400/40 text-yellow-400 text-xs font-bold">
+                    <Crown className="w-3 h-3" />
+                    PREMIUM
+                  </span>
+                </div>
+                <div className="mb-6">
+                  <p className="text-sm text-yellow-400 font-semibold uppercase tracking-widest mb-2">Premium</p>
+                  <p className="text-4xl font-black gradient-text">Voir les offres</p>
+                </div>
+                <div className="space-y-3 mb-8">
+                  {[
+                    "Tout le plan Gratuit inclus",
+                    "Assistant IA illimité",
+                    "Scanner avancé en temps réel",
+                    "Alertes de prix instantanées",
+                    "Analyses IA approfondies",
+                    "Support prioritaire",
+                  ].map((f, i) => (
+                    <div key={i} className="flex items-center gap-3">
+                      <Crown className="w-4 h-4 text-yellow-400 flex-shrink-0" />
+                      <span className="text-sm text-white/80">{f}</span>
+                    </div>
+                  ))}
+                </div>
+                <Link href="/register" className="block w-full text-center px-6 py-3 rounded-xl bg-gradient-to-r from-yellow-400 to-primary text-black font-bold transition-all hover:opacity-90 hover:-translate-y-0.5 text-sm">
+                  Découvrir Premium
+                </Link>
+              </div>
+            </motion.div>
+          </div>
+        </div>
+      </section>
+
       {/* ── CTA final ───────────────────────────────────────────── */}
       <section className="py-24 px-6">
         <div className="max-w-3xl mx-auto text-center">
@@ -597,12 +768,19 @@ function LandingPage() {
             <div className="absolute -top-20 -right-20 w-60 h-60 bg-primary/30 rounded-full blur-3xl" />
             <div className="absolute -bottom-20 -left-20 w-60 h-60 bg-purple-500/20 rounded-full blur-3xl" />
             <div className="relative">
-              <Sparkles className="w-8 h-8 text-primary mx-auto mb-4" />
+              <motion.div
+                animate={{ rotate: 360 }}
+                transition={{ duration: 8, repeat: Infinity, ease: "linear" }}
+                className="inline-block mb-4"
+              >
+                <Sparkles className="w-8 h-8 text-primary" />
+              </motion.div>
               <h2 className="text-3xl md:text-5xl font-black mb-4">
                 Prêt à progresser ?
               </h2>
               <p className="text-white/60 text-lg mb-8">
-                Rejoignez la plateforme. C'est gratuit, sans engagement, et ça prend 30 secondes.
+                Rejoignez la plateforme. Accès gratuit, sans CB, en 30 secondes.
+                <br /><span className="text-yellow-400 font-semibold">Premium disponible</span> pour débloquer toutes les fonctionnalités.
               </p>
               <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
                 <Link
