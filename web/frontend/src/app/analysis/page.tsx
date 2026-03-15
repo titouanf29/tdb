@@ -498,9 +498,21 @@ Sois precis, factuel et professionnel. Utilise des emojis pour rendre l'analyse 
       {/* Results */}
       {analysis && (
         <>
-          {/* Asset Header */}
+          {/* 1. Asset Header */}
           <AssetHeader analysis={analysis} isFavorite={isFavorite} toggleFavorite={toggleFavorite} formatCurrency={formatCurrency} />
 
+          {/* 2. Premium Chart */}
+          <PremiumChart symbol={analysis.symbol} timeframe={timeframe} />
+
+          {/* 3. AI Insight */}
+          <AIInsightSection
+            aiInsight={aiInsight}
+            isLoading={isLoadingAI}
+            symbol={analysis.symbol}
+            onReload={() => loadAIInsight(analysis.symbol, analysis)}
+          />
+
+          {/* 4. Score cards */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Main score card */}
             <motion.div
@@ -693,17 +705,7 @@ Sois precis, factuel et professionnel. Utilise des emojis pour rendre l'analyse 
             </div>
           </motion.div>
 
-          {/* Fibonacci Levels */}
-          {analysis.fibonacci && (
-            <FibonacciSection analysis={analysis} formatCurrency={formatCurrency} />
-          )}
-
-          {/* 52-week range bar */}
-          {analysis.fundamentals?.["52w_high"] && analysis.fundamentals?.["52w_low"] && (
-            <WeekRangeSection analysis={analysis} formatCurrency={formatCurrency} />
-          )}
-
-          {/* Risk suggestion */}
+          {/* 5. Suggestion de Trade */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -728,7 +730,6 @@ Sois precis, factuel et professionnel. Utilise des emojis pour rendre l'analyse 
                 <p className="text-xl font-bold text-primary">1:{analysis.risk.risk_reward}</p>
               </div>
             </div>
-
             <Link href={`/trading?symbol=${analysis.symbol}`}>
               <motion.button
                 whileHover={{ scale: 1.02 }}
@@ -741,57 +742,54 @@ Sois precis, factuel et professionnel. Utilise des emojis pour rendre l'analyse 
             </Link>
           </motion.div>
 
-          {/* Premium Chart */}
-          <PremiumChart symbol={analysis.symbol} timeframe={timeframe} />
-
-          {/* AI Insight - Future Predictions */}
-          <AIInsightSection
-            aiInsight={aiInsight}
-            isLoading={isLoadingAI}
-            symbol={analysis.symbol}
-            onReload={() => loadAIInsight(analysis.symbol, analysis)}
-          />
-
-          {/* Detailed Analysis */}
-          <DetailedAnalysis analysis={analysis} formatCurrency={formatCurrency} />
-
-          {/* Market Context & Economic Analysis */}
-          <MarketContextSection analysis={analysis} formatCurrency={formatCurrency} />
-
-          {/* Risk Assessment */}
+          {/* 6. Évaluation des risques */}
           <RiskAssessmentSection analysis={analysis} formatCurrency={formatCurrency} />
 
-          {/* Fundamental Analysis */}
+          {/* 7. Analyse détaillée */}
+          <DetailedAnalysis analysis={analysis} formatCurrency={formatCurrency} />
+
+          {/* 8. Fibonacci + Range 52 semaines */}
+          {analysis.fibonacci && (
+            <FibonacciSection analysis={analysis} formatCurrency={formatCurrency} />
+          )}
+          {analysis.fundamentals?.["52w_high"] && analysis.fundamentals?.["52w_low"] && (
+            <WeekRangeSection analysis={analysis} formatCurrency={formatCurrency} />
+          )}
+
+          {/* 9. Contexte de marché */}
+          <MarketContextSection analysis={analysis} formatCurrency={formatCurrency} />
+
+          {/* 10. Analyse fondamentale */}
           {analysis.fundamentals && (
             <FundamentalAnalysisEnhanced analysis={analysis} formatCurrency={formatCurrency} />
           )}
 
-          {/* Investment Thesis */}
-          <InvestmentThesisSection analysis={analysis} formatCurrency={formatCurrency} />
-
-          {/* Performance & Targets */}
+          {/* 11. Performance & Objectifs de prix */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <PerformanceSection analysis={analysis} />
             <PriceTargets analysis={analysis} formatCurrency={formatCurrency} />
           </div>
 
-          {/* Sector & Comparative Analysis */}
-          <SectorComparisonSection analysis={analysis} />
+          {/* 12. Thèse d'investissement */}
+          <InvestmentThesisSection analysis={analysis} formatCurrency={formatCurrency} />
 
-          {/* Trading Strategies */}
+          {/* 13. Stratégies de trading */}
           <TradingStrategiesSection analysis={analysis} formatCurrency={formatCurrency} />
 
-          {/* Company Description */}
-          {analysis.company?.description && (
-            <CompanyDescription analysis={analysis} />
-          )}
+          {/* 14. Comparaison sectorielle */}
+          <SectorComparisonSection analysis={analysis} />
 
-          {/* News Section with Sentiment */}
+          {/* 15. Actualités */}
           {analysis.news && analysis.news.length > 0 && (
             <NewsSentimentSection news={analysis.news} symbol={analysis.symbol} />
           )}
 
-          {/* Educational Section */}
+          {/* 16. Description entreprise */}
+          {analysis.company?.description && (
+            <CompanyDescription analysis={analysis} />
+          )}
+
+          {/* 17. Section éducative */}
           <EducationalSection analysis={analysis} />
         </>
       )}
