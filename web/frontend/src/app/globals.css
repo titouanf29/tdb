@@ -195,7 +195,7 @@
   }
 
   .btn-ghost {
-    @apply hover:bg-white/8 text-muted-foreground hover:text-foreground px-4 py-2 rounded-lg transition-all duration-200;
+    @apply hover:bg-white/10 text-muted-foreground hover:text-foreground px-4 py-2 rounded-lg transition-all duration-200;
   }
 
   /* Input styles */
