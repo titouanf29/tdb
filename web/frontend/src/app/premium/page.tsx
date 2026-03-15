@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import {
   Crown,
@@ -15,12 +16,12 @@ import {
   Bell,
   Headphones,
   Sparkles,
-  Send,
   Loader2,
-  MessageSquare,
-  Clock,
   CheckCircle,
   XCircle,
+  CreditCard,
+  Shield,
+  Zap,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { usePremium } from "@/lib/PremiumContext";
@@ -39,12 +40,12 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
 
 export default function PremiumPage() {
   const { isPremium, isAdmin, premiumInfo } = usePremium();
+  const searchParams = useSearchParams();
   const [features, setFeatures] = useState<PremiumFeatures | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [message, setMessage] = useState("");
-  const [isSending, setIsSending] = useState(false);
-  const [sendSuccess, setSendSuccess] = useState(false);
-  const [myRequests, setMyRequests] = useState<PremiumRequest[]>([]);
+  const [isCheckingOut, setIsCheckingOut] = useState(false);
+  const paymentSuccess = searchParams.get("success") === "1";
+  const paymentCanceled = searchParams.get("canceled") === "1";
 
   useEffect(() => {
     loadData();
@@ -52,12 +53,8 @@ export default function PremiumPage() {
 
   const loadData = async () => {
     try {
-      const [featuresData, requestsData] = await Promise.all([
-        premiumAPI.getFeatures(),
-        premiumAPI.getMyRequests().catch(() => ({ requests: [] })),
-      ]);
+      const featuresData = await premiumAPI.getFeatures();
       setFeatures(featuresData);
-      setMyRequests(requestsData.requests);
     } catch (error) {
       console.error("Error loading premium data:", error);
     } finally {
@@ -65,19 +62,14 @@ export default function PremiumPage() {
     }
   };
 
-  const handleContact = async () => {
-    if (!message.trim()) return;
-
-    setIsSending(true);
+  const handleCheckout = async () => {
+    setIsCheckingOut(true);
     try {
-      await premiumAPI.contact(message);
-      setSendSuccess(true);
-      setMessage("");
-      loadData(); // Refresh requests
+      const { url } = await premiumAPI.createCheckout();
+      window.location.href = url;
     } catch (error: any) {
-      alert(error.message || "Erreur lors de l'envoi");
-    } finally {
-      setIsSending(false);
+      alert(error.message || "Erreur lors de la redirection vers le paiement");
+      setIsCheckingOut(false);
     }
   };
 
@@ -228,7 +220,7 @@ export default function PremiumPage() {
               <Crown className="w-5 h-5 text-yellow-400" />
               <p className="text-lg font-bold text-yellow-400">Premium</p>
             </div>
-            <p className="text-sm text-muted-foreground">Contactez-nous</p>
+            <p className="text-sm font-semibold text-yellow-400">5€ / mois</p>
           </div>
 
           {/* Features */}
@@ -302,120 +294,72 @@ export default function PremiumPage() {
         })}
       </motion.div>
 
-      {/* Contact Section */}
+      {/* Stripe Checkout Section */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.4 }}
         className="glass-card p-8"
       >
-        <div className="max-w-2xl mx-auto">
-          <div className="text-center mb-6">
-            <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-r from-primary/20 to-purple-500/20 flex items-center justify-center">
-              <MessageSquare className="w-8 h-8 text-primary" />
-            </div>
-            <h2 className="text-2xl font-bold mb-2">Contactez-nous</h2>
-            <p className="text-muted-foreground">
-              Interessé par Premium ? Envoyez-nous un message et un admin vous repondra rapidement.
-            </p>
-          </div>
+        <div className="max-w-lg mx-auto text-center">
 
-          {sendSuccess ? (
-            <div className="p-6 rounded-xl bg-green-500/20 border border-green-500/30 text-center">
-              <CheckCircle className="w-12 h-12 text-green-500 mx-auto mb-4" />
-              <h3 className="text-lg font-semibold mb-2">Message envoye !</h3>
+          {paymentSuccess ? (
+            <div className="p-6 rounded-xl bg-green-500/20 border border-green-500/30">
+              <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
+              <h3 className="text-2xl font-bold mb-2">Paiement confirmé !</h3>
               <p className="text-muted-foreground">
-                Un administrateur vous contactera bientot.
+                Votre compte Premium est en cours d&apos;activation. Rafraîchissez la page dans quelques secondes.
               </p>
-              <button
-                onClick={() => setSendSuccess(false)}
-                className="mt-4 text-sm text-primary hover:underline"
-              >
-                Envoyer un autre message
+            </div>
+          ) : paymentCanceled ? (
+            <div className="p-6 rounded-xl bg-red-500/20 border border-red-500/30">
+              <XCircle className="w-16 h-16 text-red-400 mx-auto mb-4" />
+              <h3 className="text-xl font-bold mb-2">Paiement annulé</h3>
+              <p className="text-muted-foreground mb-6">
+                Aucun montant n&apos;a été débité. Vous pouvez réessayer quand vous le souhaitez.
+              </p>
+              <button onClick={handleCheckout} disabled={isCheckingOut} className="btn-primary flex items-center justify-center gap-2 mx-auto px-8 py-3">
+                {isCheckingOut ? <Loader2 className="w-5 h-5 animate-spin" /> : <CreditCard className="w-5 h-5" />}
+                Réessayer
               </button>
             </div>
           ) : (
-            <div className="space-y-4">
-              <textarea
-                value={message}
-                onChange={(e) => setMessage(e.target.value)}
-                placeholder="Bonjour, je suis interesse par l'offre Premium..."
-                className="w-full h-32 px-4 py-3 rounded-xl bg-white/5 border border-white/10 focus:border-primary focus:outline-none resize-none"
-              />
+            <>
+              <div className="mb-8">
+                <div className="inline-flex items-center gap-3 bg-gradient-to-r from-yellow-500/20 to-orange-500/20 border border-yellow-500/30 rounded-2xl px-8 py-4 mb-4">
+                  <Crown className="w-8 h-8 text-yellow-400" />
+                  <div className="text-left">
+                    <p className="text-2xl font-bold text-yellow-400">5€ <span className="text-base font-normal text-muted-foreground">/ mois</span></p>
+                    <p className="text-sm text-muted-foreground">Résiliable à tout moment</p>
+                  </div>
+                </div>
+                <h2 className="text-2xl font-bold mb-2">Passer Premium</h2>
+                <p className="text-muted-foreground">Paiement sécurisé par Stripe. Aucune information bancaire stockée sur nos serveurs.</p>
+              </div>
+
               <button
-                onClick={handleContact}
-                disabled={isSending || !message.trim()}
-                className="w-full btn-primary flex items-center justify-center gap-2 py-3"
+                onClick={handleCheckout}
+                disabled={isCheckingOut}
+                className="w-full btn-primary flex items-center justify-center gap-3 py-4 text-lg font-semibold rounded-xl"
               >
-                {isSending ? (
-                  <Loader2 className="w-5 h-5 animate-spin" />
+                {isCheckingOut ? (
+                  <Loader2 className="w-6 h-6 animate-spin" />
                 ) : (
-                  <Send className="w-5 h-5" />
+                  <CreditCard className="w-6 h-6" />
                 )}
-                Envoyer ma demande
+                {isCheckingOut ? "Redirection en cours..." : "Payer 5€ / mois"}
               </button>
-            </div>
+
+              <div className="flex items-center justify-center gap-6 mt-4 text-xs text-muted-foreground">
+                <span className="flex items-center gap-1"><Shield className="w-3 h-3" /> Paiement sécurisé SSL</span>
+                <span className="flex items-center gap-1"><Zap className="w-3 h-3" /> Activation instantanée</span>
+                <span className="flex items-center gap-1"><XCircle className="w-3 h-3" /> Résiliable quand vous voulez</span>
+              </div>
+            </>
           )}
         </div>
       </motion.div>
 
-      {/* My Requests */}
-      {myRequests.length > 0 && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.5 }}
-          className="glass-card p-6"
-        >
-          <h2 className="text-lg font-bold mb-4">Mes demandes</h2>
-          <div className="space-y-3">
-            {myRequests.map((req) => (
-              <div
-                key={req.id}
-                className={cn(
-                  "p-4 rounded-xl border",
-                  req.status === "pending"
-                    ? "bg-yellow-500/10 border-yellow-500/30"
-                    : req.status === "approved"
-                    ? "bg-green-500/10 border-green-500/30"
-                    : "bg-red-500/10 border-red-500/30"
-                )}
-              >
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex-1">
-                    <p className="text-sm mb-2">{req.message}</p>
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <Clock className="w-3 h-3" />
-                      {new Date(req.created_at).toLocaleDateString("fr-FR")}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {req.status === "pending" ? (
-                      <span className="px-2 py-1 rounded-full text-xs bg-yellow-500/20 text-yellow-400">
-                        En attente
-                      </span>
-                    ) : req.status === "approved" ? (
-                      <span className="px-2 py-1 rounded-full text-xs bg-green-500/20 text-green-400">
-                        Approuve
-                      </span>
-                    ) : (
-                      <span className="px-2 py-1 rounded-full text-xs bg-red-500/20 text-red-400">
-                        Refuse
-                      </span>
-                    )}
-                  </div>
-                </div>
-                {req.admin_response && (
-                  <div className="mt-3 pt-3 border-t border-white/10">
-                    <p className="text-xs text-muted-foreground mb-1">Reponse admin:</p>
-                    <p className="text-sm">{req.admin_response}</p>
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        </motion.div>
-      )}
     </div>
   );
 }

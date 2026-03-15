@@ -976,6 +976,10 @@ export const premiumAPI = {
   // Get features comparison
   getFeatures: () => fetchAPI<PremiumFeatures>("/api/premium/features"),
 
+  // Create Stripe checkout session
+  createCheckout: () =>
+    fetchAPI<{ url: string }>("/api/premium/checkout", { method: "POST" }),
+
   // Contact admin for premium
   contact: (message: string) =>
     fetchAPI<{ success: boolean; message: string }>("/api/premium/contact", {

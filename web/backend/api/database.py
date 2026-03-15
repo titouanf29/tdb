@@ -140,9 +140,17 @@ async def _init_postgres():
                 is_premium INTEGER DEFAULT 0,
                 premium_since TEXT,
                 premium_expires TEXT,
-                email_verified INTEGER DEFAULT 0
+                email_verified INTEGER DEFAULT 0,
+                stripe_customer_id TEXT,
+                stripe_subscription_id TEXT
             )
         """)
+        # Add Stripe columns if they don't exist (for existing databases)
+        for col, col_type in [("stripe_customer_id", "TEXT"), ("stripe_subscription_id", "TEXT")]:
+            try:
+                await conn.execute(f"ALTER TABLE web_users ADD COLUMN {col} {col_type}")
+            except Exception:
+                pass  # Column already exists
         await conn.execute("""
             CREATE TABLE IF NOT EXISTS email_verification_tokens (
                 id SERIAL PRIMARY KEY,
@@ -357,9 +365,16 @@ async def _init_sqlite():
                 avatar_url TEXT,
                 created_at TEXT NOT NULL,
                 last_login TEXT,
-                is_active INTEGER DEFAULT 1
+                is_active INTEGER DEFAULT 1,
+                stripe_customer_id TEXT,
+                stripe_subscription_id TEXT
             )
         """)
+        for col in ["stripe_customer_id", "stripe_subscription_id"]:
+            try:
+                await db.execute(f"ALTER TABLE web_users ADD COLUMN {col} TEXT")
+            except Exception:
+                pass
         await db.execute("""
             CREATE TABLE IF NOT EXISTS email_verification_tokens (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,

@@ -3,7 +3,7 @@ Premium API routes for TDB
 Manages premium subscriptions and features
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime
@@ -120,6 +120,113 @@ async def check_premium_required(current_user: dict = Depends(get_current_user))
             detail="Cette fonctionnalite necessite un abonnement Premium"
         )
     return current_user
+
+
+# ============== STRIPE CHECKOUT ==============
+
+@router.post("/checkout")
+async def create_checkout_session(current_user: dict = Depends(get_current_user)):
+    """Create a Stripe Checkout session for Premium subscription (5€/month)"""
+    import stripe
+    from config import STRIPE_SECRET_KEY, STRIPE_PRICE_ID, FRONTEND_URL
+
+    if not STRIPE_SECRET_KEY or not STRIPE_PRICE_ID:
+        raise HTTPException(status_code=503, detail="Paiement non configuré. Contactez l'administrateur.")
+
+    if await is_user_premium(current_user):
+        raise HTTPException(status_code=400, detail="Vous êtes déjà Premium")
+
+    stripe.api_key = STRIPE_SECRET_KEY
+    user_id = current_user["id"]
+
+    # Get or create Stripe customer
+    result = await execute_query(
+        "SELECT stripe_customer_id FROM web_users WHERE id = ?", (user_id,)
+    )
+    customer_id = result[0].get("stripe_customer_id") if result else None
+
+    if not customer_id:
+        customer = stripe.Customer.create(
+            email=current_user["email"],
+            metadata={"user_id": str(user_id)}
+        )
+        customer_id = customer.id
+        await execute_write(
+            "UPDATE web_users SET stripe_customer_id = ? WHERE id = ?",
+            (customer_id, user_id)
+        )
+
+    session = stripe.checkout.Session.create(
+        customer=customer_id,
+        payment_method_types=["card"],
+        line_items=[{"price": STRIPE_PRICE_ID, "quantity": 1}],
+        mode="subscription",
+        success_url=f"{FRONTEND_URL}/premium?success=1",
+        cancel_url=f"{FRONTEND_URL}/premium?canceled=1",
+        metadata={"user_id": str(user_id)},
+        locale="fr",
+    )
+
+    return {"url": session.url}
+
+
+@router.post("/webhook")
+async def stripe_webhook(request: Request):
+    """Handle Stripe webhook events (no auth — verified by signature)"""
+    import stripe
+    from config import STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET
+
+    stripe.api_key = STRIPE_SECRET_KEY
+    payload = await request.body()
+    sig_header = request.headers.get("stripe-signature", "")
+
+    try:
+        event = stripe.Webhook.construct_event(payload, sig_header, STRIPE_WEBHOOK_SECRET)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid webhook signature")
+
+    event_type = event["type"]
+
+    # Payment confirmed → activate Premium
+    if event_type == "checkout.session.completed":
+        session = event["data"]["object"]
+        user_id = session.get("metadata", {}).get("user_id")
+        subscription_id = session.get("subscription")
+        customer_id = session.get("customer")
+
+        if user_id:
+            from datetime import timedelta
+            expires = (datetime.utcnow() + timedelta(days=32)).isoformat()
+            await execute_write("""
+                UPDATE web_users
+                SET is_premium = 1, premium_since = ?, premium_expires = ?,
+                    stripe_customer_id = ?, stripe_subscription_id = ?
+                WHERE id = ?
+            """, (datetime.utcnow().isoformat(), expires, customer_id, subscription_id, int(user_id)))
+
+    # Subscription renewed → extend expiry
+    elif event_type == "invoice.paid":
+        invoice = event["data"]["object"]
+        subscription_id = invoice.get("subscription")
+        if subscription_id:
+            from datetime import timedelta
+            expires = (datetime.utcnow() + timedelta(days=32)).isoformat()
+            await execute_write("""
+                UPDATE web_users SET is_premium = 1, premium_expires = ?
+                WHERE stripe_subscription_id = ?
+            """, (expires, subscription_id))
+
+    # Subscription cancelled → revoke Premium
+    elif event_type in ("customer.subscription.deleted", "customer.subscription.paused"):
+        subscription = event["data"]["object"]
+        subscription_id = subscription.get("id")
+        if subscription_id:
+            await execute_write("""
+                UPDATE web_users SET is_premium = 0, premium_expires = ?, stripe_subscription_id = NULL
+                WHERE stripe_subscription_id = ?
+            """, (datetime.utcnow().isoformat(), subscription_id))
+
+    return {"status": "ok"}
 
 
 # ============== USER ROUTES ==============
