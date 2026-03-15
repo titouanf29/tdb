@@ -511,110 +511,14 @@ async def get_my_asset_requests(
 
 @router.get("/prices")
 async def get_prices(symbols: str = Query(..., description="Comma-separated symbols")):
-    """Return live prices: Polygon.io (US/Crypto) + Twelve Data (Europe/Asia)."""
-    import httpx
-    from config import POLYGON_API_KEY, TWELVEDATA_API_KEY
+    """Return live prices for any symbol type (US, crypto, indices, commodities, international)."""
+    from ._prices import fetch_prices
 
-    raw = [s.strip().upper() for s in symbols.split(",") if s.strip()][:50]
+    raw = [s.strip() for s in symbols.split(",") if s.strip()][:50]
     if not raw:
         return {"prices": {}}
 
-    prices: dict = {}
-
-    # Yahoo Finance suffix → Twelve Data exchange
-    EXCHANGE_MAP = {
-        ".PA": "EURONEXT", ".AS": "EURONEXT", ".BR": "EURONEXT", ".LS": "EURONEXT",
-        ".DE": "XETRA", ".L": "LSE", ".MI": "MIL", ".MC": "BMAD",
-        ".SW": "SIX", ".KS": "KRX", ".HK": "HKEX", ".T": "TSE", ".NS": "NSE",
-    }
-
-    def yf_to_td(sym: str):
-        for suffix, exchange in EXCHANGE_MAP.items():
-            if sym.endswith(suffix):
-                return sym[:-len(suffix)], exchange
-        return None, None
-
-    crypto_syms  = [s for s in raw if s.endswith("-USD")]
-    us_syms      = [s for s in raw if not s.endswith("-USD") and not s.startswith("^") and "." not in s and "=" not in s]
-    intl_syms    = [s for s in raw if any(s.endswith(sfx) for sfx in EXCHANGE_MAP)]
-
-    async with httpx.AsyncClient(timeout=10.0) as client:
-
-        # --- Polygon.io: US Stocks ---
-        if us_syms and POLYGON_API_KEY:
-            try:
-                resp = await client.get(
-                    "https://api.polygon.io/v2/snapshot/locale/us/markets/stocks/tickers",
-                    params={"tickers": ",".join(us_syms), "apiKey": POLYGON_API_KEY},
-                )
-                if resp.status_code == 200:
-                    for t in resp.json().get("tickers", []):
-                        sym   = t.get("ticker", "")
-                        day   = t.get("day", {})
-                        prev  = t.get("prevDay", {})
-                        price = day.get("c") or t.get("lastTrade", {}).get("p") or 0
-                        prev_c = prev.get("c") or 0
-                        change = ((price - prev_c) / prev_c * 100) if prev_c else 0
-                        if price:
-                            prices[sym] = {"price": round(price, 4), "change": round(change, 2), "volume": int(day.get("v") or 0)}
-            except Exception:
-                pass
-
-        # --- Polygon.io: Crypto (BTC-USD → X:BTCUSD) ---
-        if crypto_syms and POLYGON_API_KEY:
-            try:
-                poly_tickers = ["X:" + s.replace("-USD", "USD") for s in crypto_syms]
-                resp = await client.get(
-                    "https://api.polygon.io/v2/snapshot/locale/global/markets/crypto/tickers",
-                    params={"tickers": ",".join(poly_tickers), "apiKey": POLYGON_API_KEY},
-                )
-                if resp.status_code == 200:
-                    for t in resp.json().get("tickers", []):
-                        poly_sym = t.get("ticker", "")
-                        orig_sym = poly_sym[2:-3] + "-USD"
-                        day  = t.get("day", {})
-                        prev = t.get("prevDay", {})
-                        price  = day.get("c") or 0
-                        prev_c = prev.get("c") or 0
-                        change = ((price - prev_c) / prev_c * 100) if prev_c else 0
-                        if price:
-                            prices[orig_sym] = {"price": round(price, 4), "change": round(change, 2), "volume": int(day.get("v") or 0)}
-            except Exception:
-                pass
-
-        # --- Twelve Data: Europe / Asia ---
-        if intl_syms and TWELVEDATA_API_KEY:
-            try:
-                td_params, td_to_orig = [], {}
-                for sym in intl_syms:
-                    base, exchange = yf_to_td(sym)
-                    if base and exchange:
-                        td_sym = f"{base}:{exchange}"
-                        td_params.append(td_sym)
-                        td_to_orig[td_sym] = sym
-
-                if td_params:
-                    resp = await client.get(
-                        "https://api.twelvedata.com/quote",
-                        params={"symbol": ",".join(td_params), "apikey": TWELVEDATA_API_KEY},
-                    )
-                    if resp.status_code == 200:
-                        data = resp.json()
-                        # Single symbol → object directly; multiple → dict keyed by symbol
-                        if isinstance(data, dict) and "close" in data:
-                            data = {td_params[0]: data}
-                        for td_sym, quote in data.items():
-                            if not isinstance(quote, dict) or "close" not in quote:
-                                continue
-                            orig  = td_to_orig.get(td_sym, "")
-                            price = float(quote.get("close") or 0)
-                            change = float(quote.get("percent_change") or 0)
-                            volume = int(float(quote.get("volume") or 0))
-                            if price and orig:
-                                prices[orig] = {"price": round(price, 4), "change": round(change, 2), "volume": volume}
-            except Exception:
-                pass
-
+    prices = await fetch_prices(raw)
     return {"prices": prices}
 
 
