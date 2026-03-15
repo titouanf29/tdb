@@ -48,7 +48,18 @@ async function fetchAPI<T>(
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({ detail: "API Error" }));
-    throw new APIError(error.detail || "Request failed", response.status);
+    const detail = error.detail;
+    let message: string;
+    if (typeof detail === "string") {
+      message = detail;
+    } else if (Array.isArray(detail)) {
+      message = detail.map((e: any) => e.msg || JSON.stringify(e)).join("; ");
+    } else if (detail && typeof detail === "object") {
+      message = (detail as any).message || JSON.stringify(detail);
+    } else {
+      message = "Request failed";
+    }
+    throw new APIError(message, response.status);
   }
 
   return response.json();

@@ -235,7 +235,7 @@ Gestion du risque:
 - Ratio R/R: 1:${data.risk.risk_reward}
 ${fundamentalsInfo}
 ${performanceInfo}
-${data.company?.description ? `\nDescription: ${data.company.description}` : ''}
+${data.company?.description ? `\nDescription: ${data.company.description.slice(0, 500)}` : ''}
 `;
 
       const response = await aiAPI.chat(

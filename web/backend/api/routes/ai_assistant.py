@@ -58,15 +58,15 @@ class ChatRequest(BaseModel):
     @field_validator("message")
     @classmethod
     def message_max_length(cls, v: str) -> str:
-        if len(v) > 1000:
-            raise ValueError("Message trop long (max 1000 caractères)")
+        if len(v) > 5000:
+            raise ValueError("Message trop long (max 5000 caractères)")
         return v
 
     @field_validator("context")
     @classmethod
     def context_max_length(cls, v: Optional[str]) -> Optional[str]:
-        if v and len(v) > 2000:
-            raise ValueError("Contexte trop long (max 2000 caractères)")
+        if v and len(v) > 10000:
+            raise ValueError("Contexte trop long (max 10000 caractères)")
         return v
 
 
