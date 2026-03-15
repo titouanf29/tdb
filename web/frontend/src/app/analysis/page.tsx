@@ -193,87 +193,127 @@ Performance:
 - YTD: ${data.performance.ytd?.toFixed(2) || 'N/A'}%
 ` : '';
 
+      const adxInfo = (data.indicators as any).adx
+        ? `- ADX: ${(data.indicators as any).adx.value.toFixed(1)} (${(data.indicators as any).adx.signal}) — DI+ ${(data.indicators as any).adx.plus_di.toFixed(1)} / DI- ${(data.indicators as any).adx.minus_di.toFixed(1)}`
+        : "";
+      const stochInfo = (data.indicators as any).stochastic
+        ? `- Stochastique %K: ${(data.indicators as any).stochastic.k.toFixed(1)} / %D: ${(data.indicators as any).stochastic.d.toFixed(1)} (${(data.indicators as any).stochastic.signal})`
+        : "";
+      const bbPctB = (data.indicators.bollinger as any).percent_b !== undefined
+        ? `- Bollinger %B: ${(data.indicators.bollinger as any).percent_b.toFixed(1)}% (position dans les bandes)`
+        : "";
+      const fibInfo = (data as any).fibonacci
+        ? `\nNiveaux Fibonacci (range ${(data as any).fibonacci.low} — ${(data as any).fibonacci.high}):\n` +
+          Object.entries((data as any).fibonacci.levels)
+            .map(([k, v]) => `- ${k}%: $${v}`)
+            .join("\n")
+        : "";
+
       const context = `
-=== ANALYSE COMPLETE DE ${sym} ===
+=== DONNÉES COMPLÈTES DE ${sym} ===
 
-Informations de base:
+Entreprise:
 - Nom: ${data.company?.name || sym}
-- Secteur: ${data.company?.sector || 'N/A'}
-- Industrie: ${data.company?.industry || 'N/A'}
+- Secteur: ${data.company?.sector || "N/A"} | Industrie: ${data.company?.industry || "N/A"}
+${data.company?.description ? `- Description: ${data.company.description.slice(0, 400)}` : ""}
 
-Prix et tendance:
+Prix et marché:
 - Prix actuel: $${data.price.current}
-- Variation 24h: ${data.price.change.toFixed(2)}%
-- Plus haut 24h: $${data.price.high_24h}
-- Plus bas 24h: $${data.price.low_24h}
-- Tendance: ${data.trend}
+- Variation 24h: ${data.price.change.toFixed(2)}% | Plus haut: $${data.price.high_24h} | Plus bas: $${data.price.low_24h}
+- Tendance dominante: ${data.trend}
+- Signal global: ${data.signal.text}
 
-Scores:
-- Score Global: ${data.score.total}/100
-- Score Technique: ${data.score.technical}/100
-- Score Volume: ${data.score.volume}/100
-- Score Momentum: ${data.score.momentum}/100
-- Signal: ${data.signal.text}
+Scores (sur 100):
+- Global: ${data.score.total} | Technique: ${data.score.technical} | Volume: ${data.score.volume} | Momentum: ${data.score.momentum}
 
 Indicateurs techniques:
-- RSI (14): ${data.indicators.rsi.value.toFixed(1)} (${data.indicators.rsi.signal})
-- MACD: ${data.indicators.macd.value.toFixed(4)} (Signal: ${data.indicators.macd.signal})
-- EMA 20: $${data.indicators.ema.ema20.toFixed(2)}
-- EMA 50: $${data.indicators.ema.ema50.toFixed(2)}
-- ATR: ${data.indicators.atr.toFixed(4)}
-- Volume Ratio: ${data.indicators.volume_ratio.toFixed(2)}x
-- Bollinger: Position ${data.indicators.bollinger.position}
+- RSI (14): ${data.indicators.rsi.value.toFixed(1)} → ${data.indicators.rsi.signal}
+- MACD: valeur ${data.indicators.macd.value.toFixed(4)} | signal ${data.indicators.macd.signal_line?.toFixed(4) ?? "N/A"} → ${data.indicators.macd.signal}
+- EMA 20: $${data.indicators.ema.ema20.toFixed(2)} | EMA 50: $${data.indicators.ema.ema50.toFixed(2)}
+- Prix vs EMA20: ${data.price.current > data.indicators.ema.ema20 ? "AU-DESSUS" : "EN-DESSOUS"}
+- Prix vs EMA50: ${data.price.current > data.indicators.ema.ema50 ? "AU-DESSUS" : "EN-DESSOUS"}
+- Bollinger: position ${data.indicators.bollinger.position} | upper $${(data.indicators.bollinger as any).upper?.toFixed(2) ?? "N/A"} | lower $${(data.indicators.bollinger as any).lower?.toFixed(2) ?? "N/A"}
+${bbPctB}
+${adxInfo}
+${stochInfo}
+- ATR (14): ${data.indicators.atr.toFixed(4)} (volatilité absolue)
+- Volume ratio: ${data.indicators.volume_ratio.toFixed(2)}x la moyenne
+${fibInfo}
 
-Niveaux cles:
-- Resistance: $${data.levels.resistance}
-- Pivot: $${data.levels.pivot}
-- Support: $${data.levels.support}
+Niveaux clés:
+- Résistance: $${data.levels.resistance} | Pivot: $${data.levels.pivot} | Support: $${data.levels.support}
 
-Gestion du risque:
-- Stop Loss suggere: $${data.risk.suggested_sl}
-- Take Profit suggere: $${data.risk.suggested_tp}
-- Ratio R/R: 1:${data.risk.risk_reward}
+Gestion du risque calculée:
+- Stop-loss suggéré: $${data.risk.suggested_sl} | Take-profit: $${data.risk.suggested_tp} | R/R: 1:${data.risk.risk_reward}
 ${fundamentalsInfo}
-${performanceInfo}
-${data.company?.description ? `\nDescription: ${data.company.description.slice(0, 500)}` : ''}
-`;
+${performanceInfo}`;
 
       const response = await aiAPI.chat(
-        `Tu es un analyste financier senior avec 20 ans d'experience. Fournis une analyse COMPLETE et DETAILLEE pour ${sym}:
+        `Tu es TDB Assistant, analyste financier senior avec 20 ans d'expérience sur les marchés actions, crypto et matières premières. Produis une analyse EXHAUSTIVE et ULTRA-PRÉCISE de ${sym} en exploitant TOUTES les données fournies. Utilise les chiffres exacts. Sois didactique: explique pourquoi chaque signal est important.
 
-## 1. SYNTHESE EXECUTIVE
-Resume en 3-4 phrases la situation actuelle, le contexte et les enjeux principaux.
+## 📊 1. SYNTHÈSE EXÉCUTIVE
+En 4-5 phrases denses: situation actuelle avec prix exact et performances récentes, tendance dominante et niveau de conviction (les scores/indicateurs convergent-ils?), contexte sectoriel, verdict immédiat pour un trader.
 
-## 2. ANALYSE DE LA TENDANCE
-- Tendance actuelle et sa force
-- Signaux techniques convergents/divergents
-- Niveaux techniques importants
+## 📈 2. ANALYSE TECHNIQUE INDICATEUR PAR INDICATEUR
 
-## 3. CATALYSEURS A COURT TERME (1-4 semaines)
-- Evenements a surveiller
-- Niveaux de prix cibles
-- Probabilite de mouvement directionnel
+### RSI à ${data.indicators.rsi.value.toFixed(1)}
+Explique précisément ce que ce niveau signifie (pas juste "neutre"): momentum haussier/baissier, proximité des zones extrêmes, présence de divergence avec le prix, implications concrètes pour la prochaine semaine.
 
-## 4. PERSPECTIVES A MOYEN TERME (1-3 mois)
-- Contexte sectoriel
-- Dynamique fondamentale
-- Objectifs de prix realistes
+### MACD (${data.indicators.macd.value.toFixed(4)})
+Signal actuel, position par rapport à la ligne de signal, dynamique du momentum (histogramme en expansion ou contraction?), conviction du signal.
 
-## 5. ANALYSE DES RISQUES
-- Risques techniques (gaps, supports)
-- Risques fondamentaux (resultats, concurrence)
-- Risques macro (taux, inflation, geopolitique)
+### Moyennes Mobiles EMA 20 / EMA 50
+Le prix est ${data.price.current > data.indicators.ema.ema20 ? "AU-DESSUS" : "EN-DESSOUS"} de l'EMA20 et ${data.price.current > data.indicators.ema.ema50 ? "AU-DESSUS" : "EN-DESSOUS"} de l'EMA50. Explique la structure de tendance, les croisements récents et leur signification pour la direction probable.
 
-## 6. STRATEGIE RECOMMANDEE
-- Action a prendre (Acheter/Vendre/Attendre)
-- Points d'entree optimaux
-- Niveaux de stop-loss et take-profit
-- Horizon de temps recommande
+### Bandes de Bollinger
+Position: ${data.indicators.bollinger.position}. Analyse la volatilité actuelle, risque de squeeze ou d'expansion, et ce que cela implique pour le prochain mouvement directionnel.
 
-## 7. CONVICTION ET CONFIANCE
-Donne une note de conviction de 1 a 10 avec justification.
+${adxInfo ? `### ADX & Directional Movement\n${adxInfo}\nInterprète la force de tendance et si DI+ ou DI- domine. Implications pour les traders tendanciels vs. range.` : ""}
 
-Sois precis, factuel et professionnel. Utilise des emojis pour rendre l'analyse plus lisible.`,
+${stochInfo ? `### Stochastique\n${stochInfo}\nSignal de momentum actuel, croisements récents en zones de surachat/survente, confirmation ou divergence par rapport au RSI.` : ""}
+
+### Volume (ratio ${data.indicators.volume_ratio.toFixed(2)}x)
+Le volume confirme-t-il le mouvement de prix actuel? Signal de conviction institutionnelle ou méfiance? Implications pour la fiabilité du signal technique.
+
+## 📍 3. NIVEAUX CLÉS ET ZONES STRATÉGIQUES
+Pour chaque niveau, explique son importance historique/technique et la probabilité de réaction:
+- Support immédiat ($${data.levels.support}): pourquoi ce niveau est critique, que se passe-t-il s'il cède?
+- Pivot ($${data.levels.pivot}): rôle actuel comme zone de décision
+- Résistance ($${data.levels.resistance}): probabilité de rupture, volumes nécessaires
+${fibInfo ? "- Niveaux Fibonacci: quels niveaux sont les plus actifs comme support/résistance?" : ""}
+- Zones de liquidité probables et concentration d'ordres
+
+## 📆 4. SCÉNARIOS DE MARCHÉ
+
+### Scénario haussier (probabilité X%)
+Conditions techniques nécessaires (RSI, MACD, volume), niveaux cibles précis T1/T2/T3, signal déclencheur exact, niveau d'invalidation.
+
+### Scénario baissier (probabilité X%)
+Catalyseurs baissiers (quel niveau casse quoi?), supports critiques à surveiller, niveau d'invalidation du scénario baissier.
+
+### Scénario neutre / consolidation (probabilité X%)
+Range probable, durée estimée, signal de sortie de range.
+
+## 🎯 5. STRATÉGIE DE TRADING CONCRÈTE
+- **Signal**: ACHAT FORT / ACHAT / NEUTRE / VENTE / VENTE FORTE
+- **Zone d'entrée optimale**: $X – $X avec justification technique précise
+- **Stop-loss**: $${data.risk.suggested_sl} — explique pourquoi ce niveau (sous quel support/niveau ATR?)
+- **Take-profit T1**: $X (R/R calculé), **T2**: $X, **T3**: $X
+- **Gestion de position**: taille suggérée (% du portefeuille), horizon temporel précis
+- **Condition d'entrée**: exactement quel signal attend-on avant d'entrer?
+
+## ⚠️ 6. RISQUES ET POINTS DE VIGILANCE
+- Risques techniques spécifiques: quels niveaux ne doivent ABSOLUMENT pas casser et pourquoi?
+- Risques fondamentaux: résultats à venir, dynamique sectorielle, concurrence
+- Risques macro: taux d'intérêt, inflation, géopolitique et impact sur ce secteur
+- Calibrage des stops via ATR (${data.indicators.atr.toFixed(4)}): stop recommandé = ${(data.price.current - 1.5 * data.indicators.atr).toFixed(2)} (1.5x ATR)
+
+## 💡 7. VERDICT FINAL
+- **Conviction**: X/10 — justification précise basée sur la convergence des signaux
+- **Action dans les 24-48h**: exactement quoi surveiller (quel niveau, quel indicateur, quel volume?)
+- **Catalyseur déterminant**: le facteur unique qui fera basculer la situation
+
+⚠️ *Analyse éducative uniquement — pas un conseil financier personnalisé. Trading = risque de perte en capital.*`,
         context
       );
       setAiInsight(response.response);
@@ -2111,6 +2151,75 @@ function CompanyDescription({ analysis }: { analysis: Analysis }) {
   );
 }
 
+// ── Markdown renderer for AI analysis output ──────────────────────────────
+
+function renderInlineAI(text: string): React.ReactNode[] {
+  return text.split(/(\*\*[^*]+\*\*|\*[^*]+\*|`[^`]+`)/g).map((part, i) => {
+    if (part.startsWith("**") && part.endsWith("**") && part.length > 4)
+      return <strong key={i} className="text-foreground font-semibold">{part.slice(2, -2)}</strong>;
+    if (part.startsWith("*") && part.endsWith("*") && part.length > 2)
+      return <em key={i} className="text-foreground/80">{part.slice(1, -1)}</em>;
+    if (part.startsWith("`") && part.endsWith("`") && part.length > 2)
+      return <code key={i} className="bg-black/30 px-1 py-0.5 rounded text-xs font-mono">{part.slice(1, -1)}</code>;
+    return <span key={i}>{part}</span>;
+  });
+}
+
+function renderAIText(text: string): React.ReactNode {
+  const lines = text.split("\n");
+  const nodes: React.ReactNode[] = [];
+  let listBuffer: string[] = [];
+  let k = 0;
+
+  const flushList = () => {
+    if (!listBuffer.length) return;
+    nodes.push(
+      <ul key={`l${k++}`} className="space-y-1.5 my-2 ml-1">
+        {listBuffer.map((item, i) => (
+          <li key={i} className="flex gap-2 text-sm text-muted-foreground leading-relaxed">
+            <span className="text-primary/70 mt-0.5 shrink-0">▸</span>
+            <span>{renderInlineAI(item)}</span>
+          </li>
+        ))}
+      </ul>
+    );
+    listBuffer = [];
+  };
+
+  for (const line of lines) {
+    if (line.startsWith("## ")) {
+      flushList();
+      nodes.push(
+        <h2 key={`h${k++}`} className="text-sm font-bold text-foreground mt-5 mb-2 pb-1.5 border-b border-white/10">
+          {line.slice(3)}
+        </h2>
+      );
+    } else if (line.startsWith("### ")) {
+      flushList();
+      nodes.push(
+        <h3 key={`h${k++}`} className="text-sm font-semibold text-foreground/90 mt-3 mb-1">
+          {line.slice(4)}
+        </h3>
+      );
+    } else if (/^[-*•] /.test(line)) {
+      listBuffer.push(line.replace(/^[-*•] /, ""));
+    } else if (line.trim() === "") {
+      flushList();
+    } else {
+      flushList();
+      nodes.push(
+        <p key={`p${k++}`} className="text-sm text-muted-foreground leading-relaxed mb-1.5">
+          {renderInlineAI(line)}
+        </p>
+      );
+    }
+  }
+  flushList();
+  return <>{nodes}</>;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 // AI Insight Section - Future Predictions
 function AIInsightSection({
   aiInsight,
@@ -2185,12 +2294,8 @@ function AIInsightSection({
           </div>
         ) : aiInsight ? (
           <div className="space-y-4">
-            <div className="prose prose-invert max-w-none">
-              {aiInsight.split('\n\n').map((paragraph, idx) => (
-                <p key={idx} className="text-sm text-muted-foreground leading-relaxed mb-3">
-                  {paragraph}
-                </p>
-              ))}
+            <div className="space-y-0.5">
+              {renderAIText(aiInsight)}
             </div>
 
             <div className="flex items-center gap-2 pt-4 border-t border-white/10">

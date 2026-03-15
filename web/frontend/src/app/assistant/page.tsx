@@ -7,44 +7,84 @@ import { cn } from "@/lib/utils";
 import { aiAPI, ChatMessage, AILimitStatus } from "@/lib/api";
 import Link from "next/link";
 
-// Simple markdown renderer for chat messages
-function renderMarkdown(text: string): React.ReactNode {
-  // Split by code blocks first
-  const parts = text.split(/(```[\s\S]*?```|`[^`]+`)/g);
+// Markdown renderer for chat messages — supports headings, bold, italic, code, lists
+function renderInline(text: string): React.ReactNode[] {
+  return text.split(/(\*\*[^*]+\*\*|\*[^*]+\*|`[^`]+`)/g).map((part, i) => {
+    if (part.startsWith("**") && part.endsWith("**") && part.length > 4)
+      return <strong key={i}>{part.slice(2, -2)}</strong>;
+    if (part.startsWith("*") && part.endsWith("*") && part.length > 2)
+      return <em key={i}>{part.slice(1, -1)}</em>;
+    if (part.startsWith("`") && part.endsWith("`") && part.length > 2)
+      return <code key={i} className="bg-black/30 px-1.5 py-0.5 rounded text-sm">{part.slice(1, -1)}</code>;
+    return <span key={i}>{part}</span>;
+  });
+}
 
-  return parts.map((part, i) => {
-    // Code block
-    if (part.startsWith("```") && part.endsWith("```")) {
-      const code = part.slice(3, -3).replace(/^\w+\n/, ""); // Remove language identifier
-      return (
-        <pre key={i} className="bg-black/30 rounded-lg p-3 my-2 overflow-x-auto text-sm">
+function renderMarkdown(text: string): React.ReactNode {
+  // Handle fenced code blocks first
+  const segments = text.split(/(```[\s\S]*?```)/g);
+  const nodes: React.ReactNode[] = [];
+  let k = 0;
+
+  for (const seg of segments) {
+    if (seg.startsWith("```") && seg.endsWith("```")) {
+      const code = seg.slice(3, -3).replace(/^\w+\n/, "");
+      nodes.push(
+        <pre key={k++} className="bg-black/30 rounded-lg p-3 my-2 overflow-x-auto text-sm">
           <code>{code}</code>
         </pre>
       );
+      continue;
     }
-    // Inline code
-    if (part.startsWith("`") && part.endsWith("`")) {
-      return (
-        <code key={i} className="bg-black/30 px-1.5 py-0.5 rounded text-sm">
-          {part.slice(1, -1)}
-        </code>
+
+    // Process line by line for headings and lists
+    const lines = seg.split("\n");
+    let listBuffer: string[] = [];
+
+    const flushList = () => {
+      if (!listBuffer.length) return;
+      nodes.push(
+        <ul key={k++} className="space-y-1 my-1.5 ml-2">
+          {listBuffer.map((item, i) => (
+            <li key={i} className="flex gap-2 text-sm">
+              <span className="opacity-50 mt-0.5 shrink-0">•</span>
+              <span>{renderInline(item)}</span>
+            </li>
+          ))}
+        </ul>
       );
+      listBuffer = [];
+    };
+
+    for (const line of lines) {
+      if (line.startsWith("## ")) {
+        flushList();
+        nodes.push(
+          <p key={k++} className="font-bold text-foreground mt-3 mb-1 text-sm">
+            {renderInline(line.slice(3))}
+          </p>
+        );
+      } else if (line.startsWith("### ")) {
+        flushList();
+        nodes.push(
+          <p key={k++} className="font-semibold text-foreground/90 mt-2 mb-0.5 text-sm">
+            {renderInline(line.slice(4))}
+          </p>
+        );
+      } else if (/^[-*•] /.test(line)) {
+        listBuffer.push(line.replace(/^[-*•] /, ""));
+      } else if (line.trim() === "") {
+        flushList();
+        nodes.push(<br key={k++} />);
+      } else {
+        flushList();
+        nodes.push(<span key={k++}>{renderInline(line)}</span>);
+      }
     }
-    // Regular text with bold/italic
-    return (
-      <span key={i}>
-        {part.split(/(\*\*[^*]+\*\*|\*[^*]+\*)/g).map((segment, j) => {
-          if (segment.startsWith("**") && segment.endsWith("**")) {
-            return <strong key={j}>{segment.slice(2, -2)}</strong>;
-          }
-          if (segment.startsWith("*") && segment.endsWith("*") && segment.length > 2) {
-            return <em key={j}>{segment.slice(1, -1)}</em>;
-          }
-          return segment;
-        })}
-      </span>
-    );
-  });
+    flushList();
+  }
+
+  return <>{nodes}</>;
 }
 
 export default function AssistantPage() {
