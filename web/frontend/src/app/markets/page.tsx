@@ -79,6 +79,9 @@ export default function MarketsPage() {
   useEffect(() => {
     if (!selectedMarket) return;
 
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 20000);
+
     const loadAssets = async () => {
       setIsLoadingAssets(true);
       setAssets([]);
@@ -91,11 +94,13 @@ export default function MarketsPage() {
       } catch (error) {
         console.error("Error loading assets:", error);
       } finally {
+        clearTimeout(timer);
         setIsLoadingAssets(false);
       }
     };
 
     loadAssets();
+    return () => { controller.abort(); clearTimeout(timer); };
   }, [selectedMarket]);
 
   const loadMore = async () => {

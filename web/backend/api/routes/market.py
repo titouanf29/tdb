@@ -537,6 +537,7 @@ def _batch_fetch(symbols: list) -> list:
             auto_adjust=True,
             progress=False,
             threads=True,
+            timeout=10,
         )
     except Exception:
         return [{"symbol": s, "price": 0, "change": 0, "volume": 0, "error": True} for s in symbols]
