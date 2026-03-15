@@ -541,9 +541,9 @@ async def get_market_assets(
         {
             "symbol": s,
             "name": SYMBOL_NAMES.get(s, s),
-            "price": None,
-            "change": None,
-            "volume": None,
+            "price": 0,
+            "change": 0,
+            "volume": 0,
         }
         for s in batch
     ]
