@@ -60,9 +60,9 @@ export const marketAPI = {
 
   getMarket: (key: string) => fetchAPI<Market>(`/api/market/${key}`),
 
-  getAssets: (marketKey: string, limit = 20) =>
-    fetchAPI<{ assets: Asset[] }>(
-      `/api/market/${marketKey}/assets?limit=${limit}`
+  getAssets: (marketKey: string, limit = 20, offset = 0) =>
+    fetchAPI<{ assets: Asset[]; total: number; offset: number; limit: number }>(
+      `/api/market/${marketKey}/assets?limit=${limit}&offset=${offset}`
     ),
 
   getQuote: (symbol: string) => fetchAPI<Quote>(`/api/market/quote/${symbol}`),

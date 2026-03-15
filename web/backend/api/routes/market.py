@@ -525,14 +525,17 @@ async def get_market_info(market_key: str):
 @router.get("/{market_key}/assets")
 async def get_market_assets(
     market_key: str,
-    limit: int = Query(default=20, le=100)
+    limit: int = Query(default=20, le=100),
+    offset: int = Query(default=0, ge=0)
 ):
     """Get assets for a market with live prices"""
     market_key = market_key.upper()
     if market_key not in MARKETS:
         raise HTTPException(status_code=404, detail="Market not found")
 
-    assets = MARKETS[market_key]["assets"][:limit]
+    all_assets = MARKETS[market_key]["assets"]
+    total = len(all_assets)
+    assets = all_assets[offset:offset + limit]
 
     # Import yfinance to get live data
     import yfinance as yf
@@ -567,7 +570,7 @@ async def get_market_assets(
                 "error": True
             })
 
-    return {"assets": result}
+    return {"assets": result, "total": total, "offset": offset, "limit": limit}
 
 
 @router.get("/quote/{symbol}")
