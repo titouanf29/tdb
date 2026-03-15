@@ -6,6 +6,7 @@ import { useAuth } from "@/lib/AuthContext";
 import { Sidebar } from "./Sidebar";
 import { Header } from "./Header";
 import { BroadcastBanner } from "./BroadcastBanner";
+import { ChangelogBanner } from "./ChangelogBanner";
 import { Loader2 } from "lucide-react";
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
@@ -83,6 +84,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         <Header onMenuToggle={() => setMobileMenuOpen(!mobileMenuOpen)} />
         <main className="flex-1 overflow-auto p-4 md:p-6">
           <BroadcastBanner />
+          <ChangelogBanner />
           {children}
           <footer className="mt-8 pt-4 border-t border-white/10 text-center text-xs text-muted-foreground space-y-2">
             <p>Fait par <span className="text-primary font-semibold">CaptenQwark</span> - CaptenTDB</p>

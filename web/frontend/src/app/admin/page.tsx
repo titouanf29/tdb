@@ -38,6 +38,7 @@ import {
   Crown,
   Mail,
   MessageCircle,
+  Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -1071,6 +1072,13 @@ function BroadcastsTab() {
   const [type, setType] = useState("info");
   const [isSending, setIsSending] = useState(false);
 
+  // Changelog state
+  const [changelogs, setChangelogs] = useState<any[]>([]);
+  const [clTitle, setClTitle] = useState("");
+  const [clContent, setClContent] = useState("");
+  const [clVersion, setClVersion] = useState("");
+  const [isPublishing, setIsPublishing] = useState(false);
+
   const loadBroadcasts = async () => {
     try {
       const data = await adminAPI.getBroadcasts(20);
@@ -1080,8 +1088,24 @@ function BroadcastsTab() {
     }
   };
 
+  const loadChangelogs = async () => {
+    try {
+      const token = localStorage.getItem("tdb_token");
+      const res = await fetch("/api/admin/changelogs?limit=10", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setChangelogs(data.changelogs || []);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   useEffect(() => {
     loadBroadcasts();
+    loadChangelogs();
   }, []);
 
   const sendBroadcast = async () => {
@@ -1099,91 +1123,229 @@ function BroadcastsTab() {
     }
   };
 
+  const publishChangelog = async () => {
+    if (!clTitle || !clContent) return;
+    setIsPublishing(true);
+    try {
+      const token = localStorage.getItem("tdb_token");
+      const res = await fetch("/api/admin/changelog", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ title: clTitle, content: clContent, version: clVersion || undefined }),
+      });
+      if (res.ok) {
+        setClTitle("");
+        setClContent("");
+        setClVersion("");
+        loadChangelogs();
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsPublishing(false);
+    }
+  };
+
+  const deleteChangelog = async (id: number) => {
+    try {
+      const token = localStorage.getItem("tdb_token");
+      await fetch(`/api/admin/changelog/${id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      loadChangelogs();
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      {/* Send Broadcast */}
-      <div className="glass-card p-6">
-        <h3 className="font-semibold mb-4 flex items-center gap-2">
-          <Megaphone className="w-5 h-5 text-primary" />
-          Envoyer un Broadcast
-        </h3>
-        <div className="space-y-4">
-          <div>
-            <label className="text-sm text-muted-foreground">Titre</label>
-            <input
-              type="text"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              className="w-full input mt-1"
-              placeholder="Titre du message"
-            />
-          </div>
-          <div>
-            <label className="text-sm text-muted-foreground">Message</label>
-            <textarea
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-              className="w-full input mt-1 min-h-[100px]"
-              placeholder="Contenu du message"
-            />
-          </div>
-          <div>
-            <label className="text-sm text-muted-foreground">Type</label>
-            <select
-              value={type}
-              onChange={(e) => setType(e.target.value)}
-              className="w-full input mt-1"
+    <div className="space-y-6">
+      {/* === BROADCASTS === */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Send Broadcast */}
+        <div className="glass-card p-6">
+          <h3 className="font-semibold mb-4 flex items-center gap-2">
+            <Megaphone className="w-5 h-5 text-primary" />
+            Envoyer un Broadcast
+          </h3>
+          <div className="space-y-4">
+            <div>
+              <label className="text-sm text-muted-foreground">Titre</label>
+              <input
+                type="text"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                className="w-full input mt-1"
+                placeholder="Titre du message"
+              />
+            </div>
+            <div>
+              <label className="text-sm text-muted-foreground">Message</label>
+              <textarea
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                className="w-full input mt-1 min-h-[100px]"
+                placeholder="Contenu du message"
+              />
+            </div>
+            <div>
+              <label className="text-sm text-muted-foreground">Type</label>
+              <select
+                value={type}
+                onChange={(e) => setType(e.target.value)}
+                className="w-full input mt-1"
+              >
+                <option value="info">Info</option>
+                <option value="success">Succes</option>
+                <option value="warning">Attention</option>
+                <option value="error">Erreur</option>
+              </select>
+            </div>
+            <button
+              onClick={sendBroadcast}
+              disabled={isSending || !title || !message}
+              className="w-full btn-primary flex items-center justify-center gap-2"
             >
-              <option value="info">Info</option>
-              <option value="success">Succes</option>
-              <option value="warning">Attention</option>
-              <option value="error">Erreur</option>
-            </select>
+              {isSending ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Send className="w-4 h-4" />
+              )}
+              Envoyer
+            </button>
           </div>
-          <button
-            onClick={sendBroadcast}
-            disabled={isSending || !title || !message}
-            className="w-full btn-primary flex items-center justify-center gap-2"
-          >
-            {isSending ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              <Send className="w-4 h-4" />
-            )}
-            Envoyer
-          </button>
+        </div>
+
+        {/* Recent Broadcasts */}
+        <div className="glass-card p-6">
+          <h3 className="font-semibold mb-4">Historique Broadcasts</h3>
+          <div className="space-y-3 max-h-[400px] overflow-y-auto">
+            {broadcasts.map((b) => (
+              <div key={b.id} className="p-3 bg-white/5 rounded-lg">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="font-medium">{b.title}</span>
+                  <span
+                    className={cn(
+                      "px-2 py-0.5 rounded text-xs",
+                      b.type === "success"
+                        ? "bg-profit/20 text-profit"
+                        : b.type === "warning"
+                        ? "bg-warning/20 text-warning"
+                        : b.type === "error"
+                        ? "bg-loss/20 text-loss"
+                        : "bg-primary/20 text-primary"
+                    )}
+                  >
+                    {b.type}
+                  </span>
+                </div>
+                <p className="text-sm text-muted-foreground">{b.message}</p>
+                <p className="text-xs text-muted-foreground mt-2">
+                  {new Date(b.created_at).toLocaleString("fr-FR")}
+                </p>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 
-      {/* Recent Broadcasts */}
-      <div className="glass-card p-6">
-        <h3 className="font-semibold mb-4">Historique</h3>
-        <div className="space-y-3 max-h-[400px] overflow-y-auto">
-          {broadcasts.map((b) => (
-            <div key={b.id} className="p-3 bg-white/5 rounded-lg">
-              <div className="flex items-center justify-between mb-2">
-                <span className="font-medium">{b.title}</span>
-                <span
-                  className={cn(
-                    "px-2 py-0.5 rounded text-xs",
-                    b.type === "success"
-                      ? "bg-profit/20 text-profit"
-                      : b.type === "warning"
-                      ? "bg-warning/20 text-warning"
-                      : b.type === "error"
-                      ? "bg-loss/20 text-loss"
-                      : "bg-primary/20 text-primary"
-                  )}
-                >
-                  {b.type}
-                </span>
-              </div>
-              <p className="text-sm text-muted-foreground">{b.message}</p>
-              <p className="text-xs text-muted-foreground mt-2">
-                {new Date(b.created_at).toLocaleString("fr-FR")}
-              </p>
+      {/* === CHANGELOG === */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Create Changelog */}
+        <div className="glass-card p-6">
+          <h3 className="font-semibold mb-1 flex items-center gap-2">
+            <Sparkles className="w-5 h-5 text-primary" />
+            Publier un Changelog
+          </h3>
+          <p className="text-xs text-muted-foreground mb-4">
+            Affiché en modal à la prochaine connexion de chaque utilisateur.
+          </p>
+          <div className="space-y-4">
+            <div>
+              <label className="text-sm text-muted-foreground">Titre</label>
+              <input
+                type="text"
+                value={clTitle}
+                onChange={(e) => setClTitle(e.target.value)}
+                className="w-full input mt-1"
+                placeholder="Ex: Nouvelles fonctionnalités"
+              />
             </div>
-          ))}
+            <div>
+              <label className="text-sm text-muted-foreground">Version (optionnel)</label>
+              <input
+                type="text"
+                value={clVersion}
+                onChange={(e) => setClVersion(e.target.value)}
+                className="w-full input mt-1"
+                placeholder="Ex: v1.2.0"
+              />
+            </div>
+            <div>
+              <label className="text-sm text-muted-foreground">Contenu</label>
+              <textarea
+                value={clContent}
+                onChange={(e) => setClContent(e.target.value)}
+                className="w-full input mt-1 min-h-[140px]"
+                placeholder={"• Nouvelle fonctionnalité A\n• Correction du bug B\n• Amélioration de C"}
+              />
+            </div>
+            <button
+              onClick={publishChangelog}
+              disabled={isPublishing || !clTitle || !clContent}
+              className="w-full btn-primary flex items-center justify-center gap-2"
+            >
+              {isPublishing ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Sparkles className="w-4 h-4" />
+              )}
+              Publier le changelog
+            </button>
+          </div>
+        </div>
+
+        {/* Changelog History */}
+        <div className="glass-card p-6">
+          <h3 className="font-semibold mb-4">Historique Changelogs</h3>
+          <div className="space-y-3 max-h-[420px] overflow-y-auto">
+            {changelogs.length === 0 && (
+              <p className="text-sm text-muted-foreground text-center py-8">
+                Aucun changelog publié.
+              </p>
+            )}
+            {changelogs.map((cl) => (
+              <div key={cl.id} className="p-3 bg-white/5 rounded-lg">
+                <div className="flex items-start justify-between gap-2 mb-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="font-medium text-sm">{cl.title}</span>
+                    {cl.version && (
+                      <span className="text-xs px-1.5 py-0.5 rounded bg-primary/20 text-primary font-mono">
+                        {cl.version}
+                      </span>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => deleteChangelog(cl.id)}
+                    className="p-1 rounded hover:bg-loss/20 transition-colors shrink-0"
+                    title="Supprimer"
+                  >
+                    <Trash2 className="w-3.5 h-3.5 text-loss" />
+                  </button>
+                </div>
+                <p className="text-xs text-muted-foreground whitespace-pre-wrap line-clamp-3">
+                  {cl.content}
+                </p>
+                <p className="text-xs text-muted-foreground mt-2">
+                  {new Date(cl.created_at).toLocaleString("fr-FR")}
+                </p>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </div>

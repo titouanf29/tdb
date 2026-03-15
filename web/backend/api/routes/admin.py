@@ -92,6 +92,11 @@ class BroadcastMessage(BaseModel):
     message: str
     type: str = "info"  # info, warning, success, error
 
+class ChangelogCreate(BaseModel):
+    title: str
+    content: str
+    version: Optional[str] = None
+
 class UserAction(BaseModel):
     user_id: int
     action: str  # ban, unban, reset_wallet, delete
@@ -460,6 +465,73 @@ async def get_public_broadcasts(limit: int = 5, current_user: dict = Depends(get
     """, (limit,))
 
     return {"broadcasts": broadcasts or []}
+
+
+# ============== CHANGELOG ==============
+
+@router.post("/changelog")
+async def create_changelog(data: ChangelogCreate, admin: dict = Depends(get_admin_user)):
+    """Create a new changelog entry visible to all users on next login."""
+    await execute_write("""
+        INSERT INTO admin_changelogs (admin_id, title, content, version, created_at)
+        VALUES (?, ?, ?, ?, datetime('now'))
+    """, (admin["id"], data.title, data.content, data.version))
+
+    await log_admin_action(admin["id"], "create_changelog", f"Changelog created: {data.title}")
+
+    return {"success": True, "message": "Changelog published"}
+
+
+@router.get("/changelogs")
+async def get_changelogs(limit: int = 20, admin: dict = Depends(get_admin_user)):
+    """Get all changelog entries (admin view)."""
+    rows = await execute_query("""
+        SELECT c.*, u.email as admin_email
+        FROM admin_changelogs c
+        LEFT JOIN web_users u ON c.admin_id = u.id
+        ORDER BY c.created_at DESC
+        LIMIT ?
+    """, (limit,))
+    return {"changelogs": rows or []}
+
+
+@router.delete("/changelog/{changelog_id}")
+async def delete_changelog(changelog_id: int, admin: dict = Depends(get_admin_user)):
+    """Delete a changelog entry."""
+    await execute_write("DELETE FROM user_changelog_reads WHERE changelog_id = ?", (changelog_id,))
+    await execute_write("DELETE FROM admin_changelogs WHERE id = ?", (changelog_id,))
+    await log_admin_action(admin["id"], "delete_changelog", f"Deleted changelog {changelog_id}")
+    return {"success": True}
+
+
+@router.get("/changelog/latest-unread")
+async def get_latest_unread_changelog(current_user: dict = Depends(get_current_user)):
+    """Return the most recent changelog the user hasn't acknowledged yet."""
+    user_id = current_user["id"]
+    rows = await execute_query("""
+        SELECT c.*
+        FROM admin_changelogs c
+        WHERE c.id NOT IN (
+            SELECT changelog_id FROM user_changelog_reads WHERE user_id = ?
+        )
+        ORDER BY c.created_at DESC
+        LIMIT 1
+    """, (user_id,))
+    return {"changelog": rows[0] if rows else None}
+
+
+@router.post("/changelog/{changelog_id}/read")
+async def mark_changelog_read(changelog_id: int, current_user: dict = Depends(get_current_user)):
+    """Mark a changelog as read for the current user."""
+    user_id = current_user["id"]
+    try:
+        await execute_write("""
+            INSERT OR IGNORE INTO user_changelog_reads (user_id, changelog_id, read_at)
+            VALUES (?, ?, datetime('now'))
+        """, (user_id, changelog_id))
+    except Exception:
+        pass  # Already read (unique constraint)
+    return {"success": True}
 
 
 # ============== SYSTEM SETTINGS ==============

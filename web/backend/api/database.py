@@ -348,6 +348,24 @@ async def _init_postgres():
                 created_at TEXT NOT NULL
             )
         """)
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS admin_changelogs (
+                id SERIAL PRIMARY KEY,
+                admin_id INTEGER NOT NULL,
+                title TEXT NOT NULL,
+                content TEXT NOT NULL,
+                version TEXT,
+                created_at TEXT NOT NULL
+            )
+        """)
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS user_changelog_reads (
+                user_id INTEGER NOT NULL,
+                changelog_id INTEGER NOT NULL,
+                read_at TEXT NOT NULL,
+                PRIMARY KEY (user_id, changelog_id)
+            )
+        """)
         print("PostgreSQL tables ready")
 
 
@@ -576,6 +594,27 @@ async def _init_sqlite():
                 link TEXT,
                 is_read INTEGER DEFAULT 0,
                 created_at TEXT NOT NULL
+            )
+        """)
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS admin_changelogs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                admin_id INTEGER NOT NULL,
+                title TEXT NOT NULL,
+                content TEXT NOT NULL,
+                version TEXT,
+                created_at TEXT NOT NULL,
+                FOREIGN KEY (admin_id) REFERENCES web_users(id)
+            )
+        """)
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS user_changelog_reads (
+                user_id INTEGER NOT NULL,
+                changelog_id INTEGER NOT NULL,
+                read_at TEXT NOT NULL,
+                PRIMARY KEY (user_id, changelog_id),
+                FOREIGN KEY (user_id) REFERENCES web_users(id),
+                FOREIGN KEY (changelog_id) REFERENCES admin_changelogs(id)
             )
         """)
         # Add new columns to existing tables if upgrading from older schema
