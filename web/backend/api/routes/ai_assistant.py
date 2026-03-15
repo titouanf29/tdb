@@ -399,162 +399,479 @@ async def quick_analysis(
     symbol: str,
     current_user: dict = Depends(get_current_user)
 ):
-    """Get a detailed AI analysis for a symbol"""
+    """Premium AI analysis — fetches full market, technical, fundamental and news data."""
     if not _SYMBOL_RE.match(symbol.upper()):
         raise HTTPException(status_code=400, detail="Symbole invalide")
     symbol = symbol.upper()
+
     import numpy as np
+    import yfinance as yf
+    import asyncio
     from ._prices import fetch_ohlcv
 
     api_key = get_groq_api_key()
     if not api_key:
-        raise HTTPException(
-            status_code=503,
-            detail="AI Assistant not configured"
-        )
+        raise HTTPException(status_code=503, detail="AI Assistant not configured")
 
-    # Get comprehensive market data
+    # ── 1. Fetch market data ────────────────────────────────────────────────
     try:
-        hist = await fetch_ohlcv(symbol, period="3mo", interval="1d")
-
+        # 1 year daily + 5 days intraday for VWAP
+        hist = await fetch_ohlcv(symbol, period="1y", interval="1d")
         if hist.empty:
             raise HTTPException(status_code=404, detail="Symbol not found")
 
-        current_price = hist['Close'].iloc[-1]
-        prev_price = hist['Close'].iloc[-2]
-        change_1d = ((current_price - prev_price) / prev_price) * 100
-
-        # Calculate additional metrics
-        change_1w = ((current_price - hist['Close'].iloc[-5]) / hist['Close'].iloc[-5]) * 100 if len(hist) >= 5 else 0
-        change_1m = ((current_price - hist['Close'].iloc[-22]) / hist['Close'].iloc[-22]) * 100 if len(hist) >= 22 else 0
-
-        # RSI calculation
-        delta = hist['Close'].diff()
-        gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
-        loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
-        rs = gain / loss
-        rsi = 100 - (100 / (1 + rs.iloc[-1])) if loss.iloc[-1] != 0 else 50
-
-        # Moving averages
-        sma_20 = hist['Close'].rolling(window=20).mean().iloc[-1]
-        sma_50 = hist['Close'].rolling(window=50).mean().iloc[-1] if len(hist) >= 50 else None
-
-        # Volatility
-        volatility = hist['Close'].pct_change().std() * np.sqrt(252) * 100
-
-        # Volume analysis
-        avg_volume = hist['Volume'].mean()
-        current_volume = hist['Volume'].iloc[-1]
-        volume_ratio = current_volume / avg_volume if avg_volume > 0 else 1
-
-        high_52w = float(hist['High'].max())
-        low_52w = float(hist['Low'].min())
-
-        market_context = f"""
-=== ANALYSE DETAILLEE: {symbol} ===
-
-INFORMATIONS GENERALES:
-- Symbole: {symbol}
-
-PRIX ET PERFORMANCE:
-- Prix actuel: ${current_price:.2f}
-- Variation 24h: {change_1d:+.2f}%
-- Variation 1 semaine: {change_1w:+.2f}%
-- Variation 1 mois: {change_1m:+.2f}%
-- Plus haut 3 mois: ${high_52w:.2f}
-- Plus bas 3 mois: ${low_52w:.2f}
-
-INDICATEURS TECHNIQUES:
-- RSI (14): {rsi:.1f} {'(Suracheté)' if rsi > 70 else '(Survendu)' if rsi < 30 else '(Neutre)'}
-- SMA 20: ${sma_20:.2f} {'(Prix au-dessus)' if current_price > sma_20 else '(Prix en-dessous)'}
-- SMA 50: {f'${sma_50:.2f}' if sma_50 is not None else 'N/A'}
-- Volatilité annualisée: {volatility:.1f}%
-
-VOLUME:
-- Volume actuel: {current_volume:,.0f}
-- Volume moyen: {avg_volume:,.0f}
-- Ratio volume: {volume_ratio:.2f}x {'(Volume élevé)' if volume_ratio > 1.5 else '(Volume faible)' if volume_ratio < 0.5 else ''}
-
-FONDAMENTAUX:
-- P/E Ratio: N/A
-- Forward P/E: N/A
-- Dividend Yield: N/A
-- Beta: N/A
-"""
+        # Run yfinance info in thread (blocking)
+        def _get_ticker_info():
+            t = yf.Ticker(symbol)
+            return t.info, t.recommendations, t.news, t.calendar
+        loop = asyncio.get_event_loop()
+        info, recs, news_raw, calendar = await loop.run_in_executor(None, _get_ticker_info)
+    except HTTPException:
+        raise
     except Exception as e:
-        market_context = f"Symbole: {symbol} - Données partiellement disponibles"
+        info, recs, news_raw, calendar = {}, None, [], None
 
-    prompt = f"""Tu es un analyste financier senior avec 20 ans d'experience. Fournis une analyse COMPLETE et DETAILLEE de cet actif:
+    # ── 2. Price & performance ──────────────────────────────────────────────
+    close = hist["Close"]
+    high  = hist["High"]
+    low   = hist["Low"]
+    volume = hist["Volume"]
+    n = len(close)
 
-## 1. SYNTHESE EXECUTIVE (3-4 phrases)
-Resume la situation actuelle, le contexte de marche et les enjeux cles pour cet actif.
+    price = float(close.iloc[-1])
+    chg_1d  = float((price - close.iloc[-2]) / close.iloc[-2] * 100) if n >= 2 else 0.0
+    chg_1w  = float((price - close.iloc[-5]) / close.iloc[-5] * 100) if n >= 5 else 0.0
+    chg_1m  = float((price - close.iloc[-22]) / close.iloc[-22] * 100) if n >= 22 else 0.0
+    chg_3m  = float((price - close.iloc[-66]) / close.iloc[-66] * 100) if n >= 66 else 0.0
+    chg_6m  = float((price - close.iloc[-132]) / close.iloc[-132] * 100) if n >= 132 else 0.0
+    chg_1y  = float((price - close.iloc[0]) / close.iloc[0] * 100) if n >= 2 else 0.0
+    high_52w = float(high.max())
+    low_52w  = float(low.min())
+    pct_from_52w_high = (price - high_52w) / high_52w * 100
+    pct_from_52w_low  = (price - low_52w)  / low_52w  * 100
 
-## 2. ANALYSE TECHNIQUE APPROFONDIE
-- **Tendance principale**: Haussiere/Baissiere/Neutre avec justification detaillee
-- **Structure de prix**: Analyse des plus hauts/plus bas recents, patterns identifies
-- **Moyennes mobiles**: Position du prix par rapport aux EMA 20/50/200, croisements significatifs
-- **RSI**: Interpretation detaillee (survente <30, surachat >70, divergences potentielles)
-- **MACD**: Signal actuel, croisements recents, force de la tendance
-- **Bandes de Bollinger**: Position du prix, squeeze potentiel, volatilite
-- **Volume**: Confirmation ou divergence avec le prix
+    # ── 3. Technical indicators ─────────────────────────────────────────────
+    # RSI
+    delta = close.diff()
+    gain  = delta.where(delta > 0, 0.0).rolling(14).mean()
+    loss  = (-delta.where(delta < 0, 0.0)).rolling(14).mean()
+    rsi   = float(100 - 100 / (1 + gain.iloc[-1] / loss.iloc[-1])) if loss.iloc[-1] else 50.0
 
-## 3. NIVEAUX CLES A SURVEILLER
-- **Resistances**: 3 niveaux avec importance (R1, R2, R3)
-- **Supports**: 3 niveaux avec importance (S1, S2, S3)
-- **Zones de liquidite**: Ou se concentrent les ordres
+    # MACD
+    ema12 = close.ewm(span=12, adjust=False).mean()
+    ema26 = close.ewm(span=26, adjust=False).mean()
+    macd_line   = ema12 - ema26
+    signal_line = macd_line.ewm(span=9, adjust=False).mean()
+    histogram   = macd_line - signal_line
+    macd_val  = float(macd_line.iloc[-1])
+    sig_val   = float(signal_line.iloc[-1])
+    hist_val  = float(histogram.iloc[-1])
 
-## 4. SCENARIOS DE MARCHE
-### Scenario haussier (probabilite X%)
-- Catalyseurs, objectifs, invalidation
-### Scenario baissier (probabilite X%)
-- Catalyseurs, objectifs, invalidation
+    # Moving averages
+    ema20  = float(close.ewm(span=20, adjust=False).mean().iloc[-1])
+    ema50  = float(close.ewm(span=50, adjust=False).mean().iloc[-1]) if n >= 50 else None
+    ema200 = float(close.ewm(span=200, adjust=False).mean().iloc[-1]) if n >= 200 else None
+    sma20  = float(close.rolling(20).mean().iloc[-1])
+    sma50  = float(close.rolling(50).mean().iloc[-1]) if n >= 50 else None
+    sma200 = float(close.rolling(200).mean().iloc[-1]) if n >= 200 else None
 
-## 5. ANALYSE DES RISQUES
-- Risques techniques (gaps, divergences)
-- Risques fondamentaux (resultats, secteur)
-- Risques macro (taux, geopolitique)
-- Volatilite attendue
+    # Golden/Death cross
+    cross_signal = "N/A"
+    if ema50 and ema200:
+        if ema50 > ema200:
+            cross_signal = "Golden Cross (EMA50 > EMA200) — structure haussière long terme"
+        else:
+            cross_signal = "Death Cross (EMA50 < EMA200) — structure baissière long terme"
 
-## 6. STRATEGIE DE TRADING RECOMMANDEE
-- **Point d'entree optimal**: Prix et conditions
-- **Stop-loss**: Niveau et justification
-- **Take-profit**: Objectifs T1, T2, T3
-- **Ratio risque/reward**: Calcul precis
-- **Taille de position suggere**: % du portefeuille
+    # Bollinger Bands (20, 2)
+    bb_mid  = close.rolling(20).mean()
+    bb_std  = close.rolling(20).std()
+    bb_up   = float((bb_mid + 2 * bb_std).iloc[-1])
+    bb_low  = float((bb_mid - 2 * bb_std).iloc[-1])
+    bb_pct  = float((price - bb_low) / (bb_up - bb_low) * 100) if bb_up != bb_low else 50.0
+    bb_width = float((bb_up - bb_low) / float(bb_mid.iloc[-1]) * 100)
 
-## 7. VERDICT FINAL
-- **Recommandation**: ACHAT FORT / ACHAT / NEUTRE / VENTE / VENTE FORTE
-- **Horizon temporel**: Court/Moyen/Long terme
-- **Niveau de confiance**: 1-10 avec justification
-- **Action immediate**: Ce que le trader doit faire maintenant
+    # ATR
+    tr = np.maximum(
+        high.values[1:] - low.values[1:],
+        np.maximum(abs(high.values[1:] - close.values[:-1]), abs(low.values[1:] - close.values[:-1]))
+    )
+    atr = float(np.mean(tr[-14:])) if len(tr) >= 14 else 0.0
 
-Donnees de marche:
+    # ADX
+    plus_dm  = np.where((high.diff().values > 0) & (high.diff().values > -low.diff().values), high.diff().values, 0.0)[1:]
+    minus_dm = np.where((-low.diff().values > 0) & (-low.diff().values > high.diff().values), -low.diff().values, 0.0)[1:]
+    atr14    = np.convolve(tr, np.ones(14) / 14, "valid")
+    if len(atr14) > 0 and atr14[-1] > 0:
+        plus_di  = float(np.mean(plus_dm[-14:]) / atr14[-1] * 100)
+        minus_di = float(np.mean(minus_dm[-14:]) / atr14[-1] * 100)
+        dx = abs(plus_di - minus_di) / (plus_di + minus_di) * 100 if (plus_di + minus_di) else 0
+        adx = float(np.mean([dx] * 14))  # simplified
+    else:
+        plus_di = minus_di = adx = 0.0
+
+    # Stochastic (14, 3)
+    low14  = low.rolling(14).min()
+    high14 = high.rolling(14).max()
+    stoch_k = float(((close - low14) / (high14 - low14) * 100).iloc[-1]) if float((high14 - low14).iloc[-1]) else 50.0
+    stoch_d = float(((close - low14) / (high14 - low14) * 100).rolling(3).mean().iloc[-1]) if float((high14 - low14).iloc[-1]) else 50.0
+
+    # Williams %R
+    wr = float(((high14 - close) / (high14 - low14) * -100).iloc[-1]) if float((high14 - low14).iloc[-1]) else -50.0
+
+    # OBV
+    obv_change = np.where(close.diff().values > 0, volume.values, np.where(close.diff().values < 0, -volume.values, 0))
+    obv = float(np.cumsum(obv_change)[-1])
+    obv_trend = "HAUSSIER" if np.mean(obv_change[-10:]) > 0 else "BAISSIER"
+
+    # Volume
+    avg_vol = float(volume.mean())
+    cur_vol = float(volume.iloc[-1])
+    vol_ratio = cur_vol / avg_vol if avg_vol > 0 else 1.0
+
+    # Volatility
+    volatility_ann = float(close.pct_change().std() * np.sqrt(252) * 100)
+
+    # Fibonacci (52-week range)
+    fib_levels = {
+        "0%":    round(low_52w, 2),
+        "23.6%": round(low_52w + 0.236 * (high_52w - low_52w), 2),
+        "38.2%": round(low_52w + 0.382 * (high_52w - low_52w), 2),
+        "50%":   round(low_52w + 0.5   * (high_52w - low_52w), 2),
+        "61.8%": round(low_52w + 0.618 * (high_52w - low_52w), 2),
+        "78.6%": round(low_52w + 0.786 * (high_52w - low_52w), 2),
+        "100%":  round(high_52w, 2),
+    }
+    nearest_fib = min(fib_levels.items(), key=lambda x: abs(x[1] - price))
+
+    # Pivot points (classic, last session)
+    prev_high = float(high.iloc[-2]) if n >= 2 else price
+    prev_low  = float(low.iloc[-2])  if n >= 2 else price
+    prev_close = float(close.iloc[-2]) if n >= 2 else price
+    pp = (prev_high + prev_low + prev_close) / 3
+    r1 = 2 * pp - prev_low
+    r2 = pp + (prev_high - prev_low)
+    r3 = prev_high + 2 * (pp - prev_low)
+    s1 = 2 * pp - prev_high
+    s2 = pp - (prev_high - prev_low)
+    s3 = prev_low - 2 * (prev_high - pp)
+
+    # Trend structure (higher-highs / lower-lows on last 20 sessions)
+    highs20 = high.iloc[-20:].values
+    lows20  = low.iloc[-20:].values
+    hh = sum(1 for i in range(1, len(highs20)) if highs20[i] > highs20[i-1])
+    ll = sum(1 for i in range(1, len(lows20)) if lows20[i] < lows20[i-1])
+    trend_structure = "HAUSSIER (plus hauts croissants)" if hh > 12 else ("BAISSIER (plus bas décroissants)" if ll > 12 else "LATERAL/INDÉCIS")
+
+    # ── 4. Fundamental data ─────────────────────────────────────────────────
+    def _g(k, default="N/A"):
+        v = info.get(k)
+        return v if v is not None else default
+
+    pe            = _g("trailingPE")
+    forward_pe    = _g("forwardPE")
+    peg           = _g("pegRatio")
+    ev_ebitda     = _g("enterpriseToEbitda")
+    pb            = _g("priceToBook")
+    ps            = _g("priceToSalesTrailing12Months")
+    dividend_yield = round(float(_g("dividendYield", 0) or 0) * 100, 2)
+    beta          = _g("beta")
+    market_cap    = _g("marketCap")
+    target_mean   = _g("targetMeanPrice")
+    target_low    = _g("targetLowPrice")
+    target_high   = _g("targetHighPrice")
+    rec_key       = _g("recommendationKey", "N/A")
+    buy_count     = _g("recommendationMean", "N/A")
+    short_ratio   = _g("shortRatio", "N/A")
+    short_pct_float = _g("shortPercentOfFloat", "N/A")
+    inst_own_pct  = _g("heldPercentInstitutions", "N/A")
+    profit_margin = round(float(_g("profitMargins", 0) or 0) * 100, 2)
+    roe           = round(float(_g("returnOnEquity", 0) or 0) * 100, 2)
+    revenue_growth = round(float(_g("revenueGrowth", 0) or 0) * 100, 2)
+    earnings_growth = round(float(_g("earningsGrowth", 0) or 0) * 100, 2)
+    debt_equity   = _g("debtToEquity")
+    fcf           = _g("freeCashflow")
+    sector        = _g("sector", "N/A")
+    industry      = _g("industry", "N/A")
+    company_name  = _g("longName", symbol)
+    description   = (_g("longBusinessSummary", "") or "")[:500]
+    employees     = _g("fullTimeEmployees", "N/A")
+    country       = _g("country", "N/A")
+
+    # Format market cap
+    if isinstance(market_cap, (int, float)) and market_cap > 0:
+        if market_cap >= 1e12:
+            mc_str = f"${market_cap/1e12:.2f}T"
+        elif market_cap >= 1e9:
+            mc_str = f"${market_cap/1e9:.2f}B"
+        else:
+            mc_str = f"${market_cap/1e6:.0f}M"
+    else:
+        mc_str = "N/A"
+
+    if isinstance(fcf, (int, float)):
+        fcf_str = f"${fcf/1e9:.2f}B" if abs(fcf) >= 1e9 else f"${fcf/1e6:.0f}M"
+    else:
+        fcf_str = "N/A"
+
+    # Analyst upside potential
+    if isinstance(target_mean, (int, float)) and price > 0:
+        upside = (target_mean - price) / price * 100
+        upside_str = f"{upside:+.1f}%"
+    else:
+        upside_str = "N/A"
+
+    # Short interest
+    if isinstance(short_pct_float, float):
+        short_pct_str = f"{short_pct_float*100:.1f}%"
+    else:
+        short_pct_str = str(short_pct_float)
+
+    if isinstance(inst_own_pct, float):
+        inst_str = f"{inst_own_pct*100:.1f}%"
+    else:
+        inst_str = str(inst_own_pct)
+
+    # ── 5. News headlines ───────────────────────────────────────────────────
+    news_lines = []
+    if news_raw:
+        for item in news_raw[:6]:
+            title = item.get("title", "")
+            publisher = item.get("publisher", "")
+            if title:
+                news_lines.append(f"- {title} ({publisher})")
+
+    # ── 6. Analyst recommendations ─────────────────────────────────────────
+    rec_summary = "N/A"
+    if recs is not None and not recs.empty:
+        try:
+            last = recs.tail(4)
+            strong_buy  = int(last.get("strongBuy", last.get("Strong Buy", [0])).sum()) if "strongBuy" in last.columns or "Strong Buy" in last.columns else 0
+            buy_cnt     = int(last.get("buy",       last.get("Buy", [0])).sum())         if "buy"       in last.columns or "Buy"       in last.columns else 0
+            hold_cnt    = int(last.get("hold",      last.get("Hold", [0])).sum())        if "hold"      in last.columns or "Hold"      in last.columns else 0
+            sell_cnt    = int(last.get("sell",      last.get("Sell", [0])).sum())        if "sell"      in last.columns or "Sell"      in last.columns else 0
+            rec_summary = f"StrongBuy:{strong_buy} Buy:{buy_cnt} Hold:{hold_cnt} Sell:{sell_cnt}"
+        except Exception:
+            rec_summary = "N/A"
+
+    # ── 7. Upcoming earnings ────────────────────────────────────────────────
+    earnings_date = "N/A"
+    try:
+        if calendar is not None:
+            if isinstance(calendar, dict):
+                ed = calendar.get("Earnings Date") or calendar.get("earningsDate")
+                if ed:
+                    earnings_date = str(ed[0])[:10] if hasattr(ed, "__iter__") and not isinstance(ed, str) else str(ed)[:10]
+    except Exception:
+        pass
+
+    # ── 8. Build market context string ─────────────────────────────────────
+    fib_str = "\n".join(f"  {k}: ${v}" for k, v in fib_levels.items())
+    news_str = "\n".join(news_lines) if news_lines else "Aucune actualité disponible"
+
+    market_context = f"""
+╔══════════════════════════════════════════════════════════╗
+  ANALYSE PREMIUM — {symbol} ({company_name})
+  Secteur: {sector} | Industrie: {industry} | Pays: {country}
+╚══════════════════════════════════════════════════════════╝
+
+━━━ PRIX & PERFORMANCE ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  Prix actuel:        ${price:.4f}
+  Variation 24h:      {chg_1d:+.2f}%
+  Variation 1 sem:    {chg_1w:+.2f}%
+  Variation 1 mois:   {chg_1m:+.2f}%
+  Variation 3 mois:   {chg_3m:+.2f}%
+  Variation 6 mois:   {chg_6m:+.2f}%
+  Variation 1 an:     {chg_1y:+.2f}%
+  52w High:           ${high_52w:.4f} ({pct_from_52w_high:+.1f}% vs actuel)
+  52w Low:            ${low_52w:.4f} ({pct_from_52w_low:+.1f}% vs actuel)
+  Volatilité annuelle:{volatility_ann:.1f}%
+  Prochains résultats:{earnings_date}
+
+━━━ INDICATEURS TECHNIQUES ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  RSI (14):           {rsi:.2f} {'⚠️ SURACHETÉ' if rsi > 70 else '⚠️ SURVENDU' if rsi < 30 else '(Zone neutre)'}
+  MACD:               {macd_val:+.4f} | Signal: {sig_val:+.4f} | Histogramme: {hist_val:+.4f}
+  ADX (14):           {adx:.1f} {'(Tendance forte)' if adx > 25 else '(Tendance faible/range)'}
+  DI+/DI-:            {plus_di:.1f} / {minus_di:.1f} {'→ Pression haussière' if plus_di > minus_di else '→ Pression baissière'}
+  Stochastique %K:    {stoch_k:.1f} | %D: {stoch_d:.1f} {'⚠️ Surachat' if stoch_k > 80 else '⚠️ Survente' if stoch_k < 20 else ''}
+  Williams %R:        {wr:.1f} {'(Surachat)' if wr > -20 else '(Survente)' if wr < -80 else ''}
+  OBV tendance:       {obv_trend}
+  Bollinger %B:       {bb_pct:.1f}% | Width: {bb_width:.1f}% | Upper: ${bb_up:.2f} | Lower: ${bb_low:.2f}
+  ATR (14):           ${atr:.4f}
+  Volume actuel:      {cur_vol:,.0f} ({vol_ratio:.2f}x la moyenne)
+
+━━━ MOYENNES MOBILES ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  EMA 20:   ${ema20:.4f} {'↑ Prix au-dessus' if price > ema20 else '↓ Prix en-dessous'}
+  EMA 50:   {f'${ema50:.4f}' if ema50 else 'N/A'} {'↑ Prix au-dessus' if ema50 and price > ema50 else '↓ Prix en-dessous' if ema50 else ''}
+  EMA 200:  {f'${ema200:.4f}' if ema200 else 'N/A'} {'↑ Prix au-dessus' if ema200 and price > ema200 else '↓ Prix en-dessous' if ema200 else ''}
+  SMA 50:   {f'${sma50:.4f}' if sma50 else 'N/A'}
+  SMA 200:  {f'${sma200:.4f}' if sma200 else 'N/A'}
+  Structure:{cross_signal}
+  Tendance 20j: {trend_structure}
+
+━━━ NIVEAUX PIVOT (séance précédente) ━━━━━━━━━━━━━━━━━━━
+  R3: ${r3:.2f} | R2: ${r2:.2f} | R1: ${r1:.2f}
+  PP: ${pp:.2f}
+  S1: ${s1:.2f} | S2: ${s2:.2f} | S3: ${s3:.2f}
+
+━━━ FIBONACCI 52 SEMAINES ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+{fib_str}
+  → Niveau Fibonacci le plus proche du prix actuel: {nearest_fib[0]} (${nearest_fib[1]})
+
+━━━ FONDAMENTAUX ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  Market Cap:         {mc_str}
+  P/E (trailing):     {pe}
+  P/E (forward):      {forward_pe}
+  PEG Ratio:          {peg}
+  EV/EBITDA:          {ev_ebitda}
+  P/B:                {pb} | P/S: {ps}
+  Beta:               {beta}
+  Dividende:          {dividend_yield}%
+  Marge nette:        {profit_margin}%
+  ROE:                {roe}%
+  Croissance revenus: {revenue_growth}%
+  Croissance BPA:     {earnings_growth}%
+  Dette/Fonds propres:{debt_equity}
+  Free Cash Flow:     {fcf_str}
+  Employés:           {employees}
+
+━━━ CONSENSUS ANALYSTES ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  Recommandation:     {rec_key.upper() if isinstance(rec_key, str) else rec_key}
+  Répartition (4 mois): {rec_summary}
+  Objectif moyen:     {f'${target_mean:.2f}' if isinstance(target_mean, float) else target_mean} (potentiel: {upside_str})
+  Objectif min/max:   {f'${target_low:.2f}' if isinstance(target_low, float) else target_low} / {f'${target_high:.2f}' if isinstance(target_high, float) else target_high}
+
+━━━ POSITIONNEMENT DU MARCHÉ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  Vente à découvert:  {short_pct_str} du float | Short ratio: {short_ratio}j
+  Institutionnels:    {inst_str} du capital
+
+━━━ ACTUALITÉS RÉCENTES ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+{news_str}
+
+━━━ DESCRIPTION SOCIÉTÉ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+{description or 'N/A'}
+"""
+
+    # ── 9. Premium prompt ───────────────────────────────────────────────────
+    prompt = f"""Tu es TDB Senior Analyst, l'analyste financier le plus rigoureux de la plateforme premium TDB. Ton analyse doit être IRRÉPROCHABLE, ultra-précise et apporter une réelle valeur ajoutée — l'utilisateur paye pour cette analyse.
+
+RÈGLE D'OR: Utilise CHAQUE chiffre fourni dans les données. Une analyse vague = analyse nulle.
+
 {market_context}
 
-Sois precis, factuel et professionnel. Utilise des emojis pour rendre l'analyse plus lisible."""
+---
 
-    # Call AI
+Génère maintenant l'analyse complète en suivant EXACTEMENT cette structure:
+
+## 📊 SYNTHÈSE EXÉCUTIVE
+4 à 5 phrases percutantes: prix exact, performance récente dans son contexte, conviction globale sur la tendance (les indicateurs convergent-ils?), positionnement du titre dans son cycle (tendance primaire/secondaire), verdict immédiat pour un trader. Mentionne si le titre est proche d'un niveau Fibonacci clé.
+
+## 📈 ANALYSE TECHNIQUE COMPLÈTE
+
+### Momentum & Oscillateurs
+RSI à {rsi:.1f}: explique précisément ce niveau (pas juste "neutre"). Divergence haussière ou baissière détectable avec le prix? Zone d'extrême (< 30 ou > 70)?
+MACD ({macd_val:+.4f} vs signal {sig_val:+.4f}, histogramme {hist_val:+.4f}): histogramme en expansion ou contraction? Croisement récent ou imminent? Force du momentum.
+Stochastique %K/{stoch_k:.1f} %D/{stoch_d:.1f}: signal de sur-achat/survente, croisement récent?
+Williams %R à {wr:.1f}: confirmation ou divergence avec RSI/Stochastique?
+
+### Tendance & Structure
+EMA20/50/200 — structure complète de tendance: le titre est-il en phase haussière confirmée ou en correction?
+{cross_signal} — implications concrètes pour les positionnements long terme.
+Structure 20 sessions: {trend_structure}. Analyse des plus hauts/bas récents.
+ADX {adx:.1f} (DI+{plus_di:.1f}/DI-{minus_di:.1f}): force de tendance et direction dominante.
+
+### Volatilité & Volume
+Bollinger %B {bb_pct:.1f}% (width {bb_width:.1f}%): risque de squeeze? Expansion imminente?
+ATR ${atr:.4f}: calibration des stops. Stop ATR×1.5 = ${price - 1.5*atr:.2f}, ATR×2 = ${price - 2*atr:.2f}
+Volume {vol_ratio:.2f}x la moyenne + OBV {obv_trend}: le volume confirme-t-il la tendance? Signal institutionnel?
+
+## 📍 NIVEAUX CLÉS ET ZONES STRATÉGIQUES
+
+### Points Pivot (classiques)
+R3: ${r3:.2f} | R2: ${r2:.2f} | R1: ${r1:.2f} | PP: ${pp:.2f} | S1: ${s1:.2f} | S2: ${s2:.2f} | S3: ${s3:.2f}
+Explique quel niveau est le plus pertinent à surveiller aujourd'hui et pourquoi.
+
+### Fibonacci 52 semaines
+Le prix est actuellement proche du niveau {nearest_fib[0]} (${nearest_fib[1]}).
+Quels niveaux Fibonacci servent de support/résistance dynamiques? Probabilité de réaction?
+
+### Zones de liquidité
+Où se concentrent probablement les stops et ordres institutionnels? Quels niveaux sont des "zones de chasse"?
+
+## 💼 ANALYSE FONDAMENTALE
+
+Valorisation: P/E {pe} vs secteur {sector} (sous/surévalué?), Forward P/E {forward_pe}, PEG {peg} (< 1 = potentiellement sous-évalué), EV/EBITDA {ev_ebitda}.
+Qualité: marge {profit_margin}%, ROE {roe}%, FCF {fcf_str}. La société génère-t-elle vraiment de la valeur?
+Croissance: revenus +{revenue_growth}%, BPA +{earnings_growth}%. Croissance cohérente avec la valorisation?
+Endettement: D/E {debt_equity}. Risque financier?
+Catalyseur dividende: {dividend_yield}% — attractif pour les income investors?
+Prochains résultats: {earnings_date} — événement binaire à anticiper.
+
+## 🎯 CONSENSUS ANALYSTES ET POSITIONNEMENT
+
+Recommandation: {rec_key} — détaille ce que cela signifie.
+Objectif consensus ${f'{target_mean:.2f}' if isinstance(target_mean, float) else 'N/A'} (+{upside_str} de potentiel): objectif réaliste ou trop optimiste?
+Vente à découvert: {short_pct_str} du float — signal d'alerte ou "short squeeze" potentiel?
+Institutionnels à {inst_str}: signal de confiance ou de distribution?
+
+## 📰 IMPACT DES ACTUALITÉS
+Analyse les {len(news_lines)} dernières actualités récupérées. Quel est leur impact probable sur le cours? Sentiment global positif, négatif ou neutre?
+
+## 📆 SCÉNARIOS DE MARCHÉ
+
+### 🟢 Scénario haussier (probabilité X%)
+Conditions exactes (quel indicateur, quel niveau), catalyseurs (fondamentaux, actualités), objectifs précis T1/T2/T3, niveau d'invalidation.
+
+### 🔴 Scénario baissier (probabilité X%)
+Déclencheurs précis (quel support casse, quel signal), objectifs de prix à la baisse, risque majeur à surveiller, niveau d'invalidation.
+
+### ⚪ Scénario de consolidation (probabilité X%)
+Range probable, durée estimée, signal de sortie.
+
+## 🎯 STRATÉGIE DE TRADING PRÉCISE
+- **Signal**: ACHAT FORT / ACHAT / NEUTRE / VENTE / VENTE FORTE — avec justification en 1 phrase
+- **Zone d'entrée optimale**: $X.XX – $X.XX (justification technique)
+- **Stop-loss**: $X.XX (sous quel support/niveau? Ratio ATR utilisé?)
+- **Take-profit T1**: $X.XX → R/R 1:X
+- **Take-profit T2**: $X.XX → R/R 1:X
+- **Take-profit T3**: $X.XX → R/R 1:X
+- **Taille de position suggérée**: X% du portefeuille (basé sur le risque et la volatilité)
+- **Horizon**: X semaines/mois avec point de revue intermédiaire
+
+## ⚠️ RISQUES SPÉCIFIQUES À SURVEILLER
+- Risque technique n°1: quel niveau NE DOIT PAS casser et pourquoi?
+- Risque résultats: impact potentiel de la date {earnings_date} sur le cours
+- Risque sectoriel: tendances {sector} qui pourraient impacter négativement
+- Risque macro: inflation, taux, géopolitique — impact spécifique sur ce titre
+- Risque short squeeze / squeeze institutionnel
+
+## 💡 VERDICT FINAL
+- **Conviction**: X/10 — justification précise (quels signaux convergent, lesquels divergent?)
+- **Signal prioritaire à surveiller dans les 24-48h**: exactement quoi observer
+- **Avantage informationnel**: qu'est-ce que cette analyse révèle que le marché n'a peut-être pas encore intégré?
+
+⚠️ *Analyse TDB Premium — éducative uniquement, pas un conseil financier personnalisé.*"""
+
+    # ── 10. Call Groq ───────────────────────────────────────────────────────
     try:
-        async with httpx.AsyncClient(timeout=60.0) as client:
+        async with httpx.AsyncClient(timeout=90.0) as client:
             response = await client.post(
                 GROQ_API_URL,
-                headers={
-                    "Authorization": f"Bearer {api_key}",
-                    "Content-Type": "application/json"
-                },
+                headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
                 json={
                     "model": MODEL,
                     "messages": [
                         {"role": "system", "content": SYSTEM_PROMPT},
                         {"role": "user", "content": prompt}
                     ],
-                    "temperature": 0.5,
-                    "max_tokens": 3000
+                    "temperature": 0.4,
+                    "max_tokens": 4000
                 }
             )
 
             if response.status_code != 200:
-                raise HTTPException(status_code=500, detail="AI error")
+                print(f"[AI] quick_analysis Groq error {response.status_code}: {response.text[:300]}")
+                raise HTTPException(status_code=502, detail=f"Erreur IA ({response.status_code})")
 
             data = response.json()
             return {
@@ -562,6 +879,8 @@ Sois precis, factuel et professionnel. Utilise des emojis pour rendre l'analyse 
                 "analysis": data["choices"][0]["message"]["content"]
             }
 
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
