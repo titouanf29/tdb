@@ -159,11 +159,17 @@ export default function LoginPage() {
       </div>
 
       {/* Footer */}
-      <p className="text-center text-xs text-muted-foreground mt-4">
-        Paper Trading uniquement - Aucun risque financier reel
-        <br />
-        <span className="text-primary">CaptenTDB</span> par CaptenQwark
-      </p>
+      <div className="text-center text-xs text-muted-foreground mt-4 space-y-1">
+        <p>Paper Trading uniquement — Aucun risque financier réel</p>
+        <p><span className="text-primary">CaptenTDB</span> par CaptenQwark</p>
+        <div className="flex gap-3 justify-center pt-1">
+          <a href="/cgu" className="hover:text-primary hover:underline">CGU</a>
+          <span>·</span>
+          <a href="/politique-de-confidentialite" className="hover:text-primary hover:underline">Confidentialité</a>
+          <span>·</span>
+          <a href="/mentions-legales" className="hover:text-primary hover:underline">Mentions légales</a>
+        </div>
+      </div>
     </div>
   );
 }

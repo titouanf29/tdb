@@ -16,9 +16,10 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
   const isAuthPage = pathname?.startsWith("/login") || pathname?.startsWith("/register");
   const isLandingPage = pathname === "/";
+  const isLegalPage = pathname?.startsWith("/mentions-legales") || pathname?.startsWith("/politique-de-confidentialite") || pathname?.startsWith("/cgu");
 
   useEffect(() => {
-    if (!isLoading && !isAuthenticated && !isAuthPage && !isLandingPage) {
+    if (!isLoading && !isAuthenticated && !isAuthPage && !isLandingPage && !isLegalPage) {
       router.push("/login");
     }
   }, [isAuthenticated, isLoading, isAuthPage, isLandingPage, router]);
@@ -28,7 +29,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     setMobileMenuOpen(false);
   }, [pathname]);
 
-  if (isLoading && !isAuthPage && !isLandingPage) {
+  if (isLoading && !isAuthPage && !isLandingPage && !isLegalPage) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
@@ -43,6 +44,16 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     return (
       <div className="min-h-screen flex items-center justify-center p-4">
         {children}
+      </div>
+    );
+  }
+
+  if (isLegalPage) {
+    return (
+      <div className="min-h-screen">
+        <div className="max-w-4xl mx-auto px-4 py-12">
+          {children}
+        </div>
       </div>
     );
   }
@@ -73,9 +84,16 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         <main className="flex-1 overflow-auto p-4 md:p-6">
           <BroadcastBanner />
           {children}
-          <footer className="mt-8 pt-4 border-t border-white/10 text-center text-xs text-muted-foreground">
+          <footer className="mt-8 pt-4 border-t border-white/10 text-center text-xs text-muted-foreground space-y-2">
             <p>Fait par <span className="text-primary font-semibold">CaptenQwark</span> - CaptenTDB</p>
-            <p className="mt-1">Les analyses sont a but educatif uniquement. Ce site ne fournit pas de conseils financiers.</p>
+            <p>Les analyses sont à but éducatif uniquement. Ce site ne fournit pas de conseils financiers. Paper trading uniquement.</p>
+            <div className="flex flex-wrap gap-3 justify-center">
+              <a href="/mentions-legales" className="hover:text-primary hover:underline">Mentions légales</a>
+              <span>·</span>
+              <a href="/politique-de-confidentialite" className="hover:text-primary hover:underline">Politique de confidentialité</a>
+              <span>·</span>
+              <a href="/cgu" className="hover:text-primary hover:underline">CGU</a>
+            </div>
           </footer>
         </main>
       </div>

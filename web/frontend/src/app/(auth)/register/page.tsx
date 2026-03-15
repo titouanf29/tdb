@@ -251,15 +251,19 @@ export default function RegisterPage() {
                 className="mt-1 w-4 h-4 rounded border-white/20 bg-white/5 text-primary focus:ring-primary"
               />
               <span className="text-sm text-muted-foreground">
-                J'accepte les{" "}
+                J'ai lu et j'accepte les{" "}
                 <button
                   type="button"
                   onClick={() => setShowTerms(true)}
                   className="text-primary hover:underline"
                 >
-                  conditions d'utilisation
+                  conditions d'utilisation (CGU)
                 </button>
-                , la politique de confidentialite et le disclaimer financier.
+                , la{" "}
+                <a href="/politique-de-confidentialite" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+                  politique de confidentialité
+                </a>
+                {" "}et le disclaimer financier. Je confirme avoir au moins <strong>18 ans</strong>.
               </span>
             </label>
 
@@ -344,16 +348,40 @@ export default function RegisterPage() {
                 </div>
 
                 <div>
-                  <h3 className="font-semibold text-foreground mb-2">6. Contact</h3>
+                  <h3 className="font-semibold text-foreground mb-2">6. Conditions d'accès</h3>
                   <p>
-                    Pour toute question, utilisez la section "Communaute" puis "Contacter Admin".
+                    L'accès au service est réservé aux personnes de <strong className="text-foreground">18 ans minimum</strong>. Un seul compte par personne est autorisé. L'utilisateur s'engage à fournir des informations exactes.
                   </p>
                 </div>
 
-                <div className="pt-4 border-t border-white/10">
+                <div>
+                  <h3 className="font-semibold text-foreground mb-2">7. Données personnelles (RGPD)</h3>
+                  <p>
+                    Vos données sont traitées conformément au RGPD. Vous disposez d'un droit d'accès, de rectification et de suppression. Aucune donnée n'est vendue à des tiers. Consultez notre{" "}
+                    <a href="/politique-de-confidentialite" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+                      politique de confidentialité complète
+                    </a>.
+                  </p>
+                </div>
+
+                <div>
+                  <h3 className="font-semibold text-foreground mb-2">8. Contact</h3>
+                  <p>
+                    Pour toute question ou exercice de vos droits RGPD, utilisez la section "Communauté" → "Contacter Admin".
+                  </p>
+                </div>
+
+                <div className="pt-4 border-t border-white/10 space-y-2">
                   <p className="text-xs">
                     Fait par <span className="text-primary font-semibold">CaptenQwark</span> - CaptenTDB
                   </p>
+                  <div className="flex gap-3 text-xs">
+                    <a href="/cgu" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">CGU complètes</a>
+                    <span>·</span>
+                    <a href="/mentions-legales" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Mentions légales</a>
+                    <span>·</span>
+                    <a href="/politique-de-confidentialite" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Politique de confidentialité</a>
+                  </div>
                 </div>
               </div>
               <div className="p-6 border-t border-white/10 flex justify-end gap-3">
@@ -394,11 +422,17 @@ export default function RegisterPage() {
       </div>
 
       {/* Footer */}
-      <p className="text-center text-xs text-muted-foreground mt-4">
-        Paper Trading uniquement - Aucun risque financier reel
-        <br />
-        <span className="text-primary">CaptenTDB</span> par CaptenQwark
-      </p>
+      <div className="text-center text-xs text-muted-foreground mt-4 space-y-1">
+        <p>Paper Trading uniquement — Aucun risque financier réel</p>
+        <p><span className="text-primary">CaptenTDB</span> par CaptenQwark</p>
+        <div className="flex gap-3 justify-center pt-1">
+          <a href="/cgu" className="hover:text-primary hover:underline">CGU</a>
+          <span>·</span>
+          <a href="/politique-de-confidentialite" className="hover:text-primary hover:underline">Confidentialité</a>
+          <span>·</span>
+          <a href="/mentions-legales" className="hover:text-primary hover:underline">Mentions légales</a>
+        </div>
+      </div>
     </div>
   );
 }
