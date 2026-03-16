@@ -1347,13 +1347,34 @@ async def get_market_news(request: Request, current_user: dict = Depends(get_cur
                     # Try to parse as structured JSON
                     try:
                         import json as _json
+                        import re as _re
                         parsed = _json.loads(raw)
                         if isinstance(parsed, list):
                             summary_points = parsed
                         else:
                             summary = raw
                     except Exception:
-                        summary = raw
+                        # AI sometimes returns multiple JSON arrays separated by whitespace
+                        # e.g. "[{...}] [{...}] [{...}]" — merge them into one list
+                        try:
+                            import json as _json
+                            import re as _re
+                            arrays = _re.findall(r'\[.*?\]', raw, _re.DOTALL)
+                            if arrays:
+                                merged = []
+                                for arr in arrays:
+                                    try:
+                                        merged.extend(_json.loads(arr))
+                                    except Exception:
+                                        pass
+                                if merged:
+                                    summary_points = merged
+                                else:
+                                    summary = raw
+                            else:
+                                summary = raw
+                        except Exception:
+                            summary = raw
                 else:
                     print(f"[NEWS] AI API error: {response.status_code} - {response.text}")
         except Exception as e:
