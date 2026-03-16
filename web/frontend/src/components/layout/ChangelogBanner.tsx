@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useEffect, useContext } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Sparkles, X } from "lucide-react";
-import { AuthContext } from "@/lib/AuthContext";
+import { useAuth } from "@/lib/AuthContext";
 
 interface Changelog {
   id: number;
@@ -41,7 +41,7 @@ async function markRead(token: string, changelogId: number): Promise<void> {
 
 export function ChangelogBanner() {
   const [changelog, setChangelog] = useState<Changelog | null>(null);
-  const { isAuthenticated } = useContext(AuthContext);
+  const { isAuthenticated } = useAuth();
 
   useEffect(() => {
     if (!isAuthenticated) return;
