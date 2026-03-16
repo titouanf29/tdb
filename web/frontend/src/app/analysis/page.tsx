@@ -3224,32 +3224,40 @@ function TradingStrategiesSection({ analysis, formatCurrency }: { analysis: Anal
       </h3>
 
       <div className="space-y-4">
-        {strategies.map((strategy, idx) => (
-          <div key={idx} className={cn("p-4 rounded-xl border", strategy.color)}>
-            <div className="flex items-center justify-between mb-3">
-              <h4 className="font-semibold">{strategy.name}</h4>
-              <span className="text-xs px-2 py-1 bg-white/10 rounded-full">{strategy.timeframe}</span>
-            </div>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
-              <div>
-                <p className="text-xs text-muted-foreground">Entree</p>
-                <p className="font-medium">{strategy.entry}</p>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Objectif</p>
-                <p className="font-medium text-profit">{strategy.target}</p>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Stop Loss</p>
-                <p className="font-medium text-loss">{strategy.stop}</p>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">R/R</p>
-                <p className="font-medium">1:{strategy.rr}</p>
-              </div>
-            </div>
+        {strategies.length === 0 ? (
+          <div className="p-4 rounded-xl border bg-loss/10 border-loss/20 text-sm text-muted-foreground">
+            Aucune stratégie applicable — signal trop faible ou configuration de marché défavorable.
           </div>
-        ))}
+        ) : (
+          strategies.map((strategy, idx) => (
+            <div key={idx} className={cn("p-4 rounded-xl border", strategy.color)}>
+              <div className="flex items-center justify-between mb-3">
+                <h4 className="font-semibold">{strategy.name}</h4>
+                <span className="text-xs px-2 py-1 bg-white/10 rounded-full">{strategy.timeframe}</span>
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+                <div>
+                  <p className="text-xs text-muted-foreground">Entree</p>
+                  <p className="font-medium">{strategy.entry}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Objectif</p>
+                  <p className="font-medium text-profit">{strategy.target}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Stop Loss</p>
+                  <p className="font-medium text-loss">{strategy.stop}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">R/R</p>
+                  <p className="font-medium">
+                    {strategy.rr > 0 ? `1:${strategy.rr}` : "—"}
+                  </p>
+                </div>
+              </div>
+            </div>
+          ))
+        )}
       </div>
 
       <div className="mt-4 p-3 bg-warning/10 rounded-lg border border-warning/20">

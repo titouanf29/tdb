@@ -80,13 +80,13 @@ async def fetch_prices(symbols: list[str]) -> dict[str, dict]:
         result: dict = {}
         try:
             tickers_str = " ".join(syms)
-            # interval="1h" → last bar is the most recent completed hour,
-            # which matches the real-time price on Yahoo Finance (±1 h).
-            # period="5d" gives enough history to always find a previous close.
+            # interval="5m" → last bar is the most recent completed 5-min candle,
+            # giving a real-time price accurate to within 5 minutes.
+            # period="2d" gives enough history to always find a previous close.
             data = yf.download(
                 tickers=tickers_str,
-                period="5d",
-                interval="1h",
+                period="2d",
+                interval="5m",
                 auto_adjust=False,
                 progress=False,
                 threads=True,
