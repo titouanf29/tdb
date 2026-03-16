@@ -9,6 +9,42 @@ export const metadata: Metadata = {
   description: siteConfig.description,
 };
 
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@graph': [
+    {
+      '@type': 'WebSite',
+      '@id': `${siteConfig.url}/#website`,
+      url: siteConfig.url,
+      name: 'TDB',
+      description: siteConfig.description,
+      inLanguage: 'fr-FR',
+    },
+    {
+      '@type': 'SoftwareApplication',
+      '@id': `${siteConfig.url}/#app`,
+      name: 'TDB — Assistant IA Trading',
+      description: siteConfig.description,
+      url: siteConfig.url,
+      applicationCategory: 'FinanceApplication',
+      operatingSystem: 'Telegram',
+      offers: {
+        '@type': 'Offer',
+        price: '0',
+        priceCurrency: 'EUR',
+      },
+      featureList: [
+        'Analyse IA multi-marches',
+        'Scan en temps reel',
+        'Alertes Telegram instantanees',
+        'Paper trading wallet virtuel 10 000$',
+        'Gestion du risque automatique',
+        'Education trading integree',
+      ],
+    },
+  ],
+};
+
 const steps = [
   'Rejoindre le bot Telegram',
   'Configurer son profil',
@@ -33,6 +69,10 @@ const education = [
 export default function HomePage() {
   return (
     <main>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
       <section className="container hero">
         <div>
           <p className="pill">Bot IA trading pedagogique</p>
