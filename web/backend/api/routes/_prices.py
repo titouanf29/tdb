@@ -41,9 +41,37 @@ async def fetch_prices(symbols: list[str]) -> dict[str, dict]:
     """
     Returns {symbol: {price, change, volume}} for each symbol.
     Missing symbols are simply absent from the result.
+
+    Uses interval="1h" so we always get the most recent traded price
+    (the daily interval would return yesterday's close during market hours
+    because the current day's Close is NaN until the session ends).
     """
     if not symbols:
         return {}
+
+    def _prev_close(closes: "pd.Series") -> float:  # type: ignore[name-defined]
+        """
+        Given a Series of hourly closes, return the last close of the
+        *previous* trading day so that change% matches Yahoo Finance.
+        """
+        import pandas as pd
+
+        closes = closes.dropna()
+        if closes.empty:
+            return 0.0
+
+        idx = closes.index
+        # Normalise timezone so .date() comparisons work across exchanges
+        if hasattr(idx, "tz") and idx.tz is not None:
+            idx = idx.tz_convert("UTC").tz_localize(None)
+
+        dates = pd.Series(idx, index=closes.index).dt.date
+        last_date = dates.iloc[-1]
+        prev_mask = dates < last_date
+        if prev_mask.any():
+            return float(closes[prev_mask].iloc[-1])
+        # Fallback: use the second-to-last bar (same day, different hour)
+        return float(closes.iloc[-2]) if len(closes) >= 2 else float(closes.iloc[-1])
 
     def _fetch_sync(syms: list[str]) -> dict:
         import yfinance as yf
@@ -52,10 +80,13 @@ async def fetch_prices(symbols: list[str]) -> dict[str, dict]:
         result: dict = {}
         try:
             tickers_str = " ".join(syms)
+            # interval="1h" → last bar is the most recent completed hour,
+            # which matches the real-time price on Yahoo Finance (±1 h).
+            # period="5d" gives enough history to always find a previous close.
             data = yf.download(
                 tickers=tickers_str,
                 period="5d",
-                interval="1d",
+                interval="1h",
                 auto_adjust=False,
                 progress=False,
                 threads=True,
@@ -64,38 +95,44 @@ async def fetch_prices(symbols: list[str]) -> dict[str, dict]:
             if data.empty:
                 return result
 
-            # Single ticker → flat columns (Open, High, Low, Close, Volume)
+            # ── Single ticker → flat columns ──────────────────────────────
             if len(syms) == 1:
                 sym = syms[0].upper()
-                if "Close" in data.columns:
-                    closes = data["Close"].dropna()
-                    if closes.empty:
-                        return result
-                    price = float(closes.iloc[-1])
-                    prev  = float(closes.iloc[-2]) if len(closes) >= 2 else price
-                    change = ((price - prev) / prev * 100) if prev else 0.0
-                    volume = int(data["Volume"].iloc[-1]) if "Volume" in data.columns else 0
-                    result[sym] = {
-                        "price":  round(price, 4),
-                        "change": round(change, 2),
-                        "volume": volume,
-                    }
+                if "Close" not in data.columns:
+                    return result
+                closes = data["Close"].dropna()
+                if closes.empty:
+                    return result
+                price  = float(closes.iloc[-1])
+                prev   = _prev_close(closes)
+                change = ((price - prev) / prev * 100) if prev else 0.0
+                vol_series = data["Volume"].dropna() if "Volume" in data.columns else pd.Series(dtype=float)
+                volume = int(vol_series.iloc[-1]) if not vol_series.empty else 0
+                result[sym] = {
+                    "price":  round(price, 4),
+                    "change": round(change, 2),
+                    "volume": volume,
+                }
 
-            # Multiple tickers → MultiIndex columns (metric, ticker)
+            # ── Multiple tickers → MultiIndex columns ─────────────────────
             else:
-                close_df = None
-                vol_df   = None
+                close_df: "pd.DataFrame | None" = None  # type: ignore[name-defined]
+                vol_df:   "pd.DataFrame | None" = None  # type: ignore[name-defined]
 
                 if isinstance(data.columns, pd.MultiIndex):
-                    if "Close" in data.columns.get_level_values(0):
+                    lvl0 = data.columns.get_level_values(0)
+                    if "Close"  in lvl0:
                         close_df = data["Close"]
-                    if "Volume" in data.columns.get_level_values(0):
-                        vol_df = data["Volume"]
+                    if "Volume" in lvl0:
+                        vol_df   = data["Volume"]
                 else:
-                    # Fallback: flat (single ticker returned despite multiple requested)
+                    # yfinance returned a flat frame even though multiple
+                    # tickers were requested (happens when only one resolves)
                     if "Close" in data.columns:
-                        close_df = data[["Close"]].rename(columns={"Close": syms[0].upper()})
-                        vol_df   = data[["Volume"]].rename(columns={"Volume": syms[0].upper()}) if "Volume" in data.columns else None
+                        col = syms[0].upper()
+                        close_df = data[["Close"]].rename(columns={"Close": col})
+                        if "Volume" in data.columns:
+                            vol_df = data[["Volume"]].rename(columns={"Volume": col})
 
                 if close_df is None:
                     return result
@@ -108,7 +145,7 @@ async def fetch_prices(symbols: list[str]) -> dict[str, dict]:
                     if closes.empty:
                         continue
                     price  = float(closes.iloc[-1])
-                    prev   = float(closes.iloc[-2]) if len(closes) >= 2 else price
+                    prev   = _prev_close(closes)
                     change = ((price - prev) / prev * 100) if prev else 0.0
                     volume = 0
                     if vol_df is not None and s in vol_df.columns:
