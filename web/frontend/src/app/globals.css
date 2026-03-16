@@ -157,17 +157,44 @@
   }
 
   /* Price change animations */
-  .price-up   { animation: priceUp 0.5s ease-out; }
-  .price-down { animation: priceDown 0.5s ease-out; }
+  .price-up   { animation: priceUp 0.7s ease-out; }
+  .price-down { animation: priceDown 0.7s ease-out; }
 
   @keyframes priceUp {
-    0%   { @apply bg-profit/30; }
-    100% { @apply bg-transparent; }
+    0%  {
+      color: #10b981;
+      text-shadow: 0 0 10px rgba(16, 185, 129, 0.7);
+      transform: scale(1.06);
+    }
+    60% { color: #10b981; }
+    100% {
+      text-shadow: none;
+      transform: scale(1);
+    }
   }
 
   @keyframes priceDown {
-    0%   { @apply bg-loss/30; }
-    100% { @apply bg-transparent; }
+    0%  {
+      color: #ef4444;
+      text-shadow: 0 0 10px rgba(239, 68, 68, 0.7);
+      transform: scale(1.06);
+    }
+    60% { color: #ef4444; }
+    100% {
+      text-shadow: none;
+      transform: scale(1);
+    }
+  }
+
+  /* New item highlight pulse (e.g. recently added favorite) */
+  .highlight-new {
+    animation: highlightNew 2s ease-out forwards;
+  }
+
+  @keyframes highlightNew {
+    0%   { background-color: rgba(16, 185, 129, 0.18); }
+    60%  { background-color: rgba(16, 185, 129, 0.08); }
+    100% { background-color: transparent; }
   }
 
   /* Neon border — subtle gradient glow outline */
@@ -214,7 +241,7 @@
 
   /* Button styles */
   .btn-primary {
-    @apply text-white font-medium px-6 py-2 rounded-lg transition-all duration-200 active:scale-95;
+    @apply relative overflow-hidden text-white font-medium px-6 py-2 rounded-lg transition-all duration-200 active:scale-95;
     background: linear-gradient(135deg, hsl(var(--neon-blue)) 0%, hsl(270 80% 58%) 100%);
     box-shadow: 0 0 16px hsl(var(--neon-blue) / 0.3);
   }
@@ -224,13 +251,61 @@
     filter: brightness(1.1);
   }
 
+  /* Ripple on click */
+  .btn-primary::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: radial-gradient(circle, rgba(255,255,255,0.35) 0%, transparent 65%);
+    transform: scale(0);
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .btn-primary:active::after {
+    animation: btnRipple 0.45s ease-out forwards;
+  }
+
+  @keyframes btnRipple {
+    0%   { transform: scale(0);   opacity: 0.9; }
+    100% { transform: scale(2.8); opacity: 0; }
+  }
+
   .btn-secondary {
-    @apply bg-secondary hover:bg-secondary/80 text-white font-medium px-6 py-2 rounded-lg transition-all duration-200;
+    @apply relative overflow-hidden bg-secondary hover:bg-secondary/80 text-white font-medium px-6 py-2 rounded-lg transition-all duration-200;
     border: 1px solid rgba(255, 255, 255, 0.1);
   }
 
   .btn-secondary:hover {
     border-color: hsl(var(--neon-blue) / 0.4);
+  }
+
+  .btn-secondary::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: radial-gradient(circle, rgba(255,255,255,0.2) 0%, transparent 65%);
+    transform: scale(0);
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .btn-secondary:active::after {
+    animation: btnRipple 0.45s ease-out forwards;
+  }
+
+  /* Hover lift — subtle card elevation on hover */
+  .hover-lift {
+    transition: transform 0.22s ease, box-shadow 0.22s ease;
+  }
+
+  .hover-lift:hover {
+    transform: translateY(-3px);
+    box-shadow:
+      0 16px 40px rgba(0, 0, 0, 0.5),
+      0 0 24px hsl(var(--neon-blue) / 0.07);
   }
 
   .btn-ghost {

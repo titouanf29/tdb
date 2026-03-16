@@ -18,6 +18,7 @@ import {
 import { cn, formatPercent } from "@/lib/utils";
 import { walletAPI, WalletBalance, Position, TradingStats } from "@/lib/api";
 import { useFormatCurrency } from "@/lib/SettingsContext";
+import { AnimatedNumber } from "@/components/ui/AnimatedNumber";
 
 export default function WalletPage() {
   const formatCurrency = useFormatCurrency();
@@ -142,27 +143,35 @@ export default function WalletPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <BalanceCard
           title="Solde Disponible"
-          value={formatCurrency(balance?.balance || 0)}
+          rawValue={balance?.balance || 0}
+          formatter={formatCurrency}
           icon={Wallet}
           color="primary"
+          index={0}
         />
         <BalanceCard
           title="Valeur Positions"
-          value={formatCurrency(balance?.positions_value || 0)}
+          rawValue={balance?.positions_value || 0}
+          formatter={formatCurrency}
           icon={DollarSign}
           color="blue"
+          index={1}
         />
         <BalanceCard
           title="P&L Non Realise"
-          value={formatCurrency(balance?.total_pnl || 0)}
+          rawValue={balance?.total_pnl || 0}
+          formatter={formatCurrency}
           icon={balance?.total_pnl && balance.total_pnl >= 0 ? TrendingUp : TrendingDown}
           color={balance?.total_pnl && balance.total_pnl >= 0 ? "green" : "red"}
+          index={2}
         />
         <BalanceCard
           title="Equity Totale"
-          value={formatCurrency(balance?.total_equity || (balance?.balance || 0) + (balance?.positions_value || 0))}
+          rawValue={balance?.total_equity ?? ((balance?.balance || 0) + (balance?.positions_value || 0))}
+          formatter={formatCurrency}
           icon={Target}
           color="purple"
+          index={3}
         />
       </div>
 
@@ -334,14 +343,18 @@ export default function WalletPage() {
 
 function BalanceCard({
   title,
-  value,
+  rawValue,
+  formatter,
   icon: Icon,
   color,
+  index = 0,
 }: {
   title: string;
-  value: string;
+  rawValue: number;
+  formatter: (v: number) => string;
   icon: React.ElementType;
   color: "primary" | "blue" | "green" | "red" | "purple";
+  index?: number;
 }) {
   const colors = {
     primary: "bg-primary/10 text-primary",
@@ -352,17 +365,27 @@ function BalanceCard({
   };
 
   return (
-    <div className="glass-card p-5">
+    <motion.div
+      initial={{ opacity: 0, y: 18 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true }}
+      transition={{ delay: index * 0.09, duration: 0.45, ease: "easeOut" }}
+      className="glass-card hover-lift p-5"
+    >
       <div className="flex items-center gap-3">
         <div className={cn("p-3 rounded-xl", colors[color])}>
           <Icon className="w-5 h-5" />
         </div>
         <div>
           <p className="text-sm text-muted-foreground">{title}</p>
-          <p className="text-xl font-bold">{value}</p>
+          <AnimatedNumber
+            value={rawValue}
+            formatter={formatter}
+            className="text-xl font-bold"
+          />
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 }
 

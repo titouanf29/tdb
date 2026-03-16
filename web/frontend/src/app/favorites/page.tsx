@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   Star,
   TrendingUp,
@@ -27,6 +27,7 @@ export default function FavoritesPage() {
   const [newSymbol, setNewSymbol] = useState("");
   const [addError, setAddError] = useState("");
   const [isAdding, setIsAdding] = useState(false);
+  const [lastAdded, setLastAdded] = useState<string | null>(null);
 
   const loadFavorites = async (showRefresh = false) => {
     if (showRefresh) setIsRefreshing(true);
@@ -52,9 +53,12 @@ export default function FavoritesPage() {
     setIsAdding(true);
 
     try {
-      await favoritesAPI.addFavorite(newSymbol.toUpperCase());
+      const sym = newSymbol.toUpperCase();
+      await favoritesAPI.addFavorite(sym);
       setNewSymbol("");
       setShowAddModal(false);
+      setLastAdded(sym);
+      setTimeout(() => setLastAdded(null), 3000);
       loadFavorites();
     } catch (error) {
       setAddError(error instanceof Error ? error.message : "Erreur");
@@ -126,27 +130,42 @@ export default function FavoritesPage() {
       {/* Summary */}
       {favorites.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="glass-card p-4">
-            <p className="text-sm text-muted-foreground">Performance moyenne</p>
-            <p className={cn(
-              "text-2xl font-bold",
-              avgChange >= 0 ? "text-profit" : "text-loss"
-            )}>
-              {formatPercent(avgChange)}
-            </p>
-          </div>
-          <div className="glass-card p-4">
-            <p className="text-sm text-muted-foreground">Meilleure perf</p>
-            {bestPerf && (
-              <p className="text-2xl font-bold text-profit">
-                {bestPerf.symbol} {formatPercent(bestPerf.change)}
-              </p>
-            )}
-          </div>
-          <div className="glass-card p-4">
-            <p className="text-sm text-muted-foreground">Actifs suivis</p>
-            <p className="text-2xl font-bold text-primary">{favorites.length}</p>
-          </div>
+          {[
+            {
+              label: "Performance moyenne",
+              content: (
+                <p className={cn("text-2xl font-bold", avgChange >= 0 ? "text-profit" : "text-loss")}>
+                  {formatPercent(avgChange)}
+                </p>
+              ),
+            },
+            {
+              label: "Meilleure perf",
+              content: bestPerf ? (
+                <p className="text-2xl font-bold text-profit">
+                  {bestPerf.symbol} {formatPercent(bestPerf.change)}
+                </p>
+              ) : null,
+            },
+            {
+              label: "Actifs suivis",
+              content: (
+                <p className="text-2xl font-bold text-primary">{favorites.length}</p>
+              ),
+            },
+          ].map(({ label, content }, i) => (
+            <motion.div
+              key={label}
+              initial={{ opacity: 0, y: 14 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: i * 0.08, duration: 0.4, ease: "easeOut" }}
+              className="glass-card hover-lift p-4"
+            >
+              <p className="text-sm text-muted-foreground">{label}</p>
+              {content}
+            </motion.div>
+          ))}
         </div>
       )}
 
@@ -179,13 +198,32 @@ export default function FavoritesPage() {
                   key={fav.symbol}
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.05 }}
-                  className="border-b border-white/5 hover:bg-white/5 transition-colors cursor-pointer"
+                  transition={{ delay: index * 0.04 }}
+                  className={cn(
+                    "border-b border-white/5 transition-colors cursor-pointer",
+                    lastAdded === fav.symbol ? "highlight-new" : "hover:bg-white/5"
+                  )}
                   onClick={() => router.push(`/analysis?symbol=${fav.symbol}`)}
                 >
                   <td className="p-4">
                     <div className="flex items-center gap-3">
-                      <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />
+                      <AnimatePresence mode="wait">
+                        {lastAdded === fav.symbol ? (
+                          <motion.span
+                            key="new"
+                            initial={{ scale: 0, rotate: -30 }}
+                            animate={{ scale: 1, rotate: 0 }}
+                            exit={{ scale: 1 }}
+                            transition={{ type: "spring", stiffness: 400, damping: 15 }}
+                          >
+                            <Star className="w-4 h-4 text-yellow-400 fill-yellow-400 drop-shadow-[0_0_6px_rgba(250,204,21,0.8)]" />
+                          </motion.span>
+                        ) : (
+                          <motion.span key="normal">
+                            <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />
+                          </motion.span>
+                        )}
+                      </AnimatePresence>
                       <div>
                         <p className="font-semibold">{fav.symbol}</p>
                         <p className="text-xs text-muted-foreground">
