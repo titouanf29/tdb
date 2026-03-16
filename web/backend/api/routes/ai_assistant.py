@@ -949,73 +949,77 @@ RÈGLE D'OR: Utilise CHAQUE chiffre fourni dans les données. Une analyse vague 
 
 ---
 
-Génère l'analyse complète pour un trader **{sm['label']}** avec profil de risque **{rm['label']}**.
+Génère l'analyse complète pour un profil **{sm['label']}** avec tolérance au risque **{rm['label']}**.
 
-## 📊 SYNTHÈSE EXÉCUTIVE ({sm['label']})
-4-5 phrases percutantes adaptées à l'horizon {sm['horizon']}: prix exact ${price:.4f}, performances récentes dans ce contexte, conviction sur la direction, verdict immédiat. Est-ce un bon {sm['strategy_name']} en ce moment?
+## 📊 SYNTHÈSE DU MARCHÉ
+Résume en 4-5 phrases le contexte actuel de {symbol} : prix exact ${price:.4f}, dynamique récente, tendance dominante, et ce que les indicateurs révèlent en ce moment. Décris ce qui se passe vraiment sur ce marché, sans jargon de trading.
 
-## 📈 ANALYSE TECHNIQUE ({sm['label'].upper()})
+## 📈 ANALYSE TECHNIQUE DÉTAILLÉE
 
-### Indicateurs clés pour ce style
+### Lecture des indicateurs
 {_rsi_block}
 
-MACD {macd_val:+.4f} vs signal {sig_val:+.4f} (histogramme {hist_val:+.4f}): croisement récent ou imminent? Momentum en expansion ou contraction?
+MACD {macd_val:+.4f} vs signal {sig_val:+.4f} (histogramme {hist_val:+.4f}) : explique ce que ce momentum signifie concrètement pour le comportement du prix.
 
 {_stoch_block}
 {_adx_block}
 
-### Structure de prix
+### Structure de prix et tendance
 {_structure_block}
 
-### Volume & Momentum
-Volume {vol_ratio:.2f}x la moyenne. OBV: {obv_trend}.
+Décris comment le prix évolue structurellement : est-il en tendance, en range, en accumulation ou distribution ? Quels niveaux ont été testés et comment le prix a-t-il réagi ?
+
+### Volume & Pression directionnelle
+Volume {vol_ratio:.2f}x la moyenne sur la période. OBV: {obv_trend}.
 {_vol_comment}
+Que révèle le volume sur la conviction des acheteurs ou vendeurs en ce moment ?
 
 {_fund_title}
 {_fund_block}
 
+## 🎯 NIVEAUX CLÉS À SURVEILLER SUR LE GRAPHIQUE
+
+Donne des niveaux de prix précis et importants, en expliquant pourquoi chacun est significatif :
+
+- **Résistance majeure** : $X.XX — pourquoi ce niveau bloque le prix (ex: ex-support devenu résistance, zone de clôtures précédentes, retracement Fibonacci)
+- **Résistance secondaire** : $X.XX — ...
+- **Prix actuel** : ${price:.4f} — position par rapport aux niveaux
+- **Support primaire** : $X.XX — zone où les acheteurs devraient intervenir
+- **Support critique** : $X.XX — cassure de ce niveau changerait la structure
+- **Zone de surveillance immédiate (prochaines {_action_time})** : $X.XX – $X.XX — fourchette où se jouera la prochaine décision du marché
+
+Ces niveaux peuvent être tracés sur le graphique pour suivre les réactions du prix.
+
 ## 🎯 CONSENSUS ANALYSTES
-Recommandation {rec_key} | Objectif {_target_mean_str} (potentiel {upside_str}).
+Recommandation {rec_key} | Objectif moyen {_target_mean_str} (potentiel {upside_str}).
 {_analyst_extra}
 
-## 📰 ACTUALITÉS ({sm['label']})
+## 📰 ACTUALITÉS ET CATALYSEURS
 {_news_filter}
-Analyse les {len(news_lines)} actualités disponibles dans ce filtre.
+Analyse les {len(news_lines)} actualités disponibles : quel impact ont-elles sur la dynamique actuelle ? Y a-t-il des catalyseurs à venir (résultats, événements macro, annonces) qui pourraient faire bouger le prix ?
 
-## 📆 SCÉNARIOS ({sm['label']} — horizon {sm['horizon']})
+## 📆 DEUX SCÉNARIOS POSSIBLES (horizon {sm['horizon']})
 
-### 🟢 Scénario haussier (probabilité X%)
-Conditions d'entrée précises pour ce style, objectifs T1/T2/T3 adaptés à l'horizon {sm['horizon']}, niveau d'invalidation.
+### 🟢 Scénario positif (probabilité estimée X%)
+Décris en détail ce qui se passerait : quels niveaux seraient franchis, comment le prix se comporterait, quelles conditions techniques valideraient ce scénario. Donne des niveaux prix concrets à observer.
 
-### 🔴 Scénario baissier (probabilité X%)
-Déclencheurs précis, objectifs de prix, niveau d'invalidation.
+### 🔴 Scénario négatif (probabilité estimée X%)
+Décris les signaux d'alerte : quels supports cèderaient, comment le prix se comporterait, à quel niveau la thèse serait invalidée. Donne des niveaux prix concrets.
 
 {_scenario_range}
 
-## 🎯 STRATÉGIE {sm['strategy_name'].upper()} — PRÉCISE
-
-- **Signal**: ACHAT FORT / ACHAT / NEUTRE / VENTE / VENTE FORTE
-- **Zone d'entrée**: $X.XX – $X.XX (condition technique précise d'entrée)
-- **Stop-loss**: ${sl_price:.4f} ({sm['stop_note']}, {sm['sl_mult']}×ATR ${atr:.4f})
-- **Take-profit T1**: ${tp1:.4f} → R/R calculé
-- **Take-profit T2**: ${tp2:.4f} → R/R calculé
-- **Take-profit T3**: ${tp3:.4f} → R/R calculé (optionnel, laisser courir)
-- **Taille de position**: {sm['size_pct']} — {rm['size_adj']}
-- **Levier**: {rm['leverage']}
-- **Horizon**: {sm['horizon_trade']}
-- **R/R cible**: {sm['tp_rr']} | R/R minimum requis: {rm['min_rr']}
-
-## ⚠️ RISQUES POUR CE STYLE ({sm['label']})
+## ⚠️ RISQUES À MONITORER
 {_risks}
-- Risque sectoriel: dynamiques {sector} défavorables
-- Risque macro: taux d'intérêt, inflation, géopolitique
+- Risque sectoriel : contexte {sector} et ses implications actuelles
+- Risque macro : taux d'intérêt, inflation, dollar, géopolitique — ce qui est pertinent maintenant
 
-## 💡 VERDICT FINAL ({sm['label']} | Risque {rm['label']})
-- **Conviction**: X/10 — quels signaux convergent pour CE style spécifiquement?
-- **Action dans les {_action_time}**: exactement quoi surveiller
-- **Qualité du setup {sm['strategy_name']}**: excellent / correct / sous-optimal — pourquoi?
+## 💡 CONCLUSION ANALYTIQUE
+- **Signal global** : HAUSSIER FORT / HAUSSIER / NEUTRE / BAISSIER / BAISSIER FORT
+- **Conviction** : X/10 — quels sont les 2-3 éléments qui justifient cette conviction ?
+- **Point critique à surveiller dans les {_action_time}** : quel niveau ou événement précis déterminera la direction ?
+- **Ce que le graphique dit en ce moment** : résume l'histoire du prix en langage clair
 
-⚠️ *Analyse TDB Premium ({sm['label']} | {rm['label']}) — éducative uniquement, pas un conseil financier personnalisé.*"""
+⚠️ *Analyse TDB ({sm['label']} | {rm['label']}) — à titre éducatif et informatif uniquement. Ne constitue pas un conseil financier ou en investissement.*"""
 
     # ── 10. Call Groq ───────────────────────────────────────────────────────
     try:

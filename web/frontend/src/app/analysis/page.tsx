@@ -57,6 +57,7 @@ import { getAssetInfo, getAssetLogo } from "@/lib/assetInfo";
 import { useFormatCurrency, useFormatPrice, useSettings } from "@/lib/SettingsContext";
 import { authHeaders } from "@/lib/auth";
 import PremiumChart from "@/components/PremiumChart";
+import { TopLoadingBar } from "@/components/ui/TopLoadingBar";
 
 export default function AnalysisPage() {
   const router = useRouter();
@@ -253,6 +254,8 @@ export default function AnalysisPage() {
   };
 
   return (
+    <>
+      <TopLoadingBar isLoading={isLoading || isLoadingAI} />
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
@@ -766,6 +769,30 @@ export default function AnalysisPage() {
         </>
       )}
 
+      {/* Skeleton loading */}
+      {isLoading && (
+        <div className="space-y-6 animate-pulse">
+          <div className="glass-card p-6">
+            <div className="flex items-center gap-4 mb-4">
+              <div className="w-14 h-14 rounded-xl bg-white/10" />
+              <div className="space-y-2 flex-1">
+                <div className="h-5 w-32 bg-white/10 rounded-lg" />
+                <div className="h-3 w-24 bg-white/5 rounded-lg" />
+              </div>
+              <div className="h-8 w-20 bg-white/10 rounded-full" />
+            </div>
+            <div className="grid grid-cols-3 gap-4">
+              {[1,2,3].map(i => <div key={i} className="h-16 bg-white/5 rounded-xl" />)}
+            </div>
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="glass-card p-6 h-48 bg-white/5" />
+            <div className="glass-card p-6 h-48 bg-white/5 lg:col-span-2" />
+          </div>
+          <div className="glass-card h-64 bg-white/5" />
+        </div>
+      )}
+
       {/* Empty state */}
       {!analysis && !isLoading && !error && (
         <div className="glass-card p-12 text-center">
@@ -776,6 +803,7 @@ export default function AnalysisPage() {
         </div>
       )}
     </motion.div>
+    </>
   );
 }
 

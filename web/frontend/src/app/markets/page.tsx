@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   TrendingUp,
   TrendingDown,
@@ -14,6 +14,7 @@ import {
   Clock,
   Circle,
   ChevronDown,
+  RefreshCw,
 } from "lucide-react";
 import { cn, formatPercent, formatVolume } from "@/lib/utils";
 import { marketAPI, favoritesAPI, Market, Asset } from "@/lib/api";
@@ -21,6 +22,7 @@ import { getAssetInfo, getAssetLogo } from "@/lib/assetInfo";
 import { authHeaders } from "@/lib/auth";
 import { isMarketOpen, getMarketHoursDisplay, getTimeUntilChange } from "@/lib/marketStatus";
 import { useFormatPrice } from "@/lib/SettingsContext";
+import { TopLoadingBar } from "@/components/ui/TopLoadingBar";
 
 const PAGE_SIZE = 20;
 
@@ -49,6 +51,9 @@ export default function MarketsPage() {
   const [totalAssets, setTotalAssets] = useState(0);
   const [searchResults, setSearchResults] = useState<{ symbol: string; name: string; exchange: string }[]>([]);
   const [isSearchingBackend, setIsSearchingBackend] = useState(false);
+  const [priceFlash, setPriceFlash] = useState<Record<string, "up" | "down">>({});
+  const prevPricesRef = useRef<Record<string, number>>({});
+  const autoRefreshRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Load markets
@@ -103,10 +108,23 @@ export default function MarketsPage() {
           setIsLoadingPrices(true);
           marketAPI.getPrices(symbols)
             .then((priceData) => {
+              const flashes: Record<string, "up" | "down"> = {};
               setAssets((prev) => prev.map((a) => {
                 const p = priceData.prices[a.symbol];
-                return p ? { ...a, price: p.price, change: p.change, volume: p.volume } : a;
+                if (p) {
+                  const prev = prevPricesRef.current[a.symbol];
+                  if (prev !== undefined && p.price !== prev) {
+                    flashes[a.symbol] = p.price > prev ? "up" : "down";
+                  }
+                  prevPricesRef.current[a.symbol] = p.price;
+                  return { ...a, price: p.price, change: p.change, volume: p.volume };
+                }
+                return a;
               }));
+              if (Object.keys(flashes).length > 0) {
+                setPriceFlash(flashes);
+                setTimeout(() => setPriceFlash({}), 800);
+              }
             })
             .catch(() => {})
             .finally(() => setIsLoadingPrices(false));
@@ -122,6 +140,42 @@ export default function MarketsPage() {
     loadAssets();
     return () => { controller.abort(); clearTimeout(timer); };
   }, [selectedMarket]);
+
+  // Auto-refresh prices every 30s
+  const refreshPrices = useCallback(async () => {
+    if (!selectedMarket || assets.length === 0) return;
+    const symbols = assets.map((a) => a.symbol);
+    if (symbols.length === 0) return;
+    setIsLoadingPrices(true);
+    try {
+      const priceData = await marketAPI.getPrices(symbols);
+      const flashes: Record<string, "up" | "down"> = {};
+      setAssets((prev) => prev.map((a) => {
+        const p = priceData.prices[a.symbol];
+        if (p) {
+          const prevPrice = prevPricesRef.current[a.symbol];
+          if (prevPrice !== undefined && p.price !== prevPrice) {
+            flashes[a.symbol] = p.price > prevPrice ? "up" : "down";
+          }
+          prevPricesRef.current[a.symbol] = p.price;
+          return { ...a, price: p.price, change: p.change, volume: p.volume };
+        }
+        return a;
+      }));
+      if (Object.keys(flashes).length > 0) {
+        setPriceFlash(flashes);
+        setTimeout(() => setPriceFlash({}), 800);
+      }
+    } catch { /* ignore */ } finally {
+      setIsLoadingPrices(false);
+    }
+  }, [selectedMarket, assets]);
+
+  useEffect(() => {
+    if (autoRefreshRef.current) clearInterval(autoRefreshRef.current);
+    autoRefreshRef.current = setInterval(refreshPrices, 30000);
+    return () => { if (autoRefreshRef.current) clearInterval(autoRefreshRef.current); };
+  }, [refreshPrices]);
 
   const loadMore = async () => {
     if (isLoadingMore || !hasMore) return;
@@ -229,6 +283,8 @@ export default function MarketsPage() {
   }
 
   return (
+    <>
+      <TopLoadingBar isLoading={isLoadingAssets || isLoadingPrices} />
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
@@ -240,6 +296,15 @@ export default function MarketsPage() {
           <h1 className="text-2xl font-bold">Marchés</h1>
           <p className="text-muted-foreground">Explorez tous les marchés disponibles</p>
         </div>
+        <button
+          onClick={refreshPrices}
+          disabled={isLoadingPrices}
+          className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 transition-colors text-sm text-muted-foreground"
+          title="Rafraîchir les prix"
+        >
+          <RefreshCw className={cn("w-3.5 h-3.5", isLoadingPrices && "animate-spin")} />
+          <span className="hidden sm:inline">Actualiser</span>
+        </button>
       </div>
 
       {/* Market selector */}
@@ -462,7 +527,17 @@ export default function MarketsPage() {
                           </div>
                         </td>
                         <td className="p-4 text-right font-semibold">
-                          {(asset.error || !asset.price) ? <span className="text-muted-foreground">—</span> : formatPrice(asset.price, asset.symbol)}
+                          {(asset.error || !asset.price) ? (
+                            <span className="text-muted-foreground">—</span>
+                          ) : (
+                            <span className={cn(
+                              "transition-colors duration-300",
+                              priceFlash[asset.symbol] === "up" && "price-up",
+                              priceFlash[asset.symbol] === "down" && "price-down",
+                            )}>
+                              {formatPrice(asset.price, asset.symbol)}
+                            </span>
+                          )}
                         </td>
                         <td className="p-4 text-right">
                           {(asset.error || asset.change === 0) ? (
@@ -541,5 +616,6 @@ export default function MarketsPage() {
         )}
       </div>
     </motion.div>
+    </>
   );
 }

@@ -16,6 +16,7 @@ import {
 import { cn, formatPercent } from "@/lib/utils";
 import { favoritesAPI, Favorite } from "@/lib/api";
 import { useFormatPrice } from "@/lib/SettingsContext";
+import { TopLoadingBar } from "@/components/ui/TopLoadingBar";
 
 export default function FavoritesPage() {
   const router = useRouter();
@@ -93,6 +94,8 @@ export default function FavoritesPage() {
   }
 
   return (
+    <>
+      <TopLoadingBar isLoading={isLoading || isRefreshing} />
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
@@ -337,5 +340,6 @@ export default function FavoritesPage() {
         </div>
       )}
     </motion.div>
+    </>
   );
 }
