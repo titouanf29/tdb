@@ -935,91 +935,275 @@ async def quick_analysis(
 
     _target_mean_str = f"${target_mean:.2f}" if isinstance(target_mean, float) else "N/A"
 
-    prompt = f"""Tu es TDB Senior Analyst — {sm['persona']}.
+    # ── Style-specific prompts ──────────────────────────────────────────────
+    if _style == "scalp":
+        prompt = f"""Tu es TDB Senior Analyst — {sm['persona']}.
 Profil utilisateur: **{sm['label']}** | Risque: **{rm['label']}**
 
-⚠️ RÈGLE ABSOLUE: Toute l'analyse doit être adaptée au style {sm['label'].upper()} (horizon {sm['horizon']}).
-Focus prioritaire: {sm['focus']}
-{sm['ignore']}
-Indicateurs prioritaires pour ce style: {sm['indicators']}
-
-RÈGLE D'OR: Utilise CHAQUE chiffre fourni dans les données. Une analyse vague = analyse nulle.
+⚠️ RÈGLE SCALPING: Réponse courte, directe, opérationnelle. Pas de longs discours — l'utilisateur doit pouvoir agir maintenant.
 
 {market_context}
 
 ---
 
-Génère l'analyse complète pour un profil **{sm['label']}** avec tolérance au risque **{rm['label']}**.
+## ⚡ SIGNAL DE SCALPING
 
-## 📊 SYNTHÈSE DU MARCHÉ
-Résume en 4-5 phrases le contexte actuel de {symbol} : prix exact ${price:.4f}, dynamique récente, tendance dominante, et ce que les indicateurs révèlent en ce moment. Décris ce qui se passe vraiment sur ce marché, sans jargon de trading.
+Donne immédiatement le signal pour {symbol} à ${price:.4f} :
+- **Direction** : LONG / SHORT / ATTENDRE (un seul choix clair et justifié)
+- **Conviction** : X/10
+- **Pourquoi maintenant (2 phrases max)** : quel élément technique déclenche ce signal en ce moment précis ?
 
-## 📈 ANALYSE TECHNIQUE DÉTAILLÉE
+## 🎯 SETUP DE PRISE DE POSITION
 
-### Lecture des indicateurs
+Donne des niveaux de prix PRÉCIS :
+- **Zone d'entrée** : $X.XX – $Y.YY
+- **Stop Loss** : $Z.ZZ  ({sm['stop_note']})
+- **Objectif TP1** : $A.AA  (ratio {sm['tp_rr']})
+- **Objectif TP2** : $B.BB  (si le momentum se maintient)
+- **Taille de position** : {sm['size_pct']} du portefeuille
+- **Durée du trade** : {sm['horizon_trade']}
+
+## 📊 LECTURE RAPIDE DES INDICATEURS
+
 {_rsi_block}
-
-MACD {macd_val:+.4f} vs signal {sig_val:+.4f} (histogramme {hist_val:+.4f}) : explique ce que ce momentum signifie concrètement pour le comportement du prix.
-
+MACD {macd_val:+.4f} / Signal {sig_val:+.4f} — momentum en faveur ou contre le trade ?
 {_stoch_block}
-{_adx_block}
+Volume {vol_ratio:.2f}x la moyenne — spike de confirmation ou signal faible ?
 
-### Structure de prix et tendance
-{_structure_block}
+## 🗺️ MICRO-NIVEAUX (horizon {_action_time})
 
-Décris comment le prix évolue structurellement : est-il en tendance, en range, en accumulation ou distribution ? Quels niveaux ont été testés et comment le prix a-t-il réagi ?
+- Résistance immédiate : R1 ${r1:.2f}
+- Pivot : PP ${pp:.2f}
+- Support immédiat : S1 ${s1:.2f}
+- Extension : R2 ${r2:.2f} / S2 ${s2:.2f}
 
-### Volume & Pression directionnelle
-Volume {vol_ratio:.2f}x la moyenne sur la période. OBV: {obv_trend}.
-{_vol_comment}
-Que révèle le volume sur la conviction des acheteurs ou vendeurs en ce moment ?
+## ⚠️ CONDITIONS D'INVALIDATION
+
+Ce setup est ANNULÉ si :
+- [condition technique précise qui invalide l'entrée]
+- Volume trop faible (pas de spike) = ne pas entrer
+- {_news_filter}
 
 {_fund_title}
 {_fund_block}
 
-## 🎯 NIVEAUX CLÉS À SURVEILLER SUR LE GRAPHIQUE
+⚠️ *Analyse TDB (Scalping | {rm['label']}) — éducatif uniquement. Pas un conseil financier.*"""
 
-Donne des niveaux de prix précis et importants, en expliquant pourquoi chacun est significatif :
+    elif _style == "day":
+        prompt = f"""Tu es TDB Senior Analyst — {sm['persona']}.
+Profil utilisateur: **{sm['label']}** | Risque: **{rm['label']}**
 
-- **Résistance majeure** : $X.XX — pourquoi ce niveau bloque le prix (ex: ex-support devenu résistance, zone de clôtures précédentes, retracement Fibonacci)
-- **Résistance secondaire** : $X.XX — ...
-- **Prix actuel** : ${price:.4f} — position par rapport aux niveaux
-- **Support primaire** : $X.XX — zone où les acheteurs devraient intervenir
-- **Support critique** : $X.XX — cassure de ce niveau changerait la structure
-- **Zone de surveillance immédiate (prochaines {_action_time})** : $X.XX – $X.XX — fourchette où se jouera la prochaine décision du marché
+⚠️ Style Day Trading : combine explication du contexte de séance ET setup opérationnel concret pour la journée.
 
-Ces niveaux peuvent être tracés sur le graphique pour suivre les réactions du prix.
+{market_context}
 
-## 🎯 CONSENSUS ANALYSTES
-Recommandation {rec_key} | Objectif moyen {_target_mean_str} (potentiel {upside_str}).
-{_analyst_extra}
+---
 
-## 📰 ACTUALITÉS ET CATALYSEURS
-{_news_filter}
-Analyse les {len(news_lines)} actualités disponibles : quel impact ont-elles sur la dynamique actuelle ? Y a-t-il des catalyseurs à venir (résultats, événements macro, annonces) qui pourraient faire bouger le prix ?
+## 📊 CONTEXTE DE SÉANCE
 
-## 📆 DEUX SCÉNARIOS POSSIBLES (horizon {sm['horizon']})
+Décris en 4-5 phrases ce qui se passe sur {symbol} aujourd'hui : dynamique depuis l'ouverture, tendance intraday, position par rapport aux niveaux clés et au VWAP, ce que les indicateurs révèlent en ce moment. Donne le contexte complet pour comprendre la séance actuelle.
 
-### 🟢 Scénario positif (probabilité estimée X%)
-Décris en détail ce qui se passerait : quels niveaux seraient franchis, comment le prix se comporterait, quelles conditions techniques valideraient ce scénario. Donne des niveaux prix concrets à observer.
+## 📈 ANALYSE TECHNIQUE INTRADAY
 
-### 🔴 Scénario négatif (probabilité estimée X%)
-Décris les signaux d'alerte : quels supports cèderaient, comment le prix se comporterait, à quel niveau la thèse serait invalidée. Donne des niveaux prix concrets.
+### Oscillateurs & Momentum
+{_rsi_block}
+MACD {macd_val:+.4f} vs signal {sig_val:+.4f} (histogramme {hist_val:+.4f}) : le momentum intraday est-il en phase d'accélération ou d'essoufflement ? Qu'est-ce que cela implique pour les prochaines heures ?
+{_stoch_block}
+
+### Structure journalière
+{_structure_block}
+Décris le range journalier actuel, les niveaux testés, et comment le prix se comporte dans cette structure. Sommes-nous en début ou fin de range ?
+
+### Volume & Pression directionnelle
+Volume {vol_ratio:.2f}x la moyenne. OBV: {obv_trend}.
+{_vol_comment}
+Qui a le contrôle aujourd'hui — acheteurs ou vendeurs ? La pression est-elle institutionnelle ou du retail ?
+
+## 🎯 SETUP DE TRADE POUR LA SÉANCE
+
+- **Direction** : LONG / SHORT / ATTENDRE
+- **Zone d'entrée** : $X.XX – $Y.YY
+- **Stop Loss** : $Z.ZZ  ({sm['stop_note']})
+- **Objectif TP1** : $A.AA  (ratio {sm['tp_rr']})
+- **Objectif TP2** : $B.BB
+- **Taille** : {sm['size_pct']} du portefeuille
+- **Durée** : {sm['horizon_trade']}
+
+## 🗺️ NIVEAUX CLÉS DE LA SÉANCE
+
+Donne les niveaux importants avec leur signification :
+- Résistance principale : $X.XX (explication pourquoi ce niveau est important)
+- Pivot PP : ${pp:.2f} — R1 : ${r1:.2f} — R2 : ${r2:.2f}
+- Support principal : $X.XX (explication)
+- S1 : ${s1:.2f} — S2 : ${s2:.2f}
+- Zone de décision immédiate : $X.XX – $X.XX
+
+## 📆 DEUX SCÉNARIOS POUR AUJOURD'HUI
+
+### 🟢 Scénario positif (probabilité X%)
+Qu'est-ce qui se passerait si les acheteurs prennent le contrôle ? Niveaux franchis, comportement du prix, cibles intraday.
+
+### 🔴 Scénario négatif (probabilité X%)
+Qu'est-ce qui se passerait si les vendeurs dominent ? Supports cassés, invalidation du setup, niveaux de repli.
 
 {_scenario_range}
 
+## ⚠️ RISQUES DE LA SÉANCE
+{_risks}
+
+## 📰 ACTUALITÉS DU JOUR
+{_news_filter}
+Analyse les {len(news_lines)} actualités : y a-t-il un catalyseur qui impacte la séance d'aujourd'hui ?
+
+{_fund_title}
+{_fund_block}
+
+## 💡 CONCLUSION
+- **Signal** : HAUSSIER / NEUTRE / BAISSIER pour la séance
+- **Conviction** : X/10
+- **Point critique à surveiller** : quel niveau ou événement décidera de la direction aujourd'hui ?
+
+⚠️ *Analyse TDB (Day Trading | {rm['label']}) — éducatif uniquement. Pas un conseil financier.*"""
+
+    elif _style == "swing":
+        prompt = f"""Tu es TDB Senior Analyst — {sm['persona']}.
+Profil utilisateur: **{sm['label']}** | Risque: **{rm['label']}**
+
+⚠️ Style Swing : analyse approfondie de L'INTENTION ET LA CONVICTION DU MARCHÉ sur {sm['horizon']}. Pas de micro-signaux 1min — vision 4h/daily sur la volonté des acheteurs et vendeurs.
+
+{market_context}
+
+---
+
+## 📊 SYNTHÈSE ET INTENTION DU MARCHÉ
+
+Décris en 4-5 phrases ce que le marché est en train de faire sur {symbol} : est-il en phase d'accumulation, de distribution, de tendance forte, de consolidation avant breakout ? Qu'est-ce que le graphique "veut" faire sur les prochains jours ? Quel est le récit dominant que l'on peut lire dans la structure du prix ?
+
+## 🧭 LECTURE DE L'INTENTION ET DE LA STRUCTURE
+
+### Ce que les acheteurs et vendeurs font
+Analyse la conviction des deux camps : les acheteurs montrent-ils de la force (rebonds sur supports, volumes croissants, Higher Lows) ? Les vendeurs distribuent-ils (réactions violentes sur résistances, volumes de vente, Lower Highs) ? Quel camp a l'avantage structural et pourquoi ?
+
+### Structure de tendance
+{_structure_block}
+Quelle est la structure de marché visible sur le daily/4h ? (Higher Highs/Higher Lows = tendance haussière, Lower Highs/Lower Lows = tendance baissière). Y a-t-il un retournement en cours ou une continuation de la tendance dominante ?
+
+{_adx_block}
+
+### Momentum et confirmation de l'intention
+{_rsi_block}
+MACD {macd_val:+.4f} vs signal {sig_val:+.4f} : le momentum confirme-t-il l'intention détectée dans la structure ? Y a-t-il des divergences RSI/prix qui signalent un épuisement ou un retournement imminent ?
+
+### Volume et conviction institutionnelle
+Volume {vol_ratio:.2f}x la moyenne. OBV: {obv_trend}.
+{_vol_comment}
+Les volumes racontent-ils une histoire d'accumulation discrète par les institutionnels, ou de distribution progressive avant une baisse ?
+
+## 🎯 NIVEAUX CLÉS POUR LE SWING
+
+- **Résistance majeure** : $X.XX — pourquoi ce niveau est une barrière (zone de distribution, retracement Fibonacci, ex-support)
+- **Résistance secondaire** : $X.XX
+- **Prix actuel** : ${price:.4f} — position dans la structure
+- **Support de swing** : $X.XX — zone où les acheteurs devraient intervenir (EMA daily, niveau pivot hebdo, retracement Fibonacci)
+- **Support critique** : $X.XX — cassure invaliderait la thèse haussière
+
+## 📆 SCÉNARIOS SUR {sm['horizon'].upper()}
+
+### 🟢 Scénario de continuation (probabilité X%)
+Décris l'intention haussière de manière narrative : quels signaux confirment la volonté des acheteurs de pousser plus haut ? Quels niveaux seraient franchis, quelle serait la dynamique, jusqu'où pourrait aller le mouvement ?
+
+### 🔴 Scénario de retournement (probabilité X%)
+Décris ce qui changerait dans l'intention du marché : quels signaux de faiblesse apparaîtraient ? Comment les vendeurs prendraient le contrôle ? Jusqu'où pourrait aller la correction ?
+
 ## ⚠️ RISQUES À MONITORER
 {_risks}
-- Risque sectoriel : contexte {sector} et ses implications actuelles
-- Risque macro : taux d'intérêt, inflation, dollar, géopolitique — ce qui est pertinent maintenant
+- Risque sectoriel : contexte {sector} et impact sur la thèse swing
+
+## 📰 CATALYSEURS ET ACTUALITÉS
+{_news_filter}
+Analyse les {len(news_lines)} actualités : y a-t-il des événements à venir (résultats, annonces macro) qui pourraient amplifier ou invalider la thèse swing ?
+
+{_fund_title}
+{_fund_block}
+{_analyst_extra}
 
 ## 💡 CONCLUSION ANALYTIQUE
-- **Signal global** : HAUSSIER FORT / HAUSSIER / NEUTRE / BAISSIER / BAISSIER FORT
-- **Conviction** : X/10 — quels sont les 2-3 éléments qui justifient cette conviction ?
-- **Point critique à surveiller dans les {_action_time}** : quel niveau ou événement précis déterminera la direction ?
-- **Ce que le graphique dit en ce moment** : résume l'histoire du prix en langage clair
+- **Intention dominante** : ACCUMULATION / DISTRIBUTION / TENDANCE FORTE / CONSOLIDATION / INDÉCISION
+- **Signal swing** : HAUSSIER FORT / HAUSSIER / NEUTRE / BAISSIER / BAISSIER FORT
+- **Conviction** : X/10 — quels 2-3 éléments de preuve justifient cette lecture de l'intention du marché ?
+- **Ce que le marché dit** : résume en langage clair ce que font les acheteurs et les vendeurs sur {symbol} en ce moment
 
-⚠️ *Analyse TDB ({sm['label']} | {rm['label']}) — à titre éducatif et informatif uniquement. Ne constitue pas un conseil financier ou en investissement.*"""
+⚠️ *Analyse TDB (Swing | {rm['label']}) — éducatif uniquement. Pas un conseil financier.*"""
+
+    else:  # long
+        prompt = f"""Tu es TDB Senior Analyst — {sm['persona']}.
+Profil utilisateur: **{sm['label']}** | Risque: **{rm['label']}**
+
+⚠️ Style Long Terme : analyse narrative et fondamentale. Focus sur CE QUE L'ACTIF COMPTE FAIRE DANS LE FUTUR — ses projets, sa trajectoire stratégique, ses catalyseurs à 6-18 mois. Pas de micro-niveaux intraday.
+
+{market_context}
+
+---
+
+## 📖 LA TRAJECTOIRE DE {symbol}
+
+Raconte l'histoire de cet actif sur 5-6 phrases : d'où vient-il, où en est-il aujourd'hui en termes de fondamentaux et de dynamique de marché, et surtout — vers où se dirige-t-il ? Quelle est la grande tendance de fond qui guide cet actif sur les prochains mois ? Décris le récit long terme que les investisseurs suivent sur ce titre.
+
+## 🚀 PROJETS, VISION ET CATALYSEURS FUTURS
+
+C'est le cœur de l'analyse long terme. Développe de manière narrative :
+- Quels sont les grands projets stratégiques, développements ou transformations en cours ou à venir pour cet actif/entreprise ?
+- Y a-t-il des catalyseurs qui pourraient changer la donne dans les 6-18 prochains mois (lancement de produits, expansion géographique, fusions-acquisitions, évolutions réglementaires, cycles macro favorables/défavorables) ?
+- Comment le secteur {sector} évolue-t-il et quelle est la position concurrentielle de {symbol} dans cette évolution à long terme ?
+- Y a-t-il une thèse d'investissement forte (growth, value, dividende, turnaround) qui justifie une conviction long terme ?
+
+## 💼 ANALYSE FONDAMENTALE APPROFONDIE
+
+{_fund_title}
+{_fund_block}
+
+Analyse la qualité intrinsèque du business :
+- La valorisation actuelle (P/E {pe}, PEG {peg}) est-elle justifiée par la croissance (revenus {revenue_growth}%, BPA {earnings_growth}%) ?
+- Quel est le moat (avantage compétitif durable) de cet actif face à la concurrence ?
+- La structure financière (FCF {fcf_str}, D/E {debt_equity}) donne-t-elle la flexibilité nécessaire pour financer la croissance ?
+- Y a-t-il des risques structurels sur le modèle économique à long terme ?
+
+## 📊 STRUCTURE TECHNIQUE LONG TERME
+
+{_structure_block}
+{_rsi_block}
+
+Décris la tendance de fond sur une vision weekly/monthly : sommes-nous dans une phase d'accumulation institutionnelle, une tendance primaire haussière saine, ou un cycle de distribution qui précède une baisse prolongée ?
+Volume {vol_ratio:.2f}x la moyenne : {_vol_comment}
+
+## 🎯 CONSENSUS ANALYSTES ET OBJECTIFS
+
+Recommandation : {rec_key} | Objectif moyen : {_target_mean_str} (potentiel : {upside_str})
+{_analyst_extra}
+Que révèle ce consensus ? Les analystes révisent-ils leurs cibles à la hausse ou à la baisse ? Y a-t-il un écart significatif entre le prix actuel et les objectifs qui crée une opportunité ?
+
+## 📰 ACTUALITÉS ET IMPACT SUR LA THÈSE LONG TERME
+{_news_filter}
+Analyse les {len(news_lines)} actualités sous l'angle de l'investisseur long terme : lesquelles ont un impact réel sur la thèse d'investissement ? Y a-t-il des changements fondamentaux positifs ou négatifs visibles dans les news récentes ?
+
+## 📆 VISION À {sm['horizon'].upper()}
+
+### 🟢 Thèse haussière long terme (probabilité X%)
+Décris le scénario optimiste de manière narrative : quels projets se concrétisent, quels catalyseurs déclenchent une réévaluation positive, comment la valorisation évolue, quels niveaux pourraient être atteints sur {sm['horizon_trade']} ?
+
+### 🔴 Thèse baissière long terme (probabilité X%)
+Décris les risques fondamentaux : quels éléments pourraient dégrader le business, détériorer les marges, provoquer des révisions à la baisse des estimations ? Comment les macro-risques (taux, {sector}, concurrence) pourraient peser durablement ?
+
+## ⚠️ RISQUES LONG TERME
+{_risks}
+
+## 💡 CONCLUSION D'INVESTISSEUR
+- **Signal long terme** : FORT POTENTIEL / POTENTIEL MODÉRÉ / NEUTRE / À SURVEILLER / RISQUÉ
+- **Conviction** : X/10
+- **Horizon recommandé** : {sm['horizon_trade']}
+- **En résumé** : si tu devais expliquer en 3 phrases pourquoi cet actif mérite (ou non) d'être en portefeuille pour le long terme, que dirais-tu ?
+
+⚠️ *Analyse TDB (Long Terme | {rm['label']}) — éducatif uniquement. Pas un conseil financier.*"""
 
     # ── 10. Call Groq ───────────────────────────────────────────────────────
     try:
@@ -1034,7 +1218,7 @@ Décris les signaux d'alerte : quels supports cèderaient, comment le prix se co
                         {"role": "user", "content": prompt}
                     ],
                     "temperature": 0.4,
-                    "max_tokens": 2000
+                    "max_tokens": 2500
                 }
             )
 

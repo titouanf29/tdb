@@ -263,7 +263,12 @@ export default function AnalysisPage() {
     >
       {/* Search */}
       <div className="glass-card p-6">
-        <h2 className="text-lg font-semibold mb-4">Analyse IA</h2>
+        <div className="mb-4">
+          <h2 className="text-lg font-semibold">Analyse IA de séance</h2>
+          <p className="text-sm text-muted-foreground mt-1">
+            Recherchez n'importe quel actif (action, ETF, crypto, indice) pour obtenir une analyse technique complète enrichie par l'intelligence artificielle. L'analyse s'adapte automatiquement à votre style de trading — scalping, day trading, swing ou long terme — et à votre profil de risque.
+          </p>
+        </div>
         <div className="flex flex-col md:flex-row gap-3">
           <div className="flex-1 relative" ref={searchContainerRef}>
             {isSearching
@@ -2303,9 +2308,39 @@ function AIInsightSection({
             <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-purple-500/10 flex items-center justify-center">
               <Brain className="w-10 h-10 text-purple-400" />
             </div>
-            <h4 className="font-semibold mb-2">Analyse predictive par IA</h4>
-            <p className="text-sm text-muted-foreground mb-4 max-w-md mx-auto">
-              Obtenez une analyse approfondie avec des prévisions sur le court et moyen terme, les risques et opportunités.
+            <h4 className="font-semibold mb-2">
+              {tradingStyle === "scalp" && "Suggestions de prise de position"}
+              {tradingStyle === "day" && "Analyse de séance & Setup de trade"}
+              {tradingStyle === "swing" && "Intention de marché & Analyse swing"}
+              {tradingStyle === "long" && "Vision long terme & Projets de l'actif"}
+              {!["scalp","day","swing","long"].includes(tradingStyle) && "Analyse prédictive par IA"}
+            </h4>
+            <p className="text-sm text-muted-foreground mb-4 max-w-lg mx-auto">
+              {tradingStyle === "scalp" && (
+                <>
+                  Recevez un <strong className="text-foreground/80">signal direct</strong> avec zone d'entrée précise, stop loss et objectifs de profit adaptés au scalping. L'IA identifie la direction, le timing et les micro-niveaux clés pour agir dans les prochaines minutes.
+                </>
+              )}
+              {tradingStyle === "day" && (
+                <>
+                  Obtenez une <strong className="text-foreground/80">analyse complète de la séance</strong> : contexte intraday, lecture des indicateurs, niveaux VWAP et pivot, puis un setup de trade concret avec entrée, stop et objectifs pour la journée.
+                </>
+              )}
+              {tradingStyle === "swing" && (
+                <>
+                  Comprenez <strong className="text-foreground/80">l'intention réelle du marché</strong> sur les prochains jours : ce que font les acheteurs et vendeurs, la structure de tendance, la conviction des institutionnels et les scénarios probables à 2-10 jours.
+                </>
+              )}
+              {tradingStyle === "long" && (
+                <>
+                  Découvrez <strong className="text-foreground/80">la trajectoire et les projets futurs</strong> de l'actif : vision stratégique, catalyseurs à 6-18 mois, analyse fondamentale approfondie et thèse d'investissement long terme.
+                </>
+              )}
+              {!["scalp","day","swing","long"].includes(tradingStyle) && (
+                <>
+                  Obtenez une analyse approfondie avec des prévisions sur le court et moyen terme, les risques et opportunités de marché.
+                </>
+              )}
             </p>
             <button
               onClick={handleReload}
@@ -2313,7 +2348,7 @@ function AIInsightSection({
               className="btn-primary px-6 py-3 flex items-center gap-2 mx-auto"
             >
               <Sparkles className="w-4 h-4" />
-              Generer l'analyse IA
+              Générer l'analyse IA
             </button>
           </div>
         )}
