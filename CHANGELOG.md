@@ -6,6 +6,50 @@ Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/)
 
 ---
 
+## [2.2.0] - 2026-03-16
+
+### ✨ Nouveautés
+
+#### 📊 Résumés de Séance
+
+Un nouveau widget est désormais disponible sur votre tableau de bord. Il vous donne un aperçu rapide de chaque session de marché (Europe, US, Asie, Crypto) au moment où elle se termine.
+
+**Ce que vous voyez :**
+- **Top & Flop** — Les actifs les plus performants et les moins performants de la session
+- **Humeur du marché** — Une jauge visuelle indiquant si le marché est globalement haussier, neutre ou baissier
+- **Signaux J+1** — 4 actifs à surveiller pour la prochaine séance, taggés selon leur configuration : rebond, momentum, consolidation ou vigilance
+- **Résumé narratif IA** *(Premium)* — Une synthèse rédigée par l'IA expliquant ce qui s'est passé durant la session et ce qu'il faut surveiller
+
+#### 🎯 Mode d'Analyse Personnalisé
+
+Vous pouvez maintenant indiquer votre style de trading dans les paramètres. L'IA adapte alors toutes ses analyses et recommandations en conséquence.
+
+**Les 4 styles disponibles (Paramètres → Trading) :**
+
+| Style | Horizon | Ce que l'IA priorise |
+|---|---|---|
+| ⚡ Scalping | 1–30 min | Micro-niveaux, momentum, zones de liquidité |
+| 📈 Day Trading | Quelques heures | Range journalier, VWAP, niveaux pivots |
+| 🔄 Swing Trading | 2–10 jours | Retracements Fibonacci, pullbacks sur EMA |
+| 🏦 Long Terme | Semaines/mois | Fondamentaux, catalyseurs, macro |
+
+**Ce qui change concrètement :**
+- Les analyses techniques dans la section **Analyse** tiennent compte de votre style
+- Les niveaux de Stop Loss / Take Profit suggérés sont calibrés selon votre horizon
+- L'assistant IA adapte son vocabulaire et ses recommandations à votre profil
+
+#### ⚙️ Onglet Paramètres — Trading
+
+L'onglet **Trading** dans les paramètres a été enrichi. Vous pouvez désormais configurer :
+- Votre **style de trading** parmi les 4 options ci-dessus
+- Votre **niveau de risque** : Conservateur (2-3%), Modéré (5%), Agressif (7-8%), Très agressif (10%+)
+- Votre **devise** préférée : EUR ou USD
+- Votre **levier par défaut** : 1x à 10x
+
+Tous ces réglages sont sauvegardés et synchronisés automatiquement.
+
+---
+
 ## [2.1.1] - 2026-01-27
 
 ### 🔄 Modifié
