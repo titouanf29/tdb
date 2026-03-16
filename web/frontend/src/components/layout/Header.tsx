@@ -81,10 +81,7 @@ export function Header({ onMenuToggle }: { onMenuToggle?: () => void }) {
 
   const handleLogout = async () => {
     await logout();
-    // Force a full page reload to /  so AppLayout re-initialises with no token.
-    // Using router.push("/") causes a race: React hasn't yet re-rendered with
-    // isAuthenticated=false, so AppLayout redirects to /login instead.
-    window.location.href = "/";
+    window.location.href = "/login";
   };
 
   const handleSearch = (e: React.FormEvent) => {

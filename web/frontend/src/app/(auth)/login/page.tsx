@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Eye, EyeOff, TrendingUp, Loader2, Mail } from "lucide-react";
+import { Eye, EyeOff, TrendingUp, Loader2, Mail, ArrowLeft } from "lucide-react";
 import { useAuth } from "@/lib/AuthContext";
 import { resendVerification } from "@/lib/auth";
 
@@ -26,7 +26,7 @@ export default function LoginPage() {
 
     try {
       await login(email, password);
-      window.location.href = "/";
+      window.location.href = "/dashboard";
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Erreur de connexion";
       if (msg.includes("non vérifié") || msg.includes("Vérifi")) {
@@ -55,6 +55,14 @@ export default function LoginPage() {
 
   return (
     <div className="w-full max-w-md animate-fade-in">
+      {/* Back to landing */}
+      <div className="mb-4">
+        <Link href="/" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-white transition-colors">
+          <ArrowLeft className="w-4 h-4" />
+          Retour à la présentation
+        </Link>
+      </div>
+
       <div className="glass-card p-8">
         {/* Logo */}
         <div className="text-center mb-8">

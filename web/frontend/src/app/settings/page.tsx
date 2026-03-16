@@ -436,7 +436,7 @@ function SecuritySettings() {
   const handleLogout = async () => {
     setIsLoggingOut(true);
     await logout();
-    router.push("/");
+    window.location.href = "/login";
   };
 
   return (
