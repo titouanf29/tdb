@@ -612,8 +612,8 @@ function SessionNarrativeSection({ result, isPremium }: { result: SessionResult;
       });
       setNarrative(res.narrative);
       setGeneratedAt(res.generated_at);
-    } catch {
-      setError("Impossible de générer l'analyse. Réessayez.");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Impossible de générer l'analyse.");
     } finally {
       setLoading(false);
     }

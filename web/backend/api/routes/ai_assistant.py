@@ -1264,20 +1264,26 @@ INSTRUCTIONS :
                     "Content-Type": "application/json",
                 },
                 json={
-                    "model": MODEL,
+                    "model": "llama-3.1-8b-instant",
                     "messages": [
-                        {"role": "system", "content": "Tu es un analyste de marché. Réponds uniquement en français, en texte narratif fluide."},
+                        {"role": "system", "content": "Tu es un analyste de marché. Réponds uniquement en français, en texte narratif fluide, sans titre ni bullet points."},
                         {"role": "user", "content": prompt},
                     ],
                     "temperature": 0.6,
-                    "max_tokens": 300,
+                    "max_tokens": 250,
                 },
             )
 
-        if response.status_code != 200:
-            raise HTTPException(status_code=502, detail="Erreur lors de la génération du résumé")
+            if response.status_code == 429:
+                raise HTTPException(status_code=429, detail="Service IA surchargé, réessayez dans quelques secondes.")
+            if response.status_code == 401:
+                raise HTTPException(status_code=503, detail="Clé API IA invalide.")
+            if response.status_code != 200:
+                print(f"[SESSION NARRATIVE] Groq error {response.status_code}: {response.text[:300]}")
+                raise HTTPException(status_code=502, detail=f"Erreur IA ({response.status_code})")
 
-        narrative = response.json()["choices"][0]["message"]["content"].strip()
+            data = response.json()
+            narrative = data["choices"][0]["message"]["content"].strip()
 
         return {
             "narrative": narrative,
@@ -1286,6 +1292,8 @@ INSTRUCTIONS :
 
     except HTTPException:
         raise
+    except httpx.TimeoutException:
+        raise HTTPException(status_code=504, detail="L'IA a mis trop de temps à répondre, réessayez.")
     except Exception as e:
-        print(f"[SESSION NARRATIVE] Error: {e}")
+        print(f"[SESSION NARRATIVE] Unexpected error: {type(e).__name__}: {e}")
         raise HTTPException(status_code=502, detail="Impossible de générer le résumé IA")
