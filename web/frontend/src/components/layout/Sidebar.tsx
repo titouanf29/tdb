@@ -29,7 +29,7 @@ const menuGroups = [
   {
     label: "Trading",
     items: [
-      { icon: LayoutDashboard, label: "Dashboard",  href: "/" },
+      { icon: LayoutDashboard, label: "Dashboard",  href: "/dashboard" },
       { icon: Globe,           label: "Marchés",    href: "/markets" },
       { icon: BarChart3,       label: "Analyse",    href: "/analysis" },
       { icon: ScanLine,        label: "Scanner",    href: "/scanner" },

@@ -20,6 +20,7 @@ import {
   Ticket,
   Check,
   CheckCheck,
+  Home,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/AuthContext";
@@ -123,6 +124,15 @@ export function Header({ onMenuToggle }: { onMenuToggle?: () => void }) {
 
       {/* Right side */}
       <div className="flex items-center gap-2 md:gap-4 ml-auto">
+        {/* Home / Landing page link */}
+        <Link
+          href="/"
+          className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors"
+          title="Page d'accueil"
+        >
+          <Home className="w-3.5 h-3.5" />
+          <span>Accueil</span>
+        </Link>
         {/* Connection status - hidden on mobile */}
         <div
           className={cn(

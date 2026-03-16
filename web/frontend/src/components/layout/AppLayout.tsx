@@ -59,8 +59,8 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // Landing page — full screen, no sidebar (auth checked inside page.tsx)
-  if (isLandingPage && !isAuthenticated) {
+  // Landing page — always full screen, no sidebar
+  if (isLandingPage) {
     return <>{children}</>;
   }
 

@@ -557,6 +557,7 @@ function AnimatedChart() {
 }
 
 function LandingPage() {
+  const { isAuthenticated } = useAuth();
   const { scrollY } = useScroll();
   const heroOpacity = useTransform(scrollY, [0, 400], [1, 0]);
   const heroY       = useTransform(scrollY, [0, 400], [0, -60]);
@@ -593,13 +594,22 @@ function LandingPage() {
           <a href="#how" className="hover:text-white transition-colors">Comment ça marche</a>
         </div>
         <div className="flex items-center gap-3">
-          <Link href="/login" className="hidden sm:inline-flex px-4 py-2 text-sm font-medium text-white/65 hover:text-white transition-colors">
-            Connexion
-          </Link>
-          <Link href="/register" className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary hover:bg-primary/90 text-white text-sm font-semibold transition-all hover:shadow-lg hover:shadow-primary/25 hover:-translate-y-0.5">
-            Commencer gratuitement
-            <ChevronRight className="w-3.5 h-3.5" />
-          </Link>
+          {isAuthenticated ? (
+            <Link href="/dashboard" className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary hover:bg-primary/90 text-white text-sm font-semibold transition-all hover:shadow-lg hover:shadow-primary/25 hover:-translate-y-0.5">
+              Accéder à l'app
+              <ChevronRight className="w-3.5 h-3.5" />
+            </Link>
+          ) : (
+            <>
+              <Link href="/login" className="hidden sm:inline-flex px-4 py-2 text-sm font-medium text-white/65 hover:text-white transition-colors">
+                Connexion
+              </Link>
+              <Link href="/register" className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary hover:bg-primary/90 text-white text-sm font-semibold transition-all hover:shadow-lg hover:shadow-primary/25 hover:-translate-y-0.5">
+                Commencer gratuitement
+                <ChevronRight className="w-3.5 h-3.5" />
+              </Link>
+            </>
+          )}
         </div>
       </motion.nav>
 
@@ -664,14 +674,23 @@ function LandingPage() {
           transition={{ delay: 0.3, duration: 0.6 }}
           className="mt-10 flex flex-col sm:flex-row items-center gap-4"
         >
-          <Link href="/register" className="group inline-flex items-center gap-2 px-8 py-4 rounded-2xl bg-primary hover:bg-primary/90 text-white text-base font-bold transition-all hover:shadow-2xl hover:shadow-primary/30 hover:-translate-y-1">
-            Créer mon compte — C&apos;est gratuit
-            <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-          </Link>
-          <Link href="/login" className="inline-flex items-center gap-2 px-8 py-4 rounded-2xl border border-white/10 bg-white/5 hover:bg-white/10 text-white text-base font-semibold transition-all hover:-translate-y-0.5">
-            <Play className="w-4 h-4" />
-            J&apos;ai déjà un compte
-          </Link>
+          {isAuthenticated ? (
+            <Link href="/dashboard" className="group inline-flex items-center gap-2 px-8 py-4 rounded-2xl bg-primary hover:bg-primary/90 text-white text-base font-bold transition-all hover:shadow-2xl hover:shadow-primary/30 hover:-translate-y-1">
+              Accéder à mon espace
+              <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+            </Link>
+          ) : (
+            <>
+              <Link href="/register" className="group inline-flex items-center gap-2 px-8 py-4 rounded-2xl bg-primary hover:bg-primary/90 text-white text-base font-bold transition-all hover:shadow-2xl hover:shadow-primary/30 hover:-translate-y-1">
+                Créer mon compte — C&apos;est gratuit
+                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+              </Link>
+              <Link href="/login" className="inline-flex items-center gap-2 px-8 py-4 rounded-2xl border border-white/10 bg-white/5 hover:bg-white/10 text-white text-base font-semibold transition-all hover:-translate-y-0.5">
+                <Play className="w-4 h-4" />
+                J&apos;ai déjà un compte
+              </Link>
+            </>
+          )}
         </motion.div>
 
         {/* Trust micro-badges */}
@@ -882,13 +901,22 @@ function LandingPage() {
                 <span className="text-white/80 font-semibold">Gratuit. Sans CB. En 30 secondes.</span>
               </p>
               <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-                <Link href="/register" className="group inline-flex items-center gap-2 px-8 py-4 rounded-2xl bg-primary hover:bg-primary/90 text-white text-base font-bold transition-all hover:shadow-2xl hover:shadow-primary/40 hover:-translate-y-1 w-full sm:w-auto justify-center">
-                  Créer mon compte gratuit
-                  <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                </Link>
-                <Link href="/login" className="inline-flex items-center gap-2 px-8 py-4 rounded-2xl border border-white/15 hover:bg-white/5 text-white text-base font-semibold transition-all w-full sm:w-auto justify-center">
-                  Se connecter
-                </Link>
+                {isAuthenticated ? (
+                  <Link href="/dashboard" className="group inline-flex items-center gap-2 px-8 py-4 rounded-2xl bg-primary hover:bg-primary/90 text-white text-base font-bold transition-all hover:shadow-2xl hover:shadow-primary/40 hover:-translate-y-1 w-full sm:w-auto justify-center">
+                    Accéder à mon espace
+                    <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                  </Link>
+                ) : (
+                  <>
+                    <Link href="/register" className="group inline-flex items-center gap-2 px-8 py-4 rounded-2xl bg-primary hover:bg-primary/90 text-white text-base font-bold transition-all hover:shadow-2xl hover:shadow-primary/40 hover:-translate-y-1 w-full sm:w-auto justify-center">
+                      Créer mon compte gratuit
+                      <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                    </Link>
+                    <Link href="/login" className="inline-flex items-center gap-2 px-8 py-4 rounded-2xl border border-white/15 hover:bg-white/5 text-white text-base font-semibold transition-all w-full sm:w-auto justify-center">
+                      Se connecter
+                    </Link>
+                  </>
+                )}
               </div>
               <div className="mt-6 flex flex-wrap items-center justify-center gap-5 text-xs text-white/35">
                 {["100% gratuit", "Aucun engagement", "800+ actifs", "Analyses IA incluses"].map((t, i) => (
@@ -1650,25 +1678,12 @@ function QuickActionsWidget({ isPremium }: { isPremium: boolean }) {
 
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  ROOT PAGE — Landing si non connecté, Dashboard si connecté
+//  ROOT PAGE — Toujours la landing page
+//  Le dashboard est accessible à /dashboard
 // ─────────────────────────────────────────────────────────────────────────────
 
 export default function RootPage() {
-  const { isAuthenticated, isLoading } = useAuth();
-
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
-      </div>
-    );
-  }
-
-  if (!isAuthenticated) {
-    return <LandingPage />;
-  }
-
-  return <Dashboard />;
+  return <LandingPage />;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
