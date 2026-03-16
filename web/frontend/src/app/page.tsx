@@ -38,72 +38,341 @@ const TICKER_ITEMS = [
   { symbol: "OR.PA", price: "381.70", change: "+1.44%" },
 ];
 
-const FEATURES = [
+const FEATURES_MAIN = [
   {
+    id: "analysis",
     icon: BarChart3,
-    title: "Analyse Technique IA",
-    desc: "RSI, MACD, Bollinger Bands, EMA — analysés et interprétés automatiquement par notre IA pour chaque actif.",
-    color: "from-blue-500/20 to-indigo-500/20",
-    border: "border-blue-500/30",
-    iconColor: "text-blue-400",
+    badge: "Intelligence Artificielle",
+    title: "Analyse technique automatique",
+    desc: "Entrez n'importe quel symbole et obtenez instantanément une analyse complète : RSI, MACD, Bollinger Bands, niveaux clés et score global interprété par l'IA.",
+    bullets: [
+      "Score technique de 0 à 100",
+      "Supports & résistances automatiques",
+      "Stratégies de trading suggérées",
+      "Signaux haussiers / baissiers clairs",
+    ],
+    accentColor: "text-blue-400",
+    checkBg: "bg-blue-500/15 border-blue-500/20",
+    glowColor: "bg-blue-500/20",
+    borderColor: "border-blue-500/20",
   },
+  {
+    id: "scanner",
+    icon: Zap,
+    badge: "Temps Réel",
+    title: "Scanner de marchés intelligent",
+    desc: "Scannez des centaines d'actifs simultanément pour détecter les meilleures opportunités techniques. RSI extrême, breakouts, volumes anormaux — tout en un clic.",
+    bullets: [
+      "Filtres multi-critères avancés",
+      "800+ actifs scannés en continu",
+      "Top performers et signaux forts",
+      "Actions, ETFs, cryptos, forex",
+    ],
+    accentColor: "text-cyan-400",
+    checkBg: "bg-cyan-500/15 border-cyan-500/20",
+    glowColor: "bg-cyan-500/20",
+    borderColor: "border-cyan-500/20",
+  },
+  {
+    id: "ai",
+    icon: Brain,
+    badge: "Disponible 24h/24",
+    title: "Votre assistant IA trading",
+    desc: "Posez n'importe quelle question sur les marchés ou vos positions. Notre IA spécialisée vous répond avec des explications claires, pédagogiques et adaptées.",
+    bullets: [
+      "Analyse de vos positions en direct",
+      "Explications pédagogiques détaillées",
+      "Stratégies personnalisées",
+      "Résumés des actualités économiques",
+    ],
+    accentColor: "text-purple-400",
+    checkBg: "bg-purple-500/15 border-purple-500/20",
+    glowColor: "bg-purple-500/20",
+    borderColor: "border-purple-500/20",
+  },
+];
+
+const SECONDARY_FEATURES = [
   {
     icon: Globe,
     title: "Marchés Mondiaux",
-    desc: "CAC 40, DAX, FTSE, S&P 500, Nasdaq, cryptos — plus de 800 actifs à portée de main en temps réel.",
-    color: "from-emerald-500/20 to-teal-500/20",
-    border: "border-emerald-500/30",
-    iconColor: "text-emerald-400",
-  },
-  {
-    icon: Brain,
-    title: "Assistant IA",
-    desc: "Posez vos questions à notre assistant spécialisé en trading. Stratégies, lectures de marché, conseils pédagogiques.",
-    color: "from-purple-500/20 to-pink-500/20",
-    border: "border-purple-500/30",
-    iconColor: "text-purple-400",
-  },
-  {
-    icon: Star,
-    title: "Watchlist Personnalisée",
-    desc: "Suivez vos actifs préférés, recevez leurs performances en direct et organisez votre portefeuille de suivi.",
-    color: "from-yellow-500/20 to-orange-500/20",
-    border: "border-yellow-500/30",
-    iconColor: "text-yellow-400",
+    desc: "CAC 40, DAX, S&P 500, Nasdaq, Nikkei, crypto — 800+ actifs dans 9 marchés couverts en temps réel.",
+    colorClass: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20",
   },
   {
     icon: Wallet,
     title: "Wallet Virtuel",
-    desc: "Simulez vos trades avec 10 000 $ virtuels. Mesurez vos performances sans risquer un seul centime réel.",
-    color: "from-rose-500/20 to-red-500/20",
-    border: "border-rose-500/30",
-    iconColor: "text-rose-400",
+    desc: "Simulez vos trades avec 10 000 $ virtuels. Mesurez vos performances sans risquer un centime réel.",
+    colorClass: "text-rose-400 bg-rose-500/10 border-rose-500/20",
   },
   {
-    icon: Zap,
-    title: "Scanner de Marchés",
-    desc: "Détectez automatiquement les opportunités techniques sur des centaines d'actifs avec notre scanner IA.",
-    color: "from-cyan-500/20 to-sky-500/20",
-    border: "border-cyan-500/30",
-    iconColor: "text-cyan-400",
+    icon: Star,
+    title: "Watchlist Personnalisée",
+    desc: "Suivez vos actifs favoris et consultez leurs performances et alertes en direct à tout moment.",
+    colorClass: "text-yellow-400 bg-yellow-500/10 border-yellow-500/20",
   },
 ];
 
-const STATS = [
+const STATS_DATA = [
   { value: "842+", label: "Actifs disponibles" },
   { value: "9", label: "Marchés couverts" },
-  { value: "Gratuit", label: "Pour commencer" },
-  { value: "Premium", label: "Pour aller plus loin" },
+  { value: "0 €", label: "Pour commencer" },
+  { value: "30 s", label: "Pour s'inscrire" },
 ];
 
 const MARKETS_PREVIEW = [
-  { name: "CAC 40", flag: "🇫🇷", change: "+0.82%", up: true },
-  { name: "DAX 40", flag: "🇩🇪", change: "+1.14%", up: true },
-  { name: "S&P 500", flag: "🇺🇸", change: "+0.67%", up: true },
-  { name: "Nasdaq", flag: "🇺🇸", change: "+1.43%", up: true },
+  { name: "CAC 40",   flag: "🇫🇷", change: "+0.82%", up: true  },
+  { name: "DAX 40",   flag: "🇩🇪", change: "+1.14%", up: true  },
+  { name: "S&P 500",  flag: "🇺🇸", change: "+0.67%", up: true  },
+  { name: "Nasdaq",   flag: "🇺🇸", change: "+1.43%", up: true  },
   { name: "FTSE 100", flag: "🇬🇧", change: "-0.21%", up: false },
-  { name: "Bitcoin", flag: "🪙", change: "+2.14%", up: true },
+  { name: "Bitcoin",  flag: "🪙",  change: "+2.14%", up: true  },
 ];
+
+const CHAT_MESSAGES = [
+  { role: "user", text: "Analyse le RSI de AAPL pour moi" },
+  { role: "ai",   text: "Le RSI d'AAPL est à 62 — zone neutre légèrement haussière. Pas de surachat, tendance positive au-dessus de l'EMA 20." },
+  { role: "user", text: "Est-ce un bon moment pour acheter ?" },
+  { role: "ai",   text: "Setup favorable sur un pullback vers l'EMA 20 (~135 $). Stop conseillé à 130 $. R/R ≈ 2:1." },
+];
+
+const SCANNER_RESULTS = [
+  { symbol: "AAPL",  signal: "RSI survendu",        strength: "FORT",  change: "+2.1%", up: true },
+  { symbol: "BTC",   signal: "Breakout résistance",  strength: "FORT",  change: "+3.4%", up: true },
+  { symbol: "OR.PA", signal: "MACD croisement +",    strength: "MOYEN", change: "+0.8%", up: true },
+  { symbol: "TSLA",  signal: "Volume ×2.4",          strength: "FORT",  change: "+5.2%", up: true },
+];
+
+
+// ── Mini demo components ──────────────────────────────────────────────────────
+
+function AnalysisDemo() {
+  const indicators = [
+    { name: "RSI",    val: "62",     label: "Neutre",    color: "text-yellow-400" },
+    { name: "MACD",   val: "",       label: "Haussier ↑",color: "text-emerald-400" },
+    { name: "EMA 20", val: "138.2",  label: "",          color: "text-blue-400" },
+    { name: "Score",  val: "74",     label: "/100",      color: "text-primary" },
+  ];
+  return (
+    <div className="rounded-2xl overflow-hidden border border-blue-500/20 bg-card/70 backdrop-blur-sm p-4 shadow-xl">
+      <div className="h-28 mb-4 relative">
+        <AnimatedChart />
+        <div className="absolute top-1 left-1 flex items-center gap-2">
+          <span className="text-xs font-bold text-white">NVDA</span>
+          <span className="text-xs text-emerald-400">+3.87%</span>
+        </div>
+        <motion.div
+          initial={{ scale: 0 }}
+          whileInView={{ scale: 1 }}
+          viewport={{ once: true }}
+          transition={{ delay: 0.6, type: "spring", stiffness: 300 }}
+          className="absolute top-1 right-1 w-12 h-12 rounded-full bg-primary/20 border border-primary/40 flex flex-col items-center justify-center"
+        >
+          <span className="text-xs font-black text-primary leading-none">74</span>
+          <span className="text-[8px] text-white/40 leading-none">/100</span>
+        </motion.div>
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        {indicators.map((ind, i) => (
+          <motion.div
+            key={ind.name}
+            initial={{ opacity: 0, x: -8 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            viewport={{ once: true }}
+            transition={{ delay: 0.3 + i * 0.08 }}
+            className="p-2 rounded-lg bg-white/5 border border-white/5"
+          >
+            <p className="text-[10px] text-white/40">{ind.name}</p>
+            <p className={cn("text-xs font-bold", ind.color)}>{ind.val}{ind.label}</p>
+          </motion.div>
+        ))}
+      </div>
+      <motion.div
+        initial={{ opacity: 0 }}
+        whileInView={{ opacity: 1 }}
+        viewport={{ once: true }}
+        transition={{ delay: 0.8 }}
+        className="mt-3 p-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center gap-2"
+      >
+        <TrendingUp className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0" />
+        <p className="text-[11px] text-emerald-300">Signal haussier — Momentum positif</p>
+      </motion.div>
+    </div>
+  );
+}
+
+function ScannerDemo() {
+  const [visible, setVisible] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => setVisible(v => v < SCANNER_RESULTS.length ? v + 1 : v), 700);
+    return () => clearInterval(t);
+  }, []);
+  return (
+    <div className="rounded-2xl overflow-hidden border border-cyan-500/20 bg-card/70 backdrop-blur-sm p-4 shadow-xl">
+      <div className="flex items-center gap-2 mb-3 pb-3 border-b border-white/5">
+        <motion.div
+          className="w-2 h-2 rounded-full bg-cyan-400"
+          animate={{ opacity: [1, 0.3, 1] }}
+          transition={{ duration: 1.2, repeat: Infinity }}
+        />
+        <span className="text-xs text-cyan-400 font-semibold">Scanner actif</span>
+        <span className="ml-auto text-[10px] text-white/30">{visible}/{SCANNER_RESULTS.length} signaux</span>
+      </div>
+      <div className="space-y-2 min-h-[140px]">
+        {SCANNER_RESULTS.map((r, i) => (
+          <AnimatePresence key={r.symbol}>
+            {i < visible && (
+              <motion.div
+                initial={{ opacity: 0, x: -16 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ type: "spring", stiffness: 300, damping: 25 }}
+                className="flex items-center gap-2.5 p-2.5 rounded-lg bg-white/5 border border-white/5"
+              >
+                <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center text-[10px] font-bold text-white/70 flex-shrink-0">
+                  {r.symbol.slice(0, 2)}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-semibold text-white">{r.symbol}</p>
+                  <p className="text-[10px] text-white/40 truncate">{r.signal}</p>
+                </div>
+                <span className={cn("text-xs font-bold", r.up ? "text-emerald-400" : "text-rose-400")}>{r.change}</span>
+                <span className={cn(
+                  "text-[10px] px-1.5 py-0.5 rounded font-bold flex-shrink-0",
+                  r.strength === "FORT" ? "bg-emerald-500/20 text-emerald-400" : "bg-yellow-500/20 text-yellow-400"
+                )}>{r.strength}</span>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ChatDemo() {
+  const [step, setStep] = useState(0);
+  const [typing, setTyping] = useState(false);
+  useEffect(() => {
+    if (step >= CHAT_MESSAGES.length) return;
+    const delay = CHAT_MESSAGES[step]?.role === "ai" ? 800 : 1400;
+    const t1 = setTimeout(() => setTyping(true), delay * 0.3);
+    const t2 = setTimeout(() => { setTyping(false); setStep(s => s + 1); }, delay);
+    return () => { clearTimeout(t1); clearTimeout(t2); };
+  }, [step]);
+  return (
+    <div className="rounded-2xl overflow-hidden border border-purple-500/20 bg-card/70 backdrop-blur-sm p-4 shadow-xl">
+      <div className="flex items-center gap-2 mb-3 pb-3 border-b border-white/5">
+        <div className="w-7 h-7 rounded-full bg-purple-500/30 flex items-center justify-center">
+          <Brain className="w-3.5 h-3.5 text-purple-400" />
+        </div>
+        <span className="text-xs text-purple-400 font-semibold">Assistant IA</span>
+        <div className="ml-auto flex items-center gap-1">
+          <motion.div className="w-1.5 h-1.5 rounded-full bg-emerald-400" animate={{ opacity: [1, 0.3, 1] }} transition={{ duration: 1, repeat: Infinity }} />
+          <span className="text-[10px] text-emerald-400">En ligne</span>
+        </div>
+      </div>
+      <div className="space-y-2 min-h-[160px]">
+        {CHAT_MESSAGES.slice(0, step).map((m, i) => (
+          <motion.div
+            key={i}
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            className={cn(
+              "max-w-[88%] px-3 py-2 rounded-xl text-xs leading-relaxed",
+              m.role === "user"
+                ? "ml-auto bg-primary/30 text-white"
+                : "bg-white/5 border border-white/8 text-white/80"
+            )}
+          >
+            {m.text}
+          </motion.div>
+        ))}
+        {typing && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex gap-1 px-3 py-2 w-fit">
+            {[0, 1, 2].map(i => (
+              <motion.div key={i} className="w-1.5 h-1.5 rounded-full bg-white/30"
+                animate={{ y: [0, -4, 0] }} transition={{ duration: 0.5, delay: i * 0.12, repeat: Infinity }} />
+            ))}
+          </motion.div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+const DEMO_COMPONENTS: Record<string, React.ComponentType> = {
+  analysis: AnalysisDemo,
+  scanner:  ScannerDemo,
+  ai:       ChatDemo,
+};
+
+function FeatureShowcase({ feature, reversed }: { feature: typeof FEATURES_MAIN[0]; reversed?: boolean }) {
+  const DemoComponent = DEMO_COMPONENTS[feature.id];
+  return (
+    <div className="py-16 px-6">
+      <div className="max-w-6xl mx-auto">
+        <div className={cn("grid grid-cols-1 md:grid-cols-2 gap-12 md:gap-16 items-center", reversed && "")}>
+          {/* Text side */}
+          <motion.div
+            initial={{ opacity: 0, x: reversed ? 28 : -28 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+            className={reversed ? "md:order-2" : ""}
+          >
+            <div className={cn("inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-semibold mb-5", feature.checkBg)}>
+              <feature.icon className={cn("w-3 h-3", feature.accentColor)} />
+              <span className={feature.accentColor}>{feature.badge}</span>
+            </div>
+            <h2 className="text-3xl md:text-4xl font-black mb-4 leading-tight">{feature.title}</h2>
+            <p className="text-white/55 text-base leading-relaxed mb-7">{feature.desc}</p>
+            <div className="space-y-3 mb-8">
+              {feature.bullets.map((b, i) => (
+                <motion.div
+                  key={i}
+                  initial={{ opacity: 0, x: -10 }}
+                  whileInView={{ opacity: 1, x: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: 0.08 + i * 0.07 }}
+                  className="flex items-center gap-3"
+                >
+                  <div className={cn("w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 border", feature.checkBg)}>
+                    <CheckCircle2 className={cn("w-3 h-3", feature.accentColor)} />
+                  </div>
+                  <span className="text-sm text-white/70">{b}</span>
+                </motion.div>
+              ))}
+            </div>
+            <Link
+              href="/register"
+              className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-primary hover:bg-primary/90 text-white text-sm font-bold transition-all hover:shadow-lg hover:shadow-primary/20 hover:-translate-y-0.5"
+            >
+              Essayer gratuitement
+              <ArrowRight className="w-4 h-4" />
+            </Link>
+          </motion.div>
+          {/* Demo side */}
+          <motion.div
+            initial={{ opacity: 0, x: reversed ? -28 : 28 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1], delay: 0.1 }}
+            className={reversed ? "md:order-1" : ""}
+          >
+            <div className="relative">
+              <div className={cn("absolute inset-0 blur-3xl opacity-25 rounded-3xl scale-110", feature.glowColor)} />
+              <div className="relative">
+                <DemoComponent />
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Shared primitives ─────────────────────────────────────────────────────────
 
 function TickerBar() {
   const items = [...TICKER_ITEMS, ...TICKER_ITEMS];
@@ -290,34 +559,23 @@ function AnimatedChart() {
 function LandingPage() {
   const { scrollY } = useScroll();
   const heroOpacity = useTransform(scrollY, [0, 400], [1, 0]);
-  const heroY = useTransform(scrollY, [0, 400], [0, -80]);
-
-  const fadeUp = {
-    hidden: { opacity: 0, y: 30 },
-    show: (i: number) => ({
-      opacity: 1, y: 0,
-      transition: { delay: i * 0.1, duration: 0.6, ease: [0.22, 1, 0.36, 1] }
-    }),
-  };
+  const heroY       = useTransform(scrollY, [0, 400], [0, -60]);
 
   return (
     <div className="min-h-screen overflow-x-hidden">
-      {/* ── Background orbs ─────────────────────────────────────── */}
+      {/* ── Background ── */}
       <div className="fixed inset-0 -z-10 overflow-hidden pointer-events-none">
-        <FloatingOrb className="w-[600px] h-[600px] bg-indigo-600 top-[-200px] left-[-100px]" />
-        <FloatingOrb className="w-[500px] h-[500px] bg-purple-600 top-[20%] right-[-150px] animation-delay-2000" />
-        <FloatingOrb className="w-[400px] h-[400px] bg-blue-500 bottom-[10%] left-[20%] animation-delay-4000" />
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_hsl(222_47%_8%/0.4)_0%,_hsl(222_47%_6%/0.95)_70%)]" />
-        <div
-          className="absolute inset-0 opacity-[0.03]"
-          style={{
-            backgroundImage: "linear-gradient(hsl(var(--border)) 1px, transparent 1px), linear-gradient(90deg, hsl(var(--border)) 1px, transparent 1px)",
-            backgroundSize: "40px 40px",
-          }}
-        />
+        <FloatingOrb className="w-[700px] h-[700px] bg-indigo-600 top-[-200px] left-[-100px]" />
+        <FloatingOrb className="w-[500px] h-[500px] bg-purple-600 top-[30%] right-[-200px]" />
+        <FloatingOrb className="w-[350px] h-[350px] bg-blue-500 bottom-[5%] left-[15%]" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,hsl(222_47%_8%/0.3)_0%,hsl(222_47%_5%/0.98)_70%)]" />
+        <div className="absolute inset-0 opacity-[0.025]" style={{
+          backgroundImage: "linear-gradient(hsl(var(--border)) 1px,transparent 1px),linear-gradient(90deg,hsl(var(--border)) 1px,transparent 1px)",
+          backgroundSize: "50px 50px",
+        }} />
       </div>
 
-      {/* ── Navbar ──────────────────────────────────────────────── */}
+      {/* ── Nav ── */}
       <motion.nav
         initial={{ y: -20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
@@ -325,24 +583,20 @@ function LandingPage() {
         className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-6 md:px-12 py-4 bg-background/60 backdrop-blur-xl border-b border-white/5"
       >
         <div className="flex items-center gap-2">
-          <motion.div whileHover={{ scale: 1.08 }} transition={{ type: "spring", stiffness: 400, damping: 15 }}>
+          <motion.div whileHover={{ scale: 1.08 }} transition={{ type: "spring", stiffness: 400 }}>
             <TDBLogo size={34} />
           </motion.div>
-          <span className="text-lg font-bold">
-            Capten<span className="gradient-text">TDB</span>
-          </span>
+          <span className="text-lg font-bold">Capten<span className="gradient-text">TDB</span></span>
+        </div>
+        <div className="hidden md:flex items-center gap-6 text-sm text-white/55">
+          <a href="#features" className="hover:text-white transition-colors">Fonctionnalités</a>
+          <a href="#how" className="hover:text-white transition-colors">Comment ça marche</a>
         </div>
         <div className="flex items-center gap-3">
-          <Link
-            href="/login"
-            className="hidden sm:inline-flex items-center px-4 py-2 text-sm font-medium text-white/70 hover:text-white transition-colors"
-          >
+          <Link href="/login" className="hidden sm:inline-flex px-4 py-2 text-sm font-medium text-white/65 hover:text-white transition-colors">
             Connexion
           </Link>
-          <Link
-            href="/register"
-            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary hover:bg-primary/90 text-white text-sm font-semibold transition-all hover:shadow-lg hover:shadow-primary/25 hover:-translate-y-0.5"
-          >
+          <Link href="/register" className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary hover:bg-primary/90 text-white text-sm font-semibold transition-all hover:shadow-lg hover:shadow-primary/25 hover:-translate-y-0.5">
             Commencer gratuitement
             <ChevronRight className="w-3.5 h-3.5" />
           </Link>
@@ -354,134 +608,150 @@ function LandingPage() {
         <TickerBar />
       </div>
 
-      {/* ── Hero ────────────────────────────────────────────────── */}
+      {/* ── Hero ── */}
       <motion.section
         style={{ opacity: heroOpacity, y: heroY }}
-        className="relative flex flex-col items-center text-center px-6 pt-20 pb-32 md:pt-28 md:pb-40"
+        className="relative flex flex-col items-center text-center px-6 pt-16 pb-24 md:pt-24 md:pb-36"
       >
         <Particles />
 
+        {/* Badge */}
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.5 }}
-          className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-primary/30 bg-primary/10 text-primary text-xs font-semibold mb-6 uppercase tracking-widest"
+          className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-primary/30 bg-primary/10 text-primary text-xs font-semibold mb-7 uppercase tracking-widest"
         >
           <motion.span animate={{ rotate: [0, 15, -15, 0] }} transition={{ duration: 2, repeat: Infinity, repeatDelay: 3 }}>
             <Sparkles className="w-3 h-3" />
           </motion.span>
-          Plateforme éducative de trading
+          Plateforme éducative de trading — 100% gratuite
         </motion.div>
 
+        {/* H1 */}
         <motion.h1
-          custom={0} variants={fadeUp} initial="hidden" animate="show"
+          initial={{ opacity: 0, y: 24 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1, duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
           className="text-5xl md:text-7xl font-black leading-tight tracking-tight max-w-4xl"
         >
-          Apprenez à lire{" "}
+          La bourse,{" "}
           <motion.span
             className="gradient-text inline-block"
             animate={{ backgroundPosition: ["0% 50%", "100% 50%", "0% 50%"] }}
             transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
             style={{ backgroundSize: "200%" }}
           >
-            les marchés
+            enfin claire.
           </motion.span>
-          <br />comme un pro.
         </motion.h1>
 
+        {/* Subtitle */}
         <motion.p
-          custom={1} variants={fadeUp} initial="hidden" animate="show"
-          className="mt-6 text-lg md:text-xl text-white/60 max-w-2xl leading-relaxed"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2, duration: 0.7 }}
+          className="mt-6 text-lg md:text-xl text-white/55 max-w-2xl leading-relaxed"
         >
-          Analyses IA, watchlist temps réel, wallet virtuel et scanner de marchés
-          — tout ce qu'il faut pour progresser en trading, gratuitement et sans risque.
+          CaptenTDB analyse automatiquement les marchés pour vous — indicateurs, signaux IA, scanner et wallet virtuel.{" "}
+          <span className="text-white/80 font-semibold">Apprenez à trader sans risquer un centime.</span>
         </motion.p>
 
+        {/* CTAs */}
         <motion.div
-          custom={2} variants={fadeUp} initial="hidden" animate="show"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3, duration: 0.6 }}
           className="mt-10 flex flex-col sm:flex-row items-center gap-4"
         >
-          <Link
-            href="/register"
-            className="group inline-flex items-center gap-2 px-8 py-4 rounded-2xl bg-primary hover:bg-primary/90 text-white text-base font-bold transition-all hover:shadow-2xl hover:shadow-primary/30 hover:-translate-y-1"
-          >
-            Créer mon compte gratuitement
+          <Link href="/register" className="group inline-flex items-center gap-2 px-8 py-4 rounded-2xl bg-primary hover:bg-primary/90 text-white text-base font-bold transition-all hover:shadow-2xl hover:shadow-primary/30 hover:-translate-y-1">
+            Créer mon compte — C&apos;est gratuit
             <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
           </Link>
-          <Link
-            href="/login"
-            className="inline-flex items-center gap-2 px-8 py-4 rounded-2xl border border-white/10 bg-white/5 hover:bg-white/10 text-white text-base font-semibold transition-all hover:-translate-y-0.5"
-          >
+          <Link href="/login" className="inline-flex items-center gap-2 px-8 py-4 rounded-2xl border border-white/10 bg-white/5 hover:bg-white/10 text-white text-base font-semibold transition-all hover:-translate-y-0.5">
             <Play className="w-4 h-4" />
-            J'ai déjà un compte
+            J&apos;ai déjà un compte
           </Link>
         </motion.div>
 
-        {/* ── Hero dashboard preview ── */}
+        {/* Trust micro-badges */}
         <motion.div
-          custom={3} variants={fadeUp} initial="hidden" animate="show"
-          className="mt-16 w-full max-w-5xl mx-auto"
+          initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.55 }}
+          className="mt-5 flex flex-wrap items-center justify-center gap-4 text-xs text-white/35"
+        >
+          {["Pas de CB requise", "Inscription en 30 s", "800+ actifs", "0 engagement"].map((t, i) => (
+            <span key={i} className="flex items-center gap-1">
+              <CheckCircle2 className="w-3 h-3 text-emerald-500" />{t}
+            </span>
+          ))}
+        </motion.div>
+
+        {/* Dashboard mockup */}
+        <motion.div
+          initial={{ opacity: 0, y: 40 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.4, duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
+          className="mt-14 w-full max-w-5xl mx-auto"
         >
           <div className="relative">
-            {/* Floating data chips */}
-            <FloatingChip label="BTC" value="+2.14%" color="border-emerald-500/30 text-emerald-400" delay={1.8} x="-2%" y="15%" />
-            <FloatingChip label="NVDA" value="+3.87%" color="border-blue-500/30 text-blue-400" delay={2.1} x="101%" y="25%" />
-            <FloatingChip label="Win Rate" value="68%" color="border-purple-500/30 text-purple-400" delay={2.4} x="88%" y="70%" />
-            <FloatingChip label="P&L" value="+$2 438" color="border-yellow-500/30 text-yellow-400" delay={2.0} x="-4%" y="65%" />
-
-            {/* Glow behind card */}
-            <div className="absolute inset-0 bg-primary/20 blur-3xl rounded-3xl scale-95" />
+            <FloatingChip label="BTC"     value="+2.14%"  color="border-emerald-500/30 text-emerald-400" delay={1.8} x="-2%" y="15%" />
+            <FloatingChip label="NVDA"    value="+3.87%"  color="border-blue-500/30 text-blue-400"       delay={2.1} x="101%" y="25%" />
+            <FloatingChip label="Win Rate" value="68%"   color="border-purple-500/30 text-purple-400"   delay={2.4} x="88%" y="70%" />
+            <FloatingChip label="P&L"     value="+$2 438" color="border-yellow-500/30 text-yellow-400"  delay={2.0} x="-4%" y="65%" />
+            <div className="absolute inset-0 bg-primary/15 blur-3xl rounded-3xl scale-95 pointer-events-none" />
             <div className="relative glass-card p-1 rounded-2xl border border-white/10">
-              <div className="rounded-xl bg-card/80 p-6 overflow-hidden">
-                {/* Fake header */}
-                <div className="flex items-center gap-2 mb-6">
+              <div className="rounded-xl bg-card/80 p-5 md:p-6 overflow-hidden">
+                {/* Browser chrome */}
+                <div className="flex items-center gap-2 mb-5">
                   <div className="w-3 h-3 rounded-full bg-red-500/60" />
                   <div className="w-3 h-3 rounded-full bg-yellow-500/60" />
                   <div className="w-3 h-3 rounded-full bg-emerald-500/60" />
-                  <div className="ml-4 text-xs text-white/30 font-mono">captentdb.fr/analysis</div>
+                  <div className="ml-3 flex-1 max-w-xs px-3 py-1 rounded-md bg-white/5 text-[11px] text-white/30 font-mono text-left">captentdb.fr/analysis</div>
                 </div>
-                {/* Fake stats row */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+                {/* Stats */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
                   {[
-                    { label: "Solde", val: "$12 438", up: true },
-                    { label: "P&L Total", val: "+$2 438", up: true },
-                    { label: "Win Rate", val: "68%", up: true },
-                    { label: "Actifs suivis", val: "14", up: null },
+                    { label: "Solde Virtual", val: "$12 438", icon: Wallet,    color: "text-white" },
+                    { label: "P&L Total",     val: "+$2 438", icon: TrendingUp, color: "text-emerald-400" },
+                    { label: "Win Rate",      val: "68%",     icon: Target,    color: "text-emerald-400" },
+                    { label: "Actifs suivis", val: "14",      icon: Star,      color: "text-white" },
                   ].map((s, i) => (
-                    <motion.div
-                      key={i}
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 1 + i * 0.1 }}
-                      className="p-3 rounded-xl bg-white/5 border border-white/5"
-                    >
-                      <p className="text-[11px] text-white/40">{s.label}</p>
-                      <p className={cn("text-base font-bold mt-0.5", s.up === true ? "text-emerald-400" : s.up === false ? "text-rose-400" : "text-white")}>
-                        {s.val}
-                      </p>
+                    <motion.div key={i} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.8 + i * 0.08 }}
+                      className="p-3 rounded-xl bg-white/5 border border-white/5">
+                      <div className="flex items-center gap-1.5 mb-1">
+                        <s.icon className="w-3 h-3 text-white/30" />
+                        <p className="text-[10px] text-white/40">{s.label}</p>
+                      </div>
+                      <p className={cn("text-sm font-bold", s.color)}>{s.val}</p>
                     </motion.div>
                   ))}
                 </div>
-                {/* Fake chart */}
-                <div className="h-32 md:h-40 w-full relative">
+                {/* Chart */}
+                <div className="h-36 w-full relative">
                   <AnimatedChart />
-                  {/* Labels */}
                   <div className="absolute top-2 left-2 flex items-center gap-2">
                     <span className="text-xs font-bold text-white">NVDA</span>
                     <span className="text-xs text-emerald-400">+3.87%</span>
                   </div>
+                  <div className="absolute bottom-2 right-2 flex gap-1.5">
+                    {["1j", "1s", "1m", "3m"].map(t => (
+                      <span key={t} className="text-[10px] px-1.5 py-0.5 rounded bg-white/5 text-white/30">{t}</span>
+                    ))}
+                  </div>
                 </div>
-                {/* Fake indicators */}
+                {/* Indicators */}
                 <div className="mt-4 flex flex-wrap gap-2">
-                  {["RSI: 62 (Neutre)", "MACD: Haussier ↑", "EMA 20: 138.2", "Vol: +24%"].map((t, i) => (
-                    <motion.span
-                      key={i}
-                      initial={{ opacity: 0, scale: 0.8 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      transition={{ delay: 1.5 + i * 0.1 }}
-                      className="text-[11px] px-2.5 py-1 rounded-lg bg-white/5 border border-white/10 text-white/60 font-mono"
-                    >
-                      {t}
+                  {[
+                    { l: "RSI",    v: "62",       c: "text-yellow-400" },
+                    { l: "MACD",   v: "Haussier ↑", c: "text-emerald-400" },
+                    { l: "EMA 20", v: "138.2",    c: "text-blue-400" },
+                    { l: "Score",  v: "74/100",   c: "text-primary" },
+                    { l: "Vol",    v: "+24%",     c: "text-cyan-400" },
+                  ].map((ind, i) => (
+                    <motion.span key={i} initial={{ opacity: 0, scale: 0.85 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 1.2 + i * 0.08 }}
+                      className="text-[11px] px-2.5 py-1 rounded-lg bg-white/5 border border-white/8 font-mono flex items-center gap-1.5">
+                      <span className="text-white/40">{ind.l}:</span>
+                      <span className={ind.c}>{ind.v}</span>
                     </motion.span>
                   ))}
                 </div>
@@ -491,51 +761,40 @@ function LandingPage() {
         </motion.div>
       </motion.section>
 
-      {/* ── Markets preview band ─────────────────────────────────── */}
-      <section className="py-8 px-6 bg-black/20 border-y border-white/5">
+      {/* ── Stats band ── */}
+      <section className="py-14 px-6 bg-black/30 border-y border-white/5">
+        <div className="max-w-4xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-8">
+          {STATS_DATA.map((s, i) => (
+            <motion.div key={i} initial={{ opacity: 0, y: 18 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.1 }} className="text-center">
+              <p className="text-4xl md:text-5xl font-black gradient-text mb-1"><AnimatedCounter target={s.value} /></p>
+              <p className="text-sm text-white/45">{s.label}</p>
+            </motion.div>
+          ))}
+        </div>
+      </section>
+
+      {/* ── Markets preview ── */}
+      <section className="py-10 px-6">
         <div className="max-w-6xl mx-auto">
+          <motion.p initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }}
+            className="text-center text-xs text-white/35 font-semibold uppercase tracking-widest mb-5">
+            Tous les marchés mondiaux couverts
+          </motion.p>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
             {MARKETS_PREVIEW.map((m, i) => (
-              <motion.div
-                key={i}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: i * 0.07 }}
-                whileHover={{ scale: 1.07, y: -3 }}
-                className={cn(
-                  "relative flex flex-col items-center p-3 rounded-xl bg-white/5 border transition-all cursor-default overflow-hidden group",
-                  m.up ? "hover:border-emerald-500/40" : "hover:border-rose-500/40",
-                  "border-white/5"
-                )}
-              >
-                {/* Glow on hover */}
-                <div className={cn(
-                  "absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300",
-                  m.up ? "bg-emerald-500/5" : "bg-rose-500/5"
-                )} />
-                <motion.span
-                  className="text-xl mb-1"
-                  animate={{ rotate: [0, -5, 5, 0] }}
-                  transition={{ duration: 2, delay: i * 0.3, repeat: Infinity, repeatDelay: 4 }}
-                >
+              <motion.div key={i} initial={{ opacity: 0, y: 14 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
+                transition={{ delay: i * 0.06 }} whileHover={{ scale: 1.06, y: -2 }}
+                className={cn("relative flex flex-col items-center p-3 rounded-xl border transition-all cursor-default overflow-hidden group bg-white/4 border-white/5",
+                  m.up ? "hover:border-emerald-500/30" : "hover:border-rose-500/30")}>
+                <div className={cn("absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300", m.up ? "bg-emerald-500/5" : "bg-rose-500/5")} />
+                <motion.span className="text-xl mb-1" animate={{ rotate: [0, -5, 5, 0] }} transition={{ duration: 2, delay: i * 0.3, repeat: Infinity, repeatDelay: 5 }}>
                   {m.flag}
                 </motion.span>
-                <span className="text-xs font-semibold text-white/80">{m.name}</span>
+                <span className="text-xs font-semibold text-white/75">{m.name}</span>
                 <div className="flex items-center gap-1 mt-0.5">
-                  {/* Live indicator */}
-                  <motion.span
-                    className={cn("w-1.5 h-1.5 rounded-full", m.up ? "bg-emerald-400" : "bg-rose-400")}
-                    animate={{ opacity: [1, 0.2, 1] }}
-                    transition={{ duration: 1.5, repeat: Infinity, delay: i * 0.25 }}
-                  />
-                  <motion.span
-                    className={cn("text-xs font-mono font-bold", m.up ? "text-emerald-400" : "text-rose-400")}
-                    animate={{ opacity: [1, 0.6, 1] }}
-                    transition={{ duration: 2, repeat: Infinity, delay: i * 0.2 }}
-                  >
-                    {m.change}
-                  </motion.span>
+                  <motion.span className={cn("w-1.5 h-1.5 rounded-full", m.up ? "bg-emerald-400" : "bg-rose-400")}
+                    animate={{ opacity: [1, 0.2, 1] }} transition={{ duration: 1.5, repeat: Infinity, delay: i * 0.2 }} />
+                  <span className={cn("text-xs font-mono font-bold", m.up ? "text-emerald-400" : "text-rose-400")}>{m.change}</span>
                 </div>
               </motion.div>
             ))}
@@ -543,382 +802,105 @@ function LandingPage() {
         </div>
       </section>
 
-      {/* ── Stats ───────────────────────────────────────────────── */}
-      <section className="py-20 px-6">
-        <div className="max-w-4xl mx-auto">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-            {STATS.map((s, i) => (
-              <motion.div
-                key={i}
-                initial={{ opacity: 0, scale: 0.9 }}
-                whileInView={{ opacity: 1, scale: 1 }}
-                viewport={{ once: true }}
-                transition={{ delay: i * 0.1, duration: 0.5 }}
-                className="text-center"
-              >
-                <p className="text-4xl md:text-5xl font-black gradient-text mb-2">
-                  <AnimatedCounter target={s.value} />
-                </p>
-                <p className="text-sm text-white/50">{s.label}</p>
-              </motion.div>
-            ))}
-          </div>
-        </div>
+      {/* ── Feature showcases ── */}
+      <section id="features" className="pt-6">
+        {FEATURES_MAIN.map((feature, i) => (
+          <FeatureShowcase key={feature.id} feature={feature} reversed={i % 2 === 1} />
+        ))}
       </section>
 
-      {/* ── Features ────────────────────────────────────────────── */}
-      <section className="py-20 px-6">
-        <div className="max-w-6xl mx-auto">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="text-center mb-14"
-          >
-            <h2 className="text-3xl md:text-5xl font-black mb-4">
-              Tout ce dont vous avez{" "}
-              <span className="gradient-text">besoin</span>
-            </h2>
-            <p className="text-white/50 text-lg max-w-xl mx-auto">
-              Des outils professionnels, accessibles à tous, pour apprendre et progresser.
-            </p>
-          </motion.div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            {FEATURES.map((f, i) => (
-              <motion.div
-                key={i}
-                initial={{ opacity: 0, y: 30 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: i * 0.1, duration: 0.5 }}
-              >
-                <TiltCard className={cn(
-                  "relative p-6 rounded-2xl border bg-gradient-to-br overflow-hidden group cursor-default h-full",
-                  f.color, f.border
-                )}>
-                  {/* Hover glow */}
-                  <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-all duration-500 bg-white/5" />
-                  <div className="absolute -inset-px opacity-0 group-hover:opacity-100 transition-all duration-500 rounded-2xl bg-gradient-to-br from-white/10 to-transparent" />
-                  {/* Shine sweep on hover */}
-                  <motion.div
-                    className="absolute inset-0 opacity-0 group-hover:opacity-100 pointer-events-none"
-                    style={{
-                      background: "linear-gradient(105deg, transparent 30%, rgba(255,255,255,0.06) 50%, transparent 70%)",
-                      backgroundSize: "200% 100%",
-                    }}
-                    animate={{ backgroundPosition: ["200% 0", "-200% 0"] }}
-                    transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
-                  />
-                  <div className={cn(
-                    "w-12 h-12 rounded-xl flex items-center justify-center mb-4 bg-white/5 border transition-all duration-300 group-hover:scale-110 group-hover:bg-white/10",
-                    f.border
-                  )}>
-                    <f.icon className={cn("w-6 h-6 transition-transform duration-300 group-hover:rotate-6", f.iconColor)} />
-                  </div>
-                  <h3 className="text-base font-bold mb-2 text-white">{f.title}</h3>
-                  <p className="text-sm text-white/55 leading-relaxed">{f.desc}</p>
-                </TiltCard>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ── How it works ────────────────────────────────────────── */}
-      <section className="py-20 px-6 bg-black/20 border-y border-white/5">
+      {/* ── Secondary features ── */}
+      <section className="py-16 px-6 bg-black/20 border-y border-white/5">
         <div className="max-w-5xl mx-auto">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="text-center mb-14"
-          >
-            <h2 className="text-3xl md:text-5xl font-black mb-4">
-              Comment ça <span className="gradient-text">fonctionne ?</span>
-            </h2>
+          <motion.div initial={{ opacity: 0, y: 18 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="text-center mb-10">
+            <h2 className="text-2xl md:text-3xl font-black mb-2">Et bien plus encore</h2>
+            <p className="text-white/45 text-sm">Tout ce dont vous avez besoin dans une seule plateforme.</p>
           </motion.div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+            {SECONDARY_FEATURES.map((f, i) => (
+              <motion.div key={i} initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
+                transition={{ delay: i * 0.1 }} className="glass-card hover-lift p-6 rounded-2xl">
+                <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center mb-4 border", f.colorClass)}>
+                  <f.icon className="w-5 h-5" />
+                </div>
+                <h3 className="font-bold text-base mb-2">{f.title}</h3>
+                <p className="text-sm text-white/50 leading-relaxed">{f.desc}</p>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── How it works ── */}
+      <section id="how" className="py-24 px-6">
+        <div className="max-w-5xl mx-auto">
+          <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="text-center mb-16">
+            <h2 className="text-3xl md:text-5xl font-black mb-4">Démarrer en <span className="gradient-text">3 étapes</span></h2>
+            <p className="text-white/45 text-lg">Simple, rapide, gratuit.</p>
+          </motion.div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
             {[
-              {
-                step: "01",
-                icon: Users,
-                title: "Créez votre compte",
-                desc: "Inscription gratuite en 30 secondes. Pas de carte bancaire, pas d'engagement.",
-              },
-              {
-                step: "02",
-                icon: Star,
-                title: "Ajoutez vos actifs",
-                desc: "Recherchez vos actions, ETFs ou cryptos préférées et construisez votre watchlist.",
-              },
-              {
-                step: "03",
-                icon: Brain,
-                title: "Analysez & Progressez",
-                desc: "Accédez aux analyses IA, lancez des trades virtuels et améliorez vos stratégies.",
-              },
-            ].map((step, i) => (
-              <motion.div
-                key={i}
-                initial={{ opacity: 0, x: -20 }}
-                whileInView={{ opacity: 1, x: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: i * 0.15 }}
-                className="relative flex flex-col items-center text-center"
-              >
+              { step: "01", icon: Users, title: "Créez votre compte", desc: "Inscription gratuite en 30 secondes. Aucune carte bancaire, aucun engagement de durée." },
+              { step: "02", icon: Star,  title: "Ajoutez vos actifs", desc: "Recherchez vos actions, ETFs ou cryptos préférées et construisez votre watchlist personnalisée." },
+              { step: "03", icon: Brain, title: "Analysez & Progressez", desc: "Accédez aux analyses IA instantanées, lancez des trades virtuels et améliorez vos stratégies." },
+            ].map((s, i) => (
+              <motion.div key={i} initial={{ opacity: 0, y: 28 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
+                transition={{ delay: i * 0.15, duration: 0.5 }} className="relative flex flex-col items-center text-center">
                 {i < 2 && <StepConnector />}
-                <div className="w-16 h-16 rounded-2xl bg-primary/15 border border-primary/30 flex items-center justify-center mb-4 relative">
-                  <step.icon className="w-7 h-7 text-primary" />
+                <motion.div whileHover={{ scale: 1.08 }}
+                  className="w-16 h-16 rounded-2xl bg-primary/15 border border-primary/30 flex items-center justify-center mb-5 relative">
+                  <s.icon className="w-7 h-7 text-primary" />
                   <span className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-primary text-[10px] font-bold text-white flex items-center justify-center">
-                    {step.step.slice(1)}
+                    {s.step.slice(1)}
                   </span>
-                </div>
-                <h3 className="font-bold text-base mb-2">{step.title}</h3>
-                <p className="text-sm text-white/50 leading-relaxed">{step.desc}</p>
+                </motion.div>
+                <h3 className="font-bold text-lg mb-2">{s.title}</h3>
+                <p className="text-sm text-white/50 leading-relaxed">{s.desc}</p>
               </motion.div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* ── Highlights list ─────────────────────────────────────── */}
-      <section className="py-20 px-6">
-        <div className="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
-          <motion.div
-            initial={{ opacity: 0, x: -30 }}
-            whileInView={{ opacity: 1, x: 0 }}
-            viewport={{ once: true }}
-          >
-            <h2 className="text-3xl md:text-4xl font-black mb-6">
-              Une plateforme pensée pour{" "}
-              <span className="gradient-text">l'éducation</span>
-            </h2>
-            <div className="space-y-4">
-              {[
-                "Analyses techniques interprétées par l'IA",
-                "Plus de 800 actifs — CAC 40, DAX, S&P 500, cryptos…",
-                "Wallet virtuel pour pratiquer sans risque",
-                "Assistant IA disponible 24h/24",
-                "Scanner de signaux sur tous les marchés",
-                "Communauté et éducation intégrées",
-              ].map((item, i) => (
-                <motion.div
-                  key={i}
-                  initial={{ opacity: 0, x: -10 }}
-                  whileInView={{ opacity: 1, x: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ delay: i * 0.08 }}
-                  className="flex items-start gap-3"
-                >
-                  <CheckCircle2 className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
-                  <span className="text-white/70 text-sm">{item}</span>
-                </motion.div>
-              ))}
-            </div>
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, x: 30 }}
-            whileInView={{ opacity: 1, x: 0 }}
-            viewport={{ once: true }}
-            className="glass-card p-5 rounded-2xl space-y-3"
-          >
-            <div className="flex items-center gap-3 p-3 rounded-xl bg-white/5 border border-white/5">
-              <div className="w-9 h-9 rounded-lg bg-emerald-500/20 flex items-center justify-center">
-                <TrendingUp className="w-4 h-4 text-emerald-400" />
-              </div>
-              <div className="flex-1">
-                <p className="text-xs text-white/40">Signal IA — AAPL</p>
-                <p className="text-sm font-semibold">RSI survendu · Signal haussier détecté</p>
-              </div>
-              <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 font-bold">FORT</span>
-            </div>
-            <div className="flex items-center gap-3 p-3 rounded-xl bg-white/5 border border-white/5">
-              <div className="w-9 h-9 rounded-lg bg-primary/20 flex items-center justify-center">
-                <Brain className="w-4 h-4 text-primary" />
-              </div>
-              <div className="flex-1">
-                <p className="text-xs text-white/40">Assistant IA</p>
-                <p className="text-sm font-semibold">Qu'est-ce que le MACD ?</p>
-              </div>
-              <ChevronRight className="w-4 h-4 text-white/30" />
-            </div>
-            <div className="flex items-center gap-3 p-3 rounded-xl bg-white/5 border border-white/5">
-              <div className="w-9 h-9 rounded-lg bg-yellow-500/20 flex items-center justify-center">
-                <Bell className="w-4 h-4 text-yellow-400" />
-              </div>
-              <div className="flex-1">
-                <p className="text-xs text-white/40">Actualité IA</p>
-                <p className="text-sm font-semibold">Résumé des marchés du jour</p>
-              </div>
-              <span className="text-xs text-white/30">il y a 2 min</span>
-            </div>
-            <div className="h-24 w-full rounded-xl overflow-hidden bg-white/5 border border-white/5 p-3">
-              <div className="flex justify-between items-center mb-1">
-                <span className="text-xs text-white/40 font-mono">BTC-USD</span>
-                <span className="text-xs text-emerald-400 font-bold">+2.14%</span>
-              </div>
-              <AnimatedChart />
-            </div>
-          </motion.div>
-        </div>
-      </section>
-
-      {/* ── Pricing ─────────────────────────────────────────────── */}
-      <section className="py-20 px-6 bg-black/20 border-y border-white/5">
-        <div className="max-w-5xl mx-auto">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="text-center mb-14"
-          >
-            <h2 className="text-3xl md:text-5xl font-black mb-4">
-              Commencez <span className="gradient-text">gratuitement</span>,
-              <br />évoluez avec <span className="text-yellow-400">Premium</span>
-            </h2>
-            <p className="text-white/50 text-lg max-w-xl mx-auto">
-              Les bases sont accessibles à tous. Le Premium débloque les outils avancés.
-            </p>
-          </motion.div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-3xl mx-auto">
-            {/* Free */}
-            <motion.div
-              initial={{ opacity: 0, x: -20 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.5 }}
-              className="glass-card p-8 rounded-2xl border border-white/10"
-            >
-              <div className="mb-6">
-                <p className="text-sm text-white/50 font-semibold uppercase tracking-widest mb-2">Gratuit</p>
-                <p className="text-4xl font-black">0 €<span className="text-lg font-normal text-white/40"> / mois</span></p>
-              </div>
-              <div className="space-y-3 mb-8">
-                {[
-                  "Watchlist jusqu'à 20 actifs",
-                  "Analyses techniques de base",
-                  "Wallet virtuel (10 000 $)",
-                  "Marchés mondiaux (800+ actifs)",
-                  "Assistant IA (20 msg/jour)",
-                  "Actualités économiques",
-                ].map((f, i) => (
-                  <div key={i} className="flex items-center gap-3">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
-                    <span className="text-sm text-white/70">{f}</span>
-                  </div>
-                ))}
-              </div>
-              <Link href="/register" className="block w-full text-center px-6 py-3 rounded-xl border border-white/15 hover:bg-white/5 font-semibold transition-all text-sm">
-                Commencer gratuitement
-              </Link>
-            </motion.div>
-
-            {/* Premium */}
-            <motion.div
-              initial={{ opacity: 0, x: 20 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.5 }}
-              className="relative rounded-2xl overflow-hidden"
-            >
-              {/* Animated gradient border */}
-              <motion.div
-                className="absolute inset-0 rounded-2xl p-[1px]"
-                style={{
-                  background: "linear-gradient(135deg, #facc15, #4472f5, #9b54e8, #facc15)",
-                  backgroundSize: "300% 300%",
-                }}
-                animate={{ backgroundPosition: ["0% 50%", "100% 50%", "0% 50%"] }}
-                transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
-              >
-                <div className="w-full h-full rounded-2xl bg-card/95" />
-              </motion.div>
-              <div className="relative p-8">
-                <div className="absolute top-4 right-4">
-                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-yellow-400/20 border border-yellow-400/40 text-yellow-400 text-xs font-bold">
-                    <Crown className="w-3 h-3" />
-                    PREMIUM
-                  </span>
-                </div>
-                <div className="mb-6">
-                  <p className="text-sm text-yellow-400 font-semibold uppercase tracking-widest mb-2">Premium</p>
-                  <p className="text-4xl font-black gradient-text">Voir les offres</p>
-                </div>
-                <div className="space-y-3 mb-8">
-                  {[
-                    "Tout le plan Gratuit inclus",
-                    "Assistant IA illimité",
-                    "Scanner avancé en temps réel",
-                    "Alertes de prix instantanées",
-                    "Analyses IA approfondies",
-                    "Support prioritaire",
-                  ].map((f, i) => (
-                    <div key={i} className="flex items-center gap-3">
-                      <Crown className="w-4 h-4 text-yellow-400 flex-shrink-0" />
-                      <span className="text-sm text-white/80">{f}</span>
-                    </div>
-                  ))}
-                </div>
-                <Link href="/register" className="block w-full text-center px-6 py-3 rounded-xl bg-gradient-to-r from-yellow-400 to-primary text-black font-bold transition-all hover:opacity-90 hover:-translate-y-0.5 text-sm">
-                  Découvrir Premium
-                </Link>
-              </div>
-            </motion.div>
-          </div>
-        </div>
-      </section>
-
-      {/* ── CTA final ───────────────────────────────────────────── */}
-      <section className="py-24 px-6">
+      {/* ── CTA ── */}
+      <section className="py-24 px-6 bg-black/20 border-t border-white/5">
         <div className="max-w-3xl mx-auto text-center">
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            whileInView={{ opacity: 1, scale: 1 }}
-            viewport={{ once: true }}
-            className="relative glass-card p-10 md:p-16 rounded-3xl overflow-hidden"
-          >
-            <div className="absolute inset-0 bg-gradient-to-br from-primary/20 via-purple-500/10 to-pink-500/10" />
-            <div className="absolute -top-20 -right-20 w-60 h-60 bg-primary/30 rounded-full blur-3xl" />
-            <div className="absolute -bottom-20 -left-20 w-60 h-60 bg-purple-500/20 rounded-full blur-3xl" />
+          <motion.div initial={{ opacity: 0, scale: 0.95 }} whileInView={{ opacity: 1, scale: 1 }} viewport={{ once: true }}
+            className="relative glass-card p-10 md:p-16 rounded-3xl overflow-hidden neon-border">
+            <div className="absolute inset-0 bg-gradient-to-br from-primary/15 via-purple-500/8 to-pink-500/8" />
+            <div className="absolute -top-20 -right-20 w-60 h-60 bg-primary/25 rounded-full blur-3xl" />
+            <div className="absolute -bottom-20 -left-20 w-60 h-60 bg-purple-500/15 rounded-full blur-3xl" />
             <div className="relative">
-              <motion.div
-                animate={{ rotate: 360 }}
-                transition={{ duration: 8, repeat: Infinity, ease: "linear" }}
-                className="inline-block mb-4"
-              >
-                <Sparkles className="w-8 h-8 text-primary" />
+              <motion.div animate={{ rotate: 360 }} transition={{ duration: 8, repeat: Infinity, ease: "linear" }} className="inline-block mb-5">
+                <Sparkles className="w-9 h-9 text-primary" />
               </motion.div>
               <h2 className="text-3xl md:text-5xl font-black mb-4">
-                Prêt à progresser ?
+                Prêt à comprendre<br />les marchés ?
               </h2>
-              <p className="text-white/60 text-lg mb-8">
-                Rejoignez la plateforme. Accès gratuit, sans CB, en 30 secondes.
-                <br /><span className="text-yellow-400 font-semibold">Premium disponible</span> pour débloquer toutes les fonctionnalités.
+              <p className="text-white/55 text-lg mb-8 leading-relaxed">
+                Rejoignez CaptenTDB et accédez à des outils d&apos;analyse professionnels.<br />
+                <span className="text-white/80 font-semibold">Gratuit. Sans CB. En 30 secondes.</span>
               </p>
               <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-                <Link
-                  href="/register"
-                  className="group inline-flex items-center gap-2 px-8 py-4 rounded-2xl bg-primary hover:bg-primary/90 text-white text-base font-bold transition-all hover:shadow-2xl hover:shadow-primary/40 hover:-translate-y-1 w-full sm:w-auto justify-center"
-                >
-                  Créer mon compte
+                <Link href="/register" className="group inline-flex items-center gap-2 px-8 py-4 rounded-2xl bg-primary hover:bg-primary/90 text-white text-base font-bold transition-all hover:shadow-2xl hover:shadow-primary/40 hover:-translate-y-1 w-full sm:w-auto justify-center">
+                  Créer mon compte gratuit
                   <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                 </Link>
-                <Link
-                  href="/login"
-                  className="inline-flex items-center gap-2 px-8 py-4 rounded-2xl border border-white/15 hover:bg-white/5 text-white text-base font-semibold transition-all w-full sm:w-auto justify-center"
-                >
+                <Link href="/login" className="inline-flex items-center gap-2 px-8 py-4 rounded-2xl border border-white/15 hover:bg-white/5 text-white text-base font-semibold transition-all w-full sm:w-auto justify-center">
                   Se connecter
                 </Link>
               </div>
+              <div className="mt-6 flex flex-wrap items-center justify-center gap-5 text-xs text-white/35">
+                {["100% gratuit", "Aucun engagement", "800+ actifs", "Analyses IA incluses"].map((t, i) => (
+                  <span key={i} className="flex items-center gap-1"><CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />{t}</span>
+                ))}
+              </div>
             </div>
           </motion.div>
         </div>
       </section>
 
-      {/* ── Footer ──────────────────────────────────────────────── */}
+      {/* ── Footer ── */}
       <footer className="py-8 px-6 border-t border-white/5 text-center text-sm text-white/30">
         <div className="flex items-center justify-center gap-2 mb-2">
           <TDBLogoSm size={20} />

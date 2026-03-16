@@ -92,7 +92,7 @@ export function Header({ onMenuToggle }: { onMenuToggle?: () => void }) {
   };
 
   return (
-    <header className="h-16 border-b border-white/10 bg-card/30 backdrop-blur-xl px-4 md:px-6 flex items-center justify-between gap-3">
+    <header className="h-16 border-b border-white/10 bg-card/30 backdrop-blur-xl px-4 md:px-6 flex items-center justify-between gap-3 relative z-50">
       {/* Hamburger mobile */}
       <button
         onClick={onMenuToggle}
@@ -182,7 +182,7 @@ export function Header({ onMenuToggle }: { onMenuToggle?: () => void }) {
               <motion.div
                 initial={{ opacity: 0, y: 10, scale: 0.95 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
-                className="absolute right-0 top-12 w-[calc(100vw-2rem)] sm:w-96 glass-card p-4 z-50"
+                className="absolute right-0 top-12 w-[calc(100vw-2rem)] sm:w-96 glass-card p-4 z-[200]"
               >
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="font-semibold">Notifications Admin</h3>
@@ -267,7 +267,7 @@ export function Header({ onMenuToggle }: { onMenuToggle?: () => void }) {
             <motion.div
               initial={{ opacity: 0, y: 10, scale: 0.95 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
-              className="absolute right-0 top-12 w-48 glass-card p-2 z-50"
+              className="absolute right-0 top-12 w-48 glass-card p-2 z-[200]"
             >
               <div className="px-3 py-2 border-b border-white/10 mb-2">
                 <p className="text-sm font-medium">{user?.username || user?.first_name}</p>
