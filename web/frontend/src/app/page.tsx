@@ -19,6 +19,7 @@ import { useAuth } from "@/lib/AuthContext";
 import { usePremium } from "@/lib/PremiumContext";
 import { getAssetInfo, getAssetLogo } from "@/lib/assetInfo";
 import { TDBLogo, TDBLogoSm } from "@/components/ui/TDBLogo";
+import { SessionSummaryWidget } from "@/components/dashboard/SessionSummary";
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  LANDING PAGE
@@ -934,13 +935,14 @@ function LandingPage() {
 //  DASHBOARD CONFIG
 // ─────────────────────────────────────────────────────────────────────────────
 
-type WidgetId = "indices" | "favorites" | "news" | "stats" | "positions" | "quickactions";
+type WidgetId = "indices" | "sessions" | "favorites" | "news" | "stats" | "positions" | "quickactions";
 
-const DEFAULT_WIDGETS: WidgetId[] = ["indices", "favorites", "news", "stats", "quickactions"];
+const DEFAULT_WIDGETS: WidgetId[] = ["indices", "sessions", "favorites", "news", "stats", "quickactions"];
 const DASHBOARD_STORAGE_KEY = "tdb_dashboard_config";
 
 const WIDGET_META: Record<WidgetId, { label: string; icon: string; description: string }> = {
   indices:      { label: "Indices & Marchés",     icon: "📈", description: "CAC40, S&P500, BTC, Or en temps réel" },
+  sessions:     { label: "Résumés de Séance",     icon: "🌍", description: "Top/Flop, humeur du marché, signaux J+1" },
   favorites:    { label: "Mes Favoris",            icon: "⭐", description: "Watchlist avec prix et performances" },
   news:         { label: "Actualités",             icon: "📰", description: "News filtrées par IA + résumé" },
   stats:        { label: "Statistiques Trading",   icon: "🎯", description: "Win rate, P&L, historique" },
@@ -1227,6 +1229,12 @@ function Dashboard() {
         if (widgetId === "indices") return (
           <motion.div key="indices" variants={itemVariants}>
             <IndicesBar indices={indices} isLoading={isLoadingIndices} onRefresh={loadIndices} />
+          </motion.div>
+        );
+
+        if (widgetId === "sessions") return (
+          <motion.div key="sessions" variants={itemVariants}>
+            <SessionSummaryWidget />
           </motion.div>
         );
 
