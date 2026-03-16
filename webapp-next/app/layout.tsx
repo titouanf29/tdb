@@ -11,6 +11,7 @@ const manrope = Manrope({ subsets: ['latin'], variable: '--font-body' });
 const space = Space_Grotesk({ subsets: ['latin'], variable: '--font-title' });
 
 const GA_ID = process.env.NEXT_PUBLIC_GA_ID;
+const GSC_VERIFICATION = process.env.NEXT_PUBLIC_GSC_VERIFICATION || '-_PNCZblmcke39BJ_6bqijLONAd0MisPFo0Vy1Gj2-0';
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteConfig.url),
@@ -42,11 +43,9 @@ export const metadata: Metadata = {
   alternates: {
     canonical: '/',
   },
-  ...(process.env.NEXT_PUBLIC_GSC_VERIFICATION && {
-    verification: {
-      google: process.env.NEXT_PUBLIC_GSC_VERIFICATION,
-    },
-  }),
+  verification: {
+    google: GSC_VERIFICATION,
+  },
 };
 
 export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {
