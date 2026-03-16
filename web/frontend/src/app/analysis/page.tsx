@@ -54,7 +54,7 @@ import {
 import { cn, formatPercent } from "@/lib/utils";
 import { analysisAPI, favoritesAPI, aiAPI, marketAPI, Analysis } from "@/lib/api";
 import { getAssetInfo, getAssetLogo } from "@/lib/assetInfo";
-import { useFormatCurrency, useSettings } from "@/lib/SettingsContext";
+import { useFormatCurrency, useFormatPrice, useSettings } from "@/lib/SettingsContext";
 import { authHeaders } from "@/lib/auth";
 import PremiumChart from "@/components/PremiumChart";
 
@@ -62,9 +62,12 @@ export default function AnalysisPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const formatCurrency = useFormatCurrency();
+  const formatPriceHook = useFormatPrice();
   const { settings } = useSettings();
 
   const [symbol, setSymbol] = useState(searchParams.get("symbol") || "");
+  // Alias: format a market price in the symbol's native currency
+  const formatPrice = (v: number) => formatPriceHook(v, symbol);
   const [searchQuery, setSearchQuery] = useState(searchParams.get("symbol") || "");
   const [suggestions, setSuggestions] = useState<{symbol: string; name: string; exchange: string; type: string}[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -466,7 +469,7 @@ export default function AnalysisPage() {
       {analysis && (
         <>
           {/* 1. Asset Header */}
-          <AssetHeader analysis={analysis} isFavorite={isFavorite} toggleFavorite={toggleFavorite} formatCurrency={formatCurrency} />
+          <AssetHeader analysis={analysis} isFavorite={isFavorite} toggleFavorite={toggleFavorite} formatCurrency={formatPrice} />
 
           {/* 2. Score cards */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -564,7 +567,7 @@ export default function AnalysisPage() {
                 <div className="flex justify-between items-center p-3 bg-white/5 rounded-lg">
                   <span className="text-muted-foreground">Prix actuel</span>
                   <div className="text-right">
-                    <span className="font-bold text-lg">{formatCurrency(analysis.price.current)}</span>
+                    <span className="font-bold text-lg">{formatPrice(analysis.price.current)}</span>
                     <span className={cn(
                       "ml-2 text-sm",
                       analysis.price.change >= 0 ? "text-profit" : "text-loss"
@@ -712,38 +715,38 @@ export default function AnalysisPage() {
           </motion.div>
 
           {/* 6. Évaluation des risques */}
-          <RiskAssessmentSection analysis={analysis} formatCurrency={formatCurrency} />
+          <RiskAssessmentSection analysis={analysis} formatCurrency={formatPrice} />
 
           {/* 7. Analyse détaillée */}
-          <DetailedAnalysis analysis={analysis} formatCurrency={formatCurrency} />
+          <DetailedAnalysis analysis={analysis} formatCurrency={formatPrice} />
 
           {/* 8. Fibonacci + Range 52 semaines */}
           {analysis.fibonacci && (
-            <FibonacciSection analysis={analysis} formatCurrency={formatCurrency} />
+            <FibonacciSection analysis={analysis} formatCurrency={formatPrice} />
           )}
           {analysis.fundamentals?.["52w_high"] && analysis.fundamentals?.["52w_low"] && (
-            <WeekRangeSection analysis={analysis} formatCurrency={formatCurrency} />
+            <WeekRangeSection analysis={analysis} formatCurrency={formatPrice} />
           )}
 
           {/* 9. Contexte de marché */}
-          <MarketContextSection analysis={analysis} formatCurrency={formatCurrency} />
+          <MarketContextSection analysis={analysis} formatCurrency={formatPrice} />
 
           {/* 10. Analyse fondamentale */}
           {analysis.fundamentals && (
-            <FundamentalAnalysisEnhanced analysis={analysis} formatCurrency={formatCurrency} />
+            <FundamentalAnalysisEnhanced analysis={analysis} formatCurrency={formatPrice} />
           )}
 
           {/* 11. Performance & Objectifs de prix */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <PerformanceSection analysis={analysis} />
-            <PriceTargets analysis={analysis} formatCurrency={formatCurrency} />
+            <PriceTargets analysis={analysis} formatCurrency={formatPrice} />
           </div>
 
           {/* 12. Thèse d'investissement */}
-          <InvestmentThesisSection analysis={analysis} formatCurrency={formatCurrency} />
+          <InvestmentThesisSection analysis={analysis} formatCurrency={formatPrice} />
 
           {/* 13. Stratégies de trading */}
-          <TradingStrategiesSection analysis={analysis} formatCurrency={formatCurrency} />
+          <TradingStrategiesSection analysis={analysis} formatCurrency={formatPrice} />
 
           {/* 14. Comparaison sectorielle */}
           <SectorComparisonSection analysis={analysis} />

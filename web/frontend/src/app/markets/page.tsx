@@ -20,7 +20,7 @@ import { marketAPI, favoritesAPI, Market, Asset } from "@/lib/api";
 import { getAssetInfo, getAssetLogo } from "@/lib/assetInfo";
 import { authHeaders } from "@/lib/auth";
 import { isMarketOpen, getMarketHoursDisplay, getTimeUntilChange } from "@/lib/marketStatus";
-import { useFormatCurrency } from "@/lib/SettingsContext";
+import { useFormatPrice } from "@/lib/SettingsContext";
 
 const PAGE_SIZE = 20;
 
@@ -35,7 +35,7 @@ const marketIcons: Record<string, string> = {
 
 export default function MarketsPage() {
   const router = useRouter();
-  const formatCurrency = useFormatCurrency();
+  const formatPrice = useFormatPrice();
   const [markets, setMarkets] = useState<Market[]>([]);
   const [selectedMarket, setSelectedMarket] = useState<string>("");
   const [assets, setAssets] = useState<Asset[]>([]);
@@ -462,7 +462,7 @@ export default function MarketsPage() {
                           </div>
                         </td>
                         <td className="p-4 text-right font-semibold">
-                          {(asset.error || !asset.price) ? <span className="text-muted-foreground">—</span> : formatCurrency(asset.price)}
+                          {(asset.error || !asset.price) ? <span className="text-muted-foreground">—</span> : formatPrice(asset.price, asset.symbol)}
                         </td>
                         <td className="p-4 text-right">
                           {(asset.error || asset.change === 0) ? (

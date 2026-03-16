@@ -917,3 +917,37 @@ export function getAssetName(symbol: string): string {
 export function getAssetLogo(symbol: string): string | undefined {
   return assetInfoMap[symbol]?.logo;
 }
+
+// ─── Exchange suffix → ISO 4217 currency ─────────────────────────────────────
+// Only EUR and USD are supported for conversion in the app.
+// All other exchange currencies (GBP, JPY, HKD…) are kept as-is ("native").
+
+const EUR_SUFFIXES = [
+  ".PA", // Euronext Paris
+  ".DE", // XETRA (Frankfurt)
+  ".AS", // Euronext Amsterdam
+  ".BR", // Euronext Brussels
+  ".LS", // Euronext Lisbon
+  ".MI", // Borsa Italiana (Milan)
+  ".MC", // Bolsa de Madrid
+  ".AT", // Wiener Börse (Vienna)
+  ".CO", // Nasdaq Copenhagen
+  ".ST", // Nasdaq Stockholm
+  ".HE", // Nasdaq Helsinki
+  ".OL", // Oslo Børs
+  ".WA", // Warsaw Stock Exchange
+];
+
+/**
+ * Returns "EUR" for European-exchange stocks, "USD" for everything else
+ * (US stocks, crypto *-USD, commodities =F, forex =X, Asian markets…).
+ *
+ * This is intentionally conservative: when the native currency is neither
+ * EUR nor USD (e.g. GBP, JPY) we return "USD" so the price is displayed
+ * without incorrect conversion rather than being silently mis-converted.
+ */
+export function getSymbolCurrency(symbol: string): "EUR" | "USD" {
+  const s = symbol.toUpperCase();
+  if (EUR_SUFFIXES.some((sfx) => s.endsWith(sfx.toUpperCase()))) return "EUR";
+  return "USD";
+}

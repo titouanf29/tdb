@@ -25,7 +25,7 @@ import {
 } from "lucide-react";
 import { cn, formatPercent } from "@/lib/utils";
 import { analysisAPI, marketAPI, Market, ScanResultItem, ScanQuota } from "@/lib/api";
-import { useFormatCurrency } from "@/lib/SettingsContext";
+import { useFormatPrice } from "@/lib/SettingsContext";
 
 type SortKey = "score" | "change" | "change_1w" | "rsi" | "volume_ratio";
 type OppFilter = "all" | "breakout" | "reversal" | "momentum";
@@ -51,7 +51,7 @@ const TREND_COLORS: Record<string, string> = {
 
 export default function ScannerPage() {
   const router = useRouter();
-  const formatCurrency = useFormatCurrency();
+  const formatPrice = useFormatPrice();
 
   const [markets, setMarkets] = useState<Market[]>([]);
   const [selectedMarket, setSelectedMarket] = useState("USA");
@@ -477,7 +477,7 @@ export default function ScannerPage() {
 
                     {/* Price & perf */}
                     <div className="text-right shrink-0">
-                      <p className="font-semibold text-sm">{formatCurrency(r.price)}</p>
+                      <p className="font-semibold text-sm">{formatPrice(r.price, r.symbol)}</p>
                       <div className="flex items-center justify-end gap-2 text-xs mt-0.5">
                         <span className={cn("flex items-center gap-0.5", r.change >= 0 ? "text-profit" : "text-loss")}>
                           {r.change >= 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}

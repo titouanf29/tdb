@@ -177,3 +177,37 @@ export function useFormatCurrency() {
     }).format(converted);
   };
 }
+
+/**
+ * useFormatPrice — formats a raw market price using the symbol's native currency.
+ *
+ * Unlike useFormatCurrency (which always assumes the value is in USD by default),
+ * this hook detects the correct source currency from the Yahoo Finance symbol
+ * (e.g. SU.PA → EUR, AAPL → USD) before applying the user's currency preference.
+ *
+ * Use this for any market price coming directly from Yahoo Finance / the prices API.
+ * Use useFormatCurrency for wallet / P&L values (which are always stored in USD).
+ */
+export function useFormatPrice() {
+  const { settings } = useSettings();
+  // Import lazily to avoid circular deps — assetInfo has no React imports
+  return (value: number, symbol: string): string => {
+    // Determine the native trading currency from the symbol suffix
+    const s = symbol.toUpperCase();
+    const EUR_SUFFIXES = [
+      ".PA", ".DE", ".AS", ".BR", ".LS", ".MI", ".MC",
+      ".AT", ".CO", ".ST", ".HE", ".OL", ".WA",
+    ];
+    const nativeCurrency: Currency = EUR_SUFFIXES.some((sfx) => s.endsWith(sfx))
+      ? "EUR"
+      : "USD";
+
+    const converted = convertCurrency(value, nativeCurrency, settings.currency);
+    return new Intl.NumberFormat("fr-FR", {
+      style: "currency",
+      currency: settings.currency,
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(converted);
+  };
+}

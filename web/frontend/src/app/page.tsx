@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import { cn, formatPercent, formatVolume } from "@/lib/utils";
 import { walletAPI, favoritesAPI, adminAPI, aiAPI, marketAPI, WalletBalance, TradingStats, Favorite, MarketNews, SummaryPoint, Position } from "@/lib/api";
-import { useFormatCurrency } from "@/lib/SettingsContext";
+import { useFormatCurrency, useFormatPrice } from "@/lib/SettingsContext";
 import { useAuth } from "@/lib/AuthContext";
 import { usePremium } from "@/lib/PremiumContext";
 import { getAssetInfo, getAssetLogo } from "@/lib/assetInfo";
@@ -970,6 +970,7 @@ const itemVariants = {
 
 function Dashboard() {
   const formatCurrency = useFormatCurrency();
+  const formatPrice = useFormatPrice();
   const router = useRouter();
   const { isPremium } = usePremium();
   const [balance, setBalance] = useState<WalletBalance | null>(null);
@@ -1247,6 +1248,7 @@ function Dashboard() {
               favFilter={favFilter}
               setFavFilter={setFavFilter}
               formatCurrency={formatCurrency}
+              formatPrice={formatPrice}
             />
           </motion.div>
         );
@@ -1347,13 +1349,14 @@ function IndicesBar({ indices, isLoading, onRefresh }: {
 //  WIDGET: Favoris enrichis
 // ─────────────────────────────────────────────────────────────────────────────
 
-function FavoritesWidget({ favorites, favSort, setFavSort, favFilter, setFavFilter, formatCurrency }: {
+function FavoritesWidget({ favorites, favSort, setFavSort, favFilter, setFavFilter, formatCurrency, formatPrice }: {
   favorites: Favorite[];
   favSort: "change_desc" | "change_asc" | "alpha";
   setFavSort: (s: "change_desc" | "change_asc" | "alpha") => void;
   favFilter: "all" | "profit" | "loss";
   setFavFilter: (f: "all" | "profit" | "loss") => void;
   formatCurrency: (v: number) => string;
+  formatPrice: (v: number, symbol: string) => string;
 }) {
   const [showAll, setShowAll] = useState(false);
   const displayed = showAll ? favorites : favorites.slice(0, 8);
@@ -1401,7 +1404,7 @@ function FavoritesWidget({ favorites, favSort, setFavSort, favFilter, setFavFilt
         <>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             {displayed.map((fav) => (
-              <FavoriteCard key={fav.symbol} favorite={fav} formatCurrency={formatCurrency} />
+              <FavoriteCard key={fav.symbol} favorite={fav} formatPrice={formatPrice} />
             ))}
           </div>
           {favorites.length > 8 && (
@@ -1716,7 +1719,7 @@ function StatCard({ title, value, change, subtitle, icon: Icon, href }: {
   return content;
 }
 
-function FavoriteCard({ favorite, formatCurrency }: { favorite: Favorite; formatCurrency: (v: number) => string }) {
+function FavoriteCard({ favorite, formatPrice }: { favorite: Favorite; formatPrice: (v: number, symbol: string) => string }) {
   const isProfit = favorite.change >= 0;
   const info = getAssetInfo(favorite.symbol);
   const logoUrl = getAssetLogo(favorite.symbol);
@@ -1747,7 +1750,7 @@ function FavoriteCard({ favorite, formatCurrency }: { favorite: Favorite; format
           </div>
           {/* Price + change */}
           <div className="text-right flex-shrink-0">
-            <p className="font-semibold text-sm">{favorite.error ? "—" : formatCurrency(favorite.price)}</p>
+            <p className="font-semibold text-sm">{favorite.error ? "—" : formatPrice(favorite.price, favorite.symbol)}</p>
             {!favorite.error && (
               <div className={cn(
                 "inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[11px] font-medium mt-0.5",

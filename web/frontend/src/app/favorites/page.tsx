@@ -15,11 +15,11 @@ import {
 } from "lucide-react";
 import { cn, formatPercent } from "@/lib/utils";
 import { favoritesAPI, Favorite } from "@/lib/api";
-import { useFormatCurrency } from "@/lib/SettingsContext";
+import { useFormatPrice } from "@/lib/SettingsContext";
 
 export default function FavoritesPage() {
   const router = useRouter();
-  const formatCurrency = useFormatCurrency();
+  const formatPrice = useFormatPrice();
   const [favorites, setFavorites] = useState<Favorite[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -195,7 +195,7 @@ export default function FavoritesPage() {
                     </div>
                   </td>
                   <td className="p-4 text-right font-semibold">
-                    {fav.error ? "N/A" : formatCurrency(fav.price)}
+                    {fav.error ? "N/A" : formatPrice(fav.price, fav.symbol)}
                   </td>
                   <td className="p-4 text-right">
                     {fav.error ? (
