@@ -18,6 +18,7 @@ import { useFormatCurrency } from "@/lib/SettingsContext";
 import { useAuth } from "@/lib/AuthContext";
 import { usePremium } from "@/lib/PremiumContext";
 import { getAssetInfo, getAssetLogo } from "@/lib/assetInfo";
+import { TDBLogo, TDBLogoSm } from "@/components/ui/TDBLogo";
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  LANDING PAGE
@@ -175,6 +176,76 @@ function AnimatedCounter({ target }: { target: string }) {
   return <>{display}</>;
 }
 
+/** 3-D perspective tilt card — follows mouse inside the card */
+function TiltCard({ children, className }: { children: React.ReactNode; className?: string }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const rotateX = useMotionValue(0);
+  const rotateY = useMotionValue(0);
+  const springX = useSpring(rotateX, { stiffness: 280, damping: 22 });
+  const springY = useSpring(rotateY, { stiffness: 280, damping: 22 });
+
+  const onMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!ref.current) return;
+    const r = ref.current.getBoundingClientRect();
+    const x = (e.clientX - r.left) / r.width - 0.5;
+    const y = (e.clientY - r.top) / r.height - 0.5;
+    rotateX.set(-y * 10);
+    rotateY.set(x * 10);
+  };
+
+  const onLeave = () => {
+    rotateX.set(0);
+    rotateY.set(0);
+  };
+
+  return (
+    <motion.div
+      ref={ref}
+      style={{ rotateX: springX, rotateY: springY, transformPerspective: 900 }}
+      onMouseMove={onMove}
+      onMouseLeave={onLeave}
+      className={className}
+    >
+      {children}
+    </motion.div>
+  );
+}
+
+/** Animated step connector (growing line) */
+function StepConnector() {
+  return (
+    <motion.div
+      initial={{ scaleX: 0 }}
+      whileInView={{ scaleX: 1 }}
+      viewport={{ once: true }}
+      transition={{ delay: 0.6, duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+      className="hidden md:block absolute top-8 left-[60%] w-[80%] h-px origin-left bg-gradient-to-r from-primary/50 to-transparent"
+    />
+  );
+}
+
+/** Floating data chip that drifts in from below */
+function FloatingChip({ label, value, color, delay, x, y }: {
+  label: string; value: string; color: string; delay: number; x: string; y: string;
+}) {
+  return (
+    <motion.div
+      className={`absolute hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border bg-card/80 backdrop-blur-sm z-10 pointer-events-none ${color}`}
+      style={{ left: x, top: y }}
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: [0, -6, 0] }}
+      transition={{
+        opacity: { delay, duration: 0.5 },
+        y: { delay, duration: 3, repeat: Infinity, ease: "easeInOut" },
+      }}
+    >
+      <span className="w-1.5 h-1.5 rounded-full bg-current animate-pulse" />
+      <span className="text-white/50">{label}</span>
+      <span>{value}</span>
+    </motion.div>
+  );
+}
+
 function AnimatedChart() {
   const points = [40, 55, 45, 65, 60, 75, 70, 85, 78, 92, 88, 95];
   const w = 300; const h = 80;
@@ -253,9 +324,9 @@ function LandingPage() {
         className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-6 md:px-12 py-4 bg-background/60 backdrop-blur-xl border-b border-white/5"
       >
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-            <TrendingUp className="w-4 h-4 text-white" />
-          </div>
+          <motion.div whileHover={{ scale: 1.08 }} transition={{ type: "spring", stiffness: 400, damping: 15 }}>
+            <TDBLogo size={34} />
+          </motion.div>
           <span className="text-lg font-bold">
             Capten<span className="gradient-text">TDB</span>
           </span>
@@ -351,6 +422,12 @@ function LandingPage() {
           className="mt-16 w-full max-w-5xl mx-auto"
         >
           <div className="relative">
+            {/* Floating data chips */}
+            <FloatingChip label="BTC" value="+2.14%" color="border-emerald-500/30 text-emerald-400" delay={1.8} x="-2%" y="15%" />
+            <FloatingChip label="NVDA" value="+3.87%" color="border-blue-500/30 text-blue-400" delay={2.1} x="101%" y="25%" />
+            <FloatingChip label="Win Rate" value="68%" color="border-purple-500/30 text-purple-400" delay={2.4} x="88%" y="70%" />
+            <FloatingChip label="P&L" value="+$2 438" color="border-yellow-500/30 text-yellow-400" delay={2.0} x="-4%" y="65%" />
+
             {/* Glow behind card */}
             <div className="absolute inset-0 bg-primary/20 blur-3xl rounded-3xl scale-95" />
             <div className="relative glass-card p-1 rounded-2xl border border-white/10">
@@ -424,9 +501,18 @@ function LandingPage() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.07 }}
-                whileHover={{ scale: 1.06, y: -2 }}
-                className="flex flex-col items-center p-3 rounded-xl bg-white/5 border border-white/5 hover:border-white/20 transition-all cursor-default"
+                whileHover={{ scale: 1.07, y: -3 }}
+                className={cn(
+                  "relative flex flex-col items-center p-3 rounded-xl bg-white/5 border transition-all cursor-default overflow-hidden group",
+                  m.up ? "hover:border-emerald-500/40" : "hover:border-rose-500/40",
+                  "border-white/5"
+                )}
               >
+                {/* Glow on hover */}
+                <div className={cn(
+                  "absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300",
+                  m.up ? "bg-emerald-500/5" : "bg-rose-500/5"
+                )} />
                 <motion.span
                   className="text-xl mb-1"
                   animate={{ rotate: [0, -5, 5, 0] }}
@@ -435,13 +521,21 @@ function LandingPage() {
                   {m.flag}
                 </motion.span>
                 <span className="text-xs font-semibold text-white/80">{m.name}</span>
-                <motion.span
-                  className={cn("text-xs mt-0.5 font-mono font-bold", m.up ? "text-emerald-400" : "text-rose-400")}
-                  animate={{ opacity: [1, 0.5, 1] }}
-                  transition={{ duration: 2, repeat: Infinity, delay: i * 0.2 }}
-                >
-                  {m.change}
-                </motion.span>
+                <div className="flex items-center gap-1 mt-0.5">
+                  {/* Live indicator */}
+                  <motion.span
+                    className={cn("w-1.5 h-1.5 rounded-full", m.up ? "bg-emerald-400" : "bg-rose-400")}
+                    animate={{ opacity: [1, 0.2, 1] }}
+                    transition={{ duration: 1.5, repeat: Infinity, delay: i * 0.25 }}
+                  />
+                  <motion.span
+                    className={cn("text-xs font-mono font-bold", m.up ? "text-emerald-400" : "text-rose-400")}
+                    animate={{ opacity: [1, 0.6, 1] }}
+                    transition={{ duration: 2, repeat: Infinity, delay: i * 0.2 }}
+                  >
+                    {m.change}
+                  </motion.span>
+                </div>
               </motion.div>
             ))}
           </div>
@@ -497,23 +591,33 @@ function LandingPage() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.1, duration: 0.5 }}
-                whileHover={{ y: -6, scale: 1.01, transition: { duration: 0.2 } }}
-                className={cn(
-                  "relative p-6 rounded-2xl border bg-gradient-to-br overflow-hidden group cursor-default",
-                  f.color, f.border
-                )}
               >
-                {/* Hover glow */}
-                <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-all duration-500 bg-white/5" />
-                <div className="absolute -inset-px opacity-0 group-hover:opacity-100 transition-all duration-500 rounded-2xl bg-gradient-to-br from-white/10 to-transparent" />
-                <div className={cn(
-                  "w-12 h-12 rounded-xl flex items-center justify-center mb-4 bg-white/5 border transition-all duration-300 group-hover:scale-110 group-hover:bg-white/10",
-                  f.border
+                <TiltCard className={cn(
+                  "relative p-6 rounded-2xl border bg-gradient-to-br overflow-hidden group cursor-default h-full",
+                  f.color, f.border
                 )}>
-                  <f.icon className={cn("w-6 h-6 transition-transform duration-300 group-hover:rotate-6", f.iconColor)} />
-                </div>
-                <h3 className="text-base font-bold mb-2 text-white">{f.title}</h3>
-                <p className="text-sm text-white/55 leading-relaxed">{f.desc}</p>
+                  {/* Hover glow */}
+                  <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-all duration-500 bg-white/5" />
+                  <div className="absolute -inset-px opacity-0 group-hover:opacity-100 transition-all duration-500 rounded-2xl bg-gradient-to-br from-white/10 to-transparent" />
+                  {/* Shine sweep on hover */}
+                  <motion.div
+                    className="absolute inset-0 opacity-0 group-hover:opacity-100 pointer-events-none"
+                    style={{
+                      background: "linear-gradient(105deg, transparent 30%, rgba(255,255,255,0.06) 50%, transparent 70%)",
+                      backgroundSize: "200% 100%",
+                    }}
+                    animate={{ backgroundPosition: ["200% 0", "-200% 0"] }}
+                    transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
+                  />
+                  <div className={cn(
+                    "w-12 h-12 rounded-xl flex items-center justify-center mb-4 bg-white/5 border transition-all duration-300 group-hover:scale-110 group-hover:bg-white/10",
+                    f.border
+                  )}>
+                    <f.icon className={cn("w-6 h-6 transition-transform duration-300 group-hover:rotate-6", f.iconColor)} />
+                  </div>
+                  <h3 className="text-base font-bold mb-2 text-white">{f.title}</h3>
+                  <p className="text-sm text-white/55 leading-relaxed">{f.desc}</p>
+                </TiltCard>
               </motion.div>
             ))}
           </div>
@@ -562,9 +666,7 @@ function LandingPage() {
                 transition={{ delay: i * 0.15 }}
                 className="relative flex flex-col items-center text-center"
               >
-                {i < 2 && (
-                  <div className="hidden md:block absolute top-8 left-[60%] w-[80%] h-px border-t border-dashed border-white/15" />
-                )}
+                {i < 2 && <StepConnector />}
                 <div className="w-16 h-16 rounded-2xl bg-primary/15 border border-primary/30 flex items-center justify-center mb-4 relative">
                   <step.icon className="w-7 h-7 text-primary" />
                   <span className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-primary text-[10px] font-bold text-white flex items-center justify-center">
@@ -722,9 +824,17 @@ function LandingPage() {
               className="relative rounded-2xl overflow-hidden"
             >
               {/* Animated gradient border */}
-              <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-yellow-400 via-primary to-purple-500 p-[1px]">
+              <motion.div
+                className="absolute inset-0 rounded-2xl p-[1px]"
+                style={{
+                  background: "linear-gradient(135deg, #facc15, #4472f5, #9b54e8, #facc15)",
+                  backgroundSize: "300% 300%",
+                }}
+                animate={{ backgroundPosition: ["0% 50%", "100% 50%", "0% 50%"] }}
+                transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
+              >
                 <div className="w-full h-full rounded-2xl bg-card/95" />
-              </div>
+              </motion.div>
               <div className="relative p-8">
                 <div className="absolute top-4 right-4">
                   <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-yellow-400/20 border border-yellow-400/40 text-yellow-400 text-xs font-bold">
@@ -810,9 +920,7 @@ function LandingPage() {
       {/* ── Footer ──────────────────────────────────────────────── */}
       <footer className="py-8 px-6 border-t border-white/5 text-center text-sm text-white/30">
         <div className="flex items-center justify-center gap-2 mb-2">
-          <div className="w-5 h-5 rounded bg-primary flex items-center justify-center">
-            <TrendingUp className="w-3 h-3 text-white" />
-          </div>
+          <TDBLogoSm size={20} />
           <span className="font-semibold text-white/50">CaptenTDB</span>
         </div>
         <p>Fait avec ❤️ par <span className="text-primary font-semibold">CaptenQwark</span></p>

@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
+import { TDBLogo } from "@/components/ui/TDBLogo";
 import {
   LayoutDashboard,
   TrendingUp,
@@ -21,49 +22,6 @@ import {
   Bot,
 } from "lucide-react";
 
-function CaptenIcon() {
-  return (
-    <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-9 h-9">
-      <defs>
-        <linearGradient id="anchor-grad" x1="0" y1="0" x2="40" y2="40" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stopColor="#38bdf8" />
-          <stop offset="100%" stopColor="#0369a1" />
-        </linearGradient>
-      </defs>
-
-      {/* Anneau du haut (chapeau) */}
-      <circle cx="20" cy="5" r="3.2" stroke="url(#anchor-grad)" strokeWidth="2" fill="none" />
-
-      {/* Tête */}
-      <circle cx="20" cy="13" r="6.5" fill="url(#anchor-grad)" />
-
-      {/* Yeux */}
-      <circle cx="17.5" cy="12" r="1.4" fill="white" />
-      <circle cx="22.5" cy="12" r="1.4" fill="white" />
-      <circle cx="17.9" cy="12.4" r="0.7" fill="#0c4a6e" />
-      <circle cx="22.9" cy="12.4" r="0.7" fill="#0c4a6e" />
-
-      {/* Sourire */}
-      <path d="M17 15.5 Q20 18 23 15.5" stroke="white" strokeWidth="1.3" strokeLinecap="round" fill="none" />
-
-      {/* Tige verticale (corps) */}
-      <rect x="18.8" y="19" width="2.4" height="12" rx="1.2" fill="url(#anchor-grad)" />
-
-      {/* Barre horizontale (bras) */}
-      <rect x="8" y="21" width="24" height="2.5" rx="1.25" fill="url(#anchor-grad)" />
-      {/* Mains */}
-      <circle cx="8.5" cy="22.25" r="2.2" fill="url(#anchor-grad)" />
-      <circle cx="31.5" cy="22.25" r="2.2" fill="url(#anchor-grad)" />
-
-      {/* Petite roue au centre de la tige */}
-      <circle cx="20" cy="28" r="2" stroke="url(#anchor-grad)" strokeWidth="1.8" fill="white" />
-
-      {/* Pattes de l'ancre (pieds) */}
-      <path d="M20 31 Q13 33 11 38" stroke="url(#anchor-grad)" strokeWidth="2.5" strokeLinecap="round" fill="none" />
-      <path d="M20 31 Q27 33 29 38" stroke="url(#anchor-grad)" strokeWidth="2.5" strokeLinecap="round" fill="none" />
-    </svg>
-  );
-}
 import { cn } from "@/lib/utils";
 import { adminAPI } from "@/lib/api";
 
@@ -140,10 +98,11 @@ export function Sidebar({
       {/* Logo */}
       <div className="p-4 flex items-center gap-3" style={{borderBottom: "1px solid rgba(99,140,255,0.1)"}}>
         <motion.div
-          whileHover={{ scale: 1.1 }}
+          whileHover={{ scale: 1.08 }}
+          transition={{ type: "spring", stiffness: 400, damping: 15 }}
           className="flex items-center justify-center"
         >
-          <CaptenIcon />
+          <TDBLogo size={36} />
         </motion.div>
         <AnimatePresence>
           {!collapsed && (
