@@ -2222,7 +2222,7 @@ function AIInsightSection({
       } else if (msg.includes("503") || err.status === 503) {
         setError("L'assistant IA n'est pas disponible. Vérifiez la configuration GROQ_API_KEY.");
       } else if (msg.includes("429") || err.status === 429) {
-        setError("Limite de messages atteinte. Reessayez dans quelques minutes.");
+        setError(msg || "Service IA surchargé. Réessayez dans quelques secondes.");
       } else if (msg.includes("timeout") || msg.includes("504")) {
         setError("L'analyse a pris trop de temps. Reessayez.");
       } else {

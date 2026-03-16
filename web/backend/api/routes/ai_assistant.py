@@ -22,7 +22,7 @@ limiter = Limiter(key_func=get_remote_address)
 
 # Groq API Configuration
 GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
-MODEL = "llama-3.3-70b-versatile"
+MODEL = "llama-3.1-8b-instant"
 
 def get_groq_api_key():
     """Get Groq API key from environment"""
@@ -1034,10 +1034,12 @@ Décris les signaux d'alerte : quels supports cèderaient, comment le prix se co
                         {"role": "user", "content": prompt}
                     ],
                     "temperature": 0.4,
-                    "max_tokens": 4000
+                    "max_tokens": 2000
                 }
             )
 
+            if response.status_code == 429:
+                raise HTTPException(status_code=429, detail="Service IA surchargé, réessayez dans quelques secondes.")
             if response.status_code != 200:
                 print(f"[AI] quick_analysis Groq error {response.status_code}: {response.text[:300]}")
                 raise HTTPException(status_code=502, detail=f"Erreur IA ({response.status_code})")
