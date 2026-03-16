@@ -1179,3 +1179,113 @@ async def get_market_news(request: Request, current_user: dict = Depends(get_cur
         "summary_points": summary_points,
         "generated_at": datetime.utcnow().isoformat()
     }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  SESSION NARRATIVE — Premium AI summary of a market session
+# ─────────────────────────────────────────────────────────────────────────────
+
+class SessionPerformer(BaseModel):
+    symbol: str
+    name: str
+    change: float
+
+class SessionNarrativeRequest(BaseModel):
+    session_name: str       # "Séance Européenne"
+    session_id: str         # "europe" | "us" | "asia" | "crypto"
+    mood: str               # "bullish" | "bearish" | "neutral"
+    avg_change: float
+    positive_ratio: float   # 0.0 to 1.0
+    top_performers: List[SessionPerformer]
+    flop_performers: List[SessionPerformer]
+    is_live: bool
+
+
+@router.post("/session-narrative")
+@limiter.limit("10/minute")
+async def get_session_narrative(
+    request: Request,
+    body: SessionNarrativeRequest,
+    current_user: dict = Depends(get_current_user),
+):
+    """Generate an AI narrative summary of a market session (Premium only)"""
+
+    if not await is_user_premium(current_user):
+        raise HTTPException(
+            status_code=403,
+            detail="Cette fonctionnalité nécessite un abonnement Premium"
+        )
+
+    api_key = get_groq_api_key()
+    if not api_key:
+        raise HTTPException(status_code=503, detail="Service IA temporairement indisponible")
+
+    # Build context
+    top_str = ", ".join(
+        f"{p.name} ({'+' if p.change >= 0 else ''}{p.change:.2f}%)"
+        for p in body.top_performers[:5]
+    ) or "aucune donnée"
+
+    flop_str = ", ".join(
+        f"{p.name} ({p.change:.2f}%)"
+        for p in body.flop_performers[:5]
+    ) or "aucune baisse notable"
+
+    mood_fr = {"bullish": "haussier", "bearish": "baissier", "neutral": "neutre"}.get(body.mood, body.mood)
+    status_str = "en cours" if body.is_live else "clôturée"
+    date_str = datetime.utcnow().strftime("%A %d %B %Y")
+
+    prompt = f"""Tu es un analyste de marché expert. Rédige un résumé narratif concis et professionnel de la séance boursière suivante.
+
+DONNÉES DE SÉANCE ({date_str}) :
+- Séance : {body.session_name} ({status_str})
+- Sentiment : {mood_fr} ({'+' if body.avg_change >= 0 else ''}{body.avg_change:.2f}% de variation moyenne)
+- {round(body.positive_ratio * 100)}% des actifs en hausse
+- Top performers : {top_str}
+- Flop du jour : {flop_str}
+
+INSTRUCTIONS :
+- Rédige 3 à 5 phrases fluides et naturelles, comme un analyste professionnel
+- Explique POURQUOI les actifs leaders ont performé (contexte sectoriel, macro, catalyseurs probables)
+- Mentionne le sentiment général et ce que ça signifie pour les traders
+- Si la séance est en cours, utilise le présent ; si elle est clôturée, utilise le passé
+- Sois précis sur les chiffres sans être trop technique
+- Pas de bullets, pas de titres — du texte narratif fluide
+- Termine par une observation sur ce qu'il faut surveiller
+- Maximum 120 mots
+- En français uniquement"""
+
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.post(
+                GROQ_API_URL,
+                headers={
+                    "Authorization": f"Bearer {api_key}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "model": MODEL,
+                    "messages": [
+                        {"role": "system", "content": "Tu es un analyste de marché. Réponds uniquement en français, en texte narratif fluide."},
+                        {"role": "user", "content": prompt},
+                    ],
+                    "temperature": 0.6,
+                    "max_tokens": 300,
+                },
+            )
+
+        if response.status_code != 200:
+            raise HTTPException(status_code=502, detail="Erreur lors de la génération du résumé")
+
+        narrative = response.json()["choices"][0]["message"]["content"].strip()
+
+        return {
+            "narrative": narrative,
+            "generated_at": datetime.utcnow().isoformat(),
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[SESSION NARRATIVE] Error: {e}")
+        raise HTTPException(status_code=502, detail="Impossible de générer le résumé IA")

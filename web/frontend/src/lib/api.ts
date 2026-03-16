@@ -227,6 +227,22 @@ export const aiAPI = {
 
   getLimit: () =>
     fetchAPI<AILimitStatus>("/api/ai/limit"),
+
+  getSessionNarrative: (payload: {
+    session_name: string;
+    session_id: string;
+    mood: string;
+    avg_change: number;
+    positive_ratio: number;
+    top_performers: { symbol: string; name: string; change: number }[];
+    flop_performers: { symbol: string; name: string; change: number }[];
+    is_live: boolean;
+  }) =>
+    fetchAPI<{ narrative: string; generated_at: string }>("/api/ai/session-narrative", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    }),
 };
 
 export interface SummaryPoint {

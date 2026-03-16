@@ -4,11 +4,11 @@ import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   TrendingUp, TrendingDown, Lock, Crown, RefreshCw,
-  Eye, Zap, Activity, Radio, ChevronRight, Flame,
-  BarChart2, AlertCircle,
+  Eye, Activity, Radio, ChevronRight, Flame,
+  BarChart2, AlertCircle, Bot, Sparkles, Loader2,
 } from "lucide-react";
 import Link from "next/link";
-import { marketAPI } from "@/lib/api";
+import { marketAPI, aiAPI } from "@/lib/api";
 import { getAssetInfo, getAssetLogo } from "@/lib/assetInfo";
 import { isMarketOpen } from "@/lib/marketStatus";
 import { usePremium } from "@/lib/PremiumContext";
@@ -586,6 +586,140 @@ function PremiumLock() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+//  SECTION: Analyse IA de séance (Premium)
+// ─────────────────────────────────────────────────────────────────────────────
+
+function SessionNarrativeSection({ result, isPremium }: { result: SessionResult; isPremium: boolean }) {
+  const [narrative, setNarrative] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [generatedAt, setGeneratedAt] = useState<string | null>(null);
+
+  const generate = async () => {
+    if (loading || !isPremium) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await aiAPI.getSessionNarrative({
+        session_name: result.session.fullName,
+        session_id: result.session.id,
+        mood: result.mood,
+        avg_change: result.avgChange,
+        positive_ratio: result.positiveRatio,
+        top_performers: result.topN.slice(0, 5).map(p => ({ symbol: p.symbol, name: p.name, change: p.change })),
+        flop_performers: result.flopN.slice(0, 5).map(p => ({ symbol: p.symbol, name: p.name, change: p.change })),
+        is_live: result.isLive,
+      });
+      setNarrative(res.narrative);
+      setGeneratedAt(res.generated_at);
+    } catch {
+      setError("Impossible de générer l'analyse. Réessayez.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="border-t border-white/8">
+      <div className="px-5 py-3.5 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <div className="w-6 h-6 rounded-lg bg-primary/20 flex items-center justify-center">
+            <Bot className="w-3.5 h-3.5 text-primary" />
+          </div>
+          <div>
+            <h4 className="text-sm font-bold text-white">Analyse IA de séance</h4>
+            <p className="text-[11px] text-white/35">Résumé narratif généré par l&apos;IA</p>
+          </div>
+        </div>
+        {!isPremium && (
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-yellow-500/15 border border-yellow-500/30 text-yellow-400 text-[10px] font-bold">
+            <Crown className="w-2.5 h-2.5" />
+            PREMIUM
+          </span>
+        )}
+      </div>
+
+      <div className="px-4 pb-4">
+        {!isPremium ? (
+          /* Free user — blurred lock */
+          <div className="relative">
+            <div className="p-4 rounded-xl bg-white/5 border border-white/8 blur-sm pointer-events-none select-none opacity-50" aria-hidden>
+              <p className="text-sm text-white/70 leading-relaxed">
+                La séance européenne s&apos;est clôturée en territoire positif, portée par de solides performances dans le secteur technologique et énergétique. LVMH a signé la meilleure performance grâce à des résultats trimestriels supérieurs aux attentes...
+              </p>
+            </div>
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 p-4">
+              <motion.div
+                initial={{ scale: 0.8, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ type: "spring", stiffness: 400, damping: 20 }}
+                className="w-10 h-10 rounded-2xl bg-yellow-500/20 border border-yellow-500/30 flex items-center justify-center"
+              >
+                <Lock className="w-4.5 h-4.5 text-yellow-400" style={{ width: 18, height: 18 }} />
+              </motion.div>
+              <p className="text-xs font-bold text-white text-center">Débloquez l&apos;analyse narrative IA</p>
+              <Link href="/premium"
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-yellow-400 to-primary text-black text-xs font-bold hover:opacity-90 transition-opacity shadow-lg"
+              >
+                <Crown className="w-3 h-3" />
+                Passer Premium
+              </Link>
+            </div>
+          </div>
+        ) : narrative ? (
+          /* Generated narrative */
+          <motion.div
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="p-4 rounded-xl bg-primary/8 border border-primary/20"
+          >
+            <div className="flex items-center gap-2 mb-3">
+              <Sparkles className="w-3.5 h-3.5 text-primary" />
+              <span className="text-[11px] font-semibold text-primary uppercase tracking-wider">Analyse IA</span>
+              {generatedAt && (
+                <span className="text-[10px] text-white/30 ml-auto">
+                  {new Date(generatedAt).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
+                </span>
+              )}
+            </div>
+            <p className="text-sm text-white/80 leading-relaxed">{narrative}</p>
+            <button
+              onClick={generate}
+              disabled={loading}
+              className="mt-3 text-[11px] text-primary/60 hover:text-primary transition-colors flex items-center gap-1"
+            >
+              <RefreshCw className={cn("w-3 h-3", loading && "animate-spin")} />
+              Regénérer
+            </button>
+          </motion.div>
+        ) : (
+          /* CTA to generate */
+          <div className="flex flex-col items-center gap-3 py-4">
+            {error && (
+              <p className="text-xs text-rose-400 text-center">{error}</p>
+            )}
+            <button
+              onClick={generate}
+              disabled={loading}
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary/15 border border-primary/25 hover:bg-primary/25 text-primary text-sm font-semibold transition-all disabled:opacity-50"
+            >
+              {loading ? (
+                <><Loader2 className="w-4 h-4 animate-spin" />Génération en cours...</>
+              ) : (
+                <><Sparkles className="w-4 h-4" />Générer l&apos;analyse de séance</>
+              )}
+            </button>
+            <p className="text-[11px] text-white/25 text-center">
+              L&apos;IA analysera les performances et expliquera les mouvements clés
+            </p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 //  SESSION PANEL
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -773,6 +907,9 @@ function SessionPanel({ result, isPremium }: { result: SessionResult; isPremium:
           )}
         </div>
       </div>
+
+      {/* ── Analyse narrative IA ── */}
+      <SessionNarrativeSection result={result} isPremium={isPremium} />
 
       {/* ── Stats bar (premium) ── */}
       {isPremium && result.performers.length > 0 && (
