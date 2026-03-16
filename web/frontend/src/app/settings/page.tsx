@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/AuthContext";
-import { useSettings, Currency } from "@/lib/SettingsContext";
+import { useSettings, Currency, ACCENT_PRESETS, AccentColor } from "@/lib/SettingsContext";
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState("profile");
@@ -335,55 +335,94 @@ function NotificationSettings() {
 }
 
 function AppearanceSettings() {
-  const [theme, setTheme] = useState("dark");
+  const { settings, setTheme, setAccentColor } = useSettings();
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <h2 className="text-lg font-semibold">Apparence</h2>
 
+      {/* Theme */}
       <div>
-        <label className="block text-sm font-medium mb-2">Theme</label>
+        <label className="block text-sm font-medium mb-3">Thème de l'interface</label>
         <div className="grid grid-cols-2 gap-4">
           <button
             onClick={() => setTheme("dark")}
             className={cn(
-              "p-4 rounded-xl border-2 transition-all flex items-center justify-center gap-2",
-              theme === "dark"
+              "p-4 rounded-xl border-2 transition-all flex flex-col items-center gap-3",
+              settings.theme === "dark"
                 ? "border-primary bg-primary/10"
-                : "border-white/10 hover:border-white/20"
+                : "border-white/10 hover:border-white/20 bg-white/5"
             )}
           >
-            <Moon className="w-5 h-5" />
-            Sombre
+            <div className="w-full h-16 rounded-lg bg-gray-900 border border-white/10 flex items-center justify-center">
+              <Moon className="w-6 h-6 text-white/70" />
+            </div>
+            <div className="text-center">
+              <p className="font-medium">Sombre</p>
+              <p className="text-xs text-muted-foreground">Mode nuit, idéal pour le trading</p>
+            </div>
+            {settings.theme === "dark" && (
+              <span className="text-xs text-primary font-medium">✓ Actif</span>
+            )}
           </button>
+
           <button
             onClick={() => setTheme("light")}
             className={cn(
-              "p-4 rounded-xl border-2 transition-all flex items-center justify-center gap-2 opacity-50 cursor-not-allowed",
-              theme === "light"
+              "p-4 rounded-xl border-2 transition-all flex flex-col items-center gap-3",
+              settings.theme === "light"
                 ? "border-primary bg-primary/10"
-                : "border-white/10"
+                : "border-white/10 hover:border-white/20 bg-white/5"
             )}
-            disabled
           >
-            <Sun className="w-5 h-5" />
-            Clair (bientot)
+            <div className="w-full h-16 rounded-lg bg-gray-100 border border-gray-200 flex items-center justify-center">
+              <Sun className="w-6 h-6 text-gray-600" />
+            </div>
+            <div className="text-center">
+              <p className="font-medium">Clair</p>
+              <p className="text-xs text-muted-foreground">Mode jour, interface lumineuse</p>
+            </div>
+            {settings.theme === "light" && (
+              <span className="text-xs text-primary font-medium">✓ Actif</span>
+            )}
           </button>
         </div>
       </div>
 
+      {/* Accent Color */}
       <div>
-        <label className="block text-sm font-medium mb-2">Couleur d'accent</label>
-        <div className="flex gap-2">
-          {["#6366f1", "#8b5cf6", "#ec4899", "#14b8a6", "#f59e0b"].map((color) => (
+        <label className="block text-sm font-medium mb-3">Couleur d'accent</label>
+        <p className="text-xs text-muted-foreground mb-4">
+          Personnalise les boutons, bordures actives et éléments interactifs.
+        </p>
+        <div className="grid grid-cols-5 gap-3">
+          {(Object.entries(ACCENT_PRESETS) as [AccentColor, typeof ACCENT_PRESETS[AccentColor]][]).map(([key, preset]) => (
             <button
-              key={color}
-              className="w-10 h-10 rounded-lg border-2 border-white/20 hover:border-white/50 transition-all"
-              style={{ backgroundColor: color }}
-            />
+              key={key}
+              onClick={() => setAccentColor(key)}
+              className={cn(
+                "flex flex-col items-center gap-2 p-3 rounded-xl border-2 transition-all",
+                settings.accentColor === key
+                  ? "border-current scale-105 shadow-lg"
+                  : "border-white/10 hover:border-white/30"
+              )}
+              style={{ borderColor: settings.accentColor === key ? preset.hex : undefined }}
+            >
+              <div
+                className="w-8 h-8 rounded-full shadow-md"
+                style={{ backgroundColor: preset.hex, boxShadow: `0 0 12px ${preset.hex}60` }}
+              />
+              <span className="text-xs font-medium">{preset.label}</span>
+              {settings.accentColor === key && (
+                <span className="text-[10px] font-bold" style={{ color: preset.hex }}>✓</span>
+              )}
+            </button>
           ))}
         </div>
-        <p className="text-xs text-muted-foreground mt-2">Bientot disponible</p>
+      </div>
+
+      <div className="p-3 rounded-lg bg-primary/5 border border-primary/20 text-xs text-primary/80">
+        Les changements s'appliquent immédiatement et sont sauvegardés automatiquement.
       </div>
     </div>
   );

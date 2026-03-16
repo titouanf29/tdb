@@ -4,12 +4,24 @@ import { createContext, useContext, useState, useEffect, ReactNode } from "react
 import { settingsAPI } from "./api";
 
 export type Currency = "USD" | "EUR";
+export type Theme = "dark" | "light";
+export type AccentColor = "blue" | "purple" | "teal" | "orange" | "pink";
+
+export const ACCENT_PRESETS: Record<AccentColor, { primary: string; neonBlue: string; ring: string; label: string; hex: string }> = {
+  blue:   { primary: "230 90% 62%", neonBlue: "230 90% 62%", ring: "230 90% 62%", label: "Bleu",   hex: "#6366f1" },
+  purple: { primary: "270 80% 65%", neonBlue: "270 80% 65%", ring: "270 80% 65%", label: "Violet", hex: "#a855f7" },
+  teal:   { primary: "175 90% 42%", neonBlue: "175 90% 42%", ring: "175 90% 42%", label: "Teal",   hex: "#14b8a6" },
+  orange: { primary: "30 95% 55%",  neonBlue: "30 95% 55%",  ring: "30 95% 55%",  label: "Orange", hex: "#f59e0b" },
+  pink:   { primary: "330 90% 60%", neonBlue: "330 90% 60%", ring: "330 90% 60%", label: "Rose",   hex: "#ec4899" },
+};
 
 interface Settings {
   currency: Currency;
   tradingStyle: string;
   riskLevel: string;
   defaultLeverage: string;
+  theme: Theme;
+  accentColor: AccentColor;
 }
 
 interface SettingsContextType {
@@ -18,6 +30,8 @@ interface SettingsContextType {
   setTradingStyle: (style: string) => void;
   setRiskLevel: (level: string) => void;
   setDefaultLeverage: (leverage: string) => void;
+  setTheme: (theme: Theme) => void;
+  setAccentColor: (color: AccentColor) => void;
   updateSettings: (updates: Partial<Settings>) => void;
 }
 
@@ -26,6 +40,8 @@ const defaultSettings: Settings = {
   tradingStyle: "day",
   riskLevel: "moderate",
   defaultLeverage: "1",
+  theme: "dark",
+  accentColor: "blue",
 };
 
 const SettingsContext = createContext<SettingsContextType | null>(null);
@@ -49,6 +65,8 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
           tradingStyle: remote.trading_style ?? local.tradingStyle ?? defaultSettings.tradingStyle,
           riskLevel: remote.risk_level ?? local.riskLevel ?? defaultSettings.riskLevel,
           defaultLeverage: local.defaultLeverage ?? defaultSettings.defaultLeverage,
+          theme: (local.theme as Theme) ?? defaultSettings.theme,
+          accentColor: (local.accentColor as AccentColor) ?? defaultSettings.accentColor,
         });
       })
       .catch(() => {
@@ -65,6 +83,20 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
     }
   }, [settings, isLoaded]);
+
+  // Apply theme and accent color to DOM
+  useEffect(() => {
+    if (!isLoaded) return;
+    // Theme
+    document.documentElement.setAttribute("data-theme", settings.theme);
+    // Accent color
+    const preset = ACCENT_PRESETS[settings.accentColor];
+    if (preset) {
+      document.documentElement.style.setProperty("--primary", preset.primary);
+      document.documentElement.style.setProperty("--neon-blue", preset.neonBlue);
+      document.documentElement.style.setProperty("--ring", preset.ring);
+    }
+  }, [settings.theme, settings.accentColor, isLoaded]);
 
   // Sync trading_style + risk_level to backend (debounced via direct call)
   const syncToBackend = (patch: { trading_style?: string; risk_level?: string }) => {
@@ -87,6 +119,12 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   const setDefaultLeverage = (defaultLeverage: string) =>
     setSettings((prev) => ({ ...prev, defaultLeverage }));
 
+  const setTheme = (theme: Theme) =>
+    setSettings((prev) => ({ ...prev, theme }));
+
+  const setAccentColor = (accentColor: AccentColor) =>
+    setSettings((prev) => ({ ...prev, accentColor }));
+
   const updateSettings = (updates: Partial<Settings>) => {
     setSettings((prev) => ({ ...prev, ...updates }));
     const patch: Record<string, string> = {};
@@ -97,7 +135,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
 
   return (
     <SettingsContext.Provider
-      value={{ settings, setCurrency, setTradingStyle, setRiskLevel, setDefaultLeverage, updateSettings }}
+      value={{ settings, setCurrency, setTradingStyle, setRiskLevel, setDefaultLeverage, setTheme, setAccentColor, updateSettings }}
     >
       {children}
     </SettingsContext.Provider>

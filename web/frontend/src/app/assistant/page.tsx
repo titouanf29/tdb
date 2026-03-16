@@ -166,11 +166,13 @@ export default function AssistantPage() {
     } catch (error: any) {
       console.error("Error sending message:", error);
 
-      let errorContent = "Desole, une erreur s'est produite. Veuillez reessayer.";
+      let errorContent = "Désolé, une erreur s'est produite. Veuillez réessayer.";
 
       // Handle rate limit error (429)
       if (error.status === 429) {
-        errorContent = "Vous avez atteint votre limite quotidienne de messages. Passez Premium pour des messages illimites !";
+        errorContent = limitStatus?.is_premium
+          ? "Trop de messages envoyés rapidement. Attendez quelques secondes puis réessayez."
+          : "Vous avez atteint votre limite quotidienne de messages. Passez Premium pour des messages illimités !";
         await refreshLimit();
       }
 
@@ -242,7 +244,7 @@ export default function AssistantPage() {
                 {limitStatus.is_premium ? (
                   <>
                     <Crown className="w-3.5 h-3.5" />
-                    <span>Illimite</span>
+                    <span>Illimité</span>
                   </>
                 ) : (
                   <>

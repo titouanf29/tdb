@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import {
@@ -18,6 +18,7 @@ import {
 import { cn, formatPercent, formatVolume } from "@/lib/utils";
 import { marketAPI, favoritesAPI, Market, Asset } from "@/lib/api";
 import { getAssetInfo, getAssetLogo } from "@/lib/assetInfo";
+import { authHeaders } from "@/lib/auth";
 import { isMarketOpen, getMarketHoursDisplay, getTimeUntilChange } from "@/lib/marketStatus";
 import { useFormatCurrency } from "@/lib/SettingsContext";
 
@@ -46,6 +47,9 @@ export default function MarketsPage() {
   const [isLoadingPrices, setIsLoadingPrices] = useState(false);
   const [hasMore, setHasMore] = useState(false);
   const [totalAssets, setTotalAssets] = useState(0);
+  const [searchResults, setSearchResults] = useState<{ symbol: string; name: string; exchange: string }[]>([]);
+  const [isSearchingBackend, setIsSearchingBackend] = useState(false);
+  const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Load markets
   useEffect(() => {
@@ -146,9 +150,36 @@ export default function MarketsPage() {
     }
   };
 
+  const fetchBackendSearch = useCallback(async (q: string) => {
+    if (q.trim().length < 2) { setSearchResults([]); return; }
+    setIsSearchingBackend(true);
+    try {
+      const res = await fetch(`/api/market/search?q=${encodeURIComponent(q)}`, {
+        headers: authHeaders() as HeadersInit,
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setSearchResults(data.results || []);
+      }
+    } catch { /* ignore */ } finally {
+      setIsSearchingBackend(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    if (searchQuery.length < 2) {
+      setSearchResults([]);
+      return;
+    }
+    searchDebounceRef.current = setTimeout(() => fetchBackendSearch(searchQuery), 300);
+    return () => { if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current); };
+  }, [searchQuery, fetchBackendSearch]);
+
   const handleMarketSelect = (key: string) => {
     setSelectedMarket(key);
     setSearchQuery("");
+    setSearchResults([]);
   };
 
   const toggleFavorite = async (symbol: string) => {
@@ -174,13 +205,20 @@ export default function MarketsPage() {
     }
   };
 
-  const filteredAssets = assets.filter((asset) => {
-    const info = getAssetInfo(asset.symbol);
-    return (
-      asset.symbol.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      info.name.toLowerCase().includes(searchQuery.toLowerCase())
-    );
-  });
+  // When searchQuery >= 2 chars, use backend results; otherwise filter loaded assets locally
+  const isGlobalSearch = searchQuery.length >= 2;
+
+  const filteredAssets = isGlobalSearch
+    ? [] // replaced by searchResults display
+    : assets.filter((asset) => {
+        if (!searchQuery) return true;
+        const info = getAssetInfo(asset.symbol);
+        return (
+          asset.symbol.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          info.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          (asset.name && asset.name.toLowerCase().includes(searchQuery.toLowerCase()))
+        );
+      });
 
   if (isLoading) {
     return (
@@ -199,8 +237,8 @@ export default function MarketsPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Marches</h1>
-          <p className="text-muted-foreground">Explorez tous les marches disponibles</p>
+          <h1 className="text-2xl font-bold">Marchés</h1>
+          <p className="text-muted-foreground">Explorez tous les marchés disponibles</p>
         </div>
       </div>
 
@@ -272,14 +310,26 @@ export default function MarketsPage() {
       {/* Search */}
       <div className="flex gap-4">
         <div className="flex-1 relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          {isSearchingBackend ? (
+            <Loader2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground animate-spin" />
+          ) : (
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          )}
           <input
             type="text"
-            placeholder="Rechercher un actif..."
+            placeholder="Rechercher un actif dans tous les marchés... (ex: Apple, Bitcoin, AAPL)"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full input pl-10"
           />
+          {searchQuery && (
+            <button
+              onClick={() => { setSearchQuery(""); setSearchResults([]); }}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground text-xs"
+            >
+              ✕
+            </button>
+          )}
         </div>
       </div>
 
@@ -303,99 +353,169 @@ export default function MarketsPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredAssets.map((asset, index) => {
-                    const assetInfo = getAssetInfo(asset.symbol);
-                    const logoUrl = getAssetLogo(asset.symbol);
+                  {isGlobalSearch ? (
+                    // Backend search results
+                    searchResults.length === 0 && !isSearchingBackend ? (
+                      <tr>
+                        <td colSpan={5} className="text-center py-12 text-muted-foreground">
+                          Aucun résultat pour « {searchQuery} »
+                        </td>
+                      </tr>
+                    ) : (
+                      searchResults.map((result, index) => {
+                        const logoUrl = getAssetLogo(result.symbol);
+                        return (
+                          <motion.tr
+                            key={result.symbol}
+                            initial={{ opacity: 0, x: -20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ delay: Math.min(index * 0.03, 0.5) }}
+                            className="border-b border-white/5 hover:bg-white/5 transition-colors cursor-pointer"
+                            onClick={() => router.push(`/analysis?symbol=${result.symbol}`)}
+                          >
+                            <td className="p-4">
+                              <div className="flex items-center gap-3">
+                                {logoUrl ? (
+                                  <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center overflow-hidden">
+                                    <img src={logoUrl} alt={result.name} className="w-7 h-7 object-contain"
+                                      onError={(e) => {
+                                        const t = e.target as HTMLImageElement;
+                                        t.style.display = "none";
+                                        t.parentElement!.innerHTML = `<span class="font-bold text-sm">${result.symbol.slice(0, 2)}</span>`;
+                                      }} />
+                                  </div>
+                                ) : (
+                                  <div className="w-10 h-10 rounded-xl bg-secondary flex items-center justify-center font-bold text-sm">
+                                    {result.symbol.slice(0, 2)}
+                                  </div>
+                                )}
+                                <div>
+                                  <p className="font-semibold">{result.name}</p>
+                                  <p className="text-xs text-muted-foreground">{result.symbol} · {result.exchange}</p>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="p-4 text-right text-muted-foreground" colSpan={3}>
+                              <span className="text-xs">Cliquer pour analyser</span>
+                            </td>
+                            <td className="p-4">
+                              <div className="flex items-center justify-center gap-2">
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); toggleFavorite(result.symbol); }}
+                                  className="p-2 rounded-lg hover:bg-white/10 transition-colors"
+                                >
+                                  {favorites.has(result.symbol) ? (
+                                    <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" />
+                                  ) : (
+                                    <StarOff className="w-4 h-4 text-muted-foreground" />
+                                  )}
+                                </button>
+                                <button className="p-2 rounded-lg hover:bg-white/10 transition-colors">
+                                  <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                                </button>
+                              </div>
+                            </td>
+                          </motion.tr>
+                        );
+                      })
+                    )
+                  ) : (
+                    // Normal market assets
+                    filteredAssets.map((asset, index) => {
+                      const assetInfo = getAssetInfo(asset.symbol);
+                      const logoUrl = getAssetLogo(asset.symbol);
+                      const displayName = asset.name || assetInfo.name;
 
-                    return (
-                    <motion.tr
-                      key={asset.symbol}
-                      initial={{ opacity: 0, x: -20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: Math.min(index * 0.03, 0.5) }}
-                      className="border-b border-white/5 hover:bg-white/5 transition-colors cursor-pointer"
-                      onClick={() => router.push(`/analysis?symbol=${asset.symbol}`)}
-                    >
-                      <td className="p-4">
-                        <div className="flex items-center gap-3">
-                          {logoUrl ? (
-                            <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center overflow-hidden">
-                              <img
-                                src={logoUrl}
-                                alt={assetInfo.name}
-                                className="w-7 h-7 object-contain"
-                                onError={(e) => {
-                                  const target = e.target as HTMLImageElement;
-                                  target.style.display = 'none';
-                                  target.parentElement!.innerHTML = `<span class="font-bold text-sm">${asset.symbol.slice(0, 2)}</span>`;
-                                }}
-                              />
+                      return (
+                      <motion.tr
+                        key={asset.symbol}
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: Math.min(index * 0.03, 0.5) }}
+                        className="border-b border-white/5 hover:bg-white/5 transition-colors cursor-pointer"
+                        onClick={() => router.push(`/analysis?symbol=${asset.symbol}`)}
+                      >
+                        <td className="p-4">
+                          <div className="flex items-center gap-3">
+                            {logoUrl ? (
+                              <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center overflow-hidden">
+                                <img
+                                  src={logoUrl}
+                                  alt={displayName}
+                                  className="w-7 h-7 object-contain"
+                                  onError={(e) => {
+                                    const target = e.target as HTMLImageElement;
+                                    target.style.display = 'none';
+                                    target.parentElement!.innerHTML = `<span class="font-bold text-sm">${asset.symbol.slice(0, 2)}</span>`;
+                                  }}
+                                />
+                              </div>
+                            ) : (
+                              <div className="w-10 h-10 rounded-xl bg-secondary flex items-center justify-center font-bold text-sm">
+                                {asset.symbol.slice(0, 2)}
+                              </div>
+                            )}
+                            <div>
+                              <p className="font-semibold">{displayName}</p>
+                              <p className="text-xs text-muted-foreground">{asset.symbol}</p>
                             </div>
-                          ) : (
-                            <div className="w-10 h-10 rounded-xl bg-secondary flex items-center justify-center font-bold text-sm">
-                              {asset.symbol.slice(0, 2)}
-                            </div>
-                          )}
-                          <div>
-                            <p className="font-semibold">{assetInfo.name}</p>
-                            <p className="text-xs text-muted-foreground">{asset.symbol}</p>
                           </div>
-                        </div>
-                      </td>
-                      <td className="p-4 text-right font-semibold">
-                        {(asset.error || !asset.price) ? <span className="text-muted-foreground">—</span> : formatCurrency(asset.price)}
-                      </td>
-                      <td className="p-4 text-right">
-                        {(asset.error || asset.change === 0) ? (
-                          <span className="text-muted-foreground">—</span>
-                        ) : (
-                          <span
-                            className={cn(
-                              "flex items-center justify-end gap-1",
-                              asset.change >= 0 ? "text-profit" : "text-loss"
-                            )}
-                          >
-                            {asset.change >= 0 ? (
-                              <TrendingUp className="w-4 h-4" />
-                            ) : (
-                              <TrendingDown className="w-4 h-4" />
-                            )}
-                            {formatPercent(asset.change)}
-                          </span>
-                        )}
-                      </td>
-                      <td className="p-4 text-right text-muted-foreground">
-                        {(asset.error || !asset.volume) ? <span className="text-muted-foreground">—</span> : formatVolume(asset.volume)}
-                      </td>
-                      <td className="p-4">
-                        <div className="flex items-center justify-center gap-2">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              toggleFavorite(asset.symbol);
-                            }}
-                            className="p-2 rounded-lg hover:bg-white/10 transition-colors"
-                          >
-                            {favorites.has(asset.symbol) ? (
-                              <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" />
-                            ) : (
-                              <StarOff className="w-4 h-4 text-muted-foreground" />
-                            )}
-                          </button>
-                          <button className="p-2 rounded-lg hover:bg-white/10 transition-colors">
-                            <ChevronRight className="w-4 h-4 text-muted-foreground" />
-                          </button>
-                        </div>
-                      </td>
-                    </motion.tr>
-                    );
-                  })}
+                        </td>
+                        <td className="p-4 text-right font-semibold">
+                          {(asset.error || !asset.price) ? <span className="text-muted-foreground">—</span> : formatCurrency(asset.price)}
+                        </td>
+                        <td className="p-4 text-right">
+                          {(asset.error || asset.change === 0) ? (
+                            <span className="text-muted-foreground">—</span>
+                          ) : (
+                            <span
+                              className={cn(
+                                "flex items-center justify-end gap-1",
+                                asset.change >= 0 ? "text-profit" : "text-loss"
+                              )}
+                            >
+                              {asset.change >= 0 ? (
+                                <TrendingUp className="w-4 h-4" />
+                              ) : (
+                                <TrendingDown className="w-4 h-4" />
+                              )}
+                              {formatPercent(asset.change)}
+                            </span>
+                          )}
+                        </td>
+                        <td className="p-4 text-right text-muted-foreground">
+                          {(asset.error || !asset.volume) ? <span className="text-muted-foreground">—</span> : formatVolume(asset.volume)}
+                        </td>
+                        <td className="p-4">
+                          <div className="flex items-center justify-center gap-2">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                toggleFavorite(asset.symbol);
+                              }}
+                              className="p-2 rounded-lg hover:bg-white/10 transition-colors"
+                            >
+                              {favorites.has(asset.symbol) ? (
+                                <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" />
+                              ) : (
+                                <StarOff className="w-4 h-4 text-muted-foreground" />
+                              )}
+                            </button>
+                            <button className="p-2 rounded-lg hover:bg-white/10 transition-colors">
+                              <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                            </button>
+                          </div>
+                        </td>
+                      </motion.tr>
+                      );
+                    })
+                  )}
                 </tbody>
               </table>
             </div>
 
             {/* Load more / pagination info */}
-            {!searchQuery && (
+            {!isGlobalSearch && (
               <div className="flex flex-col items-center gap-3 py-5 border-t border-white/10">
                 <p className="text-sm text-muted-foreground flex items-center gap-2">
                   {assets.length} / {totalAssets} actifs chargés

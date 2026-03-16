@@ -48,6 +48,8 @@ import {
   CircleDot,
   AlertCircle,
   Plus,
+  RefreshCw,
+  Timer,
 } from "lucide-react";
 import { cn, formatPercent } from "@/lib/utils";
 import { analysisAPI, favoritesAPI, aiAPI, marketAPI, Analysis } from "@/lib/api";
@@ -83,6 +85,10 @@ export default function AnalysisPage() {
   const [requestAssetType, setRequestAssetType] = useState("stock");
   const [isSubmittingRequest, setIsSubmittingRequest] = useState(false);
   const [requestSuccess, setRequestSuccess] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [autoRefreshInterval, setAutoRefreshInterval] = useState<number>(0); // seconds, 0=off
+  const autoRefreshRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const currentSymbolRef = useRef<string>("");
 
   const toggleSection = (section: string) => {
     setExpandedSections(prev => {
@@ -143,31 +149,55 @@ export default function AnalysisPage() {
     handleSearch(s.symbol);
   };
 
-  const handleSearch = async (searchSymbol?: string) => {
+  const handleSearch = async (searchSymbol?: string, silent = false) => {
     const s = (searchSymbol || symbol).trim().toUpperCase();
     if (!s) return;
 
-    setIsLoading(true);
-    setError("");
-    setAiInsight(null);
+    if (!silent) {
+      setIsLoading(true);
+      setError("");
+      setAiInsight(null);
+    }
+    currentSymbolRef.current = s;
 
     try {
       const data = await analysisAPI.analyze(s, timeframe);
       setAnalysis(data);
+      setLastUpdated(new Date());
 
-      // Check if favorite
-      const favCheck = await favoritesAPI.checkFavorite(s);
-      setIsFavorite(favCheck.is_favorite);
-
-      // Don't auto-load AI insight - let user click the button
-      // This avoids errors if GROQ_API_KEY is not configured
+      // Check if favorite (only on explicit search, not silent refresh)
+      if (!silent) {
+        const favCheck = await favoritesAPI.checkFavorite(s);
+        setIsFavorite(favCheck.is_favorite);
+      }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Erreur d'analyse");
-      setAnalysis(null);
+      if (!silent) {
+        setError(err instanceof Error ? err.message : "Erreur d'analyse");
+        setAnalysis(null);
+      }
     } finally {
-      setIsLoading(false);
+      if (!silent) setIsLoading(false);
     }
   };
+
+  // Auto-refresh effect
+  useEffect(() => {
+    if (autoRefreshRef.current) {
+      clearInterval(autoRefreshRef.current);
+      autoRefreshRef.current = null;
+    }
+    if (autoRefreshInterval > 0 && currentSymbolRef.current) {
+      autoRefreshRef.current = setInterval(() => {
+        if (currentSymbolRef.current) {
+          handleSearch(currentSymbolRef.current, true);
+        }
+      }, autoRefreshInterval * 1000);
+    }
+    return () => {
+      if (autoRefreshRef.current) clearInterval(autoRefreshRef.current);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoRefreshInterval]);
 
   const loadAIInsight = async (sym: string, _data: Analysis): Promise<void> => {
     setIsLoadingAI(true);
@@ -391,6 +421,44 @@ export default function AnalysisPage() {
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Refresh controls */}
+      {analysis && (
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            {lastUpdated && (
+              <>
+                <Timer className="w-3.5 h-3.5" />
+                <span>Mis à jour {Math.floor((Date.now() - lastUpdated.getTime()) / 1000) < 5 ? "à l'instant" : `il y a ${Math.floor((Date.now() - lastUpdated.getTime()) / 1000)}s`}</span>
+              </>
+            )}
+            {autoRefreshInterval > 0 && (
+              <span className="text-profit">· Auto-refresh {autoRefreshInterval}s</span>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => handleSearch(currentSymbolRef.current || symbol, false)}
+              disabled={isLoading}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-xs transition-colors disabled:opacity-50"
+            >
+              <RefreshCw className={cn("w-3.5 h-3.5", isLoading && "animate-spin")} />
+              Actualiser
+            </button>
+            <select
+              value={autoRefreshInterval}
+              onChange={(e) => setAutoRefreshInterval(Number(e.target.value))}
+              className="px-2 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-xs border border-white/10 text-muted-foreground cursor-pointer"
+            >
+              <option value={0}>Auto-refresh : Off</option>
+              <option value={15}>Toutes les 15s</option>
+              <option value={30}>Toutes les 30s</option>
+              <option value={60}>Toutes les 1 min</option>
+              <option value={300}>Toutes les 5 min</option>
+            </select>
+          </div>
         </div>
       )}
 

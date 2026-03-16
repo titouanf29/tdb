@@ -27,6 +27,45 @@
     --neon-green: 152 100% 50%;
   }
 
+  /* Light theme */
+  [data-theme="light"] {
+    --background: 220 20% 97%;
+    --foreground: 220 50% 8%;
+    --card: 0 0% 100%;
+    --card-foreground: 220 50% 8%;
+    --primary: 230 90% 55%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 220 15% 92%;
+    --secondary-foreground: 220 50% 8%;
+    --muted: 220 15% 92%;
+    --muted-foreground: 220 15% 40%;
+    --accent: 195 90% 40%;
+    --accent-foreground: 0 0% 100%;
+    --border: 220 15% 85%;
+    --ring: 230 90% 55%;
+    --neon-blue: 230 90% 52%;
+    --neon-cyan: 195 90% 38%;
+    --neon-purple: 270 80% 55%;
+    --neon-green: 152 90% 38%;
+  }
+
+  [data-theme="light"] body {
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+  }
+
+  [data-theme="light"] .glass-card {
+    background: rgba(255, 255, 255, 0.85) !important;
+    border: 1px solid rgba(0, 0, 0, 0.08) !important;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.9) !important;
+  }
+
+  [data-theme="light"] .input {
+    background: rgba(255, 255, 255, 0.9) !important;
+    border-color: rgba(0, 0, 0, 0.12) !important;
+    color: hsl(var(--foreground)) !important;
+  }
+
   * {
     @apply border-border;
   }

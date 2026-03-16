@@ -280,6 +280,7 @@ export interface Market {
 
 export interface Asset {
   symbol: string;
+  name?: string;
   price: number;
   change: number;
   volume: number;
