@@ -1,11 +1,10 @@
 import { Metadata } from 'next';
-import { InfoCard } from '@/components/info-card';
 import { SectionIntro } from '@/components/section-intro';
-import { educationCards } from '@/lib/site-config';
+import { EducationClient } from './EducationClient';
 
 export const metadata: Metadata = {
   title: 'Education trading',
-  description: 'Bases, indicateurs, gestion du risque et psychologie du trading.',
+  description: 'Leçons interactives, graphiques et quiz pour maîtriser les bases du trading : bougies, indicateurs, gestion du risque et psychologie.',
 };
 
 export default function EducationPage() {
@@ -13,15 +12,10 @@ export default function EducationPage() {
     <main className="container page-stack">
       <SectionIntro
         eyebrow="Education"
-        title="Apprendre avant d executer"
-        text="Un espace pedagogique pour comprendre les signaux et progresser sans pression."
+        title="Apprendre avant d'exécuter"
+        text="6 leçons interactives avec graphiques, exercices et quiz. Prenez le temps de comprendre — les marchés seront toujours là."
       />
-
-      <section className="page-grid">
-        {educationCards.map((card) => (
-          <InfoCard key={card.title} title={card.title} body={card.body} />
-        ))}
-      </section>
+      <EducationClient />
     </main>
   );
 }
