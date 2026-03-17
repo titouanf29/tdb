@@ -19,17 +19,12 @@ import {
   Target,
   Activity,
   DollarSign,
-  Percent,
   Clock,
   Flag,
   Bot,
   ArrowUp,
   ArrowDown,
   Minus,
-  BookOpen,
-  Lock,
-  Crown,
-  Shield,
   Brain,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -53,13 +48,10 @@ import {
   GeopoliticalData,
   BacktestResult,
   BacktestRequest,
-  AdviceData,
-  AdviceCard,
 } from "@/lib/api";
-import { usePremium } from "@/lib/PremiumContext";
 import { useFormatCurrency } from "@/lib/SettingsContext";
 
-type TabType = "pivot" | "per" | "trends" | "calendar" | "geopolitical" | "backtest" | "advice";
+type TabType = "pivot" | "per" | "trends" | "calendar" | "geopolitical" | "backtest";
 
 export default function TradingToolsPage() {
   const [activeTab, setActiveTab] = useState<TabType>("calendar");
@@ -68,7 +60,6 @@ export default function TradingToolsPage() {
     { id: "calendar" as TabType, label: "Calendrier Eco", icon: Calendar },
     { id: "geopolitical" as TabType, label: "Geopolitique", icon: Globe },
     { id: "trends" as TabType, label: "Tendances", icon: TrendingUp },
-    { id: "advice" as TabType, label: "Fiches Conseils", icon: BookOpen },
     { id: "pivot" as TabType, label: "Points Pivots", icon: Target },
     { id: "per" as TabType, label: "Palmares PER", icon: BarChart3 },
     { id: "backtest" as TabType, label: "Backtest", icon: Play },
@@ -120,7 +111,6 @@ export default function TradingToolsPage() {
         {activeTab === "calendar" && <EconomicCalendarTab />}
         {activeTab === "geopolitical" && <GeopoliticalTab />}
         {activeTab === "backtest" && <BacktestTab />}
-        {activeTab === "advice" && <AdviceTab />}
       </motion.div>
     </div>
   );
@@ -1094,262 +1084,6 @@ function BacktestTab() {
               </div>
             </div>
           )}
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ============== ADVICE TAB (FICHES CONSEILS) ==============
-function AdviceTab() {
-  const { isPremium } = usePremium();
-  const [data, setData] = useState<AdviceData | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [selectedCategory, setSelectedCategory] = useState<string>("");
-  const [selectedCard, setSelectedCard] = useState<AdviceCard | null>(null);
-  const [loadingCard, setLoadingCard] = useState(false);
-
-  const load = async () => {
-    setIsLoading(true);
-    try {
-      const result = await toolsAPI.getAdvice(selectedCategory || undefined);
-      setData(result);
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    load();
-  }, [selectedCategory]);
-
-  const openCard = async (card: AdviceCard) => {
-    if (card.locked) {
-      setSelectedCard(card);
-      return;
-    }
-
-    setLoadingCard(true);
-    try {
-      const detail = await toolsAPI.getAdviceDetail(card.id);
-      setSelectedCard(detail);
-    } catch (e: any) {
-      if (e.status === 403) {
-        setSelectedCard({ ...card, locked: true, lock_message: "Contenu reserve aux membres Premium" });
-      }
-    } finally {
-      setLoadingCard(false);
-    }
-  };
-
-  const getIcon = (iconName: string) => {
-    const icons: Record<string, React.ComponentType<{ className?: string }>> = {
-      "trending-up": TrendingUp,
-      "activity": Activity,
-      "shield": Shield,
-      "brain": Brain,
-      "chart": BarChart3,
-      "bar-chart": BarChart3,
-      "target": Target,
-      "percent": Percent,
-    };
-    return icons[iconName] || BookOpen;
-  };
-
-  return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="glass-card p-6">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
-            <BookOpen className="w-5 h-5 text-primary" />
-            <h2 className="text-lg font-semibold">Fiches Conseils Trading</h2>
-          </div>
-
-          <div className="flex items-center gap-4">
-            <select
-              value={selectedCategory}
-              onChange={(e) => setSelectedCategory(e.target.value)}
-              className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-sm"
-            >
-              <option value="" className="bg-background">Toutes les categories</option>
-              {data?.categories.map((cat) => (
-                <option key={cat.key} value={cat.key} className="bg-background">
-                  {cat.label}
-                </option>
-              ))}
-            </select>
-
-            <button onClick={load} disabled={isLoading} className="p-2 rounded-lg hover:bg-white/10">
-              <RefreshCw className={cn("w-4 h-4", isLoading && "animate-spin")} />
-            </button>
-          </div>
-        </div>
-
-        {!isPremium && (
-          <div className="p-3 rounded-lg bg-yellow-500/10 border border-yellow-500/30 flex items-center gap-3">
-            <Crown className="w-5 h-5 text-yellow-400" />
-            <p className="text-sm text-yellow-400">
-              Certaines fiches sont reservees aux membres Premium.{" "}
-              <a href="/premium" className="underline hover:no-underline">
-                Passer Premium
-              </a>
-            </p>
-          </div>
-        )}
-      </div>
-
-      {/* Cards Grid */}
-      {isLoading && !data ? (
-        <div className="flex justify-center py-12">
-          <Loader2 className="w-8 h-8 animate-spin text-primary" />
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {data?.advice.map((card) => {
-            const Icon = getIcon(card.icon);
-            return (
-              <motion.div
-                key={card.id}
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                whileHover={{ scale: 1.02 }}
-                onClick={() => openCard(card)}
-                className={cn(
-                  "glass-card p-5 cursor-pointer transition-colors relative overflow-hidden",
-                  card.locked ? "opacity-80" : "hover:bg-white/5"
-                )}
-              >
-                {card.locked && (
-                  <div className="absolute top-3 right-3">
-                    <div className="p-1.5 rounded-full bg-yellow-500/20">
-                      <Lock className="w-3.5 h-3.5 text-yellow-400" />
-                    </div>
-                  </div>
-                )}
-
-                <div className="w-12 h-12 rounded-xl bg-primary/20 flex items-center justify-center mb-4">
-                  <Icon className="w-6 h-6 text-primary" />
-                </div>
-
-                <h3 className="font-semibold mb-2">{card.title}</h3>
-                <p className="text-sm text-muted-foreground line-clamp-2">{card.summary}</p>
-
-                <div className="mt-4 flex items-center justify-between">
-                  <span className="text-xs px-2 py-1 rounded-full bg-white/5 text-muted-foreground capitalize">
-                    {data?.categories.find((c) => c.key === card.category)?.label || card.category}
-                  </span>
-                  {card.premium_only && (
-                    <span className="text-xs px-2 py-1 rounded-full bg-yellow-500/20 text-yellow-400 flex items-center gap-1">
-                      <Crown className="w-3 h-3" />
-                      Premium
-                    </span>
-                  )}
-                </div>
-              </motion.div>
-            );
-          })}
-        </div>
-      )}
-
-      {/* Card Detail Modal */}
-      {selectedCard && (
-        <div
-          className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
-          onClick={() => setSelectedCard(null)}
-        >
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            onClick={(e) => e.stopPropagation()}
-            className="glass-card p-6 w-full max-w-3xl max-h-[80vh] overflow-y-auto"
-          >
-            {loadingCard ? (
-              <div className="flex justify-center py-12">
-                <Loader2 className="w-8 h-8 animate-spin text-primary" />
-              </div>
-            ) : selectedCard.locked ? (
-              <div className="text-center py-12">
-                <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-yellow-500/20 flex items-center justify-center">
-                  <Lock className="w-10 h-10 text-yellow-400" />
-                </div>
-                <h3 className="text-xl font-bold mb-2">{selectedCard.title}</h3>
-                <p className="text-muted-foreground mb-6">{selectedCard.lock_message}</p>
-                <a
-                  href="/premium"
-                  className="inline-flex items-center gap-2 btn-primary"
-                >
-                  <Crown className="w-4 h-4" />
-                  Passer Premium
-                </a>
-              </div>
-            ) : (
-              <>
-                <div className="flex items-start justify-between mb-6">
-                  <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-xl bg-primary/20 flex items-center justify-center">
-                      {(() => {
-                        const Icon = getIcon(selectedCard.icon);
-                        return <Icon className="w-6 h-6 text-primary" />;
-                      })()}
-                    </div>
-                    <div>
-                      <h2 className="text-xl font-bold">{selectedCard.title}</h2>
-                      <p className="text-sm text-muted-foreground">
-                        {data?.categories.find((c) => c.key === selectedCard.category)?.label}
-                      </p>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => setSelectedCard(null)}
-                    className="p-2 rounded-lg hover:bg-white/10"
-                  >
-                    <span className="text-xl">&times;</span>
-                  </button>
-                </div>
-
-                <div className="prose prose-invert max-w-none prose-headings:text-foreground prose-p:text-muted-foreground prose-strong:text-foreground prose-code:text-primary prose-code:bg-primary/10 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-pre:bg-white/5 prose-pre:border prose-pre:border-white/10 prose-table:text-sm prose-th:bg-white/5 prose-th:p-2 prose-td:p-2 prose-td:border-white/10 prose-img:rounded-xl prose-img:border prose-img:border-white/10">
-                  <ReactMarkdown
-                    remarkPlugins={[remarkGfm]}
-                    components={{
-                      img: ({ node, ...props }) => (
-                        <img {...props} className="max-w-full h-auto rounded-xl border border-white/10 my-4" loading="lazy" />
-                      ),
-                      table: ({ node, ...props }) => (
-                        <div className="overflow-x-auto my-4">
-                          <table {...props} className="w-full border-collapse border border-white/10 rounded-lg overflow-hidden" />
-                        </div>
-                      ),
-                      th: ({ node, ...props }) => (
-                        <th {...props} className="bg-white/5 p-2 text-left font-semibold border border-white/10" />
-                      ),
-                      td: ({ node, ...props }) => (
-                        <td {...props} className="p-2 border border-white/10" />
-                      ),
-                      code: ({ node, inline, ...props }: any) => (
-                        inline
-                          ? <code {...props} className="text-primary bg-primary/10 px-1.5 py-0.5 rounded text-sm" />
-                          : <code {...props} className="block bg-white/5 p-4 rounded-lg border border-white/10 overflow-x-auto text-sm" />
-                      ),
-                      blockquote: ({ node, ...props }) => (
-                        <blockquote {...props} className="border-l-4 border-primary pl-4 italic text-muted-foreground my-4" />
-                      ),
-                      ul: ({ node, ...props }) => (
-                        <ul {...props} className="list-disc list-inside space-y-1 my-2" />
-                      ),
-                      ol: ({ node, ...props }) => (
-                        <ol {...props} className="list-decimal list-inside space-y-1 my-2" />
-                      ),
-                    }}
-                  >
-                    {selectedCard.content}
-                  </ReactMarkdown>
-                </div>
-              </>
-            )}
-          </motion.div>
         </div>
       )}
     </div>
