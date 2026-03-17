@@ -13,7 +13,7 @@ export default function EducationPage() {
       <SectionIntro
         eyebrow="Education"
         title="Apprendre avant d'exécuter"
-        text="6 leçons interactives avec graphiques, exercices et quiz. Prenez le temps de comprendre — les marchés seront toujours là."
+        text="10 leçons interactives avec graphiques, exercices et quiz. Prenez le temps de comprendre — les marchés seront toujours là."
       />
       <EducationClient />
     </main>

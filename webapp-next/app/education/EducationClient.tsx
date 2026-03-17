@@ -443,6 +443,210 @@ function QuizSection() {
   );
 }
 
+/* ─── ORDER BOOK CHART ────────────────────────────────────── */
+function OrderBookChart() {
+  const bids = [
+    { price: 44900, size: 3.2 },
+    { price: 44850, size: 5.8 },
+    { price: 44800, size: 9.1 },
+    { price: 44750, size: 4.3 },
+    { price: 44700, size: 12.5 },
+    { price: 44650, size: 7.2 },
+  ];
+  const asks = [
+    { price: 44950, size: 2.8 },
+    { price: 45000, size: 6.4 },
+    { price: 45050, size: 11.3 },
+    { price: 45100, size: 4.9 },
+    { price: 45150, size: 8.7 },
+    { price: 45200, size: 5.1 },
+  ];
+  const maxSize = Math.max(...bids.map(b => b.size), ...asks.map(a => a.size));
+  return (
+    <div className="chart-wrap">
+      <div className="chart-label">Carnet d&apos;ordres — BTC/USD (fictif)</div>
+      <div className="ob-container">
+        <div className="ob-col">
+          <div className="ob-header"><span>Prix (Bid)</span><span>Taille</span></div>
+          {bids.map((b, i) => (
+            <div key={i} className="ob-row ob-bid" style={{ '--bar': `${(b.size / maxSize) * 100}%` } as React.CSSProperties}>
+              <span className="ob-price">{b.price.toLocaleString()}</span>
+              <span className="ob-size">{b.size.toFixed(1)}</span>
+            </div>
+          ))}
+        </div>
+        <div className="ob-spread">
+          <div className="ob-spread-label">Spread</div>
+          <div className="ob-spread-val">50 $</div>
+        </div>
+        <div className="ob-col">
+          <div className="ob-header"><span>Prix (Ask)</span><span>Taille</span></div>
+          {asks.map((a, i) => (
+            <div key={i} className="ob-row ob-ask" style={{ '--bar': `${(a.size / maxSize) * 100}%` } as React.CSSProperties}>
+              <span className="ob-price">{a.price.toLocaleString()}</span>
+              <span className="ob-size">{a.size.toFixed(1)}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+      <p className="chart-note">💡 Les ordres Bid sont des acheteurs en attente, les Ask sont des vendeurs. Le spread = Ask − Bid.</p>
+    </div>
+  );
+}
+
+/* ─── TREND CHART ─────────────────────────────────────────── */
+function TrendChart() {
+  const [hovered, setHovered] = useState<number | null>(null);
+  const data = [38, 40, 37, 42, 41, 45, 43, 48, 46, 52, 50, 55, 53, 58, 56, 62, 60, 65];
+  const W = 540; const H = 180;
+  const PAD = { top: 14, right: 14, bottom: 26, left: 44 };
+  const chartW = W - PAD.left - PAD.right;
+  const chartH = H - PAD.top - PAD.bottom;
+  const minV = Math.min(...data) - 3;
+  const maxV = Math.max(...data) + 3;
+  const toX = (i: number) => PAD.left + (i / (data.length - 1)) * chartW;
+  const toY = (v: number) => PAD.top + (1 - (v - minV) / (maxV - minV)) * chartH;
+  // Higher highs and higher lows indices
+  const hhIdx = [3, 7, 11, 15, 17];
+  const hlIdx = [2, 6, 10, 14];
+  return (
+    <div className="chart-wrap">
+      <div className="chart-label">Tendance haussière — plus-hauts et plus-bas croissants</div>
+      <svg viewBox={`0 0 ${W} ${H}`} className="chart-svg" role="img" aria-label="Trend chart">
+        {/* Grid */}
+        {[minV + 3, (minV + maxV) / 2, maxV - 3].map((v, i) => (
+          <g key={i}>
+            <line x1={PAD.left} x2={W - PAD.right} y1={toY(v)} y2={toY(v)} stroke="rgba(39,51,78,0.6)" strokeWidth="1" strokeDasharray="4 4" />
+            <text x={PAD.left - 6} y={toY(v) + 4} textAnchor="end" fontSize="10" fill="#9db0d0">{v}</text>
+          </g>
+        ))}
+        {/* Area fill */}
+        <defs>
+          <linearGradient id="trendGrad" x1="0" x2="0" y1="0" y2="1">
+            <stop offset="0%" stopColor="#29e17c" stopOpacity="0.2" />
+            <stop offset="100%" stopColor="#29e17c" stopOpacity="0" />
+          </linearGradient>
+        </defs>
+        <polygon
+          points={[...data.map((v, i) => `${toX(i)},${toY(v)}`), `${toX(data.length - 1)},${H - PAD.bottom}`, `${PAD.left},${H - PAD.bottom}`].join(' ')}
+          fill="url(#trendGrad)"
+        />
+        {/* Line */}
+        <polyline points={data.map((v, i) => `${toX(i)},${toY(v)}`).join(' ')} fill="none" stroke="#29e17c" strokeWidth="2" />
+        {/* Higher highs */}
+        {hhIdx.map(i => (
+          <g key={i}>
+            <circle cx={toX(i)} cy={toY(data[i])} r={5} fill="#29e17c" stroke="#0d1f35" strokeWidth="1.5"
+              onMouseEnter={() => setHovered(i)} onMouseLeave={() => setHovered(null)} style={{ cursor: 'pointer' }} />
+            <text x={toX(i)} y={toY(data[i]) - 8} textAnchor="middle" fontSize="9" fill="#29e17c">HH</text>
+          </g>
+        ))}
+        {/* Higher lows */}
+        {hlIdx.map(i => (
+          <g key={i}>
+            <circle cx={toX(i)} cy={toY(data[i])} r={5} fill="#2d7cff" stroke="#0d1f35" strokeWidth="1.5"
+              onMouseEnter={() => setHovered(i)} onMouseLeave={() => setHovered(null)} style={{ cursor: 'pointer' }} />
+            <text x={toX(i)} y={toY(data[i]) + 16} textAnchor="middle" fontSize="9" fill="#2d7cff">HL</text>
+          </g>
+        ))}
+        {/* Hover tooltip */}
+        {hovered !== null && (
+          <g>
+            <rect x={toX(hovered) + 8} y={toY(data[hovered]) - 20} width={60} height={22} fill="#0d1f35" rx="4" stroke="rgba(45,124,255,0.4)" strokeWidth="1" />
+            <text x={toX(hovered) + 38} y={toY(data[hovered]) - 5} textAnchor="middle" fontSize="10" fill="#e2eaf6">val: {data[hovered]}</text>
+          </g>
+        )}
+      </svg>
+      <p className="chart-note">HH = Higher High (plus-haut croissant) · HL = Higher Low (plus-bas croissant)</p>
+    </div>
+  );
+}
+
+/* ─── STYLE COMPARISON ────────────────────────────────────── */
+function StyleComparison() {
+  const [active, setActive] = useState<'scalp' | 'day' | 'swing'>('day');
+  const styles = {
+    scalp: {
+      label: 'Scalping',
+      color: '#f87171',
+      duration: 'Secondes à minutes',
+      timeframe: 'Tick / 1m / 5m',
+      trades: '10–50 / jour',
+      profit: '0.1–0.5% par trade',
+      stress: 95,
+      skill: 90,
+      capital: 40,
+      pros: ['Profit rapide', 'Pas d\'overnight', 'Beaucoup d\'opportunités'],
+      cons: ['Très stressant', 'Frais importants', 'Nécessite concentration totale'],
+    },
+    day: {
+      label: 'Day Trading',
+      color: '#f59e0b',
+      duration: 'Minutes à heures',
+      timeframe: '5m / 15m / 1h',
+      trades: '1–5 / jour',
+      profit: '0.5–2% par trade',
+      stress: 65,
+      skill: 70,
+      capital: 55,
+      pros: ['Pas de positions overnight', 'Setups clairs', 'Rythme gérable'],
+      cons: ['Besoin de plusieurs heures/jour', 'Volatile intraday', 'Exige discipline'],
+    },
+    swing: {
+      label: 'Swing Trading',
+      color: '#29e17c',
+      duration: 'Jours à semaines',
+      timeframe: '4h / Daily',
+      trades: '2–10 / mois',
+      profit: '3–15% par trade',
+      stress: 30,
+      skill: 55,
+      capital: 70,
+      pros: ['Peu chronophage', 'Moins de bruit', 'Idéal pour débutants'],
+      cons: ['Risque overnight', 'Patience requise', 'Moins d\'opportunités'],
+    },
+  };
+  const s = styles[active];
+  return (
+    <div className="style-comp">
+      <div className="style-tabs">
+        {(Object.keys(styles) as Array<keyof typeof styles>).map(k => (
+          <button key={k} className={`style-tab${active === k ? ' active' : ''}`} style={{ '--tc': styles[k].color } as React.CSSProperties} onClick={() => setActive(k)}>
+            {styles[k].label}
+          </button>
+        ))}
+      </div>
+      <div className="style-detail">
+        <div className="style-grid">
+          <div className="style-info-item"><span>Durée</span><strong style={{ color: s.color }}>{s.duration}</strong></div>
+          <div className="style-info-item"><span>Timeframe</span><strong style={{ color: s.color }}>{s.timeframe}</strong></div>
+          <div className="style-info-item"><span>Fréquence</span><strong style={{ color: s.color }}>{s.trades}</strong></div>
+          <div className="style-info-item"><span>Objectif</span><strong style={{ color: s.color }}>{s.profit}</strong></div>
+        </div>
+        <div className="style-bars">
+          {([['Stress', s.stress, '#f87171'], ['Compétence requise', s.skill, '#f59e0b'], ['Capital accessible', s.capital, '#29e17c']] as [string, number, string][]).map(([label, val, col]) => (
+            <div key={label} className="style-bar-row">
+              <span className="style-bar-label">{label}</span>
+              <div className="style-bar-bg"><div className="style-bar-fill" style={{ width: `${val}%`, background: col }} /></div>
+              <span className="style-bar-pct">{val}%</span>
+            </div>
+          ))}
+        </div>
+        <div className="style-pros-cons">
+          <div>
+            <div className="style-pros-title" style={{ color: '#29e17c' }}>✅ Avantages</div>
+            {s.pros.map((p, i) => <div key={i} className="style-point">· {p}</div>)}
+          </div>
+          <div>
+            <div className="style-pros-title" style={{ color: '#f87171' }}>⚠️ Inconvénients</div>
+            {s.cons.map((c, i) => <div key={i} className="style-point">· {c}</div>)}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ─── LESSON DATA ─────────────────────────────────────────── */
 const LESSONS = [
   {
@@ -498,6 +702,42 @@ const LESSONS = [
     emoji: '🔭',
     color: '#ec4899',
     intro: 'Les meilleurs traders commencent par la vue d\'ensemble avant de zoomer sur l\'actif. C\'est l\'approche top-down.',
+  },
+  {
+    num: '07',
+    title: 'Types d\'Ordres',
+    duration: '7 min',
+    tags: ['Market', 'Limit', 'Slippage'],
+    emoji: '📋',
+    color: '#10b981',
+    intro: 'Savoir quel type d\'ordre utiliser peut faire la différence entre un bon et un mauvais remplissage — et donc entre profit et perte.',
+  },
+  {
+    num: '08',
+    title: 'Carnet d\'Ordres',
+    duration: '9 min',
+    tags: ['Order Book', 'Bid/Ask', 'Liquidité'],
+    emoji: '📖',
+    color: '#8b5cf6',
+    intro: 'Le carnet d\'ordres révèle les intentions des acheteurs et vendeurs en temps réel. C\'est la radiographie du marché.',
+  },
+  {
+    num: '09',
+    title: 'Trading de Tendance',
+    duration: '10 min',
+    tags: ['Trend', 'Breakout', 'Pull-back'],
+    emoji: '🚀',
+    color: '#f97316',
+    intro: 'La tendance est votre alliée. Apprendre à l\'identifier et à trader dans sa direction est la base de toute stratégie rentable.',
+  },
+  {
+    num: '10',
+    title: 'Styles de Trading',
+    duration: '8 min',
+    tags: ['Scalping', 'Day', 'Swing'],
+    emoji: '⚡',
+    color: '#e879f9',
+    intro: 'Chaque trader a un style qui correspond à sa personnalité, son capital et son temps disponible. Trouvez le vôtre.',
   },
 ];
 
@@ -678,6 +918,134 @@ function LessonContent({ num }: { num: string }) {
         </div>
       </div>
       <div className="info-callout">💡 TDB fait ce travail <strong>automatiquement</strong> : il analyse le contexte macro, les corrélations et l'actif simultanément. Le score résume cette cascade d'analyses en un seul chiffre.</div>
+    </div>
+  );
+
+  if (num === '07') return (
+    <div className="lesson-body">
+      <h4>📋 Ordre au marché vs ordre limité</h4>
+      <div className="concept-row">
+        <div className="concept-box" style={{ borderColor: '#2d7cff' }}>
+          <div className="concept-icon">⚡</div>
+          <strong>Ordre au marché (Market)</strong>
+          <p>Exécution immédiate au <em>meilleur prix disponible</em>. Priorité à la vitesse. Risque de slippage en cas de faible liquidité.</p>
+        </div>
+        <div className="concept-box" style={{ borderColor: '#29e17c' }}>
+          <div className="concept-icon">🎯</div>
+          <strong>Ordre limité (Limit)</strong>
+          <p>Exécution uniquement si le prix atteint votre niveau. Priorité au prix. Pas de slippage, mais pas garanti de se remplir.</p>
+        </div>
+        <div className="concept-box" style={{ borderColor: '#f87171' }}>
+          <div className="concept-icon">🛑</div>
+          <strong>Stop Loss (Stop Market)</strong>
+          <p>Déclenché quand le prix atteint un seuil. Coupe automatiquement la perte. Peut subir du slippage en gaps de marché.</p>
+        </div>
+      </div>
+      <h4 style={{ marginTop: '1.5rem' }}>⚠️ Le slippage — ce coût invisible</h4>
+      <div className="info-callout">
+        Le <strong>slippage</strong> est la différence entre le prix attendu et le prix réel d&apos;exécution.<br /><br />
+        → Vous achetez BTC à <strong>44 900 $</strong> au marché<br />
+        → Exécution réelle à <strong>44 950 $</strong><br />
+        → Slippage = <strong style={{ color: '#f87171' }}>50 $ de perdu</strong> immédiatement<br /><br />
+        Solution : utilisez des <strong>ordres limités</strong> pour les entrées. Réservez les ordres marché aux sorties urgentes.
+      </div>
+      <h4 style={{ marginTop: '1.5rem' }}>🔧 Quel ordre utiliser ?</h4>
+      <div className="phase-list">
+        <div className="phase-item" style={{ borderLeft: '3px solid #29e17c' }}><strong>Entrée sur pull-back</strong><br />Ordre limité sous la résistance — attendre le prix, ne pas courir après.</div>
+        <div className="phase-item" style={{ borderLeft: '3px solid #2d7cff' }}><strong>Breakout explosif</strong><br />Ordre au marché acceptable si la liquidité est haute (spread faible).</div>
+        <div className="phase-item" style={{ borderLeft: '3px solid #f87171' }}><strong>Stop Loss</strong><br />Toujours en place avant l&apos;entrée. Stop limit risqué — préférer stop market pour la protection.</div>
+        <div className="phase-item" style={{ borderLeft: '3px solid #f59e0b' }}><strong>Take Profit</strong><br />Ordre limité sur la zone cible. Garanti de se remplir au prix désiré.</div>
+      </div>
+    </div>
+  );
+
+  if (num === '08') return (
+    <div className="lesson-body">
+      <h4>📖 Comprendre le carnet d&apos;ordres</h4>
+      <p>Le carnet d&apos;ordres (<strong>order book</strong>) liste tous les ordres limités en attente d&apos;exécution. Il révèle où se trouve la liquidité — et donc où le prix peut s&apos;arrêter ou accélérer.</p>
+      <p>👇 <em>Observez la structure bid/ask et le spread central.</em></p>
+      <OrderBookChart />
+      <h4 style={{ marginTop: '1.5rem' }}>🔑 Concepts clés</h4>
+      <div className="concept-row">
+        <div className="concept-box" style={{ borderColor: '#29e17c' }}>
+          <strong>Bid (acheteurs)</strong>
+          <p>Prix maximum que les acheteurs sont prêts à payer. Côté vert du carnet.</p>
+        </div>
+        <div className="concept-box" style={{ borderColor: '#f87171' }}>
+          <strong>Ask (vendeurs)</strong>
+          <p>Prix minimum que les vendeurs acceptent. Côté rouge du carnet.</p>
+        </div>
+        <div className="concept-box" style={{ borderColor: '#f59e0b' }}>
+          <strong>Spread</strong>
+          <p>Différence Ask − Bid. Plus il est faible, plus l&apos;actif est liquide et les coûts réduits.</p>
+        </div>
+      </div>
+      <div className="info-callout">
+        💡 <strong>Murs d&apos;ordres (walls)</strong> : un volume anormalement élevé à un niveau est souvent une résistance/support temporaire. Le prix peut y rebondir — ou le franchir avec violence si le mur est retiré ou absorbé.
+      </div>
+      <h4 style={{ marginTop: '1.5rem' }}>📊 Liquidité et market impact</h4>
+      <div className="phase-list">
+        <div className="phase-item" style={{ borderLeft: '3px solid #29e17c' }}><strong>Haute liquidité (BTC, ETH, AAPL…)</strong><br />Spread serré, slippage minimal. Facile d&apos;entrer et sortir même avec des positions importantes.</div>
+        <div className="phase-item" style={{ borderLeft: '3px solid #f87171' }}><strong>Faible liquidité (small caps, altcoins)</strong><br />Spread large, slippage fort. Un ordre moyen peut déplacer le prix de plusieurs pourcents.</div>
+      </div>
+    </div>
+  );
+
+  if (num === '09') return (
+    <div className="lesson-body">
+      <h4>🚀 Identifier une tendance</h4>
+      <p>Une tendance haussière se définit par une succession de <strong>plus-hauts croissants (HH)</strong> et de <strong>plus-bas croissants (HL)</strong>. L&apos;inverse définit une tendance baissière.</p>
+      <p>👇 <em>Chaque point vert (HH) confirme la tendance. Chaque point bleu (HL) offre une entrée.</em></p>
+      <TrendChart />
+      <h4 style={{ marginTop: '1.5rem' }}>📐 Les 3 types d&apos;entrées en tendance</h4>
+      <div className="phase-list">
+        <div className="phase-item" style={{ borderLeft: '3px solid #29e17c' }}>
+          <strong>Pull-back sur support</strong><br />
+          Le prix reteste un ancien niveau ou une MA. C&apos;est l&apos;entrée <em>idéale</em> — bon rapport R/R, confirmation de tendance.
+        </div>
+        <div className="phase-item" style={{ borderLeft: '3px solid #2d7cff' }}>
+          <strong>Breakout de résistance</strong><br />
+          Le prix franchit un niveau avec volume. Entrée agressive. Attention aux faux breakouts — attendre la clôture de bougie.
+        </div>
+        <div className="phase-item" style={{ borderLeft: '3px solid #f59e0b' }}>
+          <strong>Re-test du breakout</strong><br />
+          Après un breakout, le prix revient tester l&apos;ancien niveau (maintenant support). Entrée conservatrice avec confirmation.
+        </div>
+      </div>
+      <h4 style={{ marginTop: '1.5rem' }}>🎯 La règle du trend following</h4>
+      <div className="info-callout">
+        Ne <strong>jamais</strong> trader contre la tendance dominante sans raison solide.<br /><br />
+        ✅ Tendance haussière → chercher des achats sur pull-backs<br />
+        ✅ Tendance baissière → chercher des ventes sur rebonds<br />
+        ❌ Essayer d&apos;attraper le sommet/creux → stratégie à très faible probabilité de succès
+      </div>
+      <div className="stats-row">
+        <div className="stat-bubble" style={{ background: 'rgba(41,225,124,0.1)', border: '1px solid rgba(41,225,124,0.3)' }}>
+          <strong style={{ color: '#29e17c', fontSize: '1.8rem' }}>3:1</strong>
+          <span>R/R moyen d&apos;un trade de tendance bien exécuté</span>
+        </div>
+        <div className="stat-bubble" style={{ background: 'rgba(45,124,255,0.1)', border: '1px solid rgba(45,124,255,0.3)' }}>
+          <strong style={{ color: '#2d7cff', fontSize: '1.8rem' }}>65%</strong>
+          <span>taux de réussite typique en trend following discipliné</span>
+        </div>
+      </div>
+    </div>
+  );
+
+  if (num === '10') return (
+    <div className="lesson-body">
+      <h4>⚡ Quel style vous correspond ?</h4>
+      <p>Il n&apos;existe pas de style &quot;supérieur&quot; — seulement celui qui correspond à <strong>votre personnalité, votre temps et votre capital</strong>. Cliquez sur chaque style pour comparer.</p>
+      <StyleComparison />
+      <h4 style={{ marginTop: '1.5rem' }}>🧭 Comment choisir votre style</h4>
+      <div className="phase-list">
+        <div className="phase-item" style={{ borderLeft: '3px solid #29e17c' }}><strong>Vous avez peu de temps</strong><br />Swing trading. 30 min d&apos;analyse le soir suffisent pour gérer 2-3 positions hebdomadaires.</div>
+        <div className="phase-item" style={{ borderLeft: '3px solid #f59e0b' }}><strong>Vous pouvez surveiller le marché 2-4h/jour</strong><br />Day trading. Permet de clôturer toutes les positions le soir sans risque overnight.</div>
+        <div className="phase-item" style={{ borderLeft: '3px solid #f87171' }}><strong>Vous êtes disponible en continu</strong><br />Scalping envisageable, mais exige une infrastructure et une discipline hors norme.</div>
+      </div>
+      <div className="info-callout">
+        💡 <strong>Conseil pour les débutants</strong> : commencez toujours par le <strong>swing trading</strong>. Les timeframes plus élevés (daily/4h) offrent des signaux plus clairs, moins de bruit, et laissent le temps de réfléchir avant d&apos;agir.
+      </div>
     </div>
   );
 
