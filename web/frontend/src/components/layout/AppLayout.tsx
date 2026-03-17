@@ -7,13 +7,24 @@ import { Sidebar } from "./Sidebar";
 import { Header } from "./Header";
 import { BroadcastBanner } from "./BroadcastBanner";
 import { ChangelogBanner } from "./ChangelogBanner";
+import { OnboardingModal } from "@/components/onboarding/OnboardingModal";
 import { Loader2 } from "lucide-react";
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, user } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(false);
+
+  // Show onboarding modal if user hasn't set their level yet
+  useEffect(() => {
+    if (isAuthenticated && user && user.trading_level == null) {
+      // Small delay so the page loads first
+      const t = setTimeout(() => setShowOnboarding(true), 800);
+      return () => clearTimeout(t);
+    }
+  }, [isAuthenticated, user]);
 
   const isAuthPage = pathname?.startsWith("/login") || pathname?.startsWith("/register");
   const isLandingPage = pathname === "/";
@@ -70,6 +81,11 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex h-screen overflow-hidden">
+      {/* Onboarding modal */}
+      {showOnboarding && (
+        <OnboardingModal onClose={() => setShowOnboarding(false)} />
+      )}
+
       {/* Mobile overlay */}
       {mobileMenuOpen && (
         <div

@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import {
   User,
+  TradingLevel,
   RegisterResponse,
   getUser,
   getMe,
@@ -10,6 +11,7 @@ import {
   register as authRegister,
   logout as authLogout,
   getToken,
+  setUser as saveUser,
 } from "./auth";
 
 interface AuthContextType {
@@ -24,6 +26,7 @@ interface AuthContextType {
     firstName?: string
   ) => Promise<RegisterResponse>;
   logout: () => Promise<void>;
+  setTradingLevel: (level: TradingLevel) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -76,6 +79,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
   };
 
+  const setTradingLevel = async (level: TradingLevel) => {
+    const token = getToken();
+    if (!token) return;
+    await fetch("/api/users/settings", {
+      method: "PUT",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ trading_level: level }),
+    });
+    const updated = { ...user!, trading_level: level };
+    setUser(updated);
+    saveUser(updated);
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -85,6 +101,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         login,
         register,
         logout,
+        setTradingLevel,
       }}
     >
       {children}

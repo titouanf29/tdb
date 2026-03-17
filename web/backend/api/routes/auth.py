@@ -302,6 +302,7 @@ async def get_me(current_user: dict = Depends(get_current_user)):
         "created_at": current_user.get("created_at"),
         "email_verified": bool(current_user.get("email_verified")),
         "user_type": "email",
+        "trading_level": current_user.get("trading_level"),
     }
 
 

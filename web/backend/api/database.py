@@ -145,8 +145,12 @@ async def _init_postgres():
                 stripe_subscription_id TEXT
             )
         """)
-        # Add Stripe columns if they don't exist (for existing databases)
-        for col, col_type in [("stripe_customer_id", "TEXT"), ("stripe_subscription_id", "TEXT")]:
+        # Add columns if they don't exist (for existing databases)
+        for col, col_type in [
+            ("stripe_customer_id", "TEXT"),
+            ("stripe_subscription_id", "TEXT"),
+            ("trading_level", "TEXT"),
+        ]:
             try:
                 await conn.execute(f"ALTER TABLE web_users ADD COLUMN {col} {col_type}")
             except Exception:
@@ -397,9 +401,11 @@ async def _init_sqlite():
                 stripe_subscription_id TEXT
             )
         """)
-        for col in ["stripe_customer_id", "stripe_subscription_id"]:
+        for col in ["stripe_customer_id", "stripe_subscription_id", "trading_level",
+                    "is_admin", "is_premium", "premium_since", "premium_expires", "email_verified"]:
+            col_type = "INTEGER DEFAULT 0" if col in ("is_admin", "is_premium", "email_verified") else "TEXT"
             try:
-                await db.execute(f"ALTER TABLE web_users ADD COLUMN {col} TEXT")
+                await db.execute(f"ALTER TABLE web_users ADD COLUMN {col} {col_type}")
             except Exception:
                 pass
         await db.execute("""

@@ -8,6 +8,8 @@ const API_URL = typeof window !== "undefined"
   ? ""
   : (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000");
 
+export type TradingLevel = "beginner" | "intermediate" | "expert";
+
 export interface User {
   id: number;
   email?: string;
@@ -15,6 +17,7 @@ export interface User {
   first_name?: string;
   last_name?: string;
   user_type: "email";
+  trading_level?: TradingLevel | null;
 }
 
 export interface AuthResponse {

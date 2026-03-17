@@ -15,9 +15,14 @@ import {
   Sun,
   LogOut,
   Loader2,
+  GraduationCap,
+  TrendingUp,
+  Zap,
+  Check,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/AuthContext";
+import { TradingLevel } from "@/lib/auth";
 import { useSettings, Currency, ACCENT_PRESETS, AccentColor } from "@/lib/SettingsContext";
 
 export default function SettingsPage() {
@@ -83,16 +88,59 @@ export default function SettingsPage() {
   );
 }
 
+const LEVEL_OPTIONS: {
+  id: TradingLevel;
+  icon: React.ElementType;
+  label: string;
+  description: string;
+  color: string;
+}[] = [
+  {
+    id: "beginner",
+    icon: GraduationCap,
+    label: "Débutant",
+    description: "Explications détaillées, parcours guidé, glossaire au survol",
+    color: "border-emerald-500/50 bg-emerald-500/10 text-emerald-400",
+  },
+  {
+    id: "intermediate",
+    icon: TrendingUp,
+    label: "Intermédiaire",
+    description: "Infobulles concises, accès complet aux ressources pédagogiques",
+    color: "border-blue-500/50 bg-blue-500/10 text-blue-400",
+  },
+  {
+    id: "expert",
+    icon: Zap,
+    label: "Expert",
+    description: "Interface épurée, pas d'explications basiques, expérience pro",
+    color: "border-purple-500/50 bg-purple-500/10 text-purple-400",
+  },
+];
+
 function ProfileSettings() {
-  const { user } = useAuth();
+  const { user, setTradingLevel } = useAuth();
   const [isSaving, setIsSaving] = useState(false);
+  const [levelSaving, setLevelSaving] = useState(false);
+  const [levelSaved, setLevelSaved] = useState(false);
   const [displayName, setDisplayName] = useState(user?.username || user?.first_name || "");
 
   const handleSave = async () => {
     setIsSaving(true);
-    // TODO: Implement save to backend
     await new Promise((resolve) => setTimeout(resolve, 1000));
     setIsSaving(false);
+  };
+
+  const handleLevelChange = async (level: TradingLevel) => {
+    if (user?.trading_level === level) return;
+    setLevelSaving(true);
+    try {
+      await setTradingLevel(level);
+      setLevelSaved(true);
+      setTimeout(() => setLevelSaved(false), 2000);
+    } finally {
+      setLevelSaving(false);
+    }
   };
 
   return (
@@ -135,6 +183,44 @@ function ProfileSettings() {
         )}
         Sauvegarder
       </button>
+
+      {/* Trading level */}
+      <div className="pt-4 border-t border-white/10">
+        <div className="flex items-center justify-between mb-1">
+          <label className="text-sm font-medium">Niveau de trading</label>
+          <div className="flex items-center gap-2">
+            {levelSaving && <Loader2 className="w-3 h-3 animate-spin text-muted-foreground" />}
+            {levelSaved && <span className="text-xs text-emerald-400 flex items-center gap-1"><Check className="w-3 h-3" /> Sauvegardé</span>}
+          </div>
+        </div>
+        <p className="text-xs text-muted-foreground mb-3">
+          Adapte l'interface et les explications à votre niveau.
+        </p>
+        <div className="space-y-2">
+          {LEVEL_OPTIONS.map((opt) => {
+            const Icon = opt.icon;
+            const isActive = user?.trading_level === opt.id;
+            return (
+              <button
+                key={opt.id}
+                onClick={() => handleLevelChange(opt.id)}
+                disabled={levelSaving}
+                className={cn(
+                  "w-full text-left p-4 rounded-xl border-2 transition-all flex items-center gap-3",
+                  isActive ? opt.color : "border-white/10 bg-white/5 hover:bg-white/10"
+                )}
+              >
+                <Icon className={cn("w-5 h-5 shrink-0", isActive ? "" : "text-muted-foreground")} />
+                <div className="flex-1">
+                  <p className="font-medium text-sm">{opt.label}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">{opt.description}</p>
+                </div>
+                {isActive && <Check className="w-4 h-4 shrink-0" />}
+              </button>
+            );
+          })}
+        </div>
+      </div>
     </div>
   );
 }

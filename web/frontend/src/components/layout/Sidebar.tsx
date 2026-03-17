@@ -20,6 +20,7 @@ import {
   Wrench,
   Users,
   Bot,
+  GraduationCap,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -48,6 +49,12 @@ const menuGroups = [
     items: [
       { icon: Bot,    label: "Assistant IA", href: "/assistant" },
       { icon: Wrench, label: "Outils",       href: "/tools" },
+    ],
+  },
+  {
+    label: "Apprendre",
+    items: [
+      { icon: GraduationCap, label: "Formation", href: "/learn" },
     ],
   },
   {
