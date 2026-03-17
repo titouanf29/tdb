@@ -751,6 +751,220 @@ Les divergences peuvent durer longtemps. Ne vous positionnez pas à contre-tenda
       },
     ],
   },
+  // ── MODULE 7 ──────────────────────────────────────────────────────────
+  {
+    id: "orders-and-markets",
+    title: "Types d'ordres & marchés",
+    description: "Maîtriser les ordres limit, marché et stop, comprendre le carnet d'ordres et éviter les pièges du slippage.",
+    icon: "📋",
+    color: "from-emerald-500/20 to-teal-500/20 border-emerald-500/30",
+    level: "beginner",
+    lessons: [
+      {
+        id: "market-vs-limit",
+        title: "Ordre au marché vs ordre limité",
+        duration: "6 min",
+        keyPoints: [
+          "Ordre au marché : exécution immédiate au meilleur prix disponible",
+          "Ordre limité : exécution uniquement au prix fixé ou mieux",
+          "Le slippage peut coûter cher sur les actifs peu liquides",
+          "Utiliser les ordres limités pour les entrées, marché pour les urgences",
+        ],
+        content: `Chaque transaction sur les marchés financiers passe par un type d'ordre. Choisir le bon type est essentiel pour contrôler vos coûts et votre exécution.
+
+**L'ordre au marché (Market Order)**
+Exécution immédiate au meilleur prix disponible. Vous êtes sûr d'être exécuté, mais pas au prix exact que vous voyez. En période de forte volatilité ou sur des actifs peu liquides, le prix réel peut différer significativement.
+
+**L'ordre limité (Limit Order)**
+Vous fixez le prix maximum (achat) ou minimum (vente) d'exécution. Avantage : contrôle total du prix. Inconvénient : pas garanti de se remplir si le prix n'atteint pas votre niveau.
+
+**L'ordre stop (Stop Market)**
+Déclenché automatiquement quand le prix atteint un seuil. Utilisé principalement comme stop loss. Attention au slippage lors des gaps de marché (ouverture du lendemain, news).
+
+**Le slippage — ce coût invisible**
+Le slippage est la différence entre le prix attendu et le prix réel d'exécution. Exemple : vous souhaitez acheter à 44 900$ mais êtes exécuté à 44 950$ → 50$ de coût supplémentaire immédiat.
+
+• **Actifs liquides** (BTC, ETH, S&P 500) : slippage généralement < 0,1%
+• **Actifs peu liquides** (small caps, altcoins) : slippage peut dépasser 1–2%
+
+**Quelle stratégie adopter ?**
+• Entrées : ordres limités sous/sur le niveau cible
+• Stop loss : stop market pour la protection automatique
+• Take profit : ordres limités aux niveaux de résistance
+• Sortie urgente : ordre marché acceptable`,
+        quiz: [
+          {
+            question: "Vous voulez acheter Bitcoin à 45 000$ exactement, sans risque de payer plus. Quel ordre utilisez-vous ?",
+            options: [
+              "Ordre au marché",
+              "Ordre limité à 45 000$",
+              "Ordre stop à 45 000$",
+              "Pas d'ordre, vous attendez",
+            ],
+            correct: 1,
+            explanation: "L'ordre limité garantit que vous n'achetez pas au-dessus de 45 000$. Si le prix est actuellement au-dessus, l'ordre attend que le prix redescende à ce niveau.",
+          },
+        ],
+      },
+      {
+        id: "order-book-deep",
+        title: "Lire le carnet d'ordres",
+        duration: "8 min",
+        keyPoints: [
+          "Le carnet d'ordres liste tous les ordres limités en attente",
+          "Bid = acheteurs en attente, Ask = vendeurs en attente",
+          "Le spread bid/ask représente le coût immédiat d'une transaction",
+          "Les 'murs' d'ordres révèlent les zones de support/résistance dynamiques",
+        ],
+        content: `Le carnet d'ordres (order book) est la radiographie en temps réel du marché. Il révèle exactement où se trouve la liquidité et où le prix peut s'arrêter ou accélérer.
+
+**Structure du carnet**
+Le carnet est divisé en deux colonnes :
+• **Bids (Acheteurs)** : ordres d'achat en attente, côté vert. Le meilleur bid est le prix le plus haut qu'un acheteur accepte de payer.
+• **Asks (Vendeurs)** : ordres de vente en attente, côté rouge. Le meilleur ask est le prix le plus bas qu'un vendeur accepte.
+
+**Le spread**
+La différence entre le meilleur ask et le meilleur bid est le spread. C'est le coût immédiat que vous payez pour entrer ou sortir d'une position. Un spread serré = actif liquide = coûts réduits.
+
+**Les murs d'ordres (Order Walls)**
+Un volume anormalement élevé à un niveau de prix crée un "mur". Ces murs peuvent :
+• Stopper temporairement le prix (le prix rebondit dessus)
+• Être absorbés rapidement lors d'un breakout fort (le prix les franchit)
+
+**Liquidité et market impact**
+Si vous passez un gros ordre sur un actif peu liquide, votre propre ordre déplace le prix (market impact). C'est pourquoi les traders institutionnels divisent leurs ordres ou utilisent des algorithmes.
+
+• **Haute liquidité** (BTC, AAPL, EUR/USD) : spread < 0,05%, impact minimal
+• **Faible liquidité** (altcoins, penny stocks) : spread > 1%, impact fort
+
+**Lire l'imbalance**
+Si le côté bid est 3× plus volumineux que le côté ask, il y a un déséquilibre en faveur des acheteurs → pression à la hausse possible.`,
+      },
+    ],
+  },
+
+  // ── MODULE 8 ──────────────────────────────────────────────────────────
+  {
+    id: "trading-styles",
+    title: "Styles & stratégies de trading",
+    description: "Scalping, day trading, swing trading, trend following : comprenez chaque approche et trouvez celle qui correspond à votre profil.",
+    icon: "⚡",
+    color: "from-violet-500/20 to-pink-500/20 border-violet-500/30",
+    level: "beginner",
+    lessons: [
+      {
+        id: "trend-following",
+        title: "Le trading de tendance (Trend Following)",
+        duration: "9 min",
+        keyPoints: [
+          "Une tendance haussière = série de plus-hauts et plus-bas croissants",
+          "3 types d'entrées : pull-back, breakout, re-test du breakout",
+          "Ne jamais trader contre la tendance sans confirmation solide",
+          "Ratio R/R cible minimum de 1:2 en trend following",
+        ],
+        content: `Le trading de tendance est l'une des stratégies les plus éprouvées. Son principe : la tendance a plus de chances de continuer que de se retourner.
+
+**Identifier une tendance**
+Une tendance haussière se définit par une succession de **plus-hauts croissants (Higher Highs)** et de **plus-bas croissants (Higher Lows)**. La tendance baissière est l'inverse : plus-hauts et plus-bas décroissants.
+
+**Les 3 types d'entrées en tendance**
+
+1. **Pull-back sur support dynamique**
+La meilleure entrée. Le prix reteste une moyenne mobile (EMA 20, EMA 50) ou un ancien niveau de résistance devenu support. R/R excellent, risque limité.
+
+2. **Breakout de résistance**
+Le prix franchit un niveau clé avec volume. Entrée plus agressive. Attendre la clôture de bougie au-dessus pour éviter les faux breakouts.
+
+3. **Re-test du breakout**
+Après le franchissement, le prix revient tester l'ancien niveau (maintenant support). Entrée conservatrice avec confirmation.
+
+**La règle d'or du trend following**
+• Tendance haussière → chercher des achats sur les pull-backs
+• Tendance baissière → chercher des ventes sur les rebonds
+• En range (consolidation) → réduire l'activité ou jouer les extrêmes
+
+**Gestion de position en tendance**
+Ne fermez pas trop tôt ! En tendance forte, laissez courir avec un trailing stop qui remonte sous chaque nouveau plus-bas. Les meilleures tendances peuvent durer des semaines ou mois.
+
+• Entrée sur pull-back → Stop sous le plus-bas du pull-back
+• Objectif minimum : 2× le risque (R/R 1:2)
+• Trailing stop : déplacer le stop sous chaque nouveau Higher Low`,
+        quiz: [
+          {
+            question: "Vous identifiez une tendance haussière sur BTC. Le prix vient de faire un pull-back sur l'EMA 50. C'est :",
+            options: [
+              "Un signal de retournement baissier — vendre",
+              "Une opportunité d'achat dans la tendance — entrée potentielle",
+              "Un signal neutre à ignorer",
+              "Un faux signal car l'EMA 50 n'est pas fiable",
+            ],
+            correct: 1,
+            explanation: "Un pull-back sur l'EMA 50 en tendance haussière est une opportunité d'achat classique. La tendance reste intacte, et le pull-back offre un meilleur prix d'entrée avec un stop bien défini sous le plus-bas du retracement.",
+          },
+        ],
+      },
+      {
+        id: "trading-styles-comparison",
+        title: "Scalping, day trading et swing trading",
+        duration: "8 min",
+        keyPoints: [
+          "Scalping : trades de secondes à minutes, très stressant, requiert concentration totale",
+          "Day trading : positions fermées chaque soir, 1–5 trades par jour",
+          "Swing trading : positions de jours à semaines, idéal pour les débutants",
+          "Choisir son style selon son temps disponible, capital et personnalité",
+        ],
+        content: `Il n'existe pas de style de trading supérieur — seulement celui qui correspond à votre personnalité, votre temps disponible et votre capital.
+
+**Le Scalping**
+• Durée : secondes à quelques minutes
+• Timeframes : 1m, 5m, tick
+• Fréquence : 10 à 50+ trades par jour
+• Objectif par trade : 0,1 à 0,5%
+• Niveau de stress : très élevé
+• Requis : plateforme ultra-rapide, écrans multiples, concentration totale
+
+Le scalping est le style le plus exigeant. Les frais de transaction s'accumulent rapidement. Réservé aux traders très expérimentés avec une infrastructure dédiée.
+
+**Le Day Trading**
+• Durée : minutes à quelques heures
+• Timeframes : 5m, 15m, 1H
+• Fréquence : 1 à 5 trades par jour
+• Objectif par trade : 0,5 à 2%
+• Niveau de stress : modéré à élevé
+• Requis : 2 à 4 heures de disponibilité quotidienne
+
+Toutes les positions sont clôturées en fin de journée : pas de risque overnight. Bon compromis entre activité et gestion du stress.
+
+**Le Swing Trading**
+• Durée : 2 à 10 jours
+• Timeframes : 4H, Daily
+• Fréquence : 2 à 10 trades par mois
+• Objectif par trade : 3 à 15%
+• Niveau de stress : faible
+• Requis : 30 min d'analyse le soir
+
+**Le style idéal pour débuter**. Les signaux sur les timeframes élevés sont plus clairs, moins bruités. Vous avez le temps de réfléchir avant d'agir. Les frais sont négligeables (peu de trades).
+
+**Comment choisir ?**
+• Peu de temps disponible → Swing trading
+• 2–4 heures par jour → Day trading
+• Disponible en continu + expérimenté → Scalping éventuellement`,
+        quiz: [
+          {
+            question: "Vous travaillez à plein temps et pouvez analyser les marchés 30 min le soir. Quel style vous convient le mieux ?",
+            options: [
+              "Scalping — le plus rentable",
+              "Day trading — 1 trade par jour",
+              "Swing trading — positions sur plusieurs jours",
+              "Tous les styles conviennent également",
+            ],
+            correct: 2,
+            explanation: "Le swing trading est idéal : 30 minutes d'analyse le soir suffisent pour identifier des setups sur les timeframes 4H/Daily. Les positions durent plusieurs jours, donc pas besoin de surveiller en continu. C'est le style recommandé pour les débutants et les personnes ayant une activité principale.",
+          },
+        ],
+      },
+    ],
+  },
 ];
 
 export function getModulesForLevel(level: string | null | undefined): Module[] {
