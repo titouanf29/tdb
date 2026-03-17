@@ -75,8 +75,9 @@ export default function ScannerPage() {
     ]).then(([mData, qData]) => {
       setMarkets(mData.markets);
       setQuota(qData);
+    }).catch(console.error).finally(() => {
       setIsLoading(false);
-    }).catch(console.error);
+    });
   }, []);
 
   const runScan = async () => {
