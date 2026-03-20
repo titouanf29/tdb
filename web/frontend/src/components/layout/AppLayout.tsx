@@ -34,7 +34,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     if (!isLoading && !isAuthenticated && !isAuthPage && !isLandingPage && !isLegalPage) {
       router.push("/login");
     }
-  }, [isAuthenticated, isLoading, isAuthPage, isLandingPage, router]);
+  }, [isAuthenticated, isLoading, isAuthPage, isLandingPage, isLegalPage, router]);
 
   // Close mobile menu on route change
   useEffect(() => {

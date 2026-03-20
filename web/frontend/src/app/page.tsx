@@ -556,6 +556,234 @@ function AnimatedChart() {
   );
 }
 
+// ── Live Scan Demo ────────────────────────────────────────────────────────────
+
+const SCAN_STEPS = [
+  "Collecte des données de marché...",
+  "Calcul RSI, MACD, Bollinger Bands...",
+  "Analyse des niveaux clés S/R...",
+  "Évaluation du contexte macro...",
+  "Génération du score IA...",
+];
+
+const SCAN_RESULTS = [
+  { l: "RSI",     v: "62",         c: "text-yellow-400",  detail: "Zone neutre" },
+  { l: "MACD",    v: "Haussier ↑", c: "text-emerald-400", detail: "Signal positif" },
+  { l: "Volume",  v: "+34%",       c: "text-cyan-400",    detail: "Activité forte" },
+  { l: "Score",   v: "78/100",     c: "text-primary",     detail: "Opportunité" },
+  { l: "EMA 200", v: "Au-dessus",  c: "text-blue-400",    detail: "Haussier" },
+  { l: "Signal",  v: "LONG ✓",    c: "text-emerald-400", detail: "Setup favorable" },
+];
+
+const FLOATING_BUBBLES = [
+  { label: "RSI: 62",      sub: "Zone neutre ↗",    color: "text-yellow-400", bg: "bg-yellow-500/10 border-yellow-500/25", left: "-15%", top: "8%"  },
+  { label: "Score: 78",    sub: "Forte opportunité", color: "text-primary",    bg: "bg-primary/10 border-primary/25",       left: "107%", top: "12%" },
+  { label: "MACD +",       sub: "Signal haussier",   color: "text-emerald-400",bg: "bg-emerald-500/10 border-emerald-500/25",left: "-17%", top: "62%" },
+  { label: "Volume +34%",  sub: "Activité forte",    color: "text-cyan-400",   bg: "bg-cyan-500/10 border-cyan-500/25",     left: "108%", top: "68%" },
+  { label: "LONG ✓",       sub: "Setup favorable",   color: "text-emerald-400",bg: "bg-emerald-500/10 border-emerald-500/25",left: "38%",  top: "-14%"},
+];
+
+function LiveScanDemo() {
+  const [phase, setPhase] = useState<"idle" | "scanning" | "done">("idle");
+  const [progress, setProgress] = useState(0);
+  const [currentStep, setCurrentStep] = useState(0);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const resetScan = () => {
+    if (timerRef.current) clearInterval(timerRef.current);
+    setPhase("idle");
+    setProgress(0);
+    setCurrentStep(0);
+  };
+
+  const startScan = () => {
+    if (phase === "scanning") return;
+    if (phase === "done") { resetScan(); return; }
+
+    setPhase("scanning");
+    setProgress(0);
+    setCurrentStep(0);
+
+    const duration = 2800;
+    const interval = 40;
+    const totalTicks = duration / interval;
+    let tick = 0;
+
+    timerRef.current = setInterval(() => {
+      tick++;
+      const p = (tick / totalTicks) * 100;
+      const s = Math.min(Math.floor((p / 100) * SCAN_STEPS.length), SCAN_STEPS.length - 1);
+      setProgress(Math.min(p, 100));
+      setCurrentStep(s);
+      if (tick >= totalTicks) {
+        if (timerRef.current) clearInterval(timerRef.current);
+        setTimeout(() => setPhase("done"), 200);
+      }
+    }, interval);
+  };
+
+  return (
+    <div className="relative max-w-lg mx-auto">
+      {/* Floating insight bubbles — desktop only */}
+      <AnimatePresence>
+        {phase === "done" && FLOATING_BUBBLES.map((b, i) => (
+          <motion.div
+            key={i}
+            initial={{ opacity: 0, scale: 0.5, y: 12 }}
+            animate={{
+              opacity: 1,
+              scale: 1,
+              y: [0, -5, 0],
+            }}
+            exit={{ opacity: 0, scale: 0.5 }}
+            transition={{
+              opacity: { delay: 0.4 + i * 0.14, duration: 0.35 },
+              scale:   { delay: 0.4 + i * 0.14, duration: 0.35, type: "spring", stiffness: 350 },
+              y:       { delay: 0.4 + i * 0.14 + 0.35, duration: 2.4 + i * 0.25, repeat: Infinity, ease: "easeInOut", repeatType: "reverse" },
+            }}
+            className={cn(
+              "absolute hidden md:flex flex-col px-3 py-1.5 rounded-xl border text-xs shadow-lg backdrop-blur-sm pointer-events-none z-10 whitespace-nowrap",
+              b.bg
+            )}
+            style={{ left: b.left, top: b.top }}
+          >
+            <span className={cn("font-bold leading-tight", b.color)}>{b.label}</span>
+            <span className="text-white/40 text-[10px] leading-tight">{b.sub}</span>
+          </motion.div>
+        ))}
+      </AnimatePresence>
+
+      {/* Main card */}
+      <div className="glass-card rounded-3xl border border-white/10 overflow-hidden">
+        {/* Header */}
+        <div className="px-5 py-4 border-b border-white/8 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-xl bg-primary/20 border border-primary/25 flex items-center justify-center">
+              <BarChart3 className="w-4 h-4 text-primary" />
+            </div>
+            <div>
+              <span className="font-bold text-white text-sm">AAPL</span>
+              <span className="text-white/35 text-xs ml-2">Apple Inc.</span>
+            </div>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="font-bold text-white text-sm">$212.45</span>
+            <span className="text-xs text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full">+1.23%</span>
+          </div>
+        </div>
+
+        {/* Chart */}
+        <div className="h-28 px-4 pt-3 relative">
+          <AnimatedChart />
+          {phase === "scanning" && (
+            <motion.div
+              className="absolute inset-0 bg-gradient-to-r from-transparent via-primary/10 to-transparent"
+              animate={{ x: ["-100%", "100%"] }}
+              transition={{ duration: 1.2, repeat: Infinity, ease: "linear" }}
+            />
+          )}
+        </div>
+
+        {/* Content */}
+        <div className="px-5 pb-5">
+          {phase === "idle" && (
+            <div className="pt-4 text-center">
+              <p className="text-xs text-white/35">Cliquez sur Analyser pour voir l&apos;IA en action</p>
+            </div>
+          )}
+
+          {phase === "scanning" && (
+            <div className="pt-4 space-y-3">
+              <div className="flex items-center gap-2">
+                <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: "linear" }}>
+                  <RefreshCw className="w-3.5 h-3.5 text-primary" />
+                </motion.div>
+                <span className="text-xs text-white/55">{SCAN_STEPS[currentStep]}</span>
+              </div>
+              <div className="h-1.5 bg-white/5 rounded-full overflow-hidden">
+                <motion.div
+                  className="h-full bg-gradient-to-r from-primary via-cyan-400 to-emerald-400 rounded-full"
+                  animate={{ width: `${progress}%` }}
+                  transition={{ duration: 0.08 }}
+                />
+              </div>
+              <p className="text-right text-[11px] text-white/25">{Math.round(progress)}%</p>
+            </div>
+          )}
+
+          {phase === "done" && (
+            <div className="pt-4 grid grid-cols-3 gap-2">
+              {SCAN_RESULTS.map((r, i) => (
+                <motion.div
+                  key={r.l}
+                  initial={{ opacity: 0, scale: 0.7, y: 8 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  transition={{ delay: i * 0.07, type: "spring", stiffness: 350, damping: 22 }}
+                  className="p-2.5 rounded-xl bg-white/5 border border-white/8 text-center"
+                >
+                  <p className="text-[10px] text-white/35 mb-0.5">{r.l}</p>
+                  <p className={cn("text-xs font-bold", r.c)}>{r.v}</p>
+                  <p className="text-[9px] text-white/25 mt-0.5">{r.detail}</p>
+                </motion.div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Action button */}
+      <div className="mt-6 flex flex-col items-center gap-3">
+        {phase === "done" ? (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.8 }}
+            className="flex flex-col sm:flex-row items-center gap-3"
+          >
+            <Link
+              href="/register"
+              className="group inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-primary hover:bg-primary/90 text-white text-sm font-bold transition-all hover:shadow-lg hover:shadow-primary/30 hover:-translate-y-0.5"
+            >
+              Analyser mes actifs
+              <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
+            </Link>
+            <button onClick={resetScan} className="text-xs text-white/35 hover:text-white/60 transition-colors">
+              Relancer →
+            </button>
+          </motion.div>
+        ) : (
+          <button
+            onClick={startScan}
+            disabled={phase === "scanning"}
+            className={cn(
+              "group inline-flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold transition-all",
+              phase === "idle"
+                ? "bg-gradient-to-r from-primary to-cyan-500 text-white hover:shadow-lg hover:shadow-primary/30 hover:-translate-y-0.5"
+                : "bg-white/5 border border-white/10 text-white/40 cursor-wait"
+            )}
+          >
+            {phase === "idle" ? (
+              <>
+                <Zap className="w-4 h-4" />
+                Analyser AAPL avec l&apos;IA
+              </>
+            ) : (
+              <>
+                <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: "linear" }}>
+                  <RefreshCw className="w-4 h-4" />
+                </motion.div>
+                Analyse en cours...
+              </>
+            )}
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 function LandingPage() {
   const { isAuthenticated } = useAuth();
   const { scrollY } = useScroll();
@@ -685,10 +913,10 @@ function LandingPage() {
                 Créer mon compte — C&apos;est gratuit
                 <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
               </Link>
-              <Link href="/login" className="inline-flex items-center gap-2 px-8 py-4 rounded-2xl border border-white/10 bg-white/5 hover:bg-white/10 text-white text-base font-semibold transition-all hover:-translate-y-0.5">
-                <Play className="w-4 h-4" />
-                J&apos;ai déjà un compte
-              </Link>
+              <a href="#demo" className="inline-flex items-center gap-2 px-8 py-4 rounded-2xl border border-white/10 bg-white/5 hover:bg-white/10 text-white text-base font-semibold transition-all hover:-translate-y-0.5">
+                <Play className="w-4 h-4 text-primary" />
+                Voir la démo en direct
+              </a>
             </>
           )}
         </motion.div>
@@ -881,6 +1109,40 @@ function LandingPage() {
         </div>
       </section>
 
+      {/* ── Live Demo ── */}
+      <section id="demo" className="py-24 px-6">
+        <div className="max-w-5xl mx-auto">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="text-center mb-14"
+          >
+            <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-cyan-500/25 bg-cyan-500/8 text-cyan-400 text-xs font-semibold mb-5 uppercase tracking-widest">
+              <Zap className="w-3 h-3" />
+              Démo interactive
+            </span>
+            <h2 className="text-3xl md:text-5xl font-black mb-4">
+              Voyez l&apos;IA en <span className="gradient-text">action</span>
+            </h2>
+            <p className="text-white/45 text-lg max-w-xl mx-auto">
+              Cliquez sur le bouton pour lancer une analyse complète en temps réel — exactement comme dans l&apos;application.
+            </p>
+          </motion.div>
+
+          {/* Demo component with extra side padding on desktop for bubbles */}
+          <motion.div
+            initial={{ opacity: 0, y: 28 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ delay: 0.15, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+            className="px-0 md:px-32"
+          >
+            <LiveScanDemo />
+          </motion.div>
+        </div>
+      </section>
+
       {/* ── CTA ── */}
       <section className="py-24 px-6 bg-black/20 border-t border-white/5">
         <div className="max-w-3xl mx-auto text-center">
@@ -929,13 +1191,20 @@ function LandingPage() {
       </section>
 
       {/* ── Footer ── */}
-      <footer className="py-8 px-6 border-t border-white/5 text-center text-sm text-white/30">
+      <footer className="py-10 px-6 border-t border-white/5 text-center text-sm text-white/30">
         <div className="flex items-center justify-center gap-2 mb-2">
           <TDBLogoSm size={20} />
           <span className="font-semibold text-white/50">CaptenTDB</span>
         </div>
         <p>Fait avec ❤️ par <span className="text-primary font-semibold">CaptenQwark</span></p>
         <p className="mt-1 text-xs">Les analyses sont à but éducatif uniquement. Ce site ne fournit pas de conseils financiers.</p>
+        <div className="mt-4 flex flex-wrap items-center justify-center gap-4 text-xs text-white/25">
+          <a href="/mentions-legales" className="hover:text-white/60 transition-colors">Mentions légales</a>
+          <span>·</span>
+          <a href="/politique-de-confidentialite" className="hover:text-white/60 transition-colors">Politique de confidentialité</a>
+          <span>·</span>
+          <a href="/cgu" className="hover:text-white/60 transition-colors">CGU</a>
+        </div>
       </footer>
     </div>
   );
