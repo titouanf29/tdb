@@ -559,11 +559,22 @@ function AnimatedChart() {
 // ── Live Scan Demo — vraie interface ──────────────────────────────────────────
 
 const SCAN_STEPS = [
-  "Collecte des données de marché...",
-  "Calcul RSI, MACD, Bollinger Bands...",
-  "Analyse des niveaux clés S/R...",
-  "Évaluation du contexte macro...",
-  "Génération du score IA...",
+  "Connexion aux flux de marché NASDAQ...",
+  "Téléchargement des données historiques AAPL...",
+  "Calcul RSI(14), MACD(12,26,9)...",
+  "Analyse Bollinger Bands & ATR...",
+  "Détection des niveaux support / résistance...",
+  "Évaluation du momentum & volume...",
+  "Génération du score IA global...",
+];
+
+const LIVE_SIGNALS = [
+  { tag: "RSI",   detail: "RSI(14) = 62.4 — Zone neutre, haussier",           color: "text-yellow-400",  bg: "bg-yellow-400/10 border-yellow-400/20" },
+  { tag: "MACD",  detail: "Histogramme positif — momentum ↑",                 color: "text-emerald-400", bg: "bg-emerald-400/10 border-emerald-400/20" },
+  { tag: "EMA20", detail: "Prix > EMA20 ($209.80) — tendance CT haussière",   color: "text-blue-400",    bg: "bg-blue-400/10 border-blue-400/20" },
+  { tag: "EMA50", detail: "Prix > EMA50 ($205.40) — tendance MT confirmée",   color: "text-blue-400",    bg: "bg-blue-400/10 border-blue-400/20" },
+  { tag: "VOL",   detail: "Volume ×1.34 vs moy. 20j — signal confirmé",       color: "text-cyan-400",    bg: "bg-cyan-400/10 border-cyan-400/20" },
+  { tag: "ADX",   detail: "ADX = 28.4 — Force de tendance élevée (>25)",      color: "text-emerald-400", bg: "bg-emerald-400/10 border-emerald-400/20" },
 ];
 
 // Données AAPL statiques reproduisant fidèlement la structure Analysis
@@ -588,23 +599,23 @@ const AAPL = {
   aiInsight: "AAPL présente un setup technique solide. Le RSI à 62 laisse de la marge avant la zone de surachat, et le MACD haussier confirme le momentum positif. Les deux EMA clés (20 et 50) soutiennent la tendance. Zone d'entrée favorable autour de $210–212, avec un objectif vers $224.",
 };
 
-function DemoScoreBar({ label, score }: { label: string; score: number }) {
+function DemoScoreBar({ label, score, delay = 0 }: { label: string; score: number; delay?: number }) {
   const color =
-    score >= 75 ? "from-profit to-green-400" :
-    score >= 60 ? "from-green-400 to-emerald-400" :
-    score >= 40 ? "from-warning to-yellow-400" :
-                  "from-loss to-red-400";
+    score >= 75 ? "from-emerald-400 to-green-400" :
+    score >= 60 ? "from-blue-400 to-cyan-400" :
+    score >= 40 ? "from-yellow-400 to-amber-400" :
+                  "from-red-400 to-rose-400";
   return (
     <div>
-      <div className="flex justify-between mb-1">
-        <span className="text-sm text-muted-foreground">{label}</span>
-        <span className="text-sm font-semibold">{score}/100</span>
+      <div className="flex justify-between mb-1.5">
+        <span className="text-xs text-muted-foreground font-medium">{label}</span>
+        <span className="text-xs font-bold">{score}<span className="text-muted-foreground font-normal">/100</span></span>
       </div>
-      <div className="h-2 bg-white/10 rounded-full overflow-hidden">
+      <div className="h-2 bg-white/8 rounded-full overflow-hidden">
         <motion.div
           initial={{ width: 0 }}
           animate={{ width: `${score}%` }}
-          transition={{ duration: 0.6, delay: 0.2 }}
+          transition={{ duration: 0.8, delay, ease: [0.22, 1, 0.36, 1] }}
           className={cn("h-full rounded-full bg-gradient-to-r", color)}
         />
       </div>
@@ -617,24 +628,22 @@ function DemoIndicatorCard({ name, value, signal, tooltip }: {
   signal: "bullish" | "bearish" | "neutral";
   tooltip?: string;
 }) {
-  const colors = {
-    bullish: "border-profit/30 bg-profit/10",
-    bearish: "border-loss/30 bg-loss/10",
-    neutral: "border-white/10 bg-white/5",
+  const styles = {
+    bullish: { card: "border-emerald-500/30 bg-emerald-500/8", badge: "bg-emerald-500/15 text-emerald-400 border-emerald-500/20", icon: <TrendingUp className="w-3.5 h-3.5 text-emerald-400" />, label: "Haussier" },
+    bearish: { card: "border-red-500/30 bg-red-500/8",         badge: "bg-red-500/15 text-red-400 border-red-500/20",           icon: <TrendingDown className="w-3.5 h-3.5 text-red-400" />,  label: "Baissier" },
+    neutral: { card: "border-white/10 bg-white/4",             badge: "bg-white/8 text-white/50 border-white/15",               icon: <Activity className="w-3.5 h-3.5 text-white/40" />,     label: "Neutre"   },
   };
-  const icons = {
-    bullish: <TrendingUp className="w-4 h-4 text-profit" />,
-    bearish: <TrendingDown className="w-4 h-4 text-loss" />,
-    neutral: <Activity className="w-4 h-4 text-muted-foreground" />,
-  };
+  const s = styles[signal];
   return (
-    <div className={cn("p-4 rounded-xl border", colors[signal])} title={tooltip}>
-      <div className="flex items-center justify-between mb-2">
-        <span className="text-sm text-muted-foreground">{name}</span>
-        {icons[signal]}
+    <div className={cn("p-3 rounded-xl border", s.card)}>
+      <div className="flex items-start justify-between mb-2 gap-1">
+        <span className="text-xs text-muted-foreground font-medium leading-tight">{name}</span>
+        <span className={cn("inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded border font-medium flex-shrink-0", s.badge)}>
+          {s.icon}{s.label}
+        </span>
       </div>
-      <p className="font-bold text-sm">{value}</p>
-      {tooltip && <p className="text-xs text-muted-foreground mt-1 line-clamp-2 leading-tight">{tooltip}</p>}
+      <p className="font-bold text-sm leading-none mb-1">{value}</p>
+      {tooltip && <p className="text-[11px] text-muted-foreground leading-snug line-clamp-2">{tooltip}</p>}
     </div>
   );
 }
@@ -643,13 +652,27 @@ function LiveScanDemo() {
   const [phase, setPhase] = useState<"idle" | "scanning" | "done">("idle");
   const [progress, setProgress] = useState(0);
   const [currentStep, setCurrentStep] = useState(0);
+  const [scoreDisplay, setScoreDisplay] = useState(0);
+  const [aiWordCount, setAiWordCount] = useState(0);
+  const [visibleSignals, setVisibleSignals] = useState(0);
+  const [selectedTimeframe, setSelectedTimeframe] = useState("1j");
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const allTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
+
+  const clearAll = () => {
+    if (timerRef.current) clearInterval(timerRef.current);
+    allTimers.current.forEach(clearTimeout);
+    allTimers.current = [];
+  };
 
   const resetScan = () => {
-    if (timerRef.current) clearInterval(timerRef.current);
+    clearAll();
     setPhase("idle");
     setProgress(0);
     setCurrentStep(0);
+    setScoreDisplay(0);
+    setAiWordCount(0);
+    setVisibleSignals(0);
   };
 
   const startScan = () => {
@@ -658,8 +681,19 @@ function LiveScanDemo() {
     setPhase("scanning");
     setProgress(0);
     setCurrentStep(0);
-    const totalTicks = 2800 / 40;
+    setVisibleSignals(0);
+
+    const DURATION = 3600;
+    const TICK = 40;
+    const totalTicks = DURATION / TICK;
     let tick = 0;
+
+    // Show live signals at intervals during scan
+    LIVE_SIGNALS.forEach((_, i) => {
+      const t = setTimeout(() => setVisibleSignals(i + 1), (DURATION / (LIVE_SIGNALS.length + 1)) * (i + 1));
+      allTimers.current.push(t);
+    });
+
     timerRef.current = setInterval(() => {
       tick++;
       const p = (tick / totalTicks) * 100;
@@ -667,263 +701,359 @@ function LiveScanDemo() {
       setCurrentStep(Math.min(Math.floor((p / 100) * SCAN_STEPS.length), SCAN_STEPS.length - 1));
       if (tick >= totalTicks) {
         if (timerRef.current) clearInterval(timerRef.current);
-        setTimeout(() => setPhase("done"), 200);
+        const t = setTimeout(() => setPhase("done"), 300);
+        allTimers.current.push(t);
       }
-    }, 40);
+    }, TICK);
   };
 
+  // Animate score counter and AI typewriter when results appear
+  useEffect(() => {
+    if (phase !== "done") return;
+    const target = AAPL.score.total;
+    let s = 0;
+    const step = Math.ceil(target / 35);
+    const scoreTimer = setInterval(() => {
+      s = Math.min(s + step, target);
+      setScoreDisplay(s);
+      if (s >= target) clearInterval(scoreTimer);
+    }, 35);
+
+    const words = AAPL.aiInsight.split(" ");
+    let w = 0;
+    const wordTimer = setInterval(() => {
+      w = Math.min(w + 1, words.length);
+      setAiWordCount(w);
+      if (w >= words.length) clearInterval(wordTimer);
+    }, 55);
+
+    return () => { clearInterval(scoreTimer); clearInterval(wordTimer); };
+  }, [phase]);
+
   const d = AAPL;
+  const aiWords = d.aiInsight.split(" ").slice(0, aiWordCount).join(" ");
 
   return (
     <div className="w-full max-w-4xl mx-auto space-y-5">
 
       {/* ── Browser chrome ── */}
-      <div className="glass-card rounded-2xl overflow-hidden border border-white/10">
-        <div className="flex items-center gap-2 px-4 py-3 border-b border-white/8 bg-black/20">
-          <div className="w-3 h-3 rounded-full bg-red-500/60" />
-          <div className="w-3 h-3 rounded-full bg-yellow-500/60" />
-          <div className="w-3 h-3 rounded-full bg-emerald-500/60" />
-          <div className="ml-3 flex-1 max-w-xs px-3 py-1 rounded-md bg-white/5 border border-white/8 text-[11px] text-white/30 font-mono flex items-center gap-1.5">
-            <Shield className="w-2.5 h-2.5 text-emerald-500/70" />
+      <div className="glass-card rounded-2xl overflow-hidden border border-white/10 shadow-2xl">
+        <div className="flex items-center gap-2 px-4 py-3 border-b border-white/8 bg-black/30">
+          <div className="w-3 h-3 rounded-full bg-red-500/70" />
+          <div className="w-3 h-3 rounded-full bg-yellow-500/70" />
+          <div className="w-3 h-3 rounded-full bg-emerald-500/70" />
+          <div className="ml-3 flex-1 max-w-sm px-3 py-1 rounded-md bg-white/5 border border-white/8 text-[11px] text-white/40 font-mono flex items-center gap-1.5">
+            <Shield className="w-2.5 h-2.5 text-emerald-500/80 flex-shrink-0" />
             captentdb.fr/analysis?symbol=AAPL
           </div>
+          {phase === "done" && (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="ml-auto flex items-center gap-1.5 text-[10px] text-emerald-400">
+              <motion.div className="w-1.5 h-1.5 rounded-full bg-emerald-400" animate={{ opacity: [1, 0.3, 1] }} transition={{ duration: 1.2, repeat: Infinity }} />
+              Données live
+            </motion.div>
+          )}
         </div>
 
-        <div className="p-4 md:p-6 space-y-5 bg-background/40">
+        <div className="p-4 md:p-6 space-y-4 bg-background/40">
 
           {/* ── Asset header ── */}
-          <div className="glass-card p-4 flex flex-col sm:flex-row sm:items-center gap-4">
+          <div className="glass-card p-4 flex flex-col sm:flex-row sm:items-center gap-3">
             <div className="flex items-center gap-3 flex-1">
-              <div className="w-12 h-12 rounded-xl bg-primary/15 border border-primary/25 flex items-center justify-center text-lg font-black text-primary">A</div>
+              <div className="w-11 h-11 rounded-xl bg-primary/15 border border-primary/25 flex items-center justify-center text-base font-black text-primary flex-shrink-0">A</div>
               <div>
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-xl font-black">AAPL</span>
-                  <span className="text-muted-foreground text-sm">Apple Inc.</span>
-                  <span className="text-xs px-2 py-0.5 rounded-full bg-profit/10 border border-profit/20 text-profit font-semibold">BULLISH</span>
+                  <span className="text-lg font-black">AAPL</span>
+                  <span className="text-muted-foreground text-xs">Apple Inc.</span>
+                  <motion.span
+                    animate={{ opacity: phase === "done" ? [1, 0.6, 1] : 1 }}
+                    transition={{ duration: 2, repeat: Infinity }}
+                    className="text-[11px] px-2 py-0.5 rounded-full bg-emerald-500/12 border border-emerald-500/25 text-emerald-400 font-semibold"
+                  >
+                    BULLISH
+                  </motion.span>
                 </div>
-                <div className="text-xs text-muted-foreground">Technology • NASDAQ</div>
+                <div className="text-[11px] text-muted-foreground">Technology • NASDAQ • S&P 500</div>
               </div>
             </div>
             <div className="text-right">
-              <div className="text-2xl font-black">$212.45</div>
-              <div className="text-profit text-sm font-semibold">+$2.58 (+1.23%)</div>
+              <div className="text-xl font-black">$212.45</div>
+              <div className="text-emerald-400 text-sm font-semibold">▲ +$2.58 (+1.23%)</div>
             </div>
           </div>
 
           {/* ── Scan overlay (idle + scanning) ── */}
-          {phase !== "done" && (
-            <div className="glass-card p-8 flex flex-col items-center gap-5">
-              {phase === "idle" && (
-                <>
-                  <div className="w-14 h-14 rounded-2xl bg-primary/15 border border-primary/25 flex items-center justify-center">
-                    <BarChart3 className="w-7 h-7 text-primary" />
+          <AnimatePresence mode="wait">
+            {phase === "idle" && (
+              <motion.div
+                key="idle"
+                initial={{ opacity: 0, scale: 0.97 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.97 }}
+                className="glass-card p-10 flex flex-col items-center gap-6 relative overflow-hidden"
+              >
+                {/* Background pulse rings */}
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                  {[1,2,3].map(i => (
+                    <motion.div key={i} className="absolute rounded-full border border-primary/15"
+                      style={{ width: i * 80, height: i * 80 }}
+                      animate={{ scale: [1, 1.15, 1], opacity: [0.4, 0.1, 0.4] }}
+                      transition={{ duration: 2.5, delay: i * 0.4, repeat: Infinity, ease: "easeInOut" }}
+                    />
+                  ))}
+                </div>
+                <div className="relative z-10 flex flex-col items-center gap-5">
+                  <div className="w-16 h-16 rounded-2xl bg-primary/15 border border-primary/30 flex items-center justify-center shadow-lg shadow-primary/10">
+                    <Brain className="w-8 h-8 text-primary" />
                   </div>
                   <div className="text-center">
-                    <p className="font-semibold mb-1">Analyse IA prête</p>
-                    <p className="text-sm text-muted-foreground">Lancez l&apos;analyse pour voir la vraie interface CaptenTDB</p>
+                    <p className="font-bold text-lg mb-1">Analyse IA instantanée</p>
+                    <p className="text-sm text-muted-foreground max-w-xs">
+                      Lancez une analyse complète AAPL — 9 indicateurs, score IA, niveaux clés, suggestion de trade.
+                    </p>
+                  </div>
+                  {/* Mini preview chips */}
+                  <div className="flex flex-wrap gap-2 justify-center">
+                    {["RSI","MACD","EMA20","ADX","Bollinger","Volume","Score IA"].map((tag, i) => (
+                      <motion.span key={tag} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 + i * 0.06 }}
+                        className="text-[11px] px-2.5 py-1 rounded-full bg-white/6 border border-white/10 text-white/50 font-medium">
+                        {tag}
+                      </motion.span>
+                    ))}
                   </div>
                   <button
                     onClick={startScan}
-                    className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-primary to-cyan-500 text-white text-sm font-bold hover:shadow-lg hover:shadow-primary/30 hover:-translate-y-0.5 transition-all"
+                    className="inline-flex items-center gap-2.5 px-8 py-3.5 rounded-xl bg-gradient-to-r from-primary to-cyan-500 text-white text-sm font-bold hover:shadow-xl hover:shadow-primary/30 hover:-translate-y-0.5 transition-all active:scale-95"
                   >
                     <Zap className="w-4 h-4" />
                     Analyser AAPL avec l&apos;IA
                   </button>
-                </>
-              )}
-              {phase === "scanning" && (
-                <div className="w-full space-y-4">
-                  <div className="flex items-center justify-center gap-3">
-                    <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: "linear" }}>
-                      <RefreshCw className="w-5 h-5 text-primary" />
-                    </motion.div>
-                    <span className="text-sm font-medium">{SCAN_STEPS[currentStep]}</span>
+                </div>
+              </motion.div>
+            )}
+
+            {phase === "scanning" && (
+              <motion.div
+                key="scanning"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="glass-card p-6 space-y-5"
+              >
+                {/* Step header */}
+                <div className="flex items-center gap-3">
+                  <motion.div className="w-8 h-8 rounded-lg bg-primary/15 border border-primary/25 flex items-center justify-center flex-shrink-0"
+                    animate={{ rotate: 360 }} transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}>
+                    <RefreshCw className="w-4 h-4 text-primary" />
+                  </motion.div>
+                  <div className="flex-1">
+                    <p className="text-sm font-semibold">{SCAN_STEPS[currentStep]}</p>
+                    <p className="text-xs text-muted-foreground">Étape {currentStep + 1}/{SCAN_STEPS.length}</p>
                   </div>
-                  <div className="h-2 bg-white/5 rounded-full overflow-hidden">
+                  <span className="text-sm font-bold text-primary">{Math.round(progress)}%</span>
+                </div>
+
+                {/* Progress bar */}
+                <div className="space-y-2">
+                  <div className="h-2.5 bg-white/5 rounded-full overflow-hidden">
                     <motion.div
-                      className="h-full bg-gradient-to-r from-primary via-cyan-400 to-emerald-400 rounded-full"
+                      className="h-full rounded-full"
+                      style={{ background: "linear-gradient(90deg, hsl(243,75%,59%), #22d3ee, #10b981)" }}
                       animate={{ width: `${progress}%` }}
-                      transition={{ duration: 0.08 }}
+                      transition={{ duration: 0.06 }}
                     />
                   </div>
-                  <p className="text-center text-xs text-muted-foreground">{Math.round(progress)}% — Analyse AAPL en cours...</p>
                 </div>
-              )}
-            </div>
-          )}
+
+                {/* Live signals feed */}
+                <div className="space-y-2">
+                  <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Signaux détectés</p>
+                  <div className="space-y-1.5 min-h-[120px]">
+                    {LIVE_SIGNALS.map((sig, i) => (
+                      <AnimatePresence key={sig.tag}>
+                        {i < visibleSignals && (
+                          <motion.div
+                            initial={{ opacity: 0, x: -16, height: 0 }}
+                            animate={{ opacity: 1, x: 0, height: "auto" }}
+                            transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                            className={cn("flex items-center gap-2.5 px-3 py-2 rounded-lg border text-xs", sig.bg)}
+                          >
+                            <span className={cn("font-bold flex-shrink-0 w-12 text-center px-1.5 py-0.5 rounded text-[10px] border", sig.bg, sig.color)}>{sig.tag}</span>
+                            <span className="text-white/65">{sig.detail}</span>
+                            <CheckCircle2 className={cn("w-3.5 h-3.5 ml-auto flex-shrink-0", sig.color)} />
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    ))}
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           {/* ── Full results (done) ── */}
           {phase === "done" && (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              transition={{ duration: 0.4 }}
-              className="space-y-5"
+              transition={{ duration: 0.3 }}
+              className="space-y-4"
             >
               {/* Score cards grid */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
 
-                {/* Main score */}
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.92 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ delay: 0.05 }}
-                  className="glass-card p-5 text-center relative overflow-hidden"
-                >
-                  <div className="absolute inset-0 bg-gradient-radial from-primary/10 to-transparent" />
+                {/* Main score — animated counter */}
+                <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.05 }}
+                  className="glass-card p-5 text-center relative overflow-hidden">
+                  <div className="absolute inset-0 bg-gradient-to-b from-emerald-500/8 to-transparent pointer-events-none" />
                   <div className="relative">
-                    <p className="text-sm text-muted-foreground mb-3">Score Global</p>
+                    <p className="text-xs text-muted-foreground mb-3 font-medium uppercase tracking-wider">Score Global IA</p>
                     <div className="w-28 h-28 mx-auto mb-3 relative">
-                      <svg className="w-full h-full -rotate-90">
-                        <circle cx="56" cy="56" r="48" fill="none" stroke="currentColor" strokeWidth="8" className="text-white/10" />
-                        <circle
+                      <svg className="w-full h-full -rotate-90" viewBox="0 0 112 112">
+                        <circle cx="56" cy="56" r="48" fill="none" stroke="currentColor" strokeWidth="8" className="text-white/8" />
+                        <motion.circle
                           cx="56" cy="56" r="48" fill="none"
-                          stroke="url(#demoGrad)" strokeWidth="8" strokeLinecap="round"
-                          strokeDasharray={`${(d.score.total / 100) * 301} 301`}
+                          stroke="url(#demoGrad2)" strokeWidth="8" strokeLinecap="round"
+                          initial={{ strokeDasharray: "0 301" }}
+                          animate={{ strokeDasharray: `${(scoreDisplay / 100) * 301} 301` }}
+                          transition={{ duration: 0.05 }}
                         />
                         <defs>
-                          <linearGradient id="demoGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                          <linearGradient id="demoGrad2" x1="0%" y1="0%" x2="100%" y2="0%">
                             <stop offset="0%" stopColor="#10b981" />
                             <stop offset="100%" stopColor="#22c55e" />
                           </linearGradient>
                         </defs>
                       </svg>
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <motion.span
-                          initial={{ opacity: 0 }}
-                          animate={{ opacity: 1 }}
-                          transition={{ delay: 0.3 }}
-                          className="text-3xl font-black"
-                        >
-                          {d.score.total}
-                        </motion.span>
+                      <div className="absolute inset-0 flex flex-col items-center justify-center">
+                        <span className="text-3xl font-black leading-none">{scoreDisplay}</span>
+                        <span className="text-xs text-muted-foreground">/100</span>
                       </div>
                     </div>
-                    <div className="flex items-center justify-center gap-2 mb-1">
-                      <span className="text-xl">{d.signal.emoji}</span>
-                      <span className="text-lg font-bold text-profit">{d.signal.text}</span>
+                    <div className="flex items-center justify-center gap-1.5 mb-1">
+                      <span className="text-lg">🟢</span>
+                      <span className="text-base font-black text-emerald-400">BUY</span>
                     </div>
-                    <p className="text-sm text-muted-foreground">
-                      Tendance: <span className="text-profit font-semibold">{d.trend}</span>
+                    <p className="text-xs text-muted-foreground">
+                      Tendance: <span className="text-emerald-400 font-bold">BULLISH</span>
                     </p>
                   </div>
                 </motion.div>
 
                 {/* Score breakdown */}
-                <motion.div
-                  initial={{ opacity: 0, x: 16 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.1 }}
-                  className="glass-card p-5"
-                >
-                  <h3 className="font-semibold mb-4 flex items-center gap-2 text-sm">
-                    <BarChart3 className="w-4 h-4 text-primary" />
+                <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="glass-card p-5">
+                  <h3 className="font-semibold mb-4 flex items-center gap-2 text-xs uppercase tracking-wider text-muted-foreground">
+                    <BarChart3 className="w-3.5 h-3.5 text-primary" />
                     Détail du Score
                   </h3>
-                  <div className="space-y-4">
-                    <DemoScoreBar label="Technique" score={d.score.technical} />
-                    <DemoScoreBar label="Volume"    score={d.score.volume} />
-                    <DemoScoreBar label="Momentum"  score={d.score.momentum} />
+                  <div className="space-y-3.5">
+                    <DemoScoreBar label="Technique" score={d.score.technical} delay={0.15} />
+                    <DemoScoreBar label="Volume"    score={d.score.volume}    delay={0.25} />
+                    <DemoScoreBar label="Momentum"  score={d.score.momentum}  delay={0.35} />
                   </div>
                 </motion.div>
 
                 {/* Price & levels */}
-                <motion.div
-                  initial={{ opacity: 0, x: 16 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.15 }}
-                  className="glass-card p-5"
-                >
-                  <h3 className="font-semibold mb-4 flex items-center gap-2 text-sm">
-                    <Activity className="w-4 h-4 text-primary" />
+                <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="glass-card p-5">
+                  <h3 className="font-semibold mb-4 flex items-center gap-2 text-xs uppercase tracking-wider text-muted-foreground">
+                    <Activity className="w-3.5 h-3.5 text-primary" />
                     Prix & Niveaux
                   </h3>
-                  <div className="space-y-3 text-sm">
-                    <div className="flex justify-between items-center p-2.5 bg-white/5 rounded-lg">
-                      <span className="text-muted-foreground">Prix actuel</span>
-                      <div>
+                  <div className="space-y-2.5 text-sm">
+                    <div className="flex justify-between items-center p-2.5 bg-white/5 rounded-lg border border-white/5">
+                      <span className="text-muted-foreground text-xs">Prix actuel</span>
+                      <div className="text-right">
                         <span className="font-bold">${d.price.current}</span>
-                        <span className="ml-2 text-profit text-xs">+{d.price.change}%</span>
+                        <span className="ml-1.5 text-emerald-400 text-xs font-medium">+{d.price.change}%</span>
                       </div>
                     </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-muted-foreground">Résistance</span>
-                      <span className="text-loss font-semibold">${d.levels.resistance}</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-muted-foreground">Pivot</span>
-                      <span className="font-semibold">${d.levels.pivot}</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-muted-foreground">Support</span>
-                      <span className="text-profit font-semibold">${d.levels.support}</span>
-                    </div>
+                    {[
+                      { label: "Résistance", value: `$${d.levels.resistance}`, cls: "text-red-400" },
+                      { label: "Pivot",      value: `$${d.levels.pivot}`,      cls: "text-white/70" },
+                      { label: "Support",    value: `$${d.levels.support}`,    cls: "text-emerald-400" },
+                    ].map(({ label, value, cls }) => (
+                      <div key={label} className="flex justify-between items-center px-1">
+                        <span className="text-xs text-muted-foreground">{label}</span>
+                        <span className={cn("font-bold text-sm", cls)}>{value}</span>
+                      </div>
+                    ))}
                   </div>
                 </motion.div>
               </div>
 
-              {/* Chart */}
-              <motion.div
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.2 }}
-                className="glass-card p-5"
-              >
+              {/* Chart with interactive timeframes */}
+              <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="glass-card p-5">
                 <div className="flex items-center justify-between mb-3">
-                  <span className="font-semibold text-sm flex items-center gap-2"><LineChart className="w-4 h-4 text-primary" />Graphique AAPL</span>
+                  <span className="font-semibold text-sm flex items-center gap-2">
+                    <LineChart className="w-4 h-4 text-primary" />
+                    AAPL
+                    <span className="text-xs text-emerald-400 font-mono">$212.45</span>
+                  </span>
                   <div className="flex gap-1">
                     {["1j","1s","1m","3m"].map(t => (
-                      <span key={t} className={cn("text-[11px] px-2 py-0.5 rounded cursor-pointer transition-colors", t === "1j" ? "bg-primary/20 text-primary" : "bg-white/5 text-white/35 hover:bg-white/10")}>{t}</span>
+                      <button key={t} onClick={() => setSelectedTimeframe(t)}
+                        className={cn("text-[11px] px-2.5 py-1 rounded-lg transition-all font-medium",
+                          t === selectedTimeframe
+                            ? "bg-primary/25 text-primary border border-primary/30"
+                            : "bg-white/5 text-white/35 hover:bg-white/10 hover:text-white/60 border border-transparent"
+                        )}>{t}</button>
                     ))}
                   </div>
                 </div>
                 <div className="h-36 relative">
-                  <AnimatedChart />
+                  <AnimatedChart key={selectedTimeframe} />
+                  <div className="absolute bottom-1 left-1 flex items-center gap-2">
+                    <span className="text-[10px] text-muted-foreground bg-black/40 px-1.5 py-0.5 rounded">EMA20: $209.80</span>
+                    <span className="text-[10px] text-muted-foreground bg-black/40 px-1.5 py-0.5 rounded">EMA50: $205.40</span>
+                  </div>
                 </div>
               </motion.div>
 
-              {/* AI Insight */}
-              <motion.div
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.25 }}
-                className="glass-card p-5 border border-primary/20 bg-primary/5"
-              >
+              {/* AI Insight — typewriter */}
+              <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}
+                className="glass-card p-5 border border-primary/20 bg-primary/5">
                 <div className="flex items-start gap-3">
-                  <div className="w-8 h-8 rounded-xl bg-primary/20 border border-primary/30 flex items-center justify-center shrink-0">
-                    <Brain className="w-4 h-4 text-primary" />
+                  <div className="w-9 h-9 rounded-xl bg-primary/20 border border-primary/30 flex items-center justify-center shrink-0">
+                    <Brain className="w-4.5 h-4.5 text-primary" style={{ width: 18, height: 18 }} />
                   </div>
-                  <div>
-                    <p className="text-sm font-semibold mb-1 flex items-center gap-2">
-                      Analyse IA
-                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/15 text-primary font-medium">Disponible 24h/24</span>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-2">
+                      <p className="text-sm font-bold">Analyse IA</p>
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/15 text-primary font-medium border border-primary/20">Disponible 24h/24</span>
+                      <motion.div className="w-1.5 h-1.5 rounded-full bg-emerald-400 ml-auto"
+                        animate={{ opacity: [1, 0.2, 1] }} transition={{ duration: 1, repeat: Infinity }} />
+                    </div>
+                    <p className="text-sm text-muted-foreground leading-relaxed">
+                      {aiWords}
+                      {aiWordCount < d.aiInsight.split(" ").length && (
+                        <motion.span animate={{ opacity: [1, 0] }} transition={{ duration: 0.5, repeat: Infinity }}>|</motion.span>
+                      )}
                     </p>
-                    <p className="text-sm text-muted-foreground leading-relaxed">{d.aiInsight}</p>
                   </div>
                 </div>
               </motion.div>
 
               {/* Indicators */}
-              <motion.div
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.3 }}
-                className="glass-card p-5"
-              >
-                <h3 className="font-semibold mb-4 text-sm">Indicateurs Techniques</h3>
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+              <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="glass-card p-5">
+                <h3 className="font-semibold mb-4 text-xs uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+                  <Activity className="w-3.5 h-3.5 text-primary" />
+                  Indicateurs Techniques
+                </h3>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5">
                   {([
-                    { name: "RSI (14)",    value: d.indicators.rsi.value.toFixed(1),    signal: d.indicators.rsi.signal,    tooltip: "62.4 — Zone neutre, pas de surachat" },
-                    { name: "MACD",        value: d.indicators.macd.value.toFixed(2),   signal: d.indicators.macd.signal,   tooltip: "Histogramme positif — momentum haussier" },
-                    { name: "EMA 20",      value: "$209.80",                             signal: d.indicators.ema20.signal,  tooltip: "Prix au-dessus — tendance CT haussière" },
-                    { name: "EMA 50",      value: "$205.40",                             signal: d.indicators.ema50.signal,  tooltip: "Prix au-dessus — tendance MT haussière" },
-                    { name: "ADX",         value: d.indicators.adx.value.toFixed(1),    signal: d.indicators.adx.signal,    tooltip: "Force de tendance forte (>25) et DI+ > DI-" },
-                    { name: "Stoch %K",    value: d.indicators.stoch.value,             signal: d.indicators.stoch.signal,  tooltip: "67.3 / 61.8 — Zone neutre" },
-                    { name: "BB %B",       value: d.indicators.bb.value,                signal: d.indicators.bb.signal,     tooltip: "Position dans les bandes de Bollinger" },
-                    { name: "ATR",         value: d.indicators.atr.value,               signal: d.indicators.atr.signal,    tooltip: "Volatilité moyenne 14j — stop suggéré: $5.76" },
-                    { name: "Volume",      value: d.indicators.volume.value,            signal: d.indicators.volume.signal, tooltip: "Volume actuel vs moyenne 20j — normal" },
+                    { name: "RSI (14)",  value: "62.4",      signal: "neutral"  as const, tooltip: "Zone neutre — marge avant surachat" },
+                    { name: "MACD",      value: "+1.24",     signal: "bullish"  as const, tooltip: "Histogramme positif — momentum ↑" },
+                    { name: "EMA 20",    value: "$209.80",   signal: "bullish"  as const, tooltip: "Prix au-dessus — tendance CT ↑" },
+                    { name: "EMA 50",    value: "$205.40",   signal: "bullish"  as const, tooltip: "Prix au-dessus — tendance MT ↑" },
+                    { name: "ADX",       value: "28.4",      signal: "bullish"  as const, tooltip: "Tendance forte (>25), DI+ > DI-" },
+                    { name: "Stoch %K",  value: "67 / 62",   signal: "neutral"  as const, tooltip: "Zone neutre, pas de croisement" },
+                    { name: "BB %B",     value: "58%",       signal: "neutral"  as const, tooltip: "Milieu des bandes — neutre" },
+                    { name: "ATR (14)",  value: "$3.84",     signal: "neutral"  as const, tooltip: "Stop suggéré: ~$5.76 (1.5×ATR)" },
+                    { name: "Volume",    value: "×1.34",     signal: "neutral"  as const, tooltip: "Volume 34% au-dessus de la moy." },
                   ] as { name: string; value: string; signal: "bullish"|"bearish"|"neutral"; tooltip: string }[]).map((ind, i) => (
-                    <motion.div key={ind.name} initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.35 + i * 0.04 }}>
+                    <motion.div key={ind.name}
+                      initial={{ opacity: 0, scale: 0.93 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ delay: 0.32 + i * 0.045, type: "spring", stiffness: 300 }}>
                       <DemoIndicatorCard {...ind} />
                     </motion.div>
                   ))}
@@ -931,52 +1061,50 @@ function LiveScanDemo() {
               </motion.div>
 
               {/* Trade suggestion */}
-              <motion.div
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.5 }}
-                className="glass-card p-5"
-              >
-                <h3 className="font-semibold mb-4 text-sm flex items-center gap-2">
-                  <Target className="w-4 h-4 text-primary" />
+              <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.52 }} className="glass-card p-5">
+                <h3 className="font-semibold mb-4 text-xs uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+                  <Target className="w-3.5 h-3.5 text-primary" />
                   Suggestion de Trade
+                  <span className="ml-auto text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">Setup favorable</span>
                 </h3>
-                <div className="grid grid-cols-3 gap-3">
-                  <div className="p-3 bg-profit/10 rounded-xl border border-profit/20 text-center">
-                    <p className="text-xs text-muted-foreground mb-1">Take Profit</p>
-                    <p className="text-lg font-bold text-profit">${d.risk.tp}</p>
-                  </div>
-                  <div className="p-3 bg-loss/10 rounded-xl border border-loss/20 text-center">
-                    <p className="text-xs text-muted-foreground mb-1">Stop Loss</p>
-                    <p className="text-lg font-bold text-loss">${d.risk.sl}</p>
-                  </div>
-                  <div className="p-3 bg-primary/10 rounded-xl border border-primary/20 text-center">
-                    <p className="text-xs text-muted-foreground mb-1">Risk/Reward</p>
-                    <p className="text-lg font-bold text-primary">1:{d.risk.rr}</p>
-                  </div>
+                <div className="grid grid-cols-3 gap-3 mb-3">
+                  <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.6 }}
+                    className="p-3.5 bg-emerald-500/10 rounded-xl border border-emerald-500/20 text-center">
+                    <p className="text-[11px] text-muted-foreground mb-1">Take Profit</p>
+                    <p className="text-lg font-black text-emerald-400">${d.risk.tp}</p>
+                    <p className="text-[10px] text-emerald-400/70 mt-0.5">+{(((d.risk.tp - d.price.current) / d.price.current) * 100).toFixed(1)}%</p>
+                  </motion.div>
+                  <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.65 }}
+                    className="p-3.5 bg-red-500/10 rounded-xl border border-red-500/20 text-center">
+                    <p className="text-[11px] text-muted-foreground mb-1">Stop Loss</p>
+                    <p className="text-lg font-black text-red-400">${d.risk.sl}</p>
+                    <p className="text-[10px] text-red-400/70 mt-0.5">{(((d.risk.sl - d.price.current) / d.price.current) * 100).toFixed(1)}%</p>
+                  </motion.div>
+                  <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.7 }}
+                    className="p-3.5 bg-primary/10 rounded-xl border border-primary/20 text-center">
+                    <p className="text-[11px] text-muted-foreground mb-1">Risk/Reward</p>
+                    <p className="text-lg font-black text-primary">1:{d.risk.rr}</p>
+                    <p className="text-[10px] text-primary/70 mt-0.5">Ratio favorable</p>
+                  </motion.div>
                 </div>
-                <div className="mt-4 p-3 rounded-xl bg-white/5 border border-white/8 flex items-center justify-between text-xs text-muted-foreground">
-                  <span>🔒 Paper trading uniquement — aucun argent réel</span>
-                  <span className="text-profit font-semibold">✓ Éducatif</span>
+                <div className="p-3 rounded-xl bg-white/4 border border-white/8 flex items-center gap-2 text-xs text-muted-foreground">
+                  <Lock className="w-3 h-3 flex-shrink-0" />
+                  <span>Paper trading uniquement — aucun argent réel impliqué</span>
+                  <span className="ml-auto text-emerald-400 font-semibold flex-shrink-0">✓ Éducatif</span>
                 </div>
               </motion.div>
 
               {/* Reset + CTA */}
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.7 }}
-                className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-2"
-              >
-                <Link
-                  href="/register"
-                  className="group inline-flex items-center gap-2 px-7 py-3 rounded-xl bg-primary hover:bg-primary/90 text-white text-sm font-bold transition-all hover:shadow-lg hover:shadow-primary/30 hover:-translate-y-0.5"
-                >
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.8 }}
+                className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-1">
+                <Link href="/register"
+                  className="group inline-flex items-center gap-2 px-8 py-3.5 rounded-xl bg-primary hover:bg-primary/90 text-white text-sm font-bold transition-all hover:shadow-xl hover:shadow-primary/30 hover:-translate-y-0.5">
                   Analyser mes propres actifs
                   <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                 </Link>
-                <button onClick={resetScan} className="text-sm text-white/35 hover:text-white/60 transition-colors">
-                  ↺ Relancer la démo
+                <button onClick={resetScan} className="text-sm text-white/30 hover:text-white/55 transition-colors flex items-center gap-1.5">
+                  <RefreshCw className="w-3.5 h-3.5" />
+                  Relancer la démo
                 </button>
               </motion.div>
             </motion.div>

@@ -17,36 +17,46 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
 
-  // Show onboarding modal if user hasn't set their level yet
+  const isAuthPage    = pathname?.startsWith("/login") || pathname?.startsWith("/register");
+  const isLandingPage = pathname === "/";
+  const isLegalPage   = pathname?.startsWith("/mentions-legales")
+    || pathname?.startsWith("/politique-de-confidentialite")
+    || pathname?.startsWith("/cgu");
+
+  // ── All hooks must be declared before any early return ────────────────────
+
+  // Redirect unauthenticated users — never fires for public pages
+  useEffect(() => {
+    if (isLandingPage || isLegalPage || isAuthPage) return;
+    if (!isLoading && !isAuthenticated) {
+      router.push("/login");
+    }
+  }, [isAuthenticated, isLoading, isLandingPage, isLegalPage, isAuthPage, router]);
+
+  // Onboarding modal for users without a trading level
   useEffect(() => {
     if (isAuthenticated && user && user.trading_level == null) {
-      // Small delay so the page loads first
       const t = setTimeout(() => setShowOnboarding(true), 800);
       return () => clearTimeout(t);
     }
   }, [isAuthenticated, user]);
-
-  const isAuthPage = pathname?.startsWith("/login") || pathname?.startsWith("/register");
-  const isLandingPage = pathname === "/";
-  const isLegalPage = pathname?.startsWith("/mentions-legales") || pathname?.startsWith("/politique-de-confidentialite") || pathname?.startsWith("/cgu");
-
-  useEffect(() => {
-    if (!isLoading && !isAuthenticated && !isAuthPage && !isLandingPage && !isLegalPage) {
-      router.push("/login");
-    }
-  }, [isAuthenticated, isLoading, isAuthPage, isLandingPage, isLegalPage, router]);
 
   // Close mobile menu on route change
   useEffect(() => {
     setMobileMenuOpen(false);
   }, [pathname]);
 
-  if (isLoading && !isAuthPage && !isLandingPage && !isLegalPage) {
+  // ── Public pages: render immediately, no auth logic ───────────────────────
+
+  if (isLandingPage) {
+    return <>{children}</>;
+  }
+
+  if (isLegalPage) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <Loader2 className="w-10 h-10 animate-spin text-primary mx-auto mb-4" />
-          <p className="text-muted-foreground">Chargement...</p>
+      <div className="min-h-screen">
+        <div className="max-w-4xl mx-auto px-4 py-12">
+          {children}
         </div>
       </div>
     );
@@ -60,19 +70,17 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     );
   }
 
-  if (isLegalPage) {
+  // ── Auth-required pages ───────────────────────────────────────────────────
+
+  if (isLoading) {
     return (
-      <div className="min-h-screen">
-        <div className="max-w-4xl mx-auto px-4 py-12">
-          {children}
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <Loader2 className="w-10 h-10 animate-spin text-primary mx-auto mb-4" />
+          <p className="text-muted-foreground">Chargement...</p>
         </div>
       </div>
     );
-  }
-
-  // Landing page — always full screen, no sidebar
-  if (isLandingPage) {
-    return <>{children}</>;
   }
 
   if (!isAuthenticated) {
@@ -81,12 +89,10 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex h-screen overflow-hidden">
-      {/* Onboarding modal */}
       {showOnboarding && (
         <OnboardingModal onClose={() => setShowOnboarding(false)} />
       )}
 
-      {/* Mobile overlay */}
       {mobileMenuOpen && (
         <div
           className="fixed inset-0 bg-black/60 z-40 lg:hidden"
