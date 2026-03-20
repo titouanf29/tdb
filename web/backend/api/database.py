@@ -150,6 +150,7 @@ async def _init_postgres():
             ("stripe_customer_id", "TEXT"),
             ("stripe_subscription_id", "TEXT"),
             ("trading_level", "TEXT"),
+            ("last_active", "TEXT"),
         ]:
             try:
                 await conn.execute(f"ALTER TABLE web_users ADD COLUMN {col} {col_type}")
@@ -402,7 +403,8 @@ async def _init_sqlite():
             )
         """)
         for col in ["stripe_customer_id", "stripe_subscription_id", "trading_level",
-                    "is_admin", "is_premium", "premium_since", "premium_expires", "email_verified"]:
+                    "is_admin", "is_premium", "premium_since", "premium_expires", "email_verified",
+                    "last_active"]:
             col_type = "INTEGER DEFAULT 0" if col in ("is_admin", "is_premium", "email_verified") else "TEXT"
             try:
                 await db.execute(f"ALTER TABLE web_users ADD COLUMN {col} {col_type}")

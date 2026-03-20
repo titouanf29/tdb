@@ -24,7 +24,7 @@ limiter = Limiter(key_func=get_remote_address)
 # JWT Configuration
 SECRET_KEY = os.getenv("JWT_SECRET", "tdb-secret-key-change-in-production")
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_HOURS = 24 * 7  # 7 days
+ACCESS_TOKEN_EXPIRE_HOURS = 1  # 1 hour
 
 VERIFICATION_EXPIRE_HOURS = 24
 
@@ -97,6 +97,11 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
     users = await execute_query("SELECT * FROM web_users WHERE id = ?", (int(user_id),))
     if not users:
         raise HTTPException(status_code=404, detail="User not found")
+
+    await execute_write(
+        "UPDATE web_users SET last_active = ? WHERE id = ?",
+        (datetime.utcnow().isoformat(), int(user_id))
+    )
 
     user = dict(users[0])
     user["user_type"] = "email"

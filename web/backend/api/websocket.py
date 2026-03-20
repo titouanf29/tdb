@@ -198,9 +198,7 @@ async def websocket_alerts(websocket: WebSocket, user_id: int, token: Optional[s
 
     try:
         while True:
-            # Keep connection alive
-            await websocket.send_json({"type": "ping"})
-            await asyncio.sleep(30)
+            await websocket.receive()  # block until client disconnects
 
     except WebSocketDisconnect:
         manager.disconnect(websocket, f"alerts:{user_id}")
@@ -253,8 +251,7 @@ async def websocket_admin_notifications(websocket: WebSocket, token: Optional[st
 
         # Keep alive — new notifications are pushed via broadcast_admin_notification()
         while True:
-            await asyncio.sleep(30)
-            await websocket.send_json({"type": "ping"})
+            await websocket.receive()  # block until client disconnects
 
     except WebSocketDisconnect:
         manager.disconnect(websocket, "admin-notifications")
