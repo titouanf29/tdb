@@ -7,8 +7,8 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # ===== TELEGRAM =====
-TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN", "8213431546:AAHnL4lswPUDYNubdcsLPvTwW0f1KYgjLgs")
-CHANNEL_ID = os.getenv("CHANNEL_ID", "-1003160198658")  # ID du channel pour les notifications (optionnel)
+TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN", "")
+CHANNEL_ID = os.getenv("CHANNEL_ID", "")  # ID du channel pour les notifications (optionnel)
 
 # Administrateurs du bot (ajouter vos IDs Telegram ici)
 ADMIN_IDS = [
@@ -21,9 +21,9 @@ DATABASE_PATH = "database/trading_bot.db"
 
 # ===== API KEYS =====
 # Pour récupérer les données de marché (gratuit)
-NEWS_API_KEY = os.getenv("NEWS_API_KEY", "7c3bc1552827489ebcc009e8c7d1cffe")
+NEWS_API_KEY = os.getenv("NEWS_API_KEY", "")
 ALPHA_VANTAGE_KEY = os.getenv("ALPHA_VANTAGE_KEY", "")
-GROQ_API_KEY = os.getenv("GROQ_API_KEY", "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")
+GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
 POLYGON_API_KEY = os.getenv("POLYGON_API_KEY", "")
 
 # ===== STRIPE =====
@@ -31,7 +31,7 @@ STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY", "")
 STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET", "")
 STRIPE_PRICE_ID = os.getenv("STRIPE_PRICE_ID", "")  # ID du prix mensuel 5€ créé dans Stripe
 FRONTEND_URL = os.getenv("FRONTEND_URL", "https://tdb-web.up.railway.app")
-TWELVEDATA_API_KEY = os.getenv("TWELVEDATA_API_KEY", "26d40471333c41c2a79b17cc4a8ebf15")  # Groq pour l'assistant IA (ultra-rapide, gratuit)
+TWELVEDATA_API_KEY = os.getenv("TWELVEDATA_API_KEY", "")
 
 # ===== MARCHES DISPONIBLES =====
 MARKETS = {

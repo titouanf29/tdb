@@ -5,6 +5,7 @@ import { AuthProvider } from "@/lib/AuthContext";
 import { SettingsProvider } from "@/lib/SettingsContext";
 import { PremiumProvider } from "@/lib/PremiumContext";
 import { AppLayout } from "@/components/layout/AppLayout";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -36,13 +37,17 @@ export default function RootLayout({
           <div className="absolute bottom-[20%] left-[5%] w-[250px] h-[250px] rounded-full blur-3xl" style={{background: "radial-gradient(circle, rgba(99,140,255,0.06) 0%, transparent 70%)"}} />
         </div>
 
-        <AuthProvider>
-          <PremiumProvider>
-            <SettingsProvider>
-              <AppLayout>{children}</AppLayout>
-            </SettingsProvider>
-          </PremiumProvider>
-        </AuthProvider>
+        <ErrorBoundary>
+          <AuthProvider>
+            <PremiumProvider>
+              <SettingsProvider>
+                <AppLayout>
+                  <ErrorBoundary>{children}</ErrorBoundary>
+                </AppLayout>
+              </SettingsProvider>
+            </PremiumProvider>
+          </AuthProvider>
+        </ErrorBoundary>
       </body>
     </html>
   );

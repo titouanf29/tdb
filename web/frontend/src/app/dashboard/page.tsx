@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo, memo } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -162,22 +162,23 @@ export default function DashboardPage() {
     );
   }
 
-  const avgFavChange = favorites.length > 0
+  const avgFavChange = useMemo(() => favorites.length > 0
     ? favorites.filter(f => !f.error).reduce((sum, f) => sum + f.change, 0) / Math.max(1, favorites.filter(f => !f.error).length)
-    : 0;
+    : 0, [favorites]);
 
-  const sortedFavorites = [...favorites]
+  const sortedFavorites = useMemo(() => [...favorites]
     .filter(f => favFilter === "all" ? true : favFilter === "profit" ? f.change >= 0 : f.change < 0)
     .sort((a, b) => {
       if (favSort === "change_desc") return b.change - a.change;
       if (favSort === "change_asc") return a.change - b.change;
       return a.symbol.localeCompare(b.symbol);
-    });
+    }), [favorites, favFilter, favSort]);
 
-  const favoriteSymbols = new Set(favorites.map(f => f.symbol.replace(/-USD$/, "").replace(/\..*/, "")));
-  const filteredNews = newsFilter === "mine" && marketNews
-    ? { ...marketNews, news: marketNews.news.filter(n => favoriteSymbols.has(n.related?.toUpperCase() || "")) }
-    : marketNews;
+  const filteredNews = useMemo(() => {
+    if (newsFilter !== "mine" || !marketNews) return marketNews;
+    const favoriteSymbols = new Set(favorites.map(f => f.symbol.replace(/-USD$/, "").replace(/\..*/, "")));
+    return { ...marketNews, news: marketNews.news.filter(n => favoriteSymbols.has(n.related?.toUpperCase() || "")) };
+  }, [newsFilter, marketNews, favorites]);
 
   return (
     <motion.div variants={containerVariants} initial="hidden" animate="show" className="space-y-5">
@@ -367,7 +368,7 @@ export default function DashboardPage() {
 //  Sub-components
 // ─────────────────────────────────────────────────────────────────────────────
 
-function StatCard({ title, value, change, subtitle, icon: Icon, href }: {
+const StatCard = memo(function StatCard({ title, value, change, subtitle, icon: Icon, href }: {
   title: string; value: string; change?: number; subtitle?: string;
   icon: React.ElementType; href?: string;
 }) {
@@ -391,9 +392,9 @@ function StatCard({ title, value, change, subtitle, icon: Icon, href }: {
   );
   if (href) return <Link href={href}>{content}</Link>;
   return content;
-}
+});
 
-function FavoriteCard({ favorite, formatPrice }: { favorite: Favorite; formatPrice: (v: number, symbol: string) => string }) {
+const FavoriteCard = memo(function FavoriteCard({ favorite, formatPrice }: { favorite: Favorite; formatPrice: (v: number, symbol: string) => string }) {
   const isProfit = favorite.change >= 0;
   const info = getAssetInfo(favorite.symbol);
   const logoUrl = getAssetLogo(favorite.symbol);
@@ -436,9 +437,9 @@ function FavoriteCard({ favorite, formatPrice }: { favorite: Favorite; formatPri
       </div>
     </Link>
   );
-}
+});
 
-function IndicesBar({ indices, isLoading, onRefresh }: {
+const IndicesBar = memo(function IndicesBar({ indices, isLoading, onRefresh }: {
   indices: Record<string, { price: number; change: number }>;
   isLoading: boolean;
   onRefresh: () => void;
@@ -487,9 +488,9 @@ function IndicesBar({ indices, isLoading, onRefresh }: {
       </div>
     </div>
   );
-}
+});
 
-function FavoritesWidget({ favorites, favSort, setFavSort, favFilter, setFavFilter, formatCurrency, formatPrice }: {
+const FavoritesWidget = memo(function FavoritesWidget({ favorites, favSort, setFavSort, favFilter, setFavFilter, formatCurrency, formatPrice }: {
   favorites: Favorite[];
   favSort: "change_desc" | "change_asc" | "alpha";
   setFavSort: (s: "change_desc" | "change_asc" | "alpha") => void;
@@ -555,9 +556,9 @@ function FavoritesWidget({ favorites, favSort, setFavSort, favFilter, setFavFilt
       )}
     </div>
   );
-}
+});
 
-function NewsWidget({ marketNews, isLoadingNews, newsFilter, setNewsFilter, hasFavorites, onRefresh }: {
+const NewsWidget = memo(function NewsWidget({ marketNews, isLoadingNews, newsFilter, setNewsFilter, hasFavorites, onRefresh }: {
   marketNews: MarketNews | null;
   isLoadingNews: boolean;
   newsFilter: "all" | "mine";
@@ -708,9 +709,9 @@ function TradingStatsWidget({ stats, balance, formatCurrency }: {
       </div>
     </div>
   );
-}
+});
 
-function OpenPositionsWidget({ positions, formatCurrency }: {
+const OpenPositionsWidget = memo(function OpenPositionsWidget({ positions, formatCurrency }: {
   positions: Position[];
   formatCurrency: (v: number) => string;
 }) {
@@ -751,9 +752,9 @@ function OpenPositionsWidget({ positions, formatCurrency }: {
       </div>
     </div>
   );
-}
+});
 
-function QuickActionsWidget({ isPremium: _ }: { isPremium: boolean }) {
+const QuickActionsWidget = memo(function QuickActionsWidget({ isPremium: _ }: { isPremium: boolean }) {
   const actions = [
     { href: "/analysis",  icon: <BarChart3 className="w-5 h-5" />,  label: "Analyser",     sub: "Actif" },
     { href: "/markets",   icon: <Globe className="w-5 h-5" />,      label: "Marchés",      sub: "Explorer" },
@@ -781,4 +782,4 @@ function QuickActionsWidget({ isPremium: _ }: { isPremium: boolean }) {
       </div>
     </div>
   );
-}
+});

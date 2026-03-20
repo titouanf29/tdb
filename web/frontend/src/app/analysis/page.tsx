@@ -56,7 +56,11 @@ import { analysisAPI, favoritesAPI, aiAPI, marketAPI, Analysis } from "@/lib/api
 import { getAssetInfo, getAssetLogo } from "@/lib/assetInfo";
 import { useFormatCurrency, useFormatPrice, useSettings } from "@/lib/SettingsContext";
 import { authHeaders } from "@/lib/auth";
-import PremiumChart from "@/components/PremiumChart";
+import dynamic from "next/dynamic";
+const PremiumChart = dynamic(() => import("@/components/PremiumChart"), {
+  ssr: false,
+  loading: () => <div className="h-[420px] bg-card/30 animate-pulse rounded-xl" />,
+});
 import { TopLoadingBar } from "@/components/ui/TopLoadingBar";
 
 export default function AnalysisPage() {

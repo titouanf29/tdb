@@ -5,12 +5,15 @@ import re
 import sys
 import asyncio
 from pathlib import Path
+import pandas as pd
+import numpy as np
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 from .auth import get_current_user
 from .premium import is_user_premium, get_user_limits
 from ..database import execute_query, execute_write
+from ._prices import fetch_ohlcv
 
 router = APIRouter()
 limiter = Limiter(key_func=get_remote_address)
@@ -67,9 +70,6 @@ async def analyze_asset(
     if not _SYMBOL_RE.match(symbol.upper()):
         raise HTTPException(status_code=400, detail="Symbole invalide")
     symbol = symbol.upper()
-    import pandas as pd
-    import numpy as np
-    from ._prices import fetch_ohlcv
 
     try:
         # Get historical data
@@ -654,9 +654,6 @@ async def scan_market(
 ):
     """Scan a market for opportunities — parallel, enriched scoring (RSI+MACD+EMA+Volume+Momentum)"""
     from config import MARKETS
-    from ._prices import fetch_ohlcv
-    import asyncio
-    import numpy as np
 
     # ── Quota check ────────────────────────────────────────────────────────
     quota = await _check_scan_limit(current_user)

@@ -218,3 +218,51 @@ async def send_alert_to_user(user_id: int, alert: dict):
             })
         except Exception:
             pass
+
+
+@websocket_router.websocket("/admin-notifications")
+async def websocket_admin_notifications(websocket: WebSocket, token: Optional[str] = None):
+    """
+    Real-time admin notifications stream — admin only.
+    Sends current notifications on connect, then pushes new ones via broadcast.
+    """
+    user_id = _get_user_id_from_token(token)
+    if user_id is None:
+        await websocket.close(code=4401)
+        return
+
+    from .database import execute_query
+
+    # Verify the user is admin
+    rows = await execute_query("SELECT is_admin FROM web_users WHERE id = ?", (user_id,))
+    if not rows or not rows[0].get("is_admin"):
+        await websocket.close(code=4403)
+        return
+
+    await manager.connect(websocket, "admin-notifications")
+    try:
+        # Send current notifications immediately on connect
+        notifications = await execute_query(
+            "SELECT * FROM admin_notifications ORDER BY created_at DESC LIMIT 20"
+        )
+        unread = sum(1 for n in notifications if not n.get("is_read"))
+        await websocket.send_json({
+            "type": "admin_notifications",
+            "data": {"notifications": notifications, "unread_count": unread}
+        })
+
+        # Keep alive — new notifications are pushed via broadcast_admin_notification()
+        while True:
+            await asyncio.sleep(30)
+            await websocket.send_json({"type": "ping"})
+
+    except WebSocketDisconnect:
+        manager.disconnect(websocket, "admin-notifications")
+
+
+async def broadcast_admin_notification(notification: dict):
+    """Broadcast a new admin notification to all connected admin clients."""
+    await manager.broadcast("admin-notifications", {
+        "type": "new_admin_notification",
+        "data": notification
+    })

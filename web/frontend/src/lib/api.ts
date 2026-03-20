@@ -23,13 +23,18 @@ async function fetchAPI<T>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<T> {
-  const response = await fetch(`${API_URL}${endpoint}`, {
-    ...options,
-    headers: {
-      ...authHeaders(),
-      ...options.headers,
-    },
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${API_URL}${endpoint}`, {
+      ...options,
+      headers: {
+        ...authHeaders(),
+        ...options.headers,
+      },
+    });
+  } catch {
+    throw new APIError("Vérifiez votre connexion internet", 0);
+  }
 
   if (response.status === 401) {
     // Don't redirect if already on auth pages
@@ -57,12 +62,17 @@ async function fetchAPI<T>(
       message = detail.map((e: any) => e.msg || JSON.stringify(e)).join("; ");
     } else if (detail && typeof detail === "object") {
       message = (detail as any).message || JSON.stringify(detail);
-    } else if (rawText) {
-      // Non-JSON response (HTML error page, plain text, etc.)
-      message = `Erreur serveur (${response.status})`;
-      console.error(`[API] Non-JSON response for ${endpoint}:`, rawText.slice(0, 200));
     } else {
-      message = `Erreur serveur (${response.status})`;
+      const statusMessages: Record<number, string> = {
+        429: "Trop de requêtes. Attendez un moment avant de réessayer.",
+        503: "Service temporairement indisponible. Réessayez dans quelques instants.",
+        502: "Le serveur est temporairement indisponible.",
+        500: "Erreur interne du serveur. Notre équipe a été notifiée.",
+        403: "Accès refusé.",
+        404: "Ressource introuvable.",
+      };
+      message = statusMessages[response.status] ?? `Erreur serveur (${response.status})`;
+      if (rawText) console.error(`[API] Non-JSON response for ${endpoint}:`, rawText.slice(0, 200));
     }
     throw new APIError(message, response.status);
   }
