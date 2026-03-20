@@ -311,6 +311,13 @@ async def get_me(current_user: dict = Depends(get_current_user)):
     }
 
 
+@router.post("/refresh")
+async def refresh_token(current_user: dict = Depends(get_current_user)):
+    """Issue a fresh token for an active authenticated user."""
+    new_token = create_access_token(data={"sub": str(current_user["id"])})
+    return {"access_token": new_token, "token_type": "bearer"}
+
+
 @router.post("/logout")
 async def logout():
     return {"message": "Logged out successfully"}

@@ -12,6 +12,7 @@ import {
   logout as authLogout,
   getToken,
   setUser as saveUser,
+  refreshToken,
 } from "./auth";
 
 interface AuthContextType {
@@ -59,6 +60,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     initAuth();
   }, []);
+
+  // Refresh token every 50 min while the tab is open (token expires in 1h)
+  useEffect(() => {
+    if (!user) return;
+
+    const interval = setInterval(async () => {
+      const success = await refreshToken();
+      if (!success && !getToken()) {
+        // Token expired and explicitly removed → log out
+        setUser(null);
+      }
+    }, 50 * 60 * 1000);
+
+    return () => clearInterval(interval);
+  }, [user]);
 
   const login = async (email: string, password: string) => {
     const response = await authLogin(email, password);

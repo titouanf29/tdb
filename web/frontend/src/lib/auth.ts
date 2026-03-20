@@ -170,6 +170,35 @@ export async function getMe(): Promise<User | null> {
   }
 }
 
+export async function refreshToken(): Promise<boolean> {
+  const token = getToken();
+  if (!token) return false;
+
+  try {
+    const response = await fetch(`${API_URL}/api/auth/refresh`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (!response.ok) {
+      if (response.status === 401) {
+        removeToken();
+      }
+      return false;
+    }
+
+    const data = await response.json();
+    setToken(data.access_token);
+    return true;
+  } catch {
+    // Network error — don't remove token
+    return false;
+  }
+}
+
 // Auth header helper
 export function authHeaders(): HeadersInit {
   const token = getToken();
