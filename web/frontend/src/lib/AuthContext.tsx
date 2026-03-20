@@ -48,9 +48,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const currentUser = await getMe();
         if (currentUser) {
           setUser(currentUser);
-        } else {
+        } else if (!getToken()) {
+          // Token was explicitly removed (401 invalid/expired) → log out
           setUser(null);
         }
+        // else: network/server error, token still present → keep savedUser
       }
       setIsLoading(false);
     };
