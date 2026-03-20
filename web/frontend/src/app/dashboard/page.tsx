@@ -678,9 +678,9 @@ const NewsWidget = memo(function NewsWidget({ marketNews, isLoadingNews, newsFil
       )}
     </div>
   );
-}
+});
 
-function TradingStatsWidget({ stats, balance, formatCurrency }: {
+const TradingStatsWidget = memo(function TradingStatsWidget({ stats, balance, formatCurrency }: {
   stats: TradingStats | null;
   balance: WalletBalance | null;
   formatCurrency: (v: number) => string;
