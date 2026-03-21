@@ -3,6 +3,7 @@ Premium API routes for TDB
 Manages premium subscriptions and features
 """
 
+import os
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from pydantic import BaseModel
 from typing import Optional
@@ -94,7 +95,7 @@ async def is_user_premium(user: dict) -> bool:
                 if expires:
                     try:
                         exp_date = datetime.fromisoformat(expires.replace("Z", "+00:00"))
-                        if exp_date < datetime.utcnow():
+                        if exp_date < datetime.now(timezone.utc):
                             # Premium expired — revoke atomically to avoid race conditions.
                             # Only revoke if still marked premium (compare-and-swap pattern).
                             await execute_write(
@@ -135,7 +136,9 @@ async def check_premium_required(current_user: dict = Depends(get_current_user))
 async def create_checkout_session(current_user: dict = Depends(get_current_user)):
     """Create a Stripe Checkout session for Premium subscription (5€/month)"""
     import stripe
-    from config import STRIPE_SECRET_KEY, STRIPE_PRICE_ID, FRONTEND_URL
+    STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY", "")
+    STRIPE_PRICE_ID = os.getenv("STRIPE_PRICE_ID", "")
+    FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
 
     if not STRIPE_SECRET_KEY or not STRIPE_PRICE_ID:
         raise HTTPException(status_code=503, detail="Paiement non configuré. Contactez l'administrateur.")
@@ -181,7 +184,8 @@ async def create_checkout_session(current_user: dict = Depends(get_current_user)
 async def stripe_webhook(request: Request):
     """Handle Stripe webhook events (no auth — verified by signature)"""
     import stripe
-    from config import STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET
+    STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY", "")
+    STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET", "")
 
     stripe.api_key = STRIPE_SECRET_KEY
     payload = await request.body()
@@ -203,13 +207,13 @@ async def stripe_webhook(request: Request):
 
         if user_id:
             from datetime import timedelta
-            expires = (datetime.utcnow() + timedelta(days=32)).isoformat()
+            expires = (datetime.now(timezone.utc) + timedelta(days=32)).isoformat()
             await execute_write("""
                 UPDATE web_users
                 SET is_premium = 1, premium_since = ?, premium_expires = ?,
                     stripe_customer_id = ?, stripe_subscription_id = ?
                 WHERE id = ?
-            """, (datetime.utcnow().isoformat(), expires, customer_id, subscription_id, int(user_id)))
+            """, (datetime.now(timezone.utc).isoformat(), expires, customer_id, subscription_id, int(user_id)))
 
     # Subscription renewed → extend expiry
     elif event_type == "invoice.paid":
@@ -217,7 +221,7 @@ async def stripe_webhook(request: Request):
         subscription_id = invoice.get("subscription")
         if subscription_id:
             from datetime import timedelta
-            expires = (datetime.utcnow() + timedelta(days=32)).isoformat()
+            expires = (datetime.now(timezone.utc) + timedelta(days=32)).isoformat()
             await execute_write("""
                 UPDATE web_users SET is_premium = 1, premium_expires = ?
                 WHERE stripe_subscription_id = ?
@@ -231,7 +235,7 @@ async def stripe_webhook(request: Request):
             await execute_write("""
                 UPDATE web_users SET is_premium = 0, premium_expires = ?, stripe_subscription_id = NULL
                 WHERE stripe_subscription_id = ?
-            """, (datetime.utcnow().isoformat(), subscription_id))
+            """, (datetime.now(timezone.utc).isoformat(), subscription_id))
 
     return {"status": "ok"}
 
@@ -343,7 +347,7 @@ async def contact_for_premium(
     await execute_write("""
         INSERT INTO premium_requests (user_id, message, status, created_at)
         VALUES (?, ?, 'pending', ?)
-    """, (current_user["id"], request.message, datetime.utcnow().isoformat()))
+    """, (current_user["id"], request.message, datetime.now(timezone.utc).isoformat()))
 
     await create_admin_notification(
         type="premium_request",
@@ -433,7 +437,7 @@ async def process_premium_request(
         UPDATE premium_requests
         SET status = ?, admin_response = ?, processed_at = ?, processed_by = ?
         WHERE id = ?
-    """, (data.status, data.response, datetime.utcnow().isoformat(), admin["id"], data.request_id))
+    """, (data.status, data.response, datetime.now(timezone.utc).isoformat(), admin["id"], data.request_id))
 
     await log_admin_action(
         admin["id"],
@@ -460,13 +464,13 @@ async def grant_premium(
         expires = None
         if data.duration_days:
             from datetime import timedelta
-            expires = (datetime.utcnow() + timedelta(days=data.duration_days)).isoformat()
+            expires = (datetime.now(timezone.utc) + timedelta(days=data.duration_days)).isoformat()
 
         await execute_write("""
             UPDATE web_users
             SET is_premium = 1, premium_since = ?, premium_expires = ?
             WHERE id = ?
-        """, (datetime.utcnow().isoformat(), expires, data.user_id))
+        """, (datetime.now(timezone.utc).isoformat(), expires, data.user_id))
 
         await log_admin_action(
             admin["id"],

@@ -3,7 +3,7 @@ Authentication routes - Email/Password with email verification
 """
 import os
 import secrets
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Depends, Request
@@ -71,7 +71,7 @@ def verify_password(password: str, hashed: str) -> bool:
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     to_encode = data.copy()
-    expire = datetime.utcnow() + (expires_delta or timedelta(hours=ACCESS_TOKEN_EXPIRE_HOURS))
+    expire = datetime.now(timezone.utc) + (expires_delta or timedelta(hours=ACCESS_TOKEN_EXPIRE_HOURS))
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
@@ -83,11 +83,11 @@ async def _create_verification_token(user_id: int) -> str:
         (user_id,)
     )
     token = secrets.token_urlsafe(32)
-    expires_at = (datetime.utcnow() + timedelta(hours=VERIFICATION_EXPIRE_HOURS)).isoformat()
+    expires_at = (datetime.now(timezone.utc) + timedelta(hours=VERIFICATION_EXPIRE_HOURS)).isoformat()
     await execute_write(
         """INSERT INTO email_verification_tokens (user_id, token, expires_at, created_at)
            VALUES (?, ?, ?, ?)""",
-        (user_id, token, expires_at, datetime.utcnow().isoformat())
+        (user_id, token, expires_at, datetime.now(timezone.utc).isoformat())
     )
     return token
 
@@ -110,7 +110,7 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
 
     await execute_write(
         "UPDATE web_users SET last_active = ? WHERE id = ?",
-        (datetime.utcnow().isoformat(), int(user_id))
+        (datetime.now(timezone.utc).isoformat(), int(user_id))
     )
 
     user = dict(users[0])
@@ -150,7 +150,7 @@ async def register(request: Request, data: RegisterRequest):
         """INSERT INTO web_users (email, username, password_hash, first_name, created_at, email_verified)
            VALUES (?, ?, ?, ?, ?, 0)""",
         (data.email.lower(), data.username.lower(), password_hash,
-         data.first_name or data.username, datetime.utcnow().isoformat())
+         data.first_name or data.username, datetime.now(timezone.utc).isoformat())
     )
 
     users = await execute_query(
@@ -160,7 +160,7 @@ async def register(request: Request, data: RegisterRequest):
 
     await execute_write(
         "INSERT INTO wallet (user_id, balance, currency, created_at) VALUES (?, 10000.0, 'USD', ?)",
-        (f"web_{user['id']}", datetime.utcnow().isoformat())
+        (f"web_{user['id']}", datetime.now(timezone.utc).isoformat())
     )
 
     # Notify admins of new registration
@@ -237,7 +237,7 @@ async def login(request: Request, data: LoginRequest):
 
     await execute_write(
         "UPDATE web_users SET last_login = ? WHERE id = ?",
-        (datetime.utcnow().isoformat(), user["id"])
+        (datetime.now(timezone.utc).isoformat(), user["id"])
     )
 
     access_token = create_access_token({"sub": str(user["id"])})
@@ -263,7 +263,7 @@ async def verify_email(request: Request, token: str):
         raise HTTPException(status_code=400, detail="Lien invalide ou expiré")
 
     record = rows[0]
-    if datetime.utcnow() > datetime.fromisoformat(record["expires_at"]):
+    if datetime.now(timezone.utc) > datetime.fromisoformat(record["expires_at"]):
         await execute_write(
             "DELETE FROM email_verification_tokens WHERE token = ?", (token,)
         )

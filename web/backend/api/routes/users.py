@@ -156,7 +156,7 @@ async def add_favorite(symbol: str, current_user: dict = Depends(get_current_use
         return {"success": False, "message": "Already in favorites"}
     await execute_write(
         "INSERT INTO web_favorites (user_id, symbol, added_at) VALUES (?, ?, ?)",
-        (user_id, symbol.upper(), datetime.utcnow().isoformat())
+        (user_id, symbol.upper(), datetime.now(timezone.utc).isoformat())
     )
     return {"success": True, "message": f"{symbol} added to favorites"}
 

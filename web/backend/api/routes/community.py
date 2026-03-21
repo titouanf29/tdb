@@ -87,7 +87,7 @@ async def send_chat_message(
 
     # Check for spam (max 5 messages per minute)
     from datetime import timedelta
-    _1min_ago = (datetime.utcnow() - timedelta(minutes=1)).isoformat()
+    _1min_ago = (datetime.now(timezone.utc) - timedelta(minutes=1)).isoformat()
     recent = await execute_query(
         "SELECT COUNT(*) as count FROM community_messages WHERE user_id = ? AND created_at > ?",
         (user_id, _1min_ago)
@@ -100,7 +100,7 @@ async def send_chat_message(
     await execute_write("""
         INSERT INTO community_messages (user_id, content, reply_to, created_at, is_deleted)
         VALUES (?, ?, ?, ?, 0)
-    """, (user_id, content, request.reply_to, datetime.utcnow().isoformat()))
+    """, (user_id, content, request.reply_to, datetime.now(timezone.utc).isoformat()))
 
     # Get the inserted message
     new_message = await execute_query("""
@@ -168,7 +168,7 @@ async def like_message(
         # Like
         await execute_write(
             "INSERT INTO community_message_likes (message_id, user_id, created_at) VALUES (?, ?, ?)",
-            (message_id, user_id, datetime.utcnow().isoformat())
+            (message_id, user_id, datetime.now(timezone.utc).isoformat())
         )
         return {"liked": True}
 
@@ -178,7 +178,7 @@ async def get_online_count(current_user: dict = Depends(get_current_user)):
     """Get approximate online users count"""
     # Count users active in last 5 minutes
     from datetime import timedelta
-    _5min_ago = (datetime.utcnow() - timedelta(minutes=5)).isoformat()
+    _5min_ago = (datetime.now(timezone.utc) - timedelta(minutes=5)).isoformat()
     result = await execute_query(
         "SELECT COUNT(DISTINCT user_id) as count FROM community_messages WHERE created_at > ?",
         (_5min_ago,)
@@ -216,7 +216,7 @@ async def contact_admin(
         await execute_write("""
             INSERT INTO admin_ticket_messages (ticket_id, user_id, message, is_admin, created_at)
             VALUES (?, ?, ?, 0, ?)
-        """, (existing[0]["id"], user_id, f"[{request.subject}]\n\n{request.message}", datetime.utcnow().isoformat()))
+        """, (existing[0]["id"], user_id, f"[{request.subject}]\n\n{request.message}", datetime.now(timezone.utc).isoformat()))
 
         return {
             "success": True,
@@ -225,7 +225,7 @@ async def contact_admin(
         }
 
     # Create new ticket
-    _now = datetime.utcnow().isoformat()
+    _now = datetime.now(timezone.utc).isoformat()
     await execute_write("""
         INSERT INTO admin_tickets (user_id, subject, status, created_at, updated_at)
         VALUES (?, ?, 'open', ?, ?)
@@ -241,7 +241,7 @@ async def contact_admin(
         await execute_write("""
             INSERT INTO admin_ticket_messages (ticket_id, user_id, message, is_admin, created_at)
             VALUES (?, ?, ?, 0, ?)
-        """, (ticket[0]["id"], user_id, request.message, datetime.utcnow().isoformat()))
+        """, (ticket[0]["id"], user_id, request.message, datetime.now(timezone.utc).isoformat()))
 
         username = current_user.get("username") or current_user.get("email", "Utilisateur")
         await create_admin_notification(
@@ -333,7 +333,7 @@ async def reply_to_ticket(
     if ticket[0]["user_id"] != user_id and not is_admin:
         raise HTTPException(status_code=403, detail="Access denied")
 
-    _now = datetime.utcnow().isoformat()
+    _now = datetime.now(timezone.utc).isoformat()
     await execute_write("""
         INSERT INTO admin_ticket_messages (ticket_id, user_id, message, is_admin, created_at)
         VALUES (?, ?, ?, ?, ?)
@@ -385,7 +385,7 @@ async def admin_close_ticket(
     """Close a support ticket"""
     await execute_write(
         "UPDATE admin_tickets SET status = 'closed', updated_at = ? WHERE id = ?",
-        (datetime.utcnow().isoformat(), ticket_id)
+        (datetime.now(timezone.utc).isoformat(), ticket_id)
     )
     return {"success": True}
 
@@ -398,6 +398,6 @@ async def admin_reopen_ticket(
     """Reopen a support ticket"""
     await execute_write(
         "UPDATE admin_tickets SET status = 'open', updated_at = ? WHERE id = ?",
-        (datetime.utcnow().isoformat(), ticket_id)
+        (datetime.now(timezone.utc).isoformat(), ticket_id)
     )
     return {"success": True}

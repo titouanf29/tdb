@@ -560,7 +560,7 @@ Sois precis, factuel et donne des recommandations actionables."""
             return {
                 "analysis": analysis,
                 "market_data": market_data,
-                "generated_at": datetime.utcnow().isoformat()
+                "generated_at": datetime.now(timezone.utc).isoformat()
             }
 
     except HTTPException:
@@ -3088,7 +3088,7 @@ Sois factuel et concis."""
             return {
                 "event_id": event_id,
                 "summary": summary,
-                "generated_at": datetime.utcnow().isoformat()
+                "generated_at": datetime.now(timezone.utc).isoformat()
             }
 
     except HTTPException:

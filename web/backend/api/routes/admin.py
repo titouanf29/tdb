@@ -125,7 +125,7 @@ async def get_admin_dashboard(admin: dict = Depends(get_admin_user)):
     """Get admin dashboard with all stats"""
 
     # Compute cutoff datetimes in Python (works for both SQLite and PostgreSQL)
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     cutoff_1d = (now - timedelta(days=1)).isoformat()
     cutoff_7d = (now - timedelta(days=7)).isoformat()
 
@@ -425,7 +425,7 @@ async def send_broadcast(message: BroadcastMessage, admin: dict = Depends(get_ad
     await execute_write("""
         INSERT INTO admin_broadcasts (admin_id, title, message, type, created_at)
         VALUES (?, ?, ?, ?, ?)
-    """, (admin["id"], message.title, message.message, message.type, datetime.utcnow().isoformat()))
+    """, (admin["id"], message.title, message.message, message.type, datetime.now(timezone.utc).isoformat()))
 
     await log_admin_action(admin["id"], "broadcast", f"Sent broadcast: {message.title}")
 
@@ -472,7 +472,7 @@ async def create_changelog(data: ChangelogCreate, admin: dict = Depends(get_admi
     await execute_write("""
         INSERT INTO admin_changelogs (admin_id, title, content, version, created_at)
         VALUES (?, ?, ?, ?, ?)
-    """, (admin["id"], data.title, data.content, data.version, datetime.utcnow().isoformat()))
+    """, (admin["id"], data.title, data.content, data.version, datetime.now(timezone.utc).isoformat()))
 
     await log_admin_action(admin["id"], "create_changelog", f"Changelog created: {data.title}")
 
@@ -526,7 +526,7 @@ async def mark_changelog_read(changelog_id: int, current_user: dict = Depends(ge
             INSERT INTO user_changelog_reads (user_id, changelog_id, read_at)
             VALUES (?, ?, ?)
             ON CONFLICT (user_id, changelog_id) DO NOTHING
-        """, (user_id, changelog_id, datetime.utcnow().isoformat()))
+        """, (user_id, changelog_id, datetime.now(timezone.utc).isoformat()))
     except Exception:
         pass  # Already read (unique constraint)
     return {"success": True}
@@ -552,7 +552,7 @@ async def update_system_setting(setting: SystemSetting, admin: dict = Depends(ge
         (setting.key,)
     )
 
-    _now = datetime.utcnow().isoformat()
+    _now = datetime.now(timezone.utc).isoformat()
     if existing:
         await execute_write(
             "UPDATE admin_settings SET value = ?, updated_at = ? WHERE key = ?",
@@ -575,7 +575,7 @@ async def update_system_setting(setting: SystemSetting, admin: dict = Depends(ge
 async def get_user_analytics(days: int = 30, admin: dict = Depends(get_admin_user)):
     """Get user registration and activity analytics"""
 
-    cutoff = (datetime.utcnow() - timedelta(days=days)).isoformat()
+    cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
 
     # Daily registrations
     registrations = await execute_query("""
@@ -605,7 +605,7 @@ async def get_user_analytics(days: int = 30, admin: dict = Depends(get_admin_use
 async def get_trading_analytics(days: int = 30, admin: dict = Depends(get_admin_user)):
     """Get trading analytics"""
 
-    cutoff = (datetime.utcnow() - timedelta(days=days)).isoformat()
+    cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
 
     # Daily trades
     trades = await execute_query("""
@@ -655,7 +655,7 @@ async def get_trading_analytics(days: int = 30, admin: dict = Depends(get_admin_
 async def get_ai_analytics(days: int = 30, admin: dict = Depends(get_admin_user)):
     """Get AI assistant usage analytics"""
 
-    cutoff = (datetime.utcnow() - timedelta(days=days)).isoformat()
+    cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
 
     # Daily messages
     messages = await execute_query("""
@@ -768,7 +768,7 @@ async def force_close_position(position_id: int, admin: dict = Depends(get_admin
         UPDATE positions
         SET status = 'closed', realized_pnl = 0, closed_at = ?
         WHERE id = ?
-    """, (datetime.utcnow().isoformat(), position_id))
+    """, (datetime.now(timezone.utc).isoformat(), position_id))
 
     # Return amount to user wallet
     await execute_write("""
@@ -787,7 +787,7 @@ async def log_admin_action(admin_id: int, action: str, details: str):
     await execute_write("""
         INSERT INTO admin_audit_log (admin_id, action, details, created_at)
         VALUES (?, ?, ?, ?)
-    """, (admin_id, action, details, datetime.utcnow().isoformat()))
+    """, (admin_id, action, details, datetime.now(timezone.utc).isoformat()))
 
 
 # ============== ADMIN MANAGEMENT ==============
@@ -881,7 +881,7 @@ async def process_asset_request(data: AssetRequestAction, admin: dict = Depends(
         UPDATE asset_requests
         SET status = ?, admin_notes = ?, processed_at = ?, processed_by = ?
         WHERE id = ?
-    """, (data.status, data.admin_notes, datetime.utcnow().isoformat(), admin["id"], data.request_id))
+    """, (data.status, data.admin_notes, datetime.now(timezone.utc).isoformat(), admin["id"], data.request_id))
 
     await log_admin_action(
         admin["id"],
@@ -1002,7 +1002,7 @@ async def admin_reply_ticket(ticket_id: int, data: TicketReplyRequest, admin: di
     if not ticket:
         raise HTTPException(status_code=404, detail="Ticket not found")
 
-    _now = datetime.utcnow().isoformat()
+    _now = datetime.now(timezone.utc).isoformat()
     await execute_write("""
         INSERT INTO admin_ticket_messages (ticket_id, user_id, message, is_admin, created_at)
         VALUES (?, ?, ?, 1, ?)
@@ -1023,7 +1023,7 @@ async def admin_close_ticket(ticket_id: int, admin: dict = Depends(get_admin_use
     """Close a ticket"""
     await execute_write(
         "UPDATE admin_tickets SET status = 'closed', updated_at = ? WHERE id = ?",
-        (datetime.utcnow().isoformat(), ticket_id)
+        (datetime.now(timezone.utc).isoformat(), ticket_id)
     )
     await log_admin_action(admin["id"], "ticket_close", f"Closed ticket {ticket_id}")
     return {"success": True}
@@ -1034,7 +1034,7 @@ async def admin_reopen_ticket(ticket_id: int, admin: dict = Depends(get_admin_us
     """Reopen a ticket"""
     await execute_write(
         "UPDATE admin_tickets SET status = 'open', updated_at = ? WHERE id = ?",
-        (datetime.utcnow().isoformat(), ticket_id)
+        (datetime.now(timezone.utc).isoformat(), ticket_id)
     )
     await log_admin_action(admin["id"], "ticket_reopen", f"Reopened ticket {ticket_id}")
     return {"success": True}

@@ -11,6 +11,7 @@ load_dotenv(env_path)
 # Also try local .env
 load_dotenv()
 
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -20,12 +21,22 @@ from slowapi.middleware import SlowAPIMiddleware
 from slowapi.errors import RateLimitExceeded
 
 from .database import init_db, init_web_tables
-from .routes import auth, market, wallet, analysis, users, favorites, ai_assistant, admin, premium, community
+from .routes import auth, market, wallet, analysis, users, favorites, ai_assistant, admin, premium, community, tools
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Initialize database on startup."""
+    await init_db()
+    await init_web_tables()
+    yield
+
 
 app = FastAPI(
     title="TDB Web API",
     description="Trading Dashboard Bot - Web API",
-    version="1.0.0"
+    version="1.0.0",
+    lifespan=lifespan,
 )
 
 # Global rate limiter (shared across all route limiters)
@@ -40,21 +51,18 @@ async def rate_limit_handler(request: Request, exc: RateLimitExceeded):
         content={"detail": f"Trop de requêtes. Limite : {exc.detail}"}
     )
 
-# CORS configuration
-# FRONTEND_URL can be comma-separated for multiple origins, or "*" for all
-_frontend_env = os.getenv("FRONTEND_URL", "*")
-if _frontend_env == "*":
-    _origins = ["*"]
-else:
-    _origins = [u.strip() for u in _frontend_env.split(",") if u.strip()]
-    _origins += ["http://localhost:3000", "http://127.0.0.1:3000"]
+# CORS — explicit allowlist only, never wildcard "*"
+_frontend_env = os.getenv("FRONTEND_URL", "")
+_origins: list[str] = ["http://localhost:3000", "http://127.0.0.1:3000"]
+if _frontend_env:
+    _origins += [u.strip() for u in _frontend_env.split(",") if u.strip()]
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_origins,
-    allow_credentials=_origins != ["*"],  # credentials incompatible with wildcard
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", "Accept"],
 )
 
 # Include routers
@@ -68,13 +76,7 @@ app.include_router(ai_assistant.router, prefix="/api/ai", tags=["AI Assistant"])
 app.include_router(admin.router, prefix="/api/admin", tags=["Admin"])
 app.include_router(premium.router, prefix="/api/premium", tags=["Premium"])
 app.include_router(community.router, prefix="/api/community", tags=["Community"])
-
-
-@app.on_event("startup")
-async def startup():
-    """Initialize database on startup."""
-    await init_db()
-    await init_web_tables()
+app.include_router(tools.router, prefix="/api/tools", tags=["Trading Tools"])
 
 
 @app.get("/")

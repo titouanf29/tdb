@@ -100,7 +100,7 @@ async def add_favorite(
     await execute_write(
         """INSERT INTO web_favorites (user_id, symbol, added_at)
            VALUES (?, ?, ?)""",
-        (user_id, symbol, datetime.utcnow().isoformat())
+        (user_id, symbol, datetime.now(timezone.utc).isoformat())
     )
 
     return {"message": f"{symbol} ajouté aux favoris"}

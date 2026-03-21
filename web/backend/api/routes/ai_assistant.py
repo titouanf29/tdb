@@ -331,7 +331,7 @@ async def chat_with_assistant(
             assistant_message = data["choices"][0]["message"]["content"]
 
             # Save messages to history
-            now = datetime.utcnow().isoformat()
+            now = datetime.now(timezone.utc).isoformat()
             await execute_write(
                 """INSERT INTO web_ai_chat (user_id, role, content, created_at)
                    VALUES (?, 'user', ?, ?)""",
@@ -1366,7 +1366,7 @@ async def get_market_news(request: Request, current_user: dict = Depends(get_cur
         "news": news_items,
         "summary": summary,
         "summary_points": summary_points,
-        "generated_at": datetime.utcnow().isoformat()
+        "generated_at": datetime.now(timezone.utc).isoformat()
     }
 
 
@@ -1422,7 +1422,7 @@ async def get_session_narrative(
 
     mood_fr = {"bullish": "haussier", "bearish": "baissier", "neutral": "neutre"}.get(body.mood, body.mood)
     status_str = "en cours" if body.is_live else "clôturée"
-    date_str = datetime.utcnow().strftime("%A %d %B %Y")
+    date_str = datetime.now(timezone.utc).strftime("%A %d %B %Y")
 
     prompt = f"""Tu es un analyste de marché expert. Rédige un résumé narratif concis et professionnel de la séance boursière suivante.
 
@@ -1476,7 +1476,7 @@ INSTRUCTIONS :
 
         return {
             "narrative": narrative,
-            "generated_at": datetime.utcnow().isoformat(),
+            "generated_at": datetime.now(timezone.utc).isoformat(),
         }
 
     except HTTPException:

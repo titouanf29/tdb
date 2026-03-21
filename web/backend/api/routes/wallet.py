@@ -48,7 +48,7 @@ async def get_wallet_balance(current_user: dict = Depends(get_current_user)):
         await execute_write(
             """INSERT INTO wallet (user_id, balance, currency, created_at)
                VALUES (?, 10000.0, 'USD', ?)""",
-            (user_id, datetime.utcnow().isoformat())
+            (user_id, datetime.now(timezone.utc).isoformat())
         )
         return {
             "balance": 10000.0,
@@ -166,7 +166,7 @@ async def open_position(
            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'open', ?)""",
         (user_id, request.symbol, request.direction.upper(),
          current_price, quantity, request.amount, request.leverage,
-         request.take_profit, request.stop_loss, datetime.utcnow().isoformat())
+         request.take_profit, request.stop_loss, datetime.now(timezone.utc).isoformat())
     )
 
     # Deduct from balance
@@ -226,7 +226,7 @@ async def close_position(
         """UPDATE positions
            SET status = 'closed', exit_price = ?, realized_pnl = ?, closed_at = ?
            WHERE id = ?""",
-        (exit_price, pnl, datetime.utcnow().isoformat(), request.position_id)
+        (exit_price, pnl, datetime.now(timezone.utc).isoformat(), request.position_id)
     )
 
     # Update balance
@@ -298,7 +298,7 @@ async def add_funds_to_wallet(
         await execute_write(
             """INSERT INTO wallet (user_id, balance, currency, created_at)
                VALUES (?, ?, 'USD', ?)""",
-            (user_id, request.amount, datetime.utcnow().isoformat())
+            (user_id, request.amount, datetime.now(timezone.utc).isoformat())
         )
         return {
             "success": True,

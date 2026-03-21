@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 """
 Database connection - supports PostgreSQL (production) and SQLite (development)
 
@@ -665,7 +666,7 @@ async def create_admin_notification(type: str, title: str, message: str, link: s
     try:
         await execute_write(
             "INSERT INTO admin_notifications (type, title, message, link, is_read, created_at) VALUES (?, ?, ?, ?, 0, ?)",
-            (type, title, message, link, datetime.utcnow().isoformat()),
+            (type, title, message, link, datetime.now(timezone.utc).isoformat()),
         )
     except Exception as e:
         print(f"[NOTIF] Failed to create admin notification: {e}")
