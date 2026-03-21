@@ -59,18 +59,17 @@ app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # CORS for frontend
-# FRONTEND_URL can be comma-separated or omitted to allow all origins
+# FRONTEND_URL must be set explicitly (comma-separated list of allowed origins).
+# In development, localhost is always allowed. Wildcard "*" is never used.
 _frontend_env = os.getenv("FRONTEND_URL", "")
-if not _frontend_env:
-    _cors_origins = ["*"]
-else:
-    _cors_origins = [u.strip() for u in _frontend_env.split(",") if u.strip()]
-    _cors_origins += ["http://localhost:3000", "http://127.0.0.1:3000"]
+_cors_origins: list[str] = ["http://localhost:3000", "http://127.0.0.1:3000"]
+if _frontend_env:
+    _cors_origins += [u.strip() for u in _frontend_env.split(",") if u.strip()]
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_cors_origins,
-    allow_credentials=_cors_origins != ["*"],
+    allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type", "Accept"],
 )
@@ -92,12 +91,12 @@ async def security_headers(request: Request, call_next):
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
-    """Catch all unhandled exceptions and return JSON instead of plain text."""
-    print(f"[ERROR] Unhandled exception on {request.method} {request.url.path}: {type(exc).__name__}: {exc}")
+    """Catch all unhandled exceptions and return a generic error (never expose internals)."""
+    print(f"[ERROR] Unhandled exception on {request.method} {request.url.path}: {type(exc).__name__}: {exc}", flush=True)
     traceback.print_exc()
     return JSONResponse(
         status_code=500,
-        content={"detail": f"{type(exc).__name__}: {str(exc)}"}
+        content={"detail": "Une erreur interne est survenue. Veuillez réessayer."}
     )
 
 

@@ -108,23 +108,27 @@ async def update_user_settings(
             )
         )
     else:
+        # Build update using a safe, fixed mapping of field → column name
+        # Column names are never derived from user input.
+        SAFE_COLUMN_MAP = [
+            (request.trading_style,        "trading_style",         request.trading_style),
+            (request.risk_level,           "risk_level",            request.risk_level),
+            (request.notifications_enabled,"notifications_enabled",
+             None if request.notifications_enabled is None else (1 if request.notifications_enabled else 0)),
+            (request.theme,                "theme",                 request.theme),
+            (request.default_leverage,     "language",              request.default_leverage),
+        ]
         updates, params = [], []
-        if request.trading_style is not None:
-            updates.append("trading_style = ?");     params.append(request.trading_style)
-        if request.risk_level is not None:
-            updates.append("risk_level = ?");        params.append(request.risk_level)
-        if request.notifications_enabled is not None:
-            updates.append("notifications_enabled = ?"); params.append(1 if request.notifications_enabled else 0)
-        if request.theme is not None:
-            updates.append("theme = ?");             params.append(request.theme)
-        if request.default_leverage is not None:
-            updates.append("language = ?");          params.append(request.default_leverage)  # reuse language col as stopgap
+        for field_val, col_name, db_val in SAFE_COLUMN_MAP:
+            if field_val is not None:
+                updates.append(f"{col_name} = ?")
+                params.append(db_val)
         if updates:
             params.append(user_id)
-            await execute_write(
-                f"UPDATE web_user_settings SET {', '.join(updates)} WHERE user_id = ?",
-                tuple(params)
-            )
+            # updates list is built entirely from the hardcoded SAFE_COLUMN_MAP above,
+            # never from user-supplied strings — no SQL injection risk.
+            query = "UPDATE web_user_settings SET " + ", ".join(updates) + " WHERE user_id = ?"
+            await execute_write(query, tuple(params))
 
     return {"success": True}
 

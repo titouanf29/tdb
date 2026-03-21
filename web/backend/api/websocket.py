@@ -44,7 +44,7 @@ class ConnectionManager:
 
 manager = ConnectionManager()
 
-_JWT_SECRET = os.getenv("JWT_SECRET", "tdb-secret-key-change-in-production")
+_JWT_SECRET = os.getenv("JWT_SECRET", "dev-only-insecure-secret-do-not-use-in-prod")
 
 
 def _b64url_decode(s: str) -> bytes:
@@ -55,7 +55,7 @@ def _b64url_decode(s: str) -> bytes:
 
 
 def _get_user_id_from_token(token: Optional[str]) -> Optional[int]:
-    """Verify HS256 JWT and return user_id, or None if invalid/tampered."""
+    """Verify HS256 JWT and return user_id, or None if invalid/tampered/expired."""
     if not token:
         return None
     try:
@@ -71,6 +71,11 @@ def _get_user_id_from_token(token: Optional[str]) -> Optional[int]:
         if not hmac.compare_digest(expected_sig, actual_sig):
             return None
         payload = json.loads(_b64url_decode(payload_b64))
+        # Verify token expiry
+        import time
+        exp = payload.get("exp")
+        if exp is None or time.time() > exp:
+            return None
         sub = payload.get("sub")
         return int(sub) if sub is not None else None
     except Exception:
@@ -81,11 +86,16 @@ websocket_router = APIRouter()
 
 
 @websocket_router.websocket("/prices/{symbols}")
-async def websocket_prices(websocket: WebSocket, symbols: str):
+async def websocket_prices(websocket: WebSocket, symbols: str, token: Optional[str] = None):
     """
-    Real-time price updates for symbols
+    Real-time price updates for symbols — requires valid JWT.
     symbols: comma-separated list (e.g., "AAPL,MSFT,GOOGL")
     """
+    user_id = _get_user_id_from_token(token)
+    if user_id is None:
+        await websocket.close(code=4401)
+        return
+
     await manager.connect(websocket, f"prices:{symbols}")
 
     symbol_list = [s.strip().upper() for s in symbols.split(",")]

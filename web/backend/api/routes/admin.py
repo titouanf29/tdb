@@ -36,24 +36,18 @@ async def check_if_admin(user: dict) -> bool:
     user_email = (user.get("email") or "").lower().strip()
     user_id = user.get("id")
 
-    # Debug logging
-    print(f"[ADMIN CHECK] User email: '{user_email}', User ID: {user_id}")
-    print(f"[ADMIN CHECK] Whitelist: {[e.lower() for e in ADMIN_WHITELIST]}")
-
     # Check whitelist first (case-insensitive comparison)
     whitelist_lower = [e.lower().strip() for e in ADMIN_WHITELIST]
     if user_email and user_email in whitelist_lower:
-        print(f"[ADMIN CHECK] User {user_email} found in whitelist - ADMIN")
         return True
 
     # Check if first user (auto-admin)
     if user_id:
         try:
             if await is_first_user(user_id):
-                print(f"[ADMIN CHECK] User {user_id} is first user - ADMIN")
                 return True
-        except Exception as e:
-            print(f"[ADMIN CHECK] Error checking first user: {e}")
+        except Exception:
+            pass
 
     # Check if user is marked as admin in database
     if user_id:
@@ -63,12 +57,10 @@ async def check_if_admin(user: dict) -> bool:
                 (user_id,)
             )
             if admin_check and admin_check[0].get("is_admin"):
-                print(f"[ADMIN CHECK] User {user_id} marked as admin in DB - ADMIN")
                 return True
-        except Exception as e:
-            print(f"[ADMIN CHECK] Error checking is_admin column: {e}")
+        except Exception:
+            pass
 
-    print(f"[ADMIN CHECK] User {user_email} is NOT admin")
     return False
 
 

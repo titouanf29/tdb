@@ -95,14 +95,19 @@ async def is_user_premium(user: dict) -> bool:
                     try:
                         exp_date = datetime.fromisoformat(expires.replace("Z", "+00:00"))
                         if exp_date < datetime.utcnow():
-                            # Premium expired, revoke it
+                            # Premium expired — revoke atomically to avoid race conditions.
+                            # Only revoke if still marked premium (compare-and-swap pattern).
                             await execute_write(
-                                "UPDATE web_users SET is_premium = 0 WHERE id = ?",
+                                "UPDATE web_users SET is_premium = 0 WHERE id = ? AND is_premium = 1",
                                 (user_id,)
                             )
                             return False
-                    except:
-                        pass
+                    except (ValueError, TypeError) as e:
+                        import logging
+                        logging.getLogger(__name__).warning(
+                            "Failed to parse premium_expires for user %s: %s", user_id, e
+                        )
+                        return False
                 return True
 
     return False

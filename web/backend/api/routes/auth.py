@@ -22,7 +22,17 @@ security = HTTPBearer(auto_error=False)
 limiter = Limiter(key_func=get_remote_address)
 
 # JWT Configuration
-SECRET_KEY = os.getenv("JWT_SECRET", "tdb-secret-key-change-in-production")
+_JWT_SECRET_ENV = os.getenv("JWT_SECRET", "")
+if not _JWT_SECRET_ENV:
+    import sys
+    _is_prod = os.getenv("ENV", "development").lower() == "production"
+    if _is_prod:
+        print("[FATAL] JWT_SECRET environment variable is not set. Refusing to start in production.", flush=True)
+        sys.exit(1)
+    else:
+        # Development fallback — never used in production
+        _JWT_SECRET_ENV = "dev-only-insecure-secret-do-not-use-in-prod"
+SECRET_KEY = _JWT_SECRET_ENV
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_HOURS = 1  # 1 hour
 
@@ -170,6 +180,8 @@ async def register(request: Request, data: RegisterRequest):
         import logging
         logging.getLogger(__name__).error("Failed to send verification email: %s", e)
 
+    # Always require email verification when SMTP is configured.
+    # In development (no SMTP), auto-verify only if explicitly opted in via DEV_AUTO_VERIFY=true.
     if EMAIL_ENABLED:
         return {
             "requires_verification": True,
@@ -177,7 +189,14 @@ async def register(request: Request, data: RegisterRequest):
             "email": data.email.lower(),
         }
     else:
-        # Dev mode: no SMTP configured → auto-verify and return token
+        dev_auto_verify = os.getenv("DEV_AUTO_VERIFY", "false").lower() == "true"
+        if not dev_auto_verify:
+            return {
+                "requires_verification": True,
+                "message": "Compte créé. Configurez SMTP pour activer la vérification email, ou définissez DEV_AUTO_VERIFY=true en développement.",
+                "email": data.email.lower(),
+            }
+        # Dev mode with explicit opt-in: auto-verify and return token
         await execute_write(
             "UPDATE web_users SET email_verified = 1 WHERE id = ?", (user["id"],)
         )
@@ -234,7 +253,8 @@ async def login(request: Request, data: LoginRequest):
 
 
 @router.get("/verify-email")
-async def verify_email(token: str):
+@limiter.limit("10/minute")
+async def verify_email(request: Request, token: str):
     """Verify email address from token link."""
     rows = await execute_query(
         "SELECT * FROM email_verification_tokens WHERE token = ?", (token,)
