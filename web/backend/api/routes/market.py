@@ -509,6 +509,27 @@ async def get_quote(request: Request, symbol: str):
                             "52w_low": None,
                         }
 
+        # Fallback: yfinance (no API key needed)
+        from ._prices import fetch_prices as _fetch_yf
+        prices = await _fetch_yf([symbol])
+        p = prices.get(symbol)
+        if p and p.get("price"):
+            return {
+                "symbol": symbol,
+                "name": SYMBOL_NAMES.get(symbol, symbol),
+                "price": round(float(p["price"]), 4),
+                "change": round(float(p.get("change", 0)), 2),
+                "change_amount": 0.0,
+                "high": 0.0,
+                "low": 0.0,
+                "open": 0.0,
+                "volume": int(p.get("volume", 0)),
+                "market_cap": None,
+                "pe_ratio": None,
+                "52w_high": None,
+                "52w_low": None,
+            }
+
         raise HTTPException(status_code=404, detail="Symbol not found")
     except HTTPException:
         raise
