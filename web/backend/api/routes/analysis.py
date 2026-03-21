@@ -51,7 +51,7 @@ async def _check_scan_limit(user: dict) -> dict:
 
 
 async def _record_scan(user_id: int, market: str) -> None:
-    from datetime import datetime
+    from datetime import datetime, timezone
     now = datetime.now(timezone.utc).isoformat()
     await execute_write(
         "INSERT INTO web_scan_usage (user_id, market, created_at) VALUES (?, ?, ?)",

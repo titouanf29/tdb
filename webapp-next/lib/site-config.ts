@@ -1,8 +1,8 @@
 export const siteConfig = {
   name: 'TDB',
-  tagline: 'Analyse IA des marches financiers, en temps reel.',
+  tagline: 'Analyse IA des marchés financiers, en temps réel.',
   description:
-    'TDB est un assistant IA pedagogique qui detecte les opportunites de trading, evalue les risques et accompagne votre progression via Telegram.',
+    'TDB est un assistant IA pédagogique qui détecte les opportunités de trading, évalue les risques et accompagne votre progression via Telegram.',
   url: 'https://tdb.capten.ai',
   telegramUrl: 'https://t.me/tdbcapten_bot',
   discordUrl: 'https://discord.gg/tdbcapten',
@@ -10,25 +10,26 @@ export const siteConfig = {
 };
 
 export const navLinks = [
-  { href: '/fonctionnalites', label: 'Fonctionnalites' },
-  { href: '/comment-ca-marche', label: 'Comment ca marche' },
-  { href: '/education', label: 'Education' },
-  { href: '/communaute', label: 'Communaute' },
+  { href: '/fonctionnalites', label: 'Fonctionnalités' },
+  { href: '/comment-ca-marche', label: 'Comment ça marche' },
+  { href: '/education', label: 'Éducation' },
+  { href: '/communaute', label: 'Communauté' },
   { href: '/faq', label: 'FAQ' },
+  { href: '/roadmap', label: 'Roadmap' },
 ];
 
 export const featureCards = [
   {
-    title: 'Analyse IA multi-marches',
-    body: 'Detection automatique des opportunites sur crypto, forex et indices avec un score de 0 a 100.',
+    title: 'Analyse IA multi-marchés',
+    body: 'Détection automatique des opportunités sur crypto, forex et indices avec un score de 0 à 100.',
   },
   {
-    title: 'Scan en temps reel',
-    body: 'Surveillance continue des marches et alertes instantanees sur Telegram des qu un setup se forme.',
+    title: 'Scan en temps réel',
+    body: "Surveillance continue des marchés et alertes instantanées sur Telegram dès qu'un setup se forme.",
   },
   {
-    title: 'Indicateurs avances',
-    body: 'SMA200, Ichimoku, VIX, momentum et volume analyses simultanement pour une vision complete.',
+    title: 'Indicateurs avancés',
+    body: 'SMA200, Ichimoku, VIX, momentum et volume analysés simultanément pour une vision complète.',
   },
   {
     title: 'Paper trading',
@@ -36,7 +37,7 @@ export const featureCards = [
   },
   {
     title: 'Gestion du risque',
-    body: 'Calcul automatique du position sizing, niveaux d invalidation et ratio risque/rendement.',
+    body: "Calcul automatique du position sizing, niveaux d'invalidation et ratio risque/rendement.",
   },
   {
     title: 'Tableau de bord',
@@ -47,15 +48,15 @@ export const featureCards = [
 export const educationCards = [
   {
     title: 'Bases du trading',
-    body: 'Structure de marche, tendances, niveaux cles et principes d execution.',
+    body: "Structure de marché, tendances, niveaux clés et principes d'exécution.",
   },
   {
-    title: 'Indicateurs expliques',
+    title: 'Indicateurs expliqués',
     body: 'Comprendre et utiliser SMA200, Ichimoku, VIX, momentum et volume.',
   },
   {
     title: 'Gestion du risque',
-    body: 'Position sizing, placement des stops et maitrise du drawdown.',
+    body: 'Position sizing, placement des stops et maîtrise du drawdown.',
   },
   {
     title: 'Psychologie du trading',
@@ -63,37 +64,37 @@ export const educationCards = [
   },
   {
     title: 'Lecture des signaux',
-    body: 'Interpreter les alertes TDB, valider un setup et decider sans emotion.',
+    body: 'Interpréter les alertes TDB, valider un setup et décider sans émotion.',
   },
   {
-    title: 'Analyse de marche',
-    body: 'Methodologie top-down, contexte macro et selection des actifs a surveiller.',
+    title: 'Analyse de marché',
+    body: 'Méthodologie top-down, contexte macro et sélection des actifs à surveiller.',
   },
 ];
 
 export const faqItems = [
   {
     q: 'TDB fournit-il des conseils financiers ?',
-    a: 'Non. TDB est un outil educatif. Les analyses et alertes sont des indications pedagogiques, pas des conseils d investissement.',
+    a: "Non. TDB est un outil éducatif. Les analyses et alertes sont des indications pédagogiques, pas des conseils d'investissement.",
   },
   {
-    q: 'Sur quels marches le bot analyse-t-il ?',
+    q: 'Sur quels marchés le bot analyse-t-il ?',
     a: 'Crypto (BTC, ETH, altcoins majeurs), forex (paires principales) et indices (SP500, Nasdaq, CAC40).',
   },
   {
     q: 'Comment fonctionne le paper trading ?',
-    a: 'Chaque utilisateur dispose d un wallet virtuel de 10 000$. Les trades sont simules en temps reel sans argent reel.',
+    a: "Chaque utilisateur dispose d'un wallet virtuel de 10 000$. Les trades sont simulés en temps réel sans argent réel.",
   },
   {
     q: 'Le bot est-il disponible 24h/24 ?',
-    a: 'Oui. Le scan automatique tourne en continu et les alertes sont envoyees des qu un signal est detecte.',
+    a: "Oui. Le scan automatique tourne en continu et les alertes sont envoyées dès qu'un signal est détecté.",
   },
   {
     q: 'Faut-il des connaissances en trading pour commencer ?',
-    a: 'Non. La section education et les explications integrees au bot sont concues pour les debutants comme pour les confirmes.',
+    a: 'Non. La section éducation et les explications intégrées au bot sont conçues pour les débutants comme pour les confirmés.',
   },
   {
-    q: 'Comment rejoindre la communaute ?',
-    a: 'Via le lien Discord disponible sur le site et dans le bot Telegram. L acces est gratuit.',
+    q: 'Comment rejoindre la communauté ?',
+    a: "Via le lien Discord disponible sur le site et dans le bot Telegram. L'accès est gratuit.",
   },
 ];

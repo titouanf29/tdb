@@ -1,7 +1,7 @@
 """
 Favorites/Watchlist routes
 """
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel

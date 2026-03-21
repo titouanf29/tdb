@@ -1,7 +1,7 @@
 """
 Community routes - Chat and Admin Contact
 """
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional, List
 from fastapi import APIRouter, HTTPException, Depends, Query
 from pydantic import BaseModel
