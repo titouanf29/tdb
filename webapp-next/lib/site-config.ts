@@ -3,7 +3,7 @@ export const siteConfig = {
   tagline: 'Analyse IA des marchés financiers, en temps réel.',
   description:
     'TDB est un assistant IA pédagogique qui détecte les opportunités de trading, évalue les risques et accompagne votre progression via Telegram.',
-  url: 'https://tdb.capten.ai',
+  url: process.env.NEXT_PUBLIC_SITE_URL || 'https://captentdb.fr',
   telegramUrl: 'https://t.me/tdbcapten_bot',
   discordUrl: 'https://discord.gg/tdbcapten',
   contactEmail: 'contact@tdb.capten.ai',
