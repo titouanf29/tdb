@@ -60,7 +60,7 @@ export default function RegisterPage() {
       if (result.requires_verification) {
         setPendingEmail(result.email || formData.email);
       } else {
-        window.location.href = "/dashboard";
+        router.push("/dashboard");
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erreur d'inscription");

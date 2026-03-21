@@ -270,7 +270,7 @@ async def get_market_trends(current_user: dict = Depends(get_current_user)):
                 "sma_50": round(sma_50, 2) if sma_50 else None,
                 "trend": trend
             })
-        except:
+        except Exception:
             continue
 
     # Analyze sectors
@@ -292,7 +292,7 @@ async def get_market_trends(current_user: dict = Depends(get_current_user)):
                 "change_1d": round(change_1d, 2),
                 "change_1w": round(change_1w, 2)
             })
-        except:
+        except Exception:
             continue
 
     # Sort sectors by performance
@@ -332,7 +332,7 @@ async def get_market_trends(current_user: dict = Depends(get_current_user)):
                 if response.status_code == 200:
                     data = response.json()
                     trends["analysis"] = data["choices"][0]["message"]["content"]
-        except:
+        except Exception:
             pass
 
     return trends
@@ -550,7 +550,7 @@ Sois precis, factuel et donne des recommandations actionables."""
                     if "error" in error_data:
                         error_msg = error_data["error"].get("message", "Unknown error")
                         error_detail = f"AI API error: {error_msg}"
-                except:
+                except Exception:
                     error_detail = f"AI API error (status {response.status_code})"
                 raise HTTPException(status_code=503, detail=error_detail)
 

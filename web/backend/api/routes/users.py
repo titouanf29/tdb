@@ -4,7 +4,7 @@ User routes
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from typing import Optional
-from datetime import datetime
+from datetime import datetime, timezone
 
 from ..database import execute_query, execute_write
 from .auth import get_current_user

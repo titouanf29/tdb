@@ -26,7 +26,7 @@ export default function LoginPage() {
 
     try {
       await login(email, password);
-      window.location.href = "/dashboard";
+      router.push("/dashboard");
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Erreur de connexion";
       if (msg.includes("non vérifié") || msg.includes("Vérifi")) {

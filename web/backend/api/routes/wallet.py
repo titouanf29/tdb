@@ -1,7 +1,7 @@
 """
 Wallet routes - Synchronized with Telegram bot
 """
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel

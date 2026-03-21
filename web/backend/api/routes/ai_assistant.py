@@ -6,7 +6,7 @@ import re
 import httpx
 
 _SYMBOL_RE = re.compile(r'^[\^A-Z0-9.\-=]{1,30}$')
-from datetime import datetime, date
+from datetime import datetime, date, timezone
 from typing import List, Optional
 from fastapi import APIRouter, HTTPException, Depends, Request, Query
 from pydantic import BaseModel, field_validator

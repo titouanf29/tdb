@@ -7,7 +7,7 @@ import os
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from pydantic import BaseModel
 from typing import Optional
-from datetime import datetime
+from datetime import datetime, timezone
 
 from ..database import execute_query, execute_write, create_admin_notification
 from .auth import get_current_user
