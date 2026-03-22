@@ -1,14 +1,10 @@
 import type { Metadata } from 'next';
-import { Manrope, Space_Grotesk } from 'next/font/google';
 import { ReactNode } from 'react';
 import Script from 'next/script';
 import { SiteHeader } from '@/components/site-header';
 import { SiteFooter } from '@/components/site-footer';
 import { siteConfig } from '@/lib/site-config';
 import './globals.css';
-
-const manrope = Manrope({ subsets: ['latin'], variable: '--font-body' });
-const space = Space_Grotesk({ subsets: ['latin'], variable: '--font-title' });
 
 const GA_ID = process.env.NEXT_PUBLIC_GA_ID;
 const GSC_VERIFICATION = process.env.NEXT_PUBLIC_GSC_VERIFICATION || '';
@@ -49,7 +45,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {
   return (
     <html lang="fr">
-      <body className={`${manrope.variable} ${space.variable}`}>
+      <body>
         <div className="glow" aria-hidden />
         <SiteHeader />
         {children}

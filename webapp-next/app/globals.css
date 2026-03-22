@@ -1,4 +1,6 @@
 :root {
+  --font-body: 'Manrope', system-ui, sans-serif;
+  --font-title: 'Space Grotesk', system-ui, sans-serif;
   --bg: #05070c;
   --bg-soft: #0c1322;
   --surface: #121b2d;
