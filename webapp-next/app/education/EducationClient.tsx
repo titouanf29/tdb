@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 /* ─── TYPES ─────────────────────────────────────────────── */
 type Candle = { o: number; h: number; l: number; c: number; label: string };
@@ -648,6 +648,14 @@ function StyleComparison() {
 }
 
 /* ─── LESSON DATA ─────────────────────────────────────────── */
+type Level = 'debutant' | 'intermediaire' | 'avance';
+
+const LEVELS: { id: Level; label: string; color: string; emoji: string; desc: string }[] = [
+  { id: 'debutant', label: 'Débutant', color: '#29e17c', emoji: '🌱', desc: 'Fondamentaux' },
+  { id: 'intermediaire', label: 'Intermédiaire', color: '#2d7cff', emoji: '📈', desc: 'Stratégies' },
+  { id: 'avance', label: 'Avancé', color: '#776bff', emoji: '⚡', desc: 'Maîtrise' },
+];
+
 const LESSONS = [
   {
     num: '01',
@@ -656,6 +664,7 @@ const LESSONS = [
     tags: ['Marché', 'Bougies', 'Tendances'],
     emoji: '📊',
     color: '#2d7cff',
+    level: 'debutant' as Level,
     intro: 'Avant de lancer un seul trade, il faut comprendre comment les marchés se déplacent et ce qu\'un graphique vous dit.',
   },
   {
@@ -665,6 +674,7 @@ const LESSONS = [
     tags: ['RSI', 'MACD', 'SMA200'],
     emoji: '📈',
     color: '#776bff',
+    level: 'debutant' as Level,
     intro: 'Les indicateurs ne prédisent pas l\'avenir — ils mesurent le passé pour vous aider à évaluer la probabilité d\'un mouvement.',
   },
   {
@@ -674,6 +684,7 @@ const LESSONS = [
     tags: ['Position sizing', 'Stop Loss', 'R/R'],
     emoji: '🛡️',
     color: '#29e17c',
+    level: 'debutant' as Level,
     intro: 'La gestion du risque est la compétence n°1 d\'un trader rentable. Elle détermine votre survie sur le long terme.',
   },
   {
@@ -683,6 +694,7 @@ const LESSONS = [
     tags: ['Biais', 'Discipline', 'Routine'],
     emoji: '🧠',
     color: '#f59e0b',
+    level: 'intermediaire' as Level,
     intro: 'Les marchés sont un miroir de vos émotions. Comprendre vos biais cognitifs est aussi important que l\'analyse technique.',
   },
   {
@@ -692,6 +704,7 @@ const LESSONS = [
     tags: ['Score', 'Alertes', 'Algorithme'],
     emoji: '🤖',
     color: '#06b6d4',
+    level: 'intermediaire' as Level,
     intro: 'Le score TDB agrège 30+ paramètres pour vous donner une vision rapide de la qualité d\'un setup. Voici comment l\'interpréter.',
   },
   {
@@ -701,6 +714,7 @@ const LESSONS = [
     tags: ['Macro', 'Secteur', 'Actif'],
     emoji: '🔭',
     color: '#ec4899',
+    level: 'intermediaire' as Level,
     intro: 'Les meilleurs traders commencent par la vue d\'ensemble avant de zoomer sur l\'actif. C\'est l\'approche top-down.',
   },
   {
@@ -710,6 +724,7 @@ const LESSONS = [
     tags: ['Market', 'Limit', 'Slippage'],
     emoji: '📋',
     color: '#10b981',
+    level: 'intermediaire' as Level,
     intro: 'Savoir quel type d\'ordre utiliser peut faire la différence entre un bon et un mauvais remplissage — et donc entre profit et perte.',
   },
   {
@@ -719,6 +734,7 @@ const LESSONS = [
     tags: ['Order Book', 'Bid/Ask', 'Liquidité'],
     emoji: '📖',
     color: '#8b5cf6',
+    level: 'avance' as Level,
     intro: 'Le carnet d\'ordres révèle les intentions des acheteurs et vendeurs en temps réel. C\'est la radiographie du marché.',
   },
   {
@@ -728,6 +744,7 @@ const LESSONS = [
     tags: ['Trend', 'Breakout', 'Pull-back'],
     emoji: '🚀',
     color: '#f97316',
+    level: 'avance' as Level,
     intro: 'La tendance est votre alliée. Apprendre à l\'identifier et à trader dans sa direction est la base de toute stratégie rentable.',
   },
   {
@@ -737,6 +754,7 @@ const LESSONS = [
     tags: ['Scalping', 'Day', 'Swing'],
     emoji: '⚡',
     color: '#e879f9',
+    level: 'avance' as Level,
     intro: 'Chaque trader a un style qui correspond à sa personnalité, son capital et son temps disponible. Trouvez le vôtre.',
   },
 ];
@@ -1063,29 +1081,117 @@ function ChecklistItem({ text }: { text: string }) {
 }
 
 /* ─── MAIN COMPONENT ─────────────────────────────────────── */
+const PROGRESS_KEY = 'tdb_edu_progress';
+
 export function EducationClient() {
   const [open, setOpen] = useState<string | null>(null);
   const [completed, setCompleted] = useState<Set<string>>(new Set());
+  const [activeLevel, setActiveLevel] = useState<Level>('debutant');
+  const [hydrated, setHydrated] = useState(false);
+
+  // Load progress from localStorage on mount
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(PROGRESS_KEY);
+      if (saved) {
+        const arr: string[] = JSON.parse(saved);
+        setCompleted(new Set(arr));
+      }
+    } catch {}
+    setHydrated(true);
+  }, []);
+
+  // Detect user profile from onboarding
+  useEffect(() => {
+    try {
+      const profile = localStorage.getItem('tdb_user_profile');
+      if (profile) {
+        const { profile: p } = JSON.parse(profile);
+        if (p === 'intermediaire' || p === 'avance') setActiveLevel(p);
+      }
+    } catch {}
+    const handler = (e: Event) => {
+      const { profile } = (e as CustomEvent).detail;
+      if (profile === 'intermediaire' || profile === 'avance') setActiveLevel(profile);
+    };
+    window.addEventListener('tdb:profile-set', handler);
+    return () => window.removeEventListener('tdb:profile-set', handler);
+  }, []);
 
   const toggle = (num: string) => {
     const next = open === num ? null : num;
     setOpen(next);
-    if (next) setCompleted(prev => new Set([...prev, num]));
+    if (next) {
+      const newCompleted = new Set([...completed, num]);
+      setCompleted(newCompleted);
+      try { localStorage.setItem(PROGRESS_KEY, JSON.stringify([...newCompleted])); } catch {}
+    }
   };
+
+  const filteredLessons = LESSONS.filter(l => l.level === activeLevel);
+  const levelCompleted = filteredLessons.filter(l => completed.has(l.num)).length;
+  const levelTotal = filteredLessons.length;
+  const totalCompleted = LESSONS.filter(l => completed.has(l.num)).length;
+  const levelConfig = LEVELS.find(lv => lv.id === activeLevel)!;
 
   return (
     <>
-      {/* Progress */}
-      <div className="edu-progress">
-        <div className="edu-progress-bar">
-          <div className="edu-progress-fill" style={{ width: `${(completed.size / LESSONS.length) * 100}%` }} />
+      {/* Level Tabs */}
+      <div className="edu-level-tabs">
+        {LEVELS.map(lv => {
+          const lvLessons = LESSONS.filter(l => l.level === lv.id);
+          const lvDone = lvLessons.filter(l => completed.has(l.num)).length;
+          const isActive = activeLevel === lv.id;
+          return (
+            <button
+              key={lv.id}
+              className={`edu-level-tab${isActive ? ' edu-level-tab-active' : ''}`}
+              style={{ '--lv-color': lv.color } as React.CSSProperties}
+              onClick={() => { setActiveLevel(lv.id); setOpen(null); }}
+            >
+              <span className="edu-lv-emoji">{lv.emoji}</span>
+              <span className="edu-lv-label">{lv.label}</span>
+              <span className="edu-lv-sub">{lv.desc}</span>
+              <div className="edu-lv-progress-bar">
+                <div
+                  className="edu-lv-progress-fill"
+                  style={{ width: hydrated ? `${(lvDone / lvLessons.length) * 100}%` : '0%', background: lv.color }}
+                />
+              </div>
+              <span className="edu-lv-count" style={{ color: lv.color }}>{hydrated ? lvDone : 0}/{lvLessons.length}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Level Progress Header */}
+      <div className="edu-level-header">
+        <div className="edu-level-info">
+          <span className="edu-level-badge" style={{ color: levelConfig.color, borderColor: levelConfig.color + '44', background: levelConfig.color + '11' }}>
+            {levelConfig.emoji} Niveau {levelConfig.label}
+          </span>
+          <span className="edu-level-desc">{levelConfig.desc}</span>
         </div>
-        <span className="edu-progress-label">{completed.size}/{LESSONS.length} leçons ouvertes</span>
+        <div className="edu-progress">
+          <div className="edu-progress-bar">
+            <div
+              className="edu-progress-fill"
+              style={{
+                width: hydrated ? `${(levelCompleted / levelTotal) * 100}%` : '0%',
+                background: `linear-gradient(90deg, ${levelConfig.color}, ${levelConfig.color}aa)`
+              }}
+            />
+          </div>
+          <span className="edu-progress-label">
+            {hydrated ? levelCompleted : 0}/{levelTotal} leçons
+            {hydrated && totalCompleted > 0 && ` · ${totalCompleted}/${LESSONS.length} total`}
+          </span>
+        </div>
       </div>
 
       {/* Lessons */}
       <div className="lessons-list">
-        {LESSONS.map((l) => {
+        {filteredLessons.map((l) => {
           const isOpen = open === l.num;
           const isDone = completed.has(l.num);
           return (
@@ -1118,6 +1224,29 @@ export function EducationClient() {
           );
         })}
       </div>
+
+      {/* Level completion message */}
+      {hydrated && levelCompleted === levelTotal && (
+        <div className="edu-level-complete">
+          <span className="edu-level-complete-icon">🏆</span>
+          <div>
+            <strong>Niveau {levelConfig.label} complété !</strong>
+            {activeLevel !== 'avance' && (
+              <p>
+                Passez au niveau suivant →{' '}
+                <button
+                  className="edu-next-level-btn"
+                  style={{ color: LEVELS[LEVELS.findIndex(l => l.id === activeLevel) + 1]?.color }}
+                  onClick={() => setActiveLevel(LEVELS[LEVELS.findIndex(l => l.id === activeLevel) + 1].id)}
+                >
+                  {LEVELS[LEVELS.findIndex(l => l.id === activeLevel) + 1]?.label}
+                </button>
+              </p>
+            )}
+            {activeLevel === 'avance' && <p>Vous maîtrisez tous les niveaux. Passez à la pratique !</p>}
+          </div>
+        </div>
+      )}
 
       {/* Quiz */}
       <QuizSection />

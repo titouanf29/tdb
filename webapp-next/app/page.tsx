@@ -2,6 +2,9 @@ import Link from 'next/link';
 import { Metadata } from 'next';
 import { CtaButton } from '@/components/cta-button';
 import { InfoCard } from '@/components/info-card';
+import { LiveDemo } from '@/components/live-demo';
+import { OpportunitiesWidget } from '@/components/opportunities-widget';
+import { OnboardingModal } from '@/components/onboarding-modal';
 import { faqItems, featureCards, siteConfig } from '@/lib/site-config';
 
 export const metadata: Metadata = {
@@ -69,6 +72,7 @@ const education = [
 export default function HomePage() {
   return (
     <main>
+      <OnboardingModal />
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
@@ -111,6 +115,22 @@ export default function HomePage() {
             <li>Confiance : élevée</li>
           </ul>
         </aside>
+      </section>
+
+      <section className="container section-block">
+        <div className="title-row">
+          <h2>Démo interactive</h2>
+          <Link href="/education">Apprendre à lire les signaux</Link>
+        </div>
+        <LiveDemo />
+      </section>
+
+      <section className="container section-block">
+        <div className="title-row">
+          <h2>Opportunités en temps réel</h2>
+          <span className="section-subtitle">Top actifs détectés par l&apos;IA</span>
+        </div>
+        <OpportunitiesWidget />
       </section>
 
       <section className="container section-block">
