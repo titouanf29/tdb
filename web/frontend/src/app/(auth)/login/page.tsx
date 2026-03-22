@@ -3,9 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Eye, EyeOff, TrendingUp, Loader2, Mail, ArrowLeft } from "lucide-react";
+import { Eye, EyeOff, TrendingUp, Loader2, ArrowLeft } from "lucide-react";
 import { useAuth } from "@/lib/AuthContext";
-import { resendVerification } from "@/lib/auth";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -15,9 +14,6 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [unverifiedEmail, setUnverifiedEmail] = useState<string | null>(null);
-  const [resendLoading, setResendLoading] = useState(false);
-  const [resendSuccess, setResendSuccess] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -28,28 +24,9 @@ export default function LoginPage() {
       await login(email, password);
       router.push("/dashboard");
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Erreur de connexion";
-      if (msg.includes("non vérifié") || msg.includes("Vérifi")) {
-        setUnverifiedEmail(email);
-      }
-      setError(msg);
+      setError(err instanceof Error ? err.message : "Erreur de connexion");
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  const handleResend = async () => {
-    if (!unverifiedEmail) return;
-    setResendLoading(true);
-    setResendSuccess(false);
-    try {
-      await resendVerification(unverifiedEmail);
-      setResendSuccess(true);
-      setError("");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Erreur lors du renvoi");
-    } finally {
-      setResendLoading(false);
     }
   };
 
@@ -82,23 +59,6 @@ export default function LoginPage() {
           {error && (
             <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm animate-fade-in">
               {error}
-              {unverifiedEmail && (
-                <div className="mt-2 pt-2 border-t border-red-500/20">
-                  {resendSuccess ? (
-                    <p className="text-green-400 text-xs">Email renvoyé ! Vérifiez votre boîte mail.</p>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={handleResend}
-                      disabled={resendLoading}
-                      className="flex items-center gap-1.5 text-xs text-primary hover:underline disabled:opacity-50"
-                    >
-                      {resendLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Mail className="w-3 h-3" />}
-                      Renvoyer l&apos;email de vérification
-                    </button>
-                  )}
-                </div>
-              )}
             </div>
           )}
 

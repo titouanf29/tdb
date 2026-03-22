@@ -27,13 +27,9 @@ export interface AuthResponse {
 }
 
 export interface RegisterResponse {
-  requires_verification?: boolean;
-  message?: string;
-  email?: string;
-  // also extends AuthResponse fields when auto-verified (dev mode)
-  access_token?: string;
-  token_type?: string;
-  user?: User;
+  access_token: string;
+  token_type: string;
+  user: User;
 }
 
 // Token storage
@@ -85,29 +81,9 @@ export async function register(
   }
 
   const data: RegisterResponse = await response.json();
-  // Auto-verified (dev mode without SMTP): store token immediately
-  if (data.access_token && data.user) {
-    setToken(data.access_token);
-    setUser(data.user);
-  }
+  setToken(data.access_token);
+  setUser(data.user);
   return data;
-}
-
-export async function resendVerification(email: string): Promise<void> {
-  const response = await fetch(`${API_URL}/api/auth/resend-verification`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email }),
-  });
-  if (!response.ok) {
-    const text = await response.text();
-    let detail = "Erreur lors du renvoi";
-    try {
-      const error = JSON.parse(text);
-      detail = error.detail || detail;
-    } catch {}
-    throw new Error(detail);
-  }
 }
 
 export async function login(

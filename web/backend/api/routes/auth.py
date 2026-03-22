@@ -171,45 +171,21 @@ async def register(request: Request, data: RegisterRequest):
         link="/admin?tab=users"
     )
 
-    # Send verification email (or skip if SMTP not configured)
-    token = await _create_verification_token(user["id"])
-    try:
-        await send_verification_email(data.email.lower(), data.username, token)
-    except Exception as e:
-        # Don't fail registration if email fails; log and continue
-        import logging
-        logging.getLogger(__name__).error("Failed to send verification email: %s", e)
-
-    # Always require email verification when SMTP is configured.
-    # In development (no SMTP), auto-verify only if explicitly opted in via DEV_AUTO_VERIFY=true.
-    if EMAIL_ENABLED:
-        return {
-            "requires_verification": True,
-            "message": "Compte créé ! Vérifiez votre email pour activer votre compte.",
-            "email": data.email.lower(),
+    # Auto-verify and return token directly (no email verification required)
+    await execute_write(
+        "UPDATE web_users SET email_verified = 1 WHERE id = ?", (user["id"],)
+    )
+    access_token = create_access_token({"sub": str(user["id"])})
+    return TokenResponse(
+        access_token=access_token,
+        user={
+            "id": user["id"], "email": user["email"],
+            "username": user["username"],
+            "first_name": user.get("first_name"),
+            "trading_level": user.get("trading_level"),
+            "user_type": "email",
         }
-    else:
-        dev_auto_verify = os.getenv("DEV_AUTO_VERIFY", "false").lower() == "true"
-        if not dev_auto_verify:
-            return {
-                "requires_verification": True,
-                "message": "Compte créé. Configurez SMTP pour activer la vérification email, ou définissez DEV_AUTO_VERIFY=true en développement.",
-                "email": data.email.lower(),
-            }
-        # Dev mode with explicit opt-in: auto-verify and return token
-        await execute_write(
-            "UPDATE web_users SET email_verified = 1 WHERE id = ?", (user["id"],)
-        )
-        access_token = create_access_token({"sub": str(user["id"])})
-        return TokenResponse(
-            access_token=access_token,
-            user={
-                "id": user["id"], "email": user["email"],
-                "username": user["username"],
-                "first_name": user.get("first_name"),
-                "user_type": "email",
-            }
-        )
+    )
 
 
 @router.post("/login", response_model=TokenResponse)
@@ -226,14 +202,6 @@ async def login(request: Request, data: LoginRequest):
 
     if not verify_password(data.password, user["password_hash"]):
         raise HTTPException(status_code=401, detail="Email ou mot de passe incorrect")
-
-    # Check email verification (skip check if SMTP not configured)
-    if EMAIL_ENABLED and not user.get("email_verified"):
-        raise HTTPException(
-            status_code=403,
-            detail="Email non vérifié. Consultez votre boîte mail ou renvoyez le lien.",
-            headers={"X-Requires-Verification": "true", "X-User-Email": user["email"]},
-        )
 
     await execute_write(
         "UPDATE web_users SET last_login = ? WHERE id = ?",
