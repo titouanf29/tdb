@@ -66,3 +66,7 @@ node_modules/
 
 # TypeScript build cache
 tsconfig.tsbuildinfo
+
+# Next.js build output
+.next/
+out/
