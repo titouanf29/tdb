@@ -307,13 +307,76 @@ Activez le scan automatique pour commencer à recevoir des opportunités.
 """
             keyboard = []
 
-            # Top 10 résultats
-            for i, result in enumerate(results[:10], 1):
+            # Stocker les résultats dans le contexte pour accès rapide via "Voir"
+            context.user_data['scan_recent_results'] = {r['asset_symbol']: r for r in results}
+
+            # Top 5 résultats avec boutons d'action
+            for i, result in enumerate(results[:5], 1):
                 emoji = get_score_emoji(result['score'])
                 text += f"\n{i}. {emoji} **{result['asset_symbol']}** - Score: {result['score']}/100"
                 text += f"\n   {result['scan_date'][:16]}"
+                symbol = result['asset_symbol']
+                keyboard.append([
+                    InlineKeyboardButton(f"👁 Voir {symbol}", callback_data=f"scan_view_{symbol}"),
+                    InlineKeyboardButton("📊 Analyser", callback_data=f"analyze_{symbol}")
+                ])
 
             keyboard.append([InlineKeyboardButton(BTN_BACK, callback_data="scan_main")])
+
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await query.edit_message_text(text, reply_markup=reply_markup, parse_mode='Markdown')
+
+    async def show_scan_view(self, update: Update, context: ContextTypes.DEFAULT_TYPE, symbol: str):
+        """Affiche les données stockées d'un scan (vue rapide sans refetch)"""
+        query = update.callback_query
+        await query.answer()
+
+        # Récupérer depuis le contexte ou la base de données
+        cached = context.user_data.get('scan_recent_results', {})
+        result = cached.get(symbol)
+
+        if not result:
+            # Fallback: relire depuis la base de données
+            user_id = query.from_user.id
+            recent = await db_manager.get_recent_scans(user_id, hours=24)
+            matches = [r for r in recent if r['asset_symbol'] == symbol]
+            result = matches[0] if matches else None
+
+        if not result:
+            await query.answer("❌ Données introuvables pour cet actif", show_alert=True)
+            return
+
+        emoji = get_score_emoji(result['score'])
+        direction = result.get('direction', 'N/A')
+        trend = result.get('trend', '')
+        risk = result.get('risk_level', '')
+        opp_type = result.get('opportunity_type', '')
+        summary = result.get('technical_summary', '')
+        scan_date = result.get('scan_date', '')[:16]
+
+        text = f"""
+👁 **VUE RAPIDE — {symbol}**
+
+{emoji} **Score: {result['score']}/100**
+
+📅 Scanné le: {scan_date}
+📊 Direction: {direction}
+"""
+        if trend:
+            text += f"📈 Tendance: {trend.upper()}\n"
+        if risk:
+            text += f"⚠️ Risque: {risk.upper()}\n"
+        if opp_type:
+            text += f"🎯 Type: {opp_type}\n"
+        if summary:
+            text += f"\n📝 _{summary}_\n"
+
+        text += "\n💡 Cliquez sur **Analyser** pour une analyse complète en temps réel."
+
+        keyboard = [
+            [InlineKeyboardButton("📊 Analyser complet", callback_data=f"analyze_{symbol}")],
+            [InlineKeyboardButton(BTN_BACK, callback_data="scan_results")]
+        ]
 
         reply_markup = InlineKeyboardMarkup(keyboard)
         await query.edit_message_text(text, reply_markup=reply_markup, parse_mode='Markdown')
@@ -361,3 +424,7 @@ Activez le scan automatique pour commencer à recevoir des opportunités.
         elif data.startswith("scan_set_alerts_"):
             max_alerts = int(data.replace("scan_set_alerts_", ""))
             await self.set_max_alerts(update, context, max_alerts)
+
+        elif data.startswith("scan_view_"):
+            symbol = data.replace("scan_view_", "")
+            await self.show_scan_view(update, context, symbol)
