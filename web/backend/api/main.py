@@ -11,6 +11,7 @@ load_dotenv(env_path)
 # Also try local .env
 load_dotenv()
 
+import logging
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -19,6 +20,8 @@ from slowapi import Limiter
 from slowapi.util import get_remote_address
 from slowapi.middleware import SlowAPIMiddleware
 from slowapi.errors import RateLimitExceeded
+
+logger = logging.getLogger(__name__)
 
 from .database import init_db, init_web_tables
 from .routes import auth, market, wallet, analysis, users, favorites, ai_assistant, admin, premium, community, tools
@@ -49,6 +52,15 @@ async def rate_limit_handler(request: Request, exc: RateLimitExceeded):
     return JSONResponse(
         status_code=429,
         content={"detail": f"Trop de requêtes. Limite : {exc.detail}"}
+    )
+
+
+@app.exception_handler(Exception)
+async def generic_exception_handler(request: Request, exc: Exception):
+    logger.error("Unhandled exception on %s %s: %s", request.method, request.url.path, exc, exc_info=True)
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "Une erreur interne s'est produite. Réessayez."}
     )
 
 # CORS — explicit allowlist only, never wildcard "*"
