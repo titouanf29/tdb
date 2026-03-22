@@ -43,7 +43,8 @@ async def get_chat_messages(
 
     if before_id:
         messages = await execute_query("""
-            SELECT m.*, u.username, u.is_premium, u.is_admin,
+            SELECT m.*, u.username, u.is_admin,
+                   CASE WHEN u.is_admin = 1 OR (u.is_premium = 1 AND (u.premium_expires IS NULL OR u.premium_expires > datetime('now'))) THEN 1 ELSE 0 END as is_premium,
                    (SELECT COUNT(*) FROM community_message_likes WHERE message_id = m.id) as likes,
                    EXISTS(SELECT 1 FROM community_message_likes WHERE message_id = m.id AND user_id = ?) as user_liked
             FROM community_messages m
@@ -54,7 +55,8 @@ async def get_chat_messages(
         """, (user_id, before_id, limit))
     else:
         messages = await execute_query("""
-            SELECT m.*, u.username, u.is_premium, u.is_admin,
+            SELECT m.*, u.username, u.is_admin,
+                   CASE WHEN u.is_admin = 1 OR (u.is_premium = 1 AND (u.premium_expires IS NULL OR u.premium_expires > datetime('now'))) THEN 1 ELSE 0 END as is_premium,
                    (SELECT COUNT(*) FROM community_message_likes WHERE message_id = m.id) as likes,
                    EXISTS(SELECT 1 FROM community_message_likes WHERE message_id = m.id AND user_id = ?) as user_liked
             FROM community_messages m
@@ -104,7 +106,8 @@ async def send_chat_message(
 
     # Get the inserted message
     new_message = await execute_query("""
-        SELECT m.*, u.username, u.is_premium, u.is_admin
+        SELECT m.*, u.username, u.is_admin,
+               CASE WHEN u.is_admin = 1 OR (u.is_premium = 1 AND (u.premium_expires IS NULL OR u.premium_expires > datetime('now'))) THEN 1 ELSE 0 END as is_premium
         FROM community_messages m
         LEFT JOIN web_users u ON m.user_id = u.id
         WHERE m.user_id = ?

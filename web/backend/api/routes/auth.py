@@ -247,6 +247,7 @@ async def login(request: Request, data: LoginRequest):
             "id": user["id"], "email": user["email"],
             "username": user["username"],
             "first_name": user.get("first_name"),
+            "trading_level": user.get("trading_level"),
             "user_type": "email",
         }
     )
@@ -283,6 +284,7 @@ async def verify_email(request: Request, token: str):
             "id": user["id"], "email": user["email"],
             "username": user["username"],
             "first_name": user.get("first_name"),
+            "trading_level": user.get("trading_level"),
             "user_type": "email",
         }
     )

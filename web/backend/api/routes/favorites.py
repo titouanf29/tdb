@@ -46,12 +46,14 @@ async def get_favorites(current_user: dict = Depends(get_current_user)):
     for fav in favorites:
         sym = fav["symbol"]
         p = prices.get(sym, {})
+        has_price = bool(p and p.get("price"))
         results.append({
             "symbol": sym,
             "price": p.get("price", 0),
             "change": p.get("change", 0),
             "volume": p.get("volume", 0),
             "added_at": fav["added_at"],
+            "error": not has_price,
         })
 
     return {"favorites": results}
