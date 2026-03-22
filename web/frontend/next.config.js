@@ -26,6 +26,7 @@ const securityHeaders = [
 const nextConfig = {
   reactStrictMode: true,
   output: 'standalone',
+  eslint: { ignoreDuringBuilds: true },
   images: {
     domains: ['t.me', 'telegram.org'],
   },

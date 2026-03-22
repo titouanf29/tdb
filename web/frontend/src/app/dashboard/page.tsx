@@ -15,14 +15,15 @@ import { useFormatCurrency, useFormatPrice } from "@/lib/SettingsContext";
 import { usePremium } from "@/lib/PremiumContext";
 import { getAssetInfo, getAssetLogo } from "@/lib/assetInfo";
 import { SessionSummaryWidget } from "@/components/dashboard/SessionSummary";
+import { OpportunitiesWidget } from "@/components/dashboard/OpportunitiesWidget";
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  DASHBOARD CONFIG
 // ─────────────────────────────────────────────────────────────────────────────
 
-type WidgetId = "indices" | "sessions" | "favorites" | "news" | "stats" | "positions" | "quickactions";
+type WidgetId = "indices" | "sessions" | "opportunities" | "favorites" | "news" | "stats" | "positions" | "quickactions";
 
-const DEFAULT_WIDGETS: WidgetId[] = ["indices", "sessions", "favorites", "news", "stats", "quickactions"];
+const DEFAULT_WIDGETS: WidgetId[] = ["indices", "sessions", "opportunities", "favorites", "news", "stats", "quickactions"];
 const DASHBOARD_STORAGE_KEY = "tdb_dashboard_config";
 
 const WIDGET_META: Record<WidgetId, { label: string; icon: string; description: string }> = {
@@ -32,7 +33,8 @@ const WIDGET_META: Record<WidgetId, { label: string; icon: string; description: 
   news:         { label: "Actualités",             icon: "📰", description: "News filtrées par IA + résumé" },
   stats:        { label: "Statistiques Trading",   icon: "🎯", description: "Win rate, P&L, historique" },
   positions:    { label: "Positions Ouvertes",     icon: "💼", description: "Positions actives en cours" },
-  quickactions: { label: "Actions Rapides",        icon: "⚡", description: "Raccourcis vers les pages clés" },
+  opportunities: { label: "Opportunités IA",         icon: "🎯", description: "Top 5 actifs classés par score IA" },
+  quickactions:  { label: "Actions Rapides",         icon: "⚡", description: "Raccourcis vers les pages clés" },
 };
 
 const INDICES_SYMBOLS = ["^FCHI", "^GSPC", "^IXIC", "BTC-USD", "GC=F", "^VIX"];
@@ -316,6 +318,11 @@ export default function DashboardPage() {
         if (widgetId === "sessions") return (
           <motion.div key="sessions" variants={itemVariants}>
             <SessionSummaryWidget />
+          </motion.div>
+        );
+        if (widgetId === "opportunities") return (
+          <motion.div key="opportunities" variants={itemVariants}>
+            <OpportunitiesWidget />
           </motion.div>
         );
         if (widgetId === "favorites") return (

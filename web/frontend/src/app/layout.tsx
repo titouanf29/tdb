@@ -1,13 +1,10 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/lib/AuthContext";
 import { SettingsProvider } from "@/lib/SettingsContext";
 import { PremiumProvider } from "@/lib/PremiumContext";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
-
-const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "CaptenTDB - Trading Education Platform",
@@ -24,7 +21,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="fr" className="dark">
-      <body className={`${inter.className} min-h-screen bg-background`}>
+      <body className="min-h-screen bg-background">
         {/* Background effects */}
         <div className="fixed inset-0 -z-10 overflow-hidden">
           {/* Subtle grid */}
