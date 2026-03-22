@@ -100,8 +100,13 @@ export async function resendVerification(email: string): Promise<void> {
     body: JSON.stringify({ email }),
   });
   if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.detail || "Erreur lors du renvoi");
+    const text = await response.text();
+    let detail = "Erreur lors du renvoi";
+    try {
+      const error = JSON.parse(text);
+      detail = error.detail || detail;
+    } catch {}
+    throw new Error(detail);
   }
 }
 
