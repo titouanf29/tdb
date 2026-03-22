@@ -16,6 +16,7 @@ export const navLinks = [
   { href: '/communaute', label: 'Communauté' },
   { href: '/faq', label: 'FAQ' },
   { href: '/roadmap', label: 'Roadmap' },
+  { href: '/parametres', label: 'Paramètres' },
 ];
 
 export const featureCards = [

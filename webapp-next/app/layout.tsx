@@ -3,6 +3,7 @@ import { ReactNode } from 'react';
 import Script from 'next/script';
 import { SiteHeader } from '@/components/site-header';
 import { SiteFooter } from '@/components/site-footer';
+import { GlobalTutorial } from '@/components/global-tutorial';
 import { siteConfig } from '@/lib/site-config';
 import './globals.css';
 
@@ -50,6 +51,7 @@ export default function RootLayout({ children }: Readonly<{ children: ReactNode 
         <SiteHeader />
         {children}
         <SiteFooter />
+        <GlobalTutorial />
 
         {/* Google Analytics */}
         {GA_ID && (

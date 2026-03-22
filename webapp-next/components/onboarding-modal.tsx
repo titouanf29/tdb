@@ -120,6 +120,10 @@ export function OnboardingModal() {
     handleClose();
     // Dispatch event so other components can react
     window.dispatchEvent(new CustomEvent('tdb:profile-set', { detail: { profile } }));
+    // Trigger tutorial tour for new users (small delay so onboarding closes first)
+    setTimeout(() => {
+      window.dispatchEvent(new CustomEvent('tdb:start-tutorial'));
+    }, 400);
   };
 
   const handleDismiss = () => {
