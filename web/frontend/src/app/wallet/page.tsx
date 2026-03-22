@@ -179,14 +179,18 @@ export default function WalletPage() {
       <div className="glass-card p-6">
         <h2 className="text-lg font-semibold mb-4">Statistiques de Trading</h2>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <StatItem label="Total Trades" value={stats?.total_trades || 0} />
-          <StatItem label="Trades Gagnants" value={stats?.winning_trades || 0} color="green" />
-          <StatItem label="Trades Perdants" value={stats?.losing_trades || 0} color="red" />
-          <StatItem label="Win Rate" value={`${stats?.win_rate || 0}%`} />
-          <StatItem label="P&L Total" value={formatCurrency(stats?.total_pnl || 0)} color={stats?.total_pnl && stats.total_pnl >= 0 ? "green" : "red"} />
-          <StatItem label="Meilleur Trade" value={formatCurrency(stats?.best_trade || 0)} color="green" />
-          <StatItem label="Pire Trade" value={formatCurrency(stats?.worst_trade || 0)} color="red" />
-          <StatItem label="P&L Moyen" value={formatCurrency(stats?.avg_pnl || 0)} />
+          {[
+            { label: "Total Trades", value: stats?.total_trades || 0 },
+            { label: "Trades Gagnants", value: stats?.winning_trades || 0, color: "green" as const },
+            { label: "Trades Perdants", value: stats?.losing_trades || 0, color: "red" as const },
+            { label: "Win Rate", value: `${stats?.win_rate || 0}%` },
+            { label: "P&L Total", value: formatCurrency(stats?.total_pnl || 0), color: (stats?.total_pnl ?? 0) >= 0 ? "green" as const : "red" as const },
+            { label: "Meilleur Trade", value: formatCurrency(stats?.best_trade || 0), color: "green" as const },
+            { label: "Pire Trade", value: formatCurrency(stats?.worst_trade || 0), color: "red" as const },
+            { label: "P&L Moyen", value: formatCurrency(stats?.avg_pnl || 0) },
+          ].map((item, i) => (
+            <StatItem key={item.label} index={i} {...item} />
+          ))}
         </div>
       </div>
 
@@ -237,13 +241,14 @@ export default function WalletPage() {
               <p className="text-muted-foreground">Aucune position ouverte</p>
             </div>
           ) : (
-            positions.map((position) => (
+            positions.map((position, i) => (
               <PositionCard
                 key={position.id}
                 position={position}
                 onClose={() => closePosition(position.id)}
                 isClosing={closingPosition === position.id}
                 formatCurrency={formatCurrency}
+                index={i}
               />
             ))
           )
@@ -253,8 +258,8 @@ export default function WalletPage() {
             <p className="text-muted-foreground">Aucun historique</p>
           </div>
         ) : (
-          history.map((position) => (
-            <HistoryCard key={position.id} position={position} formatCurrency={formatCurrency} />
+          history.map((position, i) => (
+            <HistoryCard key={position.id} position={position} formatCurrency={formatCurrency} index={i} />
           ))
         )}
       </div>
@@ -393,13 +398,22 @@ function StatItem({
   label,
   value,
   color,
+  index = 0,
 }: {
   label: string;
   value: string | number;
   color?: "green" | "red";
+  index?: number;
 }) {
   return (
-    <div className="p-4 rounded-xl bg-white/5">
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true }}
+      transition={{ delay: index * 0.05, duration: 0.35, ease: "easeOut" }}
+      whileHover={{ scale: 1.02 }}
+      className="p-4 rounded-xl bg-white/5 cursor-default"
+    >
       <p className="text-sm text-muted-foreground">{label}</p>
       <p
         className={cn(
@@ -410,7 +424,7 @@ function StatItem({
       >
         {value}
       </p>
-    </div>
+    </motion.div>
   );
 }
 
@@ -419,18 +433,22 @@ function PositionCard({
   onClose,
   isClosing,
   formatCurrency,
+  index = 0,
 }: {
   position: Position;
   onClose: () => void;
   isClosing: boolean;
   formatCurrency: (value: number) => string;
+  index?: number;
 }) {
   const isProfit = (position.unrealized_pnl || 0) >= 0;
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 10 }}
+      initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: index * 0.06, duration: 0.35 }}
+      whileHover={{ scale: 1.005 }}
       className="glass-card p-4"
     >
       <div className="flex items-center justify-between">
@@ -515,11 +533,16 @@ function PositionCard({
   );
 }
 
-function HistoryCard({ position, formatCurrency }: { position: Position; formatCurrency: (value: number) => string }) {
+function HistoryCard({ position, formatCurrency, index = 0 }: { position: Position; formatCurrency: (value: number) => string; index?: number }) {
   const isProfit = (position.realized_pnl || 0) >= 0;
 
   return (
-    <div className="glass-card p-4 opacity-80">
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: index * 0.04, duration: 0.3 }}
+      className="glass-card p-4 opacity-80"
+    >
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           <div className="w-12 h-12 rounded-xl bg-secondary/50 flex items-center justify-center font-bold">
@@ -561,6 +584,6 @@ function HistoryCard({ position, formatCurrency }: { position: Position; formatC
           </p>
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 }

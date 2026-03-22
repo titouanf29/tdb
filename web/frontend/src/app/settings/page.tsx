@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   Settings,
   User,
@@ -55,33 +55,54 @@ export default function SettingsPage() {
       <div className="flex flex-col md:flex-row gap-6">
         {/* Sidebar */}
         <div className="md:w-48 flex md:flex-col gap-1 overflow-x-auto pb-2 md:pb-0">
-          {tabs.map((tab) => {
+          {tabs.map((tab, i) => {
             const Icon = tab.icon;
+            const isActive = activeTab === tab.id;
             return (
-              <button
+              <motion.button
                 key={tab.id}
+                initial={{ opacity: 0, x: -12 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: i * 0.06, duration: 0.3 }}
+                whileHover={{ x: 2 }}
                 onClick={() => setActiveTab(tab.id)}
                 className={cn(
-                  "flex items-center gap-2 px-4 py-2 rounded-lg text-left transition-all whitespace-nowrap",
-                  activeTab === tab.id
+                  "flex items-center gap-2 px-4 py-2 rounded-lg text-left transition-all whitespace-nowrap relative",
+                  isActive
                     ? "bg-primary/20 text-primary"
                     : "hover:bg-white/5 text-muted-foreground"
                 )}
               >
                 <Icon className="w-4 h-4" />
                 {tab.label}
-              </button>
+                {isActive && (
+                  <motion.div
+                    layoutId="settings-active"
+                    className="absolute inset-0 bg-primary/20 rounded-lg -z-10"
+                  />
+                )}
+              </motion.button>
             );
           })}
         </div>
 
-        {/* Content */}
-        <div className="flex-1 glass-card p-6">
-          {activeTab === "profile" && <ProfileSettings />}
-          {activeTab === "trading" && <TradingSettings />}
-          {activeTab === "notifications" && <NotificationSettings />}
-          {activeTab === "appearance" && <AppearanceSettings />}
-          {activeTab === "security" && <SecuritySettings />}
+        {/* Content — animated on tab switch */}
+        <div className="flex-1 glass-card p-6 overflow-hidden">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={activeTab}
+              initial={{ opacity: 0, x: 12 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -12 }}
+              transition={{ duration: 0.2 }}
+            >
+              {activeTab === "profile" && <ProfileSettings />}
+              {activeTab === "trading" && <TradingSettings />}
+              {activeTab === "notifications" && <NotificationSettings />}
+              {activeTab === "appearance" && <AppearanceSettings />}
+              {activeTab === "security" && <SecuritySettings />}
+            </motion.div>
+          </AnimatePresence>
         </div>
       </div>
     </motion.div>

@@ -307,14 +307,19 @@ export default function AssistantPage() {
                 "Qu'est-ce que le MACD ?",
                 "Analyse AAPL",
                 "Strategies de trading"
-              ].map((suggestion) => (
-                <button
+              ].map((suggestion, i) => (
+                <motion.button
                   key={suggestion}
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.3 + i * 0.08 }}
+                  whileHover={{ scale: 1.04, y: -2 }}
+                  whileTap={{ scale: 0.97 }}
                   onClick={() => setInput(suggestion)}
                   className="px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-sm transition-colors"
                 >
                   {suggestion}
-                </button>
+                </motion.button>
               ))}
             </div>
           </div>
