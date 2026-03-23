@@ -21,6 +21,7 @@ import {
   Users,
   Bot,
   GraduationCap,
+  Briefcase,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -39,9 +40,10 @@ const menuGroups = [
   {
     label: "Mon espace",
     items: [
-      { icon: TrendingUp, label: "Positions", href: "/trading" },
-      { icon: Wallet,     label: "Wallet",    href: "/wallet" },
-      { icon: Star,       label: "Favoris",   href: "/favorites" },
+      { icon: Briefcase,  label: "Portefeuille", href: "/portfolio" },
+      { icon: TrendingUp, label: "Positions",    href: "/trading" },
+      { icon: Wallet,     label: "Wallet",       href: "/wallet" },
+      { icon: Star,       label: "Favoris",      href: "/favorites" },
     ],
   },
   {

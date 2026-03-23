@@ -24,7 +24,7 @@ from slowapi.errors import RateLimitExceeded
 logger = logging.getLogger(__name__)
 
 from .database import init_db, init_web_tables
-from .routes import auth, market, wallet, analysis, users, favorites, ai_assistant, admin, premium, community, tools
+from .routes import auth, market, wallet, analysis, users, favorites, ai_assistant, admin, premium, community, tools, portfolio
 
 
 @asynccontextmanager
@@ -89,6 +89,7 @@ app.include_router(admin.router, prefix="/api/admin", tags=["Admin"])
 app.include_router(premium.router, prefix="/api/premium", tags=["Premium"])
 app.include_router(community.router, prefix="/api/community", tags=["Community"])
 app.include_router(tools.router, prefix="/api/tools", tags=["Trading Tools"])
+app.include_router(portfolio.router, prefix="/api/portfolio", tags=["Real Portfolio"])
 
 
 @app.get("/")

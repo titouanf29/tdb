@@ -1276,6 +1276,106 @@ export interface TicketMessage {
   created_at: string;
 }
 
+// ── Real Portfolio API ─────────────────────────────────────────────────────────
+
+export interface RealPosition {
+  id: number;
+  user_id: string;
+  symbol: string;
+  position_type: "long" | "short";
+  quantity: number;
+  entry_price: number;
+  entry_date: string;
+  leverage: number;
+  broker?: string;
+  notes?: string;
+  stop_loss?: number;
+  take_profit?: number;
+  status: "open" | "closed";
+  exit_price?: number;
+  exit_date?: string;
+  currency: string;
+  created_at: string;
+  // enriched by backend for open positions
+  current_price?: number;
+  change_24h?: number;
+  unrealized_pnl?: number;
+  pnl_percent?: number;
+  position_value?: number;
+  invested_value?: number;
+  days_held?: number;
+}
+
+export interface PortfolioSummary {
+  open_count: number;
+  closed_count: number;
+  total_invested: number;
+  total_current_value: number;
+  unrealized_pnl: number;
+  unrealized_pnl_pct: number;
+  realized_pnl: number;
+  total_pnl: number;
+  allocation: Record<string, number>;
+  best_position: { symbol: string; pnl_percent: number } | null;
+  worst_position: { symbol: string; pnl_percent: number } | null;
+  largest_position: { symbol: string; value: number } | null;
+}
+
+export interface CreatePositionData {
+  symbol: string;
+  position_type: "long" | "short";
+  quantity: number;
+  entry_price: number;
+  entry_date: string;
+  leverage?: number;
+  broker?: string;
+  notes?: string;
+  stop_loss?: number;
+  take_profit?: number;
+  currency?: string;
+}
+
+export const portfolioAPI = {
+  getPositions: (status: "open" | "closed" = "open") =>
+    fetchAPI<{ positions: RealPosition[] }>(`/api/portfolio/positions?status=${status}`),
+
+  checkPosition: (symbol: string) =>
+    fetchAPI<{ positions: RealPosition[]; has_position: boolean }>(
+      `/api/portfolio/positions/check/${symbol}`
+    ),
+
+  getSummary: () => fetchAPI<PortfolioSummary>("/api/portfolio/summary"),
+
+  createPosition: (data: CreatePositionData) =>
+    fetchAPI<{ success: boolean; message: string }>("/api/portfolio/positions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    }),
+
+  updatePosition: (id: number, data: Partial<CreatePositionData>) =>
+    fetchAPI<{ success: boolean; message: string }>(`/api/portfolio/positions/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    }),
+
+  closePosition: (id: number, exitPrice: number, exitDate?: string) =>
+    fetchAPI<{ success: boolean; realized_pnl: number; message: string }>(
+      `/api/portfolio/positions/${id}/close`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ exit_price: exitPrice, exit_date: exitDate }),
+      }
+    ),
+
+  deletePosition: (id: number) =>
+    fetchAPI<{ success: boolean }>(`/api/portfolio/positions/${id}`, {
+      method: "DELETE",
+    }),
+};
+
 /**
  * Create an authenticated WebSocket URL for private endpoints
  * (portfolio, alerts). Passes the JWT as a query param since

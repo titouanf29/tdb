@@ -53,7 +53,7 @@ import {
   GraduationCap,
 } from "lucide-react";
 import { cn, formatPercent } from "@/lib/utils";
-import { analysisAPI, favoritesAPI, aiAPI, marketAPI, Analysis } from "@/lib/api";
+import { analysisAPI, favoritesAPI, aiAPI, marketAPI, Analysis, portfolioAPI, RealPosition } from "@/lib/api";
 import { getAssetInfo, getAssetLogo } from "@/lib/assetInfo";
 import { useFormatCurrency, useFormatPrice, useSettings } from "@/lib/SettingsContext";
 import { authHeaders } from "@/lib/auth";
@@ -64,6 +64,98 @@ const PremiumChart = dynamic(() => import("@/components/PremiumChart"), {
   loading: () => <div className="h-[420px] bg-card/30 animate-pulse rounded-xl" />,
 });
 import { TopLoadingBar } from "@/components/ui/TopLoadingBar";
+
+// ── Real Position Banner ──────────────────────────────────────────────────────
+function RealPositionBanner({ position, currentPrice }: { position: RealPosition; currentPrice: number }) {
+  const isLong = position.position_type === "long";
+  const lev = position.leverage ?? 1;
+  const invested = position.entry_price * position.quantity;
+  const pnl = isLong
+    ? (currentPrice - position.entry_price) * position.quantity * lev
+    : (position.entry_price - currentPrice) * position.quantity * lev;
+  const pnlPct = invested ? (pnl / invested) * 100 : 0;
+  const isProfit = pnl >= 0;
+
+  const nearSL =
+    position.stop_loss &&
+    Math.abs((currentPrice - position.stop_loss) / currentPrice) < 0.05;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: -8 }}
+      animate={{ opacity: 1, y: 0 }}
+      className={cn(
+        "rounded-xl border px-5 py-4 flex flex-wrap items-center gap-4",
+        nearSL
+          ? "bg-red-500/10 border-red-500/30"
+          : "bg-primary/8 border-primary/20"
+      )}
+    >
+      <div className="flex items-center gap-2">
+        <Briefcase className="w-4 h-4 text-primary flex-shrink-0" />
+        <span className="font-semibold text-sm">Vous êtes positionné</span>
+        <span className={cn(
+          "text-xs font-bold px-1.5 py-0.5 rounded",
+          isLong ? "bg-emerald-500/15 text-emerald-400" : "bg-red-500/15 text-red-400"
+        )}>
+          {isLong ? "▲ LONG" : "▼ SHORT"}
+        </span>
+        {lev > 1 && (
+          <span className="text-xs text-orange-400 bg-orange-500/10 px-1.5 py-0.5 rounded">x{lev}</span>
+        )}
+      </div>
+
+      <div className="flex flex-wrap gap-4 text-xs">
+        <div>
+          <span className="text-muted-foreground">Entrée : </span>
+          <span className="font-medium">{position.entry_price.toLocaleString("fr-FR", { maximumFractionDigits: 6 })}</span>
+        </div>
+        <div>
+          <span className="text-muted-foreground">Qté : </span>
+          <span className="font-medium">{position.quantity}</span>
+        </div>
+        {position.days_held !== undefined && (
+          <div>
+            <span className="text-muted-foreground">Détenus : </span>
+            <span className="font-medium">{position.days_held} j</span>
+          </div>
+        )}
+        {position.stop_loss && (
+          <div>
+            <span className="text-muted-foreground">SL : </span>
+            <span className="text-red-400 font-medium">{position.stop_loss.toLocaleString("fr-FR", { maximumFractionDigits: 6 })}</span>
+          </div>
+        )}
+        {position.take_profit && (
+          <div>
+            <span className="text-muted-foreground">TP : </span>
+            <span className="text-emerald-400 font-medium">{position.take_profit.toLocaleString("fr-FR", { maximumFractionDigits: 6 })}</span>
+          </div>
+        )}
+      </div>
+
+      <div className="ml-auto flex items-center gap-3">
+        {nearSL && (
+          <div className="flex items-center gap-1 text-xs text-red-400 animate-pulse">
+            <AlertTriangle className="w-3.5 h-3.5" />
+            Proche du Stop Loss
+          </div>
+        )}
+        <div className={cn(
+          "text-right px-3 py-1.5 rounded-lg",
+          isProfit ? "bg-emerald-500/10" : "bg-red-500/10"
+        )}>
+          <p className={cn("text-sm font-bold", isProfit ? "text-emerald-400" : "text-red-400")}>
+            {isProfit ? "+" : ""}{pnl.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {position.currency}
+          </p>
+          <p className={cn("text-xs", isProfit ? "text-emerald-400/70" : "text-red-400/70")}>
+            {pnlPct >= 0 ? "+" : ""}{pnlPct.toFixed(2)}%
+          </p>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
 
 export default function AnalysisPage() {
   const router = useRouter();
@@ -101,6 +193,7 @@ export default function AnalysisPage() {
   const [autoRefreshInterval, setAutoRefreshInterval] = useState<number>(0); // seconds, 0=off
   const autoRefreshRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const currentSymbolRef = useRef<string>("");
+  const [realPosition, setRealPosition] = useState<RealPosition | null>(null);
 
   const toggleSection = (section: string) => {
     setExpandedSections(prev => {
@@ -169,6 +262,7 @@ export default function AnalysisPage() {
       setIsLoading(true);
       setError("");
       setAiInsight(null);
+      setRealPosition(null);
     }
     currentSymbolRef.current = s;
 
@@ -181,6 +275,13 @@ export default function AnalysisPage() {
       if (!silent) {
         const favCheck = await favoritesAPI.checkFavorite(s);
         setIsFavorite(favCheck.is_favorite);
+        // Check real portfolio position
+        try {
+          const posCheck = await portfolioAPI.checkPosition(s);
+          setRealPosition(posCheck.has_position ? posCheck.positions[0] : null);
+        } catch {
+          setRealPosition(null);
+        }
       }
     } catch (err) {
       if (!silent) {
@@ -505,6 +606,9 @@ export default function AnalysisPage() {
         <>
           {/* 1. Asset Header */}
           <AssetHeader analysis={analysis} isFavorite={isFavorite} toggleFavorite={toggleFavorite} formatCurrency={formatPrice} />
+
+          {/* 1b. Real position banner */}
+          {realPosition && <RealPositionBanner position={realPosition} currentPrice={analysis.current_price} />}
 
           {/* 2. Score cards */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

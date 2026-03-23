@@ -381,6 +381,27 @@ async def _init_postgres():
                 FOREIGN KEY (user_id) REFERENCES web_users(id)
             )
         """)
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS real_positions (
+                id SERIAL PRIMARY KEY,
+                user_id TEXT NOT NULL,
+                symbol TEXT NOT NULL,
+                position_type TEXT NOT NULL,
+                quantity FLOAT NOT NULL,
+                entry_price FLOAT NOT NULL,
+                entry_date TEXT NOT NULL,
+                leverage FLOAT DEFAULT 1.0,
+                broker TEXT,
+                notes TEXT,
+                stop_loss FLOAT,
+                take_profit FLOAT,
+                status TEXT DEFAULT 'open',
+                exit_price FLOAT,
+                exit_date TEXT,
+                currency TEXT DEFAULT 'USD',
+                created_at TEXT NOT NULL
+            )
+        """)
         print("PostgreSQL tables ready")
 
 
@@ -642,6 +663,27 @@ async def _init_sqlite():
                 market TEXT NOT NULL,
                 created_at TEXT NOT NULL,
                 FOREIGN KEY (user_id) REFERENCES web_users(id)
+            )
+        """)
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS real_positions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id TEXT NOT NULL,
+                symbol TEXT NOT NULL,
+                position_type TEXT NOT NULL,
+                quantity REAL NOT NULL,
+                entry_price REAL NOT NULL,
+                entry_date TEXT NOT NULL,
+                leverage REAL DEFAULT 1.0,
+                broker TEXT,
+                notes TEXT,
+                stop_loss REAL,
+                take_profit REAL,
+                status TEXT DEFAULT 'open',
+                exit_price REAL,
+                exit_date TEXT,
+                currency TEXT DEFAULT 'USD',
+                created_at TEXT NOT NULL
             )
         """)
         # Add new columns to existing tables if upgrading from older schema
