@@ -399,10 +399,11 @@ async def quick_analysis(
     symbol: str,
     trading_style: str = "day",
     risk_level: str = "moderate",
+    trading_level: str = "intermediate",
     current_user: dict = Depends(get_current_user)
 ):
     """Premium AI analysis — fetches full market, technical, fundamental and news data.
-    Adapts entirely to the user's trading style (scalp/day/swing/long) and risk level."""
+    Adapts entirely to the user's trading style (scalp/day/swing/long), risk level and experience level."""
     if not _SYMBOL_RE.match(symbol.upper()):
         raise HTTPException(status_code=400, detail="Symbole invalide")
     symbol = symbol.upper()
@@ -850,6 +851,14 @@ async def quick_analysis(
     sm = _STYLE_META.get(_style, _STYLE_META["day"])
     rm = _RISK_META.get(_risk, _RISK_META["moderate"])
 
+    _LEVEL_META = {
+        "beginner": "DÉBUTANT — Explique brièvement chaque terme technique à la première occurrence (entre parenthèses). Utilise des analogies simples. Pédagogie prioritaire sans noyer l'essentiel.",
+        "intermediate": "INTERMÉDIAIRE — Vocabulaire technique standard. Pas de sur-explication. Aller droit au but.",
+        "expert": "EXPERT — Mode professionnel. Pas d'explication des bases. Données brutes, niveaux précis, analyse institutionnelle condensée.",
+    }
+    _level = (trading_level or "intermediate").lower().strip()
+    _level_note = _LEVEL_META.get(_level, _LEVEL_META["intermediate"])
+
     sl_price = price - sm["sl_mult"] * atr
     tp1 = price + (price - sl_price) * 1.5
     tp2 = price + (price - sl_price) * 2.5
@@ -938,7 +947,7 @@ async def quick_analysis(
     # ── Style-specific prompts ──────────────────────────────────────────────
     if _style == "scalp":
         prompt = f"""Tu es TDB Senior Analyst — {sm['persona']}.
-Profil utilisateur: **{sm['label']}** | Risque: **{rm['label']}**
+Profil utilisateur: **{sm['label']}** | Risque: **{rm['label']}** | Niveau: **{_level_note}**
 
 ⚠️ RÈGLE SCALPING: Réponse courte, directe, opérationnelle. Pas de longs discours — l'utilisateur doit pouvoir agir maintenant.
 
@@ -991,7 +1000,7 @@ Ce setup est ANNULÉ si :
 
     elif _style == "day":
         prompt = f"""Tu es TDB Senior Analyst — {sm['persona']}.
-Profil utilisateur: **{sm['label']}** | Risque: **{rm['label']}**
+Profil utilisateur: **{sm['label']}** | Risque: **{rm['label']}** | Niveau: **{_level_note}**
 
 ⚠️ Style Day Trading : combine explication du contexte de séance ET setup opérationnel concret pour la journée.
 
@@ -1067,7 +1076,7 @@ Analyse les {len(news_lines)} actualités : y a-t-il un catalyseur qui impacte l
 
     elif _style == "swing":
         prompt = f"""Tu es TDB Senior Analyst — {sm['persona']}.
-Profil utilisateur: **{sm['label']}** | Risque: **{rm['label']}**
+Profil utilisateur: **{sm['label']}** | Risque: **{rm['label']}** | Niveau: **{_level_note}**
 
 ⚠️ Style Swing : analyse approfondie de L'INTENTION ET LA CONVICTION DU MARCHÉ sur {sm['horizon']}. Pas de micro-signaux 1min — vision 4h/daily sur la volonté des acheteurs et vendeurs.
 
@@ -1137,7 +1146,7 @@ Analyse les {len(news_lines)} actualités : y a-t-il des événements à venir (
 
     else:  # long
         prompt = f"""Tu es TDB Senior Analyst — {sm['persona']}.
-Profil utilisateur: **{sm['label']}** | Risque: **{rm['label']}**
+Profil utilisateur: **{sm['label']}** | Risque: **{rm['label']}** | Niveau: **{_level_note}**
 
 ⚠️ Style Long Terme : analyse narrative et fondamentale. Focus sur CE QUE L'ACTIF COMPTE FAIRE DANS LE FUTUR — ses projets, sa trajectoire stratégique, ses catalyseurs à 6-18 mois. Pas de micro-niveaux intraday.
 

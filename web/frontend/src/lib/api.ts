@@ -226,9 +226,9 @@ export const aiAPI = {
   clearHistory: () =>
     fetchAPI<{ message: string }>("/api/ai/history", { method: "DELETE" }),
 
-  quickAnalysis: (symbol: string, tradingStyle = "day", riskLevel = "moderate") =>
+  quickAnalysis: (symbol: string, tradingStyle = "day", riskLevel = "moderate", tradingLevel = "intermediate") =>
     fetchAPI<{ symbol: string; analysis: string }>(
-      `/api/ai/quick-analysis?symbol=${symbol}&trading_style=${tradingStyle}&risk_level=${riskLevel}`,
+      `/api/ai/quick-analysis?symbol=${symbol}&trading_style=${tradingStyle}&risk_level=${riskLevel}&trading_level=${tradingLevel}`,
       { method: "POST", headers: { "Content-Type": "application/json" } }
     ),
 

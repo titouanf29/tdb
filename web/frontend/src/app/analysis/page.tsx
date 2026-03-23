@@ -50,12 +50,14 @@ import {
   Plus,
   RefreshCw,
   Timer,
+  GraduationCap,
 } from "lucide-react";
 import { cn, formatPercent } from "@/lib/utils";
 import { analysisAPI, favoritesAPI, aiAPI, marketAPI, Analysis } from "@/lib/api";
 import { getAssetInfo, getAssetLogo } from "@/lib/assetInfo";
 import { useFormatCurrency, useFormatPrice, useSettings } from "@/lib/SettingsContext";
 import { authHeaders } from "@/lib/auth";
+import { useAuth } from "@/lib/AuthContext";
 import dynamic from "next/dynamic";
 const PremiumChart = dynamic(() => import("@/components/PremiumChart"), {
   ssr: false,
@@ -69,6 +71,8 @@ export default function AnalysisPage() {
   const formatCurrency = useFormatCurrency();
   const formatPriceHook = useFormatPrice();
   const { settings } = useSettings();
+  const { user } = useAuth();
+  const tradingLevel = user?.trading_level ?? "intermediate";
 
   const [symbol, setSymbol] = useState(searchParams.get("symbol") || "");
   // Alias: format a market price in the symbol's native currency
@@ -212,7 +216,7 @@ export default function AnalysisPage() {
     try {
       // Use the premium quick-analysis endpoint which fetches full yfinance data
       // (fundamentals, analyst consensus, news, earnings, advanced indicators)
-      const response = await aiAPI.quickAnalysis(sym, settings.tradingStyle, settings.riskLevel);
+      const response = await aiAPI.quickAnalysis(sym, settings.tradingStyle, settings.riskLevel, tradingLevel);
       setAiInsight(response.analysis);
     } catch (err) {
       console.error("Error loading AI insight:", err);
@@ -268,7 +272,26 @@ export default function AnalysisPage() {
       {/* Search */}
       <div className="glass-card p-6">
         <div className="mb-4">
-          <h2 className="text-lg font-semibold">Analyse IA de séance</h2>
+          <div className="flex items-start justify-between gap-3 flex-wrap">
+            <h2 className="text-lg font-semibold">Analyse IA de séance</h2>
+            <div className="flex items-center gap-2 flex-wrap">
+              {/* Level badge */}
+              <span className={cn(
+                "inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium border",
+                tradingLevel === "beginner"     ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-400" :
+                tradingLevel === "expert"       ? "bg-purple-500/15 border-purple-500/40 text-purple-400" :
+                                                  "bg-blue-500/15 border-blue-500/40 text-blue-400"
+              )}>
+                {tradingLevel === "beginner" ? <><GraduationCap className="w-3 h-3" /> Débutant</> :
+                 tradingLevel === "expert"   ? <><Zap className="w-3 h-3" /> Expert</> :
+                                               <><TrendingUp className="w-3 h-3" /> Intermédiaire</>}
+              </span>
+              {/* Style badge */}
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium border bg-white/5 border-white/15 text-muted-foreground">
+                {STYLE_LABELS[settings.tradingStyle]?.emoji ?? "📈"} {STYLE_LABELS[settings.tradingStyle]?.label ?? settings.tradingStyle}
+              </span>
+            </div>
+          </div>
           <p className="text-sm text-muted-foreground mt-1">
             Recherchez n'importe quel actif (action, ETF, crypto, indice) pour obtenir une analyse technique complète enrichie par l'intelligence artificielle. L'analyse s'adapte automatiquement à votre style de trading — scalping, day trading, swing ou long terme — et à votre profil de risque.
           </p>
@@ -614,6 +637,7 @@ export default function AnalysisPage() {
             symbol={analysis.symbol}
             tradingStyle={settings.tradingStyle}
             riskLevel={settings.riskLevel}
+            tradingLevel={tradingLevel}
             onReload={() => loadAIInsight(analysis.symbol, analysis)}
           />
 
@@ -624,7 +648,14 @@ export default function AnalysisPage() {
             transition={{ delay: 0.3 }}
             className="glass-card p-6"
           >
-            <h3 className="font-semibold mb-4">Indicateurs Techniques</h3>
+            <h3 className="font-semibold mb-4 flex items-center gap-2">
+              Indicateurs Techniques
+              {(settings.tradingStyle === "scalp" || settings.tradingStyle === "day") && (
+                <span className="text-xs px-2 py-0.5 rounded-full bg-primary/20 text-primary font-normal">
+                  Prioritaire · {settings.tradingStyle === "scalp" ? "Scalping" : "Day Trading"}
+                </span>
+              )}
+            </h3>
             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
               <IndicatorCard
                 name="RSI (14)"
@@ -730,7 +761,7 @@ export default function AnalysisPage() {
           <RiskAssessmentSection analysis={analysis} formatCurrency={formatPrice} />
 
           {/* 7. Analyse détaillée */}
-          <DetailedAnalysis analysis={analysis} formatCurrency={formatPrice} />
+          <DetailedAnalysis analysis={analysis} formatCurrency={formatPrice} tradingLevel={tradingLevel} />
 
           {/* 8. Fibonacci + Range 52 semaines */}
           {analysis.fibonacci && (
@@ -774,7 +805,7 @@ export default function AnalysisPage() {
           )}
 
           {/* 17. Section éducative */}
-          <EducationalSection analysis={analysis} />
+          <EducationalSection analysis={analysis} tradingLevel={tradingLevel} />
         </>
       )}
 
@@ -1077,8 +1108,11 @@ function AssetHeader({
 }
 
 // Detailed Analysis with explanations
-function DetailedAnalysis({ analysis, formatCurrency }: { analysis: Analysis; formatCurrency: (value: number) => string }) {
-  const [expandedModules, setExpandedModules] = useState<Set<string>>(new Set());
+function DetailedAnalysis({ analysis, formatCurrency, tradingLevel = "intermediate" }: { analysis: Analysis; formatCurrency: (value: number) => string; tradingLevel?: string }) {
+  // Beginners: open the trend module by default to guide them
+  const [expandedModules, setExpandedModules] = useState<Set<string>>(
+    new Set(tradingLevel === "beginner" ? ["trend"] : [])
+  );
 
   const toggleModule = (module: string) => {
     setExpandedModules(prev => {
@@ -1379,7 +1413,9 @@ function DetailedAnalysis({ analysis, formatCurrency }: { analysis: Analysis; fo
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-xs text-muted-foreground">Cliquez pour en savoir +</span>
+              {tradingLevel !== "expert" && (
+                <span className="text-xs text-muted-foreground">Cliquez pour en savoir +</span>
+              )}
               {expandedModules.has('trend') ? (
                 <ChevronUp className="w-4 h-4 text-muted-foreground" />
               ) : (
@@ -1387,7 +1423,7 @@ function DetailedAnalysis({ analysis, formatCurrency }: { analysis: Analysis; fo
               )}
             </div>
           </div>
-          {expandedModules.has('trend') && (
+          {tradingLevel !== "expert" && expandedModules.has('trend') && (
             <motion.div
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: "auto" }}
@@ -1456,7 +1492,9 @@ function DetailedAnalysis({ analysis, formatCurrency }: { analysis: Analysis; fo
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-xs text-muted-foreground">Cliquez pour en savoir +</span>
+              {tradingLevel !== "expert" && (
+                <span className="text-xs text-muted-foreground">Cliquez pour en savoir +</span>
+              )}
               {expandedModules.has('rsi') ? (
                 <ChevronUp className="w-4 h-4 text-muted-foreground" />
               ) : (
@@ -1464,7 +1502,7 @@ function DetailedAnalysis({ analysis, formatCurrency }: { analysis: Analysis; fo
               )}
             </div>
           </div>
-          {expandedModules.has('rsi') && (
+          {tradingLevel !== "expert" && expandedModules.has('rsi') && (
             <motion.div
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: "auto" }}
@@ -1533,7 +1571,9 @@ function DetailedAnalysis({ analysis, formatCurrency }: { analysis: Analysis; fo
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-xs text-muted-foreground">Cliquez pour en savoir +</span>
+              {tradingLevel !== "expert" && (
+                <span className="text-xs text-muted-foreground">Cliquez pour en savoir +</span>
+              )}
               {expandedModules.has('macd') ? (
                 <ChevronUp className="w-4 h-4 text-muted-foreground" />
               ) : (
@@ -1541,7 +1581,7 @@ function DetailedAnalysis({ analysis, formatCurrency }: { analysis: Analysis; fo
               )}
             </div>
           </div>
-          {expandedModules.has('macd') && (
+          {tradingLevel !== "expert" && expandedModules.has('macd') && (
             <motion.div
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: "auto" }}
@@ -1610,7 +1650,9 @@ function DetailedAnalysis({ analysis, formatCurrency }: { analysis: Analysis; fo
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-xs text-muted-foreground">Cliquez pour en savoir +</span>
+              {tradingLevel !== "expert" && (
+                <span className="text-xs text-muted-foreground">Cliquez pour en savoir +</span>
+              )}
               {expandedModules.has('bollinger') ? (
                 <ChevronUp className="w-4 h-4 text-muted-foreground" />
               ) : (
@@ -1618,7 +1660,7 @@ function DetailedAnalysis({ analysis, formatCurrency }: { analysis: Analysis; fo
               )}
             </div>
           </div>
-          {expandedModules.has('bollinger') && (
+          {tradingLevel !== "expert" && expandedModules.has('bollinger') && (
             <motion.div
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: "auto" }}
@@ -1687,7 +1729,9 @@ function DetailedAnalysis({ analysis, formatCurrency }: { analysis: Analysis; fo
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-xs text-muted-foreground">Cliquez pour en savoir +</span>
+              {tradingLevel !== "expert" && (
+                <span className="text-xs text-muted-foreground">Cliquez pour en savoir +</span>
+              )}
               {expandedModules.has('volume') ? (
                 <ChevronUp className="w-4 h-4 text-muted-foreground" />
               ) : (
@@ -1695,7 +1739,7 @@ function DetailedAnalysis({ analysis, formatCurrency }: { analysis: Analysis; fo
               )}
             </div>
           </div>
-          {expandedModules.has('volume') && (
+          {tradingLevel !== "expert" && expandedModules.has('volume') && (
             <motion.div
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: "auto" }}
@@ -2203,12 +2247,19 @@ const RISK_LABELS: Record<string, string> = {
 };
 
 // AI Insight Section - Future Predictions
+const LEVEL_LABELS: Record<string, { label: string; icon: React.ElementType; color: string }> = {
+  beginner:     { label: "Débutant",      icon: GraduationCap, color: "text-emerald-400" },
+  intermediate: { label: "Intermédiaire", icon: TrendingUp,    color: "text-blue-400"    },
+  expert:       { label: "Expert",        icon: Zap,           color: "text-purple-400"  },
+};
+
 function AIInsightSection({
   aiInsight,
   isLoading,
   symbol,
   tradingStyle = "day",
   riskLevel = "moderate",
+  tradingLevel = "intermediate",
   onReload
 }: {
   aiInsight: string | null;
@@ -2216,6 +2267,7 @@ function AIInsightSection({
   symbol: string;
   tradingStyle?: string;
   riskLevel?: string;
+  tradingLevel?: string;
   onReload: () => void;
 }) {
   const [error, setError] = useState<string | null>(null);
@@ -2254,11 +2306,16 @@ function AIInsightSection({
             <Brain className="w-5 h-5 text-purple-400" />
             Analyse IA & Prévisions
             <span className="px-2 py-0.5 bg-purple-500/20 text-purple-400 text-xs rounded-full">Premium</span>
-            {/* Active style badge */}
+            {/* Active style + level badges */}
             <span className="px-2 py-0.5 bg-white/10 text-xs rounded-full text-muted-foreground font-normal">
               {STYLE_LABELS[tradingStyle]?.emoji ?? "📈"} {STYLE_LABELS[tradingStyle]?.label ?? tradingStyle}
               {" · "}{RISK_LABELS[riskLevel] ?? riskLevel}
             </span>
+            {(() => { const lv = LEVEL_LABELS[tradingLevel]; const LvIcon = lv?.icon; return lv ? (
+              <span className={cn("px-2 py-0.5 bg-white/10 text-xs rounded-full font-normal flex items-center gap-1", lv.color)}>
+                {LvIcon && <LvIcon className="w-3 h-3" />}{lv.label}
+              </span>
+            ) : null; })()}
           </h3>
           {aiInsight && (
             <button
@@ -2722,6 +2779,7 @@ function RiskAssessmentSection({ analysis, formatCurrency }: { analysis: Analysi
 
 // Enhanced Fundamental Analysis
 function FundamentalAnalysisEnhanced({ analysis, formatCurrency }: { analysis: Analysis; formatCurrency: (value: number) => string }) {
+  const { settings: fundSettings } = useSettings();
   const f = analysis.fundamentals;
   if (!f) return null;
 
@@ -2812,6 +2870,11 @@ function FundamentalAnalysisEnhanced({ analysis, formatCurrency }: { analysis: A
       <h3 className="font-semibold mb-6 flex items-center gap-2 text-lg">
         <BarChart3 className="w-5 h-5 text-primary" />
         Analyse Fondamentale Approfondie
+        {fundSettings.tradingStyle === "long" && (
+          <span className="text-xs px-2 py-0.5 rounded-full bg-primary/20 text-primary font-normal">
+            Prioritaire · Long Terme
+          </span>
+        )}
       </h3>
 
       {/* Key Metrics Grid */}
@@ -3551,8 +3614,11 @@ function NewsSentimentSection({ news, symbol }: { news: Analysis["news"]; symbol
 }
 
 // Educational Section
-function EducationalSection({ analysis }: { analysis: Analysis }) {
-  const [expanded, setExpanded] = useState(false);
+function EducationalSection({ analysis, tradingLevel = "intermediate" }: { analysis: Analysis; tradingLevel?: string }) {
+  // Beginners: open by default
+  const [expanded, setExpanded] = useState(tradingLevel === "beginner");
+  // Hide entirely for experts
+  if (tradingLevel === "expert") return null;
 
   const getEducationalContent = () => {
     const content = [];
@@ -3603,6 +3669,11 @@ function EducationalSection({ analysis }: { analysis: Analysis }) {
         <h3 className="font-semibold flex items-center gap-2 text-lg">
           <BookOpen className="w-5 h-5 text-primary" />
           Comprendre les Indicateurs
+          {tradingLevel === "beginner" && (
+            <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 font-normal">
+              Guide Débutant
+            </span>
+          )}
         </h3>
         {expanded ? (
           <ChevronUp className="w-5 h-5 text-muted-foreground" />
