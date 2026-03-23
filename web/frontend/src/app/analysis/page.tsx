@@ -608,7 +608,7 @@ export default function AnalysisPage() {
           <AssetHeader analysis={analysis} isFavorite={isFavorite} toggleFavorite={toggleFavorite} formatCurrency={formatPrice} />
 
           {/* 1b. Real position banner */}
-          {realPosition && <RealPositionBanner position={realPosition} currentPrice={analysis.current_price} />}
+          {realPosition && <RealPositionBanner position={realPosition} currentPrice={analysis.price.current} />}
 
           {/* 2. Score cards */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
