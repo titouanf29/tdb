@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import { Bot, Send, User, Sparkles, Loader2, Trash2, Crown, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -88,8 +89,10 @@ function renderMarkdown(text: string): React.ReactNode {
 }
 
 export default function AssistantPage() {
+  const searchParams = useSearchParams();
+  const assetFromPortfolio = searchParams.get("asset");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [input, setInput] = useState("");
+  const [input, setInput] = useState(assetFromPortfolio ? `Analyse ma position sur ${assetFromPortfolio} : dois-je la conserver ?` : "");
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingHistory, setIsLoadingHistory] = useState(true);
   const [limitStatus, setLimitStatus] = useState<AILimitStatus | null>(null);

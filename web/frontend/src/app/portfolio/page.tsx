@@ -26,6 +26,7 @@ import {
   Layers,
   Info,
   Search,
+  Bot,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -511,6 +512,7 @@ function PositionCard({
   onClose: () => void;
   onDelete: () => void;
 }) {
+  const router = useRouter();
   const [expanded, setExpanded] = useState(false);
   const isLong = pos.position_type === "long";
   const pnl = pos.unrealized_pnl ?? 0;
@@ -656,8 +658,14 @@ function PositionCard({
           <Edit3 className="w-3.5 h-3.5" /> Modifier
         </button>
         <button
+          onClick={() => router.push(`/assistant?asset=${encodeURIComponent(pos.symbol)}`)}
+          className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs text-purple-400 hover:bg-purple-500/10 transition-colors border-x border-white/8"
+        >
+          <Bot className="w-3.5 h-3.5" /> IA
+        </button>
+        <button
           onClick={onClose}
-          className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs text-primary hover:bg-primary/10 transition-colors border-x border-white/8"
+          className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs text-primary hover:bg-primary/10 transition-colors border-r border-white/8"
         >
           <CheckCircle className="w-3.5 h-3.5" /> Clôturer
         </button>
