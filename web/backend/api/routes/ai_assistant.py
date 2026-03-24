@@ -22,7 +22,7 @@ limiter = Limiter(key_func=get_remote_address)
 
 # Groq API Configuration
 GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
-MODEL = "llama-3.1-8b-instant"
+MODEL = "llama-3.3-70b-versatile"
 
 def get_groq_api_key():
     """Get Groq API key from environment"""
@@ -1486,7 +1486,7 @@ INSTRUCTIONS :
                     "Content-Type": "application/json",
                 },
                 json={
-                    "model": "llama-3.1-8b-instant",
+                    "model": MODEL,
                     "messages": [
                         {"role": "system", "content": "Tu es un analyste de marché. Réponds uniquement en français, en texte narratif fluide, sans titre ni bullet points."},
                         {"role": "user", "content": prompt},

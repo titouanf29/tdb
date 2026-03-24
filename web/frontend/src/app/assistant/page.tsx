@@ -195,7 +195,9 @@ export default function AssistantPage() {
         return { ...prev, remaining: Math.max(0, prev.remaining - 1), messages_today: prev.messages_today + 1 };
       });
     } catch (error: any) {
-      let errorContent = "Désolé, une erreur s'est produite. Veuillez réessayer.";
+      let errorContent = error.message && error.message !== "undefined"
+        ? `❌ ${error.message}`
+        : "Désolé, une erreur s'est produite. Veuillez réessayer.";
       if (error.status === 429) {
         errorContent = limitStatus?.is_premium
           ? "Trop de messages envoyés rapidement. Attendez quelques secondes puis réessayez."
