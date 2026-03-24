@@ -161,6 +161,8 @@ Code: `{pos['position_code']}`
         direction_emoji = EMOJI_DIRECTION[position['direction']]
         pnl_emoji = "🟢" if position['pnl'] >= 0 else "🔴"
 
+        advice = generate_position_advice(position)
+
         text = f"""
 🎫 **TICKET DE POSITION**
 
@@ -188,6 +190,11 @@ Code: `{pos['position_code']}`
 {pnl_emoji} **PnL %:** {format_percent(position['pnl_percent'])}
 
 📅 Ouvert le: {position['opened_at'][:16]}
+
+━━━━━━━━━━━━━━━━━━━━
+🤖 **CONSEILS PERSONNALISÉS**
+
+{advice}
 """
 
         keyboard = [
@@ -482,6 +489,8 @@ Ou tapez un montant personnalisé dans le chat (ex: 25000)
 
         status_text = "🟢 OUVERTE" if position['status'] == 'open' else "🔴 FERMÉE"
 
+        advice = generate_position_advice(position) if position['status'] == 'open' else ""
+
         text = f"""
 🎫 **TICKET DE POSITION**
 
@@ -510,7 +519,12 @@ Ou tapez un montant personnalisé dans le chat (ex: 25000)
 {pnl_emoji} **PnL %:** {format_percent(position['pnl_percent'])}
 
 📅 Ouvert le: {position['opened_at'][:16]}
-"""
+{f'''
+━━━━━━━━━━━━━━━━━━━━
+🤖 **CONSEILS PERSONNALISÉS**
+
+{advice}
+''' if advice else ''}"""
 
         if position['status'] == 'open':
             keyboard = [
