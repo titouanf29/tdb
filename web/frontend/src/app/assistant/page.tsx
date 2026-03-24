@@ -88,15 +88,41 @@ function renderMarkdown(text: string): React.ReactNode {
   return <>{nodes}</>;
 }
 
+function buildPositionContext(pos: Record<string, any>): string {
+  const direction = pos.position_type === "long" ? "LONG (achat)" : "SHORT (vente)";
+  const pnl = pos.unrealized_pnl != null ? `${pos.unrealized_pnl >= 0 ? "+" : ""}${pos.unrealized_pnl.toFixed(2)} ${pos.currency}` : "N/A";
+  const pnlPct = pos.pnl_percent != null ? `${pos.pnl_percent >= 0 ? "+" : ""}${pos.pnl_percent.toFixed(2)}%` : "N/A";
+
+  return [
+    `=== POSITION DE L'UTILISATEUR ===`,
+    `Actif : ${pos.symbol}`,
+    `Direction : ${direction}`,
+    `Quantité : ${pos.quantity}`,
+    `Prix d'entrée : ${pos.entry_price} ${pos.currency}`,
+    pos.current_price ? `Prix actuel : ${pos.current_price} ${pos.currency}` : null,
+    pos.leverage > 1 ? `Levier : x${pos.leverage}` : null,
+    `PnL non réalisé : ${pnl} (${pnlPct})`,
+    pos.stop_loss ? `Stop Loss : ${pos.stop_loss} ${pos.currency}` : null,
+    pos.take_profit ? `Take Profit : ${pos.take_profit} ${pos.currency}` : null,
+    pos.entry_date ? `Date d'entrée : ${pos.entry_date.slice(0, 10)}` : null,
+    pos.days_held != null ? `Jours détenus : ${pos.days_held}` : null,
+    pos.broker ? `Broker : ${pos.broker}` : null,
+    pos.notes ? `Notes de l'utilisateur : "${pos.notes}"` : null,
+    `=== FIN POSITION ===`,
+  ].filter(Boolean).join("\n");
+}
+
 export default function AssistantPage() {
   const searchParams = useSearchParams();
   const assetFromPortfolio = searchParams.get("asset");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [input, setInput] = useState(assetFromPortfolio ? `Analyse ma position sur ${assetFromPortfolio} : dois-je la conserver ?` : "");
+  const [input, setInput] = useState(assetFromPortfolio ? `Analyse ma position sur ${assetFromPortfolio} et donne-moi tes recommandations.` : "");
+  const [positionContext, setPositionContext] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingHistory, setIsLoadingHistory] = useState(true);
   const [limitStatus, setLimitStatus] = useState<AILimitStatus | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const autoSentRef = useRef(false);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -106,8 +132,22 @@ export default function AssistantPage() {
     scrollToBottom();
   }, [messages]);
 
-  // Load chat history and limit status on mount
+  // Load chat history, limit status, and position context on mount
   useEffect(() => {
+    // Read position context from sessionStorage if coming from portfolio
+    if (assetFromPortfolio) {
+      const stored = sessionStorage.getItem("ai_position_context");
+      if (stored) {
+        try {
+          const pos = JSON.parse(stored);
+          if (pos.symbol === assetFromPortfolio) {
+            setPositionContext(buildPositionContext(pos));
+            sessionStorage.removeItem("ai_position_context");
+          }
+        } catch {}
+      }
+    }
+
     const loadData = async () => {
       try {
         const [historyData, limitData] = await Promise.all([
@@ -135,8 +175,9 @@ export default function AssistantPage() {
     }
   };
 
-  const handleSend = async () => {
-    if (!input.trim() || isLoading) return;
+  const handleSend = async (msgOverride?: string, ctxOverride?: string) => {
+    const msg = msgOverride ?? input;
+    if (!msg.trim() || isLoading) return;
 
     // Check limit before sending
     if (limitStatus && !limitStatus.is_premium && limitStatus.remaining === 0) {
@@ -145,16 +186,20 @@ export default function AssistantPage() {
 
     const userMessage: ChatMessage = {
       role: "user",
-      content: input,
+      content: msg,
       created_at: new Date().toISOString(),
     };
 
     setMessages((prev) => [...prev, userMessage]);
-    setInput("");
+    if (!msgOverride) setInput("");
     setIsLoading(true);
 
+    // Use position context only on first send, then clear it
+    const ctx = ctxOverride ?? positionContext ?? undefined;
+    if (positionContext) setPositionContext(null);
+
     try {
-      const response = await aiAPI.chat(input);
+      const response = await aiAPI.chat(msg, ctx);
 
       const aiMessage: ChatMessage = {
         role: "assistant",
@@ -190,6 +235,15 @@ export default function AssistantPage() {
       setIsLoading(false);
     }
   };
+
+  // Auto-send first message when coming from portfolio with position context
+  useEffect(() => {
+    if (!isLoadingHistory && positionContext && input && !autoSentRef.current) {
+      autoSentRef.current = true;
+      handleSend(input, positionContext);
+      setInput("");
+    }
+  }, [isLoadingHistory, positionContext]);
 
   const clearHistory = async () => {
     try {
@@ -269,6 +323,14 @@ export default function AssistantPage() {
           </div>
         </div>
       </div>
+
+      {/* Position context banner */}
+      {positionContext && assetFromPortfolio && (
+        <div className="glass-card px-4 py-2.5 mb-4 bg-purple-500/10 border border-purple-500/30 flex items-center gap-2 text-sm text-purple-300">
+          <Bot className="w-4 h-4 shrink-0" />
+          <span>Contexte de votre position <strong>{assetFromPortfolio}</strong> chargé — analyse personnalisée en cours…</span>
+        </div>
+      )}
 
       {/* Limit reached warning */}
       {limitStatus && !limitStatus.is_premium && limitStatus.remaining === 0 && (

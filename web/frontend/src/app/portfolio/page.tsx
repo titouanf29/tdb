@@ -658,7 +658,10 @@ function PositionCard({
           <Edit3 className="w-3.5 h-3.5" /> Modifier
         </button>
         <button
-          onClick={() => router.push(`/assistant?asset=${encodeURIComponent(pos.symbol)}`)}
+          onClick={() => {
+            sessionStorage.setItem("ai_position_context", JSON.stringify(pos));
+            router.push(`/assistant?asset=${encodeURIComponent(pos.symbol)}`);
+          }}
           className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs text-purple-400 hover:bg-purple-500/10 transition-colors border-x border-white/8"
         >
           <Bot className="w-3.5 h-3.5" /> IA
