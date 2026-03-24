@@ -273,5 +273,64 @@ class AIAssistantModule:
             "Vous pouvez commencer une nouvelle conversation fraîche !"
         )
 
+    async def callback_ai_chat_asset(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Callback pour démarrer un chat IA sur un actif depuis le portefeuille"""
+        query = update.callback_query
+        await query.answer()
+
+        user_id = update.effective_user.id
+        symbol = query.data.replace("ai_chat_asset_", "")
+
+        # Vérifier la limite journalière
+        limit_reached = await db_manager.check_ai_limit_reached(user_id)
+        usage = await db_manager.get_ai_daily_usage(user_id)
+
+        if limit_reached:
+            reset_info = get_reset_time_info()
+            await query.message.reply_text(
+                f"⚠️ Limite journalière atteinte\n\n"
+                f"Vous avez utilisé {usage['message_count']}/{config.MAX_AI_MESSAGES_PER_DAY} messages aujourd'hui.\n\n"
+                f"🔄 Reset dans {reset_info['hours']}h{reset_info['minutes']:02d}\n"
+                f"🕐 Prochaine disponibilité : {reset_info['reset_time_paris']} (Paris)"
+            )
+            return
+
+        # Activer le mode chat
+        self.activate_chat(user_id)
+
+        # Récupérer le contexte de l'actif
+        asset_context = await ai_assistant_service.get_asset_context(symbol)
+
+        keyboard = [
+            [InlineKeyboardButton("❌ Arrêter le chat", callback_data="ai_stop")],
+            [InlineKeyboardButton("🗑️ Effacer l'historique", callback_data="ai_clear_history")],
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+
+        if asset_context:
+            price_info = f"\n💰 Prix actuel : {asset_context.get('price', 'N/A')}"
+            direction_info = f"\n📊 Tendance : {asset_context.get('direction', 'N/A')}"
+            score_info = f"\n🎯 Score : {asset_context.get('score', 'N/A')}/100"
+            context_text = f"{price_info}{direction_info}{score_info}\n"
+        else:
+            context_text = ""
+
+        welcome_text = (
+            f"🤖 Assistant IA — {symbol}\n\n"
+            f"Je suis prêt à analyser **{symbol}** avec vous !{context_text}\n"
+            f"Posez vos questions sur cet actif :\n"
+            f"• Analyse technique de {symbol} ?\n"
+            f"• Dois-je tenir ma position ?\n"
+            f"• Quels niveaux surveiller ?\n\n"
+            f"💬 Messages utilisés : {usage['message_count']}/{config.MAX_AI_MESSAGES_PER_DAY}\n\n"
+            f"⚠️ Ceci est un outil éducatif, pas un conseil financier."
+        )
+
+        await query.message.reply_text(
+            welcome_text,
+            reply_markup=reply_markup,
+            parse_mode='Markdown'
+        )
+
 # Instance globale
 ai_assistant_module = AIAssistantModule()
