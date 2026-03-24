@@ -115,15 +115,29 @@ function buildPositionContext(pos: Record<string, any>): string {
 export default function AssistantPage() {
   const searchParams = useSearchParams();
   const assetFromPortfolio = searchParams.get("asset");
+
+  // Read position context synchronously from sessionStorage — stored as ref to avoid stale closures
+  const positionContextRef = useRef<string | null>(null);
+  const [hasPositionContext, setHasPositionContext] = useState(false);
+  if (typeof window !== "undefined" && positionContextRef.current === null && assetFromPortfolio) {
+    const stored = sessionStorage.getItem("ai_position_context");
+    if (stored) {
+      try {
+        const pos = JSON.parse(stored);
+        if (pos.symbol === assetFromPortfolio) {
+          positionContextRef.current = buildPositionContext(pos);
+          sessionStorage.removeItem("ai_position_context");
+        }
+      } catch {}
+    }
+  }
+
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState(assetFromPortfolio ? `Analyse ma position sur ${assetFromPortfolio} et donne-moi tes recommandations.` : "");
-  const [positionContext, setPositionContext] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [isLoadingHistory, setIsLoadingHistory] = useState(!assetFromPortfolio);
-  const [limitReady, setLimitReady] = useState(false);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(true);
   const [limitStatus, setLimitStatus] = useState<AILimitStatus | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const autoSentRef = useRef(false);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -134,112 +148,62 @@ export default function AssistantPage() {
   }, [messages]);
 
   useEffect(() => {
-    // Read position context from sessionStorage synchronously before any fetch
-    if (assetFromPortfolio) {
-      const stored = sessionStorage.getItem("ai_position_context");
-      if (stored) {
-        try {
-          const pos = JSON.parse(stored);
-          if (pos.symbol === assetFromPortfolio) {
-            setPositionContext(buildPositionContext(pos));
-            sessionStorage.removeItem("ai_position_context");
-          }
-        } catch {}
-      }
-    }
-
-    // Load limit first (fast) — unblocks auto-send immediately
-    aiAPI.getLimit().then((limitData) => {
-      setLimitStatus(limitData);
-      setLimitReady(true);
-    }).catch(console.error);
-
-    // Load history in background (doesn't block UI or auto-send)
-    if (!assetFromPortfolio) {
-      aiAPI.getHistory(20).then((historyData) => {
+    const load = async () => {
+      try {
+        const [historyData, limitData] = await Promise.all([
+          assetFromPortfolio ? Promise.resolve({ messages: [] }) : aiAPI.getHistory(20),
+          aiAPI.getLimit(),
+        ]);
         setMessages(historyData.messages);
-      }).catch(console.error).finally(() => setIsLoadingHistory(false));
-    }
+        setLimitStatus(limitData);
+      } catch (error) {
+        console.error("Error loading data:", error);
+      } finally {
+        setIsLoadingHistory(false);
+      }
+    };
+    load();
+    // Show the banner if context was loaded
+    if (positionContextRef.current) setHasPositionContext(true);
   }, []);
 
-  // Decrement limit locally after each message to avoid extra fetch
-  const decrementLimit = () => {
-    setLimitStatus((prev) => {
-      if (!prev || prev.is_premium) return prev;
-      const next = Math.max(0, prev.remaining - 1);
-      return { ...prev, remaining: next, messages_today: prev.messages_today + 1 };
-    });
-  };
+  const handleSend = async () => {
+    if (!input.trim() || isLoading) return;
 
-  const handleSend = async (msgOverride?: string, ctxOverride?: string) => {
-    const msg = msgOverride ?? input;
-    if (!msg.trim() || isLoading) return;
-
-    // Check limit before sending
     if (limitStatus && !limitStatus.is_premium && limitStatus.remaining === 0) {
       return;
     }
 
-    const userMessage: ChatMessage = {
-      role: "user",
-      content: msg,
-      created_at: new Date().toISOString(),
-    };
+    const msg = input;
+    // Consume position context on first send, then clear it
+    const ctx = positionContextRef.current ?? undefined;
+    positionContextRef.current = null;
+    if (ctx) setHasPositionContext(false);
 
-    setMessages((prev) => [...prev, userMessage]);
-    if (!msgOverride) setInput("");
+    setMessages((prev) => [...prev, { role: "user", content: msg, created_at: new Date().toISOString() }]);
+    setInput("");
     setIsLoading(true);
-
-    // Use position context only on first send, then clear it
-    const ctx = ctxOverride ?? positionContext ?? undefined;
-    if (positionContext) setPositionContext(null);
 
     try {
       const response = await aiAPI.chat(msg, ctx);
-
-      const aiMessage: ChatMessage = {
-        role: "assistant",
-        content: response.response,
-        created_at: new Date().toISOString(),
-      };
-
-      setMessages((prev) => [...prev, aiMessage]);
-
-      decrementLimit();
+      setMessages((prev) => [...prev, { role: "assistant", content: response.response, created_at: new Date().toISOString() }]);
+      setLimitStatus((prev) => {
+        if (!prev || prev.is_premium) return prev;
+        return { ...prev, remaining: Math.max(0, prev.remaining - 1), messages_today: prev.messages_today + 1 };
+      });
     } catch (error: any) {
-      console.error("Error sending message:", error);
-
       let errorContent = "Désolé, une erreur s'est produite. Veuillez réessayer.";
-
-      // Handle rate limit error (429)
       if (error.status === 429) {
         errorContent = limitStatus?.is_premium
           ? "Trop de messages envoyés rapidement. Attendez quelques secondes puis réessayez."
           : "Vous avez atteint votre limite quotidienne de messages. Passez Premium pour des messages illimités !";
-        // Only re-fetch limit on 429 to sync with server
         aiAPI.getLimit().then(setLimitStatus).catch(() => {});
       }
-
-      const errorMessage: ChatMessage = {
-        role: "assistant",
-        content: errorContent,
-        created_at: new Date().toISOString(),
-      };
-
-      setMessages((prev) => [...prev, errorMessage]);
+      setMessages((prev) => [...prev, { role: "assistant", content: errorContent, created_at: new Date().toISOString() }]);
     } finally {
       setIsLoading(false);
     }
   };
-
-  // Auto-send as soon as limit is ready (no need to wait for history)
-  useEffect(() => {
-    if (limitReady && positionContext && input && !autoSentRef.current) {
-      autoSentRef.current = true;
-      handleSend(input, positionContext);
-      setInput("");
-    }
-  }, [limitReady, positionContext]);
 
   const clearHistory = async () => {
     try {
@@ -313,10 +277,10 @@ export default function AssistantPage() {
       </div>
 
       {/* Position context banner */}
-      {positionContext && assetFromPortfolio && (
+      {hasPositionContext && assetFromPortfolio && (
         <div className="glass-card px-4 py-2.5 mb-4 bg-purple-500/10 border border-purple-500/30 flex items-center gap-2 text-sm text-purple-300">
           <Bot className="w-4 h-4 shrink-0" />
-          <span>Contexte de votre position <strong>{assetFromPortfolio}</strong> chargé — analyse personnalisée en cours…</span>
+          <span>Données de votre position <strong>{assetFromPortfolio}</strong> chargées — envoyez votre message pour une analyse personnalisée.</span>
         </div>
       )}
 
