@@ -88,52 +88,57 @@ function renderMarkdown(text: string): React.ReactNode {
   return <>{nodes}</>;
 }
 
-function buildPositionContext(pos: Record<string, any>): string {
-  const direction = pos.position_type === "long" ? "LONG (achat)" : "SHORT (vente)";
-  const pnl = pos.unrealized_pnl != null ? `${pos.unrealized_pnl >= 0 ? "+" : ""}${pos.unrealized_pnl.toFixed(2)} ${pos.currency}` : "N/A";
-  const pnlPct = pos.pnl_percent != null ? `${pos.pnl_percent >= 0 ? "+" : ""}${pos.pnl_percent.toFixed(2)}%` : "N/A";
+function buildPositionMessage(pos: Record<string, any>): string {
+  const direction = pos.position_type === "long" ? "LONG" : "SHORT";
+  const pnl = pos.unrealized_pnl != null ? `${pos.unrealized_pnl >= 0 ? "+" : ""}${Number(pos.unrealized_pnl).toFixed(2)} ${pos.currency}` : null;
+  const pnlPct = pos.pnl_percent != null ? `${pos.pnl_percent >= 0 ? "+" : ""}${Number(pos.pnl_percent).toFixed(2)}%` : null;
 
-  return [
-    `=== POSITION DE L'UTILISATEUR ===`,
-    `Actif : ${pos.symbol}`,
-    `Direction : ${direction}`,
-    `Quantité : ${pos.quantity}`,
+  const lines = [
+    `Voici ma position en cours, analyse-la et donne-moi tes recommandations précises :`,
+    ``,
+    `Actif : ${pos.symbol} (${direction})`,
     `Prix d'entrée : ${pos.entry_price} ${pos.currency}`,
     pos.current_price ? `Prix actuel : ${pos.current_price} ${pos.currency}` : null,
+    pnl && pnlPct ? `PnL non réalisé : ${pnl} (${pnlPct})` : null,
     pos.leverage > 1 ? `Levier : x${pos.leverage}` : null,
-    `PnL non réalisé : ${pnl} (${pnlPct})`,
+    pos.quantity ? `Quantité : ${pos.quantity}` : null,
     pos.stop_loss ? `Stop Loss : ${pos.stop_loss} ${pos.currency}` : null,
     pos.take_profit ? `Take Profit : ${pos.take_profit} ${pos.currency}` : null,
-    pos.entry_date ? `Date d'entrée : ${pos.entry_date.slice(0, 10)}` : null,
     pos.days_held != null ? `Jours détenus : ${pos.days_held}` : null,
-    pos.broker ? `Broker : ${pos.broker}` : null,
-    pos.notes ? `Notes de l'utilisateur : "${pos.notes}"` : null,
-    `=== FIN POSITION ===`,
-  ].filter(Boolean).join("\n");
+    pos.notes ? `Notes : ${pos.notes}` : null,
+    ``,
+    `Est-ce que je dois tenir cette position, ajuster mon SL/TP, ou sortir ?`,
+  ].filter((l) => l !== null);
+
+  return lines.join("\n");
 }
 
 export default function AssistantPage() {
   const searchParams = useSearchParams();
   const assetFromPortfolio = searchParams.get("asset");
 
-  // Read position context synchronously from sessionStorage — stored as ref to avoid stale closures
+  // Read position from sessionStorage synchronously — build message with real data
   const positionContextRef = useRef<string | null>(null);
   const [hasPositionContext, setHasPositionContext] = useState(false);
-  if (typeof window !== "undefined" && positionContextRef.current === null && assetFromPortfolio) {
+
+  const getInitialInput = () => {
+    if (typeof window === "undefined" || !assetFromPortfolio) return "";
     const stored = sessionStorage.getItem("ai_position_context");
-    if (stored) {
-      try {
-        const pos = JSON.parse(stored);
-        if (pos.symbol === assetFromPortfolio) {
-          positionContextRef.current = buildPositionContext(pos);
-          sessionStorage.removeItem("ai_position_context");
-        }
-      } catch {}
-    }
-  }
+    if (!stored) return `Analyse ma position sur ${assetFromPortfolio} et donne-moi tes recommandations.`;
+    try {
+      const pos = JSON.parse(stored);
+      if (pos.symbol === assetFromPortfolio) {
+        sessionStorage.removeItem("ai_position_context");
+        const msg = buildPositionMessage(pos);
+        positionContextRef.current = msg; // keep for the first send
+        return msg;
+      }
+    } catch {}
+    return `Analyse ma position sur ${assetFromPortfolio} et donne-moi tes recommandations.`;
+  };
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [input, setInput] = useState(assetFromPortfolio ? `Analyse ma position sur ${assetFromPortfolio} et donne-moi tes recommandations.` : "");
+  const [input, setInput] = useState(() => getInitialInput());
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingHistory, setIsLoadingHistory] = useState(true);
   const [limitStatus, setLimitStatus] = useState<AILimitStatus | null>(null);
@@ -148,10 +153,12 @@ export default function AssistantPage() {
   }, [messages]);
 
   useEffect(() => {
+    if (positionContextRef.current) setHasPositionContext(true);
+
     const load = async () => {
       try {
         const [historyData, limitData] = await Promise.all([
-          assetFromPortfolio ? Promise.resolve({ messages: [] }) : aiAPI.getHistory(20),
+          aiAPI.getHistory(20),
           aiAPI.getLimit(),
         ]);
         setMessages(historyData.messages);
@@ -163,8 +170,6 @@ export default function AssistantPage() {
       }
     };
     load();
-    // Show the banner if context was loaded
-    if (positionContextRef.current) setHasPositionContext(true);
   }, []);
 
   const handleSend = async () => {
@@ -175,17 +180,15 @@ export default function AssistantPage() {
     }
 
     const msg = input;
-    // Consume position context on first send, then clear it
-    const ctx = positionContextRef.current ?? undefined;
     positionContextRef.current = null;
-    if (ctx) setHasPositionContext(false);
+    setHasPositionContext(false);
 
     setMessages((prev) => [...prev, { role: "user", content: msg, created_at: new Date().toISOString() }]);
     setInput("");
     setIsLoading(true);
 
     try {
-      const response = await aiAPI.chat(msg, ctx);
+      const response = await aiAPI.chat(msg);
       setMessages((prev) => [...prev, { role: "assistant", content: response.response, created_at: new Date().toISOString() }]);
       setLimitStatus((prev) => {
         if (!prev || prev.is_premium) return prev;
@@ -280,7 +283,7 @@ export default function AssistantPage() {
       {hasPositionContext && assetFromPortfolio && (
         <div className="glass-card px-4 py-2.5 mb-4 bg-purple-500/10 border border-purple-500/30 flex items-center gap-2 text-sm text-purple-300">
           <Bot className="w-4 h-4 shrink-0" />
-          <span>Données de votre position <strong>{assetFromPortfolio}</strong> chargées — envoyez votre message pour une analyse personnalisée.</span>
+          <span>Données de votre position <strong>{assetFromPortfolio}</strong> pré-remplies ci-dessous — modifiez si besoin puis envoyez.</span>
         </div>
       )}
 
