@@ -199,6 +199,7 @@ Code: `{pos['position_code']}`
 
         keyboard = [
             [InlineKeyboardButton("🔄 Actualiser", callback_data=f"position_detail_{position_code}")],
+            [InlineKeyboardButton("🤖 Parler à l'IA", callback_data=f"ai_chat_asset_{position['asset_symbol']}")],
             [InlineKeyboardButton("❌ Fermer la position", callback_data=f"position_close_{position_code}")],
             [InlineKeyboardButton(BTN_BACK, callback_data="wallet_positions")]
         ]
@@ -529,6 +530,7 @@ Ou tapez un montant personnalisé dans le chat (ex: 25000)
         if position['status'] == 'open':
             keyboard = [
                 [InlineKeyboardButton("🔄 Actualiser", callback_data=f"position_detail_{position_code}")],
+                [InlineKeyboardButton("🤖 Parler à l'IA", callback_data=f"ai_chat_asset_{position['asset_symbol']}")],
                 [InlineKeyboardButton("❌ Fermer la position", callback_data=f"position_close_{position_code}")],
                 [InlineKeyboardButton("💼 Voir Wallet", callback_data="wallet_main")]
             ]

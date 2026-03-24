@@ -82,6 +82,10 @@ class TDBBot:
                 self.ai_assistant_module.callback_ai_clear_history,
                 pattern="^ai_clear_history$"
             ))
+            self.application.add_handler(CallbackQueryHandler(
+                self.ai_assistant_module.callback_ai_chat_asset,
+                pattern="^ai_chat_asset_"
+            ))
             from telegram.ext import CommandHandler
             self.application.add_handler(CommandHandler("ai_assistant", self.ai_assistant_module.cmd_ai_assistant))
             self.application.add_handler(CommandHandler("stop_ai", self.ai_assistant_module.cmd_stop_ai))
