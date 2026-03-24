@@ -4,6 +4,7 @@ import Script from 'next/script';
 import { SiteHeader } from '@/components/site-header';
 import { SiteFooter } from '@/components/site-footer';
 import { GlobalTutorial } from '@/components/global-tutorial';
+import { ChatWidget } from '@/components/chat-widget';
 import { siteConfig } from '@/lib/site-config';
 import './globals.css';
 
@@ -52,6 +53,7 @@ export default function RootLayout({ children }: Readonly<{ children: ReactNode 
         {children}
         <SiteFooter />
         <GlobalTutorial />
+        <ChatWidget />
 
         {/* Google Analytics */}
         {GA_ID && (
