@@ -477,7 +477,7 @@ export default function AssistantPage() {
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
-            onClick={handleSend}
+            onClick={() => handleSend()}
             disabled={!input.trim() || isLoading || (limitStatus != null && !limitStatus.is_premium && limitStatus.remaining === 0)}
             className="btn-primary px-6 disabled:opacity-50"
           >
