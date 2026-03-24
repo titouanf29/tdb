@@ -66,7 +66,17 @@ const PremiumChart = dynamic(() => import("@/components/PremiumChart"), {
 import { TopLoadingBar } from "@/components/ui/TopLoadingBar";
 
 // ── Real Position Banner ──────────────────────────────────────────────────────
-function RealPositionBanner({ position, currentPrice }: { position: RealPosition; currentPrice: number }) {
+function RealPositionBanner({
+  position,
+  currentPrice,
+  signal,
+  trend,
+}: {
+  position: RealPosition;
+  currentPrice: number;
+  signal?: { text: string; emoji: string };
+  trend?: string;
+}) {
   const isLong = position.position_type === "long";
   const lev = position.leverage ?? 1;
   const invested = position.entry_price * position.quantity;
@@ -80,79 +90,150 @@ function RealPositionBanner({ position, currentPrice }: { position: RealPosition
     position.stop_loss &&
     Math.abs((currentPrice - position.stop_loss) / currentPrice) < 0.05;
 
+  const nearTP =
+    position.take_profit &&
+    Math.abs((currentPrice - position.take_profit) / currentPrice) < 0.03;
+
+  // Determine if technical signal aligns with the position
+  const signalText = signal?.text ?? "";
+  const isBuySignal = signalText.includes("BUY") || signalText.includes("ACHAT");
+  const isSellSignal = signalText.includes("SELL") || signalText.includes("VENTE");
+  const trendBullish = trend === "BULLISH" || trend === "HAUSSIER";
+  const trendBearish = trend === "BEARISH" || trend === "BAISSIER";
+
+  const aligned =
+    (isLong && (isBuySignal || trendBullish)) ||
+    (!isLong && (isSellSignal || trendBearish));
+  const contradicts =
+    (isLong && (isSellSignal || trendBearish)) ||
+    (!isLong && (isBuySignal || trendBullish));
+
+  // Progress to TP/SL
+  const tpProgress =
+    position.take_profit && position.entry_price !== position.take_profit
+      ? isLong
+        ? Math.min(100, Math.max(0, ((currentPrice - position.entry_price) / (position.take_profit - position.entry_price)) * 100))
+        : Math.min(100, Math.max(0, ((position.entry_price - currentPrice) / (position.entry_price - position.take_profit)) * 100))
+      : null;
+
   return (
     <motion.div
       initial={{ opacity: 0, y: -8 }}
       animate={{ opacity: 1, y: 0 }}
       className={cn(
-        "rounded-xl border px-5 py-4 flex flex-wrap items-center gap-4",
+        "rounded-xl border overflow-hidden",
         nearSL
           ? "bg-red-500/10 border-red-500/30"
+          : contradicts
+          ? "bg-orange-500/8 border-orange-500/25"
           : "bg-primary/8 border-primary/20"
       )}
     >
-      <div className="flex items-center gap-2">
-        <Briefcase className="w-4 h-4 text-primary flex-shrink-0" />
-        <span className="font-semibold text-sm">Vous êtes positionné</span>
-        <span className={cn(
-          "text-xs font-bold px-1.5 py-0.5 rounded",
-          isLong ? "bg-emerald-500/15 text-emerald-400" : "bg-red-500/15 text-red-400"
-        )}>
-          {isLong ? "▲ LONG" : "▼ SHORT"}
-        </span>
-        {lev > 1 && (
-          <span className="text-xs text-orange-400 bg-orange-500/10 px-1.5 py-0.5 rounded">x{lev}</span>
-        )}
+      {/* Alert banners */}
+      {nearSL && (
+        <div className="flex items-center gap-2 px-5 py-2 bg-red-500/15 text-red-400 text-xs font-medium">
+          <AlertTriangle className="w-3.5 h-3.5 animate-pulse" />
+          Prix proche du Stop Loss — surveillez votre position
+        </div>
+      )}
+      {nearTP && !nearSL && (
+        <div className="flex items-center gap-2 px-5 py-2 bg-emerald-500/15 text-emerald-400 text-xs font-medium">
+          <CheckCircle className="w-3.5 h-3.5" />
+          Prix proche du Take Profit — objectif presque atteint
+        </div>
+      )}
+
+      <div className="px-5 py-4 flex flex-wrap items-center gap-4">
+        <div className="flex items-center gap-2">
+          <Briefcase className="w-4 h-4 text-primary flex-shrink-0" />
+          <span className="font-semibold text-sm">Votre position réelle</span>
+          <span className={cn(
+            "text-xs font-bold px-1.5 py-0.5 rounded",
+            isLong ? "bg-emerald-500/15 text-emerald-400" : "bg-red-500/15 text-red-400"
+          )}>
+            {isLong ? "▲ LONG" : "▼ SHORT"}
+          </span>
+          {lev > 1 && (
+            <span className="text-xs text-orange-400 bg-orange-500/10 px-1.5 py-0.5 rounded">x{lev}</span>
+          )}
+          {/* Signal alignment badge */}
+          {signal && (aligned || contradicts) && (
+            <span className={cn(
+              "text-xs font-medium px-2 py-0.5 rounded-full",
+              aligned
+                ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/25"
+                : "bg-orange-500/15 text-orange-400 border border-orange-500/25"
+            )}>
+              {aligned ? "✓ Signal aligné" : "⚠ Signal contraire"}
+            </span>
+          )}
+        </div>
+
+        <div className="flex flex-wrap gap-4 text-xs">
+          <div>
+            <span className="text-muted-foreground">Entrée : </span>
+            <span className="font-medium">{position.entry_price.toLocaleString("fr-FR", { maximumFractionDigits: 6 })}</span>
+          </div>
+          <div>
+            <span className="text-muted-foreground">Actuel : </span>
+            <span className={cn("font-medium", isProfit ? "text-emerald-400" : "text-red-400")}>
+              {currentPrice.toLocaleString("fr-FR", { maximumFractionDigits: 6 })}
+            </span>
+          </div>
+          <div>
+            <span className="text-muted-foreground">Qté : </span>
+            <span className="font-medium">{position.quantity}</span>
+          </div>
+          {position.days_held !== undefined && (
+            <div>
+              <span className="text-muted-foreground">Détenus : </span>
+              <span className="font-medium">{position.days_held} j</span>
+            </div>
+          )}
+          {position.stop_loss && (
+            <div>
+              <span className="text-muted-foreground">SL : </span>
+              <span className="text-red-400 font-medium">{position.stop_loss.toLocaleString("fr-FR", { maximumFractionDigits: 6 })}</span>
+            </div>
+          )}
+          {position.take_profit && (
+            <div>
+              <span className="text-muted-foreground">TP : </span>
+              <span className="text-emerald-400 font-medium">{position.take_profit.toLocaleString("fr-FR", { maximumFractionDigits: 6 })}</span>
+            </div>
+          )}
+        </div>
+
+        <div className="ml-auto flex items-center gap-3">
+          <div className={cn(
+            "text-right px-3 py-1.5 rounded-lg",
+            isProfit ? "bg-emerald-500/10" : "bg-red-500/10"
+          )}>
+            <p className={cn("text-sm font-bold", isProfit ? "text-emerald-400" : "text-red-400")}>
+              {isProfit ? "+" : ""}{pnl.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {position.currency}
+            </p>
+            <p className={cn("text-xs", isProfit ? "text-emerald-400/70" : "text-red-400/70")}>
+              {pnlPct >= 0 ? "+" : ""}{pnlPct.toFixed(2)}%
+            </p>
+          </div>
+        </div>
       </div>
 
-      <div className="flex flex-wrap gap-4 text-xs">
-        <div>
-          <span className="text-muted-foreground">Entrée : </span>
-          <span className="font-medium">{position.entry_price.toLocaleString("fr-FR", { maximumFractionDigits: 6 })}</span>
+      {/* TP progress bar */}
+      {tpProgress !== null && position.take_profit && (
+        <div className="px-5 pb-3">
+          <div className="flex items-center justify-between text-xs text-muted-foreground mb-1">
+            <span>Progression vers TP</span>
+            <span className="text-emerald-400 font-medium">{tpProgress.toFixed(0)}%</span>
+          </div>
+          <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
+            <div
+              className="h-full bg-emerald-500 rounded-full transition-all duration-500"
+              style={{ width: `${Math.min(tpProgress, 100)}%` }}
+            />
+          </div>
         </div>
-        <div>
-          <span className="text-muted-foreground">Qté : </span>
-          <span className="font-medium">{position.quantity}</span>
-        </div>
-        {position.days_held !== undefined && (
-          <div>
-            <span className="text-muted-foreground">Détenus : </span>
-            <span className="font-medium">{position.days_held} j</span>
-          </div>
-        )}
-        {position.stop_loss && (
-          <div>
-            <span className="text-muted-foreground">SL : </span>
-            <span className="text-red-400 font-medium">{position.stop_loss.toLocaleString("fr-FR", { maximumFractionDigits: 6 })}</span>
-          </div>
-        )}
-        {position.take_profit && (
-          <div>
-            <span className="text-muted-foreground">TP : </span>
-            <span className="text-emerald-400 font-medium">{position.take_profit.toLocaleString("fr-FR", { maximumFractionDigits: 6 })}</span>
-          </div>
-        )}
-      </div>
-
-      <div className="ml-auto flex items-center gap-3">
-        {nearSL && (
-          <div className="flex items-center gap-1 text-xs text-red-400 animate-pulse">
-            <AlertTriangle className="w-3.5 h-3.5" />
-            Proche du Stop Loss
-          </div>
-        )}
-        <div className={cn(
-          "text-right px-3 py-1.5 rounded-lg",
-          isProfit ? "bg-emerald-500/10" : "bg-red-500/10"
-        )}>
-          <p className={cn("text-sm font-bold", isProfit ? "text-emerald-400" : "text-red-400")}>
-            {isProfit ? "+" : ""}{pnl.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {position.currency}
-          </p>
-          <p className={cn("text-xs", isProfit ? "text-emerald-400/70" : "text-red-400/70")}>
-            {pnlPct >= 0 ? "+" : ""}{pnlPct.toFixed(2)}%
-          </p>
-        </div>
-      </div>
+      )}
     </motion.div>
   );
 }
@@ -608,7 +689,14 @@ export default function AnalysisPage() {
           <AssetHeader analysis={analysis} isFavorite={isFavorite} toggleFavorite={toggleFavorite} formatCurrency={formatPrice} />
 
           {/* 1b. Real position banner */}
-          {realPosition && <RealPositionBanner position={realPosition} currentPrice={analysis.price.current} />}
+          {realPosition && (
+            <RealPositionBanner
+              position={realPosition}
+              currentPrice={analysis.price.current}
+              signal={analysis.signal}
+              trend={analysis.trend}
+            />
+          )}
 
           {/* 2. Score cards */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -25,6 +25,7 @@ import {
   Calendar,
   Layers,
   Info,
+  Search,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -34,6 +35,7 @@ import {
   CreatePositionData,
 } from "@/lib/api";
 import { useAuth } from "@/lib/AuthContext";
+import { authHeaders } from "@/lib/auth";
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -116,8 +118,46 @@ function PositionForm({ initial, onClose, onSave, title }: PositionFormProps) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
+  // Symbol search state
+  const [symbolQuery, setSymbolQuery] = useState(initial?.symbol ?? "");
+  const [symbolSuggestions, setSymbolSuggestions] = useState<{symbol: string; name: string; exchange: string; type: string}[]>([]);
+  const [showSymbolSuggestions, setShowSymbolSuggestions] = useState(false);
+  const [isSearchingSymbol, setIsSearchingSymbol] = useState(false);
+  const symbolDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const set = (key: keyof CreatePositionData, val: unknown) =>
     setForm((f) => ({ ...f, [key]: val }));
+
+  const fetchSymbolSuggestions = useCallback(async (q: string) => {
+    if (q.trim().length < 2) { setSymbolSuggestions([]); return; }
+    setIsSearchingSymbol(true);
+    try {
+      const res = await fetch(`/api/market/search?q=${encodeURIComponent(q)}`, {
+        headers: authHeaders() as HeadersInit,
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setSymbolSuggestions(data.results || []);
+        setShowSymbolSuggestions(true);
+      }
+    } catch { /* ignore */ } finally {
+      setIsSearchingSymbol(false);
+    }
+  }, []);
+
+  const handleSymbolQueryChange = (value: string) => {
+    setSymbolQuery(value);
+    set("symbol", value.toUpperCase());
+    if (symbolDebounceRef.current) clearTimeout(symbolDebounceRef.current);
+    symbolDebounceRef.current = setTimeout(() => fetchSymbolSuggestions(value), 300);
+  };
+
+  const handleSelectSymbol = (s: { symbol: string; name: string }) => {
+    setSymbolQuery(`${s.symbol} – ${s.name}`);
+    set("symbol", s.symbol);
+    setSymbolSuggestions([]);
+    setShowSymbolSuggestions(false);
+  };
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -165,14 +205,43 @@ function PositionForm({ initial, onClose, onSave, title }: PositionFormProps) {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs text-muted-foreground mb-1">Actif *</label>
-              <input
-                type="text"
-                className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm uppercase placeholder:normal-case placeholder:text-muted-foreground focus:outline-none focus:border-primary"
-                placeholder="BTC-USD, AAPL…"
-                value={form.symbol}
-                onChange={(e) => set("symbol", e.target.value)}
-                required
-              />
+              <div className="relative">
+                {isSearchingSymbol
+                  ? <Loader2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground animate-spin" />
+                  : <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                }
+                <input
+                  type="text"
+                  className="w-full bg-white/5 border border-white/10 rounded-lg pl-9 pr-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:border-primary"
+                  placeholder="BTC-USD, AAPL…"
+                  value={symbolQuery}
+                  onChange={(e) => handleSymbolQueryChange(e.target.value)}
+                  onFocus={() => symbolSuggestions.length > 0 && setShowSymbolSuggestions(true)}
+                  onBlur={() => setTimeout(() => setShowSymbolSuggestions(false), 150)}
+                  onKeyDown={(e) => { if (e.key === "Escape") setShowSymbolSuggestions(false); }}
+                  required
+                />
+                {showSymbolSuggestions && symbolSuggestions.length > 0 && (
+                  <div className="absolute top-full left-0 right-0 mt-1 z-50 rounded-xl border border-white/10 bg-card shadow-2xl overflow-hidden max-h-56 overflow-y-auto">
+                    {symbolSuggestions.map((s) => (
+                      <button
+                        key={s.symbol}
+                        type="button"
+                        onMouseDown={() => handleSelectSymbol(s)}
+                        className="w-full flex items-center justify-between px-3 py-2 hover:bg-white/10 transition-colors text-left border-b border-white/5 last:border-0"
+                      >
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className="font-mono font-bold text-primary text-xs shrink-0">{s.symbol}</span>
+                          <span className="text-xs text-slate-300 truncate">{s.name}</span>
+                        </div>
+                        <span className="text-xs px-1.5 py-0.5 rounded bg-white/10 text-slate-400 shrink-0 ml-1">
+                          {s.type === 'EQUITY' ? 'Action' : s.type === 'ETF' ? 'ETF' : s.type === 'CRYPTOCURRENCY' ? 'Crypto' : s.type === 'INDEX' ? 'Indice' : s.type}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
             <div>
               <label className="block text-xs text-muted-foreground mb-1">Type *</label>
@@ -294,14 +363,17 @@ function PositionForm({ initial, onClose, onSave, title }: PositionFormProps) {
             <div>
               <label className="block text-xs text-muted-foreground mb-1">Devise</label>
               <select
-                className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary"
+                className="w-full border border-white/10 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary text-white"
+                style={{ backgroundColor: "hsl(220 50% 8%)" }}
                 value={form.currency}
                 onChange={(e) => set("currency", e.target.value)}
               >
-                <option value="USD">USD</option>
-                <option value="EUR">EUR</option>
-                <option value="USDT">USDT</option>
-                <option value="BTC">BTC</option>
+                <option value="USD" style={{ backgroundColor: "hsl(220 50% 8%)", color: "white" }}>USD – Dollar américain</option>
+                <option value="EUR" style={{ backgroundColor: "hsl(220 50% 8%)", color: "white" }}>EUR – Euro</option>
+                <option value="USDT" style={{ backgroundColor: "hsl(220 50% 8%)", color: "white" }}>USDT – Tether</option>
+                <option value="BTC" style={{ backgroundColor: "hsl(220 50% 8%)", color: "white" }}>BTC – Bitcoin</option>
+                <option value="GBP" style={{ backgroundColor: "hsl(220 50% 8%)", color: "white" }}>GBP – Livre sterling</option>
+                <option value="CHF" style={{ backgroundColor: "hsl(220 50% 8%)", color: "white" }}>CHF – Franc suisse</option>
               </select>
             </div>
           </div>
