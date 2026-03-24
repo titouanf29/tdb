@@ -76,8 +76,14 @@ export async function register(
   });
 
   if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.detail || "Registration failed");
+    let detail = "Registration failed";
+    try {
+      const error = await response.json();
+      detail = error.detail || detail;
+    } catch {
+      // Non-JSON response (e.g. 502 proxy error)
+    }
+    throw new Error(detail);
   }
 
   const data: RegisterResponse = await response.json();
@@ -97,8 +103,14 @@ export async function login(
   });
 
   if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.detail || "Login failed");
+    let detail = "Login failed";
+    try {
+      const error = await response.json();
+      detail = error.detail || detail;
+    } catch {
+      // Non-JSON response (e.g. 502 proxy error)
+    }
+    throw new Error(detail);
   }
 
   const data: AuthResponse = await response.json();
