@@ -119,7 +119,8 @@ export default function AssistantPage() {
   const [input, setInput] = useState(assetFromPortfolio ? `Analyse ma position sur ${assetFromPortfolio} et donne-moi tes recommandations.` : "");
   const [positionContext, setPositionContext] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [isLoadingHistory, setIsLoadingHistory] = useState(true);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(!assetFromPortfolio);
+  const [limitReady, setLimitReady] = useState(false);
   const [limitStatus, setLimitStatus] = useState<AILimitStatus | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const autoSentRef = useRef(false);
@@ -132,9 +133,8 @@ export default function AssistantPage() {
     scrollToBottom();
   }, [messages]);
 
-  // Load chat history, limit status, and position context on mount
   useEffect(() => {
-    // Read position context from sessionStorage if coming from portfolio
+    // Read position context from sessionStorage synchronously before any fetch
     if (assetFromPortfolio) {
       const stored = sessionStorage.getItem("ai_position_context");
       if (stored) {
@@ -148,31 +148,27 @@ export default function AssistantPage() {
       }
     }
 
-    const loadData = async () => {
-      try {
-        const [historyData, limitData] = await Promise.all([
-          aiAPI.getHistory(50),
-          aiAPI.getLimit()
-        ]);
+    // Load limit first (fast) — unblocks auto-send immediately
+    aiAPI.getLimit().then((limitData) => {
+      setLimitStatus(limitData);
+      setLimitReady(true);
+    }).catch(console.error);
+
+    // Load history in background (doesn't block UI or auto-send)
+    if (!assetFromPortfolio) {
+      aiAPI.getHistory(20).then((historyData) => {
         setMessages(historyData.messages);
-        setLimitStatus(limitData);
-      } catch (error) {
-        console.error("Error loading data:", error);
-      } finally {
-        setIsLoadingHistory(false);
-      }
-    };
-    loadData();
+      }).catch(console.error).finally(() => setIsLoadingHistory(false));
+    }
   }, []);
 
-  // Refresh limit status
-  const refreshLimit = async () => {
-    try {
-      const limitData = await aiAPI.getLimit();
-      setLimitStatus(limitData);
-    } catch (error) {
-      console.error("Error refreshing limit:", error);
-    }
+  // Decrement limit locally after each message to avoid extra fetch
+  const decrementLimit = () => {
+    setLimitStatus((prev) => {
+      if (!prev || prev.is_premium) return prev;
+      const next = Math.max(0, prev.remaining - 1);
+      return { ...prev, remaining: next, messages_today: prev.messages_today + 1 };
+    });
   };
 
   const handleSend = async (msgOverride?: string, ctxOverride?: string) => {
@@ -209,8 +205,7 @@ export default function AssistantPage() {
 
       setMessages((prev) => [...prev, aiMessage]);
 
-      // Refresh limit after successful message
-      await refreshLimit();
+      decrementLimit();
     } catch (error: any) {
       console.error("Error sending message:", error);
 
@@ -221,7 +216,8 @@ export default function AssistantPage() {
         errorContent = limitStatus?.is_premium
           ? "Trop de messages envoyés rapidement. Attendez quelques secondes puis réessayez."
           : "Vous avez atteint votre limite quotidienne de messages. Passez Premium pour des messages illimités !";
-        await refreshLimit();
+        // Only re-fetch limit on 429 to sync with server
+        aiAPI.getLimit().then(setLimitStatus).catch(() => {});
       }
 
       const errorMessage: ChatMessage = {
@@ -236,14 +232,14 @@ export default function AssistantPage() {
     }
   };
 
-  // Auto-send first message when coming from portfolio with position context
+  // Auto-send as soon as limit is ready (no need to wait for history)
   useEffect(() => {
-    if (!isLoadingHistory && positionContext && input && !autoSentRef.current) {
+    if (limitReady && positionContext && input && !autoSentRef.current) {
       autoSentRef.current = true;
       handleSend(input, positionContext);
       setInput("");
     }
-  }, [isLoadingHistory, positionContext]);
+  }, [limitReady, positionContext]);
 
   const clearHistory = async () => {
     try {
@@ -253,14 +249,6 @@ export default function AssistantPage() {
       console.error("Error clearing history:", error);
     }
   };
-
-  if (isLoadingHistory) {
-    return (
-      <div className="flex items-center justify-center min-h-[50vh]">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
-      </div>
-    );
-  }
 
   return (
     <motion.div
@@ -356,7 +344,12 @@ export default function AssistantPage() {
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto space-y-4 pr-2">
-        {messages.length === 0 && (
+        {isLoadingHistory && (
+          <div className="flex justify-center py-6">
+            <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+          </div>
+        )}
+        {!isLoadingHistory && messages.length === 0 && (
           <div className="text-center py-12">
             <Bot className="w-16 h-16 mx-auto mb-4 text-muted-foreground opacity-50" />
             <h2 className="text-lg font-semibold mb-2">
