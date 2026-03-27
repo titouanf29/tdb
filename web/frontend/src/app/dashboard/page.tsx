@@ -1,0 +1,799 @@
+"use client";
+
+import { useEffect, useState, useCallback, useMemo, memo } from "react";
+import Link from "next/link";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+  TrendingUp, TrendingDown, Star, Activity, ArrowUpRight, ArrowDownRight,
+  Target, RefreshCw, Loader2, Globe, Newspaper, Shield, Plus, Wallet,
+  Bot, BarChart3, Settings2, Eye, EyeOff, ExternalLink, Clock,
+  Layers, ChevronUp, ChevronDown, Crown,
+} from "lucide-react";
+import { cn, formatPercent } from "@/lib/utils";
+import { walletAPI, favoritesAPI, adminAPI, aiAPI, marketAPI, WalletBalance, TradingStats, Favorite, MarketNews, SummaryPoint, Position } from "@/lib/api";
+import { useFormatCurrency, useFormatPrice } from "@/lib/SettingsContext";
+import { usePremium } from "@/lib/PremiumContext";
+import { getAssetInfo, getAssetLogo } from "@/lib/assetInfo";
+import { SessionSummaryWidget } from "@/components/dashboard/SessionSummary";
+import { OpportunitiesWidget } from "@/components/dashboard/OpportunitiesWidget";
+import { TrendingWidget } from "@/components/dashboard/TrendingWidget";
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  DASHBOARD CONFIG
+// ─────────────────────────────────────────────────────────────────────────────
+
+type WidgetId = "indices" | "sessions" | "opportunities" | "trending" | "favorites" | "news" | "stats" | "positions" | "quickactions";
+
+const DEFAULT_WIDGETS: WidgetId[] = ["indices", "sessions", "opportunities", "trending", "favorites", "news", "stats", "quickactions"];
+const DASHBOARD_STORAGE_KEY = "tdb_dashboard_config";
+
+const WIDGET_META: Record<WidgetId, { label: string; icon: string; description: string }> = {
+  indices:      { label: "Indices & Marchés",        icon: "📈", description: "CAC40, S&P500, BTC, Or en temps réel" },
+  sessions:     { label: "Résumés de Séance",        icon: "🌍", description: "Top/Flop, humeur du marché, signaux J+1" },
+  favorites:    { label: "Mes Favoris",               icon: "⭐", description: "Watchlist avec prix et performances" },
+  news:         { label: "Actualités",                icon: "📰", description: "News filtrées par IA + résumé" },
+  stats:        { label: "Statistiques Trading",      icon: "🎯", description: "Win rate, P&L, historique" },
+  positions:    { label: "Positions Ouvertes",        icon: "💼", description: "Positions actives en cours" },
+  opportunities: { label: "Opportunités IA",          icon: "⚡", description: "Top 5 actifs classés par score IA" },
+  trending:     { label: "Top Tendances Haussières",  icon: "🔥", description: "Top 10 cross-marché avec indice de confiance" },
+  quickactions:  { label: "Actions Rapides",          icon: "⚡", description: "Raccourcis vers les pages clés" },
+};
+
+const INDICES_SYMBOLS = ["^FCHI", "^GSPC", "^IXIC", "BTC-USD", "GC=F", "^VIX"];
+const INDICES_LABELS: Record<string, string> = {
+  "^FCHI": "CAC 40", "^GSPC": "S&P 500", "^IXIC": "NASDAQ", "BTC-USD": "Bitcoin", "GC=F": "Or", "^VIX": "VIX",
+};
+
+const containerVariants = {
+  hidden: { opacity: 0 },
+  show: { opacity: 1, transition: { staggerChildren: 0.08 } },
+};
+const itemVariants = {
+  hidden: { opacity: 0, y: 20 },
+  show: { opacity: 1, y: 0 },
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  DASHBOARD PAGE
+// ─────────────────────────────────────────────────────────────────────────────
+
+export default function DashboardPage() {
+  const formatCurrency = useFormatCurrency();
+  const formatPrice = useFormatPrice();
+  const { isPremium } = usePremium();
+  const [balance, setBalance] = useState<WalletBalance | null>(null);
+  const [stats, setStats] = useState<TradingStats | null>(null);
+  const [favorites, setFavorites] = useState<Favorite[]>([]);
+  const [openPositions, setOpenPositions] = useState<Position[]>([]);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [marketNews, setMarketNews] = useState<MarketNews | null>(null);
+  const [isLoadingNews, setIsLoadingNews] = useState(false);
+  const [indices, setIndices] = useState<Record<string, { price: number; change: number }>>({});
+  const [isLoadingIndices, setIsLoadingIndices] = useState(false);
+  const [favSort, setFavSort] = useState<"change_desc" | "change_asc" | "alpha">("change_desc");
+  const [favFilter, setFavFilter] = useState<"all" | "profit" | "loss">("all");
+  const [newsFilter, setNewsFilter] = useState<"all" | "mine">("all");
+  const [activeWidgets, setActiveWidgets] = useState<WidgetId[]>(DEFAULT_WIDGETS);
+  const [editMode, setEditMode] = useState(false);
+
+  useEffect(() => {
+    const stored = localStorage.getItem(DASHBOARD_STORAGE_KEY);
+    if (stored) {
+      try { setActiveWidgets(JSON.parse(stored)); } catch { /* ignore */ }
+    }
+  }, []);
+
+  const saveWidgetConfig = (widgets: WidgetId[]) => {
+    setActiveWidgets(widgets);
+    localStorage.setItem(DASHBOARD_STORAGE_KEY, JSON.stringify(widgets));
+  };
+
+  const toggleWidget = (id: WidgetId) => {
+    saveWidgetConfig(
+      activeWidgets.includes(id) ? activeWidgets.filter(w => w !== id) : [...activeWidgets, id]
+    );
+  };
+
+  const moveWidget = (id: WidgetId, dir: -1 | 1) => {
+    const idx = activeWidgets.indexOf(id);
+    if (idx < 0) return;
+    const next = [...activeWidgets];
+    const swap = idx + dir;
+    if (swap < 0 || swap >= next.length) return;
+    [next[idx], next[swap]] = [next[swap], next[idx]];
+    saveWidgetConfig(next);
+  };
+
+  const loadIndices = useCallback(async () => {
+    setIsLoadingIndices(true);
+    try {
+      const data = await marketAPI.getPrices(INDICES_SYMBOLS);
+      setIndices(data.prices);
+    } catch { /* ignore */ } finally {
+      setIsLoadingIndices(false);
+    }
+  }, []);
+
+  const loadMarketNews = async () => {
+    setIsLoadingNews(true);
+    try {
+      const newsData = await aiAPI.getMarketNews();
+      setMarketNews(newsData);
+    } catch { /* ignore */ } finally {
+      setIsLoadingNews(false);
+    }
+  };
+
+  const loadData = async (showRefresh = false) => {
+    if (showRefresh) setIsRefreshing(true);
+    try {
+      const [balanceData, statsData, favoritesData, adminData, positionsData] = await Promise.all([
+        walletAPI.getBalance(),
+        walletAPI.getStats(),
+        favoritesAPI.getFavorites().catch(() => ({ favorites: [] })),
+        adminAPI.checkAdmin().catch(() => ({ is_admin: false })),
+        walletAPI.getPositions("open").catch(() => ({ positions: [] })),
+      ]);
+      setBalance(balanceData);
+      setStats(statsData);
+      setFavorites(favoritesData.favorites || []);
+      setIsAdmin(adminData.is_admin);
+      setOpenPositions(positionsData.positions || []);
+      loadIndices();
+      loadMarketNews();
+    } catch (error) {
+      console.error("Error loading dashboard:", error);
+    } finally {
+      setIsLoading(false);
+      setIsRefreshing(false);
+    }
+  };
+
+  useEffect(() => {
+    loadData();
+    const interval = setInterval(() => loadData(), 60000);
+    return () => clearInterval(interval);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const avgFavChange = useMemo(() => favorites.length > 0
+    ? favorites.filter(f => !f.error).reduce((sum, f) => sum + f.change, 0) / Math.max(1, favorites.filter(f => !f.error).length)
+    : 0, [favorites]);
+
+  const sortedFavorites = useMemo(() => [...favorites]
+    .filter(f => favFilter === "all" ? true : favFilter === "profit" ? f.change >= 0 : f.change < 0)
+    .sort((a, b) => {
+      if (favSort === "change_desc") return b.change - a.change;
+      if (favSort === "change_asc") return a.change - b.change;
+      return a.symbol.localeCompare(b.symbol);
+    }), [favorites, favFilter, favSort]);
+
+  const filteredNews = useMemo(() => {
+    if (newsFilter !== "mine" || !marketNews) return marketNews;
+    const favoriteSymbols = new Set(favorites.map(f => f.symbol.replace(/-USD$/, "").replace(/\..*/, "")));
+    return { ...marketNews, news: marketNews.news.filter(n => favoriteSymbols.has(n.related?.toUpperCase() || "")) };
+  }, [newsFilter, marketNews, favorites]);
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[50vh]">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  return (
+    <motion.div variants={containerVariants} initial="hidden" animate="show" className="space-y-5">
+      {/* Welcome banner */}
+      <motion.div variants={itemVariants} className="glass-card p-5 relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-primary/15 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none" />
+        <div className="relative flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold mb-1">
+              Tableau de bord <span className="gradient-text">TDB</span>
+            </h1>
+            <p className="text-muted-foreground text-sm">Suivez vos actifs, restez informé, tradez mieux.</p>
+          </div>
+          <div className="flex items-center gap-2">
+            {isPremium && (
+              <button
+                onClick={() => setEditMode(!editMode)}
+                className={cn(
+                  "flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all",
+                  editMode
+                    ? "bg-primary text-white shadow-glow-sm"
+                    : "bg-white/5 hover:bg-white/10 text-muted-foreground hover:text-foreground"
+                )}
+              >
+                <Settings2 className="w-4 h-4" />
+                {editMode ? "Terminer" : "Personnaliser"}
+              </button>
+            )}
+            <button onClick={() => loadData(true)} disabled={isRefreshing} className="p-2 rounded-lg hover:bg-white/5 transition-colors text-muted-foreground hover:text-foreground">
+              <RefreshCw className={cn("w-5 h-5", isRefreshing && "animate-spin")} />
+            </button>
+          </div>
+        </div>
+      </motion.div>
+
+      {/* Premium widget customizer */}
+      <AnimatePresence>
+        {editMode && isPremium && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            className="overflow-hidden"
+          >
+            <div className="glass-card p-5 border border-primary/30">
+              <div className="flex items-center gap-2 mb-4">
+                <Crown className="w-4 h-4 text-yellow-400" />
+                <h3 className="font-semibold">Personnalisation Premium</h3>
+                <span className="text-xs text-muted-foreground ml-auto">Activez/désactivez les widgets et réordonnez-les</span>
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                {(Object.entries(WIDGET_META) as [WidgetId, typeof WIDGET_META[WidgetId]][]).map(([id, meta]) => {
+                  const isActive = activeWidgets.includes(id);
+                  const idx = activeWidgets.indexOf(id);
+                  return (
+                    <div
+                      key={id}
+                      className={cn(
+                        "p-3 rounded-xl border transition-all",
+                        isActive ? "border-primary/40 bg-primary/5" : "border-white/10 bg-white/3 opacity-60"
+                      )}
+                    >
+                      <div className="flex items-start justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-lg">{meta.icon}</span>
+                          <div>
+                            <p className="text-sm font-medium">{meta.label}</p>
+                            <p className="text-[11px] text-muted-foreground">{meta.description}</p>
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => toggleWidget(id)}
+                          className={cn("p-1.5 rounded-lg transition-colors flex-shrink-0 ml-2",
+                            isActive ? "text-primary hover:bg-primary/10" : "text-muted-foreground hover:bg-white/10"
+                          )}
+                        >
+                          {isActive ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+                        </button>
+                      </div>
+                      {isActive && (
+                        <div className="flex items-center gap-1 mt-2">
+                          <button onClick={() => moveWidget(id, -1)} disabled={idx <= 0}
+                            className="p-1 rounded hover:bg-white/10 disabled:opacity-30 transition-colors">
+                            <ChevronUp className="w-3 h-3" />
+                          </button>
+                          <button onClick={() => moveWidget(id, 1)} disabled={idx >= activeWidgets.length - 1}
+                            className="p-1 rounded hover:bg-white/10 disabled:opacity-30 transition-colors">
+                            <ChevronDown className="w-3 h-3" />
+                          </button>
+                          <span className="text-[10px] text-muted-foreground ml-1">pos. {idx + 1}</span>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Admin Card */}
+      {isAdmin && (
+        <motion.div variants={itemVariants}>
+          <Link href="/admin">
+            <div className="glass-card p-4 border border-yellow-500/30 hover:border-yellow-500/50 transition-all cursor-pointer group">
+              <div className="flex items-center gap-4">
+                <div className="p-3 rounded-xl bg-yellow-500/20"><Shield className="w-5 h-5 text-yellow-500" /></div>
+                <div className="flex-1">
+                  <h3 className="font-semibold text-yellow-500">Panneau d'Administration</h3>
+                  <p className="text-sm text-muted-foreground">Gérez les utilisateurs, consultez les statistiques</p>
+                </div>
+                <ArrowUpRight className="w-5 h-5 text-yellow-500 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
+              </div>
+            </div>
+          </Link>
+        </motion.div>
+      )}
+
+      {/* Quick Stats */}
+      <motion.div variants={itemVariants} className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <StatCard title="Actifs Suivis" value={String(favorites.length)} icon={Star} href="/favorites" />
+        <StatCard title="Perf. Moy. Favoris" value={formatPercent(avgFavChange)} change={avgFavChange} icon={TrendingUp} />
+        <StatCard title="Solde Wallet" value={formatCurrency(balance?.total_equity || balance?.balance || 0)} icon={Wallet} href="/wallet" />
+        <StatCard title="Win Rate" value={`${stats?.win_rate || 0}%`} subtitle={`${stats?.total_trades || 0} trades`} icon={Target} />
+      </motion.div>
+
+      {/* Render widgets in user-defined order */}
+      {activeWidgets.map((widgetId) => {
+        if (widgetId === "indices") return (
+          <motion.div key="indices" variants={itemVariants}>
+            <IndicesBar indices={indices} isLoading={isLoadingIndices} onRefresh={loadIndices} />
+          </motion.div>
+        );
+        if (widgetId === "sessions") return (
+          <motion.div key="sessions" variants={itemVariants}>
+            <SessionSummaryWidget />
+          </motion.div>
+        );
+        if (widgetId === "opportunities") return (
+          <motion.div key="opportunities" variants={itemVariants}>
+            <OpportunitiesWidget />
+          </motion.div>
+        );
+        if (widgetId === "trending") return (
+          <motion.div key="trending" variants={itemVariants}>
+            <TrendingWidget />
+          </motion.div>
+        );
+        if (widgetId === "favorites") return (
+          <motion.div key="favorites" variants={itemVariants}>
+            <FavoritesWidget
+              favorites={sortedFavorites}
+              favSort={favSort}
+              setFavSort={setFavSort}
+              favFilter={favFilter}
+              setFavFilter={setFavFilter}
+              formatCurrency={formatCurrency}
+              formatPrice={formatPrice}
+            />
+          </motion.div>
+        );
+        if (widgetId === "news") return (
+          <motion.div key="news" variants={itemVariants}>
+            <NewsWidget
+              marketNews={filteredNews}
+              isLoadingNews={isLoadingNews}
+              newsFilter={newsFilter}
+              setNewsFilter={setNewsFilter}
+              hasFavorites={favorites.length > 0}
+              onRefresh={loadMarketNews}
+            />
+          </motion.div>
+        );
+        if (widgetId === "stats" && (stats?.total_trades || 0) > 0) return (
+          <motion.div key="stats" variants={itemVariants}>
+            <TradingStatsWidget stats={stats} balance={balance} formatCurrency={formatCurrency} />
+          </motion.div>
+        );
+        if (widgetId === "positions" && openPositions.length > 0) return (
+          <motion.div key="positions" variants={itemVariants}>
+            <OpenPositionsWidget positions={openPositions} formatCurrency={formatCurrency} />
+          </motion.div>
+        );
+        if (widgetId === "quickactions") return (
+          <motion.div key="quickactions" variants={itemVariants}>
+            <QuickActionsWidget isPremium={isPremium} />
+          </motion.div>
+        );
+        return null;
+      })}
+    </motion.div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  Sub-components
+// ─────────────────────────────────────────────────────────────────────────────
+
+const StatCard = memo(function StatCard({ title, value, change, subtitle, icon: Icon, href }: {
+  title: string; value: string; change?: number; subtitle?: string;
+  icon: React.ElementType; href?: string;
+}) {
+  const isPositive = change !== undefined ? change >= 0 : true;
+  const content = (
+    <div className={cn("glass-card-hover p-5", href && "cursor-pointer")}>
+      <div className="flex items-start justify-between">
+        <div>
+          <p className="text-sm text-muted-foreground">{title}</p>
+          <p className="text-2xl font-bold mt-1">{value}</p>
+          {change !== undefined && change !== 0 ? (
+            <div className={cn("flex items-center gap-1 mt-2 text-sm", isPositive ? "text-profit" : "text-loss")}>
+              {isPositive ? <ArrowUpRight className="w-4 h-4" /> : <ArrowDownRight className="w-4 h-4" />}
+              <span>{formatPercent(Math.abs(change))}</span>
+            </div>
+          ) : (subtitle && <p className="text-sm text-muted-foreground mt-2">{subtitle}</p>)}
+        </div>
+        <div className="p-3 rounded-xl bg-primary/10"><Icon className="w-5 h-5 text-primary" /></div>
+      </div>
+    </div>
+  );
+  if (href) return <Link href={href}>{content}</Link>;
+  return content;
+});
+
+const FavoriteCard = memo(function FavoriteCard({ favorite, formatPrice }: { favorite: Favorite; formatPrice: (v: number, symbol: string) => string }) {
+  const isProfit = favorite.change >= 0;
+  const info = getAssetInfo(favorite.symbol);
+  const logoUrl = getAssetLogo(favorite.symbol);
+
+  return (
+    <Link href={`/analysis?symbol=${favorite.symbol}`}>
+      <div className="p-3 rounded-xl bg-white/5 hover:bg-white/10 transition-colors cursor-pointer group">
+        <div className="flex items-center gap-3">
+          {logoUrl ? (
+            <div className="w-9 h-9 rounded-lg bg-white/10 flex items-center justify-center overflow-hidden flex-shrink-0">
+              <img src={logoUrl} alt={info.name} className="w-6 h-6 object-contain"
+                onError={(e) => {
+                  const t = e.target as HTMLImageElement;
+                  t.style.display = "none";
+                  t.parentElement!.innerHTML = `<span class="text-xs font-bold">${favorite.symbol.slice(0,2)}</span>`;
+                }} />
+            </div>
+          ) : (
+            <div className="w-9 h-9 rounded-lg bg-secondary flex items-center justify-center text-xs font-bold flex-shrink-0">
+              {favorite.symbol.slice(0, 2)}
+            </div>
+          )}
+          <div className="flex-1 min-w-0">
+            <p className="font-semibold text-sm truncate">{info.name !== favorite.symbol ? info.name : favorite.symbol}</p>
+            <p className="text-[11px] text-muted-foreground">{favorite.symbol}</p>
+          </div>
+          <div className="text-right flex-shrink-0">
+            <p className="font-semibold text-sm">{favorite.error ? "—" : formatPrice(favorite.price, favorite.symbol)}</p>
+            {!favorite.error && (
+              <div className={cn(
+                "inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[11px] font-medium mt-0.5",
+                isProfit ? "bg-profit/15 text-profit" : "bg-loss/15 text-loss"
+              )}>
+                {isProfit ? <TrendingUp className="w-2.5 h-2.5" /> : <TrendingDown className="w-2.5 h-2.5" />}
+                {formatPercent(favorite.change)}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </Link>
+  );
+});
+
+const IndicesBar = memo(function IndicesBar({ indices, isLoading, onRefresh }: {
+  indices: Record<string, { price: number; change: number }>;
+  isLoading: boolean;
+  onRefresh: () => void;
+}) {
+  return (
+    <div className="glass-card p-4">
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <Activity className="w-4 h-4 text-primary" />
+          <h2 className="font-semibold">Marchés en direct</h2>
+        </div>
+        <button onClick={onRefresh} disabled={isLoading} className="p-1.5 rounded-lg hover:bg-white/5 text-muted-foreground transition-colors">
+          <RefreshCw className={cn("w-3.5 h-3.5", isLoading && "animate-spin")} />
+        </button>
+      </div>
+      <div className="flex gap-3 overflow-x-auto no-scrollbar pb-1">
+        {INDICES_SYMBOLS.map((sym) => {
+          const d = indices[sym];
+          const isUp = d ? d.change >= 0 : true;
+          return (
+            <Link key={sym} href={`/analysis?symbol=${sym}`}
+              className="flex-shrink-0 min-w-[110px] p-3 rounded-xl bg-white/5 hover:bg-white/10 transition-colors cursor-pointer"
+            >
+              <p className="text-xs text-muted-foreground font-medium mb-1">{INDICES_LABELS[sym] || sym}</p>
+              {d ? (
+                <>
+                  <p className="font-bold text-sm">
+                    {d.price > 1000
+                      ? d.price.toLocaleString("fr-FR", { maximumFractionDigits: 0 })
+                      : d.price.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </p>
+                  <div className={cn("flex items-center gap-1 text-xs mt-0.5", isUp ? "text-profit" : "text-loss")}>
+                    {isUp ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
+                    {formatPercent(d.change)}
+                  </div>
+                </>
+              ) : (
+                <div className="flex flex-col gap-1">
+                  <div className="h-4 w-16 bg-white/10 rounded animate-pulse" />
+                  <div className="h-3 w-10 bg-white/10 rounded animate-pulse" />
+                </div>
+              )}
+            </Link>
+          );
+        })}
+      </div>
+    </div>
+  );
+});
+
+const FavoritesWidget = memo(function FavoritesWidget({ favorites, favSort, setFavSort, favFilter, setFavFilter, formatCurrency, formatPrice }: {
+  favorites: Favorite[];
+  favSort: "change_desc" | "change_asc" | "alpha";
+  setFavSort: (s: "change_desc" | "change_asc" | "alpha") => void;
+  favFilter: "all" | "profit" | "loss";
+  setFavFilter: (f: "all" | "profit" | "loss") => void;
+  formatCurrency: (v: number) => string;
+  formatPrice: (v: number, symbol: string) => string;
+}) {
+  const [showAll, setShowAll] = useState(false);
+  const displayed = showAll ? favorites : favorites.slice(0, 8);
+
+  return (
+    <div className="glass-card p-5">
+      <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+        <div className="flex items-center gap-2">
+          <Star className="w-5 h-5 text-yellow-500 fill-yellow-500" />
+          <h2 className="text-lg font-semibold">Mes Favoris</h2>
+          {favorites.length > 0 && (
+            <span className="text-xs bg-white/10 text-muted-foreground px-2 py-0.5 rounded-full">{favorites.length}</span>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="flex rounded-lg bg-white/5 p-0.5 gap-0.5">
+            {([["all", "Tous"], ["profit", "📈"], ["loss", "📉"]] as const).map(([val, label]) => (
+              <button key={val} onClick={() => setFavFilter(val)}
+                className={cn("px-2 py-1 rounded text-xs transition-colors", favFilter === val ? "bg-primary/20 text-primary" : "text-muted-foreground hover:text-foreground")}
+              >{label}</button>
+            ))}
+          </div>
+          <select value={favSort} onChange={e => setFavSort(e.target.value as typeof favSort)}
+            className="text-xs bg-white/5 rounded-lg px-2 py-1.5 text-muted-foreground border border-white/10 cursor-pointer">
+            <option value="change_desc">Perf ↓</option>
+            <option value="change_asc">Perf ↑</option>
+            <option value="alpha">A → Z</option>
+          </select>
+          <Link href="/favorites" className="text-xs text-muted-foreground hover:text-foreground transition-colors">Gérer →</Link>
+        </div>
+      </div>
+      {favorites.length === 0 ? (
+        <div className="text-center py-10 text-muted-foreground">
+          <Star className="w-12 h-12 mx-auto mb-3 opacity-30" />
+          <p className="font-medium">Aucun actif suivi</p>
+          <p className="text-sm mt-1">Ajoutez des favoris depuis la page Marchés ou Analyse</p>
+          <Link href="/markets" className="inline-flex items-center gap-1 text-primary text-sm mt-3 hover:underline">
+            <Plus className="w-4 h-4" /> Explorer les marchés
+          </Link>
+        </div>
+      ) : (
+        <>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {displayed.map((fav) => (
+              <FavoriteCard key={fav.symbol} favorite={fav} formatPrice={formatPrice} />
+            ))}
+          </div>
+          {favorites.length > 8 && (
+            <button onClick={() => setShowAll(!showAll)}
+              className="w-full mt-3 text-sm text-muted-foreground hover:text-foreground transition-colors py-2 rounded-lg hover:bg-white/5 flex items-center justify-center gap-1"
+            >
+              {showAll ? <><ChevronUp className="w-4 h-4" /> Réduire</> : <><ChevronDown className="w-4 h-4" /> +{favorites.length - 8} autres actifs</>}
+            </button>
+          )}
+        </>
+      )}
+    </div>
+  );
+});
+
+const NewsWidget = memo(function NewsWidget({ marketNews, isLoadingNews, newsFilter, setNewsFilter, hasFavorites, onRefresh }: {
+  marketNews: MarketNews | null;
+  isLoadingNews: boolean;
+  newsFilter: "all" | "mine";
+  setNewsFilter: (f: "all" | "mine") => void;
+  hasFavorites: boolean;
+  onRefresh: () => void;
+}) {
+  const timeAgo = (ts: number) => {
+    const diff = (Date.now() / 1000) - ts;
+    if (diff < 3600) return `${Math.floor(diff / 60)}m`;
+    if (diff < 86400) return `${Math.floor(diff / 3600)}h`;
+    return `${Math.floor(diff / 86400)}j`;
+  };
+
+  return (
+    <div className="glass-card p-5">
+      <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+        <div className="flex items-center gap-2">
+          <Newspaper className="w-5 h-5 text-primary" />
+          <h2 className="text-lg font-semibold">Actualités</h2>
+        </div>
+        <div className="flex items-center gap-2">
+          {hasFavorites && (
+            <div className="flex rounded-lg bg-white/5 p-0.5 gap-0.5">
+              {([["all", "Tout"], ["mine", "Mes actifs"]] as const).map(([val, label]) => (
+                <button key={val} onClick={() => setNewsFilter(val)}
+                  className={cn("px-2 py-1 rounded text-xs transition-colors", newsFilter === val ? "bg-primary/20 text-primary" : "text-muted-foreground hover:text-foreground")}
+                >{label}</button>
+              ))}
+            </div>
+          )}
+          <button onClick={onRefresh} disabled={isLoadingNews} className="p-1.5 rounded-lg hover:bg-white/5 transition-colors text-muted-foreground">
+            <RefreshCw className={cn("w-3.5 h-3.5", isLoadingNews && "animate-spin")} />
+          </button>
+        </div>
+      </div>
+      {isLoadingNews && !marketNews ? (
+        <div className="flex items-center justify-center py-8"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>
+      ) : marketNews ? (
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
+          {(marketNews.summary_points || marketNews.summary) && (
+            <div className="lg:col-span-2">
+              <div className="p-4 rounded-xl bg-primary/10 border border-primary/20 h-full">
+                <div className="flex items-center gap-2 mb-3">
+                  <Bot className="w-4 h-4 text-primary" />
+                  <span className="text-xs font-semibold text-primary uppercase tracking-wider">Résumé IA</span>
+                </div>
+                {marketNews.summary_points ? (
+                  <div className="space-y-3">
+                    {marketNews.summary_points.map((point: SummaryPoint, idx: number) => (
+                      <div key={idx} className="flex gap-2.5">
+                        <div className="mt-0.5 w-5 h-5 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">
+                          <span className="text-[10px] font-bold text-primary">{idx + 1}</span>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold leading-tight mb-0.5">{point.title}</p>
+                          <p className="text-xs text-muted-foreground leading-relaxed">{point.text}</p>
+                          {point.assets && point.assets.length > 0 && (
+                            <div className="flex flex-wrap gap-1 mt-1">
+                              {point.assets.map((asset) => (
+                                <Link key={asset.symbol} href={`/analysis?symbol=${asset.symbol}`}
+                                  className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-primary/15 hover:bg-primary/30 border border-primary/30 text-primary text-[10px] font-medium transition-colors">
+                                  {asset.name}
+                                </Link>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm leading-relaxed">{marketNews.summary}</p>
+                )}
+                {marketNews.generated_at && (
+                  <p className="text-[10px] text-muted-foreground mt-3">
+                    Généré le {new Date(marketNews.generated_at).toLocaleString("fr-FR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+          <div className={cn((marketNews.summary_points || marketNews.summary) ? "lg:col-span-3" : "lg:col-span-5")}>
+            <div className="space-y-2 max-h-[360px] overflow-y-auto pr-1">
+              {(marketNews.news || []).length === 0 ? (
+                <p className="text-center text-sm text-muted-foreground py-6">Aucune actualité pour vos actifs</p>
+              ) : (
+                (marketNews.news || []).slice(0, 12).map((item, i) => (
+                  <a key={i} href={item.link} target="_blank" rel="noopener noreferrer"
+                    className="flex items-start gap-3 p-3 rounded-xl bg-white/5 hover:bg-white/10 transition-colors group"
+                  >
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium line-clamp-2 group-hover:text-primary transition-colors">{item.title}</p>
+                      <div className="flex items-center gap-2 mt-1.5">
+                        <span className="text-[11px] text-muted-foreground">{item.publisher}</span>
+                        {item.related && (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/15 text-primary font-medium">{item.related}</span>
+                        )}
+                        <span className="text-[11px] text-muted-foreground ml-auto flex items-center gap-1">
+                          <Clock className="w-3 h-3" />
+                          {timeAgo(item.timestamp)}
+                        </span>
+                      </div>
+                    </div>
+                    <ExternalLink className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0 mt-0.5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </a>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="text-center py-8 text-muted-foreground">
+          <Newspaper className="w-8 h-8 mx-auto mb-2 opacity-30" />
+          <p className="text-sm">Cliquez sur actualiser pour charger les actualités</p>
+        </div>
+      )}
+    </div>
+  );
+});
+
+const TradingStatsWidget = memo(function TradingStatsWidget({ stats, balance, formatCurrency }: {
+  stats: TradingStats | null;
+  balance: WalletBalance | null;
+  formatCurrency: (v: number) => string;
+}) {
+  return (
+    <div className="glass-card p-5">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <Target className="w-5 h-5 text-primary" />
+          <h2 className="text-lg font-semibold">Statistiques Trading</h2>
+        </div>
+        <Link href="/wallet" className="text-xs text-muted-foreground hover:text-foreground transition-colors">Voir le wallet →</Link>
+      </div>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {[
+          { label: "Win Rate",     value: `${stats?.win_rate || 0}%`,           color: (stats?.win_rate || 0) >= 50 ? "text-profit" : "text-loss" },
+          { label: "Total trades", value: String(stats?.total_trades || 0),      color: "text-foreground" },
+          { label: "P&L total",    value: formatCurrency(stats?.total_pnl || 0), color: (stats?.total_pnl || 0) >= 0 ? "text-profit" : "text-loss" },
+          { label: "Solde",        value: formatCurrency(balance?.balance || 0), color: "text-foreground" },
+        ].map(item => (
+          <div key={item.label} className="p-4 rounded-xl bg-white/5">
+            <p className="text-xs text-muted-foreground mb-1">{item.label}</p>
+            <p className={cn("text-xl font-bold", item.color)}>{item.value}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+});
+
+const OpenPositionsWidget = memo(function OpenPositionsWidget({ positions, formatCurrency }: {
+  positions: Position[];
+  formatCurrency: (v: number) => string;
+}) {
+  return (
+    <div className="glass-card p-5">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <Layers className="w-5 h-5 text-primary" />
+          <h2 className="text-lg font-semibold">Positions Ouvertes</h2>
+          <span className="text-xs bg-primary/20 text-primary px-2 py-0.5 rounded-full">{positions.length}</span>
+        </div>
+        <Link href="/trading" className="text-xs text-muted-foreground hover:text-foreground transition-colors">Tout voir →</Link>
+      </div>
+      <div className="space-y-2">
+        {positions.slice(0, 5).map((pos) => {
+          const pnl = pos.unrealized_pnl || 0;
+          const isProfit = pnl >= 0;
+          return (
+            <Link key={pos.id} href="/trading">
+              <div className="flex items-center justify-between p-3 rounded-xl bg-white/5 hover:bg-white/10 transition-colors">
+                <div className="flex items-center gap-3">
+                  <div className={cn("w-2 h-2 rounded-full flex-shrink-0", pos.direction === "LONG" ? "bg-profit" : "bg-loss")} />
+                  <div>
+                    <p className="font-semibold text-sm">{pos.symbol}</p>
+                    <p className="text-xs text-muted-foreground">{pos.direction} · {pos.leverage}x</p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className={cn("font-semibold text-sm", isProfit ? "text-profit" : "text-loss")}>
+                    {isProfit ? "+" : ""}{formatCurrency(pnl)}
+                  </p>
+                  <p className="text-xs text-muted-foreground">Entrée {formatCurrency(pos.entry_price)}</p>
+                </div>
+              </div>
+            </Link>
+          );
+        })}
+      </div>
+    </div>
+  );
+});
+
+const QuickActionsWidget = memo(function QuickActionsWidget({ isPremium: _ }: { isPremium: boolean }) {
+  const actions = [
+    { href: "/analysis",  icon: <BarChart3 className="w-5 h-5" />,  label: "Analyser",     sub: "Actif" },
+    { href: "/markets",   icon: <Globe className="w-5 h-5" />,      label: "Marchés",      sub: "Explorer" },
+    { href: "/scanner",   icon: <Activity className="w-5 h-5" />,   label: "Scanner",      sub: "Opportunités" },
+    { href: "/assistant", icon: <Bot className="w-5 h-5" />,        label: "Assistant IA", sub: "Conseils" },
+    { href: "/trading",   icon: <TrendingUp className="w-5 h-5" />, label: "Positions",    sub: "Paper trading" },
+    { href: "/favorites", icon: <Star className="w-5 h-5" />,       label: "Favoris",      sub: "Watchlist" },
+  ];
+
+  return (
+    <div className="glass-card p-5">
+      <h2 className="text-lg font-semibold mb-4">Actions Rapides</h2>
+      <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
+        {actions.map(a => (
+          <Link key={a.href} href={a.href}>
+            <div className="p-4 rounded-xl bg-white/5 hover:bg-white/10 transition-all hover:scale-[1.03] text-center cursor-pointer group">
+              <div className="w-10 h-10 mx-auto mb-2 rounded-xl bg-primary/10 flex items-center justify-center text-primary group-hover:bg-primary/20 transition-colors">
+                {a.icon}
+              </div>
+              <p className="text-xs font-semibold">{a.label}</p>
+              <p className="text-[10px] text-muted-foreground">{a.sub}</p>
+            </div>
+          </Link>
+        ))}
+      </div>
+    </div>
+  );
+});
