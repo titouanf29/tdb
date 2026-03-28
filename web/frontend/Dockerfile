@@ -44,8 +44,10 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
 USER nextjs
 
-EXPOSE 3000
+# Railway injects PORT at runtime — expose both common values
+EXPOSE 3000 8080
 
+# PORT is overridden at runtime by Railway; default to 3000 for local dev
 ENV PORT 3000
 ENV HOSTNAME "0.0.0.0"
 
