@@ -4,9 +4,11 @@ Only whitelisted admin emails can access these routes
 """
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 from typing import Optional, List
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 import os
 
 from ..database import execute_query, execute_write, create_admin_notification
@@ -1072,3 +1074,12 @@ async def mark_all_notifications_read(admin: dict = Depends(get_admin_user)):
     """Mark all notifications as read"""
     await execute_write("UPDATE admin_notifications SET is_read = 1", ())
     return {"success": True}
+
+
+@router.get("/panel", response_class=HTMLResponse)
+async def marketing_panel():
+    """Serve the marketing panel HTML — auth is verified client-side via /api/admin/check"""
+    panel_path = Path(__file__).parent.parent.parent / "static" / "panel.html"
+    if not panel_path.exists():
+        raise HTTPException(status_code=404, detail="Panel not found")
+    return HTMLResponse(content=panel_path.read_text(encoding="utf-8"))
