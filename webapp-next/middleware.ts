@@ -1,18 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createHmac } from 'crypto';
-
-function isValidToken(token: string): boolean {
-  const secret = process.env.ADMIN_SECRET ?? 'fallback-secret';
-  const emails = (process.env.ADMIN_EMAILS ?? '')
-    .split(',')
-    .map(e => e.trim().toLowerCase())
-    .filter(Boolean);
-
-  return emails.some(email => {
-    const expected = createHmac('sha256', secret).update(email).digest('hex');
-    return token === expected;
-  });
-}
+import { isValidAdminToken } from '@/lib/admin-auth';
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -23,7 +10,7 @@ export function middleware(request: NextRequest) {
 
   const cookie = request.cookies.get('admin_token')?.value;
 
-  if (!cookie || !isValidToken(cookie)) {
+  if (!cookie || !isValidAdminToken(cookie)) {
     const loginUrl = new URL('/admin/login', request.url);
     loginUrl.searchParams.set('next', pathname);
     return NextResponse.redirect(loginUrl);
