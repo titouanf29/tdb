@@ -1,18 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createHmac } from 'crypto';
-
-function tokenForEmail(email: string): string {
-  const secret = process.env.ADMIN_SECRET ?? 'fallback-secret';
-  return createHmac('sha256', secret).update(email.toLowerCase()).digest('hex');
-}
-
-function isAdminEmail(email: string): boolean {
-  const list = (process.env.ADMIN_EMAILS ?? '')
-    .split(',')
-    .map(e => e.trim().toLowerCase())
-    .filter(Boolean);
-  return list.includes(email.toLowerCase());
-}
+import { isAdminEmail, tokenForEmail } from '@/lib/admin-auth';
 
 export async function POST(request: NextRequest) {
   let body: unknown;
