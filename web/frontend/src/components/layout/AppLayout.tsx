@@ -18,7 +18,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const [showOnboarding, setShowOnboarding] = useState(false);
 
   const isAuthPage    = pathname?.startsWith("/login") || pathname?.startsWith("/register");
-  const isLandingPage = pathname === "/";
+  const isLandingPage = !pathname || pathname === "/";
   const isLegalPage   = pathname?.startsWith("/mentions-legales")
     || pathname?.startsWith("/politique-de-confidentialite")
     || pathname?.startsWith("/cgu");
