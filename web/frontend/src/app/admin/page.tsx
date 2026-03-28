@@ -145,12 +145,23 @@ export default function AdminPage() {
               </p>
             </div>
           </div>
-          <button
-            onClick={loadDashboard}
-            className="p-2 rounded-lg hover:bg-white/10 transition-colors"
-          >
-            <RefreshCw className="w-5 h-5" />
-          </button>
+          <div className="flex items-center gap-2">
+            <a
+              href="/api/admin/panel"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary/20 hover:bg-primary/30 text-primary transition-colors text-sm font-semibold"
+            >
+              <Sparkles className="w-4 h-4" />
+              Plan Marketing
+            </a>
+            <button
+              onClick={loadDashboard}
+              className="p-2 rounded-lg hover:bg-white/10 transition-colors"
+            >
+              <RefreshCw className="w-5 h-5" />
+            </button>
+          </div>
         </div>
       </div>
 
