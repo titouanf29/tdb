@@ -148,6 +148,15 @@
   .alert-warn { background:rgba(245,158,11,0.1); border:1px solid rgba(245,158,11,0.25); }
 
   .glow-line { height:2px; background:linear-gradient(90deg,transparent,var(--accent),var(--purple),transparent); margin:32px 0; }
+
+  /* PROMPTS */
+  .prompt-block { background:#0a0a1a; border:1px solid rgba(139,92,246,0.3); border-radius:12px; padding:16px; margin-bottom:12px; position:relative; }
+  .prompt-block pre { font-family:'Courier New',monospace; font-size:12.5px; line-height:1.65; color:#c9d1e0; white-space:pre-wrap; word-break:break-word; padding-right:70px; }
+  .prompt-copy-btn { position:absolute; top:12px; right:12px; background:rgba(139,92,246,0.12); border:1px solid rgba(139,92,246,0.35);
+    border-radius:8px; padding:5px 12px; font-size:11px; color:var(--purple); cursor:pointer; transition:all .2s; white-space:nowrap; }
+  .prompt-copy-btn:hover { background:rgba(139,92,246,0.25); color:var(--white); }
+  .prompt-label { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:1px; margin-bottom:8px; }
+  .prompt-tip { font-size:12px; color:var(--muted); line-height:1.5; margin-top:8px; padding-top:8px; border-top:1px solid rgba(255,255,255,0.06); }
 </style>
 </head>
 <body>
@@ -165,6 +174,7 @@
   <div class="nav-tab" onclick="showTab('budget')">💰 Budget</div>
   <div class="nav-tab" onclick="showTab('roadmap')">🗓️ Roadmap</div>
   <div class="nav-tab" onclick="showTab('checklist')">✅ Actions</div>
+  <div class="nav-tab" onclick="showTab('prompts')">🤖 Prompts Claude</div>
 </nav>
 
 <!-- ══════════════════════════════════════════════════════ -->
@@ -1183,6 +1193,510 @@
     </div>
   </div>
 </section>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<!-- PROMPTS CLAUDE -->
+<!-- ══════════════════════════════════════════════════════ -->
+<section id="prompts" class="section">
+  <div class="page-header">
+    <h1>🤖 Prompts <span class="gradient-text">Claude</span></h1>
+    <p>Copie-colle ces prompts directement dans Claude Code (ou claude.ai) pour générer chaque type de contenu marketing. Chaque prompt est autonome et prêt à l'emploi.</p>
+  </div>
+
+  <div class="alert alert-tip">
+    💡 <strong>Comment utiliser :</strong> Clique sur "Copier" à droite d'un prompt, colle-le dans Claude, et il saura exactement quoi faire. Les prompts Remotion nécessitent d'être dans le dossier <code style="background:rgba(255,255,255,0.08);padding:2px 6px;border-radius:4px">my-video/</code>.
+  </div>
+
+  <!-- INNER TABS -->
+  <div class="inner-tabs">
+    <div class="inner-tab active" onclick="showInner('prompts','remotion')">🎬 Remotion</div>
+    <div class="inner-tab" onclick="showInner('prompts','tiktok')">📱 TikTok Scripts</div>
+    <div class="inner-tab" onclick="showInner('prompts','blog')">✍️ Blog SEO</div>
+    <div class="inner-tab" onclick="showInner('prompts','twitter')">🐦 X / Twitter</div>
+    <div class="inner-tab" onclick="showInner('prompts','newsletter')">📧 Newsletter</div>
+    <div class="inner-tab" onclick="showInner('prompts','general')">⚙️ Général</div>
+  </div>
+
+  <!-- ── REMOTION ── -->
+  <div id="prompts-remotion" class="inner-panel active">
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-title">🎬 Vidéos Remotion — Comment ça marche</div>
+      <p style="font-size:13px;color:var(--muted);line-height:1.6">Les vidéos sont dans <strong>my-video/src/CaptentDB/</strong> (16:9, YouTube/Desktop) et <strong>my-video/src/CaptentDBTikTok/</strong> (9:16, TikTok/Reels). Chaque scène est un fichier TSX séparé. Lance <code style="background:rgba(255,255,255,0.08);padding:2px 5px;border-radius:4px">npm run dev</code> dans my-video pour voir la preview.</p>
+    </div>
+
+    <div class="section-subtitle">Vidéo principale (16:9 — YouTube)</div>
+
+    <div class="prompt-block">
+      <div class="prompt-label" style="color:var(--purple)">Nouvelle scène — Comparatif concurrents</div>
+      <button class="prompt-copy-btn" onclick="copyPrompt(this)">Copier</button>
+      <pre>Tu travailles dans le projet Remotion my-video/. Je veux ajouter une nouvelle scène "ComparisonScene" dans src/CaptentDB/scenes/.
+
+La scène dure 8 secondes (480 frames à 60fps). Elle montre un tableau comparatif entre captentdb.fr et ses concurrents (TradingView, Boursorama, eToro).
+
+Colonnes : Plateforme | Score IA | Actifs | Prix | Wallet virtuel
+Lignes :
+- captentdb.fr → ✅ 0-100 | ✅ 842+ | ✅ GRATUIT | ✅ 10 000$
+- TradingView  → ❌ Aucun | ✅ OK  | ❌ 15€/mois | ❌ Non
+- Boursorama   → ❌ Aucun | ✅ OK  | ⚠️ Freemium | ❌ Non
+- eToro        → ⚠️ Basique | ✅ OK | ❌ Spread   | ⚠️ Limité
+
+Chaque ligne apparaît avec un spring animation (stagger 20 frames). La ligne captentdb.fr est mise en surbrillance avec un fond violet/rose et un effet de glow. Utilise le fichier constants.ts pour les couleurs (C.accent, C.purple, etc.).
+
+Intègre ensuite la scène dans src/CaptentDB/index.tsx entre Dashboard et AIAnalysis, avec les transitions flash existantes.</pre>
+      <div class="prompt-tip">💡 Adapte les frames selon la durée totale de la vidéo dans constants.ts → SCENE.</div>
+    </div>
+
+    <div class="prompt-block">
+      <div class="prompt-label" style="color:var(--purple)">Améliorer la scène Hook (accroche)</div>
+      <button class="prompt-copy-btn" onclick="copyPrompt(this)">Copier</button>
+      <pre>Lis le fichier my-video/src/CaptentDB/scenes/Hook.tsx. Je veux améliorer l'accroche des 5 premières secondes.
+
+Objectif : capter l'attention immédiatement avec une stat choc. Remplace le texte d'accroche par :
+- Ligne 1 (apparaît à frame 0) : "28 000 traders utilisent ça chaque jour."
+- Ligne 2 (apparaît à frame 18, gradient accent→purple) : "Et toi, t'en sais rien."
+- Sous-texte (frame 30) : "captentdb.fr — L'IA qui analyse à ta place."
+
+Garde les springs et interpolations existants. Ajoute un effet de particules légères (3-4 petits points flottants avec Math.sin) en background. Garde le style dark existant.</pre>
+    </div>
+
+    <div class="prompt-block">
+      <div class="prompt-label" style="color:var(--purple)">Nouvelle vidéo TikTok — Feature Focus</div>
+      <button class="prompt-copy-btn" onclick="copyPrompt(this)">Copier</button>
+      <pre>Dans my-video/src/, crée un nouveau dossier CaptentDBFeature/ avec une composition Remotion de 30 secondes (1800 frames, 60fps, 1080×1920 — format TikTok/Reels).
+
+La vidéo présente UNE seule feature : le Score IA 0-100.
+
+Structure (5 scènes) :
+1. (0-5s)  Hook : "Tu saurais pas si une action vaut le coup sans ça 👇"
+2. (5-12s) Démo : Interface du score IA (fond dark, score animé 0→87, indicateurs RSI/MACD qui s'allument)
+3. (12-20s) Explication : 3 bullet points qui apparaissent : "Analyse 25+ indicateurs automatiquement", "Score 0 (vendre) → 100 (acheter)", "Mis à jour en temps réel"
+4. (20-27s) Social proof : "87 000 analyses générées cette semaine"
+5. (27-30s) CTA : "Essaie gratuitement → captentdb.fr"
+
+Utilise le même style de constantes (C.bg, C.accent, etc.) que CaptentDBTikTok/constants.ts. Crée le fichier Root.tsx, constants.ts, index.tsx, et les 5 scènes. Enregistre la composition dans my-video/remotion.config.ts et src/index.ts.</pre>
+      <div class="prompt-tip">💡 Après génération, lance <code>npm run dev</code> et vérifie la composition "CaptentDBFeature" dans le studio Remotion.</div>
+    </div>
+
+    <div class="prompt-block">
+      <div class="prompt-label" style="color:var(--purple)">Améliorer FeaturesScene (TikTok)</div>
+      <button class="prompt-copy-btn" onclick="copyPrompt(this)">Copier</button>
+      <pre>Lis my-video/src/CaptentDBTikTok/scenes/FeaturesScene.tsx. Je veux améliorer l'affichage des feature cards.
+
+Modifications souhaitées :
+1. Ajouter un compteur de progression discret en haut à droite (ex: "3/12") qui se met à jour à chaque feature
+2. Pour les 3 premières features, ajouter un badge "⭐ Le plus utilisé" / "🔥 Nouveau" / "💎 Exclusif" en haut à gauche de la card
+3. Augmenter légèrement le font-size du titre feature de 2px
+4. Ajouter un subtle pulse animation sur l'icône (scale 1→1.08→1 sur 60 frames en boucle)
+
+Garde les timings et animations existants. Ne change pas la structure globale de la scène.</pre>
+    </div>
+
+    <div class="prompt-block">
+      <div class="prompt-label" style="color:var(--purple)">Ajouter de la musique / effets sonores</div>
+      <button class="prompt-copy-btn" onclick="copyPrompt(this)">Copier</button>
+      <pre>Dans my-video/src/CaptentDBTikTok/index.tsx, je veux améliorer l'audio.
+
+Contexte : Le fichier audio actuel est défini dans constants.ts → MUSIC_FILE. Les fichiers audio sont dans my-video/public/.
+
+Modifications :
+1. Ajoute un <Audio> pour un son de "swoosh" (fichier: swoosh.mp3) à chaque transition flash (frames : SCENE.intro.from, SCENE.scroll.from, SCENE.features.from, SCENE.cta.from). Volume : 0.4.
+2. Baisse le volume de la musique de fond de MUSIC_VOLUME à 0.55 pendant la FeaturesScene (utilise interpolate pour un fade smooth sur 30 frames).
+3. Remonte le volume à MUSIC_VOLUME sur la CTAScene.
+
+Si les fichiers audio n'existent pas dans public/, indique-le et donne les commandes pour les télécharger depuis freesound.org (attribution CC0).</pre>
+    </div>
+
+    <div class="section-subtitle" style="margin-top:24px">Render & Export</div>
+    <div class="prompt-block">
+      <div class="prompt-label" style="color:var(--green)">Commandes de rendu</div>
+      <button class="prompt-copy-btn" onclick="copyPrompt(this)">Copier</button>
+      <pre>Dans le projet my-video/, donne-moi les commandes exactes pour :
+
+1. Rendre la composition "CaptentDBTikTok" en MP4 (H.264, qualité maximale, 60fps)
+2. Rendre la composition "CaptentDB" en MP4 (H.264, 1080p, 60fps)
+3. Rendre uniquement les frames 0 à 300 de CaptentDBTikTok (pour tester l'intro)
+4. Rendre en PNG sequence (pour montage vidéo externe)
+
+Utilise la CLI Remotion (@remotion/cli). Précise si des dépendances supplémentaires sont nécessaires (ffmpeg, etc.).</pre>
+    </div>
+  </div>
+
+  <!-- ── TIKTOK SCRIPTS ── -->
+  <div id="prompts-tiktok" class="inner-panel">
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-title">📱 Scripts TikTok — Format & Règles</div>
+      <p style="font-size:13px;color:var(--muted);line-height:1.6">Durée idéale : <strong>30-60 secondes</strong>. Hook dans les <strong>3 premières secondes</strong>. Toujours finir par un CTA oral + texte à l'écran. Jamais de promesses de gains. Disclaimer "à but éducatif" obligatoire.</p>
+    </div>
+
+    <div class="prompt-block">
+      <div class="prompt-label" style="color:var(--accent)">Script TikTok — Score IA (Hook choc)</div>
+      <button class="prompt-copy-btn" onclick="copyPrompt(this)">Copier</button>
+      <pre>Écris un script TikTok de 45 secondes pour captentdb.fr. La vidéo présente le Score IA 0-100.
+
+Contraintes :
+- Hook choc en 3 secondes max (question ou stat surprenante)
+- Ton : direct, informatif, pas de "guru" ni promesses de gains
+- Format : [Texte à l'écran] + (Voix off) alternés
+- Mentions obligatoires : gratuit, éducatif, captentdb.fr
+- Disclaimer final : "À but éducatif uniquement. Ne constitue pas un conseil en investissement."
+- Hashtags suggérés en fin de script : #trading #boursepourdebutants #apprendrelafinance
+
+Structure demandée :
+1. Hook (0-3s)
+2. Problème (3-10s)
+3. Solution = Score IA (10-30s) — montre comment ça marche
+4. Preuve sociale (30-40s)
+5. CTA + URL (40-45s)</pre>
+      <div class="prompt-tip">💡 Génère aussi 3 variantes du hook pour A/B tester laquelle performe le mieux.</div>
+    </div>
+
+    <div class="prompt-block">
+      <div class="prompt-label" style="color:var(--accent)">Script TikTok — Wallet virtuel 10 000$</div>
+      <button class="prompt-copy-btn" onclick="copyPrompt(this)">Copier</button>
+      <pre>Écris un script TikTok de 30 secondes pour captentdb.fr centré sur le Wallet virtuel 10 000$.
+
+Angle : "J'ai 'investi' 10 000$ virtuels sur [actif] et voilà ce que l'IA m'a dit."
+Montre le résultat d'une simulation sans risque réel.
+
+Contraintes :
+- Insister sur le fait que c'est VIRTUEL, sans argent réel, zéro risque
+- Montrer que c'est un outil d'apprentissage, pas de spéculation
+- Ton décontracté, comme un ami qui partage une découverte
+- CTA : "Essaie toi-même gratuitement → captentdb.fr"
+- Disclaimer obligatoire en texte à l'écran
+
+Inclure : description visuelle de chaque plan (ce qu'on voit à l'écran), texte overlay, et voix off.</pre>
+    </div>
+
+    <div class="prompt-block">
+      <div class="prompt-label" style="color:var(--accent)">Script TikTok — "Ce que ton courtier cache"</div>
+      <button class="prompt-copy-btn" onclick="copyPrompt(this)">Copier</button>
+      <pre>Écris un script TikTok de 45 secondes pour captentdb.fr avec l'angle "Ce que ton courtier ne t'explique pas".
+
+Concept : montrer 3 indicateurs de base (RSI, MACD, Score IA) que les plateformes payantes ne vulgarisent pas, et que captentdb.fr explique gratuitement.
+
+Règles :
+- NE PAS attaquer nommément des concurrents (ex: "contrairement à X")
+- Dire "certaines plateformes" ou "la plupart des courtiers"
+- Rester factuel et pédagogique
+- Format punchy : 1 indicateur = 5-8 secondes d'explication
+- Terminer sur la gratuité de captentdb.fr comme avantage différenciant</pre>
+    </div>
+
+    <div class="prompt-block">
+      <div class="prompt-label" style="color:var(--accent)">Calendrier TikTok — 4 semaines</div>
+      <button class="prompt-copy-btn" onclick="copyPrompt(this)">Copier</button>
+      <pre>Crée un calendrier de contenu TikTok sur 4 semaines pour captentdb.fr (3 vidéos/semaine).
+
+Pour chaque vidéo, donne :
+- Jour de publication (Mardi, Jeudi, Samedi = meilleurs jours pour finance FR)
+- Angle/Hook (phrase d'accroche en 3 mots)
+- Feature mise en avant
+- Durée cible
+- Hashtags principaux (5 max)
+- Lien avec l'actualité (si possible : résultats entreprises, annonces Fed, etc.)
+
+Règle : varier les angles (éducatif / démo produit / preuve sociale / coulisses). Ne jamais faire 2 vidéos du même type consécutives.</pre>
+    </div>
+  </div>
+
+  <!-- ── BLOG ── -->
+  <div id="prompts-blog" class="inner-panel">
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-title">✍️ Blog SEO — Objectif</div>
+      <p style="font-size:13px;color:var(--muted);line-height:1.6">Cible : ranker sur des requêtes longue traîne type <strong>"apprendre bourse débutant gratuit"</strong>, <strong>"score RSI action"</strong>, <strong>"simulateur trading virtuel"</strong>. Volume d'articles : 2/mois minimum pour signaler l'activité à Google.</p>
+    </div>
+
+    <div class="prompt-block">
+      <div class="prompt-label" style="color:var(--green)">Article SEO — Débutant complet</div>
+      <button class="prompt-copy-btn" onclick="copyPrompt(this)">Copier</button>
+      <pre>Écris un article de blog SEO de 1500 mots pour captentdb.fr, optimisé pour la requête principale : "comment apprendre la bourse gratuitement".
+
+Consignes SEO :
+- H1 : contient "apprendre la bourse gratuitement"
+- 3-4 H2 avec variantes (ex: "Outils gratuits pour apprendre", "Indicateurs à connaître absolument")
+- Densité mot-clé : 1-2% (ne pas forcer)
+- Balise meta description (~155 chars) à inclure en fin d'article
+- Liens internes : mentionner les fonctionnalités de captentdb.fr naturellement
+- Call-to-action final : inscription gratuite
+
+Ton : pédagogique, rassurant pour débutant total. Expliquer les concepts simplement. Jamais de promesses de rendement. Mentionner le disclaimer AMF à la fin.
+
+Structure : intro (problème) → contenu éducatif → pourquoi captentdb.fr aide → CTA.</pre>
+      <div class="prompt-tip">💡 Demande aussi la liste de 10 mots-clés longue traîne connexes pour planifier les prochains articles.</div>
+    </div>
+
+    <div class="prompt-block">
+      <div class="prompt-label" style="color:var(--green)">Article SEO — Explication RSI</div>
+      <button class="prompt-copy-btn" onclick="copyPrompt(this)">Copier</button>
+      <pre>Écris un article de blog de 1200 mots pour captentdb.fr, optimisé pour "RSI trading explication simple".
+
+L'article doit :
+- Expliquer le RSI (Relative Strength Index) en partant de zéro
+- Montrer comment le lire (zones de surachat >70, survente <30)
+- Donner 2 exemples concrets avec des actifs réels (ex: Apple, Bitcoin)
+- Mentionner que captentdb.fr calcule le RSI automatiquement dans son Score IA
+- Inclure un encadré "À retenir" avec les 3 règles clés du RSI
+- CTA : "Vois le RSI en temps réel sur 842+ actifs → captentdb.fr (gratuit)"
+
+Ne pas promettre de profits. Préciser que le RSI est un outil d'aide à l'analyse, pas une garantie.</pre>
+    </div>
+
+    <div class="prompt-block">
+      <div class="prompt-label" style="color:var(--green)">Recherche mots-clés SEO</div>
+      <button class="prompt-copy-btn" onclick="copyPrompt(this)">Copier</button>
+      <pre>Génère une liste de 30 mots-clés SEO pour captentdb.fr, organisés en 3 catégories :
+
+1. VOLUME ÉLEVÉ (difficiles mais importants à cibler long terme) :
+   - Liés à : "bourse", "trading", "apprendre investir"
+
+2. LONGUE TRAÎNE (volume moyen, concurrence faible — priorité immédiate) :
+   - Liés à : "trading débutant gratuit", "score RSI automatique", "simulateur bourse virtuel"
+
+3. REQUÊTES QUESTIONS (Google People Also Ask — faciles à ranker) :
+   - Format : "Comment...", "Qu'est-ce que...", "Pourquoi..."
+
+Pour chaque mot-clé, estime :
+- Volume de recherche mensuel en France (approximatif)
+- Difficulté (faible / moyen / élevé)
+- Type de contenu idéal (article de fond / guide / outil / vidéo)</pre>
+    </div>
+  </div>
+
+  <!-- ── TWITTER ── -->
+  <div id="prompts-twitter" class="inner-panel">
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-title">🐦 X / Twitter — Stratégie</div>
+      <p style="font-size:13px;color:var(--muted);line-height:1.6">Fréquence : <strong>5 tweets/semaine</strong> minimum. Mix : 60% éducatif, 30% produit, 10% coulisses. Les threads avec données concrètes performent le mieux dans la niche finance FR.</p>
+    </div>
+
+    <div class="prompt-block">
+      <div class="prompt-label" style="color:var(--amber)">Thread viral — "842 actifs analysés"</div>
+      <button class="prompt-copy-btn" onclick="copyPrompt(this)">Copier</button>
+      <pre>Écris un thread X (Twitter) de 12 tweets pour captentdb.fr. Sujet : "J'ai analysé 842 actifs avec notre IA. Voici ce qu'elle a trouvé."
+
+Format de chaque tweet : max 280 caractères.
+Tweet 1 (hook) : stat choc ou question pour arrêter le scroll.
+Tweets 2-10 : une découverte / insight par tweet (ex: "Sur les 842 actifs, 23% sont en zone de survente RSI ce matin.").
+Tweet 11 : récap sous forme de liste des 5 insights les plus importants.
+Tweet 12 (CTA) : "Tu peux vérifier ça toi-même en 30 secondes → captentdb.fr 🔗 (gratuit, 0 CB)"
+
+Ton : analytique mais accessible. Pas de promesses de gains. Hashtags : #bourse #trading #FinanceTwitter
+Inclure 3 emojis pertinents max par tweet.</pre>
+    </div>
+
+    <div class="prompt-block">
+      <div class="prompt-label" style="color:var(--amber)">5 tweets stand-alone éducatifs</div>
+      <button class="prompt-copy-btn" onclick="copyPrompt(this)">Copier</button>
+      <pre>Écris 5 tweets éducatifs pour @captentdb sur X, chacun sur un sujet différent :
+
+1. Expliquer le MACD en 2 phrases
+2. Différence entre action et ETF (pour débutant)
+3. Qu'est-ce qu'un "wallet virtuel" et pourquoi c'est utile pour apprendre
+4. Mythe à démystifier : "il faut beaucoup d'argent pour investir en bourse"
+5. Pourquoi le Score IA 0-100 est plus simple que lire 25 indicateurs
+
+Chaque tweet : max 280 chars, 1-2 emojis max, hashtags en fin (#bourse #trading). Ton direct et factuel. Chaque tweet doit pouvoir exister seul (pas de série).</pre>
+    </div>
+
+    <div class="prompt-block">
+      <div class="prompt-label" style="color:var(--amber)">Bio Twitter optimisée</div>
+      <button class="prompt-copy-btn" onclick="copyPrompt(this)">Copier</button>
+      <pre>Écris 3 variantes de bio Twitter (160 chars max) pour @captentdb.
+
+Contraintes communes :
+- Mentionner : gratuit, IA, apprendre la bourse
+- Inclure l'URL : captentdb.fr
+- Pas de promesses de gains ni de "devenez riche"
+- Ton moderne et direct
+
+Variante 1 : axée sur la feature IA
+Variante 2 : axée sur la gratuité et la communauté
+Variante 3 : axée sur la simplicité pour débutants
+
+Pour chaque variante, propose aussi un pinned tweet d'accroche.</pre>
+    </div>
+  </div>
+
+  <!-- ── NEWSLETTER ── -->
+  <div id="prompts-newsletter" class="inner-panel">
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-title">📧 Newsletter — Format recommandé</div>
+      <p style="font-size:13px;color:var(--muted);line-height:1.6">Fréquence : <strong>1 email/semaine</strong>. Objet : max 50 chars. Taux d'ouverture cible : >30%. Structurer en 3 blocs max : éducatif / actus marché / feature spotlight.</p>
+    </div>
+
+    <div class="prompt-block">
+      <div class="prompt-label" style="color:var(--purple)">Email de bienvenue (onboarding)</div>
+      <button class="prompt-copy-btn" onclick="copyPrompt(this)">Copier</button>
+      <pre>Écris l'email de bienvenue envoyé automatiquement après inscription sur captentdb.fr.
+
+Structure :
+1. Objet : accrocheur, max 50 chars, sans spam words
+2. Préheader : complète l'objet (max 100 chars)
+3. Corps de l'email (format texte, HTML basique) :
+   - Chaleureuse bienvenue personnalisée
+   - Rappel de CE QUE L'UTILISATEUR PEUT FAIRE maintenant (3 actions concrètes avec liens)
+   - Feature highlight : Score IA — comment l'utiliser en 30 secondes
+   - Lien vers la documentation / guide débutant
+   - CTA principal : "Commence ton analyse gratuite →"
+4. Footer : désabonnement, disclaimer AMF, adresse légale
+
+Ton : chaleureux, encourageant, pas condescendant. Comme un mentor, pas un vendeur.</pre>
+    </div>
+
+    <div class="prompt-block">
+      <div class="prompt-label" style="color:var(--purple)">Newsletter hebdomadaire — Template</div>
+      <button class="prompt-copy-btn" onclick="copyPrompt(this)">Copier</button>
+      <pre>Crée un template de newsletter hebdomadaire réutilisable pour captentdb.fr.
+
+Sections fixes (à remplir chaque semaine) :
+1. Objet : "[Semaine X] + accroche contextuelle"
+2. Intro (2 lignes) : ce qui s'est passé en bourse cette semaine
+3. 📊 STAT DE LA SEMAINE : une donnée issue du scanner captentdb.fr (ex: "Cette semaine, 34% des actifs CAC40 sont en zone de survente")
+4. 🎓 ON APPREND : explication d'un concept en 5 lignes (pour débutant)
+5. 🔥 FEATURE SPOTLIGHT : mise en avant d'une fonctionnalité avec lien
+6. 📝 ARTICLE DE LA SEMAINE : titre + résumé 2 lignes + lien
+7. CTA : "Accède à toutes ces analyses gratuitement → captentdb.fr"
+8. Footer légal
+
+Fournis le template HTML minimaliste (compatible email, inline CSS).</pre>
+      <div class="prompt-tip">💡 Demande ensuite : "Remplis ce template pour la semaine du [date] avec des données fictives réalistes."</div>
+    </div>
+
+    <div class="prompt-block">
+      <div class="prompt-label" style="color:var(--purple)">Séquence d'activation (3 emails)</div>
+      <button class="prompt-copy-btn" onclick="copyPrompt(this)">Copier</button>
+      <pre>Écris une séquence de 3 emails d'activation pour les nouveaux inscrits captentdb.fr qui n'ont pas encore utilisé la plateforme après J+1.
+
+Email J+1 — "Tu n'as pas encore essayé ça ?" :
+- Rappel doux, pas de pression
+- Mettre en avant 1 seule feature (le plus simple à prendre en main)
+- CTA : lien direct vers la feature en question
+
+Email J+3 — Preuve sociale :
+- "Voici ce que les autres traders ont découvert cette semaine sur captentdb.fr"
+- 2-3 exemples d'analyses réelles (fictives mais réalistes)
+- CTA : "Rejoins-les gratuitement"
+
+Email J+7 — Dernier rappel + valeur :
+- Angle différent : éducatif pur
+- Offrir un mini-guide PDF (ou lien vers article de fond)
+- CTA soft : "Quand tu veux, la plateforme t'attend."
+
+Ton : jamais agressif, toujours dans la valeur. Pas de faux "urgence".</pre>
+    </div>
+  </div>
+
+  <!-- ── GÉNÉRAL ── -->
+  <div id="prompts-general" class="inner-panel">
+
+    <div class="prompt-block">
+      <div class="prompt-label" style="color:var(--accent)">Audit complet du site</div>
+      <button class="prompt-copy-btn" onclick="copyPrompt(this)">Copier</button>
+      <pre>Fais un audit marketing complet de captentdb.fr en analysant les fichiers dans webapp-next/.
+
+Évalue sur une note /10 :
+1. Clarté du message principal (homepage) — est-ce qu'on comprend la valeur en 5 secondes ?
+2. Hiérarchie visuelle — les CTA sont-ils bien visibles ?
+3. Preuve sociale — badges, témoignages, chiffres utilisateurs
+4. Anti-friction à l'inscription — nombre de champs, étapes, frictions
+5. SEO on-page — balises title/description, H1/H2, vitesse
+6. Mobile UX — expérience sur téléphone
+7. Conformité AMF — disclaimers présents et visibles
+
+Pour chaque point : note, problème identifié, et recommandation concrète (avec le fichier à modifier si tu peux l'identifier dans le code).</pre>
+    </div>
+
+    <div class="prompt-block">
+      <div class="prompt-label" style="color:var(--accent)">Générer 20 hooks viraux</div>
+      <button class="prompt-copy-btn" onclick="copyPrompt(this)">Copier</button>
+      <pre>Génère 20 hooks viraux pour captentdb.fr, à utiliser pour TikTok, Reels, ou YouTube Shorts.
+
+Un hook = la première phrase/question de la vidéo qui donne envie de rester.
+
+Répartition :
+- 7 hooks "problème" (frustration, douleur du débutant)
+- 7 hooks "curiosité" (stat surprenante, question rhétorique)
+- 6 hooks "social proof" (nombre d'utilisateurs, résultats)
+
+Contraintes :
+- Max 10 mots chacun
+- Aucune promesse de gains
+- Ton accessible (pas de jargon)
+- Adapté à une audience 18-35 ans française
+
+Classe les 20 hooks du plus percutant au moins percutant, avec une brève explication pour chacun.</pre>
+    </div>
+
+    <div class="prompt-block">
+      <div class="prompt-label" style="color:var(--accent)">Plan de lancement réseaux sociaux</div>
+      <button class="prompt-copy-btn" onclick="copyPrompt(this)">Copier</button>
+      <pre>Crée un plan de lancement sur les réseaux sociaux pour captentdb.fr sur les 30 premiers jours.
+
+Budget : 0€ (100% organique, sauf boost optionnel de 15-20€ sur la meilleure vidéo en semaine 3).
+Plateformes : TikTok (priorité), X/Twitter, Instagram Reels.
+Fréquence : 3 vidéos/semaine sur TikTok, 5 tweets/semaine, 2 Reels/semaine.
+
+Pour chaque semaine, définis :
+- Thème dominant (ex: "Semaine 1 : Présentation de la plateforme")
+- 3 vidéos TikTok à créer (titre + angle + durée)
+- 5 tweets à publier (sujet + type : éducatif/produit/coulisses)
+- 1 Reel Instagram (adapter la meilleure TikTok)
+- KPI à mesurer en fin de semaine
+
+Inclure les meilleures heures de publication pour l'audience finance FR.</pre>
+    </div>
+
+    <div class="prompt-block">
+      <div class="prompt-label" style="color:var(--accent)">Landing page de conversion</div>
+      <button class="prompt-copy-btn" onclick="copyPrompt(this)">Copier</button>
+      <pre>Analyse la page d'accueil de captentdb.fr (fichiers dans webapp-next/app/) et propose une version améliorée de la section hero (above the fold).
+
+La nouvelle section hero doit inclure :
+1. H1 percutant — contient le mot-clé principal + bénéfice utilisateur
+2. Sous-titre — 1 ligne qui explique le "comment" (ex: "Grâce à notre IA qui analyse 25+ indicateurs automatiquement")
+3. 3 bullet points de valeur (format ✅ Bénéfice — pas feature)
+4. Badge de preuve sociale (ex: "28 000 traders actifs")
+5. CTA principal : bouton + texte anti-friction sous le bouton ("Gratuit · Aucune carte · 30 secondes")
+6. Image/illustration suggérée
+
+Respecte la charte graphique existante (dark theme, indigo/violet). Donne le code React/TypeScript + Tailwind classes.</pre>
+    </div>
+
+    <div class="prompt-block">
+      <div class="prompt-label" style="color:var(--accent)">Analyse concurrents</div>
+      <button class="prompt-copy-btn" onclick="copyPrompt(this)">Copier</button>
+      <pre>Fais une analyse concurrentielle pour captentdb.fr. Compare avec : TradingView, eToro, Boursorama Bourse, Trade Republic, et Investing.com.
+
+Pour chaque concurrent, analyse :
+1. Positionnement principal (quel message ?)
+2. Audience cible
+3. Modèle freemium vs payant
+4. Forces (3 max)
+5. Faiblesses (3 max) — opportunités pour captentdb.fr
+
+Puis donne :
+- Le "Blue Ocean" : ce que personne ne fait encore dans ce marché
+- Les 3 arguments différenciants de captentdb.fr à mettre en avant IMMÉDIATEMENT
+- Le message marketing qui exploite ces différences
+
+Format : tableau comparatif + paragraphe de synthèse.</pre>
+    </div>
+  </div>
+
+</section>
+
+<script>
+  function copyPrompt(btn) {
+    const text = btn.parentElement.querySelector('pre').innerText;
+    navigator.clipboard.writeText(text).then(() => {
+      btn.textContent = 'Copié ✓';
+      btn.style.color = 'var(--green)';
+      btn.style.borderColor = 'var(--green)';
+      setTimeout(() => { btn.textContent = 'Copier'; btn.style.color=''; btn.style.borderColor=''; }, 2500);
+    });
+  }
+</script>
 
 <script>
   function showTab(id) {
