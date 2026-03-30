@@ -19,6 +19,7 @@ router = APIRouter()
 # Admin whitelist - emails that have admin access
 ADMIN_WHITELIST = [
     "titouan.floch01@gmail.com",
+    "captentdb@gmail.com",
 ]
 
 # Add any emails from environment variable

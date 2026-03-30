@@ -8,7 +8,38 @@ from pydantic import BaseModel
 
 from ..database import execute_query, execute_write, create_admin_notification
 from .auth import get_current_user
-from .admin import get_admin_user
+from .admin import get_admin_user, check_if_admin
+
+# ── Profanity filter ──────────────────────────────────────────────────────────
+_BAD_WORDS = [
+    # insultes FR
+    "connard","connarde","enculé","enculée","enculer","fdp","fils de pute",
+    "pute","salope","salop","bâtard","batard","nique","niquer","niqué",
+    "va te faire","ta gueule","ferme ta gueule","merde","gros con","petite merde",
+    "pd","tapette","bouffon","bouffonne","casse toi","casse-toi","crève",
+    "va crever","va mourir","suicid","enfoiré","enfoirée","trou du cul",
+    "con","conne","couille","couilles","bite","bites","chier","chie",
+    # insultes racistes / harcèlement graves — toujours bloqués
+    "ntm","nique ta mère","nique ta mere","sale arabe","sale noir","sale blanc",
+    "sale juif","sale muslim","sale rebeu","nègre","négro","youpine","youpin",
+    "bicot","bougnoule","feuj","sale feuj","pédophile","pedophile","viol","violer",
+    # EN
+    "fuck","fucking","fucker","shit","bitch","asshole","motherfucker",
+    "cunt","bastard","dickhead","whore","slut","faggot",
+]
+
+def _contains_profanity(text: str) -> bool:
+    low = text.lower()
+    for w in _BAD_WORDS:
+        # word-boundary check: preceded/followed by non-alpha or string edge
+        idx = low.find(w)
+        while idx != -1:
+            before = low[idx - 1] if idx > 0 else " "
+            after  = low[idx + len(w)] if idx + len(w) < len(low) else " "
+            if not before.isalpha() and not after.isalpha():
+                return True
+            idx = low.find(w, idx + 1)
+    return False
 
 router = APIRouter()
 
@@ -87,6 +118,9 @@ async def send_chat_message(
     if len(content) > 1000:
         raise HTTPException(status_code=400, detail="Message too long (max 1000 characters)")
 
+    if _contains_profanity(content):
+        raise HTTPException(status_code=400, detail="Votre message contient des mots inappropriés. Merci de respecter les autres membres.")
+
     # Check for spam (max 5 messages per minute)
     from datetime import timedelta
     _1min_ago = (datetime.now(timezone.utc) - timedelta(minutes=1)).isoformat()
@@ -124,7 +158,7 @@ async def delete_message(
 ):
     """Delete own message or admin can delete any"""
     user_id = current_user.get("id")
-    is_admin = current_user.get("is_admin", False)
+    is_admin = await check_if_admin(current_user)
 
     # Check if message exists and belongs to user
     message = await execute_query(
