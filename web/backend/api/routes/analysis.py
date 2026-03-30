@@ -21,7 +21,7 @@ limiter = Limiter(key_func=get_remote_address)
 _SYMBOL_RE = re.compile(r'^[\^A-Z0-9.\-=]{1,30}$')
 
 
-def _safe(value, default=None, ndigits: int | None = None):
+def _safe(value, default=None, ndigits=None):
     """Convert a value to a JSON-safe Python scalar, replacing NaN/Inf with default."""
     try:
         v = float(value)
