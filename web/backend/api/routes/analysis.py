@@ -21,6 +21,17 @@ limiter = Limiter(key_func=get_remote_address)
 _SYMBOL_RE = re.compile(r'^[\^A-Z0-9.\-=]{1,30}$')
 
 
+def _safe(value, default=None, ndigits: int | None = None):
+    """Convert a value to a JSON-safe Python scalar, replacing NaN/Inf with default."""
+    try:
+        v = float(value)
+        if np.isnan(v) or np.isinf(v):
+            return default
+        return round(v, ndigits) if ndigits is not None else v
+    except Exception:
+        return default
+
+
 # ── Scan quota helpers ──────────────────────────────────────────────────────
 
 async def _get_scans_today(user_id: int) -> int:
@@ -189,45 +200,64 @@ async def analyze_asset(
         volume_ratio = current_volume / avg_volume if avg_volume > 0 else 1
 
         # ── OBV (On-Balance Volume) ────────────────────────────────────────
-        obv = (np.sign(close.diff()) * volume).fillna(0).cumsum()
-        obv_ema = obv.ewm(span=20, adjust=False).mean()
-        obv_trend = "bullish" if float(obv.iloc[-1]) > float(obv_ema.iloc[-1]) else "bearish"
-        obv_slope = float(obv.diff(5).iloc[-1])  # 5-period OBV slope
+        try:
+            obv = (np.sign(close.diff()) * volume).fillna(0).cumsum()
+            obv_ema = obv.ewm(span=20, adjust=False).mean()
+            _obv_last = _safe(obv.iloc[-1], 0)
+            _obv_ema_last = _safe(obv_ema.iloc[-1], 0)
+            obv_trend = "bullish" if _obv_last > _obv_ema_last else "bearish"
+            obv_slope = _safe(obv.diff(5).iloc[-1], 0)
+        except Exception:
+            obv_trend = "neutral"
+            obv_slope = 0.0
 
         # ── Williams %R ────────────────────────────────────────────────────
-        wr_period = 14
-        wr_high = high.rolling(wr_period).max()
-        wr_low  = low.rolling(wr_period).min()
-        wr_range = (wr_high - wr_low).replace(0, np.nan)
-        williams_r = -100 * (wr_high - close) / wr_range
-        current_wr = float(williams_r.iloc[-1]) if not np.isnan(float(williams_r.iloc[-1])) else -50.0
+        try:
+            wr_period = 14
+            wr_high = high.rolling(wr_period).max()
+            wr_low  = low.rolling(wr_period).min()
+            wr_range = (wr_high - wr_low).replace(0, np.nan)
+            williams_r = -100 * (wr_high - close) / wr_range
+            current_wr = _safe(williams_r.iloc[-1], -50.0)
+        except Exception:
+            current_wr = -50.0
 
         # ── CMF (Chaikin Money Flow) ────────────────────────────────────────
-        clv = ((close - low) - (high - close)) / (high - low).replace(0, np.nan)
-        cmf_raw = (clv * volume).rolling(20).sum() / volume.rolling(20).sum().replace(0, np.nan)
-        current_cmf = float(cmf_raw.iloc[-1]) if not np.isnan(float(cmf_raw.iloc[-1])) else 0.0
+        try:
+            clv = ((close - low) - (high - close)) / (high - low).replace(0, np.nan)
+            cmf_raw = (clv * volume).rolling(20).sum() / volume.rolling(20).sum().replace(0, np.nan)
+            current_cmf = _safe(cmf_raw.iloc[-1], 0.0)
+        except Exception:
+            current_cmf = 0.0
 
         # ── Multi-period momentum ──────────────────────────────────────────
-        momentum_3d  = float((current_price - close.iloc[-4])  / close.iloc[-4]  * 100) if len(close) > 3  else 0.0
-        momentum_5d  = float((current_price - close.iloc[-6])  / close.iloc[-6]  * 100) if len(close) > 5  else 0.0
-        momentum_10d = float((current_price - close.iloc[-11]) / close.iloc[-11] * 100) if len(close) > 10 else 0.0
-        momentum_20d = float((current_price - close.iloc[-21]) / close.iloc[-21] * 100) if len(close) > 20 else 0.0
+        try:
+            momentum_3d  = _safe((current_price - close.iloc[-4])  / close.iloc[-4]  * 100, 0.0) if len(close) > 3  else 0.0
+            momentum_5d  = _safe((current_price - close.iloc[-6])  / close.iloc[-6]  * 100, 0.0) if len(close) > 5  else 0.0
+            momentum_10d = _safe((current_price - close.iloc[-11]) / close.iloc[-11] * 100, 0.0) if len(close) > 10 else 0.0
+            momentum_20d = _safe((current_price - close.iloc[-21]) / close.iloc[-21] * 100, 0.0) if len(close) > 20 else 0.0
+        except Exception:
+            momentum_3d = momentum_5d = momentum_10d = momentum_20d = 0.0
 
         # ── RSI Divergence detection ───────────────────────────────────────
         rsi_divergence = "none"
-        if len(rsi.dropna()) >= 10:
-            rsi_recent = rsi.dropna().tail(10)
-            price_recent = close.loc[rsi_recent.index]
-            price_swing_high = price_recent.iloc[:-3].max()
-            price_swing_low  = price_recent.iloc[:-3].min()
-            rsi_swing_high   = rsi_recent.iloc[:-3].max()
-            rsi_swing_low    = rsi_recent.iloc[:-3].min()
-            # Bearish divergence: price makes new high but RSI doesn't
-            if float(price_recent.iloc[-1]) >= price_swing_high * 0.98 and float(rsi_recent.iloc[-1]) < rsi_swing_high * 0.95:
-                rsi_divergence = "bearish"
-            # Bullish divergence: price makes new low but RSI doesn't
-            elif float(price_recent.iloc[-1]) <= price_swing_low * 1.02 and float(rsi_recent.iloc[-1]) > rsi_swing_low * 1.05:
-                rsi_divergence = "bullish"
+        try:
+            if len(rsi.dropna()) >= 10:
+                rsi_recent = rsi.dropna().tail(10)
+                price_recent = close.loc[rsi_recent.index]
+                price_swing_high = float(price_recent.iloc[:-3].max())
+                price_swing_low  = float(price_recent.iloc[:-3].min())
+                rsi_swing_high   = float(rsi_recent.iloc[:-3].max())
+                rsi_swing_low    = float(rsi_recent.iloc[:-3].min())
+                p_last = float(price_recent.iloc[-1])
+                r_last = float(rsi_recent.iloc[-1])
+                if not any(np.isnan(v) for v in [price_swing_high, price_swing_low, rsi_swing_high, rsi_swing_low, p_last, r_last]):
+                    if p_last >= price_swing_high * 0.98 and r_last < rsi_swing_high * 0.95:
+                        rsi_divergence = "bearish"
+                    elif p_last <= price_swing_low * 1.02 and r_last > rsi_swing_low * 1.05:
+                        rsi_divergence = "bullish"
+        except Exception:
+            rsi_divergence = "none"
 
         # ── Conviction signals ─────────────────────────────────────────────
         bullish_signals: list[str] = []
@@ -392,10 +422,10 @@ async def analyze_asset(
         momentum_score = max(0, min(100, momentum_score))
 
         # 5. VOLATILITY / STABILITY SCORE
-        bb_width_pct = float(
-            (bb_upper.iloc[-1] - bb_lower.iloc[-1]) / bb_mid.iloc[-1] * 100
-        ) if float(bb_mid.iloc[-1]) > 0 else 20.0
-        relative_atr = float(atr / current_price * 100) if current_price > 0 else 2.0
+        bb_width_pct = _safe(
+            (bb_upper.iloc[-1] - bb_lower.iloc[-1]) / bb_mid.iloc[-1] * 100, 20.0
+        ) if _safe(bb_mid.iloc[-1], 0) > 0 else 20.0
+        relative_atr = _safe(atr / current_price * 100, 2.0) if current_price > 0 else 2.0
 
         if bb_width_pct < 5:    volatility_score = 80  # tight band = low volatility
         elif bb_width_pct < 10: volatility_score = 65
@@ -656,10 +686,10 @@ async def analyze_asset(
             "timeframe": timeframe,
             "company": company_info,
             "price": {
-                "current": round(current_price, 2),
-                "change": round(price_change, 2),
-                "high_24h": round(high.iloc[-1], 2),
-                "low_24h": round(low.iloc[-1], 2)
+                "current": _safe(current_price, 0.0, 2),
+                "change": _safe(price_change, 0.0, 2),
+                "high_24h": _safe(high.iloc[-1], 0.0, 2),
+                "low_24h": _safe(low.iloc[-1], 0.0, 2),
             },
             "score": {
                 "total": final_score,
@@ -684,44 +714,46 @@ async def analyze_asset(
             "trend": trend,
             "indicators": {
                 "rsi": {
-                    "value": round(current_rsi, 1),
+                    "value": _safe(current_rsi, 50.0, 1),
                     "signal": "oversold" if current_rsi < 30 else "overbought" if current_rsi > 70 else "neutral",
                     "divergence": rsi_divergence,
                 },
                 "macd": {
-                    "value": round(float(macd.iloc[-1]), 4),
-                    "signal_line": round(float(signal.iloc[-1]), 4),
-                    "histogram": round(float(macd_hist.iloc[-1]), 4),
-                    "signal": "bullish" if macd_hist.iloc[-1] > 0 else "bearish"
+                    "value": _safe(macd.iloc[-1], 0.0, 4),
+                    "signal_line": _safe(signal.iloc[-1], 0.0, 4),
+                    "histogram": _safe(macd_hist.iloc[-1], 0.0, 4),
+                    "signal": "bullish" if _safe(macd_hist.iloc[-1], 0) > 0 else "bearish"
                 },
                 "ema": {
-                    "ema20": round(float(ema20.iloc[-1]), 2),
-                    "ema50": round(float(ema50.iloc[-1]), 2),
-                    "ema200": round(float(ema200.iloc[-1]), 2) if ema200 is not None else None
+                    "ema20": _safe(ema20.iloc[-1], None, 2),
+                    "ema50": _safe(ema50.iloc[-1], None, 2),
+                    "ema200": _safe(ema200.iloc[-1], None, 2) if ema200 is not None else None
                 },
                 "bollinger": {
-                    "upper": round(float(bb_upper.iloc[-1]), 2),
-                    "middle": round(float(bb_mid.iloc[-1]), 2),
-                    "lower": round(float(bb_lower.iloc[-1]), 2),
-                    "position": "upper" if current_price > float(bb_upper.iloc[-1]) else "lower" if current_price < float(bb_lower.iloc[-1]) else "middle",
-                    "percent_b": round(bb_percent_b, 1),
-                    "width_pct": round(bb_width_pct, 1),
+                    "upper": _safe(bb_upper.iloc[-1], None, 2),
+                    "middle": _safe(bb_mid.iloc[-1], None, 2),
+                    "lower": _safe(bb_lower.iloc[-1], None, 2),
+                    "position": "upper" if current_price > _safe(bb_upper.iloc[-1], current_price + 1)
+                                else "lower" if current_price < _safe(bb_lower.iloc[-1], current_price - 1)
+                                else "middle",
+                    "percent_b": _safe(bb_percent_b, 50.0, 1),
+                    "width_pct": _safe(bb_width_pct, 20.0, 1),
                 },
                 "adx": {
-                    "value": round(adx_val, 1),
-                    "plus_di": round(current_plus_di, 1),
-                    "minus_di": round(current_minus_di, 1),
+                    "value": _safe(adx_val, 0.0, 1),
+                    "plus_di": _safe(current_plus_di, 0.0, 1),
+                    "minus_di": _safe(current_minus_di, 0.0, 1),
                     "signal": "strong_bull" if adx_val > 25 and current_plus_di > current_minus_di
                               else "strong_bear" if adx_val > 25
                               else "weak",
                 },
                 "stochastic": {
-                    "k": round(current_stoch_k, 1),
-                    "d": round(current_stoch_d, 1),
+                    "k": _safe(current_stoch_k, 50.0, 1),
+                    "d": _safe(current_stoch_d, 50.0, 1),
                     "signal": "oversold" if current_stoch_k < 20 else "overbought" if current_stoch_k > 80 else "neutral",
                 },
                 "williams_r": {
-                    "value": round(current_wr, 1),
+                    "value": _safe(current_wr, -50.0, 1),
                     "signal": "oversold" if current_wr < -80 else "overbought" if current_wr > -20 else "neutral",
                 },
                 "obv": {
@@ -729,18 +761,18 @@ async def analyze_asset(
                     "slope": "up" if obv_slope > 0 else "down",
                 },
                 "cmf": {
-                    "value": round(current_cmf, 3),
+                    "value": _safe(current_cmf, 0.0, 3),
                     "signal": "bullish" if current_cmf > 0.1 else "bearish" if current_cmf < -0.1 else "neutral",
                 },
                 "momentum": {
-                    "3d": round(momentum_3d, 2),
-                    "5d": round(momentum_5d, 2),
-                    "10d": round(momentum_10d, 2),
-                    "20d": round(momentum_20d, 2),
+                    "3d":  _safe(momentum_3d,  0.0, 2),
+                    "5d":  _safe(momentum_5d,  0.0, 2),
+                    "10d": _safe(momentum_10d, 0.0, 2),
+                    "20d": _safe(momentum_20d, 0.0, 2),
                 },
-                "atr": round(float(atr), 4),
-                "atr_pct": round(relative_atr, 2),
-                "volume_ratio": round(volume_ratio, 2)
+                "atr": _safe(atr, 0.0, 4),
+                "atr_pct": _safe(relative_atr, 2.0, 2),
+                "volume_ratio": _safe(volume_ratio, 1.0, 2),
             },
             "fibonacci": fibonacci,
             "levels": {
