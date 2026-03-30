@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   Search,
   TrendingUp,
@@ -856,7 +856,7 @@ export default function AnalysisPage() {
                 </span>
               )}
             </h3>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 items-start">
               <IndicatorCard
                 name="RSI (14)"
                 value={analysis.indicators.rsi.value.toFixed(1)}
@@ -1287,7 +1287,16 @@ function IndicatorCard({
   };
 
   return (
-    <div className={cn("rounded-xl border transition-all", signalColors[normalizedSignal], detail ? "cursor-pointer" : "")}>
+    <motion.div
+      layout
+      className={cn(
+        "rounded-xl border transition-colors overflow-hidden",
+        signalColors[normalizedSignal],
+        detail ? "cursor-pointer select-none" : ""
+      )}
+      whileHover={detail ? { scale: 1.01 } : {}}
+      transition={{ duration: 0.15 }}
+    >
       <div
         className="p-4"
         onClick={() => detail && setExpanded(e => !e)}
@@ -1297,9 +1306,12 @@ function IndicatorCard({
           <div className="flex items-center gap-1.5">
             {signalIcons[normalizedSignal]}
             {detail && (
-              expanded
-                ? <ChevronUp className="w-3 h-3 text-muted-foreground" />
-                : <ChevronDown className="w-3 h-3 text-muted-foreground" />
+              <motion.div
+                animate={{ rotate: expanded ? 180 : 0 }}
+                transition={{ duration: 0.2 }}
+              >
+                <ChevronDown className="w-3 h-3 text-muted-foreground" />
+              </motion.div>
             )}
           </div>
         </div>
@@ -1310,32 +1322,57 @@ function IndicatorCard({
         {!detail && tooltip && <p className="text-xs text-muted-foreground mt-1 line-clamp-2 leading-tight">{tooltip}</p>}
       </div>
 
-      {detail && expanded && (
-        <div className="px-4 pb-4 border-t border-white/10 pt-3 space-y-3">
-          <div>
-            <p className="text-xs font-semibold text-foreground/70 mb-1 flex items-center gap-1">
-              <BookOpen className="w-3 h-3" /> Définition
-            </p>
-            <p className="text-xs text-muted-foreground leading-relaxed">{detail.description}</p>
-          </div>
-          <div>
-            <p className="text-xs font-semibold text-foreground/70 mb-1 flex items-center gap-1">
-              <Gauge className="w-3 h-3" /> Comment lire la valeur actuelle
-            </p>
-            <p className="text-xs text-muted-foreground leading-relaxed">{detail.howToRead}</p>
-          </div>
-          <div>
-            <p className="text-xs font-semibold text-foreground/70 mb-1 flex items-center gap-1">
-              <Zap className="w-3 h-3" /> Influence sur le score
-            </p>
-            <p className="text-xs text-muted-foreground leading-relaxed">{detail.influence}</p>
-            {detail.weight && (
-              <span className="mt-1 inline-block text-xs bg-white/10 rounded px-2 py-0.5 text-foreground/60">{detail.weight}</span>
-            )}
-          </div>
-        </div>
-      )}
-    </div>
+      <AnimatePresence initial={false}>
+        {detail && expanded && (
+          <motion.div
+            key="detail"
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.25, ease: "easeInOut" }}
+            style={{ overflow: "hidden" }}
+          >
+            <div className="px-4 pb-4 border-t border-white/10 pt-3 space-y-3">
+              <motion.div
+                initial={{ y: -6, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ delay: 0.08 }}
+              >
+                <p className="text-xs font-semibold text-foreground/70 mb-1 flex items-center gap-1">
+                  <BookOpen className="w-3 h-3" /> Définition
+                </p>
+                <p className="text-xs text-muted-foreground leading-relaxed">{detail.description}</p>
+              </motion.div>
+              <motion.div
+                initial={{ y: -6, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ delay: 0.13 }}
+              >
+                <p className="text-xs font-semibold text-foreground/70 mb-1 flex items-center gap-1">
+                  <Gauge className="w-3 h-3" /> Comment lire la valeur actuelle
+                </p>
+                <p className="text-xs text-muted-foreground leading-relaxed">{detail.howToRead}</p>
+              </motion.div>
+              <motion.div
+                initial={{ y: -6, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ delay: 0.18 }}
+              >
+                <p className="text-xs font-semibold text-foreground/70 mb-1 flex items-center gap-1">
+                  <Zap className="w-3 h-3" /> Influence sur le score
+                </p>
+                <p className="text-xs text-muted-foreground leading-relaxed">{detail.influence}</p>
+                {detail.weight && (
+                  <span className="mt-1.5 inline-block text-xs bg-white/10 rounded-full px-2.5 py-0.5 text-foreground/60">
+                    {detail.weight}
+                  </span>
+                )}
+              </motion.div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
   );
 }
 
