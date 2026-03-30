@@ -114,10 +114,9 @@
   .glass-card-hover {
     @apply glass-card transition-all duration-300;
     position: relative;
-    overflow: hidden;
   }
 
-  /* Shine sweep on hover */
+  /* Shine sweep on hover — clipped via clip-path pour ne pas couper le contenu */
   .glass-card-hover::after {
     content: "";
     position: absolute;
@@ -136,6 +135,8 @@
     transition: left 0.5s ease;
     pointer-events: none;
     border-radius: inherit;
+    clip-path: inset(0 round var(--radius));
+    z-index: 0;
   }
 
   .glass-card-hover:hover::after {

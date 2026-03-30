@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { useAuth } from "@/lib/AuthContext";
 import { Sidebar } from "./Sidebar";
 import { Header } from "./Header";
@@ -116,28 +116,25 @@ function AuthShell({
         <main className="flex-1 overflow-auto p-4 md:p-6">
           <BroadcastBanner />
           <ChangelogBanner />
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={pathname}
-              initial={{ opacity: 0, y: 14 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
-            >
-              {children}
-              <footer className="mt-8 pt-4 border-t border-white/10 text-center text-xs text-muted-foreground space-y-2">
-                <p>Fait par <span className="text-primary font-semibold">CaptenQwark</span> - CaptenTDB</p>
-                <p>Les analyses sont à but éducatif uniquement. Ce site ne fournit pas de conseils financiers. Paper trading uniquement.</p>
-                <div className="flex flex-wrap gap-3 justify-center">
-                  <a href="/mentions-legales" className="hover:text-primary hover:underline">Mentions légales</a>
-                  <span>·</span>
-                  <a href="/politique-de-confidentialite" className="hover:text-primary hover:underline">Politique de confidentialité</a>
-                  <span>·</span>
-                  <a href="/cgu" className="hover:text-primary hover:underline">CGU</a>
-                </div>
-              </footer>
-            </motion.div>
-          </AnimatePresence>
+          <motion.div
+            key={pathname}
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+          >
+            {children}
+            <footer className="mt-8 pt-4 border-t border-white/10 text-center text-xs text-muted-foreground space-y-2">
+              <p>Fait par <span className="text-primary font-semibold">CaptenQwark</span> - CaptenTDB</p>
+              <p>Les analyses sont à but éducatif uniquement. Ce site ne fournit pas de conseils financiers. Paper trading uniquement.</p>
+              <div className="flex flex-wrap gap-3 justify-center">
+                <a href="/mentions-legales" className="hover:text-primary hover:underline">Mentions légales</a>
+                <span>·</span>
+                <a href="/politique-de-confidentialite" className="hover:text-primary hover:underline">Politique de confidentialité</a>
+                <span>·</span>
+                <a href="/cgu" className="hover:text-primary hover:underline">CGU</a>
+              </div>
+            </footer>
+          </motion.div>
         </main>
       </div>
     </div>
