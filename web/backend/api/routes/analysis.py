@@ -188,54 +188,241 @@ async def analyze_asset(
         current_volume = volume.iloc[-1]
         volume_ratio = current_volume / avg_volume if avg_volume > 0 else 1
 
-        # Calculate scores
+        # ── OBV (On-Balance Volume) ────────────────────────────────────────
+        obv = (np.sign(close.diff()) * volume).fillna(0).cumsum()
+        obv_ema = obv.ewm(span=20, adjust=False).mean()
+        obv_trend = "bullish" if float(obv.iloc[-1]) > float(obv_ema.iloc[-1]) else "bearish"
+        obv_slope = float(obv.diff(5).iloc[-1])  # 5-period OBV slope
+
+        # ── Williams %R ────────────────────────────────────────────────────
+        wr_period = 14
+        wr_high = high.rolling(wr_period).max()
+        wr_low  = low.rolling(wr_period).min()
+        wr_range = (wr_high - wr_low).replace(0, np.nan)
+        williams_r = -100 * (wr_high - close) / wr_range
+        current_wr = float(williams_r.iloc[-1]) if not np.isnan(float(williams_r.iloc[-1])) else -50.0
+
+        # ── CMF (Chaikin Money Flow) ────────────────────────────────────────
+        clv = ((close - low) - (high - close)) / (high - low).replace(0, np.nan)
+        cmf_raw = (clv * volume).rolling(20).sum() / volume.rolling(20).sum().replace(0, np.nan)
+        current_cmf = float(cmf_raw.iloc[-1]) if not np.isnan(float(cmf_raw.iloc[-1])) else 0.0
+
+        # ── Multi-period momentum ──────────────────────────────────────────
+        momentum_3d  = float((current_price - close.iloc[-4])  / close.iloc[-4]  * 100) if len(close) > 3  else 0.0
+        momentum_5d  = float((current_price - close.iloc[-6])  / close.iloc[-6]  * 100) if len(close) > 5  else 0.0
+        momentum_10d = float((current_price - close.iloc[-11]) / close.iloc[-11] * 100) if len(close) > 10 else 0.0
+        momentum_20d = float((current_price - close.iloc[-21]) / close.iloc[-21] * 100) if len(close) > 20 else 0.0
+
+        # ── RSI Divergence detection ───────────────────────────────────────
+        rsi_divergence = "none"
+        if len(rsi.dropna()) >= 10:
+            rsi_recent = rsi.dropna().tail(10)
+            price_recent = close.loc[rsi_recent.index]
+            price_swing_high = price_recent.iloc[:-3].max()
+            price_swing_low  = price_recent.iloc[:-3].min()
+            rsi_swing_high   = rsi_recent.iloc[:-3].max()
+            rsi_swing_low    = rsi_recent.iloc[:-3].min()
+            # Bearish divergence: price makes new high but RSI doesn't
+            if float(price_recent.iloc[-1]) >= price_swing_high * 0.98 and float(rsi_recent.iloc[-1]) < rsi_swing_high * 0.95:
+                rsi_divergence = "bearish"
+            # Bullish divergence: price makes new low but RSI doesn't
+            elif float(price_recent.iloc[-1]) <= price_swing_low * 1.02 and float(rsi_recent.iloc[-1]) > rsi_swing_low * 1.05:
+                rsi_divergence = "bullish"
+
+        # ── Conviction signals ─────────────────────────────────────────────
+        bullish_signals: list[str] = []
+        bearish_signals: list[str] = []
+
+        if current_rsi < 30:   bullish_signals.append("RSI survendu (<30)")
+        elif current_rsi > 70: bearish_signals.append("RSI suracheté (>70)")
+        elif 40 <= current_rsi <= 55: bullish_signals.append("RSI en zone neutre-haussière")
+
+        if macd_hist.iloc[-1] > 0 and float(macd_hist.iloc[-2]) <= 0:
+            bullish_signals.append("Croisement haussier MACD")
+        elif macd_hist.iloc[-1] < 0 and float(macd_hist.iloc[-2]) >= 0:
+            bearish_signals.append("Croisement baissier MACD")
+        elif macd_hist.iloc[-1] > 0:
+            bullish_signals.append("MACD positif")
+        else:
+            bearish_signals.append("MACD négatif")
+
+        if current_price > float(ema20.iloc[-1]):  bullish_signals.append("Prix > EMA20")
+        else:                                        bearish_signals.append("Prix < EMA20")
+        if current_price > float(ema50.iloc[-1]):  bullish_signals.append("Prix > EMA50")
+        else:                                        bearish_signals.append("Prix < EMA50")
+        if ema200 is not None:
+            if current_price > float(ema200.iloc[-1]): bullish_signals.append("Prix > EMA200 (zone dorée)")
+            else:                                        bearish_signals.append("Prix < EMA200")
+
+        if adx_val > 25:
+            if current_plus_di > current_minus_di: bullish_signals.append(f"ADX fort ({adx_val:.0f}) tendance haussière")
+            else:                                   bearish_signals.append(f"ADX fort ({adx_val:.0f}) tendance baissière")
+
+        if current_stoch_k < 20:  bullish_signals.append("Stochastique survendu")
+        elif current_stoch_k > 80: bearish_signals.append("Stochastique suracheté")
+        if current_stoch_k > current_stoch_d and current_stoch_k < 75:
+            bullish_signals.append("Croisement haussier Stochastique")
+        elif current_stoch_k < current_stoch_d and current_stoch_k > 25:
+            bearish_signals.append("Croisement baissier Stochastique")
+
+        if current_wr < -80:  bullish_signals.append("Williams %R survendu")
+        elif current_wr > -20: bearish_signals.append("Williams %R suracheté")
+
+        if obv_trend == "bullish" and obv_slope > 0: bullish_signals.append("OBV en tendance haussière")
+        elif obv_trend == "bearish" and obv_slope < 0: bearish_signals.append("OBV en tendance baissière")
+
+        if current_cmf > 0.15:   bullish_signals.append(f"CMF positif ({current_cmf:.2f}) — afflux d'argent")
+        elif current_cmf < -0.15: bearish_signals.append(f"CMF négatif ({current_cmf:.2f}) — sortie d'argent")
+
+        if rsi_divergence == "bullish":  bullish_signals.append("Divergence haussière RSI/Prix")
+        elif rsi_divergence == "bearish": bearish_signals.append("Divergence baissière RSI/Prix")
+
+        if current_price < float(bb_lower.iloc[-1]):  bullish_signals.append("Prix sous la bande Bollinger basse")
+        elif current_price > float(bb_upper.iloc[-1]): bearish_signals.append("Prix au-dessus de la bande Bollinger haute")
+
+        if volume_ratio > 1.5:  bullish_signals.append(f"Volume élevé ({volume_ratio:.1f}x la moyenne)")
+        elif volume_ratio < 0.5: bearish_signals.append("Volume très faible")
+
+        if momentum_10d > 5:   bullish_signals.append(f"Momentum 10j fort (+{momentum_10d:.1f}%)")
+        elif momentum_10d < -5: bearish_signals.append(f"Momentum 10j faible ({momentum_10d:.1f}%)")
+
+        total_conviction_signals = len(bullish_signals) + len(bearish_signals)
+        conviction_score = int(len(bullish_signals) / total_conviction_signals * 100) if total_conviction_signals > 0 else 50
+
+        # ── IMPROVED 5-COMPONENT SCORING ──────────────────────────────────
+
+        # 1. TECHNICAL SCORE (oscillators: RSI, MACD, Stochastic, Williams %R, Bollinger)
         technical_score = 50
 
-        # RSI contribution
-        if current_rsi < 30:
-            technical_score += 15  # Oversold = bullish signal
-        elif current_rsi > 70:
-            technical_score -= 15  # Overbought = bearish signal
-        elif 40 <= current_rsi <= 60:
-            technical_score += 5  # Neutral
+        if current_rsi < 25:   technical_score += 20
+        elif current_rsi < 30: technical_score += 15
+        elif current_rsi < 40: technical_score += 8
+        elif current_rsi > 80: technical_score -= 20
+        elif current_rsi > 70: technical_score -= 15
+        elif current_rsi > 60: technical_score -= 5
 
-        # MACD contribution
-        if macd_hist.iloc[-1] > 0 and macd_hist.iloc[-2] <= 0:
-            technical_score += 15  # Bullish crossover
-        elif macd_hist.iloc[-1] < 0 and macd_hist.iloc[-2] >= 0:
-            technical_score -= 15  # Bearish crossover
+        if macd_hist.iloc[-1] > 0 and float(macd_hist.iloc[-2]) <= 0:
+            technical_score += 20
+        elif macd_hist.iloc[-1] < 0 and float(macd_hist.iloc[-2]) >= 0:
+            technical_score -= 20
         elif macd_hist.iloc[-1] > 0:
-            technical_score += 5
+            technical_score += 8
         else:
-            technical_score -= 5
+            technical_score -= 8
 
-        # EMA contribution
-        if current_price > ema20.iloc[-1]:
-            technical_score += 5
-        if current_price > ema50.iloc[-1]:
-            technical_score += 5
-        if ema200 is not None and current_price > ema200.iloc[-1]:
-            technical_score += 10
+        if rsi_divergence == "bullish":  technical_score += 12
+        elif rsi_divergence == "bearish": technical_score -= 12
 
-        # Volume contribution
-        volume_score = min(100, int(volume_ratio * 50))
+        if current_stoch_k < 20 and current_stoch_k > current_stoch_d:   technical_score += 8
+        elif current_stoch_k > 80 and current_stoch_k < current_stoch_d: technical_score -= 8
+        elif current_stoch_k < 30: technical_score += 4
+        elif current_stoch_k > 70: technical_score -= 4
 
-        # Momentum
-        momentum_5d = ((current_price - close.iloc[-6]) / close.iloc[-6]) * 100 if len(close) > 5 else 0
-        momentum_score = 50 + min(25, max(-25, momentum_5d * 5))
+        if current_wr < -80:   technical_score += 7
+        elif current_wr > -20: technical_score -= 7
 
-        # Final score
+        if current_price < float(bb_lower.iloc[-1]):   technical_score += 5
+        elif current_price > float(bb_upper.iloc[-1]): technical_score -= 5
+
+        technical_score = max(0, min(100, technical_score))
+
+        # 2. TREND SCORE (EMA alignment + ADX strength)
+        trend_score = 50
+
+        if current_price > float(ema20.iloc[-1]):  trend_score += 8
+        else:                                        trend_score -= 8
+        if current_price > float(ema50.iloc[-1]):  trend_score += 12
+        else:                                        trend_score -= 12
+        if ema200 is not None:
+            if current_price > float(ema200.iloc[-1]): trend_score += 15
+            else:                                        trend_score -= 15
+
+        if adx_val > 30:
+            if current_plus_di > current_minus_di: trend_score += 12
+            else:                                   trend_score -= 12
+        elif adx_val > 20:
+            if current_plus_di > current_minus_di: trend_score += 6
+            else:                                   trend_score -= 6
+
+        trend_score = max(0, min(100, trend_score))
+
+        # 3. VOLUME SCORE (OBV, CMF, volume ratio)
+        volume_score = 50
+
+        if obv_trend == "bullish" and obv_slope > 0:   volume_score += 18
+        elif obv_trend == "bearish" and obv_slope < 0: volume_score -= 18
+        elif obv_trend == "bullish":                    volume_score += 8
+        else:                                            volume_score -= 8
+
+        if current_cmf > 0.2:    volume_score += 15
+        elif current_cmf > 0.1:  volume_score += 8
+        elif current_cmf < -0.2: volume_score -= 15
+        elif current_cmf < -0.1: volume_score -= 8
+
+        if volume_ratio > 2.0:   volume_score += 12
+        elif volume_ratio > 1.5: volume_score += 8
+        elif volume_ratio > 1.2: volume_score += 4
+        elif volume_ratio < 0.5: volume_score -= 10
+        elif volume_ratio < 0.8: volume_score -= 5
+
+        volume_score = max(0, min(100, volume_score))
+
+        # 4. MOMENTUM SCORE (multi-period: 3d, 10d, 20d)
+        momentum_score = 50
+
+        if momentum_3d > 3:    momentum_score += 8
+        elif momentum_3d > 1:  momentum_score += 4
+        elif momentum_3d < -3: momentum_score -= 8
+        elif momentum_3d < -1: momentum_score -= 4
+
+        if momentum_10d > 8:    momentum_score += 15
+        elif momentum_10d > 4:  momentum_score += 9
+        elif momentum_10d > 1:  momentum_score += 4
+        elif momentum_10d < -8: momentum_score -= 15
+        elif momentum_10d < -4: momentum_score -= 9
+        elif momentum_10d < -1: momentum_score -= 4
+
+        if momentum_20d > 15:    momentum_score += 18
+        elif momentum_20d > 8:   momentum_score += 10
+        elif momentum_20d > 3:   momentum_score += 5
+        elif momentum_20d < -15: momentum_score -= 18
+        elif momentum_20d < -8:  momentum_score -= 10
+        elif momentum_20d < -3:  momentum_score -= 5
+
+        momentum_score = max(0, min(100, momentum_score))
+
+        # 5. VOLATILITY / STABILITY SCORE
+        bb_width_pct = float(
+            (bb_upper.iloc[-1] - bb_lower.iloc[-1]) / bb_mid.iloc[-1] * 100
+        ) if float(bb_mid.iloc[-1]) > 0 else 20.0
+        relative_atr = float(atr / current_price * 100) if current_price > 0 else 2.0
+
+        if bb_width_pct < 5:    volatility_score = 80  # tight band = low volatility
+        elif bb_width_pct < 10: volatility_score = 65
+        elif bb_width_pct < 18: volatility_score = 55
+        elif bb_width_pct < 28: volatility_score = 40
+        else:                   volatility_score = 30
+
+        if relative_atr > 5:   volatility_score -= 10
+        elif relative_atr < 1: volatility_score += 5
+        volatility_score = max(0, min(100, volatility_score))
+
+        # FINAL WEIGHTED SCORE
         final_score = int(
-            technical_score * 0.4 +
-            volume_score * 0.3 +
-            momentum_score * 0.3
+            technical_score  * 0.30 +
+            trend_score      * 0.25 +
+            volume_score     * 0.20 +
+            momentum_score   * 0.20 +
+            volatility_score * 0.05
         )
         final_score = max(0, min(100, final_score))
 
-        # Determine trend
-        if current_price > ema20.iloc[-1] > ema50.iloc[-1]:
+        # Determine trend (based on EMA alignment + ADX)
+        if current_price > float(ema20.iloc[-1]) > float(ema50.iloc[-1]) and (ema200 is None or current_price > float(ema200.iloc[-1])):
             trend = "BULLISH"
-        elif current_price < ema20.iloc[-1] < ema50.iloc[-1]:
+        elif current_price > float(ema20.iloc[-1]) > float(ema50.iloc[-1]):
+            trend = "BULLISH"
+        elif current_price < float(ema20.iloc[-1]) < float(ema50.iloc[-1]):
             trend = "BEARISH"
         else:
             trend = "NEUTRAL"
@@ -400,39 +587,59 @@ async def analyze_asset(
         volatility_20d = daily_returns.tail(20).std() * np.sqrt(252) * 100
         volatility_60d = daily_returns.tail(60).std() * np.sqrt(252) * 100 if len(daily_returns) > 60 else None
 
-        # Price targets based on technicals
-        target_bull = round(current_price * 1.15, 2)  # +15%
-        target_base = round(current_price * 1.05, 2)  # +5%
-        target_bear = round(current_price * 0.90, 2)  # -10%
+        # Price targets based on ATR multiples + trend context
+        atr_mult_bull = 4.0 if trend == "BULLISH" else 2.5
+        atr_mult_base = 2.0 if trend == "BULLISH" else 1.0
+        atr_mult_bear = -2.0 if trend != "BEARISH" else -4.0
 
-        # Adjust based on trend
-        if trend == "BULLISH":
-            target_bull = round(current_price * 1.20, 2)
-            target_base = round(current_price * 1.10, 2)
-        elif trend == "BEARISH":
-            target_base = round(current_price * 0.95, 2)
-            target_bear = round(current_price * 0.80, 2)
+        target_bull = round(current_price + atr * atr_mult_bull, 2)
+        target_base = round(current_price + atr * atr_mult_base, 2)
+        target_bear = round(current_price + atr * atr_mult_bear, 2)
 
-        # Fundamental score
+        # Fundamental score (enhanced)
         fundamental_score = 50
         if fundamentals.get("pe_ratio"):
             pe = fundamentals["pe_ratio"]
-            if pe < 15:
-                fundamental_score += 10
-            elif pe > 30:
-                fundamental_score -= 10
+            if 0 < pe < 12:   fundamental_score += 15
+            elif pe < 18:     fundamental_score += 8
+            elif pe < 30:     fundamental_score += 2
+            elif pe > 60:     fundamental_score -= 15
+            elif pe > 40:     fundamental_score -= 8
+        if fundamentals.get("peg_ratio"):
+            peg = fundamentals["peg_ratio"]
+            if 0 < peg < 1:   fundamental_score += 12
+            elif peg < 2:     fundamental_score += 5
+            elif peg > 3:     fundamental_score -= 8
         if fundamentals.get("revenue_growth"):
             rg = fundamentals["revenue_growth"]
-            if rg > 0.1:
-                fundamental_score += 10
-            elif rg < 0:
-                fundamental_score -= 10
+            if rg > 0.20:  fundamental_score += 12
+            elif rg > 0.10: fundamental_score += 7
+            elif rg > 0:    fundamental_score += 3
+            elif rg < -0.05: fundamental_score -= 10
+        if fundamentals.get("earnings_growth"):
+            eg = fundamentals["earnings_growth"]
+            if eg > 0.20:  fundamental_score += 8
+            elif eg > 0.10: fundamental_score += 4
+            elif eg < -0.10: fundamental_score -= 8
         if fundamentals.get("profit_margin"):
             pm = fundamentals["profit_margin"]
-            if pm > 0.15:
-                fundamental_score += 5
-            elif pm < 0:
-                fundamental_score -= 10
+            if pm > 0.25:  fundamental_score += 8
+            elif pm > 0.15: fundamental_score += 4
+            elif pm < 0:   fundamental_score -= 12
+        if fundamentals.get("roe"):
+            roe = fundamentals["roe"]
+            if roe > 0.20:  fundamental_score += 6
+            elif roe > 0.12: fundamental_score += 3
+            elif roe < 0:   fundamental_score -= 6
+        if fundamentals.get("debt_to_equity"):
+            de = fundamentals["debt_to_equity"]
+            if de < 30:    fundamental_score += 5
+            elif de > 150: fundamental_score -= 8
+            elif de > 80:  fundamental_score -= 4
+        if fundamentals.get("current_ratio"):
+            cr = fundamentals["current_ratio"]
+            if cr > 2.0:   fundamental_score += 4
+            elif cr < 1.0: fundamental_score -= 6
         fundamental_score = max(0, min(100, fundamental_score))
 
         # Analyst sentiment
@@ -457,9 +664,18 @@ async def analyze_asset(
             "score": {
                 "total": final_score,
                 "technical": int(technical_score),
-                "volume": volume_score,
+                "trend": int(trend_score),
+                "volume": int(volume_score),
                 "momentum": int(momentum_score),
-                "fundamental": fundamental_score
+                "volatility": int(volatility_score),
+                "fundamental": fundamental_score,
+                "conviction": conviction_score,
+            },
+            "conviction": {
+                "score": conviction_score,
+                "bullish_signals": bullish_signals,
+                "bearish_signals": bearish_signals,
+                "total_signals": total_conviction_signals,
             },
             "signal": {
                 "text": signal_text,
@@ -469,38 +685,61 @@ async def analyze_asset(
             "indicators": {
                 "rsi": {
                     "value": round(current_rsi, 1),
-                    "signal": "oversold" if current_rsi < 30 else "overbought" if current_rsi > 70 else "neutral"
+                    "signal": "oversold" if current_rsi < 30 else "overbought" if current_rsi > 70 else "neutral",
+                    "divergence": rsi_divergence,
                 },
                 "macd": {
-                    "value": round(macd.iloc[-1], 4),
-                    "signal_line": round(signal.iloc[-1], 4),
-                    "histogram": round(macd_hist.iloc[-1], 4),
+                    "value": round(float(macd.iloc[-1]), 4),
+                    "signal_line": round(float(signal.iloc[-1]), 4),
+                    "histogram": round(float(macd_hist.iloc[-1]), 4),
                     "signal": "bullish" if macd_hist.iloc[-1] > 0 else "bearish"
                 },
                 "ema": {
-                    "ema20": round(ema20.iloc[-1], 2),
-                    "ema50": round(ema50.iloc[-1], 2),
-                    "ema200": round(ema200.iloc[-1], 2) if ema200 is not None else None
+                    "ema20": round(float(ema20.iloc[-1]), 2),
+                    "ema50": round(float(ema50.iloc[-1]), 2),
+                    "ema200": round(float(ema200.iloc[-1]), 2) if ema200 is not None else None
                 },
                 "bollinger": {
-                    "upper": round(bb_upper.iloc[-1], 2),
-                    "middle": round(bb_mid.iloc[-1], 2),
-                    "lower": round(bb_lower.iloc[-1], 2),
-                    "position": "upper" if current_price > bb_upper.iloc[-1] else "lower" if current_price < bb_lower.iloc[-1] else "middle",
+                    "upper": round(float(bb_upper.iloc[-1]), 2),
+                    "middle": round(float(bb_mid.iloc[-1]), 2),
+                    "lower": round(float(bb_lower.iloc[-1]), 2),
+                    "position": "upper" if current_price > float(bb_upper.iloc[-1]) else "lower" if current_price < float(bb_lower.iloc[-1]) else "middle",
                     "percent_b": round(bb_percent_b, 1),
+                    "width_pct": round(bb_width_pct, 1),
                 },
                 "adx": {
                     "value": round(adx_val, 1),
                     "plus_di": round(current_plus_di, 1),
                     "minus_di": round(current_minus_di, 1),
-                    "signal": "strong" if adx_val > 25 else "weak",
+                    "signal": "strong_bull" if adx_val > 25 and current_plus_di > current_minus_di
+                              else "strong_bear" if adx_val > 25
+                              else "weak",
                 },
                 "stochastic": {
                     "k": round(current_stoch_k, 1),
                     "d": round(current_stoch_d, 1),
                     "signal": "oversold" if current_stoch_k < 20 else "overbought" if current_stoch_k > 80 else "neutral",
                 },
-                "atr": round(atr, 4),
+                "williams_r": {
+                    "value": round(current_wr, 1),
+                    "signal": "oversold" if current_wr < -80 else "overbought" if current_wr > -20 else "neutral",
+                },
+                "obv": {
+                    "trend": obv_trend,
+                    "slope": "up" if obv_slope > 0 else "down",
+                },
+                "cmf": {
+                    "value": round(current_cmf, 3),
+                    "signal": "bullish" if current_cmf > 0.1 else "bearish" if current_cmf < -0.1 else "neutral",
+                },
+                "momentum": {
+                    "3d": round(momentum_3d, 2),
+                    "5d": round(momentum_5d, 2),
+                    "10d": round(momentum_10d, 2),
+                    "20d": round(momentum_20d, 2),
+                },
+                "atr": round(float(atr), 4),
+                "atr_pct": round(relative_atr, 2),
                 "volume_ratio": round(volume_ratio, 2)
             },
             "fibonacci": fibonacci,
@@ -512,7 +751,10 @@ async def analyze_asset(
             "risk": {
                 "suggested_sl": round(current_price - (atr * 2), 2),
                 "suggested_tp": round(current_price + (atr * 3), 2),
-                "risk_reward": 1.5
+                "suggested_sl_tight": round(current_price - atr, 2),
+                "suggested_tp_conservative": round(current_price + (atr * 1.5), 2),
+                "risk_reward": 1.5,
+                "atr_stop_pct": round(float(atr / current_price * 200), 2),  # 2xATR stop %
             },
             "fundamentals": fundamentals,
             "performance": performance,

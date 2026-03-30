@@ -773,9 +773,17 @@ export default function AnalysisPage() {
                 Detail du Score
               </h3>
               <div className="space-y-4">
-                <ScoreBar label="Technique" score={analysis.score.technical} />
-                <ScoreBar label="Volume" score={analysis.score.volume} />
-                <ScoreBar label="Momentum" score={analysis.score.momentum} />
+                <ScoreBar label="Technique (30%)" score={analysis.score.technical} />
+                <ScoreBar label="Tendance (25%)" score={(analysis.score as any).trend ?? 50} />
+                <ScoreBar label="Volume (20%)" score={analysis.score.volume} />
+                <ScoreBar label="Momentum (20%)" score={analysis.score.momentum} />
+                <ScoreBar label="Volatilité (5%)" score={(analysis.score as any).volatility ?? 60} />
+                {analysis.score.fundamental !== undefined && (
+                  <ScoreBar label="Fondamentaux" score={analysis.score.fundamental} />
+                )}
+                {(analysis.score as any).conviction !== undefined && (
+                  <ScoreBar label="Conviction" score={(analysis.score as any).conviction} />
+                )}
               </div>
             </motion.div>
 
@@ -901,7 +909,7 @@ export default function AnalysisPage() {
                 name="ATR"
                 value={analysis.indicators.atr.toFixed(2)}
                 signal="neutral"
-                tooltip={`Volatilité moyenne sur 14 jours. Stop-loss suggéré: ${(analysis.indicators.atr * 1.5).toFixed(2)} (1.5x ATR)`}
+                tooltip={`Volatilité moyenne sur 14 jours. Stop-loss suggéré: ${(analysis.indicators.atr * 1.5).toFixed(2)} (1.5x ATR)${analysis.indicators.atr_pct ? ` — ${analysis.indicators.atr_pct.toFixed(2)}% du prix` : ""}`}
               />
               <IndicatorCard
                 name="Volume"
@@ -909,8 +917,101 @@ export default function AnalysisPage() {
                 signal={analysis.indicators.volume_ratio > 1.5 ? "bullish" : analysis.indicators.volume_ratio < 0.7 ? "bearish" : "neutral"}
                 tooltip={`Volume actuel / volume moyen 20j. ${analysis.indicators.volume_ratio > 1.5 ? "Volume élevé — signal fort" : analysis.indicators.volume_ratio < 0.7 ? "Volume faible — signal peu fiable" : "Volume normal"}`}
               />
+              {(analysis.indicators as any).williams_r && (
+                <IndicatorCard
+                  name="Williams %R"
+                  value={`${(analysis.indicators as any).williams_r.value.toFixed(1)}`}
+                  signal={(analysis.indicators as any).williams_r.signal as any}
+                  tooltip={`Williams %R: ${(analysis.indicators as any).williams_r.value.toFixed(1)} — ${(analysis.indicators as any).williams_r.value < -80 ? "Survendu (<-80), rebond possible" : (analysis.indicators as any).williams_r.value > -20 ? "Suracheté (>-20), repli possible" : "Zone neutre (-80 à -20)"}`}
+                />
+              )}
+              {(analysis.indicators as any).obv && (
+                <IndicatorCard
+                  name="OBV"
+                  value={(analysis.indicators as any).obv.trend === "bullish" ? "↑ Haussier" : "↓ Baissier"}
+                  signal={(analysis.indicators as any).obv.trend as any}
+                  tooltip={`On-Balance Volume: accumulation ${(analysis.indicators as any).obv.trend === "bullish" ? "positive — les acheteurs dominent les volumes" : "négative — les vendeurs dominent les volumes"}. Pente: ${(analysis.indicators as any).obv.slope === "up" ? "montante" : "descendante"}`}
+                />
+              )}
+              {(analysis.indicators as any).cmf && (
+                <IndicatorCard
+                  name="CMF"
+                  value={`${((analysis.indicators as any).cmf.value * 100).toFixed(1)}%`}
+                  signal={(analysis.indicators as any).cmf.signal as any}
+                  tooltip={`Chaikin Money Flow: ${(analysis.indicators as any).cmf.value > 0.1 ? "Flux d'argent positif — pression acheteuse" : (analysis.indicators as any).cmf.value < -0.1 ? "Flux d'argent négatif — pression vendeuse" : "Flux neutre"}`}
+                />
+              )}
+              {(analysis.indicators as any).momentum && (
+                <IndicatorCard
+                  name="Momentum 10j"
+                  value={`${(analysis.indicators as any).momentum["10d"] >= 0 ? "+" : ""}${(analysis.indicators as any).momentum["10d"].toFixed(2)}%`}
+                  signal={(analysis.indicators as any).momentum["10d"] > 3 ? "bullish" : (analysis.indicators as any).momentum["10d"] < -3 ? "bearish" : "neutral"}
+                  tooltip={`Momentum multi-période — 3j: ${(analysis.indicators as any).momentum["3d"] >= 0 ? "+" : ""}${(analysis.indicators as any).momentum["3d"].toFixed(1)}% | 10j: ${(analysis.indicators as any).momentum["10d"] >= 0 ? "+" : ""}${(analysis.indicators as any).momentum["10d"].toFixed(1)}% | 20j: ${(analysis.indicators as any).momentum["20d"] >= 0 ? "+" : ""}${(analysis.indicators as any).momentum["20d"].toFixed(1)}%`}
+                />
+              )}
             </div>
           </motion.div>
+
+          {/* Conviction Panel */}
+          {analysis.conviction && (analysis.conviction as any).total_signals > 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.35 }}
+              className="glass-card p-6"
+            >
+              <h3 className="font-semibold mb-4 flex items-center gap-2">
+                <Brain className="w-5 h-5 text-primary" />
+                Score de Conviction — {(analysis.conviction as any).total_signals} signaux détectés
+              </h3>
+              <div className="mb-4">
+                <div className="flex justify-between text-sm mb-1">
+                  <span className="text-loss">{(analysis.conviction as any).bearish_signals.length} baissiers</span>
+                  <span className="font-bold">{(analysis.conviction as any).score}% haussier</span>
+                  <span className="text-profit">{(analysis.conviction as any).bullish_signals.length} haussiers</span>
+                </div>
+                <div className="w-full bg-loss/20 rounded-full h-3 overflow-hidden">
+                  <div
+                    className="h-3 rounded-full transition-all"
+                    style={{
+                      width: `${(analysis.conviction as any).score}%`,
+                      background: (analysis.conviction as any).score > 60 ? "rgb(var(--profit))" : (analysis.conviction as any).score < 40 ? "rgb(var(--loss))" : "rgb(var(--warning))"
+                    }}
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {(analysis.conviction as any).bullish_signals.length > 0 && (
+                  <div>
+                    <p className="text-xs font-semibold text-profit mb-2 flex items-center gap-1">
+                      <CheckCircle className="w-3 h-3" /> Signaux Haussiers
+                    </p>
+                    <ul className="space-y-1">
+                      {(analysis.conviction as any).bullish_signals.map((s: string, i: number) => (
+                        <li key={i} className="text-xs text-muted-foreground flex items-start gap-1.5">
+                          <span className="text-profit mt-0.5">•</span>{s}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {(analysis.conviction as any).bearish_signals.length > 0 && (
+                  <div>
+                    <p className="text-xs font-semibold text-loss mb-2 flex items-center gap-1">
+                      <XCircle className="w-3 h-3" /> Signaux Baissiers
+                    </p>
+                    <ul className="space-y-1">
+                      {(analysis.conviction as any).bearish_signals.map((s: string, i: number) => (
+                        <li key={i} className="text-xs text-muted-foreground flex items-start gap-1.5">
+                          <span className="text-loss mt-0.5">•</span>{s}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          )}
 
           {/* 5. Suggestion de Trade */}
           <motion.div
