@@ -17,11 +17,14 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
 
-  const isAuthPage    = pathname?.startsWith("/login") || pathname?.startsWith("/register");
-  const isLandingPage = !pathname || pathname === "/";
-  const isLegalPage   = pathname?.startsWith("/mentions-legales")
-    || pathname?.startsWith("/politique-de-confidentialite")
-    || pathname?.startsWith("/cgu");
+  // Use window.location as fallback when usePathname() returns null during hydration
+  const currentPath = pathname ?? (typeof window !== "undefined" ? window.location.pathname : null);
+
+  const isAuthPage    = !!(currentPath?.startsWith("/login") || currentPath?.startsWith("/register"));
+  const isLandingPage = !currentPath || currentPath === "/";
+  const isLegalPage   = !!(currentPath?.startsWith("/mentions-legales")
+    || currentPath?.startsWith("/politique-de-confidentialite")
+    || currentPath?.startsWith("/cgu"));
 
   // ── All hooks must be declared before any early return ────────────────────
 
