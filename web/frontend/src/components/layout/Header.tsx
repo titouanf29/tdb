@@ -93,7 +93,12 @@ export function Header({ onMenuToggle }: { onMenuToggle?: () => void }) {
   };
 
   return (
-    <header className="h-16 border-b border-white/10 bg-card/30 backdrop-blur-xl px-4 md:px-6 flex items-center justify-between gap-3 relative z-50">
+    <motion.header
+      initial={{ y: -8, opacity: 0 }}
+      animate={{ y: 0, opacity: 1 }}
+      transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+      className="h-16 border-b border-white/10 bg-card/30 backdrop-blur-xl px-4 md:px-6 flex items-center justify-between gap-3 relative z-50"
+    >
       {/* Hamburger mobile */}
       <button
         onClick={onMenuToggle}
@@ -301,7 +306,7 @@ export function Header({ onMenuToggle }: { onMenuToggle?: () => void }) {
           )}
         </div>
       </div>
-    </header>
+    </motion.header>
   );
 }
 

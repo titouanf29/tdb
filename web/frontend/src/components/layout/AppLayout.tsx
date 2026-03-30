@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
+import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/lib/AuthContext";
 import { Sidebar } from "./Sidebar";
 import { Header } from "./Header";
@@ -69,10 +70,24 @@ function AuthShell({
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <Loader2 className="w-10 h-10 animate-spin text-primary mx-auto mb-4" />
-          <p className="text-muted-foreground">Chargement...</p>
-        </div>
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+          className="text-center space-y-4"
+        >
+          <div className="relative w-16 h-16 mx-auto">
+            <div className="absolute inset-0 rounded-full border-2 border-primary/20" />
+            <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-primary animate-spin" />
+            <div className="absolute inset-2 rounded-full bg-primary/10 flex items-center justify-center">
+              <Loader2 className="w-6 h-6 text-primary animate-spin" style={{ animationDuration: "1.5s" }} />
+            </div>
+          </div>
+          <div>
+            <p className="text-foreground font-medium">Chargement...</p>
+            <p className="text-muted-foreground text-sm mt-1">Récupération de vos données</p>
+          </div>
+        </motion.div>
       </div>
     );
   }
@@ -101,18 +116,28 @@ function AuthShell({
         <main className="flex-1 overflow-auto p-4 md:p-6">
           <BroadcastBanner />
           <ChangelogBanner />
-          {children}
-          <footer className="mt-8 pt-4 border-t border-white/10 text-center text-xs text-muted-foreground space-y-2">
-            <p>Fait par <span className="text-primary font-semibold">CaptenQwark</span> - CaptenTDB</p>
-            <p>Les analyses sont à but éducatif uniquement. Ce site ne fournit pas de conseils financiers. Paper trading uniquement.</p>
-            <div className="flex flex-wrap gap-3 justify-center">
-              <a href="/mentions-legales" className="hover:text-primary hover:underline">Mentions légales</a>
-              <span>·</span>
-              <a href="/politique-de-confidentialite" className="hover:text-primary hover:underline">Politique de confidentialité</a>
-              <span>·</span>
-              <a href="/cgu" className="hover:text-primary hover:underline">CGU</a>
-            </div>
-          </footer>
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={pathname}
+              initial={{ opacity: 0, y: 14 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+            >
+              {children}
+              <footer className="mt-8 pt-4 border-t border-white/10 text-center text-xs text-muted-foreground space-y-2">
+                <p>Fait par <span className="text-primary font-semibold">CaptenQwark</span> - CaptenTDB</p>
+                <p>Les analyses sont à but éducatif uniquement. Ce site ne fournit pas de conseils financiers. Paper trading uniquement.</p>
+                <div className="flex flex-wrap gap-3 justify-center">
+                  <a href="/mentions-legales" className="hover:text-primary hover:underline">Mentions légales</a>
+                  <span>·</span>
+                  <a href="/politique-de-confidentialite" className="hover:text-primary hover:underline">Politique de confidentialité</a>
+                  <span>·</span>
+                  <a href="/cgu" className="hover:text-primary hover:underline">CGU</a>
+                </div>
+              </footer>
+            </motion.div>
+          </AnimatePresence>
         </main>
       </div>
     </div>
