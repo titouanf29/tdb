@@ -1377,9 +1377,31 @@ function IndicatorCard({
 }
 
 function FibonacciSection({ analysis, formatCurrency }: { analysis: Analysis; formatCurrency: (v: number) => string }) {
+  const [showExplainer, setShowExplainer] = useState(false);
+  const [expandedRows, setExpandedRows] = useState<Record<string, boolean>>({});
   const fib = analysis.fibonacci!;
   const price = analysis.price.current;
-  const fibEntries = Object.entries(fib.levels).sort((a, b) => b[1] - a[1]); // descending price
+  const fibEntries = Object.entries(fib.levels).sort((a, b) => b[1] - a[1]);
+
+  const toggleRow = (level: string) =>
+    setExpandedRows(prev => ({ ...prev, [level]: !prev[level] }));
+
+  const levelMeta: Record<string, { color: string; importance: "high" | "medium" | "low"; role: string; tip: string; strategy: string }> = {
+    "0":    { color: "bg-white/20",       importance: "low",    role: "Sommet — Résistance absolue",       tip: "Plus haut de la période analysée. Retour complet à ce niveau signifie une récupération totale du mouvement. Rare lors d'une simple correction.", strategy: "Cible de take-profit maximale en tendance haussière forte. En résistance : placer un ordre limite de vente." },
+    "23.6": { color: "bg-blue-400/50",    importance: "low",    role: "23.6% — Retracement faible",        tip: "Correction mineure (≈ 1/4 du mouvement). Indique une tendance très forte. Le prix rebondit ici sans aller plus loin en cas de momentum solide. Peu fiable seul, mais utile combiné à un RSI en zone neutre-haute.", strategy: "En tendance haussière très forte : entrée agressive avec stop sous le 38.2%. Sinon, attendre le niveau suivant." },
+    "38.2": { color: "bg-primary/80",     importance: "high",   role: "38.2% — Premier retracement majeur", tip: "Niveau d'or. Premier grand test d'une correction normale. Les gros acheteurs (fonds, institutionnels) reviennent souvent ici en tendance haussière établie. Confirme la solidité de la tendance si le prix rebondit.", strategy: "Zone d'achat privilégiée en tendance haussière. Stop : sous le 50%. Take-profit : retour vers le sommet (0%). Ratio R/R favorable si confluence avec EMA ou RSI survendu." },
+    "50.0": { color: "bg-warning/80",     importance: "medium", role: "50% — Niveau psychologique clé",    tip: "Pas un ratio Fibonacci pur, mais le niveau 50% est respecté par d'énormes volumes d'ordres. Zone de décision critique : si le prix tient ici, la tendance reprend ; si ça casse, le 61.8% est quasiment inévitable.", strategy: "Zone d'achat secondaire. Meilleures opportunités si le 38.2% a déjà été cassé. Stop : sous le 61.8%. Signal d'alerte si le prix stagne ici sans rebond franc." },
+    "61.8": { color: "bg-primary",        importance: "high",   role: "61.8% — Golden Ratio ★ Le plus important", tip: "Le Saint-Graal de Fibonacci. Dérivé du nombre d'or φ ≈ 1.618 (61.8 = 1/φ × 100). Les corrections profondes mais saines s'arrêtent ici. Un rebond sur ce niveau en tendance haussière est un signal d'achat très fort. Un cassage ferme suggère un retournement majeur.", strategy: "Dernière zone d'achat en tendance haussière. Stop serré sous le 78.6%. Si cassage : fermer les positions longues, envisager une position courte. C'est ici que se jouent les retournements de tendance les plus importants." },
+    "78.6": { color: "bg-orange-400/70",  importance: "medium", role: "78.6% — Retracement profond",       tip: "Correction très profonde (≈ √(1 - 0.618)). Atteindre ce niveau remet sérieusement en question la tendance initiale. Dernière ligne de défense des acheteurs. Les rebounds depuis ici sont souvent violents mais risqués.", strategy: "Zone spéculative uniquement. Risque élevé. Si rebond : cible maximale = 61.8% (pas le sommet). Stop très serré sous le creux. À éviter sans confirmation oscillateur forte (RSI <25, Stoch <10)." },
+    "100":  { color: "bg-white/20",       importance: "low",    role: "Creux — Support absolu",            tip: "Plus bas de la période. Retour ici = échec total de la tendance haussière précédente. Signale un retournement baissier structurel probable. Rare sauf en cas de catalyseur négatif majeur (résultats, crise, etc.).", strategy: "Zone de capitulation. En tendance baissière : observer les signaux de retournement (RSI <20, volume exceptionnel, bougie d'inversion). En tendance haussière : stop absolu pour toute position longue." },
+  };
+
+  const nearestLevel = fibEntries.reduce((prev, curr) =>
+    Math.abs(curr[1] - price) < Math.abs(prev[1] - price) ? curr : prev
+  );
+  const nearestMeta = levelMeta[nearestLevel[0]];
+  const rangeSize = fib.high - fib.low;
+  const pricePosition = rangeSize > 0 ? Math.max(0, Math.min(100, ((price - fib.low) / rangeSize) * 100)) : 50;
 
   return (
     <motion.div
@@ -1387,57 +1409,236 @@ function FibonacciSection({ analysis, formatCurrency }: { analysis: Analysis; fo
       animate={{ opacity: 1, y: 0 }}
       className="glass-card p-6"
     >
-      <h3 className="font-semibold mb-1 flex items-center gap-2">
-        <Scale className="w-5 h-5 text-primary" />
-        Niveaux de Fibonacci
-      </h3>
-      <p className="text-xs text-muted-foreground mb-4">
-        Calculés sur le plus haut ({formatCurrency(fib.high)}) et le plus bas ({formatCurrency(fib.low)}) des {Math.min(60, 60)} dernières séances
-      </p>
-      <div className="space-y-2">
-        {fibEntries.map(([level, lvlPrice]) => {
-          const isNearPrice = Math.abs(lvlPrice - price) / price < 0.015; // within 1.5%
-          const isPriceAbove = price >= lvlPrice;
-          return (
-            <div
-              key={level}
-              className={cn(
-                "flex items-center gap-3 p-2 rounded-lg transition-colors",
-                isNearPrice ? "bg-primary/20 border border-primary/40" : "bg-white/5"
-              )}
-            >
-              <span className={cn(
-                "text-xs font-mono w-12 text-right",
-                level === "0" || level === "100" ? "text-muted-foreground" : "text-primary"
-              )}>
-                {level}%
-              </span>
-              <div className="flex-1 h-1.5 bg-white/10 rounded-full overflow-hidden">
-                <div
-                  className={cn(
-                    "h-full rounded-full",
-                    level === "61.8" || level === "38.2" ? "bg-primary" :
-                    level === "50.0" ? "bg-warning" : "bg-white/30"
-                  )}
-                  style={{ width: `${100 - parseFloat(level)}%` }}
-                />
-              </div>
-              <span className={cn(
-                "font-semibold text-sm w-24 text-right",
-                isNearPrice ? "text-primary" : isPriceAbove ? "text-profit/80" : "text-loss/80"
-              )}>
-                {formatCurrency(lvlPrice)}
-              </span>
-              {isNearPrice && (
-                <span className="text-xs px-1.5 py-0.5 rounded bg-primary/30 text-primary">← Prix actuel</span>
-              )}
+      {/* Header */}
+      <div className="flex items-start justify-between mb-2">
+        <h3 className="font-semibold flex items-center gap-2">
+          <Scale className="w-5 h-5 text-primary" />
+          Niveaux de Fibonacci
+        </h3>
+        <button
+          onClick={() => setShowExplainer(e => !e)}
+          className="flex items-center gap-1 text-xs text-primary/70 hover:text-primary transition-colors px-2 py-1 rounded-lg hover:bg-primary/10"
+        >
+          <BookOpen className="w-3 h-3" />
+          {showExplainer ? "Masquer" : "C'est quoi ?"}
+          <motion.span animate={{ rotate: showExplainer ? 180 : 0 }} transition={{ duration: 0.2 }} className="inline-block">
+            <ChevronDown className="w-3 h-3" />
+          </motion.span>
+        </button>
+      </div>
+
+      {/* Explainer */}
+      <AnimatePresence initial={false}>
+        {showExplainer && (
+          <motion.div
+            key="explainer"
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.25, ease: "easeInOut" }}
+            style={{ overflow: "hidden" }}
+          >
+            <div className="mb-4 p-4 bg-primary/5 border border-primary/20 rounded-xl text-xs text-muted-foreground space-y-2.5 leading-relaxed">
+              <p><span className="font-semibold text-foreground/80">Qu&apos;est-ce que Fibonacci ?</span> Leonardo Fibonacci a découvert une suite mathématique (1, 1, 2, 3, 5, 8, 13…) dont les ratios entre termes consécutifs convergent vers le <span className="text-primary font-semibold">nombre d&apos;or (φ ≈ 1.618)</span>. Ces ratios apparaissent partout dans la nature — et les marchés financiers les respectent avec une régularité frappante.</p>
+              <p><span className="font-semibold text-foreground/80">Comment les utiliser ?</span> Après un fort mouvement directionnel, on trace les niveaux entre le plus haut et le plus bas. Ces niveaux deviennent des <span className="text-profit font-semibold">zones de support</span> (lors d&apos;une correction haussière) ou de <span className="text-loss font-semibold">résistance</span> (lors d&apos;un rebond baissier) où le prix marque souvent une pause ou repart.</p>
+              <p><span className="font-semibold text-foreground/80">Pourquoi ça fonctionne ?</span> Des millions de traders et algorithmes les observent simultanément — c&apos;est une <span className="text-foreground/80 font-semibold">prophétie auto-réalisatrice</span>. Quand tout le monde place ses ordres au même niveau, le niveau fait office de support/résistance. Les niveaux clés sont le <span className="text-primary font-semibold">38.2%</span>, le <span className="text-warning font-semibold">50%</span> et surtout le <span className="text-primary font-semibold">61.8%</span>.</p>
+              <p><span className="font-semibold text-foreground/80">⚠️ Limite importante :</span> Les niveaux Fibonacci seuls ne suffisent pas. Leur puissance est multipliée lors d&apos;une <span className="text-foreground/80 font-semibold">confluence</span> : Fibonacci + EMA alignées + RSI survendu + volume = signal très fort. Cliquez sur chaque niveau pour voir la stratégie associée.</p>
             </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Subtitle */}
+      <p className="text-xs text-muted-foreground mb-4">
+        Calculés sur le plus haut <span className="text-profit/80 font-semibold">{formatCurrency(fib.high)}</span> et le plus bas <span className="text-loss/80 font-semibold">{formatCurrency(fib.low)}</span> des 60 dernières séances
+        {rangeSize > 0 && <> · Amplitude : <span className="font-semibold text-foreground/70">{formatCurrency(rangeSize)}</span></>}
+      </p>
+
+      {/* Visual position bar */}
+      <div className="mb-5">
+        <div className="flex justify-between text-xs text-muted-foreground mb-1.5">
+          <span className="text-loss/70">Creux {formatCurrency(fib.low)}</span>
+          <span className="text-foreground/40 text-xs">position du prix</span>
+          <span className="text-profit/70">Sommet {formatCurrency(fib.high)}</span>
+        </div>
+        <div className="relative h-3 bg-white/10 rounded-full overflow-visible">
+          <div className="absolute inset-0 flex rounded-full overflow-hidden">
+            <div className="h-full bg-loss/25"    style={{ width: "38.2%" }} />
+            <div className="h-full bg-warning/20" style={{ width: "23.6%" }} />
+            <div className="h-full bg-primary/15" style={{ width: "11.8%" }} />
+            <div className="h-full bg-profit/20"  style={{ flex: 1 }} />
+          </div>
+          {fibEntries.filter(([l]) => !["0","100"].includes(l)).map(([level]) => (
+            <div key={level} className="absolute top-0 bottom-0 w-px bg-white/25" style={{ left: `${100 - parseFloat(level)}%` }} />
+          ))}
+          <motion.div
+            className="absolute top-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-white border-2 border-primary shadow-lg shadow-primary/50 z-10"
+            style={{ left: `${pricePosition}%`, marginLeft: "-8px" }}
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            transition={{ delay: 0.3, type: "spring", stiffness: 300 }}
+          />
+        </div>
+        <div className="flex justify-between text-xs text-muted-foreground/50 mt-1 px-1">
+          <span>61.8%</span><span>50%</span><span>38.2%</span><span>23.6%</span>
+        </div>
+      </div>
+
+      {/* Nearest level callout */}
+      <motion.div
+        className="mb-4 p-3.5 bg-primary/10 border border-primary/25 rounded-xl"
+        initial={{ opacity: 0, scale: 0.97 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ delay: 0.2 }}
+      >
+        <p className="text-xs font-semibold text-foreground/60 mb-2 flex items-center gap-1">
+          <Zap className="w-3 h-3 text-primary" />
+          Niveau le plus proche · prix actuel {formatCurrency(price)}
+        </p>
+        <div className="flex items-start justify-between gap-2 flex-wrap">
+          <div>
+            <span className="font-bold text-primary text-base">{nearestLevel[0]}%</span>
+            <p className="text-xs text-muted-foreground mt-0.5">{nearestMeta?.role}</p>
+          </div>
+          <div className="text-right">
+            <p className="font-bold">{formatCurrency(nearestLevel[1])}</p>
+            <p className={cn("text-xs font-semibold", (price - nearestLevel[1]) >= 0 ? "text-profit" : "text-loss")}>
+              {(price - nearestLevel[1]) >= 0 ? "+" : ""}{((price - nearestLevel[1]) / nearestLevel[1] * 100).toFixed(2)}%
+            </p>
+          </div>
+        </div>
+        <p className="text-xs text-muted-foreground mt-2 leading-relaxed">{nearestMeta?.tip}</p>
+        <p className="text-xs text-foreground/40 mt-1 italic">
+          {price >= nearestLevel[1]
+            ? "▲ Prix au-dessus → ce niveau agit comme support potentiel en cas de repli"
+            : "▼ Prix en dessous → ce niveau agit comme résistance potentielle en cas de rebond"}
+        </p>
+      </motion.div>
+
+      {/* Levels list — each row expandable */}
+      <div className="space-y-1.5">
+        {fibEntries.map(([level, lvlPrice], i) => {
+          const meta = levelMeta[level];
+          const isNear = Math.abs(lvlPrice - price) / price < 0.015;
+          const isPriceAbove = price >= lvlPrice;
+          const distPct = (price - lvlPrice) / lvlPrice * 100;
+          const rowOpen = !!expandedRows[level];
+
+          return (
+            <motion.div
+              key={level}
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: i * 0.04 }}
+            >
+              <div
+                className={cn(
+                  "rounded-xl border overflow-hidden transition-colors cursor-pointer",
+                  isNear ? "bg-primary/15 border-primary/40" : "bg-white/4 border-white/8 hover:bg-white/8 hover:border-white/15"
+                )}
+                onClick={() => toggleRow(level)}
+              >
+                {/* Row summary */}
+                <div className="flex items-center gap-3 p-3">
+                  <div className={cn(
+                    "w-2 h-2 rounded-full flex-shrink-0",
+                    meta?.importance === "high"   ? "bg-primary shadow-sm shadow-primary/60" :
+                    meta?.importance === "medium" ? "bg-warning" : "bg-white/25"
+                  )} />
+                  <span className={cn(
+                    "text-xs font-mono w-10 flex-shrink-0 font-bold",
+                    meta?.importance === "high"   ? "text-primary" :
+                    meta?.importance === "medium" ? "text-warning" : "text-muted-foreground"
+                  )}>
+                    {level}%
+                  </span>
+                  <div className="flex-1 h-1 bg-white/10 rounded-full overflow-hidden">
+                    <div className={cn("h-full rounded-full", meta?.color ?? "bg-white/30")} style={{ width: `${100 - parseFloat(level)}%` }} />
+                  </div>
+                  <span className="text-xs text-muted-foreground hidden lg:block w-44 text-right flex-shrink-0 truncate">{meta?.role}</span>
+                  <span className={cn("font-bold text-sm w-24 text-right flex-shrink-0", isNear ? "text-primary" : isPriceAbove ? "text-profit/80" : "text-loss/80")}>
+                    {formatCurrency(lvlPrice)}
+                  </span>
+                  <span className={cn("text-xs w-14 text-right flex-shrink-0 hidden sm:block font-semibold",
+                    Math.abs(distPct) < 1.5 ? "text-primary" : distPct > 0 ? "text-profit/70" : "text-loss/70"
+                  )}>
+                    {distPct >= 0 ? "+" : ""}{distPct.toFixed(1)}%
+                  </span>
+                  {isNear && <span className="text-xs px-2 py-0.5 rounded-full bg-primary/30 text-primary font-semibold flex-shrink-0 hidden sm:block">← Ici</span>}
+                  <motion.div animate={{ rotate: rowOpen ? 180 : 0 }} transition={{ duration: 0.2 }} className="flex-shrink-0">
+                    <ChevronDown className="w-3 h-3 text-muted-foreground/50" />
+                  </motion.div>
+                </div>
+
+                {/* Row detail */}
+                <AnimatePresence initial={false}>
+                  {rowOpen && (
+                    <motion.div
+                      key="row-detail"
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: "auto", opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: 0.2, ease: "easeInOut" }}
+                      style={{ overflow: "hidden" }}
+                    >
+                      <div className="px-4 pb-4 pt-2 border-t border-white/8 space-y-3">
+                        <div>
+                          <p className="text-xs font-semibold text-foreground/60 mb-1 flex items-center gap-1">
+                            <Info className="w-3 h-3" /> Signification
+                          </p>
+                          <p className="text-xs text-muted-foreground leading-relaxed">{meta?.tip}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs font-semibold text-foreground/60 mb-1 flex items-center gap-1">
+                            <Target className="w-3 h-3" /> Stratégie de trading
+                          </p>
+                          <p className="text-xs text-muted-foreground leading-relaxed">{meta?.strategy}</p>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs pt-1 border-t border-white/5">
+                          <div>
+                            <span className="text-foreground/40">Distance : </span>
+                            <span className={cn("font-bold", distPct >= 0 ? "text-profit" : "text-loss")}>
+                              {distPct >= 0 ? "+" : ""}{distPct.toFixed(2)}% ({formatCurrency(Math.abs(price - lvlPrice))})
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-foreground/40">Rôle actuel : </span>
+                            <span className="font-semibold text-foreground/80">{isPriceAbove ? "Support potentiel" : "Résistance potentielle"}</span>
+                          </div>
+                          <div>
+                            <span className="text-foreground/40">Importance : </span>
+                            <span className={cn("font-semibold",
+                              meta?.importance === "high" ? "text-primary" :
+                              meta?.importance === "medium" ? "text-warning" : "text-muted-foreground"
+                            )}>
+                              {meta?.importance === "high" ? "★★★ Élevée" : meta?.importance === "medium" ? "★★ Moyenne" : "★ Faible"}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            </motion.div>
           );
         })}
       </div>
-      <p className="text-xs text-muted-foreground mt-3">
-        💡 Les niveaux 38.2% et 61.8% sont les plus importants. Ils agissent souvent comme supports ou résistances lors d&apos;une correction.
-      </p>
+
+      {/* Footer */}
+      <motion.div
+        className="mt-4 p-3.5 bg-white/3 rounded-xl border border-white/8 text-xs text-muted-foreground"
+        initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.4 }}
+      >
+        <p className="font-semibold text-foreground/60 mb-1.5 flex items-center gap-1">
+          <Lightbulb className="w-3 h-3" /> Stratégie de confluence (recommandée)
+        </p>
+        <p className="leading-relaxed">
+          En tendance haussière, les institutionnels achètent sur le <span className="text-primary font-semibold">38.2%</span> ou le <span className="text-primary font-semibold">61.8%</span> avec un stop sous le niveau suivant.
+          Le signal est <span className="text-foreground/80 font-semibold">beaucoup plus fiable</span> quand il coïncide avec : une EMA (20, 50 ou 200), un RSI survendu (&lt;30), un rebond de volume, ou un croisement MACD.
+          Cliquez sur chaque niveau pour voir la stratégie détaillée.
+        </p>
+      </motion.div>
     </motion.div>
   );
 }
