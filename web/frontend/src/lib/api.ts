@@ -40,7 +40,11 @@ async function fetchAPI<T>(
     // Don't redirect if already on auth pages
     const isAuthPage = typeof window !== "undefined" &&
       (window.location.pathname.startsWith("/login") ||
-       window.location.pathname.startsWith("/register"));
+       window.location.pathname.startsWith("/register") ||
+       window.location.pathname.startsWith("/mentions-legales") ||
+       window.location.pathname.startsWith("/politique-de-confidentialite") ||
+       window.location.pathname.startsWith("/cgu") ||
+       window.location.pathname === "/");
 
     if (!isAuthPage) {
       removeToken();
