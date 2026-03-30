@@ -856,73 +856,136 @@ export default function AnalysisPage() {
                 </span>
               )}
             </h3>
-            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
               <IndicatorCard
                 name="RSI (14)"
                 value={analysis.indicators.rsi.value.toFixed(1)}
                 signal={analysis.indicators.rsi.signal as any}
-                tooltip={analysis.indicators.rsi.value < 30 ? "Survendu — rebond potentiel" : analysis.indicators.rsi.value > 70 ? "Suracheté — prudence" : "Zone neutre"}
+                detail={{
+                  description: "Le RSI (Relative Strength Index) est un oscillateur de momentum qui mesure la vitesse et l'amplitude des variations de prix récentes. Il oscille entre 0 et 100.",
+                  howToRead: `Valeur actuelle: ${analysis.indicators.rsi.value.toFixed(1)}. ${analysis.indicators.rsi.value < 30 ? "⚠️ Zone de survente (<30) : le prix a baissé trop vite, un rebond est probable." : analysis.indicators.rsi.value > 70 ? "⚠️ Zone de surachat (>70) : le prix a monté trop vite, une correction est possible." : analysis.indicators.rsi.value < 40 ? "Zone neutre-basse (30-40) : tendance baissière modérée." : analysis.indicators.rsi.value > 60 ? "Zone neutre-haute (60-70) : tendance haussière modérée." : "Zone neutre (40-60) : pas de signal extrême."} ${(analysis.indicators as any).rsi?.divergence && (analysis.indicators as any).rsi.divergence !== "none" ? `Divergence ${(analysis.indicators as any).rsi.divergence === "bullish" ? "haussière" : "baissière"} détectée !` : ""}`,
+                  influence: "Poids fort dans le score Technique (30% du total). RSI <30 ajoute +15 à +20 pts, RSI >70 soustrait -15 à -20 pts. Une divergence RSI/Prix ajoute ±12 pts supplémentaires.",
+                  weight: "Composante : Technique (30%)",
+                }}
               />
               <IndicatorCard
                 name="MACD"
                 value={analysis.indicators.macd.value.toFixed(2)}
                 signal={analysis.indicators.macd.signal as any}
-                tooltip={`Histogramme: ${analysis.indicators.macd.histogram.toFixed(4)} — ${analysis.indicators.macd.signal === "bullish" ? "momentum haussier" : "momentum baissier"}`}
+                detail={{
+                  description: "Le MACD (Moving Average Convergence Divergence) mesure la relation entre deux moyennes mobiles exponentielles (EMA12 - EMA26). La ligne Signal (EMA9 du MACD) génère des signaux de croisement.",
+                  howToRead: `MACD: ${analysis.indicators.macd.value.toFixed(4)} | Signal: ${analysis.indicators.macd.signal_line.toFixed(4)} | Histogramme: ${analysis.indicators.macd.histogram.toFixed(4)}. ${parseFloat(analysis.indicators.macd.histogram.toFixed(4)) > 0 ? "L'histogramme est positif : momentum haussier en cours." : "L'histogramme est négatif : momentum baissier en cours."} ${Math.abs(parseFloat(analysis.indicators.macd.histogram.toFixed(4))) < 0.001 ? "⚡ Possible croisement imminent !" : ""}`,
+                  influence: "Signal le plus puissant : un croisement haussier (MACD passe au-dessus du Signal) ajoute +20 pts au score Technique. Un croisement baissier soustrait -20 pts. MACD positif sans croisement : ±8 pts.",
+                  weight: "Composante : Technique (30%)",
+                }}
               />
               <IndicatorCard
                 name="EMA 20"
                 value={formatCurrency(analysis.indicators.ema.ema20)}
                 signal={analysis.price.current > analysis.indicators.ema.ema20 ? "bullish" : "bearish"}
-                tooltip={analysis.price.current > analysis.indicators.ema.ema20 ? "Prix au-dessus de l'EMA20 — tendance court terme haussière" : "Prix en-dessous de l'EMA20 — pression baissière CT"}
+                detail={{
+                  description: "L'EMA 20 (Moyenne Mobile Exponentielle sur 20 périodes) suit la tendance de court terme. Elle réagit plus vite aux prix récents qu'une SMA classique.",
+                  howToRead: `Prix actuel (${formatCurrency(analysis.price.current)}) est ${analysis.price.current > analysis.indicators.ema.ema20 ? "AU-DESSUS" : "EN DESSOUS"} de l'EMA20 (${formatCurrency(analysis.indicators.ema.ema20)}). ${analysis.price.current > analysis.indicators.ema.ema20 ? "Signal court terme haussier : momentum positif sur les 20 dernières sessions." : "Signal court terme baissier : le prix sous l'EMA20 indique une pression vendeuse récente."}`,
+                  influence: "Contribue +8 pts au score de Tendance si prix > EMA20, -8 pts sinon. Associée à l'EMA50 et EMA200, elle détermine 35 des 47 points possibles du score de Tendance.",
+                  weight: "Composante : Tendance (25%)",
+                }}
               />
               <IndicatorCard
                 name="EMA 50"
                 value={formatCurrency(analysis.indicators.ema.ema50)}
                 signal={analysis.price.current > analysis.indicators.ema.ema50 ? "bullish" : "bearish"}
-                tooltip={analysis.price.current > analysis.indicators.ema.ema50 ? "Prix au-dessus de l'EMA50 — tendance MT haussière" : "Prix en-dessous de l'EMA50 — pression baissière MT"}
+                detail={{
+                  description: "L'EMA 50 représente la tendance de moyen terme (environ 2,5 mois). C'est une référence majeure pour les traders institutionnels et les algorithmes.",
+                  howToRead: `Prix (${formatCurrency(analysis.price.current)}) ${analysis.price.current > analysis.indicators.ema.ema50 ? "AU-DESSUS" : "EN DESSOUS"} de l'EMA50 (${formatCurrency(analysis.indicators.ema.ema50)}). ${analysis.price.current > analysis.indicators.ema.ema50 ? "Tendance moyen terme haussière confirmée." : "Tendance moyen terme baissière : les vendeurs dominent sur 2-3 mois."} ${analysis.indicators.ema.ema20 > analysis.indicators.ema.ema50 ? "EMA20 > EMA50 : alignement haussier favorable." : "EMA20 < EMA50 : alignement baissier."}`,
+                  influence: "Contribue +12 pts au score de Tendance si prix > EMA50, -12 pts sinon. Le croisement EMA20/EMA50 (Golden Cross / Death Cross) est l'un des signaux les plus suivis du marché.",
+                  weight: "Composante : Tendance (25%)",
+                }}
               />
+              {analysis.indicators.ema.ema200 !== null && analysis.indicators.ema.ema200 !== undefined && (
+                <IndicatorCard
+                  name="EMA 200"
+                  value={formatCurrency(analysis.indicators.ema.ema200)}
+                  signal={analysis.price.current > analysis.indicators.ema.ema200 ? "bullish" : "bearish"}
+                  detail={{
+                    description: "L'EMA 200 est l'indicateur de tendance long terme par excellence. Elle sépare les marchés haussiers des marchés baissiers structurels. Les grands fonds gèrent leurs positions autour de cette ligne.",
+                    howToRead: `Prix (${formatCurrency(analysis.price.current)}) ${analysis.price.current > analysis.indicators.ema.ema200 ? "AU-DESSUS" : "EN DESSOUS"} de l'EMA200 (${formatCurrency(analysis.indicators.ema.ema200)}). ${analysis.price.current > analysis.indicators.ema.ema200 ? "✅ Zone dorée : le prix est en territoire haussier long terme. Les institutionnels sont acheteurs sur les replis." : "⚠️ Territoire baissier long terme : le marché est structurellement en baisse. Prudence accrue recommandée."}`,
+                    influence: "Signal le plus impactant du score de Tendance : +15 pts si prix > EMA200, -15 pts sinon. Représente à lui seul ~32% du score de Tendance total.",
+                    weight: "Composante : Tendance (25%)",
+                  }}
+                />
+              )}
               {analysis.indicators.adx && (
                 <IndicatorCard
                   name="ADX"
-                  value={analysis.indicators.adx.value.toFixed(1)}
+                  value={`${analysis.indicators.adx.value.toFixed(1)} (DI+: ${analysis.indicators.adx.plus_di.toFixed(0)} / DI-: ${analysis.indicators.adx.minus_di.toFixed(0)})`}
                   signal={analysis.indicators.adx.value > 25 ? (analysis.indicators.adx.plus_di > analysis.indicators.adx.minus_di ? "bullish" : "bearish") : "neutral"}
-                  tooltip={`Force de tendance: ${analysis.indicators.adx.value > 50 ? "Très forte" : analysis.indicators.adx.value > 25 ? "Forte" : analysis.indicators.adx.value > 15 ? "Modérée" : "Faible"} — DI+: ${analysis.indicators.adx.plus_di.toFixed(1)} / DI-: ${analysis.indicators.adx.minus_di.toFixed(1)}`}
+                  detail={{
+                    description: "L'ADX (Average Directional Index) mesure la FORCE de la tendance, pas sa direction. Il est accompagné du DI+ (directional indicator haussier) et DI- (baissier) qui indiquent la direction.",
+                    howToRead: `ADX = ${analysis.indicators.adx.value.toFixed(1)} → tendance ${analysis.indicators.adx.value > 50 ? "très forte (>50)" : analysis.indicators.adx.value > 25 ? "forte (25-50)" : analysis.indicators.adx.value > 15 ? "modérée (15-25)" : "faible ou absente (<15)"}. DI+ (${analysis.indicators.adx.plus_di.toFixed(1)}) ${analysis.indicators.adx.plus_di > analysis.indicators.adx.minus_di ? ">" : "<"} DI- (${analysis.indicators.adx.minus_di.toFixed(1)}) → ${analysis.indicators.adx.plus_di > analysis.indicators.adx.minus_di ? "pression haussière dominante" : "pression baissière dominante"}.`,
+                    influence: "ADX >30 avec DI+ > DI- ajoute +12 pts au score de Tendance. ADX >20 ajoute +6 pts. Sans ADX fort, les signaux des autres indicateurs sont moins fiables.",
+                    weight: "Composante : Tendance (25%)",
+                  }}
                 />
               )}
               {analysis.indicators.stochastic && (
                 <IndicatorCard
-                  name="Stoch %K"
-                  value={`${analysis.indicators.stochastic.k.toFixed(1)} / ${analysis.indicators.stochastic.d.toFixed(1)}`}
+                  name="Stochastique"
+                  value={`%K ${analysis.indicators.stochastic.k.toFixed(1)} / %D ${analysis.indicators.stochastic.d.toFixed(1)}`}
                   signal={analysis.indicators.stochastic.signal as any}
-                  tooltip={`%K: ${analysis.indicators.stochastic.k.toFixed(1)} / %D: ${analysis.indicators.stochastic.d.toFixed(1)} — ${analysis.indicators.stochastic.k < 20 ? "Zone de survente" : analysis.indicators.stochastic.k > 80 ? "Zone de surachat" : "Zone neutre"}`}
+                  detail={{
+                    description: "L'oscillateur stochastique compare le prix de clôture à la plage haute/basse des 14 dernières périodes. Le %K est la ligne rapide, le %D la ligne lente (moyenne du %K sur 3 périodes).",
+                    howToRead: `%K = ${analysis.indicators.stochastic.k.toFixed(1)}, %D = ${analysis.indicators.stochastic.d.toFixed(1)}. ${analysis.indicators.stochastic.k < 20 ? "⚡ Zone de survente (<20) : signal d'achat potentiel, surtout si %K dépasse %D." : analysis.indicators.stochastic.k > 80 ? "⚠️ Zone de surachat (>80) : signal de vente potentiel, surtout si %K passe sous %D." : "Zone neutre (20-80)."} ${analysis.indicators.stochastic.k > analysis.indicators.stochastic.d ? "%K > %D : momentum haussier à court terme." : "%K < %D : momentum baissier à court terme."}`,
+                    influence: "Un croisement haussier en zone survendue (<20) ajoute +8 pts au score Technique. Un croisement baissier en surachat (>80) soustrait -8 pts. En zone neutre : ±4 pts selon position.",
+                    weight: "Composante : Technique (30%)",
+                  }}
                 />
               )}
               {analysis.indicators.bollinger.percent_b !== undefined && (
                 <IndicatorCard
-                  name="BB %B"
+                  name="Bollinger %B"
                   value={`${analysis.indicators.bollinger.percent_b.toFixed(1)}%`}
                   signal={analysis.indicators.bollinger.percent_b > 80 ? "bearish" : analysis.indicators.bollinger.percent_b < 20 ? "bullish" : "neutral"}
-                  tooltip={`Position dans les Bandes de Bollinger: 0%=bande basse, 100%=bande haute — ${analysis.indicators.bollinger.percent_b > 100 ? "Au-dessus des bandes" : analysis.indicators.bollinger.percent_b < 0 ? "En-dessous des bandes" : "Dans les bandes"}`}
+                  detail={{
+                    description: "Le %B mesure la position du prix dans les Bandes de Bollinger (20 périodes, ±2 écarts-types). 0% = bande inférieure, 50% = bande médiane, 100% = bande supérieure. Largeur actuelle: " + ((analysis.indicators as any).bollinger?.width_pct?.toFixed(1) ?? "N/A") + "%.",
+                    howToRead: `%B = ${analysis.indicators.bollinger.percent_b.toFixed(1)}%. ${analysis.indicators.bollinger.percent_b > 100 ? "Prix AU-DESSUS de la bande haute : surachat extrême, forte probabilité de retour vers la médiane." : analysis.indicators.bollinger.percent_b < 0 ? "Prix EN-DESSOUS de la bande basse : survente extrême, rebond probable." : analysis.indicators.bollinger.percent_b > 80 ? "Proche de la bande haute : prudence, pression vendeuse possible." : analysis.indicators.bollinger.percent_b < 20 ? "Proche de la bande basse : zone d'intérêt acheteur." : "Position médiane : pas de signal extrême."} Bandes ${(analysis.indicators as any).bollinger?.width_pct < 5 ? "très serrées (compression = possible explosion de volatilité imminente)" : "normales"}.`,
+                    influence: "Prix sous la bande basse ajoute +5 pts au score Technique (rebond probable). Prix au-dessus de la bande haute soustrait -5 pts. La compression des bandes prépare souvent un fort mouvement directionnel.",
+                    weight: "Composante : Technique (30%)",
+                  }}
                 />
               )}
               <IndicatorCard
-                name="ATR"
-                value={analysis.indicators.atr.toFixed(2)}
+                name="ATR (14)"
+                value={`${analysis.indicators.atr.toFixed(2)}${(analysis.indicators as any).atr_pct ? ` (${(analysis.indicators as any).atr_pct.toFixed(2)}%)` : ""}`}
                 signal="neutral"
-                tooltip={`Volatilité moyenne sur 14 jours. Stop-loss suggéré: ${(analysis.indicators.atr * 1.5).toFixed(2)} (1.5x ATR)${(analysis.indicators as any).atr_pct ? ` — ${(analysis.indicators as any).atr_pct.toFixed(2)}% du prix` : ""}`}
+                detail={{
+                  description: "L'ATR (Average True Range) mesure la volatilité moyenne sur 14 périodes. Il calcule le plus grand des 3 écarts : (Haut-Bas), (Haut-Clôture précédente), (Bas-Clôture précédente).",
+                  howToRead: `ATR = ${analysis.indicators.atr.toFixed(2)}${(analysis.indicators as any).atr_pct ? ` soit ${(analysis.indicators as any).atr_pct.toFixed(2)}% du prix` : ""}. Stop-loss standard (2xATR): ${(analysis.indicators.atr * 2).toFixed(2)}. Take-profit (3xATR): ${(analysis.indicators.atr * 3).toFixed(2)}. ${(analysis.indicators as any).atr_pct > 3 ? "Volatilité élevée : augmentez vos stops, réduisez la taille de position." : (analysis.indicators as any).atr_pct < 1 ? "Faible volatilité : marché calme, les mouvements sont contenus." : "Volatilité normale."}`,
+                  influence: "Utilisé directement pour calculer les niveaux de Stop-Loss et Take-Profit suggérés (2xATR et 3xATR). Une ATR élevée (>5% du prix) réduit le score de Volatilité de -10 pts.",
+                  weight: "Composante : Volatilité (5%)",
+                }}
               />
               <IndicatorCard
-                name="Volume"
+                name="Volume Ratio"
                 value={`${analysis.indicators.volume_ratio.toFixed(2)}x`}
                 signal={analysis.indicators.volume_ratio > 1.5 ? "bullish" : analysis.indicators.volume_ratio < 0.7 ? "bearish" : "neutral"}
-                tooltip={`Volume actuel / volume moyen 20j. ${analysis.indicators.volume_ratio > 1.5 ? "Volume élevé — signal fort" : analysis.indicators.volume_ratio < 0.7 ? "Volume faible — signal peu fiable" : "Volume normal"}`}
+                detail={{
+                  description: "Le ratio de volume compare le volume actuel à la moyenne des 20 dernières périodes. Un volume supérieur à 1.5x confirme la conviction derrière un mouvement de prix.",
+                  howToRead: `Volume actuel = ${analysis.indicators.volume_ratio.toFixed(2)}x la moyenne 20j. ${analysis.indicators.volume_ratio > 2 ? "🔥 Volume exceptionnel (>2x) : fort signal de confirmation, les institutionnels sont actifs." : analysis.indicators.volume_ratio > 1.5 ? "Volume élevé (>1.5x) : signal de qualité, mouvement de prix fiable." : analysis.indicators.volume_ratio < 0.5 ? "⚠️ Volume très faible (<0.5x) : mouvement peu fiable, prudence." : analysis.indicators.volume_ratio < 0.8 ? "Volume faible : signal à prendre avec précaution." : "Volume normal : signal standard."}`,
+                  influence: "Volume >2x ajoute +12 pts au score Volume, >1.5x ajoute +8 pts. Volume <0.5x soustrait -10 pts. Combiné à OBV et CMF pour former le score Volume complet.",
+                  weight: "Composante : Volume (20%)",
+                }}
               />
               {(analysis.indicators as any).williams_r && (
                 <IndicatorCard
                   name="Williams %R"
                   value={`${(analysis.indicators as any).williams_r.value.toFixed(1)}`}
                   signal={(analysis.indicators as any).williams_r.signal as any}
-                  tooltip={`Williams %R: ${(analysis.indicators as any).williams_r.value.toFixed(1)} — ${(analysis.indicators as any).williams_r.value < -80 ? "Survendu (<-80), rebond possible" : (analysis.indicators as any).williams_r.value > -20 ? "Suracheté (>-20), repli possible" : "Zone neutre (-80 à -20)"}`}
+                  detail={{
+                    description: "Le Williams %R est un oscillateur de momentum similaire au stochastique, mais inversé. Il mesure le niveau de clôture par rapport au plus haut des 14 dernières périodes. Oscille entre -100 et 0.",
+                    howToRead: `Williams %R = ${(analysis.indicators as any).williams_r.value.toFixed(1)}. ${(analysis.indicators as any).williams_r.value < -80 ? "⚡ Zone de survente (<-80) : le prix clôture près des plus bas, rebond probable. Signal d'achat potentiel." : (analysis.indicators as any).williams_r.value > -20 ? "⚠️ Zone de surachat (>-20) : le prix clôture près des plus hauts, repli possible. Signal de vente potentiel." : "Zone neutre (-80 à -20) : pas de signal extrême."}`,
+                    influence: "Williams %R <-80 ajoute +7 pts au score Technique (survente). Williams %R >-20 soustrait -7 pts (surachat). Complète le RSI et le Stochastique pour une vision oscillateur plus robuste.",
+                    weight: "Composante : Technique (30%)",
+                  }}
                 />
               )}
               {(analysis.indicators as any).obv && (
@@ -930,7 +993,12 @@ export default function AnalysisPage() {
                   name="OBV"
                   value={(analysis.indicators as any).obv.trend === "bullish" ? "↑ Haussier" : "↓ Baissier"}
                   signal={(analysis.indicators as any).obv.trend as any}
-                  tooltip={`On-Balance Volume: accumulation ${(analysis.indicators as any).obv.trend === "bullish" ? "positive — les acheteurs dominent les volumes" : "négative — les vendeurs dominent les volumes"}. Pente: ${(analysis.indicators as any).obv.slope === "up" ? "montante" : "descendante"}`}
+                  detail={{
+                    description: "L'OBV (On-Balance Volume) est un indicateur cumulatif qui ajoute le volume lors des hausses et le soustrait lors des baisses. Il révèle si l'argent entre ou sort du marché derrière les mouvements de prix.",
+                    howToRead: `Tendance OBV: ${(analysis.indicators as any).obv.trend === "bullish" ? "HAUSSIÈRE — l'OBV est au-dessus de son EMA20, les volumes d'achat dominent les volumes de vente sur les dernières sessions." : "BAISSIÈRE — l'OBV est sous son EMA20, les volumes de vente dominent."} Pente 5j: ${(analysis.indicators as any).obv.slope === "up" ? "montante ↑" : "descendante ↓"}. ${(analysis.indicators as any).obv.trend === "bullish" ? "Signal de confirmation : les institutions accumulent discrètement." : "Signal de distribution : les gros acteurs vendent leurs positions."}`,
+                    influence: "OBV haussier avec pente positive ajoute +18 pts au score Volume (signal le plus fort de cette composante). OBV baissier avec pente négative soustrait -18 pts. Indique si le mouvement de prix est confirmé par les volumes.",
+                    weight: "Composante : Volume (20%)",
+                  }}
                 />
               )}
               {(analysis.indicators as any).cmf && (
@@ -938,15 +1006,25 @@ export default function AnalysisPage() {
                   name="CMF"
                   value={`${((analysis.indicators as any).cmf.value * 100).toFixed(1)}%`}
                   signal={(analysis.indicators as any).cmf.signal as any}
-                  tooltip={`Chaikin Money Flow: ${(analysis.indicators as any).cmf.value > 0.1 ? "Flux d'argent positif — pression acheteuse" : (analysis.indicators as any).cmf.value < -0.1 ? "Flux d'argent négatif — pression vendeuse" : "Flux neutre"}`}
+                  detail={{
+                    description: "Le CMF (Chaikin Money Flow) mesure le flux d'argent entrant ou sortant sur 20 périodes en combinant le prix (position dans la plage H-B) et le volume. Oscille entre -1 et +1.",
+                    howToRead: `CMF = ${((analysis.indicators as any).cmf.value * 100).toFixed(1)}%. ${(analysis.indicators as any).cmf.value > 0.2 ? "🟢 Afflux fort (>20%) : forte pression acheteuse institutionnelle." : (analysis.indicators as any).cmf.value > 0.1 ? "🟢 Afflux modéré (10-20%) : les acheteurs ont l'avantage." : (analysis.indicators as any).cmf.value < -0.2 ? "🔴 Sortie forte (<-20%) : forte pression vendeuse institutionnelle." : (analysis.indicators as any).cmf.value < -0.1 ? "🔴 Sortie modérée (-10 à -20%) : les vendeurs ont l'avantage." : "Zone neutre (-10% à +10%) : équilibre acheteurs/vendeurs."} `,
+                    influence: "CMF >0.2 ajoute +15 pts au score Volume. CMF >0.1 ajoute +8 pts. CMF <-0.2 soustrait -15 pts. Particulièrement efficace pour détecter les accumulations/distributions institutionnelles invisibles sur le graphique.",
+                    weight: "Composante : Volume (20%)",
+                  }}
                 />
               )}
               {(analysis.indicators as any).momentum && (
                 <IndicatorCard
-                  name="Momentum 10j"
-                  value={`${(analysis.indicators as any).momentum["10d"] >= 0 ? "+" : ""}${(analysis.indicators as any).momentum["10d"].toFixed(2)}%`}
+                  name="Momentum"
+                  value={`3j: ${(analysis.indicators as any).momentum["3d"] >= 0 ? "+" : ""}${(analysis.indicators as any).momentum["3d"].toFixed(1)}% / 10j: ${(analysis.indicators as any).momentum["10d"] >= 0 ? "+" : ""}${(analysis.indicators as any).momentum["10d"].toFixed(1)}%`}
                   signal={(analysis.indicators as any).momentum["10d"] > 3 ? "bullish" : (analysis.indicators as any).momentum["10d"] < -3 ? "bearish" : "neutral"}
-                  tooltip={`Momentum multi-période — 3j: ${(analysis.indicators as any).momentum["3d"] >= 0 ? "+" : ""}${(analysis.indicators as any).momentum["3d"].toFixed(1)}% | 10j: ${(analysis.indicators as any).momentum["10d"] >= 0 ? "+" : ""}${(analysis.indicators as any).momentum["10d"].toFixed(1)}% | 20j: ${(analysis.indicators as any).momentum["20d"] >= 0 ? "+" : ""}${(analysis.indicators as any).momentum["20d"].toFixed(1)}%`}
+                  detail={{
+                    description: "Le momentum mesure la variation de prix sur plusieurs périodes de référence. Un momentum multi-périodes convergent (3j, 10j, 20j tous positifs) confirme une tendance solide.",
+                    howToRead: `3 jours: ${(analysis.indicators as any).momentum["3d"] >= 0 ? "+" : ""}${(analysis.indicators as any).momentum["3d"].toFixed(2)}% | 10 jours: ${(analysis.indicators as any).momentum["10d"] >= 0 ? "+" : ""}${(analysis.indicators as any).momentum["10d"].toFixed(2)}% | 20 jours: ${(analysis.indicators as any).momentum["20d"] >= 0 ? "+" : ""}${(analysis.indicators as any).momentum["20d"].toFixed(2)}%. ${((analysis.indicators as any).momentum["3d"] > 0 && (analysis.indicators as any).momentum["10d"] > 0 && (analysis.indicators as any).momentum["20d"] > 0) ? "✅ Convergence haussière : les 3 périodes sont positives, tendance solide." : ((analysis.indicators as any).momentum["3d"] < 0 && (analysis.indicators as any).momentum["10d"] < 0 && (analysis.indicators as any).momentum["20d"] < 0) ? "⚠️ Convergence baissière : les 3 périodes sont négatives, tendance baissière établie." : "Signaux mixtes : tendance peu claire, prudence."}`,
+                    influence: "Momentum 20j >15% ajoute +18 pts au score Momentum. Momentum 10j >8% ajoute +15 pts. Momentum 3j >3% ajoute +8 pts. La composante Momentum représente 20% du score final.",
+                    weight: "Composante : Momentum (20%)",
+                  }}
                 />
               )}
             </div>
@@ -1171,12 +1249,21 @@ function IndicatorCard({
   value,
   signal,
   tooltip,
+  detail,
 }: {
   name: string;
   value: string;
   signal: "bullish" | "bearish" | "neutral" | "oversold" | "overbought";
   tooltip?: string;
+  detail?: {
+    description: string;
+    howToRead: string;
+    influence: string;
+    weight?: string;
+  };
 }) {
+  const [expanded, setExpanded] = useState(false);
+
   const normalizedSignal =
     signal === "oversold" ? "bullish" :
     signal === "overbought" ? "bearish" : signal;
@@ -1193,14 +1280,61 @@ function IndicatorCard({
     neutral: <Activity className="w-4 h-4 text-muted-foreground" />,
   };
 
+  const signalLabel = {
+    bullish: { text: "Haussier", color: "text-profit" },
+    bearish: { text: "Baissier", color: "text-loss" },
+    neutral: { text: "Neutre", color: "text-muted-foreground" },
+  };
+
   return (
-    <div className={cn("p-4 rounded-xl border", signalColors[normalizedSignal])} title={tooltip}>
-      <div className="flex items-center justify-between mb-2">
-        <span className="text-sm text-muted-foreground">{name}</span>
-        {signalIcons[normalizedSignal]}
+    <div className={cn("rounded-xl border transition-all", signalColors[normalizedSignal], detail ? "cursor-pointer" : "")}>
+      <div
+        className="p-4"
+        onClick={() => detail && setExpanded(e => !e)}
+      >
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-sm text-muted-foreground font-medium">{name}</span>
+          <div className="flex items-center gap-1.5">
+            {signalIcons[normalizedSignal]}
+            {detail && (
+              expanded
+                ? <ChevronUp className="w-3 h-3 text-muted-foreground" />
+                : <ChevronDown className="w-3 h-3 text-muted-foreground" />
+            )}
+          </div>
+        </div>
+        <p className="font-bold text-lg">{value}</p>
+        <p className={cn("text-xs font-semibold mt-1", signalLabel[normalizedSignal].color)}>
+          {signal === "oversold" ? "Survendu" : signal === "overbought" ? "Suracheté" : signalLabel[normalizedSignal].text}
+        </p>
+        {!detail && tooltip && <p className="text-xs text-muted-foreground mt-1 line-clamp-2 leading-tight">{tooltip}</p>}
       </div>
-      <p className="font-bold">{value}</p>
-      {tooltip && <p className="text-xs text-muted-foreground mt-1 line-clamp-2 leading-tight">{tooltip}</p>}
+
+      {detail && expanded && (
+        <div className="px-4 pb-4 border-t border-white/10 pt-3 space-y-3">
+          <div>
+            <p className="text-xs font-semibold text-foreground/70 mb-1 flex items-center gap-1">
+              <BookOpen className="w-3 h-3" /> Définition
+            </p>
+            <p className="text-xs text-muted-foreground leading-relaxed">{detail.description}</p>
+          </div>
+          <div>
+            <p className="text-xs font-semibold text-foreground/70 mb-1 flex items-center gap-1">
+              <Gauge className="w-3 h-3" /> Comment lire la valeur actuelle
+            </p>
+            <p className="text-xs text-muted-foreground leading-relaxed">{detail.howToRead}</p>
+          </div>
+          <div>
+            <p className="text-xs font-semibold text-foreground/70 mb-1 flex items-center gap-1">
+              <Zap className="w-3 h-3" /> Influence sur le score
+            </p>
+            <p className="text-xs text-muted-foreground leading-relaxed">{detail.influence}</p>
+            {detail.weight && (
+              <span className="mt-1 inline-block text-xs bg-white/10 rounded px-2 py-0.5 text-foreground/60">{detail.weight}</span>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
