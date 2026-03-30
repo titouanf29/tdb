@@ -22,6 +22,7 @@ import {
   Bot,
   GraduationCap,
   Briefcase,
+  Scale,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -242,8 +243,29 @@ export function Sidebar({
         )}
       </nav>
 
-      {/* Bottom: Settings + Collapse */}
+      {/* Bottom: Mentions légales + Settings + Collapse */}
       <div className="p-3 space-y-1" style={{borderTop: "1px solid rgba(99,140,255,0.1)"}}>
+        <Link href="/mentions-legales">
+          <motion.div
+            whileHover={{ x: 4 }}
+            whileTap={{ scale: 0.98 }}
+            className="flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-200 text-muted-foreground/50 hover:text-muted-foreground"
+          >
+            <Scale className="w-4 h-4 flex-shrink-0" />
+            <AnimatePresence>
+              {!collapsed && (
+                <motion.span
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -10 }}
+                  className="text-xs"
+                >
+                  Mentions légales
+                </motion.span>
+              )}
+            </AnimatePresence>
+          </motion.div>
+        </Link>
         <Link href="/settings">
           <motion.div
             whileHover={{ x: 4 }}
