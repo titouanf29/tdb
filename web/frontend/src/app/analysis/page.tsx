@@ -909,7 +909,7 @@ export default function AnalysisPage() {
                 name="ATR"
                 value={analysis.indicators.atr.toFixed(2)}
                 signal="neutral"
-                tooltip={`Volatilité moyenne sur 14 jours. Stop-loss suggéré: ${(analysis.indicators.atr * 1.5).toFixed(2)} (1.5x ATR)${analysis.indicators.atr_pct ? ` — ${analysis.indicators.atr_pct.toFixed(2)}% du prix` : ""}`}
+                tooltip={`Volatilité moyenne sur 14 jours. Stop-loss suggéré: ${(analysis.indicators.atr * 1.5).toFixed(2)} (1.5x ATR)${(analysis.indicators as any).atr_pct ? ` — ${(analysis.indicators as any).atr_pct.toFixed(2)}% du prix` : ""}`}
               />
               <IndicatorCard
                 name="Volume"
