@@ -327,8 +327,16 @@ async def analyze_asset(
                     or "Yahoo Finance"
                 )
 
-                # Link: top-level or nested
-                link = item.get("link") or content.get("url") or ""
+                # Link: try all known yfinance field locations
+                click_through = content.get("clickThroughUrl") or {}
+                canonical     = content.get("canonicalUrl") or {}
+                link = (
+                    item.get("link")
+                    or content.get("url")
+                    or (click_through.get("url") if isinstance(click_through, dict) else click_through)
+                    or (canonical.get("url") if isinstance(canonical, dict) else canonical)
+                    or ""
+                )
                 if isinstance(link, dict):
                     link = link.get("url", "")
 

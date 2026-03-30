@@ -3728,11 +3728,22 @@ function NewsSentimentSection({ news, symbol }: { news: Analysis["news"]; symbol
       <div className="space-y-4">
         {news.map((item, index) => {
           const { theme, sentiment } = generateSummary(item.title || "", item.publisher);
+          const cardProps = item.link
+            ? { as: "a" as const, href: item.link, target: "_blank", rel: "noopener noreferrer", onClick: (e: React.MouseEvent) => e.stopPropagation() }
+            : {};
 
           return (
-            <div
+            <a
               key={index}
-              className="p-4 bg-white/5 rounded-xl hover:bg-white/10 transition-colors"
+              href={item.link || undefined}
+              target={item.link ? "_blank" : undefined}
+              rel={item.link ? "noopener noreferrer" : undefined}
+              className={cn(
+                "block p-4 bg-white/5 rounded-xl transition-all border border-transparent",
+                item.link
+                  ? "hover:bg-white/10 hover:border-white/10 cursor-pointer"
+                  : "cursor-default"
+              )}
             >
               <div className="flex items-start gap-3">
                 <div className="text-2xl flex-shrink-0">{sentiment.icon}</div>
@@ -3745,10 +3756,17 @@ function NewsSentimentSection({ news, symbol }: { news: Analysis["news"]; symbol
                     <span className="px-2 py-0.5 rounded text-xs bg-white/10 text-muted-foreground">
                       {theme}
                     </span>
+                    {item.link && (
+                      <span className="ml-auto flex items-center gap-1 text-xs text-primary font-medium">
+                        Lire l'article <ArrowRight className="w-3 h-3" />
+                      </span>
+                    )}
                   </div>
 
                   {/* Title */}
-                  <p className="font-medium text-sm mb-2">{item.title}</p>
+                  <p className="font-medium text-sm mb-2 group-hover:text-primary transition-colors">
+                    {item.title}
+                  </p>
 
                   {/* Summary based on title */}
                   <p className="text-xs text-muted-foreground mb-3 line-clamp-2">
@@ -3764,34 +3782,27 @@ function NewsSentimentSection({ news, symbol }: { news: Analysis["news"]; symbol
                     }
                   </p>
 
-                  {/* Meta info and link */}
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      {item.publisher && (
-                        <span className="font-medium">{item.publisher}</span>
-                      )}
-                      {item.date && (
-                        <>
-                          <span>•</span>
-                          <span>{getRelativeTime(item.date)}</span>
-                        </>
-                      )}
-                    </div>
-                    {item.link && (
-                      <a
-                        href={item.link}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-1 text-xs text-primary hover:underline font-medium"
-                      >
-                        Lire l'article
-                        <ArrowRight className="w-3 h-3" />
-                      </a>
+                  {/* Meta info */}
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    {item.publisher && (
+                      <span className="font-medium">{item.publisher}</span>
+                    )}
+                    {item.date && (
+                      <>
+                        <span>•</span>
+                        <span>{getRelativeTime(item.date)}</span>
+                      </>
+                    )}
+                    {!item.link && (
+                      <>
+                        <span>•</span>
+                        <span className="italic">Lien non disponible</span>
+                      </>
                     )}
                   </div>
                 </div>
               </div>
-            </div>
+            </a>
           );
         })}
       </div>
