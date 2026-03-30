@@ -953,7 +953,7 @@ export default function AnalysisPage() {
           </motion.div>
 
           {/* Conviction Panel */}
-          {analysis.conviction && (analysis.conviction as any).total_signals > 0 && (
+          {(analysis as any).conviction && (analysis as any).conviction.total_signals > 0 && (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -962,32 +962,32 @@ export default function AnalysisPage() {
             >
               <h3 className="font-semibold mb-4 flex items-center gap-2">
                 <Brain className="w-5 h-5 text-primary" />
-                Score de Conviction — {(analysis.conviction as any).total_signals} signaux détectés
+                Score de Conviction — {(analysis as any).conviction.total_signals} signaux détectés
               </h3>
               <div className="mb-4">
                 <div className="flex justify-between text-sm mb-1">
-                  <span className="text-loss">{(analysis.conviction as any).bearish_signals.length} baissiers</span>
-                  <span className="font-bold">{(analysis.conviction as any).score}% haussier</span>
-                  <span className="text-profit">{(analysis.conviction as any).bullish_signals.length} haussiers</span>
+                  <span className="text-loss">{(analysis as any).conviction.bearish_signals.length} baissiers</span>
+                  <span className="font-bold">{(analysis as any).conviction.score}% haussier</span>
+                  <span className="text-profit">{(analysis as any).conviction.bullish_signals.length} haussiers</span>
                 </div>
                 <div className="w-full bg-loss/20 rounded-full h-3 overflow-hidden">
                   <div
                     className="h-3 rounded-full transition-all"
                     style={{
-                      width: `${(analysis.conviction as any).score}%`,
-                      background: (analysis.conviction as any).score > 60 ? "rgb(var(--profit))" : (analysis.conviction as any).score < 40 ? "rgb(var(--loss))" : "rgb(var(--warning))"
+                      width: `${(analysis as any).conviction.score}%`,
+                      background: (analysis as any).conviction.score > 60 ? "rgb(var(--profit))" : (analysis as any).conviction.score < 40 ? "rgb(var(--loss))" : "rgb(var(--warning))"
                     }}
                   />
                 </div>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {(analysis.conviction as any).bullish_signals.length > 0 && (
+                {(analysis as any).conviction.bullish_signals.length > 0 && (
                   <div>
                     <p className="text-xs font-semibold text-profit mb-2 flex items-center gap-1">
                       <CheckCircle className="w-3 h-3" /> Signaux Haussiers
                     </p>
                     <ul className="space-y-1">
-                      {(analysis.conviction as any).bullish_signals.map((s: string, i: number) => (
+                      {(analysis as any).conviction.bullish_signals.map((s: string, i: number) => (
                         <li key={i} className="text-xs text-muted-foreground flex items-start gap-1.5">
                           <span className="text-profit mt-0.5">•</span>{s}
                         </li>
@@ -995,13 +995,13 @@ export default function AnalysisPage() {
                     </ul>
                   </div>
                 )}
-                {(analysis.conviction as any).bearish_signals.length > 0 && (
+                {(analysis as any).conviction.bearish_signals.length > 0 && (
                   <div>
                     <p className="text-xs font-semibold text-loss mb-2 flex items-center gap-1">
                       <XCircle className="w-3 h-3" /> Signaux Baissiers
                     </p>
                     <ul className="space-y-1">
-                      {(analysis.conviction as any).bearish_signals.map((s: string, i: number) => (
+                      {(analysis as any).conviction.bearish_signals.map((s: string, i: number) => (
                         <li key={i} className="text-xs text-muted-foreground flex items-start gap-1.5">
                           <span className="text-loss mt-0.5">•</span>{s}
                         </li>
