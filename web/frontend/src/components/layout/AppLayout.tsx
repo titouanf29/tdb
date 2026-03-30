@@ -10,30 +10,42 @@ import { ChangelogBanner } from "./ChangelogBanner";
 import { OnboardingModal } from "@/components/onboarding/OnboardingModal";
 import { Loader2 } from "lucide-react";
 
-export function AppLayout({ children }: { children: React.ReactNode }) {
+// ── Public pages: no auth logic, no effects ───────────────────────────────────
+
+function LegalShell({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="min-h-screen">
+      <div className="max-w-4xl mx-auto px-4 py-12">
+        {children}
+      </div>
+    </div>
+  );
+}
+
+// ── Auth + protected pages: redirect logic lives here, never mounts for legal/landing ──
+
+function AuthShell({
+  children,
+  isAuthPage,
+}: {
+  children: React.ReactNode;
+  isAuthPage: boolean;
+}) {
   const { isAuthenticated, isLoading, user } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
 
-  const isAuthPage    = pathname?.startsWith("/login") || pathname?.startsWith("/register");
-  const isLandingPage = !pathname || pathname === "/";
-  const isLegalPage   = pathname?.startsWith("/mentions-legales")
-    || pathname?.startsWith("/politique-de-confidentialite")
-    || pathname?.startsWith("/cgu");
-
-  // ── All hooks must be declared before any early return ────────────────────
-
-  // Redirect unauthenticated users — never fires for public pages
+  // Redirect unauthenticated users — only runs on auth/protected pages
   useEffect(() => {
-    if (isLandingPage || isLegalPage || isAuthPage) return;
+    if (isAuthPage) return;
     if (!isLoading && !isAuthenticated) {
       router.push("/login");
     }
-  }, [isAuthenticated, isLoading, isLandingPage, isLegalPage, isAuthPage, router]);
+  }, [isAuthenticated, isLoading, isAuthPage, router]);
 
-  // Onboarding modal for users without a trading level
+  // Onboarding modal
   useEffect(() => {
     if (isAuthenticated && user && user.trading_level == null) {
       const t = setTimeout(() => setShowOnboarding(true), 800);
@@ -46,22 +58,6 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     setMobileMenuOpen(false);
   }, [pathname]);
 
-  // ── Public pages: render immediately, no auth logic ───────────────────────
-
-  if (isLandingPage) {
-    return <>{children}</>;
-  }
-
-  if (isLegalPage) {
-    return (
-      <div className="min-h-screen">
-        <div className="max-w-4xl mx-auto px-4 py-12">
-          {children}
-        </div>
-      </div>
-    );
-  }
-
   if (isAuthPage) {
     return (
       <div className="min-h-screen flex items-center justify-center p-4">
@@ -69,8 +65,6 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       </div>
     );
   }
-
-  // ── Auth-required pages ───────────────────────────────────────────────────
 
   if (isLoading) {
     return (
@@ -123,4 +117,29 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       </div>
     </div>
   );
+}
+
+// ── AppLayout: routes to the correct shell, no hooks needed here ──────────────
+
+export function AppLayout({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+
+  const isLandingPage = !pathname || pathname === "/";
+  const isLegalPage   = pathname?.startsWith("/mentions-legales")
+    || pathname?.startsWith("/politique-de-confidentialite")
+    || pathname?.startsWith("/cgu");
+  const isAuthPage    = pathname?.startsWith("/login")
+    || pathname?.startsWith("/register")
+    || pathname?.startsWith("/verify-email");
+
+  if (isLandingPage) {
+    return <>{children}</>;
+  }
+
+  if (isLegalPage) {
+    return <LegalShell>{children}</LegalShell>;
+  }
+
+  // Auth pages and protected pages both go through AuthShell
+  return <AuthShell isAuthPage={!!isAuthPage}>{children}</AuthShell>;
 }
