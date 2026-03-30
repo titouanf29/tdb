@@ -32,6 +32,26 @@ def _safe(value, default=None, ndigits=None):
         return default
 
 
+def _sanitize(obj):
+    """Recursively walk a dict/list and replace any NaN/Inf float with None."""
+    if isinstance(obj, dict):
+        return {k: _sanitize(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [_sanitize(v) for v in obj]
+    if isinstance(obj, float):
+        if obj != obj or obj == float("inf") or obj == float("-inf"):  # NaN or Inf
+            return None
+        return obj
+    # numpy scalars
+    try:
+        f = float(obj)
+        if f != f or f == float("inf") or f == float("-inf"):
+            return None
+        return f
+    except Exception:
+        return obj
+
+
 # ── Scan quota helpers ──────────────────────────────────────────────────────
 
 async def _get_scans_today(user_id: int) -> int:
@@ -681,7 +701,7 @@ async def analyze_asset(
             elif "sell" in rec or "under" in rec:
                 analyst_sentiment = "bearish"
 
-        return {
+        result = {
             "symbol": symbol,
             "timeframe": timeframe,
             "company": company_info,
@@ -776,35 +796,37 @@ async def analyze_asset(
             },
             "fibonacci": fibonacci,
             "levels": {
-                "support": round(recent_low, 2),
-                "resistance": round(recent_high, 2),
-                "pivot": round((recent_high + recent_low + current_price) / 3, 2)
+                "support":    _safe(recent_low, None, 2),
+                "resistance": _safe(recent_high, None, 2),
+                "pivot":      _safe((recent_high + recent_low + current_price) / 3, None, 2),
             },
             "risk": {
-                "suggested_sl": round(current_price - (atr * 2), 2),
-                "suggested_tp": round(current_price + (atr * 3), 2),
-                "suggested_sl_tight": round(current_price - atr, 2),
-                "suggested_tp_conservative": round(current_price + (atr * 1.5), 2),
+                "suggested_sl":              _safe(current_price - (atr * 2), None, 2),
+                "suggested_tp":              _safe(current_price + (atr * 3), None, 2),
+                "suggested_sl_tight":        _safe(current_price - atr, None, 2),
+                "suggested_tp_conservative": _safe(current_price + (atr * 1.5), None, 2),
                 "risk_reward": 1.5,
-                "atr_stop_pct": round(float(atr / current_price * 200), 2),  # 2xATR stop %
+                "atr_stop_pct": _safe(atr / current_price * 200, None, 2),
             },
             "fundamentals": fundamentals,
             "performance": performance,
             "volatility": {
-                "20d": round(volatility_20d, 2),
-                "60d": round(volatility_60d, 2) if volatility_60d else None,
+                "20d": _safe(volatility_20d, None, 2),
+                "60d": _safe(volatility_60d, None, 2) if volatility_60d is not None else None,
             },
             "targets": {
-                "bull": target_bull,
-                "base": target_base,
-                "bear": target_bear,
+                "bull": _safe(target_bull, None, 2),
+                "base": _safe(target_base, None, 2),
+                "bear": _safe(target_bear, None, 2),
                 "analyst_mean": fundamentals.get("target_price"),
                 "analyst_high": fundamentals.get("target_high"),
-                "analyst_low": fundamentals.get("target_low"),
+                "analyst_low":  fundamentals.get("target_low"),
             },
             "analyst_sentiment": analyst_sentiment,
             "news": news_items,
         }
+
+        return _sanitize(result)
 
     except HTTPException:
         raise
