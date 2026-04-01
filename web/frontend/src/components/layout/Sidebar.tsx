@@ -93,9 +93,8 @@ export function Sidebar({
 
   return (
     <motion.aside
-      initial={{ x: -20, opacity: 0 }}
-      animate={{ x: 0, opacity: 1, width: collapsed ? 80 : 260 }}
-      transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+      animate={{ width: collapsed ? 80 : 260 }}
+      transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
       className={`h-screen flex flex-col
         fixed lg:relative z-50 lg:z-auto
         ${mobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}

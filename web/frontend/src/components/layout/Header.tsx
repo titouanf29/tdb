@@ -102,9 +102,9 @@ export function Header({ onMenuToggle }: { onMenuToggle?: () => void }) {
       {/* Hamburger mobile */}
       <button
         onClick={onMenuToggle}
-        className="lg:hidden p-2 rounded-lg hover:bg-white/5 transition-colors flex-shrink-0"
+        className="lg:hidden p-2 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 transition-all duration-200 flex-shrink-0"
       >
-        <Menu className="w-5 h-5 text-muted-foreground" />
+        <Menu className="w-5 h-5 text-foreground" />
       </button>
 
       {/* Search */}
