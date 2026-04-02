@@ -12,6 +12,7 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
@@ -21,7 +22,7 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-      await login(email, password);
+      await login(email, password, rememberMe);
       router.push("/dashboard");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erreur de connexion");
@@ -100,6 +101,29 @@ export default function LoginPage() {
               </button>
             </div>
           </div>
+
+          {/* Rester connecté */}
+          <label className="flex items-center gap-3 cursor-pointer group select-none">
+            <div className="relative">
+              <input
+                type="checkbox"
+                checked={rememberMe}
+                onChange={(e) => setRememberMe(e.target.checked)}
+                className="sr-only peer"
+              />
+              <div className="w-5 h-5 rounded-md border border-white/20 bg-white/5 peer-checked:bg-primary peer-checked:border-primary transition-all duration-200 flex items-center justify-center">
+                {rememberMe && (
+                  <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                  </svg>
+                )}
+              </div>
+            </div>
+            <div>
+              <span className="text-sm text-foreground group-hover:text-white transition-colors">Rester connecté</span>
+              <span className="block text-xs text-muted-foreground">Votre session durera 30 jours</span>
+            </div>
+          </label>
 
           <button
             type="submit"

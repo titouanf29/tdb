@@ -19,7 +19,7 @@ interface AuthContextType {
   user: User | null;
   isLoading: boolean;
   isAuthenticated: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string, rememberMe?: boolean) => Promise<void>;
   register: (
     email: string,
     password: string,
@@ -76,8 +76,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => clearInterval(interval);
   }, [user]);
 
-  const login = async (email: string, password: string) => {
-    const response = await authLogin(email, password);
+  const login = async (email: string, password: string, rememberMe = false) => {
+    const response = await authLogin(email, password, rememberMe);
     setUser(response.user);
   };
 

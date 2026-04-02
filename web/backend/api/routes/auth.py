@@ -34,7 +34,8 @@ if not _JWT_SECRET_ENV:
         _JWT_SECRET_ENV = "dev-only-insecure-secret-do-not-use-in-prod"
 SECRET_KEY = _JWT_SECRET_ENV
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_HOURS = 1  # 1 hour
+ACCESS_TOKEN_EXPIRE_HOURS = 1   # session courte (sans "rester connecté")
+REMEMBER_ME_EXPIRE_DAYS   = 30  # session longue (avec "rester connecté")
 
 VERIFICATION_EXPIRE_HOURS = 24
 
@@ -51,6 +52,7 @@ class RegisterRequest(BaseModel):
 class LoginRequest(BaseModel):
     email: EmailStr
     password: str
+    remember_me: bool = False
 
 
 class TokenResponse(BaseModel):
@@ -208,7 +210,15 @@ async def login(request: Request, data: LoginRequest):
         (datetime.now(timezone.utc).isoformat(), user["id"])
     )
 
-    access_token = create_access_token({"sub": str(user["id"])})
+    expires = (
+        timedelta(days=REMEMBER_ME_EXPIRE_DAYS)
+        if data.remember_me
+        else timedelta(hours=ACCESS_TOKEN_EXPIRE_HOURS)
+    )
+    access_token = create_access_token(
+        {"sub": str(user["id"]), "rm": data.remember_me},
+        expires_delta=expires,
+    )
     return TokenResponse(
         access_token=access_token,
         user={
@@ -302,9 +312,26 @@ async def get_me(current_user: dict = Depends(get_current_user)):
 
 
 @router.post("/refresh")
-async def refresh_token(current_user: dict = Depends(get_current_user)):
-    """Issue a fresh token for an active authenticated user."""
-    new_token = create_access_token(data={"sub": str(current_user["id"])})
+async def refresh_token(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    current_user: dict = Depends(get_current_user),
+):
+    """Issue a fresh token, en conservant le flag remember_me du token précédent."""
+    try:
+        payload = jwt.decode(credentials.credentials, SECRET_KEY, algorithms=[ALGORITHM])
+        remember_me = bool(payload.get("rm", False))
+    except JWTError:
+        remember_me = False
+
+    expires = (
+        timedelta(days=REMEMBER_ME_EXPIRE_DAYS)
+        if remember_me
+        else timedelta(hours=ACCESS_TOKEN_EXPIRE_HOURS)
+    )
+    new_token = create_access_token(
+        data={"sub": str(current_user["id"]), "rm": remember_me},
+        expires_delta=expires,
+    )
     return {"access_token": new_token, "token_type": "bearer"}
 
 
