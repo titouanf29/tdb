@@ -50,6 +50,13 @@ class CreatePositionRequest(BaseModel):
         return v
 
 
+# Colonnes autorisées pour la mise à jour — liste explicite pour éviter
+# toute injection de noms de colonnes non prévus.
+_UPDATABLE_COLUMNS = frozenset({
+    "quantity", "entry_price", "entry_date", "leverage",
+    "broker", "notes", "stop_loss", "take_profit",
+})
+
 class UpdatePositionRequest(BaseModel):
     quantity: Optional[float] = None
     entry_price: Optional[float] = None
@@ -175,7 +182,10 @@ async def update_position(
     if not rows:
         raise HTTPException(status_code=404, detail="Position introuvable")
 
-    updates = {k: v for k, v in req.model_dump().items() if v is not None}
+    updates = {
+        k: v for k, v in req.model_dump().items()
+        if v is not None and k in _UPDATABLE_COLUMNS
+    }
     if not updates:
         raise HTTPException(status_code=400, detail="Aucun champ à mettre à jour")
 

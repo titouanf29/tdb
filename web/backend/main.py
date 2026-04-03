@@ -91,8 +91,12 @@ async def security_headers(request: Request, call_next):
     response.headers["X-XSS-Protection"] = "1; mode=block"
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
     response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
+    response.headers["Cross-Origin-Opener-Policy"] = "same-origin"
+    response.headers["Cross-Origin-Resource-Policy"] = "same-site"
+    # Ne pas exposer le serveur sous-jacent
+    response.headers.pop("server", None)
     if IS_PRODUCTION:
-        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains; preload"
     return response
 
 
@@ -129,11 +133,7 @@ app.include_router(websocket_router, prefix="/ws", tags=["WebSocket"])
 
 @app.get("/")
 async def root():
-    return {
-        "name": "TDB Trading Bot API",
-        "version": "1.0.0",
-        "status": "online",
-    }
+    return {"status": "ok"}
 
 
 @app.get("/health")

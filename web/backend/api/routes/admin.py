@@ -16,13 +16,11 @@ from .auth import get_current_user
 
 router = APIRouter()
 
-# Admin whitelist - emails that have admin access
-ADMIN_WHITELIST = [
-    "titouan.floch01@gmail.com",
-    "captentdb@gmail.com",
-]
+# Admin whitelist — chargé exclusivement depuis la variable d'environnement ADMIN_EMAILS
+# (ex: ADMIN_EMAILS="email1@example.com,email2@example.com")
+# Ne jamais mettre d'emails en dur ici.
+ADMIN_WHITELIST: list[str] = []
 
-# Add any emails from environment variable
 env_admins = os.environ.get("ADMIN_EMAILS", "")
 if env_admins:
     ADMIN_WHITELIST.extend([e.strip() for e in env_admins.split(",") if e.strip()])
