@@ -94,7 +94,8 @@ async def security_headers(request: Request, call_next):
     response.headers["Cross-Origin-Opener-Policy"] = "same-origin"
     response.headers["Cross-Origin-Resource-Policy"] = "same-site"
     # Ne pas exposer le serveur sous-jacent
-    response.headers.pop("server", None)
+    if "server" in response.headers:
+        del response.headers["server"]
     if IS_PRODUCTION:
         response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains; preload"
     return response
