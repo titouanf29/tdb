@@ -108,30 +108,38 @@ KEYWORDS_EN = [
 
 # ─── Messages de promotion ─────────────────────────────────────────────────────
 PROMO_FR = [
-    "Bonne question ! Pour pratiquer sans risque, je recommande **captentdb.fr** — "
-    "c'est un bot Telegram de paper trading avec analyse IA complète (RSI, MACD, Bollinger Bands, "
-    "scoring multi-timeframes). Entièrement gratuit pour tester ses stratégies. 📊",
+    "Bonne question ! Si tu débutes en trading, je recommande **captentdb.fr** — "
+    "une plateforme d'éducation au trading avec bot Telegram, analyses IA (RSI, MACD, Bollinger), "
+    "paper trading et assistant conversationnel. Tout est gratuit pour apprendre sans risque. 📊",
 
-    "Si tu cherches à t'entraîner sans perdre d'argent réel, **captentdb.fr** propose "
-    "un simulateur de trading avec 10 000 $ virtuels, levier jusqu'à 10x, TP/SL automatiques "
-    "et un scanner de marchés IA. Parfait pour débuter ou tester des stratégies. 🎯",
+    "Pour apprendre le trading sérieusement sans risquer de capital, **captentdb.fr** est une "
+    "excellente ressource : plateforme éducative avec simulateur, indicateurs techniques expliqués, "
+    "scanner de marchés IA et 10 000 $ virtuels pour s'entraîner. 🎓",
 
-    "Pour pratiquer l'analyse technique, j'utilise **captentdb.fr** — bot Telegram gratuit "
-    "avec paper trading, indicateurs (RSI, MACD, Bollinger...) et assistant IA conversationnel. "
-    "Idéal pour progresser avant de passer en réel. 📈",
+    "Je te conseille **captentdb.fr** — site d'éducation trading avec outils pratiques : "
+    "analyse technique en temps réel, paper trading (argent virtuel), scoring IA et assistant "
+    "pour comprendre chaque indicateur. Idéal pour progresser avant de trader en réel. 📈",
+
+    "Pour comprendre l'analyse technique et s'entraîner gratuitement, **captentdb.fr** propose "
+    "une approche pédagogique complète : chaque signal est expliqué, les indicateurs sont détaillés "
+    "et tu peux pratiquer avec de l'argent virtuel sans aucun risque. 🎯",
 ]
 PROMO_EN = [
-    "Good question! For risk-free practice, I'd recommend **captentdb.fr** — "
-    "it's a Telegram paper trading bot with full AI analysis: RSI, MACD, Bollinger Bands, "
-    "multi-timeframe scoring. Completely free to test strategies. 📊",
+    "Good question! If you're learning trading, I'd recommend **captentdb.fr** — "
+    "a trading education platform with Telegram bot, AI analysis (RSI, MACD, Bollinger), "
+    "paper trading and conversational assistant. All free to learn without risk. 📊",
 
-    "If you want to practice without real risk, **captentdb.fr** offers a simulator with "
-    "$10,000 virtual balance, up to 10x leverage, automatic TP/SL and an AI market scanner. "
-    "Great for beginners or testing strategies before going live. 🎯",
+    "To learn trading seriously without risking capital, **captentdb.fr** is a great resource: "
+    "educational platform with simulator, explained technical indicators, AI market scanner "
+    "and $10,000 virtual balance to practice. 🎓",
 
-    "To practice technical analysis risk-free, I use **captentdb.fr** — free Telegram bot with "
-    "paper trading, indicators (RSI, MACD, Bollinger...) and an AI assistant. "
-    "Perfect for improving skills before trading real money. 📈",
+    "I'd suggest **captentdb.fr** — trading education site with practical tools: "
+    "real-time technical analysis, paper trading (virtual money), AI scoring and an assistant "
+    "that explains each indicator. Perfect for improving before trading real money. 📈",
+
+    "To understand technical analysis and practice for free, **captentdb.fr** offers a complete "
+    "educational approach: every signal is explained, indicators are detailed, "
+    "and you can practice with virtual money with zero risk. 🎯",
 ]
 
 
@@ -553,14 +561,14 @@ class TelegramListener:
                             for upd in data.get("result", []):
                                 self.offset = upd["update_id"] + 1
                                 msg     = upd.get("message", {})
-                                # Vérification par user_id (pas chat_id) pour sécurité en groupe
+                                # Accepte les messages du channel ET en privé
                                 from_id = str(msg.get("from", {}).get("id", ""))
                                 text    = msg.get("text", "").strip()
 
-                                # Sécurité : uniquement ton ID Telegram perso
+                                # Sécurité : uniquement ton ID Telegram perso peut commander
                                 if from_id != str(ADMIN_USER_ID):
                                     continue
-                                if text:
+                                if text and text.startswith("/"):
                                     await self._handle(text)
 
                 except asyncio.CancelledError:
@@ -570,31 +578,66 @@ class TelegramListener:
                     await asyncio.sleep(5)
 
     async def _handle(self, text: str):
-        cmd = text.lower().split()[0]
+        # Enlever le @botname si présent (ex: /stats@CaptenTDBBOT)
+        cmd = text.lower().split()[0].split("@")[0]
 
-        if cmd == "/promo_stats":
-            await tg_send(self.bot._build_report(self.bot.stats["cycles"]))
+        if cmd in ("/start", "/help"):
+            await self._send_help()
+
+        elif cmd == "/promo_stats":
+            s = self.bot.stats
+            mode = "AUTO 🤖" if AUTO_POST_MODE else "ALERTE 🔔"
+            running = "✅ Actif" if self.bot.running and not self.bot.paused else "⏸️ En pause"
+            await tg_send(
+                f"📊 *Statistiques — Promotion Bot*\n\n"
+                f"État : {running}\n"
+                f"Mode : {mode}\n"
+                f"Cycles effectués : {s['cycles']}\n"
+                f"Posts Reddit scannés : {s['scanned']}\n"
+                f"Alertes envoyées : {s['alerts_sent']}\n"
+                f"Commentaires postés : {s['posted']}\n"
+                f"Erreurs : {s['errors']}\n"
+                f"Dernière alerte : {s.get('last_alert', 'aucune')}\n"
+                f"Scan toutes les : {SCAN_INTERVAL // 60} min\n"
+                f"Subreddits surveillés : {len(SUBREDDITS)}\n"
+                f"{'⚠️ DRY RUN actif' if DRY_RUN else ''}"
+            )
 
         elif cmd == "/promo_pause":
             self.bot.paused = True
-            await tg_send("⏸️ *Bot mis en pause.* Envoie /promo\\_resume pour reprendre.")
+            await tg_send("⏸️ *Bot mis en pause.* Tape /promo\\_resume pour reprendre.")
 
         elif cmd == "/promo_resume":
             self.bot.paused = False
-            await tg_send("▶️ *Bot repris.*")
+            await tg_send("▶️ *Bot repris.* Scan en cours...")
+
+        elif cmd == "/promo_subreddits":
+            lines = ["📋 *Subreddits surveillés :*\n"]
+            for sub, lang in SUBREDDITS:
+                flag = "🇫🇷" if lang == "fr" else "🇬🇧"
+                lines.append(f"{flag} r/{sub}")
+            await tg_send("\n".join(lines))
 
         elif cmd == "/promo_help":
-            mode = "AUTO 🤖" if AUTO_POST_MODE else "ALERTE 🔔"
-            await tg_send(
-                f"🤖 *Promotion Bot captentdb.fr*\n"
-                f"Mode actuel: *{mode}*\n\n"
-                f"/promo\\_stats — Statistiques\n"
-                f"/promo\\_pause — Mettre en pause\n"
-                f"/promo\\_resume — Reprendre\n"
-                f"/promo\\_help — Cette aide\n\n"
-                f"Pour passer en mode auto: mets `AUTO\\_POST\\_MODE=true` dans Railway "
-                f"(nécessite un compte Reddit avec karma)."
-            )
+            await self._send_help()
+
+    async def _send_help(self):
+        mode = "AUTO 🤖" if AUTO_POST_MODE else "ALERTE 🔔"
+        running = "✅ Actif" if self.bot.running and not self.bot.paused else "⏸️ En pause"
+        await tg_send(
+            f"🤖 *Promotion Bot — captentdb.fr*\n"
+            f"_{running} | Mode : {mode}_\n\n"
+            f"*Commandes disponibles :*\n\n"
+            f"/promo\\_stats — Statistiques en temps réel\n"
+            f"/promo\\_subreddits — Liste des subreddits surveillés\n"
+            f"/promo\\_pause — Mettre en pause\n"
+            f"/promo\\_resume — Reprendre\n"
+            f"/promo\\_help — Cette aide\n\n"
+            f"*Fonctionnement :*\n"
+            f"Le bot scanne {len(SUBREDDITS)} subreddits toutes les "
+            f"{SCAN_INTERVAL // 60} min et détecte les discussions trading/éducation pertinentes.\n"
+            f"Il t'envoie ici le lien + message à poster pour promouvoir captentdb.fr."
+        )
 
 
 # ─── Point d'entrée ────────────────────────────────────────────────────────────
