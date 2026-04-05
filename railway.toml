@@ -1,0 +1,13 @@
+[build]
+builder = "nixpacks"
+
+# Pour déployer le bot de promotion seul (service dédié Railway) :
+# Dans Railway > Settings > Start Command, mets : python promotion_bot.py
+#
+# Pour déployer le trading bot principal :
+# Start Command : python main.py
+
+[deploy]
+startCommand = "python promotion_bot.py"
+restartPolicyType = "always"
+restartPolicyMaxRetries = 10
