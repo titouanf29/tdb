@@ -69,42 +69,99 @@ HEADERS = {
 }
 
 # ─── Subreddits ────────────────────────────────────────────────────────────────
+# Ciblés : débutants, questions, apprentissage du trading
 SUBREDDITS = [
-    # Français
-    ("bourse",         "fr"),
+    # Français — communautés débutants/investissement
+    ("bourse",          "fr"),
     ("investissement",  "fr"),
     ("finances_perso",  "fr"),
     ("cryptomonnaie",   "fr"),
     ("trading",         "fr"),
     ("BitcoinFrance",   "fr"),
     ("france",          "fr"),
-    # Anglais
-    ("algotrading",     "en"),
-    ("Daytrading",      "en"),
-    ("papertrading",    "en"),
+    ("EtudiantsFrance", "fr"),
+    # Anglais — apprentissage & débutants
     ("learntrading",    "en"),
-    ("stocks",          "en"),
+    ("Daytrading",      "en"),
     ("investing",       "en"),
+    ("stocks",          "en"),
+    ("StockMarket",     "en"),
     ("CryptoCurrency",  "en"),
     ("Forex",           "en"),
-    ("StockMarket",     "en"),
+    ("personalfinance", "en"),
     ("options",         "en"),
+    ("algotrading",     "en"),
 ]
 
-# ─── Mots-clés ─────────────────────────────────────────────────────────────────
-KEYWORDS_FR = [
-    "paper trading", "trading virtuel", "simulateur trading", "apprendre trading",
-    "bot trading", "analyse technique", "indicateurs techniques", "trading gratuit",
-    "backtesting", "screener", "scanner marché", "trading débutant", "trader débutant",
-    "comment trader", "apprendre à trader", "signal trading", "trading pratique",
+# ─── Mots-clés déclencheurs ────────────────────────────────────────────────────
+# Signaux de débutants / intermédiaires cherchant à apprendre
+
+# Signaux forts (débutant explicite)
+KEYWORDS_STRONG_FR = [
+    "je débute", "je suis débutant", "débutant en trading", "débutante en trading",
+    "comment commencer", "par où commencer", "comment débuter", "je veux apprendre",
+    "je ne comprends pas", "je comprends rien", "aidez-moi", "besoin d'aide",
+    "première fois", "nouveau dans", "novice en", "je commence tout juste",
+    "je viens de commencer", "comment apprendre", "formation trading",
+    "cours trading", "tutoriel trading", "guide pour débuter",
 ]
-KEYWORDS_EN = [
-    "paper trading", "virtual trading", "trading simulator", "learn trading",
-    "trading bot", "technical analysis", "trading indicators", "backtesting",
-    "algo trading", "trading signal", "market screener", "stock scanner",
-    "crypto trading bot", "forex bot", "trading practice", "free trading tool",
-    "beginner trading", "how to trade",
+KEYWORDS_STRONG_EN = [
+    "i'm a beginner", "i am a beginner", "just started", "new to trading",
+    "new to investing", "where do i start", "how do i start", "how to begin",
+    "complete beginner", "total beginner", "noob", "newbie", "how to learn",
+    "learning to trade", "getting started", "first time", "need help",
+    "don't understand", "don't know how", "trading course", "trading tutorial",
+    "trading guide", "how to read charts",
 ]
+
+# Signaux moyens (questions d'apprentissage)
+KEYWORDS_MEDIUM_FR = [
+    "analyse technique", "comment lire", "comment analyser", "que pensez-vous",
+    "indicateur", "graphique", "bougie", "chandelier", "résistance", "support",
+    "tendance", "stratégie", "risque", "apprendre la bourse", "bourse débutant",
+    "investir pour la première", "trading sans risque", "paper trading",
+    "argent virtuel", "simulateur", "backtesting", "RSI", "MACD",
+    "conseil", "recommandation", "outil gratuit", "ressource",
+]
+KEYWORDS_MEDIUM_EN = [
+    "technical analysis", "how to read", "how to analyze", "what do you think",
+    "indicator", "candlestick", "support resistance", "trend line",
+    "trading strategy", "risk management", "learn investing", "stock market beginner",
+    "paper trading", "virtual money", "simulator", "backtesting",
+    "RSI", "MACD", "moving average", "free tool", "good resource",
+    "recommend", "suggestion", "advice", "tips for beginners",
+]
+
+def is_relevant(title: str, body: str, lang: str) -> tuple[bool, str]:
+    """
+    Détecte si un post vient d'un débutant/intermédiaire en trading.
+    Retourne (pertinent, niveau_détecté: 'fort'|'moyen')
+    """
+    text = (title + " " + (body or "")).lower()
+
+    # Ignorer si captentdb déjà mentionné
+    if "captentdb" in text:
+        return False, ""
+
+    # Ignorer les posts qui semblent être de pros/experts
+    expert_signals = ["my portfolio", "mon portefeuille de", "10 ans d'expérience",
+                      "years of experience", "professional trader", "hedge fund",
+                      "im a trader", "i'm a trader", "je suis trader professionnel"]
+    if any(s in text for s in expert_signals):
+        return False, ""
+
+    if lang == "fr":
+        if any(kw in text for kw in KEYWORDS_STRONG_FR):
+            return True, "fort"
+        if any(kw in text for kw in KEYWORDS_MEDIUM_FR):
+            return True, "moyen"
+    else:
+        if any(kw in text for kw in KEYWORDS_STRONG_EN):
+            return True, "fort"
+        if any(kw in text for kw in KEYWORDS_MEDIUM_EN):
+            return True, "moyen"
+
+    return False, ""
 
 # ─── Messages de promotion ─────────────────────────────────────────────────────
 PROMO_FR = [
@@ -226,21 +283,30 @@ async def tg_send(text: str, reply_markup: dict = None):
 
 async def tg_send_alert(post: dict, promo_msg: str):
     """
-    Mode ALERTE : envoie à l'admin le lien du post avec le message à copier-coller.
+    Mode ALERTE : envoie à l'admin le lien du post avec contexte et message à copier-coller.
     """
-    lang_flag = "🇫🇷" if post["lang"] == "fr" else "🇬🇧"
+    lang_flag  = "🇫🇷" if post["lang"] == "fr" else "🇬🇧"
+    level      = post.get("level", "moyen")
+    level_icon = "🔥" if level == "fort" else "📡"
+    level_txt  = "Débutant explicite" if level == "fort" else "Intermédiaire / question"
+
+    # Extrait du post (50 premiers mots)
+    excerpt = post.get("excerpt", "")
+    excerpt_line = f"\n💬 _{excerpt}_\n" if excerpt else "\n"
+
     text = (
-        f"🔔 *Post pertinent détecté !*\n\n"
+        f"{level_icon} *Opportunité {level_txt}*\n\n"
         f"{lang_flag} r/{post['subreddit']}\n"
-        f"📌 _{post['title'][:80]}_\n"
-        f"🔗 {post['url']}\n\n"
-        f"💬 *Message à poster :*\n"
+        f"📌 *{post['title'][:80]}*"
+        f"{excerpt_line}\n"
+        f"👤 Karma auteur : {post.get('author_karma', '?')} | "
+        f"⬆️ Score : {post.get('score', 0)}\n\n"
+        f"💡 *Message suggéré à copier-coller :*\n"
         f"```\n{promo_msg}\n```"
     )
-    # Bouton raccourci vers le post Reddit
     markup = {
         "inline_keyboard": [[
-            {"text": "📖 Voir le post Reddit", "url": post["url"]}
+            {"text": "📖 Ouvrir sur Reddit", "url": post["url"]}
         ]]
     }
     await tg_send(text, reply_markup=markup)
@@ -272,13 +338,7 @@ async def fetch_subreddit_new(session: aiohttp.ClientSession,
         return []
 
 
-def is_relevant(title: str, body: str, lang: str) -> bool:
-    """Détecte si un post est pertinent pour la promotion."""
-    text = (title + " " + (body or "")).lower()
-    if "captentdb" in text:
-        return False
-    keywords = KEYWORDS_FR if lang == "fr" else KEYWORDS_EN
-    return any(kw in text for kw in keywords)
+# is_relevant défini plus haut avec KEYWORDS_STRONG/MEDIUM
 
 
 # ─── Poster un commentaire (mode auto, nécessite compte Reddit) ────────────────
@@ -389,18 +449,26 @@ class PromotionBot:
 
         self.stats["scanned"] += 1
 
-        if not is_relevant(title, body, lang):
+        relevant, level = is_relevant(title, body, lang)
+        if not relevant:
             return None
+
+        # Extrait du corps du post (premiers 120 caractères utiles)
+        excerpt = " ".join(body.split())[:120] if body and body != "[removed]" else ""
 
         promo = random.choice(PROMO_FR if lang == "fr" else PROMO_EN)
         result = {
-            "id":        post_id,
-            "fullname":  full,
-            "subreddit": sub,
-            "title":     title[:100],
-            "url":       f"https://reddit.com{perma}",
-            "lang":      lang,
-            "time":      datetime.now().isoformat(),
+            "id":           post_id,
+            "fullname":     full,
+            "subreddit":    sub,
+            "title":        title[:100],
+            "excerpt":      excerpt,
+            "url":          f"https://reddit.com{perma}",
+            "lang":         lang,
+            "level":        level,
+            "score":        post_data.get("score", 0),
+            "author_karma": post_data.get("author_flair_text", ""),
+            "time":         datetime.now().isoformat(),
         }
 
         self.seen_ids.add(post_id)
