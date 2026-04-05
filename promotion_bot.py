@@ -560,14 +560,23 @@ class TelegramListener:
                             data = await r.json()
                             for upd in data.get("result", []):
                                 self.offset = upd["update_id"] + 1
-                                msg     = upd.get("message", {})
-                                # Accepte les messages du channel ET en privé
-                                from_id = str(msg.get("from", {}).get("id", ""))
-                                text    = msg.get("text", "").strip()
+                                text = None
 
-                                # Sécurité : uniquement ton ID Telegram perso peut commander
-                                if from_id != str(ADMIN_USER_ID):
-                                    continue
+                                # Cas 1 : channel_post (message posté dans le channel par l'admin)
+                                # Sécurité : seul le channel autorisé peut envoyer des commandes
+                                channel_post = upd.get("channel_post", {})
+                                if channel_post:
+                                    chat_id = str(channel_post.get("chat", {}).get("id", ""))
+                                    if chat_id == str(NOTIFICATION_CHAT_ID):
+                                        text = channel_post.get("text", "").strip()
+
+                                # Cas 2 : message privé ou groupe (vérifie user_id)
+                                if not text:
+                                    msg = upd.get("message", {})
+                                    from_id = str(msg.get("from", {}).get("id", ""))
+                                    if from_id == str(ADMIN_USER_ID):
+                                        text = msg.get("text", "").strip()
+
                                 if text and text.startswith("/"):
                                     await self._handle(text)
 
