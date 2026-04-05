@@ -7,7 +7,8 @@ Fonctionne sans créer d'app Reddit :
 
 Variables d'environnement (.env) :
   ADMIN_TELEGRAM_TOKEN   → Token du bot Telegram
-  ADMIN_CHAT_ID          → Ton ID Telegram (ou ID groupe privé)
+  NOTIFICATION_CHAT_ID   → ID du channel/groupe pour les alertes (-1003781965332)
+  ADMIN_USER_ID          → Ton ID Telegram perso pour les commandes (2064575502)
   REDDIT_USERNAME        → (optionnel) Compte Reddit pour le mode auto
   REDDIT_PASSWORD        → (optionnel) Mot de passe Reddit pour le mode auto
   AUTO_POST_MODE         → "true" pour poster automatiquement (défaut: false = mode alerte)
@@ -42,15 +43,18 @@ logging.basicConfig(
 logger = logging.getLogger("promotion_bot")
 
 # ─── Config ────────────────────────────────────────────────────────────────────
-ADMIN_TELEGRAM_TOKEN = os.getenv("ADMIN_TELEGRAM_TOKEN", os.getenv("TELEGRAM_TOKEN", ""))
-ADMIN_CHAT_ID        = os.getenv("ADMIN_CHAT_ID", "")
-REDDIT_USERNAME      = os.getenv("REDDIT_USERNAME", "")
-REDDIT_PASSWORD      = os.getenv("REDDIT_PASSWORD", "")
-AUTO_POST_MODE       = os.getenv("AUTO_POST_MODE", "false").lower() == "true"
-DRY_RUN              = os.getenv("DRY_RUN", "false").lower() == "true"
-SCAN_INTERVAL        = int(os.getenv("SCAN_INTERVAL_SECONDS", "600"))
-MIN_DELAY_POSTS      = int(os.getenv("MIN_DELAY_BETWEEN_POSTS", "900"))
-MAX_POSTS_HOUR       = int(os.getenv("MAX_POSTS_PER_HOUR", "2"))
+ADMIN_TELEGRAM_TOKEN  = os.getenv("ADMIN_TELEGRAM_TOKEN", os.getenv("TELEGRAM_TOKEN", ""))
+# Channel/groupe qui reçoit toutes les alertes et rapports
+NOTIFICATION_CHAT_ID  = os.getenv("NOTIFICATION_CHAT_ID", os.getenv("ADMIN_CHAT_ID", ""))
+# Ton ID Telegram perso — seul autorisé à envoyer des commandes au bot
+ADMIN_USER_ID         = os.getenv("ADMIN_USER_ID", os.getenv("ADMIN_CHAT_ID", ""))
+REDDIT_USERNAME       = os.getenv("REDDIT_USERNAME", "")
+REDDIT_PASSWORD       = os.getenv("REDDIT_PASSWORD", "")
+AUTO_POST_MODE        = os.getenv("AUTO_POST_MODE", "false").lower() == "true"
+DRY_RUN               = os.getenv("DRY_RUN", "false").lower() == "true"
+SCAN_INTERVAL         = int(os.getenv("SCAN_INTERVAL_SECONDS", "600"))
+MIN_DELAY_POSTS       = int(os.getenv("MIN_DELAY_BETWEEN_POSTS", "900"))
+MAX_POSTS_HOUR        = int(os.getenv("MAX_POSTS_PER_HOUR", "2"))
 
 SEEN_IDS_FILE  = "data/seen_posts.json"
 STATS_FILE     = "data/promo_stats.json"
@@ -189,13 +193,13 @@ def save_pending_alerts(alerts: list):
 
 # ─── Telegram ──────────────────────────────────────────────────────────────────
 async def tg_send(text: str, reply_markup: dict = None):
-    """Envoie un message uniquement à l'admin (privé ou groupe)."""
-    if not ADMIN_CHAT_ID or not ADMIN_TELEGRAM_TOKEN:
+    """Envoie une notification dans le channel/groupe dédié."""
+    if not NOTIFICATION_CHAT_ID or not ADMIN_TELEGRAM_TOKEN:
         return
     try:
         url = f"https://api.telegram.org/bot{ADMIN_TELEGRAM_TOKEN}/sendMessage"
         payload = {
-            "chat_id": ADMIN_CHAT_ID,
+            "chat_id": NOTIFICATION_CHAT_ID,
             "text": text,
             "parse_mode": "Markdown",
             "disable_web_page_preview": False,
@@ -533,7 +537,7 @@ class TelegramListener:
         self.running = True
 
     async def poll(self):
-        if not ADMIN_TELEGRAM_TOKEN or not ADMIN_CHAT_ID:
+        if not ADMIN_TELEGRAM_TOKEN or not ADMIN_USER_ID:
             return
 
         url = f"https://api.telegram.org/bot{ADMIN_TELEGRAM_TOKEN}/getUpdates"
@@ -549,11 +553,12 @@ class TelegramListener:
                             for upd in data.get("result", []):
                                 self.offset = upd["update_id"] + 1
                                 msg     = upd.get("message", {})
-                                chat_id = str(msg.get("chat", {}).get("id", ""))
+                                # Vérification par user_id (pas chat_id) pour sécurité en groupe
+                                from_id = str(msg.get("from", {}).get("id", ""))
                                 text    = msg.get("text", "").strip()
 
-                                # Sécurité : admin uniquement
-                                if chat_id != str(ADMIN_CHAT_ID):
+                                # Sécurité : uniquement ton ID Telegram perso
+                                if from_id != str(ADMIN_USER_ID):
                                     continue
                                 if text:
                                     await self._handle(text)
@@ -595,8 +600,9 @@ class TelegramListener:
 # ─── Point d'entrée ────────────────────────────────────────────────────────────
 async def main():
     missing = []
-    if not ADMIN_TELEGRAM_TOKEN: missing.append("ADMIN_TELEGRAM_TOKEN")
-    if not ADMIN_CHAT_ID:        missing.append("ADMIN_CHAT_ID")
+    if not ADMIN_TELEGRAM_TOKEN:  missing.append("ADMIN_TELEGRAM_TOKEN")
+    if not NOTIFICATION_CHAT_ID:  missing.append("NOTIFICATION_CHAT_ID")
+    if not ADMIN_USER_ID:         missing.append("ADMIN_USER_ID")
 
     if missing:
         logger.error(f"Variables manquantes: {', '.join(missing)}")
