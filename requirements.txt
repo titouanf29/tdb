@@ -1,0 +1,3 @@
+# Bot de Promotion captentdb.fr
+python-dotenv>=1.0.0
+aiohttp>=3.9.0
