@@ -393,12 +393,16 @@ function TickerBar() {
   );
 }
 
-function FloatingOrb({ className }: { className?: string }) {
+function FloatingOrb({ className, delay = 0 }: { className?: string; delay?: number }) {
   return (
-    <div className={cn(
-      "absolute rounded-full blur-3xl opacity-20 animate-pulse pointer-events-none",
-      className
-    )} />
+    <motion.div
+      className={cn(
+        "absolute rounded-full blur-3xl opacity-20 pointer-events-none",
+        className
+      )}
+      animate={{ y: [0, -18, 0], x: [0, 10, 0], opacity: [0.16, 0.26, 0.16] }}
+      transition={{ duration: 12, repeat: Infinity, ease: "easeInOut", delay }}
+    />
   );
 }
 
@@ -737,7 +741,7 @@ function LiveScanDemo() {
     <div className="w-full max-w-4xl mx-auto space-y-5">
 
       {/* ── Browser chrome ── */}
-      <div className="glass-card rounded-2xl overflow-hidden border border-white/10 shadow-2xl">
+      <div className="glass-card-hover rounded-2xl overflow-hidden border border-white/10 shadow-2xl">
         <div className="flex items-center gap-2 px-4 py-3 border-b border-white/8 bg-black/30">
           <div className="w-3 h-3 rounded-full bg-red-500/70" />
           <div className="w-3 h-3 rounded-full bg-yellow-500/70" />
@@ -789,7 +793,7 @@ function LiveScanDemo() {
                 initial={{ opacity: 0, scale: 0.97 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.97 }}
-                className="glass-card p-10 flex flex-col items-center gap-6 relative overflow-hidden"
+                className="glass-card-hover p-10 flex flex-col items-center gap-6 relative overflow-hidden"
               >
                 {/* Background pulse rings */}
                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
@@ -837,7 +841,7 @@ function LiveScanDemo() {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="glass-card p-6 space-y-5"
+                className="glass-card-hover p-6 space-y-5"
               >
                 {/* Step header */}
                 <div className="flex items-center gap-3">
@@ -903,7 +907,7 @@ function LiveScanDemo() {
 
                 {/* Main score — animated counter */}
                 <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.05 }}
-                  className="glass-card p-5 text-center relative overflow-hidden">
+                  className="glass-card-hover p-5 text-center relative overflow-hidden">
                   <div className="absolute inset-0 bg-gradient-to-b from-emerald-500/8 to-transparent pointer-events-none" />
                   <div className="relative">
                     <p className="text-xs text-muted-foreground mb-3 font-medium uppercase tracking-wider">Score Global IA</p>
@@ -1010,7 +1014,7 @@ function LiveScanDemo() {
 
               {/* AI Insight — typewriter */}
               <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}
-                className="glass-card p-5 border border-primary/20 bg-primary/5">
+                className="glass-card-hover p-5 border border-primary/20 bg-primary/5">
                 <div className="flex items-start gap-3">
                   <div className="w-9 h-9 rounded-xl bg-primary/20 border border-primary/30 flex items-center justify-center shrink-0">
                     <Brain className="w-4.5 h-4.5 text-primary" style={{ width: 18, height: 18 }} />
@@ -1127,9 +1131,9 @@ function LandingPage() {
     <div className="min-h-screen overflow-x-hidden">
       {/* ── Background ── */}
       <div className="fixed inset-0 -z-10 overflow-hidden pointer-events-none">
-        <FloatingOrb className="w-[700px] h-[700px] bg-indigo-600 top-[-200px] left-[-100px]" />
-        <FloatingOrb className="w-[500px] h-[500px] bg-purple-600 top-[30%] right-[-200px]" />
-        <FloatingOrb className="w-[350px] h-[350px] bg-blue-500 bottom-[5%] left-[15%]" />
+        <FloatingOrb className="w-[700px] h-[700px] bg-indigo-600 top-[-200px] left-[-100px]" delay={0} />
+        <FloatingOrb className="w-[500px] h-[500px] bg-purple-600 top-[30%] right-[-200px]" delay={2} />
+        <FloatingOrb className="w-[350px] h-[350px] bg-blue-500 bottom-[5%] left-[15%]" delay={4} />
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,hsl(222_47%_8%/0.3)_0%,hsl(222_47%_5%/0.98)_70%)]" />
         <div className="absolute inset-0 opacity-[0.025]" style={{
           backgroundImage: "linear-gradient(hsl(var(--border)) 1px,transparent 1px),linear-gradient(90deg,hsl(var(--border)) 1px,transparent 1px)",
@@ -2323,7 +2327,7 @@ function FavoriteCard({ favorite, formatPrice }: { favorite: Favorite; formatPri
 
   return (
     <Link href={`/analysis?symbol=${favorite.symbol}`}>
-      <div className="p-3 rounded-xl bg-white/5 hover:bg-white/10 transition-colors cursor-pointer group">
+      <div className="p-3 rounded-xl bg-white/5 hover:bg-white/10 transition-colors cursor-pointer group hover-lift">
         <div className="flex items-center gap-3">
           {/* Logo */}
           {logoUrl ? (
@@ -2372,7 +2376,7 @@ function QuickActionCard({ title, icon }: { title: string; icon: string }) {
     bot: <Bot className="w-6 h-6" />,
   };
   return (
-    <div className="p-4 rounded-xl bg-white/5 hover:bg-white/10 transition-all hover:scale-[1.02] text-center cursor-pointer">
+    <div className="p-4 rounded-xl bg-white/5 hover:bg-white/10 transition-all hover:scale-[1.02] text-center cursor-pointer hover-lift">
       <div className="w-12 h-12 mx-auto mb-2 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
         {icons[icon]}
       </div>

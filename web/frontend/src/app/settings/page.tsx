@@ -87,7 +87,7 @@ export default function SettingsPage() {
         </div>
 
         {/* Content — animated on tab switch */}
-        <div className="flex-1 glass-card p-6 overflow-hidden">
+        <div className="flex-1 glass-card-hover p-6 overflow-hidden">
           <AnimatePresence mode="wait">
             <motion.div
               key={activeTab}
@@ -227,7 +227,7 @@ function ProfileSettings() {
                 onClick={() => handleLevelChange(opt.id)}
                 disabled={levelSaving}
                 className={cn(
-                  "w-full text-left p-4 rounded-xl border-2 transition-all flex items-center gap-3",
+                  "w-full text-left p-4 rounded-xl border-2 transition-all flex items-center gap-3 hover-lift",
                   isActive ? opt.color : "border-white/10 bg-white/5 hover:bg-white/10"
                 )}
               >
@@ -311,7 +311,7 @@ function TradingSettings() {
         <div className="grid grid-cols-2 gap-2">
           {[{ id: "EUR", label: "Euro", symbol: "€" }, { id: "USD", label: "Dollar US", symbol: "$" }].map((c) => (
             <button key={c.id} onClick={() => setCurrency(c.id as Currency)}
-              className={cn("p-4 rounded-xl text-center transition-all flex items-center justify-center gap-3 border",
+              className={cn("p-4 rounded-xl text-center transition-all flex items-center justify-center gap-3 border hover-lift",
                 settings.currency === c.id ? "bg-primary text-white border-primary" : "bg-white/5 hover:bg-white/10 border-white/10"
               )}>
               <span className="text-2xl font-bold">{c.symbol}</span>
@@ -334,7 +334,7 @@ function TradingSettings() {
           {TRADING_STYLES.map((style) => (
             <button key={style.id} onClick={() => handleStyle(style.id)}
               className={cn(
-                "p-4 rounded-xl text-left transition-all border",
+                "p-4 rounded-xl text-left transition-all border hover-lift",
                 settings.tradingStyle === style.id
                   ? "bg-primary/15 border-primary"
                   : "bg-white/5 hover:bg-white/10 border-white/10"
@@ -369,7 +369,7 @@ function TradingSettings() {
           {RISK_LEVELS.map((level) => (
             <button key={level.id} onClick={() => handleRisk(level.id)}
               className={cn(
-                "p-3 rounded-xl text-center transition-all border group relative",
+                "p-3 rounded-xl text-center transition-all border group relative hover-lift",
                 settings.riskLevel === level.id
                   ? "bg-primary/15 border-primary"
                   : "bg-white/5 hover:bg-white/10 border-white/10"

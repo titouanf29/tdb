@@ -185,7 +185,7 @@ export default function DashboardPage() {
   return (
     <motion.div variants={containerVariants} initial="hidden" animate="show" className="space-y-5">
       {/* Welcome banner */}
-      <motion.div variants={itemVariants} className="glass-card p-5 relative overflow-hidden">
+      <motion.div variants={itemVariants} className="glass-card-hover p-5 relative overflow-hidden">
         <div className="absolute top-0 right-0 w-64 h-64 bg-primary/15 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none" />
         <div className="relative flex items-center justify-between">
           <div>
@@ -225,7 +225,7 @@ export default function DashboardPage() {
             exit={{ opacity: 0, height: 0 }}
             className="overflow-hidden"
           >
-            <div className="glass-card p-5 border border-primary/30">
+            <div className="glass-card-hover p-5 border border-primary/30">
               <div className="flex items-center gap-2 mb-4">
                 <Crown className="w-4 h-4 text-yellow-400" />
                 <h3 className="font-semibold">Personnalisation Premium</h3>
@@ -286,7 +286,7 @@ export default function DashboardPage() {
       {isAdmin && (
         <motion.div variants={itemVariants}>
           <Link href="/admin">
-            <div className="glass-card p-4 border border-yellow-500/30 hover:border-yellow-500/50 transition-all cursor-pointer group">
+            <div className="glass-card-hover p-4 border border-yellow-500/30 hover:border-yellow-500/50 transition-all cursor-pointer group">
               <div className="flex items-center gap-4">
                 <div className="p-3 rounded-xl bg-yellow-500/20"><Shield className="w-5 h-5 text-yellow-500" /></div>
                 <div className="flex-1">
@@ -408,7 +408,7 @@ const FavoriteCard = memo(function FavoriteCard({ favorite, formatPrice }: { fav
 
   return (
     <Link href={`/analysis?symbol=${favorite.symbol}`}>
-      <div className="p-3 rounded-xl bg-white/5 hover:bg-white/10 transition-colors cursor-pointer group">
+      <div className="p-3 rounded-xl bg-white/5 hover:bg-white/10 transition-colors cursor-pointer group hover-lift">
         <div className="flex items-center gap-3">
           {logoUrl ? (
             <div className="w-9 h-9 rounded-lg bg-white/10 flex items-center justify-center overflow-hidden flex-shrink-0">
@@ -452,7 +452,7 @@ const IndicesBar = memo(function IndicesBar({ indices, isLoading, onRefresh }: {
   onRefresh: () => void;
 }) {
   return (
-    <div className="glass-card p-4">
+    <div className="glass-card-hover p-4">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <Activity className="w-4 h-4 text-primary" />
@@ -468,7 +468,7 @@ const IndicesBar = memo(function IndicesBar({ indices, isLoading, onRefresh }: {
           const isUp = d ? d.change >= 0 : true;
           return (
             <Link key={sym} href={`/analysis?symbol=${sym}`}
-              className="flex-shrink-0 min-w-[110px] p-3 rounded-xl bg-white/5 hover:bg-white/10 transition-colors cursor-pointer"
+              className="flex-shrink-0 min-w-[110px] p-3 rounded-xl bg-white/5 hover:bg-white/10 transition-colors cursor-pointer hover-lift"
             >
               <p className="text-xs text-muted-foreground font-medium mb-1">{INDICES_LABELS[sym] || sym}</p>
               {d ? (
@@ -510,7 +510,7 @@ const FavoritesWidget = memo(function FavoritesWidget({ favorites, favSort, setF
   const displayed = showAll ? favorites : favorites.slice(0, 8);
 
   return (
-    <div className="glass-card p-5">
+    <div className="glass-card-hover p-5">
       <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
         <div className="flex items-center gap-2">
           <Star className="w-5 h-5 text-yellow-500 fill-yellow-500" />
@@ -581,7 +581,7 @@ const NewsWidget = memo(function NewsWidget({ marketNews, isLoadingNews, newsFil
   };
 
   return (
-    <div className="glass-card p-5">
+    <div className="glass-card-hover p-5">
       <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
         <div className="flex items-center gap-2">
           <Newspaper className="w-5 h-5 text-primary" />
@@ -693,7 +693,7 @@ const TradingStatsWidget = memo(function TradingStatsWidget({ stats, balance, fo
   formatCurrency: (v: number) => string;
 }) {
   return (
-    <div className="glass-card p-5">
+    <div className="glass-card-hover p-5">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <Target className="w-5 h-5 text-primary" />
@@ -708,7 +708,7 @@ const TradingStatsWidget = memo(function TradingStatsWidget({ stats, balance, fo
           { label: "P&L total",    value: formatCurrency(stats?.total_pnl || 0), color: (stats?.total_pnl || 0) >= 0 ? "text-profit" : "text-loss" },
           { label: "Solde",        value: formatCurrency(balance?.balance || 0), color: "text-foreground" },
         ].map(item => (
-          <div key={item.label} className="p-4 rounded-xl bg-white/5">
+          <div key={item.label} className="p-4 rounded-xl bg-white/5 hover-lift">
             <p className="text-xs text-muted-foreground mb-1">{item.label}</p>
             <p className={cn("text-xl font-bold", item.color)}>{item.value}</p>
           </div>
@@ -723,7 +723,7 @@ const OpenPositionsWidget = memo(function OpenPositionsWidget({ positions, forma
   formatCurrency: (v: number) => string;
 }) {
   return (
-    <div className="glass-card p-5">
+    <div className="glass-card-hover p-5">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <Layers className="w-5 h-5 text-primary" />
@@ -738,7 +738,7 @@ const OpenPositionsWidget = memo(function OpenPositionsWidget({ positions, forma
           const isProfit = pnl >= 0;
           return (
             <Link key={pos.id} href="/trading">
-              <div className="flex items-center justify-between p-3 rounded-xl bg-white/5 hover:bg-white/10 transition-colors">
+              <div className="flex items-center justify-between p-3 rounded-xl bg-white/5 hover:bg-white/10 transition-colors hover-lift">
                 <div className="flex items-center gap-3">
                   <div className={cn("w-2 h-2 rounded-full flex-shrink-0", pos.direction === "LONG" ? "bg-profit" : "bg-loss")} />
                   <div>
@@ -772,12 +772,12 @@ const QuickActionsWidget = memo(function QuickActionsWidget({ isPremium: _ }: { 
   ];
 
   return (
-    <div className="glass-card p-5">
+    <div className="glass-card-hover p-5">
       <h2 className="text-lg font-semibold mb-4">Actions Rapides</h2>
       <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
         {actions.map(a => (
           <Link key={a.href} href={a.href}>
-            <div className="p-4 rounded-xl bg-white/5 hover:bg-white/10 transition-all hover:scale-[1.03] text-center cursor-pointer group">
+            <div className="p-4 rounded-xl bg-white/5 hover:bg-white/10 transition-all hover:scale-[1.03] text-center cursor-pointer group hover-lift">
               <div className="w-10 h-10 mx-auto mb-2 rounded-xl bg-primary/10 flex items-center justify-center text-primary group-hover:bg-primary/20 transition-colors">
                 {a.icon}
               </div>
