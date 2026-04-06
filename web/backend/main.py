@@ -23,7 +23,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from dotenv import load_dotenv
 load_dotenv(Path(__file__).parent.parent.parent / ".env")
 
-from api.routes import auth, market, wallet, analysis, users, ai_assistant, favorites, admin, tools, premium, community, portfolio
+from api.routes import auth, market, wallet, analysis, users, ai_assistant, favorites, admin, tools, premium, community, portfolio, journal
 from api.websocket import websocket_router
 from api.database import init_web_tables
 
@@ -129,6 +129,7 @@ app.include_router(tools.router, prefix="/api/tools", tags=["Trading Tools"])
 app.include_router(premium.router, prefix="/api/premium", tags=["Premium"])
 app.include_router(community.router, prefix="/api/community", tags=["Community"])
 app.include_router(portfolio.router, prefix="/api/portfolio", tags=["Real Portfolio"])
+app.include_router(journal.router, prefix="/api/journal", tags=["Trading Journal"])
 app.include_router(websocket_router, prefix="/ws", tags=["WebSocket"])
 
 

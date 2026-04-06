@@ -402,6 +402,29 @@ async def _init_postgres():
                 created_at TEXT NOT NULL
             )
         """)
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS trading_journal (
+                id SERIAL PRIMARY KEY,
+                user_id TEXT NOT NULL,
+                symbol TEXT NOT NULL,
+                direction TEXT NOT NULL,
+                timeframe TEXT,
+                setup TEXT,
+                entry_time TEXT,
+                exit_time TEXT,
+                entry_price FLOAT,
+                exit_price FLOAT,
+                quantity FLOAT,
+                risk_reward FLOAT,
+                result TEXT,
+                pnl FLOAT,
+                pre_trade_notes TEXT,
+                post_trade_notes TEXT,
+                screenshot TEXT,
+                created_at TEXT NOT NULL,
+                updated_at TEXT
+            )
+        """)
         print("PostgreSQL tables ready")
 
 
@@ -684,6 +707,29 @@ async def _init_sqlite():
                 exit_date TEXT,
                 currency TEXT DEFAULT 'USD',
                 created_at TEXT NOT NULL
+            )
+        """)
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS trading_journal (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id TEXT NOT NULL,
+                symbol TEXT NOT NULL,
+                direction TEXT NOT NULL,
+                timeframe TEXT,
+                setup TEXT,
+                entry_time TEXT,
+                exit_time TEXT,
+                entry_price REAL,
+                exit_price REAL,
+                quantity REAL,
+                risk_reward REAL,
+                result TEXT,
+                pnl REAL,
+                pre_trade_notes TEXT,
+                post_trade_notes TEXT,
+                screenshot TEXT,
+                created_at TEXT NOT NULL,
+                updated_at TEXT
             )
         """)
         # Add new columns to existing tables if upgrading from older schema

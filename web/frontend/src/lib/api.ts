@@ -1380,6 +1380,75 @@ export const portfolioAPI = {
     }),
 };
 
+// ── Trading Journal ────────────────────────────────────────────────────────────
+
+export interface JournalEntry {
+  id: number;
+  user_id: string;
+  symbol: string;
+  direction: "LONG" | "SHORT";
+  timeframe?: string;
+  setup?: string;
+  entry_time?: string;
+  exit_time?: string;
+  entry_price?: number;
+  exit_price?: number;
+  quantity?: number;
+  risk_reward?: number;
+  result?: "win" | "loss" | "breakeven";
+  pnl?: number;
+  pre_trade_notes?: string;
+  post_trade_notes?: string;
+  screenshot?: string;
+  created_at: string;
+  updated_at?: string;
+}
+
+export interface JournalStats {
+  total: number;
+  wins: number;
+  losses: number;
+  breakevens: number;
+  win_rate: number;
+  total_pnl: number;
+  avg_rr: number;
+  best_trade: number;
+  worst_trade: number;
+}
+
+export type JournalEntryCreate = Omit<JournalEntry, "id" | "user_id" | "created_at" | "updated_at">;
+
+export const journalAPI = {
+  list: (params?: { result?: string; symbol?: string }) => {
+    const qs = new URLSearchParams();
+    if (params?.result) qs.set("result", params.result);
+    if (params?.symbol) qs.set("symbol", params.symbol);
+    const q = qs.toString();
+    return fetchAPI<{ entries: JournalEntry[] }>(`/api/journal${q ? "?" + q : ""}`);
+  },
+
+  getStats: () => fetchAPI<JournalStats>("/api/journal/stats"),
+
+  get: (id: number) => fetchAPI<JournalEntry>(`/api/journal/${id}`),
+
+  create: (data: JournalEntryCreate) =>
+    fetchAPI<JournalEntry>("/api/journal", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    }),
+
+  update: (id: number, data: Partial<JournalEntryCreate>) =>
+    fetchAPI<JournalEntry>(`/api/journal/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    }),
+
+  delete: (id: number) =>
+    fetchAPI<void>(`/api/journal/${id}`, { method: "DELETE" }),
+};
+
 /**
  * Create an authenticated WebSocket URL for private endpoints
  * (portfolio, alerts). Passes the JWT as a query param since
