@@ -4,31 +4,34 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Sparkles, ChevronDown, ChevronRight, TrendingUp, TrendingDown,
-  Minus, Calendar, Eye, RefreshCw, Star, ExternalLink,
-  AlertTriangle, BarChart2, Globe, Clock, X, Maximize2,
+  Minus, Calendar, Eye, RefreshCw, Star, Maximize2,
+  AlertTriangle, BarChart2, Globe, X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { weeklyPrepAPI, WeeklyBriefing, WeeklyMarket, WeeklyWatchItem, WeeklyEvent } from "@/lib/api";
 import { favoritesAPI } from "@/lib/api";
+import { useLanguage } from "@/lib/LanguageContext";
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
-const TREND = {
-  bullish: { label: "Haussier",  color: "text-emerald-400", bg: "bg-emerald-500/10 border-emerald-500/30", icon: TrendingUp   },
-  bearish: { label: "Baissier",  color: "text-red-400",     bg: "bg-red-500/10 border-red-500/30",         icon: TrendingDown  },
-  neutral: { label: "Neutre",    color: "text-yellow-400",  bg: "bg-yellow-500/10 border-yellow-500/30",   icon: Minus         },
+const TREND_KEYS = {
+  bullish: { color: "text-emerald-400", bg: "bg-emerald-500/10 border-emerald-500/30", icon: TrendingUp   },
+  bearish: { color: "text-red-400",     bg: "bg-red-500/10 border-red-500/30",         icon: TrendingDown  },
+  neutral: { color: "text-yellow-400",  bg: "bg-yellow-500/10 border-yellow-500/30",   icon: Minus         },
 };
 
 const IMPORTANCE = {
-  high:   { label: "Élevé",  dot: "bg-red-400"    },
-  medium: { label: "Moyen",  dot: "bg-yellow-400" },
-  low:    { label: "Faible", dot: "bg-emerald-400"},
+  high:   { dot: "bg-red-400",     labelKey: "high"   as const },
+  medium: { dot: "bg-yellow-400",  labelKey: "medium" as const },
+  low:    { dot: "bg-emerald-400", labelKey: "low"    as const },
 };
 
 // ── Sub-components ────────────────────────────────────────────────────────────
 
 function TrendBadge({ trend }: { trend: "bullish" | "bearish" | "neutral" }) {
-  const { label, color, bg, icon: Icon } = TREND[trend];
+  const { t } = useLanguage();
+  const { color, bg, icon: Icon } = TREND_KEYS[trend];
+  const label = t(`weekly_${trend}` as "weekly_bullish" | "weekly_bearish" | "weekly_neutral");
   return (
     <span className={cn("inline-flex items-center gap-1 px-2 py-0.5 rounded-lg border text-xs font-semibold", bg, color)}>
       <Icon className="w-3 h-3" />
@@ -76,6 +79,7 @@ function Section({ title, icon: Icon, children, defaultOpen = false }: {
 }
 
 function MarketCard({ market }: { market: WeeklyMarket }) {
+  const { t } = useLanguage();
   return (
     <div className="bg-white/5 rounded-xl p-3 space-y-2">
       <div className="flex items-center justify-between">
@@ -87,12 +91,12 @@ function MarketCard({ market }: { market: WeeklyMarket }) {
       <p className="text-sm text-foreground/80">{market.summary}</p>
       <div className="grid grid-cols-2 gap-2 pt-1">
         <div className="bg-white/5 rounded-lg p-2">
-          <p className="text-xs text-muted-foreground mb-0.5">Zones clés</p>
+          <p className="text-xs text-muted-foreground mb-0.5">{t("weekly_key_zones")}</p>
           <p className="text-xs">{market.key_zones}</p>
         </div>
         <div className="bg-red-500/5 border border-red-500/10 rounded-lg p-2">
           <p className="text-xs text-red-400 mb-0.5 flex items-center gap-1">
-            <AlertTriangle className="w-2.5 h-2.5" /> Risque
+            <AlertTriangle className="w-2.5 h-2.5" /> {t("weekly_risk")}
           </p>
           <p className="text-xs">{market.risk}</p>
         </div>
@@ -102,8 +106,9 @@ function MarketCard({ market }: { market: WeeklyMarket }) {
 }
 
 function WatchCard({ item }: { item: WeeklyWatchItem }) {
+  const { t } = useLanguage();
   const [faved, setFaved] = useState(false);
-  const { color, bg, icon: Icon } = TREND[item.direction];
+  const { color, bg, icon: Icon } = TREND_KEYS[item.direction];
 
   const addFav = async () => {
     try {
@@ -126,20 +131,29 @@ function WatchCard({ item }: { item: WeeklyWatchItem }) {
           <button
             onClick={addFav}
             className={cn("p-1.5 rounded-lg transition-colors", faved ? "text-yellow-400" : "text-muted-foreground hover:text-yellow-400")}
-            title="Ajouter aux favoris"
+            title={t("weekly_add_fav")}
           >
             <Star className={cn("w-3.5 h-3.5", faved && "fill-yellow-400")} />
           </button>
         </div>
       </div>
-      <p className="text-xs text-muted-foreground"><span className="text-white/70 font-medium">Pourquoi : </span>{item.why}</p>
-      <p className="text-xs text-muted-foreground"><span className="text-white/70 font-medium">Scénario : </span>{item.scenario}</p>
+      <p className="text-xs text-muted-foreground">
+        <span className="text-white/70 font-medium">{t("weekly_why")} </span>{item.why}
+      </p>
+      <p className="text-xs text-muted-foreground">
+        <span className="text-white/70 font-medium">{t("weekly_scenario")} </span>{item.scenario}
+      </p>
     </div>
   );
 }
 
 function EventRow({ event }: { event: WeeklyEvent }) {
+  const { t } = useLanguage();
   const imp = IMPORTANCE[event.importance];
+  const impLabel =
+    event.importance === "high"   ? t("weekly_bullish").replace("aussier","levé") :
+    event.importance === "medium" ? "Moyen" :
+    "Faible";
   return (
     <div className="flex items-start gap-3 py-2 border-b border-white/5 last:border-0">
       <div className={cn("w-2 h-2 rounded-full mt-1.5 shrink-0", imp.dot)} />
@@ -155,7 +169,7 @@ function EventRow({ event }: { event: WeeklyEvent }) {
         event.importance === "high"   ? "bg-red-500/10 text-red-400" :
         event.importance === "medium" ? "bg-yellow-500/10 text-yellow-400" :
         "bg-emerald-500/10 text-emerald-400"
-      )}>{imp.label}</span>
+      )}>{impLabel}</span>
     </div>
   );
 }
@@ -168,6 +182,7 @@ interface Props {
 }
 
 export function WeeklyPrepWidget({ respectSchedule = true }: Props) {
+  const { t } = useLanguage();
   const [briefing, setBriefing] = useState<WeeklyBriefing | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -180,14 +195,12 @@ export function WeeklyPrepWidget({ respectSchedule = true }: Props) {
   useEffect(() => {
     const init = async () => {
       try {
-        // Check visibility window
         if (respectSchedule) {
           const status = await weeklyPrepAPI.status();
           if (!status.visible) { setLoading(false); return; }
         }
         setVisible(true);
 
-        // Check if dismissed this week
         const week = new Date().toLocaleDateString("fr-FR");
         const dismissed = localStorage.getItem("weekly_prep_dismissed");
         if (dismissed === week) { setLoading(false); setDismissed(true); return; }
@@ -195,7 +208,7 @@ export function WeeklyPrepWidget({ respectSchedule = true }: Props) {
         const data = await weeklyPrepAPI.get();
         setBriefing(data.briefing);
       } catch (e: any) {
-        setError(e?.message || "Erreur de chargement");
+        setError(e?.message || t("error_generic"));
       } finally {
         setLoading(false);
       }
@@ -215,7 +228,7 @@ export function WeeklyPrepWidget({ respectSchedule = true }: Props) {
       const data = await weeklyPrepAPI.refresh();
       setBriefing(data.briefing);
     } catch (e: any) {
-      setError(e?.message || "Erreur");
+      setError(e?.message || t("error_generic"));
     } finally {
       setRefreshing(false);
     }
@@ -227,20 +240,20 @@ export function WeeklyPrepWidget({ respectSchedule = true }: Props) {
     <div className="glass-card p-6 flex items-center gap-3 animate-pulse">
       <Sparkles className="w-5 h-5 text-primary" />
       <div>
-        <p className="font-semibold">Briefing hebdomadaire</p>
-        <p className="text-sm text-muted-foreground">Génération de votre préparation de marché…</p>
+        <p className="font-semibold">{t("weekly_briefing")}</p>
+        <p className="text-sm text-muted-foreground">{t("weekly_loading")}</p>
       </div>
     </div>
   );
   if (error) return (
     <div className="glass-card p-4 flex items-center gap-3 text-muted-foreground text-sm">
       <AlertTriangle className="w-4 h-4 text-yellow-400 shrink-0" />
-      Briefing indisponible : {error}
+      {t("weekly_unavailable")} : {error}
     </div>
   );
   if (!briefing) return null;
 
-  const macroMeta = TREND[briefing.macro.trend];
+  const macroMeta = TREND_KEYS[briefing.macro.trend];
   const MacroIcon = macroMeta.icon;
 
   const content = (
@@ -253,32 +266,34 @@ export function WeeklyPrepWidget({ respectSchedule = true }: Props) {
           </div>
           <div>
             <h2 className="font-bold text-lg flex items-center gap-2">
-              Préparation de marché
+              {t("weekly_title")}
               <span className="text-xs bg-primary/20 text-primary px-2 py-0.5 rounded-full font-normal">
                 {briefing.week}
               </span>
             </h2>
             <p className="text-sm text-muted-foreground flex items-center gap-1.5">
               <MacroIcon className={cn("w-3.5 h-3.5", macroMeta.color)} />
-              <span>Sentiment global : </span>
-              <span className={cn("font-medium", macroMeta.color)}>{macroMeta.label}</span>
+              <span>{t("weekly_sentiment")} : </span>
+              <span className={cn("font-medium", macroMeta.color)}>
+                {t(`weekly_${briefing.macro.trend}` as "weekly_bullish" | "weekly_bearish" | "weekly_neutral")}
+              </span>
             </p>
           </div>
         </div>
         <div className="flex items-center gap-1.5">
           <button onClick={handleRefresh} disabled={refreshing}
             className="p-1.5 rounded-lg hover:bg-white/10 text-muted-foreground hover:text-white transition-colors"
-            title="Actualiser">
+            title={t("refresh")}>
             <RefreshCw className={cn("w-4 h-4", refreshing && "animate-spin")} />
           </button>
           <button onClick={() => setFullscreen(v => !v)}
             className="p-1.5 rounded-lg hover:bg-white/10 text-muted-foreground hover:text-white transition-colors hidden sm:block"
-            title="Plein écran">
+            title={t("weekly_fullscreen")}>
             <Maximize2 className="w-4 h-4" />
           </button>
           <button onClick={handleDismiss}
             className="p-1.5 rounded-lg hover:bg-red-500/20 text-muted-foreground hover:text-red-400 transition-colors"
-            title="Fermer pour cette semaine">
+            title={t("weekly_close_week")}>
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -298,7 +313,7 @@ export function WeeklyPrepWidget({ respectSchedule = true }: Props) {
       </div>
 
       {/* Markets tabs */}
-      <Section title="Analyse par marché" icon={BarChart2} defaultOpen>
+      <Section title={t("weekly_markets")} icon={BarChart2} defaultOpen>
         <div className="flex gap-1.5 flex-wrap mb-3">
           {briefing.markets.map((m, i) => (
             <button key={i} onClick={() => setActiveMarket(i)}
@@ -317,7 +332,7 @@ export function WeeklyPrepWidget({ respectSchedule = true }: Props) {
       </Section>
 
       {/* Watchlist */}
-      <Section title={`Actifs à surveiller (${briefing.watchlist.length})`} icon={Eye}>
+      <Section title={`${t("weekly_watchlist")} (${briefing.watchlist.length})`} icon={Eye}>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
           {briefing.watchlist.map((item, i) => (
             <motion.div key={i} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }}>
@@ -328,7 +343,7 @@ export function WeeklyPrepWidget({ respectSchedule = true }: Props) {
       </Section>
 
       {/* Events */}
-      <Section title="Événements de la semaine" icon={Calendar}>
+      <Section title={t("weekly_events")} icon={Calendar}>
         <div>
           {briefing.events.map((ev, i) => <EventRow key={i} event={ev} />)}
         </div>
@@ -337,13 +352,13 @@ export function WeeklyPrepWidget({ respectSchedule = true }: Props) {
       {/* Conclusion */}
       <div className="p-4 bg-primary/5 border border-primary/20 rounded-xl">
         <p className="text-xs text-primary font-semibold mb-1.5 flex items-center gap-1.5">
-          <Sparkles className="w-3.5 h-3.5" /> Synthèse stratégique
+          <Sparkles className="w-3.5 h-3.5" /> {t("weekly_conclusion")}
         </p>
         <p className="text-sm leading-relaxed text-foreground/80">{briefing.conclusion}</p>
       </div>
 
       <p className="text-xs text-muted-foreground text-center">
-        ⚠️ Contenu éducatif généré par IA · Pas un conseil financier · Trading = risque de perte en capital
+        ⚠️ {t("weekly_disclaimer")}
       </p>
     </div>
   );

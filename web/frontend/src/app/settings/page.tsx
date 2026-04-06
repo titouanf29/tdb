@@ -25,16 +25,18 @@ import { useAuth } from "@/lib/AuthContext";
 import { TradingLevel } from "@/lib/auth";
 import { useSettings, Currency, ACCENT_PRESETS, AccentColor } from "@/lib/SettingsContext";
 import { LanguageToggle } from "@/components/ui/LanguageToggle";
+import { useLanguage } from "@/lib/LanguageContext";
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState("profile");
+  const { t } = useLanguage();
 
   const tabs = [
-    { id: "profile", label: "Profil", icon: User },
-    { id: "trading", label: "Trading", icon: Wallet },
-    { id: "notifications", label: "Notifications", icon: Bell },
-    { id: "appearance", label: "Apparence", icon: Palette },
-    { id: "security", label: "Securite", icon: Shield },
+    { id: "profile",       label: t("settings_tab_profile"),  icon: User },
+    { id: "trading",       label: t("settings_tab_trading"),  icon: Wallet },
+    { id: "notifications", label: t("settings_tab_notif"),    icon: Bell },
+    { id: "appearance",    label: t("settings_tab_appear"),   icon: Palette },
+    { id: "security",      label: t("settings_tab_security"), icon: Shield },
   ];
 
   return (
@@ -46,10 +48,10 @@ export default function SettingsPage() {
       <div>
         <h1 className="text-2xl font-bold flex items-center gap-2">
           <Settings className="w-6 h-6" />
-          Parametres
+          {t("settings_title")}
         </h1>
         <p className="text-muted-foreground">
-          Gerez vos preferences et votre compte
+          {t("settings_subtitle")}
         </p>
       </div>
 
@@ -444,14 +446,15 @@ function NotificationSettings() {
 
 function AppearanceSettings() {
   const { settings, setTheme, setAccentColor } = useSettings();
+  const { t } = useLanguage();
 
   return (
     <div className="space-y-8">
-      <h2 className="text-lg font-semibold">Apparence</h2>
+      <h2 className="text-lg font-semibold">{t("settings_tab_appear")}</h2>
 
       {/* Theme */}
       <div>
-        <label className="block text-sm font-medium mb-3">Thème de l'interface</label>
+        <label className="block text-sm font-medium mb-3">{t("settings_theme")}</label>
         <div className="grid grid-cols-2 gap-4">
           <button
             onClick={() => setTheme("dark")}
@@ -466,8 +469,8 @@ function AppearanceSettings() {
               <Moon className="w-6 h-6 text-white/70" />
             </div>
             <div className="text-center">
-              <p className="font-medium">Sombre</p>
-              <p className="text-xs text-muted-foreground">Mode nuit, idéal pour le trading</p>
+              <p className="font-medium">{t("settings_theme_dark")}</p>
+              <p className="text-xs text-muted-foreground">{t("settings_theme_dark_desc")}</p>
             </div>
             {settings.theme === "dark" && (
               <span className="text-xs text-primary font-medium">✓ Actif</span>
@@ -487,8 +490,8 @@ function AppearanceSettings() {
               <Sun className="w-6 h-6 text-gray-600" />
             </div>
             <div className="text-center">
-              <p className="font-medium">Clair</p>
-              <p className="text-xs text-muted-foreground">Mode jour, interface lumineuse</p>
+              <p className="font-medium">{t("settings_theme_light")}</p>
+              <p className="text-xs text-muted-foreground">{t("settings_theme_light_desc")}</p>
             </div>
             {settings.theme === "light" && (
               <span className="text-xs text-primary font-medium">✓ Actif</span>
@@ -499,15 +502,15 @@ function AppearanceSettings() {
 
       {/* Language */}
       <div>
-        <label className="block text-sm font-medium mb-3">Langue / Language</label>
+        <label className="block text-sm font-medium mb-3">{t("settings_language")}</label>
         <LanguageToggle variant="pill" />
       </div>
 
       {/* Accent Color */}
       <div>
-        <label className="block text-sm font-medium mb-3">Couleur d'accent</label>
+        <label className="block text-sm font-medium mb-3">{t("settings_accent")}</label>
         <p className="text-xs text-muted-foreground mb-4">
-          Personnalise les boutons, bordures actives et éléments interactifs.
+          {t("settings_accent_desc")}
         </p>
         <div className="grid grid-cols-5 gap-3">
           {(Object.entries(ACCENT_PRESETS) as [AccentColor, typeof ACCENT_PRESETS[AccentColor]][]).map(([key, preset]) => (

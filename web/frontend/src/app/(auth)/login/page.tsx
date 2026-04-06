@@ -6,10 +6,12 @@ import Link from "next/link";
 import { Eye, EyeOff, TrendingUp, Loader2, ArrowLeft } from "lucide-react";
 import { useAuth } from "@/lib/AuthContext";
 import { LanguageToggle } from "@/components/ui/LanguageToggle";
+import { useLanguage } from "@/lib/LanguageContext";
 
 export default function LoginPage() {
   const router = useRouter();
   const { login } = useAuth();
+  const { t } = useLanguage();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -26,7 +28,7 @@ export default function LoginPage() {
       await login(email, password, rememberMe);
       router.push("/dashboard");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Erreur de connexion");
+      setError(err instanceof Error ? err.message : t("error_generic"));
     } finally {
       setIsLoading(false);
     }
@@ -38,7 +40,7 @@ export default function LoginPage() {
       <div className="mb-4 flex items-center justify-between">
         <Link href="/" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-white transition-colors">
           <ArrowLeft className="w-4 h-4" />
-          Retour à la présentation
+          {t("login_back")}
         </Link>
         <LanguageToggle variant="compact" />
       </div>
@@ -50,11 +52,8 @@ export default function LoginPage() {
             <TrendingUp className="w-8 h-8 text-primary" />
           </div>
           <h1 className="text-2xl font-bold">
-            Bienvenue sur <span className="gradient-text">CaptenTDB</span>
+            {t("login_subtitle")} <span className="gradient-text">CaptenTDB</span>
           </h1>
-          <p className="text-muted-foreground mt-2">
-            Connectez-vous pour acceder a votre espace de formation
-          </p>
         </div>
 
         {/* Form */}
@@ -66,7 +65,7 @@ export default function LoginPage() {
           )}
 
           <div>
-            <label className="block text-sm font-medium mb-2">Email</label>
+            <label className="block text-sm font-medium mb-2">{t("login_email")}</label>
             <input
               type="email"
               value={email}
@@ -79,7 +78,7 @@ export default function LoginPage() {
 
           <div>
             <label className="block text-sm font-medium mb-2">
-              Mot de passe
+              {t("login_password")}
             </label>
             <div className="relative">
               <input
@@ -104,7 +103,7 @@ export default function LoginPage() {
             </div>
           </div>
 
-          {/* Rester connecté */}
+          {/* Remember me */}
           <label className="flex items-center gap-3 cursor-pointer group select-none">
             <div className="relative">
               <input
@@ -121,10 +120,9 @@ export default function LoginPage() {
                 )}
               </div>
             </div>
-            <div>
-              <span className="text-sm text-foreground group-hover:text-white transition-colors">Rester connecté</span>
-              <span className="block text-xs text-muted-foreground">Votre session durera 30 jours</span>
-            </div>
+            <span className="text-sm text-foreground group-hover:text-white transition-colors">
+              {t("login_remember")}
+            </span>
           </label>
 
           <button
@@ -135,27 +133,27 @@ export default function LoginPage() {
             {isLoading ? (
               <>
                 <Loader2 className="w-5 h-5 animate-spin" />
-                Connexion...
+                {t("login_loading")}
               </>
             ) : (
-              "Se connecter"
+              t("login_button")
             )}
           </button>
         </form>
 
         {/* Register link */}
         <p className="text-center text-sm text-muted-foreground mt-6">
-          Pas encore de compte ?{" "}
+          {t("login_no_account")}{" "}
           <Link href="/register" className="text-primary hover:underline">
-            Creer un compte
+            {t("login_register")}
           </Link>
         </p>
       </div>
 
       {/* Footer */}
       <div className="text-center text-xs text-muted-foreground mt-4 space-y-1">
-        <p>Paper Trading uniquement — Aucun risque financier réel</p>
-        <p><span className="text-primary">CaptenTDB</span> par CaptenQwark</p>
+        <p>{t("footer_paper")}</p>
+        <p><span className="text-primary">CaptenTDB</span> {t("footer_by")}</p>
         <div className="flex gap-3 justify-center pt-1">
           <a href="/cgu" className="hover:text-primary hover:underline">CGU</a>
           <span>·</span>

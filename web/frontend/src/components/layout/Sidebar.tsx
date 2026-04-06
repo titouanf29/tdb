@@ -28,47 +28,7 @@ import {
 
 import { cn } from "@/lib/utils";
 import { adminAPI } from "@/lib/api";
-
-const menuGroups = [
-  {
-    label: "Trading",
-    items: [
-      { icon: LayoutDashboard, label: "Dashboard",  href: "/dashboard" },
-      { icon: Globe,           label: "Marchés",    href: "/markets" },
-      { icon: BarChart3,       label: "Analyse",    href: "/analysis" },
-      { icon: ScanLine,        label: "Scanner",    href: "/scanner" },
-    ],
-  },
-  {
-    label: "Mon espace",
-    items: [
-      { icon: Briefcase,  label: "Portefeuille", href: "/portfolio" },
-      { icon: TrendingUp, label: "Positions",    href: "/trading" },
-      { icon: Wallet,     label: "Wallet",       href: "/wallet" },
-      { icon: BookOpen,   label: "Journal",      href: "/journal" },
-      { icon: Star,       label: "Favoris",      href: "/favorites" },
-    ],
-  },
-  {
-    label: "IA & Outils",
-    items: [
-      { icon: Bot,    label: "Assistant IA", href: "/assistant" },
-      { icon: Wrench, label: "Outils",       href: "/tools" },
-    ],
-  },
-  {
-    label: "Apprendre",
-    items: [
-      { icon: GraduationCap, label: "Formation", href: "/learn" },
-    ],
-  },
-  {
-    label: "Communauté",
-    items: [
-      { icon: Users, label: "Communauté", href: "/community" },
-    ],
-  },
-];
+import { useLanguage } from "@/lib/LanguageContext";
 
 export function Sidebar({
   mobileOpen = false,
@@ -80,6 +40,48 @@ export function Sidebar({
   const [collapsed, setCollapsed] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const pathname = usePathname();
+  const { t } = useLanguage();
+
+  const menuGroups = [
+    {
+      labelKey: "nav_group_trading" as const,
+      items: [
+        { icon: LayoutDashboard, labelKey: "nav_dashboard" as const,  href: "/dashboard" },
+        { icon: Globe,           labelKey: "nav_markets" as const,    href: "/markets" },
+        { icon: BarChart3,       labelKey: "nav_analysis" as const,   href: "/analysis" },
+        { icon: ScanLine,        labelKey: "nav_scanner" as const,    href: "/scanner" },
+      ],
+    },
+    {
+      labelKey: "nav_group_space" as const,
+      items: [
+        { icon: Briefcase,  labelKey: "nav_portfolio" as const,  href: "/portfolio" },
+        { icon: TrendingUp, labelKey: "nav_positions" as const,  href: "/trading" },
+        { icon: Wallet,     labelKey: "nav_wallet" as const,     href: "/wallet" },
+        { icon: BookOpen,   labelKey: "nav_journal" as const,    href: "/journal" },
+        { icon: Star,       labelKey: "nav_favorites" as const,  href: "/favorites" },
+      ],
+    },
+    {
+      labelKey: "nav_group_ai" as const,
+      items: [
+        { icon: Bot,    labelKey: "nav_assistant" as const, href: "/assistant" },
+        { icon: Wrench, labelKey: "nav_tools" as const,     href: "/tools" },
+      ],
+    },
+    {
+      labelKey: "nav_group_learn" as const,
+      items: [
+        { icon: GraduationCap, labelKey: "nav_learn" as const, href: "/learn" },
+      ],
+    },
+    {
+      labelKey: "nav_group_community" as const,
+      items: [
+        { icon: Users, labelKey: "nav_community" as const, href: "/community" },
+      ],
+    },
+  ];
 
   useEffect(() => {
     const checkAdminStatus = async () => {
@@ -133,7 +135,7 @@ export function Sidebar({
       {/* Navigation */}
       <nav className="flex-1 p-3 space-y-4 overflow-y-auto no-scrollbar">
         {menuGroups.map((group) => (
-          <div key={group.label}>
+          <div key={group.labelKey}>
             {/* Group label */}
             <AnimatePresence>
               {!collapsed && (
@@ -143,7 +145,7 @@ export function Sidebar({
                   exit={{ opacity: 0 }}
                   className="px-3 mb-1 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/50"
                 >
-                  {group.label}
+                  {t(group.labelKey)}
                 </motion.p>
               )}
             </AnimatePresence>
@@ -181,7 +183,7 @@ export function Sidebar({
                             exit={{ opacity: 0, x: -10 }}
                             className="font-medium text-sm"
                           >
-                            {item.label}
+                            {t(item.labelKey)}
                           </motion.span>
                         )}
                       </AnimatePresence>
@@ -245,7 +247,7 @@ export function Sidebar({
         )}
       </nav>
 
-      {/* Bottom: Mentions légales + Settings + Collapse */}
+      {/* Bottom: Legal + Settings + Collapse */}
       <div className="p-3 space-y-1" style={{borderTop: "1px solid rgba(99,140,255,0.1)"}}>
         <Link href="/mentions-legales">
           <motion.div
@@ -262,7 +264,7 @@ export function Sidebar({
                   exit={{ opacity: 0, x: -10 }}
                   className="text-xs"
                 >
-                  Mentions légales
+                  {t("nav_legal")}
                 </motion.span>
               )}
             </AnimatePresence>
@@ -295,7 +297,7 @@ export function Sidebar({
                   exit={{ opacity: 0, x: -10 }}
                   className="font-medium text-sm"
                 >
-                  Paramètres
+                  {t("nav_settings")}
                 </motion.span>
               )}
             </AnimatePresence>
@@ -310,7 +312,7 @@ export function Sidebar({
           ) : (
             <>
               <ChevronLeft className="w-5 h-5" />
-              <span className="text-sm">Réduire</span>
+              <span className="text-sm">{t("nav_collapse")}</span>
             </>
           )}
         </button>

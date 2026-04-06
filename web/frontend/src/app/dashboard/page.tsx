@@ -17,6 +17,7 @@ import { getAssetInfo, getAssetLogo } from "@/lib/assetInfo";
 import { SessionSummaryWidget } from "@/components/dashboard/SessionSummary";
 import { OpportunitiesWidget } from "@/components/dashboard/OpportunitiesWidget";
 import { WeeklyPrepWidget } from "@/components/ui/WeeklyPrepWidget";
+import { useLanguage } from "@/lib/LanguageContext";
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  DASHBOARD CONFIG
@@ -60,6 +61,7 @@ export default function DashboardPage() {
   const formatCurrency = useFormatCurrency();
   const formatPrice = useFormatPrice();
   const { isPremium } = usePremium();
+  const { t } = useLanguage();
   const [balance, setBalance] = useState<WalletBalance | null>(null);
   const [stats, setStats] = useState<TradingStats | null>(null);
   const [favorites, setFavorites] = useState<Favorite[]>([]);
@@ -196,9 +198,9 @@ export default function DashboardPage() {
         <div className="relative flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold mb-1">
-              Tableau de bord <span className="gradient-text">TDB</span>
+              {t("dash_welcome")} <span className="gradient-text">TDB</span>
             </h1>
-            <p className="text-muted-foreground text-sm">Suivez vos actifs, restez informé, tradez mieux.</p>
+            <p className="text-muted-foreground text-sm">{t("dash_subtitle")}</p>
           </div>
           <div className="flex items-center gap-2">
             {isPremium && (

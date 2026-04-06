@@ -6,10 +6,12 @@ import Link from "next/link";
 import { Eye, EyeOff, TrendingUp, Loader2, Check, AlertTriangle, ArrowLeft } from "lucide-react";
 import { useAuth } from "@/lib/AuthContext";
 import { LanguageToggle } from "@/components/ui/LanguageToggle";
+import { useLanguage } from "@/lib/LanguageContext";
 
 export default function RegisterPage() {
   const router = useRouter();
   const { register } = useAuth();
+  const { t } = useLanguage();
   const [formData, setFormData] = useState({
     username: "",
     email: "",
@@ -23,7 +25,7 @@ export default function RegisterPage() {
   const [isLoading, setIsLoading] = useState(false);
 
   const passwordRequirements = [
-    { label: "Au moins 6 caracteres", met: formData.password.length >= 6 },
+    { label: t("register_password") + " ≥ 6", met: formData.password.length >= 6 },
   ];
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -36,7 +38,7 @@ export default function RegisterPage() {
     }
 
     if (formData.password.length < 6) {
-      setError("Le mot de passe doit contenir au moins 6 caracteres");
+      setError("Le mot de passe doit contenir au moins 6 caractères");
       return;
     }
 
@@ -56,7 +58,7 @@ export default function RegisterPage() {
       );
       router.push("/dashboard");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Erreur d'inscription");
+      setError(err instanceof Error ? err.message : t("error_generic"));
     } finally {
       setIsLoading(false);
     }
@@ -68,7 +70,7 @@ export default function RegisterPage() {
       <div className="mb-4 flex items-center justify-between">
         <Link href="/" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-white transition-colors">
           <ArrowLeft className="w-4 h-4" />
-          Retour à la présentation
+          {t("register_back")}
         </Link>
         <LanguageToggle variant="compact" />
       </div>
@@ -80,10 +82,10 @@ export default function RegisterPage() {
             <TrendingUp className="w-8 h-8 text-primary" />
           </div>
           <h1 className="text-2xl font-bold">
-            Rejoignez <span className="gradient-text">CaptenTDB</span>
+            {t("register_title")} <span className="gradient-text">CaptenTDB</span>
           </h1>
           <p className="text-muted-foreground mt-2">
-            Creez votre compte et apprenez le trading
+            {t("register_subtitle")}
           </p>
         </div>
 
@@ -97,7 +99,7 @@ export default function RegisterPage() {
 
           <div>
             <label className="block text-sm font-medium mb-2">
-              Nom d&apos;utilisateur
+              {t("register_username")}
             </label>
             <input
               type="text"
@@ -106,7 +108,7 @@ export default function RegisterPage() {
                 setFormData({ ...formData, username: e.target.value })
               }
               className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-colors"
-              placeholder="Votre pseudo"
+              placeholder={t("register_username_ph")}
               required
               minLength={3}
               maxLength={30}
@@ -114,7 +116,7 @@ export default function RegisterPage() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium mb-2">Email</label>
+            <label className="block text-sm font-medium mb-2">{t("register_email")}</label>
             <input
               type="email"
               value={formData.email}
@@ -129,7 +131,7 @@ export default function RegisterPage() {
 
           <div>
             <label className="block text-sm font-medium mb-2">
-              Mot de passe
+              {t("register_password")}
             </label>
             <div className="relative">
               <input
@@ -154,7 +156,6 @@ export default function RegisterPage() {
                 )}
               </button>
             </div>
-            {/* Password requirements */}
             <div className="mt-2 space-y-1">
               {passwordRequirements.map((req, i) => (
                 <div
@@ -174,7 +175,7 @@ export default function RegisterPage() {
 
           <div>
             <label className="block text-sm font-medium mb-2">
-              Confirmer le mot de passe
+              {t("register_confirm")}
             </label>
             <input
               type="password"
@@ -198,19 +199,19 @@ export default function RegisterPage() {
                 className="mt-1 w-4 h-4 rounded border-white/20 bg-white/5 text-primary focus:ring-primary"
               />
               <span className="text-sm text-muted-foreground">
-                J'ai lu et j'accepte les{" "}
+                {t("register_terms_text")}{" "}
                 <button
                   type="button"
                   onClick={() => setShowTerms(true)}
                   className="text-primary hover:underline"
                 >
-                  conditions d'utilisation (CGU)
+                  {t("register_terms_cgu")}
                 </button>
-                , la{" "}
+                {t("register_terms_and")}{" "}
                 <a href="/politique-de-confidentialite" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
-                  politique de confidentialité
+                  {t("register_terms_privacy")}
                 </a>
-                {" "}et le disclaimer financier. Je confirme avoir au moins <strong>18 ans</strong>.
+                {" "}{t("register_terms_age")} <strong>18 ans</strong>.
               </span>
             </label>
 
@@ -219,8 +220,7 @@ export default function RegisterPage() {
               <div className="flex items-start gap-2">
                 <AlertTriangle className="w-4 h-4 text-yellow-400 mt-0.5 shrink-0" />
                 <p className="text-xs text-yellow-400/90">
-                  Ce site est a but educatif uniquement. CaptenTDB ne fournit pas de conseils financiers.
-                  Les utilisateurs sont responsables de leurs propres decisions d'investissement.
+                  {t("register_disclaimer")}
                 </p>
               </div>
             </div>
@@ -234,10 +234,10 @@ export default function RegisterPage() {
             {isLoading ? (
               <>
                 <Loader2 className="w-5 h-5 animate-spin" />
-                Creation du compte...
+                {t("register_loading")}
               </>
             ) : (
-              "Creer mon compte"
+              t("register_button")
             )}
           </button>
         </form>
@@ -247,81 +247,50 @@ export default function RegisterPage() {
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80">
             <div className="bg-background border border-white/10 rounded-2xl max-w-2xl w-full max-h-[80vh] overflow-hidden">
               <div className="p-6 border-b border-white/10">
-                <h2 className="text-xl font-bold">Conditions d'utilisation - CaptenTDB</h2>
+                <h2 className="text-xl font-bold">Conditions d&apos;utilisation - CaptenTDB</h2>
               </div>
               <div className="p-6 overflow-y-auto max-h-[60vh] space-y-4 text-sm text-muted-foreground">
                 <div>
                   <h3 className="font-semibold text-foreground mb-2">1. Disclaimer Financier</h3>
-                  <p>
-                    CaptenTDB est une plateforme educative. Les informations, analyses et outils fournis
-                    sont destines uniquement a des fins d'apprentissage et ne constituent en aucun cas des
-                    conseils financiers, d'investissement ou de trading.
-                  </p>
+                  <p>CaptenTDB est une plateforme éducative. Les informations, analyses et outils fournis sont destinés uniquement à des fins d&apos;apprentissage et ne constituent en aucun cas des conseils financiers, d&apos;investissement ou de trading.</p>
                 </div>
-
                 <div>
-                  <h3 className="font-semibold text-foreground mb-2">2. Responsabilite de l'utilisateur</h3>
-                  <p>
-                    L'utilisateur est seul responsable de ses decisions d'investissement. Toute operation
-                    realisee sur les marches financiers reels comporte des risques de perte en capital.
-                    CaptenTDB ne saurait etre tenu responsable des pertes financieres.
-                  </p>
+                  <h3 className="font-semibold text-foreground mb-2">2. Responsabilité de l&apos;utilisateur</h3>
+                  <p>L&apos;utilisateur est seul responsable de ses décisions d&apos;investissement. Toute opération réalisée sur les marchés financiers réels comporte des risques de perte en capital.</p>
                 </div>
-
                 <div>
                   <h3 className="font-semibold text-foreground mb-2">3. Paper Trading</h3>
-                  <p>
-                    Le portefeuille virtuel utilise de l'argent fictif. Les performances realisees en
-                    paper trading ne garantissent pas les memes resultats sur les marches reels.
-                  </p>
+                  <p>Le portefeuille virtuel utilise de l&apos;argent fictif. Les performances réalisées en paper trading ne garantissent pas les mêmes résultats sur les marchés réels.</p>
                 </div>
-
                 <div>
-                  <h3 className="font-semibold text-foreground mb-2">4. Regles de la communaute</h3>
+                  <h3 className="font-semibold text-foreground mb-2">4. Règles de la communauté</h3>
                   <ul className="list-disc pl-5 space-y-1">
-                    <li>Respecter les autres membres de la communaute</li>
+                    <li>Respecter les autres membres de la communauté</li>
                     <li>Ne pas partager de fausses informations ou de manipulation</li>
-                    <li>Ne pas faire de spam ou de publicite non autorisee</li>
-                    <li>Signaler tout comportement problematique aux administrateurs</li>
+                    <li>Ne pas faire de spam ou de publicité non autorisée</li>
+                    <li>Signaler tout comportement problématique aux administrateurs</li>
                   </ul>
                 </div>
-
                 <div>
-                  <h3 className="font-semibold text-foreground mb-2">5. Donnees personnelles</h3>
-                  <p>
-                    Vos donnees personnelles sont utilisees uniquement pour le fonctionnement de la
-                    plateforme. Nous ne vendons pas vos donnees a des tiers.
-                  </p>
+                  <h3 className="font-semibold text-foreground mb-2">5. Données personnelles</h3>
+                  <p>Vos données personnelles sont utilisées uniquement pour le fonctionnement de la plateforme. Nous ne vendons pas vos données à des tiers.</p>
                 </div>
-
                 <div>
-                  <h3 className="font-semibold text-foreground mb-2">6. Conditions d'accès</h3>
-                  <p>
-                    L'accès au service est réservé aux personnes de <strong className="text-foreground">18 ans minimum</strong>. Un seul compte par personne est autorisé. L'utilisateur s'engage à fournir des informations exactes.
-                  </p>
+                  <h3 className="font-semibold text-foreground mb-2">6. Conditions d&apos;accès</h3>
+                  <p>L&apos;accès au service est réservé aux personnes de <strong className="text-foreground">18 ans minimum</strong>. Un seul compte par personne est autorisé.</p>
                 </div>
-
                 <div>
                   <h3 className="font-semibold text-foreground mb-2">7. Données personnelles (RGPD)</h3>
-                  <p>
-                    Vos données sont traitées conformément au RGPD. Vous disposez d'un droit d'accès, de rectification et de suppression. Aucune donnée n'est vendue à des tiers. Consultez notre{" "}
-                    <a href="/politique-de-confidentialite" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
-                      politique de confidentialité complète
-                    </a>.
+                  <p>Vos données sont traitées conformément au RGPD. Vous disposez d&apos;un droit d&apos;accès, de rectification et de suppression. Consultez notre{" "}
+                    <a href="/politique-de-confidentialite" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">politique de confidentialité complète</a>.
                   </p>
                 </div>
-
                 <div>
                   <h3 className="font-semibold text-foreground mb-2">8. Contact</h3>
-                  <p>
-                    Pour toute question ou exercice de vos droits RGPD, utilisez la section "Communauté" → "Contacter Admin".
-                  </p>
+                  <p>Pour toute question ou exercice de vos droits RGPD, utilisez la section &quot;Communauté&quot; → &quot;Contacter Admin&quot;.</p>
                 </div>
-
                 <div className="pt-4 border-t border-white/10 space-y-2">
-                  <p className="text-xs">
-                    Fait par <span className="text-primary font-semibold">CaptenQwark</span> - CaptenTDB
-                  </p>
+                  <p className="text-xs">Fait par <span className="text-primary font-semibold">CaptenQwark</span> - CaptenTDB</p>
                   <div className="flex gap-3 text-xs">
                     <a href="/cgu" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">CGU complètes</a>
                     <span>·</span>
@@ -336,7 +305,7 @@ export default function RegisterPage() {
                   onClick={() => setShowTerms(false)}
                   className="px-4 py-2 rounded-lg bg-white/5 hover:bg-white/10 transition-colors"
                 >
-                  Fermer
+                  {t("close")}
                 </button>
                 <button
                   onClick={() => {
@@ -345,7 +314,7 @@ export default function RegisterPage() {
                   }}
                   className="px-4 py-2 rounded-lg bg-primary hover:bg-primary/90 text-white transition-colors"
                 >
-                  Accepter
+                  {t("confirm")}
                 </button>
               </div>
             </div>
@@ -354,24 +323,24 @@ export default function RegisterPage() {
 
         {/* Login link */}
         <p className="text-center text-sm text-muted-foreground mt-6">
-          Deja un compte ?{" "}
+          {t("register_has_account")}{" "}
           <Link href="/login" className="text-primary hover:underline">
-            Se connecter
+            {t("register_login")}
           </Link>
         </p>
 
         {/* Bonus info */}
         <div className="mt-6 p-4 rounded-xl bg-green-500/10 border border-green-500/20">
           <p className="text-sm text-green-400 text-center">
-            Bonus de bienvenue : <strong>$10,000</strong> en argent virtuel !
+            {t("register_bonus")} <strong>$10,000</strong> {t("register_bonus_sub")}
           </p>
         </div>
       </div>
 
       {/* Footer */}
       <div className="text-center text-xs text-muted-foreground mt-4 space-y-1">
-        <p>Paper Trading uniquement — Aucun risque financier réel</p>
-        <p><span className="text-primary">CaptenTDB</span> par CaptenQwark</p>
+        <p>{t("footer_paper")}</p>
+        <p><span className="text-primary">CaptenTDB</span> {t("footer_by")}</p>
         <div className="flex gap-3 justify-center pt-1">
           <a href="/cgu" className="hover:text-primary hover:underline">CGU</a>
           <span>·</span>
