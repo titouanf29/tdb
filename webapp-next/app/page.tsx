@@ -77,44 +77,83 @@ export default function HomePage() {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
-      <section className="container hero">
-        <div>
-          <p className="pill">Bot IA trading pedagogique</p>
-          <h1>{siteConfig.tagline}</h1>
-          <p className="section-text">{siteConfig.description}</p>
-          <div className="actions">
-            <CtaButton
-              href={siteConfig.telegramUrl}
-              location="hero"
-              targetLabel="telegram"
-              external
-            >
-              Rejoindre le bot Telegram
-            </CtaButton>
-            <CtaButton href="/fonctionnalites" location="hero" targetLabel="features" variant="secondary">
-              Découvrir les fonctionnalités
-            </CtaButton>
-          </div>
-          <div className="proof-row">
-            <span>25+ indicateurs</span>
-            <span>Score opportunité 0 à 100</span>
-            <span>Paper trading 10 000$</span>
-          </div>
+      <section className="hero-shell">
+        <div className="hero-backdrop" aria-hidden="true">
+          <span className="hero-grid" />
+          <span className="hero-orb hero-orb-1" />
+          <span className="hero-orb hero-orb-2" />
         </div>
-
-        <aside className="signal-card">
-          <h2>Signal IA | BTC/USD</h2>
-          <p>Contexte : SMA200 haussière, VIX neutre, momentum positif</p>
-          <div className="score-box">
-            <strong>Score 82/100</strong>
-            <span>Opportunité LONG détectée</span>
+        <div className="container hero">
+          <div className="hero-content">
+            <p className="pill">Bot IA trading pedagogique</p>
+            <h1>{siteConfig.tagline}</h1>
+            <p className="section-text">{siteConfig.description}</p>
+            <div className="actions">
+              <CtaButton
+                href={siteConfig.telegramUrl}
+                location="hero"
+                targetLabel="telegram"
+                external
+              >
+                Rejoindre le bot Telegram
+              </CtaButton>
+              <CtaButton href="/fonctionnalites" location="hero" targetLabel="features" variant="secondary">
+                D&eacute;couvrir les fonctionnalit&eacute;s
+              </CtaButton>
+            </div>
+            <div className="proof-row">
+              <span className="proof-pill">25+ indicateurs</span>
+              <span className="proof-pill">Score opportunit&eacute; 0 &agrave; 100</span>
+              <span className="proof-pill">Paper trading 10 000$</span>
+            </div>
           </div>
-          <ul>
-            <li>Entrée : 68 420</li>
-            <li>Risque : 1.2%</li>
-            <li>Confiance : élevée</li>
-          </ul>
-        </aside>
+
+          <aside className="hero-visual">
+            <div className="hero-ticker" aria-hidden="true">
+              <div className="hero-ticker-track">
+                <span>BTC +2.4%</span>
+                <span>ETH +1.8%</span>
+                <span>SPX -0.3%</span>
+                <span>GOLD +0.6%</span>
+                <span>EUR/USD +0.2%</span>
+                <span aria-hidden="true">BTC +2.4%</span>
+                <span aria-hidden="true">ETH +1.8%</span>
+                <span aria-hidden="true">SPX -0.3%</span>
+                <span aria-hidden="true">GOLD +0.6%</span>
+                <span aria-hidden="true">EUR/USD +0.2%</span>
+              </div>
+            </div>
+
+            <div className="signal-card hero-terminal">
+              <div className="signal-top">
+                <span className="signal-badge">Signal IA</span>
+                <span className="signal-time">Mise &agrave; jour : 2 min</span>
+              </div>
+              <h2>BTC/USD</h2>
+              <p>Contexte : SMA200 haussi&egrave;re, VIX neutre, momentum positif</p>
+              <div className="score-box">
+                <strong>Score 82/100</strong>
+                <span>Opportunit&eacute; LONG d&eacute;tect&eacute;e</span>
+              </div>
+              <ul className="signal-list">
+                <li>Entr&eacute;e : 68 420</li>
+                <li>Risque : 1.2%</li>
+                <li>Confiance : &eacute;lev&eacute;e</li>
+              </ul>
+            </div>
+
+            <div className="hero-bars" aria-hidden="true">
+              <span />
+              <span />
+              <span />
+              <span />
+              <span />
+              <span />
+              <span />
+              <span />
+            </div>
+          </aside>
+        </div>
       </section>
 
       <section className="container section-block">

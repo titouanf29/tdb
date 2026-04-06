@@ -1,0 +1,21 @@
+<svg width="2000" height="2000" viewBox="0 0 2000 2000" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="2000" y2="2000" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#0A1925" />
+      <stop offset="100%" stop-color="#0A1A26" />
+    </linearGradient>
+    <linearGradient id="gold" x1="820" y1="1120" x2="1370" y2="740" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#986E3C" />
+      <stop offset="55%" stop-color="#D19A3B" />
+      <stop offset="100%" stop-color="#FEE636" />
+    </linearGradient>
+  </defs>
+
+  <rect width="2000" height="2000" fill="url(#bg)" />
+
+  <!-- Main arrow shaft -->
+  <path d="M820 1120 L940 980 L1010 1040 L1160 860 L1260 820" stroke="url(#gold)" stroke-width="72" stroke-linejoin="miter" stroke-linecap="square" />
+
+  <!-- Arrow head -->
+  <path d="M1260 820 L1370 740 L1290 900 Z" fill="url(#gold)" />
+</svg>
