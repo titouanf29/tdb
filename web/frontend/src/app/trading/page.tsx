@@ -35,6 +35,8 @@ export default function TradingPage() {
   const [balance, setBalance] = useState<WalletBalance | null>(null);
   const [quote, setQuote] = useState<Quote | null>(null);
   const [isLoadingQuote, setIsLoadingQuote] = useState(false);
+  const [quoteError, setQuoteError] = useState("");
+  const [retryCount, setRetryCount] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -49,8 +51,14 @@ export default function TradingPage() {
     const loadQuote = async () => {
       if (!symbol || symbol.length < 1) return;
       setIsLoadingQuote(true);
+      setQuoteError("");
       try {
         const data = await marketAPI.getQuote(symbol);
+        if (!data.price || data.price <= 0) {
+          setQuote(null);
+          setQuoteError(`Prix indisponible pour ${symbol}`);
+          return;
+        }
         setQuote(data);
 
         // Set suggested TP/SL
@@ -58,9 +66,9 @@ export default function TradingPage() {
         const sl = direction === "LONG" ? data.price * 0.97 : data.price * 1.03;
         setTakeProfit(Math.round(tp * 100) / 100);
         setStopLoss(Math.round(sl * 100) / 100);
-      } catch (error) {
-        console.error("Error loading quote:", error);
+      } catch {
         setQuote(null);
+        setQuoteError(`Symbole "${symbol}" introuvable ou données indisponibles`);
       } finally {
         setIsLoadingQuote(false);
       }
@@ -68,7 +76,7 @@ export default function TradingPage() {
 
     const debounce = setTimeout(loadQuote, 500);
     return () => clearTimeout(debounce);
-  }, [symbol, direction]);
+  }, [symbol, direction, retryCount]);
 
   const currentPrice = quote?.price || 0;
   const quantity = currentPrice > 0 ? (amount * leverage) / currentPrice : 0;
@@ -190,6 +198,9 @@ export default function TradingPage() {
                   </span>
                 </div>
               )}
+              {!quote && !isLoadingQuote && quoteError && (
+                <AlertCircle className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-loss" />
+              )}
             </div>
           </div>
 
@@ -287,6 +298,22 @@ export default function TradingPage() {
             )}
           </div>
 
+          {/* Quote error */}
+          {quoteError && !isLoadingQuote && (
+            <div className="p-3 rounded-lg bg-loss/10 border border-loss/30 flex items-center justify-between gap-3 text-sm text-loss">
+              <div className="flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                {quoteError}
+              </div>
+              <button
+                onClick={() => setRetryCount(c => c + 1)}
+                className="text-xs underline shrink-0 hover:opacity-80"
+              >
+                Réessayer
+              </button>
+            </div>
+          )}
+
           {/* Submit */}
           <motion.button
             whileHover={{ scale: 1.02 }}
@@ -294,7 +321,7 @@ export default function TradingPage() {
             onClick={handleSubmit}
             disabled={isSubmitting || !quote || currentPrice <= 0}
             className={cn(
-              "w-full py-4 rounded-xl font-bold text-lg transition-all flex items-center justify-center gap-2 disabled:opacity-50",
+              "w-full py-4 rounded-xl font-bold text-lg transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed",
               direction === "LONG"
                 ? "bg-profit hover:bg-profit/90 text-white shadow-[0_0_30px_rgba(16,185,129,0.3)]"
                 : "bg-loss hover:bg-loss/90 text-white shadow-[0_0_30px_rgba(239,68,68,0.3)]"
@@ -302,6 +329,11 @@ export default function TradingPage() {
           >
             {isSubmitting ? (
               <Loader2 className="w-5 h-5 animate-spin" />
+            ) : isLoadingQuote ? (
+              <>
+                <Loader2 className="w-5 h-5 animate-spin" />
+                Chargement du prix...
+              </>
             ) : (
               <>
                 {direction === "LONG" ? "Acheter" : "Vendre"} {symbol}
