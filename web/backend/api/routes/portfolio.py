@@ -156,25 +156,30 @@ async def search_portfolio_symbols(
     """Search symbols from the user's trade journal (real_positions)."""
     uid = _user_id(current_user)
     query_upper = q.strip().upper()
+    query_lower = q.strip().lower()
     rows = await execute_query(
         """SELECT DISTINCT symbol
            FROM real_positions
-           WHERE user_id = ? AND symbol LIKE ?
-           ORDER BY symbol ASC
-           LIMIT 15""",
-        (uid, f"%{query_upper}%"),
+           WHERE user_id = ?
+           ORDER BY symbol ASC""",
+        (uid,),
     )
     results = []
     for row in rows:
         sym = row.get("symbol", "").upper()
         if not sym:
             continue
+        display = SYMBOL_NAMES.get(sym, sym)
+        if query_upper not in sym and query_lower not in display.lower():
+            continue
         results.append({
             "symbol": sym,
-            "name": SYMBOL_NAMES.get(sym, sym),
+            "name": display,
             "exchange": "PORTFOLIO",
             "type": "PORTFOLIO",
         })
+        if len(results) >= 15:
+            break
     return {"results": results}
 
 

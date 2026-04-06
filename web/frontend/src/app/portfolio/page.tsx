@@ -751,6 +751,7 @@ export default function PortfolioPage() {
   const [showAdd, setShowAdd] = useState(false);
   const [editPos, setEditPos] = useState<RealPosition | null>(null);
   const [closePos, setClosePos] = useState<RealPosition | null>(null);
+  const [showGuide, setShowGuide] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -827,13 +828,23 @@ export default function PortfolioPage() {
               Suivi de vos positions rÃ©elles â€” Ã  titre informatif uniquement
             </p>
           </div>
-          <button
-            onClick={() => setShowAdd(true)}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-primary text-white text-sm font-medium hover:bg-primary/90 transition-colors"
-          >
-            <Plus className="w-4 h-4" />
-            Ajouter une position
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowGuide(true)}
+              className="w-9 h-9 rounded-full border border-white/15 text-white/80 hover:text-white hover:border-white/30 transition-colors flex items-center justify-center"
+              aria-label="Guide du journal de trading"
+              title="Guide du journal de trading"
+            >
+              ?
+            </button>
+            <button
+              onClick={() => setShowAdd(true)}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-primary text-white text-sm font-medium hover:bg-primary/90 transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              Ajouter une position
+            </button>
+          </div>
         </div>
 
         {/* Disclaimer */}
@@ -841,6 +852,62 @@ export default function PortfolioPage() {
           <Info className="w-4 h-4 flex-shrink-0 mt-0.5" />
           Les donnÃ©es saisies sont uniquement Ã  titre de suivi personnel et ne constituent pas un conseil en investissement.
         </div>
+
+        <AnimatePresence>
+          {showGuide && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-50 flex items-center justify-center p-4"
+            >
+              <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowGuide(false)} />
+              <motion.div
+                initial={{ opacity: 0, scale: 0.96, y: 12 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.96, y: 12 }}
+                className="relative w-full max-w-2xl rounded-2xl border border-white/10 bg-card shadow-2xl overflow-hidden"
+              >
+                <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
+                  <h2 className="text-lg font-semibold">Guide du journal de trading</h2>
+                  <button onClick={() => setShowGuide(false)} className="p-1 rounded-lg hover:bg-white/10 transition-colors">
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+                <div className="p-6 space-y-4 text-sm text-muted-foreground">
+                  <div className="p-4 rounded-xl bg-white/5 border border-white/10">
+                    <p className="font-medium text-foreground">Pourquoi tenir un journal ?</p>
+                    <p className="mt-1">
+                      Le journal vous aide à mesurer vos performances, repérer les erreurs récurrentes et améliorer votre plan de trading.
+                    </p>
+                  </div>
+                  <div>
+                    <p className="font-medium text-foreground mb-2">Comment remplir une position</p>
+                    <ul className="list-disc list-inside space-y-1">
+                      <li><span className="text-foreground">Actif</span> : saisissez le symbole (ex: <span className="font-mono">TTE.PA</span>) ou un nom (ex: Total) et choisissez dans la liste.</li>
+                      <li><span className="text-foreground">Type</span> : Long si vous anticipez une hausse, Short si vous anticipez une baisse.</li>
+                      <li><span className="text-foreground">Quantité</span> et <span className="text-foreground">Prix d'entrée</span> : pour calculer la performance réelle.</li>
+                      <li><span className="text-foreground">Date d'entrée</span> : la date à laquelle vous avez pris position.</li>
+                      <li><span className="text-foreground">Stop Loss / Take Profit</span> : vos niveaux d'invalidation et d'objectif (optionnels).</li>
+                      <li><span className="text-foreground">Notes</span> : la raison du trade (setup, contexte, émotion, etc.).</li>
+                    </ul>
+                  </div>
+                  <div className="p-4 rounded-xl bg-emerald-500/8 border border-emerald-500/20 text-emerald-200">
+                    Conseil: soyez cohérent. Après 20-30 trades, les patterns ressortent très vite.
+                  </div>
+                </div>
+                <div className="px-6 py-4 border-t border-white/10 flex justify-end">
+                  <button
+                    onClick={() => setShowGuide(false)}
+                    className="px-4 py-2 rounded-xl bg-primary text-white text-sm font-medium hover:bg-primary/90 transition-colors"
+                  >
+                    Compris
+                  </button>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {loading ? (
           <div className="flex items-center justify-center py-20">
