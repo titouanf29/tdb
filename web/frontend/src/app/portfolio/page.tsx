@@ -103,12 +103,16 @@ interface PositionFormProps {
 
 function PositionForm({ initial, onClose, onSave, title }: PositionFormProps) {
   const today = new Date().toISOString().slice(0, 10);
+  const normalizeDate = (value?: string) => {
+    if (!value) return today;
+    return value.slice(0, 10);
+  };
   const [form, setForm] = useState<CreatePositionData>({
     symbol: initial?.symbol ?? "",
     position_type: initial?.position_type ?? "long",
     quantity: initial?.quantity ?? 1,
     entry_price: initial?.entry_price ?? 0,
-    entry_date: initial?.entry_date ?? today,
+    entry_date: normalizeDate(initial?.entry_date),
     leverage: initial?.leverage ?? 1,
     broker: initial?.broker ?? "",
     notes: initial?.notes ?? "",
