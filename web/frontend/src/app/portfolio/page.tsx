@@ -38,7 +38,7 @@ import {
 import { useAuth } from "@/lib/AuthContext";
 import { authHeaders } from "@/lib/auth";
 
-// ── helpers ───────────────────────────────────────────────────────────────────
+// â”€â”€ helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function fmt(n: number, decimals = 2) {
   return n.toLocaleString("fr-FR", {
@@ -51,7 +51,7 @@ function fmtPct(n: number) {
   return (n >= 0 ? "+" : "") + fmt(n) + "%";
 }
 
-// Pie chart — pure SVG, no lib dependency
+// Pie chart â€” pure SVG, no lib dependency
 function PieChart2D({ data }: { data: { label: string; value: number; color: string }[] }) {
   const total = data.reduce((s, d) => s + d.value, 0);
   if (total === 0) return null;
@@ -92,7 +92,7 @@ const PIE_COLORS = [
   "#f59e0b", "#ef4444", "#ec4899", "#84cc16",
 ];
 
-// ── Add / Edit modal ──────────────────────────────────────────────────────────
+// â”€â”€ Add / Edit modal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 interface PositionFormProps {
   initial?: Partial<CreatePositionData>;
@@ -172,7 +172,7 @@ function PositionForm({ initial, onClose, onSave, title }: PositionFormProps) {
   };
 
   const handleSelectSymbol = (s: { symbol: string; name: string }) => {
-    setSymbolQuery(`${s.symbol} – ${s.name}`);
+    setSymbolQuery(`${s.symbol} â€“ ${s.name}`);
     set("symbol", s.symbol);
     setSymbolSuggestions([]);
     setShowSymbolSuggestions(false);
@@ -181,8 +181,8 @@ function PositionForm({ initial, onClose, onSave, title }: PositionFormProps) {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!form.symbol.trim()) return setError("Symbole requis");
-    if (form.entry_price <= 0) return setError("Prix d'entrée invalide");
-    if (form.quantity <= 0) return setError("Quantité invalide");
+    if (form.entry_price <= 0) return setError("Prix d'entrÃ©e invalide");
+    if (form.quantity <= 0) return setError("QuantitÃ© invalide");
     setSaving(true);
     setError("");
     try {
@@ -232,7 +232,7 @@ function PositionForm({ initial, onClose, onSave, title }: PositionFormProps) {
                 <input
                   type="text"
                   className="w-full bg-white/5 border border-white/10 rounded-lg pl-9 pr-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:border-primary"
-                  placeholder="BTC-USD, AAPL…"
+                  placeholder="BTC-USD, AAPLâ€¦"
                   value={symbolQuery}
                   onChange={(e) => handleSymbolQueryChange(e.target.value)}
                   onFocus={() => symbolSuggestions.length > 0 && setShowSymbolSuggestions(true)}
@@ -279,7 +279,7 @@ function PositionForm({ initial, onClose, onSave, title }: PositionFormProps) {
                     )}
                     onClick={() => set("position_type", t)}
                   >
-                    {t === "long" ? "Long ▲" : "Short ▼"}
+                    {t === "long" ? "Long â–²" : "Short â–¼"}
                   </button>
                 ))}
               </div>
@@ -289,7 +289,7 @@ function PositionForm({ initial, onClose, onSave, title }: PositionFormProps) {
           {/* Quantity + Entry price */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs text-muted-foreground mb-1">Quantité *</label>
+              <label className="block text-xs text-muted-foreground mb-1">QuantitÃ© *</label>
               <input
                 type="number"
                 step="any"
@@ -301,7 +301,7 @@ function PositionForm({ initial, onClose, onSave, title }: PositionFormProps) {
               />
             </div>
             <div>
-              <label className="block text-xs text-muted-foreground mb-1">Prix d&apos;entrée *</label>
+              <label className="block text-xs text-muted-foreground mb-1">Prix d&apos;entrÃ©e *</label>
               <input
                 type="number"
                 step="any"
@@ -317,7 +317,7 @@ function PositionForm({ initial, onClose, onSave, title }: PositionFormProps) {
           {/* Entry date + Leverage */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs text-muted-foreground mb-1">Date d&apos;entrée *</label>
+              <label className="block text-xs text-muted-foreground mb-1">Date d&apos;entrÃ©e *</label>
               <input
                 type="date"
                 className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary"
@@ -373,7 +373,7 @@ function PositionForm({ initial, onClose, onSave, title }: PositionFormProps) {
               <label className="block text-xs text-muted-foreground mb-1">Broker / Exchange</label>
               <input
                 type="text"
-                placeholder="Binance, Degiro…"
+                placeholder="Binance, Degiroâ€¦"
                 className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary placeholder:text-muted-foreground"
                 value={form.broker ?? ""}
                 onChange={(e) => set("broker", e.target.value)}
@@ -387,22 +387,22 @@ function PositionForm({ initial, onClose, onSave, title }: PositionFormProps) {
                 value={form.currency}
                 onChange={(e) => set("currency", e.target.value)}
               >
-                <option value="USD" style={{ backgroundColor: "hsl(220 50% 8%)", color: "white" }}>USD – Dollar américain</option>
-                <option value="EUR" style={{ backgroundColor: "hsl(220 50% 8%)", color: "white" }}>EUR – Euro</option>
-                <option value="USDT" style={{ backgroundColor: "hsl(220 50% 8%)", color: "white" }}>USDT – Tether</option>
-                <option value="BTC" style={{ backgroundColor: "hsl(220 50% 8%)", color: "white" }}>BTC – Bitcoin</option>
-                <option value="GBP" style={{ backgroundColor: "hsl(220 50% 8%)", color: "white" }}>GBP – Livre sterling</option>
-                <option value="CHF" style={{ backgroundColor: "hsl(220 50% 8%)", color: "white" }}>CHF – Franc suisse</option>
+                <option value="USD" style={{ backgroundColor: "hsl(220 50% 8%)", color: "white" }}>USD â€“ Dollar amÃ©ricain</option>
+                <option value="EUR" style={{ backgroundColor: "hsl(220 50% 8%)", color: "white" }}>EUR â€“ Euro</option>
+                <option value="USDT" style={{ backgroundColor: "hsl(220 50% 8%)", color: "white" }}>USDT â€“ Tether</option>
+                <option value="BTC" style={{ backgroundColor: "hsl(220 50% 8%)", color: "white" }}>BTC â€“ Bitcoin</option>
+                <option value="GBP" style={{ backgroundColor: "hsl(220 50% 8%)", color: "white" }}>GBP â€“ Livre sterling</option>
+                <option value="CHF" style={{ backgroundColor: "hsl(220 50% 8%)", color: "white" }}>CHF â€“ Franc suisse</option>
               </select>
             </div>
           </div>
 
           {/* Notes */}
           <div>
-            <label className="block text-xs text-muted-foreground mb-1">Notes / Thèse</label>
+            <label className="block text-xs text-muted-foreground mb-1">Notes / ThÃ¨se</label>
             <textarea
               rows={3}
-              placeholder="Raison d'achat, thèse d'investissement…"
+              placeholder="Raison d'achat, thÃ¨se d'investissementâ€¦"
               className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm resize-none focus:outline-none focus:border-primary placeholder:text-muted-foreground"
               value={form.notes ?? ""}
               onChange={(e) => set("notes", e.target.value)}
@@ -423,7 +423,7 @@ function PositionForm({ initial, onClose, onSave, title }: PositionFormProps) {
               className="flex-1 py-2.5 rounded-xl bg-primary text-white font-medium text-sm hover:bg-primary/90 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
             >
               {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-              {saving ? "Sauvegarde…" : "Sauvegarder"}
+              {saving ? "Sauvegardeâ€¦" : "Sauvegarder"}
             </button>
           </div>
         </form>
@@ -432,7 +432,7 @@ function PositionForm({ initial, onClose, onSave, title }: PositionFormProps) {
   );
 }
 
-// ── Close position modal ───────────────────────────────────────────────────────
+// â”€â”€ Close position modal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function CloseModal({
   position,
@@ -464,7 +464,7 @@ function CloseModal({
         className="relative w-full max-w-sm rounded-2xl border border-white/10 bg-card shadow-2xl p-6 space-y-4"
       >
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold">Clôturer {position.symbol}</h2>
+          <h2 className="text-lg font-semibold">ClÃ´turer {position.symbol}</h2>
           <button onClick={onClose} className="p-1 rounded-lg hover:bg-white/10">
             <X className="w-5 h-5" />
           </button>
@@ -486,7 +486,7 @@ function CloseModal({
           "p-3 rounded-xl text-center",
           pnl >= 0 ? "bg-emerald-500/10 border border-emerald-500/20" : "bg-red-500/10 border border-red-500/20"
         )}>
-          <p className="text-xs text-muted-foreground">P&L réalisé estimé</p>
+          <p className="text-xs text-muted-foreground">P&L rÃ©alisÃ© estimÃ©</p>
           <p className={cn("text-2xl font-bold mt-1", pnl >= 0 ? "text-emerald-400" : "text-red-400")}>
             {pnl >= 0 ? "+" : ""}{fmt(pnl)} {position.currency}
           </p>
@@ -517,7 +517,7 @@ function CloseModal({
   );
 }
 
-// ── Position card ─────────────────────────────────────────────────────────────
+// â”€â”€ Position card â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function PositionCard({
   pos,
@@ -566,7 +566,7 @@ function PositionCard({
               "text-xs font-bold px-2 py-0.5 rounded-full",
               isLong ? "bg-emerald-500/15 text-emerald-400" : "bg-red-500/15 text-red-400"
             )}>
-              {isLong ? "▲ LONG" : "▼ SHORT"}
+              {isLong ? "â–² LONG" : "â–¼ SHORT"}
             </span>
             <span className="font-bold text-base">{pos.symbol}</span>
             {pos.leverage && pos.leverage > 1 && (
@@ -595,15 +595,15 @@ function PositionCard({
         {/* Stats row */}
         <div className="mt-3 grid grid-cols-3 gap-3 text-center">
           <div>
-            <p className="text-xs text-muted-foreground">Entrée</p>
+            <p className="text-xs text-muted-foreground">EntrÃ©e</p>
             <p className="text-sm font-medium">{fmt(pos.entry_price, 4)}</p>
           </div>
           <div>
             <p className="text-xs text-muted-foreground">Actuel</p>
-            <p className="text-sm font-medium">{pos.current_price ? fmt(pos.current_price, 4) : "—"}</p>
+            <p className="text-sm font-medium">{pos.current_price ? fmt(pos.current_price, 4) : "â€”"}</p>
           </div>
           <div>
-            <p className="text-xs text-muted-foreground">Qté</p>
+            <p className="text-xs text-muted-foreground">QtÃ©</p>
             <p className="text-sm font-medium">{pos.quantity}</p>
           </div>
         </div>
@@ -614,7 +614,7 @@ function PositionCard({
           onClick={() => setExpanded((v) => !v)}
         >
           {expanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-          {expanded ? "Moins" : "Détails"}
+          {expanded ? "Moins" : "DÃ©tails"}
         </button>
 
         <AnimatePresence>
@@ -629,18 +629,18 @@ function PositionCard({
                 <div className="grid grid-cols-2 gap-2 text-xs">
                   <div>
                     <span className="text-muted-foreground">Valeur position :</span>{" "}
-                    <span>{pos.position_value ? fmt(pos.position_value) : "—"} {pos.currency}</span>
+                    <span>{pos.position_value ? fmt(pos.position_value) : "â€”"} {pos.currency}</span>
                   </div>
                   <div>
                     <span className="text-muted-foreground">Investi :</span>{" "}
-                    <span>{pos.invested_value ? fmt(pos.invested_value) : "—"} {pos.currency}</span>
+                    <span>{pos.invested_value ? fmt(pos.invested_value) : "â€”"} {pos.currency}</span>
                   </div>
                   <div>
-                    <span className="text-muted-foreground">Jours détenus :</span>{" "}
+                    <span className="text-muted-foreground">Jours dÃ©tenus :</span>{" "}
                     <span>{pos.days_held ?? 0} j</span>
                   </div>
                   <div>
-                    <span className="text-muted-foreground">Date d&apos;entrée :</span>{" "}
+                    <span className="text-muted-foreground">Date d&apos;entrÃ©e :</span>{" "}
                     <span>{pos.entry_date?.slice(0, 10)}</span>
                   </div>
                   {pos.stop_loss && (
@@ -688,7 +688,7 @@ function PositionCard({
           onClick={onClose}
           className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs text-primary hover:bg-primary/10 transition-colors border-r border-white/8"
         >
-          <CheckCircle className="w-3.5 h-3.5" /> Clôturer
+          <CheckCircle className="w-3.5 h-3.5" /> ClÃ´turer
         </button>
         <button
           onClick={onDelete}
@@ -701,7 +701,7 @@ function PositionCard({
   );
 }
 
-// ── Closed position row ───────────────────────────────────────────────────────
+// â”€â”€ Closed position row â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function ClosedRow({ pos }: { pos: RealPosition }) {
   const entry = pos.entry_price;
@@ -735,7 +735,7 @@ function ClosedRow({ pos }: { pos: RealPosition }) {
   );
 }
 
-// ── Main page ─────────────────────────────────────────────────────────────────
+// â”€â”€ Main page â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export default function PortfolioPage() {
   const { user } = useAuth();
@@ -765,7 +765,7 @@ export default function PortfolioPage() {
       setClosedPositions(closedRes.positions);
       setSummary(sumRes);
     } catch {
-      // silently fail — user will see empty state
+      // silently fail â€” user will see empty state
     } finally {
       setLoading(false);
     }
@@ -822,10 +822,10 @@ export default function PortfolioPage() {
           <div>
             <h1 className="text-2xl font-bold flex items-center gap-2">
               <Briefcase className="w-6 h-6 text-primary" />
-              Mon Portefeuille Réel
+              Mon Portefeuille RÃ©el
             </h1>
             <p className="text-sm text-muted-foreground mt-0.5">
-              Suivi de vos positions réelles — à titre informatif uniquement
+              Suivi de vos positions rÃ©elles â€” Ã  titre informatif uniquement
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -850,7 +850,7 @@ export default function PortfolioPage() {
         {/* Disclaimer */}
         <div className="flex items-start gap-2 px-4 py-3 rounded-xl bg-blue-500/8 border border-blue-500/15 text-xs text-blue-300/80">
           <Info className="w-4 h-4 flex-shrink-0 mt-0.5" />
-          Les données saisies sont uniquement à titre de suivi personnel et ne constituent pas un conseil en investissement.
+          Les donnÃ©es saisies sont uniquement Ã  titre de suivi personnel et ne constituent pas un conseil en investissement.
         </div>
 
         <AnimatePresence>
@@ -878,7 +878,7 @@ export default function PortfolioPage() {
                   <div className="p-4 rounded-xl bg-white/5 border border-white/10">
                     <p className="font-medium text-foreground">Pourquoi tenir un journal ?</p>
                     <p className="mt-1">
-                      Le journal vous aide � mesurer vos performances, rep�rer les erreurs r�currentes et am�liorer votre plan de trading.
+                      Le journal vous aide à mesurer vos performances, repérer les erreurs récurrentes et améliorer votre plan de trading.
                     </p>
                   </div>
                   <div>
@@ -886,14 +886,14 @@ export default function PortfolioPage() {
                     <ul className="list-disc list-inside space-y-1">
                       <li><span className="text-foreground">Actif</span> : saisissez le symbole (ex: <span className="font-mono">TTE.PA</span>) ou un nom (ex: Total) et choisissez dans la liste.</li>
                       <li><span className="text-foreground">Type</span> : Long si vous anticipez une hausse, Short si vous anticipez une baisse.</li>
-                      <li><span className="text-foreground">Quantit�</span> et <span className="text-foreground">Prix d'entr�e</span> : pour calculer la performance r�elle.</li>
-                      <li><span className="text-foreground">Date d'entr�e</span> : la date � laquelle vous avez pris position.</li>
+                      <li><span className="text-foreground">Quantité</span> et <span className="text-foreground">Prix d'entrée</span> : pour calculer la performance réelle.</li>
+                      <li><span className="text-foreground">Date d'entrée</span> : la date à laquelle vous avez pris position.</li>
                       <li><span className="text-foreground">Stop Loss / Take Profit</span> : vos niveaux d'invalidation et d'objectif (optionnels).</li>
-                      <li><span className="text-foreground">Notes</span> : la raison du trade (setup, contexte, �motion, etc.).</li>
+                      <li><span className="text-foreground">Notes</span> : la raison du trade (setup, contexte, émotion, etc.).</li>
                     </ul>
                   </div>
                   <div className="p-4 rounded-xl bg-emerald-500/8 border border-emerald-500/20 text-emerald-200">
-                    Conseil: soyez coh�rent. Apr�s 20-30 trades, les patterns ressortent tr�s vite.
+                    Conseil: soyez cohérent. Après 20-30 trades, les patterns ressortent très vite.
                   </div>
                 </div>
                 <div className="px-6 py-4 border-t border-white/10 flex justify-end">
@@ -935,7 +935,7 @@ export default function PortfolioPage() {
                   </p>
                   <p className={cn("text-xs mt-0.5", isGlobalProfit ? "text-emerald-400/70" : "text-red-400/70")}>
                     Latent : {summary.unrealized_pnl >= 0 ? "+" : ""}{fmt(summary.unrealized_pnl)} $
-                    &nbsp;|&nbsp;Réalisé : {summary.realized_pnl >= 0 ? "+" : ""}{fmt(summary.realized_pnl)} $
+                    &nbsp;|&nbsp;RÃ©alisÃ© : {summary.realized_pnl >= 0 ? "+" : ""}{fmt(summary.realized_pnl)} $
                   </p>
                 </div>
                 <div className="rounded-xl border border-white/8 bg-card/60 p-4">
@@ -954,7 +954,7 @@ export default function PortfolioPage() {
                       <ArrowUpRight className="inline w-3.5 h-3.5" />{summary.best_position.symbol}{" "}
                       {fmtPct(summary.best_position.pnl_percent)}
                     </p>
-                  ) : <p className="text-sm text-muted-foreground mt-1">—</p>}
+                  ) : <p className="text-sm text-muted-foreground mt-1">â€”</p>}
                   {summary.worst_position && (
                     <p className="text-sm text-red-400">
                       <ArrowDownRight className="inline w-3.5 h-3.5" />{summary.worst_position.symbol}{" "}
@@ -972,7 +972,7 @@ export default function PortfolioPage() {
                 <div className="rounded-xl border border-white/8 bg-card/60 p-5">
                   <h3 className="text-sm font-semibold mb-4 flex items-center gap-2">
                     <PieChart className="w-4 h-4 text-primary" />
-                    Répartition
+                    RÃ©partition
                   </h3>
                   <div className="flex items-center gap-4">
                     <PieChart2D data={pieData} />
@@ -1004,7 +1004,7 @@ export default function PortfolioPage() {
                         tab === t ? "bg-primary text-white" : "text-muted-foreground hover:text-foreground"
                       )}
                     >
-                      {t === "open" ? `Ouvertes (${positions.length})` : `Fermées (${closedPositions.length})`}
+                      {t === "open" ? `Ouvertes (${positions.length})` : `FermÃ©es (${closedPositions.length})`}
                     </button>
                   ))}
                 </div>
@@ -1015,7 +1015,7 @@ export default function PortfolioPage() {
                       <div className="flex flex-col items-center justify-center py-16 rounded-xl border border-dashed border-white/10 text-muted-foreground">
                         <Layers className="w-10 h-10 mb-3 opacity-30" />
                         <p className="font-medium">Aucune position ouverte</p>
-                        <p className="text-sm mt-1">Ajoutez votre première position réelle</p>
+                        <p className="text-sm mt-1">Ajoutez votre premiÃ¨re position rÃ©elle</p>
                         <button
                           onClick={() => setShowAdd(true)}
                           className="mt-4 flex items-center gap-2 px-4 py-2 rounded-xl bg-primary/20 text-primary text-sm hover:bg-primary/30 transition-colors"
@@ -1044,7 +1044,7 @@ export default function PortfolioPage() {
                     {closedPositions.length === 0 ? (
                       <div className="flex flex-col items-center justify-center py-10 text-muted-foreground">
                         <Activity className="w-8 h-8 mb-2 opacity-30" />
-                        <p className="text-sm">Aucune position clôturée</p>
+                        <p className="text-sm">Aucune position clÃ´turÃ©e</p>
                       </div>
                     ) : (
                       closedPositions.map((p) => <ClosedRow key={p.id} pos={p} />)
