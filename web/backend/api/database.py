@@ -403,6 +403,14 @@ async def _init_postgres():
             )
         """)
         await conn.execute("""
+            CREATE TABLE IF NOT EXISTS weekly_market_prep (
+                id SERIAL PRIMARY KEY,
+                week_key TEXT UNIQUE NOT NULL,
+                content TEXT NOT NULL,
+                generated_at TEXT NOT NULL
+            )
+        """)
+        await conn.execute("""
             CREATE TABLE IF NOT EXISTS trading_journal (
                 id SERIAL PRIMARY KEY,
                 user_id TEXT NOT NULL,
@@ -707,6 +715,14 @@ async def _init_sqlite():
                 exit_date TEXT,
                 currency TEXT DEFAULT 'USD',
                 created_at TEXT NOT NULL
+            )
+        """)
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS weekly_market_prep (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                week_key TEXT UNIQUE NOT NULL,
+                content TEXT NOT NULL,
+                generated_at TEXT NOT NULL
             )
         """)
         await db.execute("""

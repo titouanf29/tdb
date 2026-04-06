@@ -3,11 +3,12 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  BookOpen, Plus, TrendingUp, TrendingDown, Trophy,
-  Target, BarChart2, DollarSign, Image as ImageIcon,
-  X, ChevronDown, Search, Trash2, Edit2,
+  BookOpen, Plus, TrendingUp, TrendingDown,
+  Target, DollarSign, Image as ImageIcon,
+  X, Search, Trash2, Edit2,
   CheckCircle2, XCircle, MinusCircle, Upload, Eye, EyeOff,
-  Calendar, Clock, Zap, StickyNote, Filter,
+  Calendar, Clock, Zap, StickyNote, Filter, HelpCircle,
+  ChevronRight, Info,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { journalAPI, JournalEntry, JournalStats, JournalEntryCreate } from "@/lib/api";
@@ -197,6 +198,143 @@ function EntryCard({
   );
 }
 
+// ── Symbol autocomplete ───────────────────────────────────────────────────────
+
+function SymbolAutocomplete({
+  value,
+  onChange,
+  symbols,
+  userSymbols,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  symbols: string[];
+  userSymbols: string[];
+}) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState(value);
+  const ref = useRef<HTMLDivElement>(null);
+
+  // Close on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  const filtered = query.length < 1
+    ? symbols.slice(0, 12)
+    : symbols.filter(s => s.includes(query.toUpperCase())).slice(0, 12);
+
+  const handleInput = (v: string) => {
+    const up = v.toUpperCase();
+    setQuery(up);
+    onChange(up);
+    setOpen(true);
+  };
+
+  const select = (s: string) => {
+    setQuery(s);
+    onChange(s);
+    setOpen(false);
+  };
+
+  return (
+    <div ref={ref} className="relative">
+      <input
+        className="w-full input uppercase font-bold"
+        placeholder="BTC-USD, XLK, EURUSD=X…"
+        value={query}
+        onChange={e => handleInput(e.target.value)}
+        onFocus={() => setOpen(true)}
+        required
+        autoComplete="off"
+      />
+      <AnimatePresence>
+        {open && filtered.length > 0 && (
+          <motion.ul
+            initial={{ opacity: 0, y: -4 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -4 }}
+            className="absolute z-50 w-full mt-1 glass-card border border-white/10 rounded-xl overflow-hidden max-h-52 overflow-y-auto"
+          >
+            {filtered.map(s => (
+              <li key={s}>
+                <button
+                  type="button"
+                  onMouseDown={() => select(s)}
+                  className={cn(
+                    "w-full text-left px-3 py-2 text-sm hover:bg-white/10 transition-colors flex items-center justify-between",
+                    s === value && "bg-primary/10 text-primary"
+                  )}
+                >
+                  <span className="font-mono font-medium">{s}</span>
+                  {userSymbols.includes(s) && (
+                    <span className="text-xs text-muted-foreground bg-white/5 px-1.5 py-0.5 rounded">récent</span>
+                  )}
+                </button>
+              </li>
+            ))}
+          </motion.ul>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+// ── Help guide ────────────────────────────────────────────────────────────────
+
+const JOURNAL_HELP = [
+  { icon: BookOpen,    title: "Documenter chaque trade", desc: "Notez la raison du trade AVANT d'entrer. Décrivez le setup, les confluences, le contexte de marché." },
+  { icon: Target,      title: "R:R — Ratio Risque/Récompense", desc: "1:2 signifie que vous visez 2x votre risque. Visez minimum 1:1.5 pour être rentable à long terme même avec 50% de win rate." },
+  { icon: CheckCircle2,title: "Analyse post-trade", desc: "Après chaque trade, notez ce qui s'est passé. Avez-vous respecté votre plan ? Qu'auriez-vous pu faire mieux ?" },
+  { icon: ImageIcon,   title: "Capture d'écran", desc: "Ajoutez une capture de votre graphique au moment du trade. C'est le meilleur moyen de revoir vos décisions." },
+  { icon: DollarSign,  title: "Suivi du P&L", desc: "Suivez vos gains/pertes pour calculer vos stats globales : win rate, espérance mathématique, etc." },
+];
+
+function HelpModal({ onClose }: { onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.95 }}
+        className="relative glass-card w-full max-w-lg p-6 space-y-4"
+      >
+        <div className="flex items-center justify-between">
+          <h3 className="font-bold text-lg flex items-center gap-2">
+            <HelpCircle className="w-5 h-5 text-primary" />
+            Guide du Journal de Trading
+          </h3>
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-white/10"><X className="w-4 h-4" /></button>
+        </div>
+        <p className="text-sm text-muted-foreground">
+          Un journal de trading est l'outil numéro 1 pour progresser. Les traders professionnels notent <strong>chaque trade</strong> pour identifier leurs patterns et corriger leurs erreurs.
+        </p>
+        <div className="space-y-3">
+          {JOURNAL_HELP.map(({ icon: Icon, title, desc }) => (
+            <div key={title} className="flex gap-3 p-3 bg-white/5 rounded-xl">
+              <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
+                <Icon className="w-4 h-4 text-primary" />
+              </div>
+              <div>
+                <p className="font-medium text-sm">{title}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">{desc}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl text-xs text-amber-400">
+          💡 <strong>Conseil :</strong> Les traders qui tiennent un journal améliorent leur performance de 20 à 40% en 3 mois.
+        </div>
+      </motion.div>
+    </div>
+  );
+}
+
 // ── Form ──────────────────────────────────────────────────────────────────────
 
 const EMPTY_FORM: JournalEntryCreate = {
@@ -249,7 +387,22 @@ function JournalForm({
   );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [symbols, setSymbols] = useState<string[]>([]);
+  const [userSymbols, setUserSymbols] = useState<string[]>([]);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    journalAPI.list().then(res => {
+      // fallback: build from entries if symbols endpoint not yet available
+    }).catch(() => {});
+    // Load symbols for autocomplete
+    fetch("/api/journal/symbols", {
+      headers: { Authorization: `Bearer ${typeof window !== "undefined" ? localStorage.getItem("tdb_token") || "" : ""}` },
+    })
+      .then(r => r.json())
+      .then(d => { setSymbols(d.symbols || []); setUserSymbols(d.user_symbols || []); })
+      .catch(() => {});
+  }, []);
 
   const set = <K extends keyof JournalEntryCreate>(k: K, v: JournalEntryCreate[K]) =>
     setForm(f => ({ ...f, [k]: v }));
@@ -310,12 +463,11 @@ function JournalForm({
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-sm font-medium mb-1.5">Paire / Actif *</label>
-              <input
-                className="w-full input uppercase font-bold"
-                placeholder="BTC-USD, EURUSD…"
+              <SymbolAutocomplete
                 value={form.symbol}
-                onChange={e => set("symbol", e.target.value.toUpperCase())}
-                required
+                onChange={v => set("symbol", v)}
+                symbols={symbols}
+                userSymbols={userSymbols}
               />
             </div>
             <div>
@@ -587,6 +739,7 @@ export default function JournalPage() {
   // Modal state
   const [showForm, setShowForm] = useState(false);
   const [editEntry, setEditEntry] = useState<JournalEntry | undefined>();
+  const [showHelp, setShowHelp] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -640,6 +793,13 @@ export default function JournalPage() {
           <h1 className="text-2xl font-bold flex items-center gap-2">
             <BookOpen className="w-6 h-6 text-primary" />
             Journal de Trading
+            <button
+              onClick={() => setShowHelp(true)}
+              className="p-1 rounded-full text-muted-foreground hover:text-primary transition-colors"
+              title="Comment utiliser le journal ?"
+            >
+              <HelpCircle className="w-5 h-5" />
+            </button>
           </h1>
           <p className="text-muted-foreground text-sm mt-1">
             Documentez, analysez et progressez sur chaque trade
@@ -774,6 +934,7 @@ export default function JournalPage() {
             onClose={() => { setShowForm(false); setEditEntry(undefined); }}
           />
         )}
+        {showHelp && <HelpModal onClose={() => setShowHelp(false)} />}
       </AnimatePresence>
     </motion.div>
   );

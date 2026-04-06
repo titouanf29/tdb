@@ -3,6 +3,7 @@ import "./globals.css";
 import { AuthProvider } from "@/lib/AuthContext";
 import { SettingsProvider } from "@/lib/SettingsContext";
 import { PremiumProvider } from "@/lib/PremiumContext";
+import { LanguageProvider } from "@/lib/LanguageContext";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 
@@ -42,6 +43,7 @@ export default function RootLayout({
 
         <ErrorBoundary>
           <AuthProvider>
+            <LanguageProvider>
             <PremiumProvider>
               <SettingsProvider>
                 <AppLayout>
@@ -49,6 +51,7 @@ export default function RootLayout({
                 </AppLayout>
               </SettingsProvider>
             </PremiumProvider>
+            </LanguageProvider>
           </AuthProvider>
         </ErrorBoundary>
       </body>

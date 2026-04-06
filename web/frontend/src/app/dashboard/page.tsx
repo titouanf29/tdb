@@ -16,6 +16,7 @@ import { usePremium } from "@/lib/PremiumContext";
 import { getAssetInfo, getAssetLogo } from "@/lib/assetInfo";
 import { SessionSummaryWidget } from "@/components/dashboard/SessionSummary";
 import { OpportunitiesWidget } from "@/components/dashboard/OpportunitiesWidget";
+import { WeeklyPrepWidget } from "@/components/ui/WeeklyPrepWidget";
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  DASHBOARD CONFIG
@@ -184,6 +185,11 @@ export default function DashboardPage() {
 
   return (
     <motion.div variants={containerVariants} initial="hidden" animate="show" className="space-y-5">
+      {/* Weekly Market Prep widget (Sunday 13h → Monday 14h30) */}
+      <motion.div variants={itemVariants}>
+        <WeeklyPrepWidget />
+      </motion.div>
+
       {/* Welcome banner */}
       <motion.div variants={itemVariants} className="glass-card-hover p-5 relative overflow-hidden">
         <div className="absolute top-0 right-0 w-64 h-64 bg-primary/15 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none" />

@@ -17,6 +17,7 @@ import {
 import { cn, formatPercent } from "@/lib/utils";
 import { walletAPI, marketAPI, WalletBalance, Quote } from "@/lib/api";
 import { useFormatCurrency } from "@/lib/SettingsContext";
+import { HelpGuide } from "@/components/ui/HelpGuide";
 
 export default function TradingPage() {
   const router = useRouter();
@@ -134,8 +135,22 @@ export default function TradingPage() {
       className="max-w-4xl mx-auto space-y-6"
     >
       {/* Header */}
-      <div className="text-center">
-        <h1 className="text-2xl font-bold">Trading Companion</h1>
+      <div className="text-center relative">
+        <h1 className="text-2xl font-bold inline-flex items-center gap-2">
+          Trading Companion
+          <HelpGuide
+            title="Ouvrir une position (Paper Trading)"
+            intro="Le paper trading vous permet de trader avec de l'argent fictif pour pratiquer sans risque réel."
+            sections={[
+              { title: "Actif", desc: "Entrez le symbole : AAPL (action), BTC-USD (crypto), EURUSD=X (forex), GC=F (or)…" },
+              { title: "LONG / SHORT", desc: "LONG = vous pariez sur la hausse. SHORT = vous pariez sur la baisse du prix." },
+              { title: "Montant", desc: "C'est la mise que vous engagez, prélevée de votre solde virtuel." },
+              { title: "Levier", desc: "Le levier multiplie votre exposition. x5 avec 1000$ = position de 5000$. Amplifie gains ET pertes." },
+              { title: "Take Profit / Stop Loss", desc: "Le TP ferme automatiquement la position en gain. Le SL la ferme pour limiter la perte." },
+            ]}
+            tip="Utilisez toujours un Stop Loss. Un bon R:R (risque/récompense) est d'au moins 1:2."
+          />
+        </h1>
         <p className="text-muted-foreground">Ouvrez une nouvelle position</p>
         {balance && (
           <p className="text-sm mt-2">

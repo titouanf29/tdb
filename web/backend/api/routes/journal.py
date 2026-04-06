@@ -88,6 +88,49 @@ def _row_to_dict(row: dict) -> dict:
 
 # ── Routes ─────────────────────────────────────────────────────────────────────
 
+@router.get("/symbols")
+async def get_symbols(current_user: dict = Depends(get_current_user)):
+    """Return all distinct symbols used by this user + common symbols list."""
+    user_id = _uid(current_user)
+    rows = await execute_query(
+        "SELECT DISTINCT symbol FROM trading_journal WHERE user_id = ? ORDER BY symbol",
+        (user_id,),
+    )
+    user_symbols = [r["symbol"] for r in rows]
+
+    common = [
+        # US Mega-cap
+        "AAPL","MSFT","NVDA","GOOGL","AMZN","META","TSLA","AVGO","JPM","V",
+        "UNH","XOM","LLY","JNJ","WMT","MA","PG","HD","MRK","COST",
+        # ETFs populaires
+        "SPY","QQQ","IWM","DIA","VOO","VTI","GLD","SLV","TLT","XLK",
+        "XLF","XLE","XLV","XBI","ARK","ARKK","ARKG","ARKW",
+        # Indices
+        "^SPX","^NDX","^DJI","^RUT","^VIX","^FTSE","^DAX","^CAC",
+        # Crypto
+        "BTC-USD","ETH-USD","SOL-USD","BNB-USD","XRP-USD","ADA-USD",
+        "AVAX-USD","DOT-USD","MATIC-USD","LINK-USD","DOGE-USD",
+        # Forex
+        "EURUSD=X","GBPUSD=X","USDJPY=X","AUDUSD=X","USDCAD=X",
+        "USDCHF=X","NZDUSD=X","EURGBP=X",
+        # Matières premières
+        "GC=F","SI=F","CL=F","NG=F","ZW=F","ZC=F","ZS=F",
+        # Europe (Euronext Paris)
+        "MC.PA","LVMH","OR.PA","TTE.PA","SAN.PA","BNP.PA","AIR.PA",
+        "SU.PA","CS.PA","RI.PA",
+    ]
+
+    # Merge user symbols first, then common (deduplicated)
+    seen = set(user_symbols)
+    merged = list(user_symbols)
+    for s in common:
+        if s not in seen:
+            seen.add(s)
+            merged.append(s)
+
+    return {"symbols": merged, "user_symbols": user_symbols}
+
+
 @router.get("")
 async def list_entries(
     result: Optional[str] = None,

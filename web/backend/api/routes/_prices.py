@@ -158,7 +158,28 @@ async def fetch_prices(symbols: list[str]) -> dict[str, dict]:
                     }
 
         except Exception as e:
-            print(f"[prices] yfinance error: {e}")
+            print(f"[prices] yfinance download error: {e}")
+
+        # ── Fallback: yf.Ticker.fast_info (plus fiable que download) ──────
+        if not result:
+            for sym in syms:
+                s = sym.upper()
+                if s in result:
+                    continue
+                try:
+                    ticker = yf.Ticker(sym)
+                    fi = ticker.fast_info
+                    price = float(fi.last_price or 0)
+                    prev  = float(fi.previous_close or 0)
+                    if price > 0:
+                        change = ((price - prev) / prev * 100) if prev else 0.0
+                        result[s] = {
+                            "price":  round(price, 4),
+                            "change": round(change, 2),
+                            "volume": int(fi.three_month_average_volume or 0),
+                        }
+                except Exception as e2:
+                    print(f"[prices] fast_info fallback error for {sym}: {e2}")
 
         return result
 

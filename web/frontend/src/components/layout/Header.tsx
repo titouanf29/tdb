@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion } from "framer-motion";
+import { LanguageToggle } from "@/components/ui/LanguageToggle";
 import {
   Bell,
   Search,
@@ -126,6 +127,8 @@ export function Header({ onMenuToggle }: { onMenuToggle?: () => void }) {
 
       {/* Right side */}
       <div className="flex items-center gap-2 md:gap-4 ml-auto">
+        {/* Language toggle */}
+        <LanguageToggle variant="compact" className="hidden sm:flex" />
         {/* Home / Landing page link */}
         <Link
           href="/"

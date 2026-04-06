@@ -1449,6 +1449,55 @@ export const journalAPI = {
     fetchAPI<void>(`/api/journal/${id}`, { method: "DELETE" }),
 };
 
+// ── Weekly Market Prep ────────────────────────────────────────────────────────
+
+export interface WeeklyMarket {
+  name: string;
+  icon: string;
+  trend: "bullish" | "bearish" | "neutral";
+  summary: string;
+  key_zones: string;
+  risk: string;
+}
+
+export interface WeeklyWatchItem {
+  symbol: string;
+  name: string;
+  type: string;
+  why: string;
+  scenario: string;
+  direction: "bullish" | "bearish" | "neutral";
+}
+
+export interface WeeklyEvent {
+  day: string;
+  time: string;
+  event: string;
+  country: string;
+  importance: "high" | "medium" | "low";
+  impact: string;
+}
+
+export interface WeeklyBriefing {
+  week: string;
+  generated_at: string;
+  macro: {
+    trend: "bullish" | "bearish" | "neutral";
+    summary: string;
+    key_points: string[];
+  };
+  markets: WeeklyMarket[];
+  watchlist: WeeklyWatchItem[];
+  events: WeeklyEvent[];
+  conclusion: string;
+}
+
+export const weeklyPrepAPI = {
+  status: () => fetchAPI<{ visible: boolean; week: string }>("/api/weekly-prep/status"),
+  get: () => fetchAPI<{ briefing: WeeklyBriefing; cached: boolean }>("/api/weekly-prep"),
+  refresh: () => fetchAPI<{ briefing: WeeklyBriefing; cached: boolean }>("/api/weekly-prep/refresh", { method: "POST" }),
+};
+
 /**
  * Create an authenticated WebSocket URL for private endpoints
  * (portfolio, alerts). Passes the JWT as a query param since
