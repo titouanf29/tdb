@@ -119,7 +119,7 @@ async def open_position(
     current_user: dict = Depends(get_current_user)
 ):
     """Open a new trading position"""
-    from ._prices import fetch_prices
+    from .market import _fetch_quote_data
 
     user_id = get_user_id(current_user)
 
@@ -139,12 +139,15 @@ async def open_position(
             detail=f"Limite de positions atteinte ({max_positions}). Passez Premium pour en ouvrir plus."
         )
 
-    # Get current price
-    prices = await fetch_prices([request.symbol.upper()])
-    p = prices.get(request.symbol.upper(), {})
-    current_price = p.get("price")
+    # Get current price (robust: Polygon/Twelve Data fallback)
+    symbol = request.symbol.upper()
+    quote = await _fetch_quote_data(symbol)
+    current_price = quote.get("price") if quote else None
     if not current_price:
-        raise HTTPException(status_code=400, detail="Cannot get price for symbol")
+        raise HTTPException(
+            status_code=400,
+            detail=f"Symbole \"{symbol}\" introuvable ou données indisponibles"
+        )
 
     # Check balance
     wallets = await execute_query(
@@ -164,7 +167,7 @@ async def open_position(
            (user_id, symbol, direction, entry_price, quantity, amount, leverage,
             take_profit, stop_loss, status, created_at)
            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'open', ?)""",
-        (user_id, request.symbol, request.direction.upper(),
+        (user_id, symbol, request.direction.upper(),
          current_price, quantity, request.amount, request.leverage,
          request.take_profit, request.stop_loss, datetime.now(timezone.utc).isoformat())
     )
@@ -178,7 +181,7 @@ async def open_position(
 
     return {
         "success": True,
-        "message": f"Position opened: {request.direction} {request.symbol}",
+        "message": f"Position opened: {request.direction} {symbol}",
         "entry_price": round(current_price, 2),
         "quantity": round(quantity, 6),
         "new_balance": round(new_balance, 2)

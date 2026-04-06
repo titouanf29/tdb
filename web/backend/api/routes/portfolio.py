@@ -3,11 +3,12 @@ Real Portfolio routes — tracking real positions (not paper trading).
 """
 from datetime import datetime, timezone, date
 from typing import Optional
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Query
 from pydantic import BaseModel, field_validator
 
 from ..database import execute_query, execute_write
 from .auth import get_current_user
+from .market import SYMBOL_NAMES
 
 router = APIRouter()
 
@@ -145,6 +146,36 @@ async def check_position(
     if rows:
         rows = await _enrich_with_prices(rows)
     return {"positions": rows, "has_position": len(rows) > 0}
+
+
+@router.get("/symbols/search")
+async def search_portfolio_symbols(
+    q: str = Query(..., min_length=1, max_length=50),
+    current_user: dict = Depends(get_current_user),
+):
+    """Search symbols from the user's trade journal (real_positions)."""
+    uid = _user_id(current_user)
+    query_upper = q.strip().upper()
+    rows = await execute_query(
+        """SELECT DISTINCT symbol
+           FROM real_positions
+           WHERE user_id = ? AND symbol LIKE ?
+           ORDER BY symbol ASC
+           LIMIT 15""",
+        (uid, f"%{query_upper}%"),
+    )
+    results = []
+    for row in rows:
+        sym = row.get("symbol", "").upper()
+        if not sym:
+            continue
+        results.append({
+            "symbol": sym,
+            "name": SYMBOL_NAMES.get(sym, sym),
+            "exchange": "PORTFOLIO",
+            "type": "PORTFOLIO",
+        })
+    return {"results": results}
 
 
 @router.post("/positions")

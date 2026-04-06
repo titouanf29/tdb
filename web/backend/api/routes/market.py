@@ -329,6 +329,101 @@ class AssetRequestCreate(BaseModel):
     reason: Optional[str] = None
 
 
+async def _fetch_quote_data(symbol: str) -> Optional[dict]:
+    """Return best-effort quote data for a symbol, or None if unavailable."""
+    symbol = symbol.upper()
+    from config import POLYGON_API_KEY, TWELVEDATA_API_KEY
+    from ._prices import _yf_to_td
+
+    try:
+        async with httpx.AsyncClient(timeout=8.0) as client:
+            # International stock via Twelve Data
+            base, exchange = _yf_to_td(symbol)
+            if base and exchange and TWELVEDATA_API_KEY:
+                r = await client.get(
+                    "https://api.twelvedata.com/quote",
+                    params={"symbol": f"{base}:{exchange}", "apikey": TWELVEDATA_API_KEY}
+                )
+                if r.status_code == 200:
+                    d = r.json()
+                    if "close" in d:
+                        price = float(d.get("close") or 0)
+                        prev_close = float(d.get("previous_close") or price)
+                        change = float(d.get("percent_change") or 0)
+                        fw = d.get("fifty_two_week", {})
+                        return {
+                            "symbol": symbol,
+                            "name": d.get("name", symbol),
+                            "price": round(price, 4),
+                            "change": round(change, 2),
+                            "change_amount": round(price - prev_close, 4),
+                            "high": float(d.get("high") or 0),
+                            "low": float(d.get("low") or 0),
+                            "open": float(d.get("open") or 0),
+                            "volume": int(float(d.get("volume") or 0)),
+                            "market_cap": None,
+                            "pe_ratio": None,
+                            "52w_high": float(fw.get("high") or 0) if fw else None,
+                            "52w_low": float(fw.get("low") or 0) if fw else None,
+                        }
+
+            # US stock via Polygon.io
+            if POLYGON_API_KEY:
+                r = await client.get(
+                    f"https://api.polygon.io/v2/snapshot/locale/us/markets/stocks/tickers/{symbol}",
+                    params={"apiKey": POLYGON_API_KEY}
+                )
+                if r.status_code == 200:
+                    t = r.json().get("ticker", {})
+                    day = t.get("day", {})
+                    prev = t.get("prevDay", {})
+                    price = day.get("c") or t.get("lastTrade", {}).get("p") or 0
+                    prev_c = prev.get("c") or 0
+                    change = ((price - prev_c) / prev_c * 100) if prev_c else 0
+                    if price:
+                        return {
+                            "symbol": symbol,
+                            "name": SYMBOL_NAMES.get(symbol, symbol),
+                            "price": round(float(price), 4),
+                            "change": round(change, 2),
+                            "change_amount": round(float(price) - float(prev_c), 4),
+                            "high": float(day.get("h") or 0),
+                            "low": float(day.get("l") or 0),
+                            "open": float(day.get("o") or 0),
+                            "volume": int(day.get("v") or 0),
+                            "market_cap": None,
+                            "pe_ratio": None,
+                            "52w_high": None,
+                            "52w_low": None,
+                        }
+    except Exception:
+        # Fall through to yfinance
+        pass
+
+    # Fallback: yfinance (no API key needed)
+    from ._prices import fetch_prices as _fetch_yf
+    prices = await _fetch_yf([symbol])
+    p = prices.get(symbol)
+    if p and p.get("price"):
+        return {
+            "symbol": symbol,
+            "name": SYMBOL_NAMES.get(symbol, symbol),
+            "price": round(float(p["price"]), 4),
+            "change": round(float(p.get("change", 0)), 2),
+            "change_amount": 0.0,
+            "high": 0.0,
+            "low": 0.0,
+            "open": 0.0,
+            "volume": int(p.get("volume", 0)),
+            "market_cap": None,
+            "pe_ratio": None,
+            "52w_high": None,
+            "52w_low": None,
+        }
+
+    return None
+
+
 @router.get("/list")
 async def get_markets():
     """Get all available markets"""
@@ -444,97 +539,14 @@ async def get_quote(request: Request, symbol: str):
     if not _SYMBOL_RE.match(symbol.upper()):
         raise HTTPException(status_code=400, detail="Symbole invalide")
     symbol = symbol.upper()
-    from config import POLYGON_API_KEY, TWELVEDATA_API_KEY
-    from ._prices import EXCHANGE_MAP, _yf_to_td
+    data = await _fetch_quote_data(symbol)
+    if data:
+        return data
 
-    try:
-        async with httpx.AsyncClient(timeout=8.0) as client:
-            # International stock via Twelve Data
-            base, exchange = _yf_to_td(symbol)
-            if base and exchange and TWELVEDATA_API_KEY:
-                r = await client.get(
-                    "https://api.twelvedata.com/quote",
-                    params={"symbol": f"{base}:{exchange}", "apikey": TWELVEDATA_API_KEY}
-                )
-                if r.status_code == 200:
-                    d = r.json()
-                    if "close" in d:
-                        price = float(d.get("close") or 0)
-                        prev_close = float(d.get("previous_close") or price)
-                        change = float(d.get("percent_change") or 0)
-                        fw = d.get("fifty_two_week", {})
-                        return {
-                            "symbol": symbol,
-                            "name": d.get("name", symbol),
-                            "price": round(price, 4),
-                            "change": round(change, 2),
-                            "change_amount": round(price - prev_close, 4),
-                            "high": float(d.get("high") or 0),
-                            "low": float(d.get("low") or 0),
-                            "open": float(d.get("open") or 0),
-                            "volume": int(float(d.get("volume") or 0)),
-                            "market_cap": None,
-                            "pe_ratio": None,
-                            "52w_high": float(fw.get("high") or 0) if fw else None,
-                            "52w_low": float(fw.get("low") or 0) if fw else None,
-                        }
-
-            # US stock via Polygon.io
-            if POLYGON_API_KEY:
-                r = await client.get(
-                    f"https://api.polygon.io/v2/snapshot/locale/us/markets/stocks/tickers/{symbol}",
-                    params={"apiKey": POLYGON_API_KEY}
-                )
-                if r.status_code == 200:
-                    t = r.json().get("ticker", {})
-                    day = t.get("day", {})
-                    prev = t.get("prevDay", {})
-                    price = day.get("c") or t.get("lastTrade", {}).get("p") or 0
-                    prev_c = prev.get("c") or 0
-                    change = ((price - prev_c) / prev_c * 100) if prev_c else 0
-                    if price:
-                        return {
-                            "symbol": symbol,
-                            "name": SYMBOL_NAMES.get(symbol, symbol),
-                            "price": round(float(price), 4),
-                            "change": round(change, 2),
-                            "change_amount": round(float(price) - float(prev_c), 4),
-                            "high": float(day.get("h") or 0),
-                            "low": float(day.get("l") or 0),
-                            "open": float(day.get("o") or 0),
-                            "volume": int(day.get("v") or 0),
-                            "market_cap": None,
-                            "pe_ratio": None,
-                            "52w_high": None,
-                            "52w_low": None,
-                        }
-
-        # Fallback: yfinance (no API key needed)
-        from ._prices import fetch_prices as _fetch_yf
-        prices = await _fetch_yf([symbol])
-        p = prices.get(symbol)
-        if p and p.get("price"):
-            return {
-                "symbol": symbol,
-                "name": SYMBOL_NAMES.get(symbol, symbol),
-                "price": round(float(p["price"]), 4),
-                "change": round(float(p.get("change", 0)), 2),
-                "change_amount": 0.0,
-                "high": 0.0,
-                "low": 0.0,
-                "open": 0.0,
-                "volume": int(p.get("volume", 0)),
-                "market_cap": None,
-                "pe_ratio": None,
-                "52w_high": None,
-                "52w_low": None,
-            }
-
-        raise HTTPException(status_code=404, detail="Symbol not found")
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    raise HTTPException(
+        status_code=404,
+        detail=f"Symbole \"{symbol}\" introuvable ou données indisponibles"
+    )
 
 
 @router.get("/chart/{symbol}")

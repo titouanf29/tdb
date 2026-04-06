@@ -48,6 +48,7 @@ export default function TradingPage() {
 
   // Load quote when symbol changes
   useEffect(() => {
+
     const loadQuote = async () => {
       if (!symbol || symbol.length < 1) return;
       setIsLoadingQuote(true);
@@ -61,11 +62,13 @@ export default function TradingPage() {
         }
         setQuote(data);
 
+
         // Set suggested TP/SL
         const tp = direction === "LONG" ? data.price * 1.05 : data.price * 0.95;
         const sl = direction === "LONG" ? data.price * 0.97 : data.price * 1.03;
         setTakeProfit(Math.round(tp * 100) / 100);
         setStopLoss(Math.round(sl * 100) / 100);
+
       } catch {
         setQuote(null);
         setQuoteError(`Symbole "${symbol}" introuvable ou données indisponibles`);
@@ -73,6 +76,7 @@ export default function TradingPage() {
         setIsLoadingQuote(false);
       }
     };
+
 
     const debounce = setTimeout(loadQuote, 500);
     return () => clearTimeout(debounce);
@@ -83,7 +87,7 @@ export default function TradingPage() {
 
   const handleSubmit = async () => {
     if (!quote || currentPrice <= 0) {
-      setError("Veuillez entrer un symbole valide");
+      setError(quoteError || "Veuillez entrer un symbole valide");
       return;
     }
 
@@ -195,6 +199,7 @@ export default function TradingPage() {
                     )}
                   >
                     {formatPercent(quote.change)}
+
                   </span>
                 </div>
               )}
@@ -203,6 +208,7 @@ export default function TradingPage() {
               )}
             </div>
           </div>
+
 
           {/* Direction */}
           <div>

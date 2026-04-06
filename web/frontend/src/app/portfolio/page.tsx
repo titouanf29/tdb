@@ -133,14 +133,28 @@ function PositionForm({ initial, onClose, onSave, title }: PositionFormProps) {
     if (q.trim().length < 2) { setSymbolSuggestions([]); return; }
     setIsSearchingSymbol(true);
     try {
-      const res = await fetch(`/api/market/search?q=${encodeURIComponent(q)}`, {
-        headers: authHeaders() as HeadersInit,
+      const [dbRes, marketRes] = await Promise.all([
+        fetch(`/api/portfolio/symbols/search?q=${encodeURIComponent(q)}`, {
+          headers: authHeaders() as HeadersInit,
+        }),
+        fetch(`/api/market/search?q=${encodeURIComponent(q)}`, {
+          headers: authHeaders() as HeadersInit,
+        }),
+      ]);
+
+      const dbData = dbRes.ok ? await dbRes.json() : { results: [] };
+      const marketData = marketRes.ok ? await marketRes.json() : { results: [] };
+
+      const merged = new Map<string, {symbol: string; name: string; exchange: string; type: string}>();
+      (dbData.results || []).forEach((r: any) => {
+        if (r?.symbol) merged.set(r.symbol, r);
       });
-      if (res.ok) {
-        const data = await res.json();
-        setSymbolSuggestions(data.results || []);
-        setShowSymbolSuggestions(true);
-      }
+      (marketData.results || []).forEach((r: any) => {
+        if (r?.symbol && !merged.has(r.symbol)) merged.set(r.symbol, r);
+      });
+
+      setSymbolSuggestions(Array.from(merged.values()));
+      setShowSymbolSuggestions(true);
     } catch { /* ignore */ } finally {
       setIsSearchingSymbol(false);
     }
@@ -236,7 +250,7 @@ function PositionForm({ initial, onClose, onSave, title }: PositionFormProps) {
                           <span className="text-xs text-slate-300 truncate">{s.name}</span>
                         </div>
                         <span className="text-xs px-1.5 py-0.5 rounded bg-white/10 text-slate-400 shrink-0 ml-1">
-                          {s.type === 'EQUITY' ? 'Action' : s.type === 'ETF' ? 'ETF' : s.type === 'CRYPTOCURRENCY' ? 'Crypto' : s.type === 'INDEX' ? 'Indice' : s.type}
+                          {s.type === 'PORTFOLIO' ? 'Journal' : s.type === 'EQUITY' ? 'Action' : s.type === 'ETF' ? 'ETF' : s.type === 'CRYPTOCURRENCY' ? 'Crypto' : s.type === 'INDEX' ? 'Indice' : s.type}
                         </span>
                       </button>
                     ))}
