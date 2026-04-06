@@ -20,6 +20,7 @@ import { usePremium } from "@/lib/PremiumContext";
 import { getAssetInfo, getAssetLogo } from "@/lib/assetInfo";
 import { TDBLogo, TDBLogoSm } from "@/components/ui/TDBLogo";
 import { SessionSummaryWidget } from "@/components/dashboard/SessionSummary";
+import { LanguageToggle } from "@/components/ui/LanguageToggle";
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  LANDING PAGE
@@ -1159,6 +1160,7 @@ function LandingPage() {
           <a href="#how" className="hover:text-white transition-colors">Comment ça marche</a>
         </div>
         <div className="flex items-center gap-3">
+          <LanguageToggle variant="compact" />
           {isAuthenticated ? (
             <Link href="/dashboard" className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary hover:bg-primary/90 text-white text-sm font-semibold transition-all hover:shadow-lg hover:shadow-primary/25 hover:-translate-y-0.5">
               Accéder à l'app

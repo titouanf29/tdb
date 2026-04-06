@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Eye, EyeOff, TrendingUp, Loader2, Check, AlertTriangle, ArrowLeft } from "lucide-react";
 import { useAuth } from "@/lib/AuthContext";
+import { LanguageToggle } from "@/components/ui/LanguageToggle";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -63,12 +64,13 @@ export default function RegisterPage() {
 
   return (
     <div className="w-full max-w-md animate-fade-in">
-      {/* Back to landing */}
-      <div className="mb-4">
+      {/* Back to landing + language toggle */}
+      <div className="mb-4 flex items-center justify-between">
         <Link href="/" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-white transition-colors">
           <ArrowLeft className="w-4 h-4" />
           Retour à la présentation
         </Link>
+        <LanguageToggle variant="compact" />
       </div>
 
       <div className="glass-card p-8">

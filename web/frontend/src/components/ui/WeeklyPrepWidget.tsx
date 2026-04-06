@@ -107,7 +107,7 @@ function WatchCard({ item }: { item: WeeklyWatchItem }) {
 
   const addFav = async () => {
     try {
-      await favoritesAPI.add(item.symbol);
+      await favoritesAPI.addFavorite(item.symbol);
       setFaved(true);
     } catch {}
   };

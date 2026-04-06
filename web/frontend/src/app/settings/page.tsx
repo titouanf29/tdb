@@ -24,6 +24,7 @@ import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/AuthContext";
 import { TradingLevel } from "@/lib/auth";
 import { useSettings, Currency, ACCENT_PRESETS, AccentColor } from "@/lib/SettingsContext";
+import { LanguageToggle } from "@/components/ui/LanguageToggle";
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState("profile");
@@ -494,6 +495,12 @@ function AppearanceSettings() {
             )}
           </button>
         </div>
+      </div>
+
+      {/* Language */}
+      <div>
+        <label className="block text-sm font-medium mb-3">Langue / Language</label>
+        <LanguageToggle variant="pill" />
       </div>
 
       {/* Accent Color */}
