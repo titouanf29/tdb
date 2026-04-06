@@ -1,0 +1,123 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <defs>
+    <!-- Background -->
+    <radialGradient id="bgGrad" cx="35%" cy="25%" r="75%">
+      <stop offset="0%" stop-color="#0F172A"/>
+      <stop offset="100%" stop-color="#080C16"/>
+    </radialGradient>
+
+    <!-- Arc gradients: same family, stepping from dim to bright -->
+    <linearGradient id="arc1" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#1E3A8A" stop-opacity="0.9"/>
+      <stop offset="100%" stop-color="#2563EB" stop-opacity="0.9"/>
+    </linearGradient>
+    <linearGradient id="arc2" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#2D2A9E"/>
+      <stop offset="100%" stop-color="#6366F1"/>
+    </linearGradient>
+    <linearGradient id="arc3" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#4C1D95"/>
+      <stop offset="100%" stop-color="#8B5CF6"/>
+    </linearGradient>
+
+    <!-- Glow -->
+    <filter id="arcGlow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="5" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <filter id="softGlow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="8" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="200" height="200" rx="40" fill="url(#bgGrad)"/>
+
+  <!-- Ambient light blobs -->
+  <circle cx="60" cy="55" r="50" fill="#2563EB" opacity="0.04"/>
+  <circle cx="145" cy="145" r="45" fill="#7C3AED" opacity="0.05"/>
+
+  <!--
+    CONCEPT: 3 concentric arcs opening to the right,
+    each one larger and brighter than the last.
+    Reads as a bold "C" made of chart/signal waves.
+    Each arc = a level of expertise / market signal.
+  -->
+
+  <!-- Center point of arcs: (105, 100) -->
+  <!-- Arc 1 — innermost, shortest, darkest — radius ~30 -->
+  <!-- Arc from 210° to 330° (opening right, bottom-left to top-left) -->
+  <!-- Actually opening right means arc goes from ~150° to ~210° for a C shape -->
+  <!-- For C opening right: start bottom-right area, sweep counter-clockwise to top-right -->
+  <!-- Let me define: C shape center=(105,100), opening to right -->
+  <!-- Arc sweeps from -130° to +130° (so 260° of arc, leaves 100° gap on right) -->
+
+  <!-- Arc 1 radius=30: center(105,100) -->
+  <!-- Start angle: 130° from positive x = (-19, 23) relative = (86, 123) absolute  -->
+  <!-- End angle: -130° = (86, 77) absolute -->
+  <!-- large-arc-flag=1 (more than 180°) -->
+  <!-- M 86,123 A 30,30 0 1 1 86,77  (counter-clockwise would be 0, clockwise 1) -->
+  <!-- Actually for C opening right, arc goes counter-clockwise from bottom-left to top-left -->
+
+  <!-- Arc 1 — innermost (r=32) -->
+  <path
+    d="M 84,126 A 32,32 0 1 1 84,74"
+    fill="none"
+    stroke="url(#arc1)"
+    stroke-width="11"
+    stroke-linecap="round"
+    opacity="0.85"/>
+
+  <!-- Arc 2 — middle (r=52) -->
+  <path
+    d="M 72,150 A 52,52 0 1 1 72,50"
+    fill="none"
+    stroke="url(#arc2)"
+    stroke-width="11"
+    stroke-linecap="round"
+    filter="url(#arcGlow)"
+    opacity="0.9"/>
+
+  <!-- Arc 3 — outermost, largest, brightest (r=72) -->
+  <path
+    d="M 60,174 A 72,72 0 1 1 60,26"
+    fill="none"
+    stroke="url(#arc3)"
+    stroke-width="11"
+    stroke-linecap="round"
+    filter="url(#arcGlow)"/>
+
+  <!-- Glowing end-tips of the outermost arc (the "open" ends of the C) -->
+  <!-- Top tip glow -->
+  <circle cx="60" cy="26" r="12" fill="#7C3AED" opacity="0.2" filter="url(#softGlow)"/>
+  <circle cx="60" cy="26" r="6"  fill="#8B5CF6" filter="url(#arcGlow)"/>
+  <circle cx="60" cy="26" r="3"  fill="#DDD6FE"/>
+
+  <!-- Bottom tip glow -->
+  <circle cx="60" cy="174" r="12" fill="#2563EB" opacity="0.2" filter="url(#softGlow)"/>
+  <circle cx="60" cy="174" r="5"  fill="#3B82F6" filter="url(#arcGlow)"/>
+  <circle cx="60" cy="174" r="2.5" fill="#BFDBFE"/>
+
+  <!-- Central accent dot (anchor of the arcs) -->
+  <circle cx="105" cy="100" r="8" fill="#1E3A8A" opacity="0.5"/>
+  <circle cx="105" cy="100" r="4" fill="#2563EB" opacity="0.8" filter="url(#arcGlow)"/>
+  <circle cx="105" cy="100" r="2" fill="#93C5FD"/>
+
+  <!-- Small upward arrow at top opening gap — suggests "up / growth" -->
+  <polyline
+    points="64,19  72,10  80,19"
+    fill="none"
+    stroke="#C4B5FD"
+    stroke-width="3"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    filter="url(#arcGlow)"/>
+  <line x1="72" y1="10" x2="72" y2="24" stroke="#A78BFA" stroke-width="2.5" stroke-linecap="round" filter="url(#arcGlow)"/>
+</svg>

@@ -1,0 +1,142 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <defs>
+    <!-- Dark radial bg -->
+    <radialGradient id="bg" cx="50%" cy="40%" r="65%">
+      <stop offset="0%" stop-color="#13183A"/>
+      <stop offset="100%" stop-color="#080C18"/>
+    </radialGradient>
+
+    <!-- Shape 1 — left/short: dim blue -->
+    <linearGradient id="s1" x1="0.5" y1="1" x2="0.5" y2="0" gradientUnits="objectBoundingBox">
+      <stop offset="0%" stop-color="#1A3270" stop-opacity="0.9"/>
+      <stop offset="100%" stop-color="#2563EB"/>
+    </linearGradient>
+
+    <!-- Shape 2 — middle: indigo -->
+    <linearGradient id="s2" x1="0.5" y1="1" x2="0.5" y2="0" gradientUnits="objectBoundingBox">
+      <stop offset="0%" stop-color="#1E2A80" stop-opacity="0.9"/>
+      <stop offset="100%" stop-color="#6366F1"/>
+    </linearGradient>
+
+    <!-- Shape 3 — right/tall: violet (brightest) -->
+    <linearGradient id="s3" x1="0.5" y1="1" x2="0.5" y2="0" gradientUnits="objectBoundingBox">
+      <stop offset="0%" stop-color="#2E1065" stop-opacity="0.95"/>
+      <stop offset="100%" stop-color="#8B5CF6"/>
+    </linearGradient>
+
+    <!-- Ambient glow filter -->
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="6" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+    <!-- Subtle shape shadow -->
+    <filter id="shadow" x="-20%" y="-10%" width="140%" height="130%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="4" result="blur"/>
+      <feOffset dx="0" dy="3" result="offset"/>
+      <feMerge>
+        <feMergeNode in="offset"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+    <!-- Tip glow -->
+    <filter id="tipGlow" x="-100%" y="-100%" width="300%" height="300%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="7" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- ===== BACKGROUND ===== -->
+  <rect width="200" height="200" rx="42" fill="url(#bg)"/>
+
+  <!-- Ambient light behind shapes -->
+  <ellipse cx="100" cy="110" rx="70" ry="55" fill="#1E3A8A" opacity="0.08"/>
+  <ellipse cx="145" cy="80" rx="40" ry="45" fill="#7C3AED" opacity="0.08"/>
+
+  <!--
+    THREE ORGANIC TEARDROP SHAPES
+    Each is a smooth "flame" / droplet pointing upward.
+    Heights increase left → right, creating a rising bar chart feel.
+    Shape is smooth + organic (not geometric rectangles).
+    Reference: M cx,yBase  C cLeft,yBase cx,yMid  cx,yTip  C cx,yMid  cRight,yBase  cx,yBase Z
+  -->
+
+  <!-- ── Shape 1 — LEFT (shortest): yBase=180, yTip=128, cx=52, spread=22 ── -->
+  <path
+    d="M 52,180
+       C 30,175  28,148  52,128
+       C 76,148  74,175  52,180 Z"
+    fill="url(#s1)"
+    filter="url(#shadow)"
+    opacity="0.95"/>
+  <!-- Inner highlight sheen -->
+  <path
+    d="M 52,180
+       C 44,174  43,150  52,128
+       C 57,145  57,174  52,180 Z"
+    fill="white"
+    opacity="0.05"/>
+
+  <!-- ── Shape 2 — MIDDLE: yBase=180, yTip=82, cx=100, spread=24 ── -->
+  <path
+    d="M 100,180
+       C 76,174  72,112  100,82
+       C 128,112  124,174  100,180 Z"
+    fill="url(#s2)"
+    filter="url(#shadow)"
+    opacity="0.95"/>
+  <path
+    d="M 100,180
+       C 91,172  89,114  100,82
+       C 107,112  107,172  100,180 Z"
+    fill="white"
+    opacity="0.055"/>
+
+  <!-- ── Shape 3 — RIGHT (tallest, brightest): yBase=180, yTip=30, cx=148, spread=24 ── -->
+  <path
+    d="M 148,180
+       C 124,174  120,68  148,30
+       C 176,68  172,174  148,180 Z"
+    fill="url(#s3)"
+    filter="url(#shadow)"/>
+  <path
+    d="M 148,180
+       C 139,173  136,70  148,30
+       C 155,67  156,173  148,180 Z"
+    fill="white"
+    opacity="0.07"/>
+
+  <!-- ===== GLOW AURAS at tips ===== -->
+  <!-- Shape 1 tip aura -->
+  <circle cx="52"  cy="128" r="10" fill="#2563EB" opacity="0.18" filter="url(#tipGlow)"/>
+  <!-- Shape 2 tip aura -->
+  <circle cx="100" cy="82"  r="14" fill="#6366F1" opacity="0.22" filter="url(#tipGlow)"/>
+  <!-- Shape 3 tip aura (dominant) -->
+  <circle cx="148" cy="30"  r="18" fill="#8B5CF6" opacity="0.28" filter="url(#tipGlow)"/>
+
+  <!-- ===== TIP DOTS (bright accent) ===== -->
+  <circle cx="52"  cy="128" r="4.5" fill="#60A5FA"/>
+  <circle cx="52"  cy="128" r="2"   fill="#EFF6FF"/>
+
+  <circle cx="100" cy="82"  r="5.5" fill="#818CF8"/>
+  <circle cx="100" cy="82"  r="2.2" fill="#EEF2FF"/>
+
+  <circle cx="148" cy="30"  r="7"   fill="#8B5CF6" filter="url(#glow)"/>
+  <circle cx="148" cy="30"  r="3"   fill="#EDE9FE"/>
+
+  <!-- ===== TREND ARC connecting tips (subtle) ===== -->
+  <path
+    d="M 52,128 Q 100,60 148,30"
+    fill="none"
+    stroke="white"
+    stroke-width="1.2"
+    stroke-dasharray="3,5"
+    opacity="0.12"/>
+</svg>

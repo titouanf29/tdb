@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 155 205" width="155" height="205">
+  <defs>
+    <!--
+      Single gradient — userSpaceOnUse = absolute Y coordinates.
+      Each shape shows only its slice of the gradient.
+      C (lowest, shortest) → dark.
+      Tall bar (highest) → brightest.
+    -->
+    <linearGradient id="g" gradientUnits="userSpaceOnUse"
+      x1="0" y1="198" x2="0" y2="42">
+      <stop offset="0%"   stop-color="#1E1B4B"/>
+      <stop offset="30%"  stop-color="#3730A3"/>
+      <stop offset="60%"  stop-color="#6366F1"/>
+      <stop offset="82%"  stop-color="#8B5CF6"/>
+      <stop offset="100%" stop-color="#DDD6FE"/>
+    </linearGradient>
+  </defs>
+
+  <!--
+    C — replaces the short bar on the left.
+    Center (29, 178), outer radius 19, inner radius 10.
+    Opening: ±35° from horizontal right.
+    Path: outer arc CW (large) → top arm → inner arc CCW (large) → bottom arm (close).
+  -->
+  <path
+    d="M 44.6,188.9
+       A 19,19 0 1 1 44.6,167.1
+       L 37.2,172.3
+       A 10,10 0 1 0 37.2,183.7
+       Z"
+    fill="url(#g)"/>
+
+  <!-- Middle bar -->
+  <rect x="60"  y="100" width="35" height="98"  rx="12" fill="url(#g)"/>
+
+  <!-- Tall bar -->
+  <rect x="110" y="42"  width="35" height="156" rx="12" fill="url(#g)"/>
+
+</svg>

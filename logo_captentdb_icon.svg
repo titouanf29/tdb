@@ -1,0 +1,82 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 140" width="120" height="140">
+  <defs>
+    <linearGradient id="brandGrad" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#2563EB"/>
+      <stop offset="50%" stop-color="#5B4FF0"/>
+      <stop offset="100%" stop-color="#7C3AED"/>
+    </linearGradient>
+    <linearGradient id="iconBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1A2A50"/>
+      <stop offset="100%" stop-color="#1C1040"/>
+    </linearGradient>
+    <filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="3" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <filter id="borderGlow" x="-10%" y="-10%" width="120%" height="120%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="5" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Outer glow ring -->
+  <rect x="4" y="4" width="112" height="132" rx="26" fill="none" stroke="url(#brandGrad)" stroke-width="2" opacity="0.4" filter="url(#borderGlow)"/>
+  <!-- Border -->
+  <rect x="4" y="4" width="112" height="132" rx="26" fill="none" stroke="url(#brandGrad)" stroke-width="1.5" opacity="0.9"/>
+  <!-- Background -->
+  <rect x="6" y="6" width="108" height="128" rx="24" fill="url(#iconBg)"/>
+
+  <!-- Grid -->
+  <line x1="16" y1="110" x2="104" y2="110" stroke="#ffffff" stroke-width="0.6" opacity="0.08"/>
+  <line x1="16" y1="90"  x2="104" y2="90"  stroke="#ffffff" stroke-width="0.6" opacity="0.08"/>
+  <line x1="16" y1="70"  x2="104" y2="70"  stroke="#ffffff" stroke-width="0.6" opacity="0.08"/>
+  <line x1="16" y1="50"  x2="104" y2="50"  stroke="#ffffff" stroke-width="0.6" opacity="0.08"/>
+  <line x1="38" y1="20"  x2="38"  y2="130" stroke="#ffffff" stroke-width="0.6" opacity="0.08"/>
+  <line x1="60" y1="20"  x2="60"  y2="130" stroke="#ffffff" stroke-width="0.6" opacity="0.08"/>
+  <line x1="82" y1="20"  x2="82"  y2="130" stroke="#ffffff" stroke-width="0.6" opacity="0.08"/>
+
+  <!-- Area fill -->
+  <polygon
+    points="18,122  38,104  58,88  78,64  98,40  98,130  18,130"
+    fill="url(#brandGrad)"
+    opacity="0.1"/>
+
+  <!-- Chart line -->
+  <polyline
+    points="18,122  38,104  58,88  78,64  98,40"
+    fill="none"
+    stroke="url(#brandGrad)"
+    stroke-width="4"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    filter="url(#glow)"/>
+
+  <!-- Dots -->
+  <circle cx="18" cy="122" r="4"   fill="#2563EB"/>
+  <circle cx="38" cy="104" r="4"   fill="#3D57EC"/>
+  <circle cx="58" cy="88"  r="4"   fill="#5B4FF0"/>
+  <circle cx="78" cy="64"  r="4.5" fill="#6D45E8"/>
+  <circle cx="98" cy="40"  r="7"   fill="#7C3AED" filter="url(#glow)"/>
+  <circle cx="98" cy="40"  r="3.5" fill="#C4B5FD"/>
+
+  <!-- Arrow -->
+  <line x1="98" y1="40" x2="98" y2="27" stroke="#A78BFA" stroke-width="3" stroke-linecap="round" filter="url(#glow)"/>
+  <polyline
+    points="91,33  98,22  105,33"
+    fill="none"
+    stroke="#C4B5FD"
+    stroke-width="3"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    filter="url(#glow)"/>
+
+  <!-- Accent dot badge -->
+  <circle cx="108" cy="14" r="6" fill="#2563EB" filter="url(#glow)"/>
+  <circle cx="108" cy="14" r="3" fill="#93C5FD"/>
+</svg>
