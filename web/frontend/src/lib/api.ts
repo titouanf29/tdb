@@ -928,12 +928,43 @@ export const toolsAPI = {
 
   getAdviceDetail: (adviceId: number) =>
     fetchAPI<AdviceCard>(`/api/tools/advice/${adviceId}`),
+
+  // Top Tendances Haussières
+  getTopTendances: () =>
+    fetchAPI<TopTendancesData>("/api/tools/top-tendances"),
 };
 
 export interface EventSummary {
   event_id: string;
   summary: string;
   generated_at: string;
+}
+
+export interface TendanceSignal {
+  label: string;
+  bullish: boolean;
+}
+
+export interface TendanceAsset {
+  symbol: string;
+  name: string;
+  price: number;
+  change: number;
+  change_1w: number;
+  confidence: number;
+  rsi: number;
+  vol_ratio: number;
+  signals: TendanceSignal[];
+  reasons: string[];
+  market: string;
+  near_breakout: boolean;
+  macd_cross: boolean;
+}
+
+export interface TopTendancesData {
+  assets: TendanceAsset[];
+  total_scanned: number;
+  updated_at: string;
 }
 
 export interface AdviceData {
