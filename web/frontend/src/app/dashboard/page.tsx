@@ -13,6 +13,7 @@ import { cn, formatPercent } from "@/lib/utils";
 import { walletAPI, favoritesAPI, adminAPI, aiAPI, marketAPI, WalletBalance, TradingStats, Favorite, MarketNews, SummaryPoint, Position } from "@/lib/api";
 import { useFormatCurrency, useFormatPrice } from "@/lib/SettingsContext";
 import { usePremium } from "@/lib/PremiumContext";
+import { useLanguage } from "@/lib/LanguageContext";
 import { getAssetInfo, getAssetLogo } from "@/lib/assetInfo";
 import { SessionSummaryWidget } from "@/components/dashboard/SessionSummary";
 import { OpportunitiesWidget } from "@/components/dashboard/OpportunitiesWidget";
@@ -27,21 +28,14 @@ type WidgetId = "indices" | "sessions" | "opportunities" | "trending" | "favorit
 const DEFAULT_WIDGETS: WidgetId[] = ["indices", "sessions", "opportunities", "trending", "favorites", "news", "stats", "quickactions"];
 const DASHBOARD_STORAGE_KEY = "tdb_dashboard_config";
 
-const WIDGET_META: Record<WidgetId, { label: string; icon: string; description: string }> = {
-  indices:      { label: "Indices & Marchés",        icon: "📈", description: "CAC40, S&P500, BTC, Or en temps réel" },
-  sessions:     { label: "Résumés de Séance",        icon: "🌍", description: "Top/Flop, humeur du marché, signaux J+1" },
-  favorites:    { label: "Mes Favoris",               icon: "⭐", description: "Watchlist avec prix et performances" },
-  news:         { label: "Actualités",                icon: "📰", description: "News filtrées par IA + résumé" },
-  stats:        { label: "Statistiques Trading",      icon: "🎯", description: "Win rate, P&L, historique" },
-  positions:    { label: "Positions Ouvertes",        icon: "💼", description: "Positions actives en cours" },
-  opportunities: { label: "Opportunités IA",          icon: "⚡", description: "Top 5 actifs classés par score IA" },
-  trending:     { label: "Top Tendances Haussières",  icon: "🔥", description: "Top 10 cross-marché avec indice de confiance" },
-  quickactions:  { label: "Actions Rapides",          icon: "⚡", description: "Raccourcis vers les pages clés" },
+const WIDGET_ICONS: Record<WidgetId, string> = {
+  indices: "📈", sessions: "🌍", favorites: "⭐", news: "📰",
+  stats: "🎯", positions: "💼", opportunities: "⚡", trending: "🔥", quickactions: "⚡",
 };
 
 const INDICES_SYMBOLS = ["^FCHI", "^GSPC", "^IXIC", "BTC-USD", "GC=F", "^VIX"];
-const INDICES_LABELS: Record<string, string> = {
-  "^FCHI": "CAC 40", "^GSPC": "S&P 500", "^IXIC": "NASDAQ", "BTC-USD": "Bitcoin", "GC=F": "Or", "^VIX": "VIX",
+const INDICES_LABELS_BASE: Record<string, string> = {
+  "^FCHI": "CAC 40", "^GSPC": "S&P 500", "^IXIC": "NASDAQ", "BTC-USD": "Bitcoin", "^VIX": "VIX",
 };
 
 const containerVariants = {
@@ -58,6 +52,7 @@ const itemVariants = {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export default function DashboardPage() {
+  const { t, lang } = useLanguage();
   const formatCurrency = useFormatCurrency();
   const formatPrice = useFormatPrice();
   const { isPremium } = usePremium();
@@ -192,9 +187,9 @@ export default function DashboardPage() {
         <div className="relative flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold mb-1">
-              Tableau de bord <span className="gradient-text">TDB</span>
+              {t("dash_welcome")} <span className="gradient-text">TDB</span>
             </h1>
-            <p className="text-muted-foreground text-sm">Suivez vos actifs, restez informé, tradez mieux.</p>
+            <p className="text-muted-foreground text-sm">{t("dash_subtitle")}</p>
           </div>
           <div className="flex items-center gap-2">
             {isPremium && (
@@ -208,7 +203,7 @@ export default function DashboardPage() {
                 )}
               >
                 <Settings2 className="w-4 h-4" />
-                {editMode ? "Terminer" : "Personnaliser"}
+                {editMode ? t("dash_done") : t("dash_customize")}
               </button>
             )}
             <button onClick={() => loadData(true)} disabled={isRefreshing} className="p-2 rounded-lg hover:bg-white/5 transition-colors text-muted-foreground hover:text-foreground">
@@ -230,13 +225,15 @@ export default function DashboardPage() {
             <div className="glass-card p-5 border border-primary/30">
               <div className="flex items-center gap-2 mb-4">
                 <Crown className="w-4 h-4 text-yellow-400" />
-                <h3 className="font-semibold">Personnalisation Premium</h3>
-                <span className="text-xs text-muted-foreground ml-auto">Activez/désactivez les widgets et réordonnez-les</span>
+                <h3 className="font-semibold">{t("dash_premium_title")}</h3>
+                <span className="text-xs text-muted-foreground ml-auto">{t("dash_premium_hint")}</span>
               </div>
               <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                {(Object.entries(WIDGET_META) as [WidgetId, typeof WIDGET_META[WidgetId]][]).map(([id, meta]) => {
+                {(Object.keys(WIDGET_ICONS) as WidgetId[]).map((id) => {
                   const isActive = activeWidgets.includes(id);
                   const idx = activeWidgets.indexOf(id);
+                  const labelKey = `widget_${id}_label` as Parameters<typeof t>[0];
+                  const descKey = `widget_${id}_desc` as Parameters<typeof t>[0];
                   return (
                     <div
                       key={id}
@@ -247,10 +244,10 @@ export default function DashboardPage() {
                     >
                       <div className="flex items-start justify-between mb-2">
                         <div className="flex items-center gap-2">
-                          <span className="text-lg">{meta.icon}</span>
+                          <span className="text-lg">{WIDGET_ICONS[id]}</span>
                           <div>
-                            <p className="text-sm font-medium">{meta.label}</p>
-                            <p className="text-[11px] text-muted-foreground">{meta.description}</p>
+                            <p className="text-sm font-medium">{t(labelKey)}</p>
+                            <p className="text-[11px] text-muted-foreground">{t(descKey)}</p>
                           </div>
                         </div>
                         <button
@@ -292,8 +289,8 @@ export default function DashboardPage() {
               <div className="flex items-center gap-4">
                 <div className="p-3 rounded-xl bg-yellow-500/20"><Shield className="w-5 h-5 text-yellow-500" /></div>
                 <div className="flex-1">
-                  <h3 className="font-semibold text-yellow-500">Panneau d'Administration</h3>
-                  <p className="text-sm text-muted-foreground">Gérez les utilisateurs, consultez les statistiques</p>
+                  <h3 className="font-semibold text-yellow-500">{t("dash_admin_panel")}</h3>
+                  <p className="text-sm text-muted-foreground">{t("dash_admin_sub")}</p>
                 </div>
                 <ArrowUpRight className="w-5 h-5 text-yellow-500 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
               </div>
@@ -304,9 +301,9 @@ export default function DashboardPage() {
 
       {/* Quick Stats */}
       <motion.div variants={itemVariants} className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <StatCard title="Actifs Suivis" value={String(favorites.length)} icon={Star} href="/favorites" />
-        <StatCard title="Perf. Moy. Favoris" value={formatPercent(avgFavChange)} change={avgFavChange} icon={TrendingUp} />
-        <StatCard title="Solde Wallet" value={formatCurrency(balance?.total_equity || balance?.balance || 0)} icon={Wallet} href="/wallet" />
+        <StatCard title={t("dash_tracked")} value={String(favorites.length)} icon={Star} href="/favorites" />
+        <StatCard title={t("dash_avg_perf")} value={formatPercent(avgFavChange)} change={avgFavChange} icon={TrendingUp} />
+        <StatCard title={t("dash_wallet_balance")} value={formatCurrency(balance?.total_equity || balance?.balance || 0)} icon={Wallet} href="/wallet" />
         <StatCard title="Win Rate" value={`${stats?.win_rate || 0}%`} subtitle={`${stats?.total_trades || 0} trades`} icon={Target} />
       </motion.div>
 
@@ -458,12 +455,14 @@ const IndicesBar = memo(function IndicesBar({ indices, isLoading, onRefresh }: {
   isLoading: boolean;
   onRefresh: () => void;
 }) {
+  const { t, lang } = useLanguage();
+  const indicesLabels: Record<string, string> = { ...INDICES_LABELS_BASE, "GC=F": lang === "fr" ? "Or" : "Gold" };
   return (
     <div className="glass-card p-4">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <Activity className="w-4 h-4 text-primary" />
-          <h2 className="font-semibold">Marchés en direct</h2>
+          <h2 className="font-semibold">{t("dash_live_markets")}</h2>
         </div>
         <button onClick={onRefresh} disabled={isLoading} className="p-1.5 rounded-lg hover:bg-white/5 text-muted-foreground transition-colors">
           <RefreshCw className={cn("w-3.5 h-3.5", isLoading && "animate-spin")} />
@@ -477,7 +476,7 @@ const IndicesBar = memo(function IndicesBar({ indices, isLoading, onRefresh }: {
             <Link key={sym} href={`/analysis?symbol=${sym}`}
               className="flex-shrink-0 min-w-[110px] p-3 rounded-xl bg-white/5 hover:bg-white/10 transition-colors cursor-pointer"
             >
-              <p className="text-xs text-muted-foreground font-medium mb-1">{INDICES_LABELS[sym] || sym}</p>
+              <p className="text-xs text-muted-foreground font-medium mb-1">{indicesLabels[sym] || sym}</p>
               {d ? (
                 <>
                   <p className="font-bold text-sm">
@@ -513,6 +512,7 @@ const FavoritesWidget = memo(function FavoritesWidget({ favorites, favSort, setF
   formatCurrency: (v: number) => string;
   formatPrice: (v: number, symbol: string) => string;
 }) {
+  const { t } = useLanguage();
   const [showAll, setShowAll] = useState(false);
   const displayed = showAll ? favorites : favorites.slice(0, 8);
 
@@ -521,15 +521,15 @@ const FavoritesWidget = memo(function FavoritesWidget({ favorites, favSort, setF
       <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
         <div className="flex items-center gap-2">
           <Star className="w-5 h-5 text-yellow-500 fill-yellow-500" />
-          <h2 className="text-lg font-semibold">Mes Favoris</h2>
+          <h2 className="text-lg font-semibold">{t("dash_my_favorites")}</h2>
           {favorites.length > 0 && (
             <span className="text-xs bg-white/10 text-muted-foreground px-2 py-0.5 rounded-full">{favorites.length}</span>
           )}
         </div>
         <div className="flex items-center gap-2">
           <div className="flex rounded-lg bg-white/5 p-0.5 gap-0.5">
-            {([["all", "Tous"], ["profit", "📈"], ["loss", "📉"]] as const).map(([val, label]) => (
-              <button key={val} onClick={() => setFavFilter(val)}
+            {([["all", t("dash_all")], ["profit", "📈"], ["loss", "📉"]] as const).map(([val, label]) => (
+              <button key={val} onClick={() => setFavFilter(val as typeof favFilter)}
                 className={cn("px-2 py-1 rounded text-xs transition-colors", favFilter === val ? "bg-primary/20 text-primary" : "text-muted-foreground hover:text-foreground")}
               >{label}</button>
             ))}
@@ -540,16 +540,16 @@ const FavoritesWidget = memo(function FavoritesWidget({ favorites, favSort, setF
             <option value="change_asc">Perf ↑</option>
             <option value="alpha">A → Z</option>
           </select>
-          <Link href="/favorites" className="text-xs text-muted-foreground hover:text-foreground transition-colors">Gérer →</Link>
+          <Link href="/favorites" className="text-xs text-muted-foreground hover:text-foreground transition-colors">{t("dash_manage")}</Link>
         </div>
       </div>
       {favorites.length === 0 ? (
         <div className="text-center py-10 text-muted-foreground">
           <Star className="w-12 h-12 mx-auto mb-3 opacity-30" />
-          <p className="font-medium">Aucun actif suivi</p>
-          <p className="text-sm mt-1">Ajoutez des favoris depuis la page Marchés ou Analyse</p>
+          <p className="font-medium">{t("dash_no_tracked")}</p>
+          <p className="text-sm mt-1">{t("dash_add_fav_hint")}</p>
           <Link href="/markets" className="inline-flex items-center gap-1 text-primary text-sm mt-3 hover:underline">
-            <Plus className="w-4 h-4" /> Explorer les marchés
+            <Plus className="w-4 h-4" /> {t("dash_explore_markets")}
           </Link>
         </div>
       ) : (
@@ -563,7 +563,7 @@ const FavoritesWidget = memo(function FavoritesWidget({ favorites, favSort, setF
             <button onClick={() => setShowAll(!showAll)}
               className="w-full mt-3 text-sm text-muted-foreground hover:text-foreground transition-colors py-2 rounded-lg hover:bg-white/5 flex items-center justify-center gap-1"
             >
-              {showAll ? <><ChevronUp className="w-4 h-4" /> Réduire</> : <><ChevronDown className="w-4 h-4" /> +{favorites.length - 8} autres actifs</>}
+              {showAll ? <><ChevronUp className="w-4 h-4" /> {t("dash_collapse")}</> : <><ChevronDown className="w-4 h-4" /> +{favorites.length - 8} {t("dash_more_assets")}</>}
             </button>
           )}
         </>
@@ -580,11 +580,12 @@ const NewsWidget = memo(function NewsWidget({ marketNews, isLoadingNews, newsFil
   hasFavorites: boolean;
   onRefresh: () => void;
 }) {
+  const { t, lang } = useLanguage();
   const timeAgo = (ts: number) => {
     const diff = (Date.now() / 1000) - ts;
     if (diff < 3600) return `${Math.floor(diff / 60)}m`;
     if (diff < 86400) return `${Math.floor(diff / 3600)}h`;
-    return `${Math.floor(diff / 86400)}j`;
+    return `${Math.floor(diff / 86400)}${lang === "fr" ? "j" : "d"}`;
   };
 
   return (
@@ -592,13 +593,13 @@ const NewsWidget = memo(function NewsWidget({ marketNews, isLoadingNews, newsFil
       <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
         <div className="flex items-center gap-2">
           <Newspaper className="w-5 h-5 text-primary" />
-          <h2 className="text-lg font-semibold">Actualités</h2>
+          <h2 className="text-lg font-semibold">{t("dash_news")}</h2>
         </div>
         <div className="flex items-center gap-2">
           {hasFavorites && (
             <div className="flex rounded-lg bg-white/5 p-0.5 gap-0.5">
-              {([["all", "Tout"], ["mine", "Mes actifs"]] as const).map(([val, label]) => (
-                <button key={val} onClick={() => setNewsFilter(val)}
+              {([["all", t("dash_all")], ["mine", t("dash_my_assets")]] as const).map(([val, label]) => (
+                <button key={val} onClick={() => setNewsFilter(val as typeof newsFilter)}
                   className={cn("px-2 py-1 rounded text-xs transition-colors", newsFilter === val ? "bg-primary/20 text-primary" : "text-muted-foreground hover:text-foreground")}
                 >{label}</button>
               ))}
@@ -618,7 +619,7 @@ const NewsWidget = memo(function NewsWidget({ marketNews, isLoadingNews, newsFil
               <div className="p-4 rounded-xl bg-primary/10 border border-primary/20 h-full">
                 <div className="flex items-center gap-2 mb-3">
                   <Bot className="w-4 h-4 text-primary" />
-                  <span className="text-xs font-semibold text-primary uppercase tracking-wider">Résumé IA</span>
+                  <span className="text-xs font-semibold text-primary uppercase tracking-wider">{t("dash_ai_summary")}</span>
                 </div>
                 {marketNews.summary_points ? (
                   <div className="space-y-3">
@@ -649,7 +650,7 @@ const NewsWidget = memo(function NewsWidget({ marketNews, isLoadingNews, newsFil
                 )}
                 {marketNews.generated_at && (
                   <p className="text-[10px] text-muted-foreground mt-3">
-                    Généré le {new Date(marketNews.generated_at).toLocaleString("fr-FR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
+                    {t("dash_generated")} {new Date(marketNews.generated_at).toLocaleString(lang === "fr" ? "fr-FR" : "en-US", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
                   </p>
                 )}
               </div>
@@ -658,7 +659,7 @@ const NewsWidget = memo(function NewsWidget({ marketNews, isLoadingNews, newsFil
           <div className={cn((marketNews.summary_points || marketNews.summary) ? "lg:col-span-3" : "lg:col-span-5")}>
             <div className="space-y-2 max-h-[360px] overflow-y-auto pr-1">
               {(marketNews.news || []).length === 0 ? (
-                <p className="text-center text-sm text-muted-foreground py-6">Aucune actualité pour vos actifs</p>
+                <p className="text-center text-sm text-muted-foreground py-6">{t("dash_no_news")}</p>
               ) : (
                 (marketNews.news || []).slice(0, 12).map((item, i) => (
                   <a key={i} href={item.link} target="_blank" rel="noopener noreferrer"
@@ -687,7 +688,7 @@ const NewsWidget = memo(function NewsWidget({ marketNews, isLoadingNews, newsFil
       ) : (
         <div className="text-center py-8 text-muted-foreground">
           <Newspaper className="w-8 h-8 mx-auto mb-2 opacity-30" />
-          <p className="text-sm">Cliquez sur actualiser pour charger les actualités</p>
+          <p className="text-sm">{t("dash_refresh_news")}</p>
         </div>
       )}
     </div>
@@ -699,21 +700,22 @@ const TradingStatsWidget = memo(function TradingStatsWidget({ stats, balance, fo
   balance: WalletBalance | null;
   formatCurrency: (v: number) => string;
 }) {
+  const { t } = useLanguage();
   return (
     <div className="glass-card p-5">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <Target className="w-5 h-5 text-primary" />
-          <h2 className="text-lg font-semibold">Statistiques Trading</h2>
+          <h2 className="text-lg font-semibold">{t("dash_trading_stats")}</h2>
         </div>
-        <Link href="/wallet" className="text-xs text-muted-foreground hover:text-foreground transition-colors">Voir le wallet →</Link>
+        <Link href="/wallet" className="text-xs text-muted-foreground hover:text-foreground transition-colors">{t("dash_view_wallet")}</Link>
       </div>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
-          { label: "Win Rate",     value: `${stats?.win_rate || 0}%`,           color: (stats?.win_rate || 0) >= 50 ? "text-profit" : "text-loss" },
-          { label: "Total trades", value: String(stats?.total_trades || 0),      color: "text-foreground" },
-          { label: "P&L total",    value: formatCurrency(stats?.total_pnl || 0), color: (stats?.total_pnl || 0) >= 0 ? "text-profit" : "text-loss" },
-          { label: "Solde",        value: formatCurrency(balance?.balance || 0), color: "text-foreground" },
+          { label: "Win Rate",           value: `${stats?.win_rate || 0}%`,           color: (stats?.win_rate || 0) >= 50 ? "text-profit" : "text-loss" },
+          { label: "Total trades",       value: String(stats?.total_trades || 0),      color: "text-foreground" },
+          { label: "P&L total",           value: formatCurrency(stats?.total_pnl || 0), color: (stats?.total_pnl || 0) >= 0 ? "text-profit" : "text-loss" },
+          { label: t("dash_balance"),    value: formatCurrency(balance?.balance || 0), color: "text-foreground" },
         ].map(item => (
           <div key={item.label} className="p-4 rounded-xl bg-white/5">
             <p className="text-xs text-muted-foreground mb-1">{item.label}</p>
@@ -729,15 +731,16 @@ const OpenPositionsWidget = memo(function OpenPositionsWidget({ positions, forma
   positions: Position[];
   formatCurrency: (v: number) => string;
 }) {
+  const { t } = useLanguage();
   return (
     <div className="glass-card p-5">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <Layers className="w-5 h-5 text-primary" />
-          <h2 className="text-lg font-semibold">Positions Ouvertes</h2>
+          <h2 className="text-lg font-semibold">{t("dash_open_positions")}</h2>
           <span className="text-xs bg-primary/20 text-primary px-2 py-0.5 rounded-full">{positions.length}</span>
         </div>
-        <Link href="/trading" className="text-xs text-muted-foreground hover:text-foreground transition-colors">Tout voir →</Link>
+        <Link href="/trading" className="text-xs text-muted-foreground hover:text-foreground transition-colors">{t("dash_view_all")}</Link>
       </div>
       <div className="space-y-2">
         {positions.slice(0, 5).map((pos) => {
@@ -757,7 +760,7 @@ const OpenPositionsWidget = memo(function OpenPositionsWidget({ positions, forma
                   <p className={cn("font-semibold text-sm", isProfit ? "text-profit" : "text-loss")}>
                     {isProfit ? "+" : ""}{formatCurrency(pnl)}
                   </p>
-                  <p className="text-xs text-muted-foreground">Entrée {formatCurrency(pos.entry_price)}</p>
+                  <p className="text-xs text-muted-foreground">{t("dash_entry")} {formatCurrency(pos.entry_price)}</p>
                 </div>
               </div>
             </Link>
@@ -769,18 +772,19 @@ const OpenPositionsWidget = memo(function OpenPositionsWidget({ positions, forma
 });
 
 const QuickActionsWidget = memo(function QuickActionsWidget({ isPremium: _ }: { isPremium: boolean }) {
+  const { t } = useLanguage();
   const actions = [
-    { href: "/analysis",  icon: <BarChart3 className="w-5 h-5" />,  label: "Analyser",     sub: "Actif" },
-    { href: "/markets",   icon: <Globe className="w-5 h-5" />,      label: "Marchés",      sub: "Explorer" },
-    { href: "/scanner",   icon: <Activity className="w-5 h-5" />,   label: "Scanner",      sub: "Opportunités" },
-    { href: "/assistant", icon: <Bot className="w-5 h-5" />,        label: "Assistant IA", sub: "Conseils" },
-    { href: "/trading",   icon: <TrendingUp className="w-5 h-5" />, label: "Positions",    sub: "Paper trading" },
-    { href: "/favorites", icon: <Star className="w-5 h-5" />,       label: "Favoris",      sub: "Watchlist" },
+    { href: "/analysis",  icon: <BarChart3 className="w-5 h-5" />,  label: t("qa_analyze"),      sub: t("qa_asset") },
+    { href: "/markets",   icon: <Globe className="w-5 h-5" />,      label: t("qa_markets"),      sub: t("qa_explore") },
+    { href: "/scanner",   icon: <Activity className="w-5 h-5" />,   label: "Scanner",            sub: t("qa_opportunities") },
+    { href: "/assistant", icon: <Bot className="w-5 h-5" />,        label: t("qa_ai_assistant"), sub: t("qa_advice") },
+    { href: "/trading",   icon: <TrendingUp className="w-5 h-5" />, label: t("dash_positions"),  sub: "Paper trading" },
+    { href: "/favorites", icon: <Star className="w-5 h-5" />,       label: t("qa_favorites"),    sub: "Watchlist" },
   ];
 
   return (
     <div className="glass-card p-5">
-      <h2 className="text-lg font-semibold mb-4">Actions Rapides</h2>
+      <h2 className="text-lg font-semibold mb-4">{t("widget_quickactions_label")}</h2>
       <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
         {actions.map(a => (
           <Link key={a.href} href={a.href}>
