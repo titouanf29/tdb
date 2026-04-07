@@ -5,14 +5,8 @@ const nextConfig = {
   images: {
     domains: ['t.me', 'telegram.org'],
   },
-  async rewrites() {
-    return [
-      {
-        source: '/api/:path*',
-        destination: (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000') + '/api/:path*',
-      },
-    ];
-  },
+  // API proxy is handled at runtime by src/app/api/[...proxy]/route.ts
+  // so BACKEND_URL can be set as a Railway env var without rebuilding.
 };
 
 module.exports = nextConfig;
