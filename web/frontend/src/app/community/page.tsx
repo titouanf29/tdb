@@ -138,7 +138,7 @@ export default function CommunityPage() {
     } catch (error: any) {
       console.error("Error sending message:", error);
       if (error.status === 429) {
-        alert("Trop de messages. Veuillez patienter un moment.");
+        alert(lang === "fr" ? "Trop de messages. Veuillez patienter un moment." : "Too many messages. Please wait a moment.");
       }
     } finally {
       setIsLoading(false);
@@ -165,7 +165,7 @@ export default function CommunityPage() {
   };
 
   const handleDeleteMessage = async (messageId: number) => {
-    if (!confirm("Supprimer ce message ?")) return;
+    if (!confirm(lang === "fr" ? "Supprimer ce message ?" : "Delete this message?")) return;
     try {
       await communityAPI.deleteMessage(messageId);
       setMessages((prev) => prev.filter((m) => m.id !== messageId));
@@ -189,7 +189,7 @@ export default function CommunityPage() {
       await loadTickets();
     } catch (error) {
       console.error("Error contacting admin:", error);
-      alert("Erreur lors de l'envoi du message.");
+      alert(lang === "fr" ? "Erreur lors de l'envoi du message." : "Error sending message.");
     } finally {
       setIsSendingContact(false);
     }
@@ -439,7 +439,7 @@ export default function CommunityPage() {
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyPress={(e) => e.key === "Enter" && handleSendMessage()}
-                placeholder="Votre message..."
+                placeholder={t("community_msg_ph")}
                 className="flex-1 input"
                 maxLength={1000}
                 disabled={isLoading}

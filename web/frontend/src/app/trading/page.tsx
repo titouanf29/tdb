@@ -229,7 +229,7 @@ export default function TradingPage() {
 
           {/* Direction */}
           <div>
-            <label className="block text-sm font-medium mb-2">Direction</label>
+            <label className="block text-sm font-medium mb-2">{t("trade_direction")}</label>
             <div className="grid grid-cols-2 gap-3">
               <button
                 onClick={() => setDirection("LONG")}
@@ -241,7 +241,7 @@ export default function TradingPage() {
                 )}
               >
                 <TrendingUp className="w-5 h-5" />
-                LONG
+                {t("trade_long")}
               </button>
               <button
                 onClick={() => setDirection("SHORT")}
@@ -253,14 +253,14 @@ export default function TradingPage() {
                 )}
               >
                 <TrendingDown className="w-5 h-5" />
-                SHORT
+                {t("trade_short")}
               </button>
             </div>
           </div>
 
           {/* Amount */}
           <div>
-            <label className="block text-sm font-medium mb-2">Montant (USD)</label>
+            <label className="block text-sm font-medium mb-2">{t("trade_amount_usd")}</label>
             <input
               type="number"
               value={amount}
@@ -292,7 +292,7 @@ export default function TradingPage() {
             <label className="block text-sm font-medium mb-2">
               <span className="flex items-center gap-2">
                 <Zap className="w-4 h-4 text-warning" />
-                Levier
+                {t("trade_leverage")}
               </span>
             </label>
             <div className="flex gap-2">
@@ -316,7 +316,7 @@ export default function TradingPage() {
             {leverage > 3 && (
               <p className="text-warning text-xs mt-2 flex items-center gap-1">
                 <Info className="w-3 h-3" />
-                Levier eleve = risque eleve
+                {t("trade_leverage_risk")}
               </p>
             )}
           </div>
@@ -355,11 +355,11 @@ export default function TradingPage() {
             ) : isLoadingQuote ? (
               <>
                 <Loader2 className="w-5 h-5 animate-spin" />
-                Chargement du prix...
+                {t("trade_loading_price")}
               </>
             ) : (
               <>
-                {direction === "LONG" ? "Acheter" : "Vendre"} {symbol}
+                {direction === "LONG" ? t("trade_buy") : t("trade_sell")} {symbol}
               </>
             )}
           </motion.button>
@@ -371,15 +371,15 @@ export default function TradingPage() {
           <div className="glass-card p-6">
             <h3 className="font-semibold mb-4 flex items-center gap-2">
               <Target className="w-5 h-5 text-primary" />
-              Apercu de la Position
+              {t("trade_preview")}
             </h3>
             <div className="space-y-3">
               <div className="flex justify-between py-2 border-b border-white/5">
-                <span className="text-muted-foreground">Actif</span>
+                <span className="text-muted-foreground">{t("asset")}</span>
                 <span className="font-semibold">{symbol || "-"}</span>
               </div>
               <div className="flex justify-between py-2 border-b border-white/5">
-                <span className="text-muted-foreground">Direction</span>
+                <span className="text-muted-foreground">{t("trade_direction")}</span>
                 <span
                   className={cn(
                     "font-semibold",
@@ -390,21 +390,21 @@ export default function TradingPage() {
                 </span>
               </div>
               <div className="flex justify-between py-2 border-b border-white/5">
-                <span className="text-muted-foreground">Prix d'entree</span>
+                <span className="text-muted-foreground">{t("trade_entry_price")}</span>
                 <span className="font-semibold">
                   {quote ? formatCurrency(currentPrice) : "-"}
                 </span>
               </div>
               <div className="flex justify-between py-2 border-b border-white/5">
-                <span className="text-muted-foreground">Quantite</span>
+                <span className="text-muted-foreground">{t("trade_quantity")}</span>
                 <span className="font-semibold">{quantity.toFixed(4)}</span>
               </div>
               <div className="flex justify-between py-2 border-b border-white/5">
-                <span className="text-muted-foreground">Valeur totale</span>
+                <span className="text-muted-foreground">{t("trade_total_value")}</span>
                 <span className="font-semibold">{formatCurrency(amount * leverage)}</span>
               </div>
               <div className="flex justify-between py-2 border-b border-white/5">
-                <span className="text-muted-foreground">Marge utilisee</span>
+                <span className="text-muted-foreground">{t("trade_margin")}</span>
                 <span className="font-semibold">{formatCurrency(amount)}</span>
               </div>
             </div>
@@ -414,7 +414,7 @@ export default function TradingPage() {
           <div className="glass-card p-6">
             <h3 className="font-semibold mb-4 flex items-center gap-2">
               <Shield className="w-5 h-5 text-primary" />
-              Gestion du Risque
+              {t("trade_risk_mgmt")}
             </h3>
             <div className="space-y-4">
               <div>
@@ -426,7 +426,7 @@ export default function TradingPage() {
                       onChange={(e) => setUseTP(e.target.checked)}
                       className="rounded"
                     />
-                    <span className="text-sm text-muted-foreground">Take Profit</span>
+                    <span className="text-sm text-muted-foreground">{t("trade_tp")}</span>
                   </label>
                   <span className="text-profit font-semibold">
                     {takeProfit ? formatCurrency(takeProfit) : "-"}
@@ -452,7 +452,7 @@ export default function TradingPage() {
                       onChange={(e) => setUseSL(e.target.checked)}
                       className="rounded"
                     />
-                    <span className="text-sm text-muted-foreground">Stop Loss</span>
+                    <span className="text-sm text-muted-foreground">{t("trade_sl")}</span>
                   </label>
                   <span className="text-loss font-semibold">
                     {stopLoss ? formatCurrency(stopLoss) : "-"}
