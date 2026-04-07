@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 300" style="background:#0a0a0f">
+  <defs>
+    <linearGradient id="overbought" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#ef4444;stop-opacity:0.3"/>
+      <stop offset="100%" style="stop-color:#ef4444;stop-opacity:0.1"/>
+    </linearGradient>
+    <linearGradient id="oversold" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#22c55e;stop-opacity:0.1"/>
+      <stop offset="100%" style="stop-color:#22c55e;stop-opacity:0.3"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background zones -->
+  <rect x="50" y="20" width="500" height="60" fill="url(#overbought)"/>
+  <rect x="50" y="200" width="500" height="60" fill="url(#oversold)"/>
+
+  <!-- Grid lines -->
+  <line x1="50" y1="20" x2="550" y2="20" stroke="#333" stroke-width="1"/>
+  <line x1="50" y1="80" x2="550" y2="80" stroke="#ef4444" stroke-width="2" stroke-dasharray="5,5"/>
+  <line x1="50" y1="140" x2="550" y2="140" stroke="#666" stroke-width="1" stroke-dasharray="3,3"/>
+  <line x1="50" y1="200" x2="550" y2="200" stroke="#22c55e" stroke-width="2" stroke-dasharray="5,5"/>
+  <line x1="50" y1="260" x2="550" y2="260" stroke="#333" stroke-width="1"/>
+
+  <!-- RSI Line -->
+  <path d="M50,140 Q100,100 150,120 T250,60 T350,180 T450,220 T550,140"
+        fill="none" stroke="#8b5cf6" stroke-width="3"/>
+
+  <!-- Labels -->
+  <text x="30" y="25" fill="#ef4444" font-size="12" text-anchor="end">100</text>
+  <text x="30" y="85" fill="#ef4444" font-size="12" text-anchor="end">70</text>
+  <text x="30" y="145" fill="#888" font-size="12" text-anchor="end">50</text>
+  <text x="30" y="205" fill="#22c55e" font-size="12" text-anchor="end">30</text>
+  <text x="30" y="265" fill="#22c55e" font-size="12" text-anchor="end">0</text>
+
+  <!-- Zone labels -->
+  <text x="560" y="55" fill="#ef4444" font-size="11" font-weight="bold">SURACHAT</text>
+  <text x="560" y="235" fill="#22c55e" font-size="11" font-weight="bold">SURVENTE</text>
+  <text x="560" y="145" fill="#888" font-size="11">NEUTRE</text>
+
+  <!-- Title -->
+  <text x="300" y="285" fill="#fff" font-size="14" text-anchor="middle" font-weight="bold">Zones RSI: Surachat (>70) et Survente (&lt;30)</text>
+</svg>
