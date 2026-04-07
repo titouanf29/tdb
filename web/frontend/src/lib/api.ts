@@ -40,7 +40,11 @@ async function fetchAPI<T>(
     // Don't redirect if already on auth pages
     const isAuthPage = typeof window !== "undefined" &&
       (window.location.pathname.startsWith("/login") ||
-       window.location.pathname.startsWith("/register"));
+       window.location.pathname.startsWith("/register") ||
+       window.location.pathname.startsWith("/mentions-legales") ||
+       window.location.pathname.startsWith("/politique-de-confidentialite") ||
+       window.location.pathname.startsWith("/cgu") ||
+       window.location.pathname === "/");
 
     if (!isAuthPage) {
       removeToken();
@@ -924,38 +928,7 @@ export const toolsAPI = {
 
   getAdviceDetail: (adviceId: number) =>
     fetchAPI<AdviceCard>(`/api/tools/advice/${adviceId}`),
-
-  // Top Tendances
-  getTopTendances: () =>
-    fetchAPI<TopTendancesData>("/api/tools/top-tendances"),
 };
-
-export interface TendanceSignal {
-  label: string;
-  bullish: boolean;
-}
-
-export interface TendanceAsset {
-  symbol: string;
-  name: string;
-  price: number;
-  change: number;
-  change_1w: number;
-  confidence: number;
-  rsi: number;
-  vol_ratio: number;
-  signals: TendanceSignal[];
-  reasons: string[];
-  market: string;
-  near_breakout: boolean;
-  macd_cross: boolean;
-}
-
-export interface TopTendancesData {
-  assets: TendanceAsset[];
-  total_scanned: number;
-  updated_at: string;
-}
 
 export interface EventSummary {
   event_id: string;
@@ -1405,6 +1378,124 @@ export const portfolioAPI = {
     fetchAPI<{ success: boolean }>(`/api/portfolio/positions/${id}`, {
       method: "DELETE",
     }),
+};
+
+// ── Trading Journal ────────────────────────────────────────────────────────────
+
+export interface JournalEntry {
+  id: number;
+  user_id: string;
+  symbol: string;
+  direction: "LONG" | "SHORT";
+  timeframe?: string;
+  setup?: string;
+  entry_time?: string;
+  exit_time?: string;
+  entry_price?: number;
+  exit_price?: number;
+  quantity?: number;
+  risk_reward?: number;
+  result?: "win" | "loss" | "breakeven";
+  pnl?: number;
+  pre_trade_notes?: string;
+  post_trade_notes?: string;
+  screenshot?: string;
+  created_at: string;
+  updated_at?: string;
+}
+
+export interface JournalStats {
+  total: number;
+  wins: number;
+  losses: number;
+  breakevens: number;
+  win_rate: number;
+  total_pnl: number;
+  avg_rr: number;
+  best_trade: number;
+  worst_trade: number;
+}
+
+export type JournalEntryCreate = Omit<JournalEntry, "id" | "user_id" | "created_at" | "updated_at">;
+
+export const journalAPI = {
+  list: (params?: { result?: string; symbol?: string }) => {
+    const qs = new URLSearchParams();
+    if (params?.result) qs.set("result", params.result);
+    if (params?.symbol) qs.set("symbol", params.symbol);
+    const q = qs.toString();
+    return fetchAPI<{ entries: JournalEntry[] }>(`/api/journal${q ? "?" + q : ""}`);
+  },
+
+  getStats: () => fetchAPI<JournalStats>("/api/journal/stats"),
+
+  get: (id: number) => fetchAPI<JournalEntry>(`/api/journal/${id}`),
+
+  create: (data: JournalEntryCreate) =>
+    fetchAPI<JournalEntry>("/api/journal", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    }),
+
+  update: (id: number, data: Partial<JournalEntryCreate>) =>
+    fetchAPI<JournalEntry>(`/api/journal/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    }),
+
+  delete: (id: number) =>
+    fetchAPI<void>(`/api/journal/${id}`, { method: "DELETE" }),
+};
+
+// ── Weekly Market Prep ────────────────────────────────────────────────────────
+
+export interface WeeklyMarket {
+  name: string;
+  icon: string;
+  trend: "bullish" | "bearish" | "neutral";
+  summary: string;
+  key_zones: string;
+  risk: string;
+}
+
+export interface WeeklyWatchItem {
+  symbol: string;
+  name: string;
+  type: string;
+  why: string;
+  scenario: string;
+  direction: "bullish" | "bearish" | "neutral";
+}
+
+export interface WeeklyEvent {
+  day: string;
+  time: string;
+  event: string;
+  country: string;
+  importance: "high" | "medium" | "low";
+  impact: string;
+}
+
+export interface WeeklyBriefing {
+  week: string;
+  generated_at: string;
+  macro: {
+    trend: "bullish" | "bearish" | "neutral";
+    summary: string;
+    key_points: string[];
+  };
+  markets: WeeklyMarket[];
+  watchlist: WeeklyWatchItem[];
+  events: WeeklyEvent[];
+  conclusion: string;
+}
+
+export const weeklyPrepAPI = {
+  status: () => fetchAPI<{ visible: boolean; week: string }>("/api/weekly-prep/status"),
+  get: () => fetchAPI<{ briefing: WeeklyBriefing; cached: boolean }>("/api/weekly-prep"),
+  refresh: () => fetchAPI<{ briefing: WeeklyBriefing; cached: boolean }>("/api/weekly-prep/refresh", { method: "POST" }),
 };
 
 /**
