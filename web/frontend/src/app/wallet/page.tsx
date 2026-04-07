@@ -19,9 +19,11 @@ import { cn, formatPercent } from "@/lib/utils";
 import { walletAPI, WalletBalance, Position, TradingStats } from "@/lib/api";
 import { useFormatCurrency } from "@/lib/SettingsContext";
 import { AnimatedNumber } from "@/components/ui/AnimatedNumber";
+import { useLanguage } from "@/lib/LanguageContext";
 
 export default function WalletPage() {
   const formatCurrency = useFormatCurrency();
+  const { t } = useLanguage();
   const [balance, setBalance] = useState<WalletBalance | null>(null);
   const [positions, setPositions] = useState<Position[]>([]);
   const [history, setHistory] = useState<Position[]>([]);
@@ -78,11 +80,11 @@ export default function WalletPage() {
   const addFunds = async () => {
     const amount = parseFloat(addFundsAmount);
     if (isNaN(amount) || amount <= 0) {
-      setAddFundsError("Veuillez entrer un montant valide");
+      setAddFundsError(t("wallet_err_invalid"));
       return;
     }
     if (amount > 100000) {
-      setAddFundsError("Maximum 100,000$ par transaction");
+      setAddFundsError(t("wallet_err_max"));
       return;
     }
 
@@ -118,8 +120,8 @@ export default function WalletPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Wallet</h1>
-          <p className="text-muted-foreground">Gerez votre portefeuille virtuel</p>
+          <h1 className="text-2xl font-bold">{t("wallet_title")}</h1>
+          <p className="text-muted-foreground">{t("wallet_subtitle")}</p>
         </div>
         <div className="flex gap-3">
           <button
@@ -127,7 +129,7 @@ export default function WalletPage() {
             className="btn-primary flex items-center gap-2"
           >
             <Plus className="w-4 h-4" />
-            Ajouter des fonds
+            {t("wallet_add_funds")}
           </button>
           <button
             onClick={() => loadData(true)}
@@ -142,7 +144,7 @@ export default function WalletPage() {
       {/* Balance cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <BalanceCard
-          title="Solde Disponible"
+          title={t("wallet_balance")}
           rawValue={balance?.balance || 0}
           formatter={formatCurrency}
           icon={Wallet}
@@ -150,7 +152,7 @@ export default function WalletPage() {
           index={0}
         />
         <BalanceCard
-          title="Valeur Positions"
+          title={t("wallet_positions_val")}
           rawValue={balance?.positions_value || 0}
           formatter={formatCurrency}
           icon={DollarSign}
@@ -158,7 +160,7 @@ export default function WalletPage() {
           index={1}
         />
         <BalanceCard
-          title="P&L Non Realise"
+          title={t("wallet_pnl")}
           rawValue={balance?.total_pnl || 0}
           formatter={formatCurrency}
           icon={balance?.total_pnl && balance.total_pnl >= 0 ? TrendingUp : TrendingDown}
@@ -166,7 +168,7 @@ export default function WalletPage() {
           index={2}
         />
         <BalanceCard
-          title="Equity Totale"
+          title={t("wallet_equity")}
           rawValue={balance?.total_equity ?? ((balance?.balance || 0) + (balance?.positions_value || 0))}
           formatter={formatCurrency}
           icon={Target}
@@ -177,17 +179,17 @@ export default function WalletPage() {
 
       {/* Stats */}
       <div className="glass-card p-6">
-        <h2 className="text-lg font-semibold mb-4">Statistiques de Trading</h2>
+        <h2 className="text-lg font-semibold mb-4">{t("wallet_stats_title")}</h2>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {[
-            { label: "Total Trades", value: stats?.total_trades || 0 },
-            { label: "Trades Gagnants", value: stats?.winning_trades || 0, color: "green" as const },
-            { label: "Trades Perdants", value: stats?.losing_trades || 0, color: "red" as const },
-            { label: "Win Rate", value: `${stats?.win_rate || 0}%` },
-            { label: "P&L Total", value: formatCurrency(stats?.total_pnl || 0), color: (stats?.total_pnl ?? 0) >= 0 ? "green" as const : "red" as const },
-            { label: "Meilleur Trade", value: formatCurrency(stats?.best_trade || 0), color: "green" as const },
-            { label: "Pire Trade", value: formatCurrency(stats?.worst_trade || 0), color: "red" as const },
-            { label: "P&L Moyen", value: formatCurrency(stats?.avg_pnl || 0) },
+            { label: t("wallet_total_trades"), value: stats?.total_trades || 0 },
+            { label: t("wallet_winning"), value: stats?.winning_trades || 0, color: "green" as const },
+            { label: t("wallet_losing"), value: stats?.losing_trades || 0, color: "red" as const },
+            { label: t("wallet_winrate"), value: `${stats?.win_rate || 0}%` },
+            { label: t("wallet_total_pnl"), value: formatCurrency(stats?.total_pnl || 0), color: (stats?.total_pnl ?? 0) >= 0 ? "green" as const : "red" as const },
+            { label: t("wallet_best_trade"), value: formatCurrency(stats?.best_trade || 0), color: "green" as const },
+            { label: t("wallet_worst_trade"), value: formatCurrency(stats?.worst_trade || 0), color: "red" as const },
+            { label: t("wallet_avg_pnl"), value: formatCurrency(stats?.avg_pnl || 0) },
           ].map((item, i) => (
             <StatItem key={item.label} index={i} {...item} />
           ))}
@@ -205,7 +207,7 @@ export default function WalletPage() {
               : "text-muted-foreground hover:text-foreground"
           )}
         >
-          Positions Ouvertes ({positions.length})
+          {t("wallet_open_pos")} ({positions.length})
           {activeTab === "open" && (
             <motion.div
               layoutId="activeTab"
@@ -222,7 +224,7 @@ export default function WalletPage() {
               : "text-muted-foreground hover:text-foreground"
           )}
         >
-          Historique ({history.length})
+          {t("wallet_history")} ({history.length})
           {activeTab === "closed" && (
             <motion.div
               layoutId="activeTab"
@@ -238,7 +240,7 @@ export default function WalletPage() {
           positions.length === 0 ? (
             <div className="glass-card p-12 text-center">
               <Wallet className="w-12 h-12 mx-auto mb-4 text-muted-foreground opacity-50" />
-              <p className="text-muted-foreground">Aucune position ouverte</p>
+              <p className="text-muted-foreground">{t("wallet_no_positions")}</p>
             </div>
           ) : (
             positions.map((position, i) => (
@@ -255,7 +257,7 @@ export default function WalletPage() {
         ) : history.length === 0 ? (
           <div className="glass-card p-12 text-center">
             <History className="w-12 h-12 mx-auto mb-4 text-muted-foreground opacity-50" />
-            <p className="text-muted-foreground">Aucun historique</p>
+            <p className="text-muted-foreground">{t("wallet_no_history")}</p>
           </div>
         ) : (
           history.map((position, i) => (
@@ -277,8 +279,8 @@ export default function WalletPage() {
                 <Banknote className="w-6 h-6 text-primary" />
               </div>
               <div>
-                <h2 className="text-lg font-semibold">Ajouter des fonds</h2>
-                <p className="text-sm text-muted-foreground">Paper Trading - Argent virtuel</p>
+                <h2 className="text-lg font-semibold">{t("wallet_add_modal_title")}</h2>
+                <p className="text-sm text-muted-foreground">{t("wallet_paper_label")}</p>
               </div>
             </div>
 
@@ -289,12 +291,12 @@ export default function WalletPage() {
             )}
 
             <div className="mb-4">
-              <label className="block text-sm text-muted-foreground mb-2">Montant (USD)</label>
+              <label className="block text-sm text-muted-foreground mb-2">{t("wallet_amount_label")}</label>
               <input
                 type="number"
                 value={addFundsAmount}
                 onChange={(e) => setAddFundsAmount(e.target.value)}
-                placeholder="Ex: 10000"
+                placeholder={t("wallet_amount_ph")}
                 className="w-full input"
                 min="1"
                 max="100000"
@@ -322,7 +324,7 @@ export default function WalletPage() {
                 }}
                 className="flex-1 btn-secondary"
               >
-                Annuler
+                {t("cancel")}
               </button>
               <button
                 onClick={addFunds}
@@ -334,7 +336,7 @@ export default function WalletPage() {
                 ) : (
                   <>
                     <Plus className="w-4 h-4" />
-                    Ajouter
+                    {t("add")}
                   </>
                 )}
               </button>
@@ -441,6 +443,7 @@ function PositionCard({
   formatCurrency: (value: number) => string;
   index?: number;
 }) {
+  const { t } = useLanguage();
   const isProfit = (position.unrealized_pnl || 0) >= 0;
 
   return (
@@ -476,9 +479,9 @@ function PositionCard({
               )}
             </div>
             <div className="flex gap-4 text-sm text-muted-foreground mt-1">
-              <span>Entree: {formatCurrency(position.entry_price)}</span>
-              <span>Qte: {position.quantity.toFixed(4)}</span>
-              <span>Montant: {formatCurrency(position.amount)}</span>
+              <span>{t("wallet_entry")}: {formatCurrency(position.entry_price)}</span>
+              <span>{t("wallet_qty")}: {position.quantity.toFixed(4)}</span>
+              <span>{t("wallet_amount")}: {formatCurrency(position.amount)}</span>
             </div>
           </div>
         </div>
@@ -509,7 +512,7 @@ function PositionCard({
             ) : (
               <X className="w-4 h-4" />
             )}
-            Fermer
+            {t("wallet_close")}
           </button>
         </div>
       </div>
@@ -534,6 +537,7 @@ function PositionCard({
 }
 
 function HistoryCard({ position, formatCurrency, index = 0 }: { position: Position; formatCurrency: (value: number) => string; index?: number }) {
+  const { t } = useLanguage();
   const isProfit = (position.realized_pnl || 0) >= 0;
 
   return (
@@ -563,8 +567,8 @@ function HistoryCard({ position, formatCurrency, index = 0 }: { position: Positi
               </span>
             </div>
             <div className="flex gap-4 text-sm text-muted-foreground mt-1">
-              <span>Entree: {formatCurrency(position.entry_price)}</span>
-              <span>Sortie: {formatCurrency(position.exit_price || 0)}</span>
+              <span>{t("wallet_entry")}: {formatCurrency(position.entry_price)}</span>
+              <span>{t("wallet_exit")}: {formatCurrency(position.exit_price || 0)}</span>
             </div>
           </div>
         </div>

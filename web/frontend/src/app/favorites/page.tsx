@@ -17,8 +17,10 @@ import { cn, formatPercent } from "@/lib/utils";
 import { favoritesAPI, Favorite } from "@/lib/api";
 import { useFormatPrice } from "@/lib/SettingsContext";
 import { TopLoadingBar } from "@/components/ui/TopLoadingBar";
+import { useLanguage } from "@/lib/LanguageContext";
 
 export default function FavoritesPage() {
+  const { t } = useLanguage();
   const router = useRouter();
   const formatPrice = useFormatPrice();
   const [favorites, setFavorites] = useState<Favorite[]>([]);
@@ -106,10 +108,10 @@ export default function FavoritesPage() {
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2">
             <Star className="w-6 h-6 text-yellow-500 fill-yellow-500" />
-            Mes Favoris
+            {t("fav_title")}
           </h1>
           <p className="text-muted-foreground">
-            {favorites.length} actifs suivis
+            {favorites.length} {t("fav_subtitle")}
           </p>
         </div>
         <div className="flex gap-3">
@@ -125,7 +127,7 @@ export default function FavoritesPage() {
             className="btn-primary flex items-center gap-2"
           >
             <Plus className="w-4 h-4" />
-            Ajouter
+            {t("fav_add")}
           </button>
         </div>
       </div>
@@ -135,7 +137,7 @@ export default function FavoritesPage() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {[
             {
-              label: "Performance moyenne",
+              label: t("fav_avg_perf"),
               content: (
                 <p className={cn("text-2xl font-bold", avgChange >= 0 ? "text-profit" : "text-loss")}>
                   {formatPercent(avgChange)}
@@ -143,7 +145,7 @@ export default function FavoritesPage() {
               ),
             },
             {
-              label: "Meilleure perf",
+              label: t("fav_best_perf"),
               content: bestPerf ? (
                 <p className="text-2xl font-bold text-profit">
                   {bestPerf.symbol} {formatPercent(bestPerf.change)}
@@ -151,7 +153,7 @@ export default function FavoritesPage() {
               ) : null,
             },
             {
-              label: "Actifs suivis",
+              label: t("fav_count"),
               content: (
                 <p className="text-2xl font-bold text-primary">{favorites.length}</p>
               ),
@@ -176,12 +178,12 @@ export default function FavoritesPage() {
       {favorites.length === 0 ? (
         <div className="glass-card p-12 text-center">
           <Star className="w-12 h-12 mx-auto mb-4 text-muted-foreground opacity-50" />
-          <p className="text-muted-foreground mb-4">Aucun favori pour le moment</p>
+          <p className="text-muted-foreground mb-4">{t("fav_empty")}</p>
           <button
             onClick={() => setShowAddModal(true)}
             className="btn-primary"
           >
-            Ajouter un favori
+            {t("fav_add_first")}
           </button>
         </div>
       ) : (
@@ -189,10 +191,10 @@ export default function FavoritesPage() {
           <table className="w-full">
             <thead>
               <tr className="border-b border-white/10">
-                <th className="text-left p-4 text-sm text-muted-foreground">Actif</th>
-                <th className="text-right p-4 text-sm text-muted-foreground">Prix</th>
-                <th className="text-right p-4 text-sm text-muted-foreground">24h</th>
-                <th className="text-center p-4 text-sm text-muted-foreground">Actions</th>
+                <th className="text-left p-4 text-sm text-muted-foreground">{t("asset")}</th>
+                <th className="text-right p-4 text-sm text-muted-foreground">{t("price")}</th>
+                <th className="text-right p-4 text-sm text-muted-foreground">{t("change_24h")}</th>
+                <th className="text-center p-4 text-sm text-muted-foreground">{t("actions")}</th>
               </tr>
             </thead>
             <tbody>
@@ -230,7 +232,7 @@ export default function FavoritesPage() {
                       <div>
                         <p className="font-semibold">{fav.symbol}</p>
                         <p className="text-xs text-muted-foreground">
-                          Ajoute le {new Date(fav.added_at).toLocaleDateString()}
+                          {t("fav_added_on")} {new Date(fav.added_at).toLocaleDateString()}
                         </p>
                       </div>
                     </div>
@@ -266,7 +268,7 @@ export default function FavoritesPage() {
                         }}
                         className="btn-ghost text-sm"
                       >
-                        Trader
+                        {t("trader")}
                       </button>
                       <button
                         onClick={(e) => {
@@ -294,7 +296,7 @@ export default function FavoritesPage() {
             animate={{ opacity: 1, scale: 1 }}
             className="glass-card p-6 w-full max-w-md"
           >
-            <h2 className="text-lg font-semibold mb-4">Ajouter un favori</h2>
+            <h2 className="text-lg font-semibold mb-4">{t("fav_add_modal_title")}</h2>
 
             {addError && (
               <div className="p-3 rounded-lg bg-loss/10 border border-loss/30 text-loss text-sm mb-4">
@@ -308,7 +310,7 @@ export default function FavoritesPage() {
                 type="text"
                 value={newSymbol}
                 onChange={(e) => setNewSymbol(e.target.value.toUpperCase())}
-                placeholder="Symbole (ex: AAPL, BTC-USD)"
+                placeholder={t("fav_add_placeholder")}
                 className="w-full input pl-11"
                 onKeyPress={(e) => e.key === "Enter" && addFavorite()}
               />
@@ -319,7 +321,7 @@ export default function FavoritesPage() {
                 onClick={() => setShowAddModal(false)}
                 className="flex-1 btn-secondary"
               >
-                Annuler
+                {t("cancel")}
               </button>
               <button
                 onClick={addFavorite}
@@ -331,7 +333,7 @@ export default function FavoritesPage() {
                 ) : (
                   <>
                     <Plus className="w-4 h-4" />
-                    Ajouter
+                    {t("add")}
                   </>
                 )}
               </button>

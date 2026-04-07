@@ -23,6 +23,7 @@ import { authHeaders } from "@/lib/auth";
 import { isMarketOpen, getMarketHoursDisplay, getTimeUntilChange } from "@/lib/marketStatus";
 import { useFormatPrice } from "@/lib/SettingsContext";
 import { TopLoadingBar } from "@/components/ui/TopLoadingBar";
+import { useLanguage } from "@/lib/LanguageContext";
 
 const PAGE_SIZE = 20;
 
@@ -36,6 +37,7 @@ const marketIcons: Record<string, string> = {
 };
 
 export default function MarketsPage() {
+  const { t } = useLanguage();
   const router = useRouter();
   const formatPrice = useFormatPrice();
   const [markets, setMarkets] = useState<Market[]>([]);
@@ -293,17 +295,17 @@ export default function MarketsPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Marchés</h1>
-          <p className="text-muted-foreground">Explorez tous les marchés disponibles</p>
+          <h1 className="text-2xl font-bold">{t("markets_title")}</h1>
+          <p className="text-muted-foreground">{t("markets_subtitle")}</p>
         </div>
         <button
           onClick={refreshPrices}
           disabled={isLoadingPrices}
           className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 transition-colors text-sm text-muted-foreground"
-          title="Rafraîchir les prix"
+          title={t("markets_refresh_title")}
         >
           <RefreshCw className={cn("w-3.5 h-3.5", isLoadingPrices && "animate-spin")} />
-          <span className="hidden sm:inline">Actualiser</span>
+          <span className="hidden sm:inline">{t("markets_refresh")}</span>
         </button>
       </div>
 
@@ -340,13 +342,13 @@ export default function MarketsPage() {
                     "text-xs font-medium",
                     isOpen ? "text-profit" : "text-loss"
                   )}>
-                    {isOpen ? "Ouvert" : "Ferme"}
+                    {isOpen ? t("open") : t("closed")}
                   </span>
                 </div>
               </div>
               <p className="font-semibold mt-2">{market.name}</p>
               <p className="text-xs text-muted-foreground">
-                {market.asset_count} actifs
+                {market.asset_count} {t("asset")}
               </p>
 
               {/* Tooltip on hover */}
@@ -354,7 +356,7 @@ export default function MarketsPage() {
                 <div className="bg-background/95 backdrop-blur-sm border border-white/10 rounded-lg p-3 shadow-xl mx-2">
                   <div className="flex items-center gap-2 mb-1">
                     <Clock className="w-3.5 h-3.5 text-primary" />
-                    <span className="text-xs font-medium">Horaires</span>
+                    <span className="text-xs font-medium">{t("markets_hours")}</span>
                   </div>
                   <p className="text-xs text-muted-foreground">{hoursDisplay}</p>
                   {timeUntil && (
@@ -382,7 +384,7 @@ export default function MarketsPage() {
           )}
           <input
             type="text"
-            placeholder="Rechercher un actif dans tous les marchés... (ex: Apple, Bitcoin, AAPL)"
+            placeholder={t("markets_search_ph")}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full input pl-10"
@@ -410,11 +412,11 @@ export default function MarketsPage() {
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-white/10">
-                    <th className="text-left p-4 text-sm text-muted-foreground font-medium">Actif</th>
-                    <th className="text-right p-4 text-sm text-muted-foreground font-medium">Prix</th>
-                    <th className="text-right p-4 text-sm text-muted-foreground font-medium">24h</th>
-                    <th className="text-right p-4 text-sm text-muted-foreground font-medium">Volume</th>
-                    <th className="text-center p-4 text-sm text-muted-foreground font-medium">Actions</th>
+                    <th className="text-left p-4 text-sm text-muted-foreground font-medium">{t("asset")}</th>
+                    <th className="text-right p-4 text-sm text-muted-foreground font-medium">{t("price")}</th>
+                    <th className="text-right p-4 text-sm text-muted-foreground font-medium">{t("change_24h")}</th>
+                    <th className="text-right p-4 text-sm text-muted-foreground font-medium">{t("volume")}</th>
+                    <th className="text-center p-4 text-sm text-muted-foreground font-medium">{t("actions")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -423,7 +425,7 @@ export default function MarketsPage() {
                     searchResults.length === 0 && !isSearchingBackend ? (
                       <tr>
                         <td colSpan={5} className="text-center py-12 text-muted-foreground">
-                          Aucun résultat pour « {searchQuery} »
+                          {t("markets_no_results")} « {searchQuery} »
                         </td>
                       </tr>
                     ) : (
@@ -461,7 +463,7 @@ export default function MarketsPage() {
                               </div>
                             </td>
                             <td className="p-4 text-right text-muted-foreground" colSpan={3}>
-                              <span className="text-xs">Cliquer pour analyser</span>
+                              <span className="text-xs">{t("markets_click_analyze")}</span>
                             </td>
                             <td className="p-4">
                               <div className="flex items-center justify-center gap-2">
@@ -593,7 +595,7 @@ export default function MarketsPage() {
             {!isGlobalSearch && (
               <div className="flex flex-col items-center gap-3 py-5 border-t border-white/10">
                 <p className="text-sm text-muted-foreground flex items-center gap-2">
-                  {assets.length} / {totalAssets} actifs chargés
+                  {assets.length} / {totalAssets} {t("markets_loaded")}
                   {isLoadingPrices && <Loader2 className="w-3 h-3 animate-spin inline ml-1" />}
                 </p>
                 {hasMore && (
@@ -607,7 +609,7 @@ export default function MarketsPage() {
                     ) : (
                       <ChevronDown className="w-4 h-4" />
                     )}
-                    {isLoadingMore ? "Chargement..." : "Charger plus"}
+                    {isLoadingMore ? t("loading") : t("markets_load_more")}
                   </button>
                 )}
               </div>

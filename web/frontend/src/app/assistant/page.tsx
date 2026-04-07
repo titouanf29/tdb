@@ -7,6 +7,7 @@ import { Bot, Send, User, Sparkles, Loader2, Trash2, Crown, AlertTriangle } from
 import { cn } from "@/lib/utils";
 import { aiAPI, ChatMessage, AILimitStatus } from "@/lib/api";
 import Link from "next/link";
+import { useLanguage } from "@/lib/LanguageContext";
 
 // Markdown renderer for chat messages — supports headings, bold, italic, code, lists
 function renderInline(text: string): React.ReactNode[] {
@@ -114,6 +115,7 @@ function buildPositionMessage(pos: Record<string, any>): string {
 }
 
 export default function AssistantPage() {
+  const { t, lang } = useLanguage();
   const searchParams = useSearchParams();
   const assetFromPortfolio = searchParams.get("asset");
 
@@ -197,11 +199,11 @@ export default function AssistantPage() {
     } catch (error: any) {
       let errorContent = error.message && error.message !== "undefined"
         ? `❌ ${error.message}`
-        : "Désolé, une erreur s'est produite. Veuillez réessayer.";
+        : t("assistant_err_generic");
       if (error.status === 429) {
         errorContent = limitStatus?.is_premium
-          ? "Trop de messages envoyés rapidement. Attendez quelques secondes puis réessayez."
-          : "Vous avez atteint votre limite quotidienne de messages. Passez Premium pour des messages illimités !";
+          ? t("assistant_err_rate")
+          : t("assistant_err_limit");
         aiAPI.getLimit().then(setLimitStatus).catch(() => {});
       }
       setMessages((prev) => [...prev, { role: "assistant", content: errorContent, created_at: new Date().toISOString() }]);
@@ -234,11 +236,11 @@ export default function AssistantPage() {
             </div>
             <div>
               <h1 className="font-bold flex items-center gap-2">
-                Assistant IA Trading
+                {t("assistant_title")}
                 <Sparkles className="w-4 h-4 text-yellow-500" />
               </h1>
               <p className="text-sm text-muted-foreground">
-                Powered by Groq (Llama 3.3)
+                {t("assistant_subtitle")}
               </p>
             </div>
           </div>
@@ -258,7 +260,7 @@ export default function AssistantPage() {
                 {limitStatus.is_premium ? (
                   <>
                     <Crown className="w-3.5 h-3.5" />
-                    <span>Illimité</span>
+                    <span>{t("assistant_unlimited")}</span>
                   </>
                 ) : (
                   <>
@@ -272,7 +274,7 @@ export default function AssistantPage() {
               <button
                 onClick={clearHistory}
                 className="p-2 rounded-lg hover:bg-white/5 text-muted-foreground hover:text-foreground transition-colors"
-                title="Effacer l'historique"
+                title={t("assistant_clear")}
               >
                 <Trash2 className="w-5 h-5" />
               </button>
@@ -295,16 +297,15 @@ export default function AssistantPage() {
           <div className="flex items-center gap-3">
             <AlertTriangle className="w-6 h-6 text-loss shrink-0" />
             <div className="flex-1">
-              <p className="font-semibold text-loss">Limite quotidienne atteinte</p>
+              <p className="font-semibold text-loss">{t("assistant_limit_title")}</p>
               <p className="text-sm text-muted-foreground">
-                Vous avez utilise vos {limitStatus.daily_limit} messages gratuits du jour.
-                La limite se reinitialise a minuit.
+                {t("assistant_limit_msg")}
               </p>
             </div>
             <Link href="/premium">
               <button className="btn-primary flex items-center gap-2 whitespace-nowrap">
                 <Crown className="w-4 h-4" />
-                Passer Premium
+                {t("assistant_go_premium")}
               </button>
             </Link>
           </div>
@@ -322,19 +323,16 @@ export default function AssistantPage() {
           <div className="text-center py-12">
             <Bot className="w-16 h-16 mx-auto mb-4 text-muted-foreground opacity-50" />
             <h2 className="text-lg font-semibold mb-2">
-              Bienvenue ! Je suis votre assistant trading IA
+              {t("assistant_welcome")}
             </h2>
             <p className="text-muted-foreground max-w-md mx-auto">
-              Posez-moi des questions sur le trading, les indicateurs techniques,
-              les strategies, ou demandez une analyse d'actif.
+              {t("assistant_welcome_sub")}
             </p>
             <div className="flex flex-wrap justify-center gap-2 mt-6">
-              {[
-                "Explique-moi le RSI",
-                "Qu'est-ce que le MACD ?",
-                "Analyse AAPL",
-                "Strategies de trading"
-              ].map((suggestion, i) => (
+              {(lang === "fr"
+                ? ["Explique-moi le RSI", "Qu'est-ce que le MACD ?", "Analyse AAPL", "Stratégies de trading"]
+                : ["Explain RSI to me", "What is MACD?", "Analyze AAPL", "Trading strategies"]
+              ).map((suggestion, i) => (
                 <motion.button
                   key={suggestion}
                   initial={{ opacity: 0, y: 8 }}
@@ -430,8 +428,8 @@ export default function AssistantPage() {
             onKeyPress={(e) => e.key === "Enter" && handleSend()}
             placeholder={
               limitStatus && !limitStatus.is_premium && limitStatus.remaining === 0
-                ? "Limite atteinte - Passez Premium pour continuer"
-                : "Posez votre question..."
+                ? t("assistant_ph_limit")
+                : t("assistant_ph")
             }
             className="flex-1 input"
             disabled={isLoading || (limitStatus != null && !limitStatus.is_premium && limitStatus.remaining === 0)}
@@ -451,7 +449,7 @@ export default function AssistantPage() {
           </motion.button>
         </div>
         <p className="text-xs text-muted-foreground mt-2 text-center">
-          L'assistant ne donne pas de conseils financiers personnalises
+          {t("assistant_disclaimer")}
         </p>
       </div>
     </motion.div>

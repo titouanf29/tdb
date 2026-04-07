@@ -18,11 +18,13 @@ import { cn, formatPercent } from "@/lib/utils";
 import { walletAPI, marketAPI, WalletBalance, Quote } from "@/lib/api";
 import { useFormatCurrency } from "@/lib/SettingsContext";
 import { HelpGuide } from "@/components/ui/HelpGuide";
+import { useLanguage } from "@/lib/LanguageContext";
 
 export default function TradingPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const formatCurrency = useFormatCurrency();
+  const { t } = useLanguage();
 
   const [symbol, setSymbol] = useState(searchParams.get("symbol") || "AAPL");
   const [direction, setDirection] = useState<"LONG" | "SHORT">("LONG");
@@ -58,7 +60,7 @@ export default function TradingPage() {
         const data = await marketAPI.getQuote(symbol);
         if (!data.price || data.price <= 0) {
           setQuote(null);
-          setQuoteError(`Prix indisponible pour ${symbol}`);
+          setQuoteError(`${t("trade_price_unavail")} ${symbol}`);
           return;
         }
         setQuote(data);
@@ -72,7 +74,7 @@ export default function TradingPage() {
 
       } catch {
         setQuote(null);
-        setQuoteError(`Symbole "${symbol}" introuvable ou données indisponibles`);
+        setQuoteError(`"${symbol}" ${t("trade_symbol_not_found")}`);
       } finally {
         setIsLoadingQuote(false);
       }
@@ -88,17 +90,17 @@ export default function TradingPage() {
 
   const handleSubmit = async () => {
     if (!quote || currentPrice <= 0) {
-      setError(quoteError || "Veuillez entrer un symbole valide");
+      setError(quoteError || t("trade_symbol_invalid"));
       return;
     }
 
     if (amount > (balance?.balance || 0)) {
-      setError("Solde insuffisant");
+      setError(t("trade_insufficient"));
       return;
     }
 
     if (amount < 10) {
-      setError("Montant minimum: $10");
+      setError(t("trade_min_amount"));
       return;
     }
 
@@ -116,13 +118,13 @@ export default function TradingPage() {
         stop_loss: useSL ? stopLoss ?? undefined : undefined,
       });
 
-      setSuccess(`Position ouverte ! Entree: ${formatCurrency(result.entry_price || currentPrice)}`);
+      setSuccess(`${t("trade_success")} ${formatCurrency(result.entry_price || currentPrice)}`);
       setBalance({ ...balance!, balance: result.new_balance });
 
       // Redirect to wallet after 2 seconds
       setTimeout(() => router.push("/wallet"), 2000);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Erreur lors de l'ouverture");
+      setError(err instanceof Error ? err.message : t("trade_err_opening"));
     } finally {
       setIsSubmitting(false);
     }
@@ -137,7 +139,7 @@ export default function TradingPage() {
       {/* Header */}
       <div className="text-center relative">
         <h1 className="text-2xl font-bold inline-flex items-center gap-2">
-          Trading Companion
+          {t("trade_title")}
           <HelpGuide
             title="Ouvrir une position (Paper Trading)"
             intro="Le paper trading vous permet de trader avec de l'argent fictif pour pratiquer sans risque réel."
@@ -151,10 +153,10 @@ export default function TradingPage() {
             tip="Utilisez toujours un Stop Loss. Un bon R:R (risque/récompense) est d'au moins 1:2."
           />
         </h1>
-        <p className="text-muted-foreground">Ouvrez une nouvelle position</p>
+        <p className="text-muted-foreground">{t("trade_subtitle")}</p>
         {balance && (
           <p className="text-sm mt-2">
-            Solde disponible:{" "}
+            {t("trade_balance")}:{" "}
             <span className="font-semibold text-primary">
               {formatCurrency(balance.balance)}
             </span>
@@ -190,14 +192,14 @@ export default function TradingPage() {
         <div className="glass-card p-6 space-y-6">
           {/* Symbol selector */}
           <div>
-            <label className="block text-sm font-medium mb-2">Actif</label>
+            <label className="block text-sm font-medium mb-2">{t("asset")}</label>
             <div className="relative">
               <input
                 type="text"
                 value={symbol}
                 onChange={(e) => setSymbol(e.target.value.toUpperCase())}
                 className="w-full input text-lg font-bold"
-                placeholder="Ex: AAPL, BTC-USD"
+                placeholder={t("trade_symbol_ph")}
               />
               {isLoadingQuote && (
                 <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 animate-spin text-muted-foreground" />

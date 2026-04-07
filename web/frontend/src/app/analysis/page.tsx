@@ -58,6 +58,7 @@ import { getAssetInfo, getAssetLogo } from "@/lib/assetInfo";
 import { useFormatCurrency, useFormatPrice, useSettings } from "@/lib/SettingsContext";
 import { authHeaders } from "@/lib/auth";
 import { useAuth } from "@/lib/AuthContext";
+import { useLanguage } from "@/lib/LanguageContext";
 import dynamic from "next/dynamic";
 const PremiumChart = dynamic(() => import("@/components/PremiumChart"), {
   ssr: false,
@@ -245,6 +246,7 @@ export default function AnalysisPage() {
   const formatPriceHook = useFormatPrice();
   const { settings } = useSettings();
   const { user } = useAuth();
+  const { t, lang } = useLanguage();
   const tradingLevel = user?.trading_level ?? "intermediate";
 
   const [symbol, setSymbol] = useState(searchParams.get("symbol") || "");
@@ -495,7 +497,7 @@ export default function AnalysisPage() {
                 }
               }}
               onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
-              placeholder="Symbole ou nom (ex: AAPL, Air Liquide, Bitcoin…)"
+              placeholder={t("analysis_symbol_ph")}
               className="w-full input pl-11 text-lg"
               onKeyDown={(e) => {
                 if (e.key === "Enter") { setShowSuggestions(false); handleSearch(); }
@@ -525,7 +527,7 @@ export default function AnalysisPage() {
                     </div>
                     <div className="flex items-center gap-2 flex-shrink-0 ml-2">
                       <span className="text-xs text-slate-500">{s.exchange}</span>
-                      <span className="text-xs px-1.5 py-0.5 rounded bg-white/10 text-slate-400">{s.type === 'EQUITY' ? 'Action' : s.type === 'ETF' ? 'ETF' : s.type === 'CRYPTOCURRENCY' ? 'Crypto' : s.type === 'INDEX' ? 'Indice' : s.type}</span>
+                      <span className="text-xs px-1.5 py-0.5 rounded bg-white/10 text-slate-400">{s.type === 'EQUITY' ? t("analysis_type_stock") : s.type === 'ETF' ? 'ETF' : s.type === 'CRYPTOCURRENCY' ? 'Crypto' : s.type === 'INDEX' ? t("analysis_type_index") : s.type}</span>
                     </div>
                   </button>
                 ))}
@@ -556,7 +558,7 @@ export default function AnalysisPage() {
             ) : (
               <Zap className="w-4 h-4" />
             )}
-            Analyser
+            {t("analysis_search_btn")}
           </motion.button>
         </div>
       </div>
@@ -600,12 +602,12 @@ export default function AnalysisPage() {
                   onChange={(e) => setRequestAssetType(e.target.value)}
                   className="w-full input mt-1"
                 >
-                  <option value="stock">Action</option>
-                  <option value="crypto">Crypto-monnaie</option>
+                  <option value="stock">{t("analysis_type_stock")}</option>
+                  <option value="crypto">{lang === "fr" ? "Crypto-monnaie" : "Cryptocurrency"}</option>
                   <option value="etf">ETF</option>
-                  <option value="forex">Forex</option>
-                  <option value="commodity">Matière première</option>
-                  <option value="index">Indice</option>
+                  <option value="forex">{t("analysis_type_forex")}</option>
+                  <option value="commodity">{t("analysis_type_commodity")}</option>
+                  <option value="index">{t("analysis_type_index")}</option>
                 </select>
               </div>
 
@@ -665,7 +667,7 @@ export default function AnalysisPage() {
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-xs transition-colors disabled:opacity-50"
             >
               <RefreshCw className={cn("w-3.5 h-3.5", isLoading && "animate-spin")} />
-              Actualiser
+              {t("refresh")}
             </button>
             <select
               value={autoRefreshInterval}
@@ -709,7 +711,7 @@ export default function AnalysisPage() {
               <div className="absolute inset-0 bg-gradient-radial from-primary/10 to-transparent" />
               <div className="relative">
 
-                <p className="text-sm text-muted-foreground mb-2">Score Global</p>
+                <p className="text-sm text-muted-foreground mb-2">{lang === "fr" ? "Score Global" : "Global Score"}</p>
                 <div className="w-32 h-32 mx-auto mb-4 relative">
                   <svg className="w-full h-full -rotate-90">
                     <circle
@@ -753,7 +755,7 @@ export default function AnalysisPage() {
                   </span>
                 </div>
                 <p className="text-sm text-muted-foreground">
-                  Tendance: <span className={cn(
+                  {t("analysis_trend")}: <span className={cn(
                     analysis.trend === "BULLISH" ? "text-profit" :
                     analysis.trend === "BEARISH" ? "text-loss" : "text-warning"
                   )}>{analysis.trend}</span>

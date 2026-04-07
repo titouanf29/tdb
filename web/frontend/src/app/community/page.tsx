@@ -27,10 +27,12 @@ import {
   SupportTicket,
   TicketMessage,
 } from "@/lib/api";
+import { useLanguage } from "@/lib/LanguageContext";
 
 type Tab = "chat" | "contact" | "tickets";
 
 export default function CommunityPage() {
+  const { t, lang } = useLanguage();
   const [activeTab, setActiveTab] = useState<Tab>("chat");
   const [messages, setMessages] = useState<CommunityMessage[]>([]);
   const [input, setInput] = useState("");
@@ -217,11 +219,11 @@ export default function CommunityPage() {
     const hours = Math.floor(diff / 3600000);
     const days = Math.floor(diff / 86400000);
 
-    if (minutes < 1) return "A l'instant";
-    if (minutes < 60) return `il y a ${minutes}min`;
-    if (hours < 24) return `il y a ${hours}h`;
-    if (days < 7) return `il y a ${days}j`;
-    return date.toLocaleDateString("fr-FR");
+    if (minutes < 1) return t("community_just_now");
+    if (minutes < 60) return lang === "fr" ? `il y a ${minutes}min` : `${minutes}m ago`;
+    if (hours < 24) return lang === "fr" ? `il y a ${hours}h` : `${hours}h ago`;
+    if (days < 7) return lang === "fr" ? `il y a ${days}j` : `${days}d ago`;
+    return date.toLocaleDateString(lang === "fr" ? "fr-FR" : "en-US");
   };
 
   return (
@@ -238,15 +240,15 @@ export default function CommunityPage() {
               <Users className="w-6 h-6 text-white" />
             </div>
             <div>
-              <h1 className="font-bold">Communaute CaptenTDB</h1>
+              <h1 className="font-bold">{t("community_title")}</h1>
               <p className="text-sm text-muted-foreground">
-                Echangez avec d'autres traders
+                {t("community_subtitle")}
               </p>
             </div>
           </div>
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <span className="w-2 h-2 rounded-full bg-profit animate-pulse" />
-            <span>{onlineCount} en ligne</span>
+            <span>{onlineCount} {t("community_online")}</span>
           </div>
         </div>
 
@@ -262,7 +264,7 @@ export default function CommunityPage() {
             )}
           >
             <MessageCircle className="w-4 h-4" />
-            Chat General
+            {t("community_tab_chat")}
           </button>
           <button
             onClick={() => setActiveTab("contact")}
@@ -274,7 +276,7 @@ export default function CommunityPage() {
             )}
           >
             <HelpCircle className="w-4 h-4" />
-            Contacter Admin
+            {t("community_tab_contact")}
           </button>
           <button
             onClick={() => setActiveTab("tickets")}
@@ -286,7 +288,7 @@ export default function CommunityPage() {
             )}
           >
             <Mail className="w-4 h-4" />
-            Mes Tickets
+            {t("community_tab_tickets")}
             {tickets.filter((t) => t.status === "open").length > 0 && (
               <span className="w-5 h-5 rounded-full bg-primary/20 text-primary text-xs flex items-center justify-center">
                 {tickets.filter((t) => t.status === "open").length}
@@ -309,10 +311,10 @@ export default function CommunityPage() {
               <div className="text-center py-12">
                 <MessageCircle className="w-16 h-16 mx-auto mb-4 text-muted-foreground opacity-50" />
                 <h2 className="text-lg font-semibold mb-2">
-                  Aucun message pour le moment
+                  {t("community_empty_chat")}
                 </h2>
                 <p className="text-muted-foreground">
-                  Soyez le premier a envoyer un message !
+                  {t("community_be_first")}
                 </p>
               </div>
             ) : (
@@ -383,7 +385,7 @@ export default function CommunityPage() {
                           className="flex items-center gap-1 text-xs text-muted-foreground hover:text-primary transition-colors"
                         >
                           <Reply className="w-4 h-4" />
-                          Repondre
+                          {t("community_reply")}
                         </button>
                         <button
                           onClick={() => handleDeleteMessage(message.id)}
@@ -412,7 +414,7 @@ export default function CommunityPage() {
                 <Reply className="w-4 h-4 text-primary shrink-0" />
                 <div className="flex-1 min-w-0">
                   <span className="text-xs text-muted-foreground">
-                    Reponse a{" "}
+                    {t("community_reply_to")}{" "}
                   </span>
                   <span className="text-xs font-semibold">
                     {replyTo.username}

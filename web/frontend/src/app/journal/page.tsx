@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useLanguage } from "@/lib/LanguageContext";
 import {
   BookOpen, Plus, TrendingUp, TrendingDown,
   Target, DollarSign, Image as ImageIcon,
@@ -36,10 +37,10 @@ const fmtTime = (iso?: string | null) => {
   } catch { return iso; }
 };
 
-const RESULT_META = {
-  win:       { label: "Gain",      color: "text-emerald-400", bg: "bg-emerald-500/10 border-emerald-500/30", icon: CheckCircle2 },
-  loss:      { label: "Perte",     color: "text-red-400",     bg: "bg-red-500/10 border-red-500/30",         icon: XCircle       },
-  breakeven: { label: "Neutre",    color: "text-yellow-400",  bg: "bg-yellow-500/10 border-yellow-500/30",   icon: MinusCircle   },
+const RESULT_META_BASE = {
+  win:       { color: "text-emerald-400", bg: "bg-emerald-500/10 border-emerald-500/30", icon: CheckCircle2 },
+  loss:      { color: "text-red-400",     bg: "bg-red-500/10 border-red-500/30",         icon: XCircle       },
+  breakeven: { color: "text-yellow-400",  bg: "bg-yellow-500/10 border-yellow-500/30",   icon: MinusCircle   },
 };
 
 const TIMEFRAMES = ["1m","5m","15m","30m","1h","4h","1d","1w"];
@@ -68,7 +69,13 @@ function EntryCard({
   onEdit: (e: JournalEntry) => void;
   onDelete: (id: number) => void;
 }) {
+  const { t } = useLanguage();
   const [showScreenshot, setShowScreenshot] = useState(false);
+  const RESULT_META = {
+    win:       { label: t("journal_win"),       ...RESULT_META_BASE.win },
+    loss:      { label: t("journal_loss"),      ...RESULT_META_BASE.loss },
+    breakeven: { label: t("journal_breakeven"), ...RESULT_META_BASE.breakeven },
+  };
   const meta = entry.result ? RESULT_META[entry.result] : null;
   const ResultIcon = meta?.icon ?? MinusCircle;
 
@@ -125,12 +132,12 @@ function EntryCard({
       {/* Metrics row */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
         <div className="space-y-0.5">
-          <p className="text-xs text-muted-foreground">Entrée</p>
+          <p className="text-xs text-muted-foreground">{t("journal_entry")}</p>
           <p className="font-medium">{entry.entry_price ? "$" + fmt(entry.entry_price) : "—"}</p>
           {entry.entry_time && <p className="text-xs text-muted-foreground">{fmtTime(entry.entry_time)}</p>}
         </div>
         <div className="space-y-0.5">
-          <p className="text-xs text-muted-foreground">Sortie</p>
+          <p className="text-xs text-muted-foreground">{t("journal_exit")}</p>
           <p className="font-medium">{entry.exit_price ? "$" + fmt(entry.exit_price) : "—"}</p>
           {entry.exit_time && <p className="text-xs text-muted-foreground">{fmtTime(entry.exit_time)}</p>}
         </div>
@@ -179,7 +186,7 @@ function EntryCard({
             className="flex items-center gap-2 text-xs text-muted-foreground hover:text-white transition-colors"
           >
             {showScreenshot ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-            {showScreenshot ? "Masquer la capture" : "Voir la capture d'écran"}
+            {showScreenshot ? t("analysis_hide") : t("journal_screenshot")}
           </button>
           {showScreenshot && (
             <motion.img
@@ -364,6 +371,7 @@ function JournalForm({
   onSave: (data: JournalEntryCreate) => Promise<void>;
   onClose: () => void;
 }) {
+  const { t } = useLanguage();
   const [form, setForm] = useState<JournalEntryCreate>(
     initial
       ? {
@@ -445,7 +453,7 @@ function JournalForm({
         <div className="sticky top-0 z-10 glass-card border-b border-white/10 px-6 py-4 flex items-center justify-between">
           <h2 className="font-bold text-lg flex items-center gap-2">
             <BookOpen className="w-5 h-5 text-primary" />
-            {initial ? "Modifier le trade" : "Nouveau trade"}
+            {initial ? t("edit") + " " + t("journal_new").toLowerCase() : t("journal_new")}
           </h2>
           <button onClick={onClose} className="p-2 rounded-lg hover:bg-white/10 transition-colors">
             <X className="w-5 h-5" />
@@ -462,7 +470,7 @@ function JournalForm({
           {/* Symbol + direction */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-sm font-medium mb-1.5">Paire / Actif *</label>
+              <label className="block text-sm font-medium mb-1.5">{t("journal_symbol")} *</label>
               <SymbolAutocomplete
                 value={form.symbol}
                 onChange={v => set("symbol", v)}
@@ -471,7 +479,7 @@ function JournalForm({
               />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1.5">Direction *</label>
+              <label className="block text-sm font-medium mb-1.5">{t("journal_direction")} *</label>
               <div className="grid grid-cols-2 gap-2">
                 {(["LONG","SHORT"] as const).map(d => (
                   <button
@@ -538,7 +546,7 @@ function JournalForm({
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-sm font-medium mb-1.5">
-                <Calendar className="w-3.5 h-3.5 inline mr-1" />Entrée (heure)
+                <Calendar className="w-3.5 h-3.5 inline mr-1" />{t("journal_entry")}
               </label>
               <input
                 type="datetime-local"
