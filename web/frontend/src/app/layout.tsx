@@ -11,7 +11,7 @@ export const metadata: Metadata = {
   title: "CaptenTDB - Trading Education Platform",
   description: "Plateforme educative de trading par CaptenQwark - Analyses, formations et communaute",
   icons: {
-    icon: "/favicon.ico",
+    icon: "/favicon.svg",
   },
 };
 
