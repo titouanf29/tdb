@@ -118,13 +118,13 @@ function AuthShell({
         <main className="flex-1 overflow-auto p-4 md:p-6">
           <BroadcastBanner />
           <ChangelogBanner />
-          <AnimatePresence mode="wait">
+          <AnimatePresence mode="wait" initial={false}>
             <motion.div
               key={pathname}
-              initial={{ opacity: 0, y: 14 }}
+              initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -8 }}
-              transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+              transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
             >
               {children}
               <footer className="mt-8 pt-4 border-t border-white/10 text-center text-xs text-muted-foreground space-y-2">

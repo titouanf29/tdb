@@ -91,13 +91,13 @@ export default function SettingsPage() {
 
         {/* Content — animated on tab switch */}
         <div className="flex-1 glass-card-hover p-6 overflow-hidden">
-          <AnimatePresence mode="wait">
+          <AnimatePresence mode="wait" initial={false}>
             <motion.div
               key={activeTab}
-              initial={{ opacity: 0, x: 12 }}
+              initial={{ opacity: 0, x: 8 }}
               animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -12 }}
-              transition={{ duration: 0.2 }}
+              exit={{ opacity: 0, x: -8 }}
+              transition={{ duration: 0.15 }}
             >
               {activeTab === "profile" && <ProfileSettings />}
               {activeTab === "trading" && <TradingSettings />}
