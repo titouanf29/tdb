@@ -5,21 +5,7 @@ const nextConfig = {
   images: {
     domains: ['t.me', 'telegram.org'],
   },
-  // API proxy: forwards /api/* to the backend.
-  // Set BACKEND_URL or NEXT_PUBLIC_API_URL in Railway env vars.
-  async rewrites() {
-    const backendUrl = (
-      process.env.BACKEND_URL ||
-      process.env.NEXT_PUBLIC_API_URL ||
-      "http://localhost:8000"
-    ).replace(/\/$/, "");
-    return [
-      {
-        source: "/api/:path*",
-        destination: `${backendUrl}/api/:path*`,
-      },
-    ];
-  },
+  // API proxy is handled by src/middleware.ts (reads BACKEND_URL at runtime).
   typescript: {
     // Type errors don't block the Railway build (Webpack compilation succeeds).
     // Fix types locally; don't let them prevent deployment.
