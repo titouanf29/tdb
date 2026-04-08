@@ -51,6 +51,7 @@ import {
   RefreshCw,
   Timer,
   GraduationCap,
+  X,
 } from "lucide-react";
 import { cn, formatPercent } from "@/lib/utils";
 import { analysisAPI, favoritesAPI, aiAPI, marketAPI, Analysis, portfolioAPI, RealPosition } from "@/lib/api";
@@ -1403,7 +1404,11 @@ function FibonacciSection({ analysis, formatCurrency }: { analysis: Analysis; fo
   );
   const nearestMeta = levelMeta[nearestLevel[0]];
   const rangeSize = fib.high - fib.low;
-  const pricePosition = rangeSize > 0 ? Math.max(0, Math.min(100, ((price - fib.low) / rangeSize) * 100)) : 50;
+
+  // Position from top: 0% = sommet (top), 100% = creux (bottom)
+  const priceFromTop = rangeSize > 0
+    ? Math.max(1, Math.min(99, ((fib.high - price) / rangeSize) * 100))
+    : 50;
 
   return (
     <motion.div
@@ -1412,77 +1417,198 @@ function FibonacciSection({ analysis, formatCurrency }: { analysis: Analysis; fo
       className="glass-card p-6"
     >
       {/* Header */}
-      <div className="flex items-start justify-between mb-2">
-        <h3 className="font-semibold flex items-center gap-2">
-          <Scale className="w-5 h-5 text-primary" />
-          Niveaux de Fibonacci
-        </h3>
-        <button
-          onClick={() => setShowExplainer(e => !e)}
-          className="flex items-center gap-1 text-xs text-primary/70 hover:text-primary transition-colors px-2 py-1 rounded-lg hover:bg-primary/10"
-        >
-          <BookOpen className="w-3 h-3" />
-          {showExplainer ? "Masquer" : "C'est quoi ?"}
-          <motion.span animate={{ rotate: showExplainer ? 180 : 0 }} transition={{ duration: 0.2 }} className="inline-block">
-            <ChevronDown className="w-3 h-3" />
-          </motion.span>
-        </button>
+      <div className="flex items-start justify-between mb-4">
+        <div>
+          <h3 className="font-semibold flex items-center gap-2">
+            <Scale className="w-5 h-5 text-primary" />
+            Niveaux de Fibonacci
+          </h3>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            <span className="text-profit/80 font-semibold">{formatCurrency(fib.high)}</span>
+            <span className="text-muted-foreground/40 mx-1.5">↕</span>
+            <span className="text-loss/80 font-semibold">{formatCurrency(fib.low)}</span>
+            <span className="text-muted-foreground/40 ml-1.5">· 60 séances</span>
+          </p>
+        </div>
+
+        {/* ? button */}
+        <div className="relative flex-shrink-0">
+          <button
+            onClick={() => setShowExplainer(v => !v)}
+            className={cn(
+              "w-7 h-7 rounded-full border text-sm font-bold flex items-center justify-center transition-all",
+              showExplainer
+                ? "bg-primary/20 border-primary text-primary"
+                : "border-white/20 text-muted-foreground hover:border-primary/60 hover:text-primary hover:bg-primary/10"
+            )}
+          >
+            ?
+          </button>
+
+          {/* Floating help bubble */}
+          <AnimatePresence initial={false}>
+            {showExplainer && (
+              <motion.div
+                key="help-bubble"
+                initial={{ opacity: 0, y: 6, scale: 0.96 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 6, scale: 0.96 }}
+                transition={{ duration: 0.18 }}
+                className="absolute right-0 top-9 w-80 glass-card border border-primary/30 p-4 z-50 shadow-2xl shadow-black/40"
+                style={{ borderRadius: "14px" }}
+              >
+                {/* Arrow */}
+                <div className="absolute -top-1.5 right-2.5 w-3 h-3 rotate-45"
+                  style={{ background: "hsl(var(--card))", borderLeft: "1px solid rgba(99,140,255,0.3)", borderTop: "1px solid rgba(99,140,255,0.3)" }} />
+                <button onClick={() => setShowExplainer(false)}
+                  className="absolute top-2 right-2 p-1 rounded hover:bg-white/10 transition-colors">
+                  <X className="w-3 h-3 text-muted-foreground" />
+                </button>
+
+                <h4 className="font-semibold text-sm mb-3 flex items-center gap-2">
+                  📐 Niveaux de Fibonacci
+                </h4>
+                <div className="space-y-2.5 text-xs text-muted-foreground leading-relaxed">
+                  <p><span className="font-semibold text-foreground/80">C&apos;est quoi ?</span> Des niveaux de support/résistance calculés à partir des ratios de la suite de Fibonacci. Après un fort mouvement, le prix a tendance à se &quot;reposer&quot; sur ces lignes avant de repartir.</p>
+                  <p><span className="font-semibold text-foreground/80">Comment lire le graphique ?</span> Le trait pointillé blanc <span className="text-white font-bold">●</span> = prix actuel. Les traits horizontaux = niveaux Fibonacci. Plus le trait est <span className="text-primary font-semibold">épais et bleu</span>, plus le niveau est important.</p>
+                  <div className="bg-primary/10 border border-primary/25 rounded-lg p-2.5 my-1">
+                    <p className="font-semibold text-primary text-[11px] mb-1">★ 61.8% = Golden Ratio (le plus important)</p>
+                    <p>Dérivé du nombre d&apos;or φ ≈ 1.618. Dernier rempart en tendance haussière — un cassage ferme signale souvent un retournement.</p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-1.5 text-[10px]">
+                    <div className="bg-white/5 rounded p-2"><span className="text-profit font-semibold">Zone haute</span><br/>0–38.2% : tendance très forte</div>
+                    <div className="bg-primary/5 rounded p-2"><span className="text-primary font-semibold">Zone clé</span><br/>38.2–61.8% : retracement sain</div>
+                    <div className="bg-warning/5 rounded p-2"><span className="text-warning font-semibold">Zone profonde</span><br/>61.8–78.6% : tendance fragilisée</div>
+                    <div className="bg-loss/5 rounded p-2"><span className="text-loss font-semibold">Zone critique</span><br/>78.6–100% : risque de retournement</div>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground/70">⚡ Fibonacci + RSI survendu + EMA alignées = signal très fiable. Cliquez sur chaque niveau pour la stratégie.</p>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
       </div>
 
-      {/* Explainer */}
-      <AnimatePresence initial={false}>
-        {showExplainer && (
-          <motion.div
-            key="explainer"
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.25, ease: "easeInOut" }}
-            style={{ overflow: "hidden" }}
-          >
-            <div className="mb-4 p-4 bg-primary/5 border border-primary/20 rounded-xl text-xs text-muted-foreground space-y-2.5 leading-relaxed">
-              <p><span className="font-semibold text-foreground/80">Qu&apos;est-ce que Fibonacci ?</span> Leonardo Fibonacci a découvert une suite mathématique (1, 1, 2, 3, 5, 8, 13…) dont les ratios entre termes consécutifs convergent vers le <span className="text-primary font-semibold">nombre d&apos;or (φ ≈ 1.618)</span>. Ces ratios apparaissent partout dans la nature — et les marchés financiers les respectent avec une régularité frappante.</p>
-              <p><span className="font-semibold text-foreground/80">Comment les utiliser ?</span> Après un fort mouvement directionnel, on trace les niveaux entre le plus haut et le plus bas. Ces niveaux deviennent des <span className="text-profit font-semibold">zones de support</span> (lors d&apos;une correction haussière) ou de <span className="text-loss font-semibold">résistance</span> (lors d&apos;un rebond baissier) où le prix marque souvent une pause ou repart.</p>
-              <p><span className="font-semibold text-foreground/80">Pourquoi ça fonctionne ?</span> Des millions de traders et algorithmes les observent simultanément — c&apos;est une <span className="text-foreground/80 font-semibold">prophétie auto-réalisatrice</span>. Quand tout le monde place ses ordres au même niveau, le niveau fait office de support/résistance. Les niveaux clés sont le <span className="text-primary font-semibold">38.2%</span>, le <span className="text-warning font-semibold">50%</span> et surtout le <span className="text-primary font-semibold">61.8%</span>.</p>
-              <p><span className="font-semibold text-foreground/80">⚠️ Limite importante :</span> Les niveaux Fibonacci seuls ne suffisent pas. Leur puissance est multipliée lors d&apos;une <span className="text-foreground/80 font-semibold">confluence</span> : Fibonacci + EMA alignées + RSI survendu + volume = signal très fort. Cliquez sur chaque niveau pour voir la stratégie associée.</p>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Subtitle */}
-      <p className="text-xs text-muted-foreground mb-4">
-        Calculés sur le plus haut <span className="text-profit/80 font-semibold">{formatCurrency(fib.high)}</span> et le plus bas <span className="text-loss/80 font-semibold">{formatCurrency(fib.low)}</span> des 60 dernières séances
-        {rangeSize > 0 && <> · Amplitude : <span className="font-semibold text-foreground/70">{formatCurrency(rangeSize)}</span></>}
-      </p>
-
-      {/* Visual position bar */}
-      <div className="mb-5">
-        <div className="flex justify-between text-xs text-muted-foreground mb-1.5">
-          <span className="text-loss/70">Creux {formatCurrency(fib.low)}</span>
-          <span className="text-foreground/40 text-xs">position du prix</span>
-          <span className="text-profit/70">Sommet {formatCurrency(fib.high)}</span>
+      {/* ── Vertical Fibonacci chart ── */}
+      <div className="flex gap-2 mb-6" style={{ height: 300 }}>
+        {/* Left: price labels */}
+        <div className="relative flex-shrink-0" style={{ width: 72 }}>
+          {fibEntries.map(([level, lvlPrice]) => {
+            const top = parseFloat(level);
+            return (
+              <div key={level} style={{ position: "absolute", top: `${top}%`, transform: "translateY(-50%)", right: 0 }}
+                className="text-[10px] text-muted-foreground/70 text-right leading-none whitespace-nowrap">
+                {formatCurrency(lvlPrice)}
+              </div>
+            );
+          })}
         </div>
-        <div className="relative h-3 bg-white/10 rounded-full overflow-visible">
-          <div className="absolute inset-0 flex rounded-full overflow-hidden">
-            <div className="h-full bg-loss/25"    style={{ width: "38.2%" }} />
-            <div className="h-full bg-warning/20" style={{ width: "23.6%" }} />
-            <div className="h-full bg-primary/15" style={{ width: "11.8%" }} />
-            <div className="h-full bg-profit/20"  style={{ flex: 1 }} />
+
+        {/* Center: chart */}
+        <div className="flex-1 relative rounded-xl overflow-hidden border border-white/8" style={{ minWidth: 0 }}>
+          {/* Color zones (top to bottom) */}
+          <div className="absolute inset-0 flex flex-col">
+            <div style={{ height: "23.6%" }}  className="bg-profit/6" />
+            <div style={{ height: "14.6%" }}  className="bg-profit/4" />
+            <div style={{ height: "23.6%" }}  className="bg-primary/8" />
+            <div style={{ height: "16.8%" }}  className="bg-warning/6" />
+            <div style={{ flex: 1 }}           className="bg-loss/8" />
           </div>
-          {fibEntries.filter(([l]) => !["0","100"].includes(l)).map(([level]) => (
-            <div key={level} className="absolute top-0 bottom-0 w-px bg-white/25" style={{ left: `${100 - parseFloat(level)}%` }} />
-          ))}
-          <motion.div
-            className="absolute top-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-white border-2 border-primary shadow-lg shadow-primary/50 z-10"
-            style={{ left: `${pricePosition}%`, marginLeft: "-8px" }}
-            initial={{ scale: 0 }}
-            animate={{ scale: 1 }}
-            transition={{ delay: 0.3, type: "spring", stiffness: 300 }}
-          />
+
+          {/* Key zone bracket label */}
+          <div className="absolute text-[9px] font-semibold text-primary/50 pointer-events-none"
+            style={{ top: "38.2%", right: 4, transform: "translateY(-50%)" }}>
+            Zone clé
+          </div>
+
+          {/* Fibonacci level lines */}
+          {fibEntries.map(([level, lvlPrice]) => {
+            const meta = levelMeta[level];
+            const isNear = Math.abs(lvlPrice - price) / price < 0.015;
+            const top = parseFloat(level);
+            const isEdge = level === "0" || level === "100";
+            return (
+              <div key={level}
+                style={{ position: "absolute", top: `${top}%`, left: 0, right: 0, transform: "translateY(-50%)", zIndex: isNear ? 8 : 5 }}
+                className="flex items-center"
+              >
+                <div style={{
+                  height: meta?.importance === "high" ? 2 : isEdge ? 1 : 1,
+                  flex: 1,
+                  background: isEdge ? "rgba(255,255,255,0.10)"
+                    : meta?.importance === "high" ? "rgba(99,140,255,0.70)"
+                    : meta?.importance === "medium" ? "rgba(234,179,8,0.45)"
+                    : "rgba(255,255,255,0.18)"
+                }} />
+                {isNear && (
+                  <span className="text-[9px] bg-primary text-white px-1.5 py-0.5 rounded font-bold flex-shrink-0 shadow-lg">
+                    ← prix ici
+                  </span>
+                )}
+              </div>
+            );
+          })}
+
+          {/* Price line */}
+          <div style={{ position: "absolute", top: `${priceFromTop}%`, left: 0, right: 0, transform: "translateY(-50%)", zIndex: 15 }}>
+            <div className="flex items-center">
+              <div className="flex-1" style={{
+                height: 2,
+                background: "repeating-linear-gradient(90deg, rgba(255,255,255,0.85) 0px, rgba(255,255,255,0.85) 5px, transparent 5px, transparent 9px)"
+              }} />
+              <motion.div
+                className="w-3.5 h-3.5 rounded-full bg-white border-2 border-primary flex-shrink-0"
+                style={{ boxShadow: "0 0 10px rgba(99,140,255,0.7), 0 0 4px rgba(255,255,255,0.5)" }}
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ delay: 0.3, type: "spring", stiffness: 300, damping: 20 }}
+              />
+            </div>
+          </div>
+
+          {/* Corner labels */}
+          <div className="absolute top-1.5 left-2 text-[9px] text-profit/60 font-semibold pointer-events-none">▲ Sommet</div>
+          <div className="absolute bottom-1.5 left-2 text-[9px] text-loss/60 font-semibold pointer-events-none">▼ Creux</div>
         </div>
-        <div className="flex justify-between text-xs text-muted-foreground/50 mt-1 px-1">
-          <span>61.8%</span><span>50%</span><span>38.2%</span><span>23.6%</span>
+
+        {/* Right: % labels */}
+        <div className="relative flex-shrink-0" style={{ width: 40 }}>
+          {fibEntries.map(([level]) => {
+            const meta = levelMeta[level];
+            const top = parseFloat(level);
+            if (level === "0" || level === "100") return null;
+            return (
+              <div key={level}
+                style={{ position: "absolute", top: `${top}%`, transform: "translateY(-50%)", left: 0 }}
+                className="leading-none"
+              >
+                <span className={cn(
+                  "text-[10px] font-mono font-bold",
+                  meta?.importance === "high" ? "text-primary" :
+                  meta?.importance === "medium" ? "text-warning/80" :
+                  "text-muted-foreground/40"
+                )}>
+                  {level}%
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Legend */}
+      <div className="flex flex-wrap gap-4 mb-5 text-[11px] text-muted-foreground">
+        <div className="flex items-center gap-1.5">
+          <div className="w-5 h-0.5 rounded" style={{ background: "rgba(99,140,255,0.70)" }} />
+          <span>Niveau ★★★</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <div className="w-5 h-px rounded" style={{ background: "rgba(234,179,8,0.45)" }} />
+          <span>Niveau ★★</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <div className="w-3.5 h-3.5 rounded-full bg-white border-2 border-primary" style={{ boxShadow: "0 0 6px rgba(99,140,255,0.5)" }} />
+          <span>Prix actuel — {formatCurrency(price)}</span>
         </div>
       </div>
 
