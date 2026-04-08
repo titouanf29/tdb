@@ -37,10 +37,10 @@ import {
 } from "@/lib/api";
 import { useAuth } from "@/lib/AuthContext";
 import { authHeaders } from "@/lib/auth";
-import { useLanguage } from “@/lib/LanguageContext”;
-import { HelpGuide } from “@/components/ui/HelpGuide”;
+import { useLanguage } from "@/lib/LanguageContext";
+import { HelpGuide } from "@/components/ui/HelpGuide";
 
-// â”€â”€ helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// â"€â"€ helpers â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 
 function fmt(n: number, decimals = 2) {
   return n.toLocaleString("fr-FR", {
@@ -53,7 +53,7 @@ function fmtPct(n: number) {
   return (n >= 0 ? "+" : "") + fmt(n) + "%";
 }
 
-// Pie chart â€” pure SVG, no lib dependency
+// Pie chart â€" pure SVG, no lib dependency
 function PieChart2D({ data }: { data: { label: string; value: number; color: string }[] }) {
   const { lang } = useLanguage();
   const total = data.reduce((s, d) => s + d.value, 0);
@@ -95,7 +95,7 @@ const PIE_COLORS = [
   "#f59e0b", "#ef4444", "#ec4899", "#84cc16",
 ];
 
-// â”€â”€ Add / Edit modal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// â"€â"€ Add / Edit modal â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 
 interface PositionFormProps {
   initial?: Partial<CreatePositionData>;
@@ -176,7 +176,7 @@ function PositionForm({ initial, onClose, onSave, title }: PositionFormProps) {
   };
 
   const handleSelectSymbol = (s: { symbol: string; name: string }) => {
-    setSymbolQuery(`${s.symbol} â€“ ${s.name}`);
+    setSymbolQuery(`${s.symbol} â€" ${s.name}`);
     set("symbol", s.symbol);
     setSymbolSuggestions([]);
     setShowSymbolSuggestions(false);
@@ -391,12 +391,12 @@ function PositionForm({ initial, onClose, onSave, title }: PositionFormProps) {
                 value={form.currency}
                 onChange={(e) => set("currency", e.target.value)}
               >
-                <option value="USD" style={{ backgroundColor: "hsl(220 50% 8%)", color: "white" }}>USD â€“ Dollar amÃ©ricain</option>
-                <option value="EUR" style={{ backgroundColor: "hsl(220 50% 8%)", color: "white" }}>EUR â€“ Euro</option>
-                <option value="USDT" style={{ backgroundColor: "hsl(220 50% 8%)", color: "white" }}>USDT â€“ Tether</option>
-                <option value="BTC" style={{ backgroundColor: "hsl(220 50% 8%)", color: "white" }}>BTC â€“ Bitcoin</option>
-                <option value="GBP" style={{ backgroundColor: "hsl(220 50% 8%)", color: "white" }}>GBP â€“ Livre sterling</option>
-                <option value="CHF" style={{ backgroundColor: "hsl(220 50% 8%)", color: "white" }}>CHF â€“ Franc suisse</option>
+                <option value="USD" style={{ backgroundColor: "hsl(220 50% 8%)", color: "white" }}>USD â€" Dollar amÃ©ricain</option>
+                <option value="EUR" style={{ backgroundColor: "hsl(220 50% 8%)", color: "white" }}>EUR â€" Euro</option>
+                <option value="USDT" style={{ backgroundColor: "hsl(220 50% 8%)", color: "white" }}>USDT â€" Tether</option>
+                <option value="BTC" style={{ backgroundColor: "hsl(220 50% 8%)", color: "white" }}>BTC â€" Bitcoin</option>
+                <option value="GBP" style={{ backgroundColor: "hsl(220 50% 8%)", color: "white" }}>GBP â€" Livre sterling</option>
+                <option value="CHF" style={{ backgroundColor: "hsl(220 50% 8%)", color: "white" }}>CHF â€" Franc suisse</option>
               </select>
             </div>
           </div>
@@ -436,7 +436,7 @@ function PositionForm({ initial, onClose, onSave, title }: PositionFormProps) {
   );
 }
 
-// â”€â”€ Close position modal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// â"€â"€ Close position modal â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 
 function CloseModal({
   position,
@@ -522,7 +522,7 @@ function CloseModal({
   );
 }
 
-// â”€â”€ Position card â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// â"€â"€ Position card â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 
 function PositionCard({
   pos,
@@ -606,7 +606,7 @@ function PositionCard({
           </div>
           <div>
             <p className="text-xs text-muted-foreground">{t("portfolio_card_current")}</p>
-            <p className="text-sm font-medium">{pos.current_price ? fmt(pos.current_price, 4) : "â€”"}</p>
+            <p className="text-sm font-medium">{pos.current_price ? fmt(pos.current_price, 4) : "â€""}</p>
           </div>
           <div>
             <p className="text-xs text-muted-foreground">{t("portfolio_card_qty")}</p>
@@ -635,11 +635,11 @@ function PositionCard({
                 <div className="grid grid-cols-2 gap-2 text-xs">
                   <div>
                     <span className="text-muted-foreground">{t("portfolio_card_value")} :</span>{" "}
-                    <span>{pos.position_value ? fmt(pos.position_value) : "â€”"} {pos.currency}</span>
+                    <span>{pos.position_value ? fmt(pos.position_value) : "â€""} {pos.currency}</span>
                   </div>
                   <div>
                     <span className="text-muted-foreground">{t("portfolio_invested")} :</span>{" "}
-                    <span>{pos.invested_value ? fmt(pos.invested_value) : "â€”"} {pos.currency}</span>
+                    <span>{pos.invested_value ? fmt(pos.invested_value) : "â€""} {pos.currency}</span>
                   </div>
                   <div>
                     <span className="text-muted-foreground">{t("portfolio_card_days")} :</span>{" "}
@@ -707,7 +707,7 @@ function PositionCard({
   );
 }
 
-// â”€â”€ Closed position row â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// â"€â"€ Closed position row â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 
 function ClosedRow({ pos }: { pos: RealPosition }) {
   const entry = pos.entry_price;
@@ -741,7 +741,7 @@ function ClosedRow({ pos }: { pos: RealPosition }) {
   );
 }
 
-// â”€â”€ Main page â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// â"€â"€ Main page â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 
 export default function PortfolioPage() {
   const { user } = useAuth();
@@ -772,7 +772,7 @@ export default function PortfolioPage() {
       setClosedPositions(closedRes.positions);
       setSummary(sumRes);
     } catch {
-      // silently fail â€” user will see empty state
+      // silently fail â€" user will see empty state
     } finally {
       setLoading(false);
     }
@@ -965,7 +965,7 @@ export default function PortfolioPage() {
                       <ArrowUpRight className="inline w-3.5 h-3.5" />{summary.best_position.symbol}{" "}
                       {fmtPct(summary.best_position.pnl_percent)}
                     </p>
-                  ) : <p className="text-sm text-muted-foreground mt-1">â€”</p>}
+                  ) : <p className="text-sm text-muted-foreground mt-1">â€"</p>}
                   {summary.worst_position && (
                     <p className="text-sm text-red-400">
                       <ArrowDownRight className="inline w-3.5 h-3.5" />{summary.worst_position.symbol}{" "}
