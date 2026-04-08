@@ -606,7 +606,7 @@ function PositionCard({
           </div>
           <div>
             <p className="text-xs text-muted-foreground">{t("portfolio_card_current")}</p>
-            <p className="text-sm font-medium">{pos.current_price ? fmt(pos.current_price, 4) : "â€""}</p>
+            <p className="text-sm font-medium">{pos.current_price ? fmt(pos.current_price, 4) : "—"}</p>
           </div>
           <div>
             <p className="text-xs text-muted-foreground">{t("portfolio_card_qty")}</p>
@@ -635,11 +635,11 @@ function PositionCard({
                 <div className="grid grid-cols-2 gap-2 text-xs">
                   <div>
                     <span className="text-muted-foreground">{t("portfolio_card_value")} :</span>{" "}
-                    <span>{pos.position_value ? fmt(pos.position_value) : "â€""} {pos.currency}</span>
+                    <span>{pos.position_value ? fmt(pos.position_value) : "—"} {pos.currency}</span>
                   </div>
                   <div>
                     <span className="text-muted-foreground">{t("portfolio_invested")} :</span>{" "}
-                    <span>{pos.invested_value ? fmt(pos.invested_value) : "â€""} {pos.currency}</span>
+                    <span>{pos.invested_value ? fmt(pos.invested_value) : "—"} {pos.currency}</span>
                   </div>
                   <div>
                     <span className="text-muted-foreground">{t("portfolio_card_days")} :</span>{" "}
