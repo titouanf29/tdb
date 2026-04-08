@@ -50,6 +50,7 @@ import {
   BacktestRequest,
 } from "@/lib/api";
 import { useFormatCurrency } from "@/lib/SettingsContext";
+import { HelpGuide } from "@/components/ui/HelpGuide";
 
 type TabType = "pivot" | "per" | "trends" | "calendar" | "geopolitical" | "backtest";
 
@@ -69,12 +70,29 @@ export default function TradingToolsPage() {
     <div className="space-y-6">
       {/* Header */}
       <div className="glass-card p-6">
-        <h1 className="text-2xl font-bold mb-2">
-          <span className="gradient-text">Outils de Trading</span>
-        </h1>
-        <p className="text-muted-foreground">
-          Analysez les marches avec nos outils professionnels
-        </p>
+        <div className="flex items-start justify-between">
+          <div>
+            <h1 className="text-2xl font-bold mb-2">
+              <span className="gradient-text">Outils de Trading</span>
+            </h1>
+            <p className="text-muted-foreground">
+              Analysez les marches avec nos outils professionnels
+            </p>
+          </div>
+          <HelpGuide
+            title="Outils de Trading"
+            intro="Une suite d'outils analytiques pour affiner tes décisions de trading et comprendre le contexte de marché."
+            sections={[
+              { title: "Points Pivots", desc: "Calcule les niveaux de support et résistance pour la journée à partir des prix OHLC de la veille. Très utilisé par les traders intrajournaliers." },
+              { title: "Palmares des PER", desc: "Compare les valorisations (ratio cours/bénéfice) d'un secteur ou d'un indice pour détecter les valeurs sur ou sous-évaluées." },
+              { title: "Tendances des indices", desc: "Vue globale sur la tendance des grands indices mondiaux sur différentes périodes (1j, 1s, 1m)." },
+              { title: "Calendrier économique", desc: "Agenda des publications macroéconomiques importantes (emploi US, inflation, BCE…) avec leur impact potentiel sur les marchés." },
+              { title: "Géopolitique", desc: "Analyse de l'impact des événements géopolitiques sur les marchés et les régions concernées." },
+              { title: "Analyse IA sectorielle", desc: "L'IA analyse les performances par secteur et identifie les rotations et les dynamiques en cours." },
+            ]}
+            tip="Utilise le calendrier économique avant chaque séance pour anticiper les publications susceptibles de provoquer de la volatilité."
+          />
+        </div>
       </div>
 
       {/* Tabs */}

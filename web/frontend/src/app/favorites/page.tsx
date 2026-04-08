@@ -18,6 +18,7 @@ import { favoritesAPI, Favorite } from "@/lib/api";
 import { useFormatPrice } from "@/lib/SettingsContext";
 import { TopLoadingBar } from "@/components/ui/TopLoadingBar";
 import { useLanguage } from "@/lib/LanguageContext";
+import { HelpGuide } from "@/components/ui/HelpGuide";
 
 export default function FavoritesPage() {
   const { t } = useLanguage();
@@ -114,7 +115,18 @@ export default function FavoritesPage() {
             {favorites.length} {t("fav_subtitle")}
           </p>
         </div>
-        <div className="flex gap-3">
+        <div className="flex gap-3 items-center">
+          <HelpGuide
+            title="Favoris"
+            intro="Ta liste d'actifs à surveiller. Retrouve rapidement les prix, variations et accède à l'analyse en un clic."
+            sections={[
+              { title: "Ajouter un favori", desc: "Clique sur '+ Ajouter' et tape le symbole de l'actif (ex: AAPL, BTC-USD, MC.PA). Il apparaît dans ta liste avec son prix en temps réel." },
+              { title: "Prix en temps réel", desc: "Les prix et variations sont actualisés automatiquement. La couleur verte indique une hausse, rouge une baisse sur la journée." },
+              { title: "Accéder à l'analyse", desc: "Clique sur un actif pour ouvrir sa page d'analyse complète avec indicateurs et signal IA." },
+              { title: "Supprimer un favori", desc: "Clique sur la corbeille pour retirer un actif de ta liste. Tu peux le ré-ajouter à tout moment." },
+            ]}
+            tip="Ajoute les actifs que tu trades régulièrement pour avoir un accès rapide à leur analyse depuis le dashboard."
+          />
           <button
             onClick={() => loadFavorites(true)}
             disabled={isRefreshing}

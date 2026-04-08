@@ -37,7 +37,8 @@ import {
 } from "@/lib/api";
 import { useAuth } from "@/lib/AuthContext";
 import { authHeaders } from "@/lib/auth";
-import { useLanguage } from "@/lib/LanguageContext";
+import { useLanguage } from “@/lib/LanguageContext”;
+import { HelpGuide } from “@/components/ui/HelpGuide”;
 
 // â”€â”€ helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
@@ -835,14 +836,18 @@ export default function PortfolioPage() {
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <button
-              onClick={() => setShowGuide(true)}
-              className="w-9 h-9 rounded-full border border-white/15 text-white/80 hover:text-white hover:border-white/30 transition-colors flex items-center justify-center"
-              aria-label={t("portfolio_guide_title_full")}
-              title={t("portfolio_guide_title_full")}
-            >
-              ?
-            </button>
+            <HelpGuide
+              title="Portefeuille"
+              intro="Suis tes investissements réels : positions ouvertes, performance globale et analyse de ton allocation."
+              sections={[
+                { title: "Ajouter une position", desc: "Clique sur '+ Ajouter' pour enregistrer un achat ou une vente. Renseigne le symbole, la quantité et le prix d'entrée." },
+                { title: "Performance", desc: "Chaque position affiche la P&L (gain/perte) en valeur et en %. La couleur verte = bénéfice, rouge = perte." },
+                { title: "Répartition", desc: "Le graphique en camembert montre la répartition de ton portefeuille par actif et par secteur." },
+                { title: "Clôturer une position", desc: "Clique sur 'Fermer' pour enregistrer une vente. Le résultat passe en historique et impacte ta performance totale." },
+                { title: "Analyse IA", desc: "L'IA peut analyser ton portefeuille et suggérer des rééquilibrages ou des alertes de risque de concentration." },
+              ]}
+              tip="Importe tes positions depuis un fichier CSV pour gagner du temps si tu as beaucoup d'actifs à saisir."
+            />
             <button
               onClick={() => setShowAdd(true)}
               className="flex items-center gap-2 px-4 py-2 rounded-xl bg-primary text-white text-sm font-medium hover:bg-primary/90 transition-colors"

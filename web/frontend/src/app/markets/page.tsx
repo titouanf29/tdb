@@ -24,6 +24,7 @@ import { isMarketOpen, getMarketHoursDisplay, getTimeUntilChange } from "@/lib/m
 import { useFormatPrice } from "@/lib/SettingsContext";
 import { TopLoadingBar } from "@/components/ui/TopLoadingBar";
 import { useLanguage } from "@/lib/LanguageContext";
+import { HelpGuide } from "@/components/ui/HelpGuide";
 
 const PAGE_SIZE = 20;
 
@@ -298,8 +299,21 @@ export default function MarketsPage() {
           <h1 className="text-2xl font-bold">{t("markets_title")}</h1>
           <p className="text-muted-foreground">{t("markets_subtitle")}</p>
         </div>
-        <button
-          onClick={refreshPrices}
+        <div className="flex items-center gap-2">
+          <HelpGuide
+            title="Marchés"
+            intro="Explore tous les actifs disponibles : actions, crypto, indices, matières premières et forex."
+            sections={[
+              { title: "Sélection du marché", desc: "Clique sur un marché (Actions, Crypto, etc.) pour filtrer les actifs. Les prix se mettent à jour automatiquement." },
+              { title: "Recherche", desc: "Utilise la barre de recherche pour trouver un actif par nom ou symbole (ex: AAPL, BTC, CAC)." },
+              { title: "Favoris", desc: "Clique sur l'étoile à côté d'un actif pour l'ajouter à tes favoris et le suivre depuis le dashboard." },
+              { title: "Horaires de marché", desc: "L'indicateur vert/rouge en haut de chaque marché indique si celui-ci est ouvert ou fermé en ce moment." },
+              { title: "Analyse", desc: "Clique sur un actif pour accéder à son analyse complète : graphique, indicateurs, IA et niveaux clés." },
+            ]}
+            tip="Les prix sont actualisés en temps réel. Clique sur 'Actualiser' si tu veux forcer une mise à jour manuelle."
+          />
+          <button
+            onClick={refreshPrices}
           disabled={isLoadingPrices}
           className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 transition-colors text-sm text-muted-foreground"
           title={t("markets_refresh_title")}
@@ -307,6 +321,7 @@ export default function MarketsPage() {
           <RefreshCw className={cn("w-3.5 h-3.5", isLoadingPrices && "animate-spin")} />
           <span className="hidden sm:inline">{t("markets_refresh")}</span>
         </button>
+        </div>
       </div>
 
       {/* Market selector */}

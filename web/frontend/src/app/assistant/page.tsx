@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 import { aiAPI, ChatMessage, AILimitStatus } from "@/lib/api";
 import Link from "next/link";
 import { useLanguage } from "@/lib/LanguageContext";
+import { HelpGuide } from "@/components/ui/HelpGuide";
 
 // Markdown renderer for chat messages — supports headings, bold, italic, code, lists
 function renderInline(text: string): React.ReactNode[] {
@@ -245,6 +246,19 @@ export default function AssistantPage() {
             </div>
           </div>
           <div className="flex items-center gap-3">
+            <HelpGuide
+              size="sm"
+              title="Assistant IA"
+              intro="Pose toutes tes questions sur le trading, les marchés, les actifs ou la stratégie. L'IA te répond avec des explications claires et contextualisées."
+              sections={[
+                { title: "Analyse d'actif", desc: "Demande par exemple : 'Analyse AAPL', 'Que penses-tu de l'or en ce moment ?' ou 'Quels sont les niveaux clés sur BTC ?'" },
+                { title: "Questions stratégiques", desc: "Pose des questions sur ta gestion du risque, le dimensionnement de position, ou les stratégies (swing, day trading, scalping…)." },
+                { title: "Éducation", desc: "Demande d'expliquer des concepts : 'C'est quoi le RSI ?', 'Comment fonctionne un stop-loss ?', 'Explique-moi Fibonacci'." },
+                { title: "Historique", desc: "L'assistant se souvient de tes messages dans la session en cours. Le bouton poubelle efface la conversation." },
+                { title: "Limite de messages", desc: "Les comptes Free ont un quota journalier. Passe en Premium pour des conversations illimitées." },
+              ]}
+              tip="Sois précis dans tes questions pour obtenir les meilleures réponses. Ex: 'LVMH en tendance hebdo' plutôt que juste 'LVMH'."
+            />
             {/* Message limit indicator */}
             {limitStatus && (
               <div className={cn(

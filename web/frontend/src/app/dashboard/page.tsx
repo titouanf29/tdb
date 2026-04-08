@@ -12,6 +12,7 @@ import {
 import { cn, formatPercent } from "@/lib/utils";
 import { walletAPI, favoritesAPI, adminAPI, aiAPI, marketAPI, WalletBalance, TradingStats, Favorite, MarketNews, SummaryPoint, Position } from "@/lib/api";
 import { useFormatCurrency, useFormatPrice } from "@/lib/SettingsContext";
+import { HelpGuide } from "@/components/ui/HelpGuide";
 import { usePremium } from "@/lib/PremiumContext";
 import { useLanguage } from "@/lib/LanguageContext";
 import { getAssetInfo, getAssetLogo } from "@/lib/assetInfo";
@@ -192,6 +193,18 @@ export default function DashboardPage() {
             <p className="text-muted-foreground text-sm">{t("dash_subtitle")}</p>
           </div>
           <div className="flex items-center gap-2">
+            <HelpGuide
+              title="Dashboard"
+              intro="Ton centre de contrôle pour suivre tes performances et les marchés en temps réel."
+              sections={[
+                { title: "Widgets personnalisables", desc: "En mode Premium, clique sur 'Personnaliser' pour réorganiser, ajouter ou retirer des widgets selon tes besoins." },
+                { title: "Résumé de session", desc: "Affiche les gains/pertes du jour, le nombre de trades ouverts et ton exposition globale." },
+                { title: "Opportunités", desc: "Signaux détectés par l'IA sur les actifs que tu suis — triés par force du signal." },
+                { title: "Actualités", desc: "Flux d'actualités financières en temps réel filtrées par pertinence pour ton portefeuille." },
+                { title: "Indices mondiaux", desc: "Vue rapide sur les grandes places boursières (CAC, SP500, Nasdaq, etc.) avec leur variation du jour." },
+              ]}
+              tip="Utilise le bouton 'Actualiser' (icône flèche) pour mettre à jour toutes les données en temps réel."
+            />
             {isPremium && (
               <button
                 onClick={() => setEditMode(!editMode)}

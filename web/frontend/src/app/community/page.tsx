@@ -28,6 +28,7 @@ import {
   TicketMessage,
 } from "@/lib/api";
 import { useLanguage } from "@/lib/LanguageContext";
+import { HelpGuide } from "@/components/ui/HelpGuide";
 
 type Tab = "chat" | "contact" | "tickets";
 
@@ -246,7 +247,20 @@ export default function CommunityPage() {
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <div className="flex items-center gap-3 text-sm text-muted-foreground">
+            <HelpGuide
+              size="sm"
+              title="Communauté"
+              intro="Échange avec les autres traders, partage tes analyses et obtiens de l'aide de l'équipe CaptenTDB."
+              sections={[
+                { title: "Chat en direct", desc: "Discute en temps réel avec les membres de la communauté. Partage tes idées de trades et tes analyses." },
+                { title: "Réactions & réponses", desc: "Réagis aux messages avec des emojis ou réponds directement à un membre. Les conversations restent organisées." },
+                { title: "Contact & support", desc: "Dans l'onglet 'Contact', envoie un message à l'équipe pour toute question technique ou suggestion." },
+                { title: "Tickets de support", desc: "Pour un suivi détaillé de ta demande, crée un ticket. L'équipe te répond sous 24h ouvrées." },
+                { title: "Règles de bonne conduite", desc: "Respect et bienveillance sont requis. Les analyses partagées ne constituent pas des conseils en investissement." },
+              ]}
+              tip="Utilise la communauté pour obtenir un second avis sur tes analyses avant de prendre une décision de trading."
+            />
             <span className="w-2 h-2 rounded-full bg-profit animate-pulse" />
             <span>{onlineCount} {t("community_online")}</span>
           </div>

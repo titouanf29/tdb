@@ -20,6 +20,7 @@ import { walletAPI, WalletBalance, Position, TradingStats } from "@/lib/api";
 import { useFormatCurrency } from "@/lib/SettingsContext";
 import { AnimatedNumber } from "@/components/ui/AnimatedNumber";
 import { useLanguage } from "@/lib/LanguageContext";
+import { HelpGuide } from "@/components/ui/HelpGuide";
 
 export default function WalletPage() {
   const formatCurrency = useFormatCurrency();
@@ -123,7 +124,19 @@ export default function WalletPage() {
           <h1 className="text-2xl font-bold">{t("wallet_title")}</h1>
           <p className="text-muted-foreground">{t("wallet_subtitle")}</p>
         </div>
-        <div className="flex gap-3">
+        <div className="flex gap-3 items-center">
+          <HelpGuide
+            title="Wallet"
+            intro="Ton compte de trading virtuel : solde disponible, historique des transactions et statistiques de performance."
+            sections={[
+              { title: "Solde & équité", desc: "Le solde disponible est ce que tu peux utiliser pour ouvrir de nouvelles positions. L'équité inclut les P&L des positions ouvertes." },
+              { title: "Ajouter des fonds", desc: "Clique sur '+ Ajouter des fonds' pour créditer ton compte de trading virtuel et commencer à trader." },
+              { title: "Positions ouvertes", desc: "Liste des trades actifs avec leur P&L en temps réel. Tu peux les clôturer directement depuis ici." },
+              { title: "Historique", desc: "Tous tes trades passés avec la date, le sens (Long/Short), le résultat et les niveaux d'entrée/sortie." },
+              { title: "Statistiques", desc: "Taux de réussite, gain moyen, perte moyenne, facteur de profit et autres métriques clés de ta performance." },
+            ]}
+            tip="Le trading virtuel ne comporte aucun risque financier réel. Utilise-le pour tester ta stratégie avant de passer au réel."
+          />
           <button
             onClick={() => setShowAddFundsModal(true)}
             className="btn-primary flex items-center gap-2"

@@ -42,6 +42,7 @@ import {
   type Lesson,
   type QuizQuestion,
 } from "@/lib/learnContent";
+import { HelpGuide } from "@/components/ui/HelpGuide";
 
 // ─── Interactive Chart Components ─────────────────────────────────────────────
 
@@ -928,6 +929,19 @@ export default function LearnPage() {
           <h1 className="text-2xl font-bold flex items-center gap-2">
             <GraduationCap className="w-6 h-6 text-primary" />
             Formation Trading
+            <HelpGuide
+              size="sm"
+              title="Formation Trading"
+              intro="Apprends le trading de façon structurée avec des modules progressifs, des quiz et des fiches pratiques."
+              sections={[
+                { title: "Modules", desc: "Chaque module couvre un thème (analyse technique, gestion du risque, psychologie…). Complète-les dans l'ordre pour progresser." },
+                { title: "Leçons", desc: "Chaque leçon contient des explications théoriques, des exemples concrets et un quiz de validation." },
+                { title: "Quiz", desc: "Valide tes acquis avec des questions pratiques. Tu dois répondre correctement pour débloquer la leçon suivante." },
+                { title: "Progression", desc: "Ta progression est sauvegardée. Tu peux reprendre à n'importe quel moment où tu t'es arrêté." },
+                { title: "Fiches conseils", desc: "Des fiches pratiques résument les points clés à retenir sur chaque stratégie ou concept." },
+              ]}
+              tip="Commence par le module 'Bases du trading' si tu débutes, même si tu as déjà quelques connaissances — les fondamentaux sont essentiels."
+            />
           </h1>
           <p className="text-muted-foreground mt-1">
             Apprends les bases et les techniques du trading, à ton rythme.

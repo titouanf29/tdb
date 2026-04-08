@@ -27,6 +27,7 @@ import { cn, formatPercent } from "@/lib/utils";
 import { analysisAPI, marketAPI, Market, ScanResultItem, ScanQuota } from "@/lib/api";
 import { useFormatPrice } from "@/lib/SettingsContext";
 import { useLanguage } from "@/lib/LanguageContext";
+import { HelpGuide } from "@/components/ui/HelpGuide";
 
 type SortKey = "score" | "change" | "change_1w" | "rsi" | "volume_ratio";
 type OppFilter = "all" | "breakout" | "reversal" | "momentum";
@@ -167,7 +168,19 @@ export default function ScannerPage() {
             )}
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 items-center">
+          <HelpGuide
+            title="Scanner de marché"
+            intro="Détecte automatiquement les opportunités sur les marchés en scannant des centaines d'actifs en quelques secondes."
+            sections={[
+              { title: "Lancer un scan", desc: "Appuie sur 'Scanner' pour analyser le marché sélectionné. L'IA détecte les configurations techniques les plus pertinentes." },
+              { title: "Résultats", desc: "Chaque résultat affiche le signal (Achat/Vente), la force du mouvement et le volume. Clique pour voir l'analyse complète." },
+              { title: "Filtres", desc: "Filtre par type de signal, marché, ou seuil de confiance minimum pour affiner les résultats." },
+              { title: "Quota", desc: "Le nombre de scans disponibles par heure est limité selon ton plan (Free/Premium)." },
+              { title: "Actifs en tendance", desc: "La section 'Trending' affiche les actifs avec le plus fort momentum du moment, indépendamment des filtres." },
+            ]}
+            tip="Lance le scanner en dehors des heures de marché pour voir les actifs en pre-market avec du potentiel."
+          />
           <motion.button
             whileHover={{ scale: 1.04 }}
             whileTap={{ scale: 0.96 }}

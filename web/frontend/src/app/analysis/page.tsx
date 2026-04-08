@@ -66,6 +66,7 @@ const PremiumChart = dynamic(() => import("@/components/PremiumChart"), {
   loading: () => <div className="h-[420px] bg-card/30 animate-pulse rounded-xl" />,
 });
 import { TopLoadingBar } from "@/components/ui/TopLoadingBar";
+import { HelpGuide } from "@/components/ui/HelpGuide";
 
 // ── Real Position Banner ──────────────────────────────────────────────────────
 function RealPositionBanner({
@@ -1884,6 +1885,19 @@ function AssetHeader({
               {formatPercent(analysis.price.change)}
             </p>
           </div>
+          <HelpGuide
+            size="sm"
+            title="Page d'analyse"
+            intro="Analyse complète d'un actif : indicateurs techniques, signaux IA, niveaux clés et gestion du risque."
+            sections={[
+              { title: "Signal IA", desc: "L'IA analyse les indicateurs et te donne un signal global (Achat / Vente / Neutre) avec un niveau de confiance." },
+              { title: "Indicateurs techniques", desc: "RSI, MACD, Moyennes mobiles, Bandes de Bollinger… Chaque indicateur est expliqué et interprété pour toi." },
+              { title: "Niveaux de Fibonacci", desc: "Zones clés de support et résistance calculées automatiquement sur le dernier mouvement de prix." },
+              { title: "Score de risque", desc: "Évaluation du risque actuel sur l'actif — plus le score est élevé, plus la prudence s'impose." },
+              { title: "Analyse de séance", desc: "Résumé IA de la journée : catalyseurs, tendance de fond et contexte macro si disponible." },
+            ]}
+            tip="Clique sur chaque module pour le déplier. Les flèches sur le signal indiquent les niveaux d'entrée suggérés."
+          />
           <button
             onClick={toggleFavorite}
             className="p-3 rounded-xl hover:bg-white/10 transition-colors"
