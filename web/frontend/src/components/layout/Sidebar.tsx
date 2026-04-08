@@ -23,6 +23,7 @@ import {
   GraduationCap,
   Briefcase,
   Scale,
+  X,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -93,8 +94,8 @@ export function Sidebar({
 
   return (
     <motion.aside
-      initial={{ x: -20, opacity: 0 }}
-      animate={{ x: 0, opacity: 1, width: collapsed ? 80 : 260 }}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1, width: collapsed ? 80 : 260 }}
       transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
       className={`h-screen flex flex-col
         fixed lg:relative z-50 lg:z-auto
@@ -121,12 +122,22 @@ export function Sidebar({
               initial={{ opacity: 0, x: -10 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -10 }}
+              className="flex-1 min-w-0"
             >
               <h1 className="font-bold text-xl gradient-text">CaptenTDB</h1>
               <p className="text-xs text-muted-foreground">par CaptenQwark</p>
             </motion.div>
           )}
         </AnimatePresence>
+        {/* Close button — mobile only */}
+        {mobileOpen && onMobileClose && (
+          <button
+            onClick={onMobileClose}
+            className="ml-auto lg:hidden p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors flex-shrink-0"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        )}
       </div>
 
       {/* Navigation */}
