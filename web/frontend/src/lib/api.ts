@@ -1529,6 +1529,77 @@ export const weeklyPrepAPI = {
   refresh: () => fetchAPI<{ briefing: WeeklyBriefing; cached: boolean }>("/api/weekly-prep/refresh", { method: "POST" }),
 };
 
+// ─── Insights Engine (Admin only) ─────────────────────────────────────────────
+
+export interface InsightsAsset {
+  name: string;
+  ticker: string;
+  last_price: number;
+  change_pct: number;
+  rsi: number;
+  ohlcv: { date: string; open: number; high: number; low: number; close: number; volume: number }[];
+}
+
+export interface InsightsRegion {
+  label: string;
+  flag: string;
+  assets: InsightsAsset[];
+  top: InsightsAsset | null;
+  flop: InsightsAsset | null;
+}
+
+export interface InsightsSnapshot {
+  period: string;
+  snapshot: Record<string, InsightsRegion>;
+  news: { title: string; summary: string; source: string; language: string; pub_date: string; link: string; impact: string }[];
+  fear_greed: { value: number; label: string };
+  heat_score: number;
+}
+
+export interface InsightsScriptSegment {
+  type: string;
+  label: string;
+  text: string;
+  visual: string;
+  duration_sec: number;
+}
+
+export interface InsightsScript {
+  hook: string;
+  segments: InsightsScriptSegment[];
+  total_duration_sec: number;
+  mode: string;
+  generated_by: "gemini" | "template";
+  // Mode B only
+  scripts?: InsightsScript[];
+}
+
+export interface InsightsGenerated {
+  period: string;
+  mode: string;
+  heat_score: number;
+  fear_greed: { value: number; label: string };
+  script: InsightsScript;
+  charts: { performance: string; heatmap: string; fear_greed: string; top_asset: string };
+  news_used: any[];
+}
+
+export const insightsAPI = {
+  snapshot: (period: string = "week") =>
+    fetchAPI<InsightsSnapshot>(`/api/admin/insights/snapshot?period=${period}`),
+
+  generate: (body: { period: string; mode: string; custom_context: string; include_charts: boolean }) =>
+    fetchAPI<InsightsGenerated>("/api/admin/insights/generate", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+
+  chartsOnly: (period: string = "week") =>
+    fetchAPI<{ charts: InsightsGenerated["charts"]; period: string }>(
+      `/api/admin/insights/charts?period=${period}`
+    ),
+};
+
 /**
  * Create an authenticated WebSocket URL for private endpoints
  * (portfolio, alerts). Passes the JWT as a query param since

@@ -1,0 +1,596 @@
+"use client";
+
+import { useState, useRef } from "react";
+import { useRouter } from "next/navigation";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+  Sparkles, RefreshCw, Copy, Download, Play, Loader2,
+  TrendingUp, TrendingDown, Newspaper, BarChart3, Gauge,
+  ChevronDown, ChevronUp, Image, FileText, AlertTriangle,
+  CheckCircle, Clock, Zap, Globe, Flame, Camera,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+import { insightsAPI, InsightsSnapshot, InsightsGenerated } from "@/lib/api";
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+type Period = "day" | "week" | "month";
+type Mode = "A" | "B";
+
+interface AssetCard {
+  name: string;
+  ticker: string;
+  last_price: number;
+  change_pct: number;
+  rsi: number;
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function pctColor(v: number) {
+  return v >= 0 ? "text-emerald-400" : "text-red-400";
+}
+function pctBg(v: number) {
+  return v >= 0 ? "bg-emerald-500/10 border-emerald-500/20" : "bg-red-500/10 border-red-500/20";
+}
+function fgColor(v: number) {
+  if (v <= 25) return "text-red-400";
+  if (v <= 45) return "text-orange-400";
+  if (v <= 55) return "text-yellow-400";
+  if (v <= 75) return "text-green-400";
+  return "text-emerald-400";
+}
+function heatColor(v: number) {
+  if (v >= 7) return "text-red-400";
+  if (v >= 5) return "text-orange-400";
+  if (v >= 3) return "text-yellow-400";
+  return "text-emerald-400";
+}
+function impactBadge(impact: string) {
+  if (impact === "high") return "bg-red-500/20 text-red-300 border-red-500/30";
+  if (impact === "medium") return "bg-orange-500/20 text-orange-300 border-orange-500/30";
+  return "bg-white/5 text-muted-foreground border-white/10";
+}
+
+// ─── Sub-components ──────────────────────────────────────────────────────────
+
+function RegionCard({ region, data }: { region: string; data: any }) {
+  const [expanded, setExpanded] = useState(false);
+  const top: AssetCard = data.top;
+  const flop: AssetCard = data.flop;
+
+  return (
+    <div className="glass-card p-4 space-y-3">
+      <div className="flex items-center justify-between">
+        <h3 className="font-semibold flex items-center gap-2">
+          <span className="text-lg">{data.flag}</span>
+          {data.label}
+        </h3>
+        <button onClick={() => setExpanded(!expanded)} className="text-muted-foreground hover:text-foreground">
+          {expanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+        </button>
+      </div>
+
+      <div className="grid grid-cols-2 gap-2">
+        {top && (
+          <div className={cn("p-2 rounded-lg border text-xs", pctBg(top.change_pct))}>
+            <p className="text-muted-foreground mb-0.5">▲ Top</p>
+            <p className="font-semibold truncate">{top.name}</p>
+            <p className={cn("font-bold text-sm", pctColor(top.change_pct))}>
+              {top.change_pct >= 0 ? "+" : ""}{top.change_pct.toFixed(1)}%
+            </p>
+          </div>
+        )}
+        {flop && (
+          <div className={cn("p-2 rounded-lg border text-xs", pctBg(flop.change_pct))}>
+            <p className="text-muted-foreground mb-0.5">▼ Flop</p>
+            <p className="font-semibold truncate">{flop.name}</p>
+            <p className={cn("font-bold text-sm", pctColor(flop.change_pct))}>
+              {flop.change_pct >= 0 ? "+" : ""}{flop.change_pct.toFixed(1)}%
+            </p>
+          </div>
+        )}
+      </div>
+
+      <AnimatePresence>
+        {expanded && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            className="space-y-1 overflow-hidden"
+          >
+            {(data.assets || []).map((a: AssetCard) => (
+              <div key={a.ticker} className="flex items-center justify-between text-xs py-1 border-b border-white/5">
+                <span className="text-muted-foreground truncate max-w-[120px]">{a.name}</span>
+                <div className="flex items-center gap-3">
+                  <span className="text-muted-foreground/60">RSI {a.rsi.toFixed(0)}</span>
+                  <span className={cn("font-semibold", pctColor(a.change_pct))}>
+                    {a.change_pct >= 0 ? "+" : ""}{a.change_pct.toFixed(1)}%
+                  </span>
+                </div>
+              </div>
+            ))}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+function ScriptSegment({ segment, index }: { segment: any; index: number }) {
+  const typeColors: Record<string, string> = {
+    geopolitique: "border-l-red-400",
+    europe: "border-l-blue-400",
+    usa: "border-l-green-400",
+    crypto: "border-l-orange-400",
+    commodities: "border-l-yellow-400",
+    takeaway: "border-l-purple-400",
+    cta: "border-l-primary",
+  };
+  const color = typeColors[segment.type] || "border-l-white/20";
+
+  return (
+    <div className={cn("pl-4 border-l-2 space-y-2", color)}>
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-semibold text-primary uppercase tracking-wider">
+          {segment.label || segment.type}
+        </span>
+        {segment.duration_sec && (
+          <span className="text-xs text-muted-foreground flex items-center gap-1">
+            <Clock className="w-3 h-3" />
+            {segment.duration_sec}s
+          </span>
+        )}
+      </div>
+      <p className="text-sm leading-relaxed">{segment.text}</p>
+      {segment.visual && (
+        <div className="flex items-start gap-2 p-2 rounded-lg bg-white/5 border border-white/8">
+          <Camera className="w-3.5 h-3.5 text-yellow-500 mt-0.5 flex-shrink-0" />
+          <p className="text-xs text-muted-foreground italic leading-relaxed">{segment.visual}</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ChartImage({ title, b64, icon: Icon }: { title: string; b64: string; icon: any }) {
+  const handleDownload = () => {
+    const link = document.createElement("a");
+    link.href = `data:image/png;base64,${b64}`;
+    link.download = `captentdb-${title.toLowerCase().replace(/\s+/g, "-")}.png`;
+    link.click();
+  };
+
+  if (!b64) return null;
+
+  return (
+    <div className="glass-card p-3 space-y-2">
+      <div className="flex items-center justify-between">
+        <h4 className="text-sm font-semibold flex items-center gap-2">
+          <Icon className="w-4 h-4 text-primary" />
+          {title}
+        </h4>
+        <button
+          onClick={handleDownload}
+          className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <Download className="w-3.5 h-3.5" />
+          PNG
+        </button>
+      </div>
+      <img
+        src={`data:image/png;base64,${b64}`}
+        alt={title}
+        className="w-full rounded-lg border border-white/8"
+      />
+    </div>
+  );
+}
+
+// ─── Main Page ────────────────────────────────────────────────────────────────
+
+export default function InsightsPage() {
+  const router = useRouter();
+
+  const [period, setPeriod] = useState<Period>("week");
+  const [mode, setMode] = useState<Mode>("A");
+  const [customContext, setCustomContext] = useState("");
+  const [includeCharts, setIncludeCharts] = useState(true);
+
+  const [snapshot, setSnapshot] = useState<InsightsSnapshot | null>(null);
+  const [generated, setGenerated] = useState<InsightsGenerated | null>(null);
+  const [editedScript, setEditedScript] = useState("");
+
+  const [loadingSnapshot, setLoadingSnapshot] = useState(false);
+  const [loadingGenerate, setLoadingGenerate] = useState(false);
+  const [error, setError] = useState("");
+  const [copied, setCopied] = useState(false);
+
+  const scriptRef = useRef<HTMLTextAreaElement>(null);
+
+  // Load snapshot on mount / period change
+  const loadSnapshot = async () => {
+    setLoadingSnapshot(true);
+    setError("");
+    try {
+      const data = await insightsAPI.snapshot(period);
+      setSnapshot(data);
+    } catch (e: any) {
+      setError(e?.message || "Erreur lors du chargement du snapshot");
+    } finally {
+      setLoadingSnapshot(false);
+    }
+  };
+
+  const handleGenerate = async () => {
+    setLoadingGenerate(true);
+    setError("");
+    try {
+      const data = await insightsAPI.generate({
+        period,
+        mode,
+        custom_context: customContext,
+        include_charts: includeCharts,
+      });
+      setGenerated(data);
+
+      // Build editable script text
+      const script = data.script;
+      let text = `[HOOK]\n${script.hook}\n\n`;
+      for (const seg of script.segments || []) {
+        text += `[${(seg.label || seg.type).toUpperCase()}]\n${seg.text}\n`;
+        if (seg.visual) text += `[VISUAL: ${seg.visual}]\n`;
+        text += "\n";
+      }
+      setEditedScript(text.trim());
+    } catch (e: any) {
+      setError(e?.message || "Erreur lors de la génération");
+    } finally {
+      setLoadingGenerate(false);
+    }
+  };
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(editedScript);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <div className="min-h-screen p-4 md:p-6 space-y-6">
+      {/* Header */}
+      <motion.div
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="glass-card p-5 relative overflow-hidden"
+      >
+        <div className="absolute top-0 right-0 w-64 h-64 bg-yellow-500/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none" />
+        <div className="relative flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold flex items-center gap-2">
+              <Sparkles className="w-6 h-6 text-yellow-500" />
+              Insight Engine
+              <span className="text-xs font-normal px-2 py-0.5 rounded-full bg-yellow-500/20 text-yellow-400 border border-yellow-500/30 ml-1">
+                ADMIN ONLY
+              </span>
+            </h1>
+            <p className="text-muted-foreground text-sm mt-1">
+              Génère des scripts TikTok/Reels + graphiques prêts à filmer — propulsé par les données réelles des marchés.
+            </p>
+          </div>
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <Zap className="w-4 h-4 text-yellow-500" />
+            Gratuit — yfinance + Gemini Flash
+          </div>
+        </div>
+      </motion.div>
+
+      {/* Controls */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {/* Period */}
+        <div className="glass-card p-4 space-y-2">
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Période</p>
+          <div className="flex gap-2">
+            {(["day", "week", "month"] as Period[]).map((p) => (
+              <button
+                key={p}
+                onClick={() => setPeriod(p)}
+                className={cn(
+                  "flex-1 py-2 rounded-lg text-sm font-medium transition-all",
+                  period === p
+                    ? "bg-primary text-white shadow-glow-sm"
+                    : "bg-white/5 hover:bg-white/10 text-muted-foreground"
+                )}
+              >
+                {p === "day" ? "24h" : p === "week" ? "Semaine" : "Mois"}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Mode */}
+        <div className="glass-card p-4 space-y-2">
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Mode de script</p>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setMode("A")}
+              className={cn(
+                "flex-1 py-2 rounded-lg text-sm font-medium transition-all",
+                mode === "A" ? "bg-primary text-white" : "bg-white/5 hover:bg-white/10 text-muted-foreground"
+              )}
+            >
+              ⚡ 60-sec Blitz
+            </button>
+            <button
+              onClick={() => setMode("B")}
+              className={cn(
+                "flex-1 py-2 rounded-lg text-sm font-medium transition-all",
+                mode === "B" ? "bg-primary text-white" : "bg-white/5 hover:bg-white/10 text-muted-foreground"
+              )}
+            >
+              🎬 Deep Diver
+            </button>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            {mode === "A" ? "Script unique ~60 secondes" : "Série de 3 vidéos avec bridge hooks"}
+          </p>
+        </div>
+
+        {/* Options */}
+        <div className="glass-card p-4 space-y-3">
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Options</p>
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={includeCharts}
+              onChange={(e) => setIncludeCharts(e.target.checked)}
+              className="rounded"
+            />
+            <span className="text-sm">Générer les graphiques</span>
+          </label>
+          <div className="flex gap-2">
+            <button
+              onClick={loadSnapshot}
+              disabled={loadingSnapshot}
+              className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg bg-white/5 hover:bg-white/10 text-sm transition-colors disabled:opacity-50"
+            >
+              <RefreshCw className={cn("w-4 h-4", loadingSnapshot && "animate-spin")} />
+              Snapshot
+            </button>
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={handleGenerate}
+              disabled={loadingGenerate}
+              className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg bg-yellow-500 hover:bg-yellow-400 text-black font-bold text-sm transition-colors disabled:opacity-50"
+            >
+              {loadingGenerate ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Play className="w-4 h-4" />
+              )}
+              Générer
+            </motion.button>
+          </div>
+        </div>
+      </div>
+
+      {/* Context input */}
+      <div className="glass-card p-4">
+        <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+          Contexte additionnel (optionnel)
+        </label>
+        <textarea
+          value={customContext}
+          onChange={(e) => setCustomContext(e.target.value)}
+          placeholder="Ex: 'Focus sur la rotation Energy vs Tech cette semaine. Mentionner le niveau 74K sur BTC...'"
+          className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm resize-none focus:outline-none focus:border-primary text-foreground placeholder:text-muted-foreground/50"
+          rows={2}
+        />
+      </div>
+
+      {/* Error */}
+      {error && (
+        <div className="flex items-center gap-2 p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
+          <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+          {error}
+        </div>
+      )}
+
+      {/* Loading state */}
+      {loadingGenerate && (
+        <div className="glass-card p-8 flex flex-col items-center gap-4">
+          <Loader2 className="w-10 h-10 animate-spin text-yellow-500" />
+          <div className="text-center">
+            <p className="font-semibold">Génération en cours...</p>
+            <p className="text-sm text-muted-foreground mt-1">
+              Récupération des données · Analyse IA · Génération des graphiques
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Snapshot section */}
+      {snapshot && !loadingGenerate && (
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
+          {/* Sentiment bar */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div className="glass-card p-4 text-center">
+              <p className="text-xs text-muted-foreground mb-1">Heat Score</p>
+              <p className={cn("text-3xl font-bold", heatColor(snapshot.heat_score))}>
+                {snapshot.heat_score.toFixed(1)}
+              </p>
+              <p className="text-xs text-muted-foreground">/10</p>
+            </div>
+            <div className="glass-card p-4 text-center">
+              <p className="text-xs text-muted-foreground mb-1">Fear & Greed</p>
+              <p className={cn("text-3xl font-bold", fgColor(snapshot.fear_greed.value))}>
+                {snapshot.fear_greed.value}
+              </p>
+              <p className="text-xs text-muted-foreground">{snapshot.fear_greed.label}</p>
+            </div>
+            <div className="glass-card p-4 text-center">
+              <p className="text-xs text-muted-foreground mb-1">Actifs analysés</p>
+              <p className="text-3xl font-bold text-primary">
+                {Object.values(snapshot.snapshot).reduce((acc: number, r: any) => acc + (r.assets?.length || 0), 0)}
+              </p>
+            </div>
+            <div className="glass-card p-4 text-center">
+              <p className="text-xs text-muted-foreground mb-1">Actualités</p>
+              <p className="text-3xl font-bold text-primary">{snapshot.news?.length || 0}</p>
+              <p className="text-xs text-muted-foreground">high/medium impact</p>
+            </div>
+          </div>
+
+          {/* Region cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+            {Object.entries(snapshot.snapshot).map(([key, data]: [string, any]) => (
+              <RegionCard key={key} region={key} data={data} />
+            ))}
+          </div>
+
+          {/* News */}
+          {snapshot.news?.length > 0 && (
+            <div className="glass-card p-4 space-y-3">
+              <h3 className="font-semibold flex items-center gap-2 text-sm">
+                <Newspaper className="w-4 h-4 text-primary" />
+                Actualités macro
+              </h3>
+              <div className="space-y-2">
+                {snapshot.news.slice(0, 6).map((n: any, i: number) => (
+                  <div key={i} className="flex items-start gap-3 py-2 border-b border-white/5 last:border-0">
+                    <span className={cn("text-[10px] font-bold px-1.5 py-0.5 rounded border flex-shrink-0 mt-0.5", impactBadge(n.impact))}>
+                      {n.impact.toUpperCase()}
+                    </span>
+                    <div className="min-w-0">
+                      <p className="text-xs font-medium leading-snug">{n.title}</p>
+                      <p className="text-[10px] text-muted-foreground mt-0.5">{n.source}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </motion.div>
+      )}
+
+      {/* Generated content */}
+      {generated && !loadingGenerate && (
+        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
+          {/* Script output */}
+          <div className="glass-card p-5 space-y-4">
+            <div className="flex items-center justify-between flex-wrap gap-3">
+              <h2 className="font-bold text-lg flex items-center gap-2">
+                <FileText className="w-5 h-5 text-yellow-500" />
+                Script {mode === "A" ? "60-sec Blitz" : "Deep Diver"}
+                {generated.script.generated_by === "gemini" && (
+                  <span className="text-xs px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-300 border border-blue-500/30">
+                    Gemini AI
+                  </span>
+                )}
+                {generated.script.generated_by === "template" && (
+                  <span className="text-xs px-2 py-0.5 rounded-full bg-white/10 text-muted-foreground border border-white/10">
+                    Template
+                  </span>
+                )}
+              </h2>
+              <div className="flex gap-2">
+                <button
+                  onClick={handleCopy}
+                  className={cn(
+                    "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm transition-all",
+                    copied
+                      ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
+                      : "bg-white/5 hover:bg-white/10 text-muted-foreground"
+                  )}
+                >
+                  {copied ? <CheckCircle className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                  {copied ? "Copié !" : "Copier"}
+                </button>
+              </div>
+            </div>
+
+            {/* Hook badge */}
+            {generated.script.hook && (
+              <div className="p-4 rounded-xl bg-yellow-500/10 border border-yellow-500/20">
+                <p className="text-xs font-semibold text-yellow-400 mb-1">🎣 HOOK</p>
+                <p className="text-sm font-medium leading-relaxed">{generated.script.hook}</p>
+              </div>
+            )}
+
+            {/* Segments */}
+            <div className="space-y-5">
+              {(generated.script.segments || []).map((seg: any, i: number) => (
+                <ScriptSegment key={i} segment={seg} index={i} />
+              ))}
+            </div>
+
+            {/* Duration */}
+            {generated.script.total_duration_sec && (
+              <div className="flex items-center gap-2 text-xs text-muted-foreground pt-2 border-t border-white/8">
+                <Clock className="w-3.5 h-3.5" />
+                Durée totale estimée : {generated.script.total_duration_sec}s
+              </div>
+            )}
+
+            {/* Editable raw text */}
+            <div className="space-y-2">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                Script brut (éditable)
+              </p>
+              <textarea
+                ref={scriptRef}
+                value={editedScript}
+                onChange={(e) => setEditedScript(e.target.value)}
+                className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-3 text-sm font-mono resize-none focus:outline-none focus:border-primary text-foreground leading-relaxed"
+                rows={16}
+              />
+            </div>
+          </div>
+
+          {/* Charts */}
+          {generated.charts && Object.values(generated.charts).some(Boolean) && (
+            <div className="space-y-3">
+              <h2 className="font-bold text-lg flex items-center gap-2">
+                <Image className="w-5 h-5 text-yellow-500" />
+                Graphiques TikTok-ready
+              </h2>
+              <p className="text-sm text-muted-foreground">
+                Clique sur PNG pour télécharger chaque graphique. Watermark captentdb.fr inclus.
+              </p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <ChartImage title="Performance marchés" b64={generated.charts.performance} icon={BarChart3} />
+                <ChartImage title="Heatmap sectorielle" b64={generated.charts.heatmap} icon={Flame} />
+                <ChartImage title="Fear & Greed" b64={generated.charts.fear_greed} icon={Gauge} />
+                <ChartImage title="Top actif" b64={generated.charts.top_asset} icon={TrendingUp} />
+              </div>
+            </div>
+          )}
+        </motion.div>
+      )}
+
+      {/* Empty state */}
+      {!snapshot && !generated && !loadingSnapshot && !loadingGenerate && (
+        <div className="glass-card p-12 text-center space-y-4">
+          <Sparkles className="w-12 h-12 text-yellow-500/40 mx-auto" />
+          <div>
+            <p className="font-semibold text-lg">Prêt à générer</p>
+            <p className="text-muted-foreground text-sm mt-2 max-w-md mx-auto">
+              Clique sur <strong>Snapshot</strong> pour charger les données du marché,
+              ou directement sur <strong>Générer</strong> pour créer ton script TikTok en une seule étape.
+            </p>
+          </div>
+          <div className="flex items-center justify-center gap-4 pt-2">
+            <button onClick={loadSnapshot} className="px-4 py-2 rounded-lg bg-white/5 hover:bg-white/10 text-sm transition-colors">
+              📊 Charger le snapshot
+            </button>
+            <button onClick={handleGenerate} className="px-4 py-2 rounded-lg bg-yellow-500 hover:bg-yellow-400 text-black font-bold text-sm transition-colors">
+              ⚡ Générer maintenant
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

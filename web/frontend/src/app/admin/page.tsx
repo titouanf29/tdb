@@ -147,6 +147,13 @@ export default function AdminPage() {
           </div>
           <div className="flex items-center gap-2">
             <a
+              href="/admin/insights"
+              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-400 transition-colors text-sm font-semibold border border-yellow-500/30"
+            >
+              <Sparkles className="w-4 h-4" />
+              Insight Engine
+            </a>
+            <a
               href="/api/admin/panel"
               target="_blank"
               rel="noopener noreferrer"
