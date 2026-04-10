@@ -7,7 +7,8 @@ import {
   Sparkles, RefreshCw, Copy, Download, Play, Loader2,
   TrendingUp, TrendingDown, Newspaper, BarChart3, Gauge,
   ChevronDown, ChevronUp, Image, FileText, AlertTriangle,
-  CheckCircle, Clock, Zap, Globe, Flame, Camera,
+  CheckCircle, Clock, Zap, Globe, Flame, Camera, Link2,
+  BookOpen, LayoutDashboard, ScanLine, LineChart, Layers,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { insightsAPI, InsightsSnapshot, InsightsGenerated } from "@/lib/api";
@@ -118,20 +119,41 @@ function RegionCard({ region, data }: { region: string; data: any }) {
   );
 }
 
+const TOOL_ICONS: Record<string, any> = {
+  "captentdb.fr/dashboard": LayoutDashboard,
+  "captentdb.fr/markets":   Layers,
+  "captentdb.fr/analysis":  LineChart,
+  "captentdb.fr/scanner":   ScanLine,
+  "captentdb.fr/portfolio": TrendingUp,
+  "captentdb.fr/tools":     Zap,
+  "captentdb.fr/learn":     BookOpen,
+};
+
 function ScriptSegment({ segment, index }: { segment: any; index: number }) {
   const typeColors: Record<string, string> = {
     geopolitique: "border-l-red-400",
-    europe: "border-l-blue-400",
-    usa: "border-l-green-400",
-    crypto: "border-l-orange-400",
-    commodities: "border-l-yellow-400",
-    takeaway: "border-l-purple-400",
-    cta: "border-l-primary",
+    europe:       "border-l-blue-400",
+    usa:          "border-l-green-400",
+    crypto:       "border-l-orange-400",
+    commodities:  "border-l-yellow-400",
+    takeaway:     "border-l-purple-400",
+    cta:          "border-l-primary",
+  };
+  const typeBg: Record<string, string> = {
+    geopolitique: "bg-red-500/5",
+    europe:       "bg-blue-500/5",
+    usa:          "bg-green-500/5",
+    crypto:       "bg-orange-500/5",
+    commodities:  "bg-yellow-500/5",
+    takeaway:     "bg-purple-500/5",
+    cta:          "bg-primary/5",
   };
   const color = typeColors[segment.type] || "border-l-white/20";
+  const bg = typeBg[segment.type] || "";
+  const ToolIcon = segment.tool_url ? (TOOL_ICONS[segment.tool_url] || Link2) : null;
 
   return (
-    <div className={cn("pl-4 border-l-2 space-y-2", color)}>
+    <div className={cn("pl-4 border-l-2 space-y-2 rounded-r-lg p-3", color, bg)}>
       <div className="flex items-center justify-between">
         <span className="text-xs font-semibold text-primary uppercase tracking-wider">
           {segment.label || segment.type}
@@ -143,11 +165,33 @@ function ScriptSegment({ segment, index }: { segment: any; index: number }) {
           </span>
         )}
       </div>
+
       <p className="text-sm leading-relaxed">{segment.text}</p>
+
+      {/* Geopolitical note */}
+      {segment.geo_note && (
+        <div className="flex items-start gap-2 p-2 rounded-lg bg-red-500/8 border border-red-500/15">
+          <Globe className="w-3.5 h-3.5 text-red-400 mt-0.5 flex-shrink-0" />
+          <p className="text-xs text-red-300/80 leading-relaxed">{segment.geo_note}</p>
+        </div>
+      )}
+
+      {/* Visual instruction */}
       {segment.visual && (
         <div className="flex items-start gap-2 p-2 rounded-lg bg-white/5 border border-white/8">
           <Camera className="w-3.5 h-3.5 text-yellow-500 mt-0.5 flex-shrink-0" />
           <p className="text-xs text-muted-foreground italic leading-relaxed">{segment.visual}</p>
+        </div>
+      )}
+
+      {/* Tool link */}
+      {segment.tool_url && (
+        <div className="flex items-center gap-2 p-2 rounded-lg bg-primary/8 border border-primary/20">
+          {ToolIcon && <ToolIcon className="w-3.5 h-3.5 text-primary flex-shrink-0" />}
+          <div className="min-w-0">
+            <span className="text-xs font-semibold text-primary">{segment.tool_name || "CaptentDB"}</span>
+            <span className="text-xs text-muted-foreground ml-1.5">→ {segment.tool_url}</span>
+          </div>
         </div>
       )}
     </div>
@@ -206,6 +250,7 @@ export default function InsightsPage() {
   const [loadingGenerate, setLoadingGenerate] = useState(false);
   const [error, setError] = useState("");
   const [copied, setCopied] = useState(false);
+  const [scriptTab, setScriptTab] = useState<"doc" | "edit">("doc");
 
   const scriptRef = useRef<HTMLTextAreaElement>(null);
 
@@ -223,6 +268,93 @@ export default function InsightsPage() {
     }
   };
 
+  const buildRichScript = (script: any, data: InsightsGenerated): string => {
+    const now = new Date().toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric" });
+    const modeLabel = data.mode === "A" ? "60-sec Blitz" : "Deep Diver";
+    const periodMap: Record<string, string> = { day: "24h", week: "Semaine", month: "Mois" };
+    const periodLabel = periodMap[data.period] || data.period;
+
+    const segEmoji: Record<string, string> = {
+      geopolitique: "🌍",
+      europe:       "🇪🇺",
+      usa:          "🇺🇸",
+      crypto:       "₿",
+      commodities:  "🏗️",
+      takeaway:     "💡",
+      cta:          "🔗",
+    };
+
+    const sep = "─".repeat(52);
+    const dblSep = "═".repeat(52);
+    const lines: string[] = [];
+
+    // Header
+    lines.push(dblSep);
+    lines.push(`  CAPTENTDB — Script TikTok/Reels`);
+    lines.push(`  ${now}  ·  ${periodLabel}  ·  Mode ${modeLabel}`);
+    lines.push(dblSep);
+    lines.push("");
+
+    // Geopolitical context block
+    if (script.geo_context) {
+      lines.push("┌─ 🌍 CONTEXTE GÉOPOLITIQUE / MACRO ─────────────────┐");
+      const geoLines = script.geo_context.match(/.{1,50}(\s|$)/g) || [script.geo_context];
+      for (const l of geoLines) {
+        lines.push(`│  ${l.trimEnd().padEnd(49)}│`);
+      }
+      lines.push("└────────────────────────────────────────────────────┘");
+      lines.push("");
+    }
+
+    // Hook
+    lines.push(`🎣 HOOK  (0 → 5 sec)`);
+    lines.push(sep);
+    lines.push(script.hook || "");
+    lines.push("");
+
+    // Segments with cumulative timing
+    let cursor = 5;
+    for (const seg of script.segments || []) {
+      const emoji = segEmoji[seg.type] || "📌";
+      const dur = seg.duration_sec || 10;
+      const tStart = `${String(Math.floor(cursor / 60)).padStart(2, "0")}:${String(cursor % 60).padStart(2, "0")}`;
+      const tEnd   = `${String(Math.floor((cursor + dur) / 60)).padStart(2, "0")}:${String((cursor + dur) % 60).padStart(2, "0")}`;
+
+      lines.push(`${emoji} ${(seg.label || seg.type).toUpperCase()}  (${tStart} → ${tEnd})`);
+      lines.push(sep);
+      lines.push("");
+      lines.push(seg.text || "");
+      lines.push("");
+
+      if (seg.geo_note) {
+        lines.push(`  🌍 Contexte : ${seg.geo_note}`);
+      }
+      if (seg.visual) {
+        lines.push(`  📸 Réalisation : ${seg.visual}`);
+      }
+      if (seg.tool_url) {
+        lines.push(`  🔗 Outil à filmer : ${seg.tool_name ? seg.tool_name + " — " : ""}${seg.tool_url}`);
+      }
+      lines.push("");
+
+      cursor += dur;
+    }
+
+    // Stats footer
+    const allText = [script.hook, ...(script.segments || []).map((s: any) => s.text)].filter(Boolean).join(" ");
+    const wordCount = allText.trim().split(/\s+/).length;
+    const captentMentions = (allText.toLowerCase().match(/captentdb/g) || []).length;
+
+    lines.push(dblSep);
+    lines.push(`⏱️  Durée totale : ~${script.total_duration_sec || cursor} secondes`);
+    lines.push(`📝  Mots : ~${wordCount}`);
+    lines.push(`🌐  Mentions CaptentDB : ${captentMentions}`);
+    lines.push(`🔗  captentdb.fr`);
+    lines.push(dblSep);
+
+    return lines.join("\n");
+  };
+
   const handleGenerate = async () => {
     setLoadingGenerate(true);
     setError("");
@@ -235,15 +367,7 @@ export default function InsightsPage() {
       });
       setGenerated(data);
 
-      // Build editable script text
-      const script = data.script;
-      let text = `[HOOK]\n${script.hook}\n\n`;
-      for (const seg of script.segments || []) {
-        text += `[${(seg.label || seg.type).toUpperCase()}]\n${seg.text}\n`;
-        if (seg.visual) text += `[VISUAL: ${seg.visual}]\n`;
-        text += "\n";
-      }
-      setEditedScript(text.trim());
+      setEditedScript(buildRichScript(data.script, data));
     } catch (e: any) {
       setError(e?.message || "Erreur lors de la génération");
     } finally {
@@ -534,18 +658,122 @@ export default function InsightsPage() {
               </div>
             )}
 
-            {/* Editable raw text */}
-            <div className="space-y-2">
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                Script brut (éditable)
-              </p>
-              <textarea
-                ref={scriptRef}
-                value={editedScript}
-                onChange={(e) => setEditedScript(e.target.value)}
-                className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-3 text-sm font-mono resize-none focus:outline-none focus:border-primary text-foreground leading-relaxed"
-                rows={16}
-              />
+            {/* ── Script brut enrichi ── */}
+            <div className="space-y-3 pt-2 border-t border-white/8">
+              {/* Section header + tabs */}
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <p className="text-sm font-semibold flex items-center gap-2">
+                  <FileText className="w-4 h-4 text-primary" />
+                  Script brut
+                </p>
+                <div className="flex items-center gap-1 bg-white/5 rounded-lg p-1">
+                  <button
+                    onClick={() => setScriptTab("doc")}
+                    className={cn(
+                      "px-3 py-1 rounded-md text-xs font-medium transition-all",
+                      scriptTab === "doc"
+                        ? "bg-primary text-white"
+                        : "text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    📄 Document
+                  </button>
+                  <button
+                    onClick={() => setScriptTab("edit")}
+                    className={cn(
+                      "px-3 py-1 rounded-md text-xs font-medium transition-all",
+                      scriptTab === "edit"
+                        ? "bg-primary text-white"
+                        : "text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    ✏️ Éditer
+                  </button>
+                </div>
+              </div>
+
+              {/* Geopolitical context banner */}
+              {generated.script.geo_context && (
+                <div className="flex items-start gap-3 p-3 rounded-xl bg-red-500/8 border border-red-500/20">
+                  <Globe className="w-4 h-4 text-red-400 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-xs font-semibold text-red-400 mb-0.5 uppercase tracking-wide">Contexte géopolitique</p>
+                    <p className="text-xs text-red-300/80 leading-relaxed">{generated.script.geo_context}</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Document view */}
+              {scriptTab === "doc" && (
+                <div className="rounded-xl border border-white/10 bg-white/3 overflow-hidden">
+                  {/* Doc header */}
+                  <div className="px-4 py-3 bg-white/5 border-b border-white/8 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-muted-foreground">
+                        Mode {generated.mode === "A" ? "⚡ 60-sec" : "🎬 Deep Diver"}
+                        · {generated.period === "day" ? "24h" : generated.period === "week" ? "Semaine" : "Mois"}
+                        · {generated.script.total_duration_sec}s
+                      </span>
+                    </div>
+                    <button
+                      onClick={handleCopy}
+                      className={cn(
+                        "flex items-center gap-1 text-xs px-2 py-1 rounded-md transition-all",
+                        copied ? "text-emerald-400" : "text-muted-foreground hover:text-foreground"
+                      )}
+                    >
+                      {copied ? <CheckCircle className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                      {copied ? "Copié" : "Copier"}
+                    </button>
+                  </div>
+
+                  {/* Content */}
+                  <div className="p-4 space-y-1 font-mono text-xs leading-relaxed text-foreground/90 whitespace-pre-wrap max-h-[520px] overflow-y-auto">
+                    {editedScript}
+                  </div>
+
+                  {/* Stats bar */}
+                  {(() => {
+                    const allText = [generated.script.hook, ...(generated.script.segments || []).map((s: any) => s.text)].filter(Boolean).join(" ");
+                    const wc = allText.trim().split(/\s+/).length;
+                    const mentions = (allText.toLowerCase().match(/captentdb/g) || []).length;
+                    const toolCount = (generated.script.segments || []).filter((s: any) => s.tool_url).length;
+                    return (
+                      <div className="px-4 py-2 border-t border-white/8 bg-white/3 flex items-center gap-4 text-[10px] text-muted-foreground flex-wrap">
+                        <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> {generated.script.total_duration_sec}s</span>
+                        <span className="flex items-center gap-1"><FileText className="w-3 h-3" /> ~{wc} mots</span>
+                        <span className="flex items-center gap-1"><Sparkles className="w-3 h-3 text-yellow-500" /> {mentions}× CaptentDB</span>
+                        <span className="flex items-center gap-1"><Link2 className="w-3 h-3 text-primary" /> {toolCount} outils référencés</span>
+                      </div>
+                    );
+                  })()}
+                </div>
+              )}
+
+              {/* Edit view */}
+              {scriptTab === "edit" && (
+                <div className="space-y-2">
+                  <textarea
+                    ref={scriptRef}
+                    value={editedScript}
+                    onChange={(e) => setEditedScript(e.target.value)}
+                    className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-3 text-xs font-mono resize-none focus:outline-none focus:border-primary text-foreground leading-relaxed"
+                    rows={22}
+                    spellCheck={false}
+                  />
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] text-muted-foreground">
+                      {editedScript.trim().split(/\s+/).length} mots · {editedScript.length} caractères
+                    </span>
+                    <button
+                      onClick={() => setEditedScript(buildRichScript(generated.script, generated))}
+                      className="text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      ↺ Réinitialiser
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
