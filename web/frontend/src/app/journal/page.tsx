@@ -45,6 +45,10 @@ const RESULT_META_BASE = {
 
 const TIMEFRAMES = ["1m","5m","15m","30m","1h","4h","1d","1w"];
 const SETUPS     = ["Breakout","Reversal","Trend Following","Range","Support/Résistance","Pattern","News","Autre"];
+const SETUP_LABELS_EN: Record<string, string> = {
+  "Support/Résistance": "Support/Resistance",
+  "Autre": "Other",
+};
 
 // ── Stat card ─────────────────────────────────────────────────────────────────
 
@@ -69,7 +73,7 @@ function EntryCard({
   onEdit: (e: JournalEntry) => void;
   onDelete: (id: number) => void;
 }) {
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
   const [showScreenshot, setShowScreenshot] = useState(false);
   const RESULT_META = {
     win:       { label: t("journal_win"),       ...RESULT_META_BASE.win },
@@ -109,7 +113,7 @@ function EntryCard({
           )}
           {entry.setup && (
             <span className="text-xs text-muted-foreground bg-white/5 px-2 py-0.5 rounded-md hidden sm:inline">
-              {entry.setup}
+              {lang === "en" ? (SETUP_LABELS_EN[entry.setup] || entry.setup) : entry.setup}
             </span>
           )}
         </div>
@@ -372,7 +376,7 @@ function JournalForm({
   onSave: (data: JournalEntryCreate) => Promise<void>;
   onClose: () => void;
 }) {
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
   const RESULT_META = {
     win:       { label: t("journal_win"),       ...RESULT_META_BASE.win },
     loss:      { label: t("journal_loss"),      ...RESULT_META_BASE.loss },
@@ -543,7 +547,7 @@ function JournalForm({
                 onChange={e => set("setup", e.target.value || undefined)}
               >
                 <option value="">{t("journal_setup_ph")}</option>
-                {SETUPS.map(s => <option key={s}>{s}</option>)}
+                {SETUPS.map(s => <option key={s} value={s}>{lang === "en" ? (SETUP_LABELS_EN[s] || s) : s}</option>)}
               </select>
             </div>
           </div>

@@ -250,16 +250,26 @@ export default function CommunityPage() {
           <div className="flex items-center gap-3 text-sm text-muted-foreground">
             <HelpGuide
               size="sm"
-              title="Communauté"
-              intro="Échange avec les autres traders, partage tes analyses et obtiens de l'aide de l'équipe CaptenTDB."
-              sections={[
+              title={lang === "en" ? "Community" : "Communauté"}
+              intro={lang === "en"
+                ? "Chat with other traders, share your analyses and get help from the CaptenTDB team."
+                : "Échange avec les autres traders, partage tes analyses et obtiens de l'aide de l'équipe CaptenTDB."}
+              sections={lang === "en" ? [
+                { title: "Live chat", desc: "Chat in real time with community members. Share your trade ideas and analyses." },
+                { title: "Reactions & replies", desc: "React to messages or reply directly to a member. Conversations stay organised." },
+                { title: "Contact & support", desc: "In the 'Contact' tab, send a message to the team for any technical question or suggestion." },
+                { title: "Support tickets", desc: "For detailed follow-up on your request, create a ticket. The team replies within 24 working hours." },
+                { title: "Code of conduct", desc: "Respect and kindness are required. Shared analyses do not constitute investment advice." },
+              ] : [
                 { title: "Chat en direct", desc: "Discute en temps réel avec les membres de la communauté. Partage tes idées de trades et tes analyses." },
                 { title: "Réactions & réponses", desc: "Réagis aux messages avec des emojis ou réponds directement à un membre. Les conversations restent organisées." },
                 { title: "Contact & support", desc: "Dans l'onglet 'Contact', envoie un message à l'équipe pour toute question technique ou suggestion." },
                 { title: "Tickets de support", desc: "Pour un suivi détaillé de ta demande, crée un ticket. L'équipe te répond sous 24h ouvrées." },
                 { title: "Règles de bonne conduite", desc: "Respect et bienveillance sont requis. Les analyses partagées ne constituent pas des conseils en investissement." },
               ]}
-              tip="Utilise la communauté pour obtenir un second avis sur tes analyses avant de prendre une décision de trading."
+              tip={lang === "en"
+                ? "Use the community to get a second opinion on your analyses before making a trading decision."
+                : "Utilise la communauté pour obtenir un second avis sur tes analyses avant de prendre une décision de trading."}
             />
             <span className="w-2 h-2 rounded-full bg-profit animate-pulse" />
             <span>{onlineCount} {t("community_online")}</span>
@@ -553,7 +563,7 @@ export default function CommunityPage() {
                 ) : (
                   <span className="flex items-center justify-center gap-2">
                     <Send className="w-4 h-4" />
-                    Envoyer le message
+                    {t("community_send_msg")}
                   </span>
                 )}
               </motion.button>
@@ -574,15 +584,15 @@ export default function CommunityPage() {
                   className="text-sm text-muted-foreground hover:text-foreground mb-3 flex items-center gap-1"
                 >
                   <ChevronRight className="w-4 h-4 rotate-180" />
-                  Retour aux tickets
+                  {t("community_back_tickets")}
                 </button>
                 <div className="flex items-center justify-between">
                   <div>
                     <h3 className="font-semibold">{selectedTicket.subject}</h3>
                     <p className="text-sm text-muted-foreground">
-                      Cree le{" "}
+                      {t("community_created_on")}{" "}
                       {new Date(selectedTicket.created_at).toLocaleDateString(
-                        "fr-FR"
+                        lang === "en" ? "en-US" : "fr-FR"
                       )}
                     </p>
                   </div>
@@ -642,7 +652,7 @@ export default function CommunityPage() {
                       onKeyPress={(e) =>
                         e.key === "Enter" && handleTicketReply()
                       }
-                      placeholder="Votre reponse..."
+                      placeholder={t("community_ticket_reply")}
                       className="flex-1 input"
                       disabled={isSendingReply}
                     />
@@ -673,16 +683,16 @@ export default function CommunityPage() {
                 <div className="text-center py-12 glass-card rounded-xl">
                   <Mail className="w-16 h-16 mx-auto mb-4 text-muted-foreground opacity-50" />
                   <h2 className="text-lg font-semibold mb-2">
-                    Aucun ticket de support
+                    {t("community_no_tickets")}
                   </h2>
                   <p className="text-muted-foreground mb-4">
-                    Vous n'avez pas encore contacte l'administration.
+                    {t("community_no_tickets_sub")}
                   </p>
                   <button
                     onClick={() => setActiveTab("contact")}
                     className="btn-primary"
                   >
-                    Creer un ticket
+                    {t("community_create_ticket")}
                   </button>
                 </div>
               ) : (
@@ -730,12 +740,12 @@ export default function CommunityPage() {
                           {ticket.status === "open" ? (
                             <>
                               <AlertCircle className="w-3 h-3" />
-                              Ouvert
+                              {t("community_status_open")}
                             </>
                           ) : (
                             <>
                               <CheckCircle className="w-3 h-3" />
-                              Ferme
+                              {t("community_status_closed")}
                             </>
                           )}
                         </span>
@@ -752,7 +762,7 @@ export default function CommunityPage() {
 
       {/* Footer */}
       <div className="mt-4 text-center text-xs text-muted-foreground">
-        Fait par CaptenQwark - CaptenTDB
+        CaptenTDB by CaptenQwark
       </div>
     </motion.div>
   );

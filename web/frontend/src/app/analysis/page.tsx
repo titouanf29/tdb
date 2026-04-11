@@ -80,6 +80,7 @@ function RealPositionBanner({
   signal?: { text: string; emoji: string };
   trend?: string;
 }) {
+  const { t } = useLanguage();
   const isLong = position.position_type === "long";
   const lev = position.leverage ?? 1;
   const invested = position.entry_price * position.quantity;
@@ -136,20 +137,20 @@ function RealPositionBanner({
       {nearSL && (
         <div className="flex items-center gap-2 px-5 py-2 bg-red-500/15 text-red-400 text-xs font-medium">
           <AlertTriangle className="w-3.5 h-3.5 animate-pulse" />
-          Prix proche du Stop Loss — surveillez votre position
+          {t("analysis_near_sl")}
         </div>
       )}
       {nearTP && !nearSL && (
         <div className="flex items-center gap-2 px-5 py-2 bg-emerald-500/15 text-emerald-400 text-xs font-medium">
           <CheckCircle className="w-3.5 h-3.5" />
-          Prix proche du Take Profit — objectif presque atteint
+          {t("analysis_near_tp")}
         </div>
       )}
 
       <div className="px-5 py-4 flex flex-wrap items-center gap-4">
         <div className="flex items-center gap-2">
           <Briefcase className="w-4 h-4 text-primary flex-shrink-0" />
-          <span className="font-semibold text-sm">Votre position réelle</span>
+          <span className="font-semibold text-sm">{t("analysis_real_position")}</span>
           <span className={cn(
             "text-xs font-bold px-1.5 py-0.5 rounded",
             isLong ? "bg-emerald-500/15 text-emerald-400" : "bg-red-500/15 text-red-400"
@@ -167,29 +168,29 @@ function RealPositionBanner({
                 ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/25"
                 : "bg-orange-500/15 text-orange-400 border border-orange-500/25"
             )}>
-              {aligned ? "✓ Signal aligné" : "⚠ Signal contraire"}
+              {aligned ? t("analysis_signal_aligned") : t("analysis_signal_contrary")}
             </span>
           )}
         </div>
 
         <div className="flex flex-wrap gap-4 text-xs">
           <div>
-            <span className="text-muted-foreground">Entrée : </span>
+            <span className="text-muted-foreground">{t("analysis_entry_lbl")} : </span>
             <span className="font-medium">{position.entry_price.toLocaleString("fr-FR", { maximumFractionDigits: 6 })}</span>
           </div>
           <div>
-            <span className="text-muted-foreground">Actuel : </span>
+            <span className="text-muted-foreground">{t("analysis_current_lbl")} : </span>
             <span className={cn("font-medium", isProfit ? "text-emerald-400" : "text-red-400")}>
               {currentPrice.toLocaleString("fr-FR", { maximumFractionDigits: 6 })}
             </span>
           </div>
           <div>
-            <span className="text-muted-foreground">Qté : </span>
+            <span className="text-muted-foreground">{t("analysis_qty_lbl")} : </span>
             <span className="font-medium">{position.quantity}</span>
           </div>
           {position.days_held !== undefined && (
             <div>
-              <span className="text-muted-foreground">Détenus : </span>
+              <span className="text-muted-foreground">{t("analysis_held_lbl")} : </span>
               <span className="font-medium">{position.days_held} j</span>
             </div>
           )}
@@ -226,7 +227,7 @@ function RealPositionBanner({
       {tpProgress !== null && position.take_profit && (
         <div className="px-5 pb-3">
           <div className="flex items-center justify-between text-xs text-muted-foreground mb-1">
-            <span>Progression vers TP</span>
+            <span>{t("analysis_tp_progress")}</span>
             <span className="text-emerald-400 font-medium">{tpProgress.toFixed(0)}%</span>
           </div>
           <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
@@ -459,7 +460,7 @@ export default function AnalysisPage() {
       <div className="glass-card p-6">
         <div className="mb-4">
           <div className="flex items-start justify-between gap-3 flex-wrap">
-            <h2 className="text-lg font-semibold">Analyse IA de séance</h2>
+            <h2 className="text-lg font-semibold">{t("analysis_session_title")}</h2>
             <div className="flex items-center gap-2 flex-wrap">
               {/* Level badge */}
               <span className={cn(
@@ -468,9 +469,9 @@ export default function AnalysisPage() {
                 tradingLevel === "expert"       ? "bg-purple-500/15 border-purple-500/40 text-purple-400" :
                                                   "bg-blue-500/15 border-blue-500/40 text-blue-400"
               )}>
-                {tradingLevel === "beginner" ? <><GraduationCap className="w-3 h-3" /> Débutant</> :
-                 tradingLevel === "expert"   ? <><Zap className="w-3 h-3" /> Expert</> :
-                                               <><TrendingUp className="w-3 h-3" /> Intermédiaire</>}
+                {tradingLevel === "beginner" ? <><GraduationCap className="w-3 h-3" /> {t("analysis_beginner")}</> :
+                 tradingLevel === "expert"   ? <><Zap className="w-3 h-3" /> {t("analysis_expert")}</> :
+                                               <><TrendingUp className="w-3 h-3" /> {t("analysis_intermediate")}</>}
               </span>
               {/* Style badge */}
               <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium border bg-white/5 border-white/15 text-muted-foreground">
@@ -479,7 +480,7 @@ export default function AnalysisPage() {
             </div>
           </div>
           <p className="text-sm text-muted-foreground mt-1">
-            Recherchez n'importe quel actif (action, ETF, crypto, indice) pour obtenir une analyse technique complète enrichie par l'intelligence artificielle. L'analyse s'adapte automatiquement à votre style de trading — scalping, day trading, swing ou long terme — et à votre profil de risque.
+            {t("analysis_session_desc")}
           </p>
         </div>
         <div className="flex flex-col md:flex-row gap-3">
@@ -595,10 +596,10 @@ export default function AnalysisPage() {
             </button>
           ) : (
             <div className="space-y-4 p-4 rounded-xl bg-white/5">
-              <h3 className="font-semibold">Demander l'ajout de "{symbol}"</h3>
+              <h3 className="font-semibold">{t("analysis_request_title")} "{symbol}"</h3>
 
               <div>
-                <label className="text-sm text-muted-foreground">Type d'actif</label>
+                <label className="text-sm text-muted-foreground">{t("analysis_asset_type")}</label>
                 <select
                   value={requestAssetType}
                   onChange={(e) => setRequestAssetType(e.target.value)}
@@ -614,11 +615,11 @@ export default function AnalysisPage() {
               </div>
 
               <div>
-                <label className="text-sm text-muted-foreground">Raison (optionnel)</label>
+                <label className="text-sm text-muted-foreground">{t("analysis_reason_opt")}</label>
                 <textarea
                   value={requestReason}
                   onChange={(e) => setRequestReason(e.target.value)}
-                  placeholder="Pourquoi souhaitez-vous suivre cet actif?"
+                  placeholder={t("analysis_reason_ph")}
                   className="w-full input mt-1 min-h-[80px]"
                 />
               </div>
@@ -634,13 +635,13 @@ export default function AnalysisPage() {
                   ) : (
                     <ArrowRight className="w-4 h-4" />
                   )}
-                  Envoyer la demande
+                  {t("analysis_send_request")}
                 </button>
                 <button
                   onClick={() => setShowRequestForm(false)}
                   className="btn-ghost"
                 >
-                  Annuler
+                  {t("cancel")}
                 </button>
               </div>
             </div>
@@ -774,19 +775,19 @@ export default function AnalysisPage() {
             >
               <h3 className="font-semibold mb-4 flex items-center gap-2">
                 <BarChart3 className="w-5 h-5 text-primary" />
-                Detail du Score
+                {t("analysis_score_detail")}
               </h3>
               <div className="space-y-4">
-                <ScoreBar label="Technique (30%)" score={analysis.score.technical} />
-                <ScoreBar label="Tendance (25%)" score={(analysis.score as any).trend ?? 50} />
-                <ScoreBar label="Volume (20%)" score={analysis.score.volume} />
-                <ScoreBar label="Momentum (20%)" score={analysis.score.momentum} />
-                <ScoreBar label="Volatilité (5%)" score={(analysis.score as any).volatility ?? 60} />
+                <ScoreBar label={`${t("analysis_technical")} (30%)`} score={analysis.score.technical} />
+                <ScoreBar label={`${t("analysis_trend")} (25%)`} score={(analysis.score as any).trend ?? 50} />
+                <ScoreBar label={`${t("analysis_volume")} (20%)`} score={analysis.score.volume} />
+                <ScoreBar label={`${t("analysis_momentum")} (20%)`} score={analysis.score.momentum} />
+                <ScoreBar label={`${t("analysis_volatility")} (5%)`} score={(analysis.score as any).volatility ?? 60} />
                 {analysis.score.fundamental !== undefined && (
-                  <ScoreBar label="Fondamentaux" score={analysis.score.fundamental} />
+                  <ScoreBar label={t("analysis_fundamentals")} score={analysis.score.fundamental} />
                 )}
                 {(analysis.score as any).conviction !== undefined && (
-                  <ScoreBar label="Conviction" score={(analysis.score as any).conviction} />
+                  <ScoreBar label={t("analysis_conviction")} score={(analysis.score as any).conviction} />
                 )}
               </div>
             </motion.div>
@@ -800,11 +801,11 @@ export default function AnalysisPage() {
             >
               <h3 className="font-semibold mb-4 flex items-center gap-2">
                 <Activity className="w-5 h-5 text-primary" />
-                Prix & Niveaux
+                {t("analysis_price_levels")}
               </h3>
               <div className="space-y-3">
                 <div className="flex justify-between items-center p-3 bg-white/5 rounded-lg">
-                  <span className="text-muted-foreground">Prix actuel</span>
+                  <span className="text-muted-foreground">{t("analysis_current_price")}</span>
                   <div className="text-right">
                     <span className="font-bold text-lg">{formatPrice(analysis.price.current)}</span>
                     <span className={cn(
@@ -816,15 +817,15 @@ export default function AnalysisPage() {
                   </div>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-muted-foreground">Resistance</span>
+                  <span className="text-muted-foreground">{t("analysis_resistance")}</span>
                   <span className="text-loss font-semibold">{formatCurrency(analysis.levels.resistance)}</span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-muted-foreground">Pivot</span>
+                  <span className="text-muted-foreground">{t("analysis_pivot")}</span>
                   <span className="font-semibold">{formatCurrency(analysis.levels.pivot)}</span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-muted-foreground">Support</span>
+                  <span className="text-muted-foreground">{t("analysis_support")}</span>
                   <span className="text-profit font-semibold">{formatCurrency(analysis.levels.support)}</span>
                 </div>
               </div>
@@ -1266,6 +1267,7 @@ function IndicatorCard({
     weight?: string;
   };
 }) {
+  const { t } = useLanguage();
   const [expanded, setExpanded] = useState(false);
 
   const normalizedSignal =
@@ -1321,7 +1323,7 @@ function IndicatorCard({
         </div>
         <p className="font-bold text-lg">{value}</p>
         <p className={cn("text-xs font-semibold mt-1", signalLabel[normalizedSignal].color)}>
-          {signal === "oversold" ? "Survendu" : signal === "overbought" ? "Suracheté" : signalLabel[normalizedSignal].text}
+          {signal === "oversold" ? t("analysis_oversold") : signal === "overbought" ? t("analysis_overbought") : signalLabel[normalizedSignal].text}
         </p>
         {!detail && tooltip && <p className="text-xs text-muted-foreground mt-1 line-clamp-2 leading-tight">{tooltip}</p>}
       </div>
@@ -1381,6 +1383,7 @@ function IndicatorCard({
 }
 
 function FibonacciSection({ analysis, formatCurrency }: { analysis: Analysis; formatCurrency: (v: number) => string }) {
+  const { t } = useLanguage();
   const [showExplainer, setShowExplainer] = useState(false);
   const [expandedRows, setExpandedRows] = useState<Record<string, boolean>>({});
   const fib = analysis.fibonacci!;
@@ -1731,16 +1734,16 @@ function FibonacciSection({ analysis, formatCurrency }: { analysis: Analysis; fo
                             </span>
                           </div>
                           <div>
-                            <span className="text-foreground/40">Rôle actuel : </span>
-                            <span className="font-semibold text-foreground/80">{isPriceAbove ? "Support potentiel" : "Résistance potentielle"}</span>
+                            <span className="text-foreground/40">{t("analysis_fib_role")} : </span>
+                            <span className="font-semibold text-foreground/80">{isPriceAbove ? t("analysis_fib_support") : t("analysis_fib_resistance")}</span>
                           </div>
                           <div>
-                            <span className="text-foreground/40">Importance : </span>
+                            <span className="text-foreground/40">{t("analysis_fib_importance")} : </span>
                             <span className={cn("font-semibold",
                               meta?.importance === "high" ? "text-primary" :
                               meta?.importance === "medium" ? "text-warning" : "text-muted-foreground"
                             )}>
-                              {meta?.importance === "high" ? "★★★ Élevée" : meta?.importance === "medium" ? "★★ Moyenne" : "★ Faible"}
+                              {meta?.importance === "high" ? t("analysis_fib_high") : meta?.importance === "medium" ? t("analysis_fib_medium") : t("analysis_fib_low_imp")}
                             </span>
                           </div>
                         </div>
@@ -1773,6 +1776,7 @@ function FibonacciSection({ analysis, formatCurrency }: { analysis: Analysis; fo
 }
 
 function WeekRangeSection({ analysis, formatCurrency }: { analysis: Analysis; formatCurrency: (v: number) => string }) {
+  const { t } = useLanguage();
   const low52 = analysis.fundamentals!["52w_low"]!;
   const high52 = analysis.fundamentals!["52w_high"]!;
   const price = analysis.price.current;
@@ -1812,7 +1816,7 @@ function WeekRangeSection({ analysis, formatCurrency }: { analysis: Analysis; fo
           <div className="text-center">
             <p className="text-lg font-bold">{formatCurrency(price)}</p>
             <p className="text-xs text-muted-foreground">
-              {position.toFixed(0)}% du range annuel — {position > 80 ? "Près du sommet annuel" : position < 20 ? "Près du plancher annuel" : "Zone médiane"}
+              {position.toFixed(0)}% {t("analysis_annual_range")} — {position > 80 ? t("analysis_near_top") : position < 20 ? t("analysis_near_floor") : t("analysis_mid_zone")}
             </p>
           </div>
           <span className="text-xs text-muted-foreground">100%</span>
@@ -3077,6 +3081,7 @@ function AIInsightSection({
   tradingLevel?: string;
   onReload: () => void;
 }) {
+  const { t, lang } = useLanguage();
   const [error, setError] = useState<string | null>(null);
 
   const handleReload = async () => {
@@ -3086,15 +3091,15 @@ function AIInsightSection({
     } catch (err: any) {
       const msg: string = err.message || "";
       if (msg.includes("not configured") || msg.includes("API_KEY") || msg.includes("GROQ")) {
-        setError("L'assistant IA n'est pas configuré. Contactez l'administrateur.");
+        setError(lang === "en" ? "AI assistant is not configured. Contact the administrator." : "L'assistant IA n'est pas configuré. Contactez l'administrateur.");
       } else if (msg.includes("503") || err.status === 503) {
-        setError("L'assistant IA n'est pas disponible. Vérifiez la configuration GROQ_API_KEY.");
+        setError(lang === "en" ? "AI assistant is unavailable. Check GROQ_API_KEY configuration." : "L'assistant IA n'est pas disponible. Vérifiez la configuration GROQ_API_KEY.");
       } else if (msg.includes("429") || err.status === 429) {
-        setError(msg || "Service IA surchargé. Réessayez dans quelques secondes.");
+        setError(msg || (lang === "en" ? "AI service overloaded. Retry in a few seconds." : "Service IA surchargé. Réessayez dans quelques secondes."));
       } else if (msg.includes("timeout") || msg.includes("504")) {
-        setError("L'analyse a pris trop de temps. Reessayez.");
+        setError(lang === "en" ? "Analysis took too long. Please retry." : "L'analyse a pris trop de temps. Reessayez.");
       } else {
-        setError(msg || "Erreur lors de la génération de l'analyse. Vérifiez que GROQ_API_KEY est configuré.");
+        setError(msg || (lang === "en" ? "Error generating analysis. Check that GROQ_API_KEY is configured." : "Erreur lors de la génération de l'analyse. Vérifiez que GROQ_API_KEY est configuré."));
       }
     }
   };
@@ -3111,16 +3116,19 @@ function AIInsightSection({
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-semibold flex items-center gap-2 text-lg flex-wrap">
             <Brain className="w-5 h-5 text-purple-400" />
-            Analyse IA & Prévisions
+            {t("analysis_ai_forecasts")}
             <span className="px-2 py-0.5 bg-purple-500/20 text-purple-400 text-xs rounded-full">Premium</span>
             {/* Active style + level badges */}
             <span className="px-2 py-0.5 bg-white/10 text-xs rounded-full text-muted-foreground font-normal">
-              {STYLE_LABELS[tradingStyle]?.emoji ?? "📈"} {STYLE_LABELS[tradingStyle]?.label ?? tradingStyle}
-              {" · "}{RISK_LABELS[riskLevel] ?? riskLevel}
+              {STYLE_LABELS[tradingStyle]?.emoji ?? "📈"} {tradingStyle === "long" ? (lang === "en" ? "Long Term" : "Long Terme") : (STYLE_LABELS[tradingStyle]?.label ?? tradingStyle)}
+              {" · "}{lang === "en"
+                ? ({ conservative: "Conservative", moderate: "Moderate", aggressive: "Aggressive", very_aggressive: "Very Aggressive" }[riskLevel] ?? riskLevel)
+                : (RISK_LABELS[riskLevel] ?? riskLevel)}
             </span>
             {(() => { const lv = LEVEL_LABELS[tradingLevel]; const LvIcon = lv?.icon; return lv ? (
               <span className={cn("px-2 py-0.5 bg-white/10 text-xs rounded-full font-normal flex items-center gap-1", lv.color)}>
-                {LvIcon && <LvIcon className="w-3 h-3" />}{lv.label}
+                {LvIcon && <LvIcon className="w-3 h-3" />}
+                {tradingLevel === "beginner" ? t("analysis_beginner") : tradingLevel === "expert" ? t("analysis_expert") : t("analysis_intermediate")}
               </span>
             ) : null; })()}
           </h3>

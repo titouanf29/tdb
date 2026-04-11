@@ -34,6 +34,7 @@ import remarkGfm from "remark-gfm";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/AuthContext";
 import { usePremium } from "@/lib/PremiumContext";
+import { useLanguage } from "@/lib/LanguageContext";
 import { toolsAPI, type AdviceData, type AdviceCard } from "@/lib/api";
 import {
   LEARN_MODULES,
@@ -645,6 +646,7 @@ function LessonChart({ lessonId }: { lessonId: string }) {
 // ─── Fiches Conseils Section ──────────────────────────────────────────────────
 function FichesConseilsSection() {
   const { isPremium } = usePremium();
+  const { t } = useLanguage();
   const [data, setData] = useState<AdviceData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string>("");
@@ -673,7 +675,7 @@ function FichesConseilsSection() {
       setSelectedCard(detail);
     } catch (e: any) {
       if (e.status === 403) {
-        setSelectedCard({ ...card, locked: true, lock_message: "Contenu réservé aux membres Premium" });
+        setSelectedCard({ ...card, locked: true, lock_message: t("learn_premium_locked") });
       }
     } finally {
       setLoadingCard(false);
@@ -696,7 +698,7 @@ function FichesConseilsSection() {
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <BookOpen className="w-5 h-5 text-primary" />
-            <h2 className="text-lg font-semibold">Fiches Conseils Trading</h2>
+            <h2 className="text-lg font-semibold">{t("learn_fiches_title")}</h2>
           </div>
           <div className="flex items-center gap-3">
             <select
@@ -704,7 +706,7 @@ function FichesConseilsSection() {
               onChange={(e) => setSelectedCategory(e.target.value)}
               className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-sm"
             >
-              <option value="" className="bg-background">Toutes les catégories</option>
+              <option value="" className="bg-background">{t("learn_all_categories")}</option>
               {data?.categories.map((cat) => (
                 <option key={cat.key} value={cat.key} className="bg-background">{cat.label}</option>
               ))}
@@ -718,8 +720,8 @@ function FichesConseilsSection() {
           <div className="p-3 rounded-lg bg-yellow-500/10 border border-yellow-500/30 flex items-center gap-3">
             <Crown className="w-5 h-5 text-yellow-400" />
             <p className="text-sm text-yellow-400">
-              Certaines fiches sont réservées aux membres Premium.{" "}
-              <a href="/premium" className="underline hover:no-underline">Passer Premium</a>
+              {t("learn_premium_fiches")}{" "}
+              <a href="/premium" className="underline hover:no-underline">{t("learn_go_premium")}</a>
             </p>
           </div>
         )}
@@ -862,6 +864,7 @@ function saveProgress(p: Progress) {
 // ─── Main page ──────────────────────────────────────────────────────────────
 export default function LearnPage() {
   const { user } = useAuth();
+  const { t, lang } = useLanguage();
   const [progress, setProgress] = useState<Progress>({ completedLessons: [], quizScores: {} });
   const [activeModule, setActiveModule] = useState<Module | null>(null);
   const [activeLesson, setActiveLesson] = useState<Lesson | null>(null);
@@ -928,28 +931,38 @@ export default function LearnPage() {
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2">
             <GraduationCap className="w-6 h-6 text-primary" />
-            Formation Trading
+            {t("learn_title")}
             <HelpGuide
               size="sm"
-              title="Formation Trading"
-              intro="Apprends le trading de façon structurée avec des modules progressifs, des quiz et des fiches pratiques."
-              sections={[
+              title={lang === "en" ? "Trading Education" : "Formation Trading"}
+              intro={lang === "en"
+                ? "Learn trading in a structured way with progressive modules, quizzes and practical guides."
+                : "Apprends le trading de façon structurée avec des modules progressifs, des quiz et des fiches pratiques."}
+              sections={lang === "en" ? [
+                { title: "Modules", desc: "Each module covers a theme (technical analysis, risk management, psychology…). Complete them in order to progress." },
+                { title: "Lessons", desc: "Each lesson contains theory, concrete examples and a validation quiz." },
+                { title: "Quiz", desc: "Validate your knowledge with practical questions. You need to answer correctly to unlock the next lesson." },
+                { title: "Progress", desc: "Your progress is saved. You can resume at any point where you left off." },
+                { title: "Tips & Guides", desc: "Practical guides summarise the key takeaways for each strategy or concept." },
+              ] : [
                 { title: "Modules", desc: "Chaque module couvre un thème (analyse technique, gestion du risque, psychologie…). Complète-les dans l'ordre pour progresser." },
                 { title: "Leçons", desc: "Chaque leçon contient des explications théoriques, des exemples concrets et un quiz de validation." },
                 { title: "Quiz", desc: "Valide tes acquis avec des questions pratiques. Tu dois répondre correctement pour débloquer la leçon suivante." },
                 { title: "Progression", desc: "Ta progression est sauvegardée. Tu peux reprendre à n'importe quel moment où tu t'es arrêté." },
                 { title: "Fiches conseils", desc: "Des fiches pratiques résument les points clés à retenir sur chaque stratégie ou concept." },
               ]}
-              tip="Commence par le module 'Bases du trading' si tu débutes, même si tu as déjà quelques connaissances — les fondamentaux sont essentiels."
+              tip={lang === "en"
+                ? "Start with the 'Trading Basics' module if you're a beginner — even if you have some knowledge, the fundamentals are essential."
+                : "Commence par le module 'Bases du trading' si tu débutes, même si tu as déjà quelques connaissances — les fondamentaux sont essentiels."}
             />
           </h1>
           <p className="text-muted-foreground mt-1">
-            Apprends les bases et les techniques du trading, à ton rythme.
+            {t("learn_subtitle_full")}
           </p>
         </div>
         {userLevel && (
           <div className={cn("px-3 py-1.5 rounded-full text-sm font-medium border", getLevelBadge(userLevel).color)}>
-            Niveau : {getLevelBadge(userLevel).label}
+            {t("learn_level_label")} {getLevelBadge(userLevel).label}
           </div>
         )}
       </div>
@@ -965,7 +978,7 @@ export default function LearnPage() {
             )}
           >
             <GraduationCap className="w-4 h-4" />
-            Modules de formation
+            {t("learn_tab_modules")}
           </button>
           <button
             onClick={() => setMainTab("fiches")}
@@ -975,7 +988,7 @@ export default function LearnPage() {
             )}
           >
             <BookOpen className="w-4 h-4" />
-            Fiches Conseils
+            {t("learn_tab_fiches")}
           </button>
         </div>
       </div>
@@ -991,10 +1004,10 @@ export default function LearnPage() {
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
             <Trophy className="w-5 h-5 text-yellow-400" />
-            <span className="font-semibold">Progression globale</span>
+            <span className="font-semibold">{t("learn_overall_progress")}</span>
           </div>
           <span className="text-sm text-muted-foreground">
-            {completedCount} / {totalLessons} leçons
+            {completedCount} / {totalLessons} {t("learn_lessons")}
           </span>
         </div>
         <div className="h-3 bg-white/10 rounded-full overflow-hidden">
@@ -1006,9 +1019,9 @@ export default function LearnPage() {
           />
         </div>
         <div className="flex justify-between mt-2 text-xs text-muted-foreground">
-          <span>Débutant</span>
+          <span>{t("learn_level_beginner")}</span>
           <span className="font-medium text-primary">{overallPercent}%</span>
-          <span>Expert</span>
+          <span>{t("learn_level_expert")}</span>
         </div>
       </div>
 
@@ -1018,16 +1031,16 @@ export default function LearnPage() {
           <div className="flex items-start gap-3">
             <Star className="w-5 h-5 text-emerald-400 mt-0.5 shrink-0" />
             <div>
-              <p className="font-semibold text-emerald-400 mb-1">Commençons par le début !</p>
+              <p className="font-semibold text-emerald-400 mb-1">{t("learn_lets_start")}</p>
               <p className="text-sm text-white/70">
-                On te recommande de commencer par{" "}
+                {t("learn_recommendation")}{" "}
                 <button
                   onClick={() => setActiveModule(LEARN_MODULES[0])}
                   className="text-emerald-400 underline hover:no-underline"
                 >
-                  Les bases du trading
+                  {t("learn_trading_bases")}
                 </button>
-                . Chaque leçon prend moins de 10 minutes.
+                . {t("learn_lesson_time")}
               </p>
             </div>
           </div>
@@ -1082,9 +1095,9 @@ export default function LearnPage() {
                 <div className="flex justify-between text-xs text-white/50">
                   <span className="flex items-center gap-1">
                     <BookOpen className="w-3 h-3" />
-                    {moduleLessons} leçons
+                    {moduleLessons} {t("learn_lessons")}
                   </span>
-                  <span>{completedInModule}/{moduleLessons} complétées</span>
+                  <span>{completedInModule}/{moduleLessons} {t("learn_completed")}</span>
                 </div>
                 <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
                   <div
@@ -1096,7 +1109,7 @@ export default function LearnPage() {
 
               {!isLocked && (
                 <div className="mt-3 flex items-center gap-1 text-xs text-white/40 group-hover:text-white/60 transition-colors">
-                  <span>{modulePercent === 100 ? "Revoir le module" : modulePercent > 0 ? "Continuer" : "Commencer"}</span>
+                  <span>{modulePercent === 100 ? t("learn_review_module") : modulePercent > 0 ? t("learn_continue") : t("learn_start")}</span>
                   <ChevronRight className="w-3 h-3" />
                 </div>
               )}
@@ -1122,6 +1135,7 @@ function ModuleView({
   onSelectLesson: (l: Lesson) => void;
   onBack: () => void;
 }) {
+  const { t } = useLanguage();
   const completedInModule = module.lessons.filter((l) =>
     progress.completedLessons.includes(`${module.id}/${l.id}`)
   ).length;
@@ -1137,7 +1151,7 @@ function ModuleView({
         className="flex items-center gap-2 text-sm text-muted-foreground hover:text-white transition-colors"
       >
         <ChevronLeft className="w-4 h-4" />
-        Retour aux modules
+        {t("learn_back_modules")}
       </button>
 
       <div className={cn("p-6 rounded-xl border bg-gradient-to-br", module.color)}>
@@ -1145,7 +1159,7 @@ function ModuleView({
           <span className="text-4xl">{module.icon}</span>
           <div>
             <h1 className="text-xl font-bold">{module.title}</h1>
-            <p className="text-sm text-white/60">{completedInModule} / {module.lessons.length} leçons complétées</p>
+            <p className="text-sm text-white/60">{completedInModule} / {module.lessons.length} {t("learn_lessons_completed")}</p>
           </div>
         </div>
         <p className="text-sm text-white/70">{module.description}</p>
@@ -1185,7 +1199,7 @@ function ModuleView({
                     <p className="font-semibold">{lesson.title}</p>
                     {lesson.quiz && (
                       <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary/15 border border-primary/30 text-primary">
-                        Quiz inclus
+                        {t("learn_quiz_included")}
                       </span>
                     )}
                   </div>
@@ -1232,6 +1246,7 @@ function LessonView({
   onSaveQuiz: (score: number) => void;
   onBack: () => void;
 }) {
+  const { t } = useLanguage();
   const key = `${module.id}/${lesson.id}`;
   const isCompleted = progress.completedLessons.includes(key);
   const [showQuiz, setShowQuiz] = useState(false);
@@ -1276,7 +1291,7 @@ function LessonView({
             {isCompleted && (
               <div className="flex items-center gap-1 text-xs text-emerald-400">
                 <CheckCircle2 className="w-4 h-4" />
-                Complétée
+                {t("learn_completed_label")}
               </div>
             )}
           </div>
@@ -1286,7 +1301,7 @@ function LessonView({
         <div className="p-4 rounded-xl bg-primary/10 border border-primary/20 mb-4">
           <p className="text-xs font-semibold text-primary mb-2 flex items-center gap-1">
             <Zap className="w-3 h-3" />
-            Points clés
+            {t("learn_key_points")}
           </p>
           <ul className="space-y-1.5">
             {lesson.keyPoints.map((point, i) => (
@@ -1346,12 +1361,12 @@ function LessonView({
             {lesson.quiz ? (
               <>
                 <Award className="w-4 h-4" />
-                {quizDone ? "Revoir le quiz" : "J'ai compris, passer au quiz !"}
+                {quizDone ? t("learn_review_quiz") : t("learn_understood")}
               </>
             ) : (
               <>
                 <CheckCircle2 className="w-4 h-4" />
-                Marquer comme lu
+                {t("learn_mark_read")}
               </>
             )}
           </button>
@@ -1388,6 +1403,7 @@ function QuizSection({
   onComplete: (score: number) => void;
   onClose: () => void;
 }) {
+  const { t } = useLanguage();
   const [current, setCurrent] = useState(0);
   const [answers, setAnswers] = useState<(number | null)[]>(questions.map(() => null));
   const [showResult, setShowResult] = useState(false);
@@ -1439,21 +1455,21 @@ function QuizSection({
         )}>
           {score >= 80 ? "🏆" : score >= 50 ? "📚" : "💪"}
         </div>
-        <h3 className="text-xl font-bold mb-2">Quiz terminé !</h3>
+        <h3 className="text-xl font-bold mb-2">{t("learn_quiz_done")}</h3>
         <p className="text-4xl font-black mb-2" style={{
           color: score >= 80 ? "#4ade80" : score >= 50 ? "#facc15" : "#f87171"
         }}>
           {score}%
         </p>
         <p className="text-muted-foreground mb-1">
-          {correct} / {questions.length} bonnes réponses
+          {correct} / {questions.length} {t("learn_correct_answers")}
         </p>
         <p className="text-sm text-white/60 mb-6">
           {score >= 80
-            ? "Excellent ! Vous maîtrisez ce contenu."
+            ? t("learn_quiz_excellent")
             : score >= 50
-            ? "Pas mal ! Revoir les points que vous avez manqués."
-            : "Continuez à apprendre, relisez la leçon avant de retenter."}
+            ? t("learn_quiz_good")
+            : t("learn_quiz_retry")}
         </p>
         <div className="flex gap-3 justify-center">
           <button
@@ -1461,14 +1477,14 @@ function QuizSection({
             className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white/10 hover:bg-white/15 transition-colors text-sm"
           >
             <RefreshCw className="w-4 h-4" />
-            Recommencer
+            {t("learn_restart")}
           </button>
           <button
             onClick={onClose}
             className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary hover:bg-primary/90 transition-colors text-sm text-white"
           >
             <Check className="w-4 h-4" />
-            Terminer
+            {t("learn_finish")}
           </button>
         </div>
       </motion.div>
@@ -1485,7 +1501,7 @@ function QuizSection({
       <div className="flex items-center justify-between mb-4">
         <h3 className="font-semibold flex items-center gap-2">
           <Award className="w-4 h-4 text-primary" />
-          Quiz — Question {current + 1} / {questions.length}
+          {t("learn_quiz_header")} {current + 1} / {questions.length}
         </h3>
         <button onClick={onClose} className="text-muted-foreground hover:text-white">
           <X className="w-4 h-4" />
@@ -1558,7 +1574,7 @@ function QuizSection({
               isCorrect ? "bg-emerald-500/10 border-emerald-500/30" : "bg-orange-500/10 border-orange-500/30"
             )}>
               <p className={cn("text-sm font-medium mb-1", isCorrect ? "text-emerald-400" : "text-orange-400")}>
-                {isCorrect ? "✓ Bonne réponse !" : "✗ Pas tout à fait..."}
+                {isCorrect ? t("learn_correct") : t("learn_incorrect")}
               </p>
               <p className="text-sm text-white/70">{q.explanation}</p>
             </div>
@@ -1572,9 +1588,9 @@ function QuizSection({
           className="w-full py-3 rounded-xl bg-primary hover:bg-primary/90 text-white font-medium transition-colors flex items-center justify-center gap-2"
         >
           {current < questions.length - 1 ? (
-            <>Question suivante <ChevronRight className="w-4 h-4" /></>
+            <>{t("learn_next_question")} <ChevronRight className="w-4 h-4" /></>
           ) : (
-            <>Voir les résultats <Trophy className="w-4 h-4" /></>
+            <>{t("learn_see_results")} <Trophy className="w-4 h-4" /></>
           )}
         </button>
       )}
