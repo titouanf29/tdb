@@ -24,7 +24,7 @@ import { HelpGuide } from "@/components/ui/HelpGuide";
 
 export default function WalletPage() {
   const formatCurrency = useFormatCurrency();
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
   const [balance, setBalance] = useState<WalletBalance | null>(null);
   const [positions, setPositions] = useState<Position[]>([]);
   const [history, setHistory] = useState<Position[]>([]);
@@ -98,7 +98,7 @@ export default function WalletPage() {
       setShowAddFundsModal(false);
       setAddFundsAmount("");
     } catch (error) {
-      setAddFundsError(error instanceof Error ? error.message : "Erreur lors de l'ajout");
+      setAddFundsError(error instanceof Error ? error.message : t("error_generic"));
     } finally {
       setIsAddingFunds(false);
     }
@@ -126,16 +126,26 @@ export default function WalletPage() {
         </div>
         <div className="flex gap-3 items-center">
           <HelpGuide
-            title="Wallet"
-            intro="Ton compte de trading virtuel : solde disponible, historique des transactions et statistiques de performance."
-            sections={[
+            title={lang === "en" ? "Wallet" : "Wallet"}
+            intro={lang === "en"
+              ? "Your virtual trading account: available balance, transaction history and performance statistics."
+              : "Ton compte de trading virtuel : solde disponible, historique des transactions et statistiques de performance."}
+            sections={lang === "en" ? [
+              { title: "Balance & equity", desc: "The available balance is what you can use to open new positions. Equity includes the P&L of open positions." },
+              { title: "Add funds", desc: "Click '+ Add funds' to credit your virtual trading account and start trading." },
+              { title: "Open positions", desc: "List of active trades with their real-time P&L. You can close them directly from here." },
+              { title: "History", desc: "All your past trades with the date, direction (Long/Short), result and entry/exit levels." },
+              { title: "Statistics", desc: "Win rate, average gain, average loss, profit factor and other key performance metrics." },
+            ] : [
               { title: "Solde & équité", desc: "Le solde disponible est ce que tu peux utiliser pour ouvrir de nouvelles positions. L'équité inclut les P&L des positions ouvertes." },
               { title: "Ajouter des fonds", desc: "Clique sur '+ Ajouter des fonds' pour créditer ton compte de trading virtuel et commencer à trader." },
               { title: "Positions ouvertes", desc: "Liste des trades actifs avec leur P&L en temps réel. Tu peux les clôturer directement depuis ici." },
               { title: "Historique", desc: "Tous tes trades passés avec la date, le sens (Long/Short), le résultat et les niveaux d'entrée/sortie." },
               { title: "Statistiques", desc: "Taux de réussite, gain moyen, perte moyenne, facteur de profit et autres métriques clés de ta performance." },
             ]}
-            tip="Le trading virtuel ne comporte aucun risque financier réel. Utilise-le pour tester ta stratégie avant de passer au réel."
+            tip={lang === "en"
+              ? "Virtual trading carries no real financial risk. Use it to test your strategy before going live."
+              : "Le trading virtuel ne comporte aucun risque financier réel. Utilise-le pour tester ta stratégie avant de passer au réel."}
           />
           <button
             onClick={() => setShowAddFundsModal(true)}

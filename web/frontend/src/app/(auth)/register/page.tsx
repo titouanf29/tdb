@@ -11,7 +11,7 @@ import { useLanguage } from "@/lib/LanguageContext";
 export default function RegisterPage() {
   const router = useRouter();
   const { register } = useAuth();
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
   const [formData, setFormData] = useState({
     username: "",
     email: "",
@@ -33,17 +33,17 @@ export default function RegisterPage() {
     setError("");
 
     if (formData.password !== formData.confirmPassword) {
-      setError("Les mots de passe ne correspondent pas");
+      setError(lang === "en" ? "Passwords do not match" : "Les mots de passe ne correspondent pas");
       return;
     }
 
     if (formData.password.length < 6) {
-      setError("Le mot de passe doit contenir au moins 6 caractères");
+      setError(lang === "en" ? "Password must be at least 6 characters" : "Le mot de passe doit contenir au moins 6 caractères");
       return;
     }
 
     if (!acceptedTerms) {
-      setError("Vous devez accepter les conditions d'utilisation");
+      setError(lang === "en" ? "You must accept the terms of service" : "Vous devez accepter les conditions d'utilisation");
       return;
     }
 

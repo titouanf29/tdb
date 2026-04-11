@@ -159,7 +159,7 @@ function EntryCard({
       {entry.pre_trade_notes && (
         <div className="bg-white/5 rounded-lg p-3 space-y-1">
           <p className="text-xs text-muted-foreground font-medium flex items-center gap-1.5">
-            <StickyNote className="w-3.5 h-3.5" /> Analyse avant trade
+            <StickyNote className="w-3.5 h-3.5" /> {t("journal_pre_analysis")}
           </p>
           <p className="text-sm text-foreground/80 whitespace-pre-line">{entry.pre_trade_notes}</p>
         </div>
@@ -172,7 +172,7 @@ function EntryCard({
           meta ? meta.bg : "bg-white/5 border-white/10"
         )}>
           <p className={cn("text-xs font-medium flex items-center gap-1.5", meta?.color ?? "text-muted-foreground")}>
-            <ResultIcon className="w-3.5 h-3.5" /> Retour d'expérience
+            <ResultIcon className="w-3.5 h-3.5" /> {t("journal_post_review")}
           </p>
           <p className="text-sm text-foreground/80 whitespace-pre-line">{entry.post_trade_notes}</p>
         </div>
@@ -425,7 +425,7 @@ function JournalForm({
     const file = e.target.files?.[0];
     if (!file) return;
     if (file.size > 3 * 1024 * 1024) {
-      setError("Image trop lourde (max 3 Mo)");
+      setError(t("journal_img_too_large"));
       return;
     }
     const reader = new FileReader();
