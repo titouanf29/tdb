@@ -662,3 +662,269 @@ def _generate_template(
         "mode": mode,
         "generated_by": "template",
     }
+
+
+# ─── Raw Briefing (no video instructions) ────────────────────────────────────
+
+_BRIEF_SYSTEM_PROMPT = """Tu es un analyste financier expert. Tu produis des bilans géopolitiques et économiques
+structurés, sans aucune consigne vidéo, sans CTA, sans mention d'outils marketing.
+Ton seul objectif : analyser objectivement l'état des marchés et le contexte macro/géopolitique.
+
+Réponds en JSON strict avec cette structure :
+{
+  "headline": "Titre accrocheur résumant la situation globale",
+  "executive_summary": "3-4 phrases synthétisant l'essentiel",
+  "geopolitical": {
+    "themes": ["theme1", "theme2"],
+    "dominant_event": "L'événement géopolitique/macro le plus impactant",
+    "mechanism": "Comment cet événement impacte concrètement les marchés",
+    "signals": ["signal1", "signal2"],
+    "outlook": "Perspective à court terme (1-2 phrases)"
+  },
+  "regions": {
+    "europe": {"assessment": "Bilan Europe", "key_moves": ["move1"], "watch": "Point de vigilance"},
+    "usa": {"assessment": "Bilan USA", "key_moves": ["move1"], "watch": "Point de vigilance"},
+    "crypto": {"assessment": "Bilan Crypto", "key_moves": ["move1"], "sentiment": "Fear/Greed context"},
+    "commodities": {"assessment": "Bilan Matières premières", "key_moves": ["move1"]}
+  },
+  "risk_level": "low|moderate|elevated|high|extreme",
+  "key_themes": ["theme1", "theme2", "theme3"],
+  "trade_implications": "Ce que cela signifie concrètement pour un trader (sans conseil direct)"
+}
+"""
+
+
+def _build_brief_prompt(
+    snapshot: Dict,
+    news: List[Dict],
+    fear_greed: Dict,
+    heat_score: float,
+    period: str,
+    custom_context: str = "",
+) -> str:
+    period_label = {"day": "aujourd'hui", "week": "cette semaine", "month": "ce mois"}.get(period, period)
+
+    market_summary: Dict = {}
+    for region_key, region_data in snapshot.items():
+        top  = region_data.get("top")
+        flop = region_data.get("flop")
+        market_summary[region_key] = {
+            "label": region_data.get("label", region_key),
+            "top":  {"name": top["name"],  "change": f"{top['change_pct']:+.1f}%",  "rsi": top["rsi"]}  if top  else None,
+            "flop": {"name": flop["name"], "change": f"{flop['change_pct']:+.1f}%", "rsi": flop["rsi"]} if flop else None,
+            "assets_count": len(region_data.get("assets", [])),
+        }
+
+    geo = _analyze_geo(news, heat_score, snapshot=snapshot)
+
+    impactful_news = [
+        {"title": n["title"], "source": n["source"], "impact": n["impact"]}
+        for n in news[:8]
+    ]
+
+    prompt = f"""
+Produis un bilan brut géopolitique et économique pour {period_label}.
+
+═══ DONNÉES MARCHÉ ═══
+{json.dumps(market_summary, ensure_ascii=False, indent=2)}
+
+═══ SENTIMENT ═══
+- Fear & Greed : {fear_greed.get('value', 50)} / 100 ({fear_greed.get('label', 'Neutral')})
+- Heat Score : {heat_score} / 10
+
+═══ ANALYSE GÉOPOLITIQUE PRÉ-CALCULÉE ═══
+Thème dominant : {geo['theme']}
+Mécanisme : {geo['mechanism']}
+Signaux marché : {" | ".join(geo.get('signals', ['Aucun signal spécifique'])[:4])}
+Résumé : {geo['summary']}
+
+═══ ACTUALITÉS ═══
+{json.dumps(impactful_news, ensure_ascii=False, indent=2)}
+
+═══ CONTEXTE ADDITIONNEL ═══
+{custom_context or "Aucun contexte additionnel."}
+
+Retourne UNIQUEMENT le JSON demandé, sans markdown.
+""".strip()
+    return prompt
+
+
+async def generate_briefing(
+    snapshot: Dict,
+    news: List[Dict],
+    fear_greed: Dict,
+    heat_score: float,
+    period: str = "week",
+    custom_context: str = "",
+) -> Dict[str, Any]:
+    """
+    Generates a raw geopolitical + economic briefing without any video/CTA instructions.
+    Uses Gemini if available, otherwise falls back to a structured template.
+    """
+    api_key = os.environ.get("GEMINI_API_KEY", "")
+    if api_key:
+        return await _generate_briefing_with_gemini(
+            api_key, snapshot, news, fear_greed, heat_score, period, custom_context
+        )
+    else:
+        logger.warning("GEMINI_API_KEY not set — using briefing template fallback")
+        return _generate_briefing_template(snapshot, news, fear_greed, heat_score, period)
+
+
+async def _generate_briefing_with_gemini(
+    api_key: str,
+    snapshot: Dict,
+    news: List[Dict],
+    fear_greed: Dict,
+    heat_score: float,
+    period: str,
+    custom_context: str,
+) -> Dict[str, Any]:
+    try:
+        import google.generativeai as genai
+        genai.configure(api_key=api_key)
+
+        model = genai.GenerativeModel(
+            GEMINI_MODEL,
+            system_instruction=_BRIEF_SYSTEM_PROMPT,
+        )
+
+        user_prompt = _build_brief_prompt(
+            snapshot, news, fear_greed, heat_score, period, custom_context
+        )
+
+        response = model.generate_content(
+            user_prompt,
+            generation_config=genai.types.GenerationConfig(
+                temperature=0.7,
+                max_output_tokens=2048,
+                response_mime_type="application/json",
+            ),
+        )
+
+        raw = response.text.strip()
+        if raw.startswith("```"):
+            raw = raw.split("```")[1]
+            if raw.startswith("json"):
+                raw = raw[4:]
+        raw = raw.strip().rstrip("```").strip()
+
+        data = json.loads(raw)
+        data["generated_by"] = "gemini"
+        data["period"] = period
+        return data
+
+    except Exception as e:
+        logger.error("Gemini briefing generation failed: %s", e)
+        return _generate_briefing_template(snapshot, news, fear_greed, heat_score, period)
+
+
+def _generate_briefing_template(
+    snapshot: Dict,
+    news: List[Dict],
+    fear_greed: Dict,
+    heat_score: float,
+    period: str,
+) -> Dict[str, Any]:
+    """Structured briefing fallback — no AI needed."""
+    fg_val   = fear_greed.get("value", 50)
+    fg_label = fear_greed.get("label", "Neutral")
+    geo      = _analyze_geo(news, heat_score, snapshot=snapshot)
+
+    def _get(region_key: str, which: str):
+        region = snapshot.get(region_key, {})
+        asset  = region.get(which)
+        if not asset:
+            return None, None
+        sign = "+" if asset["change_pct"] >= 0 else ""
+        return asset["name"], f"{sign}{asset['change_pct']:.1f}%"
+
+    eu_top_n, eu_top_p   = _get("europe", "top")
+    eu_flop_n, eu_flop_p = _get("europe", "flop")
+    us_top_n, us_top_p   = _get("usa", "top")
+    us_flop_n, us_flop_p = _get("usa", "flop")
+    cr_top_n, cr_top_p   = _get("crypto", "top")
+    cr_flop_n, cr_flop_p = _get("crypto", "flop")
+    co_top_n, co_top_p   = _get("commodities", "top")
+
+    risk_level = (
+        "extreme"  if heat_score >= 8.5 else
+        "high"     if heat_score >= 7   else
+        "elevated" if heat_score >= 5   else
+        "moderate" if heat_score >= 3   else
+        "low"
+    )
+
+    sentiment_note = (
+        "Peur extrême — potentiel de rebond, mais risque de capitulation."
+        if fg_val <= 20 else
+        "Peur — les acheteurs sont hésitants, privilégier les niveaux de support."
+        if fg_val <= 40 else
+        "Avidité — marché euphorique, gérer les risques à la hausse."
+        if fg_val >= 70 else
+        "Sentiment neutre — chercher les niveaux techniques sans biais directionnel."
+    )
+
+    period_label = {"day": "aujourd'hui", "week": "cette semaine", "month": "ce mois"}.get(period, "")
+
+    eu_moves = []
+    if eu_top_n:  eu_moves.append(f"{eu_top_n} {eu_top_p}")
+    if eu_flop_n: eu_moves.append(f"{eu_flop_n} {eu_flop_p}")
+
+    us_moves = []
+    if us_top_n:  us_moves.append(f"{us_top_n} {us_top_p}")
+    if us_flop_n: us_moves.append(f"{us_flop_n} {us_flop_p}")
+
+    cr_moves = []
+    if cr_top_n:  cr_moves.append(f"{cr_top_n} {cr_top_p}")
+    if cr_flop_n: cr_moves.append(f"{cr_flop_n} {cr_flop_p}")
+
+    co_moves = []
+    if co_top_n: co_moves.append(f"{co_top_n} {co_top_p}")
+
+    return {
+        "headline": f"Bilan {period_label} — Heat Score {heat_score}/10 : marché {geo['heat_status']}",
+        "executive_summary": (
+            f"Contexte dominant : {geo['theme']}. "
+            f"Mécanisme : {geo['mechanism']}. "
+            f"Fear & Greed à {fg_val}/100 ({fg_label}) — {sentiment_note} "
+            f"Heat Score CaptentDB : {heat_score}/10."
+        ),
+        "geopolitical": {
+            "themes": [geo["theme"]],
+            "dominant_event": news[0]["title"] if news else "Aucune actualité haute-impact",
+            "mechanism": geo["mechanism"],
+            "signals": geo.get("signals", []),
+            "outlook": f"Marché {geo['heat_status']}. Surveiller les signaux : {' | '.join(geo.get('signals', ['Aucun signal spécifique'])[:2])}.",
+        },
+        "regions": {
+            "europe": {
+                "assessment": f"Europe {period_label} — divergence sectorielle notable.",
+                "key_moves": eu_moves,
+                "watch": f"Surveiller {eu_flop_n or 'les actifs européens'} ({eu_flop_p or 'sous pression'}) — lien direct avec {geo['theme'].split('(')[0].strip()}.",
+            },
+            "usa": {
+                "assessment": f"USA — rotation sectorielle en cours dans le contexte {geo['theme'].split('(')[0].strip()}.",
+                "key_moves": us_moves,
+                "watch": f"{us_flop_n or 'Surveiller les secteurs défensifs'} ({us_flop_p or ''}) sous pression.",
+            },
+            "crypto": {
+                "assessment": f"Crypto : Fear & Greed {fg_val}/100 ({fg_label}).",
+                "key_moves": cr_moves,
+                "sentiment": sentiment_note,
+            },
+            "commodities": {
+                "assessment": f"Matières premières — {co_top_n or 'Or/Pétrole'} en tête ({co_top_p or ''}).",
+                "key_moves": co_moves,
+            },
+        },
+        "risk_level": risk_level,
+        "key_themes": list(dict.fromkeys([geo["theme"]] + [n["title"][:60] for n in news[:2]])),
+        "trade_implications": (
+            f"Dans ce contexte de {risk_level} risk, "
+            f"le mécanisme '{geo['mechanism']}' suggère de surveiller les rotations entre classes d'actifs. "
+            f"Signaux marché actifs : {' | '.join(geo.get('signals', ['Aucun signal spécifique'])[:3])}."
+        ),
+        "generated_by": "template",
+        "period": period,
+    }

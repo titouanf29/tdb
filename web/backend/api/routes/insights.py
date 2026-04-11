@@ -15,7 +15,7 @@ from ..routes.admin import check_if_admin
 
 from ..services.market_data import get_market_snapshot, get_fear_and_greed, compute_heat_score
 from ..services.news_fetcher import get_macro_news
-from ..services.script_generator import generate_script
+from ..services.script_generator import generate_script, generate_briefing
 from ..services.chart_generator import generate_all_charts
 
 logger = logging.getLogger(__name__)
@@ -39,6 +39,11 @@ class GenerateRequest(BaseModel):
     mode: str = "A"               # A (60-sec) | B (3-part series)
     custom_context: str = ""      # Optional admin notes
     include_charts: bool = True   # Set false for faster generation
+
+
+class BriefingRequest(BaseModel):
+    period: str = "week"          # day | week | month
+    custom_context: str = ""      # Optional admin notes
 
 
 # ---------------------------------------------------------------------------
@@ -124,6 +129,45 @@ async def generate_content(
     except Exception as e:
         logger.error("Generation failed: %s", e)
         raise HTTPException(status_code=500, detail=f"Generation error: {str(e)}")
+
+
+@router.post("/brief")
+async def generate_brief(
+    req: BriefingRequest,
+    _user: dict = Depends(require_admin),
+):
+    """
+    Raw geopolitical + economic briefing without any video/CTA instructions.
+    Returns structured analysis: headline, executive summary, geo context,
+    region breakdowns, risk level, and trade implications.
+    """
+    try:
+        snapshot, news, fear_greed = await asyncio.gather(
+            get_market_snapshot(req.period),
+            get_macro_news(max_items=8),
+            get_fear_and_greed(),
+        )
+        heat_score = compute_heat_score(snapshot, fear_greed)
+
+        briefing = await generate_briefing(
+            snapshot=snapshot,
+            news=news,
+            fear_greed=fear_greed,
+            heat_score=heat_score,
+            period=req.period,
+            custom_context=req.custom_context,
+        )
+
+        return {
+            "period": req.period,
+            "heat_score": heat_score,
+            "fear_greed": fear_greed,
+            "briefing": briefing,
+            "news": news[:6],
+        }
+    except Exception as e:
+        logger.error("Briefing generation failed: %s", e)
+        raise HTTPException(status_code=500, detail=f"Briefing error: {str(e)}")
 
 
 @router.get("/charts")

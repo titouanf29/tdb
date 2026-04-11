@@ -1584,6 +1584,44 @@ export interface InsightsGenerated {
   news_used: any[];
 }
 
+export interface InsightsBriefingRegion {
+  summary: string;
+  top_assets: string[];
+  key_risk: string;
+  sentiment: string;
+}
+
+export interface InsightsBriefingData {
+  headline: string;
+  executive_summary: string;
+  geopolitical: {
+    themes: string[];
+    dominant_event: string;
+    mechanism: string;
+    signals: string[];
+    outlook: string;
+  };
+  regions: {
+    europe: InsightsBriefingRegion;
+    usa: InsightsBriefingRegion;
+    crypto: InsightsBriefingRegion;
+    commodities: InsightsBriefingRegion;
+  };
+  risk_level: "low" | "moderate" | "elevated" | "high" | "extreme";
+  key_themes: string[];
+  trade_implications: string;
+  generated_by: "gemini" | "template";
+  period: string;
+}
+
+export interface InsightsBriefing {
+  period: string;
+  heat_score: number;
+  fear_greed: { value: number; label: string };
+  briefing: InsightsBriefingData;
+  news: { title: string; summary: string; source: string; language: string; pub_date: string; link: string; impact: string }[];
+}
+
 export const insightsAPI = {
   snapshot: (period: string = "week") =>
     fetchAPI<InsightsSnapshot>(`/api/admin/insights/snapshot?period=${period}`),
@@ -1598,6 +1636,12 @@ export const insightsAPI = {
     fetchAPI<{ charts: InsightsGenerated["charts"]; period: string }>(
       `/api/admin/insights/charts?period=${period}`
     ),
+
+  brief: (body: { period: string; custom_context?: string }) =>
+    fetchAPI<InsightsBriefing>("/api/admin/insights/brief", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
 };
 
 /**
