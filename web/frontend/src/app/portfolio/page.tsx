@@ -391,12 +391,12 @@ function PositionForm({ initial, onClose, onSave, title }: PositionFormProps) {
                 value={form.currency}
                 onChange={(e) => set("currency", e.target.value)}
               >
-                <option value="USD" style={{ backgroundColor: "hsl(220 50% 8%)", color: "white" }}>USD â€" Dollar amÃ©ricain</option>
-                <option value="EUR" style={{ backgroundColor: "hsl(220 50% 8%)", color: "white" }}>EUR â€" Euro</option>
-                <option value="USDT" style={{ backgroundColor: "hsl(220 50% 8%)", color: "white" }}>USDT â€" Tether</option>
-                <option value="BTC" style={{ backgroundColor: "hsl(220 50% 8%)", color: "white" }}>BTC â€" Bitcoin</option>
-                <option value="GBP" style={{ backgroundColor: "hsl(220 50% 8%)", color: "white" }}>GBP â€" Livre sterling</option>
-                <option value="CHF" style={{ backgroundColor: "hsl(220 50% 8%)", color: "white" }}>CHF â€" Franc suisse</option>
+                <option value="USD" style={{ backgroundColor: "hsl(220 50% 8%)", color: "white" }}>USD — {lang === "en" ? "US Dollar" : "Dollar américain"}</option>
+                <option value="EUR" style={{ backgroundColor: "hsl(220 50% 8%)", color: "white" }}>EUR — Euro</option>
+                <option value="USDT" style={{ backgroundColor: "hsl(220 50% 8%)", color: "white" }}>USDT — Tether</option>
+                <option value="BTC" style={{ backgroundColor: "hsl(220 50% 8%)", color: "white" }}>BTC — Bitcoin</option>
+                <option value="GBP" style={{ backgroundColor: "hsl(220 50% 8%)", color: "white" }}>GBP — {lang === "en" ? "British Pound" : "Livre sterling"}</option>
+                <option value="CHF" style={{ backgroundColor: "hsl(220 50% 8%)", color: "white" }}>CHF — {lang === "en" ? "Swiss Franc" : "Franc suisse"}</option>
               </select>
             </div>
           </div>
@@ -643,7 +643,7 @@ function PositionCard({
                   </div>
                   <div>
                     <span className="text-muted-foreground">{t("portfolio_card_days")} :</span>{" "}
-                    <span>{pos.days_held ?? 0} j</span>
+                    <span>{pos.days_held ?? 0} {lang === "en" ? "d" : "j"}</span>
                   </div>
                   <div>
                     <span className="text-muted-foreground">{t("portfolio_card_entry_date")} :</span>{" "}
@@ -837,16 +837,22 @@ export default function PortfolioPage() {
           </div>
           <div className="flex items-center gap-2">
             <HelpGuide
-              title="Portefeuille"
-              intro="Suis tes investissements réels : positions ouvertes, performance globale et analyse de ton allocation."
-              sections={[
+              title={lang === "en" ? "Portfolio" : "Portefeuille"}
+              intro={lang === "en" ? "Track your real investments: open positions, global performance and allocation analysis." : "Suis tes investissements réels : positions ouvertes, performance globale et analyse de ton allocation."}
+              sections={lang === "en" ? [
+                { title: "Add a position", desc: "Click '+ Add' to record a buy or sell. Enter the symbol, quantity and entry price." },
+                { title: "Performance", desc: "Each position shows P&L (gain/loss) in value and %. Green = profit, red = loss." },
+                { title: "Allocation", desc: "The pie chart shows your portfolio breakdown by asset and sector." },
+                { title: "Close a position", desc: "Click 'Close' to record a sale. The result moves to history and impacts your total performance." },
+                { title: "AI analysis", desc: "AI can analyze your portfolio and suggest rebalancing or concentration risk alerts." },
+              ] : [
                 { title: "Ajouter une position", desc: "Clique sur '+ Ajouter' pour enregistrer un achat ou une vente. Renseigne le symbole, la quantité et le prix d'entrée." },
                 { title: "Performance", desc: "Chaque position affiche la P&L (gain/perte) en valeur et en %. La couleur verte = bénéfice, rouge = perte." },
                 { title: "Répartition", desc: "Le graphique en camembert montre la répartition de ton portefeuille par actif et par secteur." },
                 { title: "Clôturer une position", desc: "Clique sur 'Fermer' pour enregistrer une vente. Le résultat passe en historique et impacte ta performance totale." },
                 { title: "Analyse IA", desc: "L'IA peut analyser ton portefeuille et suggérer des rééquilibrages ou des alertes de risque de concentration." },
               ]}
-              tip="Importe tes positions depuis un fichier CSV pour gagner du temps si tu as beaucoup d'actifs à saisir."
+              tip={lang === "en" ? "Import your positions from a CSV file to save time if you have many assets to enter." : "Importe tes positions depuis un fichier CSV pour gagner du temps si tu as beaucoup d'actifs à saisir."}
             />
             <button
               onClick={() => setShowAdd(true)}

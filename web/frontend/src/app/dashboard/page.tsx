@@ -195,15 +195,21 @@ export default function DashboardPage() {
           <div className="flex items-center gap-2">
             <HelpGuide
               title="Dashboard"
-              intro="Ton centre de contrôle pour suivre tes performances et les marchés en temps réel."
-              sections={[
+              intro={lang === "en" ? "Your control center to track your performance and markets in real time." : "Ton centre de contrôle pour suivre tes performances et les marchés en temps réel."}
+              sections={lang === "en" ? [
+                { title: "Customizable widgets", desc: "In Premium mode, click 'Customize' to reorganize, add or remove widgets according to your needs." },
+                { title: "Session summary", desc: "Shows the day's gains/losses, number of open trades and your global exposure." },
+                { title: "Opportunities", desc: "AI-detected signals on the assets you follow — sorted by signal strength." },
+                { title: "News", desc: "Real-time financial news feed filtered by relevance to your portfolio." },
+                { title: "Global indices", desc: "Quick view of major stock exchanges (CAC, SP500, Nasdaq, etc.) with their daily change." },
+              ] : [
                 { title: "Widgets personnalisables", desc: "En mode Premium, clique sur 'Personnaliser' pour réorganiser, ajouter ou retirer des widgets selon tes besoins." },
                 { title: "Résumé de session", desc: "Affiche les gains/pertes du jour, le nombre de trades ouverts et ton exposition globale." },
                 { title: "Opportunités", desc: "Signaux détectés par l'IA sur les actifs que tu suis — triés par force du signal." },
                 { title: "Actualités", desc: "Flux d'actualités financières en temps réel filtrées par pertinence pour ton portefeuille." },
                 { title: "Indices mondiaux", desc: "Vue rapide sur les grandes places boursières (CAC, SP500, Nasdaq, etc.) avec leur variation du jour." },
               ]}
-              tip="Utilise le bouton 'Actualiser' (icône flèche) pour mettre à jour toutes les données en temps réel."
+              tip={lang === "en" ? "Use the 'Refresh' button (arrow icon) to update all data in real time." : "Utilise le bouton 'Actualiser' (icône flèche) pour mettre à jour toutes les données en temps réel."}
             />
             {isPremium && (
               <button
@@ -725,10 +731,10 @@ const TradingStatsWidget = memo(function TradingStatsWidget({ stats, balance, fo
       </div>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
-          { label: "Win Rate",           value: `${stats?.win_rate || 0}%`,           color: (stats?.win_rate || 0) >= 50 ? "text-profit" : "text-loss" },
-          { label: "Total trades",       value: String(stats?.total_trades || 0),      color: "text-foreground" },
-          { label: "P&L total",           value: formatCurrency(stats?.total_pnl || 0), color: (stats?.total_pnl || 0) >= 0 ? "text-profit" : "text-loss" },
-          { label: t("dash_balance"),    value: formatCurrency(balance?.balance || 0), color: "text-foreground" },
+          { label: t("wallet_winrate"),        value: `${stats?.win_rate || 0}%`,           color: (stats?.win_rate || 0) >= 50 ? "text-profit" : "text-loss" },
+          { label: t("wallet_total_trades"),   value: String(stats?.total_trades || 0),      color: "text-foreground" },
+          { label: t("wallet_total_pnl"),      value: formatCurrency(stats?.total_pnl || 0), color: (stats?.total_pnl || 0) >= 0 ? "text-profit" : "text-loss" },
+          { label: t("dash_balance"),          value: formatCurrency(balance?.balance || 0), color: "text-foreground" },
         ].map(item => (
           <div key={item.label} className="p-4 rounded-xl bg-white/5">
             <p className="text-xs text-muted-foreground mb-1">{item.label}</p>

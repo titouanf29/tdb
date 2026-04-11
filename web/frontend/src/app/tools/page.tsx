@@ -51,19 +51,21 @@ import {
 } from "@/lib/api";
 import { useFormatCurrency } from "@/lib/SettingsContext";
 import { HelpGuide } from "@/components/ui/HelpGuide";
+import { useLanguage } from "@/lib/LanguageContext";
 
 type TabType = "pivot" | "per" | "trends" | "calendar" | "geopolitical" | "backtest";
 
 export default function TradingToolsPage() {
+  const { t, lang } = useLanguage();
   const [activeTab, setActiveTab] = useState<TabType>("calendar");
 
   const tabs = [
-    { id: "calendar" as TabType, label: "Calendrier Eco", icon: Calendar },
-    { id: "geopolitical" as TabType, label: "Geopolitique", icon: Globe },
-    { id: "trends" as TabType, label: "Tendances", icon: TrendingUp },
-    { id: "pivot" as TabType, label: "Points Pivots", icon: Target },
-    { id: "per" as TabType, label: "Palmares PER", icon: BarChart3 },
-    { id: "backtest" as TabType, label: "Backtest", icon: Play },
+    { id: "calendar" as TabType, label: t("tools_tab_calendar"), icon: Calendar },
+    { id: "geopolitical" as TabType, label: t("tools_tab_geopolitical"), icon: Globe },
+    { id: "trends" as TabType, label: t("tools_tab_trends"), icon: TrendingUp },
+    { id: "pivot" as TabType, label: t("tools_tab_pivot"), icon: Target },
+    { id: "per" as TabType, label: t("tools_tab_per"), icon: BarChart3 },
+    { id: "backtest" as TabType, label: t("tools_tab_backtest"), icon: Play },
   ];
 
   return (
@@ -73,16 +75,25 @@ export default function TradingToolsPage() {
         <div className="flex items-start justify-between">
           <div>
             <h1 className="text-2xl font-bold mb-2">
-              <span className="gradient-text">Outils de Trading</span>
+              <span className="gradient-text">{t("tools_title")}</span>
             </h1>
             <p className="text-muted-foreground">
-              Analysez les marches avec nos outils professionnels
+              {t("tools_subtitle_full")}
             </p>
           </div>
           <HelpGuide
-            title="Outils de Trading"
-            intro="Une suite d'outils analytiques pour affiner tes décisions de trading et comprendre le contexte de marché."
-            sections={[
+            title={lang === "en" ? "Trading Tools" : "Outils de Trading"}
+            intro={lang === "en"
+              ? "A suite of analytical tools to sharpen your trading decisions and understand market context."
+              : "Une suite d'outils analytiques pour affiner tes décisions de trading et comprendre le contexte de marché."}
+            sections={lang === "en" ? [
+              { title: "Pivot Points", desc: "Calculates support and resistance levels for the day from yesterday's OHLC prices. Widely used by intraday traders." },
+              { title: "P/E Rankings", desc: "Compares valuations (price/earnings ratio) of a sector or index to detect over or undervalued stocks." },
+              { title: "Index Trends", desc: "Global overview of major world indices trend across different periods (1d, 1w, 1m)." },
+              { title: "Economic Calendar", desc: "Schedule of major macroeconomic publications (US jobs, inflation, ECB…) with their potential market impact." },
+              { title: "Geopolitics", desc: "Analysis of the impact of geopolitical events on markets and the regions concerned." },
+              { title: "Sector AI Analysis", desc: "AI analyzes sector performances and identifies ongoing rotations and dynamics." },
+            ] : [
               { title: "Points Pivots", desc: "Calcule les niveaux de support et résistance pour la journée à partir des prix OHLC de la veille. Très utilisé par les traders intrajournaliers." },
               { title: "Palmares des PER", desc: "Compare les valorisations (ratio cours/bénéfice) d'un secteur ou d'un indice pour détecter les valeurs sur ou sous-évaluées." },
               { title: "Tendances des indices", desc: "Vue globale sur la tendance des grands indices mondiaux sur différentes périodes (1j, 1s, 1m)." },
@@ -90,7 +101,9 @@ export default function TradingToolsPage() {
               { title: "Géopolitique", desc: "Analyse de l'impact des événements géopolitiques sur les marchés et les régions concernées." },
               { title: "Analyse IA sectorielle", desc: "L'IA analyse les performances par secteur et identifie les rotations et les dynamiques en cours." },
             ]}
-            tip="Utilise le calendrier économique avant chaque séance pour anticiper les publications susceptibles de provoquer de la volatilité."
+            tip={lang === "en"
+              ? "Use the economic calendar before each session to anticipate publications likely to cause volatility."
+              : "Utilise le calendrier économique avant chaque séance pour anticiper les publications susceptibles de provoquer de la volatilité."}
           />
         </div>
       </div>
@@ -136,6 +149,7 @@ export default function TradingToolsPage() {
 
 // ============== PIVOT POINTS TAB ==============
 function PivotPointsTab() {
+  const { t } = useLanguage();
   const formatCurrency = useFormatCurrency();
   const [symbol, setSymbol] = useState("AAPL");
   const [method, setMethod] = useState("standard");
@@ -158,7 +172,7 @@ function PivotPointsTab() {
       const result = await toolsAPI.getPivotPoints(symbol, method);
       setData(result);
     } catch (e: any) {
-      setError(e.message || "Erreur lors du calcul");
+      setError(e.message || t("tools_err_calc"));
     } finally {
       setIsLoading(false);
     }
@@ -168,13 +182,13 @@ function PivotPointsTab() {
     <div className="glass-card p-6 space-y-6">
       <div className="flex items-center gap-2 mb-4">
         <Target className="w-5 h-5 text-primary" />
-        <h2 className="text-lg font-semibold">Calculateur Points Pivots</h2>
+        <h2 className="text-lg font-semibold">{t("tools_pivot_calc")}</h2>
       </div>
 
       {/* Input */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div>
-          <label className="block text-sm text-muted-foreground mb-2">Symbole</label>
+          <label className="block text-sm text-muted-foreground mb-2">{t("tools_symbol")}</label>
           <input
             type="text"
             value={symbol}
@@ -184,7 +198,7 @@ function PivotPointsTab() {
           />
         </div>
         <div>
-          <label className="block text-sm text-muted-foreground mb-2">Methode</label>
+          <label className="block text-sm text-muted-foreground mb-2">{t("tools_method")}</label>
           <select
             value={method}
             onChange={(e) => setMethod(e.target.value)}
@@ -204,7 +218,7 @@ function PivotPointsTab() {
             className="btn-primary w-full flex items-center justify-center gap-2"
           >
             {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Calculator className="w-4 h-4" />}
-            Calculer
+            {t("tools_calculate")}
           </button>
         </div>
       </div>
@@ -225,7 +239,7 @@ function PivotPointsTab() {
               <span className="text-muted-foreground ml-2">({data.method})</span>
             </div>
             <div className="text-right">
-              <p className="text-sm text-muted-foreground">Prix actuel</p>
+              <p className="text-sm text-muted-foreground">{t("tools_current_price")}</p>
               <p className="text-xl font-bold">{formatCurrency(data.current_price)}</p>
             </div>
           </div>
@@ -273,7 +287,7 @@ function PivotPointsTab() {
           </div>
 
           <div className="p-4 rounded-xl bg-white/5 text-sm text-muted-foreground">
-            <p><strong>Donnees utilisees:</strong> H: {formatCurrency(data.high)} | L: {formatCurrency(data.low)} | C: {formatCurrency(data.close)}</p>
+            <p><strong>{t("tools_data_used")}:</strong> H: {formatCurrency(data.high)} | L: {formatCurrency(data.low)} | C: {formatCurrency(data.close)}</p>
           </div>
         </div>
       )}

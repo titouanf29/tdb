@@ -248,16 +248,22 @@ export default function AssistantPage() {
           <div className="flex items-center gap-3">
             <HelpGuide
               size="sm"
-              title="Assistant IA"
-              intro="Pose toutes tes questions sur le trading, les marchés, les actifs ou la stratégie. L'IA te répond avec des explications claires et contextualisées."
-              sections={[
+              title={lang === "en" ? "AI Assistant" : "Assistant IA"}
+              intro={lang === "en" ? "Ask any question about trading, markets, assets or strategy. The AI replies with clear, contextualised explanations." : "Pose toutes tes questions sur le trading, les marchés, les actifs ou la stratégie. L'IA te répond avec des explications claires et contextualisées."}
+              sections={lang === "en" ? [
+                { title: "Asset analysis", desc: "Ask for example: 'Analyze AAPL', 'What do you think about gold right now?' or 'What are the key levels on BTC?'" },
+                { title: "Strategic questions", desc: "Ask about risk management, position sizing, or strategies (swing, day trading, scalping…)." },
+                { title: "Education", desc: "Ask to explain concepts: 'What is RSI?', 'How does a stop-loss work?', 'Explain Fibonacci to me'." },
+                { title: "History", desc: "The assistant remembers your messages in the current session. The trash button clears the conversation." },
+                { title: "Message limit", desc: "Free accounts have a daily quota. Go Premium for unlimited conversations." },
+              ] : [
                 { title: "Analyse d'actif", desc: "Demande par exemple : 'Analyse AAPL', 'Que penses-tu de l'or en ce moment ?' ou 'Quels sont les niveaux clés sur BTC ?'" },
                 { title: "Questions stratégiques", desc: "Pose des questions sur ta gestion du risque, le dimensionnement de position, ou les stratégies (swing, day trading, scalping…)." },
                 { title: "Éducation", desc: "Demande d'expliquer des concepts : 'C'est quoi le RSI ?', 'Comment fonctionne un stop-loss ?', 'Explique-moi Fibonacci'." },
                 { title: "Historique", desc: "L'assistant se souvient de tes messages dans la session en cours. Le bouton poubelle efface la conversation." },
                 { title: "Limite de messages", desc: "Les comptes Free ont un quota journalier. Passe en Premium pour des conversations illimitées." },
               ]}
-              tip="Sois précis dans tes questions pour obtenir les meilleures réponses. Ex: 'LVMH en tendance hebdo' plutôt que juste 'LVMH'."
+              tip={lang === "en" ? "Be precise in your questions to get the best answers. E.g.: 'LVMH weekly trend' rather than just 'LVMH'." : "Sois précis dans tes questions pour obtenir les meilleures réponses. Ex: 'LVMH en tendance hebdo' plutôt que juste 'LVMH'."}
             />
             {/* Message limit indicator */}
             {limitStatus && (
@@ -301,7 +307,7 @@ export default function AssistantPage() {
       {hasPositionContext && assetFromPortfolio && (
         <div className="glass-card px-4 py-2.5 mb-4 bg-purple-500/10 border border-purple-500/30 flex items-center gap-2 text-sm text-purple-300">
           <Bot className="w-4 h-4 shrink-0" />
-          <span>Données de votre position <strong>{assetFromPortfolio}</strong> pré-remplies ci-dessous — modifiez si besoin puis envoyez.</span>
+          <span>{t("assistant_position_pre")} <strong>{assetFromPortfolio}</strong> {t("assistant_position_suf")}</span>
         </div>
       )}
 

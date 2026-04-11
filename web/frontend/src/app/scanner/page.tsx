@@ -48,7 +48,7 @@ const TREND_COLORS: Record<string, string> = {
 export default function ScannerPage() {
   const router = useRouter();
   const formatPrice = useFormatPrice();
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
 
   const OPP_LABELS: Record<OppFilter, string> = {
     all:      t("scanner_filter_all"),
@@ -170,16 +170,22 @@ export default function ScannerPage() {
         </div>
         <div className="flex gap-2 items-center">
           <HelpGuide
-            title="Scanner de marché"
-            intro="Détecte automatiquement les opportunités sur les marchés en scannant des centaines d'actifs en quelques secondes."
-            sections={[
+            title={lang === "en" ? "Market Scanner" : "Scanner de marché"}
+            intro={lang === "en" ? "Automatically detects market opportunities by scanning hundreds of assets in seconds." : "Détecte automatiquement les opportunités sur les marchés en scannant des centaines d'actifs en quelques secondes."}
+            sections={lang === "en" ? [
+              { title: "Run a scan", desc: "Press 'Scan' to analyze the selected market. The AI detects the most relevant technical setups." },
+              { title: "Results", desc: "Each result shows the signal (Buy/Sell), movement strength and volume. Click to see the full analysis." },
+              { title: "Filters", desc: "Filter by signal type, market, or minimum confidence threshold to refine results." },
+              { title: "Quota", desc: "The number of scans available per hour is limited based on your plan (Free/Premium)." },
+              { title: "Trending assets", desc: "The 'Trending' section shows assets with the strongest momentum, regardless of filters." },
+            ] : [
               { title: "Lancer un scan", desc: "Appuie sur 'Scanner' pour analyser le marché sélectionné. L'IA détecte les configurations techniques les plus pertinentes." },
               { title: "Résultats", desc: "Chaque résultat affiche le signal (Achat/Vente), la force du mouvement et le volume. Clique pour voir l'analyse complète." },
               { title: "Filtres", desc: "Filtre par type de signal, marché, ou seuil de confiance minimum pour affiner les résultats." },
               { title: "Quota", desc: "Le nombre de scans disponibles par heure est limité selon ton plan (Free/Premium)." },
               { title: "Actifs en tendance", desc: "La section 'Trending' affiche les actifs avec le plus fort momentum du moment, indépendamment des filtres." },
             ]}
-            tip="Lance le scanner en dehors des heures de marché pour voir les actifs en pre-market avec du potentiel."
+            tip={lang === "en" ? "Run the scanner outside market hours to spot pre-market assets with potential." : "Lance le scanner en dehors des heures de marché pour voir les actifs en pre-market avec du potentiel."}
           />
           <motion.button
             whileHover={{ scale: 1.04 }}
@@ -330,7 +336,7 @@ export default function ScannerPage() {
         {/* Score + search */}
         <div className="flex items-center gap-4 flex-wrap">
           <div className="flex items-center gap-2">
-            <span className="text-xs text-muted-foreground">Score min:</span>
+            <span className="text-xs text-muted-foreground">{t("scanner_min_score")}</span>
             <input
               type="range" min="0" max="100" value={minScore}
               onChange={(e) => setMinScore(Number(e.target.value))}
@@ -415,7 +421,7 @@ export default function ScannerPage() {
               </p>
               {results.length === 0 && (
                 <p className="text-sm mt-1 opacity-70">
-                  Analyse multi-critères sur {selectedMarket} ({totalScanned || "?"} actifs)
+                  {t("scanner_multi_prefix")} {selectedMarket} ({totalScanned || "?"} {t("asset")})
                 </p>
               )}
             </div>
@@ -515,7 +521,7 @@ export default function ScannerPage() {
                         className="px-2.5 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-xs flex items-center gap-1"
                         onClick={(e) => { e.stopPropagation(); router.push(`/analysis?symbol=${r.symbol}`); }}
                       >
-                        <BarChart2 className="w-3 h-3" /> Analyse
+                        <BarChart2 className="w-3 h-3" /> {t("scanner_analyze")}
                       </motion.button>
                       <motion.button
                         whileHover={{ scale: 1.05 }}
@@ -523,7 +529,7 @@ export default function ScannerPage() {
                         className="btn-primary text-xs py-1.5 px-2.5 flex items-center gap-1"
                         onClick={(e) => { e.stopPropagation(); router.push(`/trading?symbol=${r.symbol}`); }}
                       >
-                        <ChevronRight className="w-3 h-3" /> Trader
+                        <ChevronRight className="w-3 h-3" /> {t("trader")}
                       </motion.button>
                     </div>
                   </div>

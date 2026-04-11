@@ -38,7 +38,7 @@ const marketIcons: Record<string, string> = {
 };
 
 export default function MarketsPage() {
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
   const router = useRouter();
   const formatPrice = useFormatPrice();
   const [markets, setMarkets] = useState<Market[]>([]);
@@ -301,16 +301,22 @@ export default function MarketsPage() {
         </div>
         <div className="flex items-center gap-2">
           <HelpGuide
-            title="Marchés"
-            intro="Explore tous les actifs disponibles : actions, crypto, indices, matières premières et forex."
-            sections={[
+            title={lang === "en" ? "Markets" : "Marchés"}
+            intro={lang === "en" ? "Explore all available assets: stocks, crypto, indices, commodities and forex." : "Explore tous les actifs disponibles : actions, crypto, indices, matières premières et forex."}
+            sections={lang === "en" ? [
+              { title: "Market selection", desc: "Click on a market (Stocks, Crypto, etc.) to filter assets. Prices update automatically." },
+              { title: "Search", desc: "Use the search bar to find an asset by name or symbol (e.g. AAPL, BTC, CAC)." },
+              { title: "Favorites", desc: "Click the star next to an asset to add it to your favorites and track it from the dashboard." },
+              { title: "Market hours", desc: "The green/red indicator at the top of each market shows whether it is currently open or closed." },
+              { title: "Analysis", desc: "Click on an asset to access its full analysis: chart, indicators, AI and key levels." },
+            ] : [
               { title: "Sélection du marché", desc: "Clique sur un marché (Actions, Crypto, etc.) pour filtrer les actifs. Les prix se mettent à jour automatiquement." },
               { title: "Recherche", desc: "Utilise la barre de recherche pour trouver un actif par nom ou symbole (ex: AAPL, BTC, CAC)." },
               { title: "Favoris", desc: "Clique sur l'étoile à côté d'un actif pour l'ajouter à tes favoris et le suivre depuis le dashboard." },
               { title: "Horaires de marché", desc: "L'indicateur vert/rouge en haut de chaque marché indique si celui-ci est ouvert ou fermé en ce moment." },
               { title: "Analyse", desc: "Clique sur un actif pour accéder à son analyse complète : graphique, indicateurs, IA et niveaux clés." },
             ]}
-            tip="Les prix sont actualisés en temps réel. Clique sur 'Actualiser' si tu veux forcer une mise à jour manuelle."
+            tip={lang === "en" ? "Prices update in real time. Click 'Refresh' to force a manual update." : "Les prix sont actualisés en temps réel. Clique sur 'Actualiser' si tu veux forcer une mise à jour manuelle."}
           />
           <button
             onClick={refreshPrices}

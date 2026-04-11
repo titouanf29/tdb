@@ -21,7 +21,7 @@ import { useLanguage } from "@/lib/LanguageContext";
 import { HelpGuide } from "@/components/ui/HelpGuide";
 
 export default function FavoritesPage() {
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
   const router = useRouter();
   const formatPrice = useFormatPrice();
   const [favorites, setFavorites] = useState<Favorite[]>([]);
@@ -65,7 +65,7 @@ export default function FavoritesPage() {
       setTimeout(() => setLastAdded(null), 3000);
       loadFavorites();
     } catch (error) {
-      setAddError(error instanceof Error ? error.message : "Erreur");
+      setAddError(error instanceof Error ? error.message : t("fav_error"));
     } finally {
       setIsAdding(false);
     }
@@ -117,15 +117,20 @@ export default function FavoritesPage() {
         </div>
         <div className="flex gap-3 items-center">
           <HelpGuide
-            title="Favoris"
-            intro="Ta liste d'actifs à surveiller. Retrouve rapidement les prix, variations et accède à l'analyse en un clic."
-            sections={[
+            title={lang === "en" ? "Favorites" : "Favoris"}
+            intro={lang === "en" ? "Your watchlist. Quickly find prices, changes and access analysis in one click." : "Ta liste d'actifs à surveiller. Retrouve rapidement les prix, variations et accède à l'analyse en un clic."}
+            sections={lang === "en" ? [
+              { title: "Add a favorite", desc: "Click '+ Add' and type the asset symbol (e.g. AAPL, BTC-USD, MC.PA). It appears in your list with its real-time price." },
+              { title: "Real-time prices", desc: "Prices and changes update automatically. Green means a rise, red means a drop on the day." },
+              { title: "Access analysis", desc: "Click on an asset to open its full analysis page with indicators and AI signal." },
+              { title: "Remove a favorite", desc: "Click the trash icon to remove an asset from your list. You can re-add it at any time." },
+            ] : [
               { title: "Ajouter un favori", desc: "Clique sur '+ Ajouter' et tape le symbole de l'actif (ex: AAPL, BTC-USD, MC.PA). Il apparaît dans ta liste avec son prix en temps réel." },
               { title: "Prix en temps réel", desc: "Les prix et variations sont actualisés automatiquement. La couleur verte indique une hausse, rouge une baisse sur la journée." },
               { title: "Accéder à l'analyse", desc: "Clique sur un actif pour ouvrir sa page d'analyse complète avec indicateurs et signal IA." },
               { title: "Supprimer un favori", desc: "Clique sur la corbeille pour retirer un actif de ta liste. Tu peux le ré-ajouter à tout moment." },
             ]}
-            tip="Ajoute les actifs que tu trades régulièrement pour avoir un accès rapide à leur analyse depuis le dashboard."
+            tip={lang === "en" ? "Add the assets you trade regularly for quick access to their analysis from the dashboard." : "Ajoute les actifs que tu trades régulièrement pour avoir un accès rapide à leur analyse depuis le dashboard."}
           />
           <button
             onClick={() => loadFavorites(true)}
