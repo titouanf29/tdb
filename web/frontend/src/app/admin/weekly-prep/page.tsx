@@ -234,14 +234,20 @@ export default function AdminWeeklyPrepPage() {
         return;
       } catch (adminErr: any) {
         if (adminErr?.status === 403) { router.push("/admin"); return; }
-        // Fallback to public endpoint (always works)
+        // Endpoint not deployed yet — fallback
       }
 
-      const [statusData, briefingData] = await Promise.all([
-        weeklyPrepAPI.status(),
-        weeklyPrepAPI.get(),
-      ]);
-      applyBasic(briefingData.briefing, statusData);
+      // Fallback: status only, do NOT auto-generate via get()
+      // (get() triggers Groq generation if no cache → 429)
+      const statusData = await weeklyPrepAPI.status();
+      setMeta({ cached: false, generated_at: "", week_key: statusData.week, visible: statusData.visible });
+      // Try to load existing cache silently; if Groq 429 fires, just show empty state
+      try {
+        const briefingData = await weeklyPrepAPI.get();
+        applyBasic(briefingData.briefing, statusData);
+      } catch {
+        // No cache this week — user can click Régénérer to create one
+      }
     } catch (e: any) {
       if (e?.status === 403) {
         router.push("/admin");

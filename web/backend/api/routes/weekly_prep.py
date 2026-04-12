@@ -197,10 +197,10 @@ async def get_weekly_prep(
     request: Request,
     current_user: dict = Depends(get_current_user),
 ):
-    """Return this week's briefing (cached in DB, generates if needed)."""
+    """Return this week's briefing (cached in DB, generates only during active window)."""
     week_key = _current_week_key()
 
-    # Try cache
+    # Try cache first — always serve if available
     rows = await execute_query(
         "SELECT content FROM weekly_market_prep WHERE week_key = ?",
         (week_key,),
@@ -210,6 +210,13 @@ async def get_weekly_prep(
             return {"briefing": json.loads(rows[0]["content"]), "cached": True}
         except Exception:
             pass
+
+    # Only auto-generate during the active Sunday→Monday window
+    if not _is_widget_visible():
+        raise HTTPException(
+            status_code=404,
+            detail="Aucun briefing disponible cette semaine. Revenez dimanche ou utilisez /refresh."
+        )
 
     # Generate
     briefing = await _generate_briefing()
