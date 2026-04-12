@@ -105,6 +105,100 @@ const MARKET_NAME_TO_KEY: Record<string, string> = {
   "Forex":              "Forex",
 };
 
+const WATCHLIST_TABS = [
+  { key: "US",                 label: "Actions US",         icon: "🇺🇸" },
+  { key: "EU",                 label: "Actions Europe",     icon: "🇪🇺" },
+  { key: "Crypto",             label: "Crypto",             icon: "₿"   },
+  { key: "Matières premières", label: "Matières",           icon: "🛢️" },
+  { key: "Forex",              label: "Forex",              icon: "💱"  },
+];
+
+function AdminWatchlistByMarket({ watchlist }: { watchlist: WeeklyBriefing["watchlist"] }) {
+  const [active, setActive] = useState("tous");
+  const hasMarket = watchlist.some(w => !!w.market);
+  const activeTabs = hasMarket
+    ? WATCHLIST_TABS.filter(t => watchlist.some(w => w.market === t.key))
+    : [];
+  const displayed = active === "tous" ? watchlist : watchlist.filter(w => w.market === active);
+
+  return (
+    <Collapsible title={`Watchlist (${watchlist.length})`} icon={TrendingUp}>
+      <div className="flex gap-1.5 flex-wrap mb-3">
+        <button onClick={() => setActive("tous")}
+          className={cn("px-2.5 py-1 rounded-lg text-xs font-medium transition-all border",
+            active === "tous" ? "bg-primary/20 border-primary/40 text-primary" : "bg-white/5 border-white/10 hover:border-white/20")}>
+          Tous ({watchlist.length})
+        </button>
+        {activeTabs.map(tab => {
+          const count = watchlist.filter(w => w.market === tab.key).length;
+          return (
+            <button key={tab.key} onClick={() => setActive(tab.key)}
+              className={cn("px-2.5 py-1 rounded-lg text-xs font-medium transition-all border",
+                active === tab.key ? "bg-primary/20 border-primary/40 text-primary" : "bg-white/5 border-white/10 hover:border-white/20")}>
+              {tab.icon} {tab.label}
+              <span className={cn("ml-1 text-[9px] font-bold px-1 py-0.5 rounded-full",
+                active === tab.key ? "bg-primary/30 text-primary" : "bg-white/10 text-muted-foreground"
+              )}>{count}</span>
+            </button>
+          );
+        })}
+      </div>
+      <div className="space-y-3">
+        {displayed.map((item, i) => {
+          const meta = TREND[item.direction] ?? TREND.neutral;
+          return (
+            <div key={i} className="bg-white/5 rounded-xl overflow-hidden">
+              <div className="flex items-center justify-between px-3 pt-3 pb-2">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className={cn("px-2 py-0.5 rounded-lg text-xs font-mono font-bold border shrink-0", meta.bg, meta.color)}>{item.symbol}</span>
+                  <span className="text-sm font-semibold truncate">{item.name}</span>
+                  {item.market && <span className="text-[10px] text-muted-foreground bg-white/5 px-1.5 py-0.5 rounded shrink-0">{item.market}</span>}
+                </div>
+                <TrendBadge trend={item.direction} />
+              </div>
+              <div className="px-3 pb-3 space-y-2">
+                <div className="bg-blue-500/5 border border-blue-500/10 rounded-lg p-2.5">
+                  <p className="text-[10px] text-blue-400 font-semibold uppercase tracking-wide mb-1">🔍 Pourquoi cette semaine ?</p>
+                  <p className="text-xs text-foreground/80 leading-relaxed">{item.why}</p>
+                </div>
+                <div className="bg-yellow-500/5 border border-yellow-500/10 rounded-lg p-2.5">
+                  <p className="text-[10px] text-yellow-400 font-semibold uppercase tracking-wide mb-1">📈 Scénario anticipé</p>
+                  <p className="text-xs text-foreground/80 leading-relaxed">{item.scenario}</p>
+                </div>
+                {item.technical_setup && (
+                  <div className="bg-primary/5 border border-primary/10 rounded-lg p-2.5">
+                    <p className="text-[10px] text-primary font-semibold uppercase tracking-wide mb-1">📊 Setup technique</p>
+                    <p className="text-xs text-foreground/70">{item.technical_setup}</p>
+                  </div>
+                )}
+                {(item.entry_zone || item.target || item.stop_loss) && (
+                  <div className="grid grid-cols-3 gap-1.5">
+                    {item.entry_zone && <div className="bg-blue-500/8 border border-blue-500/15 rounded-lg p-1.5 text-center">
+                      <p className="text-[9px] text-blue-400/80 font-semibold uppercase mb-0.5">Zone entrée</p>
+                      <p className="text-[11px] font-mono font-bold text-blue-300">{item.entry_zone}</p>
+                    </div>}
+                    {item.target && <div className="bg-emerald-500/8 border border-emerald-500/15 rounded-lg p-1.5 text-center">
+                      <p className="text-[9px] text-emerald-400/80 font-semibold uppercase mb-0.5">Objectif</p>
+                      <p className="text-[11px] font-mono font-bold text-emerald-300">{item.target}</p>
+                    </div>}
+                    {item.stop_loss && <div className="bg-red-500/8 border border-red-500/15 rounded-lg p-1.5 text-center">
+                      <p className="text-[9px] text-red-400/80 font-semibold uppercase mb-0.5">Stop-loss</p>
+                      <p className="text-[11px] font-mono font-bold text-red-300">{item.stop_loss}</p>
+                    </div>}
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })}
+        {displayed.length === 0 && (
+          <p className="text-xs text-muted-foreground text-center py-4 italic">Aucun actif dans cette catégorie.</p>
+        )}
+      </div>
+    </Collapsible>
+  );
+}
+
 // ── Preview renderer ──────────────────────────────────────────────────────────
 
 function BriefingPreview({ briefing }: { briefing: WeeklyBriefing }) {
@@ -138,137 +232,70 @@ function BriefingPreview({ briefing }: { briefing: WeeklyBriefing }) {
         </ul>
       </div>
 
-      {/* Markets + Watchlist unified */}
+      {/* Markets — analysis only */}
       <Collapsible title={`Marchés (${briefing.markets?.length ?? 0})`} icon={BarChart2} defaultOpen>
         <div className="flex gap-1.5 flex-wrap mb-3">
-          {(briefing.markets ?? []).map((m, i) => {
-            const key = MARKET_NAME_TO_KEY[m.name] ?? m.name;
-            const count = (briefing.watchlist ?? []).filter(w => w.market === key).length;
-            return (
-              <button key={i} onClick={() => setActiveMarket(i)}
-                className={cn("px-2.5 py-1 rounded-lg text-xs font-medium transition-all border",
-                  activeMarket === i ? "bg-primary/20 border-primary/40 text-primary" : "bg-white/5 border-white/10 hover:border-white/20"
-                )}>
-                {m.icon} {m.name}
-                {count > 0 && (
-                  <span className={cn("ml-1.5 text-[9px] font-bold px-1 py-0.5 rounded-full",
-                    activeMarket === i ? "bg-primary/30 text-primary" : "bg-white/10 text-muted-foreground"
-                  )}>{count}</span>
-                )}
-              </button>
-            );
-          })}
+          {(briefing.markets ?? []).map((m, i) => (
+            <button key={i} onClick={() => setActiveMarket(i)}
+              className={cn("px-2.5 py-1 rounded-lg text-xs font-medium transition-all border",
+                activeMarket === i ? "bg-primary/20 border-primary/40 text-primary" : "bg-white/5 border-white/10 hover:border-white/20"
+              )}>
+              {m.icon} {m.name}
+            </button>
+          ))}
         </div>
         {briefing.markets?.[activeMarket] && (() => {
           const m = briefing.markets[activeMarket];
-          const key = MARKET_NAME_TO_KEY[m.name] ?? m.name;
-          const watchItems = (briefing.watchlist ?? []).filter(w => w.market === key);
           return (
-            <div className="space-y-4">
-              {/* Market card */}
-              <div className="bg-white/5 rounded-xl p-3 space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="font-semibold text-sm">{m.icon} {m.name}</span>
-                  <TrendBadge trend={m.trend} />
-                </div>
-                <p className="text-sm text-foreground/80">{m.summary}</p>
-                {m.detailed_analysis && (
-                  <p className="text-xs text-foreground/60 leading-relaxed border-l-2 border-primary/30 pl-3">{m.detailed_analysis}</p>
-                )}
-                <div className="space-y-2">
-                  <div className="bg-white/5 rounded-lg p-2.5">
-                    <p className="text-xs text-muted-foreground mb-1 font-medium">Zones clés</p>
-                    <KeyZones zones={m.key_zones} />
-                    <p className="text-[10px] text-muted-foreground/50 mt-1.5">🟢 Support = plancher d'achat · 🔴 Résistance = plafond de vente</p>
-                  </div>
-                  <div className="bg-red-500/5 border border-red-500/10 rounded-lg p-2.5">
-                    <p className="text-xs text-red-400 mb-0.5 flex items-center gap-1 font-medium">
-                      <AlertTriangle className="w-2.5 h-2.5" /> Risque
-                    </p>
-                    <p className="text-xs">{m.risk}</p>
-                  </div>
-                </div>
-                {m.opportunities && m.opportunities.length > 0 && (
-                  <div className="bg-emerald-500/5 border border-emerald-500/10 rounded-lg p-2 space-y-1">
-                    <p className="text-xs text-emerald-400 font-semibold mb-1">Opportunités</p>
-                    {m.opportunities.map((op, i) => (
-                      <p key={i} className="text-xs text-foreground/70 flex items-start gap-1.5">
-                        <ArrowRight className="w-3 h-3 mt-0.5 shrink-0 text-emerald-400" />{op}
-                      </p>
-                    ))}
-                  </div>
-                )}
-                {m.sectors_watch && m.sectors_watch.length > 0 && (
-                  <div className="space-y-1">
-                    <p className="text-xs text-muted-foreground font-semibold">Secteurs à surveiller</p>
-                    {m.sectors_watch.map((s, i) => (
-                      <p key={i} className="text-xs text-foreground/70 flex items-start gap-1.5">
-                        <ChevronRight className="w-3 h-3 mt-0.5 shrink-0 text-primary/60" />{s}
-                      </p>
-                    ))}
-                  </div>
-                )}
+            <div className="bg-white/5 rounded-xl p-3 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="font-semibold text-sm">{m.icon} {m.name}</span>
+                <TrendBadge trend={m.trend} />
               </div>
-
-              {/* Watchlist for this market */}
-              {watchItems.length > 0 && (
-                <div className="space-y-2">
-                  <p className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
-                    <TrendingUp className="w-3.5 h-3.5 text-primary" />
-                    Watchlist {m.icon} ({watchItems.length} actif{watchItems.length > 1 ? "s" : ""})
+              <p className="text-sm text-foreground/80">{m.summary}</p>
+              {m.detailed_analysis && (
+                <p className="text-xs text-foreground/60 leading-relaxed border-l-2 border-primary/30 pl-3">{m.detailed_analysis}</p>
+              )}
+              <div className="space-y-2">
+                <div className="bg-white/5 rounded-lg p-2.5">
+                  <p className="text-xs text-muted-foreground mb-1 font-medium">Zones clés</p>
+                  <KeyZones zones={m.key_zones} />
+                  <p className="text-[10px] text-muted-foreground/50 mt-1.5">🟢 Support = plancher d'achat · 🔴 Résistance = plafond de vente</p>
+                </div>
+                <div className="bg-red-500/5 border border-red-500/10 rounded-lg p-2.5">
+                  <p className="text-xs text-red-400 mb-0.5 flex items-center gap-1 font-medium">
+                    <AlertTriangle className="w-2.5 h-2.5" /> Risque
                   </p>
-                  {watchItems.map((item, i) => {
-                    const meta = TREND[item.direction] ?? TREND.neutral;
-                    return (
-                      <div key={i} className="bg-white/5 rounded-xl overflow-hidden">
-                        <div className="flex items-center justify-between px-3 pt-3 pb-2">
-                          <div className="flex items-center gap-2 min-w-0">
-                            <span className={cn("px-2 py-0.5 rounded-lg text-xs font-mono font-bold border shrink-0", meta.bg, meta.color)}>{item.symbol}</span>
-                            <span className="text-sm font-semibold truncate">{item.name}</span>
-                          </div>
-                          <TrendBadge trend={item.direction} />
-                        </div>
-                        <div className="px-3 pb-3 space-y-2">
-                          <div className="bg-blue-500/5 border border-blue-500/10 rounded-lg p-2.5">
-                            <p className="text-[10px] text-blue-400 font-semibold uppercase tracking-wide mb-1">🔍 Pourquoi cette semaine ?</p>
-                            <p className="text-xs text-foreground/80 leading-relaxed">{item.why}</p>
-                          </div>
-                          <div className="bg-yellow-500/5 border border-yellow-500/10 rounded-lg p-2.5">
-                            <p className="text-[10px] text-yellow-400 font-semibold uppercase tracking-wide mb-1">📈 Scénario anticipé</p>
-                            <p className="text-xs text-foreground/80 leading-relaxed">{item.scenario}</p>
-                          </div>
-                          {item.technical_setup && (
-                            <div className="bg-primary/5 border border-primary/10 rounded-lg p-2.5">
-                              <p className="text-[10px] text-primary font-semibold uppercase tracking-wide mb-1">📊 Setup technique</p>
-                              <p className="text-xs text-foreground/70">{item.technical_setup}</p>
-                            </div>
-                          )}
-                          {(item.entry_zone || item.target || item.stop_loss) && (
-                            <div className="grid grid-cols-3 gap-1.5">
-                              {item.entry_zone && <div className="bg-blue-500/8 border border-blue-500/15 rounded-lg p-1.5 text-center">
-                                <p className="text-[9px] text-blue-400/80 font-semibold uppercase mb-0.5">Zone entrée</p>
-                                <p className="text-[11px] font-mono font-bold text-blue-300">{item.entry_zone}</p>
-                              </div>}
-                              {item.target && <div className="bg-emerald-500/8 border border-emerald-500/15 rounded-lg p-1.5 text-center">
-                                <p className="text-[9px] text-emerald-400/80 font-semibold uppercase mb-0.5">Objectif</p>
-                                <p className="text-[11px] font-mono font-bold text-emerald-300">{item.target}</p>
-                              </div>}
-                              {item.stop_loss && <div className="bg-red-500/8 border border-red-500/15 rounded-lg p-1.5 text-center">
-                                <p className="text-[9px] text-red-400/80 font-semibold uppercase mb-0.5">Stop-loss</p>
-                                <p className="text-[11px] font-mono font-bold text-red-300">{item.stop_loss}</p>
-                              </div>}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
+                  <p className="text-xs">{m.risk}</p>
+                </div>
+              </div>
+              {m.opportunities && m.opportunities.length > 0 && (
+                <div className="bg-emerald-500/5 border border-emerald-500/10 rounded-lg p-2 space-y-1">
+                  <p className="text-xs text-emerald-400 font-semibold mb-1">Opportunités</p>
+                  {m.opportunities.map((op, i) => (
+                    <p key={i} className="text-xs text-foreground/70 flex items-start gap-1.5">
+                      <ArrowRight className="w-3 h-3 mt-0.5 shrink-0 text-emerald-400" />{op}
+                    </p>
+                  ))}
+                </div>
+              )}
+              {m.sectors_watch && m.sectors_watch.length > 0 && (
+                <div className="space-y-1">
+                  <p className="text-xs text-muted-foreground font-semibold">Secteurs à surveiller</p>
+                  {m.sectors_watch.map((s, i) => (
+                    <p key={i} className="text-xs text-foreground/70 flex items-start gap-1.5">
+                      <ChevronRight className="w-3 h-3 mt-0.5 shrink-0 text-primary/60" />{s}
+                    </p>
+                  ))}
                 </div>
               )}
             </div>
           );
         })()}
       </Collapsible>
+
+      {/* Watchlist — separate section with market tabs */}
+      <AdminWatchlistByMarket watchlist={briefing.watchlist ?? []} />
 
       {/* Events */}
       <Collapsible title={`Événements (${briefing.events?.length ?? 0})`} icon={Calendar}>

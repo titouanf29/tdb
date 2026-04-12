@@ -345,6 +345,71 @@ function EventRow({ event }: { event: WeeklyEvent }) {
   );
 }
 
+const WATCHLIST_TABS = [
+  { key: "US",                 label: "Actions US",         icon: "🇺🇸" },
+  { key: "EU",                 label: "Actions Europe",     icon: "🇪🇺" },
+  { key: "Crypto",             label: "Crypto",             icon: "₿"   },
+  { key: "Matières premières", label: "Matières",           icon: "🛢️" },
+  { key: "Forex",              label: "Forex",              icon: "💱"  },
+];
+
+function WatchlistByMarket({ watchlist, t }: { watchlist: WeeklyWatchItem[]; t: (k: any) => string }) {
+  const hasMarketField = watchlist.some(w => !!w.market);
+  // Only show market tabs that have at least one item; always show "Tous"
+  const activeTabs = hasMarketField
+    ? WATCHLIST_TABS.filter(tab => watchlist.some(w => w.market === tab.key))
+    : [];
+
+  const [active, setActive] = useState("tous");
+
+  const displayed = active === "tous"
+    ? watchlist
+    : watchlist.filter(w => w.market === active);
+
+  return (
+    <Section title={`${t("weekly_watchlist")} (${watchlist.length})`} icon={Eye}>
+      {/* Tab bar */}
+      <div className="flex gap-1.5 flex-wrap mb-3">
+        <button onClick={() => setActive("tous")}
+          className={cn("px-2.5 py-1 rounded-lg text-xs font-medium transition-all border",
+            active === "tous" ? "bg-primary/20 border-primary/40 text-primary" : "bg-white/5 border-white/10 hover:border-white/20"
+          )}>
+          Tous ({watchlist.length})
+        </button>
+        {activeTabs.map(tab => {
+          const count = watchlist.filter(w => w.market === tab.key).length;
+          return (
+            <button key={tab.key} onClick={() => setActive(tab.key)}
+              className={cn("px-2.5 py-1 rounded-lg text-xs font-medium transition-all border",
+                active === tab.key ? "bg-primary/20 border-primary/40 text-primary" : "bg-white/5 border-white/10 hover:border-white/20"
+              )}>
+              {tab.icon} {tab.label}
+              <span className={cn("ml-1 text-[9px] font-bold px-1 py-0.5 rounded-full",
+                active === tab.key ? "bg-primary/30 text-primary" : "bg-white/10 text-muted-foreground"
+              )}>{count}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      <AnimatePresence mode="wait">
+        <motion.div key={active} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-3">
+          {displayed.map((item, i) => (
+            <motion.div key={item.symbol + i} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }}>
+              <WatchCard item={item} />
+            </motion.div>
+          ))}
+          {displayed.length === 0 && (
+            <p className="text-xs text-muted-foreground text-center py-4 italic">
+              Aucun actif dans cette catégorie pour cette semaine.
+            </p>
+          )}
+        </motion.div>
+      </AnimatePresence>
+    </Section>
+  );
+}
+
 // ── Main widget ───────────────────────────────────────────────────────────────
 
 interface Props {
@@ -488,56 +553,27 @@ export function WeeklyPrepWidget({ respectSchedule = true }: Props) {
         </ul>
       </div>
 
-      {/* Markets + Watchlist unified tabs */}
+      {/* Markets tabs — analysis only */}
       <Section title={t("weekly_markets")} icon={BarChart2} defaultOpen>
-        {/* Tab bar */}
         <div className="flex gap-1.5 flex-wrap mb-3">
-          {briefing.markets.map((m, i) => {
-            const key = MARKET_NAME_TO_KEY[m.name] ?? m.name;
-            const count = briefing.watchlist.filter(w => w.market === key).length;
-            return (
-              <button key={i} onClick={() => setActiveMarket(i)}
-                className={cn("px-2.5 py-1 rounded-lg text-xs font-medium transition-all border relative",
-                  activeMarket === i ? "bg-primary/20 border-primary/40 text-primary" : "bg-white/5 border-white/10 hover:border-white/20"
-                )}>
-                {m.icon} {m.name}
-                {count > 0 && (
-                  <span className={cn("ml-1.5 text-[9px] font-bold px-1 py-0.5 rounded-full",
-                    activeMarket === i ? "bg-primary/30 text-primary" : "bg-white/10 text-muted-foreground"
-                  )}>{count}</span>
-                )}
-              </button>
-            );
-          })}
+          {briefing.markets.map((m, i) => (
+            <button key={i} onClick={() => setActiveMarket(i)}
+              className={cn("px-2.5 py-1 rounded-lg text-xs font-medium transition-all border",
+                activeMarket === i ? "bg-primary/20 border-primary/40 text-primary" : "bg-white/5 border-white/10 hover:border-white/20"
+              )}>
+              {m.icon} {m.name}
+            </button>
+          ))}
         </div>
-
         <AnimatePresence mode="wait">
-          <motion.div key={activeMarket} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-4">
-            {/* Market analysis card */}
+          <motion.div key={activeMarket} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
             <MarketCard market={briefing.markets[activeMarket]} />
-
-            {/* Watchlist for this market */}
-            {(() => {
-              const key = MARKET_NAME_TO_KEY[briefing.markets[activeMarket]?.name] ?? briefing.markets[activeMarket]?.name;
-              const items = briefing.watchlist.filter(w => w.market === key);
-              if (items.length === 0) return null;
-              return (
-                <div className="space-y-2">
-                  <p className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
-                    <Eye className="w-3.5 h-3.5 text-primary" />
-                    Watchlist {briefing.markets[activeMarket]?.icon} ({items.length} actif{items.length > 1 ? "s" : ""})
-                  </p>
-                  {items.map((item, i) => (
-                    <motion.div key={item.symbol + i} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
-                      <WatchCard item={item} />
-                    </motion.div>
-                  ))}
-                </div>
-              );
-            })()}
           </motion.div>
         </AnimatePresence>
       </Section>
+
+      {/* Watchlist — separate section, tabs by market */}
+      <WatchlistByMarket watchlist={briefing.watchlist} t={t} />
 
       {/* Events */}
       <Section title={t("weekly_events")} icon={Calendar}>
