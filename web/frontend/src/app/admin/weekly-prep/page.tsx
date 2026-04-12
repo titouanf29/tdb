@@ -97,6 +97,101 @@ function Collapsible({ title, icon: Icon, children, defaultOpen = false }: {
   );
 }
 
+const MARKET_GROUPS = [
+  { key: "US",                 label: "Actions US",         icon: "🇺🇸" },
+  { key: "EU",                 label: "Actions Europe",     icon: "🇪🇺" },
+  { key: "Crypto",             label: "Crypto",             icon: "₿"   },
+  { key: "Matières premières", label: "Matières premières", icon: "🛢️" },
+  { key: "Forex",              label: "Forex",              icon: "💱"  },
+];
+
+function AdminWatchlistSection({ watchlist }: { watchlist: WeeklyBriefing["watchlist"] }) {
+  const [activeGroup, setActiveGroup] = useState("all");
+  const populated = MARKET_GROUPS.filter(g => watchlist.some(i => i.market === g.key));
+  const hasGroups = populated.length > 1;
+  const displayed = activeGroup === "all" ? watchlist : watchlist.filter(i => i.market === activeGroup);
+
+  return (
+    <Collapsible title={`Watchlist (${watchlist.length})`} icon={TrendingUp}>
+      {hasGroups && (
+        <div className="flex gap-1.5 flex-wrap mb-3">
+          <button onClick={() => setActiveGroup("all")}
+            className={cn("px-2.5 py-1 rounded-lg text-xs font-medium transition-all border",
+              activeGroup === "all" ? "bg-primary/20 border-primary/40 text-primary" : "bg-white/5 border-white/10 hover:border-white/20")}>
+            Tous ({watchlist.length})
+          </button>
+          {populated.map(g => (
+            <button key={g.key} onClick={() => setActiveGroup(g.key)}
+              className={cn("px-2.5 py-1 rounded-lg text-xs font-medium transition-all border",
+                activeGroup === g.key ? "bg-primary/20 border-primary/40 text-primary" : "bg-white/5 border-white/10 hover:border-white/20")}>
+              {g.icon} {g.label} ({watchlist.filter(i => i.market === g.key).length})
+            </button>
+          ))}
+        </div>
+      )}
+      <div className="space-y-3">
+        {displayed.map((item, i) => {
+          const meta = TREND[item.direction] ?? TREND.neutral;
+          return (
+            <div key={i} className="bg-white/5 rounded-xl overflow-hidden">
+              <div className="flex items-center justify-between px-3 pt-3 pb-2">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className={cn("px-2 py-0.5 rounded-lg text-xs font-mono font-bold border shrink-0", meta.bg, meta.color)}>
+                    {item.symbol}
+                  </span>
+                  <span className="text-sm font-semibold truncate">{item.name}</span>
+                  {item.market && (
+                    <span className="text-[10px] text-muted-foreground bg-white/5 px-1.5 py-0.5 rounded shrink-0">{item.market}</span>
+                  )}
+                </div>
+                <TrendBadge trend={item.direction} />
+              </div>
+              <div className="px-3 pb-3 space-y-2">
+                <div className="bg-blue-500/5 border border-blue-500/10 rounded-lg p-2.5">
+                  <p className="text-[10px] text-blue-400 font-semibold uppercase tracking-wide mb-1">🔍 Pourquoi cette semaine ?</p>
+                  <p className="text-xs text-foreground/80 leading-relaxed">{item.why}</p>
+                </div>
+                <div className="bg-yellow-500/5 border border-yellow-500/10 rounded-lg p-2.5">
+                  <p className="text-[10px] text-yellow-400 font-semibold uppercase tracking-wide mb-1">📈 Scénario anticipé</p>
+                  <p className="text-xs text-foreground/80 leading-relaxed">{item.scenario}</p>
+                </div>
+                {item.technical_setup && (
+                  <div className="bg-primary/5 border border-primary/10 rounded-lg p-2.5">
+                    <p className="text-[10px] text-primary font-semibold uppercase tracking-wide mb-1">📊 Setup technique</p>
+                    <p className="text-xs text-foreground/70">{item.technical_setup}</p>
+                  </div>
+                )}
+                {(item.entry_zone || item.target || item.stop_loss) && (
+                  <div className="grid grid-cols-3 gap-1.5">
+                    {item.entry_zone && (
+                      <div className="bg-blue-500/8 border border-blue-500/15 rounded-lg p-1.5 text-center">
+                        <p className="text-[9px] text-blue-400/80 font-semibold uppercase mb-0.5">Zone entrée</p>
+                        <p className="text-[11px] font-mono font-bold text-blue-300">{item.entry_zone}</p>
+                      </div>
+                    )}
+                    {item.target && (
+                      <div className="bg-emerald-500/8 border border-emerald-500/15 rounded-lg p-1.5 text-center">
+                        <p className="text-[9px] text-emerald-400/80 font-semibold uppercase mb-0.5">Objectif</p>
+                        <p className="text-[11px] font-mono font-bold text-emerald-300">{item.target}</p>
+                      </div>
+                    )}
+                    {item.stop_loss && (
+                      <div className="bg-red-500/8 border border-red-500/15 rounded-lg p-1.5 text-center">
+                        <p className="text-[9px] text-red-400/80 font-semibold uppercase mb-0.5">Stop-loss</p>
+                        <p className="text-[11px] font-mono font-bold text-red-300">{item.stop_loss}</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </Collapsible>
+  );
+}
+
 // ── Preview renderer ──────────────────────────────────────────────────────────
 
 function BriefingPreview({ briefing }: { briefing: WeeklyBriefing }) {
@@ -198,60 +293,8 @@ function BriefingPreview({ briefing }: { briefing: WeeklyBriefing }) {
         })()}
       </Collapsible>
 
-      {/* Watchlist */}
-      <Collapsible title={`Watchlist (${briefing.watchlist?.length ?? 0})`} icon={TrendingUp}>
-        <div className="space-y-2">
-          {(briefing.watchlist ?? []).map((item, i) => {
-            const meta = TREND[item.direction] ?? TREND.neutral;
-            return (
-              <div key={i} className="bg-white/5 rounded-xl p-3 space-y-2">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className={cn("px-2 py-0.5 rounded-lg text-xs font-mono font-bold border", meta.bg, meta.color)}>
-                      {item.symbol}
-                    </span>
-                    <span className="text-sm font-medium truncate max-w-[140px]">{item.name}</span>
-                  </div>
-                  <TrendBadge trend={item.direction} />
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  <span className="text-white/70 font-medium">Pourquoi : </span>{item.why}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  <span className="text-white/70 font-medium">Scénario : </span>{item.scenario}
-                </p>
-                {item.technical_setup && (
-                  <p className="text-xs text-foreground/60 bg-white/5 rounded-lg px-2 py-1.5 border-l-2 border-primary/30">
-                    📊 {item.technical_setup}
-                  </p>
-                )}
-                {(item.entry_zone || item.target || item.stop_loss) && (
-                  <div className="grid grid-cols-3 gap-1.5">
-                    {item.entry_zone && (
-                      <div className="bg-blue-500/8 border border-blue-500/15 rounded-lg p-1.5 text-center">
-                        <p className="text-[9px] text-blue-400/80 font-semibold uppercase tracking-wide mb-0.5">Entrée</p>
-                        <p className="text-[10px] font-mono text-blue-300">{item.entry_zone}</p>
-                      </div>
-                    )}
-                    {item.target && (
-                      <div className="bg-emerald-500/8 border border-emerald-500/15 rounded-lg p-1.5 text-center">
-                        <p className="text-[9px] text-emerald-400/80 font-semibold uppercase tracking-wide mb-0.5">Cible</p>
-                        <p className="text-[10px] font-mono text-emerald-300">{item.target}</p>
-                      </div>
-                    )}
-                    {item.stop_loss && (
-                      <div className="bg-red-500/8 border border-red-500/15 rounded-lg p-1.5 text-center">
-                        <p className="text-[9px] text-red-400/80 font-semibold uppercase tracking-wide mb-0.5">Stop</p>
-                        <p className="text-[10px] font-mono text-red-300">{item.stop_loss}</p>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </Collapsible>
+      {/* Watchlist grouped by market */}
+      <AdminWatchlistSection watchlist={briefing.watchlist ?? []} />
 
       {/* Events */}
       <Collapsible title={`Événements (${briefing.events?.length ?? 0})`} icon={Calendar}>

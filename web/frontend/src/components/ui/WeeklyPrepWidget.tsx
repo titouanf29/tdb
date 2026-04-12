@@ -175,71 +175,94 @@ function MarketCard({ market }: { market: WeeklyMarket }) {
   );
 }
 
+const MARKET_GROUPS = [
+  { key: "US",                 label: "Actions US",           icon: "🇺🇸" },
+  { key: "EU",                 label: "Actions Europe",       icon: "🇪🇺" },
+  { key: "Crypto",             label: "Crypto",               icon: "₿"   },
+  { key: "Matières premières", label: "Matières premières",   icon: "🛢️" },
+  { key: "Forex",              label: "Forex",                icon: "💱"  },
+];
+
 function WatchCard({ item }: { item: WeeklyWatchItem }) {
   const { t } = useLanguage();
   const [faved, setFaved] = useState(false);
-  const { color, bg, icon: Icon } = TREND_KEYS[item.direction];
+  const { color, bg } = TREND_KEYS[item.direction];
 
   const addFav = async () => {
-    try {
-      await favoritesAPI.addFavorite(item.symbol);
-      setFaved(true);
-    } catch {}
+    try { await favoritesAPI.addFavorite(item.symbol); setFaved(true); } catch {}
   };
 
   return (
-    <div className="bg-white/5 rounded-xl p-3 space-y-2">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <span className={cn("px-2 py-0.5 rounded-lg text-xs font-mono font-bold border", bg, color)}>
+    <div className="bg-white/5 rounded-xl overflow-hidden">
+      {/* Header */}
+      <div className="flex items-center justify-between px-3 pt-3 pb-2">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className={cn("px-2 py-0.5 rounded-lg text-xs font-mono font-bold border shrink-0", bg, color)}>
             {item.symbol}
           </span>
-          <span className="text-sm font-medium truncate max-w-[120px]">{item.name}</span>
+          <span className="text-sm font-semibold truncate">{item.name}</span>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 shrink-0">
           <TrendBadge trend={item.direction} />
-          <button
-            onClick={addFav}
+          <button onClick={addFav}
             className={cn("p-1.5 rounded-lg transition-colors", faved ? "text-yellow-400" : "text-muted-foreground hover:text-yellow-400")}
-            title={t("weekly_add_fav")}
-          >
+            title={t("weekly_add_fav")}>
             <Star className={cn("w-3.5 h-3.5", faved && "fill-yellow-400")} />
           </button>
         </div>
       </div>
-      <p className="text-xs text-muted-foreground">
-        <span className="text-white/70 font-medium">{t("weekly_why")} </span>{item.why}
-      </p>
-      <p className="text-xs text-muted-foreground">
-        <span className="text-white/70 font-medium">{t("weekly_scenario")} </span>{item.scenario}
-      </p>
-      {item.technical_setup && (
-        <p className="text-xs text-foreground/60 bg-white/5 rounded-lg px-2 py-1.5 border-l-2 border-primary/30">
-          📊 {item.technical_setup}
-        </p>
-      )}
-      {(item.entry_zone || item.target || item.stop_loss) && (
-        <div className="grid grid-cols-3 gap-1.5 pt-0.5">
-          {item.entry_zone && (
-            <div className="bg-blue-500/8 border border-blue-500/15 rounded-lg p-1.5 text-center">
-              <p className="text-[9px] text-blue-400/80 font-semibold uppercase tracking-wide mb-0.5">Entrée</p>
-              <p className="text-[10px] font-mono text-blue-300">{item.entry_zone}</p>
-            </div>
-          )}
-          {item.target && (
-            <div className="bg-emerald-500/8 border border-emerald-500/15 rounded-lg p-1.5 text-center">
-              <p className="text-[9px] text-emerald-400/80 font-semibold uppercase tracking-wide mb-0.5">Cible</p>
-              <p className="text-[10px] font-mono text-emerald-300">{item.target}</p>
-            </div>
-          )}
-          {item.stop_loss && (
-            <div className="bg-red-500/8 border border-red-500/15 rounded-lg p-1.5 text-center">
-              <p className="text-[9px] text-red-400/80 font-semibold uppercase tracking-wide mb-0.5">Stop</p>
-              <p className="text-[10px] font-mono text-red-300">{item.stop_loss}</p>
-            </div>
-          )}
+
+      <div className="px-3 pb-3 space-y-2.5">
+        {/* Why */}
+        <div className="bg-blue-500/5 border border-blue-500/10 rounded-lg p-2.5">
+          <p className="text-[10px] text-blue-400 font-semibold uppercase tracking-wide mb-1 flex items-center gap-1">
+            🔍 Pourquoi cette semaine ?
+          </p>
+          <p className="text-xs text-foreground/80 leading-relaxed">{item.why}</p>
         </div>
-      )}
+
+        {/* Scenario */}
+        <div className="bg-yellow-500/5 border border-yellow-500/10 rounded-lg p-2.5">
+          <p className="text-[10px] text-yellow-400 font-semibold uppercase tracking-wide mb-1 flex items-center gap-1">
+            📈 Scénario anticipé
+          </p>
+          <p className="text-xs text-foreground/80 leading-relaxed">{item.scenario}</p>
+        </div>
+
+        {/* Technical setup */}
+        {item.technical_setup && (
+          <div className="bg-primary/5 border border-primary/10 rounded-lg p-2.5">
+            <p className="text-[10px] text-primary font-semibold uppercase tracking-wide mb-1">
+              📊 Setup technique
+            </p>
+            <p className="text-xs text-foreground/70">{item.technical_setup}</p>
+          </div>
+        )}
+
+        {/* Price levels */}
+        {(item.entry_zone || item.target || item.stop_loss) && (
+          <div className="grid grid-cols-3 gap-1.5">
+            {item.entry_zone && (
+              <div className="bg-blue-500/8 border border-blue-500/15 rounded-lg p-2 text-center">
+                <p className="text-[9px] text-blue-400/80 font-semibold uppercase tracking-wide mb-0.5">Zone entrée</p>
+                <p className="text-[11px] font-mono font-bold text-blue-300">{item.entry_zone}</p>
+              </div>
+            )}
+            {item.target && (
+              <div className="bg-emerald-500/8 border border-emerald-500/15 rounded-lg p-2 text-center">
+                <p className="text-[9px] text-emerald-400/80 font-semibold uppercase tracking-wide mb-0.5">Objectif</p>
+                <p className="text-[11px] font-mono font-bold text-emerald-300">{item.target}</p>
+              </div>
+            )}
+            {item.stop_loss && (
+              <div className="bg-red-500/8 border border-red-500/15 rounded-lg p-2 text-center">
+                <p className="text-[9px] text-red-400/80 font-semibold uppercase tracking-wide mb-0.5">Stop-loss</p>
+                <p className="text-[11px] font-mono font-bold text-red-300">{item.stop_loss}</p>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -318,6 +341,62 @@ function EventRow({ event }: { event: WeeklyEvent }) {
         "bg-emerald-500/10 text-emerald-400"
       )}>{impLabel}</span>
     </div>
+  );
+}
+
+function WatchlistSection({ watchlist, t }: { watchlist: WeeklyWatchItem[]; t: (k: any) => string }) {
+  const [activeGroup, setActiveGroup] = useState<string>("all");
+
+  // Build tabs: only show groups that have items + an "Tous" tab
+  const populated = MARKET_GROUPS.filter(g =>
+    watchlist.some(item => item.market === g.key)
+  );
+  const hasGroups = populated.length > 1;
+
+  const displayed = activeGroup === "all"
+    ? watchlist
+    : watchlist.filter(item => item.market === activeGroup);
+
+  return (
+    <Section title={`${t("weekly_watchlist")} (${watchlist.length})`} icon={Eye}>
+      {hasGroups && (
+        <div className="flex gap-1.5 flex-wrap mb-3">
+          <button
+            onClick={() => setActiveGroup("all")}
+            className={cn("px-2.5 py-1 rounded-lg text-xs font-medium transition-all border",
+              activeGroup === "all" ? "bg-primary/20 border-primary/40 text-primary" : "bg-white/5 border-white/10 hover:border-white/20"
+            )}
+          >
+            Tous ({watchlist.length})
+          </button>
+          {populated.map(g => {
+            const count = watchlist.filter(i => i.market === g.key).length;
+            return (
+              <button key={g.key} onClick={() => setActiveGroup(g.key)}
+                className={cn("px-2.5 py-1 rounded-lg text-xs font-medium transition-all border",
+                  activeGroup === g.key ? "bg-primary/20 border-primary/40 text-primary" : "bg-white/5 border-white/10 hover:border-white/20"
+                )}
+              >
+                {g.icon} {g.label} ({count})
+              </button>
+            );
+          })}
+        </div>
+      )}
+      <AnimatePresence mode="wait">
+        <motion.div key={activeGroup} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+          className="space-y-3">
+          {displayed.map((item, i) => (
+            <motion.div key={item.symbol + i} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }}>
+              <WatchCard item={item} />
+            </motion.div>
+          ))}
+          {displayed.length === 0 && (
+            <p className="text-xs text-muted-foreground text-center py-4">Aucun actif dans cette catégorie.</p>
+          )}
+        </motion.div>
+      </AnimatePresence>
+    </Section>
   );
 }
 
@@ -483,16 +562,8 @@ export function WeeklyPrepWidget({ respectSchedule = true }: Props) {
         </AnimatePresence>
       </Section>
 
-      {/* Watchlist */}
-      <Section title={`${t("weekly_watchlist")} (${briefing.watchlist.length})`} icon={Eye}>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-          {briefing.watchlist.map((item, i) => (
-            <motion.div key={i} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }}>
-              <WatchCard item={item} />
-            </motion.div>
-          ))}
-        </div>
-      </Section>
+      {/* Watchlist grouped by market */}
+      <WatchlistSection watchlist={briefing.watchlist} t={t} />
 
       {/* Events */}
       <Section title={t("weekly_events")} icon={Calendar}>

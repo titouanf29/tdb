@@ -1498,6 +1498,7 @@ export interface WeeklyWatchItem {
   symbol: string;
   name: string;
   type: string;
+  market?: string;
   why: string;
   scenario: string;
   direction: "bullish" | "bearish" | "neutral";
