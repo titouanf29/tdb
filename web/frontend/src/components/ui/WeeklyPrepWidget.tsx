@@ -527,14 +527,22 @@ export function WeeklyPrepWidget({ respectSchedule = true }: Props) {
             title={t("refresh")}>
             <RefreshCw className={cn("w-4 h-4", refreshing && "animate-spin")} />
           </button>
-          <button onClick={() => setFullscreen(v => !v)}
-            className="p-1.5 rounded-lg hover:bg-white/10 text-muted-foreground hover:text-white transition-colors hidden sm:block"
-            title={t("weekly_fullscreen")}>
-            <Maximize2 className="w-4 h-4" />
-          </button>
-          <button onClick={handleDismiss}
-            className="p-1.5 rounded-lg hover:bg-red-500/20 text-muted-foreground hover:text-red-400 transition-colors"
-            title={t("weekly_close_week")}>
+          {!fullscreen && (
+            <button onClick={() => setFullscreen(true)}
+              className="p-1.5 rounded-lg hover:bg-white/10 text-muted-foreground hover:text-white transition-colors hidden sm:block"
+              title={t("weekly_fullscreen")}>
+              <Maximize2 className="w-4 h-4" />
+            </button>
+          )}
+          <button
+            onClick={fullscreen ? () => setFullscreen(false) : handleDismiss}
+            className={cn(
+              "p-1.5 rounded-lg transition-colors",
+              fullscreen
+                ? "hover:bg-white/10 text-muted-foreground hover:text-white"
+                : "hover:bg-red-500/20 text-muted-foreground hover:text-red-400"
+            )}
+            title={fullscreen ? "Réduire" : t("weekly_close_week")}>
             <X className="w-4 h-4" />
           </button>
         </div>
