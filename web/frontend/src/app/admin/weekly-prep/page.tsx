@@ -15,6 +15,34 @@ import { weeklyPrepAPI, WeeklyBriefing, WeeklyTradingIdea } from "@/lib/api";
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
+function KeyZones({ zones }: { zones: string }) {
+  if (!zones || zones === "—" || zones === "Données non disponibles") return (
+    <span className="text-xs text-muted-foreground">—</span>
+  );
+  const parts = zones.split(/,\s*/).filter(Boolean);
+  return (
+    <div className="flex flex-wrap gap-1.5 mt-1">
+      {parts.map((part, i) => {
+        const lower = part.toLowerCase();
+        const isRes = lower.includes("résistance") || lower.includes("resistance");
+        const isSup = lower.includes("support");
+        const cls = isRes
+          ? "bg-red-500/15 text-red-400 border-red-500/25"
+          : isSup
+          ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/25"
+          : "bg-blue-500/15 text-blue-400 border-blue-500/25";
+        const dot = isRes ? "bg-red-400" : isSup ? "bg-emerald-400" : "bg-blue-400";
+        return (
+          <span key={i} className={`inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full border ${cls}`}>
+            <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${dot}`} />
+            {part.trim()}
+          </span>
+        );
+      })}
+    </div>
+  );
+}
+
 const TREND = {
   bullish: { color: "text-emerald-400", bg: "bg-emerald-500/10 border-emerald-500/30", label: "Haussier", icon: TrendingUp },
   bearish: { color: "text-red-400",     bg: "bg-red-500/10 border-red-500/30",         label: "Baissier", icon: TrendingDown },
@@ -128,13 +156,16 @@ function BriefingPreview({ briefing }: { briefing: WeeklyBriefing }) {
                   {m.detailed_analysis}
                 </p>
               )}
-              <div className="grid grid-cols-2 gap-2">
-                <div className="bg-white/5 rounded-lg p-2">
-                  <p className="text-xs text-muted-foreground mb-0.5">Zones clés</p>
-                  <p className="text-xs">{m.key_zones}</p>
+              <div className="space-y-2">
+                <div className="bg-white/5 rounded-lg p-2.5">
+                  <p className="text-xs text-muted-foreground mb-1 font-medium">Zones clés</p>
+                  <KeyZones zones={m.key_zones} />
+                  <p className="text-[10px] text-muted-foreground/50 mt-1.5">
+                    🟢 Support = plancher d'achat · 🔴 Résistance = plafond de vente
+                  </p>
                 </div>
-                <div className="bg-red-500/5 border border-red-500/10 rounded-lg p-2">
-                  <p className="text-xs text-red-400 mb-0.5 flex items-center gap-1">
+                <div className="bg-red-500/5 border border-red-500/10 rounded-lg p-2.5">
+                  <p className="text-xs text-red-400 mb-0.5 flex items-center gap-1 font-medium">
                     <AlertTriangle className="w-2.5 h-2.5" /> Risque
                   </p>
                   <p className="text-xs">{m.risk}</p>

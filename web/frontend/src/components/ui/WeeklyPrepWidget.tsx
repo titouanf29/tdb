@@ -29,6 +29,45 @@ const IMPORTANCE = {
 
 // ── Sub-components ────────────────────────────────────────────────────────────
 
+/** Parse "Support 5100, Résistance 5280, Support fort 4900" into colored badges */
+function KeyZones({ zones }: { zones: string }) {
+  if (!zones || zones === "—" || zones === "Données non disponibles") return (
+    <span className="text-xs text-muted-foreground">—</span>
+  );
+
+  const parts = zones.split(/,\s*/).filter(Boolean);
+
+  return (
+    <div className="flex flex-wrap gap-1.5 mt-1">
+      {parts.map((part, i) => {
+        const lower = part.toLowerCase();
+        const isResistance = lower.includes("résistance") || lower.includes("resistance");
+        const isSupport = lower.includes("support");
+        const label = part.trim();
+
+        if (isResistance) return (
+          <span key={i} className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-red-500/15 text-red-400 border border-red-500/25">
+            <span className="w-1.5 h-1.5 rounded-full bg-red-400 shrink-0" />
+            {label}
+          </span>
+        );
+        if (isSupport) return (
+          <span key={i} className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/25">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
+            {label}
+          </span>
+        );
+        return (
+          <span key={i} className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-blue-500/15 text-blue-400 border border-blue-500/25">
+            <span className="w-1.5 h-1.5 rounded-full bg-blue-400 shrink-0" />
+            {label}
+          </span>
+        );
+      })}
+    </div>
+  );
+}
+
 function TrendBadge({ trend }: { trend: "bullish" | "bearish" | "neutral" }) {
   const { t } = useLanguage();
   const { color, bg, icon: Icon } = TREND_KEYS[trend];
@@ -95,13 +134,16 @@ function MarketCard({ market }: { market: WeeklyMarket }) {
           {market.detailed_analysis}
         </p>
       )}
-      <div className="grid grid-cols-2 gap-2 pt-1">
-        <div className="bg-white/5 rounded-lg p-2">
-          <p className="text-xs text-muted-foreground mb-0.5">{t("weekly_key_zones")}</p>
-          <p className="text-xs">{market.key_zones}</p>
+      <div className="space-y-2 pt-1">
+        <div className="bg-white/5 rounded-lg p-2.5">
+          <p className="text-xs text-muted-foreground mb-1 font-medium">{t("weekly_key_zones")}</p>
+          <KeyZones zones={market.key_zones} />
+          <p className="text-[10px] text-muted-foreground/50 mt-1.5">
+            🟢 Support = plancher d'achat · 🔴 Résistance = plafond de vente
+          </p>
         </div>
-        <div className="bg-red-500/5 border border-red-500/10 rounded-lg p-2">
-          <p className="text-xs text-red-400 mb-0.5 flex items-center gap-1">
+        <div className="bg-red-500/5 border border-red-500/10 rounded-lg p-2.5">
+          <p className="text-xs text-red-400 mb-0.5 flex items-center gap-1 font-medium">
             <AlertTriangle className="w-2.5 h-2.5" /> {t("weekly_risk")}
           </p>
           <p className="text-xs">{market.risk}</p>
