@@ -227,8 +227,21 @@ export default function AdminWeeklyPrepPage() {
     setLoading(true);
     setError("");
     try {
-      const data = await weeklyPrepAPI.adminPreview();
-      apply(data);
+      // Try admin endpoint first (available once new backend is deployed)
+      try {
+        const data = await weeklyPrepAPI.adminPreview();
+        applyFull(data);
+        return;
+      } catch (adminErr: any) {
+        if (adminErr?.status === 403) { router.push("/admin"); return; }
+        // Fallback to public endpoint (always works)
+      }
+
+      const [statusData, briefingData] = await Promise.all([
+        weeklyPrepAPI.status(),
+        weeklyPrepAPI.get(),
+      ]);
+      applyBasic(briefingData.briefing, statusData);
     } catch (e: any) {
       if (e?.status === 403) {
         router.push("/admin");
@@ -240,10 +253,17 @@ export default function AdminWeeklyPrepPage() {
     }
   };
 
-  const apply = (data: { briefing: WeeklyBriefing; cached: boolean; generated_at: string; week_key: string; visible: boolean }) => {
+  const applyFull = (data: { briefing: WeeklyBriefing; cached: boolean; generated_at: string; week_key: string; visible: boolean }) => {
     setBriefing(data.briefing);
     setMeta({ cached: data.cached, generated_at: data.generated_at, week_key: data.week_key, visible: data.visible });
     setJsonText(JSON.stringify(data.briefing, null, 2));
+    setJsonError("");
+  };
+
+  const applyBasic = (b: WeeklyBriefing, status: { visible: boolean; week: string }) => {
+    setBriefing(b);
+    setMeta({ cached: true, generated_at: "", week_key: status.week, visible: status.visible });
+    setJsonText(JSON.stringify(b, null, 2));
     setJsonError("");
   };
 
@@ -251,10 +271,9 @@ export default function AdminWeeklyPrepPage() {
     setRegenerating(true);
     setError("");
     try {
-      const data = await weeklyPrepAPI.adminPreview();
-      // Force regeneration via the public refresh endpoint
       const refreshed = await weeklyPrepAPI.refresh();
-      apply({ ...data, briefing: refreshed.briefing, cached: false });
+      const status = await weeklyPrepAPI.status();
+      applyBasic(refreshed.briefing, status);
     } catch (e: any) {
       setError(e?.message || "Erreur lors de la régénération");
     } finally {
@@ -279,7 +298,11 @@ export default function AdminWeeklyPrepPage() {
       setSaveOk(true);
       setTimeout(() => setSaveOk(false), 3000);
     } catch (e: any) {
-      setError(e?.message || "Erreur lors de la sauvegarde");
+      if (e?.status === 404) {
+        setError("Endpoint de sauvegarde non disponible — re-deploy le backend pour activer cette fonction.");
+      } else {
+        setError(e?.message || "Erreur lors de la sauvegarde");
+      }
     } finally {
       setSaving(false);
     }
