@@ -19,6 +19,7 @@ import { getAssetInfo, getAssetLogo } from "@/lib/assetInfo";
 import { SessionSummaryWidget } from "@/components/dashboard/SessionSummary";
 import { OpportunitiesWidget } from "@/components/dashboard/OpportunitiesWidget";
 import { TrendingWidget } from "@/components/dashboard/TrendingWidget";
+import { WeeklyPrepWidget } from "@/components/ui/WeeklyPrepWidget";
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  DASHBOARD CONFIG
@@ -230,6 +231,11 @@ export default function DashboardPage() {
             </button>
           </div>
         </div>
+      </motion.div>
+
+      {/* Weekly prep widget — shown Sunday 13h UTC → Monday 14h30 UTC */}
+      <motion.div variants={itemVariants}>
+        <WeeklyPrepWidget />
       </motion.div>
 
       {/* Premium widget customizer */}
