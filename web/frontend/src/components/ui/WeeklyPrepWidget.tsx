@@ -436,15 +436,16 @@ export function WeeklyPrepWidget({ respectSchedule = true }: Props) {
   useEffect(() => {
     const init = async () => {
       try {
+        let weekKey = new Date().toISOString().slice(0, 10); // fallback YYYY-MM-DD
         if (respectSchedule) {
           const status = await weeklyPrepAPI.status();
           if (!status.visible) { setLoading(false); return; }
+          weekKey = status.week; // ISO week e.g. "2026-W15"
         }
         setVisible(true);
 
-        const week = new Date().toLocaleDateString("fr-FR");
-        const dismissed = localStorage.getItem("weekly_prep_dismissed");
-        if (dismissed === week) { setLoading(false); setDismissed(true); return; }
+        const dismissed = localStorage.getItem("weekly_prep_dismissed_v2");
+        if (dismissed === weekKey) { setLoading(false); setDismissed(true); return; }
 
         const data = await weeklyPrepAPI.get();
         setBriefing(data.briefing);
@@ -458,8 +459,12 @@ export function WeeklyPrepWidget({ respectSchedule = true }: Props) {
   }, [respectSchedule]);
 
   const handleDismiss = () => {
-    const week = new Date().toLocaleDateString("fr-FR");
-    localStorage.setItem("weekly_prep_dismissed", week);
+    // Use the same key format as the status endpoint (ISO week)
+    weeklyPrepAPI.status().then(s => {
+      localStorage.setItem("weekly_prep_dismissed_v2", s.week);
+    }).catch(() => {
+      localStorage.setItem("weekly_prep_dismissed_v2", new Date().toISOString().slice(0, 10));
+    });
     setDismissed(true);
   };
 
