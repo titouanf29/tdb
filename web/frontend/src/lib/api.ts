@@ -1527,6 +1527,17 @@ export const weeklyPrepAPI = {
   status: () => fetchAPI<{ visible: boolean; week: string }>("/api/weekly-prep/status"),
   get: () => fetchAPI<{ briefing: WeeklyBriefing; cached: boolean }>("/api/weekly-prep"),
   refresh: () => fetchAPI<{ briefing: WeeklyBriefing; cached: boolean }>("/api/weekly-prep/refresh", { method: "POST" }),
+
+  // Admin-only
+  adminPreview: () =>
+    fetchAPI<{ briefing: WeeklyBriefing; cached: boolean; generated_at: string; week_key: string; visible: boolean }>(
+      "/api/weekly-prep/admin/preview"
+    ),
+  adminSave: (briefing: WeeklyBriefing) =>
+    fetchAPI<{ saved: boolean; week_key: string; generated_at: string }>("/api/weekly-prep/admin", {
+      method: "PUT",
+      body: JSON.stringify({ briefing }),
+    }),
 };
 
 // ─── Insights Engine (Admin only) ─────────────────────────────────────────────

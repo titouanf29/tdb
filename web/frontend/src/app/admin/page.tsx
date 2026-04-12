@@ -39,6 +39,7 @@ import {
   Mail,
   MessageCircle,
   Sparkles,
+  Calendar,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -145,7 +146,14 @@ export default function AdminPage() {
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap justify-end">
+            <a
+              href="/admin/weekly-prep"
+              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-400 transition-colors text-sm font-semibold border border-indigo-500/30"
+            >
+              <Calendar className="w-4 h-4" />
+              Prép. Semaine
+            </a>
             <a
               href="/admin/insights"
               className="flex items-center gap-2 px-4 py-2 rounded-lg bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-400 transition-colors text-sm font-semibold border border-yellow-500/30"

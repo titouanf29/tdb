@@ -7,14 +7,26 @@ import json
 import httpx
 from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, HTTPException, Depends, Request
+from pydantic import BaseModel
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 
 from ..database import execute_query, execute_write
 from .auth import get_current_user
+from .admin import check_if_admin
 
 router = APIRouter()
 limiter = Limiter(key_func=get_remote_address)
+
+
+async def _require_admin(user: dict = Depends(get_current_user)):
+    if not await check_if_admin(user):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    return user
+
+
+class SaveBriefingRequest(BaseModel):
+    briefing: dict
 
 GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
 MODEL = "llama-3.3-70b-versatile"
@@ -249,3 +261,67 @@ async def refresh_weekly_prep(
             (week_key, content_str, now),
         )
     return {"briefing": briefing, "cached": False}
+
+
+# ── Admin endpoints ─────────────────────────────────────────────────────────────
+
+@router.get("/admin/preview")
+async def admin_preview(
+    _user: dict = Depends(_require_admin),
+):
+    """Admin: preview current week's briefing regardless of visibility window."""
+    week_key = _current_week_key()
+    rows = await execute_query(
+        "SELECT content, generated_at FROM weekly_market_prep WHERE week_key = ?",
+        (week_key,),
+    )
+    if rows:
+        return {
+            "briefing": json.loads(rows[0]["content"]),
+            "cached": True,
+            "generated_at": rows[0]["generated_at"],
+            "week_key": week_key,
+            "visible": _is_widget_visible(),
+        }
+
+    # Not cached yet — generate now
+    briefing = await _generate_briefing()
+    content_str = json.dumps(briefing, ensure_ascii=False)
+    now = datetime.now(timezone.utc).isoformat()
+    await execute_write(
+        "INSERT INTO weekly_market_prep (week_key, content, generated_at) VALUES (?,?,?)",
+        (week_key, content_str, now),
+    )
+    return {
+        "briefing": briefing,
+        "cached": False,
+        "generated_at": now,
+        "week_key": week_key,
+        "visible": _is_widget_visible(),
+    }
+
+
+@router.put("/admin")
+async def admin_save(
+    req: SaveBriefingRequest,
+    _user: dict = Depends(_require_admin),
+):
+    """Admin: save a manually edited briefing for the current week."""
+    week_key = _current_week_key()
+    content_str = json.dumps(req.briefing, ensure_ascii=False)
+    now = datetime.now(timezone.utc).isoformat()
+
+    existing = await execute_query(
+        "SELECT id FROM weekly_market_prep WHERE week_key = ?", (week_key,)
+    )
+    if existing:
+        await execute_write(
+            "UPDATE weekly_market_prep SET content = ?, generated_at = ? WHERE week_key = ?",
+            (content_str, now, week_key),
+        )
+    else:
+        await execute_write(
+            "INSERT INTO weekly_market_prep (week_key, content, generated_at) VALUES (?,?,?)",
+            (week_key, content_str, now),
+        )
+    return {"saved": True, "week_key": week_key, "generated_at": now}
