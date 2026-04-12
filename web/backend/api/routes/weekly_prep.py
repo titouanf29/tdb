@@ -59,12 +59,16 @@ def _is_widget_visible() -> bool:
 
 
 WEEKLY_PROMPT = """\
-Tu es un analyste financier senior de renom. Nous sommes dimanche et les marchés financiers rouvrent demain.
-Génère un briefing hebdomadaire de marché complet et professionnel en JSON strict.
+Tu es un analyste financier senior de renom avec 20 ans d'expérience sur les marchés mondiaux.
+Nous sommes dimanche et les marchés financiers rouvrent lundi matin.
+Génère un briefing hebdomadaire de marché COMPLET, RICHE ET DÉTAILLÉ en JSON strict.
 
 La date actuelle est {date}.
 
-Réponds UNIQUEMENT avec un JSON valide respectant exactement cette structure (sans commentaires, sans markdown autour):
+Ce briefing doit être LONG ET DÉVELOPPÉ — pédagogique, avec des explications profondes,
+des exemples concrets, des niveaux de prix précis, et des suggestions actionnables pour les traders.
+
+Réponds UNIQUEMENT avec un JSON valide respectant exactement cette structure (sans commentaires, sans markdown):
 
 {{
   "week": "{week}",
@@ -72,76 +76,137 @@ Réponds UNIQUEMENT avec un JSON valide respectant exactement cette structure (s
   "macro": {{
     "trend": "bullish|bearish|neutral",
     "summary": "2-3 phrases sur le contexte macro global",
-    "key_points": ["point1","point2","point3","point4"]
+    "detailed_analysis": "5-8 phrases d'analyse approfondie: forces macroéconomiques en jeu, données récentes importantes, contexte géopolitique, politique monétaire des banques centrales, corrélations inter-marchés. Explique le POURQUOI des tendances actuelles.",
+    "key_points": [
+      "point clé 1 avec explication détaillée",
+      "point clé 2 avec explication détaillée",
+      "point clé 3 avec explication détaillée",
+      "point clé 4 avec explication détaillée",
+      "point clé 5 avec explication détaillée"
+    ]
   }},
   "markets": [
     {{
       "name": "Actions US",
       "icon": "🇺🇸",
       "trend": "bullish|bearish|neutral",
-      "summary": "analyse en 1-2 phrases",
-      "key_zones": "niveaux clés à surveiller",
-      "risk": "risque principal de la semaine"
+      "summary": "analyse en 2 phrases",
+      "detailed_analysis": "4-6 phrases: analyse technique ET fondamentale, catalyseurs de la semaine, flux institutionnels, contexte sectoriel, comparaison avec semaines précédentes",
+      "key_zones": "supports et résistances précis avec valeurs numériques (ex: Support 5100, Résistance 5280, Support fort 4900)",
+      "opportunities": [
+        "opportunité sectorielle 1 avec explication du catalyseur",
+        "opportunité sectorielle 2 avec explication",
+        "opportunité sectorielle 3 avec explication"
+      ],
+      "sectors_watch": [
+        "Technologie: raison de surveiller cette semaine",
+        "Finance: raison de surveiller",
+        "Énergie: raison de surveiller"
+      ],
+      "risk": "risque principal DÉTAILLÉ: nature du risque, probabilité, impact estimé sur les marchés"
     }},
     {{
       "name": "Actions Europe",
       "icon": "🇪🇺",
       "trend": "bullish|bearish|neutral",
-      "summary": "analyse en 1-2 phrases",
-      "key_zones": "niveaux clés à surveiller",
-      "risk": "risque principal de la semaine"
+      "summary": "analyse en 2 phrases",
+      "detailed_analysis": "4-6 phrases d'analyse technique et fondamentale",
+      "key_zones": "niveaux clés CAC40/DAX avec valeurs numériques",
+      "opportunities": ["opportunité 1", "opportunité 2", "opportunité 3"],
+      "sectors_watch": ["secteur1: raison", "secteur2: raison", "secteur3: raison"],
+      "risk": "risque principal détaillé"
     }},
     {{
       "name": "Crypto",
       "icon": "₿",
       "trend": "bullish|bearish|neutral",
-      "summary": "analyse en 1-2 phrases",
-      "key_zones": "niveaux clés à surveiller",
-      "risk": "risque principal de la semaine"
+      "summary": "analyse en 2 phrases",
+      "detailed_analysis": "4-6 phrases: Bitcoin dominance, sentiment on-chain, catalyseurs institutionnels, cycle de marché",
+      "key_zones": "niveaux BTC/ETH avec valeurs numériques précises",
+      "opportunities": ["opportunité 1", "opportunité 2", "opportunité 3"],
+      "sectors_watch": ["BTC: analyse détaillée", "ETH: analyse détaillée", "Altcoins: zones d'opportunité"],
+      "risk": "risque principal détaillé (régulation, liquidité, corrélation macro)"
     }},
     {{
       "name": "Matières premières",
       "icon": "🛢️",
       "trend": "bullish|bearish|neutral",
-      "summary": "analyse en 1-2 phrases",
-      "key_zones": "niveaux clés à surveiller",
-      "risk": "risque principal de la semaine"
+      "summary": "analyse en 2 phrases",
+      "detailed_analysis": "4-6 phrases d'analyse",
+      "key_zones": "niveaux Pétrole/Or/Blé avec valeurs numériques",
+      "opportunities": ["opportunité 1", "opportunité 2"],
+      "sectors_watch": ["Pétrole WTI: analyse", "Or: analyse", "Métaux industriels: analyse"],
+      "risk": "risque principal détaillé"
     }},
     {{
       "name": "Forex",
       "icon": "💱",
       "trend": "bullish|bearish|neutral",
-      "summary": "analyse en 1-2 phrases",
-      "key_zones": "niveaux clés à surveiller",
-      "risk": "risque principal de la semaine"
+      "summary": "analyse en 2 phrases",
+      "detailed_analysis": "4-6 phrases: dynamique dollar, politique monétaire, flux de capitaux",
+      "key_zones": "paires majeures avec niveaux numériques précis (EUR/USD, GBP/USD, USD/JPY)",
+      "opportunities": ["opportunité 1", "opportunité 2"],
+      "sectors_watch": ["EUR/USD: analyse et niveau clé", "USD/JPY: analyse et niveau clé", "GBP/USD: analyse et niveau clé"],
+      "risk": "risque principal détaillé"
     }}
   ],
   "watchlist": [
     {{
       "symbol": "SYMBOLE",
-      "name": "Nom complet",
+      "name": "Nom complet de l'actif",
       "type": "stock|crypto|forex|commodity|etf",
-      "why": "raison claire et concise en 1 phrase",
-      "scenario": "scénario haussier ou baissier en 1-2 phrases",
-      "direction": "bullish|bearish|neutral"
+      "why": "Pourquoi surveiller cet actif CETTE semaine: contexte, catalyseur spécifique, configuration technique en 2-3 phrases",
+      "scenario": "Scénario détaillé: si X se produit alors Y. Inclure les conditions de déclenchement, l'objectif, et les invalidations possibles. 2-3 phrases.",
+      "direction": "bullish|bearish|neutral",
+      "entry_zone": "Zone d'entrée idéale avec prix ou range précis (ex: 148-152$, attendre pullback)",
+      "target": "Objectif de prix avec justification (ex: 175$ — résistance majeure 52 semaines)",
+      "stop_loss": "Niveau stop-loss avec justification (ex: 143$ — sous support structure H4)",
+      "technical_setup": "Setup technique: pattern graphique, indicateurs clés, signal (ex: Flag haussier sur H4, RSI > 50, au-dessus EMA200)"
+    }}
+  ],
+  "trading_ideas": [
+    {{
+      "title": "Titre court et accrocheur de l'idée",
+      "symbol": "SYMBOLE",
+      "type": "stock|crypto|forex|commodity|etf",
+      "setup": "Description complète du setup en 3-4 phrases: pattern identifié, contexte de marché, catalyseur attendu, logique de la trade",
+      "entry": "Prix ou zone d'entrée précis avec conditions (ex: 150.50$ sur cassure en clôture)",
+      "target": "Objectif principal (ex: 168$ — target 1, 180$ — target 2)",
+      "stop": "Stop-loss précis (ex: 143.50$ — invalidation du setup)",
+      "rr": "Ratio risque/récompense (ex: 1:2.8)",
+      "direction": "bullish|bearish|neutral",
+      "timeframe": "intraday|swing|position",
+      "conditions": "Conditions à remplir avant d'entrer (ex: Attendre confirmation clôture H4 au-dessus 150$, volume > moyenne)"
     }}
   ],
   "events": [
     {{
       "day": "Lundi|Mardi|Mercredi|Jeudi|Vendredi",
       "time": "HH:MM UTC",
-      "event": "nom de l'événement",
+      "event": "Nom officiel de l'événement",
       "country": "🇺🇸|🇪🇺|🇬🇧|🌍",
       "importance": "high|medium|low",
-      "impact": "impact potentiel en 1 phrase"
+      "impact": "Impact potentiel DÉTAILLÉ: quels marchés affectés, quelle direction probable selon consensus vs surprise, amplitude estimée. 2-3 phrases."
     }}
   ],
-  "conclusion": "Synthèse stratégique en 3-4 phrases pour orienter le trader cette semaine"
+  "educational_tip": {{
+    "concept": "Nom du concept ou technique trading de la semaine",
+    "explanation": "Explication pédagogique en 4-5 phrases: définition claire, mécanisme de fonctionnement, pourquoi c'est important pour le trader, dans quels contextes l'utiliser",
+    "example": "Exemple CONCRET lié à un actif ou situation des marchés de cette semaine — montre comment appliquer le concept en pratique",
+    "takeaway": "Ce qu'il faut absolument retenir et appliquer cette semaine — conseil pratique et actionnable en 1-2 phrases"
+  }},
+  "conclusion": "Synthèse stratégique COMPLÈTE en 5-7 phrases: bilan des grandes thématiques de la semaine, opportunités principales à exploiter, risques à surveiller en priorité, posture générale recommandée (offensif/défensif/sélectif), secteurs à privilégier et éviter, conseils de gestion du risque adaptés au contexte"
 }}
 
-Mets entre 5 et 8 actifs dans watchlist. Mets entre 5 et 8 événements dans events.
-Les analyses doivent être ancrées dans la réalité du marché actuel — basées sur tes données d'entraînement.
-Utilise un langage professionnel, précis, et pédagogique.
+RÈGLES IMPÉRATIVES:
+- EXACTEMENT 6-8 actifs dans watchlist
+- EXACTEMENT 3-4 idées dans trading_ideas
+- EXACTEMENT 6-8 événements dans events
+- Toutes les analyses DOIVENT être développées — INTERDIT les formules vagues ou génériques
+- Les niveaux de prix DOIVENT être concrets et numériques, basés sur tes données d'entraînement
+- Contenu PÉDAGOGIQUE: explique toujours le POURQUOI derrière chaque analyse
+- Langage professionnel mais accessible à un trader débutant-intermédiaire
+- TOUS les champs sont obligatoires
 """
 
 
@@ -243,7 +308,7 @@ async def _call_groq(prompt: str) -> dict:
 
 
 def _template_briefing() -> dict:
-    """Fallback briefing when Groq is unavailable (rate-limited)."""
+    """Fallback briefing when all AI providers are unavailable."""
     now = datetime.now(timezone.utc)
     week = _current_week_key()
     return {
@@ -252,24 +317,57 @@ def _template_briefing() -> dict:
         "generated_by": "template",
         "macro": {
             "trend": "neutral",
-            "summary": "Briefing généré en mode dégradé (Groq indisponible). Données indicatives uniquement.",
+            "summary": "Briefing généré en mode dégradé — tous les fournisseurs IA sont temporairement indisponibles.",
+            "detailed_analysis": "Ce briefing est un modèle vide. Veuillez cliquer sur 'Régénérer IA' dans quelques minutes pour obtenir l'analyse complète générée par l'intelligence artificielle.",
             "key_points": [
-                "Surveiller les publications macro de la semaine",
-                "Gérer le risque avec des stops adaptés",
-                "Privilégier les actifs avec fort momentum",
+                "Surveiller les publications macro importantes de la semaine",
+                "Gérer le risque avec des stops adaptés à la volatilité",
+                "Privilégier les actifs avec fort momentum et volume confirmé",
                 "Rester attentif aux corrélations inter-marchés",
+                "Attendre la régénération IA pour les analyses détaillées",
             ],
         },
         "markets": [
-            {"name": "Actions US",         "icon": "🇺🇸", "trend": "neutral", "summary": "Analyse IA indisponible.", "key_zones": "—", "risk": "Voir actualités macro"},
-            {"name": "Actions Europe",     "icon": "🇪🇺", "trend": "neutral", "summary": "Analyse IA indisponible.", "key_zones": "—", "risk": "Voir actualités macro"},
-            {"name": "Crypto",             "icon": "₿",   "trend": "neutral", "summary": "Analyse IA indisponible.", "key_zones": "—", "risk": "Voir actualités macro"},
-            {"name": "Matières premières", "icon": "🛢️", "trend": "neutral", "summary": "Analyse IA indisponible.", "key_zones": "—", "risk": "Voir actualités macro"},
-            {"name": "Forex",              "icon": "💱",  "trend": "neutral", "summary": "Analyse IA indisponible.", "key_zones": "—", "risk": "Voir actualités macro"},
+            {
+                "name": "Actions US", "icon": "🇺🇸", "trend": "neutral",
+                "summary": "Analyse IA indisponible — régénérez pour obtenir le contenu complet.",
+                "detailed_analysis": "Cliquez sur Régénérer IA pour obtenir l'analyse détaillée.",
+                "key_zones": "Données non disponibles",
+                "opportunities": ["Régénérez le briefing pour voir les opportunités"],
+                "sectors_watch": ["Régénérez le briefing pour voir les secteurs à surveiller"],
+                "risk": "Voir actualités macro récentes",
+            },
+            {
+                "name": "Actions Europe", "icon": "🇪🇺", "trend": "neutral",
+                "summary": "Analyse IA indisponible.", "detailed_analysis": "Cliquez sur Régénérer IA.",
+                "key_zones": "Données non disponibles", "opportunities": [], "sectors_watch": [], "risk": "Voir actualités macro",
+            },
+            {
+                "name": "Crypto", "icon": "₿", "trend": "neutral",
+                "summary": "Analyse IA indisponible.", "detailed_analysis": "Cliquez sur Régénérer IA.",
+                "key_zones": "Données non disponibles", "opportunities": [], "sectors_watch": [], "risk": "Voir actualités macro",
+            },
+            {
+                "name": "Matières premières", "icon": "🛢️", "trend": "neutral",
+                "summary": "Analyse IA indisponible.", "detailed_analysis": "Cliquez sur Régénérer IA.",
+                "key_zones": "Données non disponibles", "opportunities": [], "sectors_watch": [], "risk": "Voir actualités macro",
+            },
+            {
+                "name": "Forex", "icon": "💱", "trend": "neutral",
+                "summary": "Analyse IA indisponible.", "detailed_analysis": "Cliquez sur Régénérer IA.",
+                "key_zones": "Données non disponibles", "opportunities": [], "sectors_watch": [], "risk": "Voir actualités macro",
+            },
         ],
         "watchlist": [],
+        "trading_ideas": [],
         "events": [],
-        "conclusion": "Briefing en mode dégradé — Groq rate limit atteint. Réessayez dans quelques minutes pour obtenir l'analyse complète.",
+        "educational_tip": {
+            "concept": "Analyse en cours",
+            "explanation": "Le briefing complet sera disponible après régénération IA.",
+            "example": "Cliquez sur Régénérer IA pour obtenir le conseil pédagogique de la semaine.",
+            "takeaway": "Régénérez le briefing pour accéder à l'analyse complète.",
+        },
+        "conclusion": "Briefing en mode dégradé — tous les fournisseurs IA sont temporairement indisponibles. Cliquez sur 'Régénérer IA' pour obtenir l'analyse complète avec watchlist, idées de trade et conseil éducatif de la semaine.",
     }
 
 

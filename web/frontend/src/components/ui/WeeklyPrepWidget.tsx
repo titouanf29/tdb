@@ -5,10 +5,11 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Sparkles, ChevronDown, ChevronRight, TrendingUp, TrendingDown,
   Minus, Calendar, Eye, RefreshCw, Star, Maximize2,
-  AlertTriangle, BarChart2, Globe, X,
+  AlertTriangle, BarChart2, Globe, X, Target, BookOpen, Lightbulb,
+  ArrowRight, ArrowUpRight, ArrowDownRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { weeklyPrepAPI, WeeklyBriefing, WeeklyMarket, WeeklyWatchItem, WeeklyEvent } from "@/lib/api";
+import { weeklyPrepAPI, WeeklyBriefing, WeeklyMarket, WeeklyWatchItem, WeeklyEvent, WeeklyTradingIdea } from "@/lib/api";
 import { favoritesAPI } from "@/lib/api";
 import { useLanguage } from "@/lib/LanguageContext";
 
@@ -81,7 +82,7 @@ function Section({ title, icon: Icon, children, defaultOpen = false }: {
 function MarketCard({ market }: { market: WeeklyMarket }) {
   const { t } = useLanguage();
   return (
-    <div className="bg-white/5 rounded-xl p-3 space-y-2">
+    <div className="bg-white/5 rounded-xl p-3 space-y-3">
       <div className="flex items-center justify-between">
         <span className="font-semibold text-sm flex items-center gap-1.5">
           <span>{market.icon}</span> {market.name}
@@ -89,6 +90,11 @@ function MarketCard({ market }: { market: WeeklyMarket }) {
         <TrendBadge trend={market.trend} />
       </div>
       <p className="text-sm text-foreground/80">{market.summary}</p>
+      {market.detailed_analysis && (
+        <p className="text-xs text-foreground/60 leading-relaxed border-l-2 border-primary/30 pl-3">
+          {market.detailed_analysis}
+        </p>
+      )}
       <div className="grid grid-cols-2 gap-2 pt-1">
         <div className="bg-white/5 rounded-lg p-2">
           <p className="text-xs text-muted-foreground mb-0.5">{t("weekly_key_zones")}</p>
@@ -101,6 +107,28 @@ function MarketCard({ market }: { market: WeeklyMarket }) {
           <p className="text-xs">{market.risk}</p>
         </div>
       </div>
+      {market.opportunities && market.opportunities.length > 0 && (
+        <div className="bg-emerald-500/5 border border-emerald-500/10 rounded-lg p-2 space-y-1">
+          <p className="text-xs text-emerald-400 font-semibold mb-1">Opportunités</p>
+          {market.opportunities.map((op, i) => (
+            <p key={i} className="text-xs text-foreground/70 flex items-start gap-1.5">
+              <ArrowRight className="w-3 h-3 mt-0.5 shrink-0 text-emerald-400" />
+              {op}
+            </p>
+          ))}
+        </div>
+      )}
+      {market.sectors_watch && market.sectors_watch.length > 0 && (
+        <div className="space-y-1">
+          <p className="text-xs text-muted-foreground font-semibold">Secteurs à surveiller</p>
+          {market.sectors_watch.map((s, i) => (
+            <p key={i} className="text-xs text-foreground/70 flex items-start gap-1.5">
+              <ChevronRight className="w-3 h-3 mt-0.5 shrink-0 text-primary/60" />
+              {s}
+            </p>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -143,6 +171,83 @@ function WatchCard({ item }: { item: WeeklyWatchItem }) {
       <p className="text-xs text-muted-foreground">
         <span className="text-white/70 font-medium">{t("weekly_scenario")} </span>{item.scenario}
       </p>
+      {item.technical_setup && (
+        <p className="text-xs text-foreground/60 bg-white/5 rounded-lg px-2 py-1.5 border-l-2 border-primary/30">
+          📊 {item.technical_setup}
+        </p>
+      )}
+      {(item.entry_zone || item.target || item.stop_loss) && (
+        <div className="grid grid-cols-3 gap-1.5 pt-0.5">
+          {item.entry_zone && (
+            <div className="bg-blue-500/8 border border-blue-500/15 rounded-lg p-1.5 text-center">
+              <p className="text-[9px] text-blue-400/80 font-semibold uppercase tracking-wide mb-0.5">Entrée</p>
+              <p className="text-[10px] font-mono text-blue-300">{item.entry_zone}</p>
+            </div>
+          )}
+          {item.target && (
+            <div className="bg-emerald-500/8 border border-emerald-500/15 rounded-lg p-1.5 text-center">
+              <p className="text-[9px] text-emerald-400/80 font-semibold uppercase tracking-wide mb-0.5">Cible</p>
+              <p className="text-[10px] font-mono text-emerald-300">{item.target}</p>
+            </div>
+          )}
+          {item.stop_loss && (
+            <div className="bg-red-500/8 border border-red-500/15 rounded-lg p-1.5 text-center">
+              <p className="text-[9px] text-red-400/80 font-semibold uppercase tracking-wide mb-0.5">Stop</p>
+              <p className="text-[10px] font-mono text-red-300">{item.stop_loss}</p>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TradingIdeaCard({ idea }: { idea: WeeklyTradingIdea }) {
+  const { color, bg } = TREND_KEYS[idea.direction];
+  const DirIcon = idea.direction === "bullish" ? ArrowUpRight : idea.direction === "bearish" ? ArrowDownRight : ArrowRight;
+
+  return (
+    <div className={cn("rounded-xl p-3 space-y-2.5 border", bg)}>
+      <div className="flex items-start justify-between gap-2">
+        <div>
+          <p className="font-semibold text-sm">{idea.title}</p>
+          <div className="flex items-center gap-1.5 mt-0.5">
+            <span className={cn("text-xs font-mono font-bold px-1.5 py-0.5 rounded border", bg, color)}>
+              {idea.symbol}
+            </span>
+            {idea.timeframe && (
+              <span className="text-[10px] text-muted-foreground bg-white/5 px-1.5 py-0.5 rounded capitalize">
+                {idea.timeframe}
+              </span>
+            )}
+          </div>
+        </div>
+        <span className={cn("flex items-center gap-1 text-xs font-semibold shrink-0", color)}>
+          <DirIcon className="w-3.5 h-3.5" />
+          {idea.rr && `R/R ${idea.rr}`}
+        </span>
+      </div>
+      <p className="text-xs text-foreground/70 leading-relaxed">{idea.setup}</p>
+      <div className="grid grid-cols-3 gap-1.5">
+        <div className="bg-black/20 rounded-lg p-1.5 text-center">
+          <p className="text-[9px] text-blue-400/80 font-semibold uppercase tracking-wide mb-0.5">Entrée</p>
+          <p className="text-[10px] font-mono text-blue-300 break-all">{idea.entry}</p>
+        </div>
+        <div className="bg-black/20 rounded-lg p-1.5 text-center">
+          <p className="text-[9px] text-emerald-400/80 font-semibold uppercase tracking-wide mb-0.5">Cible</p>
+          <p className="text-[10px] font-mono text-emerald-300 break-all">{idea.target}</p>
+        </div>
+        <div className="bg-black/20 rounded-lg p-1.5 text-center">
+          <p className="text-[9px] text-red-400/80 font-semibold uppercase tracking-wide mb-0.5">Stop</p>
+          <p className="text-[10px] font-mono text-red-300 break-all">{idea.stop}</p>
+        </div>
+      </div>
+      {idea.conditions && (
+        <p className="text-[10px] text-muted-foreground flex items-start gap-1.5 border-t border-white/5 pt-2">
+          <AlertTriangle className="w-3 h-3 mt-0.5 shrink-0 text-yellow-400" />
+          {idea.conditions}
+        </p>
+      )}
     </div>
   );
 }
@@ -301,7 +406,12 @@ export function WeeklyPrepWidget({ respectSchedule = true }: Props) {
 
       {/* Macro summary */}
       <div className={cn("p-4 rounded-xl border", macroMeta.bg)}>
-        <p className="text-sm leading-relaxed">{briefing.macro.summary}</p>
+        <p className="text-sm leading-relaxed font-medium">{briefing.macro.summary}</p>
+        {briefing.macro.detailed_analysis && (
+          <p className="text-xs text-foreground/60 leading-relaxed mt-2 border-t border-white/10 pt-2">
+            {briefing.macro.detailed_analysis}
+          </p>
+        )}
         <ul className="mt-3 space-y-1">
           {briefing.macro.key_points.map((pt, i) => (
             <li key={i} className="text-xs text-foreground/70 flex items-start gap-2">
@@ -348,6 +458,46 @@ export function WeeklyPrepWidget({ respectSchedule = true }: Props) {
           {briefing.events.map((ev, i) => <EventRow key={i} event={ev} />)}
         </div>
       </Section>
+
+      {/* Trading Ideas */}
+      {briefing.trading_ideas && briefing.trading_ideas.length > 0 && (
+        <Section title={`Idées de trade (${briefing.trading_ideas.length})`} icon={Target}>
+          <div className="space-y-3">
+            {briefing.trading_ideas.map((idea, i) => (
+              <motion.div key={i} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
+                <TradingIdeaCard idea={idea} />
+              </motion.div>
+            ))}
+          </div>
+          <p className="text-[10px] text-muted-foreground mt-2 flex items-center gap-1">
+            <AlertTriangle className="w-3 h-3 text-yellow-400/60" />
+            Ces idées sont éducatives. Faites vos propres recherches avant tout trade.
+          </p>
+        </Section>
+      )}
+
+      {/* Educational Tip */}
+      {briefing.educational_tip && (
+        <Section title="Conseil de la semaine" icon={BookOpen}>
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-xl bg-yellow-500/10 flex items-center justify-center shrink-0">
+                <Lightbulb className="w-4 h-4 text-yellow-400" />
+              </div>
+              <p className="font-semibold text-sm text-yellow-400">{briefing.educational_tip.concept}</p>
+            </div>
+            <p className="text-xs text-foreground/70 leading-relaxed">{briefing.educational_tip.explanation}</p>
+            <div className="bg-white/5 rounded-lg p-3 border border-white/10">
+              <p className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wide mb-1">Exemple concret</p>
+              <p className="text-xs text-foreground/70 leading-relaxed">{briefing.educational_tip.example}</p>
+            </div>
+            <div className="bg-yellow-500/8 border border-yellow-500/20 rounded-lg p-3">
+              <p className="text-[10px] text-yellow-400/80 font-semibold uppercase tracking-wide mb-1">À retenir</p>
+              <p className="text-xs text-foreground/80 font-medium">{briefing.educational_tip.takeaway}</p>
+            </div>
+          </div>
+        </Section>
+      )}
 
       {/* Conclusion */}
       <div className="p-4 bg-primary/5 border border-primary/20 rounded-xl">

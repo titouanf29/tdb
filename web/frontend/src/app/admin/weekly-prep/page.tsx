@@ -7,10 +7,11 @@ import {
   Sparkles, RefreshCw, Save, Eye, Code2, Loader2,
   AlertTriangle, CheckCircle, ChevronRight, ChevronDown,
   TrendingUp, TrendingDown, Minus, Calendar, BarChart2,
-  Globe, Clock, Zap, Shield,
+  Globe, Clock, Zap, Shield, Upload, Target, BookOpen,
+  Lightbulb, ArrowRight, ArrowUpRight, ArrowDownRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { weeklyPrepAPI, WeeklyBriefing } from "@/lib/api";
+import { weeklyPrepAPI, WeeklyBriefing, WeeklyTradingIdea } from "@/lib/api";
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -85,7 +86,12 @@ function BriefingPreview({ briefing }: { briefing: WeeklyBriefing }) {
             Sentiment macro — {macroMeta.label}
           </span>
         </div>
-        <p className="text-sm leading-relaxed">{briefing.macro?.summary}</p>
+        <p className="text-sm leading-relaxed font-medium">{briefing.macro?.summary}</p>
+        {briefing.macro?.detailed_analysis && (
+          <p className="text-xs text-foreground/60 leading-relaxed mt-2 border-t border-white/10 pt-2">
+            {briefing.macro.detailed_analysis}
+          </p>
+        )}
         <ul className="mt-3 space-y-1">
           {(briefing.macro?.key_points ?? []).map((pt, i) => (
             <li key={i} className="text-xs text-foreground/70 flex items-start gap-2">
@@ -108,29 +114,57 @@ function BriefingPreview({ briefing }: { briefing: WeeklyBriefing }) {
             </button>
           ))}
         </div>
-        {briefing.markets?.[activeMarket] && (
-          <div className="bg-white/5 rounded-xl p-3 space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="font-semibold text-sm">
-                {briefing.markets[activeMarket].icon} {briefing.markets[activeMarket].name}
-              </span>
-              <TrendBadge trend={briefing.markets[activeMarket].trend} />
-            </div>
-            <p className="text-sm text-foreground/80">{briefing.markets[activeMarket].summary}</p>
-            <div className="grid grid-cols-2 gap-2">
-              <div className="bg-white/5 rounded-lg p-2">
-                <p className="text-xs text-muted-foreground mb-0.5">Zones clés</p>
-                <p className="text-xs">{briefing.markets[activeMarket].key_zones}</p>
+        {briefing.markets?.[activeMarket] && (() => {
+          const m = briefing.markets[activeMarket];
+          return (
+            <div className="bg-white/5 rounded-xl p-3 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="font-semibold text-sm">{m.icon} {m.name}</span>
+                <TrendBadge trend={m.trend} />
               </div>
-              <div className="bg-red-500/5 border border-red-500/10 rounded-lg p-2">
-                <p className="text-xs text-red-400 mb-0.5 flex items-center gap-1">
-                  <AlertTriangle className="w-2.5 h-2.5" /> Risque
+              <p className="text-sm text-foreground/80">{m.summary}</p>
+              {m.detailed_analysis && (
+                <p className="text-xs text-foreground/60 leading-relaxed border-l-2 border-primary/30 pl-3">
+                  {m.detailed_analysis}
                 </p>
-                <p className="text-xs">{briefing.markets[activeMarket].risk}</p>
+              )}
+              <div className="grid grid-cols-2 gap-2">
+                <div className="bg-white/5 rounded-lg p-2">
+                  <p className="text-xs text-muted-foreground mb-0.5">Zones clés</p>
+                  <p className="text-xs">{m.key_zones}</p>
+                </div>
+                <div className="bg-red-500/5 border border-red-500/10 rounded-lg p-2">
+                  <p className="text-xs text-red-400 mb-0.5 flex items-center gap-1">
+                    <AlertTriangle className="w-2.5 h-2.5" /> Risque
+                  </p>
+                  <p className="text-xs">{m.risk}</p>
+                </div>
               </div>
+              {m.opportunities && m.opportunities.length > 0 && (
+                <div className="bg-emerald-500/5 border border-emerald-500/10 rounded-lg p-2 space-y-1">
+                  <p className="text-xs text-emerald-400 font-semibold mb-1">Opportunités</p>
+                  {m.opportunities.map((op, i) => (
+                    <p key={i} className="text-xs text-foreground/70 flex items-start gap-1.5">
+                      <ArrowRight className="w-3 h-3 mt-0.5 shrink-0 text-emerald-400" />
+                      {op}
+                    </p>
+                  ))}
+                </div>
+              )}
+              {m.sectors_watch && m.sectors_watch.length > 0 && (
+                <div className="space-y-1">
+                  <p className="text-xs text-muted-foreground font-semibold">Secteurs à surveiller</p>
+                  {m.sectors_watch.map((s, i) => (
+                    <p key={i} className="text-xs text-foreground/70 flex items-start gap-1.5">
+                      <ChevronRight className="w-3 h-3 mt-0.5 shrink-0 text-primary/60" />
+                      {s}
+                    </p>
+                  ))}
+                </div>
+              )}
             </div>
-          </div>
-        )}
+          );
+        })()}
       </Collapsible>
 
       {/* Watchlist */}
@@ -139,7 +173,7 @@ function BriefingPreview({ briefing }: { briefing: WeeklyBriefing }) {
           {(briefing.watchlist ?? []).map((item, i) => {
             const meta = TREND[item.direction] ?? TREND.neutral;
             return (
-              <div key={i} className="bg-white/5 rounded-xl p-3 space-y-1.5">
+              <div key={i} className="bg-white/5 rounded-xl p-3 space-y-2">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <span className={cn("px-2 py-0.5 rounded-lg text-xs font-mono font-bold border", meta.bg, meta.color)}>
@@ -155,6 +189,33 @@ function BriefingPreview({ briefing }: { briefing: WeeklyBriefing }) {
                 <p className="text-xs text-muted-foreground">
                   <span className="text-white/70 font-medium">Scénario : </span>{item.scenario}
                 </p>
+                {item.technical_setup && (
+                  <p className="text-xs text-foreground/60 bg-white/5 rounded-lg px-2 py-1.5 border-l-2 border-primary/30">
+                    📊 {item.technical_setup}
+                  </p>
+                )}
+                {(item.entry_zone || item.target || item.stop_loss) && (
+                  <div className="grid grid-cols-3 gap-1.5">
+                    {item.entry_zone && (
+                      <div className="bg-blue-500/8 border border-blue-500/15 rounded-lg p-1.5 text-center">
+                        <p className="text-[9px] text-blue-400/80 font-semibold uppercase tracking-wide mb-0.5">Entrée</p>
+                        <p className="text-[10px] font-mono text-blue-300">{item.entry_zone}</p>
+                      </div>
+                    )}
+                    {item.target && (
+                      <div className="bg-emerald-500/8 border border-emerald-500/15 rounded-lg p-1.5 text-center">
+                        <p className="text-[9px] text-emerald-400/80 font-semibold uppercase tracking-wide mb-0.5">Cible</p>
+                        <p className="text-[10px] font-mono text-emerald-300">{item.target}</p>
+                      </div>
+                    )}
+                    {item.stop_loss && (
+                      <div className="bg-red-500/8 border border-red-500/15 rounded-lg p-1.5 text-center">
+                        <p className="text-[9px] text-red-400/80 font-semibold uppercase tracking-wide mb-0.5">Stop</p>
+                        <p className="text-[10px] font-mono text-red-300">{item.stop_loss}</p>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             );
           })}
@@ -189,6 +250,79 @@ function BriefingPreview({ briefing }: { briefing: WeeklyBriefing }) {
         </div>
       </Collapsible>
 
+      {/* Trading Ideas */}
+      {briefing.trading_ideas && briefing.trading_ideas.length > 0 && (
+        <Collapsible title={`Idées de trade (${briefing.trading_ideas.length})`} icon={Target}>
+          <div className="space-y-3">
+            {briefing.trading_ideas.map((idea, i) => {
+              const meta = TREND[idea.direction] ?? TREND.neutral;
+              return (
+                <div key={i} className={cn("rounded-xl p-3 space-y-2.5 border", meta.bg)}>
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <p className="font-semibold text-sm">{idea.title}</p>
+                      <div className="flex items-center gap-1.5 mt-0.5">
+                        <span className={cn("text-xs font-mono font-bold px-1.5 py-0.5 rounded border", meta.bg, meta.color)}>
+                          {idea.symbol}
+                        </span>
+                        {idea.timeframe && (
+                          <span className="text-[10px] text-muted-foreground bg-white/5 px-1.5 py-0.5 rounded capitalize">{idea.timeframe}</span>
+                        )}
+                      </div>
+                    </div>
+                    <span className={cn("text-xs font-semibold shrink-0", meta.color)}>R/R {idea.rr}</span>
+                  </div>
+                  <p className="text-xs text-foreground/70 leading-relaxed">{idea.setup}</p>
+                  <div className="grid grid-cols-3 gap-1.5">
+                    <div className="bg-black/20 rounded-lg p-1.5 text-center">
+                      <p className="text-[9px] text-blue-400/80 font-semibold uppercase mb-0.5">Entrée</p>
+                      <p className="text-[10px] font-mono text-blue-300 break-all">{idea.entry}</p>
+                    </div>
+                    <div className="bg-black/20 rounded-lg p-1.5 text-center">
+                      <p className="text-[9px] text-emerald-400/80 font-semibold uppercase mb-0.5">Cible</p>
+                      <p className="text-[10px] font-mono text-emerald-300 break-all">{idea.target}</p>
+                    </div>
+                    <div className="bg-black/20 rounded-lg p-1.5 text-center">
+                      <p className="text-[9px] text-red-400/80 font-semibold uppercase mb-0.5">Stop</p>
+                      <p className="text-[10px] font-mono text-red-300 break-all">{idea.stop}</p>
+                    </div>
+                  </div>
+                  {idea.conditions && (
+                    <p className="text-[10px] text-muted-foreground flex items-start gap-1.5 border-t border-white/5 pt-2">
+                      <AlertTriangle className="w-3 h-3 mt-0.5 shrink-0 text-yellow-400" />
+                      {idea.conditions}
+                    </p>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </Collapsible>
+      )}
+
+      {/* Educational Tip */}
+      {briefing.educational_tip && (
+        <Collapsible title="Conseil de la semaine" icon={BookOpen}>
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-xl bg-yellow-500/10 flex items-center justify-center shrink-0">
+                <Lightbulb className="w-4 h-4 text-yellow-400" />
+              </div>
+              <p className="font-semibold text-sm text-yellow-400">{briefing.educational_tip.concept}</p>
+            </div>
+            <p className="text-xs text-foreground/70 leading-relaxed">{briefing.educational_tip.explanation}</p>
+            <div className="bg-white/5 rounded-lg p-3 border border-white/10">
+              <p className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wide mb-1">Exemple concret</p>
+              <p className="text-xs text-foreground/70 leading-relaxed">{briefing.educational_tip.example}</p>
+            </div>
+            <div className="bg-yellow-500/8 border border-yellow-500/20 rounded-lg p-3">
+              <p className="text-[10px] text-yellow-400/80 font-semibold uppercase tracking-wide mb-1">À retenir</p>
+              <p className="text-xs text-foreground/80 font-medium">{briefing.educational_tip.takeaway}</p>
+            </div>
+          </div>
+        </Collapsible>
+      )}
+
       {/* Conclusion */}
       <div className="p-4 bg-primary/5 border border-primary/20 rounded-xl">
         <p className="text-xs text-primary font-semibold mb-1.5 flex items-center gap-1.5">
@@ -218,8 +352,11 @@ export default function AdminWeeklyPrepPage() {
   const [loading, setLoading]           = useState(true);
   const [regenerating, setRegenerating] = useState(false);
   const [saving, setSaving]             = useState(false);
+  const [publishing, setPublishing]     = useState(false);
   const [error, setError]               = useState("");
   const [saveOk, setSaveOk]             = useState(false);
+  const [publishOk, setPublishOk]       = useState(false);
+  const [draftSaved, setDraftSaved]     = useState(false);
 
   useEffect(() => { load(); }, []);
 
@@ -287,7 +424,7 @@ export default function AdminWeeklyPrepPage() {
     }
   };
 
-  const handleSave = async () => {
+  const handleSaveDraft = () => {
     setJsonError("");
     let parsed: WeeklyBriefing;
     try {
@@ -296,21 +433,35 @@ export default function AdminWeeklyPrepPage() {
       setJsonError("JSON invalide — corrigez la syntaxe avant de sauvegarder.");
       return;
     }
-    setSaving(true);
+    setBriefing(parsed);
+    setDraftSaved(true);
+    setTimeout(() => setDraftSaved(false), 2500);
+  };
+
+  const handlePublish = async () => {
+    setJsonError("");
+    let parsed: WeeklyBriefing;
+    try {
+      parsed = JSON.parse(jsonText);
+    } catch {
+      setJsonError("JSON invalide — corrigez la syntaxe avant de publier.");
+      return;
+    }
+    setPublishing(true);
     setError("");
     try {
       await weeklyPrepAPI.adminSave(parsed);
       setBriefing(parsed);
-      setSaveOk(true);
-      setTimeout(() => setSaveOk(false), 3000);
+      setPublishOk(true);
+      setTimeout(() => setPublishOk(false), 3000);
     } catch (e: any) {
       if (e?.status === 404) {
-        setError("Endpoint de sauvegarde non disponible — re-deploy le backend pour activer cette fonction.");
+        setError("Endpoint de publication non disponible — re-deploy le backend.");
       } else {
-        setError(e?.message || "Erreur lors de la sauvegarde");
+        setError(e?.message || "Erreur lors de la publication");
       }
     } finally {
-      setSaving(false);
+      setPublishing(false);
     }
   };
 
@@ -369,7 +520,7 @@ export default function AdminWeeklyPrepPage() {
               )}
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <button
               onClick={handleRegenerate}
               disabled={regenerating}
@@ -379,21 +530,38 @@ export default function AdminWeeklyPrepPage() {
               Régénérer IA
             </button>
             {tab === "edit" && (
-              <motion.button
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={handleSave}
-                disabled={saving || !!jsonError}
-                className={cn(
-                  "flex items-center gap-2 px-4 py-2 rounded-lg font-semibold text-sm transition-all disabled:opacity-50",
-                  saveOk
-                    ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
-                    : "bg-primary text-white hover:bg-primary/90"
-                )}
-              >
-                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : saveOk ? <CheckCircle className="w-4 h-4" /> : <Save className="w-4 h-4" />}
-                {saving ? "Sauvegarde..." : saveOk ? "Sauvegardé !" : "Sauvegarder"}
-              </motion.button>
+              <>
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={handleSaveDraft}
+                  disabled={!!jsonError}
+                  className={cn(
+                    "flex items-center gap-2 px-4 py-2 rounded-lg text-sm transition-all disabled:opacity-50 border",
+                    draftSaved
+                      ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/30"
+                      : "bg-white/5 hover:bg-white/10 text-foreground border-white/10"
+                  )}
+                >
+                  {draftSaved ? <CheckCircle className="w-4 h-4" /> : <Save className="w-4 h-4" />}
+                  {draftSaved ? "Brouillon OK" : "Sauvegarder brouillon"}
+                </motion.button>
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={handlePublish}
+                  disabled={publishing || !!jsonError}
+                  className={cn(
+                    "flex items-center gap-2 px-4 py-2 rounded-lg font-semibold text-sm transition-all disabled:opacity-50",
+                    publishOk
+                      ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
+                      : "bg-primary text-white hover:bg-primary/90"
+                  )}
+                >
+                  {publishing ? <Loader2 className="w-4 h-4 animate-spin" /> : publishOk ? <CheckCircle className="w-4 h-4" /> : <Upload className="w-4 h-4" />}
+                  {publishing ? "Publication..." : publishOk ? "Publié !" : "Publier"}
+                </motion.button>
+              </>
             )}
           </div>
         </div>
@@ -493,27 +661,42 @@ export default function AdminWeeklyPrepPage() {
               <span>{jsonText.split("\n").length} lignes · {jsonText.length} caractères</span>
               <span className="flex items-center gap-1">
                 <Zap className="w-3 h-3 text-yellow-500" />
-                Modifie n'importe quel champ puis clique Sauvegarder
+                Brouillon = local uniquement · Publier = sauvegarde en base
               </span>
             </div>
           </div>
 
-          {/* Save button repeated at bottom for long editor */}
-          <div className="flex justify-end">
+          {/* Action buttons at bottom for long editor */}
+          <div className="flex justify-end gap-2">
             <motion.button
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
-              onClick={handleSave}
-              disabled={saving || !!jsonError}
+              onClick={handleSaveDraft}
+              disabled={!!jsonError}
+              className={cn(
+                "flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm transition-all disabled:opacity-50 border",
+                draftSaved
+                  ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/30"
+                  : "bg-white/5 hover:bg-white/10 text-foreground border-white/10"
+              )}
+            >
+              {draftSaved ? <CheckCircle className="w-4 h-4" /> : <Save className="w-4 h-4" />}
+              {draftSaved ? "Brouillon OK" : "Sauvegarder brouillon"}
+            </motion.button>
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={handlePublish}
+              disabled={publishing || !!jsonError}
               className={cn(
                 "flex items-center gap-2 px-5 py-2.5 rounded-lg font-semibold text-sm transition-all disabled:opacity-50",
-                saveOk
+                publishOk
                   ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
                   : "bg-primary text-white hover:bg-primary/90"
               )}
             >
-              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : saveOk ? <CheckCircle className="w-4 h-4" /> : <Save className="w-4 h-4" />}
-              {saving ? "Sauvegarde..." : saveOk ? "Sauvegardé !" : "Sauvegarder les modifications"}
+              {publishing ? <Loader2 className="w-4 h-4 animate-spin" /> : publishOk ? <CheckCircle className="w-4 h-4" /> : <Upload className="w-4 h-4" />}
+              {publishing ? "Publication..." : publishOk ? "Publié !" : "Publier le briefing"}
             </motion.button>
           </div>
         </motion.div>

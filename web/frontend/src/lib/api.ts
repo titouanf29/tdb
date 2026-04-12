@@ -1489,6 +1489,9 @@ export interface WeeklyMarket {
   summary: string;
   key_zones: string;
   risk: string;
+  detailed_analysis?: string;
+  opportunities?: string[];
+  sectors_watch?: string[];
 }
 
 export interface WeeklyWatchItem {
@@ -1498,6 +1501,10 @@ export interface WeeklyWatchItem {
   why: string;
   scenario: string;
   direction: "bullish" | "bearish" | "neutral";
+  entry_zone?: string;
+  target?: string;
+  stop_loss?: string;
+  technical_setup?: string;
 }
 
 export interface WeeklyEvent {
@@ -1509,17 +1516,40 @@ export interface WeeklyEvent {
   impact: string;
 }
 
+export interface WeeklyTradingIdea {
+  title: string;
+  symbol: string;
+  type: string;
+  setup: string;
+  entry: string;
+  target: string;
+  stop: string;
+  rr: string;
+  direction: "bullish" | "bearish" | "neutral";
+  timeframe?: string;
+  conditions?: string;
+}
+
 export interface WeeklyBriefing {
   week: string;
   generated_at: string;
+  generated_by?: string;
   macro: {
     trend: "bullish" | "bearish" | "neutral";
     summary: string;
+    detailed_analysis?: string;
     key_points: string[];
   };
   markets: WeeklyMarket[];
   watchlist: WeeklyWatchItem[];
   events: WeeklyEvent[];
+  trading_ideas?: WeeklyTradingIdea[];
+  educational_tip?: {
+    concept: string;
+    explanation: string;
+    example: string;
+    takeaway: string;
+  };
   conclusion: string;
 }
 
