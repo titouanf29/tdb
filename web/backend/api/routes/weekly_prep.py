@@ -59,154 +59,127 @@ def _is_widget_visible() -> bool:
 
 
 WEEKLY_PROMPT = """\
-Tu es un analyste financier senior de renom avec 20 ans d'expérience sur les marchés mondiaux.
-Nous sommes dimanche et les marchés financiers rouvrent lundi matin.
-Génère un briefing hebdomadaire de marché COMPLET, RICHE ET DÉTAILLÉ en JSON strict.
+Tu es un analyste financier senior avec 20 ans d'expérience. Date: {date}. Semaine: {week}.
 
-La date actuelle est {date}.
+Génère un briefing hebdomadaire de marché riche et détaillé. Réponds UNIQUEMENT avec un JSON valide, sans markdown ni commentaires.
 
-Ce briefing doit être LONG ET DÉVELOPPÉ — pédagogique, avec des explications profondes,
-des exemples concrets, des niveaux de prix précis, et des suggestions actionnables pour les traders.
-
-Réponds UNIQUEMENT avec un JSON valide respectant exactement cette structure (sans commentaires, sans markdown):
+Structure JSON requise:
 
 {{
   "week": "{week}",
   "generated_at": "{generated_at}",
   "macro": {{
     "trend": "bullish|bearish|neutral",
-    "summary": "2-3 phrases sur le contexte macro global",
-    "detailed_analysis": "5-8 phrases d'analyse approfondie: forces macroéconomiques en jeu, données récentes importantes, contexte géopolitique, politique monétaire des banques centrales, corrélations inter-marchés. Explique le POURQUOI des tendances actuelles.",
-    "key_points": [
-      "point clé 1 avec explication détaillée",
-      "point clé 2 avec explication détaillée",
-      "point clé 3 avec explication détaillée",
-      "point clé 4 avec explication détaillée",
-      "point clé 5 avec explication détaillée"
-    ]
+    "summary": "résumé en 2-3 phrases du contexte global",
+    "detailed_analysis": "analyse macro approfondie en 5-6 phrases: banques centrales, données économiques récentes, géopolitique, corrélations inter-marchés, pourquoi le marché est dans cette tendance",
+    "key_points": ["point 1 détaillé", "point 2 détaillé", "point 3 détaillé", "point 4 détaillé", "point 5 détaillé"]
   }},
   "markets": [
     {{
-      "name": "Actions US",
-      "icon": "🇺🇸",
+      "name": "Actions US", "icon": "🇺🇸",
       "trend": "bullish|bearish|neutral",
-      "summary": "analyse en 2 phrases",
-      "detailed_analysis": "4-6 phrases: analyse technique ET fondamentale, catalyseurs de la semaine, flux institutionnels, contexte sectoriel, comparaison avec semaines précédentes",
-      "key_zones": "supports et résistances précis avec valeurs numériques (ex: Support 5100, Résistance 5280, Support fort 4900)",
-      "opportunities": [
-        "opportunité sectorielle 1 avec explication du catalyseur",
-        "opportunité sectorielle 2 avec explication",
-        "opportunité sectorielle 3 avec explication"
-      ],
-      "sectors_watch": [
-        "Technologie: raison de surveiller cette semaine",
-        "Finance: raison de surveiller",
-        "Énergie: raison de surveiller"
-      ],
-      "risk": "risque principal DÉTAILLÉ: nature du risque, probabilité, impact estimé sur les marchés"
+      "summary": "2 phrases d'analyse",
+      "detailed_analysis": "4-5 phrases: analyse technique ET fondamentale, catalyseurs, flux institutionnels, contexte sectoriel",
+      "key_zones": "supports et résistances avec valeurs numériques précises (ex: Support 5100, Résistance 5280)",
+      "opportunities": ["opportunité 1 avec catalyseur", "opportunité 2", "opportunité 3"],
+      "sectors_watch": ["Secteur A: raison", "Secteur B: raison", "Secteur C: raison"],
+      "risk": "risque principal détaillé en 2 phrases"
     }},
     {{
-      "name": "Actions Europe",
-      "icon": "🇪🇺",
+      "name": "Actions Europe", "icon": "🇪🇺",
       "trend": "bullish|bearish|neutral",
-      "summary": "analyse en 2 phrases",
-      "detailed_analysis": "4-6 phrases d'analyse technique et fondamentale",
-      "key_zones": "niveaux clés CAC40/DAX avec valeurs numériques",
+      "summary": "2 phrases",
+      "detailed_analysis": "4-5 phrases d'analyse",
+      "key_zones": "niveaux CAC40/DAX numériques",
       "opportunities": ["opportunité 1", "opportunité 2", "opportunité 3"],
-      "sectors_watch": ["secteur1: raison", "secteur2: raison", "secteur3: raison"],
-      "risk": "risque principal détaillé"
+      "sectors_watch": ["secteur 1: raison", "secteur 2: raison", "secteur 3: raison"],
+      "risk": "risque principal en 2 phrases"
     }},
     {{
-      "name": "Crypto",
-      "icon": "₿",
+      "name": "Crypto", "icon": "₿",
       "trend": "bullish|bearish|neutral",
-      "summary": "analyse en 2 phrases",
-      "detailed_analysis": "4-6 phrases: Bitcoin dominance, sentiment on-chain, catalyseurs institutionnels, cycle de marché",
-      "key_zones": "niveaux BTC/ETH avec valeurs numériques précises",
+      "summary": "2 phrases",
+      "detailed_analysis": "4-5 phrases: BTC dominance, sentiment on-chain, catalyseurs institutionnels",
+      "key_zones": "niveaux BTC et ETH en dollars",
       "opportunities": ["opportunité 1", "opportunité 2", "opportunité 3"],
-      "sectors_watch": ["BTC: analyse détaillée", "ETH: analyse détaillée", "Altcoins: zones d'opportunité"],
-      "risk": "risque principal détaillé (régulation, liquidité, corrélation macro)"
+      "sectors_watch": ["BTC: analyse", "ETH: analyse", "Altcoins: zones d'intérêt"],
+      "risk": "risque principal en 2 phrases"
     }},
     {{
-      "name": "Matières premières",
-      "icon": "🛢️",
+      "name": "Matières premières", "icon": "🛢️",
       "trend": "bullish|bearish|neutral",
-      "summary": "analyse en 2 phrases",
-      "detailed_analysis": "4-6 phrases d'analyse",
-      "key_zones": "niveaux Pétrole/Or/Blé avec valeurs numériques",
+      "summary": "2 phrases",
+      "detailed_analysis": "4-5 phrases d'analyse",
+      "key_zones": "niveaux Pétrole WTI et Or en dollars",
       "opportunities": ["opportunité 1", "opportunité 2"],
       "sectors_watch": ["Pétrole WTI: analyse", "Or: analyse", "Métaux industriels: analyse"],
-      "risk": "risque principal détaillé"
+      "risk": "risque principal en 2 phrases"
     }},
     {{
-      "name": "Forex",
-      "icon": "💱",
+      "name": "Forex", "icon": "💱",
       "trend": "bullish|bearish|neutral",
-      "summary": "analyse en 2 phrases",
-      "detailed_analysis": "4-6 phrases: dynamique dollar, politique monétaire, flux de capitaux",
-      "key_zones": "paires majeures avec niveaux numériques précis (EUR/USD, GBP/USD, USD/JPY)",
+      "summary": "2 phrases",
+      "detailed_analysis": "4-5 phrases: dollar, politique monétaire comparative, flux de capitaux",
+      "key_zones": "EUR/USD, USD/JPY, GBP/USD avec niveaux numériques",
       "opportunities": ["opportunité 1", "opportunité 2"],
-      "sectors_watch": ["EUR/USD: analyse et niveau clé", "USD/JPY: analyse et niveau clé", "GBP/USD: analyse et niveau clé"],
-      "risk": "risque principal détaillé"
+      "sectors_watch": ["EUR/USD: niveau clé + analyse", "USD/JPY: niveau clé + analyse", "GBP/USD: niveau clé + analyse"],
+      "risk": "risque principal en 2 phrases"
     }}
   ],
   "watchlist": [
     {{
-      "symbol": "SYMBOLE",
-      "name": "Nom complet de l'actif",
+      "symbol": "TICKER",
+      "name": "Nom complet",
       "type": "stock|crypto|forex|commodity|etf",
-      "why": "Pourquoi surveiller cet actif CETTE semaine: contexte, catalyseur spécifique, configuration technique en 2-3 phrases",
-      "scenario": "Scénario détaillé: si X se produit alors Y. Inclure les conditions de déclenchement, l'objectif, et les invalidations possibles. 2-3 phrases.",
+      "why": "pourquoi surveiller maintenant en 2-3 phrases avec contexte et catalyseur spécifique",
+      "scenario": "scénario détaillé avec conditions de déclenchement, objectif et invalidation en 2-3 phrases",
       "direction": "bullish|bearish|neutral",
-      "entry_zone": "Zone d'entrée idéale avec prix ou range précis (ex: 148-152$, attendre pullback)",
-      "target": "Objectif de prix avec justification (ex: 175$ — résistance majeure 52 semaines)",
-      "stop_loss": "Niveau stop-loss avec justification (ex: 143$ — sous support structure H4)",
-      "technical_setup": "Setup technique: pattern graphique, indicateurs clés, signal (ex: Flag haussier sur H4, RSI > 50, au-dessus EMA200)"
+      "entry_zone": "zone d'entrée avec prix précis (ex: 148-152$)",
+      "target": "objectif avec justification (ex: 175$ résistance majeure)",
+      "stop_loss": "stop avec justification (ex: 143$ sous support H4)",
+      "technical_setup": "pattern + indicateurs + signal (ex: Flag haussier H4, RSI > 50, au-dessus EMA200)"
     }}
   ],
   "trading_ideas": [
     {{
-      "title": "Titre court et accrocheur de l'idée",
-      "symbol": "SYMBOLE",
+      "title": "titre accrocheur de l'idée",
+      "symbol": "TICKER",
       "type": "stock|crypto|forex|commodity|etf",
-      "setup": "Description complète du setup en 3-4 phrases: pattern identifié, contexte de marché, catalyseur attendu, logique de la trade",
-      "entry": "Prix ou zone d'entrée précis avec conditions (ex: 150.50$ sur cassure en clôture)",
-      "target": "Objectif principal (ex: 168$ — target 1, 180$ — target 2)",
-      "stop": "Stop-loss précis (ex: 143.50$ — invalidation du setup)",
-      "rr": "Ratio risque/récompense (ex: 1:2.8)",
+      "setup": "description complète du setup en 3-4 phrases: pattern, contexte, catalyseur, logique",
+      "entry": "prix d'entrée précis avec condition (ex: 150.50$ sur cassure clôture)",
+      "target": "objectif (ex: 168$ target1, 180$ target2)",
+      "stop": "stop-loss précis (ex: 143.50$)",
+      "rr": "ratio R/R (ex: 1:2.8)",
       "direction": "bullish|bearish|neutral",
       "timeframe": "intraday|swing|position",
-      "conditions": "Conditions à remplir avant d'entrer (ex: Attendre confirmation clôture H4 au-dessus 150$, volume > moyenne)"
+      "conditions": "conditions avant entrée (ex: attendre clôture H4 au-dessus 150$)"
     }}
   ],
   "events": [
     {{
       "day": "Lundi|Mardi|Mercredi|Jeudi|Vendredi",
       "time": "HH:MM UTC",
-      "event": "Nom officiel de l'événement",
+      "event": "nom officiel de l'événement",
       "country": "🇺🇸|🇪🇺|🇬🇧|🌍",
       "importance": "high|medium|low",
-      "impact": "Impact potentiel DÉTAILLÉ: quels marchés affectés, quelle direction probable selon consensus vs surprise, amplitude estimée. 2-3 phrases."
+      "impact": "impact potentiel en 2 phrases: marchés affectés, direction probable, amplitude estimée"
     }}
   ],
   "educational_tip": {{
-    "concept": "Nom du concept ou technique trading de la semaine",
-    "explanation": "Explication pédagogique en 4-5 phrases: définition claire, mécanisme de fonctionnement, pourquoi c'est important pour le trader, dans quels contextes l'utiliser",
-    "example": "Exemple CONCRET lié à un actif ou situation des marchés de cette semaine — montre comment appliquer le concept en pratique",
-    "takeaway": "Ce qu'il faut absolument retenir et appliquer cette semaine — conseil pratique et actionnable en 1-2 phrases"
+    "concept": "nom du concept trading de la semaine",
+    "explanation": "explication pédagogique en 4-5 phrases: définition, mécanisme, utilité, contextes d'application",
+    "example": "exemple concret lié aux marchés de cette semaine",
+    "takeaway": "conseil pratique et actionnable en 1-2 phrases"
   }},
-  "conclusion": "Synthèse stratégique COMPLÈTE en 5-7 phrases: bilan des grandes thématiques de la semaine, opportunités principales à exploiter, risques à surveiller en priorité, posture générale recommandée (offensif/défensif/sélectif), secteurs à privilégier et éviter, conseils de gestion du risque adaptés au contexte"
+  "conclusion": "synthèse stratégique en 5-6 phrases: thématiques de la semaine, opportunités prioritaires, risques à surveiller, posture recommandée, gestion du risque"
 }}
 
-RÈGLES IMPÉRATIVES:
-- EXACTEMENT 6-8 actifs dans watchlist
-- EXACTEMENT 3-4 idées dans trading_ideas
-- EXACTEMENT 6-8 événements dans events
-- Toutes les analyses DOIVENT être développées — INTERDIT les formules vagues ou génériques
-- Les niveaux de prix DOIVENT être concrets et numériques, basés sur tes données d'entraînement
-- Contenu PÉDAGOGIQUE: explique toujours le POURQUOI derrière chaque analyse
-- Langage professionnel mais accessible à un trader débutant-intermédiaire
-- TOUS les champs sont obligatoires
+Règles:
+- 6 à 8 actifs dans watchlist
+- 3 à 4 idées dans trading_ideas
+- 6 à 8 événements dans events
+- Niveaux de prix numériques et réalistes basés sur tes données d'entraînement
+- Contenu pédagogique, explique le pourquoi derrière chaque analyse
 """
 
 
