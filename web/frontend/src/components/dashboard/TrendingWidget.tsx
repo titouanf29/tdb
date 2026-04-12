@@ -28,17 +28,11 @@ function confidenceBarColor(c: number) {
   return "bg-primary";
 }
 
-function confidenceLabel(c: number, lang: string) {
-  if (lang === "en") {
-    if (c === 100) return "Very strong";
-    if (c >= 80)   return "Strong";
-    if (c >= 60)   return "Moderate";
-    return "Weak";
-  }
-  if (c === 100) return "Très fort";
-  if (c >= 80)   return "Fort";
-  if (c >= 60)   return "Modéré";
-  return "Faible";
+function confidenceLabel(c: number, t: (k: any) => string) {
+  if (c === 100) return t("trend_very_strong");
+  if (c >= 80)   return t("trend_strong");
+  if (c >= 60)   return t("trend_moderate");
+  return t("trend_weak");
 }
 
 function formatPrice(price: number): string {
@@ -84,7 +78,7 @@ function AssetLogo({ symbol, name }: { symbol: string; name: string }) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 function ExpandedPanel({ asset }: { asset: TendanceAsset }) {
-  const { lang } = useLanguage();
+  const { t } = useLanguage();
   const bullishCount = asset.signals.filter(s => s.bullish).length;
 
   return (
@@ -99,7 +93,7 @@ function ExpandedPanel({ asset }: { asset: TendanceAsset }) {
         {/* Explication haussière */}
         <div className="p-3 border-b border-white/8">
           <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mb-2">
-            {lang === "fr" ? "Pourquoi c'est haussier" : "Why it's bullish"}
+            {t("trend_why_bullish")}
           </p>
           <ul className="space-y-1.5">
             {asset.reasons.map((r, i) => (
@@ -120,7 +114,7 @@ function ExpandedPanel({ asset }: { asset: TendanceAsset }) {
         {/* Signaux techniques */}
         <div className="p-3 border-b border-white/8">
           <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mb-2">
-            {lang === "fr" ? `Signaux (${bullishCount}/${asset.signals.length} confirmés)` : `Signals (${bullishCount}/${asset.signals.length} confirmed)`}
+            {`${t("trend_signals")} (${bullishCount}/${asset.signals.length} ${t("trend_confirmed")})`}
           </p>
           <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
             {asset.signals.map((s, i) => (
@@ -166,7 +160,7 @@ function ExpandedPanel({ asset }: { asset: TendanceAsset }) {
               </p>
             </div>
             <div>
-              <p className="text-muted-foreground">{lang === "fr" ? "7 jours" : "7 days"}</p>
+              <p className="text-muted-foreground">{t("trend_7days")}</p>
               <p className={cn("font-semibold", asset.change_1w >= 0 ? "text-profit" : "text-loss")}>
                 {asset.change_1w >= 0 ? "+" : ""}{asset.change_1w}%
               </p>
@@ -180,7 +174,7 @@ function ExpandedPanel({ asset }: { asset: TendanceAsset }) {
             className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-primary text-white text-xs font-semibold hover:bg-primary/90 transition-colors flex-shrink-0"
           >
             <BarChart2 className="w-3.5 h-3.5" />
-            {lang === "fr" ? "Voir l'analyse" : "View analysis"}
+            {t("trend_view_analysis")}
             <ArrowUpRight className="w-3 h-3" />
           </Link>
         </div>
@@ -199,7 +193,7 @@ function AssetRow({ asset, rank, isExpanded, onToggle }: {
   isExpanded: boolean;
   onToggle: () => void;
 }) {
-  const { lang } = useLanguage();
+  const { t } = useLanguage();
   const info = getAssetInfo(asset.symbol);
   const displayName = asset.name || (info.name !== asset.symbol ? info.name : asset.symbol);
 
@@ -279,7 +273,7 @@ function AssetRow({ asset, rank, isExpanded, onToggle }: {
             }
           </div>
           <span className={cn("text-[9px]", confidenceColor(asset.confidence))}>
-            {confidenceLabel(asset.confidence, lang)}
+            {confidenceLabel(asset.confidence, t)}
           </span>
         </button>
       </div>
@@ -307,7 +301,7 @@ function AssetRow({ asset, rank, isExpanded, onToggle }: {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export function TrendingWidget() {
-  const { t, lang } = useLanguage();
+  const { t } = useLanguage();
   const [assets, setAssets] = useState<TendanceAsset[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -329,7 +323,7 @@ export function TrendingWidget() {
         );
       }
     } catch {
-      setError(lang === "fr" ? "Impossible de charger les tendances." : "Unable to load trends.");
+      setError(t("trend_load_error"));
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -365,15 +359,15 @@ export function TrendingWidget() {
             <Flame className="w-4 h-4 text-profit" />
           </motion.div>
           <div>
-            <h3 className="font-semibold text-sm">{lang === "fr" ? "Top Tendances Haussières" : "Top Bullish Trends"}</h3>
+            <h3 className="font-semibold text-sm">{t("trend_title")}</h3>
             <p className="text-xs text-muted-foreground">
-              {lang === "fr" ? "Top 10 cross-marché · Cliquez sur un actif pour l'analyser" : "Top 10 cross-market · Click an asset to analyze it"}
+              {t("trend_subtitle")}
             </p>
           </div>
         </div>
         <div className="flex items-center gap-2">
           {updatedAt && (
-            <span className="text-xs text-muted-foreground">{lang === "fr" ? `MAJ ${updatedAt}` : `Updated ${updatedAt}`}</span>
+            <span className="text-xs text-muted-foreground">{`${t("trend_updated_at")} ${updatedAt}`}</span>
           )}
           <button
             onClick={() => load(true)}
@@ -390,7 +384,7 @@ export function TrendingWidget() {
       {loading ? (
         <div className="flex flex-col items-center justify-center py-12 gap-3 text-muted-foreground">
           <Loader2 className="w-6 h-6 animate-spin" />
-          <p className="text-sm">{lang === "fr" ? `Analyse de 33 actifs en cours…` : `Analyzing 33 assets…`}</p>
+          <p className="text-sm">{t("trend_loading")}</p>
         </div>
       ) : error ? (
         <div className="flex items-center justify-center py-8 gap-2">
@@ -400,8 +394,8 @@ export function TrendingWidget() {
       ) : assets.length === 0 ? (
         <div className="text-center py-8 text-muted-foreground">
           <TrendingUp className="w-8 h-8 mx-auto mb-2 opacity-25" />
-          <p className="text-sm">{lang === "fr" ? "Aucune tendance forte détectée" : "No strong trends detected"}</p>
-          <p className="text-xs mt-1 opacity-60">{lang === "fr" ? "Réessayez dans quelques instants" : "Try again in a moment"}</p>
+          <p className="text-sm">{t("trend_no_trends")}</p>
+          <p className="text-xs mt-1 opacity-60">{t("trend_retry_moment")}</p>
         </div>
       ) : (
         <div className="space-y-1">
@@ -418,7 +412,7 @@ export function TrendingWidget() {
       )}
 
       <p className="text-[11px] text-muted-foreground text-center mt-4 opacity-70">
-        EMA · MACD · RSI · Volume · Momentum — {lang === "fr" ? "actualisé toutes les heures" : "updated every hour"}
+        EMA · MACD · RSI · Volume · Momentum — {t("trend_updated_hourly")}
       </p>
     </motion.div>
   );

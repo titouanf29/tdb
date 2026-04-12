@@ -120,6 +120,7 @@ function Section({ title, icon: Icon, children, defaultOpen = false }: {
 
 function MarketCard({ market }: { market: WeeklyMarket }) {
   const { t } = useLanguage();
+
   return (
     <div className="bg-white/5 rounded-xl p-3 space-y-3">
       <div className="flex items-center justify-between">
@@ -139,7 +140,7 @@ function MarketCard({ market }: { market: WeeklyMarket }) {
           <p className="text-xs text-muted-foreground mb-1 font-medium">{t("weekly_key_zones")}</p>
           <KeyZones zones={market.key_zones} />
           <p className="text-[10px] text-muted-foreground/50 mt-1.5">
-            🟢 Support = plancher d'achat · 🔴 Résistance = plafond de vente
+            {t("weekly_zones_legend")}
           </p>
         </div>
         <div className="bg-red-500/5 border border-red-500/10 rounded-lg p-2.5">
@@ -151,7 +152,7 @@ function MarketCard({ market }: { market: WeeklyMarket }) {
       </div>
       {market.opportunities && market.opportunities.length > 0 && (
         <div className="bg-emerald-500/5 border border-emerald-500/10 rounded-lg p-2 space-y-1">
-          <p className="text-xs text-emerald-400 font-semibold mb-1">Opportunités</p>
+          <p className="text-xs text-emerald-400 font-semibold mb-1">{t("weekly_opportunities")}</p>
           {market.opportunities.map((op, i) => (
             <p key={i} className="text-xs text-foreground/70 flex items-start gap-1.5">
               <ArrowRight className="w-3 h-3 mt-0.5 shrink-0 text-emerald-400" />
@@ -162,7 +163,7 @@ function MarketCard({ market }: { market: WeeklyMarket }) {
       )}
       {market.sectors_watch && market.sectors_watch.length > 0 && (
         <div className="space-y-1">
-          <p className="text-xs text-muted-foreground font-semibold">Secteurs à surveiller</p>
+          <p className="text-xs text-muted-foreground font-semibold">{t("weekly_sectors_watch")}</p>
           {market.sectors_watch.map((s, i) => (
             <p key={i} className="text-xs text-foreground/70 flex items-start gap-1.5">
               <ChevronRight className="w-3 h-3 mt-0.5 shrink-0 text-primary/60" />
@@ -217,7 +218,7 @@ function WatchCard({ item }: { item: WeeklyWatchItem }) {
         {/* Why */}
         <div className="bg-blue-500/5 border border-blue-500/10 rounded-lg p-2.5">
           <p className="text-[10px] text-blue-400 font-semibold uppercase tracking-wide mb-1 flex items-center gap-1">
-            🔍 Pourquoi cette semaine ?
+            {t("weekly_why_this_week")}
           </p>
           <p className="text-xs text-foreground/80 leading-relaxed">{item.why}</p>
         </div>
@@ -225,7 +226,7 @@ function WatchCard({ item }: { item: WeeklyWatchItem }) {
         {/* Scenario */}
         <div className="bg-yellow-500/5 border border-yellow-500/10 rounded-lg p-2.5">
           <p className="text-[10px] text-yellow-400 font-semibold uppercase tracking-wide mb-1 flex items-center gap-1">
-            📈 Scénario anticipé
+            {t("weekly_expected_scenario")}
           </p>
           <p className="text-xs text-foreground/80 leading-relaxed">{item.scenario}</p>
         </div>
@@ -234,7 +235,7 @@ function WatchCard({ item }: { item: WeeklyWatchItem }) {
         {item.technical_setup && (
           <div className="bg-primary/5 border border-primary/10 rounded-lg p-2.5">
             <p className="text-[10px] text-primary font-semibold uppercase tracking-wide mb-1">
-              📊 Setup technique
+              {t("weekly_technical_setup")}
             </p>
             <p className="text-xs text-foreground/70">{item.technical_setup}</p>
           </div>
@@ -245,19 +246,19 @@ function WatchCard({ item }: { item: WeeklyWatchItem }) {
           <div className="grid grid-cols-3 gap-1.5">
             {item.entry_zone && (
               <div className="bg-blue-500/8 border border-blue-500/15 rounded-lg p-2 text-center">
-                <p className="text-[9px] text-blue-400/80 font-semibold uppercase tracking-wide mb-0.5">Zone entrée</p>
+                <p className="text-[9px] text-blue-400/80 font-semibold uppercase tracking-wide mb-0.5">{t("weekly_entry_zone")}</p>
                 <p className="text-[11px] font-mono font-bold text-blue-300">{item.entry_zone}</p>
               </div>
             )}
             {item.target && (
               <div className="bg-emerald-500/8 border border-emerald-500/15 rounded-lg p-2 text-center">
-                <p className="text-[9px] text-emerald-400/80 font-semibold uppercase tracking-wide mb-0.5">Objectif</p>
+                <p className="text-[9px] text-emerald-400/80 font-semibold uppercase tracking-wide mb-0.5">{t("weekly_target_price")}</p>
                 <p className="text-[11px] font-mono font-bold text-emerald-300">{item.target}</p>
               </div>
             )}
             {item.stop_loss && (
               <div className="bg-red-500/8 border border-red-500/15 rounded-lg p-2 text-center">
-                <p className="text-[9px] text-red-400/80 font-semibold uppercase tracking-wide mb-0.5">Stop-loss</p>
+                <p className="text-[9px] text-red-400/80 font-semibold uppercase tracking-wide mb-0.5">{t("weekly_stop_loss")}</p>
                 <p className="text-[11px] font-mono font-bold text-red-300">{item.stop_loss}</p>
               </div>
             )}
@@ -269,6 +270,7 @@ function WatchCard({ item }: { item: WeeklyWatchItem }) {
 }
 
 function TradingIdeaCard({ idea }: { idea: WeeklyTradingIdea }) {
+  const { t } = useLanguage();
   const { color, bg } = TREND_KEYS[idea.direction];
   const DirIcon = idea.direction === "bullish" ? ArrowUpRight : idea.direction === "bearish" ? ArrowDownRight : ArrowRight;
 
@@ -296,15 +298,15 @@ function TradingIdeaCard({ idea }: { idea: WeeklyTradingIdea }) {
       <p className="text-xs text-foreground/70 leading-relaxed">{idea.setup}</p>
       <div className="grid grid-cols-3 gap-1.5">
         <div className="bg-black/20 rounded-lg p-1.5 text-center">
-          <p className="text-[9px] text-blue-400/80 font-semibold uppercase tracking-wide mb-0.5">Entrée</p>
+          <p className="text-[9px] text-blue-400/80 font-semibold uppercase tracking-wide mb-0.5">{t("weekly_entry_zone")}</p>
           <p className="text-[10px] font-mono text-blue-300 break-all">{idea.entry}</p>
         </div>
         <div className="bg-black/20 rounded-lg p-1.5 text-center">
-          <p className="text-[9px] text-emerald-400/80 font-semibold uppercase tracking-wide mb-0.5">Cible</p>
+          <p className="text-[9px] text-emerald-400/80 font-semibold uppercase tracking-wide mb-0.5">{t("weekly_target_price")}</p>
           <p className="text-[10px] font-mono text-emerald-300 break-all">{idea.target}</p>
         </div>
         <div className="bg-black/20 rounded-lg p-1.5 text-center">
-          <p className="text-[9px] text-red-400/80 font-semibold uppercase tracking-wide mb-0.5">Stop</p>
+          <p className="text-[9px] text-red-400/80 font-semibold uppercase tracking-wide mb-0.5">{t("weekly_stop_loss")}</p>
           <p className="text-[10px] font-mono text-red-300 break-all">{idea.stop}</p>
         </div>
       </div>
@@ -322,9 +324,9 @@ function EventRow({ event }: { event: WeeklyEvent }) {
   const { t } = useLanguage();
   const imp = IMPORTANCE[event.importance];
   const impLabel =
-    event.importance === "high"   ? t("weekly_bullish").replace("aussier","levé") :
-    event.importance === "medium" ? "Moyen" :
-    "Faible";
+    event.importance === "high"   ? t("weekly_imp_high") :
+    event.importance === "medium" ? t("weekly_imp_medium") :
+    t("weekly_imp_low");
   return (
     <div className="flex items-start gap-3 py-2 border-b border-white/5 last:border-0">
       <div className={cn("w-2 h-2 rounded-full mt-1.5 shrink-0", imp.dot)} />
@@ -346,11 +348,11 @@ function EventRow({ event }: { event: WeeklyEvent }) {
 }
 
 const WATCHLIST_TABS = [
-  { key: "US",                 label: "Actions US",         icon: "🇺🇸" },
-  { key: "EU",                 label: "Actions Europe",     icon: "🇪🇺" },
-  { key: "Crypto",             label: "Crypto",             icon: "₿"   },
-  { key: "Matières premières", label: "Matières",           icon: "🛢️" },
-  { key: "Forex",              label: "Forex",              icon: "💱"  },
+  { key: "US",                 labelKey: "weekly_market_us"          as const, icon: "🇺🇸" },
+  { key: "EU",                 labelKey: "weekly_market_eu"          as const, icon: "🇪🇺" },
+  { key: "Crypto",             labelKey: "weekly_market_crypto"      as const, icon: "₿"   },
+  { key: "Matières premières", labelKey: "weekly_market_commodities" as const, icon: "🛢️" },
+  { key: "Forex",              labelKey: "weekly_market_forex"       as const, icon: "💱"  },
 ];
 
 function WatchlistByMarket({ watchlist, t }: { watchlist: WeeklyWatchItem[]; t: (k: any) => string }) {
@@ -379,7 +381,7 @@ function WatchlistByMarket({ watchlist, t }: { watchlist: WeeklyWatchItem[]; t: 
           className={cn("px-2.5 py-1 rounded-lg text-xs font-medium transition-all border",
             active === "tous" ? "bg-primary/20 border-primary/40 text-primary" : "bg-white/5 border-white/10 hover:border-white/20"
           )}>
-          Tous ({unique.length})
+          {t("weekly_all")} ({unique.length})
         </button>
         {activeTabs.map(tab => {
           const count = watchlist.filter(w => w.market === tab.key).length;
@@ -388,7 +390,7 @@ function WatchlistByMarket({ watchlist, t }: { watchlist: WeeklyWatchItem[]; t: 
               className={cn("px-2.5 py-1 rounded-lg text-xs font-medium transition-all border",
                 active === tab.key ? "bg-primary/20 border-primary/40 text-primary" : "bg-white/5 border-white/10 hover:border-white/20"
               )}>
-              {tab.icon} {tab.label}
+              {tab.icon} {t(tab.labelKey)}
               <span className={cn("ml-1 text-[9px] font-bold px-1 py-0.5 rounded-full",
                 active === tab.key ? "bg-primary/30 text-primary" : "bg-white/10 text-muted-foreground"
               )}>{count}</span>
@@ -406,7 +408,7 @@ function WatchlistByMarket({ watchlist, t }: { watchlist: WeeklyWatchItem[]; t: 
           ))}
           {displayed.length === 0 && (
             <p className="text-xs text-muted-foreground text-center py-4 italic">
-              Aucun actif dans cette catégorie pour cette semaine.
+              {t("weekly_no_assets_cat")}
             </p>
           )}
         </motion.div>
@@ -547,7 +549,7 @@ export function WeeklyPrepWidget({ respectSchedule = true }: Props) {
                 ? "hover:bg-white/10 text-muted-foreground hover:text-white"
                 : "hover:bg-red-500/20 text-muted-foreground hover:text-red-400"
             )}
-            title={fullscreen ? "Réduire" : t("weekly_close_week")}>
+            title={fullscreen ? t("weekly_reduce") : t("weekly_close_week")}>
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -558,7 +560,7 @@ export function WeeklyPrepWidget({ respectSchedule = true }: Props) {
         <div className="flex items-start gap-2.5 px-3.5 py-3 bg-amber-500/10 border border-amber-500/25 rounded-xl">
           <span className="text-base leading-none mt-0.5 shrink-0">📌</span>
           <div className="min-w-0">
-            <p className="text-[10px] text-amber-400 font-semibold uppercase tracking-wide mb-1">Note de la semaine</p>
+            <p className="text-[10px] text-amber-400 font-semibold uppercase tracking-wide mb-1">{t("weekly_note_week")}</p>
             <p className="text-sm text-foreground/90 leading-relaxed whitespace-pre-wrap">{briefing.admin_note}</p>
           </div>
         </div>
@@ -613,7 +615,7 @@ export function WeeklyPrepWidget({ respectSchedule = true }: Props) {
 
       {/* Trading Ideas */}
       {briefing.trading_ideas && briefing.trading_ideas.length > 0 && (
-        <Section title={`Idées de trade (${briefing.trading_ideas.length})`} icon={Target}>
+        <Section title={`${t("weekly_trading_ideas")} (${briefing.trading_ideas.length})`} icon={Target}>
           <div className="space-y-3">
             {briefing.trading_ideas.map((idea, i) => (
               <motion.div key={i} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
@@ -623,14 +625,14 @@ export function WeeklyPrepWidget({ respectSchedule = true }: Props) {
           </div>
           <p className="text-[10px] text-muted-foreground mt-2 flex items-center gap-1">
             <AlertTriangle className="w-3 h-3 text-yellow-400/60" />
-            Ces idées sont éducatives. Faites vos propres recherches avant tout trade.
+            {t("weekly_ideas_educational")}
           </p>
         </Section>
       )}
 
       {/* Educational Tip */}
       {briefing.educational_tip && (
-        <Section title="Conseil de la semaine" icon={BookOpen}>
+        <Section title={t("weekly_tip_of_week")} icon={BookOpen}>
           <div className="space-y-3">
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 rounded-xl bg-yellow-500/10 flex items-center justify-center shrink-0">
@@ -640,11 +642,11 @@ export function WeeklyPrepWidget({ respectSchedule = true }: Props) {
             </div>
             <p className="text-xs text-foreground/70 leading-relaxed">{briefing.educational_tip.explanation}</p>
             <div className="bg-white/5 rounded-lg p-3 border border-white/10">
-              <p className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wide mb-1">Exemple concret</p>
+              <p className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wide mb-1">{t("weekly_concrete_example")}</p>
               <p className="text-xs text-foreground/70 leading-relaxed">{briefing.educational_tip.example}</p>
             </div>
             <div className="bg-yellow-500/8 border border-yellow-500/20 rounded-lg p-3">
-              <p className="text-[10px] text-yellow-400/80 font-semibold uppercase tracking-wide mb-1">À retenir</p>
+              <p className="text-[10px] text-yellow-400/80 font-semibold uppercase tracking-wide mb-1">{t("weekly_key_takeaway")}</p>
               <p className="text-xs text-foreground/80 font-medium">{briefing.educational_tip.takeaway}</p>
             </div>
           </div>

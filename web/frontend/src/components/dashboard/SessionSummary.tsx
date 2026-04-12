@@ -13,6 +13,7 @@ import { getAssetInfo, getAssetLogo } from "@/lib/assetInfo";
 import { isMarketOpen } from "@/lib/marketStatus";
 import { usePremium } from "@/lib/PremiumContext";
 import { cn } from "@/lib/utils";
+import { useLanguage } from "@/lib/LanguageContext";
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  SESSION CONFIGS
@@ -21,11 +22,11 @@ import { cn } from "@/lib/utils";
 interface SessionCfg {
   id: string;
   name: string;
-  fullName: string;
+  fullNameKey: string;
   subtitle: string;
   flag: string;
   marketKey: string;
-  closeTimeLabel: string;
+  closeTimeLabelKey: string;
   gradient: string;
   glowColor: string;
   border: string;
@@ -39,11 +40,11 @@ const SESSIONS: SessionCfg[] = [
   {
     id: "europe",
     name: "Europe",
-    fullName: "Séance Européenne",
+    fullNameKey: "session_european",
     subtitle: "CAC40 · DAX · FTSE · Eurostoxx",
     flag: "🇪🇺",
     marketKey: "EUROPE",
-    closeTimeLabel: "Clôture 17h30",
+    closeTimeLabelKey: "session_close_europe",
     gradient: "from-blue-600/30 via-indigo-500/15 to-transparent",
     glowColor: "bg-blue-500",
     border: "border-blue-500/25",
@@ -59,11 +60,11 @@ const SESSIONS: SessionCfg[] = [
   {
     id: "us",
     name: "US",
-    fullName: "Séance Américaine",
+    fullNameKey: "session_american",
     subtitle: "S&P 500 · Nasdaq · Dow Jones",
     flag: "🇺🇸",
     marketKey: "USA",
-    closeTimeLabel: "Clôture 22h00",
+    closeTimeLabelKey: "session_close_us",
     gradient: "from-emerald-600/30 via-teal-500/15 to-transparent",
     glowColor: "bg-emerald-500",
     border: "border-emerald-500/25",
@@ -78,12 +79,12 @@ const SESSIONS: SessionCfg[] = [
   },
   {
     id: "asia",
-    name: "Asie",
-    fullName: "Séance Asiatique",
+    name: "Asia",
+    fullNameKey: "session_asian",
     subtitle: "Nikkei · Hang Seng · KOSPI",
     flag: "🌏",
     marketKey: "ASIA",
-    closeTimeLabel: "Clôture 09h00",
+    closeTimeLabelKey: "session_close_asia",
     gradient: "from-orange-600/30 via-red-500/15 to-transparent",
     glowColor: "bg-orange-500",
     border: "border-orange-500/25",
@@ -98,11 +99,11 @@ const SESSIONS: SessionCfg[] = [
   {
     id: "crypto",
     name: "Crypto",
-    fullName: "Marché Crypto",
+    fullNameKey: "session_crypto_market",
     subtitle: "Bitcoin · Ethereum · Altcoins",
     flag: "🟡",
     marketKey: "CRYPTO",
-    closeTimeLabel: "Ouvert 24h/24",
+    closeTimeLabelKey: "session_open_24h",
     gradient: "from-yellow-500/30 via-amber-500/15 to-transparent",
     glowColor: "bg-yellow-500",
     border: "border-yellow-500/25",
@@ -155,11 +156,20 @@ interface SessionResult {
 //  HELPERS
 // ─────────────────────────────────────────────────────────────────────────────
 
-const WATCH_REASONS: Record<WatchTag, (name: string, change: number) => string> = {
-  rebond: (n, c) => `${n} a chuté de ${Math.abs(c).toFixed(1)}% aujourd'hui. Les zones de support technique seront à surveiller pour un rebond potentiel à l'ouverture.`,
-  momentum: (n, c) => `${n} affiche un gain de +${c.toFixed(1)}% avec un fort volume. La dynamique haussière pourrait se prolonger. Surveiller les résistances clés.`,
-  consolidation: (n, c) => `${n} clôture quasi stable (${c > 0 ? "+" : ""}${c.toFixed(2)}%). Une consolidation en cours — la prochaine direction sera déterminante.`,
-  vigilance: (n, c) => `Mouvement notable sur ${n} (${c > 0 ? "+" : ""}${c.toFixed(1)}%). Rester vigilant sur l'évolution des fondamentaux et du flux d'ordres.`,
+type WatchReasonFn = (name: string, change: number, lang: string) => string;
+const WATCH_REASONS: Record<WatchTag, WatchReasonFn> = {
+  rebond: (n, c, lang) => lang === "en"
+    ? `${n} dropped ${Math.abs(c).toFixed(1)}% today. Watch technical support zones for a potential bounce at open.`
+    : `${n} a chuté de ${Math.abs(c).toFixed(1)}% aujourd'hui. Les zones de support technique seront à surveiller pour un rebond potentiel à l'ouverture.`,
+  momentum: (n, c, lang) => lang === "en"
+    ? `${n} is up +${c.toFixed(1)}% with strong volume. Bullish momentum may continue. Watch key resistance levels.`
+    : `${n} affiche un gain de +${c.toFixed(1)}% avec un fort volume. La dynamique haussière pourrait se prolonger. Surveiller les résistances clés.`,
+  consolidation: (n, c, lang) => lang === "en"
+    ? `${n} closed nearly flat (${c > 0 ? "+" : ""}${c.toFixed(2)}%). Consolidation underway — next direction will be key.`
+    : `${n} clôture quasi stable (${c > 0 ? "+" : ""}${c.toFixed(2)}%). Une consolidation en cours — la prochaine direction sera déterminante.`,
+  vigilance: (n, c, lang) => lang === "en"
+    ? `Notable move on ${n} (${c > 0 ? "+" : ""}${c.toFixed(1)}%). Stay alert to fundamental developments and order flow.`
+    : `Mouvement notable sur ${n} (${c > 0 ? "+" : ""}${c.toFixed(1)}%). Rester vigilant sur l'évolution des fondamentaux et du flux d'ordres.`,
 };
 
 function getWatchTag(change: number): WatchTag {
@@ -173,7 +183,7 @@ function getWatchEmoji(tag: WatchTag): string {
   return { rebond: "📈", momentum: "🚀", consolidation: "⏳", vigilance: "⚠️" }[tag];
 }
 
-function buildWatchlist(performers: AssetPerf[]): WatchItem[] {
+function buildWatchlist(performers: AssetPerf[], lang: string): WatchItem[] {
   if (performers.length === 0) return [];
   const sorted = [...performers].sort((a, b) => b.change - a.change);
   const items: WatchItem[] = [];
@@ -182,14 +192,14 @@ function buildWatchlist(performers: AssetPerf[]): WatchItem[] {
   const bounce = [...sorted].reverse().find(p => p.change < -1);
   if (bounce) {
     const tag = "rebond";
-    items.push({ asset: bounce, tag, reason: WATCH_REASONS[tag](bounce.name, bounce.change), emoji: getWatchEmoji(tag) });
+    items.push({ asset: bounce, tag, reason: WATCH_REASONS[tag](bounce.name, bounce.change, lang), emoji: getWatchEmoji(tag) });
   }
 
   // Momentum play — biggest gainer
   const top = sorted.find(p => p.change > 1.5);
   if (top) {
     const tag = "momentum";
-    items.push({ asset: top, tag, reason: WATCH_REASONS[tag](top.name, top.change), emoji: getWatchEmoji(tag) });
+    items.push({ asset: top, tag, reason: WATCH_REASONS[tag](top.name, top.change, lang), emoji: getWatchEmoji(tag) });
   }
 
   // Fill with remaining interesting assets
@@ -197,7 +207,7 @@ function buildWatchlist(performers: AssetPerf[]): WatchItem[] {
     if (items.length >= 4) break;
     if (items.some(i => i.asset.symbol === p.symbol)) continue;
     const tag = getWatchTag(p.change);
-    items.push({ asset: p, tag, reason: WATCH_REASONS[tag](p.name, p.change), emoji: getWatchEmoji(tag) });
+    items.push({ asset: p, tag, reason: WATCH_REASONS[tag](p.name, p.change, lang), emoji: getWatchEmoji(tag) });
   }
 
   return items.slice(0, 4);
@@ -206,6 +216,7 @@ function buildWatchlist(performers: AssetPerf[]): WatchItem[] {
 function computeSession(
   session: SessionCfg,
   priceData: Record<string, { price: number; change: number; volume: number }>,
+  lang: string,
 ): SessionResult {
   const performers: AssetPerf[] = [];
 
@@ -242,7 +253,7 @@ function computeSession(
     mood: moodScore > 20 ? "bullish" : moodScore < -20 ? "bearish" : "neutral",
     moodScore,
     positiveRatio,
-    watchlist: buildWatchlist(performers),
+    watchlist: buildWatchlist(performers, lang),
     isLive: isMarketOpen(session.marketKey),
   };
 }
@@ -251,7 +262,7 @@ function computeSession(
 //  SVG: MOOD GAUGE
 // ─────────────────────────────────────────────────────────────────────────────
 
-function MoodGauge({ score, mood }: { score: number; mood: SessionResult["mood"] }) {
+function MoodGauge({ score, mood, t }: { score: number; mood: SessionResult["mood"]; t: (k: any) => string }) {
   const cx = 56; const cy = 52; const r = 36;
   // Needle: 0° = left (bearish), 180° = right (bullish), mapped to score -100..+100
   const angleDeg = 180 + (score / 100) * 90; // 90° to 270° range
@@ -310,7 +321,7 @@ function MoodGauge({ score, mood }: { score: number; mood: SessionResult["mood"]
       <text x={cx + r + 2} y={cy + 18} textAnchor="middle" fill="#34d399" fontSize="7.5" fontWeight="600">BULL</text>
       {/* Mood label */}
       <text x={cx} y={cy + 20} textAnchor="middle" fill={color} fontSize="8" fontWeight="800">
-        {mood === "bullish" ? "HAUSSIER" : mood === "bearish" ? "BAISSIER" : "NEUTRE"}
+        {mood === "bullish" ? t("session_mood_haussier") : mood === "bearish" ? t("session_mood_baissier") : t("session_mood_neutre")}
       </text>
     </svg>
   );
@@ -487,14 +498,15 @@ function Podium({ top3 }: { top3: AssetPerf[] }) {
 //  WATCHLIST CARD
 // ─────────────────────────────────────────────────────────────────────────────
 
-const TAG_STYLES: Record<WatchTag, { label: string; color: string; bg: string; border: string }> = {
-  rebond: { label: "Rebond potentiel", color: "text-emerald-400", bg: "bg-emerald-500/10", border: "border-emerald-500/25" },
-  momentum: { label: "Momentum haussier", color: "text-blue-400", bg: "bg-blue-500/10", border: "border-blue-500/25" },
-  consolidation: { label: "Consolidation", color: "text-yellow-400", bg: "bg-yellow-500/10", border: "border-yellow-500/25" },
-  vigilance: { label: "Vigilance", color: "text-orange-400", bg: "bg-orange-500/10", border: "border-orange-500/25" },
+const TAG_STYLES: Record<WatchTag, { labelKey: string; color: string; bg: string; border: string }> = {
+  rebond:       { labelKey: "session_tag_rebond",        color: "text-emerald-400", bg: "bg-emerald-500/10", border: "border-emerald-500/25" },
+  momentum:     { labelKey: "session_tag_momentum",      color: "text-blue-400",    bg: "bg-blue-500/10",    border: "border-blue-500/25"    },
+  consolidation:{ labelKey: "session_tag_consolidation", color: "text-yellow-400",  bg: "bg-yellow-500/10",  border: "border-yellow-500/25"  },
+  vigilance:    { labelKey: "session_tag_vigilance",     color: "text-orange-400",  bg: "bg-orange-500/10",  border: "border-orange-500/25"  },
 };
 
 function WatchlistCard({ item, index }: { item: WatchItem; index: number }) {
+  const { t } = useLanguage();
   const ts = TAG_STYLES[item.tag];
   const isUp = item.asset.change >= 0;
 
@@ -523,7 +535,7 @@ function WatchlistCard({ item, index }: { item: WatchItem; index: number }) {
           </div>
           <span className={cn("inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-full border", ts.bg, ts.border, ts.color)}>
             <span>{item.emoji}</span>
-            {ts.label}
+            {t(ts.labelKey as any)}
           </span>
         </div>
         <ChevronRight className="w-3.5 h-3.5 text-white/20 group-hover:text-white/40 transition-colors flex-shrink-0 mt-1" />
@@ -539,6 +551,7 @@ function WatchlistCard({ item, index }: { item: WatchItem; index: number }) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 function PremiumLock() {
+  const { t } = useLanguage();
   return (
     <div className="relative">
       {/* Blurred preview */}
@@ -571,14 +584,14 @@ function PremiumLock() {
           <Lock className="w-5.5 h-5.5 text-yellow-400" style={{ width: 22, height: 22 }} />
         </motion.div>
         <div className="text-center">
-          <p className="text-sm font-bold text-white">Fonctionnalité Premium</p>
-          <p className="text-xs text-white/50 mt-0.5">Débloquez les signaux de la prochaine séance</p>
+          <p className="text-sm font-bold text-white">{t("session_premium_feature")}</p>
+          <p className="text-xs text-white/50 mt-0.5">{t("session_unlock_signals")}</p>
         </div>
         <Link href="/premium"
           className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-gradient-to-r from-yellow-400 to-primary text-black text-xs font-bold hover:opacity-90 transition-opacity shadow-lg"
         >
           <Crown className="w-3.5 h-3.5" />
-          Passer Premium
+          {t("session_go_premium")}
         </Link>
       </div>
     </div>
@@ -590,6 +603,7 @@ function PremiumLock() {
 // ─────────────────────────────────────────────────────────────────────────────
 
 function SessionNarrativeSection({ result, isPremium }: { result: SessionResult; isPremium: boolean }) {
+  const { t } = useLanguage();
   const [narrative, setNarrative] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -601,7 +615,7 @@ function SessionNarrativeSection({ result, isPremium }: { result: SessionResult;
     setError(null);
     try {
       const res = await aiAPI.getSessionNarrative({
-        session_name: result.session.fullName,
+        session_name: t(result.session.fullNameKey as any),
         session_id: result.session.id,
         mood: result.mood,
         avg_change: result.avgChange,
@@ -613,7 +627,7 @@ function SessionNarrativeSection({ result, isPremium }: { result: SessionResult;
       setNarrative(res.narrative);
       setGeneratedAt(res.generated_at);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Impossible de générer l'analyse.");
+      setError(err instanceof Error ? err.message : t("session_gen_error"));
     } finally {
       setLoading(false);
     }
@@ -627,8 +641,8 @@ function SessionNarrativeSection({ result, isPremium }: { result: SessionResult;
             <Bot className="w-3.5 h-3.5 text-primary" />
           </div>
           <div>
-            <h4 className="text-sm font-bold text-white">Analyse IA de séance</h4>
-            <p className="text-[11px] text-white/35">Résumé narratif généré par l&apos;IA</p>
+            <h4 className="text-sm font-bold text-white">{t("session_ai_title")}</h4>
+            <p className="text-[11px] text-white/35">{t("session_ai_desc")}</p>
           </div>
         </div>
         {!isPremium && (
@@ -657,12 +671,12 @@ function SessionNarrativeSection({ result, isPremium }: { result: SessionResult;
               >
                 <Lock className="w-4.5 h-4.5 text-yellow-400" style={{ width: 18, height: 18 }} />
               </motion.div>
-              <p className="text-xs font-bold text-white text-center">Débloquez l&apos;analyse narrative IA</p>
+              <p className="text-xs font-bold text-white text-center">{t("session_unlock_narrative")}</p>
               <Link href="/premium"
                 className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-yellow-400 to-primary text-black text-xs font-bold hover:opacity-90 transition-opacity shadow-lg"
               >
                 <Crown className="w-3 h-3" />
-                Passer Premium
+                {t("session_go_premium")}
               </Link>
             </div>
           </div>
@@ -675,7 +689,7 @@ function SessionNarrativeSection({ result, isPremium }: { result: SessionResult;
           >
             <div className="flex items-center gap-2 mb-3">
               <Sparkles className="w-3.5 h-3.5 text-primary" />
-              <span className="text-[11px] font-semibold text-primary uppercase tracking-wider">Analyse IA</span>
+              <span className="text-[11px] font-semibold text-primary uppercase tracking-wider">{t("session_ai_label")}</span>
               {generatedAt && (
                 <span className="text-[10px] text-white/30 ml-auto">
                   {new Date(generatedAt).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
@@ -689,7 +703,7 @@ function SessionNarrativeSection({ result, isPremium }: { result: SessionResult;
               className="mt-3 text-[11px] text-primary/60 hover:text-primary transition-colors flex items-center gap-1"
             >
               <RefreshCw className={cn("w-3 h-3", loading && "animate-spin")} />
-              Regénérer
+              {t("session_regenerate")}
             </button>
           </motion.div>
         ) : (
@@ -704,13 +718,13 @@ function SessionNarrativeSection({ result, isPremium }: { result: SessionResult;
               className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary/15 border border-primary/25 hover:bg-primary/25 text-primary text-sm font-semibold transition-all disabled:opacity-50"
             >
               {loading ? (
-                <><Loader2 className="w-4 h-4 animate-spin" />Génération en cours...</>
+                <><Loader2 className="w-4 h-4 animate-spin" />{t("session_generating")}</>
               ) : (
-                <><Sparkles className="w-4 h-4" />Générer l&apos;analyse de séance</>
+                <><Sparkles className="w-4 h-4" />{t("session_generate_btn")}</>
               )}
             </button>
             <p className="text-[11px] text-white/25 text-center">
-              L&apos;IA analysera les performances et expliquera les mouvements clés
+              {t("session_ai_will_analyze")}
             </p>
           </div>
         )}
@@ -724,6 +738,7 @@ function SessionNarrativeSection({ result, isPremium }: { result: SessionResult;
 // ─────────────────────────────────────────────────────────────────────────────
 
 function SessionPanel({ result, isPremium }: { result: SessionResult; isPremium: boolean }) {
+  const { t, lang } = useLanguage();
   const { session, topN, flopN, avgChange, mood, moodScore, positiveRatio, watchlist, isLive } = result;
   const maxChange = Math.max(...result.performers.map(p => Math.abs(p.change)), 0.1);
 
@@ -733,10 +748,15 @@ function SessionPanel({ result, isPremium }: { result: SessionResult; isPremium:
   const moodBg = { bullish: "from-emerald-500/10", bearish: "from-rose-500/10", neutral: "from-yellow-500/10" };
   const moodColor = { bullish: "text-emerald-400", bearish: "text-rose-400", neutral: "text-yellow-400" };
   const moodBorder = { bullish: "border-emerald-500/20", bearish: "border-rose-500/20", neutral: "border-yellow-500/20" };
-  const moodLabel = { bullish: "Marché Haussier", bearish: "Marché Baissier", neutral: "Marché Neutre" };
+  const moodLabel = {
+    bullish: t("session_mood_bullish"),
+    bearish: t("session_mood_bearish"),
+    neutral: t("session_mood_neutral"),
+  };
 
   const now = new Date();
-  const dateLabel = now.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" });
+  const locale = lang === "en" ? "en-US" : "fr-FR";
+  const dateLabel = now.toLocaleDateString(locale, { weekday: "long", day: "numeric", month: "long" });
 
   return (
     <div>
@@ -750,7 +770,7 @@ function SessionPanel({ result, isPremium }: { result: SessionResult; isPremium:
                 <span className="text-3xl">{session.flag}</span>
                 <div>
                   <div className="flex items-center gap-2">
-                    <h3 className="font-bold text-white text-base leading-tight">{session.fullName}</h3>
+                    <h3 className="font-bold text-white text-base leading-tight">{t(session.fullNameKey as any)}</h3>
                     {/* Live indicator */}
                     {isLive ? (
                       <motion.span
@@ -759,11 +779,11 @@ function SessionPanel({ result, isPremium }: { result: SessionResult; isPremium:
                         transition={{ duration: 1.5, repeat: Infinity }}
                       >
                         <Radio className="w-2.5 h-2.5" />
-                        EN COURS
+                        {t("session_live")}
                       </motion.span>
                     ) : (
                       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white/5 border border-white/10 text-white/40 text-[10px]">
-                        {session.closeTimeLabel}
+                        {t(session.closeTimeLabelKey as any)}
                       </span>
                     )}
                   </div>
@@ -787,7 +807,7 @@ function SessionPanel({ result, isPremium }: { result: SessionResult; isPremium:
             {/* Gauge — premium only */}
             {isPremium ? (
               <div className="w-28 flex-shrink-0">
-                <MoodGauge score={moodScore} mood={mood} />
+                <MoodGauge score={moodScore} mood={mood} t={t} />
               </div>
             ) : (
               /* Free: simple stat pill */
@@ -795,9 +815,9 @@ function SessionPanel({ result, isPremium }: { result: SessionResult; isPremium:
                 <div className="text-2xl font-black" style={{ color: avgChange >= 0 ? "#34d399" : "#f87171" }}>
                   {avgChange >= 0 ? "+" : ""}{avgChange.toFixed(2)}%
                 </div>
-                <div className="text-[11px] text-white/40">variation moy.</div>
+                <div className="text-[11px] text-white/40">{t("session_avg_change")}</div>
                 <div className="text-[11px] text-white/40 mt-0.5">
-                  {Math.round(positiveRatio * 100)}% en hausse
+                  {Math.round(positiveRatio * 100)}% {t("session_pct_up")}
                 </div>
               </div>
             )}
@@ -813,8 +833,8 @@ function SessionPanel({ result, isPremium }: { result: SessionResult; isPremium:
             />
           </div>
           <div className="flex justify-between text-[10px] text-white/30 mt-0.5">
-            <span>{Math.round((1 - positiveRatio) * 100)}% en baisse</span>
-            <span>{Math.round(positiveRatio * 100)}% en hausse</span>
+            <span>{Math.round((1 - positiveRatio) * 100)}% {t("session_pct_down")}</span>
+            <span>{Math.round(positiveRatio * 100)}% {t("session_pct_up")}</span>
           </div>
         </div>
       </div>
@@ -824,7 +844,7 @@ function SessionPanel({ result, isPremium }: { result: SessionResult; isPremium:
         <div className="border-b border-white/8 px-5 py-3">
           <div className="flex items-center gap-2 mb-2">
             <Flame className="w-3.5 h-3.5 text-yellow-400" />
-            <span className="text-[11px] font-bold text-white/50 uppercase tracking-wider">Podium du jour</span>
+            <span className="text-[11px] font-bold text-white/50 uppercase tracking-wider">{t("session_podium")}</span>
           </div>
           <Podium top3={topN.slice(0, 3)} />
         </div>
@@ -838,16 +858,17 @@ function SessionPanel({ result, isPremium }: { result: SessionResult; isPremium:
             <div className="flex items-center gap-2">
               <TrendingUp className="w-3.5 h-3.5 text-emerald-400" />
               <span className="text-xs font-bold text-white/60 uppercase tracking-wider">Top Performers</span>
+              {/* "Top Performers" is standard international term, kept as-is */}
             </div>
             {!isPremium && topN.length > 3 && (
-              <span className="text-[10px] text-white/25">+{topN.length - 3} avec Premium</span>
+              <span className="text-[10px] text-white/25">+{topN.length - 3} {t("session_with_premium")}</span>
             )}
           </div>
           <div className="space-y-1.5">
             {freeTopN.length > 0 ? freeTopN.map((asset, i) => (
               <PerformerRow key={asset.symbol} asset={asset} rank={i + 1} maxChange={maxChange} dir="top" isPremium={isPremium} />
             )) : (
-              <p className="text-xs text-white/30 py-2">Aucune donnée</p>
+              <p className="text-xs text-white/30 py-2">{t("session_no_data")}</p>
             )}
           </div>
         </div>
@@ -857,17 +878,17 @@ function SessionPanel({ result, isPremium }: { result: SessionResult; isPremium:
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
               <TrendingDown className="w-3.5 h-3.5 text-rose-400" />
-              <span className="text-xs font-bold text-white/60 uppercase tracking-wider">Flop du Jour</span>
+              <span className="text-xs font-bold text-white/60 uppercase tracking-wider">{t("session_flop")}</span>
             </div>
             {!isPremium && flopN.length > 3 && (
-              <span className="text-[10px] text-white/25">+{flopN.length - 3} avec Premium</span>
+              <span className="text-[10px] text-white/25">+{flopN.length - 3} {t("session_with_premium")}</span>
             )}
           </div>
           <div className="space-y-1.5">
             {freeFlopN.length > 0 ? freeFlopN.map((asset, i) => (
               <PerformerRow key={asset.symbol} asset={asset} rank={i + 1} maxChange={maxChange} dir="flop" isPremium={isPremium} />
             )) : (
-              <p className="text-xs text-white/30 py-2">Aucune baisse notable</p>
+              <p className="text-xs text-white/30 py-2">{t("session_no_flop")}</p>
             )}
           </div>
         </div>
@@ -881,8 +902,8 @@ function SessionPanel({ result, isPremium }: { result: SessionResult; isPremium:
               <Eye className="w-3.5 h-3.5 text-primary" />
             </div>
             <div>
-              <h4 className="text-sm font-bold text-white">À surveiller demain</h4>
-              <p className="text-[11px] text-white/35">Signaux identifiés par l&apos;analyse</p>
+              <h4 className="text-sm font-bold text-white">{t("session_tomorrow_watch")}</h4>
+              <p className="text-[11px] text-white/35">{t("session_signals_found")}</p>
             </div>
           </div>
           {!isPremium && (
@@ -900,7 +921,7 @@ function SessionPanel({ result, isPremium }: { result: SessionResult; isPremium:
                 {watchlist.map((item, i) => <WatchlistCard key={item.asset.symbol} item={item} index={i} />)}
               </div>
             ) : (
-              <p className="text-xs text-white/30 text-center py-4">Données insuffisantes pour générer des signaux</p>
+              <p className="text-xs text-white/30 text-center py-4">{t("session_no_data_signals")}</p>
             )
           ) : (
             <PremiumLock />
@@ -916,33 +937,33 @@ function SessionPanel({ result, isPremium }: { result: SessionResult; isPremium:
         <div className="border-t border-white/8 px-5 py-3">
           <div className="flex items-center gap-2 mb-2.5">
             <BarChart2 className="w-3.5 h-3.5 text-white/40" />
-            <span className="text-[11px] font-bold text-white/40 uppercase tracking-wider">Stats de séance</span>
+            <span className="text-[11px] font-bold text-white/40 uppercase tracking-wider">{t("session_stats")}</span>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             {[
               {
-                label: "Meilleure perf.",
+                label: t("session_best_perf"),
                 value: `+${(result.performers[0]?.change ?? 0).toFixed(2)}%`,
                 color: "text-emerald-400",
                 sub: result.performers[0]?.name ?? "-",
               },
               {
-                label: "Pire perf.",
+                label: t("session_worst_perf"),
                 value: `${(result.performers[result.performers.length - 1]?.change ?? 0).toFixed(2)}%`,
                 color: "text-rose-400",
                 sub: result.performers[result.performers.length - 1]?.name ?? "-",
               },
               {
-                label: "En hausse",
+                label: t("session_count_up"),
                 value: `${result.performers.filter(p => p.change > 0).length}/${result.performers.length}`,
                 color: "text-white",
-                sub: "actifs positifs",
+                sub: t("session_positive_assets"),
               },
               {
-                label: "Variation moy.",
+                label: t("session_avg_label"),
                 value: `${avgChange >= 0 ? "+" : ""}${avgChange.toFixed(2)}%`,
                 color: avgChange >= 0 ? "text-emerald-400" : "text-rose-400",
-                sub: "sur la séance",
+                sub: t("session_on_session"),
               },
             ].map((stat, i) => (
               <motion.div
@@ -969,6 +990,7 @@ function SessionPanel({ result, isPremium }: { result: SessionResult; isPremium:
 // ─────────────────────────────────────────────────────────────────────────────
 
 export function SessionSummaryWidget() {
+  const { t, lang } = useLanguage();
   const { isPremium } = usePremium();
   const [activeSession, setActiveSession] = useState<string>("europe");
   const [results, setResults] = useState<Record<string, SessionResult>>({});
@@ -986,7 +1008,7 @@ export function SessionSummaryWidget() {
       const priceMap = data.prices || {};
       const computed: Record<string, SessionResult> = {};
       for (const session of SESSIONS) {
-        computed[session.id] = computeSession(session, priceMap);
+        computed[session.id] = computeSession(session, priceMap, lang);
       }
       setResults(computed);
       setLastUpdate(new Date());
@@ -998,7 +1020,7 @@ export function SessionSummaryWidget() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [lang]);
 
   useEffect(() => {
     loadAllSessions();
@@ -1018,11 +1040,11 @@ export function SessionSummaryWidget() {
             <Activity className="w-4 h-4 text-primary" />
           </div>
           <div>
-            <h2 className="font-bold text-sm text-white">Résumés de Séance</h2>
+            <h2 className="font-bold text-sm text-white">{t("session_title")}</h2>
             <p className="text-[11px] text-white/30">
               {lastUpdate
-                ? `Actualisé à ${lastUpdate.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}`
-                : "Chargement des marchés..."}
+                ? `${t("session_updated")} ${lastUpdate.toLocaleTimeString(lang === "en" ? "en-US" : "fr-FR", { hour: "2-digit", minute: "2-digit" })}`
+                : t("session_loading")}
             </p>
           </div>
         </div>
@@ -1030,7 +1052,7 @@ export function SessionSummaryWidget() {
           {!isPremium && (
             <span className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-yellow-500/10 border border-yellow-500/20 text-yellow-400/70 text-[10px]">
               <Crown className="w-2.5 h-2.5" />
-              Certaines données réservées Premium
+              {t("session_some_premium")}
             </span>
           )}
           <button onClick={loadAllSessions} disabled={loading}
@@ -1094,15 +1116,15 @@ export function SessionSummaryWidget() {
             <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: "linear" }}>
               <RefreshCw className="w-6 h-6" />
             </motion.div>
-            <p className="text-sm">Chargement des données de marché...</p>
+            <p className="text-sm">{t("session_loading_data")}</p>
           </motion.div>
         ) : error ? (
           <motion.div key="error" initial={{ opacity: 0 }} animate={{ opacity: 1 }}
             className="py-12 flex flex-col items-center gap-3 text-white/40">
             <AlertCircle className="w-7 h-7 text-rose-400/60" />
-            <p className="text-sm">Impossible de charger les données</p>
+            <p className="text-sm">{t("session_load_error")}</p>
             <button onClick={loadAllSessions}
-              className="text-xs text-primary hover:underline">Réessayer</button>
+              className="text-xs text-primary hover:underline">{t("session_retry")}</button>
           </motion.div>
         ) : current ? (
           <motion.div key={activeSession}
@@ -1113,7 +1135,7 @@ export function SessionSummaryWidget() {
         ) : (
           <motion.div key="nodata" initial={{ opacity: 0 }} animate={{ opacity: 1 }}
             className="py-12 text-center text-white/30 text-sm">
-            Aucune donnée pour {activeSessionCfg?.name}
+            {t("session_no_data_for")} {activeSessionCfg?.name}
           </motion.div>
         )}
       </AnimatePresence>

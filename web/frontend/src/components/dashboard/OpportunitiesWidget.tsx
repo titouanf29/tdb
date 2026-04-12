@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils";
 import { analysisAPI, Analysis } from "@/lib/api";
 import { usePremium } from "@/lib/PremiumContext";
 import { isMarketOpen } from "@/lib/marketStatus";
+import { useLanguage } from "@/lib/LanguageContext";
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  TYPES & DATA
@@ -183,9 +184,10 @@ function factorBarColor(score: number) {
   return "bg-loss/80";
 }
 
-const MARKET_LABELS: Record<string, string> = {
+// Market label keys — translated at render time via t()
+const MARKET_LABEL_KEYS: Record<string, string> = {
   CRYPTO: "Crypto", USA: "US", EUROPE: "Europe",
-  FOREX: "Forex", COMMODITIES: "Matières", ASIA: "Asie",
+  FOREX: "Forex", COMMODITIES: "opp_market_commodities", ASIA: "opp_market_asia",
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -193,6 +195,7 @@ const MARKET_LABELS: Record<string, string> = {
 // ─────────────────────────────────────────────────────────────────────────────
 
 function AnalysisPanel({ symbol }: { symbol: string }) {
+  const { t } = useLanguage();
   const [data, setData] = useState<Analysis | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -206,7 +209,7 @@ function AnalysisPanel({ symbol }: { symbol: string }) {
       const result = await analysisAPI.analyze(symbol);
       setData(result);
     } catch {
-      setError("Analyse indisponible pour cet actif.");
+      setError(t("opp_unavailable"));
     } finally {
       setLoading(false);
     }
@@ -219,7 +222,7 @@ function AnalysisPanel({ symbol }: { symbol: string }) {
         className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary/10 hover:bg-primary/20 text-primary text-xs font-medium transition-colors"
       >
         <BarChart2 className="w-3.5 h-3.5" />
-        Analyser
+        {t("opp_analyze")}
       </button>
     );
   }
@@ -228,7 +231,7 @@ function AnalysisPanel({ symbol }: { symbol: string }) {
     return (
       <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
         <Loader2 className="w-3.5 h-3.5 animate-spin" />
-        Analyse en cours...
+        {t("opp_analyzing")}
       </div>
     );
   }
@@ -252,14 +255,14 @@ function AnalysisPanel({ symbol }: { symbol: string }) {
     >
       <div className="flex items-center gap-2 mb-1">
         <Target className="w-3.5 h-3.5 text-primary" />
-        <span className="text-xs font-semibold text-foreground">Analyse IA — {symbol}</span>
+        <span className="text-xs font-semibold text-foreground">{t("opp_ai_label")} — {symbol}</span>
         <span className={cn("ml-auto text-xs font-bold", scoreColor(data.score.total))}>
           Score {data.score.total}/100
         </span>
       </div>
       <div className="grid grid-cols-3 gap-2 text-xs">
         <div className="p-2 rounded-lg bg-white/5">
-          <p className="text-muted-foreground">Entrée</p>
+          <p className="text-muted-foreground">{t("opp_entry")}</p>
           <p className="font-semibold">{data.price?.current?.toLocaleString("fr-FR") ?? "—"}</p>
         </div>
         <div className="p-2 rounded-lg bg-white/5">
@@ -277,7 +280,7 @@ function AnalysisPanel({ symbol }: { symbol: string }) {
           <p className="font-semibold">{data.indicators.rsi.value.toFixed(1)}</p>
         </div>
         <div className="p-2 rounded-lg bg-white/5">
-          <p className="text-muted-foreground">Tendance</p>
+          <p className="text-muted-foreground">{t("opp_trend")}</p>
           <p className={cn("font-semibold", data.trend === "HAUSSIER" ? "text-profit" : data.trend === "BAISSIER" ? "text-loss" : "text-muted-foreground")}>
             {data.trend}
           </p>
@@ -301,6 +304,7 @@ function AnalysisPanel({ symbol }: { symbol: string }) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 function ExpandedRow({ opp }: { opp: Opportunity }) {
+  const { t } = useLanguage();
   return (
     <motion.div
       initial={{ opacity: 0, height: 0 }}
@@ -313,7 +317,7 @@ function ExpandedRow({ opp }: { opp: Opportunity }) {
         {/* Pourquoi c'est une opportunité */}
         <div>
           <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">
-            Pourquoi c&apos;est une opportunité
+            {t("opp_why")}
           </p>
           <ul className="space-y-1">
             {opp.reasons.map((r, i) => (
@@ -334,7 +338,7 @@ function ExpandedRow({ opp }: { opp: Opportunity }) {
         {/* Facteurs de score */}
         <div>
           <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">
-            Détail des facteurs
+            {t("opp_factors")}
           </p>
           <div className="space-y-1.5">
             {opp.factors.map((f, fi) => (
@@ -370,7 +374,7 @@ function ExpandedRow({ opp }: { opp: Opportunity }) {
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-xs text-muted-foreground hover:text-foreground transition-colors"
           >
             <ExternalLink className="w-3.5 h-3.5" />
-            Voir sur le scanner
+            {t("opp_view_scanner")}
           </Link>
         </div>
       </div>
@@ -383,6 +387,7 @@ function ExpandedRow({ opp }: { opp: Opportunity }) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export function OpportunitiesWidget() {
+  const { t } = useLanguage();
   const { isPremium } = usePremium();
   const [seed, setSeed] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
@@ -474,14 +479,14 @@ export function OpportunitiesWidget() {
             <Zap className="w-4 h-4 text-primary" />
           </motion.div>
           <div>
-            <h3 className="font-semibold text-sm">Opportunités en temps réel</h3>
-            <p className="text-xs text-muted-foreground">Top 5 actifs · Score IA sur 30+ paramètres</p>
+            <h3 className="font-semibold text-sm">{t("opp_title")}</h3>
+            <p className="text-xs text-muted-foreground">{t("opp_subtitle")}</p>
           </div>
         </div>
 
         <div className="flex items-center gap-2">
           {lastUpdate && (
-            <span className="text-xs text-muted-foreground">MAJ {lastUpdate}</span>
+            <span className="text-xs text-muted-foreground">{t("opp_updated")} {lastUpdate}</span>
           )}
 
           {/* Fréquence de refresh */}
@@ -494,7 +499,7 @@ export function OpportunitiesWidget() {
                   ? "bg-primary/20 text-primary"
                   : "bg-white/5 hover:bg-white/10 text-muted-foreground hover:text-foreground"
               )}
-              title="Fréquence de rafraîchissement"
+              title={t("opp_refresh_freq")}
             >
               <Clock className="w-3.5 h-3.5" />
               {currentLabel}
@@ -550,7 +555,7 @@ export function OpportunitiesWidget() {
                         onClick={() => setShowFreqPicker(false)}
                       >
                         <Crown className="w-3 h-3" />
-                        Débloquer les refresh rapides
+                        {t("opp_premium_refresh")}
                       </Link>
                     </div>
                   )}
@@ -564,7 +569,7 @@ export function OpportunitiesWidget() {
             onClick={handleRefresh}
             disabled={refreshing}
             className="p-1.5 rounded-lg hover:bg-white/5 text-muted-foreground hover:text-foreground transition-colors"
-            aria-label="Rafraîchir"
+            aria-label={t("refresh")}
           >
             <RefreshCw className={cn("w-4 h-4", refreshing && "animate-spin")} />
           </button>
@@ -579,7 +584,7 @@ export function OpportunitiesWidget() {
       >
         <span className="w-1.5 h-1.5 rounded-full bg-profit animate-pulse inline-block" />
         <span>
-          {openMarketsCount} marché{openMarketsCount > 1 ? "s" : ""} ouvert{openMarketsCount > 1 ? "s" : ""} · Actifs filtrés en temps réel
+          {openMarketsCount} {t(openMarketsCount > 1 ? "opp_markets_open_plural" : "opp_markets_open")}
         </span>
       </motion.div>
 
@@ -596,13 +601,14 @@ export function OpportunitiesWidget() {
           {opportunities.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
               <Lock className="w-8 h-8 mx-auto mb-2 opacity-30" />
-              <p className="text-sm">Aucun marché ouvert actuellement</p>
-              <p className="text-xs mt-1">Les opportunités s&apos;afficheront à l&apos;ouverture des marchés</p>
+              <p className="text-sm">{t("opp_no_market")}</p>
+              <p className="text-xs mt-1">{t("opp_no_market_sub")}</p>
             </div>
           ) : (
             opportunities.map((opp, i) => {
               const isExpanded = expandedSymbol === opp.symbol;
-              const marketLabel = MARKET_LABELS[OPPORTUNITY_MARKETS[opp.symbol]] ?? opp.market;
+              const rawLabel = MARKET_LABEL_KEYS[OPPORTUNITY_MARKETS[opp.symbol]] ?? opp.market;
+              const marketLabel = rawLabel.startsWith("opp_") ? t(rawLabel as any) : rawLabel;
               return (
                 <motion.div
                   key={opp.symbol}
@@ -700,9 +706,9 @@ export function OpportunitiesWidget() {
       </AnimatePresence>
 
       <p className="text-[11px] text-muted-foreground text-center mt-3">
-        Données simulées · {refreshInterval === 0 ? "Refresh auto désactivé" : `Mise à jour toutes les ${currentLabel}`}
+        {t("opp_simulated")} · {refreshInterval === 0 ? t("opp_refresh_disabled") : `${t("opp_updated_every")} ${currentLabel}`}
         {!isPremium && refreshInterval === 3600000 && (
-          <> · <Link href="/premium" className="text-yellow-500 hover:underline">Refresh rapide ↗</Link></>
+          <> · <Link href="/premium" className="text-yellow-500 hover:underline">{t("opp_premium_refresh")} ↗</Link></>
         )}
       </p>
     </motion.div>
