@@ -2,6 +2,8 @@
 Weekly Market Preparation widget — generated every Sunday with Groq,
 cached until Monday market open, then hidden until next Sunday.
 """
+import asyncio
+import logging
 import os
 import json
 import httpx
@@ -10,6 +12,8 @@ from fastapi import APIRouter, HTTPException, Depends, Request
 from pydantic import BaseModel
 from slowapi import Limiter
 from slowapi.util import get_remote_address
+
+logger = logging.getLogger(__name__)
 
 from ..database import execute_query, execute_write
 from .auth import get_current_user
@@ -142,17 +146,11 @@ Utilise un langage professionnel, précis, et pédagogique.
 """
 
 
-async def _generate_briefing() -> dict:
+async def _call_groq(prompt: str) -> dict:
+    """Single Groq API call. Raises ValueError on 429, HTTPException on other errors."""
     api_key = _get_groq_key()
     if not api_key:
         raise HTTPException(status_code=503, detail="GROQ_API_KEY non configuré")
-
-    now = datetime.now(timezone.utc)
-    prompt = WEEKLY_PROMPT.format(
-        date=now.strftime("%A %d %B %Y"),
-        week=_current_week_key(),
-        generated_at=now.isoformat(),
-    )
 
     async with httpx.AsyncClient(timeout=90.0) as client:
         resp = await client.post(
@@ -166,18 +164,83 @@ async def _generate_briefing() -> dict:
             },
         )
 
+    if resp.status_code == 429:
+        retry_after = int(resp.headers.get("Retry-After", 0))
+        raise ValueError(f"rate_limit:{retry_after}")
+
     if resp.status_code != 200:
         raise HTTPException(status_code=502, detail=f"Groq error {resp.status_code}")
 
     content = resp.json()["choices"][0]["message"]["content"].strip()
-
-    # Clean potential markdown fences
     if content.startswith("```"):
         content = content.split("```")[1]
         if content.startswith("json"):
             content = content[4:]
-
     return json.loads(content)
+
+
+def _template_briefing() -> dict:
+    """Fallback briefing when Groq is unavailable (rate-limited)."""
+    now = datetime.now(timezone.utc)
+    week = _current_week_key()
+    return {
+        "week": week,
+        "generated_at": now.isoformat(),
+        "generated_by": "template",
+        "macro": {
+            "trend": "neutral",
+            "summary": "Briefing généré en mode dégradé (Groq indisponible). Données indicatives uniquement.",
+            "key_points": [
+                "Surveiller les publications macro de la semaine",
+                "Gérer le risque avec des stops adaptés",
+                "Privilégier les actifs avec fort momentum",
+                "Rester attentif aux corrélations inter-marchés",
+            ],
+        },
+        "markets": [
+            {"name": "Actions US",         "icon": "🇺🇸", "trend": "neutral", "summary": "Analyse IA indisponible.", "key_zones": "—", "risk": "Voir actualités macro"},
+            {"name": "Actions Europe",     "icon": "🇪🇺", "trend": "neutral", "summary": "Analyse IA indisponible.", "key_zones": "—", "risk": "Voir actualités macro"},
+            {"name": "Crypto",             "icon": "₿",   "trend": "neutral", "summary": "Analyse IA indisponible.", "key_zones": "—", "risk": "Voir actualités macro"},
+            {"name": "Matières premières", "icon": "🛢️", "trend": "neutral", "summary": "Analyse IA indisponible.", "key_zones": "—", "risk": "Voir actualités macro"},
+            {"name": "Forex",              "icon": "💱",  "trend": "neutral", "summary": "Analyse IA indisponible.", "key_zones": "—", "risk": "Voir actualités macro"},
+        ],
+        "watchlist": [],
+        "events": [],
+        "conclusion": "Briefing en mode dégradé — Groq rate limit atteint. Réessayez dans quelques minutes pour obtenir l'analyse complète.",
+    }
+
+
+async def _generate_briefing() -> dict:
+    """Generate briefing via Groq with retries. Falls back to template on persistent 429."""
+    now = datetime.now(timezone.utc)
+    prompt = WEEKLY_PROMPT.format(
+        date=now.strftime("%A %d %B %Y"),
+        week=_current_week_key(),
+        generated_at=now.isoformat(),
+    )
+
+    delays = [3, 8]  # wait 3s then 8s between retries
+    for attempt, delay in enumerate([-1] + delays):
+        if delay >= 0:
+            await asyncio.sleep(delay)
+        try:
+            return await _call_groq(prompt)
+        except ValueError as e:
+            msg = str(e)
+            if not msg.startswith("rate_limit:"):
+                raise
+            # Respect Retry-After header if present
+            retry_after = int(msg.split(":")[1])
+            if retry_after > 0:
+                await asyncio.sleep(min(retry_after, 15))
+            if attempt == len(delays):
+                # All retries exhausted — return template
+                logger.warning("Groq rate limit exhausted after %d attempts, using template", attempt + 1)
+                return _template_briefing()
+        except Exception:
+            raise
+
+    return _template_briefing()
 
 
 # ── Routes ─────────────────────────────────────────────────────────────────────
