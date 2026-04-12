@@ -354,27 +354,32 @@ const WATCHLIST_TABS = [
 ];
 
 function WatchlistByMarket({ watchlist, t }: { watchlist: WeeklyWatchItem[]; t: (k: any) => string }) {
-  const hasMarketField = watchlist.some(w => !!w.market);
+  // Deduplicate by symbol (AI can sometimes generate the same symbol twice)
+  const unique = watchlist.filter((item, idx, arr) =>
+    arr.findIndex(i => i.symbol === item.symbol) === idx
+  );
+
+  const hasMarketField = unique.some(w => !!w.market);
   // Only show market tabs that have at least one item; always show "Tous"
   const activeTabs = hasMarketField
-    ? WATCHLIST_TABS.filter(tab => watchlist.some(w => w.market === tab.key))
+    ? WATCHLIST_TABS.filter(tab => unique.some(w => w.market === tab.key))
     : [];
 
   const [active, setActive] = useState("tous");
 
   const displayed = active === "tous"
-    ? watchlist
-    : watchlist.filter(w => w.market === active);
+    ? unique
+    : unique.filter(w => w.market === active);
 
   return (
-    <Section title={`${t("weekly_watchlist")} (${watchlist.length})`} icon={Eye}>
+    <Section title={`${t("weekly_watchlist")} (${unique.length})`} icon={Eye}>
       {/* Tab bar */}
       <div className="flex gap-1.5 flex-wrap mb-3">
         <button onClick={() => setActive("tous")}
           className={cn("px-2.5 py-1 rounded-lg text-xs font-medium transition-all border",
             active === "tous" ? "bg-primary/20 border-primary/40 text-primary" : "bg-white/5 border-white/10 hover:border-white/20"
           )}>
-          Tous ({watchlist.length})
+          Tous ({unique.length})
         </button>
         {activeTabs.map(tab => {
           const count = watchlist.filter(w => w.market === tab.key).length;
@@ -395,7 +400,7 @@ function WatchlistByMarket({ watchlist, t }: { watchlist: WeeklyWatchItem[]; t: 
       <AnimatePresence mode="wait">
         <motion.div key={active} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-3">
           {displayed.map((item, i) => (
-            <motion.div key={item.symbol + i} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }}>
+            <motion.div key={item.symbol} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }}>
               <WatchCard item={item} />
             </motion.div>
           ))}
@@ -534,6 +539,17 @@ export function WeeklyPrepWidget({ respectSchedule = true }: Props) {
           </button>
         </div>
       </div>
+
+      {/* Admin note */}
+      {briefing.admin_note && (
+        <div className="flex items-start gap-2.5 px-3.5 py-3 bg-amber-500/10 border border-amber-500/25 rounded-xl">
+          <span className="text-base leading-none mt-0.5 shrink-0">📌</span>
+          <div className="min-w-0">
+            <p className="text-[10px] text-amber-400 font-semibold uppercase tracking-wide mb-1">Note de la semaine</p>
+            <p className="text-sm text-foreground/90 leading-relaxed whitespace-pre-wrap">{briefing.admin_note}</p>
+          </div>
+        </div>
+      )}
 
       {/* Macro summary */}
       <div className={cn("p-4 rounded-xl border", macroMeta.bg)}>

@@ -1535,6 +1535,7 @@ export interface WeeklyBriefing {
   week: string;
   generated_at: string;
   generated_by?: string;
+  admin_note?: string;
   macro: {
     trend: "bullish" | "bearish" | "neutral";
     summary: string;

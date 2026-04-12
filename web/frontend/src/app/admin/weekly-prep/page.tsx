@@ -115,22 +115,26 @@ const WATCHLIST_TABS = [
 
 function AdminWatchlistByMarket({ watchlist }: { watchlist: WeeklyBriefing["watchlist"] }) {
   const [active, setActive] = useState("tous");
-  const hasMarket = watchlist.some(w => !!w.market);
+  // Deduplicate by symbol
+  const unique = watchlist.filter((item, idx, arr) =>
+    arr.findIndex(i => i.symbol === item.symbol) === idx
+  );
+  const hasMarket = unique.some(w => !!w.market);
   const activeTabs = hasMarket
-    ? WATCHLIST_TABS.filter(t => watchlist.some(w => w.market === t.key))
+    ? WATCHLIST_TABS.filter(t => unique.some(w => w.market === t.key))
     : [];
-  const displayed = active === "tous" ? watchlist : watchlist.filter(w => w.market === active);
+  const displayed = active === "tous" ? unique : unique.filter(w => w.market === active);
 
   return (
-    <Collapsible title={`Watchlist (${watchlist.length})`} icon={TrendingUp}>
+    <Collapsible title={`Watchlist (${unique.length})`} icon={TrendingUp}>
       <div className="flex gap-1.5 flex-wrap mb-3">
         <button onClick={() => setActive("tous")}
           className={cn("px-2.5 py-1 rounded-lg text-xs font-medium transition-all border",
             active === "tous" ? "bg-primary/20 border-primary/40 text-primary" : "bg-white/5 border-white/10 hover:border-white/20")}>
-          Tous ({watchlist.length})
+          Tous ({unique.length})
         </button>
         {activeTabs.map(tab => {
-          const count = watchlist.filter(w => w.market === tab.key).length;
+          const count = unique.filter(w => w.market === tab.key).length;
           return (
             <button key={tab.key} onClick={() => setActive(tab.key)}
               className={cn("px-2.5 py-1 rounded-lg text-xs font-medium transition-all border",
@@ -208,6 +212,17 @@ function BriefingPreview({ briefing }: { briefing: WeeklyBriefing }) {
 
   return (
     <div className="space-y-4">
+      {/* Admin note */}
+      {briefing.admin_note && (
+        <div className="flex items-start gap-2.5 px-3.5 py-3 bg-amber-500/10 border border-amber-500/25 rounded-xl">
+          <span className="text-base leading-none mt-0.5 shrink-0">📌</span>
+          <div>
+            <p className="text-[10px] text-amber-400 font-semibold uppercase tracking-wide mb-1">Note de la semaine</p>
+            <p className="text-sm text-foreground/90 leading-relaxed whitespace-pre-wrap">{briefing.admin_note}</p>
+          </div>
+        </div>
+      )}
+
       {/* Macro */}
       <div className={cn("p-4 rounded-xl border", macroMeta.bg)}>
         <div className="flex items-center gap-2 mb-2">
@@ -432,6 +447,9 @@ export default function AdminWeeklyPrepPage() {
   const [saveOk, setSaveOk]             = useState(false);
   const [publishOk, setPublishOk]       = useState(false);
   const [draftSaved, setDraftSaved]     = useState(false);
+  const [noteText, setNoteText]         = useState("");
+  const [noteSaving, setNoteSaving]     = useState(false);
+  const [noteSaved, setNoteSaved]       = useState(false);
 
   useEffect(() => { load(); }, []);
 
@@ -475,6 +493,7 @@ export default function AdminWeeklyPrepPage() {
     setBriefing(data.briefing);
     setMeta({ cached: data.cached, generated_at: data.generated_at, week_key: data.week_key, visible: data.visible });
     setJsonText(JSON.stringify(data.briefing, null, 2));
+    setNoteText(data.briefing.admin_note ?? "");
     setJsonError("");
   };
 
@@ -482,6 +501,7 @@ export default function AdminWeeklyPrepPage() {
     setBriefing(b);
     setMeta({ cached: true, generated_at: "", week_key: status.week, visible: status.visible });
     setJsonText(JSON.stringify(b, null, 2));
+    setNoteText(b.admin_note ?? "");
     setJsonError("");
   };
 
@@ -496,6 +516,23 @@ export default function AdminWeeklyPrepPage() {
       setError(e?.message || "Erreur lors de la régénération");
     } finally {
       setRegenerating(false);
+    }
+  };
+
+  const handleSaveNote = async () => {
+    if (!briefing) return;
+    setNoteSaving(true);
+    try {
+      const updated = { ...briefing, admin_note: noteText.trim() || undefined };
+      await weeklyPrepAPI.adminSave(updated);
+      setBriefing(updated);
+      setJsonText(JSON.stringify(updated, null, 2));
+      setNoteSaved(true);
+      setTimeout(() => setNoteSaved(false), 2500);
+    } catch (e: any) {
+      setError(e?.message || "Erreur lors de la sauvegarde de la note");
+    } finally {
+      setNoteSaving(false);
     }
   };
 
@@ -662,6 +699,48 @@ export default function AdminWeeklyPrepPage() {
             </p>
           </div>
         </div>
+      )}
+
+      {/* Note editor */}
+      {briefing && (
+        <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="glass-card p-4 space-y-3">
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <p className="text-sm font-semibold flex items-center gap-2">
+              <span className="text-base">📌</span>
+              Note de la semaine
+              <span className="text-[10px] font-normal text-muted-foreground bg-white/5 px-2 py-0.5 rounded-full border border-white/10">
+                visible par tous les utilisateurs
+              </span>
+            </p>
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={handleSaveNote}
+              disabled={noteSaving}
+              className={cn(
+                "flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all disabled:opacity-50",
+                noteSaved
+                  ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30"
+                  : "bg-amber-500/15 text-amber-400 border border-amber-500/30 hover:bg-amber-500/25"
+              )}
+            >
+              {noteSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : noteSaved ? <CheckCircle className="w-3.5 h-3.5" /> : <Save className="w-3.5 h-3.5" />}
+              {noteSaved ? "Sauvegardée !" : "Sauvegarder la note"}
+            </motion.button>
+          </div>
+          <textarea
+            value={noteText}
+            onChange={e => setNoteText(e.target.value)}
+            placeholder="Écris ici ta note personnelle pour la semaine... Elle s'affichera en haut du widget pour tous les utilisateurs."
+            maxLength={600}
+            rows={3}
+            className="w-full bg-amber-500/5 border border-amber-500/20 rounded-lg px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:border-amber-500/40 resize-none leading-relaxed"
+          />
+          <div className="flex items-center justify-between text-[10px] text-muted-foreground/50">
+            <span>{noteText.length}/600 caractères</span>
+            {!noteText && <span>Laisse vide pour ne rien afficher</span>}
+          </div>
+        </motion.div>
       )}
 
       {/* Tabs */}
