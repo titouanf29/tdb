@@ -236,7 +236,7 @@ async def _call_mistral(prompt: str) -> dict:
                     {"role": "user",   "content": prompt},
                 ],
                 "temperature": 0.6,
-                "max_tokens": 3000,
+                "max_tokens": 8000,
                 "response_format": {"type": "json_object"},
             },
         )
@@ -263,7 +263,7 @@ async def _call_gemini(prompt: str) -> dict:
         prompt,
         generation_config=genai.types.GenerationConfig(
             temperature=0.6,
-            max_output_tokens=3000,
+            max_output_tokens=8000,
             response_mime_type="application/json",
         ),
     )
@@ -289,7 +289,7 @@ async def _call_groq(prompt: str) -> dict:
                 "model": MODEL,
                 "messages": [{"role": "user", "content": prompt}],
                 "temperature": 0.6,
-                "max_tokens": 3000,
+                "max_tokens": 8000,
             },
         )
 
@@ -444,23 +444,24 @@ async def get_weekly_prep(
 
     # Generate
     briefing = await _generate_briefing()
-    content_str = json.dumps(briefing, ensure_ascii=False)
 
-    # Upsert cache
-    existing = await execute_query(
-        "SELECT id FROM weekly_market_prep WHERE week_key = ?", (week_key,)
-    )
-    now = datetime.now(timezone.utc).isoformat()
-    if existing:
-        await execute_write(
-            "UPDATE weekly_market_prep SET content = ?, generated_at = ? WHERE week_key = ?",
-            (content_str, now, week_key),
+    # Only cache real AI-generated briefings, not the template fallback
+    if briefing.get("generated_by") != "template":
+        content_str = json.dumps(briefing, ensure_ascii=False)
+        existing = await execute_query(
+            "SELECT id FROM weekly_market_prep WHERE week_key = ?", (week_key,)
         )
-    else:
-        await execute_write(
-            "INSERT INTO weekly_market_prep (week_key, content, generated_at) VALUES (?,?,?)",
-            (week_key, content_str, now),
-        )
+        now = datetime.now(timezone.utc).isoformat()
+        if existing:
+            await execute_write(
+                "UPDATE weekly_market_prep SET content = ?, generated_at = ? WHERE week_key = ?",
+                (content_str, now, week_key),
+            )
+        else:
+            await execute_write(
+                "INSERT INTO weekly_market_prep (week_key, content, generated_at) VALUES (?,?,?)",
+                (week_key, content_str, now),
+            )
 
     return {"briefing": briefing, "cached": False}
 
@@ -472,25 +473,26 @@ async def refresh_weekly_prep(
     current_user: dict = Depends(get_current_user),
 ):
     """Force regenerate the briefing (rate limited)."""
-    # Only admins or during Sunday window
     briefing = await _generate_briefing()
     week_key = _current_week_key()
-    content_str = json.dumps(briefing, ensure_ascii=False)
     now = datetime.now(timezone.utc).isoformat()
 
-    existing = await execute_query(
-        "SELECT id FROM weekly_market_prep WHERE week_key = ?", (week_key,)
-    )
-    if existing:
-        await execute_write(
-            "UPDATE weekly_market_prep SET content = ?, generated_at = ? WHERE week_key = ?",
-            (content_str, now, week_key),
+    # Only persist real AI-generated briefings
+    if briefing.get("generated_by") != "template":
+        content_str = json.dumps(briefing, ensure_ascii=False)
+        existing = await execute_query(
+            "SELECT id FROM weekly_market_prep WHERE week_key = ?", (week_key,)
         )
-    else:
-        await execute_write(
-            "INSERT INTO weekly_market_prep (week_key, content, generated_at) VALUES (?,?,?)",
-            (week_key, content_str, now),
-        )
+        if existing:
+            await execute_write(
+                "UPDATE weekly_market_prep SET content = ?, generated_at = ? WHERE week_key = ?",
+                (content_str, now, week_key),
+            )
+        else:
+            await execute_write(
+                "INSERT INTO weekly_market_prep (week_key, content, generated_at) VALUES (?,?,?)",
+                (week_key, content_str, now),
+            )
     return {"briefing": briefing, "cached": False}
 
 
@@ -517,12 +519,16 @@ async def admin_preview(
 
     # Not cached yet — generate now
     briefing = await _generate_briefing()
-    content_str = json.dumps(briefing, ensure_ascii=False)
     now = datetime.now(timezone.utc).isoformat()
-    await execute_write(
-        "INSERT INTO weekly_market_prep (week_key, content, generated_at) VALUES (?,?,?)",
-        (week_key, content_str, now),
-    )
+
+    # Only persist real AI-generated briefings, not the template fallback
+    if briefing.get("generated_by") != "template":
+        content_str = json.dumps(briefing, ensure_ascii=False)
+        await execute_write(
+            "INSERT INTO weekly_market_prep (week_key, content, generated_at) VALUES (?,?,?)",
+            (week_key, content_str, now),
+        )
+
     return {
         "briefing": briefing,
         "cached": False,
