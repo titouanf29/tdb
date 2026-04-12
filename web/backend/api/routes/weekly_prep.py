@@ -2,7 +2,6 @@
 Weekly Market Preparation widget — generated every Sunday with Groq,
 cached until Monday market open, then hidden until next Sunday.
 """
-import asyncio
 import logging
 import os
 import json
@@ -211,36 +210,20 @@ def _template_briefing() -> dict:
 
 
 async def _generate_briefing() -> dict:
-    """Generate briefing via Groq with retries. Falls back to template on persistent 429."""
+    """Generate briefing via Groq. Falls back to template immediately on 429."""
     now = datetime.now(timezone.utc)
     prompt = WEEKLY_PROMPT.format(
         date=now.strftime("%A %d %B %Y"),
         week=_current_week_key(),
         generated_at=now.isoformat(),
     )
-
-    delays = [3, 8]  # wait 3s then 8s between retries
-    for attempt, delay in enumerate([-1] + delays):
-        if delay >= 0:
-            await asyncio.sleep(delay)
-        try:
-            return await _call_groq(prompt)
-        except ValueError as e:
-            msg = str(e)
-            if not msg.startswith("rate_limit:"):
-                raise
-            # Respect Retry-After header if present
-            retry_after = int(msg.split(":")[1])
-            if retry_after > 0:
-                await asyncio.sleep(min(retry_after, 15))
-            if attempt == len(delays):
-                # All retries exhausted — return template
-                logger.warning("Groq rate limit exhausted after %d attempts, using template", attempt + 1)
-                return _template_briefing()
-        except Exception:
-            raise
-
-    return _template_briefing()
+    try:
+        return await _call_groq(prompt)
+    except ValueError as e:
+        if str(e).startswith("rate_limit:"):
+            logger.warning("Groq rate limit hit — returning template fallback")
+            return _template_briefing()
+        raise
 
 
 # ── Routes ─────────────────────────────────────────────────────────────────────
