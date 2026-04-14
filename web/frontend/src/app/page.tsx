@@ -17,6 +17,7 @@ import { walletAPI, favoritesAPI, adminAPI, aiAPI, marketAPI, WalletBalance, Tra
 import { useFormatCurrency, useFormatPrice } from "@/lib/SettingsContext";
 import { useAuth } from "@/lib/AuthContext";
 import { usePremium } from "@/lib/PremiumContext";
+import { useLanguage } from "@/lib/LanguageContext";
 import { getAssetInfo, getAssetLogo } from "@/lib/assetInfo";
 import { TDBLogo, TDBLogoSm } from "@/components/ui/TDBLogo";
 import { SessionSummaryWidget } from "@/components/dashboard/SessionSummary";
@@ -39,87 +40,7 @@ const TICKER_ITEMS = [
   { symbol: "OR.PA", price: "381.70", change: "+1.44%" },
 ];
 
-const FEATURES_MAIN = [
-  {
-    id: "analysis",
-    icon: BarChart3,
-    badge: "Intelligence Artificielle",
-    title: "Analyse technique automatique",
-    desc: "Entrez n'importe quel symbole et obtenez instantanément une analyse complète : RSI, MACD, Bollinger Bands, niveaux clés et score global interprété par l'IA.",
-    bullets: [
-      "Score technique de 0 à 100",
-      "Supports & résistances automatiques",
-      "Stratégies de trading suggérées",
-      "Signaux haussiers / baissiers clairs",
-    ],
-    accentColor: "text-blue-400",
-    checkBg: "bg-blue-500/15 border-blue-500/20",
-    glowColor: "bg-blue-500/20",
-    borderColor: "border-blue-500/20",
-  },
-  {
-    id: "scanner",
-    icon: Zap,
-    badge: "Temps Réel",
-    title: "Scanner de marchés intelligent",
-    desc: "Scannez des centaines d'actifs simultanément pour détecter les meilleures opportunités techniques. RSI extrême, breakouts, volumes anormaux — tout en un clic.",
-    bullets: [
-      "Filtres multi-critères avancés",
-      "800+ actifs scannés en continu",
-      "Top performers et signaux forts",
-      "Actions, ETFs, cryptos, forex",
-    ],
-    accentColor: "text-cyan-400",
-    checkBg: "bg-cyan-500/15 border-cyan-500/20",
-    glowColor: "bg-cyan-500/20",
-    borderColor: "border-cyan-500/20",
-  },
-  {
-    id: "ai",
-    icon: Brain,
-    badge: "Disponible 24h/24",
-    title: "Votre assistant IA trading",
-    desc: "Posez n'importe quelle question sur les marchés ou vos positions. Notre IA spécialisée vous répond avec des explications claires, pédagogiques et adaptées.",
-    bullets: [
-      "Analyse de vos positions en direct",
-      "Explications pédagogiques détaillées",
-      "Stratégies personnalisées",
-      "Résumés des actualités économiques",
-    ],
-    accentColor: "text-purple-400",
-    checkBg: "bg-purple-500/15 border-purple-500/20",
-    glowColor: "bg-purple-500/20",
-    borderColor: "border-purple-500/20",
-  },
-];
-
-const SECONDARY_FEATURES = [
-  {
-    icon: Globe,
-    title: "Marchés Mondiaux",
-    desc: "CAC 40, DAX, S&P 500, Nasdaq, Nikkei, crypto — 800+ actifs dans 9 marchés couverts en temps réel.",
-    colorClass: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20",
-  },
-  {
-    icon: Wallet,
-    title: "Wallet Virtuel",
-    desc: "Simulez vos trades avec 10 000 $ virtuels. Mesurez vos performances sans risquer un centime réel.",
-    colorClass: "text-rose-400 bg-rose-500/10 border-rose-500/20",
-  },
-  {
-    icon: Star,
-    title: "Watchlist Personnalisée",
-    desc: "Suivez vos actifs favoris et consultez leurs performances et alertes en direct à tout moment.",
-    colorClass: "text-yellow-400 bg-yellow-500/10 border-yellow-500/20",
-  },
-];
-
-const STATS_DATA = [
-  { value: "842+", label: "Actifs disponibles" },
-  { value: "9", label: "Marchés couverts" },
-  { value: "0 €", label: "Pour commencer" },
-  { value: "30 s", label: "Pour s'inscrire" },
-];
+// FEATURES_MAIN, SECONDARY_FEATURES, STATS_DATA are defined inside LandingPage to support i18n
 
 const MARKETS_PREVIEW = [
   { name: "CAC 40",   flag: "🇫🇷", change: "+0.82%", up: true  },
@@ -130,27 +51,41 @@ const MARKETS_PREVIEW = [
   { name: "Bitcoin",  flag: "🪙",  change: "+2.14%", up: true  },
 ];
 
-const CHAT_MESSAGES = [
-  { role: "user", text: "Analyse le RSI de AAPL pour moi" },
-  { role: "ai",   text: "Le RSI d'AAPL est à 62 — zone neutre légèrement haussière. Pas de surachat, tendance positive au-dessus de l'EMA 20." },
-  { role: "user", text: "Est-ce un bon moment pour acheter ?" },
-  { role: "ai",   text: "Setup favorable sur un pullback vers l'EMA 20 (~135 $). Stop conseillé à 130 $. R/R ≈ 2:1." },
-];
+function getChatMessages(lang: "fr" | "en") {
+  return lang === "en" ? [
+    { role: "user", text: "Analyse AAPL RSI for me" },
+    { role: "ai",   text: "AAPL RSI is at 62 — neutral, slightly bullish zone. No overbought, positive trend above EMA 20." },
+    { role: "user", text: "Is it a good time to buy?" },
+    { role: "ai",   text: "Favorable setup on a pullback to EMA 20 (~$135). Suggested stop at $130. R/R ≈ 2:1." },
+  ] : [
+    { role: "user", text: "Analyse le RSI de AAPL pour moi" },
+    { role: "ai",   text: "Le RSI d'AAPL est à 62 — zone neutre légèrement haussière. Pas de surachat, tendance positive au-dessus de l'EMA 20." },
+    { role: "user", text: "Est-ce un bon moment pour acheter ?" },
+    { role: "ai",   text: "Setup favorable sur un pullback vers l'EMA 20 (~135 $). Stop conseillé à 130 $. R/R ≈ 2:1." },
+  ];
+}
 
-const SCANNER_RESULTS = [
-  { symbol: "AAPL",  signal: "RSI survendu",        strength: "FORT",  change: "+2.1%", up: true },
-  { symbol: "BTC",   signal: "Breakout résistance",  strength: "FORT",  change: "+3.4%", up: true },
-  { symbol: "OR.PA", signal: "MACD croisement +",    strength: "MOYEN", change: "+0.8%", up: true },
-  { symbol: "TSLA",  signal: "Volume ×2.4",          strength: "FORT",  change: "+5.2%", up: true },
-];
+function getScannerResults(lang: "fr" | "en") {
+  return lang === "en" ? [
+    { symbol: "AAPL",  signal: "Oversold RSI",         strength: "STRONG", change: "+2.1%", up: true },
+    { symbol: "BTC",   signal: "Resistance breakout",   strength: "STRONG", change: "+3.4%", up: true },
+    { symbol: "OR.PA", signal: "MACD crossover +",      strength: "MED",    change: "+0.8%", up: true },
+    { symbol: "TSLA",  signal: "Volume ×2.4",           strength: "STRONG", change: "+5.2%", up: true },
+  ] : [
+    { symbol: "AAPL",  signal: "RSI survendu",        strength: "FORT",  change: "+2.1%", up: true },
+    { symbol: "BTC",   signal: "Breakout résistance",  strength: "FORT",  change: "+3.4%", up: true },
+    { symbol: "OR.PA", signal: "MACD croisement +",    strength: "MOYEN", change: "+0.8%", up: true },
+    { symbol: "TSLA",  signal: "Volume ×2.4",          strength: "FORT",  change: "+5.2%", up: true },
+  ];
+}
 
 
 // ── Mini demo components ──────────────────────────────────────────────────────
 
-function AnalysisDemo() {
+function AnalysisDemo({ lang }: { lang: "fr" | "en" }) {
   const indicators = [
-    { name: "RSI",    val: "62",     label: "Neutre",    color: "text-yellow-400" },
-    { name: "MACD",   val: "",       label: "Haussier ↑",color: "text-emerald-400" },
+    { name: "RSI",    val: "62",     label: lang === "en" ? "Neutral"  : "Neutre",    color: "text-yellow-400" },
+    { name: "MACD",   val: "",       label: lang === "en" ? "Bullish ↑" : "Haussier ↑", color: "text-emerald-400" },
     { name: "EMA 20", val: "138.2",  label: "",          color: "text-blue-400" },
     { name: "Score",  val: "74",     label: "/100",      color: "text-primary" },
   ];
@@ -196,18 +131,20 @@ function AnalysisDemo() {
         className="mt-3 p-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center gap-2"
       >
         <TrendingUp className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0" />
-        <p className="text-[11px] text-emerald-300">Signal haussier — Momentum positif</p>
+        <p className="text-[11px] text-emerald-300">{lang === "en" ? "Bullish signal — Positive momentum" : "Signal haussier — Momentum positif"}</p>
       </motion.div>
     </div>
   );
 }
 
-function ScannerDemo() {
+function ScannerDemo({ lang }: { lang: "fr" | "en" }) {
+  const SCANNER_RESULTS = getScannerResults(lang);
   const [visible, setVisible] = useState(0);
   useEffect(() => {
     const t = setInterval(() => setVisible(v => v < SCANNER_RESULTS.length ? v + 1 : v), 700);
     return () => clearInterval(t);
-  }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lang]);
   return (
     <div className="rounded-2xl overflow-hidden border border-cyan-500/20 bg-card/70 backdrop-blur-sm p-4 shadow-xl">
       <div className="flex items-center gap-2 mb-3 pb-3 border-b border-white/5">
@@ -216,8 +153,8 @@ function ScannerDemo() {
           animate={{ opacity: [1, 0.3, 1] }}
           transition={{ duration: 1.2, repeat: Infinity }}
         />
-        <span className="text-xs text-cyan-400 font-semibold">Scanner actif</span>
-        <span className="ml-auto text-[10px] text-white/30">{visible}/{SCANNER_RESULTS.length} signaux</span>
+        <span className="text-xs text-cyan-400 font-semibold">{lang === "en" ? "Active scanner" : "Scanner actif"}</span>
+        <span className="ml-auto text-[10px] text-white/30">{visible}/{SCANNER_RESULTS.length} {lang === "en" ? "signals" : "signaux"}</span>
       </div>
       <div className="space-y-2 min-h-[140px]">
         {SCANNER_RESULTS.map((r, i) => (
@@ -250,7 +187,8 @@ function ScannerDemo() {
   );
 }
 
-function ChatDemo() {
+function ChatDemo({ lang }: { lang: "fr" | "en" }) {
+  const CHAT_MESSAGES = getChatMessages(lang);
   const [step, setStep] = useState(0);
   const [typing, setTyping] = useState(false);
   useEffect(() => {
@@ -266,10 +204,10 @@ function ChatDemo() {
         <div className="w-7 h-7 rounded-full bg-purple-500/30 flex items-center justify-center">
           <Brain className="w-3.5 h-3.5 text-purple-400" />
         </div>
-        <span className="text-xs text-purple-400 font-semibold">Assistant IA</span>
+        <span className="text-xs text-purple-400 font-semibold">{lang === "en" ? "AI Assistant" : "Assistant IA"}</span>
         <div className="ml-auto flex items-center gap-1">
           <motion.div className="w-1.5 h-1.5 rounded-full bg-emerald-400" animate={{ opacity: [1, 0.3, 1] }} transition={{ duration: 1, repeat: Infinity }} />
-          <span className="text-[10px] text-emerald-400">En ligne</span>
+          <span className="text-[10px] text-emerald-400">{lang === "en" ? "Online" : "En ligne"}</span>
         </div>
       </div>
       <div className="space-y-2 min-h-[160px]">
@@ -301,13 +239,25 @@ function ChatDemo() {
   );
 }
 
-const DEMO_COMPONENTS: Record<string, React.ComponentType> = {
+const DEMO_COMPONENTS: Record<string, React.ComponentType<{ lang: "fr" | "en" }>> = {
   analysis: AnalysisDemo,
   scanner:  ScannerDemo,
   ai:       ChatDemo,
 };
 
-function FeatureShowcase({ feature, reversed }: { feature: typeof FEATURES_MAIN[0]; reversed?: boolean }) {
+type FeatureItem = {
+  id: string;
+  icon: React.ElementType;
+  badge: string;
+  title: string;
+  desc: string;
+  bullets: string[];
+  checkBg: string;
+  accentColor: string;
+  glowColor: string;
+};
+
+function FeatureShowcase({ feature, reversed, lang }: { feature: FeatureItem; reversed?: boolean; lang: "fr" | "en" }) {
   const DemoComponent = DEMO_COMPONENTS[feature.id];
   return (
     <div className="py-16 px-6">
@@ -348,7 +298,7 @@ function FeatureShowcase({ feature, reversed }: { feature: typeof FEATURES_MAIN[
               href="/register"
               className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-primary hover:bg-primary/90 text-white text-sm font-bold transition-all hover:shadow-lg hover:shadow-primary/20 hover:-translate-y-0.5"
             >
-              Essayer gratuitement
+              {lang === "en" ? "Try for free" : "Essayer gratuitement"}
               <ArrowRight className="w-4 h-4" />
             </Link>
           </motion.div>
@@ -363,7 +313,7 @@ function FeatureShowcase({ feature, reversed }: { feature: typeof FEATURES_MAIN[
             <div className="relative">
               <div className={cn("absolute inset-0 blur-3xl opacity-25 rounded-3xl scale-110", feature.glowColor)} />
               <div className="relative">
-                <DemoComponent />
+                <DemoComponent lang={lang} />
               </div>
             </div>
           </motion.div>
@@ -563,46 +513,68 @@ function AnimatedChart() {
 
 // ── Live Scan Demo — vraie interface ──────────────────────────────────────────
 
-const SCAN_STEPS = [
-  "Connexion aux flux de marché NASDAQ...",
-  "Téléchargement des données historiques AAPL...",
-  "Calcul RSI(14), MACD(12,26,9)...",
-  "Analyse Bollinger Bands & ATR...",
-  "Détection des niveaux support / résistance...",
-  "Évaluation du momentum & volume...",
-  "Génération du score IA global...",
-];
+function getScanSteps(lang: "fr" | "en") {
+  return lang === "en" ? [
+    "Connecting to NASDAQ market feeds...",
+    "Downloading AAPL historical data...",
+    "Computing RSI(14), MACD(12,26,9)...",
+    "Analyzing Bollinger Bands & ATR...",
+    "Detecting support / resistance levels...",
+    "Evaluating momentum & volume...",
+    "Generating global AI score...",
+  ] : [
+    "Connexion aux flux de marché NASDAQ...",
+    "Téléchargement des données historiques AAPL...",
+    "Calcul RSI(14), MACD(12,26,9)...",
+    "Analyse Bollinger Bands & ATR...",
+    "Détection des niveaux support / résistance...",
+    "Évaluation du momentum & volume...",
+    "Génération du score IA global...",
+  ];
+}
 
-const LIVE_SIGNALS = [
-  { tag: "RSI",   detail: "RSI(14) = 62.4 — Zone neutre, haussier",           color: "text-yellow-400",  bg: "bg-yellow-400/10 border-yellow-400/20" },
-  { tag: "MACD",  detail: "Histogramme positif — momentum ↑",                 color: "text-emerald-400", bg: "bg-emerald-400/10 border-emerald-400/20" },
-  { tag: "EMA20", detail: "Prix > EMA20 ($209.80) — tendance CT haussière",   color: "text-blue-400",    bg: "bg-blue-400/10 border-blue-400/20" },
-  { tag: "EMA50", detail: "Prix > EMA50 ($205.40) — tendance MT confirmée",   color: "text-blue-400",    bg: "bg-blue-400/10 border-blue-400/20" },
-  { tag: "VOL",   detail: "Volume ×1.34 vs moy. 20j — signal confirmé",       color: "text-cyan-400",    bg: "bg-cyan-400/10 border-cyan-400/20" },
-  { tag: "ADX",   detail: "ADX = 28.4 — Force de tendance élevée (>25)",      color: "text-emerald-400", bg: "bg-emerald-400/10 border-emerald-400/20" },
-];
+function getLiveSignals(lang: "fr" | "en") {
+  return lang === "en" ? [
+    { tag: "RSI",   detail: "RSI(14) = 62.4 — Neutral zone, slightly bullish",      color: "text-yellow-400",  bg: "bg-yellow-400/10 border-yellow-400/20" },
+    { tag: "MACD",  detail: "Positive histogram — momentum ↑",                       color: "text-emerald-400", bg: "bg-emerald-400/10 border-emerald-400/20" },
+    { tag: "EMA20", detail: "Price > EMA20 ($209.80) — short-term bullish trend",    color: "text-blue-400",    bg: "bg-blue-400/10 border-blue-400/20" },
+    { tag: "EMA50", detail: "Price > EMA50 ($205.40) — medium-term trend confirmed", color: "text-blue-400",    bg: "bg-blue-400/10 border-blue-400/20" },
+    { tag: "VOL",   detail: "Volume ×1.34 vs 20d avg — confirmed signal",            color: "text-cyan-400",    bg: "bg-cyan-400/10 border-cyan-400/20" },
+    { tag: "ADX",   detail: "ADX = 28.4 — High trend strength (>25)",               color: "text-emerald-400", bg: "bg-emerald-400/10 border-emerald-400/20" },
+  ] : [
+    { tag: "RSI",   detail: "RSI(14) = 62.4 — Zone neutre, haussier",           color: "text-yellow-400",  bg: "bg-yellow-400/10 border-yellow-400/20" },
+    { tag: "MACD",  detail: "Histogramme positif — momentum ↑",                 color: "text-emerald-400", bg: "bg-emerald-400/10 border-emerald-400/20" },
+    { tag: "EMA20", detail: "Prix > EMA20 ($209.80) — tendance CT haussière",   color: "text-blue-400",    bg: "bg-blue-400/10 border-blue-400/20" },
+    { tag: "EMA50", detail: "Prix > EMA50 ($205.40) — tendance MT confirmée",   color: "text-blue-400",    bg: "bg-blue-400/10 border-blue-400/20" },
+    { tag: "VOL",   detail: "Volume ×1.34 vs moy. 20j — signal confirmé",       color: "text-cyan-400",    bg: "bg-cyan-400/10 border-cyan-400/20" },
+    { tag: "ADX",   detail: "ADX = 28.4 — Force de tendance élevée (>25)",      color: "text-emerald-400", bg: "bg-emerald-400/10 border-emerald-400/20" },
+  ];
+}
 
-// Données AAPL statiques reproduisant fidèlement la structure Analysis
-const AAPL = {
-  score:  { total: 74, technical: 68, volume: 82, momentum: 71 },
-  signal: { text: "BUY", emoji: "🟢" },
-  trend:  "BULLISH",
-  price:  { current: 212.45, change: 1.23 },
-  levels: { support: 207.20, resistance: 218.50, pivot: 212.85 },
-  risk:   { sl: 205.40, tp: 224.80, rr: 2.1 },
-  indicators: {
-    rsi:    { value: 62.4,  signal: "neutral"  as const },
-    macd:   { value: 1.24,  signal: "bullish"  as const },
-    ema20:  { value: 209.80, signal: "bullish" as const },
-    ema50:  { value: 205.40, signal: "bullish" as const },
-    adx:    { value: 28.4,  signal: "bullish"  as const },
-    stoch:  { value: "67.3 / 61.8", signal: "neutral" as const },
-    bb:     { value: "58%", signal: "neutral"  as const },
-    atr:    { value: "3.84", signal: "neutral" as const },
-    volume: { value: "1.34×", signal: "neutral" as const },
-  },
-  aiInsight: "AAPL présente un setup technique solide. Le RSI à 62 laisse de la marge avant la zone de surachat, et le MACD haussier confirme le momentum positif. Les deux EMA clés (20 et 50) soutiennent la tendance. Zone d'entrée favorable autour de $210–212, avec un objectif vers $224.",
-};
+function getAapl(lang: "fr" | "en") {
+  return {
+    score:  { total: 74, technical: 68, volume: 82, momentum: 71 },
+    signal: { text: "BUY", emoji: "🟢" },
+    trend:  "BULLISH",
+    price:  { current: 212.45, change: 1.23 },
+    levels: { support: 207.20, resistance: 218.50, pivot: 212.85 },
+    risk:   { sl: 205.40, tp: 224.80, rr: 2.1 },
+    indicators: {
+      rsi:    { value: 62.4,  signal: "neutral"  as const },
+      macd:   { value: 1.24,  signal: "bullish"  as const },
+      ema20:  { value: 209.80, signal: "bullish" as const },
+      ema50:  { value: 205.40, signal: "bullish" as const },
+      adx:    { value: 28.4,  signal: "bullish"  as const },
+      stoch:  { value: "67.3 / 61.8", signal: "neutral" as const },
+      bb:     { value: "58%", signal: "neutral"  as const },
+      atr:    { value: "3.84", signal: "neutral" as const },
+      volume: { value: "1.34×", signal: "neutral" as const },
+    },
+    aiInsight: lang === "en"
+      ? "AAPL shows a solid technical setup. RSI at 62 leaves room before the overbought zone, and the bullish MACD confirms positive momentum. Both key EMAs (20 and 50) support the trend. Favorable entry zone around $210–212, with a target toward $224."
+      : "AAPL présente un setup technique solide. Le RSI à 62 laisse de la marge avant la zone de surachat, et le MACD haussier confirme le momentum positif. Les deux EMA clés (20 et 50) soutiennent la tendance. Zone d'entrée favorable autour de $210–212, avec un objectif vers $224.",
+  };
+}
 
 function DemoScoreBar({ label, score, delay = 0 }: { label: string; score: number; delay?: number }) {
   const color =
@@ -628,15 +600,16 @@ function DemoScoreBar({ label, score, delay = 0 }: { label: string; score: numbe
   );
 }
 
-function DemoIndicatorCard({ name, value, signal, tooltip }: {
+function DemoIndicatorCard({ name, value, signal, tooltip, lang = "fr" }: {
   name: string; value: string;
   signal: "bullish" | "bearish" | "neutral";
   tooltip?: string;
+  lang?: "fr" | "en";
 }) {
   const styles = {
-    bullish: { card: "border-emerald-500/30 bg-emerald-500/8", badge: "bg-emerald-500/15 text-emerald-400 border-emerald-500/20", icon: <TrendingUp className="w-3.5 h-3.5 text-emerald-400" />, label: "Haussier" },
-    bearish: { card: "border-red-500/30 bg-red-500/8",         badge: "bg-red-500/15 text-red-400 border-red-500/20",           icon: <TrendingDown className="w-3.5 h-3.5 text-red-400" />,  label: "Baissier" },
-    neutral: { card: "border-white/10 bg-white/4",             badge: "bg-white/8 text-white/50 border-white/15",               icon: <Activity className="w-3.5 h-3.5 text-white/40" />,     label: "Neutre"   },
+    bullish: { card: "border-emerald-500/30 bg-emerald-500/8", badge: "bg-emerald-500/15 text-emerald-400 border-emerald-500/20", icon: <TrendingUp className="w-3.5 h-3.5 text-emerald-400" />, label: lang === "en" ? "Bullish" : "Haussier" },
+    bearish: { card: "border-red-500/30 bg-red-500/8",         badge: "bg-red-500/15 text-red-400 border-red-500/20",           icon: <TrendingDown className="w-3.5 h-3.5 text-red-400" />,  label: lang === "en" ? "Bearish" : "Baissier" },
+    neutral: { card: "border-white/10 bg-white/4",             badge: "bg-white/8 text-white/50 border-white/15",               icon: <Activity className="w-3.5 h-3.5 text-white/40" />,     label: lang === "en" ? "Neutral" : "Neutre"   },
   };
   const s = styles[signal];
   return (
@@ -654,13 +627,18 @@ function DemoIndicatorCard({ name, value, signal, tooltip }: {
 }
 
 function LiveScanDemo() {
+  const { lang } = useLanguage();
+  const SCAN_STEPS = getScanSteps(lang);
+  const LIVE_SIGNALS = getLiveSignals(lang);
+  const AAPL = getAapl(lang);
+
   const [phase, setPhase] = useState<"idle" | "scanning" | "done">("idle");
   const [progress, setProgress] = useState(0);
   const [currentStep, setCurrentStep] = useState(0);
   const [scoreDisplay, setScoreDisplay] = useState(0);
   const [aiWordCount, setAiWordCount] = useState(0);
   const [visibleSignals, setVisibleSignals] = useState(0);
-  const [selectedTimeframe, setSelectedTimeframe] = useState("1j");
+  const [selectedTimeframe, setSelectedTimeframe] = useState(lang === "en" ? "1d" : "1j");
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const allTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
 
@@ -754,7 +732,7 @@ function LiveScanDemo() {
           {phase === "done" && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="ml-auto flex items-center gap-1.5 text-[10px] text-emerald-400">
               <motion.div className="w-1.5 h-1.5 rounded-full bg-emerald-400" animate={{ opacity: [1, 0.3, 1] }} transition={{ duration: 1.2, repeat: Infinity }} />
-              Données live
+              {lang === "en" ? "Live data" : "Données live"}
             </motion.div>
           )}
         </div>
@@ -811,14 +789,16 @@ function LiveScanDemo() {
                     <Brain className="w-8 h-8 text-primary" />
                   </div>
                   <div className="text-center">
-                    <p className="font-bold text-lg mb-1">Analyse IA instantanée</p>
+                    <p className="font-bold text-lg mb-1">{lang === "en" ? "Instant AI analysis" : "Analyse IA instantanée"}</p>
                     <p className="text-sm text-muted-foreground max-w-xs">
-                      Lancez une analyse complète AAPL — 9 indicateurs, score IA, niveaux clés, suggestion de trade.
+                      {lang === "en"
+                        ? "Run a full AAPL analysis — 9 indicators, AI score, key levels, trade suggestion."
+                        : "Lancez une analyse complète AAPL — 9 indicateurs, score IA, niveaux clés, suggestion de trade."}
                     </p>
                   </div>
                   {/* Mini preview chips */}
                   <div className="flex flex-wrap gap-2 justify-center">
-                    {["RSI","MACD","EMA20","ADX","Bollinger","Volume","Score IA"].map((tag, i) => (
+                    {["RSI","MACD","EMA20","ADX","Bollinger","Volume", lang === "en" ? "AI Score" : "Score IA"].map((tag, i) => (
                       <motion.span key={tag} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 + i * 0.06 }}
                         className="text-[11px] px-2.5 py-1 rounded-full bg-white/6 border border-white/10 text-white/50 font-medium">
                         {tag}
@@ -830,7 +810,7 @@ function LiveScanDemo() {
                     className="inline-flex items-center gap-2.5 px-8 py-3.5 rounded-xl bg-gradient-to-r from-primary to-cyan-500 text-white text-sm font-bold hover:shadow-xl hover:shadow-primary/30 hover:-translate-y-0.5 transition-all active:scale-95"
                   >
                     <Zap className="w-4 h-4" />
-                    Analyser AAPL avec l&apos;IA
+                    {lang === "en" ? "Analyze AAPL with AI" : "Analyser AAPL avec l'IA"}
                   </button>
                 </div>
               </motion.div>
@@ -852,7 +832,7 @@ function LiveScanDemo() {
                   </motion.div>
                   <div className="flex-1">
                     <p className="text-sm font-semibold">{SCAN_STEPS[currentStep]}</p>
-                    <p className="text-xs text-muted-foreground">Étape {currentStep + 1}/{SCAN_STEPS.length}</p>
+                    <p className="text-xs text-muted-foreground">{lang === "en" ? `Step ${currentStep + 1}/${SCAN_STEPS.length}` : `Étape ${currentStep + 1}/${SCAN_STEPS.length}`}</p>
                   </div>
                   <span className="text-sm font-bold text-primary">{Math.round(progress)}%</span>
                 </div>
@@ -871,7 +851,7 @@ function LiveScanDemo() {
 
                 {/* Live signals feed */}
                 <div className="space-y-2">
-                  <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Signaux détectés</p>
+                  <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">{lang === "en" ? "Detected signals" : "Signaux détectés"}</p>
                   <div className="space-y-1.5 min-h-[120px]">
                     {LIVE_SIGNALS.map((sig, i) => (
                       <AnimatePresence key={sig.tag}>
@@ -911,7 +891,7 @@ function LiveScanDemo() {
                   className="glass-card-hover p-5 text-center relative overflow-hidden">
                   <div className="absolute inset-0 bg-gradient-to-b from-emerald-500/8 to-transparent pointer-events-none" />
                   <div className="relative">
-                    <p className="text-xs text-muted-foreground mb-3 font-medium uppercase tracking-wider">Score Global IA</p>
+                    <p className="text-xs text-muted-foreground mb-3 font-medium uppercase tracking-wider">{lang === "en" ? "Global AI Score" : "Score Global IA"}</p>
                     <div className="w-28 h-28 mx-auto mb-3 relative">
                       <svg className="w-full h-full -rotate-90" viewBox="0 0 112 112">
                         <circle cx="56" cy="56" r="48" fill="none" stroke="currentColor" strokeWidth="8" className="text-white/8" />
@@ -939,7 +919,7 @@ function LiveScanDemo() {
                       <span className="text-base font-black text-emerald-400">BUY</span>
                     </div>
                     <p className="text-xs text-muted-foreground">
-                      Tendance: <span className="text-emerald-400 font-bold">BULLISH</span>
+                      {lang === "en" ? "Trend:" : "Tendance:"} <span className="text-emerald-400 font-bold">BULLISH</span>
                     </p>
                   </div>
                 </motion.div>
@@ -948,12 +928,12 @@ function LiveScanDemo() {
                 <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="glass-card p-5">
                   <h3 className="font-semibold mb-4 flex items-center gap-2 text-xs uppercase tracking-wider text-muted-foreground">
                     <BarChart3 className="w-3.5 h-3.5 text-primary" />
-                    Détail du Score
+                    {lang === "en" ? "Score Breakdown" : "Détail du Score"}
                   </h3>
                   <div className="space-y-3.5">
-                    <DemoScoreBar label="Technique" score={d.score.technical} delay={0.15} />
-                    <DemoScoreBar label="Volume"    score={d.score.volume}    delay={0.25} />
-                    <DemoScoreBar label="Momentum"  score={d.score.momentum}  delay={0.35} />
+                    <DemoScoreBar label={lang === "en" ? "Technical" : "Technique"} score={d.score.technical} delay={0.15} />
+                    <DemoScoreBar label="Volume"                                     score={d.score.volume}    delay={0.25} />
+                    <DemoScoreBar label="Momentum"                                   score={d.score.momentum}  delay={0.35} />
                   </div>
                 </motion.div>
 
@@ -961,20 +941,20 @@ function LiveScanDemo() {
                 <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="glass-card p-5">
                   <h3 className="font-semibold mb-4 flex items-center gap-2 text-xs uppercase tracking-wider text-muted-foreground">
                     <Activity className="w-3.5 h-3.5 text-primary" />
-                    Prix & Niveaux
+                    {lang === "en" ? "Price & Levels" : "Prix & Niveaux"}
                   </h3>
                   <div className="space-y-2.5 text-sm">
                     <div className="flex justify-between items-center p-2.5 bg-white/5 rounded-lg border border-white/5">
-                      <span className="text-muted-foreground text-xs">Prix actuel</span>
+                      <span className="text-muted-foreground text-xs">{lang === "en" ? "Current price" : "Prix actuel"}</span>
                       <div className="text-right">
                         <span className="font-bold">${d.price.current}</span>
                         <span className="ml-1.5 text-emerald-400 text-xs font-medium">+{d.price.change}%</span>
                       </div>
                     </div>
                     {[
-                      { label: "Résistance", value: `$${d.levels.resistance}`, cls: "text-red-400" },
-                      { label: "Pivot",      value: `$${d.levels.pivot}`,      cls: "text-white/70" },
-                      { label: "Support",    value: `$${d.levels.support}`,    cls: "text-emerald-400" },
+                      { label: lang === "en" ? "Resistance" : "Résistance", value: `$${d.levels.resistance}`, cls: "text-red-400" },
+                      { label: "Pivot",                                      value: `$${d.levels.pivot}`,      cls: "text-white/70" },
+                      { label: lang === "en" ? "Support" : "Support",        value: `$${d.levels.support}`,    cls: "text-emerald-400" },
                     ].map(({ label, value, cls }) => (
                       <div key={label} className="flex justify-between items-center px-1">
                         <span className="text-xs text-muted-foreground">{label}</span>
@@ -994,7 +974,7 @@ function LiveScanDemo() {
                     <span className="text-xs text-emerald-400 font-mono">$212.45</span>
                   </span>
                   <div className="flex gap-1">
-                    {["1j","1s","1m","3m"].map(t => (
+                    {(lang === "en" ? ["1d","1w","1m","3m"] : ["1j","1s","1m","3m"]).map(t => (
                       <button key={t} onClick={() => setSelectedTimeframe(t)}
                         className={cn("text-[11px] px-2.5 py-1 rounded-lg transition-all font-medium",
                           t === selectedTimeframe
@@ -1022,8 +1002,8 @@ function LiveScanDemo() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-2">
-                      <p className="text-sm font-bold">Analyse IA</p>
-                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/15 text-primary font-medium border border-primary/20">Disponible 24h/24</span>
+                      <p className="text-sm font-bold">{lang === "en" ? "AI Analysis" : "Analyse IA"}</p>
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/15 text-primary font-medium border border-primary/20">{lang === "en" ? "Available 24/7" : "Disponible 24h/24"}</span>
                       <motion.div className="w-1.5 h-1.5 rounded-full bg-emerald-400 ml-auto"
                         animate={{ opacity: [1, 0.2, 1] }} transition={{ duration: 1, repeat: Infinity }} />
                     </div>
@@ -1041,10 +1021,20 @@ function LiveScanDemo() {
               <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="glass-card p-5">
                 <h3 className="font-semibold mb-4 text-xs uppercase tracking-wider text-muted-foreground flex items-center gap-2">
                   <Activity className="w-3.5 h-3.5 text-primary" />
-                  Indicateurs Techniques
+                  {lang === "en" ? "Technical Indicators" : "Indicateurs Techniques"}
                 </h3>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5">
-                  {([
+                  {(lang === "en" ? [
+                    { name: "RSI (14)",  value: "62.4",      signal: "neutral"  as const, tooltip: "Neutral zone — room before overbought" },
+                    { name: "MACD",      value: "+1.24",     signal: "bullish"  as const, tooltip: "Positive histogram — momentum ↑" },
+                    { name: "EMA 20",    value: "$209.80",   signal: "bullish"  as const, tooltip: "Price above — short-term trend ↑" },
+                    { name: "EMA 50",    value: "$205.40",   signal: "bullish"  as const, tooltip: "Price above — medium-term trend ↑" },
+                    { name: "ADX",       value: "28.4",      signal: "bullish"  as const, tooltip: "Strong trend (>25), DI+ > DI-" },
+                    { name: "Stoch %K",  value: "67 / 62",   signal: "neutral"  as const, tooltip: "Neutral zone, no crossover" },
+                    { name: "BB %B",     value: "58%",       signal: "neutral"  as const, tooltip: "Middle of bands — neutral" },
+                    { name: "ATR (14)",  value: "$3.84",     signal: "neutral"  as const, tooltip: "Suggested stop: ~$5.76 (1.5×ATR)" },
+                    { name: "Volume",    value: "×1.34",     signal: "neutral"  as const, tooltip: "Volume 34% above 20d avg." },
+                  ] : [
                     { name: "RSI (14)",  value: "62.4",      signal: "neutral"  as const, tooltip: "Zone neutre — marge avant surachat" },
                     { name: "MACD",      value: "+1.24",     signal: "bullish"  as const, tooltip: "Histogramme positif — momentum ↑" },
                     { name: "EMA 20",    value: "$209.80",   signal: "bullish"  as const, tooltip: "Prix au-dessus — tendance CT ↑" },
@@ -1069,8 +1059,8 @@ function LiveScanDemo() {
               <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.52 }} className="glass-card p-5">
                 <h3 className="font-semibold mb-4 text-xs uppercase tracking-wider text-muted-foreground flex items-center gap-2">
                   <Target className="w-3.5 h-3.5 text-primary" />
-                  Suggestion de Trade
-                  <span className="ml-auto text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">Setup favorable</span>
+                  {lang === "en" ? "Trade Suggestion" : "Suggestion de Trade"}
+                  <span className="ml-auto text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">{lang === "en" ? "Favorable setup" : "Setup favorable"}</span>
                 </h3>
                 <div className="grid grid-cols-3 gap-3 mb-3">
                   <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.6 }}
@@ -1089,13 +1079,13 @@ function LiveScanDemo() {
                     className="p-3.5 bg-primary/10 rounded-xl border border-primary/20 text-center">
                     <p className="text-[11px] text-muted-foreground mb-1">Risk/Reward</p>
                     <p className="text-lg font-black text-primary">1:{d.risk.rr}</p>
-                    <p className="text-[10px] text-primary/70 mt-0.5">Ratio favorable</p>
+                    <p className="text-[10px] text-primary/70 mt-0.5">{lang === "en" ? "Favorable ratio" : "Ratio favorable"}</p>
                   </motion.div>
                 </div>
                 <div className="p-3 rounded-xl bg-white/4 border border-white/8 flex items-center gap-2 text-xs text-muted-foreground">
                   <Lock className="w-3 h-3 flex-shrink-0" />
-                  <span>Paper trading uniquement — aucun argent réel impliqué</span>
-                  <span className="ml-auto text-emerald-400 font-semibold flex-shrink-0">✓ Éducatif</span>
+                  <span>{lang === "en" ? "Paper trading only — no real money involved" : "Paper trading uniquement — aucun argent réel impliqué"}</span>
+                  <span className="ml-auto text-emerald-400 font-semibold flex-shrink-0">✓ {lang === "en" ? "Educational" : "Éducatif"}</span>
                 </div>
               </motion.div>
 
@@ -1104,12 +1094,12 @@ function LiveScanDemo() {
                 className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-1">
                 <Link href="/register"
                   className="group inline-flex items-center gap-2 px-8 py-3.5 rounded-xl bg-primary hover:bg-primary/90 text-white text-sm font-bold transition-all hover:shadow-xl hover:shadow-primary/30 hover:-translate-y-0.5">
-                  Analyser mes propres actifs
+                  {lang === "en" ? "Analyze my own assets" : "Analyser mes propres actifs"}
                   <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                 </Link>
                 <button onClick={resetScan} className="text-sm text-white/30 hover:text-white/55 transition-colors flex items-center gap-1.5">
                   <RefreshCw className="w-3.5 h-3.5" />
-                  Relancer la démo
+                  {lang === "en" ? "Restart demo" : "Relancer la démo"}
                 </button>
               </motion.div>
             </motion.div>
@@ -1124,9 +1114,90 @@ function LiveScanDemo() {
 
 function LandingPage() {
   const { isAuthenticated } = useAuth();
+  const { lang } = useLanguage();
   const { scrollY } = useScroll();
   const heroOpacity = useTransform(scrollY, [0, 400], [1, 0]);
   const heroY       = useTransform(scrollY, [0, 400], [0, -60]);
+
+  const FEATURES_MAIN: FeatureItem[] = lang === "en" ? [
+    {
+      id: "analysis", icon: BarChart3,
+      badge: "Artificial Intelligence",
+      title: "Automatic technical analysis",
+      desc: "Enter any symbol and instantly get a full analysis: RSI, MACD, Bollinger Bands, key levels and global AI-interpreted score.",
+      bullets: ["Technical score 0 to 100", "Automatic supports & resistances", "Suggested trading strategies", "Clear bullish / bearish signals"],
+      checkBg: "border-blue-500/20 bg-blue-500/10", accentColor: "text-blue-400", glowColor: "bg-blue-600",
+    },
+    {
+      id: "scanner", icon: Activity,
+      badge: "Market scanner",
+      title: "Detect the best opportunities",
+      desc: "Our scanner analyzes hundreds of assets in real time to detect strong signals: oversold RSI, breakouts, MACD crossovers and more.",
+      bullets: ["800+ assets analyzed in real time", "Customizable filters by indicator", "Instant signal alerts", "Ranked by signal strength"],
+      checkBg: "border-cyan-500/20 bg-cyan-500/10", accentColor: "text-cyan-400", glowColor: "bg-cyan-600",
+    },
+    {
+      id: "ai", icon: Brain,
+      badge: "AI Assistant",
+      title: "Your AI trading co-pilot",
+      desc: "Ask any question about any asset, strategy or indicator. The AI responds with precise analysis and recommendations adapted to your profile.",
+      bullets: ["Contextual and personalized answers", "Natural language understanding", "Data-based trade suggestions", "Available 24/7"],
+      checkBg: "border-purple-500/20 bg-purple-500/10", accentColor: "text-purple-400", glowColor: "bg-purple-600",
+    },
+  ] : [
+    {
+      id: "analysis", icon: BarChart3,
+      badge: "Intelligence Artificielle",
+      title: "Analyse technique automatique",
+      desc: "Entrez n'importe quel symbole et obtenez instantanément une analyse complète : RSI, MACD, Bollinger Bands, niveaux clés et score IA global.",
+      bullets: ["Score technique de 0 à 100", "Supports & résistances automatiques", "Stratégies de trade suggérées", "Signaux haussiers / baissiers clairs"],
+      checkBg: "border-blue-500/20 bg-blue-500/10", accentColor: "text-blue-400", glowColor: "bg-blue-600",
+    },
+    {
+      id: "scanner", icon: Activity,
+      badge: "Scanner de marché",
+      title: "Détectez les meilleures opportunités",
+      desc: "Notre scanner analyse en temps réel des centaines d'actifs pour détecter les signaux forts : RSI survendu, breakout, croisements MACD et plus.",
+      bullets: ["Analyse de 800+ actifs en temps réel", "Filtres personnalisables par indicateur", "Alertes de signaux instantanées", "Classement par force du signal"],
+      checkBg: "border-cyan-500/20 bg-cyan-500/10", accentColor: "text-cyan-400", glowColor: "bg-cyan-600",
+    },
+    {
+      id: "ai", icon: Brain,
+      badge: "Assistant IA",
+      title: "Votre copilote de trading IA",
+      desc: "Posez des questions sur n'importe quel actif, stratégie ou indicateur. L'IA vous répond avec des analyses précises et des recommandations adaptées à votre profil.",
+      bullets: ["Réponses contextuelles et personnalisées", "Compréhension du langage naturel", "Suggestions de trade basées sur les données", "Disponible 24h/24, 7j/7"],
+      checkBg: "border-purple-500/20 bg-purple-500/10", accentColor: "text-purple-400", glowColor: "bg-purple-600",
+    },
+  ];
+
+  const SECONDARY_FEATURES = lang === "en" ? [
+    { icon: BookOpen, title: "Training included",      desc: "Learn the basics of trading with our interactive guides and animated visualizations.",    colorClass: "bg-blue-500/10 border-blue-500/20 text-blue-400" },
+    { icon: Wallet,   title: "Virtual wallet",         desc: "Trade with $10,000 virtual, track your performance and refine your strategy risk-free.",  colorClass: "bg-emerald-500/10 border-emerald-500/20 text-emerald-400" },
+    { icon: Bell,     title: "Alerts & Notifications", desc: "Receive real-time alerts on price movements and important signals.",                       colorClass: "bg-yellow-500/10 border-yellow-500/20 text-yellow-400" },
+    { icon: Globe,    title: "800+ assets covered",    desc: "Global equities, ETFs, cryptocurrencies, commodities — all in one place.",                 colorClass: "bg-purple-500/10 border-purple-500/20 text-purple-400" },
+    { icon: Star,     title: "Personalized watchlist", desc: "Follow your favorite assets, organize them and access their analyses in one click.",        colorClass: "bg-orange-500/10 border-orange-500/20 text-orange-400" },
+    { icon: Shield,   title: "100% free & secure",     desc: "No credit card required. Your data is secured and never sold.",                            colorClass: "bg-primary/10 border-primary/20 text-primary" },
+  ] : [
+    { icon: BookOpen, title: "Formation incluse",       desc: "Apprenez les bases du trading avec nos guides interactifs et visualisations animées.",                  colorClass: "bg-blue-500/10 border-blue-500/20 text-blue-400" },
+    { icon: Wallet,   title: "Wallet virtuel",          desc: "Tradez avec 10 000 $ virtuels, suivez vos performances et affinez votre stratégie sans risque.",       colorClass: "bg-emerald-500/10 border-emerald-500/20 text-emerald-400" },
+    { icon: Bell,     title: "Alertes & Notifications", desc: "Recevez des alertes en temps réel sur les mouvements de prix et les signaux importants.",              colorClass: "bg-yellow-500/10 border-yellow-500/20 text-yellow-400" },
+    { icon: Globe,    title: "800+ actifs couverts",    desc: "Actions mondiales, ETFs, cryptomonnaies, matières premières — tout en un seul endroit.",                colorClass: "bg-purple-500/10 border-purple-500/20 text-purple-400" },
+    { icon: Star,     title: "Watchlist personnalisée", desc: "Suivez vos actifs préférés, organisez-les et accédez à leurs analyses en un clic.",                    colorClass: "bg-orange-500/10 border-orange-500/20 text-orange-400" },
+    { icon: Shield,   title: "100% gratuit & sécurisé", desc: "Aucune carte bancaire requise. Vos données sont sécurisées et ne sont jamais revendues.",              colorClass: "bg-primary/10 border-primary/20 text-primary" },
+  ];
+
+  const STATS_DATA = lang === "en" ? [
+    { value: "800+",    label: "Assets analyzed" },
+    { value: "50 000+", label: "Active users" },
+    { value: "99.9%",   label: "Uptime" },
+    { value: "100%",    label: "Free" },
+  ] : [
+    { value: "800+",    label: "Actifs analysés" },
+    { value: "50 000+", label: "Utilisateurs actifs" },
+    { value: "99.9%",   label: "Disponibilité" },
+    { value: "100%",    label: "Gratuit" },
+  ];
 
   return (
     <div className="min-h-screen overflow-x-hidden">
@@ -1156,23 +1227,23 @@ function LandingPage() {
           <span className="text-lg font-bold">Capten<span className="gradient-text">TDB</span></span>
         </div>
         <div className="hidden md:flex items-center gap-6 text-sm text-white/55">
-          <a href="#features" className="hover:text-white transition-colors">Fonctionnalités</a>
-          <a href="#how" className="hover:text-white transition-colors">Comment ça marche</a>
+          <a href="#features" className="hover:text-white transition-colors">{lang === "en" ? "Features" : "Fonctionnalités"}</a>
+          <a href="#how" className="hover:text-white transition-colors">{lang === "en" ? "How it works" : "Comment ça marche"}</a>
         </div>
         <div className="flex items-center gap-3">
           <LanguageToggle variant="compact" />
           {isAuthenticated ? (
             <Link href="/dashboard" className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary hover:bg-primary/90 text-white text-sm font-semibold transition-all hover:shadow-lg hover:shadow-primary/25 hover:-translate-y-0.5">
-              Accéder à l'app
+              {lang === "en" ? "Open app" : "Accéder à l'app"}
               <ChevronRight className="w-3.5 h-3.5" />
             </Link>
           ) : (
             <>
               <Link href="/login" className="hidden sm:inline-flex px-4 py-2 text-sm font-medium text-white/65 hover:text-white transition-colors">
-                Connexion
+                {lang === "en" ? "Log in" : "Connexion"}
               </Link>
               <Link href="/register" className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary hover:bg-primary/90 text-white text-sm font-semibold transition-all hover:shadow-lg hover:shadow-primary/25 hover:-translate-y-0.5">
-                Commencer gratuitement
+                {lang === "en" ? "Get started free" : "Commencer gratuitement"}
                 <ChevronRight className="w-3.5 h-3.5" />
               </Link>
             </>
@@ -1202,7 +1273,7 @@ function LandingPage() {
           <motion.span animate={{ rotate: [0, 15, -15, 0] }} transition={{ duration: 2, repeat: Infinity, repeatDelay: 3 }}>
             <Sparkles className="w-3 h-3" />
           </motion.span>
-          Plateforme éducative de trading — 100% gratuite
+          {lang === "en" ? "Educational trading platform — 100% free" : "Plateforme éducative de trading — 100% gratuite"}
         </motion.div>
 
         {/* H1 */}
@@ -1212,14 +1283,14 @@ function LandingPage() {
           transition={{ delay: 0.1, duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
           className="text-5xl md:text-7xl font-black leading-tight tracking-tight max-w-4xl"
         >
-          La bourse,{" "}
+          {lang === "en" ? "Markets," : "La bourse,"}{" "}
           <motion.span
             className="gradient-text inline-block"
             animate={{ backgroundPosition: ["0% 50%", "100% 50%", "0% 50%"] }}
             transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
             style={{ backgroundSize: "200%" }}
           >
-            enfin claire.
+            {lang === "en" ? "finally clear." : "enfin claire."}
           </motion.span>
         </motion.h1>
 
@@ -1230,8 +1301,10 @@ function LandingPage() {
           transition={{ delay: 0.2, duration: 0.7 }}
           className="mt-6 text-lg md:text-xl text-white/55 max-w-2xl leading-relaxed"
         >
-          CaptenTDB analyse automatiquement les marchés pour vous — indicateurs, signaux IA, scanner et wallet virtuel.{" "}
-          <span className="text-white/80 font-semibold">Apprenez à trader sans risquer un centime.</span>
+          {lang === "en"
+            ? <>CaptenTDB automatically analyzes markets for you — indicators, AI signals, scanner and virtual wallet.{" "}<span className="text-white/80 font-semibold">Learn to trade without risking a cent.</span></>
+            : <>CaptenTDB analyse automatiquement les marchés pour vous — indicateurs, signaux IA, scanner et wallet virtuel.{" "}<span className="text-white/80 font-semibold">Apprenez à trader sans risquer un centime.</span></>
+          }
         </motion.p>
 
         {/* CTAs */}
@@ -1243,18 +1316,18 @@ function LandingPage() {
         >
           {isAuthenticated ? (
             <Link href="/dashboard" className="group inline-flex items-center gap-2 px-8 py-4 rounded-2xl bg-primary hover:bg-primary/90 text-white text-base font-bold transition-all hover:shadow-2xl hover:shadow-primary/30 hover:-translate-y-1">
-              Accéder à mon espace
+              {lang === "en" ? "Go to my dashboard" : "Accéder à mon espace"}
               <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
             </Link>
           ) : (
             <>
               <Link href="/register" className="group inline-flex items-center gap-2 px-8 py-4 rounded-2xl bg-primary hover:bg-primary/90 text-white text-base font-bold transition-all hover:shadow-2xl hover:shadow-primary/30 hover:-translate-y-1">
-                Créer mon compte — C&apos;est gratuit
+                {lang === "en" ? "Create my account — It's free" : "Créer mon compte — C'est gratuit"}
                 <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
               </Link>
               <a href="#demo" className="inline-flex items-center gap-2 px-8 py-4 rounded-2xl border border-white/10 bg-white/5 hover:bg-white/10 text-white text-base font-semibold transition-all hover:-translate-y-0.5">
                 <Play className="w-4 h-4 text-primary" />
-                Voir la démo en direct
+                {lang === "en" ? "Watch live demo" : "Voir la démo en direct"}
               </a>
             </>
           )}
@@ -1265,7 +1338,10 @@ function LandingPage() {
           initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.55 }}
           className="mt-5 flex flex-wrap items-center justify-center gap-4 text-xs text-white/35"
         >
-          {["Pas de CB requise", "Inscription en 30 s", "800+ actifs", "0 engagement"].map((t, i) => (
+          {(lang === "en"
+            ? ["No credit card required", "Sign up in 30s", "800+ assets", "No commitment"]
+            : ["Pas de CB requise", "Inscription en 30 s", "800+ actifs", "0 engagement"]
+          ).map((t, i) => (
             <span key={i} className="flex items-center gap-1">
               <CheckCircle2 className="w-3 h-3 text-emerald-500" />{t}
             </span>
@@ -1297,10 +1373,10 @@ function LandingPage() {
                 {/* Stats */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
                   {[
-                    { label: "Solde Virtual", val: "$12 438", icon: Wallet,    color: "text-white" },
-                    { label: "P&L Total",     val: "+$2 438", icon: TrendingUp, color: "text-emerald-400" },
-                    { label: "Win Rate",      val: "68%",     icon: Target,    color: "text-emerald-400" },
-                    { label: "Actifs suivis", val: "14",      icon: Star,      color: "text-white" },
+                    { label: lang === "en" ? "Virtual Balance" : "Solde Virtual", val: "$12 438", icon: Wallet,    color: "text-white" },
+                    { label: "P&L Total",                                          val: "+$2 438", icon: TrendingUp, color: "text-emerald-400" },
+                    { label: "Win Rate",                                            val: "68%",     icon: Target,    color: "text-emerald-400" },
+                    { label: lang === "en" ? "Tracked assets" : "Actifs suivis",  val: "14",      icon: Star,      color: "text-white" },
                   ].map((s, i) => (
                     <motion.div key={i} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.8 + i * 0.08 }}
                       className="p-3 rounded-xl bg-white/5 border border-white/5">
@@ -1329,7 +1405,7 @@ function LandingPage() {
                 <div className="mt-4 flex flex-wrap gap-2">
                   {[
                     { l: "RSI",    v: "62",       c: "text-yellow-400" },
-                    { l: "MACD",   v: "Haussier ↑", c: "text-emerald-400" },
+                    { l: "MACD",   v: lang === "en" ? "Bullish ↑" : "Haussier ↑", c: "text-emerald-400" },
                     { l: "EMA 20", v: "138.2",    c: "text-blue-400" },
                     { l: "Score",  v: "74/100",   c: "text-primary" },
                     { l: "Vol",    v: "+24%",     c: "text-cyan-400" },
@@ -1364,7 +1440,7 @@ function LandingPage() {
         <div className="max-w-6xl mx-auto">
           <motion.p initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }}
             className="text-center text-xs text-white/35 font-semibold uppercase tracking-widest mb-5">
-            Tous les marchés mondiaux couverts
+            {lang === "en" ? "All global markets covered" : "Tous les marchés mondiaux couverts"}
           </motion.p>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
             {MARKETS_PREVIEW.map((m, i) => (
@@ -1391,7 +1467,7 @@ function LandingPage() {
       {/* ── Feature showcases ── */}
       <section id="features" className="pt-6">
         {FEATURES_MAIN.map((feature, i) => (
-          <FeatureShowcase key={feature.id} feature={feature} reversed={i % 2 === 1} />
+          <FeatureShowcase key={feature.id} feature={feature} reversed={i % 2 === 1} lang={lang} />
         ))}
       </section>
 
@@ -1399,8 +1475,8 @@ function LandingPage() {
       <section className="py-16 px-6 bg-black/20 border-y border-white/5">
         <div className="max-w-5xl mx-auto">
           <motion.div initial={{ opacity: 0, y: 18 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="text-center mb-10">
-            <h2 className="text-2xl md:text-3xl font-black mb-2">Et bien plus encore</h2>
-            <p className="text-white/45 text-sm">Tout ce dont vous avez besoin dans une seule plateforme.</p>
+            <h2 className="text-2xl md:text-3xl font-black mb-2">{lang === "en" ? "And much more" : "Et bien plus encore"}</h2>
+            <p className="text-white/45 text-sm">{lang === "en" ? "Everything you need in a single platform." : "Tout ce dont vous avez besoin dans une seule plateforme."}</p>
           </motion.div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
             {SECONDARY_FEATURES.map((f, i) => (
@@ -1421,15 +1497,19 @@ function LandingPage() {
       <section id="how" className="py-24 px-6">
         <div className="max-w-5xl mx-auto">
           <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="text-center mb-16">
-            <h2 className="text-3xl md:text-5xl font-black mb-4">Démarrer en <span className="gradient-text">3 étapes</span></h2>
-            <p className="text-white/45 text-lg">Simple, rapide, gratuit.</p>
+            <h2 className="text-3xl md:text-5xl font-black mb-4">{lang === "en" ? <>Get started in <span className="gradient-text">3 steps</span></> : <>Démarrer en <span className="gradient-text">3 étapes</span></>}</h2>
+            <p className="text-white/45 text-lg">{lang === "en" ? "Simple, fast, free." : "Simple, rapide, gratuit."}</p>
           </motion.div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
-            {[
-              { step: "01", icon: Users, title: "Créez votre compte", desc: "Inscription gratuite en 30 secondes. Aucune carte bancaire, aucun engagement de durée." },
-              { step: "02", icon: Star,  title: "Ajoutez vos actifs", desc: "Recherchez vos actions, ETFs ou cryptos préférées et construisez votre watchlist personnalisée." },
-              { step: "03", icon: Brain, title: "Analysez & Progressez", desc: "Accédez aux analyses IA instantanées, lancez des trades virtuels et améliorez vos stratégies." },
-            ].map((s, i) => (
+            {(lang === "en" ? [
+              { step: "01", icon: Users, title: "Create your account",  desc: "Free sign-up in 30 seconds. No credit card, no time commitment." },
+              { step: "02", icon: Star,  title: "Add your assets",      desc: "Search for your favorite stocks, ETFs or cryptos and build your personalized watchlist." },
+              { step: "03", icon: Brain, title: "Analyze & Improve",    desc: "Access instant AI analyses, launch virtual trades and improve your strategies." },
+            ] : [
+              { step: "01", icon: Users, title: "Créez votre compte",   desc: "Inscription gratuite en 30 secondes. Aucune carte bancaire, aucun engagement de durée." },
+              { step: "02", icon: Star,  title: "Ajoutez vos actifs",   desc: "Recherchez vos actions, ETFs ou cryptos préférées et construisez votre watchlist personnalisée." },
+              { step: "03", icon: Brain, title: "Analysez & Progressez",desc: "Accédez aux analyses IA instantanées, lancez des trades virtuels et améliorez vos stratégies." },
+            ]).map((s, i) => (
               <motion.div key={i} initial={{ opacity: 0, y: 28 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
                 transition={{ delay: i * 0.15, duration: 0.5 }} className="relative flex flex-col items-center text-center">
                 {i < 2 && <StepConnector />}
@@ -1459,13 +1539,15 @@ function LandingPage() {
           >
             <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-cyan-500/25 bg-cyan-500/8 text-cyan-400 text-xs font-semibold mb-5 uppercase tracking-widest">
               <Zap className="w-3 h-3" />
-              Démo interactive
+              {lang === "en" ? "Interactive demo" : "Démo interactive"}
             </span>
             <h2 className="text-3xl md:text-5xl font-black mb-4">
-              Voyez l&apos;IA en <span className="gradient-text">action</span>
+              {lang === "en" ? <>See AI in <span className="gradient-text">action</span></> : <>Voyez l&apos;IA en <span className="gradient-text">action</span></>}
             </h2>
             <p className="text-white/45 text-lg max-w-xl mx-auto">
-              Cliquez sur le bouton pour lancer une analyse complète en temps réel — exactement comme dans l&apos;application.
+              {lang === "en"
+                ? "Click the button to run a complete real-time analysis — exactly as it works in the app."
+                : "Cliquez sur le bouton pour lancer une analyse complète en temps réel — exactement comme dans l'application."}
             </p>
           </motion.div>
 
@@ -1493,32 +1575,37 @@ function LandingPage() {
                 <Sparkles className="w-9 h-9 text-primary" />
               </motion.div>
               <h2 className="text-3xl md:text-5xl font-black mb-4">
-                Prêt à comprendre<br />les marchés ?
+                {lang === "en" ? <>Ready to understand<br />the markets?</> : <>Prêt à comprendre<br />les marchés ?</>}
               </h2>
               <p className="text-white/55 text-lg mb-8 leading-relaxed">
-                Rejoignez CaptenTDB et accédez à des outils d&apos;analyse professionnels.<br />
-                <span className="text-white/80 font-semibold">Gratuit. Sans CB. En 30 secondes.</span>
+                {lang === "en"
+                  ? <>Join CaptenTDB and access professional analysis tools.<br /><span className="text-white/80 font-semibold">Free. No CC. In 30 seconds.</span></>
+                  : <>Rejoignez CaptenTDB et accédez à des outils d&apos;analyse professionnels.<br /><span className="text-white/80 font-semibold">Gratuit. Sans CB. En 30 secondes.</span></>
+                }
               </p>
               <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
                 {isAuthenticated ? (
                   <Link href="/dashboard" className="group inline-flex items-center gap-2 px-8 py-4 rounded-2xl bg-primary hover:bg-primary/90 text-white text-base font-bold transition-all hover:shadow-2xl hover:shadow-primary/40 hover:-translate-y-1 w-full sm:w-auto justify-center">
-                    Accéder à mon espace
+                    {lang === "en" ? "Go to my dashboard" : "Accéder à mon espace"}
                     <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                   </Link>
                 ) : (
                   <>
                     <Link href="/register" className="group inline-flex items-center gap-2 px-8 py-4 rounded-2xl bg-primary hover:bg-primary/90 text-white text-base font-bold transition-all hover:shadow-2xl hover:shadow-primary/40 hover:-translate-y-1 w-full sm:w-auto justify-center">
-                      Créer mon compte gratuit
+                      {lang === "en" ? "Create my free account" : "Créer mon compte gratuit"}
                       <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                     </Link>
                     <Link href="/login" className="inline-flex items-center gap-2 px-8 py-4 rounded-2xl border border-white/15 hover:bg-white/5 text-white text-base font-semibold transition-all w-full sm:w-auto justify-center">
-                      Se connecter
+                      {lang === "en" ? "Log in" : "Se connecter"}
                     </Link>
                   </>
                 )}
               </div>
               <div className="mt-6 flex flex-wrap items-center justify-center gap-5 text-xs text-white/35">
-                {["100% gratuit", "Aucun engagement", "800+ actifs", "Analyses IA incluses"].map((t, i) => (
+                {(lang === "en"
+                  ? ["100% free", "No commitment", "800+ assets", "AI analyses included"]
+                  : ["100% gratuit", "Aucun engagement", "800+ actifs", "Analyses IA incluses"]
+                ).map((t, i) => (
                   <span key={i} className="flex items-center gap-1"><CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />{t}</span>
                 ))}
               </div>
@@ -1533,14 +1620,14 @@ function LandingPage() {
           <TDBLogoSm size={20} />
           <span className="font-semibold text-white/50">CaptenTDB</span>
         </div>
-        <p>Fait avec ❤️ par <span className="text-primary font-semibold">CaptenQwark</span></p>
-        <p className="mt-1 text-xs">Les analyses sont à but éducatif uniquement. Ce site ne fournit pas de conseils financiers.</p>
+        <p>{lang === "en" ? <>Made with ❤️ by <span className="text-primary font-semibold">CaptenQwark</span></> : <>Fait avec ❤️ par <span className="text-primary font-semibold">CaptenQwark</span></>}</p>
+        <p className="mt-1 text-xs">{lang === "en" ? "Analyses are for educational purposes only. This site does not provide financial advice." : "Les analyses sont à but éducatif uniquement. Ce site ne fournit pas de conseils financiers."}</p>
         <div className="mt-4 flex flex-wrap items-center justify-center gap-4 text-xs text-white/25">
-          <a href="/mentions-legales" className="hover:text-white/60 transition-colors">Mentions légales</a>
+          <a href="/mentions-legales" className="hover:text-white/60 transition-colors">{lang === "en" ? "Legal notice" : "Mentions légales"}</a>
           <span>·</span>
-          <a href="/politique-de-confidentialite" className="hover:text-white/60 transition-colors">Politique de confidentialité</a>
+          <a href="/politique-de-confidentialite" className="hover:text-white/60 transition-colors">{lang === "en" ? "Privacy policy" : "Politique de confidentialité"}</a>
           <span>·</span>
-          <a href="/cgu" className="hover:text-white/60 transition-colors">CGU</a>
+          <a href="/cgu" className="hover:text-white/60 transition-colors">{lang === "en" ? "Terms of use" : "CGU"}</a>
         </div>
       </footer>
     </div>
@@ -1556,19 +1643,32 @@ type WidgetId = "indices" | "sessions" | "favorites" | "news" | "stats" | "posit
 const DEFAULT_WIDGETS: WidgetId[] = ["indices", "sessions", "favorites", "news", "stats", "quickactions"];
 const DASHBOARD_STORAGE_KEY = "tdb_dashboard_config";
 
-const WIDGET_META: Record<WidgetId, { label: string; icon: string; description: string }> = {
-  indices:      { label: "Indices & Marchés",     icon: "📈", description: "CAC40, S&P500, BTC, Or en temps réel" },
-  sessions:     { label: "Résumés de Séance",     icon: "🌍", description: "Top/Flop, humeur du marché, signaux J+1" },
-  favorites:    { label: "Mes Favoris",            icon: "⭐", description: "Watchlist avec prix et performances" },
-  news:         { label: "Actualités",             icon: "📰", description: "News filtrées par IA + résumé" },
-  stats:        { label: "Statistiques Trading",   icon: "🎯", description: "Win rate, P&L, historique" },
-  positions:    { label: "Positions Ouvertes",     icon: "💼", description: "Positions actives en cours" },
-  quickactions: { label: "Actions Rapides",        icon: "⚡", description: "Raccourcis vers les pages clés" },
-};
+function getWidgetMeta(lang: "fr" | "en"): Record<WidgetId, { label: string; icon: string; description: string }> {
+  return lang === "en" ? {
+    indices:      { label: "Indices & Markets",   icon: "📈", description: "CAC40, S&P500, BTC, Gold live" },
+    sessions:     { label: "Session Summaries",   icon: "🌍", description: "Top/Flop, market mood, D+1 signals" },
+    favorites:    { label: "My Favorites",        icon: "⭐", description: "Watchlist with prices and performance" },
+    news:         { label: "News",                icon: "📰", description: "AI-filtered news + summary" },
+    stats:        { label: "Trading Statistics",  icon: "🎯", description: "Win rate, P&L, history" },
+    positions:    { label: "Open Positions",      icon: "💼", description: "Active ongoing positions" },
+    quickactions: { label: "Quick Actions",       icon: "⚡", description: "Shortcuts to key pages" },
+  } : {
+    indices:      { label: "Indices & Marchés",   icon: "📈", description: "CAC40, S&P500, BTC, Or en temps réel" },
+    sessions:     { label: "Résumés de Séance",   icon: "🌍", description: "Top/Flop, humeur du marché, signaux J+1" },
+    favorites:    { label: "Mes Favoris",          icon: "⭐", description: "Watchlist avec prix et performances" },
+    news:         { label: "Actualités",           icon: "📰", description: "News filtrées par IA + résumé" },
+    stats:        { label: "Statistiques Trading", icon: "🎯", description: "Win rate, P&L, historique" },
+    positions:    { label: "Positions Ouvertes",   icon: "💼", description: "Positions actives en cours" },
+    quickactions: { label: "Actions Rapides",      icon: "⚡", description: "Raccourcis vers les pages clés" },
+  };
+}
 
 const INDICES_SYMBOLS = ["^FCHI", "^GSPC", "^IXIC", "BTC-USD", "GC=F", "^VIX"];
-const INDICES_LABELS: Record<string, string> = {
+const INDICES_LABELS_FR: Record<string, string> = {
   "^FCHI": "CAC 40", "^GSPC": "S&P 500", "^IXIC": "NASDAQ", "BTC-USD": "Bitcoin", "GC=F": "Or", "^VIX": "VIX",
+};
+const INDICES_LABELS_EN: Record<string, string> = {
+  "^FCHI": "CAC 40", "^GSPC": "S&P 500", "^IXIC": "NASDAQ", "BTC-USD": "Bitcoin", "GC=F": "Gold", "^VIX": "VIX",
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1589,6 +1689,8 @@ function Dashboard() {
   const formatPrice = useFormatPrice();
   const router = useRouter();
   const { isPremium } = usePremium();
+  const { lang } = useLanguage();
+  const WIDGET_META = getWidgetMeta(lang);
   const [balance, setBalance] = useState<WalletBalance | null>(null);
   const [stats, setStats] = useState<TradingStats | null>(null);
   const [favorites, setFavorites] = useState<Favorite[]>([]);
@@ -1723,9 +1825,9 @@ function Dashboard() {
         <div className="relative flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold mb-1">
-              Tableau de bord <span className="gradient-text">TDB</span>
+              {lang === "en" ? "Dashboard" : "Tableau de bord"} <span className="gradient-text">TDB</span>
             </h1>
-            <p className="text-muted-foreground text-sm">Suivez vos actifs, restez informé, tradez mieux.</p>
+            <p className="text-muted-foreground text-sm">{lang === "en" ? "Track your assets, stay informed, trade better." : "Suivez vos actifs, restez informé, tradez mieux."}</p>
           </div>
           <div className="flex items-center gap-2">
             {isPremium && (
@@ -1739,7 +1841,7 @@ function Dashboard() {
                 )}
               >
                 <Settings2 className="w-4 h-4" />
-                {editMode ? "Terminer" : "Personnaliser"}
+                {editMode ? (lang === "en" ? "Done" : "Terminer") : (lang === "en" ? "Customize" : "Personnaliser")}
               </button>
             )}
             <button onClick={() => loadData(true)} disabled={isRefreshing} className="p-2 rounded-lg hover:bg-white/5 transition-colors text-muted-foreground hover:text-foreground">
@@ -1761,8 +1863,8 @@ function Dashboard() {
             <div className="glass-card p-5 border border-primary/30">
               <div className="flex items-center gap-2 mb-4">
                 <Crown className="w-4 h-4 text-yellow-400" />
-                <h3 className="font-semibold">Personnalisation Premium</h3>
-                <span className="text-xs text-muted-foreground ml-auto">Activez/désactivez les widgets et réordonnez-les</span>
+                <h3 className="font-semibold">{lang === "en" ? "Premium Customization" : "Personnalisation Premium"}</h3>
+                <span className="text-xs text-muted-foreground ml-auto">{lang === "en" ? "Enable/disable and reorder widgets" : "Activez/désactivez les widgets et réordonnez-les"}</span>
               </div>
               <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                 {(Object.entries(WIDGET_META) as [WidgetId, typeof WIDGET_META[WidgetId]][]).map(([id, meta]) => {
@@ -1803,7 +1905,7 @@ function Dashboard() {
                             className="p-1 rounded hover:bg-white/10 disabled:opacity-30 transition-colors">
                             <ChevronDown className="w-3 h-3" />
                           </button>
-                          <span className="text-[10px] text-muted-foreground ml-1">pos. {idx + 1}</span>
+                          <span className="text-[10px] text-muted-foreground ml-1">{lang === "en" ? "pos." : "pos."} {idx + 1}</span>
                         </div>
                       )}
                     </div>
@@ -1823,8 +1925,8 @@ function Dashboard() {
               <div className="flex items-center gap-4">
                 <div className="p-3 rounded-xl bg-yellow-500/20"><Shield className="w-5 h-5 text-yellow-500" /></div>
                 <div className="flex-1">
-                  <h3 className="font-semibold text-yellow-500">Panneau d'Administration</h3>
-                  <p className="text-sm text-muted-foreground">Gérez les utilisateurs, consultez les statistiques</p>
+                  <h3 className="font-semibold text-yellow-500">{lang === "en" ? "Administration Panel" : "Panneau d'Administration"}</h3>
+                  <p className="text-sm text-muted-foreground">{lang === "en" ? "Manage users, view statistics" : "Gérez les utilisateurs, consultez les statistiques"}</p>
                 </div>
                 <ArrowUpRight className="w-5 h-5 text-yellow-500 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
               </div>
@@ -1835,9 +1937,9 @@ function Dashboard() {
 
       {/* Quick Stats */}
       <motion.div variants={itemVariants} className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <StatCard title="Actifs Suivis" value={String(favorites.length)} icon={Star} href="/favorites" />
-        <StatCard title="Perf. Moy. Favoris" value={formatPercent(avgFavChange)} change={avgFavChange} icon={TrendingUp} />
-        <StatCard title="Solde Wallet" value={formatCurrency(balance?.total_equity || balance?.balance || 0)} icon={Wallet} href="/wallet" />
+        <StatCard title={lang === "en" ? "Tracked Assets" : "Actifs Suivis"} value={String(favorites.length)} icon={Star} href="/favorites" />
+        <StatCard title={lang === "en" ? "Avg. Perf. Favorites" : "Perf. Moy. Favoris"} value={formatPercent(avgFavChange)} change={avgFavChange} icon={TrendingUp} />
+        <StatCard title={lang === "en" ? "Wallet Balance" : "Solde Wallet"} value={formatCurrency(balance?.total_equity || balance?.balance || 0)} icon={Wallet} href="/wallet" />
         <StatCard title="Win Rate" value={`${stats?.win_rate || 0}%`} subtitle={`${stats?.total_trades || 0} trades`} icon={Target} />
       </motion.div>
 
@@ -1915,12 +2017,14 @@ function IndicesBar({ indices, isLoading, onRefresh }: {
   isLoading: boolean;
   onRefresh: () => void;
 }) {
+  const { lang } = useLanguage();
+  const INDICES_LABELS = lang === "en" ? INDICES_LABELS_EN : INDICES_LABELS_FR;
   return (
     <div className="glass-card p-4">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <Activity className="w-4 h-4 text-primary" />
-          <h2 className="font-semibold">Marchés en direct</h2>
+          <h2 className="font-semibold">{lang === "en" ? "Live Markets" : "Marchés en direct"}</h2>
         </div>
         <button onClick={onRefresh} disabled={isLoading} className="p-1.5 rounded-lg hover:bg-white/5 text-muted-foreground transition-colors">
           <RefreshCw className={cn("w-3.5 h-3.5", isLoading && "animate-spin")} />
@@ -1939,8 +2043,8 @@ function IndicesBar({ indices, isLoading, onRefresh }: {
                 <>
                   <p className="font-bold text-sm">
                     {d.price > 1000
-                      ? d.price.toLocaleString("fr-FR", { maximumFractionDigits: 0 })
-                      : d.price.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      ? d.price.toLocaleString(lang === "en" ? "en-US" : "fr-FR", { maximumFractionDigits: 0 })
+                      : d.price.toLocaleString(lang === "en" ? "en-US" : "fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </p>
                   <div className={cn("flex items-center gap-1 text-xs mt-0.5", isUp ? "text-profit" : "text-loss")}>
                     {isUp ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
@@ -1974,6 +2078,7 @@ function FavoritesWidget({ favorites, favSort, setFavSort, favFilter, setFavFilt
   formatCurrency: (v: number) => string;
   formatPrice: (v: number, symbol: string) => string;
 }) {
+  const { lang } = useLanguage();
   const [showAll, setShowAll] = useState(false);
   const displayed = showAll ? favorites : favorites.slice(0, 8);
 
@@ -1982,7 +2087,7 @@ function FavoritesWidget({ favorites, favSort, setFavSort, favFilter, setFavFilt
       <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
         <div className="flex items-center gap-2">
           <Star className="w-5 h-5 text-yellow-500 fill-yellow-500" />
-          <h2 className="text-lg font-semibold">Mes Favoris</h2>
+          <h2 className="text-lg font-semibold">{lang === "en" ? "My Favorites" : "Mes Favoris"}</h2>
           {favorites.length > 0 && (
             <span className="text-xs bg-white/10 text-muted-foreground px-2 py-0.5 rounded-full">{favorites.length}</span>
           )}
@@ -1990,7 +2095,7 @@ function FavoritesWidget({ favorites, favSort, setFavSort, favFilter, setFavFilt
         <div className="flex items-center gap-2">
           {/* Filter */}
           <div className="flex rounded-lg bg-white/5 p-0.5 gap-0.5">
-            {([["all", "Tous"], ["profit", "📈"], ["loss", "📉"]] as const).map(([val, label]) => (
+            {([["all", lang === "en" ? "All" : "Tous"], ["profit", "📈"], ["loss", "📉"]] as ["all"|"profit"|"loss", string][]).map(([val, label]) => (
               <button key={val} onClick={() => setFavFilter(val)}
                 className={cn("px-2 py-1 rounded text-xs transition-colors", favFilter === val ? "bg-primary/20 text-primary" : "text-muted-foreground hover:text-foreground")}
               >{label}</button>
@@ -2003,17 +2108,17 @@ function FavoritesWidget({ favorites, favSort, setFavSort, favFilter, setFavFilt
             <option value="change_asc">Perf ↑</option>
             <option value="alpha">A → Z</option>
           </select>
-          <Link href="/favorites" className="text-xs text-muted-foreground hover:text-foreground transition-colors">Gérer →</Link>
+          <Link href="/favorites" className="text-xs text-muted-foreground hover:text-foreground transition-colors">{lang === "en" ? "Manage →" : "Gérer →"}</Link>
         </div>
       </div>
 
       {favorites.length === 0 ? (
         <div className="text-center py-10 text-muted-foreground">
           <Star className="w-12 h-12 mx-auto mb-3 opacity-30" />
-          <p className="font-medium">Aucun actif suivi</p>
-          <p className="text-sm mt-1">Ajoutez des favoris depuis la page Marchés ou Analyse</p>
+          <p className="font-medium">{lang === "en" ? "No assets tracked" : "Aucun actif suivi"}</p>
+          <p className="text-sm mt-1">{lang === "en" ? "Add favorites from the Markets or Analysis page" : "Ajoutez des favoris depuis la page Marchés ou Analyse"}</p>
           <Link href="/markets" className="inline-flex items-center gap-1 text-primary text-sm mt-3 hover:underline">
-            <Plus className="w-4 h-4" /> Explorer les marchés
+            <Plus className="w-4 h-4" /> {lang === "en" ? "Explore markets" : "Explorer les marchés"}
           </Link>
         </div>
       ) : (
@@ -2027,7 +2132,7 @@ function FavoritesWidget({ favorites, favSort, setFavSort, favFilter, setFavFilt
             <button onClick={() => setShowAll(!showAll)}
               className="w-full mt-3 text-sm text-muted-foreground hover:text-foreground transition-colors py-2 rounded-lg hover:bg-white/5 flex items-center justify-center gap-1"
             >
-              {showAll ? <><ChevronUp className="w-4 h-4" /> Réduire</> : <><ChevronDown className="w-4 h-4" /> +{favorites.length - 8} autres actifs</>}
+              {showAll ? <><ChevronUp className="w-4 h-4" /> {lang === "en" ? "Collapse" : "Réduire"}</> : <><ChevronDown className="w-4 h-4" /> +{favorites.length - 8} {lang === "en" ? "more assets" : "autres actifs"}</>}
             </button>
           )}
         </>
@@ -2048,11 +2153,12 @@ function NewsWidget({ marketNews, isLoadingNews, newsFilter, setNewsFilter, hasF
   hasFavorites: boolean;
   onRefresh: () => void;
 }) {
+  const { lang } = useLanguage();
   const timeAgo = (ts: number) => {
     const diff = (Date.now() / 1000) - ts;
     if (diff < 3600) return `${Math.floor(diff / 60)}m`;
     if (diff < 86400) return `${Math.floor(diff / 3600)}h`;
-    return `${Math.floor(diff / 86400)}j`;
+    return `${Math.floor(diff / 86400)}${lang === "en" ? "d" : "j"}`;
   };
 
   return (
@@ -2060,12 +2166,12 @@ function NewsWidget({ marketNews, isLoadingNews, newsFilter, setNewsFilter, hasF
       <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
         <div className="flex items-center gap-2">
           <Newspaper className="w-5 h-5 text-primary" />
-          <h2 className="text-lg font-semibold">Actualités</h2>
+          <h2 className="text-lg font-semibold">{lang === "en" ? "News" : "Actualités"}</h2>
         </div>
         <div className="flex items-center gap-2">
           {hasFavorites && (
             <div className="flex rounded-lg bg-white/5 p-0.5 gap-0.5">
-              {([["all", "Tout"], ["mine", "Mes actifs"]] as const).map(([val, label]) => (
+              {([["all", lang === "en" ? "All" : "Tout"], ["mine", lang === "en" ? "My assets" : "Mes actifs"]] as ["all"|"mine", string][]).map(([val, label]) => (
                 <button key={val} onClick={() => setNewsFilter(val)}
                   className={cn("px-2 py-1 rounded text-xs transition-colors", newsFilter === val ? "bg-primary/20 text-primary" : "text-muted-foreground hover:text-foreground")}
                 >{label}</button>
@@ -2088,7 +2194,7 @@ function NewsWidget({ marketNews, isLoadingNews, newsFilter, setNewsFilter, hasF
               <div className="p-4 rounded-xl bg-primary/10 border border-primary/20 h-full">
                 <div className="flex items-center gap-2 mb-3">
                   <Bot className="w-4 h-4 text-primary" />
-                  <span className="text-xs font-semibold text-primary uppercase tracking-wider">Résumé IA</span>
+                  <span className="text-xs font-semibold text-primary uppercase tracking-wider">{lang === "en" ? "AI Summary" : "Résumé IA"}</span>
                 </div>
                 {marketNews.summary_points ? (
                   <div className="space-y-3">
@@ -2119,7 +2225,7 @@ function NewsWidget({ marketNews, isLoadingNews, newsFilter, setNewsFilter, hasF
                 )}
                 {marketNews.generated_at && (
                   <p className="text-[10px] text-muted-foreground mt-3">
-                    Généré le {new Date(marketNews.generated_at).toLocaleString("fr-FR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
+                    {lang === "en" ? "Generated on" : "Généré le"} {new Date(marketNews.generated_at).toLocaleString(lang === "en" ? "en-US" : "fr-FR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
                   </p>
                 )}
               </div>
@@ -2130,7 +2236,7 @@ function NewsWidget({ marketNews, isLoadingNews, newsFilter, setNewsFilter, hasF
           <div className={cn((marketNews.summary_points || marketNews.summary) ? "lg:col-span-3" : "lg:col-span-5")}>
             <div className="space-y-2 max-h-[360px] overflow-y-auto pr-1">
               {(marketNews.news || []).length === 0 ? (
-                <p className="text-center text-sm text-muted-foreground py-6">Aucune actualité pour vos actifs</p>
+                <p className="text-center text-sm text-muted-foreground py-6">{lang === "en" ? "No news for your assets" : "Aucune actualité pour vos actifs"}</p>
               ) : (
                 (marketNews.news || []).slice(0, 12).map((item, i) => (
                   <a key={i} href={item.link} target="_blank" rel="noopener noreferrer"
@@ -2159,7 +2265,7 @@ function NewsWidget({ marketNews, isLoadingNews, newsFilter, setNewsFilter, hasF
       ) : (
         <div className="text-center py-8 text-muted-foreground">
           <Newspaper className="w-8 h-8 mx-auto mb-2 opacity-30" />
-          <p className="text-sm">Cliquez sur actualiser pour charger les actualités</p>
+          <p className="text-sm">{lang === "en" ? "Click refresh to load news" : "Cliquez sur actualiser pour charger les actualités"}</p>
         </div>
       )}
     </div>
@@ -2175,21 +2281,22 @@ function TradingStatsWidget({ stats, balance, formatCurrency }: {
   balance: WalletBalance | null;
   formatCurrency: (v: number) => string;
 }) {
+  const { lang } = useLanguage();
   return (
     <div className="glass-card p-5">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <Target className="w-5 h-5 text-primary" />
-          <h2 className="text-lg font-semibold">Statistiques Trading</h2>
+          <h2 className="text-lg font-semibold">{lang === "en" ? "Trading Statistics" : "Statistiques Trading"}</h2>
         </div>
-        <Link href="/wallet" className="text-xs text-muted-foreground hover:text-foreground transition-colors">Voir le wallet →</Link>
+        <Link href="/wallet" className="text-xs text-muted-foreground hover:text-foreground transition-colors">{lang === "en" ? "View wallet →" : "Voir le wallet →"}</Link>
       </div>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
-          { label: "Win Rate",     value: `${stats?.win_rate || 0}%`,              color: (stats?.win_rate || 0) >= 50 ? "text-profit" : "text-loss" },
-          { label: "Total trades", value: String(stats?.total_trades || 0),         color: "text-foreground" },
-          { label: "P&L total",    value: formatCurrency(stats?.total_pnl || 0),    color: (stats?.total_pnl || 0) >= 0 ? "text-profit" : "text-loss" },
-          { label: "Solde",        value: formatCurrency(balance?.balance || 0),    color: "text-foreground" },
+          { label: "Win Rate",                                       value: `${stats?.win_rate || 0}%`,           color: (stats?.win_rate || 0) >= 50 ? "text-profit" : "text-loss" },
+          { label: lang === "en" ? "Total trades" : "Total trades",  value: String(stats?.total_trades || 0),    color: "text-foreground" },
+          { label: "P&L total",                                      value: formatCurrency(stats?.total_pnl || 0), color: (stats?.total_pnl || 0) >= 0 ? "text-profit" : "text-loss" },
+          { label: lang === "en" ? "Balance" : "Solde",              value: formatCurrency(balance?.balance || 0), color: "text-foreground" },
         ].map(item => (
           <div key={item.label} className="p-4 rounded-xl bg-white/5">
             <p className="text-xs text-muted-foreground mb-1">{item.label}</p>
@@ -2209,15 +2316,16 @@ function OpenPositionsWidget({ positions, formatCurrency }: {
   positions: Position[];
   formatCurrency: (v: number) => string;
 }) {
+  const { lang } = useLanguage();
   return (
     <div className="glass-card p-5">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <Layers className="w-5 h-5 text-primary" />
-          <h2 className="text-lg font-semibold">Positions Ouvertes</h2>
+          <h2 className="text-lg font-semibold">{lang === "en" ? "Open Positions" : "Positions Ouvertes"}</h2>
           <span className="text-xs bg-primary/20 text-primary px-2 py-0.5 rounded-full">{positions.length}</span>
         </div>
-        <Link href="/trading" className="text-xs text-muted-foreground hover:text-foreground transition-colors">Tout voir →</Link>
+        <Link href="/trading" className="text-xs text-muted-foreground hover:text-foreground transition-colors">{lang === "en" ? "View all →" : "Tout voir →"}</Link>
       </div>
       <div className="space-y-2">
         {positions.slice(0, 5).map((pos) => {
@@ -2237,7 +2345,7 @@ function OpenPositionsWidget({ positions, formatCurrency }: {
                   <p className={cn("font-semibold text-sm", isProfit ? "text-profit" : "text-loss")}>
                     {isProfit ? "+" : ""}{formatCurrency(pnl)}
                   </p>
-                  <p className="text-xs text-muted-foreground">Entrée {formatCurrency(pos.entry_price)}</p>
+                  <p className="text-xs text-muted-foreground">{lang === "en" ? "Entry" : "Entrée"} {formatCurrency(pos.entry_price)}</p>
                 </div>
               </div>
             </Link>
@@ -2253,7 +2361,15 @@ function OpenPositionsWidget({ positions, formatCurrency }: {
 // ─────────────────────────────────────────────────────────────────────────────
 
 function QuickActionsWidget({ isPremium }: { isPremium: boolean }) {
-  const actions = [
+  const { lang } = useLanguage();
+  const actions = lang === "en" ? [
+    { href: "/analysis",  icon: <BarChart3 className="w-5 h-5" />,  label: "Analyze",      sub: "Asset" },
+    { href: "/markets",   icon: <Globe className="w-5 h-5" />,      label: "Markets",      sub: "Explore" },
+    { href: "/scanner",   icon: <Activity className="w-5 h-5" />,   label: "Scanner",      sub: "Opportunities" },
+    { href: "/assistant", icon: <Bot className="w-5 h-5" />,        label: "AI Assistant", sub: "Advice" },
+    { href: "/trading",   icon: <TrendingUp className="w-5 h-5" />, label: "Positions",    sub: "Paper trading" },
+    { href: "/favorites", icon: <Star className="w-5 h-5" />,       label: "Favorites",    sub: "Watchlist" },
+  ] : [
     { href: "/analysis",  icon: <BarChart3 className="w-5 h-5" />,  label: "Analyser",     sub: "Actif" },
     { href: "/markets",   icon: <Globe className="w-5 h-5" />,      label: "Marchés",      sub: "Explorer" },
     { href: "/scanner",   icon: <Activity className="w-5 h-5" />,   label: "Scanner",      sub: "Opportunités" },
@@ -2264,7 +2380,7 @@ function QuickActionsWidget({ isPremium }: { isPremium: boolean }) {
 
   return (
     <div className="glass-card p-5">
-      <h2 className="text-lg font-semibold mb-4">Actions Rapides</h2>
+      <h2 className="text-lg font-semibold mb-4">{lang === "en" ? "Quick Actions" : "Actions Rapides"}</h2>
       <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
         {actions.map(a => (
           <Link key={a.href} href={a.href}>
