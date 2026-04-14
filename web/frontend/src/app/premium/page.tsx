@@ -24,6 +24,7 @@ import {
 import { cn } from "@/lib/utils";
 import { usePremium } from "@/lib/PremiumContext";
 import { premiumAPI, PremiumFeatures, PremiumRequest } from "@/lib/api";
+import { useLanguage } from "@/lib/LanguageContext";
 
 const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   rocket: Rocket,
@@ -38,6 +39,7 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
 
 export default function PremiumPage() {
   const { isPremium, isAdmin, premiumInfo } = usePremium();
+  const { t, lang } = useLanguage();
   const [features, setFeatures] = useState<PremiumFeatures | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [message, setMessage] = useState("");
@@ -73,7 +75,7 @@ export default function PremiumPage() {
       setMessage("");
       loadData();
     } catch (error: any) {
-      alert(error.message || "Erreur lors de l'envoi");
+      alert(error.message || "Error sending message");
     } finally {
       setIsSending(false);
     }
@@ -102,41 +104,39 @@ export default function PremiumPage() {
           <h1 className="text-3xl font-bold mb-2">
             {isAdmin ? (
               <span className="bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
-                Compte Admin
+                {t("prem_account_admin")}
               </span>
             ) : (
               <span className="bg-gradient-to-r from-yellow-400 to-orange-400 bg-clip-text text-transparent">
-                Compte Premium
+                {t("prem_account_premium")}
               </span>
             )}
           </h1>
           <p className="text-muted-foreground mb-6">
-            {isAdmin
-              ? "Vous avez acces a toutes les fonctionnalites en tant qu'administrateur"
-              : "Vous beneficiez de toutes les fonctionnalites Premium"}
+            {isAdmin ? t("prem_admin_desc") : t("prem_user_desc")}
           </p>
 
           {premiumInfo && (
             <div className="flex justify-center gap-8 text-sm">
               {premiumInfo.since && (
                 <div>
-                  <p className="text-muted-foreground">Membre depuis</p>
+                  <p className="text-muted-foreground">{t("prem_member_since")}</p>
                   <p className="font-semibold">
-                    {new Date(premiumInfo.since).toLocaleDateString("fr-FR")}
+                    {new Date(premiumInfo.since).toLocaleDateString(lang === "en" ? "en-US" : "fr-FR")}
                   </p>
                 </div>
               )}
               {premiumInfo.expires ? (
                 <div>
-                  <p className="text-muted-foreground">Expire le</p>
+                  <p className="text-muted-foreground">{t("prem_expires")}</p>
                   <p className="font-semibold">
-                    {new Date(premiumInfo.expires).toLocaleDateString("fr-FR")}
+                    {new Date(premiumInfo.expires).toLocaleDateString(lang === "en" ? "en-US" : "fr-FR")}
                   </p>
                 </div>
               ) : (
                 <div>
-                  <p className="text-muted-foreground">Duree</p>
-                  <p className="font-semibold text-green-500">A vie</p>
+                  <p className="text-muted-foreground">{t("prem_duration")}</p>
+                  <p className="font-semibold text-green-500">{t("prem_lifetime")}</p>
                 </div>
               )}
             </div>
@@ -145,7 +145,7 @@ export default function PremiumPage() {
 
         {/* Features list */}
         <div className="glass-card p-6">
-          <h2 className="text-xl font-bold mb-4">Vos avantages</h2>
+          <h2 className="text-xl font-bold mb-4">{t("prem_your_benefits")}</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {features?.benefits.map((benefit, index) => {
               const Icon = iconMap[benefit.icon] || Sparkles;
@@ -191,14 +191,13 @@ export default function PremiumPage() {
           </motion.div>
 
           <h1 className="text-4xl font-bold mb-4">
-            Passez a{" "}
+            {t("prem_upgrade_title").split("Premium")[0]}
             <span className="bg-gradient-to-r from-yellow-400 to-orange-400 bg-clip-text text-transparent">
               Premium
             </span>
           </h1>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            Debloquez tout le potentiel de TDB avec notre offre Premium. Analyses avancees,
-            outils professionnels et support prioritaire.
+            {t("prem_upgrade_sub")}
           </p>
         </div>
       </motion.div>
@@ -210,37 +209,37 @@ export default function PremiumPage() {
         transition={{ delay: 0.1 }}
         className="glass-card p-6"
       >
-        <h2 className="text-2xl font-bold mb-6 text-center">Comparatif des offres</h2>
+        <h2 className="text-2xl font-bold mb-6 text-center">{t("prem_comparison")}</h2>
 
         <div className="grid grid-cols-3 gap-4">
           {/* Header */}
           <div className="p-4">
-            <p className="text-muted-foreground text-sm">Fonctionnalite</p>
+            <p className="text-muted-foreground text-sm">{t("prem_feature_col")}</p>
           </div>
           <div className="p-4 text-center rounded-t-xl bg-white/5">
             <p className="text-lg font-bold">Free</p>
-            <p className="text-sm text-muted-foreground">Gratuit</p>
+            <p className="text-sm text-muted-foreground">{t("prem_free_label")}</p>
           </div>
           <div className="p-4 text-center rounded-t-xl bg-gradient-to-r from-yellow-500/20 to-orange-500/20 border-2 border-yellow-500/30">
             <div className="flex items-center justify-center gap-2">
               <Crown className="w-5 h-5 text-yellow-400" />
               <p className="text-lg font-bold text-yellow-400">Premium</p>
             </div>
-            <p className="text-sm font-semibold text-yellow-400">5€ / mois</p>
+            <p className="text-sm font-semibold text-yellow-400">5€ / {lang === "en" ? "month" : "mois"}</p>
           </div>
 
           {/* Features */}
           {[
-            { name: "Positions simultanees", free: "5", premium: "50" },
-            { name: "Favoris", free: "10", premium: "100" },
-            { name: "Messages IA par jour", free: "10", premium: "Illimite" },
+            { name: t("prem_feat_positions"), free: "5", premium: "50" },
+            { name: t("prem_feat_favorites"), free: "10", premium: "100" },
+            { name: t("prem_feat_ai_msgs"), free: "10", premium: t("prem_unlimited") },
             { name: "Backtest Manager", free: false, premium: true },
-            { name: "Analyse Geopolitique", free: false, premium: true },
-            { name: "Points Pivots avances", free: "Standard seulement", premium: "Toutes les methodes" },
-            { name: "Palmares PER", free: "Top 10", premium: "Top 50" },
-            { name: "Calendrier Economique", free: "7 jours", premium: "30 jours" },
-            { name: "Alertes Prix", free: false, premium: true },
-            { name: "Support Prioritaire", free: false, premium: true },
+            { name: t("prem_feat_geopolitics"), free: false, premium: true },
+            { name: t("prem_feat_pivots"), free: t("prem_feat_std_only"), premium: t("prem_feat_all_methods") },
+            { name: t("prem_feat_per"), free: "Top 10", premium: "Top 50" },
+            { name: t("prem_feat_calendar"), free: lang === "en" ? "7 days" : "7 jours", premium: lang === "en" ? "30 days" : "30 jours" },
+            { name: t("prem_feat_alerts"), free: false, premium: true },
+            { name: t("prem_feat_support"), free: false, premium: true },
           ].map((feature, index) => (
             <div key={index} className="contents">
               <div className="p-4 border-t border-white/10 flex items-center">
@@ -311,14 +310,28 @@ export default function PremiumPage() {
           <div className="w-14 h-14 mx-auto mb-4 rounded-full bg-gradient-to-r from-yellow-500/20 to-orange-500/20 flex items-center justify-center">
             <Sparkles className="w-7 h-7 text-yellow-400" />
           </div>
-          <h2 className="text-2xl font-bold mb-3">Pourquoi un abonnement ?</h2>
-          <p className="text-muted-foreground leading-relaxed mb-4">
-            TDB est un projet indépendant, développé et maintenu par une seule personne. L'abonnement Premium à{" "}
-            <span className="text-yellow-400 font-semibold">5€ / mois</span> couvre les frais de serveur, de base de données et d'API (données financières en temps réel, IA Groq, etc.).
-          </p>
-          <p className="text-muted-foreground leading-relaxed">
-            En passant Premium, vous aidez directement à garder la plateforme en ligne et à financer de nouvelles fonctionnalités. Merci pour votre soutien !
-          </p>
+          <h2 className="text-2xl font-bold mb-3">{t("prem_why_title")}</h2>
+          {lang === "en" ? (
+            <>
+              <p className="text-muted-foreground leading-relaxed mb-4">
+                TDB is an independent project, developed and maintained by a single person. The Premium subscription at{" "}
+                <span className="text-yellow-400 font-semibold">€5 / month</span> covers server, database and API costs (real-time financial data, Groq AI, etc.).
+              </p>
+              <p className="text-muted-foreground leading-relaxed">
+                By going Premium, you directly help keep the platform online and fund new features. Thank you for your support!
+              </p>
+            </>
+          ) : (
+            <>
+              <p className="text-muted-foreground leading-relaxed mb-4">
+                TDB est un projet indépendant, développé et maintenu par une seule personne. L'abonnement Premium à{" "}
+                <span className="text-yellow-400 font-semibold">5€ / mois</span> couvre les frais de serveur, de base de données et d'API (données financières en temps réel, IA Groq, etc.).
+              </p>
+              <p className="text-muted-foreground leading-relaxed">
+                En passant Premium, vous aidez directement à garder la plateforme en ligne et à financer de nouvelles fonctionnalités. Merci pour votre soutien !
+              </p>
+            </>
+          )}
         </div>
       </motion.div>
 
@@ -334,19 +347,19 @@ export default function PremiumPage() {
             <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-r from-yellow-500/20 to-orange-500/20 flex items-center justify-center">
               <MessageSquare className="w-8 h-8 text-yellow-400" />
             </div>
-            <h2 className="text-2xl font-bold mb-2">Obtenir Premium</h2>
+            <h2 className="text-2xl font-bold mb-2">{t("prem_get_premium")}</h2>
             <p className="text-muted-foreground">
-              Envoyez un message pour obtenir votre accès Premium à <span className="text-yellow-400 font-semibold">5€ / mois</span>. Un admin vous répondra rapidement.
+              {t("prem_contact_desc")} <span className="text-yellow-400 font-semibold">5€ / {lang === "en" ? "month" : "mois"}</span>. {t("prem_contact_admin")}
             </p>
           </div>
 
           {sendSuccess ? (
             <div className="p-6 rounded-xl bg-green-500/20 border border-green-500/30 text-center">
               <CheckCircle className="w-12 h-12 text-green-500 mx-auto mb-4" />
-              <h3 className="text-lg font-semibold mb-2">Message envoyé !</h3>
-              <p className="text-muted-foreground">Un administrateur vous contactera bientôt.</p>
+              <h3 className="text-lg font-semibold mb-2">{t("prem_sent_title")}</h3>
+              <p className="text-muted-foreground">{t("prem_sent_desc")}</p>
               <button onClick={() => setSendSuccess(false)} className="mt-4 text-sm text-primary hover:underline">
-                Envoyer un autre message
+                {t("prem_send_another")}
               </button>
             </div>
           ) : (
@@ -354,7 +367,7 @@ export default function PremiumPage() {
               <textarea
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
-                placeholder="Bonjour, je suis intéressé par l'offre Premium..."
+                placeholder={t("prem_placeholder")}
                 className="w-full h-32 px-4 py-3 rounded-xl bg-white/5 border border-white/10 focus:border-primary focus:outline-none resize-none"
               />
               <button
@@ -363,7 +376,7 @@ export default function PremiumPage() {
                 className="w-full btn-primary flex items-center justify-center gap-2 py-3"
               >
                 {isSending ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
-                Envoyer ma demande
+                {t("prem_send_btn")}
               </button>
             </div>
           )}
@@ -378,7 +391,7 @@ export default function PremiumPage() {
           transition={{ delay: 0.5 }}
           className="glass-card p-6"
         >
-          <h2 className="text-lg font-bold mb-4">Mes demandes</h2>
+          <h2 className="text-lg font-bold mb-4">{t("prem_my_requests")}</h2>
           <div className="space-y-3">
             {myRequests.map((req) => (
               <div
@@ -397,22 +410,22 @@ export default function PremiumPage() {
                     <p className="text-sm mb-2">{req.message}</p>
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
                       <Clock className="w-3 h-3" />
-                      {new Date(req.created_at).toLocaleDateString("fr-FR")}
+                      {new Date(req.created_at).toLocaleDateString(lang === "en" ? "en-US" : "fr-FR")}
                     </div>
                   </div>
                   <div>
                     {req.status === "pending" ? (
-                      <span className="px-2 py-1 rounded-full text-xs bg-yellow-500/20 text-yellow-400">En attente</span>
+                      <span className="px-2 py-1 rounded-full text-xs bg-yellow-500/20 text-yellow-400">{t("prem_status_pending")}</span>
                     ) : req.status === "approved" ? (
-                      <span className="px-2 py-1 rounded-full text-xs bg-green-500/20 text-green-400">Approuvé</span>
+                      <span className="px-2 py-1 rounded-full text-xs bg-green-500/20 text-green-400">{t("prem_status_approved")}</span>
                     ) : (
-                      <span className="px-2 py-1 rounded-full text-xs bg-red-500/20 text-red-400">Refusé</span>
+                      <span className="px-2 py-1 rounded-full text-xs bg-red-500/20 text-red-400">{t("prem_status_rejected")}</span>
                     )}
                   </div>
                 </div>
                 {req.admin_response && (
                   <div className="mt-3 pt-3 border-t border-white/10">
-                    <p className="text-xs text-muted-foreground mb-1">Réponse admin :</p>
+                    <p className="text-xs text-muted-foreground mb-1">{t("prem_admin_reply")}</p>
                     <p className="text-sm">{req.admin_response}</p>
                   </div>
                 )}

@@ -411,7 +411,7 @@ export default function AssistantPage() {
                     : "text-muted-foreground"
                 )}
               >
-                {new Date(message.created_at).toLocaleTimeString("fr-FR", {
+                {new Date(message.created_at).toLocaleTimeString(lang === "en" ? "en-US" : "fr-FR", {
                   hour: "2-digit",
                   minute: "2-digit",
                 })}

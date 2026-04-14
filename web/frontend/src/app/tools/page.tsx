@@ -684,6 +684,7 @@ function getRegionImpact(analysis: string, keywords: string[]): "high" | "medium
 }
 
 function GeopoliticalTab() {
+  const { t } = useLanguage();
   const formatCurrency = useFormatCurrency();
   const [data, setData] = useState<GeopoliticalData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -809,16 +810,16 @@ function GeopoliticalTab() {
           <div className="glass-card p-6">
             <div className="flex items-center gap-2 mb-6">
               <Globe className="w-5 h-5 text-primary" />
-              <h2 className="text-lg font-semibold">Impact par Région</h2>
+              <h2 className="text-lg font-semibold">{t("tools_regional_impact")}</h2>
             </div>
 
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
               {REGIONS.map((region) => {
                 const impact = getRegionImpact(data.analysis, region.keywords);
                 const impactConfig = {
-                  high: { label: "Élevé", color: "text-red-400", bg: "bg-red-500/10 border-red-500/30", bar: "bg-red-500", width: "w-full" },
-                  medium: { label: "Modéré", color: "text-yellow-400", bg: "bg-yellow-500/10 border-yellow-500/30", bar: "bg-yellow-500", width: "w-2/3" },
-                  low: { label: "Faible", color: "text-green-400", bg: "bg-green-500/10 border-green-500/30", bar: "bg-green-500", width: "w-1/3" },
+                  high: { label: t("tools_level_high"), color: "text-red-400", bg: "bg-red-500/10 border-red-500/30", bar: "bg-red-500", width: "w-full" },
+                  medium: { label: t("tools_level_medium"), color: "text-yellow-400", bg: "bg-yellow-500/10 border-yellow-500/30", bar: "bg-yellow-500", width: "w-2/3" },
+                  low: { label: t("tools_level_low"), color: "text-green-400", bg: "bg-green-500/10 border-green-500/30", bar: "bg-green-500", width: "w-1/3" },
                 }[impact];
 
                 return (
@@ -838,7 +839,7 @@ function GeopoliticalTab() {
             </div>
 
             <p className="text-xs text-muted-foreground mt-4">
-              Impact estimé basé sur la fréquence de mention dans l'analyse IA
+              {t("tools_impact_est")}
             </p>
           </div>
 
