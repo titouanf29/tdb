@@ -26,6 +26,7 @@ import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/AuthContext";
 import { usePremium } from "@/lib/PremiumContext";
 import { adminAPI, AdminNotification } from "@/lib/api";
+import { useLanguage } from "@/lib/LanguageContext";
 
 const NOTIF_ICONS: Record<string, React.ReactNode> = {
   new_user: <UserPlus className="w-3.5 h-3.5 text-profit" />,
@@ -40,6 +41,7 @@ const NOTIF_COLORS: Record<string, string> = {
 };
 
 export function Header({ onMenuToggle }: { onMenuToggle?: () => void }) {
+  const { t, lang } = useLanguage();
   const { user, logout } = useAuth();
   const { isPremium, isAdmin } = usePremium();
   const router = useRouter();
@@ -115,7 +117,7 @@ export function Header({ onMenuToggle }: { onMenuToggle?: () => void }) {
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Rechercher un actif... (ex: AAPL, BTC)"
+            placeholder={t("header_search_ph")}
             className="w-full input pl-10 py-2 text-sm"
           />
           <kbd className="absolute right-3 top-1/2 -translate-y-1/2 hidden sm:inline-flex items-center gap-1 px-2 py-0.5 text-xs text-muted-foreground bg-secondary rounded">
@@ -130,10 +132,10 @@ export function Header({ onMenuToggle }: { onMenuToggle?: () => void }) {
         <Link
           href="/"
           className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors"
-          title="Page d'accueil"
+          title={t("header_home")}
         >
           <Home className="w-3.5 h-3.5" />
-          <span>Accueil</span>
+          <span>{t("header_home")}</span>
         </Link>
         {/* Connection status - hidden on mobile */}
         <div
@@ -147,12 +149,12 @@ export function Header({ onMenuToggle }: { onMenuToggle?: () => void }) {
           {isConnected ? (
             <>
               <Wifi className="w-3.5 h-3.5" />
-              <span>Connecté</span>
+              <span>{t("header_connected")}</span>
             </>
           ) : (
             <>
               <WifiOff className="w-3.5 h-3.5" />
-              <span>Déconnecté</span>
+              <span>{t("header_disconnected")}</span>
             </>
           )}
         </div>
@@ -200,20 +202,20 @@ export function Header({ onMenuToggle }: { onMenuToggle?: () => void }) {
                 className="absolute right-0 top-12 w-[calc(100vw-2rem)] sm:w-96 glass-card p-4 z-[200]"
               >
                 <div className="flex items-center justify-between mb-3">
-                  <h3 className="font-semibold">Notifications Admin</h3>
+                  <h3 className="font-semibold">{t("header_notif_title")}</h3>
                   {unreadCount > 0 && (
                     <button
                       onClick={handleMarkAllRead}
                       className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
                     >
                       <CheckCheck className="w-3.5 h-3.5" />
-                      Tout marquer lu
+                      {t("header_notif_mark_all")}
                     </button>
                   )}
                 </div>
                 <div className="space-y-2 max-h-80 overflow-y-auto">
                   {notifications.length === 0 ? (
-                    <p className="text-sm text-muted-foreground text-center py-4">Aucune notification</p>
+                    <p className="text-sm text-muted-foreground text-center py-4">{t("header_notif_empty")}</p>
                   ) : (
                     notifications.slice(0, 20).map((n) => (
                       <div
@@ -236,7 +238,7 @@ export function Header({ onMenuToggle }: { onMenuToggle?: () => void }) {
                           <p className="text-xs font-semibold">{n.title}</p>
                           <p className="text-xs text-muted-foreground truncate">{n.message}</p>
                           <p className="text-[10px] text-muted-foreground mt-0.5">
-                            {new Date(n.created_at).toLocaleString("fr-FR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
+                            {new Date(n.created_at).toLocaleString(lang === "en" ? "en-US" : "fr-FR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
                           </p>
                         </div>
                         {!n.is_read && (
@@ -253,7 +255,7 @@ export function Header({ onMenuToggle }: { onMenuToggle?: () => void }) {
                 </div>
                 <Link href="/admin?tab=users" onClick={() => setShowNotifications(false)}>
                   <button className="w-full mt-3 text-xs text-primary hover:underline">
-                    Aller au panel admin →
+                    {t("header_notif_goto")}
                   </button>
                 </Link>
               </motion.div>
@@ -291,7 +293,7 @@ export function Header({ onMenuToggle }: { onMenuToggle?: () => void }) {
               <Link href="/settings" onClick={() => setShowProfile(false)}>
                 <button className="w-full flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-white/5 text-sm">
                   <Settings className="w-4 h-4" />
-                  Parametres
+                  {t("header_settings")}
                 </button>
               </Link>
               <hr className="my-2 border-white/10" />
@@ -300,7 +302,7 @@ export function Header({ onMenuToggle }: { onMenuToggle?: () => void }) {
                 className="w-full flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-loss/10 text-loss text-sm"
               >
                 <LogOut className="w-4 h-4" />
-                Deconnexion
+                {t("header_logout")}
               </button>
             </motion.div>
           )}

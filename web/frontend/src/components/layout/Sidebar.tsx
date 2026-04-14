@@ -28,46 +28,47 @@ import {
 
 import { cn } from "@/lib/utils";
 import { adminAPI } from "@/lib/api";
+import { useLanguage } from "@/lib/LanguageContext";
 
-const menuGroups = [
+const MENU_GROUPS = [
   {
-    label: "Trading",
+    labelKey: "nav_group_trading",
     items: [
-      { icon: LayoutDashboard, label: "Dashboard",  href: "/dashboard" },
-      { icon: Globe,           label: "Marchés",    href: "/markets" },
-      { icon: BarChart3,       label: "Analyse",    href: "/analysis" },
-      { icon: ScanLine,        label: "Scanner",    href: "/scanner" },
+      { icon: LayoutDashboard, labelKey: "nav_dashboard", href: "/dashboard" },
+      { icon: Globe,           labelKey: "nav_markets",   href: "/markets" },
+      { icon: BarChart3,       labelKey: "nav_analysis",  href: "/analysis" },
+      { icon: ScanLine,        labelKey: "nav_scanner",   href: "/scanner" },
     ],
   },
   {
-    label: "Mon espace",
+    labelKey: "nav_group_space",
     items: [
-      { icon: Briefcase,  label: "Portefeuille", href: "/portfolio" },
-      { icon: TrendingUp, label: "Positions",    href: "/trading" },
-      { icon: Wallet,     label: "Wallet",       href: "/wallet" },
-      { icon: Star,       label: "Favoris",      href: "/favorites" },
+      { icon: Briefcase,  labelKey: "nav_portfolio",  href: "/portfolio" },
+      { icon: TrendingUp, labelKey: "nav_positions",  href: "/trading" },
+      { icon: Wallet,     labelKey: "nav_wallet",     href: "/wallet" },
+      { icon: Star,       labelKey: "nav_favorites",  href: "/favorites" },
     ],
   },
   {
-    label: "IA & Outils",
+    labelKey: "nav_group_ai",
     items: [
-      { icon: Bot,    label: "Assistant IA", href: "/assistant" },
-      { icon: Wrench, label: "Outils",       href: "/tools" },
+      { icon: Bot,    labelKey: "nav_assistant", href: "/assistant" },
+      { icon: Wrench, labelKey: "nav_tools",     href: "/tools" },
     ],
   },
   {
-    label: "Apprendre",
+    labelKey: "nav_group_learn",
     items: [
-      { icon: GraduationCap, label: "Formation", href: "/learn" },
+      { icon: GraduationCap, labelKey: "nav_learn", href: "/learn" },
     ],
   },
   {
-    label: "Communauté",
+    labelKey: "nav_group_community",
     items: [
-      { icon: Users, label: "Communauté", href: "/community" },
+      { icon: Users, labelKey: "nav_community", href: "/community" },
     ],
   },
-];
+] as const;
 
 export function Sidebar({
   mobileOpen = false,
@@ -76,6 +77,7 @@ export function Sidebar({
   mobileOpen?: boolean;
   onMobileClose?: () => void;
 }) {
+  const { t } = useLanguage();
   const [collapsed, setCollapsed] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const pathname = usePathname();
@@ -142,8 +144,8 @@ export function Sidebar({
 
       {/* Navigation */}
       <nav className="flex-1 p-3 space-y-4 overflow-y-auto no-scrollbar">
-        {menuGroups.map((group) => (
-          <div key={group.label}>
+        {MENU_GROUPS.map((group) => (
+          <div key={group.labelKey}>
             {/* Group label */}
             <AnimatePresence>
               {!collapsed && (
@@ -153,7 +155,7 @@ export function Sidebar({
                   exit={{ opacity: 0 }}
                   className="px-3 mb-1 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/50"
                 >
-                  {group.label}
+                  {t(group.labelKey)}
                 </motion.p>
               )}
             </AnimatePresence>
@@ -191,7 +193,7 @@ export function Sidebar({
                             exit={{ opacity: 0, x: -10 }}
                             className="font-medium text-sm"
                           >
-                            {item.label}
+                            {t(item.labelKey)}
                           </motion.span>
                         )}
                       </AnimatePresence>
@@ -245,7 +247,7 @@ export function Sidebar({
                       exit={{ opacity: 0, x: -10 }}
                       className="font-medium text-sm"
                     >
-                      Administration
+                      {t("nav_admin")}
                     </motion.span>
                   )}
                 </AnimatePresence>
@@ -272,7 +274,7 @@ export function Sidebar({
                   exit={{ opacity: 0, x: -10 }}
                   className="text-xs"
                 >
-                  Mentions légales
+                  {t("nav_legal")}
                 </motion.span>
               )}
             </AnimatePresence>
@@ -305,7 +307,7 @@ export function Sidebar({
                   exit={{ opacity: 0, x: -10 }}
                   className="font-medium text-sm"
                 >
-                  Paramètres
+                  {t("nav_settings")}
                 </motion.span>
               )}
             </AnimatePresence>
@@ -320,7 +322,7 @@ export function Sidebar({
           ) : (
             <>
               <ChevronLeft className="w-5 h-5" />
-              <span className="text-sm">Réduire</span>
+              <span className="text-sm">{t("nav_collapse")}</span>
             </>
           )}
         </button>
