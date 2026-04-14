@@ -64,6 +64,7 @@ const CANDLES: CandleData[] = [
 ];
 
 function CandleChart() {
+  const { lang } = useLanguage();
   const [hovered, setHovered] = useState<number | null>(null);
   const W = 520; const H = 200;
   const PAD = { top: 14, right: 10, bottom: 28, left: 60 };
@@ -75,7 +76,7 @@ function CandleChart() {
   const priceLabels = [minP + 300, (minP + maxP) / 2, maxP - 300];
   return (
     <div className="my-4 rounded-xl border border-white/10 bg-white/5 p-4">
-      <p className="text-xs font-semibold text-white/50 mb-3">📊 Graphique BTC/USD — bougies japonaises (fictif) · Survolez pour voir OHLC</p>
+      <p className="text-xs font-semibold text-white/50 mb-3">{lang === "en" ? "📊 BTC/USD chart — candlesticks (fictitious) · Hover to see OHLC" : "📊 Graphique BTC/USD — bougies japonaises (fictif) · Survolez pour voir OHLC"}</p>
       <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ maxHeight: 200 }}>
         {priceLabels.map((p, i) => (
           <g key={i}>
@@ -86,7 +87,7 @@ function CandleChart() {
         <line x1={PAD.left} x2={W - PAD.right} y1={toY(41400)} y2={toY(41400)} stroke="#22d3ee" strokeWidth="1.5" strokeDasharray="6 3" opacity="0.7" />
         <text x={PAD.left + 4} y={toY(41400) - 4} fontSize="9" fill="#22d3ee">Support</text>
         <line x1={PAD.left} x2={W - PAD.right} y1={toY(45600)} y2={toY(45600)} stroke="#a78bfa" strokeWidth="1.5" strokeDasharray="6 3" opacity="0.7" />
-        <text x={PAD.left + 4} y={toY(45600) - 4} fontSize="9" fill="#a78bfa">Résistance</text>
+        <text x={PAD.left + 4} y={toY(45600) - 4} fontSize="9" fill="#a78bfa">{lang === "en" ? "Resistance" : "Résistance"}</text>
         {CANDLES.map((c, i) => {
           const bull = c.c >= c.o;
           const x = PAD.left + i * cw + cw / 2;
@@ -99,14 +100,14 @@ function CandleChart() {
               {isHov && <rect x={PAD.left + i * cw} y={PAD.top} width={cw} height={chartH} fill="rgba(255,255,255,0.05)" rx="2" />}
               <line x1={x} x2={x} y1={toY(c.h)} y2={toY(c.l)} stroke={color} strokeWidth={isHov ? 2 : 1.5} />
               <rect x={x - bodyW / 2} y={bodyTop} width={bodyW} height={bodyH} fill={bull ? 'rgba(52,211,153,0.8)' : 'rgba(248,113,113,0.8)'} stroke={color} strokeWidth="1" rx="1" />
-              <text x={x} y={H - 6} textAnchor="middle" fontSize="8" fill="rgba(255,255,255,0.35)">{c.label}</text>
+              <text x={x} y={H - 6} textAnchor="middle" fontSize="8" fill="rgba(255,255,255,0.35)">{lang === "en" ? c.label.replace('J', 'D') : c.label}</text>
             </g>
           );
         })}
       </svg>
       {hovered !== null && (
         <div className="mt-2 flex gap-3 text-xs font-mono text-white/60 bg-white/5 rounded-lg px-3 py-2">
-          <span className="text-white/40">{CANDLES[hovered].label}</span>
+          <span className="text-white/40">{lang === "en" ? CANDLES[hovered].label.replace('J', 'D') : CANDLES[hovered].label}</span>
           <span>O: <strong className="text-white/80">{CANDLES[hovered].o.toLocaleString()}</strong></span>
           <span>H: <strong className="text-emerald-400">{CANDLES[hovered].h.toLocaleString()}</strong></span>
           <span>L: <strong className="text-red-400">{CANDLES[hovered].l.toLocaleString()}</strong></span>
@@ -119,6 +120,7 @@ function CandleChart() {
 
 const RSI_DATA = [42, 48, 55, 62, 68, 72, 76, 70, 61, 50, 38, 30, 26, 32, 41, 50, 57];
 function RsiChart() {
+  const { lang } = useLanguage();
   const [hovered, setHovered] = useState<number | null>(null);
   const W = 520; const H = 170;
   const PAD = { top: 14, right: 14, bottom: 26, left: 40 };
@@ -129,7 +131,7 @@ function RsiChart() {
   const areaPoints = `${PAD.left},${H - PAD.bottom} ${points} ${toX(RSI_DATA.length - 1)},${H - PAD.bottom}`;
   return (
     <div className="my-4 rounded-xl border border-white/10 bg-white/5 p-4">
-      <p className="text-xs font-semibold text-white/50 mb-3">📈 Indicateur RSI — survolez les points pour voir les valeurs</p>
+      <p className="text-xs font-semibold text-white/50 mb-3">{lang === "en" ? "📈 RSI Indicator — hover over points to see values" : "📈 Indicateur RSI — survolez les points pour voir les valeurs"}</p>
       <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ maxHeight: 170 }}>
         <defs>
           <linearGradient id="rsiGrad" x1="0" x2="0" y1="0" y2="1">
@@ -145,8 +147,8 @@ function RsiChart() {
             <text x={PAD.left - 4} y={toY(v) + 3} textAnchor="end" fontSize="9" fill="rgba(255,255,255,0.4)">{v}</text>
           </g>
         ))}
-        <text x={W - PAD.right + 4} y={toY(75)} fontSize="9" fill="rgba(239,68,68,0.8)">Surachat</text>
-        <text x={W - PAD.right + 4} y={toY(25)} fontSize="9" fill="rgba(52,211,153,0.8)">Survente</text>
+        <text x={W - PAD.right + 4} y={toY(75)} fontSize="9" fill="rgba(239,68,68,0.8)">{lang === "en" ? "Overbought" : "Surachat"}</text>
+        <text x={W - PAD.right + 4} y={toY(25)} fontSize="9" fill="rgba(52,211,153,0.8)">{lang === "en" ? "Oversold" : "Survente"}</text>
         <polygon points={areaPoints} fill="url(#rsiGrad)" />
         <polyline points={points} fill="none" stroke="#6366f1" strokeWidth="2" />
         {RSI_DATA.map((v, i) => (
@@ -160,7 +162,7 @@ function RsiChart() {
       {hovered !== null && (
         <div className="mt-1 text-xs text-center font-mono">
           <span className={RSI_DATA[hovered] > 70 ? 'text-red-400' : RSI_DATA[hovered] < 30 ? 'text-emerald-400' : 'text-white/60'}>
-            RSI = {RSI_DATA[hovered]} — {RSI_DATA[hovered] > 70 ? '⚠️ Surachat' : RSI_DATA[hovered] < 30 ? '✅ Survente' : '— Zone neutre'}
+            RSI = {RSI_DATA[hovered]} — {RSI_DATA[hovered] > 70 ? (lang === "en" ? '⚠️ Overbought' : '⚠️ Surachat') : RSI_DATA[hovered] < 30 ? (lang === "en" ? '✅ Oversold' : '✅ Survente') : (lang === "en" ? '— Neutral zone' : '— Zone neutre')}
           </span>
         </div>
       )}
@@ -169,15 +171,16 @@ function RsiChart() {
 }
 
 function OrderBookViz() {
+  const { lang } = useLanguage();
   const bids = [{ price: 44900, size: 3.2 }, { price: 44850, size: 5.8 }, { price: 44800, size: 9.1 }, { price: 44750, size: 4.3 }, { price: 44700, size: 12.5 }];
   const asks = [{ price: 44950, size: 2.8 }, { price: 45000, size: 6.4 }, { price: 45050, size: 11.3 }, { price: 45100, size: 4.9 }, { price: 45150, size: 8.7 }];
   const maxSize = Math.max(...bids.map(b => b.size), ...asks.map(a => a.size));
   return (
     <div className="my-4 rounded-xl border border-white/10 bg-white/5 p-4">
-      <p className="text-xs font-semibold text-white/50 mb-3">📖 Carnet d&apos;ordres — BTC/USD (fictif)</p>
+      <p className="text-xs font-semibold text-white/50 mb-3">{lang === "en" ? "📖 Order Book — BTC/USD (fictitious)" : "📖 Carnet d'ordres — BTC/USD (fictif)"}</p>
       <div className="grid grid-cols-[1fr_auto_1fr] gap-3 text-xs font-mono">
         <div>
-          <div className="flex justify-between text-white/30 pb-1 border-b border-white/10 mb-1"><span>Bid (Acheteurs)</span><span>BTC</span></div>
+          <div className="flex justify-between text-white/30 pb-1 border-b border-white/10 mb-1"><span>{lang === "en" ? "Bid (Buyers)" : "Bid (Acheteurs)"}</span><span>BTC</span></div>
           {bids.map((b, i) => (
             <div key={i} className="relative flex justify-between py-0.5 overflow-hidden rounded">
               <div className="absolute inset-y-0 left-0 bg-emerald-500/15 rounded" style={{ width: `${(b.size / maxSize) * 100}%` }} />
@@ -191,7 +194,7 @@ function OrderBookViz() {
           <span className="text-amber-400 font-bold text-sm">50$</span>
         </div>
         <div>
-          <div className="flex justify-between text-white/30 pb-1 border-b border-white/10 mb-1"><span>Ask (Vendeurs)</span><span>BTC</span></div>
+          <div className="flex justify-between text-white/30 pb-1 border-b border-white/10 mb-1"><span>{lang === "en" ? "Ask (Sellers)" : "Ask (Vendeurs)"}</span><span>BTC</span></div>
           {asks.map((a, i) => (
             <div key={i} className="relative flex justify-between py-0.5 overflow-hidden rounded">
               <div className="absolute inset-y-0 right-0 bg-red-500/15 rounded" style={{ width: `${(a.size / maxSize) * 100}%` }} />
@@ -206,6 +209,7 @@ function OrderBookViz() {
 }
 
 function TrendViz() {
+  const { lang } = useLanguage();
   const [hov, setHov] = useState<number | null>(null);
   const data = [38, 40, 37, 42, 41, 45, 43, 48, 46, 52, 50, 55, 53, 58, 56, 62, 60, 65];
   const W = 520; const H = 160;
@@ -217,7 +221,7 @@ function TrendViz() {
   const hhIdx = [3, 7, 11, 15, 17]; const hlIdx = [2, 6, 10, 14];
   return (
     <div className="my-4 rounded-xl border border-white/10 bg-white/5 p-4">
-      <p className="text-xs font-semibold text-white/50 mb-3">🚀 Tendance haussière — HH = Higher High, HL = Higher Low</p>
+      <p className="text-xs font-semibold text-white/50 mb-3">{lang === "en" ? "🚀 Uptrend — HH = Higher High, HL = Higher Low" : "🚀 Tendance haussière — HH = Higher High, HL = Higher Low"}</p>
       <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ maxHeight: 160 }}>
         <defs>
           <linearGradient id="trendG" x1="0" x2="0" y1="0" y2="1">
@@ -241,24 +245,25 @@ function TrendViz() {
         ))}
       </svg>
       <div className="flex gap-4 mt-2 text-xs">
-        <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-emerald-400 inline-block" /> HH — Plus-haut croissant</span>
-        <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-indigo-400 inline-block" /> HL — Plus-bas croissant</span>
+        <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-emerald-400 inline-block" /> {lang === "en" ? "HH — Higher High" : "HH — Plus-haut croissant"}</span>
+        <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-indigo-400 inline-block" /> {lang === "en" ? "HL — Higher Low" : "HL — Plus-bas croissant"}</span>
       </div>
     </div>
   );
 }
 
 function StyleCompare() {
+  const { lang } = useLanguage();
   const [active, setActive] = useState<'scalp'|'day'|'swing'>('swing');
   const styles = {
-    scalp: { label: 'Scalping', color: '#f87171', duration: 'Secondes–minutes', tf: '1m / 5m', freq: '10–50/jour', target: '0,1–0,5%', stress: 95, skill: 90 },
-    day:   { label: 'Day Trading', color: '#fbbf24', duration: 'Minutes–heures', tf: '5m / 15m / 1H', freq: '1–5/jour', target: '0,5–2%', stress: 65, skill: 70 },
-    swing: { label: 'Swing Trading', color: '#34d399', duration: 'Jours–semaines', tf: '4H / Daily', freq: '2–10/mois', target: '3–15%', stress: 30, skill: 55 },
+    scalp: { label: 'Scalping', color: '#f87171', duration: lang === "en" ? 'Seconds–minutes' : 'Secondes–minutes', tf: '1m / 5m', freq: lang === "en" ? '10–50/day' : '10–50/jour', target: '0.1–0.5%', stress: 95, skill: 90 },
+    day:   { label: 'Day Trading', color: '#fbbf24', duration: lang === "en" ? 'Minutes–hours' : 'Minutes–heures', tf: '5m / 15m / 1H', freq: lang === "en" ? '1–5/day' : '1–5/jour', target: '0.5–2%', stress: 65, skill: 70 },
+    swing: { label: 'Swing Trading', color: '#34d399', duration: lang === "en" ? 'Days–weeks' : 'Jours–semaines', tf: '4H / Daily', freq: lang === "en" ? '2–10/month' : '2–10/mois', target: '3–15%', stress: 30, skill: 55 },
   };
   const s = styles[active];
   return (
     <div className="my-4 rounded-xl border border-white/10 bg-white/5 p-4 space-y-3">
-      <p className="text-xs font-semibold text-white/50">⚡ Comparer les styles — cliquez pour explorer</p>
+      <p className="text-xs font-semibold text-white/50">{lang === "en" ? "⚡ Compare styles — click to explore" : "⚡ Comparer les styles — cliquez pour explorer"}</p>
       <div className="flex gap-2">
         {(Object.keys(styles) as Array<keyof typeof styles>).map(k => (
           <button key={k} onClick={() => setActive(k)}
@@ -269,14 +274,14 @@ function StyleCompare() {
         ))}
       </div>
       <div className="grid grid-cols-2 gap-2 text-xs">
-        {[['Durée', s.duration], ['Timeframe', s.tf], ['Fréquence', s.freq], ['Objectif/trade', s.target]].map(([label, val]) => (
+        {[[lang === "en" ? 'Duration' : 'Durée', s.duration], ['Timeframe', s.tf], [lang === "en" ? 'Frequency' : 'Fréquence', s.freq], [lang === "en" ? 'Target/trade' : 'Objectif/trade', s.target]].map(([label, val]) => (
           <div key={label} className="bg-white/5 rounded-lg px-3 py-2">
             <div className="text-white/40 mb-0.5">{label}</div>
             <div className="font-semibold" style={{ color: s.color }}>{val}</div>
           </div>
         ))}
       </div>
-      {[['Niveau de stress', s.stress], ['Compétence requise', s.skill]].map(([label, val]) => (
+      {[[lang === "en" ? 'Stress level' : 'Niveau de stress', s.stress], [lang === "en" ? 'Required skill' : 'Compétence requise', s.skill]].map(([label, val]) => (
         <div key={label}>
           <div className="flex justify-between text-xs text-white/50 mb-1"><span>{label}</span><span>{val}%</span></div>
           <div className="h-2 bg-white/10 rounded-full overflow-hidden">
@@ -290,6 +295,7 @@ function StyleCompare() {
 
 // ── SupResChart ───────────────────────────────────────────────────────────────
 function SupResChart() {
+  const { lang } = useLanguage();
   const [hovered, setHovered] = useState<number | null>(null);
   const candles = [
     { o: 100, h: 108, l: 98, c: 105 }, { o: 105, h: 112, l: 103, c: 110 },
@@ -310,12 +316,12 @@ function SupResChart() {
   const support = 104; const resistance = 123;
   return (
     <div className="my-4 rounded-xl border border-white/10 bg-white/5 p-4">
-      <p className="text-xs font-semibold text-white/50 mb-3">🎯 Supports & Résistances — observez les rebonds sur les niveaux clés</p>
+      <p className="text-xs font-semibold text-white/50 mb-3">{lang === "en" ? "🎯 Support & Resistance — observe bounces on key levels" : "🎯 Supports & Résistances — observez les rebonds sur les niveaux clés"}</p>
       <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ maxHeight: 200 }}>
         <line x1={PAD.left} x2={W-PAD.right} y1={toY(support)} y2={toY(support)} stroke="#22d3ee" strokeWidth="2" strokeDasharray="6 3" opacity="0.9" />
         <text x={PAD.left+4} y={toY(support)-4} fontSize="9" fill="#22d3ee" fontWeight="600">Support ~{support}</text>
         <line x1={PAD.left} x2={W-PAD.right} y1={toY(resistance)} y2={toY(resistance)} stroke="#f87171" strokeWidth="2" strokeDasharray="6 3" opacity="0.9" />
-        <text x={PAD.left+4} y={toY(resistance)-4} fontSize="9" fill="#f87171" fontWeight="600">Résistance ~{resistance}</text>
+        <text x={PAD.left+4} y={toY(resistance)-4} fontSize="9" fill="#f87171" fontWeight="600">{lang === "en" ? "Resistance" : "Résistance"} ~{resistance}</text>
         <rect x={PAD.left} y={toY(support+2)} width={chartW} height={toY(support-2)-toY(support+2)} fill="rgba(34,211,238,0.07)" />
         <rect x={PAD.left} y={toY(resistance+2)} width={chartW} height={toY(resistance-2)-toY(resistance+2)} fill="rgba(248,113,113,0.07)" />
         {candles.map((c, i) => {
@@ -353,13 +359,14 @@ function SupResChart() {
 
 // ── RiskRewardViz ─────────────────────────────────────────────────────────────
 function RiskRewardViz() {
+  const { lang } = useLanguage();
   const [ratio, setRatio] = useState<1 | 2 | 3>(2);
   const risk = 100; const reward = risk * ratio;
   const total = risk + reward;
   const riskPct = (risk / total) * 100; const rewardPct = (reward / total) * 100;
   return (
     <div className="my-4 rounded-xl border border-white/10 bg-white/5 p-4 space-y-4">
-      <p className="text-xs font-semibold text-white/50">⚖️ Ratio Risque/Récompense — sélectionnez un ratio</p>
+      <p className="text-xs font-semibold text-white/50">{lang === "en" ? "⚖️ Risk/Reward Ratio — select a ratio" : "⚖️ Ratio Risque/Récompense — sélectionnez un ratio"}</p>
       <div className="flex gap-2">
         {([1, 2, 3] as const).map(r => (
           <button key={r} onClick={() => setRatio(r)}
@@ -370,24 +377,24 @@ function RiskRewardViz() {
       </div>
       <div className="space-y-2">
         <div className="h-8 rounded-lg overflow-hidden flex">
-          <div className="flex items-center justify-center text-xs font-bold text-white transition-all duration-500" style={{ width: `${riskPct}%`, background: '#ef4444' }}>Risque</div>
-          <div className="flex items-center justify-center text-xs font-bold text-white transition-all duration-500" style={{ width: `${rewardPct}%`, background: '#34d399' }}>Récompense</div>
+          <div className="flex items-center justify-center text-xs font-bold text-white transition-all duration-500" style={{ width: `${riskPct}%`, background: '#ef4444' }}>{lang === "en" ? "Risk" : "Risque"}</div>
+          <div className="flex items-center justify-center text-xs font-bold text-white transition-all duration-500" style={{ width: `${rewardPct}%`, background: '#34d399' }}>{lang === "en" ? "Reward" : "Récompense"}</div>
         </div>
         <div className="grid grid-cols-2 gap-3 text-xs">
           <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3 text-center">
             <div className="text-red-400 font-bold text-lg">-{risk}€</div>
-            <div className="text-white/50">Stop Loss (risque)</div>
+            <div className="text-white/50">{lang === "en" ? "Stop Loss (risk)" : "Stop Loss (risque)"}</div>
           </div>
           <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-lg p-3 text-center">
             <div className="text-emerald-400 font-bold text-lg">+{reward}€</div>
-            <div className="text-white/50">Take Profit (objectif)</div>
+            <div className="text-white/50">{lang === "en" ? "Take Profit (target)" : "Take Profit (objectif)"}</div>
           </div>
         </div>
       </div>
       <div className={`p-3 rounded-lg text-xs text-center font-medium ${ratio >= 2 ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30' : 'bg-orange-500/10 text-orange-400 border border-orange-500/30'}`}>
-        {ratio === 1 && "⚠️ 1:1 — Taux de réussite > 50% requis pour être rentable"}
-        {ratio === 2 && "✅ 1:2 — Taux de réussite > 33% requis — recommandé débutants"}
-        {ratio === 3 && "🏆 1:3 — Taux de réussite > 25% requis — excellent ratio"}
+        {ratio === 1 && (lang === "en" ? "⚠️ 1:1 — Win rate > 50% required to be profitable" : "⚠️ 1:1 — Taux de réussite > 50% requis pour être rentable")}
+        {ratio === 2 && (lang === "en" ? "✅ 1:2 — Win rate > 33% required — recommended for beginners" : "✅ 1:2 — Taux de réussite > 33% requis — recommandé débutants")}
+        {ratio === 3 && (lang === "en" ? "🏆 1:3 — Win rate > 25% required — excellent ratio" : "🏆 1:3 — Taux de réussite > 25% requis — excellent ratio")}
       </div>
     </div>
   );
@@ -395,8 +402,21 @@ function RiskRewardViz() {
 
 // ── EmotionCycleViz ───────────────────────────────────────────────────────────
 function EmotionCycleViz() {
+  const { lang } = useLanguage();
   const [hov, setHov] = useState<number | null>(null);
-  const emotions = [
+  const emotions = lang === "en" ? [
+    { label: 'Hope', color: '#fbbf24', x: 50, y: 130 },
+    { label: 'Optimism', color: '#34d399', x: 100, y: 100 },
+    { label: 'Excitement', color: '#34d399', x: 155, y: 65 },
+    { label: 'Euphoria', color: '#22d3ee', x: 210, y: 38 },
+    { label: 'Anxiety', color: '#f87171', x: 265, y: 58 },
+    { label: 'Denial', color: '#f87171', x: 310, y: 84 },
+    { label: 'Fear', color: '#ef4444', x: 355, y: 112 },
+    { label: 'Panic', color: '#dc2626', x: 395, y: 142 },
+    { label: 'Capitulation', color: '#dc2626', x: 430, y: 165 },
+    { label: 'Depression', color: '#9ca3af', x: 465, y: 175 },
+    { label: 'Hope', color: '#fbbf24', x: 500, y: 155 },
+  ] : [
     { label: 'Espoir', color: '#fbbf24', x: 50, y: 130 },
     { label: 'Optimisme', color: '#34d399', x: 100, y: 100 },
     { label: 'Excitation', color: '#34d399', x: 155, y: 65 },
@@ -412,7 +432,7 @@ function EmotionCycleViz() {
   const path = emotions.map((e, i) => `${i === 0 ? 'M' : 'L'}${e.x},${e.y}`).join(' ');
   return (
     <div className="my-4 rounded-xl border border-white/10 bg-white/5 p-4">
-      <p className="text-xs font-semibold text-white/50 mb-3">🧠 Cycle des émotions du marché — survolez les points</p>
+      <p className="text-xs font-semibold text-white/50 mb-3">{lang === "en" ? "🧠 Market emotion cycle — hover over points" : "🧠 Cycle des émotions du marché — survolez les points"}</p>
       <svg viewBox="0 0 550 210" className="w-full" style={{ maxHeight: 210 }}>
         <path d={path} fill="none" stroke="rgba(255,255,255,0.15)" strokeWidth="2" />
         {emotions.map((e, i) => (
@@ -422,13 +442,13 @@ function EmotionCycleViz() {
             {hov !== i && i % 3 === 0 && <text x={e.x} y={i < 5 ? e.y - 10 : e.y + 16} textAnchor="middle" fontSize="8" fill="rgba(255,255,255,0.35)">{e.label}</text>}
           </g>
         ))}
-        <text x="210" y="26" textAnchor="middle" fontSize="9" fill="#22d3ee" fontWeight="600">📈 SOMMET</text>
-        <text x="448" y="195" textAnchor="middle" fontSize="9" fill="#9ca3af" fontWeight="600">📉 CREUX</text>
+        <text x="210" y="26" textAnchor="middle" fontSize="9" fill="#22d3ee" fontWeight="600">{lang === "en" ? "📈 PEAK" : "📈 SOMMET"}</text>
+        <text x="448" y="195" textAnchor="middle" fontSize="9" fill="#9ca3af" fontWeight="600">{lang === "en" ? "📉 TROUGH" : "📉 CREUX"}</text>
         <text x="30" y="205" fontSize="8" fill="rgba(255,255,255,0.2)">Temps →</text>
       </svg>
       {hov !== null && (
         <div className="mt-1 text-xs text-center" style={{ color: emotions[hov].color }}>
-          Émotion : <strong>{emotions[hov].label}</strong>
+          {lang === "en" ? "Emotion:" : "Émotion :"} <strong>{emotions[hov].label}</strong>
         </div>
       )}
     </div>
@@ -437,10 +457,11 @@ function EmotionCycleViz() {
 
 // ── SwingViz ──────────────────────────────────────────────────────────────────
 function SwingViz() {
+  const { lang } = useLanguage();
   const [hov, setHov] = useState<string | null>(null);
   const data = [45, 48, 42, 50, 44, 55, 48, 60, 52, 65, 57, 68];
-  const entries = [{ idx: 2, label: 'Entrée Long' }, { idx: 6, label: 'Entrée Long' }];
-  const exits = [{ idx: 5, label: 'Sortie +14%' }, { idx: 9, label: 'Sortie +25%' }];
+  const entries = [{ idx: 2, label: lang === "en" ? 'Long Entry' : 'Entrée Long' }, { idx: 6, label: lang === "en" ? 'Long Entry' : 'Entrée Long' }];
+  const exits = [{ idx: 5, label: 'Exit +14%' }, { idx: 9, label: 'Exit +25%' }];
   const W = 520; const H = 180;
   const PAD = { top: 20, right: 14, bottom: 26, left: 36 };
   const chartW = W - PAD.left - PAD.right; const chartH = H - PAD.top - PAD.bottom;
@@ -450,7 +471,7 @@ function SwingViz() {
   const pts = data.map((v, i) => `${toX(i)},${toY(v)}`).join(' ');
   return (
     <div className="my-4 rounded-xl border border-white/10 bg-white/5 p-4">
-      <p className="text-xs font-semibold text-white/50 mb-3">📈 Swing Trading — achats aux creux, ventes aux sommets · survolez les flèches</p>
+      <p className="text-xs font-semibold text-white/50 mb-3">{lang === "en" ? "📈 Swing Trading — buy dips, sell peaks · hover over arrows" : "📈 Swing Trading — achats aux creux, ventes aux sommets · survolez les flèches"}</p>
       <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ maxHeight: 180 }}>
         <defs>
           <linearGradient id="swingG" x1="0" x2="0" y1="0" y2="1">
@@ -476,8 +497,8 @@ function SwingViz() {
         ))}
       </svg>
       <div className="flex gap-4 mt-2 text-xs">
-        <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-emerald-400 inline-block" /> Entrée (achat)</span>
-        <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-violet-400 inline-block" /> Sortie (vente)</span>
+        <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-emerald-400 inline-block" /> {lang === "en" ? "Entry (buy)" : "Entrée (achat)"}</span>
+        <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-violet-400 inline-block" /> {lang === "en" ? "Exit (sell)" : "Sortie (vente)"}</span>
       </div>
     </div>
   );
@@ -485,8 +506,13 @@ function SwingViz() {
 
 // ── OrderTypesViz ─────────────────────────────────────────────────────────────
 function OrderTypesViz() {
+  const { lang } = useLanguage();
   const [selected, setSelected] = useState<'market' | 'limit' | 'stop'>('market');
-  const types = {
+  const types = lang === "en" ? {
+    market: { label: 'Market', color: '#6366f1', desc: "Immediate execution at the best available price. Guarantees execution but not the price.", icon: '⚡', level: 100 },
+    limit:  { label: 'Limit', color: '#34d399', desc: "Execution only if price reaches your level. Guarantees the price but not the execution.", icon: '🎯', level: 95 },
+    stop:   { label: 'Stop', color: '#f87171', desc: "Triggered when the price crosses a threshold. Used to cut losses (stop loss).", icon: '🛑', level: 92 },
+  } : {
     market: { label: 'Marché', color: '#6366f1', desc: "Exécution immédiate au meilleur prix disponible. Garantit l'exécution mais pas le prix.", icon: '⚡', level: 100 },
     limit:  { label: 'Limite', color: '#34d399', desc: "Exécution uniquement si le prix atteint votre niveau. Garantit le prix mais pas l'exécution.", icon: '🎯', level: 95 },
     stop:   { label: 'Stop', color: '#f87171', desc: "Déclenché quand le prix franchit un seuil. Utilisé pour couper les pertes (stop loss).", icon: '🛑', level: 92 },
@@ -503,7 +529,7 @@ function OrderTypesViz() {
   const execIdx = selected === 'market' ? 0 : selected === 'limit' ? 6 : 9;
   return (
     <div className="my-4 rounded-xl border border-white/10 bg-white/5 p-4 space-y-3">
-      <p className="text-xs font-semibold text-white/50">📋 Types d'ordres — cliquez pour explorer</p>
+      <p className="text-xs font-semibold text-white/50">{lang === "en" ? "📋 Order types — click to explore" : "📋 Types d'ordres — cliquez pour explorer"}</p>
       <div className="flex gap-2">
         {(Object.keys(types) as Array<keyof typeof types>).map(k => (
           <button key={k} onClick={() => setSelected(k)}
@@ -520,7 +546,7 @@ function OrderTypesViz() {
         <line x1={PAD.left} x2={W-PAD.right} y1={toY(t.level)} y2={toY(t.level)} stroke={t.color} strokeWidth="1.5" strokeDasharray="5 3" />
         <text x={W-PAD.right+4} y={toY(t.level)+4} fontSize="9" fill={t.color}>{t.level}</text>
         <circle cx={toX(execIdx)} cy={toY(priceData[execIdx])} r="5" fill={t.color} />
-        <text x={toX(execIdx)} y={toY(priceData[execIdx])-9} textAnchor="middle" fontSize="9" fill={t.color} fontWeight="600">⚡Exécution</text>
+        <text x={toX(execIdx)} y={toY(priceData[execIdx])-9} textAnchor="middle" fontSize="9" fill={t.color} fontWeight="600">{lang === "en" ? "⚡Execution" : "⚡Exécution"}</text>
       </svg>
       <div className="p-3 rounded-lg text-xs" style={{ background: `${t.color}15`, border: `1px solid ${t.color}30`, color: t.color }}>
         {t.icon} {t.desc}
@@ -531,6 +557,7 @@ function OrderTypesViz() {
 
 // ── PositionSizeViz ───────────────────────────────────────────────────────────
 function PositionSizeViz() {
+  const { lang } = useLanguage();
   const [riskPct, setRiskPct] = useState(2);
   const portfolio = 10000;
   const riskAmount = (portfolio * riskPct) / 100;
@@ -538,9 +565,9 @@ function PositionSizeViz() {
   const color = riskPct <= 2 ? '#34d399' : riskPct <= 3 ? '#fbbf24' : '#f87171';
   return (
     <div className="my-4 rounded-xl border border-white/10 bg-white/5 p-4 space-y-3">
-      <p className="text-xs font-semibold text-white/50">💰 Taille de position — ajustez le % de risque par trade</p>
+      <p className="text-xs font-semibold text-white/50">{lang === "en" ? "💰 Position sizing — adjust the risk % per trade" : "💰 Taille de position — ajustez le % de risque par trade"}</p>
       <div className="flex items-center gap-4">
-        <span className="text-xs text-white/50 whitespace-nowrap">Risque / trade :</span>
+        <span className="text-xs text-white/50 whitespace-nowrap">{lang === "en" ? "Risk / trade:" : "Risque / trade :"}</span>
         <input type="range" min={1} max={5} step={1} value={riskPct} onChange={e => setRiskPct(Number(e.target.value))} className="flex-1 accent-primary" />
         <span className="text-sm font-bold w-8 text-right" style={{ color }}>{riskPct}%</span>
       </div>
@@ -549,24 +576,28 @@ function PositionSizeViz() {
           style={{ width: `${Math.min(riskPct * 10, 50)}%`, background: color, minWidth: 28 }}>
           {riskPct}%
         </div>
-        <div className="flex-1 flex items-center px-3 text-xs text-white/40">Reste du portefeuille</div>
+        <div className="flex-1 flex items-center px-3 text-xs text-white/40">{lang === "en" ? "Rest of portfolio" : "Reste du portefeuille"}</div>
       </div>
       <div className="grid grid-cols-3 gap-2 text-xs text-center">
         <div className="bg-white/5 rounded-lg p-2">
-          <div className="text-white/40 mb-1">Portefeuille</div>
+          <div className="text-white/40 mb-1">{lang === "en" ? "Portfolio" : "Portefeuille"}</div>
           <div className="font-bold text-white">{portfolio.toLocaleString()}€</div>
         </div>
         <div className="rounded-lg p-2" style={{ background: `${color}18`, border: `1px solid ${color}30` }}>
-          <div className="text-white/40 mb-1">Risque max</div>
+          <div className="text-white/40 mb-1">{lang === "en" ? "Max risk" : "Risque max"}</div>
           <div className="font-bold" style={{ color }}>-{riskAmount.toLocaleString()}€</div>
         </div>
         <div className="bg-white/5 rounded-lg p-2">
-          <div className="text-white/40 mb-1">Trades ruine</div>
+          <div className="text-white/40 mb-1">{lang === "en" ? "Ruin trades" : "Trades ruine"}</div>
           <div className="font-bold text-white">~{ruinTrades}</div>
         </div>
       </div>
       <div className={`text-xs p-2 rounded-lg text-center`} style={{ background: `${color}10`, color }}>
-        {riskPct <= 2 ? '✅ Recommandé — gestion conservatrice du risque' : riskPct <= 3 ? '⚠️ Acceptable — surveiller la série de pertes' : '🚨 Risque élevé — peut vider le compte rapidement'}
+        {riskPct <= 2
+          ? (lang === "en" ? '✅ Recommended — conservative risk management' : '✅ Recommandé — gestion conservatrice du risque')
+          : riskPct <= 3
+            ? (lang === "en" ? '⚠️ Acceptable — watch for losing streaks' : '⚠️ Acceptable — surveiller la série de pertes')
+            : (lang === "en" ? '🚨 High risk — can quickly empty the account' : '🚨 Risque élevé — peut vider le compte rapidement')}
       </div>
     </div>
   );
@@ -574,12 +605,13 @@ function PositionSizeViz() {
 
 // ── MarketParticipantsViz ─────────────────────────────────────────────────────
 function MarketParticipantsViz() {
+  const { lang } = useLanguage();
   const [hov, setHov] = useState<number | null>(null);
   const data = [
-    { label: 'Institutionnels', pct: 45, color: '#6366f1' },
-    { label: 'Banques', pct: 25, color: '#22d3ee' },
+    { label: lang === "en" ? 'Institutions' : 'Institutionnels', pct: 45, color: '#6366f1' },
+    { label: lang === "en" ? 'Banks' : 'Banques', pct: 25, color: '#22d3ee' },
     { label: 'Market Makers', pct: 20, color: '#a78bfa' },
-    { label: 'Retail (nous)', pct: 10, color: '#34d399' },
+    { label: lang === "en" ? 'Retail (us)' : 'Retail (nous)', pct: 10, color: '#34d399' },
   ];
   let cumAngle = 0;
   const slices = data.map(d => {
@@ -594,7 +626,7 @@ function MarketParticipantsViz() {
   });
   return (
     <div className="my-4 rounded-xl border border-white/10 bg-white/5 p-4">
-      <p className="text-xs font-semibold text-white/50 mb-3">👥 Acteurs des marchés — survolez pour les détails</p>
+      <p className="text-xs font-semibold text-white/50 mb-3">{lang === "en" ? "👥 Market participants — hover for details" : "👥 Acteurs des marchés — survolez pour les détails"}</p>
       <div className="flex items-center gap-6">
         <svg viewBox="0 0 180 180" className="w-32 h-32 shrink-0">
           {slices.map((s, i) => (
@@ -608,7 +640,7 @@ function MarketParticipantsViz() {
           {hov !== null ? (
             <text x="90" y="94" textAnchor="middle" fontSize="18" fontWeight="bold" fill={data[hov].color}>{data[hov].pct}%</text>
           ) : (
-            <text x="90" y="94" textAnchor="middle" fontSize="9" fill="rgba(255,255,255,0.35)">marchés</text>
+            <text x="90" y="94" textAnchor="middle" fontSize="9" fill="rgba(255,255,255,0.35)">{lang === "en" ? "markets" : "marchés"}</text>
           )}
         </svg>
         <div className="flex-1 space-y-2">
