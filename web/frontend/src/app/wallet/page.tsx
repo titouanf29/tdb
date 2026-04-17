@@ -14,17 +14,23 @@ import {
   History,
   Plus,
   Banknote,
+  AlertTriangle,
+  Crown,
+  Lock,
 } from "lucide-react";
+import Link from "next/link";
 import { cn, formatPercent } from "@/lib/utils";
 import { walletAPI, WalletBalance, Position, TradingStats } from "@/lib/api";
 import { useFormatCurrency } from "@/lib/SettingsContext";
 import { AnimatedNumber } from "@/components/ui/AnimatedNumber";
 import { useLanguage } from "@/lib/LanguageContext";
 import { HelpGuide } from "@/components/ui/HelpGuide";
+import { usePremium } from "@/lib/PremiumContext";
 
 export default function WalletPage() {
   const formatCurrency = useFormatCurrency();
   const { t, lang } = useLanguage();
+  const { isPremium, isAdmin } = usePremium();
   const [balance, setBalance] = useState<WalletBalance | null>(null);
   const [positions, setPositions] = useState<Position[]>([]);
   const [history, setHistory] = useState<Position[]>([]);
@@ -34,9 +40,13 @@ export default function WalletPage() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [closingPosition, setClosingPosition] = useState<number | null>(null);
   const [showAddFundsModal, setShowAddFundsModal] = useState(false);
+  const [showPremiumGate, setShowPremiumGate] = useState(false);
   const [addFundsAmount, setAddFundsAmount] = useState("");
   const [isAddingFunds, setIsAddingFunds] = useState(false);
   const [addFundsError, setAddFundsError] = useState("");
+
+  const canAddFunds = isPremium || isAdmin;
+  const LOW_BALANCE_THRESHOLD = 1000;
 
   const loadData = async (showRefresh = false) => {
     if (showRefresh) setIsRefreshing(true);
@@ -148,10 +158,10 @@ export default function WalletPage() {
               : "Le trading virtuel ne comporte aucun risque financier réel. Utilise-le pour tester ta stratégie avant de passer au réel."}
           />
           <button
-            onClick={() => setShowAddFundsModal(true)}
-            className="btn-primary flex items-center gap-2"
+            onClick={() => canAddFunds ? setShowAddFundsModal(true) : setShowPremiumGate(true)}
+            className={cn("btn-primary flex items-center gap-2", !canAddFunds && "opacity-90")}
           >
-            <Plus className="w-4 h-4" />
+            {canAddFunds ? <Plus className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
             {t("wallet_add_funds")}
           </button>
           <button
@@ -199,6 +209,46 @@ export default function WalletPage() {
           index={3}
         />
       </div>
+
+      {/* Low balance warning */}
+      {balance && balance.balance < LOW_BALANCE_THRESHOLD && (
+        <motion.div
+          initial={{ opacity: 0, y: -8 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="glass-card border border-warning/40 p-4 flex flex-col sm:flex-row items-start sm:items-center gap-4"
+        >
+          <div className="flex items-center gap-3 flex-1 min-w-0">
+            <div className="p-2 rounded-lg bg-warning/15 flex-shrink-0">
+              <AlertTriangle className="w-5 h-5 text-warning" />
+            </div>
+            <div>
+              <p className="font-medium text-sm text-warning">
+                {lang === "en" ? "Low balance" : "Solde faible"}
+              </p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {lang === "en"
+                  ? `Your virtual balance is below ${formatCurrency(LOW_BALANCE_THRESHOLD)}. Add funds to keep trading.`
+                  : `Ton solde virtuel est inférieur à ${formatCurrency(LOW_BALANCE_THRESHOLD)}. Recharge ton compte pour continuer à trader.`}
+              </p>
+            </div>
+          </div>
+          <div className="flex gap-2 flex-shrink-0 w-full sm:w-auto">
+            <Link
+              href="/premium"
+              className="flex-1 sm:flex-none px-3 py-1.5 rounded-lg bg-yellow-500/20 text-yellow-400 hover:bg-yellow-500/30 text-xs font-medium flex items-center justify-center gap-1.5 transition-colors"
+            >
+              <Crown className="w-3.5 h-3.5" />
+              {lang === "en" ? "Go Premium" : "Passer Premium"}
+            </Link>
+            <Link
+              href="/support"
+              className="flex-1 sm:flex-none px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/15 text-xs font-medium flex items-center justify-center gap-1.5 transition-colors"
+            >
+              {lang === "en" ? "Contact admin" : "Contacter l'admin"}
+            </Link>
+          </div>
+        </motion.div>
+      )}
 
       {/* Stats */}
       <div className="glass-card p-6">
@@ -288,6 +338,51 @@ export default function WalletPage() {
           ))
         )}
       </div>
+
+      {/* Premium Gate Modal */}
+      {showPremiumGate && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="glass-card p-6 w-full max-w-sm text-center"
+          >
+            <div className="w-16 h-16 rounded-2xl bg-yellow-500/15 border border-yellow-500/30 flex items-center justify-center mx-auto mb-4">
+              <Crown className="w-8 h-8 text-yellow-400" />
+            </div>
+            <h2 className="text-lg font-bold mb-2">
+              {lang === "en" ? "Premium Feature" : "Fonctionnalité Premium"}
+            </h2>
+            <p className="text-sm text-muted-foreground mb-6">
+              {lang === "en"
+                ? "Adding virtual funds is exclusive to Premium members. Upgrade to reload your wallet whenever you need."
+                : "L'ajout de fonds virtuels est réservé aux membres Premium. Passe Premium pour recharger ton wallet à tout moment."}
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowPremiumGate(false)}
+                className="flex-1 btn-secondary"
+              >
+                {t("cancel")}
+              </button>
+              <Link
+                href="/premium"
+                className="flex-1 btn-primary flex items-center justify-center gap-2"
+              >
+                <Crown className="w-4 h-4" />
+                {lang === "en" ? "Go Premium" : "Passer Premium"}
+              </Link>
+            </div>
+            <Link
+              href="/support"
+              onClick={() => setShowPremiumGate(false)}
+              className="block mt-4 text-xs text-muted-foreground hover:text-foreground transition-colors"
+            >
+              {lang === "en" ? "or contact an admin →" : "ou contacter un administrateur →"}
+            </Link>
+          </motion.div>
+        </div>
+      )}
 
       {/* Add Funds Modal */}
       {showAddFundsModal && (
