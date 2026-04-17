@@ -49,6 +49,9 @@ const config: Config = {
           green:  "#00ff9d",
         },
       },
+      fontFamily: {
+        sans: ["var(--font-inter)", "system-ui", "-apple-system", "sans-serif"],
+      },
       borderRadius: {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
