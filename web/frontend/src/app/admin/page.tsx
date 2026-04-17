@@ -221,6 +221,29 @@ export default function AdminPage() {
   );
 }
 
+// Relative time helper
+function timeAgo(dateStr: string | undefined | null): string {
+  if (!dateStr) return "Jamais";
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const min = Math.floor(diff / 60000);
+  const h = Math.floor(diff / 3600000);
+  const d = Math.floor(diff / 86400000);
+  if (min < 1) return "À l'instant";
+  if (min < 60) return `il y a ${min}min`;
+  if (h < 24) return `il y a ${h}h`;
+  if (d < 7) return `il y a ${d}j`;
+  return new Date(dateStr).toLocaleDateString("fr-FR");
+}
+
+// Activity dot color based on last login
+function activityColor(lastLogin: string | undefined | null): string {
+  if (!lastLogin) return "bg-white/20";
+  const h = (Date.now() - new Date(lastLogin).getTime()) / 3600000;
+  if (h < 24) return "bg-profit";
+  if (h < 72) return "bg-yellow-400";
+  return "bg-white/30";
+}
+
 // Dashboard Tab
 function DashboardTab({
   dashboard,
@@ -230,47 +253,22 @@ function DashboardTab({
   formatCurrency: (v: number) => string;
 }) {
   const stats = dashboard.stats;
+  const engagementRate = stats.users.total > 0
+    ? Math.round((stats.users.active_24h / stats.users.total) * 100)
+    : 0;
 
   return (
     <div className="space-y-6">
       {/* Stats Grid */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-        <StatCard
-          title="Total Utilisateurs"
-          value={stats.users.total}
-          icon={Users}
-          color="text-primary"
-        />
-        <StatCard
-          title="Actifs 24h"
-          value={stats.users.active_24h}
-          icon={Activity}
-          color="text-profit"
-        />
-        <StatCard
-          title="Nouveaux 7j"
-          value={stats.users.new_7d}
-          icon={UserCheck}
-          color="text-green-400"
-        />
-        <StatCard
-          title="Positions Ouvertes"
-          value={stats.trading.open_positions}
-          icon={TrendingUp}
-          color="text-warning"
-        />
-        <StatCard
-          title="Trades 24h"
-          value={stats.trading.trades_24h}
-          icon={Target}
-          color="text-purple-400"
-        />
-        <StatCard
-          title="Messages IA"
-          value={stats.ai.total_messages}
-          icon={Brain}
-          color="text-pink-400"
-        />
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-4 gap-4">
+        <StatCard title="Total Utilisateurs" value={stats.users.total} icon={Users} color="text-primary" />
+        <StatCard title="Actifs 24h" value={stats.users.active_24h} icon={Activity} color="text-profit" />
+        <StatCard title="Nouveaux 7j" value={stats.users.new_7d} icon={UserCheck} color="text-green-400" />
+        <StatCard title="Positions Ouvertes" value={stats.trading.open_positions} icon={TrendingUp} color="text-warning" />
+      </div>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <StatCard title="Trades 24h" value={stats.trading.trades_24h} icon={Target} color="text-purple-400" />
+        <StatCard title="Messages IA (total)" value={stats.ai.total_messages} icon={Brain} color="text-pink-400" />
         {stats.tickets && (
           <StatCard
             title="Tickets Ouverts"
@@ -279,61 +277,41 @@ function DashboardTab({
             color={stats.tickets.awaiting_response > 0 ? "text-warning" : "text-primary"}
           />
         )}
-      </div>
-
-      {/* Volume & Balance */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="glass-card p-6">
-          <h3 className="font-semibold mb-4 flex items-center gap-2">
-            <DollarSign className="w-5 h-5 text-primary" />
-            Volume 7 jours
-          </h3>
-          <p className="text-3xl font-bold">{formatCurrency(stats.trading.volume_7d)}</p>
-        </div>
-        <div className="glass-card p-6">
-          <h3 className="font-semibold mb-4 flex items-center gap-2">
-            <Wallet className="w-5 h-5 text-primary" />
-            Solde Total Wallets
-          </h3>
-          <p className="text-3xl font-bold">{formatCurrency(stats.wallets.total_balance)}</p>
+        {/* Engagement rate */}
+        <div className="glass-card p-4">
+          <div className="flex items-center gap-2 mb-2">
+            <Eye className={cn("w-4 h-4", engagementRate >= 10 ? "text-profit" : engagementRate >= 5 ? "text-yellow-400" : "text-loss")} />
+            <span className="text-xs text-muted-foreground">Engagement 24h</span>
+          </div>
+          <p className="text-2xl font-bold">{engagementRate}%</p>
+          <p className="text-xs text-muted-foreground mt-1">actifs / total</p>
         </div>
       </div>
 
       {/* Recent Users & Trades */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Recent Users */}
+        {/* Recent Users with last login */}
         <div className="glass-card p-6">
           <h3 className="font-semibold mb-4 flex items-center gap-2">
             <Users className="w-5 h-5 text-primary" />
-            Derniers Utilisateurs
+            Derniers Inscrits
           </h3>
-          <div className="space-y-3">
-            {dashboard.recent_users.slice(0, 5).map((user) => (
-              <div
-                key={user.id}
-                className="flex items-center justify-between p-3 bg-white/5 rounded-lg"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
+          <div className="space-y-2">
+            {dashboard.recent_users.slice(0, 6).map((user) => (
+              <div key={user.id} className="flex items-center gap-3 p-3 bg-white/5 rounded-lg hover:bg-white/8 transition-colors">
+                <div className="relative flex-shrink-0">
+                  <div className="w-9 h-9 rounded-full bg-primary/20 flex items-center justify-center font-bold text-sm">
                     {user.username?.charAt(0).toUpperCase() || "U"}
                   </div>
-                  <div>
-                    <p className="font-medium text-sm">{user.username}</p>
-                    <p className="text-xs text-muted-foreground">{user.email}</p>
-                  </div>
+                  <span className={cn("absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-card", activityColor(user.last_login))} />
                 </div>
-                <div className="text-right">
-                  <p className="text-xs text-muted-foreground">
-                    {new Date(user.created_at).toLocaleDateString("fr-FR")}
-                  </p>
-                  <span
-                    className={cn(
-                      "text-xs px-2 py-0.5 rounded",
-                      user.is_active ? "bg-profit/20 text-profit" : "bg-loss/20 text-loss"
-                    )}
-                  >
-                    {user.is_active ? "Actif" : "Inactif"}
-                  </span>
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium text-sm truncate">{user.username}</p>
+                  <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+                </div>
+                <div className="text-right flex-shrink-0">
+                  <p className="text-xs text-muted-foreground">Inscrit {new Date(user.created_at).toLocaleDateString("fr-FR")}</p>
+                  <p className="text-xs text-muted-foreground/70">Vu {timeAgo(user.last_login)}</p>
                 </div>
               </div>
             ))}
@@ -346,42 +324,23 @@ function DashboardTab({
             <TrendingUp className="w-5 h-5 text-primary" />
             Derniers Trades
           </h3>
-          <div className="space-y-3">
-            {dashboard.recent_trades.slice(0, 5).map((trade) => (
-              <div
-                key={trade.id}
-                className="flex items-center justify-between p-3 bg-white/5 rounded-lg"
-              >
+          <div className="space-y-2">
+            {dashboard.recent_trades.slice(0, 6).map((trade) => (
+              <div key={trade.id} className="flex items-center justify-between p-3 bg-white/5 rounded-lg">
                 <div className="flex items-center gap-3">
-                  <div
-                    className={cn(
-                      "w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold",
-                      trade.direction === "LONG"
-                        ? "bg-profit/20 text-profit"
-                        : "bg-loss/20 text-loss"
-                    )}
-                  >
+                  <div className={cn("w-9 h-9 rounded-lg flex items-center justify-center text-xs font-bold flex-shrink-0",
+                    trade.direction === "LONG" ? "bg-profit/20 text-profit" : "bg-loss/20 text-loss")}>
                     {trade.direction === "LONG" ? "L" : "S"}
                   </div>
                   <div>
                     <p className="font-medium text-sm">{trade.symbol}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {formatCurrency(trade.amount)}
-                    </p>
+                    <p className="text-xs text-muted-foreground">{formatCurrency(trade.amount)}</p>
                   </div>
                 </div>
-                <div className="text-right">
-                  <span
-                    className={cn(
-                      "text-xs px-2 py-0.5 rounded",
-                      trade.status === "open"
-                        ? "bg-warning/20 text-warning"
-                        : "bg-white/10"
-                    )}
-                  >
-                    {trade.status}
-                  </span>
-                </div>
+                <span className={cn("text-xs px-2 py-0.5 rounded",
+                  trade.status === "open" ? "bg-warning/20 text-warning" : "bg-white/10")}>
+                  {trade.status}
+                </span>
               </div>
             ))}
           </div>
@@ -413,12 +372,16 @@ function StatCard({
   );
 }
 
+type UserSort = "recent" | "last_login" | "alpha" | "balance";
+
 // Users Tab
 function UsersTab({ formatCurrency }: { formatCurrency: (v: number) => string }) {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
+  const [sort, setSort] = useState<UserSort>("last_login");
+  const [filter, setFilter] = useState<"all" | "active" | "inactive">("all");
   const [isLoading, setIsLoading] = useState(true);
   const [selectedUser, setSelectedUser] = useState<AdminUserDetails | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
@@ -426,7 +389,7 @@ function UsersTab({ formatCurrency }: { formatCurrency: (v: number) => string })
   const loadUsers = async () => {
     setIsLoading(true);
     try {
-      const data = await adminAPI.getUsers(page, 20, search);
+      const data = await adminAPI.getUsers(page, 25, search);
       setUsers(data.users);
       setTotal(data.total);
     } catch (err) {
@@ -436,246 +399,302 @@ function UsersTab({ formatCurrency }: { formatCurrency: (v: number) => string })
     }
   };
 
-  useEffect(() => {
-    loadUsers();
-  }, [page, search]);
+  useEffect(() => { loadUsers(); }, [page, search]);
+
+  const sortedUsers = [...users]
+    .filter(u => filter === "all" ? true : filter === "active" ? u.is_active : !u.is_active)
+    .sort((a, b) => {
+      if (sort === "last_login") {
+        if (!a.last_login) return 1;
+        if (!b.last_login) return -1;
+        return new Date(b.last_login).getTime() - new Date(a.last_login).getTime();
+      }
+      if (sort === "balance") return (b.balance || 0) - (a.balance || 0);
+      if (sort === "alpha") return (a.username || "").localeCompare(b.username || "");
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    });
 
   const loadUserDetails = async (userId: number) => {
     try {
       const data = await adminAPI.getUserDetails(userId);
       setSelectedUser(data);
-    } catch (err) {
-      console.error(err);
-    }
+    } catch (err) { console.error(err); }
   };
 
-  const performAction = async (userId: number, action: string, reason?: string) => {
+  const performAction = async (userId: number, action: string) => {
     setActionLoading(true);
     try {
-      await adminAPI.performUserAction(userId, action, reason);
+      await adminAPI.performUserAction(userId, action);
       loadUsers();
-      if (selectedUser?.user.id === userId) {
-        loadUserDetails(userId);
-      }
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setActionLoading(false);
-    }
+      if (selectedUser?.user.id === userId) loadUserDetails(userId);
+    } catch (err) { console.error(err); } finally { setActionLoading(false); }
+  };
+
+  // Derive last asset viewed from chat history or latest position
+  const lastAsset = (u: AdminUserDetails | null): string | null => {
+    if (!u) return null;
+    const latestPos = u.positions.sort((a, b) =>
+      new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime()
+    )[0];
+    if (latestPos) return latestPos.symbol;
+    const latestFav = u.favorites.sort((a, b) =>
+      new Date(b.added_at).getTime() - new Date(a.added_at).getTime()
+    )[0];
+    return latestFav?.symbol || null;
   };
 
   return (
-    <div className="space-y-6">
-      {/* Search */}
-      <div className="glass-card p-4">
-        <div className="flex gap-4">
-          <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <input
-              type="text"
-              placeholder="Rechercher par email ou username..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full input pl-10"
-            />
-          </div>
-          <button onClick={loadUsers} className="btn-primary">
-            <RefreshCw className="w-4 h-4" />
-          </button>
+    <div className="space-y-4">
+      {/* Toolbar */}
+      <div className="glass-card p-4 flex flex-wrap gap-3 items-center">
+        <div className="flex-1 min-w-[200px] relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <input
+            type="text"
+            placeholder="Email, username..."
+            value={search}
+            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+            className="w-full input pl-10"
+          />
         </div>
+        {/* Filter */}
+        <div className="flex rounded-lg bg-white/5 p-0.5 gap-0.5">
+          {(["all", "active", "inactive"] as const).map(f => (
+            <button key={f} onClick={() => setFilter(f)}
+              className={cn("px-3 py-1.5 rounded-md text-xs font-medium transition-colors",
+                filter === f ? "bg-primary text-white" : "text-muted-foreground hover:text-foreground")}>
+              {f === "all" ? "Tous" : f === "active" ? "Actifs" : "Bannis"}
+            </button>
+          ))}
+        </div>
+        {/* Sort */}
+        <select value={sort} onChange={e => setSort(e.target.value as UserSort)}
+          className="text-xs bg-white/5 rounded-lg px-3 py-2 border border-white/10 cursor-pointer">
+          <option value="last_login">Tri: Dernière connexion</option>
+          <option value="recent">Tri: Inscription récente</option>
+          <option value="balance">Tri: Solde</option>
+          <option value="alpha">Tri: A → Z</option>
+        </select>
+        <button onClick={loadUsers} className="p-2 rounded-lg hover:bg-white/10 transition-colors">
+          <RefreshCw className="w-4 h-4" />
+        </button>
+        <span className="text-xs text-muted-foreground">{total} utilisateurs</span>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
         {/* Users List */}
-        <div className="lg:col-span-2 glass-card p-6">
-          <h3 className="font-semibold mb-4">
-            Utilisateurs ({total})
-          </h3>
+        <div className="lg:col-span-3 glass-card p-5">
           {isLoading ? (
-            <div className="flex justify-center py-8">
-              <Loader2 className="w-6 h-6 animate-spin" />
-            </div>
+            <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin" /></div>
           ) : (
-            <div className="space-y-2">
-              {users.map((user) => (
-                <div
-                  key={user.id}
-                  onClick={() => loadUserDetails(user.id)}
-                  className={cn(
-                    "p-4 rounded-lg cursor-pointer transition-colors",
-                    selectedUser?.user.id === user.id
-                      ? "bg-primary/20 border border-primary/50"
-                      : "bg-white/5 hover:bg-white/10"
-                  )}
-                >
-                  <div className="flex items-center justify-between">
+            <div className="space-y-1.5">
+              {sortedUsers.map((user) => {
+                const loginAgo = timeAgo(user.last_login);
+                const dot = activityColor(user.last_login);
+                return (
+                  <div
+                    key={user.id}
+                    onClick={() => loadUserDetails(user.id)}
+                    className={cn(
+                      "p-3 rounded-xl cursor-pointer transition-colors group",
+                      selectedUser?.user.id === user.id
+                        ? "bg-primary/15 border border-primary/40"
+                        : "bg-white/4 hover:bg-white/8 border border-transparent"
+                    )}
+                  >
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center font-bold">
-                        {user.username?.charAt(0).toUpperCase()}
+                      {/* Avatar + activity dot */}
+                      <div className="relative flex-shrink-0">
+                        <div className="w-9 h-9 rounded-full bg-primary/20 flex items-center justify-center font-bold text-sm">
+                          {user.username?.charAt(0).toUpperCase()}
+                        </div>
+                        <span className={cn("absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-card", dot)} />
                       </div>
-                      <div>
-                        <p className="font-medium">{user.username}</p>
-                        <p className="text-sm text-muted-foreground">{user.email}</p>
+                      {/* Info */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <p className="font-medium text-sm truncate">{user.username}</p>
+                          {!user.is_active && (
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-loss/20 text-loss flex-shrink-0">Banni</span>
+                          )}
+                        </div>
+                        <p className="text-xs text-muted-foreground truncate">{user.email}</p>
                       </div>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-sm font-medium">
-                        {formatCurrency(user.balance || 0)}
-                      </p>
-                      <span
-                        className={cn(
-                          "text-xs px-2 py-0.5 rounded",
-                          user.is_active ? "bg-profit/20 text-profit" : "bg-loss/20 text-loss"
+                      {/* Stats */}
+                      <div className="hidden sm:flex items-center gap-3 text-right flex-shrink-0">
+                        <div>
+                          <p className="text-xs font-medium">{formatCurrency(user.balance || 0)}</p>
+                          <p className="text-[10px] text-muted-foreground">solde</p>
+                        </div>
+                        {user.open_positions !== undefined && (
+                          <div>
+                            <p className="text-xs font-medium">{user.open_positions}</p>
+                            <p className="text-[10px] text-muted-foreground">positions</p>
+                          </div>
                         )}
-                      >
-                        {user.is_active ? "Actif" : "Banni"}
-                      </span>
+                        {user.favorites_count !== undefined && (
+                          <div>
+                            <p className="text-xs font-medium">{user.favorites_count}</p>
+                            <p className="text-[10px] text-muted-foreground">favoris</p>
+                          </div>
+                        )}
+                        <div>
+                          <p className={cn("text-xs font-medium",
+                            dot === "bg-profit" ? "text-profit" : dot === "bg-yellow-400" ? "text-yellow-400" : "text-muted-foreground")}>
+                            {loginAgo}
+                          </p>
+                          <p className="text-[10px] text-muted-foreground">connexion</p>
+                        </div>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
-
           {/* Pagination */}
-          <div className="flex justify-center gap-2 mt-4">
-            <button
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              disabled={page === 1}
-              className="btn-ghost"
-            >
-              Precedent
+          <div className="flex items-center justify-center gap-2 mt-4">
+            <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
+              className="px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 disabled:opacity-30 text-sm transition-colors">
+              ← Précédent
             </button>
-            <span className="px-4 py-2">Page {page}</span>
-            <button
-              onClick={() => setPage((p) => p + 1)}
-              disabled={users.length < 20}
-              className="btn-ghost"
-            >
-              Suivant
+            <span className="text-sm text-muted-foreground">Page {page}</span>
+            <button onClick={() => setPage(p => p + 1)} disabled={sortedUsers.length < 25}
+              className="px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 disabled:opacity-30 text-sm transition-colors">
+              Suivant →
             </button>
           </div>
         </div>
 
-        {/* User Details */}
-        <div className="glass-card p-6">
-          <h3 className="font-semibold mb-4">Details Utilisateur</h3>
+        {/* User Details Panel */}
+        <div className="lg:col-span-2 glass-card p-5 overflow-y-auto max-h-[80vh]">
           {selectedUser ? (
             <div className="space-y-4">
-              <div className="text-center">
-                <div className="w-16 h-16 rounded-full bg-primary/20 flex items-center justify-center font-bold text-2xl mx-auto">
-                  {selectedUser.user.username?.charAt(0).toUpperCase()}
+              {/* Header */}
+              <div className="flex items-center gap-3 pb-4 border-b border-white/10">
+                <div className="relative">
+                  <div className="w-14 h-14 rounded-full bg-primary/20 flex items-center justify-center font-bold text-xl">
+                    {selectedUser.user.username?.charAt(0).toUpperCase()}
+                  </div>
+                  <span className={cn("absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-card",
+                    activityColor(selectedUser.user.last_login))} />
                 </div>
-                <h4 className="font-bold mt-2">{selectedUser.user.username}</h4>
-                <p className="text-sm text-muted-foreground">{selectedUser.user.email}</p>
+                <div className="flex-1 min-w-0">
+                  <h4 className="font-bold truncate">{selectedUser.user.username}</h4>
+                  <p className="text-sm text-muted-foreground truncate">{selectedUser.user.email}</p>
+                  <p className="text-xs text-muted-foreground">ID #{selectedUser.user.id}</p>
+                </div>
               </div>
 
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">ID</span>
-                  <span>{selectedUser.user.id}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Solde</span>
-                  <span>{formatCurrency(selectedUser.wallet?.balance || 0)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Positions</span>
-                  <span>{selectedUser.positions.filter((p) => p.status === "open").length}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Favoris</span>
-                  <span>{selectedUser.favorites.length}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Inscrit le</span>
-                  <span>{new Date(selectedUser.user.created_at).toLocaleDateString("fr-FR")}</span>
-                </div>
-                {selectedUser.trading_stats && (
-                  <>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Total Trades</span>
-                      <span>{selectedUser.trading_stats.total_trades}</span>
+              {/* Activity timeline */}
+              <div className="space-y-2">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Activité</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { label: "Inscrit le", value: new Date(selectedUser.user.created_at).toLocaleDateString("fr-FR") },
+                    { label: "Dernière connexion", value: timeAgo(selectedUser.user.last_login) },
+                    { label: "Dernier actif vu", value: lastAsset(selectedUser) || "—" },
+                    { label: "Solde wallet", value: formatCurrency(selectedUser.wallet?.balance || 0) },
+                  ].map(row => (
+                    <div key={row.label} className="p-2.5 bg-white/5 rounded-lg">
+                      <p className="text-[10px] text-muted-foreground">{row.label}</p>
+                      <p className="text-sm font-medium mt-0.5">{row.value}</p>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Win Rate</span>
-                      <span>
-                        {selectedUser.trading_stats.total_trades > 0
-                          ? Math.round(
-                              (selectedUser.trading_stats.winning_trades /
-                                selectedUser.trading_stats.total_trades) *
-                                100
-                            )
-                          : 0}
-                        %
-                      </span>
+                  ))}
+                </div>
+              </div>
+
+              {/* Stats */}
+              <div className="space-y-2">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Trading</p>
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="p-2.5 bg-white/5 rounded-lg text-center">
+                    <p className="text-lg font-bold">{selectedUser.positions.filter(p => p.status === "open").length}</p>
+                    <p className="text-[10px] text-muted-foreground">Positions</p>
+                  </div>
+                  <div className="p-2.5 bg-white/5 rounded-lg text-center">
+                    <p className="text-lg font-bold">{selectedUser.favorites.length}</p>
+                    <p className="text-[10px] text-muted-foreground">Favoris</p>
+                  </div>
+                  <div className="p-2.5 bg-white/5 rounded-lg text-center">
+                    <p className="text-lg font-bold">{selectedUser.chat_history?.length || 0}</p>
+                    <p className="text-[10px] text-muted-foreground">Msgs IA</p>
+                  </div>
+                </div>
+                {selectedUser.trading_stats && selectedUser.trading_stats.total_trades > 0 && (
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="p-2.5 bg-white/5 rounded-lg text-center">
+                      <p className="text-sm font-bold">{selectedUser.trading_stats.total_trades}</p>
+                      <p className="text-[10px] text-muted-foreground">Trades</p>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">PnL Total</span>
-                      <span
-                        className={cn(
-                          selectedUser.trading_stats.total_pnl >= 0 ? "text-profit" : "text-loss"
-                        )}
-                      >
-                        {formatCurrency(selectedUser.trading_stats.total_pnl || 0)}
-                      </span>
+                    <div className="p-2.5 bg-white/5 rounded-lg text-center">
+                      <p className="text-sm font-bold">
+                        {Math.round((selectedUser.trading_stats.winning_trades / selectedUser.trading_stats.total_trades) * 100)}%
+                      </p>
+                      <p className="text-[10px] text-muted-foreground">Win Rate</p>
                     </div>
-                  </>
+                    <div className={cn("p-2.5 bg-white/5 rounded-lg text-center",
+                      selectedUser.trading_stats.total_pnl >= 0 ? "text-profit" : "text-loss")}>
+                      <p className="text-sm font-bold">{formatCurrency(selectedUser.trading_stats.total_pnl)}</p>
+                      <p className="text-[10px] text-muted-foreground">PnL</p>
+                    </div>
+                  </div>
                 )}
               </div>
 
+              {/* Derniers favoris */}
+              {selectedUser.favorites.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Favoris récents</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {selectedUser.favorites
+                      .sort((a, b) => new Date(b.added_at).getTime() - new Date(a.added_at).getTime())
+                      .slice(0, 8)
+                      .map(f => (
+                        <span key={f.id} className="text-xs px-2 py-1 rounded-md bg-primary/10 text-primary border border-primary/20 font-medium">
+                          {f.symbol}
+                        </span>
+                      ))}
+                  </div>
+                </div>
+              )}
+
               {/* Actions */}
-              <div className="space-y-2 pt-4 border-t border-white/10">
+              <div className="space-y-2 pt-3 border-t border-white/10">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Actions</p>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    onClick={() => performAction(selectedUser.user.id, selectedUser.user.is_active ? "ban" : "unban")}
+                    disabled={actionLoading}
+                    className={cn("py-2 rounded-lg flex items-center justify-center gap-2 text-sm font-medium transition-colors",
+                      selectedUser.user.is_active
+                        ? "bg-loss/15 text-loss hover:bg-loss/25"
+                        : "bg-profit/15 text-profit hover:bg-profit/25")}
+                  >
+                    {selectedUser.user.is_active ? <><Ban className="w-3.5 h-3.5" /> Bannir</> : <><UserCheck className="w-3.5 h-3.5" /> Débannir</>}
+                  </button>
+                  <button
+                    onClick={() => performAction(selectedUser.user.id, "reset_wallet")}
+                    disabled={actionLoading}
+                    className="py-2 rounded-lg bg-warning/15 text-warning hover:bg-warning/25 flex items-center justify-center gap-2 text-sm font-medium transition-colors"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5" /> Reset Wallet
+                  </button>
+                </div>
                 <button
-                  onClick={() =>
-                    performAction(
-                      selectedUser.user.id,
-                      selectedUser.user.is_active ? "ban" : "unban"
-                    )
-                  }
+                  onClick={() => { if (confirm("Supprimer définitivement cet utilisateur ?")) { performAction(selectedUser.user.id, "delete"); setSelectedUser(null); }}}
                   disabled={actionLoading}
-                  className={cn(
-                    "w-full py-2 rounded-lg flex items-center justify-center gap-2",
-                    selectedUser.user.is_active
-                      ? "bg-loss/20 text-loss hover:bg-loss/30"
-                      : "bg-profit/20 text-profit hover:bg-profit/30"
-                  )}
+                  className="w-full py-2 rounded-lg bg-loss/10 text-loss/70 hover:bg-loss/20 hover:text-loss flex items-center justify-center gap-2 text-sm transition-colors"
                 >
-                  {selectedUser.user.is_active ? (
-                    <>
-                      <Ban className="w-4 h-4" /> Bannir
-                    </>
-                  ) : (
-                    <>
-                      <UserCheck className="w-4 h-4" /> Debannir
-                    </>
-                  )}
-                </button>
-                <button
-                  onClick={() => performAction(selectedUser.user.id, "reset_wallet")}
-                  disabled={actionLoading}
-                  className="w-full py-2 rounded-lg bg-warning/20 text-warning hover:bg-warning/30 flex items-center justify-center gap-2"
-                >
-                  <RefreshCw className="w-4 h-4" /> Reset Wallet
-                </button>
-                <button
-                  onClick={() => {
-                    if (confirm("Supprimer cet utilisateur ?")) {
-                      performAction(selectedUser.user.id, "delete");
-                      setSelectedUser(null);
-                    }
-                  }}
-                  disabled={actionLoading}
-                  className="w-full py-2 rounded-lg bg-loss/20 text-loss hover:bg-loss/30 flex items-center justify-center gap-2"
-                >
-                  <Trash2 className="w-4 h-4" /> Supprimer
+                  <Trash2 className="w-3.5 h-3.5" /> Supprimer le compte
                 </button>
               </div>
             </div>
           ) : (
-            <p className="text-muted-foreground text-center py-8">
-              Selectionnez un utilisateur
-            </p>
+            <div className="flex flex-col items-center justify-center py-16 text-center gap-3">
+              <Users className="w-10 h-10 text-muted-foreground/30" />
+              <p className="text-muted-foreground text-sm">Cliquez sur un utilisateur pour voir ses détails</p>
+            </div>
           )}
         </div>
       </div>
@@ -1511,16 +1530,69 @@ function AuditTab() {
 }
 
 // Settings Tab
+type SettingDef = {
+  key: string;
+  label: string;
+  desc: string;
+  type: "boolean" | "number" | "text";
+  default: string;
+  unit?: string;
+};
+type SettingGroup = {
+  group: string;
+  icon: any;
+  color: string;
+  items: SettingDef[];
+};
+
+const SETTING_GROUPS: SettingGroup[] = [
+  {
+    group: "Plateforme",
+    icon: Shield,
+    color: "text-primary",
+    items: [
+      { key: "maintenance_mode", label: "Mode maintenance", desc: "Désactive l'accès pour tous les utilisateurs non-admin", type: "boolean", default: "false" },
+      { key: "registration_enabled", label: "Inscriptions ouvertes", desc: "Autoriser les nouveaux utilisateurs à s'inscrire", type: "boolean", default: "true" },
+    ],
+  },
+  {
+    group: "Intelligence Artificielle",
+    icon: Brain,
+    color: "text-pink-400",
+    items: [
+      { key: "max_ai_messages_free", label: "Messages IA — Gratuit", desc: "Nombre max de messages IA par jour (plan gratuit)", type: "number", default: "10", unit: "msg/jour" },
+      { key: "max_ai_messages_premium", label: "Messages IA — Premium", desc: "Nombre max de messages IA par jour (plan premium)", type: "number", default: "100", unit: "msg/jour" },
+    ],
+  },
+  {
+    group: "Trading & Wallets",
+    icon: Wallet,
+    color: "text-profit",
+    items: [
+      { key: "welcome_bonus_amount", label: "Bonus de bienvenue", desc: "Montant crédité au wallet à l'inscription (paper trading)", type: "number", default: "10000", unit: "$" },
+      { key: "max_positions_per_user", label: "Positions simultanées max", desc: "Nombre maximum de positions ouvertes par utilisateur", type: "number", default: "10", unit: "positions" },
+      { key: "max_position_amount", label: "Montant max par position", desc: "Montant maximum engageable par position", type: "number", default: "50000", unit: "$" },
+    ],
+  },
+];
+
 function SettingsTab() {
-  const [settings, setSettings] = useState<any[]>([]);
-  const [newKey, setNewKey] = useState("");
-  const [newValue, setNewValue] = useState("");
+  const [rawSettings, setRawSettings] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [localValues, setLocalValues] = useState<Record<string, string>>({});
+  const [savingKey, setSavingKey] = useState<string | null>(null);
+  const [savedKey, setSavedKey] = useState<string | null>(null);
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [advKey, setAdvKey] = useState("");
+  const [advValue, setAdvValue] = useState("");
 
   const loadSettings = async () => {
     try {
       const data = await adminAPI.getSettings();
-      setSettings(data.settings);
+      setRawSettings(data.settings);
+      const map: Record<string, string> = {};
+      for (const s of data.settings) map[s.key] = s.value;
+      setLocalValues(map);
     } catch (err) {
       console.error(err);
     } finally {
@@ -1528,89 +1600,194 @@ function SettingsTab() {
     }
   };
 
-  useEffect(() => {
-    loadSettings();
-  }, []);
+  useEffect(() => { loadSettings(); }, []);
 
-  const saveSetting = async () => {
-    if (!newKey || !newValue) return;
+  const getValue = (key: string, def: string) => localValues[key] ?? def;
+
+  const saveSetting = async (key: string, value: string) => {
+    setSavingKey(key);
     try {
-      await adminAPI.updateSetting(newKey, newValue);
-      setNewKey("");
-      setNewValue("");
-      loadSettings();
+      await adminAPI.updateSetting(key, value);
+      setLocalValues(prev => ({ ...prev, [key]: value }));
+      setSavedKey(key);
+      setTimeout(() => setSavedKey(null), 2000);
+      await loadSettings();
     } catch (err) {
       console.error(err);
+    } finally {
+      setSavingKey(null);
     }
   };
 
-  return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      {/* Add Setting */}
-      <div className="glass-card p-6">
-        <h3 className="font-semibold mb-4 flex items-center gap-2">
-          <Settings className="w-5 h-5 text-primary" />
-          Ajouter/Modifier un parametre
-        </h3>
-        <div className="space-y-4">
-          <div>
-            <label className="text-sm text-muted-foreground">Cle</label>
-            <input
-              type="text"
-              value={newKey}
-              onChange={(e) => setNewKey(e.target.value)}
-              className="w-full input mt-1"
-              placeholder="nom_du_parametre"
-            />
-          </div>
-          <div>
-            <label className="text-sm text-muted-foreground">Valeur</label>
-            <input
-              type="text"
-              value={newValue}
-              onChange={(e) => setNewValue(e.target.value)}
-              className="w-full input mt-1"
-              placeholder="valeur"
-            />
-          </div>
-          <button
-            onClick={saveSetting}
-            disabled={!newKey || !newValue}
-            className="w-full btn-primary"
-          >
-            Enregistrer
-          </button>
-        </div>
-      </div>
+  const toggleBoolean = (key: string, def: string) => {
+    const current = getValue(key, def);
+    const next = current === "true" ? "false" : "true";
+    setLocalValues(prev => ({ ...prev, [key]: next }));
+    saveSetting(key, next);
+  };
 
-      {/* Current Settings */}
-      <div className="glass-card p-6">
-        <h3 className="font-semibold mb-4">Parametres actuels</h3>
-        {isLoading ? (
-          <div className="flex justify-center py-8">
-            <Loader2 className="w-6 h-6 animate-spin" />
-          </div>
-        ) : settings.length === 0 ? (
-          <p className="text-muted-foreground text-center py-8">Aucun parametre</p>
-        ) : (
-          <div className="space-y-2">
-            {settings.map((s) => (
-              <div key={s.key} className="p-3 bg-white/5 rounded-lg">
-                <div className="flex items-center justify-between">
-                  <span className="font-medium text-sm">{s.key}</span>
-                  <button
-                    onClick={() => {
-                      setNewKey(s.key);
-                      setNewValue(s.value);
-                    }}
-                    className="text-xs text-primary hover:underline"
-                  >
-                    Modifier
-                  </button>
+  const predefinedKeys = SETTING_GROUPS.flatMap(g => g.items.map(i => i.key));
+  const customSettings = rawSettings.filter(s => !predefinedKeys.includes(s.key));
+
+  if (isLoading) {
+    return <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin" /></div>;
+  }
+
+  return (
+    <div className="space-y-5">
+      {SETTING_GROUPS.map((group) => (
+        <div key={group.group} className="glass-card p-5">
+          <h3 className="font-semibold mb-4 flex items-center gap-2">
+            <group.icon className={cn("w-4 h-4", group.color)} />
+            {group.group}
+          </h3>
+          <div className="space-y-3">
+            {group.items.map((item) => {
+              const val = getValue(item.key, item.default);
+              const isSaving = savingKey === item.key;
+              const isSaved = savedKey === item.key;
+
+              if (item.type === "boolean") {
+                const isOn = val === "true";
+                return (
+                  <div key={item.key} className="flex items-center justify-between p-3 bg-white/5 rounded-xl gap-4">
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-sm">{item.label}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">{item.desc}</p>
+                    </div>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      {isSaving && <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />}
+                      {isSaved && <CheckCircle className="w-4 h-4 text-profit" />}
+                      <button
+                        onClick={() => toggleBoolean(item.key, item.default)}
+                        disabled={isSaving}
+                        className={cn(
+                          "relative inline-flex w-11 h-6 rounded-full transition-colors duration-200 flex-shrink-0",
+                          isOn ? "bg-profit" : "bg-white/20",
+                          isSaving && "opacity-50 cursor-not-allowed"
+                        )}
+                      >
+                        <span className={cn(
+                          "absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform duration-200",
+                          isOn ? "translate-x-5" : "translate-x-0"
+                        )} />
+                      </button>
+                    </div>
+                  </div>
+                );
+              }
+
+              return (
+                <div key={item.key} className="p-3 bg-white/5 rounded-xl">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-sm">{item.label}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">{item.desc}</p>
+                    </div>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <div className="relative">
+                        <input
+                          type={item.type === "number" ? "number" : "text"}
+                          value={val}
+                          onChange={e => setLocalValues(prev => ({ ...prev, [item.key]: e.target.value }))}
+                          className="w-28 text-right input text-sm py-1.5 pr-10"
+                        />
+                        {item.unit && (
+                          <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground pointer-events-none">
+                            {item.unit}
+                          </span>
+                        )}
+                      </div>
+                      <button
+                        onClick={() => saveSetting(item.key, val)}
+                        disabled={isSaving}
+                        className={cn(
+                          "w-8 h-8 rounded-lg flex items-center justify-center transition-colors flex-shrink-0",
+                          isSaved ? "bg-profit/20 text-profit" : "bg-primary/20 text-primary hover:bg-primary/30"
+                        )}
+                      >
+                        {isSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : isSaved ? <CheckCircle className="w-3.5 h-3.5" /> : <ArrowUpRight className="w-3.5 h-3.5" />}
+                      </button>
+                    </div>
+                  </div>
                 </div>
-                <p className="text-sm text-muted-foreground mt-1">{s.value}</p>
+              );
+            })}
+          </div>
+        </div>
+      ))}
+
+      {/* Advanced / Custom Settings */}
+      <div className="glass-card p-5">
+        <button
+          onClick={() => setShowAdvanced(v => !v)}
+          className="w-full flex items-center justify-between"
+        >
+          <span className="font-semibold flex items-center gap-2">
+            <Settings className="w-4 h-4 text-muted-foreground" />
+            Paramètres avancés
+            {customSettings.length > 0 && (
+              <span className="text-xs px-1.5 py-0.5 rounded bg-white/10 text-muted-foreground">{customSettings.length}</span>
+            )}
+          </span>
+          <ChevronRight className={cn("w-4 h-4 text-muted-foreground transition-transform", showAdvanced && "rotate-90")} />
+        </button>
+
+        {showAdvanced && (
+          <div className="mt-4 space-y-4">
+            {/* Raw key/value editor */}
+            <div className="p-4 bg-white/5 rounded-xl space-y-3">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Ajouter / modifier un paramètre</p>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={advKey}
+                  onChange={e => setAdvKey(e.target.value)}
+                  placeholder="clé_paramètre"
+                  className="flex-1 input text-sm py-1.5 font-mono"
+                />
+                <input
+                  type="text"
+                  value={advValue}
+                  onChange={e => setAdvValue(e.target.value)}
+                  placeholder="valeur"
+                  className="flex-1 input text-sm py-1.5"
+                />
+                <button
+                  onClick={async () => {
+                    if (!advKey || !advValue) return;
+                    await saveSetting(advKey, advValue);
+                    setAdvKey("");
+                    setAdvValue("");
+                  }}
+                  disabled={!advKey || !advValue || savingKey !== null}
+                  className="px-4 py-1.5 rounded-lg bg-primary/20 text-primary hover:bg-primary/30 text-sm disabled:opacity-40 transition-colors"
+                >
+                  Enregistrer
+                </button>
               </div>
-            ))}
+            </div>
+
+            {/* Custom (non-predefined) settings */}
+            {customSettings.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Paramètres personnalisés</p>
+                {customSettings.map((s) => (
+                  <div key={s.key} className="flex items-center justify-between p-3 bg-white/5 rounded-lg gap-3">
+                    <span className="font-mono text-xs text-muted-foreground">{s.key}</span>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <span className="text-sm">{s.value}</span>
+                      <button
+                        onClick={() => { setAdvKey(s.key); setAdvValue(s.value); }}
+                        className="text-xs text-primary hover:underline"
+                      >
+                        Modifier
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>
