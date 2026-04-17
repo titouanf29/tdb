@@ -15,6 +15,8 @@ import {
   Circle,
   ChevronDown,
   RefreshCw,
+  Timer,
+  Crown,
 } from "lucide-react";
 import { cn, formatPercent, formatVolume } from "@/lib/utils";
 import { marketAPI, favoritesAPI, Market, Asset } from "@/lib/api";
@@ -25,8 +27,23 @@ import { useFormatPrice } from "@/lib/SettingsContext";
 import { TopLoadingBar } from "@/components/ui/TopLoadingBar";
 import { useLanguage } from "@/lib/LanguageContext";
 import { HelpGuide } from "@/components/ui/HelpGuide";
+import { usePremium } from "@/lib/PremiumContext";
 
 const PAGE_SIZE = 20;
+
+const FREE_INTERVALS = [
+  { label: "Off",    ms: 0 },
+  { label: "10 min", ms: 600_000 },
+  { label: "30 min", ms: 1_800_000 },
+];
+const PREMIUM_INTERVALS = [
+  { label: "Off",    ms: 0 },
+  { label: "1 min",  ms: 60_000 },
+  { label: "2 min",  ms: 120_000 },
+  { label: "5 min",  ms: 300_000 },
+  { label: "10 min", ms: 600_000 },
+  { label: "30 min", ms: 1_800_000 },
+];
 
 const marketIcons: Record<string, string> = {
   USA: "🇺🇸",
@@ -55,9 +72,12 @@ export default function MarketsPage() {
   const [searchResults, setSearchResults] = useState<{ symbol: string; name: string; exchange: string }[]>([]);
   const [isSearchingBackend, setIsSearchingBackend] = useState(false);
   const [priceFlash, setPriceFlash] = useState<Record<string, "up" | "down">>({});
+  const [refreshRate, setRefreshRate] = useState<number>(0); // 0 = off
+  const { isPremium, isAdmin } = usePremium();
   const prevPricesRef = useRef<Record<string, number>>({});
   const autoRefreshRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const intervals = (isPremium || isAdmin) ? PREMIUM_INTERVALS : FREE_INTERVALS;
 
   // Load markets
   useEffect(() => {
@@ -176,9 +196,11 @@ export default function MarketsPage() {
 
   useEffect(() => {
     if (autoRefreshRef.current) clearInterval(autoRefreshRef.current);
-    autoRefreshRef.current = setInterval(refreshPrices, 30000);
+    if (refreshRate > 0) {
+      autoRefreshRef.current = setInterval(refreshPrices, refreshRate);
+    }
     return () => { if (autoRefreshRef.current) clearInterval(autoRefreshRef.current); };
-  }, [refreshPrices]);
+  }, [refreshPrices, refreshRate]);
 
   const loadMore = async () => {
     if (isLoadingMore || !hasMore) return;
@@ -318,15 +340,41 @@ export default function MarketsPage() {
             ]}
             tip={lang === "en" ? "Prices update in real time. Click 'Refresh' to force a manual update." : "Les prix sont actualisés en temps réel. Clique sur 'Actualiser' si tu veux forcer une mise à jour manuelle."}
           />
+          {/* Manual refresh */}
           <button
             onClick={refreshPrices}
-          disabled={isLoadingPrices}
-          className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 transition-colors text-sm text-muted-foreground"
-          title={t("markets_refresh_title")}
-        >
-          <RefreshCw className={cn("w-3.5 h-3.5", isLoadingPrices && "animate-spin")} />
-          <span className="hidden sm:inline">{t("markets_refresh")}</span>
-        </button>
+            disabled={isLoadingPrices}
+            className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 transition-colors text-sm text-muted-foreground"
+            title={t("markets_refresh_title")}
+          >
+            <RefreshCw className={cn("w-3.5 h-3.5", isLoadingPrices && "animate-spin")} />
+            <span className="hidden sm:inline">{lang === "en" ? "Refresh" : "Actualiser"}</span>
+          </button>
+
+          {/* Auto-refresh interval selector */}
+          <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white/5 border border-white/8 text-xs text-muted-foreground">
+            <Timer className={cn("w-3.5 h-3.5 flex-shrink-0 transition-colors", refreshRate > 0 ? "text-profit" : "")} />
+            <select
+              value={refreshRate}
+              onChange={(e) => setRefreshRate(Number(e.target.value))}
+              className="bg-transparent text-xs cursor-pointer outline-none"
+            >
+              {intervals.map((opt) => (
+                <option key={opt.ms} value={opt.ms} className="bg-card text-foreground">
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+            {!(isPremium || isAdmin) && (
+              <span
+                className="hidden md:flex items-center gap-0.5 text-[10px] text-yellow-500/70 cursor-default"
+                title={lang === "en" ? "Premium: down to 1 min" : "Premium: jusqu'à 1 min"}
+              >
+                <Crown className="w-2.5 h-2.5" />
+                1min
+              </span>
+            )}
+          </div>
         </div>
       </div>
 
