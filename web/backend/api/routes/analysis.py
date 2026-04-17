@@ -95,7 +95,7 @@ async def _record_scan(user_id: int, market: str) -> None:
 async def analyze_asset(
     request: Request,
     symbol: str,
-    timeframe: str = Query(default="1d", pattern="^(5m|15m|1h|4h|1d)$")
+    timeframe: str = Query(default="1d", pattern="^(5m|15m|30m|1h|4h|1d|3d|1w|1mo)$")
 ):
     """Get AI analysis for an asset"""
     if not _SYMBOL_RE.match(symbol.upper()):
@@ -105,10 +105,14 @@ async def analyze_asset(
     try:
         # Get historical data
         period_map = {
-            "5m": "5d", "15m": "5d", "1h": "1mo",
-            "4h": "3mo", "1d": "6mo"
+            "5m":  "5d",  "15m": "5d",  "30m": "10d",
+            "1h":  "1mo", "4h":  "3mo", "1d":  "6mo",
+            "3d":  "1y",  "1w":  "2y",  "1mo": "5y",
         }
-        hist = await fetch_ohlcv(symbol, period=period_map.get(timeframe, "1mo"), interval=timeframe)
+        # Map frontend timeframe keys to valid yfinance intervals
+        interval_map = {"3d": "1d", "1w": "1wk"}
+        actual_interval = interval_map.get(timeframe, timeframe)
+        hist = await fetch_ohlcv(symbol, period=period_map.get(timeframe, "1mo"), interval=actual_interval)
 
         if hist.empty or len(hist) < 20:
             raise HTTPException(status_code=400, detail="Insufficient data for analysis")
@@ -1179,7 +1183,7 @@ async def scan_market(
 async def get_chart_data(
     request: Request,
     symbol: str,
-    timeframe: str = Query(default="1d", pattern="^(5m|15m|1h|4h|1d)$"),
+    timeframe: str = Query(default="1d", pattern="^(5m|15m|30m|1h|4h|1d|3d|1w|1mo)$"),
     current_user: dict = Depends(get_current_user),
 ):
     """Return OHLCV candles + technical overlays + future projection (premium only)."""
@@ -1199,9 +1203,13 @@ async def get_chart_data(
     period_map = {
         "5m":  ("5d",   "5m"),
         "15m": ("10d",  "15m"),
+        "30m": ("10d",  "30m"),
         "1h":  ("2mo",  "1h"),
         "4h":  ("3mo",  "1h"),
         "1d":  ("1y",   "1d"),
+        "3d":  ("2y",   "1d"),
+        "1w":  ("3y",   "1wk"),
+        "1mo": ("10y",  "1mo"),
     }
     fetch_period, fetch_interval = period_map[timeframe]
 
@@ -1211,9 +1219,14 @@ async def get_chart_data(
         if hist.empty or len(hist) < 10:
             raise HTTPException(status_code=400, detail="Données insuffisantes pour ce symbole")
 
-        # Resample to 4h if requested
+        # Resample to synthetic intervals not natively supported by yfinance
         if timeframe == "4h":
             hist = hist.resample("4h").agg({
+                "Open": "first", "High": "max", "Low": "min",
+                "Close": "last", "Volume": "sum"
+            }).dropna()
+        elif timeframe == "3d":
+            hist = hist.resample("3D").agg({
                 "Open": "first", "High": "max", "Low": "min",
                 "Close": "last", "Volume": "sum"
             }).dropna()

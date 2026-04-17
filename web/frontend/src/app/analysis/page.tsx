@@ -538,17 +538,38 @@ export default function AnalysisPage() {
               document.body
             )}
           </div>
-          <select
-            value={timeframe}
-            onChange={(e) => setTimeframe(e.target.value)}
-            className="input w-full md:w-32"
-          >
-            <option value="5m">5 min</option>
-            <option value="15m">15 min</option>
-            <option value="1h">1 heure</option>
-            <option value="4h">4 heures</option>
-            <option value="1d">1 jour</option>
-          </select>
+          {/* Timeframe selector */}
+          <div className="flex items-center gap-1 bg-white/5 rounded-xl p-1 border border-white/8 flex-shrink-0 overflow-x-auto no-scrollbar">
+            {[
+              { v: "5m",  label: "5m" },
+              { v: "15m", label: "15m" },
+              { v: "30m", label: "30m" },
+              { v: "1h",  label: "1h" },
+              { v: "4h",  label: "4h" },
+              null,
+              { v: "1d",  label: "1J" },
+              { v: "3d",  label: "3J" },
+              { v: "1w",  label: "1S" },
+              { v: "1mo", label: "1M" },
+            ].map((tf, i) =>
+              tf === null ? (
+                <div key={i} className="w-px h-5 bg-white/15 mx-0.5 flex-shrink-0" />
+              ) : (
+                <button
+                  key={tf.v}
+                  onClick={() => setTimeframe(tf.v)}
+                  className={cn(
+                    "px-2.5 py-1 rounded-lg text-xs font-semibold transition-all duration-150 whitespace-nowrap flex-shrink-0",
+                    timeframe === tf.v
+                      ? "bg-primary text-white shadow-sm"
+                      : "text-muted-foreground hover:text-foreground hover:bg-white/10"
+                  )}
+                >
+                  {tf.label}
+                </button>
+              )
+            )}
+          </div>
           <motion.button
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
