@@ -1,13 +1,13 @@
 "use client";
 
-import { useEffect, useState, useCallback, useMemo, memo } from "react";
+import { useEffect, useState, useCallback, useMemo, memo, useRef } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   TrendingUp, TrendingDown, Star, Activity, ArrowUpRight, ArrowDownRight,
   Target, RefreshCw, Loader2, Globe, Newspaper, Shield, Plus, Wallet,
   Bot, BarChart3, Settings2, Eye, EyeOff, ExternalLink, Clock,
-  Layers, ChevronUp, ChevronDown, Crown,
+  Layers, ChevronUp, ChevronDown, Crown, Timer,
 } from "lucide-react";
 import { cn, formatPercent } from "@/lib/utils";
 import { walletAPI, favoritesAPI, adminAPI, aiAPI, marketAPI, WalletBalance, TradingStats, Favorite, MarketNews, SummaryPoint, Position } from "@/lib/api";
@@ -74,6 +74,8 @@ export default function DashboardPage() {
   const [newsFilter, setNewsFilter] = useState<"all" | "mine">("all");
   const [activeWidgets, setActiveWidgets] = useState<WidgetId[]>(DEFAULT_WIDGETS);
   const [editMode, setEditMode] = useState(false);
+  const [dashRefreshRate, setDashRefreshRate] = useState(180_000); // 3 min default
+  const dashRefreshIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     const stored = localStorage.getItem(DASHBOARD_STORAGE_KEY);
@@ -150,10 +152,17 @@ export default function DashboardPage() {
 
   useEffect(() => {
     loadData();
-    const interval = setInterval(() => loadData(), 60000);
-    return () => clearInterval(interval);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (dashRefreshIntervalRef.current) clearInterval(dashRefreshIntervalRef.current);
+    if (dashRefreshRate > 0) {
+      dashRefreshIntervalRef.current = setInterval(() => loadData(), dashRefreshRate);
+    }
+    return () => { if (dashRefreshIntervalRef.current) clearInterval(dashRefreshIntervalRef.current); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dashRefreshRate]);
 
   const avgFavChange = useMemo(() => favorites.length > 0
     ? favorites.filter(f => !f.error).reduce((sum, f) => sum + f.change, 0) / Math.max(1, favorites.filter(f => !f.error).length)
@@ -226,9 +235,35 @@ export default function DashboardPage() {
                 {editMode ? t("dash_done") : t("dash_customize")}
               </button>
             )}
-            <button onClick={() => loadData(true)} disabled={isRefreshing} className="p-2 rounded-lg hover:bg-white/5 transition-colors text-muted-foreground hover:text-foreground">
+            <button
+              onClick={() => loadData(true)}
+              disabled={isRefreshing}
+              title={lang === "en" ? "Refresh now" : "Actualiser maintenant"}
+              className="p-2 rounded-lg hover:bg-white/5 transition-colors text-muted-foreground hover:text-foreground"
+            >
               <RefreshCw className={cn("w-5 h-5", isRefreshing && "animate-spin")} />
             </button>
+            {/* Auto-refresh interval — same for all users, default 3 min */}
+            <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white/5 border border-white/8 text-xs text-muted-foreground">
+              <Timer className={cn("w-3.5 h-3.5 flex-shrink-0 transition-colors", dashRefreshRate > 0 && "text-profit")} />
+              <select
+                value={dashRefreshRate}
+                onChange={(e) => setDashRefreshRate(Number(e.target.value))}
+                className="bg-transparent text-xs cursor-pointer outline-none"
+              >
+                {[
+                  { label: "Off",    ms: 0 },
+                  { label: "3 min",  ms: 180_000 },
+                  { label: "5 min",  ms: 300_000 },
+                  { label: "10 min", ms: 600_000 },
+                  { label: "30 min", ms: 1_800_000 },
+                ].map((opt) => (
+                  <option key={opt.ms} value={opt.ms} className="bg-card text-foreground">
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
         </div>
       </motion.div>
