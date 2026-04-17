@@ -241,7 +241,7 @@ export default function WalletPage() {
               {lang === "en" ? "Go Premium" : "Passer Premium"}
             </Link>
             <Link
-              href="/support"
+              href="/premium"
               className="flex-1 sm:flex-none px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/15 text-xs font-medium flex items-center justify-center gap-1.5 transition-colors"
             >
               {lang === "en" ? "Contact admin" : "Contacter l'admin"}
@@ -374,7 +374,7 @@ export default function WalletPage() {
               </Link>
             </div>
             <Link
-              href="/support"
+              href="/premium"
               onClick={() => setShowPremiumGate(false)}
               className="block mt-4 text-xs text-muted-foreground hover:text-foreground transition-colors"
             >
