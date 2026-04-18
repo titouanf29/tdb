@@ -2392,25 +2392,36 @@ function buildPosts(prices: Record<string, { price: number; change: number }>, m
   return { signal, top3, edu, promo };
 }
 
-type RedditPost = { subreddit: string; title: string; body: string };
+type RedditLang = { subreddit: string; title: string; body: string };
+type RedditPost = { fr: RedditLang; en: RedditLang };
 
 function buildRedditPosts(prices: Record<string, { price: number; change: number }>): RedditPost[] {
-  const labels: Record<string, string> = {
+  const labelsFr: Record<string, string> = {
     "BTC-USD": "Bitcoin (BTC)", "ETH-USD": "Ethereum (ETH)",
     "AAPL": "Apple (AAPL)", "^GSPC": "S&P 500", "GC=F": "l'or",
+  };
+  const labelsEn: Record<string, string> = {
+    "BTC-USD": "Bitcoin (BTC)", "ETH-USD": "Ethereum (ETH)",
+    "AAPL": "Apple (AAPL)", "^GSPC": "S&P 500", "GC=F": "Gold",
   };
   const symbols = ["BTC-USD", "ETH-USD", "AAPL", "^GSPC", "GC=F"];
   const sorted = symbols.filter((s) => prices[s]).sort((a, b) => Math.abs(prices[b].change) - Math.abs(prices[a].change));
 
   const top = sorted[0];
   const second = sorted[1];
-  const topLabel = top ? labels[top] : "cet actif";
-  const topChange = top ? prices[top].change : 0;
-  const topSign = topChange >= 0 ? "+" : "";
-  const topDir = topChange >= 0 ? "monte" : "recule";
-  const topPos = topChange >= 0 ? "se positionner à la hausse" : "se positionner à la baisse";
 
-  const secondLabel = second ? labels[second] : "";
+  const topChangeFr = top ? prices[top].change : 0;
+  const topSignFr = topChangeFr >= 0 ? "+" : "";
+  const topLabelFr = top ? labelsFr[top] : "cet actif";
+  const topDirFr = topChangeFr >= 0 ? "monte" : "recule";
+  const topPosFr = topChangeFr >= 0 ? "se positionner à la hausse" : "se positionner à la baisse";
+
+  const topLabelEn = top ? labelsEn[top] : "this asset";
+  const topDirEn = topChangeFr >= 0 ? "up" : "down";
+  const topPosEn = topChangeFr >= 0 ? "go long" : "go short";
+
+  const secondLabelFr = second ? labelsFr[second] : "";
+  const secondLabelEn = second ? labelsEn[second] : "";
   const secondChange = second ? prices[second].change : 0;
   const secondSign = secondChange >= 0 ? "+" : "";
 
@@ -2418,29 +2429,56 @@ function buildRedditPosts(prices: Record<string, { price: number; change: number
   const btcChange = prices["BTC-USD"]?.change ?? 0;
   const goldSign = goldChange >= 0 ? "+" : "";
   const btcSign = btcChange >= 0 ? "+" : "";
-
   const sameDir = (goldChange >= 0) === (btcChange >= 0);
 
   return [
     {
-      subreddit: "r/vosfinances",
-      title: `${topLabel} à ${topSign}${topChange.toFixed(2)}% aujourd'hui — ça veut dire quoi concrètement ?`,
-      body: `Salut,\n\nJe m'entraîne au trading sur un simulateur (${SITE_URL}) et j'ai vu que ${topLabel} ${topDir} de ${topSign}${topChange.toFixed(2)}% sur la séance.\n\nL'analyse technique que je regarde semble indiquer que ça pourrait être un moment pour ${topPos}, mais je ne suis vraiment pas sûr de mon interprétation.\n\nEst-ce que quelqu'un peut expliquer ce qui se passe fondamentalement ? Qu'est-ce qui fait bouger ${topLabel} comme ça ?\n\n(Je précise que c'est purement pour apprendre, je ne gère pas d'argent réel, juste curieux d'avoir l'avis de gens plus expérimentés)`,
+      fr: {
+        subreddit: "r/vosfinances",
+        title: `${topLabelFr} à ${topSignFr}${topChangeFr.toFixed(2)}% aujourd'hui — ça veut dire quoi concrètement ?`,
+        body: `Salut,\n\nJe m'entraîne au trading sur un simulateur (${SITE_URL}) et j'ai vu que ${topLabelFr} ${topDirFr} de ${topSignFr}${topChangeFr.toFixed(2)}% sur la séance.\n\nL'analyse technique semble indiquer que ça pourrait être un moment pour ${topPosFr}, mais je ne suis vraiment pas sûr de mon interprétation.\n\nEst-ce que quelqu'un peut expliquer ce qui se passe fondamentalement ? Qu'est-ce qui fait bouger ${topLabelFr} comme ça ?\n\n(Je précise que c'est purement pour apprendre, je ne gère pas d'argent réel — juste curieux d'avoir l'avis de gens plus expérimentés)`,
+      },
+      en: {
+        subreddit: "r/investing",
+        title: `${topLabelEn} ${topDirEn} ${topSignFr}${topChangeFr.toFixed(2)}% today — what's actually driving this?`,
+        body: `Hey,\n\nI've been practicing trading on a simulator (${SITE_URL}) and noticed ${topLabelEn} is ${topDirEn} ${topSignFr}${topChangeFr.toFixed(2)}% today.\n\nThe technical setup seems to suggest this could be a moment to ${topPosEn}, but I'm not confident in my read — still learning.\n\nCan anyone explain what's fundamentally happening? What's driving ${topLabelEn} right now?\n\n(For context: paper trading only, no real money involved — just trying to learn and curious what more experienced folks think)`,
+      },
     },
     {
-      subreddit: "r/vosfinances",
-      title: `L'or à ${goldSign}${goldChange.toFixed(2)}% et le Bitcoin à ${btcSign}${btcChange.toFixed(2)}% — ${sameDir ? "ils montent ensemble, c'est normal ?" : "l'un monte l'autre baisse, comment vous lisez ça ?"}`,
-      body: `Bonjour,\n\nJe regarde les marchés sur ${SITE_URL} pour m'entraîner et j'ai remarqué quelque chose que je ne comprends pas bien.\n\nCe matin :\n- Or : ${goldSign}${goldChange.toFixed(2)}%\n- Bitcoin : ${btcSign}${btcChange.toFixed(2)}%\n\n${sameDir ? "Je pensais que l'or et le Bitcoin étaient des actifs refuges distincts qui ne bougent pas forcément ensemble. Là ils semblent corrélés. Est-ce que c'est un signal de quelque chose (inflation, macro...) ?" : "Je pensais que l'or et le Bitcoin se comportaient parfois de façon similaire en tant qu'actifs refuges, mais là ils partent dans des directions opposées. Comment vous interprétez ça ?"}\n\nMerci d'avance pour les explications, je suis encore en phase d'apprentissage.`,
+      fr: {
+        subreddit: "r/vosfinances",
+        title: `Or à ${goldSign}${goldChange.toFixed(2)}% et Bitcoin à ${btcSign}${btcChange.toFixed(2)}% — ${sameDir ? "ils bougent ensemble, c'est un signal ?" : "l'un monte l'autre baisse, comment vous lisez ça ?"}`,
+        body: `Bonjour,\n\nJe regarde les marchés sur ${SITE_URL} pour m'entraîner et j'ai remarqué quelque chose que je ne comprends pas bien.\n\nCe matin :\n- Or : ${goldSign}${goldChange.toFixed(2)}%\n- Bitcoin : ${btcSign}${btcChange.toFixed(2)}%\n\n${sameDir ? "Je pensais que l'or et le Bitcoin étaient des actifs refuges assez indépendants. Là ils semblent corrélés. Est-ce que c'est un signal macro (inflation, fuite vers les refuges...) ?" : "Je pensais que l'or et le Bitcoin pouvaient parfois se comporter de façon similaire, mais là ils partent dans des directions opposées. Comment vous interprétez ça ?"}\n\nMerci d'avance, je suis encore en phase d'apprentissage.`,
+      },
+      en: {
+        subreddit: "r/Bitcoin",
+        title: `Gold ${goldSign}${goldChange.toFixed(2)}% and Bitcoin ${btcSign}${btcChange.toFixed(2)}% — ${sameDir ? "both moving together, is this meaningful?" : "moving in opposite directions — how do you read this?"}`,
+        body: `Hi everyone,\n\nI track markets through a trading simulator I use to practice (${SITE_URL}) and noticed something I don't fully understand.\n\nRight now:\n- Gold: ${goldSign}${goldChange.toFixed(2)}%\n- Bitcoin: ${btcSign}${btcChange.toFixed(2)}%\n\n${sameDir ? "I thought gold and BTC were fairly independent safe-haven assets. Is this correlation meaningful, or just noise? Does it say something about macro conditions (inflation fears, risk-off move)?" : "I thought gold and BTC sometimes behave similarly as inflation hedges. What's making them diverge today? Is one of them signaling something the other isn't?"}\n\nWould love to hear from people who understand macro better than I do.`,
+      },
     },
     {
-      subreddit: "r/trading",
-      title: `${topLabel} — signal intéressant ce matin, quelqu'un voit la même chose ?`,
-      body: `Salut à tous,\n\nJe surveille ${topLabel} sur ${SITE_URL} (je m'entraîne sur simulateur) et j'ai un signal qui me semble notable : ${topSign}${topChange.toFixed(2)}% sur la séance${secondLabel ? `, pendant que ${secondLabel} fait ${secondSign}${secondChange.toFixed(2)}%` : ""}.\n\nLe mouvement semble confirmé par le volume. D'après ce que j'ai lu, ça pourrait indiquer une opportunité pour ${topPos} — mais je suis encore débutant et j'ai du mal à distinguer un vrai signal du bruit.\n\nEst-ce que des traders plus expérimentés voient la même chose ? Qu'est-ce que vous regarderiez en plus pour confirmer ou infirmer ?\n\n(Évidemment chacun fait ses propres analyses, je partage juste mon observation)`,
+      fr: {
+        subreddit: "r/trading",
+        title: `${topLabelFr} — signal intéressant ce matin, quelqu'un voit la même chose ?`,
+        body: `Salut à tous,\n\nJe surveille ${topLabelFr} sur ${SITE_URL} (simulateur, pas d'argent réel) et j'ai un signal qui me semble notable : ${topSignFr}${topChangeFr.toFixed(2)}% sur la séance${secondLabelFr ? `, pendant que ${secondLabelFr} fait ${secondSign}${secondChange.toFixed(2)}%` : ""}.\n\nLe mouvement semble confirmé par le volume. Ça pourrait pointer vers ${topPosFr} — mais je suis encore débutant et j'ai du mal à distinguer un vrai signal du bruit.\n\nDes traders plus expérimentés voient la même chose ? Qu'est-ce que vous regarderiez en plus pour confirmer ?\n\n(Chacun fait ses propres analyses évidemment, je partage juste mon observation)`,
+      },
+      en: {
+        subreddit: "r/trading",
+        title: `${topLabelEn} — interesting setup today, anyone else seeing this?`,
+        body: `Hey r/trading,\n\nWatching ${topLabelEn} on a simulator I use to practice (${SITE_URL}) — ${topSignFr}${topChangeFr.toFixed(2)}% on the session${secondLabelEn ? `, while ${secondLabelEn} is at ${secondSign}${secondChange.toFixed(2)}%` : ""}.\n\nThe move looks volume-confirmed. From what I've studied, this kind of setup might suggest considering to ${topPosEn} — but I'm still learning and can't always tell real signals from noise.\n\nAre more experienced traders seeing the same thing? What additional confirmation would you look for before acting on it?\n\n(DYOR obviously — just sharing my observation as someone learning TA)`,
+      },
     },
     {
-      subreddit: "r/vosfinances",
-      title: `J'utilise un simulateur de trading depuis quelques semaines — retour d'expérience honnête`,
-      body: `Salut r/vosfinances,\n\nJe voulais partager mon expérience avec le paper trading après quelques semaines sur ${SITE_URL}.\n\nCe que j'ai appris :\n- C'est beaucoup plus dur que ça en a l'air. Même sans argent réel, les émotions sont là.\n- Regarder un graphique en temps réel, c'est différent d'analyser après coup.\n- Les indicateurs (RSI, MACD) sont utiles mais pas magiques — il m'a fallu du temps pour comprendre ça.\n\nCe qui m'a surpris cette semaine : ${topLabel} à ${topSign}${topChange.toFixed(2)}%. J'aurais parié sur l'inverse. Bonne leçon d'humilité.\n\nEst-ce que d'autres ici ont commencé par le paper trading avant de passer au réel ? Combien de temps avant de se sentir prêt ?`,
+      fr: {
+        subreddit: "r/vosfinances",
+        title: `J'utilise un simulateur de trading depuis quelques semaines — retour d'expérience honnête`,
+        body: `Salut r/vosfinances,\n\nJe voulais partager mon expérience avec le paper trading après quelques semaines sur ${SITE_URL}.\n\nCe que j'ai appris :\n- C'est beaucoup plus dur que ça en a l'air. Même sans argent réel, les émotions sont là.\n- Regarder un graphique en temps réel, c'est différent d'analyser après coup.\n- Les indicateurs (RSI, MACD) sont utiles mais pas magiques — il m'a fallu du temps pour comprendre ça.\n\nCe qui m'a surpris cette semaine : ${topLabelFr} à ${topSignFr}${topChangeFr.toFixed(2)}%. J'aurais parié sur l'inverse. Bonne leçon d'humilité.\n\nEst-ce que d'autres ici ont commencé par le paper trading avant de passer au réel ? Combien de temps avant de se sentir prêt ?`,
+      },
+      en: {
+        subreddit: "r/stocks",
+        title: `Been paper trading for a few weeks — honest thoughts so far`,
+        body: `Hey r/stocks,\n\nWanted to share my honest experience after a few weeks of paper trading on ${SITE_URL}.\n\nWhat I've learned:\n- It's way harder than it looks, even without real money on the line\n- Watching charts in real time is very different from analyzing them after the fact\n- Indicators (RSI, MACD) are useful but not magic — took me a while to really internalize that\n\nWhat surprised me this week: ${topLabelEn} at ${topSignFr}${topChangeFr.toFixed(2)}%. Would have bet the opposite. Good humility check.\n\nFor those who started with paper trading before going real — how long did you practice before feeling ready? Any advice on when to make the jump?`,
+      },
     },
   ];
 }
@@ -2512,6 +2550,7 @@ function SocialTab() {
   const posts = !isLoading && Object.keys(prices).length > 0 ? buildPosts(prices, marketStatus) : null;
   const redditPosts = !isLoading && Object.keys(prices).length > 0 ? buildRedditPosts(prices) : null;
   const [copiedReddit, setCopiedReddit] = useState<Record<string, boolean>>({});
+  const [redditLang, setRedditLang] = useState<Record<number, "fr" | "en">>({});
 
   const copyReddit = async (id: string, text: string) => {
     try {
@@ -2779,58 +2818,78 @@ function SocialTab() {
           </div>
         ) : redditPosts ? (
           <div className="grid gap-4">
-            {redditPosts.map((post, i) => (
-              <div key={i} className="glass-card p-5 space-y-3 border-orange-500/10">
-                {/* Subreddit badge */}
-                <div className="flex items-center gap-2">
-                  <span className="text-xs px-2 py-0.5 rounded-full bg-orange-500/15 text-orange-400 border border-orange-500/20 font-medium">
-                    {post.subreddit}
-                  </span>
-                  <span className="text-xs text-muted-foreground">Titre du post ↓</span>
-                </div>
+            {redditPosts.map((post, i) => {
+              const lang = redditLang[i] ?? "fr";
+              const current = post[lang];
+              return (
+                <div key={i} className="glass-card p-5 space-y-3 border-orange-500/10">
+                  {/* Header: subreddit + lang toggle */}
+                  <div className="flex items-center justify-between flex-wrap gap-2">
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-orange-500/15 text-orange-400 border border-orange-500/20 font-medium">
+                      {current.subreddit}
+                    </span>
+                    <div className="flex items-center gap-1 bg-white/5 rounded-lg p-1 border border-white/8">
+                      <button
+                        onClick={() => setRedditLang((p) => ({ ...p, [i]: "fr" }))}
+                        className={cn(
+                          "px-3 py-1 rounded-md text-xs font-semibold transition-all",
+                          lang === "fr" ? "bg-blue-600 text-white" : "text-muted-foreground hover:text-foreground"
+                        )}
+                      >
+                        🇫🇷 Français
+                      </button>
+                      <button
+                        onClick={() => setRedditLang((p) => ({ ...p, [i]: "en" }))}
+                        className={cn(
+                          "px-3 py-1 rounded-md text-xs font-semibold transition-all",
+                          lang === "en" ? "bg-orange-500 text-white" : "text-muted-foreground hover:text-foreground"
+                        )}
+                      >
+                        🇬🇧 English
+                      </button>
+                    </div>
+                  </div>
 
-                {/* Title */}
-                <div className="space-y-1">
+                  {/* Title */}
                   <div className="flex items-start justify-between gap-3">
-                    <p className="text-sm font-semibold leading-snug flex-1">{post.title}</p>
+                    <p className="text-sm font-semibold leading-snug flex-1">{current.title}</p>
                     <button
-                      onClick={() => copyReddit(`title-${i}`, post.title)}
+                      onClick={() => copyReddit(`title-${i}-${lang}`, current.title)}
                       className={cn(
                         "shrink-0 flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition-all border",
-                        copiedReddit[`title-${i}`]
+                        copiedReddit[`title-${i}-${lang}`]
                           ? "bg-profit/20 text-profit border-profit/30"
                           : "bg-white/5 hover:bg-white/10 border-white/10 text-muted-foreground hover:text-foreground"
                       )}
                     >
-                      {copiedReddit[`title-${i}`] ? <><Check className="w-3 h-3" />Copié</> : <><Copy className="w-3 h-3" />Titre</>}
+                      {copiedReddit[`title-${i}-${lang}`] ? <><Check className="w-3 h-3" />Copié</> : <><Copy className="w-3 h-3" />Titre</>}
                     </button>
                   </div>
-                </div>
 
-                <div className="w-full h-px bg-white/6" />
+                  <div className="w-full h-px bg-white/6" />
 
-                {/* Body */}
-                <div className="space-y-2">
-                  <span className="text-xs text-muted-foreground">Corps du post ↓</span>
-                  <pre className="whitespace-pre-wrap text-sm font-sans bg-white/3 rounded-xl p-4 border border-white/8 leading-relaxed text-muted-foreground">
-                    {post.body}
-                  </pre>
-                  <div className="flex justify-end">
-                    <button
-                      onClick={() => copyReddit(`body-${i}`, post.body)}
-                      className={cn(
-                        "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all border",
-                        copiedReddit[`body-${i}`]
-                          ? "bg-profit/20 text-profit border-profit/30"
-                          : "bg-primary/20 hover:bg-primary/30 text-primary border-primary/30"
-                      )}
-                    >
-                      {copiedReddit[`body-${i}`] ? <><Check className="w-3.5 h-3.5" />Copié !</> : <><Copy className="w-3.5 h-3.5" />Copier le corps</>}
-                    </button>
+                  {/* Body */}
+                  <div className="space-y-2">
+                    <pre className="whitespace-pre-wrap text-sm font-sans bg-white/3 rounded-xl p-4 border border-white/8 leading-relaxed text-muted-foreground">
+                      {current.body}
+                    </pre>
+                    <div className="flex justify-end">
+                      <button
+                        onClick={() => copyReddit(`body-${i}-${lang}`, current.body)}
+                        className={cn(
+                          "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all border",
+                          copiedReddit[`body-${i}-${lang}`]
+                            ? "bg-profit/20 text-profit border-profit/30"
+                            : "bg-primary/20 hover:bg-primary/30 text-primary border-primary/30"
+                        )}
+                      >
+                        {copiedReddit[`body-${i}-${lang}`] ? <><Check className="w-3.5 h-3.5" />Copié !</> : <><Copy className="w-3.5 h-3.5" />Copier le corps</>}
+                      </button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         ) : null}
 
