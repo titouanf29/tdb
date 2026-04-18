@@ -2288,31 +2288,31 @@ const SITE_URL = "captentdb.fr";
 
 const EDU_TIPS = [
   {
-    tw: `📊 Savez-vous lire une bougie japonaise ?\n\n🟢 Corps vert = clôture > ouverture (acheteurs dominants)\n🔴 Corps rouge = clôture < ouverture (vendeurs dominants)\nLes mèches révèlent les extremes de la séance.\n\nMaîtrisez les bases sur ${SITE_URL} ⬇️`,
-    li: `📊 Formation Trading : Comprendre les bougies japonaises\n\nChaque bougie raconte une histoire sur la bataille entre acheteurs et vendeurs.\n\n• Corps vert : les acheteurs ont pris le dessus sur la séance\n• Corps rouge : pression vendeuse dominante\n• Mèches hautes/basses : niveaux extrêmes testés et rejetés\n\nCes patterns sont la base de l'analyse technique. Apprenez à les lire sur ${SITE_URL} pour affiner vos décisions d'investissement.\n\n#Trading #AnalyseTechnique #Finance #Investissement`,
+    tw: `Une bougie rouge ne veut pas forcément dire catastrophe.\n\nElle dit juste que les vendeurs ont eu le dessus sur la séance.\n\nLe contexte compte plus que la couleur.\n\nBougie verte après une longue descente = signal.\nBougie rouge en pleine tendance haussière = souvent juste du bruit.`,
+    li: `La plupart des débutants regardent la couleur d'une bougie.\nLes traders expérimentés regardent ce qui l'entoure.\n\nUne bougie rouge en tendance haussière, c'est souvent du bruit.\nUne bougie rouge après 10 jours de hausse sans volume ? Là, ça devient intéressant.\n\nChaque bougie raconte une micro-histoire : où le prix a ouvert, jusqu'où il est allé, et où il a fini. La mèche haute dit que les acheteurs ont poussé — et que les vendeurs ont résisté. La mèche basse, c'est l'inverse.\n\nSimple. Puissant. Et souvent sous-utilisé.\n\n#Trading #AnalyseTechnique #Bourse`,
   },
   {
-    tw: `💡 RSI > 70 = surachat ?\n\nPas si vite. En tendance haussière forte, le RSI peut rester >70 longtemps.\n\nLe RSI est un outil de confirmation, pas un signal d'entrée seul. Combinez-le toujours avec d'autres indicateurs.\n\nExplorez vos actifs sur ${SITE_URL} 🔍`,
-    li: `💡 Mythes du trading : le RSI à 70 signifie-t-il vraiment surachat ?\n\nC'est l'une des erreurs les plus fréquentes chez les débutants.\n\nEn réalité :\n• En tendance haussière, le RSI peut rester >70 pendant des semaines\n• Un RSI élevé confirme la force, il ne prédit pas un retournement\n• Combinez toujours avec volumes, supports/résistances et contexte macro\n\nAnalysez vos actifs en profondeur sur ${SITE_URL}\n\n#Trading #RSI #AnalyseTechnique #Investissement #Finance`,
+    tw: `RSI > 70 = surachat = vendre ?\n\nPas forcément.\n\nEn tendance haussière, le RSI peut rester au-dessus de 70 pendant des semaines. Ceux qui ont vendu BTC à RSI 72 début 2024 ont raté 60% de hausse.\n\nLe RSI confirme une tendance. Il ne la prédit pas.`,
+    li: `Il y a une idée reçue qui coûte cher à beaucoup de débutants.\n\n« RSI au-dessus de 70, c'est surachat, il faut vendre. »\n\nEn réalité, en tendance haussière forte, le RSI peut rester au-dessus de 70 pendant des mois. Vendre trop tôt sur ce signal seul, c'est sortir d'une tendance gagnante.\n\nLe RSI, c'est un outil de confirmation — pas un déclencheur de vente automatique.\n\nÀ combiner toujours avec la tendance de fond, le volume, et les niveaux de prix clés.\n\n#Trading #RSI #AnalyseTechnique`,
   },
   {
-    tw: `📈 Qu'est-ce qu'un support ?\n\nC'est un niveau de prix où la demande est historiquement suffisante pour stopper une baisse.\n\nPsychologie : les acheteurs qui ont "raté" la montée reviennent souvent au même niveau.\n\nTestez vos niveaux sur ${SITE_URL} 🎯`,
-    li: `📈 Les niveaux de support et résistance : la psychologie des marchés\n\nUn support, c'est là où les acheteurs reprennent le contrôle.\nUne résistance, c'est là où les vendeurs l'emportent.\n\nCes zones sont créées par la mémoire collective des traders :\n• Anciens sommets / creux significatifs\n• Niveaux psychologiques ronds (100€, 1000$…)\n• Zones de fort volume historique\n\nIdentifiez vos niveaux clés sur ${SITE_URL}\n\n#Trading #Support #Résistance #Bourse #Finance`,
+    tw: `Pourquoi le prix rebondit souvent aux mêmes niveaux ?\n\nParce que les traders ont une mémoire.\n\nCeux qui ont raté l'entrée à un niveau attendent que le prix revienne. Quand ça arrive, ils achètent tous en même temps.\n\nC'est ça, un support. De la psychologie collective, pas de la magie.`,
+    li: `Les supports et résistances, c'est de la psychologie collective mise en graphique.\n\nQuand un actif a rebondi plusieurs fois sur le même niveau, les traders s'en souviennent. Ils passent des ordres à l'avance à ce prix. Et quand le marché y revient, ces ordres s'exécutent — créant le rebond.\n\nC'est pour ça que certains niveaux "tiennent" de façon presque prévisible.\nEt que quand ils cassent vraiment, la chute est souvent violente : tous les stops sautent en même temps.\n\nLire un graphique, c'est aussi lire la psychologie des participants.\n\n#Trading #Bourse #AnalyseTechnique`,
   },
   {
-    tw: `⚡ La gestion du risque avant tout.\n\nRègle des 2% : ne risquez jamais plus de 2% de votre capital sur un seul trade.\n\nUn bon trader ne cherche pas à gagner plus — il cherche à perdre moins.\n\nSimulez et progressez sur ${SITE_URL} 🛡️`,
-    li: `⚡ La règle que tout trader doit connaître : les 2% de risque par trade\n\nLa différence entre un trader amateur et un trader consistant ?\nLa gestion du risque.\n\n• Risquer 2% max par position préserve le capital même sur une série de pertes\n• 10 pertes consécutives à 2% = -18% (récupérable)\n• 10 pertes à 10% = -65% (très difficile à remonter)\n\nPratique le paper trading pour maîtriser la discipline sur ${SITE_URL}\n\n#Trading #GestionDuRisque #MoneyManagement #Finance #Investissement`,
+    tw: `Un bon trade perdu, ça arrive.\nDix mauvais trades d'affilée qui explosent le compte, ça n'arrive pas par hasard.\n\nRègle simple : ne jamais risquer plus de 2% du capital sur une position.\n\n10 pertes de suite à 2% = -18%. Récupérable.\n10 pertes à 10% = -65%. Beaucoup moins.`,
+    li: `La gestion du risque, ce n'est pas sexy. Mais c'est ce qui sépare ceux qui durent de ceux qui disparaissent.\n\nUne règle que beaucoup de traders appliquent : ne jamais risquer plus de 2% du capital total sur une seule position.\n\nPourquoi ?\n\nMême avec 10 pertes consécutives — ce qui arrive — vous perdez environ 18% du capital. Douloureux, mais récupérable.\nÀ 10% par trade, 10 pertes = -65%. Là, psychologiquement et financièrement, c'est très difficile de revenir.\n\nLa taille de position est souvent la décision la plus importante d'un trade. Avant même de choisir dans quel sens entrer.\n\n#Trading #GestionDuRisque #Finance`,
   },
 ];
 
 const PROMO_POSTS = [
   {
-    tw: `🚀 CaptenTDB — le simulateur de trading qui vous prépare aux vrais marchés.\n\n✅ Paper trading sans risque\n✅ Analyse technique intégrée\n✅ Crypto, actions, ETF & plus\n\nCommencez gratuitement → ${SITE_URL}`,
-    li: `🚀 Vous voulez apprendre à trader sans risquer votre argent ?\n\nCaptenTDB est un simulateur de trading complet :\n\n• Paper trading réaliste sur marchés réels\n• Analyse technique avec indicateurs pro\n• Suivi de portefeuille et performance\n• Crypto, actions, ETF, indices, matières premières\n\nParfait pour débuter ou tester de nouvelles stratégies.\n\n👉 Essayez gratuitement sur ${SITE_URL}\n\n#Trading #Investissement #PaperTrading #Finance #Bourse`,
+    tw: `La meilleure façon d'apprendre à trader ?\n\nLe faire. Vraiment. Sur de vrais marchés.\nMais sans mettre un seul euro en jeu.\n\nC'est ce que propose CaptenTDB — paper trading sur prix réels, crypto et actions.\n\n${SITE_URL}`,
+    li: `Quand on commence à trader, le plus dur ce n'est pas de comprendre les concepts.\n\nC'est de gérer ses émotions quand l'argent réel bouge.\n\nC'est là que le paper trading prend tout son sens : passer de vrais ordres, vivre de vrais mouvements de marché — mais avec un capital virtuel. Tester, échouer, corriger, sans le stress financier.\n\nCaptenTDB est construit pour ça. Paper trading sur prix en temps réel, crypto, actions et ETF.\n\n${SITE_URL}\n\n#Trading #PaperTrading #Investissement`,
   },
   {
-    tw: `📊 Vous analysez comment vos actifs ?\n\nSur CaptenTDB : bougies, RSI, MACD, volumes — tout en un.\nVision 5min → 1 mois. Pour chaque actif.\n\nGratuit. Sans risque. Vrai marché.\n→ ${SITE_URL}`,
-    li: `📊 L'analyse technique accessible à tous, enfin.\n\nCaptenTDB propose des graphiques professionnels pour chaque actif :\n\n• Timeframes de 5 minutes à 1 mois\n• Indicateurs : RSI, MACD, Bollinger, volumes\n• Crypto, actions US/EU, matières premières, indices\n• Interface claire, pensée pour progresser\n\nParce que comprendre le marché, ça s'apprend.\n\n🔗 ${SITE_URL}\n\n#AnalyseTechnique #Trading #Bourse #Finance #Crypto`,
+    tw: `Regarder un graphique sans indicateurs, c'est conduire sans tableau de bord.\n\nRSI, MACD, volumes, supports — tout ça en un coup d'œil sur CaptenTDB.\n\nDe 5 minutes à 1 mois. Sur n'importe quel actif.\n\n${SITE_URL}`,
+    li: `Un graphique tout seul, ça raconte peu de choses.\n\nC'est quand on y superpose les indicateurs — RSI, MACD, Bollinger, volumes — que ça devient vraiment lisible.\n\nSur CaptenTDB, chaque actif a ces outils, avec des timeframes de 5 minutes à 1 mois. Pour analyser à votre rythme, à votre niveau.\n\nCrypto, actions, indices, matières premières — tout au même endroit.\n\n${SITE_URL}\n\n#AnalyseTechnique #Trading #Finance`,
   },
 ];
 
@@ -2342,9 +2342,13 @@ function buildPosts(prices: Record<string, { price: number; change: number }>): 
   const arrow = topChange >= 0 ? "🟢" : "🔴";
   const sign = topChange >= 0 ? "+" : "";
 
-  const signal: PostData = {
-    tw: `${arrow} Signal du jour : ${topLabel}\n\nPrix : $${topPrice.toLocaleString("fr-FR", { maximumFractionDigits: 2 })}\nVariation : ${sign}${topChange.toFixed(2)}%\n\nRetrouvez l'analyse complète sur ${SITE_URL} 📊`,
-    li: `${arrow} Marché du jour : ${topLabel} se démarque avec ${sign}${topChange.toFixed(2)}%\n\nDonnées en temps réel :\n• Prix actuel : $${topPrice.toLocaleString("fr-FR", { maximumFractionDigits: 2 })}\n• Variation : ${sign}${topChange.toFixed(2)}%\n\nSuivez l'évolution et analysez cet actif en profondeur sur CaptenTDB.\n\n🔗 ${SITE_URL}\n\n#Trading #Marchés #Finance #${topLabel.split(" ")[0]}`,
+  const priceStr = `$${topPrice.toLocaleString("fr-FR", { maximumFractionDigits: 2 })}`;
+  const signal: PostData = topChange >= 0 ? {
+    tw: `${topLabel} à ${sign}${topChange.toFixed(2)}% aujourd'hui.\n\nLe mouvement est notable. À voir si ça tient en clôture — c'est là que ça compte.\n\n${SITE_URL} pour suivre en direct`,
+    li: `${topLabel} se démarque avec ${sign}${topChange.toFixed(2)}% aujourd'hui (${priceStr}).\n\nCe genre de mouvement attire l'attention — et souvent les acheteurs sur le retrait. La vraie question : le volume est-il là pour confirmer ?\n\nSuivez l'évolution sur CaptenTDB.\n\n${SITE_URL}\n\n#Marchés #Trading #Finance`,
+  } : {
+    tw: `${topLabel} à ${topChange.toFixed(2)}% ce matin.\n\nUn niveau important est en jeu. Panique ou opportunité ? Tout dépend de ce que dit le graphique.\n\n${SITE_URL} →`,
+    li: `${topLabel} recule de ${Math.abs(topChange).toFixed(2)}% aujourd'hui (${priceStr}).\n\nLe marché teste un niveau qui mérite attention. Est-ce un repli sain ou quelque chose de plus profond ? C'est le contexte — volumes, structure de prix — qui donne la réponse.\n\nAnalysez le graphique complet sur CaptenTDB.\n\n${SITE_URL}\n\n#Marchés #Trading #Finance`,
   };
 
   const top3Lines = top3Syms
@@ -2356,8 +2360,8 @@ function buildPosts(prices: Record<string, { price: number; change: number }>): 
     .join("\n");
 
   const top3: PostData = {
-    tw: `📊 Top marchés du jour :\n\n${top3Lines}\n\nSuivez les marchés en temps réel → ${SITE_URL}`,
-    li: `📊 Marchés du jour — aperçu en temps réel\n\n${top3Lines}\n\nCaptenTDB vous donne accès aux données de marché en direct, avec analyse technique intégrée.\n\n🔗 ${SITE_URL}\n\n#Marchés #Finance #Trading #Investissement`,
+    tw: `Les marchés ce matin :\n\n${top3Lines}\n\n${SITE_URL} pour suivre en direct`,
+    li: `Point marchés du jour.\n\n${top3Lines}\n\nTous ces actifs sont disponibles sur CaptenTDB avec analyse technique intégrée — pour aller au-delà du simple pourcentage.\n\n${SITE_URL}\n\n#Marchés #Finance`,
   };
 
   const dayIdx = new Date().getDay();
