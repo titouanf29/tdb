@@ -2395,7 +2395,7 @@ function buildPosts(prices: Record<string, { price: number; change: number }>, m
 type RedditLang = { subreddit: string; title: string; body: string };
 type RedditPost = { fr: RedditLang; en: RedditLang };
 
-function buildRedditPosts(prices: Record<string, { price: number; change: number }>): RedditPost[] {
+function buildRedditPosts(prices: Record<string, { price: number; change: number }>, marketStatus: MarketStatus): RedditPost[] {
   const labelsFr: Record<string, string> = {
     "BTC-USD": "Bitcoin (BTC)", "ETH-USD": "Ethereum (ETH)",
     "AAPL": "Apple (AAPL)", "^GSPC": "S&P 500", "GC=F": "l'or",
@@ -2407,18 +2407,36 @@ function buildRedditPosts(prices: Record<string, { price: number; change: number
   const symbols = ["BTC-USD", "ETH-USD", "AAPL", "^GSPC", "GC=F"];
   const sorted = symbols.filter((s) => prices[s]).sort((a, b) => Math.abs(prices[b].change) - Math.abs(prices[a].change));
 
+  const isOpen = marketStatus === "open";
+  const isWeekend = marketStatus === "weekend";
+
+  // Time context
+  const whenFr = isOpen ? "aujourd'hui" : isWeekend ? "vendredi à la clôture" : "à la dernière clôture";
+  const whenEnTitle = isOpen ? "today" : isWeekend ? "Friday close" : "last close";
+  const whenEnBody = isOpen ? "today" : isWeekend ? "at Friday's close" : "at the last close";
+  const sessionFr = isOpen ? "sur la séance" : "sur la séance de vendredi";
+  const sessionEn = isOpen ? "on the session" : isWeekend ? "at Friday's close" : "at close";
+  const morningFr = isOpen ? "ce matin" : isWeekend ? "vendredi" : "hier";
+  const morningEn = isOpen ? "today" : isWeekend ? "last Friday" : "yesterday";
+
   const top = sorted[0];
   const second = sorted[1];
 
-  const topChangeFr = top ? prices[top].change : 0;
-  const topSignFr = topChangeFr >= 0 ? "+" : "";
+  const topChange = top ? prices[top].change : 0;
+  const topSign = topChange >= 0 ? "+" : "";
   const topLabelFr = top ? labelsFr[top] : "cet actif";
-  const topDirFr = topChangeFr >= 0 ? "monte" : "recule";
-  const topPosFr = topChangeFr >= 0 ? "se positionner à la hausse" : "se positionner à la baisse";
-
+  const topDirFr = topChange >= 0 ? "monte" : "recule";
+  const topPosFr = topChange >= 0 ? "se positionner à la hausse" : "se positionner à la baisse";
   const topLabelEn = top ? labelsEn[top] : "this asset";
-  const topDirEn = topChangeFr >= 0 ? "up" : "down";
-  const topPosEn = topChangeFr >= 0 ? "go long" : "go short";
+  const topDirEn = topChange >= 0 ? "up" : "down";
+  const topPosEn = topChange >= 0 ? "go long" : "go short";
+
+  // Momentum qualifier based on magnitude
+  const abs = Math.abs(topChange);
+  const momentumFr = abs >= 4 ? "mouvement très fort" : abs >= 2 ? "mouvement significatif" : abs >= 1 ? "mouvement notable" : "légère variation";
+  const momentumEn = abs >= 4 ? "very strong move" : abs >= 2 ? "significant move" : abs >= 1 ? "notable move" : "slight move";
+  const confidenceFr = abs >= 3 ? "ça semble assez clair" : abs >= 1.5 ? "ça semble pointer vers" : "c'est encore ambigu, mais ça pourrait indiquer";
+  const confidenceEn = abs >= 3 ? "it seems fairly clear" : abs >= 1.5 ? "it seems to point toward" : "it's still ambiguous, but might indicate";
 
   const secondLabelFr = second ? labelsFr[second] : "";
   const secondLabelEn = second ? labelsEn[second] : "";
@@ -2435,49 +2453,49 @@ function buildRedditPosts(prices: Record<string, { price: number; change: number
     {
       fr: {
         subreddit: "r/vosfinances",
-        title: `${topLabelFr} à ${topSignFr}${topChangeFr.toFixed(2)}% aujourd'hui — ça veut dire quoi concrètement ?`,
-        body: `Salut,\n\nJe m'entraîne au trading sur un simulateur (${SITE_URL}) et j'ai vu que ${topLabelFr} ${topDirFr} de ${topSignFr}${topChangeFr.toFixed(2)}% sur la séance.\n\nL'analyse technique semble indiquer que ça pourrait être un moment pour ${topPosFr}, mais je ne suis vraiment pas sûr de mon interprétation.\n\nEst-ce que quelqu'un peut expliquer ce qui se passe fondamentalement ? Qu'est-ce qui fait bouger ${topLabelFr} comme ça ?\n\n(Je précise que c'est purement pour apprendre, je ne gère pas d'argent réel — juste curieux d'avoir l'avis de gens plus expérimentés)`,
+        title: `${topLabelFr} à ${topSign}${topChange.toFixed(2)}% ${whenFr} — ça veut dire quoi concrètement ?`,
+        body: `Salut,\n\nJe m'entraîne au trading sur un simulateur (${SITE_URL}) et j'ai vu que ${topLabelFr} ${topDirFr} de ${topSign}${topChange.toFixed(2)}% ${sessionFr}. C'est un ${momentumFr} et ${confidenceFr} une opportunité de ${topPosFr}${isWeekend ? " à l'ouverture lundi" : ""} — mais je ne suis pas sûr de mon interprétation.\n\nEst-ce que quelqu'un peut expliquer ce qui se passe fondamentalement ? Qu'est-ce qui fait bouger ${topLabelFr} comme ça ?\n\n(Purement pour apprendre — je ne gère pas d'argent réel, juste curieux d'avoir l'avis de gens plus expérimentés)`,
       },
       en: {
         subreddit: "r/investing",
-        title: `${topLabelEn} ${topDirEn} ${topSignFr}${topChangeFr.toFixed(2)}% today — what's actually driving this?`,
-        body: `Hey,\n\nI've been practicing trading on a simulator (${SITE_URL}) and noticed ${topLabelEn} is ${topDirEn} ${topSignFr}${topChangeFr.toFixed(2)}% today.\n\nThe technical setup seems to suggest this could be a moment to ${topPosEn}, but I'm not confident in my read — still learning.\n\nCan anyone explain what's fundamentally happening? What's driving ${topLabelEn} right now?\n\n(For context: paper trading only, no real money involved — just trying to learn and curious what more experienced folks think)`,
+        title: `${topLabelEn} ${topDirEn} ${topSign}${topChange.toFixed(2)}% ${whenEnTitle} — what's actually driving this?`,
+        body: `Hey,\n\nI've been practicing trading on a simulator (${SITE_URL}) and noticed ${topLabelEn} is ${topDirEn} ${topSign}${topChange.toFixed(2)}% ${whenEnBody}. That's a ${momentumEn} — ${confidenceEn} it's a moment to ${topPosEn}${isWeekend ? " at Monday's open" : ""}, but I'm not confident in my read.\n\nCan anyone explain what's fundamentally happening? What's driving ${topLabelEn} right now?\n\n(Paper trading only, no real money — just trying to learn and curious what more experienced folks think)`,
       },
     },
     {
       fr: {
         subreddit: "r/vosfinances",
-        title: `Or à ${goldSign}${goldChange.toFixed(2)}% et Bitcoin à ${btcSign}${btcChange.toFixed(2)}% — ${sameDir ? "ils bougent ensemble, c'est un signal ?" : "l'un monte l'autre baisse, comment vous lisez ça ?"}`,
-        body: `Bonjour,\n\nJe regarde les marchés sur ${SITE_URL} pour m'entraîner et j'ai remarqué quelque chose que je ne comprends pas bien.\n\nCe matin :\n- Or : ${goldSign}${goldChange.toFixed(2)}%\n- Bitcoin : ${btcSign}${btcChange.toFixed(2)}%\n\n${sameDir ? "Je pensais que l'or et le Bitcoin étaient des actifs refuges assez indépendants. Là ils semblent corrélés. Est-ce que c'est un signal macro (inflation, fuite vers les refuges...) ?" : "Je pensais que l'or et le Bitcoin pouvaient parfois se comporter de façon similaire, mais là ils partent dans des directions opposées. Comment vous interprétez ça ?"}\n\nMerci d'avance, je suis encore en phase d'apprentissage.`,
+        title: `Or à ${goldSign}${goldChange.toFixed(2)}% et Bitcoin à ${btcSign}${btcChange.toFixed(2)}% ${whenFr} — ${sameDir ? "ils bougent ensemble, c'est un signal ?" : "l'un monte l'autre baisse, comment vous lisez ça ?"}`,
+        body: `Bonjour,\n\nJe regarde les marchés sur ${SITE_URL} pour m'entraîner et j'ai remarqué quelque chose ${morningFr} que je ne comprends pas bien.\n\n${isWeekend ? "Clôture vendredi" : "Aujourd'hui"} :\n- Or : ${goldSign}${goldChange.toFixed(2)}%\n- Bitcoin : ${btcSign}${btcChange.toFixed(2)}%\n\n${sameDir ? "Je pensais que l'or et le Bitcoin étaient des actifs refuges assez indépendants. Là ils semblent corrélés. Est-ce que c'est un signal macro (inflation, fuite vers les refuges...) ?" : "Je pensais que l'or et le Bitcoin pouvaient parfois se comporter de façon similaire, mais là ils partent dans des directions opposées. Comment vous interprétez ça ?"}\n\nMerci d'avance, je suis encore en phase d'apprentissage.`,
       },
       en: {
         subreddit: "r/Bitcoin",
-        title: `Gold ${goldSign}${goldChange.toFixed(2)}% and Bitcoin ${btcSign}${btcChange.toFixed(2)}% — ${sameDir ? "both moving together, is this meaningful?" : "moving in opposite directions — how do you read this?"}`,
-        body: `Hi everyone,\n\nI track markets through a trading simulator I use to practice (${SITE_URL}) and noticed something I don't fully understand.\n\nRight now:\n- Gold: ${goldSign}${goldChange.toFixed(2)}%\n- Bitcoin: ${btcSign}${btcChange.toFixed(2)}%\n\n${sameDir ? "I thought gold and BTC were fairly independent safe-haven assets. Is this correlation meaningful, or just noise? Does it say something about macro conditions (inflation fears, risk-off move)?" : "I thought gold and BTC sometimes behave similarly as inflation hedges. What's making them diverge today? Is one of them signaling something the other isn't?"}\n\nWould love to hear from people who understand macro better than I do.`,
+        title: `Gold ${goldSign}${goldChange.toFixed(2)}% and Bitcoin ${btcSign}${btcChange.toFixed(2)}% ${whenEnTitle} — ${sameDir ? "both moving together, meaningful signal?" : "diverging — how do you read this?"}`,
+        body: `Hi everyone,\n\nTracking markets on a simulator I use to practice (${SITE_URL}) and noticed something ${morningEn} I don't fully understand.\n\n${isWeekend ? "Friday close" : "Today"}:\n- Gold: ${goldSign}${goldChange.toFixed(2)}%\n- Bitcoin: ${btcSign}${btcChange.toFixed(2)}%\n\n${sameDir ? "I thought gold and BTC were fairly independent safe-haven assets. Is this correlation meaningful, or just noise? Does it say something about macro conditions (inflation fears, risk-off move)?" : "I thought gold and BTC sometimes behave similarly as inflation hedges. What's making them diverge? Is one of them signaling something the other isn't?"}\n\nWould love to hear from people who understand macro better than I do.`,
       },
     },
     {
       fr: {
         subreddit: "r/trading",
-        title: `${topLabelFr} — signal intéressant ce matin, quelqu'un voit la même chose ?`,
-        body: `Salut à tous,\n\nJe surveille ${topLabelFr} sur ${SITE_URL} (simulateur, pas d'argent réel) et j'ai un signal qui me semble notable : ${topSignFr}${topChangeFr.toFixed(2)}% sur la séance${secondLabelFr ? `, pendant que ${secondLabelFr} fait ${secondSign}${secondChange.toFixed(2)}%` : ""}.\n\nLe mouvement semble confirmé par le volume. Ça pourrait pointer vers ${topPosFr} — mais je suis encore débutant et j'ai du mal à distinguer un vrai signal du bruit.\n\nDes traders plus expérimentés voient la même chose ? Qu'est-ce que vous regarderiez en plus pour confirmer ?\n\n(Chacun fait ses propres analyses évidemment, je partage juste mon observation)`,
+        title: `${topLabelFr} — ${momentumFr} ${morningFr}, quelqu'un voit la même chose ?`,
+        body: `Salut à tous,\n\nJe surveille ${topLabelFr} sur ${SITE_URL} (simulateur, pas d'argent réel) et j'ai un signal ${morningFr} : ${topSign}${topChange.toFixed(2)}% ${sessionFr}${secondLabelFr ? `, pendant que ${secondLabelFr} fait ${secondSign}${secondChange.toFixed(2)}%` : ""}.\n\nC'est un ${momentumFr} et ${confidenceFr} une opportunité de ${topPosFr}${isWeekend ? " à l'ouverture lundi" : ""} — mais je suis encore débutant et j'ai du mal à distinguer un vrai signal du bruit.\n\nDes traders plus expérimentés voient la même chose ? Qu'est-ce que vous regarderiez en plus pour confirmer ?\n\n(Chacun fait ses propres analyses, je partage juste mon observation)`,
       },
       en: {
         subreddit: "r/trading",
-        title: `${topLabelEn} — interesting setup today, anyone else seeing this?`,
-        body: `Hey r/trading,\n\nWatching ${topLabelEn} on a simulator I use to practice (${SITE_URL}) — ${topSignFr}${topChangeFr.toFixed(2)}% on the session${secondLabelEn ? `, while ${secondLabelEn} is at ${secondSign}${secondChange.toFixed(2)}%` : ""}.\n\nThe move looks volume-confirmed. From what I've studied, this kind of setup might suggest considering to ${topPosEn} — but I'm still learning and can't always tell real signals from noise.\n\nAre more experienced traders seeing the same thing? What additional confirmation would you look for before acting on it?\n\n(DYOR obviously — just sharing my observation as someone learning TA)`,
+        title: `${topLabelEn} — ${momentumEn} ${morningEn}, anyone else seeing this?`,
+        body: `Hey r/trading,\n\nWatching ${topLabelEn} on a simulator I use to practice (${SITE_URL}) — ${topSign}${topChange.toFixed(2)}% ${sessionEn}${secondLabelEn ? `, while ${secondLabelEn} is at ${secondSign}${secondChange.toFixed(2)}%` : ""}.\n\nThat's a ${momentumEn}. ${confidenceEn.charAt(0).toUpperCase() + confidenceEn.slice(1)} this points to ${topPosEn}${isWeekend ? " at Monday's open" : ""} — but I'm still learning and can't always tell real signals from noise.\n\nAre more experienced traders seeing the same thing? What would you look for to confirm?\n\n(DYOR — just sharing my observation as someone learning TA)`,
       },
     },
     {
       fr: {
         subreddit: "r/vosfinances",
         title: `J'utilise un simulateur de trading depuis quelques semaines — retour d'expérience honnête`,
-        body: `Salut r/vosfinances,\n\nJe voulais partager mon expérience avec le paper trading après quelques semaines sur ${SITE_URL}.\n\nCe que j'ai appris :\n- C'est beaucoup plus dur que ça en a l'air. Même sans argent réel, les émotions sont là.\n- Regarder un graphique en temps réel, c'est différent d'analyser après coup.\n- Les indicateurs (RSI, MACD) sont utiles mais pas magiques — il m'a fallu du temps pour comprendre ça.\n\nCe qui m'a surpris cette semaine : ${topLabelFr} à ${topSignFr}${topChangeFr.toFixed(2)}%. J'aurais parié sur l'inverse. Bonne leçon d'humilité.\n\nEst-ce que d'autres ici ont commencé par le paper trading avant de passer au réel ? Combien de temps avant de se sentir prêt ?`,
+        body: `Salut r/vosfinances,\n\nJe voulais partager mon expérience avec le paper trading après quelques semaines sur ${SITE_URL}.\n\nCe que j'ai appris :\n- C'est beaucoup plus dur que ça en a l'air. Même sans argent réel, les émotions sont là.\n- Regarder un graphique en temps réel, c'est différent d'analyser après coup.\n- Les indicateurs (RSI, MACD) sont utiles mais pas magiques — il m'a fallu du temps pour comprendre ça.\n\nCe qui m'a surpris ${isWeekend ? "vendredi" : "cette semaine"} : ${topLabelFr} à ${topSign}${topChange.toFixed(2)}% ${whenFr}. J'aurais parié sur l'inverse. Bonne leçon d'humilité.\n\nEst-ce que d'autres ici ont commencé par le paper trading avant de passer au réel ? Combien de temps avant de se sentir prêt ?`,
       },
       en: {
         subreddit: "r/stocks",
         title: `Been paper trading for a few weeks — honest thoughts so far`,
-        body: `Hey r/stocks,\n\nWanted to share my honest experience after a few weeks of paper trading on ${SITE_URL}.\n\nWhat I've learned:\n- It's way harder than it looks, even without real money on the line\n- Watching charts in real time is very different from analyzing them after the fact\n- Indicators (RSI, MACD) are useful but not magic — took me a while to really internalize that\n\nWhat surprised me this week: ${topLabelEn} at ${topSignFr}${topChangeFr.toFixed(2)}%. Would have bet the opposite. Good humility check.\n\nFor those who started with paper trading before going real — how long did you practice before feeling ready? Any advice on when to make the jump?`,
+        body: `Hey r/stocks,\n\nWanted to share my honest experience after a few weeks of paper trading on ${SITE_URL}.\n\nWhat I've learned:\n- It's way harder than it looks, even without real money on the line\n- Watching charts in real time is very different from analyzing them after the fact\n- Indicators (RSI, MACD) are useful but not magic — took me a while to really internalize that\n\nWhat surprised me ${isWeekend ? "last Friday" : "this week"}: ${topLabelEn} at ${topSign}${topChange.toFixed(2)}% ${whenEnBody}. Would have bet the opposite. Good humility check.\n\nFor those who started with paper trading before going real — how long did you practice before feeling ready?`,
       },
     },
   ];
@@ -2548,7 +2566,7 @@ function SocialTab() {
 
   const marketStatus = getUSMarketStatus();
   const posts = !isLoading && Object.keys(prices).length > 0 ? buildPosts(prices, marketStatus) : null;
-  const redditPosts = !isLoading && Object.keys(prices).length > 0 ? buildRedditPosts(prices) : null;
+  const redditPosts = !isLoading && Object.keys(prices).length > 0 ? buildRedditPosts(prices, marketStatus) : null;
   const [copiedReddit, setCopiedReddit] = useState<Record<string, boolean>>({});
   const [redditLang, setRedditLang] = useState<Record<number, "fr" | "en">>({});
 
