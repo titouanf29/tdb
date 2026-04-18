@@ -2319,7 +2319,7 @@ const PROMO_POSTS = [
 type PostData = { tw: string; li: string };
 type PostKey = "signal" | "top3" | "edu" | "promo";
 
-function buildPosts(prices: Record<string, { price: number; change: number }>): Record<PostKey, PostData> {
+function buildPosts(prices: Record<string, { price: number; change: number }>, marketStatus: MarketStatus): Record<PostKey, PostData> {
   const symbols = ["BTC-USD", "ETH-USD", "AAPL", "^GSPC", "GC=F"];
   const labels: Record<string, string> = {
     "BTC-USD": "Bitcoin (BTC)",
@@ -2343,12 +2343,19 @@ function buildPosts(prices: Record<string, { price: number; change: number }>): 
   const sign = topChange >= 0 ? "+" : "";
 
   const priceStr = `$${topPrice.toLocaleString("fr-FR", { maximumFractionDigits: 2 })}`;
+  const isOpen = marketStatus === "open";
+  const closingCtx = marketStatus === "weekend"
+    ? "à la clôture vendredi"
+    : marketStatus === "aftermarket" ? "en clôture hier" : "à la dernière clôture";
+  const timeRef = isOpen ? "aujourd'hui" : closingCtx;
+  const twTimeRef = isOpen ? "ce matin" : closingCtx;
+
   const signal: PostData = topChange >= 0 ? {
-    tw: `${topLabel} à ${sign}${topChange.toFixed(2)}% aujourd'hui.\n\nLe mouvement est notable. À voir si ça tient en clôture — c'est là que ça compte.\n\n${SITE_URL} pour suivre en direct`,
-    li: `${topLabel} se démarque avec ${sign}${topChange.toFixed(2)}% aujourd'hui (${priceStr}).\n\nCe genre de mouvement attire l'attention — et souvent les acheteurs sur le retrait. La vraie question : le volume est-il là pour confirmer ?\n\nSuivez l'évolution sur CaptenTDB.\n\n${SITE_URL}\n\n#Marchés #Trading #Finance`,
+    tw: `${topLabel} à ${sign}${topChange.toFixed(2)}% ${twTimeRef}.\n\nLe mouvement est notable.${isOpen ? " À voir si ça tient en clôture — c'est là que ça compte." : " Un beau setup à surveiller à l'ouverture."}\n\n${SITE_URL} pour suivre en direct`,
+    li: `${topLabel} se démarque avec ${sign}${topChange.toFixed(2)}% ${timeRef} (${priceStr}).\n\nCe genre de mouvement attire l'attention${isOpen ? " — et souvent les acheteurs sur le retrait. La vraie question : le volume est-il là pour confirmer ?" : " — à surveiller dès l'ouverture des marchés."}\n\nSuivez l'évolution sur CaptenTDB.\n\n${SITE_URL}\n\n#Marchés #Trading #Finance`,
   } : {
-    tw: `${topLabel} à ${topChange.toFixed(2)}% ce matin.\n\nUn niveau important est en jeu. Panique ou opportunité ? Tout dépend de ce que dit le graphique.\n\n${SITE_URL} →`,
-    li: `${topLabel} recule de ${Math.abs(topChange).toFixed(2)}% aujourd'hui (${priceStr}).\n\nLe marché teste un niveau qui mérite attention. Est-ce un repli sain ou quelque chose de plus profond ? C'est le contexte — volumes, structure de prix — qui donne la réponse.\n\nAnalysez le graphique complet sur CaptenTDB.\n\n${SITE_URL}\n\n#Marchés #Trading #Finance`,
+    tw: `${topLabel} à ${topChange.toFixed(2)}% ${twTimeRef}.\n\nUn niveau important est en jeu. Panique ou opportunité ? Tout dépend de ce que dit le graphique.\n\n${SITE_URL} →`,
+    li: `${topLabel} recule de ${Math.abs(topChange).toFixed(2)}% ${timeRef} (${priceStr}).\n\nLe marché teste un niveau qui mérite attention. Est-ce un repli sain ou quelque chose de plus profond ? C'est le contexte — volumes, structure de prix — qui donne la réponse.\n\nAnalysez le graphique complet sur CaptenTDB.\n\n${SITE_URL}\n\n#Marchés #Trading #Finance`,
   };
 
   const top3Lines = top3Syms
@@ -2359,9 +2366,10 @@ function buildPosts(prices: Record<string, { price: number; change: number }>): 
     })
     .join("\n");
 
+  const top3Intro = isOpen ? "Les marchés ce matin :" : `Clôture ${marketStatus === "weekend" ? "vendredi" : "hier"} :`;
   const top3: PostData = {
-    tw: `Les marchés ce matin :\n\n${top3Lines}\n\n${SITE_URL} pour suivre en direct`,
-    li: `Point marchés du jour.\n\n${top3Lines}\n\nTous ces actifs sont disponibles sur CaptenTDB avec analyse technique intégrée — pour aller au-delà du simple pourcentage.\n\n${SITE_URL}\n\n#Marchés #Finance`,
+    tw: `${top3Intro}\n\n${top3Lines}\n\n${SITE_URL} pour suivre en direct`,
+    li: `${isOpen ? "Point marchés du jour." : `Récap clôture ${marketStatus === "weekend" ? "vendredi" : "d'hier"}.`}\n\n${top3Lines}\n\nTous ces actifs sont disponibles sur CaptenTDB avec analyse technique intégrée — pour aller au-delà du simple pourcentage.\n\n${SITE_URL}\n\n#Marchés #Finance`,
   };
 
   const dayIdx = new Date().getDay();
@@ -2372,6 +2380,29 @@ function buildPosts(prices: Record<string, { price: number; change: number }>): 
 }
 
 type Platform = "tw" | "li";
+type MarketStatus = "open" | "premarket" | "aftermarket" | "weekend";
+
+function getUSMarketStatus(): MarketStatus {
+  const now = new Date();
+  // Approximate DST: EDT (UTC-4) Mar–Nov, EST (UTC-5) Dec–Feb
+  const month = now.getUTCMonth() + 1;
+  const etOffset = (month >= 3 && month <= 11) ? -4 : -5;
+  const etMs = now.getTime() + now.getTimezoneOffset() * 60000 + etOffset * 3600000;
+  const et = new Date(etMs);
+  const day = et.getDay(); // 0=dim, 6=sam
+  const minutes = et.getHours() * 60 + et.getMinutes();
+  if (day === 0 || day === 6) return "weekend";
+  if (minutes < 9 * 60 + 30) return "premarket";
+  if (minutes >= 16 * 60) return "aftermarket";
+  return "open";
+}
+
+const MARKET_STATUS_LABEL: Record<MarketStatus, { text: string; color: string }> = {
+  open:        { text: "Marché ouvert", color: "text-profit" },
+  premarket:   { text: "Pré-marché (ouverture 15h30 FR)", color: "text-yellow-400" },
+  aftermarket: { text: "Marché fermé (clôture 22h00 FR)", color: "text-muted-foreground" },
+  weekend:     { text: "Weekend — données de clôture vendredi", color: "text-loss" },
+};
 
 function SocialTab() {
   const [prices, setPrices] = useState<Record<string, { price: number; change: number; volume: number }>>({});
@@ -2413,7 +2444,8 @@ function SocialTab() {
     loadPrices();
   }, []);
 
-  const posts = !isLoading && Object.keys(prices).length > 0 ? buildPosts(prices) : null;
+  const marketStatus = getUSMarketStatus();
+  const posts = !isLoading && Object.keys(prices).length > 0 ? buildPosts(prices, marketStatus) : null;
 
   const copyPost = async (key: PostKey, text: string) => {
     try {
@@ -2454,7 +2486,9 @@ function SocialTab() {
             </div>
             <div>
               <h3 className="font-semibold text-lg">Réseaux Sociaux</h3>
-              <p className="text-sm text-muted-foreground">Posts prêts à copier-coller — Twitter/X et LinkedIn</p>
+              <p className={cn("text-sm font-medium", MARKET_STATUS_LABEL[marketStatus].color)}>
+                {MARKET_STATUS_LABEL[marketStatus].text}
+              </p>
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -2474,6 +2508,20 @@ function SocialTab() {
           </div>
         </div>
       </div>
+
+      {marketStatus !== "open" && (
+        <div className={cn(
+          "flex items-center gap-3 px-4 py-3 rounded-xl border text-sm",
+          marketStatus === "weekend"
+            ? "bg-loss/10 border-loss/25 text-loss"
+            : "bg-yellow-400/10 border-yellow-400/25 text-yellow-400"
+        )}>
+          <AlertTriangle className="w-4 h-4 shrink-0" />
+          {marketStatus === "weekend"
+            ? "Marchés fermés ce weekend — les posts \"Signal\" et \"Top Marchés\" utilisent les données de clôture vendredi. Les posts éducatifs et promo sont publiables normalement."
+            : "Marchés pas encore ouverts ou déjà fermés — les variations affichées sont celles de la dernière clôture."}
+        </div>
+      )}
 
       {isLoading ? (
         <div className="flex justify-center py-12">
