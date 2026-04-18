@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import {
@@ -40,11 +40,15 @@ import {
   MessageCircle,
   Sparkles,
   Calendar,
+  Share2,
+  Copy,
+  Check,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   adminAPI,
   premiumAPI,
+  marketAPI,
   AdminDashboard,
   AdminUser,
   AdminUserDetails,
@@ -57,7 +61,7 @@ import {
 } from "@/lib/api";
 import { useFormatCurrency } from "@/lib/SettingsContext";
 
-type TabType = "dashboard" | "users" | "positions" | "tickets" | "premium" | "broadcasts" | "asset-requests" | "analytics" | "audit" | "settings";
+type TabType = "dashboard" | "users" | "positions" | "tickets" | "premium" | "broadcasts" | "asset-requests" | "analytics" | "audit" | "settings" | "social";
 
 export default function AdminPage() {
   const router = useRouter();
@@ -124,6 +128,7 @@ export default function AdminPage() {
     { id: "analytics", label: "Analytics", icon: BarChart3 },
     { id: "audit", label: "Audit Log", icon: FileText },
     { id: "settings", label: "Parametres", icon: Settings },
+    { id: "social", label: "Réseaux Sociaux", icon: Share2 },
   ];
 
   return (
@@ -217,6 +222,7 @@ export default function AdminPage() {
       {activeTab === "analytics" && <AnalyticsTab />}
       {activeTab === "audit" && <AuditTab />}
       {activeTab === "settings" && <SettingsTab />}
+      {activeTab === "social" && <SocialTab />}
     </motion.div>
   );
 }
@@ -2272,6 +2278,315 @@ function PremiumTab() {
           </motion.div>
         </div>
       )}
+    </div>
+  );
+}
+
+// ─── Social Media Tab ──────────────────────────────────────────────────────────
+
+const SITE_URL = "captentdb.fr";
+
+const EDU_TIPS = [
+  {
+    tw: `📊 Savez-vous lire une bougie japonaise ?\n\n🟢 Corps vert = clôture > ouverture (acheteurs dominants)\n🔴 Corps rouge = clôture < ouverture (vendeurs dominants)\nLes mèches révèlent les extremes de la séance.\n\nMaîtrisez les bases sur ${SITE_URL} ⬇️`,
+    li: `📊 Formation Trading : Comprendre les bougies japonaises\n\nChaque bougie raconte une histoire sur la bataille entre acheteurs et vendeurs.\n\n• Corps vert : les acheteurs ont pris le dessus sur la séance\n• Corps rouge : pression vendeuse dominante\n• Mèches hautes/basses : niveaux extrêmes testés et rejetés\n\nCes patterns sont la base de l'analyse technique. Apprenez à les lire sur ${SITE_URL} pour affiner vos décisions d'investissement.\n\n#Trading #AnalyseTechnique #Finance #Investissement`,
+  },
+  {
+    tw: `💡 RSI > 70 = surachat ?\n\nPas si vite. En tendance haussière forte, le RSI peut rester >70 longtemps.\n\nLe RSI est un outil de confirmation, pas un signal d'entrée seul. Combinez-le toujours avec d'autres indicateurs.\n\nExplorez vos actifs sur ${SITE_URL} 🔍`,
+    li: `💡 Mythes du trading : le RSI à 70 signifie-t-il vraiment surachat ?\n\nC'est l'une des erreurs les plus fréquentes chez les débutants.\n\nEn réalité :\n• En tendance haussière, le RSI peut rester >70 pendant des semaines\n• Un RSI élevé confirme la force, il ne prédit pas un retournement\n• Combinez toujours avec volumes, supports/résistances et contexte macro\n\nAnalysez vos actifs en profondeur sur ${SITE_URL}\n\n#Trading #RSI #AnalyseTechnique #Investissement #Finance`,
+  },
+  {
+    tw: `📈 Qu'est-ce qu'un support ?\n\nC'est un niveau de prix où la demande est historiquement suffisante pour stopper une baisse.\n\nPsychologie : les acheteurs qui ont "raté" la montée reviennent souvent au même niveau.\n\nTestez vos niveaux sur ${SITE_URL} 🎯`,
+    li: `📈 Les niveaux de support et résistance : la psychologie des marchés\n\nUn support, c'est là où les acheteurs reprennent le contrôle.\nUne résistance, c'est là où les vendeurs l'emportent.\n\nCes zones sont créées par la mémoire collective des traders :\n• Anciens sommets / creux significatifs\n• Niveaux psychologiques ronds (100€, 1000$…)\n• Zones de fort volume historique\n\nIdentifiez vos niveaux clés sur ${SITE_URL}\n\n#Trading #Support #Résistance #Bourse #Finance`,
+  },
+  {
+    tw: `⚡ La gestion du risque avant tout.\n\nRègle des 2% : ne risquez jamais plus de 2% de votre capital sur un seul trade.\n\nUn bon trader ne cherche pas à gagner plus — il cherche à perdre moins.\n\nSimulez et progressez sur ${SITE_URL} 🛡️`,
+    li: `⚡ La règle que tout trader doit connaître : les 2% de risque par trade\n\nLa différence entre un trader amateur et un trader consistant ?\nLa gestion du risque.\n\n• Risquer 2% max par position préserve le capital même sur une série de pertes\n• 10 pertes consécutives à 2% = -18% (récupérable)\n• 10 pertes à 10% = -65% (très difficile à remonter)\n\nPratique le paper trading pour maîtriser la discipline sur ${SITE_URL}\n\n#Trading #GestionDuRisque #MoneyManagement #Finance #Investissement`,
+  },
+];
+
+const PROMO_POSTS = [
+  {
+    tw: `🚀 CaptenTDB — le simulateur de trading qui vous prépare aux vrais marchés.\n\n✅ Paper trading sans risque\n✅ Analyse technique intégrée\n✅ Crypto, actions, ETF & plus\n\nCommencez gratuitement → ${SITE_URL}`,
+    li: `🚀 Vous voulez apprendre à trader sans risquer votre argent ?\n\nCaptenTDB est un simulateur de trading complet :\n\n• Paper trading réaliste sur marchés réels\n• Analyse technique avec indicateurs pro\n• Suivi de portefeuille et performance\n• Crypto, actions, ETF, indices, matières premières\n\nParfait pour débuter ou tester de nouvelles stratégies.\n\n👉 Essayez gratuitement sur ${SITE_URL}\n\n#Trading #Investissement #PaperTrading #Finance #Bourse`,
+  },
+  {
+    tw: `📊 Vous analysez comment vos actifs ?\n\nSur CaptenTDB : bougies, RSI, MACD, volumes — tout en un.\nVision 5min → 1 mois. Pour chaque actif.\n\nGratuit. Sans risque. Vrai marché.\n→ ${SITE_URL}`,
+    li: `📊 L'analyse technique accessible à tous, enfin.\n\nCaptenTDB propose des graphiques professionnels pour chaque actif :\n\n• Timeframes de 5 minutes à 1 mois\n• Indicateurs : RSI, MACD, Bollinger, volumes\n• Crypto, actions US/EU, matières premières, indices\n• Interface claire, pensée pour progresser\n\nParce que comprendre le marché, ça s'apprend.\n\n🔗 ${SITE_URL}\n\n#AnalyseTechnique #Trading #Bourse #Finance #Crypto`,
+  },
+];
+
+type PostData = { tw: string; li: string };
+type PostKey = "signal" | "top3" | "edu" | "promo";
+
+function buildPosts(prices: Record<string, { price: number; change: number }>): Record<PostKey, PostData> {
+  const symbols = ["BTC-USD", "ETH-USD", "AAPL", "^GSPC", "GC=F"];
+  const labels: Record<string, string> = {
+    "BTC-USD": "Bitcoin (BTC)",
+    "ETH-USD": "Ethereum (ETH)",
+    "AAPL": "Apple (AAPL)",
+    "^GSPC": "S&P 500",
+    "GC=F": "Or (Gold)",
+  };
+
+  const sorted = symbols
+    .filter((s) => prices[s])
+    .sort((a, b) => Math.abs(prices[b].change) - Math.abs(prices[a].change));
+
+  const topSym = sorted[0];
+  const top3Syms = sorted.slice(0, 3);
+
+  const topChange = topSym ? prices[topSym].change : 0;
+  const topPrice = topSym ? prices[topSym].price : 0;
+  const topLabel = topSym ? labels[topSym] : "—";
+  const arrow = topChange >= 0 ? "🟢" : "🔴";
+  const sign = topChange >= 0 ? "+" : "";
+
+  const signal: PostData = {
+    tw: `${arrow} Signal du jour : ${topLabel}\n\nPrix : $${topPrice.toLocaleString("fr-FR", { maximumFractionDigits: 2 })}\nVariation : ${sign}${topChange.toFixed(2)}%\n\nRetrouvez l'analyse complète sur ${SITE_URL} 📊`,
+    li: `${arrow} Marché du jour : ${topLabel} se démarque avec ${sign}${topChange.toFixed(2)}%\n\nDonnées en temps réel :\n• Prix actuel : $${topPrice.toLocaleString("fr-FR", { maximumFractionDigits: 2 })}\n• Variation : ${sign}${topChange.toFixed(2)}%\n\nSuivez l'évolution et analysez cet actif en profondeur sur CaptenTDB.\n\n🔗 ${SITE_URL}\n\n#Trading #Marchés #Finance #${topLabel.split(" ")[0]}`,
+  };
+
+  const top3Lines = top3Syms
+    .map((s) => {
+      const p = prices[s];
+      const c = p.change >= 0 ? `+${p.change.toFixed(2)}%` : `${p.change.toFixed(2)}%`;
+      return `• ${labels[s]} : ${c}`;
+    })
+    .join("\n");
+
+  const top3: PostData = {
+    tw: `📊 Top marchés du jour :\n\n${top3Lines}\n\nSuivez les marchés en temps réel → ${SITE_URL}`,
+    li: `📊 Marchés du jour — aperçu en temps réel\n\n${top3Lines}\n\nCaptenTDB vous donne accès aux données de marché en direct, avec analyse technique intégrée.\n\n🔗 ${SITE_URL}\n\n#Marchés #Finance #Trading #Investissement`,
+  };
+
+  const dayIdx = new Date().getDay();
+  const edu = EDU_TIPS[dayIdx % EDU_TIPS.length];
+  const promo = PROMO_POSTS[Math.floor(new Date().getDate() / 15) % PROMO_POSTS.length];
+
+  return { signal, top3, edu, promo };
+}
+
+type Platform = "tw" | "li";
+
+function SocialTab() {
+  const [prices, setPrices] = useState<Record<string, { price: number; change: number; volume: number }>>({});
+  const [isLoading, setIsLoading] = useState(true);
+  const [platform, setPlatform] = useState<Record<PostKey, Platform>>({
+    signal: "tw",
+    top3: "tw",
+    edu: "tw",
+    promo: "tw",
+  });
+  const [copied, setCopied] = useState<Record<PostKey, boolean>>({
+    signal: false,
+    top3: false,
+    edu: false,
+    promo: false,
+  });
+  const [published, setPublished] = useState<Record<string, boolean>>({});
+
+  const SYMBOLS = ["BTC-USD", "ETH-USD", "AAPL", "^GSPC", "GC=F"];
+
+  const loadPrices = async () => {
+    setIsLoading(true);
+    try {
+      const data = await marketAPI.getPrices(SYMBOLS);
+      setPrices(data.prices);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadPrices();
+  }, []);
+
+  const posts = !isLoading && Object.keys(prices).length > 0 ? buildPosts(prices) : null;
+
+  const copyPost = async (key: PostKey, text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied((prev) => ({ ...prev, [key]: true }));
+      setTimeout(() => setCopied((prev) => ({ ...prev, [key]: false })), 2000);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const togglePublished = (key: PostKey, plat: Platform) => {
+    const id = `${key}-${plat}`;
+    setPublished((prev) => ({ ...prev, [id]: !prev[id] }));
+  };
+
+  const publishedCount = Object.values(published).filter(Boolean).length;
+
+  const POST_META: { key: PostKey; label: string; icon: React.ReactNode; color: string }[] = [
+    { key: "signal", label: "Signal du Jour", icon: <TrendingUp className="w-4 h-4" />, color: "text-profit" },
+    { key: "top3", label: "Top Marchés", icon: <BarChart3 className="w-4 h-4" />, color: "text-primary" },
+    { key: "edu", label: "Contenu Éducatif", icon: <Brain className="w-4 h-4" />, color: "text-yellow-400" },
+    { key: "promo", label: "Promotion CaptenTDB", icon: <Sparkles className="w-4 h-4" />, color: "text-indigo-400" },
+  ];
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="glass-card p-6">
+        <div className="flex items-center justify-between flex-wrap gap-3">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center">
+              <Share2 className="w-5 h-5 text-primary" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-lg">Réseaux Sociaux</h3>
+              <p className="text-sm text-muted-foreground">Posts prêts à copier-coller — Twitter/X et LinkedIn</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            {publishedCount > 0 && (
+              <span className="text-xs px-3 py-1 rounded-full bg-profit/20 text-profit border border-profit/30 font-medium">
+                {publishedCount} publié{publishedCount > 1 ? "s" : ""} aujourd'hui
+              </span>
+            )}
+            <button
+              onClick={loadPrices}
+              disabled={isLoading}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white/5 hover:bg-white/10 transition-colors text-sm"
+            >
+              <RefreshCw className={cn("w-4 h-4", isLoading && "animate-spin")} />
+              Actualiser
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {isLoading ? (
+        <div className="flex justify-center py-12">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        </div>
+      ) : (
+        <div className="grid gap-4">
+          {POST_META.map(({ key, label, icon, color }) => {
+            if (!posts) return null;
+            const postData = posts[key as PostKey];
+            const plat = platform[key as PostKey];
+            const text: string = plat === "tw" ? postData.tw : postData.li;
+            const isTwitter = plat === "tw";
+            const charCount = text.length;
+            const overLimit = isTwitter && charCount > 280;
+            const pubId = `${key}-${plat}`;
+            const isPublished = published[pubId];
+
+            return (
+              <div key={key} className="glass-card p-5 space-y-4">
+                {/* Post header */}
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <div className={cn("flex items-center gap-2 font-medium", color)}>
+                    {icon}
+                    {label}
+                  </div>
+                  {/* Platform toggle */}
+                  <div className="flex items-center gap-1 bg-white/5 rounded-lg p-1 border border-white/8">
+                    <button
+                      onClick={() => setPlatform((p) => ({ ...p, [key]: "tw" }))}
+                      className={cn(
+                        "px-3 py-1 rounded-md text-xs font-semibold transition-all",
+                        plat === "tw"
+                          ? "bg-sky-500 text-white"
+                          : "text-muted-foreground hover:text-foreground"
+                      )}
+                    >
+                      𝕏 Twitter
+                    </button>
+                    <button
+                      onClick={() => setPlatform((p) => ({ ...p, [key]: "li" }))}
+                      className={cn(
+                        "px-3 py-1 rounded-md text-xs font-semibold transition-all",
+                        plat === "li"
+                          ? "bg-blue-600 text-white"
+                          : "text-muted-foreground hover:text-foreground"
+                      )}
+                    >
+                      in LinkedIn
+                    </button>
+                  </div>
+                </div>
+
+                {/* Post body */}
+                <pre className={cn(
+                  "whitespace-pre-wrap text-sm font-sans bg-white/3 rounded-xl p-4 border leading-relaxed",
+                  overLimit ? "border-loss/40" : "border-white/8"
+                )}>
+                  {text}
+                </pre>
+
+                {/* Footer */}
+                <div className="flex items-center justify-between gap-3 flex-wrap">
+                  {/* Char count (Twitter only) */}
+                  {isTwitter ? (
+                    <div className="flex items-center gap-2">
+                      <div className="w-24 h-1.5 rounded-full bg-white/10 overflow-hidden">
+                        <div
+                          className={cn("h-full rounded-full transition-all", overLimit ? "bg-loss" : charCount > 240 ? "bg-yellow-400" : "bg-profit")}
+                          style={{ width: `${Math.min((charCount / 280) * 100, 100)}%` }}
+                        />
+                      </div>
+                      <span className={cn("text-xs tabular-nums", overLimit ? "text-loss" : "text-muted-foreground")}>
+                        {charCount}/280
+                      </span>
+                    </div>
+                  ) : (
+                    <span className="text-xs text-muted-foreground">{charCount} caractères</span>
+                  )}
+
+                  <div className="flex items-center gap-2">
+                    {/* Mark published */}
+                    <button
+                      onClick={() => togglePublished(key as PostKey, plat)}
+                      className={cn(
+                        "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all border",
+                        isPublished
+                          ? "bg-profit/20 text-profit border-profit/30"
+                          : "bg-white/5 hover:bg-white/10 border-white/10 text-muted-foreground hover:text-foreground"
+                      )}
+                    >
+                      <Check className="w-3.5 h-3.5" />
+                      {isPublished ? "Publié ✓" : "Marquer publié"}
+                    </button>
+
+                    {/* Copy button */}
+                    <button
+                      onClick={() => copyPost(key, text)}
+                      className={cn(
+                        "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all border",
+                        copied[key]
+                          ? "bg-profit/20 text-profit border-profit/30"
+                          : "bg-primary/20 hover:bg-primary/30 text-primary border-primary/30"
+                      )}
+                    >
+                      {copied[key] ? (
+                        <><Check className="w-3.5 h-3.5" />Copié !</>
+                      ) : (
+                        <><Copy className="w-3.5 h-3.5" />Copier</>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Tips */}
+      <div className="glass-card p-4 border-dashed border-white/15">
+        <p className="text-xs text-muted-foreground">
+          <span className="font-semibold text-foreground">Workflow :</span> Copiez le post → ouvrez Twitter/X ou LinkedIn → collez et publiez → marquez comme publié ci-dessus.
+          Les posts se régénèrent automatiquement avec les prix actuels en cliquant sur Actualiser.
+        </p>
+      </div>
     </div>
   );
 }
