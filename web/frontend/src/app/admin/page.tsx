@@ -2392,7 +2392,58 @@ function buildPosts(prices: Record<string, { price: number; change: number }>, m
   return { signal, top3, edu, promo };
 }
 
-type Platform = "tw" | "li";
+type RedditPost = { subreddit: string; title: string; body: string };
+
+function buildRedditPosts(prices: Record<string, { price: number; change: number }>): RedditPost[] {
+  const labels: Record<string, string> = {
+    "BTC-USD": "Bitcoin (BTC)", "ETH-USD": "Ethereum (ETH)",
+    "AAPL": "Apple (AAPL)", "^GSPC": "S&P 500", "GC=F": "l'or",
+  };
+  const symbols = ["BTC-USD", "ETH-USD", "AAPL", "^GSPC", "GC=F"];
+  const sorted = symbols.filter((s) => prices[s]).sort((a, b) => Math.abs(prices[b].change) - Math.abs(prices[a].change));
+
+  const top = sorted[0];
+  const second = sorted[1];
+  const topLabel = top ? labels[top] : "cet actif";
+  const topChange = top ? prices[top].change : 0;
+  const topSign = topChange >= 0 ? "+" : "";
+  const topDir = topChange >= 0 ? "monte" : "recule";
+  const topPos = topChange >= 0 ? "se positionner à la hausse" : "se positionner à la baisse";
+
+  const secondLabel = second ? labels[second] : "";
+  const secondChange = second ? prices[second].change : 0;
+  const secondSign = secondChange >= 0 ? "+" : "";
+
+  const goldChange = prices["GC=F"]?.change ?? 0;
+  const btcChange = prices["BTC-USD"]?.change ?? 0;
+  const goldSign = goldChange >= 0 ? "+" : "";
+  const btcSign = btcChange >= 0 ? "+" : "";
+
+  const sameDir = (goldChange >= 0) === (btcChange >= 0);
+
+  return [
+    {
+      subreddit: "r/vosfinances",
+      title: `${topLabel} à ${topSign}${topChange.toFixed(2)}% aujourd'hui — ça veut dire quoi concrètement ?`,
+      body: `Salut,\n\nJe m'entraîne au trading sur un simulateur (${SITE_URL}) et j'ai vu que ${topLabel} ${topDir} de ${topSign}${topChange.toFixed(2)}% sur la séance.\n\nL'analyse technique que je regarde semble indiquer que ça pourrait être un moment pour ${topPos}, mais je ne suis vraiment pas sûr de mon interprétation.\n\nEst-ce que quelqu'un peut expliquer ce qui se passe fondamentalement ? Qu'est-ce qui fait bouger ${topLabel} comme ça ?\n\n(Je précise que c'est purement pour apprendre, je ne gère pas d'argent réel, juste curieux d'avoir l'avis de gens plus expérimentés)`,
+    },
+    {
+      subreddit: "r/vosfinances",
+      title: `L'or à ${goldSign}${goldChange.toFixed(2)}% et le Bitcoin à ${btcSign}${btcChange.toFixed(2)}% — ${sameDir ? "ils montent ensemble, c'est normal ?" : "l'un monte l'autre baisse, comment vous lisez ça ?"}`,
+      body: `Bonjour,\n\nJe regarde les marchés sur ${SITE_URL} pour m'entraîner et j'ai remarqué quelque chose que je ne comprends pas bien.\n\nCe matin :\n- Or : ${goldSign}${goldChange.toFixed(2)}%\n- Bitcoin : ${btcSign}${btcChange.toFixed(2)}%\n\n${sameDir ? "Je pensais que l'or et le Bitcoin étaient des actifs refuges distincts qui ne bougent pas forcément ensemble. Là ils semblent corrélés. Est-ce que c'est un signal de quelque chose (inflation, macro...) ?" : "Je pensais que l'or et le Bitcoin se comportaient parfois de façon similaire en tant qu'actifs refuges, mais là ils partent dans des directions opposées. Comment vous interprétez ça ?"}\n\nMerci d'avance pour les explications, je suis encore en phase d'apprentissage.`,
+    },
+    {
+      subreddit: "r/trading",
+      title: `${topLabel} — signal intéressant ce matin, quelqu'un voit la même chose ?`,
+      body: `Salut à tous,\n\nJe surveille ${topLabel} sur ${SITE_URL} (je m'entraîne sur simulateur) et j'ai un signal qui me semble notable : ${topSign}${topChange.toFixed(2)}% sur la séance${secondLabel ? `, pendant que ${secondLabel} fait ${secondSign}${secondChange.toFixed(2)}%` : ""}.\n\nLe mouvement semble confirmé par le volume. D'après ce que j'ai lu, ça pourrait indiquer une opportunité pour ${topPos} — mais je suis encore débutant et j'ai du mal à distinguer un vrai signal du bruit.\n\nEst-ce que des traders plus expérimentés voient la même chose ? Qu'est-ce que vous regarderiez en plus pour confirmer ou infirmer ?\n\n(Évidemment chacun fait ses propres analyses, je partage juste mon observation)`,
+    },
+    {
+      subreddit: "r/vosfinances",
+      title: `J'utilise un simulateur de trading depuis quelques semaines — retour d'expérience honnête`,
+      body: `Salut r/vosfinances,\n\nJe voulais partager mon expérience avec le paper trading après quelques semaines sur ${SITE_URL}.\n\nCe que j'ai appris :\n- C'est beaucoup plus dur que ça en a l'air. Même sans argent réel, les émotions sont là.\n- Regarder un graphique en temps réel, c'est différent d'analyser après coup.\n- Les indicateurs (RSI, MACD) sont utiles mais pas magiques — il m'a fallu du temps pour comprendre ça.\n\nCe qui m'a surpris cette semaine : ${topLabel} à ${topSign}${topChange.toFixed(2)}%. J'aurais parié sur l'inverse. Bonne leçon d'humilité.\n\nEst-ce que d'autres ici ont commencé par le paper trading avant de passer au réel ? Combien de temps avant de se sentir prêt ?`,
+    },
+  ];
+}
 type MarketStatus = "open" | "premarket" | "aftermarket" | "weekend";
 
 function getUSMarketStatus(): MarketStatus {
@@ -2459,6 +2510,16 @@ function SocialTab() {
 
   const marketStatus = getUSMarketStatus();
   const posts = !isLoading && Object.keys(prices).length > 0 ? buildPosts(prices, marketStatus) : null;
+  const redditPosts = !isLoading && Object.keys(prices).length > 0 ? buildRedditPosts(prices) : null;
+  const [copiedReddit, setCopiedReddit] = useState<Record<string, boolean>>({});
+
+  const copyReddit = async (id: string, text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedReddit((prev) => ({ ...prev, [id]: true }));
+      setTimeout(() => setCopiedReddit((prev) => ({ ...prev, [id]: false })), 2000);
+    } catch (e) { console.error(e); }
+  };
 
   const copyPost = async (key: PostKey, text: string) => {
     try {
@@ -2692,12 +2753,94 @@ function SocialTab() {
         </div>
       )}
 
-      {/* Tips */}
+      {/* Tips Twitter/LinkedIn */}
       <div className="glass-card p-4 border-dashed border-white/15">
         <p className="text-xs text-muted-foreground">
           <span className="font-semibold text-foreground">Workflow :</span> Copiez le post → ouvrez Twitter/X ou LinkedIn → collez et publiez → marquez comme publié ci-dessus.
           Les posts se régénèrent automatiquement avec les prix actuels en cliquant sur Actualiser.
         </p>
+      </div>
+
+      {/* Reddit Section */}
+      <div className="space-y-4">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-lg bg-orange-500/20 flex items-center justify-center">
+            <span className="text-orange-400 font-black text-sm">r/</span>
+          </div>
+          <div>
+            <h3 className="font-semibold">Posts Reddit</h3>
+            <p className="text-xs text-muted-foreground">Ton naturel d'utilisateur qui apprend — jamais promotionnel direct</p>
+          </div>
+        </div>
+
+        {isLoading ? (
+          <div className="flex justify-center py-8">
+            <Loader2 className="w-6 h-6 animate-spin text-primary" />
+          </div>
+        ) : redditPosts ? (
+          <div className="grid gap-4">
+            {redditPosts.map((post, i) => (
+              <div key={i} className="glass-card p-5 space-y-3 border-orange-500/10">
+                {/* Subreddit badge */}
+                <div className="flex items-center gap-2">
+                  <span className="text-xs px-2 py-0.5 rounded-full bg-orange-500/15 text-orange-400 border border-orange-500/20 font-medium">
+                    {post.subreddit}
+                  </span>
+                  <span className="text-xs text-muted-foreground">Titre du post ↓</span>
+                </div>
+
+                {/* Title */}
+                <div className="space-y-1">
+                  <div className="flex items-start justify-between gap-3">
+                    <p className="text-sm font-semibold leading-snug flex-1">{post.title}</p>
+                    <button
+                      onClick={() => copyReddit(`title-${i}`, post.title)}
+                      className={cn(
+                        "shrink-0 flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition-all border",
+                        copiedReddit[`title-${i}`]
+                          ? "bg-profit/20 text-profit border-profit/30"
+                          : "bg-white/5 hover:bg-white/10 border-white/10 text-muted-foreground hover:text-foreground"
+                      )}
+                    >
+                      {copiedReddit[`title-${i}`] ? <><Check className="w-3 h-3" />Copié</> : <><Copy className="w-3 h-3" />Titre</>}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="w-full h-px bg-white/6" />
+
+                {/* Body */}
+                <div className="space-y-2">
+                  <span className="text-xs text-muted-foreground">Corps du post ↓</span>
+                  <pre className="whitespace-pre-wrap text-sm font-sans bg-white/3 rounded-xl p-4 border border-white/8 leading-relaxed text-muted-foreground">
+                    {post.body}
+                  </pre>
+                  <div className="flex justify-end">
+                    <button
+                      onClick={() => copyReddit(`body-${i}`, post.body)}
+                      className={cn(
+                        "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all border",
+                        copiedReddit[`body-${i}`]
+                          ? "bg-profit/20 text-profit border-profit/30"
+                          : "bg-primary/20 hover:bg-primary/30 text-primary border-primary/30"
+                      )}
+                    >
+                      {copiedReddit[`body-${i}`] ? <><Check className="w-3.5 h-3.5" />Copié !</> : <><Copy className="w-3.5 h-3.5" />Copier le corps</>}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : null}
+
+        <div className="glass-card p-4 border-dashed border-orange-500/15">
+          <p className="text-xs text-muted-foreground">
+            <span className="font-semibold text-orange-400">Règles Reddit :</span> Poste en tant qu'utilisateur lambda qui apprend, pas en tant qu'admin du site.
+            Engage avec les réponses (réponds aux commentaires). Ne poste pas le même texte deux fois — varie légèrement.
+            Fréquence max : 2-3 posts par semaine sur le même sub.
+          </p>
+        </div>
       </div>
     </div>
   );
