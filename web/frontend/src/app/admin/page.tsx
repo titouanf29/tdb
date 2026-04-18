@@ -2388,7 +2388,12 @@ function SocialTab() {
     edu: false,
     promo: false,
   });
-  const [published, setPublished] = useState<Record<string, boolean>>({});
+  const todayKey = `social_published_${new Date().toISOString().slice(0, 10)}`;
+  const [published, setPublished] = useState<Record<string, boolean>>(() => {
+    try {
+      return JSON.parse(localStorage.getItem(todayKey) || "{}");
+    } catch { return {}; }
+  });
 
   const SYMBOLS = ["BTC-USD", "ETH-USD", "AAPL", "^GSPC", "GC=F"];
 
@@ -2422,7 +2427,11 @@ function SocialTab() {
 
   const togglePublished = (key: PostKey, plat: Platform) => {
     const id = `${key}-${plat}`;
-    setPublished((prev) => ({ ...prev, [id]: !prev[id] }));
+    setPublished((prev) => {
+      const next = { ...prev, [id]: !prev[id] };
+      try { localStorage.setItem(todayKey, JSON.stringify(next)); } catch {}
+      return next;
+    });
   };
 
   const publishedCount = Object.values(published).filter(Boolean).length;
