@@ -2564,6 +2564,15 @@ const MARKET_STATUS_LABEL: Record<MarketStatus, { text: string; color: string }>
   weekend:     { text: "Weekend — données de clôture vendredi", color: "text-loss" },
 };
 
+// Date courante en heure française (reset à 00h00 FR)
+function getFrenchDateStr(): string {
+  const now = new Date();
+  const month = now.getUTCMonth() + 1;
+  const frOffset = (month >= 3 && month <= 10) ? 2 : 1; // CEST/CET
+  const frDate = new Date(now.getTime() + frOffset * 3600000);
+  return frDate.toISOString().slice(0, 10);
+}
+
 function SocialTab() {
   const [prices, setPrices] = useState<Record<string, { price: number; change: number; volume: number }>>({});
   const [isLoading, setIsLoading] = useState(true);
@@ -2579,11 +2588,14 @@ function SocialTab() {
   const [copiedComment, setCopiedComment] = useState<Record<PostKey, boolean>>({
     signal: false, top3: false, edu: false, promo: false,
   });
-  const todayKey = `social_published_${new Date().toISOString().slice(0, 10)}`;
+  const frDateStr = getFrenchDateStr();
+  const todayKey   = `social_published_${frDateStr}`;
+  const redditKey  = `reddit_published_${frDateStr}`;
   const [published, setPublished] = useState<Record<string, boolean>>(() => {
-    try {
-      return JSON.parse(localStorage.getItem(todayKey) || "{}");
-    } catch { return {}; }
+    try { return JSON.parse(localStorage.getItem(todayKey) || "{}"); } catch { return {}; }
+  });
+  const [publishedReddit, setPublishedReddit] = useState<Record<string, boolean>>(() => {
+    try { return JSON.parse(localStorage.getItem(redditKey) || "{}"); } catch { return {}; }
   });
 
   const SYMBOLS = ALL_SYMBOLS;
@@ -2616,6 +2628,14 @@ function SocialTab() {
       setCopiedReddit((prev) => ({ ...prev, [id]: true }));
       setTimeout(() => setCopiedReddit((prev) => ({ ...prev, [id]: false })), 2000);
     } catch (e) { console.error(e); }
+  };
+
+  const toggleRedditPublished = (id: string) => {
+    setPublishedReddit((prev) => {
+      const next = { ...prev, [id]: !prev[id] };
+      try { localStorage.setItem(redditKey, JSON.stringify(next)); } catch {}
+      return next;
+    });
   };
 
   const copyPost = async (key: PostKey, text: string) => {
@@ -2851,10 +2871,13 @@ function SocialTab() {
       )}
 
       {/* Tips Twitter/LinkedIn */}
-      <div className="glass-card p-4 border-dashed border-white/15">
+      <div className="glass-card p-4 border-dashed border-white/15 space-y-2">
         <p className="text-xs text-muted-foreground">
           <span className="font-semibold text-foreground">Workflow :</span> Copiez le post → ouvrez Twitter/X ou LinkedIn → collez et publiez → marquez comme publié ci-dessus.
           Les posts se régénèrent automatiquement avec les prix actuels en cliquant sur Actualiser.
+        </p>
+        <p className="text-xs text-muted-foreground border-t border-white/8 pt-2">
+          <span className="font-semibold text-foreground">🕛 Reset automatique :</span> Les posts et l&apos;historique &quot;publié&quot; se régénèrent chaque jour à <span className="font-semibold text-foreground">00h00 heure française</span> avec les nouvelles données de marché.
         </p>
       </div>
 
@@ -2945,17 +2968,34 @@ function SocialTab() {
                       </button>
                     </div>
                   </div>
+
+                  {/* Marquer publié */}
+                  <button
+                    onClick={() => toggleRedditPublished(`${i}-${lang}`)}
+                    className={cn(
+                      "w-full flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-medium transition-all border",
+                      publishedReddit[`${i}-${lang}`]
+                        ? "bg-profit/15 text-profit border-profit/25"
+                        : "bg-white/3 hover:bg-white/8 border-white/10 text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    <Check className="w-3.5 h-3.5" />
+                    {publishedReddit[`${i}-${lang}`] ? "Publié sur " + current.subreddit + " ✓" : "Marquer comme publié"}
+                  </button>
                 </div>
               );
             })}
           </div>
         ) : null}
 
-        <div className="glass-card p-4 border-dashed border-orange-500/15">
+        <div className="glass-card p-4 border-dashed border-orange-500/15 space-y-2">
           <p className="text-xs text-muted-foreground">
             <span className="font-semibold text-orange-400">Règles Reddit :</span> Poste en tant qu'utilisateur lambda qui apprend, pas en tant qu'admin du site.
             Engage avec les réponses (réponds aux commentaires). Ne poste pas le même texte deux fois — varie légèrement.
             Fréquence max : 2-3 posts par semaine sur le même sub.
+          </p>
+          <p className="text-xs text-muted-foreground border-t border-white/8 pt-2">
+            <span className="font-semibold text-foreground">🕛 Reset automatique :</span> Les posts et l'historique "publié" se régénèrent chaque jour à <span className="font-semibold text-foreground">00h00 heure française</span> avec les nouvelles données de marché.
           </p>
         </div>
       </div>
