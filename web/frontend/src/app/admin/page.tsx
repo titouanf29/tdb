@@ -2479,63 +2479,75 @@ function buildRedditPosts(prices: Record<string, { price: number; change: number
 
   return [
     {
-      // POST 1: Or — always gold because it attracts
+      // POST 1: Or — question pure, aucun lien
       fr: {
         subreddit: "r/vosfinances",
-        title: `L'or à ${goldS}${goldC.toFixed(2)}% ${whenFr} — ${goldAbs >= 2 ? "gros mouvement, quelqu'un suit ça ?" : "ça bouge, c'est un signal ?"}`,
-        body: `Salut,\n\nJe suis sur ${SITE_URL} pour m'entraîner au trading et j'ai vu que l'or fait ${goldS}${goldC.toFixed(2)}% ${sessionFr}. C'est un ${goldMomFr}.${goldVsOil ? `\n\nEn même temps, le pétrole fait ${oilS}${oilC.toFixed(2)}%. Ces deux matières premières qui bougent ensemble (ou en sens inverse), ça dit quelque chose sur le contexte macro ?` : ""}\n\nL'analyse technique ${goldConfFr} une opportunité de ${goldC >= 0 ? "se positionner à la hausse" : "se positionner à la baisse"} — mais je ne suis pas expert.\n\nPourquoi l'or bouge comme ça en ce moment ? Inflation, dollar, géopolitique ?\n\n(Paper trading uniquement, purement pour apprendre)`,
+        title: goldAbs >= 2
+          ? `L'or à ${goldS}${goldC.toFixed(2)}% ${whenFr} — qu'est-ce qui explique ça ?`
+          : `L'or ${goldC >= 0 ? "remonte" : "recule"} de ${goldS}${goldC.toFixed(2)}% ${whenFr} — du bruit ou un signal ?`,
+        body: `${goldVsOil ? `Le pétrole aussi bouge (${oilS}${oilC.toFixed(2)}%) ${sessionFr}. Les deux en même temps c'est souvent révélateur d'un truc macro.\n\n` : ""}L'or fait ${goldS}${goldC.toFixed(2)}% ${sessionFr}${goldAbs >= 2 ? ` — c'est un ${goldMomFr}` : ""}.
+
+J'essaie de comprendre ce qui drive l'or en ce moment. Dollar ? Inflation anticipée ? Géopolitique ? Risque de récession ?
+
+Quelqu'un a un point de vue là-dessus ou des ressources pour apprendre à lire les matières premières ?`,
       },
       en: {
         subreddit: "r/Gold",
-        title: `Gold ${goldS}${goldC.toFixed(2)}% ${whenEnTitle} — ${goldAbs >= 2 ? "significant move, anyone tracking this?" : "what's driving this?"}`,
-        body: `Hi,\n\nI track gold on a trading simulator I use to practice (${SITE_URL}) and noticed it moved ${goldS}${goldC.toFixed(2)}% ${whenEnBody}. That's a ${goldMomEn}.${goldVsOil ? `\n\nInterestingly, oil is at ${oilS}${oilC.toFixed(2)}% ${sessionEn}. When gold and oil move together (or diverge) like this, does it signal something macro?` : ""}\n\n${confEn(goldAbs).charAt(0).toUpperCase() + confEn(goldAbs).slice(1)} this points to ${goldC >= 0 ? "going long" : "going short"} — but I'm still learning.\n\nWhat's driving gold right now? Dollar strength, inflation, geopolitics?\n\n(Paper trading only, just trying to learn)`,
+        title: goldAbs >= 2
+          ? `Gold ${goldS}${goldC.toFixed(2)}% ${whenEnTitle} — what's driving this move?`
+          : `Gold ${goldC >= 0 ? "up" : "down"} ${goldS}${goldC.toFixed(2)}% ${whenEnTitle} — signal or noise?`,
+        body: `Gold moved ${goldS}${goldC.toFixed(2)}% ${whenEnBody}${goldVsOil ? `, and oil is at ${oilS}${oilC.toFixed(2)}% ${sessionEn} at the same time` : ""}. ${goldAbs >= 2 ? "That's a meaningful move." : "Small but consistent."}
+
+I'm trying to understand what's actually driving gold right now — dollar index, inflation expectations, geopolitical hedge, or just positioning?
+
+Anyone here have a framework for reading gold moves? What do you watch alongside price?`,
       },
     },
     {
-      // POST 2: Crypto
+      // POST 2: Crypto — question pure, aucun lien
       fr: {
         subreddit: "r/BitcoinFR",
-        title: `Crypto ${morningFr} : BTC ${btcS}${btcC.toFixed(2)}%, ETH ${ethS}${ethC.toFixed(2)}%${solC !== null ? `, SOL ${solS}${solC.toFixed(2)}%` : ""} — comment vous lisez ça ?`,
-        body: `Salut,\n\nJe suis sur ${SITE_URL} (simulateur de trading) et je surveille la crypto ${morningFr} :\n\n- Bitcoin : ${btcS}${btcC.toFixed(2)}%\n- Ethereum : ${ethS}${ethC.toFixed(2)}%${solC !== null ? `\n- Solana : ${solS}${solC.toFixed(2)}%` : ""}\n\n${cryptoSym ? `${lFr(cryptoSym)} sort du lot avec un ${momentumFr(cryptoAbs)}.` : ""} Est-ce que le marché est en train de reprendre ou c'est juste un rebond technique ?\n\nComment vous distinguez un vrai mouvement d'un faux rebond sur la crypto ?${isWeekend ? "\n\n(Et à votre avis, lundi ça ouvre comment ?)" : ""}`,
+        title: `BTC ${btcS}${btcC.toFixed(2)}%, ETH ${ethS}${ethC.toFixed(2)}%${solC !== null ? `, SOL ${solS}${solC.toFixed(2)}%` : ""} ${morningFr} — rebond ou continuation ?`,
+        body: `${isWeekend ? "Clôture vendredi" : "En ce moment"} sur la crypto :\n\n- Bitcoin : ${btcS}${btcC.toFixed(2)}%\n- Ethereum : ${ethS}${ethC.toFixed(2)}%${solC !== null ? `\n- Solana : ${solS}${solC.toFixed(2)}%` : ""}\n\n${cryptoSym ? `${lFr(cryptoSym)} sort du lot avec ${momentumFr(cryptoAbs)}.\n\n` : ""}Comment vous distinguez un rebond technique d'une vraie reprise sur la crypto ? Vous regardez quoi en dehors du prix — volume, dominance BTC, autre chose ?${isWeekend ? "\n\nCurieux de voir comment ça ouvre lundi." : ""}`,
       },
       en: {
         subreddit: "r/CryptoCurrency",
-        title: `Crypto ${morningEn}: BTC ${btcS}${btcC.toFixed(2)}%, ETH ${ethS}${ethC.toFixed(2)}%${solC !== null ? `, SOL ${solS}${solC.toFixed(2)}%` : ""} — how do you read this?`,
-        body: `Hey,\n\nTracking crypto on a simulator I use to practice (${SITE_URL}).\n\n${isWeekend ? "Friday close" : "Right now"}:\n- Bitcoin: ${btcS}${btcC.toFixed(2)}%\n- Ethereum: ${ethS}${ethC.toFixed(2)}%${solC !== null ? `\n- Solana: ${solS}${solC.toFixed(2)}%` : ""}\n\n${cryptoSym ? `${lEn(cryptoSym)} stands out with a ${momentumEn(cryptoAbs)}.` : ""} Is this a genuine move or just a technical bounce?\n\nHow do you tell the difference between a real breakout and a fakeout in crypto?${isWeekend ? "\n\n(Also curious — how do you think Monday opens?)" : ""}`,
+        title: `BTC ${btcS}${btcC.toFixed(2)}%, ETH ${ethS}${ethC.toFixed(2)}%${solC !== null ? `, SOL ${solS}${solC.toFixed(2)}%` : ""} ${morningEn} — bounce or real move?`,
+        body: `${isWeekend ? "Friday's close" : "Current levels"}:\n\n- Bitcoin: ${btcS}${btcC.toFixed(2)}%\n- Ethereum: ${ethS}${ethC.toFixed(2)}%${solC !== null ? `\n- Solana: ${solS}${solC.toFixed(2)}%` : ""}\n\n${cryptoSym ? `${lEn(cryptoSym)} leading the move with a ${momentumEn(cryptoAbs)}.\n\n` : ""}How do you differentiate between a genuine recovery and a dead-cat bounce in crypto? Beyond price — volume, BTC dominance, funding rates? What do you actually watch?${isWeekend ? "\n\nAlso curious how you think Monday opens." : ""}`,
       },
     },
     {
-      // POST 3: Europe
+      // POST 3: Europe — question pure, aucun lien, subreddit différent
       fr: {
-        subreddit: "r/vosfinances",
+        subreddit: "r/bourse",
         title: euSym
-          ? `${lFr(euSym)} à ${euS}${euC.toFixed(2)}% ${whenFr} — les marchés européens passent sous le radar ?`
-          : `Marchés européens ${whenFr} — quelqu'un suit le CAC / DAX ici ?`,
+          ? `${lFr(euSym)} à ${euS}${euC.toFixed(2)}% ${whenFr} — quelqu'un suit les marchés européens ici ?`
+          : `CAC 40, DAX ${whenFr} — qui suit les marchés européens ?`,
         body: euSym
-          ? `Bonjour,\n\nJe suis sur ${SITE_URL} pour apprendre le trading et j'ai remarqué que ${lFr(euSym)} fait ${euS}${euC.toFixed(2)}% ${sessionFr}. C'est un ${euMomFr}.\n\nOn parle beaucoup de Wall Street sur ce sub, mais les marchés européens bougent aussi. Est-ce que quelqu'un suit activement le CAC 40, le DAX ou des actions européennes comme Airbus ou LVMH ?\n\nQu'est-ce qui explique ce mouvement ${morningFr} selon vous ? Est-ce lié à l'euro, aux résultats d'entreprises, au contexte macro européen ?\n\n(Je suis encore débutant, curieux d'apprendre)`
-          : `Bonjour,\n\nJe suis sur ${SITE_URL} pour apprendre le trading. On parle beaucoup de crypto et de Wall Street ici, mais qu'en est-il des marchés européens — CAC 40, DAX, Euro Stoxx ?\n\nEst-ce que des gens ici investissent sur des actions françaises ou européennes ? Comment vous abordez ces marchés vs les US ?`,
+          ? `${lFr(euSym)} à ${euS}${euC.toFixed(2)}% ${sessionFr}, c'est un ${euMomFr}.\n\nOn parle beaucoup des US et de la crypto, mais les marchés européens ont leurs propres dynamiques — CAC 40, DAX, Airbus, LVMH...\n\nQu'est-ce qui explique ce mouvement ${morningFr} selon vous ? Contexte macro EU, dollar/euro, résultats d'entreprises ? Et est-ce que vous avez des ressources ou des méthodes spécifiques pour analyser les marchés européens ?`
+          : `J'essaie de mieux comprendre les marchés européens — CAC 40, DAX, Euro Stoxx 50.\n\nOn trouve beaucoup de contenu sur les US et la crypto mais peu sur les actions françaises ou européennes. Est-ce que des gens ici investissent sur ces marchés ? Comment vous abordez l'analyse vs les US — différences structurelles, liquidité, etc. ?`,
       },
       en: {
-        subreddit: "r/EuropeFIRE",
+        subreddit: "r/investing",
         title: euSym
-          ? `${lEn(euSym)} ${euS}${euC.toFixed(2)}% ${whenEnTitle} — European markets flying under the radar?`
-          : `European markets ${whenEnTitle} — anyone following CAC 40 / DAX here?`,
+          ? `${lEn(euSym)} ${euS}${euC.toFixed(2)}% ${whenEnTitle} — European markets worth watching?`
+          : `European markets ${whenEnTitle} — underrated vs US equities?`,
         body: euSym
-          ? `Hi,\n\nPracticing on a trading simulator (${SITE_URL}) and noticed ${lEn(euSym)} is at ${euS}${euC.toFixed(2)}% ${whenEnBody}. That's a ${euMomEn}.\n\nEuropean markets often get overshadowed by Wall Street discussion, but they're moving too. Is anyone actively tracking CAC 40, DAX, or European stocks like Airbus or LVMH?\n\nWhat's driving this move? EUR/USD dynamics, earnings, broader EU macro? I'd love to understand better.`
-          : `Hi,\n\nPracticing on a trading simulator (${SITE_URL}). Most discussion here focuses on US/crypto, but I'm curious about European markets — CAC 40, DAX, Euro Stoxx 50.\n\nDoes anyone here invest in European equities? How do you approach these markets vs US?`,
+          ? `${lEn(euSym)} moved ${euS}${euC.toFixed(2)}% ${whenEnBody} — ${momentumEn(euAbs)}.\n\nEuropean equities (CAC 40, DAX, individual stocks like Airbus or LVMH) don't get nearly as much discussion as US or crypto, but they move.\n\nWhat's driving EU markets right now — EUR/USD, ECB policy, earnings, or broader macro? And do you think European stocks are genuinely undervalued or just unloved for reasons?`
+          : `Trying to learn more about European markets — CAC 40, DAX, Euro Stoxx 50.\n\nMost content I find is US-centric. Do people here invest in European equities? How do you approach analysis vs US stocks — different drivers, liquidity, anything structurally different to account for?`,
       },
     },
     {
-      // POST 4: experience post, mentions asset variety
+      // POST 4: expérience — site mentionné une seule fois, naturellement, au milieu
       fr: {
         subreddit: "r/vosfinances",
-        title: `J'utilise un simulateur de trading depuis quelques semaines — retour honnête`,
-        body: `Salut r/vosfinances,\n\nQuelques semaines sur ${SITE_URL} — voilà ce que j'ai appris.\n\nCe qui m'a surpris :\n- C'est beaucoup plus dur que ça en a l'air, même sans argent réel en jeu\n- J'ai découvert que je ne regardais que la crypto et les US. Depuis j'ai ajouté l'or, le pétrole, des actions européennes. Ça change complètement la perspective.\n- Les indicateurs (RSI, MACD) sont utiles mais ce n'est pas de la magie\n\nAnecdote ${isWeekend ? "vendredi" : "cette semaine"} : ${lFr(expSym)} à ${expS}${expC.toFixed(2)}% ${whenFr}. J'aurais parié sur l'inverse. Bonne leçon d'humilité.\n\nCeux qui ont commencé par le paper trading — combien de temps avant de vous sentir prêts ? Et vous avez commencé par quel type d'actif ?`,
+        title: `Ce que j'ai appris en faisant du paper trading — pas ce à quoi je m'attendais`,
+        body: `J'ai commencé le paper trading il y a quelques semaines sur captentdb.fr pour m'entraîner avant de mettre de l'argent réel. Voilà ce que ça m'a vraiment appris.\n\n${isWeekend ? "Vendredi" : "Cette semaine"}, ${lFr(expSym)} à ${expS}${expC.toFixed(2)}% ${whenFr}. J'aurais parié sur l'inverse sans hésiter. En simulation ça fait moins mal — mais c'est formateur.\n\nCe qui m'a le plus surpris : même sans argent réel, les émotions jouent. Envie de rentrer trop tôt, de couper trop vite, de moyenner à la baisse.\n\nCeux qui ont fait du paper trading avant de passer au réel — vous avez trouvé que ça traduisait bien ? Ou il y a des choses qu'on ne peut apprendre qu'avec de vrais enjeux ?`,
       },
       en: {
         subreddit: "r/stocks",
-        title: `Been paper trading for a few weeks — honest thoughts (and what surprised me)`,
-        body: `Hey,\n\nA few weeks into paper trading on ${SITE_URL} — here's what I've learned.\n\nWhat surprised me:\n- It's way harder than it looks, even without real money\n- I used to only look at crypto and US stocks. Adding gold, oil, and European indices completely changed my perspective on how markets interact\n- Indicators (RSI, MACD) are tools, not magic\n\n${isWeekend ? "Last Friday" : "This week"}: ${lEn(expSym)} at ${expS}${expC.toFixed(2)}% ${whenEnBody}. Would have bet the opposite. Good humility check.\n\nFor those who started with paper trading — how long before you felt ready? And what asset class did you start with?`,
+        title: `A few weeks of paper trading — what I didn't expect to learn`,
+        body: `Started paper trading on captentdb.fr a few weeks ago as a way to practice before committing real money. Here's what actually surprised me.\n\n${isWeekend ? "Last Friday" : "This week"}: ${lEn(expSym)} at ${expS}${expC.toFixed(2)}% ${whenEnBody}. Completely wrong on direction. No real money lost, but it's humbling.\n\nBiggest surprise: emotions still play out even in simulation. You still feel the pull to enter early, cut winners too fast, average down on losers.\n\nFor those who did paper trading before going live — did it actually translate? Or is there something about real stakes you can only learn the hard way?`,
       },
     },
   ];
