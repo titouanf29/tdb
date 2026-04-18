@@ -2286,6 +2286,30 @@ function PremiumTab() {
 
 const SITE_URL = "captentdb.fr";
 
+// Full symbol pool — grouped by asset class
+const SYMBOLS_CRYPTO = ["BTC-USD", "ETH-USD", "SOL-USD"];
+const SYMBOLS_US     = ["AAPL", "TSLA", "NVDA", "MSFT", "^GSPC", "^IXIC"];
+const SYMBOLS_EU     = ["^FCHI", "^GDAXI", "^STOXX50E", "AIR.PA", "MC.PA"];
+const SYMBOLS_COMMO  = ["GC=F", "CL=F", "SI=F"];
+const ALL_SYMBOLS    = [...SYMBOLS_CRYPTO, ...SYMBOLS_US, ...SYMBOLS_EU, ...SYMBOLS_COMMO];
+
+const LABELS_FR: Record<string, string> = {
+  "BTC-USD": "Bitcoin (BTC)", "ETH-USD": "Ethereum (ETH)", "SOL-USD": "Solana (SOL)",
+  "AAPL": "Apple (AAPL)", "TSLA": "Tesla (TSLA)", "NVDA": "Nvidia (NVDA)", "MSFT": "Microsoft (MSFT)",
+  "^GSPC": "S&P 500", "^IXIC": "Nasdaq",
+  "^FCHI": "le CAC 40", "^GDAXI": "le DAX (Allemagne)", "^STOXX50E": "l'Euro Stoxx 50",
+  "AIR.PA": "Airbus", "MC.PA": "LVMH",
+  "GC=F": "l'or", "CL=F": "le pétrole (WTI)", "SI=F": "l'argent (Silver)",
+};
+const LABELS_EN: Record<string, string> = {
+  "BTC-USD": "Bitcoin (BTC)", "ETH-USD": "Ethereum (ETH)", "SOL-USD": "Solana (SOL)",
+  "AAPL": "Apple (AAPL)", "TSLA": "Tesla (TSLA)", "NVDA": "Nvidia (NVDA)", "MSFT": "Microsoft (MSFT)",
+  "^GSPC": "S&P 500", "^IXIC": "Nasdaq",
+  "^FCHI": "CAC 40 (France)", "^GDAXI": "DAX (Germany)", "^STOXX50E": "Euro Stoxx 50",
+  "AIR.PA": "Airbus", "MC.PA": "LVMH",
+  "GC=F": "Gold", "CL=F": "Oil (WTI)", "SI=F": "Silver",
+};
+
 const EDU_TIPS: PostData[] = [
   {
     tw: `Une bougie rouge ne veut pas forcément dire catastrophe.\n\nElle dit juste que les vendeurs ont eu le dessus sur la séance.\n\nLe contexte compte plus que la couleur.\n\nBougie verte après une longue descente = signal.\nBougie rouge en pleine tendance haussière = souvent juste du bruit.\n\nPratique sur de vrais graphiques → ${SITE_URL}`,
@@ -2326,16 +2350,7 @@ type PostData = { tw: string; li: string; liComment: string; isFinancial?: boole
 type PostKey = "signal" | "top3" | "edu" | "promo";
 
 function buildPosts(prices: Record<string, { price: number; change: number }>, marketStatus: MarketStatus): Record<PostKey, PostData> {
-  const symbols = ["BTC-USD", "ETH-USD", "AAPL", "^GSPC", "GC=F"];
-  const labels: Record<string, string> = {
-    "BTC-USD": "Bitcoin (BTC)",
-    "ETH-USD": "Ethereum (ETH)",
-    "AAPL": "Apple (AAPL)",
-    "^GSPC": "S&P 500",
-    "GC=F": "Or (Gold)",
-  };
-
-  const sorted = symbols
+  const sorted = ALL_SYMBOLS
     .filter((s) => prices[s])
     .sort((a, b) => Math.abs(prices[b].change) - Math.abs(prices[a].change));
 
@@ -2344,7 +2359,7 @@ function buildPosts(prices: Record<string, { price: number; change: number }>, m
 
   const topChange = topSym ? prices[topSym].change : 0;
   const topPrice = topSym ? prices[topSym].price : 0;
-  const topLabel = topSym ? labels[topSym] : "—";
+  const topLabel = topSym ? (LABELS_FR[topSym] ?? topSym) : "—";
   const arrow = topChange >= 0 ? "🟢" : "🔴";
   const sign = topChange >= 0 ? "+" : "";
 
@@ -2373,7 +2388,7 @@ function buildPosts(prices: Record<string, { price: number; change: number }>, m
     .map((s) => {
       const p = prices[s];
       const c = p.change >= 0 ? `+${p.change.toFixed(2)}%` : `${p.change.toFixed(2)}%`;
-      return `• ${labels[s]} : ${c}`;
+      return `• ${LABELS_FR[s] ?? s} : ${c}`;
     })
     .join("\n");
 
@@ -2396,21 +2411,19 @@ type RedditLang = { subreddit: string; title: string; body: string };
 type RedditPost = { fr: RedditLang; en: RedditLang };
 
 function buildRedditPosts(prices: Record<string, { price: number; change: number }>, marketStatus: MarketStatus): RedditPost[] {
-  const labelsFr: Record<string, string> = {
-    "BTC-USD": "Bitcoin (BTC)", "ETH-USD": "Ethereum (ETH)",
-    "AAPL": "Apple (AAPL)", "^GSPC": "S&P 500", "GC=F": "l'or",
-  };
-  const labelsEn: Record<string, string> = {
-    "BTC-USD": "Bitcoin (BTC)", "ETH-USD": "Ethereum (ETH)",
-    "AAPL": "Apple (AAPL)", "^GSPC": "S&P 500", "GC=F": "Gold",
-  };
-  const symbols = ["BTC-USD", "ETH-USD", "AAPL", "^GSPC", "GC=F"];
-  const sorted = symbols.filter((s) => prices[s]).sort((a, b) => Math.abs(prices[b].change) - Math.abs(prices[a].change));
+  const available = (syms: string[]) => syms.filter((s) => prices[s]);
+  const topOf = (syms: string[]) => available(syms).sort((a, b) => Math.abs(prices[b].change) - Math.abs(prices[a].change))[0];
+
+  // Top mover per class
+  const topCrypto = topOf(SYMBOLS_CRYPTO);
+  const topEU     = topOf(SYMBOLS_EU);
+  const topUS     = topOf(SYMBOLS_US);
+  const gold      = prices["GC=F"] ? "GC=F" : undefined;
+  const oil       = prices["CL=F"] ? "CL=F" : undefined;
+  const topAll    = topOf(ALL_SYMBOLS);
 
   const isOpen = marketStatus === "open";
   const isWeekend = marketStatus === "weekend";
-
-  // Time context
   const whenFr = isOpen ? "aujourd'hui" : isWeekend ? "vendredi à la clôture" : "à la dernière clôture";
   const whenEnTitle = isOpen ? "today" : isWeekend ? "Friday close" : "last close";
   const whenEnBody = isOpen ? "today" : isWeekend ? "at Friday's close" : "at the last close";
@@ -2419,83 +2432,110 @@ function buildRedditPosts(prices: Record<string, { price: number; change: number
   const morningFr = isOpen ? "ce matin" : isWeekend ? "vendredi" : "hier";
   const morningEn = isOpen ? "today" : isWeekend ? "last Friday" : "yesterday";
 
-  const top = sorted[0];
-  const second = sorted[1];
+  // helpers
+  const pChange = (s: string | undefined) => s ? prices[s].change : 0;
+  const pSign   = (c: number) => c >= 0 ? "+" : "";
+  const lFr     = (s: string | undefined) => s ? (LABELS_FR[s] ?? s) : "—";
+  const lEn     = (s: string | undefined) => s ? (LABELS_EN[s] ?? s) : "—";
+  const momentumFr = (a: number) => a >= 4 ? "mouvement très fort" : a >= 2 ? "mouvement significatif" : a >= 1 ? "mouvement notable" : "légère variation";
+  const momentumEn = (a: number) => a >= 4 ? "very strong move" : a >= 2 ? "significant move" : a >= 1 ? "notable move" : "slight move";
+  const confFr = (a: number) => a >= 3 ? "ça semble assez clair" : a >= 1.5 ? "ça semble pointer vers" : "ça pourrait indiquer";
+  const confEn = (a: number) => a >= 3 ? "it seems fairly clear" : a >= 1.5 ? "it seems to point toward" : "it might indicate";
 
-  const topChange = top ? prices[top].change : 0;
-  const topSign = topChange >= 0 ? "+" : "";
-  const topLabelFr = top ? labelsFr[top] : "cet actif";
-  const topDirFr = topChange >= 0 ? "monte" : "recule";
-  const topPosFr = topChange >= 0 ? "se positionner à la hausse" : "se positionner à la baisse";
-  const topLabelEn = top ? labelsEn[top] : "this asset";
-  const topDirEn = topChange >= 0 ? "up" : "down";
-  const topPosEn = topChange >= 0 ? "go long" : "go short";
+  // Post 1 — GOLD (always gold, it's the hook)
+  const goldC = pChange(gold);
+  const goldS = pSign(goldC);
+  const oilC  = pChange(oil);
+  const oilS  = pSign(oilC);
+  const goldAbs = Math.abs(goldC);
+  const goldMomFr = momentumFr(goldAbs);
+  const goldMomEn = momentumEn(goldAbs);
+  const goldConfFr = confFr(goldAbs);
+  const goldConfEn = confEn(goldAbs);
+  const goldVsOil = oil && Math.abs(oilC) > 0.3;
 
-  // Momentum qualifier based on magnitude
-  const abs = Math.abs(topChange);
-  const momentumFr = abs >= 4 ? "mouvement très fort" : abs >= 2 ? "mouvement significatif" : abs >= 1 ? "mouvement notable" : "légère variation";
-  const momentumEn = abs >= 4 ? "very strong move" : abs >= 2 ? "significant move" : abs >= 1 ? "notable move" : "slight move";
-  const confidenceFr = abs >= 3 ? "ça semble assez clair" : abs >= 1.5 ? "ça semble pointer vers" : "c'est encore ambigu, mais ça pourrait indiquer";
-  const confidenceEn = abs >= 3 ? "it seems fairly clear" : abs >= 1.5 ? "it seems to point toward" : "it's still ambiguous, but might indicate";
+  // Post 2 — CRYPTO top mover
+  const cryptoSym = topCrypto;
+  const cryptoC = pChange(cryptoSym);
+  const cryptoS = pSign(cryptoC);
+  const cryptoAbs = Math.abs(cryptoC);
+  const btcC = pChange("BTC-USD"); const btcS = pSign(btcC);
+  const ethC = pChange("ETH-USD"); const ethS = pSign(ethC);
+  const solC = prices["SOL-USD"] ? prices["SOL-USD"].change : null;
+  const solS = solC !== null ? pSign(solC) : "";
 
-  const secondLabelFr = second ? labelsFr[second] : "";
-  const secondLabelEn = second ? labelsEn[second] : "";
-  const secondChange = second ? prices[second].change : 0;
-  const secondSign = secondChange >= 0 ? "+" : "";
+  // Post 3 — EUROPE
+  const euSym = topEU;
+  const euC   = pChange(euSym);
+  const euS   = pSign(euC);
+  const euAbs = Math.abs(euC);
+  const euMomFr = momentumFr(euAbs);
+  const euMomEn = momentumEn(euAbs);
 
-  const goldChange = prices["GC=F"]?.change ?? 0;
-  const btcChange = prices["BTC-USD"]?.change ?? 0;
-  const goldSign = goldChange >= 0 ? "+" : "";
-  const btcSign = btcChange >= 0 ? "+" : "";
-  const sameDir = (goldChange >= 0) === (btcChange >= 0);
+  // Post 4 — experience post, use topAll
+  const expSym  = topAll;
+  const expC    = pChange(expSym);
+  const expS    = pSign(expC);
 
   return [
     {
+      // POST 1: Or — always gold because it attracts
       fr: {
         subreddit: "r/vosfinances",
-        title: `${topLabelFr} à ${topSign}${topChange.toFixed(2)}% ${whenFr} — ça veut dire quoi concrètement ?`,
-        body: `Salut,\n\nJe m'entraîne au trading sur un simulateur (${SITE_URL}) et j'ai vu que ${topLabelFr} ${topDirFr} de ${topSign}${topChange.toFixed(2)}% ${sessionFr}. C'est un ${momentumFr} et ${confidenceFr} une opportunité de ${topPosFr}${isWeekend ? " à l'ouverture lundi" : ""} — mais je ne suis pas sûr de mon interprétation.\n\nEst-ce que quelqu'un peut expliquer ce qui se passe fondamentalement ? Qu'est-ce qui fait bouger ${topLabelFr} comme ça ?\n\n(Purement pour apprendre — je ne gère pas d'argent réel, juste curieux d'avoir l'avis de gens plus expérimentés)`,
+        title: `L'or à ${goldS}${goldC.toFixed(2)}% ${whenFr} — ${goldAbs >= 2 ? "gros mouvement, quelqu'un suit ça ?" : "ça bouge, c'est un signal ?"}`,
+        body: `Salut,\n\nJe suis sur ${SITE_URL} pour m'entraîner au trading et j'ai vu que l'or fait ${goldS}${goldC.toFixed(2)}% ${sessionFr}. C'est un ${goldMomFr}.${goldVsOil ? `\n\nEn même temps, le pétrole fait ${oilS}${oilC.toFixed(2)}%. Ces deux matières premières qui bougent ensemble (ou en sens inverse), ça dit quelque chose sur le contexte macro ?` : ""}\n\nL'analyse technique ${goldConfFr} une opportunité de ${goldC >= 0 ? "se positionner à la hausse" : "se positionner à la baisse"} — mais je ne suis pas expert.\n\nPourquoi l'or bouge comme ça en ce moment ? Inflation, dollar, géopolitique ?\n\n(Paper trading uniquement, purement pour apprendre)`,
       },
       en: {
-        subreddit: "r/investing",
-        title: `${topLabelEn} ${topDirEn} ${topSign}${topChange.toFixed(2)}% ${whenEnTitle} — what's actually driving this?`,
-        body: `Hey,\n\nI've been practicing trading on a simulator (${SITE_URL}) and noticed ${topLabelEn} is ${topDirEn} ${topSign}${topChange.toFixed(2)}% ${whenEnBody}. That's a ${momentumEn} — ${confidenceEn} it's a moment to ${topPosEn}${isWeekend ? " at Monday's open" : ""}, but I'm not confident in my read.\n\nCan anyone explain what's fundamentally happening? What's driving ${topLabelEn} right now?\n\n(Paper trading only, no real money — just trying to learn and curious what more experienced folks think)`,
+        subreddit: "r/Gold",
+        title: `Gold ${goldS}${goldC.toFixed(2)}% ${whenEnTitle} — ${goldAbs >= 2 ? "significant move, anyone tracking this?" : "what's driving this?"}`,
+        body: `Hi,\n\nI track gold on a trading simulator I use to practice (${SITE_URL}) and noticed it moved ${goldS}${goldC.toFixed(2)}% ${whenEnBody}. That's a ${goldMomEn}.${goldVsOil ? `\n\nInterestingly, oil is at ${oilS}${oilC.toFixed(2)}% ${sessionEn}. When gold and oil move together (or diverge) like this, does it signal something macro?` : ""}\n\n${confEn(goldAbs).charAt(0).toUpperCase() + confEn(goldAbs).slice(1)} this points to ${goldC >= 0 ? "going long" : "going short"} — but I'm still learning.\n\nWhat's driving gold right now? Dollar strength, inflation, geopolitics?\n\n(Paper trading only, just trying to learn)`,
       },
     },
     {
+      // POST 2: Crypto
       fr: {
-        subreddit: "r/vosfinances",
-        title: `Or à ${goldSign}${goldChange.toFixed(2)}% et Bitcoin à ${btcSign}${btcChange.toFixed(2)}% ${whenFr} — ${sameDir ? "ils bougent ensemble, c'est un signal ?" : "l'un monte l'autre baisse, comment vous lisez ça ?"}`,
-        body: `Bonjour,\n\nJe regarde les marchés sur ${SITE_URL} pour m'entraîner et j'ai remarqué quelque chose ${morningFr} que je ne comprends pas bien.\n\n${isWeekend ? "Clôture vendredi" : "Aujourd'hui"} :\n- Or : ${goldSign}${goldChange.toFixed(2)}%\n- Bitcoin : ${btcSign}${btcChange.toFixed(2)}%\n\n${sameDir ? "Je pensais que l'or et le Bitcoin étaient des actifs refuges assez indépendants. Là ils semblent corrélés. Est-ce que c'est un signal macro (inflation, fuite vers les refuges...) ?" : "Je pensais que l'or et le Bitcoin pouvaient parfois se comporter de façon similaire, mais là ils partent dans des directions opposées. Comment vous interprétez ça ?"}\n\nMerci d'avance, je suis encore en phase d'apprentissage.`,
+        subreddit: "r/BitcoinFR",
+        title: `Crypto ${morningFr} : BTC ${btcS}${btcC.toFixed(2)}%, ETH ${ethS}${ethC.toFixed(2)}%${solC !== null ? `, SOL ${solS}${solC.toFixed(2)}%` : ""} — comment vous lisez ça ?`,
+        body: `Salut,\n\nJe suis sur ${SITE_URL} (simulateur de trading) et je surveille la crypto ${morningFr} :\n\n- Bitcoin : ${btcS}${btcC.toFixed(2)}%\n- Ethereum : ${ethS}${ethC.toFixed(2)}%${solC !== null ? `\n- Solana : ${solS}${solC.toFixed(2)}%` : ""}\n\n${cryptoSym ? `${lFr(cryptoSym)} sort du lot avec un ${momentumFr(cryptoAbs)}.` : ""} Est-ce que le marché est en train de reprendre ou c'est juste un rebond technique ?\n\nComment vous distinguez un vrai mouvement d'un faux rebond sur la crypto ?${isWeekend ? "\n\n(Et à votre avis, lundi ça ouvre comment ?)" : ""}`,
       },
       en: {
-        subreddit: "r/Bitcoin",
-        title: `Gold ${goldSign}${goldChange.toFixed(2)}% and Bitcoin ${btcSign}${btcChange.toFixed(2)}% ${whenEnTitle} — ${sameDir ? "both moving together, meaningful signal?" : "diverging — how do you read this?"}`,
-        body: `Hi everyone,\n\nTracking markets on a simulator I use to practice (${SITE_URL}) and noticed something ${morningEn} I don't fully understand.\n\n${isWeekend ? "Friday close" : "Today"}:\n- Gold: ${goldSign}${goldChange.toFixed(2)}%\n- Bitcoin: ${btcSign}${btcChange.toFixed(2)}%\n\n${sameDir ? "I thought gold and BTC were fairly independent safe-haven assets. Is this correlation meaningful, or just noise? Does it say something about macro conditions (inflation fears, risk-off move)?" : "I thought gold and BTC sometimes behave similarly as inflation hedges. What's making them diverge? Is one of them signaling something the other isn't?"}\n\nWould love to hear from people who understand macro better than I do.`,
+        subreddit: "r/CryptoCurrency",
+        title: `Crypto ${morningEn}: BTC ${btcS}${btcC.toFixed(2)}%, ETH ${ethS}${ethC.toFixed(2)}%${solC !== null ? `, SOL ${solS}${solC.toFixed(2)}%` : ""} — how do you read this?`,
+        body: `Hey,\n\nTracking crypto on a simulator I use to practice (${SITE_URL}).\n\n${isWeekend ? "Friday close" : "Right now"}:\n- Bitcoin: ${btcS}${btcC.toFixed(2)}%\n- Ethereum: ${ethS}${ethC.toFixed(2)}%${solC !== null ? `\n- Solana: ${solS}${solC.toFixed(2)}%` : ""}\n\n${cryptoSym ? `${lEn(cryptoSym)} stands out with a ${momentumEn(cryptoAbs)}.` : ""} Is this a genuine move or just a technical bounce?\n\nHow do you tell the difference between a real breakout and a fakeout in crypto?${isWeekend ? "\n\n(Also curious — how do you think Monday opens?)" : ""}`,
       },
     },
     {
+      // POST 3: Europe
       fr: {
-        subreddit: "r/trading",
-        title: `${topLabelFr} — ${momentumFr} ${morningFr}, quelqu'un voit la même chose ?`,
-        body: `Salut à tous,\n\nJe surveille ${topLabelFr} sur ${SITE_URL} (simulateur, pas d'argent réel) et j'ai un signal ${morningFr} : ${topSign}${topChange.toFixed(2)}% ${sessionFr}${secondLabelFr ? `, pendant que ${secondLabelFr} fait ${secondSign}${secondChange.toFixed(2)}%` : ""}.\n\nC'est un ${momentumFr} et ${confidenceFr} une opportunité de ${topPosFr}${isWeekend ? " à l'ouverture lundi" : ""} — mais je suis encore débutant et j'ai du mal à distinguer un vrai signal du bruit.\n\nDes traders plus expérimentés voient la même chose ? Qu'est-ce que vous regarderiez en plus pour confirmer ?\n\n(Chacun fait ses propres analyses, je partage juste mon observation)`,
+        subreddit: "r/vosfinances",
+        title: euSym
+          ? `${lFr(euSym)} à ${euS}${euC.toFixed(2)}% ${whenFr} — les marchés européens passent sous le radar ?`
+          : `Marchés européens ${whenFr} — quelqu'un suit le CAC / DAX ici ?`,
+        body: euSym
+          ? `Bonjour,\n\nJe suis sur ${SITE_URL} pour apprendre le trading et j'ai remarqué que ${lFr(euSym)} fait ${euS}${euC.toFixed(2)}% ${sessionFr}. C'est un ${euMomFr}.\n\nOn parle beaucoup de Wall Street sur ce sub, mais les marchés européens bougent aussi. Est-ce que quelqu'un suit activement le CAC 40, le DAX ou des actions européennes comme Airbus ou LVMH ?\n\nQu'est-ce qui explique ce mouvement ${morningFr} selon vous ? Est-ce lié à l'euro, aux résultats d'entreprises, au contexte macro européen ?\n\n(Je suis encore débutant, curieux d'apprendre)`
+          : `Bonjour,\n\nJe suis sur ${SITE_URL} pour apprendre le trading. On parle beaucoup de crypto et de Wall Street ici, mais qu'en est-il des marchés européens — CAC 40, DAX, Euro Stoxx ?\n\nEst-ce que des gens ici investissent sur des actions françaises ou européennes ? Comment vous abordez ces marchés vs les US ?`,
       },
       en: {
-        subreddit: "r/trading",
-        title: `${topLabelEn} — ${momentumEn} ${morningEn}, anyone else seeing this?`,
-        body: `Hey r/trading,\n\nWatching ${topLabelEn} on a simulator I use to practice (${SITE_URL}) — ${topSign}${topChange.toFixed(2)}% ${sessionEn}${secondLabelEn ? `, while ${secondLabelEn} is at ${secondSign}${secondChange.toFixed(2)}%` : ""}.\n\nThat's a ${momentumEn}. ${confidenceEn.charAt(0).toUpperCase() + confidenceEn.slice(1)} this points to ${topPosEn}${isWeekend ? " at Monday's open" : ""} — but I'm still learning and can't always tell real signals from noise.\n\nAre more experienced traders seeing the same thing? What would you look for to confirm?\n\n(DYOR — just sharing my observation as someone learning TA)`,
+        subreddit: "r/EuropeFIRE",
+        title: euSym
+          ? `${lEn(euSym)} ${euS}${euC.toFixed(2)}% ${whenEnTitle} — European markets flying under the radar?`
+          : `European markets ${whenEnTitle} — anyone following CAC 40 / DAX here?`,
+        body: euSym
+          ? `Hi,\n\nPracticing on a trading simulator (${SITE_URL}) and noticed ${lEn(euSym)} is at ${euS}${euC.toFixed(2)}% ${whenEnBody}. That's a ${euMomEn}.\n\nEuropean markets often get overshadowed by Wall Street discussion, but they're moving too. Is anyone actively tracking CAC 40, DAX, or European stocks like Airbus or LVMH?\n\nWhat's driving this move? EUR/USD dynamics, earnings, broader EU macro? I'd love to understand better.`
+          : `Hi,\n\nPracticing on a trading simulator (${SITE_URL}). Most discussion here focuses on US/crypto, but I'm curious about European markets — CAC 40, DAX, Euro Stoxx 50.\n\nDoes anyone here invest in European equities? How do you approach these markets vs US?`,
       },
     },
     {
+      // POST 4: experience post, mentions asset variety
       fr: {
         subreddit: "r/vosfinances",
-        title: `J'utilise un simulateur de trading depuis quelques semaines — retour d'expérience honnête`,
-        body: `Salut r/vosfinances,\n\nJe voulais partager mon expérience avec le paper trading après quelques semaines sur ${SITE_URL}.\n\nCe que j'ai appris :\n- C'est beaucoup plus dur que ça en a l'air. Même sans argent réel, les émotions sont là.\n- Regarder un graphique en temps réel, c'est différent d'analyser après coup.\n- Les indicateurs (RSI, MACD) sont utiles mais pas magiques — il m'a fallu du temps pour comprendre ça.\n\nCe qui m'a surpris ${isWeekend ? "vendredi" : "cette semaine"} : ${topLabelFr} à ${topSign}${topChange.toFixed(2)}% ${whenFr}. J'aurais parié sur l'inverse. Bonne leçon d'humilité.\n\nEst-ce que d'autres ici ont commencé par le paper trading avant de passer au réel ? Combien de temps avant de se sentir prêt ?`,
+        title: `J'utilise un simulateur de trading depuis quelques semaines — retour honnête`,
+        body: `Salut r/vosfinances,\n\nQuelques semaines sur ${SITE_URL} — voilà ce que j'ai appris.\n\nCe qui m'a surpris :\n- C'est beaucoup plus dur que ça en a l'air, même sans argent réel en jeu\n- J'ai découvert que je ne regardais que la crypto et les US. Depuis j'ai ajouté l'or, le pétrole, des actions européennes. Ça change complètement la perspective.\n- Les indicateurs (RSI, MACD) sont utiles mais ce n'est pas de la magie\n\nAnecdote ${isWeekend ? "vendredi" : "cette semaine"} : ${lFr(expSym)} à ${expS}${expC.toFixed(2)}% ${whenFr}. J'aurais parié sur l'inverse. Bonne leçon d'humilité.\n\nCeux qui ont commencé par le paper trading — combien de temps avant de vous sentir prêts ? Et vous avez commencé par quel type d'actif ?`,
       },
       en: {
         subreddit: "r/stocks",
-        title: `Been paper trading for a few weeks — honest thoughts so far`,
-        body: `Hey r/stocks,\n\nWanted to share my honest experience after a few weeks of paper trading on ${SITE_URL}.\n\nWhat I've learned:\n- It's way harder than it looks, even without real money on the line\n- Watching charts in real time is very different from analyzing them after the fact\n- Indicators (RSI, MACD) are useful but not magic — took me a while to really internalize that\n\nWhat surprised me ${isWeekend ? "last Friday" : "this week"}: ${topLabelEn} at ${topSign}${topChange.toFixed(2)}% ${whenEnBody}. Would have bet the opposite. Good humility check.\n\nFor those who started with paper trading before going real — how long did you practice before feeling ready?`,
+        title: `Been paper trading for a few weeks — honest thoughts (and what surprised me)`,
+        body: `Hey,\n\nA few weeks into paper trading on ${SITE_URL} — here's what I've learned.\n\nWhat surprised me:\n- It's way harder than it looks, even without real money\n- I used to only look at crypto and US stocks. Adding gold, oil, and European indices completely changed my perspective on how markets interact\n- Indicators (RSI, MACD) are tools, not magic\n\n${isWeekend ? "Last Friday" : "This week"}: ${lEn(expSym)} at ${expS}${expC.toFixed(2)}% ${whenEnBody}. Would have bet the opposite. Good humility check.\n\nFor those who started with paper trading — how long before you felt ready? And what asset class did you start with?`,
       },
     },
   ];
@@ -2546,7 +2586,7 @@ function SocialTab() {
     } catch { return {}; }
   });
 
-  const SYMBOLS = ["BTC-USD", "ETH-USD", "AAPL", "^GSPC", "GC=F"];
+  const SYMBOLS = ALL_SYMBOLS;
 
   const loadPrices = async () => {
     setIsLoading(true);
