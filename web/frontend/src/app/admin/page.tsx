@@ -2286,37 +2286,43 @@ function PremiumTab() {
 
 const SITE_URL = "captentdb.fr";
 
-const EDU_TIPS = [
+const EDU_TIPS: PostData[] = [
   {
     tw: `Une bougie rouge ne veut pas forcément dire catastrophe.\n\nElle dit juste que les vendeurs ont eu le dessus sur la séance.\n\nLe contexte compte plus que la couleur.\n\nBougie verte après une longue descente = signal.\nBougie rouge en pleine tendance haussière = souvent juste du bruit.\n\nPratique sur de vrais graphiques → ${SITE_URL}`,
-    li: `La plupart des débutants regardent la couleur d'une bougie.\nLes traders expérimentés regardent ce qui l'entoure.\n\nUne bougie rouge en tendance haussière, c'est souvent du bruit.\nUne bougie rouge après 10 jours de hausse sans volume ? Là, ça devient intéressant.\n\nChaque bougie raconte une micro-histoire : où le prix a ouvert, jusqu'où il est allé, et où il a fini. La mèche haute dit que les acheteurs ont poussé — et que les vendeurs ont résisté. La mèche basse, c'est l'inverse.\n\nSimple. Puissant. Et souvent sous-utilisé.\n\nSi vous voulez vous entraîner à lire ces setups sur de vrais marchés : ${SITE_URL}\n\n#Trading #AnalyseTechnique #Bourse`,
+    li: `La plupart des débutants regardent la couleur d'une bougie.\nLes traders expérimentés regardent ce qui l'entoure.\n\nUne bougie rouge en tendance haussière, c'est souvent du bruit.\nUne bougie rouge après 10 jours de hausse sans volume ? Là, ça devient intéressant.\n\nChaque bougie raconte une micro-histoire : où le prix a ouvert, jusqu'où il est allé, et où il a fini. La mèche haute dit que les acheteurs ont poussé — et que les vendeurs ont résisté. La mèche basse, c'est l'inverse.\n\nSimple. Puissant. Et souvent sous-utilisé.\n\nSi vous voulez vous entraîner sur de vrais graphiques, lien en commentaire 👇\n\n#Trading #AnalyseTechnique #Bourse`,
+    liComment: SITE_URL,
   },
   {
     tw: `RSI > 70 = surachat = vendre ?\n\nPas forcément.\n\nEn tendance haussière, le RSI peut rester au-dessus de 70 pendant des semaines. Ceux qui ont vendu BTC à RSI 72 début 2024 ont raté 60% de hausse.\n\nLe RSI confirme une tendance. Il ne la prédit pas.\n\nTestez ça vous-même → ${SITE_URL}`,
-    li: `Il y a une idée reçue qui coûte cher à beaucoup de débutants.\n\n« RSI au-dessus de 70, c'est surachat, il faut vendre. »\n\nEn réalité, en tendance haussière forte, le RSI peut rester au-dessus de 70 pendant des mois. Vendre trop tôt sur ce signal seul, c'est sortir d'une tendance gagnante.\n\nLe RSI, c'est un outil de confirmation — pas un déclencheur de vente automatique.\n\nÀ combiner toujours avec la tendance de fond, le volume, et les niveaux de prix clés.\n\nVous pouvez observer ça en direct sur n'importe quel actif : ${SITE_URL}\n\n#Trading #RSI #AnalyseTechnique`,
+    li: `Il y a une idée reçue qui coûte cher à beaucoup de débutants.\n\n« RSI au-dessus de 70, c'est surachat, il faut vendre. »\n\nEn réalité, en tendance haussière forte, le RSI peut rester au-dessus de 70 pendant des mois. Vendre trop tôt sur ce signal seul, c'est sortir d'une tendance gagnante.\n\nLe RSI, c'est un outil de confirmation — pas un déclencheur de vente automatique.\n\nÀ combiner toujours avec la tendance de fond, le volume, et les niveaux de prix clés.\n\nObservez ça en direct sur n'importe quel actif, lien en commentaire 👇\n\n#Trading #RSI #AnalyseTechnique`,
+    liComment: SITE_URL,
   },
   {
     tw: `Pourquoi le prix rebondit souvent aux mêmes niveaux ?\n\nParce que les traders ont une mémoire.\n\nCeux qui ont raté l'entrée à un niveau attendent que le prix revienne. Quand ça arrive, ils achètent tous en même temps.\n\nC'est ça, un support. De la psychologie collective, pas de la magie.\n\nRepérez vos niveaux → ${SITE_URL}`,
-    li: `Les supports et résistances, c'est de la psychologie collective mise en graphique.\n\nQuand un actif a rebondi plusieurs fois sur le même niveau, les traders s'en souviennent. Ils passent des ordres à l'avance à ce prix. Et quand le marché y revient, ces ordres s'exécutent — créant le rebond.\n\nC'est pour ça que certains niveaux "tiennent" de façon presque prévisible.\nEt que quand ils cassent vraiment, la chute est souvent violente : tous les stops sautent en même temps.\n\nLire un graphique, c'est aussi lire la psychologie des participants. Entraînez-vous sur CaptenTDB : ${SITE_URL}\n\n#Trading #Bourse #AnalyseTechnique`,
+    li: `Les supports et résistances, c'est de la psychologie collective mise en graphique.\n\nQuand un actif a rebondi plusieurs fois sur le même niveau, les traders s'en souviennent. Ils passent des ordres à l'avance à ce prix. Et quand le marché y revient, ces ordres s'exécutent — créant le rebond.\n\nC'est pour ça que certains niveaux "tiennent" de façon presque prévisible.\nEt que quand ils cassent vraiment, la chute est souvent violente : tous les stops sautent en même temps.\n\nLire un graphique, c'est aussi lire la psychologie des participants.\n\nEntraînez-vous à identifier ces niveaux, lien en commentaire 👇\n\n#Trading #Bourse #AnalyseTechnique`,
+    liComment: SITE_URL,
   },
   {
     tw: `Un bon trade perdu, ça arrive.\nDix mauvais trades d'affilée qui explosent le compte, ça n'arrive pas par hasard.\n\nRègle simple : ne jamais risquer plus de 2% du capital sur une position.\n\n10 pertes de suite à 2% = -18%. Récupérable.\n10 pertes à 10% = -65%. Beaucoup moins.\n\nSimulez sans risque → ${SITE_URL}`,
-    li: `La gestion du risque, ce n'est pas sexy. Mais c'est ce qui sépare ceux qui durent de ceux qui disparaissent.\n\nUne règle que beaucoup de traders appliquent : ne jamais risquer plus de 2% du capital total sur une seule position.\n\nPourquoi ?\n\nMême avec 10 pertes consécutives — ce qui arrive — vous perdez environ 18% du capital. Douloureux, mais récupérable.\nÀ 10% par trade, 10 pertes = -65%. Là, psychologiquement et financièrement, c'est très difficile de revenir.\n\nLa taille de position est souvent la décision la plus importante d'un trade. Avant même de choisir dans quel sens entrer.\n\nLe paper trading sur CaptenTDB est fait pour apprendre exactement ça, sans mettre un seul euro en jeu : ${SITE_URL}\n\n#Trading #GestionDuRisque #Finance`,
+    li: `La gestion du risque, ce n'est pas sexy. Mais c'est ce qui sépare ceux qui durent de ceux qui disparaissent.\n\nUne règle que beaucoup de traders appliquent : ne jamais risquer plus de 2% du capital total sur une seule position.\n\nPourquoi ?\n\nMême avec 10 pertes consécutives — ce qui arrive — vous perdez environ 18% du capital. Douloureux, mais récupérable.\nÀ 10% par trade, 10 pertes = -65%. Là, psychologiquement et financièrement, c'est très difficile de revenir.\n\nLa taille de position est souvent la décision la plus importante d'un trade. Avant même de choisir dans quel sens entrer.\n\nPour pratiquer ça sans risque réel, lien en commentaire 👇\n\n#Trading #GestionDuRisque #Finance`,
+    liComment: SITE_URL,
   },
 ];
 
-const PROMO_POSTS = [
+const PROMO_POSTS: PostData[] = [
   {
     tw: `La meilleure façon d'apprendre à trader ?\n\nLe faire. Vraiment. Sur de vrais marchés.\nMais sans mettre un seul euro en jeu.\n\nC'est ce que propose CaptenTDB — paper trading sur prix réels, crypto et actions.\n\n${SITE_URL}`,
-    li: `Quand on commence à trader, le plus dur ce n'est pas de comprendre les concepts.\n\nC'est de gérer ses émotions quand l'argent réel bouge.\n\nC'est là que le paper trading prend tout son sens : passer de vrais ordres, vivre de vrais mouvements de marché — mais avec un capital virtuel. Tester, échouer, corriger, sans le stress financier.\n\nCaptenTDB est construit pour ça. Paper trading sur prix en temps réel, crypto, actions et ETF.\n\n${SITE_URL}\n\n#Trading #PaperTrading #Investissement`,
+    li: `Quand on commence à trader, le plus dur ce n'est pas de comprendre les concepts.\n\nC'est de gérer ses émotions quand l'argent réel bouge.\n\nC'est là que le paper trading prend tout son sens : passer de vrais ordres, vivre de vrais mouvements de marché — mais avec un capital virtuel. Tester, échouer, corriger, sans le stress financier.\n\nCaptenTDB est construit pour ça. Paper trading sur prix en temps réel, crypto, actions et ETF.\n\nLien en commentaire 👇\n\n#Trading #PaperTrading #Investissement`,
+    liComment: SITE_URL,
   },
   {
     tw: `Regarder un graphique sans indicateurs, c'est conduire sans tableau de bord.\n\nRSI, MACD, volumes, supports — tout ça en un coup d'œil sur CaptenTDB.\n\nDe 5 minutes à 1 mois. Sur n'importe quel actif.\n\n${SITE_URL}`,
-    li: `Un graphique tout seul, ça raconte peu de choses.\n\nC'est quand on y superpose les indicateurs — RSI, MACD, Bollinger, volumes — que ça devient vraiment lisible.\n\nSur CaptenTDB, chaque actif a ces outils, avec des timeframes de 5 minutes à 1 mois. Pour analyser à votre rythme, à votre niveau.\n\nCrypto, actions, indices, matières premières — tout au même endroit.\n\n${SITE_URL}\n\n#AnalyseTechnique #Trading #Finance`,
+    li: `Un graphique tout seul, ça raconte peu de choses.\n\nC'est quand on y superpose les indicateurs — RSI, MACD, Bollinger, volumes — que ça devient vraiment lisible.\n\nSur CaptenTDB, chaque actif a ces outils, avec des timeframes de 5 minutes à 1 mois. Pour analyser à votre rythme, à votre niveau.\n\nCrypto, actions, indices, matières premières — tout au même endroit.\n\nLien en commentaire 👇\n\n#AnalyseTechnique #Trading #Finance`,
+    liComment: SITE_URL,
   },
 ];
 
-type PostData = { tw: string; li: string };
+type PostData = { tw: string; li: string; liComment: string; isFinancial?: boolean };
 type PostKey = "signal" | "top3" | "edu" | "promo";
 
 function buildPosts(prices: Record<string, { price: number; change: number }>, marketStatus: MarketStatus): Record<PostKey, PostData> {
@@ -2350,12 +2356,17 @@ function buildPosts(prices: Record<string, { price: number; change: number }>, m
   const timeRef = isOpen ? "aujourd'hui" : closingCtx;
   const twTimeRef = isOpen ? "ce matin" : closingCtx;
 
+  const DISCLAIMER = "⚠️ Pas un conseil en investissement.";
   const signal: PostData = topChange >= 0 ? {
-    tw: `${topLabel} à ${sign}${topChange.toFixed(2)}% ${twTimeRef}.\n\nLe mouvement est notable.${isOpen ? " À voir si ça tient en clôture — c'est là que ça compte." : " Un beau setup à surveiller à l'ouverture."}\n\n${SITE_URL} pour suivre en direct`,
-    li: `${topLabel} se démarque avec ${sign}${topChange.toFixed(2)}% ${timeRef} (${priceStr}).\n\nCe genre de mouvement attire l'attention${isOpen ? " — et souvent les acheteurs sur le retrait. La vraie question : le volume est-il là pour confirmer ?" : " — à surveiller dès l'ouverture des marchés."}\n\nSuivez l'évolution sur CaptenTDB.\n\n${SITE_URL}\n\n#Marchés #Trading #Finance`,
+    tw: `${topLabel} à ${sign}${topChange.toFixed(2)}% ${twTimeRef}.\n\nLe mouvement est notable.${isOpen ? " À voir si ça tient en clôture — c'est là que ça compte." : " Un setup à surveiller à l'ouverture."}\n\n${SITE_URL} — ${DISCLAIMER}`,
+    li: `${topLabel} se démarque avec ${sign}${topChange.toFixed(2)}% ${timeRef} (${priceStr}).\n\nCe genre de mouvement attire l'attention${isOpen ? " — et souvent les acheteurs sur le retrait. La vraie question : le volume est-il là pour confirmer ?" : " — à surveiller dès l'ouverture des marchés."}\n\nAnalyse complète sur CaptenTDB, lien en commentaire 👇\n\n${DISCLAIMER}\n\n#Marchés #Trading #Finance`,
+    liComment: SITE_URL,
+    isFinancial: true,
   } : {
-    tw: `${topLabel} à ${topChange.toFixed(2)}% ${twTimeRef}.\n\nUn niveau important est en jeu. Panique ou opportunité ? Tout dépend de ce que dit le graphique.\n\n${SITE_URL} →`,
-    li: `${topLabel} recule de ${Math.abs(topChange).toFixed(2)}% ${timeRef} (${priceStr}).\n\nLe marché teste un niveau qui mérite attention. Est-ce un repli sain ou quelque chose de plus profond ? C'est le contexte — volumes, structure de prix — qui donne la réponse.\n\nAnalysez le graphique complet sur CaptenTDB.\n\n${SITE_URL}\n\n#Marchés #Trading #Finance`,
+    tw: `${topLabel} à ${topChange.toFixed(2)}% ${twTimeRef}.\n\nUn niveau important est en jeu. Panique ou opportunité ? Tout dépend de ce que dit le graphique.\n\n${SITE_URL} — ${DISCLAIMER}`,
+    li: `${topLabel} recule de ${Math.abs(topChange).toFixed(2)}% ${timeRef} (${priceStr}).\n\nLe marché teste un niveau qui mérite attention. Repli sain ou quelque chose de plus profond ? C'est le contexte — volumes, structure de prix — qui donne la réponse.\n\nGraphique complet sur CaptenTDB, lien en commentaire 👇\n\n${DISCLAIMER}\n\n#Marchés #Trading #Finance`,
+    liComment: SITE_URL,
+    isFinancial: true,
   };
 
   const top3Lines = top3Syms
@@ -2368,8 +2379,10 @@ function buildPosts(prices: Record<string, { price: number; change: number }>, m
 
   const top3Intro = isOpen ? "Les marchés ce matin :" : `Clôture ${marketStatus === "weekend" ? "vendredi" : "hier"} :`;
   const top3: PostData = {
-    tw: `${top3Intro}\n\n${top3Lines}\n\n${SITE_URL} pour suivre en direct`,
-    li: `${isOpen ? "Point marchés du jour." : `Récap clôture ${marketStatus === "weekend" ? "vendredi" : "d'hier"}.`}\n\n${top3Lines}\n\nTous ces actifs sont disponibles sur CaptenTDB avec analyse technique intégrée — pour aller au-delà du simple pourcentage.\n\n${SITE_URL}\n\n#Marchés #Finance`,
+    tw: `${top3Intro}\n\n${top3Lines}\n\n${SITE_URL} — ${DISCLAIMER}`,
+    li: `${isOpen ? "Point marchés du jour." : `Récap clôture ${marketStatus === "weekend" ? "vendredi" : "d'hier"}.`}\n\n${top3Lines}\n\nTous ces actifs disponibles sur CaptenTDB avec analyse technique intégrée, lien en commentaire 👇\n\n${DISCLAIMER}\n\n#Marchés #Finance`,
+    liComment: SITE_URL,
+    isFinancial: true,
   };
 
   const dayIdx = new Date().getDay();
@@ -2414,10 +2427,10 @@ function SocialTab() {
     promo: "tw",
   });
   const [copied, setCopied] = useState<Record<PostKey, boolean>>({
-    signal: false,
-    top3: false,
-    edu: false,
-    promo: false,
+    signal: false, top3: false, edu: false, promo: false,
+  });
+  const [copiedComment, setCopiedComment] = useState<Record<PostKey, boolean>>({
+    signal: false, top3: false, edu: false, promo: false,
   });
   const todayKey = `social_published_${new Date().toISOString().slice(0, 10)}`;
   const [published, setPublished] = useState<Record<string, boolean>>(() => {
@@ -2452,9 +2465,21 @@ function SocialTab() {
       await navigator.clipboard.writeText(text);
       setCopied((prev) => ({ ...prev, [key]: true }));
       setTimeout(() => setCopied((prev) => ({ ...prev, [key]: false })), 2000);
-    } catch (e) {
-      console.error(e);
-    }
+    } catch (e) { console.error(e); }
+  };
+
+  const copyComment = async (key: PostKey, text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedComment((prev) => ({ ...prev, [key]: true }));
+      setTimeout(() => setCopiedComment((prev) => ({ ...prev, [key]: false })), 2000);
+    } catch (e) { console.error(e); }
+  };
+
+  // Twitter counts all URLs as 23 chars (t.co wrapping)
+  const twitterLength = (text: string) => {
+    const URL_RE = /https?:\/\/\S+|\S+\.\S{2,}(?:\/\S*)?/g;
+    return text.replace(URL_RE, " ".repeat(23)).length;
   };
 
   const togglePublished = (key: PostKey, plat: Platform) => {
@@ -2535,8 +2560,8 @@ function SocialTab() {
             const plat = platform[key as PostKey];
             const text: string = plat === "tw" ? postData.tw : postData.li;
             const isTwitter = plat === "tw";
-            const charCount = text.length;
-            const overLimit = isTwitter && charCount > 280;
+            const twCount = twitterLength(text);
+            const overLimit = isTwitter && twCount > 280;
             const pubId = `${key}-${plat}`;
             const isPublished = published[pubId];
 
@@ -2544,9 +2569,15 @@ function SocialTab() {
               <div key={key} className="glass-card p-5 space-y-4">
                 {/* Post header */}
                 <div className="flex items-center justify-between flex-wrap gap-2">
-                  <div className={cn("flex items-center gap-2 font-medium", color)}>
-                    {icon}
-                    {label}
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className={cn("flex items-center gap-2 font-medium", color)}>
+                      {icon}{label}
+                    </span>
+                    {postData.isFinancial && (
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-yellow-400/15 text-yellow-400 border border-yellow-400/25">
+                        Contenu financier
+                      </span>
+                    )}
                   </div>
                   {/* Platform toggle */}
                   <div className="flex items-center gap-1 bg-white/5 rounded-lg p-1 border border-white/8">
@@ -2554,9 +2585,7 @@ function SocialTab() {
                       onClick={() => setPlatform((p) => ({ ...p, [key]: "tw" }))}
                       className={cn(
                         "px-3 py-1 rounded-md text-xs font-semibold transition-all",
-                        plat === "tw"
-                          ? "bg-sky-500 text-white"
-                          : "text-muted-foreground hover:text-foreground"
+                        plat === "tw" ? "bg-sky-500 text-white" : "text-muted-foreground hover:text-foreground"
                       )}
                     >
                       𝕏 Twitter
@@ -2565,9 +2594,7 @@ function SocialTab() {
                       onClick={() => setPlatform((p) => ({ ...p, [key]: "li" }))}
                       className={cn(
                         "px-3 py-1 rounded-md text-xs font-semibold transition-all",
-                        plat === "li"
-                          ? "bg-blue-600 text-white"
-                          : "text-muted-foreground hover:text-foreground"
+                        plat === "li" ? "bg-blue-600 text-white" : "text-muted-foreground hover:text-foreground"
                       )}
                     >
                       in LinkedIn
@@ -2583,6 +2610,30 @@ function SocialTab() {
                   {text}
                 </pre>
 
+                {/* LinkedIn 1er commentaire */}
+                {!isTwitter && postData.liComment && (
+                  <div className="space-y-1.5">
+                    <p className="text-xs text-blue-400 flex items-center gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-blue-400 inline-block" />
+                      LinkedIn — publier en <strong>1er commentaire</strong> (les liens dans le post réduisent la portée)
+                    </p>
+                    <div className="flex items-center gap-2 bg-white/3 rounded-lg px-3 py-2 border border-blue-500/20">
+                      <span className="text-sm flex-1 font-mono text-blue-300">{postData.liComment}</span>
+                      <button
+                        onClick={() => copyComment(key as PostKey, postData.liComment)}
+                        className={cn(
+                          "flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition-all",
+                          copiedComment[key as PostKey]
+                            ? "bg-profit/20 text-profit"
+                            : "bg-blue-500/20 hover:bg-blue-500/30 text-blue-300"
+                        )}
+                      >
+                        {copiedComment[key as PostKey] ? <><Check className="w-3 h-3" />Copié !</> : <><Copy className="w-3 h-3" />Copier</>}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
                 {/* Footer */}
                 <div className="flex items-center justify-between gap-3 flex-wrap">
                   {/* Char count (Twitter only) */}
@@ -2590,12 +2641,12 @@ function SocialTab() {
                     <div className="flex items-center gap-2">
                       <div className="w-24 h-1.5 rounded-full bg-white/10 overflow-hidden">
                         <div
-                          className={cn("h-full rounded-full transition-all", overLimit ? "bg-loss" : charCount > 240 ? "bg-yellow-400" : "bg-profit")}
-                          style={{ width: `${Math.min((charCount / 280) * 100, 100)}%` }}
+                          className={cn("h-full rounded-full transition-all", overLimit ? "bg-loss" : twCount > 240 ? "bg-yellow-400" : "bg-profit")}
+                          style={{ width: `${Math.min((twCount / 280) * 100, 100)}%` }}
                         />
                       </div>
                       <span className={cn("text-xs tabular-nums", overLimit ? "text-loss" : "text-muted-foreground")}>
-                        {charCount}/280
+                        {twCount}/280
                       </span>
                     </div>
                   ) : (
