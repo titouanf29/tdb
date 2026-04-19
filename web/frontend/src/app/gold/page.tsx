@@ -548,8 +548,9 @@ Tu es un expert en trading de l'or (Gold, GC=F, XAU/USD). Réponds en ${lang ===
     try {
       const res = await aiAPI.chat(userMsg, buildContext());
       setMessages(prev => [...prev, { role: "assistant", content: res.response }]);
-    } catch {
-      setMessages(prev => [...prev, { role: "assistant", content: lang === "fr" ? "Erreur — réessayez." : "Error — please retry." }]);
+    } catch (e: any) {
+      const msg = e?.message ?? (lang === "fr" ? "Erreur — réessayez." : "Error — please retry.");
+      setMessages(prev => [...prev, { role: "assistant", content: msg }]);
     } finally {
       setChatLoading(false);
     }
@@ -640,7 +641,7 @@ Tu es un expert en trading de l'or (Gold, GC=F, XAU/USD). Réponds en ${lang ===
         )}
 
         {/* Input bar */}
-        <div className={cn("p-3 flex gap-2", messages.length > 0 && "border-t border-white/6")}>
+        <div className={cn("p-3 flex gap-2 bg-black/15", messages.length > 0 && "border-t border-white/[0.06]")}>
           {messages.length > 0 && (
             <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
               onClick={() => setMessages([])}
@@ -652,7 +653,7 @@ Tu es un expert en trading de l'or (Gold, GC=F, XAU/USD). Réponds en ${lang ===
             value={input} onChange={e => setInput(e.target.value)}
             onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(input); } }}
             placeholder={lang === "fr" ? "Posez une question sur l'or..." : "Ask a question about gold..."}
-            className="flex-1 bg-white/4 border border-white/8 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-amber-500/40 placeholder:text-muted-foreground/30 transition-colors"
+            className="flex-1 bg-black/25 border border-white/[0.07] rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-amber-500/30 placeholder:text-muted-foreground/25 text-foreground/90 transition-colors"
           />
           <motion.button
             whileHover={{ scale: input.trim() && !chatLoading ? 1.05 : 1 }}
