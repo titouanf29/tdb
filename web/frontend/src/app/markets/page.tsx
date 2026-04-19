@@ -477,6 +477,9 @@ export default function MarketsPage() {
           </div>
         ) : (
           <>
+            <div className="px-4 py-2 border-b border-white/5 flex items-center gap-1.5">
+              <span className="text-xs text-muted-foreground/60">Source : Yahoo Finance · Données en léger différé (~1 min) · Simulateur uniquement — des écarts mineurs avec les plateformes de trading réelles sont normaux.</span>
+            </div>
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>

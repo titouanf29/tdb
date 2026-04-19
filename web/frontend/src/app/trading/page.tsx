@@ -224,6 +224,11 @@ export default function TradingPage() {
                 <AlertCircle className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-loss" />
               )}
             </div>
+            {quote && (
+              <p className="text-xs text-muted-foreground/50 mt-1">
+                Source : Yahoo Finance · ~1 min de différé · Des écarts avec votre broker sont normaux sur un simulateur.
+              </p>
+            )}
           </div>
 
 
