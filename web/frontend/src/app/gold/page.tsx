@@ -11,7 +11,7 @@ import {
   Bot, Send, CalendarClock,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { analysisAPI, marketAPI, aiAPI, adminAPI, walletAPI, toolsAPI, Analysis } from "@/lib/api";
+import { analysisAPI, marketAPI, aiAPI, adminAPI, walletAPI, toolsAPI, Analysis, Position } from "@/lib/api";
 import { usePremium } from "@/lib/PremiumContext";
 import { useLanguage } from "@/lib/LanguageContext";
 import { useFormatPrice } from "@/lib/SettingsContext";
@@ -311,12 +311,13 @@ function getCOMEXStatus(): { status: "open" | "closed" | "break"; labelFr: strin
 
 // ── Trading modal ─────────────────────────────────────────────────────────────
 function TradingModal({
-  direction, price, risk, onClose, formatPrice, lang,
+  direction, price, risk, onClose, onSuccess, formatPrice, lang,
 }: {
   direction: "LONG" | "SHORT";
   price: number;
   risk: { suggested_tp: number; suggested_sl: number } | undefined;
   onClose: () => void;
+  onSuccess: () => void;
   formatPrice: (v: number, sym: string) => string;
   lang: "fr" | "en";
 }) {
@@ -349,6 +350,7 @@ function TradingModal({
       setSuccess(lang === "fr"
         ? `Position ouverte à ${formatPrice(res.entry_price ?? price, "GC=F")}`
         : `Position opened at ${formatPrice(res.entry_price ?? price, "GC=F")}`);
+      onSuccess();
     } catch (e: any) {
       setError(e?.message ?? (lang === "fr" ? "Erreur lors de l'ouverture" : "Failed to open position"));
     } finally { setLoading(false); }
@@ -490,6 +492,56 @@ function formatCatalystTime(ms: number, lang: "fr" | "en"): string {
   if (d === 1) return lang === "fr" ? `dans 1j ${h}h` : `in 1d ${h}h`;
   if (h > 0) return lang === "fr" ? `dans ${h}h ${String(m).padStart(2,"0")}min` : `in ${h}h ${String(m).padStart(2,"0")}min`;
   return lang === "fr" ? `dans ${String(m).padStart(2,"0")}min` : `in ${String(m).padStart(2,"0")}min`;
+}
+
+// ── Markdown renderer (AI responses) ─────────────────────────────────────────
+function renderInline(text: string): React.ReactNode {
+  const parts = text.split(/(\*\*[^*]+\*\*|\*[^*]+\*)/g);
+  return parts.map((part, i) => {
+    if (part.startsWith("**") && part.endsWith("**"))
+      return <strong key={i} className="font-semibold text-foreground">{part.slice(2, -2)}</strong>;
+    if (part.startsWith("*") && part.endsWith("*"))
+      return <em key={i} className="text-foreground/80">{part.slice(1, -1)}</em>;
+    return part;
+  });
+}
+
+function renderMarkdown(text: string): React.ReactNode {
+  const lines = text.split("\n");
+  const nodes: React.ReactNode[] = [];
+
+  lines.forEach((line, i) => {
+    if (line.startsWith("### ")) {
+      nodes.push(<p key={i} className="font-semibold text-foreground/90 text-sm mt-3 mb-0.5">{renderInline(line.slice(4))}</p>);
+    } else if (line.startsWith("## ")) {
+      nodes.push(<p key={i} className="font-bold text-amber-300/90 text-sm mt-3.5 mb-1">{renderInline(line.slice(3))}</p>);
+    } else if (line.startsWith("# ")) {
+      nodes.push(<p key={i} className="font-bold text-amber-400 text-base mt-4 mb-1">{renderInline(line.slice(2))}</p>);
+    } else if (/^[-*] /.test(line)) {
+      nodes.push(
+        <div key={i} className="flex gap-2 items-start text-sm leading-relaxed">
+          <span className="text-amber-400/50 flex-shrink-0 mt-0.5">•</span>
+          <span className="text-foreground/85">{renderInline(line.slice(2))}</span>
+        </div>
+      );
+    } else if (/^\d+\. /.test(line)) {
+      const m = line.match(/^(\d+)\. (.*)/);
+      if (m) nodes.push(
+        <div key={i} className="flex gap-2 items-start text-sm leading-relaxed">
+          <span className="text-amber-400/60 font-bold flex-shrink-0 min-w-[1.2rem]">{m[1]}.</span>
+          <span className="text-foreground/85">{renderInline(m[2])}</span>
+        </div>
+      );
+    } else if (/^-{3,}$/.test(line.trim())) {
+      nodes.push(<hr key={i} className="border-white/10 my-2" />);
+    } else if (line.trim() === "") {
+      nodes.push(<div key={i} className="h-2" />);
+    } else {
+      nodes.push(<p key={i} className="text-sm text-foreground/85 leading-relaxed">{renderInline(line)}</p>);
+    }
+  });
+
+  return <div className="space-y-0.5">{nodes}</div>;
 }
 
 // ── Gold AI Chat ──────────────────────────────────────────────────────────────
@@ -788,12 +840,12 @@ Réponds en ${lang === "fr" ? "français" : "English"}, de manière concise et d
                   </div>
                 )}
                 <div className={cn(
-                  "max-w-[82%] px-3.5 py-2.5 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap",
+                  "max-w-[82%] px-3.5 py-2.5 rounded-2xl",
                   m.role === "user"
-                    ? "bg-amber-500/15 border border-amber-500/20 text-amber-100 rounded-tr-sm"
-                    : "bg-white/5 border border-white/8 text-foreground/90 rounded-tl-sm"
+                    ? "bg-amber-500/15 border border-amber-500/20 text-amber-100 rounded-tr-sm text-sm leading-relaxed"
+                    : "bg-white/5 border border-white/8 rounded-tl-sm"
                 )}>
-                  {m.content}
+                  {m.role === "user" ? m.content : renderMarkdown(m.content)}
                 </div>
               </motion.div>
             ))}
@@ -917,6 +969,14 @@ export default function GoldPage() {
   const router = useRouter();
 
   const [tradeDir, setTradeDir]      = useState<"LONG" | "SHORT" | null>(null);
+  const [goldPositions, setGoldPositions] = useState<Position[]>([]);
+
+  const loadGoldPositions = useCallback(async () => {
+    try {
+      const res = await walletAPI.getPositions("open");
+      setGoldPositions((res.positions ?? []).filter(p => p.symbol === "GC=F"));
+    } catch { setGoldPositions([]); }
+  }, []);
   const [analysis, setAnalysis]     = useState<Analysis | null>(null);
   const [corrPrices, setCorrPrices]  = useState<Record<string, { price: number; change: number }>>({});
   const [news, setNews]              = useState<{ title: string; publisher?: string; link?: string; timestamp?: number }[]>([]);
@@ -965,8 +1025,8 @@ export default function GoldPage() {
   }, [timeframe]);
 
   useEffect(() => {
-    if (settingsLoaded && (isAdmin || goldPublic)) load();
-  }, [settingsLoaded, isAdmin, goldPublic, load]);
+    if (settingsLoaded && (isAdmin || goldPublic)) { load(); loadGoldPositions(); }
+  }, [settingsLoaded, isAdmin, goldPublic, load, loadGoldPositions]);
 
   // Progressive multi-timeframe fetch
   useEffect(() => {
@@ -1044,6 +1104,7 @@ export default function GoldPage() {
           price={price}
           risk={risk}
           onClose={() => setTradeDir(null)}
+          onSuccess={loadGoldPositions}
           formatPrice={formatPrice}
           lang={lang}
         />
@@ -1490,6 +1551,56 @@ export default function GoldPage() {
                   SHORT
                 </button>
               </div>
+
+              {/* Open GC=F positions */}
+              {goldPositions.length > 0 && (
+                <div className="mt-3 pt-3 border-t border-white/6 space-y-2">
+                  <p className="text-[10px] text-muted-foreground/50 font-semibold uppercase tracking-wider flex items-center gap-1.5">
+                    <Activity className="w-2.5 h-2.5 text-amber-400/50"/>
+                    {lang === "fr" ? "Positions ouvertes" : "Open positions"} · GC=F
+                  </p>
+                  {goldPositions.map(pos => {
+                    const pnl = pos.unrealized_pnl ?? 0;
+                    const pct = pos.pnl_percent ?? 0;
+                    const isProfit = pnl >= 0;
+                    return (
+                      <motion.div key={pos.id}
+                        initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }}
+                        className={cn(
+                          "p-2.5 rounded-xl border text-xs space-y-1.5",
+                          pos.direction === "LONG"
+                            ? "border-amber-500/20 bg-amber-500/5"
+                            : "border-blue-500/20 bg-blue-500/5"
+                        )}>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-1.5">
+                            {pos.direction === "LONG"
+                              ? <TrendingUp className="w-3 h-3 text-amber-400"/>
+                              : <TrendingDown className="w-3 h-3 text-blue-400"/>}
+                            <span className={cn("font-bold", pos.direction === "LONG" ? "text-amber-400" : "text-blue-400")}>
+                              {pos.direction}
+                            </span>
+                            <span className="text-muted-foreground/40">×{pos.leverage}</span>
+                          </div>
+                          <span className={cn("font-bold tabular-nums", isProfit ? "text-profit" : "text-loss")}>
+                            {isProfit ? "+" : ""}{pnl.toFixed(2)}$ ({isProfit ? "+" : ""}{pct.toFixed(2)}%)
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between text-muted-foreground/50">
+                          <span>{lang === "fr" ? "Entrée" : "Entry"} : {formatPrice(pos.entry_price, "GC=F")}</span>
+                          <span>${pos.amount.toFixed(0)}</span>
+                        </div>
+                        {(pos.take_profit || pos.stop_loss) && (
+                          <div className="flex items-center gap-3 text-muted-foreground/40">
+                            {pos.take_profit && <span className="text-profit/60">TP {formatPrice(pos.take_profit, "GC=F")}</span>}
+                            {pos.stop_loss   && <span className="text-loss/60">SL {formatPrice(pos.stop_loss, "GC=F")}</span>}
+                          </div>
+                        )}
+                      </motion.div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </div>
         </motion.div>
