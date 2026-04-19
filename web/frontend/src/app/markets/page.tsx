@@ -23,7 +23,7 @@ import { marketAPI, favoritesAPI, Market, Asset } from "@/lib/api";
 import { getAssetInfo, getAssetLogo } from "@/lib/assetInfo";
 import { authHeaders } from "@/lib/auth";
 import { isMarketOpen, getMarketHoursDisplay, getTimeUntilChange } from "@/lib/marketStatus";
-import { useFormatPrice } from "@/lib/SettingsContext";
+import { useFormatPrice, useSettings } from "@/lib/SettingsContext";
 import { TopLoadingBar } from "@/components/ui/TopLoadingBar";
 import { useLanguage } from "@/lib/LanguageContext";
 import { HelpGuide } from "@/components/ui/HelpGuide";
@@ -58,6 +58,7 @@ export default function MarketsPage() {
   const { t, lang } = useLanguage();
   const router = useRouter();
   const formatPrice = useFormatPrice();
+  const { settings, setCurrency } = useSettings();
   const [markets, setMarkets] = useState<Market[]>([]);
   const [selectedMarket, setSelectedMarket] = useState<string>("");
   const [assets, setAssets] = useState<Asset[]>([]);
@@ -322,6 +323,23 @@ export default function MarketsPage() {
           <p className="text-muted-foreground">{t("markets_subtitle")}</p>
         </div>
         <div className="flex items-center gap-2">
+          {/* Currency toggle */}
+          <div className="flex items-center rounded-lg bg-white/5 border border-white/8 p-0.5 text-xs">
+            {(["EUR", "USD"] as const).map((c) => (
+              <button
+                key={c}
+                onClick={() => setCurrency(c)}
+                className={cn(
+                  "px-2.5 py-1 rounded-md transition-all font-medium",
+                  settings.currency === c
+                    ? "bg-primary text-white"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                {c === "EUR" ? "€ EUR" : "$ USD"}
+              </button>
+            ))}
+          </div>
           <HelpGuide
             title={lang === "en" ? "Markets" : "Marchés"}
             intro={lang === "en" ? "Explore all available assets: stocks, crypto, indices, commodities and forex." : "Explore tous les actifs disponibles : actions, crypto, indices, matières premières et forex."}
