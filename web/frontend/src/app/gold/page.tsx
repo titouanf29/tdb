@@ -618,6 +618,247 @@ const AGGRESSION_CTX: Record<"fr"|"en", string[]> = {
 };
 const AGG_COLORS = ["#22c55e", "#84cc16", "#eab308", "#f97316", "#ef4444"];
 
+// ── Personalized Analysis ─────────────────────────────────────────────────────
+function PersonalizedAnalysis({
+  analysis, tradingStyle, aggression, lang,
+}: {
+  analysis: Analysis;
+  tradingStyle: TradingStyle;
+  aggression: number;
+  lang: "fr" | "en";
+}) {
+  const formatPrice = useFormatPrice();
+  const styleCfg = STYLE_CONFIG[tradingStyle];
+  const price = analysis.price.current;
+  const score = analysis.score.total;
+  const atr = analysis.indicators.atr;
+  const rsi = analysis.indicators.rsi;
+  const macd = analysis.indicators.macd;
+  const ema = analysis.indicators.ema;
+  const levels = analysis.levels;
+
+  const isBullish = score >= 58;
+  const isBearish = score <= 42;
+  const confidence = Math.round(Math.min(95, 45 + Math.abs(score - 50) * 1.4));
+  const action = isBullish ? "LONG" : isBearish ? "SHORT" : (lang === "fr" ? "ATTENDRE" : "WAIT");
+
+  // ATR-based SL/TP adapted per style + aggression
+  const mults: Record<TradingStyle, { sl: number; tp: number }> = {
+    scalping: { sl: 0.5, tp: 0.9 },
+    day:      { sl: 1.0, tp: 1.8 },
+    swing:    { sl: 1.8, tp: 3.5 },
+    long:     { sl: 3.0, tp: 6.0 },
+  };
+  const aggMod = 0.6 + (aggression - 1) * 0.2;
+  const slDist = atr * mults[tradingStyle].sl * aggMod;
+  const tpDist = atr * mults[tradingStyle].tp;
+  const sl = isBullish ? price - slDist : price + slDist;
+  const tp = isBullish ? price + tpDist : price - tpDist;
+  const rr = tpDist / slDist;
+
+  const posSizes = [1.0, 2.0, 3.5, 5.5, 8.0];
+  const posPct = posSizes[aggression - 1];
+  const leverageMap: Record<TradingStyle, number[]> = {
+    scalping: [1, 2, 5, 10, 20],
+    day:      [1, 2, 3,  5, 10],
+    swing:    [1, 1, 2,  3,  5],
+    long:     [1, 1, 1,  2,  3],
+  };
+  const leverage = leverageMap[tradingStyle][aggression - 1];
+
+  const rsiLabel = rsi.value > 70
+    ? { text: lang === "fr" ? "Suracheté" : "Overbought", cls: "text-loss" }
+    : rsi.value < 30
+    ? { text: lang === "fr" ? "Survendu" : "Oversold", cls: "text-profit" }
+    : { text: lang === "fr" ? "Neutre" : "Neutral", cls: "text-muted-foreground/60" };
+
+  const macdBull = /bullish|haussier/i.test(macd.signal);
+  const macdBear = /bearish|baissier/i.test(macd.signal);
+  const aboveEma50 = price > ema.ema50;
+  const aboveEma200 = ema.ema200 != null ? price > ema.ema200 : null;
+
+  const actionColor = isBullish ? "#f59e0b" : isBearish ? "#60a5fa" : "rgba(255,255,255,0.45)";
+  const actionBorder = isBullish ? "border-amber-500/25 bg-amber-500/8" : isBearish ? "border-blue-500/25 bg-blue-500/8" : "border-white/8 bg-white/3";
+
+  const tfNote: Record<TradingStyle, string> = {
+    scalping: lang === "fr" ? "Court terme · 1h" : "Short-term · 1h",
+    day:      lang === "fr" ? "Journalier · 4h"  : "Daily · 4h",
+    swing:    lang === "fr" ? "Swing · 1J"       : "Swing · 1D",
+    long:     lang === "fr" ? "Long terme · 1S"  : "Long-term · 1W",
+  };
+
+  return (
+    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.07 }}>
+      <div className="mb-3 flex items-center justify-between">
+        <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
+          <Zap className="w-3.5 h-3.5 text-amber-400" />
+          {lang === "fr" ? "Analyse personnalisée" : "Personalized analysis"}
+        </h2>
+        <span className="text-[10px] text-muted-foreground/45 flex items-center gap-1.5">
+          {styleCfg.icon} {lang === "fr" ? styleCfg.labelFr : styleCfg.labelEn}
+          <span className="opacity-40">·</span>
+          <span style={{ color: AGG_COLORS[aggression - 1] }}>⚡{aggression}</span>
+          <span className="opacity-40">·</span>
+          {tfNote[tradingStyle]}
+        </span>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        {/* Signal card */}
+        <div className={cn("glass-card rounded-2xl border p-4 flex flex-col gap-3", actionBorder)}>
+          <p className="text-[10px] font-semibold text-muted-foreground/45 uppercase tracking-wider">
+            {lang === "fr" ? "Signal" : "Signal"}
+          </p>
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+              style={{ background: `${actionColor}20` }}>
+              {isBullish
+                ? <TrendingUp className="w-5 h-5 text-amber-400" />
+                : isBearish
+                ? <TrendingDown className="w-5 h-5 text-blue-400" />
+                : <Minus className="w-5 h-5 text-muted-foreground" />}
+            </div>
+            <div>
+              <p className="text-xl font-bold" style={{ color: actionColor }}>{action}</p>
+              <p className="text-[10px] text-muted-foreground/50">
+                {lang === "fr" ? `Confiance ${confidence}%` : `${confidence}% confidence`}
+              </p>
+            </div>
+          </div>
+          <div className="space-y-1">
+            <div className="flex justify-between text-[10px]">
+              <span className="text-muted-foreground/45">{lang === "fr" ? "Score technique" : "Technical score"}</span>
+              <span className="font-semibold text-foreground/70">{score}/100</span>
+            </div>
+            <div className="h-1.5 bg-white/8 rounded-full overflow-hidden">
+              <motion.div
+                initial={{ width: 0 }} animate={{ width: `${score}%` }}
+                transition={{ duration: 1.1, ease: "easeOut" }}
+                className="h-full rounded-full"
+                style={{ background: isBullish ? "#f59e0b" : isBearish ? "#60a5fa" : "rgba(255,255,255,0.25)" }}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Levels card */}
+        <div className="glass-card rounded-2xl border border-white/8 p-4 flex flex-col gap-2.5">
+          <p className="text-[10px] font-semibold text-muted-foreground/45 uppercase tracking-wider mb-0.5">
+            {lang === "fr" ? "Niveaux adaptés" : "Adapted levels"}
+          </p>
+          {[
+            { label: lang === "fr" ? "Entrée" : "Entry",       value: formatPrice(price, "GC=F"), color: "text-foreground/85", dot: "bg-white/30",   sub: null },
+            { label: "Stop-Loss",                               value: formatPrice(sl, "GC=F"),    color: "text-loss",          dot: "bg-loss",       sub: `${(slDist / price * 100).toFixed(2)}%` },
+            { label: "Take-Profit",                             value: formatPrice(tp, "GC=F"),    color: "text-profit",        dot: "bg-profit",     sub: `+${(tpDist / price * 100).toFixed(2)}%` },
+          ].map(row => (
+            <div key={row.label} className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className={cn("w-1.5 h-1.5 rounded-full flex-shrink-0", row.dot)} />
+                <span className="text-xs text-muted-foreground/60">{row.label}</span>
+              </div>
+              <div className="text-right">
+                <span className={cn("text-xs font-bold", row.color)}>{row.value}</span>
+                {row.sub && <span className="text-[9px] text-muted-foreground/40 ml-1.5">{row.sub}</span>}
+              </div>
+            </div>
+          ))}
+          <div className="pt-1.5 mt-auto border-t border-white/5 flex items-center justify-between">
+            <span className="text-[10px] text-muted-foreground/40">{lang === "fr" ? "Ratio R/R" : "R/R ratio"}</span>
+            <span className={cn("text-xs font-bold", rr >= 2 ? "text-profit" : rr >= 1.5 ? "text-amber-400" : "text-loss")}>
+              1 : {rr.toFixed(1)}
+            </span>
+          </div>
+        </div>
+
+        {/* Position sizing card */}
+        <div className="glass-card rounded-2xl border border-white/8 p-4 flex flex-col gap-2.5">
+          <p className="text-[10px] font-semibold text-muted-foreground/45 uppercase tracking-wider mb-0.5">
+            {lang === "fr" ? "Gestion de position" : "Position sizing"}
+          </p>
+          {[
+            {
+              label: lang === "fr" ? "Taille du capital" : "Capital size",
+              value: `${posPct}%`,
+              color: "text-foreground/85",
+            },
+            {
+              label: lang === "fr" ? "Levier suggéré" : "Suggested leverage",
+              value: leverage === 1 ? `×1 (${lang === "fr" ? "sans" : "no leverage"})` : `×${leverage}`,
+              color: leverage >= 10 ? "text-loss" : leverage >= 3 ? "text-amber-400" : "text-profit",
+            },
+            {
+              label: lang === "fr" ? "Support" : "Support",
+              value: formatPrice(levels.support, "GC=F"),
+              color: "text-profit",
+            },
+            {
+              label: lang === "fr" ? "Résistance" : "Resistance",
+              value: formatPrice(levels.resistance, "GC=F"),
+              color: "text-loss",
+            },
+          ].map(row => (
+            <div key={row.label} className="flex items-center justify-between">
+              <span className="text-xs text-muted-foreground/60">{row.label}</span>
+              <span className={cn("text-xs font-bold", row.color)}>{row.value}</span>
+            </div>
+          ))}
+          <div className="mt-auto pt-1.5 border-t border-white/5">
+            <p className="text-[9px] text-muted-foreground/30 leading-snug">
+              {lang === "fr"
+                ? `Calibré pour ${styleCfg.labelFr.toLowerCase()} · Agressivité ${aggression}/5`
+                : `Calibrated for ${styleCfg.labelEn.toLowerCase()} · Aggressiveness ${aggression}/5`}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Technicals bar */}
+      <div className="mt-3 glass-card rounded-xl border border-white/8 px-4 py-2.5 flex flex-wrap items-center gap-x-4 gap-y-1.5">
+        <span className="text-[10px] font-semibold text-muted-foreground/35 uppercase tracking-wider">
+          {lang === "fr" ? "Indicateurs" : "Indicators"}
+        </span>
+        <div className="flex items-center gap-1.5">
+          <span className="text-[10px] text-muted-foreground/45">RSI</span>
+          <span className="text-[10px] font-bold text-foreground/75">{rsi.value.toFixed(0)}</span>
+          <span className={cn("text-[9px] font-semibold", rsiLabel.cls)}>{rsiLabel.text}</span>
+        </div>
+        <div className="w-px h-3 bg-white/10 hidden sm:block" />
+        <div className="flex items-center gap-1.5">
+          <span className="text-[10px] text-muted-foreground/45">MACD</span>
+          <span className={cn("text-[9px] font-semibold",
+            macdBull ? "text-profit" : macdBear ? "text-loss" : "text-muted-foreground/60")}>
+            {macdBull ? (lang === "fr" ? "Haussier" : "Bullish") : macdBear ? (lang === "fr" ? "Baissier" : "Bearish") : (lang === "fr" ? "Neutre" : "Neutral")}
+          </span>
+        </div>
+        <div className="w-px h-3 bg-white/10 hidden sm:block" />
+        <div className="flex items-center gap-1.5">
+          <span className="text-[10px] text-muted-foreground/45">EMA50</span>
+          <span className={cn("text-[9px] font-semibold", aboveEma50 ? "text-profit" : "text-loss")}>
+            {aboveEma50 ? (lang === "fr" ? "Au-dessus ✓" : "Above ✓") : (lang === "fr" ? "En-dessous ✗" : "Below ✗")}
+          </span>
+        </div>
+        {aboveEma200 !== null && (
+          <>
+            <div className="w-px h-3 bg-white/10 hidden sm:block" />
+            <div className="flex items-center gap-1.5">
+              <span className="text-[10px] text-muted-foreground/45">EMA200</span>
+              <span className={cn("text-[9px] font-semibold", aboveEma200 ? "text-profit" : "text-loss")}>
+                {aboveEma200 ? (lang === "fr" ? "Au-dessus ✓" : "Above ✓") : (lang === "fr" ? "En-dessous ✗" : "Below ✗")}
+              </span>
+            </div>
+          </>
+        )}
+        <div className="w-px h-3 bg-white/10 hidden sm:block" />
+        <div className="flex items-center gap-1.5">
+          <span className="text-[10px] text-muted-foreground/45">ATR</span>
+          <span className="text-[10px] font-bold text-foreground/65">{atr.toFixed(1)}</span>
+          <span className="text-[9px] text-muted-foreground/35">{lang === "fr" ? "volatilité" : "volatility"}</span>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
 function GoldAIChat({
   analysis, corrPrices, lang, tradingStyle, aggression,
 }: {
@@ -1244,6 +1485,16 @@ export default function GoldPage() {
             </div>
           </div>
         </motion.div>
+
+        {/* ── Personalized analysis ────────────────────────────────────── */}
+        {analysis && (
+          <PersonalizedAnalysis
+            analysis={analysis}
+            tradingStyle={tradingStyle}
+            aggression={aggression}
+            lang={lang}
+          />
+        )}
 
         {/* ── Multi-timeframe matrix ────────────────────────────────────── */}
         <motion.div initial={{ opacity:0, y:12 }} animate={{ opacity:1, y:0 }} transition={{ delay:0.08 }}>
