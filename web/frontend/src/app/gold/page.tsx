@@ -532,14 +532,23 @@ export default function GoldPage() {
   // Gate: admin-only while in dev
   if (!isAdmin && !goldPublic) return <GoldHubDevGate />;
 
-  const price    = analysis?.price.current ?? 0;
-  const change   = analysis?.price.change ?? 0;
-  const signal   = analysis?.signal;
-  const score    = analysis?.score.total ?? 50;
-  const levels   = analysis?.levels;
-  const risk     = analysis?.risk;
-  const indics   = analysis?.indicators;
-  const isUp     = change >= 0;
+  const price       = analysis?.price.current ?? 0;
+  const change      = analysis?.price.change ?? 0;
+  const signal      = analysis?.signal;
+  const score       = analysis?.score.total ?? 50;
+  const levels      = analysis?.levels;
+  const risk        = analysis?.risk;
+  const indics      = analysis?.indicators;
+  const perf        = analysis?.performance ?? {};
+  const fib         = analysis?.fibonacci;
+  const isUp        = change >= 0;
+
+  // Risk-On / Risk-Off from live data
+  const vixChange   = corrPrices["^VIX"]?.change ?? 0;
+  const dxyChange   = corrPrices["DX-Y.NYB"]?.change ?? 0;
+  const tnxChange   = corrPrices["^TNX"]?.change ?? 0;
+  const riskScore   = vixChange * 0.5 - dxyChange * 0.3 - tnxChange * 0.2;
+  const riskEnv     = riskScore > 0.3 ? "risk-off" : riskScore < -0.3 ? "risk-on" : "neutral";
   const comex    = getCOMEXStatus();
   const newsItems = [
     ...(analysis?.news ?? []).map(n => ({ title: n.title ?? "", publisher: n.publisher, link: n.link, date: n.date })),
@@ -568,11 +577,20 @@ export default function GoldPage() {
       >
 
         {/* ── Hero banner ───────────────────────────────────────────────── */}
-        <div className="relative overflow-hidden rounded-2xl border border-amber-500/20 bg-gradient-to-br from-amber-950/40 via-card/80 to-card/60">
-          {/* Background shimmer */}
-          <div className="absolute inset-0 pointer-events-none">
-            <div className="absolute top-0 right-0 w-96 h-96 rounded-full bg-amber-500/8 blur-3xl" />
-            <div className="absolute bottom-0 left-0 w-64 h-64 rounded-full bg-amber-600/5 blur-2xl" />
+        <motion.div initial={{ opacity:0, y:-12 }} animate={{ opacity:1, y:0 }} transition={{ duration:0.5 }}
+          className="relative overflow-hidden rounded-2xl border border-amber-500/20 bg-gradient-to-br from-amber-950/50 via-card/90 to-card/70"
+        >
+          {/* Background glows */}
+          <div className="absolute inset-0 pointer-events-none overflow-hidden">
+            <div className="absolute -top-20 -right-20 w-96 h-96 rounded-full bg-amber-500/10 blur-3xl" />
+            <div className="absolute bottom-0 left-0 w-64 h-64 rounded-full bg-amber-600/6 blur-2xl" />
+            {/* Animated diagonal lines */}
+            <svg className="absolute inset-0 w-full h-full opacity-[0.03]" xmlns="http://www.w3.org/2000/svg">
+              <defs><pattern id="diag" width="40" height="40" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+                <line x1="0" y1="0" x2="0" y2="40" stroke="#F59E0B" strokeWidth="1"/>
+              </pattern></defs>
+              <rect width="100%" height="100%" fill="url(#diag)"/>
+            </svg>
           </div>
 
           <div className="relative p-6 md:p-8">
@@ -666,10 +684,10 @@ export default function GoldPage() {
               </div>
             )}
           </div>
-        </div>
+        </motion.div>
 
         {/* ── Correlations ─────────────────────────────────────────────── */}
-        <div>
+        <motion.div initial={{ opacity:0, y:12 }} animate={{ opacity:1, y:0 }} transition={{ delay:0.1 }}>
           <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">
             {lang === "fr" ? "Facteurs influençant l'or" : "Gold influencing factors"}
           </h2>
@@ -700,10 +718,105 @@ export default function GoldPage() {
               ? "Survolez une carte pour comprendre le lien avec l'or."
               : "Hover a card to understand its relationship with gold."}
           </p>
-        </div>
+        </motion.div>
+
+        {/* ── Performance comparative ───────────────────────────────────── */}
+        {!loading && Object.keys(perf).length > 0 && (
+          <motion.div initial={{ opacity:0, y:12 }} animate={{ opacity:1, y:0 }} transition={{ delay:0.15 }}>
+            <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-2">
+              <Activity className="w-3.5 h-3.5 text-amber-400"/>
+              {lang === "fr" ? "Performance Gold" : "Gold Performance"}
+            </h2>
+            <div className="glass-card rounded-xl border border-amber-500/10 p-4">
+              <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
+                {([ ["1j","1d"], ["1S","1w"], ["1M","1m"], ["3M","3m"], ["6M","6m"], ["YTD","ytd"] ] as [string,string][])
+                  .filter(([,k]) => perf[k as keyof typeof perf] !== undefined)
+                  .map(([label, key], i) => {
+                    const val = perf[key as keyof typeof perf] as number;
+                    const abs = Math.abs(val);
+                    const isPos = val >= 0;
+                    return (
+                      <motion.div key={key} initial={{ opacity:0, scaleY:0 }} animate={{ opacity:1, scaleY:1 }}
+                        transition={{ delay: 0.2 + i*0.05, type:"spring", stiffness:200 }}
+                        className="flex flex-col items-center gap-2">
+                        <span className={cn("text-sm font-bold", isPos ? "text-amber-400" : "text-blue-400")}>
+                          {isPos ? "+" : ""}{val.toFixed(2)}%
+                        </span>
+                        <div className="w-full h-16 flex items-end justify-center">
+                          <motion.div
+                            initial={{ height:0 }} animate={{ height:`${Math.min(abs * 6, 60)}px` }}
+                            transition={{ delay: 0.3 + i*0.05, duration:0.6, ease:"easeOut" }}
+                            className={cn("w-5 rounded-t-sm", isPos ? "bg-amber-500/60" : "bg-blue-500/60")}
+                          />
+                        </div>
+                        <span className="text-[10px] text-muted-foreground/60">{label}</span>
+                      </motion.div>
+                    );
+                })}
+              </div>
+            </div>
+          </motion.div>
+        )}
+
+        {/* ── Market environment ────────────────────────────────────────── */}
+        {!loading && (
+          <motion.div initial={{ opacity:0, y:12 }} animate={{ opacity:1, y:0 }} transition={{ delay:0.2 }}>
+            <div className={cn(
+              "rounded-2xl border p-5 flex flex-col md:flex-row md:items-center gap-4 relative overflow-hidden",
+              riskEnv === "risk-off" ? "border-amber-500/25 bg-gradient-to-r from-amber-950/30 to-card/60"
+              : riskEnv === "risk-on" ? "border-blue-500/20 bg-gradient-to-r from-blue-950/20 to-card/60"
+              : "border-white/8 bg-card/40"
+            )}>
+              <div className="absolute right-0 top-0 w-48 h-48 rounded-full blur-3xl opacity-10 pointer-events-none"
+                style={{ background: riskEnv === "risk-off" ? "#F59E0B" : riskEnv === "risk-on" ? "#3B82F6" : "white" }}/>
+              <div className={cn("w-14 h-14 rounded-2xl flex items-center justify-center border flex-shrink-0 text-2xl",
+                riskEnv === "risk-off" ? "bg-amber-500/15 border-amber-500/30"
+                : riskEnv === "risk-on" ? "bg-blue-500/15 border-blue-500/30"
+                : "bg-white/5 border-white/10")}>
+                {riskEnv === "risk-off" ? "🛡️" : riskEnv === "risk-on" ? "📈" : "⚖️"}
+              </div>
+              <div className="flex-1">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className={cn("text-base font-bold",
+                    riskEnv === "risk-off" ? "text-amber-400" : riskEnv === "risk-on" ? "text-blue-400" : "text-foreground")}>
+                    {riskEnv === "risk-off"
+                      ? (lang === "fr" ? "Environnement Risk-Off" : "Risk-Off Environment")
+                      : riskEnv === "risk-on"
+                      ? (lang === "fr" ? "Environnement Risk-On" : "Risk-On Environment")
+                      : (lang === "fr" ? "Environnement Neutre" : "Neutral Environment")}
+                  </span>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  {riskEnv === "risk-off"
+                    ? (lang === "fr"
+                      ? `VIX ${vixChange>=0?"+":""}${vixChange.toFixed(1)}% · DXY ${dxyChange>=0?"+":""}${dxyChange.toFixed(1)}% — peur des marchés, l'or est recherché comme valeur refuge.`
+                      : `VIX ${vixChange>=0?"+":""}${vixChange.toFixed(1)}% · DXY ${dxyChange>=0?"+":""}${dxyChange.toFixed(1)}% — market fear, gold sought as safe haven.`)
+                    : riskEnv === "risk-on"
+                    ? (lang === "fr"
+                      ? `VIX ${vixChange>=0?"+":""}${vixChange.toFixed(1)}% · les investisseurs privilégient les actifs risqués — pression légère sur l'or.`
+                      : `VIX ${vixChange>=0?"+":""}${vixChange.toFixed(1)}% · investors favor risk assets — slight pressure on gold.`)
+                    : (lang === "fr"
+                      ? "Signaux mixtes — pas de tendance macro dominante pour l'or en ce moment."
+                      : "Mixed signals — no dominant macro trend for gold right now.")}
+                </p>
+              </div>
+              <div className={cn("text-xs font-medium px-3 py-1.5 rounded-lg border whitespace-nowrap",
+                riskEnv === "risk-off" ? "bg-amber-500/10 border-amber-500/20 text-amber-400"
+                : riskEnv === "risk-on" ? "bg-blue-500/10 border-blue-500/20 text-blue-400"
+                : "bg-white/5 border-white/10 text-muted-foreground")}>
+                {riskEnv === "risk-off"
+                  ? (lang === "fr" ? "Favorable à l'or ✓" : "Favorable for gold ✓")
+                  : riskEnv === "risk-on"
+                  ? (lang === "fr" ? "Pression sur l'or" : "Pressure on gold")
+                  : (lang === "fr" ? "Neutre" : "Neutral")}
+              </div>
+            </div>
+          </motion.div>
+        )}
 
         {/* ── Chart + Metrics ───────────────────────────────────────────── */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <motion.div initial={{ opacity:0, y:12 }} animate={{ opacity:1, y:0 }} transition={{ delay:0.25 }}
+          className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Chart */}
           <div className="lg:col-span-2 glass-card rounded-xl overflow-hidden border border-amber-500/10">
             <div className="px-4 py-3 border-b border-white/6 flex items-center gap-2">
@@ -807,10 +920,10 @@ export default function GoldPage() {
               </div>
             </div>
           </div>
-        </div>
+        </motion.div>
 
         {/* ── News ─────────────────────────────────────────────────────── */}
-        <div>
+        <motion.div initial={{ opacity:0, y:12 }} animate={{ opacity:1, y:0 }} transition={{ delay:0.3 }}>
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
               <Newspaper className="w-4 h-4 text-amber-400" />
@@ -870,10 +983,11 @@ export default function GoldPage() {
               {lang === "fr" ? "Aucune actualité Gold disponible pour le moment." : "No gold news available at the moment."}
             </div>
           )}
-        </div>
+        </motion.div>
 
         {/* ── Learn section (coming soon) ───────────────────────────────── */}
-        <div className="relative overflow-hidden rounded-2xl border border-dashed border-amber-500/20 p-6">
+        <motion.div initial={{ opacity:0, y:12 }} animate={{ opacity:1, y:0 }} transition={{ delay:0.35 }}
+          className="relative overflow-hidden rounded-2xl border border-dashed border-amber-500/20 p-6">
           <div className="absolute inset-0 bg-gradient-to-r from-amber-950/20 to-transparent pointer-events-none" />
           <div className="relative flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="flex items-start gap-4">
@@ -895,7 +1009,7 @@ export default function GoldPage() {
               {lang === "fr" ? "Bientôt" : "Coming soon"}
             </span>
           </div>
-        </div>
+        </motion.div>
 
         {/* Source disclaimer */}
         <p className="text-[11px] text-muted-foreground/30 text-center">
