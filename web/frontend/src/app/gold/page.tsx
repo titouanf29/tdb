@@ -25,7 +25,7 @@ import {
   Activity,
 } from "lucide-react";
 import { cn, formatPercent } from "@/lib/utils";
-import { analysisAPI, marketAPI, aiAPI, Analysis } from "@/lib/api";
+import { analysisAPI, marketAPI, aiAPI, adminAPI, Analysis } from "@/lib/api";
 import { usePremium } from "@/lib/PremiumContext";
 import { useLanguage } from "@/lib/LanguageContext";
 import { useFormatPrice, useSettings } from "@/lib/SettingsContext";
@@ -315,11 +315,25 @@ export default function GoldPage() {
   const formatPrice = useFormatPrice();
   const router = useRouter();
 
-  const [analysis, setAnalysis]   = useState<Analysis | null>(null);
-  const [corrPrices, setCorrPrices] = useState<Record<string, { price: number; change: number }>>({});
-  const [news, setNews]           = useState<{ title: string; publisher?: string; link?: string; timestamp?: number }[]>([]);
-  const [loading, setLoading]     = useState(true);
-  const [timeframe, setTimeframe] = useState("1d");
+  const [analysis, setAnalysis]     = useState<Analysis | null>(null);
+  const [corrPrices, setCorrPrices]  = useState<Record<string, { price: number; change: number }>>({});
+  const [news, setNews]              = useState<{ title: string; publisher?: string; link?: string; timestamp?: number }[]>([]);
+  const [loading, setLoading]        = useState(true);
+  const [timeframe, setTimeframe]    = useState("1d");
+  const [goldPublic, setGoldPublic]  = useState(false);
+  const [checkingAccess, setCheckingAccess] = useState(!isAdmin);
+
+  // Check if Gold Hub is public (for non-admins)
+  useEffect(() => {
+    if (isAdmin) { setCheckingAccess(false); return; }
+    adminAPI.getSettings()
+      .then((data) => {
+        const setting = data.settings.find((s: { key: string; value: string }) => s.key === "gold_hub_enabled");
+        setGoldPublic(setting?.value === "true");
+      })
+      .catch(() => setGoldPublic(false))
+      .finally(() => setCheckingAccess(false));
+  }, [isAdmin]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -333,7 +347,6 @@ export default function GoldPage() {
       if (pricesData.status === "fulfilled")   setCorrPrices(pricesData.value.prices ?? {});
       if (newsData.status === "fulfilled") {
         const all = newsData.value.news ?? [];
-        // Filter gold-relevant keywords
         const goldKeywords = /gold|or\b|xau|comex|fed|federal|inflation|taux|rates?|banque centrale|central bank|géopo|geopo|dollar|dxy/i;
         setNews(all.filter((n) => goldKeywords.test(n.title)).slice(0, 6));
       }
@@ -345,11 +358,18 @@ export default function GoldPage() {
   }, [timeframe]);
 
   useEffect(() => {
-    if (isAdmin) load();
-  }, [isAdmin, load]);
+    if (isAdmin || goldPublic) load();
+  }, [isAdmin, goldPublic, load]);
 
-  // Non-admin gate
-  if (!isAdmin) return <GoldHubDevGate />;
+  // Still checking access
+  if (checkingAccess) return (
+    <div className="flex items-center justify-center min-h-[50vh]">
+      <Loader2 className="w-8 h-8 animate-spin text-amber-400" />
+    </div>
+  );
+
+  // Gate: admin-only while in dev
+  if (!isAdmin && !goldPublic) return <GoldHubDevGate />;
 
   const price    = analysis?.price.current ?? 0;
   const change   = analysis?.price.change ?? 0;

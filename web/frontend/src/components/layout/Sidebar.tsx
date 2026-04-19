@@ -35,11 +35,11 @@ const MENU_GROUPS = [
   {
     labelKey: "nav_group_trading",
     items: [
-      { icon: LayoutDashboard, labelKey: "nav_dashboard", href: "/dashboard" },
-      { icon: Globe,           labelKey: "nav_markets",   href: "/markets" },
-      { icon: Gem,             labelKey: "nav_gold_hub",  href: "/gold" },
-      { icon: BarChart3,       labelKey: "nav_analysis",  href: "/analysis" },
-      { icon: ScanLine,        labelKey: "nav_scanner",   href: "/scanner" },
+      { icon: LayoutDashboard, labelKey: "nav_dashboard", href: "/dashboard", adminOnly: false },
+      { icon: Globe,           labelKey: "nav_markets",   href: "/markets",   adminOnly: false },
+      { icon: Gem,             labelKey: "nav_gold_hub",  href: "/gold",      adminOnly: true  },
+      { icon: BarChart3,       labelKey: "nav_analysis",  href: "/analysis",  adminOnly: false },
+      { icon: ScanLine,        labelKey: "nav_scanner",   href: "/scanner",   adminOnly: false },
     ],
   },
   {
@@ -163,7 +163,7 @@ export function Sidebar({
             </AnimatePresence>
             {/* Group items */}
             <div className="space-y-0.5">
-              {group.items.map((item) => {
+              {group.items.filter((item) => !item.adminOnly || isAdmin).map((item) => {
                 const isActive = pathname === item.href;
                 const Icon = item.icon;
                 return (
