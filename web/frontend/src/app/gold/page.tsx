@@ -537,6 +537,7 @@ export default function GoldPage() {
   const [timeframe, setTimeframe]    = useState("1d");
   const [goldPublic, setGoldPublic]      = useState(false);
   const [settingsLoaded, setSettingsLoaded] = useState(false);
+  const countdown = useCountdownToNextOpen();
 
   // Wait for premium status to resolve, then check Gold Hub access
   useEffect(() => {
@@ -605,7 +606,6 @@ export default function GoldPage() {
   const riskScore   = vixChange * 0.5 - dxyChange * 0.3 - tnxChange * 0.2;
   const riskEnv     = riskScore > 0.3 ? "risk-off" : riskScore < -0.3 ? "risk-on" : "neutral";
   const comex    = getCOMEXStatus();
-  const countdown = useCountdownToNextOpen();
   const newsItems = [
     ...(analysis?.news ?? []).map(n => ({ title: n.title ?? "", publisher: n.publisher, link: n.link, date: n.date })),
     ...news.filter(n => !(analysis?.news ?? []).some(a => a.title === n.title)),
