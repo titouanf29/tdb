@@ -7,7 +7,7 @@ import dynamic from "next/dynamic";
 import {
   Gem, TrendingUp, TrendingDown, Minus, RefreshCw, Lock, ArrowRight,
   Newspaper, ExternalLink, BookOpen, Zap, Shield, BarChart2, Loader2,
-  AlertTriangle, Activity, Circle, X, DollarSign, CheckCircle2,
+  AlertTriangle, Activity, Circle, X, DollarSign, CheckCircle2, Timer,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { analysisAPI, marketAPI, aiAPI, adminAPI, walletAPI, Analysis } from "@/lib/api";
@@ -467,6 +467,61 @@ function TradingModal({
   );
 }
 
+// ── Countdown to next COMEX open ─────────────────────────────────────────────
+function useCountdownToNextOpen(): { secondsLeft: number; openTimeFR: string } {
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  const month = now.getUTCMonth() + 1;
+  const etOffset = (month >= 3 && month <= 11) ? -4 : -5;
+  const frOffset = (month >= 3 && month <= 10) ? 2 : 1;
+
+  // Express current time in ET using UTC arithmetic
+  const etDate = new Date(now.getTime() + etOffset * 3600000);
+  const etDow = etDate.getUTCDay();
+  const etMinOfDay = etDate.getUTCHours() * 60 + etDate.getUTCMinutes();
+
+  let nextOpenET: Date | null = null;
+
+  if (etDow === 6) {
+    nextOpenET = new Date(etDate);
+    nextOpenET.setUTCDate(nextOpenET.getUTCDate() + 1);
+    nextOpenET.setUTCHours(18, 0, 0, 0);
+  } else if (etDow === 0 && etMinOfDay < 18 * 60) {
+    nextOpenET = new Date(etDate);
+    nextOpenET.setUTCHours(18, 0, 0, 0);
+  } else if (etDow === 5 && etMinOfDay >= 17 * 60) {
+    nextOpenET = new Date(etDate);
+    nextOpenET.setUTCDate(nextOpenET.getUTCDate() + 2);
+    nextOpenET.setUTCHours(18, 0, 0, 0);
+  } else if (etMinOfDay >= 17 * 60 && etMinOfDay < 18 * 60) {
+    nextOpenET = new Date(etDate);
+    nextOpenET.setUTCHours(18, 0, 0, 0);
+  }
+
+  if (!nextOpenET) return { secondsLeft: 0, openTimeFR: "" };
+
+  const nextOpenUTC = nextOpenET.getTime() - etOffset * 3600000;
+  const secondsLeft = Math.max(0, Math.floor((nextOpenUTC - now.getTime()) / 1000));
+
+  const nextFR = new Date(nextOpenUTC + frOffset * 3600000);
+  const frDays = ["dim.", "lun.", "mar.", "mer.", "jeu.", "ven.", "sam."];
+  const openTimeFR = `${frDays[nextFR.getUTCDay()]} ${String(nextFR.getUTCHours()).padStart(2,"0")}h${String(nextFR.getUTCMinutes()).padStart(2,"0")}`;
+
+  return { secondsLeft, openTimeFR };
+}
+
+function formatCountdown(s: number): string {
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const sec = s % 60;
+  if (h > 0) return `${h}h ${String(m).padStart(2, "0")}min ${String(sec).padStart(2, "0")}s`;
+  return `${String(m).padStart(2, "0")}min ${String(sec).padStart(2, "0")}s`;
+}
+
 // ── Main page ─────────────────────────────────────────────────────────────────
 export default function GoldPage() {
   const { isAdmin, isLoading: isPremiumLoading } = usePremium();
@@ -550,6 +605,7 @@ export default function GoldPage() {
   const riskScore   = vixChange * 0.5 - dxyChange * 0.3 - tnxChange * 0.2;
   const riskEnv     = riskScore > 0.3 ? "risk-off" : riskScore < -0.3 ? "risk-on" : "neutral";
   const comex    = getCOMEXStatus();
+  const countdown = useCountdownToNextOpen();
   const newsItems = [
     ...(analysis?.news ?? []).map(n => ({ title: n.title ?? "", publisher: n.publisher, link: n.link, date: n.date })),
     ...news.filter(n => !(analysis?.news ?? []).some(a => a.title === n.title)),
@@ -626,6 +682,16 @@ export default function GoldPage() {
                       </span>
                       <span className={cn("text-xl font-semibold", isUp ? "text-amber-400" : "text-blue-400")}>
                         {isUp ? "▲" : "▼"} {Math.abs(change).toFixed(2)}%
+                      </span>
+                    </div>
+                  )}
+                  {comex.status !== "open" && countdown.secondsLeft > 0 && (
+                    <div className="flex items-center gap-1.5 mt-2 text-xs text-muted-foreground/70">
+                      <Timer className="w-3.5 h-3.5 text-amber-400/70 flex-shrink-0" />
+                      <span>
+                        {lang === "fr" ? "Ouverture dans " : "Opens in "}
+                        <span className="font-mono font-bold text-amber-400">{formatCountdown(countdown.secondsLeft)}</span>
+                        <span className="text-muted-foreground/40 ml-1">· {countdown.openTimeFR} (Paris)</span>
                       </span>
                     </div>
                   )}
