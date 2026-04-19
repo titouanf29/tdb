@@ -310,7 +310,7 @@ function IndicRow({ label, value, signal }: { label: string; value: string; sign
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 export default function GoldPage() {
-  const { isAdmin } = usePremium();
+  const { isAdmin, isLoading: isPremiumLoading } = usePremium();
   const { lang } = useLanguage();
   const formatPrice = useFormatPrice();
   const router = useRouter();
@@ -320,20 +320,21 @@ export default function GoldPage() {
   const [news, setNews]              = useState<{ title: string; publisher?: string; link?: string; timestamp?: number }[]>([]);
   const [loading, setLoading]        = useState(true);
   const [timeframe, setTimeframe]    = useState("1d");
-  const [goldPublic, setGoldPublic]  = useState(false);
-  const [checkingAccess, setCheckingAccess] = useState(!isAdmin);
+  const [goldPublic, setGoldPublic]      = useState(false);
+  const [settingsLoaded, setSettingsLoaded] = useState(false);
 
-  // Check if Gold Hub is public (for non-admins)
+  // Wait for premium status to resolve, then check Gold Hub access
   useEffect(() => {
-    if (isAdmin) { setCheckingAccess(false); return; }
+    if (isPremiumLoading) return;         // Not ready yet
+    if (isAdmin) { setSettingsLoaded(true); return; }
     adminAPI.getSettings()
       .then((data) => {
         const setting = data.settings.find((s: { key: string; value: string }) => s.key === "gold_hub_enabled");
         setGoldPublic(setting?.value === "true");
       })
       .catch(() => setGoldPublic(false))
-      .finally(() => setCheckingAccess(false));
-  }, [isAdmin]);
+      .finally(() => setSettingsLoaded(true));
+  }, [isAdmin, isPremiumLoading]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -358,11 +359,11 @@ export default function GoldPage() {
   }, [timeframe]);
 
   useEffect(() => {
-    if (isAdmin || goldPublic) load();
-  }, [isAdmin, goldPublic, load]);
+    if (settingsLoaded && (isAdmin || goldPublic)) load();
+  }, [settingsLoaded, isAdmin, goldPublic, load]);
 
-  // Still checking access
-  if (checkingAccess) return (
+  // Spinner while premium status or settings are loading
+  if (isPremiumLoading || !settingsLoaded) return (
     <div className="flex items-center justify-center min-h-[50vh]">
       <Loader2 className="w-8 h-8 animate-spin text-amber-400" />
     </div>
