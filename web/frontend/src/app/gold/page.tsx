@@ -730,9 +730,9 @@ export default function GoldPage() {
             <div className="glass-card rounded-xl border border-amber-500/10 p-4">
               <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
                 {([ ["1j","1d"], ["1S","1w"], ["1M","1m"], ["3M","3m"], ["6M","6m"], ["YTD","ytd"] ] as [string,string][])
-                  .filter(([,k]) => perf[k as keyof typeof perf] !== undefined)
+                  .filter(([,k]) => perf[k as keyof typeof perf] != null)
                   .map(([label, key], i) => {
-                    const val = perf[key as keyof typeof perf] as number;
+                    const val = (perf[key as keyof typeof perf] ?? 0) as number;
                     const abs = Math.abs(val);
                     const isPos = val >= 0;
                     return (
@@ -854,12 +854,12 @@ export default function GoldPage() {
                 </h3>
                 <IndicRow
                   label="RSI (14)"
-                  value={indics.rsi.value.toFixed(1)}
+                  value={(indics.rsi.value ?? 0).toFixed(1)}
                   signal={indics.rsi.signal}
                 />
                 <IndicRow
                   label="MACD"
-                  value={indics.macd.histogram.toFixed(2)}
+                  value={(indics.macd.histogram ?? 0).toFixed(2)}
                   signal={indics.macd.signal}
                 />
                 <IndicRow
