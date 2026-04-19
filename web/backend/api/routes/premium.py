@@ -11,7 +11,7 @@ from datetime import datetime, timezone
 
 from ..database import execute_query, execute_write, create_admin_notification
 from .auth import get_current_user
-from .admin import get_admin_user, log_admin_action
+from .admin import get_admin_user, log_admin_action, check_if_admin
 
 router = APIRouter()
 
@@ -261,9 +261,11 @@ async def get_premium_status(current_user: dict = Depends(get_current_user)):
                 "expires": result[0].get("premium_expires"),  # None = lifetime
             }
 
+    is_admin = await check_if_admin(current_user)
+
     return {
         "is_premium": is_premium,
-        "is_admin": current_user.get("is_admin", False),
+        "is_admin": is_admin,
         "limits": limits,
         "premium_info": premium_info,
         "features": {
