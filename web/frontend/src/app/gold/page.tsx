@@ -493,6 +493,79 @@ function formatCatalystTime(ms: number, lang: "fr" | "en"): string {
 }
 
 // ── Gold AI Chat ──────────────────────────────────────────────────────────────
+type TradingStyle = "scalping" | "day" | "swing" | "long";
+
+const STYLE_CONFIG: Record<TradingStyle, {
+  labelFr: string; labelEn: string; icon: string;
+  descFr: string; descEn: string;
+  ctxFr: string; ctxEn: string;
+  suggestedFr: string[]; suggestedEn: string[];
+  activeClass: string; dotClass: string;
+}> = {
+  scalping: {
+    labelFr: "Scalping", labelEn: "Scalping", icon: "⚡",
+    descFr: "1–15 min", descEn: "1–15 min",
+    ctxFr: "Style: SCALPING — Setups ultra-rapides 1-15 min. Priorité aux entrées précises sur breakouts/rebonds, TP/SL serrés, volumes intraday, coûts de spread. Ne discute pas de fondamentaux long terme.",
+    ctxEn: "Style: SCALPING — Ultra-fast 1-15 min setups. Precise breakout/bounce entries, tight TP/SL, intraday volume, spread costs. No long-term fundamentals.",
+    suggestedFr: ["Setup scalp sur GC=F maintenant ?", "Quels niveaux surveiller en 5 min ?", "Momentum et volume actuels ?", "Zone de rebond rapide ?"],
+    suggestedEn: ["Scalp setup on GC=F now?", "Key 5-min levels to watch?", "Current momentum and volume?", "Quick bounce zone?"],
+    activeClass: "border-orange-500/40 bg-orange-500/10 text-orange-300",
+    dotClass: "bg-orange-500",
+  },
+  day: {
+    labelFr: "Day Trading", labelEn: "Day Trading", icon: "📈",
+    descFr: "15 min–1h", descEn: "15 min–1h",
+    ctxFr: "Style: DAY TRADING — Setups 15min-1h, clôture avant fin de séance. VWAP, niveaux d'ouverture, range de séance, dynamique ouverture US/NY. Analyse la journée.",
+    ctxEn: "Style: DAY TRADING — 15min-1h setups, close before session end. VWAP, opening levels, session range, US/NY open dynamics.",
+    suggestedFr: ["Setup day trading aujourd'hui ?", "Niveaux VWAP et range séance ?", "Comment jouer l'ouverture NY ?", "Biais directionnel du jour ?"],
+    suggestedEn: ["Day trading setup today?", "VWAP and session range levels?", "How to play the NY open?", "Today's directional bias?"],
+    activeClass: "border-amber-500/40 bg-amber-500/10 text-amber-300",
+    dotClass: "bg-amber-500",
+  },
+  swing: {
+    labelFr: "Swing", labelEn: "Swing", icon: "🌊",
+    descFr: "4h–1j · 2–10j", descEn: "4h–1d · 2–10d",
+    ctxFr: "Style: SWING TRADING — Positions 2-10 jours. Focus 4h/Daily, patterns techniques (H&S, triangles, flags), macro court terme, catalyseurs à venir (Fed, CPI, NFP). R/R minimum 1:2.",
+    ctxEn: "Style: SWING TRADING — 2-10 day positions. 4h/Daily charts, technical patterns, short-term macro, upcoming catalysts. Minimum R/R 1:2.",
+    suggestedFr: ["Setup swing sur GC=F ?", "Catalyseurs macro cette semaine ?", "Analyse 4h/daily actuelle ?", "Niveaux clés swing ?"],
+    suggestedEn: ["Swing setup on GC=F?", "Macro catalysts this week?", "Current 4h/daily analysis?", "Key swing levels?"],
+    activeClass: "border-blue-500/40 bg-blue-500/10 text-blue-300",
+    dotClass: "bg-blue-500",
+  },
+  long: {
+    labelFr: "Long Terme", labelEn: "Long Term", icon: "🏗️",
+    descFr: "Semaines / mois", descEn: "Weeks / months",
+    ctxFr: "Style: LONG TERME — Investissement semaines/mois. Tendances macro, politique Fed et banques centrales, inflation structurelle, niveaux stratégiques, DCA. Ignore le bruit court terme.",
+    ctxEn: "Style: LONG TERM — Weeks/months investing. Macro trends, Fed and central bank policy, structural inflation, strategic levels, DCA. Ignore short-term noise.",
+    suggestedFr: ["Tendance long terme de l'or ?", "Impact politique Fed sur 6 mois ?", "Niveaux d'accumulation stratégiques ?", "Or vs inflation long terme ?"],
+    suggestedEn: ["Long-term gold trend?", "Fed policy impact over 6 months?", "Strategic accumulation levels?", "Gold vs long-term inflation?"],
+    activeClass: "border-purple-500/40 bg-purple-500/10 text-purple-300",
+    dotClass: "bg-purple-500",
+  },
+};
+
+const AGGRESSION_LABELS: Record<"fr"|"en", string[]> = {
+  fr: ["Très conservateur", "Conservateur", "Modéré", "Agressif", "Très agressif"],
+  en: ["Very conservative", "Conservative", "Moderate", "Aggressive", "Very aggressive"],
+};
+const AGGRESSION_CTX: Record<"fr"|"en", string[]> = {
+  fr: [
+    "Agressivité 1/5 — TRÈS CONSERVATEUR: positions 1-2% du capital, SL large, uniquement setups haute probabilité, aucun levier.",
+    "Agressivité 2/5 — CONSERVATEUR: positions 2-3%, SL approprié, R/R min 1:2, levier max 2x.",
+    "Agressivité 3/5 — MODÉRÉ: positions 3-5%, gestion classique du risque, R/R 1:2 à 1:3, levier 2-5x.",
+    "Agressivité 4/5 — AGRESSIF: positions 5-8%, entrées agressives sur cassures, TP serrés, levier 5-10x possible.",
+    "Agressivité 5/5 — TRÈS AGRESSIF: positions 8-10%, scalp agressif, pyramidage, levier élevé. Risque maximal assumé.",
+  ],
+  en: [
+    "Aggression 1/5 — VERY CONSERVATIVE: 1-2% positions, wide SL, only high-probability setups, no leverage.",
+    "Aggression 2/5 — CONSERVATIVE: 2-3% positions, proper SL, min R/R 1:2, max 2x leverage.",
+    "Aggression 3/5 — MODERATE: 3-5% positions, standard risk management, R/R 1:2 to 1:3, 2-5x leverage.",
+    "Aggression 4/5 — AGGRESSIVE: 5-8% positions, aggressive breakout entries, tight TP, 5-10x leverage possible.",
+    "Aggression 5/5 — VERY AGGRESSIVE: 8-10% positions, aggressive scalp, pyramiding, high leverage. Maximum risk assumed.",
+  ],
+};
+const AGG_COLORS = ["#22c55e", "#84cc16", "#eab308", "#f97316", "#ef4444"];
+
 function GoldAIChat({
   analysis, corrPrices, lang,
 }: {
@@ -503,19 +576,31 @@ function GoldAIChat({
   const [messages, setMessages] = useState<{ role: "user" | "assistant"; content: string }[]>([]);
   const [input, setInput] = useState("");
   const [chatLoading, setChatLoading] = useState(false);
+  const [saved, setSaved] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
 
-  const SUGGESTED = lang === "fr" ? [
-    "Faut-il acheter l'or maintenant ?",
-    "Quel est l'impact d'un CPI élevé sur l'or ?",
-    "Analyse le contexte macro pour l'or",
-    "Comment trader l'or autour de la Fed ?",
-  ] : [
-    "Should I buy gold now?",
-    "What's the impact of a high CPI on gold?",
-    "Analyze the macro context for gold",
-    "How to trade gold around Fed meetings?",
-  ];
+  const [tradingStyle, setTradingStyleState] = useState<TradingStyle>(() =>
+    (typeof window !== "undefined" ? (localStorage.getItem("gold_style") as TradingStyle) : null) ?? "day"
+  );
+  const [aggression, setAggressionState] = useState<number>(() =>
+    typeof window !== "undefined" ? parseInt(localStorage.getItem("gold_aggression") ?? "3") : 3
+  );
+
+  const setTradingStyle = (s: TradingStyle) => {
+    setTradingStyleState(s);
+    localStorage.setItem("gold_style", s);
+    flashSaved();
+    setMessages([]);
+  };
+  const setAggression = (n: number) => {
+    setAggressionState(n);
+    localStorage.setItem("gold_aggression", String(n));
+    flashSaved();
+  };
+  const flashSaved = () => { setSaved(true); setTimeout(() => setSaved(false), 1800); };
+
+  const styleCfg = STYLE_CONFIG[tradingStyle];
+  const suggested = lang === "fr" ? styleCfg.suggestedFr : styleCfg.suggestedEn;
 
   const buildContext = () => {
     if (!analysis) return "Gold analysis not available.";
@@ -528,15 +613,19 @@ function GoldAIChat({
     const vix = corrPrices["^VIX"]?.change ?? 0;
     const dxy = corrPrices["DX-Y.NYB"]?.change ?? 0;
     const tnx = corrPrices["^TNX"]?.change ?? 0;
+    const styleCtx = lang === "fr" ? styleCfg.ctxFr : styleCfg.ctxEn;
+    const aggCtx = AGGRESSION_CTX[lang][aggression - 1];
     return `GOLD HUB — Contexte marché actuel:
 Prix GC=F: $${p.toFixed(2)} (${ch >= 0 ? "+" : ""}${ch.toFixed(2)}%)
 Signal technique: ${sig} (score ${score}/100)
 RSI(14): ${(rsi?.value ?? 0).toFixed(1)} — ${rsi?.signal ?? ""}
 MACD: ${macd?.signal ?? ""}
-VIX: ${vix >= 0 ? "+" : ""}${vix.toFixed(1)}% (${vix > 0.5 ? "peur croissante → or positif" : vix < -0.5 ? "détente → pression sur or" : "stable"})
-DXY (Dollar): ${dxy >= 0 ? "+" : ""}${dxy.toFixed(1)}% (${dxy > 0.3 ? "dollar fort → frein pour l'or" : dxy < -0.3 ? "dollar faible → soutien or" : "neutre"})
-Taux 10 ans US: ${tnx >= 0 ? "+" : ""}${tnx.toFixed(1)}% (${tnx > 0.5 ? "taux en hausse → or sous pression" : tnx < -0.5 ? "taux en baisse → or soutenu" : "stable"})
-Tu es un expert en trading de l'or (Gold, GC=F, XAU/USD). Réponds en ${lang === "fr" ? "français" : "English"}, sois concis et actionnable.`;
+VIX: ${vix >= 0 ? "+" : ""}${vix.toFixed(1)}% | DXY: ${dxy >= 0 ? "+" : ""}${dxy.toFixed(1)}% | TNX: ${tnx >= 0 ? "+" : ""}${tnx.toFixed(1)}%
+---
+${styleCtx}
+${aggCtx}
+---
+Réponds en ${lang === "fr" ? "français" : "English"}, de manière concise et directement actionnab`;
   };
 
   const send = async (msg: string) => {
@@ -549,8 +638,8 @@ Tu es un expert en trading de l'or (Gold, GC=F, XAU/USD). Réponds en ${lang ===
       const res = await aiAPI.chat(userMsg, buildContext());
       setMessages(prev => [...prev, { role: "assistant", content: res.response }]);
     } catch (e: any) {
-      const msg = e?.message ?? (lang === "fr" ? "Erreur — réessayez." : "Error — please retry.");
-      setMessages(prev => [...prev, { role: "assistant", content: msg }]);
+      const errMsg = e?.message ?? (lang === "fr" ? "Erreur — réessayez." : "Error — please retry.");
+      setMessages(prev => [...prev, { role: "assistant", content: errMsg }]);
     } finally {
       setChatLoading(false);
     }
@@ -562,35 +651,122 @@ Tu es un expert en trading de l'or (Gold, GC=F, XAU/USD). Réponds en ${lang ===
 
   return (
     <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.42 }}>
-      <div className="flex items-center gap-2 mb-3">
-        <div className="w-5 h-5 rounded-md bg-amber-500/20 flex items-center justify-center">
-          <Bot className="w-3 h-3 text-amber-400" />
+      {/* Header */}
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <div className="w-5 h-5 rounded-md bg-amber-500/20 flex items-center justify-center">
+            <Bot className="w-3 h-3 text-amber-400" />
+          </div>
+          <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+            {lang === "fr" ? "Gold AI" : "Gold AI"}
+          </h2>
+          <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400/70">
+            {lang === "fr" ? "Contexte live" : "Live context"}
+          </span>
         </div>
-        <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
-          {lang === "fr" ? "Gold AI — Posez vos questions" : "Gold AI — Ask your questions"}
-        </h2>
-        <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400/70">
-          {lang === "fr" ? "Contexte live injecté" : "Live context injected"}
-        </span>
+        <AnimatePresence>
+          {saved && (
+            <motion.span initial={{ opacity: 0, x: 8 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 8 }}
+              className="text-[11px] text-profit flex items-center gap-1">
+              <CheckCircle2 className="w-3 h-3" />
+              {lang === "fr" ? "Préférences sauvegardées" : "Preferences saved"}
+            </motion.span>
+          )}
+        </AnimatePresence>
       </div>
 
-      <div className="rounded-2xl border border-amber-500/20 overflow-hidden"
-        style={{ background: "linear-gradient(160deg, hsl(35 80% 6%) 0%, hsl(220 30% 5%) 100%)" }}>
+      {/* ⚠️ Disclaimer */}
+      <div className="flex items-start gap-2.5 px-3.5 py-2.5 rounded-xl bg-red-500/8 border border-red-500/20 mb-3">
+        <AlertTriangle className="w-4 h-4 text-red-400 flex-shrink-0 mt-0.5" />
+        <p className="text-xs text-red-300/80 leading-relaxed">
+          {lang === "fr"
+            ? "Cet outil est à but éducatif uniquement. Aucun contenu ne constitue un conseil en investissement. Vous tradez à vos risques et périls."
+            : "This tool is for educational purposes only. No content constitutes investment advice. You trade at your own risk."}
+        </p>
+      </div>
 
-        {/* Suggested questions — shown when chat is empty */}
-        <AnimatePresence>
+      <div className="rounded-2xl border border-white/8 overflow-hidden"
+        style={{ background: "linear-gradient(160deg, hsl(35 60% 5%) 0%, hsl(220 30% 4%) 100%)" }}>
+
+        {/* Trading style + aggression settings */}
+        <div className="p-4 border-b border-white/[0.06] space-y-4">
+          {/* Style selector */}
+          <div>
+            <p className="text-[10px] font-semibold text-muted-foreground/50 uppercase tracking-wider mb-2">
+              {lang === "fr" ? "Style de trading" : "Trading style"}
+            </p>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+              {(Object.entries(STYLE_CONFIG) as [TradingStyle, typeof STYLE_CONFIG[TradingStyle]][]).map(([key, cfg]) => (
+                <motion.button key={key}
+                  whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
+                  onClick={() => setTradingStyle(key)}
+                  className={cn(
+                    "flex flex-col items-start gap-0.5 px-3 py-2.5 rounded-xl border text-left transition-all",
+                    tradingStyle === key ? cfg.activeClass : "border-white/8 text-muted-foreground hover:border-white/15 hover:text-foreground/70"
+                  )}>
+                  <span className="text-base leading-none">{cfg.icon}</span>
+                  <span className="text-xs font-semibold mt-1">{lang === "fr" ? cfg.labelFr : cfg.labelEn}</span>
+                  <span className="text-[10px] opacity-60">{lang === "fr" ? cfg.descFr : cfg.descEn}</span>
+                </motion.button>
+              ))}
+            </div>
+          </div>
+
+          {/* Aggression selector */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-[10px] font-semibold text-muted-foreground/50 uppercase tracking-wider">
+                {lang === "fr" ? "Niveau d'agressivité" : "Aggressiveness level"}
+              </p>
+              <span className="text-xs font-bold" style={{ color: AGG_COLORS[aggression - 1] }}>
+                {AGGRESSION_LABELS[lang][aggression - 1]}
+              </span>
+            </div>
+            <div className="flex gap-2">
+              {[1, 2, 3, 4, 5].map(n => (
+                <motion.button key={n}
+                  whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}
+                  onClick={() => setAggression(n)}
+                  className={cn(
+                    "flex-1 h-8 rounded-lg border text-xs font-bold transition-all",
+                    aggression === n
+                      ? "text-black border-transparent"
+                      : "bg-white/4 border-white/8 text-muted-foreground/50 hover:border-white/20"
+                  )}
+                  style={aggression === n ? { background: AGG_COLORS[n - 1] } : {}}>
+                  {n}
+                </motion.button>
+              ))}
+            </div>
+            <p className="text-[10px] text-muted-foreground/35 mt-1.5">
+              {lang === "fr"
+                ? `→ ${["Positions 1–2% · Aucun levier", "Positions 2–3% · Levier ×2 max", "Positions 3–5% · Levier ×2–5", "Positions 5–8% · Levier ×5–10", "Positions 8–10% · Levier élevé"][aggression - 1]}`
+                : `→ ${["1–2% positions · No leverage", "2–3% positions · Max ×2 leverage", "3–5% positions · ×2–5 leverage", "5–8% positions · ×5–10 leverage", "8–10% positions · High leverage"][aggression - 1]}`}
+            </p>
+          </div>
+        </div>
+
+        {/* Suggested questions */}
+        <AnimatePresence mode="wait">
           {messages.length === 0 && (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, height: 0 }}
-              className="p-4 border-b border-white/6">
-              <p className="text-xs text-muted-foreground/50 mb-3 flex items-center gap-1.5">
-                <Zap className="w-3 h-3 text-amber-400/50" />
+            <motion.div key={tradingStyle}
+              initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }}
+              className="p-4 border-b border-white/[0.06]">
+              <p className="text-[10px] text-muted-foreground/40 mb-2.5 flex items-center gap-1.5">
+                <Zap className="w-2.5 h-2.5 text-amber-400/50" />
                 {lang === "fr" ? "Questions suggérées" : "Suggested questions"}
               </p>
               <div className="flex flex-wrap gap-2">
-                {SUGGESTED.map((q) => (
-                  <motion.button key={q} whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
+                {suggested.map((q) => (
+                  <motion.button key={q} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
                     onClick={() => send(q)}
-                    className="text-xs px-3 py-1.5 rounded-full bg-amber-500/8 border border-amber-500/18 text-amber-300/70 hover:bg-amber-500/18 hover:text-amber-300 hover:border-amber-500/30 transition-all">
+                    className={cn(
+                      "text-xs px-3 py-1.5 rounded-full border transition-all",
+                      tradingStyle === "scalping" ? "bg-orange-500/8 border-orange-500/20 text-orange-300/70 hover:bg-orange-500/15 hover:text-orange-300"
+                      : tradingStyle === "swing"   ? "bg-blue-500/8 border-blue-500/20 text-blue-300/70 hover:bg-blue-500/15 hover:text-blue-300"
+                      : tradingStyle === "long"    ? "bg-purple-500/8 border-purple-500/20 text-purple-300/70 hover:bg-purple-500/15 hover:text-purple-300"
+                      :                             "bg-amber-500/8 border-amber-500/20 text-amber-300/70 hover:bg-amber-500/15 hover:text-amber-300"
+                    )}>
                     {q}
                   </motion.button>
                 ))}
@@ -612,7 +788,7 @@ Tu es un expert en trading de l'or (Gold, GC=F, XAU/USD). Réponds en ${lang ===
                   </div>
                 )}
                 <div className={cn(
-                  "max-w-[82%] px-3.5 py-2.5 rounded-2xl text-sm leading-relaxed",
+                  "max-w-[82%] px-3.5 py-2.5 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap",
                   m.role === "user"
                     ? "bg-amber-500/15 border border-amber-500/20 text-amber-100 rounded-tr-sm"
                     : "bg-white/5 border border-white/8 text-foreground/90 rounded-tl-sm"
@@ -641,7 +817,7 @@ Tu es un expert en trading de l'or (Gold, GC=F, XAU/USD). Réponds en ${lang ===
         )}
 
         {/* Input bar */}
-        <div className={cn("p-3 flex gap-2 bg-black/15", messages.length > 0 && "border-t border-white/[0.06]")}>
+        <div className={cn("p-3 flex gap-2 bg-black/20", messages.length > 0 && "border-t border-white/[0.06]")}>
           {messages.length > 0 && (
             <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
               onClick={() => setMessages([])}
@@ -652,7 +828,11 @@ Tu es un expert en trading de l'or (Gold, GC=F, XAU/USD). Réponds en ${lang ===
           <input
             value={input} onChange={e => setInput(e.target.value)}
             onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(input); } }}
-            placeholder={lang === "fr" ? "Posez une question sur l'or..." : "Ask a question about gold..."}
+            placeholder={
+              lang === "fr"
+                ? `Question ${tradingStyle === "scalping" ? "scalp" : tradingStyle === "day" ? "day trading" : tradingStyle === "swing" ? "swing" : "long terme"}...`
+                : `${tradingStyle === "scalping" ? "Scalp" : tradingStyle === "day" ? "Day trading" : tradingStyle === "swing" ? "Swing" : "Long term"} question...`
+            }
             className="flex-1 bg-black/25 border border-white/[0.07] rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-amber-500/30 placeholder:text-muted-foreground/25 text-foreground/90 transition-colors"
           />
           <motion.button
