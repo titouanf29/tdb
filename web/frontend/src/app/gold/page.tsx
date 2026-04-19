@@ -5,30 +5,15 @@ import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import dynamic from "next/dynamic";
 import {
-  Gem,
-  TrendingUp,
-  TrendingDown,
-  Minus,
-  RefreshCw,
-  Lock,
-  ArrowRight,
-  Newspaper,
-  ExternalLink,
-  BookOpen,
-  Zap,
-  Shield,
-  BarChart2,
-  Loader2,
-  ChevronRight,
-  AlertTriangle,
-  Target,
-  Activity,
+  Gem, TrendingUp, TrendingDown, Minus, RefreshCw, Lock, ArrowRight,
+  Newspaper, ExternalLink, BookOpen, Zap, Shield, BarChart2, Loader2,
+  AlertTriangle, Activity, Circle, X, DollarSign, CheckCircle2,
 } from "lucide-react";
-import { cn, formatPercent } from "@/lib/utils";
-import { analysisAPI, marketAPI, aiAPI, adminAPI, Analysis } from "@/lib/api";
+import { cn } from "@/lib/utils";
+import { analysisAPI, marketAPI, aiAPI, adminAPI, walletAPI, Analysis } from "@/lib/api";
 import { usePremium } from "@/lib/PremiumContext";
 import { useLanguage } from "@/lib/LanguageContext";
-import { useFormatPrice, useSettings } from "@/lib/SettingsContext";
+import { useFormatPrice } from "@/lib/SettingsContext";
 import { TopLoadingBar } from "@/components/ui/TopLoadingBar";
 
 const PremiumChart = dynamic(() => import("@/components/PremiumChart"), {
@@ -308,6 +293,180 @@ function IndicRow({ label, value, signal }: { label: string; value: string; sign
   );
 }
 
+// ── COMEX market status ───────────────────────────────────────────────────────
+function getCOMEXStatus(): { status: "open" | "closed" | "break"; labelFr: string; labelEn: string } {
+  const now = new Date();
+  const month = now.getUTCMonth() + 1;
+  const etOffset = (month >= 3 && month <= 11) ? -4 : -5;
+  const et = new Date(now.getTime() + now.getTimezoneOffset() * 60000 + etOffset * 3600000);
+  const day = et.getDay();
+  const min = et.getHours() * 60 + et.getMinutes();
+  if (day === 6) return { status: "closed", labelFr: "Fermé — ouvre dimanche 18h ET", labelEn: "Closed — opens Sunday 6 PM ET" };
+  if (day === 0 && min < 18 * 60) return { status: "closed", labelFr: "Fermé — ouvre ce soir 18h ET", labelEn: "Closed — opens tonight 6 PM ET" };
+  if (day === 5 && min >= 17 * 60) return { status: "closed", labelFr: "Fermé — ouvre dimanche 18h ET", labelEn: "Closed — opens Sunday 6 PM ET" };
+  if (min >= 17 * 60 && min < 18 * 60) return { status: "break", labelFr: "Pause maintenance 17h–18h ET", labelEn: "Maintenance break 5–6 PM ET" };
+  return { status: "open", labelFr: "COMEX ouvert", labelEn: "COMEX open" };
+}
+
+// ── Trading modal ─────────────────────────────────────────────────────────────
+function TradingModal({
+  direction, price, risk, onClose, formatPrice, lang,
+}: {
+  direction: "LONG" | "SHORT";
+  price: number;
+  risk: { suggested_tp: number; suggested_sl: number } | undefined;
+  onClose: () => void;
+  formatPrice: (v: number, sym: string) => string;
+  lang: "fr" | "en";
+}) {
+  const [amount, setAmount]     = useState("100");
+  const [leverage, setLeverage] = useState(1);
+  const [tp, setTp]             = useState(risk?.suggested_tp?.toFixed(2) ?? "");
+  const [sl, setSl]             = useState(risk?.suggested_sl?.toFixed(2) ?? "");
+  const [loading, setLoading]   = useState(false);
+  const [success, setSuccess]   = useState<string | null>(null);
+  const [error, setError]       = useState<string | null>(null);
+  const [balance, setBalance]   = useState<number | null>(null);
+
+  useEffect(() => {
+    walletAPI.getBalance().then(b => setBalance(b.balance)).catch(() => {});
+  }, []);
+
+  const isLong = direction === "LONG";
+  const qty = price > 0 ? (parseFloat(amount) * leverage) / price : 0;
+
+  const submit = async () => {
+    setLoading(true); setError(null);
+    try {
+      const res = await walletAPI.openPosition({
+        symbol: "GC=F", direction,
+        amount: parseFloat(amount),
+        leverage,
+        take_profit: tp ? parseFloat(tp) : undefined,
+        stop_loss:   sl ? parseFloat(sl) : undefined,
+      });
+      setSuccess(lang === "fr"
+        ? `Position ouverte à ${formatPrice(res.entry_price ?? price, "GC=F")}`
+        : `Position opened at ${formatPrice(res.entry_price ?? price, "GC=F")}`);
+    } catch (e: any) {
+      setError(e?.message ?? (lang === "fr" ? "Erreur lors de l'ouverture" : "Failed to open position"));
+    } finally { setLoading(false); }
+  };
+
+  return (
+    <AnimatePresence>
+      <motion.div
+        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+        className="fixed inset-0 z-50 flex items-center justify-center p-4"
+        style={{ background: "rgba(0,0,0,0.75)", backdropFilter: "blur(6px)" }}
+        onClick={onClose}
+      >
+        <motion.div
+          initial={{ scale: 0.92, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.92, y: 20 }}
+          transition={{ type: "spring", stiffness: 300, damping: 25 }}
+          onClick={e => e.stopPropagation()}
+          className={cn(
+            "w-full max-w-md rounded-2xl p-6 space-y-5 border relative",
+            isLong ? "bg-gradient-to-b from-amber-950/60 to-card/95 border-amber-500/30"
+                   : "bg-gradient-to-b from-blue-950/60 to-card/95 border-blue-500/30"
+          )}
+        >
+          <button onClick={onClose} className="absolute top-4 right-4 text-muted-foreground hover:text-foreground"><X className="w-5 h-5"/></button>
+
+          {/* Header */}
+          <div className="flex items-center gap-3">
+            <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center border",
+              isLong ? "bg-amber-500/15 border-amber-500/30" : "bg-blue-500/15 border-blue-500/30")}>
+              {isLong ? <TrendingUp className="w-5 h-5 text-amber-400"/> : <TrendingDown className="w-5 h-5 text-blue-400"/>}
+            </div>
+            <div>
+              <h3 className="font-bold text-lg">{direction} · XAU/USD</h3>
+              <p className="text-sm text-muted-foreground">{formatPrice(price, "GC=F")} · {lang === "fr" ? "Paper trading" : "Paper trading"}</p>
+            </div>
+          </div>
+
+          {success ? (
+            <motion.div initial={{scale:0.9}} animate={{scale:1}} className="text-center py-6 space-y-3">
+              <CheckCircle2 className="w-12 h-12 text-profit mx-auto"/>
+              <p className="font-semibold text-profit">{success}</p>
+              <button onClick={onClose} className="px-6 py-2 rounded-xl bg-white/10 hover:bg-white/15 text-sm transition-all">
+                {lang === "fr" ? "Fermer" : "Close"}
+              </button>
+            </motion.div>
+          ) : (
+            <>
+              {balance !== null && (
+                <div className="flex items-center justify-between text-sm px-3 py-2 rounded-lg bg-white/4 border border-white/8">
+                  <span className="text-muted-foreground">{lang === "fr" ? "Solde disponible" : "Available balance"}</span>
+                  <span className="font-bold">${balance.toFixed(2)}</span>
+                </div>
+              )}
+
+              {/* Amount */}
+              <div>
+                <label className="text-xs text-muted-foreground mb-1.5 block">{lang === "fr" ? "Montant ($)" : "Amount ($)"}</label>
+                <input type="number" value={amount} onChange={e => setAmount(e.target.value)} min="1"
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-amber-500/50"/>
+              </div>
+
+              {/* Leverage */}
+              <div>
+                <div className="flex justify-between text-xs text-muted-foreground mb-1.5">
+                  <span>{lang === "fr" ? "Levier" : "Leverage"}</span>
+                  <span className={cn("font-bold", isLong ? "text-amber-400" : "text-blue-400")}>{leverage}×</span>
+                </div>
+                <input type="range" min="1" max="20" value={leverage} onChange={e => setLeverage(Number(e.target.value))}
+                  className="w-full accent-amber-500 h-1.5"/>
+                <div className="flex justify-between text-[10px] text-muted-foreground/50 mt-1"><span>1×</span><span>20×</span></div>
+              </div>
+
+              {/* Qty estimate */}
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div className="px-3 py-2 rounded-lg bg-white/4 border border-white/8">
+                  <p className="text-muted-foreground mb-0.5">{lang === "fr" ? "Exposition" : "Exposure"}</p>
+                  <p className="font-bold">${(parseFloat(amount||"0") * leverage).toFixed(0)}</p>
+                </div>
+                <div className="px-3 py-2 rounded-lg bg-white/4 border border-white/8">
+                  <p className="text-muted-foreground mb-0.5">{lang === "fr" ? "Qté (oz)" : "Qty (oz)"}</p>
+                  <p className="font-bold">{qty.toFixed(4)}</p>
+                </div>
+              </div>
+
+              {/* TP / SL */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs text-profit mb-1.5 block">TP {lang === "fr" ? "(optionnel)" : "(optional)"}</label>
+                  <input type="number" value={tp} onChange={e => setTp(e.target.value)} placeholder="—"
+                    className="w-full bg-profit/5 border border-profit/20 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-profit/50"/>
+                </div>
+                <div>
+                  <label className="text-xs text-loss mb-1.5 block">SL {lang === "fr" ? "(optionnel)" : "(optional)"}</label>
+                  <input type="number" value={sl} onChange={e => setSl(e.target.value)} placeholder="—"
+                    className="w-full bg-loss/5 border border-loss/20 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-loss/50"/>
+                </div>
+              </div>
+
+              {error && <p className="text-xs text-loss bg-loss/10 border border-loss/20 rounded-lg px-3 py-2">{error}</p>}
+
+              <button onClick={submit} disabled={loading || !amount || parseFloat(amount) <= 0}
+                className={cn("w-full py-3 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2",
+                  isLong ? "bg-amber-500 hover:bg-amber-400 text-black" : "bg-blue-600 hover:bg-blue-500 text-white",
+                  (loading || !amount) && "opacity-50 cursor-not-allowed")}>
+                {loading ? <Loader2 className="w-4 h-4 animate-spin"/> : isLong ? <TrendingUp className="w-4 h-4"/> : <TrendingDown className="w-4 h-4"/>}
+                {loading ? (lang === "fr" ? "Ouverture..." : "Opening...") : `${direction} · ${leverage}× · $${amount}`}
+              </button>
+
+              <p className="text-[10px] text-muted-foreground/40 text-center">
+                {lang === "fr" ? "Simulation uniquement — aucun argent réel." : "Simulation only — no real money."}
+              </p>
+            </>
+          )}
+        </motion.div>
+      </motion.div>
+    </AnimatePresence>
+  );
+}
+
 // ── Main page ─────────────────────────────────────────────────────────────────
 export default function GoldPage() {
   const { isAdmin, isLoading: isPremiumLoading } = usePremium();
@@ -315,6 +474,7 @@ export default function GoldPage() {
   const formatPrice = useFormatPrice();
   const router = useRouter();
 
+  const [tradeDir, setTradeDir]      = useState<"LONG" | "SHORT" | null>(null);
   const [analysis, setAnalysis]     = useState<Analysis | null>(null);
   const [corrPrices, setCorrPrices]  = useState<Record<string, { price: number; change: number }>>({});
   const [news, setNews]              = useState<{ title: string; publisher?: string; link?: string; timestamp?: number }[]>([]);
@@ -380,12 +540,27 @@ export default function GoldPage() {
   const risk     = analysis?.risk;
   const indics   = analysis?.indicators;
   const isUp     = change >= 0;
+  const comex    = getCOMEXStatus();
+  const newsItems = [
+    ...(analysis?.news ?? []).map(n => ({ title: n.title ?? "", publisher: n.publisher, link: n.link, date: n.date })),
+    ...news.filter(n => !(analysis?.news ?? []).some(a => a.title === n.title)),
+  ].filter(n => n.title).slice(0, 8);
 
   const TIMEFRAMES = ["1h", "1d", "1w", "1mo", "3mo"];
 
   return (
     <>
       <TopLoadingBar isLoading={loading} />
+      {tradeDir && (
+        <TradingModal
+          direction={tradeDir}
+          price={price}
+          risk={risk}
+          onClose={() => setTradeDir(null)}
+          formatPrice={formatPrice}
+          lang={lang}
+        />
+      )}
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -408,10 +583,20 @@ export default function GoldPage() {
                   <Gem className="w-7 h-7 text-amber-400" />
                 </div>
                 <div>
-                  <div className="flex items-center gap-2 mb-1">
+                  <div className="flex items-center gap-2 mb-1 flex-wrap">
                     <h1 className="text-2xl font-bold text-amber-400">Gold Hub</h1>
                     <span className="text-xs px-2 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/25 text-amber-400/80 font-medium">
                       XAU/USD · GC=F
+                    </span>
+                    <span className={cn(
+                      "flex items-center gap-1.5 text-xs px-2.5 py-0.5 rounded-full font-medium border",
+                      comex.status === "open"   ? "bg-profit/15 border-profit/30 text-profit"
+                      : comex.status === "break" ? "bg-yellow-500/15 border-yellow-500/30 text-yellow-400"
+                      :                            "bg-loss/15 border-loss/30 text-loss"
+                    )}>
+                      <Circle className={cn("w-1.5 h-1.5 fill-current",
+                        comex.status === "open" && "animate-pulse")} />
+                      {lang === "fr" ? comex.labelFr : comex.labelEn}
                     </span>
                   </div>
                   {loading ? (
@@ -606,14 +791,14 @@ export default function GoldPage() {
               )}
               <div className="grid grid-cols-2 gap-2">
                 <button
-                  onClick={() => router.push("/trading?symbol=GC%3DF&direction=LONG")}
+                  onClick={() => setTradeDir("LONG")}
                   className="flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-amber-500/80 hover:bg-amber-500 text-black font-bold text-sm transition-all"
                 >
                   <TrendingUp className="w-4 h-4" />
                   LONG
                 </button>
                 <button
-                  onClick={() => router.push("/trading?symbol=GC%3DF&direction=SHORT")}
+                  onClick={() => setTradeDir("SHORT")}
                   className="flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-blue-500/20 hover:bg-blue-500/30 border border-blue-500/30 text-blue-300 font-bold text-sm transition-all"
                 >
                   <TrendingDown className="w-4 h-4" />
@@ -640,29 +825,42 @@ export default function GoldPage() {
 
           {loading ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-              {[...Array(3)].map((_, i) => (
+              {[...Array(6)].map((_, i) => (
                 <div key={i} className="h-28 bg-white/3 animate-pulse rounded-xl border border-white/6" />
               ))}
             </div>
-          ) : news.length > 0 ? (
+          ) : newsItems.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-              {news.map((item, i) => (
+              {newsItems.map((item, i) => (
                 <motion.a
                   key={i}
-                  href={item.link ?? "#"}
-                  target="_blank"
+                  href={item.link && item.link !== "#" ? item.link : undefined}
+                  target={item.link && item.link !== "#" ? "_blank" : undefined}
                   rel="noopener noreferrer"
                   initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: i * 0.05 }}
-                  className="glass-card p-4 rounded-xl border border-white/6 hover:border-amber-500/20 transition-all group block"
+                  transition={{ delay: i * 0.04 }}
+                  className={cn(
+                    "glass-card p-4 rounded-xl border border-white/6 transition-all group flex flex-col justify-between",
+                    item.link && item.link !== "#" ? "hover:border-amber-500/25 cursor-pointer" : "cursor-default"
+                  )}
                 >
-                  <p className="text-sm font-medium text-foreground/90 group-hover:text-amber-300 transition-colors leading-snug line-clamp-3">
-                    {item.title}
-                  </p>
-                  <div className="flex items-center justify-between mt-3">
-                    <span className="text-[11px] text-muted-foreground/50">{item.publisher}</span>
-                    <ExternalLink className="w-3 h-3 text-muted-foreground/30 group-hover:text-amber-400/50 transition-colors" />
+                  <div>
+                    <p className="text-sm font-medium text-foreground/90 group-hover:text-amber-300 transition-colors leading-snug line-clamp-3 mb-3">
+                      {item.title}
+                    </p>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="w-1.5 h-1.5 rounded-full bg-amber-500/60" />
+                      <span className="text-[11px] text-muted-foreground/60">{item.publisher ?? "Gold news"}</span>
+                    </div>
+                    {item.link && item.link !== "#" && (
+                      <span className="flex items-center gap-1 text-[11px] text-amber-400/50 group-hover:text-amber-400 transition-colors font-medium">
+                        {lang === "fr" ? "Lire" : "Read"}
+                        <ExternalLink className="w-3 h-3" />
+                      </span>
+                    )}
                   </div>
                 </motion.a>
               ))}
