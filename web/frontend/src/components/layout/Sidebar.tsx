@@ -24,6 +24,7 @@ import {
   Briefcase,
   Scale,
   X,
+  Gem,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -36,6 +37,7 @@ const MENU_GROUPS = [
     items: [
       { icon: LayoutDashboard, labelKey: "nav_dashboard", href: "/dashboard" },
       { icon: Globe,           labelKey: "nav_markets",   href: "/markets" },
+      { icon: Gem,             labelKey: "nav_gold_hub",  href: "/gold" },
       { icon: BarChart3,       labelKey: "nav_analysis",  href: "/analysis" },
       { icon: ScanLine,        labelKey: "nav_scanner",   href: "/scanner" },
     ],
