@@ -24,9 +24,29 @@ limiter = Limiter(key_func=get_remote_address)
 GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
 MODEL = "llama-3.3-70b-versatile"
 
+# Mistral fallback
+MISTRAL_API_URL = "https://api.mistral.ai/v1/chat/completions"
+MISTRAL_MODEL = "mistral-small-latest"
+
 def get_groq_api_key():
     """Get Groq API key from environment"""
     return os.getenv("GROQ_API_KEY", "")
+
+def get_mistral_api_key():
+    return os.getenv("MISTRAL_API_KEY", "")
+
+async def _call_mistral(messages: list, client: httpx.AsyncClient) -> str:
+    key = get_mistral_api_key()
+    if not key:
+        raise HTTPException(status_code=429, detail="Limite IA atteinte. Reessayez dans quelques secondes.")
+    resp = await client.post(
+        MISTRAL_API_URL,
+        headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
+        json={"model": MISTRAL_MODEL, "messages": messages, "temperature": 0.7, "max_tokens": 1024}
+    )
+    if resp.status_code != 200:
+        raise HTTPException(status_code=429, detail="Limite IA atteinte. Reessayez dans quelques secondes.")
+    return resp.json()["choices"][0]["message"]["content"]
 
 # System prompt for trading assistant
 SYSTEM_PROMPT = """Tu es TDB Assistant, un expert en trading et analyse financière avec 20 ans d'expérience sur les marchés.
@@ -342,17 +362,17 @@ async def chat_with_assistant(
                 }
             )
 
-            if response.status_code != 200:
-                print(f"[AI] Groq API error {response.status_code}: {response.text[:200]}")
-                if response.status_code == 401:
-                    raise HTTPException(status_code=503, detail="Cle API Groq invalide. Verifiez GROQ_API_KEY.")
-                elif response.status_code == 429:
-                    raise HTTPException(status_code=429, detail="Limite Groq atteinte. Reessayez dans quelques secondes.")
-                else:
-                    raise HTTPException(status_code=502, detail=f"Erreur IA ({response.status_code}): {response.text[:200]}")
-
-            data = response.json()
-            assistant_message = data["choices"][0]["message"]["content"]
+            if response.status_code == 401:
+                raise HTTPException(status_code=503, detail="Cle API Groq invalide. Verifiez GROQ_API_KEY.")
+            elif response.status_code == 429:
+                # Groq rate-limited → fallback to Mistral
+                print("[AI] Groq rate-limited, falling back to Mistral")
+                assistant_message = await _call_mistral(messages, client)
+            elif response.status_code != 200:
+                raise HTTPException(status_code=502, detail=f"Erreur IA ({response.status_code}): {response.text[:200]}")
+            else:
+                data = response.json()
+                assistant_message = data["choices"][0]["message"]["content"]
 
             # Save messages to history
             now = datetime.now(timezone.utc).isoformat()
@@ -367,10 +387,7 @@ async def chat_with_assistant(
                 (user_id, assistant_message, now)
             )
 
-            return ChatResponse(
-                response=assistant_message,
-                usage=data.get("usage")
-            )
+            return ChatResponse(response=assistant_message)
 
     except HTTPException:
         raise

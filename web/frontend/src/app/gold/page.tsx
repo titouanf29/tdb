@@ -619,11 +619,15 @@ const AGGRESSION_CTX: Record<"fr"|"en", string[]> = {
 const AGG_COLORS = ["#22c55e", "#84cc16", "#eab308", "#f97316", "#ef4444"];
 
 function GoldAIChat({
-  analysis, corrPrices, lang,
+  analysis, corrPrices, lang, tradingStyle, setTradingStyle, aggression, setAggression,
 }: {
   analysis: Analysis | null;
   corrPrices: Record<string, { price: number; change: number }>;
   lang: "fr" | "en";
+  tradingStyle: TradingStyle;
+  setTradingStyle: (s: TradingStyle) => void;
+  aggression: number;
+  setAggression: (n: number) => void;
 }) {
   const [messages, setMessages] = useState<{ role: "user" | "assistant"; content: string }[]>([]);
   const [input, setInput] = useState("");
@@ -631,25 +635,15 @@ function GoldAIChat({
   const [saved, setSaved] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
 
-  const [tradingStyle, setTradingStyleState] = useState<TradingStyle>(() =>
-    (typeof window !== "undefined" ? (localStorage.getItem("gold_style") as TradingStyle) : null) ?? "day"
-  );
-  const [aggression, setAggressionState] = useState<number>(() =>
-    typeof window !== "undefined" ? parseInt(localStorage.getItem("gold_aggression") ?? "3") : 3
-  );
-
-  const setTradingStyle = (s: TradingStyle) => {
-    setTradingStyleState(s);
-    localStorage.setItem("gold_style", s);
-    flashSaved();
+  const wrappedSetStyle = (s: TradingStyle) => {
+    setTradingStyle(s);
     setMessages([]);
+    setSaved(true); setTimeout(() => setSaved(false), 1800);
   };
-  const setAggression = (n: number) => {
-    setAggressionState(n);
-    localStorage.setItem("gold_aggression", String(n));
-    flashSaved();
+  const wrappedSetAggression = (n: number) => {
+    setAggression(n);
+    setSaved(true); setTimeout(() => setSaved(false), 1800);
   };
-  const flashSaved = () => { setSaved(true); setTimeout(() => setSaved(false), 1800); };
 
   const styleCfg = STYLE_CONFIG[tradingStyle];
   const suggested = lang === "fr" ? styleCfg.suggestedFr : styleCfg.suggestedEn;
@@ -751,7 +745,7 @@ Réponds en ${lang === "fr" ? "français" : "English"}, de manière concise et d
               {(Object.entries(STYLE_CONFIG) as [TradingStyle, typeof STYLE_CONFIG[TradingStyle]][]).map(([key, cfg]) => (
                 <motion.button key={key}
                   whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
-                  onClick={() => setTradingStyle(key)}
+                  onClick={() => wrappedSetStyle(key)}
                   className={cn(
                     "flex flex-col items-start gap-0.5 px-3 py-2.5 rounded-xl border text-left transition-all",
                     tradingStyle === key ? cfg.activeClass : "border-white/8 text-muted-foreground hover:border-white/15 hover:text-foreground/70"
@@ -778,7 +772,7 @@ Réponds en ${lang === "fr" ? "français" : "English"}, de manière concise et d
               {[1, 2, 3, 4, 5].map(n => (
                 <motion.button key={n}
                   whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}
-                  onClick={() => setAggression(n)}
+                  onClick={() => wrappedSetAggression(n)}
                   className={cn(
                     "flex-1 h-8 rounded-lg border text-xs font-bold transition-all",
                     aggression === n
@@ -977,11 +971,40 @@ export default function GoldPage() {
       setGoldPositions((res.positions ?? []).filter(p => p.symbol === "GC=F"));
     } catch { setGoldPositions([]); }
   }, []);
+
+  // ── Global trading profile (persisted) ────────────────────────────────────
+  const STYLE_TF_MAP: Record<TradingStyle, string> = { scalping: "1h", day: "4h", swing: "1d", long: "1w" };
+
+  const [tradingStyle, setTradingStyleRaw] = useState<TradingStyle>(() =>
+    (typeof window !== "undefined" ? (localStorage.getItem("gold_style") as TradingStyle) : null) ?? "day"
+  );
+  const [aggression, setAggressionRaw] = useState<number>(() =>
+    typeof window !== "undefined" ? parseInt(localStorage.getItem("gold_aggression") ?? "3") : 3
+  );
+  const [profileSaved, setProfileSaved] = useState(false);
+
+  const setTradingStyle = (s: TradingStyle) => {
+    setTradingStyleRaw(s);
+    localStorage.setItem("gold_style", s);
+    setTimeframe(STYLE_TF_MAP[s]);
+    setProfileSaved(true);
+    setTimeout(() => setProfileSaved(false), 1800);
+  };
+  const setAggression = (n: number) => {
+    setAggressionRaw(n);
+    localStorage.setItem("gold_aggression", String(n));
+    setProfileSaved(true);
+    setTimeout(() => setProfileSaved(false), 1800);
+  };
+  // ──────────────────────────────────────────────────────────────────────────
+
   const [analysis, setAnalysis]     = useState<Analysis | null>(null);
   const [corrPrices, setCorrPrices]  = useState<Record<string, { price: number; change: number }>>({});
   const [news, setNews]              = useState<{ title: string; publisher?: string; link?: string; timestamp?: number }[]>([]);
   const [loading, setLoading]        = useState(true);
-  const [timeframe, setTimeframe]    = useState("1d");
+  const [timeframe, setTimeframe]    = useState(() => STYLE_TF_MAP[
+    (typeof window !== "undefined" ? (localStorage.getItem("gold_style") as TradingStyle) : null) ?? "day"
+  ]);
   const [goldPublic, setGoldPublic]      = useState(false);
   const [settingsLoaded, setSettingsLoaded] = useState(false);
   const [tfData, setTfData]              = useState<Record<string, Analysis | null>>({});
@@ -1232,6 +1255,67 @@ export default function GoldPage() {
                 ))}
               </div>
             )}
+          </div>
+        </motion.div>
+
+        {/* ── Trading profile (global) ─────────────────────────────────── */}
+        <motion.div initial={{ opacity:0, y:8 }} animate={{ opacity:1, y:0 }} transition={{ delay:0.06 }}>
+          <div className="glass-card rounded-2xl border border-white/8 px-4 py-3 flex flex-col sm:flex-row sm:items-center gap-4">
+            {/* Left label + saved toast */}
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <span className="text-xs font-bold text-muted-foreground/60 uppercase tracking-widest whitespace-nowrap">
+                {lang === "fr" ? "Profil trading" : "Trading profile"}
+              </span>
+              <AnimatePresence>
+                {profileSaved && (
+                  <motion.span initial={{ opacity:0, x:6 }} animate={{ opacity:1, x:0 }} exit={{ opacity:0, x:6 }}
+                    className="text-[10px] text-profit flex items-center gap-1">
+                    <CheckCircle2 className="w-3 h-3"/>
+                    {lang === "fr" ? "Sauvegardé" : "Saved"}
+                  </motion.span>
+                )}
+              </AnimatePresence>
+            </div>
+
+            {/* Style pills */}
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {(Object.entries(STYLE_CONFIG) as [TradingStyle, typeof STYLE_CONFIG[TradingStyle]][]).map(([key, cfg]) => (
+                <motion.button key={key} whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.96 }}
+                  onClick={() => setTradingStyle(key)}
+                  className={cn(
+                    "flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-semibold transition-all",
+                    tradingStyle === key ? cfg.activeClass : "border-white/8 text-muted-foreground/50 hover:border-white/15 hover:text-foreground/70"
+                  )}>
+                  <span className="text-sm leading-none">{cfg.icon}</span>
+                  {lang === "fr" ? cfg.labelFr : cfg.labelEn}
+                </motion.button>
+              ))}
+            </div>
+
+            {/* Divider */}
+            <div className="hidden sm:block w-px h-5 bg-white/10 flex-shrink-0"/>
+
+            {/* Aggression dots */}
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] text-muted-foreground/40 uppercase tracking-wider whitespace-nowrap flex-shrink-0">
+                {lang === "fr" ? "Agressivité" : "Aggression"}
+              </span>
+              <div className="flex gap-1.5">
+                {[1, 2, 3, 4, 5].map(n => (
+                  <motion.button key={n} whileHover={{ scale: 1.15 }} whileTap={{ scale: 0.9 }}
+                    onClick={() => setAggression(n)}
+                    className="w-6 h-6 rounded-lg border text-[10px] font-bold transition-all"
+                    style={aggression === n
+                      ? { background: AGG_COLORS[n - 1], borderColor: "transparent", color: "#000" }
+                      : { background: "transparent", borderColor: "rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.3)" }}>
+                    {n}
+                  </motion.button>
+                ))}
+              </div>
+              <span className="text-[10px] font-medium" style={{ color: AGG_COLORS[aggression - 1] }}>
+                {AGGRESSION_LABELS[lang][aggression - 1]}
+              </span>
+            </div>
           </div>
         </motion.div>
 
@@ -1684,7 +1768,11 @@ export default function GoldPage() {
         </motion.div>
 
         {/* ── Gold AI Chat ──────────────────────────────────────────────── */}
-        <GoldAIChat analysis={analysis} corrPrices={corrPrices} lang={lang} />
+        <GoldAIChat
+          analysis={analysis} corrPrices={corrPrices} lang={lang}
+          tradingStyle={tradingStyle} setTradingStyle={setTradingStyle}
+          aggression={aggression} setAggression={setAggression}
+        />
 
         {/* ── News ─────────────────────────────────────────────────────── */}
         <motion.div initial={{ opacity:0, y:12 }} animate={{ opacity:1, y:0 }} transition={{ delay:0.3 }}>
