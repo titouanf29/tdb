@@ -619,31 +619,18 @@ const AGGRESSION_CTX: Record<"fr"|"en", string[]> = {
 const AGG_COLORS = ["#22c55e", "#84cc16", "#eab308", "#f97316", "#ef4444"];
 
 function GoldAIChat({
-  analysis, corrPrices, lang, tradingStyle, setTradingStyle, aggression, setAggression,
+  analysis, corrPrices, lang, tradingStyle, aggression,
 }: {
   analysis: Analysis | null;
   corrPrices: Record<string, { price: number; change: number }>;
   lang: "fr" | "en";
   tradingStyle: TradingStyle;
-  setTradingStyle: (s: TradingStyle) => void;
   aggression: number;
-  setAggression: (n: number) => void;
 }) {
   const [messages, setMessages] = useState<{ role: "user" | "assistant"; content: string }[]>([]);
   const [input, setInput] = useState("");
   const [chatLoading, setChatLoading] = useState(false);
-  const [saved, setSaved] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
-
-  const wrappedSetStyle = (s: TradingStyle) => {
-    setTradingStyle(s);
-    setMessages([]);
-    setSaved(true); setTimeout(() => setSaved(false), 1800);
-  };
-  const wrappedSetAggression = (n: number) => {
-    setAggression(n);
-    setSaved(true); setTimeout(() => setSaved(false), 1800);
-  };
 
   const styleCfg = STYLE_CONFIG[tradingStyle];
   const suggested = lang === "fr" ? styleCfg.suggestedFr : styleCfg.suggestedEn;
@@ -710,15 +697,12 @@ Réponds en ${lang === "fr" ? "français" : "English"}, de manière concise et d
             {lang === "fr" ? "Contexte live" : "Live context"}
           </span>
         </div>
-        <AnimatePresence>
-          {saved && (
-            <motion.span initial={{ opacity: 0, x: 8 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 8 }}
-              className="text-[11px] text-profit flex items-center gap-1">
-              <CheckCircle2 className="w-3 h-3" />
-              {lang === "fr" ? "Préférences sauvegardées" : "Preferences saved"}
-            </motion.span>
-          )}
-        </AnimatePresence>
+        <span className="text-[11px] text-muted-foreground/50 flex items-center gap-1.5">
+          {STYLE_CONFIG[tradingStyle].icon}
+          <span>{lang === "fr" ? STYLE_CONFIG[tradingStyle].labelFr : STYLE_CONFIG[tradingStyle].labelEn}</span>
+          <span className="opacity-50">·</span>
+          <span style={{ color: AGG_COLORS[aggression - 1] }}>⚡{aggression}</span>
+        </span>
       </div>
 
       {/* ⚠️ Disclaimer */}
@@ -733,64 +717,6 @@ Réponds en ${lang === "fr" ? "français" : "English"}, de manière concise et d
 
       <div className="rounded-2xl border border-white/8 overflow-hidden"
         style={{ background: "linear-gradient(160deg, hsl(35 60% 5%) 0%, hsl(220 30% 4%) 100%)" }}>
-
-        {/* Trading style + aggression settings */}
-        <div className="p-4 border-b border-white/[0.06] space-y-4">
-          {/* Style selector */}
-          <div>
-            <p className="text-[10px] font-semibold text-muted-foreground/50 uppercase tracking-wider mb-2">
-              {lang === "fr" ? "Style de trading" : "Trading style"}
-            </p>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-              {(Object.entries(STYLE_CONFIG) as [TradingStyle, typeof STYLE_CONFIG[TradingStyle]][]).map(([key, cfg]) => (
-                <motion.button key={key}
-                  whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
-                  onClick={() => wrappedSetStyle(key)}
-                  className={cn(
-                    "flex flex-col items-start gap-0.5 px-3 py-2.5 rounded-xl border text-left transition-all",
-                    tradingStyle === key ? cfg.activeClass : "border-white/8 text-muted-foreground hover:border-white/15 hover:text-foreground/70"
-                  )}>
-                  <span className="text-base leading-none">{cfg.icon}</span>
-                  <span className="text-xs font-semibold mt-1">{lang === "fr" ? cfg.labelFr : cfg.labelEn}</span>
-                  <span className="text-[10px] opacity-60">{lang === "fr" ? cfg.descFr : cfg.descEn}</span>
-                </motion.button>
-              ))}
-            </div>
-          </div>
-
-          {/* Aggression selector */}
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-[10px] font-semibold text-muted-foreground/50 uppercase tracking-wider">
-                {lang === "fr" ? "Niveau d'agressivité" : "Aggressiveness level"}
-              </p>
-              <span className="text-xs font-bold" style={{ color: AGG_COLORS[aggression - 1] }}>
-                {AGGRESSION_LABELS[lang][aggression - 1]}
-              </span>
-            </div>
-            <div className="flex gap-2">
-              {[1, 2, 3, 4, 5].map(n => (
-                <motion.button key={n}
-                  whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}
-                  onClick={() => wrappedSetAggression(n)}
-                  className={cn(
-                    "flex-1 h-8 rounded-lg border text-xs font-bold transition-all",
-                    aggression === n
-                      ? "text-black border-transparent"
-                      : "bg-white/4 border-white/8 text-muted-foreground/50 hover:border-white/20"
-                  )}
-                  style={aggression === n ? { background: AGG_COLORS[n - 1] } : {}}>
-                  {n}
-                </motion.button>
-              ))}
-            </div>
-            <p className="text-[10px] text-muted-foreground/35 mt-1.5">
-              {lang === "fr"
-                ? `→ ${["Positions 1–2% · Aucun levier", "Positions 2–3% · Levier ×2 max", "Positions 3–5% · Levier ×2–5", "Positions 5–8% · Levier ×5–10", "Positions 8–10% · Levier élevé"][aggression - 1]}`
-                : `→ ${["1–2% positions · No leverage", "2–3% positions · Max ×2 leverage", "3–5% positions · ×2–5 leverage", "5–8% positions · ×5–10 leverage", "8–10% positions · High leverage"][aggression - 1]}`}
-            </p>
-          </div>
-        </div>
 
         {/* Suggested questions */}
         <AnimatePresence mode="wait">
@@ -1770,8 +1696,7 @@ export default function GoldPage() {
         {/* ── Gold AI Chat ──────────────────────────────────────────────── */}
         <GoldAIChat
           analysis={analysis} corrPrices={corrPrices} lang={lang}
-          tradingStyle={tradingStyle} setTradingStyle={setTradingStyle}
-          aggression={aggression} setAggression={setAggression}
+          tradingStyle={tradingStyle} aggression={aggression}
         />
 
         {/* ── News ─────────────────────────────────────────────────────── */}
