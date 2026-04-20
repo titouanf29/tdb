@@ -8,7 +8,7 @@ import {
   Gem, TrendingUp, TrendingDown, Minus, RefreshCw, Lock, ArrowRight,
   Newspaper, ExternalLink, BookOpen, Zap, Shield, BarChart2, Loader2,
   AlertTriangle, Activity, Circle, X, DollarSign, CheckCircle2, Timer,
-  Bot, Send, CalendarClock,
+  Bot, Send, CalendarClock, ChevronDown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { analysisAPI, marketAPI, aiAPI, adminAPI, walletAPI, toolsAPI, Analysis, Position } from "@/lib/api";
@@ -1178,6 +1178,8 @@ export default function GoldPage() {
   const [catalysts, setCatalysts]        = useState<any[]>([]);
   const [nowTick, setNowTick]            = useState(() => Date.now());
   const countdown = useCountdownToNextOpen();
+  const [activeAnalysisTab, setActiveAnalysisTab] = useState<"perso" | "multitf">("perso");
+  const [macroExpanded, setMacroExpanded]          = useState(false);
 
   // Wait for premium status to resolve, then check Gold Hub access
   useEffect(() => {
@@ -1266,9 +1268,7 @@ export default function GoldPage() {
   const score       = analysis?.score.total ?? 50;
   const levels      = analysis?.levels;
   const risk        = analysis?.risk;
-  const indics      = analysis?.indicators;
   const perf        = analysis?.performance ?? {};
-  const fib         = analysis?.fibonacci;
   const isUp        = change >= 0;
 
   // Risk-On / Risk-Off from live data
@@ -1302,18 +1302,19 @@ export default function GoldPage() {
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        className="space-y-6 pb-8"
+        className="space-y-5 pb-8"
       >
 
-        {/* ── Hero banner ───────────────────────────────────────────────── */}
-        <motion.div initial={{ opacity:0, y:-12 }} animate={{ opacity:1, y:0 }} transition={{ duration:0.5 }}
+        {/* ══════════════════════════════════════════════════════════════════
+            ZONE 1 — Hero condensé (prix + profil dans la même card)
+        ══════════════════════════════════════════════════════════════════ */}
+        <motion.div initial={{ opacity:0, y:-12 }} animate={{ opacity:1, y:0 }} transition={{ duration:0.45 }}
           className="relative overflow-hidden rounded-2xl border border-amber-500/20 bg-gradient-to-br from-amber-950/50 via-card/90 to-card/70"
         >
-          {/* Background glows */}
+          {/* Ambient glows */}
           <div className="absolute inset-0 pointer-events-none overflow-hidden">
             <div className="absolute -top-20 -right-20 w-96 h-96 rounded-full bg-amber-500/10 blur-3xl" />
             <div className="absolute bottom-0 left-0 w-64 h-64 rounded-full bg-amber-600/6 blur-2xl" />
-            {/* Animated diagonal lines */}
             <svg className="absolute inset-0 w-full h-full opacity-[0.03]" xmlns="http://www.w3.org/2000/svg">
               <defs><pattern id="diag" width="40" height="40" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
                 <line x1="0" y1="0" x2="0" y2="40" stroke="#F59E0B" strokeWidth="1"/>
@@ -1322,501 +1323,333 @@ export default function GoldPage() {
             </svg>
           </div>
 
-          <div className="relative p-6 md:p-8">
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
-              {/* Left: title + price */}
-              <div className="flex items-start gap-4">
-                <div className="w-14 h-14 rounded-2xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center flex-shrink-0">
-                  <Gem className="w-7 h-7 text-amber-400" />
+          <div className="relative p-5 md:p-6">
+            {/* ── Row 1 : prix + chips 24h ──────────────────────────────── */}
+            <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4 mb-4">
+              {/* Left : icone + titre + prix */}
+              <div className="flex items-start gap-3.5">
+                <div className="w-11 h-11 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <Gem className="w-5.5 h-5.5 text-amber-400" style={{ width: 22, height: 22 }} />
                 </div>
                 <div>
                   <div className="flex items-center gap-2 mb-1 flex-wrap">
-                    <h1 className="text-2xl font-bold text-amber-400">Gold Hub</h1>
-                    <span className="text-xs px-2 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/25 text-amber-400/80 font-medium">
+                    <h1 className="text-lg font-bold text-amber-400">Gold Hub</h1>
+                    <span className="text-[11px] px-2 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/25 text-amber-400/80 font-medium">
                       XAU/USD · GC=F
                     </span>
                     <span className={cn(
-                      "flex items-center gap-1.5 text-xs px-2.5 py-0.5 rounded-full font-medium border",
+                      "flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full font-medium border",
                       comex.status === "open"   ? "bg-profit/15 border-profit/30 text-profit"
                       : comex.status === "break" ? "bg-yellow-500/15 border-yellow-500/30 text-yellow-400"
                       :                            "bg-loss/15 border-loss/30 text-loss"
                     )}>
-                      <Circle className={cn("w-1.5 h-1.5 fill-current",
-                        comex.status === "open" && "animate-pulse")} />
+                      <Circle className={cn("w-1.5 h-1.5 fill-current", comex.status === "open" && "animate-pulse")} />
                       {lang === "fr" ? comex.labelFr : comex.labelEn}
                     </span>
                   </div>
                   {loading ? (
-                    <div className="h-10 w-48 bg-white/5 animate-pulse rounded-lg" />
+                    <div className="h-8 w-40 bg-white/5 animate-pulse rounded-lg" />
                   ) : (
-                    <div className="flex items-baseline gap-3">
-                      <span className="text-4xl font-bold text-foreground">
+                    <div className="flex items-baseline gap-2.5">
+                      <span className="text-3xl font-bold text-foreground tracking-tight">
                         {price > 0 ? formatPrice(price, "GC=F") : "—"}
                       </span>
-                      <span className={cn("text-xl font-semibold", isUp ? "text-amber-400" : "text-blue-400")}>
+                      <span className={cn("text-base font-semibold", isUp ? "text-amber-400" : "text-blue-400")}>
                         {isUp ? "▲" : "▼"} {Math.abs(change).toFixed(2)}%
                       </span>
                     </div>
                   )}
                   {comex.status !== "open" && countdown.secondsLeft > 0 && (
-                    <div className="flex items-center gap-1.5 mt-2 text-xs text-muted-foreground/70">
-                      <Timer className="w-3.5 h-3.5 text-amber-400/70 flex-shrink-0" />
+                    <div className="flex items-center gap-1.5 mt-1 text-xs text-muted-foreground/60">
+                      <Timer className="w-3 h-3 text-amber-400/60 flex-shrink-0" />
                       <span>
                         {lang === "fr" ? "Ouverture dans " : "Opens in "}
-                        <span className="font-mono font-bold text-amber-400">{formatCountdown(countdown.secondsLeft)}</span>
-                        <span className="text-muted-foreground/40 ml-1">· {countdown.openTimeFR} (Paris)</span>
+                        <span className="font-mono font-semibold text-amber-400">{formatCountdown(countdown.secondsLeft)}</span>
+                        <span className="text-muted-foreground/35 ml-1">· {countdown.openTimeFR} (Paris)</span>
                       </span>
                     </div>
                   )}
                 </div>
               </div>
 
-              {/* Right: signal + controls */}
-              <div className="flex flex-col items-start md:items-end gap-3">
-                {signal && !loading && (
-                  <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-500/10 border border-amber-500/25">
-                    <span className="text-xl">{signal.emoji}</span>
-                    <span className="text-sm font-semibold text-amber-300">{signal.text}</span>
-                  </div>
-                )}
-                <div className="flex items-center gap-2">
-                  {/* Timeframe selector */}
-                  <div className="flex items-center rounded-lg bg-white/5 border border-white/8 p-0.5 text-xs">
-                    {TIMEFRAMES.map((tf) => (
-                      <button
-                        key={tf}
-                        onClick={() => setTimeframe(tf)}
-                        className={cn(
-                          "px-2.5 py-1 rounded-md transition-all font-medium",
-                          timeframe === tf ? "bg-amber-500/80 text-black" : "text-muted-foreground hover:text-foreground"
-                        )}
-                      >
-                        {tf}
-                      </button>
-                    ))}
-                  </div>
-                  <button
-                    onClick={load}
-                    disabled={loading}
-                    className="p-2 rounded-lg bg-white/5 hover:bg-white/10 transition-colors text-muted-foreground"
-                  >
-                    <RefreshCw className={cn("w-4 h-4", loading && "animate-spin")} />
-                  </button>
+              {/* Right : chips 24h / support / résistance */}
+              {!loading && analysis && (
+                <div className="flex flex-wrap gap-2 md:justify-end">
+                  {[
+                    { label: lang === "fr" ? "Haut 24h" : "24h High", value: formatPrice(analysis.price.high_24h, "GC=F"), color: "text-amber-400" },
+                    { label: lang === "fr" ? "Bas 24h"  : "24h Low",  value: formatPrice(analysis.price.low_24h,  "GC=F"), color: "text-blue-400" },
+                    { label: "Support",                                value: levels ? formatPrice(levels.support,    "GC=F") : "—", color: "text-profit" },
+                    { label: lang === "fr" ? "Résist." : "Resist.",   value: levels ? formatPrice(levels.resistance, "GC=F") : "—", color: "text-loss"   },
+                  ].map(({ label, value, color }) => (
+                    <div key={label} className="px-3 py-1.5 rounded-xl bg-black/20 border border-white/8 text-center min-w-[74px]">
+                      <p className="text-[10px] text-muted-foreground/45 mb-0.5">{label}</p>
+                      <p className={cn("text-xs font-bold", color)}>{value}</p>
+                    </div>
+                  ))}
                 </div>
-              </div>
+              )}
             </div>
 
-            {/* High / Low / Support / Resistance */}
-            {!loading && analysis && (
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-6">
-                {[
-                  { label: lang === "fr" ? "Plus haut 24h" : "24h High", value: formatPrice(analysis.price.high_24h, "GC=F"), color: "text-amber-400" },
-                  { label: lang === "fr" ? "Plus bas 24h" : "24h Low",   value: formatPrice(analysis.price.low_24h, "GC=F"),  color: "text-blue-400" },
-                  { label: lang === "fr" ? "Support"    : "Support",     value: levels ? formatPrice(levels.support, "GC=F") : "—", color: "text-profit" },
-                  { label: lang === "fr" ? "Résistance" : "Resistance",  value: levels ? formatPrice(levels.resistance, "GC=F") : "—", color: "text-loss" },
-                ].map(({ label, value, color }) => (
-                  <div key={label} className="px-4 py-3 rounded-xl bg-white/4 border border-white/6">
-                    <p className="text-[11px] text-muted-foreground mb-1">{label}</p>
-                    <p className={cn("text-sm font-bold", color)}>{value}</p>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </motion.div>
-
-        {/* ── Trading profile (global) ─────────────────────────────────── */}
-        <motion.div initial={{ opacity:0, y:8 }} animate={{ opacity:1, y:0 }} transition={{ delay:0.06 }}>
-          <div className="glass-card rounded-2xl border border-white/8 px-4 py-3 flex flex-col sm:flex-row sm:items-center gap-4">
-            {/* Left label + saved toast */}
-            <div className="flex items-center gap-2 flex-shrink-0">
-              <span className="text-xs font-bold text-muted-foreground/60 uppercase tracking-widest whitespace-nowrap">
-                {lang === "fr" ? "Profil trading" : "Trading profile"}
-              </span>
+            {/* ── Row 2 : profil trading (inline dans le hero) ─────────── */}
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3 pt-3.5 border-t border-white/[0.07]">
+              {/* Saved toast */}
               <AnimatePresence>
                 {profileSaved && (
-                  <motion.span initial={{ opacity:0, x:6 }} animate={{ opacity:1, x:0 }} exit={{ opacity:0, x:6 }}
-                    className="text-[10px] text-profit flex items-center gap-1">
-                    <CheckCircle2 className="w-3 h-3"/>
+                  <motion.span initial={{ opacity:0, x:6 }} animate={{ opacity:1, x:0 }} exit={{ opacity:0 }}
+                    className="text-[10px] text-profit flex items-center gap-1 flex-shrink-0">
+                    <CheckCircle2 className="w-3 h-3" />
                     {lang === "fr" ? "Sauvegardé" : "Saved"}
                   </motion.span>
                 )}
               </AnimatePresence>
-            </div>
 
-            {/* Style pills */}
-            <div className="flex items-center gap-1.5 flex-wrap">
-              {(Object.entries(STYLE_CONFIG) as [TradingStyle, typeof STYLE_CONFIG[TradingStyle]][]).map(([key, cfg]) => (
-                <motion.button key={key} whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.96 }}
-                  onClick={() => setTradingStyle(key)}
-                  className={cn(
-                    "flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-semibold transition-all",
-                    tradingStyle === key ? cfg.activeClass : "border-white/8 text-muted-foreground/50 hover:border-white/15 hover:text-foreground/70"
-                  )}>
-                  <span className="text-sm leading-none">{cfg.icon}</span>
-                  {lang === "fr" ? cfg.labelFr : cfg.labelEn}
-                </motion.button>
-              ))}
-            </div>
-
-            {/* Divider */}
-            <div className="hidden sm:block w-px h-5 bg-white/10 flex-shrink-0"/>
-
-            {/* Aggression dots */}
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] text-muted-foreground/40 uppercase tracking-wider whitespace-nowrap flex-shrink-0">
-                {lang === "fr" ? "Agressivité" : "Aggression"}
-              </span>
-              <div className="flex gap-1.5">
-                {[1, 2, 3, 4, 5].map(n => (
-                  <motion.button key={n} whileHover={{ scale: 1.15 }} whileTap={{ scale: 0.9 }}
-                    onClick={() => setAggression(n)}
-                    className="w-6 h-6 rounded-lg border text-[10px] font-bold transition-all"
-                    style={aggression === n
-                      ? { background: AGG_COLORS[n - 1], borderColor: "transparent", color: "#000" }
-                      : { background: "transparent", borderColor: "rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.3)" }}>
-                    {n}
+              {/* Style pills */}
+              <div className="flex items-center gap-1.5 flex-wrap">
+                {(Object.entries(STYLE_CONFIG) as [TradingStyle, typeof STYLE_CONFIG[TradingStyle]][]).map(([key, cfg]) => (
+                  <motion.button key={key} whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.96 }}
+                    onClick={() => setTradingStyle(key)}
+                    className={cn(
+                      "flex items-center gap-1 px-2.5 py-1 rounded-lg border text-xs font-semibold transition-all",
+                      tradingStyle === key ? cfg.activeClass : "border-white/8 text-muted-foreground/45 hover:border-white/15 hover:text-foreground/70"
+                    )}>
+                    <span className="text-xs leading-none">{cfg.icon}</span>
+                    {lang === "fr" ? cfg.labelFr : cfg.labelEn}
                   </motion.button>
                 ))}
               </div>
-              <span className="text-[10px] font-medium" style={{ color: AGG_COLORS[aggression - 1] }}>
-                {AGGRESSION_LABELS[lang][aggression - 1]}
-              </span>
+
+              <div className="hidden sm:block w-px h-4 bg-white/10 flex-shrink-0" />
+
+              {/* Aggression */}
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] text-muted-foreground/35 uppercase tracking-wider whitespace-nowrap flex-shrink-0">
+                  {lang === "fr" ? "Risque" : "Risk"}
+                </span>
+                <div className="flex gap-1">
+                  {[1,2,3,4,5].map(n => (
+                    <motion.button key={n} whileHover={{ scale: 1.18 }} whileTap={{ scale: 0.88 }}
+                      onClick={() => setAggression(n)}
+                      className="w-5 h-5 rounded-md border text-[9px] font-bold transition-all"
+                      style={aggression === n
+                        ? { background: AGG_COLORS[n-1], borderColor: "transparent", color: "#000" }
+                        : { background: "transparent", borderColor: "rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.28)" }}>
+                      {n}
+                    </motion.button>
+                  ))}
+                </div>
+                <span className="text-[10px] font-semibold" style={{ color: AGG_COLORS[aggression-1] }}>
+                  {AGGRESSION_LABELS[lang][aggression-1]}
+                </span>
+              </div>
+
+              {/* Right: signal + TF + refresh */}
+              <div className="flex items-center gap-2 sm:ml-auto flex-wrap">
+                {signal && !loading && (
+                  <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-500/10 border border-amber-500/20">
+                    <span className="text-sm leading-none">{signal.emoji}</span>
+                    <span className="text-xs font-semibold text-amber-300">{signal.text}</span>
+                  </div>
+                )}
+                <div className="flex items-center rounded-lg bg-black/20 border border-white/8 p-0.5 text-xs">
+                  {TIMEFRAMES.map(tf => (
+                    <button key={tf} onClick={() => setTimeframe(tf)}
+                      className={cn("px-2 py-1 rounded-md transition-all font-medium",
+                        timeframe === tf ? "bg-amber-500/80 text-black" : "text-muted-foreground hover:text-foreground")}>
+                      {tf}
+                    </button>
+                  ))}
+                </div>
+                <button onClick={load} disabled={loading}
+                  className="p-1.5 rounded-lg bg-black/20 hover:bg-white/10 transition-colors text-muted-foreground border border-white/8">
+                  <RefreshCw className={cn("w-3.5 h-3.5", loading && "animate-spin")} />
+                </button>
+              </div>
             </div>
           </div>
         </motion.div>
 
-        {/* ── Personalized analysis ────────────────────────────────────── */}
-        {analysis && (
-          <PersonalizedAnalysis
-            analysis={analysis}
-            tradingStyle={tradingStyle}
-            aggression={aggression}
-            lang={lang}
-          />
-        )}
-
-        {/* ── Multi-timeframe matrix ────────────────────────────────────── */}
-        <motion.div initial={{ opacity:0, y:12 }} animate={{ opacity:1, y:0 }} transition={{ delay:0.08 }}>
-          <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-2">
-            <BarChart2 className="w-3.5 h-3.5 text-amber-400"/>
-            {lang === "fr" ? "Analyse multi-timeframe" : "Multi-timeframe analysis"}
-          </h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        {/* ══════════════════════════════════════════════════════════════════
+            ZONE 2 — Analyse (onglets : Personnalisé / Multi-TF)
+        ══════════════════════════════════════════════════════════════════ */}
+        <motion.div initial={{ opacity:0, y:8 }} animate={{ opacity:1, y:0 }} transition={{ delay:0.08 }}>
+          {/* Tab bar */}
+          <div className="flex items-center gap-1 p-1 rounded-xl bg-white/4 border border-white/8 w-fit mb-4">
             {([
-              { tf: "1h",  label: lang === "fr" ? "1 Heure"   : "1 Hour",  d: tfData["1h"]  },
-              { tf: "4h",  label: lang === "fr" ? "4 Heures"  : "4 Hours", d: tfData["4h"]  },
-              { tf: "1d",  label: lang === "fr" ? "1 Jour"    : "1 Day",   d: analysis       },
-              { tf: "1w",  label: lang === "fr" ? "1 Semaine" : "1 Week",  d: tfData["1w"]  },
-            ] as { tf: string; label: string; d: Analysis | null | undefined }[]).map(({ tf, label, d }, i) => {
-              const score  = d?.score.total ?? null;
-              const sig    = d?.signal;
-              const isPos  = sig ? /buy|bullish/i.test(sig.text)  : null;
-              const isNeg  = sig ? /sell|bearish/i.test(sig.text) : null;
-              const isReady = tf === "1d" ? !loading : d !== undefined;
-              return (
-                <motion.div key={tf}
-                  initial={{ opacity: 0, scale: 0.93 }} animate={{ opacity: 1, scale: 1 }}
-                  transition={{ delay: 0.12 + i * 0.07, type: "spring", stiffness: 200, damping: 18 }}
-                  className={cn(
-                    "glass-card p-4 rounded-2xl border transition-all relative overflow-hidden group",
-                    isPos ? "border-amber-500/30 bg-gradient-to-b from-amber-500/8 to-transparent"
-                    : isNeg ? "border-blue-500/20 bg-gradient-to-b from-blue-500/5 to-transparent"
-                    : "border-white/8"
-                  )}>
-                  {/* Ambient glow */}
-                  {isPos && <div className="absolute -top-6 -right-6 w-16 h-16 rounded-full bg-amber-500/15 blur-xl pointer-events-none"/>}
-                  {isNeg && <div className="absolute -top-6 -right-6 w-16 h-16 rounded-full bg-blue-500/10 blur-xl pointer-events-none"/>}
-
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest">{label}</span>
-                    {isReady && score !== null && (
-                      <span className={cn("text-xs font-bold tabular-nums",
-                        isPos ? "text-amber-400" : isNeg ? "text-blue-400" : "text-muted-foreground")}>
-                        {score}<span className="text-muted-foreground/40 font-normal">/100</span>
-                      </span>
-                    )}
-                  </div>
-
-                  {!isReady ? (
-                    <div className="space-y-2">
-                      <div className="h-8 w-8 bg-white/5 animate-pulse rounded-lg mx-auto"/>
-                      <div className="h-3 bg-white/5 animate-pulse rounded-full"/>
-                      <div className="h-1.5 bg-white/5 animate-pulse rounded-full"/>
-                    </div>
-                  ) : d ? (
-                    <>
-                      <div className="text-center mb-2">
-                        <motion.span
-                          initial={{ scale: 0 }} animate={{ scale: 1 }}
-                          transition={{ delay: 0.2 + i * 0.07, type: "spring", stiffness: 300 }}
-                          className="text-3xl inline-block">
-                          {sig?.emoji ?? "⚪"}
-                        </motion.span>
-                      </div>
-                      <p className={cn("text-xs font-semibold text-center mb-3",
-                        isPos ? "text-amber-400" : isNeg ? "text-blue-400" : "text-muted-foreground")}>
-                        {sig?.text ?? "—"}
-                      </p>
-                      {score !== null && (
-                        <div className="h-1 bg-white/8 rounded-full overflow-hidden">
-                          <motion.div
-                            initial={{ width: 0 }} animate={{ width: `${score}%` }}
-                            transition={{ delay: 0.3 + i * 0.07, duration: 0.9, ease: "easeOut" }}
-                            className={cn("h-full rounded-full",
-                              score >= 60 ? "bg-gradient-to-r from-amber-500/80 to-amber-400"
-                              : score <= 40 ? "bg-gradient-to-r from-blue-600/80 to-blue-400"
-                              : "bg-white/30")}
-                          />
-                        </div>
-                      )}
-                    </>
-                  ) : (
-                    <p className="text-xs text-muted-foreground/30 text-center py-2">—</p>
-                  )}
-                </motion.div>
-              );
-            })}
+              { id: "perso"  as const, labelFr: "Personnalisé",    labelEn: "Personalized",    icon: Zap      },
+              { id: "multitf"as const, labelFr: "Multi-timeframe", labelEn: "Multi-timeframe", icon: BarChart2 },
+            ]).map(({ id, labelFr, labelEn, icon: Icon }) => (
+              <button key={id} onClick={() => setActiveAnalysisTab(id)}
+                className={cn(
+                  "flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-semibold transition-all",
+                  activeAnalysisTab === id
+                    ? "bg-amber-500/80 text-black shadow-sm"
+                    : "text-muted-foreground/55 hover:text-foreground/80"
+                )}>
+                <Icon className="w-3 h-3" />
+                {lang === "fr" ? labelFr : labelEn}
+              </button>
+            ))}
           </div>
-        </motion.div>
 
-        {/* ── Correlations ─────────────────────────────────────────────── */}
-        <motion.div initial={{ opacity:0, y:12 }} animate={{ opacity:1, y:0 }} transition={{ delay:0.1 }}>
-          <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-            {lang === "fr" ? "Facteurs influençant l'or" : "Gold influencing factors"}
-          </h2>
-          {loading ? (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-              {[...Array(6)].map((_, i) => (
-                <div key={i} className="h-24 bg-white/3 animate-pulse rounded-xl border border-white/6" />
-              ))}
-            </div>
-          ) : (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-              {CORREL_SYMBOLS.map((sym) => {
-                const p = corrPrices[sym.toUpperCase()] ?? corrPrices[sym];
-                if (!p) return (
-                  <div key={sym} className="glass-card p-3 rounded-xl border border-white/6 opacity-40">
-                    <p className="text-xs text-muted-foreground">{CORREL_CONFIG[sym]?.label}</p>
-                    <p className="text-xs text-muted-foreground/50 mt-1">—</p>
-                  </div>
-                );
-                return (
-                  <CorrelCard key={sym} symbol={sym} price={p.price} change={p.change} lang={lang} />
-                );
-              })}
-            </div>
-          )}
-          <p className="text-[11px] text-muted-foreground/40 mt-2">
-            {lang === "fr"
-              ? "Survolez une carte pour comprendre le lien avec l'or."
-              : "Hover a card to understand its relationship with gold."}
-          </p>
-        </motion.div>
-
-        {/* ── Performance comparative ───────────────────────────────────── */}
-        {!loading && Object.keys(perf).length > 0 && (
-          <motion.div initial={{ opacity:0, y:12 }} animate={{ opacity:1, y:0 }} transition={{ delay:0.15 }}>
-            <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-2">
-              <Activity className="w-3.5 h-3.5 text-amber-400"/>
-              {lang === "fr" ? "Performance Gold" : "Gold Performance"}
-            </h2>
-            <div className="glass-card rounded-xl border border-amber-500/10 p-4">
-              <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
-                {([ ["1j","1d"], ["1S","1w"], ["1M","1m"], ["3M","3m"], ["6M","6m"], ["YTD","ytd"] ] as [string,string][])
-                  .filter(([,k]) => perf[k as keyof typeof perf] != null)
-                  .map(([label, key], i) => {
-                    const val = (perf[key as keyof typeof perf] ?? 0) as number;
-                    const abs = Math.abs(val);
-                    const isPos = val >= 0;
+          <AnimatePresence mode="wait">
+            {activeAnalysisTab === "perso" ? (
+              <motion.div key="perso"
+                initial={{ opacity:0, y:5 }} animate={{ opacity:1, y:0 }} exit={{ opacity:0, y:-5 }}
+                transition={{ duration:0.16 }}>
+                {analysis
+                  ? <PersonalizedAnalysis analysis={analysis} tradingStyle={tradingStyle} aggression={aggression} lang={lang} />
+                  : <div className="h-44 rounded-2xl bg-white/3 animate-pulse border border-white/6" />
+                }
+              </motion.div>
+            ) : (
+              <motion.div key="multitf"
+                initial={{ opacity:0, y:5 }} animate={{ opacity:1, y:0 }} exit={{ opacity:0, y:-5 }}
+                transition={{ duration:0.16 }}>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  {([
+                    { tf: "1h",  label: lang === "fr" ? "1 Heure"   : "1 Hour",  d: tfData["1h"]  },
+                    { tf: "4h",  label: lang === "fr" ? "4 Heures"  : "4 Hours", d: tfData["4h"]  },
+                    { tf: "1d",  label: lang === "fr" ? "1 Jour"    : "1 Day",   d: analysis       },
+                    { tf: "1w",  label: lang === "fr" ? "1 Semaine" : "1 Week",  d: tfData["1w"]  },
+                  ] as { tf: string; label: string; d: Analysis | null | undefined }[]).map(({ tf, label, d }, i) => {
+                    const tfScore  = d?.score.total ?? null;
+                    const tfSig    = d?.signal;
+                    const tfPos    = tfSig ? /buy|bullish/i.test(tfSig.text)  : null;
+                    const tfNeg    = tfSig ? /sell|bearish/i.test(tfSig.text) : null;
+                    const isReady  = tf === "1d" ? !loading : d !== undefined;
                     return (
-                      <motion.div key={key} initial={{ opacity:0, scaleY:0 }} animate={{ opacity:1, scaleY:1 }}
-                        transition={{ delay: 0.2 + i*0.05, type:"spring", stiffness:200 }}
-                        className="flex flex-col items-center gap-2">
-                        <span className={cn("text-sm font-bold", isPos ? "text-amber-400" : "text-blue-400")}>
-                          {isPos ? "+" : ""}{val.toFixed(2)}%
-                        </span>
-                        <div className="w-full h-16 flex items-end justify-center">
-                          <motion.div
-                            initial={{ height:0 }} animate={{ height:`${Math.min(abs * 6, 60)}px` }}
-                            transition={{ delay: 0.3 + i*0.05, duration:0.6, ease:"easeOut" }}
-                            className={cn("w-5 rounded-t-sm", isPos ? "bg-amber-500/60" : "bg-blue-500/60")}
-                          />
+                      <motion.div key={tf}
+                        initial={{ opacity:0, scale:0.93 }} animate={{ opacity:1, scale:1 }}
+                        transition={{ delay: i * 0.06, type:"spring", stiffness:200, damping:18 }}
+                        className={cn(
+                          "glass-card p-4 rounded-2xl border transition-all relative overflow-hidden",
+                          tfPos ? "border-amber-500/30 bg-gradient-to-b from-amber-500/8 to-transparent"
+                          : tfNeg ? "border-blue-500/20 bg-gradient-to-b from-blue-500/5 to-transparent"
+                          : "border-white/8"
+                        )}>
+                        {tfPos && <div className="absolute -top-6 -right-6 w-16 h-16 rounded-full bg-amber-500/15 blur-xl pointer-events-none"/>}
+                        {tfNeg && <div className="absolute -top-6 -right-6 w-16 h-16 rounded-full bg-blue-500/10 blur-xl pointer-events-none"/>}
+                        <div className="flex items-center justify-between mb-3">
+                          <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest">{label}</span>
+                          {isReady && tfScore !== null && (
+                            <span className={cn("text-xs font-bold tabular-nums",
+                              tfPos ? "text-amber-400" : tfNeg ? "text-blue-400" : "text-muted-foreground")}>
+                              {tfScore}<span className="text-muted-foreground/40 font-normal">/100</span>
+                            </span>
+                          )}
                         </div>
-                        <span className="text-[10px] text-muted-foreground/60">{label}</span>
+                        {!isReady ? (
+                          <div className="space-y-2">
+                            <div className="h-8 w-8 bg-white/5 animate-pulse rounded-lg mx-auto"/>
+                            <div className="h-3 bg-white/5 animate-pulse rounded-full"/>
+                            <div className="h-1.5 bg-white/5 animate-pulse rounded-full"/>
+                          </div>
+                        ) : d ? (
+                          <>
+                            <div className="text-center mb-2">
+                              <motion.span initial={{ scale:0 }} animate={{ scale:1 }}
+                                transition={{ delay: 0.15 + i*0.06, type:"spring", stiffness:300 }}
+                                className="text-3xl inline-block">{tfSig?.emoji ?? "⚪"}</motion.span>
+                            </div>
+                            <p className={cn("text-xs font-semibold text-center mb-3",
+                              tfPos ? "text-amber-400" : tfNeg ? "text-blue-400" : "text-muted-foreground")}>
+                              {tfSig?.text ?? "—"}
+                            </p>
+                            {tfScore !== null && (
+                              <div className="h-1 bg-white/8 rounded-full overflow-hidden">
+                                <motion.div initial={{ width:0 }} animate={{ width:`${tfScore}%` }}
+                                  transition={{ delay: 0.25 + i*0.06, duration:0.9, ease:"easeOut" }}
+                                  className={cn("h-full rounded-full",
+                                    tfScore >= 60 ? "bg-gradient-to-r from-amber-500/80 to-amber-400"
+                                    : tfScore <= 40 ? "bg-gradient-to-r from-blue-600/80 to-blue-400"
+                                    : "bg-white/30")} />
+                              </div>
+                            )}
+                          </>
+                        ) : (
+                          <p className="text-xs text-muted-foreground/30 text-center py-2">—</p>
+                        )}
                       </motion.div>
                     );
-                })}
-              </div>
-            </div>
-          </motion.div>
-        )}
-
-        {/* ── Market environment ────────────────────────────────────────── */}
-        {!loading && (
-          <motion.div initial={{ opacity:0, y:12 }} animate={{ opacity:1, y:0 }} transition={{ delay:0.2 }}>
-            <div className={cn(
-              "rounded-2xl border p-5 flex flex-col md:flex-row md:items-center gap-4 relative overflow-hidden",
-              riskEnv === "risk-off" ? "border-amber-500/25 bg-gradient-to-r from-amber-950/30 to-card/60"
-              : riskEnv === "risk-on" ? "border-blue-500/20 bg-gradient-to-r from-blue-950/20 to-card/60"
-              : "border-white/8 bg-card/40"
-            )}>
-              <div className="absolute right-0 top-0 w-48 h-48 rounded-full blur-3xl opacity-10 pointer-events-none"
-                style={{ background: riskEnv === "risk-off" ? "#F59E0B" : riskEnv === "risk-on" ? "#3B82F6" : "white" }}/>
-              <div className={cn("w-14 h-14 rounded-2xl flex items-center justify-center border flex-shrink-0 text-2xl",
-                riskEnv === "risk-off" ? "bg-amber-500/15 border-amber-500/30"
-                : riskEnv === "risk-on" ? "bg-blue-500/15 border-blue-500/30"
-                : "bg-white/5 border-white/10")}>
-                {riskEnv === "risk-off" ? "🛡️" : riskEnv === "risk-on" ? "📈" : "⚖️"}
-              </div>
-              <div className="flex-1">
-                <div className="flex items-center gap-2 mb-1">
-                  <span className={cn("text-base font-bold",
-                    riskEnv === "risk-off" ? "text-amber-400" : riskEnv === "risk-on" ? "text-blue-400" : "text-foreground")}>
-                    {riskEnv === "risk-off"
-                      ? (lang === "fr" ? "Environnement Risk-Off" : "Risk-Off Environment")
-                      : riskEnv === "risk-on"
-                      ? (lang === "fr" ? "Environnement Risk-On" : "Risk-On Environment")
-                      : (lang === "fr" ? "Environnement Neutre" : "Neutral Environment")}
-                  </span>
+                  })}
                 </div>
-                <p className="text-sm text-muted-foreground">
-                  {riskEnv === "risk-off"
-                    ? (lang === "fr"
-                      ? `VIX ${vixChange>=0?"+":""}${vixChange.toFixed(1)}% · DXY ${dxyChange>=0?"+":""}${dxyChange.toFixed(1)}% — peur des marchés, l'or est recherché comme valeur refuge.`
-                      : `VIX ${vixChange>=0?"+":""}${vixChange.toFixed(1)}% · DXY ${dxyChange>=0?"+":""}${dxyChange.toFixed(1)}% — market fear, gold sought as safe haven.`)
-                    : riskEnv === "risk-on"
-                    ? (lang === "fr"
-                      ? `VIX ${vixChange>=0?"+":""}${vixChange.toFixed(1)}% · les investisseurs privilégient les actifs risqués — pression légère sur l'or.`
-                      : `VIX ${vixChange>=0?"+":""}${vixChange.toFixed(1)}% · investors favor risk assets — slight pressure on gold.`)
-                    : (lang === "fr"
-                      ? "Signaux mixtes — pas de tendance macro dominante pour l'or en ce moment."
-                      : "Mixed signals — no dominant macro trend for gold right now.")}
-                </p>
-              </div>
-              <div className={cn("text-xs font-medium px-3 py-1.5 rounded-lg border whitespace-nowrap",
-                riskEnv === "risk-off" ? "bg-amber-500/10 border-amber-500/20 text-amber-400"
-                : riskEnv === "risk-on" ? "bg-blue-500/10 border-blue-500/20 text-blue-400"
-                : "bg-white/5 border-white/10 text-muted-foreground")}>
-                {riskEnv === "risk-off"
-                  ? (lang === "fr" ? "Favorable à l'or ✓" : "Favorable for gold ✓")
-                  : riskEnv === "risk-on"
-                  ? (lang === "fr" ? "Pression sur l'or" : "Pressure on gold")
-                  : (lang === "fr" ? "Neutre" : "Neutral")}
-              </div>
-            </div>
-          </motion.div>
-        )}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </motion.div>
 
-        {/* ── Chart + Metrics ───────────────────────────────────────────── */}
-        <motion.div initial={{ opacity:0, y:12 }} animate={{ opacity:1, y:0 }} transition={{ delay:0.25 }}
-          className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* ══════════════════════════════════════════════════════════════════
+            ZONE 3 — Graphique (2/3) + Paper Trading sidebar (1/3)
+        ══════════════════════════════════════════════════════════════════ */}
+        <motion.div initial={{ opacity:0, y:12 }} animate={{ opacity:1, y:0 }} transition={{ delay:0.12 }}
+          className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+
           {/* Chart */}
-          <div className="lg:col-span-2 glass-card rounded-xl overflow-hidden border border-amber-500/10">
+          <div className="lg:col-span-2 glass-card rounded-2xl overflow-hidden border border-amber-500/10">
             <div className="px-4 py-3 border-b border-white/6 flex items-center gap-2">
               <BarChart2 className="w-4 h-4 text-amber-400" />
-              <span className="text-sm font-semibold">
-                {lang === "fr" ? "Graphique Gold (GC=F)" : "Gold chart (GC=F)"}
-              </span>
+              <span className="text-sm font-semibold">{lang === "fr" ? "Graphique GC=F" : "GC=F chart"}</span>
             </div>
             <div className="p-2">
               <PremiumChart symbol="GC=F" timeframe={timeframe} />
             </div>
           </div>
 
-          {/* Right panel */}
-          <div className="space-y-4">
-            {/* Sentiment */}
-            <div className="glass-card p-4 rounded-xl border border-amber-500/10">
-              <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4">
-                {lang === "fr" ? "Score technique" : "Technical score"}
-              </h3>
-              <SentimentGauge score={score} lang={lang} />
-              {!loading && (
-                <div className="mt-4 text-center">
-                  <span className="text-4xl font-bold text-amber-400">{score}</span>
-                  <span className="text-muted-foreground text-sm"> / 100</span>
+          {/* Paper Trading sidebar */}
+          <div className="flex flex-col gap-3">
+            {/* Score compact */}
+            {!loading && analysis && (
+              <div className="glass-card px-4 py-3 rounded-2xl border border-amber-500/10 flex items-center gap-4">
+                <div className="flex-1">
+                  <SentimentGauge score={score} lang={lang} />
                 </div>
-              )}
-            </div>
-
-            {/* Key indicators */}
-            {!loading && indics && (
-              <div className="glass-card p-4 rounded-xl border border-amber-500/10">
-                <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-                  {lang === "fr" ? "Indicateurs clés" : "Key indicators"}
-                </h3>
-                <IndicRow
-                  label="RSI (14)"
-                  value={(indics.rsi.value ?? 0).toFixed(1)}
-                  signal={indics.rsi.signal}
-                />
-                <IndicRow
-                  label="MACD"
-                  value={(indics.macd.histogram ?? 0).toFixed(2)}
-                  signal={indics.macd.signal}
-                />
-                <IndicRow
-                  label="EMA 50"
-                  value={formatPrice(indics.ema.ema50, "GC=F")}
-                  signal={price > indics.ema.ema50 ? (lang === "fr" ? "Au-dessus" : "Above") : (lang === "fr" ? "En-dessous" : "Below")}
-                />
-                {indics.ema.ema200 && (
-                  <IndicRow
-                    label="EMA 200"
-                    value={formatPrice(indics.ema.ema200, "GC=F")}
-                    signal={price > indics.ema.ema200 ? (lang === "fr" ? "Au-dessus" : "Above") : (lang === "fr" ? "En-dessous" : "Below")}
-                  />
-                )}
-                <IndicRow
-                  label="Bollinger"
-                  value={indics.bollinger.position}
-                  signal={indics.bollinger.position}
-                />
+                <div className="text-right flex-shrink-0">
+                  <span className="text-2xl font-bold text-amber-400 leading-none">{score}</span>
+                  <span className="text-xs text-muted-foreground">/100</span>
+                </div>
               </div>
             )}
 
-            {/* Paper trading CTA */}
-            <div className="glass-card p-4 rounded-xl border border-amber-500/20 bg-amber-500/5">
-              <div className="flex items-center gap-2 mb-3">
-                <Zap className="w-4 h-4 text-amber-400" />
-                <h3 className="text-sm font-semibold text-amber-300">
+            {/* Paper trading */}
+            <div className="glass-card p-4 rounded-2xl border border-amber-500/20 bg-amber-500/5 flex-1">
+              <div className="flex items-center gap-2 mb-4">
+                <div className="w-7 h-7 rounded-lg bg-amber-500/20 border border-amber-500/30 flex items-center justify-center flex-shrink-0">
+                  <Zap className="w-3.5 h-3.5 text-amber-400" />
+                </div>
+                <span className="text-sm font-semibold text-amber-300">
                   {lang === "fr" ? "Paper Trading Gold" : "Gold Paper Trading"}
-                </h3>
+                </span>
               </div>
+
               {risk && !loading && (
-                <div className="grid grid-cols-2 gap-2 mb-3 text-xs">
-                  <div className="px-2 py-1.5 rounded-lg bg-profit/10 border border-profit/20">
-                    <p className="text-muted-foreground">TP suggéré</p>
+                <div className="grid grid-cols-2 gap-2 mb-4 text-xs">
+                  <div className="px-3 py-2 rounded-xl bg-profit/10 border border-profit/20">
+                    <p className="text-muted-foreground/60 mb-0.5">TP</p>
                     <p className="font-bold text-profit">{formatPrice(risk.suggested_tp, "GC=F")}</p>
                   </div>
-                  <div className="px-2 py-1.5 rounded-lg bg-loss/10 border border-loss/20">
-                    <p className="text-muted-foreground">SL suggéré</p>
+                  <div className="px-3 py-2 rounded-xl bg-loss/10 border border-loss/20">
+                    <p className="text-muted-foreground/60 mb-0.5">SL</p>
                     <p className="font-bold text-loss">{formatPrice(risk.suggested_sl, "GC=F")}</p>
                   </div>
                 </div>
               )}
+
               <div className="grid grid-cols-2 gap-2">
-                <button
+                <motion.button whileHover={{ scale:1.02 }} whileTap={{ scale:0.97 }}
                   onClick={() => setTradeDir("LONG")}
-                  className="flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-amber-500/80 hover:bg-amber-500 text-black font-bold text-sm transition-all"
-                >
-                  <TrendingUp className="w-4 h-4" />
-                  LONG
-                </button>
-                <button
+                  className="flex items-center justify-center gap-1.5 py-3 rounded-xl bg-amber-500/80 hover:bg-amber-500 text-black font-bold text-sm transition-all shadow-sm shadow-amber-500/20">
+                  <TrendingUp className="w-4 h-4" /> LONG
+                </motion.button>
+                <motion.button whileHover={{ scale:1.02 }} whileTap={{ scale:0.97 }}
                   onClick={() => setTradeDir("SHORT")}
-                  className="flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-blue-500/20 hover:bg-blue-500/30 border border-blue-500/30 text-blue-300 font-bold text-sm transition-all"
-                >
-                  <TrendingDown className="w-4 h-4" />
-                  SHORT
-                </button>
+                  className="flex items-center justify-center gap-1.5 py-3 rounded-xl bg-blue-500/20 hover:bg-blue-500/30 border border-blue-500/30 text-blue-300 font-bold text-sm transition-all">
+                  <TrendingDown className="w-4 h-4" /> SHORT
+                </motion.button>
               </div>
 
-              {/* Open GC=F positions */}
               {goldPositions.length > 0 && (
-                <div className="mt-3 pt-3 border-t border-white/6 space-y-2">
-                  <p className="text-[10px] text-muted-foreground/50 font-semibold uppercase tracking-wider flex items-center gap-1.5">
+                <div className="mt-4 pt-3 border-t border-white/6 space-y-2">
+                  <p className="text-[10px] text-muted-foreground/45 font-semibold uppercase tracking-wider flex items-center gap-1.5">
                     <Activity className="w-2.5 h-2.5 text-amber-400/50"/>
                     {lang === "fr" ? "Positions ouvertes" : "Open positions"} · GC=F
                   </p>
@@ -1826,35 +1659,27 @@ export default function GoldPage() {
                     const isProfit = pnl >= 0;
                     return (
                       <motion.div key={pos.id}
-                        initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }}
-                        className={cn(
-                          "p-2.5 rounded-xl border text-xs space-y-1.5",
-                          pos.direction === "LONG"
-                            ? "border-amber-500/20 bg-amber-500/5"
-                            : "border-blue-500/20 bg-blue-500/5"
-                        )}>
+                        initial={{ opacity:0, y:4 }} animate={{ opacity:1, y:0 }}
+                        className={cn("p-2.5 rounded-xl border text-xs space-y-1.5",
+                          pos.direction === "LONG" ? "border-amber-500/20 bg-amber-500/5" : "border-blue-500/20 bg-blue-500/5")}>
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-1.5">
-                            {pos.direction === "LONG"
-                              ? <TrendingUp className="w-3 h-3 text-amber-400"/>
-                              : <TrendingDown className="w-3 h-3 text-blue-400"/>}
-                            <span className={cn("font-bold", pos.direction === "LONG" ? "text-amber-400" : "text-blue-400")}>
-                              {pos.direction}
-                            </span>
+                            {pos.direction === "LONG" ? <TrendingUp className="w-3 h-3 text-amber-400"/> : <TrendingDown className="w-3 h-3 text-blue-400"/>}
+                            <span className={cn("font-bold", pos.direction === "LONG" ? "text-amber-400" : "text-blue-400")}>{pos.direction}</span>
                             <span className="text-muted-foreground/40">×{pos.leverage}</span>
                           </div>
                           <span className={cn("font-bold tabular-nums", isProfit ? "text-profit" : "text-loss")}>
-                            {isProfit ? "+" : ""}{pnl.toFixed(2)}$ ({isProfit ? "+" : ""}{pct.toFixed(2)}%)
+                            {isProfit?"+":""}{pnl.toFixed(2)}$ ({isProfit?"+":""}{pct.toFixed(2)}%)
                           </span>
                         </div>
-                        <div className="flex items-center justify-between text-muted-foreground/50">
-                          <span>{lang === "fr" ? "Entrée" : "Entry"} : {formatPrice(pos.entry_price, "GC=F")}</span>
+                        <div className="flex items-center justify-between text-muted-foreground/45">
+                          <span>{lang==="fr"?"Entrée":"Entry"} : {formatPrice(pos.entry_price,"GC=F")}</span>
                           <span>${pos.amount.toFixed(0)}</span>
                         </div>
                         {(pos.take_profit || pos.stop_loss) && (
                           <div className="flex items-center gap-3 text-muted-foreground/40">
-                            {pos.take_profit && <span className="text-profit/60">TP {formatPrice(pos.take_profit, "GC=F")}</span>}
-                            {pos.stop_loss   && <span className="text-loss/60">SL {formatPrice(pos.stop_loss, "GC=F")}</span>}
+                            {pos.take_profit && <span className="text-profit/60">TP {formatPrice(pos.take_profit,"GC=F")}</span>}
+                            {pos.stop_loss   && <span className="text-loss/60">SL {formatPrice(pos.stop_loss,"GC=F")}</span>}
                           </div>
                         )}
                       </motion.div>
@@ -1863,6 +1688,130 @@ export default function GoldPage() {
                 </div>
               )}
             </div>
+          </div>
+        </motion.div>
+
+        {/* ══════════════════════════════════════════════════════════════════
+            ZONE 4 — Contexte macro (accordéon discret)
+        ══════════════════════════════════════════════════════════════════ */}
+        <motion.div initial={{ opacity:0, y:8 }} animate={{ opacity:1, y:0 }} transition={{ delay:0.18 }}>
+          <div className="glass-card rounded-2xl border border-white/8 overflow-hidden">
+            {/* Header toujours visible */}
+            <button className="w-full px-5 py-3.5 flex items-center justify-between group hover:bg-white/[0.02] transition-colors"
+              onClick={() => setMacroExpanded(!macroExpanded)}>
+              <div className="flex items-center gap-3 flex-wrap">
+                <span className="text-xs font-semibold text-muted-foreground/50 uppercase tracking-wider">
+                  {lang === "fr" ? "Contexte macro" : "Macro context"}
+                </span>
+                <span className={cn("text-[11px] font-medium px-2 py-0.5 rounded-md border",
+                  riskEnv === "risk-off" ? "bg-amber-500/10 border-amber-500/20 text-amber-400"
+                  : riskEnv === "risk-on" ? "bg-blue-500/10 border-blue-500/20 text-blue-400"
+                  : "bg-white/5 border-white/10 text-muted-foreground/60")}>
+                  {riskEnv === "risk-off"
+                    ? (lang === "fr" ? "🛡️ Risk-Off · Or favorisé" : "🛡️ Risk-Off · Gold favored")
+                    : riskEnv === "risk-on"
+                    ? (lang === "fr" ? "📈 Risk-On · Pression or" : "📈 Risk-On · Pressure on gold")
+                    : (lang === "fr" ? "⚖️ Neutre" : "⚖️ Neutral")}
+                </span>
+                <div className="hidden sm:flex items-center gap-3 text-[11px] text-muted-foreground/40">
+                  {[
+                    { sym: "DX-Y.NYB", label: "DXY" },
+                    { sym: "^VIX",     label: "VIX" },
+                    { sym: "^TNX",     label: "TNX" },
+                  ].map(({ sym, label }) => {
+                    const ch = corrPrices[sym]?.change;
+                    if (ch == null) return null;
+                    return (
+                      <span key={sym}>
+                        {label} <span className={cn("font-mono font-semibold", ch >= 0 ? "text-amber-400/70" : "text-blue-400/70")}>
+                          {ch >= 0 ? "+" : ""}{ch.toFixed(1)}%
+                        </span>
+                      </span>
+                    );
+                  })}
+                </div>
+              </div>
+              <ChevronDown className={cn("w-4 h-4 text-muted-foreground/35 transition-transform duration-200 flex-shrink-0",
+                macroExpanded && "rotate-180")} />
+            </button>
+
+            {/* Contenu dépliable */}
+            <AnimatePresence>
+              {macroExpanded && (
+                <motion.div
+                  initial={{ height:0, opacity:0 }} animate={{ height:"auto", opacity:1 }}
+                  exit={{ height:0, opacity:0 }}
+                  transition={{ duration:0.24, ease:"easeInOut" }}
+                  className="overflow-hidden">
+                  <div className="px-5 pb-5 space-y-5 border-t border-white/[0.06] pt-4">
+
+                    {/* Correlations */}
+                    <div>
+                      <p className="text-[10px] font-semibold text-muted-foreground/35 uppercase tracking-wider mb-3">
+                        {lang === "fr" ? "Facteurs influençant l'or" : "Gold influencing factors"}
+                      </p>
+                      {loading ? (
+                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+                          {[...Array(6)].map((_,i) => <div key={i} className="h-20 bg-white/3 animate-pulse rounded-xl border border-white/6"/>)}
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+                          {CORREL_SYMBOLS.map(sym => {
+                            const p = corrPrices[sym.toUpperCase()] ?? corrPrices[sym];
+                            if (!p) return (
+                              <div key={sym} className="glass-card p-3 rounded-xl border border-white/6 opacity-40">
+                                <p className="text-xs text-muted-foreground">{CORREL_CONFIG[sym]?.label}</p>
+                                <p className="text-xs text-muted-foreground/50 mt-1">—</p>
+                              </div>
+                            );
+                            return <CorrelCard key={sym} symbol={sym} price={p.price} change={p.change} lang={lang}/>;
+                          })}
+                        </div>
+                      )}
+                      <p className="text-[10px] text-muted-foreground/30 mt-2">
+                        {lang === "fr" ? "Survolez une carte pour comprendre le lien avec l'or." : "Hover a card to understand its relationship with gold."}
+                      </p>
+                    </div>
+
+                    {/* Performance */}
+                    {!loading && Object.keys(perf).length > 0 && (
+                      <div>
+                        <p className="text-[10px] font-semibold text-muted-foreground/35 uppercase tracking-wider mb-3">
+                          {lang === "fr" ? "Performance Gold" : "Gold Performance"}
+                        </p>
+                        <div className="glass-card rounded-xl border border-amber-500/8 p-4">
+                          <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
+                            {([ ["1j","1d"], ["1S","1w"], ["1M","1m"], ["3M","3m"], ["6M","6m"], ["YTD","ytd"] ] as [string,string][])
+                              .filter(([,k]) => perf[k as keyof typeof perf] != null)
+                              .map(([label, key], i) => {
+                                const val = (perf[key as keyof typeof perf] ?? 0) as number;
+                                const abs = Math.abs(val);
+                                const isPos = val >= 0;
+                                return (
+                                  <motion.div key={key}
+                                    initial={{ opacity:0, scaleY:0 }} animate={{ opacity:1, scaleY:1 }}
+                                    transition={{ delay: i*0.05, type:"spring", stiffness:200 }}
+                                    className="flex flex-col items-center gap-1.5">
+                                    <span className={cn("text-sm font-bold", isPos ? "text-amber-400" : "text-blue-400")}>
+                                      {isPos?"+":""}{val.toFixed(2)}%
+                                    </span>
+                                    <div className="w-full h-12 flex items-end justify-center">
+                                      <motion.div initial={{ height:0 }} animate={{ height:`${Math.min(abs*5,48)}px` }}
+                                        transition={{ delay: i*0.05, duration:0.6, ease:"easeOut" }}
+                                        className={cn("w-4 rounded-t-sm", isPos ? "bg-amber-500/50" : "bg-blue-500/50")} />
+                                    </div>
+                                    <span className="text-[10px] text-muted-foreground/50">{label}</span>
+                                  </motion.div>
+                                );
+                              })}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         </motion.div>
 
@@ -2013,34 +1962,8 @@ export default function GoldPage() {
           )}
         </motion.div>
 
-        {/* ── Learn section (coming soon) ───────────────────────────────── */}
-        <motion.div initial={{ opacity:0, y:12 }} animate={{ opacity:1, y:0 }} transition={{ delay:0.35 }}
-          className="relative overflow-hidden rounded-2xl border border-dashed border-amber-500/20 p-6">
-          <div className="absolute inset-0 bg-gradient-to-r from-amber-950/20 to-transparent pointer-events-none" />
-          <div className="relative flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div className="flex items-start gap-4">
-              <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center flex-shrink-0">
-                <BookOpen className="w-5 h-5 text-amber-400/70" />
-              </div>
-              <div>
-                <h3 className="font-semibold text-amber-300/80">
-                  {lang === "fr" ? "Formation — Apprendre à trader l'or" : "Learn — How to trade gold"}
-                </h3>
-                <p className="text-sm text-muted-foreground mt-1">
-                  {lang === "fr"
-                    ? "Les drivers de l'or, corrélations macro, erreurs classiques, timing autour de la Fed — bientôt disponible."
-                    : "Gold drivers, macro correlations, common mistakes, timing around Fed meetings — coming soon."}
-                </p>
-              </div>
-            </div>
-            <span className="px-3 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400/70 text-xs font-medium whitespace-nowrap">
-              {lang === "fr" ? "Bientôt" : "Coming soon"}
-            </span>
-          </div>
-        </motion.div>
-
         {/* Source disclaimer */}
-        <p className="text-[11px] text-muted-foreground/30 text-center">
+        <p className="text-[11px] text-muted-foreground/25 text-center">
           {lang === "fr"
             ? "Données via Yahoo Finance · ~1 min de différé · Simulateur uniquement — pas de conseil financier."
             : "Data via Yahoo Finance · ~1 min delay · Simulator only — not financial advice."}
