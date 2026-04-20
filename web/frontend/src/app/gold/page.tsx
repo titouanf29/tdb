@@ -1205,6 +1205,20 @@ export default function GoldPage() {
   const [activeAnalysisTab, setActiveAnalysisTab] = useState<"perso" | "multitf">("perso");
   const [macroExpanded, setMacroExpanded]          = useState(false);
 
+  // Memoized derivations — must stay before early returns (Rules of Hooks)
+  const vixChangeMemo = corrPrices["^VIX"]?.change ?? 0;
+  const dxyChangeMemo = corrPrices["DX-Y.NYB"]?.change ?? 0;
+  const tnxChangeMemo = corrPrices["^TNX"]?.change ?? 0;
+  const riskEnv = useMemo(() => {
+    const s = vixChangeMemo * 0.5 - dxyChangeMemo * 0.3 - tnxChangeMemo * 0.2;
+    return s > 0.3 ? "risk-off" : s < -0.3 ? "risk-on" : "neutral";
+  }, [vixChangeMemo, dxyChangeMemo, tnxChangeMemo]);
+  const comex = useMemo(() => getCOMEXStatus(), []);
+  const newsItems = useMemo(() => [
+    ...(analysis?.news ?? []).map(n => ({ title: n.title ?? "", publisher: n.publisher, link: n.link, date: n.date })),
+    ...news.filter(n => !(analysis?.news ?? []).some(a => a.title === n.title)),
+  ].filter(n => n.title).slice(0, 8), [analysis?.news, news]);
+
   // Wait for premium status to resolve, then check Gold Hub access
   useEffect(() => {
     if (isPremiumLoading) return;         // Not ready yet
@@ -1299,19 +1313,9 @@ export default function GoldPage() {
   const perf        = analysis?.performance ?? {};
   const isUp        = change >= 0;
 
-  // Risk-On / Risk-Off from live data
   const vixChange   = corrPrices["^VIX"]?.change ?? 0;
   const dxyChange   = corrPrices["DX-Y.NYB"]?.change ?? 0;
   const tnxChange   = corrPrices["^TNX"]?.change ?? 0;
-  const riskEnv = useMemo(() => {
-    const s = vixChange * 0.5 - dxyChange * 0.3 - tnxChange * 0.2;
-    return s > 0.3 ? "risk-off" : s < -0.3 ? "risk-on" : "neutral";
-  }, [vixChange, dxyChange, tnxChange]);
-  const comex = useMemo(() => getCOMEXStatus(), []);
-  const newsItems = useMemo(() => [
-    ...(analysis?.news ?? []).map(n => ({ title: n.title ?? "", publisher: n.publisher, link: n.link, date: n.date })),
-    ...news.filter(n => !(analysis?.news ?? []).some(a => a.title === n.title)),
-  ].filter(n => n.title).slice(0, 8), [analysis?.news, news]);
 
   const TIMEFRAMES = ["1h", "1d", "1w", "1mo", "3mo"];
 
