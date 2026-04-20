@@ -1789,14 +1789,7 @@ function Dashboard() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-[50vh]">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
-      </div>
-    );
-  }
-
+  // Must stay before early returns (Rules of Hooks)
   const avgFavChange = useMemo(() => favorites.length > 0
     ? favorites.filter(f => !f.error).reduce((sum, f) => sum + f.change, 0) / Math.max(1, favorites.filter(f => !f.error).length)
     : 0, [favorites]);
@@ -1814,6 +1807,14 @@ function Dashboard() {
     const syms = new Set(favorites.map(f => f.symbol.replace(/-USD$/, "").replace(/\..*/, "")));
     return { ...marketNews, news: marketNews.news.filter(n => syms.has(n.related?.toUpperCase() || "")) };
   }, [favorites, marketNews, newsFilter]);
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[50vh]">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   const visibleWidget = (id: WidgetId) => activeWidgets.includes(id);
 
