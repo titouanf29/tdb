@@ -1252,6 +1252,14 @@ export default function GoldPage() {
     return () => clearInterval(id);
   }, []);
 
+  // Refresh open positions every 30s when there are positions open
+  useEffect(() => {
+    if (!settingsLoaded || (!isAdmin && !goldPublic)) return;
+    if (goldPositions.length === 0) return;
+    const id = setInterval(loadGoldPositions, 30000);
+    return () => clearInterval(id);
+  }, [settingsLoaded, isAdmin, goldPublic, goldPositions.length, loadGoldPositions]);
+
   // Spinner while premium status or settings are loading
   if (isPremiumLoading || !settingsLoaded) return (
     <div className="flex items-center justify-center min-h-[50vh]">
@@ -1649,10 +1657,16 @@ export default function GoldPage() {
 
               {goldPositions.length > 0 && (
                 <div className="mt-4 pt-3 border-t border-white/6 space-y-2">
-                  <p className="text-[10px] text-muted-foreground/45 font-semibold uppercase tracking-wider flex items-center gap-1.5">
-                    <Activity className="w-2.5 h-2.5 text-amber-400/50"/>
-                    {lang === "fr" ? "Positions ouvertes" : "Open positions"} · GC=F
-                  </p>
+                  <div className="flex items-center justify-between">
+                    <p className="text-[10px] text-muted-foreground/45 font-semibold uppercase tracking-wider flex items-center gap-1.5">
+                      <Activity className="w-2.5 h-2.5 text-amber-400/50"/>
+                      {lang === "fr" ? "Positions ouvertes" : "Open positions"} · GC=F
+                    </p>
+                    <span className="flex items-center gap-1 text-[9px] text-profit/50">
+                      <span className="w-1.5 h-1.5 rounded-full bg-profit/60 animate-pulse inline-block" />
+                      {lang === "fr" ? "Live 30s" : "Live 30s"}
+                    </span>
+                  </div>
                   {goldPositions.map(pos => {
                     const pnl = pos.unrealized_pnl ?? 0;
                     const pct = pos.pnl_percent ?? 0;
