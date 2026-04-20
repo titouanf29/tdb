@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import dynamic from "next/dynamic";
@@ -1079,7 +1079,6 @@ function useCountdownToNextOpen(): { secondsLeft: number; openTimeFR: string } {
   const etOffset = (month >= 3 && month <= 11) ? -4 : -5;
   const frOffset = (month >= 3 && month <= 10) ? 2 : 1;
 
-  // Express current time in ET using UTC arithmetic
   const etDate = new Date(now.getTime() + etOffset * 3600000);
   const etDow = etDate.getUTCDay();
   const etMinOfDay = etDate.getUTCHours() * 60 + etDate.getUTCMinutes();
@@ -1120,6 +1119,33 @@ function formatCountdown(s: number): string {
   const sec = s % 60;
   if (h > 0) return `${h}h ${String(m).padStart(2, "0")}min ${String(sec).padStart(2, "0")}s`;
   return `${String(m).padStart(2, "0")}min ${String(sec).padStart(2, "0")}s`;
+}
+
+// Composant isolé — seul lui re-render chaque seconde, pas la page entière
+function CountdownDisplay({ lang }: { lang: "fr" | "en" }) {
+  const countdown = useCountdownToNextOpen();
+  if (!countdown.secondsLeft) return null;
+  return (
+    <div className="flex items-center gap-1.5 mt-1 text-xs text-muted-foreground/60">
+      <Timer className="w-3 h-3 text-amber-400/60 flex-shrink-0" />
+      <span>
+        {lang === "fr" ? "Ouverture dans " : "Opens in "}
+        <span className="font-mono font-semibold text-amber-400">{formatCountdown(countdown.secondsLeft)}</span>
+        <span className="text-muted-foreground/35 ml-1">· {countdown.openTimeFR} (Paris)</span>
+      </span>
+    </div>
+  );
+}
+
+// Composant isolé — seul lui re-render chaque minute pour les catalyseurs
+function CatalystTimer({ eventDate, lang }: { eventDate: Date; lang: "fr" | "en"; urgency: boolean }) {
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setTick(t => t + 1), 60000);
+    return () => clearInterval(id);
+  }, []);
+  const msLeft = eventDate.getTime() - Date.now();
+  return <span>{formatCatalystTime(msLeft, lang)}</span>;
 }
 
 // ── Main page ─────────────────────────────────────────────────────────────────
@@ -1176,8 +1202,6 @@ export default function GoldPage() {
   const [settingsLoaded, setSettingsLoaded] = useState(false);
   const [tfData, setTfData]              = useState<Record<string, Analysis | null>>({});
   const [catalysts, setCatalysts]        = useState<any[]>([]);
-  const [nowTick, setNowTick]            = useState(() => Date.now());
-  const countdown = useCountdownToNextOpen();
   const [activeAnalysisTab, setActiveAnalysisTab] = useState<"perso" | "multitf">("perso");
   const [macroExpanded, setMacroExpanded]          = useState(false);
 
@@ -1246,11 +1270,7 @@ export default function GoldPage() {
       .catch(() => {});
   }, [settingsLoaded, isAdmin, goldPublic]);
 
-  // Tick every minute for catalyst countdowns
-  useEffect(() => {
-    const id = setInterval(() => setNowTick(Date.now()), 60000);
-    return () => clearInterval(id);
-  }, []);
+
 
   // Refresh open positions every 30s when there are positions open
   useEffect(() => {
@@ -1283,13 +1303,15 @@ export default function GoldPage() {
   const vixChange   = corrPrices["^VIX"]?.change ?? 0;
   const dxyChange   = corrPrices["DX-Y.NYB"]?.change ?? 0;
   const tnxChange   = corrPrices["^TNX"]?.change ?? 0;
-  const riskScore   = vixChange * 0.5 - dxyChange * 0.3 - tnxChange * 0.2;
-  const riskEnv     = riskScore > 0.3 ? "risk-off" : riskScore < -0.3 ? "risk-on" : "neutral";
-  const comex    = getCOMEXStatus();
-  const newsItems = [
+  const riskEnv = useMemo(() => {
+    const s = vixChange * 0.5 - dxyChange * 0.3 - tnxChange * 0.2;
+    return s > 0.3 ? "risk-off" : s < -0.3 ? "risk-on" : "neutral";
+  }, [vixChange, dxyChange, tnxChange]);
+  const comex = useMemo(() => getCOMEXStatus(), []);
+  const newsItems = useMemo(() => [
     ...(analysis?.news ?? []).map(n => ({ title: n.title ?? "", publisher: n.publisher, link: n.link, date: n.date })),
     ...news.filter(n => !(analysis?.news ?? []).some(a => a.title === n.title)),
-  ].filter(n => n.title).slice(0, 8);
+  ].filter(n => n.title).slice(0, 8), [analysis?.news, news]);
 
   const TIMEFRAMES = ["1h", "1d", "1w", "1mo", "3mo"];
 
@@ -1367,16 +1389,7 @@ export default function GoldPage() {
                       </span>
                     </div>
                   )}
-                  {comex.status !== "open" && countdown.secondsLeft > 0 && (
-                    <div className="flex items-center gap-1.5 mt-1 text-xs text-muted-foreground/60">
-                      <Timer className="w-3 h-3 text-amber-400/60 flex-shrink-0" />
-                      <span>
-                        {lang === "fr" ? "Ouverture dans " : "Opens in "}
-                        <span className="font-mono font-semibold text-amber-400">{formatCountdown(countdown.secondsLeft)}</span>
-                        <span className="text-muted-foreground/35 ml-1">· {countdown.openTimeFR} (Paris)</span>
-                      </span>
-                    </div>
-                  )}
+                  {comex.status !== "open" && <CountdownDisplay lang={lang} />}
                 </div>
               </div>
 
@@ -1840,8 +1853,7 @@ export default function GoldPage() {
               {catalysts.map((event: any, i: number) => {
                 const meta = getCatalystMeta(event.title ?? event.event ?? "", lang);
                 const eventDate = new Date(event.date ?? event.datetime ?? event.time);
-                const msLeft = eventDate.getTime() - nowTick;
-                const urgency = msLeft < 86400000 * 2;
+                const urgency = eventDate.getTime() - Date.now() < 86400000 * 2;
                 return (
                   <motion.div key={i}
                     initial={{ opacity: 0, x: -12 }} animate={{ opacity: 1, x: 0 }}
@@ -1866,7 +1878,7 @@ export default function GoldPage() {
                         "text-xs font-bold tabular-nums font-mono",
                         urgency ? "text-amber-400" : "text-muted-foreground"
                       )}>
-                        {formatCatalystTime(msLeft, lang)}
+                        <CatalystTimer eventDate={eventDate} lang={lang} urgency={urgency} />
                       </span>
                       <span className="text-[10px] text-muted-foreground/40">
                         {eventDate.toLocaleDateString(lang === "fr" ? "fr-FR" : "en-US", { month: "short", day: "numeric" })}
