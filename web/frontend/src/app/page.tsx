@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef, useCallback } from "react";
+import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion, useScroll, useTransform, AnimatePresence, useMotionValue, useSpring } from "framer-motion";
@@ -1797,23 +1797,23 @@ function Dashboard() {
     );
   }
 
-  const avgFavChange = favorites.length > 0
+  const avgFavChange = useMemo(() => favorites.length > 0
     ? favorites.filter(f => !f.error).reduce((sum, f) => sum + f.change, 0) / Math.max(1, favorites.filter(f => !f.error).length)
-    : 0;
+    : 0, [favorites]);
 
-  const sortedFavorites = [...favorites]
+  const sortedFavorites = useMemo(() => [...favorites]
     .filter(f => favFilter === "all" ? true : favFilter === "profit" ? f.change >= 0 : f.change < 0)
     .sort((a, b) => {
       if (favSort === "change_desc") return b.change - a.change;
       if (favSort === "change_asc") return a.change - b.change;
       return a.symbol.localeCompare(b.symbol);
-    });
+    }), [favorites, favFilter, favSort]);
 
-  // Filter news to only show items mentioning watched assets
-  const favoriteSymbols = new Set(favorites.map(f => f.symbol.replace(/-USD$/, "").replace(/\..*/, "")));
-  const filteredNews = newsFilter === "mine" && marketNews
-    ? { ...marketNews, news: marketNews.news.filter(n => favoriteSymbols.has(n.related?.toUpperCase() || "")) }
-    : marketNews;
+  const filteredNews = useMemo(() => {
+    if (newsFilter !== "mine" || !marketNews) return marketNews;
+    const syms = new Set(favorites.map(f => f.symbol.replace(/-USD$/, "").replace(/\..*/, "")));
+    return { ...marketNews, news: marketNews.news.filter(n => syms.has(n.related?.toUpperCase() || "")) };
+  }, [favorites, marketNews, newsFilter]);
 
   const visibleWidget = (id: WidgetId) => activeWidgets.includes(id);
 

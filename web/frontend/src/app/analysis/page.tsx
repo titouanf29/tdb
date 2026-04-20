@@ -260,6 +260,7 @@ export default function AnalysisPage() {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
   const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const blurTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const searchContainerRef = useRef<HTMLDivElement>(null);
   const [dropdownRect, setDropdownRect] = useState<DOMRect | null>(null);
   const [timeframe, setTimeframe] = useState("1d");
@@ -394,6 +395,7 @@ export default function AnalysisPage() {
     }
     return () => {
       if (autoRefreshRef.current) clearInterval(autoRefreshRef.current);
+      if (blurTimeoutRef.current) clearTimeout(blurTimeoutRef.current);
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoRefreshInterval]);
@@ -499,7 +501,7 @@ export default function AnalysisPage() {
                   setShowSuggestions(true);
                 }
               }}
-              onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
+              onBlur={() => { blurTimeoutRef.current = setTimeout(() => setShowSuggestions(false), 150); }}
               placeholder={t("analysis_symbol_ph")}
               className="w-full input pl-11 text-lg"
               onKeyDown={(e) => {

@@ -1067,6 +1067,8 @@ Réponds en ${lang === "fr" ? "français" : "English"}, de manière concise et d
   );
 }
 
+const FR_DAYS = ["dim.", "lun.", "mar.", "mer.", "jeu.", "ven.", "sam."];
+
 // ── Countdown to next COMEX open ─────────────────────────────────────────────
 function useCountdownToNextOpen(): { secondsLeft: number; openTimeFR: string } {
   const [now, setNow] = useState(() => new Date());
@@ -1107,8 +1109,7 @@ function useCountdownToNextOpen(): { secondsLeft: number; openTimeFR: string } {
   const secondsLeft = Math.max(0, Math.floor((nextOpenUTC - now.getTime()) / 1000));
 
   const nextFR = new Date(nextOpenUTC + frOffset * 3600000);
-  const frDays = ["dim.", "lun.", "mar.", "mer.", "jeu.", "ven.", "sam."];
-  const openTimeFR = `${frDays[nextFR.getUTCDay()]} ${String(nextFR.getUTCHours()).padStart(2,"0")}h${String(nextFR.getUTCMinutes()).padStart(2,"0")}`;
+  const openTimeFR = `${FR_DAYS[nextFR.getUTCDay()]} ${String(nextFR.getUTCHours()).padStart(2,"0")}h${String(nextFR.getUTCMinutes()).padStart(2,"0")}`;
 
   return { secondsLeft, openTimeFR };
 }
@@ -1206,13 +1207,13 @@ export default function GoldPage() {
   const [macroExpanded, setMacroExpanded]          = useState(false);
 
   // Memoized derivations — must stay before early returns (Rules of Hooks)
-  const vixChangeMemo = corrPrices["^VIX"]?.change ?? 0;
-  const dxyChangeMemo = corrPrices["DX-Y.NYB"]?.change ?? 0;
-  const tnxChangeMemo = corrPrices["^TNX"]?.change ?? 0;
   const riskEnv = useMemo(() => {
-    const s = vixChangeMemo * 0.5 - dxyChangeMemo * 0.3 - tnxChangeMemo * 0.2;
+    const vix = corrPrices["^VIX"]?.change ?? 0;
+    const dxy = corrPrices["DX-Y.NYB"]?.change ?? 0;
+    const tnx = corrPrices["^TNX"]?.change ?? 0;
+    const s = vix * 0.5 - dxy * 0.3 - tnx * 0.2;
     return s > 0.3 ? "risk-off" : s < -0.3 ? "risk-on" : "neutral";
-  }, [vixChangeMemo, dxyChangeMemo, tnxChangeMemo]);
+  }, [corrPrices]);
   const comex = useMemo(() => getCOMEXStatus(), []);
   const newsItems = useMemo(() => [
     ...(analysis?.news ?? []).map(n => ({ title: n.title ?? "", publisher: n.publisher, link: n.link, date: n.date })),
@@ -1312,10 +1313,6 @@ export default function GoldPage() {
   const risk        = analysis?.risk;
   const perf        = analysis?.performance ?? {};
   const isUp        = change >= 0;
-
-  const vixChange   = corrPrices["^VIX"]?.change ?? 0;
-  const dxyChange   = corrPrices["DX-Y.NYB"]?.change ?? 0;
-  const tnxChange   = corrPrices["^TNX"]?.change ?? 0;
 
   const TIMEFRAMES = ["1h", "1d", "1w", "1mo", "3mo"];
 
