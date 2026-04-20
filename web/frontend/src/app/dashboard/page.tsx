@@ -16,10 +16,24 @@ import { HelpGuide } from "@/components/ui/HelpGuide";
 import { usePremium } from "@/lib/PremiumContext";
 import { useLanguage } from "@/lib/LanguageContext";
 import { getAssetInfo, getAssetLogo } from "@/lib/assetInfo";
-import { SessionSummaryWidget } from "@/components/dashboard/SessionSummary";
-import { OpportunitiesWidget } from "@/components/dashboard/OpportunitiesWidget";
-import { TrendingWidget } from "@/components/dashboard/TrendingWidget";
-import { WeeklyPrepWidget } from "@/components/ui/WeeklyPrepWidget";
+import dynamic from "next/dynamic";
+
+const SessionSummaryWidget = dynamic(
+  () => import("@/components/dashboard/SessionSummary").then(m => ({ default: m.SessionSummaryWidget })),
+  { ssr: false, loading: () => <div className="h-36 glass-card animate-pulse rounded-xl border border-white/8" /> }
+);
+const OpportunitiesWidget = dynamic(
+  () => import("@/components/dashboard/OpportunitiesWidget").then(m => ({ default: m.OpportunitiesWidget })),
+  { ssr: false, loading: () => <div className="h-48 glass-card animate-pulse rounded-xl border border-white/8" /> }
+);
+const TrendingWidget = dynamic(
+  () => import("@/components/dashboard/TrendingWidget").then(m => ({ default: m.TrendingWidget })),
+  { ssr: false, loading: () => <div className="h-48 glass-card animate-pulse rounded-xl border border-white/8" /> }
+);
+const WeeklyPrepWidget = dynamic(
+  () => import("@/components/ui/WeeklyPrepWidget").then(m => ({ default: m.WeeklyPrepWidget })),
+  { ssr: false, loading: () => null }
+);
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  DASHBOARD CONFIG
@@ -115,7 +129,7 @@ export default function DashboardPage() {
     }
   }, []);
 
-  const loadMarketNews = async () => {
+  const loadMarketNews = useCallback(async () => {
     setIsLoadingNews(true);
     try {
       const newsData = await aiAPI.getMarketNews();
@@ -123,37 +137,25 @@ export default function DashboardPage() {
     } catch { /* ignore */ } finally {
       setIsLoadingNews(false);
     }
-  };
+  }, []);
 
-  const loadData = async (showRefresh = false) => {
+  const loadData = useCallback((showRefresh = false) => {
     if (showRefresh) setIsRefreshing(true);
-    try {
-      const [balanceData, statsData, favoritesData, adminData, positionsData] = await Promise.all([
-        walletAPI.getBalance(),
-        walletAPI.getStats(),
-        favoritesAPI.getFavorites().catch(() => ({ favorites: [] })),
-        adminAPI.checkAdmin().catch(() => ({ is_admin: false })),
-        walletAPI.getPositions("open").catch(() => ({ positions: [] })),
-      ]);
-      setBalance(balanceData);
-      setStats(statsData);
-      setFavorites(favoritesData.favorites || []);
-      setIsAdmin(adminData.is_admin);
-      setOpenPositions(positionsData.positions || []);
-      loadIndices();
-      loadMarketNews();
-    } catch (error) {
-      console.error("Error loading dashboard:", error);
-    } finally {
-      setIsLoading(false);
-      setIsRefreshing(false);
-    }
-  };
+    // Fire every call independently — UI updates as each one resolves
+    walletAPI.getBalance().then(d => setBalance(d)).catch(() => {});
+    walletAPI.getStats().then(d => setStats(d)).catch(() => {});
+    favoritesAPI.getFavorites().then(d => setFavorites(d.favorites || [])).catch(() => setFavorites([]));
+    adminAPI.checkAdmin().then(d => setIsAdmin(d.is_admin)).catch(() => {});
+    walletAPI.getPositions("open").then(d => setOpenPositions(d.positions || [])).catch(() => setOpenPositions([]));
+    loadIndices();
+    loadMarketNews();
+    if (showRefresh) setTimeout(() => setIsRefreshing(false), 1500);
+  }, [loadIndices, loadMarketNews]);
 
   useEffect(() => {
+    setIsLoading(false); // Show page immediately — data fills in as it arrives
     loadData();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [loadData]);
 
   useEffect(() => {
     if (dashRefreshIntervalRef.current) clearInterval(dashRefreshIntervalRef.current);
@@ -161,8 +163,7 @@ export default function DashboardPage() {
       dashRefreshIntervalRef.current = setInterval(() => loadData(), dashRefreshRate);
     }
     return () => { if (dashRefreshIntervalRef.current) clearInterval(dashRefreshIntervalRef.current); };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dashRefreshRate]);
+  }, [dashRefreshRate, loadData]);
 
   const avgFavChange = useMemo(() => favorites.length > 0
     ? favorites.filter(f => !f.error).reduce((sum, f) => sum + f.change, 0) / Math.max(1, favorites.filter(f => !f.error).length)
@@ -194,7 +195,7 @@ export default function DashboardPage() {
     <motion.div variants={containerVariants} initial="hidden" animate="show" className="space-y-5">
       {/* Welcome banner */}
       <motion.div variants={itemVariants} className="glass-card p-5 relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-64 h-64 bg-primary/15 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none" />
+        <div className="absolute top-0 right-0 w-64 h-64 rounded-full -translate-y-1/2 translate-x-1/2 pointer-events-none" style={{background:"radial-gradient(circle, hsl(var(--primary)/0.12) 0%, transparent 70%)"}} />
         <div className="relative flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold mb-1">
