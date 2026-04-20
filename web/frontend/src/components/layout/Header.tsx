@@ -57,8 +57,12 @@ export function Header({ onMenuToggle }: { onMenuToggle?: () => void }) {
     if (!isAdmin) return;
     try {
       const data = await adminAPI.getNotifications();
-      setNotifications(data.notifications);
-      setUnreadCount(data.unread_count);
+      setNotifications(prev => {
+        const same = prev.length === data.notifications.length &&
+          prev.every((n, i) => n.id === data.notifications[i]?.id && n.is_read === data.notifications[i]?.is_read);
+        return same ? prev : data.notifications;
+      });
+      setUnreadCount(c => c === data.unread_count ? c : data.unread_count);
     } catch {}
   };
 
@@ -95,12 +99,7 @@ export function Header({ onMenuToggle }: { onMenuToggle?: () => void }) {
   };
 
   return (
-    <motion.header
-      initial={{ y: -8, opacity: 0 }}
-      animate={{ y: 0, opacity: 1 }}
-      transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
-      className="h-16 border-b border-white/10 bg-card/30 backdrop-blur-xl px-4 md:px-6 flex items-center justify-between gap-3 relative z-50"
-    >
+    <header className="h-16 border-b border-white/10 bg-card/30 backdrop-blur-xl px-4 md:px-6 flex items-center justify-between gap-3 relative z-50">
       {/* Hamburger mobile */}
       <button
         onClick={onMenuToggle}
@@ -308,7 +307,7 @@ export function Header({ onMenuToggle }: { onMenuToggle?: () => void }) {
           )}
         </div>
       </div>
-    </motion.header>
+    </header>
   );
 }
 

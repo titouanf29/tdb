@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, useCallback, useMemo, ReactNode } from "react";
 import { settingsAPI } from "./api";
 
 export type Currency = "USD" | "EUR";
@@ -98,45 +98,48 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     }
   }, [settings.theme, settings.accentColor, isLoaded]);
 
-  // Sync trading_style + risk_level to backend (debounced via direct call)
-  const syncToBackend = (patch: { trading_style?: string; risk_level?: string }) => {
+  const syncToBackend = useCallback((patch: { trading_style?: string; risk_level?: string }) => {
     settingsAPI.update(patch).catch(() => {/* silent */});
-  };
+  }, []);
 
-  const setCurrency = (currency: Currency) =>
-    setSettings((prev) => ({ ...prev, currency }));
+  const setCurrency = useCallback((currency: Currency) =>
+    setSettings((prev) => ({ ...prev, currency })), []);
 
-  const setTradingStyle = (tradingStyle: string) => {
+  const setTradingStyle = useCallback((tradingStyle: string) => {
     setSettings((prev) => ({ ...prev, tradingStyle }));
     syncToBackend({ trading_style: tradingStyle });
-  };
+  }, [syncToBackend]);
 
-  const setRiskLevel = (riskLevel: string) => {
+  const setRiskLevel = useCallback((riskLevel: string) => {
     setSettings((prev) => ({ ...prev, riskLevel }));
     syncToBackend({ risk_level: riskLevel });
-  };
+  }, [syncToBackend]);
 
-  const setDefaultLeverage = (defaultLeverage: string) =>
-    setSettings((prev) => ({ ...prev, defaultLeverage }));
+  const setDefaultLeverage = useCallback((defaultLeverage: string) =>
+    setSettings((prev) => ({ ...prev, defaultLeverage })), []);
 
-  const setTheme = (theme: Theme) =>
-    setSettings((prev) => ({ ...prev, theme }));
+  const setTheme = useCallback((theme: Theme) =>
+    setSettings((prev) => ({ ...prev, theme })), []);
 
-  const setAccentColor = (accentColor: AccentColor) =>
-    setSettings((prev) => ({ ...prev, accentColor }));
+  const setAccentColor = useCallback((accentColor: AccentColor) =>
+    setSettings((prev) => ({ ...prev, accentColor })), []);
 
-  const updateSettings = (updates: Partial<Settings>) => {
+  const updateSettings = useCallback((updates: Partial<Settings>) => {
     setSettings((prev) => ({ ...prev, ...updates }));
     const patch: Record<string, string> = {};
     if (updates.tradingStyle) patch.trading_style = updates.tradingStyle;
     if (updates.riskLevel) patch.risk_level = updates.riskLevel;
     if (Object.keys(patch).length) syncToBackend(patch);
-  };
+  }, [syncToBackend]);
+
+  const contextValue = useMemo(() => ({
+    settings, setCurrency, setTradingStyle, setRiskLevel,
+    setDefaultLeverage, setTheme, setAccentColor, updateSettings,
+  }), [settings, setCurrency, setTradingStyle, setRiskLevel,
+      setDefaultLeverage, setTheme, setAccentColor, updateSettings]);
 
   return (
-    <SettingsContext.Provider
-      value={{ settings, setCurrency, setTradingStyle, setRiskLevel, setDefaultLeverage, setTheme, setAccentColor, updateSettings }}
-    >
+    <SettingsContext.Provider value={contextValue}>
       {children}
     </SettingsContext.Provider>
   );
@@ -167,7 +170,7 @@ export const CURRENCY_SYMBOLS: Record<Currency, string> = {
 
 export function useFormatCurrency() {
   const { settings } = useSettings();
-  return (value: number, originalCurrency: Currency = "USD"): string => {
+  return useCallback((value: number, originalCurrency: Currency = "USD"): string => {
     const converted = convertCurrency(value, originalCurrency, settings.currency);
     return new Intl.NumberFormat("fr-FR", {
       style: "currency",
@@ -175,7 +178,7 @@ export function useFormatCurrency() {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     }).format(converted);
-  };
+  }, [settings.currency]);
 }
 
 /**
@@ -188,20 +191,12 @@ export function useFormatCurrency() {
  * Use this for any market price coming directly from Yahoo Finance / the prices API.
  * Use useFormatCurrency for wallet / P&L values (which are always stored in USD).
  */
+const EUR_SUFFIXES = [".PA", ".DE", ".AS", ".BR", ".LS", ".MI", ".MC", ".AT", ".CO", ".ST", ".HE", ".OL", ".WA"];
+
 export function useFormatPrice() {
   const { settings } = useSettings();
-  // Import lazily to avoid circular deps — assetInfo has no React imports
-  return (value: number, symbol: string): string => {
-    // Determine the native trading currency from the symbol suffix
-    const s = symbol.toUpperCase();
-    const EUR_SUFFIXES = [
-      ".PA", ".DE", ".AS", ".BR", ".LS", ".MI", ".MC",
-      ".AT", ".CO", ".ST", ".HE", ".OL", ".WA",
-    ];
-    const nativeCurrency: Currency = EUR_SUFFIXES.some((sfx) => s.endsWith(sfx))
-      ? "EUR"
-      : "USD";
-
+  return useCallback((value: number, symbol: string): string => {
+    const nativeCurrency: Currency = EUR_SUFFIXES.some((sfx) => symbol.toUpperCase().endsWith(sfx)) ? "EUR" : "USD";
     const converted = convertCurrency(value, nativeCurrency, settings.currency);
     return new Intl.NumberFormat("fr-FR", {
       style: "currency",
@@ -209,5 +204,5 @@ export function useFormatPrice() {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     }).format(converted);
-  };
+  }, [settings.currency]);
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, { createContext, useContext, useEffect, useState, useCallback, useMemo } from "react";
 import { premiumAPI, PremiumStatus, PremiumLimits } from "./api";
 import { useAuth } from "./AuthContext";
 
@@ -37,7 +37,7 @@ export function PremiumProvider({ children }: { children: React.ReactNode }) {
   const [premiumInfo, setPremiumInfo] = useState<{ since: string | null; expires: string | null } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  const refresh = async () => {
+  const refresh = useCallback(async () => {
     if (!isAuthenticated) {
       setIsPremium(false);
       setIsAdmin(false);
@@ -46,7 +46,6 @@ export function PremiumProvider({ children }: { children: React.ReactNode }) {
       setIsLoading(false);
       return;
     }
-
     try {
       const status = await premiumAPI.getStatus();
       setIsPremium(status.is_premium);
@@ -59,32 +58,26 @@ export function PremiumProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [isAuthenticated]);
 
   useEffect(() => {
     refresh();
-  }, [isAuthenticated]);
+  }, [refresh]);
 
-  const checkFeature = (feature: keyof PremiumLimits): boolean => {
+  const checkFeature = useCallback((feature: keyof PremiumLimits): boolean => {
     if (!limits) return false;
     const value = limits[feature];
     if (typeof value === "boolean") return value;
     if (typeof value === "number") return value > 0 || value === -1;
     return false;
-  };
+  }, [limits]);
+
+  const contextValue = useMemo(() => ({
+    isPremium, isAdmin, limits, premiumInfo, isLoading, refresh, checkFeature,
+  }), [isPremium, isAdmin, limits, premiumInfo, isLoading, refresh, checkFeature]);
 
   return (
-    <PremiumContext.Provider
-      value={{
-        isPremium,
-        isAdmin,
-        limits,
-        premiumInfo,
-        isLoading,
-        refresh,
-        checkFeature,
-      }}
-    >
+    <PremiumContext.Provider value={contextValue}>
       {children}
     </PremiumContext.Provider>
   );

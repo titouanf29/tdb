@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, useCallback, useMemo, ReactNode } from "react";
 
 export type Lang = "fr" | "en";
 
@@ -2162,18 +2162,20 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     if (stored === "fr" || stored === "en") setLangState(stored);
   }, []);
 
-  const setLang = (l: Lang) => {
+  const setLang = useCallback((l: Lang) => {
     setLangState(l);
     localStorage.setItem("tdb_lang", l);
-  };
+  }, []);
 
-  const t = (key: TranslationKey): string =>
+  const t = useCallback((key: TranslationKey): string =>
     (translations[lang] as Record<string, string>)[key] ??
     (translations.fr as Record<string, string>)[key] ??
-    key;
+    key, [lang]);
+
+  const contextValue = useMemo(() => ({ lang, setLang, t }), [lang, setLang, t]);
 
   return (
-    <LanguageContext.Provider value={{ lang, setLang, t }}>
+    <LanguageContext.Provider value={contextValue}>
       {children}
     </LanguageContext.Provider>
   );

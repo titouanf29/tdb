@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, { createContext, useContext, useEffect, useState, useCallback, useMemo } from "react";
 import {
   User,
   TradingLevel,
@@ -76,12 +76,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => clearInterval(interval);
   }, [user]);
 
-  const login = async (email: string, password: string, rememberMe = false) => {
+  const login = useCallback(async (email: string, password: string, rememberMe = false) => {
     const response = await authLogin(email, password, rememberMe);
     setUser(response.user);
-  };
+  }, []);
 
-  const register = async (
+  const register = useCallback(async (
     email: string,
     password: string,
     username: string,
@@ -90,14 +90,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const response = await authRegister(email, password, username, firstName);
     if (response.user) setUser(response.user);
     return response;
-  };
+  }, []);
 
-  const logout = async () => {
+  const logout = useCallback(async () => {
     await authLogout();
     setUser(null);
-  };
+  }, []);
 
-  const setTradingLevel = async (level: TradingLevel) => {
+  const setTradingLevel = useCallback(async (level: TradingLevel) => {
     const token = getToken();
     if (!token) return;
     await fetch("/api/users/settings", {
@@ -108,20 +108,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const updated = { ...user!, trading_level: level };
     setUser(updated);
     saveUser(updated);
-  };
+  }, [user]);
+
+  const contextValue = useMemo(() => ({
+    user,
+    isLoading,
+    isAuthenticated: !!user,
+    login,
+    register,
+    logout,
+    setTradingLevel,
+  }), [user, isLoading, login, register, logout, setTradingLevel]);
 
   return (
-    <AuthContext.Provider
-      value={{
-        user,
-        isLoading,
-        isAuthenticated: !!user,
-        login,
-        register,
-        logout,
-        setTradingLevel,
-      }}
-    >
+    <AuthContext.Provider value={contextValue}>
       {children}
     </AuthContext.Provider>
   );
