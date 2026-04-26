@@ -755,6 +755,21 @@ class DiscordService:
         await self.send_message(embed=embed, channel=self.CHANNEL_ANNOUNCEMENTS)
         logger.info("Discord: Bilan hebdomadaire envoyé")
 
+    async def _is_weekly_preview_skipped(self) -> bool:
+        """Vérifie dans la DB si l'envoi automatique a été désactivé depuis l'interface admin."""
+        try:
+            import aiosqlite
+            from pathlib import Path
+            db_path = Path(__file__).parent.parent / "trading_bot.db"
+            async with aiosqlite.connect(str(db_path)) as db:
+                async with db.execute(
+                    "SELECT value FROM admin_settings WHERE key = 'skip_weekly_preview'"
+                ) as cursor:
+                    row = await cursor.fetchone()
+                    return row is not None and row[0] == "true"
+        except Exception:
+            return False
+
     async def send_sunday_weekly_preview(self):
         """
         Envoie le mega message du dimanche soir (18h) pour lancer la semaine
@@ -766,8 +781,8 @@ class DiscordService:
         paris_tz = pytz.timezone('Europe/Paris')
         now = datetime.now(paris_tz)
 
-        # Envoi désactivé manuellement pour cette semaine
-        if self.skip_weekly_preview:
+        # Envoi désactivé manuellement pour cette semaine (via site admin ou flag local)
+        if self.skip_weekly_preview or await self._is_weekly_preview_skipped():
             logger.info("Discord: Préparation semaine ignorée (skip_weekly_preview activé)")
             return
 

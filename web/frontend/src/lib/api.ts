@@ -1570,6 +1570,13 @@ export const weeklyPrepAPI = {
       method: "PUT",
       body: JSON.stringify({ briefing }),
     }),
+  adminGetAutoSend: () =>
+    fetchAPI<{ skip: boolean }>("/api/weekly-prep/admin/auto-send"),
+  adminSetAutoSend: (skip: boolean) =>
+    fetchAPI<{ skip: boolean }>("/api/weekly-prep/admin/auto-send", {
+      method: "POST",
+      body: JSON.stringify({ skip }),
+    }),
 };
 
 // ─── Insights Engine (Admin only) ─────────────────────────────────────────────

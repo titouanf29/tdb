@@ -536,3 +536,46 @@ async def admin_save(
             (week_key, content_str, now),
         )
     return {"saved": True, "week_key": week_key, "generated_at": now}
+
+
+# ─── Auto-send toggle ──────────────────────────────────────────────────────────
+
+_SKIP_KEY = "skip_weekly_preview"
+
+
+@router.get("/admin/auto-send")
+async def get_auto_send_setting(_user: dict = Depends(_require_admin)):
+    """Return whether the automatic Sunday preview is enabled."""
+    row = await execute_query(
+        "SELECT value FROM admin_settings WHERE key = ?", (_SKIP_KEY,)
+    )
+    skip = row[0]["value"] == "true" if row else False
+    return {"skip": skip}
+
+
+class AutoSendRequest(BaseModel):
+    skip: bool
+
+
+@router.post("/admin/auto-send")
+async def set_auto_send_setting(
+    req: AutoSendRequest,
+    _user: dict = Depends(_require_admin),
+):
+    """Enable or disable the automatic Sunday 18h preview for this week."""
+    now = datetime.now(timezone.utc).isoformat()
+    value = "true" if req.skip else "false"
+    existing = await execute_query(
+        "SELECT key FROM admin_settings WHERE key = ?", (_SKIP_KEY,)
+    )
+    if existing:
+        await execute_write(
+            "UPDATE admin_settings SET value = ?, updated_at = ? WHERE key = ?",
+            (value, now, _SKIP_KEY),
+        )
+    else:
+        await execute_write(
+            "INSERT INTO admin_settings (key, value, created_at, updated_at) VALUES (?,?,?,?)",
+            (_SKIP_KEY, value, now, now),
+        )
+    return {"skip": req.skip}

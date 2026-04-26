@@ -9,6 +9,7 @@ import {
   TrendingUp, TrendingDown, Minus, Calendar, BarChart2,
   Globe, Clock, Zap, Shield, Upload, Target, BookOpen,
   Lightbulb, ArrowRight, ArrowUpRight, ArrowDownRight,
+  BellOff, Bell,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { weeklyPrepAPI, WeeklyBriefing, WeeklyTradingIdea } from "@/lib/api";
@@ -450,6 +451,8 @@ export default function AdminWeeklyPrepPage() {
   const [noteText, setNoteText]         = useState("");
   const [noteSaving, setNoteSaving]     = useState(false);
   const [noteSaved, setNoteSaved]       = useState(false);
+  const [skipSend, setSkipSend]         = useState(false);
+  const [skipToggling, setSkipToggling] = useState(false);
 
   useEffect(() => { load(); }, []);
 
@@ -457,6 +460,12 @@ export default function AdminWeeklyPrepPage() {
     setLoading(true);
     setError("");
     try {
+      // Load auto-send flag
+      try {
+        const autoSend = await weeklyPrepAPI.adminGetAutoSend();
+        setSkipSend(autoSend.skip);
+      } catch { /* not critical */ }
+
       // Try admin endpoint first (available once new backend is deployed)
       try {
         const data = await weeklyPrepAPI.adminPreview();
@@ -577,6 +586,18 @@ export default function AdminWeeklyPrepPage() {
     }
   };
 
+  const handleToggleSkip = async () => {
+    setSkipToggling(true);
+    try {
+      const res = await weeklyPrepAPI.adminSetAutoSend(!skipSend);
+      setSkipSend(res.skip);
+    } catch (e: any) {
+      setError(e?.message || "Erreur lors de la mise à jour");
+    } finally {
+      setSkipToggling(false);
+    }
+  };
+
   const handleJsonChange = (val: string) => {
     setJsonText(val);
     setJsonError("");
@@ -633,6 +654,25 @@ export default function AdminWeeklyPrepPage() {
             </div>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
+            {/* Auto-send toggle */}
+            <button
+              onClick={handleToggleSkip}
+              disabled={skipToggling}
+              className={cn(
+                "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all border disabled:opacity-50",
+                skipSend
+                  ? "bg-red-500/15 text-red-400 border-red-500/30 hover:bg-red-500/25"
+                  : "bg-emerald-500/15 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/25"
+              )}
+              title={skipSend ? "Réactiver l'envoi automatique du dimanche" : "Désactiver l'envoi automatique de cette semaine"}
+            >
+              {skipToggling
+                ? <Loader2 className="w-4 h-4 animate-spin" />
+                : skipSend ? <BellOff className="w-4 h-4" /> : <Bell className="w-4 h-4" />
+              }
+              {skipSend ? "Envoi désactivé" : "Envoi auto activé"}
+            </button>
+
             <button
               onClick={handleRegenerate}
               disabled={regenerating}
