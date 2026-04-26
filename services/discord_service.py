@@ -137,6 +137,7 @@ class DiscordService:
         self._alerted_today = set()  # Éviter les alertes répétées
         self._last_stats_send = None  # Pour le rapport quotidien admin
         self._last_sunday_preview = None  # Pour le message dimanche 18h
+        self.skip_weekly_preview = False  # Désactiver l'envoi cette semaine
 
         # Telegram bot reference (set via set_telegram_bot)
         self.telegram_bot = None
@@ -764,6 +765,11 @@ class DiscordService:
         """
         paris_tz = pytz.timezone('Europe/Paris')
         now = datetime.now(paris_tz)
+
+        # Envoi désactivé manuellement pour cette semaine
+        if self.skip_weekly_preview:
+            logger.info("Discord: Préparation semaine ignorée (skip_weekly_preview activé)")
+            return
 
         # Éviter les doublons
         if self._last_sunday_preview and self._last_sunday_preview.date() == now.date():
