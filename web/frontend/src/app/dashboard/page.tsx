@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback, useMemo, memo, useRef } from "react";
 import Link from "next/link";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, useSpring, useMotionValue, animate } from "framer-motion";
 import {
   TrendingUp, TrendingDown, Star, Activity, ArrowUpRight, ArrowDownRight,
   Target, RefreshCw, Loader2, Newspaper, Shield, Plus, Globe,
@@ -15,6 +15,7 @@ import { useFormatCurrency, useFormatPrice } from "@/lib/SettingsContext";
 import { usePremium } from "@/lib/PremiumContext";
 import { useLanguage } from "@/lib/LanguageContext";
 import { getAssetInfo, getAssetLogo } from "@/lib/assetInfo";
+import { AnimatedNumber } from "@/components/ui/AnimatedNumber";
 import dynamic from "next/dynamic";
 
 const SessionSummaryWidget = dynamic(
@@ -55,11 +56,23 @@ const INDICES_LABELS_BASE: Record<string, string> = {
 
 const containerVariants = {
   hidden: { opacity: 0 },
-  show: { opacity: 1, transition: { staggerChildren: 0.08 } },
+  show: { opacity: 1, transition: { staggerChildren: 0.07, delayChildren: 0.05 } },
 };
 const itemVariants = {
-  hidden: { opacity: 0, y: 20 },
-  show: { opacity: 1, y: 0 },
+  hidden: { opacity: 0, y: 18 },
+  show: { opacity: 1, y: 0, transition: { type: "spring" as const, stiffness: 260, damping: 22 } },
+};
+const listVariants = {
+  hidden: {},
+  show: { transition: { staggerChildren: 0.045 } },
+};
+const listItemVariants = {
+  hidden: { opacity: 0, x: -14, scale: 0.97 },
+  show: { opacity: 1, x: 0, scale: 1, transition: { type: "spring" as const, stiffness: 320, damping: 26 } },
+};
+const newsItemVariants = {
+  hidden: { opacity: 0, y: 10 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.22, ease: "easeOut" } },
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -195,22 +208,35 @@ export default function DashboardPage() {
 
       {/* ── Hero block ──────────────────────────────────────────────────────── */}
       <motion.div variants={itemVariants} className="glass-card p-5 relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-72 h-72 rounded-full -translate-y-1/2 translate-x-1/2 pointer-events-none"
-          style={{ background: "radial-gradient(circle, hsl(var(--primary)/0.10) 0%, transparent 65%)" }} />
+        <motion.div
+          className="absolute top-0 right-0 w-80 h-80 rounded-full -translate-y-1/2 translate-x-1/2 pointer-events-none"
+          animate={{ scale: [1, 1.12, 1], opacity: [0.7, 1, 0.7] }}
+          transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
+          style={{ background: "radial-gradient(circle, hsl(var(--primary)/0.13) 0%, transparent 65%)" }}
+        />
         <div className="relative flex items-start justify-between gap-4">
           {/* Left: balance + stats */}
           <div className="flex-1 min-w-0">
             <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">{t("dash_wallet_balance")}</p>
             <p className="text-3xl md:text-4xl font-bold tabular-nums">
-              {formatCurrency(balance?.total_equity || balance?.balance || 0)}
+              <AnimatedNumber
+                value={balance?.total_equity || balance?.balance || 0}
+                duration={1100}
+                formatter={formatCurrency}
+              />
             </p>
             <div className="flex items-center gap-4 mt-2 flex-wrap">
               {avgFavChange !== 0 && (
-                <span className={cn("flex items-center gap-1 text-sm font-medium", avgFavChange >= 0 ? "text-profit" : "text-loss")}>
+                <motion.span
+                  className={cn("flex items-center gap-1 text-sm font-medium", avgFavChange >= 0 ? "text-profit" : "text-loss")}
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ type: "spring", stiffness: 400, damping: 20 }}
+                >
                   {avgFavChange >= 0 ? <ArrowUpRight className="w-4 h-4" /> : <ArrowDownRight className="w-4 h-4" />}
                   {formatPercent(Math.abs(avgFavChange))}
                   <span className="text-muted-foreground font-normal">{lang === "fr" ? "moy. actifs" : "avg assets"}</span>
-                </span>
+                </motion.span>
               )}
               {openPositions.length > 0 && (
                 <Link href="/trading" className="flex items-center gap-1 text-sm text-primary hover:underline">
@@ -339,15 +365,24 @@ export default function DashboardPage() {
                 <h3 className="font-semibold">{t("dash_premium_title")}</h3>
                 <span className="text-xs text-muted-foreground ml-auto">{t("dash_premium_hint")}</span>
               </div>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+              <motion.div
+                className="grid grid-cols-2 md:grid-cols-3 gap-3"
+                variants={listVariants}
+                initial="hidden"
+                animate="show"
+              >
                 {(Object.keys(WIDGET_ICONS) as WidgetId[]).map((id) => {
                   const isActive = activeWidgets.includes(id);
                   const idx = activeWidgets.indexOf(id);
                   const labelKey = `widget_${id}_label` as Parameters<typeof t>[0];
                   const descKey = `widget_${id}_desc` as Parameters<typeof t>[0];
                   return (
-                    <div key={id} className={cn("p-3 rounded-xl border transition-all",
-                      isActive ? "border-primary/40 bg-primary/5" : "border-white/10 bg-white/3 opacity-60")}>
+                    <motion.div
+                      key={id}
+                      variants={newsItemVariants}
+                      animate={isActive ? { borderColor: "hsl(var(--primary)/0.4)", scale: 1 } : { scale: 1 }}
+                      className={cn("p-3 rounded-xl border transition-colors",
+                        isActive ? "border-primary/40 bg-primary/5" : "border-white/10 bg-white/3 opacity-60")}>
                       <div className="flex items-start justify-between mb-2">
                         <div className="flex items-center gap-2">
                           <span className="text-lg">{WIDGET_ICONS[id]}</span>
@@ -375,10 +410,10 @@ export default function DashboardPage() {
                           <span className="text-[10px] text-muted-foreground ml-1">pos. {idx + 1}</span>
                         </div>
                       )}
-                    </div>
+                    </motion.div>
                   );
                 })}
-              </div>
+              </motion.div>
             </div>
           </motion.div>
         )}
@@ -424,42 +459,54 @@ const FavoriteCard = memo(function FavoriteCard({ favorite, formatPrice }: { fav
   const logoUrl = getAssetLogo(favorite.symbol);
 
   return (
-    <Link href={`/analysis?symbol=${favorite.symbol}`}>
-      <div className="p-3 rounded-xl bg-white/5 hover:bg-white/10 transition-colors cursor-pointer group">
-        <div className="flex items-center gap-3">
-          {logoUrl ? (
-            <div className="w-9 h-9 rounded-lg bg-white/10 flex items-center justify-center overflow-hidden flex-shrink-0">
-              <img src={logoUrl} alt={info.name} className="w-6 h-6 object-contain"
-                onError={(e) => {
-                  const t = e.target as HTMLImageElement;
-                  t.style.display = "none";
-                  t.parentElement!.innerHTML = `<span class="text-xs font-bold">${favorite.symbol.slice(0,2)}</span>`;
-                }} />
-            </div>
-          ) : (
-            <div className="w-9 h-9 rounded-lg bg-secondary flex items-center justify-center text-xs font-bold flex-shrink-0">
-              {favorite.symbol.slice(0, 2)}
-            </div>
-          )}
-          <div className="flex-1 min-w-0">
-            <p className="font-semibold text-sm truncate">{info.name !== favorite.symbol ? info.name : favorite.symbol}</p>
-            <p className="text-[11px] text-muted-foreground">{favorite.symbol}</p>
-          </div>
-          <div className="text-right flex-shrink-0">
-            <p className="font-semibold text-sm">{favorite.error ? "—" : formatPrice(favorite.price, favorite.symbol)}</p>
-            {!favorite.error && (
-              <div className={cn(
-                "inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[11px] font-medium mt-0.5",
-                isProfit ? "bg-profit/15 text-profit" : "bg-loss/15 text-loss"
-              )}>
-                {isProfit ? <TrendingUp className="w-2.5 h-2.5" /> : <TrendingDown className="w-2.5 h-2.5" />}
-                {formatPercent(favorite.change)}
+    <motion.div variants={listItemVariants}>
+      <Link href={`/analysis?symbol=${favorite.symbol}`}>
+        <motion.div
+          className="p-3 rounded-xl bg-white/5 cursor-pointer group"
+          whileHover={{ backgroundColor: "rgba(255,255,255,0.09)", scale: 1.015 }}
+          whileTap={{ scale: 0.98 }}
+          transition={{ type: "spring", stiffness: 400, damping: 28 }}
+        >
+          <div className="flex items-center gap-3">
+            {logoUrl ? (
+              <div className="w-9 h-9 rounded-lg bg-white/10 flex items-center justify-center overflow-hidden flex-shrink-0">
+                <img src={logoUrl} alt={info.name} className="w-6 h-6 object-contain"
+                  onError={(e) => {
+                    const t = e.target as HTMLImageElement;
+                    t.style.display = "none";
+                    t.parentElement!.innerHTML = `<span class="text-xs font-bold">${favorite.symbol.slice(0,2)}</span>`;
+                  }} />
+              </div>
+            ) : (
+              <div className="w-9 h-9 rounded-lg bg-secondary flex items-center justify-center text-xs font-bold flex-shrink-0">
+                {favorite.symbol.slice(0, 2)}
               </div>
             )}
+            <div className="flex-1 min-w-0">
+              <p className="font-semibold text-sm truncate">{info.name !== favorite.symbol ? info.name : favorite.symbol}</p>
+              <p className="text-[11px] text-muted-foreground">{favorite.symbol}</p>
+            </div>
+            <div className="text-right flex-shrink-0">
+              <p className="font-semibold text-sm">{favorite.error ? "—" : formatPrice(favorite.price, favorite.symbol)}</p>
+              {!favorite.error && (
+                <motion.div
+                  className={cn(
+                    "inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[11px] font-medium mt-0.5",
+                    isProfit ? "bg-profit/15 text-profit" : "bg-loss/15 text-loss"
+                  )}
+                  initial={{ scale: 0.7, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  transition={{ type: "spring", stiffness: 500, damping: 22, delay: 0.05 }}
+                >
+                  {isProfit ? <TrendingUp className="w-2.5 h-2.5" /> : <TrendingDown className="w-2.5 h-2.5" />}
+                  {formatPercent(favorite.change)}
+                </motion.div>
+              )}
+            </div>
           </div>
-        </div>
-      </div>
-    </Link>
+        </motion.div>
+      </Link>
+    </motion.div>
   );
 });
 
@@ -482,30 +529,37 @@ const IndicesBar = memo(function IndicesBar({ indices, isLoading, onRefresh }: {
         </div>
         <div className="w-px h-5 bg-white/10 flex-shrink-0" />
         {/* Pills */}
-        {INDICES_SYMBOLS.map((sym) => {
+        {INDICES_SYMBOLS.map((sym, i) => {
           const d = indices[sym];
           const isUp = d ? d.change >= 0 : true;
           return (
-            <Link key={sym} href={`/analysis?symbol=${sym}`}
-              className="flex-shrink-0 flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 transition-colors"
+            <motion.div
+              key={sym}
+              initial={{ opacity: 0, x: -16 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: i * 0.06, type: "spring", stiffness: 260, damping: 22 }}
             >
-              <span className="text-xs font-semibold text-muted-foreground">{indicesLabels[sym] || sym}</span>
-              {d ? (
-                <>
-                  <span className="text-xs font-bold">
-                    {d.price > 1000
-                      ? d.price.toLocaleString("fr-FR", { maximumFractionDigits: 0 })
-                      : d.price.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  </span>
-                  <span className={cn("flex items-center gap-0.5 text-[11px] font-semibold", isUp ? "text-profit" : "text-loss")}>
-                    {isUp ? <TrendingUp className="w-2.5 h-2.5" /> : <TrendingDown className="w-2.5 h-2.5" />}
-                    {formatPercent(d.change)}
-                  </span>
-                </>
-              ) : (
-                <span className="w-12 h-3 bg-white/10 rounded animate-pulse inline-block" />
-              )}
-            </Link>
+              <Link href={`/analysis?symbol=${sym}`}
+                className="flex-shrink-0 flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/12 hover:scale-[1.04] transition-all duration-150"
+              >
+                <span className="text-xs font-semibold text-muted-foreground">{indicesLabels[sym] || sym}</span>
+                {d ? (
+                  <>
+                    <span className="text-xs font-bold">
+                      {d.price > 1000
+                        ? d.price.toLocaleString("fr-FR", { maximumFractionDigits: 0 })
+                        : d.price.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </span>
+                    <span className={cn("flex items-center gap-0.5 text-[11px] font-semibold", isUp ? "text-profit" : "text-loss")}>
+                      {isUp ? <TrendingUp className="w-2.5 h-2.5" /> : <TrendingDown className="w-2.5 h-2.5" />}
+                      {formatPercent(d.change)}
+                    </span>
+                  </>
+                ) : (
+                  <span className="w-12 h-3 bg-white/10 rounded animate-pulse inline-block" />
+                )}
+              </Link>
+            </motion.div>
           );
         })}
       </div>
@@ -564,11 +618,16 @@ const FavoritesWidget = memo(function FavoritesWidget({ favorites, favSort, setF
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          <motion.div
+            className="grid grid-cols-1 sm:grid-cols-2 gap-2"
+            variants={listVariants}
+            initial="hidden"
+            animate="show"
+          >
             {displayed.map((fav) => (
               <FavoriteCard key={fav.symbol} favorite={fav} formatPrice={formatPrice} />
             ))}
-          </div>
+          </motion.div>
           {favorites.length > 8 && (
             <button onClick={() => setShowAll(!showAll)}
               className="w-full mt-3 text-sm text-muted-foreground hover:text-foreground transition-colors py-2 rounded-lg hover:bg-white/5 flex items-center justify-center gap-1"
@@ -661,13 +720,25 @@ const NewsWidget = memo(function NewsWidget({ marketNews, isLoadingNews, newsFil
               )}
             </div>
           )}
-          <div className={cn("space-y-2 overflow-y-auto pr-1", compact ? "max-h-[520px]" : "max-h-[360px]")}>
+          <motion.div
+            className={cn("space-y-2 overflow-y-auto pr-1", compact ? "max-h-[520px]" : "max-h-[360px]")}
+            variants={listVariants}
+            initial="hidden"
+            animate="show"
+          >
             {(marketNews.news || []).length === 0 ? (
               <p className="text-center text-sm text-muted-foreground py-6">{t("dash_no_news")}</p>
             ) : (
               (marketNews.news || []).slice(0, compact ? 10 : 12).map((item, i) => (
-                <a key={i} href={item.link} target="_blank" rel="noopener noreferrer"
-                  className="flex items-start gap-3 p-3 rounded-xl bg-white/5 hover:bg-white/10 transition-colors group"
+                <motion.a
+                  key={i}
+                  variants={newsItemVariants}
+                  href={item.link}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-start gap-3 p-3 rounded-xl bg-white/5 group"
+                  whileHover={{ backgroundColor: "rgba(255,255,255,0.09)" }}
+                  transition={{ duration: 0.15 }}
                 >
                   <div className="flex-1 min-w-0">
                     <p className={cn("font-medium group-hover:text-primary transition-colors", compact ? "text-xs line-clamp-2" : "text-sm line-clamp-2")}>{item.title}</p>
@@ -682,10 +753,10 @@ const NewsWidget = memo(function NewsWidget({ marketNews, isLoadingNews, newsFil
                     </div>
                   </div>
                   <ExternalLink className="w-3 h-3 text-muted-foreground flex-shrink-0 mt-0.5 opacity-0 group-hover:opacity-100 transition-opacity" />
-                </a>
+                </motion.a>
               ))
             )}
-          </div>
+          </motion.div>
         </div>
       ) : (
         <div className="text-center py-8 text-muted-foreground">
@@ -712,19 +783,26 @@ const TradingStatsWidget = memo(function TradingStatsWidget({ stats, balance, fo
         </div>
         <Link href="/wallet" className="text-xs text-muted-foreground hover:text-foreground transition-colors">{t("dash_view_wallet")}</Link>
       </div>
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <motion.div
+        className="grid grid-cols-2 md:grid-cols-4 gap-4"
+        variants={listVariants}
+        initial="hidden"
+        animate="show"
+      >
         {[
-          { label: t("wallet_winrate"),        value: `${stats?.win_rate || 0}%`,           color: (stats?.win_rate || 0) >= 50 ? "text-profit" : "text-loss" },
-          { label: t("wallet_total_trades"),   value: String(stats?.total_trades || 0),      color: "text-foreground" },
-          { label: t("wallet_total_pnl"),      value: formatCurrency(stats?.total_pnl || 0), color: (stats?.total_pnl || 0) >= 0 ? "text-profit" : "text-loss" },
-          { label: t("dash_balance"),          value: formatCurrency(balance?.balance || 0), color: "text-foreground" },
+          { label: t("wallet_winrate"),      num: stats?.win_rate || 0,       fmt: (v: number) => `${Math.round(v)}%`,    color: (stats?.win_rate || 0) >= 50 ? "text-profit" : "text-loss" },
+          { label: t("wallet_total_trades"), num: stats?.total_trades || 0,   fmt: (v: number) => String(Math.round(v)),  color: "text-foreground" },
+          { label: t("wallet_total_pnl"),    num: stats?.total_pnl || 0,      fmt: formatCurrency,                        color: (stats?.total_pnl || 0) >= 0 ? "text-profit" : "text-loss" },
+          { label: t("dash_balance"),        num: balance?.balance || 0,      fmt: formatCurrency,                        color: "text-foreground" },
         ].map(item => (
-          <div key={item.label} className="p-4 rounded-xl bg-white/5">
+          <motion.div key={item.label} variants={newsItemVariants} className="p-4 rounded-xl bg-white/5">
             <p className="text-xs text-muted-foreground mb-1">{item.label}</p>
-            <p className={cn("text-xl font-bold", item.color)}>{item.value}</p>
-          </div>
+            <p className={cn("text-xl font-bold", item.color)}>
+              <AnimatedNumber value={item.num} formatter={item.fmt} duration={900} />
+            </p>
+          </motion.div>
         ))}
-      </div>
+      </motion.div>
     </div>
   );
 });
@@ -744,31 +822,47 @@ const OpenPositionsWidget = memo(function OpenPositionsWidget({ positions, forma
         </div>
         <Link href="/trading" className="text-xs text-muted-foreground hover:text-foreground transition-colors">{t("dash_view_all")}</Link>
       </div>
-      <div className="space-y-2">
-        {positions.slice(0, 5).map((pos) => {
+      <motion.div className="space-y-2" variants={listVariants} initial="hidden" animate="show">
+        {positions.slice(0, 5).map((pos, i) => {
           const pnl = pos.unrealized_pnl || 0;
           const isProfit = pnl >= 0;
           return (
-            <Link key={pos.id} href="/trading">
-              <div className="flex items-center justify-between p-3 rounded-xl bg-white/5 hover:bg-white/10 transition-colors">
-                <div className="flex items-center gap-3">
-                  <div className={cn("w-2 h-2 rounded-full flex-shrink-0", pos.direction === "LONG" ? "bg-profit" : "bg-loss")} />
-                  <div>
-                    <p className="font-semibold text-sm">{pos.symbol}</p>
-                    <p className="text-xs text-muted-foreground">{pos.direction} · {pos.leverage}x</p>
+            <motion.div
+              key={pos.id}
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: i * 0.06, type: "spring", stiffness: 280, damping: 24 }}
+            >
+              <Link href="/trading">
+                <motion.div
+                  className="flex items-center justify-between p-3 rounded-xl bg-white/5"
+                  whileHover={{ backgroundColor: "rgba(255,255,255,0.09)", x: 2 }}
+                  whileTap={{ scale: 0.99 }}
+                  transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                >
+                  <div className="flex items-center gap-3">
+                    <motion.div
+                      className={cn("w-2 h-2 rounded-full flex-shrink-0", pos.direction === "LONG" ? "bg-profit" : "bg-loss")}
+                      animate={isProfit ? { scale: [1, 1.4, 1], opacity: [1, 0.6, 1] } : {}}
+                      transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                    />
+                    <div>
+                      <p className="font-semibold text-sm">{pos.symbol}</p>
+                      <p className="text-xs text-muted-foreground">{pos.direction} · {pos.leverage}x</p>
+                    </div>
                   </div>
-                </div>
-                <div className="text-right">
-                  <p className={cn("font-semibold text-sm", isProfit ? "text-profit" : "text-loss")}>
-                    {isProfit ? "+" : ""}{formatCurrency(pnl)}
-                  </p>
-                  <p className="text-xs text-muted-foreground">{t("dash_entry")} {formatCurrency(pos.entry_price)}</p>
-                </div>
-              </div>
-            </Link>
+                  <div className="text-right">
+                    <p className={cn("font-semibold text-sm", isProfit ? "text-profit" : "text-loss")}>
+                      {isProfit ? "+" : ""}{formatCurrency(pnl)}
+                    </p>
+                    <p className="text-xs text-muted-foreground">{t("dash_entry")} {formatCurrency(pos.entry_price)}</p>
+                  </div>
+                </motion.div>
+              </Link>
+            </motion.div>
           );
         })}
-      </div>
+      </motion.div>
     </div>
   );
 });
@@ -787,19 +881,39 @@ const QuickActionsWidget = memo(function QuickActionsWidget({ isPremium: _ }: { 
   return (
     <div className="glass-card p-5">
       <h2 className="text-lg font-semibold mb-4">{t("widget_quickactions_label")}</h2>
-      <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
-        {actions.map(a => (
-          <Link key={a.href} href={a.href}>
-            <div className="p-4 rounded-xl bg-white/5 hover:bg-white/10 transition-all hover:scale-[1.03] text-center cursor-pointer group">
-              <div className="w-10 h-10 mx-auto mb-2 rounded-xl bg-primary/10 flex items-center justify-center text-primary group-hover:bg-primary/20 transition-colors">
-                {a.icon}
-              </div>
-              <p className="text-xs font-semibold">{a.label}</p>
-              <p className="text-[10px] text-muted-foreground">{a.sub}</p>
-            </div>
-          </Link>
+      <motion.div
+        className="grid grid-cols-3 md:grid-cols-6 gap-3"
+        variants={listVariants}
+        initial="hidden"
+        animate="show"
+      >
+        {actions.map((a, i) => (
+          <motion.div
+            key={a.href}
+            variants={newsItemVariants}
+            custom={i}
+          >
+            <Link href={a.href}>
+              <motion.div
+                className="p-4 rounded-xl bg-white/5 text-center cursor-pointer group"
+                whileHover={{ scale: 1.06, y: -3, backgroundColor: "rgba(255,255,255,0.09)" }}
+                whileTap={{ scale: 0.96 }}
+                transition={{ type: "spring", stiffness: 420, damping: 20 }}
+              >
+                <motion.div
+                  className="w-10 h-10 mx-auto mb-2 rounded-xl bg-primary/10 flex items-center justify-center text-primary"
+                  whileHover={{ backgroundColor: "rgba(var(--primary), 0.2)", rotate: [0, -8, 8, 0] }}
+                  transition={{ duration: 0.35 }}
+                >
+                  {a.icon}
+                </motion.div>
+                <p className="text-xs font-semibold">{a.label}</p>
+                <p className="text-[10px] text-muted-foreground">{a.sub}</p>
+              </motion.div>
+            </Link>
+          </motion.div>
         ))}
-      </div>
+      </motion.div>
     </div>
   );
 });
