@@ -61,7 +61,13 @@ async function fetchAPI<T>(
     try { detail = JSON.parse(rawText).detail; } catch {}
     let message: string;
     if (typeof detail === "string") {
-      message = detail;
+      // Sanitize low-level AI provider errors into user-friendly messages
+      const aiProviderErrors = ["stream idle timeout", "partial response", "stream error", "upstream error"];
+      if (aiProviderErrors.some(e => detail.toLowerCase().includes(e))) {
+        message = "Le service IA est temporairement surchargé. Réessayez dans quelques secondes.";
+      } else {
+        message = detail;
+      }
     } else if (Array.isArray(detail)) {
       message = detail.map((e: any) => e.msg || JSON.stringify(e)).join("; ");
     } else if (detail && typeof detail === "object") {
@@ -71,6 +77,7 @@ async function fetchAPI<T>(
         429: "Trop de requêtes. Attendez un moment avant de réessayer.",
         503: "Service temporairement indisponible. Réessayez dans quelques instants.",
         502: "Le serveur est temporairement indisponible.",
+        504: "Le service IA met trop de temps à répondre. Réessayez.",
         500: "Erreur interne du serveur. Notre équipe a été notifiée.",
         403: "Accès refusé.",
         404: "Ressource introuvable.",
@@ -179,6 +186,7 @@ export interface UserSettings {
   notifications_enabled: boolean;
   theme: string;
   default_leverage: string;
+  dashboard_widgets?: string | null;
 }
 
 export const settingsAPI = {

@@ -48,6 +48,43 @@ async def _call_mistral(messages: list, client: httpx.AsyncClient) -> str:
         raise HTTPException(status_code=429, detail="Limite IA atteinte. Reessayez dans quelques secondes.")
     return resp.json()["choices"][0]["message"]["content"]
 
+
+async def _call_groq_with_fallback(
+    messages: list,
+    temperature: float = 0.7,
+    max_tokens: int = 1024,
+    connect_timeout: float = 10.0,
+    read_timeout: float = 90.0,
+) -> str:
+    """Call Groq with automatic Mistral fallback on any error (timeout, stream idle, 429, 5xx)."""
+    api_key = get_groq_api_key()
+    timeout = httpx.Timeout(connect=connect_timeout, read=read_timeout, write=10.0, pool=10.0)
+    async with httpx.AsyncClient(timeout=timeout) as client:
+        groq_ok = False
+        if api_key:
+            try:
+                response = await client.post(
+                    GROQ_API_URL,
+                    headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+                    json={"model": MODEL, "messages": messages, "temperature": temperature, "max_tokens": max_tokens},
+                )
+                if response.status_code == 401:
+                    pass  # bad key → fall through to Mistral
+                elif response.status_code == 200:
+                    data = response.json()
+                    if "choices" in data and data["choices"]:
+                        return data["choices"][0]["message"]["content"]
+                    # Groq returned 200 but error body (stream idle timeout etc.) → fall through
+                    err = data.get("error", {})
+                    print(f"[AI] Groq error body: {err.get('message', data)}")
+                else:
+                    print(f"[AI] Groq HTTP {response.status_code} → fallback to Mistral")
+                groq_ok = False
+            except (httpx.TimeoutException, httpx.RemoteProtocolError, httpx.ReadError) as e:
+                print(f"[AI] Groq connection error ({type(e).__name__}): {e} → fallback to Mistral")
+                groq_ok = False
+        return await _call_mistral(messages, client)
+
 # System prompt for trading assistant
 SYSTEM_PROMPT = """Tu es TDB Assistant, un expert en trading et analyse financière avec 20 ans d'expérience sur les marchés.
 Tu travailles pour la plateforme TDB (Trading Dashboard Bot) et tu aides les traders à progresser.
@@ -347,58 +384,33 @@ async def chat_with_assistant(
         # Add new user message
         messages.append({"role": "user", "content": body.message})
 
-        async with httpx.AsyncClient(timeout=60.0) as client:
-            response = await client.post(
-                GROQ_API_URL,
-                headers={
-                    "Authorization": f"Bearer {api_key}",
-                    "Content-Type": "application/json"
-                },
-                json={
-                    "model": MODEL,
-                    "messages": messages,
-                    "temperature": 0.7,
-                    "max_tokens": 1024
-                }
-            )
+        assistant_message = await _call_groq_with_fallback(
+            messages, temperature=0.7, max_tokens=1024
+        )
 
-            if response.status_code == 401:
-                raise HTTPException(status_code=503, detail="Cle API Groq invalide. Verifiez GROQ_API_KEY.")
-            elif response.status_code == 429:
-                # Groq rate-limited → fallback to Mistral
-                print("[AI] Groq rate-limited, falling back to Mistral")
-                assistant_message = await _call_mistral(messages, client)
-            elif response.status_code != 200:
-                raise HTTPException(status_code=502, detail=f"Erreur IA ({response.status_code}): {response.text[:200]}")
-            else:
-                data = response.json()
-                assistant_message = data["choices"][0]["message"]["content"]
+        # Save messages to history
+        now = datetime.now(timezone.utc).isoformat()
+        await execute_write(
+            """INSERT INTO web_ai_chat (user_id, role, content, created_at)
+               VALUES (?, 'user', ?, ?)""",
+            (user_id, body.message, now)
+        )
+        await execute_write(
+            """INSERT INTO web_ai_chat (user_id, role, content, created_at)
+               VALUES (?, 'assistant', ?, ?)""",
+            (user_id, assistant_message, now)
+        )
 
-            # Save messages to history
-            now = datetime.now(timezone.utc).isoformat()
-            await execute_write(
-                """INSERT INTO web_ai_chat (user_id, role, content, created_at)
-                   VALUES (?, 'user', ?, ?)""",
-                (user_id, body.message, now)
-            )
-            await execute_write(
-                """INSERT INTO web_ai_chat (user_id, role, content, created_at)
-                   VALUES (?, 'assistant', ?, ?)""",
-                (user_id, assistant_message, now)
-            )
-
-            return ChatResponse(response=assistant_message)
+        return ChatResponse(response=assistant_message)
 
     except HTTPException:
         raise
-    except httpx.TimeoutException:
-        raise HTTPException(status_code=504, detail="AI request timeout")
     except Exception as e:
         import traceback
         detail_msg = str(e) or f"{type(e).__name__} (no message)"
         print(f"[AI] Unexpected error in chat_with_assistant ({type(e).__name__}): {detail_msg}")
         traceback.print_exc()
-        raise HTTPException(status_code=500, detail=detail_msg)
+        raise HTTPException(status_code=500, detail="Le service IA est temporairement indisponible. Réessayez dans quelques secondes.")
 
 
 @router.get("/history")
@@ -1255,39 +1267,26 @@ Décris les risques fondamentaux : quels éléments pourraient dégrader le busi
 
 ⚠️ *Analyse TDB (Long Terme | {rm['label']}) — éducatif uniquement. Pas un conseil financier.*"""
 
-    # ── 10. Call Groq ───────────────────────────────────────────────────────
+    # ── 10. Call Groq (with Mistral fallback) ──────────────────────────────────
     try:
-        async with httpx.AsyncClient(timeout=90.0) as client:
-            response = await client.post(
-                GROQ_API_URL,
-                headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
-                json={
-                    "model": MODEL,
-                    "messages": [
-                        {"role": "system", "content": SYSTEM_PROMPT},
-                        {"role": "user", "content": prompt}
-                    ],
-                    "temperature": 0.4,
-                    "max_tokens": 2500
-                }
-            )
-
-            if response.status_code == 429:
-                raise HTTPException(status_code=429, detail="Service IA surchargé, réessayez dans quelques secondes.")
-            if response.status_code != 200:
-                print(f"[AI] quick_analysis Groq error {response.status_code}: {response.text[:300]}")
-                raise HTTPException(status_code=502, detail=f"Erreur IA ({response.status_code})")
-
-            data = response.json()
-            return {
-                "symbol": symbol,
-                "analysis": data["choices"][0]["message"]["content"]
-            }
+        analysis_text = await _call_groq_with_fallback(
+            messages=[
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.4,
+            max_tokens=2500,
+            read_timeout=120.0,
+        )
+        return {
+            "symbol": symbol,
+            "analysis": analysis_text,
+        }
 
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Analyse IA temporairement indisponible. Réessayez dans quelques secondes.")
 
 
 @router.get("/market-news")
@@ -1373,42 +1372,26 @@ async def get_market_news(request: Request, current_user: dict = Depends(get_cur
         )
 
         try:
-            async with httpx.AsyncClient(timeout=30.0) as client:
-                response = await client.post(
-                    GROQ_API_URL,
-                    headers={
-                        "Authorization": f"Bearer {api_key}",
-                        "Content-Type": "application/json"
-                    },
-                    json={
-                        "model": MODEL,
-                        "messages": [
-                            {"role": "system", "content": structured_system},
-                            {"role": "user", "content": ai_prompt}
-                        ],
-                        "temperature": 0.3,
-                        "max_tokens": 700
-                    }
-                )
-
-                if response.status_code == 200:
-                    data = response.json()
-                    raw = data["choices"][0]["message"]["content"].strip()
-                    # Try to parse as structured JSON
-                    try:
-                        import json as _json
-                        import re as _re
-                        # Merge multiple arrays: "[{...}] [{...}]" → "[{...}, {...}]"
-                        normalized = _re.sub(r'\]\s*\[', ', ', raw.strip())
-                        parsed = _json.loads(normalized)
-                        if isinstance(parsed, list) and parsed:
-                            summary_points = parsed
-                        else:
-                            summary = raw
-                    except Exception:
-                        summary = raw
+            news_messages = [
+                {"role": "system", "content": structured_system},
+                {"role": "user", "content": ai_prompt}
+            ]
+            raw = await _call_groq_with_fallback(
+                news_messages, temperature=0.3, max_tokens=700, read_timeout=45.0
+            )
+            raw = raw.strip()
+            # Try to parse as structured JSON
+            try:
+                import json as _json
+                import re as _re
+                normalized = _re.sub(r'\]\s*\[', ', ', raw.strip())
+                parsed = _json.loads(normalized)
+                if isinstance(parsed, list) and parsed:
+                    summary_points = parsed
                 else:
-                    print(f"[NEWS] AI API error: {response.status_code} - {response.text}")
+                    summary = raw
+            except Exception:
+                summary = raw
         except Exception as e:
             print(f"[NEWS] Error generating summary: {e}")
 
@@ -1495,44 +1478,20 @@ INSTRUCTIONS :
 - En français uniquement"""
 
     try:
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            response = await client.post(
-                GROQ_API_URL,
-                headers={
-                    "Authorization": f"Bearer {api_key}",
-                    "Content-Type": "application/json",
-                },
-                json={
-                    "model": MODEL,
-                    "messages": [
-                        {"role": "system", "content": "Tu es un analyste de marché. Réponds uniquement en français, en texte narratif fluide, sans titre ni bullet points."},
-                        {"role": "user", "content": prompt},
-                    ],
-                    "temperature": 0.6,
-                    "max_tokens": 250,
-                },
-            )
-
-            if response.status_code == 429:
-                raise HTTPException(status_code=429, detail="Service IA surchargé, réessayez dans quelques secondes.")
-            if response.status_code == 401:
-                raise HTTPException(status_code=503, detail="Clé API IA invalide.")
-            if response.status_code != 200:
-                print(f"[SESSION NARRATIVE] Groq error {response.status_code}: {response.text[:300]}")
-                raise HTTPException(status_code=502, detail=f"Erreur IA ({response.status_code})")
-
-            data = response.json()
-            narrative = data["choices"][0]["message"]["content"].strip()
-
+        narrative_messages = [
+            {"role": "system", "content": "Tu es un analyste de marché. Réponds uniquement en français, en texte narratif fluide, sans titre ni bullet points."},
+            {"role": "user", "content": prompt},
+        ]
+        narrative = await _call_groq_with_fallback(
+            narrative_messages, temperature=0.6, max_tokens=250, read_timeout=45.0
+        )
         return {
-            "narrative": narrative,
+            "narrative": narrative.strip(),
             "generated_at": datetime.now(timezone.utc).isoformat(),
         }
 
     except HTTPException:
         raise
-    except httpx.TimeoutException:
-        raise HTTPException(status_code=504, detail="L'IA a mis trop de temps à répondre, réessayez.")
     except Exception as e:
         print(f"[SESSION NARRATIVE] Unexpected error: {type(e).__name__}: {e}")
-        raise HTTPException(status_code=502, detail="Impossible de générer le résumé IA")
+        raise HTTPException(status_code=502, detail="Impossible de générer le résumé IA. Réessayez dans quelques secondes.")

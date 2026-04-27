@@ -23,6 +23,7 @@ class UpdateSettingsRequest(BaseModel):
     theme: Optional[str] = None
     default_leverage: Optional[str] = None
     trading_level: Optional[str] = None
+    dashboard_widgets: Optional[str] = None
 
 
 @router.get("/settings")
@@ -50,6 +51,7 @@ async def get_user_settings(current_user: dict = Depends(get_current_user)):
             "theme": "dark",
             "default_leverage": "1",
             "trading_level": trading_level,
+            "dashboard_widgets": None,
         }
     row = rows[0]
     return {
@@ -59,6 +61,7 @@ async def get_user_settings(current_user: dict = Depends(get_current_user)):
         "theme":                 row.get("theme", "dark"),
         "default_leverage":      row.get("default_leverage", "1"),
         "trading_level":         trading_level,
+        "dashboard_widgets":     row.get("dashboard_widgets"),
     }
 
 
@@ -117,6 +120,7 @@ async def update_user_settings(
              None if request.notifications_enabled is None else (1 if request.notifications_enabled else 0)),
             (request.theme,                "theme",                 request.theme),
             (request.default_leverage,     "language",              request.default_leverage),
+            (request.dashboard_widgets,    "dashboard_widgets",     request.dashboard_widgets),
         ]
         updates, params = [], []
         for field_val, col_name, db_val in SAFE_COLUMN_MAP:

@@ -174,9 +174,17 @@ async def _init_postgres():
                 risk_level TEXT DEFAULT 'moderate',
                 notifications_enabled INTEGER DEFAULT 1,
                 theme TEXT DEFAULT 'dark',
-                language TEXT DEFAULT 'fr'
+                language TEXT DEFAULT 'fr',
+                dashboard_widgets TEXT DEFAULT NULL
             )
         """)
+        for col, col_type in [
+            ("dashboard_widgets", "TEXT"),
+        ]:
+            try:
+                await conn.execute(f"ALTER TABLE web_user_settings ADD COLUMN {col} {col_type}")
+            except Exception:
+                pass  # Column already exists
         await conn.execute("""
             CREATE TABLE IF NOT EXISTS web_favorites (
                 id SERIAL PRIMARY KEY,
@@ -481,9 +489,15 @@ async def _init_sqlite():
                 notifications_enabled INTEGER DEFAULT 1,
                 theme TEXT DEFAULT 'dark',
                 language TEXT DEFAULT 'fr',
+                dashboard_widgets TEXT DEFAULT NULL,
                 FOREIGN KEY (user_id) REFERENCES web_users(id)
             )
         """)
+        try:
+            await db.execute("ALTER TABLE web_user_settings ADD COLUMN dashboard_widgets TEXT DEFAULT NULL")
+            await db.commit()
+        except Exception:
+            pass  # Column already exists
         await db.execute("""
             CREATE TABLE IF NOT EXISTS web_favorites (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
