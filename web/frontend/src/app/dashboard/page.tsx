@@ -7,10 +7,10 @@ import {
   TrendingUp, TrendingDown, Star, Activity, ArrowUpRight, ArrowDownRight,
   Target, RefreshCw, Loader2, Newspaper, Shield, Plus, Globe,
   Bot, BarChart3, Settings2, Eye, EyeOff, ExternalLink, Clock,
-  Layers, ChevronUp, ChevronDown, Crown, Timer,
+  Layers, ChevronUp, ChevronDown, Timer, BookOpen, Wallet, Zap,
 } from "lucide-react";
 import { cn, formatPercent } from "@/lib/utils";
-import { walletAPI, favoritesAPI, adminAPI, aiAPI, marketAPI, WalletBalance, TradingStats, Favorite, MarketNews, SummaryPoint, Position } from "@/lib/api";
+import { walletAPI, favoritesAPI, adminAPI, aiAPI, marketAPI, settingsAPI, WalletBalance, TradingStats, Favorite, MarketNews, SummaryPoint, Position } from "@/lib/api";
 import { useFormatCurrency, useFormatPrice } from "@/lib/SettingsContext";
 import { usePremium } from "@/lib/PremiumContext";
 import { useLanguage } from "@/lib/LanguageContext";
@@ -39,14 +39,18 @@ const WeeklyPrepWidget = dynamic(
 //  DASHBOARD CONFIG
 // ─────────────────────────────────────────────────────────────────────────────
 
-type WidgetId = "sessions" | "opportunities" | "trending" | "stats" | "positions" | "quickactions";
+type WidgetId = "sessions" | "opportunities" | "trending" | "stats";
 
-const DEFAULT_WIDGETS: WidgetId[] = [];
-const DASHBOARD_STORAGE_KEY = "tdb_dashboard_config_v2";
+const DEFAULT_WIDGETS: WidgetId[] = ["stats", "sessions"];
+const DASHBOARD_STORAGE_KEY = "tdb_dashboard_config_v3";
+const REFRESH_STORAGE_KEY   = "tdb_dash_refresh";
+const SORT_STORAGE_KEY      = "tdb_dash_sort";
 
-const WIDGET_ICONS: Record<WidgetId, string> = {
-  sessions: "🌍", stats: "🎯", positions: "💼",
-  opportunities: "⚡", trending: "🔥", quickactions: "⚡",
+const WIDGET_META: Record<WidgetId, { icon: string; color: string }> = {
+  sessions:      { icon: "🌍", color: "text-blue-400" },
+  stats:         { icon: "🎯", color: "text-primary" },
+  opportunities: { icon: "⚡", color: "text-yellow-400" },
+  trending:      { icon: "🔥", color: "text-orange-400" },
 };
 
 const INDICES_SYMBOLS = ["^FCHI", "^GSPC", "^IXIC", "BTC-USD", "GC=F", "^VIX"];
@@ -100,19 +104,47 @@ export default function DashboardPage() {
   const [newsFilter, setNewsFilter] = useState<"all" | "mine">("all");
   const [activeWidgets, setActiveWidgets] = useState<WidgetId[]>(DEFAULT_WIDGETS);
   const [editMode, setEditMode] = useState(false);
-  const [dashRefreshRate, setDashRefreshRate] = useState(180_000); // 3 min default
+  const [dashRefreshRate, setDashRefreshRate] = useState(180_000);
   const dashRefreshIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Load ALL prefs on mount: backend first, localStorage fallback
   useEffect(() => {
-    const stored = localStorage.getItem(DASHBOARD_STORAGE_KEY);
-    if (stored) {
-      try { setActiveWidgets(JSON.parse(stored)); } catch { /* ignore */ }
-    }
+    const storedRefresh = localStorage.getItem(REFRESH_STORAGE_KEY);
+    if (storedRefresh) setDashRefreshRate(Number(storedRefresh));
+    const storedSort = localStorage.getItem(SORT_STORAGE_KEY) as typeof favSort | null;
+    if (storedSort) setFavSort(storedSort);
+
+    settingsAPI.get().then(s => {
+      if (s.dashboard_widgets) {
+        try { setActiveWidgets(JSON.parse(s.dashboard_widgets)); return; } catch {}
+      }
+      const local = localStorage.getItem(DASHBOARD_STORAGE_KEY);
+      if (local) { try { setActiveWidgets(JSON.parse(local)); } catch {} }
+    }).catch(() => {
+      const local = localStorage.getItem(DASHBOARD_STORAGE_KEY);
+      if (local) { try { setActiveWidgets(JSON.parse(local)); } catch {} }
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const saveWidgetConfig = (widgets: WidgetId[]) => {
+  const saveWidgetConfig = useCallback((widgets: WidgetId[]) => {
     setActiveWidgets(widgets);
     localStorage.setItem(DASHBOARD_STORAGE_KEY, JSON.stringify(widgets));
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(() => {
+      settingsAPI.update({ dashboard_widgets: JSON.stringify(widgets) }).catch(() => {});
+    }, 800);
+  }, []);
+
+  const handleRefreshRateChange = (ms: number) => {
+    setDashRefreshRate(ms);
+    localStorage.setItem(REFRESH_STORAGE_KEY, String(ms));
+  };
+
+  const handleFavSortChange = (s: typeof favSort) => {
+    setFavSort(s);
+    localStorage.setItem(SORT_STORAGE_KEY, s);
   };
 
   const toggleWidget = (id: WidgetId) => {
@@ -225,36 +257,60 @@ export default function DashboardPage() {
                 formatter={formatCurrency}
               />
             </p>
-            <div className="flex items-center gap-4 mt-2 flex-wrap">
-              {avgFavChange !== 0 && (
-                <motion.span
-                  className={cn("flex items-center gap-1 text-sm font-medium", avgFavChange >= 0 ? "text-profit" : "text-loss")}
-                  initial={{ opacity: 0, scale: 0.8 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ type: "spring", stiffness: 400, damping: 20 }}
-                >
-                  {avgFavChange >= 0 ? <ArrowUpRight className="w-4 h-4" /> : <ArrowDownRight className="w-4 h-4" />}
-                  {formatPercent(Math.abs(avgFavChange))}
-                  <span className="text-muted-foreground font-normal">{lang === "fr" ? "moy. actifs" : "avg assets"}</span>
-                </motion.span>
-              )}
-              {openPositions.length > 0 && (
-                <Link href="/trading" className="flex items-center gap-1 text-sm text-primary hover:underline">
-                  <Layers className="w-3.5 h-3.5" />
-                  {openPositions.length} {lang === "fr" ? `position${openPositions.length > 1 ? "s" : ""} ouverte${openPositions.length > 1 ? "s" : ""}` : `open position${openPositions.length > 1 ? "s" : ""}`}
-                </Link>
-              )}
-              <span className="flex items-center gap-1 text-sm text-muted-foreground">
-                <Star className="w-3.5 h-3.5" />
-                {favorites.length} {lang === "fr" ? "actifs suivis" : "tracked"}
-              </span>
-              {(stats?.total_trades || 0) > 0 && (
-                <span className={cn("flex items-center gap-1 text-sm font-medium", (stats?.win_rate || 0) >= 50 ? "text-profit" : "text-loss")}>
-                  <Target className="w-3.5 h-3.5" />
-                  {stats?.win_rate || 0}% win rate
-                </span>
-              )}
-            </div>
+            {/* Mini stats row */}
+            <motion.div
+              className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4 pt-4 border-t border-white/8"
+              variants={listVariants} initial="hidden" animate="show"
+            >
+              {[
+                {
+                  label: lang === "fr" ? "Win Rate" : "Win Rate",
+                  value: stats?.total_trades ? stats.win_rate || 0 : null,
+                  fmt: (v: number) => `${Math.round(v)}%`,
+                  color: (stats?.win_rate || 0) >= 50 ? "text-profit" : "text-loss",
+                  href: "/wallet",
+                },
+                {
+                  label: lang === "fr" ? "Trades" : "Trades",
+                  value: stats?.total_trades ?? null,
+                  fmt: (v: number) => String(Math.round(v)),
+                  color: "text-foreground",
+                  href: "/wallet",
+                },
+                {
+                  label: "P&L Total",
+                  value: stats?.total_trades ? stats.total_pnl || 0 : null,
+                  fmt: formatCurrency,
+                  color: (stats?.total_pnl || 0) >= 0 ? "text-profit" : "text-loss",
+                  href: "/wallet",
+                },
+                {
+                  label: lang === "fr" ? "Positions" : "Positions",
+                  value: openPositions.length,
+                  fmt: (v: number) => String(Math.round(v)),
+                  color: openPositions.length > 0 ? "text-primary" : "text-muted-foreground",
+                  href: "/trading",
+                },
+              ].map(item => (
+                <motion.div key={item.label} variants={newsItemVariants}>
+                  <Link href={item.href}>
+                    <motion.div
+                      className="p-3 rounded-xl bg-white/5 hover:bg-white/8 transition-colors"
+                      whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
+                      transition={{ type: "spring", stiffness: 400, damping: 28 }}
+                    >
+                      <p className="text-[11px] text-muted-foreground mb-1">{item.label}</p>
+                      <p className={cn("text-lg font-bold tabular-nums", item.color)}>
+                        {item.value === null
+                          ? <span className="text-muted-foreground text-sm">—</span>
+                          : <AnimatedNumber value={item.value} formatter={item.fmt} duration={900} />
+                        }
+                      </p>
+                    </motion.div>
+                  </Link>
+                </motion.div>
+              ))}
+            </motion.div>
           </div>
           {/* Right: controls */}
           <div className="flex items-center gap-1.5 flex-shrink-0">
@@ -264,21 +320,19 @@ export default function DashboardPage() {
                 <Shield className="w-4 h-4" />
               </Link>
             )}
-            {isPremium && (
-              <button onClick={() => setEditMode(!editMode)} title={editMode ? t("dash_done") : t("dash_customize")}
-                className={cn("p-2 rounded-lg transition-colors",
-                  editMode ? "bg-primary/20 text-primary" : "bg-white/5 hover:bg-white/10 text-muted-foreground hover:text-foreground"
-                )}>
-                <Settings2 className="w-4 h-4" />
-              </button>
-            )}
+            <button onClick={() => setEditMode(!editMode)} title={editMode ? t("dash_done") : t("dash_customize")}
+              className={cn("p-2 rounded-lg transition-colors",
+                editMode ? "bg-primary/20 text-primary" : "bg-white/5 hover:bg-white/10 text-muted-foreground hover:text-foreground"
+              )}>
+              <Settings2 className="w-4 h-4" />
+            </button>
             <button onClick={() => loadData(true)} disabled={isRefreshing} title={lang === "en" ? "Refresh" : "Actualiser"}
               className="p-2 rounded-lg hover:bg-white/5 transition-colors text-muted-foreground hover:text-foreground">
               <RefreshCw className={cn("w-4 h-4", isRefreshing && "animate-spin")} />
             </button>
             <div className="flex items-center gap-1 px-2 py-1.5 rounded-lg bg-white/5 border border-white/8 text-xs text-muted-foreground">
               <Timer className={cn("w-3.5 h-3.5 flex-shrink-0", dashRefreshRate > 0 && "text-profit")} />
-              <select value={dashRefreshRate} onChange={(e) => setDashRefreshRate(Number(e.target.value))}
+              <select value={dashRefreshRate} onChange={(e) => handleRefreshRateChange(Number(e.target.value))}
                 className="bg-transparent text-xs cursor-pointer outline-none">
                 {[{ label: "Off", ms: 0 }, { label: "3min", ms: 180_000 }, { label: "5min", ms: 300_000 }, { label: "10min", ms: 600_000 }].map(o => (
                   <option key={o.ms} value={o.ms} className="bg-card text-foreground">{o.label}</option>
@@ -292,6 +346,11 @@ export default function DashboardPage() {
       {/* ── Indices bar ─────────────────────────────────────────────────────── */}
       <motion.div variants={itemVariants}>
         <IndicesBar indices={indices} isLoading={isLoadingIndices} onRefresh={loadIndices} />
+      </motion.div>
+
+      {/* ── Quick Actions Bar ───────────────────────────────────────────────── */}
+      <motion.div variants={itemVariants}>
+        <QuickActionsBar />
       </motion.div>
 
       {/* ── Weekly prep (conditional window) ────────────────────────────────── */}
@@ -312,7 +371,7 @@ export default function DashboardPage() {
           <FavoritesWidget
             favorites={sortedFavorites}
             favSort={favSort}
-            setFavSort={setFavSort}
+            setFavSort={handleFavSortChange}
             favFilter={favFilter}
             setFavFilter={setFavFilter}
             formatCurrency={formatCurrency}
@@ -332,84 +391,92 @@ export default function DashboardPage() {
         </div>
       </motion.div>
 
-      {/* ── Optional extra widgets (premium) ────────────────────────────────── */}
-      {activeWidgets.map((widgetId) => {
-        if (widgetId === "sessions") return (
-          <motion.div key="sessions" variants={itemVariants}><SessionSummaryWidget /></motion.div>
-        );
-        if (widgetId === "opportunities") return (
-          <motion.div key="opportunities" variants={itemVariants}><OpportunitiesWidget /></motion.div>
-        );
-        if (widgetId === "trending") return (
-          <motion.div key="trending" variants={itemVariants}><TrendingWidget /></motion.div>
-        );
-        if (widgetId === "stats" && (stats?.total_trades || 0) > 0) return (
-          <motion.div key="stats" variants={itemVariants}>
-            <TradingStatsWidget stats={stats} balance={balance} formatCurrency={formatCurrency} />
-          </motion.div>
-        );
-        if (widgetId === "quickactions") return (
-          <motion.div key="quickactions" variants={itemVariants}><QuickActionsWidget isPremium={isPremium} /></motion.div>
-        );
-        return null;
-      })}
-
-      {/* ── Premium widget picker ───────────────────────────────────────────── */}
+      {/* ── Optional widgets ─────────────────────────────────────────────────── */}
       <AnimatePresence>
-        {editMode && isPremium && (
-          <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }}
-            exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
-            <div className="glass-card p-5 border border-primary/30">
-              <div className="flex items-center gap-2 mb-4">
-                <Crown className="w-4 h-4 text-yellow-400" />
-                <h3 className="font-semibold">{t("dash_premium_title")}</h3>
-                <span className="text-xs text-muted-foreground ml-auto">{t("dash_premium_hint")}</span>
+        {activeWidgets.map((widgetId) => {
+          if (widgetId === "sessions") return (
+            <motion.div key="sessions" variants={itemVariants} initial="hidden" animate="show" exit={{ opacity: 0, height: 0 }}>
+              <SessionSummaryWidget />
+            </motion.div>
+          );
+          if (widgetId === "opportunities") return (
+            <motion.div key="opportunities" variants={itemVariants} initial="hidden" animate="show" exit={{ opacity: 0, height: 0 }}>
+              <OpportunitiesWidget />
+            </motion.div>
+          );
+          if (widgetId === "trending") return (
+            <motion.div key="trending" variants={itemVariants} initial="hidden" animate="show" exit={{ opacity: 0, height: 0 }}>
+              <TrendingWidget />
+            </motion.div>
+          );
+          if (widgetId === "stats") return (
+            <motion.div key="stats" variants={itemVariants} initial="hidden" animate="show" exit={{ opacity: 0, height: 0 }}>
+              <TradingStatsWidget stats={stats} balance={balance} formatCurrency={formatCurrency} />
+            </motion.div>
+          );
+          return null;
+        })}
+      </AnimatePresence>
+
+      {/* ── Widget picker (tous les utilisateurs) ────────────────────────────── */}
+      <AnimatePresence>
+        {editMode && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }} className="overflow-hidden"
+          >
+            <div className="glass-card p-5 border border-white/12">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <Settings2 className="w-4 h-4 text-primary" />
+                  <h3 className="font-semibold text-sm">{lang === "fr" ? "Personnaliser le dashboard" : "Customize dashboard"}</h3>
+                </div>
+                <span className="text-xs text-muted-foreground">{lang === "fr" ? "Modifications sauvegardées automatiquement" : "Changes saved automatically"}</span>
               </div>
-              <motion.div
-                className="grid grid-cols-2 md:grid-cols-3 gap-3"
-                variants={listVariants}
-                initial="hidden"
-                animate="show"
-              >
-                {(Object.keys(WIDGET_ICONS) as WidgetId[]).map((id) => {
+              <motion.div className="grid grid-cols-2 md:grid-cols-4 gap-3" variants={listVariants} initial="hidden" animate="show">
+                {(Object.keys(WIDGET_META) as WidgetId[]).map((id) => {
                   const isActive = activeWidgets.includes(id);
                   const idx = activeWidgets.indexOf(id);
                   const labelKey = `widget_${id}_label` as Parameters<typeof t>[0];
-                  const descKey = `widget_${id}_desc` as Parameters<typeof t>[0];
+                  const descKey  = `widget_${id}_desc`  as Parameters<typeof t>[0];
                   return (
-                    <motion.div
-                      key={id}
-                      variants={newsItemVariants}
-                      animate={isActive ? { borderColor: "hsl(var(--primary)/0.4)", scale: 1 } : { scale: 1 }}
-                      className={cn("p-3 rounded-xl border transition-colors",
-                        isActive ? "border-primary/40 bg-primary/5" : "border-white/10 bg-white/3 opacity-60")}>
-                      <div className="flex items-start justify-between mb-2">
-                        <div className="flex items-center gap-2">
-                          <span className="text-lg">{WIDGET_ICONS[id]}</span>
-                          <div>
-                            <p className="text-sm font-medium">{t(labelKey)}</p>
-                            <p className="text-[11px] text-muted-foreground">{t(descKey)}</p>
+                    <motion.div key={id} variants={newsItemVariants}>
+                      <motion.button
+                        onClick={() => toggleWidget(id)}
+                        className={cn(
+                          "w-full p-3 rounded-xl border text-left transition-colors",
+                          isActive ? "border-primary/40 bg-primary/8" : "border-white/10 bg-white/3"
+                        )}
+                        whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
+                        transition={{ type: "spring", stiffness: 400, damping: 26 }}
+                      >
+                        <div className="flex items-center justify-between mb-1.5">
+                          <span className="text-base">{WIDGET_META[id].icon}</span>
+                          <motion.div
+                            className={cn("w-4 h-4 rounded-full border-2 flex items-center justify-center",
+                              isActive ? "border-primary bg-primary" : "border-white/30")}
+                            animate={isActive ? { scale: [1, 1.3, 1] } : {}}
+                            transition={{ duration: 0.25 }}
+                          >
+                            {isActive && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                          </motion.div>
+                        </div>
+                        <p className="text-xs font-semibold">{t(labelKey)}</p>
+                        <p className="text-[10px] text-muted-foreground mt-0.5 line-clamp-1">{t(descKey)}</p>
+                        {isActive && (
+                          <div className="flex items-center gap-1 mt-2 pt-2 border-t border-white/8">
+                            <button onClick={(e) => { e.stopPropagation(); moveWidget(id, -1); }} disabled={idx <= 0}
+                              className="p-0.5 rounded hover:bg-white/10 disabled:opacity-30">
+                              <ChevronUp className="w-3 h-3" />
+                            </button>
+                            <button onClick={(e) => { e.stopPropagation(); moveWidget(id, 1); }} disabled={idx >= activeWidgets.length - 1}
+                              className="p-0.5 rounded hover:bg-white/10 disabled:opacity-30">
+                              <ChevronDown className="w-3 h-3" />
+                            </button>
+                            <span className="text-[10px] text-muted-foreground ml-auto">#{idx + 1}</span>
                           </div>
-                        </div>
-                        <button onClick={() => toggleWidget(id)}
-                          className={cn("p-1.5 rounded-lg transition-colors flex-shrink-0 ml-2",
-                            isActive ? "text-primary hover:bg-primary/10" : "text-muted-foreground hover:bg-white/10")}>
-                          {isActive ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
-                        </button>
-                      </div>
-                      {isActive && (
-                        <div className="flex items-center gap-1 mt-2">
-                          <button onClick={() => moveWidget(id, -1)} disabled={idx <= 0}
-                            className="p-1 rounded hover:bg-white/10 disabled:opacity-30 transition-colors">
-                            <ChevronUp className="w-3 h-3" />
-                          </button>
-                          <button onClick={() => moveWidget(id, 1)} disabled={idx >= activeWidgets.length - 1}
-                            className="p-1 rounded hover:bg-white/10 disabled:opacity-30 transition-colors">
-                            <ChevronDown className="w-3 h-3" />
-                          </button>
-                          <span className="text-[10px] text-muted-foreground ml-1">pos. {idx + 1}</span>
-                        </div>
-                      )}
+                        )}
+                      </motion.button>
                     </motion.div>
                   );
                 })}
@@ -426,6 +493,42 @@ export default function DashboardPage() {
 // ─────────────────────────────────────────────────────────────────────────────
 //  Sub-components
 // ─────────────────────────────────────────────────────────────────────────────
+
+const QuickActionsBar = memo(function QuickActionsBar() {
+  const { lang } = useLanguage();
+  const actions = [
+    { href: "/analysis",  Icon: BarChart3,  label: lang === "fr" ? "Analyser"  : "Analyze"  },
+    { href: "/markets",   Icon: Globe,      label: lang === "fr" ? "Marchés"   : "Markets"  },
+    { href: "/scanner",   Icon: Activity,   label: "Scanner"                                 },
+    { href: "/assistant", Icon: Bot,        label: "IA"                                      },
+    { href: "/trading",   Icon: TrendingUp, label: "Trading"                                 },
+    { href: "/journal",   Icon: BookOpen,   label: "Journal"                                 },
+    { href: "/wallet",    Icon: Wallet,     label: "Wallet"                                  },
+    { href: "/favorites", Icon: Star,       label: lang === "fr" ? "Favoris"   : "Watchlist" },
+  ];
+  return (
+    <div className="glass-card px-3 py-2.5">
+      <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
+        {actions.map((a, i) => (
+          <motion.div key={a.href} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: i * 0.04, type: "spring", stiffness: 300, damping: 24 }}>
+            <Link href={a.href}>
+              <motion.div
+                className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white/5 flex-shrink-0 cursor-pointer"
+                whileHover={{ scale: 1.05, backgroundColor: "rgba(255,255,255,0.1)" }}
+                whileTap={{ scale: 0.96 }}
+                transition={{ type: "spring", stiffness: 420, damping: 22 }}
+              >
+                <a.Icon className="w-3.5 h-3.5 text-primary flex-shrink-0" />
+                <span className="text-xs font-medium whitespace-nowrap">{a.label}</span>
+              </motion.div>
+            </Link>
+          </motion.div>
+        ))}
+      </div>
+    </div>
+  );
+});
 
 const StatCard = memo(function StatCard({ title, value, change, subtitle, icon: Icon, href }: {
   title: string; value: string; change?: number; subtitle?: string;
