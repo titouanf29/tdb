@@ -83,7 +83,7 @@ const newsItemVariants = {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export default function DashboardPage() {
-  const { t, lang } = useLanguage();
+  const { t } = useLanguage();
   const formatCurrency = useFormatCurrency();
   const formatPrice = useFormatPrice();
   const [balance, setBalance] = useState<WalletBalance | null>(null);
@@ -268,19 +268,19 @@ export default function DashboardPage() {
                 className="flex items-center gap-4 mt-3 pt-3 border-t border-white/8"
               >
                 <div>
-                  <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-0.5">{lang === "fr" ? "Cash" : "Cash"}</p>
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-0.5">Cash</p>
                   <p className="text-sm font-semibold tabular-nums">{formatCurrency(balance?.balance || 0)}</p>
                 </div>
                 <div className="w-px h-6 bg-white/10" />
                 <div>
-                  <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-0.5">{lang === "fr" ? "Positions" : "Positions"}</p>
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-0.5">{t("dash_open_positions")}</p>
                   <p className="text-sm font-semibold tabular-nums">{formatCurrency(balance?.positions_value || 0)}</p>
                 </div>
                 {totalUnrealizedPnl !== 0 && (
                   <>
                     <div className="w-px h-6 bg-white/10" />
                     <div>
-                      <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-0.5">P&amp;L latent</p>
+                      <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-0.5">{t("dash_unrealized_pnl")}</p>
                       <p className={cn("text-sm font-semibold tabular-nums", totalUnrealizedPnl >= 0 ? "text-profit" : "text-loss")}>
                         {totalUnrealizedPnl >= 0 ? "+" : ""}{formatCurrency(totalUnrealizedPnl)}
                       </p>
@@ -301,7 +301,7 @@ export default function DashboardPage() {
                 >
                   {avgFavChange >= 0 ? <ArrowUpRight className="w-3.5 h-3.5" /> : <ArrowDownRight className="w-3.5 h-3.5" />}
                   {formatPercent(Math.abs(avgFavChange))}
-                  <span className="font-normal opacity-80">{lang === "fr" ? "moy." : "avg"}</span>
+                  <span className="font-normal opacity-80">{t("dash_avg_abbrev").toLowerCase()}</span>
                 </motion.span>
               )}
               {(stats?.win_rate || 0) > 0 && (
@@ -332,7 +332,7 @@ export default function DashboardPage() {
                   <Link href="/trading"
                     className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-primary/15 text-primary hover:bg-primary/25 transition-colors">
                     <Layers className="w-3.5 h-3.5" />
-                    {openPositions.length} {lang === "fr" ? "position" : "position"}{openPositions.length > 1 ? "s" : ""}
+                    {openPositions.length} {openPositions.length > 1 ? "positions" : "position"}
                   </Link>
                 </motion.div>
               )}
@@ -342,7 +342,7 @@ export default function DashboardPage() {
                   <Link href="/favorites"
                     className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-white/8 text-muted-foreground hover:text-foreground hover:bg-white/12 transition-colors">
                     <Star className="w-3.5 h-3.5" />
-                    {favorites.length} {lang === "fr" ? "suivis" : "tracked"}
+                    {favorites.length} {t("dash_tracked_count")}
                   </Link>
                 </motion.div>
               )}
@@ -350,7 +350,7 @@ export default function DashboardPage() {
                 <Link href="/trading"
                   className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-primary/20 text-primary hover:bg-primary/30 transition-colors">
                   <Zap className="w-3.5 h-3.5" />
-                  {lang === "fr" ? "Commencer à trader" : "Start trading"}
+                  {t("dash_start_trading")}
                 </Link>
               )}
             </div>
@@ -369,7 +369,7 @@ export default function DashboardPage() {
               )}>
               <Settings2 className="w-4 h-4" />
             </button>
-            <button onClick={() => loadData(true)} disabled={isRefreshing} title={lang === "en" ? "Refresh" : "Actualiser"}
+            <button onClick={() => loadData(true)} disabled={isRefreshing} title={t("dash_refresh_btn")}
               className="p-2 rounded-lg hover:bg-white/5 transition-colors text-muted-foreground hover:text-foreground">
               <RefreshCw className={cn("w-4 h-4", isRefreshing && "animate-spin")} />
             </button>
@@ -472,9 +472,9 @@ export default function DashboardPage() {
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
                   <Settings2 className="w-4 h-4 text-primary" />
-                  <h3 className="font-semibold text-sm">{lang === "fr" ? "Personnaliser le dashboard" : "Customize dashboard"}</h3>
+                  <h3 className="font-semibold text-sm">{t("dash_customize_dash")}</h3>
                 </div>
-                <span className="text-xs text-muted-foreground">{lang === "fr" ? "Modifications sauvegardées automatiquement" : "Changes saved automatically"}</span>
+                <span className="text-xs text-muted-foreground">{t("dash_auto_saved")}</span>
               </div>
               <motion.div className="grid grid-cols-2 md:grid-cols-4 gap-3" variants={listVariants} initial="hidden" animate="show">
                 {(Object.keys(WIDGET_META) as WidgetId[]).map((id) => {
@@ -538,16 +538,16 @@ export default function DashboardPage() {
 // ─────────────────────────────────────────────────────────────────────────────
 
 const QuickActionsBar = memo(function QuickActionsBar() {
-  const { lang } = useLanguage();
+  const { t } = useLanguage();
   const actions = [
-    { href: "/trading",   Icon: TrendingUp, label: "Trading",                                  bg: "bg-primary/15",     icon: "text-primary"       },
-    { href: "/analysis",  Icon: BarChart3,  label: lang === "fr" ? "Analyser"  : "Analyze",   bg: "bg-blue-500/15",    icon: "text-blue-400"      },
-    { href: "/assistant", Icon: Bot,        label: lang === "fr" ? "Assistant" : "Assistant",  bg: "bg-purple-500/15",  icon: "text-purple-400"    },
-    { href: "/scanner",   Icon: Activity,   label: "Scanner",                                  bg: "bg-yellow-500/15",  icon: "text-yellow-400"    },
-    { href: "/markets",   Icon: Globe,      label: lang === "fr" ? "Marchés"   : "Markets",    bg: "bg-green-500/15",   icon: "text-green-400"     },
-    { href: "/journal",   Icon: BookOpen,   label: "Journal",                                  bg: "bg-orange-500/15",  icon: "text-orange-400"    },
-    { href: "/wallet",    Icon: Wallet,     label: "Wallet",                                   bg: "bg-teal-500/15",    icon: "text-teal-400"      },
-    { href: "/favorites", Icon: Star,       label: lang === "fr" ? "Favoris"   : "Favorites",  bg: "bg-yellow-500/15",  icon: "text-yellow-500"    },
+    { href: "/trading",   Icon: TrendingUp, label: "Trading",           bg: "bg-primary/15",     icon: "text-primary"       },
+    { href: "/analysis",  Icon: BarChart3,  label: t("qa_analyze"),     bg: "bg-blue-500/15",    icon: "text-blue-400"      },
+    { href: "/assistant", Icon: Bot,        label: t("qa_ai_assistant"),bg: "bg-purple-500/15",  icon: "text-purple-400"    },
+    { href: "/scanner",   Icon: Activity,   label: "Scanner",           bg: "bg-yellow-500/15",  icon: "text-yellow-400"    },
+    { href: "/markets",   Icon: Globe,      label: t("qa_markets"),     bg: "bg-green-500/15",   icon: "text-green-400"     },
+    { href: "/journal",   Icon: BookOpen,   label: "Journal",           bg: "bg-orange-500/15",  icon: "text-orange-400"    },
+    { href: "/wallet",    Icon: Wallet,     label: "Wallet",            bg: "bg-teal-500/15",    icon: "text-teal-400"      },
+    { href: "/favorites", Icon: Star,       label: t("qa_favorites"),   bg: "bg-yellow-500/15",  icon: "text-yellow-500"    },
   ];
   return (
     <div className="glass-card px-3 py-3">
@@ -638,8 +638,8 @@ const IndicesBar = memo(function IndicesBar({ indices, isLoading, onRefresh }: {
   isLoading: boolean;
   onRefresh: () => void;
 }) {
-  const { t, lang } = useLanguage();
-  const indicesLabels: Record<string, string> = { ...INDICES_LABELS_BASE, "GC=F": lang === "fr" ? "Or" : "Gold" };
+  const { t } = useLanguage();
+  const indicesLabels: Record<string, string> = { ...INDICES_LABELS_BASE, "GC=F": t("dash_gold") };
   return (
     <div className="glass-card px-4 py-3">
       <div className="flex items-center gap-3 overflow-x-auto no-scrollbar">
@@ -699,7 +699,7 @@ const FavoritesWidget = memo(function FavoritesWidget({ favorites, favSort, setF
   formatCurrency: (v: number) => string;
   formatPrice: (v: number, symbol: string) => string;
 }) {
-  const { t, lang } = useLanguage();
+  const { t } = useLanguage();
   const [showAll, setShowAll] = useState(false);
   const displayed = showAll ? favorites : favorites.slice(0, 8);
 
@@ -741,9 +741,9 @@ const FavoritesWidget = memo(function FavoritesWidget({ favorites, favSort, setF
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             {[
-              { href: "/markets",  Icon: Globe,     label: lang === "fr" ? "Parcourir les marchés" : "Browse markets",  sub: lang === "fr" ? "Actions, crypto, forex" : "Stocks, crypto, forex", bg: "bg-green-500/10", ic: "text-green-400" },
-              { href: "/scanner",  Icon: Activity,  label: lang === "fr" ? "Scanner les signaux"   : "Scan signals",     sub: lang === "fr" ? "Opportunités en temps réel" : "Real-time opportunities", bg: "bg-yellow-500/10", ic: "text-yellow-400" },
-              { href: "/analysis", Icon: BarChart3, label: lang === "fr" ? "Analyser un actif"     : "Analyze an asset", sub: lang === "fr" ? "Indicateurs techniques" : "Technical indicators", bg: "bg-blue-500/10", ic: "text-blue-400" },
+              { href: "/markets",  Icon: Globe,     label: t("dash_browse_markets"), sub: t("dash_stocks_crypto"),  bg: "bg-green-500/10",  ic: "text-green-400"  },
+              { href: "/scanner",  Icon: Activity,  label: t("dash_scan_signals"),   sub: t("dash_realtime_opp"),   bg: "bg-yellow-500/10", ic: "text-yellow-400" },
+              { href: "/analysis", Icon: BarChart3, label: t("dash_analyze_asset"),  sub: t("dash_technical_ind"),  bg: "bg-blue-500/10",   ic: "text-blue-400"   },
             ].map(item => (
               <Link key={item.href} href={item.href}>
                 <motion.div
@@ -795,12 +795,12 @@ const NewsWidget = memo(function NewsWidget({ marketNews, isLoadingNews, newsFil
   onRefresh: () => void;
   compact?: boolean;
 }) {
-  const { t, lang } = useLanguage();
+  const { t } = useLanguage();
   const timeAgo = (ts: number) => {
     const diff = (Date.now() / 1000) - ts;
     if (diff < 3600) return `${Math.floor(diff / 60)}m`;
     if (diff < 86400) return `${Math.floor(diff / 3600)}h`;
-    return `${Math.floor(diff / 86400)}${lang === "fr" ? "j" : "d"}`;
+    return `${Math.floor(diff / 86400)}${t("dash_day_abbrev")}`;
   };
 
   return (
@@ -917,7 +917,7 @@ const TradingStatsWidget = memo(function TradingStatsWidget({ stats, formatCurre
   stats: TradingStats | null;
   formatCurrency: (v: number) => string;
 }) {
-  const { t, lang } = useLanguage();
+  const { t } = useLanguage();
   return (
     <div className="glass-card p-5">
       <div className="flex items-center justify-between mb-4">
@@ -935,9 +935,9 @@ const TradingStatsWidget = memo(function TradingStatsWidget({ stats, formatCurre
       >
         {[
           { label: t("wallet_winrate"),      num: stats?.win_rate || 0,       fmt: (v: number) => `${Math.round(v)}%`,    color: (stats?.win_rate || 0) >= 50 ? "text-profit" : "text-loss",  sub: `${stats?.winning_trades || 0}W / ${stats?.losing_trades || 0}L` },
-          { label: t("wallet_total_trades"), num: stats?.total_trades || 0,   fmt: (v: number) => String(Math.round(v)),  color: "text-foreground",                                              sub: lang === "fr" ? "trades fermés" : "closed trades" },
-          { label: t("wallet_total_pnl"),    num: stats?.total_pnl || 0,      fmt: (v: number) => `${v >= 0 ? "+" : ""}${formatCurrency(v)}`,  color: (stats?.total_pnl || 0) >= 0 ? "text-profit" : "text-loss", sub: lang === "fr" ? `Moy. ${formatCurrency(stats?.avg_pnl || 0)}` : `Avg ${formatCurrency(stats?.avg_pnl || 0)}` },
-          { label: lang === "fr" ? "Meilleur trade" : "Best trade",  num: stats?.best_trade || 0, fmt: (v: number) => `+${formatCurrency(Math.abs(v))}`,  color: "text-profit",  sub: lang === "fr" ? `Pire: ${formatCurrency(stats?.worst_trade || 0)}` : `Worst: ${formatCurrency(stats?.worst_trade || 0)}` },
+          { label: t("wallet_total_trades"), num: stats?.total_trades || 0,   fmt: (v: number) => String(Math.round(v)),  color: "text-foreground",                                              sub: t("dash_closed_trades") },
+          { label: t("wallet_total_pnl"),    num: stats?.total_pnl || 0,      fmt: (v: number) => `${v >= 0 ? "+" : ""}${formatCurrency(v)}`,  color: (stats?.total_pnl || 0) >= 0 ? "text-profit" : "text-loss", sub: `${t("dash_avg_abbrev")} ${formatCurrency(stats?.avg_pnl || 0)}` },
+          { label: t("dash_best_trade"),     num: stats?.best_trade || 0,     fmt: (v: number) => `+${formatCurrency(Math.abs(v))}`,            color: "text-profit",                                              sub: `${t("dash_worst_abbrev")} ${formatCurrency(stats?.worst_trade || 0)}` },
         ].map(item => (
           <motion.div key={item.label} variants={newsItemVariants} className="p-4 rounded-xl bg-white/5">
             <p className="text-xs text-muted-foreground mb-1">{item.label}</p>
