@@ -84,7 +84,7 @@ function PieChart2D({ data }: { data: { label: string; value: number; color: str
         {data.length}
       </text>
       <text x={cx} y={cy + 10} textAnchor="middle" className="fill-muted-foreground text-[8px]" fontSize="8">
-        {lang === "fr" ? "actifs" : "assets"}
+        {t("portfolio_assets_label")}
       </text>
     </svg>
   );
@@ -258,7 +258,7 @@ function PositionForm({ initial, onClose, onSave, title }: PositionFormProps) {
                           <span className="text-xs text-slate-300 truncate">{s.name}</span>
                         </div>
                         <span className="text-xs px-1.5 py-0.5 rounded bg-white/10 text-slate-400 shrink-0 ml-1">
-                          {s.type === 'PORTFOLIO' ? 'Journal' : s.type === 'EQUITY' ? (lang === "fr" ? "Action" : "Stock") : s.type === 'ETF' ? 'ETF' : s.type === 'CRYPTOCURRENCY' ? 'Crypto' : s.type === 'INDEX' ? (lang === "fr" ? "Indice" : "Index") : s.type}
+                          {s.type === 'PORTFOLIO' ? 'Journal' : s.type === 'EQUITY' ? t("portfolio_type_stock") : s.type === 'ETF' ? 'ETF' : s.type === 'CRYPTOCURRENCY' ? 'Crypto' : s.type === 'INDEX' ? t("portfolio_type_index") : s.type}
                         </span>
                       </button>
                     ))}
@@ -391,12 +391,12 @@ function PositionForm({ initial, onClose, onSave, title }: PositionFormProps) {
                 value={form.currency}
                 onChange={(e) => set("currency", e.target.value)}
               >
-                <option value="USD" style={{ backgroundColor: "hsl(220 50% 8%)", color: "white" }}>USD — {lang === "en" ? "US Dollar" : "Dollar américain"}</option>
+                <option value="USD" style={{ backgroundColor: "hsl(220 50% 8%)", color: "white" }}>USD — {t("portfolio_usd_label")}</option>
                 <option value="EUR" style={{ backgroundColor: "hsl(220 50% 8%)", color: "white" }}>EUR — Euro</option>
                 <option value="USDT" style={{ backgroundColor: "hsl(220 50% 8%)", color: "white" }}>USDT — Tether</option>
                 <option value="BTC" style={{ backgroundColor: "hsl(220 50% 8%)", color: "white" }}>BTC — Bitcoin</option>
-                <option value="GBP" style={{ backgroundColor: "hsl(220 50% 8%)", color: "white" }}>GBP — {lang === "en" ? "British Pound" : "Livre sterling"}</option>
-                <option value="CHF" style={{ backgroundColor: "hsl(220 50% 8%)", color: "white" }}>CHF — {lang === "en" ? "Swiss Franc" : "Franc suisse"}</option>
+                <option value="GBP" style={{ backgroundColor: "hsl(220 50% 8%)", color: "white" }}>GBP — {t("portfolio_gbp_label")}</option>
+                <option value="CHF" style={{ backgroundColor: "hsl(220 50% 8%)", color: "white" }}>CHF — {t("portfolio_chf_label")}</option>
               </select>
             </div>
           </div>
@@ -643,7 +643,7 @@ function PositionCard({
                   </div>
                   <div>
                     <span className="text-muted-foreground">{t("portfolio_card_days")} :</span>{" "}
-                    <span>{pos.days_held ?? 0} {lang === "en" ? "d" : "j"}</span>
+                    <span>{pos.days_held ?? 0} {t("dash_day_abbrev")}</span>
                   </div>
                   <div>
                     <span className="text-muted-foreground">{t("portfolio_card_entry_date")} :</span>{" "}
@@ -893,24 +893,22 @@ export default function PortfolioPage() {
                 </div>
                 <div className="p-6 space-y-4 text-sm text-muted-foreground">
                   <div className="p-4 rounded-xl bg-white/5 border border-white/10">
-                    <p className="font-medium text-foreground">{lang === "fr" ? "Pourquoi tenir un journal ?" : "Why keep a journal?"}</p>
-                    <p className="mt-1">
-                      {lang === "fr" ? "Le journal vous aide à mesurer vos performances, repérer les erreurs récurrentes et améliorer votre plan de trading." : "The journal helps you measure performance, spot recurring mistakes and improve your trading plan."}
-                    </p>
+                    <p className="font-medium text-foreground">{t("portfolio_guide_why_title")}</p>
+                    <p className="mt-1">{t("portfolio_guide_why_desc")}</p>
                   </div>
                   <div>
-                    <p className="font-medium text-foreground mb-2">{lang === "fr" ? "Comment remplir une position" : "How to fill a position"}</p>
+                    <p className="font-medium text-foreground mb-2">{t("portfolio_guide_how_title")}</p>
                     <ul className="list-disc list-inside space-y-1">
-                      <li><span className="text-foreground">{lang === "fr" ? "Actif" : "Asset"}</span> : {lang === "fr" ? <>saisissez le symbole (ex: <span className="font-mono">TTE.PA</span>) ou un nom (ex: Total)</> : <>enter the symbol (e.g. <span className="font-mono">AAPL</span>) or a name and select from the list</>}.</li>
-                      <li><span className="text-foreground">Type</span> : {lang === "fr" ? "Long si vous anticipez une hausse, Short si vous anticipez une baisse." : "Long if you expect a rise, Short if you expect a fall."}</li>
-                      <li><span className="text-foreground">{lang === "fr" ? "Quantité" : "Quantity"}</span> {lang === "fr" ? "et" : "and"} <span className="text-foreground">{lang === "fr" ? "Prix d'entrée" : "Entry price"}</span> : {lang === "fr" ? "pour calculer la performance réelle." : "to calculate real performance."}</li>
-                      <li><span className="text-foreground">{lang === "fr" ? "Date d'entrée" : "Entry date"}</span> : {lang === "fr" ? "la date à laquelle vous avez pris position." : "the date you entered the position."}</li>
-                      <li><span className="text-foreground">Stop Loss / Take Profit</span> : {lang === "fr" ? "vos niveaux d'invalidation et d'objectif (optionnels)." : "your invalidation and target levels (optional)."}</li>
-                      <li><span className="text-foreground">Notes</span> : {lang === "fr" ? "la raison du trade (setup, contexte, émotion, etc.)." : "the reason for the trade (setup, context, emotion, etc.)."}</li>
+                      <li><span className="text-foreground">{t("portfolio_guide_asset")}</span> : {t("portfolio_guide_asset_desc")}.</li>
+                      <li><span className="text-foreground">Type</span> : {t("portfolio_guide_type_desc")}</li>
+                      <li><span className="text-foreground">{t("portfolio_guide_qty")}</span> {t("portfolio_guide_and")} <span className="text-foreground">{t("portfolio_guide_entry")}</span> : {t("portfolio_guide_qty_desc")}</li>
+                      <li><span className="text-foreground">{t("portfolio_guide_date")}</span> : {t("portfolio_guide_date_desc")}</li>
+                      <li><span className="text-foreground">Stop Loss / Take Profit</span> : {t("portfolio_guide_sl_desc")}</li>
+                      <li><span className="text-foreground">Notes</span> : {t("portfolio_guide_notes_desc")}</li>
                     </ul>
                   </div>
                   <div className="p-4 rounded-xl bg-emerald-500/8 border border-emerald-500/20 text-emerald-200">
-                    {lang === "fr" ? "Conseil: soyez cohérent. Après 20-30 trades, les patterns ressortent très vite." : "Tip: be consistent. After 20-30 trades, the patterns emerge very quickly."}
+                    {t("portfolio_guide_tip")}
                   </div>
                 </div>
                 <div className="px-6 py-4 border-t border-white/10 flex justify-end">

@@ -49,6 +49,7 @@ const SETUP_LABELS_EN: Record<string, string> = {
   "Support/Résistance": "Support/Resistance",
   "Autre": "Other",
 };
+// journal_setup_support and journal_setup_other keys used at render time
 
 // ── Stat card ─────────────────────────────────────────────────────────────────
 
@@ -301,11 +302,11 @@ function SymbolAutocomplete({
 function HelpModal({ onClose }: { onClose: () => void }) {
   const { t, lang } = useLanguage();
   const JOURNAL_HELP = [
-    { icon: BookOpen,    title: lang === "fr" ? "Documenter chaque trade" : "Document every trade", desc: lang === "fr" ? "Notez la raison du trade AVANT d'entrer. Décrivez le setup, les confluences, le contexte de marché." : "Write down the reason for the trade BEFORE entering. Describe the setup, confluences, market context." },
-    { icon: Target,      title: lang === "fr" ? "R:R — Ratio Risque/Récompense" : "R:R — Risk/Reward Ratio", desc: lang === "fr" ? "1:2 signifie que vous visez 2x votre risque. Visez minimum 1:1.5 pour être rentable à long terme même avec 50% de win rate." : "1:2 means you target 2x your risk. Aim for at least 1:1.5 to be profitable long-term even with a 50% win rate." },
-    { icon: CheckCircle2,title: lang === "fr" ? "Analyse post-trade" : "Post-trade analysis", desc: lang === "fr" ? "Après chaque trade, notez ce qui s'est passé. Avez-vous respecté votre plan ? Qu'auriez-vous pu faire mieux ?" : "After each trade, note what happened. Did you follow your plan? What could you have done better?" },
-    { icon: ImageIcon,   title: lang === "fr" ? "Capture d'écran" : "Screenshot", desc: lang === "fr" ? "Ajoutez une capture de votre graphique au moment du trade. C'est le meilleur moyen de revoir vos décisions." : "Add a screenshot of your chart at the time of the trade. It's the best way to review your decisions." },
-    { icon: DollarSign,  title: lang === "fr" ? "Suivi du P&L" : "P&L tracking", desc: lang === "fr" ? "Suivez vos gains/pertes pour calculer vos stats globales : win rate, espérance mathématique, etc." : "Track your gains/losses to calculate your global stats: win rate, mathematical expectancy, etc." },
+    { icon: BookOpen,    title: t("journal_help_doc_title"),        desc: t("journal_help_doc_desc") },
+    { icon: Target,      title: t("journal_help_rr_title"),         desc: t("journal_help_rr_desc") },
+    { icon: CheckCircle2,title: t("journal_help_post_title"),       desc: t("journal_help_post_desc") },
+    { icon: ImageIcon,   title: t("journal_help_screenshot_title"), desc: t("journal_help_screenshot_desc") },
+    { icon: DollarSign,  title: t("journal_help_pnl_title"),        desc: t("journal_help_pnl_desc") },
   ];
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">

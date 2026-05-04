@@ -366,7 +366,7 @@ export default function MarketsPage() {
             title={t("markets_refresh_title")}
           >
             <RefreshCw className={cn("w-3.5 h-3.5", isLoadingPrices && "animate-spin")} />
-            <span className="hidden sm:inline">{lang === "en" ? "Refresh" : "Actualiser"}</span>
+            <span className="hidden sm:inline">{t("dash_refresh_btn")}</span>
           </button>
 
           {/* Auto-refresh interval selector */}
@@ -386,7 +386,7 @@ export default function MarketsPage() {
             {!(isPremium || isAdmin) && (
               <span
                 className="hidden md:flex items-center gap-0.5 text-[10px] text-yellow-500/70 cursor-default"
-                title={lang === "en" ? "Premium: down to 1 min" : "Premium: jusqu'à 1 min"}
+                title={t("community_premium_1min")}
               >
                 <Crown className="w-2.5 h-2.5" />
                 1min

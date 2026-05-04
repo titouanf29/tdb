@@ -139,7 +139,7 @@ export default function CommunityPage() {
     } catch (error: any) {
       console.error("Error sending message:", error);
       if (error.status === 429) {
-        alert(lang === "fr" ? "Trop de messages. Veuillez patienter un moment." : "Too many messages. Please wait a moment.");
+        alert(t("community_too_many_msg"));
       }
     } finally {
       setIsLoading(false);
@@ -166,7 +166,7 @@ export default function CommunityPage() {
   };
 
   const handleDeleteMessage = async (messageId: number) => {
-    if (!confirm(lang === "fr" ? "Supprimer ce message ?" : "Delete this message?")) return;
+    if (!confirm(t("community_delete_confirm"))) return;
     try {
       await communityAPI.deleteMessage(messageId);
       setMessages((prev) => prev.filter((m) => m.id !== messageId));
@@ -190,7 +190,7 @@ export default function CommunityPage() {
       await loadTickets();
     } catch (error) {
       console.error("Error contacting admin:", error);
-      alert(lang === "fr" ? "Erreur lors de l'envoi du message." : "Error sending message.");
+      alert(t("community_send_error"));
     } finally {
       setIsSendingContact(false);
     }
@@ -221,9 +221,9 @@ export default function CommunityPage() {
     const days = Math.floor(diff / 86400000);
 
     if (minutes < 1) return t("community_just_now");
-    if (minutes < 60) return lang === "fr" ? `il y a ${minutes}min` : `${minutes}m ago`;
-    if (hours < 24) return lang === "fr" ? `il y a ${hours}h` : `${hours}h ago`;
-    if (days < 7) return lang === "fr" ? `il y a ${days}j` : `${days}d ago`;
+    if (minutes < 60) return `${t("community_time_prefix")} ${minutes}${t("community_time_min")}`.trim();
+    if (hours < 24)   return `${t("community_time_prefix")} ${hours}${t("community_time_ago_h")}`.trim();
+    if (days < 7)     return `${t("community_time_prefix")} ${days}${t("community_time_ago_d")}`.trim();
     return date.toLocaleDateString(lang === "fr" ? "fr-FR" : "en-US");
   };
 
