@@ -14,9 +14,10 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/lib/AuthContext";
 import { TradingLevel } from "@/lib/auth";
+import { useLanguage } from "@/lib/LanguageContext";
 import { cn } from "@/lib/utils";
 
-const LEVELS: {
+type Level = {
   id: TradingLevel;
   icon: React.ElementType;
   label: string;
@@ -24,59 +25,62 @@ const LEVELS: {
   color: string;
   glow: string;
   changes: string[];
-}[] = [
-  {
-    id: "beginner",
-    icon: GraduationCap,
-    label: "Débutant",
-    tagline: "Je débute dans le trading",
-    color: "from-emerald-500/20 to-teal-500/20 border-emerald-500/40",
-    glow: "shadow-emerald-500/20",
-    changes: [
-      "Explications détaillées sur chaque actif",
-      "Glossaire intégré au survol des termes",
-      "Accès prioritaire à la section Apprendre",
-      "Parcours d'apprentissage guidé pas à pas",
-      "Quiz et exercices pour progresser",
-    ],
-  },
-  {
-    id: "intermediate",
-    icon: TrendingUp,
-    label: "Intermédiaire",
-    tagline: "Je connais les bases",
-    color: "from-blue-500/20 to-indigo-500/20 border-blue-500/40",
-    glow: "shadow-blue-500/20",
-    changes: [
-      "Infobulles concises sur les termes avancés",
-      "Accès à toutes les ressources pédagogiques",
-      "Analyse technique avec explications",
-      "Exercices de niveau intermédiaire",
-      "Dashboard complet avec métriques clés",
-    ],
-  },
-  {
-    id: "expert",
-    icon: Zap,
-    label: "Expert",
-    tagline: "Je maîtrise le trading",
-    color: "from-purple-500/20 to-pink-500/20 border-purple-500/40",
-    glow: "shadow-purple-500/20",
-    changes: [
-      "Interface épurée sans explications basiques",
-      "Accès direct aux outils avancés",
-      "Données brutes et analyses complètes",
-      "Pas de tutoriels intrusifs",
-      "Expérience professionnelle complète",
-    ],
-  },
-];
+};
 
 export function OnboardingModal({ onClose }: { onClose: () => void }) {
   const { setTradingLevel } = useAuth();
+  const { t } = useLanguage();
   const [hovered, setHovered] = useState<TradingLevel | null>(null);
   const [selected, setSelected] = useState<TradingLevel | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+
+  const LEVELS: Level[] = [
+    {
+      id: "beginner",
+      icon: GraduationCap,
+      label: t("onboarding_beginner"),
+      tagline: t("onboarding_beginner_tagline"),
+      color: "from-emerald-500/20 to-teal-500/20 border-emerald-500/40",
+      glow: "shadow-emerald-500/20",
+      changes: [
+        t("onboarding_beginner_c1"),
+        t("onboarding_beginner_c2"),
+        t("onboarding_beginner_c3"),
+        t("onboarding_beginner_c4"),
+        t("onboarding_beginner_c5"),
+      ],
+    },
+    {
+      id: "intermediate",
+      icon: TrendingUp,
+      label: t("onboarding_intermediate"),
+      tagline: t("onboarding_intermediate_tagline"),
+      color: "from-blue-500/20 to-indigo-500/20 border-blue-500/40",
+      glow: "shadow-blue-500/20",
+      changes: [
+        t("onboarding_inter_c1"),
+        t("onboarding_inter_c2"),
+        t("onboarding_inter_c3"),
+        t("onboarding_inter_c4"),
+        t("onboarding_inter_c5"),
+      ],
+    },
+    {
+      id: "expert",
+      icon: Zap,
+      label: t("onboarding_expert"),
+      tagline: t("onboarding_expert_tagline"),
+      color: "from-purple-500/20 to-pink-500/20 border-purple-500/40",
+      glow: "shadow-purple-500/20",
+      changes: [
+        t("onboarding_expert_c1"),
+        t("onboarding_expert_c2"),
+        t("onboarding_expert_c3"),
+        t("onboarding_expert_c4"),
+        t("onboarding_expert_c5"),
+      ],
+    },
+  ];
 
   const handleSelect = async (level: TradingLevel) => {
     setSelected(level);
@@ -109,11 +113,11 @@ export function OnboardingModal({ onClose }: { onClose: () => void }) {
             <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary/20 mb-4">
               <BookOpen className="w-8 h-8 text-primary" />
             </div>
-            <h2 className="text-2xl font-bold mb-2">Bienvenue sur CaptenTDB !</h2>
+            <h2 className="text-2xl font-bold mb-2">{t("onboarding_title")}</h2>
             <p className="text-muted-foreground max-w-md mx-auto">
-              Pour personnaliser votre expérience, dites-nous quel est votre niveau en trading.
+              {t("onboarding_subtitle")}
               <br />
-              <span className="text-sm opacity-70">Vous pourrez le changer à tout moment dans vos paramètres.</span>
+              <span className="text-sm opacity-70">{t("onboarding_change_hint")}</span>
             </p>
           </div>
 
@@ -123,7 +127,6 @@ export function OnboardingModal({ onClose }: { onClose: () => void }) {
               {LEVELS.map((level) => {
                 const Icon = level.icon;
                 const isSelected = selected === level.id;
-                const isHovered = hovered === level.id;
                 return (
                   <motion.button
                     key={level.id}
@@ -154,7 +157,7 @@ export function OnboardingModal({ onClose }: { onClose: () => void }) {
                     <p className="font-bold text-lg mb-1">{level.label}</p>
                     <p className="text-xs text-muted-foreground leading-snug">{level.tagline}</p>
                     <div className="mt-3 flex items-center gap-1 text-xs text-white/50 group-hover:text-white/70 transition-colors">
-                      <span>Voir les détails</span>
+                      <span>{t("onboarding_see_details")}</span>
                       <ChevronRight className="w-3 h-3" />
                     </div>
                   </motion.button>
@@ -175,7 +178,7 @@ export function OnboardingModal({ onClose }: { onClose: () => void }) {
                   <div className={`mt-4 p-4 rounded-xl bg-gradient-to-br ${preview.color} border`}>
                     <p className="text-sm font-semibold mb-3 flex items-center gap-2">
                       <preview.icon className="w-4 h-4" />
-                      Ce que le niveau <span className="text-white">{preview.label}</span> change :
+                      {t("onboarding_changes_prefix")} <span className="text-white">{preview.label}</span> {t("onboarding_changes_suffix")}
                     </p>
                     <ul className="space-y-1.5">
                       {preview.changes.map((c, i) => (
@@ -192,7 +195,7 @@ export function OnboardingModal({ onClose }: { onClose: () => void }) {
 
             <p className="text-center text-xs text-muted-foreground mt-5">
               <Briefcase className="w-3 h-3 inline mr-1" />
-              Peu importe votre niveau, toutes les fonctionnalités restent accessibles.
+              {t("onboarding_all_features")}
             </p>
           </div>
         </div>

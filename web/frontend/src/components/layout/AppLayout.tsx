@@ -34,7 +34,7 @@ function AuthShell({
   isAuthPage: boolean;
 }) {
   const { isAuthenticated, isLoading, user } = useAuth();
-  const { t, lang } = useLanguage();
+  const { t } = useLanguage();
   const router = useRouter();
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -87,7 +87,7 @@ function AuthShell({
           </div>
           <div>
             <p className="text-foreground font-medium">{t("loading")}</p>
-            <p className="text-muted-foreground text-sm mt-1">{lang === "fr" ? "Récupération de vos données" : "Fetching your data"}</p>
+            <p className="text-muted-foreground text-sm mt-1">{t("layout_fetching")}</p>
           </div>
         </motion.div>
       </div>
@@ -120,14 +120,14 @@ function AuthShell({
           <ChangelogBanner />
           {children}
           <footer className="mt-8 pt-4 border-t border-white/10 text-center text-xs text-muted-foreground space-y-2">
-            <p>{lang === "fr" ? "Fait par" : "Made by"} <span className="text-primary font-semibold">CaptenQwark</span> - CaptenTDB</p>
-            <p>{lang === "fr" ? "Les analyses sont à but éducatif uniquement. Ce site ne fournit pas de conseils financiers. Paper trading uniquement." : "Analyses are for educational purposes only. This site does not provide financial advice. Paper trading only."}</p>
+            <p>{t("layout_made_by")} <span className="text-primary font-semibold">CaptenQwark</span> - CaptenTDB</p>
+            <p>{t("layout_disclaimer")}</p>
             <div className="flex flex-wrap gap-3 justify-center">
-              <a href="/mentions-legales" className="hover:text-primary hover:underline">{lang === "fr" ? "Mentions légales" : "Legal notice"}</a>
+              <a href="/mentions-legales" className="hover:text-primary hover:underline">{t("layout_legal")}</a>
               <span>·</span>
-              <a href="/politique-de-confidentialite" className="hover:text-primary hover:underline">{lang === "fr" ? "Politique de confidentialité" : "Privacy policy"}</a>
+              <a href="/politique-de-confidentialite" className="hover:text-primary hover:underline">{t("layout_privacy")}</a>
               <span>·</span>
-              <a href="/cgu" className="hover:text-primary hover:underline">{lang === "fr" ? "CGU" : "ToS"}</a>
+              <a href="/cgu" className="hover:text-primary hover:underline">{t("layout_tos")}</a>
             </div>
           </footer>
         </main>

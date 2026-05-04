@@ -222,13 +222,9 @@ export default function WalletPage() {
               <AlertTriangle className="w-5 h-5 text-warning" />
             </div>
             <div>
-              <p className="font-medium text-sm text-warning">
-                {lang === "en" ? "Low balance" : "Solde faible"}
-              </p>
+              <p className="font-medium text-sm text-warning">{t("wallet_low_balance")}</p>
               <p className="text-xs text-muted-foreground mt-0.5">
-                {lang === "en"
-                  ? `Your virtual balance is below ${formatCurrency(LOW_BALANCE_THRESHOLD)}. Add funds to keep trading.`
-                  : `Ton solde virtuel est inférieur à ${formatCurrency(LOW_BALANCE_THRESHOLD)}. Recharge ton compte pour continuer à trader.`}
+                {t("wallet_low_balance_msg")} {formatCurrency(LOW_BALANCE_THRESHOLD)}{t("wallet_low_balance_msg2")}
               </p>
             </div>
           </div>
@@ -238,13 +234,13 @@ export default function WalletPage() {
               className="flex-1 sm:flex-none px-3 py-1.5 rounded-lg bg-yellow-500/20 text-yellow-400 hover:bg-yellow-500/30 text-xs font-medium flex items-center justify-center gap-1.5 transition-colors"
             >
               <Crown className="w-3.5 h-3.5" />
-              {lang === "en" ? "Go Premium" : "Passer Premium"}
+              {t("wallet_go_premium")}
             </Link>
             <Link
               href="/premium"
               className="flex-1 sm:flex-none px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/15 text-xs font-medium flex items-center justify-center gap-1.5 transition-colors"
             >
-              {lang === "en" ? "Contact admin" : "Contacter l'admin"}
+              {t("wallet_contact_admin_btn")}
             </Link>
           </div>
         </motion.div>
@@ -350,14 +346,8 @@ export default function WalletPage() {
             <div className="w-16 h-16 rounded-2xl bg-yellow-500/15 border border-yellow-500/30 flex items-center justify-center mx-auto mb-4">
               <Crown className="w-8 h-8 text-yellow-400" />
             </div>
-            <h2 className="text-lg font-bold mb-2">
-              {lang === "en" ? "Premium Feature" : "Fonctionnalité Premium"}
-            </h2>
-            <p className="text-sm text-muted-foreground mb-6">
-              {lang === "en"
-                ? "Adding virtual funds is exclusive to Premium members. Upgrade to reload your wallet whenever you need."
-                : "L'ajout de fonds virtuels est réservé aux membres Premium. Passe Premium pour recharger ton wallet à tout moment."}
-            </p>
+            <h2 className="text-lg font-bold mb-2">{t("wallet_premium_feature")}</h2>
+            <p className="text-sm text-muted-foreground mb-6">{t("wallet_premium_desc")}</p>
             <div className="flex gap-3">
               <button
                 onClick={() => setShowPremiumGate(false)}
@@ -370,7 +360,7 @@ export default function WalletPage() {
                 className="flex-1 btn-primary flex items-center justify-center gap-2"
               >
                 <Crown className="w-4 h-4" />
-                {lang === "en" ? "Go Premium" : "Passer Premium"}
+                {t("wallet_go_premium")}
               </Link>
             </div>
             <Link
@@ -378,7 +368,7 @@ export default function WalletPage() {
               onClick={() => setShowPremiumGate(false)}
               className="block mt-4 text-xs text-muted-foreground hover:text-foreground transition-colors"
             >
-              {lang === "en" ? "or contact an admin →" : "ou contacter un administrateur →"}
+              {t("wallet_or_contact_admin")}
             </Link>
           </motion.div>
         </div>

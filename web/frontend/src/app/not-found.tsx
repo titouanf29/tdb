@@ -3,8 +3,10 @@
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { Home, TrendingUp, BarChart3, ArrowLeft } from "lucide-react";
+import { useLanguage } from "@/lib/LanguageContext";
 
 export default function NotFound() {
+  const { t } = useLanguage();
   return (
     <div className="flex flex-col items-center justify-center min-h-[70vh] text-center px-4">
       <motion.div
@@ -25,10 +27,8 @@ export default function NotFound() {
         </div>
 
         <div className="space-y-2">
-          <h1 className="text-2xl font-bold">Page introuvable</h1>
-          <p className="text-muted-foreground text-sm">
-            Cette page n'existe pas ou a été déplacée.
-          </p>
+          <h1 className="text-2xl font-bold">{t("notfound_title")}</h1>
+          <p className="text-muted-foreground text-sm">{t("notfound_desc")}</p>
         </div>
 
         {/* Quick links */}
@@ -45,7 +45,7 @@ export default function NotFound() {
             className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 transition-colors text-sm font-medium border border-white/10"
           >
             <BarChart3 className="w-4 h-4" />
-            Marchés
+            {t("nav_markets")}
           </Link>
           <Link
             href="/wallet"
@@ -61,7 +61,7 @@ export default function NotFound() {
           className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors mx-auto"
         >
           <ArrowLeft className="w-3.5 h-3.5" />
-          Retour à la page précédente
+          {t("notfound_back")}
         </button>
       </motion.div>
     </div>

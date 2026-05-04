@@ -339,8 +339,8 @@ function TradingSettings() {
         <label className="block text-sm font-medium mb-3">{t("settings_currency")}</label>
         <div className="grid grid-cols-2 gap-2">
           {[
-            { id: "EUR", label: lang === "en" ? "Euro" : "Euro", symbol: "€" },
-            { id: "USD", label: lang === "en" ? "US Dollar" : "Dollar US", symbol: "$" },
+            { id: "EUR", label: t("settings_eur_label"), symbol: "€" },
+            { id: "USD", label: t("settings_usd_label"), symbol: "$" },
           ].map((c) => (
             <button key={c.id} onClick={() => setCurrency(c.id as Currency)}
               className={cn("p-4 rounded-xl text-center transition-all flex items-center justify-center gap-3 border hover-lift",
@@ -386,9 +386,9 @@ function TradingSettings() {
         {activeStyle && (
           <div className="mt-3 p-3 rounded-xl bg-primary/5 border border-primary/20 text-xs text-primary/80">
             <span className="font-semibold">{activeStyle.emoji} {activeStyle.label} {t("settings_style_active_suffix")}</span>
-            {lang === "en"
-              ? <> — AI analyses now use this profile (horizon {activeStyle.horizon}, stops and R/R adapted).</>
-              : <> — Les analyses IA utilisent maintenant ce profil (horizon {activeStyle.horizon}, stops et R/R adaptés).</>
+            {" — "}{lang === "en"
+              ? <>AI analyses now use this profile (horizon {activeStyle.horizon}, stops and R/R adapted).</>
+              : <>Les analyses IA utilisent maintenant ce profil (horizon {activeStyle.horizon}, stops et R/R adaptés).</>
             }
           </div>
         )}
@@ -422,7 +422,7 @@ function TradingSettings() {
       <div>
         <label className="block text-sm font-medium mb-2">{t("settings_leverage_label")}</label>
         <select value={settings.defaultLeverage} onChange={(e) => setDefaultLeverage(e.target.value)} className="input w-full">
-          <option value="1">{lang === "en" ? "1x (no leverage)" : "1x (sans levier)"}</option>
+          <option value="1">{t("settings_leverage_1x")}</option>
           <option value="2">2x</option>
           <option value="5">5x</option>
           <option value="10">10x</option>
