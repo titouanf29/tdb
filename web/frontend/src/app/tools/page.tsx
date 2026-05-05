@@ -297,6 +297,7 @@ function PivotPointsTab() {
 
 // ============== P/E RANKINGS TAB ==============
 function PERankingsTab() {
+  const { t } = useLanguage();
   const formatCurrency = useFormatCurrency();
   const [data, setData] = useState<PERankingsData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -324,7 +325,7 @@ function PERankingsTab() {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <BarChart3 className="w-5 h-5 text-primary" />
-          <h2 className="text-lg font-semibold">Palmares des PER</h2>
+          <h2 className="text-lg font-semibold">{t("tools_per_rankings")}</h2>
         </div>
 
         <div className="flex items-center gap-4">
@@ -333,7 +334,7 @@ function PERankingsTab() {
             onChange={(e) => setSector(e.target.value)}
             className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-sm"
           >
-            <option value="" className="bg-background">Tous secteurs</option>
+            <option value="" className="bg-background">{t("tools_all_sectors")}</option>
             {data?.sectors.map((s) => (
               <option key={s} value={s} className="bg-background">{s}</option>
             ))}
@@ -344,8 +345,8 @@ function PERankingsTab() {
             onChange={(e) => setSort(e.target.value)}
             className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-sm"
           >
-            <option value="asc" className="bg-background">PER croissant</option>
-            <option value="desc" className="bg-background">PER decroissant</option>
+            <option value="asc" className="bg-background">{t("tools_per_asc")}</option>
+            <option value="desc" className="bg-background">{t("tools_per_desc")}</option>
           </select>
 
           <button onClick={load} disabled={isLoading} className="p-2 rounded-lg hover:bg-white/10">
@@ -364,12 +365,12 @@ function PERankingsTab() {
             <thead>
               <tr className="border-b border-white/10">
                 <th className="text-left py-3 px-2 text-sm text-muted-foreground">#</th>
-                <th className="text-left py-3 px-2 text-sm text-muted-foreground">Symbole</th>
-                <th className="text-left py-3 px-2 text-sm text-muted-foreground">Secteur</th>
-                <th className="text-right py-3 px-2 text-sm text-muted-foreground">Prix</th>
-                <th className="text-right py-3 px-2 text-sm text-muted-foreground">PER</th>
-                <th className="text-right py-3 px-2 text-sm text-muted-foreground">PER Forward</th>
-                <th className="text-right py-3 px-2 text-sm text-muted-foreground">Div. Yield</th>
+                <th className="text-left py-3 px-2 text-sm text-muted-foreground">{t("tools_symbol")}</th>
+                <th className="text-left py-3 px-2 text-sm text-muted-foreground">{t("tools_sector")}</th>
+                <th className="text-right py-3 px-2 text-sm text-muted-foreground">{t("tools_price")}</th>
+                <th className="text-right py-3 px-2 text-sm text-muted-foreground">{t("tools_pe")}</th>
+                <th className="text-right py-3 px-2 text-sm text-muted-foreground">{t("tools_pe_fwd")}</th>
+                <th className="text-right py-3 px-2 text-sm text-muted-foreground">{t("tools_div_yield")}</th>
               </tr>
             </thead>
             <tbody>
@@ -403,6 +404,7 @@ function PERankingsTab() {
 
 // ============== TRENDS TAB ==============
 function TrendsTab() {
+  const { t } = useLanguage();
   const formatCurrency = useFormatCurrency();
   const [data, setData] = useState<TrendsData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -436,7 +438,7 @@ function TrendsTab() {
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <Activity className="w-5 h-5 text-primary" />
-            <h2 className="text-lg font-semibold">Tendances Indices</h2>
+            <h2 className="text-lg font-semibold">{t("tools_trends_indices")}</h2>
           </div>
           <button onClick={load} disabled={isLoading} className="p-2 rounded-lg hover:bg-white/10">
             <RefreshCw className={cn("w-4 h-4", isLoading && "animate-spin")} />
@@ -458,19 +460,19 @@ function TrendsTab() {
                 <p className="text-xl font-bold mb-2">{formatCurrency(idx.price)}</p>
                 <div className="grid grid-cols-3 gap-2 text-sm">
                   <div>
-                    <p className="text-muted-foreground">1J</p>
+                    <p className="text-muted-foreground">{t("tools_period_1d")}</p>
                     <p className={cn(idx.change_1d >= 0 ? "text-green-500" : "text-red-500")}>
                       {idx.change_1d >= 0 ? "+" : ""}{idx.change_1d}%
                     </p>
                   </div>
                   <div>
-                    <p className="text-muted-foreground">1S</p>
+                    <p className="text-muted-foreground">{t("tools_period_1w")}</p>
                     <p className={cn(idx.change_1w >= 0 ? "text-green-500" : "text-red-500")}>
                       {idx.change_1w >= 0 ? "+" : ""}{idx.change_1w}%
                     </p>
                   </div>
                   <div>
-                    <p className="text-muted-foreground">1M</p>
+                    <p className="text-muted-foreground">{t("tools_period_1m")}</p>
                     <p className={cn(idx.change_1m >= 0 ? "text-green-500" : "text-red-500")}>
                       {idx.change_1m >= 0 ? "+" : ""}{idx.change_1m}%
                     </p>
@@ -486,7 +488,7 @@ function TrendsTab() {
       <div className="glass-card p-6">
         <div className="flex items-center gap-2 mb-4">
           <BarChart3 className="w-5 h-5 text-primary" />
-          <h2 className="text-lg font-semibold">Performance Secteurs (1 semaine)</h2>
+          <h2 className="text-lg font-semibold">{t("tools_sector_perf")}</h2>
         </div>
 
         {data?.sectors && (
@@ -520,7 +522,7 @@ function TrendsTab() {
         <div className="glass-card p-6">
           <div className="flex items-center gap-2 mb-4">
             <Bot className="w-5 h-5 text-primary" />
-            <h2 className="text-lg font-semibold">Analyse IA</h2>
+            <h2 className="text-lg font-semibold">{t("tools_ai_analysis")}</h2>
           </div>
           <div className="p-4 rounded-xl bg-primary/10 border border-primary/20 whitespace-pre-line">
             {data.analysis}
@@ -533,6 +535,7 @@ function TrendsTab() {
 
 // ============== ECONOMIC CALENDAR TAB ==============
 function EconomicCalendarTab() {
+  const { t, lang } = useLanguage();
   const [data, setData] = useState<EconomicCalendarData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [days, setDays] = useState(14);
@@ -577,7 +580,7 @@ function EconomicCalendarTab() {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Calendar className="w-5 h-5 text-primary" />
-          <h2 className="text-lg font-semibold">Calendrier Economique</h2>
+          <h2 className="text-lg font-semibold">{t("tools_eco_calendar")}</h2>
         </div>
 
         <div className="flex items-center gap-4">
@@ -586,9 +589,9 @@ function EconomicCalendarTab() {
             onChange={(e) => setDays(Number(e.target.value))}
             className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-sm"
           >
-            <option value={7} className="bg-background">7 jours</option>
-            <option value={14} className="bg-background">14 jours</option>
-            <option value={30} className="bg-background">30 jours</option>
+            <option value={7} className="bg-background">{t("tools_7days")}</option>
+            <option value={14} className="bg-background">{t("tools_14days")}</option>
+            <option value={30} className="bg-background">{t("tools_30days")}</option>
           </select>
 
           <button onClick={load} disabled={isLoading} className="p-2 rounded-lg hover:bg-white/10">
@@ -601,11 +604,11 @@ function EconomicCalendarTab() {
       <div className="flex items-center gap-4 text-sm">
         <div className="flex items-center gap-2">
           <div className="w-3 h-3 rounded-full bg-red-500" />
-          <span>Impact eleve</span>
+          <span>{t("tools_impact_high")}</span>
         </div>
         <div className="flex items-center gap-2">
           <div className="w-3 h-3 rounded-full bg-yellow-500" />
-          <span>Impact moyen</span>
+          <span>{t("tools_impact_medium")}</span>
         </div>
       </div>
 
@@ -616,7 +619,7 @@ function EconomicCalendarTab() {
       ) : data?.events.length === 0 ? (
         <div className="text-center py-12 text-muted-foreground">
           <Calendar className="w-12 h-12 mx-auto mb-4 opacity-50" />
-          <p>Aucun evenement prevu dans cette periode</p>
+          <p>{t("tools_no_events")}</p>
         </div>
       ) : (
         <div className="space-y-4">
@@ -642,18 +645,18 @@ function EconomicCalendarTab() {
                   </div>
                 </div>
                 <div className="text-right text-sm">
-                  <p className="font-semibold">{new Date(event.date).toLocaleDateString("fr-FR", { weekday: "short", day: "numeric", month: "short" })}</p>
+                  <p className="font-semibold">{new Date(event.date).toLocaleDateString(lang === "fr" ? "fr-FR" : "en-US", { weekday: "short", day: "numeric", month: "short" })}</p>
                   <p className="text-muted-foreground">{event.time}</p>
                 </div>
               </div>
 
               <div className="mt-3 pt-3 border-t border-white/5 grid grid-cols-2 gap-4 text-sm">
                 <div>
-                  <span className="text-muted-foreground">Precedent: </span>
+                  <span className="text-muted-foreground">{t("tools_previous")}: </span>
                   <span className="font-semibold">{event.previous}</span>
                 </div>
                 <div>
-                  <span className="text-muted-foreground">Prevision: </span>
+                  <span className="text-muted-foreground">{t("tools_forecast")}: </span>
                   <span className="font-semibold">{event.forecast}</span>
                 </div>
               </div>
@@ -668,11 +671,11 @@ function EconomicCalendarTab() {
 // ============== GEOPOLITICAL TAB ==============
 
 const REGIONS = [
-  { key: "americas", label: "Amériques", flag: "🌎", keywords: ["états-unis", "usa", "canada", "mexique", "brésil", "amérique"] },
-  { key: "europe", label: "Europe", flag: "🌍", keywords: ["europe", "zone euro", "BCE", "allemagne", "france", "royaume-uni", "ukraine"] },
-  { key: "asia", label: "Asie", flag: "🌏", keywords: ["chine", "japon", "asie", "inde", "corée", "taiwan", "banque du japon"] },
-  { key: "mideast", label: "Moyen-Orient", flag: "🕌", keywords: ["pétrole", "opep", "iran", "israël", "arabie", "moyen-orient", "golfe"] },
-  { key: "africa", label: "Afrique", flag: "🌍", keywords: ["afrique", "nigeria", "égypte", "or", "matières premières"] },
+  { key: "americas", labelKey: "tools_region_americas", flag: "🌎", keywords: ["états-unis", "usa", "canada", "mexique", "brésil", "amérique"] },
+  { key: "europe",   labelKey: "tools_region_europe",   flag: "🌍", keywords: ["europe", "zone euro", "BCE", "allemagne", "france", "royaume-uni", "ukraine"] },
+  { key: "asia",     labelKey: "tools_region_asia",     flag: "🌏", keywords: ["chine", "japon", "asie", "inde", "corée", "taiwan", "banque du japon"] },
+  { key: "mideast",  labelKey: "tools_region_mideast",  flag: "🕌", keywords: ["pétrole", "opep", "iran", "israël", "arabie", "moyen-orient", "golfe"] },
+  { key: "africa",   labelKey: "tools_region_africa",   flag: "🌍", keywords: ["afrique", "nigeria", "égypte", "or", "matières premières"] },
 ];
 
 function getRegionImpact(analysis: string, keywords: string[]): "high" | "medium" | "low" {
@@ -684,7 +687,7 @@ function getRegionImpact(analysis: string, keywords: string[]): "high" | "medium
 }
 
 function GeopoliticalTab() {
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
   const formatCurrency = useFormatCurrency();
   const [data, setData] = useState<GeopoliticalData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -697,7 +700,7 @@ function GeopoliticalTab() {
       const result = await toolsAPI.getGeopoliticalAnalysis();
       setData(result);
     } catch (e: any) {
-      setError(e.message || "Erreur lors du chargement");
+      setError(e.message || t("tools_err_load"));
     } finally {
       setIsLoading(false);
     }
@@ -721,7 +724,7 @@ function GeopoliticalTab() {
       {isLoading && !data && (
         <div className="flex flex-col items-center justify-center py-20">
           <Loader2 className="w-10 h-10 animate-spin text-primary mb-4" />
-          <p className="text-muted-foreground">Analyse géopolitique en cours...</p>
+          <p className="text-muted-foreground">{t("tools_geo_loading")}</p>
         </div>
       )}
 
@@ -740,7 +743,7 @@ function GeopoliticalTab() {
             <div className="glass-card p-6">
               <div className="flex items-center gap-2 mb-6">
                 <Activity className="w-5 h-5 text-primary" />
-                <h2 className="text-lg font-semibold">Indicateurs Clés du Marché</h2>
+                <h2 className="text-lg font-semibold">{t("tools_key_indicators")}</h2>
               </div>
 
               {/* Cartes indicateurs */}
@@ -764,7 +767,7 @@ function GeopoliticalTab() {
 
               {/* Graphique des variations */}
               <div>
-                <p className="text-sm text-muted-foreground mb-3">Variation journalière (%)</p>
+                <p className="text-sm text-muted-foreground mb-3">{t("tools_daily_change")}</p>
                 <ResponsiveContainer width="100%" height={220}>
                   <BarChart data={chartData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
@@ -787,7 +790,7 @@ function GeopoliticalTab() {
                         borderRadius: "8px",
                         fontSize: "12px",
                       }}
-                      formatter={(value: number) => [`${value > 0 ? "+" : ""}${value}%`, "Variation"]}
+                      formatter={(value: number) => [`${value > 0 ? "+" : ""}${value}%`, t("tools_variation")]}
                       cursor={{ fill: "rgba(255,255,255,0.03)" }}
                     />
                     <ReferenceLine y={0} stroke="rgba(255,255,255,0.2)" />
@@ -828,7 +831,7 @@ function GeopoliticalTab() {
                     className={cn("p-4 rounded-xl border", impactConfig.bg)}
                   >
                     <div className="text-2xl mb-2">{region.flag}</div>
-                    <p className="font-semibold text-sm">{region.label}</p>
+                    <p className="font-semibold text-sm">{t(region.labelKey as Parameters<typeof t>[0])}</p>
                     <p className={cn("text-xs mt-1", impactConfig.color)}>{impactConfig.label}</p>
                     <div className="mt-3 h-1.5 rounded-full bg-white/10 overflow-hidden">
                       <div className={cn("h-full rounded-full transition-all", impactConfig.bar, impactConfig.width)} />
@@ -848,7 +851,7 @@ function GeopoliticalTab() {
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-2">
                 <Brain className="w-5 h-5 text-primary" />
-                <h2 className="text-lg font-semibold">Analyse Géopolitique Détaillée</h2>
+                <h2 className="text-lg font-semibold">{t("tools_geo_analysis")}</h2>
               </div>
               <button
                 onClick={load}
@@ -856,7 +859,7 @@ function GeopoliticalTab() {
                 className="flex items-center gap-2 px-3 py-1.5 rounded-lg hover:bg-white/10 text-sm text-muted-foreground transition-colors"
               >
                 <RefreshCw className={cn("w-4 h-4", isLoading && "animate-spin")} />
-                <span className="hidden sm:inline">Actualiser</span>
+                <span className="hidden sm:inline">{t("dash_refresh_btn")}</span>
               </button>
             </div>
 
@@ -875,7 +878,7 @@ function GeopoliticalTab() {
             </div>
 
             <p className="text-xs text-muted-foreground mt-6 pt-4 border-t border-white/10 text-right">
-              Généré le : {new Date(data.generated_at).toLocaleString("fr-FR")}
+              {t("tools_generated_at")} {new Date(data.generated_at).toLocaleString(lang === "fr" ? "fr-FR" : "en-US")}
             </p>
           </div>
         </>
@@ -886,6 +889,7 @@ function GeopoliticalTab() {
 
 // ============== BACKTEST TAB ==============
 function BacktestTab() {
+  const { t } = useLanguage();
   const formatCurrency = useFormatCurrency();
   const [result, setResult] = useState<BacktestResult | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -903,17 +907,17 @@ function BacktestTab() {
   });
 
   const strategies = [
-    { value: "sma_crossover", label: "Croisement SMA", desc: "Achat quand SMA courte > SMA longue" },
-    { value: "rsi", label: "RSI", desc: "Achat en survente, vente en surachat" },
-    { value: "macd", label: "MACD", desc: "Achat quand MACD > Signal" },
-    { value: "bollinger", label: "Bollinger Bands", desc: "Achat en bas, vente en haut" },
+    { value: "sma_crossover", label: t("tools_sma_cross_label") },
+    { value: "rsi",           label: t("tools_rsi_label") },
+    { value: "macd",          label: t("tools_macd_label") },
+    { value: "bollinger",     label: t("tools_bollinger_label") },
   ];
 
   const periods = [
-    { value: "6mo", label: "6 mois" },
-    { value: "1y", label: "1 an" },
-    { value: "2y", label: "2 ans" },
-    { value: "5y", label: "5 ans" },
+    { value: "6mo", label: t("tools_6mo") },
+    { value: "1y",  label: t("tools_1y") },
+    { value: "2y",  label: t("tools_2y") },
+    { value: "5y",  label: t("tools_5y") },
   ];
 
   const runBacktest = async () => {
@@ -923,7 +927,7 @@ function BacktestTab() {
       const res = await toolsAPI.runBacktest(form);
       setResult(res);
     } catch (e: any) {
-      setError(e.message || "Erreur lors du backtest");
+      setError(e.message || t("tools_err_backtest"));
     } finally {
       setIsLoading(false);
     }
@@ -940,7 +944,7 @@ function BacktestTab() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <div>
-            <label className="block text-sm text-muted-foreground mb-2">Symbole</label>
+            <label className="block text-sm text-muted-foreground mb-2">{t("tools_symbol")}</label>
             <input
               type="text"
               value={form.symbol}
@@ -950,7 +954,7 @@ function BacktestTab() {
           </div>
 
           <div>
-            <label className="block text-sm text-muted-foreground mb-2">Strategie</label>
+            <label className="block text-sm text-muted-foreground mb-2">{t("tools_strategy")}</label>
             <select
               value={form.strategy}
               onChange={(e) => setForm({ ...form, strategy: e.target.value as any })}
@@ -963,7 +967,7 @@ function BacktestTab() {
           </div>
 
           <div>
-            <label className="block text-sm text-muted-foreground mb-2">Periode</label>
+            <label className="block text-sm text-muted-foreground mb-2">{t("tools_period")}</label>
             <select
               value={form.period}
               onChange={(e) => setForm({ ...form, period: e.target.value })}
@@ -976,7 +980,7 @@ function BacktestTab() {
           </div>
 
           <div>
-            <label className="block text-sm text-muted-foreground mb-2">Capital Initial</label>
+            <label className="block text-sm text-muted-foreground mb-2">{t("tools_initial_capital")}</label>
             <input
               type="number"
               value={form.initial_capital}
@@ -990,7 +994,7 @@ function BacktestTab() {
         {form.strategy === "sma_crossover" && (
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm text-muted-foreground mb-2">SMA Courte</label>
+              <label className="block text-sm text-muted-foreground mb-2">{t("tools_sma_short")}</label>
               <input
                 type="number"
                 value={form.sma_short}
@@ -999,7 +1003,7 @@ function BacktestTab() {
               />
             </div>
             <div>
-              <label className="block text-sm text-muted-foreground mb-2">SMA Longue</label>
+              <label className="block text-sm text-muted-foreground mb-2">{t("tools_sma_long")}</label>
               <input
                 type="number"
                 value={form.sma_long}
@@ -1013,7 +1017,7 @@ function BacktestTab() {
         {form.strategy === "rsi" && (
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm text-muted-foreground mb-2">RSI Survente</label>
+              <label className="block text-sm text-muted-foreground mb-2">{t("tools_rsi_oversold")}</label>
               <input
                 type="number"
                 value={form.rsi_oversold}
@@ -1022,7 +1026,7 @@ function BacktestTab() {
               />
             </div>
             <div>
-              <label className="block text-sm text-muted-foreground mb-2">RSI Surachat</label>
+              <label className="block text-sm text-muted-foreground mb-2">{t("tools_rsi_overbought")}</label>
               <input
                 type="number"
                 value={form.rsi_overbought}
@@ -1039,7 +1043,7 @@ function BacktestTab() {
           className="btn-primary flex items-center gap-2"
         >
           {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
-          Lancer la Simulation
+          {t("tools_run_backtest")}
         </button>
 
         {error && (
@@ -1054,18 +1058,18 @@ function BacktestTab() {
       {result && (
         <div className="glass-card p-6 space-y-6">
           <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold">Resultats: {result.symbol}</h3>
+            <h3 className="text-lg font-semibold">{t("tools_results")}: {result.symbol}</h3>
             <span className="text-sm text-muted-foreground">{result.strategy} - {result.period}</span>
           </div>
 
           {/* Stats */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="p-4 rounded-xl bg-white/5 text-center">
-              <p className="text-sm text-muted-foreground mb-1">Capital Final</p>
+              <p className="text-sm text-muted-foreground mb-1">{t("tools_final_capital")}</p>
               <p className="text-xl font-bold">{formatCurrency(result.final_equity)}</p>
             </div>
             <div className="p-4 rounded-xl bg-white/5 text-center">
-              <p className="text-sm text-muted-foreground mb-1">Rendement</p>
+              <p className="text-sm text-muted-foreground mb-1">{t("tools_return")}</p>
               <p className={cn(
                 "text-xl font-bold",
                 result.total_return >= 0 ? "text-green-500" : "text-red-500"
@@ -1084,21 +1088,21 @@ function BacktestTab() {
           </div>
 
           <div className="text-sm text-muted-foreground">
-            <p>Nombre de trades: {result.num_trades}</p>
+            <p>{t("tools_num_trades")}: {result.num_trades}</p>
           </div>
 
           {/* Trades */}
           {result.trades.length > 0 && (
             <div>
-              <h4 className="font-semibold mb-2">Derniers Trades</h4>
+              <h4 className="font-semibold mb-2">{t("tools_last_trades")}</h4>
               <div className="max-h-[200px] overflow-y-auto">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-white/10">
-                      <th className="text-left py-2">Date</th>
-                      <th className="text-left py-2">Type</th>
-                      <th className="text-right py-2">Prix</th>
-                      <th className="text-right py-2">Valeur</th>
+                      <th className="text-left py-2">{t("tools_date")}</th>
+                      <th className="text-left py-2">{t("tools_type")}</th>
+                      <th className="text-right py-2">{t("tools_price")}</th>
+                      <th className="text-right py-2">{t("tools_value")}</th>
                     </tr>
                   </thead>
                   <tbody>

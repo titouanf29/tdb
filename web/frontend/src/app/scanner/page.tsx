@@ -392,8 +392,8 @@ export default function ScannerPage() {
             <div className="flex gap-1 text-xs text-muted-foreground">
               {([
                 { k: "score" as SortKey, label: "Score" },
-                { k: "change" as SortKey, label: "1j" },
-                { k: "change_1w" as SortKey, label: "1s" },
+                { k: "change" as SortKey, label: t("scanner_1d") },
+                { k: "change_1w" as SortKey, label: t("scanner_1w") },
                 { k: "rsi" as SortKey, label: "RSI" },
                 { k: "volume_ratio" as SortKey, label: "Vol" },
               ]).map(({ k, label }) => (
@@ -492,7 +492,7 @@ export default function ScannerPage() {
                         </span>
                         {r.near_breakout && (
                           <span className="text-blue-400 font-medium">
-                            {r.pct_from_high >= 0 ? "52w High ✓" : `${r.pct_from_high}% du 52w High`}
+                            {r.pct_from_high >= 0 ? "52w High ✓" : `${r.pct_from_high}% ${t("scanner_from_52w")}`}
                           </span>
                         )}
                       </div>
@@ -508,7 +508,7 @@ export default function ScannerPage() {
                         </span>
                         <span className="text-muted-foreground">|</span>
                         <span className={cn("text-[11px]", r.change_1w >= 0 ? "text-profit/80" : "text-loss/80")}>
-                          1s {r.change_1w >= 0 ? "+" : ""}{r.change_1w.toFixed(1)}%
+                          {t("scanner_1w")} {r.change_1w >= 0 ? "+" : ""}{r.change_1w.toFixed(1)}%
                         </span>
                       </div>
                     </div>
