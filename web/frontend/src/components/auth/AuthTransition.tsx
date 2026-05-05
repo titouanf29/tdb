@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { TrendingUp } from "lucide-react";
+import { useLanguage } from "@/lib/LanguageContext";
 
 type Props = {
   type: "login" | "register";
@@ -40,6 +41,8 @@ const STREAKS = makeStreaks(40);
 export function AuthTransition({ type, username, onComplete }: Props) {
   const [phase, setPhase] = useState<"enter" | "hold" | "exit">("enter");
   const doneRef = useRef(false);
+  const { lang } = useLanguage();
+  const fr = lang === "fr";
 
   useEffect(() => {
     // hold → exit → navigate
@@ -52,12 +55,14 @@ export function AuthTransition({ type, username, onComplete }: Props) {
   }, [onComplete]);
 
   const isRegister = type === "register";
-  const greetLine = isRegister ? "Bienvenue" : "Content de te revoir";
+  const greetLine = isRegister
+    ? (fr ? "Bienvenue" : "Welcome")
+    : (fr ? "Content de te revoir" : "Welcome back");
   const nameLine  = username ? username : null;
-  const fallback  = isRegister ? "Bienvenue !" : "Bienvenue !";
+  const fallback  = fr ? "Bienvenue !" : "Welcome!";
   const sub = isRegister
-    ? "$10 000 virtuels ajoutés à ton portefeuille"
-    : "Ton tableau de bord t'attend";
+    ? (fr ? "$10 000 virtuels ajoutés à ton portefeuille" : "Virtual $10,000 added to your portfolio")
+    : (fr ? "Ton tableau de bord t'attend" : "Your dashboard is waiting");
 
   return (
     <motion.div
@@ -277,7 +282,7 @@ export function AuthTransition({ type, username, onComplete }: Props) {
             }
           >
             <span className="text-green-400 text-lg">💰</span>
-            <span className="text-green-400 font-semibold text-sm">$10 000 ajoutés</span>
+            <span className="text-green-400 font-semibold text-sm">{fr ? "$10 000 ajoutés" : "$10,000 added"}</span>
           </motion.div>
         )}
       </motion.div>

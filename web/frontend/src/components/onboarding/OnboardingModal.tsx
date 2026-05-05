@@ -15,6 +15,7 @@ import {
 import { useAuth } from "@/lib/AuthContext";
 import { TradingLevel } from "@/lib/auth";
 import { useLanguage } from "@/lib/LanguageContext";
+import { LanguageToggle } from "@/components/ui/LanguageToggle";
 import { cn } from "@/lib/utils";
 
 type Level = {
@@ -109,7 +110,10 @@ export function OnboardingModal({ onClose }: { onClose: () => void }) {
           style={{ background: "hsl(220 50% 5.5%)", boxShadow: "0 25px 60px rgba(0,0,0,0.6)" }}
         >
           {/* Header */}
-          <div className="p-8 pb-6 text-center border-b border-white/10">
+          <div className="p-8 pb-6 text-center border-b border-white/10 relative">
+            <div className="absolute top-4 right-4">
+              <LanguageToggle variant="pill" />
+            </div>
             <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary/20 mb-4">
               <BookOpen className="w-8 h-8 text-primary" />
             </div>
