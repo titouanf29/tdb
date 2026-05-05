@@ -7,6 +7,7 @@ import { Eye, EyeOff, TrendingUp, Loader2, ArrowLeft } from "lucide-react";
 import { useAuth } from "@/lib/AuthContext";
 import { LanguageToggle } from "@/components/ui/LanguageToggle";
 import { useLanguage } from "@/lib/LanguageContext";
+import { AuthTransition } from "@/components/auth/AuthTransition";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -18,6 +19,8 @@ export default function LoginPage() {
   const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [showTransition, setShowTransition] = useState(false);
+  const [authedUsername, setAuthedUsername] = useState("");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -26,13 +29,24 @@ export default function LoginPage() {
 
     try {
       await login(email, password, rememberMe);
-      router.push("/dashboard");
+      setAuthedUsername(email.split("@")[0]);
+      setShowTransition(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : t("error_generic"));
     } finally {
       setIsLoading(false);
     }
   };
+
+  if (showTransition) {
+    return (
+      <AuthTransition
+        type="login"
+        username={authedUsername}
+        onComplete={() => router.push("/dashboard")}
+      />
+    );
+  }
 
   return (
     <div className="w-full max-w-md animate-fade-in">

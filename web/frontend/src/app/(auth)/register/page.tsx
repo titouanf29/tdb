@@ -7,6 +7,7 @@ import { Eye, EyeOff, TrendingUp, Loader2, Check, AlertTriangle, ArrowLeft } fro
 import { useAuth } from "@/lib/AuthContext";
 import { LanguageToggle } from "@/components/ui/LanguageToggle";
 import { useLanguage } from "@/lib/LanguageContext";
+import { AuthTransition } from "@/components/auth/AuthTransition";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -23,6 +24,7 @@ export default function RegisterPage() {
   const [showTerms, setShowTerms] = useState(false);
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [showTransition, setShowTransition] = useState(false);
 
   const passwordRequirements = [
     { label: t("register_password") + " ≥ 6", met: formData.password.length >= 6 },
@@ -56,13 +58,23 @@ export default function RegisterPage() {
         formData.username,
         formData.username
       );
-      router.push("/dashboard");
+      setShowTransition(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : t("error_generic"));
     } finally {
       setIsLoading(false);
     }
   };
+
+  if (showTransition) {
+    return (
+      <AuthTransition
+        type="register"
+        username={formData.username}
+        onComplete={() => router.push("/dashboard")}
+      />
+    );
+  }
 
   return (
     <div className="w-full max-w-md animate-fade-in">
