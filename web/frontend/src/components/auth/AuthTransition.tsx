@@ -52,9 +52,9 @@ export function AuthTransition({ type, username, onComplete }: Props) {
   }, [onComplete]);
 
   const isRegister = type === "register";
-  const headline  = isRegister
-    ? (username ? `Bienvenue, ${username} !` : "Bienvenue !")
-    : (username ? `Content de te revoir,\n${username} !` : "Bienvenue !");
+  const greetLine = isRegister ? "Bienvenue" : "Content de te revoir";
+  const nameLine  = username ? username : null;
+  const fallback  = isRegister ? "Bienvenue !" : "Bienvenue !";
   const sub = isRegister
     ? "$10 000 virtuels ajoutés à ton portefeuille"
     : "Ton tableau de bord t'attend";
@@ -211,22 +211,53 @@ export function AuthTransition({ type, username, onComplete }: Props) {
           : { opacity: 1, y: 0, transition: { duration: 0.5, delay: 0.9 } }
         }
       >
-        <h2
-          className="text-2xl sm:text-3xl font-bold leading-tight whitespace-pre-line"
-          style={{
-            background: isRegister
-              ? "linear-gradient(135deg, #fde68a, #eab308, #f97316)"
-              : "linear-gradient(135deg, #a5b4fc, #6366f1, #10b981)",
-            WebkitBackgroundClip: "text",
-            WebkitTextFillColor: "transparent",
-          }}
-        >
-          {headline}
-        </h2>
+        {nameLine ? (
+          <>
+            {/* Greeting line — small */}
+            <p className="text-base sm:text-lg font-medium text-white/60 mb-1 tracking-wide">
+              {greetLine},
+            </p>
+            {/* Username — big and glowing */}
+            <motion.h2
+              className="font-black tracking-tight leading-none"
+              style={{
+                fontSize: "clamp(2.8rem, 8vw, 5rem)",
+                background: isRegister
+                  ? "linear-gradient(135deg, #fff7aa, #fde68a, #eab308, #f97316)"
+                  : "linear-gradient(135deg, #ffffff, #c7d2fe, #818cf8, #6366f1)",
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+                filter: isRegister
+                  ? "drop-shadow(0 0 18px rgba(234,179,8,0.7)) drop-shadow(0 0 40px rgba(234,179,8,0.35))"
+                  : "drop-shadow(0 0 18px rgba(99,102,241,0.8)) drop-shadow(0 0 40px rgba(99,102,241,0.4))",
+              }}
+              initial={{ opacity: 0, scale: 0.85 }}
+              animate={phase === "exit"
+                ? { opacity: 0, scale: 1.05, transition: { duration: 0.25 } }
+                : { opacity: 1, scale: 1, transition: { duration: 0.45, delay: 1.0, ease: "backOut" } }
+              }
+            >
+              {nameLine} !
+            </motion.h2>
+          </>
+        ) : (
+          <h2
+            className="text-3xl sm:text-4xl font-bold leading-tight"
+            style={{
+              background: isRegister
+                ? "linear-gradient(135deg, #fde68a, #eab308, #f97316)"
+                : "linear-gradient(135deg, #a5b4fc, #6366f1, #10b981)",
+              WebkitBackgroundClip: "text",
+              WebkitTextFillColor: "transparent",
+            }}
+          >
+            {fallback}
+          </h2>
+        )}
         <motion.p
-          className="text-sm text-white/50 mt-2"
+          className="text-sm text-white/50 mt-3"
           initial={{ opacity: 0 }}
-          animate={phase === "exit" ? { opacity: 0 } : { opacity: 1, transition: { delay: 1.3 } }}
+          animate={phase === "exit" ? { opacity: 0 } : { opacity: 1, transition: { delay: 1.4 } }}
         >
           {sub}
         </motion.p>
