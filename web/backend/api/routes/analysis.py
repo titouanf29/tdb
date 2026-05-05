@@ -627,20 +627,22 @@ async def analyze_asset(
         except Exception:
             pass
 
-        # Historical performance
-        hist_1m = ((close.iloc[-1] - close.iloc[-22]) / close.iloc[-22] * 100) if len(close) > 22 else None
-        hist_3m = ((close.iloc[-1] - close.iloc[-66]) / close.iloc[-66] * 100) if len(close) > 66 else None
-        hist_6m = ((close.iloc[-1] - close.iloc[-132]) / close.iloc[-132] * 100) if len(close) > 132 else None
+        # Historical performance — use current_price (real-time) as the end point
+        # so all metrics are consistent with the live price shown in the header
+        cp = current_price  # alias for readability
+        hist_1m = ((cp - close.iloc[-22]) / close.iloc[-22] * 100) if len(close) > 22 else None
+        hist_3m = ((cp - close.iloc[-66]) / close.iloc[-66] * 100) if len(close) > 66 else None
+        hist_6m = ((cp - close.iloc[-132]) / close.iloc[-132] * 100) if len(close) > 132 else None
         hist_ytd = None
         try:
             ytd_start = close[close.index.year == close.index[-1].year].iloc[0]
-            hist_ytd = ((close.iloc[-1] - ytd_start) / ytd_start * 100)
+            hist_ytd = ((cp - ytd_start) / ytd_start * 100)
         except Exception:
             pass
 
         performance = {
             "1d": round(price_change, 2),
-            "1w": round(((close.iloc[-1] - close.iloc[-6]) / close.iloc[-6] * 100), 2) if len(close) > 6 else None,
+            "1w": round(((cp - close.iloc[-6]) / close.iloc[-6] * 100), 2) if len(close) > 6 else None,
             "1m": round(hist_1m, 2) if hist_1m else None,
             "3m": round(hist_3m, 2) if hist_3m else None,
             "6m": round(hist_6m, 2) if hist_6m else None,
@@ -1170,6 +1172,19 @@ async def scan_market(
 
     results.sort(key=lambda x: x["score"], reverse=True)
 
+    # Enrich with real-time prices so scanner prices match the markets list
+    if results:
+        symbols_to_fetch = [r["symbol"] for r in results[:limit]]
+        try:
+            rt_scan = await fetch_prices(symbols_to_fetch)
+            for r in results[:limit]:
+                rt = rt_scan.get(r["symbol"])
+                if rt and rt.get("price", 0) > 0:
+                    r["price"]  = rt["price"]
+                    r["change"] = rt["change"]
+        except Exception:
+            pass  # silently fall back to historical prices
+
     # Record the scan usage (non-blocking)
     await _record_scan(current_user["id"], market_key)
     # Refresh quota after recording
@@ -1225,7 +1240,10 @@ async def get_chart_data(
     fetch_period, fetch_interval = period_map[timeframe]
 
     try:
-        hist = await fetch_ohlcv(symbol, period=fetch_period, interval=fetch_interval)
+        hist, rt_chart = await asyncio.gather(
+            fetch_ohlcv(symbol, period=fetch_period, interval=fetch_interval),
+            fetch_prices([symbol]),
+        )
 
         if hist.empty or len(hist) < 10:
             raise HTTPException(status_code=400, detail="Données insuffisantes pour ce symbole")
@@ -1298,7 +1316,9 @@ async def get_chart_data(
         pivot      = round((resistance + support + float(close.iloc[-1])) / 3, 4)
 
         # ── Future projection (précision améliorée) ────────────────────────────
-        last_price = float(close.iloc[-1])
+        # Use real-time price as the projection anchor for accuracy
+        _rt_c = rt_chart.get(symbol)
+        last_price = float(_rt_c["price"]) if (_rt_c and _rt_c.get("price", 0) > 0) else float(close.iloc[-1])
         last_ts    = hist.index[-1]
 
         # -- 1. Régression quadratique à poids exponentiels -------------------
