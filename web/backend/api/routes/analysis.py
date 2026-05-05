@@ -13,7 +13,7 @@ from slowapi.util import get_remote_address
 from .auth import get_current_user
 from .premium import is_user_premium, get_user_limits
 from ..database import execute_query, execute_write
-from ._prices import fetch_ohlcv
+from ._prices import fetch_ohlcv, fetch_prices
 
 router = APIRouter()
 limiter = Limiter(key_func=get_remote_address)
@@ -112,7 +112,12 @@ async def analyze_asset(
         # Map frontend timeframe keys to valid yfinance intervals
         interval_map = {"3d": "1d", "1w": "1wk"}
         actual_interval = interval_map.get(timeframe, timeframe)
-        hist = await fetch_ohlcv(symbol, period=period_map.get(timeframe, "1mo"), interval=actual_interval)
+
+        # Fetch OHLCV and real-time price concurrently
+        hist, rt_prices = await asyncio.gather(
+            fetch_ohlcv(symbol, period=period_map.get(timeframe, "1mo"), interval=actual_interval),
+            fetch_prices([symbol]),
+        )
 
         if hist.empty or len(hist) < 20:
             raise HTTPException(status_code=400, detail="Insufficient data for analysis")
@@ -213,10 +218,16 @@ async def analyze_asset(
             }
         }
 
-        # Current values
-        current_price = close.iloc[-1]
-        prev_price = close.iloc[-2]
-        price_change = ((current_price - prev_price) / prev_price) * 100
+        # Current values — use real-time price (1-min interval) when available
+        # so the displayed price matches live market data, not the last daily close
+        rt = rt_prices.get(symbol)
+        if rt and rt.get("price", 0) > 0:
+            current_price = rt["price"]
+            price_change  = rt["change"]
+        else:
+            current_price = float(close.iloc[-1])
+            prev_price    = float(close.iloc[-2])
+            price_change  = ((current_price - prev_price) / prev_price) * 100
 
         # Volume analysis
         avg_volume = volume.rolling(window=20).mean().iloc[-1]
@@ -1198,7 +1209,7 @@ async def get_chart_data(
     import pandas as pd
     import numpy as np
     from fastapi import HTTPException
-    from ._prices import fetch_ohlcv
+    from ._prices import fetch_ohlcv, fetch_prices
 
     period_map = {
         "5m":  ("5d",   "5m"),
