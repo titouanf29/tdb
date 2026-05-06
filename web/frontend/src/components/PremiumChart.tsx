@@ -13,6 +13,7 @@ import {
 import { TrendingUp, Lock, BarChart2, Activity, Eye, EyeOff, RefreshCw } from 'lucide-react';
 import { usePremium } from '@/lib/PremiumContext';
 import { authHeaders } from '@/lib/auth';
+import { useLanguage } from '@/lib/LanguageContext';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -78,6 +79,7 @@ const toUTC = (t: number) => t as UTCTimestamp;
 
 export default function PremiumChart({ symbol, timeframe }: PremiumChartProps) {
   const { isPremium, isAdmin } = usePremium();
+  const { lang } = useLanguage();
   const canAccess = isPremium || isAdmin;
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -317,7 +319,7 @@ export default function PremiumChart({ symbol, timeframe }: PremiumChartProps) {
       <div className="glass-card p-6 relative overflow-hidden">
         <div className="flex items-center gap-3 mb-4">
           <BarChart2 className="w-5 h-5 text-primary" />
-          <h2 className="text-lg font-semibold">Graphique Avancé</h2>
+          <h2 className="text-lg font-semibold">{lang === "fr" ? "Graphique Avancé" : "Advanced Chart"}</h2>
           <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-primary/20 text-primary border border-primary/30">
             Premium
           </span>
@@ -355,7 +357,7 @@ export default function PremiumChart({ symbol, timeframe }: PremiumChartProps) {
       <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
         <div className="flex items-center gap-3">
           <Activity className="w-5 h-5 text-primary" />
-          <h2 className="text-lg font-semibold">Graphique Avancé</h2>
+          <h2 className="text-lg font-semibold">{lang === "fr" ? "Graphique Avancé" : "Advanced Chart"}</h2>
           <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-primary/20 text-primary border border-primary/30">
             Premium
           </span>
@@ -364,7 +366,7 @@ export default function PremiumChart({ symbol, timeframe }: PremiumChartProps) {
           onClick={fetchChart}
           disabled={loading}
           className="p-2 rounded-lg hover:bg-white/10 transition-colors text-slate-400 hover:text-white disabled:opacity-50"
-          title="Rafraîchir"
+          title={lang === "fr" ? "Rafraîchir" : "Refresh"}
         >
           <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
         </button>

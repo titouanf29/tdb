@@ -21,13 +21,15 @@ import { useLanguage } from "@/lib/LanguageContext";
 type Opportunity = {
   symbol: string;
   name: string;
+  nameEn?: string;
   score: number;
   direction: "LONG" | "SHORT";
   change: string;
   entry: number;
   risk: number;
-  factors: { label: string; score: number }[];
+  factors: { label: string; labelEn: string; score: number }[];
   reasons: string[];
+  reasonsEn: string[];
   market: string;
 };
 
@@ -49,92 +51,102 @@ const ALL_OPPORTUNITIES: Opportunity[] = [
   {
     symbol: "BTC/USD", name: "Bitcoin", score: 82, direction: "LONG", change: "+2.4%", entry: 68420, risk: 1.2, market: "CRYPTO",
     factors: [
-      { label: "Technique", score: 85 }, { label: "Volume", score: 78 },
-      { label: "Momentum", score: 80 }, { label: "Contexte", score: 72 },
-      { label: "Sentiment", score: 68 }, { label: "Volatilité", score: 75 },
+      { label: "Technique", labelEn: "Technical", score: 85 }, { label: "Volume", labelEn: "Volume", score: 78 },
+      { label: "Momentum", labelEn: "Momentum", score: 80 }, { label: "Contexte", labelEn: "Context", score: 72 },
+      { label: "Sentiment", labelEn: "Sentiment", score: 68 }, { label: "Volatilité", labelEn: "Volatility", score: 75 },
     ],
     reasons: ["SMA200 haussière — contexte macro favorable", "RSI 61 : pas en surachat, marge de progression", "Volume en hausse sur les 3 dernières bougies"],
+    reasonsEn: ["SMA200 bullish — favourable macro context", "RSI 61: not overbought, room to grow", "Volume rising over the last 3 candles"],
   },
   {
     symbol: "ETH/USD", name: "Ethereum", score: 74, direction: "LONG", change: "+1.8%", entry: 3640, risk: 1.5, market: "CRYPTO",
     factors: [
-      { label: "Technique", score: 72 }, { label: "Volume", score: 80 },
-      { label: "Momentum", score: 65 }, { label: "Contexte", score: 70 },
-      { label: "Sentiment", score: 75 }, { label: "Volatilité", score: 60 },
+      { label: "Technique", labelEn: "Technical", score: 72 }, { label: "Volume", labelEn: "Volume", score: 80 },
+      { label: "Momentum", labelEn: "Momentum", score: 65 }, { label: "Contexte", labelEn: "Context", score: 70 },
+      { label: "Sentiment", labelEn: "Sentiment", score: 75 }, { label: "Volatilité", labelEn: "Volatility", score: 60 },
     ],
     reasons: ["Au-dessus de la SMA200, structure de tendance intacte", "Volume spot en forte hausse (+32%)", "Corrélation BTC positive : momentum sectoriel favorable"],
+    reasonsEn: ["Above SMA200, trend structure intact", "Spot volume up strongly (+32%)", "Positive BTC correlation: favourable sector momentum"],
   },
   {
     symbol: "AAPL", name: "Apple", score: 71, direction: "LONG", change: "+0.9%", entry: 182.40, risk: 1.0, market: "USA",
     factors: [
-      { label: "Technique", score: 74 }, { label: "Volume", score: 65 },
-      { label: "Momentum", score: 70 }, { label: "Contexte", score: 78 },
-      { label: "Sentiment", score: 68 }, { label: "Volatilité", score: 55 },
+      { label: "Technique", labelEn: "Technical", score: 74 }, { label: "Volume", labelEn: "Volume", score: 65 },
+      { label: "Momentum", labelEn: "Momentum", score: 70 }, { label: "Contexte", labelEn: "Context", score: 78 },
+      { label: "Sentiment", labelEn: "Sentiment", score: 68 }, { label: "Volatilité", labelEn: "Volatility", score: 55 },
     ],
     reasons: ["Rebond sur zone support clé à 180$", "Fondamentaux solides : P/E raisonnable, cash-flow fort", "Secteur tech en reprise sur le S&P500"],
+    reasonsEn: ["Bounce off key support zone at $180", "Solid fundamentals: reasonable P/E, strong cash-flow", "Tech sector recovering on the S&P500"],
   },
   {
-    symbol: "GOLD", name: "Or", score: 68, direction: "LONG", change: "+0.6%", entry: 2318, risk: 0.9, market: "COMMODITIES",
+    symbol: "GOLD", name: "Or", nameEn: "Gold", score: 68, direction: "LONG", change: "+0.6%", entry: 2318, risk: 0.9, market: "COMMODITIES",
     factors: [
-      { label: "Technique", score: 65 }, { label: "Volume", score: 55 },
-      { label: "Momentum", score: 58 }, { label: "Contexte", score: 70 },
-      { label: "Sentiment", score: 52 }, { label: "Volatilité", score: 65 },
+      { label: "Technique", labelEn: "Technical", score: 65 }, { label: "Volume", labelEn: "Volume", score: 55 },
+      { label: "Momentum", labelEn: "Momentum", score: 58 }, { label: "Contexte", labelEn: "Context", score: 70 },
+      { label: "Sentiment", labelEn: "Sentiment", score: 52 }, { label: "Volatilité", labelEn: "Volatility", score: 65 },
     ],
     reasons: ["Tendance haussière long terme préservée", "Refuge : incertitude macro + USD en légère baisse", "Zone support 2280-2300$ testée et tenue"],
+    reasonsEn: ["Long-term bullish trend preserved", "Safe haven: macro uncertainty + slight USD weakness", "Support zone $2280-2300 tested and held"],
   },
   {
     symbol: "EUR/USD", name: "Euro/Dollar", score: 65, direction: "LONG", change: "+0.3%", entry: 1.0842, risk: 0.7, market: "FOREX",
     factors: [
-      { label: "Technique", score: 68 }, { label: "Volume", score: 60 },
-      { label: "Momentum", score: 63 }, { label: "Contexte", score: 62 },
-      { label: "Sentiment", score: 65 }, { label: "Volatilité", score: 58 },
+      { label: "Technique", labelEn: "Technical", score: 68 }, { label: "Volume", labelEn: "Volume", score: 60 },
+      { label: "Momentum", labelEn: "Momentum", score: 63 }, { label: "Contexte", labelEn: "Context", score: 62 },
+      { label: "Sentiment", labelEn: "Sentiment", score: 65 }, { label: "Volatilité", labelEn: "Volatility", score: 58 },
     ],
     reasons: ["Rebond sur support 1.0800, niveau pivot hebdo", "BCE moins hawkish → différentiel de taux favorable", "RSI sortie de zone de survente"],
+    reasonsEn: ["Bounce off 1.0800 support, weekly pivot level", "ECB less hawkish → favourable rate differential", "RSI exiting oversold zone"],
   },
   {
     symbol: "NVDA", name: "Nvidia", score: 79, direction: "LONG", change: "+3.1%", entry: 874.50, risk: 1.8, market: "USA",
     factors: [
-      { label: "Technique", score: 82 }, { label: "Volume", score: 85 },
-      { label: "Momentum", score: 78 }, { label: "Contexte", score: 76 },
-      { label: "Sentiment", score: 80 }, { label: "Volatilité", score: 70 },
+      { label: "Technique", labelEn: "Technical", score: 82 }, { label: "Volume", labelEn: "Volume", score: 85 },
+      { label: "Momentum", labelEn: "Momentum", score: 78 }, { label: "Contexte", labelEn: "Context", score: 76 },
+      { label: "Sentiment", labelEn: "Sentiment", score: 80 }, { label: "Volatilité", labelEn: "Volatility", score: 70 },
     ],
     reasons: ["Breakout au-dessus résistance 850$ avec volume fort", "Catalyseur IA : demande GPU en accélération", "Sentiment positif après résultats trimestriels"],
+    reasonsEn: ["Breakout above $850 resistance with strong volume", "AI catalyst: GPU demand accelerating", "Positive sentiment after quarterly earnings"],
   },
   {
-    symbol: "OIL/USD", name: "Pétrole", score: 43, direction: "SHORT", change: "-1.2%", entry: 78.30, risk: 1.1, market: "COMMODITIES",
+    symbol: "OIL/USD", name: "Pétrole", nameEn: "Oil", score: 43, direction: "SHORT", change: "-1.2%", entry: 78.30, risk: 1.1, market: "COMMODITIES",
     factors: [
-      { label: "Technique", score: 40 }, { label: "Volume", score: 48 },
-      { label: "Momentum", score: 38 }, { label: "Contexte", score: 45 },
-      { label: "Sentiment", score: 42 }, { label: "Volatilité", score: 50 },
+      { label: "Technique", labelEn: "Technical", score: 40 }, { label: "Volume", labelEn: "Volume", score: 48 },
+      { label: "Momentum", labelEn: "Momentum", score: 38 }, { label: "Contexte", labelEn: "Context", score: 45 },
+      { label: "Sentiment", labelEn: "Sentiment", score: 42 }, { label: "Volatilité", labelEn: "Volatility", score: 50 },
     ],
     reasons: ["Cassure sous support 80$, momentum baissier", "Stocks pétrole en hausse aux US (EIA)", "Dollar fort : pression sur les matières premières"],
+    reasonsEn: ["Break below $80 support, bearish momentum", "US oil inventories rising (EIA)", "Strong dollar: pressure on commodities"],
   },
   {
     symbol: "SPX500", name: "S&P 500", score: 38, direction: "SHORT", change: "-0.3%", entry: 5248, risk: 0.8, market: "USA",
     factors: [
-      { label: "Technique", score: 35 }, { label: "Volume", score: 45 },
-      { label: "Momentum", score: 30 }, { label: "Contexte", score: 40 },
-      { label: "Sentiment", score: 38 }, { label: "Volatilité", score: 42 },
+      { label: "Technique", labelEn: "Technical", score: 35 }, { label: "Volume", labelEn: "Volume", score: 45 },
+      { label: "Momentum", labelEn: "Momentum", score: 30 }, { label: "Contexte", labelEn: "Context", score: 40 },
+      { label: "Sentiment", labelEn: "Sentiment", score: 38 }, { label: "Volatilité", labelEn: "Volatility", score: 42 },
     ],
     reasons: ["RSI en surachat (74), divergence baissière visible", "Résistance majeure 5300 pts non franchie", "VIX en hausse : nervosité du marché croissante"],
+    reasonsEn: ["RSI overbought (74), bearish divergence visible", "Major resistance at 5300 pts not broken", "VIX rising: increasing market nervousness"],
   },
   {
     symbol: "BNB/USD", name: "BNB", score: 77, direction: "LONG", change: "+2.0%", entry: 412.60, risk: 1.4, market: "CRYPTO",
     factors: [
-      { label: "Technique", score: 80 }, { label: "Volume", score: 75 },
-      { label: "Momentum", score: 76 }, { label: "Contexte", score: 78 },
-      { label: "Sentiment", score: 72 }, { label: "Volatilité", score: 68 },
+      { label: "Technique", labelEn: "Technical", score: 80 }, { label: "Volume", labelEn: "Volume", score: 75 },
+      { label: "Momentum", labelEn: "Momentum", score: 76 }, { label: "Contexte", labelEn: "Context", score: 78 },
+      { label: "Sentiment", labelEn: "Sentiment", score: 72 }, { label: "Volatilité", labelEn: "Volatility", score: 68 },
     ],
     reasons: ["Structure haussière claire au-dessus SMA50 et SMA200", "Volumes d'échange Binance en hausse de 18%", "Corrélation BTC haussière, setup propre"],
+    reasonsEn: ["Clear bullish structure above SMA50 and SMA200", "Binance trading volume up 18%", "Bullish BTC correlation, clean setup"],
   },
   {
     symbol: "MSFT", name: "Microsoft", score: 69, direction: "LONG", change: "+1.1%", entry: 420.80, risk: 0.9, market: "USA",
     factors: [
-      { label: "Technique", score: 72 }, { label: "Volume", score: 65 },
-      { label: "Momentum", score: 68 }, { label: "Contexte", score: 75 },
-      { label: "Sentiment", score: 66 }, { label: "Volatilité", score: 52 },
+      { label: "Technique", labelEn: "Technical", score: 72 }, { label: "Volume", labelEn: "Volume", score: 65 },
+      { label: "Momentum", labelEn: "Momentum", score: 68 }, { label: "Contexte", labelEn: "Context", score: 75 },
+      { label: "Sentiment", labelEn: "Sentiment", score: 66 }, { label: "Volatilité", labelEn: "Volatility", score: 52 },
     ],
     reasons: ["Azure + Copilot : croissance cloud +28% YoY", "Rebond propre sur EMA20 journalier", "Recommandation analyste : Buy consensus fort"],
+    reasonsEn: ["Azure + Copilot: cloud growth +28% YoY", "Clean bounce off daily EMA20", "Analyst recommendation: strong Buy consensus"],
   },
 ];
 
@@ -304,7 +316,7 @@ function AnalysisPanel({ symbol }: { symbol: string }) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 function ExpandedRow({ opp }: { opp: Opportunity }) {
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
   return (
     <motion.div
       initial={{ opacity: 0, height: 0 }}
@@ -320,7 +332,7 @@ function ExpandedRow({ opp }: { opp: Opportunity }) {
             {t("opp_why")}
           </p>
           <ul className="space-y-1">
-            {opp.reasons.map((r, i) => (
+            {(lang === "en" && opp.reasonsEn ? opp.reasonsEn : opp.reasons).map((r, i) => (
               <motion.li
                 key={i}
                 initial={{ opacity: 0, x: -8 }}
@@ -349,7 +361,7 @@ function ExpandedRow({ opp }: { opp: Opportunity }) {
                 transition={{ delay: fi * 0.05 }}
                 className="flex items-center gap-2"
               >
-                <span className="text-[11px] text-muted-foreground w-20 flex-shrink-0">{f.label}</span>
+                <span className="text-[11px] text-muted-foreground w-20 flex-shrink-0">{lang === "en" ? f.labelEn : f.label}</span>
                 <div className="flex-1 h-1.5 rounded-full bg-white/10 overflow-hidden">
                   <motion.div
                     className={cn("h-full rounded-full", factorBarColor(f.score))}
@@ -387,7 +399,7 @@ function ExpandedRow({ opp }: { opp: Opportunity }) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export function OpportunitiesWidget() {
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
   const { isPremium } = usePremium();
   const [seed, setSeed] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
