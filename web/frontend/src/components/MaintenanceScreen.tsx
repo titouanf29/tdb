@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { Wrench, Clock, TrendingUp, Shield } from "lucide-react";
+import { Wrench, Clock, TrendingUp, Shield, Home } from "lucide-react";
 import { useLanguage } from "@/lib/LanguageContext";
 
 function Countdown({ target }: { target: string }) {
@@ -302,7 +302,22 @@ export function MaintenanceScreen({
             ))}
           </div>
 
-          <p className="text-[10px] text-white/20 pb-1">
+          <a
+            href="/"
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium transition-all"
+            style={{
+              background: "rgba(99,140,255,0.08)",
+              border: "1px solid rgba(99,140,255,0.22)",
+              color: "rgba(165,180,252,0.85)",
+            }}
+            onMouseEnter={e => (e.currentTarget.style.background = "rgba(99,140,255,0.16)")}
+            onMouseLeave={e => (e.currentTarget.style.background = "rgba(99,140,255,0.08)")}
+          >
+            <Home className="w-4 h-4" />
+            {fr ? "Retour à l'accueil" : "Back to home"}
+          </a>
+
+          <p className="text-[10px] text-white/20">
             © CaptenTDB · {fr ? "Merci pour votre patience" : "Thank you for your patience"}
           </p>
         </div>
