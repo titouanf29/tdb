@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import dynamic from "next/dynamic";
 import { GoldEntranceScreen } from "@/components/GoldEntranceScreen";
+import { GoldHubGuide, hasSeenGoldGuide } from "@/components/GoldHubGuide";
 import {
   Gem, TrendingUp, TrendingDown, Minus, RefreshCw, Lock, ArrowRight,
   Newspaper, ExternalLink, BookOpen, Zap, Shield, BarChart2, Loader2,
@@ -1165,6 +1166,8 @@ export default function GoldPage() {
     return true;
   });
 
+  const [showGuide, setShowGuide] = useState(() => !hasSeenGoldGuide());
+
   const [tradeDir, setTradeDir]      = useState<"LONG" | "SHORT" | null>(null);
   const [goldPositions, setGoldPositions] = useState<Position[]>([]);
 
@@ -1328,6 +1331,7 @@ export default function GoldPage() {
   return (
     <>
       <AnimatePresence>{showEntrance && <GoldEntranceScreen onComplete={() => setShowEntrance(false)} />}</AnimatePresence>
+      <AnimatePresence>{showGuide && !showEntrance && <GoldHubGuide onDismiss={() => setShowGuide(false)} />}</AnimatePresence>
       <TopLoadingBar isLoading={loading} />
       {tradeDir && (
         <TradingModal
