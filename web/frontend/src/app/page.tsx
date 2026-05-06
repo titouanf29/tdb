@@ -1315,10 +1315,16 @@ function LandingPage() {
           className="mt-10 flex flex-col sm:flex-row items-center gap-4"
         >
           {isAuthenticated ? (
-            <Link href="/dashboard" className="group inline-flex items-center gap-2 px-8 py-4 rounded-2xl bg-primary hover:bg-primary/90 text-white text-base font-bold transition-all hover:shadow-2xl hover:shadow-primary/30 hover:-translate-y-1">
-              {lang === "en" ? "Go to my dashboard" : "Accéder à mon espace"}
-              <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-            </Link>
+            <>
+              <Link href="/dashboard" className="group inline-flex items-center gap-2 px-8 py-4 rounded-2xl bg-primary hover:bg-primary/90 text-white text-base font-bold transition-all hover:shadow-2xl hover:shadow-primary/30 hover:-translate-y-1">
+                {lang === "en" ? "Go to my dashboard" : "Accéder à mon espace"}
+                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+              </Link>
+              <a href="#demo" className="inline-flex items-center gap-2 px-8 py-4 rounded-2xl border border-white/10 bg-white/5 hover:bg-white/10 text-white text-base font-semibold transition-all hover:-translate-y-0.5">
+                <Play className="w-4 h-4 text-primary" />
+                {lang === "en" ? "Watch live demo" : "Voir la démo en direct"}
+              </a>
+            </>
           ) : (
             <>
               <Link href="/register" className="group inline-flex items-center gap-2 px-8 py-4 rounded-2xl bg-primary hover:bg-primary/90 text-white text-base font-bold transition-all hover:shadow-2xl hover:shadow-primary/30 hover:-translate-y-1">
