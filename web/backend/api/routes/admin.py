@@ -536,6 +536,17 @@ async def mark_changelog_read(changelog_id: int, current_user: dict = Depends(ge
 
 # ============== SYSTEM SETTINGS ==============
 
+@router.get("/settings/public")
+async def get_public_settings(current_user: dict = Depends(get_current_user)):
+    """Return non-sensitive public settings readable by any authenticated user"""
+    PUBLIC_KEYS = ("gold_hub_enabled",)
+    rows = await execute_query(
+        f"SELECT key, value FROM admin_settings WHERE key IN ({','.join('?' for _ in PUBLIC_KEYS)})",
+        PUBLIC_KEYS,
+    )
+    return {"settings": rows or []}
+
+
 @router.get("/settings")
 async def get_system_settings(admin: dict = Depends(get_admin_user)):
     """Get all system settings"""

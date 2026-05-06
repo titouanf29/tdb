@@ -630,6 +630,7 @@ export const adminAPI = {
 
   // Settings
   getSettings: () => fetchAPI<{ settings: AdminSetting[] }>("/api/admin/settings"),
+  getPublicSettings: () => fetchAPI<{ settings: { key: string; value: string }[] }>("/api/admin/settings/public"),
 
   updateSetting: (key: string, value: string) =>
     fetchAPI<{ success: boolean }>("/api/admin/settings", {

@@ -1233,7 +1233,7 @@ export default function GoldPage() {
   useEffect(() => {
     if (isPremiumLoading) return;         // Not ready yet
     if (isAdmin) { setSettingsLoaded(true); return; }
-    adminAPI.getSettings()
+    adminAPI.getPublicSettings()
       .then((data) => {
         const setting = data.settings.find((s: { key: string; value: string }) => s.key === "gold_hub_enabled");
         setGoldPublic(setting?.value === "true");
