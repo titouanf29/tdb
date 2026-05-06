@@ -35,11 +35,11 @@ const MENU_GROUPS = [
   {
     labelKey: "nav_group_trading",
     items: [
-      { icon: LayoutDashboard, labelKey: "nav_dashboard", href: "/dashboard", adminOnly: false },
-      { icon: Globe,           labelKey: "nav_markets",   href: "/markets",   adminOnly: false },
-      { icon: Gem,             labelKey: "nav_gold_hub",  href: "/gold",      adminOnly: true  },
-      { icon: BarChart3,       labelKey: "nav_analysis",  href: "/analysis",  adminOnly: false },
-      { icon: ScanLine,        labelKey: "nav_scanner",   href: "/scanner",   adminOnly: false },
+      { icon: LayoutDashboard, labelKey: "nav_dashboard", href: "/dashboard", adminOnly: false, goldOnly: false },
+      { icon: Globe,           labelKey: "nav_markets",   href: "/markets",   adminOnly: false, goldOnly: false },
+      { icon: Gem,             labelKey: "nav_gold_hub",  href: "/gold",      adminOnly: false, goldOnly: true  },
+      { icon: BarChart3,       labelKey: "nav_analysis",  href: "/analysis",  adminOnly: false, goldOnly: false },
+      { icon: ScanLine,        labelKey: "nav_scanner",   href: "/scanner",   adminOnly: false, goldOnly: false },
     ],
   },
   {
@@ -82,6 +82,7 @@ export function Sidebar({
   const { t } = useLanguage();
   const [collapsed, setCollapsed] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [goldEnabled, setGoldEnabled] = useState(false);
   const pathname = usePathname();
 
   useEffect(() => {
@@ -94,6 +95,15 @@ export function Sidebar({
       }
     };
     checkAdminStatus();
+  }, []);
+
+  useEffect(() => {
+    adminAPI.getPublicSettings()
+      .then((data) => {
+        const s = data.settings.find((s) => s.key === "gold_hub_enabled");
+        setGoldEnabled(s?.value === "true");
+      })
+      .catch(() => setGoldEnabled(false));
   }, []);
 
   return (
@@ -163,8 +173,15 @@ export function Sidebar({
             </AnimatePresence>
             {/* Group items */}
             <div className="space-y-0.5">
-              {group.items.filter((item) => !item.adminOnly || isAdmin).map((item) => {
+              {group.items
+                .filter((item) => {
+                  if (item.adminOnly && !isAdmin) return false;
+                  if (item.goldOnly && !isAdmin && !goldEnabled) return false;
+                  return true;
+                })
+                .map((item) => {
                 const isActive = pathname === item.href;
+                const isGold = item.goldOnly;
                 const Icon = item.icon;
                 return (
                   <Link key={item.href} href={item.href}>
@@ -175,17 +192,34 @@ export function Sidebar({
                         "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group relative",
                         isActive
                           ? "text-white"
-                          : "text-muted-foreground hover:text-foreground"
+                          : isGold
+                            ? "text-yellow-500/80 hover:text-yellow-400"
+                            : "text-muted-foreground hover:text-foreground"
                       )}
-                      style={isActive ? {
+                      style={isActive && isGold ? {
+                        background: "linear-gradient(135deg, rgba(234,179,8,0.18) 0%, rgba(251,146,60,0.10) 100%)",
+                        border: "1px solid rgba(234,179,8,0.40)",
+                        boxShadow: "0 0 16px rgba(234,179,8,0.15), inset 0 1px 0 rgba(255,255,255,0.05)"
+                      } : isActive ? {
                         background: "linear-gradient(135deg, rgba(99,140,255,0.18) 0%, rgba(139,92,246,0.10) 100%)",
                         border: "1px solid rgba(99,140,255,0.30)",
                         boxShadow: "0 0 16px rgba(99,140,255,0.12), inset 0 1px 0 rgba(255,255,255,0.05)"
+                      } : isGold ? {
+                        border: "1px solid rgba(234,179,8,0.15)",
+                        background: "rgba(234,179,8,0.04)"
                       } : undefined}
                     >
                       <Icon
-                        className={cn("w-5 h-5 transition-colors flex-shrink-0", isActive && "text-primary")}
-                        style={isActive ? {filter: "drop-shadow(0 0 6px rgba(99,140,255,0.7))"} : undefined}
+                        className={cn("w-5 h-5 transition-colors flex-shrink-0")}
+                        style={isGold ? {
+                          color: isActive ? "#fde68a" : "#eab308",
+                          filter: isActive
+                            ? "drop-shadow(0 0 8px rgba(234,179,8,0.9)) drop-shadow(0 0 16px rgba(234,179,8,0.5))"
+                            : "drop-shadow(0 0 4px rgba(234,179,8,0.6))"
+                        } : isActive ? {
+                          color: "hsl(var(--primary))",
+                          filter: "drop-shadow(0 0 6px rgba(99,140,255,0.7))"
+                        } : undefined}
                       />
                       <AnimatePresence>
                         {!collapsed && (
@@ -194,6 +228,12 @@ export function Sidebar({
                             animate={{ opacity: 1, x: 0 }}
                             exit={{ opacity: 0, x: -10 }}
                             className="font-medium text-sm"
+                            style={isGold ? {
+                              background: "linear-gradient(90deg, #fde68a, #eab308, #f97316)",
+                              WebkitBackgroundClip: "text",
+                              WebkitTextFillColor: "transparent",
+                              filter: isActive ? "drop-shadow(0 0 6px rgba(234,179,8,0.5))" : undefined
+                            } : undefined}
                           >
                             {t(item.labelKey)}
                           </motion.span>
@@ -203,7 +243,13 @@ export function Sidebar({
                         <motion.div
                           layoutId="activeIndicator"
                           className="ml-auto w-1.5 h-1.5 rounded-full"
-                          style={{background: "hsl(var(--neon-cyan))", boxShadow: "0 0 6px hsl(var(--neon-cyan))"}}
+                          style={isGold ? {
+                            background: "#eab308",
+                            boxShadow: "0 0 6px #eab308"
+                          } : {
+                            background: "hsl(var(--neon-cyan))",
+                            boxShadow: "0 0 6px hsl(var(--neon-cyan))"
+                          }}
                         />
                       )}
                     </motion.div>
