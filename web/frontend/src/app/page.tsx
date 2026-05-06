@@ -1329,6 +1329,9 @@ function LandingPage() {
                 <Play className="w-4 h-4 text-primary" />
                 {lang === "en" ? "Watch live demo" : "Voir la démo en direct"}
               </a>
+              <Link href="/login" className="text-sm text-white/40 hover:text-white/70 transition-colors underline underline-offset-4">
+                {lang === "en" ? "Already have an account? Sign in" : "Déjà un compte ? Se connecter"}
+              </Link>
             </>
           )}
         </motion.div>
