@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   Users,
   Activity,
@@ -1584,6 +1584,79 @@ const SETTING_GROUPS: SettingGroup[] = [
   },
 ];
 
+function MaintenanceModal({
+  onConfirm,
+  onCancel,
+  initialMessage,
+  initialEnd,
+}: {
+  onConfirm: (msg: string, end: string) => void;
+  onCancel: () => void;
+  initialMessage: string;
+  initialEnd: string;
+}) {
+  const [msg, setMsg] = React.useState(initialMessage);
+  const [end, setEnd] = React.useState(initialEnd);
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.75)", backdropFilter: "blur(6px)" }}>
+      <motion.div
+        initial={{ scale: 0.93, y: 16, opacity: 0 }}
+        animate={{ scale: 1, y: 0, opacity: 1 }}
+        className="w-full max-w-md rounded-2xl p-6 space-y-5 border border-red-500/30"
+        style={{ background: "linear-gradient(160deg, hsl(220 50% 6%) 0%, hsl(220 45% 5%) 100%)" }}
+      >
+        <div className="flex items-start gap-3">
+          <div className="w-10 h-10 rounded-xl bg-red-500/15 border border-red-500/30 flex items-center justify-center flex-shrink-0">
+            <AlertTriangle className="w-5 h-5 text-red-400" />
+          </div>
+          <div>
+            <h3 className="font-bold text-lg text-red-400">Activer le mode maintenance</h3>
+            <p className="text-xs text-muted-foreground mt-0.5">Tous les utilisateurs non-admin seront bloqués immédiatement.</p>
+          </div>
+        </div>
+
+        <div className="space-y-3">
+          <div>
+            <label className="text-xs font-medium text-muted-foreground block mb-1.5">Message (optionnel)</label>
+            <textarea
+              rows={3}
+              value={msg}
+              onChange={e => setMsg(e.target.value)}
+              placeholder="Ex : Mise à jour majeure en cours, retour prévu dans 30 minutes."
+              className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-red-500/50 resize-none"
+            />
+          </div>
+          <div>
+            <label className="text-xs font-medium text-muted-foreground block mb-1.5">Heure de retour prévue (optionnel)</label>
+            <input
+              type="datetime-local"
+              value={end}
+              onChange={e => setEnd(e.target.value)}
+              className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-red-500/50"
+            />
+            <p className="text-[11px] text-muted-foreground/50 mt-1">Un compte à rebours sera affiché aux utilisateurs.</p>
+          </div>
+        </div>
+
+        <div className="flex gap-3 pt-1">
+          <button
+            onClick={onCancel}
+            className="flex-1 py-2.5 rounded-xl border border-white/10 text-sm font-medium hover:bg-white/5 transition-colors"
+          >
+            Annuler
+          </button>
+          <button
+            onClick={() => onConfirm(msg, end)}
+            className="flex-1 py-2.5 rounded-xl bg-red-500/20 hover:bg-red-500/30 border border-red-500/40 text-red-400 text-sm font-semibold transition-colors"
+          >
+            Activer la maintenance
+          </button>
+        </div>
+      </motion.div>
+    </div>
+  );
+}
+
 function SettingsTab() {
   const [rawSettings, setRawSettings] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -1593,6 +1666,7 @@ function SettingsTab() {
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [advKey, setAdvKey] = useState("");
   const [advValue, setAdvValue] = useState("");
+  const [showMaintenanceModal, setShowMaintenanceModal] = useState(false);
 
   const loadSettings = async () => {
     try {
@@ -1630,8 +1704,29 @@ function SettingsTab() {
   const toggleBoolean = (key: string, def: string) => {
     const current = getValue(key, def);
     const next = current === "true" ? "false" : "true";
+    // For maintenance: turning ON → open config modal first
+    if (key === "maintenance_mode" && next === "true") {
+      setShowMaintenanceModal(true);
+      return;
+    }
+    // For maintenance: turning OFF → also clear message and end time
+    if (key === "maintenance_mode" && next === "false") {
+      setLocalValues(prev => ({ ...prev, [key]: next }));
+      saveSetting(key, next);
+      adminAPI.updateSetting("maintenance_message", "");
+      adminAPI.updateSetting("maintenance_end_time", "");
+      return;
+    }
     setLocalValues(prev => ({ ...prev, [key]: next }));
     saveSetting(key, next);
+  };
+
+  const confirmMaintenance = async (msg: string, end: string) => {
+    setShowMaintenanceModal(false);
+    setLocalValues(prev => ({ ...prev, maintenance_mode: "true", maintenance_message: msg, maintenance_end_time: end }));
+    await saveSetting("maintenance_mode", "true");
+    if (msg) await adminAPI.updateSetting("maintenance_message", msg);
+    if (end) await adminAPI.updateSetting("maintenance_end_time", end);
   };
 
   const predefinedKeys = SETTING_GROUPS.flatMap(g => g.items.map(i => i.key));
@@ -1642,9 +1737,34 @@ function SettingsTab() {
   }
 
   const goldEnabled = getValue("gold_hub_enabled", "false") === "true";
+  const maintenanceOn = getValue("maintenance_mode", "false") === "true";
+  const maintenanceMsg = getValue("maintenance_message", "");
+  const maintenanceEnd = getValue("maintenance_end_time", "");
 
   return (
     <div className="space-y-5">
+
+      {/* Maintenance modal */}
+      {showMaintenanceModal && (
+        <MaintenanceModal
+          initialMessage={maintenanceMsg}
+          initialEnd={maintenanceEnd}
+          onConfirm={confirmMaintenance}
+          onCancel={() => setShowMaintenanceModal(false)}
+        />
+      )}
+
+      {/* Maintenance mode banner when active */}
+      {maintenanceOn && (
+        <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/30 text-sm">
+          <AlertTriangle className="w-4 h-4 text-red-400 flex-shrink-0" />
+          <div className="flex-1">
+            <span className="font-semibold text-red-400">Mode maintenance actif — </span>
+            <span className="text-red-300/70">les utilisateurs non-admin voient la page de maintenance.</span>
+            {maintenanceEnd && <span className="text-red-300/50 ml-1">Retour prévu : {new Date(maintenanceEnd).toLocaleString("fr-FR")}</span>}
+          </div>
+        </div>
+      )}
 
       {/* Gold Hub toggle */}
       <div className={cn(

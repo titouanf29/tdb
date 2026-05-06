@@ -5,11 +5,13 @@ import { useRouter, usePathname } from "next/navigation";
 import { motion } from "framer-motion";
 import { useAuth } from "@/lib/AuthContext";
 import { useLanguage } from "@/lib/LanguageContext";
+import { adminAPI } from "@/lib/api";
 import { Sidebar } from "./Sidebar";
 import { Header } from "./Header";
 import { BroadcastBanner } from "./BroadcastBanner";
 import { ChangelogBanner } from "./ChangelogBanner";
 import { OnboardingModal } from "@/components/onboarding/OnboardingModal";
+import { MaintenanceScreen } from "@/components/MaintenanceScreen";
 import { Loader2 } from "lucide-react";
 
 // ── Public pages: no auth logic, no effects ───────────────────────────────────
@@ -39,6 +41,8 @@ function AuthShell({
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [maintenance, setMaintenance] = useState<{ active: boolean; message: string; endTime: string }>({ active: false, message: "", endTime: "" });
+  const [isAdmin, setIsAdmin] = useState(false);
 
   // Redirect unauthenticated users — only runs on auth/protected pages
   useEffect(() => {
@@ -47,6 +51,20 @@ function AuthShell({
       router.push("/login");
     }
   }, [isAuthenticated, isLoading, isAuthPage, router]);
+
+  // Check maintenance mode & admin status after auth resolves
+  useEffect(() => {
+    if (isAuthPage || isLoading || !isAuthenticated) return;
+    adminAPI.checkAdmin().then(r => setIsAdmin(r.is_admin)).catch(() => {});
+    adminAPI.getPublicSettings().then(data => {
+      const get = (k: string) => data.settings.find(s => s.key === k)?.value ?? "";
+      setMaintenance({
+        active: get("maintenance_mode") === "true",
+        message: get("maintenance_message"),
+        endTime: get("maintenance_end_time"),
+      });
+    }).catch(() => {});
+  }, [isAuthPage, isLoading, isAuthenticated]);
 
   // Onboarding modal
   useEffect(() => {
@@ -96,6 +114,11 @@ function AuthShell({
 
   if (!isAuthenticated) {
     return null;
+  }
+
+  // Block non-admins during maintenance — admin page itself stays accessible
+  if (maintenance.active && !isAdmin && pathname !== "/admin") {
+    return <MaintenanceScreen message={maintenance.message} endTime={maintenance.endTime} />;
   }
 
   return (
