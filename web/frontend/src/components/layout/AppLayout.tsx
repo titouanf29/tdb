@@ -42,6 +42,7 @@ function AuthShell({
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [maintenance, setMaintenance] = useState<{ on: boolean; message: string }>({ on: false, message: "" });
+  const [maintenanceChecked, setMaintenanceChecked] = useState(false);
 
   useEffect(() => {
     const check = async () => {
@@ -52,9 +53,10 @@ function AuthShell({
           setMaintenance({ on: !!d.maintenance, message: d.message || "" });
         }
       } catch {}
+      setMaintenanceChecked(true);
     };
     check();
-    const iv = setInterval(check, 30000);
+    const iv = setInterval(check, 10000);
     return () => clearInterval(iv);
   }, []);
 
@@ -114,6 +116,15 @@ function AuthShell({
 
   if (!isAuthenticated) {
     return null;
+  }
+
+  // Wait for maintenance status before showing anything (prevents flash of app content)
+  if (!maintenanceChecked) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="w-6 h-6 rounded-full border-2 border-transparent border-t-primary animate-spin" />
+      </div>
+    );
   }
 
   if (maintenance.on && !isAdmin) {

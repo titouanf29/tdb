@@ -85,7 +85,7 @@ app.add_middleware(
 
 # ── Maintenance-mode cache (TTL = 8 s to avoid DB on every request) ────────────
 _maint_cache: dict = {"value": None, "ts": 0.0}
-_MAINT_TTL = 8  # seconds
+_MAINT_TTL = 2  # seconds — short TTL so changes take effect quickly
 
 async def _get_maintenance_setting() -> tuple[bool, str]:
     """Returns (is_on, message). Cached for _MAINT_TTL seconds."""
@@ -141,6 +141,8 @@ async def _is_admin_user(user_id: int) -> bool:
 # Paths that are ALWAYS accessible (maintenance or not)
 _MAINT_ALWAYS_ALLOW = {
     "/api/auth/login",
+    "/api/auth/me",           # auth state must stay verifiable
+    "/api/auth/refresh",      # token refresh must work
     "/api/status",
     "/",
     "/health",
