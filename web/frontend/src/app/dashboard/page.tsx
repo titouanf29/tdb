@@ -223,22 +223,22 @@ export default function DashboardPage() {
         </motion.div>
       )}
 
-      {/* ── Watchlist | News + Chat ──────────────────────────────────────────── */}
+      {/* ── Watchlist + Chat | News ──────────────────────────────────────────── */}
       <motion.div variants={itemVariants} className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
-        <div className="lg:col-span-2">
+        <div className="lg:col-span-2 flex flex-col gap-4">
           <FavoritesWidget
             favorites={sortedFavorites} favSort={favSort} setFavSort={setFavSort}
             favFilter={favFilter} setFavFilter={setFavFilter}
             formatCurrency={formatCurrency} formatPrice={formatPrice}
           />
+          <DashAIChatWidget />
         </div>
-        <div className="lg:col-span-1 flex flex-col gap-4">
+        <div className="lg:col-span-1">
           <NewsWidget
             marketNews={filteredNews} isLoadingNews={isLoadingNews}
             newsFilter={newsFilter} setNewsFilter={setNewsFilter}
             hasFavorites={favorites.length > 0} onRefresh={loadMarketNews} compact
           />
-          <DashAIChatWidget />
         </div>
       </motion.div>
 
@@ -970,7 +970,7 @@ const DashAIChatWidget = memo(function DashAIChatWidget() {
   const [isLoadingHistory, setIsLoadingHistory] = useState(true);
   const [isClearing, setIsClearing]             = useState(false);
   const [limitStatus, setLimitStatus]           = useState<AILimitStatus | null>(null);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     Promise.all([aiAPI.getHistory(10), aiAPI.getLimit()])
@@ -980,8 +980,9 @@ const DashAIChatWidget = memo(function DashAIChatWidget() {
   }, []);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+    const el = messagesContainerRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [messages, isLoading]);
 
   const send = async (text?: string) => {
     const msg = (text ?? input).trim();
@@ -1008,14 +1009,11 @@ const DashAIChatWidget = memo(function DashAIChatWidget() {
   };
 
   const clearHistory = async () => {
-    if (isClearing || messages.length === 0) return;
+    if (isClearing) return;
     setIsClearing(true);
-    try {
-      await aiAPI.clearHistory();
-      setMessages([]);
-    } catch { /* ignore */ } finally {
-      setIsClearing(false);
-    }
+    try { await aiAPI.clearHistory(); } catch { /* API error — still clear locally */ }
+    setMessages([]);
+    setIsClearing(false);
   };
 
   const QUICK_PROMPTS = lang === "fr"
@@ -1076,7 +1074,7 @@ const DashAIChatWidget = memo(function DashAIChatWidget() {
       </div>
 
       {/* ── Messages ────────────────────────────────────────────────── */}
-      <div className="overflow-y-auto px-4 py-3 space-y-3 flex-1"
+      <div ref={messagesContainerRef} className="overflow-y-auto px-4 py-3 space-y-3 flex-1"
         style={{ maxHeight: showEmpty ? "auto" : "320px", minHeight: "160px" }}>
         {isLoadingHistory ? (
           <div className="flex items-center justify-center py-8">
@@ -1131,7 +1129,6 @@ const DashAIChatWidget = memo(function DashAIChatWidget() {
             </div>
           </div>
         )}
-        <div ref={messagesEndRef} />
       </div>
 
       {/* ── Quick prompts ────────────────────────────────────────────── */}
