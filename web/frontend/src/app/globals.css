@@ -4,26 +4,29 @@
 
 @layer base {
   :root {
-    --background: 220 50% 4%;
-    --foreground: 210 40% 98%;
-    --card: 220 45% 7%;
-    --card-foreground: 210 40% 98%;
-    --primary: 230 90% 62%;
+    --background: 225 55% 3.5%;
+    --foreground: 210 28% 96%;
+    --card: 223 48% 7%;
+    --card-foreground: 210 28% 96%;
+    --primary: 243 88% 67%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 220 35% 14%;
-    --secondary-foreground: 210 40% 98%;
-    --muted: 220 35% 14%;
-    --muted-foreground: 215 20% 60%;
-    --accent: 195 100% 50%;
+    --secondary: 222 42% 12%;
+    --secondary-foreground: 210 28% 96%;
+    --muted: 222 42% 12%;
+    --muted-foreground: 215 18% 56%;
+    --accent: 191 100% 54%;
     --accent-foreground: 0 0% 100%;
-    --border: 220 30% 14%;
-    --ring: 230 90% 62%;
+    --border: 222 34% 13%;
+    --ring: 243 88% 67%;
     --radius: 0.75rem;
 
+    /* Gold — tied to the logo */
+    --gold: 42 95% 57%;
+
     /* Neon palette */
-    --neon-blue: 230 90% 62%;
-    --neon-cyan: 195 100% 50%;
-    --neon-purple: 270 80% 65%;
+    --neon-blue: 243 88% 67%;
+    --neon-cyan: 191 100% 54%;
+    --neon-purple: 272 82% 66%;
     --neon-green: 152 100% 50%;
   }
 
@@ -126,10 +129,10 @@
   /* Glassmorphism card — no backdrop-blur (too expensive at scale) */
   .glass-card {
     @apply rounded-xl;
-    background-color: hsl(var(--card) / 0.92);
-    background-image: linear-gradient(180deg, rgba(255,255,255,0.04) 0%, transparent 72px);
-    border: 1px solid rgba(255, 255, 255, 0.09);
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255,255,255,0.07);
+    background-color: hsl(var(--card) / 0.94);
+    background-image: linear-gradient(180deg, rgba(255,255,255,0.055) 0%, transparent 64px);
+    border: 1px solid rgba(255, 255, 255, 0.11);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255,255,255,0.09);
   }
 
   .glass-card-hover {
@@ -164,11 +167,11 @@
   }
 
   .glass-card-hover:hover {
-    border-color: rgba(99, 140, 255, 0.35);
+    border-color: rgba(120, 120, 255, 0.40);
     box-shadow:
       0 16px 48px rgba(0, 0, 0, 0.55),
-      0 0 36px rgba(99, 140, 255, 0.12),
-      inset 0 1px 0 rgba(255,255,255,0.12);
+      0 0 32px rgba(100, 100, 255, 0.15),
+      inset 0 1px 0 rgba(255,255,255,0.14);
     transform: translateY(-2px);
   }
 
@@ -188,9 +191,9 @@
     @apply opacity-100;
   }
 
-  /* Gradient text — cyan → blue → purple */
+  /* Gradient text — gold → indigo → cyan (matches logo palette) */
   .gradient-text {
-    background: linear-gradient(135deg, hsl(var(--neon-cyan)) 0%, hsl(var(--neon-blue)) 50%, hsl(var(--neon-purple)) 100%);
+    background: linear-gradient(135deg, hsl(var(--gold)) 0%, hsl(var(--primary)) 50%, hsl(var(--neon-cyan)) 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
@@ -295,13 +298,13 @@
   /* Button styles */
   .btn-primary {
     @apply relative overflow-hidden text-white font-medium px-6 py-2 rounded-lg transition-all duration-200 active:scale-95;
-    background: linear-gradient(135deg, hsl(var(--neon-blue)) 0%, hsl(270 80% 58%) 100%);
-    box-shadow: 0 0 16px hsl(var(--neon-blue) / 0.3);
+    background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(272 82% 62%) 100%);
+    box-shadow: 0 0 20px hsl(var(--primary) / 0.35), 0 2px 8px rgba(0,0,0,0.3);
   }
 
   .btn-primary:hover {
-    box-shadow: 0 0 32px hsl(var(--neon-blue) / 0.6), 0 0 12px hsl(var(--neon-cyan) / 0.25);
-    filter: brightness(1.15);
+    box-shadow: 0 0 36px hsl(var(--primary) / 0.65), 0 0 14px hsl(var(--neon-cyan) / 0.2), 0 4px 12px rgba(0,0,0,0.3);
+    filter: brightness(1.12);
     transform: translateY(-1px);
   }
 
