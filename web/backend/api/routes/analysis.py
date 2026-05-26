@@ -213,14 +213,16 @@ async def analyze_asset(
             }
         }
 
-        # Current values
-        current_price = close.iloc[-1]
-        prev_price = close.iloc[-2]
-        price_change = ((current_price - prev_price) / prev_price) * 100
+        # Current values — drop NaN (intraday last bar may be incomplete)
+        close_clean = close.dropna()
+        current_price = float(close_clean.iloc[-1])
+        prev_price    = float(close_clean.iloc[-2]) if len(close_clean) >= 2 else current_price
+        price_change  = ((current_price - prev_price) / prev_price * 100) if prev_price else 0.0
 
-        # Volume analysis
-        avg_volume = volume.rolling(window=20).mean().iloc[-1]
-        current_volume = volume.iloc[-1]
+        # Volume analysis — use last non-NaN bar
+        vol_clean = volume.dropna()
+        avg_volume = volume.rolling(window=20).mean().dropna().iloc[-1] if len(volume) >= 20 else vol_clean.mean()
+        current_volume = float(vol_clean.iloc[-1]) if not vol_clean.empty else 0.0
         volume_ratio = current_volume / avg_volume if avg_volume > 0 else 1
 
         # ── OBV (On-Balance Volume) ────────────────────────────────────────
