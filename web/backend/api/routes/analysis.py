@@ -13,7 +13,7 @@ from slowapi.util import get_remote_address
 from .auth import get_current_user
 from .premium import is_user_premium, get_user_limits
 from ..database import execute_query, execute_write
-from ._prices import fetch_ohlcv
+from ._prices import fetch_ohlcv, fetch_prices
 
 router = APIRouter()
 limiter = Limiter(key_func=get_remote_address)
@@ -218,6 +218,16 @@ async def analyze_asset(
         current_price = float(close_clean.iloc[-1])
         prev_price    = float(close_clean.iloc[-2]) if len(close_clean) >= 2 else current_price
         price_change  = ((current_price - prev_price) / prev_price * 100) if prev_price else 0.0
+
+        # Override with live price/change from the same source as top-movers so both are consistent
+        try:
+            live = await fetch_prices([symbol])
+            lp = live.get(symbol.upper())
+            if lp and lp.get("price"):
+                current_price = float(lp["price"])
+                price_change  = float(lp.get("change", price_change))
+        except Exception:
+            pass  # keep OHLCV-derived values as fallback
 
         # Volume analysis — use last non-NaN bar
         vol_clean = volume.dropna()
