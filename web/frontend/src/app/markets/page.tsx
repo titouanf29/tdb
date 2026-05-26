@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { cn, formatPercent, formatVolume } from "@/lib/utils";
 import { marketAPI, favoritesAPI, Market, Asset } from "@/lib/api";
+import { MARKET_SYMBOLS } from "@/lib/marketSymbols";
 import { getAssetInfo, getAssetLogo } from "@/lib/assetInfo";
 import { authHeaders } from "@/lib/auth";
 import { isMarketOpen, getMarketHoursDisplay, getTimeUntilChange } from "@/lib/marketStatus";
@@ -62,19 +63,12 @@ export default function MarketsPage() {
   const [isSearchingBackend, setIsSearchingBackend] = useState(false);
   const [priceFlash, setPriceFlash]         = useState<Record<string, "up" | "down">>({});
   const [refreshRate, setRefreshRate]       = useState<number>(0);
+  const [topMovers, setTopMovers]           = useState<{ gainers: Asset[]; losers: Asset[] } | null>(null);
 
   const prevPricesRef      = useRef<Record<string, number>>({});
   const autoRefreshRef     = useRef<ReturnType<typeof setInterval> | null>(null);
   const searchDebounceRef  = useRef<ReturnType<typeof setTimeout> | null>(null);
   const intervals          = (isPremium || isAdmin) ? PREMIUM_INTERVALS : FREE_INTERVALS;
-
-  // ── Top movers (computed from loaded assets with valid prices) ──────────
-  const topMovers = useMemo(() => {
-    const valid = assets.filter(a => !a.error && typeof a.change === "number" && a.change !== 0);
-    if (valid.length < 3) return null;
-    const sorted   = [...valid].sort((a, b) => b.change - a.change);
-    return { gainers: sorted.slice(0, 3), losers: sorted.slice(-3).reverse() };
-  }, [assets]);
 
   // ── Load markets + favorites ─────────────────────────────────────────────
   useEffect(() => {
@@ -143,6 +137,28 @@ export default function MarketsPage() {
 
     loadAssets();
     return () => { controller.abort(); clearTimeout(timer); };
+  }, [selectedMarket]);
+
+  // ── Top movers — fetch from curated symbol list (same as dashboard) ──────
+  useEffect(() => {
+    if (!selectedMarket) return;
+    const symbols = MARKET_SYMBOLS[selectedMarket];
+    if (!symbols || symbols.length === 0) { setTopMovers(null); return; }
+    marketAPI.getPrices(symbols)
+      .then(priceData => {
+        const items: Asset[] = symbols
+          .map(sym => {
+            const p = priceData.prices[sym];
+            if (!p || typeof p.change !== "number") return null;
+            const info = getAssetInfo(sym);
+            return { symbol: sym, name: info?.name ?? sym, price: p.price, change: p.change } as Asset;
+          })
+          .filter((a): a is Asset => a !== null && a.change !== 0);
+        if (items.length < 3) { setTopMovers(null); return; }
+        const sorted = [...items].sort((a, b) => b.change - a.change);
+        setTopMovers({ gainers: sorted.slice(0, 3), losers: sorted.slice(-3).reverse() });
+      })
+      .catch(() => setTopMovers(null));
   }, [selectedMarket]);
 
   // ── Auto-refresh prices ──────────────────────────────────────────────────

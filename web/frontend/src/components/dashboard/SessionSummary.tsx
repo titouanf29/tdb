@@ -14,6 +14,7 @@ import { isMarketOpen } from "@/lib/marketStatus";
 import { usePremium } from "@/lib/PremiumContext";
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/lib/LanguageContext";
+import { MARKET_SYMBOLS } from "@/lib/marketSymbols";
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  SESSION CONFIGS
@@ -51,11 +52,7 @@ const SESSIONS: SessionCfg[] = [
     accent: "text-blue-400",
     accentBg: "bg-blue-500/15",
     tabActiveBg: "bg-blue-500/10",
-    symbols: [
-      "^FCHI", "^GDAXI", "^FTSE", "^STOXX50E",
-      "MC.PA", "AI.PA", "TTE.PA", "SAP.DE", "ASML",
-      "AIR.PA", "OR.PA", "SIE.DE", "BNP.PA", "SAN.PA",
-    ],
+    symbols: MARKET_SYMBOLS.EUROPE,
   },
   {
     id: "us",
@@ -71,11 +68,7 @@ const SESSIONS: SessionCfg[] = [
     accent: "text-emerald-400",
     accentBg: "bg-emerald-500/15",
     tabActiveBg: "bg-emerald-500/10",
-    symbols: [
-      "^GSPC", "^IXIC", "^DJI", "^RUT",
-      "AAPL", "NVDA", "MSFT", "AMZN", "META",
-      "GOOGL", "TSLA", "NFLX", "AMD", "JPM",
-    ],
+    symbols: MARKET_SYMBOLS.USA,
   },
   {
     id: "asia",
@@ -91,10 +84,7 @@ const SESSIONS: SessionCfg[] = [
     accent: "text-orange-400",
     accentBg: "bg-orange-500/15",
     tabActiveBg: "bg-orange-500/10",
-    symbols: [
-      "^N225", "^HSI", "^KS11",
-      "BABA", "9984.T", "7203.T", "TCEHY", "NIO", "JD",
-    ],
+    symbols: MARKET_SYMBOLS.ASIA,
   },
   {
     id: "crypto",
@@ -110,10 +100,7 @@ const SESSIONS: SessionCfg[] = [
     accent: "text-yellow-400",
     accentBg: "bg-yellow-500/15",
     tabActiveBg: "bg-yellow-500/10",
-    symbols: [
-      "BTC-USD", "ETH-USD", "BNB-USD", "SOL-USD",
-      "XRP-USD", "ADA-USD", "DOGE-USD", "AVAX-USD",
-    ],
+    symbols: MARKET_SYMBOLS.CRYPTO,
   },
 ];
 
