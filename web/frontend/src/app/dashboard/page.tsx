@@ -962,6 +962,77 @@ const OpenPositionsWidget = memo(function OpenPositionsWidget({
   );
 });
 
+// ── Markdown renderer for chat messages ──────────────────────────────────────
+function renderInline(text: string): React.ReactNode {
+  return text.split(/(\*\*[^*]+\*\*|\*[^*]+\*|`[^`]+`)/g).map((part, i) => {
+    if (part.startsWith("**") && part.endsWith("**") && part.length > 4)
+      return <strong key={i} className="font-semibold text-foreground">{part.slice(2, -2)}</strong>;
+    if (part.startsWith("*") && part.endsWith("*") && part.length > 2)
+      return <em key={i} className="italic opacity-90">{part.slice(1, -1)}</em>;
+    if (part.startsWith("`") && part.endsWith("`") && part.length > 2)
+      return <code key={i} className="bg-black/30 px-1 py-0.5 rounded text-[11px] font-mono">{part.slice(1, -1)}</code>;
+    return part;
+  });
+}
+
+function renderChatMarkdown(text: string): React.ReactNode {
+  const lines = text.split("\n");
+  const nodes: React.ReactNode[] = [];
+  let listBuffer: string[] = [];
+  let k = 0;
+
+  const flushList = () => {
+    if (!listBuffer.length) return;
+    nodes.push(
+      <ul key={k++} className="space-y-1 my-1.5 pl-0.5">
+        {listBuffer.map((item, i) => (
+          <li key={i} className="flex gap-2 text-xs leading-relaxed">
+            <span className="text-primary/70 mt-0.5 flex-shrink-0 text-[10px]">▸</span>
+            <span>{renderInline(item)}</span>
+          </li>
+        ))}
+      </ul>
+    );
+    listBuffer = [];
+  };
+
+  for (const line of lines) {
+    const h1 = line.match(/^# (.+)/);
+    const h2 = line.match(/^## (.+)/);
+    const h3 = line.match(/^### (.+)/);
+    const li = line.match(/^[-*•] (.+)/);
+
+    if (h1 || h2) {
+      flushList();
+      nodes.push(
+        <p key={k++} className="font-bold text-foreground text-sm mt-3 mb-1 first:mt-0">
+          {renderInline((h1 || h2)![1])}
+        </p>
+      );
+    } else if (h3) {
+      flushList();
+      nodes.push(
+        <p key={k++} className="font-semibold text-foreground/90 text-xs mt-2 mb-0.5">
+          {renderInline(h3[1])}
+        </p>
+      );
+    } else if (li) {
+      listBuffer.push(li[1]);
+    } else if (line.trim() === "") {
+      flushList();
+      if (nodes.length > 0) nodes.push(<div key={k++} className="h-1" />);
+    } else {
+      flushList();
+      nodes.push(
+        <p key={k++} className="text-xs leading-relaxed">{renderInline(line)}</p>
+      );
+    }
+  }
+  flushList();
+
+  return <div className="space-y-0.5">{nodes}</div>;
+}
+
 const DashAIChatWidget = memo(function DashAIChatWidget() {
   const { lang, t } = useLanguage();
   const [messages, setMessages]                 = useState<ChatMessage[]>([]);
@@ -1103,12 +1174,12 @@ const DashAIChatWidget = memo(function DashAIChatWidget() {
                 </div>
               )}
               <div className={cn(
-                "max-w-[88%] rounded-2xl px-3 py-2 text-xs leading-relaxed whitespace-pre-wrap break-words",
+                "max-w-[88%] rounded-2xl px-3 py-2 text-xs leading-relaxed",
                 msg.role === "user"
                   ? "bg-primary text-white rounded-br-none"
                   : "bg-white/8 border border-white/8 text-foreground/90 rounded-bl-none"
               )}>
-                {msg.content}
+                {msg.role === "user" ? msg.content : renderChatMarkdown(msg.content)}
               </div>
             </div>
           ))
