@@ -13,67 +13,72 @@ import {
   Check,
 } from "lucide-react";
 import { useAuth } from "@/lib/AuthContext";
+import { useLanguage } from "@/lib/LanguageContext";
+import { LanguageToggle } from "@/components/ui/LanguageToggle";
 import { TradingLevel } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 
-const LEVELS: {
+type LevelDef = {
   id: TradingLevel;
   icon: React.ElementType;
-  label: string;
-  tagline: string;
+  label: { fr: string; en: string };
+  tagline: { fr: string; en: string };
   color: string;
   glow: string;
-  changes: string[];
-}[] = [
+  changes: { fr: string; en: string }[];
+};
+
+const LEVELS: LevelDef[] = [
   {
     id: "beginner",
     icon: GraduationCap,
-    label: "Débutant",
-    tagline: "Je débute dans le trading",
+    label: { fr: "Débutant", en: "Beginner" },
+    tagline: { fr: "Je débute dans le trading", en: "I'm new to trading" },
     color: "from-emerald-500/20 to-teal-500/20 border-emerald-500/40",
     glow: "shadow-emerald-500/20",
     changes: [
-      "Explications détaillées sur chaque actif",
-      "Glossaire intégré au survol des termes",
-      "Accès prioritaire à la section Apprendre",
-      "Parcours d'apprentissage guidé pas à pas",
-      "Quiz et exercices pour progresser",
+      { fr: "Explications détaillées sur chaque actif", en: "Detailed explanations for each asset" },
+      { fr: "Glossaire intégré au survol des termes", en: "Built-in glossary on term hover" },
+      { fr: "Accès prioritaire à la section Apprendre", en: "Priority access to the Learn section" },
+      { fr: "Parcours d'apprentissage guidé pas à pas", en: "Step-by-step guided learning path" },
+      { fr: "Quiz et exercices pour progresser", en: "Quizzes and exercises to improve" },
     ],
   },
   {
     id: "intermediate",
     icon: TrendingUp,
-    label: "Intermédiaire",
-    tagline: "Je connais les bases",
+    label: { fr: "Intermédiaire", en: "Intermediate" },
+    tagline: { fr: "Je connais les bases", en: "I know the basics" },
     color: "from-blue-500/20 to-indigo-500/20 border-blue-500/40",
     glow: "shadow-blue-500/20",
     changes: [
-      "Infobulles concises sur les termes avancés",
-      "Accès à toutes les ressources pédagogiques",
-      "Analyse technique avec explications",
-      "Exercices de niveau intermédiaire",
-      "Dashboard complet avec métriques clés",
+      { fr: "Infobulles concises sur les termes avancés", en: "Concise tooltips on advanced terms" },
+      { fr: "Accès à toutes les ressources pédagogiques", en: "Access to all educational resources" },
+      { fr: "Analyse technique avec explications", en: "Technical analysis with explanations" },
+      { fr: "Exercices de niveau intermédiaire", en: "Intermediate-level exercises" },
+      { fr: "Dashboard complet avec métriques clés", en: "Full dashboard with key metrics" },
     ],
   },
   {
     id: "expert",
     icon: Zap,
-    label: "Expert",
-    tagline: "Je maîtrise le trading",
+    label: { fr: "Expert", en: "Expert" },
+    tagline: { fr: "Je maîtrise le trading", en: "I master trading" },
     color: "from-purple-500/20 to-pink-500/20 border-purple-500/40",
     glow: "shadow-purple-500/20",
     changes: [
-      "Interface épurée sans explications basiques",
-      "Accès direct aux outils avancés",
-      "Données brutes et analyses complètes",
-      "Pas de tutoriels intrusifs",
-      "Expérience professionnelle complète",
+      { fr: "Interface épurée sans explications basiques", en: "Clean interface without basic explanations" },
+      { fr: "Accès direct aux outils avancés", en: "Direct access to advanced tools" },
+      { fr: "Données brutes et analyses complètes", en: "Raw data and complete analyses" },
+      { fr: "Pas de tutoriels intrusifs", en: "No intrusive tutorials" },
+      { fr: "Expérience professionnelle complète", en: "Full professional experience" },
     ],
   },
 ];
 
 export function OnboardingModal({ onClose }: { onClose: () => void }) {
   const { setTradingLevel } = useAuth();
+  const { lang } = useLanguage();
   const [hovered, setHovered] = useState<TradingLevel | null>(null);
   const [selected, setSelected] = useState<TradingLevel | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -105,15 +110,26 @@ export function OnboardingModal({ onClose }: { onClose: () => void }) {
           style={{ background: "hsl(220 50% 5.5%)", boxShadow: "0 25px 60px rgba(0,0,0,0.6)" }}
         >
           {/* Header */}
-          <div className="p-8 pb-6 text-center border-b border-white/10">
+          <div className="p-8 pb-6 text-center border-b border-white/10 relative">
+            <div className="absolute top-4 right-4">
+              <LanguageToggle variant="compact" />
+            </div>
             <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary/20 mb-4">
               <BookOpen className="w-8 h-8 text-primary" />
             </div>
-            <h2 className="text-2xl font-bold mb-2">Bienvenue sur CaptenTDB !</h2>
+            <h2 className="text-2xl font-bold mb-2">
+              {lang === "en" ? "Welcome to CaptenTDB!" : "Bienvenue sur CaptenTDB !"}
+            </h2>
             <p className="text-muted-foreground max-w-md mx-auto">
-              Pour personnaliser votre expérience, dites-nous quel est votre niveau en trading.
+              {lang === "en"
+                ? "To personalize your experience, tell us your trading level."
+                : "Pour personnaliser votre expérience, dites-nous quel est votre niveau en trading."}
               <br />
-              <span className="text-sm opacity-70">Vous pourrez le changer à tout moment dans vos paramètres.</span>
+              <span className="text-sm opacity-70">
+                {lang === "en"
+                  ? "You can change this at any time in your settings."
+                  : "Vous pourrez le changer à tout moment dans vos paramètres."}
+              </span>
             </p>
           </div>
 
@@ -151,10 +167,10 @@ export function OnboardingModal({ onClose }: { onClose: () => void }) {
                       </motion.div>
                     )}
                     <Icon className="w-8 h-8 mb-3 text-white/80" />
-                    <p className="font-bold text-lg mb-1">{level.label}</p>
-                    <p className="text-xs text-muted-foreground leading-snug">{level.tagline}</p>
+                    <p className="font-bold text-lg mb-1">{level.label[lang]}</p>
+                    <p className="text-xs text-muted-foreground leading-snug">{level.tagline[lang]}</p>
                     <div className="mt-3 flex items-center gap-1 text-xs text-white/50 group-hover:text-white/70 transition-colors">
-                      <span>Voir les détails</span>
+                      <span>{lang === "en" ? "See details" : "Voir les détails"}</span>
                       <ChevronRight className="w-3 h-3" />
                     </div>
                   </motion.button>
@@ -175,13 +191,16 @@ export function OnboardingModal({ onClose }: { onClose: () => void }) {
                   <div className={`mt-4 p-4 rounded-xl bg-gradient-to-br ${preview.color} border`}>
                     <p className="text-sm font-semibold mb-3 flex items-center gap-2">
                       <preview.icon className="w-4 h-4" />
-                      Ce que le niveau <span className="text-white">{preview.label}</span> change :
+                      {lang === "en"
+                        ? <>What the <span className="text-white">{preview.label.en}</span> level changes:</>
+                        : <>Ce que le niveau <span className="text-white">{preview.label.fr}</span> change :</>
+                      }
                     </p>
                     <ul className="space-y-1.5">
                       {preview.changes.map((c, i) => (
                         <li key={i} className="text-xs text-white/70 flex items-center gap-2">
                           <div className="w-1.5 h-1.5 rounded-full bg-white/50 shrink-0" />
-                          {c}
+                          {c[lang]}
                         </li>
                       ))}
                     </ul>
@@ -192,7 +211,9 @@ export function OnboardingModal({ onClose }: { onClose: () => void }) {
 
             <p className="text-center text-xs text-muted-foreground mt-5">
               <Briefcase className="w-3 h-3 inline mr-1" />
-              Peu importe votre niveau, toutes les fonctionnalités restent accessibles.
+              {lang === "en"
+                ? "Regardless of your level, all features remain accessible."
+                : "Peu importe votre niveau, toutes les fonctionnalités restent accessibles."}
             </p>
           </div>
         </div>
