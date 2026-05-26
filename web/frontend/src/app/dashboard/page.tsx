@@ -7,7 +7,7 @@ import {
   TrendingUp, TrendingDown, Star, Activity, ArrowUpRight, ArrowDownRight,
   Target, RefreshCw, Loader2, Newspaper, Shield, Plus, Globe,
   Bot, BarChart3, Settings2, Eye, EyeOff, ExternalLink, Clock,
-  Layers, ChevronUp, ChevronDown, Crown, Timer, Send, Sparkles,
+  Layers, ChevronUp, ChevronDown, Crown, Timer, Send, Sparkles, Trash2,
 } from "lucide-react";
 import { cn, formatPercent } from "@/lib/utils";
 import {
@@ -968,6 +968,7 @@ const DashAIChatWidget = memo(function DashAIChatWidget() {
   const [input, setInput]                       = useState("");
   const [isLoading, setIsLoading]               = useState(false);
   const [isLoadingHistory, setIsLoadingHistory] = useState(true);
+  const [isClearing, setIsClearing]             = useState(false);
   const [limitStatus, setLimitStatus]           = useState<AILimitStatus | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -1003,6 +1004,17 @@ const DashAIChatWidget = memo(function DashAIChatWidget() {
       setMessages(prev => [...prev, { role: "assistant", content: `❌ ${errMsg}`, created_at: new Date().toISOString() }]);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const clearHistory = async () => {
+    if (isClearing || messages.length === 0) return;
+    setIsClearing(true);
+    try {
+      await aiAPI.clearHistory();
+      setMessages([]);
+    } catch { /* ignore */ } finally {
+      setIsClearing(false);
     }
   };
 
@@ -1046,10 +1058,21 @@ const DashAIChatWidget = memo(function DashAIChatWidget() {
             </p>
           </div>
         </div>
-        <Link href="/assistant"
-          className="flex items-center gap-1 text-[11px] font-semibold text-primary hover:text-primary/80 transition-colors bg-primary/10 hover:bg-primary/20 px-2.5 py-1.5 rounded-lg">
-          {lang === "fr" ? "Tout voir" : "Open"} <ArrowUpRight className="w-3 h-3" />
-        </Link>
+        <div className="flex items-center gap-1.5">
+          {messages.length > 0 && (
+            <button onClick={clearHistory} disabled={isClearing}
+              title={lang === "fr" ? "Effacer l'historique" : "Clear history"}
+              className="p-1.5 rounded-lg text-muted-foreground hover:text-loss hover:bg-loss/10 transition-all disabled:opacity-40">
+              {isClearing
+                ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                : <Trash2 className="w-3.5 h-3.5" />}
+            </button>
+          )}
+          <Link href="/assistant"
+            className="flex items-center gap-1 text-[11px] font-semibold text-primary hover:text-primary/80 transition-colors bg-primary/10 hover:bg-primary/20 px-2.5 py-1.5 rounded-lg">
+            {lang === "fr" ? "Tout voir" : "Open"} <ArrowUpRight className="w-3 h-3" />
+          </Link>
+        </div>
       </div>
 
       {/* ── Messages ────────────────────────────────────────────────── */}
