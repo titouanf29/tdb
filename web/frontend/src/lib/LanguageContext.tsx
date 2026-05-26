@@ -2159,7 +2159,13 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const stored = localStorage.getItem("tdb_lang") as Lang | null;
-    if (stored === "fr" || stored === "en") setLangState(stored);
+    if (stored === "fr" || stored === "en") {
+      setLangState(stored);
+    } else {
+      // No stored preference — use browser language, default to fr
+      const browserLang = navigator.language?.toLowerCase() ?? "";
+      if (browserLang.startsWith("en")) setLangState("en");
+    }
   }, []);
 
   const setLang = useCallback((l: Lang) => {
