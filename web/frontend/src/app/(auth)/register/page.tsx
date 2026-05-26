@@ -3,10 +3,11 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Eye, EyeOff, TrendingUp, Loader2, Check, AlertTriangle, ArrowLeft } from "lucide-react";
+import { Eye, EyeOff, Loader2, Check, AlertTriangle, ArrowLeft } from "lucide-react";
 import { useAuth } from "@/lib/AuthContext";
 import { LanguageToggle } from "@/components/ui/LanguageToggle";
 import { useLanguage } from "@/lib/LanguageContext";
+import { TDBLogo } from "@/components/ui/TDBLogo";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -78,8 +79,8 @@ export default function RegisterPage() {
       <div className="glass-card p-8">
         {/* Logo */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary/20 mb-4">
-            <TrendingUp className="w-8 h-8 text-primary" />
+          <div className="inline-flex items-center justify-center mb-4">
+            <TDBLogo size={64} />
           </div>
           <h1 className="text-2xl font-bold">
             {t("register_title")} <span className="gradient-text">CaptenTDB</span>
