@@ -135,6 +135,19 @@ async def get_current_user_optional(credentials: HTTPAuthorizationCredentials = 
 @limiter.limit("5/minute")
 async def register(request: Request, data: RegisterRequest):
     """Register a new user and send verification email."""
+    # Check if registrations are open
+    reg_rows = await execute_query(
+        "SELECT value FROM admin_settings WHERE key = 'registration_enabled'"
+    )
+    reg_enabled = reg_rows[0]["value"] if reg_rows else "true"
+    if reg_enabled == "false":
+        msg_rows = await execute_query(
+            "SELECT value FROM admin_settings WHERE key = 'registration_closed_message'"
+        )
+        msg = (msg_rows[0]["value"] if msg_rows else None) or \
+              "Les inscriptions sont temporairement fermées."
+        raise HTTPException(status_code=403, detail=msg)
+
     existing = await execute_query(
         "SELECT id FROM web_users WHERE email = ?", (data.email.lower(),)
     )
@@ -160,9 +173,18 @@ async def register(request: Request, data: RegisterRequest):
     )
     user = users[0]
 
+    # Welcome bonus: read from admin_settings (default 10 000)
+    bonus_rows = await execute_query(
+        "SELECT value FROM admin_settings WHERE key = 'welcome_bonus_amount'"
+    )
+    try:
+        welcome_bonus = float(bonus_rows[0]["value"]) if bonus_rows else 10000.0
+    except (ValueError, TypeError):
+        welcome_bonus = 10000.0
+
     await execute_write(
-        "INSERT INTO wallet (user_id, balance, currency, created_at) VALUES (?, 10000.0, 'USD', ?)",
-        (f"web_{user['id']}", datetime.now(timezone.utc).isoformat())
+        "INSERT INTO wallet (user_id, balance, currency, created_at) VALUES (?, ?, 'USD', ?)",
+        (f"web_{user['id']}", welcome_bonus, datetime.now(timezone.utc).isoformat())
     )
 
     # Notify admins of new registration

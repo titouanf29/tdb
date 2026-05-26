@@ -734,58 +734,61 @@ export default function AnalysisPage() {
               animate={{ opacity: 1, scale: 1 }}
               className="glass-card p-6 text-center relative overflow-hidden"
             >
-              <div className="absolute inset-0 bg-gradient-radial from-primary/10 to-transparent" />
+              {/* Dynamic background glow based on signal */}
+              <div className={cn(
+                "absolute inset-0 pointer-events-none",
+                analysis.signal.text.includes("BUY")  ? "bg-gradient-radial from-profit/12 to-transparent" :
+                analysis.signal.text.includes("SELL") ? "bg-gradient-radial from-loss/12 to-transparent"   :
+                                                         "bg-gradient-radial from-warning/10 to-transparent"
+              )} />
               <div className="relative">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4">
+                  {lang === "fr" ? "Score Global" : "Global Score"}
+                </p>
 
-                <p className="text-sm text-muted-foreground mb-2">{lang === "fr" ? "Score Global" : "Global Score"}</p>
-                <div className="w-32 h-32 mx-auto mb-4 relative">
-                  <svg className="w-full h-full -rotate-90">
+                {/* Circular score */}
+                <div className="w-36 h-36 mx-auto mb-5 relative">
+                  <svg className="w-full h-full -rotate-90" viewBox="0 0 144 144">
+                    <circle cx="72" cy="72" r="62" fill="none" stroke="currentColor" strokeWidth="10" className="text-white/8" />
                     <circle
-                      cx="64"
-                      cy="64"
-                      r="56"
+                      cx="72" cy="72" r="62"
                       fill="none"
-                      stroke="currentColor"
-                      strokeWidth="8"
-                      className="text-white/10"
-                    />
-                    <circle
-                      cx="64"
-                      cy="64"
-                      r="56"
-                      fill="none"
-                      stroke="url(#scoreGradient)"
-                      strokeWidth="8"
+                      stroke={analysis.signal.text.includes("BUY") ? "#0ecb81" : analysis.signal.text.includes("SELL") ? "#f6465d" : "#f0a500"}
+                      strokeWidth="10"
                       strokeLinecap="round"
-                      strokeDasharray={`${(analysis.score.total / 100) * 352} 352`}
+                      strokeDasharray={`${(analysis.score.total / 100) * 390} 390`}
+                      style={{ filter: `drop-shadow(0 0 8px ${analysis.signal.text.includes("BUY") ? "rgba(14,203,129,0.5)" : analysis.signal.text.includes("SELL") ? "rgba(246,70,93,0.5)" : "rgba(240,165,0,0.5)"})` }}
                     />
-                    <defs>
-                      <linearGradient id="scoreGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                        <stop offset="0%" stopColor="#10b981" />
-                        <stop offset="100%" stopColor="#22c55e" />
-                      </linearGradient>
-                    </defs>
                   </svg>
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <span className="text-4xl font-bold">{analysis.score.total}</span>
+                  <div className="absolute inset-0 flex flex-col items-center justify-center">
+                    <span className="text-4xl font-bold leading-none">{analysis.score.total}</span>
+                    <span className="text-xs text-muted-foreground mt-1">/100</span>
                   </div>
                 </div>
-                <div className="flex items-center justify-center gap-2 mb-2">
-                  <span className="text-2xl">{analysis.signal.emoji}</span>
+
+                {/* Signal badge */}
+                <div className={cn(
+                  "inline-flex items-center gap-2.5 px-5 py-2.5 rounded-2xl font-bold text-lg mb-3 border",
+                  analysis.signal.text.includes("BUY")  ? "bg-profit/15 border-profit/40 text-profit"   :
+                  analysis.signal.text.includes("SELL") ? "bg-loss/15 border-loss/40 text-loss"         :
+                                                           "bg-warning/15 border-warning/40 text-warning"
+                )}>
+                  <span className="text-2xl leading-none">{analysis.signal.emoji}</span>
+                  <span>{analysis.signal.text}</span>
+                </div>
+
+                {/* Trend + confidence */}
+                <div className="flex items-center justify-center gap-3 mt-1">
                   <span className={cn(
-                    "text-xl font-bold",
-                    analysis.signal.text.includes("BUY") ? "text-profit" :
-                    analysis.signal.text.includes("SELL") ? "text-loss" : "text-warning"
+                    "inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full border",
+                    analysis.trend === "BULLISH" ? "bg-profit/10 border-profit/25 text-profit" :
+                    analysis.trend === "BEARISH" ? "bg-loss/10 border-loss/25 text-loss"       :
+                                                   "bg-warning/10 border-warning/25 text-warning"
                   )}>
-                    {analysis.signal.text}
+                    {analysis.trend === "BULLISH" ? <TrendingUp className="w-3 h-3" /> : analysis.trend === "BEARISH" ? <TrendingDown className="w-3 h-3" /> : <Activity className="w-3 h-3" />}
+                    {analysis.trend}
                   </span>
                 </div>
-                <p className="text-sm text-muted-foreground">
-                  {t("analysis_trend")}: <span className={cn(
-                    analysis.trend === "BULLISH" ? "text-profit" :
-                    analysis.trend === "BEARISH" ? "text-loss" : "text-warning"
-                  )}>{analysis.trend}</span>
-                </p>
               </div>
             </motion.div>
 
@@ -1234,12 +1237,54 @@ export default function AnalysisPage() {
 
       {/* Empty state */}
       {!analysis && !isLoading && !error && (
-        <div className="glass-card p-12 text-center">
-          <Search className="w-12 h-12 mx-auto mb-4 text-muted-foreground opacity-50" />
-          <p className="text-muted-foreground">
-            Entrez un symbole pour lancer l'analyse IA
-          </p>
-        </div>
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
+          <div className="glass-card p-8 text-center relative overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-radial from-primary/8 to-transparent pointer-events-none" />
+            <div className="relative">
+              <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-primary/10 flex items-center justify-center">
+                <Zap className="w-8 h-8 text-primary" />
+              </div>
+              <h3 className="text-lg font-semibold mb-1">Analyse technique & IA</h3>
+              <p className="text-sm text-muted-foreground max-w-md mx-auto">
+                Entrez un symbole ou sélectionnez un actif populaire pour obtenir une analyse complète en temps réel
+              </p>
+            </div>
+          </div>
+
+          {/* Quick symbols grid */}
+          <div>
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 px-1">Actifs populaires</p>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              {[
+                { symbol: "BTC-USD", name: "Bitcoin",    emoji: "₿",  color: "text-neon-gold  bg-neon-gold/10  border-neon-gold/20",  cat: "Crypto"   },
+                { symbol: "AAPL",    name: "Apple",      emoji: "🍎", color: "text-neon-blue  bg-neon-blue/10  border-neon-blue/20",   cat: "Actions"  },
+                { symbol: "NVDA",    name: "Nvidia",     emoji: "🎮", color: "text-neon-green bg-neon-green/10 border-neon-green/20",  cat: "Actions"  },
+                { symbol: "^GSPC",   name: "S&P 500",    emoji: "📈", color: "text-primary    bg-primary/10    border-primary/20",     cat: "Indice"   },
+                { symbol: "ETH-USD", name: "Ethereum",   emoji: "⬡",  color: "text-neon-purple bg-neon-purple/10 border-neon-purple/20", cat: "Crypto" },
+                { symbol: "MSFT",    name: "Microsoft",  emoji: "🪟", color: "text-neon-cyan  bg-neon-cyan/10  border-neon-cyan/20",   cat: "Actions"  },
+                { symbol: "GC=F",    name: "Or",         emoji: "🥇", color: "text-neon-gold  bg-neon-gold/10  border-neon-gold/20",   cat: "Matière"  },
+                { symbol: "EURUSD=X",name: "EUR/USD",    emoji: "💱", color: "text-muted-foreground bg-white/5 border-white/10",       cat: "Forex"    },
+              ].map((item) => (
+                <motion.button
+                  key={item.symbol}
+                  whileHover={{ scale: 1.02, y: -2 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => { setSymbol(item.symbol); setSearchQuery(item.symbol); handleSearch(item.symbol); }}
+                  className={cn("p-4 rounded-xl border text-left transition-all group", item.color)}
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xl">{item.emoji}</span>
+                    <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-white/10 text-muted-foreground">
+                      {item.cat}
+                    </span>
+                  </div>
+                  <p className="font-bold text-sm">{item.symbol}</p>
+                  <p className="text-xs text-muted-foreground/80 truncate">{item.name}</p>
+                </motion.button>
+              ))}
+            </div>
+          </div>
+        </motion.div>
       )}
     </motion.div>
     </>
@@ -1864,77 +1909,112 @@ function AssetHeader({
   const assetInfo = getAssetInfo(analysis.symbol);
   const logoUrl = getAssetLogo(analysis.symbol);
 
+  const isUp = analysis.price.change >= 0;
+
   return (
     <motion.div
       initial={{ opacity: 0, y: -20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="glass-card p-6"
+      className="glass-card overflow-hidden"
     >
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          {logoUrl ? (
-            <div className="w-16 h-16 rounded-2xl bg-white/10 flex items-center justify-center overflow-hidden">
-              <img
-                src={logoUrl}
-                alt={assetInfo.name}
-                className="w-12 h-12 object-contain"
-                onError={(e) => {
-                  const target = e.target as HTMLImageElement;
-                  target.style.display = 'none';
-                  target.parentElement!.innerHTML = `<span class="font-bold text-2xl">${analysis.symbol.slice(0, 2)}</span>`;
-                }}
-              />
+      {/* Color accent bar */}
+      <div className={cn("h-1 w-full", isUp ? "bg-gradient-to-r from-profit/60 to-profit" : "bg-gradient-to-r from-loss/60 to-loss")} />
+
+      <div className="p-6">
+        {/* Top row: logo + name + price + actions */}
+        <div className="flex items-center justify-between gap-4 flex-wrap">
+          <div className="flex items-center gap-4">
+            {logoUrl ? (
+              <div className="w-14 h-14 rounded-2xl bg-white/10 flex items-center justify-center overflow-hidden flex-shrink-0">
+                <img
+                  src={logoUrl}
+                  alt={assetInfo.name}
+                  className="w-10 h-10 object-contain"
+                  onError={(e) => {
+                    const target = e.target as HTMLImageElement;
+                    target.style.display = 'none';
+                    target.parentElement!.innerHTML = `<span class="font-bold text-xl">${analysis.symbol.slice(0, 2)}</span>`;
+                  }}
+                />
+              </div>
+            ) : (
+              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-primary to-purple-500 flex items-center justify-center flex-shrink-0">
+                <span className="font-bold text-xl text-white">{analysis.symbol.slice(0, 2)}</span>
+              </div>
+            )}
+            <div>
+              <h1 className="text-xl font-bold">{assetInfo.name}</h1>
+              <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                <span className="text-sm text-muted-foreground font-mono">{analysis.symbol}</span>
+                {assetInfo.sector && (
+                  <span className="px-2 py-0.5 rounded-full bg-primary/15 text-primary text-xs border border-primary/20">
+                    {assetInfo.sector}
+                  </span>
+                )}
+              </div>
             </div>
-          ) : (
-            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary to-purple-500 flex items-center justify-center">
-              <span className="font-bold text-2xl text-white">{analysis.symbol.slice(0, 2)}</span>
-            </div>
-          )}
-          <div>
-            <h1 className="text-2xl font-bold">{assetInfo.name}</h1>
-            <div className="flex items-center gap-3 mt-1">
-              <span className="text-muted-foreground">{analysis.symbol}</span>
-              {assetInfo.sector && (
-                <span className="px-2 py-0.5 rounded-full bg-primary/20 text-primary text-xs">
-                  {assetInfo.sector}
+          </div>
+
+          <div className="flex items-center gap-3 ml-auto">
+            <div className="text-right">
+              <p className="text-3xl font-bold tracking-tight">{formatCurrency(analysis.price.current)}</p>
+              <div className="flex items-center justify-end gap-1.5 mt-0.5">
+                <span className={cn(
+                  "inline-flex items-center gap-1 text-sm font-semibold px-2 py-0.5 rounded-full",
+                  isUp ? "bg-profit/15 text-profit" : "bg-loss/15 text-loss"
+                )}>
+                  {isUp ? <ArrowUpRight className="w-3.5 h-3.5" /> : <ArrowDownRight className="w-3.5 h-3.5" />}
+                  {formatPercent(analysis.price.change)}
                 </span>
-              )}
+              </div>
             </div>
+            <HelpGuide
+              size="sm"
+              title="Page d'analyse"
+              intro="Analyse complète d'un actif : indicateurs techniques, signaux IA, niveaux clés et gestion du risque."
+              sections={[
+                { title: "Signal IA", desc: "L'IA analyse les indicateurs et te donne un signal global (Achat / Vente / Neutre) avec un niveau de confiance." },
+                { title: "Indicateurs techniques", desc: "RSI, MACD, Moyennes mobiles, Bandes de Bollinger… Chaque indicateur est expliqué et interprété pour toi." },
+                { title: "Niveaux de Fibonacci", desc: "Zones clés de support et résistance calculées automatiquement sur le dernier mouvement de prix." },
+                { title: "Score de risque", desc: "Évaluation du risque actuel sur l'actif — plus le score est élevé, plus la prudence s'impose." },
+                { title: "Analyse de séance", desc: "Résumé IA de la journée : catalyseurs, tendance de fond et contexte macro si disponible." },
+              ]}
+              tip="Clique sur chaque module pour le déplier. Les flèches sur le signal indiquent les niveaux d'entrée suggérés."
+            />
+            <button
+              onClick={toggleFavorite}
+              className="p-2.5 rounded-xl hover:bg-white/10 transition-colors"
+            >
+              {isFavorite ? (
+                <Star className="w-5 h-5 text-yellow-400 fill-yellow-400" />
+              ) : (
+                <StarOff className="w-5 h-5 text-muted-foreground" />
+              )}
+            </button>
           </div>
         </div>
-        <div className="flex items-center gap-4">
-          <div className="text-right">
-            <p className="text-3xl font-bold">{formatCurrency(analysis.price.current)}</p>
-            <p className={cn(
-              "text-lg font-semibold",
-              analysis.price.change >= 0 ? "text-profit" : "text-loss"
-            )}>
-              {formatPercent(analysis.price.change)}
-            </p>
+
+        {/* Stats strip */}
+        <div className="mt-4 pt-4 border-t border-white/8 grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="text-center">
+            <p className="text-[10px] text-muted-foreground/70 uppercase tracking-wide mb-0.5">Support</p>
+            <p className="text-sm font-semibold text-profit">{formatCurrency(analysis.levels.support)}</p>
           </div>
-          <HelpGuide
-            size="sm"
-            title="Page d'analyse"
-            intro="Analyse complète d'un actif : indicateurs techniques, signaux IA, niveaux clés et gestion du risque."
-            sections={[
-              { title: "Signal IA", desc: "L'IA analyse les indicateurs et te donne un signal global (Achat / Vente / Neutre) avec un niveau de confiance." },
-              { title: "Indicateurs techniques", desc: "RSI, MACD, Moyennes mobiles, Bandes de Bollinger… Chaque indicateur est expliqué et interprété pour toi." },
-              { title: "Niveaux de Fibonacci", desc: "Zones clés de support et résistance calculées automatiquement sur le dernier mouvement de prix." },
-              { title: "Score de risque", desc: "Évaluation du risque actuel sur l'actif — plus le score est élevé, plus la prudence s'impose." },
-              { title: "Analyse de séance", desc: "Résumé IA de la journée : catalyseurs, tendance de fond et contexte macro si disponible." },
-            ]}
-            tip="Clique sur chaque module pour le déplier. Les flèches sur le signal indiquent les niveaux d'entrée suggérés."
-          />
-          <button
-            onClick={toggleFavorite}
-            className="p-3 rounded-xl hover:bg-white/10 transition-colors"
-          >
-            {isFavorite ? (
-              <Star className="w-6 h-6 text-yellow-400 fill-yellow-400" />
-            ) : (
-              <StarOff className="w-6 h-6 text-muted-foreground" />
-            )}
-          </button>
+          <div className="text-center">
+            <p className="text-[10px] text-muted-foreground/70 uppercase tracking-wide mb-0.5">Pivot</p>
+            <p className="text-sm font-semibold">{formatCurrency(analysis.levels.pivot)}</p>
+          </div>
+          <div className="text-center">
+            <p className="text-[10px] text-muted-foreground/70 uppercase tracking-wide mb-0.5">Résistance</p>
+            <p className="text-sm font-semibold text-loss">{formatCurrency(analysis.levels.resistance)}</p>
+          </div>
+          <div className="text-center">
+            <p className="text-[10px] text-muted-foreground/70 uppercase tracking-wide mb-0.5">Vol. ratio</p>
+            <p className={cn(
+              "text-sm font-semibold",
+              analysis.indicators.volume_ratio > 1.5 ? "text-profit" : analysis.indicators.volume_ratio < 0.7 ? "text-loss" : "text-muted-foreground"
+            )}>{analysis.indicators.volume_ratio.toFixed(2)}x</p>
+          </div>
         </div>
       </div>
     </motion.div>

@@ -115,9 +115,44 @@ async def is_user_premium(user: dict) -> bool:
 
 
 async def get_user_limits(user: dict) -> dict:
-    """Get feature limits for user based on premium status"""
+    """Get feature limits for user, merging DB admin_settings overrides."""
     is_premium = await is_user_premium(user)
-    return PREMIUM_FEATURES["premium"] if is_premium else PREMIUM_FEATURES["free"]
+    base = dict(PREMIUM_FEATURES["premium"] if is_premium else PREMIUM_FEATURES["free"])
+
+    # Read configurable overrides from admin_settings
+    _SETTING_MAP = {
+        "max_ai_messages_free":     ("ai_messages_per_day", False),
+        "max_ai_messages_premium":  ("ai_messages_per_day", True),
+        "max_positions_free":       ("max_positions",       False),
+        "max_positions_premium":    ("max_positions",       True),
+        "max_favorites_free":       ("max_favorites",       False),
+        "max_favorites_premium":    ("max_favorites",       True),
+        "max_scanner_scans_free":   ("scanner_scans_per_day", False),
+        "max_scanner_scans_premium":("scanner_scans_per_day", True),
+        "welcome_bonus_amount":     None,  # wallet only, skip for limits
+    }
+    try:
+        rows = await execute_query(
+            "SELECT key, value FROM admin_settings WHERE key IN ("
+            "'max_ai_messages_free','max_ai_messages_premium',"
+            "'max_positions_free','max_positions_premium',"
+            "'max_favorites_free','max_favorites_premium',"
+            "'max_scanner_scans_free','max_scanner_scans_premium')"
+        )
+        for row in (rows or []):
+            mapping = _SETTING_MAP.get(row["key"])
+            if mapping is None:
+                continue
+            limit_key, for_premium = mapping
+            if for_premium == is_premium:
+                try:
+                    base[limit_key] = int(row["value"])
+                except (ValueError, TypeError):
+                    pass
+    except Exception:
+        pass  # Fall back to hardcoded defaults on error
+
+    return base
 
 
 async def check_premium_required(current_user: dict = Depends(get_current_user)):

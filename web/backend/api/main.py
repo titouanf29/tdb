@@ -78,6 +78,67 @@ app.add_middleware(
     allow_headers=["Authorization", "Content-Type", "Accept"],
 )
 
+
+# ── Maintenance mode middleware ────────────────────────────────────────────────
+_MAINTENANCE_BYPASS = {
+    "/api/auth/login",
+    "/api/admin/check",
+    "/api/admin/settings",
+}
+
+@app.middleware("http")
+async def maintenance_middleware(request: Request, call_next):
+    path = request.url.path
+
+    # Always allow admin, auth/login, and static paths
+    bypass = (
+        path.startswith("/api/admin")
+        or path in _MAINTENANCE_BYPASS
+        or path in ("/", "/health", "/docs", "/openapi.json", "/redoc")
+    )
+    if not bypass:
+        try:
+            from .database import execute_query as _eq
+            rows = await _eq("SELECT value FROM admin_settings WHERE key = 'maintenance_mode'")
+            if rows and rows[0]["value"] == "true":
+                # Allow if user is admin (check Authorization header)
+                auth_header = request.headers.get("Authorization", "")
+                is_admin = False
+                if auth_header.startswith("Bearer "):
+                    token = auth_header[7:]
+                    try:
+                        from jose import jwt as _jwt
+                        from .routes.auth import SECRET_KEY, ALGORITHM
+                        payload = _jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+                        user_id = int(payload.get("sub", 0))
+                        admin_rows = await _eq(
+                            "SELECT is_admin FROM web_users WHERE id = ?", (user_id,)
+                        )
+                        if admin_rows and admin_rows[0].get("is_admin"):
+                            is_admin = True
+                        # Also check first user
+                        if not is_admin:
+                            first = await _eq("SELECT id FROM web_users ORDER BY id ASC LIMIT 1")
+                            if first and first[0]["id"] == user_id:
+                                is_admin = True
+                    except Exception:
+                        pass
+                if not is_admin:
+                    msg_rows = await _eq(
+                        "SELECT value FROM admin_settings WHERE key = 'maintenance_message'"
+                    )
+                    msg = (msg_rows[0]["value"] if msg_rows else None) or \
+                          "Le site est en cours de maintenance. Revenez bientôt."
+                    return JSONResponse(
+                        status_code=503,
+                        content={"detail": msg, "maintenance": True}
+                    )
+        except Exception:
+            pass  # Don't block if DB read fails
+
+    return await call_next(request)
+
+
 # Include routers
 app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
 app.include_router(market.router, prefix="/api/market", tags=["Market Data"])

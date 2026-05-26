@@ -45,6 +45,7 @@ import {
   Check,
   Gem,
   ExternalLink,
+  Globe,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -1559,8 +1560,10 @@ const SETTING_GROUPS: SettingGroup[] = [
     icon: Shield,
     color: "text-primary",
     items: [
-      { key: "maintenance_mode", label: "Mode maintenance", desc: "Désactive l'accès pour tous les utilisateurs non-admin", type: "boolean", default: "false" },
-      { key: "registration_enabled", label: "Inscriptions ouvertes", desc: "Autoriser les nouveaux utilisateurs à s'inscrire", type: "boolean", default: "true" },
+      { key: "maintenance_mode",           label: "Mode maintenance",          desc: "Bloque l'accès à tous les utilisateurs non-admin (503)",              type: "boolean", default: "false" },
+      { key: "maintenance_message",        label: "Message de maintenance",    desc: "Texte affiché lors de la maintenance",                                type: "text",    default: "Le site est en cours de maintenance. Revenez bientôt." },
+      { key: "registration_enabled",       label: "Inscriptions ouvertes",     desc: "Autoriser les nouveaux utilisateurs à s'inscrire",                    type: "boolean", default: "true" },
+      { key: "registration_closed_message",label: "Message inscriptions fermées", desc: "Texte affiché quand les inscriptions sont désactivées",            type: "text",    default: "Les inscriptions sont temporairement fermées." },
     ],
   },
   {
@@ -1568,18 +1571,49 @@ const SETTING_GROUPS: SettingGroup[] = [
     icon: Brain,
     color: "text-pink-400",
     items: [
-      { key: "max_ai_messages_free", label: "Messages IA — Gratuit", desc: "Nombre max de messages IA par jour (plan gratuit)", type: "number", default: "10", unit: "msg/jour" },
-      { key: "max_ai_messages_premium", label: "Messages IA — Premium", desc: "Nombre max de messages IA par jour (plan premium)", type: "number", default: "100", unit: "msg/jour" },
+      { key: "max_ai_messages_free",     label: "Messages IA — Gratuit",   desc: "Messages IA par jour (plan gratuit) — 0 = désactivé",          type: "number", default: "10",  unit: "msg/j" },
+      { key: "max_ai_messages_premium",  label: "Messages IA — Premium",   desc: "Messages IA par jour (plan premium) — -1 = illimité",          type: "number", default: "-1",  unit: "msg/j" },
     ],
   },
   {
-    group: "Trading & Wallets",
+    group: "Limites — Plan Gratuit",
+    icon: Lock,
+    color: "text-warning",
+    items: [
+      { key: "max_positions_free",        label: "Positions simultanées",   desc: "Positions ouvertes max (gratuit)",                             type: "number", default: "5",   unit: "pos" },
+      { key: "max_favorites_free",        label: "Favoris max",             desc: "Nombre de favoris max (gratuit)",                              type: "number", default: "10",  unit: "actifs" },
+      { key: "max_scanner_scans_free",    label: "Scans scanner/jour",      desc: "Scans scanner par jour (gratuit) — -1 = illimité",             type: "number", default: "2",   unit: "scans/j" },
+    ],
+  },
+  {
+    group: "Limites — Plan Premium",
+    icon: Crown,
+    color: "text-amber-400",
+    items: [
+      { key: "max_positions_premium",     label: "Positions simultanées",   desc: "Positions ouvertes max (premium) — -1 = illimité",             type: "number", default: "50",  unit: "pos" },
+      { key: "max_favorites_premium",     label: "Favoris max",             desc: "Nombre de favoris max (premium) — -1 = illimité",              type: "number", default: "100", unit: "actifs" },
+      { key: "max_scanner_scans_premium", label: "Scans scanner/jour",      desc: "Scans scanner par jour (premium) — -1 = illimité",             type: "number", default: "-1",  unit: "scans/j" },
+    ],
+  },
+  {
+    group: "Wallets & Trading",
     icon: Wallet,
     color: "text-profit",
     items: [
-      { key: "welcome_bonus_amount", label: "Bonus de bienvenue", desc: "Montant crédité au wallet à l'inscription (paper trading)", type: "number", default: "10000", unit: "$" },
-      { key: "max_positions_per_user", label: "Positions simultanées max", desc: "Nombre maximum de positions ouvertes par utilisateur", type: "number", default: "10", unit: "positions" },
-      { key: "max_position_amount", label: "Montant max par position", desc: "Montant maximum engageable par position", type: "number", default: "50000", unit: "$" },
+      { key: "welcome_bonus_amount",      label: "Bonus de bienvenue",      desc: "Montant crédité au wallet à l'inscription",                    type: "number", default: "10000", unit: "$" },
+      { key: "max_position_amount",       label: "Montant max / position",  desc: "Montant maximum engageable par position",                      type: "number", default: "50000", unit: "$" },
+      { key: "max_leverage",              label: "Levier maximum",          desc: "Levier maximum autorisé (1 = pas de levier)",                  type: "number", default: "10",    unit: "x" },
+    ],
+  },
+  {
+    group: "Site & Communication",
+    icon: Globe,
+    color: "text-neon-cyan",
+    items: [
+      { key: "site_name",         label: "Nom du site",           desc: "Nom affiché dans l'interface et les emails",                type: "text", default: "TradingDB" },
+      { key: "support_email",     label: "Email de support",      desc: "Email de contact affiché aux utilisateurs",                 type: "text", default: "" },
+      { key: "discord_url",       label: "Lien Discord",          desc: "URL de votre serveur Discord (lien communauté)",            type: "text", default: "" },
+      { key: "twitter_url",       label: "Lien Twitter/X",        desc: "URL du compte Twitter/X",                                   type: "text", default: "" },
     ],
   },
 ];
@@ -1641,10 +1675,58 @@ function SettingsTab() {
     return <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin" /></div>;
   }
 
-  const goldEnabled = getValue("gold_hub_enabled", "false") === "true";
+  const goldEnabled      = getValue("gold_hub_enabled",    "false") === "true";
+  const maintenanceOn    = getValue("maintenance_mode",    "false") === "true";
+  const registrationOpen = getValue("registration_enabled","true")  === "true";
 
   return (
     <div className="space-y-5">
+
+      {/* Live status banner */}
+      <div className="glass-card p-4">
+        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">État du site en direct</p>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {/* Maintenance */}
+          <div className={cn(
+            "flex items-center justify-between p-3 rounded-xl border",
+            maintenanceOn ? "bg-loss/10 border-loss/25" : "bg-profit/8 border-profit/20"
+          )}>
+            <div className="flex items-center gap-2">
+              <div className={cn("w-2 h-2 rounded-full", maintenanceOn ? "bg-loss animate-pulse" : "bg-profit")} />
+              <span className="text-sm font-medium">Maintenance</span>
+            </div>
+            <span className={cn("text-xs font-semibold", maintenanceOn ? "text-loss" : "text-profit")}>
+              {maintenanceOn ? "ACTIVE" : "off"}
+            </span>
+          </div>
+          {/* Inscriptions */}
+          <div className={cn(
+            "flex items-center justify-between p-3 rounded-xl border",
+            !registrationOpen ? "bg-warning/10 border-warning/25" : "bg-profit/8 border-profit/20"
+          )}>
+            <div className="flex items-center gap-2">
+              <div className={cn("w-2 h-2 rounded-full", !registrationOpen ? "bg-warning animate-pulse" : "bg-profit")} />
+              <span className="text-sm font-medium">Inscriptions</span>
+            </div>
+            <span className={cn("text-xs font-semibold", !registrationOpen ? "text-warning" : "text-profit")}>
+              {registrationOpen ? "ouvertes" : "FERMÉES"}
+            </span>
+          </div>
+          {/* Gold Hub */}
+          <div className={cn(
+            "flex items-center justify-between p-3 rounded-xl border",
+            goldEnabled ? "bg-amber-500/8 border-amber-500/20" : "bg-white/5 border-white/8"
+          )}>
+            <div className="flex items-center gap-2">
+              <div className={cn("w-2 h-2 rounded-full", goldEnabled ? "bg-amber-400" : "bg-muted-foreground/40")} />
+              <span className="text-sm font-medium">Gold Hub</span>
+            </div>
+            <span className={cn("text-xs font-semibold", goldEnabled ? "text-amber-400" : "text-muted-foreground")}>
+              {goldEnabled ? "public" : "admin only"}
+            </span>
+          </div>
+        </div>
+      </div>
 
       {/* Gold Hub toggle */}
       <div className={cn(
@@ -1751,6 +1833,44 @@ function SettingsTab() {
                 );
               }
 
+              // Text fields get full-width layout
+              if (item.type === "text") {
+                return (
+                  <div key={item.key} className="p-3 bg-white/5 rounded-xl space-y-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <div>
+                        <p className="font-medium text-sm">{item.label}</p>
+                        <p className="text-xs text-muted-foreground">{item.desc}</p>
+                      </div>
+                      <div className="flex items-center gap-1.5 flex-shrink-0">
+                        {isSaving && <Loader2 className="w-3.5 h-3.5 animate-spin text-muted-foreground" />}
+                        {isSaved && <CheckCircle className="w-3.5 h-3.5 text-profit" />}
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={val}
+                        onChange={e => setLocalValues(prev => ({ ...prev, [item.key]: e.target.value }))}
+                        onKeyDown={e => e.key === "Enter" && saveSetting(item.key, val)}
+                        placeholder={item.default}
+                        className="flex-1 input text-sm py-1.5"
+                      />
+                      <button
+                        onClick={() => saveSetting(item.key, val)}
+                        disabled={isSaving}
+                        className={cn(
+                          "px-3 py-1.5 rounded-lg text-xs font-medium transition-colors",
+                          isSaved ? "bg-profit/20 text-profit" : "bg-primary/20 text-primary hover:bg-primary/30"
+                        )}
+                      >
+                        {isSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : isSaved ? "✓" : "Enregistrer"}
+                      </button>
+                    </div>
+                  </div>
+                );
+              }
+
               return (
                 <div key={item.key} className="p-3 bg-white/5 rounded-xl">
                   <div className="flex items-start justify-between gap-4">
@@ -1761,7 +1881,7 @@ function SettingsTab() {
                     <div className="flex items-center gap-2 flex-shrink-0">
                       <div className="relative">
                         <input
-                          type={item.type === "number" ? "number" : "text"}
+                          type="number"
                           value={val}
                           onChange={e => setLocalValues(prev => ({ ...prev, [item.key]: e.target.value }))}
                           className="w-28 text-right input text-sm py-1.5 pr-10"
