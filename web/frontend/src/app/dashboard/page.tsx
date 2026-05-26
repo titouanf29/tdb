@@ -223,8 +223,8 @@ export default function DashboardPage() {
         </motion.div>
       )}
 
-      {/* ── Watchlist + News ─────────────────────────────────────────────────── */}
-      <motion.div variants={itemVariants} className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      {/* ── Watchlist | News + Chat ──────────────────────────────────────────── */}
+      <motion.div variants={itemVariants} className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
         <div className="lg:col-span-2">
           <FavoritesWidget
             favorites={sortedFavorites} favSort={favSort} setFavSort={setFavSort}
@@ -232,18 +232,14 @@ export default function DashboardPage() {
             formatCurrency={formatCurrency} formatPrice={formatPrice}
           />
         </div>
-        <div className="lg:col-span-1">
+        <div className="lg:col-span-1 flex flex-col gap-4">
           <NewsWidget
             marketNews={filteredNews} isLoadingNews={isLoadingNews}
             newsFilter={newsFilter} setNewsFilter={setNewsFilter}
             hasFavorites={favorites.length > 0} onRefresh={loadMarketNews} compact
           />
+          <DashAIChatWidget />
         </div>
-      </motion.div>
-
-      {/* ── AI Chat ──────────────────────────────────────────────────────────── */}
-      <motion.div variants={itemVariants}>
-        <DashAIChatWidget />
       </motion.div>
 
       {/* ── Optional premium widgets ─────────────────────────────────────────── */}
@@ -968,15 +964,15 @@ const OpenPositionsWidget = memo(function OpenPositionsWidget({
 
 const DashAIChatWidget = memo(function DashAIChatWidget() {
   const { lang, t } = useLanguage();
-  const [messages, setMessages]           = useState<ChatMessage[]>([]);
-  const [input, setInput]                 = useState("");
-  const [isLoading, setIsLoading]         = useState(false);
+  const [messages, setMessages]                 = useState<ChatMessage[]>([]);
+  const [input, setInput]                       = useState("");
+  const [isLoading, setIsLoading]               = useState(false);
   const [isLoadingHistory, setIsLoadingHistory] = useState(true);
-  const [limitStatus, setLimitStatus]     = useState<AILimitStatus | null>(null);
+  const [limitStatus, setLimitStatus]           = useState<AILimitStatus | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    Promise.all([aiAPI.getHistory(8), aiAPI.getLimit()])
+    Promise.all([aiAPI.getHistory(10), aiAPI.getLimit()])
       .then(([hist, limit]) => { setMessages(hist.messages); setLimitStatus(limit); })
       .catch(() => {})
       .finally(() => setIsLoadingHistory(false));
@@ -996,7 +992,9 @@ const DashAIChatWidget = memo(function DashAIChatWidget() {
     try {
       const res = await aiAPI.chat(msg);
       setMessages(prev => [...prev, { role: "assistant", content: res.response, created_at: new Date().toISOString() }]);
-      setLimitStatus(prev => (!prev || prev.is_premium) ? prev : { ...prev, remaining: Math.max(0, prev.remaining - 1), messages_today: prev.messages_today + 1 });
+      setLimitStatus(prev => (!prev || prev.is_premium) ? prev : {
+        ...prev, remaining: Math.max(0, prev.remaining - 1), messages_today: prev.messages_today + 1,
+      });
     } catch (err: unknown) {
       const status = (err as { status?: number }).status;
       const errMsg = status === 429
@@ -1008,94 +1006,103 @@ const DashAIChatWidget = memo(function DashAIChatWidget() {
     }
   };
 
-  const QUICK_PROMPTS = [
-    { label: "📊 " + (lang === "fr" ? "Marché aujourd'hui"    : "Today's market"),   text: lang === "fr" ? "Résume le marché financier d'aujourd'hui"               : "Summarize today's financial market" },
-    { label: "💡 " + (lang === "fr" ? "Idées de trading"      : "Trading ideas"),    text: lang === "fr" ? "Quelles sont tes meilleures idées de trading ?"          : "What are your best trading ideas right now?" },
-    { label: "₿ " + (lang === "fr" ? "Analyse Bitcoin"        : "Bitcoin analysis"), text: lang === "fr" ? "Analyse le Bitcoin et donne-moi tes prévisions"         : "Analyze Bitcoin and give me your forecast" },
-    { label: "⚠️ " + (lang === "fr" ? "Risques actuels"        : "Current risks"),   text: lang === "fr" ? "Quels sont les principaux risques sur les marchés en ce moment ?" : "What are the main market risks right now?" },
-  ];
+  const QUICK_PROMPTS = lang === "fr"
+    ? [
+        { label: "📊 Marché du jour",  text: "Résume le marché financier d'aujourd'hui" },
+        { label: "💡 Idée de trade",   text: "Quelle est ta meilleure idée de trading en ce moment ?" },
+        { label: "₿ Analyse Bitcoin",  text: "Analyse le Bitcoin : tendance, supports, résistances." },
+        { label: "⚠️ Risques marché",  text: "Quels sont les principaux risques à surveiller sur les marchés ?" },
+      ]
+    : [
+        { label: "📊 Market summary",  text: "Summarize today's financial market" },
+        { label: "💡 Trade idea",      text: "What's your best trading idea right now?" },
+        { label: "₿ Bitcoin analysis", text: "Analyze Bitcoin: trend, supports, resistances." },
+        { label: "⚠️ Market risks",   text: "What are the main market risks to watch right now?" },
+      ];
 
   const reachedLimit = limitStatus && !limitStatus.is_premium && limitStatus.remaining === 0;
   const showEmpty    = !isLoadingHistory && messages.length === 0;
 
   return (
-    <div className="glass-card p-5 flex flex-col">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-3">
-          <div className="relative">
-            <div className="w-9 h-9 rounded-xl bg-primary/15 flex items-center justify-center">
-              <Bot className="w-5 h-5 text-primary" />
+    <div className="glass-card flex flex-col overflow-hidden">
+      {/* ── Header ──────────────────────────────────────────────────── */}
+      <div className="flex items-center justify-between px-4 py-3 border-b border-white/6">
+        <div className="flex items-center gap-2.5">
+          <div className="relative flex-shrink-0">
+            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-primary/30 to-primary/10 flex items-center justify-center">
+              <Bot className="w-4 h-4 text-primary" />
             </div>
-            <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-profit rounded-full border-2 border-card" />
+            <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-profit rounded-full border border-card animate-pulse" />
           </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h2 className="font-semibold leading-none">Assistant IA</h2>
-              <Sparkles className="w-3.5 h-3.5 text-primary/60" />
+          <div className="min-w-0">
+            <div className="flex items-center gap-1.5">
+              <span className="font-semibold text-sm leading-none">Assistant IA</span>
+              <Sparkles className="w-3 h-3 text-primary/50" />
             </div>
-            <p className="text-[10px] text-muted-foreground mt-0.5">
+            <p className="text-[10px] text-muted-foreground mt-0.5 leading-none">
               {limitStatus && !limitStatus.is_premium
-                ? `${limitStatus.remaining}/${limitStatus.daily_limit} ${lang === "fr" ? "messages restants" : "messages left"}`
-                : lang === "fr" ? "Posez n'importe quelle question" : "Ask anything about markets"}
+                ? `${limitStatus.remaining}/${limitStatus.daily_limit} msg`
+                : lang === "fr" ? "Trading & Marchés" : "Trading & Markets"}
             </p>
           </div>
         </div>
         <Link href="/assistant"
-          className="flex items-center gap-1 text-xs text-primary hover:underline font-medium">
-          {lang === "fr" ? "Ouvrir" : "Full chat"} <ArrowUpRight className="w-3 h-3" />
+          className="flex items-center gap-1 text-[11px] font-semibold text-primary hover:text-primary/80 transition-colors bg-primary/10 hover:bg-primary/20 px-2.5 py-1.5 rounded-lg">
+          {lang === "fr" ? "Tout voir" : "Open"} <ArrowUpRight className="w-3 h-3" />
         </Link>
       </div>
 
-      {/* Messages area */}
-      <div className="flex-1 overflow-y-auto max-h-[300px] space-y-3 mb-4 pr-0.5">
+      {/* ── Messages ────────────────────────────────────────────────── */}
+      <div className="overflow-y-auto px-4 py-3 space-y-3 flex-1"
+        style={{ maxHeight: showEmpty ? "auto" : "320px", minHeight: "160px" }}>
         {isLoadingHistory ? (
-          <div className="flex items-center justify-center py-10">
+          <div className="flex items-center justify-center py-8">
             <Loader2 className="w-5 h-5 animate-spin text-primary" />
           </div>
         ) : showEmpty ? (
-          <div className="text-center py-8">
-            <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-3">
-              <Bot className="w-7 h-7 text-primary" />
+          <div className="text-center py-6">
+            <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-2.5">
+              <Bot className="w-6 h-6 text-primary" />
             </div>
             <p className="text-sm font-semibold">
-              {lang === "fr" ? "Bonjour ! Comment puis-je vous aider ?" : "Hello! How can I help you?"}
+              {lang === "fr" ? "Bonjour ! 👋" : "Hello! 👋"}
             </p>
-            <p className="text-xs text-muted-foreground mt-1">
-              {lang === "fr" ? "Choisissez une suggestion ou posez votre question" : "Pick a suggestion or ask your own question"}
+            <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+              {lang === "fr"
+                ? "Posez une question sur les marchés ou choisissez une suggestion"
+                : "Ask a question about markets or pick a suggestion"}
             </p>
           </div>
         ) : (
-          messages.slice(-8).map((msg, i) => (
-            <div key={i} className={cn("flex gap-2", msg.role === "user" ? "justify-end" : "justify-start")}>
+          messages.slice(-10).map((msg, i) => (
+            <div key={i} className={cn("flex gap-2 items-end", msg.role === "user" ? "justify-end" : "justify-start")}>
               {msg.role === "assistant" && (
-                <div className="w-6 h-6 rounded-lg bg-primary/15 flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <Bot className="w-3.5 h-3.5 text-primary" />
+                <div className="w-5 h-5 rounded-lg bg-primary/20 flex items-center justify-center flex-shrink-0 mb-0.5">
+                  <Bot className="w-2.5 h-2.5 text-primary" />
                 </div>
               )}
               <div className={cn(
-                "max-w-[80%] rounded-2xl px-3.5 py-2.5 text-xs leading-relaxed",
+                "max-w-[88%] rounded-2xl px-3 py-2 text-xs leading-relaxed whitespace-pre-wrap break-words",
                 msg.role === "user"
-                  ? "bg-primary text-white rounded-br-sm"
-                  : "bg-white/6 border border-white/8 text-foreground/90 rounded-bl-sm"
+                  ? "bg-primary text-white rounded-br-none"
+                  : "bg-white/8 border border-white/8 text-foreground/90 rounded-bl-none"
               )}>
-                {msg.content.length > 400 ? msg.content.slice(0, 400) + "…" : msg.content}
+                {msg.content}
               </div>
             </div>
           ))
         )}
 
-        {/* Typing indicator */}
         {isLoading && (
-          <div className="flex gap-2 justify-start">
-            <div className="w-6 h-6 rounded-lg bg-primary/15 flex items-center justify-center flex-shrink-0 mt-0.5">
-              <Bot className="w-3.5 h-3.5 text-primary" />
+          <div className="flex gap-2 items-end justify-start">
+            <div className="w-5 h-5 rounded-lg bg-primary/20 flex items-center justify-center flex-shrink-0 mb-0.5">
+              <Bot className="w-2.5 h-2.5 text-primary" />
             </div>
-            <div className="bg-white/6 border border-white/8 rounded-2xl rounded-bl-sm px-4 py-3">
+            <div className="bg-white/8 border border-white/8 rounded-2xl rounded-bl-none px-3.5 py-3">
               <div className="flex items-center gap-1">
                 {[0, 1, 2].map(i => (
-                  <span key={i} className="w-1.5 h-1.5 bg-primary/50 rounded-full animate-bounce"
-                    style={{ animationDelay: `${i * 0.18}s` }} />
+                  <span key={i} className="w-1.5 h-1.5 bg-primary/60 rounded-full animate-bounce"
+                    style={{ animationDelay: `${i * 0.15}s` }} />
                 ))}
               </div>
             </div>
@@ -1104,42 +1111,44 @@ const DashAIChatWidget = memo(function DashAIChatWidget() {
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Quick prompts (only when history empty) */}
+      {/* ── Quick prompts ────────────────────────────────────────────── */}
       {showEmpty && (
-        <div className="grid grid-cols-2 gap-2 mb-3">
+        <div className="px-4 pb-3 grid grid-cols-2 gap-1.5">
           {QUICK_PROMPTS.map((p, i) => (
             <button key={i} onClick={() => send(p.text)} disabled={isLoading}
-              className="text-left text-[11px] px-3 py-2 rounded-xl bg-white/4 hover:bg-primary/12 hover:text-primary border border-white/8 hover:border-primary/25 transition-all disabled:opacity-50 leading-snug">
+              className="text-left text-[11px] px-2.5 py-2 rounded-xl bg-white/4 hover:bg-primary/12 hover:text-primary border border-white/8 hover:border-primary/25 transition-all disabled:opacity-50 leading-tight font-medium">
               {p.label}
             </button>
           ))}
         </div>
       )}
 
-      {/* Input */}
-      {reachedLimit ? (
-        <div className="flex items-center gap-2 p-3 rounded-xl bg-yellow-500/10 border border-yellow-500/20 text-xs text-yellow-400">
-          <Crown className="w-3.5 h-3.5 flex-shrink-0" />
-          <span>{lang === "fr" ? "Limite quotidienne atteinte." : "Daily limit reached."}</span>
-          <Link href="/premium" className="ml-auto underline font-semibold whitespace-nowrap">{lang === "fr" ? "Passer Premium" : "Go Premium"}</Link>
-        </div>
-      ) : (
-        <div className="flex gap-2">
-          <input
-            type="text"
-            value={input}
-            onChange={e => setInput(e.target.value)}
-            onKeyDown={e => e.key === "Enter" && !e.shiftKey && (e.preventDefault(), send())}
-            placeholder={lang === "fr" ? "Posez votre question…" : "Ask a question…"}
-            disabled={isLoading}
-            className="flex-1 px-3.5 py-2.5 rounded-xl bg-white/5 border border-white/10 focus:border-primary focus:ring-1 focus:ring-primary/40 outline-none text-sm transition-colors placeholder:text-muted-foreground/50 disabled:opacity-60"
-          />
-          <button onClick={() => send()} disabled={!input.trim() || isLoading}
-            className="px-4 py-2.5 rounded-xl bg-primary hover:bg-primary/90 text-white transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5 flex-shrink-0">
-            {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-          </button>
-        </div>
-      )}
+      {/* ── Input ───────────────────────────────────────────────────── */}
+      <div className="px-4 pb-4 pt-2 border-t border-white/6">
+        {reachedLimit ? (
+          <div className="flex items-center gap-2 p-2.5 rounded-xl bg-yellow-500/10 border border-yellow-500/20 text-xs text-yellow-400">
+            <Crown className="w-3.5 h-3.5 flex-shrink-0" />
+            <span className="flex-1">{lang === "fr" ? "Limite quotidienne atteinte." : "Daily limit reached."}</span>
+            <Link href="/premium" className="underline font-bold whitespace-nowrap">Premium</Link>
+          </div>
+        ) : (
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={input}
+              onChange={e => setInput(e.target.value)}
+              onKeyDown={e => e.key === "Enter" && !e.shiftKey && (e.preventDefault(), send())}
+              placeholder={lang === "fr" ? "Posez votre question…" : "Ask a question…"}
+              disabled={isLoading}
+              className="flex-1 px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 focus:border-primary focus:ring-1 focus:ring-primary/40 outline-none text-xs transition-colors placeholder:text-muted-foreground/50 disabled:opacity-60"
+            />
+            <button onClick={() => send()} disabled={!input.trim() || isLoading}
+              className="w-9 h-9 rounded-xl bg-primary hover:bg-primary/90 text-white transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center flex-shrink-0">
+              {isLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   );
 });
