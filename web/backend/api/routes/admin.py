@@ -453,16 +453,32 @@ async def get_broadcasts(limit: int = 20, admin: dict = Depends(get_admin_user))
 
 @router.get("/broadcasts/public")
 async def get_public_broadcasts(limit: int = 5, current_user: dict = Depends(get_current_user)):
-    """Get recent broadcasts for all authenticated users"""
+    """Get recent broadcasts sent AFTER the current user registered."""
+    user_id = current_user["id"]
+
+    # Fetch user's registration date so we never show broadcasts sent before they existed
+    user_rows = await execute_query(
+        "SELECT created_at FROM web_users WHERE id = ?", (user_id,)
+    )
+    user_created_at = user_rows[0]["created_at"] if user_rows else "1970-01-01T00:00:00"
 
     broadcasts = await execute_query("""
         SELECT id, title, message, type, created_at
         FROM admin_broadcasts
+        WHERE created_at > ?
         ORDER BY created_at DESC
         LIMIT ?
-    """, (limit,))
+    """, (user_created_at, limit))
 
     return {"broadcasts": broadcasts or []}
+
+
+@router.delete("/broadcast/{broadcast_id}")
+async def delete_broadcast(broadcast_id: int, admin: dict = Depends(get_admin_user)):
+    """Delete a broadcast message."""
+    await execute_write("DELETE FROM admin_broadcasts WHERE id = ?", (broadcast_id,))
+    await log_admin_action(admin["id"], "delete_broadcast", f"Deleted broadcast {broadcast_id}")
+    return {"success": True}
 
 
 # ============== CHANGELOG ==============
@@ -504,17 +520,24 @@ async def delete_changelog(changelog_id: int, admin: dict = Depends(get_admin_us
 
 @router.get("/changelog/latest-unread")
 async def get_latest_unread_changelog(current_user: dict = Depends(get_current_user)):
-    """Return the most recent changelog the user hasn't acknowledged yet."""
+    """Return the most recent changelog the user hasn't read, posted AFTER they registered."""
     user_id = current_user["id"]
+
+    user_rows = await execute_query(
+        "SELECT created_at FROM web_users WHERE id = ?", (user_id,)
+    )
+    user_created_at = user_rows[0]["created_at"] if user_rows else "1970-01-01T00:00:00"
+
     rows = await execute_query("""
         SELECT c.*
         FROM admin_changelogs c
         WHERE c.id NOT IN (
             SELECT changelog_id FROM user_changelog_reads WHERE user_id = ?
         )
+        AND c.created_at > ?
         ORDER BY c.created_at DESC
         LIMIT 1
-    """, (user_id,))
+    """, (user_id, user_created_at))
     return {"changelog": rows[0] if rows else None}
 
 

@@ -61,14 +61,8 @@ export function BroadcastBanner() {
 
         if (response.ok) {
           const data = await response.json();
-          // Filter broadcasts from last 24 hours
-          const recentBroadcasts = (data.broadcasts || []).filter((b: Broadcast) => {
-            const createdAt = new Date(b.created_at);
-            const now = new Date();
-            const hoursDiff = (now.getTime() - createdAt.getTime()) / (1000 * 60 * 60);
-            return hoursDiff < 24;
-          });
-          setBroadcasts(recentBroadcasts);
+          // Backend already filters by user registration date — show all returned broadcasts
+          setBroadcasts(data.broadcasts || []);
         }
       } catch (error) {
         console.error("Error fetching broadcasts:", error);

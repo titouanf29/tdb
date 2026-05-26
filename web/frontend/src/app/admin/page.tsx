@@ -1125,6 +1125,7 @@ function BroadcastsTab() {
   const [message, setMessage] = useState("");
   const [type, setType] = useState("info");
   const [isSending, setIsSending] = useState(false);
+  const [deletingBroadcastId, setDeletingBroadcastId] = useState<number | null>(null);
 
   // Changelog state
   const [changelogs, setChangelogs] = useState<any[]>([]);
@@ -1132,6 +1133,7 @@ function BroadcastsTab() {
   const [clContent, setClContent] = useState("");
   const [clVersion, setClVersion] = useState("");
   const [isPublishing, setIsPublishing] = useState(false);
+  const [confirmDeleteCl, setConfirmDeleteCl] = useState<number | null>(null);
 
   const loadBroadcasts = async () => {
     try {
@@ -1203,7 +1205,24 @@ function BroadcastsTab() {
     }
   };
 
+  const deleteBroadcast = async (id: number) => {
+    setDeletingBroadcastId(id);
+    try {
+      const token = localStorage.getItem("tdb_token");
+      await fetch(`/api/admin/broadcast/${id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      loadBroadcasts();
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setDeletingBroadcastId(null);
+    }
+  };
+
   const deleteChangelog = async (id: number) => {
+    setConfirmDeleteCl(null);
     try {
       const token = localStorage.getItem("tdb_token");
       await fetch(`/api/admin/changelog/${id}`, {
@@ -1276,26 +1295,37 @@ function BroadcastsTab() {
 
         {/* Recent Broadcasts */}
         <div className="glass-card p-6">
-          <h3 className="font-semibold mb-4">Historique Broadcasts</h3>
+          <h3 className="font-semibold mb-1">Historique Broadcasts</h3>
+          <p className="text-xs text-muted-foreground mb-4">Visibles uniquement par les utilisateurs inscrits <strong>après</strong> l'envoi.</p>
           <div className="space-y-3 max-h-[400px] overflow-y-auto">
+            {broadcasts.length === 0 && (
+              <p className="text-sm text-muted-foreground text-center py-8">Aucun broadcast envoyé.</p>
+            )}
             {broadcasts.map((b) => (
-              <div key={b.id} className="p-3 bg-white/5 rounded-lg">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="font-medium">{b.title}</span>
-                  <span
-                    className={cn(
+              <div key={b.id} className="p-3 bg-white/5 rounded-lg group">
+                <div className="flex items-start justify-between gap-2 mb-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="font-medium text-sm">{b.title}</span>
+                    <span className={cn(
                       "px-2 py-0.5 rounded text-xs",
-                      b.type === "success"
-                        ? "bg-profit/20 text-profit"
-                        : b.type === "warning"
-                        ? "bg-warning/20 text-warning"
-                        : b.type === "error"
-                        ? "bg-loss/20 text-loss"
-                        : "bg-primary/20 text-primary"
-                    )}
+                      b.type === "success" ? "bg-profit/20 text-profit" :
+                      b.type === "warning" ? "bg-warning/20 text-warning" :
+                      b.type === "error"   ? "bg-loss/20 text-loss"       :
+                                             "bg-primary/20 text-primary"
+                    )}>
+                      {b.type}
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => deleteBroadcast(b.id)}
+                    disabled={deletingBroadcastId === b.id}
+                    className="p-1 rounded hover:bg-loss/20 transition-colors shrink-0 opacity-0 group-hover:opacity-100"
+                    title="Supprimer"
                   >
-                    {b.type}
-                  </span>
+                    {deletingBroadcastId === b.id
+                      ? <Loader2 className="w-3.5 h-3.5 animate-spin text-muted-foreground" />
+                      : <Trash2 className="w-3.5 h-3.5 text-loss" />}
+                  </button>
                 </div>
                 <p className="text-sm text-muted-foreground">{b.message}</p>
                 <p className="text-xs text-muted-foreground mt-2">
@@ -1373,7 +1403,7 @@ function BroadcastsTab() {
               </p>
             )}
             {changelogs.map((cl) => (
-              <div key={cl.id} className="p-3 bg-white/5 rounded-lg">
+              <div key={cl.id} className="p-3 bg-white/5 rounded-lg group">
                 <div className="flex items-start justify-between gap-2 mb-1">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="font-medium text-sm">{cl.title}</span>
@@ -1383,13 +1413,31 @@ function BroadcastsTab() {
                       </span>
                     )}
                   </div>
-                  <button
-                    onClick={() => deleteChangelog(cl.id)}
-                    className="p-1 rounded hover:bg-loss/20 transition-colors shrink-0"
-                    title="Supprimer"
-                  >
-                    <Trash2 className="w-3.5 h-3.5 text-loss" />
-                  </button>
+                  {confirmDeleteCl === cl.id ? (
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <span className="text-xs text-loss">Confirmer ?</span>
+                      <button
+                        onClick={() => deleteChangelog(cl.id)}
+                        className="px-2 py-0.5 rounded bg-loss/20 hover:bg-loss/30 text-loss text-xs font-medium"
+                      >
+                        Oui
+                      </button>
+                      <button
+                        onClick={() => setConfirmDeleteCl(null)}
+                        className="px-2 py-0.5 rounded bg-white/10 hover:bg-white/15 text-xs"
+                      >
+                        Non
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setConfirmDeleteCl(cl.id)}
+                      className="p-1 rounded hover:bg-loss/20 transition-colors shrink-0 opacity-0 group-hover:opacity-100"
+                      title="Supprimer"
+                    >
+                      <Trash2 className="w-3.5 h-3.5 text-loss" />
+                    </button>
+                  )}
                 </div>
                 <p className="text-xs text-muted-foreground whitespace-pre-wrap line-clamp-3">
                   {cl.content}

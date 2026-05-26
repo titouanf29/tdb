@@ -187,6 +187,20 @@ async def register(request: Request, data: RegisterRequest):
         (f"web_{user['id']}", welcome_bonus, datetime.now(timezone.utc).isoformat())
     )
 
+    # Mark all existing changelogs as already read so new users don't see old ones
+    existing_changelogs = await execute_query("SELECT id FROM admin_changelogs")
+    _now_iso = datetime.now(timezone.utc).isoformat()
+    for cl in (existing_changelogs or []):
+        try:
+            await execute_write(
+                """INSERT INTO user_changelog_reads (user_id, changelog_id, read_at)
+                   VALUES (?, ?, ?)
+                   ON CONFLICT (user_id, changelog_id) DO NOTHING""",
+                (user["id"], cl["id"], _now_iso)
+            )
+        except Exception:
+            pass  # Ignore if table uses different conflict syntax
+
     # Notify admins of new registration
     await create_admin_notification(
         type="new_user",
