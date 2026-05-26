@@ -5,12 +5,13 @@ import { useRouter, usePathname } from "next/navigation";
 import { motion } from "framer-motion";
 import { useAuth } from "@/lib/AuthContext";
 import { useLanguage } from "@/lib/LanguageContext";
+import { usePremium } from "@/lib/PremiumContext";
 import { Sidebar } from "./Sidebar";
 import { Header } from "./Header";
 import { BroadcastBanner } from "./BroadcastBanner";
 import { ChangelogBanner } from "./ChangelogBanner";
 import { OnboardingModal } from "@/components/onboarding/OnboardingModal";
-import { Loader2 } from "lucide-react";
+import { Loader2, Wrench } from "lucide-react";
 
 // ── Public pages: no auth logic, no effects ───────────────────────────────────
 
@@ -35,10 +36,27 @@ function AuthShell({
 }) {
   const { isAuthenticated, isLoading, user } = useAuth();
   const { t, lang } = useLanguage();
+  const { isAdmin } = usePremium();
   const router = useRouter();
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [maintenance, setMaintenance] = useState<{ on: boolean; message: string }>({ on: false, message: "" });
+
+  useEffect(() => {
+    const check = async () => {
+      try {
+        const r = await fetch("/api/status");
+        if (r.ok) {
+          const d = await r.json();
+          setMaintenance({ on: !!d.maintenance, message: d.message || "" });
+        }
+      } catch {}
+    };
+    check();
+    const iv = setInterval(check, 30000);
+    return () => clearInterval(iv);
+  }, []);
 
   // Redirect unauthenticated users — only runs on auth/protected pages
   useEffect(() => {
@@ -96,6 +114,36 @@ function AuthShell({
 
   if (!isAuthenticated) {
     return null;
+  }
+
+  if (maintenance.on && !isAdmin) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-6 bg-background">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+          className="text-center space-y-6 max-w-md"
+        >
+          <div className="w-20 h-20 mx-auto rounded-2xl bg-yellow-500/10 border border-yellow-500/20 flex items-center justify-center">
+            <Wrench className="w-10 h-10 text-yellow-400" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold mb-2">
+              {lang === "en" ? "Maintenance" : "Maintenance"}
+            </h1>
+            <p className="text-muted-foreground">
+              {maintenance.message || (lang === "en"
+                ? "The site is under maintenance. Please come back soon."
+                : "Le site est en cours de maintenance. Revenez bientôt.")}
+            </p>
+          </div>
+          <div className="text-xs text-muted-foreground">
+            <p>CaptenTDB</p>
+          </div>
+        </motion.div>
+      </div>
+    );
   }
 
   return (

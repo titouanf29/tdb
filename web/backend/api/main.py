@@ -2,16 +2,16 @@
 TDB Web Backend - Main FastAPI Application
 """
 import os
+import time
+import logging
 from pathlib import Path
 from dotenv import load_dotenv
 
 # Load .env BEFORE importing routes (so they can read env vars)
 env_path = Path(__file__).parent.parent.parent.parent / ".env"
 load_dotenv(env_path)
-# Also try local .env
 load_dotenv()
 
-import logging
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -23,9 +23,13 @@ from slowapi.errors import RateLimitExceeded
 
 logger = logging.getLogger(__name__)
 
-from .database import init_db, init_web_tables
+from .database import init_db, init_web_tables, execute_query
 from .routes import auth, market, wallet, analysis, users, favorites, ai_assistant, admin, premium, community, tools, portfolio
 from .routes import insights
+
+# ── JWT constants (imported once at module level — avoids dynamic import inside middleware) ──
+from .routes.auth import SECRET_KEY, ALGORITHM
+from jose import JWTError, jwt as _jose_jwt
 
 
 @asynccontextmanager
@@ -43,7 +47,7 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# Global rate limiter (shared across all route limiters)
+# Global rate limiter
 limiter = Limiter(key_func=get_remote_address)
 app.state.limiter = limiter
 app.add_middleware(SlowAPIMiddleware)
@@ -64,7 +68,7 @@ async def generic_exception_handler(request: Request, exc: Exception):
         content={"detail": "Une erreur interne s'est produite. Réessayez."}
     )
 
-# CORS — explicit allowlist only, never wildcard "*"
+# CORS
 _frontend_env = os.getenv("FRONTEND_URL", "")
 _origins: list[str] = ["http://localhost:3000", "http://127.0.0.1:3000"]
 if _frontend_env:
@@ -79,93 +83,128 @@ app.add_middleware(
 )
 
 
-# ── Maintenance mode middleware ────────────────────────────────────────────────
-_MAINTENANCE_BYPASS = {
+# ── Maintenance-mode cache (TTL = 8 s to avoid DB on every request) ────────────
+_maint_cache: dict = {"value": None, "ts": 0.0}
+_MAINT_TTL = 8  # seconds
+
+async def _get_maintenance_setting() -> tuple[bool, str]:
+    """Returns (is_on, message). Cached for _MAINT_TTL seconds."""
+    now = time.monotonic()
+    if now - _maint_cache["ts"] < _MAINT_TTL and _maint_cache["value"] is not None:
+        return _maint_cache["value"]
+    try:
+        rows = await execute_query(
+            "SELECT key, value FROM admin_settings WHERE key IN ('maintenance_mode','maintenance_message')"
+        )
+        settings = {r["key"]: r["value"] for r in (rows or [])}
+        is_on = settings.get("maintenance_mode", "false") == "true"
+        msg   = settings.get("maintenance_message") or "Le site est en cours de maintenance. Revenez bientôt."
+        result = (is_on, msg)
+    except Exception as exc:
+        logger.warning("maintenance_middleware: DB read failed: %s", exc)
+        result = (False, "")
+    _maint_cache["value"] = result
+    _maint_cache["ts"] = now
+    return result
+
+
+async def _user_id_from_token(auth_header: str) -> int | None:
+    """Extract user_id from Bearer token. Returns None on any error."""
+    if not auth_header.startswith("Bearer "):
+        return None
+    token = auth_header[7:]
+    try:
+        payload = _jose_jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        sub = payload.get("sub")
+        return int(sub) if sub else None
+    except (JWTError, ValueError, TypeError):
+        return None
+
+
+async def _is_admin_user(user_id: int) -> bool:
+    """Check if user_id belongs to an admin."""
+    try:
+        rows = await execute_query(
+            "SELECT is_admin FROM web_users WHERE id = ?", (user_id,)
+        )
+        if rows and rows[0].get("is_admin"):
+            return True
+        # First registered user is always admin
+        first = await execute_query("SELECT id FROM web_users ORDER BY id ASC LIMIT 1")
+        if first and first[0]["id"] == user_id:
+            return True
+    except Exception as exc:
+        logger.warning("maintenance_middleware: admin check failed: %s", exc)
+    return False
+
+
+# Paths that are ALWAYS accessible (maintenance or not)
+_MAINT_ALWAYS_ALLOW = {
     "/api/auth/login",
-    "/api/admin/check",
-    "/api/admin/settings",
+    "/api/status",
+    "/",
+    "/health",
+    "/docs",
+    "/openapi.json",
+    "/redoc",
 }
 
 @app.middleware("http")
 async def maintenance_middleware(request: Request, call_next):
     path = request.url.path
 
-    # Always allow admin, auth/login, and static paths
-    bypass = (
-        path.startswith("/api/admin")
-        or path in _MAINTENANCE_BYPASS
-        or path in ("/", "/health", "/docs", "/openapi.json", "/redoc")
-    )
-    if not bypass:
-        try:
-            from .database import execute_query as _eq
-            rows = await _eq("SELECT value FROM admin_settings WHERE key = 'maintenance_mode'")
-            if rows and rows[0]["value"] == "true":
-                # Allow if user is admin (check Authorization header)
-                auth_header = request.headers.get("Authorization", "")
-                is_admin = False
-                if auth_header.startswith("Bearer "):
-                    token = auth_header[7:]
-                    try:
-                        from jose import jwt as _jwt
-                        from .routes.auth import SECRET_KEY, ALGORITHM
-                        payload = _jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-                        user_id = int(payload.get("sub", 0))
-                        admin_rows = await _eq(
-                            "SELECT is_admin FROM web_users WHERE id = ?", (user_id,)
-                        )
-                        if admin_rows and admin_rows[0].get("is_admin"):
-                            is_admin = True
-                        # Also check first user
-                        if not is_admin:
-                            first = await _eq("SELECT id FROM web_users ORDER BY id ASC LIMIT 1")
-                            if first and first[0]["id"] == user_id:
-                                is_admin = True
-                    except Exception:
-                        pass
-                if not is_admin:
-                    msg_rows = await _eq(
-                        "SELECT value FROM admin_settings WHERE key = 'maintenance_message'"
-                    )
-                    msg = (msg_rows[0]["value"] if msg_rows else None) or \
-                          "Le site est en cours de maintenance. Revenez bientôt."
-                    return JSONResponse(
-                        status_code=503,
-                        content={"detail": msg, "maintenance": True}
-                    )
-        except Exception:
-            pass  # Don't block if DB read fails
+    # Admin routes are always accessible (admin panel must stay usable)
+    if path.startswith("/api/admin") or path in _MAINT_ALWAYS_ALLOW:
+        return await call_next(request)
 
-    return await call_next(request)
+    # OPTIONS (CORS preflight) must always pass
+    if request.method == "OPTIONS":
+        return await call_next(request)
+
+    is_on, msg = await _get_maintenance_setting()
+    if not is_on:
+        return await call_next(request)
+
+    # Maintenance is ON — check if the caller is an admin
+    user_id = await _user_id_from_token(request.headers.get("Authorization", ""))
+    if user_id and await _is_admin_user(user_id):
+        return await call_next(request)
+
+    # Block non-admin
+    return JSONResponse(
+        status_code=503,
+        content={"detail": msg, "maintenance": True},
+    )
 
 
 # Include routers
-app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
-app.include_router(market.router, prefix="/api/market", tags=["Market Data"])
-app.include_router(wallet.router, prefix="/api/wallet", tags=["Wallet"])
-app.include_router(analysis.router, prefix="/api/analysis", tags=["Analysis"])
-app.include_router(users.router, prefix="/api/users", tags=["Users"])
-app.include_router(favorites.router, prefix="/api/favorites", tags=["Favorites"])
-app.include_router(ai_assistant.router, prefix="/api/ai", tags=["AI Assistant"])
-app.include_router(admin.router, prefix="/api/admin", tags=["Admin"])
-app.include_router(insights.router, prefix="/api/admin/insights", tags=["Admin Insights"])
-app.include_router(premium.router, prefix="/api/premium", tags=["Premium"])
-app.include_router(community.router, prefix="/api/community", tags=["Community"])
-app.include_router(tools.router, prefix="/api/tools", tags=["Trading Tools"])
-app.include_router(portfolio.router, prefix="/api/portfolio", tags=["Real Portfolio"])
+app.include_router(auth.router,          prefix="/api/auth",           tags=["Authentication"])
+app.include_router(market.router,        prefix="/api/market",         tags=["Market Data"])
+app.include_router(wallet.router,        prefix="/api/wallet",         tags=["Wallet"])
+app.include_router(analysis.router,      prefix="/api/analysis",       tags=["Analysis"])
+app.include_router(users.router,         prefix="/api/users",          tags=["Users"])
+app.include_router(favorites.router,     prefix="/api/favorites",      tags=["Favorites"])
+app.include_router(ai_assistant.router,  prefix="/api/ai",             tags=["AI Assistant"])
+app.include_router(admin.router,         prefix="/api/admin",          tags=["Admin"])
+app.include_router(insights.router,      prefix="/api/admin/insights", tags=["Admin Insights"])
+app.include_router(premium.router,       prefix="/api/premium",        tags=["Premium"])
+app.include_router(community.router,     prefix="/api/community",      tags=["Community"])
+app.include_router(tools.router,         prefix="/api/tools",          tags=["Trading Tools"])
+app.include_router(portfolio.router,     prefix="/api/portfolio",      tags=["Real Portfolio"])
 
 
 @app.get("/")
 async def root():
-    """Root endpoint."""
-    return {
-        "message": "TDB Web API",
-        "version": "1.0.0",
-        "docs": "/docs"
-    }
+    return {"message": "TDB Web API", "version": "1.0.0", "docs": "/docs"}
 
 
 @app.get("/health")
 async def health():
-    """Health check endpoint."""
     return {"status": "healthy"}
+
+
+@app.get("/api/status")
+async def site_status():
+    """Public endpoint — returns maintenance status (used by frontend overlay)."""
+    is_on, msg = await _get_maintenance_setting()
+    return {"maintenance": is_on, "message": msg if is_on else None}

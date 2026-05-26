@@ -27,6 +27,7 @@ import { useAuth } from "@/lib/AuthContext";
 import { usePremium } from "@/lib/PremiumContext";
 import { adminAPI, AdminNotification } from "@/lib/api";
 import { useLanguage } from "@/lib/LanguageContext";
+import { LanguageToggle } from "@/components/ui/LanguageToggle";
 
 const NOTIF_ICONS: Record<string, React.ReactNode> = {
   new_user: <UserPlus className="w-3.5 h-3.5 text-profit" />,
@@ -178,6 +179,9 @@ export function Header({ onMenuToggle }: { onMenuToggle?: () => void }) {
             </div>
           </Link>
         )}
+
+        {/* Language toggle */}
+        <LanguageToggle variant="compact" className="hidden sm:flex" />
 
         {/* Notifications (admin only) */}
         {isAdmin && (
