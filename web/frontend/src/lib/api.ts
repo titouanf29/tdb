@@ -159,6 +159,13 @@ export const walletAPI = {
       body: JSON.stringify({ position_id: positionId }),
     }),
 
+  updatePosition: (positionId: number, data: { take_profit?: number | null; stop_loss?: number | null }) =>
+    fetchAPI<{ success: boolean; message: string }>(`/api/wallet/positions/${positionId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    }),
+
   getHistory: (limit = 50) =>
     fetchAPI<{ history: Position[] }>(`/api/wallet/history?limit=${limit}`),
 

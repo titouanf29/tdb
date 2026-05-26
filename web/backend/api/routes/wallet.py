@@ -272,6 +272,35 @@ async def get_trade_history(
     return {"history": positions}
 
 
+class UpdatePositionRequest(BaseModel):
+    take_profit: Optional[float] = None
+    stop_loss: Optional[float] = None
+
+
+@router.patch("/positions/{position_id}")
+async def update_position(
+    position_id: int,
+    request: UpdatePositionRequest,
+    current_user: dict = Depends(get_current_user)
+):
+    """Update TP/SL on an open position"""
+    user_id = get_user_id(current_user)
+
+    positions = await execute_query(
+        "SELECT * FROM positions WHERE id = ? AND user_id = ? AND status = 'open'",
+        (position_id, user_id)
+    )
+    if not positions:
+        raise HTTPException(status_code=404, detail="Position not found")
+
+    await execute_write(
+        "UPDATE positions SET take_profit = ?, stop_loss = ? WHERE id = ?",
+        (request.take_profit, request.stop_loss, position_id)
+    )
+
+    return {"success": True, "message": "Position updated"}
+
+
 class AddFundsRequest(BaseModel):
     amount: float
 
