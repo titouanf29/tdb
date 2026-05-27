@@ -888,6 +888,22 @@ export default function AnalysisPage() {
                     {analysis.trend}
                   </span>
                 </div>
+
+                {/* Trade window hint */}
+                {analysis.trade_window && (
+                  <div className="flex items-center justify-center gap-1.5 mt-2 text-xs text-muted-foreground">
+                    <Timer className="w-3 h-3 opacity-60" />
+                    <span>Horizon :{" "}
+                      <span className={cn(
+                        "font-medium",
+                        analysis.trade_window.risk_level === "low"  ? "text-emerald-400" :
+                        analysis.trade_window.risk_level === "high" ? "text-rose-400"    : "text-amber-400"
+                      )}>
+                        {analysis.trade_window.label_min} – {analysis.trade_window.label_max}
+                      </span>
+                    </span>
+                  </div>
+                )}
               </div>
             </motion.div>
 
