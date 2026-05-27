@@ -409,8 +409,7 @@ function AnalysisNavBar({ active, hasWindow }: { active: string; hasWindow: bool
   const scrollTo = (id: string) => {
     const el = document.getElementById(`section-${id}`);
     if (!el) return;
-    const y = el.getBoundingClientRect().top + window.scrollY - 80;
-    window.scrollTo({ top: y, behavior: "smooth" });
+    el.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
   return (
@@ -951,7 +950,7 @@ export default function AnalysisPage() {
           <AnalysisNavBar active={activeSection} hasWindow={!!analysis.trade_window} />
 
           {/* 2. Score cards */}
-          <div id="section-score">
+          <div id="section-score" className="scroll-mt-16">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Main score card */}
             <motion.div
@@ -1101,19 +1100,19 @@ export default function AnalysisPage() {
           </div>
 
           {/* 3. Premium Chart */}
-          <div id="section-chart">
+          <div id="section-chart" className="scroll-mt-16">
             <PremiumChart symbol={analysis.symbol} timeframe={timeframe} />
           </div>
 
           {/* Trade Window */}
-          <div id="section-window">
+          <div id="section-window" className="scroll-mt-16">
             {analysis.trade_window && (
               <TradeWindowCard tw={analysis.trade_window} />
             )}
           </div>
 
           {/* 4. AI Insight */}
-          <div id="section-ai">
+          <div id="section-ai" className="scroll-mt-16">
           <AIInsightSection
             aiInsight={aiInsight}
             isLoading={isLoadingAI}
@@ -1126,7 +1125,7 @@ export default function AnalysisPage() {
           </div>
 
           {/* Indicators */}
-          <div id="section-indicators">
+          <div id="section-indicators" className="scroll-mt-16">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -1378,7 +1377,7 @@ export default function AnalysisPage() {
           </div>
 
           {/* 5. Suggestion de Trade */}
-          <div id="section-trade">
+          <div id="section-trade" className="scroll-mt-16">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -1417,12 +1416,12 @@ export default function AnalysisPage() {
           </div>
 
           {/* 6. Évaluation des risques */}
-          <div id="section-risk">
+          <div id="section-risk" className="scroll-mt-16">
             <RiskAssessmentSection analysis={analysis} formatCurrency={formatPrice} />
           </div>
 
           {/* 7. Analyse détaillée */}
-          <div id="section-detailed">
+          <div id="section-detailed" className="scroll-mt-16">
             <DetailedAnalysis analysis={analysis} formatCurrency={formatPrice} tradingLevel={tradingLevel} />
 
             {/* 8. Fibonacci + Range 52 semaines */}
@@ -1435,19 +1434,19 @@ export default function AnalysisPage() {
           </div>
 
           {/* 9. Contexte de marché */}
-          <div id="section-market">
+          <div id="section-market" className="scroll-mt-16">
             <MarketContextSection analysis={analysis} formatCurrency={formatPrice} />
           </div>
 
           {/* 10. Analyse fondamentale */}
-          <div id="section-fundamentals">
+          <div id="section-fundamentals" className="scroll-mt-16">
             {analysis.fundamentals && (
               <FundamentalAnalysisEnhanced analysis={analysis} formatCurrency={formatPrice} />
             )}
           </div>
 
           {/* 11. Performance & Objectifs de prix */}
-          <div id="section-performance">
+          <div id="section-performance" className="scroll-mt-16">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <PerformanceSection analysis={analysis} />
             <PriceTargets analysis={analysis} formatCurrency={formatPrice} />
