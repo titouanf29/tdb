@@ -52,6 +52,7 @@ import {
   Timer,
   GraduationCap,
   X,
+  Bot,
 } from "lucide-react";
 import { cn, formatPercent } from "@/lib/utils";
 import { analysisAPI, favoritesAPI, aiAPI, marketAPI, Analysis, portfolioAPI, RealPosition } from "@/lib/api";
@@ -386,6 +387,63 @@ function TradeWindowCard({ tw }: { tw: NonNullable<Analysis["trade_window"]> }) 
   );
 }
 
+const ANALYSIS_SECTIONS = [
+  { id: "score",        label: "Score",         Icon: BarChart3   },
+  { id: "chart",        label: "Graphique",     Icon: TrendingUp  },
+  { id: "window",       label: "Fenêtre",       Icon: Timer       },
+  { id: "ai",           label: "IA",            Icon: Bot         },
+  { id: "indicators",   label: "Indicateurs",   Icon: Activity    },
+  { id: "trade",        label: "Trade",         Icon: Target      },
+  { id: "risk",         label: "Risques",       Icon: Shield      },
+  { id: "detailed",     label: "Analyse",       Icon: BookOpen    },
+  { id: "market",       label: "Marché",        Icon: Globe       },
+  { id: "fundamentals", label: "Fondamentaux",  Icon: DollarSign  },
+  { id: "performance",  label: "Performance",   Icon: TrendingUp  },
+] as const;
+
+function AnalysisNavBar({ active, hasWindow }: { active: string; hasWindow: boolean }) {
+  const sections = hasWindow
+    ? ANALYSIS_SECTIONS
+    : ANALYSIS_SECTIONS.filter(s => s.id !== "window");
+
+  const scrollTo = (id: string) => {
+    const el = document.getElementById(`section-${id}`);
+    if (!el) return;
+    const y = el.getBoundingClientRect().top + window.scrollY - 80;
+    window.scrollTo({ top: y, behavior: "smooth" });
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: -8 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="sticky top-0 z-40 -mx-4 px-4 py-2 backdrop-blur-xl"
+      style={{ background: "rgba(var(--card-rgb, 15 15 20), 0.92)", borderBottom: "1px solid rgba(255,255,255,0.06)" }}
+    >
+      <div
+        className="flex items-center gap-1 overflow-x-auto pb-0.5"
+        style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
+      >
+        {sections.map(({ id, label, Icon }) => (
+          <button
+            key={id}
+            onClick={() => scrollTo(id)}
+            className={cn(
+              "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all flex-shrink-0",
+              active === id
+                ? "bg-primary/20 text-primary"
+                : "text-muted-foreground hover:text-foreground hover:bg-white/6"
+            )}
+          >
+            <Icon className="w-3.5 h-3.5" />
+            {label}
+          </button>
+        ))}
+      </div>
+    </motion.div>
+  );
+}
+
 export default function AnalysisPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -425,6 +483,25 @@ export default function AnalysisPage() {
   const autoRefreshRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const currentSymbolRef = useRef<string>("");
   const [realPosition, setRealPosition] = useState<RealPosition | null>(null);
+  const [activeSection, setActiveSection] = useState("score");
+
+  useEffect(() => {
+    if (!analysis) return;
+    const ids = ANALYSIS_SECTIONS.map(s => `section-${s.id}`);
+    const observers: IntersectionObserver[] = [];
+    ids.forEach(id => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      const obs = new IntersectionObserver(
+        ([entry]) => { if (entry.isIntersecting) setActiveSection(id.replace("section-", "")); },
+        { rootMargin: "-40% 0px -55% 0px", threshold: 0 }
+      );
+      obs.observe(el);
+      observers.push(obs);
+    });
+    return () => observers.forEach(o => o.disconnect());
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [analysis]);
 
   const toggleSection = (section: string) => {
     setExpandedSections(prev => {
@@ -870,7 +947,11 @@ export default function AnalysisPage() {
             />
           )}
 
+          {/* Sticky nav */}
+          <AnalysisNavBar active={activeSection} hasWindow={!!analysis.trade_window} />
+
           {/* 2. Score cards */}
+          <div id="section-score">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Main score card */}
             <motion.div
@@ -1017,16 +1098,22 @@ export default function AnalysisPage() {
               </div>
             </motion.div>
           </div>
+          </div>
 
           {/* 3. Premium Chart */}
-          <PremiumChart symbol={analysis.symbol} timeframe={timeframe} />
+          <div id="section-chart">
+            <PremiumChart symbol={analysis.symbol} timeframe={timeframe} />
+          </div>
 
           {/* Trade Window */}
-          {analysis.trade_window && (
-            <TradeWindowCard tw={analysis.trade_window} />
-          )}
+          <div id="section-window">
+            {analysis.trade_window && (
+              <TradeWindowCard tw={analysis.trade_window} />
+            )}
+          </div>
 
           {/* 4. AI Insight */}
+          <div id="section-ai">
           <AIInsightSection
             aiInsight={aiInsight}
             isLoading={isLoadingAI}
@@ -1036,8 +1123,10 @@ export default function AnalysisPage() {
             tradingLevel={tradingLevel}
             onReload={() => loadAIInsight(analysis.symbol, analysis)}
           />
+          </div>
 
           {/* Indicators */}
+          <div id="section-indicators">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -1286,8 +1375,10 @@ export default function AnalysisPage() {
               </div>
             </motion.div>
           )}
+          </div>
 
           {/* 5. Suggestion de Trade */}
+          <div id="section-trade">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -1323,33 +1414,44 @@ export default function AnalysisPage() {
               </motion.button>
             </Link>
           </motion.div>
+          </div>
 
           {/* 6. Évaluation des risques */}
-          <RiskAssessmentSection analysis={analysis} formatCurrency={formatPrice} />
+          <div id="section-risk">
+            <RiskAssessmentSection analysis={analysis} formatCurrency={formatPrice} />
+          </div>
 
           {/* 7. Analyse détaillée */}
-          <DetailedAnalysis analysis={analysis} formatCurrency={formatPrice} tradingLevel={tradingLevel} />
+          <div id="section-detailed">
+            <DetailedAnalysis analysis={analysis} formatCurrency={formatPrice} tradingLevel={tradingLevel} />
 
-          {/* 8. Fibonacci + Range 52 semaines */}
-          {analysis.fibonacci && (
-            <FibonacciSection analysis={analysis} formatCurrency={formatPrice} />
-          )}
-          {analysis.fundamentals?.["52w_high"] && analysis.fundamentals?.["52w_low"] && (
-            <WeekRangeSection analysis={analysis} formatCurrency={formatPrice} />
-          )}
+            {/* 8. Fibonacci + Range 52 semaines */}
+            {analysis.fibonacci && (
+              <FibonacciSection analysis={analysis} formatCurrency={formatPrice} />
+            )}
+            {analysis.fundamentals?.["52w_high"] && analysis.fundamentals?.["52w_low"] && (
+              <WeekRangeSection analysis={analysis} formatCurrency={formatPrice} />
+            )}
+          </div>
 
           {/* 9. Contexte de marché */}
-          <MarketContextSection analysis={analysis} formatCurrency={formatPrice} />
+          <div id="section-market">
+            <MarketContextSection analysis={analysis} formatCurrency={formatPrice} />
+          </div>
 
           {/* 10. Analyse fondamentale */}
-          {analysis.fundamentals && (
-            <FundamentalAnalysisEnhanced analysis={analysis} formatCurrency={formatPrice} />
-          )}
+          <div id="section-fundamentals">
+            {analysis.fundamentals && (
+              <FundamentalAnalysisEnhanced analysis={analysis} formatCurrency={formatPrice} />
+            )}
+          </div>
 
           {/* 11. Performance & Objectifs de prix */}
+          <div id="section-performance">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <PerformanceSection analysis={analysis} />
             <PriceTargets analysis={analysis} formatCurrency={formatPrice} />
+          </div>
           </div>
 
           {/* 12. Thèse d'investissement */}
