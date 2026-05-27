@@ -42,50 +42,73 @@ async def fetch_prices(symbols: list[str]) -> dict[str, dict]:
     Returns {symbol: {price, change, volume}} for each symbol.
     Missing symbols are simply absent from the result.
 
-    Uses interval="1h" so we always get the most recent traded price
-    (the daily interval would return yesterday's close during market hours
-    because the current day's Close is NaN until the session ends).
+    Two-step fetch:
+      1. period="5d" interval="1d"  → official previous-day close (exchange auction price)
+      2. period="1d" interval="1m"  → current real-time price (last 1-min bar)
+    change% = (current - official_prev_close) / official_prev_close * 100
+    This matches what reference sites like Boursorama display.
     """
     if not symbols:
         return {}
-
-    def _prev_close(closes: "pd.Series") -> float:  # type: ignore[name-defined]
-        """
-        Given a Series of hourly closes, return the last close of the
-        *previous* trading day so that change% matches Yahoo Finance.
-        """
-        import pandas as pd
-
-        closes = closes.dropna()
-        if closes.empty:
-            return 0.0
-
-        idx = closes.index
-        # Normalise timezone so .date() comparisons work across exchanges
-        if hasattr(idx, "tz") and idx.tz is not None:
-            idx = idx.tz_convert("UTC").tz_localize(None)
-
-        dates = pd.Series(idx, index=closes.index).dt.date
-        last_date = dates.iloc[-1]
-        prev_mask = dates < last_date
-        if prev_mask.any():
-            return float(closes[prev_mask].iloc[-1])
-        # Fallback: use the second-to-last bar (same day, different hour)
-        return float(closes.iloc[-2]) if len(closes) >= 2 else float(closes.iloc[-1])
 
     def _fetch_sync(syms: list[str]) -> dict:
         import yfinance as yf
         import pandas as pd
 
         result: dict = {}
+
+        # ── Step 1: official previous closes from daily bars ──────────────
+        # Using interval="1d" gives the exchange's official closing auction
+        # price, which matches what financial sites (Boursorama, etc.) show.
+        prev_closes: dict[str, float] = {}
+        volumes_map: dict[str, int]   = {}
         try:
             tickers_str = " ".join(syms)
-            # interval="1m" → last bar is the most recent completed 1-min candle,
-            # giving a real-time price accurate to within ~1 minute.
-            # period="2d" gives enough history to always find a previous close.
+            daily = yf.download(
+                tickers=tickers_str,
+                period="5d",
+                interval="1d",
+                auto_adjust=False,
+                progress=False,
+                threads=True,
+            )
+            if not daily.empty:
+                def _extract_prev_close_daily(closes_series: "pd.Series") -> float:
+                    c = closes_series.dropna()
+                    if len(c) >= 2:
+                        return float(c.iloc[-2])  # yesterday's official close
+                    return float(c.iloc[-1]) if not c.empty else 0.0
+
+                if len(syms) == 1:
+                    sym = syms[0].upper()
+                    if "Close" in daily.columns:
+                        prev_closes[sym] = _extract_prev_close_daily(daily["Close"])
+                    if "Volume" in daily.columns:
+                        v = daily["Volume"].dropna()
+                        volumes_map[sym] = int(v.iloc[-1]) if not v.empty else 0
+                else:
+                    if isinstance(daily.columns, pd.MultiIndex):
+                        lvl0 = daily.columns.get_level_values(0)
+                        if "Close" in lvl0:
+                            for sym in syms:
+                                s = sym.upper()
+                                if s in daily["Close"].columns:
+                                    prev_closes[s] = _extract_prev_close_daily(daily["Close"][s])
+                        if "Volume" in lvl0:
+                            for sym in syms:
+                                s = sym.upper()
+                                if s in daily["Volume"].columns:
+                                    v = daily["Volume"][s].dropna()
+                                    volumes_map[s] = int(v.iloc[-1]) if not v.empty else 0
+        except Exception as e:
+            print(f"[prices] daily bars error: {e}")
+
+        # ── Step 2: current price from 1-minute bars ──────────────────────
+        try:
+            tickers_str = " ".join(syms)
             data = yf.download(
                 tickers=tickers_str,
-                period="2d",
+                period="1d",
                 interval="1m",
                 auto_adjust=False,
                 progress=False,
@@ -104,10 +127,10 @@ async def fetch_prices(symbols: list[str]) -> dict[str, dict]:
                 if closes.empty:
                     return result
                 price  = float(closes.iloc[-1])
-                prev   = _prev_close(closes)
+                prev   = prev_closes.get(sym) or float(closes.iloc[-2]) if len(closes) >= 2 else price
                 change = ((price - prev) / prev * 100) if prev else 0.0
                 vol_series = data["Volume"].dropna() if "Volume" in data.columns else pd.Series(dtype=float)
-                volume = int(vol_series.iloc[-1]) if not vol_series.empty else 0
+                volume = volumes_map.get(sym) or (int(vol_series.iloc[-1]) if not vol_series.empty else 0)
                 result[sym] = {
                     "price":  round(price, 4),
                     "change": round(change, 2),
@@ -126,8 +149,6 @@ async def fetch_prices(symbols: list[str]) -> dict[str, dict]:
                     if "Volume" in lvl0:
                         vol_df   = data["Volume"]
                 else:
-                    # yfinance returned a flat frame even though multiple
-                    # tickers were requested (happens when only one resolves)
                     if "Close" in data.columns:
                         col = syms[0].upper()
                         close_df = data[["Close"]].rename(columns={"Close": col})
@@ -145,10 +166,10 @@ async def fetch_prices(symbols: list[str]) -> dict[str, dict]:
                     if closes.empty:
                         continue
                     price  = float(closes.iloc[-1])
-                    prev   = _prev_close(closes)
+                    prev   = prev_closes.get(s) or (float(closes.iloc[-2]) if len(closes) >= 2 else price)
                     change = ((price - prev) / prev * 100) if prev else 0.0
-                    volume = 0
-                    if vol_df is not None and s in vol_df.columns:
+                    volume = volumes_map.get(s, 0)
+                    if volume == 0 and vol_df is not None and s in vol_df.columns:
                         v = vol_df[s].dropna()
                         volume = int(v.iloc[-1]) if not v.empty else 0
                     result[s] = {
