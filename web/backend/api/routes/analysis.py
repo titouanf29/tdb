@@ -99,85 +99,185 @@ def compute_trade_window(
     trend_score: float,
     final_score: float,
 ) -> dict:
-    """Compute recommended trade hold duration from technical context."""
+    """
+    Compute recommended trade hold duration from technical context.
+    Logic: optimal_candles × bar_minutes → precise duration tied to the timeframe.
+    """
 
-    # Base ranges per timeframe (min_h, max_h)
-    BASE = {
-        "5m":  (0.25, 0.75),   "15m": (0.5,  2.0),
-        "30m": (1.0,  4.0),    "1h":  (2.0,  8.0),
-        "4h":  (12.0, 72.0),   "1d":  (48.0, 240.0),
-        "3d":  (72.0, 480.0),  "1w":  (120.0, 720.0),
-        "1mo": (480.0, 2160.0),
+    # Minutes per bar for each timeframe
+    BAR_MIN = {
+        "5m": 5, "15m": 15, "30m": 30,
+        "1h": 60, "4h": 240, "1d": 1440,
+        "3d": 4320, "1w": 10080, "1mo": 43200,
     }
-    min_h, max_h = BASE.get(timeframe, (2.0, 8.0))
+    bar_min = BAR_MIN.get(timeframe, 60)
 
-    reasons   = []
-    warnings  = []
-    risk_mult = 1.0
+    # Base candle range per timeframe (conservative → aggressive)
+    BASE_CANDLES = {
+        "5m":  (3, 6),  "15m": (3, 6),  "30m": (3, 7),
+        "1h":  (3, 7),  "4h":  (2, 5),  "1d":  (2, 5),
+        "3d":  (2, 4),  "1w":  (2, 4),  "1mo": (1, 3),
+    }
+    c_min, c_max = BASE_CANDLES.get(timeframe, (3, 6))
 
-    # High volatility → shorten
-    if atr_pct > 4:
-        risk_mult *= 0.55
-        warnings.append(f"Volatilité très élevée (ATR {atr_pct:.1f}%) — mouvement brusque probable")
-    elif atr_pct > 2.5:
-        risk_mult *= 0.75
-        warnings.append(f"Volatilité élevée (ATR {atr_pct:.1f}%) — gérer le risque de près")
-    elif atr_pct < 0.8:
-        risk_mult *= 1.2
-        reasons.append(f"Faible volatilité (ATR {atr_pct:.1f}%) — mouvements contenus")
+    reasons:  list[str] = []
+    warnings: list[str] = []
+    adj = 0  # candle adjustment (negative = shorten, positive = extend)
 
-    # Strong trend → can hold longer
-    if adx > 30:
-        risk_mult *= 1.25
-        reasons.append(f"Tendance forte (ADX {adx:.0f}) — momentum favorable")
+    # ── RSI ────────────────────────────────────────────────────────────────
+    if rsi < 25:
+        adj -= 2
+        warnings.append(
+            f"RSI en survente extrême ({rsi:.0f}) : renversement haussier imminent attendu "
+            f"sur 1–2 bougies de {timeframe}, ne pas rester trop longtemps après le rebond"
+        )
+    elif rsi > 75:
+        adj -= 2
+        warnings.append(
+            f"RSI en surachat extrême ({rsi:.0f}) : risque de retournement baissier rapide, "
+            f"coupez dès le premier signal de faiblesse"
+        )
+    elif rsi < 35:
+        adj -= 1
+        warnings.append(
+            f"RSI en zone de survente ({rsi:.0f}) : le rebond peut être court, "
+            f"préférez une cible conservative (1–2 bougies)"
+        )
+    elif rsi > 65:
+        adj -= 1
+        warnings.append(
+            f"RSI proche du surachat ({rsi:.0f}) : le mouvement haussier montre des signes "
+            f"d'essoufflement, serrez le stop"
+        )
+    else:
+        reasons.append(f"RSI neutre ({rsi:.0f}) : pas de pression de retournement immédiate")
+
+    # ── ADX / Tendance ─────────────────────────────────────────────────────
+    if adx > 35:
+        adj += 2
+        reasons.append(
+            f"Tendance très forte (ADX {adx:.0f}) : le momentum directionnels est solide, "
+            f"la position peut être tenue plus longtemps"
+        )
+    elif adx > 25:
+        adj += 1
+        reasons.append(f"Tendance établie (ADX {adx:.0f}) : signal fiable, bon rapport durée/risque")
     elif adx < 15:
-        risk_mult *= 0.75
-        warnings.append(f"Tendance faible (ADX {adx:.0f}) — marché sans direction claire")
+        adj -= 2
+        warnings.append(
+            f"Tendance quasi absente (ADX {adx:.0f}) : marché latéral ou en consolidation, "
+            f"les faux signaux sont fréquents — duration très courte recommandée"
+        )
+    elif adx < 20:
+        adj -= 1
+        warnings.append(
+            f"Tendance faible (ADX {adx:.0f}) : direction peu claire, "
+            f"réduisez l'exposition et sortez rapidement"
+        )
 
-    # Extreme RSI → shorten (reversal risk)
-    if rsi < 25 or rsi > 75:
-        risk_mult *= 0.65
-        zone = "survente" if rsi < 25 else "surachat"
-        warnings.append(f"RSI en zone extrême ({rsi:.0f}) — risque de renversement imminent")
-    elif rsi < 35 or rsi > 65:
-        risk_mult *= 0.85
-        zone = "survente" if rsi < 35 else "surachat"
-        warnings.append(f"RSI proche zone de {zone} ({rsi:.0f}) — surveiller un retournement")
+    # ── Volatilité ATR ─────────────────────────────────────────────────────
+    if atr_pct > 4:
+        adj -= 2
+        warnings.append(
+            f"Volatilité très forte (ATR {atr_pct:.1f}% du prix) : l'actif peut faire "
+            f"+/−{atr_pct:.1f}% par bougie — les objectifs sont atteints (ou dépassés) très vite"
+        )
+    elif atr_pct > 2.5:
+        adj -= 1
+        warnings.append(
+            f"Volatilité élevée (ATR {atr_pct:.1f}%) : risque de gap important entre deux bougies, "
+            f"ne laissez pas traîner la position sans stop serré"
+        )
+    elif atr_pct < 0.8:
+        adj += 1
+        reasons.append(
+            f"Faible volatilité (ATR {atr_pct:.1f}%) : l'actif évolue lentement, "
+            f"les objectifs mettent plus de bougies à être atteints"
+        )
+    else:
+        reasons.append(f"Volatilité modérée (ATR {atr_pct:.1f}%) : mouvements cohérents avec le timeframe")
 
-    # High volatility_20d → shorten
-    if volatility_20d and volatility_20d > 40:
-        risk_mult *= 0.70
-        warnings.append(f"Volatilité historique forte ({volatility_20d:.0f}% ann.) — actif risqué")
+    # ── Score global ───────────────────────────────────────────────────────
+    if final_score >= 72:
+        adj += 1
+        reasons.append(
+            f"Setup de haute conviction ({final_score}/100) : tous les indicateurs s'alignent, "
+            f"position pouvant être tenue dans la fourchette haute"
+        )
+    elif final_score <= 38:
+        adj -= 1
+        warnings.append(
+            f"Score de conviction faible ({final_score}/100) : le setup n'est pas idéal, "
+            f"préférez une sortie rapide et ne doublez pas la mise"
+        )
 
-    # Conviction score → modulate
-    if final_score >= 70:
-        reasons.append(f"Signal de conviction élevée ({final_score}/100) — setup solide")
-    elif final_score <= 35:
-        risk_mult *= 0.80
-        warnings.append(f"Signal faible ({final_score}/100) — setup peu convaincant")
+    # ── Volatilité historique ──────────────────────────────────────────────
+    if volatility_20d and volatility_20d > 50:
+        adj -= 1
+        warnings.append(
+            f"Volatilité historique très forte ({volatility_20d:.0f}% ann.) : "
+            f"actif à forte amplitude, les retournements sont brutaux"
+        )
 
-    min_h = max(0.17, min_h * risk_mult)
-    max_h = max(0.33, max_h * risk_mult)
+    # ── Calcul final ───────────────────────────────────────────────────────
+    candles_opt = max(1, round((c_min + c_max) / 2) + adj)
+    candles_min = max(1, c_min + adj)
+    candles_max = max(candles_min + 1, c_max + adj)
 
-    def _fmt(h: float) -> str:
-        if h < 1:    return f"{int(round(h * 60))} min"
-        if h < 24:   return f"{h:.0f}h" if h == int(h) else f"{h:.1f}h"
-        if h < 168:  return f"{h/24:.0f}j"
-        return f"{h/168:.0f} sem"
+    min_min = candles_min * bar_min
+    max_min = candles_max * bar_min
+    opt_min = candles_opt * bar_min
+
+    def _fmt(m: float) -> str:
+        if m < 60:
+            return f"{int(round(m))} min"
+        h = m / 60
+        if h < 24:
+            hh = int(h)
+            mm = int(round((h - hh) * 60))
+            return f"{hh}h{mm:02d}" if mm else f"{hh}h"
+        d = h / 24
+        if d < 7:
+            dd = int(d)
+            hh = int(round((d - dd) * 24))
+            return f"{dd}j{hh:02d}h" if hh else f"{dd}j"
+        w = d / 7
+        return f"{w:.1f} sem"
+
+    # Impossible to give reliable window when ADX < 10 AND RSI extreme
+    unreliable = adx < 10 and (rsi < 30 or rsi > 70)
+    if unreliable:
+        warnings.append(
+            "Combinaison ADX très bas + RSI extrême : aucun signal directionnel fiable. "
+            "Il est déconseillé de prendre position dans ces conditions — attendez une "
+            "confirmation de tendance (ADX > 20) avant d'entrer."
+        )
 
     # Risk level
-    if risk_mult < 0.65:   risk_level = "high"
-    elif risk_mult < 0.90: risk_level = "medium"
-    else:                  risk_level = "low"
+    risk_factors = sum([
+        atr_pct > 3,
+        rsi < 30 or rsi > 70,
+        adx < 20,
+        final_score < 40,
+        bool(volatility_20d and volatility_20d > 45),
+    ])
+    risk_level = "high" if risk_factors >= 3 else "medium" if risk_factors >= 1 else "low"
 
     return {
-        "min_hours":  round(min_h, 2),
-        "max_hours":  round(max_h, 2),
-        "label_min":  _fmt(min_h),
-        "label_max":  _fmt(max_h),
-        "risk_level": risk_level,
-        "reasons":    reasons,
-        "warnings":   warnings,
+        "min_minutes":     int(min_min),
+        "max_minutes":     int(max_min),
+        "optimal_minutes": int(opt_min),
+        "candles_min":     candles_min,
+        "candles_max":     candles_max,
+        "candles_opt":     candles_opt,
+        "label_min":       _fmt(min_min),
+        "label_max":       _fmt(max_min),
+        "label_optimal":   _fmt(opt_min),
+        "bar_label":       timeframe,
+        "risk_level":      risk_level,
+        "unreliable":      unreliable,
+        "reasons":         reasons,
+        "warnings":        warnings,
     }
 
 
@@ -916,8 +1016,8 @@ async def analyze_asset(
             trend_score=float(trend_score),
             final_score=float(final_score),
         )
-        # Horizon for catalyst lookup: 3× max_hours, capped at 30 days
-        catalyst_horizon = min(trade_window["max_hours"] * 3, 720)
+        # Horizon for catalyst lookup: 3× max window, capped at 30 days
+        catalyst_horizon = min((trade_window["max_minutes"] / 60) * 3, 720)
         trade_window["catalysts"] = upcoming_risk_catalysts(symbol, catalyst_horizon)
 
         result = {

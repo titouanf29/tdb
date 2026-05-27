@@ -528,11 +528,18 @@ export interface Analysis {
   };
   analyst_sentiment?: string;
   trade_window?: {
-    min_hours: number;
-    max_hours: number;
+    min_minutes: number;
+    max_minutes: number;
+    optimal_minutes: number;
+    candles_min: number;
+    candles_max: number;
+    candles_opt: number;
     label_min: string;
     label_max: string;
+    label_optimal: string;
+    bar_label: string;
     risk_level: "low" | "medium" | "high";
+    unreliable: boolean;
     reasons: string[];
     warnings: string[];
     catalysts: Array<{

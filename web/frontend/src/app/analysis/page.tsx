@@ -242,16 +242,18 @@ function RealPositionBanner({
   );
 }
 
-function TradeWindowCard({ tw, t: _t }: { tw: NonNullable<Analysis["trade_window"]>; t: (k: string) => string }) {
-  const riskColors = {
-    low:    { bar: "bg-emerald-500", text: "text-emerald-400", badge: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30", label: "Faible" },
-    medium: { bar: "bg-amber-500",   text: "text-amber-400",   badge: "bg-amber-500/15 text-amber-400 border-amber-500/30",     label: "Modéré" },
-    high:   { bar: "bg-rose-500",    text: "text-rose-400",    badge: "bg-rose-500/15 text-rose-400 border-rose-500/30",         label: "Élevé" },
-  };
-  const rc = riskColors[tw.risk_level];
+function TradeWindowCard({ tw }: { tw: NonNullable<Analysis["trade_window"]> }) {
+  const rc = {
+    low:    { accent: "text-emerald-400", border: "border-emerald-500/25", bg: "bg-emerald-500/10", badge: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30", dot: "bg-emerald-400", label: "Faible" },
+    medium: { accent: "text-amber-400",   border: "border-amber-500/25",   bg: "bg-amber-500/10",   badge: "bg-amber-500/15 text-amber-400 border-amber-500/30",     dot: "bg-amber-400",   label: "Modéré" },
+    high:   { accent: "text-rose-400",    border: "border-rose-500/25",    bg: "bg-rose-500/10",    badge: "bg-rose-500/15 text-rose-400 border-rose-500/30",         dot: "bg-rose-400",    label: "Élevé" },
+  }[tw.risk_level];
 
-  // Visual bar: fill% based on how wide the window is relative to a 24h reference
-  const fillPct = Math.min(95, Math.max(8, (tw.max_hours / 24) * 60));
+  // Timeline: place min, optimal, max as % of a scale
+  const scale = tw.max_minutes * 1.15;
+  const pctMin = (tw.min_minutes / scale) * 100;
+  const pctOpt = (tw.optimal_minutes / scale) * 100;
+  const pctMax = (tw.max_minutes / scale) * 100;
 
   return (
     <motion.div
@@ -261,76 +263,119 @@ function TradeWindowCard({ tw, t: _t }: { tw: NonNullable<Analysis["trade_window
       className="glass-card p-6 space-y-5"
     >
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-2">
         <h3 className="font-semibold flex items-center gap-2">
           <Timer className="w-5 h-5 text-primary" />
           Fenêtre de trade recommandée
         </h3>
-        <span className={`text-xs px-2.5 py-1 rounded-full border font-medium ${rc.badge}`}>
-          Risque {rc.label}
-        </span>
+        <div className="flex items-center gap-2">
+          {tw.unreliable && (
+            <span className="text-xs px-2.5 py-1 rounded-full border bg-zinc-500/15 text-zinc-400 border-zinc-500/30 font-medium">
+              Signal non fiable
+            </span>
+          )}
+          <span className={`text-xs px-2.5 py-1 rounded-full border font-medium ${rc.badge}`}>
+            Risque {rc.label}
+          </span>
+        </div>
       </div>
 
-      {/* Duration display */}
-      <div className="space-y-2">
-        <div className="flex items-end gap-2">
-          <span className={`text-3xl font-bold ${rc.text}`}>{tw.label_min}</span>
-          <span className="text-muted-foreground mb-1">–</span>
-          <span className={`text-3xl font-bold ${rc.text}`}>{tw.label_max}</span>
-          <span className="text-sm text-muted-foreground mb-1 ml-1">horizon optimal</span>
+      {/* Optimal highlight */}
+      <div className={`rounded-xl px-5 py-4 border ${rc.border} ${rc.bg} flex items-center justify-between gap-4`}>
+        <div>
+          <p className="text-xs text-muted-foreground mb-0.5">Point optimal de sortie</p>
+          <p className={`text-3xl font-black ${rc.accent}`}>{tw.label_optimal}</p>
+          <p className="text-xs text-muted-foreground mt-1">
+            soit {tw.candles_opt} bougie{tw.candles_opt > 1 ? "s" : ""} de {tw.bar_label}
+          </p>
         </div>
-        {/* Visual timeline bar */}
-        <div className="relative h-2 bg-white/10 rounded-full overflow-hidden">
+        <div className="text-right shrink-0">
+          <p className="text-xs text-muted-foreground mb-1">Fourchette acceptable</p>
+          <p className="text-sm font-semibold">
+            <span className="text-muted-foreground">{tw.label_min}</span>
+            <span className="text-muted-foreground mx-1.5">–</span>
+            <span className="text-muted-foreground">{tw.label_max}</span>
+          </p>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            {tw.candles_min}–{tw.candles_max} bougies
+          </p>
+        </div>
+      </div>
+
+      {/* Visual timeline */}
+      <div className="space-y-1.5">
+        <div className="relative h-1.5 bg-white/8 rounded-full">
+          {/* Range bar */}
           <motion.div
-            className={`absolute left-0 top-0 h-full rounded-full ${rc.bar}`}
-            initial={{ width: 0 }}
-            animate={{ width: `${fillPct}%` }}
-            transition={{ duration: 0.8, ease: "easeOut" }}
+            className={`absolute top-0 h-full rounded-full opacity-30 ${rc.dot}`}
+            initial={{ left: "0%", width: "0%" }}
+            animate={{ left: `${pctMin}%`, width: `${pctMax - pctMin}%` }}
+            transition={{ duration: 0.7, ease: "easeOut" }}
+          />
+          {/* Optimal marker */}
+          <motion.div
+            className={`absolute top-1/2 -translate-y-1/2 w-3 h-3 rounded-full border-2 border-background ${rc.dot}`}
+            style={{ boxShadow: "0 0 6px rgba(0,0,0,0.4)" }}
+            initial={{ left: "0%" }}
+            animate={{ left: `calc(${pctOpt}% - 6px)` }}
+            transition={{ duration: 0.7, ease: "easeOut" }}
           />
         </div>
-        <div className="flex justify-between text-xs text-muted-foreground">
-          <span>Court terme</span>
-          <span>Long terme</span>
+        <div className="flex justify-between text-[10px] text-muted-foreground">
+          <span>{tw.label_min}</span>
+          <span className={`font-medium ${rc.accent}`}>↑ {tw.label_optimal}</span>
+          <span>{tw.label_max}</span>
         </div>
       </div>
 
-      {/* Signals */}
-      {(tw.reasons.length > 0 || tw.warnings.length > 0) && (
-        <div className="space-y-1.5">
-          {tw.reasons.map((r, i) => (
-            <div key={i} className="flex items-start gap-2 text-sm text-emerald-400">
-              <CheckCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
-              <span>{r}</span>
-            </div>
-          ))}
-          {tw.warnings.map((w, i) => (
-            <div key={i} className="flex items-start gap-2 text-sm text-amber-400">
-              <AlertTriangle className="w-4 h-4 mt-0.5 flex-shrink-0" />
-              <span>{w}</span>
-            </div>
-          ))}
+      {/* Explanations */}
+      {(tw.reasons.length > 0 || tw.warnings.length > 0 || tw.unreliable) && (
+        <div className="space-y-2.5 border-t border-white/6 pt-4">
+          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Pourquoi cette durée ?</p>
+          <div className="space-y-2">
+            {tw.unreliable && (
+              <div className="flex items-start gap-2.5 p-3 rounded-lg bg-zinc-500/8 border border-zinc-500/20">
+                <AlertTriangle className="w-4 h-4 text-zinc-400 flex-shrink-0 mt-0.5" />
+                <p className="text-xs text-zinc-400 leading-relaxed">
+                  {tw.warnings[tw.warnings.length - 1]}
+                </p>
+              </div>
+            )}
+            {tw.reasons.map((r, i) => (
+              <div key={i} className="flex items-start gap-2.5">
+                <CheckCircle className="w-4 h-4 text-emerald-400 flex-shrink-0 mt-0.5" />
+                <p className="text-sm text-foreground/80 leading-relaxed">{r}</p>
+              </div>
+            ))}
+            {tw.warnings.filter((_, i) => !tw.unreliable || i < tw.warnings.length - 1).map((w, i) => (
+              <div key={i} className="flex items-start gap-2.5">
+                <AlertTriangle className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" />
+                <p className="text-sm text-foreground/80 leading-relaxed">{w}</p>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
       {/* Catalysts */}
       {tw.catalysts && tw.catalysts.length > 0 && (
-        <div className="space-y-2">
+        <div className="space-y-2 border-t border-white/6 pt-4">
           <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-            Catalyseurs macro à surveiller
+            Catalyseurs macro dans cette fenêtre
           </p>
           <div className="space-y-2">
             {tw.catalysts.map((c, i) => (
-              <div key={i} className="flex items-start gap-3 p-3 bg-white/5 rounded-lg border border-white/5">
+              <div key={i} className="flex items-start gap-3 p-3 bg-white/4 rounded-lg border border-white/6">
                 <Calendar className="w-4 h-4 text-rose-400 flex-shrink-0 mt-0.5" />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="text-sm font-medium">{c.name}</span>
                     <span className="text-xs text-muted-foreground">{c.when}</span>
-                    <span className="text-xs px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-400 border border-rose-500/30">
-                      {c.impact === "high" ? "Impact fort" : "Impact modéré"}
+                    <span className="text-xs px-1.5 py-0.5 rounded bg-rose-500/15 text-rose-400 border border-rose-500/25">
+                      Impact fort
                     </span>
                   </div>
-                  <p className="text-xs text-muted-foreground mt-0.5">{c.relevance}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{c.relevance}</p>
                 </div>
               </div>
             ))}
@@ -893,13 +938,13 @@ export default function AnalysisPage() {
                 {analysis.trade_window && (
                   <div className="flex items-center justify-center gap-1.5 mt-2 text-xs text-muted-foreground">
                     <Timer className="w-3 h-3 opacity-60" />
-                    <span>Horizon :{" "}
+                    <span>Sortie optimale :{" "}
                       <span className={cn(
                         "font-medium",
                         analysis.trade_window.risk_level === "low"  ? "text-emerald-400" :
                         analysis.trade_window.risk_level === "high" ? "text-rose-400"    : "text-amber-400"
                       )}>
-                        {analysis.trade_window.label_min} – {analysis.trade_window.label_max}
+                        ~{analysis.trade_window.label_optimal}
                       </span>
                     </span>
                   </div>
@@ -978,7 +1023,7 @@ export default function AnalysisPage() {
 
           {/* Trade Window */}
           {analysis.trade_window && (
-            <TradeWindowCard tw={analysis.trade_window} t={t} />
+            <TradeWindowCard tw={analysis.trade_window} />
           )}
 
           {/* 4. AI Insight */}
