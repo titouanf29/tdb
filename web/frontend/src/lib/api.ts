@@ -197,6 +197,9 @@ export const settingsAPI = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
     }),
+
+  getPublic: () =>
+    fetchAPI<{ settings: Record<string, string> }>("/api/users/public-settings"),
 };
 
 // Analysis API

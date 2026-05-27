@@ -169,3 +169,16 @@ async def remove_favorite(symbol: str, current_user: dict = Depends(get_current_
         (current_user["id"], symbol.upper())
     )
     return {"success": True, "message": f"{symbol} removed from favorites"}
+
+
+@router.get("/public-settings")
+async def get_public_settings(current_user: dict = Depends(get_current_user)):
+    """Return admin_settings keys that are safe for any authenticated user to read."""
+    PUBLIC_KEYS = {"gold_hub_enabled", "maintenance_mode", "registration_enabled"}
+    rows = await execute_query(
+        "SELECT key, value FROM admin_settings WHERE key IN ({})".format(
+            ",".join("?" * len(PUBLIC_KEYS))
+        ),
+        tuple(PUBLIC_KEYS),
+    )
+    return {"settings": {r["key"]: r["value"] for r in (rows or [])}}

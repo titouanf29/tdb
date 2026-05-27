@@ -12,7 +12,7 @@ import {
   Bot, Send, CalendarClock, ChevronDown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { analysisAPI, marketAPI, aiAPI, adminAPI, walletAPI, toolsAPI, Analysis, Position } from "@/lib/api";
+import { analysisAPI, marketAPI, aiAPI, adminAPI, walletAPI, toolsAPI, settingsAPI, Analysis, Position } from "@/lib/api";
 import { usePremium } from "@/lib/PremiumContext";
 import { useLanguage } from "@/lib/LanguageContext";
 import { useFormatPrice } from "@/lib/SettingsContext";
@@ -1549,12 +1549,11 @@ export default function GoldPage() {
 
   // Wait for premium status to resolve, then check Gold Hub access
   useEffect(() => {
-    if (isPremiumLoading) return;         // Not ready yet
+    if (isPremiumLoading) return;
     if (isAdmin) { setSettingsLoaded(true); return; }
-    adminAPI.getSettings()
+    settingsAPI.getPublic()
       .then((data) => {
-        const setting = data.settings.find((s: { key: string; value: string }) => s.key === "gold_hub_enabled");
-        setGoldPublic(setting?.value === "true");
+        setGoldPublic(data?.settings?.gold_hub_enabled === "true");
       })
       .catch(() => setGoldPublic(false))
       .finally(() => setSettingsLoaded(true));
