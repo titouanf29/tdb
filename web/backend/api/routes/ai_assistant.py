@@ -1300,6 +1300,7 @@ async def get_market_news(request: Request, current_user: dict = Depends(get_cur
 
     # Fetch news from NewsAPI.org
     news_items = []
+    needs_translation = False
     if NEWS_API_KEY:
         try:
             async with httpx.AsyncClient(timeout=8.0) as client:
@@ -1347,16 +1348,19 @@ async def get_market_news(request: Request, current_user: dict = Depends(get_cur
                                 "publisher": a.get("source", {}).get("name", ""),
                                 "link": a.get("url", ""),
                                 "timestamp": 0,
-                                "related": "Markets"
+                                "related": "Marchés"
                             })
+                        if news_items:
+                            needs_translation = True
         except Exception as e:
             print(f"[NEWS] NewsAPI error: {e}")
 
     news_items = news_items[:12]
 
-    # Generate AI summary
+    # ── Build prompts ─────────────────────────────────────────────────────────
     summary = None
     summary_points = None
+
     if api_key:
         if news_items:
             news_text = "\n".join([f"- {item['title']} (Source: {item['publisher']})" for item in news_items[:10]])
@@ -1372,45 +1376,90 @@ async def get_market_news(request: Request, current_user: dict = Depends(get_cur
             "Reponds en francais. Sois factuel et precis."
         )
 
-        try:
-            async with httpx.AsyncClient(timeout=30.0) as client:
-                response = await client.post(
-                    GROQ_API_URL,
-                    headers={
-                        "Authorization": f"Bearer {api_key}",
-                        "Content-Type": "application/json"
-                    },
-                    json={
-                        "model": MODEL,
-                        "messages": [
-                            {"role": "system", "content": structured_system},
-                            {"role": "user", "content": ai_prompt}
-                        ],
-                        "temperature": 0.3,
-                        "max_tokens": 700
-                    }
-                )
+        async def _call_groq(payload: dict) -> dict | None:
+            try:
+                async with httpx.AsyncClient(timeout=30.0) as client:
+                    r = await client.post(
+                        GROQ_API_URL,
+                        headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+                        json=payload,
+                    )
+                    return r.json() if r.status_code == 200 else None
+            except Exception as e:
+                print(f"[NEWS] Groq error: {e}")
+                return None
 
-                if response.status_code == 200:
-                    data = response.json()
-                    raw = data["choices"][0]["message"]["content"].strip()
-                    # Try to parse as structured JSON
-                    try:
-                        import json as _json
-                        import re as _re
-                        # Merge multiple arrays: "[{...}] [{...}]" → "[{...}, {...}]"
-                        normalized = _re.sub(r'\]\s*\[', ', ', raw.strip())
-                        parsed = _json.loads(normalized)
-                        if isinstance(parsed, list) and parsed:
-                            summary_points = parsed
-                        else:
-                            summary = raw
-                    except Exception:
-                        summary = raw
+        summary_payload = {
+            "model": MODEL,
+            "messages": [
+                {"role": "system", "content": structured_system},
+                {"role": "user", "content": ai_prompt},
+            ],
+            "temperature": 0.3,
+            "max_tokens": 700,
+        }
+
+        # Translation payload — only built when English fallback was used
+        translation_payload = None
+        if needs_translation and news_items:
+            titles_list = "\n".join(f"{i+1}. {item['title']}" for i, item in enumerate(news_items))
+            translation_payload = {
+                "model": MODEL,
+                "messages": [
+                    {
+                        "role": "system",
+                        "content": (
+                            "Tu es un traducteur financier. Traduis chaque titre de l'anglais vers le français. "
+                            "Reponds UNIQUEMENT avec un tableau JSON de chaînes dans le même ordre, sans texte avant ou après. "
+                            "Exemple: [\"Titre 1 traduit\", \"Titre 2 traduit\"]. "
+                            "Conserve les noms propres, les symboles boursiers et les chiffres tels quels."
+                        ),
+                    },
+                    {"role": "user", "content": f"Traduis ces titres:\n{titles_list}"},
+                ],
+                "temperature": 0.1,
+                "max_tokens": 800,
+            }
+
+        # ── Parallel Groq calls ───────────────────────────────────────────────
+        import asyncio as _asyncio
+        tasks = [_call_groq(summary_payload)]
+        if translation_payload:
+            tasks.append(_call_groq(translation_payload))
+
+        results = await _asyncio.gather(*tasks, return_exceptions=True)
+        summary_data = results[0] if not isinstance(results[0], Exception) else None
+        translation_data = results[1] if len(results) > 1 and not isinstance(results[1], Exception) else None
+
+        # Apply translated titles
+        if translation_data:
+            try:
+                import json as _json, re as _re
+                raw_t = translation_data["choices"][0]["message"]["content"].strip()
+                normalized_t = _re.sub(r'\]\s*\[', ', ', raw_t)
+                translated_titles = _json.loads(normalized_t)
+                if isinstance(translated_titles, list):
+                    for i, title in enumerate(translated_titles):
+                        if i < len(news_items) and isinstance(title, str):
+                            news_items[i]["title"] = title
+            except Exception as e:
+                print(f"[NEWS] Translation parse error: {e}")
+
+        # Parse summary
+        if summary_data:
+            try:
+                import json as _json, re as _re
+                raw = summary_data["choices"][0]["message"]["content"].strip()
+                normalized = _re.sub(r'\]\s*\[', ', ', raw.strip())
+                parsed = _json.loads(normalized)
+                if isinstance(parsed, list) and parsed:
+                    summary_points = parsed
                 else:
-                    print(f"[NEWS] AI API error: {response.status_code} - {response.text}")
-        except Exception as e:
-            print(f"[NEWS] Error generating summary: {e}")
+                    summary = raw
+            except Exception:
+                summary = summary_data.get("choices", [{}])[0].get("message", {}).get("content", "")
+        else:
+            print("[NEWS] Summary generation failed")
 
     return {
         "news": news_items,
