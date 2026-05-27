@@ -13,8 +13,6 @@ import {
   DollarSign,
   BarChart3,
   PieChart,
-  ChevronDown,
-  ChevronUp,
   AlertTriangle,
   CheckCircle,
   Loader2,
@@ -522,28 +520,350 @@ function CloseModal({
   );
 }
 
-// â"€â"€ Position card â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
+// ── Position detail sheet ────────────────────────────────────────────────────
+
+function PositionDetailSheet({
+  pos,
+  onClose,
+  onEdit,
+  onClosePos,
+  onDelete,
+}: {
+  pos: RealPosition;
+  onClose: () => void;
+  onEdit: () => void;
+  onClosePos: () => void;
+  onDelete: () => void;
+}) {
+  const { lang } = useLanguage();
+  const router = useRouter();
+  const isOpen = pos.status === "open";
+  const isLong = pos.position_type === "long";
+
+  const pnl = isOpen
+    ? (pos.unrealized_pnl ?? 0)
+    : (() => {
+        const lev = pos.leverage ?? 1;
+        const exit = pos.exit_price ?? pos.entry_price;
+        return isLong
+          ? (exit - pos.entry_price) * pos.quantity * lev
+          : (pos.entry_price - exit) * pos.quantity * lev;
+      })();
+  const pnlPct = isOpen
+    ? (pos.pnl_percent ?? 0)
+    : pos.entry_price * pos.quantity
+    ? (pnl / (pos.entry_price * pos.quantity)) * 100
+    : 0;
+  const isProfit = pnl >= 0;
+
+  const rr =
+    pos.stop_loss && pos.take_profit && pos.entry_price
+      ? (() => {
+          const risk = Math.abs(pos.entry_price - pos.stop_loss);
+          const reward = Math.abs(pos.take_profit - pos.entry_price);
+          return risk > 0 ? reward / risk : null;
+        })()
+      : null;
+
+  const priceBarPct =
+    pos.stop_loss && pos.take_profit
+      ? Math.max(
+          0,
+          Math.min(
+            100,
+            (((pos.current_price ?? pos.entry_price) - pos.stop_loss) /
+              (pos.take_profit - pos.stop_loss)) *
+              100
+          )
+        )
+      : null;
+
+  const slDist =
+    pos.stop_loss && pos.current_price
+      ? Math.abs((pos.current_price - pos.stop_loss) / pos.current_price) * 100
+      : null;
+
+  const daysHeld = isOpen
+    ? (pos.days_held ?? 0)
+    : (() => {
+        if (!pos.entry_date || !pos.exit_date) return 0;
+        return Math.round(
+          (new Date(pos.exit_date).getTime() - new Date(pos.entry_date).getTime()) / 86400000
+        );
+      })();
+
+  const dec = (v: number) => (v < 10 ? 4 : 2);
+
+  return (
+    <>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm"
+        onClick={onClose}
+      />
+      <motion.div
+        initial={{ x: "100%" }}
+        animate={{ x: 0 }}
+        exit={{ x: "100%" }}
+        transition={{ type: "spring", damping: 28, stiffness: 280 }}
+        className="fixed right-0 top-0 bottom-0 z-50 w-full max-w-md bg-[#0a0a0f] border-l border-white/10 flex flex-col overflow-hidden"
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-white/8 flex-shrink-0">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <span className={cn(
+              "text-xs font-bold px-2.5 py-1 rounded-full border flex-shrink-0",
+              isLong
+                ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/20"
+                : "bg-red-500/15 text-red-400 border-red-500/20"
+            )}>
+              {isLong ? "▲ LONG" : "▼ SHORT"}
+            </span>
+            <span className="text-xl font-black tracking-tight truncate">{pos.symbol}</span>
+            {pos.leverage && pos.leverage > 1 && (
+              <span className="text-xs text-orange-400 bg-orange-500/10 px-2 py-0.5 rounded-full border border-orange-500/20 flex-shrink-0">
+                ×{pos.leverage}
+              </span>
+            )}
+            {!isOpen && (
+              <span className="text-xs text-muted-foreground bg-white/5 px-2 py-0.5 rounded-full border border-white/10 flex-shrink-0">
+                Clôturée
+              </span>
+            )}
+          </div>
+          <button
+            onClick={onClose}
+            className="p-1.5 rounded-lg hover:bg-white/8 text-muted-foreground hover:text-foreground transition-colors flex-shrink-0 ml-2"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Scrollable body */}
+        <div className="flex-1 overflow-y-auto p-5 space-y-4">
+          {/* P&L hero */}
+          <div className={cn(
+            "rounded-2xl p-5 text-center relative overflow-hidden",
+            isProfit
+              ? "bg-gradient-to-br from-emerald-500/10 to-emerald-500/5 border border-emerald-500/20"
+              : "bg-gradient-to-br from-red-500/10 to-red-500/5 border border-red-500/20"
+          )}>
+            <div
+              className="absolute inset-0 pointer-events-none"
+              style={{
+                background: isProfit
+                  ? "radial-gradient(ellipse 70% 50% at 50% 0%, rgba(16,185,129,0.15) 0%, transparent 70%)"
+                  : "radial-gradient(ellipse 70% 50% at 50% 0%, rgba(239,68,68,0.15) 0%, transparent 70%)",
+              }}
+            />
+            <p className="text-[10px] text-muted-foreground uppercase tracking-widest mb-2">
+              {isOpen ? "P&L Non Réalisée" : "P&L Réalisée"}
+            </p>
+            <p className={cn("text-4xl font-black tabular-nums", isProfit ? "text-emerald-400" : "text-red-400")}>
+              {isProfit ? "+" : ""}{fmt(pnl)}{" "}
+              <span className="text-xl font-bold">{pos.currency}</span>
+            </p>
+            <p className={cn("text-lg font-bold mt-1 opacity-80", isProfit ? "text-emerald-400" : "text-red-400")}>
+              {fmtPct(pnlPct)}
+            </p>
+          </div>
+
+          {/* Price row */}
+          <div>
+            <p className="text-[10px] text-muted-foreground uppercase tracking-widest mb-2 font-medium">Prix</p>
+            <div className="grid grid-cols-3 gap-2">
+              <div className="rounded-xl bg-white/4 border border-white/6 p-3 text-center">
+                <p className="text-[10px] text-muted-foreground mb-1">Entrée</p>
+                <p className="font-bold text-sm tabular-nums">{fmt(pos.entry_price, dec(pos.entry_price))}</p>
+              </div>
+              <div className="rounded-xl bg-white/4 border border-white/6 p-3 text-center">
+                <p className="text-[10px] text-muted-foreground mb-1">{isOpen ? "Actuel" : "Sortie"}</p>
+                <p className="font-bold text-sm tabular-nums">
+                  {isOpen
+                    ? (pos.current_price ? fmt(pos.current_price, dec(pos.current_price)) : "—")
+                    : (pos.exit_price ? fmt(pos.exit_price, dec(pos.exit_price)) : "—")}
+                </p>
+              </div>
+              <div className="rounded-xl bg-white/4 border border-white/6 p-3 text-center">
+                <p className="text-[10px] text-muted-foreground mb-1">Variation</p>
+                <p className={cn("font-bold text-sm", isProfit ? "text-emerald-400" : "text-red-400")}>
+                  {fmtPct(pnlPct)}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Position row */}
+          <div>
+            <p className="text-[10px] text-muted-foreground uppercase tracking-widest mb-2 font-medium">Position</p>
+            <div className="grid grid-cols-3 gap-2">
+              <div className="rounded-xl bg-white/4 border border-white/6 p-3 text-center">
+                <p className="text-[10px] text-muted-foreground mb-1">Quantité</p>
+                <p className="font-bold text-sm">{pos.quantity}</p>
+              </div>
+              <div className="rounded-xl bg-white/4 border border-white/6 p-3 text-center">
+                <p className="text-[10px] text-muted-foreground mb-1">
+                  {isOpen && pos.position_value ? "Valeur" : "Investi"}
+                </p>
+                <p className="font-bold text-sm tabular-nums">
+                  {isOpen && pos.position_value
+                    ? fmt(pos.position_value)
+                    : fmt(pos.entry_price * pos.quantity)}
+                </p>
+              </div>
+              <div className="rounded-xl bg-white/4 border border-white/6 p-3 text-center">
+                <p className="text-[10px] text-muted-foreground mb-1">Durée</p>
+                <p className="font-bold text-sm">{daysHeld}{lang === "fr" ? "j" : "d"}</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Risk management */}
+          {isOpen && (pos.stop_loss || pos.take_profit) && (
+            <div>
+              <p className="text-[10px] text-muted-foreground uppercase tracking-widest mb-2 font-medium">
+                Gestion du risque
+              </p>
+              <div className="rounded-xl bg-white/4 border border-white/6 p-4 space-y-3">
+                <div className="flex items-end justify-between text-sm">
+                  <div>
+                    <p className="text-[10px] text-muted-foreground mb-0.5">Stop Loss</p>
+                    <p className="font-bold text-red-400">
+                      {pos.stop_loss ? fmt(pos.stop_loss, dec(pos.stop_loss)) : "—"}
+                    </p>
+                  </div>
+                  {rr && (
+                    <div className="text-center">
+                      <p className="text-[10px] text-muted-foreground mb-0.5">Risk / Reward</p>
+                      <p className="font-bold text-primary">1 : {fmt(rr, 1)}</p>
+                    </div>
+                  )}
+                  <div className="text-right">
+                    <p className="text-[10px] text-muted-foreground mb-0.5">Take Profit</p>
+                    <p className="font-bold text-emerald-400">
+                      {pos.take_profit ? fmt(pos.take_profit, dec(pos.take_profit)) : "—"}
+                    </p>
+                  </div>
+                </div>
+                {priceBarPct !== null && (
+                  <div
+                    className="relative h-2.5 rounded-full"
+                    style={{ background: "linear-gradient(90deg, rgba(239,68,68,0.25), rgba(16,185,129,0.25))" }}
+                  >
+                    <div
+                      className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-3.5 h-3.5 rounded-full bg-white border-2 border-primary shadow-lg shadow-primary/50 z-10"
+                      style={{ left: `${priceBarPct}%` }}
+                    />
+                  </div>
+                )}
+                {slDist !== null && slDist < 5 && (
+                  <p className="text-xs text-red-400 flex items-center gap-1.5">
+                    <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0" />
+                    À {fmt(slDist, 1)}% du stop loss
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Date & broker */}
+          <div className="rounded-xl bg-white/4 border border-white/6 px-4 py-3">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+              <Calendar className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+              <span className="text-muted-foreground text-xs">Ouvert le</span>
+              <span className="font-medium text-xs">{pos.entry_date?.slice(0, 10)}</span>
+              {!isOpen && pos.exit_date && (
+                <>
+                  <span className="text-muted-foreground text-xs">· Clôturé le</span>
+                  <span className="font-medium text-xs">{pos.exit_date.slice(0, 10)}</span>
+                </>
+              )}
+              {pos.broker && (
+                <span className="ml-auto text-xs text-muted-foreground">
+                  via <span className="text-foreground font-medium">{pos.broker}</span>
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* Notes */}
+          {pos.notes && (
+            <div>
+              <p className="text-[10px] text-muted-foreground uppercase tracking-widest mb-2 font-medium">Notes</p>
+              <div className="rounded-xl bg-white/4 border border-white/6 p-4 text-sm text-muted-foreground italic leading-relaxed">
+                {pos.notes}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Action bar */}
+        {isOpen && (
+          <div className="flex-shrink-0 p-4 border-t border-white/8">
+            <div className="grid grid-cols-4 gap-2">
+              <button
+                onClick={() => { onClose(); setTimeout(onEdit, 150); }}
+                className="flex flex-col items-center gap-1 py-3 rounded-xl bg-white/5 hover:bg-white/10 transition-colors text-xs text-muted-foreground hover:text-foreground"
+              >
+                <Edit3 className="w-4 h-4" />
+                Éditer
+              </button>
+              <button
+                onClick={() => {
+                  sessionStorage.setItem("ai_position_context", JSON.stringify(pos));
+                  router.push(`/assistant?asset=${encodeURIComponent(pos.symbol)}`);
+                }}
+                className="flex flex-col items-center gap-1 py-3 rounded-xl bg-purple-500/10 hover:bg-purple-500/20 transition-colors text-xs text-purple-400"
+              >
+                <Bot className="w-4 h-4" />
+                IA
+              </button>
+              <button
+                onClick={() => { onClose(); setTimeout(onClosePos, 150); }}
+                className="flex flex-col items-center gap-1 py-3 rounded-xl bg-primary/10 hover:bg-primary/20 transition-colors text-xs text-primary"
+              >
+                <CheckCircle className="w-4 h-4" />
+                Clôturer
+              </button>
+              <button
+                onClick={() => { onClose(); setTimeout(onDelete, 150); }}
+                className="flex flex-col items-center gap-1 py-3 rounded-xl bg-red-500/5 hover:bg-red-500/10 transition-colors text-xs text-muted-foreground hover:text-red-400"
+              >
+                <Trash2 className="w-4 h-4" />
+                Supprimer
+              </button>
+            </div>
+          </div>
+        )}
+      </motion.div>
+    </>
+  );
+}
+
+// ── Position card ─────────────────────────────────────────────────────────────
 
 function PositionCard({
   pos,
+  onDetail,
   onEdit,
   onClose,
   onDelete,
 }: {
   pos: RealPosition;
+  onDetail: () => void;
   onEdit: () => void;
   onClose: () => void;
   onDelete: () => void;
 }) {
-  const { t, lang } = useLanguage();
+  const { t } = useLanguage();
   const router = useRouter();
-  const [expanded, setExpanded] = useState(false);
   const isLong = pos.position_type === "long";
   const pnl = pos.unrealized_pnl ?? 0;
   const pnlPct = pos.pnl_percent ?? 0;
   const isProfit = pnl >= 0;
 
-  // Stop loss danger check
   const nearSL =
     pos.stop_loss &&
     pos.current_price &&
@@ -564,29 +884,31 @@ function PositionCard({
         </div>
       )}
 
-      <div className="p-4">
-        {/* Top row */}
+      {/* Clickable body */}
+      <div
+        className="p-4 cursor-pointer hover:bg-white/[0.02] transition-colors"
+        onClick={onDetail}
+      >
         <div className="flex items-start justify-between gap-2">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <span className={cn(
               "text-xs font-bold px-2 py-0.5 rounded-full",
               isLong ? "bg-emerald-500/15 text-emerald-400" : "bg-red-500/15 text-red-400"
             )}>
-              {isLong ? "â–² LONG" : "â–¼ SHORT"}
+              {isLong ? "▲ LONG" : "▼ SHORT"}
             </span>
             <span className="font-bold text-base">{pos.symbol}</span>
             {pos.leverage && pos.leverage > 1 && (
               <span className="text-xs text-orange-400 bg-orange-500/10 px-1.5 py-0.5 rounded">
-                x{pos.leverage}
+                ×{pos.leverage}
               </span>
             )}
             {pos.broker && (
               <span className="text-xs text-muted-foreground">{pos.broker}</span>
             )}
           </div>
-          {/* P&L badge */}
           <div className={cn(
-            "text-right px-2 py-1 rounded-lg",
+            "text-right px-2 py-1 rounded-lg flex-shrink-0",
             isProfit ? "bg-emerald-500/10" : "bg-red-500/10"
           )}>
             <p className={cn("text-sm font-bold", isProfit ? "text-emerald-400" : "text-red-400")}>
@@ -598,7 +920,6 @@ function PositionCard({
           </div>
         </div>
 
-        {/* Stats row */}
         <div className="mt-3 grid grid-cols-3 gap-3 text-center">
           <div>
             <p className="text-xs text-muted-foreground">{t("journal_entry")}</p>
@@ -614,75 +935,22 @@ function PositionCard({
           </div>
         </div>
 
-        {/* Expand toggle */}
-        <button
-          className="w-full mt-3 flex items-center justify-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
-          onClick={() => setExpanded((v) => !v)}
-        >
-          {expanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-          {expanded ? t("portfolio_card_less") : t("portfolio_card_details")}
-        </button>
-
-        <AnimatePresence>
-          {expanded && (
-            <motion.div
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: "auto", opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              className="overflow-hidden"
-            >
-              <div className="pt-3 space-y-2 border-t border-white/8 mt-3">
-                <div className="grid grid-cols-2 gap-2 text-xs">
-                  <div>
-                    <span className="text-muted-foreground">{t("portfolio_card_value")} :</span>{" "}
-                    <span>{pos.position_value ? fmt(pos.position_value) : "—"} {pos.currency}</span>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground">{t("portfolio_invested")} :</span>{" "}
-                    <span>{pos.invested_value ? fmt(pos.invested_value) : "—"} {pos.currency}</span>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground">{t("portfolio_card_days")} :</span>{" "}
-                    <span>{pos.days_held ?? 0} {lang === "en" ? "d" : "j"}</span>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground">{t("portfolio_card_entry_date")} :</span>{" "}
-                    <span>{pos.entry_date?.slice(0, 10)}</span>
-                  </div>
-                  {pos.stop_loss && (
-                    <div>
-                      <span className="text-muted-foreground">Stop Loss :</span>{" "}
-                      <span className="text-red-400">{fmt(pos.stop_loss, 4)}</span>
-                    </div>
-                  )}
-                  {pos.take_profit && (
-                    <div>
-                      <span className="text-muted-foreground">Take Profit :</span>{" "}
-                      <span className="text-emerald-400">{fmt(pos.take_profit, 4)}</span>
-                    </div>
-                  )}
-                </div>
-                {pos.notes && (
-                  <div className="p-2 rounded-lg bg-white/5 text-xs text-muted-foreground italic">
-                    {pos.notes}
-                  </div>
-                )}
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+        <p className="text-center text-[10px] text-muted-foreground/40 mt-2.5 tracking-wider">
+          Appuyer pour les détails →
+        </p>
       </div>
 
       {/* Actions */}
       <div className="flex border-t border-white/8">
         <button
-          onClick={onEdit}
+          onClick={(e) => { e.stopPropagation(); onEdit(); }}
           className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors"
         >
           <Edit3 className="w-3.5 h-3.5" /> {t("edit")}
         </button>
         <button
-          onClick={() => {
+          onClick={(e) => {
+            e.stopPropagation();
             sessionStorage.setItem("ai_position_context", JSON.stringify(pos));
             router.push(`/assistant?asset=${encodeURIComponent(pos.symbol)}`);
           }}
@@ -691,13 +959,13 @@ function PositionCard({
           <Bot className="w-3.5 h-3.5" /> IA
         </button>
         <button
-          onClick={onClose}
+          onClick={(e) => { e.stopPropagation(); onClose(); }}
           className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs text-primary hover:bg-primary/10 transition-colors border-r border-white/8"
         >
           <CheckCircle className="w-3.5 h-3.5" /> {t("close")}
         </button>
         <button
-          onClick={onDelete}
+          onClick={(e) => { e.stopPropagation(); onDelete(); }}
           className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs text-muted-foreground hover:text-red-400 hover:bg-red-500/5 transition-colors"
         >
           <Trash2 className="w-3.5 h-3.5" /> {t("delete")}
@@ -706,10 +974,10 @@ function PositionCard({
     </motion.div>
   );
 }
-
 // â"€â"€ Closed position row â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 
-function ClosedRow({ pos }: { pos: RealPosition }) {
+
+function ClosedRow({ pos, onDetail }: { pos: RealPosition; onDetail: () => void }) {
   const entry = pos.entry_price;
   const exit = pos.exit_price ?? entry;
   const qty = pos.quantity;
@@ -722,7 +990,10 @@ function ClosedRow({ pos }: { pos: RealPosition }) {
   const isProfit = pnl >= 0;
 
   return (
-    <div className="flex items-center justify-between px-4 py-3 border-b border-white/6 last:border-0 hover:bg-white/3 transition-colors">
+    <div
+      className="flex items-center justify-between px-4 py-3 border-b border-white/6 last:border-0 hover:bg-white/3 transition-colors cursor-pointer"
+      onClick={onDetail}
+    >
       <div className="flex items-center gap-2">
         <span className={cn(
           "text-xs px-1.5 py-0.5 rounded",
@@ -740,7 +1011,6 @@ function ClosedRow({ pos }: { pos: RealPosition }) {
     </div>
   );
 }
-
 // â"€â"€ Main page â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 
 export default function PortfolioPage() {
@@ -758,6 +1028,7 @@ export default function PortfolioPage() {
   const [showAdd, setShowAdd] = useState(false);
   const [editPos, setEditPos] = useState<RealPosition | null>(null);
   const [closePos, setClosePos] = useState<RealPosition | null>(null);
+  const [detailPos, setDetailPos] = useState<RealPosition | null>(null);
   const [showGuide, setShowGuide] = useState(false);
 
   const load = useCallback(async () => {
@@ -1046,6 +1317,7 @@ export default function PortfolioPage() {
                           <PositionCard
                             key={p.id}
                             pos={p}
+                            onDetail={() => setDetailPos(p)}
                             onEdit={() => setEditPos(p)}
                             onClose={() => setClosePos(p)}
                             onDelete={() => handleDelete(p.id)}
@@ -1064,7 +1336,7 @@ export default function PortfolioPage() {
                         <p className="text-sm">{t("portfolio_no_closed")}</p>
                       </div>
                     ) : (
-                      closedPositions.map((p) => <ClosedRow key={p.id} pos={p} />)
+                      closedPositions.map((p) => <ClosedRow key={p.id} pos={p} onDetail={() => setDetailPos(p)} />)
                     )}
                   </div>
                 )}
@@ -1096,6 +1368,15 @@ export default function PortfolioPage() {
             position={closePos}
             onClose={() => setClosePos(null)}
             onConfirm={(exitPrice) => handleClose(closePos.id, exitPrice)}
+          />
+        )}
+        {detailPos && (
+          <PositionDetailSheet
+            pos={detailPos}
+            onClose={() => setDetailPos(null)}
+            onEdit={() => { setDetailPos(null); setTimeout(() => setEditPos(detailPos), 150); }}
+            onClosePos={() => { setDetailPos(null); setTimeout(() => setClosePos(detailPos), 150); }}
+            onDelete={() => { setDetailPos(null); setTimeout(() => handleDelete(detailPos.id), 150); }}
           />
         )}
       </AnimatePresence>
