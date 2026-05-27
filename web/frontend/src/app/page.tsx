@@ -1188,15 +1188,13 @@ function LandingPage() {
   ];
 
   const STATS_DATA = lang === "en" ? [
-    { value: "800+",    label: "Assets analyzed" },
-    { value: "50 000+", label: "Active users" },
-    { value: "99.9%",   label: "Uptime" },
-    { value: "100%",    label: "Free" },
+    { value: "800+",  label: "Assets analyzed" },
+    { value: "24/7",  label: "Live data" },
+    { value: "100%",  label: "Free" },
   ] : [
-    { value: "800+",    label: "Actifs analysés" },
-    { value: "50 000+", label: "Utilisateurs actifs" },
-    { value: "99.9%",   label: "Disponibilité" },
-    { value: "100%",    label: "Gratuit" },
+    { value: "800+",  label: "Actifs analysés" },
+    { value: "24/7",  label: "Données en direct" },
+    { value: "100%",  label: "Gratuit" },
   ];
 
   return (
