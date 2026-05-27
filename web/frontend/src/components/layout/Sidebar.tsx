@@ -28,7 +28,7 @@ import {
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
-import { adminAPI } from "@/lib/api";
+import { adminAPI, settingsAPI } from "@/lib/api";
 import { useLanguage } from "@/lib/LanguageContext";
 
 const MENU_GROUPS = [
@@ -82,18 +82,17 @@ export function Sidebar({
   const { t } = useLanguage();
   const [collapsed, setCollapsed] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [goldEnabled, setGoldEnabled] = useState(false);
   const pathname = usePathname();
 
   useEffect(() => {
-    const checkAdminStatus = async () => {
-      try {
-        const result = await adminAPI.checkAdmin();
-        setIsAdmin(result.is_admin);
-      } catch {
-        setIsAdmin(false);
-      }
-    };
-    checkAdminStatus();
+    adminAPI.checkAdmin()
+      .then(r => setIsAdmin(r.is_admin))
+      .catch(() => setIsAdmin(false));
+
+    settingsAPI.getPublic()
+      .then(d => setGoldEnabled(d?.settings?.gold_hub_enabled === "true"))
+      .catch(() => setGoldEnabled(false));
   }, []);
 
   return (
@@ -163,7 +162,12 @@ export function Sidebar({
             </AnimatePresence>
             {/* Group items */}
             <div className="space-y-0.5">
-              {group.items.filter((item) => !item.adminOnly || isAdmin).map((item) => {
+              {group.items.filter((item) => {
+                if (!item.adminOnly) return true;
+                if (isAdmin) return true;
+                if (item.href === "/gold" && goldEnabled) return true;
+                return false;
+              }).map((item) => {
                 const isActive = pathname === item.href;
                 const Icon = item.icon;
                 return (

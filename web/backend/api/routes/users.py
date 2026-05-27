@@ -175,10 +175,14 @@ async def remove_favorite(symbol: str, current_user: dict = Depends(get_current_
 async def get_public_settings(current_user: dict = Depends(get_current_user)):
     """Return admin_settings keys that are safe for any authenticated user to read."""
     PUBLIC_KEYS = {"gold_hub_enabled", "maintenance_mode", "registration_enabled"}
+    # Defaults: gold_hub_enabled defaults to "true" (published unless explicitly disabled)
+    DEFAULTS = {"gold_hub_enabled": "true", "maintenance_mode": "false", "registration_enabled": "true"}
     rows = await execute_query(
         "SELECT key, value FROM admin_settings WHERE key IN ({})".format(
             ",".join("?" * len(PUBLIC_KEYS))
         ),
         tuple(PUBLIC_KEYS),
     )
-    return {"settings": {r["key"]: r["value"] for r in (rows or [])}}
+    result = dict(DEFAULTS)
+    result.update({r["key"]: r["value"] for r in (rows or [])})
+    return {"settings": result}
