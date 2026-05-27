@@ -90,6 +90,195 @@ async def _record_scan(user_id: int, market: str) -> None:
     )
 
 
+def compute_trade_window(
+    timeframe: str,
+    atr_pct: float,
+    rsi: float,
+    adx: float,
+    volatility_20d: float,
+    trend_score: float,
+    final_score: float,
+) -> dict:
+    """Compute recommended trade hold duration from technical context."""
+
+    # Base ranges per timeframe (min_h, max_h)
+    BASE = {
+        "5m":  (0.25, 0.75),   "15m": (0.5,  2.0),
+        "30m": (1.0,  4.0),    "1h":  (2.0,  8.0),
+        "4h":  (12.0, 72.0),   "1d":  (48.0, 240.0),
+        "3d":  (72.0, 480.0),  "1w":  (120.0, 720.0),
+        "1mo": (480.0, 2160.0),
+    }
+    min_h, max_h = BASE.get(timeframe, (2.0, 8.0))
+
+    reasons   = []
+    warnings  = []
+    risk_mult = 1.0
+
+    # High volatility → shorten
+    if atr_pct > 4:
+        risk_mult *= 0.55
+        warnings.append(f"Volatilité très élevée (ATR {atr_pct:.1f}%) — mouvement brusque probable")
+    elif atr_pct > 2.5:
+        risk_mult *= 0.75
+        warnings.append(f"Volatilité élevée (ATR {atr_pct:.1f}%) — gérer le risque de près")
+    elif atr_pct < 0.8:
+        risk_mult *= 1.2
+        reasons.append(f"Faible volatilité (ATR {atr_pct:.1f}%) — mouvements contenus")
+
+    # Strong trend → can hold longer
+    if adx > 30:
+        risk_mult *= 1.25
+        reasons.append(f"Tendance forte (ADX {adx:.0f}) — momentum favorable")
+    elif adx < 15:
+        risk_mult *= 0.75
+        warnings.append(f"Tendance faible (ADX {adx:.0f}) — marché sans direction claire")
+
+    # Extreme RSI → shorten (reversal risk)
+    if rsi < 25 or rsi > 75:
+        risk_mult *= 0.65
+        zone = "survente" if rsi < 25 else "surachat"
+        warnings.append(f"RSI en zone extrême ({rsi:.0f}) — risque de renversement imminent")
+    elif rsi < 35 or rsi > 65:
+        risk_mult *= 0.85
+        zone = "survente" if rsi < 35 else "surachat"
+        warnings.append(f"RSI proche zone de {zone} ({rsi:.0f}) — surveiller un retournement")
+
+    # High volatility_20d → shorten
+    if volatility_20d and volatility_20d > 40:
+        risk_mult *= 0.70
+        warnings.append(f"Volatilité historique forte ({volatility_20d:.0f}% ann.) — actif risqué")
+
+    # Conviction score → modulate
+    if final_score >= 70:
+        reasons.append(f"Signal de conviction élevée ({final_score}/100) — setup solide")
+    elif final_score <= 35:
+        risk_mult *= 0.80
+        warnings.append(f"Signal faible ({final_score}/100) — setup peu convaincant")
+
+    min_h = max(0.17, min_h * risk_mult)
+    max_h = max(0.33, max_h * risk_mult)
+
+    def _fmt(h: float) -> str:
+        if h < 1:    return f"{int(round(h * 60))} min"
+        if h < 24:   return f"{h:.0f}h" if h == int(h) else f"{h:.1f}h"
+        if h < 168:  return f"{h/24:.0f}j"
+        return f"{h/168:.0f} sem"
+
+    # Risk level
+    if risk_mult < 0.65:   risk_level = "high"
+    elif risk_mult < 0.90: risk_level = "medium"
+    else:                  risk_level = "low"
+
+    return {
+        "min_hours":  round(min_h, 2),
+        "max_hours":  round(max_h, 2),
+        "label_min":  _fmt(min_h),
+        "label_max":  _fmt(max_h),
+        "risk_level": risk_level,
+        "reasons":    reasons,
+        "warnings":   warnings,
+    }
+
+
+def upcoming_risk_catalysts(symbol: str, horizon_hours: float) -> list[dict]:
+    """Return upcoming high-impact macro events within horizon_hours from now."""
+    from datetime import datetime, timezone, timedelta, date
+    import calendar as cal_mod
+
+    now = datetime.now(timezone.utc)
+    cutoff = now + timedelta(hours=horizon_hours)
+    s = symbol.upper()
+
+    # Symbol classification
+    is_us     = not any(x in s for x in [".PA",".DE",".L",".T",".HK",".AS",".KS"])
+    is_europe = any(x in s for x in [".PA",".DE",".L",".AS",".BR",".MC"])
+    is_crypto = s.endswith("-USD") or s.endswith("-BTC")
+    is_us_index = s in {"^GSPC","^IXIC","^DJI","^RUT","SPX","NDX","DJI"}
+
+    events: list[dict] = []
+
+    # ── Helper: first weekday N of a month ──────────────────────────────
+    def _first_weekday(year: int, month: int, weekday: int) -> date:
+        """Return the first `weekday` (0=Mon…6=Sun) in given year/month."""
+        d = date(year, month, 1)
+        while d.weekday() != weekday:
+            d += timedelta(days=1)
+        return d
+
+    # ── FOMC dates 2025-2026 (decision day = 2nd day) ───────────────────
+    FOMC = [
+        date(2025,1,29), date(2025,3,19), date(2025,5,7),  date(2025,6,18),
+        date(2025,7,30), date(2025,9,17), date(2025,10,29),date(2025,12,10),
+        date(2026,1,28), date(2026,3,18), date(2026,5,6),  date(2026,6,17),
+        date(2026,7,29), date(2026,9,16), date(2026,10,28),date(2026,12,9),
+    ]
+
+    # ── ECB dates 2025-2026 ─────────────────────────────────────────────
+    ECB = [
+        date(2025,1,30), date(2025,3,6),  date(2025,4,17), date(2025,6,5),
+        date(2025,7,24), date(2025,9,11), date(2025,10,30),date(2025,12,18),
+        date(2026,1,29), date(2026,3,5),  date(2026,4,16), date(2026,6,4),
+        date(2026,7,23), date(2026,9,10), date(2026,10,29),date(2026,12,17),
+    ]
+
+    def _add(event_date: date, name: str, impact: str, relevance: str, hour_utc: int = 13):
+        dt = datetime(event_date.year, event_date.month, event_date.day,
+                      hour_utc, 30, tzinfo=timezone.utc)
+        if now <= dt <= cutoff:
+            delta = dt - now
+            days  = delta.days
+            hours = int(delta.total_seconds() // 3600)
+            if days >= 2:   when = f"dans {days}j"
+            elif hours >= 1: when = f"dans {hours}h"
+            else:            when = "imminent"
+            events.append({
+                "name":      name,
+                "datetime":  dt.isoformat(),
+                "when":      when,
+                "impact":    impact,
+                "relevance": relevance,
+            })
+
+    # NFP — first Friday of each month at 13:30 UTC
+    if is_us or is_us_index:
+        for m_offset in range(3):
+            d = now.date()
+            m = (d.month - 1 + m_offset) % 12 + 1
+            y = d.year + ((d.month - 1 + m_offset) // 12)
+            nfp = _first_weekday(y, m, 4)  # 4 = Friday
+            _add(nfp, "NFP (Emplois non-agricoles)", "high",
+                 "Mouvement fort sur indices US et USD attendu", 13)
+
+    # CPI US — around 10th-14th (use 12th as approximation)
+    if is_us or is_us_index or is_crypto:
+        for m_offset in range(3):
+            d = now.date()
+            m = (d.month - 1 + m_offset) % 12 + 1
+            y = d.year + ((d.month - 1 + m_offset) // 12)
+            try:
+                _add(date(y, m, 12), "CPI USA (Inflation)", "high",
+                     "Volatilité forte si surprise inflationniste", 12)
+            except ValueError:
+                pass
+
+    # FOMC
+    if is_us or is_us_index or is_crypto:
+        for d in FOMC:
+            _add(d, "Décision FOMC (Fed)", "high",
+                 "Pivot monétaire possible — impact majeur sur actions et crypto", 19)
+
+    # ECB
+    if is_europe:
+        for d in ECB:
+            _add(d, "Décision BCE", "high",
+                 "Impact direct sur actions européennes et EUR", 13)
+
+    # Sort by datetime
+    events.sort(key=lambda e: e["datetime"])
+    return events[:5]  # at most 5
+
+
 @router.get("/{symbol}")
 @limiter.limit("10/minute")
 async def analyze_asset(
@@ -717,6 +906,20 @@ async def analyze_asset(
             elif "sell" in rec or "under" in rec:
                 analyst_sentiment = "bearish"
 
+        # ── Trade window ──────────────────────────────────────────────────────
+        trade_window = compute_trade_window(
+            timeframe=timeframe,
+            atr_pct=float(_safe(relative_atr, 2.0)),
+            rsi=float(_safe(current_rsi, 50.0)),
+            adx=float(adx_val),
+            volatility_20d=float(_safe(volatility_20d, 20.0) or 20.0),
+            trend_score=float(trend_score),
+            final_score=float(final_score),
+        )
+        # Horizon for catalyst lookup: 3× max_hours, capped at 30 days
+        catalyst_horizon = min(trade_window["max_hours"] * 3, 720)
+        trade_window["catalysts"] = upcoming_risk_catalysts(symbol, catalyst_horizon)
+
         result = {
             "symbol": symbol,
             "timeframe": timeframe,
@@ -839,6 +1042,7 @@ async def analyze_asset(
                 "analyst_low":  fundamentals.get("target_low"),
             },
             "analyst_sentiment": analyst_sentiment,
+            "trade_window": trade_window,
             "news": news_items,
         }
 

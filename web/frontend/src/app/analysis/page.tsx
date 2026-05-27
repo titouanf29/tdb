@@ -242,6 +242,105 @@ function RealPositionBanner({
   );
 }
 
+function TradeWindowCard({ tw, t: _t }: { tw: NonNullable<Analysis["trade_window"]>; t: (k: string) => string }) {
+  const riskColors = {
+    low:    { bar: "bg-emerald-500", text: "text-emerald-400", badge: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30", label: "Faible" },
+    medium: { bar: "bg-amber-500",   text: "text-amber-400",   badge: "bg-amber-500/15 text-amber-400 border-amber-500/30",     label: "Modéré" },
+    high:   { bar: "bg-rose-500",    text: "text-rose-400",    badge: "bg-rose-500/15 text-rose-400 border-rose-500/30",         label: "Élevé" },
+  };
+  const rc = riskColors[tw.risk_level];
+
+  // Visual bar: fill% based on how wide the window is relative to a 24h reference
+  const fillPct = Math.min(95, Math.max(8, (tw.max_hours / 24) * 60));
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.25 }}
+      className="glass-card p-6 space-y-5"
+    >
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <h3 className="font-semibold flex items-center gap-2">
+          <Timer className="w-5 h-5 text-primary" />
+          Fenêtre de trade recommandée
+        </h3>
+        <span className={`text-xs px-2.5 py-1 rounded-full border font-medium ${rc.badge}`}>
+          Risque {rc.label}
+        </span>
+      </div>
+
+      {/* Duration display */}
+      <div className="space-y-2">
+        <div className="flex items-end gap-2">
+          <span className={`text-3xl font-bold ${rc.text}`}>{tw.label_min}</span>
+          <span className="text-muted-foreground mb-1">–</span>
+          <span className={`text-3xl font-bold ${rc.text}`}>{tw.label_max}</span>
+          <span className="text-sm text-muted-foreground mb-1 ml-1">horizon optimal</span>
+        </div>
+        {/* Visual timeline bar */}
+        <div className="relative h-2 bg-white/10 rounded-full overflow-hidden">
+          <motion.div
+            className={`absolute left-0 top-0 h-full rounded-full ${rc.bar}`}
+            initial={{ width: 0 }}
+            animate={{ width: `${fillPct}%` }}
+            transition={{ duration: 0.8, ease: "easeOut" }}
+          />
+        </div>
+        <div className="flex justify-between text-xs text-muted-foreground">
+          <span>Court terme</span>
+          <span>Long terme</span>
+        </div>
+      </div>
+
+      {/* Signals */}
+      {(tw.reasons.length > 0 || tw.warnings.length > 0) && (
+        <div className="space-y-1.5">
+          {tw.reasons.map((r, i) => (
+            <div key={i} className="flex items-start gap-2 text-sm text-emerald-400">
+              <CheckCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+              <span>{r}</span>
+            </div>
+          ))}
+          {tw.warnings.map((w, i) => (
+            <div key={i} className="flex items-start gap-2 text-sm text-amber-400">
+              <AlertTriangle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+              <span>{w}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Catalysts */}
+      {tw.catalysts && tw.catalysts.length > 0 && (
+        <div className="space-y-2">
+          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+            Catalyseurs macro à surveiller
+          </p>
+          <div className="space-y-2">
+            {tw.catalysts.map((c, i) => (
+              <div key={i} className="flex items-start gap-3 p-3 bg-white/5 rounded-lg border border-white/5">
+                <Calendar className="w-4 h-4 text-rose-400 flex-shrink-0 mt-0.5" />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-sm font-medium">{c.name}</span>
+                    <span className="text-xs text-muted-foreground">{c.when}</span>
+                    <span className="text-xs px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-400 border border-rose-500/30">
+                      {c.impact === "high" ? "Impact fort" : "Impact modéré"}
+                    </span>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-0.5">{c.relevance}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </motion.div>
+  );
+}
+
 export default function AnalysisPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -860,6 +959,11 @@ export default function AnalysisPage() {
 
           {/* 3. Premium Chart */}
           <PremiumChart symbol={analysis.symbol} timeframe={timeframe} />
+
+          {/* Trade Window */}
+          {analysis.trade_window && (
+            <TradeWindowCard tw={analysis.trade_window} t={t} />
+          )}
 
           {/* 4. AI Insight */}
           <AIInsightSection

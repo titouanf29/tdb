@@ -527,6 +527,22 @@ export interface Analysis {
     analyst_low?: number;
   };
   analyst_sentiment?: string;
+  trade_window?: {
+    min_hours: number;
+    max_hours: number;
+    label_min: string;
+    label_max: string;
+    risk_level: "low" | "medium" | "high";
+    reasons: string[];
+    warnings: string[];
+    catalysts: Array<{
+      name: string;
+      datetime: string;
+      when: string;
+      impact: string;
+      relevance: string;
+    }>;
+  };
   news?: {
     title?: string;
     publisher?: string;
