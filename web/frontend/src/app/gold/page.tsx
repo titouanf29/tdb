@@ -471,6 +471,323 @@ function TradingModal({
   );
 }
 
+// ── Gold position detail sheet ────────────────────────────────────────────────
+function GoldPositionDetailSheet({
+  pos,
+  currentPrice,
+  lang,
+  onClose,
+  onClosed,
+}: {
+  pos: Position;
+  currentPrice: number;
+  lang: "fr" | "en";
+  onClose: () => void;
+  onClosed: () => void;
+}) {
+  const router = useRouter();
+  const isLong = pos.direction === "LONG";
+  const pnl = pos.unrealized_pnl ?? 0;
+  const pct = pos.pnl_percent ?? 0;
+  const isProfit = pnl >= 0;
+  const [closing, setClosing] = useState(false);
+  const [editingTP, setEditingTP] = useState(false);
+  const [editingSL, setEditingSL] = useState(false);
+  const [tpVal, setTpVal] = useState(pos.take_profit?.toFixed(2) ?? "");
+  const [slVal, setSlVal] = useState(pos.stop_loss?.toFixed(2) ?? "");
+  const [saving, setSaving] = useState(false);
+  const [saveMsg, setSaveMsg] = useState<string | null>(null);
+
+  const cur = pos.current_price ?? currentPrice;
+  const openedDate = pos.created_at?.slice(0, 10) ?? "—";
+
+  const rr = pos.stop_loss && pos.take_profit
+    ? (() => {
+        const risk = Math.abs(pos.entry_price - pos.stop_loss);
+        const reward = Math.abs(pos.take_profit - pos.entry_price);
+        return risk > 0 ? reward / risk : null;
+      })()
+    : null;
+
+  const priceBarPct = pos.stop_loss && pos.take_profit
+    ? Math.max(0, Math.min(100, ((cur - pos.stop_loss) / (pos.take_profit - pos.stop_loss)) * 100))
+    : null;
+
+  const slDist = pos.stop_loss
+    ? Math.abs((cur - pos.stop_loss) / cur) * 100
+    : null;
+
+  const fmtG = (v: number) => v.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+  const handleClose = async () => {
+    setClosing(true);
+    try {
+      await walletAPI.closePosition(pos.id);
+      onClosed();
+      onClose();
+    } catch { setClosing(false); }
+  };
+
+  const handleSaveRisk = async () => {
+    setSaving(true);
+    try {
+      await walletAPI.updatePosition(pos.id, {
+        take_profit: tpVal ? parseFloat(tpVal) : null,
+        stop_loss:   slVal ? parseFloat(slVal) : null,
+      });
+      setSaveMsg(lang === "fr" ? "Sauvegardé ✓" : "Saved ✓");
+      setEditingTP(false); setEditingSL(false);
+      setTimeout(() => setSaveMsg(null), 2000);
+    } catch { /* silent */ } finally { setSaving(false); }
+  };
+
+  return (
+    <>
+      <motion.div
+        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+        className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm"
+        onClick={onClose}
+      />
+      <motion.div
+        initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }}
+        transition={{ type: "spring", damping: 28, stiffness: 280 }}
+        className="fixed right-0 top-0 bottom-0 z-50 w-full max-w-md flex flex-col overflow-hidden"
+        style={{ background: "#08070a", borderLeft: "1px solid rgba(245,158,11,0.15)" }}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-amber-500/10 flex-shrink-0">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <span className={cn(
+              "text-xs font-bold px-2.5 py-1 rounded-full border flex-shrink-0",
+              isLong
+                ? "bg-amber-500/15 text-amber-400 border-amber-500/25"
+                : "bg-blue-500/15 text-blue-400 border-blue-500/25"
+            )}>
+              {isLong ? "▲ LONG" : "▼ SHORT"}
+            </span>
+            <span className="text-xl font-black tracking-tight" style={{
+              backgroundImage: "linear-gradient(135deg, #fde68a, #f59e0b)",
+              WebkitBackgroundClip: "text", backgroundClip: "text", WebkitTextFillColor: "transparent"
+            }}>XAU / USD</span>
+            <span className="text-xs text-amber-400/50 bg-amber-500/8 px-2 py-0.5 rounded-full border border-amber-500/15 flex-shrink-0">
+              ×{pos.leverage}
+            </span>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-1.5 rounded-lg hover:bg-white/8 text-muted-foreground hover:text-foreground transition-colors flex-shrink-0 ml-2"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="flex-1 overflow-y-auto p-5 space-y-4">
+          {/* P&L hero */}
+          <div className={cn(
+            "rounded-2xl p-5 text-center relative overflow-hidden",
+            isProfit
+              ? "border border-amber-500/20"
+              : "border border-red-500/20"
+          )} style={{
+            background: isProfit
+              ? "linear-gradient(135deg, rgba(245,158,11,0.08), rgba(251,191,36,0.04))"
+              : "linear-gradient(135deg, rgba(239,68,68,0.08), rgba(239,68,68,0.04))"
+          }}>
+            <div className="absolute inset-0 pointer-events-none" style={{
+              background: isProfit
+                ? "radial-gradient(ellipse 70% 50% at 50% 0%, rgba(245,158,11,0.18) 0%, transparent 70%)"
+                : "radial-gradient(ellipse 70% 50% at 50% 0%, rgba(239,68,68,0.15) 0%, transparent 70%)"
+            }}/>
+            <p className="text-[10px] text-muted-foreground uppercase tracking-widest mb-2">
+              {lang === "fr" ? "P&L Non Réalisée" : "Unrealized P&L"}
+            </p>
+            <p className={cn("text-4xl font-black tabular-nums", isProfit ? "text-amber-400" : "text-red-400")}>
+              {isProfit ? "+" : ""}{fmtG(pnl)}<span className="text-xl font-bold"> $</span>
+            </p>
+            <p className={cn("text-lg font-bold mt-1 opacity-80", isProfit ? "text-amber-400" : "text-red-400")}>
+              {isProfit ? "+" : ""}{pct.toFixed(2)}%
+            </p>
+          </div>
+
+          {/* Price row */}
+          <div>
+            <p className="text-[10px] text-muted-foreground uppercase tracking-widest mb-2 font-medium">
+              {lang === "fr" ? "Prix" : "Price"}
+            </p>
+            <div className="grid grid-cols-3 gap-2">
+              <div className="rounded-xl p-3 text-center" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
+                <p className="text-[10px] text-muted-foreground mb-1">{lang === "fr" ? "Entrée" : "Entry"}</p>
+                <p className="font-bold text-sm tabular-nums">{fmtG(pos.entry_price)}</p>
+              </div>
+              <div className="rounded-xl p-3 text-center" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
+                <p className="text-[10px] text-muted-foreground mb-1">{lang === "fr" ? "Actuel" : "Current"}</p>
+                <p className="font-bold text-sm tabular-nums">{fmtG(cur)}</p>
+              </div>
+              <div className="rounded-xl p-3 text-center" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
+                <p className="text-[10px] text-muted-foreground mb-1">{lang === "fr" ? "Variation" : "Change"}</p>
+                <p className={cn("font-bold text-sm", isProfit ? "text-amber-400" : "text-red-400")}>
+                  {isProfit ? "+" : ""}{pct.toFixed(2)}%
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Position row */}
+          <div>
+            <p className="text-[10px] text-muted-foreground uppercase tracking-widest mb-2 font-medium">
+              {lang === "fr" ? "Position" : "Position"}
+            </p>
+            <div className="grid grid-cols-3 gap-2">
+              <div className="rounded-xl p-3 text-center" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
+                <p className="text-[10px] text-muted-foreground mb-1">{lang === "fr" ? "Capital" : "Capital"}</p>
+                <p className="font-bold text-sm">${fmtG(pos.amount)}</p>
+              </div>
+              <div className="rounded-xl p-3 text-center" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
+                <p className="text-[10px] text-muted-foreground mb-1">{lang === "fr" ? "Exposition" : "Exposure"}</p>
+                <p className="font-bold text-sm">${fmtG(pos.amount * pos.leverage)}</p>
+              </div>
+              <div className="rounded-xl p-3 text-center" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
+                <p className="text-[10px] text-muted-foreground mb-1">{lang === "fr" ? "Ouvert" : "Opened"}</p>
+                <p className="font-bold text-xs">{openedDate}</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Risk management */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-medium">
+                {lang === "fr" ? "Gestion du risque" : "Risk management"}
+              </p>
+              {saveMsg && <span className="text-[10px] text-amber-400">{saveMsg}</span>}
+            </div>
+            <div className="rounded-xl p-4 space-y-3" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
+              <div className="flex items-end justify-between text-sm">
+                {/* SL */}
+                <div>
+                  <p className="text-[10px] text-muted-foreground mb-1">Stop Loss</p>
+                  {editingSL ? (
+                    <input
+                      autoFocus
+                      type="number"
+                      value={slVal}
+                      onChange={e => setSlVal(e.target.value)}
+                      onBlur={handleSaveRisk}
+                      className="w-24 text-xs bg-red-500/10 border border-red-500/30 rounded-lg px-2 py-1 text-red-300 focus:outline-none"
+                    />
+                  ) : (
+                    <button
+                      onClick={() => setEditingSL(true)}
+                      className="font-bold text-red-400 hover:text-red-300 transition-colors text-left"
+                    >
+                      {pos.stop_loss ? fmtG(pos.stop_loss) : <span className="text-muted-foreground/40 text-xs">{lang === "fr" ? "Définir" : "Set"}</span>}
+                    </button>
+                  )}
+                </div>
+                {/* R:R */}
+                {rr && (
+                  <div className="text-center">
+                    <p className="text-[10px] text-muted-foreground mb-1">Risk / Reward</p>
+                    <p className="font-bold text-amber-400">1 : {rr.toFixed(1)}</p>
+                  </div>
+                )}
+                {/* TP */}
+                <div className="text-right">
+                  <p className="text-[10px] text-muted-foreground mb-1">Take Profit</p>
+                  {editingTP ? (
+                    <input
+                      autoFocus
+                      type="number"
+                      value={tpVal}
+                      onChange={e => setTpVal(e.target.value)}
+                      onBlur={handleSaveRisk}
+                      className="w-24 text-xs bg-green-500/10 border border-green-500/30 rounded-lg px-2 py-1 text-green-300 focus:outline-none text-right"
+                    />
+                  ) : (
+                    <button
+                      onClick={() => setEditingTP(true)}
+                      className="font-bold text-profit hover:text-profit/80 transition-colors text-right"
+                    >
+                      {pos.take_profit ? fmtG(pos.take_profit) : <span className="text-muted-foreground/40 text-xs">{lang === "fr" ? "Définir" : "Set"}</span>}
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Price bar */}
+              {priceBarPct !== null && (
+                <div
+                  className="relative h-2.5 rounded-full"
+                  style={{ background: "linear-gradient(90deg, rgba(239,68,68,0.3), rgba(245,158,11,0.3))" }}
+                >
+                  <div
+                    className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-3.5 h-3.5 rounded-full bg-amber-400 border-2 border-white/20 shadow-lg shadow-amber-500/40 z-10"
+                    style={{ left: `${priceBarPct}%` }}
+                  />
+                </div>
+              )}
+
+              {/* SL warning */}
+              {slDist !== null && slDist < 5 && (
+                <p className="text-xs text-red-400 flex items-center gap-1.5">
+                  <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0" />
+                  {lang === "fr" ? `À ${slDist.toFixed(1)}% du stop loss` : `${slDist.toFixed(1)}% from stop loss`}
+                </p>
+              )}
+
+              {saving && (
+                <p className="text-[10px] text-muted-foreground/50 text-center">
+                  {lang === "fr" ? "Sauvegarde..." : "Saving..."}
+                </p>
+              )}
+              <p className="text-[10px] text-muted-foreground/35 text-center">
+                {lang === "fr" ? "Cliquer SL ou TP pour modifier" : "Click SL or TP to edit"}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Action bar */}
+        <div className="flex-shrink-0 p-4 border-t border-amber-500/10">
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              onClick={() => {
+                sessionStorage.setItem("ai_position_context", JSON.stringify({
+                  ...pos, symbol: "GC=F", currency: "USD"
+                }));
+                router.push("/assistant?asset=GC%3DF");
+              }}
+              className="flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-medium transition-all"
+              style={{ background: "rgba(168,85,247,0.1)", border: "1px solid rgba(168,85,247,0.2)", color: "#c084fc" }}
+            >
+              <Bot className="w-4 h-4" />
+              {lang === "fr" ? "Analyser IA" : "AI Analysis"}
+            </button>
+            <button
+              onClick={handleClose}
+              disabled={closing}
+              className={cn(
+                "flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold transition-all",
+                isLong
+                  ? "bg-amber-500/80 hover:bg-amber-500 text-black"
+                  : "bg-blue-500/80 hover:bg-blue-500 text-white",
+                closing && "opacity-50 cursor-not-allowed"
+              )}
+            >
+              {closing
+                ? <Loader2 className="w-4 h-4 animate-spin" />
+                : <CheckCircle2 className="w-4 h-4" />}
+              {lang === "fr" ? "Clôturer" : "Close position"}
+            </button>
+          </div>
+        </div>
+      </motion.div>
+    </>
+  );
+}
+
+
 // ── Catalyst helpers ─────────────────────────────────────────────────────────
 function getCatalystMeta(title: string, lang: "fr" | "en") {
   const t = title.toLowerCase();
@@ -1167,6 +1484,7 @@ export default function GoldPage() {
 
   const [tradeDir, setTradeDir]      = useState<"LONG" | "SHORT" | null>(null);
   const [goldPositions, setGoldPositions] = useState<Position[]>([]);
+  const [detailGoldPos, setDetailGoldPos] = useState<Position | null>(null);
 
   const loadGoldPositions = useCallback(async () => {
     try {
@@ -1340,6 +1658,17 @@ export default function GoldPage() {
           lang={lang}
         />
       )}
+      <AnimatePresence>
+        {detailGoldPos && (
+          <GoldPositionDetailSheet
+            pos={detailGoldPos}
+            currentPrice={price}
+            lang={lang}
+            onClose={() => setDetailGoldPos(null)}
+            onClosed={loadGoldPositions}
+          />
+        )}
+      </AnimatePresence>
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -1698,8 +2027,9 @@ export default function GoldPage() {
                     return (
                       <motion.div key={pos.id}
                         initial={{ opacity:0, y:4 }} animate={{ opacity:1, y:0 }}
-                        className={cn("p-2.5 rounded-xl border text-xs space-y-1.5",
-                          pos.direction === "LONG" ? "border-amber-500/20 bg-amber-500/5" : "border-blue-500/20 bg-blue-500/5")}>
+                        onClick={() => setDetailGoldPos(pos)}
+                        className={cn("p-2.5 rounded-xl border text-xs space-y-1.5 cursor-pointer transition-all hover:brightness-110 active:scale-[0.98]",
+                          pos.direction === "LONG" ? "border-amber-500/20 bg-amber-500/5 hover:border-amber-500/35" : "border-blue-500/20 bg-blue-500/5 hover:border-blue-500/35")}>
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-1.5">
                             {pos.direction === "LONG" ? <TrendingUp className="w-3 h-3 text-amber-400"/> : <TrendingDown className="w-3 h-3 text-blue-400"/>}
@@ -1720,6 +2050,9 @@ export default function GoldPage() {
                             {pos.stop_loss   && <span className="text-loss/60">SL {formatPrice(pos.stop_loss,"GC=F")}</span>}
                           </div>
                         )}
+                        <p className="text-[9px] text-muted-foreground/25 text-right tracking-wider">
+                          {lang === "fr" ? "Détails →" : "Details →"}
+                        </p>
                       </motion.div>
                     );
                   })}
