@@ -483,6 +483,7 @@ export default function AnalysisPage() {
   const currentSymbolRef = useRef<string>("");
   const [realPosition, setRealPosition] = useState<RealPosition | null>(null);
   const [activeSection, setActiveSection] = useState("score");
+  const [showAIChat, setShowAIChat] = useState(false);
 
   useEffect(() => {
     if (!analysis) return;
@@ -1121,6 +1122,7 @@ export default function AnalysisPage() {
             riskLevel={settings.riskLevel}
             tradingLevel={tradingLevel}
             onReload={() => loadAIInsight(analysis.symbol, analysis)}
+            onAskAI={() => setShowAIChat(true)}
           />
           </div>
 
@@ -1553,6 +1555,45 @@ export default function AnalysisPage() {
         </motion.div>
       )}
     </motion.div>
+
+    {/* Floating "Ask AI" button — visible when analysis is loaded */}
+    <AnimatePresence>
+      {analysis && !showAIChat && (
+        <motion.button
+          initial={{ opacity: 0, scale: 0.8, y: 20 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.8, y: 20 }}
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+          onClick={() => setShowAIChat(true)}
+          className="fixed bottom-6 right-6 z-40 flex items-center gap-2.5 px-5 py-3 rounded-2xl font-semibold text-sm shadow-2xl"
+          style={{
+            background: "linear-gradient(135deg, rgba(139,92,246,0.9) 0%, rgba(99,140,255,0.9) 100%)",
+            border: "1px solid rgba(139,92,246,0.5)",
+            boxShadow: "0 8px 32px rgba(139,92,246,0.4), 0 0 0 1px rgba(255,255,255,0.1) inset",
+            backdropFilter: "blur(12px)",
+          }}
+        >
+          <Bot className="w-4 h-4" />
+          {lang === "en" ? "Ask AI" : "Demander à l'IA"}
+        </motion.button>
+      )}
+    </AnimatePresence>
+
+    {/* Analysis AI Chat Panel */}
+    <AnimatePresence>
+      {showAIChat && analysis && (
+        <AnalysisChatPanel
+          analysis={analysis}
+          aiInsight={aiInsight}
+          tradingStyle={settings.tradingStyle}
+          riskLevel={settings.riskLevel}
+          tradingLevel={tradingLevel}
+          lang={lang}
+          onClose={() => setShowAIChat(false)}
+        />
+      )}
+    </AnimatePresence>
     </>
   );
 }
@@ -3440,7 +3481,8 @@ function AIInsightSection({
   tradingStyle = "day",
   riskLevel = "moderate",
   tradingLevel = "intermediate",
-  onReload
+  onReload,
+  onAskAI,
 }: {
   aiInsight: string | null;
   isLoading: boolean;
@@ -3449,6 +3491,7 @@ function AIInsightSection({
   riskLevel?: string;
   tradingLevel?: string;
   onReload: () => void;
+  onAskAI?: () => void;
 }) {
   const { t, lang } = useLanguage();
   const [error, setError] = useState<string | null>(null);
@@ -3501,16 +3544,32 @@ function AIInsightSection({
               </span>
             ) : null; })()}
           </h3>
-          {aiInsight && (
-            <button
-              onClick={handleReload}
-              disabled={isLoading}
-              className="p-2 rounded-lg hover:bg-white/10 transition-colors"
-              title="Régénérer l'analyse"
-            >
-              <Sparkles className={cn("w-4 h-4 text-purple-400", isLoading && "animate-spin")} />
-            </button>
-          )}
+          <div className="flex items-center gap-2">
+            {aiInsight && onAskAI && (
+              <button
+                onClick={onAskAI}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
+                style={{
+                  background: "linear-gradient(135deg, rgba(139,92,246,0.2) 0%, rgba(99,140,255,0.15) 100%)",
+                  border: "1px solid rgba(139,92,246,0.35)",
+                  color: "rgba(167,139,250,1)",
+                }}
+              >
+                <Bot className="w-3.5 h-3.5" />
+                {lang === "en" ? "Ask AI" : "Demander à l'IA"}
+              </button>
+            )}
+            {aiInsight && (
+              <button
+                onClick={handleReload}
+                disabled={isLoading}
+                className="p-2 rounded-lg hover:bg-white/10 transition-colors"
+                title="Régénérer l'analyse"
+              >
+                <Sparkles className={cn("w-4 h-4 text-purple-400", isLoading && "animate-spin")} />
+              </button>
+            )}
+          </div>
         </div>
 
         {isLoading ? (
@@ -4896,6 +4955,308 @@ function EducationalSection({ analysis, tradingLevel = "intermediate" }: { analy
           ))}
         </motion.div>
       )}
+    </motion.div>
+  );
+}
+
+// ── Analysis Chat Panel ──────────────────────────────────────────────────────
+
+function buildAnalysisContext(analysis: Analysis, aiInsight: string | null, lang: string): string {
+  const sign = (n: number) => n >= 0 ? `+${n.toFixed(2)}%` : `${n.toFixed(2)}%`;
+  const fmt = (n: number) => n.toLocaleString("fr-FR", { maximumFractionDigits: 4 });
+
+  const lines: string[] = [
+    `=== ANALYSE TECHNIQUE — ${analysis.symbol} ===`,
+    `Langue utilisateur: ${lang === "en" ? "EN" : "FR"}`,
+    `Prix actuel: ${fmt(analysis.price.current)} (${sign(analysis.price.change)})`,
+    `Haut 24h: ${fmt(analysis.price.high_24h)} | Bas 24h: ${fmt(analysis.price.low_24h)}`,
+    `Tendance: ${analysis.trend}`,
+    `Signal: ${analysis.signal.emoji} ${analysis.signal.text}`,
+    ``,
+    `Score Global: ${analysis.score.total}/100`,
+    `  Technique: ${analysis.score.technical}/100 | Volume: ${analysis.score.volume}/100 | Momentum: ${analysis.score.momentum}/100`,
+    analysis.score.fundamental !== undefined ? `  Fundamental: ${analysis.score.fundamental}/100` : "",
+    ``,
+    `Niveaux clés:`,
+    `  Support: ${fmt(analysis.levels.support)} | Pivot: ${fmt(analysis.levels.pivot)} | Résistance: ${fmt(analysis.levels.resistance)}`,
+    `  Stop Loss suggéré: ${fmt(analysis.risk.suggested_sl)} | TP suggéré: ${fmt(analysis.risk.suggested_tp)}`,
+    `  Risk/Reward: ${analysis.risk.risk_reward.toFixed(2)}`,
+    ``,
+    `Indicateurs:`,
+    `  RSI(14): ${analysis.indicators.rsi.value.toFixed(1)} → ${analysis.indicators.rsi.signal}`,
+    `  MACD: ${analysis.indicators.macd.value.toFixed(4)} | Signal: ${analysis.indicators.macd.signal_line.toFixed(4)} | Histo: ${analysis.indicators.macd.histogram.toFixed(4)} → ${analysis.indicators.macd.signal}`,
+    `  EMA20: ${fmt(analysis.indicators.ema.ema20)} | EMA50: ${fmt(analysis.indicators.ema.ema50)}${analysis.indicators.ema.ema200 ? ` | EMA200: ${fmt(analysis.indicators.ema.ema200)}` : ""}`,
+    `  Bollinger: H=${fmt(analysis.indicators.bollinger.upper)} / M=${fmt(analysis.indicators.bollinger.middle)} / B=${fmt(analysis.indicators.bollinger.lower)} → ${analysis.indicators.bollinger.position}`,
+    `  Volume Ratio: ${analysis.indicators.volume_ratio.toFixed(2)} | ATR: ${analysis.indicators.atr.toFixed(4)}`,
+    analysis.indicators.adx ? `  ADX: ${analysis.indicators.adx.value.toFixed(1)} | +DI: ${analysis.indicators.adx.plus_di.toFixed(1)} | -DI: ${analysis.indicators.adx.minus_di.toFixed(1)} → ${analysis.indicators.adx.signal}` : "",
+    analysis.indicators.stochastic ? `  Stochastique: %K=${analysis.indicators.stochastic.k.toFixed(1)} / %D=${analysis.indicators.stochastic.d.toFixed(1)} → ${analysis.indicators.stochastic.signal}` : "",
+  ];
+
+  if (analysis.company?.name) {
+    lines.push("", `Société: ${analysis.company.name}${analysis.company.sector ? ` (${analysis.company.sector})` : ""}`);
+  }
+
+  if (analysis.fundamentals) {
+    const f = analysis.fundamentals;
+    const fundLines = ["", "Fondamentaux:"];
+    if (f.pe_ratio) fundLines.push(`  P/E: ${f.pe_ratio.toFixed(2)}`);
+    if (f.market_cap) fundLines.push(`  Market Cap: ${(f.market_cap / 1e9).toFixed(2)}B`);
+    if (f.dividend_yield) fundLines.push(`  Dividende: ${(f.dividend_yield * 100).toFixed(2)}%`);
+    if (f.beta) fundLines.push(`  Beta: ${f.beta.toFixed(2)}`);
+    if (f.recommendation) fundLines.push(`  Consensus analystes: ${f.recommendation}`);
+    if (f.target_price) fundLines.push(`  Objectif cours: ${fmt(f.target_price)}`);
+    lines.push(...fundLines);
+  }
+
+  if (aiInsight) {
+    lines.push("", "=== ANALYSE IA PRÉ-GÉNÉRÉE ===", aiInsight.slice(0, 2000));
+  }
+
+  return lines.filter(Boolean).join("\n");
+}
+
+type ChatMsg = { role: "user" | "assistant"; content: string };
+
+function AnalysisChatPanel({
+  analysis,
+  aiInsight,
+  tradingStyle,
+  riskLevel,
+  tradingLevel,
+  lang,
+  onClose,
+}: {
+  analysis: Analysis;
+  aiInsight: string | null;
+  tradingStyle: string;
+  riskLevel: string;
+  tradingLevel: string;
+  lang: string;
+  onClose: () => void;
+}) {
+  const [messages, setMessages] = useState<ChatMsg[]>([]);
+  const [input, setInput] = useState("");
+  const [isSending, setIsSending] = useState(false);
+  const [remaining, setRemaining] = useState<number | null>(null);
+  const [isPremium, setIsPremium] = useState(false);
+  const [limitError, setLimitError] = useState<string | null>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+  const analysisContext = buildAnalysisContext(analysis, aiInsight, lang);
+
+  useEffect(() => {
+    aiAPI.getLimit().then(s => {
+      setRemaining(s.remaining);
+      setIsPremium(s.is_premium);
+    }).catch(() => {});
+    inputRef.current?.focus();
+    // Auto-send welcome prompt
+    sendMessage(lang === "en"
+      ? `I have the analysis of ${analysis.symbol} in front of me. Summarize the key signals: what is the trend, what does the score indicate, and what are the main entry/exit levels to watch?`
+      : `J'ai l'analyse de ${analysis.symbol} devant moi. Résume-moi les signaux clés : quelle est la tendance, que signifie le score, et quels sont les niveaux d'entrée/sortie principaux à surveiller ?`
+    );
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  async function sendMessage(text: string) {
+    if (!text.trim() || isSending) return;
+    setLimitError(null);
+
+    const userMsg: ChatMsg = { role: "user", content: text.trim() };
+    const updatedHistory = [...messages, userMsg];
+    setMessages(updatedHistory);
+    setInput("");
+    setIsSending(true);
+
+    try {
+      const historyForAPI = updatedHistory.slice(1).slice(-10); // exclude auto-prompt if needed, keep last 10
+      const res = await aiAPI.analysisChat(text.trim(), analysisContext, historyForAPI);
+      setMessages(prev => [...prev, { role: "assistant", content: res.response }]);
+      if (!res.is_premium) setRemaining(res.remaining);
+    } catch (err: any) {
+      const detail = err?.message || "";
+      if (detail.includes("429") || err?.status === 429) {
+        setLimitError(lang === "en"
+          ? "Daily limit reached. Upgrade to Premium for unlimited messages."
+          : "Limite quotidienne atteinte. Passez Premium pour des messages illimités.");
+      } else {
+        setMessages(prev => [...prev, { role: "assistant", content: lang === "en" ? "An error occurred. Please retry." : "Une erreur s'est produite. Réessayez." }]);
+      }
+    } finally {
+      setIsSending(false);
+    }
+  }
+
+  const handleKeyDown = (e: { key: string; shiftKey: boolean; preventDefault: () => void }) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage(input);
+    }
+  };
+
+  const suggestions = lang === "en"
+    ? ["Long or short setup?", "Key support/resistance?", "RSI divergence?", "Compare with sector"]
+    : ["Setup long ou short ?", "Niveaux S/R clés ?", "Divergence RSI ?", "Comparer au secteur"];
+
+  return (
+    <motion.div
+      initial={{ x: "100%" }}
+      animate={{ x: 0 }}
+      exit={{ x: "100%" }}
+      transition={{ type: "spring", damping: 28, stiffness: 280 }}
+      className="fixed top-0 right-0 h-full z-50 flex flex-col"
+      style={{
+        width: "min(440px, 100vw)",
+        background: "linear-gradient(180deg, hsl(220 50% 5.5%) 0%, hsl(220 45% 4.5%) 100%)",
+        borderLeft: "1px solid rgba(139,92,246,0.2)",
+        boxShadow: "-8px 0 40px rgba(0,0,0,0.5)",
+      }}
+    >
+      {/* Header */}
+      <div className="flex items-center justify-between px-4 py-3.5 flex-shrink-0"
+        style={{ borderBottom: "1px solid rgba(139,92,246,0.15)" }}>
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-lg flex items-center justify-center"
+            style={{ background: "linear-gradient(135deg, rgba(139,92,246,0.3), rgba(99,140,255,0.2))", border: "1px solid rgba(139,92,246,0.3)" }}>
+            <Bot className="w-4 h-4 text-purple-400" />
+          </div>
+          <div>
+            <p className="font-semibold text-sm">{lang === "en" ? "AI Analysis" : "Analyse IA"} · {analysis.symbol}</p>
+            <p className="text-[11px] text-muted-foreground">
+              {isPremium
+                ? (lang === "en" ? "Unlimited" : "Illimité")
+                : remaining !== null
+                  ? (lang === "en" ? `${remaining} messages left today` : `${remaining} messages restants aujourd'hui`)
+                  : ""}
+            </p>
+          </div>
+        </div>
+        <button
+          onClick={onClose}
+          className="p-1.5 rounded-lg hover:bg-white/10 text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <X className="w-5 h-5" />
+        </button>
+      </div>
+
+      {/* Messages */}
+      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4 no-scrollbar">
+        {messages.length === 0 && (
+          <div className="flex flex-col items-center justify-center h-full gap-3 text-center">
+            <div className="w-14 h-14 rounded-2xl flex items-center justify-center"
+              style={{ background: "rgba(139,92,246,0.15)", border: "1px solid rgba(139,92,246,0.3)" }}>
+              <Brain className="w-7 h-7 text-purple-400 animate-pulse" />
+            </div>
+            <p className="text-sm text-muted-foreground">{lang === "en" ? "Analyzing..." : "Analyse en cours..."}</p>
+          </div>
+        )}
+        {messages.map((msg, i) => (
+          <div key={i} className={cn("flex gap-2.5", msg.role === "user" ? "flex-row-reverse" : "flex-row")}>
+            {msg.role === "assistant" && (
+              <div className="w-7 h-7 rounded-lg flex-shrink-0 flex items-center justify-center mt-0.5"
+                style={{ background: "rgba(139,92,246,0.2)", border: "1px solid rgba(139,92,246,0.3)" }}>
+                <Bot className="w-3.5 h-3.5 text-purple-400" />
+              </div>
+            )}
+            <div
+              className={cn(
+                "max-w-[85%] px-3.5 py-2.5 rounded-2xl text-sm leading-relaxed",
+                msg.role === "user"
+                  ? "text-white rounded-tr-sm"
+                  : "text-foreground/90 rounded-tl-sm"
+              )}
+              style={msg.role === "user" ? {
+                background: "linear-gradient(135deg, rgba(99,140,255,0.35), rgba(139,92,246,0.25))",
+                border: "1px solid rgba(99,140,255,0.3)",
+              } : {
+                background: "rgba(255,255,255,0.05)",
+                border: "1px solid rgba(255,255,255,0.08)",
+              }}
+            >
+              {msg.role === "assistant" ? renderAIText(msg.content) : msg.content}
+            </div>
+          </div>
+        ))}
+        {isSending && (
+          <div className="flex gap-2.5">
+            <div className="w-7 h-7 rounded-lg flex-shrink-0 flex items-center justify-center"
+              style={{ background: "rgba(139,92,246,0.2)", border: "1px solid rgba(139,92,246,0.3)" }}>
+              <Bot className="w-3.5 h-3.5 text-purple-400" />
+            </div>
+            <div className="px-4 py-3 rounded-2xl rounded-tl-sm"
+              style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}>
+              <div className="flex gap-1 items-center">
+                <span className="w-1.5 h-1.5 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
+                <span className="w-1.5 h-1.5 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
+                <span className="w-1.5 h-1.5 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
+              </div>
+            </div>
+          </div>
+        )}
+        <div ref={messagesEndRef} />
+      </div>
+
+      {/* Suggestion chips — shown before first user message */}
+      {messages.length <= 1 && !isSending && (
+        <div className="px-4 pb-2 flex gap-2 flex-wrap flex-shrink-0">
+          {suggestions.map((s) => (
+            <button
+              key={s}
+              onClick={() => sendMessage(s)}
+              className="text-xs px-3 py-1.5 rounded-full transition-colors"
+              style={{
+                background: "rgba(139,92,246,0.1)",
+                border: "1px solid rgba(139,92,246,0.25)",
+                color: "rgba(167,139,250,0.9)",
+              }}
+            >
+              {s}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Limit error */}
+      {limitError && (
+        <div className="mx-4 mb-2 px-3 py-2 rounded-lg text-xs text-warning bg-warning/10 border border-warning/25 flex-shrink-0">
+          {limitError}
+        </div>
+      )}
+
+      {/* Input */}
+      <div className="px-4 pb-4 flex-shrink-0" style={{ borderTop: "1px solid rgba(255,255,255,0.06)", paddingTop: "12px" }}>
+        <div className="flex gap-2 items-end">
+          <textarea
+            ref={inputRef}
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={handleKeyDown}
+            disabled={isSending || !!limitError}
+            placeholder={lang === "en" ? "Ask about this analysis…" : "Posez une question sur cette analyse…"}
+            rows={1}
+            className="flex-1 resize-none bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-purple-500/50 placeholder:text-muted-foreground/50 disabled:opacity-50 min-h-[44px] max-h-[120px]"
+            style={{ scrollbarWidth: "none" }}
+          />
+          <button
+            onClick={() => sendMessage(input)}
+            disabled={!input.trim() || isSending || !!limitError}
+            className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 transition-all disabled:opacity-40"
+            style={{
+              background: "linear-gradient(135deg, rgba(139,92,246,0.8), rgba(99,140,255,0.8))",
+              border: "1px solid rgba(139,92,246,0.4)",
+            }}
+          >
+            <ArrowRight className="w-4 h-4 text-white" />
+          </button>
+        </div>
+        <p className="text-[10px] text-muted-foreground/40 mt-2 text-center">
+          {lang === "en" ? "Educational use only — not financial advice" : "Usage éducatif uniquement — pas un conseil financier"}
+        </p>
+      </div>
     </motion.div>
   );
 }

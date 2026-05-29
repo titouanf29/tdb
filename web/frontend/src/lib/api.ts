@@ -252,6 +252,13 @@ export const aiAPI = {
   getLimit: () =>
     fetchAPI<AILimitStatus>("/api/ai/limit"),
 
+  analysisChat: (message: string, analysisContext: string, conversationHistory: {role: string; content: string}[]) =>
+    fetchAPI<{ response: string; remaining: number; is_premium: boolean }>("/api/ai/analysis-chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message, analysis_context: analysisContext, conversation_history: conversationHistory }),
+    }),
+
   getSessionNarrative: (payload: {
     session_name: string;
     session_id: string;

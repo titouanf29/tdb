@@ -401,6 +401,103 @@ async def chat_with_assistant(
         raise HTTPException(status_code=500, detail=detail_msg)
 
 
+class AnalysisChatRequest(BaseModel):
+    message: str
+    analysis_context: str
+    conversation_history: List[ChatMessage] = []
+
+    @field_validator("message")
+    @classmethod
+    def message_max_length(cls, v: str) -> str:
+        if len(v) > 2000:
+            raise ValueError("Message trop long (max 2000 caractères)")
+        return v
+
+    @field_validator("analysis_context")
+    @classmethod
+    def context_max_length(cls, v: str) -> str:
+        if len(v) > 8000:
+            raise ValueError("Contexte trop long")
+        return v
+
+
+@router.post("/analysis-chat")
+@limiter.limit("10/minute")
+async def analysis_chat(
+    request: Request,
+    body: AnalysisChatRequest,
+    current_user: dict = Depends(get_current_user)
+):
+    """Chat about a specific asset analysis - uses same credit pool, history managed client-side"""
+    try:
+        api_key = get_groq_api_key()
+        if not api_key:
+            raise HTTPException(status_code=503, detail="AI Assistant not configured.")
+
+        limit_status = await check_ai_limit(current_user)
+        if not limit_status["can_send"]:
+            raise HTTPException(
+                status_code=429,
+                detail={
+                    "message": "Limite quotidienne atteinte. Passez Premium pour des messages illimites.",
+                    "messages_today": limit_status["messages_today"],
+                    "daily_limit": limit_status["daily_limit"],
+                    "remaining": 0
+                }
+            )
+
+        user_id = get_user_id(current_user)
+
+        messages = [
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "system", "content": f"=== DONNÉES D'ANALYSE EN TEMPS RÉEL ===\n{body.analysis_context}\n=== FIN DES DONNÉES ===\nL'utilisateur te pose des questions sur cet actif. Utilise ces données pour répondre avec précision."}
+        ]
+
+        for msg in body.conversation_history[-12:]:
+            if msg.role in ("user", "assistant"):
+                messages.append({"role": msg.role, "content": msg.content})
+
+        messages.append({"role": "user", "content": body.message})
+
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            response = await client.post(
+                GROQ_API_URL,
+                headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+                json={"model": MODEL, "messages": messages, "temperature": 0.65, "max_tokens": 1024}
+            )
+
+            if response.status_code == 401:
+                raise HTTPException(status_code=503, detail="Cle API Groq invalide.")
+            elif response.status_code == 429:
+                assistant_message = await _call_mistral(messages, client)
+            elif response.status_code != 200:
+                raise HTTPException(status_code=502, detail=f"Erreur IA ({response.status_code})")
+            else:
+                assistant_message = response.json()["choices"][0]["message"]["content"]
+
+            now = datetime.now(timezone.utc).isoformat()
+            await execute_write(
+                "INSERT INTO web_ai_chat (user_id, role, content, created_at) VALUES (?, 'user', ?, ?)",
+                (user_id, body.message, now)
+            )
+            await execute_write(
+                "INSERT INTO web_ai_chat (user_id, role, content, created_at) VALUES (?, 'assistant', ?, ?)",
+                (user_id, assistant_message, now)
+            )
+
+            remaining = limit_status["remaining"] - 1 if limit_status["remaining"] != -1 else -1
+            return {"response": assistant_message, "remaining": remaining, "is_premium": limit_status["is_premium"]}
+
+    except HTTPException:
+        raise
+    except httpx.TimeoutException:
+        raise HTTPException(status_code=504, detail="AI request timeout")
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e) or "Erreur interne")
+
+
 @router.get("/history")
 async def get_chat_history(
     limit: int = Query(default=50, ge=1, le=200),
