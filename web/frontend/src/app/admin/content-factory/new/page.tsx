@@ -192,7 +192,8 @@ function NewContentForm() {
                 setTopic(e.target.value);
                 if (found) setCategory(found.category);
               }}
-              className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm focus:outline-none focus:border-primary/50"
+              className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-foreground focus:outline-none focus:border-primary/50"
+              style={{ colorScheme: "dark" }}
             >
               {TOPICS.map(t => (
                 <option key={t.topic} value={t.topic}>{t.topic}</option>
@@ -204,7 +205,8 @@ function NewContentForm() {
             <select
               value={category}
               onChange={e => setCategory(e.target.value)}
-              className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm focus:outline-none focus:border-primary/50"
+              className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-foreground focus:outline-none focus:border-primary/50"
+              style={{ colorScheme: "dark" }}
             >
               <option value="indicator">Indicateur</option>
               <option value="concept">Concept</option>
@@ -217,7 +219,8 @@ function NewContentForm() {
             <select
               value={status}
               onChange={e => setStatus(e.target.value as any)}
-              className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm focus:outline-none focus:border-primary/50"
+              className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-foreground focus:outline-none focus:border-primary/50"
+              style={{ colorScheme: "dark" }}
             >
               <option value="draft">Brouillon</option>
               <option value="ready">Prêt</option>
@@ -238,7 +241,7 @@ function NewContentForm() {
           </motion.button>
           {source && (
             <span className="text-xs text-muted-foreground">
-              Source : {source === "groq" ? "🤖 Groq (IA)" : "📄 Template"}
+              Source : {source === "groq" ? "🤖 Groq" : source === "mistral" ? "🤖 Mistral" : "📄 Template"}
             </span>
           )}
         </div>

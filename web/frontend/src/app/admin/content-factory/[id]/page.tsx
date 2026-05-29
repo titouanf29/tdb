@@ -214,12 +214,13 @@ export default function EditContentPage() {
           <div>
             <label className="text-xs text-muted-foreground mb-1 block">Sujet</label>
             <input value={topic} onChange={e => setTopic(e.target.value)}
-              className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm focus:outline-none focus:border-primary/50" />
+              className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-foreground focus:outline-none focus:border-primary/50" />
           </div>
           <div>
             <label className="text-xs text-muted-foreground mb-1 block">Catégorie</label>
             <select value={category} onChange={e => setCategory(e.target.value)}
-              className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm focus:outline-none focus:border-primary/50">
+              className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-foreground focus:outline-none focus:border-primary/50"
+              style={{ colorScheme: "dark" }}>
               <option value="indicator">Indicateur</option>
               <option value="concept">Concept</option>
               <option value="strategy">Stratégie</option>
@@ -229,7 +230,8 @@ export default function EditContentPage() {
           <div>
             <label className="text-xs text-muted-foreground mb-1 block">Statut</label>
             <select value={status} onChange={e => setStatus(e.target.value as any)}
-              className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm focus:outline-none focus:border-primary/50">
+              className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-foreground focus:outline-none focus:border-primary/50"
+              style={{ colorScheme: "dark" }}>
               <option value="draft">Brouillon</option>
               <option value="ready">Prêt</option>
               <option value="published">Publié</option>
@@ -247,7 +249,7 @@ export default function EditContentPage() {
             {isGenerating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
             {isGenerating ? "Régénération…" : "Régénérer avec l'IA"}
           </motion.button>
-          {source && <span className="text-xs text-muted-foreground">Source : {source === "groq" ? "🤖 Groq" : "📄 Template"}</span>}
+          {source && <span className="text-xs text-muted-foreground">Source : {source === "groq" ? "🤖 Groq" : source === "mistral" ? "🤖 Mistral" : "📄 Template"}</span>}
         </div>
       </div>
 

@@ -21,6 +21,8 @@ router = APIRouter()
 
 GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
 GROQ_MODEL = "llama-3.3-70b-versatile"
+MISTRAL_API_URL = "https://api.mistral.ai/v1/chat/completions"
+MISTRAL_MODEL = "mistral-small-latest"
 
 CONTENT_LIBRARY = [
     {"topic": "RSI",                      "category": "indicator"},
@@ -292,56 +294,93 @@ def _get_fallback(topic: str) -> dict:
     }
 
 
+def _build_generation_prompt(topic: str, category: str) -> tuple[str, str]:
+    system = "Tu es un expert en création de contenu vidéo court. Réponds UNIQUEMENT en JSON valide, aucun texte hors JSON."
+    user = (
+        f"Tu es un expert en création de contenu vidéo court (TikTok / YouTube Shorts) "
+        f"dans le domaine du trading financier.\n\n"
+        f"Génère un script complet de 45 secondes sur : **{topic}** (catégorie: {category}).\n\n"
+        f"STRUCTURE IMPOSÉE :\n"
+        f"[HOOK] 3s — question ou affirmation choc\n"
+        f"[PROBLÈME] 5s — erreur fréquente des débutants\n"
+        f"[DÉFINITION] 10s — définition simple de {topic}\n"
+        f"[COMMENT] 15s — comment l'utiliser concrètement avec des chiffres\n"
+        f"[EXEMPLE] 10s — exemple visuel sur un graphique\n"
+        f"[CTA] 5s — doit mentionner captentdb.fr et 'le lien est en bio'\n\n"
+        f"Génère aussi les métadonnées pour les 3 plateformes.\n\n"
+        f"Réponds UNIQUEMENT en JSON valide avec ces champs :\n"
+        f"hook, script (avec les balises [HOOK] etc.), cta, "
+        f"description_tiktok, description_youtube, description_instagram, "
+        f"hashtags_tiktok (array), hashtags_youtube (array), hashtags_instagram (array)"
+    )
+    return system, user
+
+
+def _patch_cta(result: dict) -> dict:
+    cta: str = result.get("cta", "")
+    if "captentdb.fr" not in cta:
+        result["cta"] = cta.rstrip(".") + " — captentdb.fr"
+    return result
+
+
 @router.post("/generate-script")
 async def generate_script(
     body: GenerateScriptRequest,
     current_user: dict = Depends(get_admin_user),
 ):
-    api_key = os.getenv("GROQ_API_KEY", "")
-    if api_key:
-        prompt = (
-            f"Tu es un expert en création de contenu vidéo court (TikTok / YouTube Shorts) "
-            f"dans le domaine du trading financier.\n\n"
-            f"Génère un script complet de 45 secondes sur : **{body.topic}** (catégorie: {body.category}).\n\n"
-            f"STRUCTURE IMPOSÉE :\n"
-            f"[HOOK] 3s — question ou affirmation choc\n"
-            f"[PROBLÈME] 5s — erreur fréquente des débutants\n"
-            f"[DÉFINITION] 10s — définition simple de {body.topic}\n"
-            f"[COMMENT] 15s — comment l'utiliser concrètement avec des chiffres\n"
-            f"[EXEMPLE] 10s — exemple visuel sur un graphique\n"
-            f"[CTA] 5s — doit mentionner captentdb.fr et 'le lien est en bio'\n\n"
-            f"Génère aussi les métadonnées pour les 3 plateformes.\n\n"
-            f"Réponds UNIQUEMENT en JSON valide avec ces champs :\n"
-            f"hook, script (avec les balises [HOOK] etc.), cta, "
-            f"description_tiktok, description_youtube, description_instagram, "
-            f"hashtags_tiktok (array), hashtags_youtube (array), hashtags_instagram (array)"
-        )
+    system_msg, user_msg = _build_generation_prompt(body.topic, body.category)
+    messages = [
+        {"role": "system", "content": system_msg},
+        {"role": "user",   "content": user_msg},
+    ]
+
+    # ── 1. Try Groq ──────────────────────────────────────────────────────────
+    groq_key = os.getenv("GROQ_API_KEY", "")
+    if groq_key:
         try:
             async with httpx.AsyncClient(timeout=60.0) as client:
                 resp = await client.post(
                     GROQ_API_URL,
-                    headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+                    headers={"Authorization": f"Bearer {groq_key}", "Content-Type": "application/json"},
                     json={
                         "model": GROQ_MODEL,
-                        "messages": [
-                            {"role": "system", "content": "Tu es un expert en création de contenu vidéo court. Réponds UNIQUEMENT en JSON valide, aucun texte hors JSON."},
-                            {"role": "user",   "content": prompt},
-                        ],
+                        "messages": messages,
                         "temperature": 0.75,
                         "max_tokens": 2048,
                         "response_format": {"type": "json_object"},
                     },
                 )
-                if resp.status_code == 200:
-                    result = json.loads(resp.json()["choices"][0]["message"]["content"])
-                    # Ensure CTA always mentions captentdb.fr
-                    cta: str = result.get("cta", "")
-                    if "captentdb.fr" not in cta:
-                        result["cta"] = cta.rstrip(".") + " — captentdb.fr"
-                    return {"success": True, "generated": result, "source": "groq"}
+            if resp.status_code == 200:
+                result = json.loads(resp.json()["choices"][0]["message"]["content"])
+                return {"success": True, "generated": _patch_cta(result), "source": "groq"}
+            print(f"[ContentFactory] Groq returned {resp.status_code}, trying Mistral")
         except Exception as exc:
-            print(f"[ContentFactory] Groq error: {exc}, falling back to template")
+            print(f"[ContentFactory] Groq error: {exc}, trying Mistral")
 
+    # ── 2. Try Mistral ───────────────────────────────────────────────────────
+    mistral_key = os.getenv("MISTRAL_API_KEY", "")
+    if mistral_key:
+        try:
+            async with httpx.AsyncClient(timeout=60.0) as client:
+                resp = await client.post(
+                    MISTRAL_API_URL,
+                    headers={"Authorization": f"Bearer {mistral_key}", "Content-Type": "application/json"},
+                    json={
+                        "model": MISTRAL_MODEL,
+                        "messages": messages,
+                        "temperature": 0.75,
+                        "max_tokens": 2048,
+                        "response_format": {"type": "json_object"},
+                    },
+                )
+            if resp.status_code == 200:
+                result = json.loads(resp.json()["choices"][0]["message"]["content"])
+                return {"success": True, "generated": _patch_cta(result), "source": "mistral"}
+            print(f"[ContentFactory] Mistral returned {resp.status_code}, falling back to template")
+        except Exception as exc:
+            print(f"[ContentFactory] Mistral error: {exc}, falling back to template")
+
+    # ── 3. Template fallback ─────────────────────────────────────────────────
     return {"success": True, "generated": _get_fallback(body.topic), "source": "template"}
 
 
