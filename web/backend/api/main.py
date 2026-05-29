@@ -26,6 +26,7 @@ logger = logging.getLogger(__name__)
 from .database import init_db, init_web_tables, execute_query
 from .routes import auth, market, wallet, analysis, users, favorites, ai_assistant, admin, premium, community, tools, portfolio
 from .routes import insights
+from .routes import content_factory
 
 # ── JWT constants (imported once at module level — avoids dynamic import inside middleware) ──
 from .routes.auth import SECRET_KEY, ALGORITHM
@@ -193,6 +194,7 @@ app.include_router(premium.router,       prefix="/api/premium",        tags=["Pr
 app.include_router(community.router,     prefix="/api/community",      tags=["Community"])
 app.include_router(tools.router,         prefix="/api/tools",          tags=["Trading Tools"])
 app.include_router(portfolio.router,     prefix="/api/portfolio",      tags=["Real Portfolio"])
+app.include_router(content_factory.router, prefix="/api/admin/content-factory", tags=["Content Factory"])
 
 
 @app.get("/")

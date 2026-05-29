@@ -25,6 +25,7 @@ import {
   Scale,
   X,
   Gem,
+  Film,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -254,6 +255,32 @@ export function Sidebar({
                       className="font-medium text-sm"
                     >
                       {t("nav_admin")}
+                    </motion.span>
+                  )}
+                </AnimatePresence>
+              </motion.div>
+            </Link>
+            <Link href="/admin/content-factory">
+              <motion.div
+                whileHover={{ x: 4 }}
+                whileTap={{ scale: 0.98 }}
+                className={cn(
+                  "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 border border-yellow-500/20",
+                  pathname === "/admin/content-factory" || pathname.startsWith("/admin/content-factory/")
+                    ? "bg-yellow-500/15 text-yellow-400"
+                    : "text-yellow-500/50 hover:bg-yellow-500/8 hover:text-yellow-400"
+                )}
+              >
+                <Film className="w-5 h-5" />
+                <AnimatePresence>
+                  {!collapsed && (
+                    <motion.span
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: -10 }}
+                      className="font-medium text-sm"
+                    >
+                      Content Factory
                     </motion.span>
                   )}
                 </AnimatePresence>

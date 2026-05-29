@@ -433,6 +433,27 @@ async def _init_postgres():
                 updated_at TEXT
             )
         """)
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS content_pieces (
+                id TEXT PRIMARY KEY,
+                title TEXT NOT NULL,
+                topic TEXT NOT NULL,
+                category TEXT NOT NULL DEFAULT 'indicator',
+                status TEXT NOT NULL DEFAULT 'draft',
+                script TEXT,
+                hook TEXT,
+                call_to_action TEXT,
+                hashtags_tiktok TEXT DEFAULT '[]',
+                hashtags_youtube TEXT DEFAULT '[]',
+                hashtags_instagram TEXT DEFAULT '[]',
+                description_tiktok TEXT,
+                description_youtube TEXT,
+                description_instagram TEXT,
+                site_page_url TEXT,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            )
+        """)
         print("PostgreSQL tables ready")
 
 
@@ -760,6 +781,27 @@ async def _init_sqlite():
                 await db.execute(f"ALTER TABLE web_users ADD COLUMN {col} {definition}")
             except Exception:
                 pass  # Column already exists
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS content_pieces (
+                id TEXT PRIMARY KEY,
+                title TEXT NOT NULL,
+                topic TEXT NOT NULL,
+                category TEXT NOT NULL DEFAULT 'indicator',
+                status TEXT NOT NULL DEFAULT 'draft',
+                script TEXT,
+                hook TEXT,
+                call_to_action TEXT,
+                hashtags_tiktok TEXT DEFAULT '[]',
+                hashtags_youtube TEXT DEFAULT '[]',
+                hashtags_instagram TEXT DEFAULT '[]',
+                description_tiktok TEXT,
+                description_youtube TEXT,
+                description_instagram TEXT,
+                site_page_url TEXT,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            )
+        """)
         await db.commit()
         print("SQLite tables ready")
 

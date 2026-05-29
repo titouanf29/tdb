@@ -731,6 +731,103 @@ export const adminAPI = {
     fetchAPI<{ success: boolean }>("/api/admin/notifications/read-all", { method: "POST" }),
 };
 
+// ── Content Factory ───────────────────────────────────────────────────────────
+
+export interface ContentPiece {
+  id: string;
+  title: string;
+  topic: string;
+  category: string;
+  status: "draft" | "ready" | "published";
+  script: string | null;
+  hook: string | null;
+  call_to_action: string | null;
+  hashtags_tiktok: string[];
+  hashtags_youtube: string[];
+  hashtags_instagram: string[];
+  description_tiktok: string | null;
+  description_youtube: string | null;
+  description_instagram: string | null;
+  site_page_url: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface GeneratedScript {
+  hook: string;
+  script: string;
+  cta: string;
+  description_tiktok: string;
+  description_youtube: string;
+  description_instagram: string;
+  hashtags_tiktok: string[];
+  hashtags_youtube: string[];
+  hashtags_instagram: string[];
+}
+
+export interface LibraryItem {
+  topic: string;
+  category: string;
+}
+
+export const contentFactoryAPI = {
+  getPieces: () =>
+    fetchAPI<{ pieces: ContentPiece[] }>("/api/admin/content-factory/pieces"),
+
+  getPiece: (id: string) =>
+    fetchAPI<{ piece: ContentPiece }>(`/api/admin/content-factory/pieces/${id}`),
+
+  createPiece: (data: Partial<ContentPiece>) =>
+    fetchAPI<{ piece: ContentPiece }>("/api/admin/content-factory/pieces", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    }),
+
+  updatePiece: (id: string, data: Partial<ContentPiece>) =>
+    fetchAPI<{ success: boolean }>(`/api/admin/content-factory/pieces/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    }),
+
+  deletePiece: (id: string) =>
+    fetchAPI<{ success: boolean }>(`/api/admin/content-factory/pieces/${id}`, {
+      method: "DELETE",
+    }),
+
+  generateScript: (topic: string, category: string) =>
+    fetchAPI<{ success: boolean; generated: GeneratedScript; source: string }>(
+      "/api/admin/content-factory/generate-script",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ topic, category }),
+      }
+    ),
+
+  getLibrary: () =>
+    fetchAPI<{ library: LibraryItem[] }>("/api/admin/content-factory/library"),
+
+  exportPiece: async (id: string, filename: string): Promise<void> => {
+    const { getToken } = await import("./auth");
+    const token = getToken();
+    const response = await fetch(`/api/admin/content-factory/export/${id}`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    if (!response.ok) throw new Error("Export failed");
+    const blob = await response.blob();
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement("a");
+    a.href     = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  },
+};
+
 // Admin Types
 export interface AdminNotification {
   id: number;
