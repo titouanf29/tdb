@@ -1485,6 +1485,7 @@ export default function GoldPage() {
   const [tradeDir, setTradeDir]      = useState<"LONG" | "SHORT" | null>(null);
   const [goldPositions, setGoldPositions] = useState<Position[]>([]);
   const [detailGoldPos, setDetailGoldPos] = useState<Position | null>(null);
+  const [syncCountdown, setSyncCountdown] = useState<number>(() => 30 - (Math.floor(Date.now() / 1000) % 30));
 
   const loadGoldPositions = useCallback(async () => {
     try {
@@ -1613,13 +1614,22 @@ export default function GoldPage() {
 
 
 
-  // Refresh open positions every 30s when there are positions open
+  // Synchronized 30s live refresh — fires at wall-clock :00 and :30 for ALL users
   useEffect(() => {
     if (!settingsLoaded || (!isAdmin && !goldPublic)) return;
-    if (goldPositions.length === 0) return;
-    const id = setInterval(loadGoldPositions, 30000);
+    const tick = () => {
+      const nowSec   = Math.floor(Date.now() / 1000);
+      const remaining = 30 - (nowSec % 30);
+      setSyncCountdown(remaining);
+      if (nowSec % 30 === 0) {
+        load();
+        loadGoldPositions();
+      }
+    };
+    tick();
+    const id = setInterval(tick, 1000);
     return () => clearInterval(id);
-  }, [settingsLoaded, isAdmin, goldPublic, goldPositions.length, loadGoldPositions]);
+  }, [settingsLoaded, isAdmin, goldPublic, load, loadGoldPositions]);
 
   // Spinner while premium status or settings are loading
   if (isPremiumLoading || !settingsLoaded) return (
@@ -1820,8 +1830,9 @@ export default function GoldPage() {
                   ))}
                 </div>
                 <button onClick={load} disabled={loading}
-                  className="p-1.5 rounded-lg bg-black/20 hover:bg-white/10 transition-colors text-muted-foreground border border-white/8">
+                  className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg bg-black/20 hover:bg-white/10 transition-colors text-muted-foreground border border-white/8">
                   <RefreshCw className={cn("w-3.5 h-3.5", loading && "animate-spin")} />
+                  <span className="text-[10px] tabular-nums text-muted-foreground/60">{syncCountdown}s</span>
                 </button>
               </div>
             </div>
@@ -2014,9 +2025,9 @@ export default function GoldPage() {
                       <Activity className="w-2.5 h-2.5 text-amber-400/50"/>
                       {lang === "fr" ? "Positions ouvertes" : "Open positions"} · GC=F
                     </p>
-                    <span className="flex items-center gap-1 text-[9px] text-profit/50">
-                      <span className="w-1.5 h-1.5 rounded-full bg-profit/60 animate-pulse inline-block" />
-                      {lang === "fr" ? "Live 30s" : "Live 30s"}
+                    <span className="flex items-center gap-1 text-[9px] text-profit/60 tabular-nums">
+                      <span className="w-1.5 h-1.5 rounded-full bg-profit/70 animate-pulse inline-block" />
+                      Live · {syncCountdown}s
                     </span>
                   </div>
                   {goldPositions.map(pos => {
