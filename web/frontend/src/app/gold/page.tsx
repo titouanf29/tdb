@@ -1481,6 +1481,7 @@ export default function GoldPage() {
     sessionStorage.setItem("gold_entrance_seen", "1");
     return true;
   });
+  const handleEntranceComplete = useCallback(() => setShowEntrance(false), []);
 
   const [tradeDir, setTradeDir]      = useState<"LONG" | "SHORT" | null>(null);
   const [goldPositions, setGoldPositions] = useState<Position[]>([]);
@@ -1654,7 +1655,7 @@ export default function GoldPage() {
 
   return (
     <>
-      <AnimatePresence>{showEntrance && <GoldEntranceScreen onComplete={() => setShowEntrance(false)} />}</AnimatePresence>
+      <AnimatePresence>{showEntrance && <GoldEntranceScreen onComplete={handleEntranceComplete} />}</AnimatePresence>
       <TopLoadingBar isLoading={loading} />
       {tradeDir && (
         <TradingModal
