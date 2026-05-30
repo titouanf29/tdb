@@ -1,6 +1,7 @@
 """
 Content Factory — admin-only routes for generating short-form video content packs.
 """
+import base64
 import io
 import json
 import os
@@ -10,7 +11,7 @@ from datetime import datetime, timezone
 from typing import List, Optional
 
 import httpx
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
@@ -440,7 +441,14 @@ def _readme(topic: str) -> str:
 
 
 @router.get("/export/{piece_id}")
-async def export_piece(piece_id: str, current_user: dict = Depends(get_admin_user)):
+async def export_piece(
+    piece_id: str,
+    include_chart: bool = Query(False),
+    include_screenshot: bool = Query(False),
+    include_ai_image: bool = Query(False),
+    stock_photo_url: Optional[str] = Query(None),
+    current_user: dict = Depends(get_admin_user),
+):
     rows = await execute_query("SELECT * FROM content_pieces WHERE id = ?", (piece_id,))
     if not rows:
         raise HTTPException(status_code=404, detail="Piece not found")
@@ -483,6 +491,52 @@ async def export_piece(piece_id: str, current_user: dict = Depends(get_admin_use
         zf.writestr("description_youtube.txt", desc_yt)
         zf.writestr("description_instagram.txt", desc_ig)
         zf.writestr("README.txt",              _readme(topic))
+
+        # ── Optional visual assets ────────────────────────────────────────────
+        if include_chart or include_screenshot or include_ai_image or stock_photo_url:
+            try:
+                from .content_factory_visuals import generate_chart_b64, take_screenshot_b64
+            except ImportError:
+                pass
+            else:
+                if include_chart:
+                    try:
+                        data_url, _src = await generate_chart_b64(topic, fmt="portrait")
+                        if data_url and data_url.startswith("data:image/png;base64,"):
+                            img_bytes = base64.b64decode(data_url.split(",", 1)[1])
+                            zf.writestr("images/chart_portrait.png", img_bytes)
+                    except Exception as exc:
+                        print(f"[Export] chart generation failed: {exc}")
+
+                if include_screenshot:
+                    try:
+                        page_slug = p.get("site_page_url") or "/"
+                        data_url, _src, _err = await take_screenshot_b64(page_slug, fmt="portrait")
+                        if data_url and data_url.startswith("data:image/png;base64,"):
+                            img_bytes = base64.b64decode(data_url.split(",", 1)[1])
+                            zf.writestr("images/screenshot_portrait.png", img_bytes)
+                    except Exception as exc:
+                        print(f"[Export] screenshot failed: {exc}")
+
+                if include_ai_image:
+                    try:
+                        from .content_factory_visuals import generate_ai_image_b64
+                        data_url, _prompt, _src = await generate_ai_image_b64(topic)
+                        if data_url and data_url.startswith("data:image/png;base64,"):
+                            img_bytes = base64.b64decode(data_url.split(",", 1)[1])
+                            zf.writestr("images/ai_generated.png", img_bytes)
+                    except Exception as exc:
+                        print(f"[Export] AI image failed: {exc}")
+
+        if stock_photo_url:
+            try:
+                async with httpx.AsyncClient(timeout=30.0) as client:
+                    resp = await client.get(stock_photo_url)
+                    if resp.status_code == 200:
+                        zf.writestr("images/stock_photo.jpg", resp.content)
+            except Exception as exc:
+                print(f"[Export] stock photo download failed: {exc}")
+
     buf.seek(0)
 
     safe_topic = topic.replace(" ", "_").replace("/", "_").replace("&", "et")

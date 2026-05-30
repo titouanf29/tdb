@@ -809,10 +809,25 @@ export const contentFactoryAPI = {
   getLibrary: () =>
     fetchAPI<{ library: LibraryItem[] }>("/api/admin/content-factory/library"),
 
-  exportPiece: async (id: string, filename: string): Promise<void> => {
+  exportPiece: async (
+    id: string,
+    filename: string,
+    visualFlags?: {
+      include_chart?: boolean;
+      include_screenshot?: boolean;
+      include_ai_image?: boolean;
+      stock_photo_url?: string;
+    }
+  ): Promise<void> => {
     const { getToken } = await import("./auth");
     const token = getToken();
-    const response = await fetch(`/api/admin/content-factory/export/${id}`, {
+    const params = new URLSearchParams();
+    if (visualFlags?.include_chart)      params.set("include_chart", "true");
+    if (visualFlags?.include_screenshot) params.set("include_screenshot", "true");
+    if (visualFlags?.include_ai_image)   params.set("include_ai_image", "true");
+    if (visualFlags?.stock_photo_url)    params.set("stock_photo_url", visualFlags.stock_photo_url);
+    const qs = params.toString() ? `?${params.toString()}` : "";
+    const response = await fetch(`/api/admin/content-factory/export/${id}${qs}`, {
       headers: token ? { Authorization: `Bearer ${token}` } : {},
     });
     if (!response.ok) throw new Error("Export failed");
@@ -826,6 +841,29 @@ export const contentFactoryAPI = {
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
   },
+
+  generateChart: (id: string, format: "portrait" | "landscape" | "square" = "portrait") =>
+    fetchAPI<{ image: string | null; source: string; error?: string }>(
+      `/api/admin/content-factory/pieces/${id}/chart?format=${format}`,
+      { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({}) }
+    ),
+
+  takeScreenshot: (id: string) =>
+    fetchAPI<{ image: string | null; source: string; error?: string }>(
+      `/api/admin/content-factory/pieces/${id}/screenshot`,
+      { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({}) }
+    ),
+
+  getStockPhotos: (id: string) =>
+    fetchAPI<{ photos: { id: string; url: string; thumb: string; credit: string; credit_url: string }[]; error?: string }>(
+      `/api/admin/content-factory/pieces/${id}/stock-photos`
+    ),
+
+  generateAIImage: (id: string) =>
+    fetchAPI<{ image: string | null; source: string; error?: string; prompt?: string }>(
+      `/api/admin/content-factory/pieces/${id}/ai-image`,
+      { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({}) }
+    ),
 };
 
 // Admin Types

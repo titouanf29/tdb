@@ -51,6 +51,22 @@ export default function EditContentPage() {
   const [saved,        setSaved]        = useState(false);
   const [source,       setSource]       = useState("");
 
+  // Visual assets state
+  const [visualChart,        setVisualChart]        = useState<string | null>(null);
+  const [visualScreenshot,   setVisualScreenshot]   = useState<string | null>(null);
+  const [visualAIImage,      setVisualAIImage]       = useState<string | null>(null);
+  const [visualStockPhotos,  setVisualStockPhotos]   = useState<{ id: string; url: string; thumb: string; credit: string; credit_url: string }[]>([]);
+  const [selectedStockPhoto, setSelectedStockPhoto]  = useState<{ id: string; url: string; thumb: string; credit: string; credit_url: string } | null>(null);
+  const [includeChart,       setIncludeChart]        = useState(false);
+  const [includeScreenshot,  setIncludeScreenshot]   = useState(false);
+  const [includeAIImage,     setIncludeAIImage]       = useState(false);
+  const [includeStockPhoto,  setIncludeStockPhoto]    = useState(false);
+  const [isGenChart,         setIsGenChart]           = useState(false);
+  const [isGenScreenshot,    setIsGenScreenshot]      = useState(false);
+  const [isGenAIImage,       setIsGenAIImage]         = useState(false);
+  const [isGenStockPhotos,   setIsGenStockPhotos]     = useState(false);
+  const [visualErrors,       setVisualErrors]         = useState<Record<string, string>>({});
+
   useEffect(() => {
     adminAPI.checkAdmin()
       .then(r => { if (!r.is_admin) router.push("/"); else setIsAdmin(true); })
@@ -139,11 +155,64 @@ export default function EditContentPage() {
     }
   };
 
+  const handleGenChart = async () => {
+    setIsGenChart(true);
+    setVisualErrors(prev => ({ ...prev, chart: "" }));
+    try {
+      const res = await contentFactoryAPI.generateChart(pieceId);
+      if (res.image) { setVisualChart(res.image); setIncludeChart(true); }
+      else setVisualErrors(prev => ({ ...prev, chart: res.error || "Génération échouée" }));
+    } catch (e: any) {
+      setVisualErrors(prev => ({ ...prev, chart: e.message }));
+    } finally { setIsGenChart(false); }
+  };
+
+  const handleGenScreenshot = async () => {
+    setIsGenScreenshot(true);
+    setVisualErrors(prev => ({ ...prev, screenshot: "" }));
+    try {
+      const res = await contentFactoryAPI.takeScreenshot(pieceId);
+      if (res.image) { setVisualScreenshot(res.image); setIncludeScreenshot(true); }
+      else setVisualErrors(prev => ({ ...prev, screenshot: res.error || "Capture échouée" }));
+    } catch (e: any) {
+      setVisualErrors(prev => ({ ...prev, screenshot: e.message }));
+    } finally { setIsGenScreenshot(false); }
+  };
+
+  const handleGenStockPhotos = async () => {
+    setIsGenStockPhotos(true);
+    setVisualErrors(prev => ({ ...prev, stock: "" }));
+    try {
+      const res = await contentFactoryAPI.getStockPhotos(pieceId);
+      if (res.photos?.length) setVisualStockPhotos(res.photos);
+      else setVisualErrors(prev => ({ ...prev, stock: res.error || "Aucune photo trouvée" }));
+    } catch (e: any) {
+      setVisualErrors(prev => ({ ...prev, stock: e.message }));
+    } finally { setIsGenStockPhotos(false); }
+  };
+
+  const handleGenAIImage = async () => {
+    setIsGenAIImage(true);
+    setVisualErrors(prev => ({ ...prev, ai: "" }));
+    try {
+      const res = await contentFactoryAPI.generateAIImage(pieceId);
+      if (res.image) { setVisualAIImage(res.image); setIncludeAIImage(true); }
+      else setVisualErrors(prev => ({ ...prev, ai: res.error || "Génération échouée" }));
+    } catch (e: any) {
+      setVisualErrors(prev => ({ ...prev, ai: e.message }));
+    } finally { setIsGenAIImage(false); }
+  };
+
   const handleExport = async () => {
     setIsExporting(true);
     try {
       const safe = topic.replace(/[^a-zA-Z0-9]/g, "_");
-      await contentFactoryAPI.exportPiece(pieceId, `captentdb_${safe}.zip`);
+      await contentFactoryAPI.exportPiece(pieceId, `captentdb_${safe}.zip`, {
+        include_chart:      includeChart && !!visualChart,
+        include_screenshot: includeScreenshot && !!visualScreenshot,
+        include_ai_image:   includeAIImage && !!visualAIImage,
+        stock_photo_url:    includeStockPhoto && selectedStockPhoto ? selectedStockPhoto.url : undefined,
+      });
     } catch (e: any) {
       setError(e.message || "Erreur export");
     } finally {
@@ -250,6 +319,132 @@ export default function EditContentPage() {
             {isGenerating ? "Régénération…" : "Régénérer avec l'IA"}
           </motion.button>
           {source && <span className="text-xs text-muted-foreground">Source : {source === "groq" ? "🤖 Groq" : source === "mistral" ? "🤖 Mistral" : "📄 Template"}</span>}
+        </div>
+      </div>
+
+      {/* Visual Assets */}
+      <div className="glass-card p-5">
+        <h2 className="font-semibold mb-4 text-sm flex items-center gap-2">
+          🎨 Visuels
+          <span className="text-xs text-muted-foreground font-normal">— générez les assets à inclure dans le ZIP</span>
+        </h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+
+          {/* Chart */}
+          <div className="bg-white/3 border border-white/8 rounded-xl p-4 flex flex-col gap-3">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium">📈 Graphique</span>
+              {visualChart && (
+                <label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer">
+                  <input type="checkbox" checked={includeChart} onChange={e => setIncludeChart(e.target.checked)} className="accent-primary" />
+                  ZIP
+                </label>
+              )}
+            </div>
+            {visualChart
+              ? <img src={visualChart} alt="chart" className="w-full rounded-lg object-cover" />
+              : <div className="h-28 bg-white/3 rounded-lg flex items-center justify-center text-xs text-muted-foreground">Aucun visuel</div>
+            }
+            {visualErrors.chart && <p className="text-xs text-red-400">{visualErrors.chart}</p>}
+            <button
+              onClick={handleGenChart}
+              disabled={isGenChart}
+              className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-blue-500/15 hover:bg-blue-500/25 text-blue-400 text-xs font-medium transition-colors disabled:opacity-50"
+            >
+              {isGenChart ? <Loader2 className="w-3 h-3 animate-spin" /> : null}
+              {isGenChart ? "Génération…" : visualChart ? "Régénérer" : "Générer"}
+            </button>
+          </div>
+
+          {/* Screenshot */}
+          <div className="bg-white/3 border border-white/8 rounded-xl p-4 flex flex-col gap-3">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium">📷 Screenshot</span>
+              {visualScreenshot && (
+                <label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer">
+                  <input type="checkbox" checked={includeScreenshot} onChange={e => setIncludeScreenshot(e.target.checked)} className="accent-primary" />
+                  ZIP
+                </label>
+              )}
+            </div>
+            {visualScreenshot
+              ? <img src={visualScreenshot} alt="screenshot" className="w-full rounded-lg object-cover" />
+              : <div className="h-28 bg-white/3 rounded-lg flex items-center justify-center text-xs text-muted-foreground">Aucun visuel</div>
+            }
+            {visualErrors.screenshot && <p className="text-xs text-red-400">{visualErrors.screenshot}</p>}
+            <button
+              onClick={handleGenScreenshot}
+              disabled={isGenScreenshot}
+              className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-purple-500/15 hover:bg-purple-500/25 text-purple-400 text-xs font-medium transition-colors disabled:opacity-50"
+            >
+              {isGenScreenshot ? <Loader2 className="w-3 h-3 animate-spin" /> : null}
+              {isGenScreenshot ? "Capture…" : visualScreenshot ? "Recapturer" : "Capturer"}
+            </button>
+          </div>
+
+          {/* Stock Photos */}
+          <div className="bg-white/3 border border-white/8 rounded-xl p-4 flex flex-col gap-3">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium">🖼️ Stock Photo</span>
+              {selectedStockPhoto && (
+                <label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer">
+                  <input type="checkbox" checked={includeStockPhoto} onChange={e => setIncludeStockPhoto(e.target.checked)} className="accent-primary" />
+                  ZIP
+                </label>
+              )}
+            </div>
+            {selectedStockPhoto
+              ? <img src={selectedStockPhoto.thumb} alt="stock" className="w-full rounded-lg object-cover" />
+              : <div className="h-28 bg-white/3 rounded-lg flex items-center justify-center text-xs text-muted-foreground">Aucune sélection</div>
+            }
+            {visualStockPhotos.length > 0 && (
+              <div className="grid grid-cols-3 gap-1">
+                {visualStockPhotos.map(p => (
+                  <button key={p.id} onClick={() => { setSelectedStockPhoto(p); setIncludeStockPhoto(true); }}
+                    className={`aspect-square rounded overflow-hidden border-2 transition-colors ${selectedStockPhoto?.id === p.id ? "border-primary" : "border-transparent hover:border-white/30"}`}
+                  >
+                    <img src={p.thumb} alt={p.credit} className="w-full h-full object-cover" />
+                  </button>
+                ))}
+              </div>
+            )}
+            {visualErrors.stock && <p className="text-xs text-red-400">{visualErrors.stock}</p>}
+            <button
+              onClick={handleGenStockPhotos}
+              disabled={isGenStockPhotos}
+              className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 text-xs font-medium transition-colors disabled:opacity-50"
+            >
+              {isGenStockPhotos ? <Loader2 className="w-3 h-3 animate-spin" /> : null}
+              {isGenStockPhotos ? "Recherche…" : "Chercher"}
+            </button>
+          </div>
+
+          {/* AI Image */}
+          <div className="bg-white/3 border border-white/8 rounded-xl p-4 flex flex-col gap-3">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium">🤖 Image IA</span>
+              {visualAIImage && (
+                <label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer">
+                  <input type="checkbox" checked={includeAIImage} onChange={e => setIncludeAIImage(e.target.checked)} className="accent-primary" />
+                  ZIP
+                </label>
+              )}
+            </div>
+            {visualAIImage
+              ? <img src={visualAIImage} alt="ai" className="w-full rounded-lg object-cover" />
+              : <div className="h-28 bg-white/3 rounded-lg flex items-center justify-center text-xs text-muted-foreground">Aucun visuel</div>
+            }
+            {visualErrors.ai && <p className="text-xs text-red-400">{visualErrors.ai}</p>}
+            <button
+              onClick={handleGenAIImage}
+              disabled={isGenAIImage}
+              className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-orange-500/15 hover:bg-orange-500/25 text-orange-400 text-xs font-medium transition-colors disabled:opacity-50"
+            >
+              {isGenAIImage ? <Loader2 className="w-3 h-3 animate-spin" /> : null}
+              {isGenAIImage ? "Génération…" : visualAIImage ? "Régénérer" : "Générer (DALL-E)"}
+            </button>
+          </div>
+
         </div>
       </div>
 
