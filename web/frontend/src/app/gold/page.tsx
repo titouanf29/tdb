@@ -1616,13 +1616,15 @@ export default function GoldPage() {
 
 
   // Synchronized 30s live refresh — fires at wall-clock :00 and :30 for ALL users
+  // Only refreshes when COMEX market is open (no useless calls on weekends/nights)
   useEffect(() => {
     if (!settingsLoaded || (!isAdmin && !goldPublic)) return;
     const tick = () => {
-      const nowSec   = Math.floor(Date.now() / 1000);
+      const nowSec    = Math.floor(Date.now() / 1000);
       const remaining = 30 - (nowSec % 30);
-      setSyncCountdown(remaining);
-      if (nowSec % 30 === 0) {
+      const isOpen    = getCOMEXStatus().status === "open";
+      setSyncCountdown(isOpen ? remaining : 0);
+      if (nowSec % 30 === 0 && isOpen) {
         load();
         loadGoldPositions();
       }
@@ -1833,7 +1835,9 @@ export default function GoldPage() {
                 <button onClick={load} disabled={loading}
                   className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg bg-black/20 hover:bg-white/10 transition-colors text-muted-foreground border border-white/8">
                   <RefreshCw className={cn("w-3.5 h-3.5", loading && "animate-spin")} />
-                  <span className="text-[10px] tabular-nums text-muted-foreground/60">{syncCountdown}s</span>
+                  <span className="text-[10px] tabular-nums text-muted-foreground/60">
+                    {syncCountdown > 0 ? `${syncCountdown}s` : (lang === "fr" ? "Fermé" : "Closed")}
+                  </span>
                 </button>
               </div>
             </div>
@@ -2026,9 +2030,15 @@ export default function GoldPage() {
                       <Activity className="w-2.5 h-2.5 text-amber-400/50"/>
                       {lang === "fr" ? "Positions ouvertes" : "Open positions"} · GC=F
                     </p>
-                    <span className="flex items-center gap-1 text-[9px] text-profit/60 tabular-nums">
-                      <span className="w-1.5 h-1.5 rounded-full bg-profit/70 animate-pulse inline-block" />
-                      Live · {syncCountdown}s
+                    <span className={cn(
+                      "flex items-center gap-1 text-[9px] tabular-nums",
+                      syncCountdown > 0 ? "text-profit/60" : "text-muted-foreground/40"
+                    )}>
+                      <span className={cn(
+                        "w-1.5 h-1.5 rounded-full inline-block",
+                        syncCountdown > 0 ? "bg-profit/70 animate-pulse" : "bg-muted-foreground/30"
+                      )} />
+                      {syncCountdown > 0 ? `Live · ${syncCountdown}s` : (lang === "fr" ? "Marché fermé" : "Market closed")}
                     </span>
                   </div>
                   {goldPositions.map(pos => {
