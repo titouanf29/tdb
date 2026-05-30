@@ -1100,6 +1100,18 @@ export default function AnalysisPage() {
           </div>
           </div>
 
+          {/* Paper Trading hint — discreet strip, visible right after the signal */}
+          <Link href="/wallet" className="group flex items-center justify-between px-4 py-2.5 rounded-xl bg-white/[0.03] border border-white/[0.07] hover:bg-primary/5 hover:border-primary/20 transition-all duration-200">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground/70 group-hover:text-muted-foreground transition-colors">
+              <Zap className="w-3.5 h-3.5 text-primary/40 group-hover:text-primary/70 transition-colors flex-shrink-0" />
+              <span>{lang === "fr" ? "Tester ce signal sans risque · compte virtuel" : "Test this signal risk-free · virtual account"}</span>
+            </div>
+            <span className="flex items-center gap-1 text-xs text-primary/50 group-hover:text-primary/80 font-medium transition-colors flex-shrink-0">
+              Paper Trading
+              <ArrowRight className="w-3 h-3" />
+            </span>
+          </Link>
+
           {/* 3. Premium Chart */}
           <div id="section-chart" className="scroll-mt-16">
             <PremiumChart symbol={analysis.symbol} timeframe={timeframe} />
