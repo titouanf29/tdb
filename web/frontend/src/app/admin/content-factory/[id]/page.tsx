@@ -66,6 +66,13 @@ export default function EditContentPage() {
   const [isGenAIImage,       setIsGenAIImage]         = useState(false);
   const [isGenStockPhotos,   setIsGenStockPhotos]     = useState(false);
   const [visualErrors,       setVisualErrors]         = useState<Record<string, string>>({});
+  const [animatedMode,       setAnimatedMode]         = useState(false);
+  const [filmingGuide,       setFilmingGuide]         = useState<{
+    concept: string; duree_totale: string;
+    plans: { n: number; duree: string; emoji: string; type: string; action: string; conseil: string }[];
+    apps: string[]; equipement: string[]; ambiance: string; tips: string[];
+  } | null>(null);
+  const [isGenFilmingGuide,  setIsGenFilmingGuide]    = useState(false);
 
   useEffect(() => {
     adminAPI.checkAdmin()
@@ -159,12 +166,22 @@ export default function EditContentPage() {
     setIsGenChart(true);
     setVisualErrors(prev => ({ ...prev, chart: "" }));
     try {
-      const res = await contentFactoryAPI.generateChart(pieceId);
+      const res = await contentFactoryAPI.generateChart(pieceId, "portrait", animatedMode);
       if (res.image) { setVisualChart(res.image); setIncludeChart(true); }
       else setVisualErrors(prev => ({ ...prev, chart: res.error || "Génération échouée" }));
     } catch (e: any) {
       setVisualErrors(prev => ({ ...prev, chart: e.message }));
     } finally { setIsGenChart(false); }
+  };
+
+  const handleGetFilmingGuide = async () => {
+    setIsGenFilmingGuide(true);
+    try {
+      const res = await contentFactoryAPI.getFilmingGuide(pieceId, topic || undefined);
+      setFilmingGuide(res.guide);
+    } catch (e: any) {
+      setVisualErrors(prev => ({ ...prev, filming: e.message }));
+    } finally { setIsGenFilmingGuide(false); }
   };
 
   const handleGenScreenshot = async () => {
@@ -341,6 +358,21 @@ export default function EditContentPage() {
                 </label>
               )}
             </div>
+            {/* Static / Animated toggle */}
+            <div className="flex rounded-lg overflow-hidden border border-white/10 text-xs">
+              <button
+                onClick={() => setAnimatedMode(false)}
+                className={`flex-1 py-1.5 transition-colors ${!animatedMode ? "bg-blue-500/20 text-blue-300 font-medium" : "text-muted-foreground hover:bg-white/5"}`}
+              >
+                📊 Statique
+              </button>
+              <button
+                onClick={() => setAnimatedMode(true)}
+                className={`flex-1 py-1.5 transition-colors ${animatedMode ? "bg-blue-500/20 text-blue-300 font-medium" : "text-muted-foreground hover:bg-white/5"}`}
+              >
+                🎞️ Animé (GIF)
+              </button>
+            </div>
             {visualChart
               ? <img src={visualChart} alt="chart" className="w-full rounded-lg object-cover" />
               : <div className="h-28 bg-white/3 rounded-lg flex items-center justify-center text-xs text-muted-foreground">Aucun visuel</div>
@@ -352,7 +384,7 @@ export default function EditContentPage() {
               className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-blue-500/15 hover:bg-blue-500/25 text-blue-400 text-xs font-medium transition-colors disabled:opacity-50"
             >
               {isGenChart ? <Loader2 className="w-3 h-3 animate-spin" /> : null}
-              {isGenChart ? "Génération…" : visualChart ? "Régénérer" : "Générer"}
+              {isGenChart ? (animatedMode ? "Animation…" : "Génération…") : visualChart ? "Régénérer" : "Générer"}
             </button>
           </div>
 
@@ -446,6 +478,98 @@ export default function EditContentPage() {
           </div>
 
         </div>
+
+        {/* Filming Guide */}
+        <div className="mt-4 bg-white/3 border border-white/8 rounded-xl p-4 flex flex-col gap-4">
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-medium">🎬 Guide de tournage</span>
+            <button
+              onClick={handleGetFilmingGuide}
+              disabled={isGenFilmingGuide}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-pink-500/15 hover:bg-pink-500/25 text-pink-400 text-xs font-medium transition-colors disabled:opacity-50"
+            >
+              {isGenFilmingGuide ? <Loader2 className="w-3 h-3 animate-spin" /> : null}
+              {isGenFilmingGuide ? "Chargement…" : filmingGuide ? "Actualiser" : "Générer le guide"}
+            </button>
+          </div>
+
+          {!filmingGuide ? (
+            <div className="h-16 bg-white/3 rounded-lg flex items-center justify-center text-xs text-muted-foreground">
+              Guide de tournage personnalisé plan-par-plan — cliquez pour générer
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {/* Concept + Duration */}
+              <div className="p-3 bg-white/3 rounded-lg flex items-start gap-3">
+                <div className="flex-1">
+                  <p className="text-xs font-medium text-foreground">{filmingGuide.concept}</p>
+                  <p className="text-xs text-muted-foreground mt-1">⏱ {filmingGuide.duree_totale}</p>
+                </div>
+              </div>
+
+              {/* Shot list */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-2">
+                {filmingGuide.plans?.map(plan => (
+                  <div key={plan.n} className="p-3 bg-white/3 rounded-lg border border-white/5">
+                    <div className="flex items-start gap-2">
+                      <span className="text-xl leading-none">{plan.emoji}</span>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex flex-wrap items-center gap-1.5 mb-1">
+                          <span className="text-xs font-semibold text-foreground">Plan {plan.n}</span>
+                          <span className="text-[10px] text-muted-foreground">{plan.duree}</span>
+                          <span className="text-[10px] text-primary/80 bg-primary/10 px-1.5 py-px rounded-full">{plan.type}</span>
+                        </div>
+                        <p className="text-xs text-foreground/90 leading-snug">{plan.action}</p>
+                        <p className="text-[11px] text-muted-foreground italic mt-1 leading-snug">{plan.conseil}</p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Apps + Equipment */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="p-3 bg-white/3 rounded-lg">
+                  <p className="text-[11px] font-semibold text-muted-foreground mb-2">📱 Apps</p>
+                  <ul className="space-y-0.5">
+                    {filmingGuide.apps?.map((app, i) => (
+                      <li key={i} className="text-xs text-foreground/80">{app}</li>
+                    ))}
+                  </ul>
+                </div>
+                <div className="p-3 bg-white/3 rounded-lg">
+                  <p className="text-[11px] font-semibold text-muted-foreground mb-2">🎯 Équipement</p>
+                  <ul className="space-y-0.5">
+                    {filmingGuide.equipement?.map((eq, i) => (
+                      <li key={i} className="text-xs text-foreground/80">{eq}</li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+
+              {/* Ambiance */}
+              <div className="p-2.5 bg-yellow-500/8 rounded-lg border border-yellow-500/15">
+                <p className="text-xs text-yellow-400/90">🎵 {filmingGuide.ambiance}</p>
+              </div>
+
+              {/* Pro tips */}
+              {filmingGuide.tips?.length > 0 && (
+                <div className="p-3 bg-emerald-500/5 rounded-lg border border-emerald-500/15">
+                  <p className="text-[11px] font-semibold text-emerald-400/80 mb-2">💡 Pro Tips</p>
+                  <ul className="space-y-1">
+                    {filmingGuide.tips?.map((tip, i) => (
+                      <li key={i} className="text-xs text-foreground/80 flex items-start gap-1.5">
+                        <span className="text-emerald-400 mt-0.5 flex-shrink-0">•</span>
+                        <span>{tip}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
       </div>
 
       {/* Script + Platforms */}

@@ -842,9 +842,9 @@ export const contentFactoryAPI = {
     URL.revokeObjectURL(url);
   },
 
-  generateChart: (id: string, format: "portrait" | "landscape" | "square" = "portrait") =>
-    fetchAPI<{ image: string | null; source: string; error?: string }>(
-      `/api/admin/content-factory/pieces/${id}/chart?format=${format}`,
+  generateChart: (id: string, format: "portrait" | "landscape" | "square" = "portrait", animated = false) =>
+    fetchAPI<{ image: string | null; source: string; error?: string; animated?: boolean }>(
+      `/api/admin/content-factory/pieces/${id}/chart?format=${format}&animated=${animated}`,
       { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({}) }
     ),
 
@@ -855,7 +855,7 @@ export const contentFactoryAPI = {
     ),
 
   getStockPhotos: (id: string) =>
-    fetchAPI<{ photos: { id: string; url: string; thumb: string; credit: string; credit_url: string }[]; error?: string }>(
+    fetchAPI<{ photos: { id: string; url: string; thumb: string; credit: string; credit_url: string }[]; error?: string; query?: string }>(
       `/api/admin/content-factory/pieces/${id}/stock-photos`
     ),
 
@@ -864,6 +864,22 @@ export const contentFactoryAPI = {
       `/api/admin/content-factory/pieces/${id}/ai-image`,
       { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({}) }
     ),
+
+  getFilmingGuide: (id: string, topic?: string) => {
+    const qs = topic ? `?topic=${encodeURIComponent(topic)}` : "";
+    return fetchAPI<{
+      topic: string;
+      guide: {
+        concept: string;
+        duree_totale: string;
+        plans: { n: number; duree: string; emoji: string; type: string; action: string; conseil: string }[];
+        apps: string[];
+        equipement: string[];
+        ambiance: string;
+        tips: string[];
+      };
+    }>(`/api/admin/content-factory/pieces/${id}/filming-guide${qs}`);
+  },
 };
 
 // Admin Types
