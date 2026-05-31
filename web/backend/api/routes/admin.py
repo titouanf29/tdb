@@ -1098,6 +1098,13 @@ async def mark_all_notifications_read(admin: dict = Depends(get_admin_user)):
     return {"success": True}
 
 
+@router.post("/notifications/mark-type-read")
+async def mark_notifications_type_read(type: str = Query(...), admin: dict = Depends(get_admin_user)):
+    """Mark all notifications of a given type as read"""
+    await execute_write("UPDATE admin_notifications SET is_read = 1 WHERE type = ?", (type,))
+    return {"success": True}
+
+
 @router.get("/panel", response_class=HTMLResponse)
 async def marketing_panel():
     """Serve the marketing panel HTML — auth is verified client-side via /api/admin/check"""

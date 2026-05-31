@@ -355,6 +355,18 @@ async def _init_postgres():
             )
         """)
         await conn.execute("""
+            CREATE TABLE IF NOT EXISTS user_notifications (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER NOT NULL,
+                type TEXT NOT NULL,
+                title TEXT NOT NULL,
+                message TEXT NOT NULL,
+                link TEXT,
+                is_read INTEGER DEFAULT 0,
+                created_at TEXT NOT NULL
+            )
+        """)
+        await conn.execute("""
             CREATE TABLE IF NOT EXISTS admin_changelogs (
                 id SERIAL PRIMARY KEY,
                 admin_id INTEGER NOT NULL,
@@ -688,6 +700,19 @@ async def _init_sqlite():
             )
         """)
         await db.execute("""
+            CREATE TABLE IF NOT EXISTS user_notifications (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                type TEXT NOT NULL,
+                title TEXT NOT NULL,
+                message TEXT NOT NULL,
+                link TEXT,
+                is_read INTEGER DEFAULT 0,
+                created_at TEXT NOT NULL,
+                FOREIGN KEY (user_id) REFERENCES web_users(id)
+            )
+        """)
+        await db.execute("""
             CREATE TABLE IF NOT EXISTS admin_changelogs (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 admin_id INTEGER NOT NULL,
@@ -816,3 +841,15 @@ async def create_admin_notification(type: str, title: str, message: str, link: s
         )
     except Exception as e:
         print(f"[NOTIF] Failed to create admin notification: {e}")
+
+
+async def create_user_notification(user_id: int, type: str, title: str, message: str, link: str = None):
+    """Insert a notification for a specific user."""
+    from datetime import datetime
+    try:
+        await execute_write(
+            "INSERT INTO user_notifications (user_id, type, title, message, link, is_read, created_at) VALUES (?, ?, ?, ?, ?, 0, ?)",
+            (user_id, type, title, message, link, datetime.now(timezone.utc).isoformat()),
+        )
+    except Exception as e:
+        print(f"[NOTIF] Failed to create user notification: {e}")

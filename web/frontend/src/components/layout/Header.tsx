@@ -25,7 +25,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/AuthContext";
 import { usePremium } from "@/lib/PremiumContext";
-import { adminAPI, AdminNotification } from "@/lib/api";
+import { adminAPI, communityAPI, AdminNotification, UserNotification } from "@/lib/api";
 import { useLanguage } from "@/lib/LanguageContext";
 import { LanguageToggle } from "@/components/ui/LanguageToggle";
 
@@ -33,12 +33,14 @@ const NOTIF_ICONS: Record<string, React.ReactNode> = {
   new_user: <UserPlus className="w-3.5 h-3.5 text-profit" />,
   premium_request: <Crown className="w-3.5 h-3.5 text-yellow-400" />,
   new_ticket: <Ticket className="w-3.5 h-3.5 text-primary" />,
+  ticket_reply: <Ticket className="w-3.5 h-3.5 text-primary" />,
 };
 
 const NOTIF_COLORS: Record<string, string> = {
   new_user: "bg-profit/10 border-profit/20",
   premium_request: "bg-yellow-500/10 border-yellow-500/20",
   new_ticket: "bg-primary/10 border-primary/20",
+  ticket_reply: "bg-primary/10 border-primary/20",
 };
 
 export function Header({ onMenuToggle }: { onMenuToggle?: () => void }) {
@@ -51,6 +53,7 @@ export function Header({ onMenuToggle }: { onMenuToggle?: () => void }) {
   const [isConnected] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [notifications, setNotifications] = useState<AdminNotification[]>([]);
+  const [userNotifications, setUserNotifications] = useState<UserNotification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const pollRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -67,6 +70,19 @@ export function Header({ onMenuToggle }: { onMenuToggle?: () => void }) {
     } catch {}
   };
 
+  const loadUserNotifications = async () => {
+    if (isAdmin) return;
+    try {
+      const data = await communityAPI.getNotifications();
+      setUserNotifications(prev => {
+        const same = prev.length === data.notifications.length &&
+          prev.every((n, i) => n.id === data.notifications[i]?.id && n.is_read === data.notifications[i]?.is_read);
+        return same ? prev : data.notifications;
+      });
+      setUnreadCount(c => c === data.unread_count ? c : data.unread_count);
+    } catch {}
+  };
+
   useEffect(() => {
     if (!isAdmin) return;
     loadNotifications();
@@ -74,15 +90,32 @@ export function Header({ onMenuToggle }: { onMenuToggle?: () => void }) {
     return () => { if (pollRef.current) clearInterval(pollRef.current); };
   }, [isAdmin]);
 
+  useEffect(() => {
+    if (isAdmin || !user) return;
+    loadUserNotifications();
+    pollRef.current = setInterval(loadUserNotifications, 30000);
+    return () => { if (pollRef.current) clearInterval(pollRef.current); };
+  }, [isAdmin, user]);
+
   const handleMarkRead = async (id: number) => {
-    await adminAPI.markNotificationRead(id);
-    setNotifications((prev) => prev.map((n) => n.id === id ? { ...n, is_read: 1 } : n));
+    if (isAdmin) {
+      await adminAPI.markNotificationRead(id);
+      setNotifications((prev) => prev.map((n) => n.id === id ? { ...n, is_read: 1 } : n));
+    } else {
+      await communityAPI.markNotificationRead(id);
+      setUserNotifications((prev) => prev.map((n) => n.id === id ? { ...n, is_read: 1 } : n));
+    }
     setUnreadCount((c) => Math.max(0, c - 1));
   };
 
   const handleMarkAllRead = async () => {
-    await adminAPI.markAllNotificationsRead();
-    setNotifications((prev) => prev.map((n) => ({ ...n, is_read: 1 })));
+    if (isAdmin) {
+      await adminAPI.markAllNotificationsRead();
+      setNotifications((prev) => prev.map((n) => ({ ...n, is_read: 1 })));
+    } else {
+      await communityAPI.markAllNotificationsRead();
+      setUserNotifications((prev) => prev.map((n) => ({ ...n, is_read: 1 })));
+    }
     setUnreadCount(0);
   };
 
@@ -183,11 +216,17 @@ export function Header({ onMenuToggle }: { onMenuToggle?: () => void }) {
         {/* Language toggle */}
         <LanguageToggle variant="compact" className="hidden sm:flex" />
 
-        {/* Notifications (admin only) */}
-        {isAdmin && (
+        {/* Notifications (admin + regular users with unread) */}
+        {(isAdmin || (!isAdmin && (unreadCount > 0 || userNotifications.length > 0))) && (
           <div className="relative">
             <button
-              onClick={() => { setShowNotifications(!showNotifications); if (!showNotifications) loadNotifications(); }}
+              onClick={() => {
+                setShowNotifications(!showNotifications);
+                if (!showNotifications) {
+                  if (isAdmin) loadNotifications();
+                  else loadUserNotifications();
+                }
+              }}
               className="relative p-2 rounded-lg hover:bg-white/5 transition-colors"
             >
               <Bell className="w-5 h-5 text-muted-foreground" />
@@ -217,10 +256,10 @@ export function Header({ onMenuToggle }: { onMenuToggle?: () => void }) {
                   )}
                 </div>
                 <div className="space-y-2 max-h-80 overflow-y-auto">
-                  {notifications.length === 0 ? (
+                  {(isAdmin ? notifications : userNotifications).length === 0 ? (
                     <p className="text-sm text-muted-foreground text-center py-4">{t("header_notif_empty")}</p>
                   ) : (
-                    notifications.slice(0, 20).map((n) => (
+                    (isAdmin ? notifications : userNotifications).slice(0, 20).map((n) => (
                       <div
                         key={n.id}
                         className={cn(
@@ -256,9 +295,12 @@ export function Header({ onMenuToggle }: { onMenuToggle?: () => void }) {
                     ))
                   )}
                 </div>
-                <Link href="/admin?tab=users" onClick={() => setShowNotifications(false)}>
+                <Link
+                  href={isAdmin ? "/admin?tab=users" : "/support"}
+                  onClick={() => setShowNotifications(false)}
+                >
                   <button className="w-full mt-3 text-xs text-primary hover:underline">
-                    {t("header_notif_goto")}
+                    {isAdmin ? t("header_notif_goto") : "Voir mes tickets"}
                   </button>
                 </Link>
               </motion.div>

@@ -6,7 +6,7 @@ from typing import Optional, List
 from fastapi import APIRouter, HTTPException, Depends, Query
 from pydantic import BaseModel
 
-from ..database import execute_query, execute_write, create_admin_notification
+from ..database import execute_query, execute_write, create_admin_notification, create_user_notification
 from .auth import get_current_user
 from .admin import get_admin_user, check_if_admin
 
@@ -382,6 +382,18 @@ async def reply_to_ticket(
         (_now, ticket_id)
     )
 
+    # Notify the ticket owner when admin replies
+    if is_admin:
+        ticket_owner_id = ticket[0]["user_id"]
+        subject = ticket[0].get("subject", "votre ticket")
+        await create_user_notification(
+            user_id=ticket_owner_id,
+            type="ticket_reply",
+            title="Réponse à votre ticket",
+            message=f"L'équipe a répondu à : {subject}",
+            link=f"/support?ticket={ticket_id}",
+        )
+
     return {"success": True}
 
 
@@ -436,5 +448,49 @@ async def admin_reopen_ticket(
     await execute_write(
         "UPDATE admin_tickets SET status = 'open', updated_at = ? WHERE id = ?",
         (datetime.now(timezone.utc).isoformat(), ticket_id)
+    )
+    return {"success": True}
+
+
+# ============== USER NOTIFICATIONS ==============
+
+@router.get("/notifications")
+async def get_user_notifications(
+    current_user: dict = Depends(get_current_user)
+):
+    """Get notifications for the current user"""
+    user_id = current_user.get("id")
+    notifications = await execute_query(
+        """SELECT * FROM user_notifications WHERE user_id = ?
+           ORDER BY created_at DESC LIMIT 50""",
+        (user_id,)
+    )
+    unread_count = sum(1 for n in (notifications or []) if not n["is_read"])
+    return {"notifications": notifications or [], "unread_count": unread_count}
+
+
+@router.post("/notifications/{notif_id}/read")
+async def mark_user_notification_read(
+    notif_id: int,
+    current_user: dict = Depends(get_current_user)
+):
+    """Mark a single user notification as read"""
+    user_id = current_user.get("id")
+    await execute_write(
+        "UPDATE user_notifications SET is_read = 1 WHERE id = ? AND user_id = ?",
+        (notif_id, user_id)
+    )
+    return {"success": True}
+
+
+@router.post("/notifications/read-all")
+async def mark_all_user_notifications_read(
+    current_user: dict = Depends(get_current_user)
+):
+    """Mark all user notifications as read"""
+    user_id = current_user.get("id")
+    await execute_write(
+        "UPDATE user_notifications SET is_read = 1 WHERE user_id = ?",
+        (user_id,)
     )
     return {"success": True}

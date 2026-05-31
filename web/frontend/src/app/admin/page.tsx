@@ -881,6 +881,8 @@ function TicketsTab() {
     try {
       const data = await adminAPI.getTicketDetail(ticketId);
       setSelectedTicket(data);
+      // Clear new_ticket notifications so the bell badge goes away
+      adminAPI.markNotificationTypeRead("new_ticket").catch(() => {});
     } catch (err) {
       console.error(err);
     }
@@ -1076,7 +1078,7 @@ function TicketsTab() {
                       {formatTime(msg.created_at)}
                     </span>
                   </div>
-                  <p className="text-sm whitespace-pre-wrap">{msg.message}</p>
+                  <p className="text-base whitespace-pre-wrap">{msg.message}</p>
                 </div>
               ))}
             </div>
@@ -1084,19 +1086,25 @@ function TicketsTab() {
             {/* Reply form */}
             {selectedTicket.ticket.status === "open" && (
               <div className="flex gap-3 pt-4 border-t border-white/10">
-                <input
-                  type="text"
+                <textarea
                   value={replyMessage}
                   onChange={(e) => setReplyMessage(e.target.value)}
-                  onKeyPress={(e) => e.key === "Enter" && sendReply()}
-                  placeholder="Votre reponse..."
-                  className="flex-1 input"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.ctrlKey) {
+                      e.preventDefault();
+                      sendReply();
+                    }
+                    // Ctrl+Enter inserts a newline (default textarea behavior — just don't preventDefault)
+                  }}
+                  placeholder="Votre réponse... (Entrée pour envoyer, Ctrl+Entrée pour sauter une ligne)"
+                  className="flex-1 input resize-none min-h-[80px]"
+                  rows={3}
                   disabled={isSending}
                 />
                 <button
                   onClick={sendReply}
                   disabled={!replyMessage.trim() || isSending}
-                  className="btn-primary px-6 disabled:opacity-50"
+                  className="btn-primary px-6 disabled:opacity-50 self-end"
                 >
                   {isSending ? (
                     <Loader2 className="w-4 h-4 animate-spin" />

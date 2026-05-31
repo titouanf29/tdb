@@ -729,6 +729,9 @@ export const adminAPI = {
 
   markAllNotificationsRead: () =>
     fetchAPI<{ success: boolean }>("/api/admin/notifications/read-all", { method: "POST" }),
+
+  markNotificationTypeRead: (type: string) =>
+    fetchAPI<{ success: boolean }>(`/api/admin/notifications/mark-type-read?type=${type}`, { method: "POST" }),
 };
 
 // ── Content Factory ───────────────────────────────────────────────────────────
@@ -881,6 +884,18 @@ export const contentFactoryAPI = {
     }>(`/api/admin/content-factory/pieces/${id}/filming-guide${qs}`);
   },
 };
+
+// User notification type
+export interface UserNotification {
+  id: number;
+  user_id: number;
+  type: "ticket_reply" | string;
+  title: string;
+  message: string;
+  link: string | null;
+  is_read: number;
+  created_at: string;
+}
 
 // Admin Types
 export interface AdminNotification {
@@ -1464,6 +1479,16 @@ export const communityAPI = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ content }),
     }),
+
+  // User notifications
+  getNotifications: () =>
+    fetchAPI<{ notifications: UserNotification[]; unread_count: number }>("/api/community/notifications"),
+
+  markNotificationRead: (notifId: number) =>
+    fetchAPI<{ success: boolean }>(`/api/community/notifications/${notifId}/read`, { method: "POST" }),
+
+  markAllNotificationsRead: () =>
+    fetchAPI<{ success: boolean }>("/api/community/notifications/read-all", { method: "POST" }),
 };
 
 // Community Types
