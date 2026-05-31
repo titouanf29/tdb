@@ -393,7 +393,6 @@ const ANALYSIS_SECTIONS = [
   { id: "window",       label: "Fenêtre",       Icon: Timer       },
   { id: "ai",           label: "IA",            Icon: Bot         },
   { id: "indicators",   label: "Indicateurs",   Icon: Activity    },
-  { id: "trade",        label: "Trade",         Icon: Target      },
   { id: "risk",         label: "Risques",       Icon: Shield      },
   { id: "detailed",     label: "Analyse",       Icon: BookOpen    },
   { id: "market",       label: "Marché",        Icon: Globe       },
@@ -1387,61 +1386,6 @@ export default function AnalysisPage() {
               </div>
             </motion.div>
           )}
-          </div>
-
-          {/* 5. Suggestion de Trade */}
-          <div id="section-trade" className="scroll-mt-16">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4 }}
-            className="glass-card p-6"
-          >
-            <h3 className="font-semibold mb-4 flex items-center gap-2">
-              <Target className="w-5 h-5 text-primary" />
-              {lang === "fr" ? "Suggestion de Trade" : "Trade Suggestion"}
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="p-4 bg-profit/10 rounded-xl border border-profit/20">
-                <p className="text-sm text-muted-foreground mb-1">Take Profit</p>
-                <p className="text-xl font-bold text-profit">{formatCurrency(analysis.risk.suggested_tp)}</p>
-              </div>
-              <div className="p-4 bg-loss/10 rounded-xl border border-loss/20">
-                <p className="text-sm text-muted-foreground mb-1">Stop Loss</p>
-                <p className="text-xl font-bold text-loss">{formatCurrency(analysis.risk.suggested_sl)}</p>
-              </div>
-              <div className="p-4 bg-primary/10 rounded-xl border border-primary/20">
-                <p className="text-sm text-muted-foreground mb-1">Risk/Reward</p>
-                <p className="text-xl font-bold text-primary">1:{analysis.risk.risk_reward}</p>
-              </div>
-            </div>
-            {/* CTAs */}
-            <div className="mt-5 flex flex-col sm:flex-row gap-3">
-              <Link href={`/trading?symbol=${analysis.symbol}`} className="flex-1">
-                <motion.button
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  className="btn-primary w-full flex items-center justify-center gap-2"
-                >
-                  <Zap className="w-4 h-4" />
-                  {lang === "fr" ? "Ouvrir une Position" : "Open a Position"}
-                  <ArrowRight className="w-4 h-4" />
-                </motion.button>
-              </Link>
-              <Link href="/wallet" className="flex-1 sm:flex-none">
-                <motion.button
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  className="w-full sm:w-auto flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl border border-white/15 bg-white/5 hover:bg-white/10 text-sm font-medium transition-colors"
-                >
-                  🧪 {lang === "fr" ? "Paper Trading" : "Paper Trading"}
-                  <span className="text-xs text-muted-foreground font-normal">
-                    {lang === "fr" ? "· sans risque" : "· risk-free"}
-                  </span>
-                </motion.button>
-              </Link>
-            </div>
-          </motion.div>
           </div>
 
           {/* 6. Évaluation des risques */}
