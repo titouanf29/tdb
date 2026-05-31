@@ -3,7 +3,7 @@ Admin API routes for TDB
 Only whitelisted admin emails can access these routes
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 from typing import Optional, List
