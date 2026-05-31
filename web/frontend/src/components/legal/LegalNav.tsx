@@ -1,13 +1,14 @@
 import Link from "next/link";
-import { Scale, Shield, FileText, Home, ChevronRight } from "lucide-react";
+import { Scale, Shield, FileText, ShoppingCart, Home, ChevronRight } from "lucide-react";
 
 const pages = [
   { href: "/mentions-legales", label: "Mentions légales", short: "ML", icon: Scale },
   { href: "/politique-de-confidentialite", label: "Confidentialité", short: "RGPD", icon: Shield },
   { href: "/cgu", label: "CGU", short: "CGU", icon: FileText },
+  { href: "/cgv", label: "CGV", short: "CGV", icon: ShoppingCart },
 ];
 
-export function LegalNav({ current }: { current: "/mentions-legales" | "/politique-de-confidentialite" | "/cgu" }) {
+export function LegalNav({ current }: { current: "/mentions-legales" | "/politique-de-confidentialite" | "/cgu" | "/cgv" }) {
   return (
     <div className="mb-8 space-y-3">
       {/* Breadcrumb */}

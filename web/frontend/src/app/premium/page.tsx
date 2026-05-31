@@ -46,6 +46,7 @@ export default function PremiumPage() {
   const [isSending, setIsSending] = useState(false);
   const [sendSuccess, setSendSuccess] = useState(false);
   const [myRequests, setMyRequests] = useState<PremiumRequest[]>([]);
+  const [acceptedLegal, setAcceptedLegal] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -67,7 +68,7 @@ export default function PremiumPage() {
   };
 
   const handleContact = async () => {
-    if (!message.trim()) return;
+    if (!message.trim() || !acceptedLegal) return;
     setIsSending(true);
     try {
       await premiumAPI.contact(message);
@@ -370,9 +371,32 @@ export default function PremiumPage() {
                 placeholder={t("prem_placeholder")}
                 className="w-full h-32 px-4 py-3 rounded-xl bg-white/5 border border-white/10 focus:border-primary focus:outline-none resize-none"
               />
+
+              {/* Legal info — retraction rights (required by French consumer law L.221-5) */}
+              <div className="p-4 rounded-xl bg-blue-500/10 border border-blue-500/20 text-xs text-blue-300/90 space-y-2">
+                <p className="font-semibold text-blue-300">ℹ️ Information légale — Droit de rétractation (L.221-18 code de la consommation)</p>
+                <p>Après activation de votre abonnement Premium, vous disposez d'un délai de <strong>14 jours calendaires</strong> pour exercer votre droit de rétractation sans motif, conformément à l'article L.221-18 du code de la consommation.</p>
+                <p>En demandant un accès immédiat dès activation, vous reconnaissez que si vous exercez votre droit de rétractation après le début de la fourniture du service, vous devrez payer un montant proportionnel aux services fournis (art. L.221-25).</p>
+                <p>Prix : <strong>5,00 € TTC/mois</strong> — Paiement via Stripe (PCI-DSS) — Résiliable à tout moment — <a href="/cgu#retractation" target="_blank" className="underline">Voir CGU Art. 8</a></p>
+              </div>
+
+              <label className="flex items-start gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={acceptedLegal}
+                  onChange={(e) => setAcceptedLegal(e.target.checked)}
+                  className="mt-0.5 w-4 h-4 rounded border-white/20 bg-white/5 text-primary focus:ring-primary flex-shrink-0"
+                />
+                <span className="text-xs text-muted-foreground">
+                  J'ai lu et j'accepte les <a href="/cgu" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">CGU</a> et la{" "}
+                  <a href="/politique-de-confidentialite" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Politique de confidentialité</a>.
+                  Je comprends que le service Premium sera fourni immédiatement après activation et que mon droit de rétractation s'exercera conformément à l'art. L.221-18 du code de la consommation.
+                </span>
+              </label>
+
               <button
                 onClick={handleContact}
-                disabled={isSending || !message.trim()}
+                disabled={isSending || !message.trim() || !acceptedLegal}
                 className="w-full btn-primary flex items-center justify-center gap-2 py-3"
               >
                 {isSending ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}

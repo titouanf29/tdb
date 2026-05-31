@@ -37,7 +37,7 @@ export default function PolitiqueConfidentialitePage() {
               <span className="px-2 py-0.5 rounded-md bg-primary/10 text-primary text-xs font-semibold">RGPD Art. 13-22</span>
               <span className="px-2 py-0.5 rounded-md bg-primary/10 text-primary text-xs font-semibold">Loi Informatique & Libertés</span>
               <span className="px-2 py-0.5 rounded-md bg-white/10 text-muted-foreground text-xs">Version 1.1</span>
-              <span className="px-2 py-0.5 rounded-md bg-white/10 text-muted-foreground text-xs">Mars 2026</span>
+              <span className="px-2 py-0.5 rounded-md bg-white/10 text-muted-foreground text-xs">Mai 2026</span>
             </div>
             <h1 className="text-2xl font-bold">Politique de confidentialité</h1>
             <p className="text-sm text-muted-foreground mt-1">
@@ -113,6 +113,8 @@ export default function PolitiqueConfidentialitePage() {
                 <li>Alertes de prix configurées</li>
                 <li>Préférences et paramètres d'affichage</li>
                 <li>Messages publiés dans la section Communauté</li>
+                <li>Messages échangés dans les tickets de support</li>
+                <li>Notifications reçues (réponses support)</li>
               </ul>
             </div>
 
@@ -157,6 +159,8 @@ export default function PolitiqueConfidentialitePage() {
                   ["Sécurité, détection des abus et de la fraude", "Intérêt légitime (§1.f)", "1 an"],
                   ["Envoi de notifications de la plateforme", "Consentement ou intérêt légitime (§1.f)", "Durée du compte"],
                   ["Amélioration du service (données agrégées, anonymisées)", "Intérêt légitime (§1.f)", "Données anonymisées : indéfiniment"],
+                  ["Gestion des tickets de support utilisateur", "Exécution du contrat (§1.b)", "Durée du compte + 1 an après fermeture du ticket"],
+                  ["Notifications utilisateur (réponses tickets)", "Intérêt légitime (§1.f)", "90 jours ou jusqu'à lecture"],
                 ].map(([f, b, d]) => (
                   <tr key={f}>
                     <td className="p-3">{f}</td>
@@ -358,7 +362,7 @@ export default function PolitiqueConfidentialitePage() {
             La date de dernière mise à jour figure en haut de cette page. L'utilisation continue du service après notification vaut acceptation des nouvelles dispositions.
           </p>
           <div className="flex items-center justify-between text-xs text-muted-foreground pt-2 border-t border-white/10">
-            <span>Version 1.1 — Dernière mise à jour : mars 2026</span>
+            <span>Version 1.1 — Dernière mise à jour : mai 2026</span>
             <a href="#" className="hover:text-primary transition-colors">↑ Haut de page</a>
           </div>
         </section>

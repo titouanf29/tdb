@@ -42,7 +42,7 @@ export default function CguPage() {
               <span className="px-2 py-0.5 rounded-md bg-primary/10 text-primary text-xs font-semibold">Droit français</span>
               <span className="px-2 py-0.5 rounded-md bg-primary/10 text-primary text-xs font-semibold">Dir. 2011/83/UE</span>
               <span className="px-2 py-0.5 rounded-md bg-white/10 text-muted-foreground text-xs">Version 1.1</span>
-              <span className="px-2 py-0.5 rounded-md bg-white/10 text-muted-foreground text-xs">Mars 2026</span>
+              <span className="px-2 py-0.5 rounded-md bg-white/10 text-muted-foreground text-xs">Mai 2026</span>
             </div>
             <h1 className="text-2xl font-bold">Conditions Générales d'Utilisation</h1>
             <p className="text-sm text-muted-foreground mt-1">
@@ -197,6 +197,9 @@ export default function CguPage() {
             <p>
               <strong className="text-foreground">7.5 Modification tarifaire.</strong> L'Éditeur se réserve le droit de modifier le tarif de l'abonnement avec un préavis minimum de 30 jours par notification sur la plateforme. La poursuite de l'abonnement après ce délai vaut acceptation du nouveau tarif.
             </p>
+            <p>
+              <strong className="text-foreground">7.6 Information pré-contractuelle.</strong> Conformément à l'article L.221-5 du code de la consommation, les informations essentielles relatives à l'abonnement Premium sont disponibles sur la page Premium avant toute demande de souscription : caractéristiques du service, prix TTC, conditions de résiliation, droit de rétractation.
+            </p>
           </div>
         </section>
 
@@ -212,6 +215,10 @@ export default function CguPage() {
           <div className="space-y-3 text-muted-foreground">
             <p>
               <strong className="text-foreground">8.1 Exercice du droit de rétractation.</strong> Pour exercer ce droit, vous devez notifier votre décision de rétractation avant l'expiration du délai de 14 jours via la plateforme (section « Communauté » → « Contacter Admin »), en indiquant clairement votre décision et vos coordonnées.
+            </p>
+            <p>
+              Vous pouvez utiliser le modèle de formulaire de rétractation suivant (non obligatoire) :<br />
+              « À l'attention de l'éditeur de CaptenTDB (contact via la plateforme) — Je/Nous [*] vous notifie/notifions par la présente ma/notre [*] rétractation du contrat portant sur la prestation de services ci-dessous — Commandé(e) le [*]/reçu(e) le [*] — Nom du/des consommateur(s) — Adresse du/des consommateur(s) — Date [*] — [Signature du/des consommateur(s) uniquement en cas de notification du présent formulaire sur papier] »
             </p>
             <p>
               <strong className="text-foreground">8.2 Dérogation pour contenu numérique fourni immédiatement.</strong> Conformément à l'article L.221-28 12° du code de la consommation, si vous avez expressément consenti à l'exécution immédiate du service numérique dès la souscription (accès Premium activé immédiatement) et renoncé à votre droit de rétractation en cochant la case prévue à cet effet lors de la souscription, vous ne pourrez pas exercer ce droit de rétractation pour la période déjà consommée.
@@ -329,7 +336,10 @@ export default function CguPage() {
               <strong className="text-foreground">16.2 Résolution amiable.</strong> En cas de litige entre l'utilisateur et l'Éditeur, les parties s'engagent à rechercher une solution amiable avant tout recours judiciaire, en contactant l'Éditeur via la plateforme.
             </p>
             <p>
-              <strong className="text-foreground">16.3 Médiation de la consommation.</strong> Conformément aux articles L.611-1 et suivants du code de la consommation, tout consommateur peut recourir gratuitement à la médiation. À défaut de solution amiable, l'utilisateur peut saisir la plateforme européenne de règlement en ligne des litiges (RLL) :{" "}
+              <strong className="text-foreground">16.3 Médiation de la consommation.</strong> Conformément aux articles L.611-1 et suivants et L.616-1 du code de la consommation, tout consommateur a le droit de recourir gratuitement à un médiateur de la consommation en vue de la résolution amiable du litige qui l'oppose à un professionnel. CaptenTDB adhère au dispositif de médiation de l'ANM Conso (Association Nationale des Médiateurs) : ANM Conso — 62 rue Tiquetonne, 75002 Paris —{" "}
+              <a href="https://www.anm-conso.com" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline inline-flex items-center gap-1">
+                www.anm-conso.com <ExternalLink className="w-3 h-3" />
+              </a>. En cas d'échec de la médiation, l'utilisateur peut saisir la plateforme européenne de règlement en ligne des litiges (RLL) :{" "}
               <a href="https://ec.europa.eu/consumers/odr" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline inline-flex items-center gap-1">
                 ec.europa.eu/consumers/odr <ExternalLink className="w-3 h-3" />
               </a>
@@ -339,7 +349,7 @@ export default function CguPage() {
             </p>
           </div>
           <div className="flex items-center justify-between text-xs text-muted-foreground pt-2 border-t border-white/10">
-            <span>Version 1.1 — Dernière mise à jour : mars 2026</span>
+            <span>Version 1.1 — Dernière mise à jour : mai 2026</span>
             <a href="#" className="hover:text-primary transition-colors">↑ Haut de page</a>
           </div>
         </section>

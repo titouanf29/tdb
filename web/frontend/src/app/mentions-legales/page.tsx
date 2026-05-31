@@ -18,6 +18,7 @@ const TOC = [
   { id: "cookies", label: "Cookies & traceurs" },
   { id: "responsabilite", label: "Limitation de responsabilité" },
   { id: "mediation", label: "Médiation de la consommation" },
+  { id: "cgv", label: "Conditions de vente" },
   { id: "droit", label: "Droit applicable" },
 ];
 
@@ -36,7 +37,7 @@ export default function MentionsLegalesPage() {
             <div className="flex flex-wrap gap-2 mb-2">
               <span className="px-2 py-0.5 rounded-md bg-primary/10 text-primary text-xs font-semibold">LCEN Art. 6</span>
               <span className="px-2 py-0.5 rounded-md bg-white/10 text-muted-foreground text-xs">Version 1.1</span>
-              <span className="px-2 py-0.5 rounded-md bg-white/10 text-muted-foreground text-xs">Mars 2026</span>
+              <span className="px-2 py-0.5 rounded-md bg-white/10 text-muted-foreground text-xs">Mai 2026</span>
             </div>
             <h1 className="text-2xl font-bold">Mentions légales</h1>
             <p className="text-sm text-muted-foreground mt-1">
@@ -66,13 +67,16 @@ export default function MentionsLegalesPage() {
         {/* 1. Éditeur */}
         <section id="editeur" className="glass-card p-6 space-y-4 scroll-mt-6">
           <LegalSectionTitle num="1" id="editeur-title" title="Éditeur du site" />
-          <p className="text-muted-foreground">Le site internet <strong className="text-foreground">CaptenTDB</strong> est édité à titre personnel et non commercial par :</p>
+          <p className="text-muted-foreground">Le site internet <strong className="text-foreground">CaptenTDB</strong> est édité à titre personnel par :</p>
           <Dl items={[
             { label: "Identité", value: "CaptenQwark" },
-            { label: "Statut", value: "Personne physique — projet personnel indépendant, non commercial" },
+            { label: "Statut", value: "Personne physique — éditeur indépendant" },
             { label: "Pays", value: "France" },
             { label: "Contact", value: <span>Via la plateforme : section « Communauté » → « Contacter Admin »</span> },
           ]} />
+          <p className="text-xs text-muted-foreground">
+            En proposant un abonnement payant, l'éditeur agit en qualité de « professionnel » au sens de l'article L.217-1 du code de la consommation pour les relations avec ses utilisateurs abonnés.
+          </p>
         </section>
 
         {/* 2. Hébergement */}
@@ -189,28 +193,41 @@ export default function MentionsLegalesPage() {
         {/* 10. Médiation */}
         <section id="mediation" className="glass-card p-6 space-y-4 scroll-mt-6">
           <LegalSectionTitle num="10" id="mediation-title" title="Médiation de la consommation" />
-          <p className="text-muted-foreground">
-            Conformément aux articles L.611-1 et suivants du code de la consommation, tout consommateur ayant un litige avec CaptenTDB a le droit de recourir gratuitement à un médiateur de la consommation.
-          </p>
-          <p className="text-muted-foreground">
-            En cas de litige non résolu par la voie amiable, l'utilisateur peut saisir la plateforme européenne de règlement en ligne des litiges (RLL) :{" "}
-            <a href="https://ec.europa.eu/consumers/odr" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline inline-flex items-center gap-1">
-              ec.europa.eu/consumers/odr <ExternalLink className="w-3 h-3" />
-            </a>
-          </p>
           <InfoBox variant="info">
-            En tant que projet indépendant à titre personnel, CaptenTDB n'est pas soumis à l'obligation d'adhésion à un dispositif de médiation sectoriel, conformément à l'article L.612-1 du code de la consommation. Pour tout litige, nous vous invitons à nous contacter directement via la plateforme en premier lieu.
+            <p className="mb-2">Conformément aux articles L.611-1 et suivants et L.616-1 du code de la consommation, tout consommateur a le droit de recourir gratuitement à un médiateur de la consommation en vue de la résolution amiable du litige qui l'oppose à un professionnel.</p>
+            <p className="mb-2">CaptenTDB adhère au dispositif de médiation de l'ANM Conso (Association Nationale des Médiateurs) :</p>
+            <p className="mb-2 font-semibold">ANM Conso — 62 rue Tiquetonne, 75002 Paris<br />
+            <a href="https://www.anm-conso.com" target="_blank" rel="noopener noreferrer" className="underline inline-flex items-center gap-1">www.anm-conso.com <ExternalLink className="w-3 h-3" /></a></p>
+            <p>En cas d'échec de la médiation, l'utilisateur peut saisir la plateforme européenne de règlement en ligne des litiges (RLL) :{" "}
+            <a href="https://ec.europa.eu/consumers/odr" target="_blank" rel="noopener noreferrer" className="underline inline-flex items-center gap-1">ec.europa.eu/consumers/odr <ExternalLink className="w-3 h-3" /></a></p>
           </InfoBox>
         </section>
 
-        {/* 11. Droit applicable */}
+        {/* 11. CGV */}
+        <section id="cgv" className="glass-card p-6 space-y-4 scroll-mt-6">
+          <LegalSectionTitle num="11" id="cgv-title" title="Conditions générales de vente (résumé)" />
+          <p className="text-muted-foreground">
+            Pour toute souscription à l'abonnement Premium, les conditions complètes de vente sont
+            détaillées dans les <Link href="/cgu#premium" className="text-primary hover:underline">CGU (Article 7 — Abonnement Premium)</Link> et{" "}
+            <Link href="/cgu#retractation" className="text-primary hover:underline">CGU (Article 8 — Droit de rétractation)</Link>.
+          </p>
+          <Dl items={[
+            { label: "Prix", value: "5,00 € TTC / mois" },
+            { label: "Paiement", value: "Via Stripe, Inc. (PCI-DSS Level 1) — CB, Visa, Mastercard" },
+            { label: "Exécution", value: "Accès Premium activé sous 24-48h après validation de la demande par l'équipe" },
+            { label: "Durée", value: "Abonnement mensuel renouvelable — résiliable à tout moment" },
+            { label: "Rétractation", value: "14 jours calendaires à compter de l'activation (L.221-18 code consommation)" },
+          ]} />
+        </section>
+
+        {/* 12. Droit applicable */}
         <section id="droit" className="glass-card p-6 space-y-4 scroll-mt-6">
-          <LegalSectionTitle num="11" id="droit-title" title="Droit applicable & juridiction compétente" />
+          <LegalSectionTitle num="12" id="droit-title" title="Droit applicable & juridiction compétente" />
           <p className="text-muted-foreground">
             Les présentes mentions légales sont régies par le droit français. En cas de litige relatif à l'interprétation ou à l'exécution des présentes mentions légales, et à défaut de résolution amiable, les tribunaux français seront seuls compétents.
           </p>
           <div className="flex items-center justify-between text-xs text-muted-foreground pt-2 border-t border-white/10">
-            <span>Version 1.1 — Dernière mise à jour : mars 2026</span>
+            <span>Version 1.1 — Dernière mise à jour : mai 2026</span>
             <a href="#" className="hover:text-primary transition-colors">↑ Haut de page</a>
           </div>
         </section>
