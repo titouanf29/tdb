@@ -575,7 +575,7 @@ export function WeeklyPrepWidget({ respectSchedule = true }: Props) {
           </p>
         )}
         <ul className="mt-3 space-y-1">
-          {briefing.macro.key_points.map((pt, i) => (
+          {(briefing.macro.key_points ?? []).map((pt, i) => (
             <li key={i} className="text-xs text-foreground/70 flex items-start gap-2">
               <ChevronRight className="w-3 h-3 mt-0.5 shrink-0 text-primary" />
               {pt}
@@ -604,7 +604,7 @@ export function WeeklyPrepWidget({ respectSchedule = true }: Props) {
       </Section>
 
       {/* Watchlist — separate section, tabs by market */}
-      <WatchlistByMarket watchlist={briefing.watchlist} t={t} />
+      <WatchlistByMarket watchlist={briefing.watchlist ?? []} t={t} />
 
       {/* Events */}
       <Section title={t("weekly_events")} icon={Calendar}>
