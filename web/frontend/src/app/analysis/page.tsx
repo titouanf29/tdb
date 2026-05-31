@@ -484,6 +484,8 @@ export default function AnalysisPage() {
   const [realPosition, setRealPosition] = useState<RealPosition | null>(null);
   const [activeSection, setActiveSection] = useState("score");
   const [showAIChat, setShowAIChat] = useState(false);
+  const [timeOnPage, setTimeOnPage] = useState(0);
+  const [fabDismissed, setFabDismissed] = useState(false);
 
   useEffect(() => {
     if (!analysis) return;
@@ -502,6 +504,15 @@ export default function AnalysisPage() {
     return () => observers.forEach(o => o.disconnect());
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [analysis]);
+
+  // FAB time-on-page tracker — starts when analysis is loaded, resets on new symbol
+  useEffect(() => {
+    if (!analysis) return;
+    setTimeOnPage(0);
+    setFabDismissed(false);
+    const id = setInterval(() => setTimeOnPage(t => t + 1), 1000);
+    return () => clearInterval(id);
+  }, [analysis?.symbol]);
 
   const toggleSection = (section: string) => {
     setExpandedSections(prev => {
@@ -1593,6 +1604,60 @@ export default function AnalysisPage() {
           <Bot className="w-4 h-4" />
           {lang === "en" ? "Ask AI" : "Demander à l'IA"}
         </motion.button>
+      )}
+    </AnimatePresence>
+
+    {/* Floating trade FAB — discreet at first, glows after 60s */}
+    <AnimatePresence>
+      {analysis && !fabDismissed && timeOnPage >= 8 && (
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{
+            opacity: timeOnPage >= 60 ? 1 : 0.5,
+            y: 0,
+          }}
+          exit={{ opacity: 0, y: 12 }}
+          transition={{ duration: 0.7, ease: "easeOut" }}
+          className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 flex items-center gap-1.5 px-2.5 py-2 rounded-2xl backdrop-blur-xl pointer-events-auto"
+          style={{
+            background: "rgba(8,11,20,0.88)",
+            border: timeOnPage >= 60
+              ? "1px solid rgba(99,140,255,0.5)"
+              : "1px solid rgba(255,255,255,0.08)",
+            boxShadow: timeOnPage >= 60
+              ? "0 0 28px rgba(99,140,255,0.3), 0 0 8px rgba(99,140,255,0.15), 0 4px 20px rgba(0,0,0,0.5)"
+              : "0 2px 14px rgba(0,0,0,0.35)",
+            transition: "border 0.8s ease, box-shadow 0.8s ease",
+          }}
+        >
+          <Link href={`/trading?symbol=${analysis.symbol}`}>
+            <motion.button
+              whileHover={{ scale: 1.04 }}
+              whileTap={{ scale: 0.97 }}
+              className={cn(
+                "flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all duration-700",
+                timeOnPage >= 60
+                  ? "bg-primary text-black"
+                  : "bg-primary/50 text-white/80"
+              )}
+            >
+              <Zap className="w-3 h-3" />
+              {lang === "fr" ? "Ouvrir une position" : "Open a position"}
+            </motion.button>
+          </Link>
+          <Link href="/wallet">
+            <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs text-muted-foreground hover:text-foreground transition-colors">
+              🧪 <span>{lang === "fr" ? "Paper" : "Paper"}</span>
+            </button>
+          </Link>
+          <button
+            onClick={() => setFabDismissed(true)}
+            className="p-1.5 rounded-lg text-muted-foreground/30 hover:text-muted-foreground/70 transition-colors"
+            aria-label="Fermer"
+          >
+            <X className="w-3 h-3" />
+          </button>
+        </motion.div>
       )}
     </AnimatePresence>
 
