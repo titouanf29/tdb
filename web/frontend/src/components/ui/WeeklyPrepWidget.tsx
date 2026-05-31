@@ -587,7 +587,7 @@ export function WeeklyPrepWidget({ respectSchedule = true }: Props) {
       {/* Markets tabs — analysis only */}
       <Section title={t("weekly_markets")} icon={BarChart2} defaultOpen>
         <div className="flex gap-1.5 flex-wrap mb-3">
-          {briefing.markets.map((m, i) => (
+          {(briefing.markets ?? []).map((m, i) => (
             <button key={i} onClick={() => setActiveMarket(i)}
               className={cn("px-2.5 py-1 rounded-lg text-xs font-medium transition-all border",
                 activeMarket === i ? "bg-primary/20 border-primary/40 text-primary" : "bg-white/5 border-white/10 hover:border-white/20"
@@ -609,7 +609,7 @@ export function WeeklyPrepWidget({ respectSchedule = true }: Props) {
       {/* Events */}
       <Section title={t("weekly_events")} icon={Calendar}>
         <div>
-          {briefing.events.map((ev, i) => <EventRow key={i} event={ev} />)}
+          {(briefing.events ?? []).map((ev, i) => <EventRow key={i} event={ev} />)}
         </div>
       </Section>
 
