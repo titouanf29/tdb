@@ -1551,55 +1551,52 @@ export default function AnalysisPage() {
       )}
     </AnimatePresence>
 
-    {/* Floating trade FAB — discreet at first, glows after 60s */}
+    {/* Floating trade FAB */}
     <AnimatePresence>
-      {analysis && !fabDismissed && timeOnPage >= 8 && (
+      {analysis && !fabDismissed && timeOnPage >= 4 && (
         <motion.div
-          initial={{ opacity: 0, y: 16 }}
-          animate={{
-            opacity: timeOnPage >= 60 ? 1 : 0.5,
-            y: 0,
-          }}
-          exit={{ opacity: 0, y: 12 }}
-          transition={{ duration: 0.7, ease: "easeOut" }}
-          className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 flex items-center gap-1.5 px-2.5 py-2 rounded-2xl backdrop-blur-xl pointer-events-auto"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: timeOnPage >= 20 ? 1 : 0.65, y: 0 }}
+          exit={{ opacity: 0, y: 16 }}
+          transition={{ duration: 0.5, ease: "easeOut" }}
+          className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 flex items-center gap-2 px-3 py-2.5 rounded-2xl backdrop-blur-xl w-[calc(100%-2rem)] max-w-sm sm:w-auto pointer-events-auto"
           style={{
-            background: "rgba(8,11,20,0.88)",
-            border: timeOnPage >= 60
+            background: "rgba(8,11,20,0.92)",
+            border: timeOnPage >= 20
               ? "1px solid rgba(99,140,255,0.5)"
-              : "1px solid rgba(255,255,255,0.08)",
-            boxShadow: timeOnPage >= 60
-              ? "0 0 28px rgba(99,140,255,0.3), 0 0 8px rgba(99,140,255,0.15), 0 4px 20px rgba(0,0,0,0.5)"
-              : "0 2px 14px rgba(0,0,0,0.35)",
-            transition: "border 0.8s ease, box-shadow 0.8s ease",
+              : "1px solid rgba(255,255,255,0.1)",
+            boxShadow: timeOnPage >= 20
+              ? "0 0 32px rgba(99,140,255,0.28), 0 4px 24px rgba(0,0,0,0.5)"
+              : "0 2px 16px rgba(0,0,0,0.4)",
+            transition: "border 0.7s ease, box-shadow 0.7s ease",
           }}
         >
-          <Link href={`/trading?symbol=${analysis.symbol}`}>
+          <Link href={`/trading?symbol=${analysis.symbol}`} className="flex-1 sm:flex-none">
             <motion.button
-              whileHover={{ scale: 1.04 }}
+              whileHover={{ scale: 1.03 }}
               whileTap={{ scale: 0.97 }}
               className={cn(
-                "flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all duration-700",
-                timeOnPage >= 60
-                  ? "bg-primary text-black"
-                  : "bg-primary/50 text-white/80"
+                "w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-500",
+                timeOnPage >= 20
+                  ? "bg-primary text-black shadow-sm"
+                  : "bg-primary/60 text-white/90"
               )}
             >
-              <Zap className="w-3 h-3" />
+              <Zap className="w-4 h-4 flex-shrink-0" />
               {lang === "fr" ? "Ouvrir une position" : "Open a position"}
             </motion.button>
           </Link>
-          <Link href="/wallet">
-            <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs text-muted-foreground hover:text-foreground transition-colors">
-              🧪 <span>{lang === "fr" ? "Paper" : "Paper"}</span>
+          <Link href="/wallet" className="flex-shrink-0">
+            <button className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl text-sm text-muted-foreground hover:text-foreground hover:bg-white/8 transition-colors whitespace-nowrap">
+              🧪 Paper
             </button>
           </Link>
           <button
             onClick={() => setFabDismissed(true)}
-            className="p-1.5 rounded-lg text-muted-foreground/30 hover:text-muted-foreground/70 transition-colors"
+            className="p-2 rounded-lg text-muted-foreground/40 hover:text-muted-foreground transition-colors flex-shrink-0"
             aria-label="Fermer"
           >
-            <X className="w-3 h-3" />
+            <X className="w-3.5 h-3.5" />
           </button>
         </motion.div>
       )}
