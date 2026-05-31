@@ -1100,18 +1100,6 @@ export default function AnalysisPage() {
           </div>
           </div>
 
-          {/* Paper Trading hint — discreet strip, visible right after the signal */}
-          <Link href="/wallet" className="group flex items-center justify-between px-4 py-2.5 rounded-xl bg-white/[0.03] border border-white/[0.07] hover:bg-primary/5 hover:border-primary/20 transition-all duration-200">
-            <div className="flex items-center gap-2 text-xs text-muted-foreground/70 group-hover:text-muted-foreground transition-colors">
-              <Zap className="w-3.5 h-3.5 text-primary/40 group-hover:text-primary/70 transition-colors flex-shrink-0" />
-              <span>{lang === "fr" ? "Tester ce signal sans risque · compte virtuel" : "Test this signal risk-free · virtual account"}</span>
-            </div>
-            <span className="flex items-center gap-1 text-xs text-primary/50 group-hover:text-primary/80 font-medium transition-colors flex-shrink-0">
-              Paper Trading
-              <ArrowRight className="w-3 h-3" />
-            </span>
-          </Link>
-
           {/* 3. Premium Chart */}
           <div id="section-chart" className="scroll-mt-16">
             <PremiumChart symbol={analysis.symbol} timeframe={timeframe} />
@@ -1400,7 +1388,7 @@ export default function AnalysisPage() {
           >
             <h3 className="font-semibold mb-4 flex items-center gap-2">
               <Target className="w-5 h-5 text-primary" />
-              Suggestion de Trade
+              {lang === "fr" ? "Suggestion de Trade" : "Trade Suggestion"}
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="p-4 bg-profit/10 rounded-xl border border-profit/20">
@@ -1416,16 +1404,32 @@ export default function AnalysisPage() {
                 <p className="text-xl font-bold text-primary">1:{analysis.risk.risk_reward}</p>
               </div>
             </div>
-            <Link href={`/trading?symbol=${analysis.symbol}`}>
-              <motion.button
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                className="mt-6 btn-primary w-full flex items-center justify-center gap-2"
-              >
-                Ouvrir une Position
-                <ArrowRight className="w-4 h-4" />
-              </motion.button>
-            </Link>
+            {/* CTAs */}
+            <div className="mt-5 flex flex-col sm:flex-row gap-3">
+              <Link href={`/trading?symbol=${analysis.symbol}`} className="flex-1">
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  className="btn-primary w-full flex items-center justify-center gap-2"
+                >
+                  <Zap className="w-4 h-4" />
+                  {lang === "fr" ? "Ouvrir une Position" : "Open a Position"}
+                  <ArrowRight className="w-4 h-4" />
+                </motion.button>
+              </Link>
+              <Link href="/wallet" className="flex-1 sm:flex-none">
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  className="w-full sm:w-auto flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl border border-white/15 bg-white/5 hover:bg-white/10 text-sm font-medium transition-colors"
+                >
+                  🧪 {lang === "fr" ? "Paper Trading" : "Paper Trading"}
+                  <span className="text-xs text-muted-foreground font-normal">
+                    {lang === "fr" ? "· sans risque" : "· risk-free"}
+                  </span>
+                </motion.button>
+              </Link>
+            </div>
           </motion.div>
           </div>
 
