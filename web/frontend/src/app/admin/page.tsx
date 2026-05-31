@@ -1090,13 +1090,13 @@ function TicketsTab() {
                   value={replyMessage}
                   onChange={(e) => setReplyMessage(e.target.value)}
                   onKeyDown={(e) => {
-                    if (e.key === "Enter" && !e.ctrlKey) {
+                    if (e.key === "Enter" && !e.shiftKey) {
                       e.preventDefault();
                       sendReply();
                     }
-                    // Ctrl+Enter inserts a newline (default textarea behavior — just don't preventDefault)
+                    // Shift+Enter: textarea naturally inserts a newline
                   }}
-                  placeholder="Votre réponse... (Entrée pour envoyer, Ctrl+Entrée pour sauter une ligne)"
+                  placeholder="Votre réponse... (Entrée pour envoyer, Shift+Entrée pour sauter une ligne)"
                   className="flex-1 input resize-none min-h-[80px]"
                   rows={3}
                   disabled={isSending}

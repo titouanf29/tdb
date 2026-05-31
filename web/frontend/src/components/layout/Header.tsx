@@ -216,8 +216,8 @@ export function Header({ onMenuToggle }: { onMenuToggle?: () => void }) {
         {/* Language toggle */}
         <LanguageToggle variant="compact" className="hidden sm:flex" />
 
-        {/* Notifications (admin + regular users with unread) */}
-        {(isAdmin || (!isAdmin && (unreadCount > 0 || userNotifications.length > 0))) && (
+        {/* Notifications bell — always visible for logged-in users */}
+        {!!user && (
           <div className="relative">
             <button
               onClick={() => {
