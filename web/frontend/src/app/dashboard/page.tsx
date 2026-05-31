@@ -514,13 +514,13 @@ const MarketCardsRow = memo(function MarketCardsRow({
       </div>
 
       {/* 3 featured cards */}
-      <div className="grid grid-cols-3 gap-3 mb-3">
+      <div className="grid grid-cols-3 gap-2 sm:gap-3 mb-3">
         {FEATURED_INDICES.map(({ sym, label, labelEn, icon }) => {
           const d    = indices[sym];
           const isUp = d ? d.change >= 0 : true;
           return (
             <Link key={sym} href={`/analysis?symbol=${sym}`}>
-              <div className="p-4 rounded-xl bg-white/5 hover:bg-white/8 border border-white/5 hover:border-white/12 transition-all group cursor-pointer">
+              <div className="p-2.5 sm:p-4 rounded-xl bg-white/5 hover:bg-white/8 border border-white/5 hover:border-white/12 transition-all group cursor-pointer">
                 <div className="flex items-center justify-between mb-3">
                   <span className="text-xl">{icon}</span>
                   {d ? (

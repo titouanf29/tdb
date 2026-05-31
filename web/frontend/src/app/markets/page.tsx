@@ -649,7 +649,7 @@ export default function MarketsPage() {
                             <td className="p-3 pr-5">
                               <div className="flex items-center justify-center gap-1">
                                 <button onClick={e => { e.stopPropagation(); toggleFavorite(asset.symbol); }}
-                                  className="p-1.5 rounded-lg hover:bg-white/10 transition-colors">
+                                  className="p-2.5 rounded-lg hover:bg-white/10 transition-colors min-w-[40px] min-h-[40px] flex items-center justify-center">
                                   {favorites.has(asset.symbol)
                                     ? <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" />
                                     : <StarOff className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />}

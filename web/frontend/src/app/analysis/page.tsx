@@ -427,7 +427,7 @@ function AnalysisNavBar({ active, hasWindow }: { active: string; hasWindow: bool
             key={id}
             onClick={() => scrollTo(id)}
             className={cn(
-              "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all flex-shrink-0",
+              "flex items-center gap-1.5 px-3 py-2.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all flex-shrink-0 min-h-[40px]",
               active === id
                 ? "bg-primary/20 text-primary"
                 : "text-muted-foreground hover:text-foreground hover:bg-white/6"
@@ -1537,7 +1537,13 @@ export default function AnalysisPage() {
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
           onClick={() => setShowAIChat(true)}
-          className="fixed bottom-6 right-6 z-40 flex items-center gap-2.5 px-5 py-3 rounded-2xl font-semibold text-sm shadow-2xl"
+          className={cn(
+            "fixed right-6 z-40 flex items-center gap-2.5 px-5 py-3 rounded-2xl font-semibold text-sm shadow-2xl transition-all duration-300",
+            // On mobile: move up when trade FAB is also visible to avoid overlap
+            !fabDismissed && timeOnPage >= 4
+              ? "bottom-[4.5rem] sm:bottom-6"
+              : "bottom-6"
+          )}
           style={{
             background: "linear-gradient(135deg, rgba(139,92,246,0.9) 0%, rgba(99,140,255,0.9) 100%)",
             border: "1px solid rgba(139,92,246,0.5)",
