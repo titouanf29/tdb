@@ -56,6 +56,10 @@ tdb.py.backup
 # Sessions
 trading_sessions.json
 
+# Node
+node_modules/
+.next/
+
 # Temporary files
 *.tmp
 *.temp
