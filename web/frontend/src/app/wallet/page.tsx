@@ -36,6 +36,16 @@ import { AnimatedNumber } from "@/components/ui/AnimatedNumber";
 import { useLanguage } from "@/lib/LanguageContext";
 import { HelpGuide } from "@/components/ui/HelpGuide";
 import { usePremium } from "@/lib/PremiumContext";
+import {
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip as RechartsTooltip,
+  ReferenceLine,
+  ResponsiveContainer,
+} from "recharts";
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -45,6 +55,183 @@ const itemVariants = {
   hidden: { opacity: 0, y: 14 },
   show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 360, damping: 28 } },
 };
+
+// ── Position evolution chart ──────────────────────────────────────────────────
+
+function PositionChart({
+  symbol,
+  createdAt,
+  entryPrice,
+  currentPrice,
+  tpVal,
+  slVal,
+  isProfit,
+  formatPrice,
+  lang,
+}: {
+  symbol: string;
+  createdAt?: string;
+  entryPrice: number;
+  currentPrice: number;
+  tpVal: number | null;
+  slVal: number | null;
+  isProfit: boolean;
+  formatPrice: (v: number, sym: string) => string;
+  lang: string;
+}) {
+  const [data, setData] = useState<{ ts: number; label: string; price: number }[] | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    const openedMs = createdAt ? new Date(createdAt).getTime() : Date.now() - 30 * 86400000;
+    const ageDays = (Date.now() - openedMs) / 86400000;
+    // Pick period/interval so the chart frames the trade nicely.
+    const [period, interval] =
+      ageDays < 2 ? ["5d", "15m"] :
+      ageDays < 30 ? ["1mo", "1h"] :
+      ["3mo", "1d"];
+
+    const isIntraday = interval !== "1d" && interval !== "1wk" && interval !== "1mo";
+
+    setLoading(true);
+    setFailed(false);
+    marketAPI.getChart(symbol, period, interval)
+      .then((res) => {
+        if (cancelled) return;
+        const pts = (res.data ?? [])
+          .filter((d) => d.close > 0)
+          .map((d) => {
+            const dt = new Date(d.timestamp);
+            const label = isIntraday
+              ? dt.toLocaleTimeString(lang === "en" ? "en-US" : "fr-FR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })
+              : dt.toLocaleDateString(lang === "en" ? "en-US" : "fr-FR", { day: "2-digit", month: "2-digit" });
+            return { ts: d.timestamp, label, price: d.close };
+          });
+        if (pts.length < 2) { setFailed(true); setData(null); }
+        else setData(pts);
+      })
+      .catch(() => { if (!cancelled) setFailed(true); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+
+    return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [symbol, createdAt]);
+
+  const color = isProfit ? "#34d399" : "#fb7185";
+
+  // Y domain that always includes entry / TP / SL reference lines.
+  const domain = (() => {
+    if (!data) return undefined;
+    const vals = data.map((d) => d.price);
+    const extra = [entryPrice, currentPrice, tpVal, slVal].filter((v): v is number => v != null && v > 0);
+    const lo = Math.min(...vals, ...extra);
+    const hi = Math.max(...vals, ...extra);
+    const pad = (hi - lo) * 0.08 || hi * 0.01 || 1;
+    return [lo - pad, hi + pad] as [number, number];
+  })();
+
+  return (
+    <div className="rounded-xl border border-white/8 bg-white/[0.02] p-4">
+      <p className="text-xs text-muted-foreground font-medium mb-3 flex items-center gap-1.5">
+        <Activity className="w-3.5 h-3.5" />
+        {lang === "en" ? "Trade evolution" : "Évolution du trade"}
+      </p>
+
+      {loading ? (
+        <div className="h-[240px] flex items-center justify-center">
+          <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+        </div>
+      ) : failed || !data ? (
+        <div className="h-[120px] flex flex-col items-center justify-center text-center gap-1">
+          <BarChart2 className="w-7 h-7 text-muted-foreground/40" />
+          <p className="text-xs text-muted-foreground">
+            {lang === "en" ? "Price history unavailable" : "Historique des prix indisponible"}
+          </p>
+        </div>
+      ) : (
+        <>
+          <ResponsiveContainer width="100%" height={240}>
+            <AreaChart data={data} margin={{ top: 6, right: 8, left: 0, bottom: 0 }}>
+              <defs>
+                <linearGradient id="posPriceFill" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor={color} stopOpacity={0.35} />
+                  <stop offset="100%" stopColor={color} stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+              <XAxis
+                dataKey="label"
+                tick={{ fontSize: 10, fill: "#9ca3af" }}
+                axisLine={false}
+                tickLine={false}
+                minTickGap={48}
+              />
+              <YAxis
+                orientation="right"
+                domain={domain}
+                tick={{ fontSize: 10, fill: "#9ca3af" }}
+                axisLine={false}
+                tickLine={false}
+                width={62}
+                tickFormatter={(v: number) => formatPrice(v, symbol)}
+              />
+              <RechartsTooltip
+                contentStyle={{
+                  backgroundColor: "#1a1a2e",
+                  border: "1px solid rgba(255,255,255,0.1)",
+                  borderRadius: "8px",
+                  fontSize: "12px",
+                }}
+                labelStyle={{ color: "#9ca3af" }}
+                formatter={(value: number) => [formatPrice(value, symbol), lang === "en" ? "Price" : "Prix"]}
+              />
+              <ReferenceLine
+                y={entryPrice}
+                stroke="rgba(255,255,255,0.55)"
+                strokeDasharray="5 4"
+                label={{ value: lang === "en" ? "Entry" : "Entrée", position: "insideTopLeft", fill: "rgba(255,255,255,0.7)", fontSize: 10 }}
+              />
+              {tpVal && (
+                <ReferenceLine
+                  y={tpVal}
+                  stroke="#22c55e"
+                  strokeDasharray="5 4"
+                  label={{ value: "TP", position: "insideTopLeft", fill: "#22c55e", fontSize: 10 }}
+                />
+              )}
+              {slVal && (
+                <ReferenceLine
+                  y={slVal}
+                  stroke="#ef4444"
+                  strokeDasharray="5 4"
+                  label={{ value: "SL", position: "insideTopLeft", fill: "#ef4444", fontSize: 10 }}
+                />
+              )}
+              <Area
+                type="monotone"
+                dataKey="price"
+                stroke={color}
+                strokeWidth={2}
+                fill="url(#posPriceFill)"
+                dot={false}
+                isAnimationActive
+              />
+            </AreaChart>
+          </ResponsiveContainer>
+
+          {/* Legend */}
+          <div className="flex items-center justify-center gap-4 mt-2 text-[10px] text-muted-foreground/70">
+            <span className="flex items-center gap-1"><span className="w-3 h-0.5 bg-white/55 inline-block" />{lang === "en" ? "Entry" : "Entrée"}</span>
+            {tpVal && <span className="flex items-center gap-1"><span className="w-3 h-0.5 bg-emerald-500 inline-block" />TP</span>}
+            {slVal && <span className="flex items-center gap-1"><span className="w-3 h-0.5 bg-rose-500 inline-block" />SL</span>}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
 
 // ── Position Tracker Modal ────────────────────────────────────────────────────
 
@@ -118,13 +305,9 @@ function PositionTracker({
     }
   };
 
-  // Price gauge: shows SL → Entry → Current → TP on a scale
+  // TP / SL values (used by the trade evolution chart + risk metrics)
   const tpVal = tp ? parseFloat(tp) : null;
   const slVal = sl ? parseFloat(sl) : null;
-  const gaugeMin = slVal ? Math.min(slVal, entryPrice, currentPrice) * 0.998 : Math.min(entryPrice, currentPrice) * 0.995;
-  const gaugeMax = tpVal ? Math.max(tpVal, entryPrice, currentPrice) * 1.002 : Math.max(entryPrice, currentPrice) * 1.005;
-  const gaugeRange = gaugeMax - gaugeMin;
-  const pct = (v: number) => Math.max(0, Math.min(100, ((v - gaugeMin) / gaugeRange) * 100));
 
   const priceChangePct = entryPrice > 0 ? ((currentPrice - entryPrice) / entryPrice) * 100 : 0;
 
@@ -144,7 +327,7 @@ function PositionTracker({
         transition={{ type: "spring", stiffness: 300, damping: 30 }}
         onClick={(e) => e.stopPropagation()}
         className={cn(
-          "w-full sm:max-w-lg rounded-t-2xl sm:rounded-2xl border overflow-hidden",
+          "w-full sm:max-w-2xl rounded-t-2xl sm:rounded-2xl border overflow-hidden",
           isLong
             ? "bg-gradient-to-b from-emerald-950/80 to-card/95 border-emerald-500/25"
             : "bg-gradient-to-b from-rose-950/80 to-card/95 border-rose-500/25"
@@ -200,7 +383,7 @@ function PositionTracker({
           </div>
         </div>
 
-        <div className="px-5 py-4 space-y-4 max-h-[80vh] sm:max-h-none overflow-y-auto no-scrollbar">
+        <div className="px-5 py-4 space-y-4 max-h-[80vh] sm:max-h-[82vh] overflow-y-auto no-scrollbar">
 
           {/* P&L hero */}
           <div className={cn(
@@ -246,94 +429,18 @@ function PositionTracker({
             </div>
           </div>
 
-          {/* Price level gauge */}
-          {(tpVal || slVal || true) && (
-            <div className="rounded-xl border border-white/8 bg-white/[0.02] p-4">
-              <p className="text-xs text-muted-foreground font-medium mb-3 flex items-center gap-1.5">
-                <Activity className="w-3.5 h-3.5" />
-                {lang === "en" ? "Price scale" : "Échelle des prix"}
-              </p>
-              <div className="relative h-8 flex items-center px-2">
-                {/* Track */}
-                <div className="absolute inset-x-2 h-1.5 bg-white/8 rounded-full">
-                  {/* Profit zone */}
-                  {isLong && (
-                    <div
-                      className="absolute h-full bg-emerald-500/20 rounded-full"
-                      style={{
-                        left: `${pct(entryPrice)}%`,
-                        width: `${Math.max(0, pct(currentPrice > entryPrice ? currentPrice : entryPrice) - pct(entryPrice))}%`,
-                      }}
-                    />
-                  )}
-                  {!isLong && (
-                    <div
-                      className="absolute h-full bg-emerald-500/20 rounded-full"
-                      style={{
-                        left: `${pct(currentPrice < entryPrice ? currentPrice : entryPrice)}%`,
-                        width: `${Math.max(0, pct(entryPrice) - pct(currentPrice < entryPrice ? currentPrice : entryPrice))}%`,
-                      }}
-                    />
-                  )}
-                </div>
-
-                {/* SL marker */}
-                {slVal && (
-                  <div
-                    className="absolute -top-1 flex flex-col items-center"
-                    style={{ left: `${pct(slVal)}%`, transform: "translateX(-50%)" }}
-                  >
-                    <div className="w-3 h-3 rounded-full bg-rose-500 border-2 border-rose-400/50" />
-                    <span className="text-[9px] text-rose-400 font-mono mt-1">SL</span>
-                  </div>
-                )}
-
-                {/* Entry marker */}
-                <div
-                  className="absolute -top-1 flex flex-col items-center"
-                  style={{ left: `${pct(entryPrice)}%`, transform: "translateX(-50%)" }}
-                >
-                  <div className="w-3 h-3 rounded-full bg-white/40 border-2 border-white/30" />
-                  <span className="text-[9px] text-muted-foreground font-mono mt-1">{lang === "en" ? "Entry" : "Entrée"}</span>
-                </div>
-
-                {/* Current price marker */}
-                <motion.div
-                  animate={{ left: `${pct(currentPrice)}%` }}
-                  transition={{ type: "spring", stiffness: 120, damping: 20 }}
-                  className="absolute -top-2 flex flex-col items-center"
-                  style={{ transform: "translateX(-50%)" }}
-                >
-                  <div className={cn(
-                    "w-4 h-4 rounded-full border-2 shadow-lg",
-                    isProfit
-                      ? "bg-emerald-400 border-emerald-300 shadow-emerald-500/40"
-                      : "bg-rose-400 border-rose-300 shadow-rose-500/40"
-                  )} />
-                  <span className={cn("text-[9px] font-mono font-bold mt-1", isProfit ? "text-emerald-400" : "text-rose-400")}>
-                    {lang === "en" ? "Now" : "Actuel"}
-                  </span>
-                </motion.div>
-
-                {/* TP marker */}
-                {tpVal && (
-                  <div
-                    className="absolute -top-1 flex flex-col items-center"
-                    style={{ left: `${pct(tpVal)}%`, transform: "translateX(-50%)" }}
-                  >
-                    <div className="w-3 h-3 rounded-full bg-emerald-500 border-2 border-emerald-400/50" />
-                    <span className="text-[9px] text-emerald-400 font-mono mt-1">TP</span>
-                  </div>
-                )}
-              </div>
-
-              {/* Labels row */}
-              <div className="flex justify-between mt-5 text-[10px] text-muted-foreground/60 font-mono">
-                <span>{formatPrice(gaugeMin, position.symbol)}</span>
-                <span>{formatPrice(gaugeMax, position.symbol)}</span>
-              </div>
-            </div>
-          )}
+          {/* Trade evolution chart */}
+          <PositionChart
+            symbol={position.symbol}
+            createdAt={position.created_at}
+            entryPrice={entryPrice}
+            currentPrice={currentPrice}
+            tpVal={tpVal}
+            slVal={slVal}
+            isProfit={isProfit}
+            formatPrice={formatPrice}
+            lang={lang}
+          />
 
           {/* Key metrics */}
           <div className="grid grid-cols-3 gap-2">
