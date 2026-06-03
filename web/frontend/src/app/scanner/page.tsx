@@ -5,8 +5,6 @@ import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ScanLine,
-  Play,
-  Pause,
   TrendingUp,
   TrendingDown,
   Zap,
@@ -48,6 +46,41 @@ const TREND_CONFIG: Record<string, { color: string; icon: string }> = {
   NEUTRE:   { color: "text-slate-400",   icon: "→" },
 };
 
+/** Maps a Yahoo Finance symbol suffix to its market/region label. */
+const SUFFIX_REGIONS: Record<string, { flag: string; label: string }> = {
+  ".PA":  { flag: "🇫🇷", label: "UE · Paris" },
+  ".AS":  { flag: "🇳🇱", label: "UE · Amsterdam" },
+  ".BR":  { flag: "🇧🇪", label: "UE · Bruxelles" },
+  ".LS":  { flag: "🇵🇹", label: "UE · Lisbonne" },
+  ".DE":  { flag: "🇩🇪", label: "UE · Francfort" },
+  ".MC":  { flag: "🇪🇸", label: "UE · Madrid" },
+  ".MI":  { flag: "🇮🇹", label: "UE · Milan" },
+  ".SW":  { flag: "🇨🇭", label: "Suisse" },
+  ".L":   { flag: "🇬🇧", label: "UK · Londres" },
+  ".T":   { flag: "🇯🇵", label: "Japon" },
+  ".HK":  { flag: "🇭🇰", label: "Hong Kong" },
+  ".KS":  { flag: "🇰🇷", label: "Corée" },
+  ".NS":  { flag: "🇮🇳", label: "Inde" },
+  ".BO":  { flag: "🇮🇳", label: "Inde" },
+  ".SI":  { flag: "🇸🇬", label: "Singapour" },
+  ".TW":  { flag: "🇹🇼", label: "Taïwan" },
+  ".AX":  { flag: "🇦🇺", label: "Australie" },
+  ".SS":  { flag: "🇨🇳", label: "Chine" },
+  ".SZ":  { flag: "🇨🇳", label: "Chine" },
+};
+
+function getAssetRegion(symbol: string): { flag: string; label: string } {
+  if (symbol.startsWith("^")) return { flag: "📊", label: "Indice" };
+  if (symbol.endsWith("-USD")) return { flag: "🪙", label: "Crypto" };
+  if (symbol.endsWith("=F")) return { flag: "🛢️", label: "Matières 1ères" };
+  const dot = symbol.lastIndexOf(".");
+  if (dot !== -1) {
+    const region = SUFFIX_REGIONS[symbol.slice(dot)];
+    if (region) return region;
+  }
+  return { flag: "🇺🇸", label: "US" };
+}
+
 const containerVariants = {
   hidden: { opacity: 0 },
   show: { opacity: 1, transition: { staggerChildren: 0.05 } },
@@ -78,11 +111,9 @@ export default function ScannerPage() {
   const [quota, setQuota] = useState<ScanQuota | null>(null);
   const [isScanning, setIsScanning] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [autoScan, setAutoScan] = useState(false);
   const [sortKey, setSortKey] = useState<SortKey>("score");
   const [sortAsc, setSortAsc] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     Promise.all([
@@ -115,15 +146,6 @@ export default function ScannerPage() {
       setIsScanning(false);
     }
   };
-
-  useEffect(() => {
-    if (intervalRef.current) clearInterval(intervalRef.current);
-    if (!autoScan) return;
-    runScan();
-    intervalRef.current = setInterval(runScan, 60000);
-    return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [autoScan, selectedMarket, minScore, oppFilter]);
 
   const handleSort = (key: SortKey) => {
     if (sortKey === key) setSortAsc((v) => !v);
@@ -235,21 +257,6 @@ export default function ScannerPage() {
               {isScanning ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
               {t("scanner_btn")}
             </motion.button>
-            <motion.button
-              whileHover={{ scale: 1.03 }}
-              whileTap={{ scale: 0.97 }}
-              onClick={() => setAutoScan(!autoScan)}
-              className={cn(
-                "px-5 py-2 rounded-xl font-bold flex items-center gap-2 text-sm transition-all border",
-                autoScan
-                  ? "bg-rose-500/20 border-rose-500/40 text-rose-400 shadow-[0_0_20px_rgba(239,68,68,0.2)]"
-                  : "bg-emerald-500/20 border-emerald-500/40 text-emerald-400 shadow-[0_0_20px_rgba(16,185,129,0.2)]"
-              )}
-            >
-              {autoScan
-                ? <><Pause className="w-4 h-4" /> {t("scanner_stop")}</>
-                : <><Play className="w-4 h-4" /> {t("scanner_auto")}</>}
-            </motion.button>
           </div>
         </div>
 
@@ -280,12 +287,6 @@ export default function ScannerPage() {
                 <Zap className="w-4 h-4 text-amber-400" />
                 <span className="text-muted-foreground">Breakout</span>
                 <span className="font-bold text-amber-400">{results.filter(r => r.near_breakout).length}</span>
-              </div>
-            )}
-            {autoScan && (
-              <div className="ml-auto flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                <span className="text-xs text-emerald-400 font-medium">{lang === "en" ? "Auto-scan ON" : "Auto-scan ACTIF"}</span>
               </div>
             )}
           </div>
@@ -527,10 +528,13 @@ export default function ScannerPage() {
                       {trendCfg.icon} {r.trend}
                     </span>
                   </div>
-                  <p className="font-bold text-base">{r.symbol}</p>
-                  {r.name && r.name !== r.symbol && (
-                    <p className="text-xs text-muted-foreground truncate">{r.name}</p>
-                  )}
+                  <p className="font-bold text-base truncate">{r.name || r.symbol}</p>
+                  <div className="flex items-center gap-1.5 mt-0.5">
+                    <span className="text-xs text-muted-foreground font-mono">{r.symbol}</span>
+                    <span className="text-[10px] text-muted-foreground/70 flex items-center gap-0.5">
+                      {getAssetRegion(r.symbol).flag} {getAssetRegion(r.symbol).label}
+                    </span>
+                  </div>
                   <div className="mt-2 flex items-center justify-between">
                     <span className={cn("text-xs px-2 py-0.5 rounded-full border font-medium", oppCfg.bg, oppCfg.border, oppCfg.text)}>
                       {r.opportunity}
@@ -633,13 +637,10 @@ export default function ScannerPage() {
                         <span className="text-[8px] leading-tight opacity-50">/100</span>
                       </div>
 
-                      {/* Symbol + details */}
+                      {/* Name + symbol + market + details */}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-bold text-sm">{r.symbol}</span>
-                          {r.name && r.name !== r.symbol && (
-                            <span className="text-xs text-muted-foreground truncate max-w-[120px]">{r.name}</span>
-                          )}
+                          <span className="font-bold text-sm truncate max-w-[200px]">{r.name || r.symbol}</span>
                           <span className={cn("text-xs font-semibold", trendCfg.color)}>
                             {trendCfg.icon}
                           </span>
@@ -651,6 +652,14 @@ export default function ScannerPage() {
                               52w High
                             </span>
                           )}
+                        </div>
+                        {/* Symbol + market region */}
+                        <div className="flex items-center gap-2 mt-0.5 text-[11px] text-muted-foreground">
+                          <span className="font-mono">{r.symbol}</span>
+                          <span className="opacity-40">·</span>
+                          <span className="flex items-center gap-0.5">
+                            {getAssetRegion(r.symbol).flag} {getAssetRegion(r.symbol).label}
+                          </span>
                         </div>
                         <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
                           <span className={cn("font-medium", r.rsi < 35 ? "text-emerald-400" : r.rsi > 68 ? "text-rose-400" : "")}>
