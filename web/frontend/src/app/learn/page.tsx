@@ -28,6 +28,11 @@ import {
   Target,
   Percent,
   BarChart3,
+  Flame,
+  ArrowRight,
+  Map,
+  Sparkles,
+  MessageSquare,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -872,6 +877,312 @@ function FichesConseilsSection() {
   );
 }
 
+// ─── Parcours Section ──────────────────────────────────────────────────────────
+
+const PARCOURS = [
+  {
+    id: "debutant",
+    title: "Parcours Débutant",
+    subtitle: "De 0 à vos premiers trades",
+    icon: "🌱",
+    color: "from-emerald-500/20 to-teal-500/10 border-emerald-500/30",
+    accentColor: "text-emerald-400",
+    steps: [
+      { moduleId: "trading-basics", label: "Les bases du trading", lessonCount: 3 },
+      { moduleId: "technical-analysis", label: "Analyse technique", lessonCount: 3 },
+      { moduleId: "risk-management", label: "Gestion du risque", lessonCount: 2 },
+      { moduleId: "market-psychology", label: "Psychologie du trading", lessonCount: 2 },
+    ],
+  },
+  {
+    id: "intermediaire",
+    title: "Parcours Intermédiaire",
+    subtitle: "Affiner sa stratégie et ses indicateurs",
+    icon: "⚡",
+    color: "from-blue-500/20 to-indigo-500/10 border-blue-500/30",
+    accentColor: "text-blue-400",
+    steps: [
+      { moduleId: "asset-classes", label: "Comprendre les actifs", lessonCount: 3 },
+      { moduleId: "orders-and-markets", label: "Types d'ordres & marchés", lessonCount: 2 },
+      { moduleId: "advanced-strategies", label: "Stratégies avancées", lessonCount: 2 },
+      { moduleId: "trading-styles", label: "Styles de trading", lessonCount: 2 },
+    ],
+  },
+  {
+    id: "analyse-pratique",
+    title: "Parcours Analyse Pratique",
+    subtitle: "Analyser un actif de A à Z",
+    icon: "📊",
+    color: "from-purple-500/20 to-pink-500/10 border-purple-500/30",
+    accentColor: "text-purple-400",
+    steps: [
+      { moduleId: "technical-analysis", label: "Lire les graphiques", lessonCount: 1 },
+      { moduleId: "technical-analysis", label: "Supports & Résistances", lessonCount: 1 },
+      { moduleId: "technical-analysis", label: "Indicateurs de tendance", lessonCount: 1 },
+      { moduleId: "advanced-strategies", label: "Divergences RSI", lessonCount: 1 },
+    ],
+  },
+];
+
+const DAILY_CHALLENGES: { question: string; answers: string[]; correct: number; explanation: string }[] = [
+  {
+    question: "Un RSI à 25 sur BTC indique :",
+    answers: ["L'actif est suracheté", "L'actif est survendu", "Le marché est stable", "Un signal de vente"],
+    correct: 1,
+    explanation: "RSI < 30 = zone de survente. Potentiel rebond à surveiller, mais attendez une confirmation (bougie de retournement, volume).",
+  },
+  {
+    question: "Quel ratio risque/récompense minimum est conseillé ?",
+    answers: ["1:0.5", "1:1", "1:2", "1:5"],
+    correct: 2,
+    explanation: "Un ratio 1:2 minimum signifie que vous gagnez 2€ pour chaque 1€ risqué. Avec 50% de winrate, vous êtes rentable.",
+  },
+  {
+    question: "Le MACD est avant tout indicateur de :",
+    answers: ["Volume", "Momentum et tendance", "Volatilité", "Support/résistance"],
+    correct: 1,
+    explanation: "Le MACD (Moving Average Convergence Divergence) mesure le momentum et aide à identifier les changements de tendance.",
+  },
+  {
+    question: "Qu'est-ce qu'un 'squeeze' des Bandes de Bollinger ?",
+    answers: ["Le prix sort des bandes", "Les bandes s'élargissent fortement", "Les bandes se resserrent : volatilité faible", "Un signal de vente immédiat"],
+    correct: 2,
+    explanation: "Un squeeze = bandes très serrées = faible volatilité. C'est souvent le calme avant la tempête : un breakout est souvent imminent.",
+  },
+  {
+    question: "Quelle est la règle du risque par trade pour un débutant ?",
+    answers: ["10-20%", "5-10%", "1-2%", "50%"],
+    correct: 2,
+    explanation: "Ne risquez jamais plus de 1-2% de votre capital sur un seul trade. Cela vous permet de survivre aux séries perdantes.",
+  },
+  {
+    question: "Un 'golden cross' est :",
+    answers: ["EMA 50 croise EMA 200 à la baisse", "RSI passe de 30 à 50", "EMA 50 croise EMA 200 à la hausse", "MACD tombe sous zéro"],
+    correct: 2,
+    explanation: "Le 'golden cross' = EMA 50 croise à la hausse l'EMA 200. C'est un signal haussier fort, souvent suivi d'une tendance prolongée.",
+  },
+  {
+    question: "Quel marché est ouvert 24h/24, 7j/7 ?",
+    answers: ["Bourse de Paris", "NYSE (New York)", "Crypto-monnaies", "Marché des matières premières"],
+    correct: 2,
+    explanation: "Le marché crypto ne ferme jamais. Les autres marchés ont des heures d'ouverture spécifiques selon leur fuseau horaire.",
+  },
+];
+
+function ParcoursSection({
+  progress,
+  setActiveModule,
+}: {
+  progress: { completedLessons: string[] };
+  setActiveModule: (m: Module | null) => void;
+}) {
+  const [challengeAnswer, setChallengeAnswer] = useState<number | null>(null);
+  const todayChallenge = DAILY_CHALLENGES[new Date().getDay() % DAILY_CHALLENGES.length];
+  const isCorrect = challengeAnswer === todayChallenge.correct;
+
+  return (
+    <div className="space-y-6">
+      {/* Daily Challenge */}
+      <div className="glass-card p-5">
+        <div className="flex items-center gap-2 mb-4">
+          <div className="w-8 h-8 rounded-xl bg-yellow-400/10 border border-yellow-400/20 flex items-center justify-center">
+            <Flame className="w-4 h-4 text-yellow-300" />
+          </div>
+          <div>
+            <h3 className="font-semibold text-sm">Défi du jour</h3>
+            <p className="text-xs text-muted-foreground">Un quiz rapide pour tester vos connaissances</p>
+          </div>
+          <div className="ml-auto text-xs text-yellow-300 bg-yellow-300/10 border border-yellow-300/20 px-2 py-1 rounded-full flex items-center gap-1">
+            <Zap className="w-3 h-3" />
+            +25 XP
+          </div>
+        </div>
+
+        <p className="text-sm font-medium text-white mb-3">{todayChallenge.question}</p>
+
+        <div className="grid grid-cols-2 gap-2">
+          {todayChallenge.answers.map((ans, i) => {
+            let style = "bg-white/5 border-white/10 hover:bg-white/10 text-gray-300";
+            if (challengeAnswer !== null) {
+              if (i === todayChallenge.correct) style = "bg-emerald-500/15 border-emerald-500/40 text-emerald-300";
+              else if (i === challengeAnswer && i !== todayChallenge.correct)
+                style = "bg-red-500/15 border-red-500/40 text-red-300";
+              else style = "bg-white/5 border-white/5 text-gray-500 opacity-60";
+            }
+            return (
+              <motion.button
+                key={i}
+                onClick={() => challengeAnswer === null && setChallengeAnswer(i)}
+                disabled={challengeAnswer !== null}
+                whileTap={challengeAnswer === null ? { scale: 0.97 } : undefined}
+                className={cn(
+                  "text-left text-xs p-3 rounded-xl border transition-all leading-snug",
+                  style,
+                  challengeAnswer === null ? "cursor-pointer" : "cursor-default"
+                )}
+              >
+                <span className="font-mono text-xs text-gray-500 mr-1">{String.fromCharCode(65 + i)}.</span>
+                {ans}
+              </motion.button>
+            );
+          })}
+        </div>
+
+        <AnimatePresence>
+          {challengeAnswer !== null && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              className={cn(
+                "mt-3 p-3 rounded-xl border text-xs leading-relaxed overflow-hidden",
+                isCorrect
+                  ? "bg-emerald-500/10 border-emerald-500/25 text-emerald-300"
+                  : "bg-orange-500/10 border-orange-500/25 text-orange-300"
+              )}
+            >
+              {isCorrect ? "✅ Correct ! " : "❌ Pas tout à fait. "}
+              <span className="text-gray-300">{todayChallenge.explanation}</span>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+
+      {/* Learning Paths */}
+      <div>
+        <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3 flex items-center gap-2">
+          <Map className="w-4 h-4" />
+          Parcours recommandés
+        </h3>
+        <div className="space-y-4">
+          {PARCOURS.map((parcours, pi) => {
+            const totalInParcours = LEARN_MODULES.filter(m =>
+              parcours.steps.some(s => s.moduleId === m.id)
+            ).reduce((acc, m) => acc + m.lessons.length, 0);
+            const completedInParcours = LEARN_MODULES.filter(m =>
+              parcours.steps.some(s => s.moduleId === m.id)
+            ).reduce((acc, m) => acc + m.lessons.filter(l =>
+              progress.completedLessons.includes(`${m.id}/${l.id}`)
+            ).length, 0);
+            const pct = totalInParcours > 0 ? Math.round((completedInParcours / totalInParcours) * 100) : 0;
+
+            return (
+              <motion.div
+                key={parcours.id}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: pi * 0.1 }}
+                className={cn("rounded-2xl border p-4 bg-gradient-to-br", parcours.color)}
+              >
+                <div className="flex items-start justify-between mb-3">
+                  <div className="flex items-center gap-2.5">
+                    <span className="text-2xl">{parcours.icon}</span>
+                    <div>
+                      <h4 className="font-bold text-sm text-white">{parcours.title}</h4>
+                      <p className="text-xs text-gray-400">{parcours.subtitle}</p>
+                    </div>
+                  </div>
+                  <div className={cn("text-xs font-semibold", parcours.accentColor)}>
+                    {pct}%
+                  </div>
+                </div>
+
+                <div className="mb-3 h-1.5 rounded-full bg-white/10 overflow-hidden">
+                  <motion.div
+                    initial={{ width: 0 }}
+                    animate={{ width: `${pct}%` }}
+                    transition={{ duration: 0.7, ease: "easeOut" }}
+                    className="h-full rounded-full bg-white/50"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  {parcours.steps.map((step, si) => {
+                    const mod = LEARN_MODULES.find(m => m.id === step.moduleId);
+                    if (!mod) return null;
+                    const doneInMod = mod.lessons.filter(l =>
+                      progress.completedLessons.includes(`${mod.id}/${l.id}`)
+                    ).length;
+                    const isDone = doneInMod > 0;
+                    return (
+                      <motion.button
+                        key={si}
+                        initial={{ opacity: 0, x: -6 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: pi * 0.1 + si * 0.05 }}
+                        onClick={() => setActiveModule(mod)}
+                        className="w-full flex items-center gap-2 text-left py-1.5 px-2 rounded-lg hover:bg-white/5 transition-colors group"
+                      >
+                        <div className={cn(
+                          "w-5 h-5 rounded-full flex items-center justify-center shrink-0 border",
+                          isDone
+                            ? "bg-emerald-500/20 border-emerald-500/40"
+                            : "bg-white/5 border-white/15"
+                        )}>
+                          {isDone
+                            ? <Check className="w-2.5 h-2.5 text-emerald-400" />
+                            : <span className="text-[9px] text-gray-500 font-mono">{si + 1}</span>
+                          }
+                        </div>
+                        <span className={cn("text-xs", isDone ? "text-gray-400 line-through" : "text-gray-300")}>
+                          {step.label}
+                        </span>
+                        <ArrowRight className="w-3 h-3 text-gray-600 ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
+                      </motion.button>
+                    );
+                  })}
+                </div>
+              </motion.div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Key concepts recap */}
+      <div className="glass-card p-5">
+        <div className="flex items-center gap-2 mb-4">
+          <Sparkles className="w-4 h-4 text-[#638CFF]" />
+          <h3 className="font-semibold text-sm">Concepts clés à maîtriser</h3>
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          {[
+            { icon: "📊", label: "RSI", desc: "Indicateur de momentum" },
+            { icon: "〰️", label: "MACD", desc: "Divergence de tendance" },
+            { icon: "📐", label: "Support/Résistance", desc: "Niveaux clés" },
+            { icon: "⚖️", label: "Risk/Reward", desc: "Ratio minimum 1:2" },
+            { icon: "🕯️", label: "Chandeliers", desc: "Lecture du prix" },
+            { icon: "📉", label: "Stop Loss", desc: "Protéger le capital" },
+          ].map((concept) => (
+            <Link
+              key={concept.label}
+              href="/learn/glossaire"
+              className="flex items-center gap-2 p-2.5 rounded-xl bg-white/[0.03] border border-white/5 hover:border-[#638CFF]/30 hover:bg-[#638CFF]/5 transition-all group"
+            >
+              <span className="text-base">{concept.icon}</span>
+              <div className="min-w-0">
+                <p className="text-xs font-semibold text-white truncate">{concept.label}</p>
+                <p className="text-[10px] text-gray-500 truncate">{concept.desc}</p>
+              </div>
+            </Link>
+          ))}
+        </div>
+      </div>
+
+      {/* CTA Coach */}
+      <div className="p-4 rounded-2xl bg-gradient-to-br from-[#638CFF]/15 to-[#00D4AA]/8 border border-[#638CFF]/25 flex items-start gap-3">
+        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#638CFF] to-[#00D4AA] flex items-center justify-center shrink-0 shadow-lg">
+          <MessageSquare className="w-5 h-5 text-white" />
+        </div>
+        <div>
+          <p className="text-sm font-semibold text-white mb-1">Guidé par Alex</p>
+          <p className="text-xs text-gray-400 leading-relaxed">
+            Votre coach trading est disponible en bas à gauche pour vous guider pas à pas dans l'analyse d'un actif.
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Progress stored in localStorage ──────────────────────────────────────────
 const STORAGE_KEY = "tdb_learn_progress";
 
@@ -901,7 +1212,7 @@ export default function LearnPage() {
   const [progress, setProgress] = useState<Progress>({ completedLessons: [], quizScores: {} });
   const [activeModule, setActiveModule] = useState<Module | null>(null);
   const [activeLesson, setActiveLesson] = useState<Lesson | null>(null);
-  const [mainTab, setMainTab] = useState<"modules" | "fiches">("modules");
+  const [mainTab, setMainTab] = useState<"modules" | "parcours" | "fiches">("modules");
   const [xpProgress, setXpProgress] = useState<UserProgress | null>(null);
 
   useEffect(() => {
@@ -1044,33 +1355,34 @@ export default function LearnPage() {
       </div>
 
       {/* Tab toggle */}
-      <div className="glass-card p-2">
-        <div className="flex gap-2">
-          <button
-            onClick={() => setMainTab("modules")}
-            className={cn(
-              "flex items-center gap-2 px-4 py-2 rounded-lg transition-all text-sm font-medium",
-              mainTab === "modules" ? "bg-primary text-primary-foreground" : "hover:bg-white/10"
-            )}
-          >
-            <GraduationCap className="w-4 h-4" />
-            {t("learn_tab_modules")}
-          </button>
-          <button
-            onClick={() => setMainTab("fiches")}
-            className={cn(
-              "flex items-center gap-2 px-4 py-2 rounded-lg transition-all text-sm font-medium",
-              mainTab === "fiches" ? "bg-primary text-primary-foreground" : "hover:bg-white/10"
-            )}
-          >
-            <BookOpen className="w-4 h-4" />
-            {t("learn_tab_fiches")}
-          </button>
+      <div className="glass-card p-1.5">
+        <div className="flex gap-1">
+          {([
+            { id: "modules", icon: GraduationCap, label: t("learn_tab_modules") },
+            { id: "parcours", icon: Target, label: "Parcours" },
+            { id: "fiches",   icon: BookOpen, label: t("learn_tab_fiches") },
+          ] as const).map(({ id, icon: Icon, label }) => (
+            <motion.button
+              key={id}
+              onClick={() => setMainTab(id)}
+              className={cn(
+                "flex items-center gap-2 px-3 py-2 rounded-lg transition-all text-sm font-medium flex-1 justify-center",
+                mainTab === id ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:bg-white/8 hover:text-foreground"
+              )}
+              whileTap={{ scale: 0.97 }}
+            >
+              <Icon className="w-4 h-4" />
+              {label}
+            </motion.button>
+          ))}
         </div>
       </div>
 
       {/* Fiches Conseils view */}
       {mainTab === "fiches" && <FichesConseilsSection />}
+
+      {/* Parcours view */}
+      {mainTab === "parcours" && <ParcoursSection progress={progress} setActiveModule={setActiveModule} />}
 
       {/* Modules view */}
       {mainTab === "modules" && <>
