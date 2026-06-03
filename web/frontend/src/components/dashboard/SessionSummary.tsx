@@ -15,6 +15,7 @@ import { usePremium } from "@/lib/PremiumContext";
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/lib/LanguageContext";
 import { MARKET_SYMBOLS } from "@/lib/marketSymbols";
+import { AnimatedNumber } from "@/components/ui/AnimatedNumber";
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  SESSION CONFIGS
@@ -387,15 +388,23 @@ function PerformerRow({
 
   return (
     <motion.div
-      className="flex items-center gap-2.5 py-1"
+      className="flex items-center gap-2.5 py-1 px-1.5 -mx-1.5 rounded-lg hover:bg-white/[0.04] transition-colors"
       initial={{ opacity: 0, x: dir === "top" ? -10 : 10 }}
       animate={{ opacity: 1, x: 0 }}
       transition={{ duration: 0.3, delay: 0.05 + rank * 0.06 }}
+      whileHover={{ x: dir === "top" ? 3 : -3 }}
     >
       {/* Medal / rank */}
       <div className="w-6 flex-shrink-0 text-center">
         {rank <= 3 ? (
-          <span className="text-sm">{MEDALS[rank - 1]}</span>
+          <motion.span
+            className="text-sm inline-block"
+            animate={rank === 1 ? { scale: [1, 1.18, 1] } : undefined}
+            transition={rank === 1 ? { duration: 2.2, repeat: Infinity, ease: "easeInOut" } : undefined}
+            style={rank === 1 ? { filter: "drop-shadow(0 0 4px rgba(250,204,21,0.6))" } : undefined}
+          >
+            {MEDALS[rank - 1]}
+          </motion.span>
         ) : (
           <span className="text-[11px] text-white/25 font-mono">{rank}</span>
         )}
@@ -415,9 +424,12 @@ function PerformerRow({
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between gap-1 mb-1">
           <span className="text-xs font-semibold text-white/90 truncate">{shortName}</span>
-          <span className={cn("text-xs font-bold font-mono flex-shrink-0", color)}>
-            {isUp ? "+" : ""}{asset.change.toFixed(2)}%
-          </span>
+          <AnimatedNumber
+            value={asset.change}
+            duration={700}
+            formatter={(v) => `${v >= 0 ? "+" : ""}${v.toFixed(2)}%`}
+            className={cn("text-xs font-bold font-mono flex-shrink-0", color)}
+          />
         </div>
         <div className="h-1 rounded-full bg-white/5 overflow-hidden">
           <motion.div
@@ -499,10 +511,11 @@ function WatchlistCard({ item, index }: { item: WatchItem; index: number }) {
 
   return (
     <motion.div
-      className="p-3.5 rounded-xl bg-white/5 border border-white/8 hover:border-white/15 transition-all hover:bg-white/[0.07] group"
+      className="p-3.5 rounded-xl bg-white/5 border border-white/8 hover:border-white/15 transition-colors hover:bg-white/[0.07] group"
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.08, duration: 0.35 }}
+      whileHover={{ y: -3 }}
     >
       {/* Header */}
       <div className="flex items-start gap-2.5 mb-2">
@@ -749,7 +762,11 @@ function SessionPanel({ result, isPremium }: { result: SessionResult; isPremium:
     <div>
       {/* ── Session header ── */}
       <div className={cn("relative px-5 py-4 bg-gradient-to-r overflow-hidden", session.gradient)}>
-        <div className={cn("absolute -top-12 -right-12 w-48 h-48 rounded-full blur-3xl opacity-20", session.glowColor)} />
+        <motion.div
+          className={cn("absolute -top-12 -right-12 w-48 h-48 rounded-full blur-3xl", session.glowColor)}
+          animate={{ opacity: [0.16, 0.28, 0.16], scale: [1, 1.12, 1], x: [0, -12, 0], y: [0, 8, 0] }}
+          transition={{ duration: 9, repeat: Infinity, ease: "easeInOut" }}
+        />
         <div className="relative">
           <div className="flex items-start justify-between gap-3">
             <div className="flex-1">
@@ -799,9 +816,12 @@ function SessionPanel({ result, isPremium }: { result: SessionResult; isPremium:
             ) : (
               /* Free: simple stat pill */
               <div className="flex-shrink-0 text-right">
-                <div className="text-2xl font-black" style={{ color: avgChange >= 0 ? "#34d399" : "#f87171" }}>
-                  {avgChange >= 0 ? "+" : ""}{avgChange.toFixed(2)}%
-                </div>
+                <AnimatedNumber
+                  value={avgChange}
+                  duration={1000}
+                  formatter={(v) => `${v >= 0 ? "+" : ""}${v.toFixed(2)}%`}
+                  className={cn("block text-2xl font-black", avgChange >= 0 ? "text-emerald-400" : "text-rose-400")}
+                />
                 <div className="text-[11px] text-white/40">{t("session_avg_change")}</div>
                 <div className="text-[11px] text-white/40 mt-0.5">
                   {Math.round(positiveRatio * 100)}% {t("session_pct_up")}
@@ -955,10 +975,11 @@ function SessionPanel({ result, isPremium }: { result: SessionResult; isPremium:
             ].map((stat, i) => (
               <motion.div
                 key={i}
-                className="p-2.5 rounded-xl bg-white/4 border border-white/7"
+                className="p-2.5 rounded-xl bg-white/4 border border-white/7 hover:border-white/15 hover:bg-white/[0.06] transition-colors"
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ delay: 0.2 + i * 0.05 }}
+                whileHover={{ y: -3 }}
               >
                 <p className="text-[10px] text-white/40 mb-0.5">{stat.label}</p>
                 <p className={cn("text-sm font-bold", stat.color)}>{stat.value}</p>
@@ -1019,12 +1040,37 @@ export function SessionSummaryWidget() {
   const activeSessionCfg = SESSIONS.find(s => s.id === activeSession)!;
 
   return (
-    <div className="glass-card rounded-2xl overflow-hidden border border-white/8">
+    <div className="relative">
+      {/* Ambient glow tinted by the active session */}
+      <motion.div
+        key={`glow-${activeSession}`}
+        aria-hidden
+        className={cn("pointer-events-none absolute -inset-2 rounded-3xl blur-3xl", activeSessionCfg.glowColor)}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 0.08 }}
+        transition={{ duration: 0.7 }}
+      />
+      <div className="glass-card rounded-2xl overflow-hidden border border-white/8 relative">
+      {/* Animated top accent bar (tinted by active session) */}
+      <motion.div
+        key={`accent-${activeSession}`}
+        className={cn("h-[3px] w-full bg-gradient-to-r", activeSessionCfg.gradient)}
+        initial={{ scaleX: 0, originX: 0 }}
+        animate={{ scaleX: 1 }}
+        transition={{ duration: 0.6, ease: "easeOut" }}
+      />
       {/* ── Widget header ── */}
       <div className="flex items-center justify-between px-5 py-3.5 border-b border-white/8">
         <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-xl bg-primary/15 border border-primary/20 flex items-center justify-center">
-            <Activity className="w-4 h-4 text-primary" />
+          <div className="relative w-8 h-8">
+            <motion.div
+              className="absolute inset-0 rounded-xl bg-primary/20"
+              animate={{ scale: [1, 1.35], opacity: [0.5, 0] }}
+              transition={{ duration: 2, repeat: Infinity, ease: "easeOut" }}
+            />
+            <div className="relative w-8 h-8 rounded-xl bg-primary/15 border border-primary/20 flex items-center justify-center">
+              <Activity className="w-4 h-4 text-primary" />
+            </div>
           </div>
           <div>
             <h2 className="font-bold text-sm text-white">{t("session_title")}</h2>
@@ -1058,11 +1104,13 @@ export function SessionSummaryWidget() {
           const live = result?.isLive ?? false;
 
           return (
-            <button
+            <motion.button
               key={s.id}
               onClick={() => setActiveSession(s.id)}
+              whileHover={{ y: -1 }}
+              whileTap={{ scale: 0.96 }}
               className={cn(
-                "relative flex-1 min-w-[80px] flex flex-col items-center gap-0.5 py-3 px-2 text-xs transition-all duration-200",
+                "relative flex-1 min-w-[80px] flex flex-col items-center gap-0.5 py-3 px-2 text-xs transition-colors duration-200",
                 isActive ? "text-white" : "text-white/35 hover:text-white/60",
               )}
             >
@@ -1073,9 +1121,14 @@ export function SessionSummaryWidget() {
               <div className="relative z-10 flex items-center gap-1">
                 <span className="text-lg">{s.flag}</span>
                 {live && (
-                  <motion.span className="w-1.5 h-1.5 rounded-full bg-emerald-400"
-                    animate={{ opacity: [1, 0.3, 1] }}
-                    transition={{ duration: 1.2, repeat: Infinity }} />
+                  <span className="relative flex w-1.5 h-1.5">
+                    <motion.span
+                      className="absolute inline-flex w-full h-full rounded-full bg-emerald-400"
+                      animate={{ scale: [1, 2.4], opacity: [0.7, 0] }}
+                      transition={{ duration: 1.4, repeat: Infinity, ease: "easeOut" }}
+                    />
+                    <span className="relative inline-flex w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                  </span>
                 )}
               </div>
               <span className="font-semibold relative z-10 text-[11px]">{s.name}</span>
@@ -1090,7 +1143,7 @@ export function SessionSummaryWidget() {
                   transition={{ type: "spring", stiffness: 400, damping: 30 }}
                 />
               )}
-            </button>
+            </motion.button>
           );
         })}
       </div>
@@ -1126,6 +1179,7 @@ export function SessionSummaryWidget() {
           </motion.div>
         )}
       </AnimatePresence>
+      </div>
     </div>
   );
 }
