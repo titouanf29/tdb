@@ -46,41 +46,61 @@ const TREND_CONFIG: Record<string, { color: string; icon: string }> = {
   NEUTRE:   { color: "text-slate-400",   icon: "→" },
 };
 
-// NOTE: on n'utilise PAS d'emoji drapeau ici — Chrome sous Windows ne les rend
-// pas (regional indicators non supportés). On affiche un libellé texte fiable.
-/** Maps a Yahoo Finance symbol suffix to its market/region label. */
-const SUFFIX_REGIONS: Record<string, string> = {
-  ".PA":  "UE · Paris",
-  ".AS":  "UE · Amsterdam",
-  ".BR":  "UE · Bruxelles",
-  ".LS":  "UE · Lisbonne",
-  ".DE":  "UE · Francfort",
-  ".MC":  "UE · Madrid",
-  ".MI":  "UE · Milan",
-  ".SW":  "Suisse",
-  ".L":   "UK · Londres",
-  ".T":   "Japon",
-  ".HK":  "Hong Kong",
-  ".KS":  "Corée",
-  ".NS":  "Inde",
-  ".BO":  "Inde",
-  ".SI":  "Singapour",
-  ".TW":  "Taïwan",
-  ".AX":  "Australie",
-  ".SS":  "Chine",
-  ".SZ":  "Chine",
+/** Maps a Yahoo Finance symbol suffix to ISO country code + label.
+ *  Uses flag-icons library (fi fi-xx) — renders as CSS image, works on all
+ *  platforms including Chrome/Windows (unlike regional-indicator emojis). */
+const SUFFIX_REGIONS: Record<string, { iso: string; label: string }> = {
+  ".PA":  { iso: "fr", label: "Paris" },
+  ".AS":  { iso: "nl", label: "Amsterdam" },
+  ".BR":  { iso: "be", label: "Bruxelles" },
+  ".LS":  { iso: "pt", label: "Lisbonne" },
+  ".DE":  { iso: "de", label: "Francfort" },
+  ".MC":  { iso: "es", label: "Madrid" },
+  ".MI":  { iso: "it", label: "Milan" },
+  ".SW":  { iso: "ch", label: "Suisse" },
+  ".L":   { iso: "gb", label: "Londres" },
+  ".T":   { iso: "jp", label: "Japon" },
+  ".HK":  { iso: "hk", label: "Hong Kong" },
+  ".KS":  { iso: "kr", label: "Corée" },
+  ".NS":  { iso: "in", label: "Inde" },
+  ".BO":  { iso: "in", label: "Inde" },
+  ".SI":  { iso: "sg", label: "Singapour" },
+  ".TW":  { iso: "tw", label: "Taïwan" },
+  ".AX":  { iso: "au", label: "Australie" },
+  ".SS":  { iso: "cn", label: "Chine" },
+  ".SZ":  { iso: "cn", label: "Chine" },
 };
 
-function getAssetRegion(symbol: string): string {
-  if (symbol.startsWith("^")) return "Indice";
-  if (symbol.endsWith("-USD")) return "Crypto";
-  if (symbol.endsWith("=F")) return "Matières 1ères";
+type AssetRegion =
+  | { type: "flag"; iso: string; label: string }
+  | { type: "icon"; icon: string; label: string };
+
+function getAssetRegion(symbol: string): AssetRegion {
+  if (symbol.startsWith("^")) return { type: "icon", icon: "📊", label: "Indice" };
+  if (symbol.endsWith("-USD")) return { type: "icon", icon: "◈", label: "Crypto" };
+  if (symbol.endsWith("=F")) return { type: "icon", icon: "⬡", label: "Matières 1ères" };
   const dot = symbol.lastIndexOf(".");
   if (dot !== -1) {
-    const region = SUFFIX_REGIONS[symbol.slice(dot)];
-    if (region) return region;
+    const r = SUFFIX_REGIONS[symbol.slice(dot)];
+    if (r) return { type: "flag", ...r };
   }
-  return "US";
+  return { type: "flag", iso: "us", label: "US" };
+}
+
+function RegionBadge({ symbol, className }: { symbol: string; className?: string }) {
+  const region = getAssetRegion(symbol);
+  return (
+    <span className={cn(
+      "inline-flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded-full bg-white/5 border border-white/10 text-muted-foreground/80 font-medium whitespace-nowrap",
+      className
+    )}>
+      {region.type === "flag"
+        ? <span className={`fi fi-${region.iso}`} style={{ width: "1em", height: "0.75em", display: "inline-block", backgroundSize: "cover", borderRadius: "1px" }} />
+        : <span className="text-[9px] leading-none">{region.icon}</span>
+      }
+      {region.label}
+    </span>
+  );
 }
 
 const containerVariants = {
@@ -533,9 +553,7 @@ export default function ScannerPage() {
                   <p className="font-bold text-base truncate">{r.name || r.symbol}</p>
                   <div className="flex items-center gap-1.5 mt-0.5">
                     <span className="text-xs text-muted-foreground font-mono">{r.symbol}</span>
-                    <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-white/5 border border-white/10 text-muted-foreground/80 font-medium whitespace-nowrap">
-                      {getAssetRegion(r.symbol)}
-                    </span>
+                    <RegionBadge symbol={r.symbol} />
                   </div>
                   <div className="mt-2 flex items-center justify-between">
                     <span className={cn("text-xs px-2 py-0.5 rounded-full border font-medium", oppCfg.bg, oppCfg.border, oppCfg.text)}>
@@ -658,9 +676,7 @@ export default function ScannerPage() {
                         {/* Symbol + market region */}
                         <div className="flex items-center gap-1.5 mt-0.5 text-[11px] text-muted-foreground">
                           <span className="font-mono">{r.symbol}</span>
-                          <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-white/5 border border-white/10 text-muted-foreground/80 font-medium whitespace-nowrap">
-                            {getAssetRegion(r.symbol)}
-                          </span>
+                          <RegionBadge symbol={r.symbol} />
                         </div>
                         <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
                           <span className={cn("font-medium", r.rsi < 35 ? "text-emerald-400" : r.rsi > 68 ? "text-rose-400" : "")}>
