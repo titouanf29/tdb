@@ -333,6 +333,15 @@ async def chat_with_assistant(
         # Build messages array
         messages = [{"role": "system", "content": SYSTEM_PROMPT}]
 
+        # Always ground the assistant with the real current date + market status,
+        # computed server-side from each market's real timezone. Without this the
+        # LLM has no clock and wrongly claims markets are closed mid-week.
+        try:
+            from ..services.market_hours import build_market_context
+            messages.append({"role": "system", "content": build_market_context()})
+        except Exception as e:
+            print(f"[AI] Failed to build market context: {e}")
+
         # Add optional context
         if body.context:
             messages.append({
@@ -452,6 +461,12 @@ async def analysis_chat(
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "system", "content": f"=== DONNÉES D'ANALYSE EN TEMPS RÉEL ===\n{body.analysis_context}\n=== FIN DES DONNÉES ===\nL'utilisateur te pose des questions sur cet actif. Utilise ces données pour répondre avec précision."}
         ]
+
+        try:
+            from ..services.market_hours import build_market_context
+            messages.append({"role": "system", "content": build_market_context()})
+        except Exception as e:
+            print(f"[AI] Failed to build market context: {e}")
 
         for msg in body.conversation_history[-12:]:
             if msg.role in ("user", "assistant"):

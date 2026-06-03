@@ -391,7 +391,6 @@ const ANALYSIS_SECTIONS = [
   { id: "score",        label: "Score",         Icon: BarChart3   },
   { id: "chart",        label: "Graphique",     Icon: TrendingUp  },
   { id: "window",       label: "Fenêtre",       Icon: Timer       },
-  { id: "ai",           label: "IA",            Icon: Bot         },
   { id: "indicators",   label: "Indicateurs",   Icon: Activity    },
   { id: "risk",         label: "Risques",       Icon: Shield      },
   { id: "detailed",     label: "Analyse",       Icon: BookOpen    },
@@ -1122,19 +1121,8 @@ export default function AnalysisPage() {
             )}
           </div>
 
-          {/* 4. AI Insight */}
-          <div id="section-ai" className="scroll-mt-16">
-          <AIInsightSection
-            aiInsight={aiInsight}
-            isLoading={isLoadingAI}
-            symbol={analysis.symbol}
-            tradingStyle={settings.tradingStyle}
-            riskLevel={settings.riskLevel}
-            tradingLevel={tradingLevel}
-            onReload={() => loadAIInsight(analysis.symbol, analysis)}
-            onAskAI={() => setShowAIChat(true)}
-          />
-          </div>
+          {/* AI Insight module removed — the floating "Demander à l'IA" chat
+              button covers AI analysis (avoids duplicate AI modules). */}
 
           {/* Indicators */}
           <div id="section-indicators" className="scroll-mt-16">
