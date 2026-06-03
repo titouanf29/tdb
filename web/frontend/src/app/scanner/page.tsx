@@ -46,39 +46,41 @@ const TREND_CONFIG: Record<string, { color: string; icon: string }> = {
   NEUTRE:   { color: "text-slate-400",   icon: "→" },
 };
 
+// NOTE: on n'utilise PAS d'emoji drapeau ici — Chrome sous Windows ne les rend
+// pas (regional indicators non supportés). On affiche un libellé texte fiable.
 /** Maps a Yahoo Finance symbol suffix to its market/region label. */
-const SUFFIX_REGIONS: Record<string, { flag: string; label: string }> = {
-  ".PA":  { flag: "🇫🇷", label: "UE · Paris" },
-  ".AS":  { flag: "🇳🇱", label: "UE · Amsterdam" },
-  ".BR":  { flag: "🇧🇪", label: "UE · Bruxelles" },
-  ".LS":  { flag: "🇵🇹", label: "UE · Lisbonne" },
-  ".DE":  { flag: "🇩🇪", label: "UE · Francfort" },
-  ".MC":  { flag: "🇪🇸", label: "UE · Madrid" },
-  ".MI":  { flag: "🇮🇹", label: "UE · Milan" },
-  ".SW":  { flag: "🇨🇭", label: "Suisse" },
-  ".L":   { flag: "🇬🇧", label: "UK · Londres" },
-  ".T":   { flag: "🇯🇵", label: "Japon" },
-  ".HK":  { flag: "🇭🇰", label: "Hong Kong" },
-  ".KS":  { flag: "🇰🇷", label: "Corée" },
-  ".NS":  { flag: "🇮🇳", label: "Inde" },
-  ".BO":  { flag: "🇮🇳", label: "Inde" },
-  ".SI":  { flag: "🇸🇬", label: "Singapour" },
-  ".TW":  { flag: "🇹🇼", label: "Taïwan" },
-  ".AX":  { flag: "🇦🇺", label: "Australie" },
-  ".SS":  { flag: "🇨🇳", label: "Chine" },
-  ".SZ":  { flag: "🇨🇳", label: "Chine" },
+const SUFFIX_REGIONS: Record<string, string> = {
+  ".PA":  "UE · Paris",
+  ".AS":  "UE · Amsterdam",
+  ".BR":  "UE · Bruxelles",
+  ".LS":  "UE · Lisbonne",
+  ".DE":  "UE · Francfort",
+  ".MC":  "UE · Madrid",
+  ".MI":  "UE · Milan",
+  ".SW":  "Suisse",
+  ".L":   "UK · Londres",
+  ".T":   "Japon",
+  ".HK":  "Hong Kong",
+  ".KS":  "Corée",
+  ".NS":  "Inde",
+  ".BO":  "Inde",
+  ".SI":  "Singapour",
+  ".TW":  "Taïwan",
+  ".AX":  "Australie",
+  ".SS":  "Chine",
+  ".SZ":  "Chine",
 };
 
-function getAssetRegion(symbol: string): { flag: string; label: string } {
-  if (symbol.startsWith("^")) return { flag: "📊", label: "Indice" };
-  if (symbol.endsWith("-USD")) return { flag: "🪙", label: "Crypto" };
-  if (symbol.endsWith("=F")) return { flag: "🛢️", label: "Matières 1ères" };
+function getAssetRegion(symbol: string): string {
+  if (symbol.startsWith("^")) return "Indice";
+  if (symbol.endsWith("-USD")) return "Crypto";
+  if (symbol.endsWith("=F")) return "Matières 1ères";
   const dot = symbol.lastIndexOf(".");
   if (dot !== -1) {
     const region = SUFFIX_REGIONS[symbol.slice(dot)];
     if (region) return region;
   }
-  return { flag: "🇺🇸", label: "US" };
+  return "US";
 }
 
 const containerVariants = {
@@ -531,8 +533,8 @@ export default function ScannerPage() {
                   <p className="font-bold text-base truncate">{r.name || r.symbol}</p>
                   <div className="flex items-center gap-1.5 mt-0.5">
                     <span className="text-xs text-muted-foreground font-mono">{r.symbol}</span>
-                    <span className="text-[10px] text-muted-foreground/70 flex items-center gap-0.5">
-                      {getAssetRegion(r.symbol).flag} {getAssetRegion(r.symbol).label}
+                    <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-white/5 border border-white/10 text-muted-foreground/80 font-medium whitespace-nowrap">
+                      {getAssetRegion(r.symbol)}
                     </span>
                   </div>
                   <div className="mt-2 flex items-center justify-between">
@@ -654,11 +656,10 @@ export default function ScannerPage() {
                           )}
                         </div>
                         {/* Symbol + market region */}
-                        <div className="flex items-center gap-2 mt-0.5 text-[11px] text-muted-foreground">
+                        <div className="flex items-center gap-1.5 mt-0.5 text-[11px] text-muted-foreground">
                           <span className="font-mono">{r.symbol}</span>
-                          <span className="opacity-40">·</span>
-                          <span className="flex items-center gap-0.5">
-                            {getAssetRegion(r.symbol).flag} {getAssetRegion(r.symbol).label}
+                          <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-white/5 border border-white/10 text-muted-foreground/80 font-medium whitespace-nowrap">
+                            {getAssetRegion(r.symbol)}
                           </span>
                         </div>
                         <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
