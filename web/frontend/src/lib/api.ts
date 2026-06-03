@@ -1910,6 +1910,54 @@ export const insightsAPI = {
     }),
 };
 
+// ── Missions & Progress ───────────────────────────────────────────────────────
+
+export interface Mission {
+  id: string;
+  title: string;
+  description: string;
+  icon: string;
+  xp: number;
+  category: string;
+  level: string;
+  target: number;
+  action: string;
+  badge: string | null;
+  status: "not_started" | "active" | "completed";
+  progress: number;
+  completed_at: string | null;
+}
+
+export interface UserProgress {
+  user_id: number;
+  xp: number;
+  level: number;
+  badges: string[];
+  streak_days: number;
+  last_activity_date: string | null;
+  xp_for_next_level: number;
+  xp_in_current_level: number;
+  badges_detail: { icon: string; name: string; color: string }[];
+}
+
+export interface ActionResult {
+  xp_gained: number;
+  missions_completed: string[];
+  new_badges: { icon: string; name: string; color: string }[];
+  new_xp: number;
+  new_level: number;
+}
+
+export const missionsAPI = {
+  list: () => fetchAPI<{ missions: Mission[] }>("/api/learn/missions"),
+  progress: () => fetchAPI<UserProgress>("/api/learn/progress"),
+  recordAction: (action: string, value: number = 1) =>
+    fetchAPI<ActionResult>("/api/learn/progress/action", {
+      method: "POST",
+      body: JSON.stringify({ action, value }),
+    }),
+};
+
 /**
  * Create an authenticated WebSocket URL for private endpoints
  * (portfolio, alerts). Passes the JWT as a query param since

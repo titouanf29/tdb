@@ -11,6 +11,8 @@ import { Header } from "./Header";
 import { BroadcastBanner } from "./BroadcastBanner";
 import { ChangelogBanner } from "./ChangelogBanner";
 import { OnboardingModal } from "@/components/onboarding/OnboardingModal";
+import { OnboardingTour } from "@/components/OnboardingTour";
+import { CoachOverlay } from "@/components/CoachAlex";
 import { Loader2, Wrench } from "lucide-react";
 
 // ── Public pages: no auth logic, no effects ───────────────────────────────────
@@ -73,6 +75,21 @@ function AuthShell({
     if (isAuthenticated && user && user.trading_level == null) {
       const t = setTimeout(() => setShowOnboarding(true), 800);
       return () => clearTimeout(t);
+    }
+  }, [isAuthenticated, user]);
+
+  // Record daily login for missions/streak
+  useEffect(() => {
+    if (!isAuthenticated || !user) return;
+    const today = new Date().toISOString().split("T")[0];
+    const lastKey = "tdb_last_login_date";
+    const last = localStorage.getItem(lastKey);
+    if (last !== today) {
+      localStorage.setItem(lastKey, today);
+      import("@/lib/api").then(({ missionsAPI }) => {
+        missionsAPI.recordAction("daily_login").catch(() => {});
+        missionsAPI.recordAction("login").catch(() => {});
+      });
     }
   }, [isAuthenticated, user]);
 
@@ -162,6 +179,9 @@ function AuthShell({
       {showOnboarding && (
         <OnboardingModal onClose={() => setShowOnboarding(false)} />
       )}
+
+      <OnboardingTour />
+      <CoachOverlay />
 
       {mobileMenuOpen && (
         <div

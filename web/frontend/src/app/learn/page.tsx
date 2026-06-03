@@ -35,7 +35,7 @@ import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/AuthContext";
 import { usePremium } from "@/lib/PremiumContext";
 import { useLanguage } from "@/lib/LanguageContext";
-import { toolsAPI, type AdviceData, type AdviceCard } from "@/lib/api";
+import { toolsAPI, type AdviceData, type AdviceCard, missionsAPI, type UserProgress } from "@/lib/api";
 import {
   LEARN_MODULES,
   getLevelBadge,
@@ -44,6 +44,7 @@ import {
   type QuizQuestion,
 } from "@/lib/learnContent";
 import { HelpGuide } from "@/components/ui/HelpGuide";
+import Link from "next/link";
 
 // ─── Interactive Chart Components ─────────────────────────────────────────────
 
@@ -901,9 +902,11 @@ export default function LearnPage() {
   const [activeModule, setActiveModule] = useState<Module | null>(null);
   const [activeLesson, setActiveLesson] = useState<Lesson | null>(null);
   const [mainTab, setMainTab] = useState<"modules" | "fiches">("modules");
+  const [xpProgress, setXpProgress] = useState<UserProgress | null>(null);
 
   useEffect(() => {
     setProgress(loadProgress());
+    missionsAPI.progress().then(setXpProgress).catch(() => {});
   }, []);
 
   const markLessonComplete = (moduleId: string, lessonId: string) => {
@@ -912,6 +915,11 @@ export default function LearnPage() {
     const updated = { ...progress, completedLessons: [...progress.completedLessons, key] };
     setProgress(updated);
     saveProgress(updated);
+    missionsAPI.recordAction("lesson_complete").then((result) => {
+      if (result.xp_gained > 0) {
+        missionsAPI.progress().then(setXpProgress).catch(() => {});
+      }
+    }).catch(() => {});
   };
 
   const saveQuizScore = (moduleId: string, lessonId: string, score: number) => {
@@ -919,6 +927,9 @@ export default function LearnPage() {
     const updated = { ...progress, quizScores: { ...progress.quizScores, [key]: score } };
     setProgress(updated);
     saveProgress(updated);
+    if (score >= 70) {
+      missionsAPI.recordAction("quiz_pass").catch(() => {});
+    }
   };
 
   const totalLessons = LEARN_MODULES.reduce((acc, m) => acc + m.lessons.length, 0);
@@ -997,6 +1008,39 @@ export default function LearnPage() {
             {t("learn_level_label")} {getLevelBadge(userLevel).label}
           </div>
         )}
+      </div>
+
+      {/* XP Progress + quick links */}
+      <div className="flex flex-col sm:flex-row gap-3">
+        {xpProgress && (
+          <Link href="/learn/missions" className="flex-1 glass-card px-4 py-3 hover:border-[#638CFF]/30 transition-colors group">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg bg-[#638CFF]/10 flex items-center justify-center">
+                <Trophy className="w-4 h-4 text-[#638CFF]" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-xs text-gray-400">Niveau {xpProgress.level} · {xpProgress.xp} XP</span>
+                  <span className="text-xs text-[#638CFF] group-hover:text-[#638CFF]/80">Missions →</span>
+                </div>
+                <div className="mt-1 h-1.5 rounded-full bg-white/5 overflow-hidden">
+                  <div
+                    className="h-full rounded-full bg-gradient-to-r from-[#638CFF] to-[#00D4AA] transition-all"
+                    style={{ width: `${Math.min(100, (xpProgress.xp_in_current_level / Math.max(1, xpProgress.xp_for_next_level - (xpProgress.level - 1) * 500)) * 100)}%` }}
+                  />
+                </div>
+              </div>
+            </div>
+          </Link>
+        )}
+        <Link
+          href="/learn/glossaire"
+          className="flex items-center gap-2 px-4 py-3 glass-card hover:border-[#638CFF]/30 transition-colors text-sm text-gray-400 hover:text-white group"
+        >
+          <BookOpen className="w-4 h-4 text-[#638CFF]" />
+          <span>Glossaire</span>
+          <ChevronRight className="w-3 h-3 ml-auto" />
+        </Link>
       </div>
 
       {/* Tab toggle */}

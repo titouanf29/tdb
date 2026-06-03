@@ -466,6 +466,30 @@ async def _init_postgres():
                 updated_at TEXT NOT NULL
             )
         """)
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS user_missions (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER NOT NULL REFERENCES web_users(id) ON DELETE CASCADE,
+                mission_id TEXT NOT NULL,
+                status TEXT NOT NULL DEFAULT 'active',
+                progress INTEGER NOT NULL DEFAULT 0,
+                completed_at TEXT,
+                xp_earned INTEGER NOT NULL DEFAULT 0,
+                created_at TEXT NOT NULL,
+                UNIQUE(user_id, mission_id)
+            )
+        """)
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS user_progress (
+                user_id INTEGER PRIMARY KEY REFERENCES web_users(id) ON DELETE CASCADE,
+                xp INTEGER NOT NULL DEFAULT 0,
+                level INTEGER NOT NULL DEFAULT 1,
+                badges TEXT NOT NULL DEFAULT '[]',
+                streak_days INTEGER NOT NULL DEFAULT 0,
+                last_activity_date TEXT,
+                updated_at TEXT NOT NULL
+            )
+        """)
         print("PostgreSQL tables ready")
 
 
@@ -824,6 +848,30 @@ async def _init_sqlite():
                 description_instagram TEXT,
                 site_page_url TEXT,
                 created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            )
+        """)
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS user_missions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                mission_id TEXT NOT NULL,
+                status TEXT NOT NULL DEFAULT 'active',
+                progress INTEGER NOT NULL DEFAULT 0,
+                completed_at TEXT,
+                xp_earned INTEGER NOT NULL DEFAULT 0,
+                created_at TEXT NOT NULL,
+                UNIQUE(user_id, mission_id)
+            )
+        """)
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS user_progress (
+                user_id INTEGER PRIMARY KEY,
+                xp INTEGER NOT NULL DEFAULT 0,
+                level INTEGER NOT NULL DEFAULT 1,
+                badges TEXT NOT NULL DEFAULT '[]',
+                streak_days INTEGER NOT NULL DEFAULT 0,
+                last_activity_date TEXT,
                 updated_at TEXT NOT NULL
             )
         """)

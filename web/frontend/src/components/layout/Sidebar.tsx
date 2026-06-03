@@ -26,6 +26,8 @@ import {
   X,
   Gem,
   Film,
+  Trophy,
+  BookOpen,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -62,7 +64,9 @@ const MENU_GROUPS = [
   {
     labelKey: "nav_group_learn",
     items: [
-      { icon: GraduationCap, labelKey: "nav_learn", href: "/learn" },
+      { icon: GraduationCap, labelKey: "nav_learn",      href: "/learn" },
+      { icon: Trophy,        labelKey: "nav_missions",   href: "/learn/missions" },
+      { icon: BookOpen,      labelKey: "nav_glossaire",  href: "/learn/glossaire" },
     ],
   },
   {
@@ -164,7 +168,8 @@ export function Sidebar({
             {/* Group items */}
             <div className="space-y-0.5">
               {group.items.filter((item) => {
-                if (!item.adminOnly) return true;
+                const adminOnly = (item as { adminOnly?: boolean }).adminOnly;
+                if (!adminOnly) return true;
                 if (isAdmin) return true;
                 if (item.href === "/gold" && goldEnabled) return true;
                 return false;
@@ -172,7 +177,7 @@ export function Sidebar({
                 const isActive = pathname === item.href;
                 const Icon = item.icon;
                 return (
-                  <Link key={item.href} href={item.href}>
+                  <Link key={item.href} href={item.href} data-tour={item.href.replace("/", "") || "dashboard"}>
                     <motion.div
                       whileHover={{ x: 4 }}
                       whileTap={{ scale: 0.98 }}
