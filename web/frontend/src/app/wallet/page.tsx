@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Wallet,
@@ -79,21 +79,22 @@ function PositionChart({
   formatPrice: (v: number, sym: string) => string;
   lang: string;
 }) {
-  const [data, setData] = useState<{ ts: number; label: string; price: number }[] | null>(null);
+  const [hist, setHist] = useState<{ ts: number; price: number }[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
 
+  const openedMs = createdAt ? new Date(createdAt).getTime() : Date.now() - 30 * 86400000;
+  const ageDays = (Date.now() - openedMs) / 86400000;
+  const isIntraday = ageDays <= 30;
+
   useEffect(() => {
     let cancelled = false;
-    const openedMs = createdAt ? new Date(createdAt).getTime() : Date.now() - 30 * 86400000;
-    const ageDays = (Date.now() - openedMs) / 86400000;
-    // Pick period/interval so the chart frames the trade nicely.
+    // Pick a period covering the whole trade age, with sensible granularity.
     const [period, interval] =
-      ageDays < 2 ? ["5d", "15m"] :
-      ageDays < 30 ? ["1mo", "1h"] :
-      ["3mo", "1d"];
-
-    const isIntraday = interval !== "1d" && interval !== "1wk" && interval !== "1mo";
+      ageDays <= 1.5 ? ["5d", "15m"] :
+      ageDays <= 30 ? ["1mo", "1h"] :
+      ageDays <= 90 ? ["3mo", "1d"] :
+      ["1y", "1d"];
 
     setLoading(true);
     setFailed(false);
@@ -102,15 +103,9 @@ function PositionChart({
         if (cancelled) return;
         const pts = (res.data ?? [])
           .filter((d) => d.close > 0)
-          .map((d) => {
-            const dt = new Date(d.timestamp);
-            const label = isIntraday
-              ? dt.toLocaleTimeString(lang === "en" ? "en-US" : "fr-FR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })
-              : dt.toLocaleDateString(lang === "en" ? "en-US" : "fr-FR", { day: "2-digit", month: "2-digit" });
-            return { ts: d.timestamp, label, price: d.close };
-          });
-        if (pts.length < 2) { setFailed(true); setData(null); }
-        else setData(pts);
+          .map((d) => ({ ts: d.timestamp, price: d.close }));
+        if (pts.length === 0) { setFailed(true); setHist(null); }
+        else setHist(pts);
       })
       .catch(() => { if (!cancelled) setFailed(true); })
       .finally(() => { if (!cancelled) setLoading(false); });
@@ -120,6 +115,26 @@ function PositionChart({
   }, [symbol, createdAt]);
 
   const color = isProfit ? "#34d399" : "#fb7185";
+
+  // Build the displayed series: only since the position was opened, anchored at
+  // the entry price and ending at the live current price. Recomputed on price
+  // tick without refetching history.
+  const data = useMemo(() => {
+    if (!hist) return null;
+    const fmt = (ms: number) =>
+      isIntraday
+        ? new Date(ms).toLocaleString(lang === "en" ? "en-US" : "fr-FR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })
+        : new Date(ms).toLocaleDateString(lang === "en" ? "en-US" : "fr-FR", { day: "2-digit", month: "2-digit" });
+    const since = hist
+      .filter((p) => p.ts >= openedMs)
+      .map((p) => ({ ts: p.ts, label: fmt(p.ts), price: p.price }));
+    const nowMs = Date.now();
+    return [
+      { ts: openedMs, label: fmt(openedMs), price: entryPrice },
+      ...since,
+      { ts: nowMs, label: fmt(nowMs), price: currentPrice },
+    ];
+  }, [hist, openedMs, isIntraday, entryPrice, currentPrice, lang]);
 
   // Y domain that always includes entry / TP / SL reference lines.
   const domain = (() => {
