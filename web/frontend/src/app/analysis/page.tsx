@@ -689,7 +689,7 @@ export default function AnalysisPage() {
       className="space-y-6"
     >
       {/* Search */}
-      <div className="glass-card p-6">
+      <div className="glass-card p-6" data-module-id="asset-selector">
         <div className="mb-4">
           <div className="flex items-start justify-between gap-3 flex-wrap">
             <h2 className="text-lg font-semibold">{t("analysis_session_title")}</h2>
@@ -771,7 +771,7 @@ export default function AnalysisPage() {
             )}
           </div>
           {/* Timeframe selector */}
-          <div className="flex items-center gap-1 bg-white/5 rounded-xl p-1 border border-white/8 flex-shrink-0 overflow-x-auto no-scrollbar">
+          <div className="flex items-center gap-1 bg-white/5 rounded-xl p-1 border border-white/8 flex-shrink-0 overflow-x-auto no-scrollbar" data-module-id="timeframe-selector">
             {[
               { v: "5m",  label: "5m" },
               { v: "15m", label: "15m" },
@@ -1110,7 +1110,7 @@ export default function AnalysisPage() {
           </div>
 
           {/* 3. Premium Chart */}
-          <div id="section-chart" className="scroll-mt-16">
+          <div id="section-chart" className="scroll-mt-16" data-module-id="main-chart">
             <PremiumChart symbol={analysis.symbol} timeframe={timeframe} />
           </div>
 
@@ -1125,7 +1125,7 @@ export default function AnalysisPage() {
               button covers AI analysis (avoids duplicate AI modules). */}
 
           {/* Indicators */}
-          <div id="section-indicators" className="scroll-mt-16">
+          <div id="section-indicators" className="scroll-mt-16" data-module-id="indicators-panel">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -1141,6 +1141,7 @@ export default function AnalysisPage() {
               )}
             </h3>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 items-start">
+              <div data-module-id="rsi-panel">
               <IndicatorCard
                 name="RSI (14)"
                 value={analysis.indicators.rsi.value.toFixed(1)}
@@ -1152,6 +1153,7 @@ export default function AnalysisPage() {
                   weight: "Composante : Technique (30%)",
                 }}
               />
+              </div>
               <IndicatorCard
                 name="MACD"
                 value={analysis.indicators.macd.value.toFixed(2)}
@@ -1248,6 +1250,7 @@ export default function AnalysisPage() {
                   weight: "Composante : Volatilité (5%)",
                 }}
               />
+              <div data-module-id="volume-panel">
               <IndicatorCard
                 name="Volume Ratio"
                 value={`${analysis.indicators.volume_ratio.toFixed(2)}x`}
@@ -1259,6 +1262,7 @@ export default function AnalysisPage() {
                   weight: "Composante : Volume (20%)",
                 }}
               />
+              </div>
               {(analysis.indicators as any).williams_r && (
                 <IndicatorCard
                   name="Williams %R"

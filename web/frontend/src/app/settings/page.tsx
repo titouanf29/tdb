@@ -26,6 +26,9 @@ import { TradingLevel } from "@/lib/auth";
 import { useSettings, Currency, ACCENT_PRESETS, AccentColor } from "@/lib/SettingsContext";
 import { LanguageToggle } from "@/components/ui/LanguageToggle";
 import { useLanguage } from "@/lib/LanguageContext";
+import { LevelChangeModal } from "@/components/onboarding/LevelChangeModal";
+import { OnboardingTour, TOUR_KEY } from "@/components/OnboardingTour";
+import { useAlexStore } from "@/stores/alex-store";
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState("profile");
@@ -157,6 +160,11 @@ function ProfileSettings() {
   const [levelSaving, setLevelSaving] = useState(false);
   const [levelSaved, setLevelSaved] = useState(false);
   const [displayName, setDisplayName] = useState(user?.username || user?.first_name || "");
+  const [levelChangeFrom, setLevelChangeFrom] = useState<TradingLevel | null>(null);
+  const [levelChangeTo, setLevelChangeTo] = useState<TradingLevel | null>(null);
+  const [showLevelModal, setShowLevelModal] = useState(false);
+  const [forceTourLevel, setForceTourLevel] = useState<TradingLevel | null>(null);
+  const { openPanel } = useAlexStore();
 
   const handleSave = async () => {
     setIsSaving(true);
@@ -166,11 +174,15 @@ function ProfileSettings() {
 
   const handleLevelChange = async (level: TradingLevel) => {
     if (user?.trading_level === level) return;
+    const from = (user?.trading_level ?? "beginner") as TradingLevel;
     setLevelSaving(true);
     try {
       await setTradingLevel(level);
+      setLevelChangeFrom(from);
+      setLevelChangeTo(level);
       setLevelSaved(true);
       setTimeout(() => setLevelSaved(false), 2000);
+      setShowLevelModal(true);
     } finally {
       setLevelSaving(false);
     }
@@ -256,6 +268,31 @@ function ProfileSettings() {
           })}
         </div>
       </div>
+
+      {/* Level change modal */}
+      <AnimatePresence>
+        {showLevelModal && levelChangeFrom && levelChangeTo && (
+          <LevelChangeModal
+            fromLevel={levelChangeFrom}
+            toLevel={levelChangeTo}
+            lang={lang as "fr" | "en"}
+            onClose={() => setShowLevelModal(false)}
+            onStartBeginnerAssistant={() => {
+              localStorage.removeItem(TOUR_KEY);
+              openPanel();
+              setShowLevelModal(false);
+            }}
+            onStartTour={(level) => {
+              setForceTourLevel(level);
+              setShowLevelModal(false);
+            }}
+          />
+        )}
+      </AnimatePresence>
+      <OnboardingTour
+        forceLevel={forceTourLevel}
+        onTourDone={() => setForceTourLevel(null)}
+      />
     </div>
   );
 }

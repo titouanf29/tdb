@@ -697,6 +697,7 @@ export default function WalletPage() {
         initial="hidden"
         animate="show"
         className="space-y-5 max-w-5xl mx-auto"
+        data-module-id="portfolio-panel"
       >
         {/* ── Header ─────────────────────────────────────────────────────── */}
         <motion.div variants={itemVariants} className="relative overflow-hidden rounded-2xl border border-white/8 bg-gradient-to-br from-primary/8 via-transparent to-transparent p-6">

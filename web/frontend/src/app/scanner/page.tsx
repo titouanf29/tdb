@@ -225,6 +225,7 @@ export default function ScannerPage() {
       initial="hidden"
       animate="show"
       className="space-y-5 max-w-5xl mx-auto"
+      data-module-id="scanner-panel"
     >
 
       {/* ── Header ────────────────────────────────────────────────────────── */}
