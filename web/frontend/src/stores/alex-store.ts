@@ -145,8 +145,8 @@ export const useAlexStore = create<AlexState>((set, get) => ({
   setValidation: (state, msg) =>
     set({ validationState: state, validationMessage: msg ?? null }),
 
-  enableHoverMode: () => set({ hoverMode: true }),
-  disableHoverMode: () => set({ hoverMode: false }),
+  enableHoverMode: () => set({ hoverMode: true, currentMessage: "", hoveredModule: null }),
+  disableHoverMode: () => set({ hoverMode: false, currentMessage: "", hoveredModule: null }),
   setHoveredModule: (moduleId) => set({ hoveredModule: moduleId }),
   setMessage: (msg, action) =>
     set({ currentMessage: msg, currentAction: action ?? null }),

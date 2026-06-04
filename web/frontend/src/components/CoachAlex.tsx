@@ -159,6 +159,12 @@ export function CoachOverlay() {
                       hoverMode={hoverMode}
                       onEnableHover={enableHoverMode}
                     />
+                  ) : hoverMode ? (
+                    <HoverView
+                      key="hover"
+                      message={currentMessage}
+                      onDisable={disableHoverMode}
+                    />
                   ) : view === "menu" ? (
                     <MenuView
                       key="menu"
@@ -364,6 +370,68 @@ function TourView({
           </button>
         )}
       </div>
+    </motion.div>
+  );
+}
+
+// ─── Hover Mode View ──────────────────────────────────────────────────────────
+
+function HoverView({ message, onDisable }: { message: string; onDisable: () => void }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, x: 12 }}
+      animate={{ opacity: 1, x: 0 }}
+      exit={{ opacity: 0, x: -12 }}
+      transition={{ duration: 0.18 }}
+      className="p-4 space-y-3"
+    >
+      {message ? (
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={message}
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -6 }}
+            transition={{ duration: 0.2 }}
+            className="text-sm text-gray-300 leading-relaxed space-y-2"
+          >
+            {message.split(/\n\n/).map((para, pi) => (
+              <p key={pi}>
+                {para.split(/(\*\*[^*]+\*\*)/).map((part, i) =>
+                  part.startsWith("**") ? (
+                    <strong key={i} className="text-white font-semibold">
+                      {part.slice(2, -2)}
+                    </strong>
+                  ) : (
+                    <span key={i}>{part}</span>
+                  )
+                )}
+              </p>
+            ))}
+          </motion.div>
+        </AnimatePresence>
+      ) : (
+        <div className="flex flex-col items-center gap-3 py-6 text-center">
+          <motion.div
+            animate={{ y: [0, -4, 0] }}
+            transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+          >
+            <MousePointer className="w-8 h-8 text-[#00D4AA]/50" />
+          </motion.div>
+          <p className="text-sm text-gray-300 font-medium">Mode exploration actif</p>
+          <p className="text-xs text-gray-500 leading-relaxed max-w-[220px]">
+            Survolez un module sur la page — graphique, RSI, sélecteur d&apos;actif — pour que je l&apos;explique.
+          </p>
+        </div>
+      )}
+
+      <button
+        onClick={onDisable}
+        className="w-full flex items-center justify-center gap-2 py-2 rounded-xl border border-white/10 bg-white/5 text-xs text-gray-500 hover:text-gray-300 hover:border-white/20 transition-colors"
+      >
+        <X className="w-3 h-3" />
+        Désactiver le mode exploration
+      </button>
     </motion.div>
   );
 }
