@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/lib/AuthContext";
 import { useLanguage } from "@/lib/LanguageContext";
 import { usePremium } from "@/lib/PremiumContext";
@@ -14,6 +14,7 @@ import { OnboardingModal } from "@/components/onboarding/OnboardingModal";
 import { OnboardingTour } from "@/components/OnboardingTour";
 import { CoachOverlay } from "@/components/CoachAlex";
 import { Loader2, Wrench } from "lucide-react";
+import type { TradingLevel } from "@/lib/auth";
 
 // ── Public pages: no auth logic, no effects ───────────────────────────────────
 
@@ -43,6 +44,7 @@ function AuthShell({
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [forceTourLevel, setForceTourLevel] = useState<TradingLevel | null>(null);
   const [maintenance, setMaintenance] = useState<{ on: boolean; message: string }>({ on: false, message: "" });
   const [maintenanceChecked, setMaintenanceChecked] = useState(false);
 
@@ -70,7 +72,7 @@ function AuthShell({
     }
   }, [isAuthenticated, isLoading, isAuthPage, router]);
 
-  // Onboarding modal
+  // Show onboarding modal when trading_level not yet set
   useEffect(() => {
     if (isAuthenticated && user && user.trading_level == null) {
       const t = setTimeout(() => setShowOnboarding(true), 800);
@@ -97,6 +99,15 @@ function AuthShell({
   useEffect(() => {
     setMobileMenuOpen(false);
   }, [pathname]);
+
+  /** Called when user clicks "Démarrer la visite" in OnboardingModal */
+  const handleStartTour = (level: TradingLevel) => {
+    setShowOnboarding(false);
+    // Small delay to let modal exit animation complete
+    setTimeout(() => {
+      setForceTourLevel(level);
+    }, 350);
+  };
 
   if (isAuthPage) {
     return (
@@ -176,11 +187,22 @@ function AuthShell({
 
   return (
     <div className="flex h-screen overflow-hidden">
-      {showOnboarding && (
-        <OnboardingModal onClose={() => setShowOnboarding(false)} />
-      )}
+      {/* Onboarding modal (level selection + welcome step) */}
+      <AnimatePresence>
+        {showOnboarding && (
+          <OnboardingModal
+            onClose={() => setShowOnboarding(false)}
+            onStartTour={handleStartTour}
+          />
+        )}
+      </AnimatePresence>
 
-      <OnboardingTour />
+      {/* Driver.js tour — force-started after level selection or auto on first login */}
+      <OnboardingTour
+        forceLevel={forceTourLevel}
+        onTourDone={() => setForceTourLevel(null)}
+      />
+
       <CoachOverlay />
 
       {mobileMenuOpen && (

@@ -3,8 +3,8 @@
 import { useEffect, useRef, useCallback } from "react";
 import { useUserLevel } from "@/hooks/useUserLevel";
 import { useAuth } from "@/lib/AuthContext";
+import type { TradingLevel } from "@/lib/auth";
 
-// driver.js is loaded dynamically to avoid SSR issues
 type DriverStep = {
   element?: string;
   popover: {
@@ -18,7 +18,7 @@ type DriverStep = {
 const BEGINNER_STEPS: DriverStep[] = [
   {
     popover: {
-      title: "👋 Bienvenue sur CaptentDB !",
+      title: "👋 Bienvenue sur CaptenTDB !",
       description: "Je suis Alex, votre coach trading. Laissez-moi vous faire découvrir la plateforme en 2 minutes.",
     },
   },
@@ -26,15 +26,23 @@ const BEGINNER_STEPS: DriverStep[] = [
     element: "[data-tour='dashboard']",
     popover: {
       title: "📊 Tableau de bord",
-      description: "Votre hub central : résumé des marchés, positions ouvertes, et performance globale.",
+      description: "Votre hub central : résumé des marchés, positions ouvertes et performance globale.",
       side: "right",
     },
   },
   {
     element: "[data-tour='learn']",
     popover: {
-      title: "🎓 Espace Formation",
-      description: "Apprenez les bases du trading avec des cours structurés, des quiz et des exemples concrets.",
+      title: "🎓 Formation",
+      description: "Apprenez les bases du trading avec des cours structurés, des quiz et des parcours guidés.",
+      side: "right",
+    },
+  },
+  {
+    element: "[data-tour='markets']",
+    popover: {
+      title: "🌍 Marchés",
+      description: "Explorez tous les actifs disponibles : crypto, forex, actions, indices, matières premières.",
       side: "right",
     },
   },
@@ -47,6 +55,14 @@ const BEGINNER_STEPS: DriverStep[] = [
     },
   },
   {
+    element: "[data-tour='analysis']",
+    popover: {
+      title: "📈 Analyse",
+      description: "Analysez n'importe quel actif : graphiques, RSI, MACD, supports/résistances et IA.",
+      side: "right",
+    },
+  },
+  {
     element: "[data-tour='wallet']",
     popover: {
       title: "💼 Portefeuille",
@@ -55,25 +71,15 @@ const BEGINNER_STEPS: DriverStep[] = [
     },
   },
   {
-    element: "[data-tour='analysis']",
     popover: {
-      title: "📈 Analyse",
-      description: "Analysez n'importe quel actif : graphiques, indicateurs techniques, et insights IA.",
-      side: "right",
-    },
-  },
-  {
-    element: "[data-tour='ai-chat']",
-    popover: {
-      title: "🤖 Assistant IA",
-      description: "Posez vos questions de trading à notre IA 24h/24. Elle connaît les marchés en temps réel.",
-      side: "top",
+      title: "🤖 Coach Alex — votre allié",
+      description: "Retrouvez Alex en bas à gauche à tout moment pour obtenir des conseils et un guidage pas à pas.",
     },
   },
   {
     popover: {
       title: "🚀 C'est parti !",
-      description: "Vous êtes prêt. Commencez par la section Formation pour maîtriser les bases. Bonne chance !",
+      description: "Commencez par la section Formation. Bonne chance sur les marchés !",
     },
   },
 ];
@@ -81,15 +87,15 @@ const BEGINNER_STEPS: DriverStep[] = [
 const INTERMEDIATE_STEPS: DriverStep[] = [
   {
     popover: {
-      title: "⚡ Bienvenue !",
-      description: "Vous avez un niveau intermédiaire. Voici les fonctionnalités avancées à votre disposition.",
+      title: "⚡ Bienvenue en mode Intermédiaire !",
+      description: "Voici un aperçu rapide des fonctionnalités avancées à votre disposition.",
     },
   },
   {
     element: "[data-tour='scanner']",
     popover: {
       title: "🔍 Scanner avancé",
-      description: "Accédez à 6 indicateurs techniques simultanément et filtrez par marché, volatilité et signaux.",
+      description: "6 indicateurs techniques simultanés. Filtrez par marché, volatilité et force de signal.",
       side: "right",
     },
   },
@@ -102,31 +108,44 @@ const INTERMEDIATE_STEPS: DriverStep[] = [
     },
   },
   {
-    element: "[data-tour='ai-chat']",
+    element: "[data-tour='assistant']",
     popover: {
       title: "🤖 IA contextuelle",
-      description: "L'IA analyse vos positions et vous suggère des améliorations basées sur votre profil.",
-      side: "top",
+      description: "L'IA connaît les marchés en temps réel et analyse vos actifs avec une précision experte.",
+      side: "right",
+    },
+  },
+  {
+    popover: {
+      title: "✅ Tout est prêt !",
+      description: "Explorez les marchés et lancez une analyse. Bonne session de trading !",
     },
   },
 ];
 
-const TOUR_KEY = "tdb_onboarding_done";
+export const TOUR_KEY = "tdb_onboarding_done";
 
-export function OnboardingTour() {
+interface OnboardingTourProps {
+  /** If set, force-starts the tour for the given level (bypasses localStorage check) */
+  forceLevel?: TradingLevel | null;
+  onTourDone?: () => void;
+}
+
+export function OnboardingTour({ forceLevel, onTourDone }: OnboardingTourProps = {}) {
   const { level } = useUserLevel();
   const { user } = useAuth();
   const driverRef = useRef<any>(null);
   const startedRef = useRef(false);
 
-  const startTour = useCallback(async () => {
+  const runTour = useCallback(async (tourLevel: TradingLevel | "beginner", force = false) => {
     if (typeof window === "undefined") return;
-    if (localStorage.getItem(TOUR_KEY)) return;
+    if (!force && localStorage.getItem(TOUR_KEY)) return;
+    if (tourLevel === "expert") return;
 
     try {
       const { driver } = await import("driver.js");
 
-      const steps = level === "beginner" ? BEGINNER_STEPS : INTERMEDIATE_STEPS;
+      const steps = tourLevel === "beginner" ? BEGINNER_STEPS : INTERMEDIATE_STEPS;
 
       driverRef.current = driver({
         animate: true,
@@ -138,40 +157,41 @@ export function OnboardingTour() {
         progressText: "Étape {{current}} / {{total}}",
         onDestroyed: () => {
           localStorage.setItem(TOUR_KEY, "1");
+          onTourDone?.();
         },
         steps: steps.map((s) => ({
           element: s.element,
-          popover: {
-            ...s.popover,
-            showButtons: ["next", "previous", "close"],
-          },
+          popover: { ...s.popover, showButtons: ["next", "previous", "close"] },
         })),
       });
 
-      // Small delay to let the page fully render
-      setTimeout(() => {
-        driverRef.current?.drive();
-      }, 800);
+      setTimeout(() => driverRef.current?.drive(), 600);
     } catch {
-      // driver.js unavailable or already done
+      // driver.js load failed silently
     }
-  }, [level]);
+  }, [onTourDone]);
 
+  // Force-start when forceLevel is provided (after onboarding modal)
   useEffect(() => {
-    if (!user || startedRef.current) return;
-    if (level === "expert") return; // skip for experts
-    startedRef.current = true;
-    startTour();
+    if (!forceLevel) return;
+    runTour(forceLevel, true);
+    return () => driverRef.current?.destroy();
+  }, [forceLevel, runTour]);
 
-    return () => {
-      driverRef.current?.destroy();
-    };
-  }, [user, level, startTour]);
+  // Auto-start on first login (if not already done)
+  useEffect(() => {
+    if (forceLevel) return; // handled above
+    if (!user || startedRef.current) return;
+    if (level === "expert") return;
+    startedRef.current = true;
+    runTour(level, false);
+    return () => driverRef.current?.destroy();
+  }, [user, level, forceLevel, runTour]);
 
   return null;
 }
 
-/** Programmatically restart the tour (e.g. from Help button) */
+/** Reset and restart tour (e.g. from Help button or settings) */
 export function restartTour() {
   if (typeof window !== "undefined") {
     localStorage.removeItem(TOUR_KEY);
