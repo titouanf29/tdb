@@ -56,7 +56,7 @@ function StatCard({ label, value, sub, color }: { label: string; value: string; 
   return (
     <div className="glass-card p-4 space-y-1">
       <p className="text-xs text-muted-foreground">{label}</p>
-      <p className={cn("text-2xl font-bold", color)}>{value}</p>
+      <p className={cn("text-xl sm:text-2xl font-bold", color)}>{value}</p>
       {sub && <p className="text-xs text-muted-foreground">{sub}</p>}
     </div>
   );
@@ -578,7 +578,7 @@ function JournalForm({
             </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             <div>
               <label className="block text-sm font-medium mb-1.5">{t("journal_entry_price_lbl")}</label>
               <input
@@ -612,7 +612,7 @@ function JournalForm({
           </div>
 
           {/* R:R + P&L + Result */}
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             <div>
               <label className="block text-sm font-medium mb-1.5">
                 <Target className="w-3.5 h-3.5 inline mr-1" />R:R (ex: 2.5)
@@ -809,7 +809,7 @@ export default function JournalPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
+          <h1 className="text-xl sm:text-2xl font-bold flex items-center gap-2">
             <BookOpen className="w-6 h-6 text-primary" />
             {t("journal_title")}
             <button

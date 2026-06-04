@@ -107,7 +107,7 @@ export default function FavoritesPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
+          <h1 className="text-xl sm:text-2xl font-bold flex items-center gap-2">
             <Star className="w-6 h-6 text-yellow-500 fill-yellow-500" />
             {t("fav_title")}
           </h1>
@@ -205,6 +205,7 @@ export default function FavoritesPage() {
         </div>
       ) : (
         <div className="glass-card overflow-hidden">
+          <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
               <tr className="border-b border-white/10">
@@ -302,6 +303,7 @@ export default function FavoritesPage() {
               ))}
             </tbody>
           </table>
+          </div>
         </div>
       )}
 

@@ -733,23 +733,23 @@ function FichesConseilsSection() {
     <div className="space-y-6">
       {/* Header */}
       <div className="glass-card p-6">
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
           <div className="flex items-center gap-2">
             <BookOpen className="w-5 h-5 text-primary" />
             <h2 className="text-lg font-semibold">{t("learn_fiches_title")}</h2>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
             <select
               value={selectedCategory}
               onChange={(e) => setSelectedCategory(e.target.value)}
-              className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-sm"
+              className="flex-1 sm:flex-none px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-sm"
             >
               <option value="" className="bg-background">{t("learn_all_categories")}</option>
               {data?.categories.map((cat) => (
                 <option key={cat.key} value={cat.key} className="bg-background">{cat.label}</option>
               ))}
             </select>
-            <button onClick={load} disabled={isLoading} className="p-2 rounded-lg hover:bg-white/10">
+            <button onClick={load} disabled={isLoading} className="p-2 rounded-lg hover:bg-white/10 shrink-0">
               <RefreshCw className={cn("w-4 h-4", isLoading && "animate-spin")} />
             </button>
           </div>
@@ -1283,7 +1283,7 @@ export default function LearnPage() {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
+          <h1 className="text-xl sm:text-2xl font-bold flex items-center gap-2">
             <GraduationCap className="w-6 h-6 text-primary" />
             {t("learn_title")}
             <HelpGuide

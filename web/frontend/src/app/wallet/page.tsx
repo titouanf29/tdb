@@ -708,7 +708,7 @@ export default function WalletPage() {
                 <Wallet className="w-5 h-5 text-primary" />
               </div>
               <div>
-                <h1 className="text-2xl font-bold tracking-tight">{t("wallet_title")}</h1>
+                <h1 className="text-xl sm:text-2xl font-bold tracking-tight">{t("wallet_title")}</h1>
                 <p className="text-muted-foreground text-sm">{t("wallet_subtitle")}</p>
               </div>
             </div>
@@ -843,7 +843,7 @@ export default function WalletPage() {
 
         {/* ── Tabs ──────────────────────────────────────────────────────── */}
         <motion.div variants={itemVariants}>
-          <div className="flex gap-1 p-1 rounded-xl bg-white/[0.03] border border-white/8 w-fit">
+          <div className="flex gap-1 p-1 rounded-xl bg-white/[0.03] border border-white/8 w-full sm:w-fit overflow-x-auto no-scrollbar">
             {[
               { id: "open" as const, label: `${t("wallet_open_pos")} (${positions.length})`, icon: Activity },
               { id: "closed" as const, label: `${t("wallet_history")} (${history.length})`, icon: History },

@@ -138,7 +138,7 @@ export default function TradingPage() {
     >
       {/* Header */}
       <div className="text-center relative">
-        <h1 className="text-2xl font-bold inline-flex items-center gap-2">
+        <h1 className="text-xl sm:text-2xl font-bold inline-flex items-center gap-2">
           {t("trade_title")}
           <HelpGuide
             title={t("trade_help_title")}
@@ -274,7 +274,7 @@ export default function TradingPage() {
               min={10}
               step={100}
             />
-            <div className="flex gap-2 mt-2">
+            <div className="flex flex-wrap gap-2 mt-2">
               {[100, 500, 1000, 2500].map((val) => (
                 <button
                   key={val}

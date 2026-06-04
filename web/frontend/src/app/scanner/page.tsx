@@ -240,7 +240,7 @@ export default function ScannerPage() {
                 <ScanLine className="w-5 h-5 text-primary" />
               </div>
               <div>
-                <h1 className="text-2xl font-bold tracking-tight">{t("scanner_title")}</h1>
+                <h1 className="text-xl sm:text-2xl font-bold tracking-tight">{t("scanner_title")}</h1>
                 <p className="text-muted-foreground text-sm">
                   {t("scanner_subtitle")}
                   {totalScanned > 0 && (
@@ -451,8 +451,8 @@ export default function ScannerPage() {
           <div className="border-t border-white/5" />
 
           {/* Score slider + search */}
-          <div className="flex items-center gap-4 flex-wrap">
-            <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium w-20 shrink-0">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium shrink-0">
               <Activity className="w-3.5 h-3.5" />
               Score min
             </div>
@@ -460,7 +460,7 @@ export default function ScannerPage() {
               <input
                 type="range" min="0" max="100" value={minScore}
                 onChange={(e) => setMinScore(Number(e.target.value))}
-                className="w-32 accent-primary"
+                className="flex-1 sm:w-32 accent-primary"
               />
               <span className={cn(
                 "text-sm font-bold w-8 tabular-nums",
@@ -469,14 +469,14 @@ export default function ScannerPage() {
                 {minScore}
               </span>
             </div>
-            <div className="relative ml-auto">
+            <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
               <input
                 type="text"
                 placeholder={t("search") + "…"}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="bg-white/5 border border-white/10 rounded-lg pl-8 pr-3 py-1.5 text-sm w-44 focus:outline-none focus:border-primary/40 focus:bg-white/8 transition-all placeholder:text-muted-foreground/60"
+                className="bg-white/5 border border-white/10 rounded-lg pl-8 pr-3 py-1.5 text-sm w-full sm:w-44 focus:outline-none focus:border-primary/40 focus:bg-white/8 transition-all placeholder:text-muted-foreground/60"
               />
             </div>
           </div>
@@ -710,8 +710,8 @@ export default function ScannerPage() {
                         </div>
                       </div>
 
-                      {/* Hover actions */}
-                      <div className="flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                      {/* Actions */}
+                      <div className="flex gap-1.5 opacity-60 sm:opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
                         <motion.button
                           whileHover={{ scale: 1.05 }}
                           whileTap={{ scale: 0.95 }}

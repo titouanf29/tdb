@@ -1092,13 +1092,13 @@ export default function PortfolioPage() {
   const isGlobalProfit = totalPnl >= 0;
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      <div className="max-w-6xl mx-auto px-4 py-8 space-y-8">
+    <div>
+      <div className="max-w-6xl mx-auto space-y-6">
 
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold flex items-center gap-2">
+            <h1 className="text-xl sm:text-2xl font-bold flex items-center gap-2">
               <Briefcase className="w-6 h-6 text-primary" />
               {t("portfolio_real_title")}
             </h1>

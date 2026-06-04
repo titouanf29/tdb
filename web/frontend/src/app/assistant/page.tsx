@@ -226,7 +226,7 @@ export default function AssistantPage() {
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="h-[calc(100vh-8rem)] flex flex-col"
+      className="h-[calc(100dvh-8rem)] min-h-0 flex flex-col"
     >
       {/* Header */}
       <div className="glass-card p-4 mb-4">
@@ -245,7 +245,7 @@ export default function AssistantPage() {
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
             <HelpGuide
               size="sm"
               title={lang === "en" ? "AI Assistant" : "Assistant IA"}
@@ -268,7 +268,7 @@ export default function AssistantPage() {
             {/* Message limit indicator */}
             {limitStatus && (
               <div className={cn(
-                "flex items-center gap-2 px-3 py-1.5 rounded-full text-xs",
+                "flex items-center gap-1.5 px-2 sm:px-3 py-1.5 rounded-full text-xs whitespace-nowrap",
                 limitStatus.is_premium
                   ? "bg-yellow-500/20 text-yellow-400 border border-yellow-500/30"
                   : limitStatus.remaining > 3
@@ -314,16 +314,18 @@ export default function AssistantPage() {
       {/* Limit reached warning */}
       {limitStatus && !limitStatus.is_premium && limitStatus.remaining === 0 && (
         <div className="glass-card p-4 mb-4 bg-loss/10 border border-loss/30">
-          <div className="flex items-center gap-3">
-            <AlertTriangle className="w-6 h-6 text-loss shrink-0" />
-            <div className="flex-1">
-              <p className="font-semibold text-loss">{t("assistant_limit_title")}</p>
-              <p className="text-sm text-muted-foreground">
-                {t("assistant_limit_msg")}
-              </p>
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+            <div className="flex items-start gap-3 flex-1">
+              <AlertTriangle className="w-6 h-6 text-loss shrink-0 mt-0.5" />
+              <div>
+                <p className="font-semibold text-loss">{t("assistant_limit_title")}</p>
+                <p className="text-sm text-muted-foreground">
+                  {t("assistant_limit_msg")}
+                </p>
+              </div>
             </div>
             <Link href="/premium">
-              <button className="btn-primary flex items-center gap-2 whitespace-nowrap">
+              <button className="btn-primary flex items-center gap-2 whitespace-nowrap w-full sm:w-auto justify-center">
                 <Crown className="w-4 h-4" />
                 {t("assistant_go_premium")}
               </button>
@@ -396,7 +398,7 @@ export default function AssistantPage() {
             </div>
             <div
               className={cn(
-                "max-w-[80%] p-4 rounded-2xl",
+                "max-w-[85%] sm:max-w-[80%] p-3 sm:p-4 rounded-2xl",
                 message.role === "user"
                   ? "bg-primary text-white rounded-br-none"
                   : "glass-card rounded-bl-none"

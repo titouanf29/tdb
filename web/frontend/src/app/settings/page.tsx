@@ -49,7 +49,7 @@ export default function SettingsPage() {
       className="max-w-4xl mx-auto space-y-6"
     >
       <div>
-        <h1 className="text-2xl font-bold flex items-center gap-2">
+        <h1 className="text-xl sm:text-2xl font-bold flex items-center gap-2">
           <Settings className="w-6 h-6" />
           {t("settings_title")}
         </h1>
@@ -93,7 +93,7 @@ export default function SettingsPage() {
         </div>
 
         {/* Content — animated on tab switch */}
-        <div className="flex-1 glass-card-hover p-6 overflow-hidden">
+        <div className="flex-1 glass-card-hover p-4 sm:p-6 overflow-hidden min-w-0">
           <AnimatePresence mode="wait" initial={false}>
             <motion.div
               key={activeTab}
