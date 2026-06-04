@@ -2,6 +2,31 @@
 @tailwind components;
 @tailwind utilities;
 
+/*
+ * Fluid base font-size — scales with viewport so text is comfortable on every screen.
+ * All Tailwind rem utilities (text, spacing) scale proportionally.
+ *   < 1024px  → 16px   (mobile / tablet — unchanged)
+ *   1024–1280 → 16.5px (small laptop)
+ *   1280–1440 → 17px   (HD laptop / standard monitor)
+ *   1440–1920 → 17.5px (large monitor)
+ *   1920px+   → 18px   (2K / 4K)
+ */
+html {
+  font-size: 16px;
+}
+@media (min-width: 1024px) {
+  html { font-size: 16.5px; }
+}
+@media (min-width: 1280px) {
+  html { font-size: 17px; }
+}
+@media (min-width: 1440px) {
+  html { font-size: 17.5px; }
+}
+@media (min-width: 1920px) {
+  html { font-size: 18px; }
+}
+
 @layer base {
   :root {
     --background: 225 55% 3.5%;
