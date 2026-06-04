@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import "flag-icons/css/flag-icons.min.css";
-import "driver.js/dist/driver.css";
 import { AuthProvider } from "@/lib/AuthContext";
 import { SettingsProvider } from "@/lib/SettingsContext";
 import { PremiumProvider } from "@/lib/PremiumContext";
