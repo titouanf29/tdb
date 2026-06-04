@@ -137,7 +137,7 @@ export function Header({ onMenuToggle }: { onMenuToggle?: () => void }) {
       {/* Hamburger mobile */}
       <button
         onClick={onMenuToggle}
-        className="lg:hidden p-2 rounded-lg hover:bg-white/5 transition-colors flex-shrink-0"
+        className="lg:hidden p-2 rounded-lg hover:bg-white/5 transition-colors flex-shrink-0 min-h-[44px] min-w-[44px] flex items-center justify-center"
       >
         <Menu className="w-5 h-5 text-muted-foreground" />
       </button>
@@ -227,7 +227,7 @@ export function Header({ onMenuToggle }: { onMenuToggle?: () => void }) {
                   else loadUserNotifications();
                 }
               }}
-              className="relative p-2 rounded-lg hover:bg-white/5 transition-colors"
+              className="relative p-2 rounded-lg hover:bg-white/5 transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
             >
               <Bell className="w-5 h-5 text-muted-foreground" />
               {unreadCount > 0 && (
@@ -312,7 +312,7 @@ export function Header({ onMenuToggle }: { onMenuToggle?: () => void }) {
         <div className="relative">
           <button
             onClick={() => setShowProfile(!showProfile)}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-lg hover:bg-white/5 transition-colors"
+            className="flex items-center gap-2 px-2 sm:px-3 py-1.5 rounded-lg hover:bg-white/5 transition-colors min-h-[44px]"
           >
             <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-purple-500 flex items-center justify-center">
               <span className="text-white text-sm font-bold">

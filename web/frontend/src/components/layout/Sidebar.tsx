@@ -108,7 +108,8 @@ export function Sidebar({
       className={`h-screen flex flex-col
         fixed lg:relative z-50 lg:z-auto
         ${mobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}
-        transition-transform lg:transition-none duration-300`}
+        transition-transform lg:transition-none duration-300
+        overflow-x-hidden`}
       style={{
         background: "linear-gradient(180deg, hsl(220 50% 5.5%) 0%, hsl(220 45% 4.5%) 100%)",
         borderRight: "1px solid rgba(99,140,255,0.12)",
@@ -141,7 +142,7 @@ export function Sidebar({
         {mobileOpen && onMobileClose && (
           <button
             onClick={onMobileClose}
-            className="ml-auto lg:hidden p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors flex-shrink-0"
+            className="ml-auto lg:hidden p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors flex-shrink-0 min-h-[44px] min-w-[44px] flex items-center justify-center"
           >
             <X className="w-5 h-5" />
           </button>
@@ -182,7 +183,7 @@ export function Sidebar({
                       whileHover={{ x: 4 }}
                       whileTap={{ scale: 0.98 }}
                       className={cn(
-                        "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group relative",
+                        "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group relative min-h-[44px]",
                         isActive
                           ? "text-white"
                           : "text-muted-foreground hover:text-foreground"

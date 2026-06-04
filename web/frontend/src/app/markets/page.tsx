@@ -278,10 +278,10 @@ export default function MarketsPage() {
         {/* ── Header ──────────────────────────────────────────────────────── */}
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <div>
-            <h1 className="text-2xl font-bold">{t("markets_title")}</h1>
+            <h1 className="text-xl sm:text-2xl font-bold">{t("markets_title")}</h1>
             <p className="text-sm text-muted-foreground">{t("markets_subtitle")}</p>
           </div>
-          <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-2 flex-wrap overflow-x-auto no-scrollbar">
             {/* Currency toggle */}
             <div className="flex items-center rounded-xl bg-white/5 border border-white/8 p-0.5 text-xs">
               {(["EUR", "USD"] as const).map(c => (

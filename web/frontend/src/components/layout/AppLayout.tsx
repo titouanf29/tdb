@@ -186,7 +186,7 @@ function AuthShell({
   }
 
   return (
-    <div className="flex h-screen overflow-hidden">
+    <div className="flex h-screen overflow-hidden overflow-x-hidden">
       {/* Onboarding modal (level selection + welcome step) */}
       <AnimatePresence>
         {showOnboarding && (
@@ -216,7 +216,7 @@ function AuthShell({
 
       <div className="flex flex-col flex-1 overflow-hidden">
         <Header onMenuToggle={() => setMobileMenuOpen(!mobileMenuOpen)} />
-        <main className="flex-1 overflow-auto p-4 md:p-6">
+        <main className="flex-1 overflow-auto overflow-x-hidden p-4 md:p-6">
           <BroadcastBanner />
           <ChangelogBanner />
           {children}

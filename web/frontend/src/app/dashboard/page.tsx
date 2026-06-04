@@ -266,7 +266,7 @@ export default function DashboardPage() {
                 <h3 className="font-semibold">{t("dash_premium_title")}</h3>
                 <span className="text-xs text-muted-foreground ml-auto">{t("dash_premium_hint")}</span>
               </div>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                 {(["sessions", "opportunities", "trending", "stats", "positions"] as WidgetId[]).map((id) => {
                   const isActive = activeWidgets.includes(id);
                   const idx      = activeWidgets.indexOf(id);
@@ -899,7 +899,7 @@ const TradingStatsWidget = memo(function TradingStatsWidget({
           {t("dash_view_wallet")}
         </Link>
       </div>
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
         {[
           { label: t("wallet_winrate"),      value: `${stats?.win_rate || 0}%`,            color: (stats?.win_rate || 0) >= 50 ? "text-profit" : "text-loss" },
           { label: t("wallet_total_trades"), value: String(stats?.total_trades || 0),       color: "text-foreground" },

@@ -64,7 +64,7 @@ import { useLanguage } from "@/lib/LanguageContext";
 import dynamic from "next/dynamic";
 const PremiumChart = dynamic(() => import("@/components/PremiumChart"), {
   ssr: false,
-  loading: () => <div className="h-[420px] bg-card/30 animate-pulse rounded-xl" />,
+  loading: () => <div className="h-[300px] sm:h-[420px] bg-card/30 animate-pulse rounded-xl" />,
 });
 import { TopLoadingBar } from "@/components/ui/TopLoadingBar";
 import { HelpGuide } from "@/components/ui/HelpGuide";
@@ -715,7 +715,7 @@ export default function AnalysisPage() {
             {t("analysis_session_desc")}
           </p>
         </div>
-        <div className="flex flex-col md:flex-row gap-3">
+        <div className="flex flex-col gap-3">
           <div className="flex-1 relative" ref={searchContainerRef}>
             {isSearching
               ? <Loader2 className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground animate-spin" />
@@ -1140,7 +1140,7 @@ export default function AnalysisPage() {
                 </span>
               )}
             </h3>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 items-start">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 items-start">
               <div data-module-id="rsi-panel">
               <IndicatorCard
                 name="RSI (14)"
