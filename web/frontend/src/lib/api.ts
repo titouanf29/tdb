@@ -1354,6 +1354,30 @@ export const premiumAPI = {
   // Admin: Get premium users
   getPremiumUsers: () =>
     fetchAPI<{ users: PremiumUser[] }>("/api/premium/admin/users"),
+
+  // User: get messages for own request
+  getMessages: (requestId: number) =>
+    fetchAPI<{ messages: PremiumMessage[] }>(`/api/premium/requests/${requestId}/messages`),
+
+  // User: send follow-up message
+  sendMessage: (requestId: number, message: string) =>
+    fetchAPI<{ success: boolean }>(`/api/premium/requests/${requestId}/messages`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message }),
+    }),
+
+  // Admin: get messages for any request
+  adminGetMessages: (requestId: number) =>
+    fetchAPI<{ messages: PremiumMessage[]; request: PremiumRequest }>(`/api/premium/admin/requests/${requestId}/messages`),
+
+  // Admin: send message in thread
+  adminSendMessage: (requestId: number, message: string) =>
+    fetchAPI<{ success: boolean }>(`/api/premium/admin/requests/${requestId}/messages`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message }),
+    }),
 };
 
 // Premium Types
@@ -1404,6 +1428,18 @@ export interface PremiumRequest {
   processed_at?: string;
   email?: string;
   username?: string;
+}
+
+export interface PremiumMessage {
+  id: number;
+  request_id: number;
+  sender_id: number;
+  sender_type: "user" | "admin";
+  message: string;
+  created_at: string;
+  is_read: number;
+  username?: string;
+  is_admin?: number;
 }
 
 export interface PremiumRequestsResponse {

@@ -34,6 +34,10 @@ class PremiumRequestAction(BaseModel):
     response: Optional[str] = None
 
 
+class PremiumMessageRequest(BaseModel):
+    message: str
+
+
 # ============== PREMIUM FEATURES ==============
 
 # Define what's available for free vs premium users
@@ -381,10 +385,22 @@ async def contact_for_premium(
         )
 
     # Create request
+    now = datetime.now(timezone.utc).isoformat()
     await execute_write("""
         INSERT INTO premium_requests (user_id, message, status, created_at)
         VALUES (?, ?, 'pending', ?)
-    """, (current_user["id"], request.message, datetime.now(timezone.utc).isoformat()))
+    """, (current_user["id"], request.message, now))
+
+    # Get the new request ID then seed the thread with the first message
+    new_req = await execute_query(
+        "SELECT id FROM premium_requests WHERE user_id = ? ORDER BY created_at DESC LIMIT 1",
+        (current_user["id"],)
+    )
+    if new_req:
+        await execute_write("""
+            INSERT INTO premium_request_messages (request_id, sender_id, sender_type, message, created_at)
+            VALUES (?, ?, 'user', ?, ?)
+        """, (new_req[0]["id"], current_user["id"], request.message, now))
 
     await create_admin_notification(
         type="premium_request",
@@ -554,3 +570,122 @@ async def get_premium_users(admin: dict = Depends(get_admin_user)):
     """)
 
     return {"users": users or []}
+
+
+# ============== MESSAGING THREAD ==============
+
+async def _get_request_for_user(request_id: int, user_id: int):
+    """Helper: get a premium request ensuring it belongs to this user."""
+    req = await execute_query(
+        "SELECT * FROM premium_requests WHERE id = ? AND user_id = ?",
+        (request_id, user_id)
+    )
+    if not req:
+        raise HTTPException(status_code=404, detail="Request not found")
+    return req[0]
+
+
+async def _get_request_messages(request_id: int):
+    """Return all messages for a request with sender info."""
+    msgs = await execute_query("""
+        SELECT m.*, u.username, u.is_admin
+        FROM premium_request_messages m
+        LEFT JOIN web_users u ON m.sender_id = u.id
+        WHERE m.request_id = ?
+        ORDER BY m.created_at ASC
+    """, (request_id,))
+    return msgs or []
+
+
+@router.get("/requests/{request_id}/messages")
+async def get_request_messages(
+    request_id: int,
+    current_user: dict = Depends(get_current_user)
+):
+    """Get the conversation thread for a premium request (user view)."""
+    await _get_request_for_user(request_id, current_user["id"])
+    messages = await _get_request_messages(request_id)
+    # Mark admin messages as read
+    await execute_write("""
+        UPDATE premium_request_messages
+        SET is_read = 1
+        WHERE request_id = ? AND sender_type = 'admin' AND is_read = 0
+    """, (request_id,))
+    return {"messages": messages}
+
+
+@router.post("/requests/{request_id}/messages")
+async def send_user_message(
+    request_id: int,
+    body: PremiumMessageRequest,
+    current_user: dict = Depends(get_current_user)
+):
+    """User sends a follow-up message in their premium request thread."""
+    await _get_request_for_user(request_id, current_user["id"])
+    if not body.message.strip():
+        raise HTTPException(status_code=400, detail="Message cannot be empty")
+
+    await execute_write("""
+        INSERT INTO premium_request_messages (request_id, sender_id, sender_type, message, created_at)
+        VALUES (?, ?, 'user', ?, ?)
+    """, (request_id, current_user["id"], body.message.strip(), datetime.now(timezone.utc).isoformat()))
+
+    await create_admin_notification(
+        type="premium_message",
+        title="Nouveau message premium",
+        message=f"{current_user.get('username', current_user['email'])} a repondu a sa demande Premium #{request_id}",
+        link="/admin?tab=premium"
+    )
+    return {"success": True}
+
+
+@router.get("/admin/requests/{request_id}/messages")
+async def admin_get_request_messages(
+    request_id: int,
+    admin: dict = Depends(get_admin_user)
+):
+    """Admin gets the full conversation thread for a premium request."""
+    req = await execute_query("SELECT * FROM premium_requests WHERE id = ?", (request_id,))
+    if not req:
+        raise HTTPException(status_code=404, detail="Request not found")
+    messages = await _get_request_messages(request_id)
+    # Mark user messages as read by admin
+    await execute_write("""
+        UPDATE premium_request_messages
+        SET is_read = 1
+        WHERE request_id = ? AND sender_type = 'user' AND is_read = 0
+    """, (request_id,))
+    return {"messages": messages, "request": req[0]}
+
+
+@router.post("/admin/requests/{request_id}/messages")
+async def admin_send_message(
+    request_id: int,
+    body: PremiumMessageRequest,
+    admin: dict = Depends(get_admin_user)
+):
+    """Admin sends a message in a premium request thread."""
+    req = await execute_query(
+        "SELECT * FROM premium_requests WHERE id = ?", (request_id,)
+    )
+    if not req:
+        raise HTTPException(status_code=404, detail="Request not found")
+    if not body.message.strip():
+        raise HTTPException(status_code=400, detail="Message cannot be empty")
+
+    await execute_write("""
+        INSERT INTO premium_request_messages (request_id, sender_id, sender_type, message, created_at)
+        VALUES (?, ?, 'admin', ?, ?)
+    """, (request_id, admin["id"], body.message.strip(), datetime.now(timezone.utc).isoformat()))
+
+    return {"success": True}
+
+
+@router.get("/admin/requests/{request_id}/unread")
+async def get_unread_count(request_id: int, admin: dict = Depends(get_admin_user)):
+    """Get count of unread user messages for a request."""
+    result = await execute_query("""
+        SELECT COUNT(*) as count FROM premium_request_messages
+        WHERE request_id = ? AND sender_type = 'user' AND is_read = 0
+    """, (request_id,))
+    return {"unread": result[0]["count"] if result else 0}

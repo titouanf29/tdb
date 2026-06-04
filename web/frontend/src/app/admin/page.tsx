@@ -19,6 +19,7 @@ import {
   AlertTriangle,
   CheckCircle,
   XCircle,
+  X,
   Ban,
   UserCheck,
   Trash2,
@@ -59,6 +60,7 @@ import {
   AdminBroadcast,
   PremiumRequest,
   PremiumUser,
+  PremiumMessage,
   AdminTicket,
   AdminTicketDetail,
 } from "@/lib/api";
@@ -2211,7 +2213,7 @@ function PremiumTab() {
   const [showGrantModal, setShowGrantModal] = useState(false);
   const [grantUserId, setGrantUserId] = useState<number | null>(null);
   const [grantDays, setGrantDays] = useState<string>("");
-  const [response, setResponse] = useState("");
+  const [openConv, setOpenConv] = useState<PremiumRequest | null>(null);
 
   const loadData = async () => {
     setIsLoading(true);
@@ -2229,21 +2231,19 @@ function PremiumTab() {
     }
   };
 
-  useEffect(() => {
-    loadData();
-  }, [status]);
+  useEffect(() => { loadData(); }, [status]);
 
   const processRequest = async (requestId: number, newStatus: string) => {
     setActionLoading(requestId);
     try {
-      await premiumAPI.processRequest(requestId, newStatus, response);
-      setResponse("");
+      await premiumAPI.processRequest(requestId, newStatus);
       loadData();
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setActionLoading(null);
-    }
+      // refresh open conv if it's the same one
+      if (openConv?.id === requestId) {
+        setOpenConv((prev) => prev ? { ...prev, status: newStatus } : null);
+      }
+    } catch (err) { console.error(err); }
+    finally { setActionLoading(null); }
   };
 
   const grantPremium = async () => {
@@ -2256,11 +2256,8 @@ function PremiumTab() {
       setGrantUserId(null);
       setGrantDays("");
       loadData();
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setActionLoading(null);
-    }
+    } catch (err) { console.error(err); }
+    finally { setActionLoading(null); }
   };
 
   const revokePremium = async (userId: number) => {
@@ -2269,15 +2266,28 @@ function PremiumTab() {
     try {
       await premiumAPI.grantPremium(userId, "revoke");
       loadData();
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setActionLoading(null);
-    }
+    } catch (err) { console.error(err); }
+    finally { setActionLoading(null); }
   };
 
   return (
     <div className="space-y-6">
+      {/* Conversation panel — floats over the rest when open */}
+      {openConv && (
+        <AdminConversation
+          request={openConv}
+          onClose={() => setOpenConv(null)}
+          onStatusChange={(newStatus) => {
+            processRequest(openConv.id, newStatus);
+          }}
+          onGrantPremium={(userId) => {
+            setGrantUserId(userId);
+            setShowGrantModal(true);
+          }}
+          actionLoading={actionLoading === openConv.id}
+        />
+      )}
+
       {/* Premium Users */}
       <div className="glass-card p-6">
         <div className="flex items-center justify-between mb-4">
@@ -2285,18 +2295,13 @@ function PremiumTab() {
             <Crown className="w-5 h-5 text-yellow-400" />
             Utilisateurs Premium ({premiumUsers.length})
           </h3>
-          <button
-            onClick={() => setShowGrantModal(true)}
-            className="btn-primary text-sm"
-          >
+          <button onClick={() => setShowGrantModal(true)} className="btn-primary text-sm">
             + Ajouter Premium
           </button>
         </div>
 
         {isLoading ? (
-          <div className="flex justify-center py-8">
-            <Loader2 className="w-6 h-6 animate-spin" />
-          </div>
+          <div className="flex justify-center py-8"><Loader2 className="w-6 h-6 animate-spin" /></div>
         ) : premiumUsers.length === 0 ? (
           <p className="text-muted-foreground text-center py-8">Aucun utilisateur premium</p>
         ) : (
@@ -2315,34 +2320,24 @@ function PremiumTab() {
                 {premiumUsers.map((user) => (
                   <tr key={user.id} className="border-b border-white/5 hover:bg-white/5">
                     <td className="py-3 px-2">
-                      <div>
-                        <p className="font-semibold">{user.username}</p>
-                        <p className="text-xs text-muted-foreground">{user.email}</p>
-                      </div>
+                      <p className="font-semibold">{user.username}</p>
+                      <p className="text-xs text-muted-foreground">{user.email}</p>
                     </td>
                     <td className="py-3 px-2">
                       {user.is_admin ? (
-                        <span className="px-2 py-1 rounded-full text-xs bg-purple-500/20 text-purple-400">
-                          Admin
-                        </span>
+                        <span className="px-2 py-1 rounded-full text-xs bg-purple-500/20 text-purple-400">Admin</span>
                       ) : (
-                        <span className="px-2 py-1 rounded-full text-xs bg-yellow-500/20 text-yellow-400">
-                          Premium
-                        </span>
+                        <span className="px-2 py-1 rounded-full text-xs bg-yellow-500/20 text-yellow-400">Premium</span>
                       )}
                     </td>
                     <td className="py-3 px-2 text-sm text-muted-foreground">
-                      {user.premium_since
-                        ? new Date(user.premium_since).toLocaleDateString("fr-FR")
-                        : "-"}
+                      {user.premium_since ? new Date(user.premium_since).toLocaleDateString("fr-FR") : "-"}
                     </td>
                     <td className="py-3 px-2 text-sm">
                       {user.premium_expires ? (
-                        <span className="text-warning">
-                          {new Date(user.premium_expires).toLocaleDateString("fr-FR")}
-                        </span>
+                        <span className="text-warning">{new Date(user.premium_expires).toLocaleDateString("fr-FR")}</span>
                       ) : (
-                        <span className="text-profit">A vie</span>
+                        <span className="text-profit">À vie</span>
                       )}
                     </td>
                     <td className="py-3 px-2 text-right">
@@ -2352,11 +2347,7 @@ function PremiumTab() {
                           disabled={actionLoading === user.id}
                           className="p-1.5 rounded-lg bg-loss/20 text-loss hover:bg-loss/30"
                         >
-                          {actionLoading === user.id ? (
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                          ) : (
-                            <XCircle className="w-4 h-4" />
-                          )}
+                          {actionLoading === user.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <XCircle className="w-4 h-4" />}
                         </button>
                       )}
                     </td>
@@ -2368,88 +2359,76 @@ function PremiumTab() {
         )}
       </div>
 
-      {/* Premium Requests */}
+      {/* Premium Requests — messaging inbox */}
       <div className="glass-card p-6">
         <h3 className="font-semibold mb-4 flex items-center gap-2">
           <MessageSquare className="w-5 h-5 text-primary" />
           Demandes Premium
         </h3>
 
-        {/* Filters */}
-        <div className="flex gap-2 mb-4">
+        <div className="flex flex-wrap gap-2 mb-4">
           {["all", "pending", "approved", "rejected"].map((s) => (
             <button
               key={s}
               onClick={() => setStatus(s)}
               className={cn(
-                "px-3 py-1.5 rounded-lg text-sm capitalize",
+                "px-3 py-1.5 rounded-lg text-sm",
                 status === s ? "bg-primary text-white" : "bg-white/5 hover:bg-white/10"
               )}
             >
-              {s === "all" ? "Toutes" : s === "pending" ? "En attente" : s === "approved" ? "Approuvees" : "Rejetees"}
+              {s === "all" ? "Toutes" : s === "pending" ? "⏳ En attente" : s === "approved" ? "✓ Approuvées" : "✗ Rejetées"}
             </button>
           ))}
         </div>
 
-        {requests.length === 0 ? (
+        {isLoading ? (
+          <div className="flex justify-center py-8"><Loader2 className="w-6 h-6 animate-spin" /></div>
+        ) : requests.length === 0 ? (
           <p className="text-muted-foreground text-center py-8">Aucune demande</p>
         ) : (
-          <div className="space-y-3">
+          <div className="space-y-2">
             {requests.map((req) => (
-              <div key={req.id} className="p-4 bg-white/5 rounded-lg">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="font-semibold">{req.username || req.email}</span>
-                      <span
-                        className={cn(
-                          "px-2 py-0.5 rounded text-xs",
-                          req.status === "pending"
-                            ? "bg-warning/20 text-warning"
-                            : req.status === "approved"
-                            ? "bg-profit/20 text-profit"
-                            : "bg-loss/20 text-loss"
-                        )}
-                      >
-                        {req.status === "pending" ? "En attente" : req.status === "approved" ? "Approuve" : "Rejete"}
-                      </span>
-                    </div>
-                    <p className="text-sm p-2 bg-white/5 rounded">{req.message}</p>
-                    <p className="text-xs text-muted-foreground mt-2">
-                      {new Date(req.created_at).toLocaleString("fr-FR")}
-                    </p>
-                  </div>
-
-                  {req.status === "pending" && (
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => {
-                          setGrantUserId(req.user_id);
-                          setShowGrantModal(true);
-                          processRequest(req.id, "approved");
-                        }}
-                        disabled={actionLoading === req.id}
-                        className="p-2 rounded-lg bg-profit/20 text-profit hover:bg-profit/30"
-                        title="Approuver et accorder Premium"
-                      >
-                        {actionLoading === req.id ? (
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                        ) : (
-                          <CheckCircle className="w-4 h-4" />
-                        )}
-                      </button>
-                      <button
-                        onClick={() => processRequest(req.id, "rejected")}
-                        disabled={actionLoading === req.id}
-                        className="p-2 rounded-lg bg-loss/20 text-loss hover:bg-loss/30"
-                        title="Rejeter"
-                      >
-                        <XCircle className="w-4 h-4" />
-                      </button>
-                    </div>
-                  )}
+              <button
+                key={req.id}
+                onClick={() => setOpenConv(openConv?.id === req.id ? null : req)}
+                className={cn(
+                  "w-full flex items-center gap-3 p-4 rounded-xl border text-left transition-all hover:bg-white/5",
+                  openConv?.id === req.id
+                    ? "border-primary/40 bg-primary/5"
+                    : req.status === "pending"
+                    ? "border-yellow-500/20 bg-yellow-500/[0.03]"
+                    : "border-white/8 bg-white/[0.02]"
+                )}
+              >
+                {/* Avatar */}
+                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary/30 to-purple-500/20 flex items-center justify-center font-bold text-sm shrink-0">
+                  {(req.username || req.email || "?")[0].toUpperCase()}
                 </div>
-              </div>
+
+                {/* Content */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-0.5">
+                    <span className="font-semibold text-sm">{req.username || req.email}</span>
+                    <span className={cn(
+                      "text-[10px] px-2 py-0.5 rounded-full font-semibold",
+                      req.status === "pending" ? "bg-yellow-500/15 text-yellow-400"
+                        : req.status === "approved" ? "bg-green-500/15 text-green-400"
+                        : "bg-red-500/15 text-red-400"
+                    )}>
+                      {req.status === "pending" ? "En attente" : req.status === "approved" ? "Approuvé" : "Rejeté"}
+                    </span>
+                  </div>
+                  <p className="text-xs text-muted-foreground truncate">{req.message}</p>
+                </div>
+
+                {/* Date + action */}
+                <div className="flex flex-col items-end gap-1 shrink-0">
+                  <span className="text-xs text-muted-foreground">
+                    {new Date(req.created_at).toLocaleDateString("fr-FR")}
+                  </span>
+                  <MessageSquare className="w-3.5 h-3.5 text-primary/50" />
+                </div>
+              </button>
             ))}
           </div>
         )}
@@ -2467,7 +2446,6 @@ function PremiumTab() {
               <Crown className="w-5 h-5 text-yellow-400" />
               Accorder Premium
             </h3>
-
             <div className="space-y-4">
               <div>
                 <label className="block text-sm text-muted-foreground mb-2">ID Utilisateur</label>
@@ -2479,26 +2457,20 @@ function PremiumTab() {
                   placeholder="ID de l'utilisateur"
                 />
               </div>
-
               <div>
-                <label className="block text-sm text-muted-foreground mb-2">Duree (jours)</label>
+                <label className="block text-sm text-muted-foreground mb-2">Durée (jours)</label>
                 <input
                   type="number"
                   value={grantDays}
                   onChange={(e) => setGrantDays(e.target.value)}
                   className="w-full px-4 py-2 rounded-lg bg-white/5 border border-white/10"
-                  placeholder="Vide = a vie"
+                  placeholder="Vide = à vie"
                 />
-                <p className="text-xs text-muted-foreground mt-1">Laissez vide pour un acces a vie</p>
+                <p className="text-xs text-muted-foreground mt-1">Laissez vide pour un accès à vie</p>
               </div>
-
               <div className="flex gap-2">
                 <button
-                  onClick={() => {
-                    setShowGrantModal(false);
-                    setGrantUserId(null);
-                    setGrantDays("");
-                  }}
+                  onClick={() => { setShowGrantModal(false); setGrantUserId(null); setGrantDays(""); }}
                   className="flex-1 px-4 py-2 rounded-lg bg-white/5 hover:bg-white/10"
                 >
                   Annuler
@@ -2508,20 +2480,197 @@ function PremiumTab() {
                   disabled={!grantUserId || actionLoading !== null}
                   className="flex-1 btn-primary flex items-center justify-center gap-2"
                 >
-                  {actionLoading ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <>
-                      <Crown className="w-4 h-4" />
-                      Accorder
-                    </>
-                  )}
+                  {actionLoading !== null ? <Loader2 className="w-4 h-4 animate-spin" /> : <Crown className="w-4 h-4" />}
+                  Accorder
                 </button>
               </div>
             </div>
           </motion.div>
         </div>
       )}
+    </div>
+  );
+}
+
+// ── Admin conversation panel ──────────────────────────────────────────────────
+function AdminConversation({
+  request,
+  onClose,
+  onStatusChange,
+  onGrantPremium,
+  actionLoading,
+}: {
+  request: PremiumRequest;
+  onClose: () => void;
+  onStatusChange: (status: string) => void;
+  onGrantPremium: (userId: number) => void;
+  actionLoading: boolean;
+}) {
+  const [messages, setMessages] = useState<PremiumMessage[]>([]);
+  const [loadingMsgs, setLoadingMsgs] = useState(true);
+  const [reply, setReply] = useState("");
+  const [sending, setSending] = useState(false);
+  const bottomRef = React.useRef<HTMLDivElement>(null);
+
+  const loadMessages = async () => {
+    try {
+      const d = await premiumAPI.adminGetMessages(request.id);
+      setMessages(d.messages);
+    } catch (e) { console.error(e); }
+    finally { setLoadingMsgs(false); }
+  };
+
+  useEffect(() => { loadMessages(); }, [request.id]);
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  const sendReply = async () => {
+    if (!reply.trim()) return;
+    setSending(true);
+    try {
+      await premiumAPI.adminSendMessage(request.id, reply.trim());
+      setReply("");
+      await loadMessages();
+    } catch (e) { console.error(e); }
+    finally { setSending(false); }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+      <motion.div
+        initial={{ opacity: 0, y: 40, scale: 0.97 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        exit={{ opacity: 0, y: 40, scale: 0.97 }}
+        className="w-full max-w-2xl bg-[#0d1117] border border-white/10 rounded-2xl flex flex-col overflow-hidden"
+        style={{ maxHeight: "85vh" }}
+      >
+        {/* Header */}
+        <div className="flex items-center gap-3 px-5 py-4 border-b border-white/8 bg-white/[0.02] shrink-0">
+          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary/30 to-purple-500/20 flex items-center justify-center font-bold text-sm shrink-0">
+            {(request.username || request.email || "?")[0].toUpperCase()}
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="font-semibold text-sm">{request.username || request.email}</p>
+            <p className="text-xs text-muted-foreground truncate">{request.message.slice(0, 60)}{request.message.length > 60 ? "…" : ""}</p>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <span className={cn(
+              "text-xs px-2.5 py-1 rounded-full font-semibold",
+              request.status === "pending" ? "bg-yellow-500/15 text-yellow-400"
+                : request.status === "approved" ? "bg-green-500/15 text-green-400"
+                : "bg-red-500/15 text-red-400"
+            )}>
+              {request.status === "pending" ? "En attente" : request.status === "approved" ? "Approuvé" : "Rejeté"}
+            </span>
+            <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-white/10 text-muted-foreground transition-colors">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+
+        {/* Messages */}
+        <div className="flex-1 overflow-y-auto p-4 space-y-3">
+          {loadingMsgs ? (
+            <div className="flex justify-center py-8"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></div>
+          ) : messages.length === 0 ? (
+            <p className="text-xs text-muted-foreground text-center py-6">Aucun message dans ce thread.</p>
+          ) : (
+            messages.map((msg) => {
+              const isAdmin = msg.sender_type === "admin";
+              return (
+                <div key={msg.id} className={cn("flex gap-2.5", isAdmin ? "flex-row-reverse" : "flex-row")}>
+                  <div className={cn(
+                    "w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0",
+                    isAdmin ? "bg-primary/20 text-primary" : "bg-white/10 text-white"
+                  )}>
+                    {isAdmin ? "M" : (request.username || "U")[0].toUpperCase()}
+                  </div>
+                  <div className={cn(
+                    "max-w-[78%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed",
+                    isAdmin
+                      ? "bg-primary/15 border border-primary/20 rounded-tr-sm"
+                      : "bg-white/[0.06] border border-white/8 rounded-tl-sm"
+                  )}>
+                    {!isAdmin && (
+                      <p className="text-[10px] font-semibold text-white/50 mb-1 uppercase tracking-wide">
+                        {request.username || request.email}
+                      </p>
+                    )}
+                    {isAdmin && (
+                      <p className="text-[10px] font-semibold text-primary/60 mb-1 uppercase tracking-wide">
+                        Vous (Admin)
+                      </p>
+                    )}
+                    <p className="whitespace-pre-wrap">{msg.message}</p>
+                    <p className={cn("text-[10px] mt-1.5", isAdmin ? "text-primary/40 text-right" : "text-white/30")}>
+                      {new Date(msg.created_at).toLocaleString("fr-FR", {
+                        day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit",
+                      })}
+                    </p>
+                  </div>
+                </div>
+              );
+            })
+          )}
+          <div ref={bottomRef} />
+        </div>
+
+        {/* Action buttons + reply input */}
+        <div className="border-t border-white/8 p-4 space-y-3 shrink-0 bg-white/[0.02]">
+          {/* Status actions */}
+          {request.status === "pending" && (
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={() => { onStatusChange("approved"); onGrantPremium(request.user_id); }}
+                disabled={actionLoading}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-green-500/15 border border-green-500/25 text-green-400 text-xs font-semibold hover:bg-green-500/25 transition-all disabled:opacity-50"
+              >
+                {actionLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle className="w-3.5 h-3.5" />}
+                Approuver
+              </button>
+              <button
+                onClick={() => onStatusChange("rejected")}
+                disabled={actionLoading}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-red-500/15 border border-red-500/25 text-red-400 text-xs font-semibold hover:bg-red-500/25 transition-all disabled:opacity-50"
+              >
+                <XCircle className="w-3.5 h-3.5" />
+                Rejeter
+              </button>
+              <button
+                onClick={() => onGrantPremium(request.user_id)}
+                disabled={actionLoading}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-yellow-500/15 border border-yellow-500/25 text-yellow-400 text-xs font-semibold hover:bg-yellow-500/25 transition-all disabled:opacity-50"
+              >
+                <Crown className="w-3.5 h-3.5" />
+                Activer Premium
+              </button>
+            </div>
+          )}
+
+          {/* Reply area */}
+          <div className="flex gap-2">
+            <textarea
+              value={reply}
+              onChange={(e) => setReply(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendReply(); }
+              }}
+              placeholder="Votre réponse… (Entrée pour envoyer, Maj+Entrée pour aller à la ligne)"
+              rows={2}
+              className="flex-1 px-3 py-2 rounded-xl bg-white/5 border border-white/10 focus:border-primary/50 focus:outline-none text-sm resize-none"
+            />
+            <button
+              onClick={sendReply}
+              disabled={sending || !reply.trim()}
+              className="p-3 rounded-xl bg-primary/20 border border-primary/30 text-primary hover:bg-primary/30 transition-all disabled:opacity-40 self-end"
+            >
+              {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+            </button>
+          </div>
+        </div>
+      </motion.div>
     </div>
   );
 }

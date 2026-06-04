@@ -10,7 +10,8 @@ import {
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { usePremium } from "@/lib/PremiumContext";
-import { premiumAPI, PremiumFeatures, PremiumRequest } from "@/lib/api";
+import { premiumAPI, PremiumFeatures, PremiumRequest, PremiumMessage } from "@/lib/api";
+import { useRef } from "react";
 import { useLanguage } from "@/lib/LanguageContext";
 
 const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -55,6 +56,153 @@ function FaqItem({ question, answer }: { question: string; answer: React.ReactNo
   );
 }
 
+// ── Thread chat component (user side) ─────────────────────────────────────────
+function RequestThread({
+  request,
+  onClose,
+}: {
+  request: PremiumRequest;
+  onClose: () => void;
+}) {
+  const [messages, setMessages] = useState<PremiumMessage[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [reply, setReply] = useState("");
+  const [sending, setSending] = useState(false);
+  const bottomRef = useRef<HTMLDivElement>(null);
+  const fr = true; // inherits lang from parent but simpler here
+
+  useEffect(() => {
+    premiumAPI.getMessages(request.id)
+      .then((d) => setMessages(d.messages))
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  }, [request.id]);
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  const sendReply = async () => {
+    if (!reply.trim()) return;
+    setSending(true);
+    try {
+      await premiumAPI.sendMessage(request.id, reply.trim());
+      setReply("");
+      const d = await premiumAPI.getMessages(request.id);
+      setMessages(d.messages);
+    } catch (e) { console.error(e); }
+    finally { setSending(false); }
+  };
+
+  const statusColor = request.status === "approved"
+    ? "text-green-400 bg-green-500/10 border-green-500/20"
+    : request.status === "rejected"
+    ? "text-red-400 bg-red-500/10 border-red-500/20"
+    : "text-yellow-400 bg-yellow-500/10 border-yellow-500/20";
+
+  const statusLabel = request.status === "approved" ? "Approuvé ✓"
+    : request.status === "rejected" ? "Refusé"
+    : "En attente…";
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 16 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="rounded-2xl border border-white/10 bg-white/[0.02] overflow-hidden flex flex-col"
+      style={{ maxHeight: "70vh" }}
+    >
+      {/* Thread header */}
+      <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-white/8 bg-white/[0.03]">
+        <div className="flex items-center gap-2 min-w-0">
+          <MessageSquare className="w-4 h-4 text-primary shrink-0" />
+          <span className="text-sm font-semibold truncate">
+            Demande #{request.id}
+          </span>
+          <span className={cn("text-xs px-2 py-0.5 rounded-full border shrink-0", statusColor)}>
+            {statusLabel}
+          </span>
+        </div>
+        <button onClick={onClose} className="text-muted-foreground hover:text-foreground transition-colors shrink-0">
+          <X className="w-4 h-4" />
+        </button>
+      </div>
+
+      {/* Messages */}
+      <div className="flex-1 overflow-y-auto p-4 space-y-3 min-h-[200px]">
+        {loading ? (
+          <div className="flex justify-center py-8">
+            <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+          </div>
+        ) : messages.length === 0 ? (
+          <p className="text-xs text-muted-foreground text-center py-6">
+            Aucun message pour le moment.
+          </p>
+        ) : (
+          messages.map((msg) => {
+            const isAdmin = msg.sender_type === "admin";
+            return (
+              <div
+                key={msg.id}
+                className={cn("flex gap-2.5", isAdmin ? "flex-row" : "flex-row-reverse")}
+              >
+                {/* Avatar */}
+                <div className={cn(
+                  "w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0",
+                  isAdmin ? "bg-yellow-500/20 text-yellow-400" : "bg-primary/20 text-primary"
+                )}>
+                  {isAdmin ? "A" : "U"}
+                </div>
+                {/* Bubble */}
+                <div className={cn(
+                  "max-w-[80%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed",
+                  isAdmin
+                    ? "bg-yellow-500/10 border border-yellow-500/15 text-foreground rounded-tl-sm"
+                    : "bg-primary/10 border border-primary/15 text-foreground rounded-tr-sm"
+                )}>
+                  {isAdmin && (
+                    <p className="text-[10px] font-semibold text-yellow-400/80 mb-1 uppercase tracking-wide">
+                      Admin CaptenTDB
+                    </p>
+                  )}
+                  <p className="whitespace-pre-wrap">{msg.message}</p>
+                  <p className={cn(
+                    "text-[10px] mt-1.5",
+                    isAdmin ? "text-yellow-400/40" : "text-primary/40"
+                  )}>
+                    {new Date(msg.created_at).toLocaleString("fr-FR", {
+                      day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit",
+                    })}
+                  </p>
+                </div>
+              </div>
+            );
+          })
+        )}
+        <div ref={bottomRef} />
+      </div>
+
+      {/* Reply input — always shown even if approved/rejected */}
+      <div className="border-t border-white/8 p-3 flex gap-2">
+        <input
+          type="text"
+          value={reply}
+          onChange={(e) => setReply(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && sendReply()}
+          placeholder="Votre message…"
+          className="flex-1 px-3 py-2 rounded-xl bg-white/5 border border-white/10 focus:border-primary/50 focus:outline-none text-sm min-w-0"
+        />
+        <button
+          onClick={sendReply}
+          disabled={sending || !reply.trim()}
+          className="p-2.5 rounded-xl bg-primary/15 border border-primary/25 text-primary hover:bg-primary/25 transition-all disabled:opacity-40"
+        >
+          {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+        </button>
+      </div>
+    </motion.div>
+  );
+}
+
 // ── Main page ─────────────────────────────────────────────────────────────────
 export default function PremiumPage() {
   const { isPremium, isAdmin, premiumInfo } = usePremium();
@@ -66,6 +214,7 @@ export default function PremiumPage() {
   const [sendSuccess, setSendSuccess] = useState(false);
   const [myRequests, setMyRequests] = useState<PremiumRequest[]>([]);
   const [acceptedLegal, setAcceptedLegal] = useState(false);
+  const [openThread, setOpenThread] = useState<PremiumRequest | null>(null);
   const fr = lang !== "en";
 
   useEffect(() => { loadData(); }, []);
@@ -677,53 +826,89 @@ export default function PremiumPage() {
         </div>
       </motion.div>
 
-      {/* ── My requests ───────────────────────────────────────────────────── */}
+      {/* ── My requests + thread ──────────────────────────────────────────── */}
       {myRequests.length > 0 && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
-          className="glass-card p-6"
+          className="space-y-3"
         >
-          <h2 className="text-lg font-bold mb-4">{t("prem_my_requests")}</h2>
-          <div className="space-y-3">
-            {myRequests.map((req) => (
-              <div
-                key={req.id}
-                className={cn(
-                  "p-4 rounded-xl border",
-                  req.status === "pending" ? "bg-yellow-500/8 border-yellow-500/25"
-                    : req.status === "approved" ? "bg-green-500/8 border-green-500/25"
-                    : "bg-red-500/8 border-red-500/25"
-                )}
-              >
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex-1">
-                    <p className="text-sm mb-2">{req.message}</p>
-                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                      <Clock className="w-3 h-3" />
-                      {new Date(req.created_at).toLocaleDateString(fr ? "fr-FR" : "en-US")}
+          <h2 className="text-lg font-bold flex items-center gap-2">
+            <MessageSquare className="w-5 h-5 text-primary" />
+            {fr ? "Mes discussions" : "My conversations"}
+          </h2>
+
+          {/* Request list */}
+          <div className="space-y-2">
+            {myRequests.map((req) => {
+              const isOpen = openThread?.id === req.id;
+              return (
+                <div key={req.id}>
+                  <button
+                    onClick={() => setOpenThread(isOpen ? null : req)}
+                    className={cn(
+                      "w-full flex items-center justify-between gap-3 p-4 rounded-xl border text-left transition-all",
+                      req.status === "pending" ? "border-yellow-500/20 bg-yellow-500/5 hover:bg-yellow-500/8"
+                        : req.status === "approved" ? "border-green-500/20 bg-green-500/5 hover:bg-green-500/8"
+                        : "border-white/8 bg-white/[0.02] hover:bg-white/[0.04]",
+                      isOpen && "rounded-b-none border-b-transparent"
+                    )}
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className={cn(
+                        "w-8 h-8 rounded-lg flex items-center justify-center shrink-0",
+                        req.status === "pending" ? "bg-yellow-500/15" : req.status === "approved" ? "bg-green-500/15" : "bg-white/5"
+                      )}>
+                        <MessageSquare className={cn("w-4 h-4",
+                          req.status === "pending" ? "text-yellow-400" : req.status === "approved" ? "text-green-400" : "text-muted-foreground"
+                        )} />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium truncate">{req.message.slice(0, 60)}{req.message.length > 60 ? "…" : ""}</p>
+                        <p className="text-xs text-muted-foreground flex items-center gap-1">
+                          <Clock className="w-3 h-3" />
+                          {new Date(req.created_at).toLocaleDateString(fr ? "fr-FR" : "en-US")}
+                        </p>
+                      </div>
                     </div>
-                  </div>
-                  <span className={cn(
-                    "px-2.5 py-1 rounded-full text-xs font-semibold shrink-0",
-                    req.status === "pending" ? "bg-yellow-500/15 text-yellow-400"
-                      : req.status === "approved" ? "bg-green-500/15 text-green-400"
-                      : "bg-red-500/15 text-red-400"
-                  )}>
-                    {req.status === "pending" ? t("prem_status_pending")
-                      : req.status === "approved" ? t("prem_status_approved")
-                      : t("prem_status_rejected")}
-                  </span>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className={cn(
+                        "text-xs px-2 py-1 rounded-full font-semibold",
+                        req.status === "pending" ? "bg-yellow-500/15 text-yellow-400"
+                          : req.status === "approved" ? "bg-green-500/15 text-green-400"
+                          : "bg-red-500/15 text-red-400"
+                      )}>
+                        {req.status === "pending" ? t("prem_status_pending")
+                          : req.status === "approved" ? t("prem_status_approved")
+                          : t("prem_status_rejected")}
+                      </span>
+                      <ChevronDown className={cn("w-4 h-4 text-muted-foreground transition-transform", isOpen && "rotate-180")} />
+                    </div>
+                  </button>
+
+                  {/* Inline thread */}
+                  <AnimatePresence>
+                    {isOpen && (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: "auto" }}
+                        exit={{ opacity: 0, height: 0 }}
+                        transition={{ duration: 0.2 }}
+                        className="overflow-hidden"
+                      >
+                        <div className={cn(
+                          "rounded-b-xl border border-t-0",
+                          req.status === "pending" ? "border-yellow-500/20" : req.status === "approved" ? "border-green-500/20" : "border-white/8"
+                        )}>
+                          <RequestThread request={req} onClose={() => setOpenThread(null)} />
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
-                {req.admin_response && (
-                  <div className="mt-3 pt-3 border-t border-white/8">
-                    <p className="text-xs text-muted-foreground mb-1">{t("prem_admin_reply")}</p>
-                    <p className="text-sm">{req.admin_response}</p>
-                  </div>
-                )}
-              </div>
-            ))}
+              );
+            })}
           </div>
         </motion.div>
       )}

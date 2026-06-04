@@ -277,6 +277,17 @@ async def _init_postgres():
             )
         """)
         await conn.execute("""
+            CREATE TABLE IF NOT EXISTS premium_request_messages (
+                id SERIAL PRIMARY KEY,
+                request_id INTEGER NOT NULL,
+                sender_id INTEGER NOT NULL,
+                sender_type TEXT NOT NULL,
+                message TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                is_read INTEGER DEFAULT 0
+            )
+        """)
+        await conn.execute("""
             CREATE TABLE IF NOT EXISTS economic_events (
                 id SERIAL PRIMARY KEY,
                 event_key TEXT UNIQUE NOT NULL,
@@ -646,6 +657,18 @@ async def _init_sqlite():
                 processed_by INTEGER,
                 FOREIGN KEY (user_id) REFERENCES web_users(id),
                 FOREIGN KEY (processed_by) REFERENCES web_users(id)
+            )
+        """)
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS premium_request_messages (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                request_id INTEGER NOT NULL,
+                sender_id INTEGER NOT NULL,
+                sender_type TEXT NOT NULL,
+                message TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                is_read INTEGER DEFAULT 0,
+                FOREIGN KEY (request_id) REFERENCES premium_requests(id)
             )
         """)
         await db.execute("""
