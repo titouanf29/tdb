@@ -270,16 +270,34 @@ export default function ScannerPage() {
               ]}
               tip={lang === "en" ? "Run the scanner outside market hours to spot pre-market assets with potential." : "Lance le scanner en dehors des heures de marché pour voir les actifs en pre-market avec du potentiel."}
             />
-            <motion.button
-              whileHover={{ scale: 1.03 }}
-              whileTap={{ scale: 0.97 }}
-              onClick={runScan}
-              disabled={isScanning || !quotaOk}
-              className="px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 flex items-center gap-2 disabled:opacity-50 text-sm font-medium transition-all"
-            >
-              {isScanning ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
-              {t("scanner_btn")}
-            </motion.button>
+            <div className="relative">
+              <motion.button
+                whileHover={{ scale: 1.03 }}
+                whileTap={{ scale: 0.97 }}
+                onClick={runScan}
+                disabled={isScanning || !quotaOk}
+                className={cn(
+                  "px-4 py-2 rounded-xl border flex items-center gap-2 disabled:opacity-50 text-sm font-medium transition-all min-h-[44px]",
+                  quota && !quota.is_premium && quota.remaining === 1
+                    ? "bg-amber-500/10 border-amber-500/30 text-amber-300 hover:bg-amber-500/15"
+                    : "bg-white/5 hover:bg-white/10 border-white/10"
+                )}
+              >
+                {isScanning ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+                {t("scanner_btn")}
+              </motion.button>
+              {/* Remaining badge */}
+              {quota && !quota.is_premium && quota.remaining > 0 && (
+                <span className={cn(
+                  "absolute -top-1.5 -right-1.5 text-[10px] font-bold px-1.5 py-0.5 rounded-full border leading-none",
+                  quota.remaining === 1
+                    ? "bg-amber-500 text-black border-amber-400"
+                    : "bg-primary text-black border-primary/50"
+                )}>
+                  {quota.remaining}
+                </span>
+              )}
+            </div>
           </div>
         </div>
 
@@ -316,27 +334,30 @@ export default function ScannerPage() {
         )}
       </motion.div>
 
-      {/* ── Quota banner ─────────────────────────────────────────────────── */}
-      {quota && !quota.is_premium && (
+      {/* ── Quota banner (free users, scans remaining) ───────────────────── */}
+      {quota && !quota.is_premium && quota.remaining > 0 && (
         <motion.div
           variants={itemVariants}
           className={cn(
-            "rounded-xl border p-4 flex items-center justify-between gap-4",
-            quota.remaining === 0
-              ? "border-rose-500/30 bg-rose-500/5"
-              : quota.remaining === 1
-              ? "border-amber-500/30 bg-amber-500/5"
+            "rounded-xl border p-3.5 flex items-center justify-between gap-3 flex-wrap",
+            quota.remaining === 1
+              ? "border-amber-500/40 bg-amber-500/5"
               : "border-white/8 bg-white/[0.02]"
           )}
         >
           <div className="flex items-center gap-3">
-            {quota.remaining === 0
-              ? <Lock className="w-5 h-5 text-rose-400 shrink-0" />
-              : <ScanLine className="w-5 h-5 text-primary shrink-0" />}
+            <div className={cn(
+              "w-8 h-8 rounded-lg flex items-center justify-center shrink-0",
+              quota.remaining === 1 ? "bg-amber-500/15 border border-amber-500/30" : "bg-primary/10 border border-primary/20"
+            )}>
+              {quota.remaining === 1
+                ? <Zap className="w-4 h-4 text-amber-400" />
+                : <ScanLine className="w-4 h-4 text-primary" />}
+            </div>
             <div>
-              <p className="text-sm font-semibold">
-                {quota.remaining === 0
-                  ? t("scanner_limit_reached")
+              <p className={cn("text-sm font-semibold", quota.remaining === 1 ? "text-amber-300" : "")}>
+                {quota.remaining === 1
+                  ? (lang === "en" ? "⚡ Last scan of the day!" : "⚡ Dernier scan disponible aujourd'hui !")
                   : `${quota.remaining} ${t("scanner_remaining")}`}
               </p>
               <p className="text-xs text-muted-foreground">
@@ -344,14 +365,17 @@ export default function ScannerPage() {
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
+            {/* Animated dots */}
             <div className="flex gap-1.5 items-center">
               {Array.from({ length: quota.daily_limit }).map((_, i) => (
                 <div
                   key={i}
                   className={cn(
-                    "w-2.5 h-2.5 rounded-full transition-all",
-                    i < quota.scans_today ? "bg-primary/30" : "bg-primary"
+                    "rounded-full transition-all duration-500",
+                    i < quota.scans_today
+                      ? quota.remaining === 1 ? "w-2 h-2 bg-amber-500/40" : "w-2 h-2 bg-primary/30"
+                      : quota.remaining === 1 ? "w-2.5 h-2.5 bg-amber-400 shadow-[0_0_6px_rgba(245,158,11,0.5)]" : "w-2.5 h-2.5 bg-primary shadow-[0_0_6px_rgba(99,140,255,0.4)]"
                   )}
                 />
               ))}
@@ -367,21 +391,100 @@ export default function ScannerPage() {
         </motion.div>
       )}
 
-      {/* ── Quota exhausted ───────────────────────────────────────────────── */}
+      {/* ── Quota exhausted — Premium upsell ─────────────────────────────── */}
       {quota && !quota.is_premium && quota.remaining === 0 && (
-        <motion.div variants={itemVariants} className="rounded-2xl border border-rose-500/20 bg-rose-500/5 p-10 text-center">
-          <div className="w-16 h-16 mx-auto mb-5 rounded-2xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center">
-            <Lock className="w-8 h-8 text-rose-400" />
+        <motion.div
+          variants={itemVariants}
+          className="relative overflow-hidden rounded-2xl border border-yellow-500/20 bg-gradient-to-br from-yellow-500/5 via-orange-500/5 to-transparent p-6 sm:p-8"
+        >
+          {/* Decorative glow */}
+          <div className="absolute top-0 right-0 w-56 h-56 bg-yellow-500/10 rounded-full blur-3xl pointer-events-none -translate-y-1/2 translate-x-1/4" />
+          <div className="absolute bottom-0 left-0 w-40 h-40 bg-orange-500/8 rounded-full blur-2xl pointer-events-none translate-y-1/2 -translate-x-1/4" />
+
+          <div className="relative flex flex-col sm:flex-row items-start sm:items-center gap-6">
+            {/* Left — icon + title */}
+            <div className="flex-1 space-y-4">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-yellow-500/30 to-orange-500/20 border border-yellow-500/30 flex items-center justify-center">
+                  <Crown className="w-6 h-6 text-yellow-400" />
+                </div>
+                <div>
+                  <p className="font-bold text-base text-yellow-300">{t("scanner_limit_free")}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {lang === "en" ? "Resets at midnight · " : "Renouvellement à minuit · "}
+                    <span className="text-yellow-500/80 font-medium">
+                      {lang === "en" ? "Unlock unlimited scans" : "Débloquez les scans illimités"}
+                    </span>
+                  </p>
+                </div>
+              </div>
+
+              {/* Feature comparison */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2">
+                {(lang === "en" ? [
+                  { icon: "∞", label: "Unlimited daily scans" },
+                  { icon: "🌍", label: "All markets — crypto, forex, stocks" },
+                  { icon: "📊", label: "6 simultaneous indicators" },
+                  { icon: "⚡", label: "Real-time breakout/reversal alerts" },
+                ] : [
+                  { icon: "∞", label: "Scans illimités chaque jour" },
+                  { icon: "🌍", label: "Tous les marchés — crypto, forex, actions" },
+                  { icon: "📊", label: "6 indicateurs simultanés" },
+                  { icon: "⚡", label: "Alertes breakout/reversal temps réel" },
+                ]).map((feat) => (
+                  <div key={feat.label} className="flex items-center gap-2 text-sm">
+                    <span className="text-yellow-400 w-4 text-center font-bold shrink-0">{feat.icon}</span>
+                    <span className="text-foreground/80">{feat.label}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Right — CTA */}
+            <div className="flex flex-col items-stretch sm:items-end gap-2 w-full sm:w-auto shrink-0">
+              <motion.button
+                whileHover={{ scale: 1.03 }}
+                whileTap={{ scale: 0.97 }}
+                onClick={() => router.push("/premium")}
+                className="flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-yellow-400 to-orange-500 text-black font-bold text-sm hover:from-yellow-300 hover:to-orange-400 transition-all shadow-lg shadow-yellow-500/25 whitespace-nowrap"
+              >
+                <Crown className="w-4 h-4" />
+                {t("scanner_go_premium")}
+              </motion.button>
+              <p className="text-center text-xs text-muted-foreground/60">
+                {lang === "en" ? "Cancel anytime" : "Résiliable à tout moment"}
+              </p>
+            </div>
           </div>
-          <p className="text-lg font-bold mb-1">{t("scanner_limit_free")}</p>
-          <p className="text-sm text-muted-foreground mb-6 max-w-xs mx-auto">{t("scanner_premium_pitch")}</p>
-          <button
-            onClick={() => router.push("/premium")}
-            className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-yellow-500 to-orange-500 text-black font-bold hover:opacity-90 transition-opacity shadow-lg shadow-yellow-500/20"
-          >
-            <Crown className="w-4 h-4" />
-            {t("scanner_go_premium")}
-          </button>
+
+          {/* Blurred ghost results — "preview" of what premium would show */}
+          <div className="relative mt-6 pt-4 border-t border-white/5">
+            <p className="text-xs text-muted-foreground/50 mb-3 flex items-center gap-1.5">
+              <Lock className="w-3 h-3" />
+              {lang === "en" ? "Locked results — upgrade to see live opportunities" : "Résultats verrouillés — passez Premium pour voir les opportunités en direct"}
+            </p>
+            <div className="space-y-2 select-none pointer-events-none" style={{ filter: "blur(4px)", opacity: 0.35 }}>
+              {[
+                { symbol: "BTC-USD", score: 87, change: 3.2, signal: "ACHAT" },
+                { symbol: "AAPL",    score: 78, change: 1.8, signal: "ACHAT" },
+                { symbol: "ETH-USD", score: 72, change: -0.9, signal: "NEUTRE" },
+              ].map((r) => (
+                <div key={r.symbol} className="flex items-center justify-between px-4 py-2.5 rounded-lg bg-white/[0.03] border border-white/8">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-primary/20 border border-primary/20" />
+                    <div>
+                      <p className="text-sm font-mono font-bold">{r.symbol}</p>
+                      <p className="text-xs text-muted-foreground">Score {r.score}</p>
+                    </div>
+                  </div>
+                  <span className={cn("text-sm font-bold", r.change >= 0 ? "text-profit" : "text-loss")}>
+                    {r.change >= 0 ? "+" : ""}{r.change}%
+                  </span>
+                  <span className="px-2.5 py-1 rounded-lg bg-profit/15 text-profit text-xs font-bold">{r.signal}</span>
+                </div>
+              ))}
+            </div>
+          </div>
         </motion.div>
       )}
 
