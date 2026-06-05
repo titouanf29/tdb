@@ -1439,6 +1439,11 @@ export default function AnalysisPage() {
 
           {/* 17. Section éducative */}
           <EducationalSection analysis={analysis} tradingLevel={tradingLevel} />
+
+          {/* AMF Disclaimer */}
+          <p className="text-xs text-muted-foreground/50 text-center py-2 border-t border-white/5 mt-4">
+            ⚠️ Les analyses présentées ont un but exclusivement éducatif et ne constituent pas des conseils en investissement au sens de la réglementation AMF. Tout investissement comporte des risques de perte en capital.
+          </p>
         </>
       )}
 
