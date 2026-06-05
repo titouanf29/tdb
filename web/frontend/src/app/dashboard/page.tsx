@@ -21,6 +21,25 @@ import { useLanguage } from "@/lib/LanguageContext";
 import { getAssetInfo, getAssetLogo } from "@/lib/assetInfo";
 import dynamic from "next/dynamic";
 
+// ─────────────────────────────────────────────────────────────────────────────
+//  UTILITY — animated counter hook
+// ─────────────────────────────────────────────────────────────────────────────
+function useCounter(target: number, duration: number = 1.2) {
+  const [count, setCount] = useState(0);
+  useEffect(() => {
+    if (target === 0) { setCount(0); return; }
+    let start = 0;
+    const step = target / (duration * 60);
+    const timer = setInterval(() => {
+      start += step;
+      if (start >= target) { setCount(target); clearInterval(timer); }
+      else setCount(Math.floor(start));
+    }, 1000 / 60);
+    return () => clearInterval(timer);
+  }, [target, duration]);
+  return count;
+}
+
 const SessionSummaryWidget = dynamic(
   () => import("@/components/dashboard/SessionSummary").then(m => ({ default: m.SessionSummaryWidget })),
   { ssr: false, loading: () => <div className="h-36 glass-card animate-pulse rounded-xl border border-white/8" /> }
@@ -174,8 +193,17 @@ export default function DashboardPage() {
   }, [newsFilter, marketNews, favorites]);
 
   if (isLoading) return (
-    <div className="flex items-center justify-center min-h-[50vh]">
-      <Loader2 className="w-8 h-8 animate-spin text-primary" />
+    <div className="space-y-4">
+      <div className="animate-pulse bg-white/5 rounded-xl h-12 w-full" />
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
+        <div className="lg:col-span-2 animate-pulse bg-white/5 rounded-xl h-48" />
+        <div className="lg:col-span-3 animate-pulse bg-white/5 rounded-xl h-48" />
+      </div>
+      <div className="animate-pulse bg-white/5 rounded-xl h-16 w-full" />
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div className="lg:col-span-2 animate-pulse bg-white/5 rounded-xl h-64" />
+        <div className="lg:col-span-1 animate-pulse bg-white/5 rounded-xl h-64" />
+      </div>
     </div>
   );
 
@@ -888,6 +916,9 @@ const TradingStatsWidget = memo(function TradingStatsWidget({
   stats, balance, formatCurrency,
 }: { stats: TradingStats | null; balance: WalletBalance | null; formatCurrency: (v: number) => string }) {
   const { t } = useLanguage();
+  const winRate    = useCounter(stats?.win_rate || 0);
+  const totalTrades = useCounter(stats?.total_trades || 0);
+  const delays = [0, 0.1, 0.2, 0.3];
   return (
     <div className="glass-card p-5">
       <div className="flex items-center justify-between mb-4">
@@ -901,15 +932,21 @@ const TradingStatsWidget = memo(function TradingStatsWidget({
       </div>
       <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
         {[
-          { label: t("wallet_winrate"),      value: `${stats?.win_rate || 0}%`,            color: (stats?.win_rate || 0) >= 50 ? "text-profit" : "text-loss" },
-          { label: t("wallet_total_trades"), value: String(stats?.total_trades || 0),       color: "text-foreground" },
+          { label: t("wallet_winrate"),      value: `${winRate}%`,                          color: (stats?.win_rate || 0) >= 50 ? "text-profit" : "text-loss" },
+          { label: t("wallet_total_trades"), value: String(totalTrades),                    color: "text-foreground" },
           { label: t("wallet_total_pnl"),    value: formatCurrency(stats?.total_pnl || 0),  color: (stats?.total_pnl || 0) >= 0 ? "text-profit" : "text-loss" },
           { label: t("dash_balance"),        value: formatCurrency(balance?.balance || 0),  color: "text-foreground" },
-        ].map(item => (
-          <div key={item.label} className="p-4 rounded-xl bg-white/5 border border-white/5">
+        ].map((item, idx) => (
+          <motion.div
+            key={item.label}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: delays[idx] }}
+            className="p-4 rounded-xl bg-white/5 border border-white/5"
+          >
             <p className="text-xs text-muted-foreground mb-1.5">{item.label}</p>
             <p className={cn("text-xl font-bold tabular-nums", item.color)}>{item.value}</p>
-          </div>
+          </motion.div>
         ))}
       </div>
     </div>

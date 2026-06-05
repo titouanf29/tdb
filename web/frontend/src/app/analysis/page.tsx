@@ -244,10 +244,11 @@ function RealPositionBanner({
 }
 
 function TradeWindowCard({ tw }: { tw: NonNullable<Analysis["trade_window"]> }) {
+  const { lang } = useLanguage();
   const rc = {
-    low:    { accent: "text-emerald-400", border: "border-emerald-500/25", bg: "bg-emerald-500/10", badge: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30", dot: "bg-emerald-400", label: "Faible" },
-    medium: { accent: "text-amber-400",   border: "border-amber-500/25",   bg: "bg-amber-500/10",   badge: "bg-amber-500/15 text-amber-400 border-amber-500/30",     dot: "bg-amber-400",   label: "Modéré" },
-    high:   { accent: "text-rose-400",    border: "border-rose-500/25",    bg: "bg-rose-500/10",    badge: "bg-rose-500/15 text-rose-400 border-rose-500/30",         dot: "bg-rose-400",    label: "Élevé" },
+    low:    { accent: "text-emerald-400", border: "border-emerald-500/25", bg: "bg-emerald-500/10", badge: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30", dot: "bg-emerald-400", label: lang === "en" ? "Low" : "Faible" },
+    medium: { accent: "text-amber-400",   border: "border-amber-500/25",   bg: "bg-amber-500/10",   badge: "bg-amber-500/15 text-amber-400 border-amber-500/30",     dot: "bg-amber-400",   label: lang === "en" ? "Moderate" : "Modéré" },
+    high:   { accent: "text-rose-400",    border: "border-rose-500/25",    bg: "bg-rose-500/10",    badge: "bg-rose-500/15 text-rose-400 border-rose-500/30",         dot: "bg-rose-400",    label: lang === "en" ? "High" : "Élevé" },
   }[tw.risk_level];
 
   // Timeline: place min, optimal, max as % of a scale
@@ -267,16 +268,16 @@ function TradeWindowCard({ tw }: { tw: NonNullable<Analysis["trade_window"]> }) 
       <div className="flex items-center justify-between flex-wrap gap-2">
         <h3 className="font-semibold flex items-center gap-2">
           <Timer className="w-5 h-5 text-primary" />
-          Fenêtre de trade recommandée
+          {lang === "en" ? "Recommended trade window" : "Fenêtre de trade recommandée"}
         </h3>
         <div className="flex items-center gap-2">
           {tw.unreliable && (
             <span className="text-xs px-2.5 py-1 rounded-full border bg-zinc-500/15 text-zinc-400 border-zinc-500/30 font-medium">
-              Signal non fiable
+              {lang === "en" ? "Unreliable signal" : "Signal non fiable"}
             </span>
           )}
           <span className={`text-xs px-2.5 py-1 rounded-full border font-medium ${rc.badge}`}>
-            Risque {rc.label}
+            {lang === "en" ? "Risk" : "Risque"} {rc.label}
           </span>
         </div>
       </div>
@@ -284,21 +285,23 @@ function TradeWindowCard({ tw }: { tw: NonNullable<Analysis["trade_window"]> }) 
       {/* Optimal highlight */}
       <div className={`rounded-xl px-5 py-4 border ${rc.border} ${rc.bg} flex items-center justify-between gap-4`}>
         <div>
-          <p className="text-xs text-muted-foreground mb-0.5">Point optimal de sortie</p>
+          <p className="text-xs text-muted-foreground mb-0.5">{lang === "en" ? "Optimal exit point" : "Point optimal de sortie"}</p>
           <p className={`text-3xl font-black ${rc.accent}`}>{tw.label_optimal}</p>
           <p className="text-xs text-muted-foreground mt-1">
-            soit {tw.candles_opt} bougie{tw.candles_opt > 1 ? "s" : ""} de {tw.bar_label}
+            {lang === "en"
+              ? `i.e. ${tw.candles_opt} ${tw.candles_opt > 1 ? "candles" : "candle"} of ${tw.bar_label}`
+              : `soit ${tw.candles_opt} bougie${tw.candles_opt > 1 ? "s" : ""} de ${tw.bar_label}`}
           </p>
         </div>
         <div className="text-right shrink-0">
-          <p className="text-xs text-muted-foreground mb-1">Fourchette acceptable</p>
+          <p className="text-xs text-muted-foreground mb-1">{lang === "en" ? "Acceptable range" : "Fourchette acceptable"}</p>
           <p className="text-sm font-semibold">
             <span className="text-muted-foreground">{tw.label_min}</span>
             <span className="text-muted-foreground mx-1.5">–</span>
             <span className="text-muted-foreground">{tw.label_max}</span>
           </p>
           <p className="text-xs text-muted-foreground mt-0.5">
-            {tw.candles_min}–{tw.candles_max} bougies
+            {tw.candles_min}–{tw.candles_max} {lang === "en" ? "candles" : "bougies"}
           </p>
         </div>
       </div>
@@ -387,22 +390,31 @@ function TradeWindowCard({ tw }: { tw: NonNullable<Analysis["trade_window"]> }) 
   );
 }
 
-const ANALYSIS_SECTIONS = [
-  { id: "score",        label: "Score",         Icon: BarChart3   },
-  { id: "chart",        label: "Graphique",     Icon: TrendingUp  },
-  { id: "window",       label: "Fenêtre",       Icon: Timer       },
-  { id: "indicators",   label: "Indicateurs",   Icon: Activity    },
-  { id: "risk",         label: "Risques",       Icon: Shield      },
-  { id: "detailed",     label: "Analyse",       Icon: BookOpen    },
-  { id: "market",       label: "Marché",        Icon: Globe       },
-  { id: "fundamentals", label: "Fondamentaux",  Icon: DollarSign  },
-  { id: "performance",  label: "Performance",   Icon: TrendingUp  },
-] as const;
+const ANALYSIS_SECTION_IDS = ["score", "chart", "window", "indicators", "risk", "detailed", "market", "fundamentals", "performance"] as const;
+type AnalysisSectionId = typeof ANALYSIS_SECTION_IDS[number];
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const ANALYSIS_SECTION_ICONS: Record<AnalysisSectionId, any> = {
+  score: BarChart3, chart: TrendingUp, window: Timer, indicators: Activity,
+  risk: Shield, detailed: BookOpen, market: Globe, fundamentals: DollarSign, performance: TrendingUp,
+};
 
 function AnalysisNavBar({ active, hasWindow }: { active: string; hasWindow: boolean }) {
+  const { lang } = useLanguage();
+  const ANALYSIS_LABELS: Record<AnalysisSectionId, string> = {
+    score:        "Score",
+    chart:        lang === "en" ? "Chart"        : "Graphique",
+    window:       lang === "en" ? "Window"       : "Fenêtre",
+    indicators:   lang === "en" ? "Indicators"   : "Indicateurs",
+    risk:         lang === "en" ? "Risks"        : "Risques",
+    detailed:     lang === "en" ? "Analysis"     : "Analyse",
+    market:       lang === "en" ? "Market"       : "Marché",
+    fundamentals: lang === "en" ? "Fundamentals" : "Fondamentaux",
+    performance:  lang === "en" ? "Performance"  : "Performance",
+  };
+  const allSections = ANALYSIS_SECTION_IDS.map(id => ({ id, label: ANALYSIS_LABELS[id], Icon: ANALYSIS_SECTION_ICONS[id] }));
   const sections = hasWindow
-    ? ANALYSIS_SECTIONS
-    : ANALYSIS_SECTIONS.filter(s => s.id !== "window");
+    ? allSections
+    : allSections.filter(s => s.id !== "window");
 
   const scrollTo = (id: string) => {
     const el = document.getElementById(`section-${id}`);
@@ -487,7 +499,7 @@ export default function AnalysisPage() {
 
   useEffect(() => {
     if (!analysis) return;
-    const ids = ANALYSIS_SECTIONS.map(s => `section-${s.id}`);
+    const ids = ANALYSIS_SECTION_IDS.map(id => `section-${id}`);
     const observers: IntersectionObserver[] = [];
     ids.forEach(id => {
       const el = document.getElementById(id);
@@ -3688,6 +3700,7 @@ function AIInsightSection({
 
 // Market Context & Economic Analysis
 function MarketContextSection({ analysis, formatCurrency }: { analysis: Analysis; formatCurrency: (value: number) => string }) {
+  const { lang } = useLanguage();
   const getMarketPhase = () => {
     const score = analysis.score.total;
     const rsi = analysis.indicators.rsi.value;
@@ -3695,41 +3708,41 @@ function MarketContextSection({ analysis, formatCurrency }: { analysis: Analysis
 
     if (score >= 75 && trend === "BULLISH") {
       return {
-        phase: "Expansion",
+        phase: lang === "en" ? "Expansion" : "Expansion",
         icon: <TrendingUp className="w-5 h-5 text-profit" />,
-        description: "Le marché est en phase d'expansion avec une forte dynamique haussière. Les acheteurs dominent et la confiance est élevée.",
+        description: lang === "en" ? "Market in expansion phase with strong bullish momentum. Buyers dominate and confidence is high." : "Le marché est en phase d'expansion avec une forte dynamique haussière. Les acheteurs dominent et la confiance est élevée.",
         color: "text-profit",
         bgColor: "bg-profit/10 border-profit/20"
       };
     } else if (score >= 60 && rsi > 50) {
       return {
-        phase: "Croissance",
+        phase: lang === "en" ? "Growth" : "Croissance",
         icon: <ArrowUpRight className="w-5 h-5 text-green-400" />,
-        description: "Phase de croissance modérée. Le marché montre des signes positifs mais sans exubérance excessive.",
+        description: lang === "en" ? "Moderate growth phase. Market shows positive signs without excessive exuberance." : "Phase de croissance modérée. Le marché montre des signes positifs mais sans exubérance excessive.",
         color: "text-green-400",
         bgColor: "bg-green-400/10 border-green-400/20"
       };
     } else if (score >= 40) {
       return {
-        phase: "Consolidation",
+        phase: lang === "en" ? "Consolidation" : "Consolidation",
         icon: <Activity className="w-5 h-5 text-warning" />,
-        description: "Le marché consolide sans direction claire. Phase d'accumulation ou de distribution possible.",
+        description: lang === "en" ? "Market consolidating without clear direction. Accumulation or distribution phase possible." : "Le marché consolide sans direction claire. Phase d'accumulation ou de distribution possible.",
         color: "text-warning",
         bgColor: "bg-warning/10 border-warning/20"
       };
     } else if (score >= 25) {
       return {
-        phase: "Correction",
+        phase: lang === "en" ? "Correction" : "Correction",
         icon: <ArrowDownRight className="w-5 h-5 text-orange-400" />,
-        description: "Phase de correction en cours. Les vendeurs prennent le contrôle mais sans panique généralisée.",
+        description: lang === "en" ? "Correction phase underway. Sellers taking control but without widespread panic." : "Phase de correction en cours. Les vendeurs prennent le contrôle mais sans panique généralisée.",
         color: "text-orange-400",
         bgColor: "bg-orange-400/10 border-orange-400/20"
       };
     } else {
       return {
-        phase: "Contraction",
+        phase: lang === "en" ? "Contraction" : "Contraction",
         icon: <TrendingDown className="w-5 h-5 text-loss" />,
-        description: "Marché en contraction avec forte pression vendeuse. Prudence maximale recommandée.",
+        description: lang === "en" ? "Market contracting with strong selling pressure. Maximum caution recommended." : "Marché en contraction avec forte pression vendeuse. Prudence maximale recommandée.",
         color: "text-loss",
         bgColor: "bg-loss/10 border-loss/20"
       };
@@ -3742,26 +3755,26 @@ function MarketContextSection({ analysis, formatCurrency }: { analysis: Analysis
     const atrPercent = (atr / price) * 100;
 
     if (atrPercent > 5) {
-      return { level: "Très élevée", color: "text-loss", description: "Marché très volatile - risque élevé mais opportunités importantes" };
+      return { level: lang === "en" ? "Very high" : "Très élevée", color: "text-loss", description: lang === "en" ? "Very volatile market — high risk but significant opportunities" : "Marché très volatile - risque élevé mais opportunités importantes" };
     } else if (atrPercent > 3) {
-      return { level: "Élevée", color: "text-warning", description: "Volatilité supérieure à la normale - prudence recommandée" };
+      return { level: lang === "en" ? "High" : "Élevée", color: "text-warning", description: lang === "en" ? "Above-normal volatility — caution recommended" : "Volatilité supérieure à la normale - prudence recommandée" };
     } else if (atrPercent > 1.5) {
-      return { level: "Moderee", color: "text-primary", description: "Volatilite normale pour ce type d'actif" };
+      return { level: lang === "en" ? "Moderate" : "Modérée", color: "text-primary", description: lang === "en" ? "Normal volatility for this asset type" : "Volatilité normale pour ce type d'actif" };
     } else {
-      return { level: "Faible", color: "text-profit", description: "Marche calme - mouvements limites attendus" };
+      return { level: lang === "en" ? "Low" : "Faible", color: "text-profit", description: lang === "en" ? "Calm market — limited movements expected" : "Marché calme - mouvements limités attendus" };
     }
   };
 
   const getLiquidityContext = () => {
     const ratio = analysis.indicators.volume_ratio;
     if (ratio > 2) {
-      return { level: "Excellente", color: "text-profit", description: "Volume très élevé - forte liquidité et intérêt institutionnel probable" };
+      return { level: lang === "en" ? "Excellent" : "Excellente", color: "text-profit", description: lang === "en" ? "Very high volume — strong liquidity and likely institutional interest" : "Volume très élevé - forte liquidité et intérêt institutionnel probable" };
     } else if (ratio > 1) {
-      return { level: "Bonne", color: "text-primary", description: "Volume supérieur à la moyenne - bonnes conditions de trading" };
+      return { level: lang === "en" ? "Good" : "Bonne", color: "text-primary", description: lang === "en" ? "Above-average volume — good trading conditions" : "Volume supérieur à la moyenne - bonnes conditions de trading" };
     } else if (ratio > 0.5) {
-      return { level: "Correcte", color: "text-warning", description: "Volume dans la moyenne - conditions normales" };
+      return { level: lang === "en" ? "Fair" : "Correcte", color: "text-warning", description: lang === "en" ? "Average volume — normal conditions" : "Volume dans la moyenne - conditions normales" };
     } else {
-      return { level: "Limitee", color: "text-loss", description: "Faible volume - spreads potentiellement eleves, slippage possible" };
+      return { level: lang === "en" ? "Limited" : "Limitée", color: "text-loss", description: lang === "en" ? "Low volume — potentially wide spreads, slippage possible" : "Faible volume - spreads potentiellement élevés, slippage possible" };
     }
   };
 
@@ -3778,7 +3791,7 @@ function MarketContextSection({ analysis, formatCurrency }: { analysis: Analysis
     >
       <h3 className="font-semibold mb-6 flex items-center gap-2 text-lg">
         <Globe className="w-5 h-5 text-primary" />
-        Contexte de Marche & Economique
+        {lang === "en" ? "Market & Economic Context" : "Contexte de Marché & Économique"}
       </h3>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
@@ -3795,7 +3808,7 @@ function MarketContextSection({ analysis, formatCurrency }: { analysis: Analysis
         <div className="p-4 rounded-xl bg-white/5 border border-white/10">
           <div className="flex items-center gap-2 mb-2">
             <Activity className="w-5 h-5 text-primary" />
-            <span className="font-semibold">Volatilite: <span className={volatility.color}>{volatility.level}</span></span>
+            <span className="font-semibold">{lang === "en" ? "Volatility" : "Volatilité"}: <span className={volatility.color}>{volatility.level}</span></span>
           </div>
           <p className="text-xs text-muted-foreground">{volatility.description}</p>
           <p className="text-xs mt-1 text-muted-foreground">ATR: {formatCurrency(analysis.indicators.atr)}</p>
@@ -3805,10 +3818,10 @@ function MarketContextSection({ analysis, formatCurrency }: { analysis: Analysis
         <div className="p-4 rounded-xl bg-white/5 border border-white/10">
           <div className="flex items-center gap-2 mb-2">
             <DollarSign className="w-5 h-5 text-primary" />
-            <span className="font-semibold">Liquidite: <span className={liquidity.color}>{liquidity.level}</span></span>
+            <span className="font-semibold">{lang === "en" ? "Liquidity" : "Liquidité"}: <span className={liquidity.color}>{liquidity.level}</span></span>
           </div>
           <p className="text-xs text-muted-foreground">{liquidity.description}</p>
-          <p className="text-xs mt-1 text-muted-foreground">Ratio: {analysis.indicators.volume_ratio.toFixed(2)}x moyenne</p>
+          <p className="text-xs mt-1 text-muted-foreground">Ratio: {analysis.indicators.volume_ratio.toFixed(2)}x {lang === "en" ? "avg" : "moyenne"}</p>
         </div>
       </div>
 
@@ -3816,12 +3829,12 @@ function MarketContextSection({ analysis, formatCurrency }: { analysis: Analysis
       <div className="space-y-3">
         <h4 className="text-sm font-semibold text-muted-foreground flex items-center gap-2">
           <PieChart className="w-4 h-4" />
-          Facteurs Economiques a Considerer
+          {lang === "en" ? "Economic Factors to Consider" : "Facteurs Économiques à Considérer"}
         </h4>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <div className="p-3 bg-white/5 rounded-lg">
-            <p className="text-xs text-muted-foreground mb-1">Position dans le range 52 semaines</p>
+            <p className="text-xs text-muted-foreground mb-1">{lang === "en" ? "Position in 52-week range" : "Position dans le range 52 semaines"}</p>
             {analysis.fundamentals?.["52w_high"] && analysis.fundamentals?.["52w_low"] ? (
               <div>
                 <div className="h-2 bg-white/10 rounded-full mb-2 relative">
@@ -3848,7 +3861,7 @@ function MarketContextSection({ analysis, formatCurrency }: { analysis: Analysis
           </div>
 
           <div className="p-3 bg-white/5 rounded-lg">
-            <p className="text-xs text-muted-foreground mb-1">Distance aux moyennes mobiles</p>
+            <p className="text-xs text-muted-foreground mb-1">{lang === "en" ? "Distance from moving averages" : "Distance aux moyennes mobiles"}</p>
             <div className="space-y-1">
               <div className="flex justify-between text-xs">
                 <span>EMA20:</span>
@@ -3872,6 +3885,7 @@ function MarketContextSection({ analysis, formatCurrency }: { analysis: Analysis
 
 // Risk Assessment Section
 function RiskAssessmentSection({ analysis, formatCurrency }: { analysis: Analysis; formatCurrency: (value: number) => string }) {
+  const { lang } = useLanguage();
   const calculateRiskScore = () => {
     let score = 50; // Base score
 
@@ -3908,50 +3922,50 @@ function RiskAssessmentSection({ analysis, formatCurrency }: { analysis: Analysi
   const riskScore = calculateRiskScore();
 
   const getRiskLevel = (score: number) => {
-    if (score >= 75) return { level: "Très élevé", color: "text-loss", bg: "bg-loss" };
-    if (score >= 60) return { level: "Eleve", color: "text-orange-400", bg: "bg-orange-400" };
-    if (score >= 40) return { level: "Modere", color: "text-warning", bg: "bg-warning" };
-    if (score >= 25) return { level: "Faible", color: "text-green-400", bg: "bg-green-400" };
-    return { level: "Tres faible", color: "text-profit", bg: "bg-profit" };
+    if (score >= 75) return { level: lang === "en" ? "Very high" : "Très élevé", color: "text-loss", bg: "bg-loss" };
+    if (score >= 60) return { level: lang === "en" ? "High" : "Elevé", color: "text-orange-400", bg: "bg-orange-400" };
+    if (score >= 40) return { level: lang === "en" ? "Moderate" : "Modéré", color: "text-warning", bg: "bg-warning" };
+    if (score >= 25) return { level: lang === "en" ? "Low" : "Faible", color: "text-green-400", bg: "bg-green-400" };
+    return { level: lang === "en" ? "Very low" : "Très faible", color: "text-profit", bg: "bg-profit" };
   };
 
   const risk = getRiskLevel(riskScore);
 
   const riskFactors = [
     {
-      name: "Volatilite",
+      name: lang === "en" ? "Volatility" : "Volatilité",
       value: (analysis.indicators.atr / analysis.price.current) * 100,
       threshold: 3,
       isHigh: (analysis.indicators.atr / analysis.price.current) * 100 > 3,
-      description: "Amplitude moyenne des mouvements de prix"
+      description: lang === "en" ? "Average amplitude of price movements" : "Amplitude moyenne des mouvements de prix"
     },
     {
-      name: "Liquidite",
+      name: lang === "en" ? "Liquidity" : "Liquidité",
       value: analysis.indicators.volume_ratio,
       threshold: 0.7,
       isHigh: analysis.indicators.volume_ratio < 0.7,
-      description: "Capacite a entrer/sortir sans impact sur le prix"
+      description: lang === "en" ? "Ability to enter/exit without price impact" : "Capacité à entrer/sortir sans impact sur le prix"
     },
     {
-      name: "Surachat/Survente",
+      name: lang === "en" ? "Overbought/Oversold" : "Surachat/Survente",
       value: analysis.indicators.rsi.value,
       threshold: 70,
       isHigh: analysis.indicators.rsi.value > 70 || analysis.indicators.rsi.value < 30,
-      description: "Niveau extrême du RSI"
+      description: lang === "en" ? "Extreme RSI level" : "Niveau extrême du RSI"
     },
     ...(analysis.fundamentals?.beta ? [{
       name: "Beta",
       value: analysis.fundamentals.beta,
       threshold: 1.5,
       isHigh: analysis.fundamentals.beta > 1.5,
-      description: "Sensibilite aux mouvements du marche"
+      description: lang === "en" ? "Sensitivity to market movements" : "Sensibilité aux mouvements du marché"
     }] : []),
     ...(analysis.fundamentals?.debt_to_equity ? [{
-      name: "Endettement",
+      name: lang === "en" ? "Debt" : "Endettement",
       value: analysis.fundamentals.debt_to_equity,
       threshold: 100,
       isHigh: analysis.fundamentals.debt_to_equity > 100,
-      description: "Ratio dette/capitaux propres"
+      description: lang === "en" ? "Debt-to-equity ratio" : "Ratio dette/capitaux propres"
     }] : [])
   ];
 
@@ -3964,7 +3978,7 @@ function RiskAssessmentSection({ analysis, formatCurrency }: { analysis: Analysi
     >
       <h3 className="font-semibold mb-6 flex items-center gap-2 text-lg">
         <Shield className="w-5 h-5 text-primary" />
-        Evaluation des Risques
+        {lang === "en" ? "Risk Assessment" : "Évaluation des Risques"}
       </h3>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -3998,7 +4012,7 @@ function RiskAssessmentSection({ analysis, formatCurrency }: { analysis: Analysi
               <span className="text-xs text-muted-foreground">/ 100</span>
             </div>
           </div>
-          <p className={cn("font-semibold mt-2", risk.color)}>Risque {risk.level}</p>
+          <p className={cn("font-semibold mt-2", risk.color)}>{lang === "en" ? "Risk" : "Risque"} {risk.level}</p>
         </div>
 
         {/* Risk Factors */}

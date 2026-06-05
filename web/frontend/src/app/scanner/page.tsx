@@ -845,7 +845,9 @@ export default function ScannerPage() {
 
       {/* AMF Disclaimer */}
       <p className="text-xs text-muted-foreground/50 text-center py-2 border-t border-white/5 mt-4">
-        ⚠️ Les résultats du scanner ont un but exclusivement éducatif et ne constituent pas des conseils en investissement au sens de la réglementation AMF. Tout investissement comporte des risques de perte en capital.
+        ⚠️ {lang === "en"
+          ? "Scanner results are for educational purposes only and do not constitute investment advice. All investments carry a risk of capital loss."
+          : "Les résultats du scanner ont un but exclusivement éducatif et ne constituent pas des conseils en investissement au sens de la réglementation AMF. Tout investissement comporte des risques de perte en capital."}
       </p>
     </motion.div>
   );
