@@ -268,9 +268,14 @@ async def update_entry(
         updates["direction"] = updates["direction"].upper()
 
     updates["updated_at"] = datetime.now(timezone.utc).isoformat()
+    # Column names come exclusively from the _UPDATABLE whitelist — safe to interpolate.
+    # Extra guard: assert every key is alphanumeric/underscore only (no injection possible).
+    for _col in updates:
+        if not _col.replace("_", "").isalnum():
+            raise HTTPException(status_code=400, detail="Nom de colonne invalide")
     set_clause = ", ".join(f"{k} = ?" for k in updates)
     await execute_write(
-        f"UPDATE trading_journal SET {set_clause} WHERE id = ? AND user_id = ?",
+        f"UPDATE trading_journal SET {set_clause} WHERE id = ? AND user_id = ?",  # noqa: S608
         (*updates.values(), entry_id, user_id),
     )
     rows = await execute_query(

@@ -1106,8 +1106,8 @@ async def mark_notifications_type_read(type: str = Query(...), admin: dict = Dep
 
 
 @router.get("/panel", response_class=HTMLResponse)
-async def marketing_panel():
-    """Serve the marketing panel HTML — auth is verified client-side via /api/admin/check"""
+async def marketing_panel(admin: dict = Depends(get_admin_user)):
+    """Serve the marketing panel HTML — protected by server-side admin auth."""
     panel_path = Path(__file__).parent.parent.parent / "static" / "panel.html"
     if not panel_path.exists():
         raise HTTPException(status_code=404, detail="Panel not found")

@@ -225,10 +225,15 @@ async def update_position(
     if not updates:
         raise HTTPException(status_code=400, detail="Aucun champ à mettre à jour")
 
+    # Column names come exclusively from _UPDATABLE_COLUMNS whitelist — safe to interpolate.
+    # Extra guard: assert every key is alphanumeric/underscore only (no injection possible).
+    for _col in updates:
+        if not _col.replace("_", "").isalnum():
+            raise HTTPException(status_code=400, detail="Nom de colonne invalide")
     set_clause = ", ".join(f"{k} = ?" for k in updates)
     values = tuple(updates.values()) + (position_id,)
     await execute_write(
-        f"UPDATE real_positions SET {set_clause} WHERE id = ?",
+        f"UPDATE real_positions SET {set_clause} WHERE id = ?",  # noqa: S608
         values,
     )
     return {"success": True, "message": "Position mise à jour"}

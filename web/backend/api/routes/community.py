@@ -4,7 +4,7 @@ Community routes - Chat and Admin Contact
 from datetime import datetime, timezone
 from typing import Optional, List
 from fastapi import APIRouter, HTTPException, Depends, Query
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from ..database import execute_query, execute_write, create_admin_notification, create_user_notification
 from .auth import get_current_user
@@ -47,18 +47,18 @@ router = APIRouter()
 # ============== MODELS ==============
 
 class SendMessageRequest(BaseModel):
-    content: str
+    content: str = Field(..., min_length=1, max_length=1000)
     reply_to: Optional[int] = None
 
 
 class ContactAdminRequest(BaseModel):
-    subject: str
-    message: str
+    subject: str = Field(..., min_length=1, max_length=200)
+    message: str = Field(..., min_length=1, max_length=5000)
 
 
 class AdminReplyRequest(BaseModel):
     ticket_id: int
-    message: str
+    message: str = Field(..., min_length=1, max_length=5000)
 
 
 # ============== CHAT GENERAL ==============

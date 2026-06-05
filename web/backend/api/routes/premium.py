@@ -5,7 +5,7 @@ Manages premium subscriptions and features
 
 import os
 from fastapi import APIRouter, Depends, HTTPException, status, Request
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional
 from datetime import datetime, timezone
 
@@ -19,23 +19,23 @@ router = APIRouter()
 # ============== MODELS ==============
 
 class PremiumContactRequest(BaseModel):
-    message: str
+    message: str = Field(..., min_length=1, max_length=2000)
 
 
 class PremiumAction(BaseModel):
     user_id: int
-    action: str  # grant, revoke
+    action: str = Field(..., max_length=20)  # grant, revoke
     duration_days: Optional[int] = None  # None = lifetime
 
 
 class PremiumRequestAction(BaseModel):
     request_id: int
-    status: str  # approved, rejected
-    response: Optional[str] = None
+    status: str = Field(..., max_length=20)  # approved, rejected
+    response: Optional[str] = Field(default=None, max_length=2000)
 
 
 class PremiumMessageRequest(BaseModel):
-    message: str
+    message: str = Field(..., min_length=1, max_length=2000)
 
 
 # ============== PREMIUM FEATURES ==============

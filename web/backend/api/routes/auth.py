@@ -44,9 +44,9 @@ VERIFICATION_EXPIRE_HOURS = 24
 
 class RegisterRequest(BaseModel):
     email: EmailStr
-    password: str = Field(min_length=6)
+    password: str = Field(min_length=6, max_length=128)
     username: str = Field(min_length=3, max_length=30)
-    first_name: Optional[str] = None
+    first_name: Optional[str] = Field(default=None, max_length=100)
 
 
 class LoginRequest(BaseModel):
