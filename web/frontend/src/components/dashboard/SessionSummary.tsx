@@ -251,9 +251,10 @@ function computeSession(
 // ─────────────────────────────────────────────────────────────────────────────
 
 function MoodGauge({ score, mood, t }: { score: number; mood: SessionResult["mood"]; t: (k: any) => string }) {
-  const cx = 56; const cy = 52; const r = 36;
-  // Needle: 0° = left (bearish), 180° = right (bullish), mapped to score -100..+100
-  const angleDeg = 180 + (score / 100) * 90; // 90° to 270° range
+  const cx = 60; const cy = 50; const r = 38;
+  // Arc sweeps from 180° (left/bearish) → 270° (top/neutral) → 360° (right/bullish)
+  // score -100..+100 maps to angle 180°..360° — needle always stays on the arc
+  const angleDeg = 180 + ((score + 100) / 200) * 180;
   const angleRad = (angleDeg * Math.PI) / 180;
   const nx = cx + r * Math.cos(angleRad);
   const ny = cy + r * Math.sin(angleRad);
@@ -261,54 +262,76 @@ function MoodGauge({ score, mood, t }: { score: number; mood: SessionResult["moo
   const color = mood === "bullish" ? "#34d399" : mood === "bearish" ? "#f87171" : "#fbbf24";
 
   return (
-    <svg viewBox="0 0 112 72" className="w-full" style={{ overflow: "visible" }}>
+    <svg viewBox="0 0 120 76" className="w-full">
       <defs>
-        <linearGradient id={`gaugeGrad-${mood}`} x1="0" y1="0" x2="1" y2="0">
+        <linearGradient id={`gg-${mood}`} x1="0" y1="0" x2="1" y2="0">
           <stop offset="0%" stopColor="#f87171" />
           <stop offset="50%" stopColor="#fbbf24" />
           <stop offset="100%" stopColor="#34d399" />
         </linearGradient>
-        <filter id="needleGlow">
-          <feGaussianBlur stdDeviation="1.5" result="blur" />
+        <filter id="nglow" x="-80%" y="-80%" width="260%" height="260%">
+          <feGaussianBlur stdDeviation="2.5" result="blur" />
           <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
         </filter>
       </defs>
-      {/* Background arc */}
+
+      {/* Track */}
       <path d={`M ${cx - r} ${cy} A ${r} ${r} 0 0 1 ${cx + r} ${cy}`}
-        fill="none" stroke="rgba(255,255,255,0.07)" strokeWidth="9" strokeLinecap="round" />
-      {/* Colored arc */}
+        fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="12" strokeLinecap="round" />
+      {/* Gradient arc */}
       <path d={`M ${cx - r} ${cy} A ${r} ${r} 0 0 1 ${cx + r} ${cy}`}
-        fill="none" stroke={`url(#gaugeGrad-${mood})`} strokeWidth="9" strokeLinecap="round" opacity="0.55" />
-      {/* Tick marks */}
-      {[-90, -45, 0, 45, 90].map((deg) => {
-        const rad = ((180 + deg) * Math.PI) / 180;
-        const x1 = cx + (r - 6) * Math.cos(rad); const y1 = cy + (r - 6) * Math.sin(rad);
-        const x2 = cx + r * Math.cos(rad); const y2 = cy + r * Math.sin(rad);
-        return <line key={deg} x1={x1} y1={y1} x2={x2} y2={y2} stroke="rgba(255,255,255,0.2)" strokeWidth="1" />;
+        fill="none" stroke={`url(#gg-${mood})`} strokeWidth="7" strokeLinecap="round" opacity="0.6" />
+
+      {/* Tick marks at arc positions (180°→360°) */}
+      {[180, 225, 270, 315, 360].map((deg) => {
+        const rad = (deg * Math.PI) / 180;
+        return (
+          <line key={deg}
+            x1={cx + (r - 9) * Math.cos(rad)} y1={cy + (r - 9) * Math.sin(rad)}
+            x2={cx + (r - 3) * Math.cos(rad)} y2={cy + (r - 3) * Math.sin(rad)}
+            stroke={deg === 270 ? "rgba(255,255,255,0.45)" : "rgba(255,255,255,0.15)"}
+            strokeWidth={deg === 270 ? "1.5" : "1"} strokeLinecap="round"
+          />
+        );
       })}
+
       {/* Needle shadow */}
-      <motion.line x1={cx} y1={cy} x2={cx - r + 2} y2={cy + 2}
-        stroke="rgba(0,0,0,0.3)" strokeWidth="3" strokeLinecap="round"
-        initial={{ x2: cx - r + 2, y2: cy + 2 }}
+      <motion.line x1={cx} y1={cy} x2={cx - r + 5} y2={cy + 3}
+        stroke="rgba(0,0,0,0.4)" strokeWidth="3" strokeLinecap="round"
+        initial={{ x2: cx - r + 5, y2: cy + 3 }}
         animate={{ x2: nx + 1, y2: ny + 2 }}
-        transition={{ duration: 1.4, ease: [0.34, 1.56, 0.64, 1], delay: 0.3 }}
+        transition={{ duration: 1.5, ease: [0.34, 1.56, 0.64, 1], delay: 0.3 }}
       />
       {/* Needle */}
-      <motion.line x1={cx} y1={cy} x2={cx - r + 2} y2={cy}
+      <motion.line x1={cx} y1={cy} x2={cx - r + 5} y2={cy}
         stroke={color} strokeWidth="2.5" strokeLinecap="round"
-        filter="url(#needleGlow)"
-        initial={{ x2: cx - r + 2, y2: cy }}
+        filter="url(#nglow)"
+        initial={{ x2: cx - r + 5, y2: cy }}
         animate={{ x2: nx, y2: ny }}
-        transition={{ duration: 1.4, ease: [0.34, 1.56, 0.64, 1], delay: 0.3 }}
+        transition={{ duration: 1.5, ease: [0.34, 1.56, 0.64, 1], delay: 0.3 }}
       />
+      {/* Glow halo at tip */}
+      <motion.circle r={6} fill={color} opacity={0.18}
+        initial={{ cx: cx - r + 5, cy: cy }}
+        animate={{ cx: nx, cy: ny }}
+        transition={{ duration: 1.5, ease: [0.34, 1.56, 0.64, 1], delay: 0.3 }}
+      />
+      {/* Tip dot */}
+      <motion.circle r={3} fill={color} filter="url(#nglow)"
+        initial={{ cx: cx - r + 5, cy: cy }}
+        animate={{ cx: nx, cy: ny }}
+        transition={{ duration: 1.5, ease: [0.34, 1.56, 0.64, 1], delay: 0.3 }}
+      />
+
       {/* Center hub */}
-      <circle cx={cx} cy={cy} r="5" fill={color} />
-      <circle cx={cx} cy={cy} r="2.5" fill="rgba(0,0,0,0.4)" />
-      {/* Labels */}
-      <text x={cx - r - 2} y={cy + 18} textAnchor="middle" fill="#f87171" fontSize="7.5" fontWeight="600">BEAR</text>
-      <text x={cx + r + 2} y={cy + 18} textAnchor="middle" fill="#34d399" fontSize="7.5" fontWeight="600">BULL</text>
-      {/* Mood label */}
-      <text x={cx} y={cy + 20} textAnchor="middle" fill={color} fontSize="8" fontWeight="800">
+      <circle cx={cx} cy={cy} r="7" fill="rgba(8,12,28,0.95)" stroke={color} strokeWidth="1.5" />
+      <circle cx={cx} cy={cy} r="3" fill={color} />
+
+      {/* BEAR / BULL labels */}
+      <text x={cx - r - 2} y={cy + 16} textAnchor="middle" fill="#f87171" fontSize="6.5" fontWeight="700">BEAR</text>
+      <text x={cx + r + 2} y={cy + 16} textAnchor="middle" fill="#34d399" fontSize="6.5" fontWeight="700">BULL</text>
+      {/* Mood text */}
+      <text x={cx} y={cy + 23} textAnchor="middle" fill={color} fontSize="7.5" fontWeight="800" letterSpacing="0.4">
         {mood === "bullish" ? t("session_mood_haussier") : mood === "bearish" ? t("session_mood_baissier") : t("session_mood_neutre")}
       </text>
     </svg>
