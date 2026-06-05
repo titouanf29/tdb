@@ -128,7 +128,8 @@ export function getMarketHoursDisplay(marketKey: string): string {
 }
 
 /**
- * Get time until market opens/closes
+ * Get time until market opens/closes.
+ * Correctly handles weekends — never shows a countdown to a closed day.
  */
 export function getTimeUntilChange(marketKey: string): string {
   const config = marketHoursConfig[marketKey];
@@ -137,23 +138,41 @@ export function getTimeUntilChange(marketKey: string): string {
   const isOpen = isMarketOpen(marketKey);
   const now = new Date();
 
+  // ── Forex / Commodities: 24h Mon-Fri, anchored to Paris time ─────────────────
   if (config.alwaysOpenWeekdays) {
     const parisTime = new Date(now.toLocaleString("en-US", { timeZone: "Europe/Paris" }));
-    if (isOpen && parisTime.getDay() === 5) {
-      // Time until Friday 22:00 (Paris)
-      const currentMinutes = parisTime.getHours() * 60 + parisTime.getMinutes();
-      const diff = 22 * 60 - currentMinutes;
+    const pDay = parisTime.getDay();
+    const pCurrentMin = parisTime.getHours() * 60 + parisTime.getMinutes();
+
+    if (isOpen && pDay === 5) {
+      // Friday: show countdown to 22:00 close
+      const diff = 22 * 60 - pCurrentMin;
       if (diff > 0) {
         const h = Math.floor(diff / 60);
         const m = diff % 60;
         return `Ferme dans ${h}h${m.toString().padStart(2, "0")}`;
       }
     }
+
+    if (!isOpen) {
+      // Friday ≥22:00 or Saturday → reopens Sunday 23:00
+      if (pDay === 5 || pDay === 6) return "Ouvre dim à 23:00";
+      // Sunday before 23:00 → countdown to tonight
+      if (pDay === 0) {
+        const diff = 23 * 60 - pCurrentMin;
+        if (diff > 0) {
+          const h = Math.floor(diff / 60);
+          const m = diff % 60;
+          return `Ouvre dans ${h}h${m.toString().padStart(2, "0")}`;
+        }
+      }
+    }
     return "";
   }
 
-  // Standard markets: compute against the market's own local clock.
+  // ── Standard markets (Europe, USA, Asia) ──────────────────────────────────────
   const localTime = new Date(now.toLocaleString("en-US", { timeZone: config.timezone }));
+  const currentDay = localTime.getDay();
   const currentMinutes = localTime.getHours() * 60 + localTime.getMinutes();
 
   const [openH, openM] = config.openTime.split(":").map(Number);
@@ -169,11 +188,27 @@ export function getTimeUntilChange(marketKey: string): string {
       return `Ferme dans ${h}h${m.toString().padStart(2, "0")}`;
     }
   } else {
-    let diff = openMinutes - currentMinutes;
-    if (diff < 0) diff += 24 * 60;
-    const h = Math.floor(diff / 60);
-    const m = diff % 60;
-    return `Ouvre dans ${h}h${m.toString().padStart(2, "0")}`;
+    // If we're on an open weekday but before opening, show a simple countdown
+    if (!config.closedDays.includes(currentDay) && openMinutes > currentMinutes) {
+      const diff = openMinutes - currentMinutes;
+      const h = Math.floor(diff / 60);
+      const m = diff % 60;
+      return `Ouvre dans ${h}h${m.toString().padStart(2, "0")}`;
+    }
+
+    // Walk forward to find the next truly open day (skips all closedDays)
+    let daysAhead = 1;
+    let nextDay = (currentDay + 1) % 7;
+    while (config.closedDays.includes(nextDay)) {
+      daysAhead++;
+      nextDay = (nextDay + 1) % 7;
+    }
+
+    const dayNamesFr = ["dim", "lun", "mar", "mer", "jeu", "ven", "sam"];
+    if (daysAhead === 1) {
+      return `Ouvre demain à ${config.openTime}`;
+    }
+    return `Ouvre ${dayNamesFr[nextDay]} à ${config.openTime}`;
   }
 
   return "";
