@@ -219,14 +219,12 @@ function AuthShell({
         <main className="flex-1 overflow-auto overflow-x-hidden p-4 md:p-6">
           <BroadcastBanner />
           <ChangelogBanner />
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={pathname}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              transition={{ duration: 0.2, ease: "easeInOut" }}
-            >
+          <motion.div
+            key={pathname}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.2, ease: "easeInOut" }}
+          >
               {children}
               <footer className="mt-8 pt-4 border-t border-white/10 text-center text-xs text-muted-foreground space-y-2">
                 <p>{lang === "fr" ? "Fait par" : "Made by"} <span className="text-primary font-semibold">CaptenQwark</span> - CaptenTDB</p>
@@ -239,8 +237,7 @@ function AuthShell({
                   <a href="/cgu" className="hover:text-primary hover:underline">{lang === "fr" ? "CGU" : "ToS"}</a>
                 </div>
               </footer>
-            </motion.div>
-          </AnimatePresence>
+          </motion.div>
         </main>
       </div>
     </div>
