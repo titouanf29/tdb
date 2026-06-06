@@ -131,7 +131,7 @@ function SleepingAlexAnim() {
   );
 }
 
-function WeekendView({ lang, onIgnore }: { lang: "fr" | "en"; onIgnore: () => void }) {
+function WeekendView({ lang, onIgnore, onClose }: { lang: "fr" | "en"; onIgnore: () => void; onClose: () => void }) {
   const [countdown, setCountdown] = useState(getCountdownToMonday);
   useEffect(() => {
     const t = setInterval(() => setCountdown(getCountdownToMonday()), 60_000);
@@ -206,7 +206,8 @@ function WeekendView({ lang, onIgnore }: { lang: "fr" | "en"; onIgnore: () => vo
       <div className="px-4 pb-5 space-y-2">
         <Link
           href="/learn"
-          className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl text-xs font-semibold transition-opacity hover:opacity-80"
+          onClick={onClose}
+          className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl text-xs font-semibold transition-opacity hover:opacity-75 active:scale-95"
           style={{ background: "linear-gradient(135deg, rgba(99,140,255,0.18) 0%, rgba(0,212,170,0.08) 100%)", border: "1px solid rgba(99,140,255,0.25)", color: "#638CFF" }}
         >
           <BookOpen className="w-3.5 h-3.5" />
@@ -215,10 +216,7 @@ function WeekendView({ lang, onIgnore }: { lang: "fr" | "en"; onIgnore: () => vo
         </Link>
         <button
           onClick={onIgnore}
-          className="w-full text-[11px] py-1.5 transition-colors"
-          style={{ color: "rgba(255,255,255,0.25)" }}
-          onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.color = "rgba(255,255,255,0.5)"; }}
-          onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.color = "rgba(255,255,255,0.25)"; }}
+          className="w-full text-[11px] py-1.5 text-white/30 hover:text-white/60 active:text-white/80 transition-colors"
         >
           {isFr ? "Accéder au coach quand même →" : "Open Alex anyway →"}
         </button>
@@ -249,7 +247,8 @@ export function CoachOverlay() {
 
   useStepValidation();
 
-  if (!showCoach) return null;
+  // Show for everyone on weekends, only beginners on weekdays
+  if (!showCoach && !weekend) return null;
 
   const hasNotif = !isOpen;
 
@@ -360,6 +359,7 @@ export function CoachOverlay() {
                       key="weekend"
                       lang={lang as "fr" | "en"}
                       onIgnore={() => setIgnoreSleep(true)}
+                      onClose={closePanel}
                     />
                   ) : activeTour ? (
                     <TourView
