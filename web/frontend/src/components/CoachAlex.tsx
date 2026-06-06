@@ -5,7 +5,7 @@ import {
   X, Bot, ChevronRight, ChevronLeft, BarChart2, Globe,
   Lightbulb, Trophy, Sparkles, TrendingUp, Target, Zap,
   BookOpen, Search, MessageSquare, ArrowRight, MousePointer,
-  CheckCircle, AlertCircle,
+  CheckCircle, AlertCircle, Moon,
 } from "lucide-react";
 import { useUserLevel } from "@/hooks/useUserLevel";
 import { useAlexStore } from "@/stores/alex-store";
@@ -14,6 +14,8 @@ import { useStepValidation } from "@/hooks/useStepValidation";
 import { AlexHoverEngine } from "@/components/alex/AlexHoverEngine";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
+import { useState, useEffect } from "react";
+import { useLanguage } from "@/lib/LanguageContext";
 import {
   ANALYSE_STEPS,
   DAILY_TIPS,
@@ -22,10 +24,214 @@ import {
   type GuidedStep,
 } from "@/components/CoachAlexData";
 
+// ─── Weekend Sleep Mode ────────────────────────────────────────────────────────
+
+function isWeekend(): boolean {
+  const now = new Date();
+  const parisTime = new Date(now.toLocaleString("en-US", { timeZone: "Europe/Paris" }));
+  const day = parisTime.getDay();
+  return day === 0 || day === 6;
+}
+
+function getCountdownToMonday(): string {
+  const now = new Date();
+  const parisTime = new Date(now.toLocaleString("en-US", { timeZone: "Europe/Paris" }));
+  const day = parisTime.getDay();
+  const currentMin = parisTime.getHours() * 60 + parisTime.getMinutes();
+  const daysToMonday = day === 6 ? 2 : 1;
+  const totalMin = daysToMonday * 24 * 60 - currentMin + 9 * 60;
+  const h = Math.floor(totalMin / 60);
+  const m = totalMin % 60;
+  return `${h}h${String(m).padStart(2, "0")}`;
+}
+
+const WEEKEND_TIPS: Record<"fr" | "en", { emoji: string; title: string; desc: string }[]> = {
+  fr: [
+    { emoji: "📋", title: "Bilan de la semaine", desc: "Revois tes trades : ce qui a marché, ce qui a raté. Sans bilan, pas de progrès." },
+    { emoji: "📅", title: "Calendrier économique", desc: "Identifie les événements clés (NFP, FOMC, résultats). Anticipe les pics de volatilité." },
+    { emoji: "📊", title: "Niveaux clés", desc: "Repère supports et résistances sur tes actifs favoris avant la réouverture lundi 09:00." },
+    { emoji: "🎯", title: "Définir ton plan", desc: "Budget risque, objectifs, setups ciblés. Trader sans plan, c'est jouer au casino." },
+    { emoji: "📖", title: "Formation continue", desc: "Le weekend est parfait pour approfondir un indicateur ou explorer la section Apprendre." },
+    { emoji: "😴", title: "Repose-toi !", desc: "Un esprit reposé prend de meilleures décisions. Les marchés seront encore là lundi." },
+  ],
+  en: [
+    { emoji: "📋", title: "Weekly review", desc: "Go through your trades: what worked, what didn't. No review = no progress." },
+    { emoji: "📅", title: "Economic calendar", desc: "Identify key events (NFP, FOMC, earnings). Anticipate volatility spikes ahead of time." },
+    { emoji: "📊", title: "Key levels", desc: "Mark support and resistance on your favorites before Monday's 9 AM open." },
+    { emoji: "🎯", title: "Define your plan", desc: "Risk budget, goals, targeted setups. Trading without a plan is gambling." },
+    { emoji: "📖", title: "Keep learning", desc: "The weekend is perfect for deepening your knowledge of an indicator or concept." },
+    { emoji: "😴", title: "Rest up!", desc: "A rested mind makes better decisions. The markets will still be there Monday." },
+  ],
+};
+
+function SleepingAlexAnim() {
+  return (
+    <div className="relative flex items-center justify-center w-36 h-36 mx-auto">
+      {/* Radial glow */}
+      <motion.div
+        className="absolute inset-0 rounded-full pointer-events-none"
+        style={{ background: "radial-gradient(circle, rgba(99,140,255,0.18) 0%, transparent 68%)" }}
+        animate={{ scale: [1, 1.25, 1], opacity: [0.5, 1, 0.5] }}
+        transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+      />
+      {/* Stars */}
+      {[{ x: -36, y: -28, size: 5, delay: 0 }, { x: 32, y: -40, size: 4, delay: 0.7 }, { x: -48, y: 8, size: 3, delay: 1.4 }].map((s, i) => (
+        <motion.div key={i} className="absolute rounded-full bg-indigo-300/60"
+          style={{ width: s.size, height: s.size, left: `calc(50% + ${s.x}px)`, top: `calc(50% + ${s.y}px)` }}
+          animate={{ opacity: [0.2, 0.9, 0.2], scale: [0.8, 1.2, 0.8] }}
+          transition={{ duration: 2.5, repeat: Infinity, delay: s.delay, ease: "easeInOut" }}
+        />
+      ))}
+
+      {/* Bot — breathing */}
+      <motion.div
+        animate={{ y: [0, -7, 0] }}
+        transition={{ duration: 3.5, repeat: Infinity, ease: "easeInOut" }}
+        className="relative z-10"
+      >
+        <div
+          className="w-24 h-24 rounded-3xl flex items-center justify-center relative shadow-2xl"
+          style={{
+            background: "linear-gradient(135deg, #0d1535 0%, #1a2444 100%)",
+            border: "2px solid rgba(99,140,255,0.3)",
+            boxShadow: "0 0 40px rgba(99,140,255,0.2), 0 8px 32px rgba(0,0,0,0.6)",
+          }}
+        >
+          <Bot className="w-11 h-11" style={{ color: "rgba(99,140,255,0.65)" }} />
+          {/* Closed curved eyes */}
+          <div className="absolute inset-0 flex items-center justify-center" style={{ marginTop: 4 }}>
+            <div className="flex gap-3.5">
+              {[0, 1].map((e) => (
+                <svg key={e} width="13" height="7" viewBox="0 0 13 7" fill="none">
+                  <path d="M 1 2 Q 6.5 6.5 12 2" stroke="rgba(99,140,255,0.9)" strokeWidth="2" strokeLinecap="round" />
+                </svg>
+              ))}
+            </div>
+          </div>
+        </div>
+      </motion.div>
+
+      {/* Floating ZZZs */}
+      {[
+        { delay: 0,   size: 13, dx: 14, startY: -4  },
+        { delay: 0.9, size: 17, dx: 26, startY: -18 },
+        { delay: 1.8, size: 22, dx: 38, startY: -34 },
+      ].map((z, i) => (
+        <motion.span
+          key={i}
+          className="absolute font-black select-none pointer-events-none z-20"
+          style={{ fontSize: z.size, left: "50%", top: "50%", color: "#638CFF", lineHeight: 1 }}
+          animate={{ opacity: [0, 0.9, 0.9, 0], x: [z.dx, z.dx + 10, z.dx + 18], y: [z.startY, z.startY - 22, z.startY - 44] }}
+          transition={{ duration: 3, repeat: Infinity, delay: z.delay, ease: "easeOut" }}
+        >
+          Z
+        </motion.span>
+      ))}
+    </div>
+  );
+}
+
+function WeekendView({ lang, onIgnore }: { lang: "fr" | "en"; onIgnore: () => void }) {
+  const [countdown, setCountdown] = useState(getCountdownToMonday);
+  useEffect(() => {
+    const t = setInterval(() => setCountdown(getCountdownToMonday()), 60_000);
+    return () => clearInterval(t);
+  }, []);
+
+  const tips = WEEKEND_TIPS[lang] ?? WEEKEND_TIPS.fr;
+  const isFr = lang !== "en";
+
+  return (
+    <motion.div
+      key="weekend"
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -10 }}
+      transition={{ duration: 0.25 }}
+      className="overflow-y-auto"
+      style={{ maxHeight: "72vh" }}
+    >
+      {/* Sleeping animation */}
+      <div className="pt-4 pb-1">
+        <SleepingAlexAnim />
+      </div>
+
+      {/* Title + countdown */}
+      <div className="text-center px-5 pb-4">
+        <h3 className="font-bold text-white text-[15px] leading-snug">
+          {isFr ? "Alex fait une pause 😴" : "Alex is sleeping 😴"}
+        </h3>
+        <p className="text-[11px] text-white/35 mt-0.5">
+          {isFr ? "Marchés fermés · Réouverture lundi 09:00" : "Markets closed · Opens Monday 09:00"}
+        </p>
+        <motion.div
+          className="mt-2.5 inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border"
+          style={{ background: "rgba(99,140,255,0.08)", borderColor: "rgba(99,140,255,0.22)" }}
+          animate={{ opacity: [0.7, 1, 0.7] }}
+          transition={{ duration: 2.8, repeat: Infinity }}
+        >
+          <span className="w-1.5 h-1.5 rounded-full bg-[#638CFF] animate-pulse" />
+          <span className="text-[#638CFF] text-xs font-mono font-bold">
+            {countdown} {isFr ? "avant l'ouverture" : "until open"}
+          </span>
+        </motion.div>
+      </div>
+
+      {/* Tips list */}
+      <div className="px-4 pb-3">
+        <p className="text-[10px] font-bold text-white/30 uppercase tracking-widest mb-2">
+          {isFr ? "✅ Prépare ta semaine" : "✅ Prepare your week"}
+        </p>
+        <div className="space-y-1.5">
+          {tips.map((tip, i) => (
+            <motion.div
+              key={i}
+              initial={{ opacity: 0, x: -8 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.06 + i * 0.07 }}
+              className="flex gap-2.5 p-2.5 rounded-xl border transition-colors"
+              style={{ background: "rgba(255,255,255,0.03)", borderColor: "rgba(255,255,255,0.06)" }}
+            >
+              <span className="text-base shrink-0 leading-none mt-0.5">{tip.emoji}</span>
+              <div>
+                <p className="text-xs font-semibold text-white/85 leading-tight">{tip.title}</p>
+                <p className="text-[11px] leading-relaxed mt-0.5" style={{ color: "rgba(255,255,255,0.38)" }}>{tip.desc}</p>
+              </div>
+            </motion.div>
+          ))}
+        </div>
+      </div>
+
+      {/* CTAs */}
+      <div className="px-4 pb-5 space-y-2">
+        <Link
+          href="/learn"
+          className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl text-xs font-semibold transition-opacity hover:opacity-80"
+          style={{ background: "linear-gradient(135deg, rgba(99,140,255,0.18) 0%, rgba(0,212,170,0.08) 100%)", border: "1px solid rgba(99,140,255,0.25)", color: "#638CFF" }}
+        >
+          <BookOpen className="w-3.5 h-3.5" />
+          {isFr ? "Aller à la section Apprendre" : "Go to Learn section"}
+          <ArrowRight className="w-3.5 h-3.5" />
+        </Link>
+        <button
+          onClick={onIgnore}
+          className="w-full text-[11px] py-1.5 transition-colors"
+          style={{ color: "rgba(255,255,255,0.25)" }}
+          onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.color = "rgba(255,255,255,0.5)"; }}
+          onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.color = "rgba(255,255,255,0.25)"; }}
+        >
+          {isFr ? "Accéder au coach quand même →" : "Open Alex anyway →"}
+        </button>
+      </div>
+    </motion.div>
+  );
+}
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export function CoachOverlay() {
   const { showCoach } = useUserLevel();
+  const { lang } = useLanguage();
   const {
     isOpen, openPanel, closePanel,
     view, setView,
@@ -36,6 +242,10 @@ export function CoachOverlay() {
     hoverMode, enableHoverMode, disableHoverMode,
     startTour,
   } = useAlexStore();
+
+  const [ignoreSleep, setIgnoreSleep] = useState(false);
+  const weekend = isWeekend();
+  const sleepMode = weekend && !activeTour && !hoverMode && !ignoreSleep;
 
   useStepValidation();
 
@@ -114,8 +324,10 @@ export function CoachOverlay() {
 
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold text-white leading-none">Alex</p>
-                    <p className="text-xs text-[#00D4AA] mt-0.5">
-                      {hoverMode
+                    <p className="text-xs mt-0.5" style={{ color: sleepMode ? "#8b8fbb" : "#00D4AA" }}>
+                      {sleepMode
+                        ? (lang === "en" ? "Weekend rest 😴 · Markets closed" : "En veille 😴 · Marchés fermés")
+                        : hoverMode
                         ? "Mode exploration actif 🔍"
                         : activeTour
                         ? `Étape ${currentStep + 1} / ${totalSteps}`
@@ -143,7 +355,13 @@ export function CoachOverlay() {
 
                 {/* Content */}
                 <AnimatePresence mode="wait">
-                  {activeTour ? (
+                  {sleepMode ? (
+                    <WeekendView
+                      key="weekend"
+                      lang={lang as "fr" | "en"}
+                      onIgnore={() => setIgnoreSleep(true)}
+                    />
+                  ) : activeTour ? (
                     <TourView
                       key="tour"
                       message={currentMessage}
@@ -194,22 +412,28 @@ export function CoachOverlay() {
           style={{
             background: isOpen
               ? "linear-gradient(135deg, #638CFF 0%, #00D4AA 100%)"
+              : weekend
+              ? "linear-gradient(135deg, #0d1235 0%, #1a1a3e 100%)"
               : "linear-gradient(135deg, #1a2444 0%, #0f1e35 100%)",
-            border: "1px solid rgba(99,140,255,0.4)",
-            boxShadow: "0 4px 24px rgba(99,140,255,0.25), 0 1px 3px rgba(0,0,0,0.5)",
+            border: weekend && !isOpen ? "1px solid rgba(99,100,200,0.35)" : "1px solid rgba(99,140,255,0.4)",
+            boxShadow: weekend && !isOpen
+              ? "0 4px 24px rgba(80,80,180,0.18), 0 1px 3px rgba(0,0,0,0.6)"
+              : "0 4px 24px rgba(99,140,255,0.25), 0 1px 3px rgba(0,0,0,0.5)",
           }}
         >
           {!isOpen && (
             <>
               <motion.span
-                className="absolute inset-0 rounded-2xl border border-[#638CFF]/40"
+                className="absolute inset-0 rounded-2xl"
+                style={{ border: `1px solid ${weekend ? "rgba(99,100,200,0.3)" : "rgba(99,140,255,0.4)"}` }}
                 animate={{ scale: [1, 1.35], opacity: [0.5, 0] }}
-                transition={{ duration: 2, repeat: Infinity, ease: "easeOut" }}
+                transition={{ duration: weekend ? 4 : 2, repeat: Infinity, ease: "easeOut" }}
               />
               <motion.span
-                className="absolute inset-0 rounded-2xl border border-[#638CFF]/20"
+                className="absolute inset-0 rounded-2xl"
+                style={{ border: `1px solid ${weekend ? "rgba(99,100,200,0.15)" : "rgba(99,140,255,0.2)"}` }}
                 animate={{ scale: [1, 1.6], opacity: [0.3, 0] }}
-                transition={{ duration: 2, repeat: Infinity, ease: "easeOut", delay: 0.4 }}
+                transition={{ duration: weekend ? 4 : 2, repeat: Infinity, ease: "easeOut", delay: weekend ? 1.5 : 0.4 }}
               />
             </>
           )}
@@ -219,6 +443,20 @@ export function CoachOverlay() {
               <motion.div key="close" initial={{ scale: 0, rotate: -90 }} animate={{ scale: 1, rotate: 0 }} exit={{ scale: 0 }}>
                 <X className="w-5 h-5 text-white" />
               </motion.div>
+            ) : weekend ? (
+              <motion.div
+                key="moon"
+                initial={{ scale: 0, rotate: -30 }}
+                animate={{ scale: 1, rotate: 0 }}
+                exit={{ scale: 0 }}
+              >
+                <motion.div
+                  animate={{ rotate: [0, -8, 0, 8, 0] }}
+                  transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
+                >
+                  <Moon className="w-6 h-6" style={{ color: "rgba(150,150,255,0.8)" }} />
+                </motion.div>
+              </motion.div>
             ) : (
               <motion.div key="bot" initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }}>
                 <Bot className="w-6 h-6 text-[#638CFF]" />
@@ -226,7 +464,18 @@ export function CoachOverlay() {
             )}
           </AnimatePresence>
 
-          {hasNotif && !isOpen && (
+          {/* Weekend: soft moon glow badge instead of red notification */}
+          {weekend && !isOpen && (
+            <motion.span
+              className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full border-2 border-[#080d1a] flex items-center justify-center text-[8px]"
+              style={{ background: "#1a1a4e" }}
+              animate={{ opacity: [0.6, 1, 0.6] }}
+              transition={{ duration: 3, repeat: Infinity }}
+            >
+              💤
+            </motion.span>
+          )}
+          {hasNotif && !isOpen && !weekend && (
             <span className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-[#FF4757] border-2 border-[#080d1a]">
               <motion.span
                 className="absolute inset-0 rounded-full bg-[#FF4757]"
