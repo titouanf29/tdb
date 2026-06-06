@@ -2741,6 +2741,7 @@ const PROMO_POSTS: PostData[] = [
 
 type PostData = { tw: string; li: string; liComment: string; isFinancial?: boolean };
 type PostKey = "signal" | "top3" | "edu" | "promo";
+type Platform = "tw" | "li";
 
 function buildPosts(prices: Record<string, { price: number; change: number }>, marketStatus: MarketStatus): Record<PostKey, PostData> {
   const sorted = ALL_SYMBOLS
@@ -3233,7 +3234,7 @@ function SocialTab() {
                       </span>
                     </div>
                   ) : (
-                    <span className="text-xs text-muted-foreground">{charCount} caractères</span>
+                    <span className="text-xs text-muted-foreground">{text.length} caractères</span>
                   )}
 
                   <div className="flex items-center gap-2">

@@ -1872,6 +1872,7 @@ export interface InsightsScript {
   total_duration_sec: number;
   mode: string;
   generated_by: "gemini" | "template";
+  geo_context?: string;
   // Mode B only
   scripts?: InsightsScript[];
 }

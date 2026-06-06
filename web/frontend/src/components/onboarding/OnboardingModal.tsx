@@ -175,7 +175,7 @@ export function OnboardingModal({ onClose, onStartTour }: OnboardingModalProps) 
     onClose();
   };
 
-  const preview = hovered ? LEVELS.find((l) => l.id === hovered) : null;
+  const preview = hovered ? (LEVELS.find((l) => l.id === hovered) ?? null) : null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
