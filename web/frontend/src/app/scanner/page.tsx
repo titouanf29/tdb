@@ -30,6 +30,7 @@ import { analysisAPI, marketAPI, Market, ScanResultItem, ScanQuota } from "@/lib
 import { useFormatPrice } from "@/lib/SettingsContext";
 import { useLanguage } from "@/lib/LanguageContext";
 import { HelpGuide } from "@/components/ui/HelpGuide";
+import { isMarketOpen } from "@/lib/marketStatus";
 
 type SortKey = "score" | "change" | "change_1w" | "rsi" | "volume_ratio";
 type OppFilter = "all" | "breakout" | "reversal" | "momentum";
@@ -144,6 +145,9 @@ export default function ScannerPage() {
     ]).then(([mData, qData]) => {
       setMarkets(mData.markets);
       setQuota(qData);
+      // Auto-select first currently-open market
+      const firstOpen = mData.markets.find((m) => isMarketOpen(m.key));
+      if (firstOpen) setSelectedMarket(firstOpen.key);
     }).catch(console.error).finally(() => {
       setIsLoading(false);
     });
@@ -498,21 +502,36 @@ export default function ScannerPage() {
               {lang === "en" ? "Market" : "Marché"}
             </div>
             <div className="flex flex-wrap gap-2">
-              {markets.map((m) => (
-                <button
-                  key={m.key}
-                  onClick={() => setSelectedMarket(m.key)}
-                  className={cn(
-                    "px-3 py-1.5 rounded-lg text-sm font-medium transition-all border",
-                    selectedMarket === m.key
-                      ? "bg-primary/20 border-primary/50 text-primary shadow-[0_0_12px_rgba(var(--primary-rgb),0.2)]"
-                      : "bg-white/5 border-white/8 hover:bg-white/10 text-muted-foreground hover:text-foreground"
-                  )}
-                >
-                  {m.name}
-                </button>
-              ))}
+              {markets.map((m) => {
+                const open = isMarketOpen(m.key);
+                const isSelected = selectedMarket === m.key;
+                return (
+                  <button
+                    key={m.key}
+                    onClick={() => setSelectedMarket(m.key)}
+                    className={cn(
+                      "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all border",
+                      isSelected
+                        ? "bg-primary/20 border-primary/50 text-primary shadow-[0_0_12px_rgba(var(--primary-rgb),0.2)]"
+                        : "bg-white/5 border-white/8 hover:bg-white/10 text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    {m.name}
+                    <span
+                      className={cn(
+                        "inline-block w-1.5 h-1.5 rounded-full",
+                        open ? "bg-emerald-400 shadow-[0_0_4px_rgba(52,211,153,0.8)]" : "bg-white/20"
+                      )}
+                      title={open ? (lang === "en" ? "Open now" : "Ouvert") : (lang === "en" ? "Closed" : "Fermé")}
+                    />
+                  </button>
+                );
+              })}
             </div>
+            <p className="text-[10px] text-muted-foreground/50 mt-1 flex items-center gap-1">
+              <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400" />
+              {lang === "en" ? "= open now" : "= ouvert maintenant"}
+            </p>
           </div>
 
           {/* Divider */}
