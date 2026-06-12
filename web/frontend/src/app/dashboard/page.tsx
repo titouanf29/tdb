@@ -56,6 +56,10 @@ const WeeklyPrepWidget = dynamic(
   () => import("@/components/ui/WeeklyPrepWidget").then(m => ({ default: m.WeeklyPrepWidget })),
   { ssr: false, loading: () => null }
 );
+const IPOWatchWidget = dynamic(
+  () => import("@/components/dashboard/IPOWatchWidget").then(m => ({ default: m.IPOWatchWidget })),
+  { ssr: false, loading: () => <div className="h-48 glass-card animate-pulse rounded-xl border border-white/8" /> }
+);
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  CONFIG
@@ -242,6 +246,11 @@ export default function DashboardPage() {
       {/* ── Weekly prep ──────────────────────────────────────────────────────── */}
       <motion.div variants={itemVariants}>
         <WeeklyPrepWidget />
+      </motion.div>
+
+      {/* ── IPO en Veille ───────────────────────────────────────────────────── */}
+      <motion.div variants={itemVariants}>
+        <IPOWatchWidget />
       </motion.div>
 
       {/* ── Open positions ───────────────────────────────────────────────────── */}

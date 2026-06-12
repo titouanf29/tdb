@@ -11,7 +11,7 @@ export const MARKET_SYMBOLS: Record<string, string[]> = {
   USA: [
     "^GSPC", "^IXIC", "^DJI", "^RUT",
     "AAPL", "NVDA", "MSFT", "AMZN", "META",
-    "GOOGL", "TSLA", "NFLX", "AMD", "JPM",
+    "GOOGL", "TSLA", "NFLX", "AMD", "JPM", "SPCX",
   ],
   ASIA: [
     "^N225", "^HSI", "^KS11",

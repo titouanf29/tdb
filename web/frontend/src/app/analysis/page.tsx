@@ -1512,6 +1512,7 @@ export default function AnalysisPage() {
                 { symbol: "MSFT",    name: "Microsoft",  emoji: "🪟", color: "text-neon-cyan  bg-neon-cyan/10  border-neon-cyan/20",   cat: "Actions"  },
                 { symbol: "GC=F",    name: "Or",         emoji: "🥇", color: "text-neon-gold  bg-neon-gold/10  border-neon-gold/20",   cat: "Matière"  },
                 { symbol: "EURUSD=X",name: "EUR/USD",    emoji: "💱", color: "text-muted-foreground bg-white/5 border-white/10",       cat: "Forex"    },
+                { symbol: "SPCX",    name: "SpaceX",     emoji: "🚀", color: "text-neon-blue  bg-neon-blue/10  border-neon-blue/20",   cat: "Actions"  },
               ].map((item) => (
                 <motion.button
                   key={item.symbol}

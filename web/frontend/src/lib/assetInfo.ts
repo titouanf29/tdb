@@ -511,6 +511,9 @@ export const assetInfoMap: Record<string, AssetInfo> = {
   "CEG": { name: "Constellation Energy", sector: "Nucleaire" },
   "VST": { name: "Vistra", sector: "Energie" },
 
+  // ============ USA - AEROSPATIALE / NOUVELLES INTRODUCTIONS ============
+  "SPCX": { name: "SpaceX", sector: "Aerospatiale" },
+
   // ============ USA - INDUSTRIE / DEFENSE ============
   "BA": { name: "Boeing", sector: "Aerospatiale" },
   "CAT": { name: "Caterpillar", sector: "Equipements" },

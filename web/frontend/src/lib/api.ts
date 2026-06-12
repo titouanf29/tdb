@@ -1995,6 +1995,29 @@ export const missionsAPI = {
     }),
 };
 
+// ── IPO Watch ────────────────────────────────────────────────────────────────
+export interface IPOWatchItem {
+  id: string;
+  symbol: string | null;
+  name: string;
+  full_name: string;
+  date: string;
+  exchange: string;
+  sector: string;
+  sector_en: string;
+  status: "listed" | "upcoming" | "rumored";
+  price_at_ipo: number | null;
+  description_fr: string;
+  description_en: string;
+  tags_fr: string[];
+  tags_en: string[];
+  ticker_to_watch: string | null;
+}
+
+export const ipoAPI = {
+  getWatchlist: () => fetchAPI<{ ipos: IPOWatchItem[] }>("/api/ipo-watch"),
+};
+
 /**
  * Create an authenticated WebSocket URL for private endpoints
  * (portfolio, alerts). Passes the JWT as a query param since
