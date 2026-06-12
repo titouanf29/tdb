@@ -436,6 +436,8 @@ MARKETS = {
             "ETR",   # Entergy
             "CEG",   # Constellation Energy
             "VST",   # Vistra
+            # === Aérospatial / Nouvelles introductions ===
+            "SPCX",  # SpaceX (Space Exploration Technologies)
             # === Industriel / Défense ===
             "BA",    # Boeing
             "CAT",   # Caterpillar

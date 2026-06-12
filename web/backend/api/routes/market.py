@@ -242,6 +242,7 @@ SYMBOL_NAMES: dict = {
     "PPL": "PPL Corp", "CMS": "CMS Energy", "ETR": "Entergy",
     "CEG": "Constellation Energy", "VST": "Vistra",
     # ---- USA Industrie / Defense ----
+    "SPCX": "SpaceX",
     "BA": "Boeing", "CAT": "Caterpillar", "GE": "GE Aerospace", "HON": "Honeywell",
     "MMM": "3M", "LMT": "Lockheed Martin", "RTX": "RTX Raytheon",
     "NOC": "Northrop Grumman", "GD": "General Dynamics", "HII": "Huntington Ingalls",
