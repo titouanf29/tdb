@@ -837,14 +837,40 @@ export default function AnalysisPage() {
           <div className="flex items-start gap-3 text-loss mb-4">
             <AlertCircle className="w-5 h-5 mt-0.5 flex-shrink-0" />
             <div>
-              <p className="font-medium">{error}</p>
-              <p className="text-sm text-muted-foreground mt-1">
-                L'actif "{symbol}" n'est pas disponible ou n'existe pas.
-              </p>
+              {error.toLowerCase().includes("insufficient data") ? (
+                <>
+                  <p className="font-medium">
+                    {lang === "en" ? "Insufficient historical data" : "Données historiques insuffisantes"}
+                  </p>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    {lang === "en"
+                      ? `"${symbol}" was recently listed and doesn't have enough trading history for technical analysis yet (minimum 20 sessions needed). Check back in a few weeks.`
+                      : `"${symbol}" vient d'être introduit en bourse et n'a pas encore assez d'historique pour l'analyse technique (minimum 20 séances nécessaires). Revenez dans quelques semaines.`}
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p className="font-medium">{error}</p>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    {lang === "en"
+                      ? `"${symbol}" is not available or does not exist.`
+                      : `L'actif "${symbol}" n'est pas disponible ou n'existe pas.`}
+                  </p>
+                </>
+              )}
             </div>
           </div>
 
-          {requestSuccess ? (
+          {error.toLowerCase().includes("insufficient data") ? (
+            <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-400 text-sm flex items-start gap-2">
+              <span className="text-lg leading-none">🚀</span>
+              <span>
+                {lang === "en"
+                  ? "This asset is a recent IPO. Technical indicators require at least 20 days of price history. The analysis will become available progressively."
+                  : "Cet actif est une introduction en bourse récente. Les indicateurs techniques nécessitent au moins 20 jours d'historique de cours. L'analyse sera disponible progressivement."}
+              </span>
+            </div>
+          ) : requestSuccess ? (
             <div className="p-4 rounded-xl bg-profit/10 border border-profit/30 text-profit">
               <p className="font-medium">Demande envoyee avec succes!</p>
               <p className="text-sm mt-1">
