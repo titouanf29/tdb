@@ -1455,6 +1455,382 @@ function saveProgress(p: Progress) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(p));
 }
 
+// ─── Trading Styles Hub ──────────────────────────────────────────────────────
+
+const STYLE_CARDS = [
+  {
+    id: "scalping-complet",
+    name: "Scalping",
+    emoji: "⚡",
+    tagline: "L'art de la microseconde",
+    gradient: "from-red-500/20 to-orange-500/10",
+    border: "border-red-500/30",
+    accent: "#f87171",
+    accentBg: "rgba(248,113,113,0.12)",
+    duration: "Sec → min",
+    frequency: "10–50/jour",
+    capital: "5 000€+",
+    stress: 95,
+    difficulty: 90,
+    forBeginners: false,
+    pros: ["Nombreuses opportunités", "Gains quotidiens", "Zéro risque overnight"],
+    cons: ["Stress extrême", "Frais élevés", "12 mois d'expérience min."],
+  },
+  {
+    id: "day-trading-complet",
+    name: "Day Trading",
+    emoji: "📊",
+    tagline: "Clôturer chaque soir, dormir serein",
+    gradient: "from-amber-500/20 to-yellow-500/10",
+    border: "border-amber-500/30",
+    accent: "#fbbf24",
+    accentBg: "rgba(251,191,36,0.12)",
+    duration: "Min → heures",
+    frequency: "1–5/jour",
+    capital: "1 000€+",
+    stress: 60,
+    difficulty: 65,
+    forBeginners: false,
+    pros: ["Zéro risque overnight", "Résultats rapides", "Adapté aux actifs pro"],
+    cons: ["2–4h de dispo quotidienne", "Discipline de fer", "Sessions à respecter"],
+  },
+  {
+    id: "swing-complet",
+    name: "Swing Trading",
+    emoji: "🌊",
+    tagline: "Capter les grandes vagues",
+    gradient: "from-emerald-500/20 to-teal-500/10",
+    border: "border-emerald-500/30",
+    accent: "#34d399",
+    accentBg: "rgba(52,211,153,0.12)",
+    duration: "2–14 jours",
+    frequency: "2–10/mois",
+    capital: "200€+",
+    stress: 30,
+    difficulty: 45,
+    forBeginners: true,
+    pros: ["30 min/soir suffisent", "Signaux clairs sur Daily", "Idéal débutants"],
+    cons: ["Risque overnight", "Patience nécessaire", "Moins de feedback"],
+  },
+  {
+    id: "choose-your-style",
+    name: "Position Trading",
+    emoji: "🎯",
+    tagline: "Surfer les grandes tendances",
+    gradient: "from-blue-500/20 to-indigo-500/10",
+    border: "border-blue-500/30",
+    accent: "#818cf8",
+    accentBg: "rgba(129,140,248,0.12)",
+    duration: "Sem → mois",
+    frequency: "1–4/mois",
+    capital: "500€+",
+    stress: 15,
+    difficulty: 55,
+    forBeginners: true,
+    pros: ["15 min/jour max", "Peu de décisions = peu d'erreurs", "Excellent R/R"],
+    cons: ["Stops très larges", "Patience extrême", "Moins de gains visibles"],
+  },
+];
+
+const PROFILE_QUIZ = [
+  {
+    q: "Combien de temps avez-vous pour trader chaque jour ?",
+    options: [
+      { label: "Moins de 30 minutes",       s: [0, 0, 3, 3] },
+      { label: "30 min à 1 heure (le soir)", s: [0, 1, 3, 2] },
+      { label: "2 à 4 heures en journée",    s: [1, 3, 2, 1] },
+      { label: "Disponible en continu",      s: [3, 2, 1, 0] },
+    ],
+  },
+  {
+    q: "Comment réagissez-vous face au stress et aux pertes ?",
+    options: [
+      { label: "Très sensible — les pertes m'affectent fort",    s: [0, 0, 2, 3] },
+      { label: "Je gère bien mais j'ai besoin de décompresser",  s: [0, 1, 3, 2] },
+      { label: "Je reste calme sous pression",                   s: [1, 3, 2, 1] },
+      { label: "Le stress me motive, j'aime l'action rapide",    s: [3, 2, 1, 0] },
+    ],
+  },
+  {
+    q: "Quelle est votre expérience en trading ?",
+    options: [
+      { label: "Débutant (moins de 6 mois)",   s: [0, 0, 3, 2] },
+      { label: "Intermédiaire (6 à 18 mois)",  s: [0, 1, 3, 2] },
+      { label: "Confirmé (1 à 2 ans)",         s: [1, 3, 2, 2] },
+      { label: "Expérimenté (plus de 2 ans)",  s: [3, 3, 2, 2] },
+    ],
+  },
+];
+
+function TradingStylesHub({
+  progress,
+  setActiveModule,
+  setActiveLesson,
+}: {
+  progress: Progress;
+  setActiveModule: (m: Module | null) => void;
+  setActiveLesson: (l: Lesson | null) => void;
+}) {
+  const [quizStep, setQuizStep] = useState<"idle" | "quiz" | "result">("idle");
+  const [answers, setAnswers] = useState<number[]>([]);
+  const [resultIdx, setResultIdx] = useState<number>(2);
+
+  const stylesModule = LEARN_MODULES.find(m => m.id === "trading-styles")!;
+
+  const goToLesson = (lessonId: string) => {
+    const lesson = stylesModule.lessons.find(l => l.id === lessonId);
+    if (lesson) { setActiveModule(stylesModule); setActiveLesson(lesson); }
+  };
+
+  const handleAnswer = (optionIdx: number) => {
+    const newAns = [...answers, optionIdx];
+    setAnswers(newAns);
+    if (newAns.length === PROFILE_QUIZ.length) {
+      const totals = [0, 0, 0, 0];
+      newAns.forEach((a, qi) => {
+        PROFILE_QUIZ[qi].options[a].s.forEach((sc, si) => { totals[si] += sc; });
+      });
+      setResultIdx(totals.indexOf(Math.max(...totals)));
+      setQuizStep("result");
+    }
+  };
+
+  const TABLE_ROWS = [
+    { label: "Durée / trade",    vals: ["Sec – min",  "Min – heures", "2 – 14 jours", "Sem – mois"] },
+    { label: "Trades / mois",    vals: ["200 – 1000", "20 – 80",      "5 – 15",       "1 – 4"]      },
+    { label: "Temps / jour",     vals: ["6 – 8 h",    "2 – 4 h",      "30 – 60 min",  "15 min"]     },
+    { label: "Capital min.",     vals: ["5 000 €",    "1 000 €",      "200 €",        "500 €"]      },
+    { label: "Objectif / trade", vals: ["0.1–0.5 %",  "0.5–2 %",      "3–15 %",       "20–100 %"]   },
+    { label: "Pour débutant ?",  vals: ["❌ Non",     "⚠️ Attention", "✅ Idéal",    "✅ Oui"]     },
+  ];
+
+  const resultStyle = STYLE_CARDS[resultIdx];
+
+  return (
+    <div className="space-y-8">
+
+      {/* Hero */}
+      <div className="glass-card p-6 bg-gradient-to-br from-violet-500/10 to-blue-500/5 border-violet-500/20">
+        <div className="flex items-start gap-4">
+          <div className="w-14 h-14 rounded-2xl bg-violet-500/20 border border-violet-500/30 flex items-center justify-center text-2xl flex-shrink-0">⚡</div>
+          <div>
+            <h2 className="text-xl font-bold mb-1">Pôle Styles de Trading</h2>
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              Scalping, Day Trading, Swing, Position — chaque style a ses règles, ses avantages et son profil de trader idéal.
+              Guides complets, comparatif et quiz pour trouver le vôtre.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* 4 cards */}
+      <div>
+        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4 flex items-center gap-2">
+          <Zap className="w-4 h-4" /> Les 4 styles de trading — cliquez pour accéder au guide complet
+        </h3>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {STYLE_CARDS.map((style) => {
+            const isDone = progress.completedLessons.includes(`trading-styles/${style.id}`);
+            return (
+              <motion.div
+                key={style.id}
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                whileHover={{ scale: 1.015 }}
+                onClick={() => goToLesson(style.id)}
+                className={cn("relative overflow-hidden rounded-2xl border p-5 cursor-pointer bg-gradient-to-br transition-all", style.gradient, style.border)}
+              >
+                {isDone && <div className="absolute top-3 right-3"><CheckCircle2 className="w-5 h-5 text-emerald-400" /></div>}
+                {style.forBeginners && !isDone && (
+                  <div className="absolute top-3 right-3 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                    Débutant ✓
+                  </div>
+                )}
+
+                {/* Header */}
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-12 h-12 rounded-xl flex items-center justify-center text-2xl"
+                    style={{ background: style.accentBg, border: `1px solid ${style.accent}25` }}>
+                    {style.emoji}
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-lg" style={{ color: style.accent }}>{style.name}</h4>
+                    <p className="text-xs text-white/50">{style.tagline}</p>
+                  </div>
+                </div>
+
+                {/* Key metrics */}
+                <div className="grid grid-cols-3 gap-2 mb-4">
+                  {[{ label: "Durée", val: style.duration }, { label: "Fréquence", val: style.frequency }, { label: "Capital", val: style.capital }].map(({ label, val }) => (
+                    <div key={label} className="bg-white/5 rounded-lg px-2 py-2 text-center">
+                      <div className="text-[10px] text-white/40 mb-0.5">{label}</div>
+                      <div className="text-[11px] font-semibold text-white/90 leading-tight">{val}</div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Stress + Difficulty */}
+                <div className="space-y-2 mb-4">
+                  {[{ label: "Stress", val: style.stress }, { label: "Difficulté", val: style.difficulty }].map(({ label, val }) => (
+                    <div key={label}>
+                      <div className="flex justify-between text-[10px] text-white/40 mb-1">
+                        <span>{label}</span>
+                        <span style={{ color: style.accent }}>{val}%</span>
+                      </div>
+                      <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
+                        <motion.div initial={{ width: 0 }} animate={{ width: `${val}%` }} transition={{ duration: 0.8, ease: "easeOut" }}
+                          className="h-full rounded-full" style={{ background: style.accent }} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Pros / Cons */}
+                <div className="space-y-1 mb-4">
+                  {style.pros.map((p, i) => (
+                    <div key={i} className="flex items-start gap-1.5 text-xs text-white/60">
+                      <span className="text-emerald-400 shrink-0">+</span>{p}
+                    </div>
+                  ))}
+                  {style.cons.slice(0, 2).map((c, i) => (
+                    <div key={i} className="flex items-start gap-1.5 text-xs text-white/40">
+                      <span className="text-red-400/60 shrink-0">−</span>{c}
+                    </div>
+                  ))}
+                </div>
+
+                {/* CTA */}
+                <div className="flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-lg w-fit transition-all"
+                  style={{ background: style.accentBg, color: style.accent, border: `1px solid ${style.accent}25` }}>
+                  Guide complet <ArrowRight className="w-3.5 h-3.5" />
+                </div>
+              </motion.div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Comparison table */}
+      <div className="glass-card overflow-hidden">
+        <div className="p-4 border-b border-white/5 flex items-center gap-2">
+          <BarChart3 className="w-4 h-4 text-primary" />
+          <h3 className="font-semibold text-sm">Tableau comparatif</h3>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-white/5">
+                <th className="text-left p-3 text-xs font-semibold text-muted-foreground w-28">Critère</th>
+                {STYLE_CARDS.map(s => (
+                  <th key={s.id} className="p-3 text-xs font-semibold text-center" style={{ color: s.accent }}>
+                    {s.emoji} {s.name}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {TABLE_ROWS.map((row, ri) => (
+                <tr key={ri} className="border-b border-white/5 hover:bg-white/2 transition-colors">
+                  <td className="p-3 text-xs text-muted-foreground font-medium">{row.label}</td>
+                  {row.vals.map((v, vi) => (
+                    <td key={vi} className="p-3 text-xs text-center text-white/80">{v}</td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Profile Quiz */}
+      <div className="glass-card p-6">
+        <div className="flex items-center gap-3 mb-5">
+          <div className="w-10 h-10 rounded-xl bg-violet-500/20 flex items-center justify-center shrink-0">
+            <Brain className="w-5 h-5 text-violet-400" />
+          </div>
+          <div className="flex-1">
+            <h3 className="font-bold">Quel style vous correspond ?</h3>
+            <p className="text-xs text-muted-foreground">3 questions pour trouver votre profil de trader</p>
+          </div>
+          {quizStep === "idle" && (
+            <motion.button whileTap={{ scale: 0.97 }} onClick={() => setQuizStep("quiz")}
+              className="px-4 py-2 rounded-xl bg-violet-500/20 hover:bg-violet-500/30 text-violet-400 text-sm font-semibold border border-violet-500/30 transition-all">
+              Démarrer →
+            </motion.button>
+          )}
+        </div>
+
+        {quizStep === "idle" && (
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {STYLE_CARDS.map(s => (
+              <div key={s.id} className={cn("p-3 rounded-xl border text-center bg-gradient-to-br", s.gradient, s.border)}>
+                <div className="text-2xl mb-1">{s.emoji}</div>
+                <div className="text-xs font-semibold" style={{ color: s.accent }}>{s.name}</div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {quizStep === "quiz" && (
+          <AnimatePresence mode="wait">
+            <motion.div key={answers.length} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-4">
+              <div className="flex items-center gap-3">
+                <div className="text-xs text-muted-foreground shrink-0">Question {answers.length + 1}/{PROFILE_QUIZ.length}</div>
+                <div className="flex-1 h-1.5 bg-white/10 rounded-full overflow-hidden">
+                  <div className="h-full bg-violet-500 rounded-full transition-all duration-500"
+                    style={{ width: `${(answers.length / PROFILE_QUIZ.length) * 100}%` }} />
+                </div>
+              </div>
+              <p className="font-medium text-sm">{PROFILE_QUIZ[answers.length].q}</p>
+              <div className="space-y-2">
+                {PROFILE_QUIZ[answers.length].options.map((opt, i) => (
+                  <motion.button key={i} whileTap={{ scale: 0.98 }} onClick={() => handleAnswer(i)}
+                    className="w-full text-left px-4 py-3 rounded-xl bg-white/5 hover:bg-violet-500/15 border border-white/10 hover:border-violet-500/30 text-sm transition-all">
+                    <span className="font-mono text-xs text-white/30 mr-2">{String.fromCharCode(65 + i)}.</span>
+                    {opt.label}
+                  </motion.button>
+                ))}
+              </div>
+            </motion.div>
+          </AnimatePresence>
+        )}
+
+        {quizStep === "result" && (
+          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="space-y-4">
+            <div className={cn("rounded-2xl border p-5 bg-gradient-to-br", resultStyle.gradient, resultStyle.border)}>
+              <div className="text-center mb-4">
+                <div className="text-4xl mb-2">{resultStyle.emoji}</div>
+                <p className="text-xs text-white/50 mb-1">Votre profil correspond au</p>
+                <h4 className="text-2xl font-bold" style={{ color: resultStyle.accent }}>{resultStyle.name}</h4>
+                <p className="text-sm text-white/60 mt-1">{resultStyle.tagline}</p>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                {[{ label: "Durée", val: resultStyle.duration }, { label: "Fréquence", val: resultStyle.frequency }, { label: "Capital", val: resultStyle.capital }].map(({ label, val }) => (
+                  <div key={label} className="bg-white/5 rounded-lg p-2 text-center">
+                    <div className="text-[10px] text-white/40 mb-0.5">{label}</div>
+                    <div className="text-xs font-semibold text-white/90">{val}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="flex gap-3">
+              <motion.button whileTap={{ scale: 0.97 }} onClick={() => goToLesson(resultStyle.id)}
+                className="flex-1 py-3 rounded-xl text-sm font-semibold transition-all"
+                style={{ background: resultStyle.accent + '20', color: resultStyle.accent, border: `1px solid ${resultStyle.accent}40` }}>
+                Voir le guide complet →
+              </motion.button>
+              <button onClick={() => { setAnswers([]); setQuizStep("quiz"); }}
+                className="px-4 py-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-sm text-white/60 transition-all">
+                Refaire
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ─── Main page ──────────────────────────────────────────────────────────────
 export default function LearnPage() {
   const { user } = useAuth();
@@ -1462,7 +1838,7 @@ export default function LearnPage() {
   const [progress, setProgress] = useState<Progress>({ completedLessons: [], quizScores: {} });
   const [activeModule, setActiveModule] = useState<Module | null>(null);
   const [activeLesson, setActiveLesson] = useState<Lesson | null>(null);
-  const [mainTab, setMainTab] = useState<"modules" | "parcours" | "fiches">("modules");
+  const [mainTab, setMainTab] = useState<"modules" | "parcours" | "fiches" | "styles">("modules");
   const [xpProgress, setXpProgress] = useState<UserProgress | null>(null);
 
   useEffect(() => {
@@ -1608,9 +1984,10 @@ export default function LearnPage() {
       <div className="glass-card p-1.5">
         <div className="flex gap-1">
           {([
-            { id: "modules", icon: GraduationCap, label: t("learn_tab_modules") },
-            { id: "parcours", icon: Target, label: "Parcours" },
-            { id: "fiches",   icon: BookOpen, label: t("learn_tab_fiches") },
+            { id: "modules",  icon: GraduationCap, label: t("learn_tab_modules") },
+            { id: "styles",   icon: Zap,            label: "Styles" },
+            { id: "parcours", icon: Target,         label: "Parcours" },
+            { id: "fiches",   icon: BookOpen,       label: t("learn_tab_fiches") },
           ] as const).map(({ id, icon: Icon, label }) => (
             <motion.button
               key={id}
@@ -1630,6 +2007,15 @@ export default function LearnPage() {
 
       {/* Fiches Conseils view */}
       {mainTab === "fiches" && <FichesConseilsSection />}
+
+      {/* Styles hub */}
+      {mainTab === "styles" && (
+        <TradingStylesHub
+          progress={progress}
+          setActiveModule={setActiveModule}
+          setActiveLesson={setActiveLesson}
+        />
+      )}
 
       {/* Parcours view */}
       {mainTab === "parcours" && <ParcoursSection progress={progress} setActiveModule={setActiveModule} />}
