@@ -66,7 +66,7 @@ import {
 } from "@/lib/api";
 import { useFormatCurrency } from "@/lib/SettingsContext";
 
-type TabType = "dashboard" | "users" | "positions" | "tickets" | "premium" | "broadcasts" | "asset-requests" | "analytics" | "audit" | "settings" | "social";
+type TabType = "dashboard" | "users" | "tickets" | "premium" | "broadcasts" | "settings" | "social";
 
 export default function AdminPage() {
   const router = useRouter();
@@ -123,16 +123,12 @@ export default function AdminPage() {
   const ticketCount = dashboard?.stats?.tickets?.awaiting_response || 0;
 
   const tabs = [
-    { id: "dashboard", label: "Dashboard", icon: Activity },
+    { id: "dashboard", label: "Vue d'ensemble", icon: Activity },
     { id: "users", label: "Utilisateurs", icon: Users },
-    { id: "positions", label: "Positions", icon: TrendingUp },
     { id: "tickets", label: "Tickets", icon: Mail, badge: ticketCount > 0 ? ticketCount : undefined },
     { id: "premium", label: "Premium", icon: Crown },
     { id: "broadcasts", label: "Broadcasts", icon: Megaphone },
-    { id: "asset-requests", label: "Demandes Actifs", icon: Database },
-    { id: "analytics", label: "Analytics", icon: BarChart3 },
-    { id: "audit", label: "Audit Log", icon: FileText },
-    { id: "settings", label: "Parametres", icon: Settings },
+    { id: "settings", label: "Paramètres", icon: Settings },
     { id: "social", label: "Réseaux Sociaux", icon: Share2 },
   ];
 
@@ -219,13 +215,9 @@ export default function AdminPage() {
         <DashboardTab dashboard={dashboard} formatCurrency={formatCurrency} />
       )}
       {activeTab === "users" && <UsersTab formatCurrency={formatCurrency} />}
-      {activeTab === "positions" && <PositionsTab formatCurrency={formatCurrency} />}
       {activeTab === "tickets" && <TicketsTab />}
       {activeTab === "premium" && <PremiumTab />}
       {activeTab === "broadcasts" && <BroadcastsTab />}
-      {activeTab === "asset-requests" && <AssetRequestsTab />}
-      {activeTab === "analytics" && <AnalyticsTab />}
-      {activeTab === "audit" && <AuditTab />}
       {activeTab === "settings" && <SettingsTab />}
       {activeTab === "social" && <SocialTab />}
     </motion.div>
@@ -267,6 +259,10 @@ function DashboardTab({
   const engagementRate = stats.users.total > 0
     ? Math.round((stats.users.active_24h / stats.users.total) * 100)
     : 0;
+  const [topSymbols, setTopSymbols] = useState<{symbol: string; count: number}[]>([]);
+  useEffect(() => {
+    adminAPI.getTradingAnalytics(30).then(d => { if (d?.top_symbols) setTopSymbols(d.top_symbols.slice(0, 5)); }).catch(() => {});
+  }, []);
 
   return (
     <div className="space-y-6">
@@ -357,6 +353,25 @@ function DashboardTab({
           </div>
         </div>
       </div>
+
+      {/* Top Symbols (30 days) */}
+      {topSymbols.length > 0 && (
+        <div className="glass-card p-6">
+          <h3 className="font-semibold mb-4 flex items-center gap-2">
+            <BarChart3 className="w-5 h-5 text-primary" />
+            Top Actifs — 30 jours
+          </h3>
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+            {topSymbols.map((s, i) => (
+              <div key={s.symbol} className="p-3 bg-white/5 rounded-lg text-center">
+                <p className="text-xl font-bold text-primary">#{i + 1}</p>
+                <p className="font-medium text-sm mt-1">{s.symbol}</p>
+                <p className="text-xs text-muted-foreground">{s.count} trades</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
