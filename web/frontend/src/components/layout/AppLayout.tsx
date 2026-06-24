@@ -45,17 +45,26 @@ function AuthShell({
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [forceTourLevel, setForceTourLevel] = useState<TradingLevel | null>(null);
-  const [maintenance, setMaintenance] = useState<{ on: boolean; message: string; endTime?: string }>({ on: false, message: "" });
+  const [maintenance, setMaintenance] = useState<{ on: boolean; message: string; endTime?: string; serverIsAdmin?: boolean }>({ on: false, message: "" });
   const [maintenanceChecked, setMaintenanceChecked] = useState(false);
   const [countdown, setCountdown] = useState("");
 
   useEffect(() => {
     const check = async () => {
       try {
-        const r = await fetch("/api/status");
+        // Send auth token so the backend can identify admins and return is_admin=true
+        const { getToken } = await import("@/lib/auth");
+        const token = getToken();
+        const headers: HeadersInit = token ? { Authorization: `Bearer ${token}` } : {};
+        const r = await fetch("/api/status", { headers });
         if (r.ok) {
           const d = await r.json();
-          setMaintenance({ on: !!d.maintenance, message: d.message || "", endTime: d.end_time ?? undefined });
+          setMaintenance({
+            on:            !!d.maintenance,
+            message:       d.message || "",
+            endTime:       d.end_time ?? undefined,
+            serverIsAdmin: !!d.is_admin,
+          });
         }
       } catch {}
       setMaintenanceChecked(true);
@@ -172,7 +181,7 @@ function AuthShell({
     );
   }
 
-  if (maintenance.on && !isAdmin) {
+  if (maintenance.on && !isAdmin && !maintenance.serverIsAdmin) {
     return (
       <div className="min-h-screen flex items-center justify-center p-6 bg-background">
         <motion.div

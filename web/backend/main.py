@@ -258,13 +258,25 @@ async def health():
 
 
 @app.get("/api/status")
-async def site_status():
-    """Public endpoint — returns maintenance status for frontend overlay."""
+async def site_status(request: Request):
+    """Public endpoint — returns maintenance status for frontend overlay.
+    If a valid admin token is present, returns is_admin=True so the
+    frontend never shows the maintenance overlay to admins."""
     is_on, msg, end_time = await _get_maintenance_state()
+
+    # Optionally detect admin from Bearer token (no error if missing/invalid)
+    is_admin_caller = False
+    auth = request.headers.get("Authorization", "")
+    if auth:
+        uid = await _token_user_id(auth)
+        if uid:
+            is_admin_caller = await _is_admin(uid)
+
     return {
         "maintenance": is_on,
         "message":     msg if is_on else None,
         "end_time":    end_time,
+        "is_admin":    is_admin_caller,
     }
 
 
