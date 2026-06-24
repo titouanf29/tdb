@@ -963,6 +963,579 @@ Toutes les positions sont clôturées en fin de journée : pas de risque overnig
           },
         ],
       },
+      {
+        id: "scalping-complet",
+        title: "Scalping : Le guide complet",
+        duration: "12 min",
+        keyPoints: [
+          "Scalping = capturer des micro-mouvements de 0.1 à 0.5% par trade",
+          "10 à 50 trades par jour sur timeframes 1m / 5m",
+          "Requis : spread ultra-faible, connexion rapide, concentration totale",
+          "Risque par trade réduit à 0.2-0.5% — la discipline est vitale",
+        ],
+        content: `## Le Scalping : Stratégie de précision extrême
+
+Le scalping consiste à accumuler des dizaines de petits gains journaliers. Un scalper vise 5 à 20 pips sur le forex, ou 0.1 à 0.3% sur les cryptos. Le profit vient du **volume de trades**, pas de la taille de chaque gain.
+
+---
+
+### Configuration indispensable
+
+Avant même d'ouvrir un graphique 1 minute, votre infrastructure doit être irréprochable :
+
+• **Connexion internet** : Fibre optique, < 20ms de latence. Le Wi-Fi est risqué.
+• **Broker ECN/STP** : Spread de 0 à 0.5 pip sur EUR/USD. Évitez les market makers avec spread fixe élevé.
+• **Plateforme avec DOM** : Le carnet d'ordres profond (Depth of Market) est essentiel pour lire le flux d'ordres.
+• **Capital minimum recommandé** : 2 000 à 5 000€ pour une gestion du risque correcte.
+• **Écrans** : 2 à 3 écrans recommandés (graphique + DOM + positions).
+
+---
+
+### Les 3 stratégies de scalping éprouvées
+
+**Stratégie 1 — Range Scalping (la plus accessible)**
+
+Sur les marchés calmes (pré-ouverture, nuit crypto), le prix oscille entre un support et une résistance étroits.
+
+- Identifier le range : high et low des 30 dernières minutes
+- **Achat** : prix touche le support du range + signal de rebond (pin bar, volume croissant)
+- **Stop** : sous le range (-3 à 5 pips)
+- **TP** : 50 à 70% du range
+- **Règle d'or** : sortir dès que la volatilité augmente — un breakout invalide la stratégie
+
+**Stratégie 2 — Breakout Scalping**
+
+Entrée lors de la cassure d'un niveau clé important (ouverture de session, résistance majeure, chiffre psychologique).
+
+- Attendre la bougie de breakout ET sa clôture au-dessus du niveau
+- Entrée à l'ouverture de la bougie suivante
+- Stop : sous la bougie de breakout
+- TP : amplitude de la consolidation précédente projetée
+- **Confirmation obligatoire** : le volume doit augmenter lors du breakout
+
+**Stratégie 3 — Scalping de Momentum (news trading)**
+
+Trading dans les secondes suivant une publication économique surprise (NFP, CPI, décision de taux).
+
+- Calendrier économique vérifié à l'avance
+- Entrée ultra-rapide dans la direction de la surprise
+- Stops très larges (volatilité extrême) → taille de position très réduite
+- ⚠️ **Réservé aux traders avancés** — le slippage peut être très important
+
+---
+
+### Gestion du risque en scalping
+
+La gestion du risque en scalping est différente des autres styles :
+
+| Paramètre | Swing Trading | Scalping |
+|-----------|--------------|---------|
+| Risque/trade | 1 à 2% | 0.2 à 0.5% |
+| Trades/jour | 1 à 3 | 10 à 50 |
+| Exposition max | ~2% | ~10% (cumul) |
+| Stop mental ? | Jamais | Jamais |
+
+Le stop loss est **obligatoire et non négociable** en scalping. Une seule position tenue sans stop peut effacer une semaine de petits gains.
+
+**Règle de perte journalière** : Si vous perdez 2% du compte dans la journée, arrêtez immédiatement. Le marché vous donne un signal — reprenez demain.
+
+---
+
+### Psychologie du scalper
+
+Le scalping est mentalement épuisant. Voici ce qui vous attend :
+
+- Des séries de 15 à 20 petits gains... annulés par 1 trade non stoppé
+- Une fatigue décisionnelle intense après 2 heures de trading
+- La tentation du "revenge trading" après une perte (danger absolu)
+- L'addiction possible à l'adrénaline des marchés
+
+**Verdict** : Le scalping est recommandé uniquement si vous avez **minimum 12 à 18 mois d'expérience** en trading, une connexion ultra-rapide, et une résistance mentale éprouvée. Pour les débutants : commencez par le swing ou le day trading.
+
+---
+
+### Checklist avant chaque session de scalping
+
+✅ Niveaux clés du jour identifiés sur D1 et 4H
+✅ Calendrier économique vérifié (pas de news dans les 30 prochaines minutes)
+✅ Spread vérifié sur la plateforme (< 1 pip EUR/USD)
+✅ Taille de position calculée pour 0.2-0.5% de risque max
+✅ Objectif de gain journalier défini
+✅ Règle d'arrêt définie (ex : stop si -1.5% sur la journée)
+✅ Pas de distraction (téléphone en silencieux, notifications désactivées)`,
+        quiz: [
+          {
+            question: "Vous scalpez EUR/USD avec un stop de 5 pips et un TP de 8 pips. Sur 10 trades, vous gagnez 6 et perdez 4. Quel est votre résultat NET (spread inclus, 1 pip) ?",
+            options: [
+              "+28 pips (calcul brut sans frais)",
+              "+18 pips (après déduction des 10 pips de spread)",
+              "-2 pips (les frais mangent tout)",
+              "+22 pips",
+            ],
+            correct: 1,
+            explanation: "6 × 8 pips = +48 pips gagnés. 4 × 5 pips = -20 pips perdus. Brut = +28 pips. Spread : 1 pip × 10 trades = -10 pips. Net = +18 pips. En scalping, les frais de transaction représentent une part majeure — toujours les intégrer dans vos calculs de rentabilité.",
+          },
+          {
+            question: "Vous êtes en scalping sur une paire forex. Vous avez déjà perdu 1.8% de votre compte aujourd'hui. Que faites-vous ?",
+            options: [
+              "Prendre des positions plus grandes pour récupérer",
+              "Changer de paire — celle-ci est contre vous",
+              "Fermer la plateforme. Règle de perte journalière : arrêt à 2%",
+              "Passer sur un timeframe plus petit pour plus d'opportunités",
+            ],
+            correct: 2,
+            explanation: "La règle de perte journalière est sacrée. À 1.8% de perte, vous êtes à la limite de votre seuil d'arrêt (2%). Continuer avec un état d'esprit dégradé par les pertes mène au revenge trading et aux erreurs. Fermez, reposez-vous, reprenez demain avec un esprit frais.",
+          },
+        ],
+      },
+      {
+        id: "day-trading-complet",
+        title: "Day Trading : Maîtriser le trading intraday",
+        duration: "13 min",
+        keyPoints: [
+          "Toutes les positions fermées chaque soir — zéro risque overnight",
+          "Sessions optimales : London (9h-12h) et New York (14h30-17h30 Paris)",
+          "Stratégie phare : Opening Range Breakout (ORB)",
+          "Maximum 3 à 5 trades par jour — qualité absolument prioritaire sur quantité",
+        ],
+        content: `## Day Trading : Maîtriser le trading intraday
+
+Le day trader ne passe **jamais la nuit avec une position ouverte**. Cette règle fondamentale élimine le risque overnight : gaps d'ouverture, événements macroéconomiques nocturnes, annonces surprises. Vous dormez tranquille.
+
+---
+
+### Les sessions de trading (heures de Paris)
+
+Le marché forex — et les marchés globaux — fonctionnent par sessions. La liquidité et la volatilité varient considérablement selon l'heure.
+
+| Session | Heures Paris | Caractéristiques |
+|---------|-------------|-----------------|
+| 🌏 Asie (Tokyo) | 01h00 – 10h00 | Calme, peu de volatilité EUR/USD |
+| 🏦 Europe (London) | 08h00 – 17h00 | Forte volatilité, meilleure liquidité forex |
+| 🗽 New York | 14h30 – 23h00 | Forte volatilité indices, actions US |
+| ⚡ Overlap LDN + NY | 14h30 – 17h00 | **MEILLEURE PÉRIODE** — liquidité maximale |
+
+**Règle d'or du day trader** : Tradez pendant les overlaps et les 2 premières heures de chaque session. Évitez le milieu de journée (12h-14h Paris) — peu de volume, faux signaux.
+
+---
+
+### La stratégie ORB (Opening Range Breakout)
+
+L'ORB est LA stratégie phare du day trader. Elle est simple, reproductible, et applicable sur tous les marchés. Voici comment elle fonctionne :
+
+**Les 3 étapes de l'ORB**
+
+**Étape 1 — Définir le range d'ouverture**
+Les 15 à 30 premières minutes d'une session définissent l'Opening Range. Identifiez le HIGH et le LOW de cette période. Tracez deux lignes horizontales.
+
+**Étape 2 — Attendre le breakout**
+Le prix doit sortir clairement du range avec du volume. Attendez la clôture d'une bougie AU-DESSUS du HIGH (pour un Long) ou EN-DESSOUS du LOW (pour un Short).
+
+**Étape 3 — Entrée et gestion**
+- Entrée : à l'ouverture de la bougie suivant le breakout
+- Stop Loss : sous le LOW du range (Long) ou au-dessus du HIGH (Short)
+- TP1 : amplitude du range projetée dans la direction du breakout
+- TP2 : 2× amplitude du range
+
+**Exemple concret — BTC/USD, session London (9h Paris) :**
+- 09h00 – 09h30 : Range formé. High = 45 200$, Low = 44 100$ (amplitude = 1 100$)
+- 09h35 : BTC casse 45 200$ avec volume x2 → Signal Long
+- Entrée : 45 300$
+- Stop Loss : 44 050$ (sous le low du range)
+- TP1 : 46 300$ (+1 100$, R/R ≈ 0.8:1)
+- TP2 : 47 400$ (+2 200$, R/R ≈ 1.7:1)
+
+---
+
+### Autres setups en day trading
+
+**Gap and Go (actions et indices)**
+- Le marché ouvre avec un écart (gap) par rapport à la clôture précédente
+- Si le gap est dans le sens de la tendance + volume élevé → trade dans la direction du gap
+- Commun le matin sur les actions après des annonces pré-marché
+
+**Reversal de milieu de session**
+- Après un fort mouvement matinal, le prix consolide
+- Formation d'un double bottom/top sur 15m ou 1H
+- Entrée sur la cassure de la consolidation dans le sens contraire au mouvement initial
+- Stop serré derrière le point de retournement
+
+---
+
+### La règle des 3 stops
+
+Tout day trader professionnel gère ses positions avec 3 niveaux de stop :
+
+**1. Stop Initial** — Placé dès l'entrée. Protège contre le scénario catastrophe. Ne jamais l'élargir.
+
+**2. Stop Break-Even** — Quand le trade atteint +1R de profit, déplacez le stop au point d'entrée. Vous ne pouvez plus perdre sur ce trade.
+
+**3. Trailing Stop** — Suivez le prix avec un stop dynamique. En Long : remontez le stop sous chaque nouveau Higher Low sur 15m. En Short : descendez sous chaque nouveau Lower High.
+
+---
+
+### La règle des 3 pertes consécutives
+
+Si vous perdez 3 trades de suite dans la même journée → **ARRÊT IMMÉDIAT**.
+
+Ce n'est pas une défaite, c'est de la discipline. Les marchés vous envoient un signal : vous n'êtes pas en phase avec eux aujourd'hui. Chaque trader pro a cette règle. Les amateurs continuent et transforment une mauvaise journée en catastrophe.
+
+---
+
+### Le journaling : votre outil d'amélioration n°1
+
+Notez chaque trade dans un journal :
+- Date, actif, direction (Long/Short)
+- Raison d'entrée (setup identifié)
+- Prix d'entrée, stop, TP
+- Résultat ($ et %)
+- Ce que vous avez ressenti (FOMO, peur, confiance)
+- Ce que vous auriez dû faire différemment
+
+Revoyez chaque semaine. Les patterns d'erreurs apparaissent rapidement.
+
+---
+
+### Actifs populaires pour le day trading
+
+| Actif | Heures optimales | Avantages |
+|-------|-----------------|-----------|
+| EUR/USD | 09h-17h (LDN) / 14h30-17h (NY) | Spread le plus faible (0.1-0.5 pip) |
+| GBP/USD | 09h-17h Paris | Très volatile, setups clairs |
+| SPX500 | 15h30-21h Paris | Forte liquidité, tendances nettes |
+| BTC/USD | 24h/24 | Toujours ouvert, forte volatilité |
+| NAS100 | 15h30-21h Paris | Tech — forte tendance |`,
+        quiz: [
+          {
+            question: "Il est 09h45 (Paris). BTC vient de casser le HIGH de l'Opening Range (09h00-09h30) avec un volume x3. La bougie vient de se clôturer au-dessus. Que faites-vous ?",
+            options: [
+              "Attendre pour voir si c'est un faux breakout",
+              "Entrer en Long immédiatement à l'ouverture de la bougie suivante, stop sous le LOW du range",
+              "Entrer en Short — le prix est trop haut après une hausse rapide",
+              "Ignorer — l'ORB ne fonctionne qu'avec le NYSE",
+            ],
+            correct: 1,
+            explanation: "C'est le setup ORB classique : breakout au-dessus du range d'ouverture avec fort volume. Entrée à l'ouverture de la bougie suivante (confirmation), stop sous le LOW du range. Le volume x3 est une excellente confirmation — les breakouts sur fort volume tendent à continuer. Agissez selon votre plan.",
+          },
+          {
+            question: "Vous êtes en day trading. Votre stop initial est à -100€. Le trade atteint +100€ de profit (+1R). Que faites-vous ?",
+            options: [
+              "Fermer la position — vous avez atteint votre objectif",
+              "Déplacer le stop au break-even (0€ de P&L) et laisser courir vers TP2",
+              "Ajouter à la position pour maximiser",
+              "Garder le stop initial, rien ne change",
+            ],
+            correct: 1,
+            explanation: "La règle des 3 stops : à +1R, déplacez le stop au break-even. Vous ne pouvez plus perdre sur ce trade. Ensuite laissez courir vers TP2 avec un trailing stop. Cette gestion permet d'avoir un trade gratuit qui peut générer 2R, 3R ou plus.",
+          },
+        ],
+      },
+      {
+        id: "swing-complet",
+        title: "Swing Trading : Capter les grandes vagues",
+        duration: "14 min",
+        keyPoints: [
+          "Swing = capturer les oscillations du marché sur 2 à 14 jours",
+          "Timeframes : 4H et Daily — signaux plus clairs, moins de bruit",
+          "30 à 60 minutes d'analyse le soir suffisent — idéal pour actifs professionnels",
+          "Erreur n°1 : sortir trop tôt — laisser courir les positions gagnantes",
+        ],
+        content: `## Swing Trading : L'art de capter les grandes vagues
+
+Le swing trader cherche à capturer les grands mouvements intermédiaires — les "swings" du marché. Un seul trade bien placé peut rapporter 5 à 20% en quelques jours sans jamais regarder l'écran en continu.
+
+---
+
+### Pourquoi le swing trading est idéal pour commencer
+
+**1. Temps disponible minimal**
+30 à 60 minutes d'analyse le soir après le travail suffisent. Pas besoin d'être cloué devant l'écran.
+
+**2. Signaux plus fiables**
+Les timeframes 4H et Daily filtrent le "bruit" des petits mouvements. Chaque signal sur Daily vaut bien plus que 20 signaux sur 1 minute.
+
+**3. Moins d'erreurs émotionnelles**
+Avec 2 à 10 trades par mois, vous prenez moins de décisions, donc moins d'erreurs impulsives. Le swing trading laisse le temps de réfléchir.
+
+**4. Frais négligeables**
+2 à 10 trades par mois = les frais de transaction ne mangent pas votre rentabilité.
+
+---
+
+### Les 4 phases du marché (Modèle de Weinstein)
+
+Tout marché passe par 4 phases cycliques. Identifier la phase en cours détermine votre stratégie.
+
+**Phase 1 : Accumulation** 🔵
+- Après une longue baisse, le prix consolide horizontalement
+- Volume faible, cours stable pendant des semaines ou mois
+- Les institutionnels accumulent discrètement pendant que les particuliers ont abandonné
+- Stratégie : surveiller, pas encore d'entrée
+
+**Phase 2 : Hausse** 🟢 ← LA PLUS RENTABLE
+- Le prix sort de l'accumulation avec volume accru
+- Série de Higher Highs et Higher Lows
+- C'est ici qu'on veut être Long
+- Durée : semaines à plusieurs mois
+
+**Phase 3 : Distribution** 🔴
+- La hausse s'essoufle, forte volatilité
+- Volume élevé mais le prix ne progresse plus
+- Les institutionnels vendent aux particuliers euphoriques
+- Signe d'alerte : volume fort + prix stagne
+
+**Phase 4 : Baisse** ⬇️
+- Distribution confirmée, prix casse le support
+- Séquence de Lower Lows et Lower Highs
+- Short possible pour traders expérimentés
+
+---
+
+### Le setup de swing idéal : Pull-back sur zone de valeur
+
+C'est le setup n°1 des swing traders professionnels. Simple, fiable, répétable.
+
+**Les 5 étapes**
+
+**1. Analyser le contexte macro (Daily/Weekly)**
+Sommes-nous en Phase 2 (tendance haussière) ? En range ? Identifier la direction dominante.
+
+**2. Identifier la zone de valeur**
+Ce peut être :
+- Un support majeur (niveau testé plusieurs fois)
+- Un ancien niveau de résistance devenu support (after breakout)
+- Un retracement de Fibonacci (50% ou 61.8% du dernier swing)
+- Une zone de demande (gap non comblé, forte bougie haussière passée)
+
+**3. Attendre le test de la zone**
+Ne précipitez pas ! Attendez que le prix revienne TESTER la zone. La patience est la principale compétence du swing trader.
+
+**4. Chercher la confirmation d'entrée sur 4H ou 1H**
+- Pin bar haussière (longue mèche basse, corps au-dessus)
+- Bougie d'engulfing haussier (bougie verte enveloppant la précédente rouge)
+- Morning star (3 bougies : rouge, indécise, grande verte)
+- Volume qui augmente sur la bougie de confirmation
+
+**5. Entrée, stop et objectifs**
+- Entrée : ouverture de la bougie SUIVANT la confirmation
+- Stop Loss : sous le point bas de la zone testée (marge de 1 à 2%)
+- TP1 : prochaine résistance majeure
+- TP2 : extension Fibonacci 127% ou 161.8%
+
+---
+
+### Exemple concret : ETH/USD
+
+**Situation :**
+- ETH en tendance haussière claire sur Daily (HH + HL)
+- Résistance majeure franchie à 3 200$ il y a 3 semaines
+- Pullback actuel : prix revient sur 3 200$ (ancienne résistance = nouveau support)
+
+**Analyse :**
+1. Contexte : Phase 2 (tendance haussière confirmée)
+2. Zone de valeur : 3 200$ (ex-résistance devenue support)
+3. Test : Le prix touche 3 180$ et forme une pin bar sur 4H
+4. Confirmation : Pin bar haussière + volume croissant
+5. Entrée : 3 220$ (bougie suivante)
+
+**Paramètres :**
+- Stop Loss : 3 080$ (sous le support) → Risque = 140$ par ETH
+- TP1 : 3 600$ → Gain = 380$ → R/R = 2.7:1 ✅
+- TP2 : 3 950$ → Gain = 730$ → R/R = 5.2:1 ✅✅
+
+---
+
+### Gestion de position en swing : la règle des 2 lots
+
+**Divisez systématiquement votre position en 2 lots :**
+
+- **Lot 1 (50%)** : Fermé au TP1 → Sécurisez un premier profit, la transaction est "payée"
+- **Lot 2 (50%)** : Laissez courir avec trailing stop sous chaque nouveau Higher Low
+
+Cette méthode garantit que vous capturez une partie du mouvement (lot 1) tout en maximisant le potentiel (lot 2 peut tripler ou quadrupler votre gain initial).
+
+---
+
+### L'erreur n°1 : sortir trop tôt
+
+La majorité des swing traders débutants sortent leurs positions gagnantes trop tôt, poussés par la peur de voir les gains disparaître.
+
+**Si votre stop n'est pas touché et que les Higher Highs / Higher Lows se poursuivent, gardez la position.**
+
+Calcul mental : si vous sortez trop tôt 10 trades de suite en coupant à +3% au lieu de laisser courir jusqu'à +10%, vous perdez 70% de votre potentiel. Sur le long terme, c'est la différence entre un trading rentable et non rentable.
+
+**Remède** : Configurez des alertes de prix et ne regardez pas votre position toutes les 5 minutes. Vérifiez une fois le soir. Faites confiance à votre analyse.
+
+---
+
+### Checklist swing trading
+
+✅ Tendance sur Daily clairement identifiée (Phase 2 ou range)
+✅ Zone de valeur tracée et documentée dans le journal
+✅ Signal de confirmation sur 4H ou 1H (bougie de retournement)
+✅ Stop placé SOUS la zone (pas dedans — laissez de la marge)
+✅ R/R calculé : minimum 1:2 pour entrer
+✅ Taille de position calculée (1-2% de risque sur compte)
+✅ Alerte prix configurée (pour ne pas manquer le mouvement)
+✅ TP1 et TP2 définis et ordres placés`,
+        quiz: [
+          {
+            question: "ETH est en Phase 2 (tendance haussière). Le prix pull-back sur un support majeur à 2 800€. Où placez-vous votre stop loss ?",
+            options: [
+              "À 2 800€ exactement sur le support",
+              "À 2 830€ (au-dessus du support pour plus de sécurité)",
+              "À 2 730€ (sous le support avec une marge de 2.5%)",
+              "À 2 500€ (très large pour ne pas être sorti)",
+            ],
+            correct: 2,
+            explanation: "Le stop doit être placé SOUS le support avec une légère marge. À 2 800€ exactement, vous seriez sorti au moindre test du support. À 2 730€, vous donnez de la respiration au marché tout en ayant un invalidation claire : si le prix casse vraiment 2 730€, votre thèse est invalide et il faut sortir. Trop large (2 500€) augmente votre risque et force à réduire la taille de position.",
+          },
+          {
+            question: "Vous êtes en swing trading. Votre TP1 vient d'être atteint avec le lot 1. Le lot 2 est toujours ouvert. La tendance continue (nouveaux Higher Highs). Que faites-vous avec le lot 2 ?",
+            options: [
+              "Fermer aussi le lot 2 — vous avez déjà bien gagné",
+              "Déplacer le stop au break-even et laisser courir vers TP2 avec trailing stop",
+              "Ajouter une nouvelle position — la tendance est forte",
+              "Fermer et réentrer sur le prochain pull-back",
+            ],
+            correct: 1,
+            explanation: "Le lot 2 est là pour capturer les grands mouvements. Puisque le TP1 est atteint (lot 1 fermé = trade 'gratuit'), déplacez le stop du lot 2 au break-even et utilisez un trailing stop sous chaque nouveau Higher Low. Vous ne pouvez plus perdre sur ce trade, et vous laissez la possibilité d'atteindre TP2 ou plus.",
+          },
+        ],
+      },
+      {
+        id: "choose-your-style",
+        title: "Quel style de trading vous correspond ?",
+        duration: "8 min",
+        keyPoints: [
+          "Il n'existe pas de style 'meilleur' — seulement celui adapté à votre profil",
+          "4 facteurs clés : temps disponible, capital, personnalité, expérience",
+          "Règle d'or : maîtrisez UN style avant d'en ajouter un second",
+          "L'évolution naturelle : swing → day trading → scalping (jamais l'inverse)",
+        ],
+        content: `## Quel style de trading vous correspond ?
+
+Choisir un style inadapté à votre mode de vie et personnalité est la première cause d'abandon chez les traders débutants. Cette décision est aussi importante que le choix de votre stratégie.
+
+---
+
+### Les 4 facteurs déterminants
+
+**1. Temps disponible**
+
+| Disponibilité | Style recommandé |
+|--------------|-----------------|
+| < 30 min/jour | Position trading |
+| 30-60 min le soir | Swing trading ✅ |
+| 2-4 heures en journée | Day trading |
+| Disponible en continu | Scalping (avec expérience) |
+
+**2. Capital disponible**
+
+| Capital | Style recommandé |
+|---------|-----------------|
+| < 500€ | Swing crypto (frais < 0.1%) |
+| 500€ – 5 000€ | Swing ou Day trading crypto/forex |
+| 5 000€ – 25 000€ | Day trading + swing |
+| > 25 000€ | Tous les styles |
+
+*Note : Aux États-Unis, la règle PDT (Pattern Day Trader) limite à 3 day trades sur 5 jours avec un capital < 25 000$. Sur crypto ou forex, cette règle ne s'applique pas.*
+
+**3. Personnalité et rapport au risque**
+
+- **Patient, analytique, calme face à l'incertitude** → Swing / Position trading
+- **Réactif, décideur rapide, résistant au stress** → Day trading
+- **Hyperactif, besoin d'action immédiate, grande résistance** → Scalping (après 1 an+)
+- **Anxieux face aux pertes, sensible aux fluctuations** → Swing / Position (moins de décisions)
+
+**4. Expérience trading**
+
+- **Débutant (< 6 mois)** : Swing trading obligatoirement
+- **Intermédiaire (6-18 mois)** : Day trading possible avec prudence
+- **Expérimenté (> 2 ans)** : Tous les styles accessibles
+- **Scalping** : Jamais avant 12 à 18 mois de trading actif régulier
+
+---
+
+### Tableau comparatif complet
+
+| Critère | Scalping | Day Trading | Swing | Position |
+|---------|---------|------------|-------|---------|
+| Durée / trade | Sec – min | Min – heures | 2 – 14 jours | Sem – mois |
+| Trades / mois | 200 – 1000 | 20 – 80 | 5 – 15 | 1 – 4 |
+| Temps requis / jour | 6 – 8h | 2 – 4h | 30 – 60 min | 15 min |
+| Capital recommandé | 5 000€+ | 1 000€+ | 200€+ | 500€+ |
+| Objectif / trade | 0.1 – 0.5% | 0.5 – 2% | 3 – 15% | 20 – 100% |
+| Niveau de stress | ★★★★★ | ★★★☆☆ | ★★☆☆☆ | ★☆☆☆☆ |
+| Pour débutant | ❌ Non | ⚠️ Attention | ✅ Idéal | ✅ Oui |
+
+---
+
+### L'évolution naturelle du trader
+
+Ne brûlez pas les étapes. Voici la progression recommandée :
+
+**Mois 1-6 : Swing Trading**
+Apprenez les bases sur Daily et 4H. Gérez vos émotions. Développez un journal de trading. Objectif : comprendre les marchés, pas gagner de l'argent.
+
+**Mois 6-12 : Swing affiné**
+Affinez votre stratégie. Identifiez vos patterns d'erreurs dans le journal. Améliorez le timing d'entrée sur 1H en confirmation.
+
+**Mois 12-18 : Introduction au Day Trading**
+Seulement si le swing est maîtrisé. Testez en paper trading d'abord, puis avec petit capital. La discipline est encore plus importante qu'en swing.
+
+**Au-delà de 18 mois : Exploration**
+Si et seulement si vous êtes rentable de manière consistante, explorez le scalping sur de petites tailles. Beaucoup de traders professionnels ne font jamais de scalping — ce n'est pas nécessaire.
+
+---
+
+### Peut-on combiner plusieurs styles ?
+
+**Oui — avec une seule règle : maîtrisez UN style avant d'en ajouter un second.**
+
+Combinaisons courantes chez les traders professionnels :
+
+• **Swing + Position** : Gérer quelques swings actifs tout en tenant des positions directionnelles de fond
+• **Day trading + Swing** : Chercher les opportunités intraday ET tenir les setups daily qui durent
+• ❌ **Scalping + Day trading simultanément** : Trop de décisions, contre-productif pour la plupart
+
+---
+
+### Conclusion : votre style idéal
+
+Rappelez-vous : **Warren Buffett est un investisseur long terme. George Soros est un macro trader (position). Paul Tudor Jones est un trend follower (swing). Des milliards se font à tous les styles.**
+
+Ce qui compte, c'est :
+1. Choisir un style adapté à votre vie (pas un style "idéal" sur le papier)
+2. Le maîtriser pendant minimum 12 mois avant de juger
+3. Être honnête avec vous-même sur vos émotions et votre disponibilité
+
+Le meilleur style est **celui que vous pratiquez avec discipline et régularité**.`,
+        quiz: [
+          {
+            question: "Paul est comptable (35h/semaine), disponible 45 minutes chaque soir, capital de 2 000€, débutant depuis 3 mois. Quel style est le plus adapté ?",
+            options: [
+              "Scalping — maximise les opportunités avec ses 45 minutes",
+              "Day trading — flexible selon ses horaires de bureau",
+              "Swing trading — 45 min le soir, capital adapté, signaux clairs pour débutant",
+              "Position trading — trop peu de trades pour apprendre rapidement",
+            ],
+            correct: 2,
+            explanation: "Le swing trading coche toutes les cases pour Paul : 30-60 min le soir suffisent (il en a 45), le capital de 2 000€ est compatible, et à 3 mois d'expérience le swing trading sur Daily/4H est le seul style vraiment adapté. Le scalping et le day trading nécessitent plus d'expérience et de disponibilité continue. Le position trading manquerait de feedback pour un débutant qui cherche à apprendre.",
+          },
+          {
+            question: "Après 6 mois de swing trading, vous envisagez de passer au day trading. Quelle est la bonne approche ?",
+            options: [
+              "Basculer immédiatement — 6 mois c'est suffisant",
+              "Tester en paper trading 1 à 2 mois, puis avec très petit capital si résultats positifs",
+              "Day trader ET swing trader simultanément pour ne rien rater",
+              "Attendre 5 ans de swing trading avant d'essayer",
+            ],
+            correct: 1,
+            explanation: "La transition se fait progressivement : paper trading d'abord (sans risque réel) pour tester votre stratégie intraday et votre gestion émotionnelle. Si les résultats sont positifs après 1-2 mois, introduire du capital réel en petite quantité. Ne jamais changer de style avec tout le capital d'un coup, et ne jamais mélanger les deux styles tant que le nouveau n'est pas stabilisé.",
+          },
+        ],
+      },
     ],
   },
 ];

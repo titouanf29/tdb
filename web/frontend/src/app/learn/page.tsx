@@ -510,6 +510,253 @@ function SwingViz() {
   );
 }
 
+// ── SessionsMapViz ────────────────────────────────────────────────────────────
+function SessionsMapViz() {
+  const { lang } = useLanguage();
+  const [hovSess, setHovSess] = useState<string | null>(null);
+  // Sessions in hours (Paris time, 0-24)
+  const sessions = [
+    { id: 'asia', label: lang === "en" ? 'Asia' : 'Asie', start: 1, end: 10, color: '#818cf8', bg: 'rgba(129,140,248,0.15)', desc: lang === "en" ? 'Calm — low volatility on EUR/USD' : 'Calme — faible volatilité EUR/USD' },
+    { id: 'london', label: 'London', start: 8, end: 17, color: '#38bdf8', bg: 'rgba(56,189,248,0.15)', desc: lang === "en" ? 'High volatility — best forex liquidity' : 'Forte volatilité — meilleure liquidité forex' },
+    { id: 'newyork', label: 'New York', start: 14.5, end: 23, color: '#fb923c', bg: 'rgba(251,146,60,0.15)', desc: lang === "en" ? 'US equities, indices, volatile' : 'Actions US, indices, très volatile' },
+    { id: 'overlap', label: lang === "en" ? '⚡ Overlap' : '⚡ Overlap', start: 14.5, end: 17, color: '#34d399', bg: 'rgba(52,211,153,0.2)', desc: lang === "en" ? 'BEST PERIOD — maximum liquidity' : 'MEILLEURE PÉRIODE — liquidité maximale' },
+  ];
+  const W = 520; const H = 120;
+  const PAD = { left: 32, right: 10, top: 16, bottom: 24 };
+  const chartW = W - PAD.left - PAD.right;
+  const toX = (h: number) => PAD.left + (h / 24) * chartW;
+  const hourLines = [0, 4, 8, 12, 16, 20, 24];
+  const now = new Date();
+  const parisTZ = (now.getUTCHours() + 2) % 24; // rough Paris offset (UTC+2 summer)
+  const nowX = toX(parisTZ);
+
+  return (
+    <div className="my-4 rounded-xl border border-white/10 bg-white/5 p-4">
+      <p className="text-xs font-semibold text-white/50 mb-3">
+        {lang === "en" ? "🕐 Trading sessions — Paris time · hover to see details" : "🕐 Sessions de trading — heure de Paris · survolez pour les détails"}
+      </p>
+      <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ maxHeight: 120 }}>
+        {/* Hour lines */}
+        {hourLines.map(h => (
+          <g key={h}>
+            <line x1={toX(h)} x2={toX(h)} y1={PAD.top} y2={H - PAD.bottom} stroke="rgba(255,255,255,0.08)" strokeWidth="1" />
+            <text x={toX(h)} y={H - 4} textAnchor="middle" fontSize="9" fill="rgba(255,255,255,0.35)">{h}h</text>
+          </g>
+        ))}
+        {/* Session bars */}
+        {sessions.map((s, i) => {
+          const y = PAD.top + i * 20;
+          const isHov = hovSess === s.id;
+          return (
+            <g key={s.id} onMouseEnter={() => setHovSess(s.id)} onMouseLeave={() => setHovSess(null)} style={{ cursor: 'pointer' }}>
+              <rect x={toX(s.start)} y={y + 2} width={toX(s.end) - toX(s.start)} height={14}
+                fill={isHov ? s.color + '50' : s.bg} stroke={s.color} strokeWidth={isHov ? 1.5 : 1} rx="3" style={{ transition: 'all 0.15s' }} />
+              <text x={toX(s.start) + 4} y={y + 13} fontSize="9" fill={s.color} fontWeight={isHov ? '700' : '500'}>{s.label}</text>
+            </g>
+          );
+        })}
+        {/* Now line */}
+        <line x1={nowX} x2={nowX} y1={PAD.top} y2={H - PAD.bottom} stroke="#fbbf24" strokeWidth="1.5" strokeDasharray="3 2" />
+        <text x={nowX + 3} y={PAD.top + 8} fontSize="8" fill="#fbbf24">{lang === "en" ? "Now" : "Maint."}</text>
+      </svg>
+      {hovSess && (
+        <div className="mt-2 text-xs text-center" style={{ color: sessions.find(s => s.id === hovSess)?.color }}>
+          <strong>{sessions.find(s => s.id === hovSess)?.label}</strong> — {sessions.find(s => s.id === hovSess)?.desc}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── MarketPhasesViz ───────────────────────────────────────────────────────────
+function MarketPhasesViz() {
+  const { lang } = useLanguage();
+  const [activePhase, setActivePhase] = useState<number | null>(null);
+  const phases = [
+    {
+      label: lang === "en" ? 'Phase 1\nAccumulation' : 'Phase 1\nAccumulation',
+      short: lang === "en" ? 'Accumulation' : 'Accumulation',
+      color: '#818cf8',
+      desc: lang === "en" ? 'Flat market. Institutions buy discreetly. Volume low.' : 'Marché plat. Institutionnels achètent discrètement. Volume faible.',
+      data: [50, 51, 49, 50, 52, 49, 51, 50, 53, 51, 50, 52],
+    },
+    {
+      label: lang === "en" ? 'Phase 2\nUptrend' : 'Phase 2\nHausse',
+      short: lang === "en" ? 'Uptrend ✅' : 'Hausse ✅',
+      color: '#34d399',
+      desc: lang === "en" ? 'The most profitable phase. Series of HH and HL. Buy on pullbacks.' : 'La plus rentable. Série de HH et HL. Acheter sur les pull-backs.',
+      data: [52, 56, 54, 59, 57, 63, 61, 67, 65, 72, 70, 78],
+    },
+    {
+      label: lang === "en" ? 'Phase 3\nDistribution' : 'Phase 3\nDistribution',
+      short: lang === "en" ? 'Distribution ⚠️' : 'Distribution ⚠️',
+      color: '#fbbf24',
+      desc: lang === "en" ? 'Top of market. High volume, price stalls. Institutions sell.' : 'Sommet. Volume élevé, prix stagne. Institutionnels vendent.',
+      data: [78, 82, 75, 80, 76, 83, 77, 80, 74, 81, 76, 79],
+    },
+    {
+      label: lang === "en" ? 'Phase 4\nDowntrend' : 'Phase 4\nBaisse',
+      short: lang === "en" ? 'Downtrend' : 'Baisse',
+      color: '#f87171',
+      desc: lang === "en" ? 'Distribution confirmed. Series of LL and LH. Avoid Longs.' : 'Distribution confirmée. Série de LL et LH. Éviter les Longs.',
+      data: [79, 74, 76, 70, 72, 66, 68, 62, 64, 58, 60, 54],
+    },
+  ];
+  const W = 520; const H = 160;
+  const PAD = { top: 16, right: 10, bottom: 28, left: 36 };
+  const phaseW = (W - PAD.left - PAD.right) / 4;
+  const allData = phases.flatMap(p => p.data);
+  const minV = Math.min(...allData) - 3; const maxV = Math.max(...allData) + 3;
+  const toY = (v: number) => PAD.top + (1 - (v - minV) / (maxV - minV)) * (H - PAD.top - PAD.bottom);
+  const fullPoints = phases.flatMap((p, pi) =>
+    p.data.map((v, i) => {
+      const x = PAD.left + pi * phaseW + (i / (p.data.length - 1)) * phaseW;
+      return `${x},${toY(v)}`;
+    })
+  );
+
+  return (
+    <div className="my-4 rounded-xl border border-white/10 bg-white/5 p-4">
+      <p className="text-xs font-semibold text-white/50 mb-3">
+        {lang === "en" ? "📊 Weinstein's 4 market phases — click to explore" : "📊 Les 4 phases du marché (Weinstein) — cliquez pour explorer"}
+      </p>
+      <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ maxHeight: 160 }}>
+        {/* Phase backgrounds */}
+        {phases.map((p, pi) => {
+          const x = PAD.left + pi * phaseW;
+          const isActive = activePhase === pi;
+          return (
+            <rect key={pi} x={x} y={PAD.top} width={phaseW} height={H - PAD.top - PAD.bottom}
+              fill={isActive ? p.color + '18' : p.color + '06'} stroke={isActive ? p.color + '60' : 'transparent'}
+              strokeWidth="1" rx="2" style={{ cursor: 'pointer', transition: 'all 0.15s' }}
+              onClick={() => setActivePhase(activePhase === pi ? null : pi)} />
+          );
+        })}
+        {/* Full price line */}
+        <polyline points={fullPoints.join(' ')} fill="none" stroke="rgba(255,255,255,0.6)" strokeWidth="2" />
+        {/* Phase separators and labels */}
+        {phases.map((p, pi) => {
+          const x = PAD.left + pi * phaseW;
+          const midX = x + phaseW / 2;
+          return (
+            <g key={pi}>
+              {pi > 0 && <line x1={x} x2={x} y1={PAD.top} y2={H - PAD.bottom} stroke="rgba(255,255,255,0.15)" strokeWidth="1" strokeDasharray="3 2" />}
+              <text x={midX} y={H - 6} textAnchor="middle" fontSize="9" fill={p.color} fontWeight="600"
+                onClick={() => setActivePhase(activePhase === pi ? null : pi)} style={{ cursor: 'pointer' }}>
+                {p.short}
+              </text>
+            </g>
+          );
+        })}
+      </svg>
+      {activePhase !== null ? (
+        <div className="mt-2 p-2 rounded-lg text-xs" style={{ background: phases[activePhase].color + '15', color: phases[activePhase].color, border: `1px solid ${phases[activePhase].color}30` }}>
+          <strong>{phases[activePhase].short}</strong> — {phases[activePhase].desc}
+        </div>
+      ) : (
+        <p className="mt-2 text-xs text-white/30 text-center">{lang === "en" ? "Click on a phase to see the description" : "Cliquez sur une phase pour voir la description"}</p>
+      )}
+    </div>
+  );
+}
+
+// ── ScalpingRangeViz ──────────────────────────────────────────────────────────
+function ScalpingRangeViz() {
+  const { lang } = useLanguage();
+  const [step, setStep] = useState(0);
+  const rangeHigh = 44950;
+  const rangeLow = 44700;
+  const entryPrice = 44720;
+  const stopPrice = 44680;
+  const tpPrice = 44870;
+  // 1m candles: range then breakout
+  const candles = [
+    { o: 44800, h: 44860, l: 44740, c: 44780 },
+    { o: 44780, h: 44920, l: 44770, c: 44890 },
+    { o: 44890, h: 44950, l: 44830, c: 44840 },
+    { o: 44840, h: 44860, l: 44700, c: 44720 }, // test du support
+    { o: 44720, h: 44780, l: 44680, c: 44760 }, // rebond
+    { o: 44760, h: 44850, l: 44750, c: 44840 }, // hausse vers TP
+    { o: 44840, h: 44890, l: 44820, c: 44870 }, // TP atteint
+    { o: 44870, h: 44920, l: 44830, c: 44900 },
+  ];
+  const W = 520; const H = 200;
+  const PAD = { top: 14, right: 60, bottom: 28, left: 60 };
+  const chartW = W - PAD.left - PAD.right; const chartH = H - PAD.top - PAD.bottom;
+  const minP = 44640; const maxP = 45000;
+  const toY = (p: number) => PAD.top + (1 - (p - minP) / (maxP - minP)) * chartH;
+  const cw = chartW / candles.length; const bodyW = cw * 0.55;
+  const visibleCandles = step === 0 ? candles.slice(0, 4) : candles;
+
+  return (
+    <div className="my-4 rounded-xl border border-white/10 bg-white/5 p-4">
+      <p className="text-xs font-semibold text-white/50 mb-3">
+        {lang === "en" ? "⚡ Range Scalping — step by step · click to progress" : "⚡ Range Scalping — étape par étape · cliquez pour progresser"}
+      </p>
+      <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ maxHeight: 200 }}>
+        {/* Range zone */}
+        <rect x={PAD.left} y={toY(rangeHigh)} width={chartW} height={toY(rangeLow) - toY(rangeHigh)} fill="rgba(99,140,255,0.06)" />
+        {/* Range lines */}
+        <line x1={PAD.left} x2={W - PAD.right} y1={toY(rangeHigh)} y2={toY(rangeHigh)} stroke="#638CFF" strokeWidth="1.5" strokeDasharray="5 3" opacity="0.8" />
+        <text x={W - PAD.right + 3} y={toY(rangeHigh) + 4} fontSize="8" fill="#638CFF">High</text>
+        <line x1={PAD.left} x2={W - PAD.right} y1={toY(rangeLow)} y2={toY(rangeLow)} stroke="#22d3ee" strokeWidth="1.5" strokeDasharray="5 3" opacity="0.8" />
+        <text x={W - PAD.right + 3} y={toY(rangeLow) + 4} fontSize="8" fill="#22d3ee">Low</text>
+        {/* Stop and TP (step 1) */}
+        {step >= 1 && (
+          <>
+            <line x1={PAD.left} x2={W - PAD.right} y1={toY(stopPrice)} y2={toY(stopPrice)} stroke="#f87171" strokeWidth="1" strokeDasharray="3 2" opacity="0.7" />
+            <text x={W - PAD.right + 3} y={toY(stopPrice) + 4} fontSize="8" fill="#f87171">SL</text>
+            <line x1={PAD.left} x2={W - PAD.right} y1={toY(tpPrice)} y2={toY(tpPrice)} stroke="#34d399" strokeWidth="1" strokeDasharray="3 2" opacity="0.7" />
+            <text x={W - PAD.right + 3} y={toY(tpPrice) + 4} fontSize="8" fill="#34d399">TP</text>
+          </>
+        )}
+        {/* Candles */}
+        {visibleCandles.map((c, i) => {
+          const bull = c.c >= c.o;
+          const x = PAD.left + i * cw + cw / 2;
+          const bodyTop = toY(Math.max(c.o, c.c));
+          const bodyBot = toY(Math.min(c.o, c.c));
+          const bodyH = Math.max(bodyBot - bodyTop, 1);
+          const color = bull ? '#34d399' : '#f87171';
+          return (
+            <g key={i}>
+              <line x1={x} x2={x} y1={toY(c.h)} y2={toY(c.l)} stroke={color} strokeWidth="1.5" />
+              <rect x={x - bodyW / 2} y={bodyTop} width={bodyW} height={bodyH} fill={bull ? 'rgba(52,211,153,0.8)' : 'rgba(248,113,113,0.8)'} stroke={color} strokeWidth="1" rx="1" />
+              <text x={x} y={H - 6} textAnchor="middle" fontSize="8" fill="rgba(255,255,255,0.3)">{i + 1}m</text>
+            </g>
+          );
+        })}
+        {/* Entry arrow (step 1+) */}
+        {step >= 1 && (
+          <g>
+            <polygon points={`${PAD.left + 3 * cw + cw / 2},${toY(entryPrice)} ${PAD.left + 3 * cw + cw / 2 - 6},${toY(entryPrice) + 12} ${PAD.left + 3 * cw + cw / 2 + 6},${toY(entryPrice) + 12}`} fill="#34d399" />
+            <text x={PAD.left + 3 * cw + cw / 2} y={toY(entryPrice) - 6} textAnchor="middle" fontSize="8" fill="#34d399" fontWeight="600">{lang === "en" ? "Entry" : "Entrée"}</text>
+          </g>
+        )}
+        {/* Price labels */}
+        {[44700, 44800, 44900].map(p => (
+          <text key={p} x={PAD.left - 4} y={toY(p) + 3} textAnchor="end" fontSize="8" fill="rgba(255,255,255,0.35)">{p}</text>
+        ))}
+      </svg>
+      <div className="flex gap-2 mt-3">
+        <button onClick={() => setStep(0)}
+          className={`flex-1 py-1.5 rounded-lg text-xs font-semibold border transition-all ${step === 0 ? 'bg-primary border-primary text-white' : 'border-white/10 text-white/40 hover:border-white/25'}`}>
+          {lang === "en" ? "1. Range forming" : "1. Range en formation"}
+        </button>
+        <button onClick={() => setStep(1)}
+          className={`flex-1 py-1.5 rounded-lg text-xs font-semibold border transition-all ${step === 1 ? 'bg-primary border-primary text-white' : 'border-white/10 text-white/40 hover:border-white/25'}`}>
+          {lang === "en" ? "2. Bounce + Entry" : "2. Rebond + Entrée"}
+        </button>
+      </div>
+      <p className="text-xs text-white/40 text-center mt-2">
+        {step === 0
+          ? (lang === "en" ? "Price bounces between Low (support) and High (resistance)" : "Le prix rebondit entre le Low (support) et le High (résistance)")
+          : (lang === "en" ? "Bounce on Low → Entry 44720 · Stop 44680 · TP 44870 (R/R 1:3.7)" : "Rebond sur le Low → Entrée 44720 · Stop 44680 · TP 44870 (R/R 1:3.7)")}
+      </p>
+    </div>
+  );
+}
+
 // ── OrderTypesViz ─────────────────────────────────────────────────────────────
 function OrderTypesViz() {
   const { lang } = useLanguage();
@@ -678,6 +925,9 @@ function LessonChart({ lessonId }: { lessonId: string }) {
   if (lessonId === 'swing-trading-strategy') return <SwingViz />;
   if (lessonId === 'order-types') return <OrderTypesViz />;
   if (lessonId === 'market-participants') return <MarketParticipantsViz />;
+  if (lessonId === 'scalping-complet') return <ScalpingRangeViz />;
+  if (lessonId === 'day-trading-complet') return <SessionsMapViz />;
+  if (lessonId === 'swing-complet') return <MarketPhasesViz />;
   return null;
 }
 
