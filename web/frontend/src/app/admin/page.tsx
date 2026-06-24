@@ -1601,7 +1601,7 @@ type SettingDef = {
   key: string;
   label: string;
   desc: string;
-  type: "boolean" | "number" | "text";
+  type: "boolean" | "number" | "text" | "datetime";
   default: string;
   unit?: string;
 };
@@ -1620,6 +1620,7 @@ const SETTING_GROUPS: SettingGroup[] = [
     items: [
       { key: "maintenance_mode",           label: "Mode maintenance",          desc: "Bloque l'accès à tous les utilisateurs non-admin (503)",              type: "boolean", default: "false" },
       { key: "maintenance_message",        label: "Message de maintenance",    desc: "Texte affiché lors de la maintenance",                                type: "text",    default: "Le site est en cours de maintenance. Revenez bientôt." },
+      { key: "maintenance_end_time",       label: "Fin de maintenance (timer)","desc": "Date/heure de fin — affiche un décompte aux utilisateurs et désactive la maintenance automatiquement", type: "datetime", default: "" },
       { key: "registration_enabled",       label: "Inscriptions ouvertes",     desc: "Autoriser les nouveaux utilisateurs à s'inscrire",                    type: "boolean", default: "true" },
       { key: "registration_closed_message",label: "Message inscriptions fermées", desc: "Texte affiché quand les inscriptions sont désactivées",            type: "text",    default: "Les inscriptions sont temporairement fermées." },
     ],
@@ -1740,51 +1741,107 @@ function SettingsTab() {
   return (
     <div className="space-y-5">
 
-      {/* Live status banner */}
+      {/* Live status banner — clickable quick toggles */}
       <div className="glass-card p-4">
-        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">État du site en direct</p>
+        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">État du site en direct — cliquez pour basculer</p>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          {/* Maintenance */}
-          <div className={cn(
-            "flex items-center justify-between p-3 rounded-xl border",
-            maintenanceOn ? "bg-loss/10 border-loss/25" : "bg-profit/8 border-profit/20"
-          )}>
+          {/* Maintenance — clickable toggle */}
+          <button
+            onClick={() => toggleBoolean("maintenance_mode", "false")}
+            disabled={savingKey === "maintenance_mode"}
+            className={cn(
+              "flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all hover:scale-[1.02] active:scale-[0.98]",
+              maintenanceOn ? "bg-loss/10 border-loss/25 hover:bg-loss/15" : "bg-profit/8 border-profit/20 hover:bg-profit/12"
+            )}
+          >
             <div className="flex items-center gap-2">
               <div className={cn("w-2 h-2 rounded-full", maintenanceOn ? "bg-loss animate-pulse" : "bg-profit")} />
               <span className="text-sm font-medium">Maintenance</span>
             </div>
-            <span className={cn("text-xs font-semibold", maintenanceOn ? "text-loss" : "text-profit")}>
-              {maintenanceOn ? "ACTIVE" : "off"}
-            </span>
-          </div>
-          {/* Inscriptions */}
-          <div className={cn(
-            "flex items-center justify-between p-3 rounded-xl border",
-            !registrationOpen ? "bg-warning/10 border-warning/25" : "bg-profit/8 border-profit/20"
-          )}>
+            <div className="flex items-center gap-1.5">
+              {savingKey === "maintenance_mode" && <Loader2 className="w-3 h-3 animate-spin" />}
+              <span className={cn("text-xs font-semibold", maintenanceOn ? "text-loss" : "text-profit")}>
+                {maintenanceOn ? "ACTIVE" : "off"}
+              </span>
+            </div>
+          </button>
+          {/* Inscriptions — clickable toggle */}
+          <button
+            onClick={() => toggleBoolean("registration_enabled", "true")}
+            disabled={savingKey === "registration_enabled"}
+            className={cn(
+              "flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all hover:scale-[1.02] active:scale-[0.98]",
+              !registrationOpen ? "bg-warning/10 border-warning/25 hover:bg-warning/15" : "bg-profit/8 border-profit/20 hover:bg-profit/12"
+            )}
+          >
             <div className="flex items-center gap-2">
               <div className={cn("w-2 h-2 rounded-full", !registrationOpen ? "bg-warning animate-pulse" : "bg-profit")} />
               <span className="text-sm font-medium">Inscriptions</span>
             </div>
-            <span className={cn("text-xs font-semibold", !registrationOpen ? "text-warning" : "text-profit")}>
-              {registrationOpen ? "ouvertes" : "FERMÉES"}
-            </span>
-          </div>
-          {/* Gold Hub */}
-          <div className={cn(
-            "flex items-center justify-between p-3 rounded-xl border",
-            goldEnabled ? "bg-amber-500/8 border-amber-500/20" : "bg-white/5 border-white/8"
-          )}>
+            <div className="flex items-center gap-1.5">
+              {savingKey === "registration_enabled" && <Loader2 className="w-3 h-3 animate-spin" />}
+              <span className={cn("text-xs font-semibold", !registrationOpen ? "text-warning" : "text-profit")}>
+                {registrationOpen ? "ouvertes" : "FERMÉES"}
+              </span>
+            </div>
+          </button>
+          {/* Gold Hub — clickable toggle */}
+          <button
+            onClick={() => toggleBoolean("gold_hub_enabled", "false")}
+            disabled={savingKey === "gold_hub_enabled"}
+            className={cn(
+              "flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all hover:scale-[1.02] active:scale-[0.98]",
+              goldEnabled ? "bg-amber-500/8 border-amber-500/20 hover:bg-amber-500/12" : "bg-white/5 border-white/8 hover:bg-white/10"
+            )}
+          >
             <div className="flex items-center gap-2">
               <div className={cn("w-2 h-2 rounded-full", goldEnabled ? "bg-amber-400" : "bg-muted-foreground/40")} />
               <span className="text-sm font-medium">Gold Hub</span>
             </div>
-            <span className={cn("text-xs font-semibold", goldEnabled ? "text-amber-400" : "text-muted-foreground")}>
-              {goldEnabled ? "public" : "admin only"}
-            </span>
-          </div>
+            <div className="flex items-center gap-1.5">
+              {savingKey === "gold_hub_enabled" && <Loader2 className="w-3 h-3 animate-spin" />}
+              <span className={cn("text-xs font-semibold", goldEnabled ? "text-amber-400" : "text-muted-foreground")}>
+                {goldEnabled ? "public" : "admin only"}
+              </span>
+            </div>
+          </button>
         </div>
       </div>
+
+      {/* Maintenance Quick Control */}
+      {maintenanceOn && (
+        <div className="glass-card p-4 border border-loss/30 bg-loss/5">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-2 h-2 rounded-full bg-loss animate-pulse" />
+            <p className="text-sm font-semibold text-loss">Maintenance active — Contrôle rapide du timer</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {[
+              { label: "Arrêter maintenant",     action: () => { toggleBoolean("maintenance_mode", "false"); saveSetting("maintenance_end_time", ""); }, className: "bg-profit/15 text-profit hover:bg-profit/25 border border-profit/30" },
+              { label: "+30 min",  action: () => saveSetting("maintenance_end_time", new Date(Date.now() + 1800000).toISOString()), className: "bg-primary/15 text-primary hover:bg-primary/25 border border-primary/30" },
+              { label: "+1h",      action: () => saveSetting("maintenance_end_time", new Date(Date.now() + 3600000).toISOString()),  className: "bg-primary/15 text-primary hover:bg-primary/25 border border-primary/30" },
+              { label: "+2h",      action: () => saveSetting("maintenance_end_time", new Date(Date.now() + 7200000).toISOString()),  className: "bg-primary/15 text-primary hover:bg-primary/25 border border-primary/30" },
+              { label: "+4h",      action: () => saveSetting("maintenance_end_time", new Date(Date.now() + 14400000).toISOString()), className: "bg-primary/15 text-primary hover:bg-primary/25 border border-primary/30" },
+            ].map(({ label, action, className }) => (
+              <button key={label} onClick={action}
+                className={cn("px-3 py-1.5 rounded-lg text-xs font-semibold transition-all", className)}>
+                {label}
+              </button>
+            ))}
+          </div>
+          {getValue("maintenance_end_time", "") && (() => {
+            try {
+              const d = new Date(getValue("maintenance_end_time", ""));
+              const diff = d.getTime() - Date.now();
+              if (diff > 0) {
+                const h = Math.floor(diff / 3600000), m = Math.floor((diff % 3600000) / 60000);
+                return <p className="text-xs text-amber-400 mt-2">⏱ Fin prévue : {d.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })} — dans {h > 0 ? `${h}h ` : ""}{m}m</p>;
+              }
+            } catch { return null; }
+            return null;
+          })()}
+        </div>
+      )}
 
       {/* Gold Hub toggle */}
       <div className={cn(
@@ -1925,6 +1982,84 @@ function SettingsTab() {
                         {isSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : isSaved ? "✓" : "Enregistrer"}
                       </button>
                     </div>
+                  </div>
+                );
+              }
+
+              // Datetime fields get presets + datetime-local picker
+              if (item.type === "datetime") {
+                const toLocalInput = (iso: string) => {
+                  if (!iso) return "";
+                  try { return new Date(iso).toISOString().slice(0, 16); } catch { return ""; }
+                };
+                const fromLocalInput = (local: string) => local ? new Date(local).toISOString() : "";
+                const presets = [
+                  { label: "+1h",  ms: 3600000 },
+                  { label: "+2h",  ms: 7200000 },
+                  { label: "+4h",  ms: 14400000 },
+                  { label: "+8h",  ms: 28800000 },
+                  { label: "Dem. 9h", ms: 0, fixed: true },
+                ];
+                return (
+                  <div key={item.key} className="p-3 bg-white/5 rounded-xl space-y-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <div>
+                        <p className="font-medium text-sm">{item.label}</p>
+                        <p className="text-xs text-muted-foreground">{item.desc}</p>
+                      </div>
+                      <div className="flex items-center gap-1.5 flex-shrink-0">
+                        {isSaving && <Loader2 className="w-3.5 h-3.5 animate-spin text-muted-foreground" />}
+                        {isSaved && <CheckCircle className="w-3.5 h-3.5 text-profit" />}
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {presets.map(p => (
+                        <button key={p.label} onClick={() => {
+                          let dt: Date;
+                          if (p.fixed) {
+                            dt = new Date(); dt.setDate(dt.getDate() + 1);
+                            dt.setHours(9, 0, 0, 0);
+                          } else {
+                            dt = new Date(Date.now() + p.ms);
+                          }
+                          const iso = dt.toISOString();
+                          setLocalValues(prev => ({ ...prev, [item.key]: iso }));
+                          saveSetting(item.key, iso);
+                        }} className="px-2 py-1 rounded-md bg-primary/15 text-primary hover:bg-primary/25 text-xs font-medium transition-colors">
+                          {p.label}
+                        </button>
+                      ))}
+                      {val && (
+                        <button onClick={() => { setLocalValues(prev => ({ ...prev, [item.key]: "" })); saveSetting(item.key, ""); }}
+                          className="px-2 py-1 rounded-md bg-loss/15 text-loss hover:bg-loss/25 text-xs font-medium transition-colors">
+                          Effacer
+                        </button>
+                      )}
+                    </div>
+                    <div className="flex gap-2">
+                      <input
+                        type="datetime-local"
+                        value={toLocalInput(val)}
+                        onChange={e => setLocalValues(prev => ({ ...prev, [item.key]: fromLocalInput(e.target.value) }))}
+                        className="flex-1 input text-sm py-1.5"
+                      />
+                      <button onClick={() => saveSetting(item.key, val)} disabled={isSaving}
+                        className={cn("px-3 py-1.5 rounded-lg text-xs font-medium transition-colors",
+                          isSaved ? "bg-profit/20 text-profit" : "bg-primary/20 text-primary hover:bg-primary/30")}>
+                        {isSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : isSaved ? "✓" : "OK"}
+                      </button>
+                    </div>
+                    {val && (() => {
+                      try {
+                        const remaining = new Date(val).getTime() - Date.now();
+                        if (remaining > 0) {
+                          const h = Math.floor(remaining / 3600000);
+                          const m = Math.floor((remaining % 3600000) / 60000);
+                          return <p className="text-xs text-amber-400">⏱ Expire dans {h > 0 ? `${h}h ` : ""}{m}m</p>;
+                        }
+                        return <p className="text-xs text-loss">⚠ Date déjà passée</p>;
+                      } catch { return null; }
+                    })()}
                   </div>
                 );
               }

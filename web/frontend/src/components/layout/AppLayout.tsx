@@ -45,8 +45,9 @@ function AuthShell({
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [forceTourLevel, setForceTourLevel] = useState<TradingLevel | null>(null);
-  const [maintenance, setMaintenance] = useState<{ on: boolean; message: string }>({ on: false, message: "" });
+  const [maintenance, setMaintenance] = useState<{ on: boolean; message: string; endTime?: string }>({ on: false, message: "" });
   const [maintenanceChecked, setMaintenanceChecked] = useState(false);
+  const [countdown, setCountdown] = useState("");
 
   useEffect(() => {
     const check = async () => {
@@ -54,15 +55,31 @@ function AuthShell({
         const r = await fetch("/api/status");
         if (r.ok) {
           const d = await r.json();
-          setMaintenance({ on: !!d.maintenance, message: d.message || "" });
+          setMaintenance({ on: !!d.maintenance, message: d.message || "", endTime: d.end_time ?? undefined });
         }
       } catch {}
       setMaintenanceChecked(true);
     };
     check();
-    const iv = setInterval(check, 10000);
+    const iv = setInterval(check, 30000);
     return () => clearInterval(iv);
   }, []);
+
+  // Live countdown ticker
+  useEffect(() => {
+    if (!maintenance.endTime) { setCountdown(""); return; }
+    const tick = () => {
+      const diff = new Date(maintenance.endTime!).getTime() - Date.now();
+      if (diff <= 0) { setCountdown(""); return; }
+      const h = Math.floor(diff / 3600000);
+      const m = Math.floor((diff % 3600000) / 60000);
+      const s = Math.floor((diff % 60000) / 1000);
+      setCountdown(h > 0 ? `${h}h ${m}m` : m > 0 ? `${m}m ${s}s` : `${s}s`);
+    };
+    tick();
+    const t = setInterval(tick, 1000);
+    return () => clearInterval(t);
+  }, [maintenance.endTime]);
 
   // Redirect unauthenticated users — only runs on auth/protected pages
   useEffect(() => {
@@ -162,24 +179,47 @@ function AuthShell({
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-          className="text-center space-y-6 max-w-md"
+          className="text-center space-y-6 max-w-md w-full"
         >
-          <div className="w-20 h-20 mx-auto rounded-2xl bg-yellow-500/10 border border-yellow-500/20 flex items-center justify-center">
-            <Wrench className="w-10 h-10 text-yellow-400" />
+          {/* Animated icon */}
+          <div className="relative w-20 h-20 mx-auto">
+            <div className="absolute inset-0 rounded-2xl bg-yellow-500/20 animate-ping" style={{ animationDuration: "2s" }} />
+            <div className="relative w-20 h-20 rounded-2xl bg-yellow-500/10 border border-yellow-500/20 flex items-center justify-center">
+              <Wrench className="w-10 h-10 text-yellow-400" />
+            </div>
           </div>
-          <div>
-            <h1 className="text-2xl font-bold mb-2">
-              {lang === "en" ? "Maintenance" : "Maintenance"}
+
+          <div className="space-y-2">
+            <h1 className="text-2xl font-bold">
+              {lang === "en" ? "Under Maintenance" : "En maintenance"}
             </h1>
-            <p className="text-muted-foreground">
+            <p className="text-muted-foreground leading-relaxed">
               {maintenance.message || (lang === "en"
-                ? "The site is under maintenance. Please come back soon."
-                : "Le site est en cours de maintenance. Revenez bientôt.")}
+                ? "The site is temporarily unavailable. Please come back soon."
+                : "Le site est temporairement indisponible. Revenez bientôt.")}
             </p>
           </div>
-          <div className="text-xs text-muted-foreground">
-            <p>CaptenTDB</p>
+
+          {/* Countdown timer */}
+          {countdown && (
+            <div className="mx-auto w-fit px-6 py-3 rounded-2xl bg-yellow-500/10 border border-yellow-500/20">
+              <p className="text-xs text-yellow-400/70 uppercase tracking-wider mb-1 font-medium">
+                {lang === "en" ? "Back online in" : "Retour dans"}
+              </p>
+              <p className="text-3xl font-bold text-yellow-400 tabular-nums">{countdown}</p>
+            </div>
+          )}
+
+          {/* Progress bar (visual only) */}
+          <div className="w-full h-1 bg-white/5 rounded-full overflow-hidden">
+            <motion.div
+              className="h-full bg-yellow-400/60 rounded-full"
+              animate={{ x: ["-100%", "100%"] }}
+              transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+            />
           </div>
+
+          <p className="text-xs text-muted-foreground/50">CaptenTDB · captentdb.fr</p>
         </motion.div>
       </div>
     );

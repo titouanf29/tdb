@@ -5,6 +5,7 @@ import os
 import time
 import logging
 from pathlib import Path
+from datetime import datetime, timezone
 from dotenv import load_dotenv
 
 # Load .env BEFORE importing routes (so they can read env vars)
@@ -23,7 +24,7 @@ from slowapi.errors import RateLimitExceeded
 
 logger = logging.getLogger(__name__)
 
-from .database import init_db, init_web_tables, execute_query
+from .database import init_db, init_web_tables, execute_query, execute_write
 from .routes import auth, market, wallet, analysis, users, favorites, ai_assistant, admin, premium, community, tools, portfolio
 from .routes import insights
 from .routes import content_factory
@@ -88,22 +89,42 @@ app.add_middleware(
 _maint_cache: dict = {"value": None, "ts": 0.0}
 _MAINT_TTL = 2  # seconds — short TTL so changes take effect quickly
 
-async def _get_maintenance_setting() -> tuple[bool, str]:
-    """Returns (is_on, message). Cached for _MAINT_TTL seconds."""
+async def _get_maintenance_setting() -> tuple[bool, str, str | None]:
+    """Returns (is_on, message, end_time_iso). Cached for _MAINT_TTL seconds.
+    Auto-disables maintenance if end_time has passed."""
     now = time.monotonic()
     if now - _maint_cache["ts"] < _MAINT_TTL and _maint_cache["value"] is not None:
         return _maint_cache["value"]
     try:
         rows = await execute_query(
-            "SELECT key, value FROM admin_settings WHERE key IN ('maintenance_mode','maintenance_message')"
+            "SELECT key, value FROM admin_settings "
+            "WHERE key IN ('maintenance_mode','maintenance_message','maintenance_end_time')"
         )
         settings = {r["key"]: r["value"] for r in (rows or [])}
-        is_on = settings.get("maintenance_mode", "false") == "true"
-        msg   = settings.get("maintenance_message") or "Le site est en cours de maintenance. Revenez bientôt."
-        result = (is_on, msg)
+        is_on    = settings.get("maintenance_mode", "false") == "true"
+        msg      = settings.get("maintenance_message") or "Le site est en cours de maintenance. Revenez bientôt."
+        end_time = settings.get("maintenance_end_time") or None
+
+        # Auto-disable if timer expired
+        if is_on and end_time:
+            try:
+                end_dt = datetime.fromisoformat(end_time.replace("Z", "+00:00"))
+                if end_dt.tzinfo is None:
+                    end_dt = end_dt.replace(tzinfo=timezone.utc)
+                if datetime.now(timezone.utc) >= end_dt:
+                    is_on = False
+                    await execute_write(
+                        "UPDATE admin_settings SET value = 'false', updated_at = ? WHERE key = 'maintenance_mode'",
+                        (datetime.now(timezone.utc).isoformat(),)
+                    )
+                    end_time = None
+            except (ValueError, TypeError):
+                pass
+
+        result = (is_on, msg, end_time if is_on else None)
     except Exception as exc:
         logger.warning("maintenance_middleware: DB read failed: %s", exc)
-        result = (False, "")
+        result = (False, "", None)
     _maint_cache["value"] = result
     _maint_cache["ts"] = now
     return result
@@ -164,7 +185,7 @@ async def maintenance_middleware(request: Request, call_next):
     if request.method == "OPTIONS":
         return await call_next(request)
 
-    is_on, msg = await _get_maintenance_setting()
+    is_on, msg, _end_time = await _get_maintenance_setting()
     if not is_on:
         return await call_next(request)
 
@@ -210,5 +231,9 @@ async def health():
 @app.get("/api/status")
 async def site_status():
     """Public endpoint — returns maintenance status (used by frontend overlay)."""
-    is_on, msg = await _get_maintenance_setting()
-    return {"maintenance": is_on, "message": msg if is_on else None}
+    is_on, msg, end_time = await _get_maintenance_setting()
+    return {
+        "maintenance": is_on,
+        "message":     msg if is_on else None,
+        "end_time":    end_time,
+    }
