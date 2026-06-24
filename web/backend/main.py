@@ -4,6 +4,9 @@ Synchronisé avec le bot Telegram via la même base de données
 """
 import os
 import sys
+import time
+import logging
+from datetime import datetime, timezone
 from pathlib import Path
 from contextlib import asynccontextmanager
 
@@ -17,6 +20,8 @@ from slowapi import Limiter
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 
+logger = logging.getLogger(__name__)
+
 # Add parent directory to path for shared modules
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
@@ -25,7 +30,7 @@ load_dotenv(Path(__file__).parent.parent.parent / ".env")
 
 from api.routes import auth, market, wallet, analysis, users, ai_assistant, favorites, admin, tools, premium, community, portfolio, journal, weekly_prep, insights, content_factory, content_factory_visuals, missions, ipo_watch
 from api.websocket import websocket_router
-from api.database import init_web_tables
+from api.database import init_web_tables, execute_query, execute_write
 
 # Global rate limiter (IP-based)
 limiter = Limiter(key_func=get_remote_address)
@@ -82,6 +87,110 @@ app.add_middleware(
 )
 
 
+# ── Maintenance mode ────────────────────────────────────────────────────────
+_maint_cache: dict = {"value": None, "ts": 0.0}
+_MAINT_TTL = 3  # seconds
+
+async def _get_maintenance_state() -> tuple[bool, str, str | None]:
+    """Returns (is_on, message, end_time_iso). Cached for _MAINT_TTL seconds.
+    Auto-disables when end_time has passed."""
+    now = time.monotonic()
+    if now - _maint_cache["ts"] < _MAINT_TTL and _maint_cache["value"] is not None:
+        return _maint_cache["value"]
+    try:
+        rows = await execute_query(
+            "SELECT key, value FROM admin_settings "
+            "WHERE key IN ('maintenance_mode','maintenance_message','maintenance_end_time')"
+        )
+        settings = {r["key"]: r["value"] for r in (rows or [])}
+        is_on    = settings.get("maintenance_mode", "false") == "true"
+        msg      = settings.get("maintenance_message") or "Le site est en cours de maintenance. Revenez bientôt."
+        end_time = settings.get("maintenance_end_time") or None
+
+        if is_on and end_time:
+            try:
+                end_dt = datetime.fromisoformat(end_time.replace("Z", "+00:00"))
+                if end_dt.tzinfo is None:
+                    end_dt = end_dt.replace(tzinfo=timezone.utc)
+                if datetime.now(timezone.utc) >= end_dt:
+                    is_on = False
+                    end_time = None
+                    await execute_write(
+                        "UPDATE admin_settings SET value = 'false', updated_at = ? WHERE key = 'maintenance_mode'",
+                        (datetime.now(timezone.utc).isoformat(),)
+                    )
+            except (ValueError, TypeError):
+                pass
+
+        result = (is_on, msg, end_time if is_on else None)
+    except Exception as exc:
+        logger.warning("maintenance check failed: %s", exc)
+        result = (False, "", None)
+    _maint_cache["value"] = result
+    _maint_cache["ts"] = now
+    return result
+
+
+async def _token_user_id(auth_header: str) -> int | None:
+    if not auth_header.startswith("Bearer "):
+        return None
+    token = auth_header[7:]
+    try:
+        from jose import jwt as _jwt, JWTError
+        secret = os.getenv("JWT_SECRET", "dev-only-insecure-secret-do-not-use-in-prod")
+        payload = _jwt.decode(token, secret, algorithms=["HS256"])
+        sub = payload.get("sub")
+        return int(sub) if sub else None
+    except Exception:
+        return None
+
+
+async def _is_admin(user_id: int) -> bool:
+    try:
+        rows = await execute_query(
+            "SELECT is_admin FROM web_users WHERE id = ?", (user_id,)
+        )
+        if rows and rows[0].get("is_admin"):
+            return True
+        first = await execute_query("SELECT id FROM web_users ORDER BY id ASC LIMIT 1")
+        if first and first[0]["id"] == user_id:
+            return True
+    except Exception:
+        pass
+    return False
+
+
+_ALWAYS_ALLOW = {
+    "/api/auth/login", "/api/auth/register", "/api/auth/me",
+    "/api/auth/refresh", "/api/auth/verify-email",
+    "/api/status", "/", "/health",
+}
+
+
+@app.middleware("http")
+async def maintenance_middleware(request: Request, call_next):
+    path = request.url.path
+    # Admin panel and auth always accessible
+    if path.startswith("/api/admin") or path in _ALWAYS_ALLOW:
+        return await call_next(request)
+    if request.method == "OPTIONS":
+        return await call_next(request)
+
+    is_on, msg, end_time = await _get_maintenance_state()
+    if not is_on:
+        return await call_next(request)
+
+    # Check if caller is admin
+    uid = await _token_user_id(request.headers.get("Authorization", ""))
+    if uid and await _is_admin(uid):
+        return await call_next(request)
+
+    return JSONResponse(
+        status_code=503,
+        content={"detail": msg, "maintenance": True, "end_time": end_time},
+    )
+
+
 # Security headers middleware
 @app.middleware("http")
 async def security_headers(request: Request, call_next):
@@ -93,7 +202,6 @@ async def security_headers(request: Request, call_next):
     response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
     response.headers["Cross-Origin-Opener-Policy"] = "same-origin"
     response.headers["Cross-Origin-Resource-Policy"] = "same-site"
-    # Ne pas exposer le serveur sous-jacent
     if "server" in response.headers:
         del response.headers["server"]
     if IS_PRODUCTION:
@@ -147,6 +255,17 @@ async def root():
 @app.get("/health")
 async def health():
     return {"status": "healthy"}
+
+
+@app.get("/api/status")
+async def site_status():
+    """Public endpoint — returns maintenance status for frontend overlay."""
+    is_on, msg, end_time = await _get_maintenance_state()
+    return {
+        "maintenance": is_on,
+        "message":     msg if is_on else None,
+        "end_time":    end_time,
+    }
 
 
 if __name__ == "__main__":
