@@ -19,6 +19,7 @@ import {
 import { useFormatCurrency, useFormatPrice } from "@/lib/SettingsContext";
 import { usePremium } from "@/lib/PremiumContext";
 import { useLanguage } from "@/lib/LanguageContext";
+import { useAuth } from "@/lib/AuthContext";
 import { getAssetInfo, getAssetLogo } from "@/lib/assetInfo";
 import dynamic from "next/dynamic";
 
@@ -219,6 +220,11 @@ export default function DashboardPage() {
   return (
     <motion.div variants={containerVariants} initial="hidden" animate="show" className="space-y-4">
 
+      {/* ── Greeting ────────────────────────────────────────────────────────── */}
+      <motion.div variants={itemVariants}>
+        <GreetingHeader lang={lang} />
+      </motion.div>
+
       {/* ── Live Ticker ─────────────────────────────────────────────────────── */}
       <motion.div variants={itemVariants}>
         <LiveTicker indices={indices} favorites={favorites} />
@@ -366,6 +372,32 @@ export default function DashboardPage() {
 //  SUB-COMPONENTS
 // ─────────────────────────────────────────────────────────────────────────────
 
+const GreetingHeader = memo(function GreetingHeader({ lang }: { lang: string }) {
+  const { user } = useAuth();
+  const name = user?.first_name || user?.username || "";
+  const hour = new Date().getHours();
+  const greeting = lang === "fr"
+    ? (hour < 5 ? "Bonsoir" : hour < 18 ? "Bonjour" : "Bonsoir")
+    : (hour < 5 ? "Good evening" : hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening");
+  const dateStr = new Date().toLocaleDateString(lang === "fr" ? "fr-FR" : "en-US", {
+    weekday: "long", day: "numeric", month: "long",
+  });
+
+  return (
+    <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-1 pt-1">
+      <div>
+        <h1 className="text-2xl md:text-3xl font-bold tracking-tight">
+          {greeting}{name ? <> <span className="gradient-text-gold">{name}</span></> : ""} 👋
+        </h1>
+        <p className="text-sm text-muted-foreground mt-0.5 first-letter:uppercase">{dateStr}</p>
+      </div>
+      <p className="text-xs text-muted-foreground hidden sm:block">
+        {lang === "fr" ? "Votre marché vous attend — bonne séance." : "Your market is waiting — have a good session."}
+      </p>
+    </div>
+  );
+});
+
 const LiveTicker = memo(function LiveTicker({
   indices, favorites,
 }: {
@@ -493,23 +525,34 @@ const PortfolioCard = memo(function PortfolioCard({
         </p>
         <p className="text-xs text-muted-foreground mb-4">{lang === "fr" ? "Solde total" : "Total balance"}</p>
 
-        {/* Stats pills */}
+        {/* Breakdown — always visible so the card never looks empty */}
+        <div className="grid grid-cols-2 gap-2 mb-4">
+          <div className="px-3 py-2.5 rounded-xl bg-white/4 border border-white/8">
+            <p className="text-[11px] text-muted-foreground mb-0.5">{lang === "fr" ? "Disponible" : "Available"}</p>
+            <p className="text-sm font-semibold tabular-nums">{formatCurrency(balance?.balance || 0)}</p>
+          </div>
+          <div className="px-3 py-2.5 rounded-xl bg-white/4 border border-white/8">
+            <p className="text-[11px] text-muted-foreground mb-0.5">{lang === "fr" ? "En position" : "In positions"}</p>
+            <p className="text-sm font-semibold tabular-nums">{formatCurrency(balance?.positions_value || 0)}</p>
+          </div>
+        </div>
+
+        {/* Stats pills — zero states stay visible and invite action */}
         <div className="flex flex-wrap gap-2 mt-auto">
-          {openPositions.length > 0 && (
-            <Link href="/trading"
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-primary/10 hover:bg-primary/20 border border-primary/20 transition-all text-xs font-semibold text-primary">
-              <Layers className="w-3.5 h-3.5" />
-              {openPositions.length} {lang === "fr" ? `position${openPositions.length > 1 ? "s" : ""}` : `position${openPositions.length > 1 ? "s" : ""}`}
-            </Link>
-          )}
-          {favorites.length > 0 && (
-            <Link href="/favorites"
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/8 transition-all text-xs">
-              <Star className="w-3.5 h-3.5 text-yellow-500" />
-              {favorites.length} {lang === "fr" ? "actifs" : "assets"}
-            </Link>
-          )}
-          {(stats?.total_trades || 0) > 0 && (
+          <Link href="/wallet"
+            className={cn("flex items-center gap-1.5 px-3 py-1.5 rounded-xl border transition-all text-xs font-semibold",
+              openPositions.length > 0
+                ? "bg-primary/10 hover:bg-primary/20 border-primary/20 text-primary"
+                : "bg-white/5 hover:bg-white/10 border-white/8 text-muted-foreground")}>
+            <Layers className="w-3.5 h-3.5" />
+            {openPositions.length} {lang === "fr" ? `position${openPositions.length > 1 ? "s" : ""}` : `position${openPositions.length > 1 ? "s" : ""}`}
+          </Link>
+          <Link href="/favorites"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/8 transition-all text-xs">
+            <Star className={cn("w-3.5 h-3.5", favorites.length > 0 ? "text-yellow-500" : "text-muted-foreground")} />
+            {favorites.length} {lang === "fr" ? "favoris" : "favorites"}
+          </Link>
+          {(stats?.total_trades || 0) > 0 ? (
             <Link href="/wallet"
               className={cn("flex items-center gap-1.5 px-3 py-1.5 rounded-xl border transition-all text-xs font-semibold",
                 (stats?.win_rate || 0) >= 50
@@ -517,6 +560,12 @@ const PortfolioCard = memo(function PortfolioCard({
                   : "bg-white/5 hover:bg-white/10 border-white/8 text-muted-foreground")}>
               <Target className="w-3.5 h-3.5" />
               {stats?.win_rate || 0}% win
+            </Link>
+          ) : (
+            <Link href="/trading"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-profit/10 hover:bg-profit/20 border border-profit/25 transition-all text-xs font-semibold text-profit">
+              <TrendingUp className="w-3.5 h-3.5" />
+              {lang === "fr" ? "Faire mon premier trade →" : "Make my first trade →"}
             </Link>
           )}
           {avgFavChange !== 0 && (
@@ -647,14 +696,14 @@ const QuickActionsBar = memo(function QuickActionsBar() {
   ];
 
   return (
-    <div className="flex gap-3 overflow-x-auto no-scrollbar py-0.5">
+    <div className="grid grid-cols-2 sm:grid-cols-4 2xl:grid-cols-8 gap-2.5 py-0.5">
       {actions.map(({ href, Icon, label, iconCls, bgCls }) => (
-        <Link key={href} href={href} className="flex-shrink-0 group">
-          <div className="flex items-center gap-2.5 px-4 py-3 rounded-xl bg-white/4 hover:bg-white/8 border border-white/8 hover:border-white/14 transition-all">
+        <Link key={href} href={href} className="group min-w-0">
+          <div className="flex items-center gap-2.5 px-3.5 py-3 rounded-xl bg-white/4 hover:bg-white/8 border border-white/8 hover:border-white/14 transition-all">
             <div className={cn("w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 transition-colors", bgCls)}>
               <Icon className={cn("w-4 h-4", iconCls)} />
             </div>
-            <span className="text-sm font-medium whitespace-nowrap">{label}</span>
+            <span className="text-sm font-medium truncate">{label}</span>
           </div>
         </Link>
       ))}
