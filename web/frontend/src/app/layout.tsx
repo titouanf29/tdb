@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Inter, Space_Grotesk } from "next/font/google";
 import "./globals.css";
 import "flag-icons/css/flag-icons.min.css";
 import { AuthProvider } from "@/lib/AuthContext";
@@ -16,6 +16,13 @@ const inter = Inter({
   weight: ["300", "400", "500", "600", "700", "800"],
 });
 
+const spaceGrotesk = Space_Grotesk({
+  subsets: ["latin"],
+  variable: "--font-display",
+  display: "swap",
+  weight: ["400", "500", "600", "700"],
+});
+
 export const metadata: Metadata = {
   title: "CaptenTDB - Trading Education Platform",
   description: "Plateforme educative de trading par CaptenQwark - Analyses, formations et communaute",
@@ -30,7 +37,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="fr" className={`dark ${inter.variable}`}>
+    <html lang="fr" className={`dark ${inter.variable} ${spaceGrotesk.variable}`}>
       <body className="min-h-screen bg-background font-sans">
         {/* Background effects — GPU-composited layer, no blur filters */}
         <div className="fixed inset-0 -z-10 overflow-hidden" style={{ contain: "strict", willChange: "transform" }}>

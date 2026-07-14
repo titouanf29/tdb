@@ -1076,7 +1076,7 @@ function BalanceCard({ title, rawValue, formatter, icon: Icon, color, index = 0 
         </div>
         <div className="min-w-0">
           <p className="text-xs text-muted-foreground truncate">{title}</p>
-          <AnimatedNumber value={rawValue} formatter={formatter} className={cn("text-xl font-bold", c.text)} />
+          <AnimatedNumber value={rawValue} formatter={formatter} className={cn("text-xl font-bold font-display tracking-tight", c.text)} />
         </div>
       </div>
     </motion.div>

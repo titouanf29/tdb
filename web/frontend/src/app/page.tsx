@@ -1308,7 +1308,7 @@ function LandingPage() {
           <motion.div whileHover={{ scale: 1.08 }} transition={{ type: "spring", stiffness: 400 }}>
             <TDBLogo size={34} />
           </motion.div>
-          <span className="text-lg font-bold">Capten<span className="gradient-text">TDB</span></span>
+          <span className="text-lg font-bold font-display">Capten<span className="gradient-text-gold">TDB</span></span>
         </div>
         <div className="hidden md:flex items-center gap-6 text-sm text-white/55">
           <a href="#features" className="hover:text-white transition-colors">{lang === "en" ? "Features" : "Fonctionnalités"}</a>
@@ -1371,7 +1371,7 @@ function LandingPage() {
         >
           {lang === "en" ? "Markets," : "La bourse,"}{" "}
           <motion.span
-            className="gradient-text inline-block"
+            className="gradient-text-gold inline-block"
             animate={{ backgroundPosition: ["0% 50%", "100% 50%", "0% 50%"] }}
             transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
             style={{ backgroundSize: "200%" }}

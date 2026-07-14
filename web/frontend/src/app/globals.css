@@ -117,9 +117,30 @@ html {
     @apply bg-background text-foreground antialiased;
     font-family: var(--font-inter), system-ui, -apple-system, sans-serif;
     font-feature-settings: "rlig" 1, "calt" 1, "ss01" 1;
+    /* Tabular figures everywhere — prices and P&L columns stay aligned */
+    font-variant-numeric: tabular-nums lining-nums;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
+  }
+
+  /* Display face for headings — the CaptenTDB typographic signature */
+  h1, h2, h3 {
+    font-family: var(--font-display), var(--font-inter), system-ui, sans-serif;
+    letter-spacing: -0.02em;
+  }
+
+  /* Brand-tinted text selection */
+  ::selection {
+    background: hsl(var(--gold) / 0.28);
+    color: hsl(210 28% 98%);
+  }
+
+  /* Visible focus for keyboard navigation only */
+  :focus-visible {
+    outline: 2px solid hsl(var(--primary) / 0.7);
+    outline-offset: 2px;
+    border-radius: 4px;
   }
 
   /* Custom scrollbar */
@@ -133,20 +154,12 @@ html {
   }
 
   ::-webkit-scrollbar-thumb {
-    background: linear-gradient(
-      180deg,
-      hsl(var(--neon-blue) / 0.5),
-      hsl(var(--neon-purple) / 0.5)
-    );
+    background: rgba(255, 255, 255, 0.14);
     border-radius: 9999px;
   }
 
   ::-webkit-scrollbar-thumb:hover {
-    background: linear-gradient(
-      180deg,
-      hsl(var(--neon-blue) / 0.8),
-      hsl(var(--neon-purple) / 0.8)
-    );
+    background: hsl(var(--primary) / 0.55);
   }
 }
 
@@ -216,9 +229,17 @@ html {
     @apply opacity-100;
   }
 
-  /* Gradient text — gold → indigo → cyan (matches logo palette) */
+  /* Gradient text — clean indigo → cyan (headings, feature accents) */
   .gradient-text {
-    background: linear-gradient(135deg, hsl(var(--gold)) 0%, hsl(var(--primary)) 50%, hsl(var(--neon-cyan)) 100%);
+    background: linear-gradient(120deg, hsl(var(--primary)) 0%, hsl(var(--neon-cyan)) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* Gold gradient text — brand signature, reserved for hero & premium moments */
+  .gradient-text-gold {
+    background: linear-gradient(120deg, #E8A820 0%, #FFE033 55%, #E8A820 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;

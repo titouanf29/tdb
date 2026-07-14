@@ -488,7 +488,7 @@ const PortfolioCard = memo(function PortfolioCard({
         </div>
 
         {/* Balance */}
-        <p className="text-4xl md:text-5xl font-bold tabular-nums leading-none mb-1">
+        <p className="text-4xl md:text-5xl font-bold font-display tabular-nums leading-none mb-1 tracking-tight">
           {formatCurrency(totalBalance)}
         </p>
         <p className="text-xs text-muted-foreground mb-4">{lang === "fr" ? "Solde total" : "Total balance"}</p>

@@ -135,7 +135,7 @@ export function Sidebar({
               exit={{ opacity: 0, x: -10 }}
               className="flex-1 min-w-0"
             >
-              <h1 className="font-bold text-xl gradient-text">CaptenTDB</h1>
+              <h1 className="font-bold text-xl font-display">Capten<span className="gradient-text-gold">TDB</span></h1>
               <p className="text-xs text-muted-foreground">par CaptenQwark</p>
             </motion.div>
           )}

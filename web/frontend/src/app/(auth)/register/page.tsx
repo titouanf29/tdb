@@ -83,7 +83,7 @@ export default function RegisterPage() {
             <TDBLogo size={64} />
           </div>
           <h1 className="text-2xl font-bold">
-            {t("register_title")} <span className="gradient-text">CaptenTDB</span>
+            {t("register_title")} <span className="gradient-text-gold">CaptenTDB</span>
           </h1>
           <p className="text-muted-foreground mt-2">
             {t("register_subtitle")}

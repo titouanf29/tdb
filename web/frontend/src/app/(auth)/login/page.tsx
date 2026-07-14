@@ -53,7 +53,7 @@ export default function LoginPage() {
             <TDBLogo size={64} />
           </div>
           <h1 className="text-2xl font-bold">
-            {t("login_subtitle")} <span className="gradient-text">CaptenTDB</span>
+            {t("login_subtitle")} <span className="gradient-text-gold">CaptenTDB</span>
           </h1>
         </div>
 
