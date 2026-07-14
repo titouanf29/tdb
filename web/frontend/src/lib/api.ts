@@ -1960,6 +1960,7 @@ export interface Mission {
   target: number;
   action: string;
   badge: string | null;
+  daily?: boolean;
   status: "not_started" | "active" | "completed";
   progress: number;
   completed_at: string | null;

@@ -74,12 +74,18 @@ function MissionCard({ mission }: { mission: Mission }) {
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <span className="font-semibold text-sm text-white">{mission.title}</span>
-            <span className={cn(
-              "inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border",
-              LEVEL_COLORS[mission.level] ?? "text-gray-400 bg-white/5 border-white/10"
-            )}>
-              {mission.level}
-            </span>
+            {mission.daily ? (
+              <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border text-cyan-400 bg-cyan-400/10 border-cyan-400/20">
+                Quotidienne
+              </span>
+            ) : (
+              <span className={cn(
+                "inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border",
+                LEVEL_COLORS[mission.level] ?? "text-gray-400 bg-white/5 border-white/10"
+              )}>
+                {mission.level}
+              </span>
+            )}
           </div>
           <p className="text-xs text-gray-400 mt-0.5 leading-relaxed">{mission.description}</p>
 
@@ -241,8 +247,22 @@ export default function MissionsPage() {
         </div>
       ) : (
         <div className="space-y-3">
+          {filtered.some((m) => m.daily) && (
+            <>
+              <div className="flex items-center gap-2 text-sm font-semibold text-cyan-400">
+                <Flame className="w-4 h-4" />
+                Missions du jour — se renouvellent chaque matin
+              </div>
+              <AnimatePresence>
+                {filtered.filter((m) => m.daily).map((m) => (
+                  <MissionCard key={m.id} mission={m} />
+                ))}
+              </AnimatePresence>
+              <div className="pt-2 text-sm font-semibold text-gray-400">Missions</div>
+            </>
+          )}
           <AnimatePresence>
-            {filtered.map((m) => (
+            {filtered.filter((m) => !m.daily).map((m) => (
               <MissionCard key={m.id} mission={m} />
             ))}
           </AnimatePresence>

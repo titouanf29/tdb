@@ -43,9 +43,10 @@ export function ProgressWidget() {
   if (!progress) return null;
 
   const pending = missions.filter((m) => m.status !== "completed");
-  // Active missions first, then beginner before intermediate, capped at 3
+  // Daily missions first (today's loop), then active, then beginner before intermediate
   const nextMissions = [...pending]
     .sort((a, b) => {
+      if (!!a.daily !== !!b.daily) return a.daily ? -1 : 1;
       if (a.status === "active" && b.status !== "active") return -1;
       if (b.status === "active" && a.status !== "active") return 1;
       if (a.level !== b.level) return a.level === "beginner" ? -1 : 1;
@@ -131,9 +132,16 @@ export function ProgressWidget() {
                   <div className="h-full p-3 rounded-xl bg-white/4 hover:bg-white/8 border border-white/8 hover:border-primary/30 transition-all flex flex-col">
                     <div className="flex items-start justify-between mb-1.5">
                       <span className="text-xl leading-none">{m.icon}</span>
-                      <span className="text-[10px] font-bold text-amber-400 bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.5 rounded-full">
-                        +{m.xp} XP
-                      </span>
+                      <div className="flex items-center gap-1">
+                        {m.daily && (
+                          <span className="text-[10px] font-bold text-cyan-400 bg-cyan-500/10 border border-cyan-500/20 px-1.5 py-0.5 rounded-full">
+                            {lang === "fr" ? "Quotidien" : "Daily"}
+                          </span>
+                        )}
+                        <span className="text-[10px] font-bold text-amber-400 bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.5 rounded-full">
+                          +{m.xp} XP
+                        </span>
+                      </div>
                     </div>
                     <p className="text-xs font-medium leading-snug group-hover:text-primary transition-colors">
                       {m.title}

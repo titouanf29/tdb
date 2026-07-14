@@ -140,6 +140,51 @@ MISSIONS = [
     },
 ]
 
+# ── Missions quotidiennes — se réinitialisent chaque jour (UTC) ──────────────
+DAILY_MISSIONS = [
+    {
+        "id": "daily_analysis",
+        "title": "Analyse du jour",
+        "description": "Analysez un actif aujourd'hui",
+        "icon": "📊",
+        "xp": 25,
+        "category": "daily",
+        "level": "beginner",
+        "target": 1,
+        "action": "analysis_open",
+        "badge": None,
+        "daily": True,
+    },
+    {
+        "id": "daily_lesson",
+        "title": "Leçon du jour",
+        "description": "Terminez une leçon aujourd'hui",
+        "icon": "📖",
+        "xp": 40,
+        "category": "daily",
+        "level": "beginner",
+        "target": 1,
+        "action": "lesson_complete",
+        "badge": None,
+        "daily": True,
+    },
+    {
+        "id": "daily_scan",
+        "title": "Scan du jour",
+        "description": "Lancez un scan de marché aujourd'hui",
+        "icon": "🔎",
+        "xp": 20,
+        "category": "daily",
+        "level": "beginner",
+        "target": 1,
+        "action": "scanner_run",
+        "badge": None,
+        "daily": True,
+    },
+]
+
+ALL_MISSIONS = MISSIONS + DAILY_MISSIONS
+
 BADGES = {
     "first_step": {"icon": "🌟", "name": "Premier pas", "color": "#638CFF"},
     "diligent_student": {"icon": "📖", "name": "Élève assidu", "color": "#00D4AA"},
@@ -185,17 +230,28 @@ async def _get_user_missions(user_id: int) -> List[dict]:
     return [dict(r) for r in rows]
 
 
+def _completed_today(um: Optional[dict], today: str) -> bool:
+    """True if this user-mission row was completed today (UTC)."""
+    if not um or um.get("status") != "completed" or not um.get("completed_at"):
+        return False
+    return str(um["completed_at"])[:10] == today
+
+
 # ─── Routes ───────────────────────────────────────────────────────────────────
 
 @router.get("/missions")
 async def list_missions(current_user: dict = Depends(get_current_user)):
     user_id = current_user["id"]
+    today = datetime.now(timezone.utc).date().isoformat()
     user_mission_rows = await _get_user_missions(user_id)
     user_map = {r["mission_id"]: r for r in user_mission_rows}
 
     result = []
-    for m in MISSIONS:
+    for m in ALL_MISSIONS:
         um = user_map.get(m["id"])
+        # A daily mission completed on a previous day resets to not_started
+        if m.get("daily") and um and um.get("status") == "completed" and not _completed_today(um, today):
+            um = None
         result.append({
             **m,
             "status": um["status"] if um else "not_started",
@@ -239,13 +295,16 @@ async def record_action(body: ProgressAction, current_user: dict = Depends(get_c
     completed = []
     new_badges = []
 
-    for m in MISSIONS:
+    for m in ALL_MISSIONS:
         if m["action"] != body.action:
             continue
 
         um = user_map.get(m["id"])
         if um and um["status"] == "completed":
-            continue
+            # Daily missions can be re-completed once per day
+            if not (m.get("daily") and not _completed_today(um, today)):
+                continue
+            um = {**um, "progress": 0}
 
         current_progress = (um["progress"] if um else 0) + body.value
         if current_progress >= m["target"]:
