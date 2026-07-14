@@ -482,6 +482,12 @@ export default function AnalysisPage() {
   const [aiInsight, setAiInsight] = useState<string | null>(null);
   const [isLoadingAI, setIsLoadingAI] = useState(false);
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(["main"]));
+  const [recentAnalyses, setRecentAnalyses] = useState<string[]>([]);
+
+  useEffect(() => {
+    try { setRecentAnalyses(JSON.parse(localStorage.getItem("tdb_recent_analyses") || "[]")); }
+    catch { /* ignore */ }
+  }, [analysis]);
   const [showRequestForm, setShowRequestForm] = useState(false);
   const [requestReason, setRequestReason] = useState("");
   const [requestAssetType, setRequestAssetType] = useState("stock");
@@ -603,6 +609,11 @@ export default function AnalysisPage() {
       // Check if favorite (only on explicit search, not silent refresh)
       if (!silent) {
         missionsAPI.recordAction("analysis_open").catch(() => {});
+        try {
+          const recents: string[] = JSON.parse(localStorage.getItem("tdb_recent_analyses") || "[]");
+          const next = [s, ...recents.filter(r => r !== s)].slice(0, 6);
+          localStorage.setItem("tdb_recent_analyses", JSON.stringify(next));
+        } catch { /* ignore */ }
         const favCheck = await favoritesAPI.checkFavorite(s);
         setIsFavorite(favCheck.is_favorite);
         // Check real portfolio position
@@ -1513,16 +1524,32 @@ export default function AnalysisPage() {
       {/* Empty state */}
       {!analysis && !isLoading && !error && (
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
-          <div className="glass-card p-8 text-center relative overflow-hidden">
+          <div className="glass-card px-6 py-5 relative overflow-hidden">
             <div className="absolute inset-0 bg-gradient-radial from-primary/8 to-transparent pointer-events-none" />
-            <div className="relative">
-              <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-primary/10 flex items-center justify-center">
-                <Zap className="w-8 h-8 text-primary" />
+            <div className="relative flex flex-col sm:flex-row sm:items-center gap-4">
+              <div className="w-11 h-11 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center flex-shrink-0">
+                <Zap className="w-5 h-5 text-primary" />
               </div>
-              <h3 className="text-lg font-semibold mb-1">Analyse technique & IA</h3>
-              <p className="text-sm text-muted-foreground max-w-md mx-auto">
-                Entrez un symbole ou sélectionnez un actif populaire pour obtenir une analyse complète en temps réel
-              </p>
+              <div className="flex-1 min-w-0">
+                <h3 className="text-base font-semibold">Analyse technique & IA</h3>
+                <p className="text-sm text-muted-foreground">
+                  Entrez un symbole ou sélectionnez un actif populaire pour obtenir une analyse complète en temps réel
+                </p>
+              </div>
+              {recentAnalyses.length > 0 && (
+                <div className="flex items-center gap-2 flex-wrap sm:justify-end">
+                  <span className="text-[11px] text-muted-foreground uppercase tracking-wider font-semibold">Reprendre</span>
+                  {recentAnalyses.slice(0, 4).map((s) => (
+                    <button
+                      key={s}
+                      onClick={() => { setSymbol(s); setSearchQuery(s); handleSearch(s); }}
+                      className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-primary/15 border border-white/10 hover:border-primary/30 text-xs font-mono font-semibold transition-all"
+                    >
+                      {s}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 
@@ -1539,7 +1566,6 @@ export default function AnalysisPage() {
                 { symbol: "MSFT",    name: "Microsoft",  emoji: "🪟", color: "text-neon-cyan  bg-neon-cyan/10  border-neon-cyan/20",   cat: "Actions"  },
                 { symbol: "GC=F",    name: "Or",         emoji: "🥇", color: "text-neon-gold  bg-neon-gold/10  border-neon-gold/20",   cat: "Matière"  },
                 { symbol: "EURUSD=X",name: "EUR/USD",    emoji: "💱", color: "text-muted-foreground bg-white/5 border-white/10",       cat: "Forex"    },
-                { symbol: "SPCX",    name: "SpaceX",     emoji: "🚀", color: "text-neon-blue  bg-neon-blue/10  border-neon-blue/20",   cat: "Actions"  },
               ].map((item) => (
                 <motion.button
                   key={item.symbol}
