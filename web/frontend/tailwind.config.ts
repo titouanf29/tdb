@@ -43,11 +43,11 @@ const config: Config = {
         bear: "#f6465d",
         // Neon accents
         neon: {
-          blue:   "#7b8fff",
-          cyan:   "#00d8ff",
-          purple: "#b46fff",
+          blue:   "#638CFF",
+          cyan:   "#00D4AA",
+          purple: "#9b8cff",
           green:  "#0ecb81",
-          gold:   "#f0a500",
+          gold:   "#E8A820",
         },
       },
       fontFamily: {

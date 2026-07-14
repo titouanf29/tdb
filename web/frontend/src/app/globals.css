@@ -29,30 +29,35 @@ html {
 
 @layer base {
   :root {
-    --background: 225 55% 3.5%;
-    --foreground: 210 28% 96%;
-    --card: 223 48% 7%;
-    --card-foreground: 210 28% 96%;
-    --primary: 243 88% 67%;
+    /*
+     * CaptenTDB palette — navy depth, #638CFF electric blue as primary
+     * (the blue already used across the product), #00D4AA teal as accent,
+     * gold reserved for the brand signature.
+     */
+    --background: 220 48% 4%;
+    --foreground: 212 30% 96%;
+    --card: 219 42% 7.5%;
+    --card-foreground: 212 30% 96%;
+    --primary: 224 100% 69%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 222 42% 12%;
-    --secondary-foreground: 210 28% 96%;
-    --muted: 222 42% 12%;
-    --muted-foreground: 215 18% 56%;
-    --accent: 191 100% 54%;
-    --accent-foreground: 0 0% 100%;
-    --border: 222 34% 13%;
-    --ring: 243 88% 67%;
+    --secondary: 218 38% 12%;
+    --secondary-foreground: 212 30% 96%;
+    --muted: 218 38% 12%;
+    --muted-foreground: 214 18% 58%;
+    --accent: 168 100% 42%;
+    --accent-foreground: 220 48% 6%;
+    --border: 218 32% 14%;
+    --ring: 224 100% 69%;
     --radius: 0.75rem;
 
     /* Gold — tied to the logo */
     --gold: 42 95% 57%;
 
     /* Neon palette */
-    --neon-blue: 243 88% 67%;
-    --neon-cyan: 191 100% 54%;
-    --neon-purple: 272 82% 66%;
-    --neon-green: 152 100% 50%;
+    --neon-blue: 224 100% 69%;
+    --neon-cyan: 172 100% 45%;
+    --neon-purple: 258 78% 68%;
+    --neon-green: 160 95% 45%;
   }
 
   /* Light theme */
@@ -61,20 +66,20 @@ html {
     --foreground: 220 50% 8%;
     --card: 0 0% 100%;
     --card-foreground: 220 50% 8%;
-    --primary: 230 90% 55%;
+    --primary: 224 90% 55%;
     --primary-foreground: 0 0% 100%;
     --secondary: 220 15% 92%;
     --secondary-foreground: 220 50% 8%;
     --muted: 220 15% 92%;
     --muted-foreground: 220 15% 40%;
-    --accent: 195 90% 40%;
+    --accent: 168 90% 32%;
     --accent-foreground: 0 0% 100%;
     --border: 220 15% 85%;
-    --ring: 230 90% 55%;
-    --neon-blue: 230 90% 52%;
-    --neon-cyan: 195 90% 38%;
-    --neon-purple: 270 80% 55%;
-    --neon-green: 152 90% 38%;
+    --ring: 224 90% 55%;
+    --neon-blue: 224 90% 52%;
+    --neon-cyan: 172 90% 32%;
+    --neon-purple: 258 70% 55%;
+    --neon-green: 160 85% 32%;
   }
 
   [data-theme="light"] body {
@@ -306,8 +311,8 @@ html {
     inset: -1px;
     background: linear-gradient(135deg,
       hsl(var(--neon-cyan) / 0.5),
-      hsl(var(--neon-blue) / 0.4),
-      hsl(var(--neon-purple) / 0.5)
+      hsl(var(--neon-blue) / 0.45),
+      hsl(var(--gold) / 0.4)
     );
     filter: blur(1px);
   }
@@ -344,13 +349,13 @@ html {
   /* Button styles */
   .btn-primary {
     @apply relative overflow-hidden text-white font-medium px-6 py-2 rounded-lg transition-all duration-200 active:scale-95;
-    background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(272 82% 62%) 100%);
-    box-shadow: 0 0 20px hsl(var(--primary) / 0.35), 0 2px 8px rgba(0,0,0,0.3);
+    background: linear-gradient(135deg, hsl(224 92% 62%) 0%, hsl(200 95% 48%) 100%);
+    box-shadow: 0 2px 12px hsl(var(--primary) / 0.25), 0 2px 8px rgba(0,0,0,0.3);
   }
 
   .btn-primary:hover {
-    box-shadow: 0 0 36px hsl(var(--primary) / 0.65), 0 0 14px hsl(var(--neon-cyan) / 0.2), 0 4px 12px rgba(0,0,0,0.3);
-    filter: brightness(1.12);
+    box-shadow: 0 4px 24px hsl(var(--primary) / 0.45), 0 4px 12px rgba(0,0,0,0.3);
+    filter: brightness(1.08);
     transform: translateY(-1px);
   }
 
@@ -560,7 +565,7 @@ html {
     background: linear-gradient(135deg,
       hsl(var(--neon-cyan) / 0.7),
       hsl(var(--neon-blue) / 0.8),
-      hsl(var(--neon-purple) / 0.7)
+      hsl(var(--gold) / 0.6)
     );
     -webkit-mask:
       linear-gradient(#fff 0 0) content-box,

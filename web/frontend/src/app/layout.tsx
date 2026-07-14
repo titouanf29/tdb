@@ -44,9 +44,9 @@ export default function RootLayout({
           {/* Grid */}
           <div className="absolute inset-0 opacity-[0.025]"
             style={{backgroundImage: "linear-gradient(rgba(99,140,255,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(99,140,255,0.5) 1px, transparent 1px)", backgroundSize: "64px 64px"}} />
-          {/* Two static radial gradients — no blur, no animation, zero GPU cost */}
+          {/* Three static radial gradients — no blur, no animation, zero GPU cost */}
           <div className="absolute inset-0" style={{
-            background: "radial-gradient(ellipse 80% 60% at 20% 10%, rgba(99,140,255,0.12) 0%, transparent 60%), radial-gradient(ellipse 60% 50% at 80% 90%, rgba(139,92,246,0.10) 0%, transparent 55%)"
+            background: "radial-gradient(ellipse 80% 60% at 20% 10%, rgba(99,140,255,0.11) 0%, transparent 60%), radial-gradient(ellipse 60% 50% at 80% 90%, rgba(0,212,170,0.07) 0%, transparent 55%), radial-gradient(ellipse 40% 30% at 90% 5%, rgba(232,168,32,0.05) 0%, transparent 60%)"
           }} />
         </div>
 

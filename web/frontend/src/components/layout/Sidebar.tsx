@@ -191,9 +191,9 @@ export function Sidebar({
                           : "text-muted-foreground hover:text-foreground"
                       )}
                       style={isActive ? {
-                        background: "linear-gradient(135deg, rgba(99,140,255,0.18) 0%, rgba(139,92,246,0.10) 100%)",
+                        background: "linear-gradient(135deg, rgba(99,140,255,0.16) 0%, rgba(0,212,170,0.08) 100%)",
                         border: "1px solid rgba(99,140,255,0.30)",
-                        boxShadow: "0 0 16px rgba(99,140,255,0.12), inset 0 1px 0 rgba(255,255,255,0.05)"
+                        boxShadow: "0 0 16px rgba(99,140,255,0.10), inset 0 1px 0 rgba(255,255,255,0.05)"
                       } : undefined}
                     >
                       <Icon

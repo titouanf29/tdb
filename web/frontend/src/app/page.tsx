@@ -478,14 +478,14 @@ function AnimatedChart() {
     <svg viewBox={`0 0 ${w} ${h}`} className="w-full h-full" preserveAspectRatio="none">
       <defs>
         <linearGradient id="chartGrad" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="hsl(243,75%,59%)" stopOpacity="0.4" />
-          <stop offset="100%" stopColor="hsl(243,75%,59%)" stopOpacity="0" />
+          <stop offset="0%" stopColor="hsl(224,100%,69%)" stopOpacity="0.4" />
+          <stop offset="100%" stopColor="hsl(224,100%,69%)" stopOpacity="0" />
         </linearGradient>
       </defs>
       <motion.polyline
         points={coords}
         fill="none"
-        stroke="hsl(243,75%,59%)"
+        stroke="hsl(224,100%,69%)"
         strokeWidth="2"
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -1342,12 +1342,15 @@ function LandingPage() {
         <TickerBar />
       </div>
 
-      {/* ── Hero ── */}
+      {/* ── Hero — text left, product right ── */}
       <motion.section
         style={{ opacity: heroOpacity, y: heroY }}
-        className="relative flex flex-col items-center text-center px-6 pt-16 pb-24 md:pt-24 md:pb-36"
+        className="relative px-6 pt-16 pb-24 md:pt-20 md:pb-32"
       >
         <Particles />
+
+        <div className="max-w-7xl mx-auto w-full grid lg:grid-cols-2 gap-14 lg:gap-10 items-center">
+        <div className="flex flex-col items-center text-center lg:items-start lg:text-left">
 
         {/* Badge */}
         <motion.div
@@ -1367,9 +1370,9 @@ function LandingPage() {
           initial={{ opacity: 0, y: 24 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1, duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
-          className="text-5xl md:text-7xl font-black leading-tight tracking-tight max-w-4xl"
+          className="text-5xl md:text-6xl xl:text-7xl font-black leading-[1.05] tracking-tight max-w-4xl"
         >
-          {lang === "en" ? "Markets," : "La bourse,"}{" "}
+          {lang === "en" ? "Markets," : "La bourse,"}{" "}<br className="hidden lg:block" />
           <motion.span
             className="gradient-text-gold inline-block"
             animate={{ backgroundPosition: ["0% 50%", "100% 50%", "0% 50%"] }}
@@ -1422,7 +1425,7 @@ function LandingPage() {
         {/* Trust micro-badges */}
         <motion.div
           initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.55 }}
-          className="mt-5 flex flex-wrap items-center justify-center gap-4 text-xs text-white/35"
+          className="mt-5 flex flex-wrap items-center justify-center lg:justify-start gap-4 text-xs text-white/35"
         >
           {(lang === "en"
             ? ["No credit card required", "Sign up in 30s", "800+ assets", "No commitment"]
@@ -1434,17 +1437,18 @@ function LandingPage() {
           ))}
         </motion.div>
 
-        {/* Dashboard mockup */}
+        </div>
+
+        {/* Dashboard mockup — right column */}
         <motion.div
           initial={{ opacity: 0, y: 40 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.4, duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
-          className="mt-14 w-full max-w-5xl mx-auto"
+          className="w-full"
         >
           <div className="relative">
             <FloatingChip label="BTC"     value="+2.14%"  color="border-emerald-500/30 text-emerald-400" delay={1.8} x="-2%" y="15%" />
-            <FloatingChip label="NVDA"    value="+3.87%"  color="border-blue-500/30 text-blue-400"       delay={2.1} x="101%" y="25%" />
-            <FloatingChip label="Win Rate" value="68%"   color="border-purple-500/30 text-purple-400"   delay={2.4} x="88%" y="70%" />
+            <FloatingChip label="Win Rate" value="68%"   color="border-teal-500/30 text-teal-400"      delay={2.4} x="74%" y="78%" />
             <FloatingChip label="P&L"     value="+$2 438" color="border-yellow-500/30 text-yellow-400"  delay={2.0} x="-4%" y="65%" />
             <div className="absolute inset-0 bg-primary/15 blur-3xl rounded-3xl scale-95 pointer-events-none" />
             <div className="relative glass-card p-1 rounded-2xl border border-white/10">
@@ -1507,6 +1511,7 @@ function LandingPage() {
             </div>
           </div>
         </motion.div>
+        </div>
       </motion.section>
 
       {/* ── Stats band ── */}
