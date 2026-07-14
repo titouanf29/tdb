@@ -430,12 +430,12 @@ export default function ScannerPage() {
                   { icon: "∞", label: "Unlimited daily scans" },
                   { icon: "🌍", label: "All markets — crypto, forex, stocks" },
                   { icon: "📊", label: "6 simultaneous indicators" },
-                  { icon: "⚡", label: "Real-time breakout/reversal alerts" },
+                  { icon: "⚡", label: "Breakout, reversal & momentum filters" },
                 ] : [
                   { icon: "∞", label: "Scans illimités chaque jour" },
                   { icon: "🌍", label: "Tous les marchés — crypto, forex, actions" },
                   { icon: "📊", label: "6 indicateurs simultanés" },
-                  { icon: "⚡", label: "Alertes breakout/reversal temps réel" },
+                  { icon: "⚡", label: "Filtres breakout, reversal & momentum" },
                 ]).map((feat) => (
                   <div key={feat.label} className="flex items-center gap-2 text-sm">
                     <span className="text-yellow-400 w-4 text-center font-bold shrink-0">{feat.icon}</span>
@@ -466,7 +466,7 @@ export default function ScannerPage() {
           <div className="relative mt-6 pt-4 border-t border-white/5">
             <p className="text-xs text-muted-foreground/50 mb-3 flex items-center gap-1.5">
               <Lock className="w-3 h-3" />
-              {lang === "en" ? "Locked results — upgrade to see live opportunities" : "Résultats verrouillés — passez Premium pour voir les opportunités en direct"}
+              {lang === "en" ? "Example preview — upgrade to scan without limits" : "Aperçu illustratif — passez Premium pour scanner sans limite"}
             </p>
             <div className="space-y-2 select-none pointer-events-none" style={{ filter: "blur(4px)", opacity: 0.35 }}>
               {[

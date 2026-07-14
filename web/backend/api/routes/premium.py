@@ -352,11 +352,6 @@ async def get_features_comparison():
                 "description": "Consultez les evenements economiques sur 30 jours",
             },
             {
-                "icon": "bell",
-                "title": "Alertes Prix",
-                "description": "Recevez des alertes quand vos cibles sont atteintes",
-            },
-            {
                 "icon": "headphones",
                 "title": "Support Prioritaire",
                 "description": "Acces direct aux admins pour vos questions",

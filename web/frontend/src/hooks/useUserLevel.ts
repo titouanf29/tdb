@@ -31,7 +31,7 @@ const LEVEL_CONFIGS: Record<TradingLevel, LevelConfig> = {
   intermediate: {
     level: "intermediate",
     showTooltips: true,
-    showCoach: false,
+    showCoach: true,
     showMissions: true,
     maxIndicators: 6,
     vocabularyMode: "standard",

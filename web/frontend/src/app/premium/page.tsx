@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Crown, Check, X, Rocket, Brain, BarChart3, Globe, Target, Calendar, Bell,
   Headphones, Sparkles, Loader2, Send, MessageSquare, CheckCircle, Clock,
-  ScanLine, Zap, Shield, ChevronDown, TrendingUp, BookOpen, Lock,
+  ScanLine, Zap, Shield, ChevronDown, TrendingUp, BookOpen, Lock, Bot,
 } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
@@ -387,12 +387,6 @@ export default function PremiumPage() {
       premium: "Top 50",
     },
     {
-      icon: <Bell className="w-4 h-4" />,
-      name: fr ? "Alertes Prix" : "Price Alerts",
-      free: false,
-      premium: true,
-    },
-    {
       icon: <Headphones className="w-4 h-4" />,
       name: fr ? "Support Prioritaire" : "Priority Support",
       free: false,
@@ -437,9 +431,9 @@ export default function PremiumPage() {
       iconColor: "text-rose-400",
     },
     {
-      icon: Bell,
-      title: fr ? "Alertes Prix" : "Price Alerts",
-      desc: fr ? "Recevez une notification dès que vos niveaux cibles sont atteints." : "Get notified the moment your target levels are reached.",
+      icon: Bot,
+      title: fr ? "Assistant IA illimité" : "Unlimited AI Assistant",
+      desc: fr ? "Discutez avec l'assistant IA sans limite de messages journalière." : "Chat with the AI assistant with no daily message cap.",
       color: "from-yellow-500/20 to-orange-500/20",
       iconColor: "text-yellow-400",
     },
