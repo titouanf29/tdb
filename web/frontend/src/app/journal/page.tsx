@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import { useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { useLanguage } from "@/lib/LanguageContext";
 import {
@@ -372,7 +373,7 @@ function JournalForm({
   onSave,
   onClose,
 }: {
-  initial?: JournalEntry;
+  initial?: Partial<JournalEntry>;
   onSave: (data: JournalEntryCreate) => Promise<void>;
   onClose: () => void;
 }) {
@@ -385,8 +386,8 @@ function JournalForm({
   const [form, setForm] = useState<JournalEntryCreate>(
     initial
       ? {
-          symbol: initial.symbol,
-          direction: initial.direction,
+          symbol: initial.symbol ?? "",
+          direction: initial.direction ?? "LONG",
           timeframe: initial.timeframe,
           setup: initial.setup,
           entry_time: initial.entry_time,
@@ -744,6 +745,7 @@ function JournalForm({
 
 export default function JournalPage() {
   const { t } = useLanguage();
+  const searchParams = useSearchParams();
   const [entries, setEntries] = useState<JournalEntry[]>([]);
   const [stats, setStats] = useState<JournalStats | null>(null);
   const [loading, setLoading] = useState(true);
@@ -755,7 +757,33 @@ export default function JournalPage() {
   // Modal state
   const [showForm, setShowForm] = useState(false);
   const [editEntry, setEditEntry] = useState<JournalEntry | undefined>();
+  const [prefillEntry, setPrefillEntry] = useState<Partial<JournalEntry> | undefined>();
   const [showHelp, setShowHelp] = useState(false);
+
+  // Prefill from a closed paper-trading position (?prefill=1&symbol=...)
+  useEffect(() => {
+    if (searchParams.get("prefill") !== "1") return;
+    const num = (key: string) => {
+      const v = searchParams.get(key);
+      if (v === null || v === "") return undefined;
+      const n = Number(v);
+      return Number.isFinite(n) ? n : undefined;
+    };
+    const pnl = num("pnl");
+    setPrefillEntry({
+      symbol: searchParams.get("symbol") ?? "",
+      direction: searchParams.get("direction") === "SHORT" ? "SHORT" : "LONG",
+      entry_price: num("entry_price"),
+      exit_price: num("exit_price"),
+      quantity: num("quantity"),
+      pnl,
+      result: pnl === undefined ? undefined : pnl > 0 ? "win" : pnl < 0 ? "loss" : "breakeven",
+      entry_time: searchParams.get("entry_time") ?? undefined,
+      exit_time: searchParams.get("exit_time") ?? undefined,
+    });
+    setShowForm(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -945,9 +973,9 @@ export default function JournalPage() {
       <AnimatePresence>
         {showForm && (
           <JournalForm
-            initial={editEntry}
+            initial={editEntry ?? prefillEntry}
             onSave={editEntry ? handleUpdate : handleCreate}
-            onClose={() => { setShowForm(false); setEditEntry(undefined); }}
+            onClose={() => { setShowForm(false); setEditEntry(undefined); setPrefillEntry(undefined); }}
           />
         )}
         {showHelp && <HelpModal onClose={() => setShowHelp(false)} />}

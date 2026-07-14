@@ -12,6 +12,7 @@ import {
   Loader2,
   RefreshCw,
   History,
+  NotebookPen,
   Plus,
   Banknote,
   AlertTriangle,
@@ -580,6 +581,7 @@ export default function WalletPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [closingPosition, setClosingPosition] = useState<number | null>(null);
+  const [justClosed, setJustClosed] = useState<Position | null>(null);
   const [showAddFundsModal, setShowAddFundsModal] = useState(false);
   const [showPremiumGate, setShowPremiumGate] = useState(false);
   const [addFundsAmount, setAddFundsAmount] = useState("");
@@ -619,9 +621,18 @@ export default function WalletPage() {
 
   const closePosition = async (positionId: number) => {
     setClosingPosition(positionId);
+    const closing = positions.find(p => p.id === positionId);
     try {
-      await walletAPI.closePosition(positionId);
+      const result = await walletAPI.closePosition(positionId);
       setTrackedPosition(null);
+      if (closing) {
+        setJustClosed({
+          ...closing,
+          exit_price: result.exit_price ?? closing.current_price,
+          realized_pnl: result.realized_pnl,
+          closed_at: new Date().toISOString(),
+        });
+      }
       await loadData();
     } catch (error) {
       console.error("Error closing position:", error);
@@ -864,6 +875,42 @@ export default function WalletPage() {
             ))}
           </div>
         </motion.div>
+
+        {/* ── Debrief nudge after closing a trade ─────────────────────────── */}
+        <AnimatePresence>
+          {justClosed && (
+            <motion.div
+              initial={{ opacity: 0, y: -8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              className="flex flex-col sm:flex-row sm:items-center gap-3 rounded-xl border border-primary/25 bg-primary/8 px-4 py-3"
+            >
+              <div className="flex items-center gap-2.5 flex-1 min-w-0">
+                <NotebookPen className="w-4 h-4 text-primary flex-shrink-0" />
+                <p className="text-sm">
+                  {lang === "en"
+                    ? <>Trade <span className="font-semibold">{justClosed.symbol}</span> closed{justClosed.realized_pnl != null && <> ({justClosed.realized_pnl >= 0 ? "+" : ""}{formatCurrency(justClosed.realized_pnl)})</>}. What did you learn?</>
+                    : <>Trade <span className="font-semibold">{justClosed.symbol}</span> clôturé{justClosed.realized_pnl != null && <> ({justClosed.realized_pnl >= 0 ? "+" : ""}{formatCurrency(justClosed.realized_pnl)})</>}. Qu'avez-vous appris ?</>}
+                </p>
+              </div>
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <Link
+                  href={journalPrefillUrl(justClosed)}
+                  className="px-3 py-1.5 rounded-lg bg-primary text-white text-xs font-semibold hover:bg-primary/90 transition-colors"
+                >
+                  {lang === "en" ? "Debrief in journal" : "Débriefer au journal"}
+                </Link>
+                <button
+                  onClick={() => setJustClosed(null)}
+                  className="p-1.5 rounded-lg text-muted-foreground hover:bg-white/8 transition-colors"
+                  aria-label={lang === "en" ? "Dismiss" : "Fermer"}
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* ── Positions / History ────────────────────────────────────────── */}
         <motion.div variants={itemVariants} className="space-y-2">
@@ -1193,7 +1240,26 @@ function HistoryCard({ position, formatCurrency, index = 0 }: {
             {position.closed_at ? new Date(position.closed_at).toLocaleDateString(lang === "fr" ? "fr-FR" : "en-US", { month: "short", day: "numeric" }) : ""}
           </p>
         </div>
+        <Link
+          href={journalPrefillUrl(position)}
+          title={lang === "en" ? "Debrief this trade in your journal" : "Débriefer ce trade dans votre journal"}
+          className="flex-shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-white/8 bg-white/4 hover:bg-primary/10 hover:border-primary/30 text-xs text-muted-foreground hover:text-primary transition-all"
+        >
+          <NotebookPen className="w-3.5 h-3.5" />
+          <span className="hidden sm:inline">{lang === "en" ? "Journal" : "Journal"}</span>
+        </Link>
       </div>
     </motion.div>
   );
+}
+
+function journalPrefillUrl(position: Position): string {
+  const params = new URLSearchParams({ prefill: "1", symbol: position.symbol, direction: position.direction });
+  params.set("entry_price", String(position.entry_price));
+  if (position.exit_price != null) params.set("exit_price", String(position.exit_price));
+  params.set("quantity", String(position.quantity));
+  if (position.realized_pnl != null) params.set("pnl", String(position.realized_pnl));
+  if (position.created_at) params.set("entry_time", position.created_at);
+  if (position.closed_at) params.set("exit_time", position.closed_at);
+  return `/journal?${params.toString()}`;
 }
