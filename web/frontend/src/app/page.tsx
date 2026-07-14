@@ -732,7 +732,7 @@ function LiveScanDemo() {
           {phase === "done" && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="ml-auto flex items-center gap-1.5 text-[10px] text-emerald-400">
               <motion.div className="w-1.5 h-1.5 rounded-full bg-emerald-400" animate={{ opacity: [1, 0.3, 1] }} transition={{ duration: 1.2, repeat: Infinity }} />
-              {lang === "en" ? "Live data" : "Données live"}
+              {lang === "en" ? "Interactive demo" : "Démo interactive"}
             </motion.div>
           )}
         </div>
@@ -1111,6 +1111,99 @@ function LiveScanDemo() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+//  FAQ
+// ─────────────────────────────────────────────────────────────────────────────
+
+function FAQSection({ lang }: { lang: string }) {
+  const [openIdx, setOpenIdx] = useState<number | null>(0);
+
+  const faqs = lang === "en" ? [
+    {
+      q: "Is it really free?",
+      a: "Yes. All the essentials are free: analysis, virtual wallet, training, journal, community. An optional Premium plan (€5/month, cancel anytime) removes the daily quotas (scans, AI messages) and helps cover server costs — it is never required to learn and practice.",
+    },
+    {
+      q: "Am I risking real money?",
+      a: "No. Trading happens with a $10,000 virtual wallet. No real orders are placed, no broker is connected, and no credit card is required. It's a training environment: real market conditions, zero financial risk.",
+    },
+    {
+      q: "Is the market data real?",
+      a: "Yes. Prices, charts and indicators come from real markets — 800+ assets across stocks, crypto, forex, indices and commodities. Only the money is virtual.",
+    },
+    {
+      q: "Is it suitable for complete beginners?",
+      a: "That's who it's built for. A structured training course, guided missions with XP, a glossary and a coach walk you through your first analyses. More experienced traders use the scanner, advanced indicators and the trading journal.",
+    },
+    {
+      q: "Do you give investment advice?",
+      a: "No. CaptenTDB is an educational tool: it teaches you to read the markets and build your own analysis. Nothing on this site constitutes financial advice or an incentive to invest.",
+    },
+  ] : [
+    {
+      q: "Est-ce vraiment gratuit ?",
+      a: "Oui. Tout l'essentiel est gratuit : analyses, wallet virtuel, formation, journal, communauté. Une option Premium (5 €/mois, résiliable à tout moment) supprime les quotas journaliers (scans, messages IA) et aide à couvrir les coûts serveur — elle n'est jamais nécessaire pour apprendre et pratiquer.",
+    },
+    {
+      q: "Est-ce que je risque de l'argent réel ?",
+      a: "Non. Le trading se fait avec un portefeuille virtuel de 10 000 $. Aucun ordre réel n'est passé, aucun courtier n'est connecté, aucune carte bancaire n'est demandée. C'est un environnement d'entraînement : conditions de marché réelles, zéro risque financier.",
+    },
+    {
+      q: "Les données de marché sont-elles réelles ?",
+      a: "Oui. Les prix, graphiques et indicateurs proviennent des marchés réels — plus de 800 actifs entre actions, crypto, forex, indices et matières premières. Seul l'argent est virtuel.",
+    },
+    {
+      q: "Est-ce adapté aux débutants complets ?",
+      a: "C'est exactement pour eux que le site est conçu. Un parcours de formation structuré, des missions guidées avec XP, un glossaire et un coach vous accompagnent dans vos premières analyses. Les traders confirmés utilisent le scanner, les indicateurs avancés et le journal de trading.",
+    },
+    {
+      q: "Donnez-vous des conseils d'investissement ?",
+      a: "Non. CaptenTDB est un outil éducatif : il vous apprend à lire les marchés et à construire votre propre analyse. Rien sur ce site ne constitue un conseil financier ni une incitation à investir.",
+    },
+  ];
+
+  return (
+    <div className="space-y-3">
+      {faqs.map((f, i) => {
+        const isOpen = openIdx === i;
+        return (
+          <motion.div
+            key={i}
+            initial={{ opacity: 0, y: 12 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ delay: i * 0.05 }}
+            className={cn(
+              "rounded-2xl border transition-colors overflow-hidden",
+              isOpen ? "border-primary/25 bg-primary/5" : "border-white/8 bg-white/3 hover:bg-white/5"
+            )}
+          >
+            <button
+              onClick={() => setOpenIdx(isOpen ? null : i)}
+              className="w-full flex items-center justify-between gap-4 px-5 py-4 text-left"
+            >
+              <span className="font-semibold text-sm md:text-base">{f.q}</span>
+              <ChevronDown className={cn("w-4 h-4 text-white/40 flex-shrink-0 transition-transform", isOpen && "rotate-180")} />
+            </button>
+            <AnimatePresence initial={false}>
+              {isOpen && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.25 }}
+                >
+                  <p className="px-5 pb-5 text-sm text-white/55 leading-relaxed">{f.a}</p>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </motion.div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 function LandingPage() {
   const { isAuthenticated } = useAuth();
@@ -1227,6 +1320,8 @@ function LandingPage() {
         <div className="hidden md:flex items-center gap-6 text-sm text-white/55">
           <a href="#features" className="hover:text-white transition-colors">{lang === "en" ? "Features" : "Fonctionnalités"}</a>
           <a href="#how" className="hover:text-white transition-colors">{lang === "en" ? "How it works" : "Comment ça marche"}</a>
+          <a href="#demo" className="hover:text-white transition-colors">{lang === "en" ? "Demo" : "Démo"}</a>
+          <a href="#faq" className="hover:text-white transition-colors">FAQ</a>
         </div>
         <div className="flex items-center gap-3">
           <LanguageToggle variant="compact" />
@@ -1325,7 +1420,7 @@ function LandingPage() {
               </Link>
               <a href="#demo" className="inline-flex items-center gap-2 px-8 py-4 rounded-2xl border border-white/10 bg-white/5 hover:bg-white/10 text-white text-base font-semibold transition-all hover:-translate-y-0.5">
                 <Play className="w-4 h-4 text-primary" />
-                {lang === "en" ? "Watch live demo" : "Voir la démo en direct"}
+                {lang === "en" ? "Try the interactive demo" : "Essayer la démo interactive"}
               </a>
             </>
           )}
@@ -1371,7 +1466,7 @@ function LandingPage() {
                 {/* Stats */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
                   {[
-                    { label: lang === "en" ? "Virtual Balance" : "Solde Virtual", val: "$12 438", icon: Wallet,    color: "text-white" },
+                    { label: lang === "en" ? "Virtual Balance" : "Solde virtuel", val: "$12 438", icon: Wallet,    color: "text-white" },
                     { label: "P&L Total",                                          val: "+$2 438", icon: TrendingUp, color: "text-emerald-400" },
                     { label: "Win Rate",                                            val: "68%",     icon: Target,    color: "text-emerald-400" },
                     { label: lang === "en" ? "Tracked assets" : "Actifs suivis",  val: "14",      icon: Star,      color: "text-white" },
@@ -1544,8 +1639,8 @@ function LandingPage() {
             </h2>
             <p className="text-white/45 text-lg max-w-xl mx-auto">
               {lang === "en"
-                ? "Click the button to run a complete real-time analysis — exactly as it works in the app."
-                : "Cliquez sur le bouton pour lancer une analyse complète en temps réel — exactement comme dans l'application."}
+                ? "Click the button to see a full analysis unfold, step by step — exactly how it works in the app."
+                : "Cliquez sur le bouton pour voir une analyse complète se dérouler, étape par étape — exactement comme dans l'application."}
             </p>
           </motion.div>
 
@@ -1557,6 +1652,26 @@ function LandingPage() {
           >
             <LiveScanDemo />
           </motion.div>
+        </div>
+      </section>
+
+      {/* ── FAQ ── */}
+      <section id="faq" className="py-24 px-6 border-t border-white/5">
+        <div className="max-w-3xl mx-auto">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="text-center mb-12"
+          >
+            <h2 className="text-3xl md:text-4xl font-black mb-3">
+              {lang === "en" ? <>Frequently asked <span className="gradient-text">questions</span></> : <>Questions <span className="gradient-text">fréquentes</span></>}
+            </h2>
+            <p className="text-white/45">
+              {lang === "en" ? "Everything you need to know before signing up." : "Tout ce qu'il faut savoir avant de vous inscrire."}
+            </p>
+          </motion.div>
+          <FAQSection lang={lang} />
         </div>
       </section>
 
@@ -1601,8 +1716,8 @@ function LandingPage() {
               </div>
               <div className="mt-6 flex flex-wrap items-center justify-center gap-5 text-xs text-white/35">
                 {(lang === "en"
-                  ? ["100% free", "No commitment", "800+ assets", "AI analyses included"]
-                  : ["100% gratuit", "Aucun engagement", "800+ actifs", "Analyses IA incluses"]
+                  ? ["100% free", "No commitment", "$10,000 virtual wallet", "Full training included"]
+                  : ["100% gratuit", "Aucun engagement", "Wallet virtuel 10 000 $", "Formation complète incluse"]
                 ).map((t, i) => (
                   <span key={i} className="flex items-center gap-1"><CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />{t}</span>
                 ))}
@@ -1613,19 +1728,50 @@ function LandingPage() {
       </section>
 
       {/* ── Footer ── */}
-      <footer className="py-10 px-6 border-t border-white/5 text-center text-sm text-white/30">
-        <div className="flex items-center justify-center gap-2 mb-2">
-          <TDBLogoSm size={20} />
-          <span className="font-semibold text-white/50">CaptenTDB</span>
-        </div>
-        <p>{lang === "en" ? <>Made with ❤️ by <span className="text-primary font-semibold">CaptenQwark</span></> : <>Fait avec ❤️ par <span className="text-primary font-semibold">CaptenQwark</span></>}</p>
-        <p className="mt-1 text-xs">{lang === "en" ? "Analyses are for educational purposes only. This site does not provide financial advice." : "Les analyses sont à but éducatif uniquement. Ce site ne fournit pas de conseils financiers."}</p>
-        <div className="mt-4 flex flex-wrap items-center justify-center gap-4 text-xs text-white/25">
-          <a href="/mentions-legales" className="hover:text-white/60 transition-colors">{lang === "en" ? "Legal notice" : "Mentions légales"}</a>
-          <span>·</span>
-          <a href="/politique-de-confidentialite" className="hover:text-white/60 transition-colors">{lang === "en" ? "Privacy policy" : "Politique de confidentialité"}</a>
-          <span>·</span>
-          <a href="/cgu" className="hover:text-white/60 transition-colors">{lang === "en" ? "Terms of use" : "CGU"}</a>
+      <footer className="py-12 px-6 border-t border-white/5 text-sm text-white/30">
+        <div className="max-w-5xl mx-auto">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-10 text-left">
+            <div className="col-span-2 md:col-span-1">
+              <div className="flex items-center gap-2 mb-3">
+                <TDBLogoSm size={20} />
+                <span className="font-semibold text-white/50">CaptenTDB</span>
+              </div>
+              <p className="text-xs leading-relaxed">
+                {lang === "en"
+                  ? "Learn to read the markets without risking a cent. Real data, virtual money."
+                  : "Apprenez à lire les marchés sans risquer un centime. Données réelles, argent virtuel."}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs font-semibold text-white/50 uppercase tracking-wider mb-3">{lang === "en" ? "Product" : "Produit"}</p>
+              <div className="space-y-2 text-xs">
+                <a href="#features" className="block hover:text-white/60 transition-colors">{lang === "en" ? "Features" : "Fonctionnalités"}</a>
+                <a href="#demo" className="block hover:text-white/60 transition-colors">{lang === "en" ? "Interactive demo" : "Démo interactive"}</a>
+                <Link href="/premium" className="block hover:text-white/60 transition-colors">Premium</Link>
+              </div>
+            </div>
+            <div>
+              <p className="text-xs font-semibold text-white/50 uppercase tracking-wider mb-3">{lang === "en" ? "Learn" : "Apprendre"}</p>
+              <div className="space-y-2 text-xs">
+                <Link href="/learn" className="block hover:text-white/60 transition-colors">{lang === "en" ? "Training" : "Formation"}</Link>
+                <Link href="/learn/glossaire" className="block hover:text-white/60 transition-colors">{lang === "en" ? "Glossary" : "Glossaire"}</Link>
+                <a href="#faq" className="block hover:text-white/60 transition-colors">FAQ</a>
+              </div>
+            </div>
+            <div>
+              <p className="text-xs font-semibold text-white/50 uppercase tracking-wider mb-3">{lang === "en" ? "Legal" : "Légal"}</p>
+              <div className="space-y-2 text-xs">
+                <a href="/mentions-legales" className="block hover:text-white/60 transition-colors">{lang === "en" ? "Legal notice" : "Mentions légales"}</a>
+                <a href="/politique-de-confidentialite" className="block hover:text-white/60 transition-colors">{lang === "en" ? "Privacy policy" : "Confidentialité"}</a>
+                <a href="/cgu" className="block hover:text-white/60 transition-colors">{lang === "en" ? "Terms of use" : "CGU"}</a>
+                <a href="/cgv" className="block hover:text-white/60 transition-colors">{lang === "en" ? "Terms of sale" : "CGV"}</a>
+              </div>
+            </div>
+          </div>
+          <div className="pt-6 border-t border-white/5 text-center">
+            <p className="text-xs">{lang === "en" ? <>Made with ❤️ by <span className="text-primary font-semibold">CaptenQwark</span></> : <>Fait avec ❤️ par <span className="text-primary font-semibold">CaptenQwark</span></>}</p>
+            <p className="mt-1 text-xs">{lang === "en" ? "Analyses are for educational purposes only. This site does not provide financial advice." : "Les analyses sont à but éducatif uniquement. Ce site ne fournit pas de conseils financiers."}</p>
+          </div>
         </div>
       </footer>
     </div>

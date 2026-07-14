@@ -5,7 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import { Bot, Send, User, Sparkles, Loader2, Trash2, Crown, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { aiAPI, ChatMessage, AILimitStatus } from "@/lib/api";
+import { aiAPI, ChatMessage, AILimitStatus, missionsAPI } from "@/lib/api";
 import Link from "next/link";
 import { useLanguage } from "@/lib/LanguageContext";
 import { HelpGuide } from "@/components/ui/HelpGuide";
@@ -193,6 +193,7 @@ export default function AssistantPage() {
     try {
       const response = await aiAPI.chat(msg);
       setMessages((prev) => [...prev, { role: "assistant", content: response.response, created_at: new Date().toISOString() }]);
+      missionsAPI.recordAction("ai_chat").catch(() => {});
       setLimitStatus((prev) => {
         if (!prev || prev.is_premium) return prev;
         return { ...prev, remaining: Math.max(0, prev.remaining - 1), messages_today: prev.messages_today + 1 };

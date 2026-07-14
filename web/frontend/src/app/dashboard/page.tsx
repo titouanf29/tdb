@@ -8,10 +8,11 @@ import {
   Target, RefreshCw, Loader2, Newspaper, Shield, Plus, Globe,
   Bot, BarChart3, Settings2, Eye, EyeOff, ExternalLink, Clock,
   Layers, ChevronUp, ChevronDown, Crown, Timer, Send, Sparkles, Trash2,
+  GraduationCap, NotebookPen,
 } from "lucide-react";
 import { cn, formatPercent } from "@/lib/utils";
 import {
-  walletAPI, favoritesAPI, adminAPI, aiAPI, marketAPI,
+  walletAPI, favoritesAPI, adminAPI, aiAPI, marketAPI, missionsAPI,
   WalletBalance, TradingStats, Favorite, MarketNews, SummaryPoint, Position,
   ChatMessage, AILimitStatus,
 } from "@/lib/api";
@@ -59,6 +60,10 @@ const WeeklyPrepWidget = dynamic(
 const IPOWatchWidget = dynamic(
   () => import("@/components/dashboard/IPOWatchWidget").then(m => ({ default: m.IPOWatchWidget })),
   { ssr: false, loading: () => <div className="h-48 glass-card animate-pulse rounded-xl border border-white/8" /> }
+);
+const ProgressWidget = dynamic(
+  () => import("@/components/dashboard/ProgressWidget").then(m => ({ default: m.ProgressWidget })),
+  { ssr: false, loading: () => <div className="h-32 glass-card animate-pulse rounded-xl border border-white/8" /> }
 );
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -243,6 +248,11 @@ export default function DashboardPage() {
         <QuickActionsBar />
       </motion.div>
 
+      {/* ── Progression (streak, XP, missions) ──────────────────────────────── */}
+      <motion.div variants={itemVariants}>
+        <ProgressWidget />
+      </motion.div>
+
       {/* ── Weekly prep ──────────────────────────────────────────────────────── */}
       <motion.div variants={itemVariants}>
         <WeeklyPrepWidget />
@@ -304,7 +314,7 @@ export default function DashboardPage() {
                 <span className="text-xs text-muted-foreground ml-auto">{t("dash_premium_hint")}</span>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-                {(["sessions", "opportunities", "trending", "stats", "positions"] as WidgetId[]).map((id) => {
+                {(["sessions", "opportunities", "trending", "stats"] as WidgetId[]).map((id) => {
                   const isActive = activeWidgets.includes(id);
                   const idx      = activeWidgets.indexOf(id);
                   const labelKey = `widget_${id}_label` as Parameters<typeof t>[0];
@@ -624,14 +634,16 @@ const MarketCardsRow = memo(function MarketCardsRow({
 });
 
 const QuickActionsBar = memo(function QuickActionsBar() {
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
   const actions = [
     { href: "/analysis",  Icon: BarChart3,  label: t("qa_analyze"),      iconCls: "text-primary",     bgCls: "bg-primary/12 group-hover:bg-primary/22" },
     { href: "/markets",   Icon: Globe,      label: t("qa_markets"),      iconCls: "text-cyan-400",    bgCls: "bg-cyan-400/12 group-hover:bg-cyan-400/22" },
     { href: "/scanner",   Icon: Activity,   label: "Scanner",            iconCls: "text-profit",      bgCls: "bg-profit/12 group-hover:bg-profit/22" },
     { href: "/assistant", Icon: Bot,        label: t("qa_ai_assistant"), iconCls: "text-purple-400",  bgCls: "bg-purple-400/12 group-hover:bg-purple-400/22" },
-    { href: "/trading",   Icon: TrendingUp, label: t("dash_positions"),  iconCls: "text-yellow-400",  bgCls: "bg-yellow-400/12 group-hover:bg-yellow-400/22" },
+    { href: "/trading",   Icon: TrendingUp, label: t("nav_positions"),   iconCls: "text-yellow-400",  bgCls: "bg-yellow-400/12 group-hover:bg-yellow-400/22" },
     { href: "/favorites", Icon: Star,       label: t("qa_favorites"),    iconCls: "text-orange-400",  bgCls: "bg-orange-400/12 group-hover:bg-orange-400/22" },
+    { href: "/learn",     Icon: GraduationCap, label: lang === "fr" ? "Formation" : "Learn", iconCls: "text-emerald-400", bgCls: "bg-emerald-400/12 group-hover:bg-emerald-400/22" },
+    { href: "/journal",   Icon: NotebookPen,   label: "Journal",         iconCls: "text-pink-400",    bgCls: "bg-pink-400/12 group-hover:bg-pink-400/22" },
   ];
 
   return (
@@ -1111,6 +1123,7 @@ const DashAIChatWidget = memo(function DashAIChatWidget() {
     try {
       const res = await aiAPI.chat(msg);
       setMessages(prev => [...prev, { role: "assistant", content: res.response, created_at: new Date().toISOString() }]);
+      missionsAPI.recordAction("ai_chat").catch(() => {});
       setLimitStatus(prev => (!prev || prev.is_premium) ? prev : {
         ...prev, remaining: Math.max(0, prev.remaining - 1), messages_today: prev.messages_today + 1,
       });

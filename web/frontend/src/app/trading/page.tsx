@@ -15,7 +15,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { cn, formatPercent } from "@/lib/utils";
-import { walletAPI, marketAPI, WalletBalance, Quote } from "@/lib/api";
+import { walletAPI, marketAPI, WalletBalance, Quote, missionsAPI } from "@/lib/api";
 import { useFormatCurrency } from "@/lib/SettingsContext";
 import { HelpGuide } from "@/components/ui/HelpGuide";
 import { useLanguage } from "@/lib/LanguageContext";
@@ -120,6 +120,7 @@ export default function TradingPage() {
 
       setSuccess(`${t("trade_success")} ${formatCurrency(result.entry_price || currentPrice)}`);
       setBalance({ ...balance!, balance: result.new_balance });
+      missionsAPI.recordAction("position_open").catch(() => {});
 
       // Redirect to wallet after 2 seconds
       setTimeout(() => router.push("/wallet"), 2000);

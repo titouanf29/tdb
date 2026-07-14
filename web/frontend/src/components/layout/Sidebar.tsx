@@ -28,6 +28,7 @@ import {
   Film,
   Trophy,
   BookOpen,
+  NotebookPen,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -48,10 +49,11 @@ const MENU_GROUPS = [
   {
     labelKey: "nav_group_space",
     items: [
-      { icon: Briefcase,  labelKey: "nav_portfolio",  href: "/portfolio" },
-      { icon: TrendingUp, labelKey: "nav_positions",  href: "/trading" },
-      { icon: Wallet,     labelKey: "nav_wallet",     href: "/wallet" },
-      { icon: Star,       labelKey: "nav_favorites",  href: "/favorites" },
+      { icon: Briefcase,   labelKey: "nav_portfolio",  href: "/portfolio" },
+      { icon: TrendingUp,  labelKey: "nav_positions",  href: "/trading" },
+      { icon: Wallet,      labelKey: "nav_wallet",     href: "/wallet" },
+      { icon: NotebookPen, labelKey: "nav_journal",    href: "/journal" },
+      { icon: Star,        labelKey: "nav_favorites",  href: "/favorites" },
     ],
   },
   {

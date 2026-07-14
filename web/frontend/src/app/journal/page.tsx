@@ -410,9 +410,6 @@ function JournalForm({
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    journalAPI.list().then(res => {
-      // fallback: build from entries if symbols endpoint not yet available
-    }).catch(() => {});
     // Load symbols for autocomplete
     fetch("/api/journal/symbols", {
       headers: { Authorization: `Bearer ${typeof window !== "undefined" ? localStorage.getItem("tdb_token") || "" : ""}` },

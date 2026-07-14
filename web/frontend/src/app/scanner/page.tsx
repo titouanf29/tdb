@@ -26,7 +26,7 @@ import {
   Flame,
 } from "lucide-react";
 import { cn, formatPercent } from "@/lib/utils";
-import { analysisAPI, marketAPI, Market, ScanResultItem, ScanQuota } from "@/lib/api";
+import { analysisAPI, marketAPI, Market, ScanResultItem, ScanQuota, missionsAPI } from "@/lib/api";
 import { useFormatPrice } from "@/lib/SettingsContext";
 import { useLanguage } from "@/lib/LanguageContext";
 import { HelpGuide } from "@/components/ui/HelpGuide";
@@ -161,6 +161,7 @@ export default function ScannerPage() {
       setResults(data.results);
       setTotalScanned(data.total_scanned ?? 0);
       if (data.quota) setQuota(data.quota);
+      missionsAPI.recordAction("scanner_run").catch(() => {});
     } catch (err: unknown) {
       const error = err as { status?: number; data?: { detail?: { message?: string } } };
       if (error?.status === 429) {

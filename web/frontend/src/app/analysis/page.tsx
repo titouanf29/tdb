@@ -55,7 +55,7 @@ import {
   Bot,
 } from "lucide-react";
 import { cn, formatPercent } from "@/lib/utils";
-import { analysisAPI, favoritesAPI, aiAPI, marketAPI, Analysis, portfolioAPI, RealPosition } from "@/lib/api";
+import { analysisAPI, favoritesAPI, aiAPI, marketAPI, Analysis, portfolioAPI, RealPosition, missionsAPI } from "@/lib/api";
 import { getAssetInfo, getAssetLogo } from "@/lib/assetInfo";
 import { useFormatCurrency, useFormatPrice, useSettings } from "@/lib/SettingsContext";
 import { authHeaders } from "@/lib/auth";
@@ -602,6 +602,7 @@ export default function AnalysisPage() {
 
       // Check if favorite (only on explicit search, not silent refresh)
       if (!silent) {
+        missionsAPI.recordAction("analysis_open").catch(() => {});
         const favCheck = await favoritesAPI.checkFavorite(s);
         setIsFavorite(favCheck.is_favorite);
         // Check real portfolio position
