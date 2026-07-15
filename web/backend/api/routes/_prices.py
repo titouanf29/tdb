@@ -285,12 +285,27 @@ async def fetch_prices(symbols: list[str]) -> dict[str, dict]:
 
 # ── OHLCV (used by analysis engine — yfinance historical bars) ────────────────
 
+# Short-lived in-process cache: the analysis route may need the same bars
+# twice per request (own timeframe + higher-timeframe confirmation), the
+# scanner hits dozens of symbols in bursts, and Yahoo rate-limits hard.
+_OHLCV_CACHE: dict = {}
+_OHLCV_TTL = 90.0  # seconds
+_OHLCV_CACHE_MAX = 512
+
+
 async def fetch_ohlcv(symbol: str, period: str = "1mo", interval: str = "1d"):
     """
     Fetch OHLCV DataFrame for chart / analysis.
     period:   1d|5d|1mo|3mo|6mo|1y|2y|5y
     interval: 1m|5m|15m|1h|1d|1wk|1mo
     """
+    import time as _time
+
+    key = (symbol.upper(), period, interval)
+    hit = _OHLCV_CACHE.get(key)
+    if hit is not None and _time.monotonic() - hit[0] < _OHLCV_TTL:
+        return hit[1].copy()
+
     def _sync():
         import yfinance as yf
         import pandas as pd
@@ -314,4 +329,10 @@ async def fetch_ohlcv(symbol: str, period: str = "1mo", interval: str = "1d"):
             return pd.DataFrame()
 
     loop = asyncio.get_event_loop()
-    return await loop.run_in_executor(None, _sync)
+    df = await loop.run_in_executor(None, _sync)
+    if df is not None and not df.empty:
+        if len(_OHLCV_CACHE) >= _OHLCV_CACHE_MAX:
+            oldest = min(_OHLCV_CACHE, key=lambda k: _OHLCV_CACHE[k][0])
+            _OHLCV_CACHE.pop(oldest, None)
+        _OHLCV_CACHE[key] = (_time.monotonic(), df.copy())
+    return df

@@ -39,6 +39,9 @@ def _sanitize(obj):
         return {k: _sanitize(v) for k, v in obj.items()}
     if isinstance(obj, list):
         return [_sanitize(v) for v in obj]
+    # bools/strings/None must survive as-is (float(True) would turn them into 1.0)
+    if obj is None or isinstance(obj, (bool, str)):
+        return obj
     if isinstance(obj, float):
         if obj != obj or obj == float("inf") or obj == float("-inf"):  # NaN or Inf
             return None
@@ -406,6 +409,24 @@ async def analyze_asset(
 
         if hist.empty or len(hist) < 20:
             raise HTTPException(status_code=400, detail="Insufficient data for analysis")
+
+        # ── Data quality: freshness & completeness ─────────────────────────
+        from datetime import datetime as _dt, timezone as _tz
+        _INTERVAL_MIN = {
+            "5m": 5, "15m": 15, "30m": 30, "1h": 60, "4h": 240,
+            "1d": 1440, "3d": 1440, "1w": 10080, "1mo": 43200,
+        }
+        try:
+            _last_dt = hist.index[-1].to_pydatetime()
+            if _last_dt.tzinfo is None:
+                _last_dt = _last_dt.replace(tzinfo=_tz.utc)
+            last_bar_age_min = (_dt.now(_tz.utc) - _last_dt).total_seconds() / 60
+        except Exception:
+            last_bar_age_min = 0.0
+        _step_min = _INTERVAL_MIN.get(timeframe, 1440)
+        # Daily bars tolerate long weekends/holidays; intraday tolerates a session gap
+        data_stale = last_bar_age_min > _step_min * (5 if _step_min >= 1440 else 8)
+        data_nan_ratio = float(hist["Close"].isna().mean())
 
         # Calculate technical indicators
         close = hist['Close']
@@ -780,6 +801,50 @@ async def analyze_asset(
         )
         final_score = max(0, min(100, final_score))
 
+        # ── Multi-timeframe confirmation ───────────────────────────────────
+        # A daily BUY inside a weekly downtrend (or the mirror case) is the
+        # classic trap. The signal is pulled back toward neutral when the
+        # higher timeframe disagrees, and credited when it confirms.
+        _HIGHER_TF = {
+            "5m": ("1h", "1mo"),  "15m": ("1h", "1mo"), "30m": ("1d", "6mo"),
+            "1h": ("1d", "6mo"),  "4h":  ("1d", "6mo"), "1d":  ("1wk", "2y"),
+            "3d": ("1wk", "2y"),  "1w":  ("1mo", "5y"),
+        }
+        higher_tf_info = {"interval": None, "trend": "UNKNOWN", "aligned": None}
+        _htf = _HIGHER_TF.get(timeframe)
+        if _htf:
+            try:
+                _htf_interval, _htf_period = _htf
+                _htf_hist = await fetch_ohlcv(symbol, period=_htf_period, interval=_htf_interval)
+                if _htf_hist is not None and len(_htf_hist) >= 21:
+                    _hc = _htf_hist["Close"].dropna()
+                    _h_px  = float(_hc.iloc[-1])
+                    _h_e20 = float(_hc.ewm(span=20, adjust=False).mean().iloc[-1])
+                    _h_e50 = float(_hc.ewm(span=50, adjust=False).mean().iloc[-1]) if len(_hc) >= 50 else _h_e20
+                    if _h_px > _h_e20 and _h_e20 >= _h_e50:
+                        _h_trend = "BULLISH"
+                    elif _h_px < _h_e20 and _h_e20 <= _h_e50:
+                        _h_trend = "BEARISH"
+                    else:
+                        _h_trend = "NEUTRAL"
+                    higher_tf_info = {"interval": _htf_interval, "trend": _h_trend, "aligned": None}
+                    if final_score >= 55 and _h_trend == "BEARISH":
+                        final_score = max(0, final_score - 8)
+                        higher_tf_info["aligned"] = False
+                        bearish_signals.append(f"Non confirmé : tendance {_htf_interval} baissière")
+                    elif final_score <= 45 and _h_trend == "BULLISH":
+                        final_score = min(100, final_score + 8)
+                        higher_tf_info["aligned"] = False
+                        bullish_signals.append(f"Non confirmé : tendance {_htf_interval} haussière")
+                    elif _h_trend == "BULLISH" and final_score >= 55:
+                        higher_tf_info["aligned"] = True
+                        bullish_signals.append(f"Confirmé par la tendance {_htf_interval} haussière")
+                    elif _h_trend == "BEARISH" and final_score <= 45:
+                        higher_tf_info["aligned"] = True
+                        bearish_signals.append(f"Confirmé par la tendance {_htf_interval} baissière")
+            except Exception:
+                pass
+
         # Determine trend (based on EMA alignment)
         if current_price > float(ema20.iloc[-1]) > float(ema50.iloc[-1]):
             trend = "BULLISH"
@@ -809,21 +874,50 @@ async def analyze_asset(
             signal_text = "STRONG SELL"
             signal_emoji = "🔴"
 
-        # ── Direction-aware risk plan ──────────────────────────────────────
-        # A SELL setup gets a short-side plan (SL above, TP below) instead of
-        # the long-only levels that used to accompany every signal.
+        # ── Direction- and structure-aware risk plan ───────────────────────
+        # SELL setups get a short-side plan (SL above, TP below). Stops
+        # anchor to the nearest invalidation level (support/resistance with
+        # an ATR buffer) when that level sits inside the raw 2×ATR distance,
+        # and targets are capped at the first structural obstacle.
         is_short_setup = final_score < 40
+        _support = float(recent_low)
+        _resistance = float(recent_high)
+        risk_notes: list[str] = []
+        sl_basis = "atr"
+        tp_capped = False
+
+        # A level only counts as an obstacle/anchor when it sits at a
+        # meaningful distance (≥1 ATR): at fresh highs/lows the 20-bar
+        # extreme IS the current price and must not strangle the plan.
         if is_short_setup:
-            _sl      = current_price + atr * 2
-            _tp      = current_price - atr * 3
-            _sl_t    = current_price + atr
-            _tp_c    = current_price - atr * 1.5
+            _sl = current_price + atr * 2
+            if (_resistance - current_price) >= atr and (_resistance + atr * 0.5) < _sl:
+                _sl = _resistance + atr * 0.5
+                sl_basis = "resistance"
+            _tp = current_price - atr * 3
+            if _tp < _support < current_price and (current_price - _support) >= atr:
+                _tp = _support
+                tp_capped = True
+                risk_notes.append("Objectif plafonné au support — premier obstacle structurel")
+            _sl_t = current_price + atr
+            _tp_c = current_price - atr * 1.5
         else:
-            _sl      = current_price - atr * 2
-            _tp      = current_price + atr * 3
-            _sl_t    = current_price - atr
-            _tp_c    = current_price + atr * 1.5
+            _sl = current_price - atr * 2
+            if (current_price - _support) >= atr and (_support - atr * 0.5) > _sl:
+                _sl = _support - atr * 0.5
+                sl_basis = "support"
+            _tp = current_price + atr * 3
+            if current_price < _resistance < _tp and (_resistance - current_price) >= atr:
+                _tp = _resistance
+                tp_capped = True
+                risk_notes.append("Objectif plafonné à la résistance — premier obstacle structurel")
+            _sl_t = current_price - atr
+            _tp_c = current_price + atr * 1.5
+
         _rr = abs(_tp - current_price) / abs(_sl - current_price) if abs(_sl - current_price) > 1e-9 else None
+        if _rr is not None and _rr < 1.2:
+            risk_notes.append(f"R/R de {_rr:.1f} sous 1.2 — le setup rémunère mal le risque pris")
+
         risk_block = {
             "direction":                 "SHORT" if is_short_setup else "LONG",
             "suggested_sl":              _safe(_sl, None, 2),
@@ -832,6 +926,9 @@ async def analyze_asset(
             "suggested_tp_conservative": _safe(_tp_c, None, 2),
             "risk_reward":               _safe(_rr, 1.5, 2),
             "atr_stop_pct":              _safe(atr / current_price * 200, None, 2),
+            "sl_basis":                  sl_basis,
+            "tp_capped_at_level":        tp_capped,
+            "notes":                     risk_notes,
         }
 
         # Get fundamental data
@@ -1059,6 +1156,10 @@ async def analyze_asset(
         # Horizon for catalyst lookup: 3× max window, capped at 30 days
         catalyst_horizon = min((trade_window["max_minutes"] / 60) * 3, 720)
         trade_window["catalysts"] = upcoming_risk_catalysts(symbol, catalyst_horizon)
+        if data_stale:
+            trade_window.setdefault("warnings", []).append(
+                "Dernière bougie ancienne — les niveaux affichés peuvent être décalés du marché actuel"
+            )
 
         result = {
             "symbol": symbol,
@@ -1079,13 +1180,19 @@ async def analyze_asset(
                 "volatility": int(volatility_score),
                 "fundamental": fundamental_score,
                 "conviction": conviction_score,
-                "confidence": data_confidence(
+                "confidence": max(0, data_confidence(
                     n_bars=len(close.dropna()),
                     has_ema200=ema200 is not None,
                     adx_valid=adx_val > 0,
                     has_volume=bool(len(vol_clean)) and float(vol_clean.sum()) > 0,
-                ),
+                ) - (25 if data_stale else 0) - (10 if data_nan_ratio > 0.05 else 0)),
             },
+            "data_quality": {
+                "stale": data_stale,
+                "last_bar_age_minutes": _safe(last_bar_age_min, 0, 0),
+                "nan_ratio": _safe(data_nan_ratio, 0.0, 3),
+            },
+            "higher_timeframe": higher_tf_info,
             "conviction": {
                 "score": conviction_score,
                 "bullish_signals": bullish_signals,
