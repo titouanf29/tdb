@@ -385,7 +385,7 @@ function TourCard({
                   minHeight: 48,
                 }}
               >
-                Passer
+                Ignorer
               </motion.button>
             )}
           </div>

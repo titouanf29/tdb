@@ -478,6 +478,17 @@ export interface Analysis {
     volume: number;
     momentum: number;
     fundamental?: number;
+    confidence?: number;
+  };
+  higher_timeframe?: {
+    interval: string | null;
+    trend: "BULLISH" | "BEARISH" | "NEUTRAL" | "UNKNOWN";
+    aligned: boolean | null;
+  };
+  data_quality?: {
+    stale: boolean;
+    last_bar_age_minutes: number;
+    nan_ratio: number;
   };
   signal: {
     text: string;
@@ -519,6 +530,10 @@ export interface Analysis {
     suggested_sl: number;
     suggested_tp: number;
     risk_reward: number;
+    direction?: "LONG" | "SHORT";
+    sl_basis?: string;
+    tp_capped_at_level?: boolean;
+    notes?: string[];
   };
   fundamentals?: {
     market_cap?: number;

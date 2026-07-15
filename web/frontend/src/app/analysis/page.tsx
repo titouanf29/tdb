@@ -1061,8 +1061,8 @@ export default function AnalysisPage() {
                   <span>{analysis.signal.text}</span>
                 </div>
 
-                {/* Trend + confidence */}
-                <div className="flex items-center justify-center gap-3 mt-1">
+                {/* Trend + MTF confirmation + data confidence */}
+                <div className="flex flex-wrap items-center justify-center gap-2 mt-1">
                   <span className={cn(
                     "inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full border",
                     analysis.trend === "BULLISH" ? "bg-profit/10 border-profit/25 text-profit" :
@@ -1072,7 +1072,39 @@ export default function AnalysisPage() {
                     {analysis.trend === "BULLISH" ? <TrendingUp className="w-3 h-3" /> : analysis.trend === "BEARISH" ? <TrendingDown className="w-3 h-3" /> : <Activity className="w-3 h-3" />}
                     {analysis.trend}
                   </span>
+                  {analysis.higher_timeframe?.aligned === true && (
+                    <span className="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full border bg-profit/10 border-profit/25 text-profit"
+                      title={`La tendance ${analysis.higher_timeframe.interval} va dans le même sens que le signal`}>
+                      <CheckCircle className="w-3 h-3" />
+                      Confirmé {analysis.higher_timeframe.interval}
+                    </span>
+                  )}
+                  {analysis.higher_timeframe?.aligned === false && (
+                    <span className="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full border bg-warning/10 border-warning/25 text-warning"
+                      title={`La tendance ${analysis.higher_timeframe.interval} contredit le signal — prudence`}>
+                      <AlertTriangle className="w-3 h-3" />
+                      Non confirmé {analysis.higher_timeframe.interval}
+                    </span>
+                  )}
+                  {typeof analysis.score.confidence === "number" && (
+                    <span className={cn(
+                      "inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full border",
+                      analysis.score.confidence >= 70 ? "bg-white/5 border-white/15 text-muted-foreground" :
+                      analysis.score.confidence >= 40 ? "bg-warning/10 border-warning/25 text-warning" :
+                                                        "bg-loss/10 border-loss/25 text-loss"
+                    )}
+                      title="Fiabilité des données : quantité d'historique et couverture des indicateurs">
+                      <Gauge className="w-3 h-3" />
+                      Données {analysis.score.confidence}%
+                    </span>
+                  )}
                 </div>
+                {analysis.data_quality?.stale && (
+                  <p className="flex items-center justify-center gap-1.5 mt-2 text-xs text-warning">
+                    <AlertTriangle className="w-3 h-3" />
+                    Données potentiellement périmées — dernière bougie ancienne
+                  </p>
+                )}
 
                 {/* Trade window hint */}
                 {analysis.trade_window && (
@@ -4114,6 +4146,18 @@ function RiskAssessmentSection({ analysis, formatCurrency }: { analysis: Analysi
             <CircleDot className="w-3 h-3 mt-1.5 text-primary flex-shrink-0" />
             <span>Diversification : <strong className="text-foreground">{analysis.fundamentals?.beta && analysis.fundamentals.beta > 1.2 ? "Fortement recommandée" : "Standard"}</strong></span>
           </li>
+          {analysis.risk.sl_basis && analysis.risk.sl_basis !== "atr" && (
+            <li className="flex items-start gap-2">
+              <CircleDot className="w-3 h-3 mt-1.5 text-primary flex-shrink-0" />
+              <span>Stop ancré sur <strong className="text-foreground">{analysis.risk.sl_basis === "support" ? "le support" : "la résistance"}</strong> — placé là où la thèse est invalidée, pas à une distance arbitraire</span>
+            </li>
+          )}
+          {(analysis.risk.notes || []).map((note, i) => (
+            <li key={i} className="flex items-start gap-2">
+              <AlertTriangle className="w-3 h-3 mt-1.5 text-warning flex-shrink-0" />
+              <span className="text-warning/90">{note}</span>
+            </li>
+          ))}
         </ul>
       </div>
     </motion.div>
