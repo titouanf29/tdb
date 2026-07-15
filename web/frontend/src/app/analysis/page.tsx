@@ -55,7 +55,7 @@ import {
   Bot,
 } from "lucide-react";
 import { cn, formatPercent } from "@/lib/utils";
-import { analysisAPI, favoritesAPI, aiAPI, marketAPI, Analysis, portfolioAPI, RealPosition, missionsAPI } from "@/lib/api";
+import { analysisAPI, favoritesAPI, aiAPI, marketAPI, Analysis, portfolioAPI, RealPosition, missionsAPI, BacktestResult } from "@/lib/api";
 import { getAssetInfo, getAssetLogo } from "@/lib/assetInfo";
 import { useFormatCurrency, useFormatPrice, useSettings } from "@/lib/SettingsContext";
 import { authHeaders } from "@/lib/auth";
@@ -1482,12 +1482,19 @@ export default function AnalysisPage() {
             <NewsSentimentSection news={analysis.news} symbol={analysis.symbol} />
           )}
 
-          {/* 16. Description entreprise */}
+          {/* 16. Fiabilité historique du score (backtest) */}
+          <BacktestSection
+            symbol={analysis.symbol}
+            timeframe={timeframe}
+            currentScore={analysis.score.total}
+          />
+
+          {/* 17. Description entreprise */}
           {analysis.company?.description && (
             <CompanyDescription analysis={analysis} />
           )}
 
-          {/* 17. Section éducative */}
+          {/* 18. Section éducative */}
           <EducationalSection analysis={analysis} tradingLevel={tradingLevel} />
 
           {/* AMF Disclaimer */}
@@ -4737,6 +4744,140 @@ function TradingStrategiesSection({ analysis, formatCurrency }: { analysis: Anal
 }
 
 // News Section with Sentiment
+// ── Backtest : fiabilité historique du score ─────────────────────────────────
+function BacktestSection({
+  symbol, timeframe, currentScore,
+}: { symbol: string; timeframe: string; currentScore: number }) {
+  const { lang } = useLanguage();
+  const [result, setResult] = useState<BacktestResult | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  // The backtest endpoint only accepts 1h/4h/1d/1w — map intraday frames up
+  const btTimeframe = ["5m", "15m", "30m", "1h"].includes(timeframe) ? "1h"
+    : timeframe === "4h" ? "4h"
+    : ["1w", "1mo"].includes(timeframe) ? "1w" : "1d";
+
+  // Reset when the asset changes
+  useEffect(() => { setResult(null); setError(""); }, [symbol]);
+
+  const runBacktest = async () => {
+    setIsLoading(true);
+    setError("");
+    try {
+      const data = await analysisAPI.backtest(symbol, btTimeframe, 10);
+      setResult(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erreur lors du backtest");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const fr = lang !== "en";
+
+  return (
+    <div className="glass-card p-5" data-module-id="backtest">
+      <div className="flex items-center justify-between gap-3 flex-wrap mb-1">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-xl bg-cyan-500/15 border border-cyan-500/20 flex items-center justify-center flex-shrink-0">
+            <Gauge className="w-4 h-4 text-cyan-400" />
+          </div>
+          <h2 className="font-semibold">{fr ? "Fiabilité historique du score" : "Historical score reliability"}</h2>
+        </div>
+        {!result && (
+          <button
+            onClick={runBacktest}
+            disabled={isLoading}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-cyan-500/15 hover:bg-cyan-500/25 border border-cyan-500/25 text-cyan-300 text-sm font-semibold transition-all disabled:opacity-50"
+          >
+            {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Activity className="w-4 h-4" />}
+            {isLoading ? (fr ? "Calcul en cours…" : "Computing…") : (fr ? "Tester sur l'historique" : "Test on history")}
+          </button>
+        )}
+      </div>
+      <p className="text-xs text-muted-foreground mb-4">
+        {fr
+          ? "Le score est rejoué sur l'historique de cet actif, barre par barre et sans voir le futur, puis comparé à ce qui a réellement suivi."
+          : "The score is replayed over this asset's history, bar by bar without seeing the future, then compared to what actually followed."}
+      </p>
+
+      {error && <p className="text-sm text-loss">{error}</p>}
+
+      {result && (
+        <div className="space-y-4">
+          {/* Summary metrics */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+            <div className="px-3 py-2.5 rounded-xl bg-white/4 border border-white/8">
+              <p className="text-[11px] text-muted-foreground">{fr ? "Évaluations" : "Samples"}</p>
+              <p className="text-sm font-bold tabular-nums">{result.n_samples}</p>
+            </div>
+            <div className="px-3 py-2.5 rounded-xl bg-white/4 border border-white/8">
+              <p className="text-[11px] text-muted-foreground">{fr ? "Corrélation score→futur" : "Score→future correlation"}</p>
+              <p className={cn("text-sm font-bold tabular-nums",
+                (result.correlation ?? 0) > 0.2 ? "text-profit" : (result.correlation ?? 0) < 0 ? "text-loss" : "")}>
+                {result.correlation ?? "—"}
+              </p>
+            </div>
+            <div className="px-3 py-2.5 rounded-xl bg-white/4 border border-white/8">
+              <p className="text-[11px] text-muted-foreground">{fr ? "Zone achat (≥60)" : "Buy zone (≥60)"}</p>
+              <p className={cn("text-sm font-bold tabular-nums", (result.avg_return_buy_zone ?? 0) >= 0 ? "text-profit" : "text-loss")}>
+                {result.avg_return_buy_zone != null ? `${result.avg_return_buy_zone >= 0 ? "+" : ""}${result.avg_return_buy_zone}%` : "—"}
+              </p>
+            </div>
+            <div className="px-3 py-2.5 rounded-xl bg-white/4 border border-white/8">
+              <p className="text-[11px] text-muted-foreground">{fr ? "Zone vente (<40)" : "Sell zone (<40)"}</p>
+              <p className={cn("text-sm font-bold tabular-nums", (result.avg_return_sell_zone ?? 0) <= 0 ? "text-profit" : "text-loss")}>
+                {result.avg_return_sell_zone != null ? `${result.avg_return_sell_zone >= 0 ? "+" : ""}${result.avg_return_sell_zone}%` : "—"}
+              </p>
+            </div>
+          </div>
+
+          {/* Bucket table */}
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-[11px] text-muted-foreground uppercase tracking-wider border-b border-white/8">
+                  <th className="text-left py-2 pr-3 font-semibold">{fr ? "Zone de score" : "Score zone"}</th>
+                  <th className="text-right py-2 px-3 font-semibold">{fr ? "Occurrences" : "Count"}</th>
+                  <th className="text-right py-2 px-3 font-semibold">{fr ? "% hausses" : "Win rate"}</th>
+                  <th className="text-right py-2 pl-3 font-semibold">{fr ? `Rendement moyen (${result.horizon_bars} bougies)` : `Avg return (${result.horizon_bars} bars)`}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {result.buckets.map((b) => {
+                  const isCurrent = currentScore >= b.range[0] && currentScore < (b.range[1] === 100 ? 101 : b.range[1]);
+                  return (
+                    <tr key={b.label} className={cn("border-b border-white/4",
+                      isCurrent && "bg-cyan-500/8")}>
+                      <td className="py-2 pr-3 font-medium">
+                        {b.label}
+                        {isCurrent && (
+                          <span className="ml-2 text-[10px] font-bold text-cyan-400 bg-cyan-500/10 border border-cyan-500/25 px-1.5 py-0.5 rounded-full">
+                            {fr ? "Score actuel" : "Current score"}
+                          </span>
+                        )}
+                      </td>
+                      <td className="py-2 px-3 text-right tabular-nums text-muted-foreground">{b.count || "—"}</td>
+                      <td className="py-2 px-3 text-right tabular-nums">{b.win_rate != null ? `${b.win_rate}%` : "—"}</td>
+                      <td className={cn("py-2 pl-3 text-right tabular-nums font-semibold",
+                        b.avg_return == null ? "text-muted-foreground" : b.avg_return >= 0 ? "text-profit" : "text-loss")}>
+                        {b.avg_return != null ? `${b.avg_return >= 0 ? "+" : ""}${b.avg_return}%` : "—"}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          <p className="text-[11px] text-muted-foreground/60">{result.disclaimer}</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function NewsSentimentSection({ news, symbol }: { news: Analysis["news"]; symbol: string }) {
   if (!news || news.length === 0) return null;
 

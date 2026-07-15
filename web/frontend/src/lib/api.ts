@@ -202,10 +202,42 @@ export const settingsAPI = {
     fetchAPI<{ settings: Record<string, string> }>("/api/users/public-settings"),
 };
 
+// Backtest — walk-forward replay of the scoring engine on history
+export interface BacktestBucket {
+  label: string;
+  range: [number, number];
+  count: number;
+  win_rate: number | null;
+  avg_return: number | null;
+  median_return: number | null;
+}
+
+export interface BacktestResult {
+  symbol: string;
+  timeframe: string;
+  period: string;
+  bars_analyzed: number;
+  n_samples: number;
+  horizon_bars: number;
+  buckets: BacktestBucket[];
+  correlation: number | null;
+  avg_return_buy_zone: number | null;
+  avg_return_sell_zone: number | null;
+  edge: number | null;
+  hit_rate_buy: number | null;
+  hit_rate_sell: number | null;
+  disclaimer: string;
+}
+
 // Analysis API
 export const analysisAPI = {
   analyze: (symbol: string, timeframe = "1d") =>
     fetchAPI<Analysis>(`/api/analysis/${symbol}?timeframe=${timeframe}`),
+
+  backtest: (symbol: string, timeframe = "1d", horizon = 10) =>
+    fetchAPI<BacktestResult>(
+      `/api/analysis/${symbol}/backtest?timeframe=${timeframe}&horizon=${horizon}`
+    ),
 
   scan: (marketKey: string, minScore = 60, limit = 20, oppType = "all") =>
     fetchAPI<ScanResult>(
