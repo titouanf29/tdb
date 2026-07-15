@@ -14,6 +14,7 @@ from .auth import get_current_user
 from .premium import is_user_premium, get_user_limits
 from ..database import execute_query, execute_write
 from ._prices import fetch_ohlcv, fetch_prices
+from ._indicators import rsi_wilder, atr_wilder, adx_wilder, true_range, data_confidence
 
 router = APIRouter()
 limiter = Limiter(key_func=get_remote_address)
@@ -412,13 +413,11 @@ async def analyze_asset(
         low = hist['Low']
         volume = hist['Volume']
 
-        # RSI
-        delta = close.diff()
-        gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
-        loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
-        rs = gain / loss
-        rsi = 100 - (100 / (1 + rs))
+        # RSI — Wilder's smoothing (matches TradingView/broker values)
+        rsi = rsi_wilder(close)
         current_rsi = rsi.iloc[-1]
+        if pd.isna(current_rsi):
+            current_rsi = 50.0
 
         # MACD
         ema12 = close.ewm(span=12, adjust=False).mean()
@@ -438,34 +437,15 @@ async def analyze_asset(
         bb_upper = bb_mid + (bb_std * 2)
         bb_lower = bb_mid - (bb_std * 2)
 
-        # ATR
-        tr = pd.concat([
-            high - low,
-            abs(high - close.shift(1)),
-            abs(low - close.shift(1))
-        ], axis=1).max(axis=1)
-        atr = tr.rolling(window=14).mean().iloc[-1]
+        # ATR — Wilder's smoothing (standard ATR)
+        atr_series = atr_wilder(high, low, close)
+        atr = atr_series.iloc[-1]
+        if pd.isna(atr):
+            atr = float(true_range(high, low, close).tail(14).mean())
 
-        # ADX
-        adx_period = 14
-        plus_dm = pd.Series(
-            np.where((high.diff() > -low.diff()) & (high.diff() > 0), high.diff(), 0.0),
-            index=high.index
-        )
-        minus_dm = pd.Series(
-            np.where((-low.diff() > high.diff()) & (-low.diff() > 0), -low.diff(), 0.0),
-            index=low.index
-        )
-        atr14 = tr.rolling(adx_period).mean()
-        plus_di = 100 * (plus_dm.rolling(adx_period).mean() / atr14.replace(0, np.nan))
-        minus_di = 100 * (minus_dm.rolling(adx_period).mean() / atr14.replace(0, np.nan))
-        di_sum = (plus_di + minus_di).replace(0, np.nan)
-        dx = 100 * (plus_di - minus_di).abs() / di_sum
-        adx_val = float(dx.rolling(adx_period).mean().iloc[-1])
-        if np.isnan(adx_val):
-            adx_val = 0.0
-        current_plus_di = float(plus_di.iloc[-1]) if not np.isnan(plus_di.iloc[-1]) else 0.0
-        current_minus_di = float(minus_di.iloc[-1]) if not np.isnan(minus_di.iloc[-1]) else 0.0
+        # ADX — Wilder smoothing throughout; usable from ~2×period bars
+        # instead of the ~3×period the previous triple-rolling needed
+        adx_val, current_plus_di, current_minus_di = adx_wilder(high, low, close)
 
         # Stochastic Oscillator (%K and %D)
         stoch_period = 14
@@ -590,15 +570,17 @@ async def analyze_asset(
 
         if current_rsi < 30:   bullish_signals.append("RSI survendu (<30)")
         elif current_rsi > 70: bearish_signals.append("RSI suracheté (>70)")
-        elif 40 <= current_rsi <= 55: bullish_signals.append("RSI en zone neutre-haussière")
 
-        if macd_hist.iloc[-1] > 0 and float(macd_hist.iloc[-2]) <= 0:
+        _conv_mh_last = float(macd_hist.iloc[-1])
+        _conv_mh_prev = float(macd_hist.iloc[-2])
+        _conv_mh_min = 0.05 * float(atr) if atr and not pd.isna(atr) else 0.0
+        if _conv_mh_last > _conv_mh_min and _conv_mh_prev <= 0:
             bullish_signals.append("Croisement haussier MACD")
-        elif macd_hist.iloc[-1] < 0 and float(macd_hist.iloc[-2]) >= 0:
+        elif _conv_mh_last < -_conv_mh_min and _conv_mh_prev >= 0:
             bearish_signals.append("Croisement baissier MACD")
-        elif macd_hist.iloc[-1] > 0:
+        elif _conv_mh_last > _conv_mh_min:
             bullish_signals.append("MACD positif")
-        else:
+        elif _conv_mh_last < -_conv_mh_min:
             bearish_signals.append("MACD négatif")
 
         if current_price > float(ema20.iloc[-1]):  bullish_signals.append("Prix > EMA20")
@@ -646,38 +628,64 @@ async def analyze_asset(
 
         # ── IMPROVED 5-COMPONENT SCORING ──────────────────────────────────
 
+        # Trend regime — gates the mean-reversion bonuses below.
+        # Oversold in a confirmed downtrend is a falling knife, not a buy;
+        # overbought in a confirmed uptrend is trend strength, not a sell.
+        _ema20_last = float(ema20.iloc[-1])
+        _ema50_last = float(ema50.iloc[-1])
+        regime_up   = current_price > _ema50_last and _ema20_last > _ema50_last
+        regime_down = current_price < _ema50_last and _ema20_last < _ema50_last
+        if adx_val > 25:  # a strong ADX against the EMA regime cancels it
+            if regime_up and current_minus_di > current_plus_di:
+                regime_up = False
+            if regime_down and current_plus_di > current_minus_di:
+                regime_down = False
+
+        def _gated(points: int, direction: str) -> int:
+            """Cut contrarian bonuses to 1/3 when the regime disagrees."""
+            if direction == "bullish" and regime_down:
+                return points // 3
+            if direction == "bearish" and regime_up:
+                return points // 3
+            return points
+
         # 1. TECHNICAL SCORE (oscillators: RSI, MACD, Stochastic, Williams %R, Bollinger)
         technical_score = 50
 
-        if current_rsi < 25:   technical_score += 20
-        elif current_rsi < 30: technical_score += 15
-        elif current_rsi < 40: technical_score += 8
-        elif current_rsi > 80: technical_score -= 20
-        elif current_rsi > 70: technical_score -= 15
-        elif current_rsi > 60: technical_score -= 5
+        if current_rsi < 25:   technical_score += _gated(20, "bullish")
+        elif current_rsi < 30: technical_score += _gated(15, "bullish")
+        elif current_rsi < 40: technical_score += _gated(8, "bullish")
+        elif current_rsi > 80: technical_score -= _gated(20, "bearish")
+        elif current_rsi > 70: technical_score -= _gated(15, "bearish")
+        elif current_rsi > 60: technical_score -= _gated(5, "bearish")
 
-        if macd_hist.iloc[-1] > 0 and float(macd_hist.iloc[-2]) <= 0:
-            technical_score += 20
-        elif macd_hist.iloc[-1] < 0 and float(macd_hist.iloc[-2]) >= 0:
-            technical_score -= 20
-        elif macd_hist.iloc[-1] > 0:
+        # MACD — a crossover only counts if the histogram clears a noise
+        # threshold (5% of ATR); a ±0.005 wiggle is indecision, not a signal
+        _mh_last = float(macd_hist.iloc[-1])
+        _mh_prev = float(macd_hist.iloc[-2])
+        _mh_min = 0.05 * float(atr) if atr and not pd.isna(atr) else 0.0
+        if _mh_last > _mh_min and _mh_prev <= 0:
+            technical_score += _gated(20, "bullish")
+        elif _mh_last < -_mh_min and _mh_prev >= 0:
+            technical_score -= _gated(20, "bearish")
+        elif _mh_last > _mh_min:
             technical_score += 8
-        else:
+        elif _mh_last < -_mh_min:
             technical_score -= 8
 
-        if rsi_divergence == "bullish":  technical_score += 12
-        elif rsi_divergence == "bearish": technical_score -= 12
+        if rsi_divergence == "bullish":  technical_score += _gated(12, "bullish")
+        elif rsi_divergence == "bearish": technical_score -= _gated(12, "bearish")
 
-        if current_stoch_k < 20 and current_stoch_k > current_stoch_d:   technical_score += 8
-        elif current_stoch_k > 80 and current_stoch_k < current_stoch_d: technical_score -= 8
-        elif current_stoch_k < 30: technical_score += 4
-        elif current_stoch_k > 70: technical_score -= 4
+        if current_stoch_k < 20 and current_stoch_k > current_stoch_d:   technical_score += _gated(8, "bullish")
+        elif current_stoch_k > 80 and current_stoch_k < current_stoch_d: technical_score -= _gated(8, "bearish")
+        elif current_stoch_k < 30: technical_score += _gated(4, "bullish")
+        elif current_stoch_k > 70: technical_score -= _gated(4, "bearish")
 
-        if current_wr < -80:   technical_score += 7
-        elif current_wr > -20: technical_score -= 7
+        if current_wr < -80:   technical_score += _gated(7, "bullish")
+        elif current_wr > -20: technical_score -= _gated(7, "bearish")
 
-        if current_price < float(bb_lower.iloc[-1]):   technical_score += 5
-        elif current_price > float(bb_upper.iloc[-1]): technical_score -= 5
+        if current_price < float(bb_lower.iloc[-1]):   technical_score += _gated(5, "bullish")
+        elif current_price > float(bb_upper.iloc[-1]): technical_score -= _gated(5, "bearish")
 
         technical_score = max(0, min(100, technical_score))
 
@@ -772,10 +780,8 @@ async def analyze_asset(
         )
         final_score = max(0, min(100, final_score))
 
-        # Determine trend (based on EMA alignment + ADX)
-        if current_price > float(ema20.iloc[-1]) > float(ema50.iloc[-1]) and (ema200 is None or current_price > float(ema200.iloc[-1])):
-            trend = "BULLISH"
-        elif current_price > float(ema20.iloc[-1]) > float(ema50.iloc[-1]):
+        # Determine trend (based on EMA alignment)
+        if current_price > float(ema20.iloc[-1]) > float(ema50.iloc[-1]):
             trend = "BULLISH"
         elif current_price < float(ema20.iloc[-1]) < float(ema50.iloc[-1]):
             trend = "BEARISH"
@@ -803,12 +809,46 @@ async def analyze_asset(
             signal_text = "STRONG SELL"
             signal_emoji = "🔴"
 
+        # ── Direction-aware risk plan ──────────────────────────────────────
+        # A SELL setup gets a short-side plan (SL above, TP below) instead of
+        # the long-only levels that used to accompany every signal.
+        is_short_setup = final_score < 40
+        if is_short_setup:
+            _sl      = current_price + atr * 2
+            _tp      = current_price - atr * 3
+            _sl_t    = current_price + atr
+            _tp_c    = current_price - atr * 1.5
+        else:
+            _sl      = current_price - atr * 2
+            _tp      = current_price + atr * 3
+            _sl_t    = current_price - atr
+            _tp_c    = current_price + atr * 1.5
+        _rr = abs(_tp - current_price) / abs(_sl - current_price) if abs(_sl - current_price) > 1e-9 else None
+        risk_block = {
+            "direction":                 "SHORT" if is_short_setup else "LONG",
+            "suggested_sl":              _safe(_sl, None, 2),
+            "suggested_tp":              _safe(_tp, None, 2),
+            "suggested_sl_tight":        _safe(_sl_t, None, 2),
+            "suggested_tp_conservative": _safe(_tp_c, None, 2),
+            "risk_reward":               _safe(_rr, 1.5, 2),
+            "atr_stop_pct":              _safe(atr / current_price * 200, None, 2),
+        }
+
         # Get fundamental data
+        # Fundamentals are best-effort: a Yahoo hiccup must not kill an
+        # otherwise computable technical analysis. `.info` is a blocking
+        # network call, so it runs in the executor too.
         import yfinance as yf
-        ticker = await asyncio.get_event_loop().run_in_executor(
-            None, lambda: yf.Ticker(symbol)
-        )
-        info = ticker.info or {}
+        try:
+            ticker = await asyncio.get_event_loop().run_in_executor(
+                None, lambda: yf.Ticker(symbol)
+            )
+            info = await asyncio.get_event_loop().run_in_executor(
+                None, lambda: ticker.info or {}
+            )
+        except Exception:
+            ticker = None
+            info = {}
 
         # Fundamental metrics
         fundamentals = {
@@ -854,7 +894,7 @@ async def analyze_asset(
         # Get recent news (handles both old and new yfinance formats)
         news_items = []
         try:
-            news = ticker.news[:5] if hasattr(ticker, 'news') and ticker.news else []
+            news = ticker.news[:5] if ticker is not None and getattr(ticker, 'news', None) else []
             for item in news:
                 content = item.get("content") or {}
                 provider = content.get("provider") or {}
@@ -1039,6 +1079,12 @@ async def analyze_asset(
                 "volatility": int(volatility_score),
                 "fundamental": fundamental_score,
                 "conviction": conviction_score,
+                "confidence": data_confidence(
+                    n_bars=len(close.dropna()),
+                    has_ema200=ema200 is not None,
+                    adx_valid=adx_val > 0,
+                    has_volume=bool(len(vol_clean)) and float(vol_clean.sum()) > 0,
+                ),
             },
             "conviction": {
                 "score": conviction_score,
@@ -1119,14 +1165,7 @@ async def analyze_asset(
                 "resistance": _safe(recent_high, None, 2),
                 "pivot":      _safe((recent_high + recent_low + current_price) / 3, None, 2),
             },
-            "risk": {
-                "suggested_sl":              _safe(current_price - (atr * 2), None, 2),
-                "suggested_tp":              _safe(current_price + (atr * 3), None, 2),
-                "suggested_sl_tight":        _safe(current_price - atr, None, 2),
-                "suggested_tp_conservative": _safe(current_price + (atr * 1.5), None, 2),
-                "risk_reward": 1.5,
-                "atr_stop_pct": _safe(atr / current_price * 200, None, 2),
-            },
+            "risk": risk_block,
             "fundamentals": fundamentals,
             "performance": performance,
             "volatility": {
@@ -1578,11 +1617,9 @@ async def scan_market(
             chg_1w = float((price - close.iloc[-5]) / close.iloc[-5] * 100) if n >= 5 else 0.0
             chg_1m = float((price - close.iloc[-22]) / close.iloc[-22] * 100) if n >= 22 else 0.0
 
-            # ── RSI ────────────────────────────────────────
-            delta = close.diff()
-            gain  = delta.where(delta > 0, 0.0).rolling(14).mean()
-            loss  = (-delta.where(delta < 0, 0.0)).rolling(14).mean()
-            rsi   = float(100 - 100 / (1 + gain.iloc[-1] / loss.iloc[-1])) if float(loss.iloc[-1]) > 0 else 50.0
+            # ── RSI — Wilder's smoothing, same engine as the full analysis ──
+            _rsi_last = rsi_wilder(close).iloc[-1]
+            rsi = float(_rsi_last) if not pd.isna(_rsi_last) else 50.0
 
             # ── MACD ───────────────────────────────────────
             ema12 = close.ewm(span=12, adjust=False).mean()
@@ -1770,11 +1807,6 @@ async def get_chart_data(
             status_code=403, detail="Cette fonctionnalité est réservée aux membres Premium"
         )
 
-    import pandas as pd
-    import numpy as np
-    from fastapi import HTTPException
-    from ._prices import fetch_ohlcv
-
     period_map = {
         "5m":  ("5d",   "5m"),
         "15m": ("10d",  "15m"),
@@ -1876,22 +1908,15 @@ async def get_chart_data(
         local_slope = 2 * coeffs2[0] * (n - 1) + coeffs2[1]
 
         # -- 2. ATR sur 14 périodes (volatilité réelle des traders) -----------
-        tr = pd.concat([
-            hist["High"] - hist["Low"],
-            (hist["High"] - hist["Close"].shift(1)).abs(),
-            (hist["Low"]  - hist["Close"].shift(1)).abs(),
-        ], axis=1).max(axis=1)
-        atr14 = float(tr.rolling(14).mean().iloc[-1])
-        if np.isnan(atr14) or atr14 == 0:
+        _atr_last = atr_wilder(hist["High"], hist["Low"], hist["Close"]).iloc[-1]
+        atr14 = float(_atr_last) if not pd.isna(_atr_last) else 0.0
+        if atr14 == 0:
             atr14 = float(close.std()) * 0.01
 
         # -- 3. Facteur RSI : dévie légèrement la trajectoire ----------------
         #    RSI > 60 → léger biais haussier, RSI < 40 → léger biais baissier
-        rsi_raw = 100 - 100 / (1 + (
-            close.diff().clip(lower=0).rolling(14).mean() /
-            (-close.diff().clip(upper=0).rolling(14).mean()).replace(0, 1e-9)
-        ))
-        current_rsi = float(rsi_raw.iloc[-1]) if not np.isnan(rsi_raw.iloc[-1]) else 50.0
+        _rsi_last = rsi_wilder(close).iloc[-1]
+        current_rsi = float(_rsi_last) if not pd.isna(_rsi_last) else 50.0
         momentum_bias = (current_rsi - 50) / 50 * atr14 * 0.15  # ±15 % d'ATR max
 
         # -- 4. Mean-reversion vers EMA20 ------------------------------------
