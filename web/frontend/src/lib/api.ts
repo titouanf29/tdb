@@ -238,11 +238,20 @@ export interface DailyIntentAsset {
   href: string;
 }
 
+export interface DailyIntentExchange {
+  message: string;
+  response: string;
+  suggestions: { label: string; href: string }[];
+  assets: DailyIntentAsset[];
+}
+
 export interface DailyIntentResult {
   intent: string | null;
   response: string | null;
   suggestions: { label: string; href: string }[];
   assets: DailyIntentAsset[];
+  exchanges: DailyIntentExchange[];
+  question: { text: string; options: string[] } | null;
   remaining: number;
 }
 

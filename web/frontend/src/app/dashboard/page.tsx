@@ -401,8 +401,8 @@ function DailyIntentWidget({ lang }: { lang: string }) {
     dailyIntentAPI.get().then(setData).catch(() => {}).finally(() => setIsLoading(false));
   }, []);
 
-  const submit = async () => {
-    const intent = input.trim();
+  const send = async (text: string) => {
+    const intent = text.trim();
     if (intent.length < 5 || isSubmitting) return;
     setIsSubmitting(true);
     setError("");
@@ -417,10 +417,13 @@ function DailyIntentWidget({ lang }: { lang: string }) {
       setIsSubmitting(false);
     }
   };
+  const submit = () => send(input);
 
   if (isLoading) return <div className="glass-card h-24 animate-pulse" />;
 
-  const hasAnswer = !!data?.response && !editing;
+  const exchanges = data?.exchanges ?? [];
+  const hasAnswer = exchanges.length > 0 && !editing;
+  const last = exchanges[exchanges.length - 1];
   const examples = fr ? INTENT_EXAMPLES_FR : INTENT_EXAMPLES_EN;
 
   return (
@@ -433,11 +436,10 @@ function DailyIntentWidget({ lang }: { lang: string }) {
             <Sparkles className="w-4 h-4 text-[hsl(var(--gold))]" />
           </div>
           <h2 className="font-semibold">{fr ? "Votre intention du jour" : "Your intent for today"}</h2>
-          {hasAnswer && (data?.remaining ?? 0) > 0 && (
-            <button onClick={() => { setEditing(true); setInput(data?.intent || ""); }}
-              className="ml-auto text-xs text-muted-foreground hover:text-foreground px-2.5 py-1 rounded-lg hover:bg-white/5 transition-colors">
-              {fr ? `Affiner (${data?.remaining} restant${(data?.remaining ?? 0) > 1 ? "s" : ""})` : `Refine (${data?.remaining} left)`}
-            </button>
+          {hasAnswer && (
+            <span className="ml-auto text-[11px] text-muted-foreground">
+              {fr ? `${data?.remaining} échange${(data?.remaining ?? 0) > 1 ? "s" : ""} restant${(data?.remaining ?? 0) > 1 ? "s" : ""}` : `${data?.remaining} left`}
+            </span>
           )}
         </div>
 
@@ -478,16 +480,21 @@ function DailyIntentWidget({ lang }: { lang: string }) {
           </>
         ) : (
           <div className="space-y-3">
-            <p className="text-xs text-muted-foreground italic">« {data?.intent} »</p>
-            <p className="text-sm leading-relaxed">{data?.response}</p>
+            {/* Conversation thread */}
+            {exchanges.map((ex, i) => (
+              <div key={i} className="space-y-1.5">
+                <p className="text-xs text-muted-foreground italic">« {ex.message} »</p>
+                <p className="text-sm leading-relaxed">{ex.response}</p>
+              </div>
+            ))}
 
-            {(data?.assets?.length ?? 0) > 0 && (
+            {(last?.assets?.length ?? 0) > 0 && (
               <div>
                 <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">
                   {fr ? "Actifs prometteurs pour votre demande" : "Promising assets for your request"}
                 </p>
                 <div className="flex flex-wrap gap-2">
-                  {data!.assets.map((a) => (
+                  {last.assets.map((a) => (
                     <Link key={a.symbol} href={a.href}
                       className="flex items-center gap-2.5 px-3 py-2 rounded-xl bg-white/4 hover:bg-white/8 border border-white/8 hover:border-primary/30 transition-all group">
                       <div>
@@ -506,9 +513,9 @@ function DailyIntentWidget({ lang }: { lang: string }) {
               </div>
             )}
 
-            {(data?.suggestions?.length ?? 0) > 0 && (
+            {(last?.suggestions?.length ?? 0) > 0 && (
               <div className="flex flex-wrap gap-2 pt-1">
-                {data!.suggestions.map((s) => (
+                {last.suggestions.map((s) => (
                   <Link key={s.href + s.label} href={s.href}
                     className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-primary/12 hover:bg-primary/20 border border-primary/25 text-primary text-sm font-semibold transition-all">
                     {s.label}
@@ -517,6 +524,41 @@ function DailyIntentWidget({ lang }: { lang: string }) {
                 ))}
               </div>
             )}
+
+            {/* Clarifying question with clickable options */}
+            {data?.question && (data?.remaining ?? 0) > 0 && (
+              <div className="pt-1">
+                <p className="text-sm text-muted-foreground mb-2">{data.question.text}</p>
+                <div className="flex flex-wrap gap-2">
+                  {data.question.options.map((opt) => (
+                    <button key={opt} onClick={() => send(opt)} disabled={isSubmitting}
+                      className="px-3.5 py-2 rounded-xl bg-[hsl(var(--gold)/0.10)] hover:bg-[hsl(var(--gold)/0.18)] border border-[hsl(var(--gold)/0.30)] text-sm font-semibold transition-all disabled:opacity-50">
+                      {opt}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Free-text reply */}
+            {(data?.remaining ?? 0) > 0 && (
+              <div className="flex gap-2 pt-1">
+                <input
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") submit(); }}
+                  maxLength={500}
+                  placeholder={fr ? "Répondre ou préciser…" : "Reply or refine…"}
+                  className="input flex-1 text-sm"
+                  disabled={isSubmitting}
+                />
+                <button onClick={submit} disabled={isSubmitting || input.trim().length < 5}
+                  className="btn-secondary flex items-center justify-center gap-2 text-sm disabled:opacity-50">
+                  {isSubmitting ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                </button>
+              </div>
+            )}
+            {error && <p className="text-xs text-loss">{error}</p>}
           </div>
         )}
       </div>

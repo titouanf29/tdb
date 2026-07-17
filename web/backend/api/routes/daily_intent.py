@@ -28,7 +28,7 @@ from ._prices import fetch_ohlcv
 router = APIRouter()
 limiter = Limiter(key_func=get_remote_address)
 
-MAX_INTENTS_PER_DAY = 3  # refinements allowed, but bounded (API cost control)
+MAX_INTENTS_PER_DAY = 8  # thread messages allowed per day, bounded (API cost control)
 
 SYSTEM_PROMPT = """Tu es le copilote de trading de CaptenTDB, une plateforme éducative de paper trading (argent 100% virtuel).
 L'utilisateur vient de te donner son intention pour aujourd'hui.
@@ -75,25 +75,58 @@ def suggest_actions(intent: str) -> list[dict]:
 ASSET_CANDIDATES: dict[str, list[tuple[str, str]]] = {
     "crypto": [("BTC-USD", "Bitcoin"), ("ETH-USD", "Ethereum"), ("SOL-USD", "Solana"), ("BNB-USD", "BNB")],
     "usa": [("AAPL", "Apple"), ("NVDA", "Nvidia"), ("MSFT", "Microsoft"), ("TSLA", "Tesla"), ("AMZN", "Amazon")],
+    "europe": [("MC.PA", "LVMH"), ("OR.PA", "L'Oréal"), ("AIR.PA", "Airbus"), ("SAP.DE", "SAP"), ("ASML.AS", "ASML")],
     "forex": [("EURUSD=X", "EUR/USD"), ("GBPUSD=X", "GBP/USD"), ("USDJPY=X", "USD/JPY")],
     "commodities": [("GC=F", "Or"), ("SI=F", "Argent"), ("CL=F", "Pétrole WTI")],
 }
 
 
-def detect_market(intent: str) -> str:
-    low = intent.lower()
+def detect_market_strict(text: str) -> str | None:
+    """Market explicitly named in the text, or None if ambiguous."""
+    low = text.lower()
     if any(k in low for k in ("crypto", "btc", "bitcoin", "eth", "sol ", "altcoin")):
         return "crypto"
     if any(k in low for k in ("forex", "eur/usd", "devise", "paire")):
         return "forex"
     if any(k in low for k in ("or ", "gold", "argent", "pétrole", "petrole", "matière", "matiere")):
         return "commodities"
-    if any(k in low for k in ("action", "bourse", "nasdaq", "sp500", "s&p", "us ", "américain", "americain")):
+    if any(k in low for k in ("europe", "européen", "europeen", "cac", "paris", "français", "francais", "dax")):
+        return "europe"
+    if any(k in low for k in ("action", "bourse", "nasdaq", "sp500", "s&p", "us ", "américain", "americain", "wall street")):
         return "usa"
+    return None
+
+
+def detect_market(text: str) -> str:
+    strict = detect_market_strict(text)
+    if strict:
+        return strict
+    low = text.lower()
     # Day trading / scalping without a market → crypto (open 24/7, always tradable)
     if any(k in low for k in ("day trading", "daytrading", "scalp", "intraday", "aujourd")):
         return "crypto"
     return "usa"
+
+
+STYLE_KEYWORDS = ("day trading", "daytrading", "scalp", "intraday", "swing",
+                  "long terme", "apprendre", "apprentissage", "formation")
+
+
+def clarifying_question(combined: str) -> dict | None:
+    """Server-side follow-up: when the thread is still ambiguous, offer
+    clickable options instead of making the user type."""
+    low = combined.lower()
+    if detect_market_strict(combined) is None:
+        return {
+            "text": "Pour mieux cibler : plutôt quel univers aujourd'hui ?",
+            "options": ["Actions Europe", "Actions US", "Crypto", "Forex"],
+        }
+    if not any(k in low for k in STYLE_KEYWORDS):
+        return {
+            "text": "Et plutôt quel style de session ?",
+            "options": ["Day trading", "Swing sur plusieurs jours", "Je veux surtout apprendre"],
+        }
+    return None
 
 
 def _signal_label(score: int) -> str:
@@ -184,28 +217,34 @@ def _today() -> str:
 async def get_daily_intent(current_user: dict = Depends(get_current_user)):
     await _ensure_table()
     rows = await execute_query(
-        "SELECT intent, response, suggestions, assets, created_at FROM daily_intents WHERE user_id = ? AND date = ? ORDER BY id DESC LIMIT 1",
+        "SELECT intent, response, suggestions, assets, created_at FROM daily_intents WHERE user_id = ? AND date = ? ORDER BY id ASC",
         (current_user["id"], _today()),
     )
-    count_rows = await execute_query(
-        "SELECT COUNT(*) as n FROM daily_intents WHERE user_id = ? AND date = ?",
-        (current_user["id"], _today()),
-    )
-    used = int(count_rows[0]["n"]) if count_rows else 0
-    if not rows:
-        return {"intent": None, "response": None, "suggestions": [], "assets": [], "remaining": MAX_INTENTS_PER_DAY - used}
-    r = rows[0]
-    def _load(col):
+    return _thread_payload(rows)
+
+
+def _thread_payload(rows) -> dict:
+    def _load(r, col):
         try:
             return json.loads(r[col])
         except Exception:
             return []
-    return {
-        "intent": r["intent"],
+    exchanges = [{
+        "message": r["intent"],
         "response": r["response"],
-        "suggestions": _load("suggestions"),
-        "assets": _load("assets"),
-        "remaining": max(0, MAX_INTENTS_PER_DAY - used),
+        "suggestions": _load(r, "suggestions"),
+        "assets": _load(r, "assets"),
+    } for r in rows]
+    combined = " ".join(r["intent"] for r in rows)
+    return {
+        "exchanges": exchanges,
+        "question": clarifying_question(combined) if exchanges else None,
+        "remaining": max(0, MAX_INTENTS_PER_DAY - len(exchanges)),
+        # Back-compat convenience: last exchange flattened
+        "intent": exchanges[-1]["message"] if exchanges else None,
+        "response": exchanges[-1]["response"] if exchanges else None,
+        "suggestions": exchanges[-1]["suggestions"] if exchanges else [],
+        "assets": exchanges[-1]["assets"] if exchanges else [],
     }
 
 
@@ -231,6 +270,12 @@ async def set_daily_intent(
             detail="Vous avez déjà affiné votre intention 3 fois aujourd'hui — place à l'action !",
         )
 
+    # Conversation context: today's previous exchanges
+    prev_rows = await execute_query(
+        "SELECT intent, response FROM daily_intents WHERE user_id = ? AND date = ? ORDER BY id ASC",
+        (user_id, today),
+    )
+
     messages = [{"role": "system", "content": SYSTEM_PROMPT}]
     try:
         from ..services.market_hours import build_market_context
@@ -239,13 +284,19 @@ async def set_daily_intent(
         pass
     level = current_user.get("trading_level") or "beginner"
     messages.append({"role": "system", "content": f"Niveau de l'utilisateur : {level}."})
+    for r in prev_rows:
+        messages.append({"role": "user", "content": r["intent"]})
+        messages.append({"role": "assistant", "content": r["response"]})
     messages.append({"role": "user", "content": body.intent})
+
+    # Market/style/assets derive from the WHOLE thread, not just this message
+    combined = " ".join([r["intent"] for r in prev_rows] + [body.intent])
 
     import asyncio as _asyncio
     response_text = await _generate_response(messages)
-    suggestions = suggest_actions(body.intent)
+    suggestions = suggest_actions(combined)
     try:
-        assets = await _asyncio.wait_for(pick_assets(body.intent), timeout=25)
+        assets = await _asyncio.wait_for(pick_assets(combined), timeout=25)
     except Exception:
         assets = []
 
@@ -257,10 +308,8 @@ async def set_daily_intent(
          datetime.now(timezone.utc).isoformat()),
     )
 
-    return {
-        "intent": body.intent,
-        "response": response_text,
-        "suggestions": suggestions,
-        "assets": assets,
-        "remaining": max(0, MAX_INTENTS_PER_DAY - used - 1),
-    }
+    rows = await execute_query(
+        "SELECT intent, response, suggestions, assets, created_at FROM daily_intents WHERE user_id = ? AND date = ? ORDER BY id ASC",
+        (user_id, today),
+    )
+    return _thread_payload(rows)
