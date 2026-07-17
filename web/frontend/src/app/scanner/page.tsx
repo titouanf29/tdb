@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 import { cn, formatPercent } from "@/lib/utils";
 import { analysisAPI, marketAPI, Market, ScanResultItem, ScanQuota, missionsAPI } from "@/lib/api";
+import { DailyIntentWidget } from "@/components/dashboard/DailyIntentWidget";
 import { useFormatPrice } from "@/lib/SettingsContext";
 import { useLanguage } from "@/lib/LanguageContext";
 import { HelpGuide } from "@/components/ui/HelpGuide";
@@ -305,6 +306,9 @@ export default function ScannerPage() {
             </div>
           </div>
         </div>
+
+        {/* Intention du jour — l'IA transforme la demande en scan ciblé */}
+        <DailyIntentWidget lang={lang} />
 
         {/* Stats row */}
         {results.length > 0 && (
