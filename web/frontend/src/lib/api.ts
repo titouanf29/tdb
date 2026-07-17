@@ -229,6 +229,33 @@ export interface BacktestResult {
   disclaimer: string;
 }
 
+// Daily intent — "volonté du jour" AI space on the dashboard
+export interface DailyIntentAsset {
+  symbol: string;
+  name: string;
+  score: number;
+  signal: string;
+  href: string;
+}
+
+export interface DailyIntentResult {
+  intent: string | null;
+  response: string | null;
+  suggestions: { label: string; href: string }[];
+  assets: DailyIntentAsset[];
+  remaining: number;
+}
+
+export const dailyIntentAPI = {
+  get: () => fetchAPI<DailyIntentResult>("/api/ai/daily-intent"),
+  set: (intent: string) =>
+    fetchAPI<DailyIntentResult>("/api/ai/daily-intent", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ intent }),
+    }),
+};
+
 // Analysis API
 export const analysisAPI = {
   analyze: (symbol: string, timeframe = "1d") =>
