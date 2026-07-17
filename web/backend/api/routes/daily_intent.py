@@ -171,10 +171,16 @@ async def _ensure_table() -> None:
             response TEXT NOT NULL,
             suggestions TEXT NOT NULL DEFAULT '[]',
             assets TEXT NOT NULL DEFAULT '[]',
+            archived INTEGER NOT NULL DEFAULT 0,
             created_at TEXT NOT NULL
         )""",
         (),
     )
+    # Migration for tables created before the reset feature
+    try:
+        await execute_write("ALTER TABLE daily_intents ADD COLUMN archived INTEGER NOT NULL DEFAULT 0", ())
+    except Exception:
+        pass  # column already exists
 
 
 async def _generate_response(messages: list) -> str:
@@ -217,13 +223,24 @@ def _today() -> str:
 async def get_daily_intent(current_user: dict = Depends(get_current_user)):
     await _ensure_table()
     rows = await execute_query(
-        "SELECT intent, response, suggestions, assets, created_at FROM daily_intents WHERE user_id = ? AND date = ? ORDER BY id ASC",
+        "SELECT intent, response, suggestions, assets, created_at FROM daily_intents WHERE user_id = ? AND date = ? AND archived = 0 ORDER BY id ASC",
         (current_user["id"], _today()),
     )
-    return _thread_payload(rows)
+    used = await _used_today(current_user["id"])
+    return _thread_payload(rows, used)
 
 
-def _thread_payload(rows) -> dict:
+async def _used_today(user_id: int) -> int:
+    """Quota counts every message sent today, archived or not — resetting
+    the conversation must not refill the daily LLM budget."""
+    rows = await execute_query(
+        "SELECT COUNT(*) as n FROM daily_intents WHERE user_id = ? AND date = ?",
+        (user_id, _today()),
+    )
+    return int(rows[0]["n"]) if rows else 0
+
+
+def _thread_payload(rows, used: int) -> dict:
     def _load(r, col):
         try:
             return json.loads(r[col])
@@ -239,7 +256,7 @@ def _thread_payload(rows) -> dict:
     return {
         "exchanges": exchanges,
         "question": clarifying_question(combined) if exchanges else None,
-        "remaining": max(0, MAX_INTENTS_PER_DAY - len(exchanges)),
+        "remaining": max(0, MAX_INTENTS_PER_DAY - used),
         # Back-compat convenience: last exchange flattened
         "intent": exchanges[-1]["message"] if exchanges else None,
         "response": exchanges[-1]["response"] if exchanges else None,
@@ -259,20 +276,16 @@ async def set_daily_intent(
     user_id = current_user["id"]
     today = _today()
 
-    count_rows = await execute_query(
-        "SELECT COUNT(*) as n FROM daily_intents WHERE user_id = ? AND date = ?",
-        (user_id, today),
-    )
-    used = int(count_rows[0]["n"]) if count_rows else 0
+    used = await _used_today(user_id)
     if used >= MAX_INTENTS_PER_DAY:
         raise HTTPException(
             status_code=429,
-            detail="Vous avez déjà affiné votre intention 3 fois aujourd'hui — place à l'action !",
+            detail="Budget d'échanges du jour épuisé — place à l'action, on se retrouve demain !",
         )
 
-    # Conversation context: today's previous exchanges
+    # Conversation context: today's previous (non-archived) exchanges
     prev_rows = await execute_query(
-        "SELECT intent, response FROM daily_intents WHERE user_id = ? AND date = ? ORDER BY id ASC",
+        "SELECT intent, response FROM daily_intents WHERE user_id = ? AND date = ? AND archived = 0 ORDER BY id ASC",
         (user_id, today),
     )
 
@@ -309,7 +322,23 @@ async def set_daily_intent(
     )
 
     rows = await execute_query(
-        "SELECT intent, response, suggestions, assets, created_at FROM daily_intents WHERE user_id = ? AND date = ? ORDER BY id ASC",
+        "SELECT intent, response, suggestions, assets, created_at FROM daily_intents WHERE user_id = ? AND date = ? AND archived = 0 ORDER BY id ASC",
         (user_id, today),
     )
-    return _thread_payload(rows)
+    return _thread_payload(rows, await _used_today(user_id))
+
+
+@router.delete("/daily-intent")
+@limiter.limit("10/minute")
+async def reset_daily_intent(
+    request: Request,
+    current_user: dict = Depends(get_current_user),
+):
+    """Revenir à zéro: archive today's thread (keeps the daily quota spent)."""
+    await _ensure_table()
+    await execute_write(
+        "UPDATE daily_intents SET archived = 1 WHERE user_id = ? AND date = ? AND archived = 0",
+        (current_user["id"], _today()),
+    )
+    used = await _used_today(current_user["id"])
+    return _thread_payload([], used)

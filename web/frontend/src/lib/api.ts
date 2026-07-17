@@ -263,6 +263,8 @@ export const dailyIntentAPI = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ intent }),
     }),
+  reset: () =>
+    fetchAPI<DailyIntentResult>("/api/ai/daily-intent", { method: "DELETE" }),
 };
 
 // Analysis API

@@ -437,9 +437,25 @@ function DailyIntentWidget({ lang }: { lang: string }) {
           </div>
           <h2 className="font-semibold">{fr ? "Votre intention du jour" : "Your intent for today"}</h2>
           {hasAnswer && (
-            <span className="ml-auto text-[11px] text-muted-foreground">
-              {fr ? `${data?.remaining} échange${(data?.remaining ?? 0) > 1 ? "s" : ""} restant${(data?.remaining ?? 0) > 1 ? "s" : ""}` : `${data?.remaining} left`}
-            </span>
+            <div className="ml-auto flex items-center gap-2">
+              <span className="text-[11px] text-muted-foreground">
+                {fr ? `${data?.remaining} échange${(data?.remaining ?? 0) > 1 ? "s" : ""} restant${(data?.remaining ?? 0) > 1 ? "s" : ""}` : `${data?.remaining} left`}
+              </span>
+              <button
+                onClick={async () => {
+                  if (isSubmitting) return;
+                  setIsSubmitting(true);
+                  try { setData(await dailyIntentAPI.reset()); setInput(""); setError(""); }
+                  catch { /* ignore */ }
+                  finally { setIsSubmitting(false); }
+                }}
+                title={fr ? "Effacer la conversation et repartir de zéro (le budget du jour reste décompté)" : "Clear the conversation and start over (daily budget stays spent)"}
+                className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground px-2.5 py-1 rounded-lg hover:bg-white/8 border border-white/8 transition-colors"
+              >
+                <RefreshCw className="w-3 h-3" />
+                {fr ? "Revenir à zéro" : "Start over"}
+              </button>
+            </div>
           )}
         </div>
 
