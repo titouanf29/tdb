@@ -26,7 +26,10 @@ export async function middleware(request: NextRequest) {
 
   let body: ArrayBuffer | undefined;
   if (request.method !== "GET" && request.method !== "HEAD") {
-    body = await request.arrayBuffer();
+    const buf = await request.arrayBuffer();
+    // Only attach a real body: an empty body on DELETE makes the Edge
+    // runtime's fetch throw, which surfaced as a 502 on every DELETE
+    if (buf.byteLength > 0) body = buf;
   }
 
   try {
