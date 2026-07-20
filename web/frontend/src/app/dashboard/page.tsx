@@ -1196,9 +1196,22 @@ const DashAIChatWidget = memo(function DashAIChatWidget() {
   const clearHistory = async () => {
     if (isClearing) return;
     setIsClearing(true);
-    try { await aiAPI.clearHistory(); } catch { /* API error — still clear locally */ }
-    setMessages([]);
-    setIsClearing(false);
+    try {
+      // Only clear the display once the server confirmed the deletion —
+      // otherwise the history silently comes back on the next load
+      await aiAPI.clearHistory();
+      setMessages([]);
+    } catch {
+      setMessages(prev => [...prev, {
+        role: "assistant",
+        content: lang === "fr"
+          ? "❌ Impossible d'effacer l'historique — réessayez."
+          : "❌ Could not clear history — please retry.",
+        created_at: new Date().toISOString(),
+      }]);
+    } finally {
+      setIsClearing(false);
+    }
   };
 
   const QUICK_PROMPTS = lang === "fr"

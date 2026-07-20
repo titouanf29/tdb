@@ -218,8 +218,14 @@ export default function AssistantPage() {
     try {
       await aiAPI.clearHistory();
       setMessages([]);
-    } catch (error) {
-      console.error("Error clearing history:", error);
+    } catch {
+      setMessages((prev) => [...prev, {
+        role: "assistant",
+        content: lang === "en"
+          ? "❌ Could not clear history — please retry."
+          : "❌ Impossible d'effacer l'historique — réessayez.",
+        created_at: new Date().toISOString(),
+      }]);
     }
   };
 
