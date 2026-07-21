@@ -203,6 +203,31 @@ export const settingsAPI = {
 };
 
 // Backtest — walk-forward replay of the scoring engine on history
+// Price alerts — "préviens-moi quand X franchit Y"
+export interface PriceAlert {
+  id: number;
+  symbol: string;
+  direction: "above" | "below";
+  target: number;
+  note: string;
+  status: "active" | "triggered";
+  created_at: string;
+  triggered_at: string | null;
+  triggered_price: number | null;
+}
+
+export const alertsAPI = {
+  list: () => fetchAPI<{ alerts: PriceAlert[] }>("/api/alerts"),
+  create: (symbol: string, direction: "above" | "below", target: number, note = "") =>
+    fetchAPI<PriceAlert>("/api/alerts", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ symbol, direction, target, note }),
+    }),
+  remove: (id: number) => fetchAPI<{ ok: boolean }>(`/api/alerts/${id}`, { method: "DELETE" }),
+  check: () => fetchAPI<{ triggered: PriceAlert[]; active_count: number }>("/api/alerts/check", { method: "POST" }),
+};
+
 // Welcome-back recap — "ce qui a bougé depuis votre dernière visite"
 export interface WelcomeBackPositionMove {
   symbol: string;

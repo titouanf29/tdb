@@ -13,6 +13,7 @@ import { ChangelogBanner } from "./ChangelogBanner";
 import { OnboardingModal } from "@/components/onboarding/OnboardingModal";
 import { OnboardingTour } from "@/components/OnboardingTour";
 import { CoachOverlay } from "@/components/CoachAlex";
+import { PriceAlertWatcher } from "@/components/PriceAlertWatcher";
 import { Loader2, Wrench } from "lucide-react";
 import type { TradingLevel } from "@/lib/auth";
 
@@ -253,6 +254,8 @@ function AuthShell({
       />
 
       <CoachOverlay />
+
+      <PriceAlertWatcher />
 
       {mobileMenuOpen && (
         <div

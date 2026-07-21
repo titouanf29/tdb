@@ -53,9 +53,10 @@ import {
   GraduationCap,
   X,
   Bot,
+  Bell,
 } from "lucide-react";
 import { cn, formatPercent } from "@/lib/utils";
-import { analysisAPI, favoritesAPI, aiAPI, marketAPI, Analysis, portfolioAPI, RealPosition, missionsAPI, BacktestResult } from "@/lib/api";
+import { analysisAPI, favoritesAPI, aiAPI, marketAPI, Analysis, portfolioAPI, RealPosition, missionsAPI, BacktestResult, alertsAPI, PriceAlert } from "@/lib/api";
 import { getAssetInfo, getAssetLogo } from "@/lib/assetInfo";
 import { useFormatCurrency, useFormatPrice, useSettings } from "@/lib/SettingsContext";
 import { authHeaders } from "@/lib/auth";
@@ -1195,6 +1196,15 @@ export default function AnalysisPage() {
           <div id="section-chart" className="scroll-mt-16" data-module-id="main-chart">
             <PremiumChart symbol={analysis.symbol} timeframe={timeframe} />
           </div>
+
+          {/* Alerte de prix */}
+          <PriceAlertSection
+            symbol={analysis.symbol}
+            currentPrice={analysis.price.current}
+            support={analysis.levels.support}
+            resistance={analysis.levels.resistance}
+            formatCurrency={formatPrice}
+          />
 
           {/* Trade Window */}
           <div id="section-window" className="scroll-mt-16">
@@ -4788,6 +4798,129 @@ function TradingStrategiesSection({ analysis, formatCurrency }: { analysis: Anal
 }
 
 // News Section with Sentiment
+// ── Alerte de prix ───────────────────────────────────────────────────────────
+function PriceAlertSection({
+  symbol, currentPrice, support, resistance, formatCurrency,
+}: {
+  symbol: string; currentPrice: number; support: number; resistance: number;
+  formatCurrency: (v: number, symbol: string) => string;
+}) {
+  const { lang } = useLanguage();
+  const fr = lang !== "en";
+  const [alerts, setAlerts] = useState<PriceAlert[]>([]);
+  const [direction, setDirection] = useState<"above" | "below">("above");
+  const [target, setTarget] = useState<string>("");
+  const [note, setNote] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  const load = () => alertsAPI.list().then(d => setAlerts(d.alerts.filter(a => a.symbol === symbol))).catch(() => {});
+  useEffect(() => { setError(""); load(); /* eslint-disable-next-line */ }, [symbol]);
+
+  // Smart default target: resistance for "above", support for "below"
+  useEffect(() => {
+    const smart = direction === "above" ? resistance : support;
+    if (smart) setTarget(String(Number(smart.toFixed(smart < 10 ? 4 : 2))));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [direction, symbol]);
+
+  const create = async () => {
+    const t = parseFloat(target);
+    if (!t || t <= 0 || busy) return;
+    setBusy(true); setError("");
+    try {
+      await alertsAPI.create(symbol, direction, t, note.trim());
+      setNote("");
+      load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : (fr ? "Erreur" : "Error"));
+    } finally { setBusy(false); }
+  };
+
+  const remove = async (id: number) => {
+    setAlerts(a => a.filter(x => x.id !== id));
+    try { await alertsAPI.remove(id); } catch { load(); }
+  };
+
+  const activeAlerts = alerts.filter(a => a.status === "active");
+  const distancePct = target ? ((parseFloat(target) - currentPrice) / currentPrice * 100) : 0;
+
+  return (
+    <div className="glass-card p-5" data-module-id="price-alert">
+      <div className="flex items-center gap-2.5 mb-1">
+        <div className="w-8 h-8 rounded-xl bg-[hsl(var(--gold)/0.15)] border border-[hsl(var(--gold)/0.25)] flex items-center justify-center flex-shrink-0">
+          <Bell className="w-4 h-4 text-[hsl(var(--gold))]" />
+        </div>
+        <h2 className="font-semibold">{fr ? "Alerte de prix" : "Price alert"}</h2>
+        <span className="ml-auto text-xs text-muted-foreground">
+          {fr ? "Cours actuel " : "Now "}<span className="font-mono font-semibold text-foreground">{formatCurrency(currentPrice, symbol)}</span>
+        </span>
+      </div>
+      <p className="text-xs text-muted-foreground mb-4">
+        {fr ? "Soyez prévenu·e dès que le cours franchit votre cible — la notification s'affiche pendant que vous êtes sur le site."
+            : "Get notified the moment the price crosses your target — the alert shows while you're on the site."}
+      </p>
+
+      <div className="flex flex-col sm:flex-row gap-2">
+        <div className="flex rounded-xl bg-white/5 border border-white/10 p-0.5">
+          <button onClick={() => setDirection("above")}
+            className={cn("flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all",
+              direction === "above" ? "bg-profit/15 text-profit" : "text-muted-foreground hover:text-foreground")}>
+            <TrendingUp className="w-3.5 h-3.5" />{fr ? "Au-dessus" : "Above"}
+          </button>
+          <button onClick={() => setDirection("below")}
+            className={cn("flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all",
+              direction === "below" ? "bg-loss/15 text-loss" : "text-muted-foreground hover:text-foreground")}>
+            <TrendingDown className="w-3.5 h-3.5" />{fr ? "En dessous" : "Below"}
+          </button>
+        </div>
+        <input
+          type="number" value={target} onChange={(e) => setTarget(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter") create(); }}
+          placeholder={fr ? "Prix cible" : "Target price"}
+          className="input flex-1 text-sm tabular-nums" />
+        <button onClick={create} disabled={busy || !target}
+          className="btn-primary flex items-center justify-center gap-2 text-sm disabled:opacity-50 whitespace-nowrap">
+          <Bell className="w-4 h-4" />{fr ? "Créer l'alerte" : "Create alert"}
+        </button>
+      </div>
+      <div className="flex items-center gap-3 mt-2">
+        <input value={note} onChange={(e) => setNote(e.target.value)} maxLength={140}
+          placeholder={fr ? "Note (optionnel) : ex. cassure de résistance" : "Note (optional): e.g. resistance breakout"}
+          className="input flex-1 text-xs" />
+        {target && Math.abs(distancePct) > 0.05 && (
+          <span className={cn("text-xs whitespace-nowrap tabular-nums", distancePct >= 0 ? "text-profit" : "text-loss")}>
+            {distancePct >= 0 ? "+" : ""}{distancePct.toFixed(1)}% {fr ? "du cours" : "away"}
+          </span>
+        )}
+      </div>
+      {error && <p className="text-xs text-loss mt-2">{error}</p>}
+
+      {activeAlerts.length > 0 && (
+        <div className="mt-4 pt-4 border-t border-white/8 space-y-2">
+          <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+            {fr ? `Alertes actives sur ${symbol}` : `Active alerts on ${symbol}`}
+          </p>
+          {activeAlerts.map((a) => (
+            <div key={a.id} className="flex items-center gap-2.5 px-3 py-2 rounded-xl bg-white/4 border border-white/8">
+              <span className={cn("inline-flex items-center gap-1 text-xs font-semibold",
+                a.direction === "above" ? "text-profit" : "text-loss")}>
+                {a.direction === "above" ? <TrendingUp className="w-3.5 h-3.5" /> : <TrendingDown className="w-3.5 h-3.5" />}
+                {a.direction === "above" ? (fr ? "≥" : "≥") : "≤"} {formatCurrency(a.target, symbol)}
+              </span>
+              {a.note && <span className="text-xs text-muted-foreground truncate italic">« {a.note} »</span>}
+              <button onClick={() => remove(a.id)}
+                className="ml-auto p-1 rounded-lg text-muted-foreground hover:text-loss hover:bg-white/10 transition-colors flex-shrink-0">
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Backtest : fiabilité historique du score ─────────────────────────────────
 function BacktestSection({
   symbol, timeframe, currentScore,
