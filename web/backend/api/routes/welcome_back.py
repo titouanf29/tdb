@@ -193,10 +193,14 @@ async def welcome_back(
                     continue
                 base = bp.get("price") or 0
                 pct = ((p["price"] - base) / base * 100) if base else 0
+                pnl_delta = round(p["pnl"] - bp.get("pnl", 0), 2)
+                # A position that didn't move is not "a move" — skip the flat ones
+                if abs(pct) < MIN_MOVE_PCT and abs(pnl_delta) < 0.5:
+                    continue
                 position_moves.append({
                     "symbol": p["symbol"],
                     "pnl_now": p["pnl"], "pnl_before": bp.get("pnl", 0),
-                    "pnl_delta": round(p["pnl"] - bp.get("pnl", 0), 2),
+                    "pnl_delta": pnl_delta,
                     "price_now": p["price"], "price_before": base,
                     "pct_move": round(pct, 2),
                 })
@@ -232,8 +236,12 @@ async def welcome_back(
             position_moves.sort(key=lambda m: -abs(m["pct_move"]))
             favorite_moves.sort(key=lambda m: -abs(m["pct_move"]))
 
-            # Only surface a recap if something actually moved (or there is P&L to show)
-            if position_moves or favorite_moves or abs(equity_delta) >= 0.01:
+            # Only surface a recap when something MEANINGFUL moved — never a
+            # near-flat "0%" card. Either the portfolio shifted ≥0.1%, or at
+            # least one asset moved ≥0.3%.
+            max_move = max([abs(m["pct_move"]) for m in position_moves + favorite_moves], default=0.0)
+            meaningful = abs(equity_pct) >= 0.1 or max_move >= 0.3
+            if meaningful:
                 result = {
                     "has_summary": True,
                     "first_name": name,

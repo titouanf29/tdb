@@ -259,16 +259,10 @@ export interface WelcomeBackResult {
 }
 
 export const welcomeBackAPI = {
+  // Compares the portfolio to the last time the dashboard was opened; the
+  // endpoint refreshes that baseline on each call, so a recap only appears
+  // after a real absence and never replays on refresh.
   get: (lang = "fr") => fetchAPI<WelcomeBackResult>(`/api/dashboard/welcome-back?lang=${lang}`),
-  // Fire-and-forget on tab hide / unload. sendBeacon can't carry the auth
-  // header, so we use fetch with keepalive (survives the page unload).
-  ping: () => {
-    try {
-      fetch(`${API_URL}/api/dashboard/activity`, {
-        method: "POST", headers: { ...authHeaders() }, keepalive: true,
-      }).catch(() => {});
-    } catch { /* ignore */ }
-  },
 };
 
 export interface BacktestBucket {

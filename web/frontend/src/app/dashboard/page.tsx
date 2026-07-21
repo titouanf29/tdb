@@ -185,7 +185,9 @@ export default function DashboardPage() {
     return () => { if (dashRefreshIntervalRef.current) clearInterval(dashRefreshIntervalRef.current); };
   }, [dashRefreshRate, loadData]);
 
-  // ── Welcome-back recap: play once on return, freeze baseline when leaving ──
+  // ── Welcome-back recap: compares vs the last time you opened the dashboard.
+  //    The endpoint refreshes that baseline on each call, so a recap appears
+  //    only after a real absence (≥30 min) and never replays on refresh. ──
   useEffect(() => {
     if (typeof window !== "undefined" && sessionStorage.getItem("tdb_welcome_shown")) return;
     welcomeBackAPI.get(lang).then(res => {
@@ -194,14 +196,6 @@ export default function DashboardPage() {
         sessionStorage.setItem("tdb_welcome_shown", "1");
       }
     }).catch(() => {});
-    // Freeze the portfolio baseline when the user leaves / hides the tab
-    const onHide = () => { if (document.visibilityState === "hidden") welcomeBackAPI.ping(); };
-    document.addEventListener("visibilitychange", onHide);
-    window.addEventListener("pagehide", welcomeBackAPI.ping);
-    return () => {
-      document.removeEventListener("visibilitychange", onHide);
-      window.removeEventListener("pagehide", welcomeBackAPI.ping);
-    };
   }, [lang]);
 
   const avgFavChange = useMemo(() =>
