@@ -203,6 +203,49 @@ export const settingsAPI = {
 };
 
 // Backtest — walk-forward replay of the scoring engine on history
+// Welcome-back recap — "ce qui a bougé depuis votre dernière visite"
+export interface WelcomeBackPositionMove {
+  symbol: string;
+  pnl_now: number;
+  pnl_before: number;
+  pnl_delta: number;
+  price_now: number;
+  price_before: number;
+  pct_move: number;
+}
+export interface WelcomeBackFavoriteMove {
+  symbol: string;
+  price_now: number;
+  price_before: number;
+  pct_move: number;
+}
+export interface WelcomeBackResult {
+  has_summary: boolean;
+  first_name?: string;
+  away_minutes?: number;
+  away_label?: string;
+  currency?: string;
+  equity?: { now: number; before: number; change: number; change_pct: number };
+  positions?: WelcomeBackPositionMove[];
+  favorites?: WelcomeBackFavoriteMove[];
+  best?: { symbol: string; pct: number } | null;
+  worst?: { symbol: string; pct: number } | null;
+  message?: string;
+}
+
+export const welcomeBackAPI = {
+  get: (lang = "fr") => fetchAPI<WelcomeBackResult>(`/api/dashboard/welcome-back?lang=${lang}`),
+  // Fire-and-forget on tab hide / unload. sendBeacon can't carry the auth
+  // header, so we use fetch with keepalive (survives the page unload).
+  ping: () => {
+    try {
+      fetch(`${API_URL}/api/dashboard/activity`, {
+        method: "POST", headers: { ...authHeaders() }, keepalive: true,
+      }).catch(() => {});
+    } catch { /* ignore */ }
+  },
+};
+
 export interface BacktestBucket {
   label: string;
   range: [number, number];

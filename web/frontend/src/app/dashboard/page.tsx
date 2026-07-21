@@ -12,15 +12,16 @@ import {
 } from "lucide-react";
 import { cn, formatPercent } from "@/lib/utils";
 import {
-  walletAPI, favoritesAPI, adminAPI, aiAPI, marketAPI, missionsAPI, dailyIntentAPI,
+  walletAPI, favoritesAPI, adminAPI, aiAPI, marketAPI, missionsAPI, dailyIntentAPI, welcomeBackAPI,
   WalletBalance, TradingStats, Favorite, MarketNews, SummaryPoint, Position,
-  ChatMessage, AILimitStatus, DailyIntentResult,
+  ChatMessage, AILimitStatus, DailyIntentResult, WelcomeBackResult,
 } from "@/lib/api";
 import { useFormatCurrency, useFormatPrice } from "@/lib/SettingsContext";
 import { usePremium } from "@/lib/PremiumContext";
 import { useLanguage } from "@/lib/LanguageContext";
 import { useAuth } from "@/lib/AuthContext";
 import { DailyIntentWidget } from "@/components/dashboard/DailyIntentWidget";
+import { WelcomeBackModal } from "@/components/dashboard/WelcomeBackModal";
 import { getAssetInfo, getAssetLogo } from "@/lib/assetInfo";
 import dynamic from "next/dynamic";
 
@@ -126,6 +127,7 @@ export default function DashboardPage() {
   const [favFilter, setFavFilter]           = useState<"all" | "profit" | "loss">("all");
   const [newsFilter, setNewsFilter]         = useState<"all" | "mine">("all");
   const [activeWidgets, setActiveWidgets]   = useState<WidgetId[]>(DEFAULT_WIDGETS);
+  const [welcomeBack, setWelcomeBack]       = useState<WelcomeBackResult | null>(null);
   const [editMode, setEditMode]             = useState(false);
   const [dashRefreshRate, setDashRefreshRate] = useState(180_000);
   const dashRefreshIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -183,6 +185,25 @@ export default function DashboardPage() {
     return () => { if (dashRefreshIntervalRef.current) clearInterval(dashRefreshIntervalRef.current); };
   }, [dashRefreshRate, loadData]);
 
+  // ── Welcome-back recap: play once on return, freeze baseline when leaving ──
+  useEffect(() => {
+    if (typeof window !== "undefined" && sessionStorage.getItem("tdb_welcome_shown")) return;
+    welcomeBackAPI.get(lang).then(res => {
+      if (res.has_summary) {
+        setWelcomeBack(res);
+        sessionStorage.setItem("tdb_welcome_shown", "1");
+      }
+    }).catch(() => {});
+    // Freeze the portfolio baseline when the user leaves / hides the tab
+    const onHide = () => { if (document.visibilityState === "hidden") welcomeBackAPI.ping(); };
+    document.addEventListener("visibilitychange", onHide);
+    window.addEventListener("pagehide", welcomeBackAPI.ping);
+    return () => {
+      document.removeEventListener("visibilitychange", onHide);
+      window.removeEventListener("pagehide", welcomeBackAPI.ping);
+    };
+  }, [lang]);
+
   const avgFavChange = useMemo(() =>
     favorites.length > 0
       ? favorites.filter(f => !f.error).reduce((s, f) => s + f.change, 0) / Math.max(1, favorites.filter(f => !f.error).length)
@@ -220,6 +241,16 @@ export default function DashboardPage() {
 
   return (
     <motion.div variants={containerVariants} initial="hidden" animate="show" className="space-y-4">
+
+      {/* ── Welcome-back recap (plays once on return) ───────────────────────── */}
+      {welcomeBack?.has_summary && (
+        <WelcomeBackModal
+          data={welcomeBack}
+          lang={lang}
+          formatCurrency={formatCurrency}
+          onClose={() => setWelcomeBack(null)}
+        />
+      )}
 
       {/* ── Greeting ────────────────────────────────────────────────────────── */}
       <motion.div variants={itemVariants}>
