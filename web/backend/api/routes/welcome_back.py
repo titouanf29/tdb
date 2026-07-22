@@ -23,6 +23,11 @@ from slowapi.util import get_remote_address
 from ..database import execute_query, execute_write
 from .auth import get_current_user
 from ._prices import fetch_prices
+# The wallet/positions tables are keyed by wallet.get_user_id ("web_{id}"
+# for email accounts) while web_favorites uses the raw id. We MUST reuse
+# the exact resolvers or the queries silently return nothing → 0% recap.
+from .wallet import get_user_id as _wallet_uid
+from .favorites import get_user_id as _fav_uid
 
 router = APIRouter()
 limiter = Limiter(key_func=get_remote_address)
@@ -51,17 +56,20 @@ def _uid(user: dict):
     return user.get("id")
 
 
-async def _compute_state(user_id) -> dict:
+async def _compute_state(current_user: dict) -> dict:
     """Current live portfolio state: equity, per-position P&L, favorite prices."""
-    wallets = await execute_query("SELECT balance FROM wallet WHERE user_id = ?", (user_id,))
+    wuid = _wallet_uid(current_user)   # "web_{id}" for email accounts
+    fuid = _fav_uid(current_user)      # raw id
+
+    wallets = await execute_query("SELECT balance FROM wallet WHERE user_id = ?", (wuid,))
     balance = float(wallets[0]["balance"]) if wallets else 10000.0
 
     positions = await execute_query(
         "SELECT symbol, direction, entry_price, quantity, amount FROM positions WHERE user_id = ? AND status = 'open'",
-        (user_id,),
+        (wuid,),
     )
     favorites = await execute_query(
-        "SELECT symbol FROM web_favorites WHERE user_id = ?", (user_id,)
+        "SELECT symbol FROM web_favorites WHERE user_id = ?", (fuid,)
     )
 
     symbols = list({p["symbol"] for p in positions} | {f["symbol"] for f in favorites})
@@ -167,7 +175,7 @@ async def welcome_back(
         "SELECT snapshot_at, equity, positions_json, favorites_json FROM dashboard_snapshots WHERE user_id = ?",
         (str(user_id),),
     )
-    current = await _compute_state(user_id)
+    current = await _compute_state(current_user)
 
     result = {"has_summary": False}
 
@@ -276,6 +284,6 @@ async def record_activity(
     next visit. Called on tab hide / unload so 'last active' is captured."""
     await _ensure_table()
     user_id = _uid(current_user)
-    state = await _compute_state(user_id)
+    state = await _compute_state(current_user)
     await _write_snapshot(user_id, state)
     return {"ok": True}
