@@ -16,7 +16,7 @@ import {
   WalletBalance, TradingStats, Favorite, MarketNews, SummaryPoint, Position,
   ChatMessage, AILimitStatus, DailyIntentResult, WelcomeBackResult,
 } from "@/lib/api";
-import { useFormatCurrency, useFormatPrice } from "@/lib/SettingsContext";
+import { useFormatCurrency, useFormatPrice, useSettings, RECAP_MIN_GAP_MINUTES } from "@/lib/SettingsContext";
 import { usePremium } from "@/lib/PremiumContext";
 import { useLanguage } from "@/lib/LanguageContext";
 import { useAuth } from "@/lib/AuthContext";
@@ -111,6 +111,8 @@ export default function DashboardPage() {
   const formatCurrency = useFormatCurrency();
   const formatPrice = useFormatPrice();
   const { isPremium } = usePremium();
+  const { settings } = useSettings();
+  const recapFrequency = settings.recapFrequency;
 
   const [balance, setBalance]               = useState<WalletBalance | null>(null);
   const [stats, setStats]                   = useState<TradingStats | null>(null);
@@ -190,13 +192,15 @@ export default function DashboardPage() {
   //    only after a real absence (≥30 min) and never replays on refresh. ──
   useEffect(() => {
     if (typeof window !== "undefined" && sessionStorage.getItem("tdb_welcome_shown")) return;
-    welcomeBackAPI.get(lang).then(res => {
+    if (recapFrequency === "off") return;  // user disabled it in Settings
+    const minGap = RECAP_MIN_GAP_MINUTES[recapFrequency];
+    welcomeBackAPI.get(lang, minGap).then(res => {
       if (res.has_summary) {
         setWelcomeBack(res);
         sessionStorage.setItem("tdb_welcome_shown", "1");
       }
     }).catch(() => {});
-  }, [lang]);
+  }, [lang, recapFrequency]);
 
   const avgFavChange = useMemo(() =>
     favorites.length > 0

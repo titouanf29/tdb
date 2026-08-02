@@ -253,6 +253,8 @@ export interface WelcomeBackResult {
   equity?: { now: number; before: number; change: number; change_pct: number };
   positions?: WelcomeBackPositionMove[];
   favorites?: WelcomeBackFavoriteMove[];
+  opened_positions?: string[];
+  closed_positions?: string[];
   best?: { symbol: string; pct: number } | null;
   worst?: { symbol: string; pct: number } | null;
   message?: string;
@@ -262,7 +264,8 @@ export const welcomeBackAPI = {
   // Compares the portfolio to the last time the dashboard was opened; the
   // endpoint refreshes that baseline on each call, so a recap only appears
   // after a real absence and never replays on refresh.
-  get: (lang = "fr") => fetchAPI<WelcomeBackResult>(`/api/dashboard/welcome-back?lang=${lang}`),
+  get: (lang = "fr", minGapMinutes = 30) =>
+    fetchAPI<WelcomeBackResult>(`/api/dashboard/welcome-back?lang=${lang}&min_gap_minutes=${minGapMinutes}`),
 };
 
 export interface BacktestBucket {

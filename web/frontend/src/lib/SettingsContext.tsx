@@ -6,6 +6,11 @@ import { settingsAPI } from "./api";
 export type Currency = "USD" | "EUR";
 export type Theme = "dark" | "light";
 export type AccentColor = "blue" | "purple" | "teal" | "orange" | "pink";
+// How often the "welcome back" recap may appear
+export type RecapFrequency = "off" | "always" | "daily" | "weekly";
+export const RECAP_MIN_GAP_MINUTES: Record<Exclude<RecapFrequency, "off">, number> = {
+  always: 30, daily: 1440, weekly: 10080,
+};
 
 export const ACCENT_PRESETS: Record<AccentColor, { primary: string; neonBlue: string; ring: string; label: string; hex: string }> = {
   blue:   { primary: "230 90% 62%", neonBlue: "230 90% 62%", ring: "230 90% 62%", label: "Bleu",   hex: "#6366f1" },
@@ -22,6 +27,7 @@ interface Settings {
   defaultLeverage: string;
   theme: Theme;
   accentColor: AccentColor;
+  recapFrequency: RecapFrequency;
 }
 
 interface SettingsContextType {
@@ -32,6 +38,7 @@ interface SettingsContextType {
   setDefaultLeverage: (leverage: string) => void;
   setTheme: (theme: Theme) => void;
   setAccentColor: (color: AccentColor) => void;
+  setRecapFrequency: (f: RecapFrequency) => void;
   updateSettings: (updates: Partial<Settings>) => void;
 }
 
@@ -42,6 +49,7 @@ const defaultSettings: Settings = {
   defaultLeverage: "1",
   theme: "dark",
   accentColor: "blue",
+  recapFrequency: "always",
 };
 
 const SettingsContext = createContext<SettingsContextType | null>(null);
@@ -67,6 +75,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
           defaultLeverage: local.defaultLeverage ?? defaultSettings.defaultLeverage,
           theme: (local.theme as Theme) ?? defaultSettings.theme,
           accentColor: (local.accentColor as AccentColor) ?? defaultSettings.accentColor,
+          recapFrequency: (local.recapFrequency as RecapFrequency) ?? defaultSettings.recapFrequency,
         });
       })
       .catch(() => {
@@ -124,6 +133,9 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   const setAccentColor = useCallback((accentColor: AccentColor) =>
     setSettings((prev) => ({ ...prev, accentColor })), []);
 
+  const setRecapFrequency = useCallback((recapFrequency: RecapFrequency) =>
+    setSettings((prev) => ({ ...prev, recapFrequency })), []);
+
   const updateSettings = useCallback((updates: Partial<Settings>) => {
     setSettings((prev) => ({ ...prev, ...updates }));
     const patch: Record<string, string> = {};
@@ -134,9 +146,9 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
 
   const contextValue = useMemo(() => ({
     settings, setCurrency, setTradingStyle, setRiskLevel,
-    setDefaultLeverage, setTheme, setAccentColor, updateSettings,
+    setDefaultLeverage, setTheme, setAccentColor, setRecapFrequency, updateSettings,
   }), [settings, setCurrency, setTradingStyle, setRiskLevel,
-      setDefaultLeverage, setTheme, setAccentColor, updateSettings]);
+      setDefaultLeverage, setTheme, setAccentColor, setRecapFrequency, updateSettings]);
 
   return (
     <SettingsContext.Provider value={contextValue}>

@@ -84,11 +84,14 @@ async def _compute_state(current_user: dict) -> dict:
         qty = float(p["quantity"] or 0)
         amount = float(p["amount"] or 0)
         pr = prices.get(sym) or {}
-        cur = float(pr["price"]) if pr.get("price") else entry
+        has_price = bool(pr.get("price"))
+        cur = float(pr["price"]) if has_price else entry
         pnl = (cur - entry) * qty if p["direction"] == "LONG" else (entry - cur) * qty
         invested += amount
         total_pnl += pnl
-        pos_state.append({"symbol": sym, "price": round(cur, 4), "pnl": round(pnl, 2)})
+        # `stale` marks a position whose live price could not be fetched: its
+        # P&L falls back to entry (=0) and must NOT be reported as "flat".
+        pos_state.append({"symbol": sym, "price": round(cur, 4), "pnl": round(pnl, 2), "stale": not has_price})
 
     fav_state = []
     for f in favorites:
@@ -135,29 +138,46 @@ def _away_label(minutes: float, lang: str) -> str:
     return f"{days} jour{'s' if days > 1 else ''}" if fr else f"{days} day{'s' if days > 1 else ''}"
 
 
-def _build_message(equity_pct: float, best, worst, away: str, name: str, lang: str) -> str:
+def _build_message(equity_pct: float, market_change: float, best, worst, away: str,
+                   name: str, lang: str, opened=None, closed=None) -> str:
+    """Message about MARKET movement only — never about deposits or trades
+    the user made themselves (those are reported separately)."""
     fr = lang != "en"
+    opened = opened or []
+    closed = closed or []
     hello = f"Bon retour {name} !" if fr else f"Welcome back {name}!"
-    hello = hello.replace(" !", " !").replace(" !", " !")
-    if abs(equity_pct) < 0.15:
+
+    def _extra() -> str:
+        bits = []
+        if opened:
+            bits.append((f"{len(opened)} position{'s' if len(opened) > 1 else ''} ouverte{'s' if len(opened) > 1 else ''} entre-temps"
+                         if fr else f"{len(opened)} position{'s' if len(opened) > 1 else ''} opened since"))
+        if closed:
+            bits.append((f"{len(closed)} clôturée{'s' if len(closed) > 1 else ''}"
+                         if fr else f"{len(closed)} closed"))
+        return (" (" + ", ".join(bits) + ")") if bits else ""
+
+    if abs(equity_pct) < 0.15 and abs(market_change) < 1:
         if fr:
-            return f"{hello} Peu de mouvement pendant votre absence ({away}) — vos positions sont restées globalement stables."
-        return f"{hello} Not much moved while you were away ({away}) — your positions stayed roughly flat."
+            return f"{hello} Peu de mouvement pendant votre absence ({away}) — vos positions sont restées globalement stables.{_extra()}"
+        return f"{hello} Not much moved while you were away ({away}) — your positions stayed roughly flat.{_extra()}"
+
     if equity_pct >= 0:
-        base = (f"{hello} Sur les {away} écoulées, votre portefeuille a progressé de +{equity_pct:.1f}%."
+        base = (f"{hello} Sur les {away} écoulées, vos positions ont gagné {market_change:+.2f} ({equity_pct:+.1f}% du portefeuille)."
                 if fr else
-                f"{hello} Over the past {away}, your portfolio gained +{equity_pct:.1f}%.")
+                f"{hello} Over the past {away}, your positions gained {market_change:+.2f} ({equity_pct:+.1f}% of the portfolio).")
         if best:
             base += (f" {best['symbol']} a été votre meilleur mouvement ({best['pct']:+.1f}%)."
                      if fr else f" {best['symbol']} was your best move ({best['pct']:+.1f}%).")
-        return base
-    base = (f"{hello} Pendant votre absence ({away}), votre portefeuille a reculé de {equity_pct:.1f}%."
+        return base + _extra()
+
+    base = (f"{hello} Pendant votre absence ({away}), vos positions ont perdu {market_change:+.2f} ({equity_pct:+.1f}% du portefeuille)."
             if fr else
-            f"{hello} While you were away ({away}), your portfolio slipped {equity_pct:.1f}%.")
+            f"{hello} While you were away ({away}), your positions lost {market_change:+.2f} ({equity_pct:+.1f}% of the portfolio).")
     if worst:
         base += (f" {worst['symbol']} a le plus pesé ({worst['pct']:+.1f}%) — rien d'alarmant, c'est du paper trading."
                  if fr else f" {worst['symbol']} weighed most ({worst['pct']:+.1f}%) — nothing to worry about, it's paper trading.")
-    return base
+    return base + _extra()
 
 
 @router.get("/welcome-back")
@@ -165,9 +185,13 @@ def _build_message(equity_pct: float, best, worst, away: str, name: str, lang: s
 async def welcome_back(
     request: Request,
     lang: str = Query(default="fr"),
+    # How long the user must have been away before a recap is worth showing.
+    # Driven by the user's preference (every visit / daily / weekly).
+    min_gap_minutes: int = Query(default=MIN_GAP_MINUTES, ge=MIN_GAP_MINUTES, le=43200),
     current_user: dict = Depends(get_current_user),
 ):
     await _ensure_table()
+    min_gap = max(MIN_GAP_MINUTES, min_gap_minutes)
     user_id = _uid(current_user)
     name = current_user.get("first_name") or current_user.get("username") or ""
 
@@ -190,7 +214,7 @@ async def welcome_back(
             gap_min = 0
 
         has_content = bool(current["positions"] or current["favorites"])
-        if gap_min >= MIN_GAP_MINUTES and has_content:
+        if gap_min >= min_gap and has_content:
             prev_pos = {p["symbol"]: p for p in json.loads(prev["positions_json"] or "[]")}
             prev_fav = {f["symbol"]: f for f in json.loads(prev["favorites_json"] or "[]")}
 
@@ -198,6 +222,9 @@ async def welcome_back(
             for p in current["positions"]:
                 bp = prev_pos.get(p["symbol"])
                 if not bp:
+                    continue
+                # No live price → we cannot say anything truthful about it
+                if p.get("stale") or bp.get("stale"):
                     continue
                 base = bp.get("price") or 0
                 pct = ((p["price"] - base) / base * 100) if base else 0
@@ -226,9 +253,26 @@ async def welcome_back(
                         "pct_move": round(pct, 2),
                     })
 
+            # ── Market-only change ────────────────────────────────────────
+            # The raw equity difference is NOT performance: adding funds,
+            # opening or closing a position all move equity without the
+            # market moving. We therefore report the sum of unrealized P&L
+            # deltas on positions held in BOTH snapshots — that is the part
+            # the market actually produced — and surface opened/closed
+            # positions separately so the numbers are explainable.
+            held_both = [m for m in position_moves]
+            market_change = round(sum(m["pnl_delta"] for m in held_both), 2)
+
+            prev_syms = set(prev_pos.keys())
+            cur_syms = {p["symbol"] for p in current["positions"]}
+            opened_positions = sorted(cur_syms - prev_syms)
+            closed_positions = sorted(prev_syms - cur_syms)
+
             equity_before = float(prev["equity"] or 0)
-            equity_delta = round(current["equity"] - equity_before, 2)
-            equity_pct = (equity_delta / equity_before * 100) if equity_before else 0
+            # Percentage is expressed against the portfolio value at the time
+            # of the baseline, so deposits made while away don't inflate it.
+            equity_pct = (market_change / equity_before * 100) if equity_before else 0
+            equity_delta = market_change
 
             # Best / worst across everything that moved
             all_moves = ([{"symbol": m["symbol"], "pct": m["pct_move"]} for m in position_moves] +
@@ -264,13 +308,20 @@ async def welcome_back(
                     },
                     "positions": position_moves[:5],
                     "favorites": favorite_moves[:5],
+                    "opened_positions": opened_positions,
+                    "closed_positions": closed_positions,
                     "best": best,
                     "worst": worst,
-                    "message": _build_message(equity_pct, best, worst, away, name, lang),
+                    "message": _build_message(equity_pct, market_change, best, worst,
+                                              away, name, lang, opened_positions, closed_positions),
                 }
 
-    # Reset the baseline to "now" so a refresh never replays the recap
-    await _write_snapshot(user_id, current)
+    # Reset the baseline ONLY when a recap was actually shown (or when there
+    # was none yet). Otherwise the gap must keep accumulating — with a daily
+    # or weekly preference, resetting on every visit would mean the threshold
+    # is never reached and the recap never appears.
+    if result["has_summary"] or not prev_rows:
+        await _write_snapshot(user_id, current)
     return result
 
 

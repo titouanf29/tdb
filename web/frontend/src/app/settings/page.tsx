@@ -23,7 +23,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/AuthContext";
 import { TradingLevel } from "@/lib/auth";
-import { useSettings, Currency, ACCENT_PRESETS, AccentColor } from "@/lib/SettingsContext";
+import { useSettings, Currency, ACCENT_PRESETS, AccentColor, RecapFrequency } from "@/lib/SettingsContext";
 import { LanguageToggle } from "@/components/ui/LanguageToggle";
 import { useLanguage } from "@/lib/LanguageContext";
 import { LevelChangeModal } from "@/components/onboarding/LevelChangeModal";
@@ -469,6 +469,49 @@ function TradingSettings() {
   );
 }
 
+function RecapSettings() {
+  const { settings, setRecapFrequency } = useSettings();
+  const { lang } = useLanguage();
+  const fr = lang !== "en";
+
+  const options: { value: RecapFrequency; label: string; desc: string }[] = fr ? [
+    { value: "always", label: "À chaque retour",   desc: "Après 30 min d'absence minimum" },
+    { value: "daily",  label: "Une fois par jour", desc: "Au plus un récap toutes les 24 h" },
+    { value: "weekly", label: "Une fois par semaine", desc: "Au plus un récap tous les 7 jours" },
+    { value: "off",    label: "Désactivé",         desc: "Ne plus afficher le récap au retour" },
+  ] : [
+    { value: "always", label: "Every return",   desc: "After at least 30 min away" },
+    { value: "daily",  label: "Once a day",     desc: "At most one recap per 24 h" },
+    { value: "weekly", label: "Once a week",    desc: "At most one recap per 7 days" },
+    { value: "off",    label: "Off",            desc: "Never show the welcome-back recap" },
+  ];
+
+  return (
+    <div className="p-4 bg-white/5 rounded-lg space-y-3">
+      <div>
+        <p className="font-medium">{fr ? "Récap de retour" : "Welcome-back recap"}</p>
+        <p className="text-sm text-muted-foreground">
+          {fr ? "L'animation qui résume l'évolution de vos positions depuis votre dernière visite."
+              : "The animation summarizing how your positions moved since your last visit."}
+        </p>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+        {options.map((o) => {
+          const active = settings.recapFrequency === o.value;
+          return (
+            <button key={o.value} onClick={() => setRecapFrequency(o.value)}
+              className={cn("text-left p-3 rounded-xl border transition-all",
+                active ? "bg-primary/10 border-primary/40" : "bg-white/3 border-white/8 hover:bg-white/6")}>
+              <p className={cn("text-sm font-semibold", active && "text-primary")}>{o.label}</p>
+              <p className="text-[11px] text-muted-foreground mt-0.5">{o.desc}</p>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function NotificationSettings() {
   const { t } = useLanguage();
   const [notifications, setNotifications] = useState({
@@ -492,6 +535,8 @@ function NotificationSettings() {
   return (
     <div className="space-y-6">
       <h2 className="text-lg font-semibold">{t("settings_notif_title")}</h2>
+
+      <RecapSettings />
 
       <div className="space-y-4">
         {notifItems.map((item) => (

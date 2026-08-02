@@ -114,7 +114,7 @@ export function WelcomeBackModal({
 
                   <div className="my-auto py-6 text-center">
                     <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">
-                      {fr ? "Évolution du portefeuille" : "Portfolio change"}
+                      {fr ? "Gain / perte de vos positions" : "Your positions' P&L change"}
                     </p>
                     <p className={cn("text-5xl font-black font-display tabular-nums tracking-tight", up ? "text-profit" : "text-loss")}>
                       {up ? "+" : ""}{formatCurrency(counted)}
@@ -127,6 +127,16 @@ export function WelcomeBackModal({
                   <p className="text-sm leading-relaxed text-white/70 bg-white/4 border border-white/8 rounded-xl p-3.5">
                     {data.message}
                   </p>
+                  {((data.opened_positions?.length ?? 0) > 0 || (data.closed_positions?.length ?? 0) > 0) && (
+                    <p className="text-[11px] text-muted-foreground mt-2 text-center">
+                      {(data.opened_positions?.length ?? 0) > 0 && (
+                        <>{fr ? "Ouvertes depuis" : "Opened since"} : <span className="font-mono">{data.opened_positions!.join(", ")}</span>{" "}</>
+                      )}
+                      {(data.closed_positions?.length ?? 0) > 0 && (
+                        <>{fr ? "· Clôturées" : "· Closed"} : <span className="font-mono">{data.closed_positions!.join(", ")}</span></>
+                      )}
+                    </p>
+                  )}
                 </motion.div>
               )}
 
