@@ -111,7 +111,7 @@ export default function DashboardPage() {
   const formatCurrency = useFormatCurrency();
   const formatPrice = useFormatPrice();
   const { isPremium } = usePremium();
-  const { settings } = useSettings();
+  const { settings, isLoaded: settingsLoaded } = useSettings();
   const recapFrequency = settings.recapFrequency;
 
   const [balance, setBalance]               = useState<WalletBalance | null>(null);
@@ -191,6 +191,9 @@ export default function DashboardPage() {
   //    The endpoint refreshes that baseline on each call, so a recap appears
   //    only after a real absence (≥30 min) and never replays on refresh. ──
   useEffect(() => {
+    // Wait for the real preference: firing on the default "always" would show a
+    // recap to a user who chose "Désactivé", on every cold load.
+    if (!settingsLoaded) return;
     if (typeof window !== "undefined" && sessionStorage.getItem("tdb_welcome_shown")) return;
     if (recapFrequency === "off") return;  // user disabled it in Settings
     const minGap = RECAP_MIN_GAP_MINUTES[recapFrequency];
@@ -200,7 +203,7 @@ export default function DashboardPage() {
         sessionStorage.setItem("tdb_welcome_shown", "1");
       }
     }).catch(() => {});
-  }, [lang, recapFrequency]);
+  }, [lang, recapFrequency, settingsLoaded]);
 
   const avgFavChange = useMemo(() =>
     favorites.length > 0

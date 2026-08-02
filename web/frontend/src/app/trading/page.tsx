@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import {
@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import { cn, formatPercent } from "@/lib/utils";
 import { walletAPI, marketAPI, WalletBalance, Quote, missionsAPI } from "@/lib/api";
-import { useFormatCurrency } from "@/lib/SettingsContext";
+import { useFormatCurrency, useSettings } from "@/lib/SettingsContext";
 import { HelpGuide } from "@/components/ui/HelpGuide";
 import { useLanguage } from "@/lib/LanguageContext";
 
@@ -25,11 +25,15 @@ export default function TradingPage() {
   const searchParams = useSearchParams();
   const formatCurrency = useFormatCurrency();
   const { t, lang } = useLanguage();
+  const { settings, isLoaded } = useSettings();
 
   const [symbol, setSymbol] = useState(searchParams.get("symbol") || "AAPL");
   const [direction, setDirection] = useState<"LONG" | "SHORT">("LONG");
   const [amount, setAmount] = useState(1000);
   const [leverage, setLeverage] = useState(1);
+  // Seed from "Levier par défaut" (/settings) once the preferences land, but
+  // never overwrite a value the user has already picked in this form.
+  const leverageTouched = useRef(false);
   const [takeProfit, setTakeProfit] = useState<number | null>(null);
   const [stopLoss, setStopLoss] = useState<number | null>(null);
   const [useTP, setUseTP] = useState(false);
@@ -43,6 +47,12 @@ export default function TradingPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+
+  useEffect(() => {
+    if (isLoaded && !leverageTouched.current) {
+      setLeverage(Number(settings.defaultLeverage) || 1);
+    }
+  }, [isLoaded, settings.defaultLeverage]);
 
   // Load balance
   useEffect(() => {
@@ -305,7 +315,7 @@ export default function TradingPage() {
               {[1, 2, 3, 5, 10].map((lev) => (
                 <button
                   key={lev}
-                  onClick={() => setLeverage(lev)}
+                  onClick={() => { leverageTouched.current = true; setLeverage(lev); }}
                   className={cn(
                     "flex-1 py-2 rounded-lg font-bold transition-all",
                     leverage === lev

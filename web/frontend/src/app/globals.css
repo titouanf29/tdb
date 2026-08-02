@@ -114,6 +114,20 @@ html {
     color: hsl(var(--foreground)) !important;
   }
 
+  /* The app is built dark-first: bare white-alpha utilities are invisible on a
+     light background. These four rules make every surface built from them
+     (settings rows, option cards, modals) legible in light mode. */
+  [data-theme="light"] .bg-white\/5 { background-color: rgba(15, 23, 42, 0.04) !important; }
+  [data-theme="light"] .bg-white\/10 { background-color: rgba(15, 23, 42, 0.07) !important; }
+  [data-theme="light"] .border-white\/10 { border-color: rgba(15, 23, 42, 0.10) !important; }
+  [data-theme="light"] .text-white { color: hsl(var(--foreground)) !important; }
+  /* Hover variants are a DIFFERENT selector (.hover\:bg-white\/10:hover) and are
+     not matched by the rules above — without these, hovering paints white on
+     white and the resting/hover states become indistinguishable. */
+  [data-theme="light"] .hover\:bg-white\/5:hover { background-color: rgba(15, 23, 42, 0.07) !important; }
+  [data-theme="light"] .hover\:bg-white\/10:hover { background-color: rgba(15, 23, 42, 0.10) !important; }
+  [data-theme="light"] .hover\:bg-white\/8:hover { background-color: rgba(15, 23, 42, 0.09) !important; }
+
   * {
     @apply border-border;
   }
@@ -474,6 +488,10 @@ html {
 }
 
 @layer utilities {
+  /* Text sitting on a saturated / gradient background: stays white in BOTH
+     themes (the light-theme `.text-white` override must not reach it). */
+  .text-on-color { color: #ffffff !important; }
+
   /* Hide scrollbar but keep functionality */
   .no-scrollbar::-webkit-scrollbar { display: none; }
   .no-scrollbar {

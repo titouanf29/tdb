@@ -249,11 +249,3 @@ export function OnboardingTour({ forceLevel, onTourDone }: OnboardingTourProps =
 
   return <AlexTour steps={steps} onDone={handleDone} />;
 }
-
-/** Reset and restart tour (e.g. from Help button or settings) */
-export function restartTour() {
-  if (typeof window !== "undefined") {
-    localStorage.removeItem(TOUR_KEY);
-    window.location.reload();
-  }
-}

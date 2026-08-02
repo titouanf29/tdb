@@ -152,6 +152,7 @@ async def _init_postgres():
             ("stripe_subscription_id", "TEXT"),
             ("trading_level", "TEXT"),
             ("last_active", "TEXT"),
+            ("password_changed_at", "TEXT"),
         ]:
             try:
                 await conn.execute(f"ALTER TABLE web_users ADD COLUMN {col} {col_type}")
@@ -170,13 +171,44 @@ async def _init_postgres():
         await conn.execute("""
             CREATE TABLE IF NOT EXISTS web_user_settings (
                 user_id INTEGER PRIMARY KEY,
-                trading_style TEXT DEFAULT 'Day Trading',
+                trading_style TEXT DEFAULT 'day',
                 risk_level TEXT DEFAULT 'moderate',
                 notifications_enabled INTEGER DEFAULT 1,
                 theme TEXT DEFAULT 'dark',
-                language TEXT DEFAULT 'fr'
+                language TEXT DEFAULT 'fr',
+                currency TEXT DEFAULT 'EUR',
+                default_leverage TEXT DEFAULT '1',
+                accent_color TEXT DEFAULT 'blue',
+                recap_frequency TEXT DEFAULT 'always',
+                updated_at TEXT
             )
         """)
+        # Add columns if they don't exist (for existing databases)
+        for col, col_type in [
+            ("currency",         "TEXT DEFAULT 'EUR'"),
+            ("default_leverage", "TEXT DEFAULT '1'"),
+            ("accent_color",     "TEXT DEFAULT 'blue'"),
+            ("recap_frequency",  "TEXT DEFAULT 'always'"),
+            ("updated_at",       "TEXT"),
+        ]:
+            try:
+                await conn.execute(f"ALTER TABLE web_user_settings ADD COLUMN {col} {col_type}")
+            except Exception:
+                pass  # Column already exists
+        # Old rows stored human-readable labels ('Day Trading', 'Scalping', ...)
+        # which are not in the API's VALID_STYLES. Normalize once, idempotently.
+        try:
+            await conn.execute("""
+                UPDATE web_user_settings SET trading_style = CASE
+                    WHEN trading_style IN ('Scalping','scalping')        THEN 'scalp'
+                    WHEN trading_style IN ('Swing Trading')              THEN 'swing'
+                    WHEN trading_style IN ('Long Term','Long Terme')     THEN 'long'
+                    ELSE 'day' END
+                WHERE trading_style IS NULL
+                   OR trading_style NOT IN ('scalp','day','swing','long')
+            """)
+        except Exception:
+            pass
         await conn.execute("""
             CREATE TABLE IF NOT EXISTS web_favorites (
                 id SERIAL PRIMARY KEY,
@@ -525,7 +557,7 @@ async def _init_sqlite():
         """)
         for col in ["stripe_customer_id", "stripe_subscription_id", "trading_level",
                     "is_admin", "is_premium", "premium_since", "premium_expires", "email_verified",
-                    "last_active"]:
+                    "last_active", "password_changed_at"]:
             col_type = "INTEGER DEFAULT 0" if col in ("is_admin", "is_premium", "email_verified") else "TEXT"
             try:
                 await db.execute(f"ALTER TABLE web_users ADD COLUMN {col} {col_type}")
@@ -544,14 +576,45 @@ async def _init_sqlite():
         await db.execute("""
             CREATE TABLE IF NOT EXISTS web_user_settings (
                 user_id INTEGER PRIMARY KEY,
-                trading_style TEXT DEFAULT 'Day Trading',
+                trading_style TEXT DEFAULT 'day',
                 risk_level TEXT DEFAULT 'moderate',
                 notifications_enabled INTEGER DEFAULT 1,
                 theme TEXT DEFAULT 'dark',
                 language TEXT DEFAULT 'fr',
+                currency TEXT DEFAULT 'EUR',
+                default_leverage TEXT DEFAULT '1',
+                accent_color TEXT DEFAULT 'blue',
+                recap_frequency TEXT DEFAULT 'always',
+                updated_at TEXT,
                 FOREIGN KEY (user_id) REFERENCES web_users(id)
             )
         """)
+        # Add columns if they don't exist (for existing databases)
+        for col, col_type in [
+            ("currency",         "TEXT DEFAULT 'EUR'"),
+            ("default_leverage", "TEXT DEFAULT '1'"),
+            ("accent_color",     "TEXT DEFAULT 'blue'"),
+            ("recap_frequency",  "TEXT DEFAULT 'always'"),
+            ("updated_at",       "TEXT"),
+        ]:
+            try:
+                await db.execute(f"ALTER TABLE web_user_settings ADD COLUMN {col} {col_type}")
+            except Exception:
+                pass  # Column already exists
+        # Old rows stored human-readable labels ('Day Trading', 'Scalping', ...)
+        # which are not in the API's VALID_STYLES. Normalize once, idempotently.
+        try:
+            await db.execute("""
+                UPDATE web_user_settings SET trading_style = CASE
+                    WHEN trading_style IN ('Scalping','scalping')        THEN 'scalp'
+                    WHEN trading_style IN ('Swing Trading')              THEN 'swing'
+                    WHEN trading_style IN ('Long Term','Long Terme')     THEN 'long'
+                    ELSE 'day' END
+                WHERE trading_style IS NULL
+                   OR trading_style NOT IN ('scalp','day','swing','long')
+            """)
+        except Exception:
+            pass
         await db.execute("""
             CREATE TABLE IF NOT EXISTS web_favorites (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,

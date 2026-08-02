@@ -18,6 +18,8 @@ export interface User {
   last_name?: string;
   user_type: "email";
   trading_level?: TradingLevel | null;
+  created_at?: string;
+  email_verified?: boolean;
 }
 
 export interface AuthResponse {
@@ -42,9 +44,27 @@ export const setToken = (token: string): void => {
   localStorage.setItem("tdb_token", token);
 };
 
+/**
+ * Clears the session AND every per-user local key, so the next user on a shared
+ * browser does not inherit the previous user's preferences / history.
+ * `tdb_lang` is deliberately KEPT — the login page should stay in the user's language.
+ */
 export const removeToken = (): void => {
-  localStorage.removeItem("tdb_token");
-  localStorage.removeItem("tdb_user");
+  [
+    "tdb_token",
+    "tdb_user",
+    "tdb_settings",
+    "tdb_onboarding_done",
+    "tdb_alerts_seen",
+    "tdb_dashboard_config_v2",
+    "tdb_recent_analyses",
+    "gold_style",
+    "gold_aggression",
+    "tdb_last_login_date",
+  ].forEach((k) => {
+    try { localStorage.removeItem(k); } catch { /* private mode / quota */ }
+  });
+  try { sessionStorage.removeItem("tdb_welcome_shown"); } catch { /* ignore */ }
 };
 
 export const getUser = (): User | null => {

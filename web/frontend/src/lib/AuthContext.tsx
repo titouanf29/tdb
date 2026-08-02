@@ -14,6 +14,7 @@ import {
   setUser as saveUser,
   refreshToken,
 } from "./auth";
+import { settingsAPI } from "./api";
 
 interface AuthContextType {
   user: User | null;
@@ -28,6 +29,9 @@ interface AuthContextType {
   ) => Promise<RegisterResponse>;
   logout: () => Promise<void>;
   setTradingLevel: (level: TradingLevel) => Promise<void>;
+  /** Re-reads GET /api/auth/me into state — after a profile edit, so every
+   *  consumer (header, dashboard greeting) reflects it without a reload. */
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -97,18 +101,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
   }, []);
 
+  /**
+   * Persists the trading level server-side FIRST. Throws (APIError) on any
+   * non-2xx so callers can render a real error instead of a fake "✓ Saved".
+   * Local state / localStorage are only touched once the write succeeded.
+   */
   const setTradingLevel = useCallback(async (level: TradingLevel) => {
-    const token = getToken();
-    if (!token) return;
-    await fetch("/api/users/settings", {
-      method: "PUT",
-      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ trading_level: level }),
-    });
-    const updated = { ...user!, trading_level: level };
+    if (!user) throw new Error("Not authenticated");
+    await settingsAPI.update({ trading_level: level });
+    const updated = { ...user, trading_level: level };
     setUser(updated);
     saveUser(updated);
   }, [user]);
+
+  const refreshUser = useCallback(async () => {
+    const fresh = await getMe();   // getMe() already writes localStorage.tdb_user
+    if (fresh) setUser(fresh);
+  }, []);
 
   const contextValue = useMemo(() => ({
     user,
@@ -118,7 +127,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     register,
     logout,
     setTradingLevel,
-  }), [user, isLoading, login, register, logout, setTradingLevel]);
+    refreshUser,
+  }), [user, isLoading, login, register, logout, setTradingLevel, refreshUser]);
 
   return (
     <AuthContext.Provider value={contextValue}>

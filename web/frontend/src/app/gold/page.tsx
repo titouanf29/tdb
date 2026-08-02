@@ -15,7 +15,7 @@ import { cn } from "@/lib/utils";
 import { analysisAPI, marketAPI, aiAPI, adminAPI, walletAPI, toolsAPI, settingsAPI, Analysis, Position } from "@/lib/api";
 import { usePremium } from "@/lib/PremiumContext";
 import { useLanguage } from "@/lib/LanguageContext";
-import { useFormatPrice } from "@/lib/SettingsContext";
+import { useFormatPrice, useSettings } from "@/lib/SettingsContext";
 import { TopLoadingBar } from "@/components/ui/TopLoadingBar";
 
 const PremiumChart = dynamic(() => import("@/components/PremiumChart"), {
@@ -322,8 +322,11 @@ function TradingModal({
   formatPrice: (v: number, sym: string) => string;
   lang: "fr" | "en";
 }) {
+  const { settings } = useSettings();
   const [amount, setAmount]     = useState("100");
-  const [leverage, setLeverage] = useState(1);
+  // The modal mounts after the settings have hydrated, so the initializer is
+  // enough — seeded from "Levier par défaut" (/settings), editable per trade.
+  const [leverage, setLeverage] = useState(() => Number(settings.defaultLeverage) || 1);
   const [tp, setTp]             = useState(risk?.suggested_tp?.toFixed(2) ?? "");
   const [sl, setSl]             = useState(risk?.suggested_sl?.toFixed(2) ?? "");
   const [loading, setLoading]   = useState(false);

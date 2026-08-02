@@ -7,6 +7,7 @@ import { Bell, TrendingUp, TrendingDown, X, ArrowRight } from "lucide-react";
 import { alertsAPI, PriceAlert } from "@/lib/api";
 import { useAuth } from "@/lib/AuthContext";
 import { useLanguage } from "@/lib/LanguageContext";
+import { useSettings } from "@/lib/SettingsContext";
 import { cn } from "@/lib/utils";
 
 const POLL_MS = 60_000;
@@ -25,13 +26,21 @@ function saveSeen(s: Set<number>) {
 export function PriceAlertWatcher() {
   const { isAuthenticated } = useAuth();
   const { lang } = useLanguage();
+  const { settings, isLoaded } = useSettings();
   const fr = lang !== "en";
   const [toasts, setToasts] = useState<PriceAlert[]>([]);
+  // "Notifications d'alerte de prix" in /settings → web_user_settings.notifications_enabled
+  const enabled = isAuthenticated && isLoaded && settings.priceAlertsEnabled;
 
   const dismiss = (id: number) => setToasts((t) => t.filter((a) => a.id !== id));
 
+  // Turning the setting off clears anything already on screen.
+  useEffect(() => {
+    if (!enabled) setToasts([]);
+  }, [enabled]);
+
   const poll = useCallback(async () => {
-    if (!isAuthenticated) return;
+    if (!enabled) return;
     try {
       const res = await alertsAPI.check();
       if (!res.triggered?.length) return;
@@ -44,17 +53,17 @@ export function PriceAlertWatcher() {
       // auto-dismiss each after 12s
       fresh.forEach((a) => setTimeout(() => dismiss(a.id), 12_000));
     } catch { /* ignore transient errors */ }
-  }, [isAuthenticated]);
+  }, [enabled]);
 
   useEffect(() => {
-    if (!isAuthenticated) return;
+    if (!enabled) return;
     const t = setTimeout(poll, 4000); // first check shortly after load
     const iv = setInterval(poll, POLL_MS);
     // also check when the tab regains focus
     const onFocus = () => poll();
     window.addEventListener("focus", onFocus);
     return () => { clearTimeout(t); clearInterval(iv); window.removeEventListener("focus", onFocus); };
-  }, [isAuthenticated, poll]);
+  }, [enabled, poll]);
 
   if (!toasts.length) return null;
 

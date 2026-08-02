@@ -10,7 +10,7 @@ const API_URL = typeof window !== "undefined"
   ? ""
   : (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000");
 
-class APIError extends Error {
+export class APIError extends Error {
   status: number;
   constructor(message: string, status: number) {
     super(message);
@@ -18,6 +18,14 @@ class APIError extends Error {
     this.name = "APIError";
   }
 }
+
+/**
+ * Endpoints that re-verify a *credential* the user just typed. A 401 from these
+ * means "wrong password", NOT "session expired" — logging the user out and
+ * hard-redirecting to /login would be wrong, so they fall through to the normal
+ * error path and the caller renders the message inline.
+ */
+const CREDENTIAL_ENDPOINTS = ["/api/users/change-password", "/api/users/me"];
 
 async function fetchAPI<T>(
   endpoint: string,
@@ -36,7 +44,7 @@ async function fetchAPI<T>(
     throw new APIError("Vérifiez votre connexion internet", 0);
   }
 
-  if (response.status === 401) {
+  if (response.status === 401 && !CREDENTIAL_ENDPOINTS.includes(endpoint)) {
     // Don't redirect if already on auth pages
     const isAuthPage = typeof window !== "undefined" &&
       (window.location.pathname.startsWith("/login") ||
@@ -179,20 +187,26 @@ export const walletAPI = {
     }),
 };
 
-// User Settings API
+// User Settings API — server is the source of truth for every preference.
 export interface UserSettings {
   trading_style: string;
   risk_level: string;
   notifications_enabled: boolean;
   theme: string;
+  language: string;
+  currency: string;
   default_leverage: string;
+  accent_color: string;
+  recap_frequency: string;
+  trading_level?: string | null;
+  updated_at?: string | null;
 }
 
 export const settingsAPI = {
   get: () => fetchAPI<UserSettings>("/api/users/settings"),
 
   update: (data: Partial<UserSettings>) =>
-    fetchAPI<{ success: boolean }>("/api/users/settings", {
+    fetchAPI<{ success: boolean; settings: UserSettings }>("/api/users/settings", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
@@ -200,6 +214,38 @@ export const settingsAPI = {
 
   getPublic: () =>
     fetchAPI<{ settings: Record<string, string> }>("/api/users/public-settings"),
+};
+
+// Account API — profile, password, RGPD export & deletion
+export interface UserExport {
+  export_version: number;
+  generated_at: string;
+  [k: string]: unknown;
+}
+
+export const accountAPI = {
+  updateProfile: (display_name: string) =>
+    fetchAPI<{ success: boolean; display_name: string }>("/api/users/profile", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ display_name }),
+    }),
+
+  changePassword: (current_password: string, new_password: string) =>
+    fetchAPI<{ success: boolean; access_token: string }>("/api/users/change-password", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ current_password, new_password }),
+    }),
+
+  exportData: () => fetchAPI<UserExport>("/api/users/export"),
+
+  deleteAccount: (password: string, confirm: string) =>
+    fetchAPI<{ success: boolean }>("/api/users/me", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ password, confirm }),
+    }),
 };
 
 // Backtest — walk-forward replay of the scoring engine on history

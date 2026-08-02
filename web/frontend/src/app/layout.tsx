@@ -38,6 +38,24 @@ export default function RootLayout({
 }) {
   return (
     <html lang="fr" className={`dark ${inter.variable} ${spaceGrotesk.variable}`}>
+      <head>
+        {/* Applies the cached theme / accent / language BEFORE first paint.
+            Without this, a light-theme user gets a full dark first paint on
+            every navigation while the settings GET is in flight. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+(function(){try{
+  var s=JSON.parse(localStorage.getItem("tdb_settings")||"{}");
+  var A={blue:"230 90% 62%",purple:"270 80% 65%",teal:"175 90% 42%",orange:"30 95% 55%",pink:"330 90% 60%"};
+  if(s.theme==="light"||s.theme==="dark")document.documentElement.setAttribute("data-theme",s.theme);
+  var c=A[s.accentColor];if(c){var e=document.documentElement.style;
+    e.setProperty("--primary",c);e.setProperty("--ring",c);e.setProperty("--neon-blue",c);}
+  var l=localStorage.getItem("tdb_lang");if(l==="fr"||l==="en")document.documentElement.lang=l;
+}catch(e){}})();`,
+          }}
+        />
+      </head>
       <body className="min-h-screen bg-background font-sans">
         {/* Background effects — GPU-composited layer, no blur filters */}
         <div className="fixed inset-0 -z-10 overflow-hidden" style={{ contain: "strict", willChange: "transform" }}>

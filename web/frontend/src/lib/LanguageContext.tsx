@@ -1,6 +1,8 @@
 "use client";
 
-import { createContext, useContext, useState, useEffect, useCallback, useMemo, ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef, ReactNode } from "react";
+import { settingsAPI } from "./api";
+import { getToken } from "./auth";
 
 export type Lang = "fr" | "en";
 
@@ -115,13 +117,13 @@ const translations = {
     settings_tab_trading:  "Trading",
     settings_tab_notif:    "Notifications",
     settings_tab_appear:   "Apparence",
-    settings_tab_security: "Sécurité",
+    settings_tab_security: "Sécurité & données",
     settings_save:         "Sauvegarder",
     settings_saved:        "Sauvegardé",
     settings_display_name: "Nom d'affichage",
     settings_level:        "Niveau de trading",
     settings_level_desc:   "Adapte l'interface et les explications à votre niveau.",
-    settings_changes_auto: "Les changements s'appliquent immédiatement et sont sauvegardés automatiquement.",
+    settings_changes_auto: "Vos préférences sont enregistrées sur votre compte et vous suivent sur tous vos appareils.",
     settings_profile_title:        "Profil",
     settings_user_default:         "Utilisateur",
     settings_email_undefined:      "Email non défini",
@@ -130,19 +132,13 @@ const translations = {
     settings_trading_style_label:  "Style de trading",
     settings_trading_style_desc:   "Ce réglage adapte toutes les analyses IA à votre horizon et votre méthode — stops, R/R, indicateurs et langage changent selon votre style.",
     settings_style_active_suffix:  "activé",
-    settings_style_ai_text:        "Les analyses IA utilisent maintenant ce profil (horizon {horizon}, stops et R/R adaptés).",
+    settings_style_ai_text:        "Les analyses IA utilisent ce profil (horizon {horizon}).",
     settings_risk_level_label:     "Niveau de risque",
     settings_leverage_label:       "Levier par défaut",
     settings_notif_title:          "Notifications",
     settings_notif_price_alerts:   "Alertes de prix",
     settings_notif_price_alerts_desc: "Quand un actif atteint votre prix cible",
-    settings_notif_opportunities:  "Opportunités",
-    settings_notif_opportunities_desc: "Nouvelles opportunités détectées par le scanner",
-    settings_notif_positions:      "Positions",
-    settings_notif_positions_desc: "Mise à jour de vos positions ouvertes",
-    settings_notif_daily:          "Résumé quotidien",
-    settings_notif_daily_desc:     "Rapport quotidien de votre portfolio",
-    settings_security_title:       "Sécurité",
+    settings_security_title:       "Sécurité & données",
     settings_security_info:        "Votre compte est sécurisé avec authentification email/mot de passe",
     settings_change_password:      "Changer le mot de passe",
     settings_change_password_desc: "Mettez à jour votre mot de passe",
@@ -152,6 +148,103 @@ const translations = {
     settings_export_btn:           "Exporter",
     settings_logout_row:           "Déconnexion",
     settings_logout_desc:          "Se déconnecter de ce compte",
+    // ── Settings · shell, tabs & save state ───────────────────────────────
+    settings_tab_account: "Compte",
+    settings_tab_display: "Affichage",
+    settings_tab_alerts: "Alertes & récap",
+    settings_saving: "Enregistrement…",
+    settings_save_error: "Échec de l'enregistrement",
+    settings_retry: "Réessayer",
+    settings_loading: "Chargement de vos préférences…",
+    settings_cancel: "Annuler",
+    // ── Settings · compte ─────────────────────────────────────────────────
+    settings_account_title: "Compte",
+    settings_display_name_desc: "Le nom affiché dans l'application (2 à 40 caractères).",
+    settings_display_name_invalid: "Entre 2 et 40 caractères, sans caractères spéciaux.",
+    settings_username_label: "Identifiant",
+    settings_email_label: "Adresse email",
+    settings_email_readonly: "L'email ne peut pas être modifié pour l'instant. Contactez le support.",
+    settings_email_verified: "Vérifié",
+    settings_member_since: "Membre depuis",
+    settings_level_beginner: "Débutant",
+    settings_level_beginner_desc: "Explications détaillées, parcours guidé, glossaire au survol",
+    settings_level_intermediate: "Intermédiaire",
+    settings_level_intermediate_desc: "Infobulles concises, accès complet aux ressources pédagogiques",
+    settings_level_expert: "Expert",
+    settings_level_expert_desc: "Interface épurée, pas d'explications basiques, expérience pro",
+    // ── Settings · trading ────────────────────────────────────────────────
+    settings_style_scalp: "Scalping",
+    settings_style_scalp_desc: "Horizon très court. L'IA raisonne sur le momentum immédiat et les micro-niveaux.",
+    settings_style_day: "Day Trading",
+    settings_style_day_desc: "Ouverture et clôture dans la journée. L'IA se concentre sur le range journalier et les niveaux pivots.",
+    settings_style_swing: "Swing Trading",
+    settings_style_swing_desc: "Tendances sur plusieurs jours. L'IA raisonne sur les unités 4h et daily.",
+    settings_style_long: "Long Terme",
+    settings_style_long_desc: "Approche investissement. L'IA priorise les fondamentaux, le secteur et la macro.",
+    settings_horizon_scalp: "1 – 30 min",
+    settings_horizon_day: "Quelques heures",
+    settings_horizon_swing: "2 – 10 jours",
+    settings_horizon_long: "Semaines – mois",
+    settings_style_scope: "Appliqué aux analyses IA (page Analyse et chat IA). Le Hub Or conserve son propre réglage de style.",
+    settings_risk_conservative: "Conservateur",
+    settings_risk_conservative_desc: "L'IA privilégie les setups à faible volatilité et insiste sur la protection du capital.",
+    settings_risk_moderate: "Modéré",
+    settings_risk_moderate_desc: "Équilibre entre opportunités et protection du capital.",
+    settings_risk_aggressive: "Agressif",
+    settings_risk_aggressive_desc: "L'IA accepte des setups plus volatils et des objectifs plus larges.",
+    settings_risk_very_aggressive: "Très agressif",
+    settings_risk_very_aggressive_desc: "Les setups les plus volatils. À réserver aux traders expérimentés.",
+    settings_risk_disclaimer: "Ce réglage oriente le ton et la sélection des analyses IA. Il ne limite pas automatiquement la taille de vos positions.",
+    settings_leverage_desc: "Valeur pré-remplie dans le formulaire d'ordre. Modifiable à chaque trade.",
+    settings_leverage_1: "1x (sans levier)",
+    // ── Settings · affichage ──────────────────────────────────────────────
+    settings_display_title: "Affichage",
+    settings_currency_desc: "Devise d'affichage de tous les montants.",
+    settings_currency_rate_note: "Conversion indicative à taux fixe. Les soldes et P&L sont stockés en dollars.",
+    settings_currency_eur: "Euro",
+    settings_currency_usd: "Dollar US",
+    settings_accent_blue: "Bleu",
+    settings_accent_purple: "Violet",
+    settings_accent_teal: "Turquoise",
+    settings_accent_orange: "Orange",
+    settings_accent_pink: "Rose",
+    // ── Settings · alertes & récap ────────────────────────────────────────
+    settings_alerts_title: "Alertes & récap",
+    settings_alerts_toasts: "Notifications d'alerte de prix",
+    settings_alerts_toasts_desc: "Affiche une notification dans l'app quand une de vos alertes se déclenche.",
+    settings_recap_title: "Récap de retour",
+    settings_recap_desc: "L'animation qui résume l'évolution de vos positions depuis votre dernière visite.",
+    settings_recap_always: "À chaque retour",
+    settings_recap_always_desc: "Après 30 min d'absence minimum",
+    settings_recap_daily: "Une fois par jour",
+    settings_recap_daily_desc: "Au plus un récap toutes les 24 h",
+    settings_recap_weekly: "Une fois par semaine",
+    settings_recap_weekly_desc: "Au plus un récap tous les 7 jours",
+    settings_recap_off: "Désactivé",
+    settings_recap_off_desc: "Ne plus afficher le récap au retour",
+    settings_my_alerts: "Mes alertes actives",
+    settings_my_alerts_empty: "Aucune alerte active. Créez-en une depuis la page Analyse.",
+    settings_alert_delete: "Supprimer l'alerte",
+    // ── Settings · sécurité & données ─────────────────────────────────────
+    settings_pwd_current: "Mot de passe actuel",
+    settings_pwd_new: "Nouveau mot de passe",
+    settings_pwd_confirm: "Confirmer le nouveau mot de passe",
+    settings_pwd_rules: "8 caractères minimum, avec au moins une lettre et un chiffre.",
+    settings_pwd_mismatch: "Les deux mots de passe ne correspondent pas.",
+    settings_pwd_same: "Le nouveau mot de passe doit être différent de l'actuel.",
+    settings_pwd_wrong_current: "Mot de passe actuel incorrect.",
+    settings_pwd_success: "Mot de passe modifié. Vos autres appareils ont été déconnectés.",
+    settings_pwd_submit: "Changer le mot de passe",
+    settings_export_desc2: "Téléchargez un fichier JSON contenant toutes vos données : profil, préférences, positions, favoris, journal et alertes (RGPD, art. 20).",
+    settings_export_progress: "Préparation de l'export…",
+    settings_export_done: "Export téléchargé",
+    settings_danger_zone: "Zone de danger",
+    settings_delete_account: "Supprimer mon compte",
+    settings_delete_account_desc: "Supprime définitivement votre compte et toutes vos données. Cette action est irréversible (RGPD, art. 17).",
+    settings_delete_confirm_word: "SUPPRIMER",
+    settings_delete_confirm_prompt: "Tapez SUPPRIMER pour confirmer",
+    settings_delete_confirm_pwd: "Entrez votre mot de passe pour confirmer",
+    settings_delete_submit: "Supprimer définitivement",
     community_send_msg:            "Envoyer le message",
     community_back_tickets:        "Retour aux tickets",
     community_created_on:          "Créé le",
@@ -1180,13 +1273,13 @@ const translations = {
     settings_tab_trading:  "Trading",
     settings_tab_notif:    "Notifications",
     settings_tab_appear:   "Appearance",
-    settings_tab_security: "Security",
+    settings_tab_security: "Security & data",
     settings_save:         "Save",
     settings_saved:        "Saved",
     settings_display_name: "Display name",
     settings_level:        "Trading level",
     settings_level_desc:   "Adapts the interface and explanations to your level.",
-    settings_changes_auto: "Changes apply immediately and are saved automatically.",
+    settings_changes_auto: "Your preferences are saved to your account and follow you on every device.",
     settings_profile_title:        "Profile",
     settings_user_default:         "User",
     settings_email_undefined:      "Email not set",
@@ -1195,28 +1288,119 @@ const translations = {
     settings_trading_style_label:  "Trading style",
     settings_trading_style_desc:   "This setting adapts all AI analyses to your horizon and method — stops, R/R, indicators and language change according to your style.",
     settings_style_active_suffix:  "active",
-    settings_style_ai_text:        "AI analyses now use this profile (horizon {horizon}, stops and R/R adapted).",
+    settings_style_ai_text:        "AI analyses use this profile (horizon {horizon}).",
     settings_risk_level_label:     "Risk level",
     settings_leverage_label:       "Default leverage",
     settings_notif_title:          "Notifications",
     settings_notif_price_alerts:   "Price alerts",
     settings_notif_price_alerts_desc: "When an asset reaches your target price",
-    settings_notif_opportunities:  "Opportunities",
-    settings_notif_opportunities_desc: "New opportunities detected by the scanner",
-    settings_notif_positions:      "Positions",
-    settings_notif_positions_desc: "Updates on your open positions",
-    settings_notif_daily:          "Daily summary",
-    settings_notif_daily_desc:     "Daily report of your portfolio",
-    settings_security_title:       "Security",
+    settings_security_title:       "Security & data",
     settings_security_info:        "Your account is secured with email/password authentication",
     settings_change_password:      "Change password",
     settings_change_password_desc: "Update your password",
-    settings_change_btn:           "Edit",
+    settings_change_btn:           "Change",
     settings_export_data:          "Export my data",
     settings_export_data_desc:     "Download your trading data",
     settings_export_btn:           "Export",
     settings_logout_row:           "Sign out",
     settings_logout_desc:          "Sign out of this account",
+    // ── Settings · shell, tabs & save state ───────────────────────────────
+    settings_tab_account: "Account",
+    settings_tab_display: "Display",
+    settings_tab_alerts: "Alerts & recap",
+    settings_saving: "Saving…",
+    settings_save_error: "Couldn't save",
+    settings_retry: "Retry",
+    settings_loading: "Loading your preferences…",
+    settings_cancel: "Cancel",
+    // ── Settings · account ────────────────────────────────────────────────
+    settings_account_title: "Account",
+    settings_display_name_desc: "The name shown across the app (2–40 characters).",
+    settings_display_name_invalid: "Between 2 and 40 characters, no special characters.",
+    settings_username_label: "Username",
+    settings_email_label: "Email address",
+    settings_email_readonly: "Email cannot be changed yet. Please contact support.",
+    settings_email_verified: "Verified",
+    settings_member_since: "Member since",
+    settings_level_beginner: "Beginner",
+    settings_level_beginner_desc: "Detailed explanations, guided path, glossary on hover",
+    settings_level_intermediate: "Intermediate",
+    settings_level_intermediate_desc: "Concise tooltips, full access to educational resources",
+    settings_level_expert: "Expert",
+    settings_level_expert_desc: "Clean interface, no basic explanations, pro experience",
+    // ── Settings · trading ────────────────────────────────────────────────
+    settings_style_scalp: "Scalping",
+    settings_style_scalp_desc: "Very short horizon. AI reasons on immediate momentum and micro levels.",
+    settings_style_day: "Day Trading",
+    settings_style_day_desc: "Open and close within the day. AI focuses on the daily range and pivot levels.",
+    settings_style_swing: "Swing Trading",
+    settings_style_swing_desc: "Multi-day trends. AI reasons on 4h and daily timeframes.",
+    settings_style_long: "Long Term",
+    settings_style_long_desc: "Investing approach. AI prioritizes fundamentals, sector and macro.",
+    settings_horizon_scalp: "1 – 30 min",
+    settings_horizon_day: "A few hours",
+    settings_horizon_swing: "2 – 10 days",
+    settings_horizon_long: "Weeks – months",
+    settings_style_scope: "Applies to AI analyses (Analysis page and AI chat). The Gold Hub keeps its own style setting.",
+    settings_risk_conservative: "Conservative",
+    settings_risk_conservative_desc: "AI favors low-volatility setups and emphasizes capital protection.",
+    settings_risk_moderate: "Moderate",
+    settings_risk_moderate_desc: "A balance between opportunity and capital protection.",
+    settings_risk_aggressive: "Aggressive",
+    settings_risk_aggressive_desc: "AI accepts more volatile setups and wider targets.",
+    settings_risk_very_aggressive: "Very aggressive",
+    settings_risk_very_aggressive_desc: "The most volatile setups. For experienced traders only.",
+    settings_risk_disclaimer: "This setting steers the tone and selection of AI analyses. It does not automatically cap your position size.",
+    settings_leverage_desc: "Pre-filled in the order form. Editable on every trade.",
+    settings_leverage_1: "1x (no leverage)",
+    // ── Settings · display ────────────────────────────────────────────────
+    settings_display_title: "Display",
+    settings_currency_desc: "Display currency for all amounts.",
+    settings_currency_rate_note: "Indicative conversion at a fixed rate. Balances and P&L are stored in US dollars.",
+    settings_currency_eur: "Euro",
+    settings_currency_usd: "US Dollar",
+    settings_accent_blue: "Blue",
+    settings_accent_purple: "Purple",
+    settings_accent_teal: "Teal",
+    settings_accent_orange: "Orange",
+    settings_accent_pink: "Pink",
+    // ── Settings · alerts & recap ─────────────────────────────────────────
+    settings_alerts_title: "Alerts & recap",
+    settings_alerts_toasts: "Price alert notifications",
+    settings_alerts_toasts_desc: "Shows an in-app notification when one of your alerts triggers.",
+    settings_recap_title: "Welcome-back recap",
+    settings_recap_desc: "The animation summarizing how your positions moved since your last visit.",
+    settings_recap_always: "Every return",
+    settings_recap_always_desc: "After at least 30 min away",
+    settings_recap_daily: "Once a day",
+    settings_recap_daily_desc: "At most one recap per 24 h",
+    settings_recap_weekly: "Once a week",
+    settings_recap_weekly_desc: "At most one recap per 7 days",
+    settings_recap_off: "Off",
+    settings_recap_off_desc: "Never show the welcome-back recap",
+    settings_my_alerts: "My active alerts",
+    settings_my_alerts_empty: "No active alerts. Create one from the Analysis page.",
+    settings_alert_delete: "Delete alert",
+    // ── Settings · security & data ────────────────────────────────────────
+    settings_pwd_current: "Current password",
+    settings_pwd_new: "New password",
+    settings_pwd_confirm: "Confirm new password",
+    settings_pwd_rules: "At least 8 characters, including one letter and one digit.",
+    settings_pwd_mismatch: "The two passwords don't match.",
+    settings_pwd_same: "The new password must differ from the current one.",
+    settings_pwd_wrong_current: "Current password is incorrect.",
+    settings_pwd_success: "Password changed. Your other devices have been signed out.",
+    settings_pwd_submit: "Change password",
+    settings_export_desc2: "Download a JSON file with all your data: profile, preferences, positions, favorites, journal and alerts (GDPR, art. 20).",
+    settings_export_progress: "Preparing your export…",
+    settings_export_done: "Export downloaded",
+    settings_danger_zone: "Danger zone",
+    settings_delete_account: "Delete my account",
+    settings_delete_account_desc: "Permanently deletes your account and all your data. This cannot be undone (GDPR, art. 17).",
+    settings_delete_confirm_word: "DELETE",
+    settings_delete_confirm_prompt: "Type DELETE to confirm",
+    settings_delete_confirm_pwd: "Enter your password to confirm",
+    settings_delete_submit: "Delete permanently",
     community_send_msg:            "Send message",
     community_back_tickets:        "Back to tickets",
     community_created_on:          "Created on",
@@ -2141,41 +2325,80 @@ export type TranslationKey = keyof typeof translations.fr;
 
 interface LanguageContextValue {
   lang: Lang;
+  /** Fire-and-forget: applies locally and best-effort persists to the account. */
   setLang: (l: Lang) => void;
+  /** Awaits the server write and rethrows — used where a save state is rendered. */
+  setLangAsync: (l: Lang) => Promise<void>;
+  /** Adopts the server value on hydration, unless the user already changed it. */
+  hydrateLang: (l: string | null | undefined) => void;
   t: (key: TranslationKey) => string;
 }
 
 const LanguageContext = createContext<LanguageContextValue>({
   lang: "fr",
   setLang: () => {},
+  setLangAsync: async () => {},
+  hydrateLang: () => {},
   t: (key) => translations.fr[key],
 });
 
 export function LanguageProvider({ children }: { children: ReactNode }) {
   const [lang, setLangState] = useState<Lang>("fr");
+  // True once the user has explicitly picked a language this session — server
+  // hydration must never overwrite an in-flight choice.
+  const dirtyRef = useRef(false);
+
+  const applyLang = useCallback((l: Lang) => {
+    setLangState(l);
+    try { localStorage.setItem("tdb_lang", l); } catch { /* private mode */ }
+    if (typeof document !== "undefined") document.documentElement.lang = l;
+  }, []);
 
   useEffect(() => {
     const stored = localStorage.getItem("tdb_lang") as Lang | null;
     if (stored === "fr" || stored === "en") {
       setLangState(stored);
+      document.documentElement.lang = stored;
     } else {
       // No stored preference — use browser language, default to fr
       const browserLang = navigator.language?.toLowerCase() ?? "";
-      if (browserLang.startsWith("en")) setLangState("en");
+      if (browserLang.startsWith("en")) {
+        setLangState("en");
+        document.documentElement.lang = "en";
+      }
     }
   }, []);
 
   const setLang = useCallback((l: Lang) => {
-    setLangState(l);
-    localStorage.setItem("tdb_lang", l);
-  }, []);
+    dirtyRef.current = true;
+    applyLang(l);
+    // The token guard is mandatory: LanguageToggle also mounts on /login,
+    // /register and the landing page, where an unauthenticated PUT would trip
+    // fetchAPI's 401 branch and hard-redirect the visitor to /login.
+    if (getToken()) settingsAPI.update({ language: l }).catch(() => { /* best effort */ });
+  }, [applyLang]);
+
+  const setLangAsync = useCallback(async (l: Lang) => {
+    dirtyRef.current = true;
+    applyLang(l);
+    if (getToken()) await settingsAPI.update({ language: l });
+  }, [applyLang]);
+
+  const hydrateLang = useCallback((l: string | null | undefined) => {
+    if (dirtyRef.current) return;
+    if (l !== "fr" && l !== "en") return;
+    applyLang(l);
+  }, [applyLang]);
 
   const t = useCallback((key: TranslationKey): string =>
     (translations[lang] as Record<string, string>)[key] ??
     (translations.fr as Record<string, string>)[key] ??
     key, [lang]);
 
-  const contextValue = useMemo(() => ({ lang, setLang, t }), [lang, setLang, t]);
+  const contextValue = useMemo(
+    () => ({ lang, setLang, setLangAsync, hydrateLang, t }),
+    [lang, setLang, setLangAsync, hydrateLang, t]
+  );
 
   return (
     <LanguageContext.Provider value={contextValue}>

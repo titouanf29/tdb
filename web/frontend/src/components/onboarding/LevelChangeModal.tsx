@@ -1,10 +1,8 @@
 "use client";
 
-import { motion, AnimatePresence } from "framer-motion";
-import {
-  GraduationCap, TrendingUp, Zap, ArrowRight, RotateCcw,
-  Check, Sparkles, Bot, X
-} from "lucide-react";
+import { useEffect } from "react";
+import { motion } from "framer-motion";
+import { RotateCcw, Check, Bot, X } from "lucide-react";
 import { TradingLevel } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 
@@ -27,8 +25,16 @@ function getDirection(from: TradingLevel, to: TradingLevel): ChangeDirection {
   return "same";
 }
 
+/**
+ * `actions` decides which CTAs render:
+ *   "beginner" → Alex panel + restart-tour + close
+ *   "tour"     → restart-tour + close
+ *   "none"     → close only (the guided tour has no expert variant —
+ *                OnboardingTour.startTour returns immediately for "expert")
+ */
 const CONFIGS = {
   upgrade_intermediate: {
+    actions: "tour" as const,
     emoji: "📈",
     gradient: "from-blue-600 to-indigo-700",
     glow: "shadow-blue-500/30",
@@ -44,6 +50,7 @@ const CONFIGS = {
     },
   },
   upgrade_expert: {
+    actions: "none" as const,
     emoji: "🏆",
     gradient: "from-purple-600 to-pink-700",
     glow: "shadow-purple-500/30",
@@ -59,6 +66,7 @@ const CONFIGS = {
     },
   },
   downgrade_beginner: {
+    actions: "beginner" as const,
     emoji: "🌱",
     gradient: "from-emerald-600 to-teal-700",
     glow: "shadow-emerald-500/30",
@@ -73,6 +81,24 @@ const CONFIGS = {
       en: ["Coach Alex reactivated bottom-left", "Guided learning path", "Educational tooltips on all terms"],
     },
   },
+  // expert → intermediate. Previously unmapped, which made the component call
+  // onClose() DURING RENDER (React "cannot update a component while rendering").
+  downgrade_intermediate: {
+    actions: "tour" as const,
+    emoji: "🧭",
+    gradient: "from-blue-600 to-cyan-700",
+    glow: "shadow-blue-500/30",
+    borderColor: "border-blue-500/30",
+    title: { fr: "Niveau Intermédiaire réactivé", en: "Intermediate level restored" },
+    subtitle: {
+      fr: "Les infobulles et les repères pédagogiques reviennent, sans le parcours débutant.",
+      en: "Tooltips and learning cues are back, without the beginner path.",
+    },
+    points: {
+      fr: ["Infobulles concises sur les termes clés", "Accès complet aux ressources pédagogiques", "Interface toujours complète"],
+      en: ["Concise tooltips on key terms", "Full access to educational resources", "Interface stays complete"],
+    },
+  },
 };
 
 export function LevelChangeModal({
@@ -85,17 +111,21 @@ export function LevelChangeModal({
 }: LevelChangeModalProps) {
   const direction = getDirection(fromLevel, toLevel);
 
-  let configKey: keyof typeof CONFIGS;
+  let configKey: keyof typeof CONFIGS | null = null;
   if (direction === "upgrade" && toLevel === "intermediate") configKey = "upgrade_intermediate";
   else if (direction === "upgrade" && toLevel === "expert") configKey = "upgrade_expert";
   else if (direction === "downgrade" && toLevel === "beginner") configKey = "downgrade_beginner";
-  else {
-    onClose();
-    return null;
-  }
+  else if (direction === "downgrade" && toLevel === "intermediate") configKey = "downgrade_intermediate";
+
+  // Closing must happen in an effect — calling onClose() during render triggers
+  // React's "Cannot update a component while rendering a different component".
+  useEffect(() => {
+    if (!configKey) onClose();
+  }, [configKey, onClose]);
+
+  if (!configKey) return null;
 
   const config = CONFIGS[configKey];
-  const isDowngrade = direction === "downgrade";
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
@@ -113,7 +143,7 @@ export function LevelChangeModal({
             "border",
             config.borderColor
           )}
-          style={{ background: "hsl(220 50% 5.5%)" }}
+          style={{ background: "hsl(var(--card))" }}
         >
           {/* Animated banner */}
           <div className={cn("relative p-7 pb-5 text-center bg-gradient-to-br", config.gradient)}>
@@ -121,7 +151,7 @@ export function LevelChangeModal({
               onClick={onClose}
               className="absolute top-3 right-3 w-7 h-7 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors"
             >
-              <X className="w-3.5 h-3.5 text-white" />
+              <X className="w-3.5 h-3.5 text-on-color" aria-hidden="true" />
             </button>
 
             {/* Particles */}
@@ -148,7 +178,7 @@ export function LevelChangeModal({
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.15 }}
-              className="text-xl font-bold text-white"
+              className="text-xl font-bold font-display text-on-color"
             >
               {config.title[lang]}
             </motion.h2>
@@ -171,7 +201,7 @@ export function LevelChangeModal({
                   initial={{ opacity: 0, x: -12 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: 0.3 + i * 0.08 }}
-                  className="flex items-center gap-2.5 text-sm text-gray-300"
+                  className="flex items-center gap-2.5 text-sm text-foreground/80"
                 >
                   <div className="w-5 h-5 rounded-full bg-white/10 flex items-center justify-center shrink-0">
                     <Check className="w-3 h-3 text-white/70" />
@@ -188,63 +218,38 @@ export function LevelChangeModal({
               transition={{ delay: 0.55 }}
               className="pt-1 space-y-2"
             >
-              {isDowngrade ? (
-                <>
-                  <button
-                    onClick={() => {
-                      onStartBeginnerAssistant?.();
-                      onClose();
-                    }}
-                    className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-700 text-white text-sm font-semibold hover:opacity-90 transition-opacity"
-                  >
-                    <Bot className="w-4 h-4" />
-                    {lang === "fr" ? "Relancer l'assistant débutant" : "Restart beginner assistant"}
-                  </button>
-                  {onStartTour && (
-                    <button
-                      onClick={() => {
-                        onStartTour(toLevel);
-                        onClose();
-                      }}
-                      className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-white/10 text-sm text-gray-400 hover:text-white hover:border-white/20 transition-all"
-                    >
-                      <RotateCcw className="w-3.5 h-3.5" />
-                      {lang === "fr" ? "Relancer la visite guidée" : "Restart guided tour"}
-                    </button>
-                  )}
-                  <button
-                    onClick={onClose}
-                    className="w-full text-xs text-gray-600 hover:text-gray-400 transition-colors py-1"
-                  >
-                    {lang === "fr" ? "Fermer" : "Close"}
-                  </button>
-                </>
-              ) : (
-                <>
-                  {onStartTour && (
-                    <button
-                      onClick={() => {
-                        onStartTour(toLevel);
-                        onClose();
-                      }}
-                      className={cn(
-                        "w-full flex items-center justify-center gap-2 py-3 rounded-xl text-white text-sm font-semibold hover:opacity-90 transition-opacity bg-gradient-to-r",
-                        config.gradient
-                      )}
-                    >
-                      <Sparkles className="w-4 h-4" />
-                      {lang === "fr" ? "Découvrir les nouvelles fonctions" : "Discover new features"}
-                      <ArrowRight className="w-4 h-4" />
-                    </button>
-                  )}
-                  <button
-                    onClick={onClose}
-                    className="w-full py-2.5 rounded-xl border border-white/10 text-sm text-gray-400 hover:text-gray-200 hover:border-white/20 transition-all"
-                  >
-                    {lang === "fr" ? "Continuer sans visite" : "Continue without tour"}
-                  </button>
-                </>
+              {config.actions === "beginner" && (
+                <button
+                  onClick={() => {
+                    onStartBeginnerAssistant?.();
+                    onClose();
+                  }}
+                  className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-700 text-on-color text-sm font-semibold hover:opacity-90 transition-opacity"
+                >
+                  <Bot className="w-4 h-4" aria-hidden="true" />
+                  {lang === "fr" ? "Relancer l'assistant débutant" : "Restart beginner assistant"}
+                </button>
               )}
+
+              {config.actions !== "none" && onStartTour && (
+                <button
+                  onClick={() => {
+                    onStartTour(toLevel);
+                    onClose();
+                  }}
+                  className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-white/10 text-sm text-muted-foreground hover:text-foreground hover:border-white/20 transition-all"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" aria-hidden="true" />
+                  {lang === "fr" ? "Relancer la visite guidée" : "Restart guided tour"}
+                </button>
+              )}
+
+              <button
+                onClick={onClose}
+                className="w-full py-2.5 rounded-xl border border-white/10 text-sm text-muted-foreground hover:text-foreground hover:border-white/20 transition-all"
+              >
+                {lang === "fr" ? "Continuer" : "Continue"}
+              </button>
             </motion.div>
           </div>
         </div>

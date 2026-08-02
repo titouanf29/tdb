@@ -63,12 +63,32 @@ class TokenResponse(BaseModel):
 
 # === Helpers ===
 
+# bcrypt refuses anything over 72 BYTES (not characters): "éé…" is 2 bytes per
+# char, so a 40-char accented passphrase overflows and raises ValueError. Left
+# unhandled that surfaced as a 500 on register / login / change-password /
+# delete-account. We truncate on the byte boundary — the historical bcrypt
+# behaviour — instead of crashing.
+BCRYPT_MAX_BYTES = 72
+
+
+def _bcrypt_bytes(password: str) -> bytes:
+    raw = (password or "").encode("utf-8")
+    if len(raw) <= BCRYPT_MAX_BYTES:
+        return raw
+    # Cut at a valid UTF-8 boundary so we never split a multibyte character
+    return raw[:BCRYPT_MAX_BYTES].decode("utf-8", "ignore").encode("utf-8")
+
+
 def hash_password(password: str) -> str:
-    return bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
+    return bcrypt.hashpw(_bcrypt_bytes(password), bcrypt.gensalt()).decode()
 
 
 def verify_password(password: str, hashed: str) -> bool:
-    return bcrypt.checkpw(password.encode(), hashed.encode())
+    """Never raises: a malformed/legacy hash means 'wrong password', not a 500."""
+    try:
+        return bcrypt.checkpw(_bcrypt_bytes(password), (hashed or "").encode())
+    except (ValueError, TypeError):
+        return False
 
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
@@ -76,6 +96,20 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     expire = datetime.now(timezone.utc) + (expires_delta or timedelta(hours=ACCESS_TOKEN_EXPIRE_HOURS))
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+
+
+def token_payload(user: dict, remember_me: bool = False) -> dict:
+    """Build the JWT payload for a user.
+
+    `pwc` (password changed at) is stamped in so that changing the password
+    invalidates every token minted before the change (see get_current_user).
+    Users who never changed their password have password_changed_at NULL and
+    therefore no `pwc` claim — their existing sessions are never invalidated.
+    """
+    p = {"sub": str(user["id"]), "rm": remember_me}
+    if user.get("password_changed_at"):
+        p["pwc"] = user["password_changed_at"]
+    return p
 
 
 async def _create_verification_token(user_id: int) -> str:
@@ -109,6 +143,11 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
     users = await execute_query("SELECT * FROM web_users WHERE id = ?", (int(user_id),))
     if not users:
         raise HTTPException(status_code=404, detail="User not found")
+
+    # Tokens minted before the last password change are rejected.
+    changed = users[0].get("password_changed_at")
+    if changed and payload.get("pwc") != changed:
+        raise HTTPException(status_code=401, detail="Session expirée, reconnectez-vous")
 
     await execute_write(
         "UPDATE web_users SET last_active = ? WHERE id = ?",
@@ -213,7 +252,7 @@ async def register(request: Request, data: RegisterRequest):
     await execute_write(
         "UPDATE web_users SET email_verified = 1 WHERE id = ?", (user["id"],)
     )
-    access_token = create_access_token({"sub": str(user["id"])})
+    access_token = create_access_token(token_payload(user))
     return TokenResponse(
         access_token=access_token,
         user={
@@ -252,7 +291,7 @@ async def login(request: Request, data: LoginRequest):
         else timedelta(hours=ACCESS_TOKEN_EXPIRE_HOURS)
     )
     access_token = create_access_token(
-        {"sub": str(user["id"]), "rm": data.remember_me},
+        token_payload(user, data.remember_me),
         expires_delta=expires,
     )
     return TokenResponse(
@@ -290,7 +329,7 @@ async def verify_email(request: Request, token: str):
 
     users = await execute_query("SELECT * FROM web_users WHERE id = ?", (user_id,))
     user = users[0]
-    access_token = create_access_token({"sub": str(user_id)})
+    access_token = create_access_token(token_payload(user))
 
     return TokenResponse(
         access_token=access_token,
@@ -365,7 +404,7 @@ async def refresh_token(
         else timedelta(hours=ACCESS_TOKEN_EXPIRE_HOURS)
     )
     new_token = create_access_token(
-        data={"sub": str(current_user["id"]), "rm": remember_me},
+        data=token_payload(current_user, remember_me),
         expires_delta=expires,
     )
     return {"access_token": new_token, "token_type": "bearer"}

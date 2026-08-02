@@ -316,11 +316,11 @@ export function Header({ onMenuToggle }: { onMenuToggle?: () => void }) {
           >
             <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-purple-500 flex items-center justify-center">
               <span className="text-white text-sm font-bold">
-                {user?.username?.[0]?.toUpperCase() || user?.first_name?.[0]?.toUpperCase() || "U"}
+                {user?.first_name?.[0]?.toUpperCase() || user?.username?.[0]?.toUpperCase() || "U"}
               </span>
             </div>
             <span className="text-sm font-medium hidden sm:block">
-              {user?.username || user?.first_name || "Trader"}
+              {user?.first_name || user?.username || "Trader"}
             </span>
             <ChevronDown className="w-4 h-4 text-muted-foreground" />
           </button>
@@ -332,7 +332,7 @@ export function Header({ onMenuToggle }: { onMenuToggle?: () => void }) {
               className="absolute right-0 top-12 w-48 glass-card p-2 z-[200]"
             >
               <div className="px-3 py-2 border-b border-white/10 mb-2">
-                <p className="text-sm font-medium">{user?.username || user?.first_name}</p>
+                <p className="text-sm font-medium">{user?.first_name || user?.username}</p>
                 <p className="text-xs text-muted-foreground">{user?.email}</p>
               </div>
               <Link href="/settings" onClick={() => setShowProfile(false)}>
