@@ -91,21 +91,22 @@ app.add_middleware(
 _maint_cache: dict = {"value": None, "ts": 0.0}
 _MAINT_TTL = 3  # seconds
 
-async def _get_maintenance_state() -> tuple[bool, str, str | None]:
-    """Returns (is_on, message, end_time_iso). Cached for _MAINT_TTL seconds.
-    Auto-disables when end_time has passed."""
+async def _get_maintenance_state() -> tuple[bool, str, str | None, str | None]:
+    """Returns (is_on, message, end_time_iso, started_at_iso). Cached for
+    _MAINT_TTL seconds. Auto-disables when end_time has passed."""
     now = time.monotonic()
     if now - _maint_cache["ts"] < _MAINT_TTL and _maint_cache["value"] is not None:
         return _maint_cache["value"]
     try:
         rows = await execute_query(
-            "SELECT key, value FROM admin_settings "
-            "WHERE key IN ('maintenance_mode','maintenance_message','maintenance_end_time')"
+            "SELECT key, value FROM admin_settings WHERE key IN "
+            "('maintenance_mode','maintenance_message','maintenance_end_time','maintenance_started_at')"
         )
         settings = {r["key"]: r["value"] for r in (rows or [])}
-        is_on    = settings.get("maintenance_mode", "false") == "true"
-        msg      = settings.get("maintenance_message") or "Le site est en cours de maintenance. Revenez bientôt."
-        end_time = settings.get("maintenance_end_time") or None
+        is_on      = settings.get("maintenance_mode", "false") == "true"
+        msg        = settings.get("maintenance_message") or "Le site est en cours de maintenance. Revenez bientôt."
+        end_time   = settings.get("maintenance_end_time") or None
+        started_at = settings.get("maintenance_started_at") or None
 
         if is_on and end_time:
             try:
@@ -115,17 +116,28 @@ async def _get_maintenance_state() -> tuple[bool, str, str | None]:
                 if datetime.now(timezone.utc) >= end_dt:
                     is_on = False
                     end_time = None
+                    started_at = None
+                    # The timer keys MUST be wiped alongside the flag. Leaving a
+                    # past end_time behind means the next time an admin turns
+                    # maintenance on, this same branch fires and silently turns
+                    # it straight back off — the toggle looks dead forever.
+                    _stamp = datetime.now(timezone.utc).isoformat()
                     await execute_write(
                         "UPDATE admin_settings SET value = 'false', updated_at = ? WHERE key = 'maintenance_mode'",
-                        (datetime.now(timezone.utc).isoformat(),)
+                        (_stamp,)
+                    )
+                    await execute_write(
+                        "UPDATE admin_settings SET value = '', updated_at = ? "
+                        "WHERE key IN ('maintenance_end_time','maintenance_started_at')",
+                        (_stamp,)
                     )
             except (ValueError, TypeError):
                 pass
 
-        result = (is_on, msg, end_time if is_on else None)
+        result = (is_on, msg, end_time if is_on else None, started_at if is_on else None)
     except Exception as exc:
         logger.warning("maintenance check failed: %s", exc)
-        result = (False, "", None)
+        result = (False, "", None, None)
     _maint_cache["value"] = result
     _maint_cache["ts"] = now
     return result
@@ -176,7 +188,7 @@ async def maintenance_middleware(request: Request, call_next):
     if request.method == "OPTIONS":
         return await call_next(request)
 
-    is_on, msg, end_time = await _get_maintenance_state()
+    is_on, msg, end_time, _started = await _get_maintenance_state()
     if not is_on:
         return await call_next(request)
 
@@ -265,7 +277,7 @@ async def site_status(request: Request):
     """Public endpoint — returns maintenance status for frontend overlay.
     If a valid admin token is present, returns is_admin=True so the
     frontend never shows the maintenance overlay to admins."""
-    is_on, msg, end_time = await _get_maintenance_state()
+    is_on, msg, end_time, started_at = await _get_maintenance_state()
 
     # Optionally detect admin from Bearer token (no error if missing/invalid)
     is_admin_caller = False
@@ -279,6 +291,9 @@ async def site_status(request: Request):
         "maintenance": is_on,
         "message":     msg if is_on else None,
         "end_time":    end_time,
+        # Lets the client draw a real elapsed/remaining bar instead of a
+        # decorative one that conveys nothing.
+        "started_at":  started_at,
         "is_admin":    is_admin_caller,
     }
 

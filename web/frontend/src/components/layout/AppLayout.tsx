@@ -14,7 +14,8 @@ import { OnboardingModal } from "@/components/onboarding/OnboardingModal";
 import { OnboardingTour } from "@/components/OnboardingTour";
 import { CoachOverlay } from "@/components/CoachAlex";
 import { PriceAlertWatcher } from "@/components/PriceAlertWatcher";
-import { Loader2, Wrench } from "lucide-react";
+import { MaintenanceScreen } from "./MaintenanceScreen";
+import { Loader2 } from "lucide-react";
 import type { TradingLevel } from "@/lib/auth";
 
 // ── Public pages: no auth logic, no effects ───────────────────────────────────
@@ -46,9 +47,8 @@ function AuthShell({
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [forceTourLevel, setForceTourLevel] = useState<TradingLevel | null>(null);
-  const [maintenance, setMaintenance] = useState<{ on: boolean; message: string; endTime?: string; serverIsAdmin?: boolean }>({ on: false, message: "" });
+  const [maintenance, setMaintenance] = useState<{ on: boolean; message: string; endTime?: string; startedAt?: string; serverIsAdmin?: boolean }>({ on: false, message: "" });
   const [maintenanceChecked, setMaintenanceChecked] = useState(false);
-  const [countdown, setCountdown] = useState("");
 
   useEffect(() => {
     const check = async () => {
@@ -64,6 +64,7 @@ function AuthShell({
             on:            !!d.maintenance,
             message:       d.message || "",
             endTime:       d.end_time ?? undefined,
+            startedAt:     d.started_at ?? undefined,
             serverIsAdmin: !!d.is_admin,
           });
         }
@@ -74,22 +75,6 @@ function AuthShell({
     const iv = setInterval(check, 30000);
     return () => clearInterval(iv);
   }, []);
-
-  // Live countdown ticker
-  useEffect(() => {
-    if (!maintenance.endTime) { setCountdown(""); return; }
-    const tick = () => {
-      const diff = new Date(maintenance.endTime!).getTime() - Date.now();
-      if (diff <= 0) { setCountdown(""); return; }
-      const h = Math.floor(diff / 3600000);
-      const m = Math.floor((diff % 3600000) / 60000);
-      const s = Math.floor((diff % 60000) / 1000);
-      setCountdown(h > 0 ? `${h}h ${m}m` : m > 0 ? `${m}m ${s}s` : `${s}s`);
-    };
-    tick();
-    const t = setInterval(tick, 1000);
-    return () => clearInterval(t);
-  }, [maintenance.endTime]);
 
   // Redirect unauthenticated users — only runs on auth/protected pages
   useEffect(() => {
@@ -184,54 +169,14 @@ function AuthShell({
 
   if (maintenance.on && !isAdmin && !maintenance.serverIsAdmin) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-6 bg-background">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-          className="text-center space-y-6 max-w-md w-full"
-        >
-          {/* Animated icon */}
-          <div className="relative w-20 h-20 mx-auto">
-            <div className="absolute inset-0 rounded-2xl bg-yellow-500/20 animate-ping" style={{ animationDuration: "2s" }} />
-            <div className="relative w-20 h-20 rounded-2xl bg-yellow-500/10 border border-yellow-500/20 flex items-center justify-center">
-              <Wrench className="w-10 h-10 text-yellow-400" />
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <h1 className="text-2xl font-bold">
-              {lang === "en" ? "Under Maintenance" : "En maintenance"}
-            </h1>
-            <p className="text-muted-foreground leading-relaxed">
-              {maintenance.message || (lang === "en"
-                ? "The site is temporarily unavailable. Please come back soon."
-                : "Le site est temporairement indisponible. Revenez bientôt.")}
-            </p>
-          </div>
-
-          {/* Countdown timer */}
-          {countdown && (
-            <div className="mx-auto w-fit px-6 py-3 rounded-2xl bg-yellow-500/10 border border-yellow-500/20">
-              <p className="text-xs text-yellow-400/70 uppercase tracking-wider mb-1 font-medium">
-                {lang === "en" ? "Back online in" : "Retour dans"}
-              </p>
-              <p className="text-3xl font-bold text-yellow-400 tabular-nums">{countdown}</p>
-            </div>
-          )}
-
-          {/* Progress bar (visual only) */}
-          <div className="w-full h-1 bg-white/5 rounded-full overflow-hidden">
-            <motion.div
-              className="h-full bg-yellow-400/60 rounded-full"
-              animate={{ x: ["-100%", "100%"] }}
-              transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-            />
-          </div>
-
-          <p className="text-xs text-muted-foreground/50">CaptenTDB · captentdb.fr</p>
-        </motion.div>
-      </div>
+      <MaintenanceScreen
+        message={maintenance.message || (lang === "en"
+          ? "The site is temporarily unavailable. Please come back soon."
+          : "Le site est temporairement indisponible. Revenez bientôt.")}
+        endTime={maintenance.endTime}
+        startedAt={maintenance.startedAt}
+        lang={lang}
+      />
     );
   }
 

@@ -588,9 +588,32 @@ async def update_system_setting(setting: SystemSetting, admin: dict = Depends(ge
             (setting.key, setting.value, _now, _now)
         )
 
-    await log_admin_action(admin["id"], "update_setting", f"Updated setting {setting.key}")
+    # Toggling maintenance carries two bookkeeping keys with it. Turning it ON
+    # stamps the start (the public status endpoint needs it to draw a real
+    # progress bar); turning it OFF wipes the timer so a leftover past end_time
+    # can't auto-disable the next maintenance window the moment it opens.
+    if setting.key == "maintenance_mode":
+        if setting.value == "true":
+            await _upsert_setting("maintenance_started_at", _now, _now)
+        else:
+            for k in ("maintenance_end_time", "maintenance_started_at"):
+                await _upsert_setting(k, "", _now)
 
     return {"success": True, "key": setting.key, "value": setting.value}
+
+
+async def _upsert_setting(key: str, value: str, now: str) -> None:
+    existing = await execute_query("SELECT key FROM admin_settings WHERE key = ?", (key,))
+    if existing:
+        await execute_write(
+            "UPDATE admin_settings SET value = ?, updated_at = ? WHERE key = ?",
+            (value, now, key)
+        )
+    else:
+        await execute_write(
+            "INSERT INTO admin_settings (key, value, created_at, updated_at) VALUES (?, ?, ?, ?)",
+            (key, value, now, now)
+        )
 
 
 # ============== ANALYTICS ==============
