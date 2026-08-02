@@ -60,7 +60,7 @@ export function LegalSectionTitle({ num, title, id }: { num: string; title: stri
 
 export function InfoBox({ children, variant = "info" }: { children: React.ReactNode; variant?: "info" | "warning" | "success" | "danger" }) {
   const styles = {
-    info: "bg-blue-500/10 border-blue-500/30 text-blue-300",
+    info: "bg-primary/10 border-primary/30 text-primary",
     warning: "bg-yellow-500/10 border-yellow-500/30 text-yellow-300",
     success: "bg-green-500/10 border-green-500/30 text-green-300",
     danger: "bg-red-500/10 border-red-500/30 text-red-300",

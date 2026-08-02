@@ -70,13 +70,13 @@ function SleepingAlexAnim() {
       {/* Radial glow */}
       <motion.div
         className="absolute inset-0 rounded-full pointer-events-none"
-        style={{ background: "radial-gradient(circle, rgba(99,140,255,0.18) 0%, transparent 68%)" }}
+        style={{ background: "radial-gradient(circle, rgba(232,168,32,0.18) 0%, transparent 68%)" }}
         animate={{ scale: [1, 1.25, 1], opacity: [0.5, 1, 0.5] }}
         transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
       />
       {/* Stars */}
       {[{ x: -36, y: -28, size: 5, delay: 0 }, { x: 32, y: -40, size: 4, delay: 0.7 }, { x: -48, y: 8, size: 3, delay: 1.4 }].map((s, i) => (
-        <motion.div key={i} className="absolute rounded-full bg-indigo-300/60"
+        <motion.div key={i} className="absolute rounded-full bg-neon-purple/60"
           style={{ width: s.size, height: s.size, left: `calc(50% + ${s.x}px)`, top: `calc(50% + ${s.y}px)` }}
           animate={{ opacity: [0.2, 0.9, 0.2], scale: [0.8, 1.2, 0.8] }}
           transition={{ duration: 2.5, repeat: Infinity, delay: s.delay, ease: "easeInOut" }}
@@ -93,17 +93,17 @@ function SleepingAlexAnim() {
           className="w-24 h-24 rounded-3xl flex items-center justify-center relative shadow-2xl"
           style={{
             background: "linear-gradient(135deg, #0d1535 0%, #1a2444 100%)",
-            border: "2px solid rgba(99,140,255,0.3)",
-            boxShadow: "0 0 40px rgba(99,140,255,0.2), 0 8px 32px rgba(0,0,0,0.6)",
+            border: "2px solid rgba(232,168,32,0.3)",
+            boxShadow: "0 0 40px rgba(232,168,32,0.2), 0 8px 32px rgba(0,0,0,0.6)",
           }}
         >
-          <Bot className="w-11 h-11" style={{ color: "rgba(99,140,255,0.65)" }} />
+          <Bot className="w-11 h-11" style={{ color: "rgba(232,168,32,0.65)" }} />
           {/* Closed curved eyes */}
           <div className="absolute inset-0 flex items-center justify-center" style={{ marginTop: 4 }}>
             <div className="flex gap-3.5">
               {[0, 1].map((e) => (
                 <svg key={e} width="13" height="7" viewBox="0 0 13 7" fill="none">
-                  <path d="M 1 2 Q 6.5 6.5 12 2" stroke="rgba(99,140,255,0.9)" strokeWidth="2" strokeLinecap="round" />
+                  <path d="M 1 2 Q 6.5 6.5 12 2" stroke="rgba(232,168,32,0.9)" strokeWidth="2" strokeLinecap="round" />
                 </svg>
               ))}
             </div>
@@ -120,7 +120,7 @@ function SleepingAlexAnim() {
         <motion.span
           key={i}
           className="absolute font-black select-none pointer-events-none z-20"
-          style={{ fontSize: z.size, left: "50%", top: "50%", color: "#638CFF", lineHeight: 1 }}
+          style={{ fontSize: z.size, left: "50%", top: "50%", color: "#E8A820", lineHeight: 1 }}
           animate={{ opacity: [0, 0.9, 0.9, 0], x: [z.dx, z.dx + 10, z.dx + 18], y: [z.startY, z.startY - 22, z.startY - 44] }}
           transition={{ duration: 3, repeat: Infinity, delay: z.delay, ease: "easeOut" }}
         >
@@ -166,12 +166,12 @@ function WeekendView({ lang, onIgnore, onClose }: { lang: "fr" | "en"; onIgnore:
         </p>
         <motion.div
           className="mt-2.5 inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border"
-          style={{ background: "rgba(99,140,255,0.08)", borderColor: "rgba(99,140,255,0.22)" }}
+          style={{ background: "rgba(232,168,32,0.08)", borderColor: "rgba(232,168,32,0.22)" }}
           animate={{ opacity: [0.7, 1, 0.7] }}
           transition={{ duration: 2.8, repeat: Infinity }}
         >
-          <span className="w-1.5 h-1.5 rounded-full bg-[#638CFF] animate-pulse" />
-          <span className="text-[#638CFF] text-xs font-mono font-bold">
+          <span className="w-1.5 h-1.5 rounded-full bg-[#E8A820] animate-pulse" />
+          <span className="text-[#E8A820] text-xs font-mono font-bold">
             {countdown} {isFr ? "avant l'ouverture" : "until open"}
           </span>
         </motion.div>
@@ -208,7 +208,7 @@ function WeekendView({ lang, onIgnore, onClose }: { lang: "fr" | "en"; onIgnore:
           href="/learn"
           onClick={onClose}
           className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl text-xs font-semibold transition-opacity hover:opacity-75 active:scale-95"
-          style={{ background: "linear-gradient(135deg, rgba(99,140,255,0.18) 0%, rgba(0,212,170,0.08) 100%)", border: "1px solid rgba(99,140,255,0.25)", color: "#638CFF" }}
+          style={{ background: "linear-gradient(135deg, rgba(232,168,32,0.18) 0%, rgba(0,212,170,0.08) 100%)", border: "1px solid rgba(232,168,32,0.25)", color: "#E8A820" }}
         >
           <BookOpen className="w-3.5 h-3.5" />
           {isFr ? "Aller à la section Apprendre" : "Go to Learn section"}
@@ -286,13 +286,13 @@ export function CoachOverlay() {
               className="absolute bottom-16 left-0 w-80 sm:w-96"
             >
               {/* Glow */}
-              <div className="absolute -inset-1 rounded-3xl bg-gradient-to-br from-[#638CFF]/20 to-[#00D4AA]/10 blur-xl pointer-events-none" />
+              <div className="absolute -inset-1 rounded-3xl bg-gradient-to-br from-[#E8A820]/20 to-[#00D4AA]/10 blur-xl pointer-events-none" />
 
               <div className="relative rounded-2xl border border-white/10 bg-[#080d1a]/95 backdrop-blur-2xl shadow-2xl overflow-hidden">
                 {/* Header */}
                 <div
                   className="relative flex items-center gap-3 px-4 py-3 border-b border-white/5"
-                  style={{ background: "linear-gradient(135deg, rgba(99,140,255,0.12) 0%, rgba(0,212,170,0.06) 100%)" }}
+                  style={{ background: "linear-gradient(135deg, rgba(232,168,32,0.12) 0%, rgba(0,212,170,0.06) 100%)" }}
                 >
                   {activeTour ? (
                     <button onClick={endTour} className="text-gray-400 hover:text-white transition-colors mr-1">
@@ -315,7 +315,7 @@ export function CoachOverlay() {
                     }
                     transition={{ duration: 0.4 }}
                   >
-                    <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[#638CFF] to-[#00D4AA] flex items-center justify-center shadow-lg shadow-[#638CFF]/30">
+                    <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[#E8A820] to-[#00D4AA] flex items-center justify-center shadow-lg shadow-[#E8A820]/30">
                       <Bot className="w-5 h-5 text-white" />
                     </div>
                     <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-[#00D4AA] border-2 border-[#080d1a]" />
@@ -343,7 +343,7 @@ export function CoachOverlay() {
                   <div className="px-4 pt-2">
                     <div className="w-full bg-white/10 rounded-full h-1 overflow-hidden">
                       <motion.div
-                        className="h-full bg-gradient-to-r from-[#638CFF] to-[#00D4AA] rounded-full"
+                        className="h-full bg-gradient-to-r from-[#E8A820] to-[#00D4AA] rounded-full"
                         initial={false}
                         animate={{ width: `${((currentStep + 1) / totalSteps) * 100}%` }}
                         transition={{ duration: 0.4 }}
@@ -411,27 +411,27 @@ export function CoachOverlay() {
           className="relative w-14 h-14 rounded-2xl flex items-center justify-center shadow-xl"
           style={{
             background: isOpen
-              ? "linear-gradient(135deg, #638CFF 0%, #00D4AA 100%)"
+              ? "linear-gradient(135deg, #E8A820 0%, #00D4AA 100%)"
               : weekend
               ? "linear-gradient(135deg, #0d1235 0%, #1a1a3e 100%)"
               : "linear-gradient(135deg, #1a2444 0%, #0f1e35 100%)",
-            border: weekend && !isOpen ? "1px solid rgba(99,100,200,0.35)" : "1px solid rgba(99,140,255,0.4)",
+            border: weekend && !isOpen ? "1px solid rgba(99,100,200,0.35)" : "1px solid rgba(232,168,32,0.4)",
             boxShadow: weekend && !isOpen
               ? "0 4px 24px rgba(80,80,180,0.18), 0 1px 3px rgba(0,0,0,0.6)"
-              : "0 4px 24px rgba(99,140,255,0.25), 0 1px 3px rgba(0,0,0,0.5)",
+              : "0 4px 24px rgba(232,168,32,0.25), 0 1px 3px rgba(0,0,0,0.5)",
           }}
         >
           {!isOpen && (
             <>
               <motion.span
                 className="absolute inset-0 rounded-2xl"
-                style={{ border: `1px solid ${weekend ? "rgba(99,100,200,0.3)" : "rgba(99,140,255,0.4)"}` }}
+                style={{ border: `1px solid ${weekend ? "rgba(99,100,200,0.3)" : "rgba(232,168,32,0.4)"}` }}
                 animate={{ scale: [1, 1.35], opacity: [0.5, 0] }}
                 transition={{ duration: weekend ? 4 : 2, repeat: Infinity, ease: "easeOut" }}
               />
               <motion.span
                 className="absolute inset-0 rounded-2xl"
-                style={{ border: `1px solid ${weekend ? "rgba(99,100,200,0.15)" : "rgba(99,140,255,0.2)"}` }}
+                style={{ border: `1px solid ${weekend ? "rgba(99,100,200,0.15)" : "rgba(232,168,32,0.2)"}` }}
                 animate={{ scale: [1, 1.6], opacity: [0.3, 0] }}
                 transition={{ duration: weekend ? 4 : 2, repeat: Infinity, ease: "easeOut", delay: weekend ? 1.5 : 0.4 }}
               />
@@ -459,7 +459,7 @@ export function CoachOverlay() {
               </motion.div>
             ) : (
               <motion.div key="bot" initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }}>
-                <Bot className="w-6 h-6 text-[#638CFF]" />
+                <Bot className="w-6 h-6 text-[#E8A820]" />
               </motion.div>
             )}
           </AnimatePresence>
@@ -570,7 +570,7 @@ function TourView({
             <button
               key={opt.value}
               onClick={() => onChoice(opt.value)}
-              className="w-full text-left px-3 py-2.5 rounded-xl border border-white/10 bg-white/5 hover:bg-[#638CFF]/10 hover:border-[#638CFF]/30 text-sm text-gray-300 hover:text-white transition-all"
+              className="w-full text-left px-3 py-2.5 rounded-xl border border-white/10 bg-white/5 hover:bg-[#E8A820]/10 hover:border-[#E8A820]/30 text-sm text-gray-300 hover:text-white transition-all"
             >
               {opt.label}
             </button>
@@ -612,7 +612,7 @@ function TourView({
           <button
             onClick={onNext}
             disabled={action?.type === "multiple-choice" && validationState === "idle"}
-            className="flex items-center gap-1.5 text-xs text-[#638CFF] hover:text-[#638CFF]/80 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            className="flex items-center gap-1.5 text-xs text-[#E8A820] hover:text-[#E8A820]/80 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
           >
             Suivant
             <ChevronRight className="w-3.5 h-3.5" />
@@ -706,8 +706,8 @@ function MenuView({
       className="p-4 space-y-3"
     >
       {/* Welcome message */}
-      <div className="flex gap-2.5 p-3 rounded-xl bg-[#638CFF]/8 border border-[#638CFF]/15">
-        <Sparkles className="w-4 h-4 text-[#638CFF] shrink-0 mt-0.5" />
+      <div className="flex gap-2.5 p-3 rounded-xl bg-[#E8A820]/8 border border-[#E8A820]/15">
+        <Sparkles className="w-4 h-4 text-[#E8A820] shrink-0 mt-0.5" />
         <p className="text-sm text-gray-300 leading-relaxed">
           Bonjour ! Je suis <span className="text-white font-semibold">Alex</span>, votre coach trading.
           Que souhaitez-vous apprendre aujourd&apos;hui ?
@@ -769,7 +769,7 @@ function MenuView({
       <div className="pt-1 border-t border-white/5 flex items-center justify-between">
         <Link
           href="/learn"
-          className="text-xs text-gray-500 hover:text-[#638CFF] transition-colors flex items-center gap-1"
+          className="text-xs text-gray-500 hover:text-[#E8A820] transition-colors flex items-center gap-1"
         >
           <BookOpen className="w-3 h-3" />
           Aller à la Formation
@@ -807,7 +807,7 @@ function AnalyseView({ step, setStep, onClose }: {
             className={cn(
               "rounded-full transition-all",
               i === step
-                ? "w-6 h-2 bg-[#638CFF]"
+                ? "w-6 h-2 bg-[#E8A820]"
                 : i < step
                   ? "w-2 h-2 bg-[#00D4AA]/60"
                   : "w-2 h-2 bg-white/15"
@@ -829,11 +829,11 @@ function AnalyseView({ step, setStep, onClose }: {
         >
           {/* Icon + title */}
           <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-[#638CFF]/20 to-[#00D4AA]/10 border border-[#638CFF]/20 flex items-center justify-center text-[#638CFF] shrink-0">
+            <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-[#E8A820]/20 to-[#00D4AA]/10 border border-[#E8A820]/20 flex items-center justify-center text-[#E8A820] shrink-0">
               {current.icon}
             </div>
             <div>
-              <p className="text-xs text-[#638CFF] font-medium">{current.emoji} {current.title}</p>
+              <p className="text-xs text-[#E8A820] font-medium">{current.emoji} {current.title}</p>
             </div>
           </div>
 
@@ -863,7 +863,7 @@ function AnalyseView({ step, setStep, onClose }: {
             <Link
               href={current.cta.href!}
               onClick={onClose}
-              className="flex items-center justify-center gap-2 w-full py-2 rounded-xl bg-gradient-to-r from-[#638CFF] to-[#00D4AA] text-white text-sm font-medium hover:opacity-90 transition-opacity"
+              className="flex items-center justify-center gap-2 w-full py-2 rounded-xl bg-gradient-to-r from-[#E8A820] to-[#00D4AA] text-white text-sm font-medium hover:opacity-90 transition-opacity"
             >
               {current.cta.label}
               <ArrowRight className="w-4 h-4" />
@@ -894,7 +894,7 @@ function AnalyseView({ step, setStep, onClose }: {
         ) : (
           <button
             onClick={() => setStep(Math.min(ANALYSE_STEPS.length - 1, step + 1))}
-            className="flex items-center gap-1.5 text-xs text-[#638CFF] hover:text-[#638CFF]/80 transition-colors"
+            className="flex items-center gap-1.5 text-xs text-[#E8A820] hover:text-[#E8A820]/80 transition-colors"
           >
             Suivant
             <ChevronRight className="w-3.5 h-3.5" />
@@ -982,7 +982,7 @@ function MarketsView({ onClose }: { onClose: () => void }) {
       <Link
         href="/markets"
         onClick={onClose}
-        className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl bg-gradient-to-r from-[#638CFF] to-[#00D4AA] text-white text-sm font-medium hover:opacity-90 transition-opacity"
+        className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl bg-gradient-to-r from-[#E8A820] to-[#00D4AA] text-white text-sm font-medium hover:opacity-90 transition-opacity"
       >
         <Globe className="w-4 h-4" />
         Explorer les marchés

@@ -202,10 +202,10 @@ function CorrelCard({
 
   const impactColor = isNeutral
     ? "text-muted-foreground"
-    : goldImpact > 0 ? "text-amber-400" : "text-blue-400";
+    : goldImpact > 0 ? "text-amber-400" : "text-primary";
   const impactBg = isNeutral
     ? "bg-white/5 border-white/8"
-    : goldImpact > 0 ? "bg-amber-500/8 border-amber-500/20" : "bg-blue-500/8 border-blue-500/20";
+    : goldImpact > 0 ? "bg-amber-500/8 border-amber-500/20" : "bg-primary/8 border-primary/20";
 
   const ImpactIcon = isNeutral ? Minus : goldImpact > 0 ? TrendingUp : TrendingDown;
   const impactLabel = isNeutral
@@ -250,8 +250,8 @@ function SentimentGauge({ score, lang }: { score: number; lang: "fr" | "en" }) {
     : clamped <= 35
     ? (lang === "fr" ? "Baissier" : "Bearish")
     : (lang === "fr" ? "Neutre" : "Neutral");
-  const color = clamped >= 65 ? "bg-amber-400" : clamped <= 35 ? "bg-blue-500" : "bg-muted-foreground";
-  const textColor = clamped >= 65 ? "text-amber-400" : clamped <= 35 ? "text-blue-400" : "text-muted-foreground";
+  const color = clamped >= 65 ? "bg-amber-400" : clamped <= 35 ? "bg-primary" : "bg-muted-foreground";
+  const textColor = clamped >= 65 ? "text-amber-400" : clamped <= 35 ? "text-primary" : "text-muted-foreground";
 
   return (
     <div className="space-y-2">
@@ -286,7 +286,7 @@ function IndicRow({ label, value, signal }: { label: string; value: string; sign
         <span className="text-xs font-mono text-foreground/80">{value}</span>
         <span className={cn(
           "text-[10px] font-medium px-1.5 py-0.5 rounded",
-          isPos ? "bg-amber-500/15 text-amber-400" : isNeg ? "bg-blue-500/15 text-blue-400" : "bg-white/8 text-muted-foreground"
+          isPos ? "bg-amber-500/15 text-amber-400" : isNeg ? "bg-primary/15 text-primary" : "bg-white/8 text-muted-foreground"
         )}>
           {signal}
         </span>
@@ -375,7 +375,7 @@ function TradingModal({
           className={cn(
             "w-full max-w-md rounded-2xl p-6 space-y-5 border relative",
             isLong ? "bg-gradient-to-b from-amber-950/60 to-card/95 border-amber-500/30"
-                   : "bg-gradient-to-b from-blue-950/60 to-card/95 border-blue-500/30"
+                   : "bg-gradient-to-b from-card/60 to-card/95 border-primary/30"
           )}
         >
           <button onClick={onClose} className="absolute top-4 right-4 text-muted-foreground hover:text-foreground"><X className="w-5 h-5"/></button>
@@ -383,8 +383,8 @@ function TradingModal({
           {/* Header */}
           <div className="flex items-center gap-3">
             <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center border",
-              isLong ? "bg-amber-500/15 border-amber-500/30" : "bg-blue-500/15 border-blue-500/30")}>
-              {isLong ? <TrendingUp className="w-5 h-5 text-amber-400"/> : <TrendingDown className="w-5 h-5 text-blue-400"/>}
+              isLong ? "bg-amber-500/15 border-amber-500/30" : "bg-primary/15 border-primary/30")}>
+              {isLong ? <TrendingUp className="w-5 h-5 text-amber-400"/> : <TrendingDown className="w-5 h-5 text-primary"/>}
             </div>
             <div>
               <h3 className="font-bold text-lg">{direction} · XAU/USD</h3>
@@ -420,7 +420,7 @@ function TradingModal({
               <div>
                 <div className="flex justify-between text-xs text-muted-foreground mb-1.5">
                   <span>{lang === "fr" ? "Levier" : "Leverage"}</span>
-                  <span className={cn("font-bold", isLong ? "text-amber-400" : "text-blue-400")}>{leverage}×</span>
+                  <span className={cn("font-bold", isLong ? "text-amber-400" : "text-primary")}>{leverage}×</span>
                 </div>
                 <input type="range" min="1" max="20" value={leverage} onChange={e => setLeverage(Number(e.target.value))}
                   className="w-full accent-amber-500 h-1.5"/>
@@ -457,7 +457,7 @@ function TradingModal({
 
               <button onClick={submit} disabled={loading || !amount || parseFloat(amount) <= 0}
                 className={cn("w-full py-3 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2",
-                  isLong ? "bg-amber-500 hover:bg-amber-400 text-black" : "bg-blue-600 hover:bg-blue-500 text-white",
+                  isLong ? "bg-amber-500 hover:bg-amber-400 text-black" : "bg-primary hover:bg-primary text-white",
                   (loading || !amount) && "opacity-50 cursor-not-allowed")}>
                 {loading ? <Loader2 className="w-4 h-4 animate-spin"/> : isLong ? <TrendingUp className="w-4 h-4"/> : <TrendingDown className="w-4 h-4"/>}
                 {loading ? (lang === "fr" ? "Ouverture..." : "Opening...") : `${direction} · ${leverage}× · $${amount}`}
@@ -564,7 +564,7 @@ function GoldPositionDetailSheet({
               "text-xs font-bold px-2.5 py-1 rounded-full border flex-shrink-0",
               isLong
                 ? "bg-amber-500/15 text-amber-400 border-amber-500/25"
-                : "bg-blue-500/15 text-blue-400 border-blue-500/25"
+                : "bg-primary/15 text-primary border-primary/25"
             )}>
               {isLong ? "▲ LONG" : "▼ SHORT"}
             </span>
@@ -774,7 +774,7 @@ function GoldPositionDetailSheet({
                 "flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold transition-all",
                 isLong
                   ? "bg-amber-500/80 hover:bg-amber-500 text-black"
-                  : "bg-blue-500/80 hover:bg-blue-500 text-white",
+                  : "bg-primary/80 hover:bg-primary text-white",
                 closing && "opacity-50 cursor-not-allowed"
               )}
             >
@@ -902,8 +902,8 @@ const STYLE_CONFIG: Record<TradingStyle, {
     ctxEn: "Style: SWING TRADING — 2-10 day positions. 4h/Daily charts, technical patterns, short-term macro, upcoming catalysts. Minimum R/R 1:2.",
     suggestedFr: ["Setup swing sur GC=F ?", "Catalyseurs macro cette semaine ?", "Analyse 4h/daily actuelle ?", "Niveaux clés swing ?"],
     suggestedEn: ["Swing setup on GC=F?", "Macro catalysts this week?", "Current 4h/daily analysis?", "Key swing levels?"],
-    activeClass: "border-blue-500/40 bg-blue-500/10 text-blue-300",
-    dotClass: "bg-blue-500",
+    activeClass: "border-primary/40 bg-primary/10 text-primary",
+    dotClass: "bg-primary",
   },
   long: {
     labelFr: "Long Terme", labelEn: "Long Term", icon: "🏗️",
@@ -912,8 +912,8 @@ const STYLE_CONFIG: Record<TradingStyle, {
     ctxEn: "Style: LONG TERM — Weeks/months investing. Macro trends, Fed and central bank policy, structural inflation, strategic levels, DCA. Ignore short-term noise.",
     suggestedFr: ["Tendance long terme de l'or ?", "Impact politique Fed sur 6 mois ?", "Niveaux d'accumulation stratégiques ?", "Or vs inflation long terme ?"],
     suggestedEn: ["Long-term gold trend?", "Fed policy impact over 6 months?", "Strategic accumulation levels?", "Gold vs long-term inflation?"],
-    activeClass: "border-purple-500/40 bg-purple-500/10 text-purple-300",
-    dotClass: "bg-purple-500",
+    activeClass: "border-neon-purple/40 bg-neon-purple/10 text-neon-purple",
+    dotClass: "bg-neon-purple",
   },
 };
 
@@ -999,7 +999,7 @@ function PersonalizedAnalysis({
   const aboveEma200 = ema.ema200 != null ? price > ema.ema200 : null;
 
   const actionColor = isBullish ? "#f59e0b" : isBearish ? "#60a5fa" : "rgba(255,255,255,0.45)";
-  const actionBorder = isBullish ? "border-amber-500/25 bg-amber-500/8" : isBearish ? "border-blue-500/25 bg-blue-500/8" : "border-white/8 bg-white/3";
+  const actionBorder = isBullish ? "border-amber-500/25 bg-amber-500/8" : isBearish ? "border-primary/25 bg-primary/8" : "border-white/8 bg-white/3";
 
   const tfNote: Record<TradingStyle, string> = {
     scalping: lang === "fr" ? "Court terme · 1h" : "Short-term · 1h",
@@ -1036,7 +1036,7 @@ function PersonalizedAnalysis({
               {isBullish
                 ? <TrendingUp className="w-5 h-5 text-amber-400" />
                 : isBearish
-                ? <TrendingDown className="w-5 h-5 text-blue-400" />
+                ? <TrendingDown className="w-5 h-5 text-primary" />
                 : <Minus className="w-5 h-5 text-muted-foreground" />}
             </div>
             <div>
@@ -1297,8 +1297,8 @@ Réponds en ${lang === "fr" ? "français" : "English"}, de manière concise et d
                     className={cn(
                       "text-xs px-3 py-1.5 rounded-full border transition-all",
                       tradingStyle === "scalping" ? "bg-orange-500/8 border-orange-500/20 text-orange-300/70 hover:bg-orange-500/15 hover:text-orange-300"
-                      : tradingStyle === "swing"   ? "bg-blue-500/8 border-blue-500/20 text-blue-300/70 hover:bg-blue-500/15 hover:text-blue-300"
-                      : tradingStyle === "long"    ? "bg-purple-500/8 border-purple-500/20 text-purple-300/70 hover:bg-purple-500/15 hover:text-purple-300"
+                      : tradingStyle === "swing"   ? "bg-primary/8 border-primary/20 text-primary/70 hover:bg-primary/15 hover:text-primary"
+                      : tradingStyle === "long"    ? "bg-neon-purple/8 border-neon-purple/20 text-neon-purple/70 hover:bg-neon-purple/15 hover:text-neon-purple"
                       :                             "bg-amber-500/8 border-amber-500/20 text-amber-300/70 hover:bg-amber-500/15 hover:text-amber-300"
                     )}>
                     {q}
@@ -1739,7 +1739,7 @@ export default function GoldPage() {
                       <span className="text-3xl font-bold text-foreground tracking-tight">
                         {price > 0 ? formatPrice(price, "GC=F") : "—"}
                       </span>
-                      <span className={cn("text-base font-semibold", isUp ? "text-amber-400" : "text-blue-400")}>
+                      <span className={cn("text-base font-semibold", isUp ? "text-amber-400" : "text-primary")}>
                         {isUp ? "▲" : "▼"} {Math.abs(change).toFixed(2)}%
                       </span>
                     </div>
@@ -1753,7 +1753,7 @@ export default function GoldPage() {
                 <div className="flex flex-wrap gap-2 md:justify-end">
                   {[
                     { label: lang === "fr" ? "Haut 24h" : "24h High", value: formatPrice(analysis.price.high_24h, "GC=F"), color: "text-amber-400" },
-                    { label: lang === "fr" ? "Bas 24h"  : "24h Low",  value: formatPrice(analysis.price.low_24h,  "GC=F"), color: "text-blue-400" },
+                    { label: lang === "fr" ? "Bas 24h"  : "24h Low",  value: formatPrice(analysis.price.low_24h,  "GC=F"), color: "text-primary" },
                     { label: "Support",                                value: levels ? formatPrice(levels.support,    "GC=F") : "—", color: "text-profit" },
                     { label: lang === "fr" ? "Résist." : "Resist.",   value: levels ? formatPrice(levels.resistance, "GC=F") : "—", color: "text-loss"   },
                   ].map(({ label, value, color }) => (
@@ -1903,16 +1903,16 @@ export default function GoldPage() {
                         className={cn(
                           "glass-card p-4 rounded-2xl border transition-all relative overflow-hidden",
                           tfPos ? "border-amber-500/30 bg-gradient-to-b from-amber-500/8 to-transparent"
-                          : tfNeg ? "border-blue-500/20 bg-gradient-to-b from-blue-500/5 to-transparent"
+                          : tfNeg ? "border-primary/20 bg-gradient-to-b from-primary/5 to-transparent"
                           : "border-white/8"
                         )}>
                         {tfPos && <div className="absolute -top-6 -right-6 w-16 h-16 rounded-full bg-amber-500/15 blur-xl pointer-events-none"/>}
-                        {tfNeg && <div className="absolute -top-6 -right-6 w-16 h-16 rounded-full bg-blue-500/10 blur-xl pointer-events-none"/>}
+                        {tfNeg && <div className="absolute -top-6 -right-6 w-16 h-16 rounded-full bg-primary/10 blur-xl pointer-events-none"/>}
                         <div className="flex items-center justify-between mb-3">
                           <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest">{label}</span>
                           {isReady && tfScore !== null && (
                             <span className={cn("text-xs font-bold tabular-nums",
-                              tfPos ? "text-amber-400" : tfNeg ? "text-blue-400" : "text-muted-foreground")}>
+                              tfPos ? "text-amber-400" : tfNeg ? "text-primary" : "text-muted-foreground")}>
                               {tfScore}<span className="text-muted-foreground/40 font-normal">/100</span>
                             </span>
                           )}
@@ -1931,7 +1931,7 @@ export default function GoldPage() {
                                 className="text-3xl inline-block">{tfSig?.emoji ?? "⚪"}</motion.span>
                             </div>
                             <p className={cn("text-xs font-semibold text-center mb-3",
-                              tfPos ? "text-amber-400" : tfNeg ? "text-blue-400" : "text-muted-foreground")}>
+                              tfPos ? "text-amber-400" : tfNeg ? "text-primary" : "text-muted-foreground")}>
                               {tfSig?.text ?? "—"}
                             </p>
                             {tfScore !== null && (
@@ -1940,7 +1940,7 @@ export default function GoldPage() {
                                   transition={{ delay: 0.25 + i*0.06, duration:0.9, ease:"easeOut" }}
                                   className={cn("h-full rounded-full",
                                     tfScore >= 60 ? "bg-gradient-to-r from-amber-500/80 to-amber-400"
-                                    : tfScore <= 40 ? "bg-gradient-to-r from-blue-600/80 to-blue-400"
+                                    : tfScore <= 40 ? "bg-gradient-to-r from-primary/80 to-primary"
                                     : "bg-white/30")} />
                               </div>
                             )}
@@ -2021,7 +2021,7 @@ export default function GoldPage() {
                 </motion.button>
                 <motion.button whileHover={{ scale:1.02 }} whileTap={{ scale:0.97 }}
                   onClick={() => setTradeDir("SHORT")}
-                  className="flex items-center justify-center gap-1.5 py-3 rounded-xl bg-blue-500/20 hover:bg-blue-500/30 border border-blue-500/30 text-blue-300 font-bold text-sm transition-all">
+                  className="flex items-center justify-center gap-1.5 py-3 rounded-xl bg-primary/20 hover:bg-primary/30 border border-primary/30 text-primary font-bold text-sm transition-all">
                   <TrendingDown className="w-4 h-4" /> SHORT
                 </motion.button>
               </div>
@@ -2053,11 +2053,11 @@ export default function GoldPage() {
                         initial={{ opacity:0, y:4 }} animate={{ opacity:1, y:0 }}
                         onClick={() => setDetailGoldPos(pos)}
                         className={cn("p-2.5 rounded-xl border text-xs space-y-1.5 cursor-pointer transition-all hover:brightness-110 active:scale-[0.98]",
-                          pos.direction === "LONG" ? "border-amber-500/20 bg-amber-500/5 hover:border-amber-500/35" : "border-blue-500/20 bg-blue-500/5 hover:border-blue-500/35")}>
+                          pos.direction === "LONG" ? "border-amber-500/20 bg-amber-500/5 hover:border-amber-500/35" : "border-primary/20 bg-primary/5 hover:border-primary/35")}>
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-1.5">
-                            {pos.direction === "LONG" ? <TrendingUp className="w-3 h-3 text-amber-400"/> : <TrendingDown className="w-3 h-3 text-blue-400"/>}
-                            <span className={cn("font-bold", pos.direction === "LONG" ? "text-amber-400" : "text-blue-400")}>{pos.direction}</span>
+                            {pos.direction === "LONG" ? <TrendingUp className="w-3 h-3 text-amber-400"/> : <TrendingDown className="w-3 h-3 text-primary"/>}
+                            <span className={cn("font-bold", pos.direction === "LONG" ? "text-amber-400" : "text-primary")}>{pos.direction}</span>
                             <span className="text-muted-foreground/40">×{pos.leverage}</span>
                           </div>
                           <span className={cn("font-bold tabular-nums", isProfit ? "text-profit" : "text-loss")}>
@@ -2100,7 +2100,7 @@ export default function GoldPage() {
                 </span>
                 <span className={cn("text-[11px] font-medium px-2 py-0.5 rounded-md border",
                   riskEnv === "risk-off" ? "bg-amber-500/10 border-amber-500/20 text-amber-400"
-                  : riskEnv === "risk-on" ? "bg-blue-500/10 border-blue-500/20 text-blue-400"
+                  : riskEnv === "risk-on" ? "bg-primary/10 border-primary/20 text-primary"
                   : "bg-white/5 border-white/10 text-muted-foreground/60")}>
                   {riskEnv === "risk-off"
                     ? (lang === "fr" ? "🛡️ Risk-Off · Or favorisé" : "🛡️ Risk-Off · Gold favored")
@@ -2118,7 +2118,7 @@ export default function GoldPage() {
                     if (ch == null) return null;
                     return (
                       <span key={sym}>
-                        {label} <span className={cn("font-mono font-semibold", ch >= 0 ? "text-amber-400/70" : "text-blue-400/70")}>
+                        {label} <span className={cn("font-mono font-semibold", ch >= 0 ? "text-amber-400/70" : "text-primary/70")}>
                           {ch >= 0 ? "+" : ""}{ch.toFixed(1)}%
                         </span>
                       </span>
@@ -2187,13 +2187,13 @@ export default function GoldPage() {
                                     initial={{ opacity:0, scaleY:0 }} animate={{ opacity:1, scaleY:1 }}
                                     transition={{ delay: i*0.05, type:"spring", stiffness:200 }}
                                     className="flex flex-col items-center gap-1.5">
-                                    <span className={cn("text-sm font-bold", isPos ? "text-amber-400" : "text-blue-400")}>
+                                    <span className={cn("text-sm font-bold", isPos ? "text-amber-400" : "text-primary")}>
                                       {isPos?"+":""}{val.toFixed(2)}%
                                     </span>
                                     <div className="w-full h-12 flex items-end justify-center">
                                       <motion.div initial={{ height:0 }} animate={{ height:`${Math.min(abs*5,48)}px` }}
                                         transition={{ delay: i*0.05, duration:0.6, ease:"easeOut" }}
-                                        className={cn("w-4 rounded-t-sm", isPos ? "bg-amber-500/50" : "bg-blue-500/50")} />
+                                        className={cn("w-4 rounded-t-sm", isPos ? "bg-amber-500/50" : "bg-primary/50")} />
                                     </div>
                                     <span className="text-[10px] text-muted-foreground/50">{label}</span>
                                   </motion.div>

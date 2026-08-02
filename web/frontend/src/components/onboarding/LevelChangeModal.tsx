@@ -36,9 +36,9 @@ const CONFIGS = {
   upgrade_intermediate: {
     actions: "tour" as const,
     emoji: "📈",
-    gradient: "from-blue-600 to-indigo-700",
-    glow: "shadow-blue-500/30",
-    borderColor: "border-blue-500/30",
+    gradient: "from-primary to-neon-purple",
+    glow: "shadow-primary/30",
+    borderColor: "border-primary/30",
     title: { fr: "Niveau Intermédiaire débloqué !", en: "Intermediate level unlocked!" },
     subtitle: {
       fr: "Vous avez accès à des fonctionnalités plus puissantes.",
@@ -52,9 +52,9 @@ const CONFIGS = {
   upgrade_expert: {
     actions: "none" as const,
     emoji: "🏆",
-    gradient: "from-purple-600 to-pink-700",
-    glow: "shadow-purple-500/30",
-    borderColor: "border-purple-500/30",
+    gradient: "from-neon-purple to-neon-cyan",
+    glow: "shadow-neon-purple/30",
+    borderColor: "border-neon-purple/30",
     title: { fr: "Mode Expert activé !", en: "Expert mode activated!" },
     subtitle: {
       fr: "Interface épurée, données brutes. Vous êtes en plein contrôle.",
@@ -86,9 +86,9 @@ const CONFIGS = {
   downgrade_intermediate: {
     actions: "tour" as const,
     emoji: "🧭",
-    gradient: "from-blue-600 to-cyan-700",
-    glow: "shadow-blue-500/30",
-    borderColor: "border-blue-500/30",
+    gradient: "from-primary to-cyan-700",
+    glow: "shadow-primary/30",
+    borderColor: "border-primary/30",
     title: { fr: "Niveau Intermédiaire réactivé", en: "Intermediate level restored" },
     subtitle: {
       fr: "Les infobulles et les repères pédagogiques reviennent, sans le parcours débutant.",

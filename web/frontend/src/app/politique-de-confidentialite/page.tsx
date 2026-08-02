@@ -89,7 +89,7 @@ export default function PolitiqueConfidentialitePage() {
           <div className="space-y-5">
             <div className="p-4 rounded-xl bg-white/5 space-y-2">
               <h3 className="font-semibold text-foreground text-sm flex items-center gap-2">
-                <span className="w-5 h-5 rounded bg-blue-500/20 text-blue-400 text-xs flex items-center justify-center">A</span>
+                <span className="w-5 h-5 rounded bg-primary/20 text-primary text-xs flex items-center justify-center">A</span>
                 Données d'identification (obligatoires à l'inscription)
               </h3>
               <ul className="list-disc pl-5 space-y-1 text-muted-foreground">
@@ -120,7 +120,7 @@ export default function PolitiqueConfidentialitePage() {
 
             <div className="p-4 rounded-xl bg-white/5 space-y-2">
               <h3 className="font-semibold text-foreground text-sm flex items-center gap-2">
-                <span className="w-5 h-5 rounded bg-purple-500/20 text-purple-400 text-xs flex items-center justify-center">C</span>
+                <span className="w-5 h-5 rounded bg-neon-purple/20 text-neon-purple text-xs flex items-center justify-center">C</span>
                 Données techniques de connexion
               </h3>
               <ul className="list-disc pl-5 space-y-1 text-muted-foreground">
@@ -164,7 +164,7 @@ export default function PolitiqueConfidentialitePage() {
                 ].map(([f, b, d]) => (
                   <tr key={f}>
                     <td className="p-3">{f}</td>
-                    <td className="p-3 text-blue-400">{b}</td>
+                    <td className="p-3 text-primary">{b}</td>
                     <td className="p-3">{d}</td>
                   </tr>
                 ))}

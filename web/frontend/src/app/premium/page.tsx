@@ -277,7 +277,7 @@ export default function PremiumPage() {
           </motion.div>
           <h1 className="text-3xl font-bold mb-2">
             {isAdmin ? (
-              <span className="bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
+              <span className="bg-gradient-to-r from-neon-purple to-neon-cyan bg-clip-text text-transparent">
                 {t("prem_account_admin")}
               </span>
             ) : (
@@ -399,15 +399,15 @@ export default function PremiumPage() {
       icon: ScanLine,
       title: fr ? "Scanner illimité" : "Unlimited Scanner",
       desc: fr ? "Scannez tous les marchés autant que vous le souhaitez, sans limite journalière." : "Scan all markets as many times as you want, no daily cap.",
-      color: "from-blue-500/20 to-cyan-500/20",
-      iconColor: "text-blue-400",
+      color: "from-primary/20 to-neon-cyan/20",
+      iconColor: "text-primary",
     },
     {
       icon: Brain,
       title: fr ? "Coach Alex illimité" : "Unlimited Alex AI",
       desc: fr ? "Accès illimité à l'assistant IA pour analyser vos actifs, stratégies et questions." : "Unlimited access to the AI coach for asset analysis, strategies and questions.",
-      color: "from-purple-500/20 to-pink-500/20",
-      iconColor: "text-purple-400",
+      color: "from-neon-purple/20 to-neon-cyan/20",
+      iconColor: "text-neon-purple",
     },
     {
       icon: BarChart3,
@@ -747,26 +747,26 @@ export default function PremiumPage() {
               />
 
               {/* Legal notice — Droit de rétractation (L.221-18 code de la consommation) */}
-              <div className="p-4 rounded-xl bg-blue-500/8 border border-blue-500/15 space-y-2">
-                <div className="flex items-center gap-2 text-xs font-semibold text-blue-300">
+              <div className="p-4 rounded-xl bg-primary/8 border border-primary/15 space-y-2">
+                <div className="flex items-center gap-2 text-xs font-semibold text-primary">
                   <Shield className="w-3.5 h-3.5 shrink-0" />
                   {fr ? "Information légale obligatoire" : "Required legal notice"}
                 </div>
-                <div className="text-xs text-blue-200/70 space-y-1 leading-relaxed">
+                <div className="text-xs text-primary/70 space-y-1 leading-relaxed">
                   <p>
                     {fr
-                      ? <><strong className="text-blue-200">Droit de rétractation (art. L.221-18 C. Conso.)</strong> — Vous disposez de <strong>14 jours calendaires</strong> à compter de l'activation pour vous rétracter sans motif. Si vous demandez l'accès immédiat, vous acceptez qu'une retenue proportionnelle aux services fournis s'applique en cas de rétractation (art. L.221-25).</>
-                      : <><strong className="text-blue-200">Right of withdrawal (art. L.221-18 French Consumer Code)</strong> — You have <strong>14 calendar days</strong> from activation to withdraw without reason. If you request immediate access, a proportional charge for services already rendered applies upon withdrawal (art. L.221-25).</>
+                      ? <><strong className="text-primary">Droit de rétractation (art. L.221-18 C. Conso.)</strong> — Vous disposez de <strong>14 jours calendaires</strong> à compter de l'activation pour vous rétracter sans motif. Si vous demandez l'accès immédiat, vous acceptez qu'une retenue proportionnelle aux services fournis s'applique en cas de rétractation (art. L.221-25).</>
+                      : <><strong className="text-primary">Right of withdrawal (art. L.221-18 French Consumer Code)</strong> — You have <strong>14 calendar days</strong> from activation to withdraw without reason. If you request immediate access, a proportional charge for services already rendered applies upon withdrawal (art. L.221-25).</>
                     }
                   </p>
-                  <p className="flex flex-wrap gap-x-3 gap-y-1 text-blue-200/60">
+                  <p className="flex flex-wrap gap-x-3 gap-y-1 text-primary/60">
                     <span>{fr ? "Prix : 5,00 € TTC / mois" : "Price: €5.00 incl. VAT / month"}</span>
                     <span>·</span>
                     <span>{fr ? "Paiement sécurisé Stripe (PCI-DSS)" : "Secure Stripe payment (PCI-DSS)"}</span>
                     <span>·</span>
                     <span>{fr ? "Résiliable à tout moment" : "Cancel anytime"}</span>
                     <span>·</span>
-                    <Link href="/cgv" target="_blank" className="underline hover:text-blue-200">{fr ? "Voir CGV" : "See T&Cs"}</Link>
+                    <Link href="/cgv" target="_blank" className="underline hover:text-primary">{fr ? "Voir CGV" : "See T&Cs"}</Link>
                   </p>
                 </div>
               </div>

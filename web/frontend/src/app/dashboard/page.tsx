@@ -726,11 +726,11 @@ const QuickActionsBar = memo(function QuickActionsBar() {
     { href: "/analysis",  Icon: BarChart3,  label: t("qa_analyze"),      iconCls: "text-primary",     bgCls: "bg-primary/12 group-hover:bg-primary/22" },
     { href: "/markets",   Icon: Globe,      label: t("qa_markets"),      iconCls: "text-cyan-400",    bgCls: "bg-cyan-400/12 group-hover:bg-cyan-400/22" },
     { href: "/scanner",   Icon: Activity,   label: "Scanner",            iconCls: "text-profit",      bgCls: "bg-profit/12 group-hover:bg-profit/22" },
-    { href: "/assistant", Icon: Bot,        label: t("qa_ai_assistant"), iconCls: "text-purple-400",  bgCls: "bg-purple-400/12 group-hover:bg-purple-400/22" },
+    { href: "/assistant", Icon: Bot,        label: t("qa_ai_assistant"), iconCls: "text-neon-purple",  bgCls: "bg-neon-purple/12 group-hover:bg-neon-purple/22" },
     { href: "/trading",   Icon: TrendingUp, label: t("nav_positions"),   iconCls: "text-yellow-400",  bgCls: "bg-yellow-400/12 group-hover:bg-yellow-400/22" },
     { href: "/favorites", Icon: Star,       label: t("qa_favorites"),    iconCls: "text-orange-400",  bgCls: "bg-orange-400/12 group-hover:bg-orange-400/22" },
     { href: "/learn",     Icon: GraduationCap, label: lang === "fr" ? "Formation" : "Learn", iconCls: "text-emerald-400", bgCls: "bg-emerald-400/12 group-hover:bg-emerald-400/22" },
-    { href: "/journal",   Icon: NotebookPen,   label: "Journal",         iconCls: "text-pink-400",    bgCls: "bg-pink-400/12 group-hover:bg-pink-400/22" },
+    { href: "/journal",   Icon: NotebookPen,   label: "Journal",         iconCls: "text-neon-cyan",    bgCls: "bg-neon-cyan/12 group-hover:bg-neon-cyan/22" },
   ];
 
   return (

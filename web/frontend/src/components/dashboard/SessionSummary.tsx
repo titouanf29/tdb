@@ -47,12 +47,12 @@ const SESSIONS: SessionCfg[] = [
     flag: "🇪🇺",
     marketKey: "EUROPE",
     closeTimeLabelKey: "session_close_europe",
-    gradient: "from-blue-600/30 via-indigo-500/15 to-transparent",
-    glowColor: "bg-blue-500",
-    border: "border-blue-500/25",
-    accent: "text-blue-400",
-    accentBg: "bg-blue-500/15",
-    tabActiveBg: "bg-blue-500/10",
+    gradient: "from-primary/30 via-neon-purple/15 to-transparent",
+    glowColor: "bg-primary",
+    border: "border-primary/25",
+    accent: "text-primary",
+    accentBg: "bg-primary/15",
+    tabActiveBg: "bg-primary/10",
     symbols: MARKET_SYMBOLS.EUROPE,
   },
   {
@@ -522,7 +522,7 @@ function Podium({ top3 }: { top3: AssetPerf[] }) {
 
 const TAG_STYLES: Record<WatchTag, { labelKey: string; color: string; bg: string; border: string }> = {
   rebond:       { labelKey: "session_tag_rebond",        color: "text-emerald-400", bg: "bg-emerald-500/10", border: "border-emerald-500/25" },
-  momentum:     { labelKey: "session_tag_momentum",      color: "text-blue-400",    bg: "bg-blue-500/10",    border: "border-blue-500/25"    },
+  momentum:     { labelKey: "session_tag_momentum",      color: "text-primary",    bg: "bg-primary/10",    border: "border-primary/25"    },
   consolidation:{ labelKey: "session_tag_consolidation", color: "text-yellow-400",  bg: "bg-yellow-500/10",  border: "border-yellow-500/25"  },
   vigilance:    { labelKey: "session_tag_vigilance",     color: "text-orange-400",  bg: "bg-orange-500/10",  border: "border-orange-500/25"  },
 };

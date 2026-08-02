@@ -234,7 +234,7 @@ function NewContentForm() {
             onClick={handleGenerate}
             disabled={isGenerating}
             className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium text-sm text-white disabled:opacity-50"
-            style={{ background: "linear-gradient(135deg, rgba(139,92,246,0.9), rgba(99,140,255,0.9))", border: "1px solid rgba(139,92,246,0.4)" }}
+            style={{ background: "linear-gradient(135deg, rgba(184,134,58,0.9), rgba(232,168,32,0.9))", border: "1px solid rgba(184,134,58,0.4)" }}
           >
             {isGenerating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
             {isGenerating ? "Génération…" : "Générer avec l'IA"}
@@ -330,7 +330,7 @@ function NewContentForm() {
             onClick={handleSave}
             disabled={isSaving}
             className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium text-sm text-white disabled:opacity-50"
-            style={{ background: "linear-gradient(135deg, rgba(99,140,255,0.9), rgba(139,92,246,0.9))", border: "1px solid rgba(99,140,255,0.4)" }}
+            style={{ background: "linear-gradient(135deg, rgba(232,168,32,0.9), rgba(184,134,58,0.9))", border: "1px solid rgba(232,168,32,0.4)" }}
           >
             {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
             {savedId ? "Sauvegarder à nouveau" : "Sauvegarder"}

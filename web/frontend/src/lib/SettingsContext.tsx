@@ -29,12 +29,19 @@ export const RISK_LEVELS    = ["conservative", "moderate", "aggressive", "very_a
 export const LEVERAGES      = ["1", "2", "5", "10"] as const;
 
 /** Labels are NOT stored here — they are t() keys (`settings_accent_<key>`). */
+/*
+ * Terminal-theme accents. The stored KEYS are unchanged (the backend enum and
+ * every existing row depend on them) but the colours and their labels are
+ * re-tuned for the carbon/gold terminal: "blue" is the default and is the
+ * logo's gold. These values are written inline on <html> at runtime, so they
+ * MUST stay in sync with the pre-paint map in app/layout.tsx.
+ */
 export const ACCENT_PRESETS: Record<AccentColor, { primary: string; neonBlue: string; ring: string; hex: string }> = {
-  blue:   { primary: "230 90% 62%", neonBlue: "230 90% 62%", ring: "230 90% 62%", hex: "#6366f1" },
-  purple: { primary: "270 80% 65%", neonBlue: "270 80% 65%", ring: "270 80% 65%", hex: "#a855f7" },
-  teal:   { primary: "175 90% 42%", neonBlue: "175 90% 42%", ring: "175 90% 42%", hex: "#14b8a6" },
-  orange: { primary: "30 95% 55%",  neonBlue: "30 95% 55%",  ring: "30 95% 55%",  hex: "#f59e0b" },
-  pink:   { primary: "330 90% 60%", neonBlue: "330 90% 60%", ring: "330 90% 60%", hex: "#ec4899" },
+  blue:   { primary: "41 82% 52%",  neonBlue: "41 82% 52%",  ring: "41 82% 52%",  hex: "#E8A820" }, // Or (défaut)
+  purple: { primary: "25 85% 55%",  neonBlue: "25 85% 55%",  ring: "25 85% 55%",  hex: "#F0821E" }, // Ambre
+  teal:   { primary: "170 60% 45%", neonBlue: "170 60% 45%", ring: "170 60% 45%", hex: "#2EB89B" }, // Jade
+  orange: { primary: "187 62% 58%", neonBlue: "187 62% 58%", ring: "187 62% 58%", hex: "#5FC9DC" }, // Cyan
+  pink:   { primary: "340 65% 60%", neonBlue: "340 65% 60%", ring: "340 65% 60%", hex: "#DB5A85" }, // Magenta
 };
 
 export interface Settings {

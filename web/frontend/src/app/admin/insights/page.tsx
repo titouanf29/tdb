@@ -141,11 +141,11 @@ function ScriptSegment({ segment, index }: { segment: any; index: number }) {
   };
   const typeBg: Record<string, string> = {
     geopolitique: "bg-red-500/5",
-    europe:       "bg-blue-500/5",
+    europe:       "bg-primary/5",
     usa:          "bg-green-500/5",
     crypto:       "bg-orange-500/5",
     commodities:  "bg-yellow-500/5",
-    takeaway:     "bg-purple-500/5",
+    takeaway:     "bg-neon-purple/5",
     cta:          "bg-primary/5",
   };
   const color = typeColors[segment.type] || "border-l-white/20";
@@ -327,14 +327,14 @@ function BriefingView({ data, heatScore, fearGreed, news }: {
           <div className="space-y-1">
             <div className="flex items-center gap-2 flex-wrap">
               <h2 className="font-bold text-lg flex items-center gap-2">
-                <Globe className="w-5 h-5 text-blue-400" />
+                <Globe className="w-5 h-5 text-primary" />
                 Briefing Brut
               </h2>
               <span className={cn("text-xs px-2 py-0.5 rounded-full border font-semibold capitalize", RISK_COLORS[data.risk_level] || RISK_COLORS.moderate)}>
                 Risque {data.risk_level}
               </span>
               {data.generated_by === "gemini" && (
-                <span className="text-xs px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-300 border border-blue-500/30">Gemini AI</span>
+                <span className="text-xs px-2 py-0.5 rounded-full bg-primary/20 text-primary border border-primary/30">Gemini AI</span>
               )}
               {data.generated_by === "template" && (
                 <span className="text-xs px-2 py-0.5 rounded-full bg-white/10 text-muted-foreground border border-white/10">Template</span>
@@ -357,8 +357,8 @@ function BriefingView({ data, heatScore, fearGreed, news }: {
         </div>
 
         {/* Executive summary */}
-        <div className="p-4 rounded-xl bg-blue-500/8 border border-blue-500/15">
-          <p className="text-xs font-semibold text-blue-400 mb-1.5 uppercase tracking-wide">Synthèse exécutive</p>
+        <div className="p-4 rounded-xl bg-primary/8 border border-primary/15">
+          <p className="text-xs font-semibold text-primary mb-1.5 uppercase tracking-wide">Synthèse exécutive</p>
           <p className="text-sm leading-relaxed text-foreground/85">{data.executive_summary}</p>
         </div>
 
@@ -746,7 +746,7 @@ export default function InsightsPage() {
               onClick={() => setMode("BRIEF")}
               className={cn(
                 "flex-1 py-2 rounded-lg text-sm font-medium transition-all",
-                mode === "BRIEF" ? "bg-blue-600 text-white" : "bg-white/5 hover:bg-white/10 text-muted-foreground"
+                mode === "BRIEF" ? "bg-primary text-white" : "bg-white/5 hover:bg-white/10 text-muted-foreground"
               )}
             >
               📋 Briefing
@@ -772,7 +772,7 @@ export default function InsightsPage() {
             </label>
           )}
           {mode === "BRIEF" && (
-            <p className="text-xs text-blue-400/80">
+            <p className="text-xs text-primary/80">
               Mode briefing — analyse brute sans instructions vidéo ni CTA
             </p>
           )}
@@ -791,7 +791,7 @@ export default function InsightsPage() {
                 whileTap={{ scale: 0.98 }}
                 onClick={handleBrief}
                 disabled={loadingBrief}
-                className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-bold text-sm transition-colors disabled:opacity-50"
+                className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg bg-primary hover:bg-primary text-white font-bold text-sm transition-colors disabled:opacity-50"
               >
                 {loadingBrief ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
@@ -845,7 +845,7 @@ export default function InsightsPage() {
       {/* Loading state */}
       {(loadingGenerate || loadingBrief) && (
         <div className="glass-card p-8 flex flex-col items-center gap-4">
-          <Loader2 className={cn("w-10 h-10 animate-spin", loadingBrief ? "text-blue-400" : "text-yellow-500")} />
+          <Loader2 className={cn("w-10 h-10 animate-spin", loadingBrief ? "text-primary" : "text-yellow-500")} />
           <div className="text-center">
             <p className="font-semibold">{loadingBrief ? "Briefing en cours..." : "Génération en cours..."}</p>
             <p className="text-sm text-muted-foreground mt-1">
@@ -931,7 +931,7 @@ export default function InsightsPage() {
                 <FileText className="w-5 h-5 text-yellow-500" />
                 Script {mode === "A" ? "60-sec Blitz" : "Deep Diver"}
                 {generated.script.generated_by === "gemini" && (
-                  <span className="text-xs px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-300 border border-blue-500/30">
+                  <span className="text-xs px-2 py-0.5 rounded-full bg-primary/20 text-primary border border-primary/30">
                     Gemini AI
                   </span>
                 )}
@@ -1148,7 +1148,7 @@ export default function InsightsPage() {
             <button onClick={handleGenerate} className="px-4 py-2 rounded-lg bg-yellow-500 hover:bg-yellow-400 text-black font-bold text-sm transition-colors">
               ⚡ Générer un script
             </button>
-            <button onClick={handleBrief} className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-bold text-sm transition-colors">
+            <button onClick={handleBrief} className="px-4 py-2 rounded-lg bg-primary hover:bg-primary text-white font-bold text-sm transition-colors">
               📋 Briefing brut
             </button>
           </div>

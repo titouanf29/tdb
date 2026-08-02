@@ -1056,10 +1056,10 @@ function BalanceCard({ title, rawValue, formatter, icon: Icon, color, index = 0 
 }) {
   const colorMap = {
     primary: { bg: "bg-primary/15", text: "text-primary", border: "border-primary/20" },
-    blue:    { bg: "bg-blue-500/15",   text: "text-blue-400",   border: "border-blue-500/20" },
+    blue:    { bg: "bg-primary/15",   text: "text-primary",   border: "border-primary/20" },
     green:   { bg: "bg-emerald-500/15",text: "text-emerald-400",border: "border-emerald-500/20" },
     red:     { bg: "bg-rose-500/15",   text: "text-rose-400",   border: "border-rose-500/20" },
-    purple:  { bg: "bg-purple-500/15", text: "text-purple-400", border: "border-purple-500/20" },
+    purple:  { bg: "bg-neon-purple/15", text: "text-neon-purple", border: "border-neon-purple/20" },
   };
   const c = colorMap[color];
 

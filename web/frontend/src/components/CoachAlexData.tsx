@@ -80,7 +80,7 @@ export const MENU_ACTIONS: MenuAction[] = [
     icon: <BarChart2 className="w-5 h-5" />,
     label: "Analyser un actif",
     description: "Guide pas à pas pour analyser votre premier actif",
-    color: "from-[#638CFF]/20 to-[#638CFF]/5 border-[#638CFF]/30 text-[#638CFF]",
+    color: "from-[#E8A820]/20 to-[#E8A820]/5 border-[#E8A820]/30 text-[#E8A820]",
   },
   {
     id: "markets",
@@ -101,7 +101,7 @@ export const MENU_ACTIONS: MenuAction[] = [
     icon: <Trophy className="w-5 h-5" />,
     label: "Mes missions",
     description: "Voir votre progression et vos badges XP",
-    color: "from-purple-400/20 to-purple-400/5 border-purple-400/30 text-purple-300",
+    color: "from-neon-purple/20 to-neon-purple/5 border-neon-purple/30 text-neon-purple",
   },
 ];
 
@@ -130,7 +130,7 @@ export const MARKET_OVERVIEW = [
     name: "Forex",
     examples: "EUR/USD, GBP/USD",
     desc: "Le plus grand marché du monde. Ouvert 24h/5 (lun-ven). Spreads serrés.",
-    color: "text-blue-400 bg-blue-400/10 border-blue-400/20",
+    color: "text-primary bg-primary/10 border-primary/20",
     risk: "Moyen",
   },
   {

@@ -36,28 +36,38 @@ const config: Config = {
         border: "hsl(var(--border))",
         ring: "hsl(var(--ring))",
         // Trading specific
-        profit: "#0ecb81",
-        loss: "#f6465d",
-        warning: "#f0a500",
-        bull: "#0ecb81",
-        bear: "#f6465d",
+        profit: "#26D07C",
+        loss: "#FF4D4D",
+        warning: "#E8A820",
+        bull: "#26D07C",
+        bear: "#FF4D4D",
         // Neon accents
+        /* Terminal palette — gold is the identity, cyan is secondary data */
         neon: {
-          blue:   "#638CFF",
-          cyan:   "#00D4AA",
-          purple: "#9b8cff",
-          green:  "#0ecb81",
+          blue:   "#E8A820",
+          cyan:   "#5FC9DC",
+          purple: "#B8863A",
+          green:  "#26D07C",
           gold:   "#E8A820",
         },
       },
       fontFamily: {
         sans: ["var(--font-inter)", "system-ui", "-apple-system", "sans-serif"],
         display: ["var(--font-display)", "var(--font-inter)", "system-ui", "sans-serif"],
+        mono: ["var(--font-mono)", "ui-monospace", "SFMono-Regular", "Menlo", "monospace"],
       },
+      /* Terminal theme: square. The whole scale collapses to hairline radii so
+         legacy rounded-xl / rounded-2xl markup stops looking like a bubble UI. */
       borderRadius: {
-        lg: "var(--radius)",
-        md: "calc(var(--radius) - 2px)",
-        sm: "calc(var(--radius) - 4px)",
+        none: "0px",
+        sm: "1px",
+        DEFAULT: "2px",
+        md: "2px",
+        lg: "2px",
+        xl: "3px",
+        "2xl": "3px",
+        "3xl": "4px",
+        full: "9999px",
       },
       backgroundImage: {
         "gradient-radial": "radial-gradient(var(--tw-gradient-stops))",
@@ -65,14 +75,15 @@ const config: Config = {
         "glass": "linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%)",
         "glow": "radial-gradient(circle at center, rgba(99, 102, 241, 0.15) 0%, transparent 70%)",
       },
+      /* No neon. Terminal depth is a hard shadow or nothing at all. */
       boxShadow: {
-        glow:          "0 0 40px rgba(123, 143, 255, 0.40)",
-        "glow-sm":     "0 0 20px rgba(123, 143, 255, 0.28)",
-        "glow-cyan":   "0 0 24px rgba(0, 216, 255, 0.38)",
-        "glow-purple": "0 0 24px rgba(180, 111, 255, 0.38)",
-        "glow-gold":   "0 0 24px rgba(240, 165, 0, 0.40)",
-        glass:         "0 8px 32px rgba(0, 0, 0, 0.45)",
-        "neon-card":   "0 0 20px rgba(123,143,255,0.12), inset 0 1px 0 rgba(255,255,255,0.06)",
+        glow:          "none",
+        "glow-sm":     "none",
+        "glow-cyan":   "none",
+        "glow-purple": "none",
+        "glow-gold":   "none",
+        glass:         "0 8px 24px rgba(0, 0, 0, 0.6)",
+        "neon-card":   "none",
       },
       animation: {
         "pulse-slow":    "pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite",

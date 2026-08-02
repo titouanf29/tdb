@@ -127,7 +127,7 @@ export function LearnTooltip({ term, children, className, position = "top" }: Le
       <button
         type="button"
         className={cn(
-          "inline-flex items-center gap-1 border-b border-dashed border-blue-400/60 text-blue-300 hover:text-blue-200 transition-colors cursor-help",
+          "inline-flex items-center gap-1 border-b border-dashed border-primary/60 text-primary hover:text-primary transition-colors cursor-help",
           className
         )}
         onClick={() => setOpen((v) => !v)}
@@ -167,7 +167,7 @@ export function LearnTooltip({ term, children, className, position = "top" }: Le
             {definition.learnLink && (
               <a
                 href={definition.learnLink}
-                className="mt-2 inline-flex items-center gap-1 text-xs text-blue-400 hover:text-blue-300 transition-colors"
+                className="mt-2 inline-flex items-center gap-1 text-xs text-primary hover:text-primary transition-colors"
                 onClick={() => setOpen(false)}
               >
                 <BookOpen className="w-3 h-3" />
@@ -184,7 +184,7 @@ export function LearnTooltip({ term, children, className, position = "top" }: Le
                     key={m}
                     className={cn(
                       "w-1.5 h-1.5 rounded-full",
-                      m === vocabularyMode ? "bg-blue-400" : "bg-white/10"
+                      m === vocabularyMode ? "bg-primary" : "bg-white/10"
                     )}
                   />
                 ))}

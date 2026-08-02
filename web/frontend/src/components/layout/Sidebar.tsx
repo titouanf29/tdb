@@ -113,13 +113,13 @@ export function Sidebar({
         transition-transform lg:transition-none duration-300
         overflow-x-hidden`}
       style={{
-        background: "linear-gradient(180deg, hsl(220 50% 5.5%) 0%, hsl(220 45% 4.5%) 100%)",
-        borderRight: "1px solid rgba(99,140,255,0.12)",
-        boxShadow: "4px 0 24px rgba(0,0,0,0.4), inset -1px 0 0 rgba(99,140,255,0.06)"
+        background: "hsl(var(--card))",
+        borderRight: "1px solid hsl(var(--border))",
+        boxShadow: "none"
       }}
     >
       {/* Logo */}
-      <div className="p-4 flex items-center gap-3" style={{borderBottom: "1px solid rgba(99,140,255,0.1)"}}>
+      <div className="p-4 flex items-center gap-3" style={{borderBottom: "1px solid hsl(var(--border))"}}>
         <motion.div
           whileHover={{ scale: 1.08 }}
           transition={{ type: "spring", stiffness: 400, damping: 15 }}
@@ -185,20 +185,19 @@ export function Sidebar({
                       whileHover={{ x: 4 }}
                       whileTap={{ scale: 0.98 }}
                       className={cn(
-                        "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group relative min-h-[44px]",
+                        "flex items-center gap-3 px-3 py-2.5 transition-colors duration-150 group relative min-h-[44px]",
                         isActive
                           ? "text-white"
                           : "text-muted-foreground hover:text-foreground"
                       )}
                       style={isActive ? {
-                        background: "linear-gradient(135deg, rgba(99,140,255,0.16) 0%, rgba(0,212,170,0.08) 100%)",
-                        border: "1px solid rgba(99,140,255,0.30)",
-                        boxShadow: "0 0 16px rgba(99,140,255,0.10), inset 0 1px 0 rgba(255,255,255,0.05)"
+                        background: "hsl(var(--primary) / 0.10)",
+                        borderLeft: "2px solid hsl(var(--primary))",
                       } : undefined}
                     >
                       <Icon
                         className={cn("w-5 h-5 transition-colors flex-shrink-0", isActive && "text-primary")}
-                        style={isActive ? {filter: "drop-shadow(0 0 6px rgba(99,140,255,0.7))"} : undefined}
+
                       />
                       <AnimatePresence>
                         {!collapsed && (
@@ -299,7 +298,7 @@ export function Sidebar({
       </nav>
 
       {/* Bottom: Mentions légales + Settings + Collapse */}
-      <div className="p-3 space-y-1" style={{borderTop: "1px solid rgba(99,140,255,0.1)"}}>
+      <div className="p-3 space-y-1" style={{borderTop: "1px solid rgba(232,168,32,0.1)"}}>
         <Link href="/mentions-legales">
           <motion.div
             whileHover={{ x: 4 }}
@@ -332,13 +331,13 @@ export function Sidebar({
                 : "text-muted-foreground hover:text-foreground"
             )}
             style={pathname === "/settings" ? {
-              background: "linear-gradient(135deg, rgba(99,140,255,0.18) 0%, rgba(139,92,246,0.10) 100%)",
-              border: "1px solid rgba(99,140,255,0.30)",
+              background: "linear-gradient(135deg, rgba(232,168,32,0.18) 0%, rgba(184,134,58,0.10) 100%)",
+              border: "1px solid rgba(232,168,32,0.30)",
             } : undefined}
           >
             <Settings
               className={cn("w-5 h-5 flex-shrink-0", pathname === "/settings" && "text-primary")}
-              style={pathname === "/settings" ? {filter: "drop-shadow(0 0 6px rgba(99,140,255,0.7))"} : undefined}
+              style={pathname === "/settings" ? {filter: "drop-shadow(0 0 6px rgba(232,168,32,0.7))"} : undefined}
             />
             <AnimatePresence>
               {!collapsed && (

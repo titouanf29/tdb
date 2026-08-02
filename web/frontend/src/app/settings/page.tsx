@@ -267,7 +267,7 @@ function AccountTab({
       <div className="flex items-center gap-4">
         <div
           aria-hidden="true"
-          className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary to-purple-500 flex items-center justify-center shrink-0"
+          className="w-16 h-16 rounded-2xl bg-primary/15 border border-primary/30 flex items-center justify-center shrink-0"
         >
           <span className="text-2xl font-bold text-on-color">{initial}</span>
         </div>

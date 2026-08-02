@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Inter, Space_Grotesk } from "next/font/google";
+import { Inter, Space_Grotesk, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import "flag-icons/css/flag-icons.min.css";
 import { AuthProvider } from "@/lib/AuthContext";
@@ -14,6 +14,13 @@ const inter = Inter({
   variable: "--font-inter",
   display: "swap",
   weight: ["300", "400", "500", "600", "700", "800"],
+});
+
+const jetbrainsMono = JetBrains_Mono({
+  subsets: ["latin"],
+  variable: "--font-mono",
+  display: "swap",
+  weight: ["400", "500", "600", "700"],
 });
 
 const spaceGrotesk = Space_Grotesk({
@@ -37,7 +44,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="fr" className={`dark ${inter.variable} ${spaceGrotesk.variable}`}>
+    <html lang="fr" className={`dark ${inter.variable} ${spaceGrotesk.variable} ${jetbrainsMono.variable}`}>
       <head>
         {/* Applies the cached theme / accent / language BEFORE first paint.
             Without this, a light-theme user gets a full dark first paint on
@@ -47,7 +54,7 @@ export default function RootLayout({
             __html: `
 (function(){try{
   var s=JSON.parse(localStorage.getItem("tdb_settings")||"{}");
-  var A={blue:"230 90% 62%",purple:"270 80% 65%",teal:"175 90% 42%",orange:"30 95% 55%",pink:"330 90% 60%"};
+  var A={blue:"41 82% 52%",purple:"25 85% 55%",teal:"170 60% 45%",orange:"187 62% 58%",pink:"340 65% 60%"};
   if(s.theme==="light"||s.theme==="dark")document.documentElement.setAttribute("data-theme",s.theme);
   var c=A[s.accentColor];if(c){var e=document.documentElement.style;
     e.setProperty("--primary",c);e.setProperty("--ring",c);e.setProperty("--neon-blue",c);}
@@ -60,11 +67,11 @@ export default function RootLayout({
         {/* Background effects — GPU-composited layer, no blur filters */}
         <div className="fixed inset-0 -z-10 overflow-hidden" style={{ contain: "strict", willChange: "transform" }}>
           {/* Grid */}
-          <div className="absolute inset-0 opacity-[0.025]"
-            style={{backgroundImage: "linear-gradient(rgba(99,140,255,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(99,140,255,0.5) 1px, transparent 1px)", backgroundSize: "64px 64px"}} />
+          <div className="absolute inset-0 opacity-[0.035]"
+            style={{backgroundImage: "linear-gradient(rgba(232,168,32,0.35) 1px, transparent 1px), linear-gradient(90deg, rgba(232,168,32,0.35) 1px, transparent 1px)", backgroundSize: "48px 48px"}} />
           {/* Three static radial gradients — no blur, no animation, zero GPU cost */}
           <div className="absolute inset-0" style={{
-            background: "radial-gradient(ellipse 80% 60% at 20% 10%, rgba(99,140,255,0.11) 0%, transparent 60%), radial-gradient(ellipse 60% 50% at 80% 90%, rgba(0,212,170,0.07) 0%, transparent 55%), radial-gradient(ellipse 40% 30% at 90% 5%, rgba(232,168,32,0.05) 0%, transparent 60%)"
+            background: "radial-gradient(ellipse 70% 50% at 50% -5%, rgba(232,168,32,0.06) 0%, transparent 60%)"
           }} />
         </div>
 

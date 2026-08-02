@@ -13,8 +13,8 @@ import { cn } from "@/lib/utils";
 import { adminAPI, contentFactoryAPI, ContentPiece, LibraryItem } from "@/lib/api";
 
 const CATEGORY_LABELS: Record<string, { label: string; color: string }> = {
-  indicator: { label: "Indicateur",  color: "text-blue-400   bg-blue-400/10   border-blue-400/25"   },
-  concept:   { label: "Concept",     color: "text-purple-400 bg-purple-400/10 border-purple-400/25" },
+  indicator: { label: "Indicateur",  color: "text-primary   bg-primary/10   border-primary/25"   },
+  concept:   { label: "Concept",     color: "text-neon-purple bg-neon-purple/10 border-neon-purple/25" },
   strategy:  { label: "Stratégie",   color: "text-amber-400  bg-amber-400/10  border-amber-400/25"  },
   tip:       { label: "Conseil",     color: "text-emerald-400 bg-emerald-400/10 border-emerald-400/25" },
 };
@@ -119,7 +119,7 @@ export default function ContentFactoryPage() {
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
             className="flex items-center gap-2 px-4 py-2 rounded-xl font-medium text-sm text-white"
-            style={{ background: "linear-gradient(135deg, rgba(99,140,255,0.9), rgba(139,92,246,0.9))", border: "1px solid rgba(99,140,255,0.4)" }}
+            style={{ background: "linear-gradient(135deg, rgba(232,168,32,0.9), rgba(184,134,58,0.9))", border: "1px solid rgba(232,168,32,0.4)" }}
           >
             <Plus className="w-4 h-4" />
             Nouveau contenu
@@ -132,7 +132,7 @@ export default function ContentFactoryPage() {
         {[
           { label: "Total créés",  value: pieces.length,                                       icon: Video,        color: "text-primary"   },
           { label: "Prêts",        value: pieces.filter(p => p.status === "ready").length,     icon: CheckCircle,  color: "text-emerald-400" },
-          { label: "Publiés",      value: pieces.filter(p => p.status === "published").length, icon: Send,         color: "text-blue-400"  },
+          { label: "Publiés",      value: pieces.filter(p => p.status === "published").length, icon: Send,         color: "text-primary"  },
           { label: "Sujets dispo", value: library.length,                                       icon: Lightbulb,    color: "text-amber-400" },
         ].map(stat => (
           <div key={stat.label} className="glass-card p-4 flex items-center gap-3">

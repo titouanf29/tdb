@@ -89,7 +89,7 @@ function PieChart2D({ data }: { data: { label: string; value: number; color: str
 }
 
 const PIE_COLORS = [
-  "#638cff", "#8b5cf6", "#06b6d4", "#10b981",
+  "#E8A820", "#8b5cf6", "#06b6d4", "#10b981",
   "#f59e0b", "#ef4444", "#ec4899", "#84cc16",
 ];
 
@@ -815,7 +815,7 @@ function PositionDetailSheet({
                   sessionStorage.setItem("ai_position_context", JSON.stringify(pos));
                   router.push(`/assistant?asset=${encodeURIComponent(pos.symbol)}`);
                 }}
-                className="flex flex-col items-center gap-1 py-3 rounded-xl bg-purple-500/10 hover:bg-purple-500/20 transition-colors text-xs text-purple-400"
+                className="flex flex-col items-center gap-1 py-3 rounded-xl bg-neon-purple/10 hover:bg-neon-purple/20 transition-colors text-xs text-neon-purple"
               >
                 <Bot className="w-4 h-4" />
                 IA
@@ -954,7 +954,7 @@ function PositionCard({
             sessionStorage.setItem("ai_position_context", JSON.stringify(pos));
             router.push(`/assistant?asset=${encodeURIComponent(pos.symbol)}`);
           }}
-          className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs text-purple-400 hover:bg-purple-500/10 transition-colors border-x border-white/8"
+          className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs text-neon-purple hover:bg-neon-purple/10 transition-colors border-x border-white/8"
         >
           <Bot className="w-3.5 h-3.5" /> IA
         </button>
@@ -1136,7 +1136,7 @@ export default function PortfolioPage() {
         </div>
 
         {/* Disclaimer */}
-        <div className="flex items-start gap-2 px-4 py-3 rounded-xl bg-blue-500/8 border border-blue-500/15 text-xs text-blue-300/80">
+        <div className="flex items-start gap-2 px-4 py-3 rounded-xl bg-primary/8 border border-primary/15 text-xs text-primary/80">
           <Info className="w-4 h-4 flex-shrink-0 mt-0.5" />
           {t("portfolio_disclaimer")}
         </div>

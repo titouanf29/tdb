@@ -37,8 +37,8 @@ type SortKey = "score" | "change" | "change_1w" | "rsi" | "volume_ratio";
 type OppFilter = "all" | "breakout" | "reversal" | "momentum";
 
 const OPP_COLORS: Record<string, { bg: string; text: string; border: string; dot: string }> = {
-  breakout: { bg: "bg-blue-500/10",   text: "text-blue-400",   border: "border-blue-500/30",   dot: "bg-blue-400" },
-  reversal: { bg: "bg-purple-500/10", text: "text-purple-400", border: "border-purple-500/30", dot: "bg-purple-400" },
+  breakout: { bg: "bg-primary/10",   text: "text-primary",   border: "border-primary/30",   dot: "bg-primary" },
+  reversal: { bg: "bg-neon-purple/10", text: "text-neon-purple", border: "border-neon-purple/30", dot: "bg-neon-purple" },
   momentum: { bg: "bg-amber-500/10",  text: "text-amber-400",  border: "border-amber-500/30",  dot: "bg-amber-400" },
 };
 
@@ -384,7 +384,7 @@ export default function ScannerPage() {
                     "rounded-full transition-all duration-500",
                     i < quota.scans_today
                       ? quota.remaining === 1 ? "w-2 h-2 bg-amber-500/40" : "w-2 h-2 bg-primary/30"
-                      : quota.remaining === 1 ? "w-2.5 h-2.5 bg-amber-400 shadow-[0_0_6px_rgba(245,158,11,0.5)]" : "w-2.5 h-2.5 bg-primary shadow-[0_0_6px_rgba(99,140,255,0.4)]"
+                      : quota.remaining === 1 ? "w-2.5 h-2.5 bg-amber-400 shadow-[0_0_6px_rgba(245,158,11,0.5)]" : "w-2.5 h-2.5 bg-primary shadow-[0_0_6px_rgba(232,168,32,0.4)]"
                   )}
                 />
               ))}
@@ -796,7 +796,7 @@ export default function ScannerPage() {
                             {r.opportunity}
                           </span>
                           {r.near_breakout && (
-                            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 font-medium">
+                            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 border border-primary/20 text-primary font-medium">
                               52w High
                             </span>
                           )}

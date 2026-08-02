@@ -30,56 +30,61 @@ html {
 @layer base {
   :root {
     /*
-     * CaptenTDB palette — navy depth, #638CFF electric blue as primary
-     * (the blue already used across the product), #00D4AA teal as accent,
-     * gold reserved for the brand signature.
+     * CaptenTDB — "trading terminal" theme.
+     * Near-black carbon, the logo's GOLD as the primary colour, hairline
+     * borders and square corners. No glassmorphism, no neon glow, no blue
+     * gradients: the look is a professional market terminal, not a generic
+     * SaaS dashboard.
      */
-    --background: 220 48% 4%;
-    --foreground: 212 30% 96%;
-    --card: 219 42% 7.5%;
-    --card-foreground: 212 30% 96%;
-    --primary: 224 100% 69%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 218 38% 12%;
-    --secondary-foreground: 212 30% 96%;
-    --muted: 218 38% 12%;
-    --muted-foreground: 214 18% 58%;
-    --accent: 168 100% 42%;
-    --accent-foreground: 220 48% 6%;
-    --border: 218 32% 14%;
-    --ring: 224 100% 69%;
-    --radius: 0.75rem;
+    --background: 240 6% 4%;      /* #0A0A0B carbon */
+    --foreground: 40 12% 92%;     /* warm off-white, never pure #fff */
+    --card: 240 5% 7%;            /* #111113 panel */
+    --card-foreground: 40 12% 92%;
+    --primary: 41 82% 52%;        /* #E8A820 — the logo arrow */
+    --primary-foreground: 240 6% 5%;
+    --secondary: 240 5% 11%;
+    --secondary-foreground: 40 12% 92%;
+    --muted: 240 5% 11%;
+    --muted-foreground: 40 6% 58%;
+    --accent: 187 62% 58%;        /* cyan, used sparingly for secondary data */
+    --accent-foreground: 240 6% 5%;
+    --border: 240 5% 15%;         /* hairline */
+    --ring: 41 82% 52%;
+    --radius: 2px;                /* square — the single biggest anti-"AI" cue */
 
-    /* Gold — tied to the logo */
-    --gold: 42 95% 57%;
+    /* Gold — the brand signature, now also the primary */
+    --gold: 41 82% 52%;
 
-    /* Neon palette */
-    --neon-blue: 224 100% 69%;
-    --neon-cyan: 172 100% 45%;
-    --neon-purple: 258 78% 68%;
-    --neon-green: 160 95% 45%;
+    /* Data colours: terminal green / red, readable on carbon */
+    --neon-blue: 41 82% 52%;      /* legacy alias → gold */
+    --neon-cyan: 187 62% 58%;
+    --neon-purple: 41 60% 45%;    /* legacy alias → dim gold */
+    --neon-green: 152 68% 48%;
   }
 
   /* Light theme */
+  /* Light = "paper terminal": warm newsprint, ink text, same gold accent.
+     Deliberately NOT a blue-grey admin panel. */
   [data-theme="light"] {
-    --background: 220 20% 97%;
-    --foreground: 220 50% 8%;
-    --card: 0 0% 100%;
-    --card-foreground: 220 50% 8%;
-    --primary: 224 90% 55%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 220 15% 92%;
-    --secondary-foreground: 220 50% 8%;
-    --muted: 220 15% 92%;
-    --muted-foreground: 220 15% 40%;
-    --accent: 168 90% 32%;
-    --accent-foreground: 0 0% 100%;
-    --border: 220 15% 85%;
-    --ring: 224 90% 55%;
-    --neon-blue: 224 90% 52%;
-    --neon-cyan: 172 90% 32%;
-    --neon-purple: 258 70% 55%;
-    --neon-green: 160 85% 32%;
+    --background: 40 24% 96%;     /* #F7F4EE paper */
+    --foreground: 240 8% 12%;     /* ink */
+    --card: 40 30% 99%;
+    --card-foreground: 240 8% 12%;
+    --primary: 36 78% 40%;        /* darker gold so it passes contrast on paper */
+    --primary-foreground: 40 30% 99%;
+    --secondary: 40 18% 91%;
+    --secondary-foreground: 240 8% 12%;
+    --muted: 40 18% 91%;
+    --muted-foreground: 40 6% 40%;
+    --accent: 190 60% 32%;
+    --accent-foreground: 40 30% 99%;
+    --border: 40 14% 84%;
+    --ring: 36 78% 40%;
+    --gold: 36 78% 40%;
+    --neon-blue: 36 78% 40%;
+    --neon-cyan: 190 60% 32%;
+    --neon-purple: 36 60% 35%;
+    --neon-green: 152 60% 30%;
   }
 
   [data-theme="light"] body {
@@ -88,10 +93,10 @@ html {
   }
 
   [data-theme="light"] .glass-card {
-    background-color: rgba(255, 255, 255, 0.88) !important;
-    background-image: linear-gradient(180deg, rgba(255,255,255,0.6) 0%, transparent 64px) !important;
-    border: 1px solid rgba(0, 0, 0, 0.08) !important;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.07), inset 0 1px 0 rgba(255, 255, 255, 0.95) !important;
+    background-color: hsl(var(--card)) !important;
+    background-image: none !important;
+    border: 1px solid hsl(var(--border)) !important;
+    box-shadow: none !important;
   }
 
   [data-theme="light"] .skeleton {
@@ -103,14 +108,14 @@ html {
   }
 
   [data-theme="light"] .btn-secondary {
-    background: linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(240,240,250,0.9) 100%) !important;
-    border-color: rgba(0,0,0,0.12) !important;
+    background: transparent !important;
+    border-color: hsl(var(--border)) !important;
     color: hsl(var(--foreground)) !important;
   }
 
   [data-theme="light"] .input {
-    background: rgba(255, 255, 255, 0.9) !important;
-    border-color: rgba(0, 0, 0, 0.12) !important;
+    background: hsl(var(--card)) !important;
+    border-color: hsl(var(--border)) !important;
     color: hsl(var(--foreground)) !important;
   }
 
@@ -146,20 +151,36 @@ html {
   /* Display face for headings — the CaptenTDB typographic signature */
   h1, h2, h3 {
     font-family: var(--font-display), var(--font-inter), system-ui, sans-serif;
-    letter-spacing: -0.02em;
+    letter-spacing: -0.015em;
+  }
+
+  /* Terminal signature: every number, price, symbol and metric renders in the
+     monospace face so columns line up like a real market screen. */
+  .font-mono, code, kbd, samp, pre {
+    font-family: var(--font-mono), ui-monospace, "SF Mono", Menlo, monospace;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Section labels — the small uppercase headers of a terminal */
+  .terminal-label {
+    font-family: var(--font-mono), ui-monospace, monospace;
+    font-size: 0.6875rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: hsl(var(--muted-foreground));
   }
 
   /* Brand-tinted text selection */
   ::selection {
-    background: hsl(var(--gold) / 0.28);
-    color: hsl(210 28% 98%);
+    background: hsl(var(--primary) / 0.30);
+    color: hsl(var(--foreground));
   }
 
   /* Visible focus for keyboard navigation only */
   :focus-visible {
-    outline: 2px solid hsl(var(--primary) / 0.7);
+    outline: 1px solid hsl(var(--primary));
     outline-offset: 2px;
-    border-radius: 4px;
+    border-radius: 0;
   }
 
   /* Custom scrollbar */
@@ -173,8 +194,8 @@ html {
   }
 
   ::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.14);
-    border-radius: 9999px;
+    background: hsl(var(--border));
+    border-radius: 0;
   }
 
   ::-webkit-scrollbar-thumb:hover {
@@ -183,85 +204,43 @@ html {
 }
 
 @layer components {
-  /* Glassmorphism card — no backdrop-blur (too expensive at scale) */
+  /*
+   * Terminal panel (kept under the historical .glass-card name so every
+   * existing page inherits the new look): flat carbon surface, hairline
+   * border, square corners. No blur, no inner highlight, no lift.
+   */
   .glass-card {
-    @apply rounded-xl;
-    background-color: hsl(var(--card) / 0.94);
-    background-image: linear-gradient(180deg, rgba(255,255,255,0.055) 0%, transparent 64px);
-    border: 1px solid rgba(255, 255, 255, 0.11);
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255,255,255,0.09);
+    border-radius: var(--radius);
+    background-color: hsl(var(--card));
+    border: 1px solid hsl(var(--border));
+    box-shadow: none;
   }
 
   .glass-card-hover {
-    @apply glass-card transition-all duration-300;
+    @apply glass-card transition-colors duration-150;
     position: relative;
-    overflow: hidden;
   }
 
-  /* Shine sweep on hover */
-  .glass-card-hover::after {
-    content: "";
-    position: absolute;
-    top: 0;
-    left: -100%;
-    width: 60%;
-    height: 100%;
-    background: linear-gradient(
-      105deg,
-      transparent 0%,
-      rgba(255,255,255,0.04) 40%,
-      rgba(255,255,255,0.09) 50%,
-      rgba(255,255,255,0.04) 60%,
-      transparent 100%
-    );
-    transition: left 0.5s ease;
-    pointer-events: none;
-    border-radius: inherit;
-  }
-
-  .glass-card-hover:hover::after {
-    left: 150%;
-  }
-
+  /* Hover = the border lights up gold. No sweep, no translate, no glow. */
   .glass-card-hover:hover {
-    border-color: rgba(120, 120, 255, 0.40);
-    box-shadow:
-      0 16px 48px rgba(0, 0, 0, 0.55),
-      0 0 32px rgba(100, 100, 255, 0.15),
-      inset 0 1px 0 rgba(255,255,255,0.14);
-    transform: translateY(-2px);
+    border-color: hsl(var(--primary) / 0.55);
+    background-color: hsl(var(--secondary));
   }
 
-  /* Glow effects */
+  /* Legacy hook — glow is gone in the terminal theme, kept as a no-op so
+     existing markup does not break. */
   .glow {
     @apply relative;
   }
 
-  .glow::before {
-    content: "";
-    @apply absolute inset-0 -z-10 rounded-xl opacity-0 transition-opacity duration-300;
-    background: radial-gradient(circle at center, hsl(var(--neon-blue) / 0.25) 0%, transparent 70%);
-    filter: blur(16px);
-  }
-
-  .glow:hover::before {
-    @apply opacity-100;
-  }
-
-  /* Gradient text — clean indigo → cyan (headings, feature accents) */
+  /* Terminal theme: flat gold, no gradient. */
   .gradient-text {
-    background: linear-gradient(120deg, hsl(var(--primary)) 0%, hsl(var(--neon-cyan)) 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
+    color: hsl(var(--primary));
   }
 
   /* Gold gradient text — brand signature, reserved for hero & premium moments */
   .gradient-text-gold {
-    background: linear-gradient(120deg, #E8A820 0%, #FFE033 55%, #E8A820 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
+    color: hsl(var(--primary));
   }
 
   /* Trading colors */
@@ -323,12 +302,8 @@ html {
     content: "";
     @apply absolute rounded-xl -z-10;
     inset: -1px;
-    background: linear-gradient(135deg,
-      hsl(var(--neon-cyan) / 0.5),
-      hsl(var(--neon-blue) / 0.45),
-      hsl(var(--gold) / 0.4)
-    );
-    filter: blur(1px);
+    background: hsl(var(--primary) / 0.45);
+    filter: none;
   }
 
   @keyframes neonGlow {
@@ -362,15 +337,16 @@ html {
 
   /* Button styles */
   .btn-primary {
-    @apply relative overflow-hidden text-white font-medium px-6 py-2 rounded-lg transition-all duration-200 active:scale-95;
-    background: linear-gradient(135deg, hsl(224 92% 62%) 0%, hsl(200 95% 48%) 100%);
-    box-shadow: 0 2px 12px hsl(var(--primary) / 0.25), 0 2px 8px rgba(0,0,0,0.3);
+    @apply relative overflow-hidden font-semibold px-6 py-2 transition-colors duration-150 active:translate-y-px;
+    border-radius: var(--radius);
+    background: hsl(var(--primary));
+    color: hsl(var(--primary-foreground));
+    box-shadow: none;
+    letter-spacing: 0.01em;
   }
 
   .btn-primary:hover {
-    box-shadow: 0 4px 24px hsl(var(--primary) / 0.45), 0 4px 12px rgba(0,0,0,0.3);
-    filter: brightness(1.08);
-    transform: translateY(-1px);
+    background: hsl(var(--primary) / 0.86);
   }
 
   /* Ripple on click */
@@ -395,17 +371,15 @@ html {
   }
 
   .btn-secondary {
-    @apply relative overflow-hidden text-foreground font-medium px-6 py-2 rounded-lg transition-all duration-200;
-    background: linear-gradient(135deg, rgba(255,255,255,0.07) 0%, rgba(255,255,255,0.03) 100%);
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    backdrop-filter: blur(8px);
+    @apply relative overflow-hidden text-foreground font-medium px-6 py-2 transition-colors duration-150;
+    border-radius: var(--radius);
+    background: transparent;
+    border: 1px solid hsl(var(--border));
   }
 
   .btn-secondary:hover {
-    background: linear-gradient(135deg, rgba(255,255,255,0.11) 0%, rgba(255,255,255,0.06) 100%);
-    border-color: hsl(var(--neon-blue) / 0.45);
-    transform: translateY(-1px);
-    box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+    background: hsl(var(--secondary));
+    border-color: hsl(var(--primary) / 0.55);
   }
 
   .btn-secondary::after {
@@ -429,10 +403,7 @@ html {
   }
 
   .hover-lift:hover {
-    transform: translateY(-4px);
-    box-shadow:
-      0 20px 48px rgba(0, 0, 0, 0.55),
-      0 0 28px hsl(var(--neon-blue) / 0.09);
+    border-color: hsl(var(--primary) / 0.45);
   }
 
   .btn-ghost {
@@ -441,13 +412,15 @@ html {
 
   /* Input styles */
   .input {
-    @apply bg-secondary/40 rounded-lg px-4 py-2 text-foreground placeholder:text-muted-foreground focus:outline-none transition-all duration-200;
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    @apply px-4 py-2 text-foreground placeholder:text-muted-foreground focus:outline-none transition-colors duration-150;
+    border-radius: var(--radius);
+    background: hsl(var(--background));
+    border: 1px solid hsl(var(--border));
   }
 
   .input:focus {
-    border-color: hsl(var(--neon-blue) / 0.6);
-    box-shadow: 0 0 12px hsl(var(--neon-blue) / 0.15);
+    border-color: hsl(var(--primary));
+    box-shadow: none;
   }
 
   /* Chart container */
@@ -518,15 +491,8 @@ html {
   }
 
   /* Neon text glow */
-  .text-neon {
-    color: hsl(var(--neon-cyan));
-    text-shadow: 0 0 10px hsl(var(--neon-cyan) / 0.6), 0 0 30px hsl(var(--neon-cyan) / 0.3);
-  }
-
-  .text-neon-blue {
-    color: hsl(var(--neon-blue));
-    text-shadow: 0 0 10px hsl(var(--neon-blue) / 0.6), 0 0 30px hsl(var(--neon-blue) / 0.3);
-  }
+  .text-neon { color: hsl(var(--accent)); }
+  .text-neon-blue { color: hsl(var(--primary)); }
 
   /* Page enter animation for main content */
   .page-enter {
@@ -664,10 +630,7 @@ html {
 
   /* Backdrop glow for modal/overlay elements */
   .backdrop-glow {
-    box-shadow:
-      0 0 60px hsl(var(--neon-blue) / 0.15),
-      0 0 120px hsl(var(--neon-purple) / 0.08),
-      0 24px 64px rgba(0, 0, 0, 0.6);
+    box-shadow: 0 24px 64px rgba(0, 0, 0, 0.75);
   }
 }
 

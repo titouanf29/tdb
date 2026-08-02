@@ -194,7 +194,7 @@ export function Header({ onMenuToggle }: { onMenuToggle?: () => void }) {
 
         {/* Status Badge - hidden on mobile */}
         {isAdmin ? (
-          <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full text-xs bg-gradient-to-r from-purple-600/20 to-pink-600/20 text-purple-400 border border-purple-500/30">
+          <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full text-xs bg-gradient-to-r from-neon-purple/20 to-neon-cyan/20 text-neon-purple border border-neon-purple/30">
             <Crown className="w-3.5 h-3.5" />
             <span className="font-semibold">Admin</span>
           </div>
@@ -314,7 +314,7 @@ export function Header({ onMenuToggle }: { onMenuToggle?: () => void }) {
             onClick={() => setShowProfile(!showProfile)}
             className="flex items-center gap-2 px-2 sm:px-3 py-1.5 rounded-lg hover:bg-white/5 transition-colors min-h-[44px]"
           >
-            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-purple-500 flex items-center justify-center">
+            <div className="w-8 h-8 rounded-full bg-primary/15 border border-primary/30 flex items-center justify-center">
               <span className="text-white text-sm font-bold">
                 {user?.first_name?.[0]?.toUpperCase() || user?.username?.[0]?.toUpperCase() || "U"}
               </span>

@@ -37,7 +37,7 @@ function Spotlight({ rect, maskId, padding = 16 }: { rect: SpotRect; maskId: str
         animate={{ opacity: 1 }}
         transition={{ duration: 0.4 }}
         className="fixed inset-0 z-[9990] pointer-events-none"
-        style={{ background: "rgba(2,8,16,0.82)" }}
+        style={{ background: "rgba(6,6,7,0.86)" }}
       />
     );
   }
@@ -65,7 +65,7 @@ function Spotlight({ rect, maskId, padding = 16 }: { rect: SpotRect; maskId: str
       <rect
         width={vp.w}
         height={vp.h}
-        fill="rgba(2,8,16,0.82)"
+        fill="rgba(6,6,7,0.86)"
         mask={`url(#${maskId})`}
       />
 
@@ -73,7 +73,7 @@ function Spotlight({ rect, maskId, padding = 16 }: { rect: SpotRect; maskId: str
       <motion.rect
         x={x - 1} y={y - 1} width={w + 2} height={h + 2} rx={13}
         fill="none"
-        stroke="rgba(99,140,255,0.9)"
+        stroke="rgba(232,168,32,0.9)"
         strokeWidth={2}
         initial={false}
         animate={{ x: x - 1, y: y - 1, width: w + 2, height: h + 2 }}
@@ -84,7 +84,7 @@ function Spotlight({ rect, maskId, padding = 16 }: { rect: SpotRect; maskId: str
       <motion.rect
         x={x - 7} y={y - 7} width={w + 14} height={h + 14} rx={18}
         fill="none"
-        stroke="rgba(99,140,255,0.3)"
+        stroke="rgba(232,168,32,0.3)"
         strokeWidth={1.5}
         animate={{ opacity: [0.3, 0.7, 0.3] }}
         transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
@@ -93,7 +93,7 @@ function Spotlight({ rect, maskId, padding = 16 }: { rect: SpotRect; maskId: str
       {/* Scan line effect */}
       <motion.rect
         x={x} y={y} width={w} height={2} rx={1}
-        fill="rgba(99,140,255,0.4)"
+        fill="rgba(232,168,32,0.4)"
         animate={{ y: [y, y + h - 2, y] }}
         transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut" }}
       />
@@ -110,7 +110,7 @@ function AlexAvatar({ mood, stepKey }: { mood: Mood; stepKey: number }) {
       {/* Outer glow */}
       <motion.div
         className="absolute inset-0 rounded-[24px]"
-        style={{ background: "linear-gradient(135deg, #638CFF 0%, #00D4AA 100%)", filter: "blur(14px)" }}
+        style={{ background: "hsl(var(--primary) / 0.35)", filter: "blur(14px)" }}
         animate={{ opacity: [0.35, 0.6, 0.35], scale: [0.95, 1.05, 0.95] }}
         transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut" }}
       />
@@ -121,9 +121,9 @@ function AlexAvatar({ mood, stepKey }: { mood: Mood; stepKey: number }) {
         className="relative flex items-center justify-center rounded-[22px] shadow-2xl"
         style={{
           width: 80, height: 80,
-          background: "linear-gradient(145deg, #1e2d5a 0%, #0d1628 100%)",
-          border: "2px solid rgba(99,140,255,0.55)",
-          boxShadow: "0 8px 32px rgba(99,140,255,0.3), inset 0 1px 0 rgba(255,255,255,0.05)",
+          background: "hsl(var(--card))",
+          border: "2px solid rgba(232,168,32,0.55)",
+          boxShadow: "none",
         }}
         animate={
           mood === "happy"
@@ -141,7 +141,7 @@ function AlexAvatar({ mood, stepKey }: { mood: Mood; stepKey: number }) {
         }
       >
         {/* Bot icon */}
-        <Bot className="w-10 h-10" style={{ color: "#638CFF" }} />
+        <Bot className="w-10 h-10" style={{ color: "#E8A820" }} />
 
         {/* Highlight */}
         <div
@@ -154,8 +154,8 @@ function AlexAvatar({ mood, stepKey }: { mood: Mood; stepKey: number }) {
           className="absolute -bottom-1.5 -right-1.5 rounded-full border-2 flex items-center justify-center"
           style={{
             width: 22, height: 22,
-            background: mood === "happy" ? "linear-gradient(135deg, #FFD700, #FF8C00)" : "#00D4AA",
-            borderColor: "#0d1628",
+            background: mood === "happy" ? "#E8A820" : "#5FC9DC",
+            borderColor: "hsl(var(--card))",
           }}
           animate={{ scale: [1, 1.2, 1] }}
           transition={{ duration: 1.8, repeat: Infinity }}
@@ -175,7 +175,7 @@ function AlexAvatar({ mood, stepKey }: { mood: Mood; stepKey: number }) {
             className="absolute rounded-full"
             style={{
               width: 5, height: 5,
-              background: i % 2 ? "#638CFF" : "#00D4AA",
+              background: i % 2 ? "#E8A820" : "#5FC9DC",
               left: "50%", top: "50%",
             }}
             initial={{ x: 0, y: 0, opacity: 1, scale: 1 }}
@@ -199,7 +199,7 @@ function AlexAvatar({ mood, stepKey }: { mood: Mood; stepKey: number }) {
       {/* Orbit dot */}
       <motion.div
         className="absolute rounded-full"
-        style={{ width: 8, height: 8, background: "#00D4AA", top: "10%", left: "50%", transformOrigin: "0 32px" }}
+        style={{ width: 8, height: 8, background: "#5FC9DC", top: "10%", left: "50%", transformOrigin: "0 32px" }}
         animate={{ rotate: 360 }}
         transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
       />
@@ -249,15 +249,15 @@ function TourCard({
         className="rounded-2xl overflow-hidden"
         style={{
           background: "linear-gradient(150deg, rgba(18,26,52,0.98) 0%, rgba(8,13,26,0.98) 100%)",
-          border: "1px solid rgba(99,140,255,0.2)",
-          boxShadow: "0 24px 64px rgba(0,0,0,0.7), 0 0 0 1px rgba(99,140,255,0.08), inset 0 1px 0 rgba(255,255,255,0.04)",
+          border: "1px solid rgba(232,168,32,0.2)",
+          boxShadow: "0 24px 64px rgba(0,0,0,0.7), 0 0 0 1px rgba(232,168,32,0.08), inset 0 1px 0 rgba(255,255,255,0.04)",
         }}
       >
         {/* Progress stripe */}
         <div className="h-[3px] w-full" style={{ background: "rgba(255,255,255,0.06)" }}>
           <motion.div
             className="h-full rounded-full"
-            style={{ background: "linear-gradient(90deg, #638CFF, #00D4AA)" }}
+            style={{ background: "linear-gradient(90deg, #E8A820, #00D4AA)" }}
             initial={false}
             animate={{ width: `${progress * 100}%` }}
             transition={{ duration: 0.45, ease: "easeOut" }}
@@ -268,7 +268,7 @@ function TourCard({
           {/* Header row */}
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
-              <span className="text-sm font-bold" style={{ color: "#638CFF" }}>Alex</span>
+              <span className="text-sm font-bold" style={{ color: "#E8A820" }}>Alex</span>
               <span className="text-xs text-gray-600">·</span>
               <span className="text-sm text-gray-400 font-medium">
                 {stepIndex + 1} / {totalSteps}
@@ -321,9 +321,9 @@ function TourCard({
                 className="rounded-full"
                 style={{
                   background: i === stepIndex
-                    ? "linear-gradient(90deg, #638CFF, #00D4AA)"
+                    ? "linear-gradient(90deg, #E8A820, #00D4AA)"
                     : i < stepIndex
-                    ? "rgba(99,140,255,0.45)"
+                    ? "rgba(232,168,32,0.45)"
                     : "rgba(255,255,255,0.14)",
                 }}
                 animate={{ width: i === stepIndex ? 24 : 7, height: 7 }}
@@ -357,7 +357,7 @@ function TourCard({
               whileHover={{ scale: 1.02, opacity: 0.92 }}
               whileTap={{ scale: 0.97 }}
               className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-[15px] font-semibold text-white"
-              style={{ background: "linear-gradient(135deg, #638CFF 0%, #00D4AA 100%)", minHeight: 48 }}
+              style={{ background: "linear-gradient(135deg, #E8A820 0%, #00D4AA 100%)", minHeight: 48 }}
             >
               {isLast ? (
                 <>

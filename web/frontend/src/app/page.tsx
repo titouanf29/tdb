@@ -79,11 +79,11 @@ function AnalysisDemo({ lang }: { lang: "fr" | "en" }) {
   const indicators = [
     { name: "RSI",    val: "62",     label: lang === "en" ? "Neutral"  : "Neutre",    color: "text-yellow-400" },
     { name: "MACD",   val: "",       label: lang === "en" ? "Bullish ↑" : "Haussier ↑", color: "text-emerald-400" },
-    { name: "EMA 20", val: "138.2",  label: "",          color: "text-blue-400" },
+    { name: "EMA 20", val: "138.2",  label: "",          color: "text-primary" },
     { name: "Score",  val: "74",     label: "/100",      color: "text-primary" },
   ];
   return (
-    <div className="rounded-2xl overflow-hidden border border-blue-500/20 bg-card/70 backdrop-blur-sm p-4 shadow-xl">
+    <div className="rounded-2xl overflow-hidden border border-primary/20 bg-card/70 backdrop-blur-sm p-4 shadow-xl">
       <div className="h-28 mb-4 relative">
         <AnimatedChart />
         <div className="absolute top-1 left-1 flex items-center gap-2">
@@ -192,12 +192,12 @@ function ChatDemo({ lang }: { lang: "fr" | "en" }) {
     return () => { clearTimeout(t1); clearTimeout(t2); };
   }, [step]);
   return (
-    <div className="rounded-2xl overflow-hidden border border-purple-500/20 bg-card/70 backdrop-blur-sm p-4 shadow-xl">
+    <div className="rounded-2xl overflow-hidden border border-neon-purple/20 bg-card/70 backdrop-blur-sm p-4 shadow-xl">
       <div className="flex items-center gap-2 mb-3 pb-3 border-b border-white/5">
-        <div className="w-7 h-7 rounded-full bg-purple-500/30 flex items-center justify-center">
-          <Brain className="w-3.5 h-3.5 text-purple-400" />
+        <div className="w-7 h-7 rounded-full bg-neon-purple/30 flex items-center justify-center">
+          <Brain className="w-3.5 h-3.5 text-neon-purple" />
         </div>
-        <span className="text-xs text-purple-400 font-semibold">{lang === "en" ? "AI Assistant" : "Assistant IA"}</span>
+        <span className="text-xs text-neon-purple font-semibold">{lang === "en" ? "AI Assistant" : "Assistant IA"}</span>
         <div className="ml-auto flex items-center gap-1">
           <motion.div className="w-1.5 h-1.5 rounded-full bg-emerald-400" animate={{ opacity: [1, 0.3, 1] }} transition={{ duration: 1, repeat: Infinity }} />
           <span className="text-[10px] text-emerald-400">{lang === "en" ? "Online" : "En ligne"}</span>
@@ -530,15 +530,15 @@ function getLiveSignals(lang: "fr" | "en") {
   return lang === "en" ? [
     { tag: "RSI",   detail: "RSI(14) = 62.4 — Neutral zone, slightly bullish",      color: "text-yellow-400",  bg: "bg-yellow-400/10 border-yellow-400/20" },
     { tag: "MACD",  detail: "Positive histogram — momentum ↑",                       color: "text-emerald-400", bg: "bg-emerald-400/10 border-emerald-400/20" },
-    { tag: "EMA20", detail: "Price > EMA20 ($209.80) — short-term bullish trend",    color: "text-blue-400",    bg: "bg-blue-400/10 border-blue-400/20" },
-    { tag: "EMA50", detail: "Price > EMA50 ($205.40) — medium-term trend confirmed", color: "text-blue-400",    bg: "bg-blue-400/10 border-blue-400/20" },
+    { tag: "EMA20", detail: "Price > EMA20 ($209.80) — short-term bullish trend",    color: "text-primary",    bg: "bg-primary/10 border-primary/20" },
+    { tag: "EMA50", detail: "Price > EMA50 ($205.40) — medium-term trend confirmed", color: "text-primary",    bg: "bg-primary/10 border-primary/20" },
     { tag: "VOL",   detail: "Volume ×1.34 vs 20d avg — confirmed signal",            color: "text-cyan-400",    bg: "bg-cyan-400/10 border-cyan-400/20" },
     { tag: "ADX",   detail: "ADX = 28.4 — High trend strength (>25)",               color: "text-emerald-400", bg: "bg-emerald-400/10 border-emerald-400/20" },
   ] : [
     { tag: "RSI",   detail: "RSI(14) = 62.4 — Zone neutre, haussier",           color: "text-yellow-400",  bg: "bg-yellow-400/10 border-yellow-400/20" },
     { tag: "MACD",  detail: "Histogramme positif — momentum ↑",                 color: "text-emerald-400", bg: "bg-emerald-400/10 border-emerald-400/20" },
-    { tag: "EMA20", detail: "Prix > EMA20 ($209.80) — tendance CT haussière",   color: "text-blue-400",    bg: "bg-blue-400/10 border-blue-400/20" },
-    { tag: "EMA50", detail: "Prix > EMA50 ($205.40) — tendance MT confirmée",   color: "text-blue-400",    bg: "bg-blue-400/10 border-blue-400/20" },
+    { tag: "EMA20", detail: "Prix > EMA20 ($209.80) — tendance CT haussière",   color: "text-primary",    bg: "bg-primary/10 border-primary/20" },
+    { tag: "EMA50", detail: "Prix > EMA50 ($205.40) — tendance MT confirmée",   color: "text-primary",    bg: "bg-primary/10 border-primary/20" },
     { tag: "VOL",   detail: "Volume ×1.34 vs moy. 20j — signal confirmé",       color: "text-cyan-400",    bg: "bg-cyan-400/10 border-cyan-400/20" },
     { tag: "ADX",   detail: "ADX = 28.4 — Force de tendance élevée (>25)",      color: "text-emerald-400", bg: "bg-emerald-400/10 border-emerald-400/20" },
   ];
@@ -572,7 +572,7 @@ function getAapl(lang: "fr" | "en") {
 function DemoScoreBar({ label, score, delay = 0 }: { label: string; score: number; delay?: number }) {
   const color =
     score >= 75 ? "from-emerald-400 to-green-400" :
-    score >= 60 ? "from-blue-400 to-cyan-400" :
+    score >= 60 ? "from-primary to-cyan-400" :
     score >= 40 ? "from-yellow-400 to-amber-400" :
                   "from-red-400 to-rose-400";
   return (
@@ -1212,7 +1212,7 @@ function LandingPage() {
       title: "Automatic technical analysis",
       desc: "Enter any symbol and instantly get a full analysis: RSI, MACD, Bollinger Bands, key levels and global AI-interpreted score.",
       bullets: ["Technical score 0 to 100", "Automatic supports & resistances", "Suggested trading strategies", "Clear bullish / bearish signals"],
-      checkBg: "border-blue-500/20 bg-blue-500/10", accentColor: "text-blue-400", glowColor: "bg-blue-600",
+      checkBg: "border-primary/20 bg-primary/10", accentColor: "text-primary", glowColor: "bg-primary",
     },
     {
       id: "scanner", icon: Activity,
@@ -1228,7 +1228,7 @@ function LandingPage() {
       title: "Your AI trading co-pilot",
       desc: "Ask any question about any asset, strategy or indicator. The AI responds with precise analysis and recommendations adapted to your profile.",
       bullets: ["Contextual and personalized answers", "Natural language understanding", "Data-based trade suggestions", "Available 24/7"],
-      checkBg: "border-purple-500/20 bg-purple-500/10", accentColor: "text-purple-400", glowColor: "bg-purple-600",
+      checkBg: "border-neon-purple/20 bg-neon-purple/10", accentColor: "text-neon-purple", glowColor: "bg-neon-purple",
     },
   ] : [
     {
@@ -1237,7 +1237,7 @@ function LandingPage() {
       title: "Analyse technique automatique",
       desc: "Entrez n'importe quel symbole et obtenez instantanément une analyse complète : RSI, MACD, Bollinger Bands, niveaux clés et score IA global.",
       bullets: ["Score technique de 0 à 100", "Supports & résistances automatiques", "Stratégies de trade suggérées", "Signaux haussiers / baissiers clairs"],
-      checkBg: "border-blue-500/20 bg-blue-500/10", accentColor: "text-blue-400", glowColor: "bg-blue-600",
+      checkBg: "border-primary/20 bg-primary/10", accentColor: "text-primary", glowColor: "bg-primary",
     },
     {
       id: "scanner", icon: Activity,
@@ -1253,22 +1253,22 @@ function LandingPage() {
       title: "Votre copilote de trading IA",
       desc: "Posez des questions sur n'importe quel actif, stratégie ou indicateur. L'IA vous répond avec des analyses précises et des recommandations adaptées à votre profil.",
       bullets: ["Réponses contextuelles et personnalisées", "Compréhension du langage naturel", "Suggestions de trade basées sur les données", "Disponible 24h/24, 7j/7"],
-      checkBg: "border-purple-500/20 bg-purple-500/10", accentColor: "text-purple-400", glowColor: "bg-purple-600",
+      checkBg: "border-neon-purple/20 bg-neon-purple/10", accentColor: "text-neon-purple", glowColor: "bg-neon-purple",
     },
   ];
 
   const SECONDARY_FEATURES = lang === "en" ? [
-    { icon: BookOpen, title: "Training included",      desc: "Learn the basics of trading with our interactive guides and animated visualizations.",    colorClass: "bg-blue-500/10 border-blue-500/20 text-blue-400" },
+    { icon: BookOpen, title: "Training included",      desc: "Learn the basics of trading with our interactive guides and animated visualizations.",    colorClass: "bg-primary/10 border-primary/20 text-primary" },
     { icon: Wallet,   title: "Virtual wallet",         desc: "Trade with $10,000 virtual, track your performance and refine your strategy risk-free.",  colorClass: "bg-emerald-500/10 border-emerald-500/20 text-emerald-400" },
     { icon: Bell,     title: "Alerts & Notifications", desc: "Receive real-time alerts on price movements and important signals.",                       colorClass: "bg-yellow-500/10 border-yellow-500/20 text-yellow-400" },
-    { icon: Globe,    title: "800+ assets covered",    desc: "Global equities, ETFs, cryptocurrencies, commodities — all in one place.",                 colorClass: "bg-purple-500/10 border-purple-500/20 text-purple-400" },
+    { icon: Globe,    title: "800+ assets covered",    desc: "Global equities, ETFs, cryptocurrencies, commodities — all in one place.",                 colorClass: "bg-neon-purple/10 border-neon-purple/20 text-neon-purple" },
     { icon: Star,     title: "Personalized watchlist", desc: "Follow your favorite assets, organize them and access their analyses in one click.",        colorClass: "bg-orange-500/10 border-orange-500/20 text-orange-400" },
     { icon: Shield,   title: "100% free & secure",     desc: "No credit card required. Your data is secured and never sold.",                            colorClass: "bg-primary/10 border-primary/20 text-primary" },
   ] : [
-    { icon: BookOpen, title: "Formation incluse",       desc: "Apprenez les bases du trading avec nos guides interactifs et visualisations animées.",                  colorClass: "bg-blue-500/10 border-blue-500/20 text-blue-400" },
+    { icon: BookOpen, title: "Formation incluse",       desc: "Apprenez les bases du trading avec nos guides interactifs et visualisations animées.",                  colorClass: "bg-primary/10 border-primary/20 text-primary" },
     { icon: Wallet,   title: "Wallet virtuel",          desc: "Tradez avec 10 000 $ virtuels, suivez vos performances et affinez votre stratégie sans risque.",       colorClass: "bg-emerald-500/10 border-emerald-500/20 text-emerald-400" },
     { icon: Bell,     title: "Alertes & Notifications", desc: "Recevez des alertes en temps réel sur les mouvements de prix et les signaux importants.",              colorClass: "bg-yellow-500/10 border-yellow-500/20 text-yellow-400" },
-    { icon: Globe,    title: "800+ actifs couverts",    desc: "Actions mondiales, ETFs, cryptomonnaies, matières premières — tout en un seul endroit.",                colorClass: "bg-purple-500/10 border-purple-500/20 text-purple-400" },
+    { icon: Globe,    title: "800+ actifs couverts",    desc: "Actions mondiales, ETFs, cryptomonnaies, matières premières — tout en un seul endroit.",                colorClass: "bg-neon-purple/10 border-neon-purple/20 text-neon-purple" },
     { icon: Star,     title: "Watchlist personnalisée", desc: "Suivez vos actifs préférés, organisez-les et accédez à leurs analyses en un clic.",                    colorClass: "bg-orange-500/10 border-orange-500/20 text-orange-400" },
     { icon: Shield,   title: "100% gratuit & sécurisé", desc: "Aucune carte bancaire requise. Vos données sont sécurisées et ne sont jamais revendues.",              colorClass: "bg-primary/10 border-primary/20 text-primary" },
   ];
@@ -1287,9 +1287,9 @@ function LandingPage() {
     <div className="min-h-screen overflow-x-hidden">
       {/* ── Background ── */}
       <div className="fixed inset-0 -z-10 overflow-hidden pointer-events-none">
-        <FloatingOrb className="w-[700px] h-[700px] bg-indigo-600 top-[-200px] left-[-100px]" delay={0} />
-        <FloatingOrb className="w-[500px] h-[500px] bg-purple-600 top-[30%] right-[-200px]" delay={2} />
-        <FloatingOrb className="w-[350px] h-[350px] bg-blue-500 bottom-[5%] left-[15%]" delay={4} />
+        <FloatingOrb className="w-[700px] h-[700px] bg-neon-purple top-[-200px] left-[-100px]" delay={0} />
+        <FloatingOrb className="w-[500px] h-[500px] bg-neon-purple top-[30%] right-[-200px]" delay={2} />
+        <FloatingOrb className="w-[350px] h-[350px] bg-primary bottom-[5%] left-[15%]" delay={4} />
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,hsl(222_47%_8%/0.3)_0%,hsl(222_47%_5%/0.98)_70%)]" />
         <div className="absolute inset-0 opacity-[0.025]" style={{
           backgroundImage: "linear-gradient(hsl(var(--border)) 1px,transparent 1px),linear-gradient(90deg,hsl(var(--border)) 1px,transparent 1px)",
@@ -1496,7 +1496,7 @@ function LandingPage() {
                   {[
                     { l: "RSI",    v: "62",       c: "text-yellow-400" },
                     { l: "MACD",   v: lang === "en" ? "Bullish ↑" : "Haussier ↑", c: "text-emerald-400" },
-                    { l: "EMA 20", v: "138.2",    c: "text-blue-400" },
+                    { l: "EMA 20", v: "138.2",    c: "text-primary" },
                     { l: "Score",  v: "74/100",   c: "text-primary" },
                     { l: "Vol",    v: "+24%",     c: "text-cyan-400" },
                   ].map((ind, i) => (
@@ -1678,9 +1678,9 @@ function LandingPage() {
         <div className="max-w-3xl mx-auto text-center">
           <motion.div initial={{ opacity: 0, scale: 0.95 }} whileInView={{ opacity: 1, scale: 1 }} viewport={{ once: true }}
             className="relative glass-card p-10 md:p-16 rounded-3xl overflow-hidden neon-border">
-            <div className="absolute inset-0 bg-gradient-to-br from-primary/15 via-purple-500/8 to-pink-500/8" />
+            <div className="absolute inset-0 bg-gradient-to-br from-primary/15 via-neon-purple/8 to-neon-cyan/8" />
             <div className="absolute -top-20 -right-20 w-60 h-60 bg-primary/25 rounded-full blur-3xl" />
-            <div className="absolute -bottom-20 -left-20 w-60 h-60 bg-purple-500/15 rounded-full blur-3xl" />
+            <div className="absolute -bottom-20 -left-20 w-60 h-60 bg-neon-purple/15 rounded-full blur-3xl" />
             <div className="relative">
               <motion.div animate={{ rotate: 360 }} transition={{ duration: 8, repeat: Infinity, ease: "linear" }} className="inline-block mb-5">
                 <Sparkles className="w-9 h-9 text-primary" />

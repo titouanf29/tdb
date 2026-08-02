@@ -252,7 +252,7 @@ function TrendViz() {
       </svg>
       <div className="flex gap-4 mt-2 text-xs">
         <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-emerald-400 inline-block" /> {lang === "en" ? "HH — Higher High" : "HH — Plus-haut croissant"}</span>
-        <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-indigo-400 inline-block" /> {lang === "en" ? "HL — Higher Low" : "HL — Plus-bas croissant"}</span>
+        <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-neon-purple inline-block" /> {lang === "en" ? "HL — Higher Low" : "HL — Plus-bas croissant"}</span>
       </div>
     </div>
   );
@@ -504,7 +504,7 @@ function SwingViz() {
       </svg>
       <div className="flex gap-4 mt-2 text-xs">
         <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-emerald-400 inline-block" /> {lang === "en" ? "Entry (buy)" : "Entrée (achat)"}</span>
-        <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-violet-400 inline-block" /> {lang === "en" ? "Exit (sell)" : "Sortie (vente)"}</span>
+        <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-neon-purple inline-block" /> {lang === "en" ? "Exit (sell)" : "Sortie (vente)"}</span>
       </div>
     </div>
   );
@@ -695,10 +695,10 @@ function ScalpingRangeViz() {
       </p>
       <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ maxHeight: 200 }}>
         {/* Range zone */}
-        <rect x={PAD.left} y={toY(rangeHigh)} width={chartW} height={toY(rangeLow) - toY(rangeHigh)} fill="rgba(99,140,255,0.06)" />
+        <rect x={PAD.left} y={toY(rangeHigh)} width={chartW} height={toY(rangeLow) - toY(rangeHigh)} fill="rgba(232,168,32,0.06)" />
         {/* Range lines */}
-        <line x1={PAD.left} x2={W - PAD.right} y1={toY(rangeHigh)} y2={toY(rangeHigh)} stroke="#638CFF" strokeWidth="1.5" strokeDasharray="5 3" opacity="0.8" />
-        <text x={W - PAD.right + 3} y={toY(rangeHigh) + 4} fontSize="8" fill="#638CFF">High</text>
+        <line x1={PAD.left} x2={W - PAD.right} y1={toY(rangeHigh)} y2={toY(rangeHigh)} stroke="#E8A820" strokeWidth="1.5" strokeDasharray="5 3" opacity="0.8" />
+        <text x={W - PAD.right + 3} y={toY(rangeHigh) + 4} fontSize="8" fill="#E8A820">High</text>
         <line x1={PAD.left} x2={W - PAD.right} y1={toY(rangeLow)} y2={toY(rangeLow)} stroke="#22d3ee" strokeWidth="1.5" strokeDasharray="5 3" opacity="0.8" />
         <text x={W - PAD.right + 3} y={toY(rangeLow) + 4} fontSize="8" fill="#22d3ee">Low</text>
         {/* Stop and TP (step 1) */}
@@ -1149,8 +1149,8 @@ const PARCOURS = [
     title: "Parcours Intermédiaire",
     subtitle: "Affiner sa stratégie et ses indicateurs",
     icon: "⚡",
-    color: "from-blue-500/20 to-indigo-500/10 border-blue-500/30",
-    accentColor: "text-blue-400",
+    color: "from-primary/20 to-neon-purple/10 border-primary/30",
+    accentColor: "text-primary",
     steps: [
       { moduleId: "asset-classes", label: "Comprendre les actifs", lessonCount: 3 },
       { moduleId: "orders-and-markets", label: "Types d'ordres & marchés", lessonCount: 2 },
@@ -1163,8 +1163,8 @@ const PARCOURS = [
     title: "Parcours Analyse Pratique",
     subtitle: "Analyser un actif de A à Z",
     icon: "📊",
-    color: "from-purple-500/20 to-pink-500/10 border-purple-500/30",
-    accentColor: "text-purple-400",
+    color: "from-neon-purple/20 to-neon-cyan/10 border-neon-purple/30",
+    accentColor: "text-neon-purple",
     steps: [
       { moduleId: "technical-analysis", label: "Lire les graphiques", lessonCount: 1 },
       { moduleId: "technical-analysis", label: "Supports & Résistances", lessonCount: 1 },
@@ -1390,7 +1390,7 @@ function ParcoursSection({
       {/* Key concepts recap */}
       <div className="glass-card p-5">
         <div className="flex items-center gap-2 mb-4">
-          <Sparkles className="w-4 h-4 text-[#638CFF]" />
+          <Sparkles className="w-4 h-4 text-[#E8A820]" />
           <h3 className="font-semibold text-sm">Concepts clés à maîtriser</h3>
         </div>
         <div className="grid grid-cols-2 gap-2">
@@ -1405,7 +1405,7 @@ function ParcoursSection({
             <Link
               key={concept.label}
               href="/learn/glossaire"
-              className="flex items-center gap-2 p-2.5 rounded-xl bg-white/[0.03] border border-white/5 hover:border-[#638CFF]/30 hover:bg-[#638CFF]/5 transition-all group"
+              className="flex items-center gap-2 p-2.5 rounded-xl bg-white/[0.03] border border-white/5 hover:border-[#E8A820]/30 hover:bg-[#E8A820]/5 transition-all group"
             >
               <span className="text-base">{concept.icon}</span>
               <div className="min-w-0">
@@ -1418,8 +1418,8 @@ function ParcoursSection({
       </div>
 
       {/* CTA Coach */}
-      <div className="p-4 rounded-2xl bg-gradient-to-br from-[#638CFF]/15 to-[#00D4AA]/8 border border-[#638CFF]/25 flex items-start gap-3">
-        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#638CFF] to-[#00D4AA] flex items-center justify-center shrink-0 shadow-lg">
+      <div className="p-4 rounded-2xl bg-gradient-to-br from-[#E8A820]/15 to-[#00D4AA]/8 border border-[#E8A820]/25 flex items-start gap-3">
+        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#E8A820] to-[#00D4AA] flex items-center justify-center shrink-0 shadow-lg">
           <MessageSquare className="w-5 h-5 text-white" />
         </div>
         <div>
@@ -1517,8 +1517,8 @@ const STYLE_CARDS = [
     name: "Position Trading",
     emoji: "🎯",
     tagline: "Surfer les grandes tendances",
-    gradient: "from-blue-500/20 to-indigo-500/10",
-    border: "border-blue-500/30",
+    gradient: "from-primary/20 to-neon-purple/10",
+    border: "border-primary/30",
     accent: "#818cf8",
     accentBg: "rgba(129,140,248,0.12)",
     duration: "Sem → mois",
@@ -1610,9 +1610,9 @@ function TradingStylesHub({
     <div className="space-y-8">
 
       {/* Hero */}
-      <div className="glass-card p-6 bg-gradient-to-br from-violet-500/10 to-blue-500/5 border-violet-500/20">
+      <div className="glass-card p-6 bg-gradient-to-br from-neon-purple/10 to-primary/5 border-neon-purple/20">
         <div className="flex items-start gap-4">
-          <div className="w-14 h-14 rounded-2xl bg-violet-500/20 border border-violet-500/30 flex items-center justify-center text-2xl flex-shrink-0">⚡</div>
+          <div className="w-14 h-14 rounded-2xl bg-neon-purple/20 border border-neon-purple/30 flex items-center justify-center text-2xl flex-shrink-0">⚡</div>
           <div>
             <h2 className="text-xl font-bold mb-1">Pôle Styles de Trading</h2>
             <p className="text-sm text-muted-foreground leading-relaxed">
@@ -1745,8 +1745,8 @@ function TradingStylesHub({
       {/* Profile Quiz */}
       <div className="glass-card p-6">
         <div className="flex items-center gap-3 mb-5">
-          <div className="w-10 h-10 rounded-xl bg-violet-500/20 flex items-center justify-center shrink-0">
-            <Brain className="w-5 h-5 text-violet-400" />
+          <div className="w-10 h-10 rounded-xl bg-neon-purple/20 flex items-center justify-center shrink-0">
+            <Brain className="w-5 h-5 text-neon-purple" />
           </div>
           <div className="flex-1">
             <h3 className="font-bold">Quel style vous correspond ?</h3>
@@ -1754,7 +1754,7 @@ function TradingStylesHub({
           </div>
           {quizStep === "idle" && (
             <motion.button whileTap={{ scale: 0.97 }} onClick={() => setQuizStep("quiz")}
-              className="px-4 py-2 rounded-xl bg-violet-500/20 hover:bg-violet-500/30 text-violet-400 text-sm font-semibold border border-violet-500/30 transition-all">
+              className="px-4 py-2 rounded-xl bg-neon-purple/20 hover:bg-neon-purple/30 text-neon-purple text-sm font-semibold border border-neon-purple/30 transition-all">
               Démarrer →
             </motion.button>
           )}
@@ -1777,7 +1777,7 @@ function TradingStylesHub({
               <div className="flex items-center gap-3">
                 <div className="text-xs text-muted-foreground shrink-0">Question {answers.length + 1}/{PROFILE_QUIZ.length}</div>
                 <div className="flex-1 h-1.5 bg-white/10 rounded-full overflow-hidden">
-                  <div className="h-full bg-violet-500 rounded-full transition-all duration-500"
+                  <div className="h-full bg-neon-purple rounded-full transition-all duration-500"
                     style={{ width: `${(answers.length / PROFILE_QUIZ.length) * 100}%` }} />
                 </div>
               </div>
@@ -1785,7 +1785,7 @@ function TradingStylesHub({
               <div className="space-y-2">
                 {PROFILE_QUIZ[answers.length].options.map((opt, i) => (
                   <motion.button key={i} whileTap={{ scale: 0.98 }} onClick={() => handleAnswer(i)}
-                    className="w-full text-left px-4 py-3 rounded-xl bg-white/5 hover:bg-violet-500/15 border border-white/10 hover:border-violet-500/30 text-sm transition-all">
+                    className="w-full text-left px-4 py-3 rounded-xl bg-white/5 hover:bg-neon-purple/15 border border-white/10 hover:border-neon-purple/30 text-sm transition-all">
                     <span className="font-mono text-xs text-white/30 mr-2">{String.fromCharCode(65 + i)}.</span>
                     {opt.label}
                   </motion.button>
@@ -1950,19 +1950,19 @@ export default function LearnPage() {
       {/* XP Progress + quick links */}
       <div className="flex flex-col sm:flex-row gap-3">
         {xpProgress && (
-          <Link href="/learn/missions" className="flex-1 glass-card px-4 py-3 hover:border-[#638CFF]/30 transition-colors group">
+          <Link href="/learn/missions" className="flex-1 glass-card px-4 py-3 hover:border-[#E8A820]/30 transition-colors group">
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-lg bg-[#638CFF]/10 flex items-center justify-center">
-                <Trophy className="w-4 h-4 text-[#638CFF]" />
+              <div className="w-8 h-8 rounded-lg bg-[#E8A820]/10 flex items-center justify-center">
+                <Trophy className="w-4 h-4 text-[#E8A820]" />
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-xs text-gray-400">Niveau {xpProgress.level} · {xpProgress.xp} XP</span>
-                  <span className="text-xs text-[#638CFF] group-hover:text-[#638CFF]/80">Missions →</span>
+                  <span className="text-xs text-[#E8A820] group-hover:text-[#E8A820]/80">Missions →</span>
                 </div>
                 <div className="mt-1 h-1.5 rounded-full bg-white/5 overflow-hidden">
                   <div
-                    className="h-full rounded-full bg-gradient-to-r from-[#638CFF] to-[#00D4AA] transition-all"
+                    className="h-full rounded-full bg-gradient-to-r from-[#E8A820] to-[#00D4AA] transition-all"
                     style={{ width: `${Math.min(100, (xpProgress.xp_in_current_level / Math.max(1, xpProgress.xp_for_next_level - (xpProgress.level - 1) * 500)) * 100)}%` }}
                   />
                 </div>
@@ -1972,9 +1972,9 @@ export default function LearnPage() {
         )}
         <Link
           href="/learn/glossaire"
-          className="flex items-center gap-2 px-4 py-3 glass-card hover:border-[#638CFF]/30 transition-colors text-sm text-gray-400 hover:text-white group"
+          className="flex items-center gap-2 px-4 py-3 glass-card hover:border-[#E8A820]/30 transition-colors text-sm text-gray-400 hover:text-white group"
         >
-          <BookOpen className="w-4 h-4 text-[#638CFF]" />
+          <BookOpen className="w-4 h-4 text-[#E8A820]" />
           <span>Glossaire</span>
           <ChevronRight className="w-3 h-3 ml-auto" />
         </Link>
@@ -2039,7 +2039,7 @@ export default function LearnPage() {
             initial={{ width: 0 }}
             animate={{ width: `${overallPercent}%` }}
             transition={{ duration: 0.8, ease: "easeOut" }}
-            className="h-full bg-gradient-to-r from-primary to-purple-500 rounded-full"
+            className="h-full bg-primary rounded-full"
           />
         </div>
         <div className="flex justify-between mt-2 text-xs text-muted-foreground">

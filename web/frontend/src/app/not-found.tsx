@@ -20,7 +20,7 @@ export default function NotFound() {
           </p>
           <div
             className="absolute inset-0 -z-10 blur-3xl opacity-30"
-            style={{ background: "radial-gradient(circle, rgba(99,140,255,0.6) 0%, transparent 70%)" }}
+            style={{ background: "radial-gradient(circle, rgba(232,168,32,0.6) 0%, transparent 70%)" }}
           />
         </div>
 

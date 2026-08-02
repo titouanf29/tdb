@@ -330,7 +330,7 @@ export default function EditContentPage() {
             onClick={handleGenerate}
             disabled={isGenerating}
             className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium text-sm text-white disabled:opacity-50"
-            style={{ background: "linear-gradient(135deg, rgba(139,92,246,0.9), rgba(99,140,255,0.9))", border: "1px solid rgba(139,92,246,0.4)" }}
+            style={{ background: "linear-gradient(135deg, rgba(184,134,58,0.9), rgba(232,168,32,0.9))", border: "1px solid rgba(184,134,58,0.4)" }}
           >
             {isGenerating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
             {isGenerating ? "Régénération…" : "Régénérer avec l'IA"}
@@ -362,13 +362,13 @@ export default function EditContentPage() {
             <div className="flex rounded-lg overflow-hidden border border-white/10 text-xs">
               <button
                 onClick={() => setAnimatedMode(false)}
-                className={`flex-1 py-1.5 transition-colors ${!animatedMode ? "bg-blue-500/20 text-blue-300 font-medium" : "text-muted-foreground hover:bg-white/5"}`}
+                className={`flex-1 py-1.5 transition-colors ${!animatedMode ? "bg-primary/20 text-primary font-medium" : "text-muted-foreground hover:bg-white/5"}`}
               >
                 📊 Statique
               </button>
               <button
                 onClick={() => setAnimatedMode(true)}
-                className={`flex-1 py-1.5 transition-colors ${animatedMode ? "bg-blue-500/20 text-blue-300 font-medium" : "text-muted-foreground hover:bg-white/5"}`}
+                className={`flex-1 py-1.5 transition-colors ${animatedMode ? "bg-primary/20 text-primary font-medium" : "text-muted-foreground hover:bg-white/5"}`}
               >
                 🎞️ Animé (GIF)
               </button>
@@ -381,7 +381,7 @@ export default function EditContentPage() {
             <button
               onClick={handleGenChart}
               disabled={isGenChart}
-              className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-blue-500/15 hover:bg-blue-500/25 text-blue-400 text-xs font-medium transition-colors disabled:opacity-50"
+              className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-primary/15 hover:bg-primary/25 text-primary text-xs font-medium transition-colors disabled:opacity-50"
             >
               {isGenChart ? <Loader2 className="w-3 h-3 animate-spin" /> : null}
               {isGenChart ? (animatedMode ? "Animation…" : "Génération…") : visualChart ? "Régénérer" : "Générer"}
@@ -407,7 +407,7 @@ export default function EditContentPage() {
             <button
               onClick={handleGenScreenshot}
               disabled={isGenScreenshot}
-              className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-purple-500/15 hover:bg-purple-500/25 text-purple-400 text-xs font-medium transition-colors disabled:opacity-50"
+              className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-neon-purple/15 hover:bg-neon-purple/25 text-neon-purple text-xs font-medium transition-colors disabled:opacity-50"
             >
               {isGenScreenshot ? <Loader2 className="w-3 h-3 animate-spin" /> : null}
               {isGenScreenshot ? "Capture…" : visualScreenshot ? "Recapturer" : "Capturer"}
@@ -486,7 +486,7 @@ export default function EditContentPage() {
             <button
               onClick={handleGetFilmingGuide}
               disabled={isGenFilmingGuide}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-pink-500/15 hover:bg-pink-500/25 text-pink-400 text-xs font-medium transition-colors disabled:opacity-50"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-neon-cyan/15 hover:bg-neon-cyan/25 text-neon-cyan text-xs font-medium transition-colors disabled:opacity-50"
             >
               {isGenFilmingGuide ? <Loader2 className="w-3 h-3 animate-spin" /> : null}
               {isGenFilmingGuide ? "Chargement…" : filmingGuide ? "Actualiser" : "Générer le guide"}
@@ -644,7 +644,7 @@ export default function EditContentPage() {
           onClick={handleSave}
           disabled={isSaving}
           className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium text-sm text-white disabled:opacity-50"
-          style={{ background: "linear-gradient(135deg, rgba(99,140,255,0.9), rgba(139,92,246,0.9))", border: "1px solid rgba(99,140,255,0.4)" }}
+          style={{ background: "linear-gradient(135deg, rgba(232,168,32,0.9), rgba(184,134,58,0.9))", border: "1px solid rgba(232,168,32,0.4)" }}
         >
           {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
           Sauvegarder

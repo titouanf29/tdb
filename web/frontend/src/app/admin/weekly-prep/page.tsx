@@ -31,8 +31,8 @@ function KeyZones({ zones }: { zones: string }) {
           ? "bg-red-500/15 text-red-400 border-red-500/25"
           : isSup
           ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/25"
-          : "bg-blue-500/15 text-blue-400 border-blue-500/25";
-        const dot = isRes ? "bg-red-400" : isSup ? "bg-emerald-400" : "bg-blue-400";
+          : "bg-primary/15 text-primary border-primary/25";
+        const dot = isRes ? "bg-red-400" : isSup ? "bg-emerald-400" : "bg-primary";
         return (
           <span key={i} className={`inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full border ${cls}`}>
             <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${dot}`} />
@@ -162,8 +162,8 @@ function AdminWatchlistByMarket({ watchlist }: { watchlist: WeeklyBriefing["watc
                 <TrendBadge trend={item.direction} />
               </div>
               <div className="px-3 pb-3 space-y-2">
-                <div className="bg-blue-500/5 border border-blue-500/10 rounded-lg p-2.5">
-                  <p className="text-[10px] text-blue-400 font-semibold uppercase tracking-wide mb-1">🔍 Pourquoi cette semaine ?</p>
+                <div className="bg-primary/5 border border-primary/10 rounded-lg p-2.5">
+                  <p className="text-[10px] text-primary font-semibold uppercase tracking-wide mb-1">🔍 Pourquoi cette semaine ?</p>
                   <p className="text-xs text-foreground/80 leading-relaxed">{item.why}</p>
                 </div>
                 <div className="bg-yellow-500/5 border border-yellow-500/10 rounded-lg p-2.5">
@@ -178,9 +178,9 @@ function AdminWatchlistByMarket({ watchlist }: { watchlist: WeeklyBriefing["watc
                 )}
                 {(item.entry_zone || item.target || item.stop_loss) && (
                   <div className="grid grid-cols-3 gap-1.5">
-                    {item.entry_zone && <div className="bg-blue-500/8 border border-blue-500/15 rounded-lg p-1.5 text-center">
-                      <p className="text-[9px] text-blue-400/80 font-semibold uppercase mb-0.5">Zone entrée</p>
-                      <p className="text-[11px] font-mono font-bold text-blue-300">{item.entry_zone}</p>
+                    {item.entry_zone && <div className="bg-primary/8 border border-primary/15 rounded-lg p-1.5 text-center">
+                      <p className="text-[9px] text-primary/80 font-semibold uppercase mb-0.5">Zone entrée</p>
+                      <p className="text-[11px] font-mono font-bold text-primary">{item.entry_zone}</p>
                     </div>}
                     {item.target && <div className="bg-emerald-500/8 border border-emerald-500/15 rounded-lg p-1.5 text-center">
                       <p className="text-[9px] text-emerald-400/80 font-semibold uppercase mb-0.5">Objectif</p>
@@ -366,8 +366,8 @@ function BriefingPreview({ briefing }: { briefing: WeeklyBriefing }) {
                   <p className="text-xs text-foreground/70 leading-relaxed">{idea.setup}</p>
                   <div className="grid grid-cols-3 gap-1.5">
                     <div className="bg-black/20 rounded-lg p-1.5 text-center">
-                      <p className="text-[9px] text-blue-400/80 font-semibold uppercase mb-0.5">Entrée</p>
-                      <p className="text-[10px] font-mono text-blue-300 break-all">{idea.entry}</p>
+                      <p className="text-[9px] text-primary/80 font-semibold uppercase mb-0.5">Entrée</p>
+                      <p className="text-[10px] font-mono text-primary break-all">{idea.entry}</p>
                     </div>
                     <div className="bg-black/20 rounded-lg p-1.5 text-center">
                       <p className="text-[9px] text-emerald-400/80 font-semibold uppercase mb-0.5">Cible</p>

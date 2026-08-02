@@ -111,7 +111,7 @@ export default function GlossairePage() {
         </Link>
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2">
-            <BookOpen className="w-6 h-6 text-[#638CFF]" />
+            <BookOpen className="w-6 h-6 text-[#E8A820]" />
             Glossaire du Trading
           </h1>
           <p className="text-sm text-gray-400">{Object.keys(ALL_TERMS).length} termes définis</p>
@@ -127,7 +127,7 @@ export default function GlossairePage() {
             placeholder="Rechercher un terme..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-9 pr-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-sm text-white placeholder:text-gray-500 focus:outline-none focus:border-[#638CFF]/50 focus:ring-1 focus:ring-[#638CFF]/20"
+            className="w-full pl-9 pr-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-sm text-white placeholder:text-gray-500 focus:outline-none focus:border-[#E8A820]/50 focus:ring-1 focus:ring-[#E8A820]/20"
           />
         </div>
         <div className="flex gap-1 p-1 rounded-xl bg-white/5 border border-white/10">
@@ -137,7 +137,7 @@ export default function GlossairePage() {
               onClick={() => setActiveMode(m)}
               className={cn(
                 "px-3 py-1.5 rounded-lg text-xs font-medium transition-all capitalize",
-                activeMode === m ? "bg-[#638CFF]/20 text-[#638CFF] border border-[#638CFF]/30" : "text-gray-400 hover:text-gray-300"
+                activeMode === m ? "bg-[#E8A820]/20 text-[#E8A820] border border-[#E8A820]/30" : "text-gray-400 hover:text-gray-300"
               )}
             >
               {m}
@@ -177,7 +177,7 @@ export default function GlossairePage() {
             <div key={term}>
               {showDivider && (
                 <div id={`letter-${letter}`} className="flex items-center gap-3 py-2">
-                  <span className="text-lg font-bold text-[#638CFF]">{letter}</span>
+                  <span className="text-lg font-bold text-[#E8A820]">{letter}</span>
                   <div className="flex-1 h-px bg-white/5" />
                 </div>
               )}
@@ -186,7 +186,7 @@ export default function GlossairePage() {
                 className={cn(
                   "rounded-xl border cursor-pointer transition-all",
                   expanded === term
-                    ? "border-[#638CFF]/30 bg-[#638CFF]/5"
+                    ? "border-[#E8A820]/30 bg-[#E8A820]/5"
                     : "border-white/5 bg-white/[0.02] hover:border-white/10 hover:bg-white/[0.04]"
                 )}
                 onClick={() => setExpanded(expanded === term ? null : term)}
@@ -221,7 +221,7 @@ export default function GlossairePage() {
                         {def.learnLink && (
                           <Link
                             href={def.learnLink}
-                            className="inline-flex items-center gap-1 text-xs text-[#638CFF] hover:text-[#638CFF]/80 transition-colors"
+                            className="inline-flex items-center gap-1 text-xs text-[#E8A820] hover:text-[#E8A820]/80 transition-colors"
                             onClick={(e) => e.stopPropagation()}
                           >
                             <BookOpen className="w-3 h-3" />

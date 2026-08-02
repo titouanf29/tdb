@@ -71,9 +71,9 @@ const LEVELS: LevelDef[] = [
     emoji: "⚡",
     label: { fr: "Intermédiaire", en: "Intermediate" },
     tagline: { fr: "Je connais les bases", en: "I know the basics" },
-    color: "from-blue-500/20 to-indigo-500/20 border-blue-500/40",
-    glow: "shadow-blue-500/20",
-    accentColor: "text-blue-400",
+    color: "from-primary/20 to-neon-purple/20 border-primary/40",
+    glow: "shadow-primary/20",
+    accentColor: "text-primary",
     changes: [
       { fr: "Infobulles concises sur les termes avancés", en: "Concise tooltips on advanced terms" },
       { fr: "Accès à toutes les ressources pédagogiques", en: "Access to all educational resources" },
@@ -102,9 +102,9 @@ const LEVELS: LevelDef[] = [
     emoji: "🏆",
     label: { fr: "Expert", en: "Expert" },
     tagline: { fr: "Je maîtrise le trading", en: "I master trading" },
-    color: "from-purple-500/20 to-pink-500/20 border-purple-500/40",
-    glow: "shadow-purple-500/20",
-    accentColor: "text-purple-400",
+    color: "from-neon-purple/20 to-neon-cyan/20 border-neon-purple/40",
+    glow: "shadow-neon-purple/20",
+    accentColor: "text-neon-purple",
     changes: [
       { fr: "Interface épurée sans explications basiques", en: "Clean interface without basic explanations" },
       { fr: "Accès direct aux outils avancés", en: "Direct access to advanced tools" },
@@ -359,14 +359,14 @@ function WelcomeStep({
 
   const GRADIENT_BG: Record<TradingLevel, string> = {
     beginner: "from-emerald-600 to-teal-700",
-    intermediate: "from-blue-600 to-indigo-700",
-    expert: "from-purple-600 to-pink-700",
+    intermediate: "from-primary to-neon-purple",
+    expert: "from-neon-purple to-neon-cyan",
   };
 
   const GLOW: Record<TradingLevel, string> = {
     beginner: "shadow-emerald-500/30",
-    intermediate: "shadow-blue-500/30",
-    expert: "shadow-purple-500/30",
+    intermediate: "shadow-primary/30",
+    expert: "shadow-neon-purple/30",
   };
 
   return (
@@ -435,8 +435,8 @@ function WelcomeStep({
                   <div className={cn(
                     "w-8 h-8 rounded-xl flex items-center justify-center shrink-0 border",
                     level.id === "beginner" ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400"
-                    : level.id === "intermediate" ? "bg-blue-500/10 border-blue-500/20 text-blue-400"
-                    : "bg-purple-500/10 border-purple-500/20 text-purple-400"
+                    : level.id === "intermediate" ? "bg-primary/10 border-primary/20 text-primary"
+                    : "bg-neon-purple/10 border-neon-purple/20 text-neon-purple"
                   )}>
                     <FeatIcon className="w-4 h-4" />
                   </div>

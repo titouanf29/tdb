@@ -155,7 +155,7 @@ export default function AdminPage() {
           <div className="flex items-center gap-2 flex-wrap justify-end">
             <a
               href="/admin/weekly-prep"
-              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-400 transition-colors text-sm font-semibold border border-indigo-500/30"
+              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-neon-purple/20 hover:bg-neon-purple/30 text-neon-purple transition-colors text-sm font-semibold border border-neon-purple/30"
             >
               <Calendar className="w-4 h-4" />
               Prép. Semaine
@@ -274,8 +274,8 @@ function DashboardTab({
         <StatCard title="Positions Ouvertes" value={stats.trading.open_positions} icon={TrendingUp} color="text-warning" />
       </div>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <StatCard title="Trades 24h" value={stats.trading.trades_24h} icon={Target} color="text-purple-400" />
-        <StatCard title="Messages IA (total)" value={stats.ai.total_messages} icon={Brain} color="text-pink-400" />
+        <StatCard title="Trades 24h" value={stats.trading.trades_24h} icon={Target} color="text-neon-purple" />
+        <StatCard title="Messages IA (total)" value={stats.ai.total_messages} icon={Brain} color="text-neon-cyan" />
         {stats.tickets && (
           <StatCard
             title="Tickets Ouverts"
@@ -1643,7 +1643,7 @@ const SETTING_GROUPS: SettingGroup[] = [
   {
     group: "Intelligence Artificielle",
     icon: Brain,
-    color: "text-pink-400",
+    color: "text-neon-cyan",
     items: [
       { key: "max_ai_messages_free",     label: "Messages IA — Gratuit",   desc: "Messages IA par jour (plan gratuit) — 0 = désactivé",          type: "number", default: "10",  unit: "msg/j" },
       { key: "max_ai_messages_premium",  label: "Messages IA — Premium",   desc: "Messages IA par jour (plan premium) — -1 = illimité",          type: "number", default: "-1",  unit: "msg/j" },
@@ -2475,7 +2475,7 @@ function PremiumTab() {
                     </td>
                     <td className="py-3 px-2">
                       {user.is_admin ? (
-                        <span className="px-2 py-1 rounded-full text-xs bg-purple-500/20 text-purple-400">Admin</span>
+                        <span className="px-2 py-1 rounded-full text-xs bg-neon-purple/20 text-neon-purple">Admin</span>
                       ) : (
                         <span className="px-2 py-1 rounded-full text-xs bg-yellow-500/20 text-yellow-400">Premium</span>
                       )}
@@ -2551,7 +2551,7 @@ function PremiumTab() {
                 )}
               >
                 {/* Avatar */}
-                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary/30 to-purple-500/20 flex items-center justify-center font-bold text-sm shrink-0">
+                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary/30 to-neon-purple/20 flex items-center justify-center font-bold text-sm shrink-0">
                   {(req.username || req.email || "?")[0].toUpperCase()}
                 </div>
 
@@ -2698,7 +2698,7 @@ function AdminConversation({
       >
         {/* Header */}
         <div className="flex items-center gap-3 px-5 py-4 border-b border-white/8 bg-white/[0.02] shrink-0">
-          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary/30 to-purple-500/20 flex items-center justify-center font-bold text-sm shrink-0">
+          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary/30 to-neon-purple/20 flex items-center justify-center font-bold text-sm shrink-0">
             {(request.username || request.email || "?")[0].toUpperCase()}
           </div>
           <div className="flex-1 min-w-0">
@@ -3231,7 +3231,7 @@ function SocialTab() {
     { key: "signal", label: "Signal du Jour", icon: <TrendingUp className="w-4 h-4" />, color: "text-profit" },
     { key: "top3", label: "Top Marchés", icon: <BarChart3 className="w-4 h-4" />, color: "text-primary" },
     { key: "edu", label: "Contenu Éducatif", icon: <Brain className="w-4 h-4" />, color: "text-yellow-400" },
-    { key: "promo", label: "Promotion CaptenTDB", icon: <Sparkles className="w-4 h-4" />, color: "text-indigo-400" },
+    { key: "promo", label: "Promotion CaptenTDB", icon: <Sparkles className="w-4 h-4" />, color: "text-neon-purple" },
   ];
 
   return (
@@ -3319,7 +3319,7 @@ function SocialTab() {
                       onClick={() => setPlatform((p) => ({ ...p, [key]: "tw" }))}
                       className={cn(
                         "px-3 py-1 rounded-md text-xs font-semibold transition-all",
-                        plat === "tw" ? "bg-sky-500 text-white" : "text-muted-foreground hover:text-foreground"
+                        plat === "tw" ? "bg-primary text-white" : "text-muted-foreground hover:text-foreground"
                       )}
                     >
                       𝕏 Twitter
@@ -3328,7 +3328,7 @@ function SocialTab() {
                       onClick={() => setPlatform((p) => ({ ...p, [key]: "li" }))}
                       className={cn(
                         "px-3 py-1 rounded-md text-xs font-semibold transition-all",
-                        plat === "li" ? "bg-blue-600 text-white" : "text-muted-foreground hover:text-foreground"
+                        plat === "li" ? "bg-primary text-white" : "text-muted-foreground hover:text-foreground"
                       )}
                     >
                       in LinkedIn
@@ -3347,19 +3347,19 @@ function SocialTab() {
                 {/* LinkedIn 1er commentaire */}
                 {!isTwitter && postData.liComment && (
                   <div className="space-y-1.5">
-                    <p className="text-xs text-blue-400 flex items-center gap-1.5">
-                      <span className="w-1.5 h-1.5 rounded-full bg-blue-400 inline-block" />
+                    <p className="text-xs text-primary flex items-center gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-primary inline-block" />
                       LinkedIn — publier en <strong>1er commentaire</strong> (les liens dans le post réduisent la portée)
                     </p>
-                    <div className="flex items-center gap-2 bg-white/3 rounded-lg px-3 py-2 border border-blue-500/20">
-                      <span className="text-sm flex-1 font-mono text-blue-300">{postData.liComment}</span>
+                    <div className="flex items-center gap-2 bg-white/3 rounded-lg px-3 py-2 border border-primary/20">
+                      <span className="text-sm flex-1 font-mono text-primary">{postData.liComment}</span>
                       <button
                         onClick={() => copyComment(key as PostKey, postData.liComment)}
                         className={cn(
                           "flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition-all",
                           copiedComment[key as PostKey]
                             ? "bg-profit/20 text-profit"
-                            : "bg-blue-500/20 hover:bg-blue-500/30 text-blue-300"
+                            : "bg-primary/20 hover:bg-primary/30 text-primary"
                         )}
                       >
                         {copiedComment[key as PostKey] ? <><Check className="w-3 h-3" />Copié !</> : <><Copy className="w-3 h-3" />Copier</>}
@@ -3470,7 +3470,7 @@ function SocialTab() {
                         onClick={() => setRedditLang((p) => ({ ...p, [i]: "fr" }))}
                         className={cn(
                           "px-3 py-1 rounded-md text-xs font-semibold transition-all",
-                          lang === "fr" ? "bg-blue-600 text-white" : "text-muted-foreground hover:text-foreground"
+                          lang === "fr" ? "bg-primary text-white" : "text-muted-foreground hover:text-foreground"
                         )}
                       >
                         🇫🇷 Français

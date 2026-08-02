@@ -239,7 +239,7 @@ export default function AssistantPage() {
       <div className="glass-card p-4 mb-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary to-purple-500 flex items-center justify-center">
+            <div className="w-12 h-12 rounded-xl bg-primary/15 border border-primary/30 flex items-center justify-center">
               <Bot className="w-6 h-6 text-white" />
             </div>
             <div>
@@ -312,7 +312,7 @@ export default function AssistantPage() {
 
       {/* Position context banner */}
       {hasPositionContext && assetFromPortfolio && (
-        <div className="glass-card px-4 py-2.5 mb-4 bg-purple-500/10 border border-purple-500/30 flex items-center gap-2 text-sm text-purple-300">
+        <div className="glass-card px-4 py-2.5 mb-4 bg-neon-purple/10 border border-neon-purple/30 flex items-center gap-2 text-sm text-neon-purple">
           <Bot className="w-4 h-4 shrink-0" />
           <span>{t("assistant_position_pre")} <strong>{assetFromPortfolio}</strong> {t("assistant_position_suf")}</span>
         </div>
@@ -394,7 +394,7 @@ export default function AssistantPage() {
                 "w-8 h-8 rounded-lg flex items-center justify-center shrink-0",
                 message.role === "user"
                   ? "bg-primary"
-                  : "bg-gradient-to-br from-primary to-purple-500"
+                  : "bg-primary/15 border border-primary/30"
               )}
             >
               {message.role === "user" ? (
@@ -435,7 +435,7 @@ export default function AssistantPage() {
             animate={{ opacity: 1 }}
             className="flex gap-3"
           >
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-purple-500 flex items-center justify-center">
+            <div className="w-8 h-8 rounded-lg bg-primary/15 border border-primary/30 flex items-center justify-center">
               <Bot className="w-4 h-4 text-white" />
             </div>
             <div className="glass-card p-4 rounded-2xl rounded-bl-none">

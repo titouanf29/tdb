@@ -723,8 +723,8 @@ export default function AnalysisPage() {
               <span className={cn(
                 "inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium border",
                 tradingLevel === "beginner"     ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-400" :
-                tradingLevel === "expert"       ? "bg-purple-500/15 border-purple-500/40 text-purple-400" :
-                                                  "bg-blue-500/15 border-blue-500/40 text-blue-400"
+                tradingLevel === "expert"       ? "bg-neon-purple/15 border-neon-purple/40 text-neon-purple" :
+                                                  "bg-primary/15 border-primary/40 text-primary"
               )}>
                 {tradingLevel === "beginner" ? <><GraduationCap className="w-3 h-3" /> {t("analysis_beginner")}</> :
                  tradingLevel === "expert"   ? <><Zap className="w-3 h-3" /> {t("analysis_expert")}</> :
@@ -1657,9 +1657,9 @@ export default function AnalysisPage() {
               : "bottom-6"
           )}
           style={{
-            background: "linear-gradient(135deg, rgba(139,92,246,0.9) 0%, rgba(99,140,255,0.9) 100%)",
-            border: "1px solid rgba(139,92,246,0.5)",
-            boxShadow: "0 8px 32px rgba(139,92,246,0.4), 0 0 0 1px rgba(255,255,255,0.1) inset",
+            background: "linear-gradient(135deg, rgba(184,134,58,0.9) 0%, rgba(232,168,32,0.9) 100%)",
+            border: "1px solid rgba(184,134,58,0.5)",
+            boxShadow: "0 8px 32px rgba(184,134,58,0.4), 0 0 0 1px rgba(255,255,255,0.1) inset",
             backdropFilter: "blur(12px)",
           }}
         >
@@ -1681,10 +1681,10 @@ export default function AnalysisPage() {
           style={{
             background: "rgba(8,11,20,0.92)",
             border: timeOnPage >= 20
-              ? "1px solid rgba(99,140,255,0.5)"
+              ? "1px solid rgba(232,168,32,0.5)"
               : "1px solid rgba(255,255,255,0.1)",
             boxShadow: timeOnPage >= 20
-              ? "0 0 32px rgba(99,140,255,0.28), 0 4px 24px rgba(0,0,0,0.5)"
+              ? "0 0 32px rgba(232,168,32,0.28), 0 4px 24px rgba(0,0,0,0.5)"
               : "0 2px 16px rgba(0,0,0,0.4)",
             transition: "border 0.7s ease, box-shadow 0.7s ease",
           }}
@@ -1910,7 +1910,7 @@ function FibonacciSection({ analysis, formatCurrency }: { analysis: Analysis; fo
 
   const levelMeta: Record<string, { color: string; importance: "high" | "medium" | "low"; role: string; tip: string; strategy: string }> = {
     "0":    { color: "bg-white/20",       importance: "low",    role: "Sommet — Résistance absolue",       tip: "Plus haut de la période analysée. Retour complet à ce niveau signifie une récupération totale du mouvement. Rare lors d'une simple correction.", strategy: "Cible de take-profit maximale en tendance haussière forte. En résistance : placer un ordre limite de vente." },
-    "23.6": { color: "bg-blue-400/50",    importance: "low",    role: "23.6% — Retracement faible",        tip: "Correction mineure (≈ 1/4 du mouvement). Indique une tendance très forte. Le prix rebondit ici sans aller plus loin en cas de momentum solide. Peu fiable seul, mais utile combiné à un RSI en zone neutre-haute.", strategy: "En tendance haussière très forte : entrée agressive avec stop sous le 38.2%. Sinon, attendre le niveau suivant." },
+    "23.6": { color: "bg-primary/50",    importance: "low",    role: "23.6% — Retracement faible",        tip: "Correction mineure (≈ 1/4 du mouvement). Indique une tendance très forte. Le prix rebondit ici sans aller plus loin en cas de momentum solide. Peu fiable seul, mais utile combiné à un RSI en zone neutre-haute.", strategy: "En tendance haussière très forte : entrée agressive avec stop sous le 38.2%. Sinon, attendre le niveau suivant." },
     "38.2": { color: "bg-primary/80",     importance: "high",   role: "38.2% — Premier retracement majeur", tip: "Niveau d'or. Premier grand test d'une correction normale. Les gros acheteurs (fonds, institutionnels) reviennent souvent ici en tendance haussière établie. Confirme la solidité de la tendance si le prix rebondit.", strategy: "Zone d'achat privilégiée en tendance haussière. Stop : sous le 50%. Take-profit : retour vers le sommet (0%). Ratio R/R favorable si confluence avec EMA ou RSI survendu." },
     "50.0": { color: "bg-warning/80",     importance: "medium", role: "50% — Niveau psychologique clé",    tip: "Pas un ratio Fibonacci pur, mais le niveau 50% est respecté par d'énormes volumes d'ordres. Zone de décision critique : si le prix tient ici, la tendance reprend ; si ça casse, le 61.8% est quasiment inévitable.", strategy: "Zone d'achat secondaire. Meilleures opportunités si le 38.2% a déjà été cassé. Stop : sous le 61.8%. Signal d'alerte si le prix stagne ici sans rebond franc." },
     "61.8": { color: "bg-primary",        importance: "high",   role: "61.8% — Golden Ratio ★ Le plus important", tip: "Le Saint-Graal de Fibonacci. Dérivé du nombre d'or φ ≈ 1.618 (61.8 = 1/φ × 100). Les corrections profondes mais saines s'arrêtent ici. Un rebond sur ce niveau en tendance haussière est un signal d'achat très fort. Un cassage ferme suggère un retournement majeur.", strategy: "Dernière zone d'achat en tendance haussière. Stop serré sous le 78.6%. Si cassage : fermer les positions longues, envisager une position courte. C'est ici que se jouent les retournements de tendance les plus importants." },
@@ -1978,7 +1978,7 @@ function FibonacciSection({ analysis, formatCurrency }: { analysis: Analysis; fo
               >
                 {/* Arrow */}
                 <div className="absolute -top-1.5 right-2.5 w-3 h-3 rotate-45"
-                  style={{ background: "hsl(var(--card))", borderLeft: "1px solid rgba(99,140,255,0.3)", borderTop: "1px solid rgba(99,140,255,0.3)" }} />
+                  style={{ background: "hsl(var(--card))", borderLeft: "1px solid rgba(232,168,32,0.3)", borderTop: "1px solid rgba(232,168,32,0.3)" }} />
                 <button onClick={() => setShowExplainer(false)}
                   className="absolute top-2 right-2 p-1 rounded hover:bg-white/10 transition-colors">
                   <X className="w-3 h-3 text-muted-foreground" />
@@ -2055,7 +2055,7 @@ function FibonacciSection({ analysis, formatCurrency }: { analysis: Analysis; fo
                   height: meta?.importance === "high" ? 2 : isEdge ? 1 : 1,
                   flex: 1,
                   background: isEdge ? "rgba(255,255,255,0.10)"
-                    : meta?.importance === "high" ? "rgba(99,140,255,0.70)"
+                    : meta?.importance === "high" ? "rgba(232,168,32,0.70)"
                     : meta?.importance === "medium" ? "rgba(234,179,8,0.45)"
                     : "rgba(255,255,255,0.18)"
                 }} />
@@ -2077,7 +2077,7 @@ function FibonacciSection({ analysis, formatCurrency }: { analysis: Analysis; fo
               }} />
               <motion.div
                 className="w-3.5 h-3.5 rounded-full bg-white border-2 border-primary flex-shrink-0"
-                style={{ boxShadow: "0 0 10px rgba(99,140,255,0.7), 0 0 4px rgba(255,255,255,0.5)" }}
+                style={{ boxShadow: "0 0 10px rgba(232,168,32,0.7), 0 0 4px rgba(255,255,255,0.5)" }}
                 initial={{ scale: 0 }}
                 animate={{ scale: 1 }}
                 transition={{ delay: 0.3, type: "spring", stiffness: 300, damping: 20 }}
@@ -2118,7 +2118,7 @@ function FibonacciSection({ analysis, formatCurrency }: { analysis: Analysis; fo
       {/* Legend */}
       <div className="flex flex-wrap gap-4 mb-5 text-[11px] text-muted-foreground">
         <div className="flex items-center gap-1.5">
-          <div className="w-5 h-0.5 rounded" style={{ background: "rgba(99,140,255,0.70)" }} />
+          <div className="w-5 h-0.5 rounded" style={{ background: "rgba(232,168,32,0.70)" }} />
           <span>Niveau ★★★</span>
         </div>
         <div className="flex items-center gap-1.5">
@@ -2126,7 +2126,7 @@ function FibonacciSection({ analysis, formatCurrency }: { analysis: Analysis; fo
           <span>Niveau ★★</span>
         </div>
         <div className="flex items-center gap-1.5">
-          <div className="w-3.5 h-3.5 rounded-full bg-white border-2 border-primary" style={{ boxShadow: "0 0 6px rgba(99,140,255,0.5)" }} />
+          <div className="w-3.5 h-3.5 rounded-full bg-white border-2 border-primary" style={{ boxShadow: "0 0 6px rgba(232,168,32,0.5)" }} />
           <span>Prix actuel — {formatCurrency(price)}</span>
         </div>
       </div>
@@ -2385,7 +2385,7 @@ function AssetHeader({
                 />
               </div>
             ) : (
-              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-primary to-purple-500 flex items-center justify-center flex-shrink-0">
+              <div className="w-14 h-14 rounded-2xl bg-primary/15 border border-primary/30 flex items-center justify-center flex-shrink-0">
                 <span className="font-bold text-xl text-white">{analysis.symbol.slice(0, 2)}</span>
               </div>
             )}
@@ -3610,8 +3610,8 @@ const RISK_LABELS: Record<string, string> = {
 // AI Insight Section - Future Predictions
 const LEVEL_LABELS: Record<string, { label: string; icon: React.ElementType; color: string }> = {
   beginner:     { label: "Débutant",      icon: GraduationCap, color: "text-emerald-400" },
-  intermediate: { label: "Intermédiaire", icon: TrendingUp,    color: "text-blue-400"    },
-  expert:       { label: "Expert",        icon: Zap,           color: "text-purple-400"  },
+  intermediate: { label: "Intermédiaire", icon: TrendingUp,    color: "text-primary"    },
+  expert:       { label: "Expert",        icon: Zap,           color: "text-neon-purple"  },
 };
 
 function AIInsightSection({
@@ -3663,13 +3663,13 @@ function AIInsightSection({
       transition={{ delay: 0.45 }}
       className="glass-card p-6 relative overflow-hidden"
     >
-      <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-purple-500/20 to-transparent rounded-full blur-2xl" />
+      <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-primary/10 to-transparent" />
       <div className="relative">
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-semibold flex items-center gap-2 text-lg flex-wrap">
-            <Brain className="w-5 h-5 text-purple-400" />
+            <Brain className="w-5 h-5 text-neon-purple" />
             {t("analysis_ai_forecasts")}
-            <span className="px-2 py-0.5 bg-purple-500/20 text-purple-400 text-xs rounded-full">Premium</span>
+            <span className="px-2 py-0.5 bg-neon-purple/20 text-neon-purple text-xs rounded-full">Premium</span>
             {/* Active style + level badges */}
             <span className="px-2 py-0.5 bg-white/10 text-xs rounded-full text-muted-foreground font-normal">
               {STYLE_LABELS[tradingStyle]?.emoji ?? "📈"} {tradingStyle === "long" ? (lang === "en" ? "Long Term" : "Long Terme") : (STYLE_LABELS[tradingStyle]?.label ?? tradingStyle)}
@@ -3690,8 +3690,8 @@ function AIInsightSection({
                 onClick={onAskAI}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
                 style={{
-                  background: "linear-gradient(135deg, rgba(139,92,246,0.2) 0%, rgba(99,140,255,0.15) 100%)",
-                  border: "1px solid rgba(139,92,246,0.35)",
+                  background: "linear-gradient(135deg, rgba(184,134,58,0.2) 0%, rgba(232,168,32,0.15) 100%)",
+                  border: "1px solid rgba(184,134,58,0.35)",
                   color: "rgba(167,139,250,1)",
                 }}
               >
@@ -3706,7 +3706,7 @@ function AIInsightSection({
                 className="p-2 rounded-lg hover:bg-white/10 transition-colors"
                 title="Régénérer l'analyse"
               >
-                <Sparkles className={cn("w-4 h-4 text-purple-400", isLoading && "animate-spin")} />
+                <Sparkles className={cn("w-4 h-4 text-neon-purple", isLoading && "animate-spin")} />
               </button>
             )}
           </div>
@@ -3715,10 +3715,10 @@ function AIInsightSection({
         {isLoading ? (
           <div className="flex flex-col items-center gap-3 py-8">
             <div className="relative">
-              <div className="w-16 h-16 rounded-full bg-purple-500/20 flex items-center justify-center">
-                <Brain className="w-8 h-8 text-purple-400 animate-pulse" />
+              <div className="w-16 h-16 rounded-full bg-neon-purple/20 flex items-center justify-center">
+                <Brain className="w-8 h-8 text-neon-purple animate-pulse" />
               </div>
-              <div className="absolute inset-0 rounded-full border-2 border-purple-400/30 border-t-purple-400 animate-spin" />
+              <div className="absolute inset-0 rounded-full border-2 border-neon-purple/30 border-t-purple-400 animate-spin" />
             </div>
             <span className="text-muted-foreground">L'IA analyse {symbol}...</span>
             <p className="text-xs text-muted-foreground">Cela peut prendre quelques secondes</p>
@@ -3749,8 +3749,8 @@ function AIInsightSection({
           </div>
         ) : (
           <div className="text-center py-8">
-            <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-purple-500/10 flex items-center justify-center">
-              <Brain className="w-10 h-10 text-purple-400" />
+            <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-neon-purple/10 flex items-center justify-center">
+              <Brain className="w-10 h-10 text-neon-purple" />
             </div>
             <h4 className="font-semibold mb-2">
               {tradingStyle === "scalp" && "Suggestions de prise de position"}
@@ -5523,17 +5523,17 @@ function AnalysisChatPanel({
       style={{
         width: "min(440px, 100vw)",
         background: "linear-gradient(180deg, hsl(220 50% 5.5%) 0%, hsl(220 45% 4.5%) 100%)",
-        borderLeft: "1px solid rgba(139,92,246,0.2)",
+        borderLeft: "1px solid rgba(184,134,58,0.2)",
         boxShadow: "-8px 0 40px rgba(0,0,0,0.5)",
       }}
     >
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3.5 flex-shrink-0"
-        style={{ borderBottom: "1px solid rgba(139,92,246,0.15)" }}>
+        style={{ borderBottom: "1px solid rgba(184,134,58,0.15)" }}>
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-lg flex items-center justify-center"
-            style={{ background: "linear-gradient(135deg, rgba(139,92,246,0.3), rgba(99,140,255,0.2))", border: "1px solid rgba(139,92,246,0.3)" }}>
-            <Bot className="w-4 h-4 text-purple-400" />
+            style={{ background: "linear-gradient(135deg, rgba(184,134,58,0.3), rgba(232,168,32,0.2))", border: "1px solid rgba(184,134,58,0.3)" }}>
+            <Bot className="w-4 h-4 text-neon-purple" />
           </div>
           <div>
             <p className="font-semibold text-sm">{lang === "en" ? "AI Analysis" : "Analyse IA"} · {analysis.symbol}</p>
@@ -5559,8 +5559,8 @@ function AnalysisChatPanel({
         {messages.length === 0 && (
           <div className="flex flex-col items-center justify-center h-full gap-3 text-center">
             <div className="w-14 h-14 rounded-2xl flex items-center justify-center"
-              style={{ background: "rgba(139,92,246,0.15)", border: "1px solid rgba(139,92,246,0.3)" }}>
-              <Brain className="w-7 h-7 text-purple-400 animate-pulse" />
+              style={{ background: "rgba(184,134,58,0.15)", border: "1px solid rgba(184,134,58,0.3)" }}>
+              <Brain className="w-7 h-7 text-neon-purple animate-pulse" />
             </div>
             <p className="text-sm text-muted-foreground">{lang === "en" ? "Analyzing..." : "Analyse en cours..."}</p>
           </div>
@@ -5569,8 +5569,8 @@ function AnalysisChatPanel({
           <div key={i} className={cn("flex gap-2.5", msg.role === "user" ? "flex-row-reverse" : "flex-row")}>
             {msg.role === "assistant" && (
               <div className="w-7 h-7 rounded-lg flex-shrink-0 flex items-center justify-center mt-0.5"
-                style={{ background: "rgba(139,92,246,0.2)", border: "1px solid rgba(139,92,246,0.3)" }}>
-                <Bot className="w-3.5 h-3.5 text-purple-400" />
+                style={{ background: "rgba(184,134,58,0.2)", border: "1px solid rgba(184,134,58,0.3)" }}>
+                <Bot className="w-3.5 h-3.5 text-neon-purple" />
               </div>
             )}
             <div
@@ -5581,8 +5581,8 @@ function AnalysisChatPanel({
                   : "text-foreground/90 rounded-tl-sm"
               )}
               style={msg.role === "user" ? {
-                background: "linear-gradient(135deg, rgba(99,140,255,0.35), rgba(139,92,246,0.25))",
-                border: "1px solid rgba(99,140,255,0.3)",
+                background: "linear-gradient(135deg, rgba(232,168,32,0.35), rgba(184,134,58,0.25))",
+                border: "1px solid rgba(232,168,32,0.3)",
               } : {
                 background: "rgba(255,255,255,0.05)",
                 border: "1px solid rgba(255,255,255,0.08)",
@@ -5595,15 +5595,15 @@ function AnalysisChatPanel({
         {isSending && (
           <div className="flex gap-2.5">
             <div className="w-7 h-7 rounded-lg flex-shrink-0 flex items-center justify-center"
-              style={{ background: "rgba(139,92,246,0.2)", border: "1px solid rgba(139,92,246,0.3)" }}>
-              <Bot className="w-3.5 h-3.5 text-purple-400" />
+              style={{ background: "rgba(184,134,58,0.2)", border: "1px solid rgba(184,134,58,0.3)" }}>
+              <Bot className="w-3.5 h-3.5 text-neon-purple" />
             </div>
             <div className="px-4 py-3 rounded-2xl rounded-tl-sm"
               style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}>
               <div className="flex gap-1 items-center">
-                <span className="w-1.5 h-1.5 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
-                <span className="w-1.5 h-1.5 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
-                <span className="w-1.5 h-1.5 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
+                <span className="w-1.5 h-1.5 bg-neon-purple rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
+                <span className="w-1.5 h-1.5 bg-neon-purple rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
+                <span className="w-1.5 h-1.5 bg-neon-purple rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
               </div>
             </div>
           </div>
@@ -5620,8 +5620,8 @@ function AnalysisChatPanel({
               onClick={() => sendMessage(s)}
               className="text-xs px-3 py-1.5 rounded-full transition-colors"
               style={{
-                background: "rgba(139,92,246,0.1)",
-                border: "1px solid rgba(139,92,246,0.25)",
+                background: "rgba(184,134,58,0.1)",
+                border: "1px solid rgba(184,134,58,0.25)",
                 color: "rgba(167,139,250,0.9)",
               }}
             >
@@ -5649,7 +5649,7 @@ function AnalysisChatPanel({
             disabled={isSending || !!limitError}
             placeholder={lang === "en" ? "Ask about this analysis…" : "Posez une question sur cette analyse…"}
             rows={1}
-            className="flex-1 resize-none bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-purple-500/50 placeholder:text-muted-foreground/50 disabled:opacity-50 min-h-[44px] max-h-[120px]"
+            className="flex-1 resize-none bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-neon-purple/50 placeholder:text-muted-foreground/50 disabled:opacity-50 min-h-[44px] max-h-[120px]"
             style={{ scrollbarWidth: "none" }}
           />
           <button
@@ -5657,8 +5657,8 @@ function AnalysisChatPanel({
             disabled={!input.trim() || isSending || !!limitError}
             className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 transition-all disabled:opacity-40"
             style={{
-              background: "linear-gradient(135deg, rgba(139,92,246,0.8), rgba(99,140,255,0.8))",
-              border: "1px solid rgba(139,92,246,0.4)",
+              background: "linear-gradient(135deg, rgba(184,134,58,0.8), rgba(232,168,32,0.8))",
+              border: "1px solid rgba(184,134,58,0.4)",
             }}
           >
             <ArrowRight className="w-4 h-4 text-white" />

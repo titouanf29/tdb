@@ -23,9 +23,9 @@ const STATUS_CONFIG = {
     labelEn: "UPCOMING",
   },
   rumored: {
-    bg: "bg-purple-500/15",
-    text: "text-purple-400",
-    border: "border-purple-500/25",
+    bg: "bg-neon-purple/15",
+    text: "text-neon-purple",
+    border: "border-neon-purple/25",
     labelFr: "RUMEUR",
     labelEn: "RUMORED",
   },
@@ -113,7 +113,7 @@ function IPOCard({ item, lang }: { item: IPOWatchItem; lang: string }) {
               className={cn(
                 "p-1.5 rounded-lg border transition-all",
                 isFollowed
-                  ? "bg-indigo-500/15 border-indigo-500/25 text-indigo-400 hover:bg-indigo-500/25"
+                  ? "bg-neon-purple/15 border-neon-purple/25 text-neon-purple hover:bg-neon-purple/25"
                   : "bg-white/5 border-white/10 text-muted-foreground hover:text-foreground hover:bg-white/10"
               )}
             >
@@ -191,14 +191,14 @@ export function IPOWatchWidget() {
     <div className="glass-card p-5">
       {/* Header */}
       <div className="flex items-center gap-2.5 mb-4">
-        <div className="w-8 h-8 rounded-xl bg-indigo-500/15 border border-indigo-500/20 flex items-center justify-center flex-shrink-0">
-          <Rocket className="w-4 h-4 text-indigo-400" />
+        <div className="w-8 h-8 rounded-xl bg-neon-purple/15 border border-neon-purple/20 flex items-center justify-center flex-shrink-0">
+          <Rocket className="w-4 h-4 text-neon-purple" />
         </div>
         <div className="flex items-center gap-2">
           <h2 className="font-semibold text-sm">
             {lang === "fr" ? "IPO en Veille" : "IPO Watchlist"}
           </h2>
-          <span className="text-[9px] font-bold bg-indigo-500/15 text-indigo-400 border border-indigo-500/20 px-1.5 py-0.5 rounded-full uppercase tracking-wider animate-pulse">
+          <span className="text-[9px] font-bold bg-neon-purple/15 text-neon-purple border border-neon-purple/20 px-1.5 py-0.5 rounded-full uppercase tracking-wider animate-pulse">
             VEILLE
           </span>
         </div>

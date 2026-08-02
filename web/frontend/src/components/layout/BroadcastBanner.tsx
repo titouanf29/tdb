@@ -16,8 +16,8 @@ interface Broadcast {
 const typeConfig = {
   info: {
     icon: Info,
-    bg: "bg-blue-500/20 border-blue-500/50",
-    text: "text-blue-400",
+    bg: "bg-primary/20 border-primary/50",
+    text: "text-primary",
   },
   warning: {
     icon: AlertTriangle,

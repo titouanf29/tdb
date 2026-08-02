@@ -237,7 +237,7 @@ export default function CommunityPage() {
       <div className="glass-card p-4 mb-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center">
+            <div className="w-12 h-12 rounded-xl bg-primary/15 border border-primary/30 flex items-center justify-center">
               <Users className="w-6 h-6 text-white" />
             </div>
             <div>
@@ -356,7 +356,7 @@ export default function CommunityPage() {
                         message.is_admin
                           ? "bg-gradient-to-br from-yellow-500 to-orange-500 text-white"
                           : message.is_premium
-                          ? "bg-gradient-to-br from-purple-500 to-pink-500 text-white"
+                          ? "bg-primary text-[hsl(var(--primary-foreground))]"
                           : "bg-white/10 text-muted-foreground"
                       )}
                     >
@@ -374,7 +374,7 @@ export default function CommunityPage() {
                           </span>
                         )}
                         {message.is_premium && !message.is_admin && (
-                          <span className="flex items-center gap-1 text-xs bg-purple-500/20 text-purple-400 px-2 py-0.5 rounded-full">
+                          <span className="flex items-center gap-1 text-xs bg-neon-purple/20 text-neon-purple px-2 py-0.5 rounded-full">
                             <Crown className="w-3 h-3" />
                             Premium
                           </span>
@@ -392,8 +392,8 @@ export default function CommunityPage() {
                           className={cn(
                             "flex items-center gap-1 text-xs transition-colors",
                             message.user_liked
-                              ? "text-pink-500"
-                              : "text-muted-foreground hover:text-pink-500"
+                              ? "text-neon-cyan"
+                              : "text-muted-foreground hover:text-neon-cyan"
                           )}
                         >
                           <Heart

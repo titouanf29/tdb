@@ -23,8 +23,8 @@ const CATEGORY_ICONS: Record<string, React.ReactNode> = {
 
 const LEVEL_COLORS: Record<string, string> = {
   beginner: "text-green-400 bg-green-400/10 border-green-400/20",
-  intermediate: "text-blue-400 bg-blue-400/10 border-blue-400/20",
-  expert: "text-purple-400 bg-purple-400/10 border-purple-400/20",
+  intermediate: "text-primary bg-primary/10 border-primary/20",
+  expert: "text-neon-purple bg-neon-purple/10 border-neon-purple/20",
 };
 
 function XPBar({ current, max, level }: { current: number; max: number; level: number }) {
@@ -40,7 +40,7 @@ function XPBar({ current, max, level }: { current: number; max: number; level: n
           initial={{ width: 0 }}
           animate={{ width: `${pct}%` }}
           transition={{ duration: 0.8, ease: "easeOut" }}
-          className="h-full rounded-full bg-gradient-to-r from-[#638CFF] to-[#00D4AA]"
+          className="h-full rounded-full bg-gradient-to-r from-[#E8A820] to-[#00D4AA]"
         />
       </div>
     </div>
@@ -100,7 +100,7 @@ function MissionCard({ mission }: { mission: Mission }) {
                   initial={{ width: 0 }}
                   animate={{ width: `${pct}%` }}
                   transition={{ duration: 0.6, ease: "easeOut" }}
-                  className="h-full rounded-full bg-[#638CFF]"
+                  className="h-full rounded-full bg-[#E8A820]"
                 />
               </div>
             </div>
@@ -110,7 +110,7 @@ function MissionCard({ mission }: { mission: Mission }) {
         <div className="text-right shrink-0">
           <div className={cn(
             "inline-flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded-lg",
-            isCompleted ? "text-[#00D4AA] bg-[#00D4AA]/10" : "text-[#638CFF] bg-[#638CFF]/10"
+            isCompleted ? "text-[#00D4AA] bg-[#00D4AA]/10" : "text-[#E8A820] bg-[#E8A820]/10"
           )}>
             <Zap className="w-3 h-3" />
             {mission.xp} XP
@@ -179,7 +179,7 @@ export default function MissionsPage() {
               <p className="text-2xl font-bold">{progress.xp} XP</p>
             </div>
             <div className="text-right">
-              <div className="text-3xl font-bold text-[#638CFF]">Niv. {progress.level}</div>
+              <div className="text-3xl font-bold text-[#E8A820]">Niv. {progress.level}</div>
               {progress.streak_days > 0 && (
                 <div className="flex items-center gap-1 text-orange-400 text-sm justify-end">
                   <Flame className="w-4 h-4" />
@@ -243,7 +243,7 @@ export default function MissionsPage() {
       {/* Missions list */}
       {loading ? (
         <div className="flex justify-center py-12">
-          <div className="w-6 h-6 rounded-full border-2 border-transparent border-t-[#638CFF] animate-spin" />
+          <div className="w-6 h-6 rounded-full border-2 border-transparent border-t-[#E8A820] animate-spin" />
         </div>
       ) : (
         <div className="space-y-3">

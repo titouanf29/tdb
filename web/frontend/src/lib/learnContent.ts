@@ -31,7 +31,7 @@ export const LEARN_MODULES: Module[] = [
     title: "Les bases du trading",
     description: "Comprendre ce qu'est le trading, les marchés financiers et comment fonctionne l'économie mondiale.",
     icon: "📚",
-    color: "from-blue-500/20 to-cyan-500/20 border-blue-500/30",
+    color: "from-primary/20 to-neon-cyan/20 border-primary/30",
     level: "beginner",
     lessons: [
       {
@@ -175,7 +175,7 @@ Un stop loss dynamique qui suit le prix à la hausse. Si le prix monte, le stop 
     title: "Analyse technique",
     description: "Lire les graphiques, identifier les tendances et utiliser les indicateurs pour prendre de meilleures décisions.",
     icon: "📊",
-    color: "from-purple-500/20 to-violet-500/20 border-purple-500/30",
+    color: "from-neon-purple/20 to-neon-purple/20 border-neon-purple/30",
     level: "beginner",
     lessons: [
       {
@@ -674,7 +674,7 @@ Contrairement aux bourses, le forex est ouvert 24h/24 du dimanche soir (ouvertur
     title: "Stratégies avancées",
     description: "Swing trading, cassures, divergences RSI... Des stratégies testées et éprouvées pour progresser.",
     icon: "⚡",
-    color: "from-indigo-500/20 to-blue-500/20 border-indigo-500/30",
+    color: "from-neon-purple/20 to-primary/20 border-neon-purple/30",
     level: "intermediate",
     lessons: [
       {
@@ -849,7 +849,7 @@ Si le côté bid est 3× plus volumineux que le côté ask, il y a un déséquil
     title: "Styles & stratégies de trading",
     description: "Scalping, day trading, swing trading, trend following : comprenez chaque approche et trouvez celle qui correspond à votre profil.",
     icon: "⚡",
-    color: "from-violet-500/20 to-pink-500/20 border-violet-500/30",
+    color: "from-neon-purple/20 to-neon-cyan/20 border-neon-purple/30",
     level: "beginner",
     lessons: [
       {
@@ -1261,8 +1261,8 @@ export function getModulesForLevel(level: string | null | undefined): Module[] {
 export function getLevelBadge(level: string): { label: string; color: string } {
   switch (level) {
     case "beginner": return { label: "Débutant", color: "text-emerald-400 bg-emerald-500/15 border-emerald-500/30" };
-    case "intermediate": return { label: "Intermédiaire", color: "text-blue-400 bg-blue-500/15 border-blue-500/30" };
-    case "advanced": return { label: "Avancé", color: "text-purple-400 bg-purple-500/15 border-purple-500/30" };
+    case "intermediate": return { label: "Intermédiaire", color: "text-primary bg-primary/15 border-primary/30" };
+    case "advanced": return { label: "Avancé", color: "text-neon-purple bg-neon-purple/15 border-neon-purple/30" };
     default: return { label: "Tous niveaux", color: "text-white/60 bg-white/10 border-white/20" };
   }
 }
