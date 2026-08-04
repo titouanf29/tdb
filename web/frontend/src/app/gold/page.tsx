@@ -16,6 +16,7 @@ import { analysisAPI, marketAPI, aiAPI, adminAPI, walletAPI, toolsAPI, settingsA
 import { usePremium } from "@/lib/PremiumContext";
 import { useLanguage } from "@/lib/LanguageContext";
 import { useFormatPrice, useSettings } from "@/lib/SettingsContext";
+import { resolveStyleId } from "@/lib/tradingStyle";
 import { TopLoadingBar } from "@/components/ui/TopLoadingBar";
 
 const PremiumChart = dynamic(() => import("@/components/PremiumChart"), {
@@ -866,7 +867,14 @@ function renderMarkdown(text: string): React.ReactNode {
 }
 
 // ── Gold AI Chat ──────────────────────────────────────────────────────────────
+/* This page's own key set predates the shared module and its prose is written
+   around it, so it keeps "scalping" locally and adapts at the boundary. */
 type TradingStyle = "scalping" | "day" | "swing" | "long";
+
+function toGoldStyle(raw: string | null | undefined): TradingStyle {
+  const id = resolveStyleId(raw);
+  return id === "scalp" ? "scalping" : id;
+}
 
 const STYLE_CONFIG: Record<TradingStyle, {
   labelFr: string; labelEn: string; icon: string;
@@ -1473,6 +1481,7 @@ function CatalystTimer({ eventDate, lang }: { eventDate: Date; lang: "fr" | "en"
 // ── Main page ─────────────────────────────────────────────────────────────────
 export default function GoldPage() {
   const { isAdmin, isLoading: isPremiumLoading } = usePremium();
+  const { settings, saveSettings } = useSettings();
   const { lang } = useLanguage();
   const formatPrice = useFormatPrice();
   const router = useRouter();
@@ -1498,12 +1507,16 @@ export default function GoldPage() {
     } catch { setGoldPositions([]); }
   }, []);
 
-  // ── Global trading profile (persisted) ────────────────────────────────────
+  // ── Global trading profile (persisted on the account) ─────────────────────
   const STYLE_TF_MAP: Record<TradingStyle, string> = { scalping: "1h", day: "4h", swing: "1d", long: "1w" };
 
-  const [tradingStyle, setTradingStyleRaw] = useState<TradingStyle>(() =>
-    (typeof window !== "undefined" ? (localStorage.getItem("gold_style") as TradingStyle) : null) ?? "day"
+  // This page used to keep its style in its own `gold_style` localStorage key,
+  // so picking "Scalping" in Settings left the Gold Hub on Day Trading. One
+  // profile now: the account setting is the source, this page writes back to it.
+  const [tradingStyle, setTradingStyleRaw] = useState<TradingStyle>(
+    () => toGoldStyle(settings.tradingStyle)
   );
+  useEffect(() => { setTradingStyleRaw(toGoldStyle(settings.tradingStyle)); }, [settings.tradingStyle]);
   const [aggression, setAggressionRaw] = useState<number>(() =>
     typeof window !== "undefined" ? parseInt(localStorage.getItem("gold_aggression") ?? "3") : 3
   );
@@ -1511,7 +1524,7 @@ export default function GoldPage() {
 
   const setTradingStyle = (s: TradingStyle) => {
     setTradingStyleRaw(s);
-    localStorage.setItem("gold_style", s);
+    saveSettings({ tradingStyle: s === "scalping" ? "scalp" : s });
     setTimeframe(STYLE_TF_MAP[s]);
     setProfileSaved(true);
     setTimeout(() => setProfileSaved(false), 1800);

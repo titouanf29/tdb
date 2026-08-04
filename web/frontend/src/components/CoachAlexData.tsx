@@ -105,17 +105,6 @@ export const MENU_ACTIONS: MenuAction[] = [
   },
 ];
 
-export const DAILY_TIPS = [
-  "Ne risquez jamais plus de 1-2% de votre capital sur un seul trade.",
-  "La tendance est votre amie. Ne tradez pas contre la tendance principale.",
-  "Un bon plan de trading inclut toujours un Stop Loss avant d'entrer en position.",
-  "La patience est une compétence. Attendez le bon setup plutôt que de forcer.",
-  "Journalisez chaque trade pour identifier vos patterns gagnants et perdants.",
-  "Le RSI diverge souvent avant un retournement — surveillez ces signaux.",
-  "En trading, protéger son capital est plus important que faire des gains.",
-  "Ne tradez jamais sous stress émotionnel ou avec de l'argent que vous ne pouvez pas perdre.",
-];
-
 export const MARKET_OVERVIEW = [
   {
     icon: "₿",

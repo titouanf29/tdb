@@ -18,11 +18,11 @@ import { useState, useEffect } from "react";
 import { useLanguage } from "@/lib/LanguageContext";
 import {
   ANALYSE_STEPS,
-  DAILY_TIPS,
   MENU_ACTIONS,
   MARKET_OVERVIEW,
   type GuidedStep,
 } from "@/components/CoachAlexData";
+import { useTradingStyle, dailyTip } from "@/lib/tradingStyle";
 
 // ─── Weekend Sleep Mode ────────────────────────────────────────────────────────
 
@@ -393,7 +393,7 @@ export function CoachOverlay() {
                   ) : view === "analyse" ? (
                     <AnalyseView key="analyse" step={guideStep} setStep={setGuideStep} onClose={closePanel} />
                   ) : view === "tip" ? (
-                    <TipView key="tip" tip={DAILY_TIPS[new Date().getDay() % DAILY_TIPS.length]} />
+                    <TipView key="tip" />
                   ) : (
                     <MarketsView key="markets" onClose={closePanel} />
                   )}
@@ -907,7 +907,13 @@ function AnalyseView({ step, setStep, onClose }: {
 
 // ─── Tip View ─────────────────────────────────────────────────────────────────
 
-function TipView({ tip }: { tip: string }) {
+function TipView() {
+  const { lang } = useLanguage();
+  const style = useTradingStyle();
+  // Advice is only useful if it matches the horizon you actually trade —
+  // "hold through the noise" is wrong for a scalper, right for an investor.
+  const tip = dailyTip(style, lang);
+
   return (
     <motion.div
       initial={{ opacity: 0, x: 12 }}
@@ -918,15 +924,32 @@ function TipView({ tip }: { tip: string }) {
     >
       <div className="space-y-3">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-xl bg-yellow-400/10 border border-yellow-400/20 flex items-center justify-center">
-            <Lightbulb className="w-4 h-4 text-yellow-300" />
+          <div className="w-8 h-8 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center">
+            <Lightbulb className="w-4 h-4 text-primary" />
           </div>
           <p className="text-sm font-semibold text-white">Conseil du jour</p>
+          <Link
+            href="/settings?tab=trading"
+            title={style.pitch[lang]}
+            className={cn(
+              "ml-auto inline-flex items-center gap-1 px-2 py-0.5 rounded-lg border text-[10px] font-semibold transition-all hover:brightness-125",
+              style.chip
+            )}
+          >
+            <span>{style.emoji}</span>
+            <span>{style.label[lang]}</span>
+          </Link>
         </div>
 
-        <div className="p-4 rounded-xl bg-gradient-to-br from-yellow-400/10 to-orange-400/5 border border-yellow-400/20">
+        <div className="p-4 rounded-xl bg-primary/[0.07] border border-primary/20">
           <p className="text-sm text-gray-200 leading-relaxed italic">&ldquo;{tip}&rdquo;</p>
         </div>
+
+        <p className="text-[11px] text-muted-foreground">
+          {lang === "en"
+            ? `Tailored to your ${style.label.en} horizon (${style.horizon.en}).`
+            : `Adapté à votre horizon ${style.label.fr} (${style.horizon.fr}).`}
+        </p>
 
         <div className="flex flex-col gap-2">
           <Link

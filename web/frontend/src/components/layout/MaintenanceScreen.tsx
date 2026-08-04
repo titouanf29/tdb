@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { TDBLogo } from "@/components/ui/TDBLogo";
+import { useTradingStyle } from "@/lib/tradingStyle";
 
 interface MaintenanceScreenProps {
   message: string;
@@ -28,24 +29,9 @@ const BOOT_LINES = {
   ],
 } as const;
 
-const TIPS = {
-  fr: [
-    "Un stop-loss défini avant l'entrée vaut mieux que dix bonnes intentions après.",
-    "Le RSI ne dit pas « achète ». Il dit « ce mouvement s'essouffle ». Ce n'est pas pareil.",
-    "Risquer 1 % par position, c'est pouvoir se tromper 20 fois de suite et rester en jeu.",
-    "Un actif peut rester survendu bien plus longtemps que votre patience ne tient.",
-    "Le volume valide la cassure. Sans volume, c'est une rumeur.",
-    "Sur CaptenTDB, tout est simulé : c'est exactement l'endroit où se tromper.",
-  ],
-  en: [
-    "A stop-loss set before you enter beats ten good intentions after.",
-    "RSI never says \"buy\". It says \"this move is running out of breath\". Not the same thing.",
-    "Risking 1% per position means you can be wrong 20 times in a row and still be playing.",
-    "An asset can stay oversold far longer than your patience will hold.",
-    "Volume validates the breakout. Without volume, it's a rumour.",
-    "On CaptenTDB everything is simulated — this is exactly where you should get it wrong.",
-  ],
-} as const;
+/* Tips come from the user's trading style. The settings API is 503 during
+   maintenance, but SettingsContext reads its localStorage cache synchronously
+   at first paint, so the style is available here anyway. */
 
 /** Monospace counter where only the digits that actually changed animate.
  *  Groups are labelled — "41:27" on its own is unreadable (hours? minutes?). */
@@ -112,10 +98,14 @@ export function MaintenanceScreen({ message, endTime, startedAt, lang }: Mainten
     return () => clearInterval(t);
   }, []);
 
+  const style = useTradingStyle();
+  const tips = style.tips[lang];
+
   useEffect(() => {
-    const t = setInterval(() => setTip((i) => (i + 1) % TIPS[lang].length), 7000);
+    setTip(0);
+    const t = setInterval(() => setTip((i) => (i + 1) % tips.length), 7000);
     return () => clearInterval(t);
-  }, [lang]);
+  }, [tips]);
 
   const endMs   = endTime ? new Date(endTime).getTime() : null;
   const startMs = startedAt ? new Date(startedAt).getTime() : null;
@@ -350,8 +340,12 @@ export function MaintenanceScreen({ message, endTime, startedAt, lang }: Mainten
 
           {/* Rotating tip strip */}
           <div className="border-t border-primary/20 bg-primary/[0.035] px-5 py-3 sm:px-7">
-            <p className="mb-1 font-mono text-[10px] uppercase tracking-[0.18em] text-primary/70">
-              {t.tipLabel}
+            <p className="mb-1 flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.18em] text-primary/70">
+              <span>{t.tipLabel}</span>
+              <span className={`inline-flex items-center gap-1 border px-1.5 py-px normal-case tracking-normal ${style.chip}`}>
+                <span>{style.emoji}</span>
+                <span>{style.label[lang]}</span>
+              </span>
             </p>
             <div className="relative h-12 sm:h-9 overflow-hidden">
               <AnimatePresence mode="wait">
@@ -363,7 +357,7 @@ export function MaintenanceScreen({ message, endTime, startedAt, lang }: Mainten
                   transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
                   className="absolute inset-0 text-xs leading-relaxed text-muted-foreground"
                 >
-                  {TIPS[lang][tip]}
+                  {tips[tip]}
                 </motion.p>
               </AnimatePresence>
             </div>

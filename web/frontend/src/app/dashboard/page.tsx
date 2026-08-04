@@ -21,6 +21,7 @@ import { usePremium } from "@/lib/PremiumContext";
 import { useLanguage } from "@/lib/LanguageContext";
 import { useAuth } from "@/lib/AuthContext";
 import { DailyIntentWidget } from "@/components/dashboard/DailyIntentWidget";
+import { TradingStyleBar } from "@/components/dashboard/TradingStyleBar";
 import { WelcomeBackModal } from "@/components/dashboard/WelcomeBackModal";
 import { getAssetInfo, getAssetLogo } from "@/lib/assetInfo";
 import dynamic from "next/dynamic";
@@ -261,6 +262,11 @@ export default function DashboardPage() {
       {/* ── Intention du jour (espace IA) ───────────────────────────────────── */}
       <motion.div variants={itemVariants}>
         <DailyIntentWidget lang={lang} />
+      </motion.div>
+
+      {/* ── Style de trading (pilote timeframes + conseils) ─────────────────── */}
+      <motion.div variants={itemVariants}>
+        <TradingStyleBar />
       </motion.div>
 
       {/* ── Live Ticker ─────────────────────────────────────────────────────── */}

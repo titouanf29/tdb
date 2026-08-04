@@ -59,6 +59,7 @@ import { cn, formatPercent } from "@/lib/utils";
 import { analysisAPI, favoritesAPI, aiAPI, marketAPI, Analysis, portfolioAPI, RealPosition, missionsAPI, BacktestResult, alertsAPI, PriceAlert } from "@/lib/api";
 import { getAssetInfo, getAssetLogo } from "@/lib/assetInfo";
 import { useFormatCurrency, useFormatPrice, useSettings } from "@/lib/SettingsContext";
+import { getStyle } from "@/lib/tradingStyle";
 import { authHeaders } from "@/lib/auth";
 import { useAuth } from "@/lib/AuthContext";
 import { useLanguage } from "@/lib/LanguageContext";
@@ -463,6 +464,7 @@ export default function AnalysisPage() {
   const { user } = useAuth();
   const { t, lang } = useLanguage();
   const tradingLevel = user?.trading_level ?? "intermediate";
+  const style = getStyle(settings.tradingStyle);
 
   const [symbol, setSymbol] = useState(searchParams.get("symbol") || "");
   // Alias: format a market price in the symbol's native currency
@@ -475,7 +477,15 @@ export default function AnalysisPage() {
   const blurTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const searchContainerRef = useRef<HTMLDivElement>(null);
   const [dropdownRect, setDropdownRect] = useState<DOMRect | null>(null);
-  const [timeframe, setTimeframe] = useState("1d");
+  // Opens on the timeframe the user's style actually reads — a scalper landing
+  // on a daily chart has to re-click every single time.
+  const [timeframe, setTimeframe] = useState(() => getStyle(settings.tradingStyle).defaultTimeframe);
+  // Once the user picks a timeframe by hand, a late settings hydration must
+  // never yank the chart out from under them.
+  const timeframeTouchedRef = useRef(false);
+  useEffect(() => {
+    if (!timeframeTouchedRef.current) setTimeframe(style.defaultTimeframe);
+  }, [style.defaultTimeframe]);
   const [analysis, setAnalysis] = useState<Analysis | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
@@ -730,10 +740,19 @@ export default function AnalysisPage() {
                  tradingLevel === "expert"   ? <><Zap className="w-3 h-3" /> {t("analysis_expert")}</> :
                                                <><TrendingUp className="w-3 h-3" /> {t("analysis_intermediate")}</>}
               </span>
-              {/* Style badge */}
-              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium border bg-white/5 border-white/15 text-muted-foreground">
-                {STYLE_LABELS[settings.tradingStyle]?.emoji ?? "📈"} {STYLE_LABELS[settings.tradingStyle]?.label ?? settings.tradingStyle}
-              </span>
+              {/* Style badge — clickable, since it drives the whole page */}
+              <Link
+                href="/settings?tab=trading"
+                title={style.pitch[lang]}
+                className={cn(
+                  "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border transition-all hover:brightness-125",
+                  style.chip
+                )}
+              >
+                <span>{style.emoji}</span>
+                <span>{style.label[lang]}</span>
+                <span className="font-mono text-[10px] opacity-60">{style.horizon[lang]}</span>
+              </Link>
             </div>
           </div>
           <p className="text-sm text-muted-foreground mt-1">
@@ -795,7 +814,8 @@ export default function AnalysisPage() {
               document.body
             )}
           </div>
-          {/* Timeframe selector */}
+          {/* Timeframe selector — units outside the active style are dimmed,
+              so the ones worth reading for this horizon stand out. */}
           <div className="flex items-center gap-1 bg-white/5 rounded-xl p-1 border border-white/8 flex-shrink-0 overflow-x-auto no-scrollbar" data-module-id="timeframe-selector">
             {[
               { v: "5m",  label: "5m" },
@@ -814,19 +834,32 @@ export default function AnalysisPage() {
               ) : (
                 <button
                   key={tf.v}
-                  onClick={() => setTimeframe(tf.v)}
+                  onClick={() => { timeframeTouchedRef.current = true; setTimeframe(tf.v); }}
+                  title={
+                    style.timeframes.includes(tf.v)
+                      ? `${style.emoji} ${style.label[lang]}`
+                      : lang === "en"
+                      ? `Outside your ${style.label.en} horizon`
+                      : `Hors de votre horizon ${style.label.fr}`
+                  }
                   className={cn(
-                    "px-2.5 py-1 rounded-lg text-xs font-semibold transition-all duration-150 whitespace-nowrap flex-shrink-0",
+                    "relative px-2.5 py-1 rounded-lg text-xs font-semibold transition-all duration-150 whitespace-nowrap flex-shrink-0",
                     timeframe === tf.v
-                      ? "bg-primary text-white shadow-sm"
-                      : "text-muted-foreground hover:text-foreground hover:bg-white/10"
+                      ? "bg-primary text-[hsl(var(--primary-foreground))] shadow-sm"
+                      : style.timeframes.includes(tf.v)
+                      ? "text-foreground/80 hover:text-foreground hover:bg-white/10"
+                      : "text-muted-foreground/45 hover:text-foreground hover:bg-white/10"
                   )}
                 >
                   {tf.label}
+                  {style.timeframes.includes(tf.v) && timeframe !== tf.v && (
+                    <span className={cn("absolute left-1/2 -translate-x-1/2 bottom-0.5 w-1 h-1 rounded-full", style.dot)} />
+                  )}
                 </button>
               )
             )}
           </div>
+
           <motion.button
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
@@ -3594,12 +3627,6 @@ function renderAIText(text: string): React.ReactNode {
 
 // ─────────────────────────────────────────────────────────────────────────────
 
-const STYLE_LABELS: Record<string, { label: string; emoji: string }> = {
-  scalp: { label: "Scalping", emoji: "⚡" },
-  day:   { label: "Day Trading", emoji: "📈" },
-  swing: { label: "Swing", emoji: "🔄" },
-  long:  { label: "Long Terme", emoji: "🏦" },
-};
 const RISK_LABELS: Record<string, string> = {
   conservative: "Conservateur",
   moderate: "Modéré",
@@ -3672,7 +3699,7 @@ function AIInsightSection({
             <span className="px-2 py-0.5 bg-neon-purple/20 text-neon-purple text-xs rounded-full">Premium</span>
             {/* Active style + level badges */}
             <span className="px-2 py-0.5 bg-white/10 text-xs rounded-full text-muted-foreground font-normal">
-              {STYLE_LABELS[tradingStyle]?.emoji ?? "📈"} {tradingStyle === "long" ? (lang === "en" ? "Long Term" : "Long Terme") : (STYLE_LABELS[tradingStyle]?.label ?? tradingStyle)}
+              {getStyle(tradingStyle).emoji} {getStyle(tradingStyle).label[lang]}
               {" · "}{lang === "en"
                 ? ({ conservative: "Conservative", moderate: "Moderate", aggressive: "Aggressive", very_aggressive: "Very Aggressive" }[riskLevel] ?? riskLevel)
                 : (RISK_LABELS[riskLevel] ?? riskLevel)}
