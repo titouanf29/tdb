@@ -59,7 +59,7 @@ import { cn, formatPercent } from "@/lib/utils";
 import { analysisAPI, favoritesAPI, aiAPI, marketAPI, Analysis, portfolioAPI, RealPosition, missionsAPI, BacktestResult, alertsAPI, PriceAlert } from "@/lib/api";
 import { getAssetInfo, getAssetLogo } from "@/lib/assetInfo";
 import { useFormatCurrency, useFormatPrice, useSettings } from "@/lib/SettingsContext";
-import { getStyle } from "@/lib/tradingStyle";
+import { getStyle, type TradingStyleProfile } from "@/lib/tradingStyle";
 import { authHeaders } from "@/lib/auth";
 import { useAuth } from "@/lib/AuthContext";
 import { useLanguage } from "@/lib/LanguageContext";
@@ -1547,7 +1547,7 @@ export default function AnalysisPage() {
           <InvestmentThesisSection analysis={analysis} formatCurrency={formatPrice} />
 
           {/* 13. Stratégies de trading */}
-          <TradingStrategiesSection analysis={analysis} formatCurrency={formatPrice} />
+          <TradingStrategiesSection analysis={analysis} formatCurrency={formatPrice} style={style} />
 
           {/* 14. Comparaison sectorielle */}
           <SectorComparisonSection analysis={analysis} />
@@ -4699,71 +4699,237 @@ function SectorComparisonSection({ analysis }: { analysis: Analysis }) {
 }
 
 // Trading Strategies Section
-function TradingStrategiesSection({ analysis, formatCurrency }: { analysis: Analysis; formatCurrency: (value: number) => string }) {
-  const getStrategies = () => {
-    const strategies = [];
+/**
+ * Setups proposed for the horizon the user actually trades.
+ *
+ * This section used to hand every user the same list — "Swing Trading Long,
+ * 1-2 semaines" to a scalper, with invented hit rates ("65-70%") attached to
+ * each. The probabilities are gone: nothing in the app measures them, so
+ * printing them was presenting a guess as a statistic. Each setup now states
+ * the condition that produced it, which is checkable.
+ */
+interface StyleSetup {
+  name: string;
+  trigger: string;
+  entry: string;
+  stop: number | null;
+  target: number | null;
+  tone: "long" | "short" | "wait";
+}
 
-    // Swing Trading Strategy
-    if (analysis.score.total >= 60 && analysis.trend === "BULLISH") {
-      strategies.push({
-        name: "Swing Trading Long",
-        timeframe: "1-2 semaines",
-        entry: `Sur pullback vers ${formatCurrency(analysis.indicators.ema.ema20)}`,
-        target: formatCurrency(analysis.risk.suggested_tp),
-        stop: formatCurrency(analysis.risk.suggested_sl),
-        rr: analysis.risk.risk_reward,
-        probability: "65-70%",
-        color: "bg-profit/10 border-profit/20"
+function buildStyleSetups(
+  analysis: Analysis,
+  style: TradingStyleProfile,
+  lang: "fr" | "en",
+  fmt: (v: number) => string
+): StyleSetup[] {
+  const px = analysis.price.current;
+  const { rsi, macd, ema, bollinger, atr, volume_ratio } = analysis.indicators;
+  const { support, resistance } = analysis.levels;
+  const score = analysis.score.total;
+  const sl = atr * style.atr.sl;
+  const tp = atr * style.atr.tp;
+  const near = (level: number, mult: number) => Math.abs(px - level) <= atr * mult;
+  const out: StyleSetup[] = [];
+  const fr = lang === "fr";
+
+  if (style.id === "scalp") {
+    if (rsi.value < 40 && near(support, 1.5)) {
+      out.push({
+        name: fr ? "Rebond sur support intraday" : "Intraday support bounce",
+        trigger: fr
+          ? `RSI à ${rsi.value.toFixed(0)} et prix à moins de 1,5 ATR du support ${fmt(support)}.`
+          : `RSI at ${rsi.value.toFixed(0)} and price within 1.5 ATR of support ${fmt(support)}.`,
+        entry: fr ? `Au contact de ${fmt(support)}, sur mèche de rejet` : `On touch of ${fmt(support)}, on a rejection wick`,
+        stop: support - sl, target: px + tp, tone: "long",
       });
     }
-
-    // Breakout Strategy
-    if (analysis.price.current > analysis.indicators.ema.ema50 && analysis.indicators.volume_ratio > 1) {
-      strategies.push({
-        name: "Breakout",
-        timeframe: "1-5 jours",
-        entry: `Sur cassure de ${formatCurrency(analysis.levels.resistance)}`,
-        target: formatCurrency(analysis.levels.resistance * 1.05),
-        stop: formatCurrency(analysis.levels.pivot),
-        rr: 2,
-        probability: "55-60%",
-        color: "bg-primary/10 border-primary/20"
+    if (volume_ratio > 1.2 && near(resistance, 1.5)) {
+      out.push({
+        name: fr ? "Cassure sur volume" : "Volume breakout",
+        trigger: fr
+          ? `Volume à ${volume_ratio.toFixed(1)}× la moyenne, prix collé à la résistance ${fmt(resistance)}.`
+          : `Volume at ${volume_ratio.toFixed(1)}× average, price pinned to resistance ${fmt(resistance)}.`,
+        entry: fr ? `À la cassure de ${fmt(resistance)} — pas avant` : `On the break of ${fmt(resistance)} — not before`,
+        stop: resistance - sl, target: resistance + tp, tone: "long",
       });
     }
-
-    // Mean Reversion
-    if (analysis.indicators.rsi.value < 35 || analysis.indicators.rsi.value > 65) {
-      const isOversold = analysis.indicators.rsi.value < 35;
-      strategies.push({
-        name: isOversold ? "Rebond Technique" : "Prise de Profits",
-        timeframe: "1-3 jours",
-        entry: isOversold ? "Achat immediat ou sur confirmation" : "Vente sur resistance",
-        target: isOversold ? formatCurrency(analysis.indicators.bollinger.middle) : formatCurrency(analysis.indicators.bollinger.lower),
-        stop: isOversold ? formatCurrency(analysis.levels.support * 0.98) : formatCurrency(analysis.levels.resistance * 1.02),
-        rr: 1.5,
-        probability: "60-65%",
-        color: isOversold ? "bg-profit/10 border-profit/20" : "bg-loss/10 border-loss/20"
+    if (rsi.value > 75 || rsi.value < 25) {
+      const hot = rsi.value > 75;
+      out.push({
+        name: fr ? "Excès de momentum" : "Momentum extreme",
+        trigger: fr
+          ? `RSI à ${rsi.value.toFixed(0)}${volume_ratio < 1 ? `, avec un volume qui retombe (${volume_ratio.toFixed(1)}× la moyenne)` : ""}. Un extrême pareil se purge vite en intraday.`
+          : `RSI at ${rsi.value.toFixed(0)}${volume_ratio < 1 ? `, on fading volume (${volume_ratio.toFixed(1)}× average)` : ""}. That kind of extreme flushes fast intraday.`,
+        entry: fr
+          ? "Sur premier retournement confirmé — jamais en anticipation"
+          : "On the first confirmed turn — never in anticipation",
+        stop: hot ? px + sl : px - sl,
+        target: hot ? px - tp : px + tp,
+        tone: hot ? "short" : "long",
       });
     }
-
-    // Conservative Hold
-    if (analysis.score.total >= 40 && analysis.score.total < 60) {
-      strategies.push({
-        name: "Attente / Observation",
-        timeframe: "Indefini",
-        entry: "Attendre un signal plus clair",
-        target: "-",
-        stop: "-",
-        rr: 0,
-        probability: "-",
-        color: "bg-warning/10 border-warning/20"
+    if (px > bollinger.upper || px < bollinger.lower) {
+      const low = px < bollinger.lower;
+      out.push({
+        name: fr ? "Retour à la moyenne" : "Mean reversion",
+        trigger: fr
+          ? `Prix ${low ? "sous" : "au-dessus de"} la bande de Bollinger ${low ? "basse" : "haute"} — écart rarement tenu en intraday.`
+          : `Price ${low ? "below the lower" : "above the upper"} Bollinger band — rarely sustained intraday.`,
+        entry: fr ? "Dès le retour dans les bandes" : "As soon as price re-enters the bands",
+        stop: low ? px - sl : px + sl, target: bollinger.middle, tone: low ? "long" : "short",
       });
     }
+  }
 
-    return strategies;
+  if (style.id === "day") {
+    if (score >= 58 && ema.ema20 > ema.ema50) {
+      out.push({
+        name: fr ? "Continuation de tendance" : "Trend continuation",
+        trigger: fr
+          ? `Score ${score}/100 et EMA20 au-dessus de l'EMA50 : les acheteurs mènent la séance.`
+          : `Score ${score}/100 and EMA20 above EMA50: buyers lead the session.`,
+        entry: fr ? `Sur repli vers l'EMA20 (${fmt(ema.ema20)})` : `On a pullback to EMA20 (${fmt(ema.ema20)})`,
+        stop: ema.ema20 - sl, target: px + tp, tone: "long",
+      });
+    }
+    if (volume_ratio > 1 && px > ema.ema50) {
+      out.push({
+        name: fr ? "Cassure de range" : "Range breakout",
+        trigger: fr
+          ? `Prix au-dessus de l'EMA50 avec un volume à ${volume_ratio.toFixed(1)}× la moyenne.`
+          : `Price above EMA50 with volume at ${volume_ratio.toFixed(1)}× average.`,
+        entry: fr ? `À la cassure de ${fmt(resistance)}, clôture avant la fin de séance` : `On the break of ${fmt(resistance)}, close before the bell`,
+        stop: resistance - sl, target: resistance + tp, tone: "long",
+      });
+    }
+    if (rsi.value > 70 || rsi.value < 30) {
+      const over = rsi.value > 70;
+      out.push({
+        name: fr ? (over ? "Fade de l'excès haussier" : "Fade de l'excès baissier") : (over ? "Fade the upside excess" : "Fade the downside excess"),
+        trigger: fr
+          ? `RSI à ${rsi.value.toFixed(0)} — extrême rarement tenu jusqu'à la clôture.`
+          : `RSI at ${rsi.value.toFixed(0)} — an extreme rarely held into the close.`,
+        entry: fr ? "Sur premier signe d'essoufflement, jamais à contre-courant direct" : "On the first sign of exhaustion, never straight into the move",
+        stop: over ? px + sl : px - sl, target: over ? px - tp : px + tp, tone: over ? "short" : "long",
+      });
+    }
+  }
+
+  if (style.id === "swing") {
+    if (score >= 60 && analysis.trend === "BULLISH") {
+      out.push({
+        name: fr ? "Swing long sur repli" : "Swing long on pullback",
+        trigger: fr
+          ? `Score ${score}/100 et tendance haussière confirmée en daily.`
+          : `Score ${score}/100 with a confirmed bullish daily trend.`,
+        entry: fr ? `Sur repli vers l'EMA20 (${fmt(ema.ema20)})` : `On a pullback to EMA20 (${fmt(ema.ema20)})`,
+        stop: ema.ema20 - sl, target: px + tp, tone: "long",
+      });
+    }
+    if (px > ema.ema50 && volume_ratio > 1 && macd.histogram > 0) {
+      out.push({
+        name: fr ? "Cassure confirmée" : "Confirmed breakout",
+        trigger: fr
+          ? "Prix au-dessus de l'EMA50, histogramme MACD positif, volume au-dessus de la moyenne."
+          : "Price above EMA50, positive MACD histogram, above-average volume.",
+        entry: fr ? `À la clôture au-dessus de ${fmt(resistance)}` : `On a close above ${fmt(resistance)}`,
+        stop: resistance - sl, target: resistance + tp, tone: "long",
+      });
+    }
+    if (rsi.value < 35) {
+      out.push({
+        name: fr ? "Rebond technique" : "Technical bounce",
+        trigger: fr
+          ? `RSI à ${rsi.value.toFixed(0)} en zone de survente. Attendez la confirmation : un actif peut y rester des jours.`
+          : `RSI at ${rsi.value.toFixed(0)}, oversold. Wait for confirmation — an asset can stay there for days.`,
+        entry: fr ? "Sur première clôture haussière, pas sur le creux" : "On the first bullish close, not on the low",
+        stop: support - sl, target: bollinger.middle, tone: "long",
+      });
+    }
+    if (rsi.value > 65) {
+      out.push({
+        name: fr ? "Prise de profits" : "Take profits",
+        trigger: fr
+          ? `RSI à ${rsi.value.toFixed(0)} : le mouvement est mûr, le rapport gain/risque se dégrade.`
+          : `RSI at ${rsi.value.toFixed(0)}: the move is mature, reward-to-risk is deteriorating.`,
+        entry: fr ? `Allègement progressif vers ${fmt(resistance)}` : `Scale out into ${fmt(resistance)}`,
+        stop: null, target: resistance, tone: "short",
+      });
+    }
+  }
+
+  // Every long-horizon setup hangs off the EMA200. Without enough history
+  // there is no long-term trend to read, and saying so beats guessing.
+  const ema200 = ema.ema200;
+  if (style.id === "long" && ema200 == null) {
+    out.push({
+      name: fr ? "Historique insuffisant" : "Not enough history",
+      trigger: fr
+        ? "L'EMA200 n'est pas calculable sur cet actif : pas assez d'historique pour juger une tendance de fond."
+        : "The EMA200 can't be computed for this asset: not enough history to judge an underlying trend.",
+      entry: fr ? "Élargissez la période, ou jugez sur un horizon plus court" : "Widen the period, or judge on a shorter horizon",
+      stop: null, target: null, tone: "wait",
+    });
+  }
+  if (style.id === "long" && ema200 != null) {
+    if (px > ema200) {
+      out.push({
+        name: fr ? "Accumulation progressive (DCA)" : "Progressive accumulation (DCA)",
+        trigger: fr
+          ? `Prix au-dessus de l'EMA200 (${fmt(ema200)}) : la tendance de fond est intacte.`
+          : `Price above the EMA200 (${fmt(ema200)}): the underlying trend is intact.`,
+        entry: fr ? "Achats fractionnés à intervalle fixe, sans chercher le point bas" : "Fixed-interval buys, no attempt to time the low",
+        stop: null, target: null, tone: "long",
+      });
+    }
+    if (px < ema200 && score >= 50) {
+      out.push({
+        name: fr ? "Renfort sur repli" : "Add on weakness",
+        trigger: fr
+          ? `Prix sous l'EMA200 mais score encore à ${score}/100 : repli dans une structure saine.`
+          : `Price below the EMA200 but score still ${score}/100: weakness inside a sound structure.`,
+        entry: fr ? `Par paliers entre ${fmt(support)} et ${fmt(px)}` : `In tranches between ${fmt(support)} and ${fmt(px)}`,
+        stop: support - sl, target: ema200, tone: "long",
+      });
+    }
+    if (px < ema200 && score < 50) {
+      out.push({
+        name: fr ? "Rester à l'écart" : "Stay out",
+        trigger: fr
+          ? `Prix sous l'EMA200 et score à ${score}/100 : la tendance de fond est cassée. Rien à accumuler ici.`
+          : `Price below the EMA200 and score at ${score}/100: the underlying trend is broken. Nothing to accumulate.`,
+        entry: fr ? "Attendre une reprise durable au-dessus de l'EMA200" : "Wait for a durable reclaim of the EMA200",
+        stop: null, target: null, tone: "wait",
+      });
+    }
+  }
+
+  if (out.length === 0) {
+    out.push({
+      name: fr ? "Aucun setup sur cet horizon" : "No setup on this horizon",
+      trigger: fr
+        ? `Les conditions actuelles ne produisent rien d'exploitable en ${style.label.fr.toLowerCase()} (${style.horizon.fr}). Un autre horizon donnerait peut-être un signal.`
+        : `Current conditions produce nothing tradable on a ${style.label.en.toLowerCase()} horizon (${style.horizon.en}). Another horizon might show a signal.`,
+      entry: fr ? "Ne rien faire est une position" : "Doing nothing is a position",
+      stop: null, target: null, tone: "wait",
+    });
+  }
+  return out;
+}
+
+function TradingStrategiesSection({
+  analysis, formatCurrency, style,
+}: { analysis: Analysis; formatCurrency: (value: number) => string; style: TradingStyleProfile }) {
+  const { lang } = useLanguage();
+  const setups = buildStyleSetups(analysis, style, lang, formatCurrency);
+  const atr = analysis.indicators.atr;
+
+  const toneClass = {
+    long:  "border-profit/25 bg-profit/[0.06]",
+    short: "border-loss/25 bg-loss/[0.06]",
+    wait:  "border-warning/25 bg-warning/[0.06]",
   };
-
-  const strategies = getStrategies();
 
   return (
     <motion.div
@@ -4772,52 +4938,101 @@ function TradingStrategiesSection({ analysis, formatCurrency }: { analysis: Anal
       transition={{ delay: 0.9 }}
       className="glass-card p-6"
     >
-      <h3 className="font-semibold mb-6 flex items-center gap-2 text-lg">
-        <Target className="w-5 h-5 text-primary" />
-        Strategies de Trading Suggerees
-      </h3>
+      <div className="mb-5 flex flex-wrap items-center gap-2">
+        <h3 className="flex items-center gap-2 text-lg font-semibold">
+          <Target className="w-5 h-5 text-primary" />
+          {lang === "en" ? "Setups for your horizon" : "Setups pour votre horizon"}
+        </h3>
+        <Link
+          href="/settings?tab=trading"
+          title={style.pitch[lang]}
+          className={cn(
+            "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium transition-all hover:brightness-125",
+            style.chip
+          )}
+        >
+          <span>{style.emoji}</span>
+          <span>{style.label[lang]}</span>
+          <span className="font-mono text-[10px] opacity-60">{style.horizon[lang]}</span>
+        </Link>
+      </div>
 
-      <div className="space-y-4">
-        {strategies.length === 0 ? (
-          <div className="p-4 rounded-xl border bg-loss/10 border-loss/20 text-sm text-muted-foreground">
-            Aucune stratégie applicable — signal trop faible ou configuration de marché défavorable.
-          </div>
-        ) : (
-          strategies.map((strategy, idx) => (
-            <div key={idx} className={cn("p-4 rounded-xl border", strategy.color)}>
-              <div className="flex items-center justify-between mb-3">
-                <h4 className="font-semibold">{strategy.name}</h4>
-                <span className="text-xs px-2 py-1 bg-white/10 rounded-full">{strategy.timeframe}</span>
+      {/* The arithmetic behind every stop and target below, stated once */}
+      <div className="mb-5 flex flex-wrap items-center gap-x-4 gap-y-1 border-l-2 border-primary/40 pl-3 font-mono text-[11px] text-muted-foreground">
+        <span>ATR · {formatCurrency(atr)}</span>
+        <span>
+          {lang === "en" ? "stop" : "stop"} · {style.atr.sl}× ATR = {formatCurrency(atr * style.atr.sl)}
+        </span>
+        <span>
+          {lang === "en" ? "target" : "objectif"} · {style.atr.tp}× ATR = {formatCurrency(atr * style.atr.tp)}
+        </span>
+        <span className="text-primary">R/R · 1:{(style.atr.tp / style.atr.sl).toFixed(1)}</span>
+      </div>
+
+      <div className="space-y-3">
+        {setups.map((s, idx) => {
+          const rr =
+            s.stop != null && s.target != null
+              ? Math.abs(s.target - analysis.price.current) / Math.max(1e-9, Math.abs(analysis.price.current - s.stop))
+              : null;
+          return (
+            <div key={idx} className={cn("border p-4", toneClass[s.tone])}>
+              <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                <h4 className="flex items-center gap-2 font-semibold">
+                  {s.name}
+                  {/* Direction, spelled out — on a short the target sits below
+                      the current price and reads like a bug without it. */}
+                  <span
+                    className={cn(
+                      "border px-1.5 py-px font-mono text-[10px] font-bold tracking-wider",
+                      s.tone === "long"
+                        ? "border-profit/40 text-profit"
+                        : s.tone === "short"
+                        ? "border-loss/40 text-loss"
+                        : "border-warning/40 text-warning"
+                    )}
+                  >
+                    {s.tone === "long" ? "LONG" : s.tone === "short" ? "SHORT" : lang === "en" ? "WAIT" : "ATTENDRE"}
+                  </span>
+                </h4>
+                <span className="rounded-full bg-white/10 px-2 py-1 font-mono text-[10px]">
+                  {style.horizon[lang]}
+                </span>
               </div>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+              <p className="mb-3 text-xs leading-relaxed text-muted-foreground">{s.trigger}</p>
+              <div className="grid grid-cols-2 gap-3 text-sm md:grid-cols-4">
                 <div>
-                  <p className="text-xs text-muted-foreground">Entree</p>
-                  <p className="font-medium">{strategy.entry}</p>
+                  <p className="terminal-label text-muted-foreground">{lang === "en" ? "Entry" : "Entrée"}</p>
+                  <p className="text-xs font-medium">{s.entry}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground">Objectif</p>
-                  <p className="font-medium text-profit">{strategy.target}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Stop Loss</p>
-                  <p className="font-medium text-loss">{strategy.stop}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">R/R</p>
-                  <p className="font-medium">
-                    {strategy.rr > 0 ? `1:${strategy.rr}` : "—"}
+                  <p className="terminal-label text-muted-foreground">{lang === "en" ? "Target" : "Objectif"}</p>
+                  <p className="font-mono text-xs font-medium text-profit">
+                    {s.target != null ? formatCurrency(s.target) : "—"}
                   </p>
+                </div>
+                <div>
+                  <p className="terminal-label text-muted-foreground">{lang === "en" ? "Invalidation" : "Invalidation"}</p>
+                  <p className="font-mono text-xs font-medium text-loss">
+                    {s.stop != null ? formatCurrency(s.stop) : "—"}
+                  </p>
+                </div>
+                <div>
+                  <p className="terminal-label text-muted-foreground">R/R</p>
+                  <p className="font-mono text-xs font-medium">{rr ? `1:${rr.toFixed(1)}` : "—"}</p>
                 </div>
               </div>
             </div>
-          ))
-        )}
+          );
+        })}
       </div>
 
-      <div className="mt-4 p-3 bg-warning/10 rounded-lg border border-warning/20">
-        <p className="text-xs text-muted-foreground flex items-center gap-2">
-          <AlertTriangle className="w-4 h-4 text-warning" />
-          Ces strategies sont fournies a titre indicatif. Adaptez-les a votre profil de risque et votre capital.
+      <div className="mt-4 rounded-lg border border-warning/20 bg-warning/10 p-3">
+        <p className="flex items-center gap-2 text-xs text-muted-foreground">
+          <AlertTriangle className="w-4 h-4 shrink-0 text-warning" />
+          {lang === "en"
+            ? "Educational simulation. These setups follow from the indicators above — they are not a recommendation, and no hit rate is claimed."
+            : "Simulation éducative. Ces setups découlent des indicateurs ci-dessus — ce ne sont pas des recommandations, et aucun taux de réussite n'est avancé."}
         </p>
       </div>
     </motion.div>
