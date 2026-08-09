@@ -1,6 +1,7 @@
 """
 AI Analysis routes - Using the same analyzer as the bot
 """
+import os
 import re
 import sys
 import asyncio
@@ -56,6 +57,12 @@ def _sanitize(obj):
         return f
     except Exception:
         return obj
+
+
+# Concurrent market-data fetches allowed to a single scan. Must stay below the
+# app's I/O thread pool (IO_THREADS, 32 by default) so a scan can never take
+# every thread and stall the rest of the site.
+_SCAN_CONCURRENCY = int(os.getenv("SCAN_CONCURRENCY", "16"))
 
 
 # ── Scan quota helpers ──────────────────────────────────────────────────────
@@ -1591,12 +1598,18 @@ async def scan_market(
             return None
 
     # ── Run ALL assets in parallel (batches of 30) ──────────────────────
-    batch_size = 30
-    all_results = []
-    for i in range(0, len(assets), batch_size):
-        batch = assets[i:i + batch_size]
-        batch_res = await asyncio.gather(*[_analyze(s) for s in batch])
-        all_results.extend(batch_res)
+    # A semaphore rather than sequential batches of 30. Batching made every
+    # asset wait for the slowest member of its batch, and 30 in flight filled
+    # the whole shared I/O pool — the rest of the site stalled for the duration
+    # of a scan. The cap stays below the pool size so interactive requests keep
+    # threads available while a scan runs.
+    gate = asyncio.Semaphore(_SCAN_CONCURRENCY)
+
+    async def _analyze_gated(symbol: str):
+        async with gate:
+            return await _analyze(symbol)
+
+    all_results = await asyncio.gather(*[_analyze_gated(s) for s in assets])
 
     results = [r for r in all_results if r is not None and r["score"] >= min_score]
 

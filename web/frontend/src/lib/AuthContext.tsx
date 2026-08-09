@@ -49,15 +49,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (savedUser) {
           setUser(savedUser);
         }
-        // Verify token is still valid
-        const currentUser = await getMe();
-        if (currentUser) {
-          setUser(currentUser);
-        } else if (!getToken()) {
-          // Token was explicitly removed (401 invalid/expired) → log out
-          setUser(null);
-        }
-        // else: network/server error, token still present → keep savedUser
+
+        // Reconcile with the server, but only BLOCK the first render when
+        // there is no cached user to show. A slow backend used to hold every
+        // signed-in visitor on a spinner for as long as this round-trip took.
+        // Access is not granted by this call — every endpoint authorises the
+        // token itself, and a 401 here still clears the session below.
+        const verify = getMe().then((currentUser) => {
+          if (currentUser) {
+            setUser(currentUser);
+          } else if (!getToken()) {
+            // Token was explicitly removed (401 invalid/expired) → log out
+            setUser(null);
+          }
+          // else: network/server error, token still present → keep savedUser
+        });
+
+        if (!savedUser) await verify;
       }
       setIsLoading(false);
     };

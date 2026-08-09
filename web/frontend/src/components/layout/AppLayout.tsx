@@ -57,7 +57,11 @@ function AuthShell({
         const { getToken } = await import("@/lib/auth");
         const token = getToken();
         const headers: HeadersInit = token ? { Authorization: `Bearer ${token}` } : {};
-        const r = await fetch("/api/status", { headers });
+        // The whole app render waits on this one call, so it gets a short
+        // deadline of its own. Maintenance is a rare state: if the check can't
+        // answer quickly, failing open and showing the app beats holding every
+        // user on a spinner until the request eventually gives up.
+        const r = await fetch("/api/status", { headers, signal: AbortSignal.timeout(4000) });
         if (r.ok) {
           const d = await r.json();
           setMaintenance({

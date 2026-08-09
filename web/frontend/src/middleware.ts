@@ -32,11 +32,18 @@ export async function middleware(request: NextRequest) {
     if (buf.byteLength > 0) body = buf;
   }
 
+  // Without a deadline the proxy waits forever on a slow backend and the
+  // browser shows an endless spinner. A market scan legitimately takes tens of
+  // seconds (one network fetch per asset); everything else must answer fast or
+  // be reported as unavailable.
+  const timeoutMs = pathname.startsWith("/api/analysis/scan/") ? 120_000 : 25_000;
+
   try {
     const res = await fetch(targetUrl, {
       method: request.method,
       headers,
       body,
+      signal: AbortSignal.timeout(timeoutMs),
     });
 
     const resBody = await res.arrayBuffer();
@@ -47,10 +54,15 @@ export async function middleware(request: NextRequest) {
     if (cc) resHeaders.set("cache-control", cc);
 
     return new NextResponse(resBody, { status: res.status, headers: resHeaders });
-  } catch {
+  } catch (err) {
+    const timedOut = err instanceof Error && (err.name === "TimeoutError" || err.name === "AbortError");
     return NextResponse.json(
-      { detail: "Backend service unavailable" },
-      { status: 502 }
+      {
+        detail: timedOut
+          ? "Le serveur met trop de temps à répondre. Réessayez dans un instant."
+          : "Backend service unavailable",
+      },
+      { status: timedOut ? 504 : 502 }
     );
   }
 }

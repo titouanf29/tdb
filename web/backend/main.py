@@ -42,6 +42,20 @@ IS_PRODUCTION = os.getenv("ENV", "development").lower() == "production"
 async def lifespan(app: FastAPI):
     """Startup and shutdown events"""
     print("🚀 TDB Web API starting...")
+
+    # Every blocking market-data call goes through run_in_executor(None, ...),
+    # so the default pool is the app's real concurrency limit. Its default size
+    # is min(32, cpu_count + 4) — five threads on a small container, which a
+    # single multi-asset scan fills entirely while every other request queues
+    # behind it. These threads only ever wait on network I/O, so a wider pool
+    # costs almost nothing and keeps the app responsive during a scan.
+    import asyncio as _asyncio
+    from concurrent.futures import ThreadPoolExecutor
+    _asyncio.get_running_loop().set_default_executor(
+        ThreadPoolExecutor(max_workers=int(os.getenv("IO_THREADS", "32")),
+                           thread_name_prefix="tdb-io")
+    )
+
     await init_web_tables()
     print("✅ Database tables initialized")
     yield
