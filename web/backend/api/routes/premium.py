@@ -46,7 +46,7 @@ PREMIUM_FEATURES = {
         "max_positions": 5,
         "max_favorites": 10,
         "ai_messages_per_day": 10,
-        "scanner_scans_per_day": 3,      # Free: 3 scans/day
+        "scanner_scans_per_day": 1,      # Free: 1 scan/day
         "backtest_enabled": False,
         "geopolitical_enabled": False,
         "advanced_pivots": False,  # Only standard method

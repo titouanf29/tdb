@@ -127,7 +127,10 @@ export default function ScannerPage() {
   };
 
   const [markets, setMarkets] = useState<Market[]>([]);
-  const [selectedMarket, setSelectedMarket] = useState("USA");
+  // "ALL" is a pseudo-market resolved server-side to the union of every
+  // configured market. It is the default: scanning everything is the useful
+  // starting point, narrowing is the deliberate act.
+  const [selectedMarket, setSelectedMarket] = useState("ALL");
   const [minScore, setMinScore] = useState(60);
   const [oppFilter, setOppFilter] = useState<OppFilter>("all");
   const [results, setResults] = useState<ScanResultItem[]>([]);
@@ -146,9 +149,9 @@ export default function ScannerPage() {
     ]).then(([mData, qData]) => {
       setMarkets(mData.markets);
       setQuota(qData);
-      // Auto-select first currently-open market
-      const firstOpen = mData.markets.find((m) => isMarketOpen(m.key));
-      if (firstOpen) setSelectedMarket(firstOpen.key);
+      // Deliberately no auto-select: the scan starts on every asset unless the
+      // user narrows it. Jumping to whichever market happens to be open would
+      // silently shrink the universe behind their back.
     }).catch(console.error).finally(() => {
       setIsLoading(false);
     });
@@ -203,6 +206,11 @@ export default function ScannerPage() {
 
   const topResults = filtered.slice(0, 3);
   const quotaOk = !quota || quota.is_premium || quota.remaining > 0;
+  // "ALL" is not in the markets list, so it has no name to look up.
+  const selectedMarketLabel =
+    selectedMarket === "ALL"
+      ? (lang === "en" ? "all assets" : "tous les actifs")
+      : markets.find((m) => m.key === selectedMarket)?.name ?? selectedMarket;
 
   if (isLoading) {
     return (
@@ -420,7 +428,13 @@ export default function ScannerPage() {
                 <div>
                   <p className="font-bold text-base text-yellow-300">{t("scanner_limit_free")}</p>
                   <p className="text-xs text-muted-foreground">
-                    {lang === "en" ? "Resets at midnight · " : "Renouvellement à minuit · "}
+                    {/* Rendered from the server's next_reset, in the reader's
+                        own timezone — "minuit" is ambiguous across zones. */}
+                    {quota.next_reset
+                      ? (lang === "en"
+                          ? `Next scan available ${new Date(quota.next_reset).toLocaleString("en-GB", { weekday: "long", hour: "2-digit", minute: "2-digit" })} · `
+                          : `Prochain scan disponible ${new Date(quota.next_reset).toLocaleString("fr-FR", { weekday: "long", hour: "2-digit", minute: "2-digit" })} · `)
+                      : (lang === "en" ? "Resets at midnight · " : "Renouvellement à minuit · ")}
                     <span className="text-yellow-500/80 font-medium">
                       {lang === "en" ? "Unlock unlimited scans" : "Débloquez les scans illimités"}
                     </span>
@@ -498,7 +512,7 @@ export default function ScannerPage() {
       )}
 
       {/* ── Filters ───────────────────────────────────────────────────────── */}
-      {quotaOk && (
+      {(
         <motion.div variants={itemVariants} className="rounded-2xl border border-white/8 bg-white/[0.02] p-4 space-y-4">
           {/* Market pills */}
           <div className="flex items-center gap-3 flex-wrap">
@@ -507,6 +521,19 @@ export default function ScannerPage() {
               {lang === "en" ? "Market" : "Marché"}
             </div>
             <div className="flex flex-wrap gap-2">
+              {/* "All assets" first and default — the other pills narrow it */}
+              <button
+                onClick={() => setSelectedMarket("ALL")}
+                className={cn(
+                  "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all border",
+                  selectedMarket === "ALL"
+                    ? "bg-primary/20 border-primary/50 text-primary"
+                    : "bg-white/5 border-white/8 hover:bg-white/10 text-muted-foreground hover:text-foreground"
+                )}
+              >
+                <Globe className="w-3.5 h-3.5" />
+                {lang === "en" ? "All assets" : "Tous les actifs"}
+              </button>
               {markets.map((m) => {
                 const open = isMarketOpen(m.key);
                 const isSelected = selectedMarket === m.key;
@@ -517,7 +544,7 @@ export default function ScannerPage() {
                     className={cn(
                       "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all border",
                       isSelected
-                        ? "bg-primary/20 border-primary/50 text-primary shadow-[0_0_12px_rgba(var(--primary-rgb),0.2)]"
+                        ? "bg-primary/20 border-primary/50 text-primary"
                         : "bg-white/5 border-white/8 hover:bg-white/10 text-muted-foreground hover:text-foreground"
                     )}
                   >
@@ -525,7 +552,7 @@ export default function ScannerPage() {
                     <span
                       className={cn(
                         "inline-block w-1.5 h-1.5 rounded-full",
-                        open ? "bg-emerald-400 shadow-[0_0_4px_rgba(52,211,153,0.8)]" : "bg-white/20"
+                        open ? "bg-emerald-400" : "bg-white/20"
                       )}
                       title={open ? (lang === "en" ? "Open now" : "Ouvert") : (lang === "en" ? "Closed" : "Fermé")}
                     />
@@ -643,7 +670,7 @@ export default function ScannerPage() {
       </AnimatePresence>
 
       {/* ── Top picks (only when 3+ results) ─────────────────────────────── */}
-      {quotaOk && !isScanning && topResults.length >= 3 && (
+      {!isScanning && topResults.length >= 3 && (
         <motion.div variants={itemVariants}>
           <div className="flex items-center gap-2 mb-3">
             <Flame className="w-4 h-4 text-amber-400" />
@@ -699,7 +726,7 @@ export default function ScannerPage() {
       )}
 
       {/* ── Results table ─────────────────────────────────────────────────── */}
-      {quotaOk && (
+      {(quotaOk || results.length > 0) && (
         <motion.div variants={itemVariants} className="rounded-2xl border border-white/8 bg-white/[0.02] overflow-hidden">
           {/* Table header */}
           <div className="px-5 py-4 border-b border-white/8 flex items-center justify-between gap-3 flex-wrap">
@@ -745,7 +772,8 @@ export default function ScannerPage() {
                 </p>
                 {results.length === 0 && (
                   <p className="text-sm mt-1.5 opacity-60 max-w-xs mx-auto">
-                    {t("scanner_multi_prefix")} {selectedMarket} ({totalScanned || "?"} {t("asset")})
+                    {t("scanner_multi_prefix")} {selectedMarketLabel}
+                    {totalScanned > 0 && ` (${totalScanned} ${t("asset")})`}
                   </p>
                 )}
                 {results.length === 0 && (
@@ -785,6 +813,15 @@ export default function ScannerPage() {
                         <span className="text-[8px] leading-tight opacity-50">/100</span>
                       </div>
 
+                      {/* Rank — only while the list is actually ranked. The
+                          table is re-sortable, and numbering rows sorted by
+                          RSI would present an ordering that isn't a ranking. */}
+                      {sortKey === "score" && !sortAsc && (
+                        <span className="w-5 shrink-0 text-center font-mono text-xs font-bold text-muted-foreground/50">
+                          {i + 1}
+                        </span>
+                      )}
+
                       {/* Name + symbol + market + details */}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
@@ -820,6 +857,13 @@ export default function ScannerPage() {
                             {r.volume_ratio.toFixed(1)}x
                           </span>
                         </div>
+                        {/* Why this one ranks here — built server-side from the
+                            terms that actually moved its score. */}
+                        {r.reason && (
+                          <p className="mt-1 text-[11px] leading-snug text-muted-foreground/70">
+                            {r.reason}
+                          </p>
+                        )}
                       </div>
 
                       {/* Price & change */}

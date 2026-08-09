@@ -60,9 +60,21 @@ def _sanitize(obj):
 
 # ── Scan quota helpers ──────────────────────────────────────────────────────
 
+def _next_scan_reset() -> str:
+    """Next UTC midnight — when the daily scan quota refills."""
+    from datetime import datetime, timedelta, timezone
+    now = datetime.now(timezone.utc)
+    return (now + timedelta(days=1)).replace(
+        hour=0, minute=0, second=0, microsecond=0
+    ).isoformat()
+
+
 async def _get_scans_today(user_id: int) -> int:
-    from datetime import date
-    today = date.today().isoformat()
+    # UTC, deliberately: _record_scan writes an isoformat UTC timestamp, so
+    # counting against the server's LOCAL date would compare two different
+    # calendars and reset the quota at the wrong moment on any non-UTC host.
+    from datetime import datetime, timezone
+    today = datetime.now(timezone.utc).date().isoformat()
     result = await execute_query(
         "SELECT COUNT(*) as cnt FROM web_scan_usage WHERE user_id = ? AND created_at LIKE ?",
         (user_id, f"{today}%")
@@ -73,10 +85,11 @@ async def _get_scans_today(user_id: int) -> int:
 async def _check_scan_limit(user: dict) -> dict:
     user_id = user.get("id")
     limits  = await get_user_limits(user)
-    daily   = limits.get("scanner_scans_per_day", 2)
+    daily   = limits.get("scanner_scans_per_day", 1)
     scans   = await _get_scans_today(user_id)
     if daily == -1:
-        return {"can_scan": True, "scans_today": scans, "daily_limit": -1, "remaining": -1, "is_premium": True}
+        return {"can_scan": True, "scans_today": scans, "daily_limit": -1,
+                "remaining": -1, "is_premium": True, "next_reset": None}
     remaining = max(0, daily - scans)
     return {
         "can_scan":    remaining > 0,
@@ -84,6 +97,7 @@ async def _check_scan_limit(user: dict) -> dict:
         "daily_limit": daily,
         "remaining":   remaining,
         "is_premium":  False,
+        "next_reset":  _next_scan_reset() if remaining <= 0 else None,
     }
 
 
@@ -383,6 +397,16 @@ def upcoming_risk_catalysts(symbol: str, horizon_hours: float) -> list[dict]:
     # Sort by datetime
     events.sort(key=lambda e: e["datetime"])
     return events[:5]  # at most 5
+
+
+# Registered BEFORE the catch-all "/{symbol}": Starlette matches routes in
+# declaration order, so a literal path declared after it is unreachable —
+# /api/analysis/scan-limit was being served as an analysis of the ticker
+# "scan-limit". Any new literal route under this prefix belongs here too.
+@router.get("/scan-limit")
+async def get_scan_limit(current_user: dict = Depends(get_current_user)):
+    """Get user's remaining daily scan quota."""
+    return await _check_scan_limit(current_user)
 
 
 @router.get("/{symbol}")
@@ -972,12 +996,6 @@ async def analyze_asset(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.get("/scan-limit")
-async def get_scan_limit(current_user: dict = Depends(get_current_user)):
-    """Get user's remaining daily scan quota."""
-    return await _check_scan_limit(current_user)
-
-
 ASSET_NAMES: dict[str, str] = {
     # ── Indices ────────────────────────────────────────────────────────────
     "^FCHI": "CAC 40", "^GDAXI": "DAX 40", "^STOXX50E": "Euro Stoxx 50",
@@ -1366,14 +1384,24 @@ async def scan_market(
                 "scans_today": quota["scans_today"],
                 "daily_limit": quota["daily_limit"],
                 "remaining": 0,
+                "next_reset": quota.get("next_reset"),
             }
         )
 
     market_key = market_key.upper()
-    if market_key not in MARKETS:
+    if market_key == "ALL":
+        # Union of every configured market, de-duplicated while keeping order.
+        # MARKETS lives in the repo-root config shared with the Telegram bot,
+        # so the "all" universe is derived here rather than added there.
+        seen: set[str] = set()
+        assets = [
+            s for m in MARKETS.values() for s in m["assets"]
+            if not (s in seen or seen.add(s))
+        ]
+    elif market_key in MARKETS:
+        assets = MARKETS[market_key]["assets"]
+    else:
         raise HTTPException(status_code=404, detail="Market not found")
-
-    assets = MARKETS[market_key]["assets"]
 
     async def _analyze(symbol: str):
         try:
@@ -1437,46 +1465,73 @@ async def scan_market(
             bb_squeeze = float((bb_up - bb_low_) / float(bb_mid.iloc[-1]) * 100) < 5.0
 
             # ── Scoring ────────────────────────────────────
-            score = 50
+            # Every term is recorded as (points, wording) so the ranking can
+            # explain itself from what actually moved the score, instead of a
+            # blurb written alongside it that could drift out of sync.
+            contrib: list[tuple[int, str]] = []
+
+            def add(points: int, wording: str) -> None:
+                if points:
+                    contrib.append((points, wording))
 
             # RSI (max ±25)
-            if rsi < 25:        score += 25
-            elif rsi < 32:      score += 18
-            elif rsi < 40:      score += 10
-            elif rsi > 78:      score -= 22
-            elif rsi > 70:      score -= 12
-            elif rsi > 60:      score -= 5
+            if rsi < 25:        add(25,  f"RSI à {rsi:.0f}, survente marquée")
+            elif rsi < 32:      add(18,  f"RSI à {rsi:.0f}, sortie de zone de survente")
+            elif rsi < 40:      add(10,  f"RSI à {rsi:.0f}, bas de fourchette")
+            elif rsi > 78:      add(-22, f"RSI à {rsi:.0f}, surachat extrême")
+            elif rsi > 70:      add(-12, f"RSI à {rsi:.0f}, zone de surachat")
+            elif rsi > 60:      add(-5,  f"RSI à {rsi:.0f}, haut de fourchette")
 
             # MACD (max +18)
-            if macd_cross:      score += 18
-            elif macd_above:    score += 9
-            else:               score -= 8
+            if macd_cross:      add(18,  "croisement MACD haussier frais")
+            elif macd_above:    add(9,   "MACD au-dessus de sa ligne de signal")
+            else:               add(-8,  "MACD sous sa ligne de signal")
 
             # EMA trend (max +12)
-            if above_ema20 and above_ema50: score += 12
-            elif above_ema20:               score += 6
-            elif not above_ema20 and not above_ema50: score -= 10
+            if above_ema20 and above_ema50:            add(12,  "prix au-dessus des EMA 20 et 50")
+            elif above_ema20:                          add(6,   "prix au-dessus de l'EMA 20")
+            elif not above_ema20 and not above_ema50:  add(-10, "prix sous les EMA 20 et 50")
 
             # Volume (max +10)
-            if vol_spike:               score += 10
-            elif vol_ratio > 1.3:       score += 5
-            elif vol_ratio < 0.6:       score -= 5
+            if vol_spike:               add(10, f"volume à {vol_ratio:.1f}× la moyenne")
+            elif vol_ratio > 1.3:       add(5,  f"volume à {vol_ratio:.1f}× la moyenne")
+            elif vol_ratio < 0.6:       add(-5, f"volume en retrait ({vol_ratio:.1f}× la moyenne)")
 
             # Momentum 1 week (max +10)
-            if chg_1w > 8:      score += 10
-            elif chg_1w > 4:    score += 6
-            elif chg_1w > 1.5:  score += 3
-            elif chg_1w < -8:   score -= 10
-            elif chg_1w < -4:   score -= 6
+            if chg_1w > 8:      add(10,  f"{chg_1w:+.1f} % sur la semaine")
+            elif chg_1w > 4:    add(6,   f"{chg_1w:+.1f} % sur la semaine")
+            elif chg_1w > 1.5:  add(3,   f"{chg_1w:+.1f} % sur la semaine")
+            elif chg_1w < -8:   add(-10, f"{chg_1w:+.1f} % sur la semaine")
+            elif chg_1w < -4:   add(-6,  f"{chg_1w:+.1f} % sur la semaine")
 
             # Near breakout bonus / near support bounce bonus
-            if near_breakout and macd_above:  score += 5
-            if near_support and rsi < 40:     score += 5
+            if near_breakout and macd_above:
+                add(5, f"à {abs(pct_from_high):.1f} % du plus haut 52 semaines")
+            if near_support and rsi < 40:
+                add(5, "au contact du plancher 52 semaines")
 
             # Bollinger squeeze pending breakout
-            if bb_squeeze and vol_spike:  score += 5
+            if bb_squeeze and vol_spike:
+                add(5, "compression des bandes de Bollinger")
 
-            score = max(0, min(100, int(score)))
+            score = max(0, min(100, int(50 + sum(p for p, _ in contrib))))
+
+            # Lead with what pushed the asset UP the ranking — that is the
+            # question the line answers. The single biggest drag is appended
+            # after a "mais" when it is material: an RSI of 92 on an otherwise
+            # strong setup is the one thing a ranking must not bury.
+            ups   = sorted((c for c in contrib if c[0] > 0), key=lambda c: -c[0])
+            downs = sorted((c for c in contrib if c[0] < 0), key=lambda c: c[0])
+            drag  = downs[0] if downs and abs(downs[0][0]) >= 8 else None
+            lead  = [w for _, w in ups[: (2 if drag else 3)]]
+            if not lead:
+                # Nothing positive at all — the drags ARE the explanation.
+                lead = [w for _, w in downs[:2]]
+                drag = None
+            reason = ", ".join(lead)
+            if drag:
+                reason += f" — mais {drag[1]}"
+            reason = (reason[:1].upper() + reason[1:] + ".") if reason else ""
 
             # ── Signal & trend label ───────────────────────
             if score >= 80:   signal = "STRONG BUY"
@@ -1526,6 +1581,7 @@ async def scan_market(
                 "volume_ratio": round(vol_ratio, 2),
                 "trend":        trend,
                 "opportunity":  opportunity,
+                "reason":       reason,
                 "opp_type":     opp_type,
                 "macd_signal":  "HAUSSIER" if macd_above else "BAISSIER",
                 "near_breakout": near_breakout,
@@ -1565,6 +1621,7 @@ async def scan_market(
             "daily_limit": new_quota["daily_limit"],
             "remaining":   new_quota["remaining"],
             "is_premium":  new_quota["is_premium"],
+            "next_reset":  new_quota.get("next_reset"),
         }
     }
 

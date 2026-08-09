@@ -778,6 +778,8 @@ export interface ScanResultItem {
   volume_ratio: number;
   trend: "HAUSSIER" | "BAISSIER" | "NEUTRE";
   opportunity: string;
+  /** Generated server-side from the score's own terms — see _build in scan_market. */
+  reason?: string;
   opp_type: "breakout" | "reversal" | "momentum";
   macd_signal: "HAUSSIER" | "BAISSIER";
   near_breakout: boolean;
@@ -789,6 +791,8 @@ export interface ScanQuota {
   daily_limit: number;
   remaining: number;
   is_premium: boolean;
+  /** ISO8601 next UTC midnight — only set once the quota is spent. */
+  next_reset?: string | null;
 }
 
 export interface ScanResult {
