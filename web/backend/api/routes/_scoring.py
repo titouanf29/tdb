@@ -403,3 +403,79 @@ def compute_score(high, low, close, volume, current_price=None):
         "volume_score": volume_score, "momentum_score": momentum_score,
         "volatility_score": volatility_score, "final_score": final_score,
     }
+
+
+# ── Shared verdict derivation ───────────────────────────────────────────────
+# The scanner and the analysis page must reach the SAME verdict on the same
+# asset — a scan that says "haussier" and an analysis that opens on a red
+# bearish panel destroys trust in both. These two helpers are the single
+# definition of that verdict; both screens call them.
+
+def derive_trend(current_price: float, ema20_last: float, ema50_last: float) -> str:
+    """BULLISH / BEARISH / NEUTRAL from EMA stacking."""
+    if current_price > ema20_last > ema50_last:
+        return "BULLISH"
+    if current_price < ema20_last < ema50_last:
+        return "BEARISH"
+    return "NEUTRAL"
+
+
+def derive_signal(final_score: float) -> str:
+    """STRONG BUY / BUY / HOLD / SELL / STRONG SELL from the final score."""
+    if final_score >= 75:
+        return "STRONG BUY"
+    if final_score >= 60:
+        return "BUY"
+    if final_score >= 40:
+        return "HOLD"
+    if final_score >= 25:
+        return "SELL"
+    return "STRONG SELL"
+
+
+# Frontend timeframe key -> (yfinance period, yfinance interval).
+# Shared so a scan pulls exactly the history the analysis will pull.
+TIMEFRAME_FETCH = {
+    "5m":  ("5d",  "5m"),   "15m": ("5d",  "15m"), "30m": ("10d", "30m"),
+    "1h":  ("1mo", "1h"),   "4h":  ("3mo", "4h"),  "1d":  ("6mo", "1d"),
+    "3d":  ("1y",  "1d"),   "1w":  ("2y",  "1wk"), "1mo": ("5y",  "1mo"),
+}
+
+
+# ── Higher-timeframe confirmation ───────────────────────────────────────────
+# A daily BUY inside a weekly downtrend is the classic trap, so the score is
+# pulled toward neutral when the higher timeframe disagrees. The scanner has to
+# apply the very same adjustment: an 8-point gap is enough to turn a scanner
+# "BUY" into an analysis "HOLD" on the same asset at the same moment.
+
+HIGHER_TF = {
+    "5m": ("1h", "1mo"),  "15m": ("1h", "1mo"), "30m": ("1d", "6mo"),
+    "1h": ("1d", "6mo"),  "4h":  ("1d", "6mo"), "1d":  ("1wk", "2y"),
+    "3d": ("1wk", "2y"),  "1w":  ("1mo", "5y"),
+}
+
+
+def htf_trend(htf_close) -> str:
+    """BULLISH / BEARISH / NEUTRAL of a higher-timeframe close series."""
+    hc = htf_close.dropna()
+    px  = float(hc.iloc[-1])
+    e20 = float(hc.ewm(span=20, adjust=False).mean().iloc[-1])
+    e50 = float(hc.ewm(span=50, adjust=False).mean().iloc[-1]) if len(hc) >= 50 else e20
+    if px > e20 and e20 >= e50:
+        return "BULLISH"
+    if px < e20 and e20 <= e50:
+        return "BEARISH"
+    return "NEUTRAL"
+
+
+def apply_htf_gate(final_score: float, trend: str, interval: str):
+    """Returns (adjusted_score, aligned, bullish_note, bearish_note)."""
+    if final_score >= 55 and trend == "BEARISH":
+        return max(0, final_score - 8), False, None, f"Non confirmé : tendance {interval} baissière"
+    if final_score <= 45 and trend == "BULLISH":
+        return min(100, final_score + 8), False, f"Non confirmé : tendance {interval} haussière", None
+    if trend == "BULLISH" and final_score >= 55:
+        return final_score, True, f"Confirmé par la tendance {interval} haussière", None
+    if trend == "BEARISH" and final_score <= 45:
+        return final_score, True, None, f"Confirmé par la tendance {interval} baissière"
+    return final_score, None, None, None

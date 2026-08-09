@@ -388,9 +388,11 @@ export const analysisAPI = {
       `/api/analysis/${symbol}/backtest?timeframe=${timeframe}&horizon=${horizon}`
     ),
 
-  scan: (marketKey: string, minScore = 60, limit = 20, oppType = "all") =>
+  // `timeframe` must be the one the analysis page will open on, otherwise the
+  // scanner scores an asset on one history and the analysis on another.
+  scan: (marketKey: string, minScore = 60, limit = 20, oppType = "all", timeframe = "1d") =>
     fetchAPI<ScanResult>(
-      `/api/analysis/scan/${marketKey}?min_score=${minScore}&limit=${limit}&opportunity_type=${oppType}`
+      `/api/analysis/scan/${marketKey}?min_score=${minScore}&limit=${limit}&opportunity_type=${oppType}&timeframe=${timeframe}`
     ),
 
   getScanLimit: () =>
@@ -797,8 +799,12 @@ export interface ScanQuota {
 
 export interface ScanResult {
   market: string;
+  /** Timeframe the scan actually ran on — matches the user's trading style. */
+  timeframe?: string;
   min_score: number;
   total_scanned: number;
+  /** Assets that returned usable data; below total_scanned when a ticker is dead. */
+  total_analyzed?: number;
   results: ScanResultItem[];
   quota?: ScanQuota;
 }

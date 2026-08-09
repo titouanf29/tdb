@@ -16,7 +16,9 @@ from .premium import is_user_premium, get_user_limits
 from ..database import execute_query, execute_write
 from ._prices import fetch_ohlcv, fetch_prices
 from ._indicators import rsi_wilder, atr_wilder, adx_wilder, true_range, data_confidence
-from ._scoring import compute_score
+from ._universe import EXTRA_CRYPTO, extend_market
+from ._scoring import (compute_score, derive_trend, derive_signal, TIMEFRAME_FETCH,
+                       HIGHER_TF, htf_trend, apply_htf_gate)
 from ._backtest import run_backtest
 
 router = APIRouter()
@@ -430,15 +432,8 @@ async def analyze_asset(
 
     try:
         # Get historical data
-        period_map = {
-            "5m":  "5d",  "15m": "5d",  "30m": "10d",
-            "1h":  "1mo", "4h":  "3mo", "1d":  "6mo",
-            "3d":  "1y",  "1w":  "2y",  "1mo": "5y",
-        }
-        # Map frontend timeframe keys to valid yfinance intervals
-        interval_map = {"3d": "1d", "1w": "1wk"}
-        actual_interval = interval_map.get(timeframe, timeframe)
-        hist = await fetch_ohlcv(symbol, period=period_map.get(timeframe, "1mo"), interval=actual_interval)
+        _period, actual_interval = TIMEFRAME_FETCH.get(timeframe, ("1mo", timeframe))
+        hist = await fetch_ohlcv(symbol, period=_period, interval=actual_interval)
 
         if hist.empty or len(hist) < 20:
             raise HTTPException(status_code=400, detail="Insufficient data for analysis")
@@ -508,74 +503,33 @@ async def analyze_asset(
         # A daily BUY inside a weekly downtrend (or the mirror case) is the
         # classic trap. The signal is pulled back toward neutral when the
         # higher timeframe disagrees, and credited when it confirms.
-        _HIGHER_TF = {
-            "5m": ("1h", "1mo"),  "15m": ("1h", "1mo"), "30m": ("1d", "6mo"),
-            "1h": ("1d", "6mo"),  "4h":  ("1d", "6mo"), "1d":  ("1wk", "2y"),
-            "3d": ("1wk", "2y"),  "1w":  ("1mo", "5y"),
-        }
         higher_tf_info = {"interval": None, "trend": "UNKNOWN", "aligned": None}
-        _htf = _HIGHER_TF.get(timeframe)
+        _htf = HIGHER_TF.get(timeframe)
         if _htf:
             try:
                 _htf_interval, _htf_period = _htf
                 _htf_hist = await fetch_ohlcv(symbol, period=_htf_period, interval=_htf_interval)
                 if _htf_hist is not None and len(_htf_hist) >= 21:
-                    _hc = _htf_hist["Close"].dropna()
-                    _h_px  = float(_hc.iloc[-1])
-                    _h_e20 = float(_hc.ewm(span=20, adjust=False).mean().iloc[-1])
-                    _h_e50 = float(_hc.ewm(span=50, adjust=False).mean().iloc[-1]) if len(_hc) >= 50 else _h_e20
-                    if _h_px > _h_e20 and _h_e20 >= _h_e50:
-                        _h_trend = "BULLISH"
-                    elif _h_px < _h_e20 and _h_e20 <= _h_e50:
-                        _h_trend = "BEARISH"
-                    else:
-                        _h_trend = "NEUTRAL"
-                    higher_tf_info = {"interval": _htf_interval, "trend": _h_trend, "aligned": None}
-                    if final_score >= 55 and _h_trend == "BEARISH":
-                        final_score = max(0, final_score - 8)
-                        higher_tf_info["aligned"] = False
-                        bearish_signals.append(f"Non confirmé : tendance {_htf_interval} baissière")
-                    elif final_score <= 45 and _h_trend == "BULLISH":
-                        final_score = min(100, final_score + 8)
-                        higher_tf_info["aligned"] = False
-                        bullish_signals.append(f"Non confirmé : tendance {_htf_interval} haussière")
-                    elif _h_trend == "BULLISH" and final_score >= 55:
-                        higher_tf_info["aligned"] = True
-                        bullish_signals.append(f"Confirmé par la tendance {_htf_interval} haussière")
-                    elif _h_trend == "BEARISH" and final_score <= 45:
-                        higher_tf_info["aligned"] = True
-                        bearish_signals.append(f"Confirmé par la tendance {_htf_interval} baissière")
+                    _h_trend = htf_trend(_htf_hist["Close"])
+                    final_score, _aligned, _bull_note, _bear_note = apply_htf_gate(
+                        final_score, _h_trend, _htf_interval)
+                    higher_tf_info = {"interval": _htf_interval, "trend": _h_trend, "aligned": _aligned}
+                    if _bull_note: bullish_signals.append(_bull_note)
+                    if _bear_note: bearish_signals.append(_bear_note)
             except Exception:
                 pass
 
-        # Determine trend (based on EMA alignment)
-        if current_price > float(ema20.iloc[-1]) > float(ema50.iloc[-1]):
-            trend = "BULLISH"
-        elif current_price < float(ema20.iloc[-1]) < float(ema50.iloc[-1]):
-            trend = "BEARISH"
-        else:
-            trend = "NEUTRAL"
+        # Determine trend (based on EMA alignment) — shared with the scanner
+        trend = derive_trend(current_price, float(ema20.iloc[-1]), float(ema50.iloc[-1]))
 
         # Support/Resistance levels
         recent_low = low.tail(20).min()
         recent_high = high.tail(20).max()
 
-        # Signal
-        if final_score >= 75:
-            signal_text = "STRONG BUY"
-            signal_emoji = "🔥"
-        elif final_score >= 60:
-            signal_text = "BUY"
-            signal_emoji = "🟢"
-        elif final_score >= 40:
-            signal_text = "HOLD"
-            signal_emoji = "🟡"
-        elif final_score >= 25:
-            signal_text = "SELL"
-            signal_emoji = "🟠"
-        else:
-            signal_text = "STRONG SELL"
-            signal_emoji = "🔴"
+        # Signal — shared thresholds with the scanner
+        signal_text = derive_signal(final_score)
+        signal_emoji = {"STRONG BUY": "🔥", "BUY": "🟢", "HOLD": "🟡",
+                        "SELL": "🟠", "STRONG SELL": "🔴"}[signal_text]
 
         # ── Direction- and structure-aware risk plan ───────────────────────
         # SELL setups get a short-side plan (SL above, TP below). Stops
@@ -1004,6 +958,7 @@ async def analyze_asset(
 
 
 ASSET_NAMES: dict[str, str] = {
+    **EXTRA_CRYPTO,
     # ── Indices ────────────────────────────────────────────────────────────
     "^FCHI": "CAC 40", "^GDAXI": "DAX 40", "^STOXX50E": "Euro Stoxx 50",
     "^FTSE": "FTSE 100", "^N225": "Nikkei 225", "^HSI": "Hang Seng",
@@ -1376,6 +1331,10 @@ async def scan_market(
     min_score: int = Query(default=60, ge=0, le=100),
     limit: int = Query(default=20, le=50),
     opportunity_type: str = Query(default="all"),
+    # Scanning on one timeframe and opening the analysis on another is the
+    # surest way to contradict yourself. The client sends the timeframe its
+    # trading style will land on.
+    timeframe: str = Query(default="1d", pattern="^(5m|15m|30m|1h|4h|1d|3d|1w|1mo)$"),
     current_user: dict = Depends(get_current_user),
 ):
     """Scan a market for opportunities — parallel, enriched scoring (RSI+MACD+EMA+Volume+Momentum)"""
@@ -1395,6 +1354,8 @@ async def scan_market(
             }
         )
 
+    fetch_period, fetch_interval = TIMEFRAME_FETCH.get(timeframe, ("6mo", "1d"))
+
     market_key = market_key.upper()
     if market_key == "ALL":
         # Union of every configured market, de-duplicated while keeping order.
@@ -1402,195 +1363,144 @@ async def scan_market(
         # so the "all" universe is derived here rather than added there.
         seen: set[str] = set()
         assets = [
-            s for m in MARKETS.values() for s in m["assets"]
+            s
+            for key, m in MARKETS.items()
+            for s in extend_market(key, list(m["assets"]))
             if not (s in seen or seen.add(s))
         ]
     elif market_key in MARKETS:
-        assets = MARKETS[market_key]["assets"]
+        assets = extend_market(market_key, list(MARKETS[market_key]["assets"]))
     else:
         raise HTTPException(status_code=404, detail="Market not found")
 
     async def _analyze(symbol: str):
+        """Score one asset with the SAME engine, on the SAME history, as the
+        analysis page the user lands on after clicking the row.
+
+        This used to be a private simplified scorer (RSI/MACD/EMA/volume only)
+        running on a fixed 3-month daily history, while the analysis page ran
+        compute_score() on the timeframe of the user's trading style, with its
+        own trend rule and its own signal thresholds. Four independent sources
+        of disagreement: the scanner could label an asset HAUSSIER and the
+        analysis open on a red bearish panel for the same asset, at the same
+        moment. Everything below now goes through the shared engine."""
         try:
-            hist = await fetch_ohlcv(symbol, period="3mo", interval="1d")
+            hist = await fetch_ohlcv(symbol, period=fetch_period, interval=fetch_interval)
             if hist is None or len(hist) < 20:
                 return None
 
-            close  = hist["Close"].astype(float)
-            high   = hist["High"].astype(float)
-            low    = hist["Low"].astype(float)
-            vol    = hist["Volume"].astype(float)
-            n      = len(close)
+            close = hist["Close"].astype(float)
+            high  = hist["High"].astype(float)
+            low   = hist["Low"].astype(float)
+            vol   = hist["Volume"].astype(float)
+            n     = len(close)
 
-            price    = float(close.iloc[-1])
+            price = float(close.iloc[-1])
+            _lp = live_px.get(symbol.upper())
+            if _lp and _lp.get("price"):
+                price = float(_lp["price"])
             if price <= 0:
                 return None
 
-            # ── Performance ────────────────────────────────
+            S = compute_score(high, low, close, vol, current_price=price)
+            final_score = S["final_score"]
+            ups   = list(S["bullish_signals"])
+            downs = list(S["bearish_signals"])
+
+            # Same higher-timeframe confirmation the analysis applies. Skipping
+            # it here would leave an 8-point gap — enough to show BUY in the
+            # scanner and HOLD on the analysis page for the same asset.
+            _htf = HIGHER_TF.get(timeframe)
+            if _htf:
+                try:
+                    _htf_interval, _htf_period = _htf
+                    _htf_hist = await fetch_ohlcv(symbol, period=_htf_period, interval=_htf_interval)
+                    if _htf_hist is not None and len(_htf_hist) >= 21:
+                        _h_trend = htf_trend(_htf_hist["Close"])
+                        final_score, _al, _bn, _rn = apply_htf_gate(final_score, _h_trend, _htf_interval)
+                        if _bn: ups.append(_bn)
+                        if _rn: downs.append(_rn)
+                except Exception:
+                    pass
+
+            score = int(round(final_score))
+            ema20_last = float(S["ema20"].iloc[-1])
+            ema50_last = float(S["ema50"].iloc[-1])
+            trend_en   = derive_trend(price, ema20_last, ema50_last)
+            signal     = derive_signal(final_score)
+
+            rsi        = float(S["current_rsi"])
+            vol_ratio  = float(S["volume_ratio"])
+            macd_above = float(S["macd"].iloc[-1]) > float(S["signal"].iloc[-1])
+            macd_cross = macd_above and float(S["macd"].iloc[-2]) <= float(S["signal"].iloc[-2])
+
+            # ── Performance over the fetched history ───────
             chg_1d = float((price - close.iloc[-2]) / close.iloc[-2] * 100) if n >= 2 else 0.0
             chg_1w = float((price - close.iloc[-5]) / close.iloc[-5] * 100) if n >= 5 else 0.0
             chg_1m = float((price - close.iloc[-22]) / close.iloc[-22] * 100) if n >= 22 else 0.0
 
-            # ── RSI — Wilder's smoothing, same engine as the full analysis ──
-            _rsi_last = rsi_wilder(close).iloc[-1]
-            rsi = float(_rsi_last) if not pd.isna(_rsi_last) else 50.0
+            # ── Structure ──────────────────────────────────
+            high_hist = float(high.max())
+            low_hist  = float(low.min())
+            near_breakout = (price / high_hist) >= 0.96 if high_hist > 0 else False
+            near_support  = (price / low_hist) <= 1.10 if low_hist > 0 else False
+            pct_from_high = (price - high_hist) / high_hist * 100 if high_hist > 0 else 0.0
 
-            # ── MACD ───────────────────────────────────────
-            ema12 = close.ewm(span=12, adjust=False).mean()
-            ema26 = close.ewm(span=26, adjust=False).mean()
-            macd  = ema12 - ema26
-            sig   = macd.ewm(span=9, adjust=False).mean()
-            macd_val    = float(macd.iloc[-1])
-            macd_above  = macd_val > float(sig.iloc[-1])
-            macd_cross  = macd_above and float(macd.iloc[-2]) <= float(sig.iloc[-2])  # fresh bull cross
-
-            # ── EMA trend ──────────────────────────────────
-            ema20  = float(close.ewm(span=20, adjust=False).mean().iloc[-1])
-            ema50  = float(close.ewm(span=50, adjust=False).mean().iloc[-1]) if n >= 50 else ema20
-            above_ema20 = price > ema20
-            above_ema50 = price > ema50
-
-            # ── Volume ─────────────────────────────────────
-            avg_vol   = float(vol.mean())
-            cur_vol   = float(vol.iloc[-1])
-            vol_ratio = cur_vol / avg_vol if avg_vol > 0 else 1.0
+            bb_up  = float(S["bb_upper"].iloc[-1])
+            bb_low = float(S["bb_lower"].iloc[-1])
+            bb_mid = float(S["bb_mid"].iloc[-1])
+            bb_squeeze = (bb_up - bb_low) / bb_mid * 100 < 5.0 if bb_mid else False
             vol_spike = vol_ratio > 1.8
 
-            # ── 52-week range ──────────────────────────────
-            high_52w = float(high.max())
-            low_52w  = float(low.min())
-            near_breakout  = (price / high_52w) >= 0.96   # within 4% of 52w high
-            near_support   = (price / low_52w) <= 1.10    # within 10% of 52w low
-            pct_from_high  = (price - high_52w) / high_52w * 100
-
-            # ── Bollinger Band ─────────────────────────────
-            bb_mid  = close.rolling(20).mean()
-            bb_std  = close.rolling(20).std()
-            bb_up   = float((bb_mid + 2 * bb_std).iloc[-1])
-            bb_low_ = float((bb_mid - 2 * bb_std).iloc[-1])
-            bb_pct  = float((price - bb_low_) / (bb_up - bb_low_) * 100) if bb_up != bb_low_ else 50.0
-            bb_squeeze = float((bb_up - bb_low_) / float(bb_mid.iloc[-1]) * 100) < 5.0
-
-            # ── Scoring ────────────────────────────────────
-            # Every term is recorded as (points, wording) so the ranking can
-            # explain itself from what actually moved the score, instead of a
-            # blurb written alongside it that could drift out of sync.
-            contrib: list[tuple[int, str]] = []
-
-            def add(points: int, wording: str) -> None:
-                if points:
-                    contrib.append((points, wording))
-
-            # RSI (max ±25)
-            if rsi < 25:        add(25,  f"RSI à {rsi:.0f}, survente marquée")
-            elif rsi < 32:      add(18,  f"RSI à {rsi:.0f}, sortie de zone de survente")
-            elif rsi < 40:      add(10,  f"RSI à {rsi:.0f}, bas de fourchette")
-            elif rsi > 78:      add(-22, f"RSI à {rsi:.0f}, surachat extrême")
-            elif rsi > 70:      add(-12, f"RSI à {rsi:.0f}, zone de surachat")
-            elif rsi > 60:      add(-5,  f"RSI à {rsi:.0f}, haut de fourchette")
-
-            # MACD (max +18)
-            if macd_cross:      add(18,  "croisement MACD haussier frais")
-            elif macd_above:    add(9,   "MACD au-dessus de sa ligne de signal")
-            else:               add(-8,  "MACD sous sa ligne de signal")
-
-            # EMA trend (max +12)
-            if above_ema20 and above_ema50:            add(12,  "prix au-dessus des EMA 20 et 50")
-            elif above_ema20:                          add(6,   "prix au-dessus de l'EMA 20")
-            elif not above_ema20 and not above_ema50:  add(-10, "prix sous les EMA 20 et 50")
-
-            # Volume (max +10)
-            if vol_spike:               add(10, f"volume à {vol_ratio:.1f}× la moyenne")
-            elif vol_ratio > 1.3:       add(5,  f"volume à {vol_ratio:.1f}× la moyenne")
-            elif vol_ratio < 0.6:       add(-5, f"volume en retrait ({vol_ratio:.1f}× la moyenne)")
-
-            # Momentum 1 week (max +10)
-            if chg_1w > 8:      add(10,  f"{chg_1w:+.1f} % sur la semaine")
-            elif chg_1w > 4:    add(6,   f"{chg_1w:+.1f} % sur la semaine")
-            elif chg_1w > 1.5:  add(3,   f"{chg_1w:+.1f} % sur la semaine")
-            elif chg_1w < -8:   add(-10, f"{chg_1w:+.1f} % sur la semaine")
-            elif chg_1w < -4:   add(-6,  f"{chg_1w:+.1f} % sur la semaine")
-
-            # Near breakout bonus / near support bounce bonus
-            if near_breakout and macd_above:
-                add(5, f"à {abs(pct_from_high):.1f} % du plus haut 52 semaines")
-            if near_support and rsi < 40:
-                add(5, "au contact du plancher 52 semaines")
-
-            # Bollinger squeeze pending breakout
-            if bb_squeeze and vol_spike:
-                add(5, "compression des bandes de Bollinger")
-
-            score = max(0, min(100, int(50 + sum(p for p, _ in contrib))))
-
-            # Lead with what pushed the asset UP the ranking — that is the
-            # question the line answers. The single biggest drag is appended
-            # after a "mais" when it is material: an RSI of 92 on an otherwise
-            # strong setup is the one thing a ranking must not bury.
-            ups   = sorted((c for c in contrib if c[0] > 0), key=lambda c: -c[0])
-            downs = sorted((c for c in contrib if c[0] < 0), key=lambda c: c[0])
-            drag  = downs[0] if downs and abs(downs[0][0]) >= 8 else None
-            lead  = [w for _, w in ups[: (2 if drag else 3)]]
-            if not lead:
-                # Nothing positive at all — the drags ARE the explanation.
-                lead = [w for _, w in downs[:2]]
-                drag = None
-            reason = ", ".join(lead)
-            if drag:
-                reason += f" — mais {drag[1]}"
-            reason = (reason[:1].upper() + reason[1:] + ".") if reason else ""
-
-            # ── Signal & trend label ───────────────────────
-            if score >= 80:   signal = "STRONG BUY"
-            elif score >= 65: signal = "BUY"
-            elif score >= 45: signal = "HOLD"
-            elif score >= 30: signal = "SELL"
-            else:             signal = "STRONG SELL"
-
-            if above_ema20 and above_ema50 and macd_above:    trend = "HAUSSIER"
-            elif not above_ema20 and not above_ema50:          trend = "BAISSIER"
-            else:                                               trend = "NEUTRE"
-
-            # ── Opportunity tags ───────────────────────────
+            # ── Opportunity tags (kept for the signal filter) ──
             tags = []
             opp_type = "momentum"
             if macd_cross:
-                tags.append("Croisement MACD")
-                opp_type = "breakout"
+                tags.append("Croisement MACD"); opp_type = "breakout"
             if rsi < 35:
-                tags.append(f"RSI survendu ({rsi:.0f})")
-                opp_type = "reversal"
+                tags.append(f"RSI survendu ({rsi:.0f})"); opp_type = "reversal"
             if vol_spike:
                 tags.append(f"Vol. x{vol_ratio:.1f}")
             if near_breakout:
-                tags.append("Proche 52w high")
-                opp_type = "breakout"
+                tags.append("Proche du plus haut"); opp_type = "breakout"
             if bb_squeeze:
-                tags.append("Squeeze BB")
-                opp_type = "breakout"
+                tags.append("Squeeze BB"); opp_type = "breakout"
             if chg_1w > 5 and not tags:
                 tags.append(f"+{chg_1w:.1f}% / semaine")
             if near_support and rsi < 40:
-                tags.append("Rebond support")
-                opp_type = "reversal"
+                tags.append("Rebond support"); opp_type = "reversal"
             opportunity = " · ".join(tags[:2]) if tags else "Momentum"
 
+            # ── Why this asset ranks here ──────────────────
+            # Built from the very conviction signals the analysis page prints,
+            # so the scanner and the analysis describe the asset in the same
+            # words. Leading drivers first, main drag after a "mais".
+            lead  = ups[:2] if downs else ups[:3]
+            if not lead:
+                lead, downs = downs[:2], []
+            reason = ", ".join(lead)
+            if downs and lead:
+                reason += f" — mais {downs[0].lower()}"
+            reason = (reason[:1].upper() + reason[1:] + ".") if reason else ""
+
             return {
-                "symbol":       symbol,
-                "name":         ASSET_NAMES.get(symbol, symbol),
-                "price":        round(price, 4),
-                "change":       round(chg_1d, 2),
-                "change_1w":    round(chg_1w, 2),
-                "change_1m":    round(chg_1m, 2),
-                "score":        score,
-                "signal":       signal,
-                "rsi":          round(rsi, 1),
-                "volume_ratio": round(vol_ratio, 2),
-                "trend":        trend,
-                "opportunity":  opportunity,
-                "reason":       reason,
-                "opp_type":     opp_type,
-                "macd_signal":  "HAUSSIER" if macd_above else "BAISSIER",
+                "symbol":        symbol,
+                "name":          ASSET_NAMES.get(symbol, symbol),
+                "price":         round(price, 4),
+                "change":        round(chg_1d, 2),
+                "change_1w":     round(chg_1w, 2),
+                "change_1m":     round(chg_1m, 2),
+                "score":         score,
+                "signal":        signal,
+                "rsi":           round(rsi, 1),
+                "volume_ratio":  round(vol_ratio, 2),
+                # French labels are what the table renders; the shared helper
+                # speaks the analysis page's language.
+                "trend":         {"BULLISH": "HAUSSIER", "BEARISH": "BAISSIER"}.get(trend_en, "NEUTRE"),
+                "opportunity":   opportunity,
+                "reason":        reason,
+                "opp_type":      opp_type,
+                "macd_signal":   "HAUSSIER" if macd_above else "BAISSIER",
                 "near_breakout": near_breakout,
                 "pct_from_high": round(pct_from_high, 1),
             }
@@ -1603,6 +1513,16 @@ async def scan_market(
     # the whole shared I/O pool — the rest of the site stalled for the duration
     # of a scan. The cap stays below the pool size so interactive requests keep
     # threads available while a scan runs.
+    # The analysis page overrides the last close with a live price. Without the
+    # same override the scanner can place an asset on the wrong side of an EMA
+    # and label it HAUSSIER while the analysis says NEUTRE. fetch_prices is
+    # batched, so this is one request for the whole universe.
+    live_px: dict = {}
+    try:
+        live_px = await fetch_prices(assets) or {}
+    except Exception:
+        live_px = {}
+
     gate = asyncio.Semaphore(_SCAN_CONCURRENCY)
 
     async def _analyze_gated(symbol: str):
@@ -1611,7 +1531,8 @@ async def scan_market(
 
     all_results = await asyncio.gather(*[_analyze_gated(s) for s in assets])
 
-    results = [r for r in all_results if r is not None and r["score"] >= min_score]
+    analyzed = [r for r in all_results if r is not None]
+    results = [r for r in analyzed if r["score"] >= min_score]
 
     # Filter by opportunity type if requested
     if opportunity_type != "all":
@@ -1626,8 +1547,12 @@ async def scan_market(
 
     return {
         "market":         market_key,
+        "timeframe":      timeframe,
         "min_score":      min_score,
         "total_scanned":  len(assets),
+        # Requested vs actually priced. A gap means some tickers returned no
+        # data — better surfaced than silently shrinking the universe.
+        "total_analyzed": len(analyzed),
         "results":        results[:limit],
         "quota": {
             "scans_today": new_quota["scans_today"],

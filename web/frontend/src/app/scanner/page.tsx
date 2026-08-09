@@ -32,6 +32,8 @@ import { useFormatPrice } from "@/lib/SettingsContext";
 import { useLanguage } from "@/lib/LanguageContext";
 import { HelpGuide } from "@/components/ui/HelpGuide";
 import { isMarketOpen } from "@/lib/marketStatus";
+import { getStyle } from "@/lib/tradingStyle";
+import { useSettings } from "@/lib/SettingsContext";
 
 type SortKey = "score" | "change" | "change_1w" | "rsi" | "volume_ratio";
 type OppFilter = "all" | "breakout" | "reversal" | "momentum";
@@ -118,6 +120,10 @@ export default function ScannerPage() {
   const router = useRouter();
   const formatPrice = useFormatPrice();
   const { t, lang } = useLanguage();
+  // The scan runs on the timeframe the analysis page will open on, so a row
+  // labelled "haussier" cannot lead to a bearish analysis of the same asset.
+  const { settings } = useSettings();
+  const style = getStyle(settings.tradingStyle);
 
   const OPP_LABELS: Record<OppFilter, string> = {
     all:      t("scanner_filter_all"),
@@ -135,6 +141,7 @@ export default function ScannerPage() {
   const [oppFilter, setOppFilter] = useState<OppFilter>("all");
   const [results, setResults] = useState<ScanResultItem[]>([]);
   const [totalScanned, setTotalScanned] = useState(0);
+  const [totalAnalyzed, setTotalAnalyzed] = useState(0);
   const [quota, setQuota] = useState<ScanQuota | null>(null);
   const [isScanning, setIsScanning] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -161,9 +168,10 @@ export default function ScannerPage() {
     if (quota && !quota.is_premium && quota.remaining <= 0) return;
     setIsScanning(true);
     try {
-      const data = await analysisAPI.scan(selectedMarket, minScore, 40, oppFilter);
+      const data = await analysisAPI.scan(selectedMarket, minScore, 40, oppFilter, style.defaultTimeframe);
       setResults(data.results);
       setTotalScanned(data.total_scanned ?? 0);
+      setTotalAnalyzed(data.total_analyzed ?? data.total_scanned ?? 0);
       if (data.quota) setQuota(data.quota);
       missionsAPI.recordAction("scanner_run").catch(() => {});
     } catch (err: unknown) {
@@ -258,7 +266,17 @@ export default function ScannerPage() {
                 <p className="text-muted-foreground text-sm">
                   {t("scanner_subtitle")}
                   {totalScanned > 0 && (
-                    <span className="ml-2 text-primary font-semibold">{totalScanned} {t("scanner_scanned")}</span>
+                    <>
+                      <span className="ml-2 text-primary font-semibold">{totalScanned} {t("scanner_scanned")}</span>
+                      <span className="ml-2 font-mono text-[11px] text-muted-foreground/70">
+                        {style.emoji} {style.label[lang]} · {style.defaultTimeframe}
+                      </span>
+                      {totalAnalyzed > 0 && totalAnalyzed < totalScanned && (
+                        <span className="ml-2 font-mono text-[11px] text-warning" title={lang === "en" ? "Some tickers returned no data" : "Certains symboles n'ont retourné aucune donnée"}>
+                          {totalScanned - totalAnalyzed} {lang === "en" ? "unavailable" : "indisponibles"}
+                        </span>
+                      )}
+                    </>
                   )}
                 </p>
               </div>
@@ -715,7 +733,8 @@ export default function ScannerPage() {
                       {r.opportunity}
                     </span>
                     <span className={cn("text-xs font-semibold", r.change >= 0 ? "text-emerald-400" : "text-rose-400")}>
-                      {r.change >= 0 ? "+" : ""}{formatPercent(r.change)}
+                      {/* formatPercent already carries the sign */}
+                      {formatPercent(r.change)}
                     </span>
                   </div>
                 </motion.div>
