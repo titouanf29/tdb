@@ -43,6 +43,7 @@ import { SaveState } from "@/components/settings/SaveState";
 import { useSaveStatus } from "@/components/settings/useSaveStatus";
 import { ChangePasswordModal } from "@/components/settings/ChangePasswordModal";
 import { ConfirmDialog } from "@/components/settings/ConfirmDialog";
+import { TRADING_STYLES, type TradingStyleId } from "@/lib/tradingStyle";
 
 type TabId = "account" | "trading" | "display" | "alerts" | "security";
 const TAB_IDS: TabId[] = ["account", "trading", "display", "alerts", "security"];
@@ -387,11 +388,15 @@ function AccountTab({
 //  2 · TRADING
 // ─────────────────────────────────────────────────────────────────────────────
 
-const STYLE_META: { id: string; emoji: string; label: TranslationKey; desc: TranslationKey; horizon: TranslationKey }[] = [
-  { id: "scalp", emoji: "⚡", label: "settings_style_scalp", desc: "settings_style_scalp_desc", horizon: "settings_horizon_scalp" },
-  { id: "day",   emoji: "📈", label: "settings_style_day",   desc: "settings_style_day_desc",   horizon: "settings_horizon_day" },
-  { id: "swing", emoji: "🔄", label: "settings_style_swing", desc: "settings_style_swing_desc", horizon: "settings_horizon_swing" },
-  { id: "long",  emoji: "🏦", label: "settings_style_long",  desc: "settings_style_long_desc",  horizon: "settings_horizon_long" },
+// Label, emoji and horizon come from the shared module — this screen used to
+// carry its own copies (and its own horizons: "1 – 30 min", "Quelques heures"),
+// which disagreed with what every other screen showed for the same profile.
+// Only the longer description stays in the translation table.
+const STYLE_META: { id: TradingStyleId; desc: TranslationKey }[] = [
+  { id: "scalp", desc: "settings_style_scalp_desc" },
+  { id: "day",   desc: "settings_style_day_desc" },
+  { id: "swing", desc: "settings_style_swing_desc" },
+  { id: "long",  desc: "settings_style_long_desc" },
 ];
 
 const RISK_META: { id: string; emoji: string; label: TranslationKey; desc: TranslationKey }[] = [
@@ -402,7 +407,7 @@ const RISK_META: { id: string; emoji: string; label: TranslationKey; desc: Trans
 ];
 
 function TradingTab() {
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
   const { settings, isLoaded, saveSettings } = useSettings();
 
   const style = useSaveStatus();
@@ -415,9 +420,10 @@ function TradingTab() {
 
   if (!isLoaded) return <div className="space-y-6"><h2 className="text-lg font-semibold font-display">{t("settings_trading_title")}</h2><TabLoading /></div>;
 
-  const styleOptions: OptionCard[] = STYLE_META.map((s) => ({
-    id: s.id, label: t(s.label), description: t(s.desc), emoji: s.emoji, badge: t(s.horizon),
-  }));
+  const styleOptions: OptionCard[] = STYLE_META.map((s) => {
+    const p = TRADING_STYLES[s.id];
+    return { id: s.id, label: p.label[lang], description: t(s.desc), emoji: p.emoji, badge: p.horizon[lang] };
+  });
   const riskOptions: OptionCard[] = RISK_META.map((r) => ({
     id: r.id, label: t(r.label), description: t(r.desc), emoji: r.emoji,
   }));
@@ -453,10 +459,11 @@ function TradingTab() {
           <div className="mt-1 p-3 rounded-xl bg-primary/5 border border-primary/20 text-xs text-primary/80 space-y-1">
             <p>
               <span className="font-semibold">
-                {activeStyle.emoji} {t(activeStyle.label)} {t("settings_style_active_suffix")}
+                {TRADING_STYLES[activeStyle.id].emoji} {TRADING_STYLES[activeStyle.id].label[lang]}{" "}
+                {t("settings_style_active_suffix")}
               </span>
               {" — "}
-              {t("settings_style_ai_text").replace("{horizon}", t(activeStyle.horizon))}
+              {t("settings_style_ai_text").replace("{horizon}", TRADING_STYLES[activeStyle.id].horizon[lang])}
             </p>
             <p className="text-muted-foreground">{t("settings_style_scope")}</p>
           </div>

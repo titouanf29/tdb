@@ -915,11 +915,11 @@ const STYLE_CONFIG: Record<TradingStyle, {
   },
   long: {
     labelFr: "Long Terme", labelEn: "Long Term", icon: "🏗️",
-    descFr: "Semaines / mois", descEn: "Weeks / months",
-    ctxFr: "Style: LONG TERME — Investissement semaines/mois. Tendances macro, politique Fed et banques centrales, inflation structurelle, niveaux stratégiques, DCA. Ignore le bruit court terme.",
-    ctxEn: "Style: LONG TERM — Weeks/months investing. Macro trends, Fed and central bank policy, structural inflation, strategic levels, DCA. Ignore short-term noise.",
-    suggestedFr: ["Tendance long terme de l'or ?", "Impact politique Fed sur 6 mois ?", "Niveaux d'accumulation stratégiques ?", "Or vs inflation long terme ?"],
-    suggestedEn: ["Long-term gold trend?", "Fed policy impact over 6 months?", "Strategic accumulation levels?", "Gold vs long-term inflation?"],
+    descFr: "Plusieurs années", descEn: "Multiple years",
+    ctxFr: "Style: LONG TERME — Investissement sur plusieurs années. Tendances macro pluriannuelles, cycles de politique monétaire, inflation structurelle, niveaux stratégiques, DCA. Ignore le bruit court terme ET les fluctuations trimestrielles.",
+    ctxEn: "Style: LONG TERM — Multi-year investing. Multi-year macro trends, monetary policy cycles, structural inflation, strategic levels, DCA. Ignore short-term noise AND quarterly swings.",
+    suggestedFr: ["Tendance pluriannuelle de l'or ?", "Impact des cycles Fed sur 5 ans ?", "Niveaux d'accumulation stratégiques ?", "Or vs inflation sur 10 ans ?"],
+    suggestedEn: ["Multi-year gold trend?", "Fed cycle impact over 5 years?", "Strategic accumulation levels?", "Gold vs inflation over 10 years?"],
     activeClass: "border-neon-purple/40 bg-neon-purple/10 text-neon-purple",
     dotClass: "bg-neon-purple",
   },
@@ -976,7 +976,7 @@ function PersonalizedAnalysis({
     scalping: { sl: 0.5, tp: 0.9 },
     day:      { sl: 1.0, tp: 1.8 },
     swing:    { sl: 1.8, tp: 3.5 },
-    long:     { sl: 3.0, tp: 6.0 },
+    long:     { sl: 4.0, tp: 8.0 },   // multi-year: an ATR-tight stop is noise
   };
   const aggMod = 0.6 + (aggression - 1) * 0.2;
   const slDist = atr * mults[tradingStyle].sl * aggMod;
@@ -1013,7 +1013,7 @@ function PersonalizedAnalysis({
     scalping: lang === "fr" ? "Court terme · 1h" : "Short-term · 1h",
     day:      lang === "fr" ? "Journalier · 4h"  : "Daily · 4h",
     swing:    lang === "fr" ? "Swing · 1J"       : "Swing · 1D",
-    long:     lang === "fr" ? "Long terme · 1S"  : "Long-term · 1W",
+    long:     lang === "fr" ? "Long terme · 1M"  : "Long-term · 1Mo",
   };
 
   return (
@@ -1508,7 +1508,7 @@ export default function GoldPage() {
   }, []);
 
   // ── Global trading profile (persisted on the account) ─────────────────────
-  const STYLE_TF_MAP: Record<TradingStyle, string> = { scalping: "1h", day: "4h", swing: "1d", long: "1w" };
+  const STYLE_TF_MAP: Record<TradingStyle, string> = { scalping: "1h", day: "4h", swing: "1d", long: "1mo" };
 
   // This page used to keep its style in its own `gold_style` localStorage key,
   // so picking "Scalping" in Settings left the Gold Hub on Day Trading. One
