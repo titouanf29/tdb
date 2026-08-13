@@ -18,7 +18,7 @@ from ._prices import fetch_ohlcv, fetch_prices
 from ._indicators import rsi_wilder, atr_wilder, adx_wilder, true_range, data_confidence
 from ._universe import EXTRA_CRYPTO, extend_market
 from ._scoring import (compute_score, derive_trend, derive_signal, TIMEFRAME_FETCH,
-                       HIGHER_TF, htf_trend, apply_htf_gate)
+                       HIGHER_TF, htf_trend, apply_htf_gate, resample_ohlcv)
 from ._backtest import run_backtest
 
 router = APIRouter()
@@ -432,8 +432,10 @@ async def analyze_asset(
 
     try:
         # Get historical data
-        _period, actual_interval = TIMEFRAME_FETCH.get(timeframe, ("1mo", timeframe))
+        _period, actual_interval, _resample = TIMEFRAME_FETCH.get(timeframe, ("2y", "1d", None))
         hist = await fetch_ohlcv(symbol, period=_period, interval=actual_interval)
+        if _resample:
+            hist = resample_ohlcv(hist, _resample)
 
         if hist.empty or len(hist) < 20:
             raise HTTPException(status_code=400, detail="Insufficient data for analysis")
@@ -523,8 +525,13 @@ async def analyze_asset(
         trend = derive_trend(current_price, float(ema20.iloc[-1]), float(ema50.iloc[-1]))
 
         # Support/Resistance levels
-        recent_low = low.tail(20).min()
-        recent_high = high.tail(20).max()
+        # 20 bars of the DISPLAYED timeframe: 20 days on a daily chart, but
+        # 20 months on a monthly one. The window is reported alongside the
+        # levels so a support 20% below the price is read as the multi-year
+        # floor it is, not as an intraday level.
+        _levels_window = 20
+        recent_low = low.tail(_levels_window).min()
+        recent_high = high.tail(_levels_window).max()
 
         # Signal — shared thresholds with the scanner
         signal_text = derive_signal(final_score)
@@ -928,6 +935,8 @@ async def analyze_asset(
                 "support":    _safe(recent_low, None, 2),
                 "resistance": _safe(recent_high, None, 2),
                 "pivot":      _safe((recent_high + recent_low + current_price) / 3, None, 2),
+                "window_bars":    _levels_window,
+                "window_interval": timeframe,
             },
             "risk": risk_block,
             "fundamentals": fundamentals,
@@ -1354,7 +1363,7 @@ async def scan_market(
             }
         )
 
-    fetch_period, fetch_interval = TIMEFRAME_FETCH.get(timeframe, ("6mo", "1d"))
+    fetch_period, fetch_interval, fetch_resample = TIMEFRAME_FETCH.get(timeframe, ("2y", "1d", None))
 
     market_key = market_key.upper()
     if market_key == "ALL":
@@ -1386,6 +1395,8 @@ async def scan_market(
         moment. Everything below now goes through the shared engine."""
         try:
             hist = await fetch_ohlcv(symbol, period=fetch_period, interval=fetch_interval)
+            if fetch_resample:
+                hist = resample_ohlcv(hist, fetch_resample)
             if hist is None or len(hist) < 20:
                 return None
 

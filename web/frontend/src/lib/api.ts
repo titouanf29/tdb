@@ -676,6 +676,10 @@ export interface Analysis {
     support: number;
     resistance: number;
     pivot: number;
+    /** How the levels were measured: N bars of this interval. On a monthly
+     *  chart 20 bars is 20 months, which the labels must say. */
+    window_bars?: number;
+    window_interval?: string;
   };
   risk: {
     suggested_sl: number;

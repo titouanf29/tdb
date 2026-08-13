@@ -1293,6 +1293,7 @@ export default function AnalysisPage() {
               <IndicatorCard
                 name="EMA 20"
                 value={formatCurrency(analysis.indicators.ema.ema20)}
+                sub={emaSub(analysis.price.current, analysis.indicators.ema.ema20, lang)}
                 signal={analysis.price.current > analysis.indicators.ema.ema20 ? "bullish" : "bearish"}
                 detail={{
                   description: "L'EMA 20 (Moyenne Mobile Exponentielle sur 20 périodes) suit la tendance de court terme. Elle réagit plus vite aux prix récents qu'une SMA classique.",
@@ -1304,6 +1305,7 @@ export default function AnalysisPage() {
               <IndicatorCard
                 name="EMA 50"
                 value={formatCurrency(analysis.indicators.ema.ema50)}
+                sub={emaSub(analysis.price.current, analysis.indicators.ema.ema50, lang)}
                 signal={analysis.price.current > analysis.indicators.ema.ema50 ? "bullish" : "bearish"}
                 detail={{
                   description: "L'EMA 50 représente la tendance de moyen terme (environ 2,5 mois). C'est une référence majeure pour les traders institutionnels et les algorithmes.",
@@ -1316,6 +1318,7 @@ export default function AnalysisPage() {
                 <IndicatorCard
                   name="EMA 200"
                   value={formatCurrency(analysis.indicators.ema.ema200)}
+                  sub={emaSub(analysis.price.current, analysis.indicators.ema.ema200, lang)}
                   signal={analysis.price.current > analysis.indicators.ema.ema200 ? "bullish" : "bearish"}
                   detail={{
                     description: "L'EMA 200 est l'indicateur de tendance long terme par excellence. Elle sépare les marchés haussiers des marchés baissiers structurels. Les grands fonds gèrent leurs positions autour de cette ligne.",
@@ -1797,15 +1800,38 @@ function ScoreBar({ label, score }: { label: string; score: number }) {
   );
 }
 
+/** "6,8 % en dessous" — the one fact that turns an EMA number into a verdict. */
+function emaSub(price: number, ema: number | null | undefined, lang: "fr" | "en"): string | undefined {
+  if (!ema) return undefined;
+  const pct = ((price - ema) / ema) * 100;
+  // Below 0.05% the printed figure rounds to "0.0 %", and pairing that with
+  // "Baissier" reads as a contradiction. Say the price is sitting on the line.
+  if (Math.abs(pct) < 0.05) return lang === "en" ? "price on the line" : "prix sur la ligne";
+  // The side must be decided by the same comparison that sets the card's
+  // signal (price > ema), never by the sign of a rounded percentage.
+  const above = price > ema;
+  const side = above
+    ? (lang === "en" ? "above" : "au-dessus")
+    : (lang === "en" ? "below" : "en dessous");
+  return lang === "en"
+    ? `price ${Math.abs(pct).toFixed(1)}% ${side}`
+    : `prix ${Math.abs(pct).toFixed(1)} % ${side}`;
+}
+
 function IndicatorCard({
   name,
   value,
+  sub,
   signal,
   tooltip,
   detail,
 }: {
   name: string;
   value: string;
+  /** Why this value is bullish or bearish, in one glance — an EMA printed as
+   *  "114,30 €" reads like a target unless the card says where the price
+   *  sits relative to it. */
+  sub?: string;
   signal: "bullish" | "bearish" | "neutral" | "oversold" | "overbought";
   tooltip?: string;
   detail?: {
@@ -1872,6 +1898,7 @@ function IndicatorCard({
         <p className="font-bold text-lg">{value}</p>
         <p className={cn("text-xs font-semibold mt-1", signalLabel[normalizedSignal].color)}>
           {signal === "oversold" ? t("analysis_oversold") : signal === "overbought" ? t("analysis_overbought") : signalLabel[normalizedSignal].text}
+          {sub && <span className="font-normal text-muted-foreground"> · {sub}</span>}
         </p>
         {!detail && tooltip && <p className="text-xs text-muted-foreground mt-1 line-clamp-2 leading-tight">{tooltip}</p>}
       </div>
@@ -2386,6 +2413,7 @@ function AssetHeader({
   toggleFavorite: () => void;
   formatCurrency: (value: number) => string;
 }) {
+  const { lang } = useLanguage();
   const assetInfo = getAssetInfo(analysis.symbol);
   const logoUrl = getAssetLogo(analysis.symbol);
 
@@ -2475,6 +2503,15 @@ function AssetHeader({
         </div>
 
         {/* Stats strip */}
+        {analysis.levels.window_bars && (
+          <p className="mt-4 -mb-2 text-center font-mono text-[10px] text-muted-foreground/60">
+            {/* A support 20% under the price is a multi-year floor, not an
+                intraday level — say over what window it was measured. */}
+            {lang === "en"
+              ? `Levels measured over the last ${analysis.levels.window_bars} ${analysis.levels.window_interval} bars`
+              : `Niveaux mesurés sur les ${analysis.levels.window_bars} dernières bougies ${analysis.levels.window_interval}`}
+          </p>
+        )}
         <div className="mt-4 pt-4 border-t border-white/8 grid grid-cols-2 sm:grid-cols-4 gap-3">
           <div className="text-center">
             <p className="text-[10px] text-muted-foreground/70 uppercase tracking-wide mb-0.5">Support</p>

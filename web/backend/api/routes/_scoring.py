@@ -433,13 +433,40 @@ def derive_signal(final_score: float) -> str:
     return "STRONG SELL"
 
 
-# Frontend timeframe key -> (yfinance period, yfinance interval).
+# Frontend timeframe key -> (yfinance period, yfinance interval, resample rule).
 # Shared so a scan pulls exactly the history the analysis will pull.
+#
+# Two things this table fixes:
+#   * "4h" and "3d" are NOT Yahoo intervals (valid ones are 1m/2m/5m/15m/30m/
+#     60m/90m/1h/1d/5d/1wk/1mo/3mo). "4h" was passed through verbatim and came
+#     back empty, so the 4-hour analysis failed outright; "3d" silently served
+#     daily bars. Both are now built by resampling a finer interval.
+#   * Every period is long enough to reach 200+ bars. The old table asked for
+#     6 months of daily (126 bars) and 5 years of monthly (60 bars), so EMA200
+#     — the backbone of the trend score and the long-term profile's headline
+#     indicator — could never be computed, and data confidence sat at 33-57%.
 TIMEFRAME_FETCH = {
-    "5m":  ("5d",  "5m"),   "15m": ("5d",  "15m"), "30m": ("10d", "30m"),
-    "1h":  ("1mo", "1h"),   "4h":  ("3mo", "4h"),  "1d":  ("6mo", "1d"),
-    "3d":  ("1y",  "1d"),   "1w":  ("2y",  "1wk"), "1mo": ("5y",  "1mo"),
+    "5m":  ("1mo", "5m",  None),
+    "15m": ("1mo", "15m", None),
+    "30m": ("2mo", "30m", None),
+    "1h":  ("6mo", "1h",  None),
+    "4h":  ("1y",  "1h",  "4h"),
+    "1d":  ("2y",  "1d",  None),
+    "3d":  ("5y",  "1d",  "3D"),
+    "1w":  ("10y", "1wk", None),
+    "1mo": ("max", "1mo", None),
 }
+
+
+def resample_ohlcv(df, rule: str):
+    """Aggregate OHLCV bars into a coarser interval Yahoo does not serve."""
+    if df is None or df.empty:
+        return df
+    out = df.resample(rule).agg({
+        "Open": "first", "High": "max", "Low": "min",
+        "Close": "last", "Volume": "sum",
+    }).dropna(subset=["Close"])
+    return out
 
 
 # ── Higher-timeframe confirmation ───────────────────────────────────────────
