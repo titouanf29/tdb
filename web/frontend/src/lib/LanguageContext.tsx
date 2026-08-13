@@ -196,7 +196,7 @@ const translations = {
     // ── Settings · affichage ──────────────────────────────────────────────
     settings_display_title: "Affichage",
     settings_currency_desc: "Devise d'affichage de tous les montants.",
-    settings_currency_rate_note: "Conversion indicative à taux fixe. Les soldes et P&L sont stockés en dollars.",
+    settings_currency_rate_note: "Conversion au taux EUR/USD du marché, actualisé automatiquement. Les soldes et P&L sont stockés en dollars.",
     settings_currency_eur: "Euro",
     settings_currency_usd: "Dollar US",
     settings_accent_blue: "Or",
@@ -1348,7 +1348,7 @@ const translations = {
     // ── Settings · display ────────────────────────────────────────────────
     settings_display_title: "Display",
     settings_currency_desc: "Display currency for all amounts.",
-    settings_currency_rate_note: "Indicative conversion at a fixed rate. Balances and P&L are stored in US dollars.",
+    settings_currency_rate_note: "Converted at the live EUR/USD market rate, refreshed automatically. Balances and P&L are stored in US dollars.",
     settings_currency_eur: "Euro",
     settings_currency_usd: "US Dollar",
     settings_accent_blue: "Gold",

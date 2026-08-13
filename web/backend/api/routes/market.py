@@ -1,6 +1,7 @@
 """
 Market data routes
 """
+import logging
 import re
 import sys
 import httpx
@@ -10,6 +11,8 @@ from fastapi import APIRouter, HTTPException, Query, Depends, Request
 from pydantic import BaseModel
 from slowapi import Limiter
 from slowapi.util import get_remote_address
+
+logger = logging.getLogger(__name__)
 
 from config import MARKETS
 
@@ -488,6 +491,53 @@ async def get_prices(symbols: str = Query(..., description="Comma-separated symb
 
     prices = await fetch_prices(raw)
     return {"prices": prices}
+
+
+# ── FX ───────────────────────────────────────────────────────────────────────
+# Declared BEFORE the catch-all "/{market_key}": Starlette matches in
+# declaration order, so a literal route placed after it is unreachable.
+
+_FX_CACHE: dict = {"rate": None, "ts": 0.0, "source": "fallback"}
+_FX_TTL = 900.0          # 15 min — display conversion, not a trading rate
+EUR_USD_FALLBACK = 1.09  # only used until the first successful fetch
+
+
+@router.get("/fx")
+async def get_fx_rates():
+    """Live EUR/USD used to display USD-quoted assets in euros.
+
+    This was a constant hard-coded in the frontend. Every USD price — crypto,
+    US stocks, indices — was therefore converted with a rate that drifts a
+    little more every month, and the error lands entirely on the displayed
+    price: at 1.09 against a real 1.154, Bitcoin showed ~5.9% above its
+    actual euro value while the dollar price was perfectly correct.
+    """
+    import time as _time
+    from ._prices import fetch_prices
+
+    now = _time.monotonic()
+    if _FX_CACHE["rate"] and now - _FX_CACHE["ts"] < _FX_TTL:
+        return {"EURUSD": _FX_CACHE["rate"], "source": _FX_CACHE["source"], "cached": True}
+
+    rate, source = None, "fallback"
+    try:
+        quotes = await fetch_prices(["EURUSD=X"])
+        q = quotes.get("EURUSD=X") or {}
+        px = float(q.get("price") or 0)
+        # Sanity band: EUR/USD has never been outside it in the euro's history.
+        # A bad parse must fall back rather than distort every price on screen.
+        if 0.7 < px < 1.7:
+            rate, source = round(px, 4), "live"
+    except Exception as exc:
+        logger.warning("fx fetch failed: %s", exc)
+
+    if rate is None:
+        rate = _FX_CACHE["rate"] or EUR_USD_FALLBACK
+        source = _FX_CACHE["source"] if _FX_CACHE["rate"] else "fallback"
+    else:
+        _FX_CACHE.update({"rate": rate, "ts": now, "source": source})
+
+    return {"EURUSD": rate, "source": source, "cached": False}
 
 
 @router.get("/{market_key}")

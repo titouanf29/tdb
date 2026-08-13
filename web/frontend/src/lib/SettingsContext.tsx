@@ -71,6 +71,8 @@ interface SettingsContextType {
   setAccentColor: (color: AccentColor) => void;
   setRecapFrequency: (f: RecapFrequency) => void;
   updateSettings: (updates: Partial<Settings>) => void;
+  /** Live EUR/USD used to display USD-quoted assets in euros. */
+  eurUsd: number;
 }
 
 const defaultSettings: Settings = {
@@ -87,6 +89,7 @@ const defaultSettings: Settings = {
 const SettingsContext = createContext<SettingsContextType | null>(null);
 
 const STORAGE_KEY = "tdb_settings";
+const FX_KEY = "tdb_eurusd";
 
 function pick<T extends string>(value: unknown, allowed: readonly T[], fallback: T): T {
   return typeof value === "string" && (allowed as readonly string[]).includes(value)
@@ -158,6 +161,33 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   const { hydrateLang } = useLanguage();
 
   const [settings, setSettings] = useState<Settings>(readCache);
+
+  // FX for display. Seeded from the last known rate so the first paint is not
+  // off by several percent, then refreshed from the server.
+  const [eurUsd, setEurUsd] = useState<number>(() => {
+    if (typeof window === "undefined") return EUR_USD_FALLBACK;
+    const v = Number(localStorage.getItem(FX_KEY));
+    return v > 0.7 && v < 1.7 ? v : EUR_USD_FALLBACK;
+  });
+
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const r = await fetch("/api/market/fx", { signal: AbortSignal.timeout(8000) });
+        if (!r.ok) return;
+        const d = await r.json();
+        const rate = Number(d?.EURUSD);
+        if (!cancelled && rate > 0.7 && rate < 1.7) {
+          setEurUsd(rate);
+          try { localStorage.setItem(FX_KEY, String(rate)); } catch { /* private mode */ }
+        }
+      } catch { /* keep the seeded rate */ }
+    };
+    load();
+    const iv = setInterval(load, 30 * 60 * 1000);
+    return () => { cancelled = true; clearInterval(iv); };
+  }, []);
   const [isLoaded, setIsLoaded] = useState(false);
 
   // Ref mirror so saveSettings can roll back without depending on state.
@@ -267,10 +297,10 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   }, [fireAndForget]);
 
   const contextValue = useMemo(() => ({
-    settings, isLoaded, saveSettings,
+    settings, isLoaded, saveSettings, eurUsd,
     setCurrency, setTradingStyle, setRiskLevel,
     setDefaultLeverage, setTheme, setAccentColor, setRecapFrequency, updateSettings,
-  }), [settings, isLoaded, saveSettings, setCurrency, setTradingStyle, setRiskLevel,
+  }), [settings, isLoaded, saveSettings, eurUsd, setCurrency, setTradingStyle, setRiskLevel,
       setDefaultLeverage, setTheme, setAccentColor, setRecapFrequency, updateSettings]);
 
   return (
@@ -287,18 +317,25 @@ export function useSettings() {
 }
 
 // ── Currency conversion ──────────────────────────────────────────────────────
-// A single fixed, indicative rate — derived so the pair is always reciprocal.
-// There is no live FX feed; `settings_currency_rate_note` says so in the UI.
-const EUR_USD = 1.09;
-const CONVERSION_RATES: Record<string, number> = {
-  EUR_USD,
-  USD_EUR: 1 / EUR_USD,
-};
+// The rate used to be this constant alone. Prices in USD — crypto, US stocks,
+// indices — were therefore converted with a figure that drifts further from
+// the market every month, and the whole error lands on the displayed price:
+// at 1.09 against a real 1.154, Bitcoin showed ~5.9% above its true euro
+// value while the dollar price coming from the API was perfectly correct.
+// The live rate now comes from GET /api/market/fx; this constant is only the
+// seed used before the first response arrives.
+export const EUR_USD_FALLBACK = 1.09;
 
-export function convertCurrency(amount: number, from: Currency, to: Currency): number {
+export function convertCurrency(
+  amount: number,
+  from: Currency,
+  to: Currency,
+  eurUsd: number = EUR_USD_FALLBACK,
+): number {
   if (from === to) return amount;
-  const rate = CONVERSION_RATES[`${from}_${to}`] || 1;
-  return amount * rate;
+  if (from === "EUR" && to === "USD") return amount * eurUsd;
+  if (from === "USD" && to === "EUR") return amount / eurUsd;
+  return amount;
 }
 
 export const CURRENCY_SYMBOLS: Record<Currency, string> = {
@@ -307,16 +344,16 @@ export const CURRENCY_SYMBOLS: Record<Currency, string> = {
 };
 
 export function useFormatCurrency() {
-  const { settings } = useSettings();
+  const { settings, eurUsd } = useSettings();
   return useCallback((value: number, originalCurrency: Currency = "USD"): string => {
-    const converted = convertCurrency(value, originalCurrency, settings.currency);
+    const converted = convertCurrency(value, originalCurrency, settings.currency, eurUsd);
     return new Intl.NumberFormat("fr-FR", {
       style: "currency",
       currency: settings.currency,
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     }).format(converted);
-  }, [settings.currency]);
+  }, [settings.currency, eurUsd]);
 }
 
 /**
@@ -332,15 +369,15 @@ export function useFormatCurrency() {
 const EUR_SUFFIXES = [".PA", ".DE", ".AS", ".BR", ".LS", ".MI", ".MC", ".AT", ".CO", ".ST", ".HE", ".OL", ".WA"];
 
 export function useFormatPrice() {
-  const { settings } = useSettings();
+  const { settings, eurUsd } = useSettings();
   return useCallback((value: number, symbol: string): string => {
     const nativeCurrency: Currency = EUR_SUFFIXES.some((sfx) => symbol.toUpperCase().endsWith(sfx)) ? "EUR" : "USD";
-    const converted = convertCurrency(value, nativeCurrency, settings.currency);
+    const converted = convertCurrency(value, nativeCurrency, settings.currency, eurUsd);
     return new Intl.NumberFormat("fr-FR", {
       style: "currency",
       currency: settings.currency,
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     }).format(converted);
-  }, [settings.currency]);
+  }, [settings.currency, eurUsd]);
 }
