@@ -319,8 +319,8 @@ export interface BacktestBucket {
   range: [number, number];
   count: number;
   win_rate: number | null;
-  avg_return: number | null;
-  median_return: number | null;
+  /** Average outcome in R — multiples of the risk taken. */
+  avg_r: number | null;
 }
 
 export interface BacktestResult {
@@ -328,15 +328,36 @@ export interface BacktestResult {
   timeframe: string;
   period: string;
   bars_analyzed: number;
-  n_samples: number;
+  engine_version: string;
+  /** "event" = one trade at a time, so the samples are independent. */
+  mode: string;
   horizon_bars: number;
+  sl_atr: number;
+  tp_atr: number;
+  cost_bps: number;
+
+  n_evaluated: number;
+  n_trades: number;
+  /** False when there are too few closed trades for the stats to mean much. */
+  enough_samples: boolean;
+  min_trades_for_confidence: number;
+
+  p_target: number;
+  p_stop: number;
+  p_timeout: number;
+
+  win_rate: number;
+  avg_win_r: number | null;
+  avg_loss_r: number | null;
+  expectancy_gross_r: number;
+  expectancy_net_r: number;
+  cost_drag_r: number;
+  profit_factor: number | null;
+  max_drawdown_r: number;
+  avg_bars_held: number;
+
   buckets: BacktestBucket[];
   correlation: number | null;
-  avg_return_buy_zone: number | null;
-  avg_return_sell_zone: number | null;
-  edge: number | null;
-  hit_rate_buy: number | null;
-  hit_rate_sell: number | null;
   disclaimer: string;
 }
 
@@ -383,9 +404,12 @@ export const analysisAPI = {
   analyze: (symbol: string, timeframe = "1d") =>
     fetchAPI<Analysis>(`/api/analysis/${symbol}?timeframe=${timeframe}`),
 
-  backtest: (symbol: string, timeframe = "1d", horizon = 10) =>
+  // slAtr/tpAtr come from the trading profile, so the backtest validates
+  // the very stop and target the analysis shows the user.
+  backtest: (symbol: string, timeframe = "1d", horizon = 10, slAtr = 2.0, tpAtr = 3.0) =>
     fetchAPI<BacktestResult>(
-      `/api/analysis/${symbol}/backtest?timeframe=${timeframe}&horizon=${horizon}`
+      `/api/analysis/${symbol}/backtest?timeframe=${timeframe}&horizon=${horizon}` +
+      `&sl_atr=${slAtr}&tp_atr=${tpAtr}`
     ),
 
   // `timeframe` must be the one the analysis page will open on, otherwise the
@@ -671,6 +695,20 @@ export interface Analysis {
     high: number;
     low: number;
     levels: Record<string, number>;
+  };
+  engine_version?: string;
+  volatility_context?: {
+    /** Where today's volatility sits in THIS asset's own history, 0-100. */
+    percentile: number | null;
+    regime: "LOW" | "NORMAL" | "HIGH" | "EXTREME" | "UNKNOWN";
+    basis: "percentile" | "absolute";
+  };
+  /** Direction of each independent factor family, -1 to +1. */
+  factor_directions?: Record<string, number>;
+  tradeability?: {
+    tradable: boolean;
+    blockers: string[];
+    warnings: string[];
   };
   levels: {
     support: number;

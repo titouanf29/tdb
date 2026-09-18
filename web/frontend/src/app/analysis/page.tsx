@@ -1456,13 +1456,39 @@ export default function AnalysisPage() {
             >
               <h3 className="font-semibold mb-4 flex items-center gap-2">
                 <Brain className="w-5 h-5 text-primary" />
-                Score de Conviction — {(analysis as any).conviction.total_signals} signaux détectés
+                {lang === "fr" ? "Accord entre facteurs" : "Factor agreement"}
               </h3>
+              {/* The number is no longer "% of bullish signals among 32": those
+                  signals are heavily correlated, so the tally counted one piece
+                  of information many times. It now measures whether the four
+                  independent factor families point the same way. */}
+              <p className="text-xs text-muted-foreground mb-3 leading-relaxed">
+                {lang === "fr"
+                  ? "Mesure si les familles d'indicateurs indépendantes — tendance, momentum, flux, oscillateurs — pointent dans le même sens. Un accord élevé ne garantit rien : il indique que le signal ne repose pas sur un seul facteur."
+                  : "Measures whether the independent indicator families — trend, momentum, flow, oscillators — point the same way. High agreement guarantees nothing: it says the signal does not rest on a single factor."}
+              </p>
+              {(analysis as any).factor_directions && (
+                <div className="mb-4 grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  {Object.entries((analysis as any).factor_directions as Record<string, number>).map(([k, v]) => (
+                    <div key={k} className="border border-white/8 bg-white/[0.03] px-2.5 py-2">
+                      <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                        {({ trend: lang === "fr" ? "Tendance" : "Trend", momentum: "Momentum",
+                            flow: lang === "fr" ? "Flux" : "Flow",
+                            oscillators: lang === "fr" ? "Oscillateurs" : "Oscillators" } as Record<string, string>)[k] ?? k}
+                      </p>
+                      <p className={cn("font-mono text-sm font-bold tabular-nums",
+                        v > 0.05 ? "text-profit" : v < -0.05 ? "text-loss" : "text-muted-foreground")}>
+                        {v >= 0 ? "+" : ""}{v.toFixed(2)}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
               <div className="mb-4">
                 <div className="flex justify-between text-sm mb-1">
-                  <span className="text-loss">{(analysis as any).conviction.bearish_signals.length} baissiers</span>
-                  <span className="font-bold">{(analysis as any).conviction.score}% haussier</span>
-                  <span className="text-profit">{(analysis as any).conviction.bullish_signals.length} haussiers</span>
+                  <span className="text-muted-foreground">{lang === "fr" ? "Désaccord" : "Disagreement"}</span>
+                  <span className="font-bold">{(analysis as any).conviction.score}% {lang === "fr" ? "d'accord" : "agreement"}</span>
+                  <span className="text-muted-foreground">{lang === "fr" ? "Accord" : "Agreement"}</span>
                 </div>
                 <div className="w-full bg-loss/20 rounded-full h-3 overflow-hidden">
                   <div
@@ -1564,6 +1590,7 @@ export default function AnalysisPage() {
           <BacktestSection
             symbol={analysis.symbol}
             timeframe={timeframe}
+            style={style}
             currentScore={analysis.score.total}
           />
 
@@ -4994,6 +5021,33 @@ function TradingStrategiesSection({
         </Link>
       </div>
 
+      {/* A direction is not a trade. When the engine refuses, it says why. */}
+      {analysis.tradeability && !analysis.tradeability.tradable && (
+        <div className="mb-5 border border-loss/30 bg-loss/[0.08] p-3">
+          <p className="mb-1.5 flex items-center gap-2 text-sm font-bold text-loss">
+            <AlertTriangle className="w-4 h-4 shrink-0" />
+            {lang === "en" ? "NO TRADE — conditions not met" : "PAS DE TRADE — conditions non réunies"}
+          </p>
+          <ul className="space-y-0.5">
+            {analysis.tradeability.blockers.map((b) => (
+              <li key={b} className="text-xs leading-relaxed text-foreground/80">· {b}</li>
+            ))}
+          </ul>
+          <p className="mt-2 text-[11px] text-muted-foreground">
+            {lang === "en"
+              ? "The direction below may still be right. Acting on it here is not worth the risk."
+              : "La direction ci-dessous peut rester juste. Elle ne justifie simplement pas le risque dans ces conditions."}
+          </p>
+        </div>
+      )}
+      {analysis.tradeability?.tradable && analysis.tradeability.warnings.length > 0 && (
+        <div className="mb-5 border-l-2 border-warning/50 pl-3">
+          {analysis.tradeability.warnings.map((w) => (
+            <p key={w} className="text-xs leading-relaxed text-muted-foreground">⚠ {w}</p>
+          ))}
+        </div>
+      )}
+
       {/* The arithmetic behind every stop and target below, stated once */}
       <div className="mb-5 flex flex-wrap items-center gap-x-4 gap-y-1 border-l-2 border-primary/40 pl-3 font-mono text-[11px] text-muted-foreground">
         <span>ATR · {formatCurrency(atr)}</span>
@@ -5202,8 +5256,8 @@ function PriceAlertSection({
 
 // ── Backtest : fiabilité historique du score ─────────────────────────────────
 function BacktestSection({
-  symbol, timeframe, currentScore,
-}: { symbol: string; timeframe: string; currentScore: number }) {
+  symbol, timeframe, currentScore, style,
+}: { symbol: string; timeframe: string; currentScore: number; style: TradingStyleProfile }) {
   const { lang } = useLanguage();
   const [result, setResult] = useState<BacktestResult | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -5221,7 +5275,8 @@ function BacktestSection({
     setIsLoading(true);
     setError("");
     try {
-      const data = await analysisAPI.backtest(symbol, btTimeframe, 10);
+      // Validate the plan the user is actually shown, not a generic 2/3 ATR.
+      const data = await analysisAPI.backtest(symbol, btTimeframe, 10, style.atr.sl, style.atr.tp);
       setResult(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erreur lors du backtest");
@@ -5262,32 +5317,65 @@ function BacktestSection({
 
       {result && (
         <div className="space-y-4">
-          {/* Summary metrics */}
+          {/* Sample-size honesty first: every figure below is read through it */}
+          {!result.enough_samples && (
+            <div className="rounded-xl border border-warning/25 bg-warning/10 px-3 py-2.5">
+              <p className="text-xs text-warning-foreground/90">
+                {fr
+                  ? `Seulement ${result.n_trades} trades clôturés (minimum ${result.min_trades_for_confidence} pour conclure). Les chiffres ci-dessous sont indicatifs, pas une preuve.`
+                  : `Only ${result.n_trades} closed trades (minimum ${result.min_trades_for_confidence} to conclude). The figures below are indicative, not evidence.`}
+              </p>
+            </div>
+          )}
+
+          {/* Summary metrics — in R, multiples of the risk taken */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
             <div className="px-3 py-2.5 rounded-xl bg-white/4 border border-white/8">
-              <p className="text-[11px] text-muted-foreground">{fr ? "Évaluations" : "Samples"}</p>
-              <p className="text-sm font-bold tabular-nums">{result.n_samples}</p>
+              <p className="text-[11px] text-muted-foreground">{fr ? "Trades clôturés" : "Closed trades"}</p>
+              <p className="text-sm font-bold tabular-nums">{result.n_trades}</p>
+              <p className="text-[10px] text-muted-foreground/60">
+                {fr ? `sur ${result.n_evaluated} évaluations` : `of ${result.n_evaluated} evaluations`}
+              </p>
             </div>
             <div className="px-3 py-2.5 rounded-xl bg-white/4 border border-white/8">
-              <p className="text-[11px] text-muted-foreground">{fr ? "Corrélation score→futur" : "Score→future correlation"}</p>
+              <p className="text-[11px] text-muted-foreground">{fr ? "Espérance / trade" : "Expectancy / trade"}</p>
               <p className={cn("text-sm font-bold tabular-nums",
-                (result.correlation ?? 0) > 0.2 ? "text-profit" : (result.correlation ?? 0) < 0 ? "text-loss" : "")}>
-                {result.correlation ?? "—"}
+                result.expectancy_net_r > 0 ? "text-profit" : "text-loss")}>
+                {result.expectancy_net_r >= 0 ? "+" : ""}{result.expectancy_net_r}R
+              </p>
+              <p className="text-[10px] text-muted-foreground/60">
+                {fr ? `brut ${result.expectancy_gross_r}R · coûts −${result.cost_drag_r}R` : `gross ${result.expectancy_gross_r}R · costs −${result.cost_drag_r}R`}
               </p>
             </div>
             <div className="px-3 py-2.5 rounded-xl bg-white/4 border border-white/8">
-              <p className="text-[11px] text-muted-foreground">{fr ? "Zone achat (≥60)" : "Buy zone (≥60)"}</p>
-              <p className={cn("text-sm font-bold tabular-nums", (result.avg_return_buy_zone ?? 0) >= 0 ? "text-profit" : "text-loss")}>
-                {result.avg_return_buy_zone != null ? `${result.avg_return_buy_zone >= 0 ? "+" : ""}${result.avg_return_buy_zone}%` : "—"}
+              <p className="text-[11px] text-muted-foreground">{fr ? "Issues" : "Outcomes"}</p>
+              <p className="text-sm font-bold tabular-nums">
+                <span className="text-profit">{result.p_target}%</span>
+                <span className="text-muted-foreground/50"> / </span>
+                <span className="text-loss">{result.p_stop}%</span>
+              </p>
+              <p className="text-[10px] text-muted-foreground/60">
+                {fr ? `cible / stop · ${result.p_timeout}% expirés` : `target / stop · ${result.p_timeout}% timed out`}
               </p>
             </div>
             <div className="px-3 py-2.5 rounded-xl bg-white/4 border border-white/8">
-              <p className="text-[11px] text-muted-foreground">{fr ? "Zone vente (<40)" : "Sell zone (<40)"}</p>
-              <p className={cn("text-sm font-bold tabular-nums", (result.avg_return_sell_zone ?? 0) <= 0 ? "text-profit" : "text-loss")}>
-                {result.avg_return_sell_zone != null ? `${result.avg_return_sell_zone >= 0 ? "+" : ""}${result.avg_return_sell_zone}%` : "—"}
+              <p className="text-[11px] text-muted-foreground">{fr ? "Profit factor" : "Profit factor"}</p>
+              <p className={cn("text-sm font-bold tabular-nums",
+                (result.profit_factor ?? 0) > 1 ? "text-profit" : "text-loss")}>
+                {result.profit_factor ?? "—"}
+              </p>
+              <p className="text-[10px] text-muted-foreground/60">
+                {fr ? `réussite ${result.win_rate}% · perte max ${result.max_drawdown_r}R` : `win rate ${result.win_rate}% · max DD ${result.max_drawdown_r}R`}
               </p>
             </div>
           </div>
+
+          {/* What was actually simulated */}
+          <p className="font-mono text-[10px] text-muted-foreground/60">
+            {fr
+              ? `stop ${result.sl_atr}×ATR · cible ${result.tp_atr}×ATR · horizon ${result.horizon_bars} bougies · coûts ${result.cost_bps} bps A/R · moteur ${result.engine_version} · échantillons indépendants (${result.mode})`
+              : `stop ${result.sl_atr}×ATR · target ${result.tp_atr}×ATR · horizon ${result.horizon_bars} bars · costs ${result.cost_bps} bps round trip · engine ${result.engine_version} · independent samples (${result.mode})`}
+          </p>
 
           {/* Bucket table */}
           <div className="overflow-x-auto">
@@ -5297,7 +5385,7 @@ function BacktestSection({
                   <th className="text-left py-2 pr-3 font-semibold">{fr ? "Zone de score" : "Score zone"}</th>
                   <th className="text-right py-2 px-3 font-semibold">{fr ? "Occurrences" : "Count"}</th>
                   <th className="text-right py-2 px-3 font-semibold">{fr ? "% hausses" : "Win rate"}</th>
-                  <th className="text-right py-2 pl-3 font-semibold">{fr ? `Rendement moyen (${result.horizon_bars} bougies)` : `Avg return (${result.horizon_bars} bars)`}</th>
+                  <th className="text-right py-2 pl-3 font-semibold">{fr ? "Résultat moyen (R)" : "Avg outcome (R)"}</th>
                 </tr>
               </thead>
               <tbody>
@@ -5317,8 +5405,8 @@ function BacktestSection({
                       <td className="py-2 px-3 text-right tabular-nums text-muted-foreground">{b.count || "—"}</td>
                       <td className="py-2 px-3 text-right tabular-nums">{b.win_rate != null ? `${b.win_rate}%` : "—"}</td>
                       <td className={cn("py-2 pl-3 text-right tabular-nums font-semibold",
-                        b.avg_return == null ? "text-muted-foreground" : b.avg_return >= 0 ? "text-profit" : "text-loss")}>
-                        {b.avg_return != null ? `${b.avg_return >= 0 ? "+" : ""}${b.avg_return}%` : "—"}
+                        b.avg_r == null ? "text-muted-foreground" : b.avg_r >= 0 ? "text-profit" : "text-loss")}>
+                        {b.avg_r != null ? `${b.avg_r >= 0 ? "+" : ""}${b.avg_r}R` : "—"}
                       </td>
                     </tr>
                   );

@@ -8,7 +8,8 @@ live price) so the backtester replays exactly what production serves.
 import numpy as np
 import pandas as pd
 
-from ._indicators import rsi_wilder, atr_wilder, adx_wilder, true_range
+from ._indicators import (rsi_wilder, atr_wilder, adx_wilder, true_range,
+                          percentile_rank, volatility_regime)
 
 
 def _safe(value, default=None, ndigits=None):
@@ -19,6 +20,12 @@ def _safe(value, default=None, ndigits=None):
         return round(v, ndigits) if ndigits is not None else v
     except Exception:
         return default
+
+
+# Stamped on every analysis so a position opened three months ago can be
+# traced back to the engine that produced it. Bump on any change that moves
+# scores: MINOR for new outputs, MAJOR for a change of meaning.
+ENGINE_VERSION = "2.0.0"
 
 
 def compute_score(high, low, close, volume, current_price=None):
@@ -223,7 +230,13 @@ def compute_score(high, low, close, volume, current_price=None):
     elif momentum_10d < -5: bearish_signals.append(f"Momentum 10j faible ({momentum_10d:.1f}%)")
 
     total_conviction_signals = len(bullish_signals) + len(bearish_signals)
-    conviction_score = int(len(bullish_signals) / total_conviction_signals * 100) if total_conviction_signals > 0 else 50
+    # NOTE: conviction_score is computed further down, from factor agreement
+    # rather than from this signal tally. Counting the ~32 signals above as
+    # independent evidence overstates agreement badly: "Prix > EMA20",
+    # "Prix > EMA50", "Prix > EMA200", "MACD positif", "Momentum 10j fort" and
+    # "ADX haussier" all fire together in any established trend, so a single
+    # piece of information was being counted six times and the tally saturated
+    # near 0 or 100 whenever a trend existed.
 
     # ── IMPROVED 5-COMPONENT SCORING ──────────────────────────────────
 
@@ -288,16 +301,28 @@ def compute_score(high, low, close, volume, current_price=None):
 
     technical_score = max(0, min(100, technical_score))
 
-    # 2. TREND SCORE (EMA alignment + ADX strength)
+    # 2. TREND SCORE (EMA distance + ADX strength)
+    #
+    # Distance, not side. Scoring the mere side of a moving average gave a
+    # price 0.1% under the EMA200 the same -15 as a price 40% under it, so a
+    # flat market where price drifts just below its averages read as a strong
+    # downtrend. Each gap is now measured in ATR — the asset's own unit of
+    # movement — and saturates once it is unambiguous, which leaves a natural
+    # dead zone around the average.
     trend_score = 50
+    _atr_unit = float(atr) if atr and not pd.isna(atr) and atr > 0 else None
 
-    if current_price > float(ema20.iloc[-1]):  trend_score += 8
-    else:                                        trend_score -= 8
-    if current_price > float(ema50.iloc[-1]):  trend_score += 12
-    else:                                        trend_score -= 12
+    def _ema_points(ema_last: float, full_points: int, saturate_atr: float) -> float:
+        gap = current_price - ema_last
+        if _atr_unit is None:
+            return full_points if gap > 0 else -full_points
+        ratio = gap / (_atr_unit * saturate_atr)
+        return max(-1.0, min(1.0, ratio)) * full_points
+
+    trend_score += _ema_points(float(ema20.iloc[-1]), 8, 1.0)
+    trend_score += _ema_points(float(ema50.iloc[-1]), 12, 2.0)
     if ema200 is not None:
-        if current_price > float(ema200.iloc[-1]): trend_score += 15
-        else:                                        trend_score -= 15
+        trend_score += _ema_points(float(ema200.iloc[-1]), 15, 4.0)
 
     if adx_val > 30:
         if current_plus_di > current_minus_di: trend_score += 12
@@ -306,7 +331,7 @@ def compute_score(high, low, close, volume, current_price=None):
         if current_plus_di > current_minus_di: trend_score += 6
         else:                                   trend_score -= 6
 
-    trend_score = max(0, min(100, trend_score))
+    trend_score = max(0, min(100, int(round(trend_score))))
 
     # 3. VOLUME SCORE (OBV, CMF, volume ratio)
     volume_score = 50
@@ -353,21 +378,43 @@ def compute_score(high, low, close, volume, current_price=None):
 
     momentum_score = max(0, min(100, momentum_score))
 
-    # 5. VOLATILITY / STABILITY SCORE
+    # 5. VOLATILITY / STABILITY SCORE — ranked against the asset's own history.
+    #
+    # Fixed thresholds (< 5% tight, > 28% wide) cannot hold across asset
+    # classes: 25% Bollinger width is a crisis on a utility and an ordinary
+    # session on an altcoin. Both readings are now ranked inside this asset's
+    # own distribution, so "high volatility" means the same thing everywhere.
     bb_width_pct = _safe(
         (bb_upper.iloc[-1] - bb_lower.iloc[-1]) / bb_mid.iloc[-1] * 100, 20.0
     ) if _safe(bb_mid.iloc[-1], 0) > 0 else 20.0
     relative_atr = _safe(atr / current_price * 100, 2.0) if current_price > 0 else 2.0
 
-    if bb_width_pct < 5:    volatility_score = 80  # tight band = low volatility
-    elif bb_width_pct < 10: volatility_score = 65
-    elif bb_width_pct < 18: volatility_score = 55
-    elif bb_width_pct < 28: volatility_score = 40
-    else:                   volatility_score = 30
+    bb_width_series = ((bb_upper - bb_lower) / bb_mid.replace(0, np.nan) * 100)
+    atr_pct_series  = (atr_series / close.replace(0, np.nan) * 100)
+    bb_pctile  = percentile_rank(bb_width_series)
+    atr_pctile = percentile_rank(atr_pct_series)
 
-    if relative_atr > 5:   volatility_score -= 10
-    elif relative_atr < 1: volatility_score += 5
+    ranked = [p for p in (bb_pctile, atr_pctile) if p is not None]
+    if ranked:
+        vol_percentile = round(sum(ranked) / len(ranked), 1)
+        # High percentile = unusually volatile FOR THIS ASSET = less stable.
+        volatility_score = int(round(100 - vol_percentile))
+        vol_basis = "percentile"
+    else:
+        # Under ~60 bars a rank carries no information; fall back to absolute
+        # bands and report which basis was used rather than pretending.
+        vol_percentile = None
+        if bb_width_pct < 5:    volatility_score = 80
+        elif bb_width_pct < 10: volatility_score = 65
+        elif bb_width_pct < 18: volatility_score = 55
+        elif bb_width_pct < 28: volatility_score = 40
+        else:                   volatility_score = 30
+        if relative_atr > 5:   volatility_score -= 10
+        elif relative_atr < 1: volatility_score += 5
+        vol_basis = "absolute"
+
     volatility_score = max(0, min(100, volatility_score))
+    vol_regime = volatility_regime(vol_percentile)
 
     # FINAL WEIGHTED SCORE
     final_score = int(
@@ -378,6 +425,37 @@ def compute_score(high, low, close, volume, current_price=None):
         volatility_score * 0.05
     )
     final_score = max(0, min(100, final_score))
+
+    # ── FACTOR AGREEMENT ───────────────────────────────────────────────
+    # Replaces the old "% of bullish signals among ~32". Those signals are
+    # heavily correlated, so the tally measured trend strength twice rather
+    # than measuring agreement. Here the four DIRECTIONAL families are each
+    # reduced to one direction in [-1, +1], and agreement asks a single
+    # question: do families that can genuinely disagree point the same way?
+    #
+    # Volatility is deliberately excluded — it is context, not a direction.
+    factor_directions = {
+        "trend":      round((trend_score      - 50) / 50, 3),
+        "momentum":   round((momentum_score   - 50) / 50, 3),
+        "flow":       round((volume_score     - 50) / 50, 3),
+        "oscillators": round((technical_score - 50) / 50, 3),
+    }
+    _dirs = list(factor_directions.values())
+    _mean_abs = sum(abs(d) for d in _dirs) / len(_dirs)
+    if _mean_abs < 0.02:
+        factor_agreement = 50
+    else:
+        # |mean| / mean|·| is 100 when every family points the same way and 0
+        # when they cancel out — independent of how strong the move is.
+        raw = abs(sum(_dirs) / len(_dirs)) / _mean_abs * 100
+        # ...but agreement measured on near-zero directions is noise dressed
+        # as certainty: four factors all sitting at -0.05 are not "100% aligned
+        # bearish", they are four factors with nothing to say. Shrink toward
+        # 50 until the families actually carry a direction.
+        weight = min(1.0, _mean_abs / 0.35)
+        factor_agreement = int(round(50 + (raw - 50) * weight))
+    factor_agreement = max(0, min(100, factor_agreement))
+    conviction_score = factor_agreement
 
     return {
         "close_clean": close_clean, "vol_clean": vol_clean,
@@ -399,6 +477,12 @@ def compute_score(high, low, close, volume, current_price=None):
         "fibonacci": fibonacci,
         "bullish_signals": bullish_signals, "bearish_signals": bearish_signals,
         "conviction_score": conviction_score,
+        "factor_agreement": factor_agreement,
+        "factor_directions": factor_directions,
+        "vol_percentile": vol_percentile,
+        "vol_regime": vol_regime,
+        "vol_basis": vol_basis,
+        "engine_version": ENGINE_VERSION,
         "technical_score": technical_score, "trend_score": trend_score,
         "volume_score": volume_score, "momentum_score": momentum_score,
         "volatility_score": volatility_score, "final_score": final_score,

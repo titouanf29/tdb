@@ -18,7 +18,8 @@ from ._prices import fetch_ohlcv, fetch_prices
 from ._indicators import rsi_wilder, atr_wilder, adx_wilder, true_range, data_confidence
 from ._universe import EXTRA_CRYPTO, extend_market
 from ._scoring import (compute_score, derive_trend, derive_signal, TIMEFRAME_FETCH,
-                       HIGHER_TF, htf_trend, apply_htf_gate, resample_ohlcv)
+                       HIGHER_TF, htf_trend, apply_htf_gate, resample_ohlcv,
+                       ENGINE_VERSION)
 from ._backtest import run_backtest
 
 router = APIRouter()
@@ -412,6 +413,50 @@ def upcoming_risk_catalysts(symbol: str, horizon_hours: float) -> list[dict]:
 # declaration order, so a literal path declared after it is unreachable —
 # /api/analysis/scan-limit was being served as an analysis of the ticker
 # "scan-limit". Any new literal route under this prefix belongs here too.
+def _tradeability(
+    risk_reward: float | None,
+    data_stale: bool,
+    confidence: int,
+    vol_percentile: float | None,
+    n_bars: int,
+    factor_agreement: int | None,
+) -> dict:
+    """Is this direction actually worth acting on?
+
+    A direction is not a trade. The engine can be confident that an asset is
+    heading up and the trade still be a bad idea — reward that does not pay
+    for the risk, data too old to act on, volatility that makes any stop a
+    lottery. Every blocker is named so the refusal can be argued with rather
+    than merely obeyed.
+    """
+    blockers: list[str] = []
+    warnings: list[str] = []
+
+    if risk_reward is not None and risk_reward < 1.2:
+        blockers.append(f"Rapport gain/risque de {risk_reward:.1f} — sous 1,2, le setup rémunère mal le risque")
+    if data_stale:
+        blockers.append("Données de marché périmées — le prix affiché ne reflète plus la séance")
+    if confidence < 40:
+        blockers.append(f"Confiance des données à {confidence} % — historique trop court pour conclure")
+    if n_bars < 60:
+        blockers.append(f"Seulement {n_bars} bougies disponibles — insuffisant pour les indicateurs longs")
+    if vol_percentile is not None and vol_percentile >= 95:
+        blockers.append("Volatilité dans son centile extrême — tout stop devient une loterie")
+
+    if factor_agreement is not None and factor_agreement < 40:
+        warnings.append(f"Facteurs en désaccord ({factor_agreement} %) — signal fragile")
+    if vol_percentile is not None and 75 <= vol_percentile < 95:
+        warnings.append("Volatilité élevée pour cet actif — réduisez la taille de position")
+    if confidence < 70:
+        warnings.append(f"Confiance des données à {confidence} %")
+
+    return {
+        "tradable": not blockers,
+        "blockers": blockers,
+        "warnings": warnings,
+    }
+
+
 @router.get("/scan-limit")
 async def get_scan_limit(current_user: dict = Depends(get_current_user)):
     """Get user's remaining daily scan quota."""
@@ -752,6 +797,13 @@ async def analyze_asset(
         target_base = round(current_price + atr * atr_mult_base, 2)
         target_bear = round(current_price + atr * atr_mult_bear, 2)
 
+        _confidence = max(0, data_confidence(
+            n_bars=len(close.dropna()),
+            has_ema200=ema200 is not None,
+            adx_valid=adx_val > 0,
+            has_volume=bool(len(vol_clean)) and float(vol_clean.sum()) > 0,
+        ) - (25 if data_stale else 0) - (10 if data_nan_ratio > 0.05 else 0))
+
         # Fundamental score (enhanced)
         fundamental_score = 50
         if fundamentals.get("pe_ratio"):
@@ -844,18 +896,32 @@ async def analyze_asset(
                 "volatility": int(volatility_score),
                 "fundamental": fundamental_score,
                 "conviction": conviction_score,
-                "confidence": max(0, data_confidence(
-                    n_bars=len(close.dropna()),
-                    has_ema200=ema200 is not None,
-                    adx_valid=adx_val > 0,
-                    has_volume=bool(len(vol_clean)) and float(vol_clean.sum()) > 0,
-                ) - (25 if data_stale else 0) - (10 if data_nan_ratio > 0.05 else 0)),
+                "confidence": _confidence,
             },
             "data_quality": {
                 "stale": data_stale,
                 "last_bar_age_minutes": _safe(last_bar_age_min, 0, 0),
                 "nan_ratio": _safe(data_nan_ratio, 0.0, 3),
             },
+            # Stamped so a position opened months ago can be traced back to the
+            # engine that produced its numbers.
+            "engine_version": ENGINE_VERSION,
+            "volatility_context": {
+                "percentile": S.get("vol_percentile"),
+                "regime": S.get("vol_regime"),
+                "basis": S.get("vol_basis"),
+            },
+            "factor_directions": S.get("factor_directions"),
+            # A direction is not a trade. Blockers are listed explicitly so the
+            # refusal is auditable rather than a silent downgrade.
+            "tradeability": _tradeability(
+                risk_reward=_rr,
+                data_stale=data_stale,
+                confidence=_confidence,
+                vol_percentile=S.get("vol_percentile"),
+                n_bars=len(close.dropna()),
+                factor_agreement=S.get("factor_agreement"),
+            ),
             "higher_timeframe": higher_tf_info,
             "conviction": {
                 "score": conviction_score,
@@ -1773,13 +1839,20 @@ async def backtest_symbol(
     symbol: str,
     timeframe: str = Query(default="1d", pattern="^(1h|4h|1d|1w)$"),
     horizon: int = Query(default=10, ge=1, le=60),
+    # The stop and target the backtest walks against. The client sends the
+    # multiples of the user's trading profile, so the backtest validates the
+    # plan actually shown on screen rather than a generic 2/3 ATR.
+    sl_atr: float = Query(default=2.0, ge=0.2, le=10.0),
+    tp_atr: float = Query(default=3.0, ge=0.2, le=20.0),
+    cost_bps: float = Query(default=10.0, ge=0.0, le=200.0),
+    mode: str = Query(default="event", pattern="^(event|overlapping)$"),
     current_user: dict = Depends(get_current_user),
 ):
-    """Walk-forward backtest: how did this asset behave after each score level?
+    """Walk-forward, triple-barrier backtest of the production engine.
 
-    Replays the exact production scoring engine bar by bar (no lookahead)
-    and reports forward returns per score bucket, so users can see whether
-    the score has had predictive value on THIS asset historically.
+    Replays compute_score() bar by bar with no lookahead, then walks each
+    signal forward against the same ATR stop/target the risk plan shows,
+    and reports the outcome in R (multiples of risk), gross and net of costs.
     """
     if not _SYMBOL_RE.match(symbol.upper()):
         raise HTTPException(status_code=400, detail="Symbole invalide")
@@ -1793,7 +1866,11 @@ async def backtest_symbol(
         raise HTTPException(status_code=400, detail="Historique insuffisant pour un backtest (minimum 90 bougies)")
 
     loop = asyncio.get_event_loop()
-    result = await loop.run_in_executor(None, lambda: run_backtest(hist, horizon=horizon))
+    result = await loop.run_in_executor(
+        None,
+        lambda: run_backtest(hist, horizon=horizon, sl_atr=sl_atr, tp_atr=tp_atr,
+                             cost_bps=cost_bps, mode=mode),
+    )
 
     return _sanitize({
         "symbol": symbol,

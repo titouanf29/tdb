@@ -92,3 +92,34 @@ def data_confidence(
     size_pts = min(1.0, max(0.0, (n_bars - 20) / 180)) * 60
     coverage_pts = (20 if has_ema200 else 0) + (12 if adx_valid else 0) + (8 if has_volume else 0)
     return int(round(min(100, size_pts + coverage_pts)))
+
+
+def percentile_rank(series: pd.Series, value: float | None = None) -> float | None:
+    """Where `value` sits inside `series`' own distribution, 0-100.
+
+    Absolute thresholds cannot work across asset classes: 25% Bollinger width
+    is a crisis on a utility and an ordinary Tuesday on an altcoin. Ranking a
+    reading against the asset's OWN history makes "high volatility" mean the
+    same thing everywhere. Returns None when there is too little history for
+    the rank to carry information.
+    """
+    s = series.dropna()
+    if len(s) < 60:
+        return None
+    v = float(s.iloc[-1]) if value is None else float(value)
+    if np.isnan(v):
+        return None
+    return round(float((s < v).mean() * 100), 1)
+
+
+def volatility_regime(vol_pct: float | None) -> str:
+    """LOW / NORMAL / HIGH / EXTREME from a volatility percentile."""
+    if vol_pct is None:
+        return "UNKNOWN"
+    if vol_pct >= 95:
+        return "EXTREME"
+    if vol_pct >= 75:
+        return "HIGH"
+    if vol_pct <= 25:
+        return "LOW"
+    return "NORMAL"
