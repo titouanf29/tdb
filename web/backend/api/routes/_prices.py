@@ -285,51 +285,71 @@ async def fetch_prices(symbols: list[str]) -> dict[str, dict]:
 
 # ── OHLCV (used by analysis engine — yfinance historical bars) ────────────────
 
-# Short-lived in-process cache: the analysis route may need the same bars
-# twice per request (own timeframe + higher-timeframe confirmation), the
-# scanner hits dozens of symbols in bursts, and Yahoo rate-limits hard.
+# In-process OHLCV cache. The scanner hits dozens of symbols in bursts and
+# Yahoo rate-limits hard, so every avoided download matters.
+#
+# The lifetime depends on the interval. A single 90 s TTL for everything
+# meant a daily series — which only gains one bar per session — was
+# re-downloaded every scan, while the only thing that had changed was the
+# last, still-forming candle. Intraday bars stay short-lived; daily and
+# slower bars can be held for a long time without going stale.
 _OHLCV_CACHE: dict = {}
-_OHLCV_TTL = 90.0  # seconds
 _OHLCV_CACHE_MAX = 512
+_OHLCV_TTL_BY_INTERVAL = {
+    "1m": 45.0, "2m": 60.0, "5m": 90.0, "15m": 120.0, "30m": 180.0,
+    "60m": 300.0, "90m": 300.0, "1h": 300.0,
+    "1d": 1800.0, "5d": 3600.0, "1wk": 7200.0, "1mo": 21600.0, "3mo": 21600.0,
+}
+_OHLCV_TTL_DEFAULT = 90.0
+
+
+def _ohlcv_ttl(interval: str) -> float:
+    return _OHLCV_TTL_BY_INTERVAL.get(interval, _OHLCV_TTL_DEFAULT)
+
+
+def _download_ohlcv_sync(symbol: str, period: str, interval: str):
+    """The one place that talks to Yahoo for bars. Module-level so tests and
+    harnesses can swap the download while keeping the cache logic real."""
+    import yfinance as yf
+    import pandas as pd
+    try:
+        data = yf.download(
+            tickers=symbol,
+            period=period,
+            interval=interval,
+            auto_adjust=False,
+            progress=False,
+        )
+        if data.empty:
+            return pd.DataFrame()
+        if isinstance(data.columns, pd.MultiIndex):
+            data.columns = data.columns.get_level_values(0)
+        data.index.name = None
+        return data[["Open", "High", "Low", "Close", "Volume"]]
+    except Exception as e:
+        print(f"[ohlcv] {symbol}: {e}")
+        return pd.DataFrame()
+
+
+async def _download_ohlcv(symbol: str, period: str, interval: str):
+    loop = asyncio.get_event_loop()
+    return await loop.run_in_executor(None, _download_ohlcv_sync, symbol, period, interval)
 
 
 async def fetch_ohlcv(symbol: str, period: str = "1mo", interval: str = "1d"):
     """
-    Fetch OHLCV DataFrame for chart / analysis.
-    period:   1d|5d|1mo|3mo|6mo|1y|2y|5y
-    interval: 1m|5m|15m|1h|1d|1wk|1mo
+    Fetch OHLCV DataFrame for chart / analysis, through the cache.
+    period:   1d|5d|1mo|3mo|6mo|1y|2y|5y|10y|max
+    interval: 1m|5m|15m|30m|1h|1d|1wk|1mo
     """
     import time as _time
 
     key = (symbol.upper(), period, interval)
     hit = _OHLCV_CACHE.get(key)
-    if hit is not None and _time.monotonic() - hit[0] < _OHLCV_TTL:
+    if hit is not None and _time.monotonic() - hit[0] < _ohlcv_ttl(interval):
         return hit[1].copy()
 
-    def _sync():
-        import yfinance as yf
-        import pandas as pd
-        try:
-            data = yf.download(
-                tickers=symbol,
-                period=period,
-                interval=interval,
-                auto_adjust=False,
-                progress=False,
-            )
-            if data.empty:
-                return pd.DataFrame()
-            if isinstance(data.columns, pd.MultiIndex):
-                data.columns = data.columns.get_level_values(0)
-            data.index.name = None
-            return data[["Open", "High", "Low", "Close", "Volume"]]
-        except Exception as e:
-            print(f"[ohlcv] {symbol}: {e}")
-            import pandas as pd
-            return pd.DataFrame()
-
-    loop = asyncio.get_event_loop()
-    df = await loop.run_in_executor(None, _sync)
+    df = await _download_ohlcv(symbol, period, interval)
     if df is not None and not df.empty:
         if len(_OHLCV_CACHE) >= _OHLCV_CACHE_MAX:
             oldest = min(_OHLCV_CACHE, key=lambda k: _OHLCV_CACHE[k][0])

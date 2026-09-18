@@ -565,6 +565,33 @@ HIGHER_TF = {
     "3d": ("1wk", "2y"),  "1w":  ("1mo", "5y"),
 }
 
+# pandas resample rule that builds each higher-timeframe series from the
+# primary one. The primary fetch periods in TIMEFRAME_FETCH were lengthened
+# to 200+ bars, which as a side effect covers the higher timeframe too:
+# 2 years of daily bars are 104 weekly bars, 6 months of hourly bars are
+# 126 daily bars. So the confirmation no longer needs a second download —
+# it is derived from data already in hand. Both the analysis and the
+# scanner derive it the same way, so their verdicts stay identical.
+_HTF_RESAMPLE = {"1h": "1h", "1d": "D", "1wk": "W", "1mo": "MS"}
+
+
+def htf_from_primary(hist, timeframe: str):
+    """(interval_label, resampled_close) for the higher timeframe, or None."""
+    spec = HIGHER_TF.get(timeframe)
+    if not spec or hist is None or hist.empty:
+        return None
+    interval, _ = spec
+    rule = _HTF_RESAMPLE.get(interval)
+    if not rule:
+        return None
+    try:
+        closes = hist["Close"].resample(rule).last().dropna()
+    except Exception:
+        return None
+    if len(closes) < 21:
+        return None
+    return interval, closes
+
 
 def htf_trend(htf_close) -> str:
     """BULLISH / BEARISH / NEUTRAL of a higher-timeframe close series."""

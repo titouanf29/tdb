@@ -401,8 +401,12 @@ export const dailyIntentAPI = {
 
 // Analysis API
 export const analysisAPI = {
-  analyze: (symbol: string, timeframe = "1d") =>
-    fetchAPI<Analysis>(`/api/analysis/${symbol}?timeframe=${timeframe}`),
+  // sl/tp/fundWeight come from the trading profile so the risk plan, the
+  // setups and the backtest all describe one stop and one target.
+  analyze: (symbol: string, timeframe = "1d", slAtr = 2.0, tpAtr = 3.0, fundWeight = 0) =>
+    fetchAPI<Analysis>(
+      `/api/analysis/${symbol}?timeframe=${timeframe}&sl_atr=${slAtr}&tp_atr=${tpAtr}&fund_weight=${fundWeight}`
+    ),
 
   // slAtr/tpAtr come from the trading profile, so the backtest validates
   // the very stop and target the analysis shows the user.
@@ -697,6 +701,28 @@ export interface Analysis {
     levels: Record<string, number>;
   };
   engine_version?: string;
+  risk_multiples?: { sl_atr: number; tp_atr: number };
+  /** Technical verdict re-read with the profile's fundamental weight. Kept
+   *  apart from `score`, which stays the verdict the scanner shares. */
+  profile_score?: {
+    total: number;
+    signal: string;
+    fundamentals_applied: boolean;
+    fund_weight: number;
+    fund_fields_present: number;
+  };
+  /** What this score level has been worth on THIS asset — with sample size. */
+  historical_edge?: {
+    n_trades: number;
+    enough_samples: boolean;
+    expectancy_net_r?: number | null;
+    win_rate?: number | null;
+    p_target?: number | null;
+    p_stop?: number | null;
+    profit_factor?: number | null;
+  };
+  /** Trust in the direction — distinct from confidence in the data. */
+  signal_quality?: { score: number; notes: string[] };
   volatility_context?: {
     /** Where today's volatility sits in THIS asset's own history, 0-100. */
     percentile: number | null;

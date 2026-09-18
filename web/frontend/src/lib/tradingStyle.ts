@@ -28,6 +28,11 @@ export interface TradingStyleProfile {
   focus: { fr: string[]; en: string[] };
   /** ATR multiples used for suggested stop / target distances. */
   atr: { sl: number; tp: number };
+  /** Share of the fundamentals in the profile-weighted score, 0-0.5. A
+   *  scalper's edge has nothing to do with a balance sheet; a multi-year
+   *  investor's has a great deal. Applied server-side only when the data
+   *  actually exists for the asset. */
+  fundWeight: number;
   /** Advice written for this horizon — generic tips help nobody. */
   tips: { fr: string[]; en: string[] };
   /** Terminal palette. Gold stays the default (day); the rest differentiate. */
@@ -55,6 +60,7 @@ export const TRADING_STYLES: Record<TradingStyleId, TradingStyleProfile> = {
       en: ["Volume", "5-min RSI", "Spread", "Intraday levels"],
     },
     atr: { sl: 0.6, tp: 1.0 },
+    fundWeight: 0,
     tips: {
       fr: [
         "Le spread est votre premier adversaire. Sur 20 trades à 0,05 %, vous avez perdu 1 % avant d'avoir eu raison une seule fois.",
@@ -94,6 +100,7 @@ export const TRADING_STYLES: Record<TradingStyleId, TradingStyleProfile> = {
       en: ["VWAP", "Opening range", "15-min MACD", "Volume"],
     },
     atr: { sl: 1.0, tp: 2.0 },
+    fundWeight: 0.05,
     tips: {
       fr: [
         "Le biais du jour se décide avant l'ouverture, pas pendant. Sans plan à 9 h, vous réagissez au lieu de trader.",
@@ -133,6 +140,7 @@ export const TRADING_STYLES: Record<TradingStyleId, TradingStyleProfile> = {
       en: ["EMA 20 / 50", "Daily RSI", "ATR", "Chart patterns"],
     },
     atr: { sl: 1.5, tp: 3.0 },
+    fundWeight: 0.2,
     tips: {
       fr: [
         "Une position ouverte la veille d'un CPI est un pari, pas un trade. Regardez le calendrier avant le graphique.",
@@ -174,6 +182,7 @@ export const TRADING_STYLES: Record<TradingStyleId, TradingStyleProfile> = {
     // Deliberately wide: on a multi-year horizon an ATR-tight stop is noise,
     // and the real invalidation is structural (a durable loss of the EMA200).
     atr: { sl: 4.0, tp: 8.0 },
+    fundWeight: 0.45,
     tips: {
       fr: [
         "Sur plusieurs années, le point d'entrée compte moins que le fait d'y être resté.",

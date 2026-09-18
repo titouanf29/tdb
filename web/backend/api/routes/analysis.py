@@ -19,7 +19,7 @@ from ._indicators import rsi_wilder, atr_wilder, adx_wilder, true_range, data_co
 from ._universe import EXTRA_CRYPTO, extend_market
 from ._scoring import (compute_score, derive_trend, derive_signal, TIMEFRAME_FETCH,
                        HIGHER_TF, htf_trend, apply_htf_gate, resample_ohlcv,
-                       ENGINE_VERSION)
+                       htf_from_primary, ENGINE_VERSION)
 from ._backtest import run_backtest
 
 router = APIRouter()
@@ -413,6 +413,102 @@ def upcoming_risk_catalysts(symbol: str, horizon_hours: float) -> list[dict]:
 # declaration order, so a literal path declared after it is unreachable —
 # /api/analysis/scan-limit was being served as an analysis of the ticker
 # "scan-limit". Any new literal route under this prefix belongs here too.
+# ── Fundamentals / news: cached, and skipped where they cannot exist ───────
+# `.info` is the slowest call an analysis makes (1-3 s, sometimes far more)
+# and it was made on EVERY analysis — including crypto, indices, forex and
+# futures, where Yahoo has no P/E, no margins, no analysts to return. It is
+# now skipped for those, and cached for 12 h for the rest: a company's
+# balance sheet does not change between two page loads.
+_INFO_CACHE: dict = {}
+_INFO_TTL = 12 * 3600.0
+_EDGE_CACHE: dict = {}
+_EDGE_TTL = 3600.0
+
+
+def _has_fundamentals(symbol: str) -> bool:
+    u = symbol.upper()
+    return not (u.startswith("^") or u.endswith("-USD") or u.endswith("-BTC")
+                or u.endswith("=X") or u.endswith("=F"))
+
+
+def _fetch_ticker_info_sync(symbol: str):
+    """(ticker, info) — blocking; call from the executor."""
+    import time as _time
+    import yfinance as yf
+    hit = _INFO_CACHE.get(symbol)
+    if hit and _time.monotonic() - hit[0] < _INFO_TTL:
+        return hit[1]
+    try:
+        ticker = yf.Ticker(symbol)
+        info = ticker.info or {}
+    except Exception:
+        ticker, info = None, {}
+    _INFO_CACHE[symbol] = (_time.monotonic(), (ticker, info))
+    return ticker, info
+
+
+def _fetch_news_sync(ticker):
+    """Blocking network call; was being made inline in an async route."""
+    try:
+        return ticker.news[:5] if ticker is not None and getattr(ticker, "news", None) else []
+    except Exception:
+        return []
+
+
+def _historical_edge_sync(symbol: str, timeframe: str, hist, sl_atr: float, tp_atr: float) -> dict:
+    """Triple-barrier replay of THIS asset's history with the user's own
+    stop/target, cached for an hour. Answers "what has this score level been
+    worth here?" next to the score instead of behind a button."""
+    import time as _time
+    key = (symbol, timeframe, round(sl_atr, 2), round(tp_atr, 2))
+    hit = _EDGE_CACHE.get(key)
+    if hit and _time.monotonic() - hit[0] < _EDGE_TTL:
+        return hit[1]
+    try:
+        # Coarser sampling than the explicit backtest button (120 vs 250
+        # evaluations): this runs on the first analysis of every asset, and
+        # the trade count it yields is what matters, not the grid density.
+        r = run_backtest(hist, horizon=10, sl_atr=sl_atr, tp_atr=tp_atr, mode="event", max_evals=120)
+        edge = {
+            "n_trades": r.get("n_trades", 0),
+            "enough_samples": r.get("enough_samples", False),
+            "expectancy_net_r": r.get("expectancy_net_r"),
+            "win_rate": r.get("win_rate"),
+            "p_target": r.get("p_target"),
+            "p_stop": r.get("p_stop"),
+            "profit_factor": r.get("profit_factor"),
+            "engine_version": r.get("engine_version"),
+        }
+    except Exception:
+        edge = {"n_trades": 0, "enough_samples": False}
+    _EDGE_CACHE[key] = (_time.monotonic(), edge)
+    return edge
+
+
+def _signal_quality(factor_agreement, htf_aligned, edge: dict) -> dict:
+    """How much to trust the DIRECTION — distinct from data quality, which
+    says how much to trust the numbers it was computed from. A pristine
+    500-bar series can still yield a signal that four factors dispute."""
+    pts, notes = 50, []
+    if factor_agreement is not None:
+        pts += int((factor_agreement - 50) * 0.5)      # ±25
+        if factor_agreement < 40:
+            notes.append("Facteurs en désaccord")
+    if htf_aligned is True:
+        pts += 15; notes.append("Confirmé par le timeframe supérieur")
+    elif htf_aligned is False:
+        pts -= 15; notes.append("Contredit par le timeframe supérieur")
+    if edge.get("enough_samples"):
+        e = edge.get("expectancy_net_r") or 0.0
+        if e > 0.15:
+            pts += 10; notes.append(f"Edge historique positif sur cet actif (+{e:.2f}R)")
+        elif e < -0.15:
+            pts -= 10; notes.append(f"Edge historique négatif sur cet actif ({e:.2f}R)")
+    else:
+        notes.append("Historique trop court pour mesurer l'edge")
+    return {"score": max(0, min(100, pts)), "notes": notes}
+
+
 def _tradeability(
     risk_reward: float | None,
     data_stale: bool,
@@ -468,7 +564,17 @@ async def get_scan_limit(current_user: dict = Depends(get_current_user)):
 async def analyze_asset(
     request: Request,
     symbol: str,
-    timeframe: str = Query(default="1d", pattern="^(5m|15m|30m|1h|4h|1d|3d|1w|1mo)$")
+    timeframe: str = Query(default="1d", pattern="^(5m|15m|30m|1h|4h|1d|3d|1w|1mo)$"),
+    # The stop/target multiples of the user's trading profile. The risk plan,
+    # the setups and the backtest all use the same pair, so one page never
+    # shows two different stops for the same asset.
+    sl_atr: float = Query(default=2.0, ge=0.2, le=10.0),
+    tp_atr: float = Query(default=3.0, ge=0.2, le=20.0),
+    # Weight of fundamentals in the verdict, 0-0.5, set by the profile
+    # (0 for scalping, up to 0.45 for long term). Applied ONLY when enough
+    # fundamental fields actually exist — a weight on a None is worse than
+    # no weight.
+    fund_weight: float = Query(default=0.0, ge=0.0, le=0.5),
 ):
     """Get AI analysis for an asset"""
     if not _SYMBOL_RE.match(symbol.upper()):
@@ -542,6 +648,15 @@ async def analyze_asset(
         fibonacci = S["fibonacci"]
         bullish_signals = S["bullish_signals"]; bearish_signals = S["bearish_signals"]
         conviction_score = S["conviction_score"]
+
+        # Two slow, independent jobs start now and are collected later, so
+        # their latency overlaps instead of adding up: fundamentals (skipped
+        # where Yahoo has none) and the triple-barrier replay of this asset.
+        _loop = asyncio.get_event_loop()
+        _info_fut = (_loop.run_in_executor(None, _fetch_ticker_info_sync, symbol)
+                     if _has_fundamentals(symbol) else None)
+        _edge_fut = _loop.run_in_executor(
+            None, _historical_edge_sync, symbol, timeframe, hist, sl_atr, tp_atr)
         technical_score = S["technical_score"]; trend_score = S["trend_score"]
         volume_score = S["volume_score"]; momentum_score = S["momentum_score"]
         volatility_score = S["volatility_score"]; final_score = S["final_score"]
@@ -551,18 +666,16 @@ async def analyze_asset(
         # classic trap. The signal is pulled back toward neutral when the
         # higher timeframe disagrees, and credited when it confirms.
         higher_tf_info = {"interval": None, "trend": "UNKNOWN", "aligned": None}
-        _htf = HIGHER_TF.get(timeframe)
+        _htf = htf_from_primary(hist, timeframe)   # derived, no second download
         if _htf:
             try:
-                _htf_interval, _htf_period = _htf
-                _htf_hist = await fetch_ohlcv(symbol, period=_htf_period, interval=_htf_interval)
-                if _htf_hist is not None and len(_htf_hist) >= 21:
-                    _h_trend = htf_trend(_htf_hist["Close"])
-                    final_score, _aligned, _bull_note, _bear_note = apply_htf_gate(
-                        final_score, _h_trend, _htf_interval)
-                    higher_tf_info = {"interval": _htf_interval, "trend": _h_trend, "aligned": _aligned}
-                    if _bull_note: bullish_signals.append(_bull_note)
-                    if _bear_note: bearish_signals.append(_bear_note)
+                _htf_interval, _htf_closes = _htf
+                _h_trend = htf_trend(_htf_closes)
+                final_score, _aligned, _bull_note, _bear_note = apply_htf_gate(
+                    final_score, _h_trend, _htf_interval)
+                higher_tf_info = {"interval": _htf_interval, "trend": _h_trend, "aligned": _aligned}
+                if _bull_note: bullish_signals.append(_bull_note)
+                if _bear_note: bearish_signals.append(_bear_note)
             except Exception:
                 pass
 
@@ -578,83 +691,12 @@ async def analyze_asset(
         recent_low = low.tail(_levels_window).min()
         recent_high = high.tail(_levels_window).max()
 
-        # Signal — shared thresholds with the scanner
-        signal_text = derive_signal(final_score)
-        signal_emoji = {"STRONG BUY": "🔥", "BUY": "🟢", "HOLD": "🟡",
-                        "SELL": "🟠", "STRONG SELL": "🔴"}[signal_text]
-
-        # ── Direction- and structure-aware risk plan ───────────────────────
-        # SELL setups get a short-side plan (SL above, TP below). Stops
-        # anchor to the nearest invalidation level (support/resistance with
-        # an ATR buffer) when that level sits inside the raw 2×ATR distance,
-        # and targets are capped at the first structural obstacle.
-        is_short_setup = final_score < 40
-        _support = float(recent_low)
-        _resistance = float(recent_high)
-        risk_notes: list[str] = []
-        sl_basis = "atr"
-        tp_capped = False
-
-        # A level only counts as an obstacle/anchor when it sits at a
-        # meaningful distance (≥1 ATR): at fresh highs/lows the 20-bar
-        # extreme IS the current price and must not strangle the plan.
-        if is_short_setup:
-            _sl = current_price + atr * 2
-            if (_resistance - current_price) >= atr and (_resistance + atr * 0.5) < _sl:
-                _sl = _resistance + atr * 0.5
-                sl_basis = "resistance"
-            _tp = current_price - atr * 3
-            if _tp < _support < current_price and (current_price - _support) >= atr:
-                _tp = _support
-                tp_capped = True
-                risk_notes.append("Objectif plafonné au support — premier obstacle structurel")
-            _sl_t = current_price + atr
-            _tp_c = current_price - atr * 1.5
+        # Collect the two background jobs launched right after the engine ran.
+        historical_edge = await _edge_fut
+        if _info_fut is not None:
+            ticker, info = await _info_fut
         else:
-            _sl = current_price - atr * 2
-            if (current_price - _support) >= atr and (_support - atr * 0.5) > _sl:
-                _sl = _support - atr * 0.5
-                sl_basis = "support"
-            _tp = current_price + atr * 3
-            if current_price < _resistance < _tp and (_resistance - current_price) >= atr:
-                _tp = _resistance
-                tp_capped = True
-                risk_notes.append("Objectif plafonné à la résistance — premier obstacle structurel")
-            _sl_t = current_price - atr
-            _tp_c = current_price + atr * 1.5
-
-        _rr = abs(_tp - current_price) / abs(_sl - current_price) if abs(_sl - current_price) > 1e-9 else None
-        if _rr is not None and _rr < 1.2:
-            risk_notes.append(f"R/R de {_rr:.1f} sous 1.2 — le setup rémunère mal le risque pris")
-
-        risk_block = {
-            "direction":                 "SHORT" if is_short_setup else "LONG",
-            "suggested_sl":              _safe(_sl, None, 2),
-            "suggested_tp":              _safe(_tp, None, 2),
-            "suggested_sl_tight":        _safe(_sl_t, None, 2),
-            "suggested_tp_conservative": _safe(_tp_c, None, 2),
-            "risk_reward":               _safe(_rr, 1.5, 2),
-            "atr_stop_pct":              _safe(atr / current_price * 200, None, 2),
-            "sl_basis":                  sl_basis,
-            "tp_capped_at_level":        tp_capped,
-            "notes":                     risk_notes,
-        }
-
-        # Get fundamental data
-        # Fundamentals are best-effort: a Yahoo hiccup must not kill an
-        # otherwise computable technical analysis. `.info` is a blocking
-        # network call, so it runs in the executor too.
-        import yfinance as yf
-        try:
-            ticker = await asyncio.get_event_loop().run_in_executor(
-                None, lambda: yf.Ticker(symbol)
-            )
-            info = await asyncio.get_event_loop().run_in_executor(
-                None, lambda: ticker.info or {}
-            )
-        except Exception:
-            ticker = None
-            info = {}
+            ticker, info = None, {}
 
         # Fundamental metrics
         fundamentals = {
@@ -686,6 +728,132 @@ async def analyze_asset(
             "num_analysts": info.get("numberOfAnalystOpinions"),
         }
 
+        # Fundamental score (enhanced)
+        fundamental_score = 50
+        if fundamentals.get("pe_ratio"):
+            pe = fundamentals["pe_ratio"]
+            if 0 < pe < 12:   fundamental_score += 15
+            elif pe < 18:     fundamental_score += 8
+            elif pe < 30:     fundamental_score += 2
+            elif pe > 60:     fundamental_score -= 15
+            elif pe > 40:     fundamental_score -= 8
+        if fundamentals.get("peg_ratio"):
+            peg = fundamentals["peg_ratio"]
+            if 0 < peg < 1:   fundamental_score += 12
+            elif peg < 2:     fundamental_score += 5
+            elif peg > 3:     fundamental_score -= 8
+        if fundamentals.get("revenue_growth"):
+            rg = fundamentals["revenue_growth"]
+            if rg > 0.20:  fundamental_score += 12
+            elif rg > 0.10: fundamental_score += 7
+            elif rg > 0:    fundamental_score += 3
+            elif rg < -0.05: fundamental_score -= 10
+        if fundamentals.get("earnings_growth"):
+            eg = fundamentals["earnings_growth"]
+            if eg > 0.20:  fundamental_score += 8
+            elif eg > 0.10: fundamental_score += 4
+            elif eg < -0.10: fundamental_score -= 8
+        if fundamentals.get("profit_margin"):
+            pm = fundamentals["profit_margin"]
+            if pm > 0.25:  fundamental_score += 8
+            elif pm > 0.15: fundamental_score += 4
+            elif pm < 0:   fundamental_score -= 12
+        if fundamentals.get("roe"):
+            roe = fundamentals["roe"]
+            if roe > 0.20:  fundamental_score += 6
+            elif roe > 0.12: fundamental_score += 3
+            elif roe < 0:   fundamental_score -= 6
+        if fundamentals.get("debt_to_equity"):
+            de = fundamentals["debt_to_equity"]
+            if de < 30:    fundamental_score += 5
+            elif de > 150: fundamental_score -= 8
+            elif de > 80:  fundamental_score -= 4
+        if fundamentals.get("current_ratio"):
+            cr = fundamentals["current_ratio"]
+            if cr > 2.0:   fundamental_score += 4
+            elif cr < 1.0: fundamental_score -= 6
+        fundamental_score = max(0, min(100, fundamental_score))
+
+        # Fundamentals enter the verdict only when the profile asks for it AND
+        # the data is actually there. Weighting 45% of a long-term verdict on
+        # fields Yahoo left empty would be worse than ignoring them.
+        _fund_fields = [fundamentals.get(k) for k in
+                        ("pe_ratio", "peg_ratio", "revenue_growth", "earnings_growth",
+                         "profit_margin", "roe", "debt_to_equity", "current_ratio")]
+        _fund_present = sum(1 for v in _fund_fields if v is not None)
+        # The technical final_score stays the ONE verdict shared with the
+        # scanner — blending fundamentals into it would make the analysis
+        # page disagree with the scanner for the same asset, the exact fault
+        # fixed last month. The profile-weighted reading is reported as a
+        # separate, labelled score instead.
+        fundamentals_applied = fund_weight > 0 and _fund_present >= 3
+        profile_score = (int(round(final_score * (1 - fund_weight) + fundamental_score * fund_weight))
+                         if fundamentals_applied else int(round(final_score)))
+
+        # Signal — shared thresholds with the scanner
+        signal_text = derive_signal(final_score)
+        signal_emoji = {"STRONG BUY": "🔥", "BUY": "🟢", "HOLD": "🟡",
+                        "SELL": "🟠", "STRONG SELL": "🔴"}[signal_text]
+
+        # ── Direction- and structure-aware risk plan ───────────────────────
+        # SELL setups get a short-side plan (SL above, TP below). Stops
+        # anchor to the nearest invalidation level (support/resistance with
+        # an ATR buffer) when that level sits inside the raw 2×ATR distance,
+        # and targets are capped at the first structural obstacle.
+        is_short_setup = final_score < 40
+        _support = float(recent_low)
+        _resistance = float(recent_high)
+        risk_notes: list[str] = []
+        sl_basis = "atr"
+        tp_capped = False
+
+        # A level only counts as an obstacle/anchor when it sits at a
+        # meaningful distance (≥1 ATR): at fresh highs/lows the 20-bar
+        # extreme IS the current price and must not strangle the plan.
+        # Multiples come from the trading profile (query), so this plan, the
+        # setups and the backtest describe ONE stop and ONE target.
+        if is_short_setup:
+            _sl = current_price + atr * sl_atr
+            if (_resistance - current_price) >= atr and (_resistance + atr * 0.5) < _sl:
+                _sl = _resistance + atr * 0.5
+                sl_basis = "resistance"
+            _tp = current_price - atr * tp_atr
+            if _tp < _support < current_price and (current_price - _support) >= atr:
+                _tp = _support
+                tp_capped = True
+                risk_notes.append("Objectif plafonné au support — premier obstacle structurel")
+            _sl_t = current_price + atr * sl_atr * 0.5
+            _tp_c = current_price - atr * tp_atr * 0.5
+        else:
+            _sl = current_price - atr * sl_atr
+            if (current_price - _support) >= atr and (_support - atr * 0.5) > _sl:
+                _sl = _support - atr * 0.5
+                sl_basis = "support"
+            _tp = current_price + atr * tp_atr
+            if current_price < _resistance < _tp and (_resistance - current_price) >= atr:
+                _tp = _resistance
+                tp_capped = True
+                risk_notes.append("Objectif plafonné à la résistance — premier obstacle structurel")
+            _sl_t = current_price - atr * sl_atr * 0.5
+            _tp_c = current_price + atr * tp_atr * 0.5
+
+        _rr = abs(_tp - current_price) / abs(_sl - current_price) if abs(_sl - current_price) > 1e-9 else None
+        if _rr is not None and _rr < 1.2:
+            risk_notes.append(f"R/R de {_rr:.1f} sous 1.2 — le setup rémunère mal le risque pris")
+
+        risk_block = {
+            "direction":                 "SHORT" if is_short_setup else "LONG",
+            "suggested_sl":              _safe(_sl, None, 2),
+            "suggested_tp":              _safe(_tp, None, 2),
+            "suggested_sl_tight":        _safe(_sl_t, None, 2),
+            "suggested_tp_conservative": _safe(_tp_c, None, 2),
+            "risk_reward":               _safe(_rr, 1.5, 2),
+            "atr_stop_pct":              _safe(atr / current_price * 200, None, 2),
+            "sl_basis":                  sl_basis,
+            "tp_capped_at_level":        tp_capped,
+            "notes":                     risk_notes,
+        }
+
         # Company info
         company_info = {
             "name": info.get("shortName") or info.get("longName"),
@@ -700,7 +868,8 @@ async def analyze_asset(
         # Get recent news (handles both old and new yfinance formats)
         news_items = []
         try:
-            news = ticker.news[:5] if ticker is not None and getattr(ticker, 'news', None) else []
+            news = (await asyncio.get_event_loop().run_in_executor(None, _fetch_news_sync, ticker)
+                    if ticker is not None else [])
             for item in news:
                 content = item.get("content") or {}
                 provider = content.get("provider") or {}
@@ -804,52 +973,6 @@ async def analyze_asset(
             has_volume=bool(len(vol_clean)) and float(vol_clean.sum()) > 0,
         ) - (25 if data_stale else 0) - (10 if data_nan_ratio > 0.05 else 0))
 
-        # Fundamental score (enhanced)
-        fundamental_score = 50
-        if fundamentals.get("pe_ratio"):
-            pe = fundamentals["pe_ratio"]
-            if 0 < pe < 12:   fundamental_score += 15
-            elif pe < 18:     fundamental_score += 8
-            elif pe < 30:     fundamental_score += 2
-            elif pe > 60:     fundamental_score -= 15
-            elif pe > 40:     fundamental_score -= 8
-        if fundamentals.get("peg_ratio"):
-            peg = fundamentals["peg_ratio"]
-            if 0 < peg < 1:   fundamental_score += 12
-            elif peg < 2:     fundamental_score += 5
-            elif peg > 3:     fundamental_score -= 8
-        if fundamentals.get("revenue_growth"):
-            rg = fundamentals["revenue_growth"]
-            if rg > 0.20:  fundamental_score += 12
-            elif rg > 0.10: fundamental_score += 7
-            elif rg > 0:    fundamental_score += 3
-            elif rg < -0.05: fundamental_score -= 10
-        if fundamentals.get("earnings_growth"):
-            eg = fundamentals["earnings_growth"]
-            if eg > 0.20:  fundamental_score += 8
-            elif eg > 0.10: fundamental_score += 4
-            elif eg < -0.10: fundamental_score -= 8
-        if fundamentals.get("profit_margin"):
-            pm = fundamentals["profit_margin"]
-            if pm > 0.25:  fundamental_score += 8
-            elif pm > 0.15: fundamental_score += 4
-            elif pm < 0:   fundamental_score -= 12
-        if fundamentals.get("roe"):
-            roe = fundamentals["roe"]
-            if roe > 0.20:  fundamental_score += 6
-            elif roe > 0.12: fundamental_score += 3
-            elif roe < 0:   fundamental_score -= 6
-        if fundamentals.get("debt_to_equity"):
-            de = fundamentals["debt_to_equity"]
-            if de < 30:    fundamental_score += 5
-            elif de > 150: fundamental_score -= 8
-            elif de > 80:  fundamental_score -= 4
-        if fundamentals.get("current_ratio"):
-            cr = fundamentals["current_ratio"]
-            if cr > 2.0:   fundamental_score += 4
-            elif cr < 1.0: fundamental_score -= 6
-        fundamental_score = max(0, min(100, fundamental_score))
-
         # Analyst sentiment
         analyst_sentiment = "neutral"
         if fundamentals.get("recommendation"):
@@ -906,6 +1029,21 @@ async def analyze_asset(
             # Stamped so a position opened months ago can be traced back to the
             # engine that produced its numbers.
             "engine_version": ENGINE_VERSION,
+            "risk_multiples": {"sl_atr": sl_atr, "tp_atr": tp_atr},
+            # Second reading, weighted by the profile's fundamental share.
+            # Absent from the scanner (no fundamentals there), hence kept apart.
+            "profile_score": {
+                "total": profile_score,
+                "signal": derive_signal(profile_score),
+                "fundamentals_applied": fundamentals_applied,
+                "fund_weight": fund_weight if fundamentals_applied else 0.0,
+                "fund_fields_present": _fund_present,
+            },
+            # What this score level has been worth ON THIS ASSET — always with
+            # its sample size, never as a bare percentage.
+            "historical_edge": historical_edge,
+            "signal_quality": _signal_quality(
+                S.get("factor_agreement"), higher_tf_info.get("aligned"), historical_edge),
             "volatility_context": {
                 "percentile": S.get("vol_percentile"),
                 "regime": S.get("vol_regime"),
@@ -1487,16 +1625,14 @@ async def scan_market(
             # Same higher-timeframe confirmation the analysis applies. Skipping
             # it here would leave an 8-point gap — enough to show BUY in the
             # scanner and HOLD on the analysis page for the same asset.
-            _htf = HIGHER_TF.get(timeframe)
+            _htf = htf_from_primary(hist, timeframe)   # derived, no second download
             if _htf:
                 try:
-                    _htf_interval, _htf_period = _htf
-                    _htf_hist = await fetch_ohlcv(symbol, period=_htf_period, interval=_htf_interval)
-                    if _htf_hist is not None and len(_htf_hist) >= 21:
-                        _h_trend = htf_trend(_htf_hist["Close"])
-                        final_score, _al, _bn, _rn = apply_htf_gate(final_score, _h_trend, _htf_interval)
-                        if _bn: ups.append(_bn)
-                        if _rn: downs.append(_rn)
+                    _htf_interval, _htf_closes = _htf
+                    _h_trend = htf_trend(_htf_closes)
+                    final_score, _al, _bn, _rn = apply_htf_gate(final_score, _h_trend, _htf_interval)
+                    if _bn: ups.append(_bn)
+                    if _rn: downs.append(_rn)
                 except Exception:
                     pass
 

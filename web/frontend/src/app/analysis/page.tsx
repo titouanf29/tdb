@@ -613,7 +613,7 @@ export default function AnalysisPage() {
     currentSymbolRef.current = s;
 
     try {
-      const data = await analysisAPI.analyze(s, timeframe);
+      const data = await analysisAPI.analyze(s, timeframe, style.atr.sl, style.atr.tp, style.fundWeight);
       setAnalysis(data);
       setLastUpdated(new Date());
 
@@ -1179,9 +1179,70 @@ export default function AnalysisPage() {
                   <ScoreBar label={t("analysis_fundamentals")} score={analysis.score.fundamental} />
                 )}
                 {(analysis.score as any).conviction !== undefined && (
-                  <ScoreBar label={t("analysis_conviction")} score={(analysis.score as any).conviction} />
+                  <ScoreBar label={lang === "en" ? "Factor agreement" : "Accord entre facteurs"} score={(analysis.score as any).conviction} />
                 )}
               </div>
+
+              {/* What the score is worth — three readings that are NOT the score */}
+              {(analysis.profile_score || analysis.historical_edge || analysis.signal_quality) && (
+                <div className="mt-5 space-y-2.5 border-t border-border pt-4">
+                  {analysis.profile_score?.fundamentals_applied && (
+                    <div className="flex items-baseline justify-between gap-3">
+                      <span className="text-xs text-muted-foreground">
+                        {lang === "en"
+                          ? `Profile score · fundamentals ${Math.round(analysis.profile_score.fund_weight * 100)}%`
+                          : `Score profil · fondamental ${Math.round(analysis.profile_score.fund_weight * 100)} %`}
+                      </span>
+                      <span className="font-mono text-sm font-bold tabular-nums">
+                        {analysis.profile_score.total}
+                        <span className="ml-1.5 text-[11px] font-semibold text-muted-foreground">{analysis.profile_score.signal}</span>
+                      </span>
+                    </div>
+                  )}
+                  {analysis.historical_edge && (
+                    <div className="flex items-baseline justify-between gap-3">
+                      <span className="text-xs text-muted-foreground">
+                        {lang === "en" ? "Historical edge on this asset" : "Edge historique sur cet actif"}
+                      </span>
+                      {analysis.historical_edge.enough_samples ? (
+                        <span className={cn("font-mono text-sm font-bold tabular-nums",
+                          (analysis.historical_edge.expectancy_net_r ?? 0) > 0 ? "text-profit" : "text-loss")}>
+                          {(analysis.historical_edge.expectancy_net_r ?? 0) >= 0 ? "+" : ""}{analysis.historical_edge.expectancy_net_r}R
+                          <span className="ml-1.5 text-[11px] font-normal text-muted-foreground">
+                            {analysis.historical_edge.win_rate}% · {analysis.historical_edge.n_trades} trades
+                          </span>
+                        </span>
+                      ) : (
+                        // Never a bare figure on a thin sample — say so instead.
+                        <span className="font-mono text-[11px] text-muted-foreground">
+                          {lang === "en"
+                            ? `${analysis.historical_edge.n_trades} trades — too few to conclude`
+                            : `${analysis.historical_edge.n_trades} trades — trop peu pour conclure`}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                  {analysis.signal_quality && (
+                    <div>
+                      <div className="flex items-baseline justify-between gap-3">
+                        <span className="text-xs text-muted-foreground">
+                          {lang === "en" ? "Signal quality" : "Qualité du signal"}
+                        </span>
+                        <span className={cn("font-mono text-sm font-bold tabular-nums",
+                          analysis.signal_quality.score >= 65 ? "text-profit"
+                            : analysis.signal_quality.score < 40 ? "text-loss" : "text-warning")}>
+                          {analysis.signal_quality.score}%
+                        </span>
+                      </div>
+                      {analysis.signal_quality.notes.length > 0 && (
+                        <p className="mt-1 text-[11px] leading-snug text-muted-foreground/80">
+                          {analysis.signal_quality.notes.join(" · ")}
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
             </motion.div>
 
             {/* Price info */}
