@@ -16,8 +16,13 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
-lib64/
+# Anchored to the repository root on purpose. Unanchored, "lib/" matches a
+# directory called lib at ANY depth — including web/frontend/src/lib, which is
+# source, not build output. That silently dropped src/lib/glossary.ts and
+# src/lib/explain.ts from two commits; both compiled locally and broke the
+# production build. These entries exist for a Python distribution at the root.
+/lib/
+/lib64/
 parts/
 sdist/
 var/

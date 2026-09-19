@@ -16,22 +16,29 @@ import { SILHOUETTES } from "./CloudLayer";
  *   clear    the followed assets are up strongly      sun, two clouds
  *   fair     mildly up                                sun, light cover
  *   cloudy   flat                                     full cover, slow
- *   windy    down                                     faster drift, streaks
- *   rain     down sharply                             fine rain, dark cover
+ *   overcast down                                     low deck, heavier
+ *   heavy    down sharply                             deck closes in, veil
+ *
+ * The sky only ever drifts. Rain and wind streaks were drawn here at one
+ * point and removed: precipitation is the one weather effect that has to move
+ * fast to be read as itself, and something moving fast behind a screen people
+ * read numbers on is a distraction whatever it represents. A bad day now
+ * shows as a lower, darker, slower deck — the same information, told the way
+ * the rest of the interface tells things.
  *
  * Everything animates on transform or opacity only, loops seamlessly, and can
  * be switched off — some people want a plain surface to work on, and that is a
  * legitimate preference rather than a fallback.
  */
 
-export type WeatherCondition = "clear" | "fair" | "cloudy" | "windy" | "rain";
+export type WeatherCondition = "clear" | "fair" | "cloudy" | "overcast" | "heavy";
 
 export const WEATHER_LABEL: Record<WeatherCondition, string> = {
   clear: "Ciel dégagé",
   fair: "Éclaircies",
   cloudy: "Couvert",
-  windy: "Vent",
-  rain: "Pluie",
+  overcast: "Ciel bas",
+  heavy: "Ciel lourd",
 };
 
 /** Average percentage move → condition. The thresholds are deliberately wide:
@@ -41,8 +48,8 @@ export function conditionFromChange(avgChangePct: number | null): WeatherConditi
   if (avgChangePct >= 1.2) return "clear";
   if (avgChangePct >= 0.25) return "fair";
   if (avgChangePct > -0.25) return "cloudy";
-  if (avgChangePct > -1.2) return "windy";
-  return "rain";
+  if (avgChangePct > -1.2) return "overcast";
+  return "heavy";
 }
 
 const STORAGE_KEY = "tdb_animations";
@@ -154,60 +161,24 @@ function Sun({ strength }: { strength: number }) {
   );
 }
 
-/** Fine diagonal rain. Two layers at different speeds so it has depth, built
- *  from a repeating gradient rather than hundreds of elements. */
-function Rain() {
+/**
+ * A heavy sky, without a drop of rain.
+ *
+ * Still — it does not animate at all. What makes a day read as grim is the
+ * light going flat, and that is a wash, not a movement. The clouds keep
+ * drifting over it, so the sky is alive; the weight is just the air.
+ */
+function Veil({ strength }: { strength: number }) {
   return (
-    <>
-      {[
-        { dur: 0.75, o: 0.2, size: "3px 22px" },
-        { dur: 1.15, o: 0.14, size: "4px 30px" },
-      ].map((l, i) => (
-        <motion.div
-          key={i}
-          aria-hidden
-          className="absolute inset-[-20%]"
-          style={{
-            opacity: l.o,
-            backgroundImage:
-              "repeating-linear-gradient(105deg, var(--cap-ocean) 0 1px, transparent 1px 9px)",
-            backgroundSize: l.size,
-          }}
-          animate={{ y: ["0%", "14%"], x: ["0%", "-3%"] }}
-          transition={{ duration: l.dur, repeat: Infinity, ease: "linear" }}
-        />
-      ))}
-    </>
-  );
-}
-
-/** Horizontal streaks. Wind is felt through what it moves, so this is a few
- *  fast hairlines rather than an effect of its own. */
-function Wind() {
-  return (
-    <>
-      {[
-        { top: "22%", w: 34, dur: 5.5, delay: 0 },
-        { top: "48%", w: 22, dur: 4.2, delay: 1.4 },
-        { top: "71%", w: 28, dur: 6.4, delay: 2.6 },
-      ].map((s, i) => (
-        <motion.div
-          key={i}
-          aria-hidden
-          className="absolute h-px"
-          style={{
-            top: s.top,
-            width: `${s.w}vw`,
-            background:
-              "linear-gradient(90deg, transparent, var(--cap-ink-4), transparent)",
-            opacity: 0.6,
-          }}
-          initial={{ x: "-40vw" }}
-          animate={{ x: "120vw" }}
-          transition={{ duration: s.dur, delay: s.delay, repeat: Infinity, ease: "linear" }}
-        />
-      ))}
-    </>
+    <div
+      aria-hidden
+      className="absolute inset-0"
+      style={{
+        backgroundImage:
+          `linear-gradient(180deg, rgba(11,23,38,${0.07 * strength}) 0%, rgba(11,23,38,${0.02 * strength}) 46%, transparent 78%),` +
+          `radial-gradient(64% 40% at 22% -4%, rgba(21,94,117,${0.06 * strength}), transparent 70%)`,
+      }}
+    />
   );
 }
 
@@ -215,7 +186,12 @@ function Wind() {
 
 const PRESETS: Record<
   WeatherCondition,
-  { sun: number; speed: number; clouds: { shape: number; top: string; w: number; o: number; flip?: boolean }[] }
+  {
+    sun: number;
+    veil?: number;
+    speed: number;
+    clouds: { shape: number; top: string; w: number; o: number; flip?: boolean }[];
+  }
 > = {
   clear: {
     sun: 1, speed: 1,
@@ -244,8 +220,9 @@ const PRESETS: Record<
       { shape: 2, top: "82%", w: 34, o: 0.6 },
     ],
   },
-  windy: {
-    sun: 0, speed: 0.45,
+  // A down day: the deck sits lower and drifts more slowly than a flat one.
+  overcast: {
+    sun: 0, veil: 0.55, speed: 0.75,
     clouds: [
       { shape: 2, top: "-6%", w: 60, o: 1 },
       { shape: 1, top: "20%", w: 52, o: 0.88, flip: true },
@@ -253,8 +230,9 @@ const PRESETS: Record<
       { shape: 0, top: "74%", w: 38, o: 0.64, flip: true },
     ],
   },
-  rain: {
-    sun: 0, speed: 0.7,
+  // A bad day: wider masses, full veil, slowest drift of all.
+  heavy: {
+    sun: 0, veil: 1, speed: 0.55,
     clouds: [
       { shape: 1, top: "-12%", w: 66, o: 1 },
       { shape: 2, top: "6%",   w: 58, o: 0.92, flip: true },
@@ -290,6 +268,7 @@ export function WeatherBackdrop({
       style={{ opacity: 0.95 }}
     >
       {preset.sun > 0 && <Sun strength={preset.sun} />}
+      {preset.veil ? <Veil strength={preset.veil} /> : null}
       {preset.clouds.map((c, i) => (
         <DriftingCloud
           key={`${condition}-${i}`}
@@ -304,8 +283,6 @@ export function WeatherBackdrop({
           delay={-(base / preset.speed) * (0.17 + i * 0.23)}
         />
       ))}
-      {condition === "windy" && <Wind />}
-      {condition === "rain" && <Rain />}
     </div>
   );
 }

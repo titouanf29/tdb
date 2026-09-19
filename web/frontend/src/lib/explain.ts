@@ -1,0 +1,202 @@
+import type { Analysis } from "@/lib/api";
+
+/**
+ * Turning an analysis into sentences.
+ *
+ * This is the product's actual promise — "des données financières complexes
+ * en décisions compréhensibles" — so it lives in one place rather than being
+ * scattered through the screen as ternaries. Every line here is derived from
+ * a number the engine computed; nothing is invented, and nothing is softened.
+ *
+ * The rules, in order of importance:
+ *
+ *   1. Say the direction, then why, then what would make it wrong.
+ *   2. Never state more confidence than the data supports. When the sample is
+ *      thin or the bars are stale, that IS the headline.
+ *   3. Name the disagreement when factors disagree. A verdict that hides its
+ *      own contradiction is how a user ends up asking "pourquoi il dit de
+ *      vendre alors que l'EMA dit l'inverse".
+ */
+
+export interface Reason {
+  text: string;
+  tone: "up" | "down" | "neutral" | "warn";
+}
+
+const FACTOR_LABELS: Record<string, string> = {
+  trend: "la tendance",
+  momentum: "le momentum",
+  flow: "les flux",
+  oscillators: "les oscillateurs",
+  volume: "le volume",
+};
+
+/** Direction as a word people use, from the engine's own trend string. */
+export function directionLabel(a: Analysis): { text: string; tone: "up" | "down" | "neutral" } {
+  const t = (a.trend || "").toUpperCase();
+  if (t.includes("BULL") || t.includes("HAUSS")) return { text: "Haussier", tone: "up" };
+  if (t.includes("BEAR") || t.includes("BAISS")) return { text: "Baissier", tone: "down" };
+  return { text: "Neutre", tone: "neutral" };
+}
+
+/**
+ * The "why", in three to five sentences.
+ *
+ * Ordered by what a reader needs first: the blockers that make the setup
+ * untradeable, then the factors that agree, then the ones that do not, then
+ * the risk to watch.
+ */
+export function buildReasons(a: Analysis): Reason[] {
+  const out: Reason[] = [];
+
+  // 1. Anything that makes the verdict unusable comes before the verdict.
+  a.tradeability?.blockers?.forEach((b) => out.push({ text: b, tone: "warn" }));
+  if (a.data_quality?.stale) {
+    out.push({
+      text: "La dernière bougie est ancienne — le marché est probablement fermé, et les niveaux datent de la dernière séance.",
+      tone: "warn",
+    });
+  }
+
+  // 2. The factors, split into what agrees and what does not.
+  const dirs = a.factor_directions ?? {};
+  const entries = Object.entries(dirs).filter(([, v]) => Number.isFinite(v));
+  const agreeing = entries.filter(([, v]) => Math.abs(v) >= 0.25);
+  const bullish = agreeing.filter(([, v]) => v > 0).map(([k]) => FACTOR_LABELS[k] ?? k);
+  const bearish = agreeing.filter(([, v]) => v < 0).map(([k]) => FACTOR_LABELS[k] ?? k);
+
+  if (bullish.length) {
+    out.push({ text: `${capitalise(list(bullish))} ${agrees(bullish)} à la hausse.`, tone: "up" });
+  }
+  if (bearish.length) {
+    out.push({ text: `${capitalise(list(bearish))} ${agrees(bearish)} à la baisse.`, tone: "down" });
+  }
+  // The contradiction gets its own line, named.
+  if (bullish.length && bearish.length) {
+    out.push({
+      text: "Les facteurs se contredisent — c'est ce qui limite la confiance du verdict.",
+      tone: "warn",
+    });
+  }
+
+  // 3. Volume, said only when it is actually notable.
+  const vr = a.indicators?.volume_ratio;
+  if (typeof vr === "number" && vr >= 1.3) {
+    out.push({ text: `Volume ${vr.toFixed(1)}× la moyenne — le mouvement est confirmé par les échanges.`, tone: "up" });
+  } else if (typeof vr === "number" && vr <= 0.6) {
+    out.push({ text: `Volume à ${vr.toFixed(1)}× la moyenne — peu d'échanges derrière ce mouvement.`, tone: "warn" });
+  }
+
+  // 4. Volatility, relative to this asset's own history rather than absolute.
+  const vol = a.volatility_context;
+  if (vol?.regime === "EXTREME" || vol?.regime === "HIGH") {
+    out.push({
+      text: vol.percentile != null
+        ? `Volatilité au ${Math.round(vol.percentile)}ᵉ percentile de son historique — les écarts seront larges.`
+        : "Volatilité élevée pour cet actif — les écarts seront larges.",
+      tone: "warn",
+    });
+  }
+
+  // 5. The nearest level, which is what actually stops a move.
+  const px = a.price?.current;
+  const res = a.levels?.resistance;
+  const sup = a.levels?.support;
+  if (px && res && sup) {
+    const toRes = ((res - px) / px) * 100;
+    const toSup = ((px - sup) / px) * 100;
+    if (toRes >= 0 && toRes < 3) {
+      out.push({ text: `Une résistance est à ${toRes.toFixed(1)} % au-dessus — c'est le point de vigilance.`, tone: "warn" });
+    } else if (toSup >= 0 && toSup < 3) {
+      out.push({ text: `Un support est à ${toSup.toFixed(1)} % en dessous — c'est le niveau à surveiller.`, tone: "neutral" });
+    }
+  }
+
+  // 6. The market this asset lives in.
+  const ctx = a.market_context;
+  if (ctx && ctx.regime !== "UNKNOWN") {
+    const reg = ctx.regime === "BULL" ? "haussier" : ctx.regime === "BEAR" ? "baissier" : "neutre";
+    const rs = ctx.relative_strength;
+    if (rs != null && Math.abs(rs) >= 5) {
+      out.push({
+        text: `${rs > 0 ? "Surperforme" : "Sous-performe"} ${ctx.benchmark} de ${Math.abs(rs).toFixed(1)} points sur 20 périodes, dans un marché ${reg}.`,
+        tone: rs > 0 ? "up" : "down",
+      });
+    } else if (ctx.regime !== "NEUTRAL") {
+      out.push({ text: `Le marché de référence (${ctx.benchmark}) est ${reg}.`, tone: ctx.regime === "BULL" ? "up" : "down" });
+    }
+  }
+
+  return out.slice(0, 6);
+}
+
+/**
+ * What the engine's own backtest says about this score on this asset.
+ *
+ * Returned as a sentence rather than a number, and it refuses to claim
+ * anything below the sample threshold — a 12-trade hit rate read as fact is
+ * worse than no figure at all.
+ */
+export function edgeSentence(a: Analysis): { text: string; tone: "up" | "down" | "warn" } | null {
+  const e = a.historical_edge;
+  if (!e || !e.n_trades) return null;
+
+  if (!e.enough_samples) {
+    return {
+      text: `Seulement ${e.n_trades} trades comparables dans l'historique — trop peu pour en tirer une statistique.`,
+      tone: "warn",
+    };
+  }
+
+  const exp = e.expectancy_net_r;
+  if (exp == null) return null;
+
+  if (exp < 0) {
+    return {
+      text: `Sur ${e.n_trades} trades comparables, ce niveau de score a perdu ${Math.abs(exp).toFixed(2)} R en moyenne sur cet actif. Le verdict reste ce qu'il est, mais l'historique ne le soutient pas.`,
+      tone: "down",
+    };
+  }
+  return {
+    text: `Sur ${e.n_trades} trades comparables, ce niveau de score a rapporté ${exp.toFixed(2)} R en moyenne${e.win_rate != null ? ` (${e.win_rate.toFixed(0)} % de réussite)` : ""}.`,
+    tone: "up",
+  };
+}
+
+/** The scenario, said plainly and always with its basis. */
+export function scenarioSentence(a: Analysis): string | null {
+  const s = a.historical_edge?.scenario;
+  if (!s || !s.enough) return null;
+  const what =
+    s.most_likely === "target" ? "l'objectif est atteint"
+    : s.most_likely === "stop" ? "le stop est touché"
+    : "la position expire sans toucher ni l'un ni l'autre";
+  const basis = s.basis === "conditional" && s.regime
+    ? `dans un marché ${s.regime === "BULL" ? "haussier" : s.regime === "BEAR" ? "baissier" : "neutre"}`
+    : "toutes conditions confondues";
+  return `Le plus probable : ${what} (${Math.round(s.most_likely_pct)} % des cas ${basis}, sur ${s.n_trades} trades).`;
+}
+
+/* ── helpers ──────────────────────────────────────────────────────────────── */
+
+function list(items: string[]): string {
+  if (items.length === 1) return items[0];
+  return `${items.slice(0, -1).join(", ")} et ${items[items.length - 1]}`;
+}
+
+/**
+ * Verb and participle, agreed in number.
+ *
+ * Every factor label here is masculine in French ("le momentum", "les flux"),
+ * so only the number varies. Writing "la tendance est orientés" once was
+ * enough to show that a sentence assembled from fragments has to agree like
+ * any other sentence — a grammar mistake in the one line the product exists
+ * to produce undermines everything above it.
+ */
+function agrees(items: string[]): string {
+  return items.length > 1 ? "sont orientés" : "est orienté";
+}
+
+function capitalise(s: string): string {
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}

@@ -151,7 +151,7 @@ function AnalysisScreen() {
   return (
     <>
       <WeatherBackdrop
-        condition={analysis ? (analysis.price.change >= 0 ? "fair" : "windy") : "cloudy"}
+        condition={analysis ? (analysis.price.change >= 0 ? "fair" : "overcast") : "cloudy"}
         enabled={animOn}
       />
 

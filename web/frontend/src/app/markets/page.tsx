@@ -1,737 +1,719 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { motion, AnimatePresence } from "framer-motion";
-import {
-  TrendingUp, TrendingDown, Search, Star, StarOff,
-  ChevronRight, Loader2, Clock, Circle, ChevronDown,
-  RefreshCw, Timer, Crown, ArrowUpRight, ArrowDownRight, Zap,
-} from "lucide-react";
-import { cn, formatPercent, formatVolume } from "@/lib/utils";
-import { marketAPI, favoritesAPI, Market, Asset } from "@/lib/api";
+import { ChevronDown, Loader2, RefreshCw, Search, Star } from "lucide-react";
+import { marketAPI, favoritesAPI, type Asset, type Market } from "@/lib/api";
 import { MARKET_SYMBOLS } from "@/lib/marketSymbols";
-import { getAssetInfo, getAssetLogo } from "@/lib/assetInfo";
+import { getAssetInfo } from "@/lib/assetInfo";
 import { authHeaders } from "@/lib/auth";
 import { isMarketOpen, getMarketHoursDisplay, getTimeUntilChange } from "@/lib/marketStatus";
 import { useFormatPrice, useSettings } from "@/lib/SettingsContext";
-import { TopLoadingBar } from "@/components/ui/TopLoadingBar";
-import { useLanguage } from "@/lib/LanguageContext";
-import { HelpGuide } from "@/components/ui/HelpGuide";
 import { usePremium } from "@/lib/PremiumContext";
+import { useUserLevel } from "@/hooks/useUserLevel";
+import { formatVolume } from "@/lib/utils";
+import {
+  Button, CloudCurtain, EmptyState, Heading, Num, Panel, SegmentedControl,
+  Text, WeatherBackdrop, conditionFromChange, useAnimationsEnabled,
+} from "@/components/design-system";
+import { BreadthBar, MoveBars, type Move } from "@/components/markets/Breadth";
+
+/**
+ * The markets screen — the state of the world, before any single asset.
+ *
+ * The old screen opened on a six-column table of twenty rows and a pair of
+ * boxes full of logos. That is a data dump: it shows everything and ranks
+ * nothing, so the reader has to do the ranking, which is the part they came
+ * here to have done for them.
+ *
+ * This one answers three questions in order, one per compartment:
+ *
+ *   1. Où ça bouge ?      the six places, each with its breadth in one bar
+ *   2. Quel temps ?       the selected market's day, in a sentence and bars
+ *   3. Quoi précisément ? the list, only then, and only as wide as needed
+ *
+ * The level chooses how much of that is shown. It is not a paywall and not a
+ * "mode débutant" that hides the truth — every level sees the same figures.
+ * What changes is how many of them arrive at once, and whether they come with
+ * a sentence explaining what they mean.
+ */
+
+type Depth = "discover" | "intermediate" | "advanced";
+
+const DEPTHS: { value: Depth; label: string }[] = [
+  { value: "discover", label: "Découverte" },
+  { value: "intermediate", label: "Intermédiaire" },
+  { value: "advanced", label: "Avancé" },
+];
 
 const PAGE_SIZE = 20;
 
 const FREE_INTERVALS = [
-  { label: "Off",    ms: 0 },
-  { label: "10 min", ms: 600_000 },
-  { label: "30 min", ms: 1_800_000 },
+  { value: "0", label: "Manuel" },
+  { value: "600000", label: "10 min" },
+  { value: "1800000", label: "30 min" },
 ];
 const PREMIUM_INTERVALS = [
-  { label: "Off",    ms: 0 },
-  { label: "1 min",  ms: 60_000 },
-  { label: "2 min",  ms: 120_000 },
-  { label: "5 min",  ms: 300_000 },
-  { label: "10 min", ms: 600_000 },
-  { label: "30 min", ms: 1_800_000 },
+  { value: "0", label: "Manuel" },
+  { value: "60000", label: "1 min" },
+  { value: "300000", label: "5 min" },
+  { value: "1800000", label: "30 min" },
 ];
 
-const marketIcons: Record<string, string> = {
-  USA: "🇺🇸", EUROPE: "🇪🇺", ASIA: "🌏",
-  CRYPTO: "₿", FOREX: "💱", COMMODITIES: "🥇",
+/** What each place is, in the words of someone who does not work in finance. */
+const PLACE_BLURB: Record<string, string> = {
+  USA: "Wall Street — les plus grandes capitalisations mondiales.",
+  EUROPE: "Paris, Francfort, Londres et les grandes valeurs européennes.",
+  ASIA: "Tokyo, Hong Kong, Séoul.",
+  CRYPTO: "Ouvert en permanence, week-ends compris.",
+  FOREX: "Les paires de devises, cotées en continu du dimanche soir au vendredi.",
+  COMMODITIES: "Or, argent, pétrole, gaz et matières agricoles.",
 };
 
+interface Pulse {
+  up: number;
+  down: number;
+  flat: number;
+  avg: number;
+  moves: Move[];
+}
+
+type SortKey = "rank" | "move" | "alpha";
+
 export default function MarketsPage() {
-  const { t, lang } = useLanguage();
-  const router      = useRouter();
+  const router = useRouter();
   const formatPrice = useFormatPrice();
   const { settings, setCurrency } = useSettings();
-  const { isPremium, isAdmin }    = usePremium();
+  const { isPremium, isAdmin } = usePremium();
+  const level = useUserLevel();
+  const [animOn] = useAnimationsEnabled();
 
-  const [markets, setMarkets]               = useState<Market[]>([]);
-  const [selectedMarket, setSelectedMarket] = useState<string>("");
-  const [assets, setAssets]                 = useState<Asset[]>([]);
-  const [favorites, setFavorites]           = useState<Set<string>>(new Set());
-  const [searchQuery, setSearchQuery]       = useState("");
-  const [isLoading, setIsLoading]           = useState(true);
-  const [isLoadingAssets, setIsLoadingAssets] = useState(false);
-  const [isLoadingMore, setIsLoadingMore]   = useState(false);
-  const [isLoadingPrices, setIsLoadingPrices] = useState(false);
-  const [hasMore, setHasMore]               = useState(false);
-  const [totalAssets, setTotalAssets]       = useState(0);
-  const [searchResults, setSearchResults]   = useState<{ symbol: string; name: string; exchange: string }[]>([]);
-  const [isSearchingBackend, setIsSearchingBackend] = useState(false);
-  const [priceFlash, setPriceFlash]         = useState<Record<string, "up" | "down">>({});
-  const [refreshRate, setRefreshRate]       = useState<number>(0);
-  const [topMovers, setTopMovers]           = useState<{ gainers: Asset[]; losers: Asset[] } | null>(null);
-
-  const prevPricesRef      = useRef<Record<string, number>>({});
-  const autoRefreshRef     = useRef<ReturnType<typeof setInterval> | null>(null);
-  const searchDebounceRef  = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const intervals          = (isPremium || isAdmin) ? PREMIUM_INTERVALS : FREE_INTERVALS;
-
-  // ── Load markets + favorites ─────────────────────────────────────────────
+  // The level sets the starting depth; the control above the list overrides it.
+  // Someone who called themselves a beginner six months ago should not have to
+  // edit their profile to see a volume column.
+  const [depth, setDepth] = useState<Depth>(
+    level.level === "expert" ? "advanced" : level.level === "intermediate" ? "intermediate" : "discover"
+  );
+  const [depthTouched, setDepthTouched] = useState(false);
   useEffect(() => {
-    const loadMarkets = async () => {
-      try {
-        const data = await marketAPI.getMarkets();
-        setMarkets(data.markets);
-        if (data.markets.length > 0) setSelectedMarket(data.markets[0].key);
-      } catch { /* ignore */ } finally { setIsLoading(false); }
-    };
-    const loadFavorites = async () => {
-      try {
-        const data = await favoritesAPI.getFavorites();
-        setFavorites(new Set(data.favorites.map(f => f.symbol)));
-      } catch { /* ignore */ }
-    };
-    loadMarkets();
-    loadFavorites();
-  }, []);
+    if (depthTouched) return;
+    setDepth(
+      level.level === "expert" ? "advanced" : level.level === "intermediate" ? "intermediate" : "discover"
+    );
+  }, [level.level, depthTouched]);
 
-  // ── Load assets when market changes ─────────────────────────────────────
+  const [markets, setMarkets] = useState<Market[]>([]);
+  const [selected, setSelected] = useState("");
+  const [pulse, setPulse] = useState<Record<string, Pulse>>({});
+  const [assets, setAssets] = useState<Asset[]>([]);
+  const [total, setTotal] = useState(0);
+  const [favorites, setFavorites] = useState<Set<string>>(new Set());
+
+  const [loading, setLoading] = useState(true);
+  const [loadingAssets, setLoadingAssets] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState<{ symbol: string; name: string; exchange: string }[]>([]);
+  const [searching, setSearching] = useState(false);
+
+  const [sort, setSort] = useState<SortKey>("rank");
+  const [interval, setIntervalMs] = useState("0");
+
+  const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const intervals = isPremium || isAdmin ? PREMIUM_INTERVALS : FREE_INTERVALS;
+
+  /* ── The six places ─────────────────────────────────────────────────────── */
+
   useEffect(() => {
-    if (!selectedMarket) return;
-    const controller = new AbortController();
-    const timer      = setTimeout(() => controller.abort(), 20000);
-
-    const loadAssets = async () => {
-      setIsLoadingAssets(true);
-      setAssets([]);
-      setHasMore(false);
-      try {
-        const data = await marketAPI.getAssets(selectedMarket, PAGE_SIZE, 0);
-        setAssets(data.assets);
-        setTotalAssets(data.total);
-        setHasMore(data.offset + data.limit < data.total);
-        const symbols = data.assets.map((a: Asset) => a.symbol);
-        if (symbols.length > 0) {
-          setIsLoadingPrices(true);
-          marketAPI.getPrices(symbols)
-            .then(priceData => {
-              const flashes: Record<string, "up" | "down"> = {};
-              setAssets(prev => prev.map(a => {
-                const p = priceData.prices[a.symbol];
-                if (p) {
-                  const prev = prevPricesRef.current[a.symbol];
-                  if (prev !== undefined && p.price !== prev)
-                    flashes[a.symbol] = p.price > prev ? "up" : "down";
-                  prevPricesRef.current[a.symbol] = p.price;
-                  return { ...a, price: p.price, change: p.change, volume: p.volume };
-                }
-                return a;
-              }));
-              if (Object.keys(flashes).length > 0) {
-                setPriceFlash(flashes);
-                setTimeout(() => setPriceFlash({}), 800);
-              }
-            })
-            .catch(() => {})
-            .finally(() => setIsLoadingPrices(false));
-        }
-      } catch { /* ignore */ } finally {
-        clearTimeout(timer);
-        setIsLoadingAssets(false);
-      }
-    };
-
-    loadAssets();
-    return () => { controller.abort(); clearTimeout(timer); };
-  }, [selectedMarket]);
-
-  // ── Top movers — fetch from curated symbol list (same as dashboard) ──────
-  useEffect(() => {
-    if (!selectedMarket) return;
-    const symbols = MARKET_SYMBOLS[selectedMarket];
-    if (!symbols || symbols.length === 0) { setTopMovers(null); return; }
-    marketAPI.getPrices(symbols)
-      .then(priceData => {
-        const items: Asset[] = symbols
-          .map(sym => {
-            const p = priceData.prices[sym];
-            if (!p || typeof p.change !== "number") return null;
-            const info = getAssetInfo(sym);
-            return { symbol: sym, name: info?.name ?? sym, price: p.price, change: p.change } as Asset;
-          })
-          .filter((a): a is Asset => a !== null && a.change !== 0);
-        if (items.length < 3) { setTopMovers(null); return; }
-        const sorted = [...items].sort((a, b) => b.change - a.change);
-        setTopMovers({ gainers: sorted.slice(0, 3), losers: sorted.slice(-3).reverse() });
+    marketAPI.getMarkets()
+      .then((d) => {
+        setMarkets(d.markets);
+        if (d.markets.length) setSelected(d.markets[0].key);
       })
-      .catch(() => setTopMovers(null));
-  }, [selectedMarket]);
+      .catch(() => {})
+      .finally(() => setLoading(false));
 
-  // ── Auto-refresh prices ──────────────────────────────────────────────────
-  const refreshPrices = useCallback(async () => {
-    if (!selectedMarket || assets.length === 0) return;
-    const symbols = assets.map(a => a.symbol);
-    setIsLoadingPrices(true);
-    try {
-      const priceData = await marketAPI.getPrices(symbols);
-      const flashes: Record<string, "up" | "down"> = {};
-      setAssets(prev => prev.map(a => {
-        const p = priceData.prices[a.symbol];
-        if (p) {
-          const prevPrice = prevPricesRef.current[a.symbol];
-          if (prevPrice !== undefined && p.price !== prevPrice)
-            flashes[a.symbol] = p.price > prevPrice ? "up" : "down";
-          prevPricesRef.current[a.symbol] = p.price;
-          return { ...a, price: p.price, change: p.change, volume: p.volume };
-        }
-        return a;
-      }));
-      if (Object.keys(flashes).length > 0) {
-        setPriceFlash(flashes);
-        setTimeout(() => setPriceFlash({}), 800);
-      }
-    } catch { /* ignore */ } finally { setIsLoadingPrices(false); }
-  }, [selectedMarket, assets]);
+    favoritesAPI.getFavorites()
+      .then((d) => setFavorites(new Set((d.favorites || []).map((f) => f.symbol))))
+      .catch(() => {});
+  }, []);
 
+  /**
+   * Breadth for every market at once.
+   *
+   * One request per place rather than one for everything: the endpoint caps at
+   * fifty symbols and the six lists total sixty-two, so a single call would
+   * silently drop the last market. allSettled, because one slow exchange must
+   * not leave the other five blank.
+   */
   useEffect(() => {
-    if (autoRefreshRef.current) clearInterval(autoRefreshRef.current);
-    if (refreshRate > 0) autoRefreshRef.current = setInterval(refreshPrices, refreshRate);
-    return () => { if (autoRefreshRef.current) clearInterval(autoRefreshRef.current); };
-  }, [refreshPrices, refreshRate]);
+    let cancelled = false;
+    const keys = Object.keys(MARKET_SYMBOLS);
 
-  // ── Load more ────────────────────────────────────────────────────────────
-  const loadMore = async () => {
-    if (isLoadingMore || !hasMore) return;
-    setIsLoadingMore(true);
-    try {
-      const data = await marketAPI.getAssets(selectedMarket, PAGE_SIZE, assets.length);
-      setAssets(prev => [...prev, ...data.assets]);
-      setHasMore(data.offset + data.limit < data.total);
-      const symbols = data.assets.map((a: Asset) => a.symbol);
-      if (symbols.length > 0) {
-        marketAPI.getPrices(symbols)
-          .then(priceData => setAssets(prev => prev.map(a => {
-            const p = priceData.prices[a.symbol];
-            return p ? { ...a, price: p.price, change: p.change, volume: p.volume } : a;
-          })))
-          .catch(() => {});
+    Promise.allSettled(
+      keys.map((k) => marketAPI.getPrices(MARKET_SYMBOLS[k]).then((d) => [k, d.prices] as const))
+    ).then((settled) => {
+      if (cancelled) return;
+      const next: Record<string, Pulse> = {};
+      for (const r of settled) {
+        if (r.status !== "fulfilled") continue;
+        const [key, prices] = r.value;
+        const moves: Move[] = [];
+        let up = 0, down = 0, flat = 0, sum = 0, n = 0;
+        for (const sym of MARKET_SYMBOLS[key]) {
+          const p = prices[sym];
+          if (!p || typeof p.change !== "number") continue;
+          n += 1;
+          sum += p.change;
+          if (p.change > 0.05) up += 1;
+          else if (p.change < -0.05) down += 1;
+          else flat += 1;
+          const info = getAssetInfo(sym);
+          moves.push({ symbol: sym, name: info?.name && info.name !== sym ? info.name : sym, change: p.change });
+        }
+        if (n === 0) continue;
+        moves.sort((a, b) => b.change - a.change);
+        next[key] = {
+          up, down, flat,
+          avg: sum / n,
+          // The three best and the three worst — the edges of the day, which
+          // is what a spread is made of.
+          moves: moves.length > 6 ? [...moves.slice(0, 3), ...moves.slice(-3)] : moves,
+        };
       }
-    } catch { /* ignore */ } finally { setIsLoadingMore(false); }
-  };
+      setPulse(next);
+    });
 
-  // ── Search ───────────────────────────────────────────────────────────────
-  const fetchBackendSearch = useCallback(async (q: string) => {
-    if (q.trim().length < 2) { setSearchResults([]); return; }
-    setIsSearchingBackend(true);
+    return () => { cancelled = true; };
+  }, []);
+
+  /* ── The list for the selected place ────────────────────────────────────── */
+
+  const loadAssets = useCallback(async (key: string) => {
+    setLoadingAssets(true);
+    setAssets([]);
     try {
-      const res = await fetch(`/api/market/search?q=${encodeURIComponent(q)}`, {
-        headers: authHeaders() as HeadersInit,
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setSearchResults(data.results || []);
+      const d = await marketAPI.getAssets(key, PAGE_SIZE, 0);
+      setAssets(d.assets);
+      setTotal(d.total);
+      const symbols = d.assets.map((a) => a.symbol);
+      if (symbols.length) {
+        const priced = await marketAPI.getPrices(symbols).catch(() => null);
+        if (priced) {
+          setAssets((prev) =>
+            prev.map((a) => {
+              const p = priced.prices[a.symbol];
+              return p ? { ...a, price: p.price, change: p.change, volume: p.volume } : a;
+            })
+          );
+        }
       }
-    } catch { /* ignore */ } finally { setIsSearchingBackend(false); }
+    } catch {
+      /* the panel shows its empty state */
+    } finally {
+      setLoadingAssets(false);
+    }
   }, []);
 
   useEffect(() => {
-    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
-    if (searchQuery.length < 2) { setSearchResults([]); return; }
-    searchDebounceRef.current = setTimeout(() => fetchBackendSearch(searchQuery), 300);
-    return () => { if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current); };
-  }, [searchQuery, fetchBackendSearch]);
+    if (selected) loadAssets(selected);
+  }, [selected, loadAssets]);
 
-  const handleMarketSelect = (key: string) => {
-    setSelectedMarket(key);
-    setSearchQuery("");
-    setSearchResults([]);
-  };
-
-  const toggleFavorite = async (symbol: string) => {
-    const wasFavorite = favorites.has(symbol);
-    setFavorites(prev => { const n = new Set(prev); wasFavorite ? n.delete(symbol) : n.add(symbol); return n; });
+  const refreshPrices = useCallback(async () => {
+    if (!assets.length) return;
+    setRefreshing(true);
     try {
-      wasFavorite ? await favoritesAPI.removeFavorite(symbol) : await favoritesAPI.addFavorite(symbol);
+      const d = await marketAPI.getPrices(assets.map((a) => a.symbol));
+      setAssets((prev) =>
+        prev.map((a) => {
+          const p = d.prices[a.symbol];
+          return p ? { ...a, price: p.price, change: p.change, volume: p.volume } : a;
+        })
+      );
     } catch {
-      setFavorites(prev => { const n = new Set(prev); wasFavorite ? n.add(symbol) : n.delete(symbol); return n; });
+      /* keep what is on screen */
+    } finally {
+      setRefreshing(false);
+    }
+  }, [assets]);
+
+  useEffect(() => {
+    const ms = Number(interval);
+    if (!ms) return;
+    const id = setInterval(refreshPrices, ms);
+    return () => clearInterval(id);
+  }, [interval, refreshPrices]);
+
+  const loadMore = async () => {
+    if (loadingMore || assets.length >= total) return;
+    setLoadingMore(true);
+    try {
+      const d = await marketAPI.getAssets(selected, PAGE_SIZE, assets.length);
+      setAssets((prev) => [...prev, ...d.assets]);
+      const symbols = d.assets.map((a) => a.symbol);
+      if (symbols.length) {
+        const priced = await marketAPI.getPrices(symbols).catch(() => null);
+        if (priced) {
+          setAssets((prev) =>
+            prev.map((a) => {
+              const p = priced.prices[a.symbol];
+              return p ? { ...a, price: p.price, change: p.change, volume: p.volume } : a;
+            })
+          );
+        }
+      }
+    } catch {
+      /* nothing is appended */
+    } finally {
+      setLoadingMore(false);
     }
   };
 
-  const isGlobalSearch = searchQuery.length >= 2;
-  const filteredAssets = isGlobalSearch
-    ? []
-    : assets.filter(asset => {
-        if (!searchQuery) return true;
-        const info = getAssetInfo(asset.symbol);
-        return (
-          asset.symbol.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          info.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          (asset.name && asset.name.toLowerCase().includes(searchQuery.toLowerCase()))
-        );
-      });
+  /* ── Search ─────────────────────────────────────────────────────────────── */
 
-  if (isLoading) return (
-    <div className="flex items-center justify-center min-h-[50vh]">
-      <Loader2 className="w-8 h-8 animate-spin text-primary" />
-    </div>
-  );
+  useEffect(() => {
+    if (searchTimer.current) clearTimeout(searchTimer.current);
+    const q = query.trim();
+    if (q.length < 2) { setResults([]); return; }
+    searchTimer.current = setTimeout(async () => {
+      setSearching(true);
+      try {
+        const res = await fetch(`/api/market/search?q=${encodeURIComponent(q)}`, {
+          headers: authHeaders() as HeadersInit,
+        });
+        if (res.ok) setResults((await res.json()).results || []);
+      } catch {
+        setResults([]);
+      } finally {
+        setSearching(false);
+      }
+    }, 300);
+    return () => { if (searchTimer.current) clearTimeout(searchTimer.current); };
+  }, [query]);
+
+  const toggleFavorite = async (symbol: string) => {
+    const has = favorites.has(symbol);
+    setFavorites((f) => {
+      const n = new Set(f);
+      has ? n.delete(symbol) : n.add(symbol);
+      return n;
+    });
+    try {
+      has ? await favoritesAPI.removeFavorite(symbol) : await favoritesAPI.addFavorite(symbol);
+    } catch {
+      setFavorites((f) => {
+        const n = new Set(f);
+        has ? n.add(symbol) : n.delete(symbol);
+        return n;
+      });
+    }
+  };
+
+  /* ── Derived ────────────────────────────────────────────────────────────── */
+
+  const openCount = markets.filter((m) => isMarketOpen(m.key)).length;
+  const here = pulse[selected];
+  const market = markets.find((m) => m.key === selected);
+
+  const globalAvg = useMemo(() => {
+    const vals = Object.values(pulse).map((p) => p.avg);
+    return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
+  }, [pulse]);
+
+  const sorted = useMemo(() => {
+    const list = [...assets];
+    if (sort === "move") return list.sort((a, b) => (b.change ?? 0) - (a.change ?? 0));
+    if (sort === "alpha") return list.sort((a, b) => a.symbol.localeCompare(b.symbol));
+    return list;
+  }, [assets, sort]);
+
+  const searchMode = query.trim().length >= 2;
+
+  if (loading) return <CloudCurtain active label="Chargement des marchés" />;
 
   return (
     <>
-      <TopLoadingBar isLoading={isLoadingAssets || isLoadingPrices} />
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-5">
+      <WeatherBackdrop condition={conditionFromChange(globalAvg)} enabled={animOn} />
 
-        {/* ── Header ──────────────────────────────────────────────────────── */}
-        <div className="flex items-center justify-between gap-3 flex-wrap">
-          <div>
-            <h1 className="text-xl sm:text-2xl font-bold">{t("markets_title")}</h1>
-            <p className="text-sm text-muted-foreground">{t("markets_subtitle")}</p>
+      <div className="relative space-y-6">
+        <header className="flex flex-wrap items-end justify-between gap-5 pt-2">
+          <div className="min-w-0">
+            <Heading level={1}>Marchés</Heading>
+            <Text className="mt-2.5 max-w-[36rem]">
+              {openCount === 0
+                ? "Toutes les places sont fermées pour le moment — les chiffres ci-dessous datent de la dernière séance."
+                : `${openCount} place${openCount > 1 ? "s" : ""} ouverte${openCount > 1 ? "s" : ""} sur ${markets.length}.`}{" "}
+              {globalAvg == null
+                ? "Le climat du jour s'affiche dès que les cours sont chargés."
+                : globalAvg > 0.25
+                  ? "Dans l'ensemble, ça monte."
+                  : globalAvg < -0.25
+                    ? "Dans l'ensemble, ça baisse."
+                    : "Dans l'ensemble, la journée est calme."}
+            </Text>
           </div>
-          <div className="flex items-center gap-2 flex-wrap overflow-x-auto no-scrollbar">
-            {/* Currency toggle */}
-            <div className="flex items-center rounded-xl bg-white/5 border border-white/8 p-0.5 text-xs">
-              {(["EUR", "USD"] as const).map(c => (
-                <button key={c} onClick={() => setCurrency(c)}
-                  className={cn("px-3 py-1.5 rounded-lg transition-all font-semibold",
-                    settings.currency === c ? "bg-primary text-white shadow-sm" : "text-muted-foreground hover:text-foreground")}>
-                  {c === "EUR" ? "€ EUR" : "$ USD"}
+          <SegmentedControl
+            size="sm"
+            options={DEPTHS}
+            value={depth}
+            onChange={(d) => { setDepth(d); setDepthTouched(true); }}
+            aria-label="Niveau de détail"
+          />
+        </header>
+
+        {/* ── 1. Où ça bouge ─────────────────────────────────────────────── */}
+        <Panel
+          title="Les places"
+          hint="Chaque barre montre la part des valeurs suivies qui monte et celle qui baisse."
+        >
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {markets.map((m) => {
+              const p = pulse[m.key];
+              const open = isMarketOpen(m.key);
+              const active = selected === m.key;
+              const until = getTimeUntilChange(m.key);
+              return (
+                <button
+                  key={m.key}
+                  onClick={() => setSelected(m.key)}
+                  aria-pressed={active}
+                  className="rounded-[12px] p-4 text-left transition-colors"
+                  style={{
+                    backgroundColor: active ? "var(--cap-surface-2)" : "transparent",
+                    boxShadow: active
+                      ? "inset 0 0 0 1px var(--cap-ocean)"
+                      : "inset 0 0 0 1px var(--cap-line)",
+                  }}
+                >
+                  <div className="flex items-baseline justify-between gap-3">
+                    <span
+                      className="min-w-0 truncate text-[0.95rem] font-medium"
+                      style={{ color: "var(--cap-ink)" }}
+                    >
+                      {m.name}
+                    </span>
+                    {p && (
+                      <Num tone={p.avg >= 0 ? "up" : "down"} className="shrink-0 text-[0.85rem]">
+                        {p.avg >= 0 ? "+" : ""}
+                        {p.avg.toFixed(2)} %
+                      </Num>
+                    )}
+                  </div>
+
+                  <div className="mt-1 flex items-center gap-1.5">
+                    <span
+                      aria-hidden
+                      className="h-1.5 w-1.5 rounded-full"
+                      style={{ backgroundColor: open ? "var(--cap-up)" : "var(--cap-ink-4)" }}
+                    />
+                    <span className="text-[0.76rem]" style={{ color: "var(--cap-ink-3)" }}>
+                      {open ? "Ouvert" : "Fermé"}
+                      {until ? ` · ${until}` : ""}
+                    </span>
+                  </div>
+
+                  <div className="mt-3">
+                    {p ? (
+                      <BreadthBar up={p.up} down={p.down} flat={p.flat} />
+                    ) : (
+                      <div className="h-[5px] w-full rounded-full" style={{ backgroundColor: "var(--cap-line)" }} />
+                    )}
+                  </div>
+
+                  <div className="mt-2 text-[0.75rem]" style={{ color: "var(--cap-ink-3)" }}>
+                    {p
+                      ? `${p.up} en hausse · ${p.down} en baisse`
+                      : `${m.asset_count} actifs`}
+                  </div>
                 </button>
-              ))}
-            </div>
+              );
+            })}
+          </div>
+        </Panel>
 
-            {/* Refresh */}
-            <button onClick={refreshPrices} disabled={isLoadingPrices}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/8 transition-colors text-sm text-muted-foreground hover:text-foreground">
-              <RefreshCw className={cn("w-3.5 h-3.5", isLoadingPrices && "animate-spin")} />
-              <span className="hidden sm:inline">{lang === "en" ? "Refresh" : "Actualiser"}</span>
-            </button>
-
-            {/* Auto-refresh */}
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/5 border border-white/8 text-xs text-muted-foreground">
-              <Timer className={cn("w-3.5 h-3.5 flex-shrink-0", refreshRate > 0 && "text-profit")} />
-              <select value={refreshRate} onChange={e => setRefreshRate(Number(e.target.value))}
-                className="bg-transparent text-xs cursor-pointer outline-none">
-                {intervals.map(opt => (
-                  <option key={opt.ms} value={opt.ms} className="bg-card text-foreground">{opt.label}</option>
-                ))}
-              </select>
-              {!(isPremium || isAdmin) && (
-                <span className="hidden md:flex items-center gap-0.5 text-[10px] text-yellow-500/70"
-                  title={lang === "en" ? "Premium: down to 1 min" : "Premium: jusqu'à 1 min"}>
-                  <Crown className="w-2.5 h-2.5" />1min
+        {/* ── 2. Quel temps il fait sur cette place ──────────────────────── */}
+        {market && (
+          <Panel
+            title={`Le climat — ${market.name}`}
+            hint={depth === "discover" ? PLACE_BLURB[market.key] : undefined}
+            aside={
+              depth !== "discover" ? (
+                <span className="text-[0.76rem]" style={{ color: "var(--cap-ink-3)" }}>
+                  {getMarketHoursDisplay(market.key)}
                 </span>
-              )}
-            </div>
+              ) : undefined
+            }
+          >
+            {!here ? (
+              <Text size="small">Cours en cours de chargement…</Text>
+            ) : (
+              <div className="space-y-5">
+                <Text>
+                  {here.up > here.down * 1.5
+                    ? `La hausse domine : ${here.up} valeurs sur ${here.up + here.down + here.flat} montent.`
+                    : here.down > here.up * 1.5
+                      ? `La baisse domine : ${here.down} valeurs sur ${here.up + here.down + here.flat} reculent.`
+                      : "La séance est partagée — autant de hausses que de baisses, sans direction nette."}{" "}
+                  {depth === "discover" &&
+                    "Une séance partagée est normale ; c'est quand tout monte ou tout baisse ensemble qu'il se passe quelque chose."}
+                </Text>
 
-            <HelpGuide
-              title={lang === "en" ? "Markets" : "Marchés"}
-              intro={lang === "en" ? "Explore all available assets." : "Explore tous les actifs disponibles."}
-              sections={lang === "en" ? [
-                { title: "Market selection", desc: "Click on a market to filter assets." },
-                { title: "Search",           desc: "Find an asset by name or symbol (AAPL, BTC…)." },
-                { title: "Favorites",        desc: "Click the star to add an asset to your watchlist." },
-                { title: "Analysis",         desc: "Click an asset row to open its full analysis." },
-              ] : [
-                { title: "Sélection du marché", desc: "Clique sur un marché pour filtrer les actifs." },
-                { title: "Recherche",           desc: "Trouve un actif par nom ou symbole (AAPL, BTC…)." },
-                { title: "Favoris",             desc: "Clique sur l'étoile pour ajouter un actif à ta watchlist." },
-                { title: "Analyse",             desc: "Clique sur une ligne pour ouvrir l'analyse complète." },
-              ]}
-              tip={lang === "en" ? "Prices are slightly delayed (~1 min). Click Refresh for the latest data." : "Prix en léger différé (~1 min). Clique sur Actualiser pour forcer la mise à jour."}
+                {depth !== "discover" && (
+                  <MoveBars items={here.moves} onSelect={(s) => router.push(`/analysis?symbol=${s}`)} />
+                )}
+              </div>
+            )}
+          </Panel>
+        )}
+
+        {/* ── 3. Le détail ───────────────────────────────────────────────── */}
+        <Panel
+          title={searchMode ? "Résultats de recherche" : "Les actifs"}
+          hint={
+            searchMode
+              ? "Tous marchés confondus. Ouvrez-en un pour voir son analyse."
+              : depth === "discover"
+                ? "Cliquez sur une ligne pour ouvrir l'analyse complète de l'actif."
+                : `${assets.length} sur ${total} chargés · cours Yahoo Finance, ~1 min de différé.`
+          }
+          aside={
+            !searchMode && depth === "advanced" ? (
+              <div className="flex items-center gap-2">
+                <SegmentedControl
+                  size="sm"
+                  options={[
+                    { value: "EUR", label: "€" },
+                    { value: "USD", label: "$" },
+                  ]}
+                  value={settings.currency}
+                  onChange={(c) => setCurrency(c as "EUR" | "USD")}
+                  aria-label="Devise"
+                />
+                <button
+                  onClick={refreshPrices}
+                  disabled={refreshing}
+                  aria-label="Actualiser les cours"
+                  className="rounded-[9px] p-2 transition-colors hover:bg-[color:var(--cap-surface-2)] disabled:opacity-50"
+                  style={{ color: "var(--cap-ink-3)" }}
+                >
+                  <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
+                </button>
+              </div>
+            ) : undefined
+          }
+        >
+          <div className="relative">
+            {searching ? (
+              <Loader2
+                className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin"
+                style={{ color: "var(--cap-ink-4)" }}
+              />
+            ) : (
+              <Search
+                className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2"
+                style={{ color: "var(--cap-ink-4)" }}
+              />
+            )}
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Chercher un actif — Apple, BTC, LVMH…"
+              aria-label="Chercher un actif"
+              className="h-11 w-full rounded-[12px] pl-10 pr-3.5 text-[0.92rem] outline-none placeholder:text-[color:var(--cap-ink-4)]"
+              style={{
+                backgroundColor: "var(--cap-bg)",
+                color: "var(--cap-ink)",
+                boxShadow: "inset 0 0 0 1px var(--cap-line-strong)",
+              }}
             />
           </div>
-        </div>
 
-        {/* ── Market selector ──────────────────────────────────────────────── */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-          {markets.map(market => {
-            const isOpen       = isMarketOpen(market.key);
-            const hoursDisplay = getMarketHoursDisplay(market.key);
-            const timeUntil    = getTimeUntilChange(market.key);
-            const isSelected   = selectedMarket === market.key;
-            return (
-              <motion.button key={market.key} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
-                onClick={() => handleMarketSelect(market.key)}
-                className={cn("p-4 rounded-xl text-left transition-all border",
-                  isSelected
-                    ? "bg-primary/10 border-primary/40 shadow-[0_0_20px_hsl(var(--primary)/0.12)]"
-                    : "bg-white/5 hover:bg-white/8 border-white/6 hover:border-white/12"
-                )}>
-                <div className="flex items-center justify-between mb-2.5">
-                  <span className="text-2xl">{marketIcons[market.key] || "📈"}</span>
-                  <div className={cn("flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold",
-                    isOpen ? "bg-profit/15 text-profit" : "bg-loss/15 text-loss")}>
-                    <span className={cn("w-1.5 h-1.5 rounded-full flex-shrink-0",
-                      isOpen ? "bg-profit animate-pulse" : "bg-loss")} />
-                    {isOpen ? t("open") : t("closed")}
-                  </div>
+          {depth !== "discover" && !searchMode && (
+            <div className="mt-4 flex flex-wrap items-center gap-3">
+              <SegmentedControl
+                size="sm"
+                options={[
+                  { value: "rank", label: "Ordre du marché" },
+                  { value: "move", label: "Mouvement" },
+                  { value: "alpha", label: "A → Z" },
+                ]}
+                value={sort}
+                onChange={setSort}
+                aria-label="Tri"
+              />
+              {depth === "advanced" && (
+                <div className="flex items-center gap-2">
+                  <Text size="caption" as="span">Actualisation</Text>
+                  <SegmentedControl
+                    size="sm"
+                    options={intervals}
+                    value={interval}
+                    onChange={setIntervalMs}
+                    aria-label="Fréquence d'actualisation"
+                  />
                 </div>
-                <p className={cn("font-semibold text-sm", isSelected && "text-primary")}>{market.name}</p>
-                <p className="text-[10px] text-muted-foreground mt-0.5 leading-tight">
-                  {market.asset_count} {t("asset")}
-                </p>
-                {timeUntil && (
-                  <p className={cn("text-[10px] mt-1 font-medium", isOpen ? "text-yellow-400/80" : "text-profit/80")}>
-                    {timeUntil}
-                  </p>
-                )}
-              </motion.button>
-            );
-          })}
-        </div>
-
-        {/* ── Search ───────────────────────────────────────────────────────── */}
-        <div className="relative">
-          {isSearchingBackend ? (
-            <Loader2 className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground animate-spin" />
-          ) : (
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          )}
-          <input type="text" placeholder={t("markets_search_ph")}
-            value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-10 py-3 rounded-xl bg-white/5 border border-white/10 focus:border-primary focus:ring-1 focus:ring-primary/40 outline-none text-sm transition-colors placeholder:text-muted-foreground/50" />
-          {searchQuery && (
-            <button onClick={() => { setSearchQuery(""); setSearchResults([]); }}
-              className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground text-sm transition-colors">
-              ✕
-            </button>
-          )}
-        </div>
-
-        {/* ── Top Movers ───────────────────────────────────────────────────── */}
-        <AnimatePresence>
-          {topMovers && !isGlobalSearch && (
-            <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
-              className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {/* Gainers */}
-              <div className="glass-card p-4">
-                <div className="flex items-center gap-2 mb-3">
-                  <div className="w-6 h-6 rounded-lg bg-profit/15 flex items-center justify-center">
-                    <TrendingUp className="w-3.5 h-3.5 text-profit" />
-                  </div>
-                  <span className="text-xs font-bold text-profit uppercase tracking-wider">
-                    {lang === "fr" ? "Meilleures hausses" : "Top Gainers"}
-                  </span>
-                </div>
-                <div className="space-y-2">
-                  {topMovers.gainers.map(asset => {
-                    const info    = getAssetInfo(asset.symbol);
-                    const logoUrl = getAssetLogo(asset.symbol);
-                    return (
-                      <button key={asset.symbol} onClick={() => router.push(`/analysis?symbol=${asset.symbol}`)}
-                        className="w-full flex items-center justify-between p-2 rounded-xl hover:bg-white/5 transition-colors group">
-                        <div className="flex items-center gap-2.5">
-                          {logoUrl ? (
-                            <div className="w-7 h-7 rounded-lg bg-white/10 flex items-center justify-center overflow-hidden flex-shrink-0">
-                              <img src={logoUrl} alt={info.name} className="w-5 h-5 object-contain"
-                                onError={e => { (e.target as HTMLImageElement).style.display = "none"; }} />
-                            </div>
-                          ) : (
-                            <div className="w-7 h-7 rounded-lg bg-secondary flex items-center justify-center text-[10px] font-bold flex-shrink-0">
-                              {asset.symbol.slice(0, 2)}
-                            </div>
-                          )}
-                          <div className="text-left">
-                            <p className="text-xs font-semibold leading-none group-hover:text-primary transition-colors">
-                              {info.name !== asset.symbol ? info.name : asset.symbol}
-                            </p>
-                            <p className="text-[10px] text-muted-foreground">{asset.symbol}</p>
-                          </div>
-                        </div>
-                        <span className="text-xs font-bold text-profit">+{formatPercent(asset.change)}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Losers */}
-              <div className="glass-card p-4">
-                <div className="flex items-center gap-2 mb-3">
-                  <div className="w-6 h-6 rounded-lg bg-loss/15 flex items-center justify-center">
-                    <TrendingDown className="w-3.5 h-3.5 text-loss" />
-                  </div>
-                  <span className="text-xs font-bold text-loss uppercase tracking-wider">
-                    {lang === "fr" ? "Principales baisses" : "Top Losers"}
-                  </span>
-                </div>
-                <div className="space-y-2">
-                  {topMovers.losers.map(asset => {
-                    const info    = getAssetInfo(asset.symbol);
-                    const logoUrl = getAssetLogo(asset.symbol);
-                    return (
-                      <button key={asset.symbol} onClick={() => router.push(`/analysis?symbol=${asset.symbol}`)}
-                        className="w-full flex items-center justify-between p-2 rounded-xl hover:bg-white/5 transition-colors group">
-                        <div className="flex items-center gap-2.5">
-                          {logoUrl ? (
-                            <div className="w-7 h-7 rounded-lg bg-white/10 flex items-center justify-center overflow-hidden flex-shrink-0">
-                              <img src={logoUrl} alt={info.name} className="w-5 h-5 object-contain"
-                                onError={e => { (e.target as HTMLImageElement).style.display = "none"; }} />
-                            </div>
-                          ) : (
-                            <div className="w-7 h-7 rounded-lg bg-secondary flex items-center justify-center text-[10px] font-bold flex-shrink-0">
-                              {asset.symbol.slice(0, 2)}
-                            </div>
-                          )}
-                          <div className="text-left">
-                            <p className="text-xs font-semibold leading-none group-hover:text-primary transition-colors">
-                              {info.name !== asset.symbol ? info.name : asset.symbol}
-                            </p>
-                            <p className="text-[10px] text-muted-foreground">{asset.symbol}</p>
-                          </div>
-                        </div>
-                        <span className="text-xs font-bold text-loss">{formatPercent(asset.change)}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* ── Asset table ──────────────────────────────────────────────────── */}
-        <div className="glass-card overflow-hidden">
-          {/* Table header */}
-          <div className="px-5 py-3 border-b border-white/6 flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2">
-              {isLoadingPrices && (
-                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                  <Loader2 className="w-3 h-3 animate-spin" />
-                  <span>{lang === "fr" ? "Actualisation…" : "Updating…"}</span>
-                </div>
-              )}
-              {!isLoadingPrices && !isGlobalSearch && (
-                <span className="text-xs text-muted-foreground">
-                  {assets.length} / {totalAssets} {t("markets_loaded")}
-                </span>
               )}
             </div>
-            <span className="text-[10px] text-muted-foreground/50">
-              Yahoo Finance · ~1min {lang === "fr" ? "différé" : "delay"}
-            </span>
-          </div>
-
-          {isLoadingAssets ? (
-            <SkeletonTable />
-          ) : (
-            <>
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-white/8">
-                      <th className="w-10 p-3 pl-5 text-left text-xs text-muted-foreground font-medium">#</th>
-                      <th className="p-3 text-left text-xs text-muted-foreground font-medium">{t("asset")}</th>
-                      <th className="p-3 text-right text-xs text-muted-foreground font-medium">{t("price")}</th>
-                      <th className="p-3 text-right text-xs text-muted-foreground font-medium">{t("change_24h")}</th>
-                      <th className="p-3 text-right text-xs text-muted-foreground font-medium hidden md:table-cell">{t("volume")}</th>
-                      <th className="p-3 pr-5 text-center text-xs text-muted-foreground font-medium w-20">{t("actions")}</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {isGlobalSearch ? (
-                      searchResults.length === 0 && !isSearchingBackend ? (
-                        <tr>
-                          <td colSpan={6} className="text-center py-16 text-muted-foreground text-sm">
-                            {t("markets_no_results")} «&nbsp;{searchQuery}&nbsp;»
-                          </td>
-                        </tr>
-                      ) : (
-                        searchResults.map((result, index) => {
-                          const logoUrl = getAssetLogo(result.symbol);
-                          return (
-                            <tr key={result.symbol}
-                              className="border-b border-white/5 hover:bg-white/4 transition-colors cursor-pointer group"
-                              onClick={() => router.push(`/analysis?symbol=${result.symbol}`)}>
-                              <td className="p-3 pl-5 text-xs text-muted-foreground tabular-nums">{index + 1}</td>
-                              <td className="p-3">
-                                <div className="flex items-center gap-3">
-                                  {logoUrl ? (
-                                    <div className="w-9 h-9 rounded-xl bg-white/10 flex items-center justify-center overflow-hidden flex-shrink-0">
-                                      <img src={logoUrl} alt={result.name} className="w-6 h-6 object-contain"
-                                        onError={e => {
-                                          const el = e.target as HTMLImageElement;
-                                          el.style.display = "none";
-                                          el.parentElement!.innerHTML = `<span class="font-bold text-xs">${result.symbol.slice(0,2)}</span>`;
-                                        }} />
-                                    </div>
-                                  ) : (
-                                    <div className="w-9 h-9 rounded-xl bg-secondary flex items-center justify-center font-bold text-xs flex-shrink-0">
-                                      {result.symbol.slice(0, 2)}
-                                    </div>
-                                  )}
-                                  <div>
-                                    <p className="font-semibold text-sm group-hover:text-primary transition-colors">{result.name}</p>
-                                    <p className="text-[11px] text-muted-foreground">{result.symbol} · {result.exchange}</p>
-                                  </div>
-                                </div>
-                              </td>
-                              <td className="p-3 text-right text-sm text-muted-foreground" colSpan={2}>
-                                <span className="text-xs italic">{t("markets_click_analyze")}</span>
-                              </td>
-                              <td className="p-3 hidden md:table-cell" />
-                              <td className="p-3 pr-5">
-                                <div className="flex items-center justify-center gap-1">
-                                  <button onClick={e => { e.stopPropagation(); toggleFavorite(result.symbol); }}
-                                    className="p-1.5 rounded-lg hover:bg-white/10 transition-colors">
-                                    {favorites.has(result.symbol)
-                                      ? <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" />
-                                      : <StarOff className="w-4 h-4 text-muted-foreground" />}
-                                  </button>
-                                  <div className="p-1.5 text-muted-foreground">
-                                    <ChevronRight className="w-4 h-4" />
-                                  </div>
-                                </div>
-                              </td>
-                            </tr>
-                          );
-                        })
-                      )
-                    ) : (
-                      filteredAssets.map((asset, index) => {
-                        const assetInfo   = getAssetInfo(asset.symbol);
-                        const logoUrl     = getAssetLogo(asset.symbol);
-                        const displayName = asset.name || assetInfo.name;
-                        const isUp        = asset.change >= 0;
-                        const hasPrice    = !asset.error && asset.price;
-                        const hasChange   = !asset.error && asset.change !== 0;
-
-                        return (
-                          <tr key={asset.symbol}
-                            className="border-b border-white/5 hover:bg-white/4 transition-colors cursor-pointer group"
-                            onClick={() => router.push(`/analysis?symbol=${asset.symbol}`)}>
-                            <td className="p-3 pl-5 text-xs text-muted-foreground/50 tabular-nums font-medium">
-                              {index + 1}
-                            </td>
-                            <td className="p-3">
-                              <div className="flex items-center gap-3">
-                                {logoUrl ? (
-                                  <div className="w-9 h-9 rounded-xl bg-white/10 flex items-center justify-center overflow-hidden flex-shrink-0">
-                                    <img src={logoUrl} alt={displayName} className="w-6 h-6 object-contain"
-                                      onError={e => {
-                                        const el = e.target as HTMLImageElement;
-                                        el.style.display = "none";
-                                        el.parentElement!.innerHTML = `<span class="font-bold text-xs">${asset.symbol.slice(0,2)}</span>`;
-                                      }} />
-                                  </div>
-                                ) : (
-                                  <div className="w-9 h-9 rounded-xl bg-secondary flex items-center justify-center font-bold text-xs flex-shrink-0">
-                                    {asset.symbol.slice(0, 2)}
-                                  </div>
-                                )}
-                                <div className="min-w-0">
-                                  <p className="font-semibold text-sm group-hover:text-primary transition-colors truncate">{displayName}</p>
-                                  <p className="text-[11px] text-muted-foreground">{asset.symbol}</p>
-                                </div>
-                              </div>
-                            </td>
-                            <td className="p-3 text-right">
-                              {hasPrice ? (
-                                <span className={cn("font-bold text-sm tabular-nums transition-colors",
-                                  priceFlash[asset.symbol] === "up" && "price-up",
-                                  priceFlash[asset.symbol] === "down" && "price-down")}>
-                                  {formatPrice(asset.price, asset.symbol)}
-                                </span>
-                              ) : (
-                                <span className="text-muted-foreground text-sm">—</span>
-                              )}
-                            </td>
-                            <td className="p-3 text-right">
-                              {hasChange ? (
-                                <span className={cn(
-                                  "inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-xs font-bold",
-                                  isUp ? "bg-profit/12 text-profit" : "bg-loss/12 text-loss"
-                                )}>
-                                  {isUp ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
-                                  {isUp ? "+" : ""}{formatPercent(asset.change)}
-                                </span>
-                              ) : (
-                                <span className="text-muted-foreground text-sm">—</span>
-                              )}
-                            </td>
-                            <td className="p-3 text-right text-sm text-muted-foreground hidden md:table-cell">
-                              {!asset.error && asset.volume ? formatVolume(asset.volume) : <span>—</span>}
-                            </td>
-                            <td className="p-3 pr-5">
-                              <div className="flex items-center justify-center gap-1">
-                                <button onClick={e => { e.stopPropagation(); toggleFavorite(asset.symbol); }}
-                                  className="p-2.5 rounded-lg hover:bg-white/10 transition-colors min-w-[40px] min-h-[40px] flex items-center justify-center">
-                                  {favorites.has(asset.symbol)
-                                    ? <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" />
-                                    : <StarOff className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />}
-                                </button>
-                                <div className="p-1.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity">
-                                  <ChevronRight className="w-4 h-4" />
-                                </div>
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      })
-                    )}
-                  </tbody>
-                </table>
-              </div>
-
-              {/* Load more */}
-              {!isGlobalSearch && hasMore && (
-                <div className="flex items-center justify-center py-5 border-t border-white/8">
-                  <button onClick={loadMore} disabled={isLoadingMore}
-                    className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-white/8 hover:bg-white/12 border border-white/8 hover:border-white/15 transition-all font-medium text-sm disabled:opacity-50">
-                    {isLoadingMore ? <Loader2 className="w-4 h-4 animate-spin" /> : <ChevronDown className="w-4 h-4" />}
-                    {isLoadingMore ? t("loading") : t("markets_load_more")}
-                  </button>
-                </div>
-              )}
-            </>
           )}
-        </div>
 
-      </motion.div>
+          <div className="mt-5">
+            {searchMode ? (
+              results.length === 0 && !searching ? (
+                <EmptyState
+                  title="Aucun résultat"
+                  description={`Rien ne correspond à « ${query.trim()} ». Essayez le symbole exact — AAPL, BTC-USD, MC.PA.`}
+                />
+              ) : (
+                <ul className="[&>*+*]:border-t [&>*+*]:border-[color:var(--cap-line)]">
+                  {results.map((r) => (
+                    <li key={r.symbol}>
+                      <AssetRow
+                        symbol={r.symbol}
+                        name={r.name}
+                        sub={`${r.symbol} · ${r.exchange}`}
+                        starred={favorites.has(r.symbol)}
+                        onStar={() => toggleFavorite(r.symbol)}
+                        onOpen={() => router.push(`/analysis?symbol=${r.symbol}`)}
+                      />
+                    </li>
+                  ))}
+                </ul>
+              )
+            ) : loadingAssets ? (
+              <ul className="[&>*+*]:border-t [&>*+*]:border-[color:var(--cap-line)]">
+                {Array.from({ length: 8 }).map((_, i) => (
+                  <li key={i} className="flex items-center justify-between gap-4 py-4">
+                    <span
+                      className="h-3.5 w-40 rounded"
+                      style={{ backgroundColor: "var(--cap-surface-2)" }}
+                    />
+                    <span
+                      className="h-3.5 w-20 rounded"
+                      style={{ backgroundColor: "var(--cap-surface-2)" }}
+                    />
+                  </li>
+                ))}
+              </ul>
+            ) : sorted.length === 0 ? (
+              <EmptyState
+                title="Aucun actif chargé"
+                description="Ce marché n'a rien renvoyé. Réessayez dans un instant, ou choisissez une autre place."
+              />
+            ) : (
+              <>
+                <ul className="[&>*+*]:border-t [&>*+*]:border-[color:var(--cap-line)]">
+                  {sorted.map((a) => {
+                    const info = getAssetInfo(a.symbol);
+                    const name = a.name || (info?.name ?? a.symbol);
+                    return (
+                      <li key={a.symbol}>
+                        <AssetRow
+                          symbol={a.symbol}
+                          name={name}
+                          sub={
+                            depth === "advanced" && !a.error && a.volume
+                              ? `${a.symbol} · volume ${formatVolume(a.volume)}`
+                              : a.symbol
+                          }
+                          price={!a.error && a.price ? formatPrice(a.price, a.symbol) : undefined}
+                          change={!a.error && a.change !== 0 ? a.change : null}
+                          starred={favorites.has(a.symbol)}
+                          onStar={() => toggleFavorite(a.symbol)}
+                          onOpen={() => router.push(`/analysis?symbol=${a.symbol}`)}
+                        />
+                      </li>
+                    );
+                  })}
+                </ul>
+
+                {assets.length < total && (
+                  <div className="mt-5 flex justify-center">
+                    <Button variant="secondary" size="md" onClick={loadMore} disabled={loadingMore}>
+                      {loadingMore ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <ChevronDown className="h-4 w-4" />
+                      )}
+                      {loadingMore ? "Chargement…" : `Voir ${Math.min(PAGE_SIZE, total - assets.length)} de plus`}
+                    </Button>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        </Panel>
+      </div>
     </>
   );
 }
 
-// ── Skeleton table ────────────────────────────────────────────────────────────
-function SkeletonTable() {
+/**
+ * One line of the list.
+ *
+ * The star is a real button beside the row rather than a sixth table column,
+ * and it is always visible: the old one appeared on hover, which put it out of
+ * reach on every phone and every keyboard.
+ */
+function AssetRow({
+  symbol,
+  name,
+  sub,
+  price,
+  change,
+  starred,
+  onStar,
+  onOpen,
+}: {
+  symbol: string;
+  name: string;
+  sub: string;
+  price?: string;
+  change?: number | null;
+  starred: boolean;
+  onStar: () => void;
+  onOpen: () => void;
+}) {
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full">
-        <thead>
-          <tr className="border-b border-white/8">
-            <th className="w-10 p-3 pl-5" />
-            <th className="p-3" />
-            <th className="p-3" />
-            <th className="p-3" />
-            <th className="p-3 hidden md:table-cell" />
-            <th className="p-3 pr-5 w-20" />
-          </tr>
-        </thead>
-        <tbody>
-          {Array.from({ length: 12 }).map((_, i) => (
-            <tr key={i} className="border-b border-white/5">
-              <td className="p-3 pl-5">
-                <div className="w-5 h-3 rounded bg-white/6 animate-pulse" />
-              </td>
-              <td className="p-3">
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-xl bg-white/8 animate-pulse flex-shrink-0" />
-                  <div className="space-y-2">
-                    <div className="w-28 h-3.5 rounded bg-white/8 animate-pulse" />
-                    <div className="w-16 h-2.5 rounded bg-white/6 animate-pulse" />
-                  </div>
-                </div>
-              </td>
-              <td className="p-3">
-                <div className="w-20 h-4 rounded bg-white/8 animate-pulse ml-auto" />
-              </td>
-              <td className="p-3">
-                <div className="w-14 h-5 rounded-full bg-white/8 animate-pulse ml-auto" />
-              </td>
-              <td className="p-3 hidden md:table-cell">
-                <div className="w-16 h-3.5 rounded bg-white/6 animate-pulse ml-auto" />
-              </td>
-              <td className="p-3 pr-5">
-                <div className="w-14 h-7 rounded-lg bg-white/6 animate-pulse mx-auto" />
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+    <div className="group flex items-center gap-2 py-1">
+      <button
+        onClick={onOpen}
+        className="-mx-3 flex min-w-0 flex-1 items-center justify-between gap-4 rounded-[9px] px-3 py-2.5 text-left transition-colors hover:bg-[color:var(--cap-surface-2)]"
+      >
+        <span className="min-w-0">
+          <span className="block truncate text-[0.93rem] font-medium" style={{ color: "var(--cap-ink)" }}>
+            {name}
+          </span>
+          <span className="mt-0.5 block truncate text-[0.78rem]" style={{ color: "var(--cap-ink-3)" }}>
+            {sub}
+          </span>
+        </span>
+        <span className="flex shrink-0 items-baseline gap-4 sm:gap-6">
+          {price ? (
+            <Num className="text-[0.93rem]">{price}</Num>
+          ) : (
+            <span className="text-[0.8rem]" style={{ color: "var(--cap-ink-4)" }}>
+              Voir l&apos;analyse
+            </span>
+          )}
+          {change != null && (
+            <Num tone={change >= 0 ? "up" : "down"} className="w-[4.5rem] text-right text-[0.88rem]">
+              {change >= 0 ? "+" : ""}
+              {change.toFixed(2)} %
+            </Num>
+          )}
+        </span>
+      </button>
+      <button
+        onClick={onStar}
+        aria-label={starred ? `Ne plus suivre ${symbol}` : `Suivre ${symbol}`}
+        aria-pressed={starred}
+        className="shrink-0 rounded-[9px] p-2 transition-colors hover:bg-[color:var(--cap-surface-2)]"
+        style={{ color: starred ? "var(--cap-amber)" : "var(--cap-ink-4)" }}
+      >
+        <Star className="h-4 w-4" fill={starred ? "currentColor" : "none"} />
+      </button>
     </div>
   );
 }
