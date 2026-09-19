@@ -1,366 +1,253 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { motion, AnimatePresence } from "framer-motion";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import { Plus, RefreshCw, Trash2 } from "lucide-react";
+import { favoritesAPI, type Favorite } from "@/lib/api";
+import { useSettings, convertCurrency } from "@/lib/SettingsContext";
 import {
-  Star,
-  TrendingUp,
-  TrendingDown,
-  Trash2,
-  Plus,
-  Loader2,
-  Search,
-  RefreshCw,
-} from "lucide-react";
-import { cn, formatPercent } from "@/lib/utils";
-import { favoritesAPI, Favorite } from "@/lib/api";
-import { useFormatPrice } from "@/lib/SettingsContext";
-import { TopLoadingBar } from "@/components/ui/TopLoadingBar";
-import { useLanguage } from "@/lib/LanguageContext";
-import { HelpGuide } from "@/components/ui/HelpGuide";
+  Button, CloudCurtain, EmptyState, Field, FormError, Heading, Modal, Num,
+  Panel, SegmentedControl, Text, TextInput, WeatherBackdrop,
+  conditionFromChange, useAnimationsEnabled,
+} from "@/components/design-system";
+
+/**
+ * The assets you follow.
+ *
+ * One list, sorted the way a watchlist is actually read — biggest mover
+ * first — and one filter. The old screen offered a grid of cards with a star,
+ * two trend icons and a refresh button per tile, which made eight assets look
+ * like a dashboard of their own. A watchlist is a column you run your eye
+ * down; anything that breaks the column slows that down.
+ */
+
+type SortKey = "move" | "alpha";
 
 export default function FavoritesPage() {
-  const { t, lang } = useLanguage();
-  const router = useRouter();
-  const formatPrice = useFormatPrice();
+  const { settings, eurUsd } = useSettings();
+  const [animOn] = useAnimationsEnabled();
+
   const [favorites, setFavorites] = useState<Favorite[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [newSymbol, setNewSymbol] = useState("");
-  const [addError, setAddError] = useState("");
-  const [isAdding, setIsAdding] = useState(false);
-  const [lastAdded, setLastAdded] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [sort, setSort] = useState<SortKey>("move");
 
-  const loadFavorites = async (showRefresh = false) => {
-    if (showRefresh) setIsRefreshing(true);
+  const [adding, setAdding] = useState(false);
+  const [symbol, setSymbol] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [removing, setRemoving] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
     try {
-      const data = await favoritesAPI.getFavorites();
-      setFavorites(data.favorites);
-    } catch (error) {
-      console.error("Error loading favorites:", error);
-    } finally {
-      setIsLoading(false);
-      setIsRefreshing(false);
+      const d = await favoritesAPI.getFavorites();
+      setFavorites(d.favorites || []);
+    } catch {
+      /* the list simply stays as it was */
     }
-  };
-
-  useEffect(() => {
-    loadFavorites();
   }, []);
 
-  const addFavorite = async () => {
-    if (!newSymbol.trim()) return;
+  useEffect(() => {
+    load().finally(() => setLoading(false));
+  }, [load]);
 
-    setAddError("");
-    setIsAdding(true);
+  const refresh = async () => {
+    setRefreshing(true);
+    await load();
+    setRefreshing(false);
+  };
 
+  const add = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const sym = symbol.trim().toUpperCase();
+    if (!sym) return;
+    setError("");
+    setBusy(true);
     try {
-      const sym = newSymbol.toUpperCase();
       await favoritesAPI.addFavorite(sym);
-      setNewSymbol("");
-      setShowAddModal(false);
-      setLastAdded(sym);
-      setTimeout(() => setLastAdded(null), 3000);
-      loadFavorites();
-    } catch (error) {
-      setAddError(error instanceof Error ? error.message : t("fav_error"));
+      setSymbol("");
+      setAdding(false);
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Impossible d'ajouter cet actif.");
     } finally {
-      setIsAdding(false);
+      setBusy(false);
     }
   };
 
-  const removeFavorite = async (symbol: string) => {
+  const remove = async (sym: string) => {
+    setRemoving(sym);
+    // Optimistic: the row goes immediately and comes back if the call fails.
+    // A watchlist you have to wait on to prune is a watchlist you stop pruning.
+    const before = favorites;
+    setFavorites((f) => f.filter((x) => x.symbol !== sym));
     try {
-      await favoritesAPI.removeFavorite(symbol);
-      setFavorites((prev) => prev.filter((f) => f.symbol !== symbol));
-    } catch (error) {
-      console.error("Error removing favorite:", error);
+      await favoritesAPI.removeFavorite(sym);
+    } catch {
+      setFavorites(before);
+    } finally {
+      setRemoving(null);
     }
   };
 
-  // Calculate stats
-  const avgChange = favorites.length > 0
-    ? favorites.reduce((sum, f) => sum + f.change, 0) / favorites.length
-    : 0;
-  const bestPerf = favorites.length > 0
-    ? favorites.reduce((best, f) => f.change > best.change ? f : best, favorites[0])
+  const money = useCallback(
+    (v: number) =>
+      convertCurrency(v, "EUR", settings.currency, eurUsd).toLocaleString("fr-FR", {
+        style: "currency",
+        currency: settings.currency,
+        maximumFractionDigits: 2,
+      }),
+    [settings.currency, eurUsd]
+  );
+
+  const sorted = useMemo(() => {
+    const list = [...favorites];
+    if (sort === "alpha") return list.sort((a, b) => a.symbol.localeCompare(b.symbol));
+    return list.sort((a, b) => (b.change ?? 0) - (a.change ?? 0));
+  }, [favorites, sort]);
+
+  const avgChange = favorites.length
+    ? favorites.reduce((a, f) => a + (f.change ?? 0), 0) / favorites.length
     : null;
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-[50vh]">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
-      </div>
-    );
-  }
+  const up = favorites.filter((f) => (f.change ?? 0) > 0).length;
+  const down = favorites.filter((f) => (f.change ?? 0) < 0).length;
+
+  if (loading) return <CloudCurtain active label="Chargement de vos favoris" />;
 
   return (
     <>
-      <TopLoadingBar isLoading={isLoading || isRefreshing} />
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      className="space-y-6"
-    >
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold flex items-center gap-2">
-            <Star className="w-6 h-6 text-yellow-500 fill-yellow-500" />
-            {t("fav_title")}
-          </h1>
-          <p className="text-muted-foreground">
-            {favorites.length} {t("fav_subtitle")}
-          </p>
-        </div>
-        <div className="flex gap-3 items-center">
-          <HelpGuide
-            title={lang === "en" ? "Favorites" : "Favoris"}
-            intro={lang === "en" ? "Your watchlist. Quickly find prices, changes and access analysis in one click." : "Ta liste d'actifs à surveiller. Retrouve rapidement les prix, variations et accède à l'analyse en un clic."}
-            sections={lang === "en" ? [
-              { title: "Add a favorite", desc: "Click '+ Add' and type the asset symbol (e.g. AAPL, BTC-USD, MC.PA). It appears in your list with its real-time price." },
-              { title: "Real-time prices", desc: "Prices and changes update automatically. Green means a rise, red means a drop on the day." },
-              { title: "Access analysis", desc: "Click on an asset to open its full analysis page with indicators and AI signal." },
-              { title: "Remove a favorite", desc: "Click the trash icon to remove an asset from your list. You can re-add it at any time." },
-            ] : [
-              { title: "Ajouter un favori", desc: "Clique sur '+ Ajouter' et tape le symbole de l'actif (ex: AAPL, BTC-USD, MC.PA). Il apparaît dans ta liste avec son prix en temps réel." },
-              { title: "Prix en temps réel", desc: "Les prix et variations sont actualisés automatiquement. La couleur verte indique une hausse, rouge une baisse sur la journée." },
-              { title: "Accéder à l'analyse", desc: "Clique sur un actif pour ouvrir sa page d'analyse complète avec indicateurs et signal IA." },
-              { title: "Supprimer un favori", desc: "Clique sur la corbeille pour retirer un actif de ta liste. Tu peux le ré-ajouter à tout moment." },
-            ]}
-            tip={lang === "en" ? "Add the assets you trade regularly for quick access to their analysis from the dashboard." : "Ajoute les actifs que tu trades régulièrement pour avoir un accès rapide à leur analyse depuis le dashboard."}
-          />
-          <button
-            onClick={() => loadFavorites(true)}
-            disabled={isRefreshing}
-            className="p-2 rounded-lg hover:bg-white/5 transition-colors"
-          >
-            <RefreshCw className={cn("w-5 h-5", isRefreshing && "animate-spin")} />
-          </button>
-          <button
-            onClick={() => setShowAddModal(true)}
-            className="btn-primary flex items-center gap-2"
-          >
-            <Plus className="w-4 h-4" />
-            {t("fav_add")}
-          </button>
-        </div>
+      <WeatherBackdrop condition={conditionFromChange(avgChange)} enabled={animOn} />
+
+      <div className="relative space-y-8">
+        <header className="flex flex-wrap items-end justify-between gap-5 pt-2">
+          <div>
+            <Heading level={1}>Vos actifs</Heading>
+            <Text className="mt-2.5 max-w-[34rem]">
+              {favorites.length === 0
+                ? "Les actifs que vous suivez apparaîtront ici, avec leur variation du jour."
+                : `${favorites.length} actif${favorites.length > 1 ? "s" : ""} suivi${favorites.length > 1 ? "s" : ""} — ${up} en hausse, ${down} en baisse.`}
+            </Text>
+          </div>
+          <Button onClick={() => setAdding(true)} size="md">
+            <Plus className="h-4 w-4" />
+            Suivre un actif
+          </Button>
+        </header>
+
+        <Panel
+          title="Liste de suivi"
+          hint={favorites.length > 0 ? "Variation depuis la clôture précédente." : undefined}
+          aside={
+            favorites.length > 0 ? (
+              <div className="flex items-center gap-3">
+                <SegmentedControl
+                  size="sm"
+                  options={[
+                    { value: "move", label: "Mouvement" },
+                    { value: "alpha", label: "A → Z" },
+                  ]}
+                  value={sort}
+                  onChange={setSort}
+                  aria-label="Tri"
+                />
+                <button
+                  onClick={refresh}
+                  disabled={refreshing}
+                  aria-label="Actualiser"
+                  className="rounded-[9px] p-2 transition-colors hover:bg-[color:var(--cap-surface-2)] disabled:opacity-50"
+                  style={{ color: "var(--cap-ink-3)" }}
+                >
+                  <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
+                </button>
+              </div>
+            ) : undefined
+          }
+        >
+          {favorites.length === 0 ? (
+            <EmptyState
+              title="Aucun actif suivi"
+              description="Ajoutez une action, une crypto ou un indice — vous le retrouverez ici et sur votre accueil."
+              action={{ label: "Suivre un actif", onClick: () => setAdding(true) }}
+            />
+          ) : (
+            <ul className="[&>*+*]:border-t [&>*+*]:border-[color:var(--cap-line)]">
+              {sorted.map((f) => (
+                <li key={f.symbol} className="group flex items-center gap-3 py-3">
+                  <Link
+                    href={`/analysis?symbol=${encodeURIComponent(f.symbol)}`}
+                    className="-mx-3 flex min-w-0 flex-1 items-center justify-between gap-4 rounded-[9px] px-3 py-1 transition-colors hover:bg-[color:var(--cap-surface-2)]"
+                  >
+                    <span className="min-w-0">
+                      <span
+                        className="block truncate text-[0.95rem] font-medium"
+                        style={{ color: "var(--cap-ink)" }}
+                      >
+                        {f.symbol}
+                      </span>
+                      <span className="mt-0.5 block text-[0.78rem]" style={{ color: "var(--cap-ink-3)" }}>
+                        Voir l&apos;analyse
+                      </span>
+                    </span>
+                    <span className="flex shrink-0 items-baseline gap-5">
+                      <Num className="text-[0.95rem]">{money(f.price)}</Num>
+                      <Num
+                        tone={(f.change ?? 0) >= 0 ? "up" : "down"}
+                        className="w-[4.5rem] text-right text-[0.9rem]"
+                      >
+                        {(f.change ?? 0) >= 0 ? "+" : ""}
+                        {(f.change ?? 0).toFixed(2)} %
+                      </Num>
+                    </span>
+                  </Link>
+                  <button
+                    onClick={() => remove(f.symbol)}
+                    disabled={removing === f.symbol}
+                    aria-label={`Ne plus suivre ${f.symbol}`}
+                    // Visible on hover on a pointer device, always present for
+                    // keyboard and touch — a destructive action hidden behind
+                    // hover is unreachable on a phone.
+                    className="shrink-0 rounded-[9px] p-2 opacity-100 transition-colors hover:bg-[color:var(--cap-surface-2)] disabled:opacity-40 lg:opacity-0 lg:group-hover:opacity-100 lg:focus-visible:opacity-100"
+                    style={{ color: "var(--cap-ink-4)" }}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Panel>
       </div>
 
-      {/* Summary */}
-      {favorites.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {[
-            {
-              label: t("fav_avg_perf"),
-              content: (
-                <p className={cn("text-2xl font-bold", avgChange >= 0 ? "text-profit" : "text-loss")}>
-                  {formatPercent(avgChange)}
-                </p>
-              ),
-            },
-            {
-              label: t("fav_best_perf"),
-              content: bestPerf ? (
-                <p className="text-2xl font-bold text-profit">
-                  {bestPerf.symbol} {formatPercent(bestPerf.change)}
-                </p>
-              ) : null,
-            },
-            {
-              label: t("fav_count"),
-              content: (
-                <p className="text-2xl font-bold text-primary">{favorites.length}</p>
-              ),
-            },
-          ].map(({ label, content }, i) => (
-            <motion.div
-              key={label}
-              initial={{ opacity: 0, y: 14 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: i * 0.08, duration: 0.4, ease: "easeOut" }}
-              className="glass-card hover-lift p-4"
-            >
-              <p className="text-sm text-muted-foreground">{label}</p>
-              {content}
-            </motion.div>
-          ))}
-        </div>
-      )}
+      <Modal open={adding} onClose={() => setAdding(false)} title="Suivre un actif">
+        <Heading level={3}>Suivre un actif</Heading>
+        <Text size="small" className="mt-2">
+          Entrez son symbole — AAPL pour Apple, BTC-USD pour Bitcoin, MC.PA pour
+          LVMH.
+        </Text>
 
-      {/* Favorites list */}
-      {favorites.length === 0 ? (
-        <div className="glass-card p-12 text-center">
-          <Star className="w-12 h-12 mx-auto mb-4 text-muted-foreground opacity-50" />
-          <p className="text-muted-foreground mb-4">{t("fav_empty")}</p>
-          <button
-            onClick={() => setShowAddModal(true)}
-            className="btn-primary"
-          >
-            {t("fav_add_first")}
-          </button>
-        </div>
-      ) : (
-        <div className="glass-card overflow-hidden">
-          <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-white/10">
-                <th className="text-left p-4 text-sm text-muted-foreground">{t("asset")}</th>
-                <th className="text-right p-4 text-sm text-muted-foreground">{t("price")}</th>
-                <th className="text-right p-4 text-sm text-muted-foreground">{t("change_24h")}</th>
-                <th className="text-center p-4 text-sm text-muted-foreground">{t("actions")}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {favorites.map((fav, index) => (
-                <motion.tr
-                  key={fav.symbol}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.04 }}
-                  className={cn(
-                    "border-b border-white/5 transition-colors cursor-pointer",
-                    lastAdded === fav.symbol ? "highlight-new" : "hover:bg-white/5"
-                  )}
-                  onClick={() => router.push(`/analysis?symbol=${fav.symbol}`)}
-                >
-                  <td className="p-4">
-                    <div className="flex items-center gap-3">
-                      <AnimatePresence mode="wait">
-                        {lastAdded === fav.symbol ? (
-                          <motion.span
-                            key="new"
-                            initial={{ scale: 0, rotate: -30 }}
-                            animate={{ scale: 1, rotate: 0 }}
-                            exit={{ scale: 1 }}
-                            transition={{ type: "spring", stiffness: 400, damping: 15 }}
-                          >
-                            <Star className="w-4 h-4 text-yellow-400 fill-yellow-400 drop-shadow-[0_0_6px_rgba(250,204,21,0.8)]" />
-                          </motion.span>
-                        ) : (
-                          <motion.span key="normal">
-                            <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />
-                          </motion.span>
-                        )}
-                      </AnimatePresence>
-                      <div>
-                        <p className="font-semibold">{fav.symbol}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {t("fav_added_on")} {new Date(fav.added_at).toLocaleDateString()}
-                        </p>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="p-4 text-right font-semibold">
-                    {fav.error ? "N/A" : formatPrice(fav.price, fav.symbol)}
-                  </td>
-                  <td className="p-4 text-right">
-                    {fav.error ? (
-                      <span className="text-muted-foreground">N/A</span>
-                    ) : (
-                      <span
-                        className={cn(
-                          "flex items-center justify-end gap-1",
-                          fav.change >= 0 ? "text-profit" : "text-loss"
-                        )}
-                      >
-                        {fav.change >= 0 ? (
-                          <TrendingUp className="w-4 h-4" />
-                        ) : (
-                          <TrendingDown className="w-4 h-4" />
-                        )}
-                        {formatPercent(fav.change)}
-                      </span>
-                    )}
-                  </td>
-                  <td className="p-4">
-                    <div className="flex justify-center gap-2">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          router.push(`/trading?symbol=${fav.symbol}`);
-                        }}
-                        className="btn-ghost text-sm"
-                      >
-                        {t("trader")}
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          removeFavorite(fav.symbol);
-                        }}
-                        className="p-2 rounded-lg hover:bg-loss/20 text-loss transition-colors"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </td>
-                </motion.tr>
-              ))}
-            </tbody>
-          </table>
+        <form onSubmit={add} className="mt-6 space-y-4" noValidate>
+          {error && <FormError>{error}</FormError>}
+          <Field label="Symbole" htmlFor="fav-symbol">
+            <TextInput
+              id="fav-symbol"
+              value={symbol}
+              onChange={setSymbol}
+              placeholder="AAPL"
+              required
+              invalid={!!error}
+            />
+          </Field>
+          <div className="flex gap-2">
+            <Button type="submit" size="md" disabled={busy} className="flex-1">
+              {busy ? "Ajout…" : "Ajouter"}
+            </Button>
+            <Button variant="secondary" size="md" onClick={() => setAdding(false)}>
+              Annuler
+            </Button>
           </div>
-        </div>
-      )}
-
-      {/* Add Modal */}
-      {showAddModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="glass-card p-6 w-full max-w-md"
-          >
-            <h2 className="text-lg font-semibold mb-4">{t("fav_add_modal_title")}</h2>
-
-            {addError && (
-              <div className="p-3 rounded-lg bg-loss/10 border border-loss/30 text-loss text-sm mb-4">
-                {addError}
-              </div>
-            )}
-
-            <div className="relative mb-4">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-              <input
-                type="text"
-                value={newSymbol}
-                onChange={(e) => setNewSymbol(e.target.value.toUpperCase())}
-                placeholder={t("fav_add_placeholder")}
-                className="w-full input pl-11"
-                onKeyPress={(e) => e.key === "Enter" && addFavorite()}
-              />
-            </div>
-
-            <div className="flex gap-3">
-              <button
-                onClick={() => setShowAddModal(false)}
-                className="flex-1 btn-secondary"
-              >
-                {t("cancel")}
-              </button>
-              <button
-                onClick={addFavorite}
-                disabled={isAdding || !newSymbol.trim()}
-                className="flex-1 btn-primary flex items-center justify-center gap-2 disabled:opacity-50"
-              >
-                {isAdding ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <>
-                    <Plus className="w-4 h-4" />
-                    {t("add")}
-                  </>
-                )}
-              </button>
-            </div>
-          </motion.div>
-        </div>
-      )}
-    </motion.div>
+        </form>
+      </Modal>
     </>
   );
 }
