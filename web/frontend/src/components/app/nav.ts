@@ -108,6 +108,7 @@ export const MIGRATED_ROUTES = [
   "/learn/glossaire",
   "/learn/missions",
   "/assistant",
+  "/trading",
 ];
 
 export function isMigrated(pathname: string | null): boolean {
