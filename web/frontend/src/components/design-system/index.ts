@@ -9,7 +9,8 @@
 export { Atmosphere } from "./Atmosphere";
 export { Button } from "./Button";
 export { Card } from "./Card";
-export { CloudBank, CloudLayer } from "./CloudLayer";
+export { CloudBank, CloudLayer, SILHOUETTES } from "./CloudLayer";
+export { CloudCurtain, useRouteCurtain } from "./CloudCurtain";
 export { ChartShell } from "./ChartShell";
 export { DataRow, DataList } from "./DataRow";
 export { Checkbox, Field, FormError, TextInput } from "./Field";

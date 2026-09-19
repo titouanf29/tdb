@@ -31,7 +31,7 @@ import { motion, useReducedMotion, useScroll, useSpring, useTransform } from "fr
 /** Lobes of one cumulus, in a 200 × 100 box. */
 type Lobe = [cx: number, cy: number, r: number];
 
-interface Silhouette {
+export interface Silhouette {
   lobes: Lobe[];
   /** The flat-ish base, as an ellipse: [cx, cy, rx, ry].
    *  An ellipse, not a rounded rectangle — a rect leaves two straight
@@ -39,7 +39,7 @@ interface Silhouette {
   base: [number, number, number, number];
 }
 
-const SILHOUETTES: Silhouette[] = [
+export const SILHOUETTES: Silhouette[] = [
   // Broad and low — the classic fair-weather cumulus.
   { lobes: [[58, 60, 26], [92, 46, 32], [126, 56, 28], [152, 64, 20], [38, 68, 18]],
     base: [96, 70, 66, 14] },

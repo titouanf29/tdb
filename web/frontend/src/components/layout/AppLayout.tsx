@@ -16,6 +16,8 @@ import { CoachOverlay } from "@/components/CoachAlex";
 import { PriceAlertWatcher } from "@/components/PriceAlertWatcher";
 import { MaintenanceScreen } from "./MaintenanceScreen";
 import { useMaintenance } from "@/lib/useMaintenance";
+import { AppChrome } from "@/components/app/AppChrome";
+import { isMigrated } from "@/components/app/nav";
 import { Loader2 } from "lucide-react";
 import type { TradingLevel } from "@/lib/auth";
 
@@ -210,6 +212,27 @@ function AuthShell({
   // is the backend's verdict on the token. Either one is enough to pass.
   if (maintenance.on && !isAdmin && !maintenance.isAdmin) {
     return <MaintenanceScreen {...maintenanceProps} />;
+  }
+
+  // Rebuilt screens get the new chrome; the rest keep the old rail until they
+  // are migrated. Choosing per route is what lets an app this size change
+  // shell without a flag day: a light frame around a screen that is still dark
+  // inside would look broken, and migrating twenty screens at once would mean
+  // shipping none of them.
+  if (isMigrated(pathname)) {
+    return (
+      <>
+        <AnimatePresence>
+          {showOnboarding && (
+            <OnboardingModal
+              onClose={() => setShowOnboarding(false)}
+              onStartTour={handleStartTour}
+            />
+          )}
+        </AnimatePresence>
+        <AppChrome>{children}</AppChrome>
+      </>
+    );
   }
 
   return (
