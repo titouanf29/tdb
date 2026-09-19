@@ -10,6 +10,8 @@ interface MaintenanceScreenProps {
   endTime?: string;
   startedAt?: string;
   lang: "fr" | "en";
+  /** Hidden on /login itself — offering "sign in" on the sign-in page is noise. */
+  showAdminLink?: boolean;
 }
 
 /* Lines are revealed one after another, so the last one carries the payload.
@@ -83,7 +85,9 @@ function FlipCounter({
   );
 }
 
-export function MaintenanceScreen({ message, endTime, startedAt, lang }: MaintenanceScreenProps) {
+export function MaintenanceScreen({
+  message, endTime, startedAt, lang, showAdminLink = true,
+}: MaintenanceScreenProps) {
   const reduce = useReducedMotion();
   const [now, setNow] = useState(() => Date.now());
   const [tip, setTip] = useState(0);
@@ -145,6 +149,7 @@ export function MaintenanceScreen({ message, endTime, startedAt, lang }: Mainten
       auto: "Cette page se réactualise toute seule — rien à faire.",
       tipLabel: "En attendant",
       safe: "Vos positions, votre solde et votre historique sont intacts.",
+      admin: "Accès équipe",
     },
     en: {
       title: "Maintenance in progress",
@@ -155,6 +160,7 @@ export function MaintenanceScreen({ message, endTime, startedAt, lang }: Mainten
       auto: "This page refreshes itself — nothing to do.",
       tipLabel: "Meanwhile",
       safe: "Your positions, balance and history are untouched.",
+      admin: "Team access",
     },
   }[lang];
 
@@ -364,9 +370,23 @@ export function MaintenanceScreen({ message, endTime, startedAt, lang }: Mainten
           </div>
         </div>
 
-        <p className="mt-4 text-center font-mono text-[10px] text-muted-foreground/60">
-          {t.auto}
-        </p>
+        <div className="mt-4 flex items-center justify-center gap-3 font-mono text-[10px] text-muted-foreground/60">
+          <span>{t.auto}</span>
+          {showAdminLink && (
+            <>
+              <span aria-hidden className="text-muted-foreground/30">·</span>
+              {/* Deliberately quiet: the way back in for the team, not a call
+                  to action for visitors. A plain <a> — the router is inside a
+                  shell this screen has replaced. */}
+              <a
+                href="/login"
+                className="underline underline-offset-2 transition-colors hover:text-primary"
+              >
+                {t.admin}
+              </a>
+            </>
+          )}
+        </div>
       </motion.div>
     </div>
   );

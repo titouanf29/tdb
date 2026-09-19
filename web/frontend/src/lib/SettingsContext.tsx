@@ -174,7 +174,15 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     let cancelled = false;
     const load = async () => {
       try {
-        const r = await fetch("/api/market/fx", { signal: AbortSignal.timeout(8000) });
+        // Carry the token: during maintenance every non-admin call is 503, and
+        // an unauthenticated fetch here left even admins on the seeded rate —
+        // reintroducing the very price gap the live rate exists to close.
+        const { getToken } = await import("@/lib/auth");
+        const token = getToken();
+        const r = await fetch("/api/market/fx", {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+          signal: AbortSignal.timeout(8000),
+        });
         if (!r.ok) return;
         const d = await r.json();
         const rate = Number(d?.EURUSD);

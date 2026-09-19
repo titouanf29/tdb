@@ -65,8 +65,66 @@ async def lifespan(app: FastAPI):
 
     await init_web_tables()
     print("✅ Database tables initialized")
+
+    await _bootstrap_admin()
+
     yield
     print("👋 TDB Web API shutting down...")
+
+
+async def _bootstrap_admin() -> None:
+    """Guarantee one admin account exists, from environment variables.
+
+    Locking the site behind an admin check is only safe if there is a
+    guaranteed way in. On a hosted database nobody can reach with a SQL client
+    — and after a wipe, a migration, or a forgotten password — that guarantee
+    has to come from somewhere the operator controls: the platform's own
+    environment variables.
+
+    Set ADMIN_BOOTSTRAP_EMAIL and ADMIN_BOOTSTRAP_PASSWORD and restart. The
+    account is created if missing, promoted if it exists, and its password is
+    reset to the value given. Unset the variables once you are in: leaving them
+    set means anyone who can read the service's environment can log in as
+    admin, and every restart silently resets that password.
+    """
+    email = (os.getenv("ADMIN_BOOTSTRAP_EMAIL") or "").strip().lower()
+    password = os.getenv("ADMIN_BOOTSTRAP_PASSWORD") or ""
+    if not email or not password:
+        return
+    if len(password) < 8:
+        logger.error("ADMIN_BOOTSTRAP_PASSWORD too short (min 8) — skipped")
+        return
+
+    try:
+        from api.routes.auth import hash_password
+        now = datetime.now(timezone.utc).isoformat()
+        rows = await execute_query("SELECT id FROM web_users WHERE email = ?", (email,))
+        if rows:
+            await execute_write(
+                "UPDATE web_users SET password_hash = ?, is_admin = 1, email_verified = 1 "
+                "WHERE email = ?",
+                (hash_password(password), email),
+            )
+            # The password itself is never logged, here or anywhere else.
+            print(f"🔑 Admin bootstrap: existing account {email} promoted, password reset")
+        else:
+            username = email.split("@")[0][:30] or "admin"
+            # A collision on username would fail the insert, so make it unique.
+            taken = await execute_query(
+                "SELECT id FROM web_users WHERE username = ?", (username,)
+            )
+            if taken:
+                username = f"{username[:24]}-adm"
+            await execute_write(
+                "INSERT INTO web_users (email, username, password_hash, first_name, "
+                "created_at, email_verified, is_admin) VALUES (?, ?, ?, ?, ?, 1, 1)",
+                (email, username, hash_password(password), "Admin", now),
+            )
+            print(f"🔑 Admin bootstrap: account {email} created")
+    except Exception as exc:
+        # A failed bootstrap must never stop the app from starting — that would
+        # turn a typo in an env var into a full outage.
+        logger.error("admin bootstrap failed: %s", exc)
 
 
 app = FastAPI(
@@ -193,18 +251,31 @@ async def _is_admin(user_id: int) -> bool:
     return False
 
 
+# Reachable even while the site is locked. Logging in MUST stay open or an
+# admin who is signed out during maintenance can never get back in — the lock
+# would have no key. /api/status is what tells the frontend to draw the
+# maintenance screen at all.
 _ALWAYS_ALLOW = {
-    "/api/auth/login", "/api/auth/register", "/api/auth/me",
-    "/api/auth/refresh", "/api/auth/verify-email",
+    "/api/auth/login", "/api/auth/me",
+    "/api/auth/refresh", "/api/auth/logout", "/api/auth/verify-email",
     "/api/status", "/", "/health",
 }
+
+# Deliberately NOT in _ALWAYS_ALLOW: a site closed to the public must not keep
+# minting new accounts. Left open, /api/auth/register answered 201 with a valid
+# token throughout maintenance, so "closed" only ever hid the logged-in app.
+# Kept as an explicit set so re-adding these to _ALWAYS_ALLOW cannot silently
+# reopen the hole.
+_BLOCKED_WHEN_LOCKED = {"/api/auth/register", "/api/auth/resend-verification"}
 
 
 @app.middleware("http")
 async def maintenance_middleware(request: Request, call_next):
     path = request.url.path
     # Admin panel and auth always accessible
-    if path.startswith("/api/admin") or path in _ALWAYS_ALLOW:
+    if path.startswith("/api/admin") or (
+        path in _ALWAYS_ALLOW and path not in _BLOCKED_WHEN_LOCKED
+    ):
         return await call_next(request)
     if request.method == "OPTIONS":
         return await call_next(request)

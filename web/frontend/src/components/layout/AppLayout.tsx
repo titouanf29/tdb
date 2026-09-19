@@ -15,10 +15,38 @@ import { OnboardingTour } from "@/components/OnboardingTour";
 import { CoachOverlay } from "@/components/CoachAlex";
 import { PriceAlertWatcher } from "@/components/PriceAlertWatcher";
 import { MaintenanceScreen } from "./MaintenanceScreen";
+import { useMaintenance } from "@/lib/useMaintenance";
 import { Loader2 } from "lucide-react";
 import type { TradingLevel } from "@/lib/auth";
 
 // ── Public pages: no auth logic, no effects ───────────────────────────────────
+
+/**
+ * The public landing page. It used to render unconditionally, so during
+ * maintenance captentdb.fr still greeted visitors with the full marketing page
+ * and a "Create my account — it's free" button. It is the first thing anyone
+ * sees, so it is the first thing the lock has to cover.
+ */
+function LandingShell({ children }: { children: React.ReactNode }) {
+  const { lang } = useLanguage();
+  const maintenance = useMaintenance();
+
+  // Nothing decisive before the first answer — but no spinner either: the
+  // landing page is also what search engines and link previews fetch.
+  if (maintenance.checked && maintenance.locked) {
+    return (
+      <MaintenanceScreen
+        message={maintenance.message || (lang === "en"
+          ? "The site is temporarily unavailable. Please come back soon."
+          : "Le site est temporairement indisponible. Revenez bientôt.")}
+        endTime={maintenance.endTime}
+        startedAt={maintenance.startedAt}
+        lang={lang}
+      />
+    );
+  }
+  return <>{children}</>;
+}
 
 function LegalShell({ children }: { children: React.ReactNode }) {
   return (
@@ -47,38 +75,16 @@ function AuthShell({
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [forceTourLevel, setForceTourLevel] = useState<TradingLevel | null>(null);
-  const [maintenance, setMaintenance] = useState<{ on: boolean; message: string; endTime?: string; startedAt?: string; serverIsAdmin?: boolean }>({ on: false, message: "" });
-  const [maintenanceChecked, setMaintenanceChecked] = useState(false);
+  const maintenance = useMaintenance();
 
-  useEffect(() => {
-    const check = async () => {
-      try {
-        // Send auth token so the backend can identify admins and return is_admin=true
-        const { getToken } = await import("@/lib/auth");
-        const token = getToken();
-        const headers: HeadersInit = token ? { Authorization: `Bearer ${token}` } : {};
-        // The whole app render waits on this one call, so it gets a short
-        // deadline of its own. Maintenance is a rare state: if the check can't
-        // answer quickly, failing open and showing the app beats holding every
-        // user on a spinner until the request eventually gives up.
-        const r = await fetch("/api/status", { headers, signal: AbortSignal.timeout(4000) });
-        if (r.ok) {
-          const d = await r.json();
-          setMaintenance({
-            on:            !!d.maintenance,
-            message:       d.message || "",
-            endTime:       d.end_time ?? undefined,
-            startedAt:     d.started_at ?? undefined,
-            serverIsAdmin: !!d.is_admin,
-          });
-        }
-      } catch {}
-      setMaintenanceChecked(true);
-    };
-    check();
-    const iv = setInterval(check, 30000);
-    return () => clearInterval(iv);
-  }, []);
+  const maintenanceProps = {
+    message: maintenance.message || (lang === "en"
+      ? "The site is temporarily unavailable. Please come back soon."
+      : "Le site est temporairement indisponible. Revenez bientôt."),
+    endTime: maintenance.endTime,
+    startedAt: maintenance.startedAt,
+    lang,
+  };
 
   // Redirect unauthenticated users — only runs on auth/protected pages
   useEffect(() => {
@@ -126,8 +132,27 @@ function AuthShell({
   };
 
   if (isAuthPage) {
+    const isLoginPage = !!pathname?.startsWith("/login");
+    // Signing up is closed while the site is: letting the form through meant
+    // new accounts were still being created behind the maintenance screen.
+    // Signing IN stays open — it is the only way an admin gets back in.
+    if (maintenance.locked && !isLoginPage) {
+      return <MaintenanceScreen {...maintenanceProps} />;
+    }
     return (
-      <div className="min-h-screen flex items-center justify-center p-4">
+      <div className="min-h-screen flex flex-col items-center justify-center p-4">
+        {maintenance.locked && isLoginPage && (
+          <div className="mb-5 w-full max-w-md border border-primary/30 bg-primary/[0.06] px-4 py-3">
+            <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-primary">
+              {lang === "en" ? "Maintenance" : "Maintenance"}
+            </p>
+            <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+              {lang === "en"
+                ? "The site is closed to visitors. Only team accounts can sign in right now."
+                : "Le site est fermé aux visiteurs. Seuls les comptes de l'équipe peuvent se connecter pour le moment."}
+            </p>
+          </div>
+        )}
         {children}
       </div>
     );
@@ -163,7 +188,7 @@ function AuthShell({
   }
 
   // Wait for maintenance status before showing anything (prevents flash of app content)
-  if (!maintenanceChecked) {
+  if (!maintenance.checked) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="w-6 h-6 rounded-full border-2 border-transparent border-t-primary animate-spin" />
@@ -171,17 +196,10 @@ function AuthShell({
     );
   }
 
-  if (maintenance.on && !isAdmin && !maintenance.serverIsAdmin) {
-    return (
-      <MaintenanceScreen
-        message={maintenance.message || (lang === "en"
-          ? "The site is temporarily unavailable. Please come back soon."
-          : "Le site est temporairement indisponible. Revenez bientôt.")}
-        endTime={maintenance.endTime}
-        startedAt={maintenance.startedAt}
-        lang={lang}
-      />
-    );
+  // `isAdmin` comes from the client's own premium context; `maintenance.isAdmin`
+  // is the backend's verdict on the token. Either one is enough to pass.
+  if (maintenance.on && !isAdmin && !maintenance.isAdmin) {
+    return <MaintenanceScreen {...maintenanceProps} />;
   }
 
   return (
@@ -259,7 +277,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     || pathname?.startsWith("/verify-email");
 
   if (isLandingPage) {
-    return <>{children}</>;
+    return <LandingShell>{children}</LandingShell>;
   }
 
   if (isLegalPage) {
