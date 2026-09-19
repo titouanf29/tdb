@@ -22,7 +22,12 @@ export { Contours, Course, Rule, Waypoint } from "./Motif";
 export { Drawer, Modal } from "./Overlay";
 export { PageCourse, type CourseStop } from "./PageCourse";
 export { PathMarker } from "./PathMarker";
+export { Panel } from "./Panel";
 export { Progress } from "./Progress";
+export {
+  WEATHER_LABEL, WeatherBackdrop, conditionFromChange, useWeatherEnabled,
+  type WeatherCondition,
+} from "./Weather";
 export { ScoreDial } from "./ScoreDial";
 export { Container, Reveal, RevealGroup, RevealItem, Section } from "./Section";
 export { SegmentedControl } from "./SegmentedControl";

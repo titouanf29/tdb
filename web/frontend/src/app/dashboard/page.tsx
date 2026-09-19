@@ -2,64 +2,71 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { ArrowRight, RefreshCw } from "lucide-react";
+import { ArrowRight, CloudOff, RefreshCw, Sun } from "lucide-react";
 import { useAuth } from "@/lib/AuthContext";
 import { useSettings, convertCurrency } from "@/lib/SettingsContext";
 import { useTradingStyle } from "@/lib/tradingStyle";
 import {
-  dailyIntentAPI, favoritesAPI, walletAPI,
+  dailyIntentAPI, favoritesAPI, journalAPI, walletAPI,
   type DailyIntentResult, type Favorite, type Position,
   type TradingStats, type WalletBalance,
 } from "@/lib/api";
 import {
-  Button, CloudCurtain, DataList, DataRow, EmptyState, Heading, Num, Reveal,
-  Text, Waypoint,
+  Button, CloudCurtain, DataList, DataRow, EmptyState, Heading, Num, Panel,
+  Reveal, Text, Waypoint, WeatherBackdrop, WEATHER_LABEL,
+  conditionFromChange, useWeatherEnabled,
 } from "@/components/design-system";
+import { FirstSteps } from "@/components/app/FirstSteps";
 
 /**
  * The signed-in home screen.
  *
- * It answers four questions in order, and nothing else:
+ * It answers four questions in order and nothing else: where am I, what should
+ * I do next, where does my money stand, what am I watching. Each one is a
+ * panel, because a workspace is scanned rather than read and the eye needs
+ * edges to land on.
  *
- *   1. Who am I and how is this space set up?
- *   2. What should I do next? — exactly one recommendation.
- *   3. Where does my money stand? — three figures, not fifteen.
- *   4. What am I watching?
- *
- * The old version showed eleven widgets at once: wallet, win rate, news,
- * favourites, P&L, scanner, market status, an AI panel, trades, indicators.
- * Everything was available and nothing was recommended, which is the same as
- * having no dashboard at all — the user had to do the prioritising the product
- * exists to do for them.
+ * The version before this showed eleven widgets at once — wallet, win rate,
+ * news, favourites, P&L, scanner, market status, an AI panel, trades,
+ * indicators. Everything was available and nothing was recommended, which is
+ * the same as having no dashboard: the user had to do the prioritising the
+ * product exists to do for them.
  */
 export default function DashboardPage() {
   const { user } = useAuth();
   const { settings, eurUsd } = useSettings();
   const style = useTradingStyle();
+  const [weatherOn, setWeatherOn] = useWeatherEnabled();
 
   const [balance, setBalance] = useState<WalletBalance | null>(null);
   const [stats, setStats] = useState<TradingStats | null>(null);
   const [positions, setPositions] = useState<Position[]>([]);
   const [favorites, setFavorites] = useState<Favorite[]>([]);
   const [intent, setIntent] = useState<DailyIntentResult | null>(null);
+  const [journalCount, setJournalCount] = useState(0);
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async () => {
     // allSettled, not all: one endpoint being down must not blank the screen.
-    const [b, s, p, f, i] = await Promise.allSettled([
+    const [b, s, p, f, i, j] = await Promise.allSettled([
       walletAPI.getBalance(),
       walletAPI.getStats(),
       walletAPI.getPositions("open"),
       favoritesAPI.getFavorites(),
       dailyIntentAPI.get(),
+      journalAPI.list(),
     ]);
     if (b.status === "fulfilled") setBalance(b.value);
     if (s.status === "fulfilled") setStats(s.value);
     if (p.status === "fulfilled") setPositions(p.value.positions || []);
     if (f.status === "fulfilled") setFavorites(f.value.favorites || []);
     if (i.status === "fulfilled") setIntent(i.value);
+    if (j.status === "fulfilled") {
+      const entries = (j.value as unknown as { entries?: unknown[] })?.entries;
+      setJournalCount(Array.isArray(entries) ? entries.length : 0);
+    }
   }, []);
 
   useEffect(() => {
@@ -84,9 +91,17 @@ export default function DashboardPage() {
 
   const equity = balance ? (balance.total_equity ?? balance.balance + balance.positions_value) : 0;
   const pnl = balance?.total_pnl ?? 0;
-  // Percentage against the starting stake, which is what "how am I doing"
-  // actually means — not against today's equity.
+  // Against the starting stake, which is what "how am I doing" means — not
+  // against today's equity, which would flatter a losing account.
   const pnlPct = equity - pnl !== 0 ? (pnl / (equity - pnl)) * 100 : 0;
+
+  // The sky reads the assets this user follows, so it says something about
+  // their day rather than about the market in general.
+  const avgChange = useMemo(() => {
+    if (favorites.length === 0) return null;
+    return favorites.reduce((a, f) => a + (f.change ?? 0), 0) / favorites.length;
+  }, [favorites]);
+  const condition = conditionFromChange(avgChange);
 
   const first = user?.first_name || user?.username || "";
   const greeting = useMemo(() => {
@@ -100,167 +115,249 @@ export default function DashboardPage() {
   if (loading) return <CloudCurtain active label="Préparation de votre espace" />;
 
   return (
-    <div className="space-y-14 sm:space-y-20">
-      {/* ── 1. Where you are ───────────────────────────────────────────── */}
-      <Reveal>
-        <header>
-          <Heading level={1}>
-            {greeting}{first ? `, ${first}` : ""}.
-          </Heading>
-          <Text size="lead" className="mt-3 max-w-[38rem]">
-            Votre espace est réglé pour{" "}
-            <Link
-              href="/settings"
-              className="underline underline-offset-2 decoration-[color:var(--cap-ink-4)] transition-colors hover:text-[color:var(--cap-ink)]"
-            >
-              {style.label.fr.toLowerCase()}
-            </Link>
-            {" "}— horizon {style.horizon.fr.toLowerCase()}.
-          </Text>
-        </header>
-      </Reveal>
+    <>
+      <WeatherBackdrop condition={condition} enabled={weatherOn} />
 
-      {/* ── 2. One thing to do ─────────────────────────────────────────── */}
-      <Reveal delay={0.05}>
-        <NextStep intent={intent} positions={positions} favorites={favorites} />
-      </Reveal>
-
-      {/* ── 3. Where the money stands ──────────────────────────────────── */}
-      <Reveal delay={0.1}>
-        <section>
-          <div className="flex items-baseline justify-between gap-4">
-            <Heading level={3} as="h2">Votre portefeuille</Heading>
-            <button
-              onClick={refresh}
-              disabled={refreshing}
-              className="flex items-center gap-1.5 text-[0.82rem] transition-colors hover:text-[color:var(--cap-ink)] disabled:opacity-50"
-              style={{ color: "var(--cap-ink-3)" }}
-            >
-              <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? "animate-spin" : ""}`} />
-              Actualiser
-            </button>
-          </div>
-
-          <div className="mt-6 flex flex-wrap items-end gap-x-14 gap-y-8">
+      <div className="relative space-y-8">
+        {/* ── 1. Where you are ─────────────────────────────────────────── */}
+        <Reveal>
+          <header className="flex flex-wrap items-end justify-between gap-5 pt-2">
             <div>
-              <Num className="text-[clamp(2.1rem,5vw,3rem)] font-medium leading-none">
+              <Heading level={1}>
+                {greeting}{first ? `, ${first}` : ""}.
+              </Heading>
+              <Text className="mt-2.5 max-w-[38rem]">
+                Espace réglé pour{" "}
+                <Link
+                  href="/settings"
+                  className="underline decoration-[color:var(--cap-ink-4)] underline-offset-2 transition-colors hover:text-[color:var(--cap-ink)]"
+                >
+                  {style.label.fr.toLowerCase()}
+                </Link>
+                {" "}— horizon {style.horizon.fr.toLowerCase()}.
+              </Text>
+            </div>
+
+            <WeatherToggle
+              on={weatherOn}
+              onChange={setWeatherOn}
+              label={WEATHER_LABEL[condition]}
+              hasData={avgChange != null}
+            />
+          </header>
+        </Reveal>
+
+        {/* ── 2. One thing to do ───────────────────────────────────────── */}
+        <Reveal delay={0.04}>
+          <NextStep intent={intent} positions={positions} favorites={favorites} />
+        </Reveal>
+
+        {/* ── 3 & 4. Money, and what you watch — side by side ──────────── */}
+        <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+          <Reveal delay={0.08}>
+            <Panel
+              title="Votre portefeuille"
+              className="h-full"
+              aside={
+                <button
+                  onClick={refresh}
+                  disabled={refreshing}
+                  className="flex items-center gap-1.5 text-[0.8rem] transition-colors hover:text-[color:var(--cap-ink)] disabled:opacity-50"
+                  style={{ color: "var(--cap-ink-3)" }}
+                >
+                  <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? "animate-spin" : ""}`} />
+                  Actualiser
+                </button>
+              }
+              action={{ label: "Voir le détail", href: "/portfolio" }}
+            >
+              <Num className="text-[clamp(1.9rem,4vw,2.5rem)] font-medium leading-none">
                 {money(equity)}
               </Num>
-              <Text size="caption" className="mt-2.5">Valeur totale</Text>
-            </div>
-            <div>
-              <Num
-                tone={pnl >= 0 ? "up" : "down"}
-                className="text-[1.5rem] font-medium leading-none"
+              <Text size="caption" className="mt-2">Valeur totale</Text>
+
+              <div
+                className="mt-5 grid grid-cols-3 gap-4 border-t pt-4"
+                style={{ borderColor: "var(--cap-line)" }}
               >
-                {pnl >= 0 ? "+" : ""}{money(pnl)}
-              </Num>
-              <Text size="caption" className="mt-2.5">
-                Performance · {pnl >= 0 ? "+" : ""}{pnlPct.toFixed(1)} %
-              </Text>
-            </div>
-            <div>
-              <Num className="text-[1.5rem] font-medium leading-none">{positions.length}</Num>
-              <Text size="caption" className="mt-2.5">
-                {positions.length > 1 ? "Positions ouvertes" : "Position ouverte"}
-              </Text>
-            </div>
-            {stats && stats.total_trades > 0 && (
-              <div>
-                <Num className="text-[1.5rem] font-medium leading-none">
-                  {stats.win_rate.toFixed(0)} %
-                </Num>
-                <Text size="caption" className="mt-2.5">
-                  Réussite sur {stats.total_trades} trades
-                </Text>
+                <Figure
+                  value={`${pnl >= 0 ? "+" : ""}${money(pnl)}`}
+                  label={`${pnl >= 0 ? "+" : ""}${pnlPct.toFixed(1)} %`}
+                  tone={pnl >= 0 ? "up" : "down"}
+                />
+                <Figure
+                  value={String(positions.length)}
+                  label={positions.length > 1 ? "positions" : "position"}
+                />
+                <Figure
+                  value={stats && stats.total_trades > 0 ? `${stats.win_rate.toFixed(0)} %` : "—"}
+                  label={
+                    stats && stats.total_trades > 0
+                      ? `sur ${stats.total_trades} trades`
+                      : "aucun trade"
+                  }
+                />
               </div>
-            )}
-          </div>
 
-          {positions.length > 0 && (
-            <div className="mt-8">
-              <DataList>
-                {positions.slice(0, 4).map((p) => (
-                  <DataRow
-                    key={p.id}
-                    href="/trading"
-                    label={p.symbol}
-                    sub={`${p.direction === "LONG" ? "Achat" : "Vente"} · ${money(p.amount)}`}
-                    value={p.current_price != null ? money(p.current_price) : "—"}
-                    change={
-                      p.unrealized_pnl != null && p.amount
-                        ? (p.unrealized_pnl / p.amount) * 100
-                        : null
-                    }
-                  />
-                ))}
-              </DataList>
-              {positions.length > 4 && (
-                <Link
-                  href="/trading"
-                  className="mt-4 inline-flex items-center gap-1.5 text-[0.85rem] transition-colors hover:text-[color:var(--cap-ink)]"
-                  style={{ color: "var(--cap-ocean)" }}
-                >
-                  Voir les {positions.length} positions
-                  <ArrowRight className="h-3.5 w-3.5" />
-                </Link>
+              {positions.length > 0 && (
+                <div className="mt-5 border-t pt-2" style={{ borderColor: "var(--cap-line)" }}>
+                  <DataList>
+                    {positions.slice(0, 3).map((p) => (
+                      <DataRow
+                        key={p.id}
+                        href="/trading"
+                        label={p.symbol}
+                        sub={`${p.direction === "LONG" ? "Achat" : "Vente"} · ${money(p.amount)}`}
+                        change={
+                          p.unrealized_pnl != null && p.amount
+                            ? (p.unrealized_pnl / p.amount) * 100
+                            : null
+                        }
+                      />
+                    ))}
+                  </DataList>
+                </div>
               )}
-            </div>
-          )}
-        </section>
-      </Reveal>
+            </Panel>
+          </Reveal>
 
-      {/* ── 4. What you are watching ───────────────────────────────────── */}
-      <Reveal delay={0.15}>
-        <section>
-          <Heading level={3} as="h2">Vos actifs</Heading>
-          {favorites.length === 0 ? (
-            <EmptyState
-              title="Aucun actif suivi"
-              description="Ajoutez les actifs que vous voulez garder à l'œil — ils apparaîtront ici avec leur variation du jour."
-              action={{ label: "Chercher un actif", href: "/analysis" }}
+          <Reveal delay={0.12}>
+            <Panel
+              title="Vos actifs"
+              hint={favorites.length > 0 ? "Variation depuis la clôture précédente." : undefined}
+              className="h-full"
+              action={favorites.length > 0 ? { label: "Tous les favoris", href: "/favorites" } : undefined}
+            >
+              {favorites.length === 0 ? (
+                <EmptyState
+                  title="Aucun actif suivi"
+                  description="Ajoutez ceux que vous voulez garder à l'œil — ils apparaîtront ici chaque jour."
+                  action={{ label: "Chercher un actif", href: "/analysis" }}
+                />
+              ) : (
+                <DataList>
+                  {favorites.slice(0, 6).map((f) => (
+                    <DataRow
+                      key={f.symbol}
+                      href={`/analysis?symbol=${encodeURIComponent(f.symbol)}`}
+                      label={f.symbol}
+                      value={money(f.price)}
+                      change={f.change}
+                    />
+                  ))}
+                </DataList>
+              )}
+            </Panel>
+          </Reveal>
+        </div>
+
+        {/* ── 5. The guided start, until it is finished ────────────────── */}
+        <Reveal delay={0.16}>
+          <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+            <FirstSteps
+              analysed={favorites.length > 0 || positions.length > 0 || journalCount > 0}
+              hasFavorite={favorites.length > 0}
+              hasPosition={positions.length > 0 || (stats?.total_trades ?? 0) > 0}
+              hasJournal={journalCount > 0}
             />
-          ) : (
-            <div className="mt-5">
-              <DataList>
-                {favorites.slice(0, 8).map((f) => (
-                  <DataRow
-                    key={f.symbol}
-                    href={`/analysis?symbol=${encodeURIComponent(f.symbol)}`}
-                    label={f.symbol}
-                    value={money(f.price)}
-                    change={f.change}
-                  />
+            <Panel
+              title="Continuer le parcours"
+              hint="Court, concret, et toujours reprenable là où vous l'avez laissé."
+              action={{ label: "Ouvrir le parcours", href: "/learn" }}
+            >
+              <Text size="small">
+                Les bases, puis les indicateurs, puis la gestion du risque —
+                dans cet ordre, parce que chacun n&apos;a de sens qu&apos;avec
+                le précédent.
+              </Text>
+              <div className="mt-4 flex flex-wrap gap-2">
+                {["Lire un graphique", "Tendance et momentum", "Dimensionner une position"].map((c) => (
+                  <span
+                    key={c}
+                    className="rounded-[9px] px-2.5 py-1.5 text-[0.8rem]"
+                    style={{ backgroundColor: "var(--cap-surface-2)", color: "var(--cap-ink-2)" }}
+                  >
+                    {c}
+                  </span>
                 ))}
-              </DataList>
-              {favorites.length > 8 && (
-                <Link
-                  href="/favorites"
-                  className="mt-4 inline-flex items-center gap-1.5 text-[0.85rem] transition-colors hover:text-[color:var(--cap-ink)]"
-                  style={{ color: "var(--cap-ocean)" }}
-                >
-                  Voir les {favorites.length} favoris
-                  <ArrowRight className="h-3.5 w-3.5" />
-                </Link>
-              )}
-            </div>
-          )}
-        </section>
-      </Reveal>
+              </div>
+            </Panel>
+          </div>
+        </Reveal>
+      </div>
+    </>
+  );
+}
+
+/* ── Bits ─────────────────────────────────────────────────────────────────── */
+
+function Figure({
+  value,
+  label,
+  tone = "ink",
+}: {
+  value: string;
+  label: string;
+  tone?: "ink" | "up" | "down";
+}) {
+  return (
+    <div className="min-w-0">
+      <Num tone={tone} className="block truncate text-[1.05rem] font-medium leading-none">
+        {value}
+      </Num>
+      <span className="mt-1.5 block truncate text-[0.76rem]" style={{ color: "var(--cap-ink-3)" }}>
+        {label}
+      </span>
     </div>
+  );
+}
+
+/**
+ * The sky's own control.
+ *
+ * It states what the weather means before offering to switch it off, because
+ * a background nobody can interpret is just movement — and someone who finds
+ * it distracting should be able to stop it in one click, from the screen they
+ * are on, not from a settings page three navigations away.
+ */
+function WeatherToggle({
+  on,
+  onChange,
+  label,
+  hasData,
+}: {
+  on: boolean;
+  onChange: (v: boolean) => void;
+  label: string;
+  hasData: boolean;
+}) {
+  return (
+    <button
+      onClick={() => onChange(!on)}
+      title={
+        hasData
+          ? "Le ciel reflète la tendance moyenne de vos actifs suivis."
+          : "Suivez des actifs pour que le ciel reflète leur tendance."
+      }
+      className="flex items-center gap-2 rounded-[10px] px-3 py-2 text-[0.82rem] transition-colors hover:bg-[color:var(--cap-surface-2)]"
+      style={{ color: "var(--cap-ink-2)", boxShadow: "inset 0 0 0 1px var(--cap-line)" }}
+    >
+      {on ? <Sun className="h-3.5 w-3.5" /> : <CloudOff className="h-3.5 w-3.5" />}
+      {on ? label : "Météo désactivée"}
+    </button>
   );
 }
 
 /* ── The recommendation ───────────────────────────────────────────────────── */
 
 /**
- * Exactly one suggestion, chosen from what the user's state actually is.
+ * Exactly one suggestion, chosen from what the account actually is.
  *
- * The rule is that it must be doable in one click and must change as the
- * account changes: an empty account gets "pick something to look at", an
- * account with open positions gets pointed at them, and an established one
- * gets the engine's pick of the day. A recommendation that says the same thing
- * every morning stops being read by the third one.
+ * It must be doable in one click and must change as the account changes: an
+ * empty account gets "pick something to look at", one with open positions gets
+ * pointed at them, an established one gets the engine's pick of the day. A
+ * recommendation that says the same thing every morning stops being read by
+ * the third one.
  */
 function NextStep({
   intent,
@@ -272,7 +369,7 @@ function NextStep({
   favorites: Favorite[];
 }) {
   const suggestion = useMemo(() => {
-    const picked = (intent as unknown as { assets?: { symbol: string; score?: number }[] })?.assets?.[0];
+    const picked = (intent as unknown as { assets?: { symbol: string }[] })?.assets?.[0];
 
     if (positions.length > 0) {
       const p = positions[0];
@@ -297,7 +394,7 @@ function NextStep({
       return {
         eyebrow: "Votre prochaine étape",
         title: `Analysez ${favorites[0].symbol}.`,
-        body: "Vous le suivez déjà — voyez ce que le moteur en dit et pourquoi.",
+        body: "Vous le suivez déjà — voyez ce que le moteur en dit, et pourquoi.",
         cta: "Voir l'analyse",
         href: `/analysis?symbol=${encodeURIComponent(favorites[0].symbol)}`,
       };
@@ -313,33 +410,47 @@ function NextStep({
 
   return (
     <section
-      className="relative overflow-hidden p-6 sm:p-9"
+      className="relative overflow-hidden p-6 sm:p-8"
       style={{
         borderRadius: "var(--cap-r-xl)",
-        backgroundColor: "var(--cap-surface)",
-        boxShadow: "inset 0 0 0 1px var(--cap-line), var(--cap-shadow)",
+        backgroundColor: "var(--cap-navy)",
+        color: "#E8EDF1",
       }}
     >
       <div className="flex items-center gap-2.5">
-        <Waypoint size={11} />
+        <Waypoint size={11} tone="amber" />
         <span
           className="text-[0.72rem] font-medium uppercase tracking-[0.15em]"
-          style={{ color: "var(--cap-ocean)" }}
+          style={{ color: "rgba(232,237,241,0.62)" }}
         >
           {suggestion.eyebrow}
         </span>
       </div>
 
-      <Heading level={2} className="mt-4 max-w-[30rem]">
+      {/* Inverted on purpose: one dark block on a light page is what makes the
+          single recommendation impossible to scroll past. */}
+      <h2
+        className="mt-3.5 max-w-[30rem] text-[clamp(1.35rem,2.6vw,1.9rem)] font-semibold leading-[1.15] tracking-[-0.02em]"
+        style={{ fontFamily: "var(--cap-font-display)" }}
+      >
         {suggestion.title}
-      </Heading>
-      <Text className="mt-3 max-w-[34rem]">{suggestion.body}</Text>
+      </h2>
+      <p
+        className="mt-3 max-w-[34rem] text-[0.92rem] leading-[1.6]"
+        style={{ color: "rgba(232,237,241,0.72)" }}
+      >
+        {suggestion.body}
+      </p>
 
-      <div className="mt-7">
-        <Button href={suggestion.href} size="lg">
+      <div className="mt-6">
+        <Link
+          href={suggestion.href}
+          className="inline-flex h-11 items-center gap-2 rounded-[10px] px-5 text-[0.925rem] font-medium transition-opacity hover:opacity-90"
+          style={{ backgroundColor: "#F2F5F7", color: "var(--cap-navy)" }}
+        >
           {suggestion.cta}
           <ArrowRight className="h-4 w-4" />
-        </Button>
+        </Link>
       </div>
     </section>
   );
