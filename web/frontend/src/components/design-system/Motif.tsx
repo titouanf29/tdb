@@ -25,6 +25,7 @@ export function Contours({
   lines?: number;
   opacity?: number;
 }) {
+  const reduce = useReducedMotion();
   return (
     <svg
       aria-hidden
@@ -43,12 +44,23 @@ export function Contours({
         const y = 60 + i * 42;
         const amp = 26 - i * 2.5;
         return (
-          <path
+          <motion.path
             key={i}
             d={`M-20 ${y} C 140 ${y - amp}, 260 ${y + amp}, 420 ${y - amp * 0.6} S 700 ${y + amp * 0.8}, 820 ${y - amp * 0.3}`}
             fill="none"
             stroke="var(--cap-line-chart)"
             strokeWidth="1"
+            // The opening: contours plotting themselves, one after another,
+            // the way a chart is drawn rather than printed. It runs once on
+            // load and then the lines are simply there.
+            initial={reduce ? false : { pathLength: 0, opacity: 0 }}
+            animate={{ pathLength: 1, opacity: 1 }}
+            transition={{
+              duration: 2.6,
+              delay: 0.15 + i * 0.13,
+              ease: EASE,
+              opacity: { duration: 0.6, delay: 0.15 + i * 0.13 },
+            }}
           />
         );
       })}

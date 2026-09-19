@@ -2,7 +2,7 @@
 
 import { motion, useReducedMotion } from "framer-motion";
 import {
-  Atmosphere, Button, Container, Contours, CountUp, Heading, Num, Section, Text, Waypoint,
+  Atmosphere, Button, Container, Contours, Heading, Num, ScoreDial, Section, Text, Waypoint,
   DUR, EASE,
 } from "@/components/design-system";
 import { AnalysisVisual } from "./AnalysisVisual";
@@ -144,11 +144,8 @@ export function Hero() {
                 >
                   {apple.direction}
                 </div>
-                <div className="mt-3 flex items-baseline justify-end gap-1">
-                  <CountUp to={apple.score} duration={1.6} className="text-[2rem] font-medium leading-none" />
-                  <span className="text-[0.9rem]" style={{ color: "var(--cap-ink-4)" }}>
-                    / 100
-                  </span>
+                <div className="mt-2 flex justify-end">
+                  <ScoreDial score={apple.score} size={124} />
                 </div>
               </div>
             </div>

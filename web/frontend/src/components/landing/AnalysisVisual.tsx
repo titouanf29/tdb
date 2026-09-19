@@ -142,6 +142,32 @@ export function AnalysisVisual({
         viewport={VIEWPORT}
         transition={{ duration: DUR.draw, ease: EASE }}
       />
+
+      {/* A scan sweeping across as the curve is drawn.
+          Not a dot riding the path: this SVG stretches with
+          preserveAspectRatio="none", which turns any circle into an ellipse
+          and made the marker read as a squashed oval. A vertical rule is the
+          one shape that survives non-uniform scaling intact — and it says
+          "this is being read left to right", which is exactly what the curve
+          is doing. */}
+      {!reduce && (
+        <motion.line
+          y1="0"
+          y2={H}
+          stroke="var(--cap-ocean)"
+          strokeWidth="1"
+          vectorEffect="non-scaling-stroke"
+          initial={{ x1: 0, x2: 0, opacity: 0 }}
+          whileInView={{ x1: W, x2: W, opacity: [0, 0.45, 0.45, 0] }}
+          viewport={VIEWPORT}
+          transition={{
+            duration: DUR.draw,
+            ease: EASE,
+            opacity: { duration: DUR.draw, times: [0, 0.08, 0.88, 1], ease: "linear" },
+          }}
+        />
+      )}
+
     </svg>
   );
 }

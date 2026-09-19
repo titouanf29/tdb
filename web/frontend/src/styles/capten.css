@@ -22,25 +22,34 @@
   --cap-down:   #C94A4A;
 
   /* ── Surfaces ─────────────────────────────────────────────────────────
-     Layered whites, not one flat fill. The base is a cool off-white that a
-     pure-white panel sits slightly above; the difference between them is
-     about 2% luminance, which is enough to separate them without a border.
+     Layered off-whites, not one flat fill. The panel sits about 2% of
+     luminance above the ground, which is enough to separate them without a
+     border. This is where the "cloudy" quality comes from — overlapping pale
+     layers and very wide, very faint washes. Deliberately NOT glassmorphism:
+     no blur, nothing transparent, so text stays on an opaque surface and
+     nothing shimmers.
 
-     This is where the "cloudy" quality comes from — overlapping pale layers
-     and very wide, very faint washes. Deliberately NOT glassmorphism: there
-     is no blur and nothing is transparent, so text stays on an opaque
-     surface and nothing shimmers. */
-  --cap-bg:        #F8F9FB;
-  --cap-surface:   #FFFFFF;
-  --cap-surface-2: #F1F3F7;
-  --cap-surface-3: #E9EDF3;
+     Cool, not warm, and no pure white anywhere. Two reasons:
+
+     1. Glare comes from the panels, not the page. #FFFFFF next to a near-white
+        ground is the brightest thing on screen and the eye keeps resetting to
+        it. Dropping the surface to #F7F9FB and the ground to #EDF0F4 keeps the
+        same separation with far less light.
+     2. A warm ivory ground with an amber accent is the cream-and-orange
+        palette every current AI product ships. Cool greys read as mist and as
+        a marine chart, which is what this product is about, and they are
+        nobody else's signature. */
+  --cap-bg:        #EDF0F4;
+  --cap-surface:   #F7F9FB;
+  --cap-surface-2: #E4E9EF;
+  --cap-surface-3: #D9E0E8;
   --cap-inverse:   var(--cap-navy);
 
   /* Atmosphere: three washes, each far wider than the viewport so they read
      as weather rather than as shapes. Above 6% they become blobs. */
-  --cap-mist-warm: rgba(229, 168, 58, 0.035);
-  --cap-mist-cool: rgba(21, 94, 117, 0.055);
-  --cap-mist-deep: rgba(11, 23, 38, 0.035);
+  --cap-mist-warm: rgba(229, 168, 58, 0.025);
+  --cap-mist-cool: rgba(21, 94, 117, 0.07);
+  --cap-mist-deep: rgba(11, 23, 38, 0.045);
 
   /* ── Ink ───────────────────────────────────────────────────────────────
      One hue at four weights rather than four greys: the page reads as a
