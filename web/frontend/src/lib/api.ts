@@ -2305,6 +2305,33 @@ export const missionsAPI = {
     }),
 };
 
+// ── Parcours : progression des leçons ────────────────────────────────────────
+// Elle vivait dans localStorage sous "tdb_learn_progress", alors que l'XP, le
+// niveau, les badges et la série étaient déjà côté serveur. La seule chose qui
+// ne l'était pas, c'était l'endroit où l'utilisateur en est — donc changer
+// d'appareil remettait le parcours à zéro.
+export interface LessonRecord {
+  quiz_score: number | null;
+  completed_at: string;
+}
+
+export const learnAPI = {
+  lessons: () => fetchAPI<{ lessons: Record<string, LessonRecord> }>("/api/learn/lessons"),
+
+  complete: (moduleId: string, lessonId: string, quizScore?: number) =>
+    fetchAPI<ActionResult & { already_completed: boolean; quiz_score: number | null }>(
+      `/api/learn/lessons/${moduleId}/${lessonId}`,
+      { method: "POST", body: JSON.stringify({ quiz_score: quizScore ?? null }) }
+    ),
+
+  /** Reprise unique de ce qu'un navigateur détient encore localement. */
+  importLocal: (completed: string[], quizScores: Record<string, number>) =>
+    fetchAPI<{ imported: number }>("/api/learn/lessons/import", {
+      method: "POST",
+      body: JSON.stringify({ completed, quiz_scores: quizScores }),
+    }),
+};
+
 // ── IPO Watch ────────────────────────────────────────────────────────────────
 export interface IPOWatchItem {
   id: string;

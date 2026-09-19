@@ -181,8 +181,12 @@ export function FormError({ children }: { children: React.ReactNode }) {
       className="px-3.5 py-3 text-[0.85rem]"
       style={{
         borderRadius: "var(--cap-r-md)",
-        backgroundColor: "rgba(201,74,74,0.07)",
-        boxShadow: "inset 0 0 0 1px rgba(201,74,74,0.22)",
+        // Accordé au jeton --cap-down (#9F4B41). C'était encore l'ancien
+        // rouge #C94A4A écrit en dur, oublié au changement de palette : le
+        // seul endroit du site où la couleur d'erreur ne suivait plus les
+        // autres rouges.
+        backgroundColor: "rgba(159,75,65,0.07)",
+        boxShadow: "inset 0 0 0 1px rgba(159,75,65,0.22)",
         color: "var(--cap-down)",
       }}
     >

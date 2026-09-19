@@ -13,6 +13,7 @@ import { useTradingStyle } from "@/lib/tradingStyle";
 import {
   buildReasons, directionLabel, edgeSentence, scenarioSentence,
 } from "@/lib/explain";
+import { lessonFor, lessonHref } from "@/lib/lessonLinks";
 import {
   Button, CloudCurtain, EmptyState, FormError, Heading, Num, Panel, Progress,
   ScoreDial, SegmentedControl, Text, WeatherBackdrop, useAnimationsEnabled,
@@ -708,6 +709,7 @@ function Indicator({
   meaning: string;
   tone?: "ink" | "up" | "down";
 }) {
+  const lesson = lessonFor(name);
   return (
     <li className="py-3.5 first:pt-0 last:pb-0">
       <div className="flex items-baseline justify-between gap-4">
@@ -717,6 +719,19 @@ function Indicator({
         <Num tone={tone} className="text-[0.9rem]">{value}</Num>
       </div>
       <Text size="caption" className="mt-1">{meaning}</Text>
+      {/* Le cours, là où la question se pose. Un lien vers la leçon qui
+          explique cet indicateur précis vaut mieux qu'un onglet « Formation »
+          que l'utilisateur devra fouiller une fois l'analyse quittée. */}
+      {lesson && (
+        <Link
+          href={lessonHref(lesson.key)}
+          className="mt-2 inline-flex items-center gap-1.5 text-[0.78rem] transition-colors"
+          style={{ color: "var(--cap-ocean)" }}
+        >
+          {lesson.label}
+          <ArrowRight className="h-3 w-3" />
+        </Link>
+      )}
     </li>
   );
 }

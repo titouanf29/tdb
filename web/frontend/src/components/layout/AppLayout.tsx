@@ -11,6 +11,7 @@ import { Header } from "./Header";
 import { BroadcastBanner } from "./BroadcastBanner";
 import { ChangelogBanner } from "./ChangelogBanner";
 import { OnboardingModal } from "@/components/onboarding/OnboardingModal";
+import { WelcomeDialog, DISMISSED_KEY as WELCOME_DISMISSED_KEY } from "@/components/onboarding/WelcomeDialog";
 import { OnboardingTour } from "@/components/OnboardingTour";
 import { CoachOverlay } from "@/components/CoachAlex";
 import { PriceAlertWatcher } from "@/components/PriceAlertWatcher";
@@ -96,12 +97,17 @@ function AuthShell({
     }
   }, [isAuthenticated, isLoading, isAuthPage, router]);
 
-  // Show onboarding modal when trading_level not yet set
+  // Show onboarding modal when trading_level not yet set — unless the user
+  // has already waved it away once. Sans niveau le site se comporte comme
+  // pour un débutant, ce qui est le réglage le plus explicatif ; reposer la
+  // question à chaque chargement transformerait une invitation en harcèlement.
   useEffect(() => {
-    if (isAuthenticated && user && user.trading_level == null) {
-      const t = setTimeout(() => setShowOnboarding(true), 800);
-      return () => clearTimeout(t);
-    }
+    if (!isAuthenticated || !user || user.trading_level != null) return;
+    let dismissed = false;
+    try { dismissed = localStorage.getItem(WELCOME_DISMISSED_KEY) === "1"; } catch { /* ignore */ }
+    if (dismissed) return;
+    const t = setTimeout(() => setShowOnboarding(true), 800);
+    return () => clearTimeout(t);
   }, [isAuthenticated, user]);
 
   // Record daily login for missions/streak
@@ -222,14 +228,12 @@ function AuthShell({
   if (isMigrated(pathname)) {
     return (
       <>
-        <AnimatePresence>
-          {showOnboarding && (
-            <OnboardingModal
-              onClose={() => setShowOnboarding(false)}
-              onStartTour={handleStartTour}
-            />
-          )}
-        </AnimatePresence>
+        {/* La version reconstruite du dialogue de bienvenue. L'ancienne est
+            sombre : posée par-dessus la nouvelle interface claire, elle était
+            la première et parfois la seule chose que voyait un inscrit du
+            jour. Elle reste en service sur les écrans non encore migrés, et
+            les deux écrivent le même champ. */}
+        <WelcomeDialog open={showOnboarding} onClose={() => setShowOnboarding(false)} />
         <AppChrome>{children}</AppChrome>
       </>
     );

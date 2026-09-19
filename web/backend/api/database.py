@@ -533,6 +533,16 @@ async def _init_postgres():
                 updated_at TEXT NOT NULL
             )
         """)
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS user_lessons (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER NOT NULL REFERENCES web_users(id) ON DELETE CASCADE,
+                lesson_key TEXT NOT NULL,
+                quiz_score INTEGER,
+                completed_at TEXT NOT NULL,
+                UNIQUE(user_id, lesson_key)
+            )
+        """)
         print("PostgreSQL tables ready")
 
 
@@ -959,6 +969,16 @@ async def _init_sqlite():
                 streak_days INTEGER NOT NULL DEFAULT 0,
                 last_activity_date TEXT,
                 updated_at TEXT NOT NULL
+            )
+        """)
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS user_lessons (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                lesson_key TEXT NOT NULL,
+                quiz_score INTEGER,
+                completed_at TEXT NOT NULL,
+                UNIQUE(user_id, lesson_key)
             )
         """)
         await db.commit()

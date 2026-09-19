@@ -216,8 +216,14 @@ async def _get_or_create_progress(user_id: int) -> dict:
             "last_activity_date": r["last_activity_date"],
         }
     now = datetime.now(timezone.utc).isoformat()
+    # ON CONFLICT DO NOTHING : deux appels concurrents pour un utilisateur qui
+    # n'a pas encore de ligne passent tous les deux le SELECT ci-dessus, et le
+    # second faisait remonter une IntegrityError en 500. Cela arrive dès qu'un
+    # utilisateur a deux onglets ouverts. Supporté par SQLite (3.24+) et par
+    # PostgreSQL ; _to_pg ne réécrit que les « ? », la clause passe telle quelle.
     await execute_write(
-        "INSERT INTO user_progress (user_id, xp, level, badges, streak_days, updated_at) VALUES (?, 0, 1, '[]', 0, ?)",
+        "INSERT INTO user_progress (user_id, xp, level, badges, streak_days, updated_at) "
+        "VALUES (?, 0, 1, '[]', 0, ?) ON CONFLICT (user_id) DO NOTHING",
         (user_id, now),
     )
     return {"user_id": user_id, "xp": 0, "level": 1, "badges": [], "streak_days": 0, "last_activity_date": None}
@@ -370,3 +376,143 @@ async def record_action(body: ProgressAction, current_user: dict = Depends(get_c
         "new_xp": new_xp,
         "new_level": new_level,
     }
+
+
+# ─── Lesson progress ──────────────────────────────────────────────────────────
+#
+# Which lessons a user has finished used to live in localStorage under
+# "tdb_learn_progress". Everything else about their learning — XP, level,
+# badges, streak — was already on the server, so the one part that was not was
+# the part that says where they are in the course. Open the site on a phone
+# after working through six lessons on a laptop and the course starts again
+# from zero, having also silently re-awarded nothing, because the missions that
+# did fire were recorded server-side. Half-persisted progress is worse than
+# none: it looks like data loss to the user and it is.
+#
+# A lesson_key is "moduleId/lessonId". The frontend owns the catalogue, so the
+# server stores keys without validating them against a list it would then have
+# to keep in sync — a stale key costs one orphan row, a duplicated catalogue
+# costs a permanent divergence.
+
+
+class LessonDone(BaseModel):
+    # Percentage, 0-100. Absent when the lesson has no quiz.
+    quiz_score: Optional[int] = None
+
+
+class LessonImport(BaseModel):
+    """One-off migration of whatever a browser still holds locally."""
+    completed: List[str] = []
+    quiz_scores: dict = {}
+
+
+@router.get("/lessons")
+async def get_lessons(current_user: dict = Depends(get_current_user)):
+    rows = await execute_query(
+        "SELECT lesson_key, quiz_score, completed_at FROM user_lessons WHERE user_id=?",
+        (current_user["id"],),
+    )
+    return {
+        "lessons": {
+            r["lesson_key"]: {
+                "quiz_score": r["quiz_score"],
+                "completed_at": r["completed_at"],
+            }
+            for r in rows
+        }
+    }
+
+
+@router.post("/lessons/{module_id}/{lesson_id}")
+async def complete_lesson(
+    module_id: str,
+    lesson_id: str,
+    body: LessonDone,
+    current_user: dict = Depends(get_current_user),
+):
+    """Mark a lesson finished, and award the XP that goes with it.
+
+    Idempotent on the lesson row, deliberately not on the XP: re-finishing a
+    lesson keeps the best quiz score and records no second completion, so the
+    mission counters cannot be farmed by reopening the same lesson.
+    """
+    user_id = current_user["id"]
+    key = f"{module_id}/{lesson_id}"
+    now = datetime.now(timezone.utc).isoformat()
+
+    existing = await execute_query(
+        "SELECT quiz_score FROM user_lessons WHERE user_id=? AND lesson_key=?",
+        (user_id, key),
+    )
+    score = body.quiz_score
+
+    if existing:
+        # Keep the best attempt. A re-read that skips the quiz must not erase
+        # the score from the attempt that passed it.
+        previous = existing[0]["quiz_score"]
+        best = max([v for v in (previous, score) if v is not None], default=None)
+        if best != previous:
+            await execute_write(
+                "UPDATE user_lessons SET quiz_score=? WHERE user_id=? AND lesson_key=?",
+                (best, user_id, key),
+            )
+        return {"already_completed": True, "quiz_score": best, "xp_gained": 0}
+
+    await execute_write(
+        "INSERT INTO user_lessons (user_id, lesson_key, quiz_score, completed_at) VALUES (?,?,?,?) "
+        "ON CONFLICT (user_id, lesson_key) DO NOTHING",
+        (user_id, key, score, now),
+    )
+
+    # The missions engine is the single source of XP, so a first completion
+    # goes through it rather than touching user_progress here.
+    reward = await record_action(ProgressAction(action="lesson_complete"), current_user)
+    if score is not None and score >= 70:
+        quiz_reward = await record_action(ProgressAction(action="quiz_pass"), current_user)
+        reward = {
+            **quiz_reward,
+            "xp_gained": reward["xp_gained"] + quiz_reward["xp_gained"],
+            "missions_completed": reward["missions_completed"] + quiz_reward["missions_completed"],
+            "new_badges": reward["new_badges"] + quiz_reward["new_badges"],
+        }
+
+    return {"already_completed": False, "quiz_score": score, **reward}
+
+
+@router.post("/lessons/import")
+async def import_lessons(
+    body: LessonImport,
+    current_user: dict = Depends(get_current_user),
+):
+    """Adopt a browser's local progress, once.
+
+    Silent about XP on purpose. These lessons were finished before the server
+    tracked them; the missions they triggered were already recorded at the
+    time, so replaying them through the missions engine would pay twice for
+    the same work. This only restores the map of where the user got to.
+    """
+    user_id = current_user["id"]
+    now = datetime.now(timezone.utc).isoformat()
+
+    existing = await execute_query(
+        "SELECT lesson_key FROM user_lessons WHERE user_id=?", (user_id,)
+    )
+    known = {r["lesson_key"] for r in existing}
+
+    added = 0
+    for key in body.completed[:500]:
+        if not isinstance(key, str) or "/" not in key or key in known:
+            continue
+        raw = body.quiz_scores.get(key)
+        score = int(raw) if isinstance(raw, (int, float)) else None
+        if score is not None:
+            score = max(0, min(100, score))
+        await execute_write(
+            "INSERT INTO user_lessons (user_id, lesson_key, quiz_score, completed_at) VALUES (?,?,?,?) "
+            "ON CONFLICT (user_id, lesson_key) DO NOTHING",
+            (user_id, key, score, now),
+        )
+        known.add(key)
+        added += 1
+
+    return {"imported": added}
