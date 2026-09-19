@@ -1,0 +1,22 @@
+/**
+ * CaptenTDB design system.
+ *
+ * Every rebuilt screen composes from here. If a screen needs something this
+ * file does not export, the answer is to add it here — not to hand-roll it
+ * once more in a page, which is how the previous frontend ended up with a
+ * 6 000-line analysis page.
+ */
+export { Button } from "./Button";
+export { Card } from "./Card";
+export { ChartShell } from "./ChartShell";
+export { DataRow, DataList } from "./DataRow";
+export { EmptyState } from "./EmptyState";
+export { CountUp, Metric } from "./Metric";
+export { Contours, Course, Rule, Waypoint } from "./Motif";
+export { Drawer, Modal } from "./Overlay";
+export { Progress } from "./Progress";
+export { Container, Reveal, RevealGroup, RevealItem, Section } from "./Section";
+export { SegmentedControl } from "./SegmentedControl";
+export { Eyebrow, Heading, Num, Text } from "./Text";
+export { Tooltip } from "./Tooltip";
+export { DUR, EASE, VIEWPORT, reveal, stagger, transition } from "./motion";

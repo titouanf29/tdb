@@ -1,0 +1,134 @@
+/*
+ * CaptenTDB — design tokens.
+ *
+ * A deliberately separate namespace (--cap-*) from the legacy terminal theme.
+ * The two coexist while screens migrate one at a time: nothing here can reach
+ * a page that has not opted in, so the site is never half-broken mid-rebuild.
+ *
+ * Light is the primary mode. The public site starts on ivory, not on black.
+ */
+
+:root {
+  /* ── Palette ───────────────────────────────────────────────────────────
+     Six colours carry the identity. Green and red are reserved for market
+     direction and appear nowhere else — that is what keeps them readable. */
+  --cap-ivory:  #F7F6F2;
+  --cap-white:  #FFFFFF;
+  --cap-navy:   #0B1726;
+  --cap-ocean:  #155E75;
+  --cap-cyan:   #29A9C7;
+  --cap-amber:  #E5A83A;
+  --cap-up:     #178A58;
+  --cap-down:   #C94A4A;
+
+  /* ── Surfaces ─────────────────────────────────────────────────────────── */
+  --cap-bg:        var(--cap-ivory);
+  --cap-surface:   var(--cap-white);
+  --cap-surface-2: #F1EFE9;
+  --cap-inverse:   var(--cap-navy);
+
+  /* ── Ink ───────────────────────────────────────────────────────────────
+     One hue at four weights rather than four greys: the page reads as a
+     single material instead of a stack of unrelated layers. */
+  --cap-ink:        #0B1726;
+  --cap-ink-2:      rgba(11, 23, 38, 0.66);
+  --cap-ink-3:      rgba(11, 23, 38, 0.46);
+  --cap-ink-4:      rgba(11, 23, 38, 0.30);
+  --cap-on-inverse: #F2F5F7;
+
+  /* ── Lines ─────────────────────────────────────────────────────────────
+     Hairlines only. A border that announces itself is a border doing the job
+     that spacing should be doing. */
+  --cap-line:        rgba(11, 23, 38, 0.10);
+  --cap-line-strong: rgba(11, 23, 38, 0.18);
+  --cap-line-chart:  rgba(11, 23, 38, 0.07);
+
+  /* ── Radii — 8 / 12 / 16, 20 for large blocks. Never a capsule. ───────── */
+  --cap-r-sm: 8px;
+  --cap-r-md: 12px;
+  --cap-r-lg: 16px;
+  --cap-r-xl: 20px;
+
+  /* ── Elevation ─────────────────────────────────────────────────────────
+     Almost nothing. A single, tight, low-opacity shadow that reads as paper
+     lifted a millimetre — not as a glow. */
+  --cap-shadow: 0 1px 2px rgba(11, 23, 38, 0.04), 0 8px 24px rgba(11, 23, 38, 0.05);
+
+  /* ── Motion ───────────────────────────────────────────────────────────
+     Slow and decelerating. Every duration here is long enough to be read as
+     a movement rather than a flicker. */
+  --cap-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --cap-dur-1: 240ms;
+  --cap-dur-2: 520ms;
+  --cap-dur-3: 900ms;
+
+  /* ── Type ─────────────────────────────────────────────────────────────── */
+  --cap-font-display: var(--font-sora), var(--font-inter), system-ui, sans-serif;
+  --cap-font-text: var(--font-inter), system-ui, sans-serif;
+  --cap-font-num: var(--font-mono), ui-monospace, "SF Mono", Menlo, monospace;
+}
+
+/* Dark surface for the inverted sections. Scoped, not global: the page owns
+   its own mode rather than inheriting a site-wide theme flag. */
+.cap-dark {
+  --cap-bg:        var(--cap-navy);
+  --cap-surface:   #0F1E31;
+  --cap-surface-2: #14263B;
+  --cap-inverse:   var(--cap-ivory);
+
+  --cap-ink:        #EEF2F5;
+  --cap-ink-2:      rgba(238, 242, 245, 0.68);
+  --cap-ink-3:      rgba(238, 242, 245, 0.48);
+  --cap-ink-4:      rgba(238, 242, 245, 0.30);
+  --cap-on-inverse: #0B1726;
+
+  --cap-line:        rgba(238, 242, 245, 0.12);
+  --cap-line-strong: rgba(238, 242, 245, 0.22);
+  --cap-line-chart:  rgba(238, 242, 245, 0.09);
+
+  --cap-shadow: none;
+}
+
+/* The root of every rebuilt screen. */
+.cap {
+  background-color: var(--cap-bg);
+  color: var(--cap-ink);
+  font-family: var(--cap-font-text);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+.cap ::selection {
+  background: rgba(21, 94, 117, 0.16);
+  color: var(--cap-ink);
+}
+
+.cap :focus-visible {
+  outline: 2px solid var(--cap-ocean);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+/* Figures line up in columns and stop jittering as they animate. */
+.cap-num {
+  font-family: var(--cap-font-num);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+/* The one piece of identity that repeats: a hairline route drawing itself.
+   Used sparingly — a motif stops being a motif once it is everywhere. */
+@keyframes cap-draw {
+  from { stroke-dashoffset: var(--cap-len, 1000); }
+  to   { stroke-dashoffset: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cap *,
+  .cap *::before,
+  .cap *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

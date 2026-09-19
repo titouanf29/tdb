@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
-import { Inter, Space_Grotesk, JetBrains_Mono } from "next/font/google";
+import { Inter, Space_Grotesk, JetBrains_Mono, Sora } from "next/font/google";
 import "./globals.css";
+import "@/styles/capten.css";
 import "flag-icons/css/flag-icons.min.css";
 import { AuthProvider } from "@/lib/AuthContext";
 import { SettingsProvider } from "@/lib/SettingsContext";
@@ -19,6 +20,15 @@ const inter = Inter({
 const jetbrainsMono = JetBrains_Mono({
   subsets: ["latin"],
   variable: "--font-mono",
+  display: "swap",
+  weight: ["400", "500", "600", "700"],
+});
+
+// Headings of the rebuilt screens. Space Grotesk stays only until the last
+// legacy page is migrated, then it goes.
+const sora = Sora({
+  subsets: ["latin"],
+  variable: "--font-sora",
   display: "swap",
   weight: ["400", "500", "600", "700"],
 });
@@ -44,7 +54,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="fr" className={`dark ${inter.variable} ${spaceGrotesk.variable} ${jetbrainsMono.variable}`}>
+    <html lang="fr" className={`dark ${inter.variable} ${sora.variable} ${spaceGrotesk.variable} ${jetbrainsMono.variable}`}>
       <head>
         {/* Applies the cached theme / accent / language BEFORE first paint.
             Without this, a light-theme user gets a full dark first paint on
