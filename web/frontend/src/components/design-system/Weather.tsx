@@ -107,13 +107,21 @@ function DriftingCloud({
       transition={{ duration, delay, repeat: Infinity, ease: "linear" }}
     >
       <defs>
+        {/* The app's own cloud palette, deeper than the landing page's.
+            Measured against the workspace background, the marketing tones
+            moved the luminance by one to four points out of 255 — the sky was
+            technically drawn and visually absent. The crown stays soft; the
+            body carries the contrast. */}
         <linearGradient id={`${id}-f`} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="var(--cap-cloud-light)" />
-          <stop offset="54%" stopColor="var(--cap-cloud-mid)" />
-          <stop offset="100%" stopColor="var(--cap-cloud-shade)" />
+          <stop offset="0%" stopColor="#FCFDFE" />
+          <stop offset="46%" stopColor="#DDE5EE" />
+          <stop offset="78%" stopColor="#C2D0E0" />
+          <stop offset="100%" stopColor="#AABDD3" />
         </linearGradient>
+        {/* Less blur than the hero's: at this size a softer edge just dissolved
+            the silhouette back into the page. */}
         <filter id={`${id}-s`} x="-40%" y="-40%" width="180%" height="180%">
-          <feGaussianBlur stdDeviation="2.2" />
+          <feGaussianBlur stdDeviation="1.7" />
         </filter>
       </defs>
       <g
@@ -269,9 +277,11 @@ export function WeatherBackdrop({
   if (!enabled || reduce) return null;
 
   const preset = PRESETS[condition];
-  // Base crossing time. Divided by the preset's speed, so windy really is
-  // faster and overcast really does hang about.
-  const base = 150;
+  // Base crossing time, in seconds, for the full width plus its margins.
+  // It was 150, which works out at about 18 px/s — slow enough that the sky
+  // read as a still image. At 52 a cloud crosses in under a minute: clearly
+  // moving, still calm.
+  const base = 52;
 
   return (
     <div
