@@ -51,6 +51,14 @@
   --cap-mist-cool: rgba(21, 94, 117, 0.07);
   --cap-mist-deep: rgba(11, 23, 38, 0.045);
 
+  /* The fog at the top of the page. Two tones, not one: a crown lighter than
+     the ground and an underside cooler than it. A single flat colour reads as
+     a stain — the offset between the two is what makes a mass look like it
+     has a top and a bottom. Both stay within a few percent of the background,
+     so the opening is soft rather than bright. */
+  --cap-cloud-light: #FFFFFF;
+  --cap-cloud-shade: #D7DFE9;
+
   /* ── Ink ───────────────────────────────────────────────────────────────
      One hue at four weights rather than four greys: the page reads as a
      single material instead of a stack of unrelated layers. */

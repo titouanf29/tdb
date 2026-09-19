@@ -51,10 +51,14 @@ function buildSeries(): string {
 export function LiveBackdrop({
   className,
   opacity = 1,
+  clouds = true,
 }: {
   className?: string;
   /** Scales the whole layer. The section decides how present it should be. */
   opacity?: number;
+  /** Off where CloudLayer already supplies the weather, so the two do not
+   *  stack into a haze nobody asked for. */
+  clouds?: boolean;
 }) {
   const reduce = useReducedMotion();
   const d = useMemo(buildSeries, []);
@@ -82,11 +86,11 @@ export function LiveBackdrop({
       className={cn("pointer-events-none absolute inset-0 overflow-hidden", className)}
       style={{ opacity }}
     >
-      {/* ── Cloud bands ────────────────────────────────────────────────── */}
-      {/* Wide and flat. The first version used tall lobes (70% × 120%) and
-          read as vertical streaks rather than cloud; weather spreads sideways,
-          so the gradients have to be wider than they are high. */}
-      {[
+      {/* ── Cloud bands ──────────────────────────────────────────────────
+          Wide and flat. An early version used tall lobes (70% × 120%) and
+          read as vertical streaks rather than cloud; weather spreads
+          sideways, so the gradients have to be wider than they are high. */}
+      {clouds && [
         { top: "-6%", h: "58%", o: 0.05,  s: 190, size: "58% 44%" },
         { top: "26%", h: "62%", o: 0.04,  s: 130, size: "66% 38%" },
         { top: "56%", h: "56%", o: 0.055, s: 95,  size: "52% 46%" },

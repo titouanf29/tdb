@@ -35,7 +35,7 @@ export function Hero() {
           reach the headline — a motif behind large type stops being texture
           and becomes noise. */}
       <Atmosphere variant="top" />
-      <LiveBackdrop />
+      <LiveBackdrop clouds={false} />
       <Contours
         className="absolute inset-x-0 top-0 h-[420px] w-full"
         lines={6}
