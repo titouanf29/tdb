@@ -512,7 +512,7 @@ export default function MarketsPage() {
                     {p ? (
                       <BreadthBar up={p.up} down={p.down} flat={p.flat} />
                     ) : (
-                      <div className="h-[5px] w-full rounded-full" style={{ backgroundColor: "var(--cap-line)" }} />
+                      <div className="h-[7px] w-full rounded-full" style={{ backgroundColor: "var(--cap-line)" }} />
                     )}
                   </div>
 
@@ -552,7 +552,7 @@ export default function MarketsPage() {
                     build the proportion in their head, which is exactly the
                     work a picture removes. */}
                 <div>
-                  <BreadthBar up={here.up} down={here.down} flat={here.flat} height={8} />
+                  <BreadthBar up={here.up} down={here.down} flat={here.flat} height={10} />
                   <div className="mt-2 flex justify-between text-[0.78rem]" style={{ color: "var(--cap-ink-3)" }}>
                     <span>{here.up} en hausse</span>
                     {here.flat > 0 && <span>{here.flat} stable{here.flat > 1 ? "s" : ""}</span>}

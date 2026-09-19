@@ -25,7 +25,13 @@ export function BreadthBar({
   up,
   down,
   flat = 0,
-  height = 5,
+  // 7px, pas 5. Les teintes douces se lisent à 1,64:1 contre la surface : à
+  // cinq pixels de haut, la barre devenait un filet qu'il fallait chercher.
+  // La hauteur rend la présence sans ramener d'éclat — la mesure a montré que
+  // c'est la saturation qui fatigue, pas la surface colorée : le Portefeuille
+  // affiche deux fois plus de pixels colorés que cet écran et ne gêne
+  // personne, parce qu'ils sont tous doux.
+  height = 7,
 }: {
   up: number;
   down: number;
@@ -43,9 +49,12 @@ export function BreadthBar({
       role="img"
       aria-label={`${up} en hausse, ${down} en baisse`}
     >
-      {up > 0 && <span style={{ width: `${pct(up)}%`, backgroundColor: "var(--cap-up)" }} />}
-      {flat > 0 && <span style={{ width: `${pct(flat)}%`, backgroundColor: "var(--cap-ink-4)" }} />}
-      {down > 0 && <span style={{ width: `${pct(down)}%`, backgroundColor: "var(--cap-down)" }} />}
+      {/* Les teintes douces, pas les couleurs de texte. C'est la plus grande
+          surface colorée de l'écran — cinq de ces barres pleine largeur, en
+          vert et rouge francs, suffisaient à faire vibrer la page. */}
+      {up > 0 && <span style={{ width: `${pct(up)}%`, backgroundColor: "var(--cap-up-soft)" }} />}
+      {flat > 0 && <span style={{ width: `${pct(flat)}%`, backgroundColor: "var(--cap-line-strong)" }} />}
+      {down > 0 && <span style={{ width: `${pct(down)}%`, backgroundColor: "var(--cap-down-soft)" }} />}
     </div>
   );
 }
@@ -104,7 +113,7 @@ export function MoveBars({
               <motion.span
                 className="absolute top-0 h-full rounded-full"
                 style={{
-                  backgroundColor: bullish ? "var(--cap-up)" : "var(--cap-down)",
+                  backgroundColor: bullish ? "var(--cap-up-soft)" : "var(--cap-down-soft)",
                   left: bullish ? "50%" : undefined,
                   right: bullish ? undefined : "50%",
                 }}

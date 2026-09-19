@@ -58,8 +58,10 @@ export function FactorBars({ directions }: { directions: Record<string, number> 
               />
               <motion.span
                 className="absolute top-0 h-full rounded-full"
+                // Teinte douce : la barre est un aplat, le chiffre à sa droite
+                // porte déjà la couleur franche.
                 style={{
-                  backgroundColor: bullish ? "var(--cap-up)" : "var(--cap-down)",
+                  backgroundColor: bullish ? "var(--cap-up-soft)" : "var(--cap-down-soft)",
                   left: bullish ? "50%" : undefined,
                   right: bullish ? undefined : "50%",
                 }}
@@ -118,8 +120,8 @@ export function LevelScale({
           className="absolute inset-x-0 top-[22px] h-[6px] rounded-full"
           style={{
             background:
-              "linear-gradient(90deg, var(--cap-up) 0%, var(--cap-line-strong) 50%, var(--cap-down) 100%)",
-            opacity: 0.35,
+              "linear-gradient(90deg, var(--cap-up-soft) 0%, var(--cap-line-strong) 50%, var(--cap-down-soft) 100%)",
+            opacity: 0.9,
           }}
         />
 

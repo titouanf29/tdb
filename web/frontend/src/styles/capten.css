@@ -18,8 +18,30 @@
   --cap-ocean:  #155E75;
   --cap-cyan:   #29A9C7;
   --cap-amber:  #E5A83A;
-  --cap-up:     #178A58;
-  --cap-down:   #C94A4A;
+  /* Vert et rouge, en deux intensités — et c'est la distinction qui compte.
+
+     Mesuré sur l'écran Marchés : 0,74 % des pixels étaient très saturés,
+     contre 0,16 % sur le Portefeuille, un écran de la même famille qui ne
+     fatigue personne. Le Portefeuille affiche pourtant PLUS de pixels
+     colorés au total. Toute la différence tient à la surface : une barre
+     pleine sur toute la largeur et un chiffre de douze pixels ne délivrent
+     pas la même quantité de lumière colorée, même teinte exacte. Une
+     couleur de texte utilisée comme aplat, c'est cela qui « pète aux yeux ».
+
+     D'où deux tons par sens. Le premier pour les chiffres et les traits
+     fins, le second — une teinte du premier fondue dans la surface — pour
+     tout ce qui remplit. La saturation du premier passe de 71 % à 42 % pour
+     le vert et de 54 % à 42 % pour le rouge, assez pour calmer l'écran sans
+     perdre l'identité verte ou rouge, qui porte ici le sens.
+
+     Effet secondaire non négligeable : les anciennes valeurs plafonnaient à
+     4,13:1 et 4,36:1 sur la surface des panneaux, sous le seuil WCAG AA de
+     4,5:1. Les nouvelles sont à 5,57:1 et 5,59:1. Plus douces ET plus
+     lisibles — le contraste vient de la clarté, pas de la saturation. */
+  --cap-up:        #2E7058;
+  --cap-down:      #9F4B41;
+  --cap-up-soft:   #B3CAC4;
+  --cap-down-soft: #D9BEBC;
 
   /* ── Surfaces ─────────────────────────────────────────────────────────
      Layered off-whites, not one flat fill. The panel sits about 2% of
@@ -140,6 +162,13 @@
   --cap-line:        rgba(238, 242, 245, 0.12);
   --cap-line-strong: rgba(238, 242, 245, 0.22);
   --cap-line-chart:  rgba(238, 242, 245, 0.09);
+
+  /* Le même couple, remonté en clarté : un vert à 31 % de clarté est illisible
+     sur un fond sombre. Mêmes teintes, même saturation contenue. */
+  --cap-up:        #56B391;
+  --cap-down:      #C77E75;
+  --cap-up-soft:   #275152;
+  --cap-down-soft: #4E3F48;
 
   --cap-shadow: none;
 }
