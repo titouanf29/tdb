@@ -91,11 +91,15 @@ export function MoveBars({
             </div>
             <div className="relative h-[5px] w-full rounded-full" style={{ backgroundColor: "var(--cap-line)" }}>
               {/* Zero. Without the mark, a short bar reads as "small" rather
-                  than "close to flat", and the two mean different things. */}
+                  than "close to flat", and the two mean different things.
+
+                  2px at ink-4, not 1px at line-strong: navy at 15 % opacity on
+                  a pale track disappeared entirely at this height, which left
+                  the caption below pointing at a repère nobody could see. */}
               <span
                 aria-hidden
-                className="absolute left-1/2 top-[-3px] h-[11px] w-px"
-                style={{ backgroundColor: "var(--cap-line-strong)" }}
+                className="absolute left-1/2 top-[-4px] h-[13px] w-[2px] -translate-x-1/2 rounded-full"
+                style={{ backgroundColor: "var(--cap-ink-4)" }}
               />
               <motion.span
                 className="absolute top-0 h-full rounded-full"

@@ -47,11 +47,14 @@ export function FactorBars({ directions }: { directions: Record<string, number> 
 
             <div className="relative h-[6px] w-full rounded-full" style={{ backgroundColor: "var(--cap-line)" }}>
               {/* The zero mark. Without it a short bar reads as "small value"
-                  instead of "close to neutral". */}
+                  instead of "close to neutral".
+
+                  2px at ink-4: a hairline at line-strong (navy, 15 %) was
+                  invisible against the track it sits on. */}
               <span
                 aria-hidden
-                className="absolute left-1/2 top-[-3px] h-[12px] w-px"
-                style={{ backgroundColor: "var(--cap-line-strong)" }}
+                className="absolute left-1/2 top-[-4px] h-[14px] w-[2px] -translate-x-1/2 rounded-full"
+                style={{ backgroundColor: "var(--cap-ink-4)" }}
               />
               <motion.span
                 className="absolute top-0 h-full rounded-full"

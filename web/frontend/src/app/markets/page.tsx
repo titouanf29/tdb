@@ -60,6 +60,24 @@ const PREMIUM_INTERVALS = [
   { value: "1800000", label: "30 min" },
 ];
 
+/**
+ * Display names for the places.
+ *
+ * The backend returns "🇪🇺 EUROPE" and "🛢️ MATIÈRES PREMIÈRES" — a flag, an
+ * emoji and full capitals. That is three decorations doing the work of one
+ * word, and capitals in a list of six items read as shouting. The key is
+ * stable, so the label belongs to the interface; the backend name stays as the
+ * fallback for any market added later.
+ */
+const PLACE_NAME: Record<string, string> = {
+  USA: "États-Unis",
+  EUROPE: "Europe",
+  ASIA: "Asie",
+  CRYPTO: "Crypto",
+  FOREX: "Devises",
+  COMMODITIES: "Matières premières",
+};
+
 /** What each place is, in the words of someone who does not work in finance. */
 const PLACE_BLURB: Record<string, string> = {
   USA: "Wall Street — les plus grandes capitalisations mondiales.",
@@ -122,6 +140,11 @@ export default function MarketsPage() {
   const [interval, setIntervalMs] = useState("0");
 
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Read by the breadth effect to fetch the visible place first, without
+  // making that effect depend on the selection and re-fetch on every click.
+  const selectedRef = useRef("");
+  useEffect(() => { selectedRef.current = selected; }, [selected]);
+
   const intervals = isPremium || isAdmin ? PREMIUM_INTERVALS : FREE_INTERVALS;
 
   /* ── The six places ─────────────────────────────────────────────────────── */
@@ -141,53 +164,64 @@ export default function MarketsPage() {
   }, []);
 
   /**
-   * Breadth for every market at once.
+   * Breadth, one place at a time.
    *
    * One request per place rather than one for everything: the endpoint caps at
-   * fifty symbols and the six lists total sixty-two, so a single call would
-   * silently drop the last market. allSettled, because one slow exchange must
-   * not leave the other five blank.
+   * fifty symbols and the lists total sixty-two, so a single call would
+   * silently drop the last market.
+   *
+   * Each place is written to state the moment its own call returns, instead of
+   * waiting on all of them. A round trip is about four seconds here, so
+   * gathering them first left the whole board grey for twenty — the one screen
+   * whose job is to be read at a glance was the slowest to say anything. The
+   * selected place goes first, because that is the one being read.
    */
   useEffect(() => {
+    if (!markets.length) return;
     let cancelled = false;
-    const keys = Object.keys(MARKET_SYMBOLS);
 
-    Promise.allSettled(
-      keys.map((k) => marketAPI.getPrices(MARKET_SYMBOLS[k]).then((d) => [k, d.prices] as const))
-    ).then((settled) => {
-      if (cancelled) return;
-      const next: Record<string, Pulse> = {};
-      for (const r of settled) {
-        if (r.status !== "fulfilled") continue;
-        const [key, prices] = r.value;
-        const moves: Move[] = [];
-        let up = 0, down = 0, flat = 0, sum = 0, n = 0;
-        for (const sym of MARKET_SYMBOLS[key]) {
-          const p = prices[sym];
-          if (!p || typeof p.change !== "number") continue;
-          n += 1;
-          sum += p.change;
-          if (p.change > 0.05) up += 1;
-          else if (p.change < -0.05) down += 1;
-          else flat += 1;
-          const info = getAssetInfo(sym);
-          moves.push({ symbol: sym, name: info?.name && info.name !== sym ? info.name : sym, change: p.change });
-        }
-        if (n === 0) continue;
-        moves.sort((a, b) => b.change - a.change);
-        next[key] = {
-          up, down, flat,
-          avg: sum / n,
-          // The three best and the three worst — the edges of the day, which
-          // is what a spread is made of.
-          moves: moves.length > 6 ? [...moves.slice(0, 3), ...moves.slice(-3)] : moves,
-        };
-      }
-      setPulse(next);
-    });
+    const keys = markets.map((m) => m.key).filter((k) => MARKET_SYMBOLS[k]?.length);
+    const ordered = selectedRef.current
+      ? [selectedRef.current, ...keys.filter((k) => k !== selectedRef.current)]
+      : keys;
+
+    for (const key of ordered) {
+      marketAPI.getPrices(MARKET_SYMBOLS[key])
+        .then(({ prices }) => {
+          if (cancelled) return;
+          const moves: Move[] = [];
+          let up = 0, down = 0, flat = 0, sum = 0, n = 0;
+          for (const sym of MARKET_SYMBOLS[key]) {
+            const p = prices[sym];
+            if (!p || typeof p.change !== "number") continue;
+            n += 1;
+            sum += p.change;
+            if (p.change > 0.05) up += 1;
+            else if (p.change < -0.05) down += 1;
+            else flat += 1;
+            const info = getAssetInfo(sym);
+            moves.push({ symbol: sym, name: info?.name && info.name !== sym ? info.name : sym, change: p.change });
+          }
+          if (n === 0) return;
+          moves.sort((a, b) => b.change - a.change);
+          setPulse((prev) => ({
+            ...prev,
+            [key]: {
+              up, down, flat,
+              avg: sum / n,
+              // The three best and the three worst — the edges of the day,
+              // which is what a spread is made of.
+              moves: moves.length > 6 ? [...moves.slice(0, 3), ...moves.slice(-3)] : moves,
+            },
+          }));
+        })
+        .catch(() => { /* that place keeps its placeholder bar */ });
+    }
 
     return () => { cancelled = true; };
-  }, []);
+    // Deliberately not keyed on `selected`: the order of the first round only.
+    // Re-running on every tile click would re-fetch six markets per click.
+  }, [markets]);
 
   /* ── The list for the selected place ────────────────────────────────────── */
 
@@ -317,10 +351,37 @@ export default function MarketsPage() {
   const here = pulse[selected];
   const market = markets.find((m) => m.key === selected);
 
-  const globalAvg = useMemo(() => {
-    const vals = Object.values(pulse).map((p) => p.avg);
-    return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
-  }, [pulse]);
+  /**
+   * The day, across every place at once — counted, not averaged.
+   *
+   * Averaging the six market averages said "ça monte" on a session where
+   * Europe was down 1.18 %, the US down 0.23 %, and only crypto was up — at
+   * +3.33 %, which is an ordinary afternoon for crypto and a crash for an
+   * index. An unweighted mean across asset classes with tenfold different
+   * volatility is dominated by the most volatile one, so it reports crypto and
+   * calls it the world.
+   *
+   * Breadth does not have that problem: every tracked symbol is one vote,
+   * whatever it is. Returned as a number in [-1, 1] — the margin between
+   * rising and falling — plus the raw counts, because the sentence should be
+   * able to quote them.
+   */
+  const globalBreadth = useMemo(() => {
+    // Withheld until every place has reported. The tiles fill in one by one,
+    // which is right — each says only what it knows. A single sentence about
+    // "les marchés" cannot do that: with two places back out of five it read
+    // "la hausse l'emporte nettement" on a session where Europe was about to
+    // come in thirteen down out of fourteen. A verdict that reverses itself
+    // while you read it is worse than a verdict that arrives late.
+    const expected = markets.filter((m) => MARKET_SYMBOLS[m.key]?.length).length;
+    if (!expected || Object.keys(pulse).length < expected) return null;
+
+    let up = 0, down = 0, flat = 0;
+    for (const p of Object.values(pulse)) { up += p.up; down += p.down; flat += p.flat; }
+    const total = up + down + flat;
+    if (total === 0) return null;
+    return { up, down, total, margin: (up - down) / total };
+  }, [pulse, markets]);
 
   const sorted = useMemo(() => {
     const list = [...assets];
@@ -331,11 +392,42 @@ export default function MarketsPage() {
 
   const searchMode = query.trim().length >= 2;
 
+  /**
+   * A price, or a level — they are not the same thing.
+   *
+   * useFormatPrice reads the quote currency off the symbol suffix and assumes
+   * dollars for anything it does not recognise. That is right for shares and
+   * wrong for two families that fill this screen:
+   *
+   *   ^FCHI, ^SSMI, ^N225   an index is a level, not an amount of money.
+   *                         "CAC 40 : 7 019,16 €" is not a rounding error,
+   *                         it is a category error — and the Swiss and
+   *                         Japanese indices were being relabelled from CHF
+   *                         and JPY into euros on top of it.
+   *   EURUSD=X              an exchange rate is a ratio.
+   *
+   * Both are shown as plain figures, which is what they are and what every
+   * financial page in the world prints.
+   */
+  const displayValue = (symbol: string, value: number) => {
+    if (symbol.startsWith("^") || symbol.endsWith("=X")) {
+      return value.toLocaleString("fr-FR", { maximumFractionDigits: value < 10 ? 4 : 2 });
+    }
+    return formatPrice(value, symbol);
+  };
+
   if (loading) return <CloudCurtain active label="Chargement des marchés" />;
 
   return (
     <>
-      <WeatherBackdrop condition={conditionFromChange(globalAvg)} enabled={animOn} />
+      {/* The sky reads the same breadth as the sentence, not a different
+          number. Scaled by two so a two-to-one majority clears it and the
+          reverse closes it in, which lands on conditionFromChange's own
+          thresholds. */}
+      <WeatherBackdrop
+        condition={conditionFromChange(globalBreadth ? globalBreadth.margin * 2 : null)}
+        enabled={animOn}
+      />
 
       <div className="relative space-y-6">
         <header className="flex flex-wrap items-end justify-between gap-5 pt-2">
@@ -345,13 +437,15 @@ export default function MarketsPage() {
               {openCount === 0
                 ? "Toutes les places sont fermées pour le moment — les chiffres ci-dessous datent de la dernière séance."
                 : `${openCount} place${openCount > 1 ? "s" : ""} ouverte${openCount > 1 ? "s" : ""} sur ${markets.length}.`}{" "}
-              {globalAvg == null
+              {globalBreadth == null
                 ? "Le climat du jour s'affiche dès que les cours sont chargés."
-                : globalAvg > 0.25
-                  ? "Dans l'ensemble, ça monte."
-                  : globalAvg < -0.25
-                    ? "Dans l'ensemble, ça baisse."
-                    : "Dans l'ensemble, la journée est calme."}
+                : `Sur les ${globalBreadth.total} valeurs suivies, ${globalBreadth.up} montent et ${globalBreadth.down} baissent — ${
+                    globalBreadth.margin > 0.15 ? "la hausse l'emporte nettement."
+                    : globalBreadth.margin > 0.05 ? "la hausse l'emporte de peu."
+                    : globalBreadth.margin < -0.15 ? "la baisse l'emporte nettement."
+                    : globalBreadth.margin < -0.05 ? "la baisse l'emporte de peu."
+                    : "la journée est partagée."
+                  }`}
             </Text>
           </div>
           <SegmentedControl
@@ -392,7 +486,7 @@ export default function MarketsPage() {
                       className="min-w-0 truncate text-[0.95rem] font-medium"
                       style={{ color: "var(--cap-ink)" }}
                     >
-                      {m.name}
+                      {PLACE_NAME[m.key] ?? m.name}
                     </span>
                     {p && (
                       <Num tone={p.avg >= 0 ? "up" : "down"} className="shrink-0 text-[0.85rem]">
@@ -436,11 +530,14 @@ export default function MarketsPage() {
         {/* ── 2. Quel temps il fait sur cette place ──────────────────────── */}
         {market && (
           <Panel
-            title={`Le climat — ${market.name}`}
+            title={`Le climat — ${PLACE_NAME[market.key] ?? market.name}`}
             hint={depth === "discover" ? PLACE_BLURB[market.key] : undefined}
             aside={
+              // Hidden below sm: the opening hours are supplementary, and at
+              // 390px they squeezed "Le climat — Europe" into three lines to
+              // make room for themselves.
               depth !== "discover" ? (
-                <span className="text-[0.76rem]" style={{ color: "var(--cap-ink-3)" }}>
+                <span className="hidden text-[0.76rem] sm:inline" style={{ color: "var(--cap-ink-3)" }}>
                   {getMarketHoursDisplay(market.key)}
                 </span>
               ) : undefined
@@ -450,6 +547,19 @@ export default function MarketsPage() {
               <Text size="small">Cours en cours de chargement…</Text>
             ) : (
               <div className="space-y-5">
+                {/* The bar is shown at every level, and first at the lowest
+                    one: a beginner reading "13 valeurs sur 14 reculent" has to
+                    build the proportion in their head, which is exactly the
+                    work a picture removes. */}
+                <div>
+                  <BreadthBar up={here.up} down={here.down} flat={here.flat} height={8} />
+                  <div className="mt-2 flex justify-between text-[0.78rem]" style={{ color: "var(--cap-ink-3)" }}>
+                    <span>{here.up} en hausse</span>
+                    {here.flat > 0 && <span>{here.flat} stable{here.flat > 1 ? "s" : ""}</span>}
+                    <span>{here.down} en baisse</span>
+                  </div>
+                </div>
+
                 <Text>
                   {here.up > here.down * 1.5
                     ? `La hausse domine : ${here.up} valeurs sur ${here.up + here.down + here.flat} montent.`
@@ -617,7 +727,7 @@ export default function MarketsPage() {
                               ? `${a.symbol} · volume ${formatVolume(a.volume)}`
                               : a.symbol
                           }
-                          price={!a.error && a.price ? formatPrice(a.price, a.symbol) : undefined}
+                          price={!a.error && a.price ? displayValue(a.symbol, a.price) : undefined}
                           change={!a.error && a.change !== 0 ? a.change : null}
                           starred={favorites.has(a.symbol)}
                           onStar={() => toggleFavorite(a.symbol)}
