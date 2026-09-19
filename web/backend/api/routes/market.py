@@ -430,19 +430,27 @@ async def _fetch_quote_data(symbol: str) -> Optional[dict]:
 
 @router.get("/list")
 async def get_markets():
-    """Get all available markets"""
-    return {
-        "markets": [
-            {
-                "key": key,
-                "name": market["name"],
-                "description": market.get("description", market["name"]),
-                "asset_count": len(market["assets"]),
-                "always_open": market.get("always_open", False)
-            }
-            for key, market in MARKETS.items()
-        ]
-    }
+    """Get all available markets, with the size of each scannable universe.
+
+    The counts go through extend_market so they match what a scan actually
+    walks, and the union is reported too: "all assets" is 819 symbols, which
+    is a minute of scanning — the user should see that before spending their
+    one daily scan on it rather than after.
+    """
+    from ._universe import extend_market
+
+    out, union = [], set()
+    for key, market in MARKETS.items():
+        assets = extend_market(key, list(market["assets"]))
+        union |= set(assets)
+        out.append({
+            "key": key,
+            "name": market["name"],
+            "description": market.get("description", market["name"]),
+            "asset_count": len(assets),
+            "always_open": market.get("always_open", False),
+        })
+    return {"markets": out, "all_asset_count": len(union)}
 
 
 @router.get("/search")

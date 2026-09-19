@@ -45,7 +45,10 @@ EXTRA_CRYPTO: dict[str, str] = {
     "KSM-USD":   "Kusama",
     "MINA-USD":  "Mina Protocol",
     "ROSE-USD":  "Oasis Network",
-    "POL-USD":   "Polygon",
+    # Polygon is deliberately absent: the backend config already carries it as
+    # MATIC-USD, its pre-rename ticker. Adding POL-USD would list the same
+    # asset twice in a scan. If MATIC-USD ever stops resolving — visible as a
+    # gap between total_scanned and total_analyzed — swap the ticker there.
 }
 
 

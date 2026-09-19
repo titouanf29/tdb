@@ -158,6 +158,12 @@ async def open_position(
     if not wallets or wallets[0]["balance"] < request.amount:
         raise HTTPException(status_code=400, detail="Insufficient balance")
 
+    # A stop on the wrong side of the entry is not a stop, and a target on the
+    # wrong side is already reached. Nothing rejected these, so impossible
+    # positions could be stored and then shown as if they were plans.
+    _validate_levels(request.direction, current_price,
+                     request.stop_loss, request.take_profit)
+
     # Calculate position
     quantity = (request.amount * request.leverage) / current_price
 
@@ -272,6 +278,35 @@ async def get_trade_history(
     return {"history": positions}
 
 
+def _validate_levels(direction: str, reference_price: float,
+                     stop_loss, take_profit, ref_label: str = "prix d'entrée") -> None:
+    """Reject a stop or target sitting on the wrong side of the price.
+
+    A stop above the entry on a LONG protects nothing, and a target below it
+    is already reached. Both paths that write these values call this, so the
+    two can never drift apart.
+    """
+    d = (direction or "").upper()
+    if stop_loss is not None:
+        if d == "LONG" and stop_loss >= reference_price:
+            raise HTTPException(status_code=400, detail=(
+                f"Stop loss à {stop_loss} au-dessus du {ref_label} ({round(reference_price, 2)}) — "
+                "sur un achat, le stop se place en dessous."))
+        if d == "SHORT" and stop_loss <= reference_price:
+            raise HTTPException(status_code=400, detail=(
+                f"Stop loss à {stop_loss} en dessous du {ref_label} ({round(reference_price, 2)}) — "
+                "sur une vente, le stop se place au-dessus."))
+    if take_profit is not None:
+        if d == "LONG" and take_profit <= reference_price:
+            raise HTTPException(status_code=400, detail=(
+                f"Objectif à {take_profit} en dessous du {ref_label} ({round(reference_price, 2)}) — "
+                "sur un achat, l'objectif se place au-dessus."))
+        if d == "SHORT" and take_profit >= reference_price:
+            raise HTTPException(status_code=400, detail=(
+                f"Objectif à {take_profit} au-dessus du {ref_label} ({round(reference_price, 2)}) — "
+                "sur une vente, l'objectif se place en dessous."))
+
+
 class UpdatePositionRequest(BaseModel):
     take_profit: Optional[float] = None
     stop_loss: Optional[float] = None
@@ -292,6 +327,9 @@ async def update_position(
     )
     if not positions:
         raise HTTPException(status_code=404, detail="Position not found")
+
+    _validate_levels(positions[0]["direction"], float(positions[0]["entry_price"]),
+                     request.stop_loss, request.take_profit)
 
     await execute_write(
         "UPDATE positions SET take_profit = ?, stop_loss = ? WHERE id = ?",

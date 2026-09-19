@@ -94,7 +94,7 @@ async function fetchAPI<T>(
 
 // Market API
 export const marketAPI = {
-  getMarkets: () => fetchAPI<{ markets: Market[] }>("/api/market/list"),
+  getMarkets: () => fetchAPI<{ markets: Market[]; all_asset_count?: number }>("/api/market/list"),
 
   getMarket: (key: string) => fetchAPI<Market>(`/api/market/${key}`),
 

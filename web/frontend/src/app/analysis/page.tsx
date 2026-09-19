@@ -1813,7 +1813,18 @@ export default function AnalysisPage() {
             transition: "border 0.7s ease, box-shadow 0.7s ease",
           }}
         >
-          <Link href={`/trading?symbol=${analysis.symbol}`} className="flex-1 sm:flex-none">
+          {/* Carry the plan the engine just computed. Sending only the symbol
+              made the user retype the direction, the stop and the target that
+              are on screen right above — and retyping invites typos in the
+              two numbers that define the risk. */}
+          <Link
+            href={`/trading?symbol=${analysis.symbol}` +
+              `&direction=${analysis.risk?.direction ?? "LONG"}` +
+              (analysis.risk?.suggested_sl != null ? `&sl=${analysis.risk.suggested_sl}` : "") +
+              (analysis.risk?.suggested_tp != null ? `&tp=${analysis.risk.suggested_tp}` : "") +
+              `&from=analysis`}
+            className="flex-1 sm:flex-none"
+          >
             <motion.button
               whileHover={{ scale: 1.03 }}
               whileTap={{ scale: 0.97 }}

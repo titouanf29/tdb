@@ -24,6 +24,13 @@ logger = logging.getLogger(__name__)
 
 # Add parent directory to path for shared modules
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+# ...but the backend's own directory must come FIRST. The repo root holds the
+# Telegram bot's config.py — which has no POLYGON_API_KEY / TWELVEDATA_API_KEY
+# and a smaller MARKETS — plus its own main.py. The container only ever copies
+# web/backend, so production already resolves `config` to the backend's own;
+# without this line a dev checkout silently loads a DIFFERENT config from
+# production, and local testing stops meaning anything.
+sys.path.insert(0, str(Path(__file__).parent))
 
 from dotenv import load_dotenv
 load_dotenv(Path(__file__).parent.parent.parent / ".env")

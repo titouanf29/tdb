@@ -35,6 +35,8 @@ import { isMarketOpen } from "@/lib/marketStatus";
 import { getStyle } from "@/lib/tradingStyle";
 import { useSettings } from "@/lib/SettingsContext";
 
+const SCAN_CACHE_KEY = "tdb_last_scan";
+
 type SortKey = "score" | "change" | "change_1w" | "rsi" | "volume_ratio";
 type OppFilter = "all" | "breakout" | "reversal" | "momentum";
 
@@ -142,6 +144,11 @@ export default function ScannerPage() {
   const [results, setResults] = useState<ScanResultItem[]>([]);
   const [totalScanned, setTotalScanned] = useState(0);
   const [totalAnalyzed, setTotalAnalyzed] = useState(0);
+  const [scanRanAt, setScanRanAt] = useState<number | null>(null);
+  const [allAssetCount, setAllAssetCount] = useState<number | null>(null);
+  // Elapsed seconds while scanning. A silent minute on the one daily scan
+  // reads as a hang; a counter reads as work.
+  const [elapsed, setElapsed] = useState(0);
   const [quota, setQuota] = useState<ScanQuota | null>(null);
   const [isScanning, setIsScanning] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -149,12 +156,34 @@ export default function ScannerPage() {
   const [sortAsc, setSortAsc] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
+  // A free account gets ONE scan a day. Losing it to a page refresh — or to
+  // tapping an asset and coming back — made the quota feel punitive. The last
+  // scan is restored from localStorage, with the moment it was run.
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(SCAN_CACHE_KEY);
+      if (!raw) return;
+      const c = JSON.parse(raw) as {
+        results?: ScanResultItem[]; market?: string; total?: number;
+        analyzed?: number; at?: number; timeframe?: string;
+      };
+      // Older than a day and it describes a market that has since moved on.
+      if (!c?.results?.length || !c.at || Date.now() - c.at > 24 * 3600 * 1000) return;
+      setResults(c.results);
+      setTotalScanned(c.total ?? 0);
+      setTotalAnalyzed(c.analyzed ?? 0);
+      if (c.market) setSelectedMarket(c.market);
+      setScanRanAt(c.at);
+    } catch { /* corrupt entry: ignore, the scanner still works */ }
+  }, []);
+
   useEffect(() => {
     Promise.all([
       marketAPI.getMarkets(),
       analysisAPI.getScanLimit(),
     ]).then(([mData, qData]) => {
       setMarkets(mData.markets);
+      setAllAssetCount(mData.all_asset_count ?? null);
       setQuota(qData);
       // Deliberately no auto-select: the scan starts on every asset unless the
       // user narrows it. Jumping to whichever market happens to be open would
@@ -164,6 +193,13 @@ export default function ScannerPage() {
     });
   }, []);
 
+  useEffect(() => {
+    if (!isScanning) { setElapsed(0); return; }
+    const t0 = Date.now();
+    const iv = setInterval(() => setElapsed(Math.round((Date.now() - t0) / 1000)), 1000);
+    return () => clearInterval(iv);
+  }, [isScanning]);
+
   const runScan = async () => {
     if (quota && !quota.is_premium && quota.remaining <= 0) return;
     setIsScanning(true);
@@ -172,6 +208,14 @@ export default function ScannerPage() {
       setResults(data.results);
       setTotalScanned(data.total_scanned ?? 0);
       setTotalAnalyzed(data.total_analyzed ?? data.total_scanned ?? 0);
+      const at = Date.now();
+      setScanRanAt(at);
+      try {
+        localStorage.setItem(SCAN_CACHE_KEY, JSON.stringify({
+          results: data.results, market: selectedMarket, total: data.total_scanned,
+          analyzed: data.total_analyzed, timeframe: data.timeframe, at,
+        }));
+      } catch { /* private mode / quota: the scan still shows this session */ }
       if (data.quota) setQuota(data.quota);
       missionsAPI.recordAction("scanner_run").catch(() => {});
     } catch (err: unknown) {
@@ -271,6 +315,13 @@ export default function ScannerPage() {
                       <span className="ml-2 font-mono text-[11px] text-muted-foreground/70">
                         {style.emoji} {style.label[lang]} · {style.defaultTimeframe}
                       </span>
+                      {scanRanAt && (
+                        <span className="ml-2 font-mono text-[11px] text-muted-foreground/60">
+                          {lang === "en" ? "run at " : "lancé à "}
+                          {new Date(scanRanAt).toLocaleTimeString(lang === "en" ? "en-GB" : "fr-FR",
+                            { hour: "2-digit", minute: "2-digit" })}
+                        </span>
+                      )}
                       {totalAnalyzed > 0 && totalAnalyzed < totalScanned && (
                         <span className="ml-2 font-mono text-[11px] text-warning" title={lang === "en" ? "Some tickers returned no data" : "Certains symboles n'ont retourné aucune donnée"}>
                           {totalScanned - totalAnalyzed} {lang === "en" ? "unavailable" : "indisponibles"}
@@ -316,7 +367,7 @@ export default function ScannerPage() {
                 )}
               >
                 {isScanning ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
-                {t("scanner_btn")}
+                {isScanning ? `${elapsed}s` : t("scanner_btn")}
               </motion.button>
               {/* Remaining badge */}
               {quota && !quota.is_premium && quota.remaining > 0 && (
@@ -551,6 +602,9 @@ export default function ScannerPage() {
               >
                 <Globe className="w-3.5 h-3.5" />
                 {lang === "en" ? "All assets" : "Tous les actifs"}
+                {allAssetCount && (
+                  <span className="font-mono text-[10px] opacity-60">{allAssetCount}</span>
+                )}
               </button>
               {markets.map((m) => {
                 const open = isMarketOpen(m.key);
@@ -567,6 +621,9 @@ export default function ScannerPage() {
                     )}
                   >
                     {m.name}
+                    {m.asset_count > 0 && (
+                      <span className="font-mono text-[10px] opacity-60">{m.asset_count}</span>
+                    )}
                     <span
                       className={cn(
                         "inline-block w-1.5 h-1.5 rounded-full",
@@ -801,9 +858,25 @@ export default function ScannerPage() {
                     disabled={isScanning}
                     className="mt-5 inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary/20 border border-primary/30 text-primary text-sm font-medium hover:bg-primary/30 transition-all disabled:opacity-50"
                   >
-                    <ScanLine className="w-4 h-4" />
-                    {lang === "en" ? "Start scan" : "Lancer le scan"}
+                    {isScanning ? <Loader2 className="w-4 h-4 animate-spin" /> : <ScanLine className="w-4 h-4" />}
+                    {isScanning
+                      ? (lang === "en" ? `Scanning… ${elapsed}s` : `Scan en cours… ${elapsed}s`)
+                      : (lang === "en" ? "Start scan" : "Lancer le scan")}
                   </button>
+                )}
+                {/* How long this is going to take, before it is spent */}
+                {!isScanning && (
+                  <p className="mt-2 font-mono text-[11px] text-muted-foreground/60">
+                    {(() => {
+                      const n = selectedMarket === "ALL"
+                        ? allAssetCount
+                        : markets.find((m) => m.key === selectedMarket)?.asset_count;
+                      if (!n) return null;
+                      return lang === "en"
+                        ? `${n} assets · roughly ${n > 400 ? "1-2 min" : n > 120 ? "20-40 s" : "under 20 s"}`
+                        : `${n} actifs · environ ${n > 400 ? "1 à 2 min" : n > 120 ? "20 à 40 s" : "moins de 20 s"}`;
+                    })()}
+                  </p>
                 )}
               </div>
             ) : (
