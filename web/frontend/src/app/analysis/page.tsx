@@ -10,6 +10,7 @@ import {
 } from "@/lib/api";
 import { useSettings, convertCurrency } from "@/lib/SettingsContext";
 import { useTradingStyle } from "@/lib/tradingStyle";
+import { useUserLevel } from "@/hooks/useUserLevel";
 import {
   buildReasons, directionLabel, edgeSentence, scenarioSentence,
 } from "@/lib/explain";
@@ -72,7 +73,30 @@ function AnalysisScreen() {
   const [symbol, setSymbol] = useState(urlSymbol);
   const [query, setQuery] = useState(urlSymbol);
   const [timeframe, setTimeframe] = useState(style.defaultTimeframe);
-  const [depth, setDepth] = useState<Depth>("discover");
+
+  /**
+   * La profondeur d'ouverture suit le niveau déclaré.
+   *
+   * L'écran s'ouvrait toujours sur « Découverte », quel que soit le profil :
+   * un utilisateur qui s'était déclaré expert devait redescendre deux crans à
+   * chaque actif consulté. Les Marchés lisaient déjà le niveau, pas l'Analyse
+   * — et l'écran des paramètres promet noir sur blanc que le niveau expert
+   * déplie les indicateurs par défaut. Une promesse faite dans les réglages
+   * est une promesse à tenir dans l'écran.
+   *
+   * Le choix manuel reste souverain : dès que l'utilisateur touche au
+   * contrôle, le niveau ne le réécrit plus.
+   */
+  const level = useUserLevel();
+  const levelDepth: Depth =
+    level.level === "expert" ? "advanced"
+    : level.level === "intermediate" ? "intermediate"
+    : "discover";
+  const [depth, setDepth] = useState<Depth>(levelDepth);
+  const [depthTouched, setDepthTouched] = useState(false);
+  useEffect(() => {
+    if (!depthTouched) setDepth(levelDepth);
+  }, [levelDepth, depthTouched]);
 
   const [analysis, setAnalysis] = useState<Analysis | null>(null);
   const [chart, setChart] = useState<ChartData | null>(null);
@@ -233,7 +257,7 @@ function AnalysisScreen() {
                 size="sm"
                 options={DEPTHS}
                 value={depth}
-                onChange={setDepth}
+                onChange={(d) => { setDepth(d); setDepthTouched(true); }}
                 aria-label="Niveau de détail"
               />
             </div>

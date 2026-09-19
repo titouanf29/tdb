@@ -54,7 +54,17 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="fr" className={`dark ${inter.variable} ${sora.variable} ${spaceGrotesk.variable} ${jetbrainsMono.variable}`}>
+    // suppressHydrationWarning : le script ci-dessous pose data-theme, style
+    // et lang sur <html> AVANT que React n'hydrate, pour éviter un premier
+    // rendu sombre chez un utilisateur en thème clair. React voyait donc des
+    // attributs qu'il n'avait pas produits et avertissait « Extra attributes
+    // from the server » dans la console de chaque page. C'est le remède prévu
+    // pour ce motif précis, et il ne porte que sur cet élément.
+    <html
+      lang="fr"
+      suppressHydrationWarning
+      className={`dark ${inter.variable} ${sora.variable} ${spaceGrotesk.variable} ${jetbrainsMono.variable}`}
+    >
       <head>
         {/* Applies the cached theme / accent / language BEFORE first paint.
             Without this, a light-theme user gets a full dark first paint on

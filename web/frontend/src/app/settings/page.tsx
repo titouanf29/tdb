@@ -1,944 +1,775 @@
 "use client";
 
-import { Suspense, useCallback, useEffect, useId, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import Link from "next/link";
-import { motion, AnimatePresence } from "framer-motion";
-import {
-  Settings as SettingsIcon,
-  User,
-  Bell,
-  Palette,
-  ShieldCheck,
-  TrendingUp,
-  Save,
-  Moon,
-  Sun,
-  LogOut,
-  Loader2,
-  GraduationCap,
-  Zap,
-  BadgeCheck,
-  KeyRound,
-  Download,
-  Trash2,
-  AlertTriangle,
-} from "lucide-react";
-import { cn } from "@/lib/utils";
+import { Download, Loader2, LogOut, Trash2 } from "lucide-react";
 import { useAuth } from "@/lib/AuthContext";
-import { TradingLevel, setToken, removeToken } from "@/lib/auth";
 import {
-  useSettings, ACCENT_PRESETS, AccentColor, Currency, Theme, RecapFrequency,
+  useSettings, type AccentColor, type Currency, type RecapFrequency, type Theme,
 } from "@/lib/SettingsContext";
-import { useLanguage, Lang, TranslationKey } from "@/lib/LanguageContext";
-import { accountAPI, alertsAPI, PriceAlert } from "@/lib/api";
-import { LevelChangeModal } from "@/components/onboarding/LevelChangeModal";
-import { TOUR_KEY } from "@/components/OnboardingTour";
-import { useAlexStore } from "@/stores/alex-store";
-import { SettingsSection } from "@/components/settings/SettingsSection";
-import { SettingRow } from "@/components/settings/SettingRow";
-import { Toggle } from "@/components/settings/Toggle";
-import { OptionCards, OptionCard } from "@/components/settings/OptionCards";
-import { SaveState } from "@/components/settings/SaveState";
-import { useSaveStatus } from "@/components/settings/useSaveStatus";
-import { ChangePasswordModal } from "@/components/settings/ChangePasswordModal";
-import { ConfirmDialog } from "@/components/settings/ConfirmDialog";
-import { TRADING_STYLES, type TradingStyleId } from "@/lib/tradingStyle";
+import { TRADING_STYLES, TRADING_STYLE_IDS, type TradingStyleId } from "@/lib/tradingStyle";
+import { accountAPI, alertsAPI, type PriceAlert } from "@/lib/api";
+import type { TradingLevel } from "@/lib/auth";
+import {
+  Button, CloudCurtain, EmptyState, Field, FormError, Heading, Modal, Num,
+  Panel, SegmentedControl, Text, TextInput, WeatherBackdrop, useAnimationsEnabled,
+} from "@/components/design-system";
+import { Choice, Toggle, type Option } from "@/components/settings/Choice";
 
-type TabId = "account" | "trading" | "display" | "alerts" | "security";
-const TAB_IDS: TabId[] = ["account", "trading", "display", "alerts", "security"];
+/**
+ * Les paramètres — cinq sections, et chaque réglage dit ce qu'il change.
+ *
+ * L'ancien écran faisait 944 lignes réparties en cinq onglets, sombre, et
+ * affichait des choix muets : « Modéré », « Agressif », « Très agressif », sans
+ * dire ce que le mot déclenchait. Un réglage dont on ne voit pas l'effet n'est
+ * pas un réglage — l'utilisateur clique, ne constate rien, et n'y revient pas.
+ *
+ * Deux règles ici, et elles s'appliquent à chaque ligne de l'écran :
+ *
+ *   1. chaque option porte une conséquence réelle, vérifiable dans le code.
+ *      Le style de trading change l'horizon du graphique, la distance du stop
+ *      et le poids des fondamentaux ; le niveau réordonne le Parcours et règle
+ *      le détail par défaut de l'Analyse et des Marchés. Ce sont ces
+ *      phrases-là qui sont écrites, pas des adjectifs ;
+ *   2. rien n'affiche « enregistré » avant que le serveur l'ait confirmé.
+ *      saveSettings écrit de façon optimiste PUIS réconcilie, et rejette en
+ *      cas d'échec ; l'écran attend donc la promesse au lieu de la lancer.
+ *
+ * Le thème et la couleur d'accent restent proposés parce que huit écrans ne
+ * sont pas encore reconstruits et les lisent vraiment. C'est dit à l'endroit
+ * où ils sont proposés, plutôt que de laisser croire qu'ils agissent partout.
+ */
 
-// ─────────────────────────────────────────────────────────────────────────────
-//  SHELL
-// ─────────────────────────────────────────────────────────────────────────────
+type Section = "profil" | "experience" | "trading" | "notifications" | "apparence";
+
+const SECTIONS: { value: Section; label: string }[] = [
+  { value: "profil", label: "Mon profil" },
+  { value: "experience", label: "Mon expérience" },
+  { value: "trading", label: "Trading" },
+  { value: "notifications", label: "Notifications" },
+  { value: "apparence", label: "Apparence" },
+];
 
 export default function SettingsPage() {
   return (
-    <Suspense fallback={<SettingsSkeleton />}>
-      <SettingsPageInner />
+    <Suspense fallback={<CloudCurtain active label="Chargement des paramètres" />}>
+      <SettingsScreen />
     </Suspense>
   );
 }
 
-function SettingsSkeleton() {
-  return (
-    <div className="max-w-4xl mx-auto space-y-6">
-      <div className="skeleton h-9 w-52 rounded-lg" />
-      <div className="flex flex-col md:flex-row gap-6">
-        <div className="md:w-52 flex md:flex-col gap-2">
-          {[...Array(5)].map((_, i) => <div key={i} className="skeleton h-10 w-full rounded-lg" />)}
-        </div>
-        <div className="flex-1 glass-card p-6 space-y-4">
-          {[...Array(5)].map((_, i) => <div key={i} className="skeleton h-16 w-full rounded-xl" />)}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function SettingsPageInner() {
-  const { t } = useLanguage();
+function SettingsScreen() {
   const router = useRouter();
-  const searchParams = useSearchParams();
+  const params = useSearchParams();
+  const [animOn] = useAnimationsEnabled();
 
-  const rawTab = searchParams.get("tab");
-  const activeTab: TabId = TAB_IDS.includes(rawTab as TabId) ? (rawTab as TabId) : "account";
+  const raw = params.get("section");
+  const section: Section =
+    SECTIONS.some((s) => s.value === raw) ? (raw as Section) : "profil";
 
-  // The ONLY draft state on the page — lifted here so the tab-switch unmount
-  // (AnimatePresence mode="wait") can never discard a half-typed name.
-  const [displayNameDraft, setDisplayNameDraft] = useState<string | null>(null);
-
-  const tabs: { id: TabId; label: string; icon: typeof User }[] = [
-    { id: "account",  label: t("settings_tab_account"),  icon: User },
-    { id: "trading",  label: t("settings_tab_trading"),  icon: TrendingUp },
-    { id: "display",  label: t("settings_tab_display"),  icon: Palette },
-    { id: "alerts",   label: t("settings_tab_alerts"),   icon: Bell },
-    { id: "security", label: t("settings_tab_security"), icon: ShieldCheck },
-  ];
-
-  const selectTab = (id: TabId) => {
-    if (id === activeTab) return;
-    // push (not replace) so the browser Back button walks back through tabs
-    router.push(`/settings?tab=${id}`, { scroll: false });
-  };
+  const go = (s: Section) => router.replace(`/settings?section=${s}`, { scroll: false });
 
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="max-w-4xl mx-auto space-y-6">
-      <header>
-        <h1 className="text-xl sm:text-2xl font-bold font-display flex items-center gap-2">
-          <SettingsIcon className="w-6 h-6" aria-hidden="true" />
-          {t("settings_title")}
-        </h1>
-        <p className="text-muted-foreground">{t("settings_subtitle")}</p>
-        <p className="mt-3 text-xs text-primary/80 bg-primary/5 border border-primary/20 rounded-xl px-3 py-2">
-          {t("settings_changes_auto")}
-        </p>
-      </header>
+    <>
+      <WeatherBackdrop condition="cloudy" enabled={animOn} />
 
-      <div className="flex flex-col md:flex-row gap-6">
-        {/* Tab sidebar */}
-        <nav
-          aria-label={t("settings_title")}
-          className="md:w-52 flex md:flex-col gap-1 overflow-x-auto pb-2 md:pb-0 no-scrollbar"
-        >
-          {tabs.map((tab, i) => {
-            const Icon = tab.icon;
-            const isActive = activeTab === tab.id;
-            return (
-              <motion.button
-                key={tab.id}
-                type="button"
-                initial={{ opacity: 0, x: -12 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: i * 0.05, duration: 0.28 }}
-                onClick={() => selectTab(tab.id)}
-                aria-current={isActive ? "page" : undefined}
-                className={cn(
-                  "flex items-center gap-2 px-4 py-2.5 rounded-lg text-left text-sm transition-all whitespace-nowrap relative",
-                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background",
-                  isActive ? "text-primary font-semibold" : "hover:bg-white/5 text-muted-foreground"
-                )}
-              >
-                <Icon className="w-4 h-4 shrink-0" aria-hidden="true" />
-                {tab.label}
-                {isActive && (
-                  <motion.div layoutId="settings-active" className="absolute inset-0 bg-primary/20 rounded-lg -z-10" />
-                )}
-              </motion.button>
-            );
-          })}
-        </nav>
+      <div className="relative space-y-6">
+        <header className="pt-2">
+          <Heading level={1}>Paramètres</Heading>
+          <Text className="mt-2.5 max-w-[36rem]">
+            Chaque réglage indique ce qu&apos;il change. Tout est enregistré sur
+            votre compte et vous suit d&apos;un appareil à l&apos;autre.
+          </Text>
+        </header>
 
-        {/* Content */}
-        <div className="flex-1 glass-card-hover p-4 sm:p-6 overflow-hidden min-w-0">
-          <AnimatePresence mode="wait" initial={false}>
-            <motion.div
-              key={activeTab}
-              initial={{ opacity: 0, x: 8 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -8 }}
-              transition={{ duration: 0.15 }}
-            >
-              {activeTab === "account" && (
-                <AccountTab displayNameDraft={displayNameDraft} setDisplayNameDraft={setDisplayNameDraft} />
-              )}
-              {activeTab === "trading" && <TradingTab />}
-              {activeTab === "display" && <DisplayTab />}
-              {activeTab === "alerts" && <AlertsTab />}
-              {activeTab === "security" && <SecurityTab />}
-            </motion.div>
-          </AnimatePresence>
-        </div>
-      </div>
-    </motion.div>
-  );
-}
-
-/** Renders while the server settings are still in flight — prevents a control
- *  from showing a default the user never chose and then flipping under them. */
-function TabLoading() {
-  const { t } = useLanguage();
-  return (
-    <div className="space-y-3" role="status" aria-live="polite">
-      <p className="flex items-center gap-2 text-sm text-muted-foreground">
-        <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
-        {t("settings_loading")}
-      </p>
-      {[...Array(4)].map((_, i) => <div key={i} className="skeleton h-16 w-full rounded-xl" />)}
-    </div>
-  );
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-//  1 · COMPTE
-// ─────────────────────────────────────────────────────────────────────────────
-
-/** BCP-47 tags for Intl — locale codes, not user-facing copy. */
-const DATE_LOCALES: Record<Lang, string> = { fr: "fr-FR", en: "en-GB" };
-
-const LEVEL_META: { id: TradingLevel; icon: typeof User; label: TranslationKey; desc: TranslationKey }[] = [
-  { id: "beginner",     icon: GraduationCap, label: "settings_level_beginner",     desc: "settings_level_beginner_desc" },
-  { id: "intermediate", icon: TrendingUp,    label: "settings_level_intermediate", desc: "settings_level_intermediate_desc" },
-  { id: "expert",       icon: Zap,           label: "settings_level_expert",       desc: "settings_level_expert_desc" },
-];
-
-function AccountTab({
-  displayNameDraft, setDisplayNameDraft,
-}: {
-  displayNameDraft: string | null;
-  setDisplayNameDraft: (v: string) => void;
-}) {
-  const { user, setTradingLevel, refreshUser } = useAuth();
-  const { t, lang } = useLanguage();
-  const { openPanel } = useAlexStore();
-  const uid = useId();
-
-  const nameSave = useSaveStatus();
-  const levelSave = useSaveStatus();
-
-  const [levelFrom, setLevelFrom] = useState<TradingLevel | null>(null);
-  const [levelTo, setLevelTo] = useState<TradingLevel | null>(null);
-
-  const currentName = user?.first_name ?? "";
-  const draft = displayNameDraft ?? currentName;
-  const trimmed = draft.trim();
-  const nameValid = trimmed.length >= 2 && trimmed.length <= 40 && !/[<>\n\r\t]/.test(trimmed);
-  const nameDirty = trimmed !== currentName;
-
-  const saveName = () => {
-    if (!nameValid || !nameDirty) return;
-    nameSave.run(async () => {
-      await accountAPI.updateProfile(trimmed);
-      // Re-read /me so the header + dashboard greeting update without a reload.
-      await refreshUser();
-      setDisplayNameDraft(trimmed);
-    });
-  };
-
-  const pickLevel = async (id: string) => {
-    const level = id as TradingLevel;
-    if (user?.trading_level === level) return;
-    const from = (user?.trading_level ?? "beginner") as TradingLevel;
-    const ok = await levelSave.run(() => setTradingLevel(level));
-    // The card selection is driven by user.trading_level, which AuthContext
-    // only updates once the PUT succeeded — a failure reverts it for free.
-    if (ok) { setLevelFrom(from); setLevelTo(level); }
-  };
-
-  const levelOptions: OptionCard[] = LEVEL_META.map((l) => ({
-    id: l.id, label: t(l.label), description: t(l.desc), icon: l.icon,
-  }));
-
-  const memberSince = useMemo(() => {
-    if (!user?.created_at) return null;
-    const d = new Date(user.created_at);
-    if (Number.isNaN(d.getTime())) return null;
-    return d.toLocaleDateString(DATE_LOCALES[lang] ?? "fr-FR", {
-      year: "numeric", month: "long", day: "numeric",
-    });
-  }, [user?.created_at, lang]);
-
-  const initial = (user?.first_name?.[0] ?? user?.username?.[0] ?? "U").toUpperCase();
-
-  return (
-    <div className="space-y-8">
-      <h2 className="text-lg font-semibold font-display">{t("settings_account_title")}</h2>
-
-      {/* Identity — read-only */}
-      <div className="flex items-center gap-4">
-        <div
-          aria-hidden="true"
-          className="w-16 h-16 rounded-2xl bg-primary/15 border border-primary/30 flex items-center justify-center shrink-0"
-        >
-          <span className="text-2xl font-bold text-on-color">{initial}</span>
-        </div>
-        <div className="min-w-0">
-          <p className="font-semibold truncate">{user?.first_name || user?.username || t("settings_user_default")}</p>
-          <p className="text-sm text-muted-foreground truncate">{user?.email || t("settings_email_undefined")}</p>
-        </div>
-      </div>
-
-      <dl className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div className="p-3 rounded-xl bg-white/5 border border-white/10">
-          <dt className="text-xs text-muted-foreground">{t("settings_username_label")}</dt>
-          <dd className="text-sm font-medium mt-0.5 truncate">{user?.username || "—"}</dd>
-        </div>
-        <div className="p-3 rounded-xl bg-white/5 border border-white/10">
-          <dt className="text-xs text-muted-foreground">{t("settings_email_label")}</dt>
-          <dd className="text-sm font-medium mt-0.5 flex items-center gap-1.5 min-w-0">
-            <span className="truncate">{user?.email || "—"}</span>
-            {user?.email_verified && (
-              <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-profit bg-profit/10 border border-profit/20 rounded-full px-1.5 py-0.5 shrink-0">
-                <BadgeCheck className="w-3 h-3" aria-hidden="true" />
-                {t("settings_email_verified")}
-              </span>
-            )}
-          </dd>
-          <p className="text-[11px] text-muted-foreground mt-1.5">{t("settings_email_readonly")}</p>
-        </div>
-        {memberSince && (
-          <div className="p-3 rounded-xl bg-white/5 border border-white/10">
-            <dt className="text-xs text-muted-foreground">{t("settings_member_since")}</dt>
-            <dd className="text-sm font-medium mt-0.5 tabular-nums">{memberSince}</dd>
-          </div>
-        )}
-      </dl>
-
-      {/* Display name */}
-      <SettingsSection
-        title={t("settings_display_name")}
-        description={t("settings_display_name_desc")}
-        status={nameSave.status}
-        error={nameSave.error}
-        onRetry={saveName}
-      >
-        <div className="flex flex-col sm:flex-row gap-2">
-          <input
-            id={`${uid}-name`}
-            type="text"
-            value={draft}
-            maxLength={40}
-            aria-label={t("settings_display_name")}
-            aria-invalid={draft.length > 0 && !nameValid}
-            onChange={(e) => setDisplayNameDraft(e.target.value)}
-            onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); saveName(); } }}
-            className="input flex-1"
+        {/* Un seul contrôle de navigation, qui défile horizontalement sur
+            mobile plutôt que de se replier en menu déroulant : cinq entrées
+            visibles valent mieux qu'une liste cachée derrière un clic. */}
+        <div className="-mx-1 overflow-x-auto px-1 pb-1">
+          <SegmentedControl
+            size="sm"
+            options={SECTIONS}
+            value={section}
+            onChange={go}
+            aria-label="Section des paramètres"
           />
-          <button
-            type="button"
-            onClick={saveName}
-            disabled={!nameValid || !nameDirty || nameSave.status === "saving"}
-            className="btn-primary flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {nameSave.status === "saving"
-              ? <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
-              : <Save className="w-4 h-4" aria-hidden="true" />}
-            {t("settings_save")}
-          </button>
         </div>
-        {draft.length > 0 && !nameValid && (
-          <p className="text-xs text-loss">{t("settings_display_name_invalid")}</p>
-        )}
-      </SettingsSection>
 
-      {/* Trading level */}
-      <SettingsSection
-        title={t("settings_level")}
-        description={t("settings_level_desc")}
-        status={levelSave.status}
-        error={levelSave.error}
-      >
-        <OptionCards
-          label={t("settings_level")}
-          options={levelOptions}
-          value={user?.trading_level ?? null}
-          onSelect={pickLevel}
-          columns={1}
-          disabled={levelSave.status === "saving"}
-        />
-      </SettingsSection>
-
-      <AnimatePresence>
-        {levelFrom && levelTo && (
-          <LevelChangeModal
-            fromLevel={levelFrom}
-            toLevel={levelTo}
-            lang={lang as "fr" | "en"}
-            onClose={() => { setLevelFrom(null); setLevelTo(null); }}
-            onStartBeginnerAssistant={() => {
-              // Opens the Alex panel ONLY — it must not silently re-arm the
-              // 9-step tour (that is the sibling button's job).
-              openPanel();
-              setLevelFrom(null); setLevelTo(null);
-            }}
-            onStartTour={() => {
-              // Re-arm the tour and reload; the single global <OnboardingTour />
-              // mounted by AppLayout picks it up on the next paint.
-              try { localStorage.removeItem(TOUR_KEY); } catch { /* ignore */ }
-              window.location.href = "/dashboard";
-            }}
-          />
-        )}
-      </AnimatePresence>
-    </div>
+        {section === "profil" && <ProfileSection />}
+        {section === "experience" && <ExperienceSection />}
+        {section === "trading" && <TradingSection />}
+        {section === "notifications" && <NotificationsSection />}
+        {section === "apparence" && <AppearanceSection />}
+      </div>
+    </>
   );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-//  2 · TRADING
-// ─────────────────────────────────────────────────────────────────────────────
+/* ── Mon profil ─────────────────────────────────────────────────────────── */
 
-// Label, emoji and horizon come from the shared module — this screen used to
-// carry its own copies (and its own horizons: "1 – 30 min", "Quelques heures"),
-// which disagreed with what every other screen showed for the same profile.
-// Only the longer description stays in the translation table.
-const STYLE_META: { id: TradingStyleId; desc: TranslationKey }[] = [
-  { id: "scalp", desc: "settings_style_scalp_desc" },
-  { id: "day",   desc: "settings_style_day_desc" },
-  { id: "swing", desc: "settings_style_swing_desc" },
-  { id: "long",  desc: "settings_style_long_desc" },
-];
+function ProfileSection() {
+  const { user, logout, refreshUser } = useAuth();
+  const router = useRouter();
 
-const RISK_META: { id: string; emoji: string; label: TranslationKey; desc: TranslationKey }[] = [
-  { id: "conservative",    emoji: "🐢",  label: "settings_risk_conservative",    desc: "settings_risk_conservative_desc" },
-  { id: "moderate",        emoji: "⚖️", label: "settings_risk_moderate",        desc: "settings_risk_moderate_desc" },
-  { id: "aggressive",      emoji: "🔥",  label: "settings_risk_aggressive",      desc: "settings_risk_aggressive_desc" },
-  { id: "very_aggressive", emoji: "⚡",  label: "settings_risk_very_aggressive", desc: "settings_risk_very_aggressive_desc" },
-];
+  const [name, setName] = useState(user?.first_name || user?.username || "");
+  const [savingName, setSavingName] = useState(false);
+  const [nameDone, setNameDone] = useState(false);
+  const [nameError, setNameError] = useState("");
 
-function TradingTab() {
-  const { t, lang } = useLanguage();
-  const { settings, isLoaded, saveSettings } = useSettings();
+  const [current, setCurrent] = useState("");
+  const [next, setNext] = useState("");
+  const [savingPwd, setSavingPwd] = useState(false);
+  const [pwdDone, setPwdDone] = useState(false);
+  const [pwdError, setPwdError] = useState("");
 
-  const style = useSaveStatus();
-  const risk = useSaveStatus();
-  const leverage = useSaveStatus();
+  const [exporting, setExporting] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
 
-  const pickStyle = useCallback((id: string) => { style.run(() => saveSettings({ tradingStyle: id })); }, [style, saveSettings]);
-  const pickRisk = useCallback((id: string) => { risk.run(() => saveSettings({ riskLevel: id })); }, [risk, saveSettings]);
-  const pickLeverage = useCallback((id: string) => { leverage.run(() => saveSettings({ defaultLeverage: id })); }, [leverage, saveSettings]);
-
-  if (!isLoaded) return <div className="space-y-6"><h2 className="text-lg font-semibold font-display">{t("settings_trading_title")}</h2><TabLoading /></div>;
-
-  const styleOptions: OptionCard[] = STYLE_META.map((s) => {
-    const p = TRADING_STYLES[s.id];
-    return { id: s.id, label: p.label[lang], description: t(s.desc), emoji: p.emoji, badge: p.horizon[lang] };
-  });
-  const riskOptions: OptionCard[] = RISK_META.map((r) => ({
-    id: r.id, label: t(r.label), description: t(r.desc), emoji: r.emoji,
-  }));
-  const leverageOptions: OptionCard[] = [
-    { id: "1", label: t("settings_leverage_1") },
-    { id: "2", label: "2x" },
-    { id: "5", label: "5x" },
-    { id: "10", label: "10x" },
-  ];
-
-  const activeStyle = STYLE_META.find((s) => s.id === settings.tradingStyle);
-
-  return (
-    <div className="space-y-8">
-      <h2 className="text-lg font-semibold font-display">{t("settings_trading_title")}</h2>
-
-      <SettingsSection
-        title={t("settings_trading_style_label")}
-        description={t("settings_trading_style_desc")}
-        status={style.status}
-        error={style.error}
-        onRetry={() => pickStyle(settings.tradingStyle)}
-      >
-        <OptionCards
-          label={t("settings_trading_style_label")}
-          options={styleOptions}
-          value={settings.tradingStyle}
-          onSelect={pickStyle}
-          columns={2}
-          disabled={style.status === "saving"}
-        />
-        {activeStyle && (
-          <div className="mt-1 p-3 rounded-xl bg-primary/5 border border-primary/20 text-xs text-primary/80 space-y-1">
-            <p>
-              <span className="font-semibold">
-                {TRADING_STYLES[activeStyle.id].emoji} {TRADING_STYLES[activeStyle.id].label[lang]}{" "}
-                {t("settings_style_active_suffix")}
-              </span>
-              {" — "}
-              {t("settings_style_ai_text").replace("{horizon}", TRADING_STYLES[activeStyle.id].horizon[lang])}
-            </p>
-            <p className="text-muted-foreground">{t("settings_style_scope")}</p>
-          </div>
-        )}
-      </SettingsSection>
-
-      <SettingsSection
-        title={t("settings_risk_level_label")}
-        status={risk.status}
-        error={risk.error}
-        onRetry={() => pickRisk(settings.riskLevel)}
-      >
-        <OptionCards
-          label={t("settings_risk_level_label")}
-          options={riskOptions}
-          value={settings.riskLevel}
-          onSelect={pickRisk}
-          columns={2}
-          disabled={risk.status === "saving"}
-        />
-        <p className="text-xs text-muted-foreground leading-relaxed">{t("settings_risk_disclaimer")}</p>
-      </SettingsSection>
-
-      <SettingsSection
-        title={t("settings_leverage_label")}
-        description={t("settings_leverage_desc")}
-        status={leverage.status}
-        error={leverage.error}
-        onRetry={() => pickLeverage(settings.defaultLeverage)}
-      >
-        <OptionCards
-          label={t("settings_leverage_label")}
-          options={leverageOptions}
-          value={settings.defaultLeverage}
-          onSelect={pickLeverage}
-          columns={4}
-          size="sm"
-          disabled={leverage.status === "saving"}
-        />
-      </SettingsSection>
-    </div>
-  );
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-//  3 · AFFICHAGE
-// ─────────────────────────────────────────────────────────────────────────────
-
-const ACCENT_KEYS: Record<AccentColor, TranslationKey> = {
-  blue: "settings_accent_blue",
-  purple: "settings_accent_purple",
-  teal: "settings_accent_teal",
-  orange: "settings_accent_orange",
-  pink: "settings_accent_pink",
-};
-
-function DisplayTab() {
-  const { t, lang, setLangAsync } = useLanguage();
-  const { settings, isLoaded, saveSettings } = useSettings();
-
-  const language = useSaveStatus();
-  const currency = useSaveStatus();
-  const theme = useSaveStatus();
-  const accent = useSaveStatus();
-
-  const pickLang = useCallback((id: string) => { language.run(() => setLangAsync(id as Lang)); }, [language, setLangAsync]);
-  const pickCurrency = useCallback((id: string) => { currency.run(() => saveSettings({ currency: id as Currency })); }, [currency, saveSettings]);
-  const pickTheme = useCallback((id: string) => { theme.run(() => saveSettings({ theme: id as Theme })); }, [theme, saveSettings]);
-  const pickAccent = useCallback((id: string) => { accent.run(() => saveSettings({ accentColor: id as AccentColor })); }, [accent, saveSettings]);
-
-  if (!isLoaded) return <div className="space-y-6"><h2 className="text-lg font-semibold font-display">{t("settings_display_title")}</h2><TabLoading /></div>;
-
-  const langOptions: OptionCard[] = [
-    { id: "fr", label: "Français", emoji: "🇫🇷" },
-    { id: "en", label: "English", emoji: "🇬🇧" },
-  ];
-  const currencyOptions: OptionCard[] = [
-    { id: "EUR", label: t("settings_currency_eur"), emoji: "€" },
-    { id: "USD", label: t("settings_currency_usd"), emoji: "$" },
-  ];
-  const themeOptions: OptionCard[] = [
-    { id: "dark",  label: t("settings_theme_dark"),  description: t("settings_theme_dark_desc"),  icon: Moon },
-    { id: "light", label: t("settings_theme_light"), description: t("settings_theme_light_desc"), icon: Sun },
-  ];
-  const accentOptions: OptionCard[] = (Object.keys(ACCENT_PRESETS) as AccentColor[]).map((key) => ({
-    id: key, label: t(ACCENT_KEYS[key]), swatch: ACCENT_PRESETS[key].hex,
-  }));
-
-  return (
-    <div className="space-y-8">
-      <h2 className="text-lg font-semibold font-display">{t("settings_display_title")}</h2>
-
-      <SettingsSection title={t("settings_language")} status={language.status} error={language.error} onRetry={() => pickLang(lang)}>
-        <OptionCards
-          label={t("settings_language")}
-          options={langOptions}
-          value={lang}
-          onSelect={pickLang}
-          columns={2}
-          disabled={language.status === "saving"}
-        />
-      </SettingsSection>
-
-      <SettingsSection
-        title={t("settings_currency")}
-        description={t("settings_currency_desc")}
-        status={currency.status}
-        error={currency.error}
-        onRetry={() => pickCurrency(settings.currency)}
-      >
-        <OptionCards
-          label={t("settings_currency")}
-          options={currencyOptions}
-          value={settings.currency}
-          onSelect={pickCurrency}
-          columns={2}
-          disabled={currency.status === "saving"}
-        />
-        <p className="text-xs text-muted-foreground leading-relaxed">{t("settings_currency_rate_note")}</p>
-      </SettingsSection>
-
-      <SettingsSection title={t("settings_theme")} status={theme.status} error={theme.error} onRetry={() => pickTheme(settings.theme)}>
-        <OptionCards
-          label={t("settings_theme")}
-          options={themeOptions}
-          value={settings.theme}
-          onSelect={pickTheme}
-          columns={2}
-          disabled={theme.status === "saving"}
-        />
-      </SettingsSection>
-
-      <SettingsSection
-        title={t("settings_accent")}
-        description={t("settings_accent_desc")}
-        status={accent.status}
-        error={accent.error}
-        onRetry={() => pickAccent(settings.accentColor)}
-      >
-        <OptionCards
-          label={t("settings_accent")}
-          options={accentOptions}
-          value={settings.accentColor}
-          onSelect={pickAccent}
-          columns={5}
-          size="sm"
-          disabled={accent.status === "saving"}
-        />
-      </SettingsSection>
-    </div>
-  );
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-//  4 · ALERTES & RÉCAP
-// ─────────────────────────────────────────────────────────────────────────────
-
-const RECAP_META: { id: RecapFrequency; label: TranslationKey; desc: TranslationKey }[] = [
-  { id: "always", label: "settings_recap_always", desc: "settings_recap_always_desc" },
-  { id: "daily",  label: "settings_recap_daily",  desc: "settings_recap_daily_desc" },
-  { id: "weekly", label: "settings_recap_weekly", desc: "settings_recap_weekly_desc" },
-  { id: "off",    label: "settings_recap_off",    desc: "settings_recap_off_desc" },
-];
-
-function AlertsTab() {
-  const { t } = useLanguage();
-  const { settings, isLoaded, saveSettings } = useSettings();
-  const toggleSave = useSaveStatus();
-  const recapSave = useSaveStatus();
-
-  const flipToggle = useCallback((v: boolean) => {
-    toggleSave.run(() => saveSettings({ priceAlertsEnabled: v }));
-  }, [toggleSave, saveSettings]);
-
-  const pickRecap = useCallback((id: string) => {
-    recapSave.run(() => saveSettings({ recapFrequency: id as RecapFrequency }));
-  }, [recapSave, saveSettings]);
-
-  const recapOptions: OptionCard[] = RECAP_META.map((r) => ({
-    id: r.id, label: t(r.label), description: t(r.desc),
-  }));
-
-  return (
-    <div className="space-y-8">
-      <h2 className="text-lg font-semibold font-display">{t("settings_alerts_title")}</h2>
-
-      {!isLoaded ? <TabLoading /> : (
-        <>
-          <SettingRow
-            title={t("settings_alerts_toasts")}
-            description={t("settings_alerts_toasts_desc")}
-          >
-            <SaveState status={toggleSave.status} error={toggleSave.error} onRetry={() => flipToggle(settings.priceAlertsEnabled)} />
-            <Toggle
-              checked={settings.priceAlertsEnabled}
-              onChange={flipToggle}
-              disabled={toggleSave.status === "saving"}
-              label={t("settings_alerts_toasts")}
-            />
-          </SettingRow>
-
-          <SettingsSection
-            title={t("settings_recap_title")}
-            description={t("settings_recap_desc")}
-            status={recapSave.status}
-            error={recapSave.error}
-            onRetry={() => pickRecap(settings.recapFrequency)}
-          >
-            <OptionCards
-              label={t("settings_recap_title")}
-              options={recapOptions}
-              value={settings.recapFrequency}
-              onSelect={pickRecap}
-              columns={2}
-              disabled={recapSave.status === "saving"}
-            />
-          </SettingsSection>
-        </>
-      )}
-
-      <ActiveAlertsList />
-    </div>
-  );
-}
-
-function ActiveAlertsList() {
-  const { t } = useLanguage();
-  const [alerts, setAlerts] = useState<PriceAlert[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [deleting, setDeleting] = useState<number | null>(null);
-
-  const load = useCallback(() => {
-    setError(null);
-    alertsAPI.list()
-      .then((res) => setAlerts((res.alerts ?? []).filter((a) => a.status === "active")))
-      .catch((e) => { setAlerts([]); setError(e instanceof Error ? e.message : String(e)); });
-  }, []);
-
-  useEffect(() => { load(); }, [load]);
-
-  const remove = async (id: number) => {
-    const prev = alerts ?? [];
-    setDeleting(id);
-    setError(null);
-    setAlerts(prev.filter((a) => a.id !== id));   // optimistic
+  const saveName = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const trimmed = name.trim();
+    if (!trimmed) { setNameError("Le nom ne peut pas être vide."); return; }
+    setNameError("");
+    setSavingName(true);
     try {
-      await alertsAPI.remove(id);
-    } catch (e) {
-      setAlerts(prev);                            // rollback
-      setError(e instanceof Error ? e.message : String(e));
+      await accountAPI.updateProfile(trimmed);
+      await refreshUser();
+      setNameDone(true);
+      setTimeout(() => setNameDone(false), 2500);
+    } catch (err) {
+      setNameError(err instanceof Error ? err.message : "Enregistrement impossible.");
     } finally {
-      setDeleting(null);
+      setSavingName(false);
+    }
+  };
+
+  const savePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (next.length < 8) { setPwdError("Le nouveau mot de passe doit faire au moins 8 caractères."); return; }
+    setPwdError("");
+    setSavingPwd(true);
+    try {
+      await accountAPI.changePassword(current, next);
+      setCurrent("");
+      setNext("");
+      setPwdDone(true);
+      setTimeout(() => setPwdDone(false), 3500);
+    } catch (err) {
+      setPwdError(err instanceof Error ? err.message : "Changement impossible.");
+    } finally {
+      setSavingPwd(false);
+    }
+  };
+
+  const exportData = async () => {
+    setExporting(true);
+    try {
+      const data = await accountAPI.exportData();
+      // Téléchargement côté client : les données ne repassent par aucun
+      // service tiers, ce qui est le minimum pour un export RGPD.
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `captentdb-mes-donnees-${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      /* le bouton reprend son état, rien n'est affirmé */
+    } finally {
+      setExporting(false);
     }
   };
 
   return (
-    <section className="space-y-3">
-      <div className="flex items-center justify-between gap-3">
-        <h3 className="text-sm font-semibold font-display">{t("settings_my_alerts")}</h3>
-        {error && (
-          <button
-            type="button" onClick={load}
-            className="text-xs font-semibold text-loss underline underline-offset-2 hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-loss/50 rounded px-1"
+    <>
+      <Panel title="Identité" hint="Le nom qui apparaît dans la communauté et sur votre profil.">
+        <form onSubmit={saveName} className="space-y-4" noValidate>
+          {nameError && <FormError>{nameError}</FormError>}
+          <Field label="Nom affiché" htmlFor="set-name">
+            <TextInput id="set-name" value={name} onChange={setName} invalid={!!nameError} />
+          </Field>
+          <div className="flex items-center gap-3">
+            <Button type="submit" size="md" disabled={savingName}>
+              {savingName ? "Enregistrement…" : "Enregistrer"}
+            </Button>
+            {nameDone && <Text size="caption" as="span" tone="up">Enregistré.</Text>}
+          </div>
+        </form>
+
+        <div className="mt-6 border-t pt-5" style={{ borderColor: "var(--cap-line)" }}>
+          <Text size="caption">Adresse e-mail</Text>
+          <Text size="small" className="mt-1">
+            {user?.email || "—"}
+            {user?.email_verified === false && " · non vérifiée"}
+          </Text>
+          <Text size="caption" className="mt-2">
+            L&apos;adresse sert à vous connecter et ne peut pas être changée ici.
+          </Text>
+        </div>
+      </Panel>
+
+      <Panel title="Mot de passe" hint="Huit caractères minimum.">
+        <form onSubmit={savePassword} className="space-y-4" noValidate>
+          {pwdError && <FormError>{pwdError}</FormError>}
+          <Field label="Mot de passe actuel" htmlFor="set-pwd-cur">
+            <TextInput id="set-pwd-cur" type="password" value={current} onChange={setCurrent} required />
+          </Field>
+          <Field label="Nouveau mot de passe" htmlFor="set-pwd-new">
+            <TextInput id="set-pwd-new" type="password" value={next} onChange={setNext} required />
+          </Field>
+          <div className="flex items-center gap-3">
+            <Button type="submit" size="md" disabled={savingPwd || !current || !next}>
+              {savingPwd ? "Changement…" : "Changer le mot de passe"}
+            </Button>
+            {pwdDone && <Text size="caption" as="span" tone="up">Mot de passe changé.</Text>}
+          </div>
+        </form>
+      </Panel>
+
+      <Panel
+        title="Vos données"
+        hint="Tout ce que le site détient sur vous, et comment le récupérer ou l'effacer."
+      >
+        <div className="space-y-5">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="min-w-0">
+              <span className="block text-[0.93rem] font-medium" style={{ color: "var(--cap-ink)" }}>
+                Exporter mes données
+              </span>
+              <Text size="caption" className="mt-1">
+                Un fichier JSON : compte, positions, journal, favoris, progression.
+              </Text>
+            </div>
+            <Button variant="secondary" size="md" onClick={exportData} disabled={exporting}>
+              {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+              {exporting ? "Préparation…" : "Télécharger"}
+            </Button>
+          </div>
+
+          <div
+            className="flex flex-wrap items-center justify-between gap-4 border-t pt-5"
+            style={{ borderColor: "var(--cap-line)" }}
           >
-            {t("settings_retry")}
-          </button>
-        )}
-      </div>
+            <div className="min-w-0">
+              <span className="block text-[0.93rem] font-medium" style={{ color: "var(--cap-ink)" }}>
+                Se déconnecter
+              </span>
+              <Text size="caption" className="mt-1">Sur cet appareil uniquement.</Text>
+            </div>
+            <Button
+              variant="secondary"
+              size="md"
+              onClick={async () => { await logout(); router.push("/login"); }}
+            >
+              <LogOut className="h-4 w-4" />
+              Déconnexion
+            </Button>
+          </div>
 
-      {error && (
-        <p role="alert" className="text-xs text-loss bg-loss/10 border border-loss/20 rounded-lg px-3 py-2">{error}</p>
+          <div
+            className="flex flex-wrap items-center justify-between gap-4 border-t pt-5"
+            style={{ borderColor: "var(--cap-line)" }}
+          >
+            <div className="min-w-0">
+              <span className="block text-[0.93rem] font-medium" style={{ color: "var(--cap-down)" }}>
+                Supprimer mon compte
+              </span>
+              <Text size="caption" className="mt-1">
+                Définitif. Positions, journal, progression et favoris sont effacés.
+              </Text>
+            </div>
+            <Button variant="secondary" size="md" onClick={() => setDeleteOpen(true)}>
+              <Trash2 className="h-4 w-4" />
+              Supprimer
+            </Button>
+          </div>
+        </div>
+      </Panel>
+
+      <DeleteAccountModal open={deleteOpen} onClose={() => setDeleteOpen(false)} />
+    </>
+  );
+}
+
+function DeleteAccountModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const router = useRouter();
+  const [password, setPassword] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  // Le serveur attend ce mot exact. Il est affiché, pas deviné : une
+  // confirmation qu'on ne sait pas formuler n'est pas une sécurité, c'est une
+  // devinette.
+  const WORD = "SUPPRIMER";
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setBusy(true);
+    try {
+      await accountAPI.deleteAccount(password, confirm);
+      router.push("/");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Suppression impossible.");
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Modal open={open} onClose={onClose} title="Supprimer le compte">
+      <Heading level={3}>Supprimer votre compte</Heading>
+      <Text size="small" className="mt-2">
+        Cette action est définitive et ne peut pas être annulée. Si vous voulez
+        seulement garder une trace, exportez vos données avant.
+      </Text>
+
+      <form onSubmit={submit} className="mt-6 space-y-4" noValidate>
+        {error && <FormError>{error}</FormError>}
+        <Field label="Votre mot de passe" htmlFor="del-pwd">
+          <TextInput id="del-pwd" type="password" value={password} onChange={setPassword} required />
+        </Field>
+        <Field label={`Tapez ${WORD} pour confirmer`} htmlFor="del-confirm">
+          <TextInput id="del-confirm" value={confirm} onChange={setConfirm} placeholder={WORD} required />
+        </Field>
+        <div className="flex gap-2">
+          <Button
+            type="submit"
+            size="md"
+            disabled={busy || confirm !== WORD || !password}
+            className="flex-1"
+          >
+            {busy ? "Suppression…" : "Supprimer définitivement"}
+          </Button>
+          <Button variant="secondary" size="md" onClick={onClose}>Annuler</Button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
+/* ── Mon expérience ─────────────────────────────────────────────────────── */
+
+const LEVELS: Option<TradingLevel>[] = [
+  {
+    value: "beginner",
+    label: "Je débute",
+    detail: "Chaque chiffre vient avec une phrase qui l'explique. L'Analyse s'ouvre sur le verdict, pas sur les indicateurs. Le Parcours commence par les fondations.",
+  },
+  {
+    value: "intermediate",
+    label: "Je m'y connais un peu",
+    detail: "Les facteurs derrière le verdict sont affichés d'emblée, les Marchés montrent les mouvements du jour et le tri par variation.",
+  },
+  {
+    value: "expert",
+    label: "Je trade déjà",
+    detail: "Indicateurs bruts et edge historique dépliés par défaut, volume et fréquence d'actualisation accessibles, aucune infobulle.",
+  },
+];
+
+function ExperienceSection() {
+  const { user, setTradingLevel } = useAuth();
+  const [busy, setBusy] = useState(false);
+  const [done, setDone] = useState(false);
+  const [error, setError] = useState("");
+
+  // Sans niveau déclaré, le site se comporte comme pour un débutant. L'écran
+  // le dit plutôt que de laisser une sélection vide qui ne correspond à rien.
+  const level = user?.trading_level ?? null;
+
+  const choose = async (v: TradingLevel) => {
+    setError("");
+    setBusy(true);
+    try {
+      await setTradingLevel(v);
+      setDone(true);
+      setTimeout(() => setDone(false), 2500);
+    } catch {
+      setError("Impossible d'enregistrer. Réessayez dans un instant.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Panel
+      title="Votre niveau"
+      hint="Il règle la quantité d'information affichée — jamais sa véracité. Tous les niveaux voient les mêmes chiffres."
+      aside={done ? <Text size="caption" as="span" tone="up">Enregistré.</Text> : undefined}
+    >
+      {error && <div className="mb-4"><FormError>{error}</FormError></div>}
+      {level == null && (
+        <Text size="small" className="mb-4">
+          Vous n&apos;avez pas encore répondu. En attendant, le site se comporte
+          comme pour un débutant.
+        </Text>
       )}
+      <Choice
+        name="Niveau"
+        options={LEVELS}
+        value={level ?? "beginner"}
+        onChange={choose}
+        disabled={busy}
+      />
+      <Text size="caption" className="mt-4">
+        Modifiable autant de fois que vous voulez. Rien n&apos;est verrouillé :
+        un débutant peut ouvrir une leçon avancée, elle est simplement rangée
+        après.
+      </Text>
+    </Panel>
+  );
+}
 
-      {alerts === null && <div className="skeleton h-14 w-full rounded-xl" />}
+/* ── Trading ────────────────────────────────────────────────────────────── */
 
-      {alerts !== null && alerts.length === 0 && !error && (
-        <p className="text-sm text-muted-foreground p-4 rounded-xl bg-white/5 border border-white/10">
-          {/* The key is already a full sentence naming the destination — the
-              link is the destination itself, not a second mention of it. */}
-          <Link href="/analysis" className="text-primary font-medium hover:underline">
-            {t("settings_my_alerts_empty")}
-          </Link>
-        </p>
-      )}
+const RISKS: Option<string>[] = [
+  { value: "conservative", label: "Prudent", detail: "Tailles de position réduites, stops serrés. Les suggestions privilégient la préservation du capital." },
+  { value: "moderate", label: "Modéré", detail: "L'équilibre par défaut entre risque pris et objectif visé." },
+  { value: "aggressive", label: "Agressif", detail: "Positions plus larges, objectifs plus lointains, pertes potentielles plus grandes." },
+  { value: "very_aggressive", label: "Très agressif", detail: "Le risque maximal que le simulateur autorise. À réserver au papier." },
+];
 
-      {alerts !== null && alerts.length > 0 && (
-        <ul className="space-y-2">
-          {alerts.map((a) => (
-            <li key={a.id} className="flex items-center justify-between gap-3 p-3 rounded-xl bg-white/5 border border-white/10">
+/** Un nombre écrit à la française : 1.5 → « 1,5 », 1 → « 1 ». */
+const fr = (n: number) => n.toLocaleString("fr-FR", { maximumFractionDigits: 2 });
+
+function TradingSection() {
+  const { settings, saveSettings, isLoaded } = useSettings();
+  const [busy, setBusy] = useState(false);
+  const [done, setDone] = useState<string | null>(null);
+  const [error, setError] = useState("");
+
+  const save = useCallback(
+    async (patch: Parameters<typeof saveSettings>[0], what: string) => {
+      setError("");
+      setBusy(true);
+      try {
+        // On attend la promesse. saveSettings écrit de façon optimiste puis
+        // réconcilie et REJETTE en cas d'échec : afficher « enregistré » sans
+        // l'attendre serait afficher un succès qu'on n'a pas constaté.
+        await saveSettings(patch);
+        setDone(what);
+        setTimeout(() => setDone(null), 2500);
+      } catch {
+        setError("Enregistrement impossible. Votre choix précédent est conservé.");
+      } finally {
+        setBusy(false);
+      }
+    },
+    [saveSettings]
+  );
+
+  if (!isLoaded) return <Panel><Text size="small">Chargement…</Text></Panel>;
+
+  const styleOptions: Option<TradingStyleId>[] = TRADING_STYLE_IDS.map((id) => {
+    const s = TRADING_STYLES[id];
+    return {
+      value: id,
+      label: s.label.fr,
+      // Tiré du profil lui-même, donc toujours exact : ce sont les valeurs que
+      // l'Analyse utilise réellement pour le graphique et le plan.
+      // Virgule décimale : ces valeurs viennent de nombres JavaScript, qui
+      // s'écrivent « 0.6 » une fois interpolés. Dans une phrase française,
+      // c'est 0,6.
+      detail: `${s.horizon.fr} · graphique en ${s.defaultTimeframe} · stop à ${fr(s.atr.sl)}× l'ATR, objectif à ${fr(s.atr.tp)}×${
+        s.fundWeight > 0 ? ` · fondamentaux ${Math.round(s.fundWeight * 100)} % du score` : " · fondamentaux ignorés"
+      }`,
+    };
+  });
+
+  return (
+    <>
+      {error && <FormError>{error}</FormError>}
+
+      <Panel
+        title="Votre horizon"
+        hint="Il change le graphique de l'Analyse, la distance du stop et de l'objectif, et le poids des fondamentaux dans le score."
+        aside={done === "style" ? <Text size="caption" as="span" tone="up">Enregistré.</Text> : undefined}
+      >
+        <Choice
+          name="Style de trading"
+          options={styleOptions}
+          value={settings.tradingStyle as TradingStyleId}
+          onChange={(v) => save({ tradingStyle: v }, "style")}
+          disabled={busy}
+        />
+      </Panel>
+
+      <Panel
+        title="Votre appétit pour le risque"
+        hint="Utilisé par les calculateurs et par la taille de position suggérée."
+        aside={done === "risk" ? <Text size="caption" as="span" tone="up">Enregistré.</Text> : undefined}
+      >
+        <Choice
+          name="Niveau de risque"
+          options={RISKS}
+          value={settings.riskLevel}
+          onChange={(v) => save({ riskLevel: v }, "risk")}
+          disabled={busy}
+        />
+      </Panel>
+
+      <Panel
+        title="Levier par défaut"
+        hint="Proposé à l'ouverture d'une position. Modifiable à chaque trade."
+        aside={done === "lev" ? <Text size="caption" as="span" tone="up">Enregistré.</Text> : undefined}
+      >
+        <div className="flex flex-wrap items-center gap-4">
+          <SegmentedControl
+            size="md"
+            options={["1", "2", "5", "10"].map((l) => ({ value: l, label: `×${l}` }))}
+            value={settings.defaultLeverage}
+            onChange={(v) => save({ defaultLeverage: v }, "lev")}
+            aria-label="Levier par défaut"
+          />
+          <Text size="caption" as="span">
+            {settings.defaultLeverage === "1"
+              ? "Sans levier : vous ne pouvez pas perdre plus que la somme engagée."
+              : `Un mouvement de 1 % devient ${settings.defaultLeverage} % — dans les deux sens.`}
+          </Text>
+        </div>
+      </Panel>
+    </>
+  );
+}
+
+/* ── Notifications ──────────────────────────────────────────────────────── */
+
+const RECAPS: Option<RecapFrequency>[] = [
+  { value: "always", label: "À chaque visite", detail: "Ce qui a bougé depuis la dernière fois, dès l'ouverture de l'accueil." },
+  { value: "daily", label: "Une fois par jour", detail: "Le récapitulatif n'apparaît qu'à la première visite de la journée." },
+  { value: "weekly", label: "Une fois par semaine", detail: "Un point hebdomadaire, rien entre-temps." },
+  { value: "off", label: "Jamais", detail: "Aucun récapitulatif. L'accueil s'ouvre directement sur vos données." },
+];
+
+function NotificationsSection() {
+  const { settings, saveSettings, isLoaded } = useSettings();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  const save = async (patch: Parameters<typeof saveSettings>[0]) => {
+    setError("");
+    setBusy(true);
+    try {
+      await saveSettings(patch);
+    } catch {
+      setError("Enregistrement impossible. Votre choix précédent est conservé.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (!isLoaded) return <Panel><Text size="small">Chargement…</Text></Panel>;
+
+  return (
+    <>
+      {error && <FormError>{error}</FormError>}
+
+      <Panel title="Alertes de prix">
+        <Toggle
+          label="M'avertir quand une alerte se déclenche"
+          detail="Une notification dans le site dès qu'un actif franchit le seuil que vous avez posé. Aucun e-mail, aucune notification système."
+          checked={settings.priceAlertsEnabled}
+          onChange={(v) => save({ priceAlertsEnabled: v })}
+          disabled={busy}
+        />
+      </Panel>
+
+      <Panel
+        title="Récapitulatif de retour"
+        hint="Le résumé de ce qui a bougé pendant votre absence."
+      >
+        <Choice
+          name="Fréquence du récapitulatif"
+          options={RECAPS}
+          value={settings.recapFrequency}
+          onChange={(v) => save({ recapFrequency: v })}
+          disabled={busy}
+        />
+      </Panel>
+
+      <ActiveAlerts />
+    </>
+  );
+}
+
+function ActiveAlerts() {
+  const [alerts, setAlerts] = useState<PriceAlert[] | null>(null);
+  const [removing, setRemoving] = useState<number | null>(null);
+
+  useEffect(() => {
+    alertsAPI.list()
+      .then((d) => setAlerts(d.alerts || []))
+      .catch(() => setAlerts([]));
+  }, []);
+
+  const remove = async (id: number) => {
+    setRemoving(id);
+    const before = alerts;
+    setAlerts((a) => (a || []).filter((x) => x.id !== id));
+    try {
+      await alertsAPI.remove(id);
+    } catch {
+      setAlerts(before);
+    } finally {
+      setRemoving(null);
+    }
+  };
+
+  const active = (alerts || []).filter((a) => a.status === "active");
+
+  return (
+    <Panel
+      title="Vos alertes"
+      hint={active.length > 0 ? "Elles sont vérifiées pendant que le site est ouvert." : undefined}
+    >
+      {alerts === null ? (
+        <Text size="small">Chargement…</Text>
+      ) : active.length === 0 ? (
+        <EmptyState
+          title="Aucune alerte posée"
+          description="Depuis l'analyse d'un actif, vous pouvez demander à être prévenu quand il franchit un prix."
+        />
+      ) : (
+        <ul className="[&>*+*]:border-t [&>*+*]:border-[color:var(--cap-line)]">
+          {active.map((a) => (
+            <li key={a.id} className="flex items-center justify-between gap-4 py-3.5">
               <div className="min-w-0">
-                <p className="text-sm font-semibold font-mono truncate">{a.symbol}</p>
-                <p className="text-xs text-muted-foreground tabular-nums">
-                  {a.direction === "above" ? "≥" : "≤"} {a.target}
-                  {a.note && <span className="italic"> — « {a.note} »</span>}
-                </p>
+                <span className="block text-[0.93rem] font-medium" style={{ color: "var(--cap-ink)" }}>
+                  {a.symbol}
+                </span>
+                <Text size="caption" className="mt-0.5">
+                  {a.direction === "above" ? "Au-dessus de" : "En dessous de"}{" "}
+                  <Num className="text-[0.78rem]">{a.target}</Num>
+                  {a.note ? ` · ${a.note}` : ""}
+                </Text>
               </div>
               <button
-                type="button"
                 onClick={() => remove(a.id)}
-                disabled={deleting === a.id}
-                aria-label={`${t("settings_alert_delete")} ${a.symbol}`}
-                className="p-2 rounded-lg text-muted-foreground hover:text-loss hover:bg-loss/10 transition-colors disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-loss/50"
+                disabled={removing === a.id}
+                aria-label={`Supprimer l'alerte sur ${a.symbol}`}
+                className="shrink-0 rounded-[9px] p-2 transition-colors hover:bg-[color:var(--cap-surface-2)] disabled:opacity-40"
+                style={{ color: "var(--cap-ink-4)" }}
               >
-                {deleting === a.id
-                  ? <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
-                  : <Trash2 className="w-4 h-4" aria-hidden="true" />}
+                <Trash2 className="h-4 w-4" />
               </button>
             </li>
           ))}
         </ul>
       )}
-    </section>
+    </Panel>
   );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-//  5 · SÉCURITÉ & DONNÉES
-// ─────────────────────────────────────────────────────────────────────────────
+/* ── Apparence ──────────────────────────────────────────────────────────── */
 
-function SecurityTab() {
-  const { t } = useLanguage();
-  const { user, logout } = useAuth();
-  const router = useRouter();
+const ACCENT_LABEL: Record<AccentColor, string> = {
+  blue: "Or",
+  purple: "Ambre",
+  teal: "Jade",
+  orange: "Cyan",
+  pink: "Magenta",
+};
 
-  const [showPassword, setShowPassword] = useState(false);
-  const [passwordDone, setPasswordDone] = useState(false);
-  const [showDelete, setShowDelete] = useState(false);
-  const [isLoggingOut, setIsLoggingOut] = useState(false);
+function AppearanceSection() {
+  const { settings, saveSettings, isLoaded } = useSettings();
+  const [animOn, setAnimOn] = useAnimationsEnabled();
+  const [error, setError] = useState("");
 
-  const exportSave = useSaveStatus();
-
-  const handleExport = () => exportSave.run(async () => {
-    const data = await accountAPI.exportData();
-    // Blob download: a bare <a href> cannot carry the Authorization header.
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const stamp = new Date().toISOString().slice(0, 10).replace(/-/g, "");
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `tdb-export-${user?.username ?? "user"}-${stamp}.json`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
-  });
-
-  const handleLogout = async () => {
-    setIsLoggingOut(true);
-    await logout();
-    router.push("/login");
-  };
-
-  const handleDelete = async ({ password, confirm }: { password: string; confirm: string }) => {
-    await accountAPI.deleteAccount(password, confirm);
+  const save = async (patch: Parameters<typeof saveSettings>[0]) => {
+    setError("");
     try {
-      Object.keys(localStorage)
-        .filter((k) => k.startsWith("tdb_"))
-        .forEach((k) => localStorage.removeItem(k));
-    } catch { /* ignore */ }
-    removeToken();
-    router.replace("/");
+      await saveSettings(patch);
+    } catch {
+      setError("Enregistrement impossible. Votre choix précédent est conservé.");
+    }
   };
+
+  if (!isLoaded) return <Panel><Text size="small">Chargement…</Text></Panel>;
 
   return (
-    <div className="space-y-8">
-      <h2 className="text-lg font-semibold font-display">{t("settings_security_title")}</h2>
+    <>
+      {error && <FormError>{error}</FormError>}
 
-      <div className="p-4 bg-profit/10 border border-profit/20 rounded-xl">
-        <p className="text-sm text-profit">{t("settings_security_info")}</p>
-      </div>
+      <Panel
+        title="Devise d'affichage"
+        hint="Les cours sont convertis au taux du jour. Les indices et les paires de devises restent en valeur nue."
+      >
+        <SegmentedControl
+          size="md"
+          options={[
+            { value: "EUR", label: "€ Euro" },
+            { value: "USD", label: "$ Dollar" },
+          ]}
+          value={settings.currency}
+          onChange={(v) => save({ currency: v as Currency })}
+          aria-label="Devise"
+        />
+      </Panel>
 
-      {passwordDone && (
-        <p role="status" className="text-sm text-profit bg-profit/10 border border-profit/20 rounded-xl px-3 py-2">
-          {t("settings_pwd_success")}
-        </p>
-      )}
+      <Panel title="Animations" hint="Le ciel de fond et les transitions entre écrans.">
+        <Toggle
+          label="Afficher le ciel animé"
+          detail="Des nuages traversent l'arrière-plan et la météo suit l'état du marché. Coupez-les si vous préférez une surface calme — l'information reste lisible sans."
+          checked={animOn}
+          onChange={setAnimOn}
+        />
+        <Text size="caption" className="mt-4">
+          Ce réglage est propre à ce navigateur. Les animations sont de toute
+          façon désactivées si votre système demande de réduire le mouvement.
+        </Text>
+      </Panel>
 
-      <div className="space-y-3">
-        <SettingRow title={t("settings_change_password")} description={t("settings_change_password_desc")}>
-          <button
-            type="button"
-            onClick={() => { setPasswordDone(false); setShowPassword(true); }}
-            className="btn-secondary text-sm flex items-center gap-2"
-          >
-            <KeyRound className="w-4 h-4" aria-hidden="true" />
-            {t("settings_change_btn")}
-          </button>
-        </SettingRow>
-
-        <SettingRow title={t("settings_export_data")} description={t("settings_export_desc2")}>
-          <div className="flex flex-col items-end gap-1.5">
-            <button
-              type="button"
-              onClick={handleExport}
-              disabled={exportSave.status === "saving"}
-              className="btn-secondary text-sm flex items-center gap-2 disabled:opacity-50"
-            >
-              {exportSave.status === "saving"
-                ? <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
-                : <Download className="w-4 h-4" aria-hidden="true" />}
-              {t("settings_export_btn")}
-            </button>
-            <SaveState
-              status={exportSave.status}
-              error={exportSave.error}
-              onRetry={handleExport}
-              savingLabel={t("settings_export_progress")}
-              savedLabel={t("settings_export_done")}
+      {/* Dit honnêtement : ces deux réglages ne touchent que les écrans qui
+          n'ont pas encore été reconstruits. Les proposer sans le dire
+          laisserait croire qu'ils agissent partout, et l'utilisateur
+          conclurait qu'ils sont cassés. */}
+      <Panel
+        title="Écrans non encore reconstruits"
+        hint="Le thème et la couleur d'accent ne s'appliquent qu'aux écrans qui n'ont pas encore reçu la nouvelle interface — Scanner, Outils, Premium et les pages d'administration."
+      >
+        <div className="space-y-5">
+          <div>
+            <Text size="caption" className="mb-2">Thème</Text>
+            <SegmentedControl
+              size="sm"
+              options={[
+                { value: "dark", label: "Sombre" },
+                { value: "light", label: "Clair" },
+              ]}
+              value={settings.theme}
+              onChange={(v) => save({ theme: v as Theme })}
+              aria-label="Thème"
             />
           </div>
-        </SettingRow>
 
-        <SettingRow title={t("settings_logout_row")} description={t("settings_logout_desc")}>
-          <button
-            type="button"
-            onClick={handleLogout}
-            disabled={isLoggingOut}
-            className="btn-ghost text-loss text-sm flex items-center gap-2 disabled:opacity-50"
-          >
-            {isLoggingOut
-              ? <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
-              : <LogOut className="w-4 h-4" aria-hidden="true" />}
-            {t("settings_logout_row")}
-          </button>
-        </SettingRow>
-      </div>
-
-      {/* Danger zone */}
-      <section className="space-y-3">
-        <h3 className="text-sm font-semibold font-display text-loss flex items-center gap-2">
-          <AlertTriangle className="w-4 h-4" aria-hidden="true" />
-          {t("settings_danger_zone")}
-        </h3>
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-xl bg-loss/5 border border-loss/25">
-          <div className="min-w-0">
-            <p className="font-medium text-sm">{t("settings_delete_account")}</p>
-            <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{t("settings_delete_account_desc")}</p>
+          <div>
+            <Text size="caption" className="mb-2">Couleur d&apos;accent</Text>
+            <div className="flex flex-wrap gap-2">
+              {(Object.keys(ACCENT_LABEL) as AccentColor[]).map((c) => (
+                <button
+                  key={c}
+                  onClick={() => save({ accentColor: c })}
+                  aria-pressed={settings.accentColor === c}
+                  className="rounded-[10px] px-3.5 py-2 text-[0.85rem] transition-colors"
+                  style={{
+                    color: "var(--cap-ink)",
+                    backgroundColor:
+                      settings.accentColor === c ? "var(--cap-surface-2)" : "transparent",
+                    boxShadow:
+                      settings.accentColor === c
+                        ? "inset 0 0 0 1px var(--cap-ocean)"
+                        : "inset 0 0 0 1px var(--cap-line)",
+                  }}
+                >
+                  {ACCENT_LABEL[c]}
+                </button>
+              ))}
+            </div>
           </div>
-          <button
-            type="button"
-            onClick={() => setShowDelete(true)}
-            className="shrink-0 text-sm font-semibold px-4 py-2 rounded-xl bg-loss/15 text-loss border border-loss/30 hover:bg-loss/25 transition-colors flex items-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-loss/50"
-          >
-            <Trash2 className="w-4 h-4" aria-hidden="true" />
-            {t("settings_delete_account")}
-          </button>
         </div>
-      </section>
-
-      <AnimatePresence>
-        {showPassword && (
-          <ChangePasswordModal
-            onClose={() => setShowPassword(false)}
-            onSuccess={(token) => {
-              setToken(token);          // keep THIS device signed in
-              setShowPassword(false);
-              setPasswordDone(true);
-            }}
-          />
-        )}
-        {showDelete && (
-          <ConfirmDialog
-            destructive
-            title={t("settings_delete_account")}
-            body={t("settings_delete_account_desc")}
-            confirmWord={t("settings_delete_confirm_word")}
-            confirmPrompt={t("settings_delete_confirm_prompt")}
-            requirePassword
-            passwordPrompt={t("settings_delete_confirm_pwd")}
-            submitLabel={t("settings_delete_submit")}
-            onConfirm={handleDelete}
-            onClose={() => setShowDelete(false)}
-          />
-        )}
-      </AnimatePresence>
-    </div>
+      </Panel>
+    </>
   );
 }
