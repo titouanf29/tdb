@@ -18,6 +18,8 @@ from ..database import execute_query, execute_write
 from ._prices import fetch_ohlcv, fetch_prices, prewarm_ohlcv
 from ._indicators import rsi_wilder, atr_wilder, adx_wilder, true_range, data_confidence
 from ._universe import EXTRA_CRYPTO, extend_market
+from ._market_context import (benchmark_for, compute_market_context,
+                              apply_context_gate)
 from ._scoring import (compute_score, derive_trend, derive_signal, TIMEFRAME_FETCH,
                        HIGHER_TF, htf_trend, apply_htf_gate, resample_ohlcv,
                        htf_from_primary, ENGINE_VERSION)
@@ -682,6 +684,25 @@ async def analyze_asset(
             except Exception:
                 pass
 
+        # ── Market context ────────────────────────────────────────────────
+        # The one thing the asset's own candles cannot say: is its market
+        # rising, and is the asset leading or lagging it? Same function as the
+        # scanner, so the two cannot reach different conclusions.
+        market_context = None
+        _bench = benchmark_for(symbol)
+        if _bench:
+            try:
+                _b_hist = await fetch_ohlcv(_bench, period=_period, interval=actual_interval)
+                if _resample and _b_hist is not None and not _b_hist.empty:
+                    _b_hist = resample_ohlcv(_b_hist, _resample)
+                if _b_hist is not None and not _b_hist.empty:
+                    market_context = compute_market_context(close, _b_hist["Close"], _bench)
+                    final_score, _c_bull, _c_bear = apply_context_gate(final_score, market_context)
+                    if _c_bull: bullish_signals.append(_c_bull)
+                    if _c_bear: bearish_signals.append(_c_bear)
+            except Exception as exc:
+                logger.warning("market context failed for %s: %s", symbol, exc)
+
         # Determine trend (based on EMA alignment) — shared with the scanner
         trend = derive_trend(current_price, float(ema20.iloc[-1]), float(ema50.iloc[-1]))
 
@@ -1053,6 +1074,8 @@ async def analyze_asset(
                 "basis": S.get("vol_basis"),
             },
             "factor_directions": S.get("factor_directions"),
+            # Regime of the asset's own market, and whether it leads or lags it.
+            "market_context": market_context,
             # A direction is not a trade. Blockers are listed explicitly so the
             # refusal is auditable rather than a silent downgrade.
             "tradeability": _tradeability(
@@ -1643,6 +1666,20 @@ async def scan_market(
                 except Exception:
                     pass
 
+            # Same market context the analysis applies, from the shared bars.
+            _bench = benchmark_for(symbol)
+            _ctx = None
+            if _bench and _bench in bench_bars:
+                try:
+                    _bb = bench_bars[_bench]
+                    if _bb is not None and not _bb.empty:
+                        _ctx = compute_market_context(close, _bb["Close"], _bench)
+                        final_score, _cb, _cr = apply_context_gate(final_score, _ctx)
+                        if _cb: ups.append(_cb)
+                        if _cr: downs.append(_cr)
+                except Exception:
+                    pass
+
             score = int(round(final_score))
             ema20_last = float(S["ema20"].iloc[-1])
             ema50_last = float(S["ema50"].iloc[-1])
@@ -1723,6 +1760,8 @@ async def scan_market(
                 "macd_signal":   "HAUSSIER" if macd_above else "BAISSIER",
                 "near_breakout": near_breakout,
                 "pct_from_high": round(pct_from_high, 1),
+                "market_regime": (_ctx or {}).get("regime"),
+                "relative_strength": (_ctx or {}).get("relative_strength"),
             }
         except Exception:
             return None
@@ -1752,6 +1791,18 @@ async def scan_market(
         prewarmed = await prewarm_ohlcv(assets, period=fetch_period, interval=fetch_interval)
     except Exception as exc:
         logger.warning("prewarm failed, falling back to per-symbol: %s", exc)
+
+    # Benchmarks for the whole universe are a handful of indices: fetched once
+    # and reused for every asset, so market context costs one extra request.
+    bench_bars: dict = {}
+    try:
+        _benches = sorted({b for s in assets if (b := benchmark_for(s))})
+        if _benches:
+            bench_bars = await prewarm_ohlcv(_benches, period=fetch_period, interval=fetch_interval)
+            if fetch_resample:
+                bench_bars = {k: resample_ohlcv(v, fetch_resample) for k, v in bench_bars.items()}
+    except Exception as exc:
+        logger.warning("benchmark prewarm failed: %s", exc)
 
     gate = asyncio.Semaphore(_SCAN_CONCURRENCY)
 

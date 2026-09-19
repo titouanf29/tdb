@@ -723,6 +723,16 @@ export interface Analysis {
   };
   /** Trust in the direction — distinct from confidence in the data. */
   signal_quality?: { score: number; notes: string[] };
+  /** Regime of the asset's own market, and whether it leads or lags it. */
+  market_context?: {
+    benchmark: string;
+    regime: "BULL" | "BEAR" | "NEUTRAL" | "UNKNOWN";
+    bench_change_20: number | null;
+    asset_change_20: number | null;
+    relative_strength: number | null;
+    correlation: number | null;
+    outperforming: boolean | null;
+  } | null;
   volatility_context?: {
     /** Where today's volatility sits in THIS asset's own history, 0-100. */
     percentile: number | null;
@@ -854,6 +864,8 @@ export interface ScanResultItem {
   macd_signal: "HAUSSIER" | "BAISSIER";
   near_breakout: boolean;
   pct_from_high: number;
+  market_regime?: string | null;
+  relative_strength?: number | null;
 }
 
 export interface ScanQuota {

@@ -1222,7 +1222,44 @@ export default function AnalysisPage() {
                       )}
                     </div>
                   )}
-                  {analysis.signal_quality && (
+                  {analysis.market_context && (
+                    <div>
+                      <div className="flex items-baseline justify-between gap-3">
+                        <span className="text-xs text-muted-foreground">
+                          {lang === "en" ? "Its market" : "Son marché"}
+                          <span className="ml-1 font-mono text-[10px] opacity-60">
+                            {analysis.market_context.benchmark}
+                          </span>
+                        </span>
+                        <span className={cn("font-mono text-sm font-bold",
+                          analysis.market_context.regime === "BULL" ? "text-profit"
+                            : analysis.market_context.regime === "BEAR" ? "text-loss" : "text-muted-foreground")}>
+                          {analysis.market_context.regime === "BULL" ? (lang === "en" ? "RISING" : "HAUSSIER")
+                            : analysis.market_context.regime === "BEAR" ? (lang === "en" ? "FALLING" : "BAISSIER")
+                            : (lang === "en" ? "FLAT" : "NEUTRE")}
+                        </span>
+                      </div>
+                      {/* The one fact the asset's own candles cannot give:
+                          +2% while the index does +5% is weakness. */}
+                      {analysis.market_context.relative_strength != null && (
+                        <p className="mt-0.5 font-mono text-[11px] text-muted-foreground/80">
+                          {lang === "en" ? "asset " : "actif "}
+                          {analysis.market_context.asset_change_20?.toFixed(1)}%
+                          {lang === "en" ? " vs market " : " vs marché "}
+                          {analysis.market_context.bench_change_20?.toFixed(1)}%
+                          {" → "}
+                          <span className={cn("font-bold",
+                            analysis.market_context.relative_strength >= 0 ? "text-profit" : "text-loss")}>
+                            {analysis.market_context.relative_strength >= 0 ? "+" : ""}
+                            {analysis.market_context.relative_strength.toFixed(1)} pts
+                          </span>
+                          {analysis.market_context.correlation != null &&
+                            ` · ${lang === "en" ? "corr" : "corr"} ${analysis.market_context.correlation}`}
+                        </p>
+                      )}
+                    </div>
+                  )}
+                                    {analysis.signal_quality && (
                     <div>
                       <div className="flex items-baseline justify-between gap-3">
                         <span className="text-xs text-muted-foreground">

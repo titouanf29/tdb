@@ -951,6 +951,17 @@ export default function ScannerPage() {
                         </div>
                         {/* Why this one ranks here — built server-side from the
                             terms that actually moved its score. */}
+                        {/* Leading or lagging its own market — invisible on
+                            the asset's own candles. */}
+                        {r.relative_strength != null && (
+                          <p className="mt-1 font-mono text-[10px] text-muted-foreground/70">
+                            {r.market_regime === "BULL" ? "▲" : r.market_regime === "BEAR" ? "▼" : "▬"}{" "}
+                            {lang === "en" ? "market" : "marché"}{" "}
+                            <span className={cn(r.relative_strength >= 0 ? "text-profit" : "text-loss")}>
+                              {r.relative_strength >= 0 ? "+" : ""}{r.relative_strength.toFixed(1)} pts
+                            </span>
+                          </p>
+                        )}
                         {r.reason && (
                           <p className="mt-1 text-[11px] leading-snug text-muted-foreground/70">
                             {r.reason}
