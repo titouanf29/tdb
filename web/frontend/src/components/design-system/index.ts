@@ -9,7 +9,7 @@
 export { Atmosphere } from "./Atmosphere";
 export { Button } from "./Button";
 export { Card } from "./Card";
-export { CloudLayer } from "./CloudLayer";
+export { CloudBank, CloudLayer } from "./CloudLayer";
 export { ChartShell } from "./ChartShell";
 export { DataRow, DataList } from "./DataRow";
 export { EmptyState } from "./EmptyState";

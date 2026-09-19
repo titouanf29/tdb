@@ -1,7 +1,7 @@
 "use client";
 
 import {
-  Atmosphere, LiveBackdrop, Button, Container, Course, Heading, Reveal, Section, Text,
+  Atmosphere, CloudBank, LiveBackdrop, Button, Container, Course, Heading, Reveal, Section, Text,
 } from "@/components/design-system";
 
 /**
@@ -15,7 +15,9 @@ export function ClosingSection() {
   return (
     <Section id="arrivee" size="xl" className="relative overflow-hidden">
       <Atmosphere variant="base" />
-      <LiveBackdrop />
+      <LiveBackdrop clouds={false} opacity={0.5} />
+      {/* Closes the arc: the page opened under the weather, it ends above it. */}
+      <CloudBank />
       <Container width="text" className="relative text-center">
         <Reveal>
           <Heading level="display" as="p">

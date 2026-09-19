@@ -51,13 +51,19 @@
   --cap-mist-cool: rgba(21, 94, 117, 0.07);
   --cap-mist-deep: rgba(11, 23, 38, 0.045);
 
-  /* The fog at the top of the page. Two tones, not one: a crown lighter than
-     the ground and an underside cooler than it. A single flat colour reads as
-     a stain — the offset between the two is what makes a mass look like it
-     has a top and a bottom. Both stay within a few percent of the background,
-     so the opening is soft rather than bright. */
-  --cap-cloud-light: #FFFFFF;
-  --cap-cloud-shade: #D7DFE9;
+  /* The cloud at the top of the page. Two tones, not one: a crown lighter
+     than the ground and an underside cooler than it. A single flat colour
+     reads as a stain — the offset between the two is what makes a mass look
+     like it has a top and a bottom.
+
+     The crown is off-white, not #FFFFFF. Pure white is banned from every
+     other surface here precisely because it is what glares, and a cloud that
+     covers half the opening screen is the last place to make an exception.
+     The gap to the shade does the work instead: widening it gives volume
+     without adding light. */
+  --cap-cloud-light: #FBFCFD;
+  --cap-cloud-mid:   #EAEFF5;
+  --cap-cloud-shade: #CFD9E5;
 
   /* ── Ink ───────────────────────────────────────────────────────────────
      One hue at four weights rather than four greys: the page reads as a

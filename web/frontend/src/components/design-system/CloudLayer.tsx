@@ -72,19 +72,28 @@ interface Cloud {
 }
 
 /**
- * Five masses, placed around the edges.
+ * Eight masses, in two ranks.
  *
- * An earlier arrangement used six larger clouds spread evenly, which filled
- * the viewport and left the headline sitting on a busy sky. These frame the
- * centre instead: two along the top, two low on the sides, one beneath. The
- * copy keeps a clear band to sit in and the sky still reads as covered.
+ * The arrangement is what keeps a fuller sky readable. Four large clouds run
+ * along the top and down the sides; four smaller, paler ones sit further back
+ * and fill the gaps between them, so the cover reads as deep rather than as a
+ * row of shapes. Both ranks avoid the horizontal band the headline occupies —
+ * the sky is crowded, the sentence is not.
+ *
+ * `out` staggers the clearing: the back rank goes first, which is what makes
+ * the sky open up rather than simply fade.
  */
 const CLOUDS: Cloud[] = [
-  { x: 14, y: 1,  w: 42, shape: 0, dx: -34, dy: -18, grow: 0.26, o: 1,    out: 0.70 },
-  { x: 84, y: -2, w: 48, shape: 1, dx:  36, dy: -22, grow: 0.30, o: 0.95, out: 0.78, flip: true },
-  { x: 2,  y: 44, w: 36, shape: 3, dx: -42, dy:  10, grow: 0.34, o: 0.7,  out: 0.90, flip: true },
-  { x: 99, y: 48, w: 38, shape: 2, dx:  44, dy:  14, grow: 0.30, o: 0.65, out: 1.0 },
-  { x: 56, y: 72, w: 46, shape: 2, dx:   8, dy:  30, grow: 0.24, o: 0.55, out: 0.84 },
+  // Front rank — large, opaque, framing.
+  { x: 12, y: -4, w: 58, shape: 0, dx: -34, dy: -20, grow: 0.26, o: 1,    out: 0.84 },
+  { x: 86, y: -7, w: 64, shape: 1, dx:  36, dy: -24, grow: 0.30, o: 1,    out: 0.92, flip: true },
+  { x: -2, y: 38, w: 50, shape: 3, dx: -44, dy:  12, grow: 0.34, o: 0.92, out: 1.0,  flip: true },
+  { x: 102,y: 44, w: 52, shape: 2, dx:  46, dy:  16, grow: 0.30, o: 0.88, out: 1.06 },
+  // Back rank — smaller, paler, filling the depth.
+  { x: 44, y: 2,  w: 46, shape: 2, dx:   6, dy: -30, grow: 0.22, o: 0.6,  out: 0.58 },
+  { x: 68, y: 30, w: 38, shape: 3, dx:  22, dy: -14, grow: 0.28, o: 0.5,  out: 0.66, flip: true },
+  { x: 26, y: 34, w: 40, shape: 1, dx: -20, dy: -10, grow: 0.28, o: 0.52, out: 0.62 },
+  { x: 58, y: 74, w: 54, shape: 2, dx:  10, dy:  32, grow: 0.24, o: 0.7,  out: 0.96 },
 ];
 
 export function CloudLayer() {
@@ -92,9 +101,11 @@ export function CloudLayer() {
   const { scrollY } = useScroll();
   const [span, setSpan] = useState(0);
 
-  // The sky clears over 1.3 screens, whatever the screen is.
+  // The sky clears over 1.7 screens, whatever the screen is. Longer than the
+  // 1.3 it started at: with a fuller sky the clearing is worth watching, and
+  // rushing it turns the opening into a flicker.
   useEffect(() => {
-    const measure = () => setSpan(window.innerHeight * 1.3);
+    const measure = () => setSpan(window.innerHeight * 1.7);
     measure();
     window.addEventListener("resize", measure);
     return () => window.removeEventListener("resize", measure);
@@ -112,6 +123,98 @@ export function CloudLayer() {
         <CloudMass key={i} cloud={c} progress={progress} />
       ))}
     </div>
+  );
+}
+
+/**
+ * A bank of cloud tops along the bottom of a section.
+ *
+ * The other half of the arc. The page opens underneath the weather and, by
+ * the closing line, you are looking down at it — the same masses, seen from
+ * above, drifting slowly past. Nothing says so in words; the sky does it.
+ *
+ * Not scroll-driven: this one belongs to its section, so it drifts on its own
+ * clock, slowly enough to read as distance rather than as movement.
+ */
+export function CloudBank({ className }: { className?: string }) {
+  const reduce = useReducedMotion();
+
+  return (
+    <div
+      aria-hidden
+      className={`pointer-events-none absolute inset-x-0 bottom-0 h-[42vh] overflow-hidden ${className ?? ""}`}
+    >
+      <motion.div
+        className="absolute bottom-0 left-0 flex w-[200%] items-end"
+        animate={reduce ? {} : { x: ["0%", "-50%"] }}
+        transition={reduce ? {} : { duration: 240, repeat: Infinity, ease: "linear" }}
+        style={{ willChange: reduce ? undefined : "transform" }}
+      >
+        {/* Two identical runs, so the translation by exactly one run loops
+            with no seam. */}
+        {[0, 1].map((run) => (
+          <div key={run} className="flex w-1/2 shrink-0 items-end">
+            {[0, 2, 1, 3, 2, 0, 1, 3].map((shape, i) => (
+              <BankMass key={i} shape={shape} flip={i % 2 === 1} width={14} lift={i % 3} />
+            ))}
+          </div>
+        ))}
+      </motion.div>
+    </div>
+  );
+}
+
+function BankMass({
+  shape,
+  flip,
+  width,
+  lift,
+}: {
+  shape: number;
+  flip: boolean;
+  width: number;
+  lift: number;
+}) {
+  const id = useId().replace(/:/g, "");
+  const { lobes, base } = SILHOUETTES[shape];
+
+  return (
+    <svg
+      viewBox="0 0 200 100"
+      className="shrink-0"
+      style={{
+        width: `${width}%`,
+        height: "auto",
+        // vh, not %. A percentage margin resolves against the containing
+        // block's WIDTH — on a 2880px-wide row that pushed every mass some
+        // 200px below the fold, leaving a bank nobody could see.
+        marginBottom: `${-3 - lift * 2}vh`,
+        marginLeft: "-2%",
+        opacity: 0.7 + lift * 0.1,
+        overflow: "visible",
+      }}
+    >
+      <defs>
+        <linearGradient id={`${id}-f`} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="var(--cap-cloud-light)" />
+          <stop offset="52%" stopColor="var(--cap-cloud-mid)" />
+          <stop offset="100%" stopColor="var(--cap-cloud-shade)" />
+        </linearGradient>
+        <filter id={`${id}-s`} x="-40%" y="-40%" width="180%" height="180%">
+          <feGaussianBlur stdDeviation="2.2" />
+        </filter>
+      </defs>
+      <g
+        filter={`url(#${id}-s)`}
+        fill={`url(#${id}-f)`}
+        transform={flip ? "translate(200,0) scale(-1,1)" : undefined}
+      >
+        <ellipse cx={base[0]} cy={base[1]} rx={base[2]} ry={base[3]} />
+        {lobes.map(([cx, cy, r], i) => (
+          <circle key={i} cx={cx} cy={cy} r={r} />
+        ))}
+      </g>
+    </svg>
   );
 }
 
@@ -158,7 +261,10 @@ function CloudMass({
             mass a top and a bottom. */}
         <linearGradient id={`${id}-fill`} x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%"  stopColor="var(--cap-cloud-light)" />
-          <stop offset="58%" stopColor="var(--cap-cloud-light)" />
+          <stop offset="46%" stopColor="var(--cap-cloud-light)" />
+          {/* A middle stop, so the turn from crown to underside is a curve
+              rather than a crease. Two stops made the shading look folded. */}
+          <stop offset="74%" stopColor="var(--cap-cloud-mid)" />
           <stop offset="100%" stopColor="var(--cap-cloud-shade)" />
         </linearGradient>
         {/* Drawn hard, then softened. Blurring a silhouette keeps the shape;

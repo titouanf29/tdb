@@ -30,16 +30,17 @@ export function Hero() {
 
   return (
     <Section id="depart" size="xl" className="relative overflow-hidden pt-32 sm:pt-40">
-      {/* Two layers of weather, and nothing else decorative: a wash of light
-          from above, then contour lines masked so they fade out before they
-          reach the headline — a motif behind large type stops being texture
-          and becomes noise. */}
+      {/* Three layers, deliberately unequal. The sky is now the loud one, so
+          everything that shares the screen with it steps back: the contour
+          lines drop from six to four at half strength, and the market line
+          runs at 55%. Adding presence in one place means removing it in the
+          others, or the opening just gets busy. */}
       <Atmosphere variant="top" />
-      <LiveBackdrop clouds={false} />
+      <LiveBackdrop clouds={false} opacity={0.55} />
       <Contours
         className="absolute inset-x-0 top-0 h-[420px] w-full"
-        lines={6}
-        opacity={0.8}
+        lines={4}
+        opacity={0.45}
       />
 
       <Container width="wide" className="relative">
