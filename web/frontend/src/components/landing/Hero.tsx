@@ -2,7 +2,7 @@
 
 import { motion, useReducedMotion } from "framer-motion";
 import {
-  Atmosphere, Button, Container, Contours, Heading, Num, ScoreDial, Section, Text, Waypoint,
+  Atmosphere, LiveBackdrop, Button, Container, Contours, Heading, Num, ScoreDial, Section, Text, Waypoint,
   DUR, EASE,
 } from "@/components/design-system";
 import { AnalysisVisual } from "./AnalysisVisual";
@@ -35,6 +35,7 @@ export function Hero() {
           reach the headline — a motif behind large type stops being texture
           and becomes noise. */}
       <Atmosphere variant="top" />
+      <LiveBackdrop />
       <Contours
         className="absolute inset-x-0 top-0 h-[420px] w-full"
         lines={6}

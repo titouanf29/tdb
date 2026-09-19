@@ -3,7 +3,7 @@
 import { useRef } from "react";
 import { motion, useInView, useReducedMotion } from "framer-motion";
 import {
-  Atmosphere, Container, Eyebrow, Heading, Num, Reveal, Section, Text, DUR, EASE,
+  Atmosphere, LiveBackdrop, Container, Eyebrow, Heading, Num, Reveal, Section, Text, DUR, EASE,
 } from "@/components/design-system";
 
 /**
@@ -31,6 +31,7 @@ export function PaperTradingSection() {
   return (
     <Section id="paper-trading" tone="inverse" className="relative overflow-hidden">
       <Atmosphere variant="top" />
+      <LiveBackdrop />
       <Container width="wide">
         <div className="grid gap-14 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:gap-24">
           <div className="lg:sticky lg:top-32 lg:self-start">

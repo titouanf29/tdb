@@ -12,6 +12,7 @@ export { Card } from "./Card";
 export { ChartShell } from "./ChartShell";
 export { DataRow, DataList } from "./DataRow";
 export { EmptyState } from "./EmptyState";
+export { LiveBackdrop } from "./LiveBackdrop";
 export { CountUp, Metric } from "./Metric";
 export { Contours, Course, Rule, Waypoint } from "./Motif";
 export { Drawer, Modal } from "./Overlay";

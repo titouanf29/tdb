@@ -1,7 +1,7 @@
 "use client";
 
 import {
-  Atmosphere, Button, Container, Course, Heading, Reveal, Section, Text,
+  Atmosphere, LiveBackdrop, Button, Container, Course, Heading, Reveal, Section, Text,
 } from "@/components/design-system";
 
 /**
@@ -15,6 +15,7 @@ export function ClosingSection() {
   return (
     <Section id="arrivee" size="xl" className="relative overflow-hidden">
       <Atmosphere variant="base" />
+      <LiveBackdrop />
       <Container width="text" className="relative text-center">
         <Reveal>
           <Heading level="display" as="p">
