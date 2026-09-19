@@ -229,7 +229,6 @@ def compute_score(high, low, close, volume, current_price=None):
     if momentum_10d > 5:   bullish_signals.append(f"Momentum 10j fort (+{momentum_10d:.1f}%)")
     elif momentum_10d < -5: bearish_signals.append(f"Momentum 10j faible ({momentum_10d:.1f}%)")
 
-    total_conviction_signals = len(bullish_signals) + len(bearish_signals)
     # NOTE: conviction_score is computed further down, from factor agreement
     # rather than from this signal tally. Counting the ~32 signals above as
     # independent evidence overstates agreement badly: "Prix > EMA20",

@@ -22,7 +22,9 @@ from slowapi.util import get_remote_address
 from ..database import execute_query, execute_write
 from .auth import get_current_user
 from .ai_assistant import get_groq_api_key, _call_mistral, GROQ_API_URL, MODEL
-from ._scoring import compute_score
+from ._scoring import (compute_score, derive_signal, TIMEFRAME_FETCH,
+                       resample_ohlcv, htf_from_primary, htf_trend, apply_htf_gate)
+from ._market_context import benchmark_for, compute_market_context, apply_context_gate
 from ._prices import fetch_ohlcv
 
 router = APIRouter()
@@ -129,30 +131,47 @@ def clarifying_question(combined: str) -> dict | None:
     return None
 
 
-def _signal_label(score: int) -> str:
-    if score >= 75: return "STRONG BUY"
-    if score >= 60: return "BUY"
-    if score >= 40: return "HOLD"
-    if score >= 25: return "SELL"
-    return "STRONG SELL"
-
-
 async def pick_assets(intent: str, max_assets: int = 2) -> list[dict]:
     """Score the curated candidates with the production engine, keep the best."""
     market = detect_market(intent)
     scored: list[dict] = []
+    # This widget links straight to the analysis page, so it must reach the
+    # SAME verdict. It used to call compute_score() raw on a hardcoded 6-month
+    # daily history, skipping the higher-timeframe gate (+/-8) and the market
+    # context gate (+/-6), and carrying its own copy of the signal thresholds:
+    # up to 14 points of drift between "BTC 72 BUY" on the dashboard and what
+    # the analysis then showed. Full pipeline now, shared helpers only.
+    tf = "1d"
+    period, interval, resample = TIMEFRAME_FETCH.get(tf, ("2y", "1d", None))
     for sym, name in ASSET_CANDIDATES.get(market, [])[:5]:
         try:
-            hist = await fetch_ohlcv(sym, period="6mo", interval="1d")
+            hist = await fetch_ohlcv(sym, period=period, interval=interval)
+            if resample and hist is not None and not hist.empty:
+                hist = resample_ohlcv(hist, resample)
             if hist is None or hist.empty or len(hist) < 60:
                 continue
             s = compute_score(hist["High"], hist["Low"], hist["Close"], hist["Volume"])
-            score = int(s["final_score"])
+            final = s["final_score"]
+
+            htf = htf_from_primary(hist, tf)
+            if htf:
+                final, _, _, _ = apply_htf_gate(final, htf_trend(htf[1]), htf[0])
+
+            bench = benchmark_for(sym)
+            if bench:
+                b_hist = await fetch_ohlcv(bench, period=period, interval=interval)
+                if resample and b_hist is not None and not b_hist.empty:
+                    b_hist = resample_ohlcv(b_hist, resample)
+                if b_hist is not None and not b_hist.empty:
+                    ctx = compute_market_context(hist["Close"], b_hist["Close"], bench)
+                    final, _, _ = apply_context_gate(final, ctx)
+
+            score = int(round(final))
             scored.append({
                 "symbol": sym,
                 "name": name,
                 "score": score,
-                "signal": _signal_label(score),
+                "signal": derive_signal(final),
                 "href": f"/analysis?symbol={sym}",
             })
         except Exception:
