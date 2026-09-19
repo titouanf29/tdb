@@ -20,6 +20,8 @@ import {
   ScoreDial, SegmentedControl, Text, WeatherBackdrop, useAnimationsEnabled,
 } from "@/components/design-system";
 import { PriceChart, type Level } from "@/components/analysis/PriceChart";
+import { TradingViewChart } from "@/components/analysis/TradingViewChart";
+import { hasTradingView } from "@/lib/tradingViewSymbol";
 import { FactorBars, LevelScale } from "@/components/analysis/Gauges";
 
 /**
@@ -97,6 +99,16 @@ function AnalysisScreen() {
   useEffect(() => {
     if (!depthTouched) setDepth(levelDepth);
   }, [levelDepth, depthTouched]);
+
+  // Le graphique interne reste le défaut : il suit la direction artistique,
+  // trace les niveaux que le moteur a calculés, fonctionne pour tout symbole
+  // et n'appelle aucun service tiers. TradingView s'obtient en un clic, pour
+  // qui veut ses outils de dessin et ses indicateurs.
+  const [chartMode, setChartMode] = useState<"simple" | "tv">("simple");
+  const tvAvailable = hasTradingView(symbol);
+  useEffect(() => {
+    if (!tvAvailable) setChartMode("simple");
+  }, [tvAvailable]);
 
   const [analysis, setAnalysis] = useState<Analysis | null>(null);
   const [chart, setChart] = useState<ChartData | null>(null);
@@ -262,15 +274,47 @@ function AnalysisScreen() {
               />
             </div>
 
-            {chart && chart.data?.length > 1 && (
+            {(chart?.data?.length ?? 0) > 1 && (
               <Panel
                 title="Le prix"
-                hint={`${chart.data.length} points · ${chart.interval}`}
+                hint={
+                  chartMode === "tv"
+                    ? "Graphique TradingView — outils de dessin et indicateurs complets."
+                    : `${chart!.data.length} points · ${chart!.interval} · les niveaux calculés sont tracés dessus`
+                }
+                aside={
+                  // La bascule n'apparaît que si l'actif est traduisible. Un
+                  // onglet qui mène à « Invalid symbol » est pire que pas
+                  // d'onglet du tout.
+                  tvAvailable ? (
+                    <SegmentedControl
+                      size="sm"
+                      options={[
+                        { value: "simple", label: "Simple" },
+                        { value: "tv", label: "TradingView" },
+                      ]}
+                      value={chartMode}
+                      onChange={setChartMode}
+                      aria-label="Type de graphique"
+                    />
+                  ) : undefined
+                }
               >
-                <PriceChart
-                  closes={chart.data.map((c) => c.close)}
-                  levels={chartLevels(analysis, depth)}
-                />
+                {chartMode === "tv" && tvAvailable ? (
+                  <>
+                    <TradingViewChart symbol={symbol} interval={tvInterval(timeframe)} />
+                    <Text size="caption" className="mt-3">
+                      Graphique fourni par TradingView. Il se charge depuis leurs
+                      serveurs : le symbole consulté leur est donc transmis.
+                      Le graphique simple, lui, ne sort pas du site.
+                    </Text>
+                  </>
+                ) : (
+                  <PriceChart
+                    closes={chart!.data.map((c) => c.close)}
+                    levels={chartLevels(analysis, depth)}
+                  />
+                )}
               </Panel>
             )}
 
@@ -775,6 +819,16 @@ function Row({
       <dd><Num tone={tone} className="text-[0.88rem]">{value}</Num></dd>
     </div>
   );
+}
+
+/** Unité de temps du site -> unité TradingView. */
+function tvInterval(timeframe: string): string {
+  const map: Record<string, string> = {
+    "5m": "5", "15m": "15", "30m": "30",
+    "1h": "60", "4h": "240",
+    "1d": "D", "1wk": "W", "1mo": "M",
+  };
+  return map[timeframe] ?? "D";
 }
 
 function chartLevels(a: Analysis, depth: Depth): Level[] {

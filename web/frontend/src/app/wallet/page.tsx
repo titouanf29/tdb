@@ -270,18 +270,55 @@ export default function WalletPage() {
                     </div>
 
                     <div className="flex items-center gap-5">
+                      {/* Trois états, pas deux. Une position qui n'a pas bougé
+                          et une position dont on n'a pas le cours affichaient
+                          exactement la même chose — « 0,00 € · 0,0 % » — et
+                          l'utilisateur ne pouvait pas savoir laquelle il
+                          regardait. Le troisième état le dit. */}
                       <div className="text-right">
-                        {p.current_price != null && (
-                          <Num className="block text-[0.92rem]">{money(p.current_price)}</Num>
-                        )}
-                        {p.unrealized_pnl != null && (
-                          <Num
-                            tone={p.unrealized_pnl >= 0 ? "up" : "down"}
-                            className="mt-0.5 block text-[0.82rem]"
-                          >
-                            {p.unrealized_pnl >= 0 ? "+" : ""}{money(p.unrealized_pnl)}
-                            {p.amount ? ` · ${((p.unrealized_pnl / p.amount) * 100).toFixed(1)} %` : ""}
-                          </Num>
+                        {p.price_available === false ? (
+                          <>
+                            <Text size="caption" as="span" className="block">
+                              Cours indisponible
+                            </Text>
+                            <Text size="caption" as="span" className="mt-0.5 block">
+                              entrée {money(p.entry_price)}
+                            </Text>
+                          </>
+                        ) : (
+                          <>
+                            {p.current_price != null && (
+                              <Num className="block text-[0.92rem]">{money(p.current_price)}</Num>
+                            )}
+                            {p.unrealized_pnl != null && (
+                              p.unrealized_pnl === 0 ? (
+                                // Et, quand l'actif a bougé dans la séance, on
+                                // le dit. C'est la réponse à « aucune
+                                // variation » : le marché a bien bougé, mais
+                                // l'entrée s'est faite au cours du moment, donc
+                                // la position part de zéro. Sans cette ligne,
+                                // le zéro ressemble à une panne.
+                                <Text size="caption" as="span" className="mt-0.5 block">
+                                  Inchangé depuis l&apos;entrée
+                                  {p.day_change_percent != null && p.day_change_percent !== 0
+                                    ? ` · séance ${p.day_change_percent > 0 ? "+" : ""}${p.day_change_percent.toLocaleString("fr-FR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} %`
+                                    : ""}
+                                </Text>
+                              ) : (
+                                <Num
+                                  tone={p.unrealized_pnl >= 0 ? "up" : "down"}
+                                  className="mt-0.5 block text-[0.82rem]"
+                                >
+                                  {p.unrealized_pnl >= 0 ? "+" : ""}{money(p.unrealized_pnl)}
+                                  {/* Virgule décimale : toFixed rend « 50.0 »,
+                                      qui n'est pas du français. */}
+                                  {p.pnl_percent != null
+                                    ? ` · ${p.pnl_percent >= 0 ? "+" : ""}${p.pnl_percent.toLocaleString("fr-FR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} %`
+                                    : ""}
+                                </Num>
+                              )
+                            )}
+                          </>
                         )}
                       </div>
 

@@ -33,6 +33,66 @@ class ClosePositionRequest(BaseModel):
     position_id: int
 
 
+async def _price_positions(positions: list) -> list:
+    """Attach live price, P&L and availability to open positions.
+
+    Shared by /balance and /positions on purpose. The two used to compute this
+    separately — and /balance read "current_value" and "unrealized_pnl"
+    straight off the database rows, where no such columns exist. Both sums
+    were therefore always zero, so the headline figures of the Wallet ignored
+    every open position: a user with 700 EUR committed and 100 EUR of profit
+    was told their total was their cash balance alone.
+    """
+    if not positions:
+        return positions
+
+    from ._prices import fetch_prices as fetch_prices_safe
+    symbols = list({pos["symbol"] for pos in positions})
+    prices = await fetch_prices_safe(symbols)
+
+    for pos in positions:
+        p = prices.get(pos["symbol"])
+        quote = p.get("price") if p else None
+        entry_price = pos["entry_price"]
+        quantity = pos["quantity"]
+        direction = pos["direction"]
+        leverage = pos.get("leverage") or 1
+        invested = pos.get("amount") or (entry_price * quantity / leverage if entry_price else 0)
+
+        if not quote or not entry_price:
+            # No quote: say so rather than substituting the entry price, which
+            # reported "0.00" — indistinguishable from a market that had not
+            # moved. The committed amount is still known, so the position
+            # keeps its weight in the totals at cost.
+            pos["price_available"] = False
+            pos["current_price"] = None
+            pos["unrealized_pnl"] = None
+            pos["pnl_percent"] = None
+            pos["current_value"] = round(invested, 4)
+            continue
+
+        move = (quote - entry_price) if direction == "LONG" else (entry_price - quote)
+        pnl = move * quantity
+
+        # The percentage is measured against the sum actually committed, not
+        # the notional. Since the open route folds leverage into the quantity,
+        # entry x quantity IS amount x leverage — dividing by it made a 5x
+        # position report a fifth of its own percentage.
+        pnl_percent = (pnl / invested * 100) if invested else 0.0
+
+        pos["price_available"] = True
+        # Six decimals: rounding to the cent turns a crypto quoted at
+        # 0.00001234 into 0.00.
+        pos["current_price"] = round(quote, 6)
+        pos["unrealized_pnl"] = round(pnl, 4)
+        pos["pnl_percent"] = round(pnl_percent, 2)
+        pos["day_change_percent"] = p.get("change")
+        # What the position is worth now: what was put in, plus what it made.
+        pos["current_value"] = round(invested + pnl, 4)
+
+    return positions
+
+
 @router.get("/balance")
 async def get_wallet_balance(current_user: dict = Depends(get_current_user)):
     """Get user's wallet balance"""
@@ -65,8 +125,9 @@ async def get_wallet_balance(current_user: dict = Depends(get_current_user)):
         (user_id,)
     )
 
-    positions_value = sum(p.get("current_value", 0) or 0 for p in positions)
-    total_pnl = sum(p.get("unrealized_pnl", 0) or 0 for p in positions)
+    await _price_positions(positions)
+    positions_value = sum(p.get("current_value") or 0 for p in positions)
+    total_pnl = sum(p.get("unrealized_pnl") or 0 for p in positions)
 
     return {
         "balance": wallet["balance"],
@@ -90,25 +151,8 @@ async def get_positions(
         (user_id, status)
     )
 
-    # Update current prices for open positions via Polygon.io + Twelve Data
-    if status == "open" and positions:
-        from ._prices import fetch_prices as fetch_prices_safe
-        symbols = list({pos["symbol"] for pos in positions})
-        prices = await fetch_prices_safe(symbols)
-        for pos in positions:
-            p = prices.get(pos["symbol"])
-            current_price = p["price"] if p else pos.get("entry_price", 0)
-            entry_price = pos["entry_price"]
-            quantity = pos["quantity"]
-            direction = pos["direction"]
-            if current_price and entry_price:
-                pnl = (current_price - entry_price) * quantity if direction == "LONG" else (entry_price - current_price) * quantity
-                pnl_percent = (pnl / (entry_price * quantity)) * 100
-            else:
-                pnl, pnl_percent = 0, 0
-            pos["current_price"] = round(current_price, 2)
-            pos["unrealized_pnl"] = round(pnl, 2)
-            pos["pnl_percent"] = round(pnl_percent, 2)
+    if status == "open":
+        await _price_positions(positions)
 
     return {"positions": positions}
 

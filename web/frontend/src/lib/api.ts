@@ -594,9 +594,15 @@ export interface Position {
   take_profit?: number;
   stop_loss?: number;
   status: "open" | "closed";
-  current_price?: number;
-  unrealized_pnl?: number;
-  pnl_percent?: number;
+  /** null quand le cours n'a pas pu être récupéré — pas quand il est stable. */
+  current_price?: number | null;
+  unrealized_pnl?: number | null;
+  pnl_percent?: number | null;
+  /** False = aucun cours disponible. Sans ce drapeau, « pas de variation » et
+   *  « pas de données » s'affichaient de façon identique. */
+  price_available?: boolean;
+  /** Variation de la séance pour cet actif, telle que la renvoie le marché. */
+  day_change_percent?: number | null;
   exit_price?: number;
   realized_pnl?: number;
   created_at: string;
