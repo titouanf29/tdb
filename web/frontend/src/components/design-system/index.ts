@@ -25,7 +25,7 @@ export { PathMarker } from "./PathMarker";
 export { Panel } from "./Panel";
 export { Progress } from "./Progress";
 export {
-  WEATHER_LABEL, WeatherBackdrop, conditionFromChange, useWeatherEnabled,
+  WEATHER_LABEL, WeatherBackdrop, conditionFromChange, useAnimationsEnabled,
   type WeatherCondition,
 } from "./Weather";
 export { ScoreDial } from "./ScoreDial";

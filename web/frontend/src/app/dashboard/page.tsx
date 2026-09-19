@@ -14,7 +14,7 @@ import {
 import {
   Button, CloudCurtain, DataList, DataRow, EmptyState, Heading, Num, Panel,
   Reveal, Text, Waypoint, WeatherBackdrop, WEATHER_LABEL,
-  conditionFromChange, useWeatherEnabled,
+  conditionFromChange, useAnimationsEnabled,
 } from "@/components/design-system";
 import { FirstSteps } from "@/components/app/FirstSteps";
 
@@ -36,7 +36,7 @@ export default function DashboardPage() {
   const { user } = useAuth();
   const { settings, eurUsd } = useSettings();
   const style = useTradingStyle();
-  const [weatherOn, setWeatherOn] = useWeatherEnabled();
+  const [animOn, setAnimOn] = useAnimationsEnabled();
 
   const [balance, setBalance] = useState<WalletBalance | null>(null);
   const [stats, setStats] = useState<TradingStats | null>(null);
@@ -116,7 +116,7 @@ export default function DashboardPage() {
 
   return (
     <>
-      <WeatherBackdrop condition={condition} enabled={weatherOn} />
+      <WeatherBackdrop condition={condition} enabled={animOn} />
 
       <div className="relative space-y-8">
         {/* ── 1. Where you are ─────────────────────────────────────────── */}
@@ -139,8 +139,8 @@ export default function DashboardPage() {
             </div>
 
             <WeatherToggle
-              on={weatherOn}
-              onChange={setWeatherOn}
+              on={animOn}
+              onChange={setAnimOn}
               label={WEATHER_LABEL[condition]}
               hasData={avgChange != null}
             />
@@ -313,12 +313,12 @@ function Figure({
 }
 
 /**
- * The sky's own control.
+ * The ambient-animation switch.
  *
- * It states what the weather means before offering to switch it off, because
- * a background nobody can interpret is just movement — and someone who finds
- * it distracting should be able to stop it in one click, from the screen they
- * are on, not from a settings page three navigations away.
+ * It names the weather before offering to stop it, because a background
+ * nobody can interpret is just movement. And it lives on the screen rather
+ * than in a settings page three navigations away: someone who finds it
+ * distracting should be able to end it the moment they notice.
  */
 function WeatherToggle({
   on,
@@ -332,19 +332,30 @@ function WeatherToggle({
   hasData: boolean;
 }) {
   return (
-    <button
-      onClick={() => onChange(!on)}
-      title={
-        hasData
-          ? "Le ciel reflète la tendance moyenne de vos actifs suivis."
-          : "Suivez des actifs pour que le ciel reflète leur tendance."
-      }
-      className="flex items-center gap-2 rounded-[10px] px-3 py-2 text-[0.82rem] transition-colors hover:bg-[color:var(--cap-surface-2)]"
-      style={{ color: "var(--cap-ink-2)", boxShadow: "inset 0 0 0 1px var(--cap-line)" }}
-    >
-      {on ? <Sun className="h-3.5 w-3.5" /> : <CloudOff className="h-3.5 w-3.5" />}
-      {on ? label : "Météo désactivée"}
-    </button>
+    <div className="flex items-center gap-2">
+      {on && (
+        <span
+          className="flex items-center gap-1.5 text-[0.82rem]"
+          style={{ color: "var(--cap-ink-2)" }}
+          title={
+            hasData
+              ? "Le ciel reflète la tendance moyenne de vos actifs suivis."
+              : "Suivez des actifs pour que le ciel reflète leur tendance."
+          }
+        >
+          <Sun className="h-3.5 w-3.5" />
+          {label}
+        </span>
+      )}
+      <button
+        onClick={() => onChange(!on)}
+        className="flex items-center gap-2 rounded-[10px] px-3 py-2 text-[0.82rem] transition-colors hover:bg-[color:var(--cap-surface-2)]"
+        style={{ color: "var(--cap-ink-2)", boxShadow: "inset 0 0 0 1px var(--cap-line)" }}
+      >
+        {on ? <CloudOff className="h-3.5 w-3.5" /> : <Sun className="h-3.5 w-3.5" />}
+        {on ? "Couper les animations" : "Réactiver les animations"}
+      </button>
+    </div>
   );
 }
 

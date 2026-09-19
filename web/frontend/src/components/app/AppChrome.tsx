@@ -8,7 +8,7 @@ import { ChevronDown, LogOut, Search, Settings, Shield } from "lucide-react";
 import { useAuth } from "@/lib/AuthContext";
 import { usePremium } from "@/lib/PremiumContext";
 import {
-  CaptenLogo, CloudCurtain, DUR, EASE, useRouteCurtain,
+  CaptenLogo, CloudCurtain, DUR, EASE, useAnimationsEnabled, useRouteCurtain,
 } from "@/components/design-system";
 import { AREAS, MOBILE_TABS, areaForPath, type NavArea } from "./nav";
 import { cn } from "@/lib/utils";
@@ -34,10 +34,11 @@ export function AppChrome({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const area = areaForPath(pathname);
   const curtain = useRouteCurtain(pathname ?? "");
+  const [anim] = useAnimationsEnabled();
 
   return (
     <div className="cap relative min-h-screen">
-      <CloudCurtain active={curtain} />
+      <CloudCurtain active={curtain && anim} />
       <TopBar area={area} />
       <main className="mx-auto w-full max-w-[82rem] px-5 pb-28 pt-6 sm:px-8 lg:pb-16">
         {children}

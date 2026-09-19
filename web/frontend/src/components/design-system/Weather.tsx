@@ -45,10 +45,17 @@ export function conditionFromChange(avgChangePct: number | null): WeatherConditi
   return "rain";
 }
 
-const STORAGE_KEY = "tdb_weather";
+const STORAGE_KEY = "tdb_animations";
 
-/** On/off, remembered per browser. Defaults to on. */
-export function useWeatherEnabled(): [boolean, (v: boolean) => void] {
+/**
+ * The ambient-animation switch, remembered per browser. Defaults to on.
+ *
+ * It governs everything that moves on its own — the weather, the cloud
+ * curtain between screens, the entrance reveals. Naming a control "couper les
+ * animations" and having it stop only the sky would be a lie told by a
+ * button, so the flag is shared and every ambient animation reads it.
+ */
+export function useAnimationsEnabled(): [boolean, (v: boolean) => void] {
   const [on, setOn] = useState(true);
 
   useEffect(() => {
@@ -145,8 +152,8 @@ function Rain() {
   return (
     <>
       {[
-        { dur: 0.75, o: 0.1, size: "3px 22px" },
-        { dur: 1.15, o: 0.07, size: "4px 30px" },
+        { dur: 0.75, o: 0.2, size: "3px 22px" },
+        { dur: 1.15, o: 0.14, size: "4px 30px" },
       ].map((l, i) => (
         <motion.div
           key={i}
@@ -185,7 +192,7 @@ function Wind() {
             width: `${s.w}vw`,
             background:
               "linear-gradient(90deg, transparent, var(--cap-ink-4), transparent)",
-            opacity: 0.35,
+            opacity: 0.6,
           }}
           initial={{ x: "-40vw" }}
           animate={{ x: "120vw" }}
@@ -205,41 +212,46 @@ const PRESETS: Record<
   clear: {
     sun: 1, speed: 1,
     clouds: [
-      { shape: 3, top: "6%", w: 26, o: 0.5 },
-      { shape: 0, top: "58%", w: 20, o: 0.36, flip: true },
+      { shape: 3, top: "2%",  w: 40, o: 0.85 },
+      { shape: 0, top: "46%", w: 32, o: 0.7, flip: true },
+      { shape: 2, top: "74%", w: 28, o: 0.6 },
     ],
   },
   fair: {
     sun: 0.6, speed: 1,
     clouds: [
-      { shape: 0, top: "3%", w: 34, o: 0.6 },
-      { shape: 2, top: "40%", w: 26, o: 0.42, flip: true },
-      { shape: 3, top: "68%", w: 22, o: 0.34 },
+      { shape: 0, top: "-2%", w: 48, o: 0.95 },
+      { shape: 2, top: "30%", w: 38, o: 0.8, flip: true },
+      { shape: 3, top: "58%", w: 32, o: 0.68 },
+      { shape: 1, top: "80%", w: 28, o: 0.58, flip: true },
     ],
   },
   cloudy: {
     sun: 0, speed: 1.25,
     clouds: [
-      { shape: 1, top: "-4%", w: 44, o: 0.72 },
-      { shape: 2, top: "26%", w: 38, o: 0.55, flip: true },
-      { shape: 0, top: "54%", w: 34, o: 0.48 },
-      { shape: 3, top: "76%", w: 28, o: 0.4, flip: true },
+      { shape: 1, top: "-8%", w: 58, o: 1 },
+      { shape: 2, top: "14%", w: 50, o: 0.9, flip: true },
+      { shape: 0, top: "40%", w: 44, o: 0.8 },
+      { shape: 3, top: "62%", w: 38, o: 0.7, flip: true },
+      { shape: 2, top: "82%", w: 34, o: 0.6 },
     ],
   },
   windy: {
     sun: 0, speed: 0.45,
     clouds: [
-      { shape: 2, top: "-2%", w: 46, o: 0.7 },
-      { shape: 1, top: "30%", w: 40, o: 0.56, flip: true },
-      { shape: 2, top: "62%", w: 36, o: 0.46 },
+      { shape: 2, top: "-6%", w: 60, o: 1 },
+      { shape: 1, top: "20%", w: 52, o: 0.88, flip: true },
+      { shape: 2, top: "48%", w: 46, o: 0.76 },
+      { shape: 0, top: "74%", w: 38, o: 0.64, flip: true },
     ],
   },
   rain: {
     sun: 0, speed: 0.7,
     clouds: [
-      { shape: 1, top: "-8%", w: 52, o: 0.85 },
-      { shape: 2, top: "12%", w: 46, o: 0.7, flip: true },
-      { shape: 0, top: "34%", w: 40, o: 0.5 },
+      { shape: 1, top: "-12%", w: 66, o: 1 },
+      { shape: 2, top: "6%",   w: 58, o: 0.92, flip: true },
+      { shape: 0, top: "28%",  w: 50, o: 0.8 },
+      { shape: 3, top: "52%",  w: 42, o: 0.66, flip: true },
     ],
   },
 };
@@ -265,7 +277,7 @@ export function WeatherBackdrop({
     <div
       aria-hidden
       className="pointer-events-none fixed inset-0 z-0 overflow-hidden"
-      style={{ opacity: 0.55 }}
+      style={{ opacity: 0.95 }}
     >
       {preset.sun > 0 && <Sun strength={preset.sun} />}
       {preset.clouds.map((c, i) => (

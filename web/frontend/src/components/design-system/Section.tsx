@@ -3,6 +3,7 @@
 import { motion, useReducedMotion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { reveal, stagger, transition, VIEWPORT, DUR } from "./motion";
+import { useAnimationsEnabled } from "./Weather";
 
 /* ── Container ──────────────────────────────────────────────────────────── */
 
@@ -95,9 +96,12 @@ export function Reveal({
   as?: "div" | "li" | "span";
 }) {
   const reduce = useReducedMotion();
+  // The same switch the weather reads. A control named "couper les
+  // animations" has to cut the entrances too, or it is lying.
+  const [anim] = useAnimationsEnabled();
   const Comp = motion[as];
 
-  if (reduce) return <Comp className={className}>{children}</Comp>;
+  if (reduce || !anim) return <Comp className={className}>{children}</Comp>;
 
   return (
     <Comp
