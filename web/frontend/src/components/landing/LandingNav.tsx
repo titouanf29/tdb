@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Menu, X } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Button, Container, DUR, EASE } from "@/components/design-system";
+import { Button, CaptenLogo, Container, DUR, EASE } from "@/components/design-system";
 
 /**
  * The header.
@@ -48,18 +48,7 @@ export function LandingNav() {
       <Container width="wide">
         <div className="flex h-[4.5rem] items-center justify-between gap-6">
           <Link href="/" className="flex items-center gap-2.5" aria-label="CaptenTDB, accueil">
-            {/* The mark: a bearing, drawn once. */}
-            <svg aria-hidden width="22" height="22" viewBox="0 0 22 22">
-              <circle cx="11" cy="11" r="9.25" fill="none" stroke="var(--cap-ocean)" strokeWidth="1.25" opacity="0.4" />
-              <path d="M5.5 14.5 L 11 6 L 16.5 14.5" fill="none" stroke="var(--cap-navy)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-              <circle cx="11" cy="6" r="1.9" fill="var(--cap-amber)" />
-            </svg>
-            <span
-              className="text-[1.05rem] font-semibold tracking-[-0.02em]"
-              style={{ fontFamily: "var(--cap-font-display)", color: "var(--cap-ink)" }}
-            >
-              CaptenTDB
-            </span>
+            <CaptenLogo size={22} />
           </Link>
 
           <nav className="hidden items-center gap-8 md:flex" aria-label="Navigation principale">

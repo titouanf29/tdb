@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Container, Text } from "@/components/design-system";
+import { CaptenLogo, Container, Text } from "@/components/design-system";
 
 /**
  * The footer, and the legal statement that has to be here.
@@ -18,12 +18,7 @@ export function LandingFooter() {
       <Container width="wide">
         <div className="flex flex-col gap-10 sm:flex-row sm:items-start sm:justify-between">
           <div className="max-w-[26rem]">
-            <span
-              className="text-[1rem] font-semibold tracking-[-0.02em]"
-              style={{ fontFamily: "var(--cap-font-display)", color: "var(--cap-ink)" }}
-            >
-              CaptenTDB
-            </span>
+            <CaptenLogo size={21} className="text-[color:var(--cap-ink)]" />
             <Text size="small" className="mt-3">
               Plateforme éducative de paper trading. CaptenTDB n'est pas un
               prestataire de services d'investissement, ne collecte aucun fonds

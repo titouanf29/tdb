@@ -139,22 +139,32 @@ function AuthShell({
     if (maintenance.locked && !isLoginPage) {
       return <MaintenanceScreen {...maintenanceProps} />;
     }
+    // No centring wrapper: the auth screens own their layout, which on a wide
+    // viewport is a two-column composition rather than a card in the middle.
+    // The maintenance notice rides above them as a full-width strip so the
+    // lockdown stays visible whatever the page does underneath.
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center p-4">
+      <>
         {maintenance.locked && isLoginPage && (
-          <div className="mb-5 w-full max-w-md border border-primary/30 bg-primary/[0.06] px-4 py-3">
-            <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-primary">
-              {lang === "en" ? "Maintenance" : "Maintenance"}
-            </p>
-            <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+          <div
+            className="relative z-50 px-5 py-3 text-center"
+            style={{
+              backgroundColor: "var(--cap-navy, #0B1726)",
+              color: "#E8EDF1",
+            }}
+          >
+            <p className="text-[0.82rem] leading-relaxed">
+              <span className="font-semibold">
+                {lang === "en" ? "Maintenance. " : "Maintenance. "}
+              </span>
               {lang === "en"
-                ? "The site is closed to visitors. Only team accounts can sign in right now."
-                : "Le site est fermé aux visiteurs. Seuls les comptes de l'équipe peuvent se connecter pour le moment."}
+                ? "The site is closed to visitors — only team accounts can sign in right now."
+                : "Le site est fermé aux visiteurs — seuls les comptes de l'équipe peuvent se connecter."}
             </p>
           </div>
         )}
         {children}
-      </div>
+      </>
     );
   }
 

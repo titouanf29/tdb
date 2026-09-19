@@ -3,11 +3,11 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Eye, EyeOff, Loader2, ArrowLeft } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { useAuth } from "@/lib/AuthContext";
-import { LanguageToggle } from "@/components/ui/LanguageToggle";
 import { useLanguage } from "@/lib/LanguageContext";
-import { TDBLogo } from "@/components/ui/TDBLogo";
+import { AuthScreen } from "@/components/auth/AuthScreen";
+import { Button, CaptenLogo, Checkbox, Field, FormError, Text, TextInput } from "@/components/design-system";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -15,7 +15,6 @@ export default function LoginPage() {
   const { t } = useLanguage();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -24,7 +23,6 @@ export default function LoginPage() {
     e.preventDefault();
     setError("");
     setIsLoading(true);
-
     try {
       await login(email, password, rememberMe);
       router.push("/dashboard");
@@ -36,133 +34,83 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="w-full max-w-md animate-fade-in">
-      {/* Back to landing + language toggle */}
-      <div className="mb-4 flex items-center justify-between">
-        <Link href="/" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-white transition-colors">
-          <ArrowLeft className="w-4 h-4" />
-          {t("login_back")}
-        </Link>
-        <LanguageToggle variant="compact" />
-      </div>
-
-      <div className="glass-card p-8">
-        {/* Logo */}
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center mb-4">
-            <TDBLogo size={64} />
-          </div>
-          <h1 className="text-2xl font-bold">
-            {t("login_subtitle")} <span className="gradient-text-gold">CaptenTDB</span>
-          </h1>
-        </div>
-
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {error && (
-            <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm animate-fade-in">
-              {error}
-            </div>
-          )}
-
-          <div>
-            <label className="block text-sm font-medium mb-2">{t("login_email")}</label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-colors"
-              placeholder="votre@email.com"
-              required
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium mb-2">
-              {t("login_password")}
-            </label>
-            <div className="relative">
-              <input
-                type={showPassword ? "text" : "password"}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-colors pr-12"
-                placeholder="••••••••"
-                required
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-white transition-colors"
-              >
-                {showPassword ? (
-                  <EyeOff className="w-5 h-5" />
-                ) : (
-                  <Eye className="w-5 h-5" />
-                )}
-              </button>
-            </div>
-          </div>
-
-          {/* Remember me */}
-          <label className="flex items-center gap-3 cursor-pointer group select-none">
-            <div className="relative">
-              <input
-                type="checkbox"
-                checked={rememberMe}
-                onChange={(e) => setRememberMe(e.target.checked)}
-                className="sr-only peer"
-              />
-              <div className="w-5 h-5 rounded-md border border-white/20 bg-white/5 peer-checked:bg-primary peer-checked:border-primary transition-all duration-200 flex items-center justify-center">
-                {rememberMe && (
-                  <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                  </svg>
-                )}
-              </div>
-            </div>
-            <span className="text-sm text-foreground group-hover:text-white transition-colors">
-              {t("login_remember")}
-            </span>
-          </label>
-
-          <button
-            type="submit"
-            disabled={isLoading}
-            className="w-full py-3 px-4 rounded-xl bg-primary hover:bg-primary/90 text-white font-medium transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+    <AuthScreen
+      eyebrow="Connexion"
+      title={<>Reprenez où vous en étiez.</>}
+      lead="Vos positions, votre historique et vos analyses vous attendent, exactement dans l'état où vous les avez laissés."
+      points={[
+        "Portefeuille virtuel et positions ouvertes",
+        "Journal de vos décisions passées",
+        "Analyses et actifs suivis",
+      ]}
+      footer={
+        <Text size="small" className="text-center">
+          Pas encore de compte ?{" "}
+          <Link
+            href="/register"
+            className="font-medium underline underline-offset-2 transition-colors hover:text-[color:var(--cap-ink)]"
+            style={{ color: "var(--cap-ocean)" }}
           >
-            {isLoading ? (
-              <>
-                <Loader2 className="w-5 h-5 animate-spin" />
-                {t("login_loading")}
-              </>
-            ) : (
-              t("login_button")
-            )}
-          </button>
-        </form>
-
-        {/* Register link */}
-        <p className="text-center text-sm text-muted-foreground mt-6">
-          {t("login_no_account")}{" "}
-          <Link href="/register" className="text-primary hover:underline">
-            {t("login_register")}
+            Créer un compte
           </Link>
-        </p>
+        </Text>
+      }
+    >
+      <div className="hidden lg:block">
+        <CaptenLogo size={22} className="text-[color:var(--cap-ink)]" />
       </div>
 
-      {/* Footer */}
-      <div className="text-center text-xs text-muted-foreground mt-4 space-y-1">
-        <p>{t("footer_paper")}</p>
-        <p><span className="text-primary">CaptenTDB</span> {t("footer_by")}</p>
-        <div className="flex gap-3 justify-center pt-1">
-          <a href="/cgu" className="hover:text-primary hover:underline">CGU</a>
-          <span>·</span>
-          <a href="/politique-de-confidentialite" className="hover:text-primary hover:underline">Confidentialité</a>
-          <span>·</span>
-          <a href="/mentions-legales" className="hover:text-primary hover:underline">Mentions légales</a>
-        </div>
-      </div>
-    </div>
+      <h2
+        className="mt-0 text-[1.35rem] font-semibold tracking-[-0.02em] lg:mt-7"
+        style={{ fontFamily: "var(--cap-font-display)", color: "var(--cap-ink)" }}
+      >
+        Se connecter
+      </h2>
+
+      <form onSubmit={handleSubmit} className="mt-7 space-y-5" noValidate>
+        {error && <FormError>{error}</FormError>}
+
+        <Field label="Adresse e-mail" htmlFor="login-email">
+          <TextInput
+            id="login-email"
+            type="email"
+            value={email}
+            onChange={setEmail}
+            placeholder="vous@exemple.com"
+            autoComplete="email"
+            required
+            invalid={!!error}
+          />
+        </Field>
+
+        <Field label="Mot de passe" htmlFor="login-password">
+          <TextInput
+            id="login-password"
+            type="password"
+            value={password}
+            onChange={setPassword}
+            placeholder="••••••••"
+            autoComplete="current-password"
+            required
+            invalid={!!error}
+          />
+        </Field>
+
+        <Checkbox checked={rememberMe} onChange={setRememberMe}>
+          Rester connecté sur cet appareil
+        </Checkbox>
+
+        <Button type="submit" size="lg" disabled={isLoading} className="w-full">
+          {isLoading ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Connexion…
+            </>
+          ) : (
+            "Se connecter"
+          )}
+        </Button>
+      </form>
+    </AuthScreen>
   );
 }
