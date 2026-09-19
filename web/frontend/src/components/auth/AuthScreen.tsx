@@ -39,7 +39,7 @@ export function AuthScreen({
     <div className="cap relative min-h-screen overflow-hidden">
       <Contours className="absolute inset-x-0 top-0 h-[340px] w-full" lines={3} opacity={0.5} />
       <LiveBackdrop clouds={false} opacity={0.4} />
-      <CloudBank className="opacity-80" />
+      <CloudBank />
 
       <div className="relative mx-auto grid min-h-screen w-full max-w-[78rem] grid-cols-1 items-center gap-16 px-6 py-10 sm:px-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,27rem)] lg:gap-24 lg:py-16">
         {/* ── Left: where you are ──────────────────────────────────────── */}

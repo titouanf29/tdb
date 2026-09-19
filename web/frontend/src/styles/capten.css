@@ -39,10 +39,10 @@
         palette every current AI product ships. Cool greys read as mist and as
         a marine chart, which is what this product is about, and they are
         nobody else's signature. */
-  --cap-bg:        #EDF0F4;
+  --cap-bg:        #E9EDF3;
   --cap-surface:   #F7F9FB;
-  --cap-surface-2: #E4E9EF;
-  --cap-surface-3: #D9E0E8;
+  --cap-surface-2: #E0E6EE;
+  --cap-surface-3: #D4DCE6;
   --cap-inverse:   var(--cap-navy);
 
   /* Atmosphere: three washes, each far wider than the viewport so they read
@@ -59,11 +59,14 @@
      The crown is off-white, not #FFFFFF. Pure white is banned from every
      other surface here precisely because it is what glares, and a cloud that
      covers half the opening screen is the last place to make an exception.
-     The gap to the shade does the work instead: widening it gives volume
-     without adding light. */
-  --cap-cloud-light: #FBFCFD;
-  --cap-cloud-mid:   #EAEFF5;
-  --cap-cloud-shade: #CFD9E5;
+
+     So presence comes from the gap between crown and underside, never from
+     raising the crown: pushing the top toward white reads as brighter, not as
+     more solid. The crown barely moves and the shade drops a long way —
+     which is also how a real cloud stays legible on an overcast day. */
+  --cap-cloud-light: #FDFDFE;
+  --cap-cloud-mid:   #E2E9F1;
+  --cap-cloud-shade: #BCC9DA;
 
   /* ── Ink ───────────────────────────────────────────────────────────────
      One hue at four weights rather than four greys: the page reads as a

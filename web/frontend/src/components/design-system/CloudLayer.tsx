@@ -19,7 +19,7 @@ import { motion, useReducedMotion, useScroll, useSpring, useTransform } from "fr
  *
  * Mechanics: one fixed layer behind everything, driven by absolute scroll
  * position. Each mass has its own drift, swell and fade, so they part rather
- * than dimming in unison. All of it is gone by 1.3 viewport heights and costs
+ * than dimming in unison. All of it is gone by 1.7 viewport heights and costs
  * nothing after that.
  *
  * Only transform and opacity animate; the silhouettes themselves never change,
@@ -84,16 +84,17 @@ interface Cloud {
  * the sky open up rather than simply fade.
  */
 const CLOUDS: Cloud[] = [
-  // Front rank — large, opaque, framing.
+  // Front rank — large, fully opaque, framing.
   { x: 12, y: -4, w: 58, shape: 0, dx: -34, dy: -20, grow: 0.26, o: 1,    out: 0.84 },
   { x: 86, y: -7, w: 64, shape: 1, dx:  36, dy: -24, grow: 0.30, o: 1,    out: 0.92, flip: true },
-  { x: -2, y: 38, w: 50, shape: 3, dx: -44, dy:  12, grow: 0.34, o: 0.92, out: 1.0,  flip: true },
-  { x: 102,y: 44, w: 52, shape: 2, dx:  46, dy:  16, grow: 0.30, o: 0.88, out: 1.06 },
-  // Back rank — smaller, paler, filling the depth.
-  { x: 44, y: 2,  w: 46, shape: 2, dx:   6, dy: -30, grow: 0.22, o: 0.6,  out: 0.58 },
-  { x: 68, y: 30, w: 38, shape: 3, dx:  22, dy: -14, grow: 0.28, o: 0.5,  out: 0.66, flip: true },
-  { x: 26, y: 34, w: 40, shape: 1, dx: -20, dy: -10, grow: 0.28, o: 0.52, out: 0.62 },
-  { x: 58, y: 74, w: 54, shape: 2, dx:  10, dy:  32, grow: 0.24, o: 0.7,  out: 0.96 },
+  { x: -2, y: 38, w: 50, shape: 3, dx: -44, dy:  12, grow: 0.34, o: 1,    out: 1.0,  flip: true },
+  { x: 102,y: 44, w: 52, shape: 2, dx:  46, dy:  16, grow: 0.30, o: 1,    out: 1.06 },
+  // Back rank. Still behind, but no longer ghosts: at 0.5 they only tinted
+  // the page, which is what made the whole sky read as washed out.
+  { x: 44, y: 2,  w: 46, shape: 2, dx:   6, dy: -30, grow: 0.22, o: 0.84, out: 0.58 },
+  { x: 68, y: 30, w: 38, shape: 3, dx:  22, dy: -14, grow: 0.28, o: 0.76, out: 0.66, flip: true },
+  { x: 26, y: 34, w: 40, shape: 1, dx: -20, dy: -10, grow: 0.28, o: 0.78, out: 0.62 },
+  { x: 58, y: 74, w: 54, shape: 2, dx:  10, dy:  32, grow: 0.24, o: 0.88, out: 0.96 },
 ];
 
 export function CloudLayer() {
@@ -190,7 +191,7 @@ function BankMass({
         // 200px below the fold, leaving a bank nobody could see.
         marginBottom: `${-3 - lift * 2}vh`,
         marginLeft: "-2%",
-        opacity: 0.7 + lift * 0.1,
+        opacity: 0.88 + lift * 0.04,
         overflow: "visible",
       }}
     >
