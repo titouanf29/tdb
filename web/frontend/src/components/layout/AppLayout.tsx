@@ -269,12 +269,19 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
   const isLandingPage = !pathname || pathname === "/";
+  // The edge middleware rewrites here; it must render on its own, without the
+  // authenticated shell (which would send an anonymous visitor to /login).
+  const isMaintenancePage = pathname === "/maintenance";
   const isLegalPage   = pathname?.startsWith("/mentions-legales")
     || pathname?.startsWith("/politique-de-confidentialite")
     || pathname?.startsWith("/cgu");
   const isAuthPage    = pathname?.startsWith("/login")
     || pathname?.startsWith("/register")
     || pathname?.startsWith("/verify-email");
+
+  if (isMaintenancePage) {
+    return <>{children}</>;
+  }
 
   if (isLandingPage) {
     return <LandingShell>{children}</LandingShell>;

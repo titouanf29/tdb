@@ -6,7 +6,7 @@ import secrets
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException, Depends, Request
+from fastapi import APIRouter, HTTPException, Depends, Request, Response
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel, EmailStr, Field
 from jose import JWTError, jwt
@@ -265,9 +265,36 @@ async def register(request: Request, data: RegisterRequest):
     )
 
 
+SESSION_COOKIE = "tdb_sess"
+
+
+def _set_session_cookie(response: Response, token: str, max_age: int) -> None:
+    """Mirror the access token into an httpOnly cookie.
+
+    The app itself authenticates with the Authorization header and keeps the
+    token in localStorage. That is invisible to anything running before the
+    page's JavaScript — including the Next.js edge middleware, which is the
+    only place a lock can be enforced *before* HTML reaches the browser.
+
+    So the same token is also written as a cookie. httpOnly keeps it out of
+    reach of scripts (so this is not a new XSS surface), SameSite=Lax keeps it
+    off cross-site requests, and Secure is dropped only in local development
+    where there is no HTTPS.
+    """
+    response.set_cookie(
+        SESSION_COOKIE,
+        token,
+        max_age=max_age,
+        httponly=True,
+        secure=os.getenv("ENV", "development").lower() == "production",
+        samesite="lax",
+        path="/",
+    )
+
+
 @router.post("/login", response_model=TokenResponse)
 @limiter.limit("10/minute")
-async def login(request: Request, data: LoginRequest):
+async def login(request: Request, response: Response, data: LoginRequest):
     """Login with email/password. Requires verified email."""
     users = await execute_query(
         "SELECT * FROM web_users WHERE email = ?", (data.email.lower(),)
@@ -294,6 +321,7 @@ async def login(request: Request, data: LoginRequest):
         token_payload(user, data.remember_me),
         expires_delta=expires,
     )
+    _set_session_cookie(response, access_token, int(expires.total_seconds()))
     return TokenResponse(
         access_token=access_token,
         user={
@@ -411,5 +439,8 @@ async def refresh_token(
 
 
 @router.post("/logout")
-async def logout():
+async def logout(response: Response):
+    # Leaving the cookie behind would keep an admin past the maintenance gate
+    # long after they signed out.
+    response.delete_cookie(SESSION_COOKIE, path="/")
     return {"message": "Logged out successfully"}
