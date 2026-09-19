@@ -2,7 +2,7 @@
 
 import { motion, useReducedMotion } from "framer-motion";
 import {
-  Button, Container, Contours, CountUp, Heading, Num, Section, Text, Waypoint,
+  Atmosphere, Button, Container, Contours, CountUp, Heading, Num, Section, Text, Waypoint,
   DUR, EASE,
 } from "@/components/design-system";
 import { AnalysisVisual } from "./AnalysisVisual";
@@ -29,10 +29,12 @@ export function Hero() {
         };
 
   return (
-    <Section size="xl" className="relative overflow-hidden pt-32 sm:pt-40">
-      {/* Contour lines, once, behind the top of the page. Masked so they fade
-          out before they reach the headline — a motif behind large type stops
-          being a texture and becomes noise. */}
+    <Section id="depart" size="xl" className="relative overflow-hidden pt-32 sm:pt-40">
+      {/* Two layers of weather, and nothing else decorative: a wash of light
+          from above, then contour lines masked so they fade out before they
+          reach the headline — a motif behind large type stops being texture
+          and becomes noise. */}
+      <Atmosphere variant="top" />
       <Contours
         className="absolute inset-x-0 top-0 h-[420px] w-full"
         lines={6}
@@ -103,7 +105,7 @@ export function Hero() {
             style={{
               borderRadius: "var(--cap-r-xl)",
               backgroundColor: "var(--cap-surface)",
-              boxShadow: "inset 0 0 0 1px var(--cap-line), 0 2px 4px rgba(11,23,38,0.03), 0 24px 60px rgba(11,23,38,0.07)",
+              boxShadow: "inset 0 0 0 1px var(--cap-line), var(--cap-shadow-lg)",
             }}
           >
             {/* Header: what, how much, which way. */}

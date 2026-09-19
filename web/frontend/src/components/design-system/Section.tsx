@@ -22,7 +22,9 @@ export function Container({
   className?: string;
 }) {
   return (
-    <div className={cn("mx-auto w-full px-6 sm:px-8", WIDTHS[width], className)}>
+    // `relative` by default: sections lay an absolutely-positioned Atmosphere
+    // underneath, and a static container would be painted behind it.
+    <div className={cn("relative mx-auto w-full px-6 sm:px-8", WIDTHS[width], className)}>
       {children}
     </div>
   );

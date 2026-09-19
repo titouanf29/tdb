@@ -1,5 +1,6 @@
 "use client";
 
+import { PageCourse, type CourseStop } from "@/components/design-system";
 import { ClosingSection } from "@/components/landing/ClosingSection";
 import { DemoSection } from "@/components/landing/DemoSection";
 import { Hero } from "@/components/landing/Hero";
@@ -15,13 +16,27 @@ import { ProblemSection } from "@/components/landing/ProblemSection";
  * The public page.
  *
  * Each section is one idea and owns its own file; this one only decides the
- * order they are read in. The `cap` class scopes the rebuilt design tokens, so
- * nothing here can reach the screens that have not been migrated yet.
+ * order they are read in, and names the stops along the way. The `cap` class
+ * scopes the rebuilt design tokens, so nothing here can reach the screens
+ * that have not been migrated yet.
  */
+
+const STOPS: CourseStop[] = [
+  { id: "depart", label: "Départ" },
+  { id: "probleme", label: "Le problème" },
+  { id: "fonctionnement", label: "Fonctionnement" },
+  { id: "demo", label: "Démo" },
+  { id: "paper-trading", label: "Paper trading" },
+  { id: "personnalisation", label: "Personnalisation" },
+  { id: "apprendre", label: "Apprendre" },
+  { id: "arrivee", label: "Arrivée" },
+];
+
 export default function LandingPage() {
   return (
     <div className="cap min-h-screen">
       <LandingNav />
+      <PageCourse stops={STOPS} />
       <main>
         <Hero />
         <ProblemSection />

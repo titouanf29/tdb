@@ -6,6 +6,7 @@
  * once more in a page, which is how the previous frontend ended up with a
  * 6 000-line analysis page.
  */
+export { Atmosphere } from "./Atmosphere";
 export { Button } from "./Button";
 export { Card } from "./Card";
 export { ChartShell } from "./ChartShell";
@@ -14,6 +15,7 @@ export { EmptyState } from "./EmptyState";
 export { CountUp, Metric } from "./Metric";
 export { Contours, Course, Rule, Waypoint } from "./Motif";
 export { Drawer, Modal } from "./Overlay";
+export { PageCourse, type CourseStop } from "./PageCourse";
 export { Progress } from "./Progress";
 export { Container, Reveal, RevealGroup, RevealItem, Section } from "./Section";
 export { SegmentedControl } from "./SegmentedControl";

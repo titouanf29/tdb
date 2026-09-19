@@ -1,7 +1,7 @@
 "use client";
 
 import {
-  Button, Container, Course, Heading, Reveal, Section, Text,
+  Atmosphere, Button, Container, Course, Heading, Reveal, Section, Text,
 } from "@/components/design-system";
 
 /**
@@ -13,7 +13,8 @@ import {
  */
 export function ClosingSection() {
   return (
-    <Section size="xl" className="relative overflow-hidden">
+    <Section id="arrivee" size="xl" className="relative overflow-hidden">
+      <Atmosphere variant="base" />
       <Container width="text" className="relative text-center">
         <Reveal>
           <Heading level="display" as="p">

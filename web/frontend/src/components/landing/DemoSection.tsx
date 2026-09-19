@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import {
-  Container, CountUp, Eyebrow, Heading, Num, Progress, Reveal, Section,
+  Atmosphere, Container, CountUp, Eyebrow, Heading, Num, Progress, Reveal, Section,
   SegmentedControl, Text, DUR, EASE,
 } from "@/components/design-system";
 import { AnalysisVisual } from "./AnalysisVisual";
@@ -36,7 +36,8 @@ export function DemoSection() {
   };
 
   return (
-    <Section id="demo" tone="raised">
+    <Section id="demo" tone="raised" className="relative overflow-hidden">
+      <Atmosphere variant="side" />
       <Container width="wide">
         <div className="max-w-[36rem]">
           <Reveal>

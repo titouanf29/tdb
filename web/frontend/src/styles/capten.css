@@ -21,11 +21,26 @@
   --cap-up:     #178A58;
   --cap-down:   #C94A4A;
 
-  /* ── Surfaces ─────────────────────────────────────────────────────────── */
-  --cap-bg:        var(--cap-ivory);
-  --cap-surface:   var(--cap-white);
-  --cap-surface-2: #F1EFE9;
+  /* ── Surfaces ─────────────────────────────────────────────────────────
+     Layered whites, not one flat fill. The base is a cool off-white that a
+     pure-white panel sits slightly above; the difference between them is
+     about 2% luminance, which is enough to separate them without a border.
+
+     This is where the "cloudy" quality comes from — overlapping pale layers
+     and very wide, very faint washes. Deliberately NOT glassmorphism: there
+     is no blur and nothing is transparent, so text stays on an opaque
+     surface and nothing shimmers. */
+  --cap-bg:        #F8F9FB;
+  --cap-surface:   #FFFFFF;
+  --cap-surface-2: #F1F3F7;
+  --cap-surface-3: #E9EDF3;
   --cap-inverse:   var(--cap-navy);
+
+  /* Atmosphere: three washes, each far wider than the viewport so they read
+     as weather rather than as shapes. Above 6% they become blobs. */
+  --cap-mist-warm: rgba(229, 168, 58, 0.035);
+  --cap-mist-cool: rgba(21, 94, 117, 0.055);
+  --cap-mist-deep: rgba(11, 23, 38, 0.035);
 
   /* ── Ink ───────────────────────────────────────────────────────────────
      One hue at four weights rather than four greys: the page reads as a
@@ -39,9 +54,9 @@
   /* ── Lines ─────────────────────────────────────────────────────────────
      Hairlines only. A border that announces itself is a border doing the job
      that spacing should be doing. */
-  --cap-line:        rgba(11, 23, 38, 0.10);
-  --cap-line-strong: rgba(11, 23, 38, 0.18);
-  --cap-line-chart:  rgba(11, 23, 38, 0.07);
+  --cap-line:        rgba(11, 23, 38, 0.075);
+  --cap-line-strong: rgba(11, 23, 38, 0.15);
+  --cap-line-chart:  rgba(11, 23, 38, 0.06);
 
   /* ── Radii — 8 / 12 / 16, 20 for large blocks. Never a capsule. ───────── */
   --cap-r-sm: 8px;
@@ -50,9 +65,17 @@
   --cap-r-xl: 20px;
 
   /* ── Elevation ─────────────────────────────────────────────────────────
-     Almost nothing. A single, tight, low-opacity shadow that reads as paper
-     lifted a millimetre — not as a glow. */
-  --cap-shadow: 0 1px 2px rgba(11, 23, 38, 0.04), 0 8px 24px rgba(11, 23, 38, 0.05);
+     Wide and extremely faint: a panel should look like it is resting in
+     diffuse light, not lifted on a drop shadow. Three stops rather than one,
+     because a single blur at this opacity has a visible edge. */
+  --cap-shadow:
+    0 1px 1px rgba(11, 23, 38, 0.03),
+    0 6px 16px rgba(11, 23, 38, 0.035),
+    0 24px 56px rgba(11, 23, 38, 0.045);
+  --cap-shadow-lg:
+    0 2px 4px rgba(11, 23, 38, 0.03),
+    0 14px 36px rgba(11, 23, 38, 0.05),
+    0 48px 96px rgba(11, 23, 38, 0.06);
 
   /* ── Motion ───────────────────────────────────────────────────────────
      Slow and decelerating. Every duration here is long enough to be read as
@@ -74,7 +97,13 @@
   --cap-bg:        var(--cap-navy);
   --cap-surface:   #0F1E31;
   --cap-surface-2: #14263B;
+  --cap-surface-3: #1A2F47;
   --cap-inverse:   var(--cap-ivory);
+
+  /* The same weather, seen at night. */
+  --cap-mist-warm: rgba(229, 168, 58, 0.05);
+  --cap-mist-cool: rgba(41, 169, 199, 0.07);
+  --cap-mist-deep: rgba(255, 255, 255, 0.03);
 
   --cap-ink:        #EEF2F5;
   --cap-ink-2:      rgba(238, 242, 245, 0.68);
@@ -97,6 +126,28 @@
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
+
+/* A trace of grain over the whole page.
+   Layered pale washes band visibly on a gradient this shallow — 2% noise
+   breaks the banding, and it is what stops the surface reading as flat CSS
+   and starts it reading as paper under diffuse light.
+
+   It sits ABOVE the content rather than behind it. Behind, it would need every
+   direct child to be positioned in order to paint over them — and forcing
+   `position: relative` on all of them breaks anything meant to be `fixed`,
+   which silently unpinned the header and the course rail. At 2.5% over the
+   whole page this is the ordinary film-grain technique and is invisible on
+   text. */
+.cap::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  pointer-events: none;
+  opacity: 0.025;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
 
 .cap ::selection {
   background: rgba(21, 94, 117, 0.16);

@@ -3,7 +3,7 @@
 import { useRef } from "react";
 import { motion, useInView, useReducedMotion } from "framer-motion";
 import {
-  Container, Eyebrow, Heading, Reveal, Section, Text, DUR, EASE,
+  Atmosphere, Container, Eyebrow, Heading, Reveal, Section, Text, DUR, EASE,
 } from "@/components/design-system";
 
 /**
@@ -32,7 +32,8 @@ export function ProblemSection() {
   const reduce = useReducedMotion();
 
   return (
-    <Section id="probleme" tone="raised">
+    <Section id="probleme" tone="raised" className="relative overflow-hidden">
+      <Atmosphere variant="side" />
       <Container width="wide">
         <div className="grid gap-14 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] lg:items-center lg:gap-20">
           <div>
