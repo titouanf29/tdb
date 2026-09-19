@@ -7,6 +7,8 @@ Priority chain per symbol type (most → least accurate):
   3. yfinance fast_info  — last resort for anything that fails above
 """
 import asyncio
+import os
+
 import httpx
 
 # ── Exchange-suffix → Twelve Data exchange code ───────────────────────────────
@@ -294,7 +296,9 @@ async def fetch_prices(symbols: list[str]) -> dict[str, dict]:
 # last, still-forming candle. Intraday bars stay short-lived; daily and
 # slower bars can be held for a long time without going stale.
 _OHLCV_CACHE: dict = {}
-_OHLCV_CACHE_MAX = 512
+# Sized above the largest scannable universe so a full scan does not
+# evict its own entries; a frame is tens of KB, so this stays modest.
+_OHLCV_CACHE_MAX = int(os.getenv("OHLCV_CACHE_MAX", "1000"))
 _OHLCV_TTL_BY_INTERVAL = {
     "1m": 45.0, "2m": 60.0, "5m": 90.0, "15m": 120.0, "30m": 180.0,
     "60m": 300.0, "90m": 300.0, "1h": 300.0,
@@ -305,6 +309,15 @@ _OHLCV_TTL_DEFAULT = 90.0
 
 def _ohlcv_ttl(interval: str) -> float:
     return _OHLCV_TTL_BY_INTERVAL.get(interval, _OHLCV_TTL_DEFAULT)
+
+
+def _cache_put(symbol: str, period: str, interval: str, df) -> None:
+    """Store one frame, evicting the oldest when full."""
+    import time as _time
+    if len(_OHLCV_CACHE) >= _OHLCV_CACHE_MAX:
+        oldest = min(_OHLCV_CACHE, key=lambda k: _OHLCV_CACHE[k][0])
+        _OHLCV_CACHE.pop(oldest, None)
+    _OHLCV_CACHE[(symbol.upper(), period, interval)] = (_time.monotonic(), df.copy())
 
 
 def _download_ohlcv_sync(symbol: str, period: str, interval: str):
@@ -336,6 +349,117 @@ async def _download_ohlcv(symbol: str, period: str, interval: str):
     return await loop.run_in_executor(None, _download_ohlcv_sync, symbol, period, interval)
 
 
+# Yahoo serves many tickers in ONE request. A scan of the full universe was
+# issuing 819 separate downloads — the single heaviest thing the backend does.
+# Batching them turns that into ~17 requests, and the per-symbol code path
+# below is left untouched: the batch simply pre-warms the same cache it reads.
+_OHLCV_BATCH_SIZE = int(os.getenv("OHLCV_BATCH_SIZE", "50"))
+
+
+def _split_batch_frame(data, symbols: list[str]) -> dict:
+    """Split a multi-ticker download into one clean OHLCV frame per symbol.
+
+    yfinance returns different shapes depending on the request: MultiIndex
+    columns (ticker, field) with group_by="ticker", the transposed pairing,
+    or flat columns when a single ticker survives. All three are handled —
+    a wrong guess here would silently return empty frames for everything.
+    """
+    import pandas as pd
+    out: dict = {}
+    if data is None or len(data) == 0:
+        return out
+
+    cols = ["Open", "High", "Low", "Close", "Volume"]
+    if isinstance(data.columns, pd.MultiIndex):
+        lvl0 = set(data.columns.get_level_values(0))
+        ticker_on_level0 = bool(lvl0 & {s.upper() for s in symbols})
+        for sym in symbols:
+            u = sym.upper()
+            try:
+                df = data[u] if ticker_on_level0 else data.xs(u, axis=1, level=1)
+            except (KeyError, IndexError):
+                continue
+            if df is None or df.empty:
+                continue
+            missing = [c for c in cols if c not in df.columns]
+            if missing:
+                continue
+            df = df[cols].dropna(how="all")
+            if not df.empty:
+                df.index.name = None
+                out[u] = df
+    elif len(symbols) == 1 and all(c in data.columns for c in cols):
+        df = data[cols].dropna(how="all")
+        if not df.empty:
+            df.index.name = None
+            out[symbols[0].upper()] = df
+    return out
+
+
+def _download_ohlcv_batch_sync(symbols: list[str], period: str, interval: str) -> dict:
+    import yfinance as yf
+    try:
+        data = yf.download(
+            tickers=" ".join(symbols),
+            period=period,
+            interval=interval,
+            auto_adjust=False,
+            progress=False,
+            group_by="ticker",
+            threads=True,
+        )
+    except Exception as e:
+        print(f"[ohlcv/batch] {len(symbols)} symbols: {e}")
+        return {}
+    return _split_batch_frame(data, symbols)
+
+
+async def _download_ohlcv_batch(symbols: list[str], period: str, interval: str) -> dict:
+    loop = asyncio.get_event_loop()
+    return await loop.run_in_executor(None, _download_ohlcv_batch_sync, symbols, period, interval)
+
+
+async def prewarm_ohlcv(symbols: list[str], period: str = "1mo", interval: str = "1d") -> dict:
+    """Fetch many symbols in batched requests and RETURN their frames.
+
+    The caller gets the data directly rather than trusting it to still be in
+    the cache: a scan of the full universe asks for more symbols than the
+    cache holds, so it would evict its own earliest entries and every one of
+    those symbols would then be re-downloaded individually — 836 requests
+    instead of 17. Anything the batch does not return is simply absent, and
+    the caller falls back to the per-symbol path for it.
+    """
+    import time as _time
+
+    ttl = _ohlcv_ttl(interval)
+    now = _time.monotonic()
+    have: dict = {}
+    todo: list[str] = []
+    for sym in symbols:
+        u = sym.upper()
+        hit = _OHLCV_CACHE.get((u, period, interval))
+        if hit is not None and now - hit[0] < ttl:
+            have[u] = hit[1].copy()
+        else:
+            todo.append(u)
+
+    if todo:
+        chunks = [todo[i:i + _OHLCV_BATCH_SIZE] for i in range(0, len(todo), _OHLCV_BATCH_SIZE)]
+        results = await asyncio.gather(
+            *[_download_ohlcv_batch(c, period, interval) for c in chunks],
+            return_exceptions=True,
+        )
+        for res in results:
+            if isinstance(res, Exception) or not res:
+                continue
+            for sym, df in res.items():
+                if df is None or df.empty:
+                    continue
+                have[sym] = df
+                _cache_put(sym, period, interval, df)
+    return have
+
+
 async def fetch_ohlcv(symbol: str, period: str = "1mo", interval: str = "1d"):
     """
     Fetch OHLCV DataFrame for chart / analysis, through the cache.
@@ -351,8 +475,5 @@ async def fetch_ohlcv(symbol: str, period: str = "1mo", interval: str = "1d"):
 
     df = await _download_ohlcv(symbol, period, interval)
     if df is not None and not df.empty:
-        if len(_OHLCV_CACHE) >= _OHLCV_CACHE_MAX:
-            oldest = min(_OHLCV_CACHE, key=lambda k: _OHLCV_CACHE[k][0])
-            _OHLCV_CACHE.pop(oldest, None)
-        _OHLCV_CACHE[key] = (_time.monotonic(), df.copy())
+        _cache_put(symbol.upper(), period, interval, df)
     return df

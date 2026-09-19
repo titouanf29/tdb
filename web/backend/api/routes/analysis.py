@@ -1,6 +1,7 @@
 """
 AI Analysis routes - Using the same analyzer as the bot
 """
+import logging
 import os
 import re
 import sys
@@ -14,13 +15,15 @@ from slowapi.util import get_remote_address
 from .auth import get_current_user
 from .premium import is_user_premium, get_user_limits
 from ..database import execute_query, execute_write
-from ._prices import fetch_ohlcv, fetch_prices
+from ._prices import fetch_ohlcv, fetch_prices, prewarm_ohlcv
 from ._indicators import rsi_wilder, atr_wilder, adx_wilder, true_range, data_confidence
 from ._universe import EXTRA_CRYPTO, extend_market
 from ._scoring import (compute_score, derive_trend, derive_signal, TIMEFRAME_FETCH,
                        HIGHER_TF, htf_trend, apply_htf_gate, resample_ohlcv,
                        htf_from_primary, ENGINE_VERSION)
 from ._backtest import run_backtest
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 limiter = Limiter(key_func=get_remote_address)
@@ -1598,7 +1601,11 @@ async def scan_market(
         analysis open on a red bearish panel for the same asset, at the same
         moment. Everything below now goes through the shared engine."""
         try:
-            hist = await fetch_ohlcv(symbol, period=fetch_period, interval=fetch_interval)
+            # Use the batched frame when we have it; fall back per symbol
+            # for anything the batch did not return.
+            hist = prewarmed.get(symbol.upper())
+            if hist is None:
+                hist = await fetch_ohlcv(symbol, period=fetch_period, interval=fetch_interval)
             if fetch_resample:
                 hist = resample_ohlcv(hist, fetch_resample)
             if hist is None or len(hist) < 20:
@@ -1735,6 +1742,16 @@ async def scan_market(
         live_px = await fetch_prices(assets) or {}
     except Exception:
         live_px = {}
+
+    # Pre-warm the bar cache in bulk. Yahoo serves many tickers per request,
+    # so the full universe goes from ~800 downloads to ~17. The per-symbol
+    # path below is unchanged — it now simply finds everything in cache, and
+    # any ticker the batch skipped is still fetched individually.
+    prewarmed: dict = {}
+    try:
+        prewarmed = await prewarm_ohlcv(assets, period=fetch_period, interval=fetch_interval)
+    except Exception as exc:
+        logger.warning("prewarm failed, falling back to per-symbol: %s", exc)
 
     gate = asyncio.Semaphore(_SCAN_CONCURRENCY)
 
