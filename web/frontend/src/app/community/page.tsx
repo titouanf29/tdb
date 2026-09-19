@@ -1,769 +1,380 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Heart, Loader2, Reply, Send, Trash2, X } from "lucide-react";
+import { communityAPI, type CommunityMessage } from "@/lib/api";
+import { useAuth } from "@/lib/AuthContext";
+import { usePremium } from "@/lib/PremiumContext";
 import {
-  MessageCircle,
-  Send,
-  Users,
-  Loader2,
-  Heart,
-  Trash2,
-  Crown,
-  Shield,
-  HelpCircle,
-  Mail,
-  ChevronRight,
-  Clock,
-  CheckCircle,
-  AlertCircle,
-  X,
-  Reply,
-} from "lucide-react";
-import { cn } from "@/lib/utils";
-import {
-  communityAPI,
-  CommunityMessage,
-  SupportTicket,
-  TicketMessage,
-} from "@/lib/api";
-import { useLanguage } from "@/lib/LanguageContext";
-import { HelpGuide } from "@/components/ui/HelpGuide";
+  Button, EmptyState, Field, FormError, Heading, Modal, Panel, Text,
+  TextInput, WeatherBackdrop, useAnimationsEnabled,
+} from "@/components/design-system";
 
-type Tab = "chat" | "contact" | "tickets";
+/**
+ * The community room.
+ *
+ * One thread, newest at the bottom, the way every chat anyone has used
+ * behaves. The previous screen wrapped it in tabs, a sidebar of online
+ * members and a support-ticket panel, which meant the conversation — the only
+ * reason to be here — occupied about a third of the page.
+ *
+ * Contacting the team stays available, but as a dialog rather than a
+ * permanent column: it is something you do once, not something you read.
+ */
+
+const POLL_MS = 20_000;
 
 export default function CommunityPage() {
-  const { t, lang } = useLanguage();
-  const [activeTab, setActiveTab] = useState<Tab>("chat");
+  const { user } = useAuth();
+  const { isAdmin } = usePremium();
+  const [animOn] = useAnimationsEnabled();
+
   const [messages, setMessages] = useState<CommunityMessage[]>([]);
+  const [online, setOnline] = useState<number | null>(null);
+  const [loading, setLoading] = useState(true);
   const [input, setInput] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  const [isLoadingMessages, setIsLoadingMessages] = useState(true);
-  const [onlineCount, setOnlineCount] = useState(1);
   const [replyTo, setReplyTo] = useState<CommunityMessage | null>(null);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [sending, setSending] = useState(false);
 
-  // Contact admin state
-  const [contactSubject, setContactSubject] = useState("");
-  const [contactMessage, setContactMessage] = useState("");
-  const [isSendingContact, setIsSendingContact] = useState(false);
-  const [contactSuccess, setContactSuccess] = useState(false);
+  const [contactOpen, setContactOpen] = useState(false);
+  const [subject, setSubject] = useState("");
+  const [body, setBody] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [sent, setSent] = useState(false);
 
-  // Tickets state
-  const [tickets, setTickets] = useState<SupportTicket[]>([]);
-  const [isLoadingTickets, setIsLoadingTickets] = useState(false);
-  const [selectedTicket, setSelectedTicket] = useState<SupportTicket | null>(null);
-  const [ticketMessages, setTicketMessages] = useState<TicketMessage[]>([]);
-  const [ticketReply, setTicketReply] = useState("");
-  const [isSendingReply, setIsSendingReply] = useState(false);
+  const endRef = useRef<HTMLDivElement>(null);
+  const atBottom = useRef(true);
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
-
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
-
-  // Load chat messages
-  useEffect(() => {
-    const loadMessages = async () => {
-      try {
-        const [messagesData, onlineData] = await Promise.all([
-          communityAPI.getMessages(50),
-          communityAPI.getOnlineCount(),
-        ]);
-        setMessages(messagesData.messages);
-        setOnlineCount(onlineData.online_count);
-      } catch (error) {
-        console.error("Error loading messages:", error);
-      } finally {
-        setIsLoadingMessages(false);
-      }
-    };
-    loadMessages();
-
-    // Refresh messages every 10 seconds
-    const interval = setInterval(async () => {
-      try {
-        const messagesData = await communityAPI.getMessages(50);
-        setMessages(messagesData.messages);
-      } catch (error) {
-        console.error("Error refreshing messages:", error);
-      }
-    }, 10000);
-
-    return () => clearInterval(interval);
+  const load = useCallback(async () => {
+    const [m, o] = await Promise.allSettled([
+      communityAPI.getMessages(50),
+      communityAPI.getOnlineCount(),
+    ]);
+    if (m.status === "fulfilled") setMessages(m.value.messages || []);
+    if (o.status === "fulfilled") setOnline(o.value.online_count);
   }, []);
 
-  // Load tickets when tab changes
   useEffect(() => {
-    if (activeTab === "tickets") {
-      loadTickets();
-    }
-  }, [activeTab]);
+    load().finally(() => setLoading(false));
+    const iv = setInterval(load, POLL_MS);
+    return () => clearInterval(iv);
+  }, [load]);
 
-  const loadTickets = async () => {
-    setIsLoadingTickets(true);
+  // Only follow the thread when the reader is already at the bottom. Yanking
+  // someone back down while they are reading older messages is the single
+  // most irritating thing a chat can do.
+  useEffect(() => {
+    if (atBottom.current) endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+  }, [messages]);
+
+  const send = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const text = input.trim();
+    if (!text || sending) return;
+    setSending(true);
     try {
-      const data = await communityAPI.getMyTickets();
-      setTickets(data.tickets);
-    } catch (error) {
-      console.error("Error loading tickets:", error);
+      await communityAPI.sendMessage(text, replyTo?.id);
+      setInput("");
+      setReplyTo(null);
+      atBottom.current = true;
+      await load();
+    } catch {
+      /* the message stays in the box so nothing is lost */
     } finally {
-      setIsLoadingTickets(false);
+      setSending(false);
     }
   };
 
-  const loadTicketMessages = async (ticket: SupportTicket) => {
-    setSelectedTicket(ticket);
-    try {
-      const data = await communityAPI.getTicketMessages(ticket.id);
-      setTicketMessages(data.messages);
-    } catch (error) {
-      console.error("Error loading ticket messages:", error);
-    }
+  const like = async (m: CommunityMessage) => {
+    // Optimistic: a like that waits on the network feels broken.
+    setMessages((list) =>
+      list.map((x) =>
+        x.id === m.id
+          ? { ...x, user_liked: !x.user_liked, likes: x.likes + (x.user_liked ? -1 : 1) }
+          : x
+      )
+    );
+    try { await communityAPI.likeMessage(m.id); } catch { await load(); }
   };
 
-  const handleSendMessage = async () => {
-    if (!input.trim() || isLoading) return;
+  const remove = async (m: CommunityMessage) => {
+    const before = messages;
+    setMessages((l) => l.filter((x) => x.id !== m.id));
+    try { await communityAPI.deleteMessage(m.id); } catch { setMessages(before); }
+  };
 
-    setIsLoading(true);
+  const contact = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!subject.trim() || !body.trim()) return setError("Sujet et message sont requis.");
+    setBusy(true);
+    setError("");
     try {
-      const result = await communityAPI.sendMessage(input, replyTo?.id);
-      if (result.success && result.message) {
-        setMessages((prev) => [...prev, result.message]);
-        setInput("");
-        setReplyTo(null);
-      }
-    } catch (error: any) {
-      console.error("Error sending message:", error);
-      if (error.status === 429) {
-        alert(lang === "fr" ? "Trop de messages. Veuillez patienter un moment." : "Too many messages. Please wait a moment.");
-      }
+      await communityAPI.contactAdmin(subject.trim(), body.trim());
+      setSent(true);
+      setSubject("");
+      setBody("");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Envoi impossible.");
     } finally {
-      setIsLoading(false);
+      setBusy(false);
     }
-  };
-
-  const handleLikeMessage = async (messageId: number) => {
-    try {
-      const result = await communityAPI.likeMessage(messageId);
-      setMessages((prev) =>
-        prev.map((m) =>
-          m.id === messageId
-            ? {
-                ...m,
-                likes: result.liked ? m.likes + 1 : m.likes - 1,
-                user_liked: result.liked,
-              }
-            : m
-        )
-      );
-    } catch (error) {
-      console.error("Error liking message:", error);
-    }
-  };
-
-  const handleDeleteMessage = async (messageId: number) => {
-    if (!confirm(lang === "fr" ? "Supprimer ce message ?" : "Delete this message?")) return;
-    try {
-      await communityAPI.deleteMessage(messageId);
-      setMessages((prev) => prev.filter((m) => m.id !== messageId));
-    } catch (error) {
-      console.error("Error deleting message:", error);
-    }
-  };
-
-  const handleContactAdmin = async () => {
-    if (!contactSubject.trim() || !contactMessage.trim() || isSendingContact)
-      return;
-
-    setIsSendingContact(true);
-    try {
-      await communityAPI.contactAdmin(contactSubject, contactMessage);
-      setContactSuccess(true);
-      setContactSubject("");
-      setContactMessage("");
-      setTimeout(() => setContactSuccess(false), 5000);
-      // Reload tickets
-      await loadTickets();
-    } catch (error) {
-      console.error("Error contacting admin:", error);
-      alert(lang === "fr" ? "Erreur lors de l'envoi du message." : "Error sending message.");
-    } finally {
-      setIsSendingContact(false);
-    }
-  };
-
-  const handleTicketReply = async () => {
-    if (!ticketReply.trim() || !selectedTicket || isSendingReply) return;
-
-    setIsSendingReply(true);
-    try {
-      await communityAPI.replyToTicket(selectedTicket.id, ticketReply);
-      setTicketReply("");
-      // Reload messages
-      await loadTicketMessages(selectedTicket);
-    } catch (error) {
-      console.error("Error replying to ticket:", error);
-    } finally {
-      setIsSendingReply(false);
-    }
-  };
-
-  const formatTime = (dateStr: string) => {
-    const date = new Date(dateStr);
-    const now = new Date();
-    const diff = now.getTime() - date.getTime();
-    const minutes = Math.floor(diff / 60000);
-    const hours = Math.floor(diff / 3600000);
-    const days = Math.floor(diff / 86400000);
-
-    if (minutes < 1) return t("community_just_now");
-    if (minutes < 60) return lang === "fr" ? `il y a ${minutes}min` : `${minutes}m ago`;
-    if (hours < 24) return lang === "fr" ? `il y a ${hours}h` : `${hours}h ago`;
-    if (days < 7) return lang === "fr" ? `il y a ${days}j` : `${days}d ago`;
-    return date.toLocaleDateString(lang === "fr" ? "fr-FR" : "en-US");
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      className="h-[calc(100vh-8rem)] flex flex-col"
-    >
-      {/* Header */}
-      <div className="glass-card p-4 mb-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-xl bg-primary/15 border border-primary/30 flex items-center justify-center">
-              <Users className="w-6 h-6 text-white" />
-            </div>
-            <div>
-              <h1 className="font-bold">{t("community_title")}</h1>
-              <p className="text-sm text-muted-foreground">
-                {t("community_subtitle")}
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-3 text-sm text-muted-foreground">
-            <HelpGuide
-              size="sm"
-              title={lang === "en" ? "Community" : "Communauté"}
-              intro={lang === "en"
-                ? "Chat with other traders, share your analyses and get help from the CaptenTDB team."
-                : "Échange avec les autres traders, partage tes analyses et obtiens de l'aide de l'équipe CaptenTDB."}
-              sections={lang === "en" ? [
-                { title: "Live chat", desc: "Chat in real time with community members. Share your trade ideas and analyses." },
-                { title: "Reactions & replies", desc: "React to messages or reply directly to a member. Conversations stay organised." },
-                { title: "Contact & support", desc: "In the 'Contact' tab, send a message to the team for any technical question or suggestion." },
-                { title: "Support tickets", desc: "For detailed follow-up on your request, create a ticket. The team replies within 24 working hours." },
-                { title: "Code of conduct", desc: "Respect and kindness are required. Shared analyses do not constitute investment advice." },
-              ] : [
-                { title: "Chat en direct", desc: "Discute en temps réel avec les membres de la communauté. Partage tes idées de trades et tes analyses." },
-                { title: "Réactions & réponses", desc: "Réagis aux messages avec des emojis ou réponds directement à un membre. Les conversations restent organisées." },
-                { title: "Contact & support", desc: "Dans l'onglet 'Contact', envoie un message à l'équipe pour toute question technique ou suggestion." },
-                { title: "Tickets de support", desc: "Pour un suivi détaillé de ta demande, crée un ticket. L'équipe te répond sous 24h ouvrées." },
-                { title: "Règles de bonne conduite", desc: "Respect et bienveillance sont requis. Les analyses partagées ne constituent pas des conseils en investissement." },
-              ]}
-              tip={lang === "en"
-                ? "Use the community to get a second opinion on your analyses before making a trading decision."
-                : "Utilise la communauté pour obtenir un second avis sur tes analyses avant de prendre une décision de trading."}
-            />
-            <span className="w-2 h-2 rounded-full bg-profit animate-pulse" />
-            <span>{onlineCount} {t("community_online")}</span>
-          </div>
-        </div>
+    <>
+      <WeatherBackdrop condition="fair" enabled={animOn} />
 
-        {/* Tabs */}
-        <div className="flex gap-2 mt-4">
-          <button
-            onClick={() => setActiveTab("chat")}
-            className={cn(
-              "flex items-center gap-2 px-4 py-2 rounded-lg transition-colors",
-              activeTab === "chat"
-                ? "bg-primary text-white"
-                : "bg-white/5 hover:bg-white/10 text-muted-foreground"
-            )}
+      <div className="relative flex min-h-[calc(100vh-11rem)] flex-col space-y-5">
+        <header className="flex flex-wrap items-end justify-between gap-4 pt-2">
+          <div>
+            <Heading level={1}>Communauté</Heading>
+            <Text className="mt-2.5 max-w-[34rem]">
+              {online != null
+                ? `${online} membre${online > 1 ? "s" : ""} en ligne. `
+                : ""}
+              Les analyses partagées ici sont des avis, pas des conseils.
+            </Text>
+          </div>
+          <Button
+            variant="secondary"
+            size="md"
+            onClick={() => { setContactOpen(true); setSent(false); setError(""); }}
           >
-            <MessageCircle className="w-4 h-4" />
-            {t("community_tab_chat")}
-          </button>
-          <button
-            onClick={() => setActiveTab("contact")}
-            className={cn(
-              "flex items-center gap-2 px-4 py-2 rounded-lg transition-colors",
-              activeTab === "contact"
-                ? "bg-primary text-white"
-                : "bg-white/5 hover:bg-white/10 text-muted-foreground"
-            )}
-          >
-            <HelpCircle className="w-4 h-4" />
-            {t("community_tab_contact")}
-          </button>
-          <button
-            onClick={() => setActiveTab("tickets")}
-            className={cn(
-              "flex items-center gap-2 px-4 py-2 rounded-lg transition-colors",
-              activeTab === "tickets"
-                ? "bg-primary text-white"
-                : "bg-white/5 hover:bg-white/10 text-muted-foreground"
-            )}
-          >
-            <Mail className="w-4 h-4" />
-            {t("community_tab_tickets")}
-            {tickets.filter((t) => t.status === "open").length > 0 && (
-              <span className="w-5 h-5 rounded-full bg-primary/20 text-primary text-xs flex items-center justify-center">
-                {tickets.filter((t) => t.status === "open").length}
-              </span>
-            )}
-          </button>
-        </div>
-      </div>
+            Contacter l&apos;équipe
+          </Button>
+        </header>
 
-      {/* Chat Tab */}
-      {activeTab === "chat" && (
-        <>
-          {/* Messages */}
-          <div className="flex-1 overflow-y-auto space-y-3 pr-2">
-            {isLoadingMessages ? (
-              <div className="flex items-center justify-center py-12">
-                <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        <Panel
+          className="flex-1"
+          // The reader's position decides whether new messages scroll into
+          // view, so the panel has to know where they are.
+        >
+          <div
+            className="max-h-[58vh] overflow-y-auto"
+            onScroll={(e) => {
+              const el = e.currentTarget;
+              atBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+            }}
+          >
+            {loading ? (
+              <div className="flex justify-center py-16">
+                <Loader2 className="h-5 w-5 animate-spin" style={{ color: "var(--cap-ink-4)" }} />
               </div>
             ) : messages.length === 0 ? (
-              <div className="text-center py-12">
-                <MessageCircle className="w-16 h-16 mx-auto mb-4 text-muted-foreground opacity-50" />
-                <h2 className="text-lg font-semibold mb-2">
-                  {t("community_empty_chat")}
-                </h2>
-                <p className="text-muted-foreground">
-                  {t("community_be_first")}
-                </p>
-              </div>
-            ) : (
-              messages.map((message) => (
-                <motion.div
-                  key={message.id}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="glass-card p-3 rounded-xl"
-                >
-                  <div className="flex items-start gap-3">
-                    <div
-                      className={cn(
-                        "w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold shrink-0",
-                        message.is_admin
-                          ? "bg-gradient-to-br from-yellow-500 to-orange-500 text-white"
-                          : message.is_premium
-                          ? "bg-primary text-[hsl(var(--primary-foreground))]"
-                          : "bg-white/10 text-muted-foreground"
-                      )}
-                    >
-                      {message.username?.charAt(0).toUpperCase() || "?"}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-semibold text-sm">
-                          {message.username}
-                        </span>
-                        {message.is_admin && (
-                          <span className="flex items-center gap-1 text-xs bg-yellow-500/20 text-yellow-400 px-2 py-0.5 rounded-full">
-                            <Shield className="w-3 h-3" />
-                            Admin
-                          </span>
-                        )}
-                        {message.is_premium && !message.is_admin && (
-                          <span className="flex items-center gap-1 text-xs bg-neon-purple/20 text-neon-purple px-2 py-0.5 rounded-full">
-                            <Crown className="w-3 h-3" />
-                            Premium
-                          </span>
-                        )}
-                        <span className="text-xs text-muted-foreground">
-                          {formatTime(message.created_at)}
-                        </span>
-                      </div>
-                      <p className="text-sm mt-1 break-words">
-                        {message.content}
-                      </p>
-                      <div className="flex items-center gap-3 mt-2">
-                        <button
-                          onClick={() => handleLikeMessage(message.id)}
-                          className={cn(
-                            "flex items-center gap-1 text-xs transition-colors",
-                            message.user_liked
-                              ? "text-neon-cyan"
-                              : "text-muted-foreground hover:text-neon-cyan"
-                          )}
-                        >
-                          <Heart
-                            className={cn(
-                              "w-4 h-4",
-                              message.user_liked && "fill-current"
-                            )}
-                          />
-                          {message.likes > 0 && message.likes}
-                        </button>
-                        <button
-                          onClick={() => setReplyTo(message)}
-                          className="flex items-center gap-1 text-xs text-muted-foreground hover:text-primary transition-colors"
-                        >
-                          <Reply className="w-4 h-4" />
-                          {t("community_reply")}
-                        </button>
-                        <button
-                          onClick={() => handleDeleteMessage(message.id)}
-                          className="flex items-center gap-1 text-xs text-muted-foreground hover:text-loss transition-colors ml-auto"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </motion.div>
-              ))
-            )}
-            <div ref={messagesEndRef} />
-          </div>
-
-          {/* Reply indicator */}
-          <AnimatePresence>
-            {replyTo && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: "auto" }}
-                exit={{ opacity: 0, height: 0 }}
-                className="glass-card p-3 mt-2 rounded-lg flex items-center gap-2"
-              >
-                <Reply className="w-4 h-4 text-primary shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <span className="text-xs text-muted-foreground">
-                    {t("community_reply_to")}{" "}
-                  </span>
-                  <span className="text-xs font-semibold">
-                    {replyTo.username}
-                  </span>
-                  <p className="text-sm truncate">{replyTo.content}</p>
-                </div>
-                <button
-                  onClick={() => setReplyTo(null)}
-                  className="p-1 hover:bg-white/10 rounded"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          {/* Input */}
-          <div className="mt-4 glass-card p-4">
-            <div className="flex gap-3">
-              <input
-                type="text"
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyPress={(e) => e.key === "Enter" && handleSendMessage()}
-                placeholder={t("community_msg_ph")}
-                className="flex-1 input"
-                maxLength={1000}
-                disabled={isLoading}
+              <EmptyState
+                title="Personne n'a encore écrit"
+                description="Posez une question, partagez une analyse, ou dites simplement bonjour."
               />
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={handleSendMessage}
-                disabled={!input.trim() || isLoading}
-                className="btn-primary px-6 disabled:opacity-50"
-              >
-                {isLoading ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Send className="w-4 h-4" />
-                )}
-              </motion.button>
-            </div>
-            <p className="text-xs text-muted-foreground mt-2 text-center">
-              {t("community_rules_label")}
-            </p>
-          </div>
-        </>
-      )}
-
-      {/* Contact Admin Tab */}
-      {activeTab === "contact" && (
-        <div className="flex-1 overflow-y-auto">
-          <div className="glass-card p-6 rounded-xl max-w-2xl mx-auto">
-            <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
-              <HelpCircle className="w-6 h-6 text-primary" />
-              {t("community_contact_title")}
-            </h2>
-            <p className="text-muted-foreground mb-6">
-              {t("community_contact_msg")}
-            </p>
-
-            {contactSuccess && (
-              <motion.div
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="bg-profit/20 border border-profit/30 text-profit rounded-lg p-4 mb-6 flex items-center gap-3"
-              >
-                <CheckCircle className="w-5 h-5" />
-                <span>
-                  {t("community_success")}
-                </span>
-              </motion.div>
-            )}
-
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium mb-2">{t("community_subject")}</label>
-                <select
-                  value={contactSubject}
-                  onChange={(e) => setContactSubject(e.target.value)}
-                  className="input w-full"
-                >
-                  <option value="">{t("community_subject_ph")}</option>
-                  {(lang === "fr"
-                    ? ["Bug / Probleme technique", "Question generale", "Demande Premium", "Signalement", "Suggestion", "Autre"]
-                    : ["Bug / Technical issue", "General question", "Premium request", "Report", "Suggestion", "Other"]
-                  ).map((opt) => (
-                    <option key={opt} value={opt}>{opt}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-2">
-                  {t("community_message")}
-                </label>
-                <textarea
-                  value={contactMessage}
-                  onChange={(e) => setContactMessage(e.target.value)}
-                  placeholder={t("community_message_ph")}
-                  rows={6}
-                  className="input w-full resize-none"
-                  maxLength={2000}
-                />
-                <p className="text-xs text-muted-foreground mt-1 text-right">
-                  {contactMessage.length}/2000
-                </p>
-              </div>
-              <motion.button
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={handleContactAdmin}
-                disabled={
-                  !contactSubject.trim() ||
-                  !contactMessage.trim() ||
-                  isSendingContact
-                }
-                className="btn-primary w-full py-3 disabled:opacity-50"
-              >
-                {isSendingContact ? (
-                  <Loader2 className="w-5 h-5 animate-spin mx-auto" />
-                ) : (
-                  <span className="flex items-center justify-center gap-2">
-                    <Send className="w-4 h-4" />
-                    {t("community_send_msg")}
-                  </span>
-                )}
-              </motion.button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Tickets Tab */}
-      {activeTab === "tickets" && (
-        <div className="flex-1 overflow-y-auto">
-          {selectedTicket ? (
-            <div className="space-y-4">
-              {/* Ticket header */}
-              <div className="glass-card p-4 rounded-xl">
-                <button
-                  onClick={() => setSelectedTicket(null)}
-                  className="text-sm text-muted-foreground hover:text-foreground mb-3 flex items-center gap-1"
-                >
-                  <ChevronRight className="w-4 h-4 rotate-180" />
-                  {t("community_back_tickets")}
-                </button>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="font-semibold">{selectedTicket.subject}</h3>
-                    <p className="text-sm text-muted-foreground">
-                      {t("community_created_on")}{" "}
-                      {new Date(selectedTicket.created_at).toLocaleDateString(
-                        lang === "en" ? "en-US" : "fr-FR"
-                      )}
-                    </p>
-                  </div>
-                  <span
-                    className={cn(
-                      "px-3 py-1 rounded-full text-xs",
-                      selectedTicket.status === "open"
-                        ? "bg-profit/20 text-profit"
-                        : "bg-white/10 text-muted-foreground"
-                    )}
-                  >
-                    {selectedTicket.status === "open" ? t("community_status_open") : t("community_status_closed")}
-                  </span>
-                </div>
-              </div>
-
-              {/* Messages */}
-              <div className="space-y-3">
-                {ticketMessages.map((msg) => (
-                  <motion.div
-                    key={msg.id}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className={cn(
-                      "glass-card p-4 rounded-xl",
-                      msg.is_admin && "border border-yellow-500/30"
-                    )}
-                  >
-                    <div className="flex items-center gap-2 mb-2">
-                      {msg.is_admin ? (
-                        <span className="flex items-center gap-1 text-xs bg-yellow-500/20 text-yellow-400 px-2 py-0.5 rounded-full">
-                          <Shield className="w-3 h-3" />
-                          Admin
-                        </span>
-                      ) : (
-                        <span className="text-sm font-semibold">
-                          {msg.username}
-                        </span>
-                      )}
-                      <span className="text-xs text-muted-foreground">
-                        {formatTime(msg.created_at)}
-                      </span>
-                    </div>
-                    <p className="text-sm whitespace-pre-wrap">{msg.message}</p>
-                  </motion.div>
+            ) : (
+              <ul className="space-y-5">
+                {messages.map((m) => (
+                  <MessageRow
+                    key={m.id}
+                    message={m}
+                    replyTarget={messages.find((x) => x.id === m.reply_to)}
+                    mine={m.user_id === Number(user?.id)}
+                    canDelete={isAdmin || m.user_id === Number(user?.id)}
+                    onLike={() => like(m)}
+                    onReply={() => setReplyTo(m)}
+                    onDelete={() => remove(m)}
+                  />
                 ))}
-              </div>
+                <div ref={endRef} />
+              </ul>
+            )}
+          </div>
+        </Panel>
 
-              {/* Reply form */}
-              {selectedTicket.status === "open" && (
-                <div className="glass-card p-4 rounded-xl">
-                  <div className="flex gap-3">
-                    <input
-                      type="text"
-                      value={ticketReply}
-                      onChange={(e) => setTicketReply(e.target.value)}
-                      onKeyPress={(e) =>
-                        e.key === "Enter" && handleTicketReply()
-                      }
-                      placeholder={t("community_ticket_reply")}
-                      className="flex-1 input"
-                      disabled={isSendingReply}
-                    />
-                    <motion.button
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                      onClick={handleTicketReply}
-                      disabled={!ticketReply.trim() || isSendingReply}
-                      className="btn-primary px-6 disabled:opacity-50"
-                    >
-                      {isSendingReply ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                      ) : (
-                        <Send className="w-4 h-4" />
-                      )}
-                    </motion.button>
-                  </div>
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {isLoadingTickets ? (
-                <div className="flex items-center justify-center py-12">
-                  <Loader2 className="w-8 h-8 animate-spin text-primary" />
-                </div>
-              ) : tickets.length === 0 ? (
-                <div className="text-center py-12 glass-card rounded-xl">
-                  <Mail className="w-16 h-16 mx-auto mb-4 text-muted-foreground opacity-50" />
-                  <h2 className="text-lg font-semibold mb-2">
-                    {t("community_no_tickets")}
-                  </h2>
-                  <p className="text-muted-foreground mb-4">
-                    {t("community_no_tickets_sub")}
-                  </p>
-                  <button
-                    onClick={() => setActiveTab("contact")}
-                    className="btn-primary"
-                  >
-                    {t("community_create_ticket")}
-                  </button>
-                </div>
-              ) : (
-                tickets.map((ticket) => (
-                  <motion.button
-                    key={ticket.id}
-                    whileHover={{ scale: 1.01 }}
-                    whileTap={{ scale: 0.99 }}
-                    onClick={() => loadTicketMessages(ticket)}
-                    className="glass-card p-4 rounded-xl w-full text-left hover:bg-white/5 transition-colors"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <h3 className="font-semibold truncate">
-                            {ticket.subject}
-                          </h3>
-                          {ticket.last_from_admin && (
-                            <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
-                          )}
-                        </div>
-                        <p className="text-sm text-muted-foreground truncate mt-1">
-                          {ticket.last_message}
-                        </p>
-                        <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
-                          <span className="flex items-center gap-1">
-                            <Clock className="w-3 h-3" />
-                            {formatTime(ticket.updated_at)}
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <MessageCircle className="w-3 h-3" />
-                            {ticket.message_count} messages
-                          </span>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-3 ml-4">
-                        <span
-                          className={cn(
-                            "px-3 py-1 rounded-full text-xs flex items-center gap-1",
-                            ticket.status === "open"
-                              ? "bg-profit/20 text-profit"
-                              : "bg-white/10 text-muted-foreground"
-                          )}
-                        >
-                          {ticket.status === "open" ? (
-                            <>
-                              <AlertCircle className="w-3 h-3" />
-                              {t("community_status_open")}
-                            </>
-                          ) : (
-                            <>
-                              <CheckCircle className="w-3 h-3" />
-                              {t("community_status_closed")}
-                            </>
-                          )}
-                        </span>
-                        <ChevronRight className="w-5 h-5 text-muted-foreground" />
-                      </div>
-                    </div>
-                  </motion.button>
-                ))
-              )}
+        <div
+          className="sticky bottom-24 p-2 lg:bottom-4"
+          style={{
+            borderRadius: "var(--cap-r-lg)",
+            backgroundColor: "var(--cap-surface)",
+            boxShadow: "inset 0 0 0 1px var(--cap-line), var(--cap-shadow)",
+          }}
+        >
+          {replyTo && (
+            <div
+              className="mb-1 flex items-center justify-between gap-3 rounded-[10px] px-3 py-2"
+              style={{ backgroundColor: "var(--cap-surface-2)" }}
+            >
+              <Text size="caption" as="span" className="truncate">
+                En réponse à <strong style={{ color: "var(--cap-ink)" }}>{replyTo.username}</strong> :{" "}
+                {replyTo.content.slice(0, 60)}
+              </Text>
+              <button
+                onClick={() => setReplyTo(null)}
+                aria-label="Annuler la réponse"
+                className="shrink-0 rounded-[7px] p-1"
+                style={{ color: "var(--cap-ink-3)" }}
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
             </div>
           )}
+          <form onSubmit={send} className="flex items-end gap-2">
+            <textarea
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(e); }
+              }}
+              rows={1}
+              placeholder="Votre message…"
+              aria-label="Votre message"
+              className="max-h-32 min-h-[2.75rem] flex-1 resize-none bg-transparent px-3 py-3 text-[0.95rem] outline-none placeholder:text-[color:var(--cap-ink-4)]"
+              style={{ color: "var(--cap-ink)" }}
+            />
+            <button
+              type="submit"
+              disabled={sending || !input.trim()}
+              aria-label="Envoyer"
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[10px] transition-opacity hover:opacity-90 disabled:opacity-30"
+              style={{ backgroundColor: "var(--cap-navy)", color: "#F2F5F7" }}
+            >
+              <Send className="h-4 w-4" />
+            </button>
+          </form>
+        </div>
+      </div>
+
+      <Modal open={contactOpen} onClose={() => setContactOpen(false)} title="Contacter l'équipe">
+        <Heading level={3}>Contacter l&apos;équipe</Heading>
+        {sent ? (
+          <>
+            <Text size="small" className="mt-2">
+              Message envoyé. Vous recevrez une réponse dans votre espace.
+            </Text>
+            <div className="mt-6">
+              <Button size="md" onClick={() => setContactOpen(false)}>Fermer</Button>
+            </div>
+          </>
+        ) : (
+          <form onSubmit={contact} className="mt-6 space-y-4" noValidate>
+            {error && <FormError>{error}</FormError>}
+            <Field label="Sujet" htmlFor="c-subject">
+              <TextInput id="c-subject" value={subject} onChange={setSubject} placeholder="Un bug, une question…" required />
+            </Field>
+            <Field label="Message" htmlFor="c-body">
+              <textarea
+                id="c-body"
+                value={body}
+                onChange={(e) => setBody(e.target.value)}
+                rows={5}
+                className="w-full resize-y rounded-[12px] px-3.5 py-3 text-[0.95rem] outline-none placeholder:text-[color:var(--cap-ink-4)]"
+                style={{
+                  backgroundColor: "var(--cap-bg)",
+                  color: "var(--cap-ink)",
+                  boxShadow: "inset 0 0 0 1px var(--cap-line-strong)",
+                }}
+                placeholder="Décrivez ce qui se passe…"
+                required
+              />
+            </Field>
+            <div className="flex gap-2">
+              <Button type="submit" size="md" disabled={busy} className="flex-1">
+                {busy ? "Envoi…" : "Envoyer"}
+              </Button>
+              <Button variant="secondary" size="md" onClick={() => setContactOpen(false)}>
+                Annuler
+              </Button>
+            </div>
+          </form>
+        )}
+      </Modal>
+    </>
+  );
+}
+
+function MessageRow({
+  message: m,
+  replyTarget,
+  mine,
+  canDelete,
+  onLike,
+  onReply,
+  onDelete,
+}: {
+  message: CommunityMessage;
+  replyTarget?: CommunityMessage;
+  mine: boolean;
+  canDelete: boolean;
+  onLike: () => void;
+  onReply: () => void;
+  onDelete: () => void;
+}) {
+  const time = new Date(m.created_at).toLocaleTimeString("fr-FR", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+
+  return (
+    <li className="group">
+      <div className="flex items-baseline gap-2.5">
+        <span
+          className="text-[0.9rem] font-semibold"
+          style={{ color: mine ? "var(--cap-ocean)" : "var(--cap-ink)" }}
+        >
+          {m.username}
+        </span>
+        {m.is_admin && (
+          <span
+            className="rounded-[5px] px-1.5 py-0.5 text-[0.68rem]"
+            style={{ backgroundColor: "var(--cap-navy)", color: "#E8EDF1" }}
+          >
+            Équipe
+          </span>
+        )}
+        <span className="cap-num text-[0.72rem]" style={{ color: "var(--cap-ink-4)" }}>
+          {time}
+        </span>
+      </div>
+
+      {replyTarget && (
+        <div
+          className="mt-1.5 border-l-2 pl-2.5"
+          style={{ borderColor: "var(--cap-line-strong)" }}
+        >
+          <Text size="caption" as="span" className="line-clamp-2">
+            {replyTarget.username} : {replyTarget.content}
+          </Text>
         </div>
       )}
 
-      {/* Footer */}
-      <div className="mt-4 text-center text-xs text-muted-foreground">
-        CaptenTDB by CaptenQwark
+      <Text size="small" tone="ink" className="mt-1 whitespace-pre-wrap">
+        {m.content}
+      </Text>
+
+      <div className="mt-1.5 flex items-center gap-1">
+        <button
+          onClick={onLike}
+          aria-label={m.user_liked ? "Retirer le j'aime" : "J'aime"}
+          className="flex items-center gap-1.5 rounded-[7px] px-2 py-1 text-[0.75rem] transition-colors hover:bg-[color:var(--cap-surface-2)]"
+          style={{ color: m.user_liked ? "var(--cap-ocean)" : "var(--cap-ink-4)" }}
+        >
+          <Heart className="h-3.5 w-3.5" fill={m.user_liked ? "currentColor" : "none"} />
+          {m.likes > 0 && m.likes}
+        </button>
+        <button
+          onClick={onReply}
+          aria-label="Répondre"
+          className="rounded-[7px] px-2 py-1 transition-colors hover:bg-[color:var(--cap-surface-2)] lg:opacity-0 lg:group-hover:opacity-100 lg:focus-visible:opacity-100"
+          style={{ color: "var(--cap-ink-4)" }}
+        >
+          <Reply className="h-3.5 w-3.5" />
+        </button>
+        {canDelete && (
+          <button
+            onClick={onDelete}
+            aria-label="Supprimer"
+            className="rounded-[7px] px-2 py-1 transition-colors hover:bg-[color:var(--cap-surface-2)] lg:opacity-0 lg:group-hover:opacity-100 lg:focus-visible:opacity-100"
+            style={{ color: "var(--cap-ink-4)" }}
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </button>
+        )}
       </div>
-    </motion.div>
+    </li>
   );
 }
