@@ -38,6 +38,10 @@ BUCKETS = [
 
 # Below this many closed trades the statistics are illustrative, not evidence.
 MIN_TRADES_FOR_CONFIDENCE = 30
+# Slicing 40 trades by market regime leaves cells of 10-15. That is precisely
+# where a thin sample masquerades as knowledge, so a conditional figure is only
+# published above this count; below it the engine says so and falls back.
+MIN_TRADES_FOR_CONDITION = 15
 
 
 def _rank_correlation(x: list[float], y: list[float]) -> float | None:
@@ -77,6 +81,34 @@ def _walk_barriers(
     return "timeout", float(closes[exit_idx]), last - start
 
 
+def _slice_stats(trades: list[dict]) -> dict:
+    """Outcome frequencies and expectancy for one subset of trades."""
+    n = len(trades)
+    if n == 0:
+        return {"n_trades": 0, "enough": False}
+    net = np.array([t["net_r"] for t in trades])
+    outcomes = [t["outcome"] for t in trades]
+    return {
+        "n_trades": n,
+        "enough": n >= MIN_TRADES_FOR_CONDITION,
+        "p_target": round(outcomes.count("target") / n * 100, 1),
+        "p_stop": round(outcomes.count("stop") / n * 100, 1),
+        "p_timeout": round(outcomes.count("timeout") / n * 100, 1),
+        "win_rate": round(float((net > 0).mean() * 100), 1),
+        "expectancy_net_r": round(float(net.mean()), 3),
+    }
+
+
+def _regime_slices(trades: list[dict]) -> dict:
+    """Stats per market regime, for the regimes that produced any trade."""
+    out: dict = {}
+    for reg in ("BULL", "NEUTRAL", "BEAR"):
+        subset = [t for t in trades if t.get("regime") == reg]
+        if subset:
+            out[reg] = _slice_stats(subset)
+    return out
+
+
 def run_backtest(
     hist: pd.DataFrame,
     horizon: int = 10,
@@ -86,8 +118,13 @@ def run_backtest(
     tp_atr: float = 3.0,
     cost_bps: float = 10.0,
     mode: str = "event",
+    regimes: "pd.Series | None" = None,
 ) -> dict:
     """Replay the engine bar by bar, with no lookahead, and label by barriers.
+
+    regimes            optional per-bar market regime (BULL/BEAR/NEUTRAL) of
+                       the asset's benchmark, used to label each trade with
+                       the conditions that were visible when it opened.
 
     mode="event"       one trade at a time — independent samples (default)
     mode="overlapping" score every eligible bar — more samples, but they
@@ -165,10 +202,22 @@ def run_backtest(
         gross_r = pnl / risk
         # Round trip: paid on the way in and on the way out.
         cost_r = (2 * (cost_bps / 10_000.0) * entry) / risk
+        # The regime as it stood at the entry bar — never later. `regimes` is
+        # built from EMAs, which are causal, so this carries no hindsight.
+        entry_regime = None
+        if regimes is not None and len(regimes):
+            try:
+                entry_regime = regimes.asof(hist.index[t - 1])
+            except Exception:
+                entry_regime = None
+            if entry_regime is not None and not isinstance(entry_regime, str):
+                entry_regime = None
+
         trades.append({
             "score": score, "outcome": outcome, "bars": bars,
             "gross_r": gross_r, "net_r": gross_r - cost_r,
             "direction": "long" if is_long else "short",
+            "regime": entry_regime,
         })
         if mode == "event":
             next_eligible = t + bars
@@ -234,6 +283,10 @@ def run_backtest(
         "avg_bars_held": round(float(np.mean([tr["bars"] for tr in trades])), 1),
 
         "buckets": buckets,
+        # What followed in each market regime. Published per regime with its
+        # own count so a 12-trade cell is never read as a 40-trade one.
+        "by_regime": _regime_slices(trades),
+        "min_trades_for_condition": MIN_TRADES_FOR_CONDITION,
         "correlation": round(_rank_correlation(scores_all, returns_all) or 0.0, 3)
                        if len(scores_all) >= 10 else None,
     }

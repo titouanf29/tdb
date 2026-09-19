@@ -1222,7 +1222,52 @@ export default function AnalysisPage() {
                       )}
                     </div>
                   )}
-                  {analysis.market_context && (
+                  {/* The most likely outcome for THIS setup in TODAY's market,
+                      never a bare percentage: the sample size and the basis
+                      travel with the figure. */}
+                  {analysis.historical_edge?.scenario && (
+                    <div className="border border-border bg-white/[0.02] p-2.5">
+                      <p className="mb-1 flex items-baseline justify-between gap-2">
+                        <span className="text-xs font-semibold">
+                          {lang === "en" ? "Most likely scenario" : "Scénario le plus probable"}
+                        </span>
+                        <span className="font-mono text-[10px] text-muted-foreground">
+                          {analysis.historical_edge.scenario.n_trades} trades
+                          {analysis.historical_edge.scenario.basis === "conditional"
+                            ? (lang === "en" ? " · same regime" : " · même régime")
+                            : (lang === "en" ? " · all regimes" : " · tous régimes")}
+                        </span>
+                      </p>
+                      <p className="text-[11px] leading-snug text-muted-foreground">
+                        {analysis.historical_edge.scenario.label}
+                      </p>
+                      <div className="mt-1.5 flex items-center gap-3 font-mono text-[11px]">
+                        <span className="text-profit">
+                          {lang === "en" ? "target" : "cible"} {analysis.historical_edge.scenario.p_target}%
+                        </span>
+                        <span className="text-loss">
+                          stop {analysis.historical_edge.scenario.p_stop}%
+                        </span>
+                        <span className="text-muted-foreground">
+                          {lang === "en" ? "timeout" : "expiration"} {analysis.historical_edge.scenario.p_timeout}%
+                        </span>
+                      </div>
+                      {/* Why the conditional figure was not used, when it wasn't */}
+                      {analysis.historical_edge.scenario.fallback_reason && (
+                        <p className="mt-1 font-mono text-[10px] text-warning/80">
+                          {analysis.historical_edge.scenario.fallback_reason}
+                        </p>
+                      )}
+                      {!analysis.historical_edge.scenario.enough && (
+                        <p className="mt-1 text-[10px] text-warning/80">
+                          {lang === "en"
+                            ? "Too few trades to treat these as probabilities."
+                            : "Trop peu de trades pour lire ces chiffres comme des probabilités."}
+                        </p>
+                      )}
+                    </div>
+                  )}
+                                    {analysis.market_context && (
                     <div>
                       <div className="flex items-baseline justify-between gap-3">
                         <span className="text-xs text-muted-foreground">

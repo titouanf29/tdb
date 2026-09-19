@@ -90,6 +90,26 @@ def _regime(close: pd.Series) -> str:
     return "NEUTRAL"
 
 
+def regime_series(bench_close: pd.Series) -> pd.Series:
+    """BULL / BEAR / NEUTRAL at EVERY bar of the benchmark.
+
+    Causal by construction: an EMA at bar t uses only bars up to t, so this
+    can label historical trades with the regime that was observable when they
+    were opened — never with hindsight.
+    """
+    c = bench_close.dropna()
+    if len(c) < 60:
+        return pd.Series(dtype=object)
+    e20 = c.ewm(span=20, adjust=False).mean()
+    e50 = c.ewm(span=50, adjust=False).mean()
+    out = pd.Series("NEUTRAL", index=c.index, dtype=object)
+    out[(c > e20) & (e20 > e50)] = "BULL"
+    out[(c < e20) & (e20 < e50)] = "BEAR"
+    # The first 50 bars have no meaningful EMA50 to compare against.
+    out.iloc[:50] = "UNKNOWN"
+    return out
+
+
 def _pct_change(close: pd.Series, periods: int) -> float | None:
     c = close.dropna()
     if len(c) <= periods:

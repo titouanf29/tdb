@@ -19,7 +19,7 @@ from ._prices import fetch_ohlcv, fetch_prices, prewarm_ohlcv
 from ._indicators import rsi_wilder, atr_wilder, adx_wilder, true_range, data_confidence
 from ._universe import EXTRA_CRYPTO, extend_market
 from ._market_context import (benchmark_for, compute_market_context,
-                              apply_context_gate)
+                              apply_context_gate, regime_series)
 from ._scoring import (compute_score, derive_trend, derive_signal, TIMEFRAME_FETCH,
                        HIGHER_TF, htf_trend, apply_htf_gate, resample_ohlcv,
                        htf_from_primary, ENGINE_VERSION)
@@ -460,20 +460,33 @@ def _fetch_news_sync(ticker):
         return []
 
 
-def _historical_edge_sync(symbol: str, timeframe: str, hist, sl_atr: float, tp_atr: float) -> dict:
+def _historical_edge_sync(symbol: str, timeframe: str, hist, sl_atr: float,
+                          tp_atr: float, bench_close=None, current_regime: str | None = None) -> dict:
     """Triple-barrier replay of THIS asset's history with the user's own
-    stop/target, cached for an hour. Answers "what has this score level been
-    worth here?" next to the score instead of behind a button."""
+    stop/target, cached for an hour.
+
+    When a benchmark series is supplied, every past trade is also labelled
+    with the market regime that was visible when it opened, so the engine can
+    answer the sharper question: not "what followed this score level here?"
+    but "what followed it here, in a market like today's?".
+    """
     import time as _time
-    key = (symbol, timeframe, round(sl_atr, 2), round(tp_atr, 2))
+    key = (symbol, timeframe, round(sl_atr, 2), round(tp_atr, 2), current_regime or "-")
     hit = _EDGE_CACHE.get(key)
     if hit and _time.monotonic() - hit[0] < _EDGE_TTL:
         return hit[1]
     try:
+        regimes = None
+        if bench_close is not None:
+            try:
+                regimes = regime_series(bench_close)
+            except Exception:
+                regimes = None
         # Coarser sampling than the explicit backtest button (120 vs 250
         # evaluations): this runs on the first analysis of every asset, and
         # the trade count it yields is what matters, not the grid density.
-        r = run_backtest(hist, horizon=10, sl_atr=sl_atr, tp_atr=tp_atr, mode="event", max_evals=120)
+        r = run_backtest(hist, horizon=10, sl_atr=sl_atr, tp_atr=tp_atr,
+                         mode="event", max_evals=120, regimes=regimes)
         edge = {
             "n_trades": r.get("n_trades", 0),
             "enough_samples": r.get("enough_samples", False),
@@ -481,13 +494,75 @@ def _historical_edge_sync(symbol: str, timeframe: str, hist, sl_atr: float, tp_a
             "win_rate": r.get("win_rate"),
             "p_target": r.get("p_target"),
             "p_stop": r.get("p_stop"),
+            "p_timeout": r.get("p_timeout"),
             "profit_factor": r.get("profit_factor"),
             "engine_version": r.get("engine_version"),
+            "by_regime": r.get("by_regime") or {},
+            "min_trades_for_condition": r.get("min_trades_for_condition"),
         }
+        edge["scenario"] = _build_scenario(edge, current_regime)
     except Exception:
-        edge = {"n_trades": 0, "enough_samples": False}
+        edge = {"n_trades": 0, "enough_samples": False, "scenario": None}
     _EDGE_CACHE[key] = (_time.monotonic(), edge)
     return edge
+
+
+_REGIME_FR = {"BULL": "marché haussier", "BEAR": "marché baissier", "NEUTRAL": "marché neutre"}
+
+
+def _build_scenario(edge: dict, current_regime: str | None) -> dict | None:
+    """The most likely outcome for THIS setup, in TODAY's market.
+
+    Conditioning on the regime is the sharper answer, but slicing ~40 trades
+    three ways leaves cells of a dozen. So the conditional figure is only used
+    above MIN_TRADES_FOR_CONDITION; otherwise the engine falls back to the
+    all-regimes figure and SAYS it did. A twelve-trade frequency presented as
+    a probability would be the same lie as the invented hit rates removed from
+    this page earlier — with extra machinery.
+    """
+    if not edge.get("n_trades"):
+        return None
+
+    cell = (edge.get("by_regime") or {}).get(current_regime or "")
+    if cell and cell.get("enough"):
+        basis, stats = "conditional", cell
+        label = f"Ce setup en {_REGIME_FR.get(current_regime, 'ce régime')}"
+    else:
+        basis = "unconditional"
+        stats = {
+            "n_trades": edge.get("n_trades"),
+            "p_target": edge.get("p_target"),
+            "p_stop": edge.get("p_stop"),
+            "p_timeout": edge.get("p_timeout"),
+            "win_rate": edge.get("win_rate"),
+            "expectancy_net_r": edge.get("expectancy_net_r"),
+            "enough": edge.get("enough_samples"),
+        }
+        label = "Ce setup, tous régimes confondus"
+
+    outcomes = [("target", stats.get("p_target") or 0.0),
+                ("stop", stats.get("p_stop") or 0.0),
+                ("timeout", stats.get("p_timeout") or 0.0)]
+    most = max(outcomes, key=lambda o: o[1])
+    return {
+        "basis": basis,
+        "regime": current_regime,
+        "label": label,
+        "n_trades": stats.get("n_trades"),
+        "enough": stats.get("enough"),
+        "p_target": stats.get("p_target"),
+        "p_stop": stats.get("p_stop"),
+        "p_timeout": stats.get("p_timeout"),
+        "expectancy_net_r": stats.get("expectancy_net_r"),
+        "most_likely": most[0],
+        "most_likely_pct": round(most[1], 1),
+        # Why the conditional figure was not used, when it was not.
+        "fallback_reason": (
+            None if basis == "conditional"
+            else ("no_regime" if not current_regime
+                  else f"{(cell or {}).get('n_trades', 0)} trades dans ce régime — sous le seuil")
+        ),
+    }
 
 
 def _signal_quality(factor_agreement, htf_aligned, edge: dict) -> dict:
@@ -660,8 +735,10 @@ async def analyze_asset(
         _loop = asyncio.get_event_loop()
         _info_fut = (_loop.run_in_executor(None, _fetch_ticker_info_sync, symbol)
                      if _has_fundamentals(symbol) else None)
-        _edge_fut = _loop.run_in_executor(
-            None, _historical_edge_sync, symbol, timeframe, hist, sl_atr, tp_atr)
+        # The historical replay starts once the benchmark is in hand, a few
+        # lines below: labelling each past trade with the regime that was
+        # visible when it opened is what turns "what followed this score?"
+        # into "what followed it in a market like today's?".
         technical_score = S["technical_score"]; trend_score = S["trend_score"]
         volume_score = S["volume_score"]; momentum_score = S["momentum_score"]
         volatility_score = S["volatility_score"]; final_score = S["final_score"]
@@ -689,6 +766,7 @@ async def analyze_asset(
         # rising, and is the asset leading or lagging it? Same function as the
         # scanner, so the two cannot reach different conclusions.
         market_context = None
+        _bench_close = None
         _bench = benchmark_for(symbol)
         if _bench:
             try:
@@ -696,12 +774,17 @@ async def analyze_asset(
                 if _resample and _b_hist is not None and not _b_hist.empty:
                     _b_hist = resample_ohlcv(_b_hist, _resample)
                 if _b_hist is not None and not _b_hist.empty:
+                    _bench_close = _b_hist["Close"]
                     market_context = compute_market_context(close, _b_hist["Close"], _bench)
                     final_score, _c_bull, _c_bear = apply_context_gate(final_score, market_context)
                     if _c_bull: bullish_signals.append(_c_bull)
                     if _c_bear: bearish_signals.append(_c_bear)
             except Exception as exc:
                 logger.warning("market context failed for %s: %s", symbol, exc)
+
+        _edge_fut = _loop.run_in_executor(
+            None, _historical_edge_sync, symbol, timeframe, hist, sl_atr, tp_atr,
+            _bench_close, (market_context or {}).get("regime"))
 
         # Determine trend (based on EMA alignment) — shared with the scanner
         trend = derive_trend(current_price, float(ema20.iloc[-1]), float(ema50.iloc[-1]))

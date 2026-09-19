@@ -719,7 +719,30 @@ export interface Analysis {
     win_rate?: number | null;
     p_target?: number | null;
     p_stop?: number | null;
+    p_timeout?: number | null;
     profit_factor?: number | null;
+    by_regime?: Record<string, {
+      n_trades: number; enough: boolean;
+      p_target: number; p_stop: number; p_timeout: number;
+      win_rate: number; expectancy_net_r: number;
+    }>;
+    /** Most likely outcome for this setup in today's market — conditioned on
+     *  the market regime when the sample allows, unconditional otherwise, and
+     *  it always says which. */
+    scenario?: {
+      basis: "conditional" | "unconditional";
+      regime: string | null;
+      label: string;
+      n_trades: number;
+      enough: boolean;
+      p_target: number | null;
+      p_stop: number | null;
+      p_timeout: number | null;
+      expectancy_net_r: number | null;
+      most_likely: "target" | "stop" | "timeout";
+      most_likely_pct: number;
+      fallback_reason: string | null;
+    } | null;
   };
   /** Trust in the direction — distinct from confidence in the data. */
   signal_quality?: { score: number; notes: string[] };
