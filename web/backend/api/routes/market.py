@@ -692,6 +692,43 @@ async def get_chart_data(
                             } for bar in results]
                         }
 
+        # Fall back to yfinance.
+        #
+        # Without this the endpoint answered 404 whenever neither paid key was
+        # configured — which is every local checkout, and any deployment that
+        # has not bought both. The analysis endpoint has always used yfinance
+        # through _prices, so the page could compute a full verdict on data the
+        # chart then claimed did not exist.
+        #
+        # Same cache and same executor as the rest of the engine, so a chart
+        # request costs nothing when the analysis has just fetched the same
+        # series.
+        from ._prices import _download_ohlcv
+
+        df = await _download_ohlcv(symbol, period, interval)
+        if df is not None and not df.empty:
+            rows = []
+            for ts, row in df.iterrows():
+                try:
+                    close = float(row["Close"])
+                except (TypeError, ValueError):
+                    continue
+                if close != close:          # NaN: a gap, not a price
+                    continue
+                rows.append({
+                    "timestamp": int(ts.timestamp() * 1000),
+                    "open":   round(float(row["Open"]), 4),
+                    "high":   round(float(row["High"]), 4),
+                    "low":    round(float(row["Low"]), 4),
+                    "close":  round(close, 4),
+                    "volume": int(row["Volume"]) if row["Volume"] == row["Volume"] else 0,
+                })
+            if rows:
+                return {
+                    "symbol": symbol, "period": period,
+                    "interval": interval, "data": rows,
+                }
+
         raise HTTPException(status_code=404, detail="No data found")
     except HTTPException:
         raise

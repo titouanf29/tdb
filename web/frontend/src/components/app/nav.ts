@@ -113,6 +113,7 @@ export const MIGRATED_ROUTES = [
   "/wallet",
   "/journal",
   "/community",
+  "/analysis",
 ];
 
 export function isMigrated(pathname: string | null): boolean {
