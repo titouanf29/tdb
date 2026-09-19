@@ -1,278 +1,200 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import {
-  Trophy, Star, Zap, Target, BookOpen, BarChart2,
-  ScanLine, Bot, Flame, TrendingUp, CheckCircle2, Lock, ChevronLeft
-} from "lucide-react";
-import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
+import { Check } from "lucide-react";
 import { missionsAPI, type Mission, type UserProgress } from "@/lib/api";
-import { useUserLevel } from "@/hooks/useUserLevel";
-import { cn } from "@/lib/utils";
+import {
+  CloudCurtain, EmptyState, Heading, Num, Panel, Progress, SegmentedControl,
+  Text, WeatherBackdrop, useAnimationsEnabled,
+} from "@/components/design-system";
 
-const CATEGORY_ICONS: Record<string, React.ReactNode> = {
-  onboarding: <Star className="w-4 h-4" />,
-  learn: <BookOpen className="w-4 h-4" />,
-  analysis: <BarChart2 className="w-4 h-4" />,
-  scanner: <ScanLine className="w-4 h-4" />,
-  ai: <Bot className="w-4 h-4" />,
-  streak: <Flame className="w-4 h-4" />,
-  wallet: <TrendingUp className="w-4 h-4" />,
-};
+/**
+ * Missions — short objectives that turn reading into practice.
+ *
+ * Deliberately not gamified into a points arcade. The XP and the level are
+ * shown once, at the top, as a statement of where you are; the missions
+ * themselves are phrased as things worth doing, not as rewards worth
+ * collecting. A learning product that makes the badge more attractive than the
+ * skill has taught the wrong thing.
+ *
+ * Active first, then not started, completed last and collapsed to one line.
+ * What you could do now is the only part that needs room.
+ */
 
-const LEVEL_COLORS: Record<string, string> = {
-  beginner: "text-green-400 bg-green-400/10 border-green-400/20",
-  intermediate: "text-primary bg-primary/10 border-primary/20",
-  expert: "text-neon-purple bg-neon-purple/10 border-neon-purple/20",
-};
-
-function XPBar({ current, max, level }: { current: number; max: number; level: number }) {
-  const pct = Math.min(100, (current / max) * 100);
-  return (
-    <div className="space-y-1">
-      <div className="flex justify-between text-xs text-gray-400">
-        <span>Niveau {level}</span>
-        <span>{current} / {max} XP</span>
-      </div>
-      <div className="h-2 rounded-full bg-white/5 overflow-hidden">
-        <motion.div
-          initial={{ width: 0 }}
-          animate={{ width: `${pct}%` }}
-          transition={{ duration: 0.8, ease: "easeOut" }}
-          className="h-full rounded-full bg-gradient-to-r from-[#E8A820] to-[#00D4AA]"
-        />
-      </div>
-    </div>
-  );
-}
-
-function MissionCard({ mission }: { mission: Mission }) {
-  const pct = mission.target > 1 ? Math.min(100, (mission.progress / mission.target) * 100) : 0;
-  const isCompleted = mission.status === "completed";
-  const isLocked = mission.level === "intermediate" && mission.status === "not_started";
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      className={cn(
-        "relative rounded-2xl border p-4 transition-all",
-        isCompleted
-          ? "border-[#00D4AA]/30 bg-[#00D4AA]/5"
-          : "border-white/10 bg-white/[0.03] hover:border-white/20"
-      )}
-    >
-      <div className="flex items-start gap-3">
-        <div className={cn(
-          "w-10 h-10 rounded-xl flex items-center justify-center text-xl shrink-0",
-          isCompleted ? "bg-[#00D4AA]/10" : "bg-white/5"
-        )}>
-          {mission.icon}
-        </div>
-
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="font-semibold text-sm text-white">{mission.title}</span>
-            {mission.daily ? (
-              <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border text-cyan-400 bg-cyan-400/10 border-cyan-400/20">
-                Quotidienne
-              </span>
-            ) : (
-              <span className={cn(
-                "inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border",
-                LEVEL_COLORS[mission.level] ?? "text-gray-400 bg-white/5 border-white/10"
-              )}>
-                {mission.level}
-              </span>
-            )}
-          </div>
-          <p className="text-xs text-gray-400 mt-0.5 leading-relaxed">{mission.description}</p>
-
-          {mission.target > 1 && !isCompleted && (
-            <div className="mt-2 space-y-1">
-              <div className="flex justify-between text-xs text-gray-500">
-                <span>Progression</span>
-                <span>{mission.progress}/{mission.target}</span>
-              </div>
-              <div className="h-1.5 rounded-full bg-white/5 overflow-hidden">
-                <motion.div
-                  initial={{ width: 0 }}
-                  animate={{ width: `${pct}%` }}
-                  transition={{ duration: 0.6, ease: "easeOut" }}
-                  className="h-full rounded-full bg-[#E8A820]"
-                />
-              </div>
-            </div>
-          )}
-        </div>
-
-        <div className="text-right shrink-0">
-          <div className={cn(
-            "inline-flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded-lg",
-            isCompleted ? "text-[#00D4AA] bg-[#00D4AA]/10" : "text-[#E8A820] bg-[#E8A820]/10"
-          )}>
-            <Zap className="w-3 h-3" />
-            {mission.xp} XP
-          </div>
-          {isCompleted && (
-            <div className="mt-1 flex items-center gap-1 text-xs text-[#00D4AA] justify-end">
-              <CheckCircle2 className="w-3.5 h-3.5" />
-              Terminée
-            </div>
-          )}
-        </div>
-      </div>
-    </motion.div>
-  );
-}
+type Filter = "todo" | "done" | "all";
 
 export default function MissionsPage() {
+  const [animOn] = useAnimationsEnabled();
   const [missions, setMissions] = useState<Mission[]>([]);
   const [progress, setProgress] = useState<UserProgress | null>(null);
   const [loading, setLoading] = useState(true);
-  const { showMissions, level } = useUserLevel();
-  const [filter, setFilter] = useState<"all" | "active" | "completed">("all");
+  const [filter, setFilter] = useState<Filter>("todo");
 
   useEffect(() => {
-    Promise.all([missionsAPI.list(), missionsAPI.progress()]).then(([m, p]) => {
-      setMissions(m.missions);
-      setProgress(p);
-      setLoading(false);
-    }).catch(() => setLoading(false));
+    Promise.allSettled([missionsAPI.list(), missionsAPI.progress()])
+      .then(([m, p]) => {
+        if (m.status === "fulfilled") setMissions(m.value.missions || []);
+        if (p.status === "fulfilled") setProgress(p.value);
+      })
+      .finally(() => setLoading(false));
   }, []);
 
-  const filtered = missions.filter((m) => {
-    if (filter === "active") return m.status !== "completed";
-    if (filter === "completed") return m.status === "completed";
-    return true;
-  });
+  const shown = useMemo(() => {
+    const rank = (m: Mission) =>
+      m.status === "active" ? 0 : m.status === "not_started" ? 1 : 2;
+    const list = missions.filter((m) =>
+      filter === "all" ? true
+      : filter === "done" ? m.status === "completed"
+      : m.status !== "completed"
+    );
+    return list.sort((a, b) => rank(a) - rank(b) || b.xp - a.xp);
+  }, [missions, filter]);
 
-  const completedCount = missions.filter((m) => m.status === "completed").length;
+  const done = missions.filter((m) => m.status === "completed").length;
+
+  if (loading) return <CloudCurtain active label="Chargement de vos missions" />;
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6 pb-12">
-      {/* Header */}
-      <div className="flex items-center gap-3">
-        <Link href="/learn" className="text-gray-400 hover:text-white transition-colors">
-          <ChevronLeft className="w-5 h-5" />
-        </Link>
-        <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <Trophy className="w-6 h-6 text-[#FFD700]" />
-            Missions & Progression
-          </h1>
-          <p className="text-sm text-gray-400">Accomplissez des missions pour gagner de l'XP et débloquer des badges</p>
-        </div>
-      </div>
+    <>
+      <WeatherBackdrop condition="fair" enabled={animOn} />
 
-      {/* Progress card */}
-      {progress && (
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="rounded-2xl border border-white/10 bg-white/[0.03] p-5 space-y-4"
-        >
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs text-gray-400 uppercase tracking-wide">Votre progression</p>
-              <p className="text-2xl font-bold">{progress.xp} XP</p>
-            </div>
-            <div className="text-right">
-              <div className="text-3xl font-bold text-[#E8A820]">Niv. {progress.level}</div>
+      <div className="relative space-y-8">
+        <header className="pt-2">
+          <Heading level={1}>Missions</Heading>
+          <Text className="mt-2.5 max-w-[36rem]">
+            Des objectifs courts, faits pour être terminés en une séance. Rien
+            n&apos;est obligatoire, rien n&apos;expire.
+          </Text>
+        </header>
+
+        {progress && (
+          <Panel title="Où vous en êtes">
+            <div className="flex flex-wrap items-end gap-x-12 gap-y-6">
+              <div>
+                <Num className="text-[1.9rem] font-medium leading-none">
+                  Niveau {progress.level}
+                </Num>
+                <Text size="caption" className="mt-2">
+                  {progress.xp} points d&apos;expérience
+                </Text>
+              </div>
+              <div>
+                <Num className="text-[1.3rem] font-medium leading-none">
+                  {done} / {missions.length}
+                </Num>
+                <Text size="caption" className="mt-2">missions terminées</Text>
+              </div>
               {progress.streak_days > 0 && (
-                <div className="flex items-center gap-1 text-orange-400 text-sm justify-end">
-                  <Flame className="w-4 h-4" />
-                  {progress.streak_days} jours
+                <div>
+                  <Num className="text-[1.3rem] font-medium leading-none">
+                    {progress.streak_days} j
+                  </Num>
+                  <Text size="caption" className="mt-2">jours consécutifs</Text>
                 </div>
               )}
             </div>
-          </div>
 
-          <XPBar
-            current={progress.xp_in_current_level}
-            max={progress.xp_for_next_level - (progress.level - 1) * 500}
-            level={progress.level}
-          />
-
-          {/* Badges */}
-          {progress.badges_detail.length > 0 && (
-            <div className="pt-2 border-t border-white/5">
-              <p className="text-xs text-gray-500 mb-2">Badges obtenus</p>
-              <div className="flex flex-wrap gap-2">
-                {progress.badges_detail.map((badge, i) => badge && (
-                  <motion.div
-                    key={i}
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    transition={{ delay: i * 0.1 }}
-                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/5 border border-white/10 text-sm"
-                    style={{ borderColor: `${badge.color}30` }}
-                  >
-                    <span>{badge.icon}</span>
-                    <span className="text-xs text-gray-300">{badge.name}</span>
-                  </motion.div>
-                ))}
+            {progress.xp_for_next_level > 0 && (
+              <div className="mt-6 max-w-[26rem]">
+                <Progress
+                  value={progress.xp_in_current_level}
+                  max={progress.xp_for_next_level}
+                  label={`Vers le niveau ${progress.level + 1}`}
+                  showValue={false}
+                />
+                <Text size="caption" className="mt-2">
+                  {progress.xp_for_next_level - progress.xp_in_current_level} points
+                  restants
+                </Text>
               </div>
-            </div>
-          )}
-
-          <div className="flex items-center gap-1 text-sm text-gray-400">
-            <Target className="w-4 h-4" />
-            <span>{completedCount}/{missions.length} missions terminées</span>
-          </div>
-        </motion.div>
-      )}
-
-      {/* Filter tabs */}
-      <div className="flex gap-1 p-1 rounded-xl bg-white/5 w-fit">
-        {(["all", "active", "completed"] as const).map((f) => (
-          <button
-            key={f}
-            onClick={() => setFilter(f)}
-            className={cn(
-              "px-3 py-1.5 rounded-lg text-sm transition-all",
-              filter === f ? "bg-white/10 text-white" : "text-gray-400 hover:text-gray-300"
             )}
-          >
-            {f === "all" ? "Toutes" : f === "active" ? "En cours" : "Terminées"}
-          </button>
-        ))}
-      </div>
+          </Panel>
+        )}
 
-      {/* Missions list */}
-      {loading ? (
-        <div className="flex justify-center py-12">
-          <div className="w-6 h-6 rounded-full border-2 border-transparent border-t-[#E8A820] animate-spin" />
+        <Panel
+          title="Vos missions"
+          aside={
+            <SegmentedControl
+              size="sm"
+              options={[
+                { value: "todo", label: "À faire" },
+                { value: "done", label: "Terminées" },
+                { value: "all", label: "Toutes" },
+              ]}
+              value={filter}
+              onChange={setFilter}
+              aria-label="Filtre"
+            />
+          }
+        >
+          {shown.length === 0 ? (
+            <EmptyState
+              title={filter === "done" ? "Aucune mission terminée" : "Rien à faire pour l'instant"}
+              description={
+                filter === "done"
+                  ? "Elles apparaîtront ici au fur et à mesure."
+                  : "Vous avez terminé tout ce qui était disponible. Revenez demain."
+              }
+            />
+          ) : (
+            <ul className="[&>*+*]:border-t [&>*+*]:border-[color:var(--cap-line)]">
+              {shown.map((m) => (
+                <MissionRow key={m.id} mission={m} />
+              ))}
+            </ul>
+          )}
+        </Panel>
+      </div>
+    </>
+  );
+}
+
+function MissionRow({ mission: m }: { mission: Mission }) {
+  const completed = m.status === "completed";
+  const pct = m.target > 0 ? Math.min(100, (m.progress / m.target) * 100) : 0;
+
+  return (
+    <li className="flex items-start gap-4 py-4 first:pt-0 last:pb-0">
+      <span
+        aria-hidden
+        className="mt-[3px] flex h-[20px] w-[20px] shrink-0 items-center justify-center rounded-full"
+        style={{
+          backgroundColor: completed ? "var(--cap-ocean)" : "transparent",
+          boxShadow: completed ? "none" : "inset 0 0 0 1.5px var(--cap-line-strong)",
+        }}
+      >
+        {completed && <Check className="h-3 w-3 text-white" strokeWidth={3} />}
+      </span>
+
+      <div className="min-w-0 flex-1">
+        <div className="flex items-baseline justify-between gap-4">
+          <span
+            className="text-[0.95rem] font-medium"
+            style={{
+              color: completed ? "var(--cap-ink-3)" : "var(--cap-ink)",
+              textDecoration: completed ? "line-through" : undefined,
+            }}
+          >
+            {m.title}
+          </span>
+          <Num tone="muted" className="shrink-0 text-[0.8rem]">
+            +{m.xp}
+          </Num>
         </div>
-      ) : (
-        <div className="space-y-3">
-          {filtered.some((m) => m.daily) && (
-            <>
-              <div className="flex items-center gap-2 text-sm font-semibold text-cyan-400">
-                <Flame className="w-4 h-4" />
-                Missions du jour — se renouvellent chaque matin
+
+        {!completed && (
+          <>
+            <Text size="caption" className="mt-1">{m.description}</Text>
+            {/* Only when there is something to show: a bar stuck at zero
+                tells you nothing you did not already know from the tick. */}
+            {m.target > 1 && m.progress > 0 && (
+              <div className="mt-3 max-w-[18rem]">
+                <Progress value={pct} label={`${m.progress} / ${m.target}`} showValue={false} />
               </div>
-              <AnimatePresence>
-                {filtered.filter((m) => m.daily).map((m) => (
-                  <MissionCard key={m.id} mission={m} />
-                ))}
-              </AnimatePresence>
-              <div className="pt-2 text-sm font-semibold text-gray-400">Missions</div>
-            </>
-          )}
-          <AnimatePresence>
-            {filtered.filter((m) => !m.daily).map((m) => (
-              <MissionCard key={m.id} mission={m} />
-            ))}
-          </AnimatePresence>
-          {filtered.length === 0 && (
-            <div className="text-center py-12 text-gray-500">
-              {filter === "completed" ? "Aucune mission terminée pour l'instant" : "Aucune mission disponible"}
-            </div>
-          )}
-        </div>
-      )}
-    </div>
+            )}
+          </>
+        )}
+      </div>
+    </li>
   );
 }

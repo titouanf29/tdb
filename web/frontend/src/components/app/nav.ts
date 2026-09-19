@@ -102,7 +102,12 @@ export const MOBILE_TABS = [
  * not convert them, it would erase them. Each screen has to be rebuilt, and
  * this list is how the app stays coherent while that happens.
  */
-export const MIGRATED_ROUTES = ["/dashboard", "/favorites"];
+export const MIGRATED_ROUTES = [
+  "/dashboard",
+  "/favorites",
+  "/learn/glossaire",
+  "/learn/missions",
+];
 
 export function isMigrated(pathname: string | null): boolean {
   if (!pathname) return false;
