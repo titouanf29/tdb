@@ -184,7 +184,7 @@ export function Hero() {
             </div>
           </div>
 
-          <p className="mt-3 text-center text-[0.72rem]" style={{ color: "var(--cap-ink-4)" }}>
+          <p className="mt-3 text-center text-[0.72rem]" style={{ color: "var(--cap-ink-3)" }}>
             Exemple d'analyse — données d'illustration
           </p>
         </motion.div>

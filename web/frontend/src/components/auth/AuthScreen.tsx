@@ -111,7 +111,7 @@ export function AuthScreen({
           {footer && <div className="mt-6">{footer}</div>}
 
           <div className="mt-8 flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-[0.78rem]">
-            <span style={{ color: "var(--cap-ink-4)" }}>
+            <span style={{ color: "var(--cap-ink-3)" }}>
               Argent virtuel uniquement
             </span>
             {[

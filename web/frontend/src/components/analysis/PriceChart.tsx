@@ -95,7 +95,7 @@ export function PriceChart({
     return (
       <div
         className="flex items-center justify-center"
-        style={{ height, color: "var(--cap-ink-4)" }}
+        style={{ height, color: "var(--cap-ink-3)" }}
       >
         <span className="text-[0.85rem]">Données de prix indisponibles</span>
       </div>

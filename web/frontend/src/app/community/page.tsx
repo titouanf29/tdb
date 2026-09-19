@@ -262,7 +262,7 @@ export default function CommunityPage() {
                 value={body}
                 onChange={(e) => setBody(e.target.value)}
                 rows={5}
-                className="w-full resize-y rounded-[12px] px-3.5 py-3 text-[0.95rem] outline-none placeholder:text-[color:var(--cap-ink-4)]"
+                className="w-full resize-y rounded-[12px] px-3.5 py-3 text-[0.95rem] outline-none placeholder:text-[color:var(--cap-ink-3)]"
                 style={{
                   backgroundColor: "var(--cap-bg)",
                   color: "var(--cap-ink)",
@@ -326,7 +326,7 @@ function MessageRow({
             Équipe
           </span>
         )}
-        <span className="cap-num text-[0.72rem]" style={{ color: "var(--cap-ink-4)" }}>
+        <span className="cap-num text-[0.72rem]" style={{ color: "var(--cap-ink-3)" }}>
           {time}
         </span>
       </div>

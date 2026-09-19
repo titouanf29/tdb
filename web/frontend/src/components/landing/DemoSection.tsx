@@ -175,7 +175,7 @@ export function DemoSection() {
                         </div>
                         <div className="flex items-baseline gap-1">
                           <CountUp to={asset.score} duration={1.2} className="text-[1.6rem] font-medium" />
-                          <span className="text-[0.85rem]" style={{ color: "var(--cap-ink-4)" }}>/ 100</span>
+                          <span className="text-[0.85rem]" style={{ color: "var(--cap-ink-3)" }}>/ 100</span>
                         </div>
                       </div>
                       <div className="mt-6 space-y-5">
@@ -219,7 +219,7 @@ export function DemoSection() {
             </div>
           </div>
 
-          <p className="mt-3 text-[0.72rem]" style={{ color: "var(--cap-ink-4)" }}>
+          <p className="mt-3 text-[0.72rem]" style={{ color: "var(--cap-ink-3)" }}>
             Données d'illustration — l'analyse réelle utilise les cours de marché.
           </p>
         </Reveal>

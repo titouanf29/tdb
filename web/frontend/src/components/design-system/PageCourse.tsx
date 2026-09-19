@@ -104,7 +104,7 @@ export function PageCourse({ stops }: { stops: CourseStop[] }) {
                 <span
                   className="whitespace-nowrap text-[0.68rem] tracking-[0.04em] transition-opacity duration-500"
                   style={{
-                    color: current ? "var(--cap-ink-2)" : "var(--cap-ink-4)",
+                    color: current ? "var(--cap-ink-2)" : "var(--cap-ink-3)",
                     opacity: current ? 1 : 0.45,
                   }}
                 >

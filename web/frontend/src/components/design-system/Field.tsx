@@ -95,7 +95,7 @@ export function TextInput({
         aria-describedby={describedBy}
         className={cn(
           "h-12 w-full px-3.5 text-[0.95rem] outline-none transition-[box-shadow,background-color] duration-200",
-          "placeholder:text-[color:var(--cap-ink-4)]",
+          "placeholder:text-[color:var(--cap-ink-3)]",
           isPassword && "pr-12",
           className
         )}

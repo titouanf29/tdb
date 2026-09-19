@@ -266,7 +266,7 @@ export default function JournalPage() {
               value={form.pre_trade_notes ?? ""}
               onChange={(ev) => setForm({ ...form, pre_trade_notes: ev.target.value })}
               rows={3}
-              className="w-full resize-y rounded-[12px] px-3.5 py-3 text-[0.95rem] outline-none placeholder:text-[color:var(--cap-ink-4)]"
+              className="w-full resize-y rounded-[12px] px-3.5 py-3 text-[0.95rem] outline-none placeholder:text-[color:var(--cap-ink-3)]"
               style={{
                 backgroundColor: "var(--cap-bg)",
                 color: "var(--cap-ink)",
@@ -286,7 +286,7 @@ export default function JournalPage() {
               value={form.post_trade_notes ?? ""}
               onChange={(ev) => setForm({ ...form, post_trade_notes: ev.target.value })}
               rows={3}
-              className="w-full resize-y rounded-[12px] px-3.5 py-3 text-[0.95rem] outline-none placeholder:text-[color:var(--cap-ink-4)]"
+              className="w-full resize-y rounded-[12px] px-3.5 py-3 text-[0.95rem] outline-none placeholder:text-[color:var(--cap-ink-3)]"
               style={{
                 backgroundColor: "var(--cap-bg)",
                 color: "var(--cap-ink)",

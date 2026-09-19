@@ -803,7 +803,7 @@ function AssetRow({
           {price ? (
             <Num className="text-[0.93rem]">{price}</Num>
           ) : (
-            <span className="text-[0.8rem]" style={{ color: "var(--cap-ink-4)" }}>
+            <span className="text-[0.8rem]" style={{ color: "var(--cap-ink-3)" }}>
               Voir l&apos;analyse
             </span>
           )}

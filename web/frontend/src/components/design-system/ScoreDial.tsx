@@ -100,7 +100,7 @@ export function ScoreDial({
 
       <div className="absolute inset-0 flex flex-col items-center justify-center">
         <CountUp to={score} duration={1.6} className="text-[2rem] font-medium leading-none" />
-        <span className="mt-1 text-[0.72rem]" style={{ color: "var(--cap-ink-4)" }}>
+        <span className="mt-1 text-[0.72rem]" style={{ color: "var(--cap-ink-3)" }}>
           {label}
         </span>
       </div>

@@ -12,6 +12,7 @@ import {
   WeatherBackdrop, useAnimationsEnabled,
 } from "@/components/design-system";
 import { LessonBody } from "@/components/learn/LessonBody";
+import { LessonDiagram } from "@/components/learn/Diagrams";
 import { Quiz } from "@/components/learn/Quiz";
 
 /**
@@ -446,6 +447,11 @@ function LessonView({
         </Panel>
 
         <Panel>
+          {/* Le schéma d'abord, le texte ensuite. Ces leçons décrivent des
+              formes — un corps de bougie, un palier, un rapport de distances —
+              et voir la forme avant de lire sa description évite d'avoir à la
+              reconstruire mentalement à partir de quatre définitions. */}
+          <LessonDiagram lessonKey={`${module.id}/${lesson.id}`} />
           <LessonBody content={lesson.content} />
         </Panel>
 

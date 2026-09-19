@@ -94,9 +94,33 @@
      One hue at four weights rather than four greys: the page reads as a
      single material instead of a stack of unrelated layers. */
   --cap-ink:        #0B1726;
-  --cap-ink-2:      rgba(11, 23, 38, 0.66);
-  --cap-ink-3:      rgba(11, 23, 38, 0.46);
-  --cap-ink-4:      rgba(11, 23, 38, 0.30);
+  /* La gamme d'encre, recalibrée sur le contraste mesuré.
+
+     Les valeurs précédentes (0,66 / 0,46 / 0,30) donnaient 5,70:1, 3,02:1 et
+     1,96:1 sur la surface des panneaux. Le seuil WCAG AA du texte normal est
+     4,5:1 : ink-3 et ink-4 étaient donc sous la barre, et ce sont eux qui
+     portent TOUTES les légendes, les sous-titres de panneaux et les lignes
+     secondaires des listes. La moitié du texte du site était trop pâle pour
+     être lue confortablement.
+
+     Monter ink-3 seul ne suffisait pas : à l'alpha requis (0,61) il rejoignait
+     ink-2 à 0,66 et la hiérarchie s'effondrait. Toute la gamme est donc
+     redescendue d'un cran, ce qui rouvre l'écart entre les niveaux tout en
+     passant le seuil :
+
+       ink-2  0,80  ->  9,36:1   texte courant
+       ink-3  0,62  ->  4,97:1   légendes — désormais au-dessus de 4,5:1
+       ink-4  0,47  ->  3,10:1   icônes et traits seulement, jamais du texte
+
+     ink-4 reste sous le seuil du texte, volontairement : il atteint les 3:1
+     exigés des éléments non textuels, et c'est son seul emploi.
+
+     À ne pas confondre avec le calme demandé sur les couleurs : là il
+     s'agissait de saturation sur de grands aplats, ici de luminance sur du
+     texte. Du gris plus foncé est à la fois plus lisible et plus reposant. */
+  --cap-ink-2:      rgba(11, 23, 38, 0.80);
+  --cap-ink-3:      rgba(11, 23, 38, 0.62);
+  --cap-ink-4:      rgba(11, 23, 38, 0.47);
   --cap-on-inverse: #F2F5F7;
 
   /* ── Lines ─────────────────────────────────────────────────────────────
@@ -154,9 +178,11 @@
   --cap-mist-deep: rgba(255, 255, 255, 0.03);
 
   --cap-ink:        #EEF2F5;
-  --cap-ink-2:      rgba(238, 242, 245, 0.68);
-  --cap-ink-3:      rgba(238, 242, 245, 0.48);
-  --cap-ink-4:      rgba(238, 242, 245, 0.30);
+  /* Même recalibrage de nuit : 0,30 donnait 2,52:1, sous le seuil des
+     éléments non textuels lui-même. */
+  --cap-ink-2:      rgba(238, 242, 245, 0.80);
+  --cap-ink-3:      rgba(238, 242, 245, 0.64);
+  --cap-ink-4:      rgba(238, 242, 245, 0.47);
   --cap-on-inverse: #0B1726;
 
   --cap-line:        rgba(238, 242, 245, 0.12);
