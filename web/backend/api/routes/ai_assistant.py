@@ -310,7 +310,22 @@ async def analysis_chat(
 
         messages = [
             {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "system", "content": f"=== DONNÉES D'ANALYSE EN TEMPS RÉEL ===\n{body.analysis_context}\n=== FIN DES DONNÉES ===\nL'utilisateur te pose des questions sur cet actif. Utilise ces données pour répondre avec précision."}
+            # La consigne de brièveté est PROPRE à ce panneau, et elle
+            # contredit volontairement le format complet du prompt général.
+            # Ici l'analyse structurée est déjà affichée à l'écran, juste
+            # au-dessus : l'assistant répond à UNE question posée dessus. Sans
+            # cette consigne il rendait sa fiche entière — titres, trois
+            # tableaux, séparateurs — dans un encart de quelques centimètres.
+            {"role": "system", "content":
+                f"=== DONNÉES D'ANALYSE EN TEMPS RÉEL ===\n{body.analysis_context}\n"
+                "=== FIN DES DONNÉES ===\n"
+                "L'utilisateur lit déjà l'analyse complète de cet actif à l'écran. "
+                "Il te pose UNE question précise dessus : réponds à celle-là, pas à tout.\n"
+                "FORMAT OBLIGATOIRE ICI : 120 mots maximum. Aucun tableau, aucun titre de "
+                "section, aucun séparateur. Une phrase de réponse directe, puis au plus "
+                "trois puces courtes si elles ajoutent quelque chose. Cite les chiffres "
+                "exacts des données ci-dessus. Le rappel réglementaire est inutile dans "
+                "ce panneau, ne le répète pas."}
         ]
 
         try:

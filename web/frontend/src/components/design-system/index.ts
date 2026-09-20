@@ -17,6 +17,7 @@ export { Checkbox, Field, FormError, TextInput } from "./Field";
 export { EmptyState } from "./EmptyState";
 export { LiveBackdrop } from "./LiveBackdrop";
 export { LiveNum } from "./LiveNum";
+export { Markdown } from "./Markdown";
 export { CaptenLogo, CaptenMark } from "./Logo";
 export { CountUp, Metric } from "./Metric";
 export { Contours, Course, Rule, Waypoint } from "./Motif";

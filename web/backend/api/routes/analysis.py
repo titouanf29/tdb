@@ -44,6 +44,43 @@ def _safe(value, default=None, ndigits=None):
         return default
 
 
+def price_decimals(value) -> int:
+    """Combien de décimales pour un PRIX, selon son ordre de grandeur.
+
+    Deux décimales conviennent à une action à 336 €. Sur un actif à 0,35 €
+    elles détruisent l'information : avec un ATR de 0,0003, le stop calculé
+    à 0,34982 et l'objectif à 0,35030 étaient tous deux arrondis à « 0,35 »
+    AVANT d'être envoyés. L'écran affichait donc un stop égal à son objectif,
+    à côté d'un rapport risque/rendement de 1,7 — l'assistant lui-même en
+    tirait la conclusion qu'il n'y avait « aucune marge ». Le frontend ne
+    pouvait rien y faire : la précision était déjà perdue ici.
+
+    Les mêmes seuils que côté interface (voir priceDecimals dans
+    SettingsContext.tsx), pour que la donnée et son affichage s'accordent.
+    """
+    try:
+        v = abs(float(value))
+    except Exception:
+        return 2
+    if not np.isfinite(v) or v == 0:
+        return 2
+    if v >= 100:
+        return 2
+    if v >= 1:
+        return 3
+    if v >= 0.01:
+        return 5
+    if v >= 0.0001:
+        return 6
+    return 8
+
+
+def _px(value, default=None):
+    """Un PRIX, arrondi selon sa grandeur. Pour un pourcentage ou un ratio,
+    utiliser _safe(..., 2) : ceux-là n'ont pas ce problème."""
+    return _safe(value, default, price_decimals(value))
+
+
 def _sanitize(obj):
     """Recursively walk a dict/list and replace any NaN/Inf float with None."""
     if isinstance(obj, dict):
@@ -950,10 +987,10 @@ async def analyze_asset(
 
         risk_block = {
             "direction":                 "SHORT" if is_short_setup else "LONG",
-            "suggested_sl":              _safe(_sl, None, 2),
-            "suggested_tp":              _safe(_tp, None, 2),
-            "suggested_sl_tight":        _safe(_sl_t, None, 2),
-            "suggested_tp_conservative": _safe(_tp_c, None, 2),
+            "suggested_sl":              _px(_sl),
+            "suggested_tp":              _px(_tp),
+            "suggested_sl_tight":        _px(_sl_t),
+            "suggested_tp_conservative": _px(_tp_c),
             "risk_reward":               _safe(_rr, 1.5, 2),
             "atr_stop_pct":              _safe(atr / current_price * 200, None, 2),
             "sl_basis":                  sl_basis,
@@ -1069,9 +1106,9 @@ async def analyze_asset(
         atr_mult_base = 2.0 if trend == "BULLISH" else 1.0
         atr_mult_bear = -2.0 if trend != "BEARISH" else -4.0
 
-        target_bull = round(current_price + atr * atr_mult_bull, 2)
-        target_base = round(current_price + atr * atr_mult_base, 2)
-        target_bear = round(current_price + atr * atr_mult_bear, 2)
+        target_bull = current_price + atr * atr_mult_bull
+        target_base = current_price + atr * atr_mult_base
+        target_bear = current_price + atr * atr_mult_bear
 
         _confidence = max(0, data_confidence(
             n_bars=len(close.dropna()),
@@ -1112,10 +1149,10 @@ async def analyze_asset(
             "timeframe": timeframe,
             "company": company_info,
             "price": {
-                "current": _safe(current_price, 0.0, 2),
+                "current": _px(current_price, 0.0),
                 "change": _safe(price_change, 0.0, 2),
-                "high_24h": _safe(high.iloc[-1], 0.0, 2),
-                "low_24h": _safe(low.iloc[-1], 0.0, 2),
+                "high_24h": _px(high.iloc[-1], 0.0),
+                "low_24h": _px(low.iloc[-1], 0.0),
             },
             "score": {
                 "total": final_score,
@@ -1194,14 +1231,14 @@ async def analyze_asset(
                     "signal": "bullish" if _safe(macd_hist.iloc[-1], 0) > 0 else "bearish"
                 },
                 "ema": {
-                    "ema20": _safe(ema20.iloc[-1], None, 2),
-                    "ema50": _safe(ema50.iloc[-1], None, 2),
-                    "ema200": _safe(ema200.iloc[-1], None, 2) if ema200 is not None else None
+                    "ema20": _px(ema20.iloc[-1]),
+                    "ema50": _px(ema50.iloc[-1]),
+                    "ema200": _px(ema200.iloc[-1]) if ema200 is not None else None
                 },
                 "bollinger": {
-                    "upper": _safe(bb_upper.iloc[-1], None, 2),
-                    "middle": _safe(bb_mid.iloc[-1], None, 2),
-                    "lower": _safe(bb_lower.iloc[-1], None, 2),
+                    "upper": _px(bb_upper.iloc[-1]),
+                    "middle": _px(bb_mid.iloc[-1]),
+                    "lower": _px(bb_lower.iloc[-1]),
                     "position": "upper" if current_price > _safe(bb_upper.iloc[-1], current_price + 1)
                                 else "lower" if current_price < _safe(bb_lower.iloc[-1], current_price - 1)
                                 else "middle",
@@ -1245,8 +1282,8 @@ async def analyze_asset(
             },
             "fibonacci": fibonacci,
             "levels": {
-                "support":    _safe(recent_low, None, 2),
-                "resistance": _safe(recent_high, None, 2),
+                "support":    _px(recent_low),
+                "resistance": _px(recent_high),
                 "pivot":      _safe((recent_high + recent_low + current_price) / 3, None, 2),
                 "window_bars":    _levels_window,
                 "window_interval": timeframe,
@@ -1259,9 +1296,9 @@ async def analyze_asset(
                 "60d": _safe(volatility_60d, None, 2) if volatility_60d is not None else None,
             },
             "targets": {
-                "bull": _safe(target_bull, None, 2),
-                "base": _safe(target_base, None, 2),
-                "bear": _safe(target_bear, None, 2),
+                "bull": _px(target_bull),
+                "base": _px(target_base),
+                "bear": _px(target_bear),
                 "analyst_mean": fundamentals.get("target_price"),
                 "analyst_high": fundamentals.get("target_high"),
                 "analyst_low":  fundamentals.get("target_low"),

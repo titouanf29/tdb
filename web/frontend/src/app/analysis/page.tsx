@@ -8,7 +8,7 @@ import {
   analysisAPI, favoritesAPI, marketAPI,
   type Analysis, type ChartData,
 } from "@/lib/api";
-import { useSettings, convertCurrency, useFormatAssetPrice } from "@/lib/SettingsContext";
+import { fr, useFormatAssetPrice, useSettings } from "@/lib/SettingsContext";
 import {
   useTradingStyle, TRADING_STYLES, TRADING_STYLE_IDS, type TradingStyleId,
 } from "@/lib/tradingStyle";
@@ -74,7 +74,7 @@ export default function AnalysisPage() {
 function AnalysisScreen() {
   const router = useRouter();
   const params = useSearchParams();
-  const { settings, eurUsd, saveSettings } = useSettings();
+  const { settings, saveSettings } = useSettings();
   const style = useTradingStyle();
   const [switching, setSwitching] = useState(false);
 
@@ -250,19 +250,13 @@ function AnalysisScreen() {
     [symbol, chart, style.chartWindow.interval]
   );
 
-  const money = useCallback(
-    (v: number) =>
-      convertCurrency(v, "EUR", settings.currency, eurUsd).toLocaleString("fr-FR", {
-        style: "currency",
-        currency: settings.currency,
-        maximumFractionDigits: 2,
-      }),
-    [settings.currency, eurUsd]
-  );
-
-  /* Un cours et une somme ne se formatent pas pareil. Le prix du titre
-     s'affichait avec le formateur des sommes : sur un actif sous l'euro, deux
-     mouvements réels rendaient le même « 0,34 € ». */
+  /* Un COURS et une SOMME ne se formatent pas pareil, et cet écran ne montre
+     que des cours : stop, objectif, EMA, bandes de Bollinger, supports,
+     objectifs de prix. Tous passaient par le formateur des sommes, figé à
+     deux décimales — sur un actif sous l'euro, le plan affichait
+     « stop 0,35 € / objectif 0,35 € », deux nombres différents rendus
+     identiques. Le contexte envoyé à l'assistant portait les mêmes valeurs
+     arrondies : il raisonnait sur un stop égal à son objectif. */
   const assetPrice = useFormatAssetPrice();
 
   return (
@@ -371,7 +365,6 @@ function AnalysisScreen() {
           <>
             <Verdict
               analysis={analysis}
-              money={money}
               assetPrice={assetPrice}
               live={live}
               ticker={ticker}
@@ -444,12 +437,12 @@ function AnalysisScreen() {
                 )}
 
                 {chartMode === "howto" ? (
-                  <ChartGuide analysis={analysis} money={money} />
+                  <ChartGuide analysis={analysis} assetPrice={assetPrice} />
                 ) : chartMode === "annotated" ? (
                   <AnnotatedChart
                     bars={chart!.data}
                     levels={chartLevels(analysis, depth)}
-                    format={money}
+                    format={assetPrice}
                   />
                 ) : tvAvailable ? (
                   <>
@@ -468,7 +461,7 @@ function AnalysisScreen() {
                     <AnnotatedChart
                       bars={chart!.data}
                       levels={chartLevels(analysis, depth)}
-                      format={money}
+                      format={assetPrice}
                     />
                     <Text size="caption" className="mt-3">
                       TradingView ne référence pas cet actif — voici la vue
@@ -479,12 +472,12 @@ function AnalysisScreen() {
               </Panel>
             )}
 
-            {depth !== "discover" && <Intermediate analysis={analysis} money={money} />}
-            {depth === "advanced" && <Advanced analysis={analysis} money={money} />}
+            {depth !== "discover" && <Intermediate analysis={analysis} assetPrice={assetPrice} />}
+            {depth === "advanced" && <Advanced analysis={analysis} assetPrice={assetPrice} />}
 
             {/* L'assistant en dernier, et à tous les niveaux. C'est la
                 question qu'on se pose APRÈS avoir lu, pas avant. */}
-            <AskAssistant analysis={analysis} money={money} />
+            <AskAssistant analysis={analysis} assetPrice={assetPrice} />
           </>
         )}
       </div>
@@ -496,7 +489,6 @@ function AnalysisScreen() {
 
 function Verdict({
   analysis: a,
-  money,
   assetPrice,
   live,
   ticker,
@@ -505,7 +497,6 @@ function Verdict({
   onToggleFavorite,
 }: {
   analysis: Analysis;
-  money: (v: number) => string;
   /** Un cours n'a pas la précision d'une somme : sur un actif à 0,34 €, deux
    *  décimales affichent le même nombre avant et après un mouvement réel. */
   assetPrice: (v: number) => string;
@@ -660,9 +651,9 @@ function Verdict({
           style={{ borderColor: "var(--cap-line)" }}
         >
           <div className="flex flex-wrap gap-x-8 gap-y-2">
-            <RiskBit label="Stop" value={money(a.risk.suggested_sl)} tone="down" />
-            <RiskBit label="Objectif" value={money(a.risk.suggested_tp)} tone="up" />
-            <RiskBit label="Risque / rendement" value={`1 : ${a.risk.risk_reward.toFixed(1)}`} />
+            <RiskBit label="Stop" value={assetPrice(a.risk.suggested_sl)} tone="down" />
+            <RiskBit label="Objectif" value={assetPrice(a.risk.suggested_tp)} tone="up" />
+            <RiskBit label="Risque / rendement" value={`1 : ${fr(a.risk.risk_reward, 1)}`} />
           </div>
           <Button href={planHref} size="md">
             Ouvrir avec ce plan
@@ -693,7 +684,7 @@ function RiskBit({
 
 /* ── Level 2 : the factors ────────────────────────────────────────────────── */
 
-function Intermediate({ analysis: a, money }: { analysis: Analysis; money: (v: number) => string }) {
+function Intermediate({ analysis: a, assetPrice }: { analysis: Analysis; assetPrice: (v: number) => string }) {
   const subs = [
     { label: "Technique", value: a.score.technical },
     { label: "Volume", value: a.score.volume },
@@ -783,7 +774,7 @@ function Intermediate({ analysis: a, money }: { analysis: Analysis; money: (v: n
           resistance={a.levels.resistance}
           price={a.price.current}
           pivot={a.levels.pivot}
-          format={money}
+          format={assetPrice}
         />
         {a.higher_timeframe?.interval && (
           <div className="mt-5 border-t pt-4" style={{ borderColor: "var(--cap-line)" }}>
@@ -814,12 +805,12 @@ function Intermediate({ analysis: a, money }: { analysis: Analysis; money: (v: n
             {a.market_context.relative_strength != null && (
               <Row
                 label="Force relative (20 périodes)"
-                value={`${a.market_context.relative_strength >= 0 ? "+" : ""}${a.market_context.relative_strength.toFixed(1)} pts`}
+                value={`${a.market_context.relative_strength >= 0 ? "+" : ""}${fr(a.market_context.relative_strength, 1)} pts`}
                 tone={a.market_context.relative_strength >= 0 ? "up" : "down"}
               />
             )}
             {a.market_context.correlation != null && (
-              <Row label="Corrélation" value={a.market_context.correlation.toFixed(2)} />
+              <Row label="Corrélation" value={fr(a.market_context.correlation, 2)} />
             )}
           </dl>
         </Panel>
@@ -839,7 +830,7 @@ function Intermediate({ analysis: a, money }: { analysis: Analysis; money: (v: n
 
 /* ── Level 3 : the raw material ───────────────────────────────────────────── */
 
-function Advanced({ analysis: a, money }: { analysis: Analysis; money: (v: number) => string }) {
+function Advanced({ analysis: a, assetPrice }: { analysis: Analysis; assetPrice: (v: number) => string }) {
   const ind = a.indicators;
   const f = a.fundamentals;
 
@@ -861,25 +852,25 @@ function Advanced({ analysis: a, money }: { analysis: Analysis; money: (v: numbe
           <div className="flex flex-wrap items-end gap-x-12 gap-y-5">
             {t.bear != null && (
               <div>
-                <Num tone="down" className="text-[1.15rem]">{money(t.bear)}</Num>
+                <Num tone="down" className="text-[1.15rem]">{assetPrice(t.bear)}</Num>
                 <Text size="caption" className="mt-1">Défavorable</Text>
               </div>
             )}
             {t.base != null && (
               <div>
-                <Num className="text-[1.3rem]">{money(t.base)}</Num>
+                <Num className="text-[1.3rem]">{assetPrice(t.base)}</Num>
                 <Text size="caption" className="mt-1">Central</Text>
               </div>
             )}
             {t.bull != null && (
               <div>
-                <Num tone="up" className="text-[1.15rem]">{money(t.bull)}</Num>
+                <Num tone="up" className="text-[1.15rem]">{assetPrice(t.bull)}</Num>
                 <Text size="caption" className="mt-1">Favorable</Text>
               </div>
             )}
             {t.analyst_mean != null && (
               <div className="border-l pl-8" style={{ borderColor: "var(--cap-line)" }}>
-                <Num tone="accent" className="text-[1.15rem]">{money(t.analyst_mean)}</Num>
+                <Num tone="accent" className="text-[1.15rem]">{assetPrice(t.analyst_mean)}</Num>
                 <Text size="caption" className="mt-1">
                   Moyenne des analystes
                   {a.fundamentals?.num_analysts ? ` (${a.fundamentals.num_analysts})` : ""}
@@ -891,9 +882,9 @@ function Advanced({ analysis: a, money }: { analysis: Analysis; money: (v: numbe
           {(vol?.["20d"] != null || vol?.["60d"] != null) && (
             <div className="mt-5 border-t pt-4" style={{ borderColor: "var(--cap-line)" }}>
             <Text size="caption">
-              Volatilité annualisée : {vol["20d"] != null ? `${vol["20d"].toFixed(1)} % sur 20 jours` : ""}
+              Volatilité annualisée : {vol["20d"] != null ? `${fr(vol["20d"], 1)} % sur 20 jours` : ""}
               {vol["20d"] != null && vol["60d"] != null ? ", " : ""}
-              {vol["60d"] != null ? `${vol["60d"].toFixed(1)} % sur 60 jours` : ""}
+              {vol["60d"] != null ? `${fr(vol["60d"], 1)} % sur 60 jours` : ""}
               {vol["20d"] != null && vol["60d"] != null && vol["20d"] > vol["60d"] * 1.2
                 ? " — l'agitation récente dépasse la normale de cet actif."
                 : ""}
@@ -910,7 +901,7 @@ function Advanced({ analysis: a, money }: { analysis: Analysis; money: (v: numbe
         <ul className="[&>*+*]:border-t [&>*+*]:border-[color:var(--cap-line)]">
           <Indicator
             name="RSI"
-            value={ind.rsi.value.toFixed(1)}
+            value={fr(ind.rsi.value, 1)}
             meaning={
               ind.rsi.value >= 70 ? "Au-dessus de 70 : l'actif a beaucoup monté vite, un repli est fréquent."
               : ind.rsi.value <= 30 ? "Sous 30 : l'actif a beaucoup baissé vite, un rebond est fréquent."
@@ -919,7 +910,7 @@ function Advanced({ analysis: a, money }: { analysis: Analysis; money: (v: numbe
           />
           <Indicator
             name="MACD"
-            value={ind.macd.histogram.toFixed(4)}
+            value={fr(ind.macd.histogram, 4)}
             tone={ind.macd.histogram >= 0 ? "up" : "down"}
             meaning={
               ind.macd.histogram >= 0
@@ -929,7 +920,7 @@ function Advanced({ analysis: a, money }: { analysis: Analysis; money: (v: numbe
           />
           <Indicator
             name="Moyennes mobiles"
-            value={`${money(ind.ema.ema20)} / ${money(ind.ema.ema50)}${ind.ema.ema200 != null ? ` / ${money(ind.ema.ema200)}` : ""}`}
+            value={`${assetPrice(ind.ema.ema20)} / ${assetPrice(ind.ema.ema50)}${ind.ema.ema200 != null ? ` / ${assetPrice(ind.ema.ema200)}` : ""}`}
             meaning={
               ind.ema.ema20 > ind.ema.ema50
                 ? "La moyenne courte est au-dessus de la longue : structure haussière."
@@ -939,7 +930,7 @@ function Advanced({ analysis: a, money }: { analysis: Analysis; money: (v: numbe
           {ind.adx && (
             <Indicator
               name="ADX"
-              value={ind.adx.value.toFixed(1)}
+              value={fr(ind.adx.value, 1)}
               meaning={
                 ind.adx.value >= 25
                   ? "Au-dessus de 25 : il y a une vraie tendance, dans un sens ou dans l'autre."
@@ -949,12 +940,12 @@ function Advanced({ analysis: a, money }: { analysis: Analysis; money: (v: numbe
           )}
           <Indicator
             name="ATR"
-            value={ind.atr.toFixed(4)}
+            value={fr(ind.atr, 4)}
             meaning="L'amplitude moyenne d'une bougie. C'est ce qui dimensionne le stop : trop près, il saute sur du bruit."
           />
           <Indicator
             name="Volume"
-            value={`${ind.volume_ratio.toFixed(2)}×`}
+            value={`${fr(ind.volume_ratio, 2)}×`}
             tone={ind.volume_ratio >= 1.2 ? "up" : ind.volume_ratio <= 0.7 ? "down" : "ink"}
             meaning={
               ind.volume_ratio >= 1.2 ? "Au-dessus de la moyenne : le mouvement est soutenu par les échanges."
@@ -964,13 +955,13 @@ function Advanced({ analysis: a, money }: { analysis: Analysis; money: (v: numbe
           />
           <Indicator
             name="Bandes de Bollinger"
-            value={`${money(ind.bollinger.lower)} — ${money(ind.bollinger.upper)}`}
+            value={`${assetPrice(ind.bollinger.lower)} — ${assetPrice(ind.bollinger.upper)}`}
             meaning="L'enveloppe dans laquelle le prix évolue habituellement. Des bandes resserrées précèdent souvent un mouvement."
           />
           {ind.stochastic && (
             <Indicator
               name="Stochastique"
-              value={`${ind.stochastic.k.toFixed(1)} / ${ind.stochastic.d.toFixed(1)}`}
+              value={`${fr(ind.stochastic.k, 1)} / ${fr(ind.stochastic.d, 1)}`}
               meaning="Où se situe la clôture dans la fourchette récente. Croisement des deux lignes = signal court terme."
             />
           )}
@@ -1000,7 +991,7 @@ function Advanced({ analysis: a, money }: { analysis: Analysis; money: (v: numbe
                 value={`${Math.round(a.data_quality.last_bar_age_minutes)} min`}
                 tone={a.data_quality.stale ? "down" : "ink"}
               />
-              <Row label="Données manquantes" value={`${(a.data_quality.nan_ratio * 100).toFixed(1)} %`} />
+              <Row label="Données manquantes" value={`${fr(a.data_quality.nan_ratio * 100, 1)} %`} />
             </>
           )}
           {a.signal_quality && <Row label="Qualité du signal" value={`${Math.round(a.signal_quality.score)} / 100`} />}
@@ -1029,7 +1020,7 @@ function Advanced({ analysis: a, money }: { analysis: Analysis; money: (v: numbe
                 label={`${reg} · ${s.n_trades} trades`}
                 value={
                   s.enough
-                    ? `${s.expectancy_net_r >= 0 ? "+" : ""}${s.expectancy_net_r.toFixed(2)} R · ${s.win_rate.toFixed(0)} %`
+                    ? `${s.expectancy_net_r >= 0 ? "+" : ""}${fr(s.expectancy_net_r, 2)} R · ${fr(s.win_rate, 0)} %`
                     : "échantillon trop mince"
                 }
                 tone={s.enough ? (s.expectancy_net_r >= 0 ? "up" : "down") : "ink"}
@@ -1043,14 +1034,14 @@ function Advanced({ analysis: a, money }: { analysis: Analysis; money: (v: numbe
         <Panel title="Fondamentaux">
           <dl className="space-y-3">
             {f.market_cap != null && <Row label="Capitalisation" value={compact(f.market_cap)} />}
-            {f.pe_ratio != null && <Row label="PER" value={f.pe_ratio.toFixed(1)} />}
-            {f.forward_pe != null && <Row label="PER prévisionnel" value={f.forward_pe.toFixed(1)} />}
-            {f.dividend_yield != null && <Row label="Rendement du dividende" value={`${(f.dividend_yield * 100).toFixed(2)} %`} />}
-            {f.profit_margin != null && <Row label="Marge nette" value={`${(f.profit_margin * 100).toFixed(1)} %`} />}
-            {f.revenue_growth != null && <Row label="Croissance du CA" value={`${(f.revenue_growth * 100).toFixed(1)} %`} tone={f.revenue_growth >= 0 ? "up" : "down"} />}
-            {f.roe != null && <Row label="ROE" value={`${(f.roe * 100).toFixed(1)} %`} />}
-            {f.debt_to_equity != null && <Row label="Dette / capitaux propres" value={f.debt_to_equity.toFixed(2)} />}
-            {f.beta != null && <Row label="Bêta" value={f.beta.toFixed(2)} />}
+            {f.pe_ratio != null && <Row label="PER" value={fr(f.pe_ratio, 1)} />}
+            {f.forward_pe != null && <Row label="PER prévisionnel" value={fr(f.forward_pe, 1)} />}
+            {f.dividend_yield != null && <Row label="Rendement du dividende" value={`${fr(f.dividend_yield * 100, 2)} %`} />}
+            {f.profit_margin != null && <Row label="Marge nette" value={`${fr(f.profit_margin * 100, 1)} %`} />}
+            {f.revenue_growth != null && <Row label="Croissance du CA" value={`${fr(f.revenue_growth * 100, 1)} %`} tone={f.revenue_growth >= 0 ? "up" : "down"} />}
+            {f.roe != null && <Row label="ROE" value={`${fr(f.roe * 100, 1)} %`} />}
+            {f.debt_to_equity != null && <Row label="Dette / capitaux propres" value={fr(f.debt_to_equity, 2)} />}
+            {f.beta != null && <Row label="Bêta" value={fr(f.beta, 2)} />}
           </dl>
         </Panel>
       )}
@@ -1063,7 +1054,7 @@ function Advanced({ analysis: a, money }: { analysis: Analysis; money: (v: numbe
                 <Row
                   key={k}
                   label={PERF_LABELS[k]}
-                  value={`${a.performance[k]! >= 0 ? "+" : ""}${a.performance[k]!.toFixed(2)} %`}
+                  value={`${a.performance[k]! >= 0 ? "+" : ""}${fr(a.performance[k]!, 2)} %`}
                   tone={a.performance[k]! >= 0 ? "up" : "down"}
                 />
               ) : null
@@ -1153,7 +1144,7 @@ function Row({
  * il dit à chaque fois quelque chose de différent et reste utile après la
  * vingtième visite. Les chiffres viennent du moteur, pas d'un exemple.
  */
-function ChartGuide({ analysis: a, money }: { analysis: Analysis; money: (v: number) => string }) {
+function ChartGuide({ analysis: a, assetPrice }: { analysis: Analysis; assetPrice: (v: number) => string }) {
   const dir = directionLabel(a);
   const steps: { title: string; body: string }[] = [
     {
@@ -1162,13 +1153,13 @@ function ChartGuide({ analysis: a, money }: { analysis: Analysis; money: (v: num
     },
     {
       title: "2. Les paliers où le prix a déjà réagi",
-      body: `Les zones où le cours a buté plusieurs fois comptent plus que les autres. Sur cet actif, le support mesuré est à ${money(a.levels.support)} et la résistance à ${money(a.levels.resistance)} — deux repères, pas deux certitudes : ils cèdent régulièrement.`,
+      body: `Les zones où le cours a buté plusieurs fois comptent plus que les autres. Sur cet actif, le support mesuré est à ${assetPrice(a.levels.support)} et la résistance à ${assetPrice(a.levels.resistance)} — deux repères, pas deux certitudes : ils cèdent régulièrement.`,
     },
     {
       title: "3. Le volume, sous le prix",
       body:
         a.indicators?.volume_ratio != null
-          ? `La barre du bas dit combien d'échanges ont eu lieu. Un mouvement sans volume est fragile. Ici le volume vaut ${a.indicators.volume_ratio.toFixed(1)} fois sa moyenne${a.indicators.volume_ratio >= 1.3 ? " — le mouvement est confirmé par les échanges." : a.indicators.volume_ratio <= 0.6 ? " — peu d'échanges derrière ce mouvement." : "."}`
+          ? `La barre du bas dit combien d'échanges ont eu lieu. Un mouvement sans volume est fragile. Ici le volume vaut ${fr(a.indicators.volume_ratio, 1)} fois sa moyenne${a.indicators.volume_ratio >= 1.3 ? " — le mouvement est confirmé par les échanges." : a.indicators.volume_ratio <= 0.6 ? " — peu d'échanges derrière ce mouvement." : "."}`
           : "La barre du bas dit combien d'échanges ont eu lieu. Un mouvement de prix accompagné d'un fort volume est plus fiable qu'un mouvement dans le vide.",
     },
     {
@@ -1237,8 +1228,8 @@ function levelWindowLabel(a: Analysis): string | undefined {
 }
 
 function compact(v: number): string {
-  if (Math.abs(v) >= 1e12) return `${(v / 1e12).toFixed(2)} T`;
-  if (Math.abs(v) >= 1e9) return `${(v / 1e9).toFixed(2)} Md`;
-  if (Math.abs(v) >= 1e6) return `${(v / 1e6).toFixed(1)} M`;
+  if (Math.abs(v) >= 1e12) return `${fr(v / 1e12, 2)} T`;
+  if (Math.abs(v) >= 1e9) return `${fr(v / 1e9, 2)} Md`;
+  if (Math.abs(v) >= 1e6) return `${fr(v / 1e6, 1)} M`;
   return v.toLocaleString("fr-FR");
 }

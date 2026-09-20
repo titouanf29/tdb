@@ -439,3 +439,30 @@ export function useFormatPrice() {
     }).format(converted);
   }, [settings.currency, eurUsd]);
 }
+
+/**
+ * Un nombre à la française, avec une virgule décimale.
+ *
+ * toFixed rend toujours un point : « 1.7 », « 62.3 % », « 1 : 1.7 ». Dans une
+ * interface française c'est une faute, et elle revient sans arrêt — quatre
+ * fois repérée et corrigée à la main sur des écrans différents, pendant que
+ * 145 autres appels continuaient de l'écrire ailleurs. Corriger les lignes
+ * visibles une par une ne règle rien ; il faut un formateur qu'on attrape
+ * plus facilement que toFixed.
+ *
+ * `decimals` fixe le nombre de décimales, exactement comme toFixed :
+ * fr(1.6666, 1) -> « 1,7 ».  fr(1000.5, 2) -> « 1 000,50 ».
+ */
+export function fr(value: number, decimals = 2): string {
+  if (!Number.isFinite(value)) return "—";
+  return value.toLocaleString("fr-FR", {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
+  });
+}
+
+/** Le même, avec le signe pour les variations : « +1,7 », « −0,3 ». */
+export function frSigned(value: number, decimals = 2): string {
+  if (!Number.isFinite(value)) return "—";
+  return `${value >= 0 ? "+" : ""}${fr(value, decimals)}`;
+}

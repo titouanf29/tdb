@@ -5,7 +5,7 @@ import { motion, useReducedMotion } from "framer-motion";
 import { ArrowUp, Loader2 } from "lucide-react";
 import { aiAPI, type Analysis } from "@/lib/api";
 import {
-  Button, DUR, EASE, Panel, Text,
+  Button, DUR, EASE, Panel, Markdown, Text,
 } from "@/components/design-system";
 
 /**
@@ -27,14 +27,14 @@ import {
  * moitié n'a aucun sens pour un modèle de langue.
  */
 
-function contextOf(a: Analysis, money: (v: number) => string): string {
+function contextOf(a: Analysis, assetPrice: (v: number) => string): string {
   const lines = [
     `Actif : ${a.company?.name ?? a.symbol} (${a.symbol}), unité ${a.timeframe}`,
-    `Prix : ${money(a.price.current)} (${a.price.change >= 0 ? "+" : ""}${a.price.change.toFixed(2)} % sur la séance)`,
+    `Prix : ${assetPrice(a.price.current)} (${a.price.change >= 0 ? "+" : ""}${a.price.change.toFixed(2)} % sur la séance)`,
     `Score du profil : ${Math.round(a.profile_score?.total ?? a.score.total)}/100 — tendance lue : ${a.trend}`,
-    `Niveaux : support ${money(a.levels.support)}, résistance ${money(a.levels.resistance)}`,
+    `Niveaux : support ${assetPrice(a.levels.support)}, résistance ${assetPrice(a.levels.resistance)}`,
     a.risk?.suggested_sl != null
-      ? `Plan : stop ${money(a.risk.suggested_sl)}, objectif ${money(a.risk.suggested_tp)}, rapport ${a.risk.risk_reward?.toFixed(2)}`
+      ? `Plan : stop ${assetPrice(a.risk.suggested_sl)}, objectif ${assetPrice(a.risk.suggested_tp)}, rapport ${a.risk.risk_reward?.toFixed(2)}`
       : "",
     a.indicators?.rsi ? `RSI ${a.indicators.rsi.value.toFixed(1)}` : "",
     a.indicators?.macd ? `MACD histogramme ${a.indicators.macd.histogram.toFixed(4)}` : "",
@@ -83,10 +83,10 @@ type Msg = { role: "user" | "assistant"; content: string };
 
 export function AskAssistant({
   analysis,
-  money,
+  assetPrice,
 }: {
   analysis: Analysis;
-  money: (v: number) => string;
+  assetPrice: (v: number) => string;
 }) {
   const reduce = useReducedMotion();
   const [messages, setMessages] = useState<Msg[]>([]);
@@ -116,7 +116,7 @@ export function AskAssistant({
     setMessages((m) => [...m, { role: "user", content: q }]);
     setBusy(true);
     try {
-      const r = await aiAPI.analysisChat(q, contextOf(analysis, money), history);
+      const r = await aiAPI.analysisChat(q, contextOf(analysis, assetPrice), history);
       setMessages((m) => [...m, { role: "assistant", content: r.response }]);
       setRemaining(r.is_premium ? null : r.remaining);
     } catch (err) {
@@ -182,9 +182,18 @@ export function AskAssistant({
                   backgroundColor: m.role === "user" ? "var(--cap-surface-2)" : "var(--cap-bg)",
                 }}
               >
-                <Text size="small" tone={m.role === "user" ? "ink" : "muted"}>
-                  {m.content}
-                </Text>
+                {/* La réponse est du markdown : l'afficher en texte brut
+                    faisait sortir les astérisques, les dièses et les barres
+                    des tableaux en caractères littéraux, le tout écrasé en un
+                    seul pavé par le HTML. La question de l'utilisateur, elle,
+                    reste du texte — avec ses retours à la ligne. */}
+                {m.role === "user" ? (
+                  <Text size="small" tone="ink" className="whitespace-pre-wrap">
+                    {m.content}
+                  </Text>
+                ) : (
+                  <Markdown>{m.content}</Markdown>
+                )}
               </div>
             </motion.div>
           ))}

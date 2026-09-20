@@ -14,6 +14,8 @@ import {
   conditionFromChange, useAnimationsEnabled,
 } from "@/components/design-system";
 import { PositionSheet } from "@/components/wallet/PositionSheet";
+import { JournalPrompt } from "@/components/wallet/JournalPrompt";
+import { draftFromPosition, type JournalDraft } from "@/lib/journalDraft";
 import { RefreshTimer, useAutoRefresh } from "@/components/app/RefreshTimer";
 import { useTradingStyle } from "@/lib/tradingStyle";
 
@@ -47,6 +49,7 @@ export default function WalletPage() {
   const [sl, setSl] = useState("");
   const [tp, setTp] = useState("");
   const [sheet, setSheet] = useState<Position | null>(null);
+  const [journal, setJournal] = useState<JournalDraft | null>(null);
   const [funding, setFunding] = useState(false);
   const [fundAmount, setFundAmount] = useState("1000");
   const [busy, setBusy] = useState(false);
@@ -116,13 +119,23 @@ export default function WalletPage() {
      quatrième décimale. */
   const assetPrice = useFormatAssetPrice();
 
+  /* La clôture enchaîne sur la proposition de journal.
+     C'est le seul moment où l'utilisateur sait encore POURQUOI il était
+     entré ; une demi-heure plus tard, la réponse est perdue et le journal
+     reste vide — c'est ce qui lui arrivait. Le brouillon est construit à
+     partir de la position qu'on vient de fermer, donc AVANT le rechargement
+     qui la fera disparaître de la liste. */
   const doClose = async () => {
     if (!closing) return;
+    const closed = closing;
     setBusy(true);
     setError("");
     try {
-      await walletAPI.closePosition(closing.id);
+      const res = await walletAPI.closePosition(closed.id);
       setClosing(null);
+      const exit = res.exit_price ?? closed.current_price ?? closed.entry_price;
+      const pnl = res.realized_pnl ?? closed.unrealized_pnl ?? 0;
+      setJournal(draftFromPosition(closed, exit, pnl, style));
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Clôture impossible.");
@@ -433,6 +446,12 @@ export default function WalletPage() {
       </div>
 
       {/* ── Close ──────────────────────────────────────────────────────── */}
+      <JournalPrompt
+        draft={journal}
+        onClose={() => setJournal(null)}
+        formatMoney={money}
+      />
+
       <PositionSheet
         position={sheet}
         onClose={() => setSheet(null)}

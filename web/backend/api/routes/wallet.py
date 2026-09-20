@@ -117,6 +117,27 @@ async def _execute_levels(user_id, positions: list) -> list:
     return closed
 
 
+def _px(value: float) -> float:
+    """Un prix, arrondi selon sa grandeur.
+
+    « round(exit_price, 2) » rendait 0,35 pour un actif à 0,3463 : le journal
+    de trade aurait enregistré un prix de sortie faux, et le résultat affiché
+    n'aurait pas correspondu au calcul. Mêmes seuils que partout ailleurs.
+    """
+    v = abs(value)
+    if v >= 100:
+        d = 2
+    elif v >= 1:
+        d = 3
+    elif v >= 0.01:
+        d = 5
+    elif v >= 0.0001:
+        d = 6
+    else:
+        d = 8
+    return round(value, d)
+
+
 async def _price_positions(positions: list) -> list:
     """Attach live price, P&L and availability to open positions.
 
@@ -399,7 +420,7 @@ async def close_position(
     return {
         "success": True,
         "message": f"Position closed: {position['symbol']}",
-        "exit_price": round(exit_price, 2),
+        "exit_price": _px(exit_price),
         "realized_pnl": round(pnl, 2),
         "new_balance": round(new_balance, 2)
     }

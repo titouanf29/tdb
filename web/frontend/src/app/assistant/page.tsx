@@ -2,12 +2,10 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
 import { Loader2, Send, Trash2 } from "lucide-react";
 import { aiAPI, type AILimitStatus, type ChatMessage } from "@/lib/api";
 import {
-  CaptenMark, Heading, Panel, Text, WeatherBackdrop, useAnimationsEnabled,
+  CaptenMark, Heading, Markdown, Panel, Text, WeatherBackdrop, useAnimationsEnabled,
 } from "@/components/design-system";
 
 /**
@@ -318,12 +316,13 @@ function Message({ message: m }: { message: ChatMessage }) {
       <CaptenMark size={18} className="mt-1 shrink-0" />
       {/* The answer gets the full measure and no bubble: it is the part worth
           reading, and a tinted box around prose only makes it harder. */}
-      <div
-        className="min-w-0 flex-1 text-[0.92rem] leading-[1.65] [&_a]:underline [&_code]:rounded [&_code]:bg-[color:var(--cap-surface-2)] [&_code]:px-1 [&_code]:py-0.5 [&_li]:my-1 [&_ol]:my-2 [&_ol]:list-decimal [&_ol]:pl-5 [&_p+p]:mt-3 [&_strong]:font-semibold [&_ul]:my-2 [&_ul]:list-disc [&_ul]:pl-5"
-        style={{ color: "var(--cap-ink-2)" }}
-      >
-        <ReactMarkdown remarkPlugins={[remarkGfm]}>{m.content}</ReactMarkdown>
-      </div>
+      {/* Le markdown était rendu ici, mais sans aucun style de tableau ni de
+          titre : un tableau de niveaux arrivait en mots collés, un ### en
+          paragraphe comme les autres. Les deux écrans partagent désormais le
+          même rendu. */}
+      <Markdown className="min-w-0 flex-1 text-[0.92rem] leading-[1.65]">
+        {m.content}
+      </Markdown>
     </div>
   );
 }
