@@ -180,26 +180,46 @@ async def _poly_stocks(symbols: list[str], api_key: str) -> dict[str, dict]:
 
 # ── yfinance fallback ─────────────────────────────────────────────────────────
 
-def _yf_fast_info(symbols: list[str]) -> dict[str, dict]:
-    """Last-resort per-symbol fetch via yfinance fast_info."""
+def _yf_one(sym: str) -> tuple[str, dict] | None:
     import yfinance as yf
+    try:
+        fi    = yf.Ticker(sym).fast_info
+        price = float(fi.last_price or 0)
+        prev  = float(fi.previous_close or 0)
+        if price <= 0:
+            return None
+        change = ((price - prev) / prev * 100) if prev else 0.0
+        return sym.upper(), {
+            "price":  round(price, 4),
+            "change": round(change, 2),
+            "volume": int(getattr(fi, "three_month_average_volume", None) or 0),
+        }
+    except Exception as e:
+        print(f"[prices/yf] {sym}: {e}")
+        return None
+
+
+def _yf_fast_info(symbols: list[str]) -> dict[str, dict]:
+    """Repli, en parallèle.
+
+    Il interrogeait yfinance SYMBOLE PAR SYMBOLE, dans une seule boucle. Sans
+    clé Twelve Data, lire les cours de 95 valeurs européennes prenait ainsi
+    49 secondes — mesuré au départ d'un scan, qui restait bloqué là avant même
+    d'avoir analysé quoi que ce soit. Chaque appel est une attente réseau,
+    donc ils s'empilent au lieu de se recouvrir.
+
+    Le parallélisme est borné : yfinance tape Yahoo, qui limite le débit, et
+    lancer 800 requêtes d'un coup ferait remplacer l'attente par des refus.
+    """
+    from concurrent.futures import ThreadPoolExecutor
+    if not symbols:
+        return {}
+    workers = min(16, max(1, len(symbols)))
     result: dict[str, dict] = {}
-    for sym in symbols:
-        s = sym.upper()
-        try:
-            fi     = yf.Ticker(sym).fast_info
-            price  = float(fi.last_price or 0)
-            prev   = float(fi.previous_close or 0)
-            if price <= 0:
-                continue
-            change = ((price - prev) / prev * 100) if prev else 0.0
-            result[s] = {
-                "price":  round(price, 4),
-                "change": round(change, 2),
-                "volume": int(getattr(fi, "three_month_average_volume", None) or 0),
-            }
-        except Exception as e:
-            print(f"[prices/yf] {sym}: {e}")
+    with ThreadPoolExecutor(max_workers=workers) as pool:
+        for got in pool.map(_yf_one, symbols):
+            if got:
+                result[got[0]] = got[1]
     return result
 
 

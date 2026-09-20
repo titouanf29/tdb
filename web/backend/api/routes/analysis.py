@@ -9,7 +9,9 @@ import asyncio
 from pathlib import Path
 import pandas as pd
 import numpy as np
+import json as _json
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi.responses import StreamingResponse
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 from .auth import get_current_user
@@ -17,7 +19,9 @@ from .premium import is_user_premium, get_user_limits
 from ..database import execute_query, execute_write
 from ._prices import fetch_ohlcv, fetch_prices, prewarm_ohlcv
 from ._indicators import rsi_wilder, atr_wilder, adx_wilder, true_range, data_confidence
-from ._universe import EXTRA_CRYPTO, extend_market
+from ._universe import (EXTRA_CRYPTO, extend_market, classify,
+                        resolve_universe, universe_summary)
+from ._opportunity import describe as describe_opportunity
 from ._market_context import (benchmark_for, compute_market_context,
                               apply_context_gate, regime_series)
 from ._scoring import (compute_score, derive_trend, derive_signal, TIMEFRAME_FETCH,
@@ -668,6 +672,17 @@ def _tradeability(
         "blockers": blockers,
         "warnings": warnings,
     }
+
+
+@router.get("/scan-universe")
+async def get_scan_universe(current_user: dict = Depends(get_current_user)):
+    """Les places et les classes réellement disponibles, avec leurs effectifs.
+
+    L'interface ne doit RIEN écrire en dur : une place proposée mais vide est
+    une promesse que le scan ne tiendra pas, et c'est ce genre d'écart qui
+    fait douter d'un outil.
+    """
+    return universe_summary()
 
 
 @router.get("/scan-limit")
@@ -1694,6 +1709,9 @@ async def scan_market(
     # surest way to contradict yourself. The client sends the timeframe its
     # trading style will land on.
     timeframe: str = Query(default="1d", pattern="^(5m|15m|30m|1h|4h|1d|3d|1w|1mo)$"),
+    places: str = Query(default="", description="PARIS,FRANCFORT,… — vide = toutes"),
+    classes: str = Query(default="", description="ACTION,CRYPTO,… — vide = toutes"),
+    stream: bool = Query(default=False, description="Diffuser chaque actif dès qu'il est scoré"),
     current_user: dict = Depends(get_current_user),
 ):
     """Scan a market for opportunities — parallel, enriched scoring (RSI+MACD+EMA+Volume+Momentum)"""
@@ -1715,22 +1733,27 @@ async def scan_market(
 
     fetch_period, fetch_interval, fetch_resample = TIMEFRAME_FETCH.get(timeframe, ("2y", "1d", None))
 
+    # L'univers se compose sur deux axes indépendants — les places et les
+    # classes d'actifs — parce que « un marché à la fois » ne permettait
+    # d'exprimer ni « uniquement Paris », ni « tout sauf la crypto », ni
+    # aucun mélange. Le segment d'URL reste accepté pour ne rien casser de ce
+    # qui existe, mais il n'est plus que l'un des trois filtres possibles.
     market_key = market_key.upper()
-    if market_key == "ALL":
-        # Union of every configured market, de-duplicated while keeping order.
-        # MARKETS lives in the repo-root config shared with the Telegram bot,
-        # so the "all" universe is derived here rather than added there.
-        seen: set[str] = set()
-        assets = [
-            s
-            for key, m in MARKETS.items()
-            for s in extend_market(key, list(m["assets"]))
-            if not (s in seen or seen.add(s))
-        ]
-    elif market_key in MARKETS:
-        assets = extend_market(market_key, list(MARKETS[market_key]["assets"]))
-    else:
-        raise HTTPException(status_code=404, detail="Market not found")
+    want_places = [p.strip().upper() for p in (places or "").split(",") if p.strip()]
+    want_classes = [c.strip().upper() for c in (classes or "").split(",") if c.strip()]
+    want_markets: list[str] = []
+    if market_key and market_key != "ALL":
+        if market_key not in MARKETS:
+            raise HTTPException(status_code=404, detail="Market not found")
+        want_markets = [market_key]
+
+    assets = resolve_universe(places=want_places, classes=want_classes,
+                              markets=want_markets)
+    if not assets:
+        raise HTTPException(
+            status_code=400,
+            detail="Aucun actif ne correspond à cette sélection. Élargissez les places ou les classes."
+        )
 
     async def _analyze(symbol: str):
         """Score one asset with the SAME engine, on the SAME history, as the
@@ -1817,8 +1840,23 @@ async def scan_market(
             chg_1m = float((price - close.iloc[-22]) / close.iloc[-22] * 100) if n >= 22 else 0.0
 
             # ── Structure ──────────────────────────────────
+            # Deux échelles, et la distinction compte.
+            #
+            # Les extrêmes de TOUT l'historique servent à dire « proche de son
+            # plus haut » — c'est bien la question posée. Mais ils ne peuvent
+            # pas servir de niveaux d'invalidation : sur deux ans d'historique,
+            # le plus bas d'une action à 25 € était à 12,67 €, et annoncer
+            # « sous 12,67 le scénario tombe » ne veut rien dire. Un niveau
+            # qu'on ne verra pas de l'année n'invalide rien.
+            #
+            # Les niveaux ACTIONNABLES se lisent donc sur la période récente —
+            # une quarantaine de bougies, soit deux mois en journalier —, la
+            # fenêtre où le prix a réellement buté.
             high_hist = float(high.max())
             low_hist  = float(low.min())
+            _w = min(len(close), max(20, min(60, n // 4)))
+            recent_high = float(high.iloc[-_w:].max())
+            recent_low  = float(low.iloc[-_w:].min())
             near_breakout = (price / high_hist) >= 0.96 if high_hist > 0 else False
             near_support  = (price / low_hist) <= 1.10 if low_hist > 0 else False
             pct_from_high = (price - high_hist) / high_hist * 100 if high_hist > 0 else 0.0
@@ -1860,9 +1898,31 @@ async def scan_market(
                 reason += f" — mais {downs[0].lower()}"
             reason = (reason[:1].upper() + reason[1:] + ".") if reason else ""
 
+            # Une phrase, pas une liste de cases cochées. Les niveaux passés
+            # ici sont ceux du même historique que le score : le lecteur voit
+            # la configuration ET ce qui l'invalide, qui manquait entièrement.
+            _cls, _place = classify(symbol)
+            opp = describe_opportunity(
+                symbol=symbol, price=price, rsi=rsi, volume_ratio=vol_ratio,
+                macd_cross=macd_cross, macd_above=macd_above,
+                near_breakout=near_breakout, bb_squeeze=bb_squeeze,
+                pct_from_high=pct_from_high,
+                support=recent_low if recent_low > 0 else None,
+                resistance=recent_high if recent_high > 0 else None,
+                ema20=ema20_last, ema50=ema50_last,
+                chg_1w=chg_1w, chg_1m=chg_1m,
+                trend=trend_en, signal=signal,
+            )
+
             return {
                 "symbol":        symbol,
                 "name":          ASSET_NAMES.get(symbol, symbol),
+                "place":         _place,
+                "asset_class":   _cls,
+                "setup":         opp["setup"],
+                "family":        opp["family"],
+                "headline":      opp["headline"],
+                "action":        opp["action"],
                 "price":         round(price, 4),
                 "change":        round(chg_1d, 2),
                 "change_1w":     round(chg_1w, 2),
@@ -1878,6 +1938,8 @@ async def scan_market(
                 "reason":        reason,
                 "opp_type":      opp_type,
                 "macd_signal":   "HAUSSIER" if macd_above else "BAISSIER",
+                "support":       _px(recent_low),
+                "resistance":    _px(recent_high),
                 "near_breakout": near_breakout,
                 "pct_from_high": round(pct_from_high, 1),
                 "market_regime": (_ctx or {}).get("regime"),
@@ -1897,38 +1959,169 @@ async def scan_market(
     # and label it HAUSSIER while the analysis says NEUTRE. fetch_prices is
     # batched, so this is one request for the whole universe.
     live_px: dict = {}
-    try:
-        live_px = await fetch_prices(assets) or {}
-    except Exception:
-        live_px = {}
+    if not stream:
+        try:
+            live_px = await fetch_prices(assets) or {}
+        except Exception:
+            live_px = {}
 
     # Pre-warm the bar cache in bulk. Yahoo serves many tickers per request,
     # so the full universe goes from ~800 downloads to ~17. The per-symbol
     # path below is unchanged — it now simply finds everything in cache, and
     # any ticker the batch skipped is still fetched individually.
     prewarmed: dict = {}
-    try:
-        prewarmed = await prewarm_ohlcv(assets, period=fetch_period, interval=fetch_interval)
-    except Exception as exc:
-        logger.warning("prewarm failed, falling back to per-symbol: %s", exc)
+    if not stream:
+        try:
+            prewarmed = await prewarm_ohlcv(assets, period=fetch_period, interval=fetch_interval)
+        except Exception as exc:
+            logger.warning("prewarm failed, falling back to per-symbol: %s", exc)
 
     # Benchmarks for the whole universe are a handful of indices: fetched once
     # and reused for every asset, so market context costs one extra request.
     bench_bars: dict = {}
-    try:
-        _benches = sorted({b for s in assets if (b := benchmark_for(s))})
-        if _benches:
-            bench_bars = await prewarm_ohlcv(_benches, period=fetch_period, interval=fetch_interval)
+
+    async def _load_benchmarks():
+        """Les indices de référence : une poignée, partagés par tout l'univers."""
+        try:
+            _benches = sorted({b for s in assets if (b := benchmark_for(s))})
+            if not _benches:
+                return
+            got = await prewarm_ohlcv(_benches, period=fetch_period, interval=fetch_interval)
             if fetch_resample:
-                bench_bars = {k: resample_ohlcv(v, fetch_resample) for k, v in bench_bars.items()}
-    except Exception as exc:
-        logger.warning("benchmark prewarm failed: %s", exc)
+                got = {k: resample_ohlcv(v, fetch_resample) for k, v in got.items()}
+            bench_bars.update(got)
+        except Exception as exc:
+            logger.warning("benchmark prewarm failed: %s", exc)
+
+    if not stream:
+        await _load_benchmarks()
 
     gate = asyncio.Semaphore(_SCAN_CONCURRENCY)
 
     async def _analyze_gated(symbol: str):
         async with gate:
             return await _analyze(symbol)
+
+    # ── Diffusion au fil de l'eau ────────────────────────────────────────
+    #
+    # Un scan de 56 valeurs parisiennes prend 45 secondes ; l'univers entier
+    # en compte 819. Attendre la fin pour tout afficher d'un coup, c'est une
+    # minute de sablier devant lequel on ne sait pas si quelque chose
+    # travaille.
+    #
+    # En mode flux, chaque actif part DÈS QU'IL EST SCORÉ. L'écran se remplit
+    # en direct : le compteur monte, les places s'allument, les opportunités
+    # se rangent au fur et à mesure. L'animation n'est pas une barre de
+    # progression simulée sur une durée devinée — elle montre le travail réel.
+    #
+    # Les actifs écartés sont annoncés aussi (« seen »), sans leur charge
+    # utile : c'est ce qui permet de montrer le balayage complet sans envoyer
+    # 819 objets dont on n'affichera qu'une poignée.
+    if stream:
+        async def _events():
+            # L'univers part en premier, avant la moindre requête réseau.
+            # Mesuré : la préparation — cours en direct puis indices de
+            # référence — occupait 56 secondes AVANT que le flux ne s'ouvre.
+            # L'écran restait vide pendant ce temps, alors qu'il a déjà tout
+            # ce qu'il faut pour dessiner l'univers et commencer à vivre.
+            yield _json.dumps({
+                "type": "start", "total": len(assets), "symbols": assets,
+                "timeframe": timeframe, "min_score": min_score,
+            }) + "\n"
+
+            yield _json.dumps({"type": "phase", "phase": "prices",
+                               "label": "Lecture des cours en direct"}) + "\n"
+            try:
+                live_px.update(await fetch_prices(assets) or {})
+            except Exception:
+                pass
+
+            yield _json.dumps({"type": "phase", "phase": "benchmarks",
+                               "label": "Chargement des indices de référence"}) + "\n"
+            await _load_benchmarks()
+
+            yield _json.dumps({"type": "phase", "phase": "scan",
+                               "label": "Analyse des actifs"}) + "\n"
+
+            kept: list = []
+            analyzed_n = 0
+            done_n = 0
+
+            # PAR PAQUETS, et c'est tout l'intérêt.
+            #
+            # Le premier jet diffusait bien chaque actif dès qu'il était scoré
+            # — et les 56 résultats arrivaient quand même tous à la même
+            # seconde. L'horodatage l'a montré : 36,7 s pour le premier, 37,6 s
+            # pour le dernier. Le goulot n'est pas le scoring mais le
+            # téléchargement groupé, fait EN ENTIER avant la moindre analyse.
+            # Diffuser au fil de l'eau par-dessus, c'était habiller une attente
+            # immobile d'une animation qui ne montrait rien.
+            #
+            # On télécharge donc paquet par paquet, et chaque paquet est scoré
+            # dès qu'il est là. Le premier résultat tombe après un paquet, pas
+            # après l'univers entier.
+            CHUNK = 40
+            paquets = [assets[i:i + CHUNK] for i in range(0, len(assets), CHUNK)]
+            for paquet in paquets:
+                try:
+                    got = await prewarm_ohlcv(paquet, period=fetch_period,
+                                              interval=fetch_interval)
+                    prewarmed.update(got)
+                except Exception as exc:
+                    logger.warning("prewarm paquet: %s", exc)
+
+                tasks = [asyncio.create_task(_analyze_gated(sym)) for sym in paquet]
+                try:
+                    for fut in asyncio.as_completed(tasks):
+                        r = await fut
+                        done_n += 1
+                        if r is None:
+                            yield _json.dumps({"type": "skip", "done": done_n}) + "\n"
+                            continue
+                        analyzed_n += 1
+                        keep = r["score"] >= min_score and (
+                            opportunity_type == "all" or r["opp_type"] == opportunity_type
+                        )
+                        if keep:
+                            kept.append(r)
+                            yield _json.dumps({"type": "result", "done": done_n,
+                                               "item": _sanitize(r)}) + "\n"
+                        else:
+                            yield _json.dumps({
+                                "type": "seen", "done": done_n,
+                                "symbol": r["symbol"], "score": r["score"],
+                                "place": r.get("place"),
+                            }) + "\n"
+                finally:
+                    # Un client qui ferme l'onglet ne doit pas laisser des
+                    # centaines de tâches tourner pour personne.
+                    for t in tasks:
+                        if not t.done():
+                            t.cancel()
+
+            await _record_scan(current_user["id"], market_key)
+            q = await _check_scan_limit(current_user)
+            kept.sort(key=lambda x: x["score"], reverse=True)
+            yield _json.dumps({
+                "type": "done",
+                "total_scanned": len(assets),
+                "total_analyzed": analyzed_n,
+                "kept": len(kept),
+                "results": [_sanitize(r) for r in kept[:limit]],
+                "quota": {
+                    "scans_today": q["scans_today"], "daily_limit": q["daily_limit"],
+                    "remaining": q["remaining"], "is_premium": q["is_premium"],
+                    "next_reset": q.get("next_reset"),
+                },
+            }) + "\n"
+
+        return StreamingResponse(
+            _events(),
+            media_type="application/x-ndjson",
+            # Sans cet en-tête, un proxy qui met en tampon réduit le flux à
+            # une seule livraison finale — soit exactement ce qu'on évitait.
+            headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+        )
 
     all_results = await asyncio.gather(*[_analyze_gated(s) for s in assets])
 
