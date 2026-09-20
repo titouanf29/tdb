@@ -177,6 +177,11 @@ export const walletAPI = {
   getHistory: (limit = 50) =>
     fetchAPI<{ history: Position[] }>(`/api/wallet/history?limit=${limit}`),
 
+  getHistoryBySymbol: () =>
+    fetchAPI<{ by_symbol: SymbolSummary[]; total_trades: number; total_pnl: number }>(
+      "/api/wallet/history/by-symbol"
+    ),
+
   getStats: () => fetchAPI<TradingStats>("/api/wallet/stats"),
 
   addFunds: (amount: number) =>
@@ -645,6 +650,30 @@ export interface OpenPositionData {
   stop_loss?: number;
 }
 
+/** Le bilan d'un trade clôturé, produit PAR LE SERVEUR.
+ *
+ *  Il vit côté serveur parce qu'une position atteinte par son stop se ferme
+ *  sans l'utilisateur, et qu'il faut alors le même jugement qu'à la clôture
+ *  manuelle. L'écrire une seconde fois ici garantirait qu'au premier
+ *  ajustement les deux versions disent des choses différentes du même trade. */
+export interface TradeReview {
+  symbol: string;
+  direction: "LONG" | "SHORT";
+  entry_price: number;
+  exit_price: number;
+  quantity: number;
+  pnl: number;
+  result: "win" | "loss" | "breakeven";
+  risk_reward: number | null;
+  entry_time?: string;
+  exit_time: string;
+  closed_by: "stop_loss" | "take_profit" | null;
+  held_minutes: number;
+  advice: string[];
+  pre_trade_notes: string;
+  post_trade_notes: string;
+}
+
 export interface PositionResult {
   success: boolean;
   message: string;
@@ -652,7 +681,28 @@ export interface PositionResult {
   exit_price?: number;
   quantity?: number;
   realized_pnl?: number;
+  review?: TradeReview | null;
   new_balance: number;
+}
+
+/** Le bilan d'un actif sur l'ensemble des trades, pas la liste des trades. */
+export interface SymbolSummary {
+  symbol: string;
+  trades: number;
+  wins: number;
+  losses: number;
+  breakeven: number;
+  win_rate: number | null;
+  pnl: number;
+  avg_pnl: number;
+  return_pct: number | null;
+  engaged: number;
+  best: number | null;
+  worst: number | null;
+  long: number;
+  short: number;
+  avg_held_minutes: number | null;
+  last_closed_at: string | null;
 }
 
 export interface TradingStats {

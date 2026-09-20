@@ -5,9 +5,9 @@ import Link from "next/link";
 import { Plus } from "lucide-react";
 import {
   walletAPI,
-  type Position, type TradingStats, type WalletBalance,
+  type Position, type SymbolSummary, type TradingStats, type WalletBalance,
 } from "@/lib/api";
-import { useSettings, convertCurrency, useFormatAssetPrice } from "@/lib/SettingsContext";
+import { fr, useSettings, convertCurrency, useFormatAssetPrice } from "@/lib/SettingsContext";
 import {
   Button, CloudCurtain, EmptyState, Field, FormError, Heading, LiveNum, Modal, Num,
   Panel, SegmentedControl, Text, TextInput, WeatherBackdrop,
@@ -15,6 +15,7 @@ import {
 } from "@/components/design-system";
 import { PositionSheet } from "@/components/wallet/PositionSheet";
 import { JournalPrompt } from "@/components/wallet/JournalPrompt";
+import { SymbolReview } from "@/components/wallet/SymbolReview";
 import { draftFromPosition, type JournalDraft } from "@/lib/journalDraft";
 import { RefreshTimer, useAutoRefresh } from "@/components/app/RefreshTimer";
 import { useTradingStyle } from "@/lib/tradingStyle";
@@ -50,22 +51,28 @@ export default function WalletPage() {
   const [tp, setTp] = useState("");
   const [sheet, setSheet] = useState<Position | null>(null);
   const [journal, setJournal] = useState<JournalDraft | null>(null);
+  const [bySymbol, setBySymbol] = useState<SymbolSummary[]>([]);
   const [funding, setFunding] = useState(false);
   const [fundAmount, setFundAmount] = useState("1000");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
   const load = useCallback(async () => {
-    const [b, s, o, h] = await Promise.allSettled([
+    const [b, s, o, h, y] = await Promise.allSettled([
       walletAPI.getBalance(),
       walletAPI.getStats(),
       walletAPI.getPositions("open"),
       walletAPI.getHistory(30),
+      walletAPI.getHistoryBySymbol(),
     ]);
     if (b.status === "fulfilled") setBalance(b.value);
     if (s.status === "fulfilled") setStats(s.value);
     if (o.status === "fulfilled") setOpen(o.value.positions || []);
     if (h.status === "fulfilled") setHistory(h.value.history || []);
+    /* Le bilan par actif porte sur TOUS les trades clôturés, pas sur les
+       trente que la liste affiche : un cumul calculé sur un échantillon
+       tronqué serait faux, et faux sans le dire. Il est agrégé côté serveur. */
+    if (y.status === "fulfilled") setBySymbol(y.value.by_symbol || []);
   }, []);
 
   useEffect(() => {
@@ -135,7 +142,25 @@ export default function WalletPage() {
       setClosing(null);
       const exit = res.exit_price ?? closed.current_price ?? closed.entry_price;
       const pnl = res.realized_pnl ?? closed.unrealized_pnl ?? 0;
-      setJournal(draftFromPosition(closed, exit, pnl, style));
+      /* Le bilan vient du SERVEUR quand il l'envoie. C'est le même que celui
+         écrit d'office au journal quand un stop se déclenche sans personne :
+         deux jugements différents du même trade selon qu'on était devant
+         l'écran ou non serait la pire des incohérences ici. La version locale
+         ne sert plus que de filet si la réponse n'en porte pas. */
+      setJournal(
+        res.review
+          ? {
+              ...draftFromPosition(closed, exit, pnl, style),
+              advice: res.review.advice,
+              pre_trade_notes: res.review.pre_trade_notes,
+              post_trade_notes: res.review.post_trade_notes,
+              result: res.review.result,
+              risk_reward: res.review.risk_reward,
+              exit_price: res.review.exit_price,
+              pnl: res.review.pnl,
+            }
+          : draftFromPosition(closed, exit, pnl, style)
+      );
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Clôture impossible.");
@@ -240,7 +265,12 @@ export default function WalletPage() {
                 tone={(balance?.total_pnl ?? 0) >= 0 ? "up" : "down"}
                 className="text-[1.4rem] font-medium leading-none"
               />
-              <Text size="caption" className="mt-2">Résultat total</Text>
+              {/* « Résultat total » était faux, et le bilan par actif l'a
+                  rendu visible : ce chiffre est le gain LATENT des positions
+                  encore ouvertes, et il s'affichait en vert à côté d'un
+                  historique intégralement perdant. Un lecteur y lisait son
+                  résultat global. */}
+              <Text size="caption" className="mt-2">Latent sur vos positions</Text>
             </div>
             {stats && stats.total_trades > 0 && (
               <div>
@@ -344,8 +374,8 @@ export default function WalletPage() {
                       </div>
                       <Text size="caption" className="mt-1">
                         {money(p.amount)} · entrée {assetPrice(p.entry_price)}
-                        {p.stop_loss ? ` · stop ${assetPrice(p.stop_loss)}` : ""}
-                        {p.take_profit ? ` · objectif ${assetPrice(p.take_profit)}` : ""}
+                        {p.status === "closed" ? "" : p.stop_loss ? ` · stop ${assetPrice(p.stop_loss)}` : ""}
+                        {p.status === "closed" ? "" : p.take_profit ? ` · objectif ${assetPrice(p.take_profit)}` : ""}
                       </Text>
                     </div>
 
@@ -356,7 +386,36 @@ export default function WalletPage() {
                           l'utilisateur ne pouvait pas savoir laquelle il
                           regardait. Le troisième état le dit. */}
                       <div className="text-right">
-                        {p.price_available === false ? (
+                        {/* UN TRADE CLÔTURÉ A UN RÉSULTAT, PAS UNE VARIATION.
+                            L'historique affichait ces lignes avec la logique
+                            des positions ouvertes : il lisait unrealized_pnl,
+                            qui est nul une fois la position fermée. Résultat,
+                            chaque trade passé se montrait avec son plan
+                            d'origine — « stop 0,35210 · objectif 0,38662 » —
+                            et AUCUN résultat. L'historique ne disait donc pas
+                            la seule chose qu'on lui demande. */}
+                        {p.status === "closed" ? (
+                          <>
+                            {p.realized_pnl != null ? (
+                              <Num
+                                tone={p.realized_pnl > 0 ? "up" : p.realized_pnl < 0 ? "down" : "ink"}
+                                className="block text-[0.95rem]"
+                              >
+                                {p.realized_pnl >= 0 ? "+" : ""}{money(p.realized_pnl)}
+                                {p.amount
+                                  ? ` · ${p.realized_pnl >= 0 ? "+" : ""}${fr((p.realized_pnl / p.amount) * 100, 1)} %`
+                                  : ""}
+                              </Num>
+                            ) : (
+                              <Text size="caption" as="span" className="block">Résultat inconnu</Text>
+                            )}
+                            {p.exit_price != null && (
+                              <Text size="caption" as="span" className="mt-0.5 block">
+                                sortie {assetPrice(p.exit_price)}
+                              </Text>
+                            )}
+                          </>
+                        ) : p.price_available === false ? (
                           <>
                             <Text size="caption" as="span" className="block">
                               Cours indisponible
@@ -443,6 +502,10 @@ export default function WalletPage() {
             </ul>
           )}
         </Panel>
+
+        {/* Le bilan n'a rien à dire de positions encore ouvertes : il ne
+            s'affiche que sous l'historique. */}
+        {tab === "closed" && <SymbolReview rows={bySymbol} money={money} />}
       </div>
 
       {/* ── Close ──────────────────────────────────────────────────────── */}

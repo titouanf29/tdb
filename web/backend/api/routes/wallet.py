@@ -9,6 +9,7 @@ from pydantic import BaseModel
 from ..database import execute_query, execute_write
 from .auth import get_current_user
 from .premium import get_user_limits
+from ._trade_review import review as review_trade, _fmt as fmt_price, _eur as fmt_eur
 
 router = APIRouter()
 
@@ -33,7 +34,72 @@ class ClosePositionRequest(BaseModel):
     position_id: int
 
 
-async def _execute_levels(user_id, positions: list) -> list:
+async def _trading_style(numeric_id) -> str:
+    """L'horizon déclaré, qui change ce qu'on a le droit de reprocher au trade.
+
+    Tenir trois jours n'a pas le même sens en scalping et en long terme.
+    """
+    try:
+        rows = await execute_query(
+            "SELECT trading_style FROM web_user_settings WHERE user_id = ?", (numeric_id,)
+        )
+        if rows and rows[0].get("trading_style"):
+            return str(rows[0]["trading_style"])
+    except Exception:
+        pass
+    return "day"
+
+
+async def _notify(numeric_id, type_: str, title: str, message: str, link: str) -> None:
+    """Une notification dans le fil de l'utilisateur.
+
+    Une position fermée par son stop l'est SANS lui, souvent la nuit. Sans
+    cette ligne, il découvrait la clôture en rouvrant son wallet, sans savoir
+    quand ni pourquoi. Un échec d'écriture ne doit jamais faire échouer la
+    clôture elle-même : le trade est déjà fermé et le solde déjà crédité.
+    """
+    try:
+        await execute_write(
+            """INSERT INTO user_notifications (user_id, type, title, message, link, is_read, created_at)
+               VALUES (?, ?, ?, ?, ?, 0, ?)""",
+            (numeric_id, type_, title, message, link,
+             datetime.now(timezone.utc).isoformat()),
+        )
+    except Exception as exc:
+        print(f"[wallet] notification non écrite : {exc}")
+
+
+async def _journal_trace(user_id, rev: dict) -> None:
+    """La trace au journal, écrite d'office pour une clôture automatique.
+
+    À la clôture manuelle, on PROPOSE d'écrire et l'utilisateur complète. Sur
+    un stop touché il n'est pas là, et c'est justement le trade dont on
+    apprend le plus. L'entrée est donc créée sans lui, avec les faits et le
+    constat ; il n'aura qu'à ajouter ce que lui seul sait.
+    """
+    try:
+        now = datetime.now(timezone.utc).isoformat()
+        await execute_write(
+            """INSERT INTO trading_journal
+               (user_id, symbol, direction, timeframe, setup,
+                entry_time, exit_time, entry_price, exit_price, quantity,
+                risk_reward, result, pnl,
+                pre_trade_notes, post_trade_notes, screenshot,
+                created_at, updated_at)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+            (user_id, rev["symbol"], rev["direction"], None,
+             "stop" if rev["closed_by"] == "stop_loss" else "objectif",
+             rev["entry_time"], rev["exit_time"],
+             rev["entry_price"], rev["exit_price"], rev["quantity"],
+             rev["risk_reward"], rev["result"], rev["pnl"],
+             rev["pre_trade_notes"], rev["post_trade_notes"], None,
+             now, now),
+        )
+    except Exception as exc:
+        print(f"[wallet] trace de journal non écrite : {exc}")
+
+
+async def _execute_levels(user_id, positions: list, numeric_id=None) -> list:
     """Close the positions whose stop or target has been reached.
 
     Until this existed, stop_loss and take_profit were decoration. They were
@@ -98,7 +164,7 @@ async def _execute_levels(user_id, positions: list) -> list:
                SET status = 'closed', exit_price = ?, realized_pnl = ?,
                    closed_at = ?
                WHERE id = ? AND status = 'open'""",
-            (round(level, 6), round(realized, 4), now, pos["id"]),
+            (_px(level), round(realized, 4), now, pos["id"]),
         )
         await execute_write(
             "UPDATE wallet SET balance = balance + ? WHERE user_id = ?",
@@ -106,12 +172,46 @@ async def _execute_levels(user_id, positions: list) -> list:
         )
         pos["status"] = "closed"
         pos["closed_by"] = hit
+
+        # ── La trace, et l'avertissement ─────────────────────────────────
+        #
+        # Jusqu'ici la position se fermait en silence. L'utilisateur n'était
+        # pas là — c'est le principe d'un stop — et retrouvait plus tard une
+        # ligne disparue de son wallet, sans savoir quand ni à quel prix.
+        # Le trade dont on apprend le plus était le seul qui ne racontait
+        # rien.
+        rev = None
+        if numeric_id is not None:
+            try:
+                style = await _trading_style(numeric_id)
+                rev = review_trade(pos, float(level), float(realized),
+                                   style=style, closed_by=hit)
+                gagnant = realized >= 0
+                titre = (f"Objectif atteint sur {pos['symbol']}" if hit == "take_profit"
+                         else f"Stop touché sur {pos['symbol']}")
+                # Virgule décimale : un message qui dit « 0.3521 · -42.86 € »
+                # n'est pas du français, et c'est la faute qui revient le plus
+                # souvent dès qu'un nombre est mis dans une phrase.
+                await _notify(
+                    numeric_id, "position_closed", titre,
+                    (f"Position clôturée automatiquement à {fmt_price(level)} · "
+                     f"{'+' if gagnant else ''}{fmt_eur(realized)}. "
+                     "Le trade est déjà noté dans votre journal."),
+                    "/journal",
+                )
+                await _journal_trace(user_id, rev)
+            except Exception as exc:
+                # Ni la notification ni la trace ne peuvent faire échouer une
+                # clôture : la position est fermée et le solde crédité.
+                print(f"[wallet] suivi de clôture automatique : {exc}")
+
         closed.append({
             "id": pos["id"],
             "symbol": pos["symbol"],
             "reason": hit,
-            "exit_price": round(level, 6),
+            "exit_price": _px(level),
             "realized_pnl": round(realized, 4),
+            "review": rev,
         })
 
     return closed
@@ -234,7 +334,7 @@ async def get_wallet_balance(current_user: dict = Depends(get_current_user)):
     # Le tableau de bord lit le solde sans passer par /positions : sans cet
     # appel, un stop touché ne serait exécuté que le jour où l'utilisateur
     # ouvre son wallet.
-    await _execute_levels(user_id, positions)
+    await _execute_levels(user_id, positions, current_user.get("id"))
     positions = [p for p in positions if p.get("status") == "open"]
 
     # Le solde a pu changer juste au-dessus.
@@ -271,7 +371,7 @@ async def get_positions(
     if status == "open":
         await _price_positions(positions)
         # Les niveaux s'exécutent ici, au moment où l'utilisateur regarde.
-        triggered = await _execute_levels(user_id, positions)
+        triggered = await _execute_levels(user_id, positions, current_user.get("id"))
         # Une position qui vient d'être fermée ne fait plus partie des
         # positions ouvertes : la renvoyer laisserait l'écran l'afficher une
         # dernière fois avec un P&L qui n'existe plus.
@@ -417,9 +517,21 @@ async def close_position(
         (new_balance, user_id)
     )
 
+    # Le même jugement que sur une clôture automatique, produit au même
+    # endroit. L'écrire une seconde fois côté interface aurait garanti qu'au
+    # premier ajustement les deux versions disent des choses différentes du
+    # même trade.
+    rev = None
+    try:
+        style = await _trading_style(current_user.get("id"))
+        rev = review_trade(position, float(exit_price), float(pnl), style=style)
+    except Exception as exc:
+        print(f"[wallet] bilan de clôture : {exc}")
+
     return {
         "success": True,
         "message": f"Position closed: {position['symbol']}",
+        "review": rev,
         "exit_price": _px(exit_price),
         "realized_pnl": round(pnl, 2),
         "new_balance": round(new_balance, 2)
@@ -443,6 +555,120 @@ async def get_trade_history(
     )
 
     return {"history": positions}
+
+
+@router.get("/history/by-symbol")
+async def get_history_by_symbol(current_user: dict = Depends(get_current_user)):
+    """Le bilan de chaque actif tradé, et pas seulement la liste des trades.
+
+    L'historique est une suite de lignes classées par date. On y voit ce qu'on
+    a fait, jamais SUR QUOI on gagne ou on perd. Or c'est la seule question
+    que l'historique peut réellement trancher : quinze trades sur le même
+    actif avec un résultat cumulé négatif est un fait, pas une impression, et
+    il ne se lit sur aucune ligne prise isolément.
+
+    Les agrégats sont calculés ici plutôt que côté interface : celle-ci ne
+    reçoit que les cinquante derniers trades et compterait donc sur un
+    échantillon tronqué — un bilan faux, et faux sans le dire.
+    """
+    user_id = get_user_id(current_user)
+    rows = await execute_query(
+        """SELECT symbol, direction, leverage, amount, realized_pnl,
+                  created_at, closed_at
+           FROM positions
+           WHERE user_id = ? AND status = 'closed'""",
+        (user_id,),
+    )
+
+    par_actif: dict[str, dict] = {}
+    for r in rows or []:
+        sym = r["symbol"]
+        pnl = float(r.get("realized_pnl") or 0)
+        amount = float(r.get("amount") or 0)
+        a = par_actif.setdefault(sym, {
+            "symbol": sym, "trades": 0, "wins": 0, "losses": 0, "breakeven": 0,
+            "pnl": 0.0, "engaged": 0.0, "best": None, "worst": None,
+            "long": 0, "short": 0, "held_minutes": 0.0, "held_n": 0,
+            "last_closed_at": None,
+        })
+        a["trades"] += 1
+        a["pnl"] += pnl
+        a["engaged"] += amount
+        if pnl > 0:
+            a["wins"] += 1
+        elif pnl < 0:
+            a["losses"] += 1
+        else:
+            a["breakeven"] += 1
+        a["best"] = pnl if a["best"] is None else max(a["best"], pnl)
+        a["worst"] = pnl if a["worst"] is None else min(a["worst"], pnl)
+        if (r.get("direction") or "LONG").upper() == "LONG":
+            a["long"] += 1
+        else:
+            a["short"] += 1
+
+        mins = _held_minutes_between(r.get("created_at"), r.get("closed_at"))
+        if mins is not None:
+            a["held_minutes"] += mins
+            a["held_n"] += 1
+
+        closed = r.get("closed_at")
+        if closed and (a["last_closed_at"] is None or str(closed) > str(a["last_closed_at"])):
+            a["last_closed_at"] = closed
+
+    out = []
+    for a in par_actif.values():
+        t = a["trades"]
+        out.append({
+            "symbol": a["symbol"],
+            "trades": t,
+            "wins": a["wins"],
+            "losses": a["losses"],
+            "breakeven": a["breakeven"],
+            # Le taux de réussite ignore les trades nuls : les compter comme
+            # des échecs punirait une sortie à l'équilibre, qui n'en est pas un.
+            "win_rate": round(a["wins"] / (a["wins"] + a["losses"]) * 100, 1)
+                        if (a["wins"] + a["losses"]) else None,
+            "pnl": round(a["pnl"], 2),
+            "avg_pnl": round(a["pnl"] / t, 2) if t else 0.0,
+            # Le rendement rapporté au capital réellement immobilisé. Deux
+            # actifs au même résultat en euros ne se valent pas si l'un a
+            # mobilisé dix fois plus.
+            "return_pct": round(a["pnl"] / a["engaged"] * 100, 2) if a["engaged"] else None,
+            "engaged": round(a["engaged"], 2),
+            "best": round(a["best"], 2) if a["best"] is not None else None,
+            "worst": round(a["worst"], 2) if a["worst"] is not None else None,
+            "long": a["long"],
+            "short": a["short"],
+            "avg_held_minutes": round(a["held_minutes"] / a["held_n"]) if a["held_n"] else None,
+            "last_closed_at": a["last_closed_at"],
+        })
+
+    # Du plus coûteux au plus rentable : ce qu'on doit regarder en premier est
+    # ce qui perd, pas ce qui gagne.
+    out.sort(key=lambda x: x["pnl"])
+    return {
+        "by_symbol": out,
+        "total_trades": sum(x["trades"] for x in out),
+        "total_pnl": round(sum(x["pnl"] for x in out), 2),
+    }
+
+
+def _held_minutes_between(opened, closed) -> float | None:
+    """Durée de détention, en minutes, ou None si les dates sont inexploitables."""
+    if not opened or not closed:
+        return None
+    try:
+        a = datetime.fromisoformat(str(opened).replace("Z", "+00:00"))
+        b = datetime.fromisoformat(str(closed).replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if a.tzinfo is None:
+        a = a.replace(tzinfo=timezone.utc)
+    if b.tzinfo is None:
+        b = b.replace(tzinfo=timezone.utc)
+    delta = (b - a).total_seconds() / 60.0
+    return delta if delta >= 0 else None
 
 
 def _validate_levels(direction: str, reference_price: float,
