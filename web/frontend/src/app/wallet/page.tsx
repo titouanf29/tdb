@@ -13,6 +13,8 @@ import {
   Panel, SegmentedControl, Text, TextInput, WeatherBackdrop,
   conditionFromChange, useAnimationsEnabled,
 } from "@/components/design-system";
+import { PositionSheet } from "@/components/wallet/PositionSheet";
+import { RefreshTimer, useAutoRefresh } from "@/components/app/RefreshTimer";
 
 /**
  * The paper-trading account.
@@ -43,6 +45,7 @@ export default function WalletPage() {
   const [editing, setEditing] = useState<Position | null>(null);
   const [sl, setSl] = useState("");
   const [tp, setTp] = useState("");
+  const [sheet, setSheet] = useState<Position | null>(null);
   const [funding, setFunding] = useState(false);
   const [fundAmount, setFundAmount] = useState("1000");
   const [busy, setBusy] = useState(false);
@@ -64,6 +67,27 @@ export default function WalletPage() {
   useEffect(() => {
     load().finally(() => setLoading(false));
   }, [load]);
+
+  /* Trente secondes : les cours de notre fournisseur ont environ une minute
+     de différé, donc interroger plus souvent ne rapporterait que des appels.
+     Le compteur ne tourne que sur l'onglet des positions ouvertes — un
+     historique figé n'a rien à rafraîchir. */
+  const { remaining, busy: refreshing, paused, refreshNow } = useAutoRefresh(
+    load,
+    30,
+    tab === "open"
+  );
+
+  /* La fiche suit les données : après un rafraîchissement, elle doit montrer
+     le nouveau cours, pas celui du clic. Et si la position s'est clôturée
+     d'elle-même sur un niveau, la fiche se ferme plutôt que d'afficher une
+     position qui n'existe plus. */
+  useEffect(() => {
+    if (!sheet) return;
+    const fresh = open.find((p) => p.id === sheet.id);
+    if (!fresh) setSheet(null);
+    else if (fresh !== sheet) setSheet(fresh);
+  }, [open, sheet]);
 
   const money = useCallback(
     (v: number) =>
@@ -216,7 +240,19 @@ export default function WalletPage() {
 
         <Panel
           title="Vos positions"
+          hint={tab === "open" && open.length > 0
+            ? "Cliquez sur un actif pour la fiche complète de la position."
+            : undefined}
           aside={
+            <div className="flex items-center gap-2">
+              {tab === "open" && (
+                <RefreshTimer
+                  remaining={remaining}
+                  busy={refreshing}
+                  paused={paused}
+                  onRefresh={refreshNow}
+                />
+              )}
             <SegmentedControl
               size="sm"
               options={[
@@ -227,6 +263,7 @@ export default function WalletPage() {
               onChange={setTab}
               aria-label="Statut"
             />
+            </div>
           }
           action={tab === "open" ? { label: "Ouvrir une position", href: "/trading" } : undefined}
         >
@@ -247,13 +284,18 @@ export default function WalletPage() {
                   <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
                     <div className="min-w-0">
                       <div className="flex items-center gap-2.5">
-                        <Link
-                          href={`/analysis?symbol=${encodeURIComponent(p.symbol)}`}
+                        {/* Le symbole ouvre la fiche de la position, pas
+                            l'analyse de l'actif : depuis le wallet, la
+                            question est « où en est CETTE position », pas
+                            « que vaut cet actif ». Le lien vers l'analyse
+                            est dans la fiche. */}
+                        <button
+                          onClick={() => setSheet(p)}
                           className="text-[0.98rem] font-medium transition-colors hover:underline"
                           style={{ color: "var(--cap-ink)" }}
                         >
                           {p.symbol}
-                        </Link>
+                        </button>
                         <span
                           className="rounded-[6px] px-1.5 py-0.5 text-[0.7rem]"
                           style={{ backgroundColor: "var(--cap-surface-2)", color: "var(--cap-ink-3)" }}
@@ -351,6 +393,20 @@ export default function WalletPage() {
       </div>
 
       {/* ── Close ──────────────────────────────────────────────────────── */}
+      <PositionSheet
+        position={sheet}
+        onClose={() => setSheet(null)}
+        onEditLevels={(p) => {
+          setSheet(null);
+          setEditing(p);
+          setSl(p.stop_loss?.toString() ?? "");
+          setTp(p.take_profit?.toString() ?? "");
+          setError("");
+        }}
+        onClosePosition={(p) => { setSheet(null); setClosing(p); setError(""); }}
+        money={money}
+      />
+
       <Modal open={!!closing} onClose={() => setClosing(null)} title="Clôturer">
         <Heading level={3}>Clôturer {closing?.symbol} ?</Heading>
         <Text size="small" className="mt-2">
