@@ -163,7 +163,11 @@ async def pour_symbole(
                  * (lien["poids"] ** 0.5))
 
         chaine = _chaine_du_lien(d, lien)
+        # Le dernier pas, celui que la chaîne de transmission ne fait pas :
+        # du secteur exposé à CET actif, et ce que ça lui fait.
+        clair = exposure.expliquer(lien["cible"], lien["sens"])
         item = {
+            **clair,
             "titre": d["titre"],
             "niveau": d["fait"]["niveau"],
             "confiance": d["fait"]["confiance"],
@@ -213,9 +217,17 @@ async def pour_symbole(
     tete = concernes[0]
     sens = ("plutôt favorable" if tete["sens"] > 0
             else "plutôt défavorable" if tete["sens"] < 0 else "à double sens")
-    resume = (f"{len(concernes)} événement{'s' if len(concernes) > 1 else ''} "
-              f"de l'actualité touche{'nt' if len(concernes) > 1 else ''} cet actif. "
-              f"Le plus pesant lui est {sens}, par un {tete['qualite_mecanisme']}.")
+    # Le résumé dit POURQUOI l'actif est concerné — son métier — et laisse à
+    # chaque événement le soin de dire ce qu'il lui fait. Faire porter l'effet
+    # au résumé le répétait mot pour mot dans la ligne juste en dessous :
+    # « plutôt favorable : l'énergie se vend plus cher », deux fois de suite.
+    # « Par un enchaînement indirect », en revanche, décrivait la qualité de
+    # notre raisonnement et ne disait rien de l'actif.
+    n = len(concernes)
+    motif = f", parce {_que(tete['pourquoi'])}" if tete["pourquoi"] else ""
+    resume = (f"{n} événement{'s' if n > 1 else ''} de l'actualité "
+              f"touche{'nt' if n > 1 else ''} cet actif{motif}. "
+              f"Le plus pesant lui est {sens}.")
 
     return {
         "symbole": symbole,
@@ -225,6 +237,11 @@ async def pour_symbole(
         "surveille": _surveille(symbole),
         "veille": veille(),
     }
+
+
+def _que(phrase: str) -> str:
+    """« qu'il tire son revenu… » mais « que c'est une banque »."""
+    return f"qu'{phrase}" if phrase[:1].lower() in "aeiouyâàéèêëîïôöûù" else f"que {phrase}"
 
 
 def _surveille(symbole: str) -> list[str]:

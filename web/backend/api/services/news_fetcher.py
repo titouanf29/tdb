@@ -34,8 +34,12 @@ RSS_FEEDS = [
         "category": "markets",
     },
     {
+        # L'ancienne adresse (cnbc.com/id/…/device/rss) renvoie 403 depuis un
+        # serveur. Celle-ci, servie par leur moteur de recherche, rend la même
+        # rubrique et répond.
         "name": "CNBC Markets",
-        "url": "https://www.cnbc.com/id/10000664/device/rss/rss.html",
+        "url": "https://search.cnbc.com/rs/search/combinedcms/view.xml"
+               "?partnerId=wrss01&id=10000664",
         "language": "en",
         "category": "markets",
     },
@@ -46,10 +50,37 @@ RSS_FEEDS = [
         "category": "business",
     },
     {
-        "name": "FXStreet",
-        "url": "https://www.fxstreet.com/rss/news",
+        # Remplace FXStreet, qui renvoie 403 depuis un serveur. Même terrain :
+        # marchés, devises, matières premières.
+        "name": "Investing.com",
+        "url": "https://www.investing.com/rss/news.rss",
         "language": "en",
-        "category": "forex",
+        "category": "markets",
+    },
+    # ── Deux rédactions de plus, et c'est le point ──────────────────────────
+    #
+    # Le moteur mesure la certitude d'un fait au nombre de RÉDACTIONS
+    # INDÉPENDANTES qui le couvrent. Nos flux se réduisaient à quatre maisons
+    # — BBC, Dow Jones, le New York Times et Le Monde — parce que deux flux
+    # d'une même maison comptent pour une voix. Avec quatre voix possibles, un
+    # fait ne pouvait pratiquement jamais dépasser « possible » sur l'échelle
+    # d'incertitude, quelle que soit sa solidité réelle.
+    #
+    # Ces deux-là sont des salles de rédaction distinctes, pas des
+    # agrégateurs : un agrégateur qui republie des dépêches gonflerait le
+    # décompte de voix sans rien confirmer, ce qui est exactement l'erreur que
+    # cette couche existe pour éviter.
+    {
+        "name": "Guardian Business",
+        "url": "https://www.theguardian.com/uk/business/rss",
+        "language": "en",
+        "category": "business",
+    },
+    {
+        "name": "DW Business",
+        "url": "https://rss.dw.com/rdf/rss-en-bus",
+        "language": "en",
+        "category": "business",
     },
     {
         "name": "Le Monde Économie",

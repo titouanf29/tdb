@@ -137,8 +137,23 @@ export function PressContext({
 
           {data.couvert ? (
             <div className="mt-4 flex flex-col gap-2.5">
+              {/* Plusieurs événements empruntent souvent le MÊME canal —
+                  quatre faits différents qui atteignent une compagnie
+                  aérienne par le coût du carburant. Répéter la même phrase
+                  d'effet quatre fois donnait quatre cartes qui se lisaient
+                  comme un copier-coller, et noyait ce qui les distingue : le
+                  fait, sa certitude, son âge. L'effet est donc dit à sa
+                  première apparition. */}
               {data.evenements.map((e, i) => (
-                <Evenement key={`${e.titre}-${i}`} e={e} reduit={!!reduit} />
+                <Evenement
+                  key={`${e.titre}-${i}`}
+                  e={e}
+                  reduit={!!reduit}
+                  repetition={data.evenements
+                    .slice(0, i)
+                    .some((p) => p.cible === e.cible && p.sens === e.sens)}
+                  dansLeResume={i === 0}
+                />
               ))}
             </div>
           ) : data.surveille.length > 0 ? (
@@ -177,7 +192,19 @@ export function PressContext({
   );
 }
 
-function Evenement({ e, reduit }: { e: IntelEvenement; reduit: boolean }) {
+function Evenement({
+  e,
+  reduit,
+  repetition,
+  dansLeResume,
+}: {
+  e: IntelEvenement;
+  reduit: boolean;
+  /** Un événement plus haut atteint déjà cet actif par le même canal. */
+  repetition: boolean;
+  /** Le résumé en tête de panneau a déjà expliqué ce rattachement. */
+  dansLeResume: boolean;
+}) {
   const [ouvert, setOuvert] = useState(false);
   const niveau = NIVEAUX[e.niveau] ?? { mot: e.niveau, ton: "faint" as const };
   const sensMot = e.conteste
@@ -219,9 +246,23 @@ function Evenement({ e, reduit }: { e: IntelEvenement; reduit: boolean }) {
           <Text size="small" tone="ink" as="span" className="block">
             {e.titre}
           </Text>
+          {/* L'IMPACT EST VISIBLE SANS OUVRIR. Replié, ce bloc disait
+              seulement « plutôt favorable » : le lecteur devait cliquer pour
+              savoir pourquoi, et ce pourquoi est la seule raison d'être du
+              panneau. La chaîne de raisonnement, elle, peut rester derrière
+              un clic — c'est le détail, pas la conclusion. */}
           <Text size="caption" as="span" className="mt-1 block">
             <span style={{ color: sensCouleur }}>{sensMot}</span>
-            {" · "}
+            {e.effet && !repetition && (
+              <span style={{ color: "var(--cap-ink-2)" }}> — {e.effet}</span>
+            )}
+            {repetition && (
+              <span style={{ color: "var(--cap-ink-3)" }}>
+                {" "}— par le même canal
+              </span>
+            )}
+          </Text>
+          <Text size="caption" tone="faint" as="span" className="mt-0.5 block">
             {niveau.mot.toLowerCase()}
             {" · "}
             {e.voix > 1 ? `${e.voix} rédactions indépendantes` : "une seule rédaction"}
@@ -252,6 +293,20 @@ function Evenement({ e, reduit }: { e: IntelEvenement; reduit: boolean }) {
               className="border-t px-3.5 pb-3.5 pt-3"
               style={{ borderColor: "var(--cap-line)" }}
             >
+              {/* Ce qui rattache CET actif au panier exposé. Sans cette
+                  ligne, le lecteur doit deviner pourquoi une histoire de
+                  détroit maritime concerne l'action qu'il regarde. */}
+              {e.pourquoi && !dansLeResume && (
+                <Text size="caption" className="mb-3">
+                  Il est concerné parce {queOuQu(e.pourquoi)}.
+                </Text>
+              )}
+              {repetition && e.effet && (
+                <Text size="caption" className="mb-3">
+                  Effet sur cet actif : {e.effet}.
+                </Text>
+              )}
+
               {/* LE MÉCANISME, PAS UNE ÉTIQUETTE. « Sentiment : négatif »
                   n'explique rien et ne se conteste pas. Une chaîne se lit,
                   se discute, et tombe si l'un de ses maillons ne tient pas —
@@ -275,6 +330,16 @@ function Evenement({ e, reduit }: { e: IntelEvenement; reduit: boolean }) {
                 {e.qualite_mecanisme} · {e.horizon} · atteint cet actif par{" "}
                 {CIBLES[e.cible] ?? e.cible.toLowerCase()}
               </Text>
+
+              {/* De quoi contredire ce qu'on vient de lire. C'est ce qui
+                  sépare un panneau d'analyse d'un oracle : la chaîne annonce
+                  un effet, cette ligne dit où aller vérifier qu'il se
+                  produit — ou constater qu'il ne se produit pas. */}
+              {e.a_surveiller && (
+                <Text size="caption" className="mt-2">
+                  À surveiller pour vérifier : {e.a_surveiller}.
+                </Text>
+              )}
 
               {e.reserve && (
                 <Text size="caption" className="mt-2">⚠ {e.reserve}</Text>
@@ -312,6 +377,11 @@ function Evenement({ e, reduit }: { e: IntelEvenement; reduit: boolean }) {
       </AnimatePresence>
     </div>
   );
+}
+
+/** « parce qu'il tire… » mais « parce que c'est une banque ». */
+function queOuQu(phrase: string): string {
+  return /^[aeiouyâàéèêëîïôöûù]/i.test(phrase) ? `qu'${phrase}` : `que ${phrase}`;
 }
 
 function liste(mots: string[]): string {

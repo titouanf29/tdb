@@ -2,13 +2,13 @@
 Combien de sources INDÉPENDANTES, et pas combien d'articles.
 
 C'est le piège central que décrit le cahier des charges, et il est très
-concret ici. Nos huit flux se réduisent à six éditeurs : BBC Business et BBC
+concret ici. Nos dix flux se réduisent à huit éditeurs : BBC Business et BBC
 World sont la même rédaction, Le Monde Économie et Le Monde International
 aussi. Compter « 4 sources » quand la même salle de rédaction a publié deux
 fois est déjà une erreur de facteur deux — et elle se produit tous les jours,
 puisque ces flux se recoupent massivement.
 
-Le second niveau est plus subtil : six éditeurs différents qui reprennent
+Le second niveau est plus subtil : huit éditeurs différents qui reprennent
 tous la même dépêche Reuters ne sont pas six sources. Ce sont six diffusions
 d'UNE source. On ne peut pas reconstruire la chaîne complète de propagation
 avec des flux RSS — ils ne la portent pas — mais on peut détecter l'attribution
@@ -33,7 +33,9 @@ EDITEUR: dict[str, str] = {
     "MarketWatch": "dowjones",
     "CNBC Markets": "nbcuniversal",
     "NYT Business": "nyt",
-    "FXStreet": "fxstreet",
+    "Investing.com": "investing",
+    "Guardian Business": "guardian",
+    "DW Business": "dw",
     "Le Monde Économie": "lemonde",
     "Le Monde International": "lemonde",
 }

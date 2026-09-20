@@ -572,6 +572,12 @@ export interface IntelEvenement {
   cible: string;
   /** +1 favorable à cet actif, -1 défavorable, 0 sans sens. */
   sens: number;
+  /** Ce qui rattache cet actif au panier exposé — son métier. */
+  pourquoi: string;
+  /** Ce que l'événement lui fait concrètement, dans le sens observé. */
+  effet: string;
+  /** Ce qu'il faut regarder pour voir si la chaîne s'enclenche — ou pas. */
+  a_surveiller: string;
   conteste: boolean;
   mecanisme: string[];
   solidite: number;
