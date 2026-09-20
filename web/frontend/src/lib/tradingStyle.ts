@@ -24,6 +24,14 @@ export interface TradingStyleProfile {
   /** Chart timeframes this style actually reads. */
   timeframes: string[];
   defaultTimeframe: string;
+  /** Fenêtre du graphique pour cet horizon : période demandée et unité.
+   *
+   *  Elle était figée à « 3 mois en journalier » quel que soit le style. En
+   *  long terme, cela donnait treize bougies hebdomadaires — trop peu pour
+   *  qu'une structure de tendance existe, et le graphique commenté renvoyait
+   *  « pas assez de sommets et de creux ». Un horizon de plusieurs années
+   *  regardé sur trois mois n'est pas un horizon de plusieurs années. */
+  chartWindow: { period: string; interval: string };
   /** What to look at first on the analysis screen. */
   focus: { fr: string[]; en: string[] };
   /** ATR multiples used for suggested stop / target distances. */
@@ -55,6 +63,7 @@ export const TRADING_STYLES: Record<TradingStyleId, TradingStyleProfile> = {
     },
     timeframes: ["5m", "15m", "30m"],
     defaultTimeframe: "5m",
+    chartWindow: { period: "5d", interval: "15m" },
     focus: {
       fr: ["Volume", "RSI 5 min", "Spread", "Niveaux intraday"],
       en: ["Volume", "5-min RSI", "Spread", "Intraday levels"],
@@ -95,6 +104,7 @@ export const TRADING_STYLES: Record<TradingStyleId, TradingStyleProfile> = {
     },
     timeframes: ["15m", "30m", "1h", "4h"],
     defaultTimeframe: "1h",
+    chartWindow: { period: "1mo", interval: "1h" },
     focus: {
       fr: ["VWAP", "Range d'ouverture", "MACD 15 min", "Volume"],
       en: ["VWAP", "Opening range", "15-min MACD", "Volume"],
@@ -135,6 +145,7 @@ export const TRADING_STYLES: Record<TradingStyleId, TradingStyleProfile> = {
     },
     timeframes: ["4h", "1d", "3d"],
     defaultTimeframe: "1d",
+    chartWindow: { period: "6mo", interval: "1d" },
     focus: {
       fr: ["EMA 20 / 50", "RSI daily", "ATR", "Figures techniques"],
       en: ["EMA 20 / 50", "Daily RSI", "ATR", "Chart patterns"],
@@ -175,6 +186,7 @@ export const TRADING_STYLES: Record<TradingStyleId, TradingStyleProfile> = {
     },
     timeframes: ["1w", "1mo"],
     defaultTimeframe: "1mo",
+    chartWindow: { period: "2y", interval: "1wk" },
     focus: {
       fr: ["EMA 200", "Tendance mensuelle", "Contexte macro", "Fondamentaux"],
       en: ["EMA 200", "Monthly trend", "Macro backdrop", "Fundamentals"],

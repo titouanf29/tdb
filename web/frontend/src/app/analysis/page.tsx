@@ -21,7 +21,8 @@ import {
   Button, CloudCurtain, EmptyState, FormError, Heading, Num, Panel, Progress,
   ScoreDial, SegmentedControl, Text, WeatherBackdrop, useAnimationsEnabled,
 } from "@/components/design-system";
-import { PriceChart, type Level } from "@/components/analysis/PriceChart";
+import { type Level } from "@/components/analysis/PriceChart";
+import { AnnotatedChart } from "@/components/analysis/AnnotatedChart";
 import { TradingViewChart } from "@/components/analysis/TradingViewChart";
 import { hasTradingView } from "@/lib/tradingViewSymbol";
 import { FactorBars, LevelScale } from "@/components/analysis/Gauges";
@@ -133,7 +134,7 @@ function AnalysisScreen() {
   // plus — TradingView fait tout ce qu'il faisait et davantage. Il reste
   // comme REPLI pour les actifs que TradingView ne référence pas, ce qui est
   // un cas de fonctionnement, pas un choix offert à l'utilisateur.
-  const [chartMode, setChartMode] = useState<"chart" | "howto">("chart");
+  const [chartMode, setChartMode] = useState<"annotated" | "chart" | "howto">("annotated");
   const tvAvailable = hasTradingView(symbol);
 
   const [analysis, setAnalysis] = useState<Analysis | null>(null);
@@ -158,8 +159,11 @@ function AnalysisScreen() {
       // validated and the one the trading screen will receive.
       const a = await analysisAPI.analyze(sym, tf, style.atr.sl, style.atr.tp, style.fundWeight);
       setAnalysis(a);
-      // The chart is secondary: a failure here must not lose the analysis.
-      marketAPI.getChart(sym, "3mo", tf === "1mo" ? "1wk" : "1d")
+      // Le graphique est secondaire : un échec ici ne doit pas perdre
+      // l'analyse. Sa fenêtre suit l'horizon — « 3 mois en journalier » pour
+      // tout le monde donnait treize bougies en long terme, et le graphique
+      // commenté n'y trouvait aucune structure à lire.
+      marketAPI.getChart(sym, style.chartWindow.period, style.chartWindow.interval)
         .then(setChart)
         .catch(() => setChart(null));
     } catch (err) {
@@ -168,7 +172,7 @@ function AnalysisScreen() {
     } finally {
       setLoading(false);
     }
-  }, [style.atr.sl, style.atr.tp, style.fundWeight]);
+  }, [style.atr.sl, style.atr.tp, style.fundWeight, style.chartWindow.period, style.chartWindow.interval]);
 
   useEffect(() => {
     if (symbol) run(symbol, timeframe);
@@ -339,15 +343,18 @@ function AnalysisScreen() {
                 hint={
                   chartMode === "howto"
                     ? "Ce qu'on regarde sur un graphique, et dans quel ordre."
-                    : tvAvailable
-                      ? "Graphique TradingView — outils de dessin et indicateurs complets."
-                      : `${chart!.data.length} points · ${chart!.interval} · les niveaux calculés sont tracés dessus`
+                    : chartMode === "annotated"
+                      ? "La structure et les niveaux, tracés sur le prix. Quatre repères, pas quarante."
+                      : tvAvailable
+                        ? "Graphique TradingView — outils de dessin et indicateurs complets."
+                        : `${chart!.data.length} points · ${chart!.interval}`
                 }
                 aside={
                   <SegmentedControl
                     size="sm"
                     options={[
-                      { value: "chart", label: "Graphique" },
+                      { value: "annotated", label: "Commenté" },
+                      { value: "chart", label: "Complet" },
                       { value: "howto", label: "Comment le lire" },
                     ]}
                     value={chartMode}
@@ -358,6 +365,12 @@ function AnalysisScreen() {
               >
                 {chartMode === "howto" ? (
                   <ChartGuide analysis={analysis} money={money} />
+                ) : chartMode === "annotated" ? (
+                  <AnnotatedChart
+                    bars={chart!.data}
+                    levels={chartLevels(analysis, depth)}
+                    format={money}
+                  />
                 ) : tvAvailable ? (
                   <>
                     <TradingViewChart symbol={symbol} interval={tvInterval(timeframe)} />
@@ -368,17 +381,18 @@ function AnalysisScreen() {
                   </>
                 ) : (
                   <>
-                    {/* Repli, et il est expliqué. TradingView ne connaît pas
-                        tous les symboles que ce site analyse : plutôt qu'un
-                        cadre vide ou — pire — le graphique d'un autre actif,
-                        on trace le nôtre et on dit pourquoi. */}
-                    <PriceChart
-                      closes={chart!.data.map((c) => c.close)}
+                    {/* TradingView ne connaît pas tous les symboles que ce
+                        site analyse. Plutôt qu'un cadre vide — ou pire, le
+                        graphique d'un autre actif — on montre la vue
+                        commentée et on dit pourquoi. */}
+                    <AnnotatedChart
+                      bars={chart!.data}
                       levels={chartLevels(analysis, depth)}
+                      format={money}
                     />
                     <Text size="caption" className="mt-3">
-                      TradingView ne référence pas cet actif. Voici son cours et
-                      les niveaux calculés par le moteur.
+                      TradingView ne référence pas cet actif — voici la vue
+                      commentée à la place.
                     </Text>
                   </>
                 )}
