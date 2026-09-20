@@ -5,6 +5,7 @@ import { Check, ChevronDown } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { ScanUniverse } from "@/lib/api";
 import { DUR, EASE, Text } from "@/components/design-system";
+import { etatPlace, etatZone, type EtatZone } from "./horaires";
 
 /**
  * Le choix de ce qu'on balaie.
@@ -44,18 +45,29 @@ function Chip({
   active,
   onClick,
   size = "md",
+  seance,
 }: {
   label: string;
   count?: number;
   active: boolean;
   onClick: () => void;
   size?: "md" | "sm";
+  /** L'état de la séance, quand la zone ou la place en a un. */
+  seance?: EtatZone;
 }) {
+  const ferme = seance?.ouvert === false;
   return (
     <button
       type="button"
       onClick={onClick}
       aria-pressed={active}
+      title={
+        seance?.ouvert == null
+          ? undefined
+          : seance.ouvert
+            ? `${label} · marché ouvert`
+            : `${label} · marché fermé${seance.quand ? ` · ${seance.quand.toLowerCase()}` : ""}`
+      }
       className={
         "inline-flex items-center gap-1.5 rounded-[9px] transition-all duration-200 " +
         (size === "md" ? "px-3.5 py-2 text-[0.9rem]" : "px-3 py-1.5 text-[0.82rem]")
@@ -74,6 +86,20 @@ function Chip({
         <Check className="h-3.5 w-3.5" />
       </span>
       {label}
+      {/* La pastille de séance. Elle n'apparaît que sur les zones FERMÉES :
+          marquer aussi les ouvertes ferait cinq points verts en permanence,
+          c'est-à-dire un motif décoratif que l'œil cesse de lire au bout de
+          deux visites. Ce qui mérite d'être signalé, c'est l'exception. */}
+      {ferme && (
+        <span
+          aria-hidden
+          className="h-1.5 w-1.5 shrink-0 rounded-full"
+          style={{
+            backgroundColor: active ? "var(--cap-surface)" : "var(--cap-ink-4)",
+            opacity: active ? 0.65 : 1,
+          }}
+        />
+      )}
       {count != null && (
         <span className="cap-num text-[0.72rem] tabular-nums" style={{ opacity: active ? 0.7 : 0.55 }}>
           {count}
@@ -134,6 +160,7 @@ export function UniversePicker({
               count={z.count}
               active={value.zones.includes(z.key)}
               onClick={() => basculerZone(z.key)}
+              seance={etatZone(z.key)}
             />
           ))}
           {(value.zones.length > 0 || fin) && (
@@ -201,6 +228,7 @@ export function UniversePicker({
                         count={pl.count}
                         active={value.places.includes(pl.key)}
                         onClick={() => basculerFin("places", pl.key)}
+                        seance={etatPlace(pl.key)}
                       />
                     ))}
                   </div>

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Radar, RotateCcw } from "lucide-react";
+import { Moon, Radar, RotateCcw } from "lucide-react";
 import {
   analysisAPI,
   type ScanEvent, type ScanIntent, type ScanQuota, type ScanResultItem, type ScanUniverse,
@@ -18,6 +18,7 @@ import { UniversePicker, SELECTION_VIDE, type Selection } from "@/components/sca
 import { IntentBox } from "@/components/scanner/IntentBox";
 import { Sweep, type SweepState } from "@/components/scanner/Sweep";
 import { Opportunity } from "@/components/scanner/Opportunity";
+import { avertissementSeance } from "@/components/scanner/horaires";
 
 /**
  * Le scanner.
@@ -158,6 +159,28 @@ export default function ScannerPage() {
     }
     return n;
   }, [universe, sel]);
+
+  /* L'avertissement de séance. Il se recalcule à la minute : une page laissée
+     ouverte à 17 h 25 annoncerait sinon « Europe ouverte » jusqu'au
+     lendemain, ce qui est pire que de ne rien dire. */
+  const [minute, setMinute] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setMinute((m) => m + 1), 60_000);
+    return () => clearInterval(id);
+  }, []);
+  const seance = useMemo(() => {
+    if (!universe) return null;
+    const zones = universe.zones ?? [];
+    // Aucune zone cochée = tout l'univers. Dire « l'Europe est fermée » d'un
+    // balayage mondial serait faux : une partie de cet univers cote toujours,
+    // ne serait-ce que la crypto.
+    const choisies = sel.zones.length
+      ? zones.filter((z) => sel.zones.includes(z.key))
+      : [];
+    return avertissementSeance(choisies);
+    // `minute` est une dépendance volontaire : c'est l'horloge.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [universe, sel.zones, minute]);
 
   useEffect(() => {
     if (!busy) return;
@@ -353,6 +376,25 @@ export default function ScannerPage() {
               </Button>
             </div>
           </div>
+
+          {/* LA SÉANCE, DITE AVANT DE LANCER. Le scanner acceptait de balayer
+              l'Europe un dimanche sans un mot : les résultats étaient corrects
+              et inutilisables, calculés sur la clôture de vendredi. Ce n'est
+              pas une erreur à empêcher — on prépare sa semaine le dimanche —
+              c'est une condition à annoncer. */}
+          {seance && (
+            <div
+              className="mt-4 flex items-start gap-2.5 rounded-[10px] px-3.5 py-3"
+              style={{ backgroundColor: "var(--cap-bg)" }}
+            >
+              <Moon
+                className="mt-[0.2rem] h-4 w-4 shrink-0"
+                aria-hidden
+                style={{ color: "var(--cap-ink-3)" }}
+              />
+              <Text size="small">{seance.phrase}</Text>
+            </div>
+          )}
 
           {quota?.remaining === 0 && (
             <div className="mt-4">
