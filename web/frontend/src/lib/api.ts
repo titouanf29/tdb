@@ -667,6 +667,15 @@ export interface TradingStats {
 }
 
 export interface Analysis {
+  /** Les signaux nommés que le moteur a relevés, haussiers et baissiers.
+   *  Manquait au type alors que l'API les renvoie depuis toujours — donc
+   *  invisibles à l'écran sans qu'aucune erreur ne le signale. */
+  conviction?: {
+    score: number;
+    bullish_signals: string[];
+    bearish_signals: string[];
+    total_signals: number;
+  };
   symbol: string;
   timeframe: string;
   company?: {

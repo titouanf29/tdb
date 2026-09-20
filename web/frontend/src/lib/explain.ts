@@ -58,7 +58,30 @@ export function buildReasons(a: Analysis): Reason[] {
     });
   }
 
-  // 2. The factors, split into what agrees and what does not.
+  // 2. Les signaux que le moteur a NOMMÉS, quand il y en a.
+  //
+  // Ils étaient calculés et jetés : « Prix > EMA200 (zone dorée) »,
+  // « Confirmé par la tendance 1wk haussière », « Volume élevé (2.0x la
+  // moyenne) » — déjà en français, déjà précis, déjà chiffrés. Pendant ce
+  // temps cette fonction redérivait des formulations plus faibles à partir
+  // des directions de facteurs. Le moteur sait mieux que nous pourquoi il a
+  // conclu ; on affiche ce qu'il dit, et la dérivation reste en repli pour
+  // les actifs où il ne renvoie rien.
+  const named = a.conviction;
+  if (named && (named.bullish_signals?.length || named.bearish_signals?.length)) {
+    named.bullish_signals?.slice(0, 4).forEach((t) => out.push({ text: t, tone: "up" }));
+    named.bearish_signals?.slice(0, 3).forEach((t) => out.push({ text: t, tone: "down" }));
+    if (named.bullish_signals?.length && named.bearish_signals?.length) {
+      out.push({
+        text: "Des signaux vont dans les deux sens — c'est ce qui limite la confiance du verdict.",
+        tone: "warn",
+      });
+    }
+    return out.slice(0, 8);
+  }
+
+  // 2 bis. Sans signaux nommés : les facteurs, séparés en ce qui s'accorde et
+  // ce qui diverge.
   const dirs = a.factor_directions ?? {};
   const entries = Object.entries(dirs).filter(([, v]) => Number.isFinite(v));
   const agreeing = entries.filter(([, v]) => Math.abs(v) >= 0.25);

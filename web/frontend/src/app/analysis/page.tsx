@@ -401,7 +401,15 @@ function Verdict({
         </div>
 
         <div className="shrink-0">
-          <ScoreDial score={Math.round(a.score.total)} size={124} />
+          {/* Le score PONDÉRÉ PAR LE PROFIL, pas le générique.
+              L'écran envoyait déjà les paramètres du style de trading —
+              multiples d'ATR et poids des fondamentaux — et le moteur
+              renvoyait les deux scores. Seul le générique était affiché : sur
+              AAPL, 69 alors que le score du profil valait 71. Les paramètres
+              promettent noir sur blanc que le style « change le poids des
+              fondamentaux dans le score » ; la promesse était tenue par le
+              moteur et perdue à l'affichage. */}
+          <ScoreDial score={Math.round(a.profile_score?.total ?? a.score.total)} size={124} />
         </div>
       </div>
 
@@ -496,8 +504,69 @@ function Intermediate({ analysis: a, money }: { analysis: Analysis; money: (v: n
     ...(a.score.fundamental != null ? [{ label: "Fondamentaux", value: a.score.fundamental }] : []),
   ].filter((s) => Number.isFinite(s.value));
 
+  const w = a.trade_window;
+
   return (
     <div className="grid gap-5 lg:grid-cols-2">
+      {/* Combien de temps tenir. Le moteur le calculait — bornes, durée
+          optimale, niveau de risque, raisons et avertissements, tout en
+          français — et rien ne l'affichait. Dans un outil de trading, « je
+          garde ça combien de temps » est une question de premier plan, pas
+          un détail. */}
+      {w?.label_optimal && (
+        <Panel
+          title="Combien de temps tenir"
+          hint={`Estimé à partir de la volatilité et de la force de la tendance, en bougies de ${w.bar_label ?? a.timeframe}.`}
+          className="lg:col-span-2"
+        >
+          <div className="flex flex-wrap items-end gap-x-10 gap-y-5">
+            <div>
+              <Num tone="accent" className="text-[1.9rem]">{w.label_optimal}</Num>
+              <Text size="caption" className="mt-1">Durée typique</Text>
+            </div>
+            <div>
+              <Num className="text-[1.05rem]">{w.label_min} – {w.label_max}</Num>
+              <Text size="caption" className="mt-1">Fourchette</Text>
+            </div>
+            {w.risk_level && (
+              <div>
+                <Num
+                  tone={w.risk_level === "high" ? "down" : w.risk_level === "low" ? "up" : "ink"}
+                  className="text-[1.05rem]"
+                >
+                  {w.risk_level === "high" ? "Élevé" : w.risk_level === "low" ? "Faible" : "Modéré"}
+                </Num>
+                <Text size="caption" className="mt-1">Risque sur la période</Text>
+              </div>
+            )}
+          </div>
+
+          {w.unreliable && (
+            <Text size="small" tone="down" className="mt-5">
+              Cette estimation est peu fiable sur cet actif — les données ne
+              permettent pas de trancher.
+            </Text>
+          )}
+
+          {(w.reasons?.length || w.warnings?.length) && (
+            <ul className="mt-5 space-y-2 border-t pt-4" style={{ borderColor: "var(--cap-line)" }}>
+              {w.reasons?.map((r) => (
+                <li key={r} className="flex gap-3">
+                  <span aria-hidden className="mt-[0.55rem] h-px w-3 shrink-0" style={{ backgroundColor: "var(--cap-ink-4)" }} />
+                  <Text size="small" as="span">{r}</Text>
+                </li>
+              ))}
+              {w.warnings?.map((r) => (
+                <li key={r} className="flex gap-3">
+                  <span aria-hidden className="mt-[0.55rem] h-px w-3 shrink-0" style={{ backgroundColor: "var(--cap-down)" }} />
+                  <Text size="small" as="span" tone="down">{r}</Text>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Panel>
+      )}
+
       <Panel title="Le détail du score" hint="Chaque famille, notée sur 100.">
         <div className="space-y-5">
           {subs.map((s, i) => (
@@ -577,8 +646,66 @@ function Advanced({ analysis: a, money }: { analysis: Analysis; money: (v: numbe
   const ind = a.indicators;
   const f = a.fundamentals;
 
+  const t = a.targets;
+  const vol = a.volatility;
+
   return (
     <div className="grid gap-5 lg:grid-cols-2">
+      {/* Les trois scénarios de prix et l'avis des analystes. Calculés depuis
+          toujours, jamais montrés. Ils vont au niveau Avancé parce qu'une
+          cible chiffrée se lit comme une promesse quand on débute — alors que
+          c'est une projection, et elle est présentée comme telle. */}
+      {t && (t.bull != null || t.base != null || t.bear != null) && (
+        <Panel
+          title="Trois scénarios"
+          hint="Des projections issues de la volatilité et des niveaux, pas des prédictions."
+          className="lg:col-span-2"
+        >
+          <div className="flex flex-wrap items-end gap-x-12 gap-y-5">
+            {t.bear != null && (
+              <div>
+                <Num tone="down" className="text-[1.15rem]">{money(t.bear)}</Num>
+                <Text size="caption" className="mt-1">Défavorable</Text>
+              </div>
+            )}
+            {t.base != null && (
+              <div>
+                <Num className="text-[1.3rem]">{money(t.base)}</Num>
+                <Text size="caption" className="mt-1">Central</Text>
+              </div>
+            )}
+            {t.bull != null && (
+              <div>
+                <Num tone="up" className="text-[1.15rem]">{money(t.bull)}</Num>
+                <Text size="caption" className="mt-1">Favorable</Text>
+              </div>
+            )}
+            {t.analyst_mean != null && (
+              <div className="border-l pl-8" style={{ borderColor: "var(--cap-line)" }}>
+                <Num tone="accent" className="text-[1.15rem]">{money(t.analyst_mean)}</Num>
+                <Text size="caption" className="mt-1">
+                  Moyenne des analystes
+                  {a.fundamentals?.num_analysts ? ` (${a.fundamentals.num_analysts})` : ""}
+                </Text>
+              </div>
+            )}
+          </div>
+
+          {(vol?.["20d"] != null || vol?.["60d"] != null) && (
+            <div className="mt-5 border-t pt-4" style={{ borderColor: "var(--cap-line)" }}>
+            <Text size="caption">
+              Volatilité annualisée : {vol["20d"] != null ? `${vol["20d"].toFixed(1)} % sur 20 jours` : ""}
+              {vol["20d"] != null && vol["60d"] != null ? ", " : ""}
+              {vol["60d"] != null ? `${vol["60d"].toFixed(1)} % sur 60 jours` : ""}
+              {vol["20d"] != null && vol["60d"] != null && vol["20d"] > vol["60d"] * 1.2
+                ? " — l'agitation récente dépasse la normale de cet actif."
+                : ""}
+            </Text>
+            </div>
+          )}
+        </Panel>
+      )}
+
       <Panel
         title="Les indicateurs"
         hint="Chacun avec ce qu'il dit, pas seulement ce qu'il vaut."
