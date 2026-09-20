@@ -25,6 +25,7 @@ import { type Level } from "@/components/analysis/PriceChart";
 import { AnnotatedChart } from "@/components/analysis/AnnotatedChart";
 import { TradingViewChart } from "@/components/analysis/TradingViewChart";
 import { hasTradingView } from "@/lib/tradingViewSymbol";
+import { quoteState } from "@/lib/marketOf";
 import { FactorBars, LevelScale } from "@/components/analysis/Gauges";
 import { AskAssistant } from "@/components/analysis/AskAssistant";
 
@@ -205,6 +206,18 @@ function AnalysisScreen() {
     }
   };
 
+  // L'état de cotation vient de la DERNIÈRE BOUGIE reçue, pas d'un calendrier
+  // que nous tiendrions : la donnée est sa propre preuve.
+  const quote = useMemo(
+    () =>
+      quoteState(
+        symbol,
+        chart?.data?.length ? chart.data[chart.data.length - 1].timestamp : null,
+        style.chartWindow.interval
+      ),
+    [symbol, chart, style.chartWindow.interval]
+  );
+
   const money = useCallback(
     (v: number) =>
       convertCurrency(v, "EUR", settings.currency, eurUsd).toLocaleString("fr-FR", {
@@ -363,6 +376,32 @@ function AnalysisScreen() {
                   />
                 }
               >
+                {/* L'état du marché, avant le graphique et dans les trois
+                    vues. Un graphique qui s'arrête le vendredi soir se lit
+                    comme une panne quand rien ne dit que c'est le week-end —
+                    c'est exactement la conclusion qu'un utilisateur a tirée.
+                    La phrase distingue aussi le seul cas qui mérite qu'on
+                    s'inquiète : des données en retard marché OUVERT. */}
+                {chartMode !== "howto" && (
+                  <div
+                    className="mb-4 flex items-start gap-2.5 rounded-[10px] px-3.5 py-2.5"
+                    style={{ backgroundColor: "var(--cap-bg)" }}
+                  >
+                    <span
+                      aria-hidden
+                      className="mt-[0.45rem] h-1.5 w-1.5 shrink-0 rounded-full"
+                      style={{
+                        backgroundColor: quote.suspicious
+                          ? "var(--cap-down)"
+                          : quote.open ? "var(--cap-up)" : "var(--cap-ink-4)",
+                      }}
+                    />
+                    <Text size="caption" as="span" tone={quote.suspicious ? "down" : "muted"}>
+                      {quote.sentence}
+                    </Text>
+                  </div>
+                )}
+
                 {chartMode === "howto" ? (
                   <ChartGuide analysis={analysis} money={money} />
                 ) : chartMode === "annotated" ? (

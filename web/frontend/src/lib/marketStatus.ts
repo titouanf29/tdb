@@ -37,7 +37,13 @@ export const marketHoursConfig: Record<string, MarketHours> = {
     openTime: "23:00",
     closeTime: "22:00",
     timezone: "Europe/Paris",
-    closedDays: [6], // Saturday only
+    // Samedi ET dimanche. Le dimanche manquait, et c'était un bug visible :
+    // la semaine des changes rouvre dimanche 23:00 (ouverture de Sydney), pas
+    // dimanche à minuit. isMarketOpen contient bien la règle « dimanche après
+    // 23:00 » — mais elle vit dans une branche que seule closedDays
+    // déclenche, donc elle n'était jamais atteinte et le dimanche entier était
+    // compté ouvert. La logique était juste, la configuration la contredisait.
+    closedDays: [0, 6],
     alwaysOpenWeekdays: true,
   },
   CRYPTO: {
@@ -51,7 +57,10 @@ export const marketHoursConfig: Record<string, MarketHours> = {
     openTime: "23:00",
     closeTime: "22:00",
     timezone: "Europe/Paris",
-    closedDays: [6],
+    // Même correction que le forex : les contrats à terme du CME rouvrent
+    // dimanche soir, pas dimanche matin. C'est ce qui affichait « Matières
+    // premières · Ouvert » un dimanche midi.
+    closedDays: [0, 6],
     alwaysOpenWeekdays: true,
   },
 };
