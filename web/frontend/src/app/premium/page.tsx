@@ -13,6 +13,7 @@ import { usePremium } from "@/lib/PremiumContext";
 import { premiumAPI, PremiumFeatures, PremiumRequest, PremiumMessage } from "@/lib/api";
 import { useRef } from "react";
 import { useLanguage } from "@/lib/LanguageContext";
+import { OFFRE_PAYANTE_OUVERTE, PHRASE_OFFRE_FERMEE } from "@/lib/legal";
 
 const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   rocket: Rocket,
@@ -472,14 +473,34 @@ export default function PremiumPage() {
               : "Unlock the full power of CaptenTDB — advanced analysis, professional tools and dedicated support."}
           </p>
 
-          {/* Price badge */}
-          <div className="inline-flex items-center gap-3 px-6 py-3 rounded-2xl bg-gradient-to-r from-yellow-500/20 to-orange-500/20 border border-yellow-500/30">
-            <span className="text-3xl font-black text-yellow-400">5€</span>
-            <div className="text-left">
-              <p className="text-xs text-muted-foreground font-medium">TTC / {fr ? "mois" : "month"}</p>
-              <p className="text-xs text-yellow-400/80">{fr ? "Résiliable à tout moment" : "Cancel anytime"}</p>
+          {/* LE PRIX N'EST AFFICHÉ QUE SI L'ON PEUT LÉGALEMENT LE DEMANDER.
+              Tant que l'éditeur n'est pas immatriculé, il n'y a pas d'offre
+              commerciale : annoncer « 5 € TTC / mois » serait proposer une
+              vente qui ne peut pas avoir lieu, et les mentions légales
+              disaient déjà le contraire de cette page. Voir lib/legal.ts. */}
+          {OFFRE_PAYANTE_OUVERTE ? (
+            <div className="inline-flex items-center gap-3 px-6 py-3 rounded-2xl bg-gradient-to-r from-yellow-500/20 to-orange-500/20 border border-yellow-500/30">
+              <span className="text-3xl font-black text-yellow-400">5€</span>
+              <div className="text-left">
+                <p className="text-xs text-muted-foreground font-medium">TTC / {fr ? "mois" : "month"}</p>
+                <p className="text-xs text-yellow-400/80">{fr ? "Résiliable à tout moment" : "Cancel anytime"}</p>
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="mx-auto max-w-2xl rounded-2xl border border-white/10 bg-white/5 p-5 text-left">
+              <p className="text-sm font-semibold mb-1.5">
+                {fr ? "L'abonnement n'est pas ouvert" : "The subscription is not open"}
+              </p>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                {fr
+                  ? PHRASE_OFFRE_FERMEE
+                  : "Premium cannot be subscribed to at this time: CaptenTDB is published on a " +
+                    "non-professional basis and takes no payment. No payment details are " +
+                    "collected. The features below exist and remain reserved for Premium " +
+                    "accounts; they are simply not for sale right now."}
+              </p>
+            </div>
+          )}
         </div>
       </motion.div>
 
@@ -558,7 +579,11 @@ export default function PremiumPage() {
               <Crown className="w-3.5 h-3.5 text-yellow-400" />
               <span className="text-sm font-bold text-yellow-400">Premium</span>
             </div>
-            <p className="text-[11px] text-yellow-400/70 mt-0.5">5€ / {fr ? "mois" : "month"}</p>
+            {/* Le prix ne s'affiche pas là où l'offre n'existe pas : un
+                tableau « Free / Premium 5 € » est une grille tarifaire. */}
+            {OFFRE_PAYANTE_OUVERTE && (
+              <p className="text-[11px] text-yellow-400/70 mt-0.5">5€ / {fr ? "mois" : "month"}</p>
+            )}
           </div>
 
           {comparisonRows.map((row, i) => {
@@ -604,15 +629,35 @@ export default function PremiumPage() {
             <h2 className="text-lg font-bold mb-2">{t("prem_why_title")}</h2>
             {fr ? (
               <p className="text-sm text-muted-foreground leading-relaxed">
-                CaptenTDB est un projet indépendant développé et maintenu par une seule personne. L'abonnement à{" "}
-                <span className="text-yellow-400 font-semibold">5€ / mois TTC</span> couvre les frais de serveur, de base de données et d'API (données financières temps réel, IA, etc.).
-                En passant Premium, vous aidez directement à garder la plateforme en ligne et à financer de nouvelles fonctionnalités. Merci pour votre soutien !
+                CaptenTDB est un projet indépendant développé et maintenu par une seule personne.{" "}
+                {OFFRE_PAYANTE_OUVERTE ? (
+                  <>
+                    L'abonnement à{" "}
+                    <span className="text-yellow-400 font-semibold">5€ / mois TTC</span> couvre les frais de serveur, de base de données et d'API (données financières temps réel, IA, etc.).
+                    En passant Premium, vous aidez directement à garder la plateforme en ligne et à financer de nouvelles fonctionnalités. Merci pour votre soutien !
+                  </>
+                ) : (
+                  <>
+                    Les frais de serveur, de base de données et d'API (données financières temps réel, IA)
+                    sont aujourd'hui pris en charge par son auteur. Un abonnement pourra être proposé
+                    plus tard pour les couvrir ; il n'est pas ouvert à ce jour.
+                  </>
+                )}
               </p>
             ) : (
               <p className="text-sm text-muted-foreground leading-relaxed">
-                CaptenTDB is an independent project developed and maintained by a single person. The{" "}
-                <span className="text-yellow-400 font-semibold">€5 / month</span> subscription covers server, database and API costs (real-time financial data, AI, etc.).
-                By going Premium, you directly help keep the platform running and fund new features. Thank you for your support!
+                CaptenTDB is an independent project developed and maintained by a single person.{" "}
+                {OFFRE_PAYANTE_OUVERTE ? (
+                  <>
+                    The <span className="text-yellow-400 font-semibold">€5 / month</span> subscription covers server, database and API costs (real-time financial data, AI, etc.).
+                    By going Premium, you directly help keep the platform running and fund new features. Thank you for your support!
+                  </>
+                ) : (
+                  <>
+                    Server, database and API costs (real-time market data, AI) are currently covered by
+                    its author. A subscription may be offered later to cover them; it is not open today.
+                  </>
+                )}
               </p>
             )}
           </div>
@@ -700,7 +745,14 @@ export default function PremiumPage() {
         </div>
       </motion.div>
 
-      {/* ── CTA / Contact form ────────────────────────────────────────────── */}
+      {/* ── CTA / Contact form ─────────────────────────────────────────────
+          Ce bloc SOLLICITE un abonnement : « Envoyez un message pour obtenir
+          votre accès Premium à 5 € / mois TTC ». C'est une offre commerciale,
+          formulaire de contact ou pas, et elle n'a pas lieu d'être tant que
+          l'activité n'est pas déclarée. Il disparaît donc entièrement — le
+          masquer à moitié laisserait la case « j'accepte les CGV » et la
+          mention du droit de rétractation sur un écran qui ne vend rien. */}
+      {OFFRE_PAYANTE_OUVERTE && (
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -819,6 +871,7 @@ export default function PremiumPage() {
           )}
         </div>
       </motion.div>
+      )}
 
       {/* ── My requests + thread ──────────────────────────────────────────── */}
       {myRequests.length > 0 && (

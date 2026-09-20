@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ShoppingCart, ExternalLink } from "lucide-react";
 import { LegalNav, LegalSectionTitle, InfoBox, Dl } from "@/components/legal/LegalNav";
+import { OFFRE_PAYANTE_OUVERTE } from "@/lib/legal";
 
 export const metadata = {
   title: "Conditions Générales de Vente — CaptenTDB",
@@ -43,6 +44,25 @@ export default function CgvPage() {
           </div>
         </div>
       </div>
+
+      {/* DES CGV SANS VENTE DÉCRIVENT UN CONTRAT QUI N'EXISTE PAS.
+          Laisser ce document tel quel laissait croire qu'un abonnement à 5 €
+          était en vigueur, avec son droit de rétractation et son médiateur —
+          sur un site qui n'encaisse rien. Le texte reste publié, parce qu'il
+          servira, mais il est daté de ce qu'il est : un document à venir. */}
+      {!OFFRE_PAYANTE_OUVERTE && (
+        <div className="glass-card p-6">
+          <InfoBox variant="warning">
+            <p className="font-semibold">Ces conditions ne sont pas encore en vigueur.</p>
+            <p className="mt-1">
+              Aucune offre payante n'est ouverte à ce jour : CaptenTDB est édité à titre non
+              professionnel, le service est entièrement gratuit et aucun paiement n'est perçu.
+              Le présent document est publié à titre d'information et ne s'appliquera qu'à
+              compter de l'ouverture effective d'un abonnement, qui sera annoncée sur le site.
+            </p>
+          </InfoBox>
+        </div>
+      )}
 
       {/* Table of contents */}
       <div className="glass-card p-5">

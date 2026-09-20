@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Scale, AlertTriangle, ExternalLink } from "lucide-react";
 import { LegalNav, LegalSectionTitle, InfoBox, Dl } from "@/components/legal/LegalNav";
+import { EDITEUR, EST_PROFESSIONNEL } from "@/lib/legal";
 
 export const metadata = {
   title: "Mentions légales — CaptenTDB",
@@ -67,16 +68,49 @@ export default function MentionsLegalesPage() {
         {/* 1. Éditeur */}
         <section id="editeur" className="glass-card p-6 space-y-4 scroll-mt-6">
           <LegalSectionTitle num="1" id="editeur-title" title="Éditeur du site" />
-          <p className="text-muted-foreground">Le site internet <strong className="text-foreground">CaptenTDB</strong> est édité à titre personnel par :</p>
-          <Dl items={[
-            { label: "Identité", value: "CaptenQwark" },
-            { label: "Statut", value: "Personne physique — éditeur indépendant" },
-            { label: "Pays", value: "France" },
-            { label: "Contact", value: <span>Via la plateforme : section « Communauté » → « Contacter Admin »</span> },
-          ]} />
-          <p className="text-xs text-muted-foreground">
-            En proposant un abonnement payant, l'éditeur agit en qualité de « professionnel » au sens de l'article L.217-1 du code de la consommation pour les relations avec ses utilisateurs abonnés.
-          </p>
+          {/* CETTE SECTION SUIT LE STATUT RÉEL DE L'ÉDITEUR, PAS UN MODÈLE.
+              Elle annonçait un éditeur « personne physique » sans adresse ni
+              SIREN — le régime de l'éditeur NON professionnel — et affirmait
+              juste en dessous qu'il agissait « en qualité de professionnel »
+              du fait de l'abonnement payant. Les deux ne peuvent pas être
+              vrais ensemble. Voir lib/legal.ts. */}
+          {EST_PROFESSIONNEL ? (
+            <>
+              <p className="text-muted-foreground">Le site internet <strong className="text-foreground">CaptenTDB</strong> est édité par :</p>
+              <Dl items={[
+                { label: "Identité", value: EDITEUR.identite || EDITEUR.nomPublic },
+                { label: "Statut", value: EDITEUR.statut === "societe" ? "Société" : "Entrepreneur individuel (micro-entreprise)" },
+                { label: "Adresse", value: EDITEUR.adresse },
+                { label: "SIREN", value: EDITEUR.siren },
+                ...(EDITEUR.rcs ? [{ label: "RCS", value: EDITEUR.rcs }] : []),
+                { label: "TVA", value: EDITEUR.tvaIntracom || "Non applicable — franchise en base de TVA (art. 293 B du CGI)" },
+                { label: "E-mail", value: EDITEUR.email },
+                { label: "Téléphone", value: EDITEUR.telephone },
+                { label: "Pays", value: EDITEUR.pays },
+              ]} />
+              <p className="text-xs text-muted-foreground">
+                En proposant un abonnement payant, l'éditeur agit en qualité de « professionnel » au sens de l'article L.217-1 du code de la consommation pour les relations avec ses utilisateurs abonnés.
+              </p>
+            </>
+          ) : (
+            <>
+              <p className="text-muted-foreground">Le site internet <strong className="text-foreground">CaptenTDB</strong> est édité à titre <strong className="text-foreground">non professionnel</strong> par une personne physique :</p>
+              <Dl items={[
+                { label: "Éditeur", value: EDITEUR.nomPublic },
+                { label: "Statut", value: "Personne physique — édition à titre non professionnel" },
+                { label: "Pays", value: EDITEUR.pays },
+                { label: "Contact", value: <span>Via la plateforme : section « Communauté » → « Contacter Admin »</span> },
+              ]} />
+              <InfoBox variant="info">
+                <p>
+                  Conformément à l'<strong>article 6 III 2° de la LCEN</strong>, une personne physique qui édite un site à titre non professionnel peut n'indiquer publiquement que le nom sous lequel elle s'exprime, à la condition d'avoir communiqué ses nom, prénom, domicile et numéro de téléphone à l'hébergeur, qui est tenu au secret professionnel sur ces éléments. Ces informations ont été transmises à l'hébergeur désigné à la section 2.
+                </p>
+                <p className="mt-2">
+                  Le service est fourni <strong>gratuitement</strong>. Aucun abonnement payant n'est proposé et aucun paiement n'est perçu : l'éditeur n'agit donc pas en qualité de professionnel au sens du code de la consommation. Le jour où une offre payante sera ouverte, l'éditeur devra être immatriculé et la présente section publiera son identité complète, son adresse, son numéro SIREN et ses coordonnées directes.
+                </p>
+              </InfoBox>
+            </>
+          )}
         </section>
 
         {/* 2. Hébergement */}
@@ -97,7 +131,7 @@ export default function MentionsLegalesPage() {
         <section id="directeur" className="glass-card p-6 space-y-4 scroll-mt-6">
           <LegalSectionTitle num="3" id="directeur-title" title="Directeur de la publication" />
           <p className="text-muted-foreground">
-            Le directeur de la publication au sens de l'article 6 III 1° de la LCEN est <strong className="text-foreground">CaptenQwark</strong>, en sa qualité d'éditeur du site.
+            Le directeur de la publication au sens de l'article 6 III de la LCEN est <strong className="text-foreground">{EST_PROFESSIONNEL ? (EDITEUR.identite || EDITEUR.nomPublic) : EDITEUR.nomPublic}</strong>, en sa qualité d'éditeur du site.
           </p>
         </section>
 
@@ -105,7 +139,10 @@ export default function MentionsLegalesPage() {
         <section id="nature" className="glass-card p-6 space-y-4 scroll-mt-6">
           <LegalSectionTitle num="4" id="nature-title" title="Nature du service & avertissement réglementaire" />
           <p className="text-muted-foreground">
-            CaptenTDB est une <strong className="text-foreground">plateforme éducative de paper trading</strong> (trading sur portefeuille virtuel avec argent fictif). Le service est proposé à titre gratuit avec une option d'abonnement Premium.
+            CaptenTDB est une <strong className="text-foreground">plateforme éducative de paper trading</strong> (trading sur portefeuille virtuel avec argent fictif).{" "}
+            {EST_PROFESSIONNEL
+              ? "Le service est proposé à titre gratuit avec une option d'abonnement Premium."
+              : "Le service est proposé intégralement à titre gratuit : aucun abonnement payant n'est ouvert et aucun paiement n'est perçu."}
           </p>
           <InfoBox variant="warning">
             <div className="flex items-start gap-2">
@@ -206,18 +243,33 @@ export default function MentionsLegalesPage() {
         {/* 11. CGV */}
         <section id="cgv" className="glass-card p-6 space-y-4 scroll-mt-6">
           <LegalSectionTitle num="11" id="cgv-title" title="Conditions générales de vente (résumé)" />
-          <p className="text-muted-foreground">
-            Pour toute souscription à l'abonnement Premium, les conditions complètes de vente sont
-            détaillées dans les <Link href="/cgu#premium" className="text-primary hover:underline">CGU (Article 7 — Abonnement Premium)</Link> et{" "}
-            <Link href="/cgu#retractation" className="text-primary hover:underline">CGU (Article 8 — Droit de rétractation)</Link>.
-          </p>
-          <Dl items={[
-            { label: "Prix", value: "5,00 € TTC / mois" },
-            { label: "Paiement", value: "Via Stripe, Inc. (PCI-DSS Level 1) — CB, Visa, Mastercard" },
-            { label: "Exécution", value: "Accès Premium activé sous 24-48h après validation de la demande par l'équipe" },
-            { label: "Durée", value: "Abonnement mensuel renouvelable — résiliable à tout moment" },
-            { label: "Rétractation", value: "14 jours calendaires à compter de l'activation (L.221-18 code consommation)" },
-          ]} />
+          {/* Un résumé des conditions de vente sur un site qui ne vend rien
+              décrit une opération qui n'existe pas, et fait croire à un
+              abonnement en vigueur. Il reparaît avec l'offre. */}
+          {EST_PROFESSIONNEL ? (
+            <>
+              <p className="text-muted-foreground">
+                Pour toute souscription à l'abonnement Premium, les conditions complètes de vente sont
+                détaillées dans les <Link href="/cgu#premium" className="text-primary hover:underline">CGU (Article 7 — Abonnement Premium)</Link> et{" "}
+                <Link href="/cgu#retractation" className="text-primary hover:underline">CGU (Article 8 — Droit de rétractation)</Link>.
+              </p>
+              <Dl items={[
+                { label: "Prix", value: "5,00 € TTC / mois" },
+                { label: "Paiement", value: "Via Stripe, Inc. (PCI-DSS Level 1) — CB, Visa, Mastercard" },
+                { label: "Exécution", value: "Accès Premium activé sous 24-48h après validation de la demande par l'équipe" },
+                { label: "Durée", value: "Abonnement mensuel renouvelable — résiliable à tout moment" },
+                { label: "Rétractation", value: "14 jours calendaires à compter de l'activation (L.221-18 code consommation)" },
+              ]} />
+            </>
+          ) : (
+            <p className="text-muted-foreground">
+              Aucune vente n'est réalisée sur ce site : le service est gratuit, aucun abonnement
+              payant n'est proposé et aucune donnée bancaire n'est collectée. Les{" "}
+              <Link href="/cgv" className="text-primary hover:underline">conditions générales de vente</Link>{" "}
+              sont publiées à titre d'information et n'entreront en vigueur qu'à l'ouverture
+              éventuelle d'une offre payante.
+            </p>
+          )}
         </section>
 
         {/* 12. Droit applicable */}

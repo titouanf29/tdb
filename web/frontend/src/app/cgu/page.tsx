@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { FileText, AlertTriangle, ExternalLink } from "lucide-react";
 import { LegalNav, LegalSectionTitle, InfoBox, Dl } from "@/components/legal/LegalNav";
+import { OFFRE_PAYANTE_OUVERTE } from "@/lib/legal";
 
 export const metadata = {
   title: "Conditions Générales d'Utilisation — CaptenTDB",
@@ -181,6 +182,17 @@ export default function CguPage() {
         {/* 7. Premium */}
         <section id="premium" className="glass-card p-6 space-y-3 scroll-mt-6">
           <LegalSectionTitle num="7" id="premium-title" title="Abonnement Premium" />
+          {/* Les articles 7 et 8 décrivent un abonnement et un droit de
+              rétractation. Tant qu'aucune offre n'est ouverte, ils décrivent
+              une situation qui n'existe pas — on le dit ici plutôt que de les
+              retirer, parce qu'ils s'appliqueront tels quels le jour venu. */}
+          {!OFFRE_PAYANTE_OUVERTE && (
+            <InfoBox variant="warning">
+              Aucun abonnement payant n'est ouvert à ce jour : le service est entièrement gratuit
+              et aucun paiement n'est perçu. Le présent article et le suivant ne s'appliqueront
+              qu'à compter de l'ouverture effective d'une offre payante.
+            </InfoBox>
+          )}
           <div className="space-y-3 text-muted-foreground">
             <p>
               <strong className="text-foreground">7.1 Offre & tarif.</strong> Un abonnement Premium est proposé au tarif de <strong className="text-foreground">5,00 € TTC / mois</strong>. Cet abonnement permet d'accéder à des fonctionnalités étendues (limites augmentées, outils avancés) et finance les coûts d'infrastructure de la plateforme (serveurs, base de données, API).

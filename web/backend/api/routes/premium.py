@@ -12,6 +12,7 @@ from datetime import datetime, timezone
 from ..database import execute_query, execute_write, create_admin_notification
 from .auth import get_current_user
 from .admin import get_admin_user, log_admin_action, check_if_admin
+from ..legal import MESSAGE_OFFRE_FERMEE, offre_payante_ouverte
 
 router = APIRouter()
 
@@ -178,6 +179,14 @@ async def create_checkout_session(current_user: dict = Depends(get_current_user)
     STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY", "")
     STRIPE_PRICE_ID = os.getenv("STRIPE_PRICE_ID", "")
     FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
+
+    # LE VERROU D'ABORD, AVANT TOUTE CHOSE. Tant que l'éditeur n'est pas
+    # immatriculé, il n'y a pas d'offre payante : encaisser un abonnement de
+    # façon habituelle sans activité déclarée est du travail dissimulé. Le
+    # bouton est masqué côté écran, ce qui ne ferme rien — un appel direct à
+    # cette route suffisait. Voir api/legal.py.
+    if not offre_payante_ouverte():
+        raise HTTPException(status_code=503, detail=MESSAGE_OFFRE_FERMEE)
 
     if not STRIPE_SECRET_KEY or not STRIPE_PRICE_ID:
         raise HTTPException(status_code=503, detail="Paiement non configuré. Contactez l'administrateur.")
