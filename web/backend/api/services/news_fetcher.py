@@ -155,8 +155,31 @@ async def _fetch_feed(session: httpx.AsyncClient, feed: Dict) -> List[Dict]:
 
         for entry in entries[:12]:
             def _text(tag: str) -> str:
-                el = entry.find(tag) or entry.find(f"atom:{tag}", ns)
-                return (el.text or "").strip() if el is not None else ""
+                """Le texte d'une balise, quel que soit le dialecte du flux.
+
+                LE PIÈGE EST DANS LE « or ». Un Element d'ElementTree est FAUX
+                quand il n'a pas d'enfant — et un <title> n'en a jamais. Donc
+                « entry.find(tag) or entry.find(atom:tag) » renvoyait
+                systématiquement le second terme, c'est-à-dire None sur un flux
+                RSS classique. Le titre ressortait vide, l'article était écarté
+                par le « if not title », et la fonction rendait zéro article
+                sur des flux parfaitement valides.
+
+                Mesuré au moment de la correction : 176 entrées reçues sur six
+                flux, zéro article extrait. Le fil d'actualité du site était
+                donc vide en permanence, sans la moindre erreur dans les
+                journaux.
+                """
+                el = entry.find(tag)
+                if el is None:
+                    el = entry.find(f"atom:{tag}", ns)
+                if el is None:
+                    return ""
+                if (el.text or "").strip():
+                    return el.text.strip()
+                # Atom met parfois le lien dans un attribut plutôt que dans le
+                # texte : <link href="..."/>.
+                return (el.get("href") or "").strip()
 
             title   = _text("title")
             summary = _text("description") or _text("summary") or _text("content")
@@ -187,6 +210,38 @@ async def _fetch_feed(session: httpx.AsyncClient, feed: Dict) -> List[Dict]:
 
 
 # ─── Public API ───────────────────────────────────────────────────────────────
+
+async def collect_all() -> List[Dict[str, Any]]:
+    """TOUS les articles des flux, sans plafond ni dédoublonnage.
+
+    get_macro_news rend les dix meilleurs, ce qui convient à un bandeau
+    d'actualité et ne convient pas du tout à un moteur de croisement : on ne
+    peut pas mesurer combien de rédactions couvrent un fait si on n'en voit
+    qu'une sur sept.
+
+    Le dédoublonnage par titre est également écarté ici, et c'est le point
+    important : DEUX ARTICLES QUASI IDENTIQUES DE DEUX RÉDACTIONS SONT
+    EXACTEMENT CE QU'ON CHERCHE. Les écarter, c'est jeter la confirmation
+    croisée avant de l'avoir mesurée. Le regroupement en événements s'en
+    charge ensuite, en gardant trace de qui a publié quoi.
+    """
+    async with httpx.AsyncClient(
+        headers={"User-Agent": "Mozilla/5.0 CaptentDB/2.0"},
+        timeout=12,
+    ) as session:
+        results = await asyncio.gather(
+            *[_fetch_feed(session, feed) for feed in RSS_FEEDS],
+            return_exceptions=True,
+        )
+
+    out: List[Dict] = []
+    for batch in results:
+        if isinstance(batch, Exception):
+            continue
+        out.extend(batch)
+    logger.info("collect_all: %d articles depuis %d flux", len(out), len(RSS_FEEDS))
+    return out
+
 
 async def get_macro_news(max_items: int = 10) -> List[Dict[str, Any]]:
     """
