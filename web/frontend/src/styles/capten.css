@@ -30,18 +30,32 @@
 
      D'où deux tons par sens. Le premier pour les chiffres et les traits
      fins, le second — une teinte du premier fondue dans la surface — pour
-     tout ce qui remplit. La saturation du premier passe de 71 % à 42 % pour
-     le vert et de 54 % à 42 % pour le rouge, assez pour calmer l'écran sans
-     perdre l'identité verte ou rouge, qui porte ici le sens.
+     tout ce qui remplit.
 
-     Effet secondaire non négligeable : les anciennes valeurs plafonnaient à
-     4,13:1 et 4,36:1 sur la surface des panneaux, sous le seuil WCAG AA de
-     4,5:1. Les nouvelles sont à 5,57:1 et 5,59:1. Plus douces ET plus
-     lisibles — le contraste vient de la clarté, pas de la saturation. */
-  --cap-up:        #2E7058;
-  --cap-down:      #9F4B41;
-  --cap-up-soft:   #B3CAC4;
-  --cap-down-soft: #D9BEBC;
+     La saturation du ton fort est d'abord descendue de 71 % à 42 %, en même
+     temps que les aplats passaient en teinte douce. C'était une correction de
+     trop : la mesure montrait que l'éblouissement venait presque entièrement
+     des aplats — 0,74 % de pixels très saturés avant, 0,08 % après, alors que
+     les chiffres ne représentent qu'une poignée de pixels. Baisser AUSSI la
+     saturation du texte n'a donc rien calmé qui ne l'était déjà, et a rendu
+     les variations fades.
+
+     Elle remonte à 64 % pour le vert et 66 % pour le rouge : une couleur
+     franche là où elle occupe peu de surface, une teinte douce là où elle en
+     occupe beaucoup. C'est la distinction utile, et elle ne se lit pas sur un
+     nuancier — elle se mesure en pixels.
+
+     Pas au-delà, en revanche. Le maximum que le contraste autorise est 88 %,
+     ce qui donne un vert menthe fluorescent : exactement le néon que la
+     direction artistique proscrit.
+
+     Les quatre valeurs tiennent 4,6:1 sur les trois fonds où du texte coloré
+     apparaît — panneau, page et tuile sélectionnée. Les toutes premières
+     valeurs du projet, elles, plafonnaient à 4,13:1, sous le seuil AA. */
+  --cap-up:        #197148;
+  --cap-down:      #B62F25;
+  --cap-up-soft:   #ACCBBE;
+  --cap-down-soft: #E1B4B2;
 
   /* ── Surfaces ─────────────────────────────────────────────────────────
      Layered off-whites, not one flat fill. The panel sits about 2% of
@@ -266,14 +280,15 @@
   /* Mêmes teintes qu'en clair, remontées pour rester lisibles. Les tons
      doux, eux, descendent : un aplat doit rester plus sombre que le texte
      qui le surmonte. */
-  /* Le rouge est plus clair que son pendant de jour, et plus clair aussi que
-     ce qu'on poserait d'instinct : mesuré sur --cap-surface-2, qui est le
-     fond des tuiles sélectionnées des Marchés, #C77E75 tombait à 4,07:1.
-     #CD8C84 tient 4,69:1 là et 5,39:1 sur un panneau ordinaire. */
-  --cap-up:        #56B391;
-  --cap-down:      #CD8C84;
-  --cap-up-soft:   #2C5050;
-  --cap-down-soft: #4E4048;
+  /* Mêmes teintes qu'en clair, remontées en clarté pour tenir sur un ciel de
+     nuit, et ravivées comme elles. Le rouge est plus clair que ce qu'on
+     poserait d'instinct : c'est la tuile sélectionnée des Marchés
+     (--cap-surface-2) qui commande, et c'est là qu'une valeur trop sombre
+     tombait à 4,07:1. Celle-ci tient 4,67:1. */
+  --cap-up:        #4ED093;
+  --cap-down:      #E0827B;
+  --cap-up-soft:   #2D6257;
+  --cap-down-soft: #5F474F;
 
   /* Les nuages, vus d'en dessous. Le ventre est sombre et la couronne garde
      la dernière lumière — c'est ce décalage, et lui seul, qui fait qu'une
