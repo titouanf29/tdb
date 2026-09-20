@@ -545,6 +545,82 @@ export const analysisAPI = {
   },
 };
 
+/* ── Le contexte de presse ────────────────────────────────────────────────── */
+
+/** Ce que la dernière lecture des flux a réellement vu. */
+export interface IntelVeille {
+  articles: number;
+  redactions: number;
+  groupes: number;
+  dossiers: number;
+  lu_a: string | null;
+}
+
+export interface IntelEvenement {
+  titre: string;
+  /** L'échelle d'incertitude : CONFIRMED, PROBABLE, POSSIBLE, UNCERTAIN, DISPUTED, FALSE. */
+  niveau: string;
+  confiance: number;
+  raisons: string[];
+  /** Rédactions indépendantes, après amortissement des reprises d'agence. */
+  voix: number;
+  articles: number;
+  nouveaute: number;
+  absorption: number;
+  age_heures: number;
+  changements: string[];
+  cible: string;
+  /** +1 favorable à cet actif, -1 défavorable, 0 sans sens. */
+  sens: number;
+  conteste: boolean;
+  mecanisme: string[];
+  solidite: number;
+  qualite_mecanisme: string;
+  horizon: string;
+  reserve: string;
+  poids: number;
+  marche?: {
+    etat: "confirme" | "contredit" | "sans reaction" | "indetermine" | "sans attente";
+    phrase: string;
+    lectures: string[];
+    seuil_pct: number;
+    variation_pct: number;
+    surprise: number;
+  };
+}
+
+export interface IntelContext {
+  symbole: string;
+  couvert: boolean;
+  indisponible?: boolean;
+  resume: string;
+  evenements: IntelEvenement[];
+  surveille: string[];
+  veille: IntelVeille;
+}
+
+export const intelAPI = {
+  /**
+   * Les données de marché sont passées par l'appelant, qui les tient déjà de
+   * l'analyse : les redemander côté serveur doublerait les appels au
+   * fournisseur de cours et pourrait afficher deux prix différents sur une
+   * même page.
+   */
+  forSymbol: (
+    symbol: string,
+    market?: { variationPct?: number; volumeRatio?: number; volatiliteJour?: number },
+  ) => {
+    const qs = new URLSearchParams();
+    if (market?.variationPct != null) qs.set("variation_pct", String(market.variationPct));
+    if (market?.volumeRatio != null) qs.set("volume_ratio", String(market.volumeRatio));
+    if (market?.volatiliteJour != null) qs.set("volatilite_jour", String(market.volatiliteJour));
+    const q = qs.toString();
+    return fetchAPI<IntelContext>(
+      `/api/intel/${encodeURIComponent(symbol)}${q ? `?${q}` : ""}`,
+    );
+  },
+};
+
 // AI Limit Status
 export interface AILimitStatus {
   can_send: boolean;

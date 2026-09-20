@@ -91,6 +91,22 @@ def proximite(a: dict, b: dict) -> float:
     """
     ea, eb = a.get("_entites") or set(), b.get("_entites") or set()
     lex = ressemblance(a["_jetons"], b["_jetons"])
+
+    # DEUX SUJETS CONNUS ET DISJOINTS NE SONT PAS LE MÊME FAIT — quoi qu'en
+    # disent les mots. Mesuré sur les flux : « Rivian C.E.O. Has Some Ideas for
+    # How to Make More Cars in America » (sujet : USA) et « India Is Again
+    # Squeezed Between Trump Tariffs and Russian oil » (sujet : DOUANE, PETROLE,
+    # RUSSIE) se sont regroupés sur leur vocabulaire commun. Le dossier a
+    # ensuite hérité des entités des deux, et un article sur les voitures
+    # électriques a déclenché une chaîne de choc pétrolier.
+    #
+    # Le veto ne s'applique qu'entre articles dont on connaît le sujet des
+    # DEUX côtés : un article sans entité centrale n'a rien à contredire, et
+    # doit rester regroupable sur les mots.
+    ca, cb = a.get("_entites_centrales") or set(), b.get("_entites_centrales") or set()
+    if ca and cb and not (ca & cb):
+        return 0.0
+
     if not ea or not eb:
         return lex
 
@@ -188,17 +204,31 @@ def entites_du_groupe(groupe: list[dict], centrales_seulement: bool = False) -> 
 
 
 def titre_du_groupe(groupe: list[dict]) -> str:
-    """Le titre le plus représentatif : celui qui ressemble le plus aux autres.
+    """Le titre qui PORTE le dossier.
 
-    Prendre le premier arrivé donnerait au dossier le cadrage du flux le plus
-    rapide, qui est souvent le plus approximatif.
+    Deux critères, dans cet ordre, et l'ordre vient d'une erreur observée.
+    Un dossier dont les entités étaient CONFLIT, MOYEN_ORIENT et PETROLE
+    s'affichait sous le titre « Ed Davey calls for immediate 10p cut to fuel
+    duty » — un article sans aucune entité centrale, simplement le plus proche
+    lexicalement des autres. L'écran annonçait donc un choc pétrolier en citant
+    un débat sur la taxe sur les carburants.
+
+    On prend donc d'abord l'article qui couvre le mieux les entités du dossier :
+    c'est lui qui justifie le mécanisme affiché juste en dessous. La proximité
+    lexicale ne sert plus qu'à départager à couverture égale.
     """
     if len(groupe) == 1:
         return groupe[0].get("title", "")
+
+    centrales = entites_du_groupe(groupe, centrales_seulement=True)
     js = [jetons(a.get("title", "")) for a in groupe]
-    meilleur, score_max = groupe[0], -1.0
+
+    meilleur, score_max = groupe[0], (-1.0, -1.0)
     for i, a in enumerate(groupe):
-        score = sum(ressemblance(js[i], js[k]) for k in range(len(groupe)) if k != i)
+        propres = a.get("_entites_centrales") or set()
+        couverture = len(propres & centrales) / len(centrales) if centrales else 0.0
+        lexical = sum(ressemblance(js[i], js[k]) for k in range(len(groupe)) if k != i)
+        score = (couverture, lexical)
         if score > score_max:
             meilleur, score_max = a, score
     return meilleur.get("title", "")

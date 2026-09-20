@@ -126,6 +126,10 @@ REGLES: tuple[Regle, ...] = (
     Regle(
         cle="inflation_surprise",
         requiert=("INFLATION",),
+        # Voir la note de la règle « emploi » : un thème macro seul ne suffit
+        # pas à établir qu'un fait de marché vient d'avoir lieu.
+        parmi=("USA", "UE", "CHINE", "JAPON", "FED", "BCE", "BOE", "BOJ",
+               "TAUX", "CROISSANCE"),
         chaine=(
             M("l'écart aux anticipations déplace les attentes de taux", 0.80),
             M("la courbe obligataire se déforme", 0.75),
@@ -186,6 +190,8 @@ REGLES: tuple[Regle, ...] = (
     Regle(
         cle="croissance",
         requiert=("CROISSANCE",),
+        parmi=("USA", "UE", "CHINE", "JAPON", "RUSSIE", "FED", "BCE", "BOE",
+               "BOJ", "PBOC", "TAUX", "INFLATION", "EMPLOI"),
         chaine=(
             M("les attentes de bénéfices sont révisées", 0.70),
             M("les secteurs cycliques réagissent en premier", 0.65),
@@ -197,6 +203,15 @@ REGLES: tuple[Regle, ...] = (
     Regle(
         cle="emploi",
         requiert=("EMPLOI",),
+        # UN THÈME MACRO SEUL NE FAIT PAS UN FAIT DE MARCHÉ. « La conférence
+        # sur le travail, l'emploi et les retraites marque le retour du
+        # clivage » — de la politique intérieure française — déclenchait cette
+        # chaîne et faisait dire à l'écran que les banques en profitaient.
+        # Le mot « emploi » dit le sujet ; il ne dit pas qu'une statistique
+        # vient de sortir. On demande donc un ancrage : une économie, une
+        # banque centrale, ou un autre thème macro qui situe la publication.
+        parmi=("USA", "UE", "CHINE", "JAPON", "FED", "BCE", "BOE", "BOJ",
+               "TAUX", "INFLATION", "CROISSANCE"),
         chaine=(
             M("le marché du travail informe sur les pressions salariales", 0.75),
             M("les anticipations d'inflation s'ajustent", 0.60),

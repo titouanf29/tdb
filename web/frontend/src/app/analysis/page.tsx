@@ -30,6 +30,7 @@ import { hasTradingView } from "@/lib/tradingViewSymbol";
 import { quoteState } from "@/lib/marketOf";
 import { FactorBars, LevelScale } from "@/components/analysis/Gauges";
 import { AskAssistant } from "@/components/analysis/AskAssistant";
+import { PressContext } from "@/components/analysis/PressContext";
 
 /**
  * The analysis screen — rebuilt around progressive depth.
@@ -471,6 +472,23 @@ function AnalysisScreen() {
                 )}
               </Panel>
             )}
+
+            {/* La presse, à tous les niveaux de détail. Un débutant a plus
+                besoin qu'un expert de savoir POURQUOI un actif bouge, et
+                c'est la seule partie de l'écran qui répond à cette
+                question-là. L'ATR rapporté au prix sert de seuil de
+                réaction : 2 % n'est pas le même événement sur un service aux
+                collectivités et sur une crypto. */}
+            <PressContext
+              symbol={analysis.symbol}
+              variationPct={live?.change ?? analysis.price.change}
+              volumeRatio={analysis.indicators?.volume_ratio ?? undefined}
+              volatiliteJour={
+                analysis.indicators?.atr && analysis.price.current
+                  ? (analysis.indicators.atr / analysis.price.current) * 100
+                  : undefined
+              }
+            />
 
             {depth !== "discover" && <Intermediate analysis={analysis} assetPrice={assetPrice} />}
             {depth === "advanced" && <Advanced analysis={analysis} assetPrice={assetPrice} />}
