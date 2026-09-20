@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import { ChevronDown, LogOut, Search, Settings, Shield } from "lucide-react";
+import { Notifications } from "./Notifications";
 import { useAuth } from "@/lib/AuthContext";
 import { usePremium } from "@/lib/PremiumContext";
 import {
@@ -85,6 +86,10 @@ function TopBar({ area }: { area?: NavArea }) {
 
           <div className="ml-auto flex items-center gap-2">
             <AssetSearch />
+            {/* La cloche vivait uniquement dans l'ancien en-tête : les écrans
+                refaits n'en avaient aucune, et les notifications écrites à la
+                clôture d'une position n'étaient donc visibles nulle part. */}
+            <Notifications />
             {isAdmin && (
               <Link
                 href="/admin"

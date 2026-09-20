@@ -166,6 +166,27 @@ async def _execute_levels(user_id, positions: list, numeric_id=None) -> list:
                WHERE id = ? AND status = 'open'""",
             (_px(level), round(realized, 4), now, pos["id"]),
         )
+
+        # ── QUI A REELLEMENT FERME LA POSITION ? ─────────────────────────
+        #
+        # L'écran appelle /balance ET /positions en parallèle, et les deux
+        # exécutent les niveaux. Le « AND status = 'open' » garantit qu'un
+        # seul UPDATE porte, mais RIEN ne vérifiait lequel : les deux appels
+        # créditaient le solde, envoyaient une notification et écrivaient au
+        # journal. Constaté à l'écran : deux notifications identiques « Stop
+        # touché sur TRX-USD », à la même seconde, pour une seule position.
+        #
+        # L'horodatage sert de jeton : deux appels concurrents écrivent des
+        # instants différents à la microseconde près, donc un seul se
+        # reconnaît dans la valeur finalement enregistrée. Le perdant n'a rien
+        # à faire — la position est fermée, et bien fermée.
+        verif = await execute_query(
+            "SELECT closed_at FROM positions WHERE id = ?", (pos["id"],)
+        )
+        if not verif or str(verif[0].get("closed_at")) != now:
+            pos["status"] = "closed"
+            continue
+
         await execute_write(
             "UPDATE wallet SET balance = balance + ? WHERE user_id = ?",
             (round(credit, 4), user_id),

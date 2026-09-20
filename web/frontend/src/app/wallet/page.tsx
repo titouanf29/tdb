@@ -16,6 +16,7 @@ import {
 import { PositionSheet } from "@/components/wallet/PositionSheet";
 import { JournalPrompt } from "@/components/wallet/JournalPrompt";
 import { SymbolReview } from "@/components/wallet/SymbolReview";
+import { ClosedSheet } from "@/components/wallet/ClosedSheet";
 import { draftFromPosition, type JournalDraft } from "@/lib/journalDraft";
 import { RefreshTimer, useAutoRefresh } from "@/components/app/RefreshTimer";
 import { useTradingStyle } from "@/lib/tradingStyle";
@@ -52,6 +53,10 @@ export default function WalletPage() {
   const [sheet, setSheet] = useState<Position | null>(null);
   const [journal, setJournal] = useState<JournalDraft | null>(null);
   const [bySymbol, setBySymbol] = useState<SymbolSummary[]>([]);
+  /* Un trade clôturé a sa propre fiche : la fiche des positions ouvertes
+     répond à « qu'est-ce que je fais maintenant », celle-ci à la seule
+     question qui fasse progresser — « qu'est-ce que j'ai fait ». */
+  const [closedSheet, setClosedSheet] = useState<Position | null>(null);
   const [funding, setFunding] = useState(false);
   const [fundAmount, setFundAmount] = useState("1000");
   const [busy, setBusy] = useState(false);
@@ -307,9 +312,10 @@ export default function WalletPage() {
 
         <Panel
           title="Vos positions"
-          hint={tab === "open" && open.length > 0
-            ? "Cliquez sur un actif pour la fiche complète de la position."
-            : undefined}
+          hint={list.length === 0 ? undefined
+            : tab === "open"
+              ? "Cliquez sur un actif pour la fiche complète de la position."
+              : "Cliquez sur un trade pour son récap et sa note de journal."}
           aside={
             <div className="flex items-center gap-2">
               {tab === "open" && (
@@ -358,7 +364,7 @@ export default function WalletPage() {
                             « que vaut cet actif ». Le lien vers l'analyse
                             est dans la fiche. */}
                         <button
-                          onClick={() => setSheet(p)}
+                          onClick={() => (p.status === "closed" ? setClosedSheet(p) : setSheet(p))}
                           className="text-[0.98rem] font-medium transition-colors hover:underline"
                           style={{ color: "var(--cap-ink)" }}
                         >
@@ -509,6 +515,13 @@ export default function WalletPage() {
       </div>
 
       {/* ── Close ──────────────────────────────────────────────────────── */}
+      <ClosedSheet
+        position={closedSheet}
+        onClose={() => setClosedSheet(null)}
+        money={money}
+        price={assetPrice}
+      />
+
       <JournalPrompt
         draft={journal}
         onClose={() => setJournal(null)}
