@@ -25,6 +25,7 @@ import { PriceChart, type Level } from "@/components/analysis/PriceChart";
 import { TradingViewChart } from "@/components/analysis/TradingViewChart";
 import { hasTradingView } from "@/lib/tradingViewSymbol";
 import { FactorBars, LevelScale } from "@/components/analysis/Gauges";
+import { AskAssistant } from "@/components/analysis/AskAssistant";
 
 /**
  * The analysis screen — rebuilt around progressive depth.
@@ -386,6 +387,10 @@ function AnalysisScreen() {
 
             {depth !== "discover" && <Intermediate analysis={analysis} money={money} />}
             {depth === "advanced" && <Advanced analysis={analysis} money={money} />}
+
+            {/* L'assistant en dernier, et à tous les niveaux. C'est la
+                question qu'on se pose APRÈS avoir lu, pas avant. */}
+            <AskAssistant analysis={analysis} money={money} />
           </>
         )}
       </div>

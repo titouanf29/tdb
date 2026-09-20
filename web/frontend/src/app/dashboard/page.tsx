@@ -17,6 +17,7 @@ import {
   conditionFromChange, useAnimationsEnabled,
 } from "@/components/design-system";
 import { FirstSteps } from "@/components/app/FirstSteps";
+import { useProfile } from "@/lib/useProfile";
 
 /**
  * The signed-in home screen.
@@ -37,6 +38,7 @@ export default function DashboardPage() {
   const { settings, eurUsd } = useSettings();
   const style = useTradingStyle();
   const [animOn, setAnimOn] = useAnimationsEnabled();
+  const { profile } = useProfile();
 
   const [balance, setBalance] = useState<WalletBalance | null>(null);
   const [stats, setStats] = useState<TradingStats | null>(null);
@@ -114,11 +116,23 @@ export default function DashboardPage() {
 
   if (loading) return <CloudCurtain active label="Préparation de votre espace" />;
 
+  // L'objectif déclaré, et la phrase qui dit ce qu'il a changé. Une
+  // personnalisation silencieuse ne se distingue pas d'une absence de
+  // personnalisation : l'utilisateur doit pouvoir constater qu'on l'a écouté.
+  const goal = profile.goal;
+  const goalLine =
+    goal === "comprendre" ? "Le parcours est placé en premier, comme vous l'avez demandé."
+    : goal === "suivre" ? "Vos actifs suivis passent avant le reste."
+    : goal === "tester" ? "Portefeuille et positions en tête."
+    : "";
+
   return (
     <>
       <WeatherBackdrop condition={condition} enabled={animOn} />
 
-      <div className="relative space-y-8">
+      {/* flex-col plutôt que le flux normal : `order` n'agit que dans un
+          conteneur flex ou grid, et c'est lui qui réalise la personnalisation. */}
+      <div className="relative flex flex-col gap-8">
         {/* ── 1. Where you are ─────────────────────────────────────────── */}
         <Reveal>
           <header className="flex flex-wrap items-end justify-between gap-5 pt-2">
@@ -135,6 +149,7 @@ export default function DashboardPage() {
                   {style.label.fr.toLowerCase()}
                 </Link>
                 {" "}— horizon {style.horizon.fr.toLowerCase()}.
+                {goalLine && ` ${goalLine}`}
               </Text>
             </div>
 
@@ -152,9 +167,15 @@ export default function DashboardPage() {
           <NextStep intent={intent} positions={positions} favorites={favorites} />
         </Reveal>
 
-        {/* ── 3 & 4. Money, and what you watch — side by side ──────────── */}
+        {/* ── 3 & 4. L'argent et la veille — dans l'ordre de l'objectif ──
+            L'objectif déclaré au premier lancement réordonne réellement cette
+            page. Poser la question et ne rien changer derrière, c'est le
+            reproche qu'on nous faisait : « comprendre » fait remonter le
+            parcours, « suivre » fait remonter les actifs suivis, « tester »
+            garde le portefeuille en tête. Ce n'est pas un thème, c'est
+            l'ordre dans lequel les choses arrivent sous les yeux. */}
         <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-          <Reveal delay={0.08}>
+          <Reveal delay={0.08} className={goal === "suivre" ? "order-2" : "order-1"}>
             <Panel
               title="Votre portefeuille"
               className="h-full"
@@ -221,7 +242,7 @@ export default function DashboardPage() {
             </Panel>
           </Reveal>
 
-          <Reveal delay={0.12}>
+          <Reveal delay={0.12} className={goal === "suivre" ? "order-1" : "order-2"}>
             <Panel
               title="Vos actifs"
               hint={favorites.length > 0 ? "Variation depuis la clôture précédente." : undefined}
@@ -251,8 +272,8 @@ export default function DashboardPage() {
           </Reveal>
         </div>
 
-        {/* ── 5. The guided start, until it is finished ────────────────── */}
-        <Reveal delay={0.16}>
+        {/* ── 5. Le démarrage guidé et le parcours ─────────────────────── */}
+        <Reveal delay={0.16} className={goal === "comprendre" ? "order-first" : ""}>
           <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
             <FirstSteps
               analysed={favorites.length > 0 || positions.length > 0 || journalCount > 0}
