@@ -15,6 +15,9 @@ import {
   Panel, SegmentedControl, Text, TextInput, WeatherBackdrop, useAnimationsEnabled,
 } from "@/components/design-system";
 import { Choice, Toggle, type Option } from "@/components/settings/Choice";
+import { useCapTheme, type CapTheme } from "@/lib/capTheme";
+import { useProfile } from "@/lib/useProfile";
+import { GOALS, MARKETS, TIMES } from "@/lib/profileQuestions";
 
 /**
  * Les paramètres — cinq sections, et chaque réglage dit ce qu'il change.
@@ -394,6 +397,7 @@ function ExperienceSection() {
   };
 
   return (
+    <>
     <Panel
       title="Votre niveau"
       hint="Il règle la quantité d'information affichée — jamais sa véracité. Tous les niveaux voient les mêmes chiffres."
@@ -419,6 +423,121 @@ function ExperienceSection() {
         après.
       </Text>
     </Panel>
+
+    <ProfilePanels />
+    </>
+  );
+}
+
+/**
+ * Les trois questions du profil, exactement comme à l'inscription.
+ *
+ * Mêmes libellés, mêmes conséquences affichées : posées différemment ici, on
+ * croirait à deux réglages distincts. Elles sont donc définies une seule fois,
+ * dans lib/profileQuestions, et lues aux deux endroits.
+ */
+function ProfilePanels() {
+  const { profile, save } = useProfile();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  const patch = async (p: Parameters<typeof save>[0]) => {
+    setError("");
+    setBusy(true);
+    try {
+      await save(p);
+    } catch {
+      setError("Enregistrement impossible. Votre choix précédent est conservé.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const toggleMarket = (v: string) => {
+    const next = profile.markets.includes(v)
+      ? profile.markets.filter((x) => x !== v)
+      : [...profile.markets, v];
+    patch({ markets: next });
+  };
+
+  return (
+    <>
+      {error && <FormError>{error}</FormError>}
+
+      <Panel
+        title="Ce qui vous amène"
+        hint="Décide de ce que votre accueil met en avant."
+      >
+        <Choice
+          name="Objectif"
+          options={GOALS.map((g) => ({ value: g.value, label: g.label, detail: g.effect }))}
+          value={profile.goal ?? ""}
+          onChange={(v) => patch({ goal: v })}
+          disabled={busy}
+        />
+      </Panel>
+
+      <Panel
+        title="Ce que vous suivez"
+        hint="Plusieurs réponses. Le premier de la liste est la place que l'écran Marchés ouvre par défaut."
+      >
+        <div className="space-y-2">
+          {MARKETS.map((m) => {
+            const rank = profile.markets.indexOf(m.value) + 1;
+            return (
+              <button
+                key={m.value}
+                onClick={() => toggleMarket(m.value)}
+                disabled={busy}
+                aria-pressed={rank > 0}
+                className="flex w-full items-center justify-between gap-3 rounded-[12px] p-3.5 text-left transition-colors disabled:opacity-50"
+                style={{
+                  backgroundColor: rank > 0 ? "var(--cap-surface-2)" : "transparent",
+                  boxShadow: rank > 0
+                    ? "inset 0 0 0 1px var(--cap-ocean)"
+                    : "inset 0 0 0 1px var(--cap-line)",
+                }}
+              >
+                <span className="min-w-0">
+                  <span className="block text-[0.93rem] font-medium" style={{ color: "var(--cap-ink)" }}>
+                    {m.label}
+                  </span>
+                  <span className="mt-0.5 block text-[0.8rem]" style={{ color: "var(--cap-ink-3)" }}>
+                    {m.effect}
+                  </span>
+                </span>
+                {rank > 0 && (
+                  <span
+                    className="cap-num shrink-0 rounded-full px-2 py-0.5 text-[0.72rem]"
+                    style={{ backgroundColor: "var(--cap-ocean)", color: "var(--cap-on-inverse)" }}
+                  >
+                    {rank}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+        <Text size="caption" className="mt-4">
+          {profile.markets.length === 0
+            ? "Sans réponse, les Marchés ouvrent sur la première place de la liste."
+            : `Les Marchés ouvriront sur ${MARKETS.find((m) => m.value === profile.markets[0])?.label}.`}
+        </Text>
+      </Panel>
+
+      <Panel
+        title="Le temps dont vous disposez"
+        hint="Règle le rythme proposé par le Parcours. Aucune obligation, aucun rappel."
+      >
+        <Choice
+          name="Rythme"
+          options={TIMES.map((t) => ({ value: t.value, label: t.label, detail: t.effect }))}
+          value={profile.weekly_time ?? ""}
+          onChange={(v) => patch({ weekly_time: v })}
+          disabled={busy}
+        />
+      </Panel>
+    </>
   );
 }
 
@@ -675,6 +794,7 @@ const ACCENT_LABEL: Record<AccentColor, string> = {
 function AppearanceSection() {
   const { settings, saveSettings, isLoaded } = useSettings();
   const [animOn, setAnimOn] = useAnimationsEnabled();
+  const { theme: capTheme, resolved, setTheme: setCapTheme } = useCapTheme();
   const [error, setError] = useState("");
 
   const save = async (patch: Parameters<typeof saveSettings>[0]) => {
@@ -708,6 +828,28 @@ function AppearanceSection() {
         />
       </Panel>
 
+      <Panel
+        title="Clair ou sombre"
+        hint="Le mode sombre reprend exactement la même interface, sous un ciel d'avant-orage."
+      >
+        <SegmentedControl
+          size="md"
+          options={[
+            { value: "light", label: "Clair" },
+            { value: "dark", label: "Sombre" },
+            { value: "system", label: "Système" },
+          ]}
+          value={capTheme}
+          onChange={(v) => setCapTheme(v as CapTheme)}
+          aria-label="Mode d'affichage"
+        />
+        <Text size="caption" className="mt-4">
+          {capTheme === "system"
+            ? `Suit le réglage de votre appareil — actuellement ${resolved === "dark" ? "sombre" : "clair"}. Il basculera tout seul si votre système le fait.`
+            : "Réglage propre à ce navigateur : un portable le soir et un écran de bureau en plein jour n'appellent pas le même mode."}
+        </Text>
+      </Panel>
+
       <Panel title="Animations" hint="Le ciel de fond et les transitions entre écrans.">
         <Toggle
           label="Afficher le ciel animé"
@@ -727,7 +869,7 @@ function AppearanceSection() {
           conclurait qu'ils sont cassés. */}
       <Panel
         title="Écrans non encore reconstruits"
-        hint="Le thème et la couleur d'accent ne s'appliquent qu'aux écrans qui n'ont pas encore reçu la nouvelle interface — Scanner, Outils, Premium et les pages d'administration."
+        hint="Réglages distincts de ceux ci-dessus : ils ne touchent que les écrans qui n'ont pas encore reçu la nouvelle interface — Scanner, Outils, Premium et les pages d'administration."
       >
         <div className="space-y-5">
           <div>

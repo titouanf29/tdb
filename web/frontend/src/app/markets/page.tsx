@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { ChevronDown, Loader2, RefreshCw, Search, Star } from "lucide-react";
 import { marketAPI, favoritesAPI, type Asset, type Market } from "@/lib/api";
 import { MARKET_SYMBOLS } from "@/lib/marketSymbols";
+import { useProfile } from "@/lib/useProfile";
+import { MARKET_KEY } from "@/lib/profileQuestions";
 import { getAssetInfo } from "@/lib/assetInfo";
 import { authHeaders } from "@/lib/auth";
 import { isMarketOpen, getMarketHoursDisplay, getTimeUntilChange } from "@/lib/marketStatus";
@@ -145,6 +147,13 @@ export default function MarketsPage() {
   const selectedRef = useRef("");
   useEffect(() => { selectedRef.current = selected; }, [selected]);
 
+  // Lu par ref : la liste des marchés arrive une seule fois, et rattacher cet
+  // effet au profil le ferait re-jouer — donc reprendre la place à
+  // l'utilisateur qui vient d'en choisir une autre.
+  const { profile } = useProfile();
+  const profileRef = useRef(profile);
+  useEffect(() => { profileRef.current = profile; }, [profile]);
+
   const intervals = isPremium || isAdmin ? PREMIUM_INTERVALS : FREE_INTERVALS;
 
   /* ── The six places ─────────────────────────────────────────────────────── */
@@ -153,7 +162,15 @@ export default function MarketsPage() {
     marketAPI.getMarkets()
       .then((d) => {
         setMarkets(d.markets);
-        if (d.markets.length) setSelected(d.markets[0].key);
+        if (!d.markets.length) return;
+        // La place préférée du profil, si elle existe encore côté serveur.
+        // C'est le premier effet visible de la question « qu'est-ce que vous
+        // suivez ? » : quelqu'un qui suit la crypto n'a plus à recliquer sur
+        // Crypto à chaque visite.
+        const wanted = profileRef.current.markets
+          .map((m) => MARKET_KEY[m])
+          .find((k) => k && d.markets.some((mk) => mk.key === k));
+        setSelected(wanted ?? d.markets[0].key);
       })
       .catch(() => {})
       .finally(() => setLoading(false));

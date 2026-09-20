@@ -3,7 +3,8 @@ User routes — settings, profile, password, RGPD export & account deletion.
 """
 import re
 from datetime import datetime, timedelta, timezone
-from typing import Optional
+import json
+from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse
@@ -456,3 +457,105 @@ async def get_public_settings(current_user: dict = Depends(get_current_user)):
     result = dict(DEFAULTS)
     result.update({r["key"]: r["value"] for r in (rows or [])})
     return {"settings": result}
+
+
+# ─── Profil de personnalisation ───────────────────────────────────────────────
+#
+# Trois questions, et une règle qui a décidé lesquelles : chacune doit changer
+# quelque chose de visible. Une question posée dont la réponse ne sert à rien
+# est un formulaire pour rien — elle coûte du temps à l'inscription, donne
+# l'impression d'un fichage, et déçoit quand l'utilisateur constate que rien
+# n'a bougé.
+#
+#   goal         pourquoi la personne est là -> ce que l'accueil met en avant
+#   markets      ce qu'elle suit             -> la place ouverte par défaut
+#                                               dans les Marchés
+#   weekly_time  le temps dont elle dispose  -> le rythme proposé au Parcours
+#
+# Le niveau (trading_level) reste où il est, dans les réglages : il est
+# antérieur à ce profil et déjà lu par plusieurs écrans.
+
+VALID_GOALS = {"comprendre", "tester", "suivre"}
+VALID_MARKETS = {"europe", "usa", "crypto", "devises", "matieres"}
+VALID_TIMES = {"court", "moyen", "long"}
+
+
+class ProfileRequest(BaseModel):
+    goal: Optional[str] = None
+    markets: Optional[List[str]] = None
+    weekly_time: Optional[str] = None
+
+
+@router.get("/profile-preferences")
+async def get_profile_preferences(current_user: dict = Depends(get_current_user)):
+    rows = await execute_query(
+        "SELECT goal, markets, weekly_time, updated_at FROM user_profile WHERE user_id = ?",
+        (current_user["id"],),
+    )
+    if not rows:
+        return {"goal": None, "markets": [], "weekly_time": None, "updated_at": None}
+
+    r = rows[0]
+    try:
+        markets = json.loads(r.get("markets") or "[]")
+    except (ValueError, TypeError):
+        markets = []
+    return {
+        "goal": r.get("goal") if r.get("goal") in VALID_GOALS else None,
+        "markets": [m for m in markets if m in VALID_MARKETS],
+        "weekly_time": r.get("weekly_time") if r.get("weekly_time") in VALID_TIMES else None,
+        "updated_at": r.get("updated_at"),
+    }
+
+
+@router.put("/profile-preferences")
+async def update_profile_preferences(
+    data: ProfileRequest,
+    current_user: dict = Depends(get_current_user),
+):
+    """Partial update: only the fields actually sent are touched.
+
+    Validated against the allowed sets rather than stored as received — these
+    values steer which screen opens on what, so an unexpected string would
+    silently land a user on a blank default with no way to tell why.
+    """
+    user_id = current_user["id"]
+    now = datetime.now(timezone.utc).isoformat()
+
+    current = await get_profile_preferences(current_user)
+
+    goal = current["goal"]
+    if data.goal is not None:
+        if data.goal not in VALID_GOALS:
+            raise HTTPException(status_code=400, detail=f"Objectif inconnu : {data.goal}")
+        goal = data.goal
+
+    markets = current["markets"]
+    if data.markets is not None:
+        unknown = [m for m in data.markets if m not in VALID_MARKETS]
+        if unknown:
+            raise HTTPException(status_code=400, detail=f"Marché inconnu : {unknown[0]}")
+        # Dédoublonné en gardant l'ordre : c'est l'ordre de préférence, et
+        # les Marchés ouvrent sur le premier.
+        markets = list(dict.fromkeys(data.markets))[:5]
+
+    weekly_time = current["weekly_time"]
+    if data.weekly_time is not None:
+        if data.weekly_time not in VALID_TIMES:
+            raise HTTPException(status_code=400, detail=f"Rythme inconnu : {data.weekly_time}")
+        weekly_time = data.weekly_time
+
+    # ON CONFLICT DO UPDATE : deux onglets ouverts, ou un double envoi, ne
+    # doivent pas remonter une violation de clé primaire en 500.
+    await execute_write(
+        """INSERT INTO user_profile (user_id, goal, markets, weekly_time, updated_at)
+           VALUES (?, ?, ?, ?, ?)
+           ON CONFLICT (user_id) DO UPDATE
+           SET goal = EXCLUDED.goal,
+               markets = EXCLUDED.markets,
+               weekly_time = EXCLUDED.weekly_time,
+               updated_at = EXCLUDED.updated_at""",
+        (user_id, goal, json.dumps(markets), weekly_time, now),
+    )
+
+    return {"goal": goal, "markets": markets, "weekly_time": weekly_time, "updated_at": now}

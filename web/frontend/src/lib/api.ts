@@ -223,6 +223,33 @@ export interface UserExport {
   [k: string]: unknown;
 }
 
+/**
+ * Le profil de personnalisation : trois réponses, trois effets.
+ *
+ * Chaque champ agit quelque part, et c'est la condition pour qu'il existe.
+ * Une préférence stockée que rien ne lit est un fichage sans contrepartie.
+ */
+export interface ProfilePreferences {
+  /** comprendre | tester | suivre — ce que l'accueil met en avant. */
+  goal: string | null;
+  /** europe | usa | crypto | devises | matieres, par ordre de préférence.
+   *  Le premier est la place ouverte par défaut dans les Marchés. */
+  markets: string[];
+  /** court | moyen | long — le rythme proposé au Parcours. */
+  weekly_time: string | null;
+  updated_at?: string | null;
+}
+
+export const profileAPI = {
+  get: () => fetchAPI<ProfilePreferences>("/api/users/profile-preferences"),
+  update: (patch: Partial<Omit<ProfilePreferences, "updated_at">>) =>
+    fetchAPI<ProfilePreferences>("/api/users/profile-preferences", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(patch),
+    }),
+};
+
 export const accountAPI = {
   updateProfile: (display_name: string) =>
     fetchAPI<{ success: boolean; display_name: string }>("/api/users/profile", {

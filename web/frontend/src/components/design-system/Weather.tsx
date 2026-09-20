@@ -114,16 +114,15 @@ function DriftingCloud({
       transition={{ duration, delay, repeat: Infinity, ease: "linear" }}
     >
       <defs>
-        {/* The app's own cloud palette, deeper than the landing page's.
-            Measured against the workspace background, the marketing tones
-            moved the luminance by one to four points out of 255 — the sky was
-            technically drawn and visually absent. The crown stays soft; the
-            body carries the contrast. */}
+        {/* La palette passe par des jetons, donc le même nuage se dessine
+            clair le jour et en masse d'orage la nuit — couronne éclairée,
+            ventre fondu dans le ciel — sans qu'une seule valeur soit écrite
+            ici. */}
         <linearGradient id={`${id}-f`} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#FCFDFE" />
-          <stop offset="46%" stopColor="#DDE5EE" />
-          <stop offset="78%" stopColor="#C2D0E0" />
-          <stop offset="100%" stopColor="#AABDD3" />
+          <stop offset="0%" stopColor="var(--cap-sky-1)" />
+          <stop offset="46%" stopColor="var(--cap-sky-2)" />
+          <stop offset="78%" stopColor="var(--cap-sky-3)" />
+          <stop offset="100%" stopColor="var(--cap-sky-4)" />
         </linearGradient>
         {/* Less blur than the hero's: at this size a softer edge just dissolved
             the silhouette back into the page. */}
@@ -154,8 +153,8 @@ function Sun({ strength }: { strength: number }) {
       className="absolute inset-0"
       style={{
         backgroundImage:
-          `radial-gradient(42% 34% at 88% 2%, rgba(229,168,58,${0.1 * strength}), transparent 68%),` +
-          `radial-gradient(70% 50% at 84% -6%, rgba(255,236,196,${0.14 * strength}), transparent 72%)`,
+          `radial-gradient(42% 34% at 88% 2%, rgba(var(--cap-sun-core), ${0.1 * strength}), transparent 68%),` +
+          `radial-gradient(70% 50% at 84% -6%, rgba(var(--cap-sun-halo), ${0.14 * strength}), transparent 72%)`,
       }}
     />
   );
@@ -175,8 +174,8 @@ function Veil({ strength }: { strength: number }) {
       className="absolute inset-0"
       style={{
         backgroundImage:
-          `linear-gradient(180deg, rgba(11,23,38,${0.07 * strength}) 0%, rgba(11,23,38,${0.02 * strength}) 46%, transparent 78%),` +
-          `radial-gradient(64% 40% at 22% -4%, rgba(21,94,117,${0.06 * strength}), transparent 70%)`,
+          `linear-gradient(180deg, rgba(var(--cap-veil-rgb), ${0.07 * strength}) 0%, rgba(var(--cap-veil-rgb), ${0.02 * strength}) 46%, transparent 78%),` +
+          `radial-gradient(64% 40% at 22% -4%, rgba(var(--cap-veil-tint), ${0.06 * strength}), transparent 70%)`,
       }}
     />
   );

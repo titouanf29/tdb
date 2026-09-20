@@ -90,6 +90,24 @@
   --cap-cloud-mid:   #E2E9F1;
   --cap-cloud-shade: #BCC9DA;
 
+  /* Les nuages qui traversent l'app, en quatre arrêts. Plus contrastés que
+     ceux de l'accueil : mesurés sur le fond de travail, les tons marketing
+     ne déplaçaient la luminance que de un à quatre points sur 255 — le ciel
+     était techniquement dessiné et visuellement absent. */
+  --cap-sky-1: #FCFDFE;
+  --cap-sky-2: #DDE5EE;
+  --cap-sky-3: #C2D0E0;
+  --cap-sky-4: #AABDD3;
+  /* La lumière qui tombe du haut à droite. Jamais un disque dessiné : un
+     lavis se lit comme du soleil sans transformer la page en application
+     météo. */
+  --cap-sun-core: 229, 168, 58;
+  --cap-sun-halo: 255, 236, 196;
+  /* Le voile des mauvais jours : ce qui écrase la lumière quand le ciel
+     descend. */
+  --cap-veil-rgb:  11, 23, 38;
+  --cap-veil-tint: 21, 94, 117;
+
   /* ── Ink ───────────────────────────────────────────────────────────────
      One hue at four weights rather than four greys: the page reads as a
      single material instead of a stack of unrelated layers. */
@@ -197,6 +215,106 @@
   --cap-down-soft: #4E3F48;
 
   --cap-shadow: none;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   LE MODE SOMBRE — un ciel d'avant-orage, pas une inversion.
+
+   Inverser une interface claire donne du gris sur du noir : techniquement
+   sombre, et sans caractère. Celui-ci a un sujet, et c'est le même que le
+   reste du produit — le ciel. Avant l'orage la lumière ne disparaît pas,
+   elle s'écrase : le plafond descend, l'air devient dense, et ce qui reste
+   de clarté se concentre sur un bord. D'où trois règles.
+
+   1. Jamais de noir. Le fond est un navy poussé vers l'ardoise (#0F1823).
+      Le noir pur creuse un trou dans l'écran et fait vibrer le texte clair
+      posé dessus ; un bleu profond garde de la matière.
+   2. Les panneaux sont PLUS CLAIRS que le ciel, pas plus sombres. C'est
+      l'inverse du mode clair, et c'est ainsi que fonctionne la lumière :
+      dans le noir, ce qui est proche est ce qui reçoit encore un peu de
+      jour. La séparation mesure 1,21:1 — assez pour détacher un panneau
+      sans dessiner une boîte.
+   3. La structure ne bouge pas. Mêmes rayons, mêmes espacements, mêmes
+      composants : seuls les jetons changent. C'est le même site, à une
+      autre heure.
+
+   Tous les niveaux d'encre repassent les seuils : 13,2:1, 8,9:1, 6,2:1 sur
+   un panneau, et ink-4 à 4,0:1 alors qu'il ne sert qu'aux traits.
+   ═══════════════════════════════════════════════════════════════════════ */
+[data-cap-theme="dark"] .cap,
+[data-cap-theme="dark"] .cap-surface {
+  --cap-bg:        #0F1823;
+  --cap-surface:   #1C2938;
+  --cap-surface-2: #253345;
+  --cap-surface-3: #2F3F53;
+  --cap-inverse:   #E9EFF4;
+  --cap-on-inverse:#0F1823;
+
+  --cap-ink:        #E9EFF4;
+  --cap-ink-2:      rgba(233, 239, 244, 0.80);
+  --cap-ink-3:      rgba(233, 239, 244, 0.64);
+  --cap-ink-4:      rgba(233, 239, 244, 0.47);
+
+  --cap-line:        rgba(233, 239, 244, 0.10);
+  --cap-line-strong: rgba(233, 239, 244, 0.20);
+  --cap-line-chart:  rgba(233, 239, 244, 0.08);
+
+  /* L'océan de jour est trop foncé pour se lire sur un ciel de nuit : il
+     remonte en clarté sans changer de teinte. 6,3:1 sur un panneau. */
+  --cap-ocean: #4FB3CE;
+
+  /* Mêmes teintes qu'en clair, remontées pour rester lisibles. Les tons
+     doux, eux, descendent : un aplat doit rester plus sombre que le texte
+     qui le surmonte. */
+  /* Le rouge est plus clair que son pendant de jour, et plus clair aussi que
+     ce qu'on poserait d'instinct : mesuré sur --cap-surface-2, qui est le
+     fond des tuiles sélectionnées des Marchés, #C77E75 tombait à 4,07:1.
+     #CD8C84 tient 4,69:1 là et 5,39:1 sur un panneau ordinaire. */
+  --cap-up:        #56B391;
+  --cap-down:      #CD8C84;
+  --cap-up-soft:   #2C5050;
+  --cap-down-soft: #4E4048;
+
+  /* Les nuages, vus d'en dessous. Le ventre est sombre et la couronne garde
+     la dernière lumière — c'est ce décalage, et lui seul, qui fait qu'une
+     masse ressemble à un nuage et non à une tache. */
+  --cap-cloud-light: #3B4D63;
+  --cap-cloud-mid:   #26344A;
+  --cap-cloud-shade: #16202F;
+
+  /* Le nuage d'orage : couronne éclairée, ventre presque au niveau du ciel.
+     C'est le contraire du mode clair, où la couronne est le point le plus
+     lumineux de l'écran — ici elle est la seule chose qui capte encore du
+     jour, et le bas de la masse se fond dans le fond. */
+  --cap-sky-1: #4A5E78;
+  --cap-sky-2: #32435C;
+  --cap-sky-3: #202D41;
+  --cap-sky-4: #141E2C;
+  /* Plus de soleil avant l'orage : ce qui reste est une lueur froide sur le
+     bord du ciel. */
+  --cap-sun-core: 79, 179, 206;
+  --cap-sun-halo: 140, 190, 215;
+  /* De nuit, un voile navy ne se voit pas sur un ciel navy : il faut du noir
+     pour creuser encore, et le renfort passe au cyan pour rester perceptible. */
+  --cap-veil-rgb:  0, 0, 0;
+  --cap-veil-tint: 79, 179, 206;
+
+  --cap-mist-warm: rgba(229, 168, 58, 0.035);
+  --cap-mist-cool: rgba(79, 179, 206, 0.055);
+  --cap-mist-deep: rgba(0, 0, 0, 0.22);
+
+  /* Une ombre portée est invisible sur fond sombre. L'élévation vient d'un
+     liseré de lumière sur l'arête supérieure — la façon dont un relief se
+     détache quand le jour tombe — doublé d'une ombre profonde qui creuse
+     le fond sous le panneau. */
+  --cap-shadow:
+    inset 0 1px 0 rgba(233, 239, 244, 0.045),
+    0 2px 6px rgba(0, 0, 0, 0.30),
+    0 18px 44px rgba(0, 0, 0, 0.34);
+  --cap-shadow-lg:
+    inset 0 1px 0 rgba(233, 239, 244, 0.06),
+    0 6px 18px rgba(0, 0, 0, 0.36),
+    0 38px 84px rgba(0, 0, 0, 0.44);
 }
 
 /* The root of every rebuilt screen. */

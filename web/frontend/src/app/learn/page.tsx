@@ -7,6 +7,7 @@ import { ArrowLeft, ArrowRight, Check, Clock } from "lucide-react";
 import { learnAPI, missionsAPI, type LessonRecord, type UserProgress } from "@/lib/api";
 import { LEARN_MODULES, type Lesson, type Module } from "@/lib/learnContent";
 import { useUserLevel } from "@/hooks/useUserLevel";
+import { useProfile } from "@/lib/useProfile";
 import {
   Button, CloudCurtain, Heading, Num, Panel, Progress, Text,
   WeatherBackdrop, useAnimationsEnabled,
@@ -80,6 +81,7 @@ function LearnScreen() {
   const router = useRouter();
   const params = useSearchParams();
   const level = useUserLevel();
+  const { profile } = useProfile();
   const [animOn] = useAnimationsEnabled();
 
   const [records, setRecords] = useState<Records>({});
@@ -143,6 +145,11 @@ function LearnScreen() {
 
   /** La prochaine leçon non faite, dans l'ordre du parcours. */
   const next = allLessons.find(({ module, lesson }) => !records[`${module.id}/${lesson.id}`]);
+
+  /** Ce qu'il reste à faire dans le module où l'on se trouve. */
+  const remainingInModule = next
+    ? next.module.lessons.filter((l) => !records[`${next.module.id}/${l.id}`]).length
+    : 0;
 
   const open = useMemo(() => {
     if (!openKey) return null;
@@ -225,7 +232,7 @@ function LearnScreen() {
         {next && (
           <Panel
             title={done === 0 ? "Commencer ici" : "Reprendre"}
-            hint={next.module.title}
+            hint={pacing(profile.weekly_time, next.module.title, remainingInModule)}
           >
             <div className="flex flex-wrap items-end justify-between gap-5">
               <div className="min-w-0">
@@ -350,6 +357,26 @@ function LearnScreen() {
       </div>
     </>
   );
+}
+
+/**
+ * Ce que le panneau « Reprendre » propose, selon le temps annoncé.
+ *
+ * C'est le second effet de la question sur le temps disponible. Quelqu'un qui
+ * a répondu « quelques minutes par jour » ne se voit jamais proposer un
+ * module entier : une suggestion hors de portée n'est pas une suggestion,
+ * c'est un rappel de ce qu'on n'a pas fait. Sans réponse, on s'en tient au
+ * nom du module, comme avant.
+ */
+function pacing(weeklyTime: string | null, moduleTitle: string, remaining: number): string {
+  if (weeklyTime === "court") return `${moduleTitle} · une leçon, et vous vous arrêtez là`;
+  if (weeklyTime === "moyen" && remaining > 1) {
+    return `${moduleTitle} · ${remaining} leçons pour finir ce module`;
+  }
+  if (weeklyTime === "long" && remaining > 1) {
+    return `${moduleTitle} · ${remaining} leçons restantes, de quoi boucler le module aujourd'hui`;
+  }
+  return moduleTitle;
 }
 
 /** La leçon suivante dans l'ordre du parcours, ou null à la fin. */

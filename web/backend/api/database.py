@@ -543,6 +543,15 @@ async def _init_postgres():
                 UNIQUE(user_id, lesson_key)
             )
         """)
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS user_profile (
+                user_id INTEGER PRIMARY KEY REFERENCES web_users(id) ON DELETE CASCADE,
+                goal TEXT,
+                markets TEXT NOT NULL DEFAULT '[]',
+                weekly_time TEXT,
+                updated_at TEXT NOT NULL
+            )
+        """)
         print("PostgreSQL tables ready")
 
 
@@ -979,6 +988,15 @@ async def _init_sqlite():
                 quiz_score INTEGER,
                 completed_at TEXT NOT NULL,
                 UNIQUE(user_id, lesson_key)
+            )
+        """)
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS user_profile (
+                user_id INTEGER PRIMARY KEY,
+                goal TEXT,
+                markets TEXT NOT NULL DEFAULT '[]',
+                weekly_time TEXT,
+                updated_at TEXT NOT NULL
             )
         """)
         await db.commit()
