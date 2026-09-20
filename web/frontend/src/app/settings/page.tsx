@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Download, Loader2, LogOut, Trash2 } from "lucide-react";
 import { useAuth } from "@/lib/AuthContext";
 import {
-  useSettings, type AccentColor, type Currency, type RecapFrequency, type Theme,
+  useSettings, type AccentColor, type Currency, type RecapFrequency,
 } from "@/lib/SettingsContext";
 import { TRADING_STYLES, TRADING_STYLE_IDS, type TradingStyleId } from "@/lib/tradingStyle";
 import { accountAPI, alertsAPI, type PriceAlert } from "@/lib/api";
@@ -830,7 +830,7 @@ function AppearanceSection() {
 
       <Panel
         title="Clair ou sombre"
-        hint="Le mode sombre reprend exactement la même interface, sous un ciel d'avant-orage."
+        hint="Tout le site suit ce réglage. Le mode sombre reprend exactement la même interface, sous un ciel d'avant-orage."
       >
         <SegmentedControl
           size="md"
@@ -846,7 +846,7 @@ function AppearanceSection() {
         <Text size="caption" className="mt-4">
           {capTheme === "system"
             ? `Suit le réglage de votre appareil — actuellement ${resolved === "dark" ? "sombre" : "clair"}. Il basculera tout seul si votre système le fait.`
-            : "Réglage propre à ce navigateur : un portable le soir et un écran de bureau en plein jour n'appellent pas le même mode."}
+            : "S'applique à l'ensemble du site, y compris aux écrans pas encore reconstruits."}
         </Text>
       </Panel>
 
@@ -863,53 +863,35 @@ function AppearanceSection() {
         </Text>
       </Panel>
 
-      {/* Dit honnêtement : ces deux réglages ne touchent que les écrans qui
-          n'ont pas encore été reconstruits. Les proposer sans le dire
-          laisserait croire qu'ils agissent partout, et l'utilisateur
-          conclurait qu'ils sont cassés. */}
+      {/* La couleur d'accent, et elle seule. Le thème clair/sombre était
+          proposé ici une seconde fois, avec les mêmes mots que le contrôle
+          ci-dessus : actionner l'un laissait l'autre moitié du site
+          inchangée, ce qui se lit comme une bascule cassée. Les deux sont
+          désormais pilotés par le seul réglage du haut. */}
       <Panel
-        title="Écrans non encore reconstruits"
-        hint="Réglages distincts de ceux ci-dessus : ils ne touchent que les écrans qui n'ont pas encore reçu la nouvelle interface — Scanner, Outils, Premium et les pages d'administration."
+        title="Couleur d'accent"
+        hint="Ne s'applique qu'aux écrans qui n'ont pas encore reçu la nouvelle interface — Scanner, Outils, Premium et les pages d'administration."
       >
-        <div className="space-y-5">
-          <div>
-            <Text size="caption" className="mb-2">Thème</Text>
-            <SegmentedControl
-              size="sm"
-              options={[
-                { value: "dark", label: "Sombre" },
-                { value: "light", label: "Clair" },
-              ]}
-              value={settings.theme}
-              onChange={(v) => save({ theme: v as Theme })}
-              aria-label="Thème"
-            />
-          </div>
-
-          <div>
-            <Text size="caption" className="mb-2">Couleur d&apos;accent</Text>
-            <div className="flex flex-wrap gap-2">
-              {(Object.keys(ACCENT_LABEL) as AccentColor[]).map((c) => (
-                <button
-                  key={c}
-                  onClick={() => save({ accentColor: c })}
-                  aria-pressed={settings.accentColor === c}
-                  className="rounded-[10px] px-3.5 py-2 text-[0.85rem] transition-colors"
-                  style={{
-                    color: "var(--cap-ink)",
-                    backgroundColor:
-                      settings.accentColor === c ? "var(--cap-surface-2)" : "transparent",
-                    boxShadow:
-                      settings.accentColor === c
-                        ? "inset 0 0 0 1px var(--cap-ocean)"
-                        : "inset 0 0 0 1px var(--cap-line)",
-                  }}
-                >
-                  {ACCENT_LABEL[c]}
-                </button>
-              ))}
-            </div>
-          </div>
+        <div className="flex flex-wrap gap-2">
+          {(Object.keys(ACCENT_LABEL) as AccentColor[]).map((c) => (
+            <button
+              key={c}
+              onClick={() => save({ accentColor: c })}
+              aria-pressed={settings.accentColor === c}
+              className="rounded-[10px] px-3.5 py-2 text-[0.85rem] transition-colors"
+              style={{
+                color: "var(--cap-ink)",
+                backgroundColor:
+                  settings.accentColor === c ? "var(--cap-surface-2)" : "transparent",
+                boxShadow:
+                  settings.accentColor === c
+                    ? "inset 0 0 0 1px var(--cap-ocean)"
+                    : "inset 0 0 0 1px var(--cap-line)",
+              }}
+            >
+              {ACCENT_LABEL[c]}
+            </button>
+          ))}
         </div>
       </Panel>
     </>

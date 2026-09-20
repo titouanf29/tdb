@@ -82,7 +82,7 @@ export default function RootLayout({
   // Le mode de l'interface reconstruite, posé avant le premier rendu. Sans
   // cela, un utilisateur en sombre reçoit un éclair blanc pleine page à
   // chaque navigation, le temps que React monte.
-  var m=localStorage.getItem("tdb_cap_theme")||"system";
+  var m=localStorage.getItem("tdb_cap_theme")||"light";
   var d=m==="dark"||(m==="system"&&window.matchMedia("(prefers-color-scheme: dark)").matches);
   document.documentElement.setAttribute("data-cap-theme",d?"dark":"light");
   document.documentElement.style.colorScheme=d?"dark":"light";

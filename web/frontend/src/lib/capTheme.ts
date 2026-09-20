@@ -3,24 +3,31 @@
 import { useCallback, useEffect, useState } from "react";
 
 /**
- * Le mode d'affichage de l'interface reconstruite.
+ * Le mode d'affichage — UN seul interrupteur pour tout le site.
  *
- * Trois valeurs, pas deux : « système » est le défaut, parce que quelqu'un
- * qui a réglé son téléphone en sombre l'a déjà dit une fois et n'a pas à le
- * redire ici. Le choix explicite reste possible et prime.
+ * La première version en exposait deux : celui-ci pour les écrans
+ * reconstruits, et le réglage `theme` historique pour les sept autres. Les
+ * deux portaient les mots « Clair » et « Sombre », dans la même section des
+ * paramètres. Résultat prévisible : on actionne l'un, la moitié du site ne
+ * bouge pas, et on conclut que la bascule est cassée. C'est exactement ce
+ * qui est arrivé.
  *
- * Volontairement distinct du réglage `theme` historique, qui pilote la
- * palette des huit écrans pas encore reconstruits. Les deux cohabitent le
- * temps de la migration ; les mélanger ferait basculer une moitié du site
- * sans l'autre, ce qui est pire que deux réglages.
+ * Les deux mécanismes fonctionnent — vérifié : le fond des écrans hérités
+ * passe bien de #0A0A0B à #F7F6F2. Ils n'auraient jamais dû être deux
+ * contrôles. Ce module pilote donc les deux : `data-cap-theme` pour la
+ * nouvelle interface, et le réglage serveur `theme` pour l'ancienne, écrits
+ * ensemble. La distinction technique existe toujours ; elle a cessé d'être
+ * le problème de l'utilisateur.
  *
- * Stocké dans le navigateur plutôt que sur le compte, et c'est délibéré : le
- * mode sombre dépend de l'appareil et de l'heure, pas de la personne. Un
- * portable le soir et un écran de bureau en plein jour n'appellent pas le
- * même réglage.
+ * Le défaut est « clair ». Suivre le système paraissait attentionné, mais
+ * l'identité du produit est un ciel de jour : c'est ce qu'on doit voir en
+ * arrivant, quitte à passer en sombre d'un clic.
  */
 
 export type CapTheme = "light" | "dark" | "system";
+
+/** Le mode appliqué quand rien n'a été choisi. */
+export const DEFAULT_CAP_THEME: CapTheme = "light";
 
 export const CAP_THEME_KEY = "tdb_cap_theme";
 
@@ -45,7 +52,28 @@ function read(): CapTheme {
   } catch {
     /* navigation privée */
   }
-  return "system";
+  return DEFAULT_CAP_THEME;
+}
+
+/**
+ * Répercute le mode sur les écrans pas encore reconstruits.
+ *
+ * Silencieux à dessein : c'est une conséquence du choix de l'utilisateur, pas
+ * une action qu'il a demandée. Un échec ici ne doit ni bloquer la bascule ni
+ * afficher une erreur — la nouvelle interface, elle, a déjà basculé.
+ */
+async function mirrorToLegacy(resolved: "light" | "dark") {
+  try {
+    const { settingsAPI } = await import("@/lib/api");
+    await settingsAPI.update({ theme: resolved });
+    // Le cache que lit le script anti-scintillement au prochain chargement.
+    const raw = localStorage.getItem("tdb_settings");
+    const cur = raw ? JSON.parse(raw) : {};
+    localStorage.setItem("tdb_settings", JSON.stringify({ ...cur, theme: resolved }));
+    document.documentElement.setAttribute("data-theme", resolved);
+  } catch {
+    /* les écrans hérités garderont leur palette actuelle */
+  }
 }
 
 export function useCapTheme(): {
@@ -54,7 +82,7 @@ export function useCapTheme(): {
   resolved: "light" | "dark";
   setTheme: (t: CapTheme) => void;
 } {
-  const [theme, setThemeState] = useState<CapTheme>("system");
+  const [theme, setThemeState] = useState<CapTheme>(DEFAULT_CAP_THEME);
   const [resolved, setResolved] = useState<"light" | "dark">("light");
 
   const sync = useCallback((t: CapTheme) => {
@@ -86,6 +114,10 @@ export function useCapTheme(): {
       setThemeState(t);
       try { localStorage.setItem(CAP_THEME_KEY, t); } catch { /* ignore */ }
       sync(t);
+      const dark =
+        t === "dark" ||
+        (t === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches);
+      mirrorToLegacy(dark ? "dark" : "light");
     },
     [sync]
   );
