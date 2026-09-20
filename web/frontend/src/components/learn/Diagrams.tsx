@@ -229,9 +229,12 @@ export function RiskReward() {
       <line x1="40" y1="195" x2="430" y2="195" stroke="var(--cap-down)" strokeWidth="1.5" strokeDasharray="6 4" />
       <Tag x={440} y={199}>Stop</Tag>
 
-      {/* Les deux distances, à la même échelle — c'est là tout le propos */}
-      <rect x="80" y="60" width="30" height="90" fill="var(--cap-up-soft)" rx="3" />
-      <rect x="80" y="150" width="30" height="45" fill="var(--cap-down-soft)" rx="3" />
+      {/* Les deux distances, à la même échelle — c'est là tout le propos, et
+          c'est justement pourquoi elles sont en teinte franche : ces deux
+          rectangles n'ont ni contour ni légende, la couleur est leur seule
+          façon de dire lequel est le gain et lequel est le risque. */}
+      <rect x="80" y="60" width="30" height="90" fill="var(--cap-up-fill)" rx="3" />
+      <rect x="80" y="150" width="30" height="45" fill="var(--cap-down-fill)" rx="3" />
 
       <line x1="150" y1="150" x2="150" y2="64" stroke="var(--cap-ink-3)" strokeWidth="1" markerEnd={`url(#${gid}-a)`} />
       <Tag x={158} y={108}>Gain visé : 2</Tag>

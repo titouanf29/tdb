@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { ArrowRight, CloudOff, RefreshCw, Sun } from "lucide-react";
+import { ArrowRight, CloudOff, Globe2, RefreshCw, Sun } from "lucide-react";
 import { useAuth } from "@/lib/AuthContext";
 import { useSettings, convertCurrency } from "@/lib/SettingsContext";
 import { useTradingStyle } from "@/lib/tradingStyle";
@@ -176,8 +176,17 @@ export default function DashboardPage() {
             l'ordre dans lequel les choses arrivent sous les yeux. */}
         <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
           <Reveal delay={0.08} className={goal === "suivre" ? "order-2" : "order-1"}>
+            {/* CE PANNEAU LIT LE WALLET, PAS LE PORTEFEUILLE. Il s'intitulait
+                « Votre portefeuille » et son lien menait à /portfolio — les
+                placements réels saisis à la main — alors que le solde, le
+                résultat et les positions affichés viennent tous de
+                walletAPI, c'est-à-dire du compte d'entraînement.
+                « Voir le détail » ouvrait donc un autre compte que celui
+                qu'on venait de lire. C'est la confusion Wallet / Portefeuille
+                sous sa forme la plus coûteuse : sur l'écran d'accueil, et
+                sur un chiffre d'argent. */}
             <Panel
-              title="Votre portefeuille"
+              title="Votre wallet — simulation"
               className="h-full"
               aside={
                 <button
@@ -190,7 +199,7 @@ export default function DashboardPage() {
                   Actualiser
                 </button>
               }
-              action={{ label: "Voir le détail", href: "/portfolio" }}
+              action={{ label: "Ouvrir le wallet", href: "/wallet" }}
             >
               <Num className="text-[clamp(1.9rem,4vw,2.5rem)] font-medium leading-none">
                 {money(equity)}
@@ -226,7 +235,11 @@ export default function DashboardPage() {
                     {positions.slice(0, 3).map((p) => (
                       <DataRow
                         key={p.id}
-                        href="/trading"
+                        // Une position OUVERTE se consulte dans le wallet.
+                        // Elle menait à /trading, l'écran qui sert à en
+                        // ouvrir une nouvelle : cliquer sur ce qu'on possède
+                        // déjà proposait d'acheter autre chose.
+                        href="/wallet"
                         label={p.symbol}
                         sub={`${p.direction === "LONG" ? "Achat" : "Vente"} · ${money(p.amount)}`}
                         change={
@@ -368,6 +381,20 @@ function WeatherToggle({
           {label}
         </span>
       )}
+      {/* L'ENTRÉE DIRECTE VERS LES MARCHÉS. L'accueil parlait déjà du climat
+          des marchés — c'est ce que le ciel raconte — mais aucun lien ne
+          menait à l'écran qui l'explique : il fallait ouvrir le menu
+          « Analyser » et descendre au troisième élément. Le mettre ici le
+          place à côté de la seule chose de cette page qui parle de l'état
+          général, plutôt que dans un menu dédié à l'étude d'une valeur. */}
+      <Link
+        href="/markets"
+        className="flex items-center gap-2 rounded-[10px] px-3 py-2 text-[0.82rem] transition-colors hover:bg-[color:var(--cap-surface-2)]"
+        style={{ color: "var(--cap-ink-2)", boxShadow: "inset 0 0 0 1px var(--cap-line)" }}
+      >
+        <Globe2 className="h-3.5 w-3.5" />
+        Les marchés
+      </Link>
       <button
         onClick={() => onChange(!on)}
         className="flex items-center gap-2 rounded-[10px] px-3 py-2 text-[0.82rem] transition-colors hover:bg-[color:var(--cap-surface-2)]"

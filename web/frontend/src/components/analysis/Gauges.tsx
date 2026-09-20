@@ -58,10 +58,13 @@ export function FactorBars({ directions }: { directions: Record<string, number> 
               />
               <motion.span
                 className="absolute top-0 h-full rounded-full"
-                // Teinte douce : la barre est un aplat, le chiffre à sa droite
-                // porte déjà la couleur franche.
+                // Teinte franche : la barre EST la comparaison d'un facteur à
+                // l'autre. En teinte douce elle tenait 1,67:1 sur le panneau,
+                // c'est-à-dire qu'on ne la voyait pas — et l'argument « le
+                // chiffre à côté porte déjà la couleur » revenait à dire que
+                // la barre ne servait à rien.
                 style={{
-                  backgroundColor: bullish ? "var(--cap-up-soft)" : "var(--cap-down-soft)",
+                  backgroundColor: bullish ? "var(--cap-up-fill)" : "var(--cap-down-fill)",
                   left: bullish ? "50%" : undefined,
                   right: bullish ? undefined : "50%",
                 }}
@@ -120,7 +123,7 @@ export function LevelScale({
           className="absolute inset-x-0 top-[22px] h-[6px] rounded-full"
           style={{
             background:
-              "linear-gradient(90deg, var(--cap-up-soft) 0%, var(--cap-line-strong) 50%, var(--cap-down-soft) 100%)",
+              "linear-gradient(90deg, var(--cap-up-fill) 0%, var(--cap-line-strong) 50%, var(--cap-down-fill) 100%)",
             opacity: 0.9,
           }}
         />

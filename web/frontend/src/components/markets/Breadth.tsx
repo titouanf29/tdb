@@ -49,12 +49,32 @@ export function BreadthBar({
       role="img"
       aria-label={`${up} en hausse, ${down} en baisse`}
     >
-      {/* Les teintes douces, pas les couleurs de texte. C'est la plus grande
-          surface colorée de l'écran — cinq de ces barres pleine largeur, en
-          vert et rouge francs, suffisaient à faire vibrer la page. */}
-      {up > 0 && <span style={{ width: `${pct(up)}%`, backgroundColor: "var(--cap-up-soft)" }} />}
+      {/* LES TEINTES FRANCHES, ET C'EST UNE CORRECTION. Cette barre était en
+          teinte douce pour ne pas faire vibrer la page — cinq aplats pleine
+          largeur en vert et rouge vifs, c'était le raisonnement. Mais la
+          mesure a montré ce que ça donnait vraiment : 1,67:1 et 1,81:1 sur le
+          panneau, et 1,08:1 entre les deux moitiés. Autrement dit une barre
+          grise en deux morceaux impossibles à distinguer, alors qu'elle est
+          la seule chose que cet écran a à dire sur l'état d'une place.
+
+          La crainte de l'éclat était juste, elle visait la mauvaise cible :
+          ce qui fatigue, c'est une grande surface saturée, pas une barre de
+          sept pixels de haut. */}
+      {up > 0 && <span style={{ width: `${pct(up)}%`, backgroundColor: "var(--cap-up-fill)" }} />}
       {flat > 0 && <span style={{ width: `${pct(flat)}%`, backgroundColor: "var(--cap-line-strong)" }} />}
-      {down > 0 && <span style={{ width: `${pct(down)}%`, backgroundColor: "var(--cap-down-soft)" }} />}
+      {/* LA COULEUR N'EST JAMAIS LE SEUL CANAL. Deux teintes qui se détachent
+          toutes deux d'un fond clair ont forcément une luminance voisine —
+          c'est de la géométrie, pas un mauvais choix de nuancier — donc une
+          personne daltonienne verra deux gris consécutifs. Ce trait dit où
+          l'un finit et où l'autre commence, indépendamment de la teinte. */}
+      {up > 0 && down > 0 && (
+        <span
+          aria-hidden
+          className="shrink-0"
+          style={{ width: 2, backgroundColor: "var(--cap-surface)" }}
+        />
+      )}
+      {down > 0 && <span style={{ width: `${pct(down)}%`, backgroundColor: "var(--cap-down-fill)" }} />}
     </div>
   );
 }
@@ -113,7 +133,7 @@ export function MoveBars({
               <motion.span
                 className="absolute top-0 h-full rounded-full"
                 style={{
-                  backgroundColor: bullish ? "var(--cap-up-soft)" : "var(--cap-down-soft)",
+                  backgroundColor: bullish ? "var(--cap-up-fill)" : "var(--cap-down-fill)",
                   left: bullish ? "50%" : undefined,
                   right: bullish ? undefined : "50%",
                 }}

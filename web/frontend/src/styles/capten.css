@@ -60,6 +60,36 @@
   --cap-up-soft:   #A6CBBC;
   --cap-down-soft: #E6AEAB;
 
+  /* ── Aplats qui SONT la donnée ────────────────────────────────────────
+     Les teintes douces ci-dessus sont faites pour passer sous du texte :
+     l'encre y tient 13:1, elles ne brillent pas, elles font leur travail.
+     On les a aussi employées là où l'aplat ne porte pas de texte mais porte
+     l'information — la barre de respiration du marché, les jauges, les
+     bougies des schémas. Et là, la mesure est sans appel :
+
+       #A6CBBC sur un panneau .......... 1,67:1
+       #E6AEAB sur un panneau .......... 1,81:1
+       les deux l'une contre l'autre ... 1,08:1
+
+     1,08:1 entre les deux moitiés d'une même barre, c'est la même couleur.
+     « Le rouge et le vert sont trop pâles, on a du mal à distinguer » n'était
+     pas une impression : la barre ne montrait rien. Le minimum exigé d'un
+     élément non textuel est 3:1.
+
+     Un seul jeton ne peut pas faire les deux métiers, puisqu'ils demandent
+     l'inverse l'un de l'autre : un fond de badge doit s'effacer derrière son
+     texte, un aplat de donnée doit se voir seul. D'où cette seconde paire,
+     franche, réservée aux aplats qui parlent d'eux-mêmes — 4,17:1 et 4,40:1
+     sur un panneau, 3,47:1 et 3,66:1 sur le fond de page.
+
+     Leur contraste MUTUEL reste faible, et aucun choix de teinte ne le
+     réglera : deux couleurs qui se détachent toutes deux d'un fond clair ont
+     forcément une luminance voisine. C'est pourquoi la barre porte aussi un
+     séparateur et une légende chiffrée — la couleur n'est jamais le seul
+     canal. */
+  --cap-up-fill:   #0E8A50;
+  --cap-down-fill: #D8382A;
+
   /* ── Surfaces ─────────────────────────────────────────────────────────
      Layered off-whites, not one flat fill. The panel sits about 2% of
      luminance above the ground, which is enough to separate them without a
@@ -237,6 +267,12 @@
   --cap-down:      #C77E75;
   --cap-up-soft:   #275152;
   --cap-down-soft: #4E3F48;
+  /* Mêmes rôles qu'en clair : les douces passent sous du texte (1,91 et 1,70
+     sur le panneau, donc invisibles seules), les franches portent la donnée —
+     5,68 et 4,87. Un cran sous les couleurs de texte, pour qu'un aplat ne
+     brille pas plus fort que le chiffre qu'il accompagne. */
+  --cap-up-fill:   #3FA87C;
+  --cap-down-fill: #D8695C;
 
   --cap-shadow: none;
 }
@@ -299,6 +335,10 @@
   --cap-down:      #F08079;
   --cap-up-soft:   #286456;
   --cap-down-soft: #664549;
+  /* 6,34 et 4,73 sur le panneau, contre 2,14 et 1,76 pour les teintes douces
+     qui tenaient ce rôle et ne se voyaient pas. */
+  --cap-up-fill:   #35C083;
+  --cap-down-fill: #EA6A61;
 
   /* Les nuages, vus d'en dessous. Le ventre est sombre et la couronne garde
      la dernière lumière — c'est ce décalage, et lui seul, qui fait qu'une

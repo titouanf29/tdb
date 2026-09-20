@@ -90,11 +90,29 @@ export const AREAS: NavArea[] = [
   },
 ];
 
-/** The five destinations that get a tab on a phone, in thumb order. */
+/**
+ * Les destinations qui méritent un onglet sur téléphone, dans l'ordre du pouce.
+ *
+ * Deux corrections ici, et les deux viennent d'un décalage entre cette liste
+ * et des décisions déjà prises ailleurs.
+ *
+ * MARCHÉS N'Y ÉTAIT PAS. C'est pourtant l'écran par lequel on commence — on
+ * regarde l'état du monde avant d'analyser une valeur — et il n'était
+ * atteignable qu'en ouvrant le menu « Analyser ». Sur téléphone, où ce menu
+ * est un onglet parmi quatre, cela faisait deux gestes pour arriver à la
+ * première chose qu'on veut voir.
+ *
+ * PORTEFEUILLE OCCUPAIT LA PLACE DU WALLET. Le site est un simulateur : le
+ * wallet est le compte d'entraînement, le portefeuille suit des placements
+ * réels saisis à la main. La barre d'onglets envoyait donc vers le compte
+ * rare, sous le nom qui prête le plus à confusion, alors que le reste de la
+ * navigation avait déjà été remis dans le bon ordre.
+ */
 export const MOBILE_TABS = [
   { href: "/dashboard", label: "Accueil" },
+  { href: "/wallet", label: "Wallet" },
+  { href: "/markets", label: "Marchés" },
   { href: "/analysis", label: "Analyser" },
-  { href: "/portfolio", label: "Portefeuille" },
   { href: "/learn", label: "Parcours" },
 ] as const;
 
