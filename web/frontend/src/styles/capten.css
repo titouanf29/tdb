@@ -391,6 +391,35 @@
   letter-spacing: -0.01em;
 }
 
+/* Le battement d'un chiffre qui vient de changer.
+   Elle monte vite (l'œil doit l'attraper), redescend lentement (elle ne doit
+   pas devenir un clignotant).
+
+   C'est un CADRE, pas une pastille pleine, et ce n'est pas un choix
+   esthétique. Un fond teinté derrière le nombre le rend moins lisible au
+   moment précis où on veut le lire : un chiffre vert sur un fond vert doux
+   mesure 3,4:1 au pic du battement, sous le seuil AA de 4,5:1 — et le
+   résultat d'une position est justement un chiffre coloré. Baisser l'opacité
+   ne sauvait rien (4,48:1 à 0,40, où le battement ne se voit déjà plus).
+   Le cadre ne passe pas sous les glyphes : le contraste du texte reste celui
+   qu'il était, et le cadre lui-même, élément non textuel, tient 3,4 à 6,8:1
+   selon le fond, pour un seuil de 3:1. */
+.cap-tick {
+  position: absolute;
+  inset: -0.2em -0.36em;
+  border-radius: 7px;
+  pointer-events: none;
+  z-index: 0;
+  border: 1.5px solid var(--cap-tick-tone, transparent);
+  animation: cap-tick-fade 900ms ease-out forwards;
+}
+
+@keyframes cap-tick-fade {
+  0%   { opacity: 0;   transform: scale(0.92); }
+  14%  { opacity: 0.9; transform: scale(1); }
+  100% { opacity: 0;   transform: scale(1.04); }
+}
+
 /* The one piece of identity that repeats: a hairline route drawing itself.
    Used sparingly — a motif stops being a motif once it is everywhere. */
 @keyframes cap-draw {

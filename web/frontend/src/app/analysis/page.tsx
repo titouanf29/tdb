@@ -8,7 +8,7 @@ import {
   analysisAPI, favoritesAPI, marketAPI,
   type Analysis, type ChartData,
 } from "@/lib/api";
-import { useSettings, convertCurrency } from "@/lib/SettingsContext";
+import { useSettings, convertCurrency, useFormatAssetPrice } from "@/lib/SettingsContext";
 import {
   useTradingStyle, TRADING_STYLES, TRADING_STYLE_IDS, type TradingStyleId,
 } from "@/lib/tradingStyle";
@@ -18,9 +18,11 @@ import {
 } from "@/lib/explain";
 import { lessonFor, lessonHref } from "@/lib/lessonLinks";
 import {
-  Button, CloudCurtain, EmptyState, FormError, Heading, Num, Panel, Progress,
-  ScoreDial, SegmentedControl, Text, WeatherBackdrop, useAnimationsEnabled,
+  Button, CloudCurtain, EmptyState, FormError, Heading, LiveNum, Num, Panel,
+  Progress, ScoreDial, SegmentedControl, Text, WeatherBackdrop,
+  useAnimationsEnabled,
 } from "@/components/design-system";
+import { RefreshTimer, useAutoRefresh } from "@/components/app/RefreshTimer";
 import { type Level } from "@/components/analysis/PriceChart";
 import { AnnotatedChart } from "@/components/analysis/AnnotatedChart";
 import { TradingViewChart } from "@/components/analysis/TradingViewChart";
@@ -179,6 +181,36 @@ function AnalysisScreen() {
     if (symbol) run(symbol, timeframe);
   }, [symbol, timeframe, run]);
 
+  /**
+   * Le cours, suivi en direct — à la cadence de l'horizon.
+   *
+   * L'écran chargeait son analyse une fois et n'y revenait jamais. Le
+   * graphique TradingView, lui, est branché sur son propre flux : il bougeait
+   * sous les yeux de l'utilisateur pendant que le prix affiché juste au-dessus
+   * restait celui du chargement de la page. En scalping, ce décalage se
+   * comptait en minutes.
+   *
+   * Seule la COTATION est relue à cette cadence, pas l'analyse entière :
+   * recalculer les indicateurs toutes les cinq secondes retéléchargerait des
+   * bougies qui ne changent qu'au quart d'heure, pour rendre exactement le
+   * même verdict. Les niveaux tiennent la séance ; le prix, non.
+   */
+  const [live, setLive] = useState<{ price: number; change: number } | null>(null);
+  useEffect(() => { setLive(null); }, [symbol]);
+
+  const pollQuote = useCallback(async () => {
+    if (!symbol) return;
+    const d = await marketAPI.getPrices([symbol]);
+    const q = d.prices?.[symbol.toUpperCase()];
+    if (q && q.price > 0) setLive({ price: q.price, change: q.change });
+  }, [symbol]);
+
+  const ticker = useAutoRefresh(
+    pollQuote,
+    style.refreshSeconds,
+    Boolean(symbol) && Boolean(analysis)
+  );
+
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     const s = query.trim().toUpperCase();
@@ -227,6 +259,11 @@ function AnalysisScreen() {
       }),
     [settings.currency, eurUsd]
   );
+
+  /* Un cours et une somme ne se formatent pas pareil. Le prix du titre
+     s'affichait avec le formateur des sommes : sur un actif sous l'euro, deux
+     mouvements réels rendaient le même « 0,34 € ». */
+  const assetPrice = useFormatAssetPrice();
 
   return (
     <>
@@ -335,6 +372,10 @@ function AnalysisScreen() {
             <Verdict
               analysis={analysis}
               money={money}
+              assetPrice={assetPrice}
+              live={live}
+              ticker={ticker}
+              tickerHint={`Cadence ${style.label.fr} — toutes les ${style.refreshSeconds} s. Elle suit votre horizon de trading, modifiable dans Réglages.`}
               isFavorite={favorites.has(symbol)}
               onToggleFavorite={toggleFavorite}
             />
@@ -456,11 +497,22 @@ function AnalysisScreen() {
 function Verdict({
   analysis: a,
   money,
+  assetPrice,
+  live,
+  ticker,
+  tickerHint,
   isFavorite,
   onToggleFavorite,
 }: {
   analysis: Analysis;
   money: (v: number) => string;
+  /** Un cours n'a pas la précision d'une somme : sur un actif à 0,34 €, deux
+   *  décimales affichent le même nombre avant et après un mouvement réel. */
+  assetPrice: (v: number) => string;
+  /** La dernière cotation lue depuis le chargement de l'analyse, s'il y en a. */
+  live: { price: number; change: number } | null;
+  ticker: { remaining: number; busy: boolean; paused: boolean; refreshNow: () => void };
+  tickerHint: string;
   isFavorite: boolean;
   onToggleFavorite: () => void;
 }) {
@@ -500,11 +552,32 @@ function Verdict({
             </button>
           </div>
 
-          <div className="mt-2.5 flex items-baseline gap-3">
-            <Num className="text-[1.8rem] font-medium">{money(a.price.current)}</Num>
-            <Num tone={a.price.change >= 0 ? "up" : "down"} className="text-[0.95rem]">
-              {a.price.change >= 0 ? "+" : ""}{a.price.change.toFixed(2)} %
-            </Num>
+          {/* Le prix affiché est la DERNIÈRE cotation connue, pas celle du
+              chargement de la page. Les deux chiffres défilent au lieu de
+              sauter, et la pastille colorée dit le sens du mouvement à
+              quelqu'un qui regardait le graphique à cet instant. */}
+          <div className="mt-2.5 flex flex-wrap items-baseline gap-x-3 gap-y-1.5">
+            <LiveNum
+              value={live?.price ?? a.price.current}
+              format={assetPrice}
+              className="text-[1.8rem] font-medium"
+            />
+            <LiveNum
+              value={live?.change ?? a.price.change}
+              /* toFixed rend « 1.23 », qui n'est pas du français. */
+              format={(v) =>
+                `${v >= 0 ? "+" : ""}${v.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} %`
+              }
+              tone={(live?.change ?? a.price.change) >= 0 ? "up" : "down"}
+              className="text-[0.95rem]"
+            />
+            <RefreshTimer
+              remaining={ticker.remaining}
+              busy={ticker.busy}
+              paused={ticker.paused}
+              onRefresh={ticker.refreshNow}
+              hint={tickerHint}
+            />
           </div>
 
           <div className="mt-4">

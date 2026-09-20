@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import type { Position } from "@/lib/api";
-import { Button, Drawer, Heading, Num, Text } from "@/components/design-system";
+import { Button, Drawer, Heading, LiveNum, Num, Text } from "@/components/design-system";
 
 /**
  * La fiche d'une position — tout ce qui la concerne, en un endroit.
@@ -121,14 +121,25 @@ export function PositionSheet({
         </div>
         {pnl != null && (
           <div className="shrink-0 text-right">
-            <Num tone={pnl >= 0 ? "up" : "down"} className="block text-[1.3rem]">
-              {pnl >= 0 ? "+" : ""}{money(pnl)}
-            </Num>
+            {/* La fiche reste ouverte pendant les rafraîchissements — c'est
+                même l'endroit où l'on garde l'œil sur une position. Le
+                résultat doit donc défiler ici comme dans la liste, pas
+                changer d'un coup sous le curseur. */}
+            <LiveNum
+              value={pnl}
+              format={(v) => `${v >= 0 ? "+" : ""}${money(v)}`}
+              tone={pnl >= 0 ? "up" : "down"}
+              className="block text-[1.3rem]"
+            />
             {pct != null && (
-              <Num tone={pnl >= 0 ? "up" : "down"} className="block text-[0.85rem]">
-                {pct >= 0 ? "+" : ""}
-                {pct.toLocaleString("fr-FR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} %
-              </Num>
+              <LiveNum
+                value={pct}
+                format={(v) =>
+                  `${v >= 0 ? "+" : ""}${v.toLocaleString("fr-FR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} %`
+                }
+                tone={pnl >= 0 ? "up" : "down"}
+                className="block text-[0.85rem]"
+              />
             )}
           </div>
         )}
@@ -143,13 +154,25 @@ export function PositionSheet({
         />
         <Line
           label="Cours actuel"
-          value={price != null ? priceFmt(price) : "—"}
+          value={
+            <LiveNum
+              value={price}
+              format={priceFmt}
+              tone={price != null && pnl != null ? (pnl >= 0 ? "up" : "down") : "ink"}
+              className="text-[0.95rem]"
+            />
+          }
           hint={price == null ? "Cours indisponible pour cet actif" : undefined}
-          tone={price != null && pnl != null ? (pnl >= 0 ? "up" : "down") : undefined}
         />
         <Line
           label="Valeur de la position"
-          value={pnl != null ? money(p.amount + pnl) : "—"}
+          value={
+            <LiveNum
+              value={pnl != null ? p.amount + pnl : null}
+              format={money}
+              className="text-[0.95rem]"
+            />
+          }
           hint="Ce que vous récupérez en clôturant maintenant"
         />
       </div>

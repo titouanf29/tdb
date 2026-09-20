@@ -203,6 +203,64 @@ def _yf_fast_info(symbols: list[str]) -> dict[str, dict]:
     return result
 
 
+# ── Quote cache ───────────────────────────────────────────────────────────────
+#
+# Un cache de quelques secondes, qui règle deux problèmes d'un coup.
+#
+#   1. LA COHÉRENCE. Le wallet appelle /balance ET /positions dans le même
+#      rafraîchissement. Chacun interrogeait le fournisseur de son côté, à
+#      quelques centaines de millisecondes d'écart : on a vu /balance rendre
+#      un résultat total de 0 pendant que /positions rendait -1,75 sur la même
+#      position, simplement parce que les deux lectures étaient tombées sur
+#      des instants différents. Deux appels dans la même seconde lisent
+#      maintenant le même cours.
+#
+#   2. LA CADENCE. Un scalpeur rafraîchit toutes les 5 secondes, et il a
+#      raison de le vouloir — mais son écran déclenche deux appels par tour,
+#      soit 24 requêtes par minute et par symbole. Le quota gratuit de Twelve
+#      Data est de 8 crédits par minute. Le cache découple la cadence de
+#      l'écran du débit vers le fournisseur : l'utilisateur peut demander
+#      toutes les 5 secondes, on ne sort en amont qu'une fois par TTL.
+#
+# La durée est volontairement plus courte que la cadence la plus rapide de
+# l'interface (5 s en scalping) : le cache dédoublonne une rafale, il ne
+# retarde pas une lecture. Et seuls les cours OBTENUS sont mémorisés — un
+# symbole qui a échoué doit être réessayé au tour suivant, pas mis en cache
+# comme absent pendant quatre secondes.
+_QUOTE_CACHE: dict[str, tuple[float, dict]] = {}
+_QUOTE_TTL = float(os.getenv("QUOTE_CACHE_TTL", "4"))
+_QUOTE_CACHE_MAX = int(os.getenv("QUOTE_CACHE_MAX", "1000"))
+
+
+def _quote_cache_get(symbols: list[str]) -> tuple[dict[str, dict], list[str]]:
+    """Partage les symboles entre ceux encore frais en cache et ceux à relire."""
+    import time as _time
+    if _QUOTE_TTL <= 0:
+        return {}, list(symbols)
+    now = _time.monotonic()
+    fresh: dict[str, dict] = {}
+    stale: list[str] = []
+    for sym in symbols:
+        hit = _QUOTE_CACHE.get(sym.upper())
+        if hit is not None and now - hit[0] < _QUOTE_TTL:
+            fresh[sym.upper()] = dict(hit[1])
+        else:
+            stale.append(sym)
+    return fresh, stale
+
+
+def _quote_cache_put(quotes: dict[str, dict]) -> None:
+    import time as _time
+    if _QUOTE_TTL <= 0 or not quotes:
+        return
+    now = _time.monotonic()
+    if len(_QUOTE_CACHE) + len(quotes) > _QUOTE_CACHE_MAX:
+        for key in sorted(_QUOTE_CACHE, key=lambda k: _QUOTE_CACHE[k][0])[: len(quotes)]:
+            _QUOTE_CACHE.pop(key, None)
+    for sym, data in quotes.items():
+        _QUOTE_CACHE[sym.upper()] = (now, dict(data))
+
+
 # ── Public API ────────────────────────────────────────────────────────────────
 
 async def fetch_prices(symbols: list[str]) -> dict[str, dict]:
@@ -212,6 +270,10 @@ async def fetch_prices(symbols: list[str]) -> dict[str, dict]:
     """
     if not symbols:
         return {}
+
+    cached, symbols = _quote_cache_get(symbols)
+    if not symbols:
+        return cached
 
     from config import POLYGON_API_KEY, TWELVEDATA_API_KEY
 
@@ -282,7 +344,8 @@ async def fetch_prices(symbols: list[str]) -> dict[str, dict]:
         yf_res = await loop.run_in_executor(None, _yf_fast_info, needed)
         result.update(yf_res)
 
-    return result
+    _quote_cache_put(result)
+    return {**cached, **result}
 
 
 # ── OHLCV (used by analysis engine — yfinance historical bars) ────────────────

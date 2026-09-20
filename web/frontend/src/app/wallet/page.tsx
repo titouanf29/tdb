@@ -9,12 +9,13 @@ import {
 } from "@/lib/api";
 import { useSettings, convertCurrency, useFormatAssetPrice } from "@/lib/SettingsContext";
 import {
-  Button, CloudCurtain, EmptyState, Field, FormError, Heading, Modal, Num,
+  Button, CloudCurtain, EmptyState, Field, FormError, Heading, LiveNum, Modal, Num,
   Panel, SegmentedControl, Text, TextInput, WeatherBackdrop,
   conditionFromChange, useAnimationsEnabled,
 } from "@/components/design-system";
 import { PositionSheet } from "@/components/wallet/PositionSheet";
 import { RefreshTimer, useAutoRefresh } from "@/components/app/RefreshTimer";
+import { useTradingStyle } from "@/lib/tradingStyle";
 
 /**
  * The paper-trading account.
@@ -68,13 +69,23 @@ export default function WalletPage() {
     load().finally(() => setLoading(false));
   }, [load]);
 
-  /* Trente secondes : les cours de notre fournisseur ont environ une minute
-     de différé, donc interroger plus souvent ne rapporterait que des appels.
+  /* La cadence suit l'horizon déclaré, elle n'est plus la même pour tout le
+     monde. Trente secondes fixes étaient à la fois trop lentes et trop
+     rapides : un scalpeur voyait le graphique bouger pendant que le cours de
+     sa position restait figé une demi-minute à côté, et un investisseur long
+     terme faisait interroger le fournisseur deux fois par minute pour une
+     ligne qu'il regarde une fois par semaine.
+
+     Cinq secondes en scalping ne coûtent rien en amont : le backend met les
+     cotations en cache quelques secondes, donc la cadence de l'écran est
+     découplée du débit vers le fournisseur (voir _prices.py).
+
      Le compteur ne tourne que sur l'onglet des positions ouvertes — un
      historique figé n'a rien à rafraîchir. */
+  const style = useTradingStyle();
   const { remaining, busy: refreshing, paused, refreshNow } = useAutoRefresh(
     load,
-    30,
+    style.refreshSeconds,
     tab === "open"
   );
 
@@ -190,25 +201,32 @@ export default function WalletPage() {
 
         <Panel title="Votre compte">
           <div className="flex flex-wrap items-end gap-x-12 gap-y-7">
+            {/* Les trois chiffres vivants du compte. Ils défilent d'une valeur
+                à l'autre au lieu d'être remplacés : c'est le seul endroit de
+                l'écran où l'on voit son argent bouger, autant que ça se voie. */}
             <div>
-              <Num className="text-[clamp(1.9rem,4vw,2.5rem)] font-medium leading-none">
-                {money(equity)}
-              </Num>
+              <LiveNum
+                value={equity}
+                format={money}
+                className="text-[clamp(1.9rem,4vw,2.5rem)] font-medium leading-none"
+              />
               <Text size="caption" className="mt-2">Valeur totale</Text>
             </div>
             <div>
-              <Num className="text-[1.4rem] font-medium leading-none">
-                {money(balance?.balance ?? 0)}
-              </Num>
+              <LiveNum
+                value={balance?.balance ?? 0}
+                format={money}
+                className="text-[1.4rem] font-medium leading-none"
+              />
               <Text size="caption" className="mt-2">Disponible</Text>
             </div>
             <div>
-              <Num
+              <LiveNum
+                value={balance?.total_pnl ?? 0}
+                format={(v) => `${v >= 0 ? "+" : ""}${money(v)}`}
                 tone={(balance?.total_pnl ?? 0) >= 0 ? "up" : "down"}
                 className="text-[1.4rem] font-medium leading-none"
-              >
-                {(balance?.total_pnl ?? 0) >= 0 ? "+" : ""}{money(balance?.total_pnl ?? 0)}
-              </Num>
+              />
               <Text size="caption" className="mt-2">Résultat total</Text>
             </div>
             {stats && stats.total_trades > 0 && (
@@ -257,6 +275,7 @@ export default function WalletPage() {
                   busy={refreshing}
                   paused={paused}
                   onRefresh={refreshNow}
+                  hint={`Cadence ${style.label.fr} — toutes les ${style.refreshSeconds} s. Elle suit votre horizon de trading, modifiable dans Réglages.`}
                 />
               )}
             <SegmentedControl
@@ -336,7 +355,11 @@ export default function WalletPage() {
                         ) : (
                           <>
                             {p.current_price != null && (
-                              <Num className="block text-[0.92rem]">{assetPrice(p.current_price)}</Num>
+                              <LiveNum
+                                value={p.current_price}
+                                format={assetPrice}
+                                className="block text-[0.92rem]"
+                              />
                             )}
                             {p.unrealized_pnl != null && (
                               p.unrealized_pnl === 0 ? (
@@ -353,17 +376,28 @@ export default function WalletPage() {
                                     : ""}
                                 </Text>
                               ) : (
-                                <Num
+                                <LiveNum
+                                  value={p.unrealized_pnl}
+                                  /* Le pourcentage est RECALCULÉ depuis la
+                                     valeur en cours de défilement, pas lu sur
+                                     la réponse : sinon l'euro défile pendant
+                                     que le pourcentage a déjà sauté, et les
+                                     deux ne se correspondent plus pendant une
+                                     demi-seconde.
+                                     Virgule décimale : toFixed rend « 50.0 »,
+                                     qui n'est pas du français. */
+                                  format={(v) => {
+                                    const pct = p.amount ? (v / p.amount) * 100 : null;
+                                    return (
+                                      `${v >= 0 ? "+" : ""}${money(v)}` +
+                                      (pct != null
+                                        ? ` · ${pct >= 0 ? "+" : ""}${pct.toLocaleString("fr-FR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} %`
+                                        : "")
+                                    );
+                                  }}
                                   tone={p.unrealized_pnl >= 0 ? "up" : "down"}
                                   className="mt-0.5 block text-[0.82rem]"
-                                >
-                                  {p.unrealized_pnl >= 0 ? "+" : ""}{money(p.unrealized_pnl)}
-                                  {/* Virgule décimale : toFixed rend « 50.0 »,
-                                      qui n'est pas du français. */}
-                                  {p.pnl_percent != null
-                                    ? ` · ${p.pnl_percent >= 0 ? "+" : ""}${p.pnl_percent.toLocaleString("fr-FR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} %`
-                                    : ""}
-                                </Num>
+                                />
                               )
                             )}
                           </>

@@ -33,6 +33,14 @@ export function useAutoRefresh(
   const refreshRef = useRef(refresh);
   useEffect(() => { refreshRef.current = refresh; }, [refresh]);
 
+  // La cadence n'est pas connue au premier rendu : elle vient du style de
+  // trading, qui arrive du serveur une fraction de seconde plus tard. Sans
+  // cette remise à zéro, le compteur restait sur la valeur par défaut pour
+  // tout un cycle — mesuré : l'étiquette annonçait « toutes les 5 s » pendant
+  // que le premier rafraîchissement tombait 15 secondes après le chargement.
+  // Même chose quand l'utilisateur change d'horizon dans les réglages.
+  useEffect(() => { setRemaining(seconds); }, [seconds]);
+
   const run = useCallback(async () => {
     setBusy(true);
     try {
@@ -58,16 +66,22 @@ export function useAutoRefresh(
     return () => document.removeEventListener("visibilitychange", onVisibility);
   }, [run]);
 
+  // Le décompte ne fait QUE décompter. La requête partait auparavant depuis
+  // l'intérieur de l'updater passé à setRemaining — or un updater doit être
+  // pur, et React le rejoue volontairement deux fois en développement pour
+  // faire sortir ce genre de chose : on mesurait bien deux appels réseau
+  // identiques à chaque tour. Le départ de la requête est donc sorti dans son
+  // propre effet, déclenché par l'arrivée du compteur à zéro.
   useEffect(() => {
     if (!enabled || paused) return;
-    const id = setInterval(() => {
-      setRemaining((r) => {
-        if (r <= 1) { run(); return seconds; }
-        return r - 1;
-      });
-    }, 1000);
+    const id = setInterval(() => setRemaining((r) => (r <= 1 ? 0 : r - 1)), 1000);
     return () => clearInterval(id);
-  }, [enabled, paused, run, seconds]);
+  }, [enabled, paused, seconds]);
+
+  useEffect(() => {
+    if (!enabled || paused || remaining !== 0) return;
+    run();
+  }, [remaining, enabled, paused, run]);
 
   return { remaining, busy, paused, refreshNow: run };
 }
@@ -77,17 +91,22 @@ export function RefreshTimer({
   busy,
   paused,
   onRefresh,
+  hint,
 }: {
   remaining: number;
   busy: boolean;
   paused: boolean;
   onRefresh: () => void;
+  /** D'où vient cette cadence. « Dans 5 s » sans explication ressemble à un
+   *  réglage arbitraire ; la phrase dit que c'est l'horizon qui la fixe. */
+  hint?: string;
 }) {
   return (
     <button
       onClick={onRefresh}
       disabled={busy}
-      aria-label="Actualiser les cours maintenant"
+      title={hint}
+      aria-label={hint ? `Actualiser les cours maintenant. ${hint}` : "Actualiser les cours maintenant"}
       className="flex items-center gap-2 rounded-[9px] px-2.5 py-1.5 transition-colors hover:bg-[color:var(--cap-surface-2)] disabled:opacity-60"
     >
       <RefreshCw
