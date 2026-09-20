@@ -49,7 +49,6 @@ export const AREAS: NavArea[] = [
       { href: "/analysis", label: "Analyse", blurb: "Un actif, un verdict, et pourquoi" },
       { href: "/scanner", label: "Scanner", blurb: "Les opportunités qui vous correspondent" },
       { href: "/markets", label: "Marchés", blurb: "L'état général, par région et par classe" },
-      { href: "/gold", label: "Gold Hub", blurb: "Le suivi dédié à l'or", adminOnly: true },
     ],
   },
   {

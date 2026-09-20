@@ -58,8 +58,6 @@ export const removeToken = (): void => {
     "tdb_alerts_seen",
     "tdb_dashboard_config_v2",
     "tdb_recent_analyses",
-    "gold_style",
-    "gold_aggression",
     "tdb_last_login_date",
   ].forEach((k) => {
     try { localStorage.removeItem(k); } catch { /* private mode / quota */ }

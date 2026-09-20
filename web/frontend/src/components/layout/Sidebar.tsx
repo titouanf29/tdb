@@ -24,7 +24,6 @@ import {
   Briefcase,
   Scale,
   X,
-  Gem,
   Film,
   Trophy,
   BookOpen,
@@ -32,7 +31,7 @@ import {
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
-import { adminAPI, settingsAPI } from "@/lib/api";
+import { adminAPI } from "@/lib/api";
 import { useLanguage } from "@/lib/LanguageContext";
 
 const MENU_GROUPS = [
@@ -41,7 +40,6 @@ const MENU_GROUPS = [
     items: [
       { icon: LayoutDashboard, labelKey: "nav_dashboard", href: "/dashboard", adminOnly: false },
       { icon: Globe,           labelKey: "nav_markets",   href: "/markets",   adminOnly: false },
-      { icon: Gem,             labelKey: "nav_gold_hub",  href: "/gold",      adminOnly: true  },
       { icon: BarChart3,       labelKey: "nav_analysis",  href: "/analysis",  adminOnly: false },
       { icon: ScanLine,        labelKey: "nav_scanner",   href: "/scanner",   adminOnly: false },
     ],
@@ -89,17 +87,12 @@ export function Sidebar({
   const { t } = useLanguage();
   const [collapsed, setCollapsed] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
-  const [goldEnabled, setGoldEnabled] = useState(false);
   const pathname = usePathname();
 
   useEffect(() => {
     adminAPI.checkAdmin()
       .then(r => setIsAdmin(r.is_admin))
       .catch(() => setIsAdmin(false));
-
-    settingsAPI.getPublic()
-      .then(d => setGoldEnabled(d?.settings?.gold_hub_enabled === "true"))
-      .catch(() => setGoldEnabled(false));
   }, []);
 
   return (
@@ -174,7 +167,6 @@ export function Sidebar({
                 const adminOnly = (item as { adminOnly?: boolean }).adminOnly;
                 if (!adminOnly) return true;
                 if (isAdmin) return true;
-                if (item.href === "/gold" && goldEnabled) return true;
                 return false;
               }).map((item) => {
                 const isActive = pathname === item.href;

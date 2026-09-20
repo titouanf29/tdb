@@ -445,9 +445,12 @@ async def remove_favorite(symbol: str, current_user: dict = Depends(get_current_
 @router.get("/public-settings")
 async def get_public_settings(current_user: dict = Depends(get_current_user)):
     """Return admin_settings keys that are safe for any authenticated user to read."""
-    PUBLIC_KEYS = {"gold_hub_enabled", "maintenance_mode", "registration_enabled"}
-    # Defaults: gold_hub_enabled defaults to "true" (published unless explicitly disabled)
-    DEFAULTS = {"gold_hub_enabled": "false", "maintenance_mode": "false", "registration_enabled": "true"}
+    # « gold_hub_enabled » a disparu avec l'écran Gold Hub : plus rien ne
+    # l'écrit ni ne le lit. Une éventuelle ligne restée en base est simplement
+    # ignorée — on ne la supprime pas, une donnée d'exploitation ne se détruit
+    # pas au passage d'un nettoyage de code.
+    PUBLIC_KEYS = {"maintenance_mode", "registration_enabled"}
+    DEFAULTS = {"maintenance_mode": "false", "registration_enabled": "true"}
     rows = await execute_query(
         "SELECT key, value FROM admin_settings WHERE key IN ({})".format(
             ",".join("?" * len(PUBLIC_KEYS))

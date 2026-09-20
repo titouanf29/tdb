@@ -44,7 +44,6 @@ import {
   Share2,
   Copy,
   Check,
-  Gem,
   ExternalLink,
   Globe,
 } from "lucide-react";
@@ -1749,7 +1748,6 @@ function SettingsTab() {
     return <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin" /></div>;
   }
 
-  const goldEnabled      = getValue("gold_hub_enabled",    "false") === "true";
   const maintenanceOn    = getValue("maintenance_mode",    "false") === "true";
   const registrationOpen = getValue("registration_enabled","true")  === "true";
 
@@ -1800,26 +1798,6 @@ function SettingsTab() {
               </span>
             </div>
           </button>
-          {/* Gold Hub — clickable toggle */}
-          <button
-            onClick={() => toggleBoolean("gold_hub_enabled", "false")}
-            disabled={savingKey === "gold_hub_enabled"}
-            className={cn(
-              "flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all hover:scale-[1.02] active:scale-[0.98]",
-              goldEnabled ? "bg-amber-500/8 border-amber-500/20 hover:bg-amber-500/12" : "bg-white/5 border-white/8 hover:bg-white/10"
-            )}
-          >
-            <div className="flex items-center gap-2">
-              <div className={cn("w-2 h-2 rounded-full", goldEnabled ? "bg-amber-400" : "bg-muted-foreground/40")} />
-              <span className="text-sm font-medium">Gold Hub</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              {savingKey === "gold_hub_enabled" && <Loader2 className="w-3 h-3 animate-spin" />}
-              <span className={cn("text-xs font-semibold", goldEnabled ? "text-amber-400" : "text-muted-foreground")}>
-                {goldEnabled ? "public" : "admin only"}
-              </span>
-            </div>
-          </button>
         </div>
       </div>
 
@@ -1858,68 +1836,6 @@ function SettingsTab() {
         </div>
       )}
 
-      {/* Gold Hub toggle */}
-      <div className={cn(
-        "glass-card p-5 border transition-all",
-        goldEnabled ? "border-amber-500/30 bg-amber-500/5" : "border-white/8"
-      )}>
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex items-start gap-3">
-            <div className={cn(
-              "w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 border",
-              goldEnabled ? "bg-amber-500/15 border-amber-500/30" : "bg-white/5 border-white/10"
-            )}>
-              <Gem className={cn("w-5 h-5", goldEnabled ? "text-amber-400" : "text-muted-foreground")} />
-            </div>
-            <div>
-              <p className="font-semibold flex items-center gap-2">
-                Gold Hub
-                <span className={cn(
-                  "text-[10px] px-2 py-0.5 rounded-full font-medium border",
-                  goldEnabled
-                    ? "bg-amber-500/15 text-amber-400 border-amber-500/25"
-                    : "bg-white/5 text-muted-foreground border-white/10"
-                )}>
-                  {goldEnabled ? "Public" : "Admin uniquement"}
-                </span>
-              </p>
-              <p className="text-sm text-muted-foreground mt-0.5">
-                {goldEnabled
-                  ? "La section Gold Hub est visible par tous les utilisateurs."
-                  : "La section Gold Hub est en cours de développement — accès admin uniquement."}
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-3 flex-shrink-0">
-            {goldEnabled && (
-              <a
-                href="/gold"
-                target="_blank"
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 text-amber-400 text-xs font-medium transition-all"
-              >
-                <ExternalLink className="w-3 h-3" />
-                Ouvrir
-              </a>
-            )}
-            <button
-              onClick={() => toggleBoolean("gold_hub_enabled", "false")}
-              disabled={savingKey === "gold_hub_enabled"}
-              className={cn(
-                "relative w-12 h-6 rounded-full transition-all border",
-                goldEnabled
-                  ? "bg-amber-500 border-amber-400"
-                  : "bg-white/10 border-white/15",
-                savingKey === "gold_hub_enabled" && "opacity-50"
-              )}
-            >
-              <span className={cn(
-                "absolute top-0.5 w-5 h-5 rounded-full transition-all bg-white shadow-sm",
-                goldEnabled ? "left-6" : "left-0.5"
-              )} />
-            </button>
-          </div>
-        </div>
-      </div>
 
       {SETTING_GROUPS.map((group) => (
         <div key={group.group} className="glass-card p-5">
