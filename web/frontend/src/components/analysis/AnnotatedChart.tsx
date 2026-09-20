@@ -1,7 +1,8 @@
 "use client";
 
-import { useId, useMemo } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { motion, useReducedMotion } from "framer-motion";
+import { Maximize2 } from "lucide-react";
 import { DUR, EASE, Text } from "@/components/design-system";
 import { readStructure, type Bar } from "@/lib/trendStructure";
 
@@ -51,6 +52,22 @@ const PAD_R = 128;  // la colonne des étiquettes de niveau
 const PAD_T = 26;
 const PAD_B = 26;
 
+/* En dessous, `readStructure` n'a plus assez de bougies pour trouver des
+   pivots, et le graphique se viderait de ses annotations au moment précis où
+   l'utilisateur cherche à les voir de plus près. */
+const MIN_FENETRE = 12;
+
+/* Les libellés de dates, en français et sans l'heure quand la fenêtre couvre
+   plusieurs jours : « 12 sept. – 20 sept. » se lit, « 12/09/2026 09:00 –
+   20/09/2026 17:30 » se déchiffre. */
+function etiquetteDate(ts: number, avecHeure: boolean): string {
+  const d = new Date(ts);
+  if (!Number.isFinite(d.getTime())) return "";
+  return avecHeure
+    ? d.toLocaleString("fr-FR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })
+    : d.toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "2-digit" });
+}
+
 export function AnnotatedChart({
   bars,
   levels = [],
@@ -65,8 +82,29 @@ export function AnnotatedChart({
   const reduce = useReducedMotion();
   const gid = `ac-${useId().replace(/:/g, "")}`;
 
+  /* ── LE ZOOM ──────────────────────────────────────────────────────────────
+   *
+   * Une fenêtre sur la série, en indices de bougies. `null` = tout voir.
+   *
+   * CE QUI COMPTE N'EST PAS L'AGRANDISSEMENT, C'EST LE RECALCUL. Zoomer en
+   * étirant le dessin existant donnerait les mêmes pivots, la même pente, le
+   * même seuil d'invalidation — simplement plus gros. Ici la fenêtre est
+   * découpée AVANT la lecture de structure : les sommets et les creux sont
+   * cherchés dans la période visible, l'échelle des prix se recale dessus, et
+   * la phrase du bas décrit ce morceau-là. Regarder les trois derniers jours
+   * d'un graphique d'un an, c'est poser une autre question — l'écran doit y
+   * répondre, pas grossir la réponse précédente.
+   */
+  const complet = useMemo(() => bars.filter((b) => Number.isFinite(b.close)), [bars]);
+  const [fenetre, setFenetre] = useState<[number, number] | null>(null);
+
+  // Un changement d'actif ou d'unité de temps remet la vue à plat : garder la
+  // fenêtre d'un graphique sur le suivant montrerait une période choisie pour
+  // des données qui n'existent plus.
+  useEffect(() => { setFenetre(null); }, [complet.length, complet[0]?.timestamp]);
+
   const model = useMemo(() => {
-    const pts = bars.filter((b) => Number.isFinite(b.close));
+    const pts = fenetre ? complet.slice(fenetre[0], fenetre[1] + 1) : complet;
     if (pts.length < 8) return null;
 
     const struct = readStructure(pts);
@@ -87,7 +125,54 @@ export function AnnotatedChart({
       .join(" ");
 
     return { pts, struct, x, y, line, rising: pts[pts.length - 1].close >= pts[0].close };
-  }, [bars, levels]);
+  }, [complet, fenetre, levels]);
+
+  /* Le tirer-pour-zoomer. La sélection se mesure en FRACTION de la largeur du
+     tracé, pas en pixels : le SVG est mis à l'échelle par son viewBox, donc
+     un pixel d'écran ne vaut pas un pixel de dessin, et le rapport change
+     avec la fenêtre du navigateur. */
+  const zone = useRef<HTMLDivElement | null>(null);
+  const [trace, setTrace] = useState<{ a: number; b: number } | null>(null);
+  const tracant = useRef(false);
+
+  const fraction = useCallback((clientX: number): number => {
+    const r = zone.current?.getBoundingClientRect();
+    if (!r || r.width === 0) return 0;
+    // La colonne des étiquettes n'appartient pas au tracé : sans cette
+    // correction, relâcher tout à droite désignait une bougie qui n'est pas
+    // sous le curseur.
+    const largeurTrace = r.width * ((W - PAD_R) / W);
+    return Math.min(1, Math.max(0, (clientX - r.left) / largeurTrace));
+  }, []);
+
+  const finirTrace = useCallback(() => {
+    if (!tracant.current) return;
+    tracant.current = false;
+    setTrace((t) => {
+      if (!t) return null;
+      const base = fenetre ? fenetre[0] : 0;
+      const visibles = (fenetre ? fenetre[1] - fenetre[0] : complet.length - 1) || 1;
+      const i1 = base + Math.round(Math.min(t.a, t.b) * visibles);
+      const i2 = base + Math.round(Math.max(t.a, t.b) * visibles);
+      // Un simple clic, ou une sélection trop courte pour que la structure
+      // reste lisible, n'est pas un zoom — on ne fait rien plutôt que de
+      // rendre un graphique vide d'annotations.
+      if (i2 - i1 + 1 >= MIN_FENETRE) setFenetre([i1, i2]);
+      return null;
+    });
+  }, [complet.length, fenetre]);
+
+  useEffect(() => {
+    // Le relâchement est écouté sur la fenêtre : un geste qui sort du cadre
+    // laisserait sinon la sélection collée au curseur pour toujours.
+    const up = () => finirTrace();
+    window.addEventListener("pointerup", up);
+    window.addEventListener("pointercancel", up);
+    return () => {
+      window.removeEventListener("pointerup", up);
+      window.removeEventListener("pointercancel", up);
+    };
+  }, [finirTrace]);
 
   if (!model) {
     return (
@@ -98,7 +183,19 @@ export function AnnotatedChart({
   }
 
   const { pts, struct, x, y, line, rising } = model;
-  const stroke = rising ? "var(--cap-up)" : "var(--cap-down)";
+
+  /* LA COURBE SUIT LA STRUCTURE, PAS LES DEUX EXTRÉMITÉS. Elle était colorée
+     en comparant la dernière clôture à la première, ce qui est une autre
+     mesure — et le zoom l'a rendu visible : sur une fenêtre où le prix finit
+     plus haut qu'il n'a commencé mais enchaîne des sommets de plus en plus
+     bas, l'écran affichait une grande courbe verte sous la phrase « structure
+     baissière ». Les deux énoncés étaient exacts et se contredisaient à
+     l'œil. Quand la structure n'a pas d'avis — un range — on retombe sur le
+     sens du mouvement, qui reste le moins arbitraire des deux. */
+  const stroke =
+    struct.kind === "up" ? "var(--cap-up)"
+    : struct.kind === "down" ? "var(--cap-down)"
+    : rising ? "var(--cap-up)" : "var(--cap-down)";
   const highs = struct.swings.filter((s) => s.kind === "high");
   const lows = struct.swings.filter((s) => s.kind === "low");
 
@@ -113,7 +210,25 @@ export function AnnotatedChart({
 
   return (
     <div>
-      <div className="relative w-full" style={{ height }}>
+      <div
+        ref={zone}
+        className="relative w-full select-none"
+        style={{ height, cursor: "col-resize", touchAction: "pan-y" }}
+        onPointerDown={(e) => {
+          // Bouton principal seulement : un clic droit ouvre le menu
+          // contextuel, il n'a pas à laisser une sélection derrière lui.
+          if (e.button !== 0) return;
+          tracant.current = true;
+          const f = fraction(e.clientX);
+          setTrace({ a: f, b: f });
+        }}
+        onPointerMove={(e) => {
+          if (!tracant.current) return;
+          const f = fraction(e.clientX);
+          setTrace((t) => (t ? { ...t, b: f } : null));
+        }}
+        onDoubleClick={() => setFenetre(null)}
+      >
         <svg
           viewBox={`0 0 ${W} ${H}`}
           className="h-full w-full"
@@ -209,6 +324,22 @@ export function AnnotatedChart({
           )}
         </svg>
 
+        {/* La sélection en cours, pendant le geste. Sans ce rectangle, on tire
+            à l'aveugle et on découvre la période choisie une fois le bouton
+            relâché — ce qui oblige à recommencer presque à chaque fois. */}
+        {trace && Math.abs(trace.a - trace.b) > 0.004 && (
+          <div
+            className="pointer-events-none absolute top-0 h-full"
+            style={{
+              left: `${Math.min(trace.a, trace.b) * ((W - PAD_R) / W) * 100}%`,
+              width: `${Math.abs(trace.a - trace.b) * ((W - PAD_R) / W) * 100}%`,
+              backgroundColor: "var(--cap-ocean)",
+              opacity: 0.12,
+              boxShadow: "inset 1px 0 0 var(--cap-ocean), inset -1px 0 0 var(--cap-ocean)",
+            }}
+          />
+        )}
+
         {/* Les étiquettes hors du SVG : à l'intérieur elles seraient étirées
             par la mise à l'échelle et changeraient de taille avec la fenêtre. */}
         <div className="pointer-events-none absolute inset-0">
@@ -233,6 +364,49 @@ export function AnnotatedChart({
             >
               Invalidation {format(struct.invalidation)}
             </span>
+          )}
+        </div>
+      </div>
+
+      {/* ── La période regardée, et comment en changer ─────────────────────
+          Les raccourcis portent un nombre de bougies, pas une durée : l'unité
+          de temps du graphique est déjà choisie plus haut, donc « les 30
+          dernières » veut dire trente séances en journalier et trente heures
+          en horaire. Traduire en jours ici obligerait à connaître l'unité et
+          donnerait des libellés faux une fois sur deux. */}
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+        <Text size="caption">
+          {fenetre
+            ? `${pts.length} bougies affichées · ${etiquetteDate(pts[0].timestamp, pts.length <= 40)} → ${etiquetteDate(pts[pts.length - 1].timestamp, pts.length <= 40)}`
+            : "Tirez sur le graphique pour zoomer sur une période — tout se recalcule dessus."}
+        </Text>
+        <div className="flex items-center gap-1.5">
+          {[30, 60, 120].map((n) =>
+            complet.length > n + 4 ? (
+              <button
+                key={n}
+                type="button"
+                onClick={() => setFenetre([complet.length - n, complet.length - 1])}
+                className="rounded-[8px] px-2.5 py-1 text-[0.76rem] transition-colors"
+                style={{
+                  color: "var(--cap-ink-2)",
+                  boxShadow: "inset 0 0 0 1px var(--cap-line)",
+                }}
+              >
+                {n} dernières
+              </button>
+            ) : null,
+          )}
+          {fenetre && (
+            <button
+              type="button"
+              onClick={() => setFenetre(null)}
+              className="inline-flex items-center gap-1.5 rounded-[8px] px-2.5 py-1 text-[0.76rem] transition-colors"
+              style={{ color: "var(--cap-ocean)", boxShadow: "inset 0 0 0 1px var(--cap-line)" }}
+            >
+              <Maximize2 className="h-3 w-3" />
+              Tout voir
+            </button>
           )}
         </div>
       </div>
