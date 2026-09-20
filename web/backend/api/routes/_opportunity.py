@@ -74,6 +74,7 @@ def describe(
     chg_1m: float,
     trend: str,
     signal: str,
+    score: float = 50.0,
 ) -> dict:
     """Rend {setup, headline, action, family} pour un actif scoré.
 
@@ -83,6 +84,13 @@ def describe(
     """
     above20 = ema20 is not None and price > ema20
     above50 = ema50 is not None and price > ema50
+
+    # LE SCORE EST ORIENTÉ À LA HAUSSE : 80 dit « bonne configuration
+    # acheteuse », 37 dit l'inverse — pas « médiocre ». Décrire un actif à 37
+    # avec les mots d'un candidat à l'achat (« il ressort sur la qualité de
+    # ses signaux ») était donc faux dans le sens le plus trompeur qui soit :
+    # la phrase recommandait implicitement ce que le score déconseille.
+    baissier = score < 45
 
     setup = "momentum"
     family = "tendance"
@@ -143,10 +151,16 @@ def describe(
     else:
         setup = "momentum"
         family = "tendance"
-        headline = (
-            f"Pas de configuration marquée : l'actif ressort sur la qualité d'ensemble "
-            f"de ses signaux{', ' + _pct(chg_1w) + ' % sur la semaine' if abs(chg_1w) >= 1 else ''}."
-        )
+        if baissier:
+            headline = (
+                "L'actif ressort par sa FAIBLESSE : c'est l'un des plus mal orientés de "
+                f"la sélection{', ' + _pct(chg_1w) + ' % sur la semaine' if abs(chg_1w) >= 1 else ''}."
+            )
+        else:
+            headline = (
+                f"Pas de configuration marquée : l'actif ressort sur la qualité d'ensemble "
+                f"de ses signaux{', ' + _pct(chg_1w) + ' % sur la semaine' if abs(chg_1w) >= 1 else ''}."
+            )
 
     # ── La phrase actionnable ────────────────────────────────────────────────
     #
@@ -155,7 +169,12 @@ def describe(
     # s'invalide sous sa résistance redevenue plafond, un rebond sous le
     # support qu'il teste.
     bits: list[str] = []
-    if family == "cassure" and resistance:
+    if baissier:
+        if support:
+            bits.append(f"À la baisse, ça se confirme sous {_fmt(support)}")
+        if resistance:
+            bits.append(f"au-dessus de {_fmt(resistance)} le scénario baissier tombe")
+    elif family == "cassure" and resistance:
         bits.append(f"Ça se confirme au-dessus de {_fmt(resistance)}")
         if support:
             bits.append(f"sous {_fmt(support)} le scénario tombe")
@@ -175,7 +194,7 @@ def describe(
 
     # Le désaccord est dit, pas lissé. Un actif bien noté dont le marché de
     # référence est baissier reste un actif à contre-courant.
-    if signal in ("SELL", "STRONG_SELL") and family != "rebond":
+    if not baissier and signal in ("SELL", "STRONG_SELL") and family != "rebond":
         action += " Le moteur reste vendeur malgré tout : à contre-courant."
 
     return {"setup": setup, "family": family, "headline": headline, "action": action}

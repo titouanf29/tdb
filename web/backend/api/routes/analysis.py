@@ -20,7 +20,9 @@ from ..database import execute_query, execute_write
 from ._prices import fetch_ohlcv, fetch_prices, prewarm_ohlcv
 from ._indicators import rsi_wilder, atr_wilder, adx_wilder, true_range, data_confidence
 from ._universe import (EXTRA_CRYPTO, extend_market, classify,
-                        resolve_universe, universe_summary)
+                        resolve_universe, universe_summary,
+                        resolve_zones, zones_summary)
+from ._intent import parse as parse_intent
 from ._opportunity import describe as describe_opportunity
 from ._market_context import (benchmark_for, compute_market_context,
                               apply_context_gate, regime_series)
@@ -682,7 +684,24 @@ async def get_scan_universe(current_user: dict = Depends(get_current_user)):
     une promesse que le scan ne tiendra pas, et c'est ce genre d'écart qui
     fait douter d'un outil.
     """
-    return universe_summary()
+    u = universe_summary()
+    u["zones"] = zones_summary()
+    return u
+
+
+@router.get("/scan-intent")
+async def read_scan_intent(
+    q: str = Query(default="", max_length=400),
+    current_user: dict = Depends(get_current_user),
+):
+    """Une phrase en français -> des réglages de scan, et ce qui a été compris.
+
+    Le résultat est RENDU, pas appliqué : l'écran affiche ce qu'il a lu et
+    l'utilisateur corrige avant de lancer. Un réglage posé sans qu'on sache
+    d'où il sort est pire qu'un réglage qu'on aurait mis soi-même — on ne peut
+    ni le vérifier ni le reprendre.
+    """
+    return parse_intent(q)
 
 
 @router.get("/scan-limit")
@@ -1709,6 +1728,8 @@ async def scan_market(
     # surest way to contradict yourself. The client sends the timeframe its
     # trading style will land on.
     timeframe: str = Query(default="1d", pattern="^(5m|15m|30m|1h|4h|1d|3d|1w|1mo)$"),
+    direction: str = Query(default="both", pattern="^(long|short|both)$"),
+    zones: str = Query(default="", description="EUROPE,USA,CRYPTO… — leur RÉUNION"),
     places: str = Query(default="", description="PARIS,FRANCFORT,… — vide = toutes"),
     classes: str = Query(default="", description="ACTION,CRYPTO,… — vide = toutes"),
     stream: bool = Query(default=False, description="Diffuser chaque actif dès qu'il est scoré"),
@@ -1747,8 +1768,20 @@ async def scan_market(
             raise HTTPException(status_code=404, detail="Market not found")
         want_markets = [market_key]
 
-    assets = resolve_universe(places=want_places, classes=want_classes,
-                              markets=want_markets)
+    # Les ZONES s'unissent, les places et classes se croisent : ce sont deux
+    # façons de désigner un univers, pas deux réglages du même. « Europe ET
+    # crypto » n'a de sens qu'en réunion — aucune crypto ne cote à Paris — et
+    # c'est pourtant la combinaison la plus naturelle à demander. Les zones
+    # priment donc quand elles sont fournies ; les axes fins restent pour qui
+    # veut composer exactement.
+    want_zones = [z.strip().upper() for z in (zones or "").split(",") if z.strip()]
+    if want_zones:
+        assets = resolve_zones(want_zones)
+        if want_classes:
+            assets = [a for a in assets if classify(a)[0] in want_classes]
+    else:
+        assets = resolve_universe(places=want_places, classes=want_classes,
+                                  markets=want_markets)
     if not assets:
         raise HTTPException(
             status_code=400,
@@ -1911,7 +1944,7 @@ async def scan_market(
                 resistance=recent_high if recent_high > 0 else None,
                 ema20=ema20_last, ema50=ema50_last,
                 chg_1w=chg_1w, chg_1m=chg_1m,
-                trend=trend_en, signal=signal,
+                trend=trend_en, signal=signal, score=float(score),
             )
 
             return {
@@ -1996,6 +2029,32 @@ async def scan_market(
     if not stream:
         await _load_benchmarks()
 
+    # ── Le sens demandé ──────────────────────────────────────────────────
+    #
+    # Le score du moteur est orienté à la HAUSSE : 80 veut dire « bonne
+    # configuration acheteuse », 20 veut dire l'inverse — pas « mauvais ».
+    # Filtrer bêtement sur « score >= min_score » ne pouvait donc jamais
+    # rendre une seule idée à la vente, et une demande de short serait
+    # revenue vide en laissant croire qu'il n'y a rien à vendre.
+    #
+    # Un short est donc cherché de l'autre côté de l'échelle, avec la même
+    # exigence : à exigence 70, on garde les scores <= 30.
+    seuil_bas = 100 - min_score
+
+    def _garde(r: dict) -> bool:
+        if opportunity_type != "all" and r["opp_type"] != opportunity_type:
+            return False
+        if direction == "long":
+            return r["score"] >= min_score
+        if direction == "short":
+            return r["score"] <= seuil_bas
+        return r["score"] >= min_score or r["score"] <= seuil_bas
+
+    def _rang(r: dict) -> float:
+        """Le plus convaincant d'abord, quel que soit le sens : c'est
+        l'ÉCART à la neutralité qui mesure la conviction."""
+        return abs(r["score"] - 50)
+
     gate = asyncio.Semaphore(_SCAN_CONCURRENCY)
 
     async def _analyze_gated(symbol: str):
@@ -2079,9 +2138,7 @@ async def scan_market(
                             yield _json.dumps({"type": "skip", "done": done_n}) + "\n"
                             continue
                         analyzed_n += 1
-                        keep = r["score"] >= min_score and (
-                            opportunity_type == "all" or r["opp_type"] == opportunity_type
-                        )
+                        keep = _garde(r)
                         if keep:
                             kept.append(r)
                             yield _json.dumps({"type": "result", "done": done_n,
@@ -2101,7 +2158,7 @@ async def scan_market(
 
             await _record_scan(current_user["id"], market_key)
             q = await _check_scan_limit(current_user)
-            kept.sort(key=lambda x: x["score"], reverse=True)
+            kept.sort(key=_rang, reverse=True)
             yield _json.dumps({
                 "type": "done",
                 "total_scanned": len(assets),
@@ -2126,13 +2183,8 @@ async def scan_market(
     all_results = await asyncio.gather(*[_analyze_gated(s) for s in assets])
 
     analyzed = [r for r in all_results if r is not None]
-    results = [r for r in analyzed if r["score"] >= min_score]
-
-    # Filter by opportunity type if requested
-    if opportunity_type != "all":
-        results = [r for r in results if r["opp_type"] == opportunity_type]
-
-    results.sort(key=lambda x: x["score"], reverse=True)
+    results = [r for r in analyzed if _garde(r)]
+    results.sort(key=_rang, reverse=True)
 
     # Record the scan usage (non-blocking)
     await _record_scan(current_user["id"], market_key)

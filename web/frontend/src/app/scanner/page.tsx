@@ -5,7 +5,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { Radar, RotateCcw } from "lucide-react";
 import {
   analysisAPI,
-  type ScanEvent, type ScanQuota, type ScanResultItem, type ScanUniverse,
+  type ScanEvent, type ScanIntent, type ScanQuota, type ScanResultItem, type ScanUniverse,
 } from "@/lib/api";
 import { fr } from "@/lib/SettingsContext";
 import { useTradingStyle } from "@/lib/tradingStyle";
@@ -14,7 +14,8 @@ import {
   Button, EmptyState, FormError, Heading, Panel, SegmentedControl, Text,
   WeatherBackdrop, useAnimationsEnabled, DUR, EASE,
 } from "@/components/design-system";
-import { UniversePicker, type Selection } from "@/components/scanner/UniversePicker";
+import { UniversePicker, SELECTION_VIDE, type Selection } from "@/components/scanner/UniversePicker";
+import { IntentBox } from "@/components/scanner/IntentBox";
 import { Sweep, type SweepState } from "@/components/scanner/Sweep";
 import { Opportunity } from "@/components/scanner/Opportunity";
 
@@ -52,6 +53,16 @@ const FAMILLES: { key: Famille; titre: string; quoi: string }[] = [
 
 const CLE_SELECTION = "tdb_scan_selection";
 
+/* Les unités, dites en français. « 1d » est un code : il a sa place dans une
+   URL, pas dans une phrase qui explique à quelqu'un ce que l'outil va faire. */
+const UNITE_FR: Record<string, string> = {
+  "5m": "5 minutes", "15m": "15 minutes", "30m": "30 minutes",
+  "1h": "1 heure", "4h": "4 heures",
+  "1d": "journalier", "3d": "3 jours", "1w": "hebdomadaire",
+  "1wk": "hebdomadaire", "1mo": "mensuel",
+};
+const uniteFr = (tf: string) => UNITE_FR[tf] ?? tf;
+
 export default function ScannerPage() {
   const [animOn] = useAnimationsEnabled();
   const style = useTradingStyle();
@@ -59,7 +70,12 @@ export default function ScannerPage() {
   const expert = level.level === "expert";
 
   const [universe, setUniverse] = useState<ScanUniverse | null>(null);
-  const [sel, setSel] = useState<Selection>({ places: [], classes: [] });
+  const [sel, setSel] = useState<Selection>(SELECTION_VIDE);
+  /* L'horizon peut venir de la phrase d'intention ; sinon c'est celui du
+     profil. Une phrase ne doit pas modifier le réglage du compte — elle
+     vaut pour ce scan-là. */
+  const [horizonScan, setHorizonScan] = useState<string | null>(null);
+  const [direction, setDirection] = useState<"long" | "short" | "both">("both");
   const [minScore, setMinScore] = useState(60);
 
   const [busy, setBusy] = useState(false);
@@ -84,7 +100,8 @@ export default function ScannerPage() {
       const brut = localStorage.getItem(CLE_SELECTION);
       if (brut) {
         const v = JSON.parse(brut);
-        if (Array.isArray(v?.places) && Array.isArray(v?.classes)) setSel(v);
+        if (Array.isArray(v?.places) && Array.isArray(v?.classes))
+          setSel({ zones: Array.isArray(v.zones) ? v.zones : [], places: v.places, classes: v.classes });
       }
     } catch { /* mode privé ou valeur abîmée : on garde le défaut */ }
   }, []);
@@ -100,6 +117,20 @@ export default function ScannerPage() {
    * Mesuré deux fois : « Paris, 58 actifs » avant un rechargement, « 819
    * actifs » après. La persistance est maintenant déclenchée par l'action de
    * l'utilisateur, donc elle ne peut pas se produire quand il n'a rien fait. */
+  /* Une intention pose des réglages, elle ne lance rien. L'utilisateur voit
+     ce qui a changé et peut le reprendre avant de balayer — c'est la seule
+     façon qu'un texte libre reste vérifiable. */
+  const appliquerIntention = useCallback((it: ScanIntent) => {
+    if (it.zones.length) {
+      const s: Selection = { zones: it.zones, places: [], classes: [] };
+      setSel(s);
+      try { localStorage.setItem(CLE_SELECTION, JSON.stringify(s)); } catch { /* ignore */ }
+    }
+    if (it.timeframe) setHorizonScan(it.timeframe);
+    if (it.min_score != null) setMinScore(it.min_score);
+    setDirection(it.direction);
+  }, []);
+
   const choisir = useCallback((s: Selection) => {
     setSel(s);
     try { localStorage.setItem(CLE_SELECTION, JSON.stringify(s)); }
@@ -110,6 +141,12 @@ export default function ScannerPage() {
      le serveur a donnés. Sans ce compte on coche à l'aveugle. */
   const compte = useMemo(() => {
     if (!universe) return null;
+    // Les zones s'ADDITIONNENT — leurs effectifs se somment. Les places et
+    // classes se CROISENT, il faut donc parcourir la grille des deux.
+    if (sel.zones.length) {
+      const z = universe.zones ?? [];
+      return sel.zones.reduce((n, k) => n + (z.find((x) => x.key === k)?.count ?? 0), 0);
+    }
     if (sel.places.length === 0 && sel.classes.length === 0) return universe.total;
     let n = 0;
     for (const pl of universe.places) {
@@ -145,11 +182,13 @@ export default function ScannerPage() {
     try {
       await analysisAPI.scanStream(
         {
+          zones: sel.zones,
           places: sel.places,
           classes: sel.classes,
           minScore,
+          direction,
           limit: 40,
-          timeframe: style.defaultTimeframe,
+          timeframe: horizonScan ?? style.defaultTimeframe,
         },
         (e: ScanEvent) => {
           if (e.type === "start") {
@@ -190,7 +229,7 @@ export default function ScannerPage() {
     } finally {
       setBusy(false);
     }
-  }, [sel, minScore, style.defaultTimeframe]);
+  }, [sel, minScore, direction, horizonScan, style.defaultTimeframe]);
 
   useEffect(() => () => abort.current?.abort(), []);
 
@@ -229,9 +268,16 @@ export default function ScannerPage() {
         </header>
 
         <Panel
-          title="Ce que vous balayez"
-          hint={`Horizon ${style.label.fr} — l'analyse se fera en ${style.defaultTimeframe}, comme le scan.`}
+          title="Ce que vous cherchez"
+          hint={
+            horizonScan
+              ? `Horizon posé par votre phrase — le scan et l'analyse se feront en ${uniteFr(horizonScan)}.`
+              : `Horizon ${style.label.fr} — l'analyse se fera en ${style.defaultTimeframe}, comme le scan.`
+          }
         >
+          <IntentBox onApply={appliquerIntention} />
+
+          <div className="mt-6 border-t pt-5" style={{ borderColor: "var(--cap-line)" }}>
           <UniversePicker
             universe={universe}
             value={sel}
@@ -239,8 +285,28 @@ export default function ScannerPage() {
             count={compte}
           />
 
+          </div>
+
           <div className="mt-6 flex flex-wrap items-end justify-between gap-4 border-t pt-5"
                style={{ borderColor: "var(--cap-line)" }}>
+            <div className="flex flex-wrap gap-6">
+            <div>
+              {/* Le sens n'est pas un filtre d'affichage : le score du moteur
+                  est orienté à la hausse, donc chercher à la vente se fait de
+                  l'autre côté de l'échelle, avec la même exigence. */}
+              <Text size="caption" className="mb-2">Sens</Text>
+              <SegmentedControl
+                size="sm"
+                options={[
+                  { value: "both", label: "Les deux" },
+                  { value: "long", label: "Achat" },
+                  { value: "short", label: "Vente" },
+                ]}
+                value={direction}
+                onChange={(v) => setDirection(v as "long" | "short" | "both")}
+                aria-label="Sens recherché"
+              />
+            </div>
             <div>
               <Text size="caption" className="mb-2">Exigence</Text>
               <SegmentedControl
@@ -254,6 +320,7 @@ export default function ScannerPage() {
                 onChange={(v) => setMinScore(Number(v))}
                 aria-label="Exigence du scan"
               />
+            </div>
             </div>
 
             <div className="flex items-center gap-2.5">

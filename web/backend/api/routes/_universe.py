@@ -172,6 +172,19 @@ def classify(symbol: str) -> tuple[str, str]:
     return cls, "NEWYORK"
 
 
+# Les monnaies stables n'ont rien à faire dans un scanner d'opportunités.
+# Leur cours est arrimé au dollar par construction : le scan a proposé de
+# vendre DAI à découvert « sous 0,99760 », ce qui est une phrase correcte
+# appliquée à un actif où elle n'a aucun sens. Un écart de 0,2 % sur un peg
+# n'est pas une opportunité, c'est du bruit — et le proposer est exactement ce
+# qui fait perdre confiance en un outil.
+STABLECOINS: frozenset[str] = frozenset({
+    "USDT-USD", "USDC-USD", "DAI-USD", "BUSD-USD", "TUSD-USD", "USDP-USD",
+    "FDUSD-USD", "USDD-USD", "PYUSD-USD", "GUSD-USD", "LUSD-USD", "FRAX-USD",
+    "USDE-USD", "EURT-USD", "EURC-USD", "XAUT-USD", "PAXG-USD",
+})
+
+
 def full_universe() -> list[str]:
     """Tous les actifs connus, dédoublonnés, dans un ordre stable."""
     from config import MARKETS
@@ -179,9 +192,10 @@ def full_universe() -> list[str]:
     out: list[str] = []
     for key, m in MARKETS.items():
         for s in extend_market(key, list(m["assets"])):
-            if s not in seen:
-                seen.add(s)
-                out.append(s)
+            if s in seen or s.upper() in STABLECOINS:
+                continue
+            seen.add(s)
+            out.append(s)
     return out
 
 
@@ -257,3 +271,84 @@ def universe_summary() -> dict:
             for k, v in REGIONS.items()
         ],
     }
+
+# ── Les zones : ce qu'on choisit d'abord ─────────────────────────────────────
+#
+# Les places répondaient à la question « où ça cote », qui est la bonne
+# question pour affiner et la mauvaise pour commencer. Personne ne se dit
+# « aujourd'hui je regarde Lisbonne » ; on se dit « l'Europe », « les
+# États-Unis », « la crypto ». Seize pastilles de places en tête d'écran,
+# c'était demander un arbitrage fin avant d'avoir choisi le terrain.
+#
+# Et surtout : les zones s'UNISSENT, là où places et classes se croisent.
+# C'est une différence de nature, pas de présentation. Demander « Europe ET
+# crypto » avec des axes qui se croisent ne rend rien du tout — aucune crypto
+# ne cote à Paris — alors que c'est exactement la combinaison qu'un
+# utilisateur veut exprimer. Une zone porte donc sa propre définition
+# complète, et l'univers est la RÉUNION des zones cochées.
+
+ZONES: dict[str, dict] = {
+    "EUROPE": {
+        "label": "Europe",
+        "places": ("PARIS", "FRANCFORT", "LONDRES", "AMSTERDAM", "BRUXELLES",
+                   "MILAN", "MADRID", "ZURICH", "LISBONNE", "EUROPE"),
+        "classes": (),
+    },
+    "USA": {
+        "label": "États-Unis",
+        "places": ("NEWYORK",),
+        "classes": (),
+    },
+    "ASIE": {
+        "label": "Asie",
+        "places": ("TOKYO", "HONGKONG", "SEOUL", "SHANGHAI", "MUMBAI"),
+        "classes": (),
+    },
+    "CRYPTO": {
+        "label": "Crypto",
+        "places": (),
+        "classes": ("CRYPTO",),
+    },
+    "MATIERES": {
+        "label": "Matières premières",
+        "places": (),
+        "classes": ("MATIERE",),
+    },
+    "INDICES": {
+        "label": "Indices",
+        "places": (),
+        "classes": ("INDICE",),
+    },
+}
+
+
+def resolve_zones(zones: list[str]) -> list[str]:
+    """La RÉUNION des zones demandées. Vide = tout l'univers."""
+    wanted = [z.upper() for z in zones or [] if z.upper() in ZONES]
+    if not wanted:
+        return full_universe()
+
+    garde: set[str] = set()
+    for z in wanted:
+        meta = ZONES[z]
+        pl = set(meta["places"])
+        cl = set(meta["classes"])
+        for s in full_universe():
+            cls, place = classify(s)
+            if pl and place not in pl:
+                continue
+            if cl and cls not in cl:
+                continue
+            garde.add(s)
+    # L'ordre de l'univers est conservé : un scan doit balayer deux fois la
+    # même sélection dans le même ordre, sinon la grille du balayage danse
+    # d'un lancement à l'autre.
+    return [s for s in full_universe() if s in garde]
+
+
+def zones_summary() -> list[dict]:
+    """Les zones avec leur effectif réel, pour peupler l'écran."""
+    return [
+        {"key": k, "label": v["label"], "count": len(resolve_zones([k]))}
+        for k, v in ZONES.items()
+    ]

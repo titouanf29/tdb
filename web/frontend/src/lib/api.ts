@@ -461,6 +461,9 @@ export const analysisAPI = {
   getScanUniverse: () =>
     fetchAPI<ScanUniverse>("/api/analysis/scan-universe"),
 
+  readScanIntent: (q: string) =>
+    fetchAPI<ScanIntent>(`/api/analysis/scan-intent?q=${encodeURIComponent(q)}`),
+
   /**
    * Le scan, lu au fil de l'eau.
    *
@@ -477,9 +480,14 @@ export const analysisAPI = {
    */
   scanStream: async (
     params: {
+      zones?: string[];
       places?: string[];
       classes?: string[];
       minScore?: number;
+      /** Le sens cherché. Le score du moteur étant orienté à la hausse, une
+       *  vente se cherche de l'autre côté de l'échelle — c'est le serveur qui
+       *  applique la symétrie, pas un filtre d'affichage. */
+      direction?: "long" | "short" | "both";
       limit?: number;
       oppType?: string;
       timeframe?: string;
@@ -494,8 +502,10 @@ export const analysisAPI = {
       min_score: String(params.minScore ?? 60),
       limit: String(params.limit ?? 30),
       opportunity_type: params.oppType ?? "all",
+      direction: params.direction ?? "both",
       timeframe: params.timeframe ?? "1d",
     });
+    if (params.zones?.length) qs.set("zones", params.zones.join(","));
     if (params.places?.length) qs.set("places", params.places.join(","));
     if (params.classes?.length) qs.set("classes", params.classes.join(","));
 
@@ -1082,11 +1092,31 @@ export interface ScanPlace {
   classes: Record<string, number>;
 }
 
+export interface ScanZone {
+  key: string;
+  label: string;
+  count: number;
+}
+
 export interface ScanUniverse {
   total: number;
   places: ScanPlace[];
   classes: { key: string; label: string; count: number }[];
   regions: { key: string; places: string[] }[];
+  /** Les zones — ce qu'on choisit d'abord, et qui s'UNISSENT. */
+  zones?: ScanZone[];
+}
+
+/** Ce qu'une phrase d'intention a produit comme réglages. */
+export interface ScanIntent {
+  zones: string[];
+  horizon: "scalp" | "day" | "swing" | "long" | null;
+  timeframe: string | null;
+  direction: "long" | "short" | "both";
+  min_score: number | null;
+  /** Ce qui a été compris, phrase par phrase, pour être affiché et corrigé. */
+  understood: string[];
+  recognised: boolean;
 }
 
 /** Un événement du scan diffusé au fil de l'eau. */
