@@ -1165,6 +1165,40 @@ export interface Favorite {
 }
 
 // Admin API
+export interface AdminAssetRequest {
+  id: number;
+  user_id: number;
+  email?: string;
+  username?: string;
+  symbol: string;
+  name?: string;
+  reason?: string;
+  status: "pending" | "approved" | "rejected";
+  admin_note?: string;
+  created_at: string;
+}
+
+export interface AdminChangelog {
+  id: number;
+  admin_id: number;
+  title: string;
+  content: string;
+  version?: string;
+  created_at: string;
+}
+
+export interface AdminAIHealth {
+  ok: boolean;
+  serving: string | null;
+  providers: {
+    provider: string;
+    key: boolean;
+    model: string | null;
+    ok: boolean;
+    detail: string;
+  }[];
+}
+
 export const adminAPI = {
   // Check admin status
   checkAdmin: () => fetchAPI<{ is_admin: boolean; email?: string }>("/api/admin/check"),
@@ -1276,6 +1310,50 @@ export const adminAPI = {
 
   markAllNotificationsRead: () =>
     fetchAPI<{ success: boolean }>("/api/admin/notifications/read-all", { method: "POST" }),
+
+  // ── Ce que l'ancien écran ne branchait pas ──────────────────────────────
+  //
+  // Les routes existaient côté serveur et les composants côté client, mais
+  // rien ne les reliait : quatre sections entières — positions de tous les
+  // utilisateurs, demandes d'actifs, journal d'audit, statistiques — étaient
+  // écrites, compilées, et inatteignables.
+  getAssetRequests: () =>
+    fetchAPI<{ requests: AdminAssetRequest[] }>("/api/admin/asset-requests"),
+
+  assetRequestAction: (requestId: number, action: "approve" | "reject", note?: string) =>
+    fetchAPI<{ success: boolean }>("/api/admin/asset-requests/action", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ request_id: requestId, action, note }),
+    }),
+
+  getChangelogs: () =>
+    fetchAPI<{ changelogs: AdminChangelog[] }>("/api/admin/changelogs"),
+
+  createChangelog: (title: string, content: string, version?: string) =>
+    fetchAPI<{ success: boolean }>("/api/admin/changelog", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title, content, version }),
+    }),
+
+  deleteChangelog: (id: number) =>
+    fetchAPI<{ success: boolean }>(`/api/admin/changelog/${id}`, { method: "DELETE" }),
+
+  deleteBroadcast: (id: number) =>
+    fetchAPI<{ success: boolean }>(`/api/admin/broadcast/${id}`, { method: "DELETE" }),
+
+  promote: (email: string) =>
+    fetchAPI<{ success: boolean; message?: string }>("/api/admin/promote", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email }),
+    }),
+
+  /** L'état réel des fournisseurs d'IA : chacun est interrogé, pas seulement
+   *  vérifié pour la présence d'une clé. */
+  getAIHealth: () =>
+    fetchAPI<AdminAIHealth>("/api/admin/ai-health"),
 
   markNotificationTypeRead: (type: string) =>
     fetchAPI<{ success: boolean }>(`/api/admin/notifications/mark-type-read?type=${type}`, { method: "POST" }),
@@ -1576,6 +1654,17 @@ export interface AdminTradingAnalytics {
 export interface AdminAIAnalytics {
   daily_messages: { date: string; count: number }[];
   top_users: { user_id: number; email: string; username: string; message_count: number }[];
+}
+
+/** Une action d'administration. Nommée à part pour être manipulable : le
+ *  type était enfoui dans la réponse, donc inutilisable ailleurs. */
+export interface AdminAuditEntry {
+  id: number;
+  admin_id: number;
+  action: string;
+  details: string;
+  created_at: string;
+  admin_email?: string;
 }
 
 export interface AdminAuditLogResponse {

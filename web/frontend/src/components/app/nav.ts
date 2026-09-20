@@ -117,6 +117,7 @@ export const MIGRATED_ROUTES = [
   "/scanner",
   "/learn",
   "/settings",
+  "/admin",
 ];
 
 export function isMigrated(pathname: string | null): boolean {
