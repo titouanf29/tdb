@@ -78,12 +78,16 @@ export function PositionSheet({
   onEditLevels,
   onClosePosition,
   money,
+  price: priceFmt,
 }: {
   position: Position | null;
   onClose: () => void;
   onEditLevels: (p: Position) => void;
   onClosePosition: (p: Position) => void;
+  /** Une somme d'argent : solde, montant engagé, résultat. Toujours au centime. */
   money: (v: number) => string;
+  /** Un cours : précision adaptée à l'ordre de grandeur de l'actif. */
+  price: (v: number) => string;
 }) {
   if (!p) return <Drawer open={false} onClose={onClose}><span /></Drawer>;
 
@@ -134,12 +138,12 @@ export function PositionSheet({
         <Line label="Somme engagée" value={money(p.amount)} />
         <Line
           label="Prix d'entrée"
-          value={money(p.entry_price)}
+          value={priceFmt(p.entry_price)}
           hint={`${p.quantity.toLocaleString("fr-FR", { maximumFractionDigits: 6 })} unités`}
         />
         <Line
           label="Cours actuel"
-          value={price != null ? money(price) : "—"}
+          value={price != null ? priceFmt(price) : "—"}
           hint={price == null ? "Cours indisponible pour cet actif" : undefined}
           tone={price != null && pnl != null ? (pnl >= 0 ? "up" : "down") : undefined}
         />
@@ -155,7 +159,7 @@ export function PositionSheet({
         <div className="mt-1 [&>*+*]:border-t [&>*+*]:border-[color:var(--cap-line)]">
           <Line
             label="Stop"
-            value={p.stop_loss != null ? money(p.stop_loss) : "Aucun"}
+            value={p.stop_loss != null ? priceFmt(p.stop_loss) : "Aucun"}
             hint={
               p.stop_loss == null
                 ? "Sans stop, rien n'arrête la perte automatiquement."
@@ -167,7 +171,7 @@ export function PositionSheet({
           />
           <Line
             label="Objectif"
-            value={p.take_profit != null ? money(p.take_profit) : "Aucun"}
+            value={p.take_profit != null ? priceFmt(p.take_profit) : "Aucun"}
             hint={
               dTarget != null
                 ? `${pc(dTarget)} % ${dTarget > 0 ? "au-dessus du" : "sous le"} cours`

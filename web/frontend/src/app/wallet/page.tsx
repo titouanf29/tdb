@@ -7,7 +7,7 @@ import {
   walletAPI,
   type Position, type TradingStats, type WalletBalance,
 } from "@/lib/api";
-import { useSettings, convertCurrency } from "@/lib/SettingsContext";
+import { useSettings, convertCurrency, useFormatAssetPrice } from "@/lib/SettingsContext";
 import {
   Button, CloudCurtain, EmptyState, Field, FormError, Heading, Modal, Num,
   Panel, SegmentedControl, Text, TextInput, WeatherBackdrop,
@@ -98,6 +98,12 @@ export default function WalletPage() {
       }),
     [settings.currency, eurUsd]
   );
+
+  /* Les cours n'ont pas la même précision que les sommes. Sur un actif à
+     0,34 €, deux décimales affichaient « entrée 0,34 € » et « cours 0,34 € »
+     à côté d'un résultat non nul : les deux nombres différaient à la
+     quatrième décimale. */
+  const assetPrice = useFormatAssetPrice();
 
   const doClose = async () => {
     if (!closing) return;
@@ -305,9 +311,9 @@ export default function WalletPage() {
                         </span>
                       </div>
                       <Text size="caption" className="mt-1">
-                        {money(p.amount)} · entrée {money(p.entry_price)}
-                        {p.stop_loss ? ` · stop ${money(p.stop_loss)}` : ""}
-                        {p.take_profit ? ` · objectif ${money(p.take_profit)}` : ""}
+                        {money(p.amount)} · entrée {assetPrice(p.entry_price)}
+                        {p.stop_loss ? ` · stop ${assetPrice(p.stop_loss)}` : ""}
+                        {p.take_profit ? ` · objectif ${assetPrice(p.take_profit)}` : ""}
                       </Text>
                     </div>
 
@@ -324,13 +330,13 @@ export default function WalletPage() {
                               Cours indisponible
                             </Text>
                             <Text size="caption" as="span" className="mt-0.5 block">
-                              entrée {money(p.entry_price)}
+                              entrée {assetPrice(p.entry_price)}
                             </Text>
                           </>
                         ) : (
                           <>
                             {p.current_price != null && (
-                              <Num className="block text-[0.92rem]">{money(p.current_price)}</Num>
+                              <Num className="block text-[0.92rem]">{assetPrice(p.current_price)}</Num>
                             )}
                             {p.unrealized_pnl != null && (
                               p.unrealized_pnl === 0 ? (
@@ -405,6 +411,7 @@ export default function WalletPage() {
         }}
         onClosePosition={(p) => { setSheet(null); setClosing(p); setError(""); }}
         money={money}
+        price={assetPrice}
       />
 
       <Modal open={!!closing} onClose={() => setClosing(null)} title="Clôturer">

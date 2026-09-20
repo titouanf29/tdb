@@ -355,11 +355,33 @@ export function useFormatCurrency() {
   const { settings, eurUsd } = useSettings();
   return useCallback((value: number, originalCurrency: Currency = "USD"): string => {
     const converted = convertCurrency(value, originalCurrency, settings.currency, eurUsd);
+    const d = priceDecimals(converted);
     return new Intl.NumberFormat("fr-FR", {
       style: "currency",
       currency: settings.currency,
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
+      minimumFractionDigits: d,
+      maximumFractionDigits: d,
+    }).format(converted);
+  }, [settings.currency, eurUsd]);
+}
+
+/**
+ * Un prix, converti et formaté — la version sans symbole d'actif.
+ *
+ * Les écrans reconstruits manipulent des valeurs déjà exprimées en euros par
+ * le moteur ; ils n'ont donc pas besoin de deviner la devise d'origine, mais
+ * ils ont besoin de la même précision adaptative.
+ */
+export function useFormatAssetPrice() {
+  const { settings, eurUsd } = useSettings();
+  return useCallback((value: number): string => {
+    const converted = convertCurrency(value, "EUR", settings.currency, eurUsd);
+    const d = priceDecimals(converted);
+    return new Intl.NumberFormat("fr-FR", {
+      style: "currency",
+      currency: settings.currency,
+      minimumFractionDigits: d,
+      maximumFractionDigits: d,
     }).format(converted);
   }, [settings.currency, eurUsd]);
 }
@@ -375,6 +397,34 @@ export function useFormatCurrency() {
  * Use useFormatCurrency for wallet / P&L values (which are always stored in USD).
  */
 const EUR_SUFFIXES = [".PA", ".DE", ".AS", ".BR", ".LS", ".MI", ".MC", ".AT", ".CO", ".ST", ".HE", ".OL", ".WA"];
+
+/**
+ * Le nombre de décimales d'un PRIX, selon son ordre de grandeur.
+ *
+ * Deux décimales conviennent à une action à 336 €. Elles sont ruineuses pour
+ * un actif à 0,34 € : sur TRX, une position affichait « entrée 0,34 € » et
+ * « cours actuel 0,34 € » à côté d'un résultat de −0,88 €. Le calcul était
+ * juste — l'entrée valait 0,34260 et le cours 0,34250, soit −0,029 % que le
+ * levier ×10 transformait en −0,29 %. C'est l'affichage qui mentait, en
+ * arrondissant deux nombres différents au même.
+ *
+ * Un écran qui montre deux fois le même prix à côté d'une perte se lit comme
+ * un bug, et c'est bien un bug : il cache la seule chose qu'il devait
+ * montrer.
+ *
+ * À NE PAS UTILISER POUR UNE SOMME D'ARGENT. Un solde, un montant engagé ou
+ * un résultat s'écrivent toujours au centime : « 299,1245 € » de valeur de
+ * position n'a pas de sens, alors que « 0,342500 € » de cours en a un.
+ */
+export function priceDecimals(value: number): number {
+  const v = Math.abs(value);
+  if (!Number.isFinite(v) || v === 0) return 2;
+  if (v >= 100) return 2;
+  if (v >= 1) return 3;
+  if (v >= 0.01) return 5;
+  if (v >= 0.0001) return 6;
+  return 8;
+}
 
 export function useFormatPrice() {
   const { settings, eurUsd } = useSettings();
