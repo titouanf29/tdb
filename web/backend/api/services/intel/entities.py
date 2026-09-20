@@ -125,6 +125,32 @@ def extraire(texte: str) -> set[str]:
     return {cle for cle, motif in _MOTIFS.items() if motif.search(t)}
 
 
+def extraire_article(article: dict) -> tuple[set[str], set[str]]:
+    """(centrales, mentionnées) — et la distinction est cruciale.
+
+    Une entité du TITRE dit de quoi parle l'article. Une entité présente
+    seulement dans le résumé dit ce qu'il mentionne, ce qui n'est pas la même
+    chose du tout.
+
+    Mesuré sur les flux réels : « Ed Davey calls for immediate 10p cut to fuel
+    duty » — un article de politique intérieure britannique — ressortait avec
+    MOYEN_ORIENT, CONFLIT, PETROLE et BANQUES, et déclenchait une chaîne de
+    blocus pétrolier. Ces entités venaient du résumé d'un live-blog de la BBC,
+    qui empile des sujets sans rapport dans un seul bloc de texte.
+
+    Les mécanismes de transmission ne se déclenchent donc que sur les entités
+    CENTRALES. Les mentionnées servent encore au regroupement — deux articles
+    qui citent les mêmes acteurs parlent souvent du même fait — mais elles ne
+    peuvent plus, à elles seules, faire dire au moteur qu'un détroit est
+    bloqué.
+    """
+    titre = article.get("title", "") or ""
+    resume = (article.get("summary", "") or "")[:300]
+    centrales = extraire(titre)
+    mentionnees = extraire(f"{titre} {resume}") - centrales
+    return centrales, mentionnees
+
+
 def type_de(cle: str) -> str:
     return ENTITES.get(cle, ("inconnu", ()))[0]
 

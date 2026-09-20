@@ -146,7 +146,9 @@ def grouper(articles: list[dict]) -> list[list[dict]]:
     for art in articles:
         texte = f"{art.get('title', '')} {art.get('summary', '')[:200]}"
         art["_jetons"] = jetons(texte)
-        art["_entites"] = entities.extraire(texte)
+        centrales, mentionnees = entities.extraire_article(art)
+        art["_entites_centrales"] = centrales
+        art["_entites"] = centrales | mentionnees
         if not art["_jetons"]:
             continue
         place = False
@@ -167,12 +169,21 @@ def grouper(articles: list[dict]) -> list[list[dict]]:
     return groupes
 
 
-def entites_du_groupe(groupe: list[dict]) -> set[str]:
-    """Les entités du dossier : celles citées par au moins un article."""
+def entites_du_groupe(groupe: list[dict], centrales_seulement: bool = False) -> set[str]:
+    """Les entités du dossier.
+
+    `centrales_seulement` est ce que doit utiliser la transmission : les
+    entités mentionnées en passant suffisent à rapprocher deux articles, pas
+    à affirmer qu'un mécanisme économique est à l'œuvre.
+    """
+    cle = "_entites_centrales" if centrales_seulement else "_entites"
     out: set[str] = set()
     for a in groupe:
-        out |= (a.get("_entites") or entities.extraire(
-            f"{a.get('title','')} {a.get('summary','')[:200]}"))
+        v = a.get(cle)
+        if v is None:
+            c, m = entities.extraire_article(a)
+            v = c if centrales_seulement else c | m
+        out |= v
     return out
 
 
