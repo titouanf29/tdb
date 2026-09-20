@@ -34,11 +34,22 @@ export const AREAS: NavArea[] = [
     href: "/dashboard",
     items: [
       { href: "/dashboard", label: "Accueil", blurb: "Ce qui mérite votre attention aujourd'hui" },
-      { href: "/portfolio", label: "Portefeuille", blurb: "Valeur, performance, répartition" },
-      { href: "/trading", label: "Positions", blurb: "Ce qui est ouvert, et comment ça se passe" },
-      { href: "/wallet", label: "Wallet", blurb: "Solde, dépôts et historique" },
+      // WALLET DEVANT, PORTEFEUILLE DERRIÈRE, et les libellés le disent.
+      //
+      // Le site est un simulateur : le Wallet est le compte d'entraînement,
+      // donc l'écran central. Il arrivait pourtant en quatrième position,
+      // derrière un « Portefeuille » qui suit des placements RÉELS saisis à la
+      // main — un usage rare, et surtout une autre chose.
+      //
+      // Deux mots proches pour deux notions opposées, c'est la confusion
+      // garantie : « Portefeuille » et « Wallet » sont le même mot dans deux
+      // langues. Les libellés portent donc maintenant la distinction, au lieu
+      // de compter sur l'utilisateur pour s'en souvenir.
+      { href: "/wallet", label: "Wallet — simulation", blurb: "Votre compte d'entraînement : solde, positions, résultats" },
+      { href: "/trading", label: "Ouvrir une position", blurb: "Passer un ordre sur le compte d'entraînement" },
       { href: "/journal", label: "Journal", blurb: "Vos décisions, relues après coup" },
       { href: "/favorites", label: "Favoris", blurb: "Les actifs que vous suivez" },
+      { href: "/portfolio", label: "Portefeuille réel", blurb: "Vos placements hors du site, saisis à la main" },
     ],
   },
   {
@@ -67,7 +78,6 @@ export const AREAS: NavArea[] = [
     href: "/assistant",
     items: [
       { href: "/assistant", label: "Assistant", blurb: "Une question en français, une réponse sur vos données" },
-      { href: "/tools", label: "Outils", blurb: "Calculateurs de position, de risque et de conversion" },
     ],
   },
   {

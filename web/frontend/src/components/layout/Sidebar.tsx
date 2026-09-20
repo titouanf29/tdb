@@ -17,7 +17,6 @@ import {
   BarChart3,
   Globe,
   Shield,
-  Wrench,
   Users,
   Bot,
   GraduationCap,
@@ -58,7 +57,6 @@ const MENU_GROUPS = [
     labelKey: "nav_group_ai",
     items: [
       { icon: Bot,    labelKey: "nav_assistant", href: "/assistant" },
-      { icon: Wrench, labelKey: "nav_tools",     href: "/tools" },
     ],
   },
   {

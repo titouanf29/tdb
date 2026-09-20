@@ -230,10 +230,12 @@ export default function WalletPage() {
       <div className="relative space-y-8">
         <header className="flex flex-wrap items-end justify-between gap-5 pt-2">
           <div>
-            <Heading level={1}>Wallet</Heading>
+            <Heading level={1}>Wallet — simulation</Heading>
             <Text className="mt-2.5 max-w-[36rem]">
               Votre compte d&apos;entraînement. Tout y est virtuel — c&apos;est
-              exactement ce qui permet de se tromper utilement.
+              exactement ce qui permet de se tromper utilement. À ne pas
+              confondre avec le Portefeuille réel, qui est un registre de vos
+              placements hors du site.
             </Text>
           </div>
           <Button variant="secondary" size="md" onClick={() => { setFunding(true); setError(""); }}>

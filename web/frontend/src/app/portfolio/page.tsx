@@ -177,7 +177,11 @@ export default function PortfolioPage() {
       <div className="relative space-y-8">
         <header className="flex flex-wrap items-end justify-between gap-5 pt-2">
           <div>
-            <Heading level={1}>Portefeuille</Heading>
+            {/* Le titre porte la distinction. « Portefeuille » seul, à côté
+                d'un « Wallet », c'est le même mot dans deux langues pour deux
+                choses opposées : un registre de placements réels et un compte
+                de simulation. */}
+            <Heading level={1}>Portefeuille réel</Heading>
             <Text className="mt-2.5 max-w-[36rem]">
               Vos positions réelles, celles que vous détenez chez votre courtier.
               Rien n&apos;est exécuté ici — c&apos;est un registre que vous
