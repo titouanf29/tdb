@@ -103,7 +103,7 @@ PLACES: dict[str, dict] = {
     # Un indice pan-européen ne cote sur aucune place en particulier, mais
     # l'exclure d'une sélection « toute l'Europe » serait un trou : c'est
     # précisément l'instrument que ce lecteur-là regarde en premier.
-    "EUROPE":     {"label": "Europe",      "iso": "eu", "suffixes": ()},
+    "EUROPE":     {"label": "Pan-européen", "iso": "eu", "suffixes": ()},
     "MONDE":      {"label": "Mondial",     "iso": "",   "suffixes": ()},   # crypto, matières
 }
 

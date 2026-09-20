@@ -457,6 +457,82 @@ export const analysisAPI = {
 
   getScanLimit: () =>
     fetchAPI<ScanQuota>("/api/analysis/scan-limit"),
+
+  getScanUniverse: () =>
+    fetchAPI<ScanUniverse>("/api/analysis/scan-universe"),
+
+  /**
+   * Le scan, lu au fil de l'eau.
+   *
+   * Le scan classique rend tout d'un bloc après une à plusieurs minutes.
+   * Ici chaque actif arrive dès qu'il est scoré, et l'appelant reçoit aussi
+   * les actifs ÉCARTÉS : c'est ce qui permet de montrer le balayage complet
+   * sans transporter 819 objets dont une poignée sera affichée.
+   *
+   * fetchAPI ne convient pas — il lit le corps entier avant de rendre la
+   * main, ce qui annulerait tout l'intérêt. On lit donc le flux nous-mêmes,
+   * en découpant sur les sauts de ligne : une ligne JSON peut arriver coupée
+   * en deux paquets réseau, et concaténer sans garder le reste produirait du
+   * JSON invalide au hasard des tailles de paquets.
+   */
+  scanStream: async (
+    params: {
+      places?: string[];
+      classes?: string[];
+      minScore?: number;
+      limit?: number;
+      oppType?: string;
+      timeframe?: string;
+    },
+    onEvent: (e: ScanEvent) => void,
+    signal?: AbortSignal
+  ): Promise<void> => {
+    const { getToken } = await import("./auth");
+    const token = getToken();
+    const qs = new URLSearchParams({
+      stream: "true",
+      min_score: String(params.minScore ?? 60),
+      limit: String(params.limit ?? 30),
+      opportunity_type: params.oppType ?? "all",
+      timeframe: params.timeframe ?? "1d",
+    });
+    if (params.places?.length) qs.set("places", params.places.join(","));
+    if (params.classes?.length) qs.set("classes", params.classes.join(","));
+
+    const res = await fetch(`/api/analysis/scan/ALL?${qs.toString()}`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      signal,
+    });
+
+    if (!res.ok || !res.body) {
+      let detail = "Le scan n'a pas pu démarrer.";
+      try {
+        const j = await res.json();
+        if (typeof j?.detail === "string") detail = j.detail;
+        else if (typeof j?.detail?.message === "string") detail = j.detail.message;
+      } catch { /* corps illisible : le message générique suffit */ }
+      throw new Error(detail);
+    }
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let reste = "";
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      reste += decoder.decode(value, { stream: true });
+      const lignes = reste.split("\n");
+      reste = lignes.pop() ?? "";
+      for (const l of lignes) {
+        if (!l.trim()) continue;
+        try { onEvent(JSON.parse(l) as ScanEvent); }
+        catch { /* ligne tronquée en fin de flux : on l'ignore */ }
+      }
+    }
+    if (reste.trim()) {
+      try { onEvent(JSON.parse(reste) as ScanEvent); } catch { /* idem */ }
+    }
+  },
 };
 
 // AI Limit Status
@@ -981,7 +1057,47 @@ export interface ScanResultItem {
   pct_from_high: number;
   market_regime?: string | null;
   relative_strength?: number | null;
+  /** Où l'actif cote et ce qu'il est — les deux axes du sélecteur d'univers. */
+  place?: string;
+  asset_class?: string;
+  /** La famille de configuration : c'est elle qui range le résultat, pas le
+   *  score. Une cassure et un rebond ne se tradent pas au même moment, et un
+   *  classement unique trié par score les mélange en permanence. */
+  family?: "cassure" | "rebond" | "tendance";
+  setup?: string;
+  /** Ce qui se passe, en une phrase. */
+  headline?: string;
+  /** Ce qui confirme et ce qui invalide. Sans cette seconde phrase, une
+   *  « opportunité » n'est qu'une opinion. */
+  action?: string;
+  support?: number | null;
+  resistance?: number | null;
 }
+
+export interface ScanPlace {
+  key: string;
+  label: string;
+  iso: string;
+  count: number;
+  classes: Record<string, number>;
+}
+
+export interface ScanUniverse {
+  total: number;
+  places: ScanPlace[];
+  classes: { key: string; label: string; count: number }[];
+  regions: { key: string; places: string[] }[];
+}
+
+/** Un événement du scan diffusé au fil de l'eau. */
+export type ScanEvent =
+  | { type: "start"; total: number; symbols: string[]; timeframe: string; min_score: number }
+  | { type: "phase"; phase: string; label: string }
+  | { type: "result"; done: number; item: ScanResultItem }
+  | { type: "seen"; done: number; symbol: string; score: number; place?: string }
+  | { type: "skip"; done: number }
+  | { type: "done"; total_scanned: number; total_analyzed: number; kept: number;
+      results: ScanResultItem[]; quota?: ScanQuota };
 
 export interface ScanQuota {
   scans_today: number;

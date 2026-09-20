@@ -1,1025 +1,379 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import { useRouter } from "next/navigation";
-import { motion, AnimatePresence } from "framer-motion";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
+import { Radar, RotateCcw } from "lucide-react";
 import {
-  ScanLine,
-  TrendingUp,
-  TrendingDown,
-  Zap,
-  Loader2,
-  RefreshCw,
-  BarChart2,
-  Volume2,
-  ChevronUp,
-  ChevronDown,
-  ChevronRight,
-  Search,
-  Crown,
-  Lock,
-  Target,
-  Activity,
-  Sparkles,
-  ArrowUpRight,
-  Globe,
-  Flame,
-} from "lucide-react";
-import { cn, formatPercent } from "@/lib/utils";
-import { analysisAPI, marketAPI, Market, ScanResultItem, ScanQuota, missionsAPI } from "@/lib/api";
-import { DailyIntentWidget } from "@/components/dashboard/DailyIntentWidget";
-import { useFormatPrice } from "@/lib/SettingsContext";
-import { useLanguage } from "@/lib/LanguageContext";
-import { HelpGuide } from "@/components/ui/HelpGuide";
-import { isMarketOpen } from "@/lib/marketStatus";
-import { getStyle } from "@/lib/tradingStyle";
-import { useSettings } from "@/lib/SettingsContext";
+  analysisAPI,
+  type ScanEvent, type ScanQuota, type ScanResultItem, type ScanUniverse,
+} from "@/lib/api";
+import { fr } from "@/lib/SettingsContext";
+import { useTradingStyle } from "@/lib/tradingStyle";
+import { useUserLevel } from "@/hooks/useUserLevel";
+import {
+  Button, EmptyState, FormError, Heading, Panel, SegmentedControl, Text,
+  WeatherBackdrop, useAnimationsEnabled, DUR, EASE,
+} from "@/components/design-system";
+import { UniversePicker, type Selection } from "@/components/scanner/UniversePicker";
+import { Sweep, type SweepState } from "@/components/scanner/Sweep";
+import { Opportunity } from "@/components/scanner/Opportunity";
 
-const SCAN_CACHE_KEY = "tdb_last_scan";
+/**
+ * Le scanner.
+ *
+ * L'outil le plus utilisé du site, et celui qui tenait le moins ses
+ * promesses. Trois choses le bridaient, toutes corrigées ici et dans le
+ * moteur :
+ *
+ *   – IL NE VISAIT QU'UN MARCHÉ. « Uniquement Paris », « tout sauf la
+ *     crypto », « les actions européennes et l'or » n'étaient pas
+ *     exprimables. L'univers se compose maintenant sur deux axes ;
+ *   – IL RENDAIT UN TABLEAU DE CHIFFRES. Des colonnes se comparent bien et ne
+ *     s'expliquent pas : il fallait déjà savoir ce qu'on cherchait. Chaque
+ *     opportunité tient désormais en deux phrases, dont celle qui donne le
+ *     niveau d'invalidation ;
+ *   – IL ATTENDAIT EN SILENCE. Plusieurs minutes de sablier sur l'univers
+ *     complet. Le scan est diffusé au fil de l'eau et l'écran montre le
+ *     balayage réel.
+ *
+ * Les résultats sont rangés PAR FAMILLE, pas par score. Une cassure imminente
+ * et un rebond sur support ne se tradent pas au même moment ; un classement
+ * unique trié par score les mélange en permanence et place toujours le même
+ * type de configuration en tête.
+ */
 
-type SortKey = "score" | "change" | "change_1w" | "rsi" | "volume_ratio";
-type OppFilter = "all" | "breakout" | "reversal" | "momentum";
+type Famille = "cassure" | "rebond" | "tendance";
 
-const OPP_COLORS: Record<string, { bg: string; text: string; border: string; dot: string }> = {
-  breakout: { bg: "bg-primary/10",   text: "text-primary",   border: "border-primary/30",   dot: "bg-primary" },
-  reversal: { bg: "bg-neon-purple/10", text: "text-neon-purple", border: "border-neon-purple/30", dot: "bg-neon-purple" },
-  momentum: { bg: "bg-amber-500/10",  text: "text-amber-400",  border: "border-amber-500/30",  dot: "bg-amber-400" },
-};
+const FAMILLES: { key: Famille; titre: string; quoi: string }[] = [
+  { key: "cassure", titre: "Cassures", quoi: "Le cours bute sur un plafond ou sort d'une compression. Ça a une échéance." },
+  { key: "rebond", titre: "Rebonds", quoi: "Le cours revient sur un support, ou le rythme vient de changer." },
+  { key: "tendance", titre: "Tendances établies", quoi: "Rien d'imminent : un mouvement déjà en place, qu'on rejoint en cours de route." },
+];
 
-const TREND_CONFIG: Record<string, { color: string; icon: string }> = {
-  HAUSSIER: { color: "text-emerald-400", icon: "↑" },
-  BAISSIER: { color: "text-rose-400",    icon: "↓" },
-  NEUTRE:   { color: "text-slate-400",   icon: "→" },
-};
-
-/** Maps a Yahoo Finance symbol suffix to ISO country code + label.
- *  Uses flag-icons library (fi fi-xx) — renders as CSS image, works on all
- *  platforms including Chrome/Windows (unlike regional-indicator emojis). */
-const SUFFIX_REGIONS: Record<string, { iso: string; label: string }> = {
-  ".PA":  { iso: "fr", label: "Paris" },
-  ".AS":  { iso: "nl", label: "Amsterdam" },
-  ".BR":  { iso: "be", label: "Bruxelles" },
-  ".LS":  { iso: "pt", label: "Lisbonne" },
-  ".DE":  { iso: "de", label: "Francfort" },
-  ".MC":  { iso: "es", label: "Madrid" },
-  ".MI":  { iso: "it", label: "Milan" },
-  ".SW":  { iso: "ch", label: "Suisse" },
-  ".L":   { iso: "gb", label: "Londres" },
-  ".T":   { iso: "jp", label: "Japon" },
-  ".HK":  { iso: "hk", label: "Hong Kong" },
-  ".KS":  { iso: "kr", label: "Corée" },
-  ".NS":  { iso: "in", label: "Inde" },
-  ".BO":  { iso: "in", label: "Inde" },
-  ".SI":  { iso: "sg", label: "Singapour" },
-  ".TW":  { iso: "tw", label: "Taïwan" },
-  ".AX":  { iso: "au", label: "Australie" },
-  ".SS":  { iso: "cn", label: "Chine" },
-  ".SZ":  { iso: "cn", label: "Chine" },
-};
-
-type AssetRegion =
-  | { type: "flag"; iso: string; label: string }
-  | { type: "icon"; icon: string; label: string };
-
-function getAssetRegion(symbol: string): AssetRegion {
-  if (symbol.startsWith("^")) return { type: "icon", icon: "📊", label: "Indice" };
-  if (symbol.endsWith("-USD")) return { type: "icon", icon: "◈", label: "Crypto" };
-  if (symbol.endsWith("=F")) return { type: "icon", icon: "⬡", label: "Matières 1ères" };
-  const dot = symbol.lastIndexOf(".");
-  if (dot !== -1) {
-    const r = SUFFIX_REGIONS[symbol.slice(dot)];
-    if (r) return { type: "flag", ...r };
-  }
-  return { type: "flag", iso: "us", label: "US" };
-}
-
-function RegionBadge({ symbol, className }: { symbol: string; className?: string }) {
-  const region = getAssetRegion(symbol);
-  return (
-    <span className={cn(
-      "inline-flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded-full bg-white/5 border border-white/10 text-muted-foreground/80 font-medium whitespace-nowrap",
-      className
-    )}>
-      {region.type === "flag"
-        ? <span className={`fi fi-${region.iso}`} style={{ width: "1em", height: "0.75em", display: "inline-block", backgroundSize: "cover", borderRadius: "1px" }} />
-        : <span className="text-[9px] leading-none">{region.icon}</span>
-      }
-      {region.label}
-    </span>
-  );
-}
-
-const containerVariants = {
-  hidden: { opacity: 0 },
-  show: { opacity: 1, transition: { staggerChildren: 0.05 } },
-};
-const itemVariants = {
-  hidden: { opacity: 0, y: 12 },
-  show:   { opacity: 1, y: 0, transition: { type: "spring", stiffness: 400, damping: 30 } },
-};
+const CLE_SELECTION = "tdb_scan_selection";
 
 export default function ScannerPage() {
-  const router = useRouter();
-  const formatPrice = useFormatPrice();
-  const { t, lang } = useLanguage();
-  // The scan runs on the timeframe the analysis page will open on, so a row
-  // labelled "haussier" cannot lead to a bearish analysis of the same asset.
-  const { settings } = useSettings();
-  const style = getStyle(settings.tradingStyle);
+  const [animOn] = useAnimationsEnabled();
+  const style = useTradingStyle();
+  const level = useUserLevel();
+  const expert = level.level === "expert";
 
-  const OPP_LABELS: Record<OppFilter, string> = {
-    all:      t("scanner_filter_all"),
-    breakout: t("scanner_filter_breakout"),
-    reversal: t("scanner_filter_reversal"),
-    momentum: t("scanner_filter_momentum"),
-  };
-
-  const [markets, setMarkets] = useState<Market[]>([]);
-  // "ALL" is a pseudo-market resolved server-side to the union of every
-  // configured market. It is the default: scanning everything is the useful
-  // starting point, narrowing is the deliberate act.
-  const [selectedMarket, setSelectedMarket] = useState("ALL");
+  const [universe, setUniverse] = useState<ScanUniverse | null>(null);
+  const [sel, setSel] = useState<Selection>({ places: [], classes: [] });
   const [minScore, setMinScore] = useState(60);
-  const [oppFilter, setOppFilter] = useState<OppFilter>("all");
+
+  const [busy, setBusy] = useState(false);
+  const [erreur, setErreur] = useState("");
+  const [phase, setPhase] = useState("");
+  const [sweep, setSweep] = useState<SweepState>({ symbols: [], done: new Map() });
   const [results, setResults] = useState<ScanResultItem[]>([]);
-  const [totalScanned, setTotalScanned] = useState(0);
-  const [totalAnalyzed, setTotalAnalyzed] = useState(0);
-  const [scanRanAt, setScanRanAt] = useState<number | null>(null);
-  const [allAssetCount, setAllAssetCount] = useState<number | null>(null);
-  // Elapsed seconds while scanning. A silent minute on the one daily scan
-  // reads as a hang; a counter reads as work.
-  const [elapsed, setElapsed] = useState(0);
   const [quota, setQuota] = useState<ScanQuota | null>(null);
-  const [isScanning, setIsScanning] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [sortKey, setSortKey] = useState<SortKey>("score");
-  const [sortAsc, setSortAsc] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
+  const [fini, setFini] = useState(false);
+  const [elapsed, setElapsed] = useState(0);
 
-  // A free account gets ONE scan a day. Losing it to a page refresh — or to
-  // tapping an asset and coming back — made the quota feel punitive. The last
-  // scan is restored from localStorage, with the moment it was run.
+  const abort = useRef<AbortController | null>(null);
+  const t0 = useRef(0);
+
+  /* L'univers et le quota, une fois. Le choix précédent est restauré : c'est
+     un outil qu'on utilise tous les jours avec la même sélection, et la
+     reposer à chaque visite serait une corvée quotidienne. */
   useEffect(() => {
+    analysisAPI.getScanUniverse().then(setUniverse).catch(() => setUniverse(null));
+    analysisAPI.getScanLimit().then(setQuota).catch(() => {});
     try {
-      const raw = localStorage.getItem(SCAN_CACHE_KEY);
-      if (!raw) return;
-      const c = JSON.parse(raw) as {
-        results?: ScanResultItem[]; market?: string; total?: number;
-        analyzed?: number; at?: number; timeframe?: string;
-      };
-      // Older than a day and it describes a market that has since moved on.
-      if (!c?.results?.length || !c.at || Date.now() - c.at > 24 * 3600 * 1000) return;
-      setResults(c.results);
-      setTotalScanned(c.total ?? 0);
-      setTotalAnalyzed(c.analyzed ?? 0);
-      if (c.market) setSelectedMarket(c.market);
-      setScanRanAt(c.at);
-    } catch { /* corrupt entry: ignore, the scanner still works */ }
-  }, []);
-
-  useEffect(() => {
-    Promise.all([
-      marketAPI.getMarkets(),
-      analysisAPI.getScanLimit(),
-    ]).then(([mData, qData]) => {
-      setMarkets(mData.markets);
-      setAllAssetCount(mData.all_asset_count ?? null);
-      setQuota(qData);
-      // Deliberately no auto-select: the scan starts on every asset unless the
-      // user narrows it. Jumping to whichever market happens to be open would
-      // silently shrink the universe behind their back.
-    }).catch(console.error).finally(() => {
-      setIsLoading(false);
-    });
-  }, []);
-
-  useEffect(() => {
-    if (!isScanning) { setElapsed(0); return; }
-    const t0 = Date.now();
-    const iv = setInterval(() => setElapsed(Math.round((Date.now() - t0) / 1000)), 1000);
-    return () => clearInterval(iv);
-  }, [isScanning]);
-
-  const runScan = async () => {
-    if (quota && !quota.is_premium && quota.remaining <= 0) return;
-    setIsScanning(true);
-    try {
-      const data = await analysisAPI.scan(selectedMarket, minScore, 40, oppFilter, style.defaultTimeframe);
-      setResults(data.results);
-      setTotalScanned(data.total_scanned ?? 0);
-      setTotalAnalyzed(data.total_analyzed ?? data.total_scanned ?? 0);
-      const at = Date.now();
-      setScanRanAt(at);
-      try {
-        localStorage.setItem(SCAN_CACHE_KEY, JSON.stringify({
-          results: data.results, market: selectedMarket, total: data.total_scanned,
-          analyzed: data.total_analyzed, timeframe: data.timeframe, at,
-        }));
-      } catch { /* private mode / quota: the scan still shows this session */ }
-      if (data.quota) setQuota(data.quota);
-      missionsAPI.recordAction("scanner_run").catch(() => {});
-    } catch (err: unknown) {
-      const error = err as { status?: number; data?: { detail?: { message?: string } } };
-      if (error?.status === 429) {
-        const q = await analysisAPI.getScanLimit().catch(() => null);
-        if (q) setQuota(q);
+      const brut = localStorage.getItem(CLE_SELECTION);
+      if (brut) {
+        const v = JSON.parse(brut);
+        if (Array.isArray(v?.places) && Array.isArray(v?.classes)) setSel(v);
       }
-      console.error("Error scanning:", err);
-    } finally {
-      setIsScanning(false);
+    } catch { /* mode privé ou valeur abîmée : on garde le défaut */ }
+  }, []);
+
+  /* ON ENREGISTRE UN CHOIX, PAS UN ÉTAT.
+   *
+   * La sélection était sauvegardée par un effet dépendant de `sel`. Cet effet
+   * s'exécutait au montage avec la valeur PAR DÉFAUT — capturée dans sa
+   * clôture — et écrasait ce que l'effet de lecture venait tout juste de
+   * lire. Poser un verrou levé par la lecture n'y changeait rien : les deux
+   * effets tournent dans la même passe, le verrou était déjà levé.
+   *
+   * Mesuré deux fois : « Paris, 58 actifs » avant un rechargement, « 819
+   * actifs » après. La persistance est maintenant déclenchée par l'action de
+   * l'utilisateur, donc elle ne peut pas se produire quand il n'a rien fait. */
+  const choisir = useCallback((s: Selection) => {
+    setSel(s);
+    try { localStorage.setItem(CLE_SELECTION, JSON.stringify(s)); }
+    catch { /* mode privé : la sélection vaut pour cette visite */ }
+  }, []);
+
+  /* Combien d'actifs la sélection représente, calculé sur les effectifs que
+     le serveur a donnés. Sans ce compte on coche à l'aveugle. */
+  const compte = useMemo(() => {
+    if (!universe) return null;
+    if (sel.places.length === 0 && sel.classes.length === 0) return universe.total;
+    let n = 0;
+    for (const pl of universe.places) {
+      if (sel.places.length && !sel.places.includes(pl.key)) continue;
+      for (const [cls, k] of Object.entries(pl.classes)) {
+        if (sel.classes.length && !sel.classes.includes(cls)) continue;
+        n += k;
+      }
     }
-  };
+    return n;
+  }, [universe, sel]);
 
-  const handleSort = (key: SortKey) => {
-    if (sortKey === key) setSortAsc((v) => !v);
-    else { setSortKey(key); setSortAsc(false); }
-  };
+  useEffect(() => {
+    if (!busy) return;
+    const id = setInterval(() => setElapsed((Date.now() - t0.current) / 1000), 250);
+    return () => clearInterval(id);
+  }, [busy]);
 
-  const SortIcon = ({ k }: { k: SortKey }) =>
-    sortKey === k ? (sortAsc ? <ChevronUp className="w-3 h-3 inline ml-0.5" /> : <ChevronDown className="w-3 h-3 inline ml-0.5" />) : null;
+  const lancer = useCallback(async () => {
+    abort.current?.abort();
+    const ctrl = new AbortController();
+    abort.current = ctrl;
 
-  const filtered = results
-    .filter((r) => !searchQuery ||
-      r.symbol.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (r.name && r.name.toLowerCase().includes(searchQuery.toLowerCase()))
-    )
-    .sort((a, b) => {
-      const va = a[sortKey] as number;
-      const vb = b[sortKey] as number;
-      return sortAsc ? va - vb : vb - va;
-    });
+    setBusy(true);
+    setFini(false);
+    setErreur("");
+    setResults([]);
+    setSweep({ symbols: [], done: new Map() });
+    setPhase("Préparation du balayage");
+    t0.current = Date.now();
+    setElapsed(0);
 
-  const getScoreConfig = (score: number) => {
-    if (score >= 80) return { bg: "bg-emerald-500/15", border: "border-emerald-500/40", text: "text-emerald-400", glow: "shadow-emerald-500/20" };
-    if (score >= 65) return { bg: "bg-green-500/15",   border: "border-green-500/40",   text: "text-green-400",   glow: "shadow-green-500/20" };
-    if (score >= 50) return { bg: "bg-amber-500/15",   border: "border-amber-500/40",   text: "text-amber-400",   glow: "shadow-amber-500/20" };
-    return                 { bg: "bg-rose-500/15",     border: "border-rose-500/40",     text: "text-rose-400",    glow: "shadow-rose-500/20" };
-  };
+    try {
+      await analysisAPI.scanStream(
+        {
+          places: sel.places,
+          classes: sel.classes,
+          minScore,
+          limit: 40,
+          timeframe: style.defaultTimeframe,
+        },
+        (e: ScanEvent) => {
+          if (e.type === "start") {
+            setSweep({ symbols: e.symbols, done: new Map() });
+          } else if (e.type === "phase") {
+            setPhase(e.label);
+          } else if (e.type === "result") {
+            // Une Map neuve à chaque événement : muter celle de l'état ne
+            // déclencherait aucun rendu, et le balayage resterait figé.
+            setSweep((s) => {
+              const d = new Map(s.done);
+              d.set(e.item.symbol, true);
+              return { ...s, done: d };
+            });
+            setResults((r) => [...r, e.item]);
+          } else if (e.type === "seen") {
+            setSweep((s) => {
+              const d = new Map(s.done);
+              d.set(e.symbol, false);
+              return { ...s, done: d };
+            });
+          } else if (e.type === "done") {
+            // La liste finale du serveur fait foi : elle est triée et
+            // tronquée à la limite demandée, ce que l'accumulation au fil de
+            // l'eau ne peut pas être.
+            setResults(e.results);
+            if (e.quota) setQuota(e.quota);
+            setPhase("Balayage terminé");
+            setFini(true);
+          }
+        },
+        ctrl.signal
+      );
+    } catch (err) {
+      if ((err as Error)?.name !== "AbortError") {
+        setErreur(err instanceof Error ? err.message : "Le scan a échoué.");
+      }
+    } finally {
+      setBusy(false);
+    }
+  }, [sel, minScore, style.defaultTimeframe]);
 
-  const topResults = filtered.slice(0, 3);
-  const quotaOk = !quota || quota.is_premium || quota.remaining > 0;
-  // "ALL" is not in the markets list, so it has no name to look up.
-  const selectedMarketLabel =
-    selectedMarket === "ALL"
-      ? (lang === "en" ? "all assets" : "tous les actifs")
-      : markets.find((m) => m.key === selectedMarket)?.name ?? selectedMarket;
+  useEffect(() => () => abort.current?.abort(), []);
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-[50vh]">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="text-center space-y-4"
-        >
-          <div className="relative w-16 h-16 mx-auto">
-            <div className="absolute inset-0 rounded-full border-2 border-primary/20" />
-            <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-primary animate-spin" />
-            <div className="absolute inset-2 rounded-full bg-primary/10 flex items-center justify-center">
-              <ScanLine className="w-6 h-6 text-primary" />
-            </div>
-          </div>
-          <p className="text-muted-foreground text-sm">{t("loading")}</p>
-        </motion.div>
-      </div>
-    );
-  }
+  const parFamille = useMemo(() => {
+    const m: Record<Famille, ScanResultItem[]> = { cassure: [], rebond: [], tendance: [] };
+    for (const r of results) m[(r.family ?? "tendance") as Famille]?.push(r);
+    for (const k of Object.keys(m) as Famille[]) m[k].sort((a, b) => b.score - a.score);
+    return m;
+  }, [results]);
+
+  /* Le niveau déclaré décide de la profondeur, comme partout ailleurs. Un
+     débutant qui reçoit quarante opportunités n'en lit aucune. */
+  const parFamilleMax = expert ? 12 : level.level === "intermediate" ? 6 : 3;
+  const traites = sweep.done.size;
 
   return (
-    <motion.div
-      variants={containerVariants}
-      initial="hidden"
-      animate="show"
-      className="space-y-5 max-w-5xl mx-auto"
-      data-module-id="scanner-panel"
-    >
+    <>
+      <WeatherBackdrop condition="fair" enabled={animOn} />
 
-      {/* ── Header ────────────────────────────────────────────────────────── */}
-      <motion.div variants={itemVariants} className="relative overflow-hidden rounded-2xl border border-white/8 bg-gradient-to-br from-primary/10 via-transparent to-transparent p-6">
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent pointer-events-none" />
-        <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl pointer-events-none -translate-y-1/2 translate-x-1/2" />
-
-        <div className="relative flex items-start justify-between gap-4 flex-wrap">
-          <div className="space-y-1">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-primary/20 border border-primary/30 flex items-center justify-center">
-                <ScanLine className="w-5 h-5 text-primary" />
-              </div>
-              <div>
-                <h1 className="text-xl sm:text-2xl font-bold tracking-tight">{t("scanner_title")}</h1>
-                <p className="text-muted-foreground text-sm">
-                  {t("scanner_subtitle")}
-                  {totalScanned > 0 && (
-                    <>
-                      <span className="ml-2 text-primary font-semibold">{totalScanned} {t("scanner_scanned")}</span>
-                      <span className="ml-2 font-mono text-[11px] text-muted-foreground/70">
-                        {style.emoji} {style.label[lang]} · {style.defaultTimeframe}
-                      </span>
-                      {scanRanAt && (
-                        <span className="ml-2 font-mono text-[11px] text-muted-foreground/60">
-                          {lang === "en" ? "run at " : "lancé à "}
-                          {new Date(scanRanAt).toLocaleTimeString(lang === "en" ? "en-GB" : "fr-FR",
-                            { hour: "2-digit", minute: "2-digit" })}
-                        </span>
-                      )}
-                      {totalAnalyzed > 0 && totalAnalyzed < totalScanned && (
-                        <span className="ml-2 font-mono text-[11px] text-warning" title={lang === "en" ? "Some tickers returned no data" : "Certains symboles n'ont retourné aucune donnée"}>
-                          {totalScanned - totalAnalyzed} {lang === "en" ? "unavailable" : "indisponibles"}
-                        </span>
-                      )}
-                    </>
-                  )}
-                </p>
-              </div>
-            </div>
+      <div className="relative space-y-8">
+        <header className="flex flex-wrap items-end justify-between gap-5 pt-2">
+          <div>
+            <Heading level={1}>Scanner</Heading>
+            <Text className="mt-2.5 max-w-[38rem]">
+              Choisissez ce que vous voulez balayer, et l&apos;outil vous dit où
+              quelque chose se prépare — avec le niveau qui le confirme et celui
+              qui l&apos;annule.
+            </Text>
           </div>
-
-          <div className="flex items-center gap-2">
-            <HelpGuide
-              title={lang === "en" ? "Market Scanner" : "Scanner de marché"}
-              intro={lang === "en" ? "Automatically detects market opportunities by scanning hundreds of assets in seconds." : "Détecte automatiquement les opportunités sur les marchés en scannant des centaines d'actifs en quelques secondes."}
-              sections={lang === "en" ? [
-                { title: "Run a scan", desc: "Press 'Scan' to analyze the selected market. The AI detects the most relevant technical setups." },
-                { title: "Results", desc: "Each result shows the signal (Buy/Sell), movement strength and volume. Click to see the full analysis." },
-                { title: "Filters", desc: "Filter by signal type, market, or minimum confidence threshold to refine results." },
-                { title: "Quota", desc: "The number of scans available per hour is limited based on your plan (Free/Premium)." },
-                { title: "Trending assets", desc: "The 'Trending' section shows assets with the strongest momentum, regardless of filters." },
-              ] : [
-                { title: "Lancer un scan", desc: "Appuie sur 'Scanner' pour analyser le marché sélectionné. L'IA détecte les configurations techniques les plus pertinentes." },
-                { title: "Résultats", desc: "Chaque résultat affiche le signal (Achat/Vente), la force du mouvement et le volume. Clique pour voir l'analyse complète." },
-                { title: "Filtres", desc: "Filtre par type de signal, marché, ou seuil de confiance minimum pour affiner les résultats." },
-                { title: "Quota", desc: "Le nombre de scans disponibles par heure est limité selon ton plan (Free/Premium)." },
-                { title: "Actifs en tendance", desc: "La section 'Trending' affiche les actifs avec le plus fort momentum du moment, indépendamment des filtres." },
-              ]}
-              tip={lang === "en" ? "Run the scanner outside market hours to spot pre-market assets with potential." : "Lance le scanner en dehors des heures de marché pour voir les actifs en pre-market avec du potentiel."}
-            />
-            <div className="relative">
-              <motion.button
-                whileHover={{ scale: 1.03 }}
-                whileTap={{ scale: 0.97 }}
-                onClick={runScan}
-                disabled={isScanning || !quotaOk}
-                className={cn(
-                  "px-4 py-2 rounded-xl border flex items-center gap-2 disabled:opacity-50 text-sm font-medium transition-all min-h-[44px]",
-                  quota && !quota.is_premium && quota.remaining === 1
-                    ? "bg-amber-500/10 border-amber-500/30 text-amber-300 hover:bg-amber-500/15"
-                    : "bg-white/5 hover:bg-white/10 border-white/10"
-                )}
-              >
-                {isScanning ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
-                {isScanning ? `${elapsed}s` : t("scanner_btn")}
-              </motion.button>
-              {/* Remaining badge */}
-              {quota && !quota.is_premium && quota.remaining > 0 && (
-                <span className={cn(
-                  "absolute -top-1.5 -right-1.5 text-[10px] font-bold px-1.5 py-0.5 rounded-full border leading-none",
-                  quota.remaining === 1
-                    ? "bg-amber-500 text-black border-amber-400"
-                    : "bg-primary text-black border-primary/50"
-                )}>
-                  {quota.remaining}
-                </span>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Intention du jour — l'IA transforme la demande en scan ciblé */}
-        <DailyIntentWidget lang={lang} />
-
-        {/* Stats row */}
-        {results.length > 0 && (
-          <div className="relative mt-5 pt-4 border-t border-white/8 flex items-center gap-6 flex-wrap text-sm">
-            <div className="flex items-center gap-2">
-              <Target className="w-4 h-4 text-primary" />
-              <span className="text-muted-foreground">{lang === "en" ? "Opportunities" : "Opportunités"}</span>
-              <span className="font-bold text-primary">{filtered.length}</span>
-            </div>
-            {results.filter(r => r.trend === "HAUSSIER").length > 0 && (
-              <div className="flex items-center gap-2">
-                <TrendingUp className="w-4 h-4 text-emerald-400" />
-                <span className="text-muted-foreground">{lang === "en" ? "Bullish" : "Haussier"}</span>
-                <span className="font-bold text-emerald-400">{results.filter(r => r.trend === "HAUSSIER").length}</span>
-              </div>
-            )}
-            {results.filter(r => r.trend === "BAISSIER").length > 0 && (
-              <div className="flex items-center gap-2">
-                <TrendingDown className="w-4 h-4 text-rose-400" />
-                <span className="text-muted-foreground">{lang === "en" ? "Bearish" : "Baissier"}</span>
-                <span className="font-bold text-rose-400">{results.filter(r => r.trend === "BAISSIER").length}</span>
-              </div>
-            )}
-            {results.filter(r => r.near_breakout).length > 0 && (
-              <div className="flex items-center gap-2">
-                <Zap className="w-4 h-4 text-amber-400" />
-                <span className="text-muted-foreground">Breakout</span>
-                <span className="font-bold text-amber-400">{results.filter(r => r.near_breakout).length}</span>
-              </div>
-            )}
-          </div>
-        )}
-      </motion.div>
-
-      {/* ── Quota banner (free users, scans remaining) ───────────────────── */}
-      {quota && !quota.is_premium && quota.remaining > 0 && (
-        <motion.div
-          variants={itemVariants}
-          className={cn(
-            "rounded-xl border p-3.5 flex items-center justify-between gap-3 flex-wrap",
-            quota.remaining === 1
-              ? "border-amber-500/40 bg-amber-500/5"
-              : "border-white/8 bg-white/[0.02]"
+          {quota && !quota.is_premium && quota.daily_limit > 0 && (
+            <Text size="caption">
+              {quota.remaining} scan{quota.remaining > 1 ? "s" : ""} restant
+              {quota.remaining > 1 ? "s" : ""} aujourd&apos;hui
+            </Text>
           )}
+        </header>
+
+        <Panel
+          title="Ce que vous balayez"
+          hint={`Horizon ${style.label.fr} — l'analyse se fera en ${style.defaultTimeframe}, comme le scan.`}
         >
-          <div className="flex items-center gap-3">
-            <div className={cn(
-              "w-8 h-8 rounded-lg flex items-center justify-center shrink-0",
-              quota.remaining === 1 ? "bg-amber-500/15 border border-amber-500/30" : "bg-primary/10 border border-primary/20"
-            )}>
-              {quota.remaining === 1
-                ? <Zap className="w-4 h-4 text-amber-400" />
-                : <ScanLine className="w-4 h-4 text-primary" />}
-            </div>
+          <UniversePicker
+            universe={universe}
+            value={sel}
+            onChange={choisir}
+            count={compte}
+          />
+
+          <div className="mt-6 flex flex-wrap items-end justify-between gap-4 border-t pt-5"
+               style={{ borderColor: "var(--cap-line)" }}>
             <div>
-              <p className={cn("text-sm font-semibold", quota.remaining === 1 ? "text-amber-300" : "")}>
-                {quota.remaining === 1
-                  ? (lang === "en" ? "⚡ Last scan of the day!" : "⚡ Dernier scan disponible aujourd'hui !")
-                  : `${quota.remaining} ${t("scanner_remaining")}`}
-              </p>
-              <p className="text-xs text-muted-foreground">
-                {quota.scans_today} / {quota.daily_limit} {t("scanner_quota_info")}
-              </p>
+              <Text size="caption" className="mb-2">Exigence</Text>
+              <SegmentedControl
+                size="sm"
+                options={[
+                  { value: "50", label: "Large" },
+                  { value: "60", label: "Normale" },
+                  { value: "70", label: "Stricte" },
+                ]}
+                value={String(minScore)}
+                onChange={(v) => setMinScore(Number(v))}
+                aria-label="Exigence du scan"
+              />
+            </div>
+
+            <div className="flex items-center gap-2.5">
+              {busy && (
+                <Button variant="quiet" size="md" onClick={() => abort.current?.abort()}>
+                  Arrêter
+                </Button>
+              )}
+              <Button
+                size="md"
+                onClick={lancer}
+                disabled={busy || compte === 0 || (quota?.remaining === 0)}
+              >
+                {busy ? (
+                  <>
+                    <Radar className="h-4 w-4 animate-spin" />
+                    Balayage…
+                  </>
+                ) : fini ? (
+                  <>
+                    <RotateCcw className="h-4 w-4" />
+                    Relancer
+                  </>
+                ) : (
+                  <>
+                    <Radar className="h-4 w-4" />
+                    Lancer le scan
+                  </>
+                )}
+              </Button>
             </div>
           </div>
-          <div className="flex items-center gap-3">
-            {/* Animated dots */}
-            <div className="flex gap-1.5 items-center">
-              {Array.from({ length: quota.daily_limit }).map((_, i) => (
-                <div
-                  key={i}
-                  className={cn(
-                    "rounded-full transition-all duration-500",
-                    i < quota.scans_today
-                      ? quota.remaining === 1 ? "w-2 h-2 bg-amber-500/40" : "w-2 h-2 bg-primary/30"
-                      : quota.remaining === 1 ? "w-2.5 h-2.5 bg-amber-400 shadow-[0_0_6px_rgba(245,158,11,0.5)]" : "w-2.5 h-2.5 bg-primary shadow-[0_0_6px_rgba(232,168,32,0.4)]"
-                  )}
-                />
-              ))}
+
+          {quota?.remaining === 0 && (
+            <div className="mt-4">
+              <Text size="small">
+                Vous avez utilisé vos scans du jour. Le compteur repart demain.
+              </Text>
             </div>
-            <button
-              onClick={() => router.push("/premium")}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-yellow-500/20 to-orange-500/20 border border-yellow-500/30 text-yellow-400 text-xs font-bold hover:from-yellow-500/30 hover:to-orange-500/30 transition-all whitespace-nowrap"
+          )}
+          {erreur && <div className="mt-4"><FormError>{erreur}</FormError></div>}
+        </Panel>
+
+        {/* Le balayage en cours. Il disparaît une fois terminé : garder une
+            grille figée sous les résultats n'apprendrait plus rien. */}
+        <AnimatePresence>
+          {(busy || (fini && traites > 0 && results.length === 0)) && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: DUR.base, ease: EASE }}
             >
-              <Crown className="w-3.5 h-3.5" />
-              {t("scanner_unlimited")}
-            </button>
-          </div>
-        </motion.div>
-      )}
+              <Panel>
+                <Sweep
+                  state={sweep}
+                  phase={phase}
+                  kept={results.length}
+                  elapsed={elapsed}
+                />
+              </Panel>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
-      {/* ── Quota exhausted — Premium upsell ─────────────────────────────── */}
-      {quota && !quota.is_premium && quota.remaining === 0 && (
-        <motion.div
-          variants={itemVariants}
-          className="relative overflow-hidden rounded-2xl border border-yellow-500/20 bg-gradient-to-br from-yellow-500/5 via-orange-500/5 to-transparent p-6 sm:p-8"
-        >
-          {/* Decorative glow */}
-          <div className="absolute top-0 right-0 w-56 h-56 bg-yellow-500/10 rounded-full blur-3xl pointer-events-none -translate-y-1/2 translate-x-1/4" />
-          <div className="absolute bottom-0 left-0 w-40 h-40 bg-orange-500/8 rounded-full blur-2xl pointer-events-none translate-y-1/2 -translate-x-1/4" />
-
-          <div className="relative flex flex-col sm:flex-row items-start sm:items-center gap-6">
-            {/* Left — icon + title */}
-            <div className="flex-1 space-y-4">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-yellow-500/30 to-orange-500/20 border border-yellow-500/30 flex items-center justify-center">
-                  <Crown className="w-6 h-6 text-yellow-400" />
-                </div>
-                <div>
-                  <p className="font-bold text-base text-yellow-300">{t("scanner_limit_free")}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {/* Rendered from the server's next_reset, in the reader's
-                        own timezone — "minuit" is ambiguous across zones. */}
-                    {quota.next_reset
-                      ? (lang === "en"
-                          ? `Next scan available ${new Date(quota.next_reset).toLocaleString("en-GB", { weekday: "long", hour: "2-digit", minute: "2-digit" })} · `
-                          : `Prochain scan disponible ${new Date(quota.next_reset).toLocaleString("fr-FR", { weekday: "long", hour: "2-digit", minute: "2-digit" })} · `)
-                      : (lang === "en" ? "Resets at midnight · " : "Renouvellement à minuit · ")}
-                    <span className="text-yellow-500/80 font-medium">
-                      {lang === "en" ? "Unlock unlimited scans" : "Débloquez les scans illimités"}
-                    </span>
-                  </p>
-                </div>
-              </div>
-
-              {/* Feature comparison */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2">
-                {(lang === "en" ? [
-                  { icon: "∞", label: "Unlimited daily scans" },
-                  { icon: "🌍", label: "All markets — crypto, forex, stocks" },
-                  { icon: "📊", label: "6 simultaneous indicators" },
-                  { icon: "⚡", label: "Breakout, reversal & momentum filters" },
-                ] : [
-                  { icon: "∞", label: "Scans illimités chaque jour" },
-                  { icon: "🌍", label: "Tous les marchés — crypto, forex, actions" },
-                  { icon: "📊", label: "6 indicateurs simultanés" },
-                  { icon: "⚡", label: "Filtres breakout, reversal & momentum" },
-                ]).map((feat) => (
-                  <div key={feat.label} className="flex items-center gap-2 text-sm">
-                    <span className="text-yellow-400 w-4 text-center font-bold shrink-0">{feat.icon}</span>
-                    <span className="text-foreground/80">{feat.label}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Right — CTA */}
-            <div className="flex flex-col items-stretch sm:items-end gap-2 w-full sm:w-auto shrink-0">
-              <motion.button
-                whileHover={{ scale: 1.03 }}
-                whileTap={{ scale: 0.97 }}
-                onClick={() => router.push("/premium")}
-                className="flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-yellow-400 to-orange-500 text-black font-bold text-sm hover:from-yellow-300 hover:to-orange-400 transition-all shadow-lg shadow-yellow-500/25 whitespace-nowrap"
+        {/* Les opportunités, rangées par famille. */}
+        {results.length > 0 &&
+          FAMILLES.map(({ key, titre, quoi }) => {
+            const lot = parFamille[key];
+            if (lot.length === 0) return null;
+            const montres = lot.slice(0, parFamilleMax);
+            return (
+              <Panel
+                key={key}
+                title={titre}
+                hint={quoi}
+                aside={
+                  <Text size="caption" as="span">
+                    {lot.length} actif{lot.length > 1 ? "s" : ""}
+                  </Text>
+                }
               >
-                <Crown className="w-4 h-4" />
-                {t("scanner_go_premium")}
-              </motion.button>
-              <p className="text-center text-xs text-muted-foreground/60">
-                {lang === "en" ? "Cancel anytime" : "Résiliable à tout moment"}
-              </p>
-            </div>
-          </div>
-
-          {/* Blurred ghost results — "preview" of what premium would show */}
-          <div className="relative mt-6 pt-4 border-t border-white/5">
-            <p className="text-xs text-muted-foreground/50 mb-3 flex items-center gap-1.5">
-              <Lock className="w-3 h-3" />
-              {lang === "en" ? "Example preview — upgrade to scan without limits" : "Aperçu illustratif — passez Premium pour scanner sans limite"}
-            </p>
-            <div className="space-y-2 select-none pointer-events-none" style={{ filter: "blur(4px)", opacity: 0.35 }}>
-              {[
-                { symbol: "BTC-USD", score: 87, change: 3.2, signal: "ACHAT" },
-                { symbol: "AAPL",    score: 78, change: 1.8, signal: "ACHAT" },
-                { symbol: "ETH-USD", score: 72, change: -0.9, signal: "NEUTRE" },
-              ].map((r) => (
-                <div key={r.symbol} className="flex items-center justify-between px-4 py-2.5 rounded-lg bg-white/[0.03] border border-white/8">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-primary/20 border border-primary/20" />
-                    <div>
-                      <p className="text-sm font-mono font-bold">{r.symbol}</p>
-                      <p className="text-xs text-muted-foreground">Score {r.score}</p>
-                    </div>
-                  </div>
-                  <span className={cn("text-sm font-bold", r.change >= 0 ? "text-profit" : "text-loss")}>
-                    {r.change >= 0 ? "+" : ""}{r.change}%
-                  </span>
-                  <span className="px-2.5 py-1 rounded-lg bg-profit/15 text-profit text-xs font-bold">{r.signal}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </motion.div>
-      )}
-
-      {/* ── Filters ───────────────────────────────────────────────────────── */}
-      {(
-        <motion.div variants={itemVariants} className="rounded-2xl border border-white/8 bg-white/[0.02] p-4 space-y-4">
-          {/* Market pills */}
-          <div className="flex items-center gap-3 flex-wrap">
-            <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium w-20 shrink-0">
-              <Globe className="w-3.5 h-3.5" />
-              {lang === "en" ? "Market" : "Marché"}
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {/* "All assets" first and default — the other pills narrow it */}
-              <button
-                onClick={() => setSelectedMarket("ALL")}
-                className={cn(
-                  "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all border",
-                  selectedMarket === "ALL"
-                    ? "bg-primary/20 border-primary/50 text-primary"
-                    : "bg-white/5 border-white/8 hover:bg-white/10 text-muted-foreground hover:text-foreground"
+                <ul className="[&>*+*]:border-t [&>*+*]:border-[color:var(--cap-line)]">
+                  {montres.map((item, i) => (
+                    <Opportunity key={item.symbol} item={item} index={i} detailed={expert} />
+                  ))}
+                </ul>
+                {lot.length > montres.length && (
+                  <Text size="caption" className="mt-4">
+                    {lot.length - montres.length} autre
+                    {lot.length - montres.length > 1 ? "s" : ""} dans cette famille —
+                    passez au niveau supérieur dans les réglages pour les voir.
+                  </Text>
                 )}
-              >
-                <Globe className="w-3.5 h-3.5" />
-                {lang === "en" ? "All assets" : "Tous les actifs"}
-                {allAssetCount && (
-                  <span className="font-mono text-[10px] opacity-60">{allAssetCount}</span>
-                )}
-              </button>
-              {markets.map((m) => {
-                const open = isMarketOpen(m.key);
-                const isSelected = selectedMarket === m.key;
-                return (
-                  <button
-                    key={m.key}
-                    onClick={() => setSelectedMarket(m.key)}
-                    className={cn(
-                      "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all border",
-                      isSelected
-                        ? "bg-primary/20 border-primary/50 text-primary"
-                        : "bg-white/5 border-white/8 hover:bg-white/10 text-muted-foreground hover:text-foreground"
-                    )}
-                  >
-                    {m.name}
-                    {m.asset_count > 0 && (
-                      <span className="font-mono text-[10px] opacity-60">{m.asset_count}</span>
-                    )}
-                    <span
-                      className={cn(
-                        "inline-block w-1.5 h-1.5 rounded-full",
-                        open ? "bg-emerald-400" : "bg-white/20"
-                      )}
-                      title={open ? (lang === "en" ? "Open now" : "Ouvert") : (lang === "en" ? "Closed" : "Fermé")}
-                    />
-                  </button>
-                );
-              })}
-            </div>
-            <p className="text-[10px] text-muted-foreground/50 mt-1 flex items-center gap-1">
-              <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400" />
-              {lang === "en" ? "= open now" : "= ouvert maintenant"}
-            </p>
-          </div>
+              </Panel>
+            );
+          })}
 
-          {/* Divider */}
-          <div className="border-t border-white/5" />
-
-          {/* Opportunity type */}
-          <div className="flex items-center gap-3 flex-wrap">
-            <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium w-20 shrink-0">
-              <Zap className="w-3.5 h-3.5" />
-              {lang === "en" ? "Signal" : "Signal"}
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {(Object.keys(OPP_LABELS) as OppFilter[]).map((k) => {
-                const cfg = k !== "all" ? OPP_COLORS[k] : null;
-                return (
-                  <button
-                    key={k}
-                    onClick={() => setOppFilter(k)}
-                    className={cn(
-                      "px-3 py-1 rounded-lg text-xs font-semibold border transition-all",
-                      oppFilter === k
-                        ? k === "all"
-                          ? "bg-primary/20 border-primary/50 text-primary"
-                          : `${cfg!.bg} ${cfg!.border} ${cfg!.text}`
-                        : "bg-white/5 border-white/8 hover:bg-white/10 text-muted-foreground"
-                    )}
-                  >
-                    {k !== "all" && oppFilter === k && cfg && (
-                      <span className={cn("inline-block w-1.5 h-1.5 rounded-full mr-1.5", cfg.dot)} />
-                    )}
-                    {OPP_LABELS[k]}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Divider */}
-          <div className="border-t border-white/5" />
-
-          {/* Score slider + search */}
-          <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
-            <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium shrink-0">
-              <Activity className="w-3.5 h-3.5" />
-              Score min
-            </div>
-            <div className="flex items-center gap-3 flex-1">
-              <input
-                type="range" min="0" max="100" value={minScore}
-                onChange={(e) => setMinScore(Number(e.target.value))}
-                className="flex-1 sm:w-32 accent-primary"
-              />
-              <span className={cn(
-                "text-sm font-bold w-8 tabular-nums",
-                minScore >= 80 ? "text-emerald-400" : minScore >= 60 ? "text-primary" : "text-amber-400"
-              )}>
-                {minScore}
-              </span>
-            </div>
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
-              <input
-                type="text"
-                placeholder={t("search") + "…"}
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="bg-white/5 border border-white/10 rounded-lg pl-8 pr-3 py-1.5 text-sm w-full sm:w-44 focus:outline-none focus:border-primary/40 focus:bg-white/8 transition-all placeholder:text-muted-foreground/60"
-              />
-            </div>
-          </div>
-        </motion.div>
-      )}
-
-      {/* ── Scanning animation ────────────────────────────────────────────── */}
-      <AnimatePresence>
-        {isScanning && (
-          <motion.div
-            initial={{ opacity: 0, y: -8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-            className="rounded-2xl border border-primary/20 bg-primary/5 p-6 text-center"
-          >
-            <div className="relative w-16 h-16 mx-auto mb-4">
-              <motion.div
-                animate={{ rotate: 360 }}
-                transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-                className="absolute inset-0 rounded-full border-2 border-primary/20 border-t-primary"
-              />
-              <motion.div
-                animate={{ rotate: -360 }}
-                transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
-                className="absolute inset-2 rounded-full border border-primary/10 border-b-primary/40"
-              />
-              <div className="absolute inset-0 flex items-center justify-center">
-                <ScanLine className="w-6 h-6 text-primary" />
-              </div>
-            </div>
-            <p className="font-semibold text-primary">
-              {lang === "en" ? "Scanning market…" : "Scan en cours…"}
-            </p>
-            <p className="text-xs text-muted-foreground mt-1">RSI · MACD · EMA · Volume · Momentum</p>
-          </motion.div>
+        {fini && results.length === 0 && (
+          <EmptyState
+            title="Rien ne ressort sur cet univers"
+            description={
+              minScore > 50
+                ? "Aucun actif n'atteint l'exigence demandée. Baissez-la, ou élargissez les places et les types d'actifs."
+                : "Aucun actif ne ressort, même à l'exigence la plus large. C'est une information : le marché sélectionné ne propose rien en ce moment."
+            }
+          />
         )}
-      </AnimatePresence>
 
-      {/* ── Top picks (only when 3+ results) ─────────────────────────────── */}
-      {!isScanning && topResults.length >= 3 && (
-        <motion.div variants={itemVariants}>
-          <div className="flex items-center gap-2 mb-3">
-            <Flame className="w-4 h-4 text-amber-400" />
-            <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-              {lang === "en" ? "Top picks" : "Meilleures opportunités"}
-            </h2>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            {topResults.map((r, i) => {
-              const cfg = getScoreConfig(r.score);
-              const oppCfg = OPP_COLORS[r.opp_type] ?? OPP_COLORS.momentum;
-              const trendCfg = TREND_CONFIG[r.trend] ?? TREND_CONFIG.NEUTRE;
-              return (
-                <motion.div
-                  key={r.symbol}
-                  initial={{ opacity: 0, y: 12 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: i * 0.08 }}
-                  onClick={() => router.push(`/analysis?symbol=${r.symbol}`)}
-                  className="relative overflow-hidden rounded-xl border border-white/8 bg-white/[0.03] hover:bg-white/[0.06] p-4 cursor-pointer transition-all group hover:border-white/15"
-                >
-                  {i === 0 && (
-                    <div className="absolute top-2 right-2">
-                      <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                    </div>
-                  )}
-                  <div className="flex items-center justify-between mb-3">
-                    <div className={cn("w-10 h-10 rounded-lg flex flex-col items-center justify-center font-bold border shadow-sm", cfg.bg, cfg.border, cfg.glow)}>
-                      <span className={cn("text-sm leading-tight", cfg.text)}>{r.score}</span>
-                    </div>
-                    <span className={cn("text-xs font-semibold", trendCfg.color)}>
-                      {trendCfg.icon} {r.trend}
-                    </span>
-                  </div>
-                  <p className="font-bold text-base truncate">{r.name || r.symbol}</p>
-                  <div className="flex items-center gap-1.5 mt-0.5">
-                    <span className="text-xs text-muted-foreground font-mono">{r.symbol}</span>
-                    <RegionBadge symbol={r.symbol} />
-                  </div>
-                  <div className="mt-2 flex items-center justify-between">
-                    <span className={cn("text-xs px-2 py-0.5 rounded-full border font-medium", oppCfg.bg, oppCfg.border, oppCfg.text)}>
-                      {r.opportunity}
-                    </span>
-                    <span className={cn("text-xs font-semibold", r.change >= 0 ? "text-emerald-400" : "text-rose-400")}>
-                      {/* formatPercent already carries the sign */}
-                      {formatPercent(r.change)}
-                    </span>
-                  </div>
-                </motion.div>
-              );
-            })}
-          </div>
-        </motion.div>
-      )}
-
-      {/* ── Results table ─────────────────────────────────────────────────── */}
-      {(quotaOk || results.length > 0) && (
-        <motion.div variants={itemVariants} className="rounded-2xl border border-white/8 bg-white/[0.02] overflow-hidden">
-          {/* Table header */}
-          <div className="px-5 py-4 border-b border-white/8 flex items-center justify-between gap-3 flex-wrap">
-            <h2 className="text-sm font-semibold flex items-center gap-2">
-              <Activity className="w-4 h-4 text-primary" />
-              {lang === "en" ? "All signals" : "Tous les signaux"}
-              <span className="px-2 py-0.5 rounded-full bg-white/8 text-xs text-muted-foreground font-normal">{filtered.length}</span>
-            </h2>
-            {results.length > 0 && (
-              <div className="flex items-center gap-1">
-                <span className="text-xs text-muted-foreground mr-1">{lang === "en" ? "Sort:" : "Trier:"}</span>
-                {([
-                  { k: "score" as SortKey, label: "Score" },
-                  { k: "change" as SortKey, label: lang === "en" ? "1d" : "1j" },
-                  { k: "change_1w" as SortKey, label: lang === "en" ? "1w" : "1s" },
-                  { k: "rsi" as SortKey, label: "RSI" },
-                  { k: "volume_ratio" as SortKey, label: "Vol" },
-                ]).map(({ k, label }) => (
-                  <button
-                    key={k}
-                    onClick={() => handleSort(k)}
-                    className={cn(
-                      "px-2.5 py-1 rounded-lg text-xs font-medium transition-all",
-                      sortKey === k ? "bg-primary/20 text-primary" : "hover:bg-white/8 text-muted-foreground"
-                    )}
-                  >
-                    {label}<SortIcon k={k} />
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Results list */}
-          <AnimatePresence mode="popLayout">
-            {filtered.length === 0 ? (
-              <div className="text-center py-16 text-muted-foreground px-4">
-                <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-white/5 border border-white/8 flex items-center justify-center">
-                  <ScanLine className="w-8 h-8 opacity-30" />
-                </div>
-                <p className="font-semibold text-base">
-                  {results.length === 0 ? t("scanner_empty") : t("scanner_no_results")}
-                </p>
-                {results.length === 0 && (
-                  <p className="text-sm mt-1.5 opacity-60 max-w-xs mx-auto">
-                    {t("scanner_multi_prefix")} {selectedMarketLabel}
-                    {totalScanned > 0 && ` (${totalScanned} ${t("asset")})`}
-                  </p>
-                )}
-                {results.length === 0 && (
-                  <button
-                    onClick={runScan}
-                    disabled={isScanning}
-                    className="mt-5 inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary/20 border border-primary/30 text-primary text-sm font-medium hover:bg-primary/30 transition-all disabled:opacity-50"
-                  >
-                    {isScanning ? <Loader2 className="w-4 h-4 animate-spin" /> : <ScanLine className="w-4 h-4" />}
-                    {isScanning
-                      ? (lang === "en" ? `Scanning… ${elapsed}s` : `Scan en cours… ${elapsed}s`)
-                      : (lang === "en" ? "Start scan" : "Lancer le scan")}
-                  </button>
-                )}
-                {/* How long this is going to take, before it is spent */}
-                {!isScanning && (
-                  <p className="mt-2 font-mono text-[11px] text-muted-foreground/60">
-                    {(() => {
-                      const n = selectedMarket === "ALL"
-                        ? allAssetCount
-                        : markets.find((m) => m.key === selectedMarket)?.asset_count;
-                      if (!n) return null;
-                      return lang === "en"
-                        ? `${n} assets · roughly ${n > 400 ? "1-2 min" : n > 120 ? "20-40 s" : "under 20 s"}`
-                        : `${n} actifs · environ ${n > 400 ? "1 à 2 min" : n > 120 ? "20 à 40 s" : "moins de 20 s"}`;
-                    })()}
-                  </p>
-                )}
-              </div>
-            ) : (
-              <div>
-                {filtered.map((r, i) => {
-                  const cfg = getScoreConfig(r.score);
-                  const oppCfg = OPP_COLORS[r.opp_type] ?? OPP_COLORS.momentum;
-                  const trendCfg = TREND_CONFIG[r.trend] ?? TREND_CONFIG.NEUTRE;
-                  return (
-                    <motion.div
-                      key={r.symbol}
-                      layout
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      exit={{ opacity: 0 }}
-                      transition={{ delay: i * 0.025 }}
-                      onClick={() => router.push(`/analysis?symbol=${r.symbol}`)}
-                      className="group px-5 py-3.5 flex items-center gap-4 hover:bg-white/[0.04] transition-all cursor-pointer border-b border-white/5 last:border-0"
-                    >
-                      {/* Score */}
-                      <div className={cn(
-                        "w-11 h-11 rounded-xl flex flex-col items-center justify-center font-bold border shrink-0 shadow-sm",
-                        cfg.bg, cfg.border
-                      )}>
-                        <span className={cn("text-sm leading-tight font-bold", cfg.text)}>{r.score}</span>
-                        <span className="text-[8px] leading-tight opacity-50">/100</span>
-                      </div>
-
-                      {/* Rank — only while the list is actually ranked. The
-                          table is re-sortable, and numbering rows sorted by
-                          RSI would present an ordering that isn't a ranking. */}
-                      {sortKey === "score" && !sortAsc && (
-                        <span className="w-5 shrink-0 text-center font-mono text-xs font-bold text-muted-foreground/50">
-                          {i + 1}
-                        </span>
-                      )}
-
-                      {/* Name + symbol + market + details */}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-bold text-sm truncate max-w-[200px]">{r.name || r.symbol}</span>
-                          <span className={cn("text-xs font-semibold", trendCfg.color)}>
-                            {trendCfg.icon}
-                          </span>
-                          <span className={cn("text-[10px] px-1.5 py-0.5 rounded-full border font-medium", oppCfg.bg, oppCfg.border, oppCfg.text)}>
-                            {r.opportunity}
-                          </span>
-                          {r.near_breakout && (
-                            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 border border-primary/20 text-primary font-medium">
-                              52w High
-                            </span>
-                          )}
-                        </div>
-                        {/* Symbol + market region */}
-                        <div className="flex items-center gap-1.5 mt-0.5 text-[11px] text-muted-foreground">
-                          <span className="font-mono">{r.symbol}</span>
-                          <RegionBadge symbol={r.symbol} />
-                        </div>
-                        <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
-                          <span className={cn("font-medium", r.rsi < 35 ? "text-emerald-400" : r.rsi > 68 ? "text-rose-400" : "")}>
-                            RSI {r.rsi}
-                          </span>
-                          <span className="opacity-40">·</span>
-                          <span className={r.macd_signal === "HAUSSIER" ? "text-emerald-400" : "text-rose-400"}>
-                            MACD {r.macd_signal === "HAUSSIER" ? "↑" : "↓"}
-                          </span>
-                          <span className="opacity-40">·</span>
-                          <span className={cn("flex items-center gap-0.5", r.volume_ratio >= 1.8 ? "text-amber-400 font-semibold" : "")}>
-                            <Volume2 className="w-3 h-3" />
-                            {r.volume_ratio.toFixed(1)}x
-                          </span>
-                        </div>
-                        {/* Why this one ranks here — built server-side from the
-                            terms that actually moved its score. */}
-                        {/* Leading or lagging its own market — invisible on
-                            the asset's own candles. */}
-                        {r.relative_strength != null && (
-                          <p className="mt-1 font-mono text-[10px] text-muted-foreground/70">
-                            {r.market_regime === "BULL" ? "▲" : r.market_regime === "BEAR" ? "▼" : "▬"}{" "}
-                            {lang === "en" ? "market" : "marché"}{" "}
-                            <span className={cn(r.relative_strength >= 0 ? "text-profit" : "text-loss")}>
-                              {r.relative_strength >= 0 ? "+" : ""}{r.relative_strength.toFixed(1)} pts
-                            </span>
-                          </p>
-                        )}
-                        {r.reason && (
-                          <p className="mt-1 text-[11px] leading-snug text-muted-foreground/70">
-                            {r.reason}
-                          </p>
-                        )}
-                      </div>
-
-                      {/* Price & change */}
-                      <div className="text-right shrink-0">
-                        <p className="font-bold text-sm tabular-nums">{formatPrice(r.price, r.symbol)}</p>
-                        <div className="flex items-center justify-end gap-1.5 mt-0.5">
-                          <span className={cn("flex items-center gap-0.5 text-xs font-semibold", r.change >= 0 ? "text-emerald-400" : "text-rose-400")}>
-                            {r.change >= 0 ? <ArrowUpRight className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
-                            {formatPercent(r.change)}
-                          </span>
-                          <span className="text-muted-foreground/40 text-[10px]">|</span>
-                          <span className={cn("text-[10px] font-medium", r.change_1w >= 0 ? "text-emerald-400/70" : "text-rose-400/70")}>
-                            {r.change_1w >= 0 ? "+" : ""}{r.change_1w.toFixed(1)}%
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Actions */}
-                      <div className="flex gap-1.5 opacity-60 sm:opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-                        <motion.button
-                          whileHover={{ scale: 1.05 }}
-                          whileTap={{ scale: 0.95 }}
-                          className="p-1.5 rounded-lg bg-white/8 hover:bg-white/15 transition-all"
-                          onClick={(e) => { e.stopPropagation(); router.push(`/analysis?symbol=${r.symbol}`); }}
-                          title={t("scanner_analyze")}
-                        >
-                          <BarChart2 className="w-3.5 h-3.5" />
-                        </motion.button>
-                        <motion.button
-                          whileHover={{ scale: 1.05 }}
-                          whileTap={{ scale: 0.95 }}
-                          className="p-1.5 rounded-lg bg-primary/20 hover:bg-primary/30 text-primary transition-all"
-                          onClick={(e) => { e.stopPropagation(); router.push(`/trading?symbol=${r.symbol}`); }}
-                          title={t("trader")}
-                        >
-                          <ChevronRight className="w-3.5 h-3.5" />
-                        </motion.button>
-                      </div>
-                    </motion.div>
-                  );
-                })}
-              </div>
-            )}
-          </AnimatePresence>
-        </motion.div>
-      )}
-
-      {/* AMF Disclaimer */}
-      <p className="text-xs text-muted-foreground/50 text-center py-2 border-t border-white/5 mt-4">
-        ⚠️ {lang === "en"
-          ? "Scanner results are for educational purposes only and do not constitute investment advice. All investments carry a risk of capital loss."
-          : "Les résultats du scanner ont un but exclusivement éducatif et ne constituent pas des conseils en investissement au sens de la réglementation AMF. Tout investissement comporte des risques de perte en capital."}
-      </p>
-    </motion.div>
+        {!busy && !fini && results.length === 0 && (
+          <EmptyState
+            title="Rien n'est encore balayé"
+            description={
+              compte
+                ? `Lancez le scan pour passer ${fr(compte, 0)} actifs en revue. Comptez quelques secondes par dizaine d'actifs.`
+                : "Choisissez au moins une place ou un type d'actif."
+            }
+          />
+        )}
+      </div>
+    </>
   );
 }

@@ -115,6 +115,7 @@ export const MIGRATED_ROUTES = [
   "/community",
   "/analysis",
   "/markets",
+  "/scanner",
   "/learn",
   "/settings",
 ];

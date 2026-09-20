@@ -129,7 +129,13 @@ async function proxy(request: NextRequest): Promise<NextResponse> {
   // browser shows an endless spinner. A market scan legitimately takes tens of
   // seconds (one network fetch per asset); everything else must answer fast or
   // be reported as unavailable.
-  const timeoutMs = pathname.startsWith("/api/analysis/scan/") ? 120_000 : 25_000;
+  // Un scan diffusé au fil de l'eau peut durer plusieurs minutes sur
+  // l'univers complet ; l'utilisateur garde la main pour l'interrompre. Les
+  // autres appels doivent répondre vite ou être signalés indisponibles.
+  const streaming = pathname.startsWith("/api/analysis/scan/")
+    && request.nextUrl.searchParams.get("stream") === "true";
+  const timeoutMs = streaming ? 600_000
+    : pathname.startsWith("/api/analysis/scan/") ? 120_000 : 25_000;
 
   try {
     const res = await fetch(targetUrl, {
@@ -139,12 +145,25 @@ async function proxy(request: NextRequest): Promise<NextResponse> {
       signal: AbortSignal.timeout(timeoutMs),
     });
 
-    const resBody = await res.arrayBuffer();
+    // LE CORPS EST RELAYÉ TEL QUEL POUR UN FLUX.
+    //
+    // Ce proxy faisait `await res.arrayBuffer()` : il lisait la réponse
+    // ENTIÈRE avant de la rendre. Pour du JSON classique c'est sans
+    // conséquence, mais cela annulait complètement le scan diffusé — mesuré
+    // au navigateur, la progression restait à « 0 / 0 » pendant toute la
+    // durée du balayage, puis tous les résultats apparaissaient d'un coup.
+    // Le serveur diffusait bien ; c'est ici que le flux mourait.
+    const resBody: ArrayBuffer | ReadableStream<Uint8Array> | null =
+      streaming ? res.body : await res.arrayBuffer();
     const resHeaders = new Headers();
     const ct = res.headers.get("content-type");
     if (ct) resHeaders.set("content-type", ct);
     const cc = res.headers.get("cache-control");
     if (cc) resHeaders.set("cache-control", cc);
+    // Demande explicite de ne pas mettre en tampon, pour les intermédiaires
+    // qui la respectent.
+    const xab = res.headers.get("x-accel-buffering");
+    if (xab) resHeaders.set("x-accel-buffering", xab);
     // Without this the session cookie set by /api/auth/login never reaches the
     // browser, and the server-side maintenance gate can never recognise an admin.
     for (const sc of res.headers.getSetCookie?.() ?? []) {
