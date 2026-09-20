@@ -21,7 +21,8 @@ from slowapi.util import get_remote_address
 
 from ..database import execute_query, execute_write
 from .auth import get_current_user
-from .ai_assistant import get_groq_api_key, _call_mistral, GROQ_API_URL, MODEL
+from .ai_assistant import get_groq_api_key, _call_mistral
+from ._llm import forget_groq_model, groq_post, is_model_error
 from ._scoring import (compute_score, derive_signal, TIMEFRAME_FETCH,
                        resample_ohlcv, htf_from_primary, htf_trend, apply_htf_gate)
 from ._market_context import benchmark_for, compute_market_context, apply_context_gate
@@ -208,15 +209,15 @@ async def _generate_response(messages: list) -> str:
     if not api_key:
         raise HTTPException(status_code=503, detail="AI non configurée (GROQ_API_KEY)")
     async with httpx.AsyncClient(timeout=45.0) as client:
-        resp = await client.post(
-            GROQ_API_URL,
-            headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
-            json={"model": MODEL, "messages": messages, "temperature": 0.6, "max_tokens": 300},
-        )
-        if resp.status_code == 429:
+        resp = await groq_post(client, api_key, {"messages": messages, "temperature": 0.6, "max_tokens": 300})
+        if resp.status_code == 429 or is_model_error(resp.status_code, resp.text):
+            # Débit dépassé ou modèle retiré : dans les deux cas, l'autre
+            # fournisseur sait répondre.
+            forget_groq_model()
             return await _call_mistral(messages, client)
         if resp.status_code != 200:
-            raise HTTPException(status_code=502, detail=f"Erreur IA ({resp.status_code})")
+            print(f"[daily_intent] Groq {resp.status_code}: {resp.text[:300]}")
+            raise HTTPException(status_code=502, detail="L'assistant est momentanément indisponible. Réessayez dans un instant.")
         return resp.json()["choices"][0]["message"]["content"]
 
 

@@ -31,8 +31,8 @@ async def _require_admin(user: dict = Depends(get_current_user)):
 class SaveBriefingRequest(BaseModel):
     briefing: dict
 
-GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
-MODEL = "llama-3.3-70b-versatile"
+# Modèle résolu à l'exécution — voir _llm.py.
+from ._llm import groq_post  # noqa: E402
 
 
 def _get_groq_key() -> str:
@@ -256,16 +256,11 @@ async def _call_groq(prompt: str) -> dict:
         raise ValueError("no_key")
 
     async with httpx.AsyncClient(timeout=90.0) as client:
-        resp = await client.post(
-            GROQ_API_URL,
-            headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
-            json={
-                "model": MODEL,
+        resp = await groq_post(client, api_key, {
                 "messages": [{"role": "user", "content": prompt}],
                 "temperature": 0.6,
                 "max_tokens": 8000,
-            },
-        )
+            })
 
     if resp.status_code == 429:
         raise ValueError("rate_limit:0")

@@ -20,9 +20,8 @@ from .premium import is_user_premium, get_user_limits, check_premium_required
 
 router = APIRouter()
 
-# Groq API Configuration
-GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
-MODEL = "llama-3.3-70b-versatile"
+# Modèle résolu à l'exécution — voir _llm.py.
+from ._llm import groq_post  # noqa: E402
 
 def get_groq_api_key():
     return os.getenv("GROQ_API_KEY", "")
@@ -312,22 +311,14 @@ async def get_market_trends(current_user: dict = Depends(get_current_user)):
 
         try:
             async with httpx.AsyncClient(timeout=30.0) as client:
-                response = await client.post(
-                    GROQ_API_URL,
-                    headers={
-                        "Authorization": f"Bearer {api_key}",
-                        "Content-Type": "application/json"
-                    },
-                    json={
-                        "model": MODEL,
+                response = await groq_post(client, api_key, {
                         "messages": [
                             {"role": "system", "content": "Tu es un analyste de marche. Analyse les tendances et donne des insights actionables. Reponds en francais, sois concis."},
                             {"role": "user", "content": f"Analyse ces tendances de marche:\n\nIndices:\n{trend_summary}\n\nSecteurs (perf. 1 sem):\n{sector_summary}\n\nDonne une analyse en 3-4 points avec recommandations."}
                         ],
                         "temperature": 0.4,
                         "max_tokens": 500
-                    }
-                )
+                    })
 
                 if response.status_code == 200:
                     data = response.json()
@@ -526,22 +517,14 @@ Sois precis, factuel et donne des recommandations actionables."""
 
     try:
         async with httpx.AsyncClient(timeout=60.0) as client:
-            response = await client.post(
-                GROQ_API_URL,
-                headers={
-                    "Authorization": f"Bearer {api_key}",
-                    "Content-Type": "application/json"
-                },
-                json={
-                    "model": MODEL,
+            response = await groq_post(client, api_key, {
                     "messages": [
                         {"role": "system", "content": "Tu es un expert en geopolitique et finance internationale avec 20 ans d'experience. Tu analyses les risques geopolitiques et leur impact sur les marches financiers."},
                         {"role": "user", "content": prompt}
                     ],
                     "temperature": 0.4,
                     "max_tokens": 2000
-                }
-            )
+                })
 
             if response.status_code != 200:
                 error_detail = "AI API error"
@@ -3062,22 +3045,14 @@ Sois factuel et concis."""
 
     try:
         async with httpx.AsyncClient(timeout=30.0) as client:
-            response = await client.post(
-                GROQ_API_URL,
-                headers={
-                    "Authorization": f"Bearer {api_key}",
-                    "Content-Type": "application/json"
-                },
-                json={
-                    "model": MODEL,
+            response = await groq_post(client, api_key, {
                     "messages": [
                         {"role": "system", "content": "Tu es un analyste financier qui resume les evenements economiques de facon claire et concise."},
                         {"role": "user", "content": prompt}
                     ],
                     "temperature": 0.4,
                     "max_tokens": 500
-                }
-            )
+                })
 
             if response.status_code != 200:
                 raise HTTPException(status_code=500, detail="AI API error")

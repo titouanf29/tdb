@@ -20,9 +20,12 @@ from .premium import is_user_premium, get_user_limits
 router = APIRouter()
 limiter = Limiter(key_func=get_remote_address)
 
-# Groq API Configuration
-GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
-MODEL = "llama-3.3-70b-versatile"
+# Le modèle n'est plus une constante : Groq retire régulièrement des
+# modèles, et un nom écrit en dur ici arrêtait d'un coup les cinq
+# fonctionnalités qui parlent à l'IA. Voir _llm.py.
+from ._llm import (  # noqa: E402
+    forget_groq_model, groq_post, is_model_error,
+)
 
 # Mistral fallback
 MISTRAL_API_URL = "https://api.mistral.ai/v1/chat/completions"
@@ -35,17 +38,25 @@ def get_groq_api_key():
 def get_mistral_api_key():
     return os.getenv("MISTRAL_API_KEY", "")
 
+# Le repli n'est plus appelé que pour une limite de débit : un modèle retiré
+# chez Groq y passe aussi. « Limite IA atteinte » annonçait alors une cause
+# fausse, et une attente qui ne se termine jamais. Le message dit donc ce
+# qu'on sait vraiment — l'assistant ne répond pas là, tout de suite.
+_IA_INDISPO = "L'assistant est momentanément indisponible. Réessayez dans un instant."
+
+
 async def _call_mistral(messages: list, client: httpx.AsyncClient) -> str:
     key = get_mistral_api_key()
     if not key:
-        raise HTTPException(status_code=429, detail="Limite IA atteinte. Reessayez dans quelques secondes.")
+        raise HTTPException(status_code=429, detail=_IA_INDISPO)
     resp = await client.post(
         MISTRAL_API_URL,
         headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
         json={"model": MISTRAL_MODEL, "messages": messages, "temperature": 0.7, "max_tokens": 1024}
     )
     if resp.status_code != 200:
-        raise HTTPException(status_code=429, detail="Limite IA atteinte. Reessayez dans quelques secondes.")
+        print(f"[AI] Mistral {resp.status_code}: {resp.text[:200]}")
+        raise HTTPException(status_code=429, detail=_IA_INDISPO)
     return resp.json()["choices"][0]["message"]["content"]
 
 # System prompt for trading assistant
@@ -357,19 +368,11 @@ async def chat_with_assistant(
         messages.append({"role": "user", "content": body.message})
 
         async with httpx.AsyncClient(timeout=60.0) as client:
-            response = await client.post(
-                GROQ_API_URL,
-                headers={
-                    "Authorization": f"Bearer {api_key}",
-                    "Content-Type": "application/json"
-                },
-                json={
-                    "model": MODEL,
+            response = await groq_post(client, api_key, {
                     "messages": messages,
                     "temperature": 0.7,
                     "max_tokens": 1024
-                }
-            )
+                })
 
             if response.status_code == 401:
                 raise HTTPException(status_code=503, detail="Cle API Groq invalide. Verifiez GROQ_API_KEY.")
@@ -377,8 +380,21 @@ async def chat_with_assistant(
                 # Groq rate-limited → fallback to Mistral
                 print("[AI] Groq rate-limited, falling back to Mistral")
                 assistant_message = await _call_mistral(messages, client)
+            elif is_model_error(response.status_code, response.text):
+                # Le fournisseur a retiré le modèle. groq_post a déjà réessayé
+                # avec un modèle re-résolu ; si ça échoue encore, l'assistant
+                # doit CHANGER DE FOURNISSEUR, pas s'arrêter. C'est le défaut
+                # qui a mis l'assistant hors service le jour où Groq a retiré
+                # llama-3.3-70b : seul le 429 déclenchait le repli.
+                print("[AI] modèle Groq indisponible, bascule sur Mistral")
+                forget_groq_model()
+                assistant_message = await _call_mistral(messages, client)
             elif response.status_code != 200:
-                raise HTTPException(status_code=502, detail=f"Erreur IA ({response.status_code}): {response.text[:200]}")
+                # Sans le corps de la réponse : une erreur de fournisseur
+                # n'est pas une information pour l'utilisateur, et la recopier
+                # telle quelle expose nos rouages.
+                print(f"[AI] chat Groq {response.status_code}: {response.text[:300]}")
+                raise HTTPException(status_code=502, detail="L'assistant est momentanément indisponible. Réessayez dans un instant.")
             else:
                 data = response.json()
                 assistant_message = data["choices"][0]["message"]["content"]
@@ -475,18 +491,16 @@ async def analysis_chat(
         messages.append({"role": "user", "content": body.message})
 
         async with httpx.AsyncClient(timeout=60.0) as client:
-            response = await client.post(
-                GROQ_API_URL,
-                headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
-                json={"model": MODEL, "messages": messages, "temperature": 0.65, "max_tokens": 1024}
-            )
+            response = await groq_post(client, api_key, {"messages": messages, "temperature": 0.65, "max_tokens": 1024})
 
             if response.status_code == 401:
                 raise HTTPException(status_code=503, detail="Cle API Groq invalide.")
-            elif response.status_code == 429:
+            elif response.status_code == 429 or is_model_error(response.status_code, response.text):
+                forget_groq_model()
                 assistant_message = await _call_mistral(messages, client)
             elif response.status_code != 200:
-                raise HTTPException(status_code=502, detail=f"Erreur IA ({response.status_code})")
+                print(f"[AI] Groq {response.status_code}: {response.text[:300]}")
+                raise HTTPException(status_code=502, detail="L'assistant est momentanément indisponible. Réessayez dans un instant.")
             else:
                 assistant_message = response.json()["choices"][0]["message"]["content"]
 
@@ -1370,25 +1384,22 @@ Décris les risques fondamentaux : quels éléments pourraient dégrader le busi
     # ── 10. Call Groq ───────────────────────────────────────────────────────
     try:
         async with httpx.AsyncClient(timeout=90.0) as client:
-            response = await client.post(
-                GROQ_API_URL,
-                headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
-                json={
-                    "model": MODEL,
+            response = await groq_post(client, api_key, {
                     "messages": [
                         {"role": "system", "content": SYSTEM_PROMPT},
                         {"role": "user", "content": prompt}
                     ],
                     "temperature": 0.4,
                     "max_tokens": 2500
-                }
-            )
+                })
 
             if response.status_code == 429:
                 raise HTTPException(status_code=429, detail="Service IA surchargé, réessayez dans quelques secondes.")
             if response.status_code != 200:
                 print(f"[AI] quick_analysis Groq error {response.status_code}: {response.text[:300]}")
-                raise HTTPException(status_code=502, detail=f"Erreur IA ({response.status_code})")
+                if is_model_error(response.status_code, response.text):
+                    forget_groq_model()
+                raise HTTPException(status_code=502, detail="L'assistant est momentanément indisponible. Réessayez dans un instant.")
 
             data = response.json()
             return {
@@ -1491,18 +1502,13 @@ async def get_market_news(request: Request, current_user: dict = Depends(get_cur
         async def _call_groq(payload: dict) -> dict | None:
             try:
                 async with httpx.AsyncClient(timeout=30.0) as client:
-                    r = await client.post(
-                        GROQ_API_URL,
-                        headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
-                        json=payload,
-                    )
+                    r = await groq_post(client, api_key, payload)
                     return r.json() if r.status_code == 200 else None
             except Exception as e:
                 print(f"[NEWS] Groq error: {e}")
                 return None
 
         summary_payload = {
-            "model": MODEL,
             "messages": [
                 {"role": "system", "content": structured_system},
                 {"role": "user", "content": ai_prompt},
@@ -1516,7 +1522,6 @@ async def get_market_news(request: Request, current_user: dict = Depends(get_cur
         if needs_translation and news_items:
             titles_list = "\n".join(f"{i+1}. {item['title']}" for i, item in enumerate(news_items))
             translation_payload = {
-                "model": MODEL,
                 "messages": [
                     {
                         "role": "system",
@@ -1657,22 +1662,14 @@ INSTRUCTIONS :
 
     try:
         async with httpx.AsyncClient(timeout=30.0) as client:
-            response = await client.post(
-                GROQ_API_URL,
-                headers={
-                    "Authorization": f"Bearer {api_key}",
-                    "Content-Type": "application/json",
-                },
-                json={
-                    "model": MODEL,
+            response = await groq_post(client, api_key, {
                     "messages": [
                         {"role": "system", "content": "Tu es un analyste de marché. Réponds uniquement en français, en texte narratif fluide, sans titre ni bullet points."},
                         {"role": "user", "content": prompt},
                     ],
                     "temperature": 0.6,
                     "max_tokens": 250,
-                },
-            )
+                })
 
             if response.status_code == 429:
                 raise HTTPException(status_code=429, detail="Service IA surchargé, réessayez dans quelques secondes.")
@@ -1680,7 +1677,9 @@ INSTRUCTIONS :
                 raise HTTPException(status_code=503, detail="Clé API IA invalide.")
             if response.status_code != 200:
                 print(f"[SESSION NARRATIVE] Groq error {response.status_code}: {response.text[:300]}")
-                raise HTTPException(status_code=502, detail=f"Erreur IA ({response.status_code})")
+                if is_model_error(response.status_code, response.text):
+                    forget_groq_model()
+                raise HTTPException(status_code=502, detail="Le récit de séance est momentanément indisponible.")
 
             data = response.json()
             narrative = data["choices"][0]["message"]["content"].strip()

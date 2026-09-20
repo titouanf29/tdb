@@ -64,6 +64,31 @@ function buildPositionMessage(pos: Record<string, unknown>): string {
   ].filter((l) => l !== null).join("\n");
 }
 
+/**
+ * Ce qu'on met dans la bulle quand la réponse n'arrive pas.
+ *
+ * Le serveur renvoie désormais une phrase française complète pour toutes les
+ * pannes d'IA. Une phrase se suffit et s'affiche telle quelle. Tout le reste
+ * — une erreur réseau brute, un corps de réponse d'un fournisseur — n'est pas
+ * une information pour l'utilisateur : il reçoit une phrase, et le détail
+ * part dans la console pour qui débogue.
+ */
+function assistantError(err: unknown): string {
+  const raw = err instanceof Error ? err.message.trim() : "";
+  if (raw) console.error("[assistant]", raw);
+
+  // Une phrase : commence par une majuscule, finit par une ponctuation, et
+  // ne transporte ni accolade ni code de statut.
+  const isSentence =
+    raw.length > 0 &&
+    raw.length < 200 &&
+    /^[A-ZÀ-Þ]/.test(raw) &&
+    /[.!?]$/.test(raw) &&
+    !/[{}<>]|https?:\/\//.test(raw);
+
+  return isSentence ? raw : "Je n'ai pas pu répondre. Réessayez dans un instant.";
+}
+
 export default function AssistantPage() {
   const searchParams = useSearchParams();
   const asset = searchParams.get("asset");
@@ -130,10 +155,13 @@ export default function AssistantPage() {
         ...m,
         {
           role: "assistant",
-          content:
-            err instanceof Error
-              ? `Je n'ai pas pu répondre : ${err.message}`
-              : "Je n'ai pas pu répondre. Réessayez dans un instant.",
+          /* Le message du serveur est une phrase française complète, il se
+             suffit. Le préfixe le recopiait derrière « Je n'ai pas pu
+             répondre : », ce qui a donné à l'utilisateur la ligne
+             « Je n'ai pas pu répondre : Erreur IA (404): {"error":{...}} » —
+             le JSON brut du fournisseur, dans la bulle de l'assistant.
+             On ne préfixe donc que ce qui ne se lit pas comme une phrase. */
+          content: assistantError(err),
           created_at: new Date().toISOString(),
         },
       ]);

@@ -20,8 +20,8 @@ from .admin import get_admin_user
 
 router = APIRouter()
 
-GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
-GROQ_MODEL = "llama-3.3-70b-versatile"
+# Modèle résolu à l'exécution — voir _llm.py.
+from ._llm import groq_post  # noqa: E402
 MISTRAL_API_URL = "https://api.mistral.ai/v1/chat/completions"
 MISTRAL_MODEL = "mistral-small-latest"
 
@@ -340,17 +340,12 @@ async def generate_script(
     if groq_key:
         try:
             async with httpx.AsyncClient(timeout=60.0) as client:
-                resp = await client.post(
-                    GROQ_API_URL,
-                    headers={"Authorization": f"Bearer {groq_key}", "Content-Type": "application/json"},
-                    json={
-                        "model": GROQ_MODEL,
+                resp = await groq_post(client, groq_key, {
                         "messages": messages,
                         "temperature": 0.75,
                         "max_tokens": 2048,
                         "response_format": {"type": "json_object"},
-                    },
-                )
+                    })
             if resp.status_code == 200:
                 result = json.loads(resp.json()["choices"][0]["message"]["content"])
                 return {"success": True, "generated": _patch_cta(result), "source": "groq"}
