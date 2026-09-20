@@ -75,7 +75,14 @@
         palette every current AI product ships. Cool greys read as mist and as
         a marine chart, which is what this product is about, and they are
         nobody else's signature. */
-  --cap-bg:        #E9EDF3;
+  /* Le fond a été mesuré à 84,4 de luminance pour un écart-type de 1,6 : très
+     lumineux et quasiment uniforme. C'est cette combinaison qui fatigue — un
+     aplat pâle sans modulation devient la source de lumière de l'écran, et
+     l'œil n'a nulle part où se reposer. Descendre à 77,8 retire de l'éclat,
+     et fait remonter la séparation avec les panneaux de 1,11:1 à 1,20:1 : ils
+     se détachent mieux sur un ciel moins blanc. Les nuages font le reste, en
+     donnant au fond le relief qui lui manquait. */
+  --cap-bg:        #DEE5EF;
   --cap-surface:   #F7F9FB;
   --cap-surface-2: #E0E6EE;
   --cap-surface-3: #D4DCE6;
