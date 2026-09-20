@@ -9,7 +9,9 @@ import {
   type Analysis, type ChartData,
 } from "@/lib/api";
 import { useSettings, convertCurrency } from "@/lib/SettingsContext";
-import { useTradingStyle } from "@/lib/tradingStyle";
+import {
+  useTradingStyle, TRADING_STYLES, TRADING_STYLE_IDS, type TradingStyleId,
+} from "@/lib/tradingStyle";
 import { useUserLevel } from "@/hooks/useUserLevel";
 import {
   buildReasons, directionLabel, edgeSentence, scenarioSentence,
@@ -67,8 +69,33 @@ export default function AnalysisPage() {
 function AnalysisScreen() {
   const router = useRouter();
   const params = useSearchParams();
-  const { settings, eurUsd } = useSettings();
+  const { settings, eurUsd, saveSettings } = useSettings();
   const style = useTradingStyle();
+  const [switching, setSwitching] = useState(false);
+
+  /**
+   * Changer d'horizon change le modèle, pas seulement l'affichage.
+   *
+   * Le style pilote les multiples d'ATR envoyés au moteur, le poids des
+   * fondamentaux et les unités de temps disponibles. L'analyse est donc
+   * relancée, et l'unité repositionnée sur celle du nouvel horizon — sans
+   * quoi on demanderait une analyse « long terme » en bougies de 5 minutes.
+   */
+  const changeStyle = useCallback(
+    async (id: string) => {
+      setSwitching(true);
+      try {
+        await saveSettings({ tradingStyle: id });
+        const next = TRADING_STYLES[id as TradingStyleId];
+        if (next) setTimeframe(next.defaultTimeframe);
+      } catch {
+        /* le réglage précédent est conservé par saveSettings */
+      } finally {
+        setSwitching(false);
+      }
+    },
+    [saveSettings]
+  );
   const [animOn] = useAnimationsEnabled();
 
   const urlSymbol = (params.get("symbol") || "").toUpperCase();
@@ -100,15 +127,13 @@ function AnalysisScreen() {
     if (!depthTouched) setDepth(levelDepth);
   }, [levelDepth, depthTouched]);
 
-  // Le graphique interne reste le défaut : il suit la direction artistique,
-  // trace les niveaux que le moteur a calculés, fonctionne pour tout symbole
-  // et n'appelle aucun service tiers. TradingView s'obtient en un clic, pour
-  // qui veut ses outils de dessin et ses indicateurs.
-  const [chartMode, setChartMode] = useState<"simple" | "tv">("simple");
+  // Deux vues, plus une bascule de moteur de rendu. Le graphique interne
+  // était proposé à côté de TradingView comme une alternative ; il ne l'est
+  // plus — TradingView fait tout ce qu'il faisait et davantage. Il reste
+  // comme REPLI pour les actifs que TradingView ne référence pas, ce qui est
+  // un cas de fonctionnement, pas un choix offert à l'utilisateur.
+  const [chartMode, setChartMode] = useState<"chart" | "howto">("chart");
   const tvAvailable = hasTradingView(symbol);
-  useEffect(() => {
-    if (!tvAvailable) setChartMode("simple");
-  }, [tvAvailable]);
 
   const [analysis, setAnalysis] = useState<Analysis | null>(null);
   const [chart, setChart] = useState<ChartData | null>(null);
@@ -226,16 +251,49 @@ function AnalysisScreen() {
             </Button>
           </form>
 
+          {/* L'horizon, et c'est un vrai changement de modèle.
+              Le moteur y répond réellement — vérifié sur AAPL : le stop passe
+              de 335,86 en scalping à 220,71 en long terme, le rapport
+              gain/risque de 1,67 à 2,00 et le score de 55 à 77. Le réglage
+              existait déjà mais n'était modifiable que dans les paramètres,
+              trois écrans plus loin, alors que c'est ici qu'on se pose la
+              question. Il écrit le même réglage : changer ici change partout. */}
+          <div className="mt-5 border-t pt-5" style={{ borderColor: "var(--cap-line)" }}>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <Text size="caption" as="span">Sur quel horizon analysez-vous ?</Text>
+              {switching && <Text size="caption" as="span" tone="accent">Nouveau modèle appliqué…</Text>}
+            </div>
+            <div className="mt-2.5 -mx-1 overflow-x-auto px-1 pb-1">
+              <SegmentedControl
+                size="md"
+                options={TRADING_STYLE_IDS.map((id) => ({
+                  value: id,
+                  label: TRADING_STYLES[id].label.fr,
+                }))}
+                value={settings.tradingStyle as TradingStyleId}
+                onChange={changeStyle}
+                aria-label="Horizon d'analyse"
+              />
+            </div>
+            <Text size="caption" className="mt-2.5">
+              {style.horizon.fr} · stop à {style.atr.sl.toLocaleString("fr-FR")}× l&apos;ATR,
+              objectif à {style.atr.tp.toLocaleString("fr-FR")}×
+              {style.fundWeight > 0
+                ? ` · fondamentaux ${Math.round(style.fundWeight * 100)} % du score`
+                : " · fondamentaux ignorés"}
+            </Text>
+          </div>
+
           <div className="mt-4 flex flex-wrap items-center gap-3">
             <SegmentedControl
               size="sm"
               options={style.timeframes.map((t) => ({ value: t, label: t }))}
               value={timeframe}
               onChange={setTimeframe}
-              aria-label="Horizon"
+              aria-label="Unité de temps"
             />
             <Text size="caption" as="span">
-              Horizon {style.label.fr.toLowerCase()} — {style.horizon.fr.toLowerCase()}
+              Unité du graphique, dans cet horizon.
             </Text>
           </div>
         </Panel>
@@ -278,42 +336,50 @@ function AnalysisScreen() {
               <Panel
                 title="Le prix"
                 hint={
-                  chartMode === "tv"
-                    ? "Graphique TradingView — outils de dessin et indicateurs complets."
-                    : `${chart!.data.length} points · ${chart!.interval} · les niveaux calculés sont tracés dessus`
+                  chartMode === "howto"
+                    ? "Ce qu'on regarde sur un graphique, et dans quel ordre."
+                    : tvAvailable
+                      ? "Graphique TradingView — outils de dessin et indicateurs complets."
+                      : `${chart!.data.length} points · ${chart!.interval} · les niveaux calculés sont tracés dessus`
                 }
                 aside={
-                  // La bascule n'apparaît que si l'actif est traduisible. Un
-                  // onglet qui mène à « Invalid symbol » est pire que pas
-                  // d'onglet du tout.
-                  tvAvailable ? (
-                    <SegmentedControl
-                      size="sm"
-                      options={[
-                        { value: "simple", label: "Simple" },
-                        { value: "tv", label: "TradingView" },
-                      ]}
-                      value={chartMode}
-                      onChange={setChartMode}
-                      aria-label="Type de graphique"
-                    />
-                  ) : undefined
+                  <SegmentedControl
+                    size="sm"
+                    options={[
+                      { value: "chart", label: "Graphique" },
+                      { value: "howto", label: "Comment le lire" },
+                    ]}
+                    value={chartMode}
+                    onChange={setChartMode}
+                    aria-label="Affichage du graphique"
+                  />
                 }
               >
-                {chartMode === "tv" && tvAvailable ? (
+                {chartMode === "howto" ? (
+                  <ChartGuide analysis={analysis} money={money} />
+                ) : tvAvailable ? (
                   <>
                     <TradingViewChart symbol={symbol} interval={tvInterval(timeframe)} />
                     <Text size="caption" className="mt-3">
                       Graphique fourni par TradingView. Il se charge depuis leurs
-                      serveurs : le symbole consulté leur est donc transmis.
-                      Le graphique simple, lui, ne sort pas du site.
+                      serveurs, à qui le symbole consulté est donc transmis.
                     </Text>
                   </>
                 ) : (
-                  <PriceChart
-                    closes={chart!.data.map((c) => c.close)}
-                    levels={chartLevels(analysis, depth)}
-                  />
+                  <>
+                    {/* Repli, et il est expliqué. TradingView ne connaît pas
+                        tous les symboles que ce site analyse : plutôt qu'un
+                        cadre vide ou — pire — le graphique d'un autre actif,
+                        on trace le nôtre et on dit pourquoi. */}
+                    <PriceChart
+                      closes={chart!.data.map((c) => c.close)}
+                      levels={chartLevels(analysis, depth)}
+                    />
+                    <Text size="caption" className="mt-3">
+                      TradingView ne référence pas cet actif. Voici son cours et
+                      les niveaux calculés par le moteur.
+                    </Text>
+                  </>
                 )}
               </Panel>
             )}
@@ -944,6 +1010,66 @@ function Row({
     <div className="flex items-baseline justify-between gap-4">
       <dt className="text-[0.85rem]" style={{ color: "var(--cap-ink-2)" }}>{label}</dt>
       <dd><Num tone={tone} className="text-[0.88rem]">{value}</Num></dd>
+    </div>
+  );
+}
+
+/**
+ * « Comment le lire » — un guide nourri par l'analyse ouverte.
+ *
+ * Un onglet d'aide générique est une notice : on le lit une fois, jamais deux.
+ * Celui-ci cite les niveaux, la tendance et l'horizon de l'actif affiché, donc
+ * il dit à chaque fois quelque chose de différent et reste utile après la
+ * vingtième visite. Les chiffres viennent du moteur, pas d'un exemple.
+ */
+function ChartGuide({ analysis: a, money }: { analysis: Analysis; money: (v: number) => string }) {
+  const dir = directionLabel(a);
+  const steps: { title: string; body: string }[] = [
+    {
+      title: "1. La forme d'ensemble, avant les détails",
+      body: `Reculez jusqu'à voir plusieurs mois. Ce qui compte d'abord n'est pas la dernière bougie mais la pente : une suite de sommets et de creux de plus en plus hauts est une tendance haussière, l'inverse une baissière. Ici le moteur la lit comme ${dir.text.toLowerCase()}.`,
+    },
+    {
+      title: "2. Les paliers où le prix a déjà réagi",
+      body: `Les zones où le cours a buté plusieurs fois comptent plus que les autres. Sur cet actif, le support mesuré est à ${money(a.levels.support)} et la résistance à ${money(a.levels.resistance)} — deux repères, pas deux certitudes : ils cèdent régulièrement.`,
+    },
+    {
+      title: "3. Le volume, sous le prix",
+      body:
+        a.indicators?.volume_ratio != null
+          ? `La barre du bas dit combien d'échanges ont eu lieu. Un mouvement sans volume est fragile. Ici le volume vaut ${a.indicators.volume_ratio.toFixed(1)} fois sa moyenne${a.indicators.volume_ratio >= 1.3 ? " — le mouvement est confirmé par les échanges." : a.indicators.volume_ratio <= 0.6 ? " — peu d'échanges derrière ce mouvement." : "."}`
+          : "La barre du bas dit combien d'échanges ont eu lieu. Un mouvement de prix accompagné d'un fort volume est plus fiable qu'un mouvement dans le vide.",
+    },
+    {
+      title: "4. L'unité de temps change tout",
+      body: `Le même actif paraît haussier en 1 jour et baissier en 5 minutes. Choisissez l'unité qui correspond à la durée pendant laquelle vous comptez rester${a.trade_window?.label_optimal ? ` — pour cet actif, le moteur estime ${a.trade_window.label_optimal}` : ""}. Les boutons d'horizon en haut de page la règlent pour toute l'analyse.`,
+    },
+    {
+      title: "5. Ce qu'un graphique ne dit pas",
+      body: "Il montre le passé. Aucune figure ne garantit la suite, et le moteur lui-même affiche quand son historique ne soutient pas son verdict. Le graphique sert à situer une décision, pas à la prendre.",
+    },
+  ];
+
+  return (
+    <div className="space-y-5">
+      {steps.map((st) => (
+        <div key={st.title}>
+          <span className="block text-[0.93rem] font-medium" style={{ color: "var(--cap-ink)" }}>
+            {st.title}
+          </span>
+          <Text size="small" className="mt-1.5">{st.body}</Text>
+        </div>
+      ))}
+      <div className="border-t pt-4" style={{ borderColor: "var(--cap-line)" }}>
+        <Link
+          href={lessonHref("technical-analysis/reading-charts")}
+          className="inline-flex items-center gap-1.5 text-[0.85rem]"
+          style={{ color: "var(--cap-ocean)" }}
+        >
+          La leçon complète sur la lecture d'un graphique
+          <ArrowRight className="h-3.5 w-3.5" />
+        </Link>
+      </div>
     </div>
   );
 }

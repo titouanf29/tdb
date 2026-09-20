@@ -181,12 +181,12 @@ export function FormError({ children }: { children: React.ReactNode }) {
       className="px-3.5 py-3 text-[0.85rem]"
       style={{
         borderRadius: "var(--cap-r-md)",
-        // Accordé au jeton --cap-down (#B62F25). Cette valeur a déjà été
+        // Accordé au jeton --cap-down (#C51B0F). Cette valeur a déjà été
         // oubliée une fois lors d'un changement de palette : elle est écrite
         // en dur parce qu'une couleur d'alerte a besoin d'un fond teinté, et
         // qu'un fond teinté ne se dérive pas d'une variable sans color-mix.
-        backgroundColor: "rgba(182,47,37,0.07)",
-        boxShadow: "inset 0 0 0 1px rgba(182,47,37,0.24)",
+        backgroundColor: "rgba(197,27,15,0.07)",
+        boxShadow: "inset 0 0 0 1px rgba(197,27,15,0.24)",
         color: "var(--cap-down)",
       }}
     >

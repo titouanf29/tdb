@@ -40,22 +40,25 @@
      saturation du texte n'a donc rien calmé qui ne l'était déjà, et a rendu
      les variations fades.
 
-     Elle remonte à 64 % pour le vert et 66 % pour le rouge : une couleur
-     franche là où elle occupe peu de surface, une teinte douce là où elle en
-     occupe beaucoup. C'est la distinction utile, et elle ne se lit pas sur un
-     nuancier — elle se mesure en pixels.
+     Elle est finalement poussée à 85 % en mode clair — pratiquement le
+     plafond que le contraste autorise — parce que c'est ce qui a été
+     demandé deux fois et que la mesure montre que ça ne coûte rien : la
+     couleur franche n'occupe que les chiffres et les traits fins, les aplats
+     restent en teinte douce. C'est la distinction utile, et elle ne se lit
+     pas sur un nuancier — elle se mesure en pixels.
 
-     Pas au-delà, en revanche. Le maximum que le contraste autorise est 88 %,
-     ce qui donne un vert menthe fluorescent : exactement le néon que la
-     direction artistique proscrit.
+     Le vert de NUIT est la seule valeur retenue en dessous du plafond, à
+     66 %. À 86 % il donne un menthe fluorescent qui brille sur un ciel
+     d'orage : le néon que la direction artistique proscrit, et qui n'a pas
+     le même effet sur fond sombre que sur fond clair.
 
      Les quatre valeurs tiennent 4,6:1 sur les trois fonds où du texte coloré
      apparaît — panneau, page et tuile sélectionnée. Les toutes premières
      valeurs du projet, elles, plafonnaient à 4,13:1, sous le seuil AA. */
-  --cap-up:        #197148;
-  --cap-down:      #B62F25;
-  --cap-up-soft:   #ACCBBE;
-  --cap-down-soft: #E1B4B2;
+  --cap-up:        #097241;
+  --cap-down:      #C51B0F;
+  --cap-up-soft:   #A6CBBC;
+  --cap-down-soft: #E6AEAB;
 
   /* ── Surfaces ─────────────────────────────────────────────────────────
      Layered off-whites, not one flat fill. The panel sits about 2% of
@@ -292,10 +295,10 @@
      poserait d'instinct : c'est la tuile sélectionnée des Marchés
      (--cap-surface-2) qui commande, et c'est là qu'une valeur trop sombre
      tombait à 4,07:1. Celle-ci tient 4,67:1. */
-  --cap-up:        #4ED093;
-  --cap-down:      #E0827B;
-  --cap-up-soft:   #2D6257;
-  --cap-down-soft: #5F474F;
+  --cap-up:        #3ED890;
+  --cap-down:      #F08079;
+  --cap-up-soft:   #286456;
+  --cap-down-soft: #664549;
 
   /* Les nuages, vus d'en dessous. Le ventre est sombre et la couronne garde
      la dernière lumière — c'est ce décalage, et lui seul, qui fait qu'une

@@ -33,6 +33,90 @@ class ClosePositionRequest(BaseModel):
     position_id: int
 
 
+async def _execute_levels(user_id, positions: list) -> list:
+    """Close the positions whose stop or target has been reached.
+
+    Until this existed, stop_loss and take_profit were decoration. They were
+    validated on the way in — a stop on the wrong side of the entry was
+    rejected — and then nothing ever looked at them again. A user could set a
+    stop, watch the price fall straight through it, and find the position
+    still open and still losing. In a product whose whole purpose is to teach
+    risk management, the one mechanism that must be modelled faithfully was
+    the one that did nothing.
+
+    The check runs whenever the positions are read, which is whenever the user
+    looks at their wallet or their dashboard, and it costs nothing extra: the
+    prices have already been fetched by the caller.
+
+    LIMITE ASSUMÉE, et elle est écrite dans l'interface : nous observons le
+    cours par instantanés, pas en continu. Une mèche qui traverse le niveau et
+    revient entre deux lectures n'est pas vue. La sortie est donc enregistrée
+    AU PRIX DU NIVEAU, jamais au cours courant — c'est le comportement d'un
+    ordre stop, et cela évite d'inventer une perte plus grande que celle que
+    l'utilisateur avait acceptée.
+    """
+    closed = []
+    now = datetime.now(timezone.utc).isoformat()
+
+    for pos in positions:
+        if pos.get("status") != "open" or not pos.get("price_available"):
+            continue
+        quote = pos.get("current_price")
+        direction = (pos.get("direction") or "LONG").upper()
+        sl, tp = pos.get("stop_loss"), pos.get("take_profit")
+        if quote is None:
+            continue
+
+        hit, level = None, None
+        if direction == "LONG":
+            if sl is not None and quote <= sl:
+                hit, level = "stop_loss", sl
+            elif tp is not None and quote >= tp:
+                hit, level = "take_profit", tp
+        else:
+            if sl is not None and quote >= sl:
+                hit, level = "stop_loss", sl
+            elif tp is not None and quote <= tp:
+                hit, level = "take_profit", tp
+
+        if not hit:
+            continue
+
+        entry = pos["entry_price"]
+        quantity = pos["quantity"]
+        amount = pos.get("amount") or 0
+        move = (level - entry) if direction == "LONG" else (entry - level)
+        realized = move * quantity
+
+        # Le capital engagé revient, augmenté ou diminué du résultat. Une
+        # position ne peut pas rendre moins que zéro : au-delà, le simulateur
+        # laisserait un solde négatif que rien ne permet de rattraper.
+        credit = max(0.0, amount + realized)
+
+        await execute_write(
+            """UPDATE positions
+               SET status = 'closed', exit_price = ?, realized_pnl = ?,
+                   closed_at = ?
+               WHERE id = ? AND status = 'open'""",
+            (round(level, 6), round(realized, 4), now, pos["id"]),
+        )
+        await execute_write(
+            "UPDATE wallet SET balance = balance + ? WHERE user_id = ?",
+            (round(credit, 4), user_id),
+        )
+        pos["status"] = "closed"
+        pos["closed_by"] = hit
+        closed.append({
+            "id": pos["id"],
+            "symbol": pos["symbol"],
+            "reason": hit,
+            "exit_price": round(level, 6),
+            "realized_pnl": round(realized, 4),
+        })
+
+    return closed
+
+
 async def _price_positions(positions: list) -> list:
     """Attach live price, P&L and availability to open positions.
 
@@ -126,6 +210,17 @@ async def get_wallet_balance(current_user: dict = Depends(get_current_user)):
     )
 
     await _price_positions(positions)
+    # Le tableau de bord lit le solde sans passer par /positions : sans cet
+    # appel, un stop touché ne serait exécuté que le jour où l'utilisateur
+    # ouvre son wallet.
+    await _execute_levels(user_id, positions)
+    positions = [p for p in positions if p.get("status") == "open"]
+
+    # Le solde a pu changer juste au-dessus.
+    refreshed = await execute_query("SELECT balance FROM wallet WHERE user_id = ?", (user_id,))
+    if refreshed:
+        wallet = {**wallet, "balance": refreshed[0]["balance"]}
+
     positions_value = sum(p.get("current_value") or 0 for p in positions)
     total_pnl = sum(p.get("unrealized_pnl") or 0 for p in positions)
 
@@ -151,10 +246,17 @@ async def get_positions(
         (user_id, status)
     )
 
+    triggered = []
     if status == "open":
         await _price_positions(positions)
+        # Les niveaux s'exécutent ici, au moment où l'utilisateur regarde.
+        triggered = await _execute_levels(user_id, positions)
+        # Une position qui vient d'être fermée ne fait plus partie des
+        # positions ouvertes : la renvoyer laisserait l'écran l'afficher une
+        # dernière fois avec un P&L qui n'existe plus.
+        positions = [p for p in positions if p.get("status") == "open"]
 
-    return {"positions": positions}
+    return {"positions": positions, "triggered": triggered}
 
 
 @router.post("/positions/open")
