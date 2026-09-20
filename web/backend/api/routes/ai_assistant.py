@@ -23,199 +23,54 @@ limiter = Limiter(key_func=get_remote_address)
 # Le modèle n'est plus une constante : Groq retire régulièrement des
 # modèles, et un nom écrit en dur ici arrêtait d'un coup les cinq
 # fonctionnalités qui parlent à l'IA. Voir _llm.py.
-from ._llm import (  # noqa: E402
-    forget_groq_model, groq_post, is_model_error,
-)
+from ._llm import LLMUnavailable, configured_providers, llm_chat  # noqa: E402
 
-# Mistral fallback
-MISTRAL_API_URL = "https://api.mistral.ai/v1/chat/completions"
-MISTRAL_MODEL = "mistral-small-latest"
-
-def get_groq_api_key():
-    """Get Groq API key from environment"""
-    return os.getenv("GROQ_API_KEY", "")
-
-def get_mistral_api_key():
-    return os.getenv("MISTRAL_API_KEY", "")
-
-# Le repli n'est plus appelé que pour une limite de débit : un modèle retiré
-# chez Groq y passe aussi. « Limite IA atteinte » annonçait alors une cause
-# fausse, et une attente qui ne se termine jamais. Le message dit donc ce
-# qu'on sait vraiment — l'assistant ne répond pas là, tout de suite.
-_IA_INDISPO = "L'assistant est momentanément indisponible. Réessayez dans un instant."
-
-
-async def _call_mistral(messages: list, client: httpx.AsyncClient) -> str:
-    key = get_mistral_api_key()
-    if not key:
-        raise HTTPException(status_code=429, detail=_IA_INDISPO)
-    resp = await client.post(
-        MISTRAL_API_URL,
-        headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
-        json={"model": MISTRAL_MODEL, "messages": messages, "temperature": 0.7, "max_tokens": 1024}
-    )
-    if resp.status_code != 200:
-        print(f"[AI] Mistral {resp.status_code}: {resp.text[:200]}")
-        raise HTTPException(status_code=429, detail=_IA_INDISPO)
-    return resp.json()["choices"][0]["message"]["content"]
+# La chaîne Groq -> Mistral, la résolution du modèle et le repli vivent
+# maintenant dans _llm.py, une seule fois pour tout le site. Ce qui était ici
+# — un appel Mistral avec son modèle en dur, déclenché seulement par un débit
+# dépassé — avait deux défauts : il ne couvrait pas le cas qui est arrivé
+# (modèle retiré), et son propre modèle n'était plus valide non plus.
 
 # System prompt for trading assistant
-SYSTEM_PROMPT = """Tu es TDB Assistant, un expert en trading et analyse financière avec 20 ans d'expérience sur les marchés.
-Tu travailles pour la plateforme TDB (Trading Dashboard Bot) et tu aides les traders à progresser.
+SYSTEM_PROMPT = """Tu es TDB Assistant, le mentor de la plateforme française CaptenTDB.
 
-═══════════════════════════════════════════
-🎯 TON RÔLE
-═══════════════════════════════════════════
-Tu es un MENTOR pédagogique, pas un conseiller financier.
-Tu expliques, tu formes, tu contextualises — mais tu ne dis jamais quoi acheter ou vendre.
+TON RÔLE
+Tu es un MENTOR pédagogique, pas un conseiller financier. Tu expliques, tu
+formes, tu contextualises — tu ne dis jamais quoi acheter ou vendre.
 
-═══════════════════════════════════════════
-📐 RÈGLES ABSOLUES
-═══════════════════════════════════════════
-1. TOUJOURS répondre en français, avec un vocabulaire précis et professionnel
-2. NE JAMAIS donner de conseils financiers personnalisés ("achète X", "vends Y maintenant")
-3. TOUJOURS ajouter en fin de réponse: ⚠️ *Ceci est éducatif, pas un conseil financier. Trading = risque de perte en capital.*
-4. Utiliser des emojis pertinents pour structurer visuellement les réponses
-5. Structurer les réponses avec des titres markdown (**Titre**, ## Section)
-6. Être précis sur les chiffres et les définitions
+RÈGLES ABSOLUES
+1. Réponds TOUJOURS en français, avec un vocabulaire précis et professionnel.
+2. JAMAIS de conseil personnalisé (« achète X », « vends Y maintenant »).
+3. Termine TOUJOURS par : ⚠️ *Ceci est éducatif, pas un conseil financier. Trading = risque de perte en capital.*
+4. Structure en markdown (titres, tableaux quand c'est pertinent), emojis sobres.
+5. Illustre par des exemples chiffrés (« RSI à 75 sur AAPL = zone de prudence »).
+6. Une définition : 150-300 mots. Une stratégie ou une analyse : structure complète.
+7. Quand des données de contexte te sont fournies, appuie-toi dessus et cite les
+   niveaux exacts plutôt que de généraliser.
 
-═══════════════════════════════════════════
-📊 ANALYSE TECHNIQUE — CE QUE TU MAÎTRISES
-═══════════════════════════════════════════
+CE QUE LE SITE PROPOSE
+Actions USA, Europe et Asie · Crypto (BTC, ETH et 50+ altcoins) · Matières
+premières (or GC=F, pétrole CL=F, argent, cuivre, gaz) · Indices (S&P 500, CAC 40,
+DAX, Nasdaq 100, Nikkei, VIX). Quatre horizons paramétrables par l'utilisateur :
+scalping, day trading, swing, long terme — adapte tes unités de temps et tes
+conseils à l'horizon dont il parle.
 
-**INDICATEURS DE MOMENTUM:**
-- RSI (Relative Strength Index, 14 périodes par défaut): surachat >70, survente <30. Divergences haussières/baissières cruciales.
-- MACD (12-26-9): croisement ligne signal = signal entrée/sortie. Histogramme = force du momentum. Divergences = retournements.
-- Stochastique (%K/%D): similaire RSI, utile en range market. Croisements en zones extrêmes.
-- Williams %R: complémentaire RSI pour confirmer les retournements.
+CADRE DE GESTION DU RISQUE DE LA PLATEFORME
+Reprends toujours ce cadre, c'est celui qu'enseigne le site :
+risque max 1-2 % du capital par trade · R:R minimum 1:2 · stop-loss obligatoire
+et placé techniquement · taille = (capital × %risque) / (entrée − stop) ·
+le levier amplifie les pertes autant que les gains.
 
-**INDICATEURS DE TENDANCE:**
-- EMA 20/50/200: positions du prix par rapport aux moyennes = contexte de tendance. Golden Cross (EMA50 > EMA200) haussier. Death Cross baissier.
-- SMA: plus lente que l'EMA, moins réactive. Utilisée pour identifier les tendances long terme.
-- ADX (Average Directional Index): mesure la FORCE d'une tendance (pas sa direction). ADX >25 = tendance forte.
-- Ichimoku Cloud: système complet tendance/support/résistance sur 5 lignes (Tenkan, Kijun, Senkou A/B, Chikou).
+FORMAT POUR L'ANALYSE D'UNE POSITION
+Quand l'utilisateur partage une position (entrée, PnL, SL, TP), réponds ainsi :
 
-**INDICATEURS DE VOLATILITÉ:**
-- Bandes de Bollinger (20,2): prix hors bandes = signal fort. Squeeze (bandes serrées) = explosion de volatilité imminente. Marche le long de la bande = tendance forte.
-- ATR (Average True Range): mesure la volatilité en valeur absolue. Essentiel pour calibrer les stop-loss (ex: SL = entrée - 1.5x ATR).
-- VIX (pour actions US): "indice de la peur". >30 = panique, <15 = complaisance.
+**📊 Lecture de la position** — 2-3 phrases : direction, performance, R:R actuel.
+**✅ Points positifs** — ce qui joue en sa faveur.
+**⚠️ Points de vigilance** — ce qui mérite attention.
+**🎯 Niveaux clés** — SL et TP actuels vs techniques, et le niveau qui changerait l'analyse.
+**💡 Synthèse pédagogique** — tenir, ajuster ou surveiller, et pourquoi.
 
-**INDICATEURS DE VOLUME:**
-- Volume: TOUJOURS confirmer les mouvements de prix par le volume. Breakout avec volume élevé = signal fort.
-- OBV (On Balance Volume): accumulation/distribution. Divergence OBV/prix = signal de retournement.
-- VWAP (Volume Weighted Average Price): prix moyen pondéré par volume. Référence institutionnelle. Prix > VWAP = biais haussier intrajournalier.
-- CMF (Chaikin Money Flow): flux d'argent entrant/sortant.
-
-**PRICE ACTION & PATTERNS:**
-- Chandeliers japonais: Doji, Hammer, Shooting Star, Englobant, Étoile du matin/soir, Harami, Marubozu
-- Patterns chartistes: Tête-Épaules (retournement), Double Top/Bottom, Triangle (continuation/retournement), Wedge, Flag, Pennant, Cup & Handle
-- Fibonacci retracements: niveaux 23.6%, 38.2%, 50%, 61.8%, 78.6% — zones de support/résistance naturelles
-
-**NIVEAUX CLÉS:**
-- Support/Résistance: zones où le prix rebondit plusieurs fois
-- Points Pivot (Standard, Fibonacci, Camarilla, Woodie)
-- Zones de liquidité: où se concentrent les stops et les ordres
-- Fair Value Gaps (FVG) / Imbalances: zones non rééquilibrées sur le carnet d'ordres
-
-═══════════════════════════════════════════
-💹 STYLES DE TRADING — CE QUE TU EXPLIQUES
-═══════════════════════════════════════════
-- **Scalping**: trades de quelques secondes à quelques minutes. TF: 1m-5m. Nécessite spread très faible et rapidité.
-- **Day Trading**: ouverture et clôture le même jour. TF: 5m-1h. Pas de position overnight.
-- **Swing Trading**: positions de quelques jours à quelques semaines. TF: 4h-1j. Capture les mouvements intermédiaires.
-- **Position Trading**: mois à années. TF: 1j-1sem. Basé sur fondamentaux + technique long terme.
-- **Carry Trade**: exploite les différentiels de taux (Forex surtout).
-- **Arbitrage**: exploite les écarts de prix entre marchés.
-
-═══════════════════════════════════════════
-⚖️ GESTION DU RISQUE — FONDAMENTAL
-═══════════════════════════════════════════
-- **Règle des 1-2%**: ne jamais risquer plus de 1-2% du capital sur un seul trade
-- **Risk/Reward (R:R)**: minimum 1:2 (risquer 50 pour gagner 100). Idéalement 1:3+.
-- **Stop-Loss**: OBLIGATOIRE. Placement technique (sous support, sous ATR, sous dernier bas).
-- **Take-Profit**: T1 (50% position), T2 (30%), T3 (20%) — gestion pyramidale.
-- **Position sizing**: Taille position = (Capital × %risque) / (entrée - stop-loss)
-- **Drawdown maximal**: limite de perte journalière/hebdomadaire à définir avant de trader.
-- **Corrélations**: éviter d'avoir plusieurs positions corrélées (amplification du risque).
-- **Levier**: amplifie GAINS et PERTES. Levier 10x = 10% de mouvement adverse = -100% du capital engagé.
-
-═══════════════════════════════════════════
-🌍 MARCHÉS DISPONIBLES SUR TDB
-═══════════════════════════════════════════
-- **Actions USA**: NYSE, NASDAQ (Apple, Tesla, Nvidia, Meta, Alphabet...)
-- **Actions Europe**: CAC40, DAX40, FTSE100, AEX, IBEX35, FTSE MIB...
-- **Actions Asie**: Nikkei, Hang Seng, KOSPI, BSE Sensex...
-- **Crypto**: BTC, ETH, BNB, SOL, XRP, ADA, et 50+ altcoins
-- **Matières premières**: Or (GC=F), Pétrole WTI (CL=F), Argent, Cuivre, Blé, Gaz naturel...
-- **Indices**: S&P500, Dow Jones, Nasdaq100, VIX, STOXX50...
-
-═══════════════════════════════════════════
-🧠 PSYCHOLOGIE DU TRADING
-═══════════════════════════════════════════
-- **FOMO** (Fear Of Missing Out): entrer trop tard sur un trade émotionnellement
-- **FUD** (Fear Uncertainty Doubt): vendre par panique
-- **Biais de confirmation**: ne voir que les signaux qui confirment sa thèse
-- **Overtrading**: trader trop souvent, souvent lié aux émotions
-- **Revenge trading**: tenter de récupérer ses pertes immédiatement — DANGEREUX
-- **Plan de trading**: règles précises d'entrée, sortie, gestion. TOUJOURS respecter son plan.
-
-═══════════════════════════════════════════
-📚 ANALYSE FONDAMENTALE (ACTIONS)
-═══════════════════════════════════════════
-- **P/E Ratio** (Price/Earnings): valorisation relative. P/E élevé = croissance attendue ou surévaluation.
-- **Forward P/E**: basé sur les bénéfices futurs estimés.
-- **PEG Ratio**: P/E divisé par croissance. <1 = potentiellement sous-évalué.
-- **EV/EBITDA**: valorisation entreprise hors structure financière.
-- **ROE** (Return on Equity): rentabilité des capitaux propres.
-- **Marge nette**: efficacité opérationnelle.
-- **Flux de trésorerie libre** (FCF): cash généré après investissements.
-- **Dividende yield**: rendement dividende. Important pour les investisseurs income.
-- **Beta**: sensibilité au marché. Beta >1 = plus volatile que le marché.
-
-═══════════════════════════════════════════
-🪙 CRYPTO — SPÉCIFICITÉS
-═══════════════════════════════════════════
-- **Market Cap**: capitalisation = prix × supply en circulation
-- **Dominance BTC**: si BTC.D monte = rotation vers BTC (risk-off crypto). Si baisse = altseason.
-- **On-chain metrics**: NVT, MVRV, SOPR — santé du réseau et des holders
-- **DeFi**: protocoles décentralisés (Uniswap, Aave, Compound). TVL = Total Value Locked.
-- **Halving Bitcoin**: réduction de moitié des récompenses mineurs (~4 ans). Historiquement bullish.
-- **Funding Rate**: taux des positions futures perpetuelles. Taux élevé positif = positions longues surpeuplées.
-- **Open Interest**: volume total des contrats futures ouverts. Indicateur de levier dans le marché.
-
-═══════════════════════════════════════════
-💡 FORMAT DE TES RÉPONSES
-═══════════════════════════════════════════
-- Questions courtes (définition): réponse concise 150-300 mots avec exemples chiffrés
-- Questions complexes (stratégie, analyse): structure complète avec sections markdown
-- Analyses d'actifs: utilise les données fournies en contexte, sois précis sur les niveaux
-- TOUJOURS illustrer avec des exemples concrets (ex: "RSI à 75 sur AAPL = zone de prudence")
-- Utilise des tableaux markdown quand c'est pertinent (comparaisons, niveaux clés)
-
-═══════════════════════════════════════════
-📋 FORMAT POUR LES ANALYSES DE POSITION
-═══════════════════════════════════════════
-Quand l'utilisateur partage une position (prix d'entrée, PnL, SL, TP...), structure ta réponse ainsi :
-
-**📊 Lecture de la position**
-Résume en 2-3 phrases l'état actuel : direction, performance, ratio risque/rendement actuel.
-
-**✅ Points positifs**
-Ce qui joue en faveur de la position (ex : PnL positif, SL bien placé, tendance favorable).
-
-**⚠️ Points de vigilance**
-Ce qui mérite attention (ex : SL trop loin, levier élevé, zone de résistance proche).
-
-**🎯 Niveaux clés à surveiller**
-- SL actuel vs SL suggéré si applicable
-- TP actuel vs objectif technique si applicable
-- Zone de décision (niveau qui changerait l'analyse)
-
-**💡 Recommandation pédagogique**
-Une synthèse claire sur la gestion de la position (tenir, ajuster, surveiller) — en rappelant que c'est éducatif, pas un conseil financier.
-
-Utilise des emojis sobres (1 par section max). Sois concis, direct, et chiffré.
-"""
+Sois concis, direct et chiffré."""
 
 
 class ChatMessage(BaseModel):
@@ -309,11 +164,13 @@ async def chat_with_assistant(
 ):
     """Send a message to the AI assistant"""
     try:
-        api_key = get_groq_api_key()
-        if not api_key:
+        # Un seul fournisseur configuré suffit. Ce garde exigeait
+        # GROQ_API_KEY nommément : un site branché sur le seul Mistral se
+        # voyait refuser l'assistant alors qu'il pouvait répondre.
+        if not configured_providers():
             raise HTTPException(
                 status_code=503,
-                detail="AI Assistant not configured. Please set GROQ_API_KEY."
+                detail="L'assistant n'est pas configuré sur ce site."
             )
 
         # Check message limit for free users
@@ -367,52 +224,31 @@ async def chat_with_assistant(
         # Add new user message
         messages.append({"role": "user", "content": body.message})
 
-        async with httpx.AsyncClient(timeout=60.0) as client:
-            response = await groq_post(client, api_key, {
-                    "messages": messages,
-                    "temperature": 0.7,
-                    "max_tokens": 1024
-                })
+        # Un seul appel, quel que soit le fournisseur vivant. Le triage par
+        # code de statut qui vivait ici ne connaissait qu'un seul cas de
+        # bascule — le débit dépassé — et laissait donc l'assistant tomber
+        # le jour où Groq a retiré son modèle. llm_chat essaie Groq puis
+        # Mistral, re-résout un modèle refusé, et ne rend la main que
+        # lorsque plus personne ne répond.
+        try:
+            assistant_message = await llm_chat(messages, temperature=0.7, max_tokens=1024)
+        except LLMUnavailable as exc:
+            raise HTTPException(status_code=503, detail=exc.message)
 
-            if response.status_code == 401:
-                raise HTTPException(status_code=503, detail="Cle API Groq invalide. Verifiez GROQ_API_KEY.")
-            elif response.status_code == 429:
-                # Groq rate-limited → fallback to Mistral
-                print("[AI] Groq rate-limited, falling back to Mistral")
-                assistant_message = await _call_mistral(messages, client)
-            elif is_model_error(response.status_code, response.text):
-                # Le fournisseur a retiré le modèle. groq_post a déjà réessayé
-                # avec un modèle re-résolu ; si ça échoue encore, l'assistant
-                # doit CHANGER DE FOURNISSEUR, pas s'arrêter. C'est le défaut
-                # qui a mis l'assistant hors service le jour où Groq a retiré
-                # llama-3.3-70b : seul le 429 déclenchait le repli.
-                print("[AI] modèle Groq indisponible, bascule sur Mistral")
-                forget_groq_model()
-                assistant_message = await _call_mistral(messages, client)
-            elif response.status_code != 200:
-                # Sans le corps de la réponse : une erreur de fournisseur
-                # n'est pas une information pour l'utilisateur, et la recopier
-                # telle quelle expose nos rouages.
-                print(f"[AI] chat Groq {response.status_code}: {response.text[:300]}")
-                raise HTTPException(status_code=502, detail="L'assistant est momentanément indisponible. Réessayez dans un instant.")
-            else:
-                data = response.json()
-                assistant_message = data["choices"][0]["message"]["content"]
+        # Save messages to history
+        now = datetime.now(timezone.utc).isoformat()
+        await execute_write(
+            """INSERT INTO web_ai_chat (user_id, role, content, created_at)
+               VALUES (?, 'user', ?, ?)""",
+            (user_id, body.message, now)
+        )
+        await execute_write(
+            """INSERT INTO web_ai_chat (user_id, role, content, created_at)
+               VALUES (?, 'assistant', ?, ?)""",
+            (user_id, assistant_message, now)
+        )
 
-            # Save messages to history
-            now = datetime.now(timezone.utc).isoformat()
-            await execute_write(
-                """INSERT INTO web_ai_chat (user_id, role, content, created_at)
-                   VALUES (?, 'user', ?, ?)""",
-                (user_id, body.message, now)
-            )
-            await execute_write(
-                """INSERT INTO web_ai_chat (user_id, role, content, created_at)
-                   VALUES (?, 'assistant', ?, ?)""",
-                (user_id, assistant_message, now)
-            )
-
-            return ChatResponse(response=assistant_message)
+        return ChatResponse(response=assistant_message)
 
     except HTTPException:
         raise
@@ -455,9 +291,8 @@ async def analysis_chat(
 ):
     """Chat about a specific asset analysis - uses same credit pool, history managed client-side"""
     try:
-        api_key = get_groq_api_key()
-        if not api_key:
-            raise HTTPException(status_code=503, detail="AI Assistant not configured.")
+        if not configured_providers():
+            raise HTTPException(status_code=503, detail="L'assistant n'est pas configuré sur ce site.")
 
         limit_status = await check_ai_limit(current_user)
         if not limit_status["can_send"]:
@@ -490,32 +325,23 @@ async def analysis_chat(
 
         messages.append({"role": "user", "content": body.message})
 
-        async with httpx.AsyncClient(timeout=60.0) as client:
-            response = await groq_post(client, api_key, {"messages": messages, "temperature": 0.65, "max_tokens": 1024})
+        try:
+            assistant_message = await llm_chat(messages, temperature=0.65, max_tokens=1024)
+        except LLMUnavailable as exc:
+            raise HTTPException(status_code=503, detail=exc.message)
 
-            if response.status_code == 401:
-                raise HTTPException(status_code=503, detail="Cle API Groq invalide.")
-            elif response.status_code == 429 or is_model_error(response.status_code, response.text):
-                forget_groq_model()
-                assistant_message = await _call_mistral(messages, client)
-            elif response.status_code != 200:
-                print(f"[AI] Groq {response.status_code}: {response.text[:300]}")
-                raise HTTPException(status_code=502, detail="L'assistant est momentanément indisponible. Réessayez dans un instant.")
-            else:
-                assistant_message = response.json()["choices"][0]["message"]["content"]
+        now = datetime.now(timezone.utc).isoformat()
+        await execute_write(
+            "INSERT INTO web_ai_chat (user_id, role, content, created_at) VALUES (?, 'user', ?, ?)",
+            (user_id, body.message, now)
+        )
+        await execute_write(
+            "INSERT INTO web_ai_chat (user_id, role, content, created_at) VALUES (?, 'assistant', ?, ?)",
+            (user_id, assistant_message, now)
+        )
 
-            now = datetime.now(timezone.utc).isoformat()
-            await execute_write(
-                "INSERT INTO web_ai_chat (user_id, role, content, created_at) VALUES (?, 'user', ?, ?)",
-                (user_id, body.message, now)
-            )
-            await execute_write(
-                "INSERT INTO web_ai_chat (user_id, role, content, created_at) VALUES (?, 'assistant', ?, ?)",
-                (user_id, assistant_message, now)
-            )
-
-            remaining = limit_status["remaining"] - 1 if limit_status["remaining"] != -1 else -1
-            return {"response": assistant_message, "remaining": remaining, "is_premium": limit_status["is_premium"]}
+        remaining = limit_status["remaining"] - 1 if limit_status["remaining"] != -1 else -1
+        return {"response": assistant_message, "remaining": remaining, "is_premium": limit_status["is_premium"]}
 
     except HTTPException:
         raise
@@ -580,9 +406,8 @@ async def quick_analysis(
     import asyncio
     from ._prices import fetch_ohlcv
 
-    api_key = get_groq_api_key()
-    if not api_key:
-        raise HTTPException(status_code=503, detail="AI Assistant not configured")
+    if not configured_providers():
+        raise HTTPException(status_code=503, detail="L'assistant n'est pas configuré sur ce site.")
 
     # ── 1. Fetch market data ────────────────────────────────────────────────
     try:
@@ -1383,30 +1208,15 @@ Décris les risques fondamentaux : quels éléments pourraient dégrader le busi
 
     # ── 10. Call Groq ───────────────────────────────────────────────────────
     try:
-        async with httpx.AsyncClient(timeout=90.0) as client:
-            response = await groq_post(client, api_key, {
-                    "messages": [
-                        {"role": "system", "content": SYSTEM_PROMPT},
-                        {"role": "user", "content": prompt}
-                    ],
-                    "temperature": 0.4,
-                    "max_tokens": 2500
-                })
+        analysis = await llm_chat(
+            [{"role": "system", "content": SYSTEM_PROMPT},
+             {"role": "user", "content": prompt}],
+            temperature=0.4, max_tokens=2500, timeout=90.0,
+        )
+        return {"symbol": symbol, "analysis": analysis}
 
-            if response.status_code == 429:
-                raise HTTPException(status_code=429, detail="Service IA surchargé, réessayez dans quelques secondes.")
-            if response.status_code != 200:
-                print(f"[AI] quick_analysis Groq error {response.status_code}: {response.text[:300]}")
-                if is_model_error(response.status_code, response.text):
-                    forget_groq_model()
-                raise HTTPException(status_code=502, detail="L'assistant est momentanément indisponible. Réessayez dans un instant.")
-
-            data = response.json()
-            return {
-                "symbol": symbol,
-                "analysis": data["choices"][0]["message"]["content"]
-            }
-
+    except LLMUnavailable as exc:
+        raise HTTPException(status_code=503, detail=exc.message)
     except HTTPException:
         raise
     except Exception as e:
@@ -1419,7 +1229,7 @@ async def get_market_news(request: Request, current_user: dict = Depends(get_cur
     """Get economic news with AI summary"""
     from config import NEWS_API_KEY
 
-    api_key = get_groq_api_key()
+    has_ai = bool(configured_providers())
 
     # Fetch news from NewsAPI.org
     news_items = []
@@ -1484,7 +1294,7 @@ async def get_market_news(request: Request, current_user: dict = Depends(get_cur
     summary = None
     summary_points = None
 
-    if api_key:
+    if has_ai:
         if news_items:
             news_text = "\n".join([f"- {item['title']} (Source: {item['publisher']})" for item in news_items[:10]])
             ai_prompt = f"Voici les dernieres actualites economiques et financieres:\n\n{news_text}\n\nFais un resume en 3-4 points cles des tendances importantes pour les marches financiers aujourd'hui."
@@ -1499,13 +1309,20 @@ async def get_market_news(request: Request, current_user: dict = Depends(get_cur
             "Reponds en francais. Sois factuel et precis."
         )
 
-        async def _call_groq(payload: dict) -> dict | None:
+        async def _call_llm(payload: dict) -> dict | None:
+            """La forme de retour est conservée — {"choices": [...]} — pour ne
+               pas toucher aux deux analyseurs JSON plus bas. Le résumé des
+               actualités est un agrément : s'il manque, la page vit sans."""
             try:
-                async with httpx.AsyncClient(timeout=30.0) as client:
-                    r = await groq_post(client, api_key, payload)
-                    return r.json() if r.status_code == 200 else None
+                text = await llm_chat(
+                    payload["messages"],
+                    temperature=payload.get("temperature", 0.3),
+                    max_tokens=payload.get("max_tokens", 700),
+                    timeout=30.0,
+                )
+                return {"choices": [{"message": {"content": text}}]}
             except Exception as e:
-                print(f"[NEWS] Groq error: {e}")
+                print(f"[NEWS] IA indisponible : {e}")
                 return None
 
         summary_payload = {
@@ -1540,9 +1357,9 @@ async def get_market_news(request: Request, current_user: dict = Depends(get_cur
 
         # ── Parallel Groq calls ───────────────────────────────────────────────
         import asyncio as _asyncio
-        tasks = [_call_groq(summary_payload)]
+        tasks = [_call_llm(summary_payload)]
         if translation_payload:
-            tasks.append(_call_groq(translation_payload))
+            tasks.append(_call_llm(translation_payload))
 
         results = await _asyncio.gather(*tasks, return_exceptions=True)
         summary_data = results[0] if not isinstance(results[0], Exception) else None
@@ -1621,9 +1438,8 @@ async def get_session_narrative(
             detail="Cette fonctionnalité nécessite un abonnement Premium"
         )
 
-    api_key = get_groq_api_key()
-    if not api_key:
-        raise HTTPException(status_code=503, detail="Service IA temporairement indisponible")
+    if not configured_providers():
+        raise HTTPException(status_code=503, detail="L'assistant n'est pas configuré sur ce site.")
 
     # Build context
     top_str = ", ".join(
@@ -1661,34 +1477,19 @@ INSTRUCTIONS :
 - En français uniquement"""
 
     try:
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            response = await groq_post(client, api_key, {
-                    "messages": [
-                        {"role": "system", "content": "Tu es un analyste de marché. Réponds uniquement en français, en texte narratif fluide, sans titre ni bullet points."},
-                        {"role": "user", "content": prompt},
-                    ],
-                    "temperature": 0.6,
-                    "max_tokens": 250,
-                })
-
-            if response.status_code == 429:
-                raise HTTPException(status_code=429, detail="Service IA surchargé, réessayez dans quelques secondes.")
-            if response.status_code == 401:
-                raise HTTPException(status_code=503, detail="Clé API IA invalide.")
-            if response.status_code != 200:
-                print(f"[SESSION NARRATIVE] Groq error {response.status_code}: {response.text[:300]}")
-                if is_model_error(response.status_code, response.text):
-                    forget_groq_model()
-                raise HTTPException(status_code=502, detail="Le récit de séance est momentanément indisponible.")
-
-            data = response.json()
-            narrative = data["choices"][0]["message"]["content"].strip()
+        narrative = (await llm_chat(
+            [{"role": "system", "content": "Tu es un analyste de marché. Réponds uniquement en français, en texte narratif fluide, sans titre ni bullet points."},
+             {"role": "user", "content": prompt}],
+            temperature=0.6, max_tokens=250, timeout=30.0,
+        )).strip()
 
         return {
             "narrative": narrative,
             "generated_at": datetime.now(timezone.utc).isoformat(),
         }
 
+    except LLMUnavailable as exc:
+        raise HTTPException(status_code=503, detail=exc.message)
     except HTTPException:
         raise
     except httpx.TimeoutException:

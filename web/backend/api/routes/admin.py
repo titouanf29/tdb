@@ -119,6 +119,30 @@ async def check_admin_status(current_user: dict = Depends(get_current_user)):
     }
 
 
+# ============== ÉTAT DE L'IA ==============
+
+@router.get("/ai-health")
+async def ai_health(admin: dict = Depends(get_admin_user)):
+    """Quel fournisseur répond, avec quel modèle, en combien de temps.
+
+    Quand l'assistant est tombé — Groq avait retiré le modèle écrit en dur —
+    il n'existait aucun moyen de le constater depuis le site : il fallait
+    poser une question et lire l'erreur. Ce point interroge réellement chaque
+    fournisseur configuré, il ne se contente pas de vérifier qu'une clé est
+    posée. Une clé présente et un service muet, c'est exactement le cas qu'on
+    veut distinguer.
+    """
+    from ._llm import PROVIDERS, probe
+
+    results = [await probe(name) for name in PROVIDERS]
+    usable = [r for r in results if r["ok"]]
+    return {
+        "ok": bool(usable),
+        "serving": usable[0]["provider"] if usable else None,
+        "providers": results,
+    }
+
+
 # ============== DASHBOARD ==============
 
 @router.get("/dashboard")

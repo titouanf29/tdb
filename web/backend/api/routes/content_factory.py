@@ -21,9 +21,7 @@ from .admin import get_admin_user
 router = APIRouter()
 
 # Modèle résolu à l'exécution — voir _llm.py.
-from ._llm import groq_post  # noqa: E402
-MISTRAL_API_URL = "https://api.mistral.ai/v1/chat/completions"
-MISTRAL_MODEL = "mistral-small-latest"
+from ._llm import configured_providers, llm_one  # noqa: E402
 
 CONTENT_LIBRARY = [
     {"topic": "RSI",                      "category": "indicator"},
@@ -335,48 +333,24 @@ async def generate_script(
         {"role": "user",   "content": user_msg},
     ]
 
-    # ── 1. Try Groq ──────────────────────────────────────────────────────────
-    groq_key = os.getenv("GROQ_API_KEY", "")
-    if groq_key:
+    # ── 1. L'IA, par le premier fournisseur qui répond ───────────────────────
+    #
+    # La chaîne Groq-puis-Mistral était écrite ici à la main, avec le nom du
+    # modèle Mistral en dur — « mistral-small-latest », qui n'est plus un
+    # identifiant valide. Le repli aurait donc échoué lui aussi. Elle vit
+    # maintenant dans _llm.py, une seule fois pour tout le site.
+    for provider in configured_providers():
         try:
-            async with httpx.AsyncClient(timeout=60.0) as client:
-                resp = await groq_post(client, groq_key, {
-                        "messages": messages,
-                        "temperature": 0.75,
-                        "max_tokens": 2048,
-                        "response_format": {"type": "json_object"},
-                    })
-            if resp.status_code == 200:
-                result = json.loads(resp.json()["choices"][0]["message"]["content"])
-                return {"success": True, "generated": _patch_cta(result), "source": "groq"}
-            print(f"[ContentFactory] Groq returned {resp.status_code}, trying Mistral")
+            text = await llm_one(provider, messages, temperature=0.75,
+                                 max_tokens=2048,
+                                 response_format={"type": "json_object"},
+                                 timeout=60.0)
+            result = json.loads(text)
+            return {"success": True, "generated": _patch_cta(result), "source": provider}
         except Exception as exc:
-            print(f"[ContentFactory] Groq error: {exc}, trying Mistral")
+            print(f"[ContentFactory] {provider} indisponible : {exc}")
 
-    # ── 2. Try Mistral ───────────────────────────────────────────────────────
-    mistral_key = os.getenv("MISTRAL_API_KEY", "")
-    if mistral_key:
-        try:
-            async with httpx.AsyncClient(timeout=60.0) as client:
-                resp = await client.post(
-                    MISTRAL_API_URL,
-                    headers={"Authorization": f"Bearer {mistral_key}", "Content-Type": "application/json"},
-                    json={
-                        "model": MISTRAL_MODEL,
-                        "messages": messages,
-                        "temperature": 0.75,
-                        "max_tokens": 2048,
-                        "response_format": {"type": "json_object"},
-                    },
-                )
-            if resp.status_code == 200:
-                result = json.loads(resp.json()["choices"][0]["message"]["content"])
-                return {"success": True, "generated": _patch_cta(result), "source": "mistral"}
-            print(f"[ContentFactory] Mistral returned {resp.status_code}, falling back to template")
-        except Exception as exc:
-            print(f"[ContentFactory] Mistral error: {exc}, falling back to template")
-
-    # ── 3. Template fallback ─────────────────────────────────────────────────
+    # ── 2. Le modèle de secours ──────────────────────────────────────────────
     return {"success": True, "generated": _get_fallback(body.topic), "source": "template"}
 
 

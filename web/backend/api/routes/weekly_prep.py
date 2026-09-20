@@ -32,11 +32,7 @@ class SaveBriefingRequest(BaseModel):
     briefing: dict
 
 # Modèle résolu à l'exécution — voir _llm.py.
-from ._llm import groq_post  # noqa: E402
-
-
-def _get_groq_key() -> str:
-    return os.getenv("GROQ_API_KEY", "")
+from ._llm import LLMUnavailable, configured_providers, llm_chat  # noqa: E402
 
 
 def _current_week_key() -> str:
@@ -188,38 +184,6 @@ def _get_gemini_key() -> str:
     return os.getenv("GEMINI_API_KEY", "")
 
 
-def _get_mistral_key() -> str:
-    return os.getenv("MISTRAL_API_KEY", "")
-
-
-async def _call_mistral(prompt: str) -> dict:
-    """Generate via Mistral API."""
-    api_key = _get_mistral_key()
-    system = (
-        "Tu es un analyste financier senior. "
-        "Réponds UNIQUEMENT avec un JSON valide, sans markdown, sans commentaires."
-    )
-    async with httpx.AsyncClient(timeout=90.0) as client:
-        resp = await client.post(
-            "https://api.mistral.ai/v1/chat/completions",
-            headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
-            json={
-                "model": "mistral-small-latest",
-                "messages": [
-                    {"role": "system", "content": system},
-                    {"role": "user",   "content": prompt},
-                ],
-                "temperature": 0.6,
-                "max_tokens": 8000,
-                "response_format": {"type": "json_object"},
-            },
-        )
-    if resp.status_code == 429:
-        raise ValueError("rate_limit:0")
-    if resp.status_code != 200:
-        raise ValueError(f"error:{resp.status_code}")
-    content = resp.json()["choices"][0]["message"]["content"].strip()
-    return json.loads(content)
 
 
 async def _call_gemini(prompt: str) -> dict:
@@ -249,26 +213,25 @@ async def _call_gemini(prompt: str) -> dict:
     return json.loads(raw.strip().rstrip("```").strip())
 
 
-async def _call_groq(prompt: str) -> dict:
-    """Groq fallback. Raises ValueError on 429."""
-    api_key = _get_groq_key()
-    if not api_key:
+async def _call_llm(prompt: str) -> dict:
+    """Le briefing, par le premier fournisseur qui répond.
+
+    Il y avait ici deux entrées distinctes — Mistral et Groq — chacune avec
+    son URL, son modèle en dur et son propre traitement d'erreur. Les deux
+    modèles étaient périmés. La chaîne vit maintenant dans _llm.py ; il ne
+    reste ici que ce qui est propre au briefing : le cadrage JSON.
+    """
+    if not configured_providers():
         raise ValueError("no_key")
 
-    async with httpx.AsyncClient(timeout=90.0) as client:
-        resp = await groq_post(client, api_key, {
-                "messages": [{"role": "user", "content": prompt}],
-                "temperature": 0.6,
-                "max_tokens": 8000,
-            })
-
-    if resp.status_code == 429:
-        raise ValueError("rate_limit:0")
-
-    if resp.status_code != 200:
-        raise ValueError(f"error:{resp.status_code}")
-
-    content = resp.json()["choices"][0]["message"]["content"].strip()
+    try:
+        content = (await llm_chat(
+            [{"role": "system", "content": "Tu es un analyste financier senior. "
+                                           "Réponds UNIQUEMENT avec un JSON valide, sans markdown, sans commentaires."},
+             {"role": "user", "content": prompt}],
+            temperature=0.6, max_tokens=8000, timeout=90.0)).strip()
+    except LLMUnavailable as exc:
+        raise ValueError(f"error:{exc.message}") from exc
     if content.startswith("```"):
         content = content.split("```")[1]
         if content.startswith("json"):
@@ -355,10 +318,8 @@ async def _generate_briefing() -> dict:
     providers = []
     if _get_gemini_key():
         providers.append(("gemini",  _call_gemini))
-    if _get_mistral_key():
-        providers.append(("mistral", _call_mistral))
-    if _get_groq_key():
-        providers.append(("groq",    _call_groq))
+    if configured_providers():
+        providers.append(("ia", _call_llm))
 
     for name, fn in providers:
         try:

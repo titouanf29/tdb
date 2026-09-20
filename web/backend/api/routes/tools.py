@@ -21,7 +21,7 @@ from .premium import is_user_premium, get_user_limits, check_premium_required
 router = APIRouter()
 
 # Modèle résolu à l'exécution — voir _llm.py.
-from ._llm import groq_post  # noqa: E402
+from ._llm import LLMUnavailable, configured_providers, llm_chat  # noqa: E402
 
 def get_groq_api_key():
     return os.getenv("GROQ_API_KEY", "")
@@ -298,8 +298,7 @@ async def get_market_trends(current_user: dict = Depends(get_current_user)):
     trends["sectors"].sort(key=lambda x: x["change_1w"], reverse=True)
 
     # Generate AI analysis
-    api_key = get_groq_api_key()
-    if api_key and trends["indices"]:
+    if configured_providers() and trends["indices"]:
         trend_summary = "\n".join([
             f"- {t['name']}: {t['change_1d']:+.2f}% (1j), {t['change_1w']:+.2f}% (1sem), tendance {t['trend']}"
             for t in trends["indices"]
@@ -310,21 +309,13 @@ async def get_market_trends(current_user: dict = Depends(get_current_user)):
         ])
 
         try:
-            async with httpx.AsyncClient(timeout=30.0) as client:
-                response = await groq_post(client, api_key, {
-                        "messages": [
-                            {"role": "system", "content": "Tu es un analyste de marche. Analyse les tendances et donne des insights actionables. Reponds en francais, sois concis."},
-                            {"role": "user", "content": f"Analyse ces tendances de marche:\n\nIndices:\n{trend_summary}\n\nSecteurs (perf. 1 sem):\n{sector_summary}\n\nDonne une analyse en 3-4 points avec recommandations."}
-                        ],
-                        "temperature": 0.4,
-                        "max_tokens": 500
-                    })
-
-                if response.status_code == 200:
-                    data = response.json()
-                    trends["analysis"] = data["choices"][0]["message"]["content"]
+            trends["analysis"] = await llm_chat(
+                [{"role": "system", "content": "Tu es un analyste de marche. Analyse les tendances et donne des insights actionables. Reponds en francais, sois concis."},
+                 {"role": "user", "content": f"Analyse ces tendances de marche:\n\nIndices:\n{trend_summary}\n\nSecteurs (perf. 1 sem):\n{sector_summary}\n\nDonne une analyse en 3-4 points avec recommandations."}],
+                temperature=0.4, max_tokens=500, timeout=30.0,
+            )
         except Exception:
-            pass
+            pass  # le commentaire IA est un agrément : la page vit sans
 
     return trends
 
@@ -457,9 +448,8 @@ async def get_geopolitical_analysis(current_user: dict = Depends(get_current_use
             detail="L'analyse geopolitique est reservee aux membres Premium."
         )
 
-    api_key = get_groq_api_key()
-    if not api_key:
-        raise HTTPException(status_code=503, detail="Service IA non configure. Contactez l'administrateur (GROQ_API_KEY manquante).")
+    if not configured_providers():
+        raise HTTPException(status_code=503, detail="Le service IA n'est pas configuré sur ce site.")
 
     # Get market data for context
     market_data = {}
@@ -516,36 +506,21 @@ Pour chaque tension identifiee, explique:
 Sois precis, factuel et donne des recommandations actionables."""
 
     try:
-        async with httpx.AsyncClient(timeout=60.0) as client:
-            response = await groq_post(client, api_key, {
-                    "messages": [
-                        {"role": "system", "content": "Tu es un expert en geopolitique et finance internationale avec 20 ans d'experience. Tu analyses les risques geopolitiques et leur impact sur les marches financiers."},
-                        {"role": "user", "content": prompt}
-                    ],
-                    "temperature": 0.4,
-                    "max_tokens": 2000
-                })
+        # Le message d'erreur reprenait celui du fournisseur, mot pour mot.
+        # Une panne de Groq n'est pas une information pour le lecteur.
+        analysis = await llm_chat(
+            [{"role": "system", "content": "Tu es un expert en geopolitique et finance internationale avec 20 ans d'experience. Tu analyses les risques geopolitiques et leur impact sur les marches financiers."},
+             {"role": "user", "content": prompt}],
+            temperature=0.4, max_tokens=2000, timeout=60.0,
+        )
+        return {
+            "analysis": analysis,
+            "market_data": market_data,
+            "generated_at": datetime.now(timezone.utc).isoformat()
+        }
 
-            if response.status_code != 200:
-                error_detail = "AI API error"
-                try:
-                    error_data = response.json()
-                    if "error" in error_data:
-                        error_msg = error_data["error"].get("message", "Unknown error")
-                        error_detail = f"AI API error: {error_msg}"
-                except Exception:
-                    error_detail = f"AI API error (status {response.status_code})"
-                raise HTTPException(status_code=503, detail=error_detail)
-
-            data = response.json()
-            analysis = data["choices"][0]["message"]["content"]
-
-            return {
-                "analysis": analysis,
-                "market_data": market_data,
-                "generated_at": datetime.now(timezone.utc).isoformat()
-            }
-
+    except LLMUnavailable as exc:
+        raise HTTPException(status_code=503, detail=exc.message)
     except HTTPException:
         raise
     except httpx.TimeoutException:
@@ -3025,9 +3000,8 @@ async def get_event_summary(
             detail="Les resumes d'evenements sont reserves aux membres Premium"
         )
 
-    api_key = get_groq_api_key()
-    if not api_key:
-        raise HTTPException(status_code=503, detail="Service IA non configure. Contactez l'administrateur (GROQ_API_KEY manquante).")
+    if not configured_providers():
+        raise HTTPException(status_code=503, detail="Le service IA n'est pas configuré sur ce site.")
 
     # This would normally fetch real data from an economic calendar API
     # For now, generate a summary based on the event
@@ -3044,28 +3018,19 @@ Structure du resume:
 Sois factuel et concis."""
 
     try:
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            response = await groq_post(client, api_key, {
-                    "messages": [
-                        {"role": "system", "content": "Tu es un analyste financier qui resume les evenements economiques de facon claire et concise."},
-                        {"role": "user", "content": prompt}
-                    ],
-                    "temperature": 0.4,
-                    "max_tokens": 500
-                })
+        summary = await llm_chat(
+            [{"role": "system", "content": "Tu es un analyste financier qui resume les evenements economiques de facon claire et concise."},
+             {"role": "user", "content": prompt}],
+            temperature=0.4, max_tokens=500, timeout=30.0,
+        )
+        return {
+            "event_id": event_id,
+            "summary": summary,
+            "generated_at": datetime.now(timezone.utc).isoformat()
+        }
 
-            if response.status_code != 200:
-                raise HTTPException(status_code=500, detail="AI API error")
-
-            data = response.json()
-            summary = data["choices"][0]["message"]["content"]
-
-            return {
-                "event_id": event_id,
-                "summary": summary,
-                "generated_at": datetime.now(timezone.utc).isoformat()
-            }
-
+    except LLMUnavailable as exc:
+        raise HTTPException(status_code=503, detail=exc.message)
     except HTTPException:
         raise
     except Exception as e:
