@@ -541,6 +541,7 @@ def _historical_edge_sync(symbol: str, timeframe: str, hist, sl_atr: float,
             "profit_factor": r.get("profit_factor"),
             "engine_version": r.get("engine_version"),
             "by_regime": r.get("by_regime") or {},
+            "by_direction": r.get("by_direction") or {},
             "min_trades_for_condition": r.get("min_trades_for_condition"),
         }
         edge["scenario"] = _build_scenario(edge, current_regime)
@@ -551,6 +552,63 @@ def _historical_edge_sync(symbol: str, timeframe: str, hist, sl_atr: float,
 
 
 _REGIME_FR = {"BULL": "marché haussier", "BEAR": "marché baissier", "NEUTRAL": "marché neutre"}
+
+# Les deux seuils qui décident du poids de l'edge sur le verdict, en R par
+# trade et nets de frais.
+#
+# -0,05 R est le bruit : sur une quarantaine de trades, une espérance à
+# -0,03 R ne se distingue pas de zéro et n'a rien à dire. -0,25 R ne se
+# confond avec rien — c'est un quart du risque perdu à chaque passage, et
+# répété assez souvent pour qu'un compte y passe.
+#
+# Entre les deux, on avertit. Au-delà, on bloque : pas parce que la direction
+# serait fausse, mais parce que CE plan, sur CET actif, avec CE stop et CET
+# objectif, a déjà été joué et a perdu.
+EDGE_BRUIT = -0.05
+EDGE_BLOQUANT = -0.25
+
+
+def edge_du_sens(edge: dict, direction: str | None) -> dict | None:
+    """L'edge historique DANS LE SENS que le verdict propose.
+
+    Le replay prend l'achat au-dessus de 60 et la vente sous 40 : l'espérance
+    globale mélange donc deux populations. Opposer cette moyenne à un verdict
+    haussier, c'est lui opposer pour moitié des trades pris à la vente.
+
+    La découpe par sens est préférée dès qu'elle tient assez de trades ; en
+    dessous on retombe sur la mesure globale ET ON LE DIT, parce qu'une
+    espérance calculée sur onze trades présentée comme un verdict serait la
+    même faute que les taux de réussite inventés retirés de cette page.
+    """
+    if not edge or not edge.get("n_trades"):
+        return None
+
+    sens = "long" if (direction or "").upper() in ("LONG", "BULLISH", "BULL") else \
+           "short" if (direction or "").upper() in ("SHORT", "BEARISH", "BEAR") else None
+
+    cellule = (edge.get("by_direction") or {}).get(sens or "")
+    if sens and cellule and cellule.get("enough"):
+        return {
+            "base": "directionnelle",
+            "sens": sens,
+            "n_trades": cellule.get("n_trades"),
+            "expectancy_net_r": cellule.get("expectancy_net_r"),
+            "se_r": cellule.get("se_r"),
+            "win_rate": cellule.get("win_rate"),
+            "fiable": True,
+        }
+
+    return {
+        "base": "globale",
+        "sens": sens,
+        "n_trades": edge.get("n_trades"),
+        "expectancy_net_r": edge.get("expectancy_net_r"),
+        "se_r": edge.get("se_r"),
+        "win_rate": edge.get("win_rate"),
+        # Hors découpe directionnelle, la mesure ne vaut que si l'échantillon
+        # global est lui-même suffisant.
+        "fiable": bool(edge.get("enough_samples")),
+    }
 
 
 def _build_scenario(edge: dict, current_regime: str | None) -> dict | None:
@@ -639,6 +697,7 @@ def _tradeability(
     vol_percentile: float | None,
     n_bars: int,
     factor_agreement: int | None,
+    edge_sens: dict | None = None,
 ) -> dict:
     """Is this direction actually worth acting on?
 
@@ -661,6 +720,53 @@ def _tradeability(
         blockers.append(f"Seulement {n_bars} bougies disponibles — insuffisant pour les indicateurs longs")
     if vol_percentile is not None and vol_percentile >= 95:
         blockers.append("Volatilité dans son centile extrême — tout stop devient une loterie")
+
+    # L'EDGE HISTORIQUE NÉGATIF PÈSE ICI, et c'est le bon endroit.
+    #
+    # Il ne se discutait nulle part : il valait -10 points sur un score
+    # secondaire, et la phrase affichée disait mot pour mot « le verdict reste
+    # ce qu'il est, mais l'historique ne le soutient pas ». Le moteur mesurait
+    # que ce plan avait perdu de l'argent sur cet actif, puis annonçait qu'il
+    # n'en tenait pas compte.
+    #
+    # Ce n'est pourtant pas une mesure de plus : c'est la seule qui ait été
+    # CONFRONTÉE AU PRIX. Les indicateurs décrivent, l'edge rapporte ce qui
+    # s'est réellement produit quand on a pris ce pari, sur cet actif, avec ce
+    # stop et cet objectif.
+    #
+    # Il bloque plutôt qu'il ne corrige le score, parce que la direction et le
+    # plan sont deux questions. Le moteur peut avoir raison sur le sens et le
+    # trade rester mauvais — c'est exactement ce que cette fonction existe
+    # pour dire, et la raison est nommée plutôt que fondue dans un chiffre.
+    if edge_sens and edge_sens.get("fiable"):
+        e = edge_sens.get("expectancy_net_r")
+        n = edge_sens.get("n_trades") or 0
+        precision = ("dans ce sens" if edge_sens.get("base") == "directionnelle"
+                     else "les deux sens confondus")
+        # L'EFFET DOIT DÉPASSER SA PROPRE IMPRÉCISION AVANT D'INTERDIRE.
+        #
+        # Mesuré sur KO : -0,306 R sur 19 trades, ce qui se lit comme un
+        # verdict et n'en est pas un — l'erreur-type à cet effectif tourne
+        # autour de 0,23 R, donc l'intervalle mord largement sur zéro.
+        # Bloquer là-dessus, ce serait interdire un trade sur du bruit.
+        #
+        # On raisonne donc sur la borne la PLUS FAVORABLE de la mesure : même
+        # en accordant une erreur-type de marge, l'espérance reste-t-elle
+        # nettement négative ? Si oui, le constat tient. Sinon il reste une
+        # alerte, ce qu'il est vraiment.
+        se = edge_sens.get("se_r") or 0.0
+        borne_favorable = (e + se) if e is not None else None
+        if borne_favorable is not None and borne_favorable <= EDGE_BLOQUANT:
+            blockers.append(
+                f"Ce plan a déjà perdu sur cet actif : {abs(e):.2f} R en moyenne "
+                f"sur {n} trades comparables ({precision}). Le sens peut être bon, "
+                "le plan a été joué et n'a pas payé."
+            )
+        elif e is not None and e <= EDGE_BRUIT:
+            warnings.append(
+                f"Historique défavorable sur cet actif : {abs(e):.2f} R perdus en "
+                f"moyenne sur {n} trades comparables ({precision})"
+            )
 
     if factor_agreement is not None and factor_agreement < 40:
         warnings.append(f"Facteurs en désaccord ({factor_agreement} %) — signal fragile")
@@ -979,6 +1085,10 @@ async def analyze_asset(
         # an ATR buffer) when that level sits inside the raw 2×ATR distance,
         # and targets are capped at the first structural obstacle.
         is_short_setup = final_score < 40
+        # L'edge du sens proposé, calculé une fois ici : le plan de risque,
+        # la jouabilité et la phrase de l'écran doivent lire la MÊME mesure,
+        # sinon la page explique un chiffre et en bloque un autre.
+        _edge_sens = edge_du_sens(historical_edge, "SHORT" if is_short_setup else "LONG")
         _support = float(recent_low)
         _resistance = float(recent_high)
         risk_notes: list[str] = []
@@ -1220,6 +1330,12 @@ async def analyze_asset(
             # What this score level has been worth ON THIS ASSET — always with
             # its sample size, never as a bare percentage.
             "historical_edge": historical_edge,
+            # La même mesure, restreinte au sens que le plan propose. C'est
+            # elle que la jouabilité oppose au verdict, donc c'est elle que
+            # l'écran doit citer : expliquer une moyenne tous sens confondus
+            # et bloquer sur une autre mesure rendrait le refus incontestable
+            # faute d'être compréhensible.
+            "edge_direction": _edge_sens,
             "signal_quality": _signal_quality(
                 S.get("factor_agreement"), higher_tf_info.get("aligned"), historical_edge),
             "volatility_context": {
@@ -1239,6 +1355,9 @@ async def analyze_asset(
                 vol_percentile=S.get("vol_percentile"),
                 n_bars=len(close.dropna()),
                 factor_agreement=S.get("factor_agreement"),
+                # L'edge mesuré DANS LE SENS que le plan propose, pas la
+                # moyenne des deux sens.
+                edge_sens=_edge_sens,
             ),
             "higher_timeframe": higher_tf_info,
             "conviction": {

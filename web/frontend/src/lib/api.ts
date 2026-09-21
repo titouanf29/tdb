@@ -986,6 +986,13 @@ export interface Analysis {
       p_target: number; p_stop: number; p_timeout: number;
       win_rate: number; expectancy_net_r: number;
     }>;
+    /** Le même replay, découpé par sens : l'achat au-dessus de 60 et la vente
+     *  sous 40 sont deux populations que l'espérance globale mélangeait. */
+    by_direction?: Record<"long" | "short", {
+      n_trades: number; enough: boolean;
+      p_target: number; p_stop: number; p_timeout: number;
+      win_rate: number; expectancy_net_r: number; se_r?: number | null;
+    }>;
     /** Most likely outcome for this setup in today's market — conditioned on
      *  the market regime when the sample allows, unconditional otherwise, and
      *  it always says which. */
@@ -1029,6 +1036,17 @@ export interface Analysis {
     blockers: string[];
     warnings: string[];
   };
+  /** L'edge historique restreint au SENS que le plan propose — la mesure que
+   *  la jouabilité oppose au verdict, et donc celle que l'écran doit citer. */
+  edge_direction?: {
+    base: "directionnelle" | "globale";
+    sens: "long" | "short" | null;
+    n_trades: number;
+    expectancy_net_r?: number | null;
+    se_r?: number | null;
+    win_rate?: number | null;
+    fiable: boolean;
+  } | null;
   levels: {
     support: number;
     resistance: number;

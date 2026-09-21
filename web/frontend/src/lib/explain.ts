@@ -51,6 +51,20 @@ export function buildReasons(a: Analysis): Reason[] {
 
   // 1. Anything that makes the verdict unusable comes before the verdict.
   a.tradeability?.blockers?.forEach((b) => out.push({ text: b, tone: "warn" }));
+
+  // 1 bis. LES AVERTISSEMENTS, QUE PERSONNE N'AFFICHAIT.
+  //
+  // Le moteur les compose avec soin — « Volatilité élevée pour cet actif,
+  // réduisez la taille de position », « Facteurs en désaccord (34 %) »,
+  // « Confiance des données à 62 % » — et aucun écran du site ne les lisait.
+  // Ils partaient dans la réponse HTTP et s'arrêtaient là.
+  //
+  // C'est ce qui rendait l'edge historique inerte : le seuil d'alerte
+  // n'avait aucune sortie, donc tout ce qui n'allait pas jusqu'au blocage ne
+  // se voyait nulle part. Un avertissement qui n'atteint pas le lecteur ne
+  // se distingue pas d'un avertissement qu'on n'a pas écrit.
+  a.tradeability?.warnings?.forEach((w) => out.push({ text: w, tone: "warn" }));
+
   if (a.data_quality?.stale) {
     out.push({
       text: "La dernière bougie est ancienne — le marché est probablement fermé, et les niveaux datent de la dernière séance.",
@@ -160,13 +174,46 @@ export function buildReasons(a: Analysis): Reason[] {
  * anything below the sample threshold — a 12-trade hit rate read as fact is
  * worse than no figure at all.
  */
+/**
+ * Ce que l'historique de CET actif dit du plan proposé.
+ *
+ * La phrase citée ici est celle du SENS proposé, pas la moyenne des deux.
+ * Le replay prend l'achat au-dessus de 60 et la vente sous 40 : mesuré sur
+ * BTC-USD, l'espérance globale ressortait à -0,004 R — c'est-à-dire « rien à
+ * signaler » — alors que l'achat perdait 0,185 R et la vente en gagnait
+ * 0,145. Les deux lectures existaient, aucune n'était rendue.
+ *
+ * Et la conclusion a changé de nature. Elle se terminait par « le verdict
+ * reste ce qu'il est, mais l'historique ne le soutient pas » : le moteur
+ * constatait que le plan avait perdu de l'argent sur cet actif, puis
+ * annonçait qu'il n'en tirait aucune conséquence. Il en tire désormais une —
+ * une alerte, ou un blocage quand l'effet dépasse nettement son imprécision —
+ * et cette phrase dit laquelle plutôt que de s'en excuser.
+ */
 export function edgeSentence(a: Analysis): { text: string; tone: "up" | "down" | "warn" } | null {
-  const e = a.historical_edge;
-  if (!e || !e.n_trades) return null;
+  const global = a.historical_edge;
+  if (!global || !global.n_trades) return null;
 
-  if (!e.enough_samples) {
+  // La mesure du sens proposé quand elle existe ; sinon la globale, que le
+  // backend a déjà repliée dedans en marquant `base: "globale"`.
+  const e = a.edge_direction ?? {
+    base: "globale" as const,
+    sens: null,
+    n_trades: global.n_trades,
+    expectancy_net_r: global.expectancy_net_r,
+    se_r: null,
+    win_rate: global.win_rate,
+    fiable: global.enough_samples,
+  };
+
+  const portee =
+    e.base === "directionnelle"
+      ? e.sens === "short" ? "à la vente" : "à l'achat"
+      : "les deux sens confondus";
+
+  if (!e.fiable) {
     return {
-      text: `Seulement ${e.n_trades} trades comparables dans l'historique — trop peu pour en tirer une statistique.`,
+      text: `Seulement ${e.n_trades} trades comparables dans l'historique (${portee}) — trop peu pour en tirer une statistique.`,
       tone: "warn",
     };
   }
@@ -175,13 +222,19 @@ export function edgeSentence(a: Analysis): { text: string; tone: "up" | "down" |
   if (exp == null) return null;
 
   if (exp < 0) {
+    const bloquant = (a.tradeability?.blockers ?? []).some((b) => b.startsWith("Ce plan a déjà perdu"));
     return {
-      text: `Sur ${e.n_trades} trades comparables, ce niveau de score a perdu ${Math.abs(exp).toFixed(2)} R en moyenne sur cet actif. Le verdict reste ce qu'il est, mais l'historique ne le soutient pas.`,
+      text:
+        `Sur ${e.n_trades} trades comparables ${portee}, ce plan a perdu ` +
+        `${Math.abs(exp).toFixed(2)} R en moyenne sur cet actif. ` +
+        (bloquant
+          ? "L'écart est trop net pour venir du hasard : le plan est signalé comme à éviter au-dessus."
+          : "Pas assez net pour conclure, assez pour réduire la taille de position."),
       tone: "down",
     };
   }
   return {
-    text: `Sur ${e.n_trades} trades comparables, ce niveau de score a rapporté ${exp.toFixed(2)} R en moyenne${e.win_rate != null ? ` (${e.win_rate.toFixed(0)} % de réussite)` : ""}.`,
+    text: `Sur ${e.n_trades} trades comparables ${portee}, ce plan a rapporté ${exp.toFixed(2)} R en moyenne${e.win_rate != null ? ` (${e.win_rate.toFixed(0)} % de réussite)` : ""}.`,
     tone: "up",
   };
 }

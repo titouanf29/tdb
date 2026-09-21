@@ -96,6 +96,17 @@ def _slice_stats(trades: list[dict]) -> dict:
         "p_timeout": round(outcomes.count("timeout") / n * 100, 1),
         "win_rate": round(float((net > 0).mean() * 100), 1),
         "expectancy_net_r": round(float(net.mean()), 3),
+        # L'ERREUR-TYPE DE CETTE ESPÉRANCE, et elle n'est pas décorative.
+        #
+        # Sur une vingtaine de trades en R, l'écart-type tourne autour de 1 :
+        # l'erreur-type vaut donc environ 0,23 R, et une espérance mesurée à
+        # -0,31 R n'est pas distinguable de zéro. Publier ce -0,31 sans dire
+        # ce qu'il vaut, puis s'en servir pour interdire un trade, ce serait
+        # transformer du bruit en interdiction.
+        #
+        # La publier permet à l'appelant d'exiger que l'effet dépasse sa
+        # propre imprécision avant d'en tirer une conséquence.
+        "se_r": round(float(net.std(ddof=1) / np.sqrt(n)), 3) if n > 1 else None,
     }
 
 
@@ -106,6 +117,26 @@ def _regime_slices(trades: list[dict]) -> dict:
         subset = [t for t in trades if t.get("regime") == reg]
         if subset:
             out[reg] = _slice_stats(subset)
+    return out
+
+
+def _direction_slices(trades: list[dict]) -> dict:
+    """Stats par SENS, et c'est la découpe qui manquait.
+
+    Le replay prend l'achat au-dessus de 60 et la vente sous 40 — deux
+    populations différentes, mélangées dans une seule espérance. Un actif qui
+    paie bien à l'achat et perd à la vente ressort donc « à peu près nul »,
+    et ni l'une ni l'autre des deux lectures n'est rendue.
+
+    Or le verdict affiché porte UN sens. Lui opposer une espérance qui pèse
+    pour moitié des trades pris dans l'autre sens, c'est lui opposer une
+    mesure qui ne parle pas de lui.
+    """
+    out: dict = {}
+    for sens in ("long", "short"):
+        subset = [t for t in trades if t.get("direction") == sens]
+        if subset:
+            out[sens] = _slice_stats(subset)
     return out
 
 
@@ -286,6 +317,7 @@ def run_backtest(
         # What followed in each market regime. Published per regime with its
         # own count so a 12-trade cell is never read as a 40-trade one.
         "by_regime": _regime_slices(trades),
+        "by_direction": _direction_slices(trades),
         "min_trades_for_condition": MIN_TRADES_FOR_CONDITION,
         "correlation": round(_rank_correlation(scores_all, returns_all) or 0.0, 3)
                        if len(scores_all) >= 10 else None,
