@@ -41,9 +41,11 @@ DEMENTI = (
 NIVEAUX = ("FALSE", "DISPUTED", "UNCERTAIN", "POSSIBLE", "PROBABLE", "CONFIRMED")
 
 
-def _contient(articles: list[dict], mots) -> bool:
+def _contient(articles: list[dict], mots, titre_seulement: bool = False) -> bool:
     for a in articles:
-        texte = f"{a.get('title', '')} {a.get('summary', '')}".lower()
+        texte = (a.get("title", "") or "").lower()
+        if not titre_seulement:
+            texte = f"{texte} {(a.get('summary', '') or '').lower()}"
         if any(m in texte for m in mots):
             return True
     return False
@@ -59,7 +61,19 @@ def evaluer(articles: list[dict], analyse: dict) -> dict:
     """
     voix = voix_effectives(analyse)
     prudence = _contient(articles, PRUDENCE)
-    dementi = _contient(articles, DEMENTI)
+    # LE DÉMENTI SE CHERCHE DANS LE TITRE, ET NULLE PART AILLEURS.
+    #
+    # Mesuré sur le panel : « EN DIRECT, guerre en Ukraine : le parti de
+    # Poutine remporte un nombre record de sièges » ressortait DISPUTED —
+    # c'est-à-dire « des sources se contredisent sur ce fait ». Le mot qui
+    # l'avait déclenché vivait dans le résumé d'un live-blog, à propos d'un
+    # tout autre sujet empilé dans le même bloc de texte.
+    #
+    # DISPUTED est l'affirmation la plus forte de cette échelle après FALSE :
+    # elle dit que le fait est contesté. La tirer d'une ligne sans rapport,
+    # c'est exactement l'invention que le §17 interdit. Un démenti réel de
+    # l'événement est un titre, pas une incise.
+    dementi = _contient(articles, DEMENTI, titre_seulement=True)
     primaire = analyse.get("source_primaire", False)
 
     # La contradiction prime sur tout le reste : une information démentie par

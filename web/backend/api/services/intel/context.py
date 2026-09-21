@@ -54,7 +54,12 @@ async def _dossiers(force: bool = False) -> list[dict]:
     out = []
     for groupe in groupes:
         centrales = cluster.entites_du_groupe(groupe, centrales_seulement=True)
-        t = transmission.analyser(centrales)
+        # Les TITRES du groupe, et eux seuls. La direction d'un taux se lit
+        # dans « Fed approves interest rate hike » ; la chercher aussi dans
+        # les résumés ferait lire « rate cut » dans un live-blog qui parle
+        # d'autre chose, exactement comme les entités et les démentis.
+        titres = " ".join((a.get("title") or "") for a in groupe)
+        t = transmission.analyser(centrales, titres)
         if t["indetermine"]:
             continue
         a = sources.analyser(groupe)
@@ -114,7 +119,13 @@ def _concerne(dossier: dict, symbole: str) -> dict | None:
     ]
     if not candidats:
         return None
-    return max(candidats, key=lambda c: c.get("poids", 0.0))
+    # UN SENS CONNU PASSE DEVANT UNE CHAÎNE PLUS COURTE. Depuis que les règles
+    # de taux refusent de deviner la direction, une exposition peut ressortir
+    # à zéro — le canal est identifié, l'issue non. Trier sur la seule
+    # solidité faisait alors gagner l'exposition muette : une banque
+    # s'affichait « sans sens tranché » alors qu'un autre dossier du même
+    # groupe disait, lui, que les taux montaient.
+    return max(candidats, key=lambda c: (c.get("sens", 0) != 0, c.get("poids", 0.0)))
 
 
 def _chaine_du_lien(dossier: dict, lien: dict) -> dict:
@@ -158,9 +169,13 @@ async def pour_symbole(
         # Ce qui mérite d'être montré : un fait crédible, récent, relié par un
         # mécanisme qui tient. Les trois se multiplient — un seul faible suffit
         # à rendre le dossier anecdotique pour cet actif.
+        # Un événement dont on ne sait pas dire le sens pour cet actif reste
+        # affichable — il dit qu'un canal est actif — mais il ne doit pas
+        # occuper la première ligne devant un événement qui, lui, tranche.
         poids = (d["fait"]["confiance"]
                  * max(0.15, d["suivi"]["nouveaute"])
-                 * (lien["poids"] ** 0.5))
+                 * (lien["poids"] ** 0.5)
+                 * (1.0 if lien["sens"] else 0.55))
 
         chaine = _chaine_du_lien(d, lien)
         # Le dernier pas, celui que la chaîne de transmission ne fait pas :
@@ -215,8 +230,14 @@ async def pour_symbole(
         }
 
     tete = concernes[0]
+    # « À double sens » décrit une exposition tirée dans les deux sens par
+    # deux règles. Un sens nul parce que la DIRECTION est inconnue — une
+    # décision de taux dont le texte ne dit pas si elle monte ou baisse — est
+    # autre chose, et se dit autrement.
     sens = ("plutôt favorable" if tete["sens"] > 0
-            else "plutôt défavorable" if tete["sens"] < 0 else "à double sens")
+            else "plutôt défavorable" if tete["sens"] < 0
+            else "à double sens" if tete.get("conteste")
+            else "sans sens tranché — le canal est identifié, pas son issue")
     # Le résumé dit POURQUOI l'actif est concerné — son métier — et laisse à
     # chaque événement le soin de dire ce qu'il lui fait. Faire porter l'effet
     # au résumé le répétait mot pour mot dans la ligne juste en dessous :

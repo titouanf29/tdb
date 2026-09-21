@@ -223,6 +223,63 @@ REGLES: tuple[Regle, ...] = (
 )
 
 
+# ── Le sens d'une variable macro, quand le texte le dit ─────────────────────
+#
+# LA RÈGLE DES TAUX SE CONTREDISAIT ELLE-MÊME. Sa note dit noir sur blanc :
+# « le SENS dépend de la direction du taux, que la règle ne devine pas : elle
+# nomme les canaux, pas l'issue ». Et son champ `expose` affirmait pourtant
+# BANQUES +1, TECH -1, IMMOBILIER -1 — c'est-à-dire précisément l'issue d'une
+# HAUSSE. Tant que l'écran n'affichait qu'un mécanisme, l'incohérence passait
+# inaperçue ; depuis qu'il énonce l'effet en clair — « cet écart s'élargit » —
+# elle est devenue une phrase fausse un jour sur deux.
+#
+# Le texte porte souvent l'information : « rate hike », « rate cut », « la BCE
+# abaisse ses taux ». On la lit quand elle est là. Quand elle n'y est pas, les
+# expositions de cette règle deviennent CONTESTÉES plutôt que devinées : le
+# canal est nommé, l'issue ne l'est pas, et c'est ce que le lecteur doit voir.
+
+# LES DEUX LISTES DOIVENT ÊTRE SYMÉTRIQUES, et ça s'est vu à la mesure.
+# « hike » figurait seul du côté de la hausse, sans équivalent nu du côté de
+# la baisse — « cut » ne peut pas l'être, il vit dans « spending cuts », « cut
+# to fuel duty », « cost cuts ». Résultat : « Fed weighs both a hike and a cut
+# as members split » ressortait en HAUSSE. Un titre qui dit que les membres
+# sont partagés doit ressortir sans direction ; les deux côtés n'exigent donc
+# que des formes qualifiées par le taux.
+# « tightening » et « resserrement » ont été retirés, et c'est un cas où le
+# test s'était trompé avant le code : « Bank of England signals tightening is
+# over » ressortait en HAUSSE alors que la fin d'un cycle de resserrement est
+# un signal de BAISSE. Ce sont des mots de cycle, pas de décision, et ils
+# arrivent souvent niés — « the end of », « is over », « pause in ». Traiter
+# la négation correctement demanderait une analyse syntaxique ; s'en tenir aux
+# mots de décision, qui ne se nient pas dans un titre, coûte moins et ne se
+# trompe pas.
+HAUSSE = ("rate hike", "rate hikes", "raises rates", "raise rates", "rate rise",
+          "higher rates", "releve ses taux", "relevement des taux",
+          "hausse des taux", "remontee des taux", "augmente ses taux")
+BAISSE = ("rate cut", "rate cuts", "cuts rates", "cut rates", "lowers rates",
+          "lower rates", "easing", "abaisse ses taux", "baisse des taux",
+          "assouplissement", "detente des taux", "reduit ses taux")
+
+# Les règles dont le sens dépend d'une direction lue dans le texte, et le
+# signe que prend leur exposition quand cette direction est une HAUSSE.
+# (Une baisse inverse tous les signes ; une direction inconnue les annule.)
+DIRECTIONNELLES = ("taux_hausse", "inflation_surprise")
+
+
+def sens_macro(texte: str) -> int:
+    """+1 si le texte dit une hausse, -1 une baisse, 0 s'il ne dit rien."""
+    import unicodedata as _u
+    t = _u.normalize("NFD", (texte or "").lower())
+    t = "".join(c for c in t if _u.category(c) != "Mn")
+    h = any(m in t for m in HAUSSE)
+    b = any(m in t for m in BAISSE)
+    if h and not b:
+        return 1
+    if b and not h:
+        return -1
+    return 0
+
+
 def _declenchees(entites: set[str]) -> list[Regle]:
     out = []
     for r in REGLES:
@@ -249,8 +306,13 @@ def _solidite(chaine: tuple[Maillon, ...]) -> float:
     return p
 
 
-def analyser(entites: set[str]) -> dict:
+def analyser(entites: set[str], texte: str = "") -> dict:
     """Les chaînes de transmission qu'un événement déclenche.
+
+    `texte` est celui des TITRES du dossier. Il sert uniquement à lire la
+    direction d'une variable macro — une hausse ou une baisse de taux — pour
+    les règles dont le sens en dépend. Sans lui, ces règles gardent le signe
+    d'une hausse, ce qu'elles n'ont aucun moyen de savoir.
 
     Rend `indetermine` quand aucune règle ne s'applique — ce qui est une
     réponse, pas un échec.
@@ -268,16 +330,23 @@ def analyser(entites: set[str]) -> dict:
     chaines = []
     exposes: dict[str, dict] = {}
     macro: dict[str, dict] = {}
+    direction = sens_macro(texte)
     for r in regles:
         sol = _solidite(r.chaine)
+        # Les règles directionnelles portent le signe d'une HAUSSE. Le texte
+        # dit-il laquelle ? Si oui on applique ; si non, le signe est annulé
+        # et l'exposition ressortira « contestée », ce qui est la réponse
+        # honnête : le canal existe, l'issue n'est pas connue.
+        facteur = direction if r.cle in DIRECTIONNELLES else 1
         chaines.append({
             "cle": r.cle,
             "etapes": [m.texte for m in r.chaine],
             "solidite": round(sol, 3),
             "horizon": r.horizon,
             "note": r.note,
+            "direction_lue": direction if r.cle in DIRECTIONNELLES else None,
         })
-        for cible, sens in r.expose:
+        for cible, sens in ((c, s * facteur) for c, s in r.expose):
             cur = exposes.setdefault(cible, {"sens": 0, "poids": 0.0, "via": []})
             cur["sens"] += sens
             cur["poids"] = max(cur["poids"], sol)
