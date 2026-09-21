@@ -11,6 +11,7 @@ import { usePremium } from "@/lib/PremiumContext";
 import {
   CaptenLogo, CloudCurtain, DUR, EASE, useAnimationsEnabled, useRouteCurtain,
 } from "@/components/design-system";
+import { marketAPI, type AssetHit } from "@/lib/api";
 import { AREAS, MOBILE_TABS, areaForPath, type NavArea } from "./nav";
 import { cn } from "@/lib/utils";
 
@@ -241,10 +242,34 @@ function AreaButton({
 
 /* ── Asset search ─────────────────────────────────────────────────────────── */
 
+/**
+ * CE CHAMP NE CHERCHAIT RIEN.
+ *
+ * Il prenait le texte tapé, le passait en majuscules et naviguait vers
+ * `/analysis?symbol=<CE QUE VOUS AVEZ TAPÉ>`. Taper « apple » ouvrait donc
+ * l'analyse d'un symbole APPLE qui n'existe pas — le symbole d'Apple est
+ * AAPL. « google », « société générale », « bitcoin » : même résultat, une
+ * page d'erreur. Le seul cas qui marchait était celui où l'utilisateur
+ * connaissait déjà le ticker exact, c'est-à-dire celui où il n'a pas besoin
+ * d'une recherche.
+ *
+ * Il interroge maintenant le catalogue et propose ce qu'il a trouvé. Entrée
+ * ouvre la première proposition plutôt que le texte brut : quelqu'un qui tape
+ * « aple » et appuie sur Entrée veut Apple, pas une erreur 404.
+ */
 function AssetSearch() {
   const router = useRouter();
   const [value, setValue] = useState("");
+  const [hits, setHits] = useState<AssetHit[]>([]);
+  const [open, setOpen] = useState(false);
+  const [actif, setActif] = useState(0);
+  const [cherche, setCherche] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const boxRef = useRef<HTMLDivElement>(null);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Le numéro de la requête en cours : une réponse lente pour « ap » ne doit
+  // pas écraser une réponse rapide pour « apple ».
+  const seq = useRef(0);
 
   // Cmd/Ctrl-K focuses it from anywhere. The keystroke people already try.
   useEffect(() => {
@@ -258,35 +283,136 @@ function AssetSearch() {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
+  useEffect(() => {
+    if (!open) return;
+    const onDoc = (e: MouseEvent) => {
+      if (boxRef.current && !boxRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", onDoc);
+    return () => document.removeEventListener("mousedown", onDoc);
+  }, [open]);
+
+  useEffect(() => {
+    if (timer.current) clearTimeout(timer.current);
+    const q = value.trim();
+    if (q.length < 2) { setHits([]); setCherche(false); return; }
+    setCherche(true);
+    // 220 ms : assez pour ne pas appeler à chaque lettre, assez peu pour que
+    // la liste paraisse suivre la frappe.
+    timer.current = setTimeout(async () => {
+      const n = ++seq.current;
+      try {
+        const r = await marketAPI.searchAssets(q);
+        if (n === seq.current) { setHits(r.results.slice(0, 7)); setActif(0); setOpen(true); }
+      } catch {
+        if (n === seq.current) setHits([]);
+      } finally {
+        if (n === seq.current) setCherche(false);
+      }
+    }, 220);
+    return () => { if (timer.current) clearTimeout(timer.current); };
+  }, [value]);
+
+  const ouvrir = (symbole: string) => {
+    setValue("");
+    setHits([]);
+    setOpen(false);
+    inputRef.current?.blur();
+    router.push(`/analysis?symbol=${encodeURIComponent(symbole)}`);
+  };
+
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
-    const q = value.trim().toUpperCase();
-    if (!q) return;
-    setValue("");
-    inputRef.current?.blur();
-    router.push(`/analysis?symbol=${encodeURIComponent(q)}`);
+    // La première proposition, pas le texte brut. C'est tout le correctif.
+    if (hits.length) ouvrir(hits[actif]?.symbol ?? hits[0].symbol);
+  };
+
+  const touche = (e: React.KeyboardEvent) => {
+    if (!open || !hits.length) return;
+    if (e.key === "ArrowDown") { e.preventDefault(); setActif((i) => (i + 1) % hits.length); }
+    else if (e.key === "ArrowUp") { e.preventDefault(); setActif((i) => (i - 1 + hits.length) % hits.length); }
+    else if (e.key === "Escape") { setOpen(false); }
   };
 
   return (
-    <form onSubmit={submit} className="relative hidden sm:block">
-      <Search
-        className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2"
-        style={{ color: "var(--cap-ink-4)" }}
-      />
-      <input
-        ref={inputRef}
-        value={value}
-        onChange={(e) => setValue(e.target.value)}
-        placeholder="Rechercher un actif"
-        aria-label="Rechercher un actif"
-        className="h-10 w-[11rem] rounded-[10px] pl-9 pr-3 text-[0.875rem] outline-none transition-[width,box-shadow] duration-200 focus:w-[15rem] placeholder:text-[color:var(--cap-ink-4)]"
-        style={{
-          backgroundColor: "var(--cap-surface)",
-          color: "var(--cap-ink)",
-          boxShadow: "inset 0 0 0 1px var(--cap-line)",
-        }}
-      />
-    </form>
+    <div ref={boxRef} className="relative hidden sm:block">
+      <form onSubmit={submit}>
+        <Search
+          className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2"
+          style={{ color: "var(--cap-ink-4)" }}
+        />
+        <input
+          ref={inputRef}
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          onKeyDown={touche}
+          onFocus={() => hits.length && setOpen(true)}
+          placeholder="Rechercher un actif"
+          aria-label="Rechercher un actif"
+          role="combobox"
+          aria-expanded={open}
+          aria-autocomplete="list"
+          className="h-10 w-[11rem] rounded-[10px] pl-9 pr-3 text-[0.875rem] outline-none transition-[width,box-shadow] duration-200 focus:w-[15rem] placeholder:text-[color:var(--cap-ink-4)]"
+          style={{
+            backgroundColor: "var(--cap-surface)",
+            color: "var(--cap-ink)",
+            boxShadow: "inset 0 0 0 1px var(--cap-line)",
+          }}
+        />
+      </form>
+
+      <AnimatePresence>
+        {open && value.trim().length >= 2 && (
+          <motion.div
+            role="listbox"
+            className="absolute right-0 top-[calc(100%+6px)] z-50 w-[20rem] overflow-hidden p-1.5"
+            style={{
+              borderRadius: "var(--cap-r-lg)",
+              backgroundColor: "var(--cap-surface)",
+              boxShadow: "inset 0 0 0 1px var(--cap-line), var(--cap-shadow-lg)",
+            }}
+            initial={{ opacity: 0, y: -6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -4 }}
+            transition={{ duration: DUR.quick, ease: EASE }}
+          >
+            {hits.length === 0 ? (
+              <div className="px-3 py-2.5 text-[0.82rem]" style={{ color: "var(--cap-ink-3)" }}>
+                {cherche ? "Recherche…" : "Aucun actif de ce nom dans le catalogue."}
+              </div>
+            ) : (
+              hits.map((h, i) => (
+                <button
+                  key={h.symbol}
+                  type="button"
+                  role="option"
+                  aria-selected={i === actif}
+                  onMouseEnter={() => setActif(i)}
+                  onClick={() => ouvrir(h.symbol)}
+                  className="flex w-full items-baseline gap-2.5 rounded-[9px] px-3 py-2 text-left transition-colors"
+                  style={{ backgroundColor: i === actif ? "var(--cap-surface-2)" : "transparent" }}
+                >
+                  <span className="cap-num shrink-0 text-[0.78rem]" style={{ color: "var(--cap-ink-3)" }}>
+                    {h.symbol}
+                  </span>
+                  <span className="min-w-0 flex-1 truncate text-[0.88rem]" style={{ color: "var(--cap-ink)" }}>
+                    {h.name}
+                  </span>
+                  {/* Quand la correspondance vient d'un rattrapage de faute,
+                      on le signale : le lecteur doit savoir qu'on a interprété
+                      ce qu'il a tapé plutôt que de le prendre au mot. */}
+                  {h.score < 0.62 && (
+                    <span className="shrink-0 text-[0.7rem]" style={{ color: "var(--cap-ink-4)" }}>
+                      approchant
+                    </span>
+                  )}
+                </button>
+              ))
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
   );
 }
 

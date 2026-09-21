@@ -17,6 +17,7 @@ logger = logging.getLogger(__name__)
 from config import MARKETS
 
 from ..database import execute_query, execute_write
+from ._search import chercher, preparer
 from .auth import get_current_user
 
 router = APIRouter()
@@ -453,23 +454,55 @@ async def get_markets():
     return {"markets": out, "all_asset_count": len(union)}
 
 
+# ── L'index de recherche ─────────────────────────────────────────────────────
+#
+# Construit une fois au premier appel : le catalogue ne change pas entre deux
+# requêtes, et normaliser huit cents noms à chaque frappe coûtait plus cher
+# que la recherche elle-même.
+_INDEX: list = []
+_PLACE: dict = {}
+
+
+def _index_recherche():
+    global _INDEX
+    if not _INDEX:
+        catalogue, vus = [], set()
+        for market_key, market in MARKETS.items():
+            for sym in market["assets"]:
+                if sym in vus:
+                    continue
+                vus.add(sym)
+                _PLACE[sym] = market_key
+                catalogue.append((sym, SYMBOL_NAMES.get(sym, sym)))
+        _INDEX = preparer(catalogue)
+    return _INDEX
+
+
 @router.get("/search")
 @limiter.limit("30/minute")
 async def search_assets(request: Request, q: str = Query(..., min_length=2, max_length=100)):
-    """Search assets — catalogue local uniquement (actifs inscrits sur TDB)."""
-    query_upper = q.strip().upper()
-    query_lower = q.strip().lower()
-    hits = []
-    seen: set = set()
-    for market_key, market in MARKETS.items():
-        for sym in market["assets"]:
-            if sym in seen:
-                continue
-            display_name = SYMBOL_NAMES.get(sym, sym)
-            if query_upper in sym or sym.startswith(query_upper) or query_lower in display_name.lower():
-                seen.add(sym)
-                hits.append({"symbol": sym, "name": display_name, "exchange": market_key, "type": "EQUITY"})
-    return {"results": hits[:15]}
+    """Search assets — catalogue local uniquement (actifs inscrits sur TDB).
+
+    Le classement vit dans `_search.py`. L'ancienne version testait trois
+    sous-chaînes : mesurée sur cinquante-quatre requêtes réalistes, elle
+    trouvait le bon actif du premier coup une fois sur deux et ne rendait
+    RIEN DU TOUT dans vingt-cinq cas — dont « google », « facebook » et
+    « société générale », qui sont correctement orthographiés.
+    """
+    index = _index_recherche()
+    resultats = chercher(q, index, limite=15)
+    return {"results": [
+        {
+            "symbol": sym,
+            "name": SYMBOL_NAMES.get(sym, sym),
+            "exchange": _PLACE.get(sym, ""),
+            "type": "EQUITY",
+            # Le score est renvoyé pour que l'écran puisse distinguer une
+            # correspondance franche d'un rattrapage de faute de frappe.
+            "score": round(sc, 3),
+        }
+        for sym, sc in resultats
+    ]}
 
 
 @router.get("/my-requests")

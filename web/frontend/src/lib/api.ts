@@ -93,7 +93,20 @@ async function fetchAPI<T>(
 }
 
 // Market API
+export interface AssetHit {
+  symbol: string;
+  name: string;
+  exchange: string;
+  type: string;
+  /** 1 = symbole exact ; sous 0,6 = rattrapage d'une faute de frappe. */
+  score: number;
+}
+
 export const marketAPI = {
+  /** Recherche d'actif, tolérante aux fautes et aux noms d'usage. */
+  searchAssets: (q: string) =>
+    fetchAPI<{ results: AssetHit[] }>(`/api/market/search?q=${encodeURIComponent(q)}`),
+
   getMarkets: () => fetchAPI<{ markets: Market[]; all_asset_count?: number }>("/api/market/list"),
 
   getMarket: (key: string) => fetchAPI<Market>(`/api/market/${key}`),
