@@ -21,7 +21,7 @@ const TOC = [
 
 export default function CgvPage() {
   return (
-    <div className="space-y-6">
+    <div className="cap-legal space-y-6">
       <LegalNav current="/cgv" />
 
       {/* Header */}

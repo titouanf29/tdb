@@ -52,9 +52,16 @@ function LandingShell({ children }: { children: React.ReactNode }) {
 }
 
 function LegalShell({ children }: { children: React.ReactNode }) {
+  /* Le fond clair est posé ICI et pas sur le document. Ces pages sont les
+     seules du site à s'afficher hors de la coque applicative : sans fond
+     propre, elles héritaient du noir du `body`, et les panneaux migrés
+     flottaient sur une page sombre avec un fil d'Ariane invisible dessus.
+     Le poser sur `body` l'imposerait en revanche à tous les écrans non
+     migrés, qui sont sombres à l'intérieur — c'est exactement ce que le
+     découpage par route existe pour éviter. */
   return (
-    <div className="min-h-screen">
-      <div className="max-w-4xl mx-auto px-4 py-12">
+    <div className="min-h-screen" style={{ backgroundColor: "var(--cap-bg)" }}>
+      <div className="mx-auto max-w-4xl px-4 py-12 sm:px-6">
         {children}
       </div>
     </div>
@@ -309,9 +316,14 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   // The edge middleware rewrites here; it must render on its own, without the
   // authenticated shell (which would send an anonymous visitor to /login).
   const isMaintenancePage = pathname === "/maintenance";
+  // /cgv MANQUAIT, et ce n'était pas un oubli sans conséquence : la page
+  // tombait dans AuthShell, donc un visiteur non connecté était redirigé vers
+  // /login. Des conditions de vente doivent être consultables AVANT de créer
+  // un compte — c'est même à peu près leur seule raison d'exister.
   const isLegalPage   = pathname?.startsWith("/mentions-legales")
     || pathname?.startsWith("/politique-de-confidentialite")
-    || pathname?.startsWith("/cgu");
+    || pathname?.startsWith("/cgu")
+    || pathname?.startsWith("/cgv");
   const isAuthPage    = pathname?.startsWith("/login")
     || pathname?.startsWith("/register")
     || pathname?.startsWith("/verify-email");

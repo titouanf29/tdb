@@ -565,3 +565,91 @@
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   LES PAGES LÉGALES — un pont, pas une réécriture.
+
+   Les quatre documents (mentions légales, CGU, CGV, confidentialité) font
+   environ 1 240 lignes et sont rédigés dans l'ancien vocabulaire : glass-card,
+   text-muted-foreground, text-primary, bg-white/10. Les convertir à la main
+   voudrait dire relire mille lignes de texte juridique en cherchant des noms
+   de classes — et une phrase déplacée par erreur dans un document opposable
+   coûte plus cher que n'importe quel défaut visuel.
+
+   Or ces classes ne portent pas leurs couleurs : elles lisent des variables.
+   `text-muted-foreground` vaut `hsl(var(--muted-foreground))`. Redéfinir ces
+   variables sur un conteneur suffit donc à basculer TOUT le document d'un
+   coup, sans qu'une seule ligne de texte soit touchée. Les équivalences sont
+   calculées, pas choisies à l'œil : `--muted-foreground` est l'encre à 80 %
+   composée sur la surface claire, ce qui donne exactement la couleur que le
+   reste du site affiche.
+
+   Restent quelques littéraux — bg-white/10, text-yellow-300 — qui ne passent
+   par aucune variable. Ils sont reprisés en dessous, un par un.
+   ═════════════════════════════════════════════════════════════════════════ */
+
+.cap-legal {
+  --background:          210 33% 98%;
+  --foreground:          213 55% 10%;   /* --cap-ink */
+  --card:                210 33% 98%;   /* --cap-surface */
+  --card-foreground:     213 55% 10%;
+  --popover:             210 33% 98%;
+  --popover-foreground:  213 55% 10%;
+  --primary:             194 70% 27%;   /* --cap-ocean */
+  --primary-foreground:  210 33% 98%;
+  --secondary:           214 29% 91%;   /* --cap-surface-2 */
+  --secondary-foreground:213 55% 10%;
+  --muted:               214 29% 91%;
+  --muted-foreground:    214 17% 27%;   /* encre à 80 % sur la surface */
+  --accent:              214 29% 91%;
+  --accent-foreground:   213 55% 10%;
+  --destructive:         4 86% 42%;     /* --cap-down */
+  --destructive-foreground: 210 33% 98%;
+  --border:              210 13% 91%;   /* --cap-line */
+  --input:               210 13% 91%;
+  --ring:                194 70% 27%;
+  --radius: var(--cap-r-lg);
+
+  color: var(--cap-ink);
+  font-family: var(--cap-font-text);
+}
+
+/* Le panneau. Même géométrie et même ombre que partout ailleurs, pour que ces
+   pages n'aient pas l'air d'un site voisin. */
+.cap-legal .glass-card {
+  border-radius: var(--cap-r-xl);
+  background-color: var(--cap-surface);
+  border: 0;
+  box-shadow: inset 0 0 0 1px var(--cap-line), var(--cap-shadow);
+}
+
+/* Les littéraux qui ne lisent aucune variable. */
+.cap-legal .bg-white\/5,
+.cap-legal .bg-white\/10,
+.cap-legal .bg-white\/\[0\.02\],
+.cap-legal .bg-white\/\[0\.03\],
+.cap-legal .bg-white\/\[0\.04\] { background-color: var(--cap-surface-2) !important; }
+
+.cap-legal .border-white\/5,
+.cap-legal .border-white\/8,
+.cap-legal .border-white\/10,
+.cap-legal .border-white\/20 { border-color: var(--cap-line) !important; }
+
+/* L'encadré d'avertissement passait par du jaune sur fond sombre : illisible
+   sur du clair — mesuré à 1,9:1. L'ambre profond du nuancier tient 4,8:1. */
+.cap-legal .text-yellow-300,
+.cap-legal .text-yellow-400 { color: #8A5A08 !important; }
+.cap-legal .bg-yellow-500\/10 { background-color: rgba(229, 168, 58, 0.14) !important; }
+.cap-legal .border-yellow-500\/30 { border-color: rgba(229, 168, 58, 0.45) !important; }
+
+.cap-legal .text-green-300,
+.cap-legal .text-green-400 { color: var(--cap-up) !important; }
+.cap-legal .bg-green-500\/10 { background-color: rgba(9, 114, 65, 0.10) !important; }
+.cap-legal .border-green-500\/30 { border-color: rgba(9, 114, 65, 0.35) !important; }
+
+/* Le corps du texte. Les documents alternent des tailles arbitraires ; on les
+   ramène à l'échelle du site pour que la lecture longue reste confortable. */
+.cap-legal { font-size: 0.95rem; line-height: 1.65; }
+.cap-legal h1 { font-family: var(--cap-font-display); letter-spacing: -0.015em; }
+.cap-legal h2 { font-family: var(--cap-font-display); }
+.cap-legal a { text-underline-offset: 2px; }

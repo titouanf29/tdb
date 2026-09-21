@@ -25,7 +25,7 @@ const TOC = [
 
 export default function MentionsLegalesPage() {
   return (
-    <div className="space-y-6">
+    <div className="cap-legal space-y-6">
       <LegalNav current="/mentions-legales" />
 
       {/* Header */}
