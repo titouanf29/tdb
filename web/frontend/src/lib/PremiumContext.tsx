@@ -18,6 +18,7 @@ const defaultLimits: PremiumLimits = {
   max_positions: 5,
   max_favorites: 10,
   ai_messages_per_day: 10,
+  scanner_scans_per_day: 1,
   backtest_enabled: false,
   geopolitical_enabled: false,
   advanced_pivots: false,

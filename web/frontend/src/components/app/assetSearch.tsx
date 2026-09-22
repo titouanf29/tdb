@@ -30,10 +30,24 @@ export function useAssetSuggestions(valeur: string) {
   // Le numéro de la requête en cours : une réponse lente pour « ap » ne doit
   // pas écraser une réponse rapide pour « apple ».
   const seq = useRef(0);
+  /* LA VALEUR D'ARRIVÉE NE DÉCLENCHE RIEN. L'écran d'analyse préremplit son
+     champ avec le symbole de l'URL : ouvrir /analysis?symbol=AAPL faisait
+     donc chercher « AAPL » et dérouler la liste par-dessus la page, alors
+     que personne n'avait rien tapé. Une suggestion répond à une frappe.
+
+     Un drapeau qui se lève au premier changement, et non une comparaison à
+     la valeur initiale : sinon retaper plus tard ce même symbole resterait
+     muet, ce qui serait un second défaut pour en corriger un premier. */
+  const initiale = useRef(valeur);
+  const touche_clavier = useRef(false);
 
   useEffect(() => {
     if (timer.current) clearTimeout(timer.current);
     const q = valeur.trim();
+    if (!touche_clavier.current) {
+      if (q === initiale.current.trim()) return;
+      touche_clavier.current = true;
+    }
     if (q.length < 2) { setHits([]); setCherche(false); return; }
     setCherche(true);
     // 220 ms : assez pour ne pas appeler à chaque lettre, assez peu pour que

@@ -146,6 +146,7 @@ export const MIGRATED_ROUTES = [
   "/learn",
   "/settings",
   "/admin",
+  "/premium",
   // Les quatre documents légaux. Ils ne sont pas « migrés » au sens des
   // autres écrans — leur contenu reste écrit dans l'ancien vocabulaire — mais
   // un pont CSS (`.cap-legal`) traduit ce vocabulaire, donc ils rendent le

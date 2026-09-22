@@ -2148,6 +2148,9 @@ export interface PremiumLimits {
   max_positions: number;
   max_favorites: number;
   ai_messages_per_day: number;
+  /** -1 = sans limite. Ce champ existait côté serveur et manquait ici, ce qui
+   *  a laissé la page Premium annoncer un chiffre écrit à la main. */
+  scanner_scans_per_day: number;
   backtest_enabled: boolean;
   geopolitical_enabled: boolean;
   advanced_pivots: boolean;

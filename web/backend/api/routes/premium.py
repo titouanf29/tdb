@@ -119,22 +119,31 @@ async def is_user_premium(user: dict) -> bool:
     return False
 
 
-async def get_user_limits(user: dict) -> dict:
-    """Get feature limits for user, merging DB admin_settings overrides."""
-    is_premium = await is_user_premium(user)
-    base = dict(PREMIUM_FEATURES["premium"] if is_premium else PREMIUM_FEATURES["free"])
+# Les réglages d'administration qui écrasent une limite, et laquelle.
+_SETTING_MAP = {
+    "max_ai_messages_free":      ("ai_messages_per_day",   False),
+    "max_ai_messages_premium":   ("ai_messages_per_day",   True),
+    "max_positions_free":        ("max_positions",         False),
+    "max_positions_premium":     ("max_positions",         True),
+    "max_favorites_free":        ("max_favorites",         False),
+    "max_favorites_premium":     ("max_favorites",         True),
+    "max_scanner_scans_free":    ("scanner_scans_per_day", False),
+    "max_scanner_scans_premium": ("scanner_scans_per_day", True),
+}
 
-    # Read configurable overrides from admin_settings
-    _SETTING_MAP = {
-        "max_ai_messages_free":     ("ai_messages_per_day", False),
-        "max_ai_messages_premium":  ("ai_messages_per_day", True),
-        "max_positions_free":       ("max_positions",       False),
-        "max_positions_premium":    ("max_positions",       True),
-        "max_favorites_free":       ("max_favorites",       False),
-        "max_favorites_premium":    ("max_favorites",       True),
-        "max_scanner_scans_free":   ("scanner_scans_per_day", False),
-        "max_scanner_scans_premium":("scanner_scans_per_day", True),
-        "welcome_bonus_amount":     None,  # wallet only, skip for limits
+
+async def effective_limits() -> dict:
+    """Les limites RÉELLEMENT appliquées, pour les DEUX formules.
+
+    `get_user_limits` n'en rendait qu'une, celle de l'utilisateur courant.
+    La page Premium doit afficher les deux — et elle les écrivait en dur,
+    ce qui a fini par mentir : elle annonçait « 3 scans/jour » en gratuit
+    quand le moteur en accorde 1. Une grille tarifaire qui contredit le
+    produit est pire qu'une grille absente : elle se lit comme une promesse.
+    """
+    out = {
+        "free": dict(PREMIUM_FEATURES["free"]),
+        "premium": dict(PREMIUM_FEATURES["premium"]),
     }
     try:
         rows = await execute_query(
@@ -149,15 +158,26 @@ async def get_user_limits(user: dict) -> dict:
             if mapping is None:
                 continue
             limit_key, for_premium = mapping
-            if for_premium == is_premium:
-                try:
-                    base[limit_key] = int(row["value"])
-                except (ValueError, TypeError):
-                    pass
+            try:
+                out["premium" if for_premium else "free"][limit_key] = int(row["value"])
+            except (ValueError, TypeError):
+                pass
     except Exception:
         pass  # Fall back to hardcoded defaults on error
+    return out
 
-    return base
+
+async def get_user_limits(user: dict) -> dict:
+    """Les limites de CET utilisateur, réglages d'administration compris.
+
+    La lecture des réglages vivait ici en double avec `effective_limits` —
+    même requête, même table de correspondance, recopiée. Deux copies d'une
+    règle dérivent : c'est ainsi que la page Premium a fini par annoncer des
+    limites que le moteur n'appliquait pas.
+    """
+    is_premium = await is_user_premium(user)
+    limits = await effective_limits()
+    return limits["premium" if is_premium else "free"]
 
 
 async def check_premium_required(current_user: dict = Depends(get_current_user)):
@@ -325,10 +345,16 @@ async def get_premium_status(current_user: dict = Depends(get_current_user)):
 
 @router.get("/features")
 async def get_features_comparison():
-    """Get comparison of free vs premium features (public)"""
+    """Get comparison of free vs premium features (public).
+
+    Les limites EFFECTIVES, réglages d'administration compris. Cet endpoint
+    rendait les constantes du fichier : un administrateur qui relevait une
+    limite la voyait appliquée partout sauf sur la page qui l'annonce.
+    """
+    limits = await effective_limits()
     return {
-        "free": PREMIUM_FEATURES["free"],
-        "premium": PREMIUM_FEATURES["premium"],
+        "free": limits["free"],
+        "premium": limits["premium"],
         "benefits": [
             {
                 "icon": "rocket",
