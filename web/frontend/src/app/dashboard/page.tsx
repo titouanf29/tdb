@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { ArrowRight, CloudOff, Globe2, RefreshCw, Sun } from "lucide-react";
+import { Intention } from "@/components/dashboard/Intention";
+import { PrepHebdo } from "@/components/dashboard/PrepHebdo";
 import { useAuth } from "@/lib/AuthContext";
 import { useSettings, convertCurrency } from "@/lib/SettingsContext";
 import { useTradingStyle } from "@/lib/tradingStyle";
@@ -284,6 +286,24 @@ export default function DashboardPage() {
             </Panel>
           </Reveal>
         </div>
+
+        {/* ── 4 bis. L'intention du jour et la semaine qui vient ─────────
+            Deux panneaux que la refonte avait laissés derrière elle. Celui de
+            l'intention fermait une boucle ouverte : l'accueil LISAIT déjà
+            l'intention pour composer sa recommandation, mais plus aucun écran
+            ne permettait de l'écrire — elle était donc toujours vide. Celui
+            de la semaine affichait un briefing que le serveur continuait de
+            générer chaque dimanche pour personne.
+
+            Les deux s'effacent quand ils n'ont rien à dire : la préparation
+            hebdomadaire hors de sa fenêtre, l'intention avant sa réponse si
+            le serveur ne répond pas. */}
+        <Reveal delay={0.14}>
+          <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+            <Intention />
+            <PrepHebdo />
+          </div>
+        </Reveal>
 
         {/* ── 5. Le démarrage guidé et le parcours ─────────────────────── */}
         <Reveal delay={0.16} className={goal === "comprendre" ? "order-first" : ""}>
