@@ -1,8 +1,9 @@
 "use client";
 
-import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { AnimatePresence } from "framer-motion";
 import { ArrowRight, Loader2, Search, Star } from "lucide-react";
 import {
   analysisAPI, favoritesAPI, marketAPI,
@@ -31,6 +32,9 @@ import { quoteState } from "@/lib/marketOf";
 import { FactorBars, LevelScale } from "@/components/analysis/Gauges";
 import { AskAssistant } from "@/components/analysis/AskAssistant";
 import { PressContext } from "@/components/analysis/PressContext";
+import {
+  ListeSuggestions, useAssetSuggestions, useFermetureExterieure,
+} from "@/components/app/assetSearch";
 
 /**
  * The analysis screen — rebuilt around progressive depth.
@@ -212,8 +216,25 @@ function AnalysisScreen() {
     Boolean(symbol) && Boolean(analysis)
   );
 
+  /* La recherche d'actif, partagée avec l'en-tête. */
+  const sugg = useAssetSuggestions(query);
+  const formRef = useRef<HTMLFormElement>(null);
+  useFermetureExterieure(formRef, sugg.ouvert, () => sugg.setOuvert(false));
+
+  const choisirActif = useCallback((s: string) => {
+    setQuery(s);
+    sugg.vider();
+    setSymbol(s);
+    router.replace(`/analysis?symbol=${encodeURIComponent(s)}`);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [router]);
+
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
+    // La proposition retenue, pas le texte brut. Et s'il n'y en a aucune, le
+    // texte majusculé reste le repli : quelqu'un qui tape un symbole que le
+    // catalogue ne connaît pas encore doit pouvoir l'analyser quand même.
+    if (sugg.choisi) { choisirActif(sugg.choisi.symbol); return; }
     const s = query.trim().toUpperCase();
     if (!s) return;
     setSymbol(s);
@@ -277,7 +298,24 @@ function AnalysisScreen() {
         </header>
 
         <Panel>
-          <form onSubmit={submit} className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          {/* CE CHAMP AVAIT LE MÊME DÉFAUT QUE CELUI DE L'EN-TÊTE, et il a
+              survécu à sa correction : il forçait les majuscules à chaque
+              frappe et envoyait le texte tel quel comme symbole. Taper
+              « apple » ouvrait donc l'analyse d'un APPLE qui n'existe pas.
+
+              Ce n'était pas une redite bénigne : le champ de l'en-tête était
+              masqué sous 640 px, donc celui-ci était LA SEULE recherche
+              disponible sur téléphone. Le correctif ne tenait que sur grand
+              écran. Les deux partagent maintenant le même comportement.
+
+              Le libellé aussi a changé. « AAPL, BTC-USD, MC.PA… » enseignait
+              qu'il fallait connaître le code — ce qui était exact, et c'est
+              précisément ce qu'on corrige. */}
+          <form
+            ref={formRef}
+            onSubmit={submit}
+            className="relative flex flex-col gap-3 sm:flex-row sm:items-center"
+          >
             <div className="relative min-w-0 flex-1">
               <Search
                 className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2"
@@ -285,9 +323,14 @@ function AnalysisScreen() {
               />
               <input
                 value={query}
-                onChange={(e) => setQuery(e.target.value.toUpperCase())}
-                placeholder="AAPL, BTC-USD, MC.PA…"
+                onChange={(e) => setQuery(e.target.value)}
+                onKeyDown={sugg.touche}
+                onFocus={() => sugg.hits.length && sugg.setOuvert(true)}
+                placeholder="Apple, bitcoin, Société Générale…"
                 aria-label="Actif à analyser"
+                role="combobox"
+                aria-expanded={sugg.ouvert}
+                aria-autocomplete="list"
                 className="h-12 w-full rounded-[12px] pl-10 pr-3.5 text-[0.95rem] outline-none placeholder:text-[color:var(--cap-ink-4)]"
                 style={{
                   backgroundColor: "var(--cap-bg)",
@@ -299,6 +342,19 @@ function AnalysisScreen() {
             <Button type="submit" size="md" disabled={loading}>
               {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Analyser"}
             </Button>
+
+            <AnimatePresence>
+              {sugg.ouvert && query.trim().length >= 2 && (
+                <ListeSuggestions
+                  hits={sugg.hits}
+                  actif={sugg.actif}
+                  cherche={sugg.cherche}
+                  onSurvol={sugg.setActif}
+                  onChoisir={choisirActif}
+                  className="absolute left-0 right-0 top-[calc(100%+6px)] z-40 overflow-hidden p-1.5 sm:right-auto sm:w-[24rem]"
+                />
+              )}
+            </AnimatePresence>
           </form>
 
           {/* L'horizon, et c'est un vrai changement de modèle.
