@@ -58,6 +58,7 @@ export default function WalletPage() {
      question qui fasse progresser — « qu'est-ce que j'ai fait ». */
   const [closedSheet, setClosedSheet] = useState<Position | null>(null);
   const [funding, setFunding] = useState(false);
+  const [resetting, setResetting] = useState(false);
   const [fundAmount, setFundAmount] = useState("1000");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -210,6 +211,30 @@ export default function WalletPage() {
     }
   };
 
+  /**
+   * Repartir du capital de départ.
+   *
+   * Le simulateur autorise à engager tout le solde sur une position, levier
+   * compris — comportement d'un compte à marge, et qui COMPOSE : au levier
+   * ×10, une suite de gains à +5 % multiplie le solde par 1,5 à chaque trade,
+   * donc trente-quatre trades suffisent à passer de 10 000 € à neuf
+   * milliards. Passé ce point, plus un nombre de l'application n'est lisible,
+   * et rien côté utilisateur ne permettait de revenir en arrière.
+   */
+  const resetSimulation = async () => {
+    setBusy(true);
+    setError("");
+    try {
+      await walletAPI.resetSimulation();
+      setResetting(false);
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Remise à zéro impossible.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const equity = balance ? (balance.total_equity ?? balance.balance + balance.positions_value) : 0;
   const avgChange = useMemo(() => {
     if (open.length === 0) return null;
@@ -238,10 +263,20 @@ export default function WalletPage() {
               placements hors du site.
             </Text>
           </div>
+          <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => { setResetting(true); setError(""); }}
+            className="rounded-[9px] px-3 py-2 text-[0.85rem] transition-colors"
+            style={{ color: "var(--cap-ink-3)", boxShadow: "inset 0 0 0 1px var(--cap-line)" }}
+          >
+            Recommencer
+          </button>
           <Button variant="secondary" size="md" onClick={() => { setFunding(true); setError(""); }}>
             <Plus className="h-4 w-4" />
             Recréditer
           </Button>
+          </div>
         </header>
 
         <Panel title="Votre compte">
@@ -596,6 +631,27 @@ export default function WalletPage() {
             </Button>
           </div>
         </form>
+      </Modal>
+
+      {/* ── Recommencer la simulation ──────────────────────────────────── */}
+      <Modal open={resetting} onClose={() => setResetting(false)} title="Recommencer">
+        <Heading level={3}>Recommencer la simulation</Heading>
+        <Text size="small" className="mt-2">
+          Le solde repart du capital de départ et vos positions en cours sont
+          refermées. Vos trades passés ne sont pas supprimés : ils sortent des
+          écrans et des statistiques, parce que leurs montants n&apos;ont plus
+          de rapport avec le nouveau compte. Le journal, lui, n&apos;est pas
+          touché — vos notes restent.
+        </Text>
+        {error && <div className="mt-4"><FormError>{error}</FormError></div>}
+        <div className="mt-6 flex gap-2">
+          <Button size="md" disabled={busy} onClick={resetSimulation} className="flex-1">
+            {busy ? "Remise à zéro…" : "Recommencer"}
+          </Button>
+          <Button variant="secondary" size="md" onClick={() => setResetting(false)}>
+            Annuler
+          </Button>
+        </div>
       </Modal>
 
       {/* ── Add funds ──────────────────────────────────────────────────── */}

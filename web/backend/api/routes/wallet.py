@@ -134,15 +134,25 @@ async def _execute_levels(user_id, positions: list, numeric_id=None) -> list:
         if quote is None:
             continue
 
+        # Le niveau qui arrête la perte, en descendant pour un achat et en
+        # montant pour une vente : le stop s'il existe, la liquidation
+        # toujours, et c'est le PLUS PROCHE de l'entrée qui est touché en
+        # premier. Un stop placé au-delà de la liquidation — ce qui arrive dès
+        # qu'on met un stop à 15 % avec un levier ×10 — ne sera donc jamais
+        # atteint : le courtier ferme avant.
+        liq = prix_de_liquidation(pos["entry_price"], direction, pos.get("leverage"))
+
         hit, level = None, None
         if direction == "LONG":
-            if sl is not None and quote <= sl:
-                hit, level = "stop_loss", sl
+            arret = max([x for x in (sl, liq) if x is not None], default=None)
+            if arret is not None and quote <= arret:
+                hit, level = ("stop_loss" if arret == sl else "liquidation"), arret
             elif tp is not None and quote >= tp:
                 hit, level = "take_profit", tp
         else:
-            if sl is not None and quote >= sl:
-                hit, level = "stop_loss", sl
+            arret = min([x for x in (sl, liq) if x is not None], default=None)
+            if arret is not None and quote >= arret:
+                hit, level = ("stop_loss" if arret == sl else "liquidation"), arret
             elif tp is not None and quote <= tp:
                 hit, level = "take_profit", tp
 
@@ -210,13 +220,18 @@ async def _execute_levels(user_id, positions: list, numeric_id=None) -> list:
                                    style=style, closed_by=hit)
                 gagnant = realized >= 0
                 titre = (f"Objectif atteint sur {pos['symbol']}" if hit == "take_profit"
+                         else f"Position liquidée sur {pos['symbol']}" if hit == "liquidation"
                          else f"Stop touché sur {pos['symbol']}")
                 # Virgule décimale : un message qui dit « 0.3521 · -42.86 € »
                 # n'est pas du français, et c'est la faute qui revient le plus
                 # souvent dès qu'un nombre est mis dans une phrase.
                 await _notify(
                     numeric_id, "position_closed", titre,
-                    (f"Position clôturée automatiquement à {fmt_price(level)} · "
+                    (f"Le levier ×{pos.get('leverage')} a consommé toute la marge à "
+                     f"{fmt_price(level)} · {fmt_eur(realized)}. La position a été fermée "
+                     "d'office : c'est ce qu'un courtier appelle un appel de marge."
+                     if hit == "liquidation" else
+                     f"Position clôturée automatiquement à {fmt_price(level)} · "
                      f"{'+' if gagnant else ''}{fmt_eur(realized)}. "
                      "Le trade est déjà noté dans votre journal."),
                     "/journal",
@@ -237,6 +252,32 @@ async def _execute_levels(user_id, positions: list, numeric_id=None) -> list:
         })
 
     return closed
+
+
+def prix_de_liquidation(entry: float, direction: str, leverage: float) -> float | None:
+    """Le cours auquel la perte a mangé toute la marge.
+
+    C'EST LA SEULE CHOSE QUE LE LEVIER FAIT VRAIMENT, et elle n'était modélisée
+    nulle part. Avec un levier ×10, une baisse de 10 % efface la totalité du
+    capital engagé : à ce cours-là, un courtier ferme la position d'office.
+    Ici, la position restait ouverte et continuait de perdre — un compte
+    pouvait donc afficher −10 000 € après une baisse de 20 %, ce qu'aucun
+    compte à levier ne permet.
+
+    Le calcul est exact, pas prudentiel : la quantité vaut marge × levier ÷
+    entrée, donc un mouvement de entrée ÷ levier contre soi rend exactement
+    la marge. À levier 1, un achat ne se liquide qu'à zéro — ce qui est la
+    réalité d'un achat comptant, et c'est pourquoi la fonction rend None.
+    """
+    try:
+        lev = float(leverage or 1)
+        entry = float(entry)
+    except (TypeError, ValueError):
+        return None
+    if lev <= 1 or entry <= 0:
+        return None
+    ecart = entry / lev
+    return entry - ecart if (direction or "LONG").upper() == "LONG" else entry + ecart
 
 
 def _px(value: float) -> float:
@@ -348,7 +389,7 @@ async def get_wallet_balance(current_user: dict = Depends(get_current_user)):
 
     # Calculate total positions value
     positions = await execute_query(
-        "SELECT * FROM positions WHERE user_id = ? AND status = 'open'",
+        "SELECT * FROM positions WHERE user_id = ? AND status = 'open' AND (archived IS NULL OR archived = 0)",
         (user_id,)
     )
 
@@ -385,7 +426,7 @@ async def get_positions(
     user_id = get_user_id(current_user)
 
     positions = await execute_query(
-        "SELECT * FROM positions WHERE user_id = ? AND status = ? ORDER BY created_at DESC",
+        "SELECT * FROM positions WHERE user_id = ? AND status = ? AND (archived IS NULL OR archived = 0) ORDER BY created_at DESC",
         (user_id, status)
     )
 
@@ -422,7 +463,7 @@ async def open_position(
     max_positions = limits.get("max_positions", 5)
 
     open_positions = await execute_query(
-        "SELECT COUNT(*) as count FROM positions WHERE user_id = ? AND status = 'open'",
+        "SELECT COUNT(*) as count FROM positions WHERE user_id = ? AND status = 'open' AND (archived IS NULL OR archived = 0)",
         (user_id,)
     )
     count = open_positions[0]["count"] if open_positions else 0
@@ -518,11 +559,38 @@ async def close_position(
     entry_price = position["entry_price"]
     quantity = position["quantity"]
     direction = position["direction"]
+    amount = float(position.get("amount") or 0)
+
+    # ── LA MÊME LIMITE QUE SUR LA CLÔTURE AUTOMATIQUE ──────────────────────
+    #
+    # Les deux chemins de sortie ne disaient pas la même chose du même trade.
+    # La clôture automatique plafonne la perte à la marge engagée
+    # (`credit = max(0, amount + realized)`), la clôture manuelle non : elle
+    # créditait `solde + marge + pnl` sans plancher. Mesuré sur les règles
+    # telles qu'écrites, un achat ×10 sur une baisse de 20 %, tout le solde
+    # engagé : 0 € par le stop, −10 000 € par le bouton « Clôturer ». Un solde
+    # négatif que rien ne permet ensuite de rattraper.
+    #
+    # La sortie est donc ramenée au prix de liquidation quand le cours l'a
+    # dépassé : c'est le prix auquel un courtier aurait fermé, et le seul qui
+    # rende les deux chemins cohérents.
+    liq = prix_de_liquidation(entry_price, direction, position.get("leverage"))
+    liquidee = False
+    if liq is not None:
+        if direction == "LONG" and exit_price <= liq:
+            exit_price, liquidee = liq, True
+        elif direction != "LONG" and exit_price >= liq:
+            exit_price, liquidee = liq, True
 
     if direction == "LONG":
         pnl = (exit_price - entry_price) * quantity
     else:
         pnl = (entry_price - exit_price) * quantity
+
+    # Ceinture et bretelles : même sans levier, le crédit ne descend pas sous
+    # zéro. Une position ne peut pas rendre moins que rien.
+    if amount and pnl < -amount:
+        pnl = -amount
 
     # Update position
     await execute_write(
@@ -538,7 +606,7 @@ async def close_position(
         (user_id,)
     )
 
-    new_balance = wallets[0]["balance"] + position["amount"] + pnl
+    new_balance = wallets[0]["balance"] + max(0.0, amount + pnl)
     await execute_write(
         "UPDATE wallet SET balance = ? WHERE user_id = ?",
         (new_balance, user_id)
@@ -551,13 +619,15 @@ async def close_position(
     rev = None
     try:
         style = await _trading_style(current_user.get("id"))
-        rev = review_trade(position, float(exit_price), float(pnl), style=style)
+        rev = review_trade(position, float(exit_price), float(pnl), style=style,
+                           closed_by="liquidation" if liquidee else None)
     except Exception as exc:
         print(f"[wallet] bilan de clôture : {exc}")
 
     return {
         "success": True,
         "message": f"Position closed: {position['symbol']}",
+        "liquidated": liquidee,
         "review": rev,
         "exit_price": _px(exit_price),
         "realized_pnl": round(pnl, 2),
@@ -576,6 +646,7 @@ async def get_trade_history(
     positions = await execute_query(
         """SELECT * FROM positions
            WHERE user_id = ? AND status = 'closed'
+             AND (archived IS NULL OR archived = 0)
            ORDER BY closed_at DESC
            LIMIT ?""",
         (user_id, limit)
@@ -603,7 +674,8 @@ async def get_history_by_symbol(current_user: dict = Depends(get_current_user)):
         """SELECT symbol, direction, leverage, amount, realized_pnl,
                   created_at, closed_at
            FROM positions
-           WHERE user_id = ? AND status = 'closed'""",
+           WHERE user_id = ? AND status = 'closed'
+             AND (archived IS NULL OR archived = 0)""",
         (user_id,),
     )
 
@@ -810,6 +882,64 @@ async def add_funds_to_wallet(
     }
 
 
+@router.post("/reset")
+async def reset_wallet(current_user: dict = Depends(get_current_user)):
+    """Repartir du capital de départ, sans rien détruire.
+
+    POURQUOI CE BOUTON EXISTE. Le simulateur autorise à engager tout le solde
+    sur une seule position, levier compris. C'est le comportement d'un compte
+    à marge et ce n'est pas un bug — mais il compose : avec le levier ×10, une
+    suite de trades gagnants à +5 % multiplie le solde par 1,5 à chaque fois.
+    Trente-quatre trades suffisent pour passer de 10 000 € à plus de neuf
+    milliards. À partir de là, plus un seul nombre de l'application n'est
+    lisible ni instructif, et rien, côté utilisateur, ne permettait de
+    revenir en arrière : seule une action d'administrateur le pouvait.
+
+    Les positions sont ARCHIVÉES, pas supprimées. Elles disparaissent des
+    écrans et des statistiques — leurs montants n'ont plus de rapport avec le
+    nouveau compte — mais la trace reste en base, et le journal, qui contient
+    les notes écrites par l'utilisateur, n'est pas touché du tout.
+    """
+    user_id = get_user_id(current_user)
+
+    # Le capital de départ est celui des réglages d'administration, comme à
+    # l'inscription : deux valeurs différentes pour la même promesse, c'est
+    # la garantie qu'elles divergeront.
+    depart = 10000.0
+    try:
+        rows = await execute_query(
+            "SELECT value FROM admin_settings WHERE key = 'welcome_bonus_amount'"
+        )
+        if rows:
+            depart = float(rows[0]["value"])
+    except Exception:
+        pass
+
+    archivees = await execute_query(
+        "SELECT COUNT(*) as n FROM positions WHERE user_id = ? "
+        "AND (archived IS NULL OR archived = 0)",
+        (user_id,),
+    )
+    n = archivees[0]["n"] if archivees else 0
+
+    await execute_write(
+        "UPDATE positions SET archived = 1 WHERE user_id = ?", (user_id,)
+    )
+
+    wallets = await execute_query("SELECT * FROM wallet WHERE user_id = ?", (user_id,))
+    if wallets:
+        await execute_write(
+            "UPDATE wallet SET balance = ? WHERE user_id = ?", (depart, user_id)
+        )
+    else:
+        await execute_write(
+            "INSERT INTO wallet (user_id, balance, currency, created_at) VALUES (?, ?, 'USD', ?)",
+            (user_id, depart, datetime.now(timezone.utc).isoformat()),
+        )
+
+    return {"success": True, "balance": depart, "archived": n}
+
+
 @router.get("/stats")
 async def get_trading_stats(current_user: dict = Depends(get_current_user)):
     """Get trading statistics"""
@@ -817,7 +947,7 @@ async def get_trading_stats(current_user: dict = Depends(get_current_user)):
 
     # Get all closed positions
     positions = await execute_query(
-        "SELECT * FROM positions WHERE user_id = ? AND status = 'closed'",
+        "SELECT * FROM positions WHERE user_id = ? AND status = 'closed' AND (archived IS NULL OR archived = 0)",
         (user_id,)
     )
 

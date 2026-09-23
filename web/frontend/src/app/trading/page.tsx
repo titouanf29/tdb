@@ -7,7 +7,9 @@ import {
   marketAPI, missionsAPI, walletAPI,
   type Quote, type WalletBalance,
 } from "@/lib/api";
-import { useSettings, convertCurrency } from "@/lib/SettingsContext";
+// `fr` : la virgule décimale. « 0.4 % » et « 6.6689 » dans un écran français
+// sont la faute qui revient le plus souvent dès qu'un nombre est affiché.
+import { fr, useSettings, convertCurrency, useFormatAssetPrice } from "@/lib/SettingsContext";
 import {
   Button, Checkbox, Field, FormError, Heading, Num, Panel, SegmentedControl,
   Text, TextInput, WeatherBackdrop, useAnimationsEnabled,
@@ -140,6 +142,22 @@ export default function TradingPage() {
   }, [sizingOn, suggested]);
 
   const quantity = price > 0 ? (amount * leverage) / price : 0;
+
+  /**
+   * Le cours auquel la marge est entièrement consommée.
+   *
+   * C'est la seule chose que le levier fait réellement, et l'écran ne la
+   * disait nulle part : on lisait « exposition 20 000 € » sans jamais lire
+   * « à 132,12 € vous avez tout perdu ». Le calcul est celui du serveur —
+   * un mouvement de 1 ÷ levier contre soi — pour qu'un seul nombre circule.
+   */
+  const liquidation = leverage > 1 && price > 0
+    ? (direction === "LONG" ? price - price / leverage : price + price / leverage)
+    : null;
+
+  // Un COURS, pas une somme : sur un actif à 0,34 €, deux décimales
+  // affichent la même valeur avant et après un mouvement réel.
+  const assetPrice = useFormatAssetPrice();
 
   const money = useCallback(
     (v: number) =>
@@ -397,19 +415,37 @@ export default function TradingPage() {
 
             <Panel title="Ce que ça engage">
               <dl className="space-y-3">
-                <Line label="Quantité" value={price > 0 ? quantity.toFixed(4) : "—"} />
+                <Line label="Quantité" value={price > 0 ? fr(quantity, 4) : "—"} />
                 <Line label="Exposition" value={money(amount * leverage)} />
                 <Line
                   label="Risque si le stop est touché"
                   value={
                     actualRisk != null
-                      ? `${money(actualRisk)}${actualRiskPct != null ? ` · ${actualRiskPct.toFixed(1)} %` : ""}`
+                      ? `${money(actualRisk)}${actualRiskPct != null ? ` · ${fr(actualRiskPct, 1)} %` : ""}`
                       : "non défini"
                   }
                   tone={riskTone}
                 />
+                {liquidation != null && (
+                  <Line
+                    label={`Liquidation (−${fr(100 / leverage, 0)} %)`}
+                    value={assetPrice(liquidation)}
+                    tone="down"
+                  />
+                )}
                 {balance && <Line label="Solde disponible" value={money(balance.balance)} />}
               </dl>
+
+              {liquidation != null && (
+                <div className="mt-4">
+                  <Text size="caption">
+                    À ce cours, la totalité des {money(amount)} engagés est perdue et la
+                    position est fermée d&apos;office — c&apos;est ce qu&apos;un courtier
+                    appelle un appel de marge. Un stop placé au-delà ne servirait à rien :
+                    il ne serait jamais atteint.
+                  </Text>
+                </div>
+              )}
 
               {actualRiskPct != null && actualRiskPct > 5 && (
                 <div className="mt-4">

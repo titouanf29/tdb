@@ -151,7 +151,8 @@ async def websocket_portfolio(websocket: WebSocket, user_id: int, token: Optiona
         while True:
             # Get open positions
             positions = await execute_query(
-                "SELECT * FROM positions WHERE user_id = ? AND status = 'open'",
+                "SELECT * FROM positions WHERE user_id = ? AND status = 'open' "
+                "AND (archived IS NULL OR archived = 0)",
                 (user_id,)
             )
 

@@ -97,10 +97,26 @@ def build_advice(pos: dict, exit_price: float, pnl: float,
             f"L'objectif à {_fmt(tp)} a été atteint et la position s'est fermée toute seule. "
             "Le plan est allé au bout sans intervention."
         )
+    elif closed_by == "liquidation":
+        lev = pos.get("leverage") or 1
+        out.append(
+            f"La position a été liquidée à {_fmt(exit_price)} : avec un levier ×{lev}, "
+            f"un mouvement de {100 / float(lev):.0f} % contre vous suffit à consommer toute "
+            "la marge, et c'est là qu'un courtier ferme d'office. Le capital engagé est "
+            "perdu en entier — c'est le seul risque que le levier ajoute, et il ne prévient "
+            "pas.".replace(".0 %", " %")
+        )
 
     # 1. Pas de stop : le seul défaut qui peut coûter le capital entier.
     if sl is None:
         out.append(
+            # « elle s'est arrêtée parce que vous avez clôturé » est faux quand
+            # c'est l'appel de marge qui a fermé : l'utilisateur n'a rien fait,
+            # et c'est précisément le reproche à formuler.
+            "Aucun stop n'était posé, et c'est l'appel de marge qui a fini par arrêter la "
+            "perte — c'est-à-dire au pire endroit possible, quand il ne restait plus rien "
+            "à perdre. Un stop, même large, aurait fermé avant."
+            if closed_by == "liquidation" else
             "Aucun stop n'était posé. Cette perte n'avait pas de plancher : elle s'est "
             "arrêtée parce que vous avez clôturé, pas parce qu'une limite l'a arrêtée."
             if pnl < 0 else
@@ -196,7 +212,9 @@ def review(pos: dict, exit_price: float, pnl: float, *,
         lignes.append(
             # « sur le objectif » — l'élision manquait.
             "Clôture automatique sur "
-            + ("le stop." if closed_by == "stop_loss" else "l'objectif.")
+            + ("le stop." if closed_by == "stop_loss"
+               else "appel de marge." if closed_by == "liquidation"
+               else "l'objectif.")
         )
     lignes += ["", "Pourquoi suis-je entré ? "]
 

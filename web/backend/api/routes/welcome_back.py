@@ -65,7 +65,8 @@ async def _compute_state(current_user: dict) -> dict:
     balance = float(wallets[0]["balance"]) if wallets else 10000.0
 
     positions = await execute_query(
-        "SELECT symbol, direction, entry_price, quantity, amount FROM positions WHERE user_id = ? AND status = 'open'",
+        "SELECT symbol, direction, entry_price, quantity, amount FROM positions "
+        "WHERE user_id = ? AND status = 'open' AND (archived IS NULL OR archived = 0)",
         (wuid,),
     )
     favorites = await execute_query(

@@ -254,6 +254,16 @@ async def _init_postgres():
                 closed_at TEXT
             )
         """)
+        # Une remise à zéro du simulateur n'EFFACE pas : elle archive. Les
+        # trades d'un compte précédent n'ont plus de rapport avec le nouveau
+        # solde, donc ils sortent des écrans et des statistiques — mais la
+        # trace reste, parce que détruire l'historique de quelqu'un pour
+        # remettre un compteur à zéro est une réponse trop définitive à un
+        # problème d'affichage.
+        try:
+            await conn.execute("ALTER TABLE positions ADD COLUMN archived INTEGER DEFAULT 0")
+        except Exception:
+            pass  # la colonne existe déjà
         await conn.execute("""
             CREATE TABLE IF NOT EXISTS admin_audit_log (
                 id SERIAL PRIMARY KEY,
@@ -700,6 +710,16 @@ async def _init_sqlite():
                 closed_at TEXT
             )
         """)
+        # Une remise à zéro du simulateur n'EFFACE pas : elle archive. Les
+        # trades d'un compte précédent n'ont plus de rapport avec le nouveau
+        # solde, donc ils sortent des écrans et des statistiques — mais la
+        # trace reste, parce que détruire l'historique de quelqu'un pour
+        # remettre un compteur à zéro est une réponse trop définitive à un
+        # problème d'affichage.
+        try:
+            await db.execute("ALTER TABLE positions ADD COLUMN archived INTEGER DEFAULT 0")
+        except Exception:
+            pass  # la colonne existe déjà
         await db.execute("""
             CREATE TABLE IF NOT EXISTS admin_audit_log (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,

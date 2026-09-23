@@ -203,6 +203,13 @@ export const walletAPI = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ amount }),
     }),
+
+  /** Repart du capital de départ. Les trades passés sont ARCHIVÉS, pas
+   *  supprimés : ils sortent des écrans et des statistiques, la trace reste. */
+  resetSimulation: () =>
+    fetchAPI<{ success: boolean; balance: number; archived: number }>("/api/wallet/reset", {
+      method: "POST",
+    }),
 };
 
 // User Settings API — server is the source of truth for every preference.
