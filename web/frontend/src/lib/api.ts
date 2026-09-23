@@ -1180,6 +1180,17 @@ export interface ScanResultItem {
   sens?: "long" | "short" | "aucun";
   /** Pourquoi ce sens, et ce que l'horizon y change. */
   sens_phrase?: string;
+  /** Entrée, objectif, invalidation — null quand la structure ne les donne pas. */
+  plan?: {
+    sens: "long" | "short";
+    entree: number;
+    entree_condition: string;
+    invalidation: number;
+    objectif: number;
+    rapport: number | null;
+    commentaire: string;
+    verdict: string;
+  } | null;
   opp_type: "breakout" | "reversal" | "momentum";
   macd_signal: "HAUSSIER" | "BAISSIER";
   near_breakout: boolean;

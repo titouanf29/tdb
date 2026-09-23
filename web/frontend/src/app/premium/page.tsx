@@ -182,8 +182,12 @@ export default function PremiumPage() {
 
       <Reveal delay={0.08}>
         <Panel
-          title="Ce qui change, ligne par ligne"
-          hint="Les chiffres sont lus sur le serveur qui les fait respecter — pas recopiés ici."
+          title={OFFRE_PAYANTE_OUVERTE ? "Ce qui change, ligne par ligne" : "Ce que l'accès Premium ouvrira"}
+          hint={
+            OFFRE_PAYANTE_OUVERTE
+              ? "Les chiffres sont lus sur le serveur qui les fait respecter — pas recopiés ici."
+              : "Tant que l'abonnement n'est pas ouvert, ces limites ne s'appliquent à personne : tous les comptes ont l'accès complet."
+          }
         >
           {charge ? (
             <Text size="small">Lecture des limites…</Text>
@@ -193,7 +197,12 @@ export default function PremiumPage() {
               par le moteur, qui vous préviendra si vous en atteignez une.
             </Text>
           ) : (
-            <Comparatif features={features} />
+            /* DEUX COLONNES IDENTIQUES NE COMPARENT RIEN. L'offre étant
+               fermée, le serveur accorde aux comptes gratuits les limites
+               Premium : le tableau afficherait donc deux fois la même chose,
+               ce qui se lit comme un bug. On montre alors ce que le niveau
+               Premium ouvrira, en une seule colonne. */
+            <Comparatif features={features} colonneUnique={!OFFRE_PAYANTE_OUVERTE} />
           )}
         </Panel>
       </Reveal>
@@ -221,7 +230,13 @@ export default function PremiumPage() {
   );
 }
 
-function Comparatif({ features }: { features: PremiumFeatures }) {
+function Comparatif({
+  features,
+  colonneUnique,
+}: {
+  features: PremiumFeatures;
+  colonneUnique?: boolean;
+}) {
   /* « Illimité » plutôt que « -1 ». Le serveur code l'absence de limite par
      un nombre négatif, ce qui est commode pour lui et illisible ici. */
   const dire = (v: number | boolean, unite?: (n: number) => string) => {
@@ -230,15 +245,21 @@ function Comparatif({ features }: { features: PremiumFeatures }) {
     return unite ? unite(v) : String(v);
   };
 
+  const grille = colonneUnique
+    ? "grid-cols-[minmax(0,1fr)_7rem] sm:grid-cols-[minmax(0,1fr)_10rem]"
+    : "grid-cols-[minmax(0,1fr)_5.5rem_6.5rem] sm:grid-cols-[minmax(0,1fr)_8rem_9rem]";
+
   return (
     <div>
       <div
-        className="grid grid-cols-[minmax(0,1fr)_5.5rem_6.5rem] gap-x-3 pb-2 sm:grid-cols-[minmax(0,1fr)_8rem_9rem]"
+        className={`grid ${grille} gap-x-3 pb-2`}
         style={{ borderBottom: "1px solid var(--cap-line)" }}
       >
         <span />
-        <Text size="caption" tone="faint" as="span" className="text-center">Gratuit</Text>
-        <Text size="caption" as="span" className="text-center" >
+        {!colonneUnique && (
+          <Text size="caption" tone="faint" as="span" className="text-center">Gratuit</Text>
+        )}
+        <Text size="caption" as="span" className="text-center">
           <span style={{ color: "var(--cap-amber)" }}>Premium</span>
         </Text>
       </div>
@@ -249,11 +270,13 @@ function Comparatif({ features }: { features: PremiumFeatures }) {
         return (
           <div
             key={l.nom}
-            className="grid grid-cols-[minmax(0,1fr)_5.5rem_6.5rem] items-center gap-x-3 py-2.5 sm:grid-cols-[minmax(0,1fr)_8rem_9rem]"
+            className={`grid ${grille} items-center gap-x-3 py-2.5`}
             style={{ borderBottom: "1px solid var(--cap-line)" }}
           >
             <Text size="small" as="span">{l.nom}</Text>
-            <span className="text-center"><Valeur v={gratuit} /></span>
+            {!colonneUnique && (
+              <span className="text-center"><Valeur v={gratuit} /></span>
+            )}
             <span className="text-center"><Valeur v={premium} fort /></span>
           </div>
         );

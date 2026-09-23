@@ -145,6 +145,24 @@ async def effective_limits() -> dict:
         "free": dict(PREMIUM_FEATURES["free"]),
         "premium": dict(PREMIUM_FEATURES["premium"]),
     }
+
+    # TANT QU'IL N'Y A RIEN À VENDRE, IL N'Y A RIEN À BRIDER.
+    #
+    # Ces limites existent pour distinguer une formule payante d'une formule
+    # gratuite. L'offre payante est fermée — l'éditeur n'est pas immatriculé,
+    # voir api/legal.py — donc elles ne distinguent plus rien : elles privent
+    # simplement tout le monde, sans contrepartie et sans recette.
+    #
+    # Un scan par jour rendait d'ailleurs le scanner difficile à évaluer, y
+    # compris pour nous : mesurer un avant/après sur ses résultats demandait
+    # de passer le compte de test en Premium.
+    #
+    # Le retour est automatique : le jour où l'offre rouvre, ce bloc ne
+    # s'exécute plus et les limites reprennent leurs valeurs. Rien à se
+    # rappeler de faire.
+    if not offre_payante_ouverte():
+        out["free"] = dict(PREMIUM_FEATURES["premium"])
+
     try:
         rows = await execute_query(
             "SELECT key, value FROM admin_settings WHERE key IN ("

@@ -32,6 +32,7 @@ import { quoteState } from "@/lib/marketOf";
 import { FactorBars, LevelScale } from "@/components/analysis/Gauges";
 import { AskAssistant } from "@/components/analysis/AskAssistant";
 import { PressContext } from "@/components/analysis/PressContext";
+import { NoteScanner } from "@/components/analysis/NoteScanner";
 import {
   ListeSuggestions, useAssetSuggestions, useFermetureExterieure,
 } from "@/components/app/assetSearch";
@@ -528,6 +529,14 @@ function AnalysisScreen() {
                 )}
               </Panel>
             )}
+
+            {/* CE QUE LE SCANNER A VU, quand on arrive de là.
+                Le trajet scanner → analyse perdait le rang, le niveau
+                d'entrée et l'invalidation que le scanner venait de calculer :
+                on atterrissait sur une page qui refaisait son raisonnement de
+                zéro. Le panneau s'efface de lui-même si l'on n'est pas passé
+                par le scanner, ou si le scan date de plus de six heures. */}
+            <NoteScanner symbol={analysis.symbol} format={assetPrice} />
 
             {/* La presse, à tous les niveaux de détail. Un débutant a plus
                 besoin qu'un expert de savoir POURQUOI un actif bouge, et

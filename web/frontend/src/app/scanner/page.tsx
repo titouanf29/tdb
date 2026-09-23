@@ -19,6 +19,7 @@ import { IntentBox } from "@/components/scanner/IntentBox";
 import { Sweep, type SweepState } from "@/components/scanner/Sweep";
 import { Opportunity } from "@/components/scanner/Opportunity";
 import { avertissementSeance } from "@/components/scanner/horaires";
+import { enregistrerScan } from "@/lib/scanNote";
 
 /**
  * Le scanner.
@@ -238,6 +239,10 @@ export default function ScannerPage() {
             // tronquée à la limite demandée, ce que l'accumulation au fil de
             // l'eau ne peut pas être.
             setResults(e.results);
+            // La sélection est gardée pour l'écran d'analyse : sans elle, on
+            // y arrive sans savoir d'où l'on vient, et le plan d'entrée que
+            // le scanner vient de calculer est perdu entre deux écrans.
+            enregistrerScan(e.results, horizonScan ?? style.defaultTimeframe);
             if (e.quota) setQuota(e.quota);
             setPhase("Balayage terminé");
             setFini(true);

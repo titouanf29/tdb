@@ -2106,6 +2106,9 @@ async def scan_market(
                 # l'horizon de l'utilisateur, pas au seul score.
                 "sens":          opp["sens"],
                 "sens_phrase":   opp["sens_phrase"],
+                # Entrée, objectif, invalidation — ce que l'écran d'analyse
+                # reprendra pour expliquer d'où vient la sélection.
+                "plan":          opp["plan"],
                 "price":         round(price, 4),
                 "change":        round(chg_1d, 2),
                 "change_1w":     round(chg_1w, 2),

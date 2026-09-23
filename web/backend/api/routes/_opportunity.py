@@ -273,6 +273,11 @@ def describe(
     return {
         "setup": setup, "family": family, "headline": headline, "action": action,
         "sens": avis["sens"], "sens_phrase": avis["phrase"],
+        # Les trois nombres du plan, quand la structure les donne.
+        "plan": plan_entree(
+            sens=avis["sens"], family=family, price=price,
+            support=support, resistance=resistance, ema20=ema20,
+        ),
     }
 
 
@@ -426,3 +431,130 @@ def conseiller_sens(
         phrase += " La structure de prix va dans le même sens."
 
     return {"sens": sens, "phrase": phrase}
+
+
+# ── Le plan d'entrée ─────────────────────────────────────────────────────────
+#
+# Le scanner disait où le scénario se confirme et où il tombe, dans une phrase.
+# C'est juste, et ce n'est pas un plan : pour agir il faut trois nombres — à
+# partir d'où on entre, jusqu'où on vise, à partir d'où on renonce — et savoir
+# lequel est lequel.
+#
+# CE PLAN N'INVENTE AUCUN NIVEAU. Les trois sortent de la structure déjà
+# mesurée : le support et la résistance de la période, et la moyenne 20 comme
+# repère de repli. Quand l'un manque, la ligne correspondante disparaît au
+# lieu d'être extrapolée — un objectif inventé est pire qu'un objectif absent,
+# parce qu'il a l'air d'un calcul.
+#
+# L'OBJECTIF EST UN MOUVEMENT MESURÉ, pas un pourcentage rond. Sur une
+# cassure, on projette la hauteur de la zone franchie au-dessus du point de
+# sortie : c'est la convention la plus ancienne et la plus vérifiable de
+# l'analyse graphique, et surtout elle s'explique en une phrase.
+
+
+def plan_entree(
+    *,
+    sens: str,
+    family: str,
+    price: float,
+    support: float | None,
+    resistance: float | None,
+    ema20: float | None,
+) -> dict | None:
+    """Les trois niveaux du plan, ou None quand la structure ne les donne pas.
+
+    LES MARGES SONT RELATIVES À LA HAUTEUR DE LA ZONE, jamais un pourcentage
+    fixe. Un stop « à 1,5 % » n'a pas le même sens sur une action de services
+    aux collectivités et sur une crypto ; une marge exprimée en part de la
+    zone que l'actif vient de parcourir s'adapte d'elle-même à sa volatilité,
+    et s'explique en une phrase.
+
+    L'INVALIDATION D'UNE CASSURE N'EST PAS L'AUTRE BOUT DE LA ZONE. Première
+    version : entrée en haut, stop en bas, objectif une hauteur plus haut —
+    ce qui donne un rapport gain/risque de 1,0 PAR CONSTRUCTION, sur toutes
+    les cassures, toujours. Un chiffre constant n'est pas une mesure. Une
+    cassure est démentie quand le cours repasse franchement sous le niveau
+    franchi, pas quand il retraverse toute la zone.
+    """
+    if sens not in ("long", "short"):
+        return None
+
+    haut, bas = resistance, support
+    if haut is None or bas is None or haut <= bas:
+        return None
+
+    hauteur = haut - bas
+    marge = hauteur * 0.25          # la cassure est démentie
+    marge_support = hauteur * 0.15  # le support est enfoncé
+    milieu = bas + hauteur / 2
+
+    if sens == "long":
+        if family == "cassure":
+            entree, condition = haut, "à la clôture au-dessus"
+            invalidation = haut - marge
+            objectif = haut + hauteur
+            comment = ("L'objectif projette la hauteur de la zone franchie. La cassure est "
+                       "démentie si le cours revient nettement sous le niveau franchi.")
+        elif family == "rebond":
+            entree, condition = bas, "sur une tenue de ce niveau"
+            invalidation = bas - marge_support
+            # Le PREMIER obstacle au retour, pas le sommet de la zone : viser
+            # le haut d'emblée gonfle le rapport et décrit rarement ce qui
+            # arrive.
+            objectif = ema20 if (ema20 and bas < ema20 < haut) else milieu
+            comment = ("L'objectif est le premier obstacle sur le chemin du retour, pas le "
+                       "sommet de la zone.")
+        else:
+            entree = ema20 if (ema20 and bas < ema20 < price) else milieu
+            condition = "sur un repli jusque-là"
+            invalidation = bas
+            objectif = haut
+            comment = ("On rejoint une tendance en cours sur un repli, et le haut de zone "
+                       "reste l'obstacle à franchir.")
+    else:
+        if family == "cassure":
+            entree, condition = bas, "à la clôture en dessous"
+            invalidation = bas + marge
+            objectif = bas - hauteur
+            comment = ("L'objectif projette la hauteur de la zone sous le point de sortie. La "
+                       "cassure est démentie si le cours revient nettement au-dessus.")
+        elif family == "rebond":
+            entree, condition = haut, "sur un retour à ce niveau"
+            invalidation = haut + marge_support
+            objectif = ema20 if (ema20 and bas < ema20 < haut) else milieu
+            comment = ("L'objectif est le premier soutien sur le chemin de la baisse, pas le "
+                       "plancher de la zone.")
+        else:
+            entree = ema20 if (ema20 and price < ema20 < haut) else milieu
+            condition = "sur un rebond jusque-là"
+            invalidation = haut
+            objectif = bas
+            comment = ("On rejoint une baisse en cours sur un rebond, et le bas de zone reste "
+                       "le premier soutien.")
+
+    if objectif is None or invalidation is None or entree <= 0:
+        return None
+
+    risque = abs(entree - invalidation)
+    gain = abs(objectif - entree)
+    if risque <= 0 or gain <= 0:
+        return None
+    rr = round(gain / risque, 2)
+
+    return {
+        "sens": sens,
+        "entree": round(entree, 6),
+        "entree_condition": condition,
+        "invalidation": round(invalidation, 6),
+        "objectif": round(objectif, 6),
+        "rapport": rr,
+        "commentaire": comment,
+        # Le rapport gain/risque est le seul juge du plan, et il peut etre
+        # mauvais : le dire vaut mieux que de le taire.
+        "verdict": (
+            "Le plan rémunère mal le risque à ce niveau d'entrée." if rr is not None and rr < 1.2
+            else "Le rapport gain/risque tient." if rr is not None and rr < 2
+            else "Le rapport gain/risque est confortable." if rr is not None
+            else ""
+        ),
+    }
