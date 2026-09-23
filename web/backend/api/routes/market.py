@@ -32,7 +32,7 @@ SYMBOL_NAMES: dict = {
     "^SSMI": "SMI Suisse", "^STOXX50E": "Euro Stoxx 50", "^GSPC": "S&P 500", "^DJI": "Dow Jones",
     "^IXIC": "NASDAQ Composite", "^RUT": "Russell 2000", "^VIX": "VIX Volatilite",
     "^N225": "Nikkei 225", "^HSI": "Hang Seng", "000001.SS": "Shanghai Composite",
-    "^KOSPI": "KOSPI Coree du Sud", "^BSESN": "BSE Sensex Inde",
+    "^KOSPI": "KOSPI Corée du Sud", "^BSESN": "BSE Sensex Inde",
     # ---- ETFs USA ----
     "SPY": "SPDR S&P 500 ETF", "QQQ": "Invesco QQQ NASDAQ-100", "DIA": "SPDR Dow Jones ETF",
     "IWM": "iShares Russell 2000 ETF", "VOO": "Vanguard S&P 500 ETF", "VTI": "Vanguard Total Market ETF",
@@ -48,13 +48,13 @@ SYMBOL_NAMES: dict = {
     # ---- France CAC 40 ----
     "AI.PA": "Air Liquide", "AIR.PA": "Airbus", "ALO.PA": "Alstom", "MT.AS": "ArcelorMittal",
     "CS.PA": "AXA", "BNP.PA": "BNP Paribas", "EN.PA": "Bouygues", "CAP.PA": "Capgemini",
-    "CA.PA": "Carrefour", "SGO.PA": "Saint-Gobain", "ACA.PA": "Credit Agricole", "BN.PA": "Danone",
+    "CA.PA": "Carrefour", "SGO.PA": "Saint-Gobain", "ACA.PA": "Crédit Agricole", "BN.PA": "Danone",
     "DSY.PA": "Dassault Systemes", "EDEN.PA": "Edenred", "ENGI.PA": "Engie",
     "EL.PA": "EssilorLuxottica", "ERF.PA": "Eurofins Scientific", "RMS.PA": "Hermes International",
     "KER.PA": "Kering", "LR.PA": "Legrand", "OR.PA": "L'Oreal", "MC.PA": "LVMH",
     "ML.PA": "Michelin", "ORA.PA": "Orange", "RI.PA": "Pernod Ricard", "PUB.PA": "Publicis Groupe",
     "RNO.PA": "Renault", "SAF.PA": "Safran", "SAN.PA": "Sanofi", "SU.PA": "Schneider Electric",
-    "GLE.PA": "Societe Generale", "STLA": "Stellantis", "STM.PA": "STMicroelectronics",
+    "GLE.PA": "Société Générale", "STLA": "Stellantis", "STM.PA": "STMicroelectronics",
     "HO.PA": "Thales", "TTE.PA": "TotalEnergies", "URW.PA": "Unibail-Rodamco-Westfield",
     "VIE.PA": "Veolia", "DG.PA": "Vinci", "VIV.PA": "Vivendi", "SW.PA": "Sodexo",
     # ---- France SBF 120 ----
@@ -62,7 +62,7 @@ SYMBOL_NAMES: dict = {
     "BVI.PA": "Bureau Veritas", "CNP.PA": "CNP Assurances", "DEC.PA": "JCDecaux",
     "FDJ.PA": "Francaise des Jeux", "GTT.PA": "GTT", "ILD.PA": "Iliad", "NK.PA": "Imerys",
     "NEX.PA": "Nexans", "RUI.PA": "Rubis", "SEB.PA": "SEB", "TFI.PA": "TF1",
-    "TKO.PA": "Technip Energies", "UBI.PA": "Ubisoft", "ATOS.PA": "Atos", "COFA.PA": "Coface",
+    "TKO.PA": "Technip Énergies", "UBI.PA": "Ubisoft", "ATOS.PA": "Atos", "COFA.PA": "Coface",
     # ---- Netherlands AEX ----
     "ASML.AS": "ASML Holding", "ADYEN.AS": "Adyen", "HEIA.AS": "Heineken", "SHEL.AS": "Shell",
     "INGA.AS": "ING Groep", "WKL.AS": "Wolters Kluwer", "NN.AS": "NN Group", "AGN.AS": "Aegon",
@@ -316,12 +316,12 @@ SYMBOL_NAMES: dict = {
     "VET-USD": "VeChain", "HBAR-USD": "Hedera", "EOS-USD": "EOS",
     "XMR-USD": "Monero", "ZEC-USD": "Zcash", "DASH-USD": "Dash",
     # ---- Matieres premieres ----
-    "CL=F": "Petrole brut WTI", "NG=F": "Gaz naturel", "BZ=F": "Petrole Brent",
+    "CL=F": "Pétrole brut WTI", "NG=F": "Gaz naturel", "BZ=F": "Pétrole Brent",
     "RB=F": "Essence RBOB", "HO=F": "Fioul domestique", "GC=F": "Or",
     "SI=F": "Argent", "PL=F": "Platine", "PA=F": "Palladium",
     "HG=F": "Cuivre", "ALI=F": "Aluminium", "ZN=F": "Zinc",
-    "PB=F": "Plomb", "NI=F": "Nickel", "ZC=F": "Mais", "ZW=F": "Ble",
-    "ZS=F": "Soja", "KC=F": "Cafe", "SB=F": "Sucre", "CT=F": "Coton",
+    "PB=F": "Plomb", "NI=F": "Nickel", "ZC=F": "Mais", "ZW=F": "Blé",
+    "ZS=F": "Soja", "KC=F": "Café", "SB=F": "Sucre", "CT=F": "Coton",
     "CC=F": "Cacao", "OJ=F": "Jus d'orange", "LBS=F": "Bois d'oeuvre",
     "LE=F": "Boeuf vif", "GF=F": "Boeuf engraissement", "HE=F": "Porc maigre",
 }

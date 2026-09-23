@@ -9,6 +9,7 @@ from pydantic import BaseModel
 from ..database import execute_query, execute_write
 from .auth import get_current_user
 from .premium import get_user_limits
+from .market import SYMBOL_NAMES
 
 router = APIRouter()
 
@@ -49,6 +50,11 @@ async def get_favorites(current_user: dict = Depends(get_current_user)):
         has_price = bool(p and p.get("price"))
         results.append({
             "symbol": sym,
+            # LE NOM, ET PAS SEULEMENT LE CODE. « CL=F » est un identifiant
+            # Yahoo : il a sa place dans une URL, pas dans une phrase adressée
+            # à quelqu'un. L'accueil proposait « Analysez CL=F » faute de
+            # disposer d'autre chose.
+            "name": SYMBOL_NAMES.get(sym, sym),
             "price": p.get("price", 0),
             "change": p.get("change", 0),
             "volume": p.get("volume", 0),

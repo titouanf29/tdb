@@ -9,6 +9,7 @@ from pydantic import BaseModel
 from ..database import execute_query, execute_write
 from .auth import get_current_user
 from .premium import get_user_limits
+from .market import SYMBOL_NAMES
 from ._trade_review import review as review_trade, _fmt as fmt_price, _eur as fmt_eur
 
 router = APIRouter()
@@ -397,6 +398,11 @@ async def get_positions(
         # positions ouvertes : la renvoyer laisserait l'écran l'afficher une
         # dernière fois avec un P&L qui n'existe plus.
         positions = [p for p in positions if p.get("status") == "open"]
+
+    # Le nom lisible de l'actif. Sans lui, tout écran qui parle d'une position
+    # ne peut que citer son code : « Revoyez votre position sur CL=F ».
+    for p in positions:
+        p["name"] = SYMBOL_NAMES.get(p.get("symbol", ""), p.get("symbol", ""))
 
     return {"positions": positions, "triggered": triggered}
 

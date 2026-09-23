@@ -6,7 +6,7 @@ import { ArrowRight, CloudOff, Globe2, RefreshCw, Sun } from "lucide-react";
 import { Intention } from "@/components/dashboard/Intention";
 import { PrepHebdo } from "@/components/dashboard/PrepHebdo";
 import { useAuth } from "@/lib/AuthContext";
-import { useSettings, convertCurrency } from "@/lib/SettingsContext";
+import { fr, useSettings, convertCurrency } from "@/lib/SettingsContext";
 import { useTradingStyle } from "@/lib/tradingStyle";
 import {
   dailyIntentAPI, favoritesAPI, journalAPI, walletAPI,
@@ -450,16 +450,68 @@ function NextStep({
   const suggestion = useMemo(() => {
     const picked = (intent as unknown as { assets?: { symbol: string }[] })?.assets?.[0];
 
+    /* Le nom, jamais le code. « Analysez CL=F » demandait au lecteur de
+       savoir que CL=F est le brut WTI — c'est-à-dire de connaître la
+       nomenclature Yahoo. Le serveur rend maintenant le nom avec les favoris
+       et les positions ; le code reste pour l'URL, où il est à sa place. */
+    const nommer = (o: { symbol: string; name?: string }) => o.name || o.symbol;
+
     if (positions.length > 0) {
-      const p = positions[0];
+      /* CELLE QUI MÉRITE LE REGARD, PAS LA PREMIÈRE DE LA LISTE.
+         L'écran pointait `positions[0]` — l'ordre de création — et disait la
+         même phrase tous les jours. Une position qui approche son stop et une
+         position tranquille ne demandent pas la même attention.
+
+         L'urgence se mesure : la distance au stop ou à l'objectif, en part du
+         chemin parcouru depuis l'entrée. À 80 % du chemin, la question n'est
+         plus « est-ce que le scénario tient » mais « qu'est-ce que je fais
+         maintenant ». */
+      const chemin = (p: Position) => {
+        const prix = p.current_price;
+        if (prix == null || !p.entry_price) return null;
+        const cible = p.direction === "LONG" ? p.take_profit : p.stop_loss;
+        const inverse = p.direction === "LONG" ? p.stop_loss : p.take_profit;
+        const bornes = [cible, inverse].filter((v): v is number => v != null);
+        if (!bornes.length) return null;
+        // La borne la plus proche, et la part du trajet déjà faite vers elle.
+        let meilleur: { vers: "stop" | "objectif"; part: number } | null = null;
+        for (const b of bornes) {
+          const total = Math.abs(b - p.entry_price);
+          if (total <= 0) continue;
+          const fait = Math.abs(prix - p.entry_price);
+          const bonSens = (prix - p.entry_price) * (b - p.entry_price) > 0;
+          if (!bonSens) continue;
+          const part = Math.min(1, fait / total);
+          const vers = b === p.take_profit ? "objectif" : "stop";
+          if (!meilleur || part > meilleur.part) meilleur = { vers, part };
+        }
+        return meilleur;
+      };
+
+      const classees = positions
+        .map((p) => ({ p, c: chemin(p) }))
+        .sort((a, b) => (b.c?.part ?? -1) - (a.c?.part ?? -1));
+      const { p, c } = classees[0];
+      const pct = p.pnl_percent;
+
+      const corps =
+        c && c.part >= 0.7
+          ? `Le cours a parcouru ${Math.round(c.part * 100)} % de la distance qui sépare votre entrée de votre ${c.vers}. C'est le moment de décider, pas de subir.`
+          : pct != null && Math.abs(pct) >= 3
+            ? `Elle est à ${pct >= 0 ? "+" : ""}${fr(pct, 1)} % depuis l'entrée. Vérifiez que le scénario tient encore, et que le stop est toujours au bon endroit.`
+            : "Rien d'urgent dessus aujourd'hui. Relisez quand même le scénario d'entrée : c'est ce qui vous dira quand sortir.";
+
       return {
         eyebrow: "Votre prochaine étape",
-        title: `Revoyez votre position sur ${p.symbol}.`,
-        body: "Vérifiez que le scénario d'entrée tient toujours, et que le stop est encore au bon endroit.",
-        cta: "Ouvrir mes positions",
-        href: "/trading",
+        title: `Revoyez votre position sur ${nommer(p)}.`,
+        body: corps,
+        cta: "Ouvrir le wallet",
+        // /trading sert à OUVRIR une position. Envoyer quelqu'un y relire
+        // celles qu'il a déjà lui proposait d'en acheter une autre.
+        href: "/wallet",
       };
     }
+
     if (picked?.symbol) {
       return {
         eyebrow: "Votre prochaine étape",
@@ -469,15 +521,34 @@ function NextStep({
         href: `/analysis?symbol=${encodeURIComponent(picked.symbol)}`,
       };
     }
+
     if (favorites.length > 0) {
+      /* CELUI QUI A BOUGÉ, PAS LE PREMIER AJOUTÉ.
+         « Vous le suivez déjà — voyez ce que le moteur en dit » ne donnait
+         aucune raison de cliquer AUJOURD'HUI plutôt qu'hier, et désignait
+         toujours le même actif. La variation du jour en donne une, et elle
+         change toute seule d'un matin à l'autre. */
+      const lisibles = favorites.filter((f) => !f.error && Number.isFinite(f.change));
+      const bouge = [...lisibles].sort((a, b) => Math.abs(b.change) - Math.abs(a.change))[0];
+      const f = bouge ?? favorites[0];
+      const v = bouge?.change;
+
+      const corps =
+        v != null && Math.abs(v) >= 1.5
+          ? `Il fait ${v >= 0 ? "+" : ""}${fr(v, 2)} % aujourd'hui — le plus gros mouvement parmi vos actifs suivis. Voyez si le moteur y lit quelque chose.`
+          : v != null && Math.abs(v) >= 0.4
+            ? `Il fait ${v >= 0 ? "+" : ""}${fr(v, 2)} % aujourd'hui. Voyez ce que le moteur en dit, et surtout pourquoi.`
+            : "Séance calme sur vos actifs suivis. C'est le bon moment pour lire une analyse sans avoir de décision à prendre dans la foulée.";
+
       return {
         eyebrow: "Votre prochaine étape",
-        title: `Analysez ${favorites[0].symbol}.`,
-        body: "Vous le suivez déjà — voyez ce que le moteur en dit, et pourquoi.",
+        title: `Analysez ${nommer(f)}.`,
+        body: corps,
         cta: "Voir l'analyse",
-        href: `/analysis?symbol=${encodeURIComponent(favorites[0].symbol)}`,
+        href: `/analysis?symbol=${encodeURIComponent(f.symbol)}`,
       };
     }
+
     return {
       eyebrow: "Pour commencer",
       title: "Analysez votre premier actif.",

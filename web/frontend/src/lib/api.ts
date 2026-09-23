@@ -799,6 +799,8 @@ export interface WalletBalance {
 export interface Position {
   id: number;
   symbol: string;
+  /** Le nom lisible, fourni par le serveur avec les positions ouvertes. */
+  name?: string;
   direction: "LONG" | "SHORT";
   entry_price: number;
   quantity: number;
@@ -1271,6 +1273,8 @@ export interface ChatMessage {
 
 export interface Favorite {
   symbol: string;
+  /** Le nom lisible. « CL=F » a sa place dans une URL, pas dans une phrase. */
+  name?: string;
   price: number;
   change: number;
   added_at: string;
