@@ -835,17 +835,35 @@ class AddFundsRequest(BaseModel):
     amount: float
 
 
+class SetBalanceRequest(BaseModel):
+    """`amount` absent = le capital de départ. C'est le bouton « remettre à
+    10 000 € » : il ne doit pas avoir à connaître le chiffre, sans quoi
+    l'interface et le serveur finiront par ne plus dire le même."""
+    amount: Optional[float] = None
+
+
 @router.post("/add-funds")
 async def add_funds_to_wallet(
     request: AddFundsRequest,
     current_user: dict = Depends(get_current_user)
 ):
-    """Add funds to user's wallet (paper trading)"""
-    if request.amount <= 0:
-        raise HTTPException(status_code=400, detail="Amount must be positive")
+    """Créditer ou RETIRER de l'argent virtuel du compte d'entraînement.
 
-    if request.amount > 100000:
-        raise HTTPException(status_code=400, detail="Maximum 100,000$ per transaction")
+    Un montant négatif retire. Le retrait manquait, et son absence avait une
+    conséquence concrète : un compte dont le solde avait dérapé ne pouvait
+    aller que vers le haut. La seule sortie était « Recommencer », qui archive
+    aussi tout l'historique — une réponse bien trop large à « j'ai 200 € de
+    trop ».
+
+    Le solde ne peut pas devenir négatif : ce n'est pas un découvert, c'est
+    un simulateur, et un solde négatif n'y veut rien dire.
+    """
+    if request.amount == 0:
+        raise HTTPException(status_code=400, detail="Indiquez un montant.")
+
+    if abs(request.amount) > 100000:
+        raise HTTPException(status_code=400,
+                            detail="Maximum 100 000 $ par opération.")
 
     user_id = get_user_id(current_user)
 
@@ -855,31 +873,100 @@ async def add_funds_to_wallet(
         (user_id,)
     )
 
+    ancien = wallets[0]["balance"] if wallets else 0.0
+    new_balance = ancien + request.amount
+
+    if new_balance < 0:
+        dispo = f"{ancien:,.2f}".replace(",", "\u202f").replace(".", ",")
+        raise HTTPException(status_code=400, detail=f"Il n'y a que {dispo} $ sur le compte.")
+
     if not wallets:
-        # Create wallet with the amount
         await execute_write(
             """INSERT INTO wallet (user_id, balance, currency, created_at)
                VALUES (?, ?, 'USD', ?)""",
-            (user_id, request.amount, datetime.now(timezone.utc).isoformat())
+            (user_id, new_balance, datetime.now(timezone.utc).isoformat())
         )
-        return {
-            "success": True,
-            "message": f"${request.amount:,.2f} added to wallet",
-            "new_balance": request.amount
-        }
+    else:
+        await execute_write(
+            "UPDATE wallet SET balance = ? WHERE user_id = ?",
+            (new_balance, user_id)
+        )
 
-    new_balance = wallets[0]["balance"] + request.amount
-    await execute_write(
-        "UPDATE wallet SET balance = ? WHERE user_id = ?",
-        (new_balance, user_id)
-    )
-
+    verbe = "retirés du" if request.amount < 0 else "ajoutés au"
+    somme = f"{abs(request.amount):,.2f}".replace(",", "\u202f").replace(".", ",")
     return {
         "success": True,
-        "message": f"${request.amount:,.2f} added to wallet",
-        "previous_balance": wallets[0]["balance"],
+        "message": f"{somme} $ {verbe} compte",
+        "previous_balance": ancien,
         "new_balance": new_balance
     }
+
+
+async def capital_de_depart() -> float:
+    """Le capital avec lequel un compte commence.
+
+    Lu dans les réglages d'administration, comme à l'inscription. Deux
+    valeurs différentes pour la même promesse, c'est la garantie qu'elles
+    divergeront le jour où l'une des deux change.
+    """
+    try:
+        rows = await execute_query(
+            "SELECT value FROM admin_settings WHERE key = 'welcome_bonus_amount'"
+        )
+        if rows:
+            return float(rows[0]["value"])
+    except Exception:
+        pass
+    return 10000.0
+
+
+# Un plafond, et il a une raison précise : au-delà, les sommes affichées
+# redeviennent illisibles — c'est exactement le problème que « Recommencer »
+# existe pour réparer. Dix millions laissent toute la marge de manœuvre utile
+# à un simulateur sans ramener des soldes à neuf chiffres.
+SOLDE_MAX = 10_000_000.0
+
+
+@router.post("/set-balance")
+async def set_balance(request: SetBalanceRequest,
+                      current_user: dict = Depends(get_current_user)):
+    """Poser le solde à une valeur, sans toucher aux positions ni à l'historique.
+
+    La différence avec `/reset` est le seul point qui compte : celle-ci
+    remet le COMPTEUR à sa place et laisse tout le reste en l'état, là où
+    « Recommencer » archive aussi les trades. Quelqu'un dont le solde a
+    dérapé mais qui tient à son historique a besoin de la première, pas de
+    la seconde.
+    """
+    user_id = get_user_id(current_user)
+    cible = request.amount if request.amount is not None else await capital_de_depart()
+
+    if cible < 0:
+        raise HTTPException(status_code=400, detail="Le solde ne peut pas être négatif.")
+    if cible > SOLDE_MAX:
+        # Le séparateur de milliers se pose sur le NOMBRE, pas sur la phrase :
+        # appliqué à la chaîne entière, `.replace(",", " ")` avait mangé la
+        # virgule de « au-delà, les montants ».
+        plafond = f"{SOLDE_MAX:,.0f}".replace(",", "\u202f")
+        raise HTTPException(
+            status_code=400,
+            detail=f"Maximum {plafond} $ — au-delà, les montants affichés "
+                   "deviennent illisibles.",
+        )
+
+    wallets = await execute_query("SELECT * FROM wallet WHERE user_id = ?", (user_id,))
+    if wallets:
+        await execute_write(
+            "UPDATE wallet SET balance = ? WHERE user_id = ?", (cible, user_id)
+        )
+    else:
+        await execute_write(
+            "INSERT INTO wallet (user_id, balance, currency, created_at) VALUES (?, ?, 'USD', ?)",
+            (user_id, cible, datetime.now(timezone.utc).isoformat()),
+        )
+
+    return {"success": True, "balance": cible,
+            "previous_balance": wallets[0]["balance"] if wallets else 0.0}
 
 
 @router.post("/reset")
@@ -902,18 +989,7 @@ async def reset_wallet(current_user: dict = Depends(get_current_user)):
     """
     user_id = get_user_id(current_user)
 
-    # Le capital de départ est celui des réglages d'administration, comme à
-    # l'inscription : deux valeurs différentes pour la même promesse, c'est
-    # la garantie qu'elles divergeront.
-    depart = 10000.0
-    try:
-        rows = await execute_query(
-            "SELECT value FROM admin_settings WHERE key = 'welcome_bonus_amount'"
-        )
-        if rows:
-            depart = float(rows[0]["value"])
-    except Exception:
-        pass
+    depart = await capital_de_depart()
 
     archivees = await execute_query(
         "SELECT COUNT(*) as n FROM positions WHERE user_id = ? "

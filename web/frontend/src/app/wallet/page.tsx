@@ -194,14 +194,41 @@ export default function WalletPage() {
     }
   };
 
+  /**
+   * Créditer, ou retirer avec un montant négatif.
+   *
+   * Le retrait manquait, et son absence avait une conséquence concrète : un
+   * solde qui avait dérapé ne pouvait aller que vers le haut. La seule sortie
+   * était « Recommencer », qui archive aussi tout l'historique — une réponse
+   * bien trop large à « j'ai 200 € de trop ».
+   */
   const addFunds = async (e: React.FormEvent) => {
     e.preventDefault();
-    const amt = Number(fundAmount);
-    if (!amt || amt <= 0) return setError("Indiquez un montant.");
+    // La virgule décimale est ce qu'un clavier français produit, et
+    // `Number("−200,5")` rend NaN. L'espace est ce que produit un
+    // copier-coller depuis l'écran.
+    const amt = Number(fundAmount.replace(/\s/g, "").replace(",", "."));
+    if (!Number.isFinite(amt) || amt === 0) return setError("Indiquez un montant.");
     setBusy(true);
     setError("");
     try {
       await walletAPI.addFunds(amt);
+      setFunding(false);
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Opération impossible.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  /** Le capital de départ, sans rien archiver. C'est la version douce de
+   *  « Recommencer » : le compteur revient, l'historique reste. */
+  const retourAuDepart = async () => {
+    setBusy(true);
+    setError("");
+    try {
+      await walletAPI.setBalance();
       setFunding(false);
       await load();
     } catch (err) {
@@ -274,7 +301,7 @@ export default function WalletPage() {
           </button>
           <Button variant="secondary" size="md" onClick={() => { setFunding(true); setError(""); }}>
             <Plus className="h-4 w-4" />
-            Recréditer
+            Ajuster le solde
           </Button>
           </div>
         </header>
@@ -655,26 +682,62 @@ export default function WalletPage() {
       </Modal>
 
       {/* ── Add funds ──────────────────────────────────────────────────── */}
-      <Modal open={funding} onClose={() => setFunding(false)} title="Recréditer">
-        <Heading level={3}>Recréditer le compte</Heading>
+      <Modal open={funding} onClose={() => setFunding(false)} title="Ajuster le solde">
+        <Heading level={3}>Ajuster le solde</Heading>
         <Text size="small" className="mt-2">
           De l&apos;argent virtuel, pour continuer à s&apos;entraîner. Cela
-          n&apos;a aucun effet en dehors de la plateforme.
+          n&apos;a aucun effet en dehors de la plateforme.{" "}
+          <strong>Un montant négatif retire</strong> — « −500 » enlève 500 €.
         </Text>
         <form onSubmit={addFunds} className="mt-6 space-y-4" noValidate>
           {error && <FormError>{error}</FormError>}
-          <Field label="Montant" htmlFor="w-amt">
-            <TextInput id="w-amt" value={fundAmount} onChange={setFundAmount} placeholder="1000" />
+          <Field label="Montant" htmlFor="w-amt" hint="Positif pour créditer, négatif pour retirer.">
+            <TextInput id="w-amt" value={fundAmount} onChange={setFundAmount} placeholder="1000 ou -500" />
           </Field>
+          {/* Les quatre gestes qu'on fait réellement, pour ne pas avoir à
+              taper un nombre qu'on connaît déjà. */}
+          <div className="flex flex-wrap gap-1.5">
+            {["1000", "-1000", "10000", "-10000"].map((v) => (
+              <button
+                key={v}
+                type="button"
+                onClick={() => { setFundAmount(v); setError(""); }}
+                className="rounded-[9px] px-2.5 py-1.5 text-[0.82rem] transition-colors"
+                style={{ color: "var(--cap-ink-2)", boxShadow: "inset 0 0 0 1px var(--cap-line)" }}
+              >
+                {v.startsWith("-") ? `−${v.slice(1)} €` : `+${v} €`}
+              </button>
+            ))}
+          </div>
           <div className="flex gap-2">
             <Button type="submit" size="md" disabled={busy} className="flex-1">
-              {busy ? "Ajout…" : "Ajouter"}
+              {busy ? "Enregistrement…" : "Appliquer"}
             </Button>
             <Button variant="secondary" size="md" onClick={() => setFunding(false)}>
               Annuler
             </Button>
           </div>
         </form>
+
+        {/* LA VERSION DOUCE DE « RECOMMENCER ».
+            Remettre le compteur à sa place sans archiver l'historique : c'est
+            ce dont on a besoin quand le solde a dérapé mais que les trades
+            passés valent encore la peine d'être relus. */}
+        <div className="mt-5 border-t pt-4" style={{ borderColor: "var(--cap-line)" }}>
+          <button
+            type="button"
+            onClick={retourAuDepart}
+            disabled={busy}
+            className="text-[0.85rem] underline underline-offset-4 disabled:opacity-40"
+            style={{ color: "var(--cap-ink-2)" }}
+          >
+            Remettre le solde au capital de départ
+          </button>
+          <Text size="caption" className="mt-1.5">
+            Les positions en cours et l&apos;historique ne bougent pas — seul le solde
+            revient à son point de départ.
+          </Text>
+        </div>
       </Modal>
     </>
   );

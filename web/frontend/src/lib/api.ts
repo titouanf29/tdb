@@ -197,12 +197,27 @@ export const walletAPI = {
 
   getStats: () => fetchAPI<TradingStats>("/api/wallet/stats"),
 
+  /** Créditer, ou RETIRER avec un montant négatif. Le solde ne peut pas
+   *  devenir négatif : ce n'est pas un découvert, c'est un simulateur. */
   addFunds: (amount: number) =>
     fetchAPI<{ success: boolean; message: string; new_balance: number }>("/api/wallet/add-funds", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ amount }),
     }),
+
+  /** Pose le solde à une valeur, sans toucher aux positions ni à
+   *  l'historique — contrairement à `resetSimulation`, qui archive tout.
+   *  Sans montant : le capital de départ, dont seul le serveur a le chiffre. */
+  setBalance: (amount?: number) =>
+    fetchAPI<{ success: boolean; balance: number; previous_balance: number }>(
+      "/api/wallet/set-balance",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(amount === undefined ? {} : { amount }),
+      },
+    ),
 
   /** Repart du capital de départ. Les trades passés sont ARCHIVÉS, pas
    *  supprimés : ils sortent des écrans et des statistiques, la trace reste. */
