@@ -782,6 +782,24 @@ def _tradeability(
     }
 
 
+async def _horizon_utilisateur(current_user: dict) -> str:
+    """Le style de trading déclaré : scalp, day, swing ou long.
+
+    En cas de doute on rend « day », qui est aussi le défaut des réglages :
+    un scan ne doit jamais échouer parce qu'une préférence est absente.
+    """
+    try:
+        rows = await execute_query(
+            "SELECT trading_style FROM web_user_settings WHERE user_id = ?",
+            (current_user.get("id"),),
+        )
+        if rows and rows[0].get("trading_style"):
+            return str(rows[0]["trading_style"])
+    except Exception:
+        pass
+    return "day"
+
+
 @router.get("/scan-universe")
 async def get_scan_universe(current_user: dict = Depends(get_current_user)):
     """Les places et les classes réellement disponibles, avec leurs effectifs.
@@ -1871,6 +1889,12 @@ async def scan_market(
             }
         )
 
+    # L'HORIZON DÉCLARÉ, lu une fois pour tout le scan. Le client envoie déjà
+    # l'unité de temps que son style vise, mais l'unité ne dit pas le style :
+    # « 1d » sert aussi bien au swing qu'au long terme, et ces deux profils ne
+    # doivent pas recevoir le même conseil sur un rebond à contre-tendance.
+    _style = await _horizon_utilisateur(current_user)
+
     fetch_period, fetch_interval, fetch_resample = TIMEFRAME_FETCH.get(timeframe, ("2y", "1d", None))
 
     # L'univers se compose sur deux axes indépendants — les places et les
@@ -2064,6 +2088,9 @@ async def scan_market(
                 ema20=ema20_last, ema50=ema50_last,
                 chg_1w=chg_1w, chg_1m=chg_1m,
                 trend=trend_en, signal=signal, score=float(score),
+                # L'horizon déclaré : c'est lui qui décide si un rebond à
+                # contre-tendance est une opération ou une distraction.
+                style=_style,
             )
 
             return {
@@ -2075,6 +2102,10 @@ async def scan_market(
                 "family":        opp["family"],
                 "headline":      opp["headline"],
                 "action":        opp["action"],
+                # « long », « short » ou « aucun », et la raison — adossée à
+                # l'horizon de l'utilisateur, pas au seul score.
+                "sens":          opp["sens"],
+                "sens_phrase":   opp["sens_phrase"],
                 "price":         round(price, 4),
                 "change":        round(chg_1d, 2),
                 "change_1w":     round(chg_1w, 2),

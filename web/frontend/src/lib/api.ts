@@ -1176,6 +1176,10 @@ export interface ScanResultItem {
   opportunity: string;
   /** Generated server-side from the score's own terms — see _build in scan_market. */
   reason?: string;
+  /** Achat, vente, ou rien — selon le score ET l'horizon déclaré du lecteur. */
+  sens?: "long" | "short" | "aucun";
+  /** Pourquoi ce sens, et ce que l'horizon y change. */
+  sens_phrase?: string;
   opp_type: "breakout" | "reversal" | "momentum";
   macd_signal: "HAUSSIER" | "BAISSIER";
   near_breakout: boolean;

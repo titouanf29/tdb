@@ -85,6 +85,32 @@ export function Opportunity({
             </Text>
           )}
 
+          {/* ACHAT, VENTE, OU RIEN — et pourquoi, pour CET horizon.
+              Le scanner décrivait ce qu'il voyait et laissait le lecteur en
+              tirer un sens. Or la convention du score — au-dessus de 60 on
+              achète, sous 40 on vend — n'est écrite nulle part à l'écran :
+              « RSI à 27, en zone de survente » ne dit pas s'il faut acheter
+              le creux ou s'en écarter. Et la réponse dépend de l'horizon : un
+              rebond à contre-tendance se joue en day trading et ne se tient
+              pas en long terme. */}
+          {item.sens_phrase && (
+            <div className="mt-2.5 flex items-start gap-2.5">
+              <span
+                aria-hidden
+                className="mt-[0.42rem] h-1.5 w-1.5 shrink-0 rounded-full"
+                style={{
+                  backgroundColor:
+                    item.sens === "long" ? "var(--cap-up-fill)"
+                    : item.sens === "short" ? "var(--cap-down-fill)"
+                    : "var(--cap-ink-4)",
+                }}
+              />
+              <Text size="caption" as="span" className="max-w-[52rem]">
+                {item.sens_phrase}
+              </Text>
+            </div>
+          )}
+
           {/* Les chiffres bruts, seulement pour qui les a demandés. Les
               montrer à tout le monde, c'est reconstruire le tableau qu'on
               vient de remplacer. */}

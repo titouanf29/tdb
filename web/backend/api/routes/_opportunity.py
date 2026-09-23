@@ -75,6 +75,7 @@ def describe(
     trend: str,
     signal: str,
     score: float = 50.0,
+    style: str = "day",
 ) -> dict:
     """Rend {setup, headline, action, family} pour un actif scoré.
 
@@ -123,9 +124,21 @@ def describe(
         setup = "rebond"
         family = "rebond"
         near_sup = support is not None and support > 0 and price / support <= 1.08
+        # Le RSI seul produisait vingt-trois phrases qui ne différaient que par
+        # un nombre. Ce qui distingue vraiment deux surventes, c'est le CONTEXTE :
+        # une survente dans une tendance haussière n'est pas une survente dans
+        # une chute libre, et le lecteur a besoin de savoir laquelle il regarde.
+        contexte = ""
+        if above20 and above50:
+            contexte = " — une respiration dans une tendance encore haussière"
+        elif not above20 and not above50 and chg_1m < -5:
+            contexte = f" — mais l'actif perd {_pct(abs(chg_1m))} % sur le mois : une survente peut durer"
+        elif volume_ratio >= 1.5:
+            contexte = f" — sur un volume {_pct(volume_ratio)} fois la moyenne, donc des vendeurs pressés"
         headline = (
             f"RSI à {_pct(rsi, 0)}, en zone de survente"
             + (f", et le cours revient sur son support à {_fmt(support)}" if near_sup else "")
+            + contexte
             + "."
         )
 
@@ -147,20 +160,76 @@ def describe(
             f"avec {_pct(chg_1m)} % sur le mois."
         )
 
-    # 6. Rien de saillant : on le dit, plutôt que d'habiller un score.
+    # 6. LE FOURRE-TOUT, ÉCLATÉ.
+    #
+    # Mesuré sur un scan de quarante valeurs européennes : huit d'entre elles
+    # portaient la MÊME phrase — « l'actif ressort par sa faiblesse : c'est
+    # l'un des plus mal orientés de la sélection » — dont six au mot près.
+    # Deux phrases couvraient tout ce qui ne tombait dans aucune des cinq
+    # configurations nommées, c'est-à-dire la moitié des résultats.
+    #
+    # Le défaut n'était pas la formulation mais le regroupement : « rien de
+    # saillant » mélange un actif qui glisse sous ses deux moyennes, un actif
+    # qui a calé sous une résistance, et un actif qui monte sans volume. Ce
+    # sont trois situations différentes, et les distinguer ne demandait aucune
+    # donnée nouvelle — tout était déjà calculé et jeté.
     else:
         setup = "momentum"
         family = "tendance"
         if baissier:
-            headline = (
-                "L'actif ressort par sa FAIBLESSE : c'est l'un des plus mal orientés de "
-                f"la sélection{', ' + _pct(chg_1w) + ' % sur la semaine' if abs(chg_1w) >= 1 else ''}."
-            )
+            if not above20 and not above50 and ema50:
+                ecart50 = (price / ema50 - 1) * 100
+                headline = (
+                    f"Le cours est passé sous ses moyennes 20 et 50 — {_pct(abs(ecart50))} % "
+                    f"sous la moyenne 50 — et n'est jamais revenu les tester."
+                )
+            elif chg_1m < 0 and chg_1w > 0:
+                headline = (
+                    f"Baisse de fond — {_pct(chg_1m)} % sur le mois — avec un sursaut de "
+                    f"{_pct(chg_1w)} % cette semaine : le genre de rebond qui sert à sortir, "
+                    "pas à entrer."
+                )
+            elif resistance and price / resistance >= 0.97:
+                headline = (
+                    f"Le cours a buté sous {_fmt(resistance)} sans parvenir à passer, "
+                    f"et retombe{f' ({_pct(chg_1w)} % sur la semaine)' if abs(chg_1w) >= 1 else ''}."
+                )
+            elif volume_ratio < 0.8:
+                headline = (
+                    f"Orientation négative et volume atone — {_pct(volume_ratio)} fois la "
+                    "moyenne : personne ne défend le titre, mais personne ne le vend en masse non plus."
+                )
+            else:
+                headline = (
+                    "L'actif ressort par sa faiblesse d'ensemble : aucun signal ne le "
+                    f"soutient{', ' + _pct(chg_1w) + ' % sur la semaine' if abs(chg_1w) >= 1 else ''}."
+                )
         else:
-            headline = (
-                f"Pas de configuration marquée : l'actif ressort sur la qualité d'ensemble "
-                f"de ses signaux{', ' + _pct(chg_1w) + ' % sur la semaine' if abs(chg_1w) >= 1 else ''}."
-            )
+            if above20 and above50 and chg_1w < 0:
+                headline = (
+                    f"Structure intacte au-dessus des deux moyennes, mais {_pct(chg_1w)} % "
+                    "cette semaine : une respiration dans une tendance, pas une cassure."
+                )
+            elif volume_ratio >= 1.5:
+                headline = (
+                    f"Pas de figure nette, mais un volume {_pct(volume_ratio)} fois supérieur "
+                    "à sa moyenne : il se passe quelque chose avant que le graphique ne le montre."
+                )
+            elif volume_ratio < 0.7:
+                headline = (
+                    f"Signaux correctement orientés, mais sur un volume de {_pct(volume_ratio)} "
+                    "fois la moyenne : un mouvement sans échanges se défait aussi vite qu'il se forme."
+                )
+            elif abs(chg_1m) < 2 and abs(chg_1w) < 1.5:
+                headline = (
+                    f"L'actif fait du surplace — {_pct(chg_1m)} % sur le mois — avec des "
+                    "signaux bien orientés. Rien à jouer tant qu'il ne sort pas de sa zone."
+                )
+            else:
+                headline = (
+                    "Pas de configuration marquée : l'actif ressort sur la qualité d'ensemble "
+                    f"de ses signaux{', ' + _pct(chg_1w) + ' % sur la semaine' if abs(chg_1w) >= 1 else ''}."
+                )
 
     # ── La phrase actionnable ────────────────────────────────────────────────
     #
@@ -197,4 +266,163 @@ def describe(
     if not baissier and signal in ("SELL", "STRONG_SELL") and family != "rebond":
         action += " Le moteur reste vendeur malgré tout : à contre-courant."
 
-    return {"setup": setup, "family": family, "headline": headline, "action": action}
+    avis = conseiller_sens(
+        setup=setup, family=family, score=score, trend=trend, signal=signal,
+        style=style, above20=above20, above50=above50,
+    )
+    return {
+        "setup": setup, "family": family, "headline": headline, "action": action,
+        "sens": avis["sens"], "sens_phrase": avis["phrase"],
+    }
+
+
+# ── Long ou short, selon le profil ───────────────────────────────────────────
+#
+# Le scanner disait CE QU'IL VOYAIT et laissait le lecteur en tirer un sens.
+# Or le score est orienté à la hausse — 80 dit « bonne configuration
+# acheteuse », 37 dit l'inverse — et cette convention n'est écrite nulle part
+# à l'écran. Quelqu'un qui découvre l'outil lit « RSI à 27, en zone de
+# survente » sans savoir si on lui suggère d'acheter ou de fuir.
+#
+# ET L'HORIZON CHANGE LA RÉPONSE, pas seulement le confort. Un rebond contre
+# la tendance est une opération de quelques séances : en scalping elle se joue
+# ou se laisse, en long terme elle n'a simplement pas de sens — on ne détient
+# pas six mois un actif qu'on achète parce qu'il est momentanément survendu.
+# À l'inverse, une tendance installée au-dessus des deux moyennes est
+# exactement ce qu'un horizon long cherche, et un scalpeur n'y trouve aucun
+# déclencheur.
+#
+# D'où un avis explicite, avec sa raison, et le droit de n'en donner aucun.
+
+HORIZONS = {
+    "scalp": "scalping",
+    "day":   "day trading",
+    "swing": "swing",
+    "long":  "long terme",
+}
+
+# Les configurations qui portent un DÉCLENCHEUR daté — utiles à court terme —
+# et celles qui décrivent un RÉGIME, utiles quand on tient une position.
+DECLENCHEUR = {"cassure", "compression", "croisement"}
+REGIME = {"tendance", "momentum"}
+
+
+def conseiller_sens(
+    *,
+    setup: str,
+    family: str,
+    score: float,
+    trend: str,
+    signal: str,
+    style: str = "day",
+    above20: bool = False,
+    above50: bool = False,
+) -> dict:
+    """Faut-il envisager un achat, une vente, ou rien — pour CE profil.
+
+    Rend {sens, phrase}. `sens` vaut "long", "short" ou "aucun", et le
+    troisième cas est le plus important : un actif dont le score est au milieu
+    ne dit rien, et le forcer dans une direction serait inventer un avis.
+    """
+    horizon = HORIZONS.get(style, "day trading")
+    court = style in ("scalp", "day")
+
+    # Le score porte le sens. Les seuils sont ceux que le moteur utilise
+    # partout ailleurs — 60 et 40 — pour que l'écran ne dise pas autre chose
+    # que ce que le backtest a mesuré.
+    if score >= 60:
+        sens = "long"
+    elif score < 40:
+        sens = "short"
+    else:
+        return {
+            "sens": "aucun",
+            "phrase": (
+                f"Score au milieu de l'échelle : le moteur ne penche ni à l'achat ni à la "
+                f"vente. En {horizon}, mieux vaut passer que forcer une direction."
+            ),
+        }
+
+    contre_tendance = (
+        (sens == "long" and trend.upper().startswith("BEAR"))
+        or (sens == "short" and trend.upper().startswith("BULL"))
+    )
+
+    # ── Ce qui rend l'avis inadapté à l'horizon ──────────────────────────────
+    if not court and family == "rebond" and contre_tendance:
+        return {
+            "sens": "aucun",
+            "phrase": (
+                f"Un rebond à contre-tendance se joue en quelques séances. Sur un horizon "
+                f"{horizon}, ce n'est pas une position à tenir : le moteur ne conseille "
+                "rien ici."
+            ),
+        }
+
+    if court and setup in REGIME and not contre_tendance:
+        mot = "un achat" if sens == "long" else "une vente"
+        return {
+            "sens": sens,
+            "phrase": (
+                f"Plutôt {mot}, mais sans déclencheur daté : c'est un régime installé, pas "
+                f"un signal. En {horizon}, attendez un point d'entrée précis plutôt que "
+                "d'entrer au marché."
+            ),
+        }
+
+    # ── L'avis, avec ce qui le porte ─────────────────────────────────────────
+    mot = "un achat" if sens == "long" else "une vente"
+    pourquoi = ""
+
+    # UNE SURVENTE DANS UNE BAISSE INSTALLÉE N'EST PAS UN REBOND À JOUER.
+    #
+    # Mesuré sur un scan européen : Adyen ressortait avec « RSI à 35, en zone
+    # de survente » — configuration « rebond », donc une idée acheteuse — et
+    # l'avis disait « vente », avec la phrase du rebond : « c'est une
+    # opération de quelques séances, à surveiller de près ». Le lecteur
+    # recevait deux messages contraires dans la même carte.
+    #
+    # Le moteur n'avait pas tort : à 17/100 et -18 % sur le mois, la survente
+    # accompagne la baisse au lieu de l'arrêter. C'est la FORMULATION qui
+    # empruntait au rebond haussier un vocabulaire qui ne s'applique pas.
+    if family == "rebond" and sens == "short":
+        return {
+            "sens": "short",
+            "phrase": (
+                "La survente n'est pas un signal d'achat ici : elle accompagne une baisse "
+                "installée, et un indicateur peut rester en zone extrême longtemps. Le "
+                f"moteur penche pour une vente — en {horizon}, n'achetez pas le creux avant "
+                "qu'un support tienne réellement."
+            ),
+        }
+
+    if setup in DECLENCHEUR:
+        pourquoi = (
+            " Le déclencheur est daté, ce qui convient à votre horizon."
+            if court else
+            " Le déclencheur est court terme : sur votre horizon, laissez-le confirmer avant d'entrer."
+        )
+    elif family == "rebond":
+        pourquoi = (
+            " C'est une opération de quelques séances, à surveiller de près."
+            if court else
+            " Attendez que le support tienne sur plusieurs séances avant d'y croire."
+        )
+    elif setup == "tendance":
+        pourquoi = (
+            " Le mouvement est déjà en place : on le rejoint en cours de route."
+            if not court else
+            " La tendance porte, mais vous entrez en cours de route — le stop doit en tenir compte."
+        )
+
+    phrase = f"Plutôt {mot} pour un profil {horizon}.{pourquoi}"
+
+    if contre_tendance:
+        phrase += (
+            " Attention : cela va contre la tendance de fond de l'actif, "
+            "ce qui demande un stop plus serré et une taille réduite."
+        )
+    elif not contre_tendance and above20 and above50 and sens == "long":
+        phrase += " La structure de prix va dans le même sens."
+
+    return {"sens": sens, "phrase": phrase}

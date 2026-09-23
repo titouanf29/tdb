@@ -194,8 +194,9 @@ def review(pos: dict, exit_price: float, pnl: float, *,
     ]
     if closed_by:
         lignes.append(
-            "Clôture automatique sur le "
-            + ("stop." if closed_by == "stop_loss" else "objectif.")
+            # « sur le objectif » — l'élision manquait.
+            "Clôture automatique sur "
+            + ("le stop." if closed_by == "stop_loss" else "l'objectif.")
         )
     lignes += ["", "Pourquoi suis-je entré ? "]
 

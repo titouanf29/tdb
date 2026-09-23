@@ -353,6 +353,38 @@ export default function JournalPage() {
   );
 }
 
+/** « 22 sept. 2026 à 14:35 » — la date telle qu'on la dit, pas un ISO. */
+function dateHeure(iso: string): string {
+  const d = new Date(iso);
+  if (!Number.isFinite(d.getTime())) return "";
+  return d.toLocaleString("fr-FR", {
+    day: "numeric", month: "short", year: "numeric",
+    hour: "2-digit", minute: "2-digit",
+  });
+}
+
+/** Combien de temps la position a été tenue — la question que pose un journal. */
+function duree(debut?: string, fin?: string): string {
+  if (!debut || !fin) return "";
+  const ms = new Date(fin).getTime() - new Date(debut).getTime();
+  if (!Number.isFinite(ms) || ms < 0) return "";
+  const min = Math.round(ms / 60000);
+  if (min < 60) return `${min} min`;
+  const h = Math.floor(min / 60);
+  if (h < 24) return min % 60 ? `${h} h ${min % 60} min` : `${h} h`;
+  const j = Math.floor(h / 24);
+  return h % 24 ? `${j} j ${h % 24} h` : `${j} j`;
+}
+
+/* Ce qui a fermé la position. La clôture automatique range « stop » ou
+   « objectif » dans le champ setup ; le dire explicitement évite de confondre
+   une sortie décidée avec une sortie subie. */
+function origine(setup?: string): string {
+  if (setup === "stop") return "fermé automatiquement sur le stop";
+  if (setup === "objectif") return "fermé automatiquement sur l'objectif";
+  return "";
+}
+
 function EntryRow({
   entry: e,
   money,
@@ -407,6 +439,24 @@ function EntryRow({
           </button>
         </div>
       </div>
+
+      {/* QUAND. Un journal de trading sans date n'est pas un journal : on ne
+          peut ni retrouver la séance, ni relire un trade « celui de mardi »,
+          ni voir combien de temps une position a été tenue. Les deux horodatages
+          étaient enregistrés depuis le début — la clôture automatique écrit
+          `exit_time` à la seconde où le stop est touché — et aucun écran ne
+          les affichait.
+
+          La fin d'abord : c'est elle qu'on cherche quand on relit. */}
+      {(e.exit_time || e.entry_time) && (
+        <Text size="caption" tone="faint" className="mt-2">
+          {e.exit_time && `Clôturé le ${dateHeure(e.exit_time)}`}
+          {e.exit_time && e.entry_time && " · "}
+          {e.entry_time && `ouvert le ${dateHeure(e.entry_time)}`}
+          {duree(e.entry_time, e.exit_time) && ` · tenu ${duree(e.entry_time, e.exit_time)}`}
+          {origine(e.setup) && ` · ${origine(e.setup)}`}
+        </Text>
+      )}
 
       {/* The two notes, labelled, because which one you are reading matters. */}
       {(e.pre_trade_notes || e.post_trade_notes) && (
