@@ -256,6 +256,56 @@ export interface ProfilePreferences {
   /** court | moyen | long — le rythme proposé au Parcours. */
   weekly_time: string | null;
   updated_at?: string | null;
+
+  // ── Les intentions ──────────────────────────────────────────────────────
+  // Les trois champs ci-dessus orientent des écrans. Ceux-ci entrent dans le
+  // CALCUL de l'analyse : taille de position, comparaison du stop avec la
+  // perte acceptée, faisabilité de la fenêtre de trade. Voir le bloc
+  // `personnel` de l'analyse et backend/api/routes/_personnel.py.
+
+  /** Ce qu'on engage sur une position, en euros. null = non communiqué. */
+  mise_eur: number | null;
+  /** 2 | 5 | 10 | 20 — la perte acceptée sur une position. */
+  perte_max_pct: number | null;
+  /** continu | quotidien | soir | weekend — quand on peut vraiment regarder. */
+  disponibilite: string | null;
+  /** coupe | attend | renforce | inconnu — ce qu'on fait quand ça baisse. */
+  reaction: string | null;
+  /** verdict | raisons | detail — la profondeur d'ouverture de l'analyse. */
+  lecture: string | null;
+  /** Les indicateurs déjà connus : ceux-là ne sont plus expliqués. */
+  connait: string[];
+  /** Posée dès qu'une intention est répondue. null = questionnaire jamais rempli. */
+  intentions_at?: string | null;
+}
+
+/** Ce que l'analyse dit de ce plan-ci POUR CETTE PERSONNE.
+ *
+ *  Absent tant qu'aucune intention n'a été donnée — et c'est voulu : un
+ *  encadré de conseils génériques présenté comme personnel est pire que pas
+ *  d'encadré du tout. */
+export interface BlocPersonnel {
+  taille: {
+    mise_eur: number;
+    parts: number;
+    risque_eur: number;
+    risque_pct: number | null;
+    gain_eur?: number;
+    gain_pct?: number;
+  } | null;
+  constats: {
+    cle: string;
+    ton: "attention" | "info";
+    titre: string;
+    texte: string;
+    suggerer_horizon?: string | null;
+  }[];
+  /** Les indicateurs présents dans l'analyse que la personne ne connaît pas. */
+  a_expliquer: string[];
+  deja_connus: string[];
+  lecture: string | null;
+  disponibilite: string | null;
+  repondu: boolean;
 }
 
 export const profileAPI = {
@@ -448,9 +498,11 @@ export const dailyIntentAPI = {
 export const analysisAPI = {
   // sl/tp/fundWeight come from the trading profile so the risk plan, the
   // setups and the backtest all describe one stop and one target.
-  analyze: (symbol: string, timeframe = "1d", slAtr = 2.0, tpAtr = 3.0, fundWeight = 0) =>
+  analyze: (symbol: string, timeframe = "1d", slAtr = 2.0, tpAtr = 3.0, fundWeight = 0,
+             style = "day") =>
     fetchAPI<Analysis>(
-      `/api/analysis/${symbol}?timeframe=${timeframe}&sl_atr=${slAtr}&tp_atr=${tpAtr}&fund_weight=${fundWeight}`
+      `/api/analysis/${symbol}?timeframe=${timeframe}&sl_atr=${slAtr}&tp_atr=${tpAtr}`
+      + `&fund_weight=${fundWeight}&style=${style}`
     ),
 
   // slAtr/tpAtr come from the trading profile, so the backtest validates
@@ -977,6 +1029,8 @@ export interface Analysis {
   };
   engine_version?: string;
   risk_multiples?: { sl_atr: number; tp_atr: number };
+  /** Ce que ce plan veut dire pour cette personne. Absent sans intentions. */
+  personnel?: BlocPersonnel;
   /** Technical verdict re-read with the profile's fundamental weight. Kept
    *  apart from `score`, which stays the verdict the scanner shares. */
   profile_score?: {

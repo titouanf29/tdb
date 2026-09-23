@@ -7,6 +7,7 @@ import re
 import sys
 import asyncio
 from pathlib import Path
+from typing import Optional
 import pandas as pd
 import numpy as np
 import json as _json
@@ -14,7 +15,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import StreamingResponse
 from slowapi import Limiter
 from slowapi.util import get_remote_address
-from .auth import get_current_user
+from .auth import get_current_user, get_current_user_optional
 from .premium import is_user_premium, get_user_limits
 from ..database import execute_query, execute_write
 from ._prices import fetch_ohlcv, fetch_prices, prewarm_ohlcv
@@ -30,6 +31,7 @@ from ._scoring import (compute_score, derive_trend, derive_signal, TIMEFRAME_FET
                        HIGHER_TF, htf_trend, apply_htf_gate, resample_ohlcv,
                        htf_from_primary, ENGINE_VERSION)
 from ._backtest import run_backtest
+from ._personnel import adapter as adapter_personnel, lire_profil
 
 logger = logging.getLogger(__name__)
 
@@ -850,6 +852,12 @@ async def analyze_asset(
     # fundamental fields actually exist — a weight on a None is worse than
     # no weight.
     fund_weight: float = Query(default=0.0, ge=0.0, le=0.5),
+    # L'horizon déclaré, pour que les constats personnels puissent proposer
+    # un autre horizon quand celui-ci ne tient pas avec les disponibilités.
+    style: str = Query(default="day", pattern="^(scalp|day|swing|long)$"),
+    # OPTIONNEL, et c'est délibéré : l'analyse doit continuer de répondre sans
+    # jeton. Un utilisateur connu reçoit en plus le bloc `personnel`.
+    current_user: Optional[dict] = Depends(get_current_user_optional),
 ):
     """Get AI analysis for an asset"""
     if not _SYMBOL_RE.match(symbol.upper()):
@@ -1478,6 +1486,21 @@ async def analyze_asset(
             "trade_window": trade_window,
             "news": news_items,
         }
+
+        # ── Ce que cette analyse veut dire POUR CETTE PERSONNE ─────────────
+        #
+        # Ajouté après coup sur le résultat complet, et jamais dans le calcul
+        # du verdict : les réponses de l'utilisateur décident de ce qu'on lui
+        # montre et de ce dont on l'avertit, pas de ce que fait le marché.
+        # Un échec ici doit coûter le bloc, pas l'analyse.
+        if current_user:
+            try:
+                profil = await lire_profil(current_user["id"])
+                personnel = adapter_personnel(profil, result, style)
+                if personnel:
+                    result["personnel"] = personnel
+            except Exception as e:
+                logger.warning("bloc personnel indisponible pour %s : %s", symbol, e)
 
         return _sanitize(result)
 

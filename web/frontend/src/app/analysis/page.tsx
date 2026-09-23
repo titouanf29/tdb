@@ -9,11 +9,14 @@ import {
   analysisAPI, favoritesAPI, marketAPI,
   type Analysis, type ChartData,
 } from "@/lib/api";
-import { fr, useFormatAssetPrice, useSettings } from "@/lib/SettingsContext";
+import { fr, useFormatAssetPrice, useFormatSomme, useSettings } from "@/lib/SettingsContext";
 import {
   useTradingStyle, TRADING_STYLES, TRADING_STYLE_IDS, type TradingStyleId,
 } from "@/lib/tradingStyle";
 import { useUserLevel } from "@/hooks/useUserLevel";
+import { useProfile } from "@/lib/useProfile";
+import { Intentions } from "@/components/analysis/Intentions";
+import { PourVous } from "@/components/analysis/PourVous";
 import {
   buildReasons, directionLabel, edgeSentence, scenarioSentence,
 } from "@/lib/explain";
@@ -80,7 +83,7 @@ export default function AnalysisPage() {
 function AnalysisScreen() {
   const router = useRouter();
   const params = useSearchParams();
-  const { settings, saveSettings } = useSettings();
+  const { settings, saveSettings, isLoaded: reglagesLus } = useSettings();
   const style = useTradingStyle();
   const [switching, setSwitching] = useState(false);
 
@@ -91,16 +94,42 @@ function AnalysisScreen() {
    * fondamentaux et les unités de temps disponibles. L'analyse est donc
    * relancée, et l'unité repositionnée sur celle du nouvel horizon — sans
    * quoi on demanderait une analyse « long terme » en bougies de 5 minutes.
+   *
+   * L'UNITÉ EST POSÉE AVANT L'ENREGISTREMENT, et c'est tout le correctif.
+   *
+   * Elle l'était après un `await` : le réglage partait, le contexte se
+   * mettait à jour de façon optimiste, une première analyse était demandée
+   * avec le NOUVEAU profil et l'ANCIENNE unité, puis l'unité changeait et une
+   * seconde partait. Deux requêtes en vol, et rien pour les ordonner : la
+   * réponse la plus lente gagnait. Or la requête longue est justement celle
+   * du long terme — mesuré sur AAPL, passer en « Long terme » affichait un
+   * objectif de 341,80 € (la réponse en bougies de 5 minutes, arrivée en
+   * dernier) là où le moteur en mensuel répondait 572,67 €.
+   *
+   * Posées dans le même gestionnaire, les deux mises à jour sont groupées par
+   * React : un seul rendu, une seule requête, la bonne.
    */
   const changeStyle = useCallback(
     async (id: string) => {
+      const next = TRADING_STYLES[id as TradingStyleId];
+      if (!next) return;
+      const unitePrecedente = timeframeRef.current;
       setSwitching(true);
+      setUniteChoisie(false);
+      setTimeframe(next.defaultTimeframe);
       try {
         await saveSettings({ tradingStyle: id });
-        const next = TRADING_STYLES[id as TradingStyleId];
-        if (next) setTimeframe(next.defaultTimeframe);
+        // CHANGER D'HORIZON EST LE BON MOMENT POUR DEMANDER LE RESTE.
+        //
+        // Quelqu'un qui vient de dire « en fait je suis plutôt long terme »
+        // est en train de décrire sa façon de faire : c'est là que les cinq
+        // questions tombent juste, et pas au milieu d'une lecture. Une fois
+        // répondues — même par « passer » — on ne redemande plus.
+        if (!profileRef.current?.intentions_at) setQuestionsOuvertes(true);
       } catch {
-        /* le réglage précédent est conservé par saveSettings */
+        // saveSettings a annulé le profil ; l'unité doit revenir avec lui,
+        // sans quoi l'écran resterait en mensuel avec un profil day trading.
+        setTimeframe(unitePrecedente);
       } finally {
         setSwitching(false);
       }
@@ -109,10 +138,52 @@ function AnalysisScreen() {
   );
   const [animOn] = useAnimationsEnabled();
 
+  // ── Ce que la personne a dit d'elle ──────────────────────────────────────
+  //
+  // L'horizon change les nombres du moteur ; ces réponses-là changent ce que
+  // ces nombres VEULENT DIRE pour elle : l'argent réellement risqué, le stop
+  // comparé à sa limite, la fenêtre comparée à ses disponibilités. Le bloc
+  // `personnel` de l'analyse est calculé côté serveur à partir d'elles.
+  // Une somme engagée s'écrit au centime, pas avec la précision d'un cours :
+  // `assetPrice` rendait « 15,800 € » là où il faut lire « 15,80 € ».
+  const somme = useFormatSomme();
+  const { profile, save: saveProfile } = useProfile();
+  const [questionsOuvertes, setQuestionsOuvertes] = useState(false);
+  // En ref : `changeStyle` le lit sans se redéclarer à chaque réponse
+  // enregistrée, ce qui relancerait l'analyse pour rien.
+  const profileRef = useRef(profile);
+  profileRef.current = profile;
+
   const urlSymbol = (params.get("symbol") || "").toUpperCase();
   const [symbol, setSymbol] = useState(urlSymbol);
   const [query, setQuery] = useState(urlSymbol);
   const [timeframe, setTimeframe] = useState(style.defaultTimeframe);
+  // Miroir en ref : `changeStyle` doit pouvoir revenir à l'unité précédente
+  // sans se redéclarer à chaque frappe sur le sélecteur d'unité.
+  const timeframeRef = useRef(timeframe);
+  timeframeRef.current = timeframe;
+
+  /**
+   * L'UNITÉ SUIT L'HORIZON TANT QU'ON N'Y A PAS TOUCHÉ.
+   *
+   * `useState(style.defaultTimeframe)` ne vaut qu'au montage — or au montage
+   * les réglages ne sont pas encore lus, donc `style` est le défaut « day » et
+   * l'unité se figeait à 1 h. Les réglages arrivaient ensuite avec « swing » :
+   * les multiples d'ATR passaient bien à 1,5 / 3, mais l'analyse continuait
+   * d'être demandée EN BOUGIES D'UNE HEURE. Mesuré tel quel :
+   * `timeframe=1h&sl_atr=1.5&tp_atr=3&style=swing` — un plan de swing calculé
+   * sur des heures, et une fenêtre de trade de 8 h annoncée à quelqu'un qui
+   * avait choisi « jours – semaines ».
+   *
+   * Le choix manuel reste souverain, comme pour la profondeur : dès qu'on
+   * touche au sélecteur d'unité, l'horizon ne le réécrit plus — jusqu'au
+   * prochain changement d'horizon, qui reprend la main.
+   */
+  const [uniteChoisie, setUniteChoisie] = useState(false);
+  useEffect(() => {
+    if (!uniteChoisie) setTimeframe(style.defaultTimeframe);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [style.id, uniteChoisie]);
 
   /**
    * La profondeur d'ouverture suit le niveau déclaré.
@@ -127,11 +198,21 @@ function AnalysisScreen() {
    * Le choix manuel reste souverain : dès que l'utilisateur touche au
    * contrôle, le niveau ne le réécrit plus.
    */
+  // La réponse donnée dans « Votre façon de faire » l'emporte sur le niveau
+  // déclaré : elle est plus récente, plus précise, et elle porte sur CET
+  // écran — « le verdict, c'est tout » est une demande, pas une estimation
+  // de compétence.
   const level = useUserLevel();
+  const depuisLecture: Depth | null =
+    profile.lecture === "detail" ? "advanced"
+    : profile.lecture === "raisons" ? "intermediate"
+    : profile.lecture === "verdict" ? "discover"
+    : null;
   const levelDepth: Depth =
-    level.level === "expert" ? "advanced"
-    : level.level === "intermediate" ? "intermediate"
-    : "discover";
+    depuisLecture ??
+    (level.level === "expert" ? "advanced"
+     : level.level === "intermediate" ? "intermediate"
+     : "discover");
   const [depth, setDepth] = useState<Depth>(levelDepth);
   const [depthTouched, setDepthTouched] = useState(false);
   useEffect(() => {
@@ -158,34 +239,65 @@ function AnalysisScreen() {
       .catch(() => {});
   }, []);
 
+  /**
+   * Un compteur de demandes, et rien de plus compliqué.
+   *
+   * Deux analyses peuvent être en vol en même temps — on change d'horizon
+   * pendant qu'une requête tourne, on tape un autre symbole. Sans ordre, la
+   * réponse la plus LENTE écrase la plus récente, et l'écran affiche une
+   * analyse qu'on n'a pas demandée. Ce n'est pas théorique : le mensuel met
+   * plus longtemps à revenir que le 5 minutes, donc passer à un horizon long
+   * perdait systématiquement la course.
+   */
+  const demande = useRef(0);
+
   const run = useCallback(async (sym: string, tf: string) => {
     if (!sym) return;
+    const n = ++demande.current;
     setLoading(true);
     setError("");
     try {
       // The profile drives the stop, the target and the weight given to
       // fundamentals, so the plan shown here is the plan the backtest
       // validated and the one the trading screen will receive.
-      const a = await analysisAPI.analyze(sym, tf, style.atr.sl, style.atr.tp, style.fundWeight);
+      const a = await analysisAPI.analyze(sym, tf, style.atr.sl, style.atr.tp,
+                                          style.fundWeight, style.id);
+      if (n !== demande.current) return; // une demande plus récente a pris la main
       setAnalysis(a);
       // Le graphique est secondaire : un échec ici ne doit pas perdre
       // l'analyse. Sa fenêtre suit l'horizon — « 3 mois en journalier » pour
       // tout le monde donnait treize bougies en long terme, et le graphique
       // commenté n'y trouvait aucune structure à lire.
       marketAPI.getChart(sym, style.chartWindow.period, style.chartWindow.interval)
-        .then(setChart)
-        .catch(() => setChart(null));
+        .then((c) => { if (n === demande.current) setChart(c); })
+        .catch(() => { if (n === demande.current) setChart(null); });
     } catch (err) {
+      if (n !== demande.current) return;
       setAnalysis(null);
       setError(err instanceof Error ? err.message : "Analyse impossible.");
     } finally {
-      setLoading(false);
+      if (n === demande.current) setLoading(false);
     }
-  }, [style.atr.sl, style.atr.tp, style.fundWeight, style.chartWindow.period, style.chartWindow.interval]);
+  }, [style.id, style.atr.sl, style.atr.tp, style.fundWeight,
+      style.chartWindow.period, style.chartWindow.interval]);
 
   useEffect(() => {
-    if (symbol) run(symbol, timeframe);
-  }, [symbol, timeframe, run]);
+    // Deux conditions, deux raisons.
+    //
+    // `reglagesLus` : tant que les réglages ne sont pas lus, `style` est le
+    // défaut et non celui de l'utilisateur — lancer l'analyse ici, c'est la
+    // lancer sur le mauvais horizon puis la refaire une seconde plus tard.
+    //
+    // L'unité appartenant à l'horizon : c'est l'invariant qui avait sauté.
+    // Un horizon « swing » avec une unité « 1h » n'est pas un cas de
+    // transition acceptable, c'est un plan de swing calculé sur des heures.
+    // Le rendu où les deux ne correspondent pas encore est sauté ; l'effet
+    // d'au-dessus repose l'unité juste après.
+    if (symbol && reglagesLus && style.timeframes.includes(timeframe)) {
+      run(symbol, timeframe);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [symbol, timeframe, run, reglagesLus, style.id]);
 
   /**
    * Le cours, suivi en direct — à la cadence de l'horizon.
@@ -396,7 +508,7 @@ function AnalysisScreen() {
               size="sm"
               options={style.timeframes.map((t) => ({ value: t, label: t }))}
               value={timeframe}
-              onChange={setTimeframe}
+              onChange={(t) => { setTimeframe(t); setUniteChoisie(true); }}
               aria-label="Unité de temps"
             />
             <Text size="caption" as="span">
@@ -441,6 +553,19 @@ function AnalysisScreen() {
                 aria-label="Niveau de détail"
               />
             </div>
+
+            {/* CE QUE CE PLAN VEUT DIRE POUR VOUS.
+                Placé juste sous le verdict et son plan, parce que c'est là
+                qu'il se lit : « stop à 327,22 $ » ne dit rien à quelqu'un qui
+                engage 500 €, « 21 € risqués » si. Tant qu'aucune intention
+                n'a été donnée, le panneau ne raconte rien — il propose de
+                poser les questions. */}
+            <PourVous
+              bloc={analysis.personnel}
+              devise={somme}
+              onOuvrirQuestions={() => setQuestionsOuvertes(true)}
+              onChangerHorizon={changeStyle}
+            />
 
             {(chart?.data?.length ?? 0) > 1 && (
               <Panel
@@ -564,6 +689,19 @@ function AnalysisScreen() {
           </>
         )}
       </div>
+
+      {/* Le questionnaire. L'analyse est RELANCÉE après enregistrement : le
+          bloc « Pour vous » est calculé côté serveur à partir des réponses,
+          donc sans nouvelle requête il resterait celui d'avant — et le
+          questionnaire n'aurait visiblement rien changé, ce qui est
+          exactement l'impression à ne pas donner. */}
+      <Intentions
+        open={questionsOuvertes}
+        onClose={() => setQuestionsOuvertes(false)}
+        profil={profile}
+        enregistrer={saveProfile}
+        onEnregistre={() => { if (symbol) run(symbol, timeframe); }}
+      />
     </>
   );
 }
@@ -914,6 +1052,7 @@ function Intermediate({ analysis: a, assetPrice }: { analysis: Analysis; assetPr
 /* ── Level 3 : the raw material ───────────────────────────────────────────── */
 
 function Advanced({ analysis: a, assetPrice }: { analysis: Analysis; assetPrice: (v: number) => string }) {
+  const aExpliquer = a.personnel?.a_expliquer;
   const ind = a.indicators;
   const f = a.fundamentals;
 
@@ -984,6 +1123,8 @@ function Advanced({ analysis: a, assetPrice }: { analysis: Analysis; assetPrice:
         <ul className="[&>*+*]:border-t [&>*+*]:border-[color:var(--cap-line)]">
           <Indicator
             name="RSI"
+            cle="rsi"
+            aExpliquer={aExpliquer}
             value={fr(ind.rsi.value, 1)}
             meaning={
               ind.rsi.value >= 70 ? "Au-dessus de 70 : l'actif a beaucoup monté vite, un repli est fréquent."
@@ -993,6 +1134,8 @@ function Advanced({ analysis: a, assetPrice }: { analysis: Analysis; assetPrice:
           />
           <Indicator
             name="MACD"
+            cle="macd"
+            aExpliquer={aExpliquer}
             value={fr(ind.macd.histogram, 4)}
             tone={ind.macd.histogram >= 0 ? "up" : "down"}
             meaning={
@@ -1003,6 +1146,8 @@ function Advanced({ analysis: a, assetPrice }: { analysis: Analysis; assetPrice:
           />
           <Indicator
             name="Moyennes mobiles"
+            cle="ema"
+            aExpliquer={aExpliquer}
             value={`${assetPrice(ind.ema.ema20)} / ${assetPrice(ind.ema.ema50)}${ind.ema.ema200 != null ? ` / ${assetPrice(ind.ema.ema200)}` : ""}`}
             meaning={
               ind.ema.ema20 > ind.ema.ema50
@@ -1013,6 +1158,8 @@ function Advanced({ analysis: a, assetPrice }: { analysis: Analysis; assetPrice:
           {ind.adx && (
             <Indicator
               name="ADX"
+            cle="adx"
+            aExpliquer={aExpliquer}
               value={fr(ind.adx.value, 1)}
               meaning={
                 ind.adx.value >= 25
@@ -1023,11 +1170,15 @@ function Advanced({ analysis: a, assetPrice }: { analysis: Analysis; assetPrice:
           )}
           <Indicator
             name="ATR"
+            cle="atr"
+            aExpliquer={aExpliquer}
             value={fr(ind.atr, 4)}
             meaning="L'amplitude moyenne d'une bougie. C'est ce qui dimensionne le stop : trop près, il saute sur du bruit."
           />
           <Indicator
             name="Volume"
+            cle="volume"
+            aExpliquer={aExpliquer}
             value={`${fr(ind.volume_ratio, 2)}×`}
             tone={ind.volume_ratio >= 1.2 ? "up" : ind.volume_ratio <= 0.7 ? "down" : "ink"}
             meaning={
@@ -1038,6 +1189,8 @@ function Advanced({ analysis: a, assetPrice }: { analysis: Analysis; assetPrice:
           />
           <Indicator
             name="Bandes de Bollinger"
+            cle="bollinger"
+            aExpliquer={aExpliquer}
             value={`${assetPrice(ind.bollinger.lower)} — ${assetPrice(ind.bollinger.upper)}`}
             meaning="L'enveloppe dans laquelle le prix évolue habituellement. Des bandes resserrées précèdent souvent un mouvement."
           />
@@ -1169,13 +1322,28 @@ function Indicator({
   value,
   meaning,
   tone = "ink",
+  cle,
+  aExpliquer,
 }: {
   name: string;
   value: string;
   meaning: string;
   tone?: "ink" | "up" | "down";
+  /** La clé du moteur (`rsi`, `macd`, …), pour croiser avec ce que la
+   *  personne a déclaré connaître. */
+  cle?: string;
+  /** Les indicateurs à expliquer. `undefined` = aucune réponse donnée, donc
+   *  on explique tout — le comportement d'avant. */
+  aExpliquer?: string[];
 }) {
-  const lesson = lessonFor(name);
+  // CE QUI EST MASQUÉ, C'EST LE COURS, PAS LA LECTURE.
+  //
+  // `meaning` dit ce que l'indicateur raconte AUJOURD'HUI sur CET actif :
+  // ça, personne ne le sait d'avance, expert compris. Le lien vers la leçon,
+  // lui, est une invitation à apprendre ce qu'est un RSI — inutile et un peu
+  // vexante pour quelqu'un qui vient de cocher « je connais le RSI ».
+  const connu = cle != null && aExpliquer != null && !aExpliquer.includes(cle);
+  const lesson = connu ? null : lessonFor(name);
   return (
     <li className="py-3.5 first:pt-0 last:pb-0">
       <div className="flex items-baseline justify-between gap-4">

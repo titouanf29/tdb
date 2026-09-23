@@ -1,4 +1,11 @@
 import type { Analysis } from "@/lib/api";
+// LA VIRGULE DÉCIMALE, PAS LE POINT.
+//
+// Ce fichier est celui qui écrit les phrases de l'écran d'analyse, et il les
+// écrivait avec `toFixed` : « ce plan a perdu 0.06 R », « volume 1.5× la
+// moyenne », « une résistance est à 2.3 % au-dessus ». Dans une interface
+// française c'est une faute, et c'est précisément pour elle que `fr()` existe.
+import { fr } from "@/lib/SettingsContext";
 
 /**
  * Turning an analysis into sentences.
@@ -119,9 +126,9 @@ export function buildReasons(a: Analysis): Reason[] {
   // 3. Volume, said only when it is actually notable.
   const vr = a.indicators?.volume_ratio;
   if (typeof vr === "number" && vr >= 1.3) {
-    out.push({ text: `Volume ${vr.toFixed(1)}× la moyenne — le mouvement est confirmé par les échanges.`, tone: "up" });
+    out.push({ text: `Volume ${fr(vr, 1)}× la moyenne — le mouvement est confirmé par les échanges.`, tone: "up" });
   } else if (typeof vr === "number" && vr <= 0.6) {
-    out.push({ text: `Volume à ${vr.toFixed(1)}× la moyenne — peu d'échanges derrière ce mouvement.`, tone: "warn" });
+    out.push({ text: `Volume à ${fr(vr, 1)}× la moyenne — peu d'échanges derrière ce mouvement.`, tone: "warn" });
   }
 
   // 4. Volatility, relative to this asset's own history rather than absolute.
@@ -143,9 +150,9 @@ export function buildReasons(a: Analysis): Reason[] {
     const toRes = ((res - px) / px) * 100;
     const toSup = ((px - sup) / px) * 100;
     if (toRes >= 0 && toRes < 3) {
-      out.push({ text: `Une résistance est à ${toRes.toFixed(1)} % au-dessus — c'est le point de vigilance.`, tone: "warn" });
+      out.push({ text: `Une résistance est à ${fr(toRes, 1)} % au-dessus — c'est le point de vigilance.`, tone: "warn" });
     } else if (toSup >= 0 && toSup < 3) {
-      out.push({ text: `Un support est à ${toSup.toFixed(1)} % en dessous — c'est le niveau à surveiller.`, tone: "neutral" });
+      out.push({ text: `Un support est à ${fr(toSup, 1)} % en dessous — c'est le niveau à surveiller.`, tone: "neutral" });
     }
   }
 
@@ -156,7 +163,7 @@ export function buildReasons(a: Analysis): Reason[] {
     const rs = ctx.relative_strength;
     if (rs != null && Math.abs(rs) >= 5) {
       out.push({
-        text: `${rs > 0 ? "Surperforme" : "Sous-performe"} ${ctx.benchmark} de ${Math.abs(rs).toFixed(1)} points sur 20 périodes, dans un marché ${reg}.`,
+        text: `${rs > 0 ? "Surperforme" : "Sous-performe"} ${ctx.benchmark} de ${fr(Math.abs(rs), 1)} points sur 20 périodes, dans un marché ${reg}.`,
         tone: rs > 0 ? "up" : "down",
       });
     } else if (ctx.regime !== "NEUTRAL") {
@@ -226,7 +233,7 @@ export function edgeSentence(a: Analysis): { text: string; tone: "up" | "down" |
     return {
       text:
         `Sur ${e.n_trades} trades comparables ${portee}, ce plan a perdu ` +
-        `${Math.abs(exp).toFixed(2)} R en moyenne sur cet actif. ` +
+        `${fr(Math.abs(exp), 2)} R en moyenne sur cet actif. ` +
         (bloquant
           ? "L'écart est trop net pour venir du hasard : le plan est signalé comme à éviter au-dessus."
           : "Pas assez net pour conclure, assez pour réduire la taille de position."),
@@ -234,7 +241,7 @@ export function edgeSentence(a: Analysis): { text: string; tone: "up" | "down" |
     };
   }
   return {
-    text: `Sur ${e.n_trades} trades comparables ${portee}, ce plan a rapporté ${exp.toFixed(2)} R en moyenne${e.win_rate != null ? ` (${e.win_rate.toFixed(0)} % de réussite)` : ""}.`,
+    text: `Sur ${e.n_trades} trades comparables ${portee}, ce plan a rapporté ${fr(exp, 2)} R en moyenne${e.win_rate != null ? ` (${fr(e.win_rate, 0)} % de réussite)` : ""}.`,
     tone: "up",
   };
 }

@@ -426,6 +426,31 @@ export function priceDecimals(value: number): number {
   return 8;
 }
 
+/**
+ * Une SOMME D'ARGENT, toujours au centime.
+ *
+ * Le pendant de `useFormatAssetPrice`, et sa mise en garde rendue exécutable :
+ * ce fichier prévient déjà qu'un montant engagé ne s'écrit pas avec la
+ * précision d'un cours, mais il n'offrait aucun formateur pour le faire — donc
+ * les écrans reprenaient celui des cours, et « 15,80 € risqués » s'affichait
+ * « 15,800 € ».
+ *
+ * La valeur est attendue en euros : c'est l'unité dans laquelle le moteur
+ * rend ses montants, et celle dans laquelle l'utilisateur saisit sa mise.
+ */
+export function useFormatSomme() {
+  const { settings, eurUsd } = useSettings();
+  return useCallback((value: number): string => {
+    const converted = convertCurrency(value, "EUR", settings.currency, eurUsd);
+    return new Intl.NumberFormat("fr-FR", {
+      style: "currency",
+      currency: settings.currency,
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(converted);
+  }, [settings.currency, eurUsd]);
+}
+
 export function useFormatPrice() {
   const { settings, eurUsd } = useSettings();
   return useCallback((value: number, symbol: string): string => {

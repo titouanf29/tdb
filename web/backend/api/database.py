@@ -552,6 +552,25 @@ async def _init_postgres():
                 updated_at TEXT NOT NULL
             )
         """)
+        # ── Ce que la personne fait de son argent, de son temps et de ses
+        #    nerfs. Ajouté après coup, donc en ALTER : les colonnes de départ
+        #    (goal / markets / weekly_time) orientent des écrans, celles-ci
+        #    entrent dans le CALCUL de l'analyse — la taille de position, la
+        #    comparaison du stop avec la perte acceptée, la faisabilité de la
+        #    fenêtre de trade. Voir routes/_personnel.py.
+        for col, col_type in [
+            ("mise_eur",       "INTEGER"),
+            ("perte_max_pct",  "INTEGER"),
+            ("disponibilite",  "TEXT"),
+            ("reaction",       "TEXT"),
+            ("lecture",        "TEXT"),
+            ("connait",        "TEXT"),
+            ("intentions_at",  "TEXT"),
+        ]:
+            try:
+                await conn.execute(f"ALTER TABLE user_profile ADD COLUMN {col} {col_type}")
+            except Exception:
+                pass  # la colonne existe déjà
         print("PostgreSQL tables ready")
 
 
@@ -999,6 +1018,25 @@ async def _init_sqlite():
                 updated_at TEXT NOT NULL
             )
         """)
+        # ── Ce que la personne fait de son argent, de son temps et de ses
+        #    nerfs. Ajouté après coup, donc en ALTER : les colonnes de départ
+        #    (goal / markets / weekly_time) orientent des écrans, celles-ci
+        #    entrent dans le CALCUL de l'analyse — la taille de position, la
+        #    comparaison du stop avec la perte acceptée, la faisabilité de la
+        #    fenêtre de trade. Voir routes/_personnel.py.
+        for col, col_type in [
+            ("mise_eur",       "INTEGER"),
+            ("perte_max_pct",  "INTEGER"),
+            ("disponibilite",  "TEXT"),
+            ("reaction",       "TEXT"),
+            ("lecture",        "TEXT"),
+            ("connait",        "TEXT"),
+            ("intentions_at",  "TEXT"),
+        ]:
+            try:
+                await db.execute(f"ALTER TABLE user_profile ADD COLUMN {col} {col_type}")
+            except Exception:
+                pass  # la colonne existe déjà
         await db.commit()
         print("SQLite tables ready")
 

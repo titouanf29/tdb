@@ -482,32 +482,80 @@ VALID_GOALS = {"comprendre", "tester", "suivre"}
 VALID_MARKETS = {"europe", "usa", "crypto", "devises", "matieres"}
 VALID_TIMES = {"court", "moyen", "long"}
 
+# ── Les réponses qui entrent dans le CALCUL de l'analyse ────────────────────
+#
+# Les trois champs ci-dessus orientent des écrans. Ceux-ci sont lus par
+# routes/_personnel.py et produisent des nombres : la taille de position, la
+# comparaison du stop avec la perte acceptée, la faisabilité de la fenêtre de
+# trade. Les ensembles sont donc fermés pour la même raison que plus haut —
+# une valeur inattendue produirait une phrase fausse à propos de l'argent de
+# quelqu'un.
+VALID_DISPONIBILITES = {"continu", "quotidien", "soir", "weekend"}
+VALID_REACTIONS = {"coupe", "attend", "renforce", "inconnu"}
+VALID_LECTURES = {"verdict", "raisons", "detail"}
+VALID_PERTES = {2, 5, 10, 20}
+VALID_INDICATEURS = {"rsi", "macd", "ema", "bollinger", "adx", "atr", "volume"}
+# Un plafond, pas un jugement : au-delà, c'est une faute de frappe.
+MISE_MAX_EUR = 10_000_000
+
 
 class ProfileRequest(BaseModel):
     goal: Optional[str] = None
     markets: Optional[List[str]] = None
     weekly_time: Optional[str] = None
+    # Les intentions. `0` pour mise_eur vaut « je préfère ne pas le dire » et
+    # efface la valeur, ce qui doit rester possible à tout moment.
+    mise_eur: Optional[int] = None
+    perte_max_pct: Optional[int] = None
+    disponibilite: Optional[str] = None
+    reaction: Optional[str] = None
+    lecture: Optional[str] = None
+    connait: Optional[List[str]] = None
 
 
 @router.get("/profile-preferences")
 async def get_profile_preferences(current_user: dict = Depends(get_current_user)):
+    vide = {
+        "goal": None, "markets": [], "weekly_time": None, "updated_at": None,
+        "mise_eur": None, "perte_max_pct": None, "disponibilite": None,
+        "reaction": None, "lecture": None, "connait": [], "intentions_at": None,
+    }
     rows = await execute_query(
-        "SELECT goal, markets, weekly_time, updated_at FROM user_profile WHERE user_id = ?",
+        "SELECT goal, markets, weekly_time, updated_at, mise_eur, perte_max_pct, "
+        "disponibilite, reaction, lecture, connait, intentions_at "
+        "FROM user_profile WHERE user_id = ?",
         (current_user["id"],),
     )
     if not rows:
-        return {"goal": None, "markets": [], "weekly_time": None, "updated_at": None}
+        return vide
 
     r = rows[0]
     try:
         markets = json.loads(r.get("markets") or "[]")
     except (ValueError, TypeError):
         markets = []
+    try:
+        connait = json.loads(r.get("connait") or "[]")
+    except (ValueError, TypeError):
+        connait = []
+
+    def _dans(valeur, ensemble):
+        return valeur if valeur in ensemble else None
+
+    mise = r.get("mise_eur")
+    perte = r.get("perte_max_pct")
     return {
-        "goal": r.get("goal") if r.get("goal") in VALID_GOALS else None,
+        "goal": _dans(r.get("goal"), VALID_GOALS),
         "markets": [m for m in markets if m in VALID_MARKETS],
-        "weekly_time": r.get("weekly_time") if r.get("weekly_time") in VALID_TIMES else None,
+        "weekly_time": _dans(r.get("weekly_time"), VALID_TIMES),
         "updated_at": r.get("updated_at"),
+        "mise_eur": int(mise) if isinstance(mise, int) and 0 < mise <= MISE_MAX_EUR else None,
+        "perte_max_pct": int(perte) if perte in VALID_PERTES else None,
+        "disponibilite": _dans(r.get("disponibilite"), VALID_DISPONIBILITES),
+        "reaction": _dans(r.get("reaction"), VALID_REACTIONS),
+        "lecture": _dans(r.get("lecture"), VALID_LECTURES),
+        "connait": [c for c in connait if c in VALID_INDICATEURS],
+        "intentions_at": r.get("intentions_at"),
     }
 
 
@@ -548,17 +596,87 @@ async def update_profile_preferences(
             raise HTTPException(status_code=400, detail=f"Rythme inconnu : {data.weekly_time}")
         weekly_time = data.weekly_time
 
+    # ── Les intentions ──────────────────────────────────────────────────────
+    #
+    # Même règle partout : un champ absent n'est pas touché, un champ envoyé
+    # est validé. `mise_eur = 0` est la seule valeur qui EFFACE — « je préfère
+    # ne pas le dire » doit rester disponible après avoir répondu, sans quoi
+    # une réponse donnée une fois serait définitive.
+    mise = current["mise_eur"]
+    if data.mise_eur is not None:
+        if data.mise_eur == 0:
+            mise = None
+        elif 0 < data.mise_eur <= MISE_MAX_EUR:
+            mise = data.mise_eur
+        else:
+            raise HTTPException(status_code=400, detail="Montant hors limites")
+
+    perte = current["perte_max_pct"]
+    if data.perte_max_pct is not None:
+        if data.perte_max_pct == 0:
+            perte = None
+        elif data.perte_max_pct in VALID_PERTES:
+            perte = data.perte_max_pct
+        else:
+            raise HTTPException(status_code=400, detail=f"Perte inconnue : {data.perte_max_pct}")
+
+    def _valide(envoye, actuel, ensemble, nom):
+        if envoye is None:
+            return actuel
+        if envoye == "":
+            return None
+        if envoye not in ensemble:
+            raise HTTPException(status_code=400, detail=f"{nom} inconnu : {envoye}")
+        return envoye
+
+    disponibilite = _valide(data.disponibilite, current["disponibilite"],
+                            VALID_DISPONIBILITES, "Disponibilité")
+    reaction = _valide(data.reaction, current["reaction"], VALID_REACTIONS, "Réaction")
+    lecture = _valide(data.lecture, current["lecture"], VALID_LECTURES, "Mode de lecture")
+
+    connait = current["connait"]
+    if data.connait is not None:
+        inconnu = [c for c in data.connait if c not in VALID_INDICATEURS]
+        if inconnu:
+            raise HTTPException(status_code=400, detail=f"Indicateur inconnu : {inconnu[0]}")
+        connait = list(dict.fromkeys(data.connait))
+
+    # La date des intentions n'est posée que lorsqu'une intention est
+    # réellement répondue : elle sert à savoir s'il faut proposer le
+    # questionnaire, et une simple mise à jour de marchés ne doit pas faire
+    # croire qu'il a été rempli.
+    touche_intentions = any(v is not None for v in (
+        data.mise_eur, data.perte_max_pct, data.disponibilite,
+        data.reaction, data.lecture, data.connait,
+    ))
+    intentions_at = now if touche_intentions else current.get("intentions_at")
+
     # ON CONFLICT DO UPDATE : deux onglets ouverts, ou un double envoi, ne
     # doivent pas remonter une violation de clé primaire en 500.
     await execute_write(
-        """INSERT INTO user_profile (user_id, goal, markets, weekly_time, updated_at)
-           VALUES (?, ?, ?, ?, ?)
+        """INSERT INTO user_profile (user_id, goal, markets, weekly_time, updated_at,
+                                     mise_eur, perte_max_pct, disponibilite, reaction,
+                                     lecture, connait, intentions_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
            ON CONFLICT (user_id) DO UPDATE
            SET goal = EXCLUDED.goal,
                markets = EXCLUDED.markets,
                weekly_time = EXCLUDED.weekly_time,
-               updated_at = EXCLUDED.updated_at""",
-        (user_id, goal, json.dumps(markets), weekly_time, now),
+               updated_at = EXCLUDED.updated_at,
+               mise_eur = EXCLUDED.mise_eur,
+               perte_max_pct = EXCLUDED.perte_max_pct,
+               disponibilite = EXCLUDED.disponibilite,
+               reaction = EXCLUDED.reaction,
+               lecture = EXCLUDED.lecture,
+               connait = EXCLUDED.connait,
+               intentions_at = EXCLUDED.intentions_at""",
+        (user_id, goal, json.dumps(markets), weekly_time, now,
+         mise, perte, disponibilite, reaction, lecture, json.dumps(connait), intentions_at),
     )
 
-    return {"goal": goal, "markets": markets, "weekly_time": weekly_time, "updated_at": now}
+    return {
+        "goal": goal, "markets": markets, "weekly_time": weekly_time, "updated_at": now,
+        "mise_eur": mise, "perte_max_pct": perte, "disponibilite": disponibilite,
+        "reaction": reaction, "lecture": lecture, "connait": connait,
+        "intentions_at": intentions_at,
+    }

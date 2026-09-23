@@ -17,7 +17,11 @@ import { profileAPI, type ProfilePreferences } from "@/lib/api";
  */
 
 const CACHE_KEY = "tdb_profile_prefs";
-const EMPTY: ProfilePreferences = { goal: null, markets: [], weekly_time: null };
+const EMPTY: ProfilePreferences = {
+  goal: null, markets: [], weekly_time: null,
+  mise_eur: null, perte_max_pct: null, disponibilite: null,
+  reaction: null, lecture: null, connait: [], intentions_at: null,
+};
 
 function readCache(): ProfilePreferences {
   try {
@@ -25,9 +29,20 @@ function readCache(): ProfilePreferences {
     if (!raw) return EMPTY;
     const v = JSON.parse(raw) as ProfilePreferences;
     return {
+      ...EMPTY,
       goal: v.goal ?? null,
       markets: Array.isArray(v.markets) ? v.markets : [],
       weekly_time: v.weekly_time ?? null,
+      // Les intentions : elles entrent dans des calculs sur l'argent de
+      // quelqu'un, donc un cache abîmé doit rendre « pas de réponse » et non
+      // une valeur approchante.
+      mise_eur: typeof v.mise_eur === "number" ? v.mise_eur : null,
+      perte_max_pct: typeof v.perte_max_pct === "number" ? v.perte_max_pct : null,
+      disponibilite: v.disponibilite ?? null,
+      reaction: v.reaction ?? null,
+      lecture: v.lecture ?? null,
+      connait: Array.isArray(v.connait) ? v.connait : [],
+      intentions_at: v.intentions_at ?? null,
     };
   } catch {
     return EMPTY;
