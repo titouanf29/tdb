@@ -386,7 +386,12 @@ function WeatherToggle({
   hasData: boolean;
 }) {
   return (
-    <div className="flex items-center gap-2">
+    /* `flex-wrap` et `whitespace-nowrap` vont ensemble : sur 390 px, les deux
+       boutons et la météo ne tiennent pas sur une ligne, et sans consigne le
+       navigateur coupait À L'INTÉRIEUR des libellés — « Les / marchés ».
+       Un libellé de bouton ne se coupe pas ; c'est la rangée qui passe à la
+       ligne. */
+    <div className="flex flex-wrap items-center gap-2">
       {on && (
         <span
           className="flex items-center gap-1.5 text-[0.82rem]"
@@ -409,7 +414,7 @@ function WeatherToggle({
           général, plutôt que dans un menu dédié à l'étude d'une valeur. */}
       <Link
         href="/markets"
-        className="flex items-center gap-2 rounded-[10px] px-3 py-2 text-[0.82rem] transition-colors hover:bg-[color:var(--cap-surface-2)]"
+        className="flex items-center gap-2 whitespace-nowrap rounded-[10px] px-3 py-2 text-[0.82rem] transition-colors hover:bg-[color:var(--cap-surface-2)]"
         style={{ color: "var(--cap-ink-2)", boxShadow: "inset 0 0 0 1px var(--cap-line)" }}
       >
         <Globe2 className="h-3.5 w-3.5" />
@@ -417,7 +422,7 @@ function WeatherToggle({
       </Link>
       <button
         onClick={() => onChange(!on)}
-        className="flex items-center gap-2 rounded-[10px] px-3 py-2 text-[0.82rem] transition-colors hover:bg-[color:var(--cap-surface-2)]"
+        className="flex items-center gap-2 whitespace-nowrap rounded-[10px] px-3 py-2 text-[0.82rem] transition-colors hover:bg-[color:var(--cap-surface-2)]"
         style={{ color: "var(--cap-ink-2)", boxShadow: "inset 0 0 0 1px var(--cap-line)" }}
       >
         {on ? <CloudOff className="h-3.5 w-3.5" /> : <Sun className="h-3.5 w-3.5" />}

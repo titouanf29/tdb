@@ -52,15 +52,18 @@ function LandingShell({ children }: { children: React.ReactNode }) {
 }
 
 function LegalShell({ children }: { children: React.ReactNode }) {
-  /* Le fond clair est posé ICI et pas sur le document. Ces pages sont les
-     seules du site à s'afficher hors de la coque applicative : sans fond
-     propre, elles héritaient du noir du `body`, et les panneaux migrés
-     flottaient sur une page sombre avec un fil d'Ariane invisible dessus.
-     Le poser sur `body` l'imposerait en revanche à tous les écrans non
-     migrés, qui sont sombres à l'intérieur — c'est exactement ce que le
-     découpage par route existe pour éviter. */
+  /* Ces pages sont les seules du site à s'afficher hors de la coque
+     applicative : sans fond propre, elles héritaient du noir du `body`, et
+     les panneaux migrés flottaient sur une page sombre avec un fil d'Ariane
+     invisible dessus.
+     La classe `cap` fait les deux choses d'un coup : elle peint le cadre,
+     comme avant, et elle fait basculer le fond du DOCUMENT au clair par la
+     règle `body:has(.cap)` — sans quoi les bandes de sécurité de l'iPhone
+     restent noires autour d'une page claire. Le noir du `body` reste en
+     place partout ailleurs, pour les écrans non migrés qui sont sombres à
+     l'intérieur. */
   return (
-    <div className="min-h-screen" style={{ backgroundColor: "var(--cap-bg)" }}>
+    <div className="cap min-h-screen">
       <div className="mx-auto max-w-4xl px-4 py-12 sm:px-6">
         {children}
       </div>

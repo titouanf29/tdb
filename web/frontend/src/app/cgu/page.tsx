@@ -53,16 +53,25 @@ export default function CguPage() {
         </div>
       </div>
 
-      {/* AMF Warning */}
-      <div className="p-5 rounded-2xl bg-yellow-500/10 border border-yellow-500/30 flex items-start gap-3">
-        <AlertTriangle className="w-5 h-5 text-yellow-400 shrink-0 mt-0.5" />
-        <div className="text-sm space-y-1">
-          <p className="text-yellow-400 font-semibold">Avertissement réglementaire — Lecture obligatoire</p>
-          <p className="text-yellow-300/80">
-            CaptenTDB est une <strong>plateforme éducative de paper trading</strong> (argent virtuel uniquement). Elle n'est pas agréée par l'AMF. Aucune information sur ce site ne constitue un conseil en investissement au sens de la Directive MIF 2 (2014/65/UE) ou du code monétaire et financier. Le trading sur les marchés réels comporte un risque de perte en capital.
-          </p>
+      {/* Avertissement AMF.
+          Il était écrit en `text-yellow-300/80`, hérité du thème sombre : sur
+          le fond clair, le paragraphe le plus important de la page se lisait
+          en jaune pâle sur beige. Il passe par l'encadré du pont légal, dont
+          l'encre est celle du texte courant — la couleur reste sur le filet
+          et sur le titre, là où elle signale sans empêcher de lire. */}
+      <InfoBox variant="warning">
+        <div className="flex items-start gap-3">
+          <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5" style={{ color: "var(--cap-amber-ink)" }} />
+          <div className="space-y-1">
+            <p className="font-semibold" style={{ color: "var(--cap-ink)" }}>
+              Avertissement réglementaire — Lecture obligatoire
+            </p>
+            <p>
+              CaptenTDB est une <strong>plateforme éducative de paper trading</strong> (argent virtuel uniquement). Elle n'est pas agréée par l'AMF. Aucune information sur ce site ne constitue un conseil en investissement au sens de la Directive MIF 2 (2014/65/UE) ou du code monétaire et financier. Le trading sur les marchés réels comporte un risque de perte en capital.
+            </p>
+          </div>
         </div>
-      </div>
+      </InfoBox>
 
       {/* TOC */}
       <div className="glass-card p-5">

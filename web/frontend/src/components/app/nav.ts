@@ -91,29 +91,27 @@ export const AREAS: NavArea[] = [
 ];
 
 /**
- * Les destinations qui méritent un onglet sur téléphone, dans l'ordre du pouce.
+ * Les quatre destinations qui méritent un onglet, plus le menu.
  *
- * Deux corrections ici, et les deux viennent d'un décalage entre cette liste
- * et des décisions déjà prises ailleurs.
+ * CINQ ONGLETS NE COUVRAIENT PAS LE SITE. Sur téléphone, la barre du bas
+ * était la seule navigation : le menu des sections est masqué sous 1 024 px.
+ * Neuf écrans n'étaient donc atteignables par AUCUN chemin direct — Scanner,
+ * Journal, Favoris, Ouvrir une position, Portefeuille réel, Assistant,
+ * Communauté, Réglages, Premium. On ne tombait dessus qu'en arrivant par
+ * hasard dans la bonne zone, où la rangée contextuelle les révélait.
  *
- * MARCHÉS N'Y ÉTAIT PAS. C'est pourtant l'écran par lequel on commence — on
- * regarde l'état du monde avant d'analyser une valeur — et il n'était
- * atteignable qu'en ouvrant le menu « Analyser ». Sur téléphone, où ce menu
- * est un onglet parmi quatre, cela faisait deux gestes pour arriver à la
- * première chose qu'on veut voir.
+ * C'est ce qu'un premier essai sur iPhone a immédiatement fait apparaître :
+ * « je ne peux pas accéder au scanner ».
  *
- * PORTEFEUILLE OCCUPAIT LA PLACE DU WALLET. Le site est un simulateur : le
- * wallet est le compte d'entraînement, le portefeuille suit des placements
- * réels saisis à la main. La barre d'onglets envoyait donc vers le compte
- * rare, sous le nom qui prête le plus à confusion, alors que le reste de la
- * navigation avait déjà été remis dans le bon ordre.
+ * Le cinquième onglet ouvre donc un menu qui liste TOUT. Quatre destinations
+ * fréquentes sous le pouce, et le reste à deux gestes — au lieu de zéro
+ * chemin.
  */
 export const MOBILE_TABS = [
   { href: "/dashboard", label: "Accueil" },
   { href: "/wallet", label: "Wallet" },
   { href: "/markets", label: "Marchés" },
   { href: "/analysis", label: "Analyser" },
-  { href: "/learn", label: "Parcours" },
 ] as const;
 
 /**

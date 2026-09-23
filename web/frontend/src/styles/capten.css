@@ -18,6 +18,11 @@
   --cap-ocean:  #155E75;
   --cap-cyan:   #29A9C7;
   --cap-amber:  #E5A83A;
+  /* L'ambre, mais lisible. #E5A83A mesure 1,60:1 sur un panneau clair : très
+     bien pour un aplat ou un filet, hors-jeu pour un pictogramme ou un mot.
+     Assombri jusqu'à 4,08:1, il passe le seuil des éléments non textuels
+     (3:1) en restant de la même famille de couleur. */
+  --cap-amber-ink: #8A6414;
   /* Vert et rouge, en deux intensités — et c'est la distinction qui compte.
 
      Mesuré sur l'écran Marchés : 0,74 % des pixels étaient très saturés,
@@ -116,6 +121,9 @@
      se détachent mieux sur un ciel moins blanc. Les nuages font le reste, en
      donnant au fond le relief qui lui manquait. */
   --cap-bg:        #DEE5EF;
+  /* Le même fond, mais porté par la racine : il sert au canevas du document,
+     hors de la coque (voir `body:has(.cap)`). */
+  --cap-canvas:    #DEE5EF;
   --cap-surface:   #F7F9FB;
   --cap-surface-2: #E0E6EE;
   --cap-surface-3: #D4DCE6;
@@ -301,6 +309,18 @@
    Tous les niveaux d'encre repassent les seuils : 13,2:1, 8,9:1, 6,2:1 sur
    un panneau, et ink-4 à 4,0:1 alors qu'il ne sert qu'aux traits.
    ═══════════════════════════════════════════════════════════════════════ */
+/* Le canevas suit le thème, et il est déclaré sur la racine parce que `body`
+   ne peut pas hériter d'une variable posée sur son propre descendant. */
+[data-cap-theme="dark"] {
+  --cap-canvas:    #0F1823;
+}
+/* Sur fond sombre, c'est l'ambre clair qui est lisible : la version
+   assombrie du thème clair y disparaîtrait. */
+[data-cap-theme="dark"] .cap,
+[data-cap-theme="dark"] .cap-surface {
+  --cap-amber-ink: #E5A83A;
+}
+
 [data-cap-theme="dark"] .cap,
 [data-cap-theme="dark"] .cap-surface {
   --cap-bg:        #0F1823;
@@ -380,6 +400,27 @@
     inset 0 1px 0 rgba(233, 239, 244, 0.06),
     0 6px 18px rgba(0, 0, 0, 0.36),
     0 38px 84px rgba(0, 0, 0, 0.44);
+}
+
+/* LE FOND DU DOCUMENT, PAS SEULEMENT CELUI DE LA COQUE.
+ *
+ * `.cap` peint son propre rectangle, qui fait exactement la largeur et la
+ * hauteur du contenu. Tout ce qui se trouve HORS de ce rectangle est peint
+ * par le canevas du navigateur, c'est-à-dire par le fond de `body` — resté
+ * #0A0A0B, la couleur de l'ancien thème sombre, parce que les écrans non
+ * migrés en ont encore besoin.
+ *
+ * Sur un ordinateur cela ne se voit jamais : rien ne dépasse. Sur un iPhone,
+ * si : les bandes de sécurité autour de l'encoche, en paysage, sont peintes
+ * avec cette couleur-là, et l'élan du défilement en découvre autant. D'où le
+ * « bandeau noir sur le côté droit ».
+ *
+ * `:has()` fait le choix au bon endroit : le fond du document suit l'écran
+ * affiché, clair tant qu'une coque `.cap` est montée, sombre partout ailleurs.
+ * La variable est déclarée sur la racine — les jetons du thème sombre, eux,
+ * sont portés par `.cap` et ne remontent donc pas jusqu'ici. */
+body:has(.cap) {
+  background-color: var(--cap-canvas);
 }
 
 /* The root of every rebuilt screen. */

@@ -102,7 +102,7 @@ export default function PolitiqueConfidentialitePage() {
 
             <div className="p-4 rounded-xl bg-white/5 space-y-2">
               <h3 className="font-semibold text-foreground text-sm flex items-center gap-2">
-                <span className="w-5 h-5 rounded bg-green-500/20 text-green-400 text-xs flex items-center justify-center">B</span>
+                <span className="w-5 h-5 rounded bg-green-500/20 text-xs flex items-center justify-center" style={{ color: "var(--cap-up)" }}>B</span>
                 Données générées par l'utilisation du service
               </h3>
               <ul className="list-disc pl-5 space-y-1 text-muted-foreground">
@@ -241,13 +241,13 @@ export default function PolitiqueConfidentialitePage() {
                   <td className="p-3 font-mono">auth_token</td>
                   <td className="p-3">Token JWT d'authentification (signé, non chiffré)</td>
                   <td className="p-3">Jusqu'à déconnexion</td>
-                  <td className="p-3 text-green-400">✓ Oui</td>
+                  <td className="p-3" style={{ color: "var(--cap-up)" }}>✓ Oui</td>
                 </tr>
                 <tr>
                   <td className="p-3 font-mono">theme / settings</td>
                   <td className="p-3">Préférences d'affichage (thème, langue)</td>
                   <td className="p-3">Persistant</td>
-                  <td className="p-3 text-green-400">✓ Oui</td>
+                  <td className="p-3" style={{ color: "var(--cap-up)" }}>✓ Oui</td>
                 </tr>
               </tbody>
             </table>

@@ -4,7 +4,10 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
-import { ChevronDown, LogOut, Search, Settings, Shield } from "lucide-react";
+import {
+  ChevronDown, Globe2, Home, LineChart, LogOut, Menu, Search, Settings, Shield,
+  Wallet, X,
+} from "lucide-react";
 import { Notifications } from "./Notifications";
 import { useAuth } from "@/lib/AuthContext";
 import { usePremium } from "@/lib/PremiumContext";
@@ -444,45 +447,234 @@ function UserMenu() {
 
 /* ── Mobile tabs ──────────────────────────────────────────────────────────── */
 
+/**
+ * La barre du bas, revue après un premier essai sur iPhone.
+ *
+ * TROIS DÉFAUTS MESURÉS sur un iPhone 13 émulé (390 × 664) :
+ *
+ *   · chaque onglet faisait 78 × 41 px. Apple demande 44 pt au minimum, et
+ *     41 px de haut pour une cible qu'on vise avec le pouce en marchant,
+ *     c'est ce qui fait « pas très accessible » ;
+ *   · il n'y avait que du texte. Une étiquette de 0,72 rem sans icône est à
+ *     la fois plus dure à viser et plus lente à reconnaître ;
+ *   · cinq onglets ne couvraient pas le site : neuf écrans, dont le Scanner,
+ *     n'étaient atteignables par aucun chemin direct sur téléphone.
+ *
+ * D'où : quatre destinations fréquentes, un cinquième bouton qui ouvre tout,
+ * des cibles de 56 px, et la marge du bas d'iOS ajoutée SOUS les cibles pour
+ * que l'indicateur d'accueil ne les recouvre pas.
+ */
 function MobileTabs() {
   const pathname = usePathname();
+  const [menu, setMenu] = useState(false);
+
+  const ICONES: Record<string, typeof Home> = {
+    "/dashboard": Home,
+    "/wallet": Wallet,
+    "/markets": Globe2,
+    "/analysis": LineChart,
+  };
 
   return (
-    <nav
-      className="fixed inset-x-0 bottom-0 z-40 lg:hidden"
-      style={{
-        backgroundColor: "var(--cap-surface)",
-        boxShadow: "0 -1px 0 var(--cap-line)",
-        paddingBottom: "env(safe-area-inset-bottom)",
-      }}
-      aria-label="Navigation"
-    >
-      <div className="flex">
-        {MOBILE_TABS.map((tab) => {
-          const active = pathname === tab.href || pathname?.startsWith(tab.href + "/");
-          return (
-            <Link
-              key={tab.href}
-              href={tab.href}
-              className={cn(
-                "relative flex flex-1 flex-col items-center gap-1 py-3 text-[0.72rem]",
-                "transition-colors"
-              )}
-              style={{ color: active ? "var(--cap-ink)" : "var(--cap-ink-3)" }}
-            >
-              {active && (
-                <motion.span
-                  layoutId="chrome-tab"
-                  className="absolute inset-x-4 top-0 h-[2px]"
-                  style={{ backgroundColor: "var(--cap-ocean)" }}
-                  transition={{ duration: DUR.quick, ease: EASE }}
-                />
-              )}
-              {tab.label}
-            </Link>
-          );
-        })}
-      </div>
-    </nav>
+    <>
+      <nav
+        className="fixed inset-x-0 bottom-0 z-40 lg:hidden"
+        style={{
+          backgroundColor: "var(--cap-surface)",
+          boxShadow: "0 -1px 0 var(--cap-line)",
+          // La marge de sécurité passe SOUS les cibles, jamais dedans.
+          // Aujourd'hui elle vaut zéro : sans `viewport-fit=cover`, iOS
+          // réduit déjà la fenêtre à la zone sûre et `env()` renvoie 0. Elle
+          // est écrite pour le jour où la page ira bord à bord — ce jour-là
+          // l'indicateur d'accueil recouvrirait le bas des onglets.
+          paddingBottom: "env(safe-area-inset-bottom, 0px)",
+        }}
+        aria-label="Navigation"
+      >
+        <div className="flex">
+          {MOBILE_TABS.map((tab) => {
+            const active = pathname === tab.href || pathname?.startsWith(tab.href + "/");
+            const Icone = ICONES[tab.href] ?? Home;
+            return (
+              <Link
+                key={tab.href}
+                href={tab.href}
+                aria-current={active ? "page" : undefined}
+                className="relative flex min-h-[56px] flex-1 flex-col items-center justify-center gap-1 text-[0.68rem] transition-colors"
+                style={{ color: active ? "var(--cap-ink)" : "var(--cap-ink-3)" }}
+              >
+                {active && (
+                  <motion.span
+                    layoutId="chrome-tab"
+                    className="absolute inset-x-4 top-0 h-[2px]"
+                    style={{ backgroundColor: "var(--cap-ocean)" }}
+                    transition={{ duration: DUR.quick, ease: EASE }}
+                  />
+                )}
+                <Icone className="h-[19px] w-[19px]" aria-hidden />
+                {tab.label}
+              </Link>
+            );
+          })}
+
+          <button
+            type="button"
+            onClick={() => setMenu(true)}
+            aria-label="Tout le site"
+            aria-expanded={menu}
+            className="relative flex min-h-[56px] flex-1 flex-col items-center justify-center gap-1 text-[0.68rem] transition-colors"
+            style={{ color: menu ? "var(--cap-ink)" : "var(--cap-ink-3)" }}
+          >
+            <Menu className="h-[19px] w-[19px]" aria-hidden />
+            Menu
+          </button>
+        </div>
+      </nav>
+
+      <MenuMobile open={menu} onClose={() => setMenu(false)} />
+    </>
+  );
+}
+
+/**
+ * Tout le site, en une feuille.
+ *
+ * Elle remonte depuis le bas plutôt que de tomber du haut : sur un téléphone
+ * tenu d'une main, le pouce atteint le bas de l'écran et pas le sommet — et
+ * c'est du bas que vient le geste qui l'a ouverte.
+ */
+function MenuMobile({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const pathname = usePathname();
+  const { isAdmin } = usePremium();
+
+  // Fermer en changeant d'écran : sans cela, la feuille reste ouverte
+  // par-dessus la page qu'on vient de demander.
+  useEffect(() => { onClose(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [pathname]);
+
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    document.addEventListener("keydown", onKey);
+    // Le fond ne défile pas derrière la feuille.
+    const avant = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = avant;
+    };
+  }, [open, onClose]);
+
+  return (
+    <AnimatePresence>
+      {open && (
+        <>
+          <motion.div
+            className="fixed inset-0 z-50 lg:hidden"
+            style={{ backgroundColor: "rgba(11,23,38,0.42)" }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: DUR.quick }}
+            onClick={onClose}
+            aria-hidden
+          />
+          <motion.div
+            role="dialog"
+            aria-label="Tout le site"
+            className="fixed inset-x-0 bottom-0 z-50 max-h-[88vh] overflow-y-auto lg:hidden"
+            style={{
+              backgroundColor: "var(--cap-surface)",
+              borderTopLeftRadius: "var(--cap-r-xl)",
+              borderTopRightRadius: "var(--cap-r-xl)",
+              paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 1rem)",
+            }}
+            initial={{ y: "100%" }}
+            animate={{ y: 0 }}
+            exit={{ y: "100%" }}
+            transition={{ duration: DUR.base, ease: EASE }}
+          >
+            <div className="sticky top-0 flex items-center justify-between gap-4 px-5 pb-2 pt-4"
+                 style={{ backgroundColor: "var(--cap-surface)" }}>
+              <span className="text-[0.72rem] uppercase tracking-[0.14em]"
+                    style={{ color: "var(--cap-ink-3)" }}>
+                Tout le site
+              </span>
+              <button
+                type="button"
+                onClick={onClose}
+                aria-label="Fermer"
+                className="-m-2 flex h-11 w-11 items-center justify-center rounded-full"
+                style={{ color: "var(--cap-ink-3)" }}
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {AREAS.map((area) => {
+              const items = area.items.filter((i) => !i.adminOnly || isAdmin);
+              return (
+                <div key={area.id} className="px-5 pb-0.5 pt-2.5">
+                  <span className="text-[0.72rem] uppercase tracking-[0.14em]"
+                        style={{ color: "var(--cap-ink-4)" }}>
+                    {area.label}
+                  </span>
+                  <div className="mt-1.5 flex flex-col">
+                    {items.map((it) => {
+                      const active = pathname === it.href;
+                      return (
+                        <Link
+                          key={it.href}
+                          href={it.href}
+                          onClick={onClose}
+                          className="flex min-h-[52px] flex-col justify-center rounded-[10px] px-3 py-2"
+                          style={{ backgroundColor: active ? "var(--cap-surface-2)" : "transparent" }}
+                        >
+                          <span className="text-[0.95rem]" style={{ color: "var(--cap-ink)" }}>
+                            {it.label}
+                          </span>
+                          {/* Une seule ligne, tronquée.
+                              Sur 390 px, une phrase de description passe à deux
+                              ou trois lignes et la rangée atteint 110 px : la
+                              feuille n'en montre plus que quatre, et le Scanner
+                              — celui qu'on est venu chercher — tombe à 900 px
+                              du haut. Tronquée, la phrase oriente toujours, et
+                              tout tient sans défiler. */}
+                          <span
+                            className="overflow-hidden text-ellipsis whitespace-nowrap text-[0.78rem] leading-snug"
+                            style={{ color: "var(--cap-ink-3)" }}
+                          >
+                            {it.blurb}
+                          </span>
+                        </Link>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+
+            <div className="mt-2 border-t px-5 pt-3" style={{ borderColor: "var(--cap-line)" }}>
+              <div className="flex flex-col">
+                {[
+                  { href: "/settings", label: "Réglages" },
+                  { href: "/premium", label: "Premium" },
+                  ...(isAdmin ? [{ href: "/admin", label: "Administration" }] : []),
+                ].map((l) => (
+                  <Link
+                    key={l.href}
+                    href={l.href}
+                    onClick={onClose}
+                    className="flex min-h-[48px] items-center rounded-[10px] px-3 text-[0.92rem]"
+                    style={{ color: "var(--cap-ink-2)" }}
+                  >
+                    {l.label}
+                  </Link>
+                ))}
+              </div>
+            </div>
+          </motion.div>
+        </>
+      )}
+    </AnimatePresence>
   );
 }
