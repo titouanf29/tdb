@@ -1518,7 +1518,32 @@ export interface AdminAIHealth {
   }[];
 }
 
+/** L'état de l'envoi d'e-mails — sans aucune valeur secrète. */
+export interface EmailEtat {
+  fournisseur: "brevo" | "resend" | "smtp" | "aucun";
+  expediteur: string | null;
+  frontend_url: string;
+  frontend_url_locale: boolean;
+  variables: Record<string, boolean>;
+}
+
+export interface EmailTest extends EmailEtat {
+  ok: boolean;
+  to: string;
+  voie?: string;
+  erreur?: string;
+  conseil?: string;
+}
+
 export const adminAPI = {
+  emailStatus: () => fetchAPI<EmailEtat>("/api/admin/email/status"),
+  /** Envoie en direct et rend l'erreur exacte en cas d'échec. */
+  emailTest: (to?: string) =>
+    fetchAPI<EmailTest>("/api/admin/email/test", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(to ? { to } : {}),
+    }),
   // Check admin status
   checkAdmin: () => fetchAPI<{ is_admin: boolean; email?: string }>("/api/admin/check"),
 

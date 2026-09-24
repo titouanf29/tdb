@@ -1,58 +1,184 @@
 """
-Email service - sends transactional emails via SMTP.
+Service d'e-mails — envoi des messages transactionnels.
 
-Required env vars:
-  SMTP_HOST      e.g. smtp.gmail.com
-  SMTP_PORT      587 (TLS) or 465 (SSL)
-  SMTP_USER      your@email.com
-  SMTP_PASSWORD  app password / API key
-  SMTP_FROM      "CaptenTDB <noreply@capten.tdb>"
-  FRONTEND_URL   https://yourdomain.com
+TROIS VOIES, choisies automatiquement selon les variables présentes :
+
+  BREVO_API_KEY   API HTTPS de Brevo (300 e-mails/jour gratuits)
+  RESEND_API_KEY  API HTTPS de Resend
+  SMTP_HOST + SMTP_USER + SMTP_PASSWORD   SMTP classique (ports 587 / 465)
+
+  EMAIL_FROM      l'expéditeur, « CaptenTDB <adresse@exemple.fr> »
+                  (SMTP_FROM est encore lu, pour compatibilité)
+  FRONTEND_URL    https://captentdb.fr — les liens des e-mails en dépendent
+
+POURQUOI LES API. Railway bloque le SMTP sortant (ports 25, 465, 587, 2525)
+sur les forfaits Free, Trial et Hobby : seul le forfait Pro l'autorise. Une
+configuration SMTP parfaitement correcte y échoue donc en silence — la
+connexion est coupée avant d'atteindre le serveur de messagerie. Les API
+passent par HTTPS, qui n'est jamais bloqué.
 """
 import os
+import re
 import ssl
 import logging
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
 import aiosmtplib
+import httpx
 
 logger = logging.getLogger(__name__)
 
-SMTP_HOST     = os.getenv("SMTP_HOST", "")
-SMTP_PORT     = int(os.getenv("SMTP_PORT", "587"))
-SMTP_USER     = os.getenv("SMTP_USER", "")
-SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "")
-SMTP_FROM     = os.getenv("SMTP_FROM", f"CaptenTDB <{SMTP_USER}>")
-FRONTEND_URL  = os.getenv("FRONTEND_URL", "http://localhost:3000")
+SMTP_HOST      = os.getenv("SMTP_HOST", "")
+SMTP_PORT      = int(os.getenv("SMTP_PORT", "587"))
+SMTP_USER      = os.getenv("SMTP_USER", "")
+SMTP_PASSWORD  = os.getenv("SMTP_PASSWORD", "")
+BREVO_API_KEY  = os.getenv("BREVO_API_KEY", "").strip()
+RESEND_API_KEY = os.getenv("RESEND_API_KEY", "").strip()
+EMAIL_FROM     = (os.getenv("EMAIL_FROM") or os.getenv("SMTP_FROM")
+                  or (f"CaptenTDB <{SMTP_USER}>" if SMTP_USER else ""))
+SMTP_FROM      = EMAIL_FROM  # ancien nom, conservé
+FRONTEND_URL   = os.getenv("FRONTEND_URL", "http://localhost:3000")
 
-EMAIL_ENABLED = bool(SMTP_HOST and SMTP_USER and SMTP_PASSWORD)
+DELAI_S = 15  # au-delà, un envoi est considéré comme perdu — pas de requête pendue
 
 
-async def _send(to: str, subject: str, html: str) -> None:
-    """Low-level async SMTP send."""
-    if not EMAIL_ENABLED:
-        logger.warning("Email not configured – skipping send to %s | %s", to, subject)
+def fournisseur() -> str:
+    """La voie d'envoi retenue : 'brevo', 'resend', 'smtp' ou 'aucun'.
+    Les API passent avant le SMTP : si une clé est posée, c'est qu'on veut
+    contourner un SMTP bloqué."""
+    if BREVO_API_KEY:
+        return "brevo"
+    if RESEND_API_KEY:
+        return "resend"
+    if SMTP_HOST and SMTP_USER and SMTP_PASSWORD:
+        return "smtp"
+    return "aucun"
+
+
+EMAIL_ENABLED = fournisseur() != "aucun"
+
+
+class EchecEnvoi(Exception):
+    """Un envoi raté, avec une phrase qu'un humain peut comprendre et un conseil."""
+
+    def __init__(self, message: str, conseil: str = ""):
+        super().__init__(message)
+        self.message = message
+        self.conseil = conseil
+
+
+def _expediteur() -> tuple[str, str]:
+    """(nom, adresse) depuis « Nom <adresse> » ou une adresse nue."""
+    m = re.match(r"^\s*(.*?)\s*<\s*([^>]+?)\s*>\s*$", EMAIL_FROM or "")
+    if m:
+        return (m.group(1).strip().strip('"') or "CaptenTDB", m.group(2))
+    return ("CaptenTDB", (EMAIL_FROM or "").strip())
+
+
+async def _via_brevo(to: str, subject: str, html: str) -> None:
+    nom, adresse = _expediteur()
+    if not adresse:
+        raise EchecEnvoi("Aucun expéditeur défini.", "Ajoutez EMAIL_FROM, par exemple « CaptenTDB <vous@exemple.fr> ».")
+    try:
+        async with httpx.AsyncClient(timeout=DELAI_S) as c:
+            r = await c.post(
+                "https://api.brevo.com/v3/smtp/email",
+                headers={"api-key": BREVO_API_KEY, "accept": "application/json"},
+                json={"sender": {"name": nom, "email": adresse},
+                      "to": [{"email": to}], "subject": subject, "htmlContent": html},
+            )
+    except httpx.HTTPError as exc:
+        raise EchecEnvoi(f"Brevo injoignable ({type(exc).__name__}).", "Réessayez dans quelques minutes.")
+    if r.status_code < 300:
         return
+    texte = r.text[:300]
+    if r.status_code == 401:
+        raise EchecEnvoi("Clé API Brevo refusée.",
+                         "Vérifiez BREVO_API_KEY : une clé API (menu SMTP & API → Clés API), pas le mot de passe SMTP.")
+    if "sender" in texte.lower():
+        raise EchecEnvoi(f"Brevo refuse l'expéditeur « {adresse} ».",
+                         "Ajoutez et validez cette adresse dans Brevo (Expéditeurs, domaines et IP dédiées → Expéditeurs).")
+    raise EchecEnvoi(f"Brevo a répondu {r.status_code} : {texte}")
 
+
+async def _via_resend(to: str, subject: str, html: str) -> None:
+    nom, adresse = _expediteur()
+    expediteur = f"{nom} <{adresse}>" if adresse else "CaptenTDB <onboarding@resend.dev>"
+    try:
+        async with httpx.AsyncClient(timeout=DELAI_S) as c:
+            r = await c.post(
+                "https://api.resend.com/emails",
+                headers={"Authorization": f"Bearer {RESEND_API_KEY}"},
+                json={"from": expediteur, "to": [to], "subject": subject, "html": html},
+            )
+    except httpx.HTTPError as exc:
+        raise EchecEnvoi(f"Resend injoignable ({type(exc).__name__}).", "Réessayez dans quelques minutes.")
+    if r.status_code < 300:
+        return
+    texte = r.text[:300]
+    if r.status_code in (401, 403) and "domain" in texte.lower():
+        raise EchecEnvoi("Resend refuse l'expéditeur : le domaine n'est pas vérifié.",
+                         "Vérifiez votre domaine dans Resend (Domains), ou envoyez depuis onboarding@resend.dev "
+                         "— qui ne peut écrire qu'à l'adresse de votre compte Resend.")
+    if r.status_code == 401:
+        raise EchecEnvoi("Clé API Resend refusée.", "Vérifiez RESEND_API_KEY.")
+    raise EchecEnvoi(f"Resend a répondu {r.status_code} : {texte}")
+
+
+async def _via_smtp(to: str, subject: str, html: str) -> None:
     msg = MIMEMultipart("alternative")
     msg["Subject"] = subject
-    msg["From"]    = SMTP_FROM
+    msg["From"]    = EMAIL_FROM
     msg["To"]      = to
     msg.attach(MIMEText(html, "html", "utf-8"))
 
-    use_tls = SMTP_PORT == 465
-    kwargs = dict(
-        hostname=SMTP_HOST,
-        port=SMTP_PORT,
-        username=SMTP_USER,
-        password=SMTP_PASSWORD,
-    )
-    if use_tls:
-        kwargs["tls_context"] = ssl.create_default_context()
-        await aiosmtplib.send(msg, **kwargs, use_tls=True)
+    kwargs = dict(hostname=SMTP_HOST, port=SMTP_PORT, username=SMTP_USER,
+                  password=SMTP_PASSWORD, timeout=DELAI_S)
+    try:
+        if SMTP_PORT == 465:
+            await aiosmtplib.send(msg, **kwargs, use_tls=True, tls_context=ssl.create_default_context())
+        else:
+            await aiosmtplib.send(msg, **kwargs, start_tls=True)
+    except aiosmtplib.SMTPAuthenticationError:
+        raise EchecEnvoi("Le serveur SMTP refuse l'identifiant ou le mot de passe.",
+                         "Avec Gmail : un « mot de passe d'application » de 16 lettres, pas le mot de passe du compte.")
+    except (aiosmtplib.SMTPConnectError, aiosmtplib.SMTPTimeoutError, TimeoutError, OSError) as exc:
+        raise EchecEnvoi(
+            f"Impossible de joindre {SMTP_HOST}:{SMTP_PORT} ({type(exc).__name__}).",
+            "Sur Railway, le SMTP sortant est bloqué sur les forfaits Free, Trial et Hobby. "
+            "Utilisez BREVO_API_KEY ou RESEND_API_KEY (API HTTPS), ou passez au forfait Pro.")
+    except aiosmtplib.SMTPException as exc:
+        raise EchecEnvoi(f"Erreur SMTP : {exc}")
+
+
+async def envoyer(to: str, subject: str, html: str) -> str:
+    """Envoie, ou lève EchecEnvoi avec la raison. Rend la voie utilisée."""
+    voie = fournisseur()
+    if voie == "brevo":
+        await _via_brevo(to, subject, html)
+    elif voie == "resend":
+        await _via_resend(to, subject, html)
+    elif voie == "smtp":
+        await _via_smtp(to, subject, html)
     else:
-        await aiosmtplib.send(msg, **kwargs, start_tls=True)
+        raise EchecEnvoi("Aucun service d'envoi n'est configuré.",
+                         "Ajoutez BREVO_API_KEY (recommandé sur Railway) et EMAIL_FROM.")
+    return voie
+
+
+async def _send(to: str, subject: str, html: str) -> None:
+    """L'envoi des e-mails du site : n'échoue jamais bruyamment, mais JOURNALISE
+    la raison exacte — c'était le point aveugle : un envoi bloqué ne laissait
+    aucune trace compréhensible."""
+    if not EMAIL_ENABLED:
+        logger.warning("E-mail non configuré — rien n'est envoyé à %s | %s", to, subject)
+        return
+    try:
+        await envoyer(to, subject, html)
+    except EchecEnvoi as exc:
+        logger.error("Envoi d'e-mail impossible (%s) : %s %s", fournisseur(), exc.message, exc.conseil)
+        raise
 
 
 # ── Templates ──────────────────────────────────────────────────────────────────

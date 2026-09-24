@@ -121,6 +121,66 @@ async def check_admin_status(current_user: dict = Depends(get_current_user)):
 
 # ============== ÉTAT DE L'IA ==============
 
+class EmailTestRequest(BaseModel):
+    # Vide : l'adresse de l'administrateur connecté — celle qu'on sait lire.
+    to: Optional[str] = None
+
+
+def _etat_email() -> dict:
+    """La configuration des e-mails, SANS aucune valeur secrète : seulement
+    quelles variables sont posées, et la voie qui en résulte."""
+    from .. import email_service as e
+    return {
+        "fournisseur": e.fournisseur(),
+        "expediteur": e.EMAIL_FROM or None,
+        "frontend_url": e.FRONTEND_URL,
+        "frontend_url_locale": "localhost" in (e.FRONTEND_URL or ""),
+        "variables": {
+            "BREVO_API_KEY": bool(e.BREVO_API_KEY),
+            "RESEND_API_KEY": bool(e.RESEND_API_KEY),
+            "SMTP_HOST": bool(e.SMTP_HOST),
+            "SMTP_USER": bool(e.SMTP_USER),
+            "SMTP_PASSWORD": bool(e.SMTP_PASSWORD),
+            "EMAIL_FROM": bool(os.getenv("EMAIL_FROM") or os.getenv("SMTP_FROM")),
+            "FRONTEND_URL": bool(os.getenv("FRONTEND_URL")),
+        },
+    }
+
+
+@router.get("/email/status")
+async def email_status(admin: dict = Depends(get_admin_user)):
+    """Quelle voie d'envoi est configurée, et ce qui manque."""
+    return _etat_email()
+
+
+@router.post("/email/test")
+async def email_test(data: EmailTestRequest, admin: dict = Depends(get_admin_user)):
+    """Envoie un e-mail de test ET ATTEND le résultat.
+
+    Les envois du site partent en tâche de fond : un échec n'y laisse qu'une
+    ligne dans les journaux de Railway, que personne ne lit. Ici l'envoi est
+    fait en direct, et l'erreur exacte — avec le conseil qui va avec — est
+    rendue à l'écran. C'est ce qui manquait pour comprendre pourquoi un
+    « mot de passe oublié » n'arrivait jamais.
+    """
+    from .. import email_service as e
+    to = (data.to or admin.get("email") or "").strip()
+    if "@" not in to:
+        raise HTTPException(status_code=400, detail="Adresse de destination invalide.")
+    html = e._base_template(
+        "<h2>E-mail de test</h2><p>Si vous lisez ceci, l'envoi d'e-mails de CaptenTDB "
+        "fonctionne. Les liens de réinitialisation de mot de passe arriveront de la même façon.</p>"
+    )
+    try:
+        voie = await e.envoyer(to, "CaptenTDB – e-mail de test", html)
+    except e.EchecEnvoi as exc:
+        return {"ok": False, "to": to, "erreur": exc.message, "conseil": exc.conseil, **_etat_email()}
+    except Exception as exc:  # une erreur imprévue doit s'afficher, pas faire un 500 muet
+        return {"ok": False, "to": to, "erreur": f"{type(exc).__name__} : {exc}", "conseil": "", **_etat_email()}
+    await log_admin_action(admin["id"], "email_test", f"E-mail de test envoyé à {to} via {voie}")
+    return {"ok": True, "to": to, "voie": voie, **_etat_email()}
+
+
 @router.get("/ai-health")
 async def ai_health(admin: dict = Depends(get_admin_user)):
     """Quel fournisseur répond, avec quel modèle, en combien de temps.

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Check, Loader2, RefreshCw, X } from "lucide-react";
 import { adminAPI, type AdminAIHealth, type AdminAuditEntry } from "@/lib/api";
 import { Button, Panel, Text } from "@/components/design-system";
+import { EmailPanel } from "./EmailPanel";
 
 /**
  * L'exploitation : les interrupteurs, l'état des services, et qui a fait quoi.
@@ -122,6 +123,8 @@ export function Operations({
           />
         </div>
       </Panel>
+
+      <EmailPanel />
 
       {/* L'état de l'IA. Il n'existait nulle part, et c'est précisément le
           service dont la panne est invisible : l'assistant répond « je ne suis
