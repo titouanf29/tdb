@@ -521,3 +521,117 @@ def verdict(cle: str, sens: str) -> dict:
     else:
         ton, tete = "neutre", "Ne se distingue pas du hasard."
     return {"ton": ton, "n": st["n"], "ecart": st["ecart"], "phrase": f"{tete} {corps}{fin}"}
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  LES FIGURES DANS LE SCORE : UN POIDS DÉCIDÉ PAR LA MESURE
+# ═══════════════════════════════════════════════════════════════════════════
+#
+# Le moteur connaît les figures ; la question est de savoir combien elles
+# doivent peser. La réponse n'est pas choisie ici, elle est LUE dans
+# STATISTIQUES :
+#
+#   · une figure dont le verdict n'est pas « favorable » pèse zéro. C'est le
+#     cas de toutes aujourd'hui. Les ajouter quand même au score, ce serait
+#     ajouter un signal que la mesure dit aléatoire : le verdict bougerait
+#     davantage sans être plus juste — moins précis, donc, pas plus ;
+#   · une figure « favorable » — écart au hasard de plus de deux erreurs-types
+#     sur les DEUX moitiés de l'historique — pèse en proportion de la plus
+#     prudente des deux périodes, avec un plafond. Si la mesure est relancée
+#     un jour et qu'une figure passe ce test, elle entre dans le calcul toute
+#     seule, sans qu'une ligne de code change ;
+#   · une figure « défavorable » pèse zéro aussi. Parier CONTRE une figure
+#     parce qu'elle fait moins bien que le hasard, c'est construire une règle
+#     sur l'échec d'une autre, et le moindre changement de période la
+#     retourne. On ne l'a pas mesuré, donc on ne le fait pas.
+#
+# CONDITIONS POUR QU'UNE FIGURE COMPTE, et chacune reprend une condition de la
+# mesure — sinon on appliquerait un chiffre hors du cadre où il a été établi :
+#   · bougies journalières uniquement ;
+#   · figure devenue visible dans les 20 dernières séances (l'horizon mesuré) ;
+#   · point d'invalidation pas encore franchi.
+
+POIDS_PAR_POINT = 0.5   # 1 point de score pour 2 points d'écart au hasard prouvé
+POIDS_MAXI = 8.0        # une figure ne peut pas, seule, faire basculer un verdict
+FRAICHEUR = 20          # séances — l'horizon de la mesure
+
+
+def poids_mesure(cle: str) -> float:
+    """Points de score qu'une figure a gagnés par la mesure. Zéro par défaut."""
+    st = STATISTIQUES.get(cle)
+    if not st or st.get("verdict") != "favorable":
+        return 0.0
+    a, b = st.get("ecart_A"), st.get("ecart_B")
+    if a is None or b is None:
+        return 0.0
+    return round(min(POIDS_MAXI, max(0.0, min(a, b)) * POIDS_PAR_POINT), 1)
+
+
+def figures_actives() -> bool:
+    """Au moins une figure a-t-elle gagné un poids par la mesure ?
+
+    Le scanner n'affiche pas les figures, il n'en utilise que le poids. Tant
+    qu'aucune n'en a, les chercher lui coûte ~2 ms par actif — une seconde
+    sur un scan de 500 — pour un score strictement identique. Il saute donc
+    l'étape, et la reprend tout seul le jour où la mesure en justifie une.
+    """
+    return any(poids_mesure(c) > 0 for c in STATISTIQUES)
+
+
+def _age(i: int, n: int) -> str:
+    j = n - 1 - i
+    return "aujourd'hui" if j <= 0 else ("hier" if j == 1 else f"il y a {j} séances")
+
+
+def appliquer_figures(score: float, df: pd.DataFrame, timeframe: str,
+                      prix: float) -> tuple[float, list[str], list[str], list[dict]]:
+    """La porte des figures, sur le modèle des portes d'unité supérieure et de
+    contexte : (score, notes haussières, notes baissières, bloc descriptif).
+
+    Le bloc est rendu même quand le poids est nul : l'analyse doit pouvoir
+    dire « j'ai vu un double sommet, et voici pourquoi il ne compte pas ».
+    Se taire ferait croire que le moteur ne l'a pas vu.
+    """
+    try:
+        figures = detecter(df)
+    except Exception:
+        return score, [], [], []
+    n = len(df)
+    hausse, baisse, bloc = [], [], []
+
+    recentes = [f for f in figures if f["i_connu"] >= n - FRAICHEUR]
+    types = set()
+    for f in sorted(recentes, key=lambda x: -x["i_connu"]):
+        if f["cle"] in types:
+            continue
+        types.add(f["cle"])
+
+        inv = f.get("invalidation")
+        invalidee = inv is not None and (
+            (f["sens"] == "haussier" and prix <= inv) or (f["sens"] == "baissier" and prix >= inv))
+
+        if timeframe != "1d":
+            poids, raison = 0.0, "non_mesuree"
+        elif invalidee:
+            poids, raison = 0.0, "invalidee"
+        else:
+            poids = poids_mesure(f["cle"])
+            st = STATISTIQUES.get(f["cle"], {})
+            raison = "mesuree" if poids > 0 else (
+                "trop_peu" if st.get("verdict") == "trop_peu" else "pas_mieux_que_le_hasard")
+
+        if poids > 0:
+            if f["sens"] == "haussier":
+                score = min(100.0, score + poids)
+                hausse.append(f"{f['nom']} ({_age(f['i_connu'], n)}) — avantage mesuré, +{poids:g} pts")
+            else:
+                score = max(0.0, score - poids)
+                baisse.append(f"{f['nom']} ({_age(f['i_connu'], n)}) — avantage mesuré, −{poids:g} pts")
+
+        bloc.append({
+            "cle": f["cle"], "nom": f["nom"], "sens": f["sens"],
+            "age": _age(f["i_connu"], n), "poids": poids, "raison": raison,
+            "invalidation": inv, "objectif": f.get("objectif"),
+            "n_mesure": STATISTIQUES.get(f["cle"], {}).get("n"),
+        })
+    return score, hausse, baisse, bloc

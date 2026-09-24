@@ -32,6 +32,7 @@ from ._scoring import (compute_score, derive_trend, derive_signal, TIMEFRAME_FET
                        htf_from_primary, ENGINE_VERSION)
 from ._backtest import run_backtest
 from ._personnel import adapter as adapter_personnel, lire_profil
+from ._figures import appliquer_figures, figures_actives
 
 logger = logging.getLogger(__name__)
 
@@ -985,6 +986,15 @@ async def analyze_asset(
             except Exception as exc:
                 logger.warning("market context failed for %s: %s", symbol, exc)
 
+        # ── Figures chartistes ─────────────────────────────────────────────
+        # Le moteur les voit toutes ; leur poids vient de la mesure
+        # (_figures.STATISTIQUES), et il est nul tant qu'aucune ne bat le
+        # hasard de façon stable. Même fonction que le scanner.
+        final_score, _f_bull, _f_bear, figures_bloc = appliquer_figures(
+            final_score, hist, timeframe, current_price)
+        bullish_signals.extend(_f_bull)
+        bearish_signals.extend(_f_bear)
+
         _edge_fut = _loop.run_in_executor(
             None, _historical_edge_sync, symbol, timeframe, hist, sl_atr, tp_atr,
             _bench_close, (market_context or {}).get("regime"))
@@ -1485,6 +1495,8 @@ async def analyze_asset(
             "analyst_sentiment": analyst_sentiment,
             "trade_window": trade_window,
             "news": news_items,
+            # Ce que le moteur a vu en figures, et le poids qu'il leur a donné.
+            "figures": figures_bloc,
         }
 
         # ── Ce que cette analyse veut dire POUR CETTE PERSONNE ─────────────
@@ -2021,6 +2033,14 @@ async def scan_market(
                         if _cr: downs.append(_cr)
                 except Exception:
                     pass
+
+            # Même porte des figures que l'analyse : sans elle, le jour où une
+            # figure gagnerait un poids, le scanner et l'analyse donneraient
+            # deux scores différents au même actif.
+            if figures_actives():
+                final_score, _fb, _fr, _ = appliquer_figures(final_score, hist, timeframe, price)
+                ups.extend(_fb)
+                downs.extend(_fr)
 
             score = int(round(final_score))
             ema20_last = float(S["ema20"].iloc[-1])

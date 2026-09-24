@@ -79,6 +79,30 @@ export function buildReasons(a: Analysis): Reason[] {
     });
   }
 
+  // 1 ter. LES FIGURES QUE LE MOTEUR A VUES SANS LEUR DONNER DE POIDS.
+  //
+  // Celles qui pèsent dans le score arrivent plus bas, parmi les signaux
+  // nommés. Les autres — toutes, aujourd'hui — doivent quand même être
+  // citées : un utilisateur qui voit un double sommet sur le graphique et
+  // aucune mention dans le « pourquoi » conclura que le moteur ne l'a pas vu.
+  // Il l'a vu ; il dit pourquoi il n'en tient pas compte.
+  (a.figures ?? []).filter((f) => f.poids === 0).slice(0, 2).forEach((f) => {
+    // « figure » porte l'accord : « Double sommet repéré » et « Épaule-tête-
+    // épaule repérée » ne s'écrivent pas pareil, « figure repérée » si.
+    const cause =
+      f.raison === "invalidee"
+        ? "elle est déjà invalidée, le prix a franchi le niveau qui l'annule"
+        : f.raison === "non_mesuree"
+          ? "les figures n'ont été mesurées qu'en bougies journalières"
+          : f.raison === "trop_peu"
+            ? "trop peu de cas mesurés pour conclure"
+            : `mesurée sur ${f.n_mesure ?? "plusieurs centaines de"} cas, cette figure ne fait pas mieux que le hasard`;
+    out.push({
+      text: `${f.nom} (figure repérée ${f.age}) — sans poids dans le score : ${cause}.`,
+      tone: "neutral",
+    });
+  });
+
   // 2. Les signaux que le moteur a NOMMÉS, quand il y en a.
   //
   // Ils étaient calculés et jetés : « Prix > EMA200 (zone dorée) »,

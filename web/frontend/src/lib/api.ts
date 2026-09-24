@@ -896,6 +896,20 @@ export interface StatFigure {
   verdict: "favorable" | "neutre" | "defavorable" | "trop_peu";
 }
 
+export interface FigureMoteur {
+  cle: string;
+  nom: string;
+  sens: "haussier" | "baissier";
+  /** « il y a 3 séances » */
+  age: string;
+  /** Points de score apportés. 0 tant que la mesure ne les justifie pas. */
+  poids: number;
+  raison: "mesuree" | "pas_mieux_que_le_hasard" | "trop_peu" | "non_mesuree" | "invalidee";
+  invalidation: number | null;
+  objectif: number | null;
+  n_mesure: number | null;
+}
+
 export interface FiguresMesure {
   methode: { panel: number; bougies: number; figures: number; annees: number;
              base_hausse_20: number; note: string };
@@ -1111,6 +1125,9 @@ export interface Analysis {
   };
   engine_version?: string;
   risk_multiples?: { sl_atr: number; tp_atr: number };
+  /** Les figures chartistes que le moteur a vues, et le poids qu'il leur a
+   *  donné — nul tant que la mesure ne dit pas qu'elles battent le hasard. */
+  figures?: FigureMoteur[];
   /** Ce que ce plan veut dire pour cette personne. Absent sans intentions. */
   personnel?: BlocPersonnel;
   /** Technical verdict re-read with the profile's fundamental weight. Kept
