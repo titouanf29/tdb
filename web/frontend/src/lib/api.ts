@@ -49,6 +49,11 @@ async function fetchAPI<T>(
     const isAuthPage = typeof window !== "undefined" &&
       (window.location.pathname.startsWith("/login") ||
        window.location.pathname.startsWith("/register") ||
+       // Les pages de récupération : un vieux jeton périmé ferait sinon
+       // rediriger vers /login au premier 401, et l'utilisateur perdrait le
+       // lien qu'il vient de recevoir par e-mail.
+       window.location.pathname.startsWith("/forgot-password") ||
+       window.location.pathname.startsWith("/reset-password") ||
        window.location.pathname.startsWith("/mentions-legales") ||
        window.location.pathname.startsWith("/politique-de-confidentialite") ||
        window.location.pathname.startsWith("/cgu") ||
@@ -340,6 +345,25 @@ export interface BlocPersonnel {
   disponibilite: string | null;
   repondu: boolean;
 }
+
+/** Mot de passe oublié. Les trois appels fonctionnent sans être connecté. */
+export const passwordResetAPI = {
+  /** Répond pareil que le compte existe ou non : c'est voulu. */
+  request: (email: string) =>
+    fetchAPI<{ success: boolean; message: string }>("/api/auth/forgot-password", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email }),
+    }),
+  check: (token: string) =>
+    fetchAPI<{ valid: boolean }>(`/api/auth/reset-password/check?token=${encodeURIComponent(token)}`),
+  reset: (token: string, password: string) =>
+    fetchAPI<{ success: boolean }>("/api/auth/reset-password", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token, password }),
+    }),
+};
 
 export const profileAPI = {
   get: () => fetchAPI<ProfilePreferences>("/api/users/profile-preferences"),

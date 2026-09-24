@@ -16,6 +16,7 @@ from slowapi.util import get_remote_address
 
 from ..database import execute_query, execute_write
 from .auth import (
+    regle_mot_de_passe,
     ACCESS_TOKEN_EXPIRE_HOURS,
     ALGORITHM,
     REMEMBER_ME_EXPIRE_DAYS,
@@ -258,11 +259,10 @@ async def change_password(
 ):
     """Change the account password and invalidate every other live session."""
     new = data.new_password
-    if len(new) < 8 or not re.search(r"[A-Za-z]", new) or not re.search(r"\d", new):
-        raise HTTPException(
-            status_code=400,
-            detail="Le mot de passe doit contenir au moins 8 caractères, une lettre et un chiffre.",
-        )
+    # La même règle que la réinitialisation, écrite une seule fois (auth.py).
+    erreur = regle_mot_de_passe(new)
+    if erreur:
+        raise HTTPException(status_code=400, detail=erreur)
     if new == data.current_password:
         raise HTTPException(
             status_code=400,

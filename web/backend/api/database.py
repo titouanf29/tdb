@@ -168,6 +168,19 @@ async def _init_postgres():
                 FOREIGN KEY (user_id) REFERENCES web_users(id)
             )
         """)
+        # Réinitialisation du mot de passe. On stocke l'EMPREINTE du jeton,
+        # jamais le jeton : une fuite de cette table ne donnerait aucun lien
+        # utilisable. Un jeton sert une fois (`used_at`) et expire en 1 heure.
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS password_reset_tokens (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER NOT NULL,
+                token_hash TEXT UNIQUE NOT NULL,
+                expires_at TEXT NOT NULL,
+                used_at TEXT,
+                created_at TEXT NOT NULL
+            )
+        """)
         await conn.execute("""
             CREATE TABLE IF NOT EXISTS web_user_settings (
                 user_id INTEGER PRIMARY KEY,
@@ -619,6 +632,19 @@ async def _init_sqlite():
                 expires_at TEXT NOT NULL,
                 created_at TEXT NOT NULL,
                 FOREIGN KEY (user_id) REFERENCES web_users(id)
+            )
+        """)
+        # Réinitialisation du mot de passe. On stocke l'EMPREINTE du jeton,
+        # jamais le jeton : une fuite de cette table ne donnerait aucun lien
+        # utilisable. Un jeton sert une fois (`used_at`) et expire en 1 heure.
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS password_reset_tokens (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                token_hash TEXT UNIQUE NOT NULL,
+                expires_at TEXT NOT NULL,
+                used_at TEXT,
+                created_at TEXT NOT NULL
             )
         """)
         await db.execute("""

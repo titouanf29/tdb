@@ -96,6 +96,19 @@ export default function LoginPage() {
           />
         </Field>
 
+        {/* Sous le champ du mot de passe, là où on le cherche quand on
+            vient de se tromper. Il manquait : le site n'avait AUCUN moyen de
+            récupérer un compte dont on avait oublié le mot de passe. */}
+        <div className="-mt-2 flex justify-end">
+          <Link
+            href="/forgot-password"
+            className="text-[0.84rem] underline underline-offset-2 transition-colors hover:text-[color:var(--cap-ink)]"
+            style={{ color: "var(--cap-ocean)" }}
+          >
+            Mot de passe oublié ?
+          </Link>
+        </div>
+
         <Checkbox checked={rememberMe} onChange={setRememberMe}>
           Rester connecté sur cet appareil
         </Checkbox>

@@ -150,7 +150,12 @@ function AuthShell({
   };
 
   if (isAuthPage) {
-    const isLoginPage = !!pathname?.startsWith("/login");
+    // La connexion ET la récupération du mot de passe restent ouvertes : un
+    // administrateur qui a oublié le sien pendant une maintenance doit
+    // pouvoir rentrer.
+    const isLoginPage = !!(pathname?.startsWith("/login")
+      || pathname?.startsWith("/forgot-password")
+      || pathname?.startsWith("/reset-password"));
     // Signing up is closed while the site is: letting the form through meant
     // new accounts were still being created behind the maintenance screen.
     // Signing IN stays open — it is the only way an admin gets back in.
@@ -329,7 +334,9 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     || pathname?.startsWith("/cgv");
   const isAuthPage    = pathname?.startsWith("/login")
     || pathname?.startsWith("/register")
-    || pathname?.startsWith("/verify-email");
+    || pathname?.startsWith("/verify-email")
+    || pathname?.startsWith("/forgot-password")
+    || pathname?.startsWith("/reset-password");
 
   if (isMaintenancePage) {
     return <>{children}</>;

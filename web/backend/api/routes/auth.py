@@ -1,12 +1,16 @@
 """
 Authentication routes - Email/Password with email verification
 """
+import asyncio
+import hashlib
+import logging
 import os
+import re
 import secrets
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException, Depends, Request, Response
+from fastapi import APIRouter, HTTPException, Depends, Query, Request, Response
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel, EmailStr, Field
 from jose import JWTError, jwt
@@ -15,7 +19,7 @@ from slowapi import Limiter
 from slowapi.util import get_remote_address
 
 from ..database import execute_query, execute_write, create_admin_notification
-from ..email_service import send_verification_email, EMAIL_ENABLED
+from ..email_service import send_verification_email, send_password_reset_email, EMAIL_ENABLED
 
 router = APIRouter()
 security = HTTPBearer(auto_error=False)
@@ -444,3 +448,181 @@ async def logout(response: Response):
     # long after they signed out.
     response.delete_cookie(SESSION_COOKIE, path="/")
     return {"message": "Logged out successfully"}
+
+
+
+# === Mot de passe oublié ======================================================
+#
+# Le modèle d'e-mail de réinitialisation existait (email_service), mais aucune
+# route ne l'utilisait et aucune page n'y menait : un utilisateur qui oubliait
+# son mot de passe n'avait AUCUN moyen de récupérer son compte. Seul
+# l'administrateur avait une porte de secours (ADMIN_BOOTSTRAP_* dans main.py).
+#
+# Les règles de sécurité, et pourquoi chacune :
+#   · même réponse que le compte existe ou non — sinon le formulaire sert à
+#     vérifier quelles adresses sont inscrites ;
+#   · l'e-mail part en tâche de fond, pour que le temps de réponse ne trahisse
+#     pas davantage l'existence du compte ;
+#   · on stocke l'EMPREINTE du jeton, pas le jeton ; une fuite de la table ne
+#     donne aucun lien utilisable ;
+#   · un lien vaut 1 heure et sert une fois ; en demander un nouveau annule
+#     les précédents ; trois demandes par heure et par compte au maximum ;
+#   · réinitialiser fixe `password_changed_at`, ce qui déconnecte toutes les
+#     sessions ouvertes — si quelqu'un d'autre utilisait le compte, il en sort.
+
+_log = logging.getLogger(__name__)
+
+RESET_EXPIRE_MINUTES = 60
+RESET_MAX_PAR_HEURE = 3
+
+REPONSE_NEUTRE = {
+    "success": True,
+    "message": ("Si un compte existe pour cette adresse, un e-mail vient de lui être "
+                "envoyé avec un lien valable une heure. Pensez à regarder dans les "
+                "indésirables."),
+}
+
+LIEN_INVALIDE = ("Ce lien n'est plus valable : il a expiré, il a déjà servi, ou un "
+                 "lien plus récent a été demandé. Demandez-en un nouveau.")
+
+
+def regle_mot_de_passe(motdepasse: str) -> Optional[str]:
+    """La règle d'un mot de passe, en un seul endroit — le changement de mot
+    de passe dans les Réglages et la réinitialisation appliquent la même.
+    Rend le message d'erreur, ou None si le mot de passe convient."""
+    if len(motdepasse) < 8 or not re.search(r"[A-Za-z]", motdepasse) or not re.search(r"\d", motdepasse):
+        return "Le mot de passe doit contenir au moins 8 caractères, une lettre et un chiffre."
+    if len(motdepasse.encode("utf-8")) > 72:
+        # La limite de bcrypt : au-delà, les caractères en trop sont ignorés
+        # en silence, et deux mots de passe différents deviendraient égaux.
+        # La limite est en OCTETS : un caractère accentué en compte deux.
+        # Annoncer « 72 caractères » serait faux pour un mot de passe accentué.
+        return "Le mot de passe est trop long — raccourcissez-le un peu."
+    return None
+
+
+def _empreinte(jeton: str) -> str:
+    return hashlib.sha256(jeton.encode("utf-8")).hexdigest()
+
+
+async def _jeton_valide(jeton: str) -> Optional[dict]:
+    if not jeton or len(jeton) > 200:
+        return None
+    rows = await execute_query(
+        "SELECT * FROM password_reset_tokens WHERE token_hash = ?", (_empreinte(jeton),)
+    )
+    if not rows:
+        return None
+    r = rows[0]
+    if r.get("used_at"):
+        return None
+    try:
+        expire = datetime.fromisoformat(str(r["expires_at"]))
+    except (TypeError, ValueError):
+        return None
+    if expire.tzinfo is None:
+        expire = expire.replace(tzinfo=timezone.utc)
+    return r if expire > datetime.now(timezone.utc) else None
+
+
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+
+class ResetPasswordRequest(BaseModel):
+    token: str = Field(min_length=20, max_length=200)
+    password: str = Field(min_length=1, max_length=128)
+
+
+async def _envoyer_lien(email: str, username: str, jeton: str) -> None:
+    try:
+        await send_password_reset_email(email, username, jeton)
+    except Exception as exc:  # jamais d'échec visible : la réponse est déjà partie
+        _log.error("envoi du lien de réinitialisation impossible : %s", exc)
+
+
+@router.post("/forgot-password")
+@limiter.limit("5/minute")
+async def forgot_password(request: Request, data: ForgotPasswordRequest):
+    """Envoie un lien de réinitialisation. Répond pareil dans tous les cas."""
+    email = data.email.strip().lower()
+    users = await execute_query(
+        "SELECT id, username, email, is_active FROM web_users WHERE email = ?", (email,)
+    )
+    # Compte inexistant ou suspendu : même réponse, aucun e-mail.
+    if not users or users[0].get("is_active") in (0, False):
+        return REPONSE_NEUTRE
+    u = users[0]
+    maintenant = datetime.now(timezone.utc)
+
+    recents = await execute_query(
+        "SELECT COUNT(*) AS n FROM password_reset_tokens WHERE user_id = ? AND created_at > ?",
+        (u["id"], (maintenant - timedelta(hours=1)).isoformat()),
+    )
+    if recents and int(recents[0]["n"] or 0) >= RESET_MAX_PAR_HEURE:
+        return REPONSE_NEUTRE
+
+    # Un nouveau lien annule les précédents : seul le dernier e-mail reçu marche.
+    await execute_write(
+        "UPDATE password_reset_tokens SET used_at = ? WHERE user_id = ? AND used_at IS NULL",
+        (maintenant.isoformat(), u["id"]),
+    )
+    jeton = secrets.token_urlsafe(32)
+    await execute_write(
+        """INSERT INTO password_reset_tokens (user_id, token_hash, expires_at, created_at)
+           VALUES (?, ?, ?, ?)""",
+        (u["id"], _empreinte(jeton),
+         (maintenant + timedelta(minutes=RESET_EXPIRE_MINUTES)).isoformat(),
+         maintenant.isoformat()),
+    )
+
+    if EMAIL_ENABLED:
+        asyncio.create_task(_envoyer_lien(u["email"], u["username"], jeton))
+    else:
+        # Rien ne peut partir : l'exploitant doit le savoir, l'utilisateur
+        # reçoit la même réponse (la lui changer révélerait que le compte existe).
+        _log.warning("SMTP non configuré : lien de réinitialisation NON envoyé (compte %s)", u["id"])
+    return REPONSE_NEUTRE
+
+
+@router.get("/reset-password/check")
+@limiter.limit("20/minute")
+async def check_reset_token(request: Request, token: str = Query(..., max_length=200)):
+    """Le lien est-il encore bon ? Permet à la page de le dire AVANT la saisie."""
+    return {"valid": (await _jeton_valide(token)) is not None}
+
+
+@router.post("/reset-password")
+@limiter.limit("10/minute")
+async def reset_password(request: Request, data: ResetPasswordRequest):
+    """Pose le nouveau mot de passe et consomme le lien."""
+    r = await _jeton_valide(data.token)
+    if not r:
+        raise HTTPException(status_code=400, detail=LIEN_INVALIDE)
+    erreur = regle_mot_de_passe(data.password)
+    if erreur:
+        raise HTTPException(status_code=400, detail=erreur)
+
+    maintenant = datetime.now(timezone.utc).isoformat()
+    # Le lien est consommé AVANT d'écrire le mot de passe, et on vérifie qu'on
+    # est bien celui qui l'a consommé : deux envois simultanés du même lien ne
+    # doivent pas produire deux changements.
+    await execute_write(
+        "UPDATE password_reset_tokens SET used_at = ? WHERE id = ? AND used_at IS NULL",
+        (maintenant, r["id"]),
+    )
+    verif = await execute_query("SELECT used_at FROM password_reset_tokens WHERE id = ?", (r["id"],))
+    if not verif or str(verif[0].get("used_at")) != maintenant:
+        raise HTTPException(status_code=400, detail=LIEN_INVALIDE)
+
+    # `password_changed_at` déconnecte toutes les sessions ouvertes ;
+    # `email_verified` : recevoir ce lien prouve que l'adresse est la bonne.
+    await execute_write(
+        "UPDATE web_users SET password_hash = ?, password_changed_at = ?, email_verified = 1 WHERE id = ?",
+        (hash_password(data.password), maintenant, r["user_id"]),
+    )
+    await execute_write(
+        "UPDATE password_reset_tokens SET used_at = ? WHERE user_id = ? AND used_at IS NULL",
+        (maintenant, r["user_id"]),
+    )
+    return {"success": True}

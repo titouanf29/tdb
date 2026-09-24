@@ -33,6 +33,9 @@ const SESSION_COOKIE = "tdb_sess";
 // published; /maintenance is the destination itself.
 const OPEN_PREFIXES = [
   "/login",
+  // La récupération du mot de passe : la seule porte d'un admin qui l'a oublié.
+  "/forgot-password",
+  "/reset-password",
   "/maintenance",
   "/mentions-legales",
   "/politique-de-confidentialite",

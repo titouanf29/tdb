@@ -258,6 +258,9 @@ async def _is_admin(user_id: int) -> bool:
 _ALWAYS_ALLOW = {
     "/api/auth/login", "/api/auth/me",
     "/api/auth/refresh", "/api/auth/logout", "/api/auth/verify-email",
+    # La récupération du mot de passe : sans elle, un administrateur qui l'a
+    # oublié pendant une maintenance ne pourrait pas rentrer.
+    "/api/auth/forgot-password", "/api/auth/reset-password", "/api/auth/reset-password/check",
     "/api/status", "/", "/health",
 }
 
