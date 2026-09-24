@@ -130,25 +130,67 @@ def _pente(xs: list[int], ys: list[float]) -> float:
     return float(p / moyen) if moyen else 0.0
 
 
-def _casse_sous(close: np.ndarray, depuis: int, niveau: float) -> Optional[int]:
-    """La première clôture sous `niveau` après l'indice `depuis`."""
-    for j in range(depuis + 1, len(close)):
-        if close[j] < niveau:
-            return j
+def _cassure(close: np.ndarray, high: np.ndarray, low: np.ndarray, depuis: int,
+             niveau, invalidation: float, baissier: bool, delai: int) -> Optional[int]:
+    """La bougie qui CONFIRME la figure — si elle arrive à temps, et avant que
+    la figure ait été annulée.
+
+    La première version cherchait seulement « la première clôture sous la
+    ligne de cou », aussi loin qu'il le fallait. Elle trouvait donc des
+    doubles sommets dont le prix était monté bien AU-DESSUS des deux sommets
+    avant de « casser » cinq mois plus tard : une figure déjà annulée, confirmée
+    par une cassure qui n'avait plus rien à voir avec elle. Le graphique les
+    dessinait, et la mesure les comptait.
+
+    Deux conditions, donc :
+      · l'invalidation n'est pas franchie avant la cassure (sur la mèche, pas
+        seulement la clôture : un prix qui a touché le niveau l'a franchi) ;
+      · la cassure arrive dans un délai proportionné à la figure elle-même.
+
+    `niveau` peut être une fonction de l'indice — la ligne de cou d'une ETE
+    est inclinée.
+    """
+    lv = niveau if callable(niveau) else (lambda _j: niveau)
+    for j in range(depuis + 1, min(len(close), depuis + 1 + delai)):
+        if baissier:
+            if high[j] > invalidation:
+                return None
+            if close[j] < lv(j):
+                return j
+        else:
+            if low[j] < invalidation:
+                return None
+            if close[j] > lv(j):
+                return j
     return None
 
 
-def _casse_sur(close: np.ndarray, depuis: int, niveau: float) -> Optional[int]:
-    for j in range(depuis + 1, len(close)):
-        if close[j] > niveau:
-            return j
-    return None
+def _dessin(zone, traces, cassure) -> dict:
+    """La géométrie à dessiner, décidée ICI, là où la figure est comprise.
+
+    L'interface ne sait pas qu'un triangle a deux côtés ajustés ou qu'une
+    ligne de cou d'ETE est inclinée ; si elle devait le reconstruire à partir
+    de points en vrac, elle le reconstruirait mal — c'est exactement ce qui
+    s'est produit avec le premier tracé des triangles.
+
+      zone      polygone à teinter (la figure elle-même)
+      traces    segments nommés : « cou », « cote_haut », « cote_bas »,
+                « mat », « borne »
+      cassure   la bougie et le cours où la figure s'est confirmée
+    """
+    return {
+        "zone": [{"i": int(i), "prix": round(float(p), 6)} for i, p in zone],
+        "traces": [{"role": r, "i1": int(i1), "p1": round(float(p1), 6),
+                    "i2": int(i2), "p2": round(float(p2), 6)} for r, i1, p1, i2, p2 in traces],
+        "cassure": {"i": int(cassure[0]), "prix": round(float(cassure[1]), 6)},
+    }
 
 
 # ── Les figures ─────────────────────────────────────────────────────────────
 
 
-def _doubles(ps: list[Pivot], close: np.ndarray, w: int) -> list[dict]:
+def _doubles(ps: list[Pivot], close: np.ndarray, high: np.ndarray, low: np.ndarray,
+             w: int) -> list[dict]:
     """Double sommet et double creux.
 
     Deux extrêmes au même niveau séparés par un retour franc. La figure est
@@ -168,17 +210,20 @@ def _doubles(ps: list[Pivot], close: np.ndarray, w: int) -> list[dict]:
         if amplitude < CREUX_MINI:
             continue
 
+        # La cassure doit venir dans un délai de l'ordre de la largeur de la
+        # figure : au-delà, ce n'est plus elle qui la produit.
+        delai = max(5, p3.i - p1.i)
         if p1.genre == "haut":
-            cassure = _casse_sous(close, p3.i, p2.prix)
             sens: Sens = "baissier"
             objectif = p2.prix - (max(p1.prix, p3.prix) - p2.prix)
             invalidation = max(p1.prix, p3.prix)
+            cassure = _cassure(close, high, low, p3.i, p2.prix, invalidation, True, delai)
             cle, nom = "double_sommet", "Double sommet"
         else:
-            cassure = _casse_sur(close, p3.i, p2.prix)
             sens = "haussier"
             objectif = p2.prix + (p2.prix - min(p1.prix, p3.prix))
             invalidation = min(p1.prix, p3.prix)
+            cassure = _cassure(close, high, low, p3.i, p2.prix, invalidation, False, delai)
             cle, nom = "double_creux", "Double creux"
 
         if cassure is None:
@@ -187,6 +232,15 @@ def _doubles(ps: list[Pivot], close: np.ndarray, w: int) -> list[dict]:
             "cle": cle, "nom": nom, "sens": sens,
             "points": [{"i": p.i, "prix": p.prix} for p in (p1, p2, p3)],
             "ligne": {"i1": p1.i, "p1": p2.prix, "i2": cassure, "p2": p2.prix},
+            "dessin": _dessin(
+                # La zone suit la COURBE (les clôtures, celles que le graphique
+                # trace) entre le premier et le second extrême, puis revient par
+                # la ligne de cou. Un polygone joignant seulement les pivots
+                # dessinait des « ailerons » qui ne ressemblaient pas au prix.
+                zone=[(j, close[j]) for j in range(p1.i, p3.i + 1)]
+                     + [(p3.i, p2.prix), (p1.i, p2.prix)],
+                traces=[("cou", p1.i, p2.prix, cassure, p2.prix)],
+                cassure=(cassure, close[cassure])),
             "i_fin": cassure,
             "i_connu": max(cassure, p3.i + w),
             "objectif": round(float(objectif), 6),
@@ -195,7 +249,8 @@ def _doubles(ps: list[Pivot], close: np.ndarray, w: int) -> list[dict]:
     return out
 
 
-def _tetes_epaules(ps: list[Pivot], close: np.ndarray, w: int) -> list[dict]:
+def _tetes_epaules(ps: list[Pivot], close: np.ndarray, high: np.ndarray, low: np.ndarray,
+                   w: int) -> list[dict]:
     """Épaule-tête-épaule, et son inverse.
 
     Cinq pivots alternés : épaule, creux, tête, creux, épaule. La ligne de cou
@@ -223,11 +278,9 @@ def _tetes_epaules(ps: list[Pivot], close: np.ndarray, w: int) -> list[dict]:
         pente = (c2.prix - c1.prix) / max(1, (c2.i - c1.i))
         cou = lambda j: c1.prix + pente * (j - c1.i)  # noqa: E731
 
-        cassure = None
-        for j in range(e2.i + 1, len(close)):
-            if (haut and close[j] < cou(j)) or ((not haut) and close[j] > cou(j)):
-                cassure = j
-                break
+        # Invalidée si le prix repasse la tête avant de casser le cou ; délai
+        # de l'ordre d'une épaule à l'autre.
+        cassure = _cassure(close, high, low, e2.i, cou, tete.prix, haut, max(5, e2.i - e1.i))
         if cassure is None:
             continue
 
@@ -239,6 +292,11 @@ def _tetes_epaules(ps: list[Pivot], close: np.ndarray, w: int) -> list[dict]:
             "sens": "baissier" if haut else "haussier",
             "points": [{"i": p.i, "prix": p.prix} for p in (e1, c1, tete, c2, e2)],
             "ligne": {"i1": c1.i, "p1": c1.prix, "i2": cassure, "p2": float(niveau)},
+            "dessin": _dessin(
+                zone=[(j, close[j]) for j in range(e1.i, e2.i + 1)]
+                     + [(e2.i, cou(e2.i)), (e1.i, cou(e1.i))],
+                traces=[("cou", e1.i, cou(e1.i), cassure, cou(cassure))],
+                cassure=(cassure, close[cassure])),
             "i_fin": cassure,
             "i_connu": max(cassure, e2.i + w),
             "objectif": round(float(niveau - hauteur if haut else niveau + hauteur), 6),
@@ -297,7 +355,9 @@ def _triangles(ps: list[Pivot], close: np.ndarray, high: np.ndarray,
         resistance = max(p.prix for p in hs)
         support = min(p.prix for p in ls)
         sortie, direction = None, None
-        for j in range(dernier + 1, len(close)):
+        # La sortie doit venir avant que les côtés se rejoignent : un
+        # triangle dont le prix sort des mois plus tard n'est plus un triangle.
+        for j in range(dernier + 1, min(len(close), dernier + 1 + max(5, dernier - debut))):
             if close[j] > resistance:
                 sortie, direction = j, "haussier"
                 break
@@ -311,10 +371,26 @@ def _triangles(ps: list[Pivot], close: np.ndarray, high: np.ndarray,
         # qui donne le sens, et c'est pour ça qu'on ne le date pas avant.
         sens_final = sens or direction
         hauteur = ecart_debut
+
+        # Les deux côtés, tels qu'ajustés, prolongés jusqu'à la sortie. La
+        # première version renvoyait comme « ligne » une diagonale du support
+        # du début à la résistance de la sortie : un trait qui ne correspondait
+        # à aucun côté, et qui partait en travers du graphique.
+        ah, bh = np.polyfit([p.i for p in hs], [p.prix for p in hs], 1)
+        al, bl = np.polyfit([p.i for p in ls], [p.prix for p in ls], 1)
+        haut_ = lambda j: float(ah * j + bh)  # noqa: E731
+        bas_ = lambda j: float(al * j + bl)  # noqa: E731
+        cote = haut_ if direction == "haussier" else bas_
         out.append({
             "cle": cle, "nom": nom, "sens": sens_final,
             "points": [{"i": p.i, "prix": p.prix} for p in sorted(hs + ls, key=lambda x: x.i)],
-            "ligne": {"i1": ls[0].i, "p1": support, "i2": sortie, "p2": resistance},
+            "ligne": {"i1": debut, "p1": cote(debut), "i2": sortie, "p2": cote(sortie)},
+            "dessin": _dessin(
+                zone=[(debut, haut_(debut)), (dernier, haut_(dernier)),
+                      (dernier, bas_(dernier)), (debut, bas_(debut))],
+                traces=[("cote_haut", debut, haut_(debut), sortie, haut_(sortie)),
+                        ("cote_bas", debut, bas_(debut), sortie, bas_(sortie))],
+                cassure=(sortie, close[sortie])),
             "i_fin": sortie,
             "i_connu": max(sortie, dernier + w),
             "objectif": round(float(close[sortie] + hauteur if sens_final == "haussier"
@@ -355,11 +431,14 @@ def _drapeaux(close: np.ndarray, high: np.ndarray, low: np.ndarray,
 
         haussier = variation > 0
         # La sortie du drapeau, dans le sens du mât.
-        sortie = None
-        for j in range(i + repos, n):
-            if (haussier and close[j] > haut_zone) or ((not haussier) and close[j] < bas_zone):
-                sortie = j
-                break
+        # La sortie dans le sens du mât, AVANT une sortie par l'autre côté de
+        # la pause, et sans traîner : un drapeau est une pause, pas un range.
+        # Sur les CLÔTURES, comme la pause elle-même : jugée sur les mèches,
+        # la moindre mèche sous une pause mesurée en clôtures l'annulerait.
+        sortie = _cassure(close, close, close, i + repos - 1,
+                          haut_zone if haussier else bas_zone,
+                          bas_zone if haussier else haut_zone,
+                          not haussier, repos * 2)
         if sortie is None:
             continue
 
@@ -374,6 +453,12 @@ def _drapeaux(close: np.ndarray, high: np.ndarray, low: np.ndarray,
             ],
             "ligne": {"i1": i, "p1": haut_zone if haussier else bas_zone,
                       "i2": sortie, "p2": haut_zone if haussier else bas_zone},
+            "dessin": _dessin(
+                zone=[(i, haut_zone), (i + repos, haut_zone), (i + repos, bas_zone), (i, bas_zone)],
+                traces=[("mat", i - mat, depart, i, sommet),
+                        ("borne", i, haut_zone if haussier else bas_zone,
+                         sortie, haut_zone if haussier else bas_zone)],
+                cassure=(sortie, close[sortie])),
             "i_fin": sortie,
             # Un drapeau ne se lit sur aucun pivot : il est connu dès la sortie.
             "i_connu": sortie,
@@ -398,7 +483,7 @@ def detecter(df: pd.DataFrame, k: Optional[int] = None) -> list[dict]:
 
     w = k if k is not None else max(2, min(8, round(len(close) / 22)))
     ps = pivots(high, low, w)
-    figures = (_doubles(ps, close, w) + _tetes_epaules(ps, close, w)
+    figures = (_doubles(ps, close, high, low, w) + _tetes_epaules(ps, close, high, low, w)
                + _triangles(ps, close, high, low, w) + _drapeaux(close, high, low))
 
     # Deux figures achevées sur la même bougie avec le même sens sont la même
@@ -422,7 +507,7 @@ def detecter(df: pd.DataFrame, k: Optional[int] = None) -> list[dict]:
 #
 # Produit par `scripts/mesurer_figures.py` : 31 actifs — actions US et
 # européennes, indices, ETF, matières premières, devises, crypto — dix ans de
-# bougies journalières (80 326 bougies), 2 253 figures.
+# bougies journalières (80 326 bougies), 1 527 figures.
 # Détecteur validé par `scripts/valider_figures.py` : chaque figure dessinée
 # volontairement est retrouvée (80 à 100 % même sous fort bruit), et sur une
 # marche aléatoire les figures « réussissent » 50,4 % du temps — le hasard
@@ -434,13 +519,13 @@ def detecter(df: pd.DataFrame, k: Optional[int] = None) -> list[dict]:
 # deux erreurs-types sur CHACUNE des deux moitiés de l'historique. Une
 # première mesure, sur une seule période et avec un détecteur de triangles
 # défectueux, donnait le triangle ascendant gagnant de 8,9 points. Corrigé et
-# recoupé, il fait −4,1 sur la première moitié et +12,2 sur la seconde : ce
+# recoupé, il fait −2,9 sur la première moitié et +12,8 sur la seconde : ce
 # n'était pas un signal, c'était du bruit tombé du bon côté. C'est exactement
 # le mécanisme qui fabrique les « astuces » qui circulent.
 #
 # Deux autres faits, tout aussi parlants :
 #   · une marche aléatoire dessine AU MOINS AUTANT de figures que les vrais
-#     marchés (environ 31 contre 28 pour 1 000 bougies) : les formes existent,
+#     marchés (environ 20 contre 19 pour 1 000 bougies) : les formes existent,
 #     mais le hasard les produit tout seul ;
 #   · l'objectif théorique d'une figure est rarement atteint avant son propre
 #     point d'invalidation.
@@ -449,27 +534,27 @@ def detecter(df: pd.DataFrame, k: Optional[int] = None) -> list[dict]:
 
 BASE_HAUSSE_20 = 58.8   # part des cas où le prix monte à 20 séances, panel entier
 ECHANTILLON_MINI = 100  # en dessous, on ne conclut pas
-MESURE = {"actifs": 31, "bougies": 80326, "figures": 2253}
+MESURE = {"actifs": 31, "bougies": 80326, "figures": 1527}
 
 STATISTIQUES: dict[str, dict] = {
-    "double_sommet": {"n": 601, "sens_20": 39.9, "ecart": -1.3, "erreur_type": 2.0,
-        "ecart_A": -0.4, "ecart_B": -2.2, "moy_20": -0.99, "objectif": 40.3, "invalide": 28.5, "verdict": "neutre"},
-    "double_creux": {"n": 651, "sens_20": 58.4, "ecart": -0.4, "erreur_type": 1.9,
-        "ecart_A": 1.1, "ecart_B": -1.8, "moy_20": 1.34, "objectif": 40.7, "invalide": 20.0, "verdict": "neutre"},
-    "ete": {"n": 104, "sens_20": 44.2, "ecart": 3.0, "erreur_type": 4.8,
-        "ecart_A": 8.9, "ecart_B": -2.8, "moy_20": -1.43, "objectif": 24.0, "invalide": 28.8, "verdict": "neutre"},
-    "ete_inversee": {"n": 157, "sens_20": 58.0, "ecart": -0.8, "erreur_type": 3.9,
-        "ecart_A": -0.5, "ecart_B": 0.1, "moy_20": 1.19, "objectif": 29.3, "invalide": 16.6, "verdict": "neutre"},
-    "triangle_ascendant": {"n": 159, "sens_20": 62.9, "ecart": 4.1, "erreur_type": 3.9,
-        "ecart_A": -4.1, "ecart_B": 12.2, "moy_20": 1.93, "objectif": 14.5, "invalide": 24.5, "verdict": "neutre"},
-    "triangle_descendant": {"n": 140, "sens_20": 45.0, "ecart": 3.8, "erreur_type": 4.2,
-        "ecart_A": 6.3, "ecart_B": 1.1, "moy_20": -2.07, "objectif": 6.4, "invalide": 50.7, "verdict": "neutre"},
-    "triangle_symetrique": {"n": 71, "sens_20": 50.7, "ecart": -8.1, "erreur_type": 5.8,
-        "ecart_A": -8.5, "ecart_B": -7.0, "moy_20": 1.39, "objectif": 11.3, "invalide": 2.8, "verdict": "trop_peu"},
-    "drapeau_haussier": {"n": 246, "sens_20": 61.8, "ecart": 3.0, "erreur_type": 3.1,
-        "ecart_A": 0.1, "ecart_B": 5.9, "moy_20": 2.17, "objectif": 26.4, "invalide": 55.7, "verdict": "neutre"},
-    "drapeau_baissier": {"n": 124, "sens_20": 40.3, "ecart": -0.9, "erreur_type": 4.4,
-        "ecart_A": -6.2, "ecart_B": 1.7, "moy_20": -1.03, "objectif": 16.9, "invalide": 69.4, "verdict": "neutre"},
+    "double_sommet": {"n": 362, "sens_20": 40.9, "ecart": -0.3, "erreur_type": 2.6,
+        "ecart_A": -1.2, "ecart_B": 0.7, "moy_20": -0.28, "objectif": 39.8, "invalide": 29.6, "verdict": "neutre"},
+    "double_creux": {"n": 398, "sens_20": 54.8, "ecart": -4.0, "erreur_type": 2.5,
+        "ecart_A": -1.0, "ecart_B": -7.3, "moy_20": 0.55, "objectif": 40.7, "invalide": 22.6, "verdict": "neutre"},
+    "ete": {"n": 91, "sens_20": 44.0, "ecart": 2.8, "erreur_type": 5.2,
+        "ecart_A": 7.1, "ecart_B": -1.4, "moy_20": -0.92, "objectif": 25.3, "invalide": 28.6, "verdict": "trop_peu"},
+    "ete_inversee": {"n": 131, "sens_20": 58.0, "ecart": -0.8, "erreur_type": 4.3,
+        "ecart_A": 1.8, "ecart_B": -1.8, "moy_20": 1.09, "objectif": 26.0, "invalide": 19.1, "verdict": "neutre"},
+    "triangle_ascendant": {"n": 143, "sens_20": 63.6, "ecart": 4.8, "erreur_type": 4.1,
+        "ecart_A": -2.9, "ecart_B": 12.8, "moy_20": 1.9, "objectif": 14.7, "invalide": 21.7, "verdict": "neutre"},
+    "triangle_descendant": {"n": 117, "sens_20": 47.9, "ecart": 6.7, "erreur_type": 4.6,
+        "ecart_A": 13.0, "ecart_B": 1.7, "moy_20": -1.68, "objectif": 7.7, "invalide": 45.3, "verdict": "neutre"},
+    "triangle_symetrique": {"n": 42, "sens_20": 52.4, "ecart": -6.4, "erreur_type": 7.6,
+        "ecart_A": -16.8, "ecart_B": 3.4, "moy_20": 1.89, "objectif": 14.3, "invalide": 2.4, "verdict": "trop_peu"},
+    "drapeau_haussier": {"n": 175, "sens_20": 62.3, "ecart": 3.5, "erreur_type": 3.7,
+        "ecart_A": 1.1, "ecart_B": 5.9, "moy_20": 2.25, "objectif": 26.3, "invalide": 54.3, "verdict": "neutre"},
+    "drapeau_baissier": {"n": 68, "sens_20": 42.6, "ecart": 1.5, "erreur_type": 6.0,
+        "ecart_A": -9.6, "ecart_B": 8.2, "moy_20": 0.02, "objectif": 16.2, "invalide": 73.5, "verdict": "trop_peu"},
 }
 
 

@@ -869,6 +869,16 @@ export interface Figure {
   /** La ligne de cou, la base ou la borne cassée. */
   ligne: { i1: number; p1: number; i2: number; p2: number; ts1: number; ts2: number } | null;
   ts_fin: number;
+  /** La géométrie exacte, décidée côté serveur, là où la figure est comprise. */
+  dessin: {
+    /** Polygone à teinter : la figure elle-même. */
+    zone: { i: number; prix: number; ts: number }[];
+    /** Segments nommés : ligne de cou, côtés d'un triangle, mât d'un drapeau… */
+    traces: { role: "cou" | "cote_haut" | "cote_bas" | "mat" | "borne";
+              i1: number; p1: number; i2: number; p2: number; ts1: number; ts2: number }[];
+    /** Où et à quel cours la figure s'est confirmée. */
+    cassure: { i: number; prix: number; ts: number };
+  };
   /** La bougie de la cassure. */
   i_fin: number;
   /** La première bougie où la figure était réellement visible. */

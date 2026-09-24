@@ -35,13 +35,14 @@ export const MODULE_FIGURES: Module = {
 
 Une **figure chartiste** est une forme que le prix dessine sur un graphique, à laquelle on associe une suite probable. Le double sommet « annonce » une baisse, le double creux une hausse, et ainsi de suite. Ces figures ont des noms, des règles de tracé, et un siècle d'histoire.
 
-**Trois choses que les vidéos ne disent pas.**
+**Quatre choses que les vidéos ne disent pas.**
 
 • **Une figure n'existe qu'au moment où elle casse.** Deux sommets à la même hauteur, c'est un dessin. Ça devient un double sommet quand le prix passe sous le creux qui les sépare — la « ligne de cou ». Avant, la moitié des « doubles sommets » deviennent autre chose.
+• **Une figure peut être annulée avant d'être confirmée.** Si le prix repasse au-dessus des deux sommets avant de casser la ligne de cou, il n'y a plus de double sommet — même si la ligne finit par céder des mois plus tard. Notre propre détecteur a fait cette erreur au début : il « trouvait » des figures déjà mortes. Corrigé, il en trouve un tiers de moins… et la conclusion reste la même.
 • **On ne vous montre que celles qui ont marché.** Une vidéo sélectionne. Pour chaque figure qui a « prédit » la suite, il y en a d'autres, jamais filmées, qui ont fait l'inverse.
 • **Le bon repère n'est pas 50 %.** Sur les dix dernières années, le prix de nos 31 actifs a monté 58,8 % du temps à 20 séances. Une figure haussière qui « réussit » 58 % du temps ne fait donc RIEN : c'est la tendance du marché, pas la figure.
 
-**Ce que ce cours fait différemment.** Pour chaque figure : sa forme, ses repères, ce qu'elle promet — puis ce qu'elle a réellement donné. Nous avons détecté plus de 2 000 figures sur 31 actifs (actions, indices, matières premières, devises, crypto) et dix ans de données, et compté ce qui s'est passé après chacune.
+**Ce que ce cours fait différemment.** Pour chaque figure : sa forme, ses repères, ce qu'elle promet — puis ce qu'elle a réellement donné. Nous avons détecté plus de 1 500 figures confirmées sur 31 actifs (actions, indices, matières premières, devises, crypto) et dix ans de données, et compté ce qui s'est passé après chacune.
 
 Nous avons aussi vérifié notre propre outil. Sur des séries fabriquées au hasard — où, par construction, rien ne peut être prédit — notre détecteur trouve autant de figures que sur les vrais marchés, et elles « réussissent » exactement une fois sur deux. C'est la preuve que la détection ne triche pas en regardant l'avenir. Et c'est déjà une leçon : **le hasard dessine ces formes tout seul**.
 
@@ -106,7 +107,7 @@ La suite du cours prend les figures une par une. Retenez déjà la colonne de dr
 
 [[mesure:double_creux]]
 
-**Comment lire ces chiffres.** Le double creux « réussit » à peu près aussi souvent que le marché monte tout seul. Le double sommet « réussit » à peu près aussi souvent que le marché baisse tout seul. Sur plus de 1 200 cas, l'écart avec le hasard reste dans la marge d'erreur, et il change de signe d'une période à l'autre.
+**Comment lire ces chiffres.** Le double creux « réussit » à peu près aussi souvent que le marché monte tout seul. Le double sommet « réussit » à peu près aussi souvent que le marché baisse tout seul. Sur plus de 750 cas, l'écart avec le hasard reste dans la marge d'erreur, et il change de signe d'une période à l'autre.
 
 Autrement dit : quand vous voyez un double creux, vous savez qu'il y a eu deux creux. Vous n'en savez pas plus sur la suite.`,
       quiz: [
@@ -122,7 +123,7 @@ Autrement dit : quand vous voyez un double creux, vous savez qu'il y a eu deux c
           explanation: "Si le prix repasse au-dessus des sommets, l'idée « les acheteurs ont échoué deux fois » est fausse.",
         },
         {
-          question: "Que dit notre mesure sur plus de 1 200 doubles sommets et doubles creux ?",
+          question: "Que dit notre mesure sur plus de 750 doubles sommets et doubles creux ?",
           options: [
             "Ils prédisent la suite dans 80 % des cas",
             "Ils ne se distinguent pas du hasard",
@@ -168,7 +169,7 @@ L'histoire qu'on raconte : le marché fait un dernier sommet plus haut (la tête
 
 [[mesure:ete_inversee]]
 
-**Pourquoi c'est intéressant malgré tout.** L'ETE est rare : un peu plus de 100 cas sur dix ans et 31 actifs, pour la version baissière. C'est justement pour ça qu'elle impressionne quand on la voit marcher en vidéo — et pour ça que ses chiffres ont une grosse marge d'erreur. Sur une période elle semble fonctionner, sur l'autre elle fait l'inverse : c'est la signature du bruit.`,
+**Pourquoi c'est intéressant malgré tout.** L'ETE est rare : moins de 100 cas confirmés sur dix ans et 31 actifs, pour la version baissière — trop peu pour conclure quoi que ce soit. C'est justement pour ça qu'elle impressionne quand on la voit marcher en vidéo — et pour ça que ses chiffres ont une grosse marge d'erreur. Sur une période elle semble fonctionner, sur l'autre elle fait l'inverse : c'est la signature du bruit.`,
       quiz: [
         {
           question: "Dans une épaule-tête-épaule, la ligne de cou relie…",
@@ -220,7 +221,7 @@ L'histoire qu'on raconte : le marché fait un dernier sommet plus haut (la tête
 
 [[mesure:triangle_ascendant]]
 
-**Une histoire instructive.** Lors de notre première mesure, le triangle ascendant semblait nettement meilleur que le hasard : près de 9 points d'écart. En vérifiant, nous avons trouvé un défaut dans notre détecteur de triangles, et nous avons ajouté une exigence : l'écart doit tenir sur les DEUX moitiés de l'historique. Résultat : environ −4 points sur la première moitié, +12 sur la seconde. Il n'y avait pas de signal — seulement du bruit tombé du bon côté.
+**Une histoire instructive.** Lors de notre première mesure, le triangle ascendant semblait nettement meilleur que le hasard : près de 9 points d'écart. En vérifiant, nous avons trouvé un défaut dans notre détecteur de triangles, et nous avons ajouté une exigence : l'écart doit tenir sur les DEUX moitiés de l'historique. Résultat : environ −3 points sur la première moitié, +13 sur la seconde. Il n'y avait pas de signal — seulement du bruit tombé du bon côté.
 
 C'est exactement comme ça que naissent les « astuces » : quelqu'un teste sur une période, trouve un résultat, et s'arrête là.
 

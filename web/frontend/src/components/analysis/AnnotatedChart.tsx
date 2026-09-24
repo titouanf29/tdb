@@ -31,7 +31,7 @@ import { lessonForFigure } from "@/lib/lessonLinks";
  *
  *  LES FIGURES CHARTISTES, ET CE QUI A CHANGÉ. Cette règle excluait les
  *  figures — double sommet, épaule-tête-épaule, triangles — parce qu'on ne
- *  savait pas ce qu'elles valaient. On le sait maintenant — plus de 2 000
+ *  savait pas ce qu'elles valaient. On le sait maintenant — plus de 1 500
  *  figures mesurées sur 31 actifs et dix ans (backend/scripts/mesurer_figures.py)
  *  — et la réponse est qu'aucune ne bat le hasard de façon stable. Elles sont
  *  donc dessinées, parce qu'on les voit partout et qu'il faut savoir les
@@ -68,6 +68,23 @@ const MOT_VERDICT: Record<Figure["verdict"]["ton"], string> = {
   // la mesure n'a pas été faite. La phrase en dessous dit lequel.
   inconnu: "Valeur non établie",
 };
+
+/* Ce qu'est la figure, en une phrase. Le verdict dit ce qu'elle VAUT ; sans
+   cette ligne, quelqu'un qui n'a pas suivi le cours voit une zone teintée et
+   un nom, sans savoir ce qu'il est censé y reconnaître. */
+const DEFINITION: Record<string, string> = {
+  double_sommet: "Deux sommets au même niveau ; la figure se confirme quand le prix casse le creux qui les sépare.",
+  double_creux: "Deux creux au même niveau ; la figure se confirme quand le prix franchit le sommet qui les sépare.",
+  ete: "Trois sommets, celui du milieu plus haut ; confirmée par la cassure de la ligne qui relie les deux creux.",
+  ete_inversee: "Trois creux, celui du milieu plus bas ; confirmée par le franchissement de la ligne qui relie les deux sommets.",
+  triangle_ascendant: "Un plafond plat et des creux de plus en plus hauts ; confirmé par la sortie au-dessus du plafond.",
+  triangle_descendant: "Un plancher plat et des sommets de plus en plus bas ; confirmé par la sortie sous le plancher.",
+  triangle_symetrique: "Des sommets qui baissent et des creux qui montent ; c'est le côté par lequel le prix sort qui donne le sens.",
+  drapeau_haussier: "Une hausse brutale, puis une pause étroite ; confirmé par la sortie au-dessus de la pause.",
+  drapeau_baissier: "Une baisse brutale, puis une pause étroite ; confirmé par la sortie sous la pause.",
+};
+
+const NUMERO = ["①", "②", "③", "④"];
 
 /* Le rapport du viewBox doit approcher celui du panneau rendu, sinon le
    navigateur ajuste « en hauteur » et centre le dessin entre deux bandes
@@ -117,7 +134,18 @@ export function AnnotatedChart({
   height?: number;
   format: (v: number) => string;
 }) {
-  const [voirFigures, setVoirFigures] = useState(true);
+  /* UNE FIGURE À LA FOIS.
+   *
+   * Deux figures se chevauchent souvent — un double sommet dans un triangle
+   * descendant, sur les mêmes pivots — et, dessinées ensemble, avec les
+   * mêmes couleurs que la structure, on ne savait plus quelle ligne
+   * appartenait à quoi. La plus récente est affichée d'office ; les autres
+   * sont à un clic, et « Aucune » rend le graphique commenté habituel. */
+  const [choix, setChoix] = useState<number | null>(0);
+  useEffect(() => { setChoix(figures.length ? 0 : null); }, [figures]);
+  const figureChoisie = choix !== null ? figures[choix] ?? null : null;
+  const [detailVerdict, setDetailVerdict] = useState(false);
+  useEffect(() => { setDetailVerdict(false); }, [choix]);
 
   const racine = useRef<HTMLDivElement | null>(null);
   const [compact, setCompact] = useState(false);
@@ -158,10 +186,48 @@ export function AnnotatedChart({
     if (pts.length < 8) return null;
 
     const struct = readStructure(pts);
+
+    // Par horodatage, jamais par indice : le graphique et les figures
+    // arrivent par deux requêtes, et une bougie ajoutée entre les deux
+    // décalerait tout le dessin d'un cran.
+    const rang = new Map<number, number>();
+    pts.forEach((b, i) => rang.set(b.timestamp, i));
+    const versPts = (ts: number): number | null => rang.get(ts) ?? null;
+
+    /* LA FIGURE CHOISIE, RAMENÉE DANS LA FENÊTRE VISIBLE. Un seul point hors
+       champ et elle n'est pas dessinée : à moitié coupée, elle se lit comme
+       une erreur. L'écran propose alors de tout revoir. */
+    let fig: null | {
+      zone: { i: number; prix: number }[];
+      traces: { role: string; i1: number; p1: number; i2: number; p2: number }[];
+      cassure: { i: number; prix: number };
+    } = null;
+    if (figureChoisie?.dessin) {
+      const d = figureChoisie.dessin;
+      const zoneP = d.zone.map((z) => ({ i: versPts(z.ts), prix: z.prix }));
+      const tracesP = d.traces.map((t) => ({ ...t, i1: versPts(t.ts1), i2: versPts(t.ts2) }));
+      const cass = versPts(d.cassure.ts);
+      if (cass !== null && zoneP.every((z) => z.i !== null)
+          && tracesP.every((t) => t.i1 !== null && t.i2 !== null)) {
+        fig = {
+          zone: zoneP as { i: number; prix: number }[],
+          traces: tracesP as { role: string; i1: number; p1: number; i2: number; p2: number }[],
+          cassure: { i: cass, prix: d.cassure.prix },
+        };
+      }
+    }
+
+    // L'échelle englobe l'objectif et l'invalidation de la figure affichée :
+    // la projection est la raison d'être du dessin, elle ne doit pas sortir
+    // du cadre.
+    const projection = fig && figureChoisie
+      ? [figureChoisie.objectif, figureChoisie.invalidation].filter((v): v is number => v != null)
+      : [];
     const all = [
       ...pts.map((b) => b.high),
       ...pts.map((b) => b.low),
       ...levels.map((l) => l.value),
+      ...projection,
     ].filter(Number.isFinite);
     const min = Math.min(...all);
     const max = Math.max(...all);
@@ -174,33 +240,8 @@ export function AnnotatedChart({
       .map((b, i) => `${i === 0 ? "M" : "L"} ${x(i).toFixed(1)} ${y(b.close).toFixed(1)}`)
       .join(" ");
 
-    /* LES FIGURES, RAMENÉES DANS LA FENÊTRE VISIBLE.
-     *
-     * Leurs indices pointent dans `bars` brut ; la courbe, elle, est tracée
-     * sur `pts` — la série filtrée des clôtures invalides, puis découpée par
-     * le zoom. Passer par l'horodatage plutôt que par un décalage d'indice
-     * est ce qui garantit qu'une bougie manquante ne décale pas tout le
-     * dessin d'un cran. Une figure dont un seul point sort de la fenêtre
-     * n'est pas dessinée : à moitié hors champ, elle se lit comme une erreur. */
-    // Par horodatage, jamais par indice : le graphique et les figures
-    // arrivent par deux requêtes, et une bougie ajoutée entre les deux
-    // décalerait tout le dessin d'un cran.
-    const rang = new Map<number, number>();
-    pts.forEach((b, i) => rang.set(b.timestamp, i));
-    const versPts = (ts: number): number | null => rang.get(ts) ?? null;
-    const visibles = figures.flatMap((f) => {
-      const points = f.points.map((p) => ({ i: versPts(p.ts), prix: p.prix }));
-      if (points.some((p) => p.i === null)) return [];
-      let ligne: { i1: number; p1: number; i2: number; p2: number } | null = null;
-      if (f.ligne) {
-        const a = versPts(f.ligne.ts1), b = versPts(f.ligne.ts2);
-        if (a !== null && b !== null) ligne = { i1: a, p1: f.ligne.p1, i2: b, p2: f.ligne.p2 };
-      }
-      return [{ f, points: points as { i: number; prix: number }[], ligne }];
-    });
-
-    return { pts, struct, x, y, line, visibles, rising: pts[pts.length - 1].close >= pts[0].close };
-  }, [complet, fenetre, levels, figures, W, H, PAD_R]);
+    return { pts, struct, x, y, line, fig, rising: pts[pts.length - 1].close >= pts[0].close };
+  }, [complet, fenetre, levels, figureChoisie, W, H, PAD_R]);
 
   /* Le tirer-pour-zoomer. La sélection se mesure en FRACTION de la largeur du
      tracé, pas en pixels : le SVG est mis à l'échelle par son viewBox, donc
@@ -257,8 +298,28 @@ export function AnnotatedChart({
     );
   }
 
-  const { pts, struct, x, y, line, rising, visibles } = model;
-  const figuresDessinees = voirFigures ? visibles : [];
+  const { pts, struct, x, y, line, rising, fig } = model;
+  // Le mode focus : la figure passe au premier plan, le reste s'efface sans
+  // disparaître — on garde le repère, on perd la concurrence visuelle.
+  const focus = fig !== null && figureChoisie !== null;
+  const couleurFig = figureChoisie?.sens === "haussier" ? "var(--cap-up)" : "var(--cap-down)";
+
+  /* Zoomer sur la figure : de quelques bougies avant son début jusqu'au
+     dernier cours, pour voir à la fois la forme et ce qui a suivi. */
+  const zoomerSurFigure = () => {
+    if (!figureChoisie?.dessin) return;
+    const idx = new Map<number, number>();
+    complet.forEach((b, i) => idx.set(b.timestamp, i));
+    const debuts = figureChoisie.dessin.zone
+      .concat(figureChoisie.dessin.traces.map((t) => ({ i: t.i1, prix: t.p1, ts: t.ts1 })))
+      .map((z) => idx.get(z.ts))
+      .filter((v): v is number => v !== undefined);
+    if (!debuts.length) return;
+    const debut = Math.min(...debuts);
+    const pad = Math.max(3, Math.round((complet.length - debut) * 0.12));
+    const a = Math.max(0, debut - pad);
+    if (complet.length - 1 - a + 1 >= MIN_FENETRE) setFenetre([a, complet.length - 1]);
+  };
 
   /* LA COURBE SUIT LA STRUCTURE, PAS LES DEUX EXTRÉMITÉS. Elle était colorée
      en comparant la dernière clôture à la première, ce qui est une autre
@@ -286,6 +347,60 @@ export function AnnotatedChart({
 
   return (
     <div ref={racine}>
+      {/* LES FIGURES REPÉRÉES, au-dessus du graphique : on choisit ce qu'on
+          regarde avant de regarder. La plus récente est affichée d'office. */}
+      {figures.length > 0 && (
+        <div className="mb-3 flex flex-wrap items-center gap-1.5">
+          <span className="mr-1 text-[0.76rem]" style={{ color: "var(--cap-ink-3)" }}>
+            Figures repérées
+          </span>
+          {figures.map((f, k) => {
+            const actif = choix === k;
+            const c = f.sens === "haussier" ? "var(--cap-up)" : "var(--cap-down)";
+            return (
+              <button
+                key={`${f.cle}-${f.i_fin}`}
+                type="button"
+                onClick={() => setChoix(k)}
+                aria-pressed={actif}
+                className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[0.78rem] transition-colors"
+                style={{
+                  color: actif ? c : "var(--cap-ink-2)",
+                  backgroundColor: actif ? "color-mix(in srgb, currentColor 9%, transparent)" : "transparent",
+                  boxShadow: `inset 0 0 0 1px ${actif ? c : "var(--cap-line)"}`,
+                  fontWeight: actif ? 600 : 400,
+                }}
+              >
+                <span aria-hidden>{NUMERO[k] ?? ""}</span>
+                {f.nom}
+              </button>
+            );
+          })}
+          <button
+            type="button"
+            onClick={() => setChoix(null)}
+            aria-pressed={choix === null}
+            className="rounded-full px-2.5 py-1 text-[0.78rem]"
+            style={{
+              color: choix === null ? "var(--cap-ink)" : "var(--cap-ink-3)",
+              boxShadow: `inset 0 0 0 1px ${choix === null ? "var(--cap-ink-3)" : "var(--cap-line)"}`,
+            }}
+          >
+            Aucune
+          </button>
+          {figureChoisie && (
+            <button
+              type="button"
+              onClick={zoomerSurFigure}
+              className="ml-auto inline-flex items-center gap-1.5 rounded-[8px] px-2.5 py-1 text-[0.76rem]"
+              style={{ color: "var(--cap-ocean)", boxShadow: "inset 0 0 0 1px var(--cap-line)" }}
+            >
+              <Maximize2 className="h-3 w-3" />
+              Zoomer sur la figure
+            </button>
+          )}
+        </div>
+      )}
       <div
         ref={zone}
         className="relative w-full select-none"
@@ -322,6 +437,10 @@ export function AnnotatedChart({
           aria-label={`Graphique commenté : ${struct.sentence}`}
         >
           <defs>
+            <marker id={`${gid}-fleche`} viewBox="0 0 10 10" refX="8" refY="5"
+                    markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M 0 0 L 10 5 L 0 10 z" fill={couleurFig} />
+            </marker>
             <linearGradient id={gid} gradientUnits="userSpaceOnUse" x1="0" y1={PAD_T} x2="0" y2={H}>
               <stop offset="0%" stopColor={stroke} stopOpacity="0.16" />
               <stop offset="100%" stopColor={stroke} stopOpacity="0" />
@@ -339,7 +458,7 @@ export function AnnotatedChart({
               stroke={TONE[l.tone]}
               strokeWidth="1"
               strokeDasharray="5 5"
-              opacity="0.5"
+              opacity={focus ? 0.18 : 0.5}
             />
           ))}
 
@@ -366,6 +485,7 @@ export function AnnotatedChart({
               nous posons, parce que c'est le seul qui soit une description et
               non une prédiction. Les sommets entre eux, les creux entre eux —
               la pente de ces deux lignes EST la tendance. */}
+          <g opacity={focus ? 0.16 : 1} style={{ transition: "opacity 200ms" }}>
           {highs.length > 1 && (
             <polyline
               points={highs.map((s) => `${x(s.i)},${y(s.price)}`).join(" ")}
@@ -396,38 +516,6 @@ export function AnnotatedChart({
             />
           ))}
 
-          {/* LES FIGURES. La forme en trait continu épais et translucide —
-              elle doit se voir sans masquer le prix qu'elle résume — et la
-              ligne de cou (ou la borne cassée) en tirets. La couleur dit le
-              SENS annoncé, pas la qualité : la qualité est écrite sous le
-              graphique, en toutes lettres et chiffrée. */}
-          {figuresDessinees.map(({ f, points, ligne }, k) => {
-            const c = f.sens === "haussier" ? "var(--cap-up)" : "var(--cap-down)";
-            return (
-              <g key={`fig-${f.cle}-${f.i_fin}-${k}`}>
-                <polyline
-                  points={points.map((p) => `${x(p.i)},${y(p.prix)}`).join(" ")}
-                  fill="none"
-                  stroke={c}
-                  strokeWidth="5"
-                  strokeLinejoin="round"
-                  strokeLinecap="round"
-                  opacity="0.28"
-                />
-                {points.map((p, j) => (
-                  <circle key={j} cx={x(p.i)} cy={y(p.prix)} r="4.5"
-                          fill="var(--cap-surface)" stroke={c} strokeWidth="2" />
-                ))}
-                {ligne && (
-                  <line
-                    x1={x(ligne.i1)} y1={y(ligne.p1)} x2={x(ligne.i2)} y2={y(ligne.p2)}
-                    stroke={c} strokeWidth="1.6" strokeDasharray="7 4" opacity="0.9"
-                  />
-                )}
-              </g>
-            );
-          })}
-
           {/* Le seuil d'invalidation, en trait plein : c'est le prix qui
               change la lecture, donc il ne se confond pas avec les autres. */}
           {struct.invalidation != null && (
@@ -440,6 +528,62 @@ export function AnnotatedChart({
               strokeWidth="1.4"
             />
           )}
+          </g>
+
+          {/* ── LA FIGURE CHOISIE ────────────────────────────────────────────
+              Une zone teintée plutôt qu'un trait épais posé sur le prix : la
+              courbe reste lisible, et la forme se voit comme une forme. Ses
+              lignes (cou, côtés, mât) en trait net ; la cassure marquée ; et,
+              depuis la cassure, ce qu'elle annonce — l'objectif — et ce qui
+              l'annulerait. C'est la projection qui donne son sens au dessin :
+              sans elle, on voit une forme sans savoir ce qu'elle promet. */}
+          {focus && fig && figureChoisie && (() => {
+            const xc = x(fig.cassure.i), yc = y(fig.cassure.prix);
+            const xfin = W - PAD_R;
+            const obj = figureChoisie.objectif, inv = figureChoisie.invalidation;
+            return (
+              <g>
+                <polygon
+                  points={fig.zone.map((z) => `${x(z.i)},${y(z.prix)}`).join(" ")}
+                  fill={couleurFig}
+                  opacity="0.13"
+                />
+                <polygon
+                  points={fig.zone.map((z) => `${x(z.i)},${y(z.prix)}`).join(" ")}
+                  fill="none"
+                  stroke={couleurFig}
+                  strokeWidth="1"
+                  strokeLinejoin="round"
+                  opacity="0.45"
+                />
+                {fig.traces.map((t, k) => (
+                  <line key={k}
+                        x1={x(t.i1)} y1={y(t.p1)} x2={x(t.i2)} y2={y(t.p2)}
+                        stroke={couleurFig}
+                        strokeWidth={t.role === "mat" ? 1.4 : 2}
+                        strokeDasharray={t.role === "mat" ? "3 3" : undefined}
+                        strokeLinecap="round" />
+                ))}
+                {obj != null && (
+                  <line x1={xc} x2={xfin} y1={y(obj)} y2={y(obj)}
+                        stroke={couleurFig} strokeWidth="1.6" strokeDasharray="7 5" />
+                )}
+                {inv != null && (
+                  <line x1={xc} x2={xfin} y1={y(inv)} y2={y(inv)}
+                        stroke="var(--cap-ink-2)" strokeWidth="1.3" strokeDasharray="2 4" />
+                )}
+                {/* La flèche : de la cassure vers l'objectif, pour dire le sens
+                    d'un coup d'œil. */}
+                {obj != null && (
+                  <line x1={xc} y1={yc} x2={xc + Math.min(60, (xfin - xc) * 0.5)} y2={y(obj)}
+                        stroke={couleurFig} strokeWidth="1.4" opacity="0.7"
+                        markerEnd={`url(#${gid}-fleche)`} />
+                )}
+                <circle cx={xc} cy={yc} r="7" fill={couleurFig} opacity="0.18" />
+                <circle cx={xc} cy={yc} r="4" fill={couleurFig} stroke="var(--cap-surface)" strokeWidth="1.5" />
+              </g>
+            );
+          })()}
         </svg>
 
         {/* La sélection en cours, pendant le geste. Sans ce rectangle, on tire
@@ -461,7 +605,7 @@ export function AnnotatedChart({
         {/* Les étiquettes hors du SVG : à l'intérieur elles seraient étirées
             par la mise à l'échelle et changeraient de taille avec la fenêtre. */}
         <div className="pointer-events-none absolute inset-0">
-          {placed.map((l) => (
+          {!focus && placed.map((l) => (
             <span
               key={l.label}
               className="absolute right-0 -translate-y-1/2 whitespace-nowrap rounded-[5px] px-1.5 text-[0.72rem]"
@@ -476,39 +620,56 @@ export function AnnotatedChart({
               chevauchaient dans la colonne de droite. Le côté opposé les
               sépare et dit au passage que ce repère n'est pas de la même
               nature que les niveaux du moteur. */}
-          {figuresDessinees.map(({ f, points }, k) => {
-            // Au-dessus du point le plus haut pour une figure baissière, sous
-            // le plus bas pour une haussière : l'étiquette ne recouvre pas la
-            // forme qu'elle nomme.
-            const prefereDessus = f.sens === "baissier";
-            const ancre = points.reduce((a, p) =>
-              (prefereDessus ? (p.prix > a.prix ? p : a) : (p.prix < a.prix ? p : a)));
-            const hauteurPct = (y(ancre.prix) / H) * 100;
-            // L'étiquette ne sort jamais du cadre : trop près du bord, elle
-            // passe de l'autre côté de la figure. Sortie du cadre, elle
-            // recouvrait le texte sous le graphique.
-            const haut = prefereDessus ? hauteurPct > 14 : hauteurPct > 84;
-            const gauche = Math.min(78, Math.max(0, (x(ancre.i) / W) * 100 - 6));
+          {focus && fig && figureChoisie && (() => {
+            // Le nom, au-dessus de la zone (ou dessous si elle touche le haut
+            // du cadre), centré sur elle et gardé dans le cadre.
+            const xs = fig.zone.map((z) => x(z.i));
+            const ys = fig.zone.map((z) => y(z.prix));
+            const cx = ((Math.min(...xs) + Math.max(...xs)) / 2 / W) * 100;
+            const haut = Math.min(...ys), bas = Math.max(...ys);
+            const dessus = haut / H > 0.14;
+            const obj = figureChoisie.objectif, inv = figureChoisie.invalidation;
+            // Objectif et invalidation dans la colonne de droite ; trop proches,
+            // la seconde s'écarte pour que les deux restent lisibles.
+            let yObj = obj != null ? (y(obj) / H) * 100 : null;
+            let yInv = inv != null ? (y(inv) / H) * 100 : null;
+            if (yObj != null && yInv != null && Math.abs(yObj - yInv) < 7) {
+              if (yObj < yInv) yInv = yObj + 7; else yObj = yInv + 7;
+            }
+            const fond = "color-mix(in srgb, var(--cap-surface) 82%, transparent)";
             return (
-              <span
-                key={`lbl-${k}`}
-                className="absolute whitespace-nowrap rounded-[6px] px-1.5 py-0.5 text-[0.7rem] font-medium"
-                style={{
-                  left: `${gauche}%`,
-                  top: `${(y(ancre.prix) / H) * 100}%`,
-                  transform: haut ? "translateY(-150%)" : "translateY(60%)",
-                  color: f.sens === "haussier" ? "var(--cap-up)" : "var(--cap-down)",
-                  // Translucide : l'étiquette nomme la figure sans cacher le
-                  // prix qui passe dessous.
-                  backgroundColor: "color-mix(in srgb, var(--cap-surface) 72%, transparent)",
-                  boxShadow: "0 0 0 1px var(--cap-line)",
-                }}
-              >
-                {f.nom}
-              </span>
+              <>
+                {/* Sur téléphone, pas d'étiquette dans le tracé : elle
+                    chevauchait celle de l'invalidation, et la pastille
+                    sélectionnée juste au-dessus nomme déjà la figure. */}
+                {!compact && <span
+                  className="absolute whitespace-nowrap rounded-[6px] px-2 py-0.5 text-[0.72rem] font-semibold"
+                  style={{
+                    left: `${Math.min(80, Math.max(0, cx))}%`,
+                    top: `${((dessus ? haut : bas) / H) * 100}%`,
+                    transform: `translate(-50%, ${dessus ? "-135%" : "35%"})`,
+                    color: couleurFig, backgroundColor: fond,
+                    boxShadow: `0 0 0 1px ${couleurFig}`,
+                  }}
+                >
+                  {NUMERO[choix ?? 0] ?? ""} {figureChoisie.nom}
+                </span>}
+                {yObj != null && (
+                  <span className="absolute right-0 -translate-y-1/2 whitespace-nowrap rounded-[5px] px-1.5 text-[0.72rem] font-medium"
+                        style={{ top: `${yObj}%`, color: couleurFig, backgroundColor: fond }}>
+                    Objectif {format(obj!)}
+                  </span>
+                )}
+                {yInv != null && (
+                  <span className="absolute right-0 -translate-y-1/2 whitespace-nowrap rounded-[5px] px-1.5 text-[0.72rem]"
+                        style={{ top: `${yInv}%`, color: "var(--cap-ink-2)", backgroundColor: fond }}>
+                    Annulée {figureChoisie.sens === "haussier" ? "sous" : "au-dessus de"} {format(inv!)}
+                  </span>
+                )}
+              </>
             );
-          })}
-          {struct.invalidation != null && (
+          })()}
+          {!focus && struct.invalidation != null && (
             <span
               className="absolute left-0 -translate-y-1/2 whitespace-nowrap rounded-[5px] px-1.5 text-[0.72rem]"
               style={{ top: `${(y(struct.invalidation) / H) * 100}%`, color: "var(--cap-ink-2)",
@@ -533,21 +694,6 @@ export function AnnotatedChart({
             : "Tirez sur le graphique pour zoomer sur une période — tout se recalcule dessus."}
         </Text>
         <div className="flex flex-wrap items-center gap-1.5">
-          {figures.length > 0 && (
-            <button
-              type="button"
-              onClick={() => setVoirFigures((v) => !v)}
-              aria-pressed={voirFigures}
-              className="rounded-[8px] px-2.5 py-1 text-[0.76rem] transition-colors"
-              style={{
-                color: voirFigures ? "var(--cap-ink)" : "var(--cap-ink-3)",
-                backgroundColor: voirFigures ? "var(--cap-surface-2)" : "transparent",
-                boxShadow: "inset 0 0 0 1px var(--cap-line)",
-              }}
-            >
-              Figures {voirFigures ? "affichées" : "masquées"}
-            </button>
-          )}
           {[30, 60, 120].map((n) =>
             complet.length > n + 4 ? (
               <button
@@ -595,49 +741,68 @@ export function AnnotatedChart({
       </div>
       <Text size="small" className="mt-3">{struct.sentence}</Text>
 
-      {/* CE QUE VALENT LES FIGURES DESSINÉES.
+      {/* CE QUE VAUT LA FIGURE AFFICHÉE.
           C'est la partie qui manque à toutes les captures qui circulent : la
-          forme est montrée, jamais ce qu'elle a donné. Ici la phrase vient
-          avant le reste, avec le nombre de cas et le repère du hasard — un
-          taux de réussite sans son repère est un chiffre décoratif. */}
-      {figuresDessinees.length > 0 && (
-        <div className="mt-5 space-y-3 border-t pt-4" style={{ borderColor: "var(--cap-line)" }}>
-          {figuresDessinees.map(({ f }, k) => (
-            <div key={`v-${k}`}>
-              <div className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
-                <span className="text-[0.88rem] font-semibold"
-                      style={{ color: f.sens === "haussier" ? "var(--cap-up)" : "var(--cap-down)" }}>
-                  {f.nom}
-                </span>
-                <span className="text-[0.76rem]" style={{ color: "var(--cap-ink-3)" }}>
-                  annonce une {f.sens === "haussier" ? "hausse" : "baisse"}
-                  {f.objectif != null ? ` vers ${format(f.objectif)}` : ""}
-                  {f.invalidation != null ? ` · annulée au-delà de ${format(f.invalidation)}` : ""}
-                </span>
-                <span className="rounded-[6px] px-1.5 py-0.5 text-[0.72rem] font-medium"
-                      style={{ color: TON_VERDICT[f.verdict.ton], boxShadow: "inset 0 0 0 1px var(--cap-line)" }}>
-                  {MOT_VERDICT[f.verdict.ton]}
-                </span>
-              </div>
-              <Text size="caption" className="mt-1">{f.verdict.phrase}</Text>
-              {lessonForFigure(f.cle) && (
-                <Link
-                  href={lessonForFigure(f.cle)!}
-                  className="mt-1.5 inline-block text-[0.78rem] underline underline-offset-4"
-                  style={{ color: "var(--cap-ocean)" }}
-                >
-                  Comprendre cette figure — le cours
-                </Link>
-              )}
-            </div>
-          ))}
+          forme est montrée, jamais ce qu'elle a donné. Trois lignes : ce que
+          c'est, ce qu'elle annonce, ce qu'elle a réellement donné — le détail
+          chiffré est à un clic, pour qu'un paragraphe de statistiques ne
+          noie pas la réponse. */}
+      {figureChoisie && (
+        <div className="mt-5 rounded-[12px] px-4 py-3.5"
+             style={{ boxShadow: `inset 3px 0 0 ${couleurFig}, inset 0 0 0 1px var(--cap-line)` }}>
+          <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
+            <span className="text-[0.92rem] font-semibold" style={{ color: couleurFig }}>
+              {NUMERO[choix ?? 0] ?? ""} {figureChoisie.nom}
+            </span>
+            <span className="rounded-[6px] px-1.5 py-0.5 text-[0.72rem] font-medium"
+                  style={{ color: TON_VERDICT[figureChoisie.verdict.ton], boxShadow: "inset 0 0 0 1px var(--cap-line)" }}>
+              {MOT_VERDICT[figureChoisie.verdict.ton]}
+            </span>
+          </div>
+          {DEFINITION[figureChoisie.cle] && (
+            <Text size="caption" className="mt-1.5">{DEFINITION[figureChoisie.cle]}</Text>
+          )}
+          <p className="mt-1.5 text-[0.84rem]" style={{ color: "var(--cap-ink-2)" }}>
+            Elle annonce une <strong style={{ color: couleurFig }}>
+              {figureChoisie.sens === "haussier" ? "hausse" : "baisse"}
+            </strong>
+            {figureChoisie.objectif != null ? <> vers <strong>{format(figureChoisie.objectif)}</strong></> : null}
+            {figureChoisie.invalidation != null
+              ? <>, et elle est annulée {figureChoisie.sens === "haussier" ? "sous" : "au-dessus de"}{" "}
+                  <strong>{format(figureChoisie.invalidation)}</strong></>
+              : null}.
+          </p>
+          <p className="mt-1.5 text-[0.84rem]" style={{ color: "var(--cap-ink-2)" }}>
+            {figureChoisie.verdict.phrase.split(/(?<=\.)\s/)[0]}{" "}
+            <button type="button" onClick={() => setDetailVerdict((v) => !v)}
+                    className="underline underline-offset-4" style={{ color: "var(--cap-ink-3)" }}>
+              {detailVerdict ? "Moins" : "Le détail"}
+            </button>
+          </p>
+          {detailVerdict && (
+            <Text size="caption" className="mt-1.5">
+              {figureChoisie.verdict.phrase.split(/(?<=\.)\s/).slice(1).join(" ")}
+            </Text>
+          )}
+          {lessonForFigure(figureChoisie.cle) && (
+            <Link
+              href={lessonForFigure(figureChoisie.cle)!}
+              className="mt-2 inline-block text-[0.78rem] underline underline-offset-4"
+              style={{ color: "var(--cap-ocean)" }}
+            >
+              Comprendre cette figure — le cours
+            </Link>
+          )}
+          {!fig && (
+            <Text size="caption" className="mt-2">
+              Cette figure est hors de la période affichée —{" "}
+              <button type="button" onClick={zoomerSurFigure} className="underline underline-offset-4"
+                      style={{ color: "var(--cap-ocean)" }}>
+                zoomer dessus
+              </button>.
+            </Text>
+          )}
         </div>
-      )}
-      {figures.length > 0 && voirFigures && visibles.length === 0 && (
-        <Text size="caption" className="mt-3">
-          Les figures trouvées sur cette période sont hors de la fenêtre zoomée — « Tout voir » les
-          fait réapparaître.
-        </Text>
       )}
     </div>
   );

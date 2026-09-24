@@ -759,8 +759,22 @@ async def get_chart_figures(
         # horodatage désigne toujours la bonne.
         ts = lambda i: rows[i]["timestamp"]  # noqa: E731
         ligne = f.get("ligne")
+        d = f.get("dessin") or {}
+        indices = ([z["i"] for z in d.get("zone", [])]
+                   + [t[k] for t in d.get("traces", []) for k in ("i1", "i2")]
+                   + ([d["cassure"]["i"]] if d.get("cassure") else []))
+        # Un tracé qui déborde de la série ne se dessine pas : il pointerait
+        # vers une bougie qui n'existe pas dans le graphique.
+        if not indices or not all(0 <= i < len(rows) for i in indices):
+            continue
+        dessin = {
+            "zone": [{**z, "ts": ts(z["i"])} for z in d["zone"]],
+            "traces": [{**t, "ts1": ts(t["i1"]), "ts2": ts(t["i2"])} for t in d["traces"]],
+            "cassure": {**d["cassure"], "ts": ts(d["cassure"]["i"])},
+        }
         out.append({
             **f,
+            "dessin": dessin,
             "points": [{**p, "ts": ts(p["i"])} for p in f["points"]],
             "ligne": ({**ligne, "ts1": ts(ligne["i1"]), "ts2": ts(ligne["i2"])}
                       if ligne and ligne["i2"] < len(rows) else None),
