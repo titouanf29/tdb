@@ -1,6 +1,8 @@
 "use client";
 
 import { Fragment, useMemo } from "react";
+import { SchemaFigure } from "./SchemaFigure";
+import { MesureFigure } from "./MesureFigure";
 
 /**
  * Rendu du texte des leçons.
@@ -14,6 +16,14 @@ import { Fragment, useMemo } from "react";
  * Ici rien n'est interprété comme du balisage : le texte est découpé, et seuls
  * des nœuds React sont produits. Une leçon ne peut donc pas injecter de HTML,
  * quoi qu'elle contienne.
+ *
+ * DEUX BLOCS SPÉCIAUX, seuls sur leur paragraphe :
+ *   [[schema:double_sommet]]   le schéma annoté d'une figure chartiste
+ *   [[mesure:double_sommet]]   ce que nos données disent de cette figure,
+ *                              lu sur le serveur ([[mesure:tableau]] pour
+ *                              toutes à la fois)
+ * Ce ne sont pas des balises : un nom inconnu n'affiche rien, et le contenu
+ * du bloc n'est jamais interprété.
  */
 
 /** Découpe une ligne en segments, en traitant **gras** comme du gras. */
@@ -36,10 +46,15 @@ export function LessonBody({ content }: { content: string }) {
     // Un bloc = un paragraphe, ou une suite de puces consécutives. Les puces
     // doivent être regroupées : une <ul> par puce donnerait des listes d'un
     // seul élément, que les lecteurs d'écran annoncent une par une.
-    const out: { kind: "p" | "ul"; lines: string[] }[] = [];
+    const out: { kind: "p" | "ul" | "schema" | "mesure"; lines: string[] }[] = [];
     for (const para of content.split(/\n{2,}/)) {
       const lines = para.split("\n").map((l) => l.trim()).filter(Boolean);
       if (lines.length === 0) continue;
+      const bloc = lines.length === 1 ? lines[0].match(/^\[\[(schema|mesure):([a-z_]+)\]\]$/) : null;
+      if (bloc) {
+        out.push({ kind: bloc[1] as "schema" | "mesure", lines: [bloc[2]] });
+        continue;
+      }
 
       let buffer: string[] = [];
       let mode: "p" | "ul" | null = null;
@@ -62,7 +77,11 @@ export function LessonBody({ content }: { content: string }) {
   return (
     <div className="space-y-4">
       {blocks.map((b, i) =>
-        b.kind === "ul" ? (
+        b.kind === "schema" ? (
+          <SchemaFigure key={i} cle={b.lines[0]} />
+        ) : b.kind === "mesure" ? (
+          <MesureFigure key={i} cle={b.lines[0]} />
+        ) : b.kind === "ul" ? (
           <ul key={i} className="space-y-2 pl-1">
             {b.lines.map((line, j) => (
               <li key={j} className="flex gap-3 text-[0.95rem] leading-relaxed" style={{ color: "var(--cap-ink-2)" }}>

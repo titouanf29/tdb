@@ -7,7 +7,7 @@ import { AnimatePresence } from "framer-motion";
 import { ArrowRight, Loader2, Search, Star } from "lucide-react";
 import {
   analysisAPI, favoritesAPI, marketAPI,
-  type Analysis, type ChartData,
+  type Analysis, type ChartData, type Figure,
 } from "@/lib/api";
 import { fr, useFormatAssetPrice, useFormatSomme, useSettings } from "@/lib/SettingsContext";
 import {
@@ -229,6 +229,7 @@ function AnalysisScreen() {
 
   const [analysis, setAnalysis] = useState<Analysis | null>(null);
   const [chart, setChart] = useState<ChartData | null>(null);
+  const [figures, setFigures] = useState<Figure[]>([]);
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -271,6 +272,13 @@ function AnalysisScreen() {
       marketAPI.getChart(sym, style.chartWindow.period, style.chartWindow.interval)
         .then((c) => { if (n === demande.current) setChart(c); })
         .catch(() => { if (n === demande.current) setChart(null); });
+      // Les figures sur la MÊME fenêtre que le graphique : leurs indices
+      // pointent dans ses bougies. Un échec les efface, il ne casse rien —
+      // le graphique commenté se lit très bien sans.
+      setFigures([]);
+      marketAPI.getFigures(sym, style.chartWindow.period, style.chartWindow.interval)
+        .then((r) => { if (n === demande.current) setFigures(r.figures ?? []); })
+        .catch(() => { if (n === demande.current) setFigures([]); });
     } catch (err) {
       if (n !== demande.current) return;
       setAnalysis(null);
@@ -625,6 +633,7 @@ function AnalysisScreen() {
                   <AnnotatedChart
                     bars={chart!.data}
                     levels={chartLevels(analysis, depth)}
+                    figures={figures}
                     format={assetPrice}
                   />
                 ) : tvAvailable ? (
@@ -644,6 +653,7 @@ function AnalysisScreen() {
                     <AnnotatedChart
                       bars={chart!.data}
                       levels={chartLevels(analysis, depth)}
+                      figures={figures}
                       format={assetPrice}
                     />
                     <Text size="caption" className="mt-3">

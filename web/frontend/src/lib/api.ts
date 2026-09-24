@@ -128,6 +128,17 @@ export const marketAPI = {
       `/api/market/chart/${symbol}?period=${period}&interval=${interval}`
     ),
 
+  /** Les figures chartistes de la fenêtre, avec ce qu'elles ont donné.
+   *  À appeler avec la MÊME période et la MÊME unité que `getChart` : les
+   *  indices rendus pointent dans son tableau `data`. */
+  /** La mesure des figures, pour le cours : mêmes chiffres que le graphique. */
+  getFiguresMesure: () => fetchAPI<FiguresMesure>("/api/market/figures-mesure"),
+
+  getFigures: (symbol: string, period = "1mo", interval = "1d") =>
+    fetchAPI<FiguresReponse>(
+      `/api/market/figures/${encodeURIComponent(symbol)}?period=${period}&interval=${interval}`
+    ),
+
   requestAsset: (data: AssetRequestData) =>
     fetchAPI<{ success: boolean; message: string }>("/api/market/request-asset", {
       method: "POST",
@@ -846,6 +857,55 @@ export interface Quote {
   pe_ratio?: number;
   "52w_high"?: number;
   "52w_low"?: number;
+}
+
+/** Une figure chartiste trouvée sur la fenêtre affichée.
+ *  `i` : indices dans `ChartData.data` de la même période et unité. */
+export interface Figure {
+  cle: string;
+  nom: string;
+  sens: "haussier" | "baissier";
+  points: { i: number; prix: number; ts: number }[];
+  /** La ligne de cou, la base ou la borne cassée. */
+  ligne: { i1: number; p1: number; i2: number; p2: number; ts1: number; ts2: number } | null;
+  ts_fin: number;
+  /** La bougie de la cassure. */
+  i_fin: number;
+  /** La première bougie où la figure était réellement visible. */
+  i_connu: number;
+  objectif: number | null;
+  invalidation: number | null;
+  verdict: {
+    ton: "favorable" | "neutre" | "defavorable" | "inconnu";
+    phrase: string;
+    n: number;
+    ecart?: number;
+  };
+}
+
+export interface StatFigure {
+  n: number;
+  sens_20: number;
+  ecart: number;
+  erreur_type: number;
+  ecart_A: number | null;
+  ecart_B: number | null;
+  moy_20: number;
+  objectif: number;
+  invalide: number;
+  verdict: "favorable" | "neutre" | "defavorable" | "trop_peu";
+}
+
+export interface FiguresMesure {
+  methode: { panel: number; bougies: number; figures: number; annees: number;
+             base_hausse_20: number; note: string };
+  statistiques: Record<string, StatFigure>;
+}
+
+export interface FiguresReponse {
+  symbol: string;
+  figures: Figure[];
+  methode: { panel: number; figures: number; annees: number; note: string };
 }
 
 export interface ChartData {

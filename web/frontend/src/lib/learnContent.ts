@@ -1,3 +1,5 @@
+import { MODULE_FIGURES } from "./learnFigures";
+
 export type QuizQuestion = {
   question: string;
   options: string[];
@@ -1249,6 +1251,9 @@ Un style mal adapté à votre vie, c'est la première cause d'abandon. Et l'aban
       },
     ],
   },
+  // Le cours sur les figures chartistes vit dans son propre fichier : ses
+  // chiffres sont lus sur le serveur, et il fait six leçons à lui seul.
+  MODULE_FIGURES,
 ];
 
 export function getModulesForLevel(level: string | null | undefined): Module[] {

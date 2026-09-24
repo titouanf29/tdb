@@ -14,10 +14,30 @@ from slowapi.util import get_remote_address
 
 logger = logging.getLogger(__name__)
 
+
 from config import MARKETS
 
 from ..database import execute_query, execute_write
 from ._search import chercher, preparer
+from ._figures import (detecter as detecter_figures, verdict as verdict_figure,
+                       BASE_HAUSSE_20, ECHANTILLON_MINI, MESURE as MESURE_FIGURES,
+                       STATISTIQUES as STATS_FIGURES)
+
+# Ce qui permet à quelqu'un de contester nos chiffres — donc ce qui rend la
+# mesure utile plutôt que décorative.
+METHODE_FIGURES = {
+    "panel": MESURE_FIGURES["actifs"],
+    "bougies": MESURE_FIGURES["bougies"],
+    "figures": MESURE_FIGURES["figures"],
+    "annees": 10,
+    "unite": "journalier",
+    "base_hausse_20": BASE_HAUSSE_20,
+    "echantillon_mini": ECHANTILLON_MINI,
+    "note": ("Mesuré sur des actions, indices, ETF, matières premières, devises et "
+             "crypto, sur dix ans de bougies journalières, en exigeant que l'écart au "
+             "hasard tienne sur deux périodes séparées. La période est très haussière "
+             "et les frais ne sont pas déduits."),
+}
 from .auth import get_current_user
 
 router = APIRouter()
@@ -581,6 +601,22 @@ async def get_fx_rates():
     return {"EURUSD": rate, "source": source, "cached": False}
 
 
+@router.get("/figures-mesure")
+async def get_figures_mesure():
+    """La mesure des figures, telle quelle — pour le cours du Parcours.
+
+    DÉCLARÉE AVANT `/{market_key}`, et c'est obligatoire : FastAPI essaie
+    les routes dans l'ordre, et la route générique répondait « Market not
+    found » à « figures-mesure ».
+
+    Le cours cite les mêmes chiffres que le graphique, et il les lit ICI
+    plutôt que de les recopier : deux copies d'un même tableau finissent par
+    dire deux choses différentes, et c'est le cours qui aurait tort en
+    silence le jour où la mesure est relancée.
+    """
+    return {"methode": METHODE_FIGURES, "statistiques": STATS_FIGURES}
+
+
 @router.get("/{market_key}")
 async def get_market_info(market_key: str):
     """Get detailed info for a specific market"""
@@ -641,6 +677,101 @@ async def get_quote(request: Request, symbol: str):
     )
 
 
+@router.get("/figures/{symbol}")
+@limiter.limit("10/minute")
+async def get_chart_figures(
+    request: Request,
+    symbol: str,
+    period: str = Query(default="1mo", pattern="^(1d|5d|1mo|3mo|6mo|1y|2y|5y|max)$"),
+    interval: str = Query(default="1d", pattern="^(1m|5m|15m|1h|1d|1wk|1mo)$"),
+    limite: int = Query(default=2, ge=1, le=4),
+):
+    """Les figures présentes sur la fenêtre affichée, avec ce qu'elles valent.
+
+    LA DÉTECTION SE FAIT SUR LES BOUGIES QUE LE GRAPHIQUE DESSINE, et pas sur
+    une série récupérée ailleurs : c'est pourquoi cette route rappelle
+    `get_chart_data` au lieu de refaire un chargement. Deux séries légèrement
+    différentes — un fournisseur de secours, un fuseau, une bougie en cours —
+    et la figure se dessinerait à côté du prix. Les indices rendus ici
+    pointent dans le tableau `data` de la même requête de graphique.
+
+    Chaque figure part avec son verdict mesuré. C'est la condition posée au
+    reste du projet — rien n'est dessiné qui ne soit mesuré — étendue au seul
+    endroit où elle n'était pas tenable jusqu'ici : on ne savait pas ce que
+    valaient les figures, donc on n'en dessinait aucune. Maintenant on sait.
+    """
+    if not _SYMBOL_RE.match(symbol.upper()):
+        raise HTTPException(status_code=400, detail="Symbole invalide")
+    chart = await donnees_graphique(symbol, period, interval)
+    rows = chart.get("data") or []
+    if len(rows) < 30:
+        return {"symbol": symbol, "figures": [], "methode": METHODE_FIGURES}
+
+    import pandas as _pd
+    df = _pd.DataFrame({
+        "High": [r["high"] for r in rows],
+        "Low": [r["low"] for r in rows],
+        "Close": [r["close"] for r in rows],
+    })
+
+    try:
+        trouvees = detecter_figures(df)
+    except Exception as exc:
+        logger.warning("figures indisponibles pour %s : %s", symbol, exc)
+        return {"symbol": symbol, "figures": [], "methode": METHODE_FIGURES}
+
+    # Les plus récentes d'abord, et seulement celles dont TOUS les points
+    # tiennent dans la fenêtre : une figure à moitié hors champ se dessine
+    # comme une erreur.
+    dedans = [f for f in trouvees
+              if f["i_connu"] < len(rows) and all(0 <= p["i"] < len(rows) for p in f["points"])]
+    dedans.sort(key=lambda f: -f["i_connu"])
+
+    # UNE SEULE FIGURE PAR TYPE : deux doubles creux côte à côte racontent la
+    # même chose deux fois et doublent le dessin sans rien ajouter. La plus
+    # récente l'emporte.
+    retenues, types = [], set()
+    for f in dedans:
+        if f["cle"] in types:
+            continue
+        types.add(f["cle"])
+        retenues.append(f)
+        if len(retenues) >= limite:
+            break
+
+    out = []
+    for f in retenues:
+        v = verdict_figure(f["cle"], f["sens"])
+        # LA MESURE A ÉTÉ FAITE EN JOURNALIER, et elle ne se transpose pas
+        # d'office. Sur un graphique en 15 minutes, afficher « mieux que le
+        # hasard » serait affirmer une chose qu'on n'a pas vérifiée : le verdict
+        # passe en « non mesuré » et cite le journalier comme simple repère.
+        if interval not in ("1d",):
+            unite = {"1wk": "en hebdomadaire", "1mo": "en mensuel", "1h": "en horaire",
+                     "15m": "en 15 minutes", "5m": "en 5 minutes", "1m": "en 1 minute"}.get(interval, "sur cette unité")
+            v = {**v, "ton": "inconnu",
+                 "phrase": (f"Non mesurée {unite} : la mesure porte sur des bougies journalières, "
+                            f"et rien ne garantit qu'elle se transpose. À titre de repère, en "
+                            f"journalier — {v['phrase'][0].lower()}{v['phrase'][1:]}")}
+        # Chaque point porte son HORODATAGE en plus de son indice : le
+        # graphique arrive par une autre requête, et si une bougie s'est
+        # ajoutée entre les deux, un indice désignerait la voisine. Un
+        # horodatage désigne toujours la bonne.
+        ts = lambda i: rows[i]["timestamp"]  # noqa: E731
+        ligne = f.get("ligne")
+        out.append({
+            **f,
+            "points": [{**p, "ts": ts(p["i"])} for p in f["points"]],
+            "ligne": ({**ligne, "ts1": ts(ligne["i1"]), "ts2": ts(ligne["i2"])}
+                      if ligne and ligne["i2"] < len(rows) else None),
+            "verdict": v,
+            "ts_fin": ts(f["i_fin"]),
+            "ts_connu": ts(f["i_connu"]),
+        })
+
+    return {"symbol": symbol, "figures": out, "methode": METHODE_FIGURES}
+
+
 @router.get("/chart/{symbol}")
 @limiter.limit("10/minute")
 async def get_chart_data(
@@ -650,6 +781,18 @@ async def get_chart_data(
     interval: str = Query(default="1d", pattern="^(1m|5m|15m|1h|1d|1wk|1mo)$")
 ):
     """Get OHLCV chart data for a symbol"""
+    return await donnees_graphique(symbol, period, interval)
+
+
+async def donnees_graphique(symbol: str, period: str, interval: str) -> dict:
+    """Le chargement lui-même, SANS le quota de la route.
+
+    La route des figures a besoin exactement des mêmes bougies que le
+    graphique. En rappelant la route décorée, chaque affichage aurait compté
+    deux fois contre la limite de 10 par minute — et l'écran d'analyse, qui
+    charge déjà le graphique, se serait fait refuser ses figures au bout de
+    quelques actifs consultés.
+    """
     if not _SYMBOL_RE.match(symbol.upper()):
         raise HTTPException(status_code=400, detail="Symbole invalide")
     symbol = symbol.upper()

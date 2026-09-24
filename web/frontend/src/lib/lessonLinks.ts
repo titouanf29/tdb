@@ -48,3 +48,18 @@ export function lessonFor(term: string): LessonLink | null {
 export function lessonHref(key: string): string {
   return `/learn?lecon=${encodeURIComponent(key)}`;
 }
+
+/* Les figures chartistes, vers leur leçon. Le graphique de l'Analyse dessine
+   la forme et dit ce qu'elle a donné ; la leçon explique comment elle se
+   trace et pourquoi on la voit partout. */
+const LECONS_FIGURES: Record<string, string> = {
+  double_sommet: "doubles", double_creux: "doubles",
+  ete: "ete", ete_inversee: "ete",
+  triangle_ascendant: "triangles", triangle_descendant: "triangles", triangle_symetrique: "triangles",
+  drapeau_haussier: "drapeaux", drapeau_baissier: "drapeaux",
+};
+
+export function lessonForFigure(cle: string): string | null {
+  const l = LECONS_FIGURES[cle];
+  return l ? lessonHref(`figures-chartistes/${l}`) : null;
+}
