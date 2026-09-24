@@ -68,7 +68,12 @@ export function PriceAlertWatcher() {
   if (!toasts.length) return null;
 
   return (
-    <div className="fixed bottom-5 right-5 z-[120] flex flex-col gap-2.5 w-[min(92vw,360px)]">
+    // Sur téléphone, AU-DESSUS de la barre de navigation (56 px) et de
+    // l'indicateur d'accueil : collée à « bottom-5 », l'alerte s'affichait
+    // par-dessus les onglets et masquait justement le bouton pour aller voir.
+    <div
+      className="fixed right-5 z-[120] flex flex-col gap-2.5 w-[min(92vw,360px)] bottom-[calc(56px+env(safe-area-inset-bottom,0px)+12px)] lg:bottom-5"
+    >
       <AnimatePresence>
         {toasts.map((a) => {
           const up = a.direction === "above";

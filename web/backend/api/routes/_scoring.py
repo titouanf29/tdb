@@ -10,6 +10,7 @@ import pandas as pd
 
 from ._indicators import (rsi_wilder, atr_wilder, adx_wilder, true_range,
                           percentile_rank, volatility_regime)
+from ._fr import nombre_fr
 
 
 def _safe(value, default=None, ndigits=None):
@@ -198,8 +199,8 @@ def compute_score(high, low, close, volume, current_price=None):
         else:                                        bearish_signals.append("Prix < EMA200")
 
     if adx_val > 25:
-        if current_plus_di > current_minus_di: bullish_signals.append(f"ADX fort ({adx_val:.0f}) tendance haussière")
-        else:                                   bearish_signals.append(f"ADX fort ({adx_val:.0f}) tendance baissière")
+        if current_plus_di > current_minus_di: bullish_signals.append(f"ADX fort ({nombre_fr(adx_val, 0)}) tendance haussière")
+        else:                                   bearish_signals.append(f"ADX fort ({nombre_fr(adx_val, 0)}) tendance baissière")
 
     if current_stoch_k < 20:  bullish_signals.append("Stochastique survendu")
     elif current_stoch_k > 80: bearish_signals.append("Stochastique suracheté")
@@ -214,8 +215,8 @@ def compute_score(high, low, close, volume, current_price=None):
     if obv_trend == "bullish" and obv_slope > 0: bullish_signals.append("OBV en tendance haussière")
     elif obv_trend == "bearish" and obv_slope < 0: bearish_signals.append("OBV en tendance baissière")
 
-    if current_cmf > 0.15:   bullish_signals.append(f"CMF positif ({current_cmf:.2f}) — afflux d'argent")
-    elif current_cmf < -0.15: bearish_signals.append(f"CMF négatif ({current_cmf:.2f}) — sortie d'argent")
+    if current_cmf > 0.15:   bullish_signals.append(f"CMF positif ({nombre_fr(current_cmf, 2)}) — afflux d'argent")
+    elif current_cmf < -0.15: bearish_signals.append(f"CMF négatif ({nombre_fr(current_cmf, 2)}) — sortie d'argent")
 
     if rsi_divergence == "bullish":  bullish_signals.append("Divergence haussière RSI/Prix")
     elif rsi_divergence == "bearish": bearish_signals.append("Divergence baissière RSI/Prix")
@@ -223,11 +224,11 @@ def compute_score(high, low, close, volume, current_price=None):
     if current_price < float(bb_lower.iloc[-1]):  bullish_signals.append("Prix sous la bande Bollinger basse")
     elif current_price > float(bb_upper.iloc[-1]): bearish_signals.append("Prix au-dessus de la bande Bollinger haute")
 
-    if volume_ratio > 1.5:  bullish_signals.append(f"Volume élevé ({volume_ratio:.1f}x la moyenne)")
+    if volume_ratio > 1.5:  bullish_signals.append(f"Volume élevé ({nombre_fr(volume_ratio, 1)}x la moyenne)")
     elif volume_ratio < 0.5: bearish_signals.append("Volume très faible")
 
-    if momentum_10d > 5:   bullish_signals.append(f"Momentum 10j fort (+{momentum_10d:.1f}%)")
-    elif momentum_10d < -5: bearish_signals.append(f"Momentum 10j faible ({momentum_10d:.1f}%)")
+    if momentum_10d > 5:   bullish_signals.append(f"Momentum 10j fort (+{nombre_fr(momentum_10d, 1)}%)")
+    elif momentum_10d < -5: bearish_signals.append(f"Momentum 10j faible ({nombre_fr(momentum_10d, 1)}%)")
 
     # NOTE: conviction_score is computed further down, from factor agreement
     # rather than from this signal tally. Counting the ~32 signals above as

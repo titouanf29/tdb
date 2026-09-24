@@ -22,6 +22,8 @@ départager. Trancher sans en avoir les moyens serait exactement l'invention
 que le §17 interdit.
 """
 
+from ...routes._fr import nombre_fr
+
 
 def _seuil_mouvement(volatilite_jour: float | None) -> float:
     """À partir de quand un mouvement mérite d'être appelé une réaction.
@@ -65,10 +67,10 @@ def comparer(
     elif accord:
         etat = "confirme"
         phrase = (f"Le marché va dans le sens du mécanisme "
-                  f"({variation_pct:+.2f} %, au-delà du seuil de {seuil:.1f} %).")
+                  f"({nombre_fr(variation_pct, 2, signe=True)} %, au-delà du seuil de {nombre_fr(seuil, 1)} %).")
         if volume_ratio and volume_ratio >= 1.5:
             lectures.append(
-                f"le volume est {volume_ratio:.1f} fois la moyenne : le mouvement "
+                f"le volume est {nombre_fr(volume_ratio, 1)} fois la moyenne : le mouvement "
                 "est porté par des échanges réels"
             )
         elif volume_ratio and volume_ratio < 0.8:
@@ -79,13 +81,13 @@ def comparer(
     elif desaccord:
         etat = "contredit"
         phrase = (f"Le marché va À L'INVERSE du mécanisme "
-                  f"({variation_pct:+.2f} %).")
+                  f"({nombre_fr(variation_pct, 2, signe=True)} %).")
         lectures.append("le mécanisme est peut-être faux pour cet actif")
         lectures.append("ou un autre facteur, plus fort, domine aujourd'hui")
     elif not bouge:
         etat = "sans reaction"
-        phrase = (f"Le marché ne réagit pas ({variation_pct:+.2f} %, sous le seuil "
-                  f"de {seuil:.1f} %).")
+        phrase = (f"Le marché ne réagit pas ({nombre_fr(variation_pct, 2, signe=True)} %, sous le seuil "
+                  f"de {nombre_fr(seuil, 1)} %).")
         # C'est ici que la nouveauté départage les deux lectures. Sans elle,
         # on ne pourrait qu'énumérer.
         if nouveaute < 0.35:
@@ -105,7 +107,7 @@ def comparer(
             )
     else:
         etat = "indetermine"
-        phrase = f"Mouvement de {variation_pct:+.2f} %, sans rapport clair avec le mécanisme."
+        phrase = f"Mouvement de {nombre_fr(variation_pct, 2, signe=True)} %, sans rapport clair avec le mécanisme."
 
     # L'écart entre ce qu'on attendait et ce qu'on voit, borné à 1. C'est lui
     # qui mérite l'attention, pas l'ampleur brute.

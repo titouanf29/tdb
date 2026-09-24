@@ -17,6 +17,7 @@ their verdicts cannot drift apart.
 """
 import numpy as np
 import pandas as pd
+from ._fr import nombre_fr
 
 # One benchmark per asset class. Deliberately a broad index rather than a
 # sector ETF: with ~800 assets across ~11 sectors, a sector sample is too thin
@@ -205,10 +206,10 @@ def apply_context_gate(final_score: float, ctx: dict | None) -> tuple[float, str
     if rs is not None:
         if rs >= 5:
             adj += 2
-            bull_note = bull_note or f"Surperforme {bench} de {rs:+.1f} pts sur 20 périodes"
+            bull_note = bull_note or f"Surperforme {bench} de {nombre_fr(rs, 1, signe=True)} pts sur 20 périodes"
         elif rs <= -5:
             adj -= 2
-            bear_note = bear_note or f"Sous-performe {bench} de {rs:.1f} pts sur 20 périodes"
+            bear_note = bear_note or f"Sous-performe {bench} de {nombre_fr(rs, 1)} pts sur 20 périodes"
 
     adj = max(-6.0, min(6.0, adj))
     return max(0.0, min(100.0, final_score + adj)), bull_note, bear_note

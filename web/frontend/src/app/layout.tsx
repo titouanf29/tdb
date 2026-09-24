@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter, Space_Grotesk, JetBrains_Mono, Sora } from "next/font/google";
 import "./globals.css";
 import "@/styles/capten.css";
@@ -39,6 +39,21 @@ const spaceGrotesk = Space_Grotesk({
   display: "swap",
   weight: ["400", "500", "600", "700"],
 });
+
+/**
+ * BORD À BORD. `viewport-fit=cover` laisse la page occuper tout l'écran de
+ * l'iPhone, y compris sous l'indicateur d'accueil : c'est ce qui permet à la
+ * barre de navigation du bas de descendre jusqu'au bord, comme dans une
+ * application, au lieu de flotter au-dessus d'une bande vide. En échange,
+ * chaque élément collé à un bord doit respecter les marges de sécurité
+ * (`env(safe-area-inset-*)`) : la barre du bas, l'en-tête, les marges
+ * latérales de la page et les alertes de prix le font.
+ */
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+};
 
 export const metadata: Metadata = {
   title: "CaptenTDB - Trading Education Platform",

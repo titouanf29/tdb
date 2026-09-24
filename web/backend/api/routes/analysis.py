@@ -33,6 +33,7 @@ from ._scoring import (compute_score, derive_trend, derive_signal, TIMEFRAME_FET
 from ._backtest import run_backtest
 from ._personnel import adapter as adapter_personnel, lire_profil
 from ._figures import appliquer_figures, figures_actives
+from ._fr import nombre_fr
 
 logger = logging.getLogger(__name__)
 
@@ -209,50 +210,50 @@ def compute_trade_window(
     if rsi < 25:
         adj -= 2
         warnings.append(
-            f"RSI en survente extrême ({rsi:.0f}) : renversement haussier imminent attendu "
+            f"RSI en survente extrême ({nombre_fr(rsi, 0)}) : renversement haussier imminent attendu "
             f"sur 1–2 bougies de {timeframe}, ne pas rester trop longtemps après le rebond"
         )
     elif rsi > 75:
         adj -= 2
         warnings.append(
-            f"RSI en surachat extrême ({rsi:.0f}) : risque de retournement baissier rapide, "
+            f"RSI en surachat extrême ({nombre_fr(rsi, 0)}) : risque de retournement baissier rapide, "
             f"coupez dès le premier signal de faiblesse"
         )
     elif rsi < 35:
         adj -= 1
         warnings.append(
-            f"RSI en zone de survente ({rsi:.0f}) : le rebond peut être court, "
+            f"RSI en zone de survente ({nombre_fr(rsi, 0)}) : le rebond peut être court, "
             f"préférez une cible conservative (1–2 bougies)"
         )
     elif rsi > 65:
         adj -= 1
         warnings.append(
-            f"RSI proche du surachat ({rsi:.0f}) : le mouvement haussier montre des signes "
+            f"RSI proche du surachat ({nombre_fr(rsi, 0)}) : le mouvement haussier montre des signes "
             f"d'essoufflement, serrez le stop"
         )
     else:
-        reasons.append(f"RSI neutre ({rsi:.0f}) : pas de pression de retournement immédiate")
+        reasons.append(f"RSI neutre ({nombre_fr(rsi, 0)}) : pas de pression de retournement immédiate")
 
     # ── ADX / Tendance ─────────────────────────────────────────────────────
     if adx > 35:
         adj += 2
         reasons.append(
-            f"Tendance très forte (ADX {adx:.0f}) : le momentum directionnels est solide, "
+            f"Tendance très forte (ADX {nombre_fr(adx, 0)}) : le momentum directionnels est solide, "
             f"la position peut être tenue plus longtemps"
         )
     elif adx > 25:
         adj += 1
-        reasons.append(f"Tendance établie (ADX {adx:.0f}) : signal fiable, bon rapport durée/risque")
+        reasons.append(f"Tendance établie (ADX {nombre_fr(adx, 0)}) : signal fiable, bon rapport durée/risque")
     elif adx < 15:
         adj -= 2
         warnings.append(
-            f"Tendance quasi absente (ADX {adx:.0f}) : marché latéral ou en consolidation, "
+            f"Tendance quasi absente (ADX {nombre_fr(adx, 0)}) : marché latéral ou en consolidation, "
             f"les faux signaux sont fréquents — duration très courte recommandée"
         )
     elif adx < 20:
         adj -= 1
         warnings.append(
-            f"Tendance faible (ADX {adx:.0f}) : direction peu claire, "
+            f"Tendance faible (ADX {nombre_fr(adx, 0)}) : direction peu claire, "
             f"réduisez l'exposition et sortez rapidement"
         )
 
@@ -260,23 +261,23 @@ def compute_trade_window(
     if atr_pct > 4:
         adj -= 2
         warnings.append(
-            f"Volatilité très forte (ATR {atr_pct:.1f}% du prix) : l'actif peut faire "
-            f"+/−{atr_pct:.1f}% par bougie — les objectifs sont atteints (ou dépassés) très vite"
+            f"Volatilité très forte (ATR {nombre_fr(atr_pct, 1)}% du prix) : l'actif peut faire "
+            f"+/−{nombre_fr(atr_pct, 1)}% par bougie — les objectifs sont atteints (ou dépassés) très vite"
         )
     elif atr_pct > 2.5:
         adj -= 1
         warnings.append(
-            f"Volatilité élevée (ATR {atr_pct:.1f}%) : risque de gap important entre deux bougies, "
+            f"Volatilité élevée (ATR {nombre_fr(atr_pct, 1)}%) : risque de gap important entre deux bougies, "
             f"ne laissez pas traîner la position sans stop serré"
         )
     elif atr_pct < 0.8:
         adj += 1
         reasons.append(
-            f"Faible volatilité (ATR {atr_pct:.1f}%) : l'actif évolue lentement, "
+            f"Faible volatilité (ATR {nombre_fr(atr_pct, 1)}%) : l'actif évolue lentement, "
             f"les objectifs mettent plus de bougies à être atteints"
         )
     else:
-        reasons.append(f"Volatilité modérée (ATR {atr_pct:.1f}%) : mouvements cohérents avec le timeframe")
+        reasons.append(f"Volatilité modérée (ATR {nombre_fr(atr_pct, 1)}%) : mouvements cohérents avec le timeframe")
 
     # ── Score global ───────────────────────────────────────────────────────
     if final_score >= 72:
@@ -296,7 +297,7 @@ def compute_trade_window(
     if volatility_20d and volatility_20d > 50:
         adj -= 1
         warnings.append(
-            f"Volatilité historique très forte ({volatility_20d:.0f}% ann.) : "
+            f"Volatilité historique très forte ({nombre_fr(volatility_20d, 0)}% ann.) : "
             f"actif à forte amplitude, les retournements sont brutaux"
         )
 
@@ -323,7 +324,7 @@ def compute_trade_window(
             hh = int(round((d - dd) * 24))
             return f"{dd}j{hh:02d}h" if hh else f"{dd}j"
         w = d / 7
-        return f"{w:.1f} sem"
+        return f"{nombre_fr(w, 1)} sem"
 
     # Impossible to give reliable window when ADX < 10 AND RSI extreme
     unreliable = adx < 10 and (rsi < 30 or rsi > 70)
@@ -685,9 +686,9 @@ def _signal_quality(factor_agreement, htf_aligned, edge: dict) -> dict:
     if edge.get("enough_samples"):
         e = edge.get("expectancy_net_r") or 0.0
         if e > 0.15:
-            pts += 10; notes.append(f"Edge historique positif sur cet actif (+{e:.2f}R)")
+            pts += 10; notes.append(f"Edge historique positif sur cet actif (+{nombre_fr(e, 2)}R)")
         elif e < -0.15:
-            pts -= 10; notes.append(f"Edge historique négatif sur cet actif ({e:.2f}R)")
+            pts -= 10; notes.append(f"Edge historique négatif sur cet actif ({nombre_fr(e, 2)}R)")
     else:
         notes.append("Historique trop court pour mesurer l'edge")
     return {"score": max(0, min(100, pts)), "notes": notes}
@@ -714,7 +715,7 @@ def _tradeability(
     warnings: list[str] = []
 
     if risk_reward is not None and risk_reward < 1.2:
-        blockers.append(f"Rapport gain/risque de {risk_reward:.1f} — sous 1,2, le setup rémunère mal le risque")
+        blockers.append(f"Rapport gain/risque de {nombre_fr(risk_reward, 1)} — sous 1,2, le setup rémunère mal le risque")
     if data_stale:
         blockers.append("Données de marché périmées — le prix affiché ne reflète plus la séance")
     if confidence < 40:
@@ -761,13 +762,13 @@ def _tradeability(
         borne_favorable = (e + se) if e is not None else None
         if borne_favorable is not None and borne_favorable <= EDGE_BLOQUANT:
             blockers.append(
-                f"Ce plan a déjà perdu sur cet actif : {abs(e):.2f} R en moyenne "
+                f"Ce plan a déjà perdu sur cet actif : {nombre_fr(abs(e), 2)} R en moyenne "
                 f"sur {n} trades comparables ({precision}). Le sens peut être bon, "
                 "le plan a été joué et n'a pas payé."
             )
         elif e is not None and e <= EDGE_BRUIT:
             warnings.append(
-                f"Historique défavorable sur cet actif : {abs(e):.2f} R perdus en "
+                f"Historique défavorable sur cet actif : {nombre_fr(abs(e), 2)} R perdus en "
                 f"moyenne sur {n} trades comparables ({precision})"
             )
 
@@ -1163,7 +1164,7 @@ async def analyze_asset(
 
         _rr = abs(_tp - current_price) / abs(_sl - current_price) if abs(_sl - current_price) > 1e-9 else None
         if _rr is not None and _rr < 1.2:
-            risk_notes.append(f"R/R de {_rr:.1f} sous 1.2 — le setup rémunère mal le risque pris")
+            risk_notes.append(f"R/R de {nombre_fr(_rr, 1)} sous 1,2 — le setup rémunère mal le risque pris")
 
         risk_block = {
             "direction":                 "SHORT" if is_short_setup else "LONG",
@@ -2092,15 +2093,15 @@ async def scan_market(
             if macd_cross:
                 tags.append("Croisement MACD"); opp_type = "breakout"
             if rsi < 35:
-                tags.append(f"RSI survendu ({rsi:.0f})"); opp_type = "reversal"
+                tags.append(f"RSI survendu ({nombre_fr(rsi, 0)})"); opp_type = "reversal"
             if vol_spike:
-                tags.append(f"Vol. x{vol_ratio:.1f}")
+                tags.append(f"Vol. ×{nombre_fr(vol_ratio, 1)}")
             if near_breakout:
                 tags.append("Proche du plus haut"); opp_type = "breakout"
             if bb_squeeze:
                 tags.append("Squeeze BB"); opp_type = "breakout"
             if chg_1w > 5 and not tags:
-                tags.append(f"+{chg_1w:.1f}% / semaine")
+                tags.append(f"+{nombre_fr(chg_1w, 1)}% / semaine")
             if near_support and rsi < 40:
                 tags.append("Rebond support"); opp_type = "reversal"
             opportunity = " · ".join(tags[:2]) if tags else "Momentum"

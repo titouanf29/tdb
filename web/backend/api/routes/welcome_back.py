@@ -28,6 +28,7 @@ from ._prices import fetch_prices
 # the exact resolvers or the queries silently return nothing → 0% recap.
 from .wallet import get_user_id as _wallet_uid
 from .favorites import get_user_id as _fav_uid
+from ._fr import nombre_fr
 
 router = APIRouter()
 limiter = Limiter(key_func=get_remote_address)
@@ -164,19 +165,19 @@ def _build_message(equity_pct: float, market_change: float, best, worst, away: s
         return f"{hello} Not much moved while you were away ({away}) — your positions stayed roughly flat.{_extra()}"
 
     if equity_pct >= 0:
-        base = (f"{hello} Sur les {away} écoulées, vos positions ont gagné {market_change:+.2f} ({equity_pct:+.1f}% du portefeuille)."
+        base = (f"{hello} Sur les {away} écoulées, vos positions ont gagné {nombre_fr(market_change, 2, signe=True)} ({nombre_fr(equity_pct, 1, signe=True)}% du portefeuille)."
                 if fr else
                 f"{hello} Over the past {away}, your positions gained {market_change:+.2f} ({equity_pct:+.1f}% of the portfolio).")
         if best:
-            base += (f" {best['symbol']} a été votre meilleur mouvement ({best['pct']:+.1f}%)."
+            base += (f" {best['symbol']} a été votre meilleur mouvement ({nombre_fr(best['pct'], 1, signe=True)}%)."
                      if fr else f" {best['symbol']} was your best move ({best['pct']:+.1f}%).")
         return base + _extra()
 
-    base = (f"{hello} Pendant votre absence ({away}), vos positions ont perdu {market_change:+.2f} ({equity_pct:+.1f}% du portefeuille)."
+    base = (f"{hello} Pendant votre absence ({away}), vos positions ont perdu {nombre_fr(market_change, 2, signe=True)} ({nombre_fr(equity_pct, 1, signe=True)}% du portefeuille)."
             if fr else
             f"{hello} While you were away ({away}), your positions lost {market_change:+.2f} ({equity_pct:+.1f}% of the portfolio).")
     if worst:
-        base += (f" {worst['symbol']} a le plus pesé ({worst['pct']:+.1f}%) — rien d'alarmant, c'est du paper trading."
+        base += (f" {worst['symbol']} a le plus pesé ({nombre_fr(worst['pct'], 1, signe=True)}%) — rien d'alarmant, c'est du paper trading."
                  if fr else f" {worst['symbol']} weighed most ({worst['pct']:+.1f}%) — nothing to worry about, it's paper trading.")
     return base + _extra()
 
