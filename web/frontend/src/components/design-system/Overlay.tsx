@@ -38,6 +38,8 @@ function Scrim({ onClose }: { onClose: () => void }) {
 function CloseButton({ onClose, label }: { onClose: () => void; label: string }) {
   return (
     <button
+      // Même raison que dans SegmentedControl : fermer n'est pas valider.
+      type="button"
       onClick={onClose}
       aria-label={label}
       className="absolute right-4 top-4 rounded-[8px] p-2 transition-colors hover:bg-[color:var(--cap-surface-2)]"

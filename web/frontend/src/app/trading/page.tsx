@@ -228,8 +228,11 @@ export default function TradingPage() {
           >
             <Text size="small" tone="ink">
               Plan repris de l&apos;analyse : {direction === "LONG" ? "achat" : "vente"}
-              {planSl != null && <> · stop à <Num>{planSl}</Num></>}
-              {planTp != null && <> · objectif à <Num>{planTp}</Num></>}
+              {/* Un prix passé par l'URL arrive en nombre brut : rendu tel
+                  quel, il s'écrit « 156.2 » au milieu d'une phrase française.
+                  Le formateur des cours le rend dans l'unité de l'écran. */}
+              {planSl != null && <> · stop à <Num>{assetPrice(planSl)}</Num></>}
+              {planTp != null && <> · objectif à <Num>{assetPrice(planTp)}</Num></>}
             </Text>
           </div>
         )}
@@ -428,7 +431,11 @@ export default function TradingPage() {
                 />
                 {liquidation != null && (
                   <Line
-                    label={`Liquidation (−${fr(100 / leverage, 0)} %)`}
+                    // Le signe suit le sens : sur une VENTE, c'est le cours
+                    // qui MONTE qui consomme la marge. « Liquidation (−20 %) »
+                    // à côté d'un prix supérieur au cours se lit comme une
+                    // erreur — et c'en serait une.
+                    label={`Liquidation (${direction === "LONG" ? "−" : "+"}${fr(100 / leverage, 0)} %)`}
                     value={assetPrice(liquidation)}
                     tone="down"
                   />

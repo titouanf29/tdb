@@ -44,6 +44,20 @@ export function SegmentedControl<T extends string>({
         return (
           <button
             key={opt.value}
+            // `type="button"`, ET C'EST TOUT LE CORRECTIF.
+            //
+            // Sans type, un <button> vaut `type="submit"`. Ce contrôle sert à
+            // CHOISIR, jamais à valider — mais placé dans un <form>, chacune
+            // de ses options envoyait le formulaire. Sur l'écran d'ordre,
+            // cliquer « Vente » pour passer en vente OUVRAIT la position :
+            // constaté dans le navigateur, un POST /wallet/positions/open
+            // partait au clic, avec le montant et le levier par défaut, et
+            // l'écran sautait à la confirmation sans qu'on ait pu régler quoi
+            // que ce soit. Vu de l'utilisateur, « la vente ne marche pas ».
+            //
+            // Le composant est utilisé dans sept écrans qui contiennent un
+            // formulaire, donc le défaut se corrige ici, pas au cas par cas.
+            type="button"
             role="tab"
             aria-selected={active}
             onClick={() => onChange(opt.value)}
