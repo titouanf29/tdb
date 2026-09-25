@@ -203,6 +203,11 @@ async def _init_postgres():
             ("accent_color",     "TEXT DEFAULT 'blue'"),
             ("recap_frequency",  "TEXT DEFAULT 'always'"),
             ("updated_at",       "TEXT"),
+            # Le courtier réel de l'utilisateur : quel produit il achète quand
+            # il prend du levier (CFD ou turbo), et ce que lui coûte un ordre.
+            ("broker",           "TEXT DEFAULT 'none'"),
+            ("order_mode",       "TEXT DEFAULT 'cfd'"),
+            ("order_fee",        "TEXT DEFAULT '0'"),
         ]:
             try:
                 await conn.execute(f"ALTER TABLE web_user_settings ADD COLUMN {col} {col_type}")
@@ -277,6 +282,22 @@ async def _init_postgres():
             await conn.execute("ALTER TABLE positions ADD COLUMN archived INTEGER DEFAULT 0")
         except Exception:
             pass  # la colonne existe déjà
+        # Les turbos (voir routes/_turbo.py) : un nombre entier de titres,
+        # achetés à un prix unitaire, avec une barrière désactivante. Et les
+        # frais de courtage, quel que soit le produit.
+        for col, col_type in [
+            ("instrument",    "TEXT DEFAULT 'cfd'"),
+            ("unites",        "INTEGER"),
+            ("prix_unitaire", "FLOAT"),
+            ("parite",        "FLOAT"),
+            ("barriere",      "FLOAT"),
+            ("frais_ordre",   "FLOAT DEFAULT 0"),
+            ("frais_payes",   "FLOAT DEFAULT 0"),
+        ]:
+            try:
+                await conn.execute(f"ALTER TABLE positions ADD COLUMN {col} {col_type}")
+            except Exception:
+                pass  # la colonne existe déjà
         await conn.execute("""
             CREATE TABLE IF NOT EXISTS admin_audit_log (
                 id SERIAL PRIMARY KEY,
@@ -670,6 +691,11 @@ async def _init_sqlite():
             ("accent_color",     "TEXT DEFAULT 'blue'"),
             ("recap_frequency",  "TEXT DEFAULT 'always'"),
             ("updated_at",       "TEXT"),
+            # Le courtier réel de l'utilisateur : quel produit il achète quand
+            # il prend du levier (CFD ou turbo), et ce que lui coûte un ordre.
+            ("broker",           "TEXT DEFAULT 'none'"),
+            ("order_mode",       "TEXT DEFAULT 'cfd'"),
+            ("order_fee",        "TEXT DEFAULT '0'"),
         ]:
             try:
                 await db.execute(f"ALTER TABLE web_user_settings ADD COLUMN {col} {col_type}")
@@ -746,6 +772,22 @@ async def _init_sqlite():
             await db.execute("ALTER TABLE positions ADD COLUMN archived INTEGER DEFAULT 0")
         except Exception:
             pass  # la colonne existe déjà
+        # Les turbos (voir routes/_turbo.py) : un nombre entier de titres,
+        # achetés à un prix unitaire, avec une barrière désactivante. Et les
+        # frais de courtage, quel que soit le produit.
+        for col, col_type in [
+            ("instrument",    "TEXT DEFAULT 'cfd'"),
+            ("unites",        "INTEGER"),
+            ("prix_unitaire", "REAL"),
+            ("parite",        "REAL"),
+            ("barriere",      "REAL"),
+            ("frais_ordre",   "REAL DEFAULT 0"),
+            ("frais_payes",   "REAL DEFAULT 0"),
+        ]:
+            try:
+                await db.execute(f"ALTER TABLE positions ADD COLUMN {col} {col_type}")
+            except Exception:
+                pass  # la colonne existe déjà
         await db.execute("""
             CREATE TABLE IF NOT EXISTS admin_audit_log (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,

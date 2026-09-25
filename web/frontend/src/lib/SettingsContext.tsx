@@ -27,6 +27,26 @@ export const RECAP_OPTIONS  = ["off", "always", "daily", "weekly"] as const;
 export const TRADING_STYLES = ["scalp", "day", "swing", "long"] as const;
 export const RISK_LEVELS    = ["conservative", "moderate", "aggressive", "very_aggressive"] as const;
 export const LEVERAGES      = ["1", "2", "5", "10"] as const;
+export const BROKERS        = ["none", "trade_republic", "boursorama", "degiro", "cfd", "other"] as const;
+export const ORDER_MODES    = ["cfd", "turbo"] as const;
+export type Broker = typeof BROKERS[number];
+export type OrderMode = typeof ORDER_MODES[number];
+
+/** Ce que fait chaque courtier quand on prend du levier, et ce que coûte un
+ *  ordre chez lui. Les frais sont des ordres de grandeur publics, modifiables. */
+export const BROKER_PRESETS: Record<Broker, { label: string; mode: OrderMode; fee: string; note: string }> = {
+  none:           { label: "Aucun en particulier", mode: "cfd",   fee: "0",    note: "Montant × levier, sans frais." },
+  trade_republic: { label: "Trade Republic",       mode: "turbo", fee: "1",    note: "Turbos en titres entiers, 1 € par ordre." },
+  boursorama:     { label: "Boursorama",           mode: "turbo", fee: "1.99", note: "Turbos en titres entiers, frais selon la formule." },
+  degiro:         { label: "DEGIRO",               mode: "turbo", fee: "2",    note: "Turbos en titres entiers, frais selon la bourse." },
+  cfd:            { label: "Courtier CFD (IG, eToro…)", mode: "cfd", fee: "0", note: "Montant × levier, coût dans l'écart." },
+  other:          { label: "Autre",                mode: "cfd",   fee: "0",    note: "Réglez le produit et les frais vous-même." },
+};
+
+function frais(v: unknown): string {
+  const n = typeof v === "string" || typeof v === "number" ? Number(String(v).replace(",", ".")) : NaN;
+  return Number.isFinite(n) && n >= 0 && n <= 50 ? String(n) : "0";
+}
 
 /** Labels are NOT stored here — they are t() keys (`settings_accent_<key>`). */
 /*
@@ -54,6 +74,11 @@ export interface Settings {
   recapFrequency: RecapFrequency;
   /** Maps to the server column `notifications_enabled`. */
   priceAlertsEnabled: boolean;
+  /** Le courtier réel : le formulaire d'ordre passe les trades comme lui. */
+  broker: Broker;
+  orderMode: OrderMode;
+  /** Frais par ordre, en euros, sous forme de texte (« 1 », « 1.99 »). */
+  orderFee: string;
 }
 
 interface SettingsContextType {
@@ -84,6 +109,9 @@ const defaultSettings: Settings = {
   accentColor: "blue",
   recapFrequency: "always",
   priceAlertsEnabled: true,
+  broker: "none",
+  orderMode: "cfd",
+  orderFee: "0",
 };
 
 const SettingsContext = createContext<SettingsContextType | null>(null);
@@ -109,6 +137,9 @@ function fromApi(remote: Partial<UserSettings> | undefined | null): Partial<Sett
   if (remote.accent_color !== undefined)    out.accentColor     = pick(remote.accent_color, ACCENT_COLORS, defaultSettings.accentColor);
   if (remote.recap_frequency !== undefined) out.recapFrequency  = pick(remote.recap_frequency, RECAP_OPTIONS, defaultSettings.recapFrequency);
   if (remote.notifications_enabled !== undefined) out.priceAlertsEnabled = !!remote.notifications_enabled;
+  if (remote.broker !== undefined)          out.broker          = pick(remote.broker, BROKERS, defaultSettings.broker);
+  if (remote.order_mode !== undefined)      out.orderMode       = pick(remote.order_mode, ORDER_MODES, defaultSettings.orderMode);
+  if (remote.order_fee !== undefined)       out.orderFee        = frais(remote.order_fee);
   return out;
 }
 
@@ -123,6 +154,9 @@ function toApi(patch: Partial<Settings>): Partial<UserSettings> {
   if (patch.accentColor !== undefined)        out.accent_color = patch.accentColor;
   if (patch.recapFrequency !== undefined)     out.recap_frequency = patch.recapFrequency;
   if (patch.priceAlertsEnabled !== undefined) out.notifications_enabled = patch.priceAlertsEnabled;
+  if (patch.broker !== undefined)             out.broker = patch.broker;
+  if (patch.orderMode !== undefined)          out.order_mode = patch.orderMode;
+  if (patch.orderFee !== undefined)           out.order_fee = patch.orderFee;
   return out;
 }
 
@@ -149,6 +183,9 @@ function readCache(): Settings {
       accentColor:     pick(c.accentColor, ACCENT_COLORS, defaultSettings.accentColor),
       recapFrequency:  pick(c.recapFrequency, RECAP_OPTIONS, defaultSettings.recapFrequency),
       priceAlertsEnabled: typeof c.priceAlertsEnabled === "boolean" ? c.priceAlertsEnabled : true,
+      broker:          pick(c.broker, BROKERS, defaultSettings.broker),
+      orderMode:       pick(c.orderMode, ORDER_MODES, defaultSettings.orderMode),
+      orderFee:        frais(c.orderFee),
     };
   } catch {
     try { localStorage.removeItem(STORAGE_KEY); } catch { /* ignore */ }

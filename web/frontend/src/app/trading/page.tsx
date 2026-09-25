@@ -3,13 +3,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
+import Link from "next/link";
 import {
   marketAPI, missionsAPI, walletAPI,
-  type Quote, type WalletBalance,
+  type DevisTurbo, type Quote, type WalletBalance,
 } from "@/lib/api";
 // `fr` : la virgule décimale. « 0.4 % » et « 6.6689 » dans un écran français
 // sont la faute qui revient le plus souvent dès qu'un nombre est affiché.
-import { fr, useSettings, convertCurrency, useFormatAssetPrice } from "@/lib/SettingsContext";
+import { fr, useSettings, convertCurrency, useFormatAssetPrice, BROKER_PRESETS } from "@/lib/SettingsContext";
 import {
   Button, Checkbox, Field, FormError, Heading, Num, Panel, SegmentedControl,
   Text, TextInput, WeatherBackdrop, useAnimationsEnabled,
@@ -38,6 +39,8 @@ import {
  */
 
 const RISK_PRESETS = [0.5, 1, 2, 5];
+const TURBO_LEVIER_MINI = 1.5;
+const TURBO_LEVIER_MAXI = 50;
 
 export default function TradingPage() {
   const router = useRouter();
@@ -74,6 +77,25 @@ export default function TradingPage() {
   const levelsTouched = useRef(false);
   const amountTouched = useRef(false);
   const leverageTouched = useRef(false);
+
+  // ── Le produit : CFD (montant × levier) ou turbo (titres entiers) ────────
+  // Repris du courtier enregistré dans les réglages, modifiable à chaque trade.
+  const [produit, setProduit] = useState<"cfd" | "turbo">("cfd");
+  const produitTouched = useRef(false);
+  const [unites, setUnites] = useState(0);
+  const unitesTouched = useRef(false);
+  const [devis, setDevis] = useState<DevisTurbo | null>(null);
+  const [devisError, setDevisError] = useState("");
+  const turbo = produit === "turbo";
+  const fraisOrdre = Number(settings.orderFee) || 0;
+  // Le levier d'un turbo vient de sa barrière : sous ×1,5 il n'y a pas de
+  // produit, et le levier ×1 d'un achat comptant n'a pas d'équivalent.
+  const levierTurbo = Math.min(TURBO_LEVIER_MAXI, Math.max(TURBO_LEVIER_MINI, leverage < TURBO_LEVIER_MINI ? 5 : leverage));
+  const levierEffectif = turbo ? levierTurbo : leverage;
+
+  useEffect(() => {
+    if (isLoaded && !produitTouched.current) setProduit(settings.orderMode);
+  }, [isLoaded, settings.orderMode]);
 
   const fallbackLevels = (px: number, dir: "LONG" | "SHORT") => ({
     tp: Math.round((dir === "LONG" ? px * 1.05 : px * 0.95) * 100) / 100,
@@ -130,18 +152,49 @@ export default function TradingPage() {
     : null;
   const riskBudget = balance ? (balance.balance * riskPct) / 100 : 0;
   const suggested = stopDistance && stopDistance > 0.0005 && balance
-    ? Math.max(10, Math.min(balance.balance, Math.round(riskBudget / (stopDistance * leverage))))
-    : null;
-  const actualRisk = stopDistance ? amount * leverage * stopDistance : null;
-  const actualRiskPct = actualRisk && balance?.balance
-    ? (actualRisk / balance.balance) * 100
+    ? Math.max(10, Math.min(balance.balance, Math.round(riskBudget / (stopDistance * levierEffectif))))
     : null;
 
   useEffect(() => {
     if (sizingOn && !amountTouched.current && suggested) setAmount(suggested);
   }, [sizingOn, suggested]);
 
-  const quantity = price > 0 ? (amount * leverage) / price : 0;
+
+  // Le turbo proposé au cours du moment. Le serveur le recalcule à
+  // l'exécution : entre les deux, le cours a pu bouger, comme en vrai.
+  useEffect(() => {
+    if (!turbo || !quote || price <= 0) { setDevis(null); return; }
+    let vivant = true;
+    const t = setTimeout(() => {
+      walletAPI.devisTurbo({ symbol: symbol.toUpperCase(), direction, levier: levierTurbo, montant: 0 })
+        .then((d) => { if (vivant) { setDevis(d); setDevisError(""); } })
+        .catch((e) => { if (vivant) { setDevis(null); setDevisError(e instanceof Error ? e.message : "Turbo indisponible."); } });
+    }, 400);
+    return () => { vivant = false; clearTimeout(t); };
+  }, [turbo, quote, price, symbol, direction, levierTurbo]);
+
+  const prixTitre = devis?.prix_titre ?? 0;
+  // Le budget donne le nombre de titres, tant que l'utilisateur n'a pas tapé
+  // lui-même un nombre de titres.
+  useEffect(() => {
+    if (turbo && prixTitre > 0 && !unitesTouched.current) {
+      setUnites(Math.max(0, Math.floor(amount / prixTitre + 1e-9)));
+    }
+  }, [turbo, prixTitre, amount]);
+
+  const coutTitres = Math.round(unites * prixTitre * 100) / 100;
+  const exposition = turbo ? unites * (devis?.parite ?? 0) * price : amount * leverage;
+  const totalDebite = (turbo ? coutTitres : amount) + fraisOrdre;
+  const quantity = turbo
+    ? unites * (devis?.parite ?? 0)
+    : price > 0 ? (amount * leverage) / price : 0;
+  const risqueStop = stopDistance != null && price > 0
+    ? quantity * price * stopDistance + fraisOrdre * 2 + (turbo ? unites * (devis?.ecart_titre ?? 0) : 0)
+    : null;
+  const risqueStopPct = risqueStop != null && balance?.balance ? (risqueStop / balance.balance) * 100 : null;
+  const stopSousBarriere = turbo && devis && useSL && stopLoss != null && (
+    direction === "LONG" ? stopLoss <= devis.barriere : stopLoss >= devis.barriere
+  );
 
   /**
    * Le cours auquel la marge est entièrement consommée.
@@ -151,9 +204,11 @@ export default function TradingPage() {
    * « à 132,12 € vous avez tout perdu ». Le calcul est celui du serveur —
    * un mouvement de 1 ÷ levier contre soi — pour qu'un seul nombre circule.
    */
-  const liquidation = leverage > 1 && price > 0
-    ? (direction === "LONG" ? price - price / leverage : price + price / leverage)
-    : null;
+  const liquidation = turbo
+    ? devis?.barriere ?? null
+    : leverage > 1 && price > 0
+      ? (direction === "LONG" ? price - price / leverage : price + price / leverage)
+      : null;
 
   // Un COURS, pas une somme : sur un actif à 0,34 €, deux décimales
   // affichent la même valeur avant et après un mouvement réel.
@@ -169,11 +224,27 @@ export default function TradingPage() {
     [settings.currency, eurUsd]
   );
 
+  /** Le prix d'un titre : au millième sous 1 €, sinon « 0,055 € » s'affiche 0,06 €. */
+  const moneyTitre = useCallback(
+    (v: number) =>
+      convertCurrency(v, "EUR", settings.currency, eurUsd).toLocaleString("fr-FR", {
+        style: "currency",
+        currency: settings.currency,
+        minimumFractionDigits: v < 1 ? 3 : 2,
+        maximumFractionDigits: v < 1 ? 3 : 2,
+      }),
+    [settings.currency, eurUsd]
+  );
+
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!quote || price <= 0) return setError(quoteError || "Choisissez un actif valide.");
-    if (amount > (balance?.balance ?? 0)) return setError("Solde insuffisant.");
-    if (amount < 10) return setError("Le montant minimum est de 10 €.");
+    if (totalDebite > (balance?.balance ?? 0)) return setError("Solde insuffisant.");
+    if (turbo) {
+      if (!devis) return setError(devisError || "Le turbo n'est pas encore calculé.");
+      if (unites < 1) return setError(`Il faut au moins un titre (${moneyTitre(prixTitre)} l'unité).`);
+      if (stopSousBarriere) return setError("Ce stop est au-delà de la barrière : le turbo serait désactivé avant.");
+    } else if (amount < 10) return setError("Le montant minimum est de 10 €.");
 
     setError("");
     setSuccess("");
@@ -182,12 +253,16 @@ export default function TradingPage() {
       const r = await walletAPI.openPosition({
         symbol: symbol.toUpperCase(),
         direction,
-        amount,
-        leverage,
+        amount: turbo ? coutTitres : amount,
+        leverage: turbo ? levierTurbo : leverage,
+        instrument: produit,
+        unites: turbo ? unites : undefined,
         take_profit: useTP ? takeProfit ?? undefined : undefined,
         stop_loss: useSL ? stopLoss ?? undefined : undefined,
       });
-      setSuccess(`Position ouverte à ${money(r.entry_price || price)}.`);
+      setSuccess(turbo && r.turbo
+        ? `${r.turbo.unites} titres achetés à ${moneyTitre(r.turbo.prix_titre)}${r.frais ? `, plus ${money(r.frais)} de frais` : ""}.`
+        : `Position ouverte à ${money(r.entry_price || price)}.`);
       if (balance) setBalance({ ...balance, balance: r.new_balance });
       missionsAPI.recordAction("position_open").catch(() => {});
       setTimeout(() => router.push("/wallet"), 1800);
@@ -199,10 +274,10 @@ export default function TradingPage() {
   };
 
   const riskTone = useMemo(() => {
-    if (actualRiskPct == null) return "muted" as const;
-    if (actualRiskPct > 5) return "down" as const;
+    if (risqueStopPct == null) return "muted" as const;
+    if (risqueStopPct > 5) return "down" as const;
     return "ink" as const;
-  }, [actualRiskPct]);
+  }, [risqueStopPct]);
 
   return (
     <>
@@ -357,6 +432,33 @@ export default function TradingPage() {
               }
             >
               <div className="space-y-5">
+                <div>
+                  <span className="mb-1.5 block text-[0.85rem] font-medium" style={{ color: "var(--cap-ink)" }}>
+                    Produit
+                  </span>
+                  <SegmentedControl
+                    options={[
+                      { value: "cfd", label: "Montant × levier" },
+                      { value: "turbo", label: "Turbo" },
+                    ]}
+                    value={produit}
+                    onChange={(v) => {
+                      produitTouched.current = true;
+                      setProduit(v as "cfd" | "turbo");
+                    }}
+                    aria-label="Produit"
+                  />
+                  <Text size="caption" className="mt-2">
+                    {turbo
+                      ? "Des titres entiers d'un produit à barrière, comme chez Trade Republic ou Boursorama."
+                      : "Une somme multipliée par le levier, comme un CFD."}
+                    {settings.broker !== "none" && <> · {BROKER_PRESETS[settings.broker].label}</>}
+                    {fraisOrdre > 0 && <>, {money(fraisOrdre)} par ordre</>}
+                    {" · "}
+                    <Link href="/settings?section=trading" className="underline underline-offset-2">Mon courtier</Link>
+                  </Text>
+                </div>
+
                 <Checkbox checked={sizingOn} onChange={setSizingOn}>
                   Calculer la taille à partir de mon risque
                 </Checkbox>
@@ -392,42 +494,79 @@ export default function TradingPage() {
                   </div>
                 )}
 
-                <Field label="Montant" htmlFor="tr-amount">
+                <Field label={turbo ? "Budget" : "Montant"} htmlFor="tr-amount"
+                  hint={turbo ? "Converti en nombre entier de titres." : undefined}>
                   <TextInput
                     id="tr-amount"
                     value={String(amount)}
                     onChange={(v) => {
                       amountTouched.current = true;
-                      setAmount(Number(v) || 0);
+                      unitesTouched.current = false;
+                      setAmount(Number(v.replace(",", ".")) || 0);
                     }}
                   />
                 </Field>
 
-                <Field label="Levier" htmlFor="tr-lev" hint="x1 = aucun levier.">
+                <Field
+                  label={turbo ? "Levier du turbo" : "Levier"}
+                  htmlFor="tr-lev"
+                  hint={turbo
+                    ? `De ×${fr(TURBO_LEVIER_MINI, 1)} à ×${TURBO_LEVIER_MAXI}. Il fixe la barrière.`
+                    : "x1 = aucun levier."}
+                >
                   <TextInput
                     id="tr-lev"
-                    value={String(leverage)}
+                    value={String(turbo ? levierTurbo : leverage)}
                     onChange={(v) => {
                       leverageTouched.current = true;
-                      setLeverage(Math.max(1, Number(v) || 1));
+                      const n = Number(v.replace(",", "."));
+                      setLeverage(Number.isFinite(n) && n > 0 ? n : 1);
                     }}
                   />
                 </Field>
+
+                {turbo && (
+                  <Field
+                    label="Nombre de titres"
+                    htmlFor="tr-units"
+                    error={devisError || undefined}
+                    hint={devis ? `${moneyTitre(prixTitre)} le titre` : "Calcul du turbo…"}
+                  >
+                    <TextInput
+                      id="tr-units"
+                      value={String(unites)}
+                      onChange={(v) => {
+                        unitesTouched.current = true;
+                        setUnites(Math.max(0, Math.floor(Number(v) || 0)));
+                      }}
+                    />
+                  </Field>
+                )}
               </div>
             </Panel>
 
             <Panel title="Ce que ça engage">
               <dl className="space-y-3">
-                <Line label="Quantité" value={price > 0 ? fr(quantity, 4) : "—"} />
-                <Line label="Exposition" value={money(amount * leverage)} />
+                {turbo ? (
+                  <>
+                    <Line label="Prix d'un titre" value={devis ? moneyTitre(prixTitre) : "—"} />
+                    <Line label="Titres" value={devis ? `${unites} × ${moneyTitre(prixTitre)}` : "—"} />
+                    <Line label="Coût des titres" value={money(coutTitres)} />
+                  </>
+                ) : (
+                  <Line label="Quantité" value={price > 0 ? fr(quantity, 4) : "—"} />
+                )}
+                {fraisOrdre > 0 && <Line label="Frais d'achat" value={money(fraisOrdre)} />}
+                {(turbo || fraisOrdre > 0) && <Line label="Total débité" value={money(totalDebite)} />}
+                <Line label="Exposition" value={money(exposition)} />
                 <Line
                   label="Risque si le stop est touché"
                   value={
-                    actualRisk != null
-                      ? `${money(actualRisk)}${actualRiskPct != null ? ` · ${fr(actualRiskPct, 1)} %` : ""}`
-                      : "non défini"
+                    risqueStop != null && !stopSousBarriere
+                      ? `${money(risqueStop)}${risqueStopPct != null ? ` · ${fr(risqueStopPct, 1)} %` : ""}`
+                      : stopSousBarriere ? "stop au-delà de la barrière" : "non défini"
                   }
-                  tone={riskTone}
+                  tone={stopSousBarriere ? "down" : riskTone}
                 />
                 {liquidation != null && (
                   <Line
@@ -435,7 +574,7 @@ export default function TradingPage() {
                     // qui MONTE qui consomme la marge. « Liquidation (−20 %) »
                     // à côté d'un prix supérieur au cours se lit comme une
                     // erreur — et c'en serait une.
-                    label={`Liquidation (${direction === "LONG" ? "−" : "+"}${fr(100 / leverage, 0)} %)`}
+                    label={`${turbo ? "Barrière" : "Liquidation"} (${direction === "LONG" ? "−" : "+"}${fr(100 / (turbo ? levierTurbo : leverage), turbo ? 1 : 0)} %)`}
                     value={assetPrice(liquidation)}
                     tone="down"
                   />
@@ -443,7 +582,22 @@ export default function TradingPage() {
                 {balance && <Line label="Solde disponible" value={money(balance.balance)} />}
               </dl>
 
-              {liquidation != null && (
+              {turbo && liquidation != null && (
+                <div className="mt-4">
+                  <Text size="caption">
+                    Si le cours touche la barrière, le turbo est désactivé : les{" "}
+                    {money(coutTitres)} de titres ne valent plus rien, et il n&apos;y a
+                    rien à vendre. Vous ne pouvez pas perdre plus que ce que vous avez payé.
+                    {devis && devis.parite < 1 && (
+                      <> Parité {devis.parite.toLocaleString("fr-FR", { maximumFractionDigits: 4 })} :
+                        il faut {Math.round(1 / devis.parite).toLocaleString("fr-FR")} titres pour suivre
+                        une unité de {symbol.toUpperCase()}.</>
+                    )}
+                  </Text>
+                </div>
+              )}
+
+              {!turbo && liquidation != null && (
                 <div className="mt-4">
                   <Text size="caption">
                     À ce cours, la totalité des {money(amount)} engagés est perdue et la
@@ -454,7 +608,7 @@ export default function TradingPage() {
                 </div>
               )}
 
-              {actualRiskPct != null && actualRiskPct > 5 && (
+              {risqueStopPct != null && risqueStopPct > 5 && (
                 <div className="mt-4">
                   <Text size="caption" tone="down">
                     Plus de 5 % du capital sur une seule position. C&apos;est
@@ -491,7 +645,9 @@ export default function TradingPage() {
                   Ouverture…
                 </>
               ) : (
-                `Ouvrir la position ${direction === "LONG" ? "à l'achat" : "à la vente"}`
+                turbo
+                  ? `Acheter ${unites} titre${unites > 1 ? "s" : ""} · turbo ${direction === "LONG" ? "long" : "short"}`
+                  : `Ouvrir la position ${direction === "LONG" ? "à l'achat" : "à la vente"}`
               )}
             </Button>
           </div>
@@ -513,7 +669,7 @@ function Line({
   return (
     <div className="flex items-baseline justify-between gap-4">
       <dt className="text-[0.85rem]" style={{ color: "var(--cap-ink-2)" }}>{label}</dt>
-      <dd>
+      <dd className="shrink-0 whitespace-nowrap">
         <Num tone={tone} className="text-[0.9rem]">{value}</Num>
       </dd>
     </div>

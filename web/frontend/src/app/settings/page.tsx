@@ -5,7 +5,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Download, Loader2, LogOut, Trash2 } from "lucide-react";
 import { useAuth } from "@/lib/AuthContext";
 import {
-  useSettings, type AccentColor, type Currency, type RecapFrequency,
+  useSettings, BROKERS, BROKER_PRESETS,
+  type AccentColor, type Broker, type Currency, type OrderMode, type RecapFrequency,
 } from "@/lib/SettingsContext";
 import { TRADING_STYLES, TRADING_STYLE_IDS, type TradingStyleId } from "@/lib/tradingStyle";
 import { accountAPI, alertsAPI, type PriceAlert } from "@/lib/api";
@@ -649,7 +650,123 @@ function TradingSection() {
           </Text>
         </div>
       </Panel>
+
+      <CourtierPanel />
     </>
+  );
+}
+
+const MODES: Option<OrderMode>[] = [
+  {
+    value: "cfd",
+    label: "Montant × levier (CFD)",
+    detail: "Vous engagez une somme, le levier la multiplie. Liquidation quand la perte atteint la marge.",
+  },
+  {
+    value: "turbo",
+    label: "Turbos, en nombre de titres",
+    detail: "Vous achetez un nombre entier de titres à quelques centimes ou quelques euros. Le levier est dans le produit, avec une barrière qui le désactive.",
+  },
+];
+
+/**
+ * Le courtier réel de l'utilisateur. Chez Trade Republic, on n'engage pas
+ * « 100 € × 5 » : on achète 6 titres d'un turbo à 16,74 €, plus 1 € de frais.
+ * Le simulateur s'en souvient et passe les ordres de la même façon.
+ */
+function CourtierPanel() {
+  const { settings, saveSettings } = useSettings();
+  const [fee, setFee] = useState(settings.orderFee.replace(".", ","));
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+
+  useEffect(() => { setFee(settings.orderFee.replace(".", ",")); }, [settings.orderFee]);
+
+  const enregistrer = async (patch: Parameters<typeof saveSettings>[0]) => {
+    setBusy(true);
+    setMsg(null);
+    try {
+      await saveSettings(patch);
+      setMsg({ ok: true, text: "Enregistré." });
+      setTimeout(() => setMsg(null), 2500);
+    } catch {
+      setMsg({ ok: false, text: "Enregistrement impossible." });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const choisirCourtier = (b: Broker) => {
+    const p = BROKER_PRESETS[b];
+    enregistrer({ broker: b, orderMode: p.mode, orderFee: p.fee });
+  };
+
+  const validerFrais = () => {
+    const n = Number(fee.replace(",", ".").trim());
+    if (!Number.isFinite(n) || n < 0 || n > 50) {
+      setMsg({ ok: false, text: "Des frais entre 0 et 50 €." });
+      return;
+    }
+    if (String(n) !== settings.orderFee) enregistrer({ orderFee: String(n) });
+  };
+
+  return (
+    <Panel
+      title="Votre courtier"
+      hint="Le formulaire d'ordre reprend la façon dont votre courtier réel vend le levier, et ses frais."
+      aside={msg ? <Text size="caption" as="span" tone={msg.ok ? "up" : "down"}>{msg.text}</Text> : undefined}
+    >
+      <div className="space-y-5">
+        <div>
+          <label htmlFor="set-broker" className="mb-1.5 block text-[13px] font-medium" style={{ color: "var(--cap-ink-2)" }}>
+            Courtier
+          </label>
+          <select
+            id="set-broker"
+            value={settings.broker}
+            disabled={busy}
+            onChange={(e) => choisirCourtier(e.target.value as Broker)}
+            className="h-11 w-full rounded-[10px] px-3 text-[15px] sm:max-w-sm"
+            style={{ backgroundColor: "var(--cap-surface-2)", color: "var(--cap-ink)", boxShadow: "inset 0 0 0 1px var(--cap-line)" }}
+          >
+            {BROKERS.map((b) => (
+              <option key={b} value={b}>{BROKER_PRESETS[b].label}</option>
+            ))}
+          </select>
+          <Text size="caption" className="mt-1.5">{BROKER_PRESETS[settings.broker].note}</Text>
+        </div>
+
+        <Choice
+          name="Produit à levier"
+          options={MODES}
+          value={settings.orderMode}
+          onChange={(v) => enregistrer({ orderMode: v })}
+          disabled={busy}
+        />
+
+        <div>
+          <label htmlFor="set-fee" className="mb-1.5 block text-[13px] font-medium" style={{ color: "var(--cap-ink-2)" }}>
+            Frais par ordre (€)
+          </label>
+          <div className="flex items-center gap-3">
+            <input
+              id="set-fee"
+              inputMode="decimal"
+              value={fee}
+              disabled={busy}
+              onChange={(e) => setFee(e.target.value)}
+              onBlur={validerFrais}
+              onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
+              className="h-11 w-28 rounded-[10px] px-3 text-[15px] tabular-nums"
+              style={{ backgroundColor: "var(--cap-surface-2)", color: "var(--cap-ink)", boxShadow: "inset 0 0 0 1px var(--cap-line)" }}
+            />
+            <Text size="caption" as="span">
+              Payés à l&apos;achat et à la vente. Un turbo désactivé ne se vend pas : pas de frais de sortie.
+            </Text>
+          </div>
+        </div>
+      </div>
+    </Panel>
   );
 }
 

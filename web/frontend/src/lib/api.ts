@@ -182,6 +182,13 @@ export const walletAPI = {
   getPositions: (status = "open") =>
     fetchAPI<{ positions: Position[] }>(`/api/wallet/positions?status=${status}`),
 
+  devisTurbo: (p: { symbol: string; direction: "LONG" | "SHORT"; levier: number; montant?: number; unites?: number }) => {
+    const q = new URLSearchParams({ symbol: p.symbol, direction: p.direction, levier: String(p.levier) });
+    if (p.unites) q.set("unites", String(p.unites));
+    else q.set("montant", String(p.montant ?? 0));
+    return fetchAPI<DevisTurbo>(`/api/wallet/turbo/devis?${q}`);
+  },
+
   openPosition: (data: OpenPositionData) =>
     fetchAPI<PositionResult>("/api/wallet/positions/open", {
       method: "POST",
@@ -254,6 +261,9 @@ export interface UserSettings {
   default_leverage: string;
   accent_color: string;
   recap_frequency: string;
+  broker?: string;
+  order_mode?: string;
+  order_fee?: string;
   trading_level?: string | null;
   updated_at?: string | null;
 }
@@ -1004,6 +1014,18 @@ export interface Position {
   realized_pnl?: number;
   created_at: string;
   closed_at?: string;
+  /** « cfd » (montant × levier) ou « turbo » (titres entiers à barrière). */
+  instrument?: "cfd" | "turbo";
+  unites?: number | null;
+  prix_unitaire?: number | null;
+  parite?: number | null;
+  barriere?: number | null;
+  frais_ordre?: number | null;
+  /** Frais de courtage déjà payés (achat, puis vente une fois clôturée). */
+  frais_payes?: number | null;
+  prix_titre_actuel?: number | null;
+  levier_actuel?: number | null;
+  distance_barriere_pct?: number | null;
 }
 
 export interface OpenPositionData {
@@ -1013,6 +1035,29 @@ export interface OpenPositionData {
   leverage?: number;
   take_profit?: number;
   stop_loss?: number;
+  instrument?: "cfd" | "turbo";
+  unites?: number;
+}
+
+/** Le turbo qu'un courtier proposerait, calculé par le serveur au cours du moment. */
+export interface DevisTurbo {
+  direction: "LONG" | "SHORT";
+  levier: number;
+  exercice: number;
+  barriere: number;
+  parite: number;
+  prix_juste: number;
+  prix_titre: number;
+  ecart_titre: number;
+  mouvement_desactivation_pct: number;
+  cours: number;
+  unites: number;
+  cout_titres: number;
+  frais: number;
+  total: number;
+  exposition: number;
+  perte_maxi: number;
+  montant_non_investi: number;
 }
 
 /** Le bilan d'un trade clôturé, produit PAR LE SERVEUR.
@@ -1048,6 +1093,10 @@ export interface PositionResult {
   realized_pnl?: number;
   review?: TradeReview | null;
   new_balance: number;
+  instrument?: "cfd" | "turbo";
+  turbo?: DevisTurbo | null;
+  frais?: number;
+  liquidated?: boolean;
 }
 
 /** Le bilan d'un actif sur l'ensemble des trades, pas la liste des trades. */

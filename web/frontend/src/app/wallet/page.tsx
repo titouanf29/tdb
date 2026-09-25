@@ -438,12 +438,21 @@ export default function WalletPage() {
                           className="rounded-[6px] px-1.5 py-0.5 text-[0.7rem]"
                           style={{ backgroundColor: "var(--cap-surface-2)", color: "var(--cap-ink-3)" }}
                         >
-                          {p.direction === "LONG" ? "Achat" : "Vente"}
-                          {p.leverage > 1 ? ` ×${p.leverage}` : ""}
+                          {p.instrument === "turbo"
+                            ? `Turbo ${p.direction === "LONG" ? "long" : "short"} ×${fr(p.levier_actuel ?? p.leverage, 1)}`
+                            : <>{p.direction === "LONG" ? "Achat" : "Vente"}{p.leverage > 1 ? ` ×${p.leverage}` : ""}</>}
                         </span>
                       </div>
                       <Text size="caption" className="mt-1">
+                        {p.instrument === "turbo" && p.unites
+                          ? <>{p.unites} titres à {fr(p.prix_unitaire ?? 0, (p.prix_unitaire ?? 0) < 1 ? 3 : 2)} €
+                              {p.status !== "closed" && p.prix_titre_actuel != null && <> (maintenant {fr(p.prix_titre_actuel, p.prix_titre_actuel < 1 ? 3 : 2)} €)</>}
+                              {" · "}barrière {assetPrice(p.barriere ?? 0)}
+                              {p.status !== "closed" && p.distance_barriere_pct != null && <> à {fr(p.distance_barriere_pct, 1)} %</>}
+                              {" · "}</>
+                          : null}
                         {money(p.amount)} · entrée {assetPrice(p.entry_price)}
+                        {p.frais_payes ? ` · frais ${money(p.frais_payes)}` : ""}
                         {p.status === "closed" ? "" : p.stop_loss ? ` · stop ${assetPrice(p.stop_loss)}` : ""}
                         {p.status === "closed" ? "" : p.take_profit ? ` · objectif ${assetPrice(p.take_profit)}` : ""}
                       </Text>

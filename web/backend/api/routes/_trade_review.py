@@ -19,6 +19,7 @@ reproche à chaque ligne se fait ignorer aussi vite qu'un journal vide.
 """
 
 from datetime import datetime, timezone
+from ._turbo import prix_titre_fr
 
 
 def _fmt(v) -> str:
@@ -97,6 +98,12 @@ def build_advice(pos: dict, exit_price: float, pnl: float,
             f"L'objectif à {_fmt(tp)} a été atteint et la position s'est fermée toute seule. "
             "Le plan est allé au bout sans intervention."
         )
+    elif closed_by == "liquidation" and pos.get("instrument") == "turbo":
+        out.append(
+            f"Le cours a touché la barrière du turbo à {_fmt(exit_price)} : le produit est "
+            "désactivé et ne vaut plus rien. Contrairement à un stop, la barrière ne se "
+            "déplace pas et ne se discute pas — c'est le prix du levier inclus dans le titre."
+        )
     elif closed_by == "liquidation":
         lev = pos.get("leverage") or 1
         out.append(
@@ -113,8 +120,10 @@ def build_advice(pos: dict, exit_price: float, pnl: float,
             # « elle s'est arrêtée parce que vous avez clôturé » est faux quand
             # c'est l'appel de marge qui a fermé : l'utilisateur n'a rien fait,
             # et c'est précisément le reproche à formuler.
-            "Aucun stop n'était posé, et c'est l'appel de marge qui a fini par arrêter la "
-            "perte — c'est-à-dire au pire endroit possible, quand il ne restait plus rien "
+            ("Aucun stop n'était posé, et c'est la barrière qui a fini par arrêter la "
+             if pos.get("instrument") == "turbo" else
+             "Aucun stop n'était posé, et c'est l'appel de marge qui a fini par arrêter la ")
+            + "perte — c'est-à-dire au pire endroit possible, quand il ne restait plus rien "
             "à perdre. Un stop, même large, aurait fermé avant."
             if closed_by == "liquidation" else
             "Aucun stop n'était posé. Cette perte n'avait pas de plancher : elle s'est "
@@ -199,20 +208,27 @@ def review(pos: dict, exit_price: float, pnl: float, *,
     # Les faits, écrits pour être relus dans six mois : ce sont ceux que la
     # mémoire déforme en premier.
     lignes = [
-        f"{pos.get('symbol')} · {'achat' if long else 'vente à découvert'}"
-        + (f" · levier ×{leverage}" if leverage > 1 else ""),
+        (f"{pos.get('symbol')} · turbo {'long' if long else 'short'} · "
+         f"{pos.get('unites')} titres à {prix_titre_fr(pos.get('prix_unitaire'))} · "
+         f"barrière {_fmt(pos.get('barriere'))}"
+         if pos.get("instrument") == "turbo" and pos.get("barriere") else
+         f"{pos.get('symbol')} · {'achat' if long else 'vente à découvert'}"
+         + (f" · levier ×{leverage}" if leverage > 1 else "")),
         f"Entrée à {_fmt(entry)}, sortie à {_fmt(exit_price)} après {_duration(minutes)}.",
         (f"Plan : stop {_fmt(sl) if sl is not None else 'aucun'}, "
          f"objectif {_fmt(tp) if tp is not None else 'aucun'}"
          + (f", rapport 1 : {rr}".replace(".", ",") if rr else "") + ".")
         if (sl is not None or tp is not None) else "Aucun niveau n'était posé au départ.",
-        f"Résultat : {'+' if pnl >= 0 else ''}{_eur(pnl)} sur {_eur(amount)} engagés.",
+        f"Résultat : {'+' if pnl >= 0 else ''}{_eur(pnl)} sur {_eur(amount)} engagés"
+        + (f", frais de courtage compris ({_eur(pos.get('frais_ordre'))} par ordre)."
+           if float(pos.get("frais_ordre") or 0) > 0 else "."),
     ]
     if closed_by:
         lignes.append(
             # « sur le objectif » — l'élision manquait.
             "Clôture automatique sur "
             + ("le stop." if closed_by == "stop_loss"
+               else "la barrière du turbo." if closed_by == "liquidation" and pos.get("instrument") == "turbo"
                else "appel de marge." if closed_by == "liquidation"
                else "l'objectif.")
         )

@@ -11,6 +11,7 @@ from .auth import get_current_user
 from .premium import get_user_limits
 from .market import SYMBOL_NAMES
 from ._trade_review import review as review_trade, _fmt as fmt_price, _eur as fmt_eur
+from . import _turbo
 
 router = APIRouter()
 
@@ -25,10 +26,15 @@ def get_user_id(user: dict) -> str:
 class OpenPositionRequest(BaseModel):
     symbol: str
     direction: str  # "LONG" or "SHORT"
-    amount: float
-    leverage: int = 1
+    amount: float = 0
+    leverage: float = 1
     take_profit: Optional[float] = None
     stop_loss: Optional[float] = None
+    # « cfd » : un montant × un levier. « turbo » : un nombre entier de
+    # titres d'un produit à barrière (voir _turbo.py). Sans précision, le
+    # mode enregistré dans les réglages de l'utilisateur s'applique.
+    instrument: Optional[str] = None
+    unites: Optional[int] = None
 
 
 class ClosePositionRequest(BaseModel):
@@ -140,7 +146,7 @@ async def _execute_levels(user_id, positions: list, numeric_id=None) -> list:
         # premier. Un stop placé au-delà de la liquidation — ce qui arrive dès
         # qu'on met un stop à 15 % avec un levier ×10 — ne sera donc jamais
         # atteint : le courtier ferme avant.
-        liq = prix_de_liquidation(pos["entry_price"], direction, pos.get("leverage"))
+        liq = niveau_de_sortie_forcee(pos)
 
         hit, level = None, None
         if direction == "LONG":
@@ -159,23 +165,24 @@ async def _execute_levels(user_id, positions: list, numeric_id=None) -> list:
         if not hit:
             continue
 
-        entry = pos["entry_price"]
-        quantity = pos["quantity"]
         amount = pos.get("amount") or 0
-        move = (level - entry) if direction == "LONG" else (entry - level)
-        realized = move * quantity
+        brut = resultat_brut(pos, level)
+        sortie = frais_de_sortie(pos, brut)
+        # Le résultat net : ce que le trade a vraiment rapporté ou coûté, frais
+        # d'achat et de vente compris.
+        realized = brut - float(pos.get("frais_payes") or 0) - sortie
 
         # Le capital engagé revient, augmenté ou diminué du résultat. Une
         # position ne peut pas rendre moins que zéro : au-delà, le simulateur
         # laisserait un solde négatif que rien ne permet de rattraper.
-        credit = max(0.0, amount + realized)
+        credit = max(0.0, amount + brut - sortie)
 
         await execute_write(
             """UPDATE positions
                SET status = 'closed', exit_price = ?, realized_pnl = ?,
-                   closed_at = ?
+                   closed_at = ?, frais_payes = COALESCE(frais_payes, 0) + ?
                WHERE id = ? AND status = 'open'""",
-            (_px(level), round(realized, 4), now, pos["id"]),
+            (_px(level), round(realized, 4), now, sortie, pos["id"]),
         )
 
         # ── QUI A REELLEMENT FERME LA POSITION ? ─────────────────────────
@@ -220,6 +227,8 @@ async def _execute_levels(user_id, positions: list, numeric_id=None) -> list:
                                    style=style, closed_by=hit)
                 gagnant = realized >= 0
                 titre = (f"Objectif atteint sur {pos['symbol']}" if hit == "take_profit"
+                         else f"Turbo désactivé sur {pos['symbol']}"
+                         if hit == "liquidation" and pos.get("instrument") == "turbo"
                          else f"Position liquidée sur {pos['symbol']}" if hit == "liquidation"
                          else f"Stop touché sur {pos['symbol']}")
                 # Virgule décimale : un message qui dit « 0.3521 · -42.86 € »
@@ -227,7 +236,11 @@ async def _execute_levels(user_id, positions: list, numeric_id=None) -> list:
                 # souvent dès qu'un nombre est mis dans une phrase.
                 await _notify(
                     numeric_id, "position_closed", titre,
-                    (f"Le levier ×{pos.get('leverage')} a consommé toute la marge à "
+                    (f"Le cours a touché la barrière du turbo à {fmt_price(level)} · "
+                     f"{fmt_eur(realized)}. Le produit est désactivé : il ne vaut plus rien, "
+                     "c'est le risque propre aux turbos."
+                     if hit == "liquidation" and pos.get("instrument") == "turbo" else
+                     f"Le levier ×{pos.get('leverage')} a consommé toute la marge à "
                      f"{fmt_price(level)} · {fmt_eur(realized)}. La position a été fermée "
                      "d'office : c'est ce qu'un courtier appelle un appel de marge."
                      if hit == "liquidation" else
@@ -252,6 +265,48 @@ async def _execute_levels(user_id, positions: list, numeric_id=None) -> list:
         })
 
     return closed
+
+
+def niveau_de_sortie_forcee(pos: dict) -> float | None:
+    """Le cours auquel la position est fermée d'office, quel que soit le produit.
+
+    CFD : la liquidation, quand la perte a mangé la marge. Turbo : la
+    barrière désactivante, fixée à l'achat et écrite sur le produit.
+    """
+    if (pos.get("instrument") or "cfd") == "turbo" and pos.get("barriere"):
+        return float(pos["barriere"])
+    return prix_de_liquidation(pos.get("entry_price"), pos.get("direction"),
+                               pos.get("leverage"))
+
+
+def resultat_brut(pos: dict, cours: float) -> float:
+    """Le gain ou la perte au cours donné, AVANT frais de courtage.
+
+    CFD : le mouvement × la quantité, jamais pire que la marge engagée.
+    Turbo : ce que valent les titres (jamais moins que zéro) moins ce qu'ils
+    ont coûté. L'écart d'achat — un tick par titre — y est donc compté, comme
+    chez un vrai émetteur.
+    """
+    direction = (pos.get("direction") or "LONG").upper()
+    amount = float(pos.get("amount") or 0)
+    if (pos.get("instrument") or "cfd") == "turbo" and pos.get("barriere"):
+        exercice = float(pos["barriere"])
+        ecart = (cours - exercice) if direction == "LONG" else (exercice - cours)
+        valeur = max(0.0, ecart) * float(pos.get("parite") or 0) * int(pos.get("unites") or 0)
+        return valeur - amount
+    entry = float(pos["entry_price"])
+    move = (cours - entry) if direction == "LONG" else (entry - cours)
+    pnl = move * float(pos["quantity"])
+    return max(pnl, -amount) if amount else pnl
+
+
+def frais_de_sortie(pos: dict, brut: float) -> float:
+    """Les frais d'un ordre de vente. Un turbo désactivé ne se vend pas : il
+    n'y a pas d'ordre, donc pas de frais — et on ne facture jamais plus que
+    ce que la position rend."""
+    frais = float(pos.get("frais_ordre") or 0)
+    rendu = float(pos.get("amount") or 0) + brut
+    return round(min(frais, max(0.0, rendu)), 4)
 
 
 def prix_de_liquidation(entry: float, direction: str, leverage: float) -> float | None:
@@ -301,6 +356,17 @@ def _px(value: float) -> float:
     return round(value, d)
 
 
+def _decrire_turbo(pos: dict, cours: float) -> None:
+    """Ce qu'un écran de courtier affiche pour un turbo : le prix d'un titre
+    maintenant, le levier du moment, et la distance à la barrière."""
+    barriere = float(pos["barriere"])
+    long = (pos.get("direction") or "LONG").upper() == "LONG"
+    ecart = (cours - barriere) if long else (barriere - cours)
+    pos["prix_titre_actuel"] = round(max(0.0, ecart) * float(pos.get("parite") or 0), 4)
+    pos["levier_actuel"] = round(cours / ecart, 2) if ecart > 0 else None
+    pos["distance_barriere_pct"] = round(ecart / cours * 100, 2) if cours else None
+
+
 async def _price_positions(positions: list) -> list:
     """Attach live price, P&L and availability to open positions.
 
@@ -339,14 +405,18 @@ async def _price_positions(positions: list) -> list:
             pos["current_value"] = round(invested, 4)
             continue
 
-        move = (quote - entry_price) if direction == "LONG" else (entry_price - quote)
-        pnl = move * quantity
+        brut = resultat_brut(pos, quote)
+        # Le résultat affiché compte les frais déjà payés à l'achat : c'est ce
+        # que l'utilisateur gagnerait (hors frais de vente) en vendant maintenant.
+        frais_entree = float(pos.get("frais_payes") or 0)
+        pnl = brut - frais_entree
 
         # The percentage is measured against the sum actually committed, not
         # the notional. Since the open route folds leverage into the quantity,
         # entry x quantity IS amount x leverage — dividing by it made a 5x
         # position report a fifth of its own percentage.
-        pnl_percent = (pnl / invested * 100) if invested else 0.0
+        engage = invested + frais_entree
+        pnl_percent = (pnl / engage * 100) if engage else 0.0
 
         pos["price_available"] = True
         # Six decimals: rounding to the cent turns a crypto quoted at
@@ -356,7 +426,10 @@ async def _price_positions(positions: list) -> list:
         pos["pnl_percent"] = round(pnl_percent, 2)
         pos["day_change_percent"] = p.get("change")
         # What the position is worth now: what was put in, plus what it made.
-        pos["current_value"] = round(invested + pnl, 4)
+        # Les frais d'achat sont déjà sortis du solde : ils ne comptent pas ici.
+        pos["current_value"] = round(max(0.0, invested + brut), 4)
+        if pos.get("instrument") == "turbo":
+            _decrire_turbo(pos, quote)
 
     return positions
 
@@ -448,6 +521,75 @@ async def get_positions(
     return {"positions": positions, "triggered": triggered}
 
 
+async def _reglages_ordre(current_user: dict) -> tuple[str, float]:
+    """Le produit et les frais du courtier réel de l'utilisateur, tels qu'il
+    les a enregistrés dans ses réglages. Par défaut : CFD, sans frais."""
+    mode, frais = "cfd", 0.0
+    if current_user.get("user_type") != "email":
+        return mode, frais
+    try:
+        rows = await execute_query(
+            "SELECT order_mode, order_fee FROM web_user_settings WHERE user_id = ?",
+            (current_user["id"],),
+        )
+    except Exception:
+        rows = []
+    if rows:
+        if rows[0].get("order_mode") in ("cfd", "turbo"):
+            mode = rows[0]["order_mode"]
+        try:
+            frais = max(0.0, min(50.0, float(str(rows[0].get("order_fee") or 0).replace(",", "."))))
+        except ValueError:
+            frais = 0.0
+    return mode, frais
+
+
+def _devis_turbo(cours: float, direction: str, levier: float,
+                 montant: float = 0, unites: Optional[int] = None,
+                 frais: float = 0.0) -> dict:
+    """Le turbo proposé, et ce que coûte l'ordre, titre par titre."""
+    c = _turbo.conditions(cours, direction, levier)
+    n = int(unites) if unites is not None else _turbo.titres_pour(montant, c["prix_titre"])
+    cout = round(n * c["prix_titre"], 2)
+    return {
+        **c,
+        "cours": cours,
+        "unites": n,
+        "cout_titres": cout,
+        "frais": round(frais, 2),
+        "total": round(cout + frais, 2),
+        # Ce qu'on contrôle vraiment : la valeur du sous-jacent derrière les titres.
+        "exposition": round(n * c["parite"] * cours, 2),
+        "perte_maxi": round(cout + frais, 2),
+        "montant_non_investi": round(max(0.0, montant - cout), 2) if unites is None else 0.0,
+    }
+
+
+@router.get("/turbo/devis")
+async def devis_turbo(
+    symbol: str,
+    direction: str = "LONG",
+    levier: float = 5,
+    montant: float = 0,
+    unites: Optional[int] = None,
+    current_user: dict = Depends(get_current_user),
+):
+    """Ce qu'un courtier à turbos proposerait pour ce trade, avant de le passer."""
+    from .market import _fetch_quote_data
+
+    if direction.upper() not in ("LONG", "SHORT"):
+        raise HTTPException(status_code=400, detail="Sens invalide : LONG ou SHORT.")
+    if unites is not None and not (1 <= unites <= 1_000_000):
+        raise HTTPException(status_code=400, detail="Nombre de titres invalide.")
+    quote = await _fetch_quote_data(symbol.upper())
+    cours = quote.get("price") if quote else None
+    if not cours:
+        raise HTTPException(status_code=400, detail=f"Cours de {symbol.upper()} indisponible.")
+    _, frais = await _reglages_ordre(current_user)
+    return _devis_turbo(float(cours), direction.upper(), levier,
+                        montant=max(0.0, montant), unites=unites, frais=frais)
+
+
 @router.post("/positions/open")
 async def open_position(
     request: OpenPositionRequest,
@@ -457,6 +599,14 @@ async def open_position(
     from .market import _fetch_quote_data
 
     user_id = get_user_id(current_user)
+    direction = (request.direction or "").upper()
+    if direction not in ("LONG", "SHORT"):
+        raise HTTPException(status_code=400, detail="Sens invalide : LONG ou SHORT.")
+
+    mode_defaut, frais = await _reglages_ordre(current_user)
+    instrument = (request.instrument or mode_defaut).lower()
+    if instrument not in ("cfd", "turbo"):
+        raise HTTPException(status_code=400, detail="Produit invalide : cfd ou turbo.")
 
     # Check positions limit
     limits = await get_user_limits(current_user)
@@ -489,32 +639,79 @@ async def open_position(
         "SELECT * FROM wallet WHERE user_id = ?",
         (user_id,)
     )
-
-    if not wallets or wallets[0]["balance"] < request.amount:
-        raise HTTPException(status_code=400, detail="Insufficient balance")
+    solde = float(wallets[0]["balance"]) if wallets else 0.0
 
     # A stop on the wrong side of the entry is not a stop, and a target on the
     # wrong side is already reached. Nothing rejected these, so impossible
     # positions could be stored and then shown as if they were plans.
-    _validate_levels(request.direction, current_price,
+    _validate_levels(direction, current_price,
                      request.stop_loss, request.take_profit)
 
-    # Calculate position
-    quantity = (request.amount * request.leverage) / current_price
+    turbo = None
+    if instrument == "turbo":
+        # Le turbo est recalculé au cours d'exécution : entre le devis et
+        # l'ordre, le cours a pu bouger, comme chez un vrai courtier.
+        if request.unites is not None and not (1 <= request.unites <= 1_000_000):
+            raise HTTPException(status_code=400, detail="Nombre de titres invalide.")
+        turbo = _devis_turbo(float(current_price), direction, request.leverage,
+                             montant=max(0.0, request.amount or 0),
+                             unites=request.unites, frais=frais)
+        if turbo["unites"] < 1:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Montant trop faible : un titre coûte {_turbo.prix_titre_fr(turbo['prix_titre'])}.",
+            )
+        montant = turbo["cout_titres"]
+        levier = int(round(turbo["levier"]))
+        quantity = turbo["unites"] * turbo["parite"]
+        # Un stop au-delà de la barrière ne servirait à rien : le produit
+        # serait désactivé avant. Mieux vaut le dire que l'enregistrer.
+        sl = request.stop_loss
+        if sl is not None and ((direction == "LONG" and sl <= turbo["barriere"])
+                               or (direction == "SHORT" and sl >= turbo["barriere"])):
+            raise HTTPException(
+                status_code=400,
+                detail=(f"Ce stop est au-delà de la barrière ({fmt_price(turbo['barriere'])}) : "
+                        "le turbo serait désactivé avant de l'atteindre."),
+            )
+    else:
+        montant = float(request.amount or 0)
+        levier = int(round(request.leverage or 1))
+        if montant <= 0:
+            raise HTTPException(status_code=400, detail="Le montant doit être positif.")
+        if not (1 <= levier <= 100):
+            raise HTTPException(status_code=400, detail="Levier invalide (1 à 100).")
+        quantity = (montant * levier) / current_price
+
+    total = montant + frais
+    if solde < total:
+        raise HTTPException(
+            status_code=400,
+            detail=(f"Solde insuffisant : il faut {fmt_eur(total)}"
+                    + (f" (dont {fmt_eur(frais)} de frais)" if frais else "")
+                    + f", le solde est de {fmt_eur(solde)}."),
+        )
 
     # Create position
     await execute_write(
         """INSERT INTO positions
            (user_id, symbol, direction, entry_price, quantity, amount, leverage,
-            take_profit, stop_loss, status, created_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'open', ?)""",
-        (user_id, symbol, request.direction.upper(),
-         current_price, quantity, request.amount, request.leverage,
-         request.take_profit, request.stop_loss, datetime.now(timezone.utc).isoformat())
+            take_profit, stop_loss, status, created_at,
+            instrument, unites, prix_unitaire, parite, barriere, frais_ordre, frais_payes)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'open', ?, ?, ?, ?, ?, ?, ?, ?)""",
+        (user_id, symbol, direction,
+         current_price, quantity, montant, levier,
+         request.take_profit, request.stop_loss, datetime.now(timezone.utc).isoformat(),
+         instrument,
+         turbo["unites"] if turbo else None,
+         turbo["prix_titre"] if turbo else None,
+         turbo["parite"] if turbo else None,
+         turbo["barriere"] if turbo else None,
+         frais, frais)
     )
 
     # Deduct from balance
-    new_balance = wallets[0]["balance"] - request.amount
+    new_balance = solde - total
     await execute_write(
         "UPDATE wallet SET balance = ? WHERE user_id = ?",
         (new_balance, user_id)
@@ -522,9 +719,13 @@ async def open_position(
 
     return {
         "success": True,
-        "message": f"Position opened: {request.direction} {symbol}",
+        "message": (f"{turbo['unites']} titres achetés : turbo {direction} {symbol}"
+                    if turbo else f"Position opened: {direction} {symbol}"),
+        "instrument": instrument,
         "entry_price": round(current_price, 2),
         "quantity": round(quantity, 6),
+        "turbo": turbo,
+        "frais": frais,
         "new_balance": round(new_balance, 2)
     }
 
@@ -557,7 +758,6 @@ async def close_position(
 
     # Calculate P&L
     entry_price = position["entry_price"]
-    quantity = position["quantity"]
     direction = position["direction"]
     amount = float(position.get("amount") or 0)
 
@@ -574,7 +774,7 @@ async def close_position(
     # La sortie est donc ramenée au prix de liquidation quand le cours l'a
     # dépassé : c'est le prix auquel un courtier aurait fermé, et le seul qui
     # rende les deux chemins cohérents.
-    liq = prix_de_liquidation(entry_price, direction, position.get("leverage"))
+    liq = niveau_de_sortie_forcee(position)
     liquidee = False
     if liq is not None:
         if direction == "LONG" and exit_price <= liq:
@@ -582,22 +782,20 @@ async def close_position(
         elif direction != "LONG" and exit_price >= liq:
             exit_price, liquidee = liq, True
 
-    if direction == "LONG":
-        pnl = (exit_price - entry_price) * quantity
-    else:
-        pnl = (entry_price - exit_price) * quantity
-
     # Ceinture et bretelles : même sans levier, le crédit ne descend pas sous
     # zéro. Une position ne peut pas rendre moins que rien.
-    if amount and pnl < -amount:
-        pnl = -amount
+    brut = resultat_brut(position, exit_price)
+    sortie = frais_de_sortie(position, brut)
+    frais_entree = float(position.get("frais_payes") or 0)
+    pnl = brut - frais_entree - sortie
 
     # Update position
     await execute_write(
         """UPDATE positions
-           SET status = 'closed', exit_price = ?, realized_pnl = ?, closed_at = ?
+           SET status = 'closed', exit_price = ?, realized_pnl = ?, closed_at = ?,
+               frais_payes = COALESCE(frais_payes, 0) + ?
            WHERE id = ?""",
-        (exit_price, pnl, datetime.now(timezone.utc).isoformat(), request.position_id)
+        (exit_price, pnl, datetime.now(timezone.utc).isoformat(), sortie, request.position_id)
     )
 
     # Update balance
@@ -606,7 +804,7 @@ async def close_position(
         (user_id,)
     )
 
-    new_balance = wallets[0]["balance"] + max(0.0, amount + pnl)
+    new_balance = wallets[0]["balance"] + max(0.0, amount + brut - sortie)
     await execute_write(
         "UPDATE wallet SET balance = ? WHERE user_id = ?",
         (new_balance, user_id)
@@ -631,6 +829,7 @@ async def close_position(
         "review": rev,
         "exit_price": _px(exit_price),
         "realized_pnl": round(pnl, 2),
+        "frais": round(frais_entree + sortie, 2),
         "new_balance": round(new_balance, 2)
     }
 

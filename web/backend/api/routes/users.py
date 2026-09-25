@@ -66,7 +66,26 @@ SETTINGS_DEFAULTS = {
     "default_leverage": "1",
     "accent_color": "blue",
     "recap_frequency": "always",
+    "broker": "none",
+    "order_mode": "cfd",
+    "order_fee": "0",
 }
+
+# Le courtier réel, pour que le simulateur passe les ordres comme lui.
+VALID_BROKERS = {"none", "trade_republic", "boursorama", "degiro", "cfd", "other"}
+VALID_ORDER_MODES = {"cfd", "turbo"}
+FRAIS_MAXI = 50.0
+
+
+def _frais(value) -> str:
+    """Des frais par ordre lisibles : un nombre entre 0 et 50, virgule acceptée."""
+    try:
+        v = float(str(value).replace(",", "."))
+    except (TypeError, ValueError):
+        return "0"
+    if not (0 <= v <= FRAIS_MAXI):
+        return "0"
+    return f"{round(v, 2):g}"
 
 
 def _clamp(value, allowed: set, fallback: str) -> str:
@@ -121,6 +140,9 @@ async def _read_settings(user_id: int) -> dict:
         "default_leverage":      _clamp(str(g("default_leverage")), VALID_LEVERAGES, "1"),
         "accent_color":          _clamp(g("accent_color"), VALID_ACCENTS, "blue"),
         "recap_frequency":       _clamp(g("recap_frequency"), VALID_RECAPS, "always"),
+        "broker":                _clamp(g("broker"), VALID_BROKERS, "none"),
+        "order_mode":            _clamp(g("order_mode"), VALID_ORDER_MODES, "cfd"),
+        "order_fee":             _frais(g("order_fee")),
         "trading_level":         trading_level,
         "updated_at":            row.get("updated_at"),
     }
@@ -137,6 +159,9 @@ class UpdateSettingsRequest(BaseModel):
     accent_color: Optional[str] = None
     recap_frequency: Optional[str] = None
     trading_level: Optional[str] = None
+    broker: Optional[str] = None
+    order_mode: Optional[str] = None
+    order_fee: Optional[str] = None
 
 
 @router.get("/settings")
@@ -163,6 +188,8 @@ async def update_user_settings(
         ("accent_color",    VALID_ACCENTS),
         ("recap_frequency", VALID_RECAPS),
         ("trading_level",   VALID_LEVELS),
+        ("broker",          VALID_BROKERS),
+        ("order_mode",      VALID_ORDER_MODES),
     ]:
         value = getattr(data, field)
         if value is not None and value not in allowed:
@@ -170,6 +197,19 @@ async def update_user_settings(
                 status_code=400,
                 detail=f"Valeur invalide pour {field}. Valeurs acceptées : {sorted(allowed)}",
             )
+
+    if data.order_fee is not None:
+        brut = str(data.order_fee).replace(",", ".").strip()
+        try:
+            ok = 0 <= float(brut) <= FRAIS_MAXI
+        except ValueError:
+            ok = False
+        if not ok:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Frais par ordre invalides : un montant entre 0 et {FRAIS_MAXI:g} €.",
+            )
+        data.order_fee = _frais(brut)
 
     # trading_level lives on web_users, not on the settings table
     if data.trading_level is not None:
@@ -198,6 +238,9 @@ async def update_user_settings(
         ("default_leverage",      data.default_leverage),
         ("accent_color",          data.accent_color),
         ("recap_frequency",       data.recap_frequency),
+        ("broker",                data.broker),
+        ("order_mode",            data.order_mode),
+        ("order_fee",             data.order_fee),
     ]
     updates, params = [], []
     for col_name, db_val in SAFE_COLUMN_MAP:
