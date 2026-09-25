@@ -90,12 +90,19 @@ export default function TradingPage() {
   const fraisOrdre = Number(settings.orderFee) || 0;
   // Le levier d'un turbo vient de sa barrière : sous ×1,5 il n'y a pas de
   // produit, et le levier ×1 d'un achat comptant n'a pas d'équivalent.
-  const levierTurbo = Math.min(TURBO_LEVIER_MAXI, Math.max(TURBO_LEVIER_MINI, leverage < TURBO_LEVIER_MINI ? 5 : leverage));
+  const levierTurbo = Math.min(TURBO_LEVIER_MAXI, Math.max(TURBO_LEVIER_MINI, leverage));
   const levierEffectif = turbo ? levierTurbo : leverage;
 
   useEffect(() => {
     if (isLoaded && !produitTouched.current) setProduit(settings.orderMode);
   }, [isLoaded, settings.orderMode]);
+
+  // Un turbo ×1 n'existe pas : le levier par défaut d'un achat comptant est
+  // remplacé par ×5 en passant au turbo — jamais pendant la saisie.
+  useEffect(() => {
+    if (turbo) setLeverage((l) => (l < TURBO_LEVIER_MINI ? 5 : l));
+    else setLeverage((l) => Math.max(1, Math.round(l)));
+  }, [turbo]);
 
   const fallbackLevels = (px: number, dir: "LONG" | "SHORT") => ({
     tp: Math.round((dir === "LONG" ? px * 1.05 : px * 0.95) * 100) / 100,
@@ -387,15 +394,15 @@ export default function TradingPage() {
                 </Checkbox>
                 {useSL && (
                   <Field label="Prix du stop" htmlFor="tr-sl">
-                    <TextInput
+                    <SaisieNombre
                       id="tr-sl"
-                      value={stopLoss?.toString() ?? ""}
-                      onChange={(v) => {
+                      value={stopLoss}
+                      decimales={8}
+                      onChange={(n) => {
                         levelsTouched.current = true;
                         levelsFromPlan.current = false;
-                        setStopLoss(v === "" ? null : Number(v));
+                        setStopLoss(n);
                       }}
-                      placeholder="0.00"
                     />
                   </Field>
                 )}
@@ -405,15 +412,15 @@ export default function TradingPage() {
                 </Checkbox>
                 {useTP && (
                   <Field label="Prix de l'objectif" htmlFor="tr-tp">
-                    <TextInput
+                    <SaisieNombre
                       id="tr-tp"
-                      value={takeProfit?.toString() ?? ""}
-                      onChange={(v) => {
+                      value={takeProfit}
+                      decimales={8}
+                      onChange={(n) => {
                         levelsTouched.current = true;
                         levelsFromPlan.current = false;
-                        setTakeProfit(v === "" ? null : Number(v));
+                        setTakeProfit(n);
                       }}
-                      placeholder="0.00"
                     />
                   </Field>
                 )}
@@ -496,13 +503,14 @@ export default function TradingPage() {
 
                 <Field label={turbo ? "Budget" : "Montant"} htmlFor="tr-amount"
                   hint={turbo ? "Converti en nombre entier de titres." : undefined}>
-                  <TextInput
+                  <SaisieNombre
                     id="tr-amount"
-                    value={String(amount)}
-                    onChange={(v) => {
+                    value={amount}
+                    decimales={2}
+                    onChange={(n) => {
                       amountTouched.current = true;
                       unitesTouched.current = false;
-                      setAmount(Number(v.replace(",", ".")) || 0);
+                      setAmount(n ?? 0);
                     }}
                   />
                 </Field>
@@ -512,15 +520,24 @@ export default function TradingPage() {
                   htmlFor="tr-lev"
                   hint={turbo
                     ? `De ×${fr(TURBO_LEVIER_MINI, 1)} à ×${TURBO_LEVIER_MAXI}. Il fixe la barrière.`
-                    : "x1 = aucun levier."}
+                    : "Nombre entier, x1 = aucun levier."}
                 >
-                  <TextInput
+                  <SaisieNombre
                     id="tr-lev"
-                    value={String(turbo ? levierTurbo : leverage)}
-                    onChange={(v) => {
+                    value={leverage}
+                    decimales={turbo ? 2 : 0}
+                    onChange={(n) => {
                       leverageTouched.current = true;
-                      const n = Number(v.replace(",", "."));
-                      setLeverage(Number.isFinite(n) && n > 0 ? n : 1);
+                      if (n != null && n > 0) setLeverage(n);
+                    }}
+                    // Les bornes s'appliquent quand on quitte le champ, pas
+                    // pendant la frappe : taper « 10,02 » passe par « 1 ».
+                    onCommit={(n) => {
+                      const borne = turbo
+                        ? Math.min(TURBO_LEVIER_MAXI, Math.max(TURBO_LEVIER_MINI, n))
+                        : Math.min(100, Math.max(1, Math.round(n)));
+                      setLeverage(borne);
+                      return borne;
                     }}
                   />
                 </Field>
@@ -532,12 +549,13 @@ export default function TradingPage() {
                     error={devisError || undefined}
                     hint={devis ? `${moneyTitre(prixTitre)} le titre` : "Calcul du turbo…"}
                   >
-                    <TextInput
+                    <SaisieNombre
                       id="tr-units"
-                      value={String(unites)}
-                      onChange={(v) => {
+                      value={unites}
+                      decimales={0}
+                      onChange={(n) => {
                         unitesTouched.current = true;
-                        setUnites(Math.max(0, Math.floor(Number(v) || 0)));
+                        setUnites(Math.max(0, Math.floor(n ?? 0)));
                       }}
                     />
                   </Field>
@@ -654,6 +672,70 @@ export default function TradingPage() {
         </form>
       </div>
     </>
+  );
+}
+
+/**
+ * Un champ numérique qui garde ce qu'on tape.
+ *
+ * Relié directement au nombre, le champ se réécrivait à chaque touche :
+ * « 10, » redevenait « 10 » et la virgule disparaissait, si bien qu'on ne
+ * pouvait pas saisir 10,02. Le texte vit donc à part ; le nombre suit dès
+ * qu'il est lisible, et le champ n'est remis au propre qu'en le quittant.
+ */
+function SaisieNombre({
+  id,
+  value,
+  onChange,
+  onCommit,
+  decimales,
+}: {
+  id: string;
+  /** null = champ vide (un stop pas encore saisi). */
+  value: number | null;
+  onChange: (n: number | null) => void;
+  /** Appelé en quittant le champ ; rend la valeur retenue (bornée). */
+  onCommit?: (n: number) => number;
+  decimales: number;
+}) {
+  const ecrire = (n: number | null) =>
+    n == null ? "" : n.toLocaleString("fr-FR", { maximumFractionDigits: decimales, useGrouping: false });
+  const [texte, setTexte] = useState(() => ecrire(value));
+  const enSaisie = useRef(false);
+
+  useEffect(() => {
+    if (!enSaisie.current) setTexte(ecrire(value));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value, decimales]);
+
+  const lire = (t: string) => {
+    const n = Number(t.replace(/\s/g, "").replace(",", "."));
+    return t.trim() !== "" && Number.isFinite(n) && n >= 0 ? n : null;
+  };
+
+  return (
+    <div
+      onFocus={() => { enSaisie.current = true; }}
+      onBlur={() => {
+        enSaisie.current = false;
+        const n = lire(texte) ?? value;
+        const retenu = onCommit && n != null ? onCommit(n) : n;
+        setTexte(ecrire(retenu));
+      }}
+    >
+      <TextInput
+        id={id}
+        value={texte}
+        onChange={(t) => {
+          // Chiffres, une virgule ou un point : le reste est ignoré.
+          if (!/^[\d\s]*[.,]?\d*$/.test(t)) return;
+          setTexte(t);
+          const n = lire(t);
+          if (n != null) onChange(n);
+          else if (t.trim() === "") onChange(null);
+        }}
+      />
+    </div>
   );
 }
 
