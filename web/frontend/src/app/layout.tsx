@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Inter, Space_Grotesk, JetBrains_Mono, Sora } from "next/font/google";
+import localFont from "next/font/local";
 import "./globals.css";
 import "@/styles/capten.css";
 import "flag-icons/css/flag-icons.min.css";
@@ -10,34 +10,44 @@ import { LanguageProvider } from "@/lib/LanguageContext";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 
-const inter = Inter({
-  subsets: ["latin"],
+/*
+ * POLICES HÉBERGÉES DANS LE PROJET, pas téléchargées au build.
+ *
+ * `next/font/google` va chercher les fichiers chez Google à chaque build.
+ * Le jour où Google a répondu autrement que prévu, le déploiement entier a
+ * échoué (« Cannot read properties of null (reading '1') » dans le loader)
+ * pour une question de typographie. Les fichiers sont donc dans src/fonts :
+ * polices variables, sous-ensemble latin (accents français, œ, € compris),
+ * reprises telles quelles de Google Fonts (licence SIL Open Font).
+ */
+const inter = localFont({
+  src: "../fonts/Inter.woff2",
   variable: "--font-inter",
   display: "swap",
-  weight: ["300", "400", "500", "600", "700", "800"],
+  weight: "300 800",
 });
 
-const jetbrainsMono = JetBrains_Mono({
-  subsets: ["latin"],
+const jetbrainsMono = localFont({
+  src: "../fonts/JetBrainsMono.woff2",
   variable: "--font-mono",
   display: "swap",
-  weight: ["400", "500", "600", "700"],
+  weight: "400 700",
 });
 
 // Headings of the rebuilt screens. Space Grotesk stays only until the last
 // legacy page is migrated, then it goes.
-const sora = Sora({
-  subsets: ["latin"],
+const sora = localFont({
+  src: "../fonts/Sora.woff2",
   variable: "--font-sora",
   display: "swap",
-  weight: ["400", "500", "600", "700"],
+  weight: "400 700",
 });
 
-const spaceGrotesk = Space_Grotesk({
-  subsets: ["latin"],
+const spaceGrotesk = localFont({
+  src: "../fonts/SpaceGrotesk.woff2",
   variable: "--font-display",
   display: "swap",
-  weight: ["400", "500", "600", "700"],
+  weight: "400 700",
 });
 
 /**
