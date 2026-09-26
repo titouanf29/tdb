@@ -129,6 +129,8 @@ export const MOBILE_TABS = [
  */
 export const MIGRATED_ROUTES = [
   "/dashboard",
+  // Hors menu : on n'y entre que depuis l'accueil, le week-end.
+  "/semaine",
   "/favorites",
   "/learn/glossaire",
   "/learn/missions",

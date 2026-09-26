@@ -3092,3 +3092,99 @@ export function createAuthenticatedWsUrl(path: string): string {
   const sep = path.includes("?") ? "&" : "?";
   return token ? `${wsBase}${path}${sep}token=${encodeURIComponent(token)}` : `${wsBase}${path}`;
 }
+
+// ── Préparation de la semaine (le week-end) ────────────────────────────────
+
+export interface FenetreSemaine {
+  ouvert: boolean;
+  lundi: string;
+  lundi_ecoule: string;
+  libelle: string;
+  prochaine_ouverture: string | null;
+  fermeture: string;
+}
+
+export interface ActifSemaine {
+  symbole: string;
+  nom: string;
+  crypto: boolean;
+  disponible: boolean;
+  dernier?: number;
+  semaine_pct?: number;
+  mois_pct?: number | null;
+  haut?: number;
+  bas?: number;
+  amplitude_pct?: number | null;
+}
+
+export interface EvenementMacro {
+  titre: string;
+  titre_origine: string;
+  pourquoi: string;
+  pays: string;
+  pays_nom: string;
+  quand: string;
+  jour: string;
+  heure: string;
+  importance: "forte" | "moyenne" | "faible" | "férié";
+  prevision: string | null;
+  precedent: string | null;
+}
+
+export interface PointAPenser {
+  niveau: "important" | "conseil";
+  titre: string;
+  texte: string;
+  lien: string | null;
+}
+
+export interface PreparationSemaine {
+  fenetre: FenetreSemaine;
+  profil: { goal: string | null; markets: string[]; style: string; weekly_time: string | null };
+  semaine: {
+    trades: number;
+    resultat: number;
+    gagnants: number;
+    perdants: number;
+    taux_reussite: number | null;
+    sans_stop: number;
+    fermetures_forcees: number;
+    frais: number;
+    meilleur: { symbole: string; nom: string; resultat: number } | null;
+    pire: { symbole: string; nom: string; resultat: number } | null;
+    journal: number;
+    solde: number | null;
+  };
+  positions: {
+    symbole: string; nom: string; sens: "LONG" | "SHORT"; instrument: string;
+    montant: number; stop: number | null; objectif: number | null; barriere: number | null;
+    crypto: boolean; semaine_pct: number | null;
+  }[];
+  actifs: { suivis: ActifSemaine[]; reperes: ActifSemaine[] };
+  actualite: {
+    sujets: {
+      titre: string; titre_fr: string; voix: number; articles: number; confiance: number;
+      niveau: string; premiere_vue: string; vos_actifs: { symbole: string; nom: string }[];
+    }[];
+    vos_actifs: {
+      symbole: string; nom: string; resume: string; titre: string; titre_fr: string;
+      effet: string; sens: number; a_surveiller: string;
+    }[];
+    veille: { articles?: number; redactions?: number; lu_a?: string | null };
+  };
+  agenda: {
+    a_venir: EvenementMacro[];
+    semaine_ecoulee: EvenementMacro[];
+    publie: boolean;
+    note: string | null;
+    source: string;
+    devises: string[];
+  };
+  a_penser: PointAPenser[];
+}
+
+export const semaineAPI = {
+  fenetre: () => fetchAPI<FenetreSemaine>("/api/semaine/fenetre"),
+  get: () => fetchAPI<PreparationSemaine>("/api/semaine"),
+  synthese: () => fetchAPI<{ texte: string | null; source: string }>("/api/semaine/synthese"),
+};

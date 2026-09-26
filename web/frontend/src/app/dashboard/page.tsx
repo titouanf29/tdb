@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { ArrowRight, CloudOff, Globe2, RefreshCw, Sun } from "lucide-react";
 import { Intention } from "@/components/dashboard/Intention";
-import { PrepHebdo } from "@/components/dashboard/PrepHebdo";
+import { lundiAPreparer, weekendOuvert } from "@/lib/semaine";
 import { useAuth } from "@/lib/AuthContext";
 import { fr, useSettings, convertCurrency } from "@/lib/SettingsContext";
 import { useTradingStyle } from "@/lib/tradingStyle";
@@ -299,10 +299,10 @@ export default function DashboardPage() {
             hebdomadaire hors de sa fenêtre, l'intention avant sa réponse si
             le serveur ne répond pas. */}
         <Reveal delay={0.14}>
-          <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-            <Intention />
-            <PrepHebdo />
-          </div>
+          {/* L'ancien panneau « La semaine qui vient » a été remplacé par la
+              préparation du week-end : ses niveaux et ses rendez-vous étaient
+              écrits par un modèle de langage, sans source. */}
+          <Intention />
         </Reveal>
 
         {/* ── 5. Le démarrage guidé et le parcours ─────────────────────── */}
@@ -460,6 +460,30 @@ function NextStep({
        nomenclature Yahoo. Le serveur rend maintenant le nom avec les favoris
        et les positions ; le code reste pour l'URL, où il est à sa place. */
     const nommer = (o: { symbol: string; name?: string }) => o.name || o.symbol;
+
+    /* LE WEEK-END, UNE AUTRE QUESTION. « Il fait −1,47 % aujourd'hui » parle
+       d'une séance qui n'existe pas : marchés fermés, la seule chose utile est
+       de préparer lundi. La carte ouvre alors l'espace dédié, qui n'est
+       accessible que d'ici. */
+    if (weekendOuvert()) {
+      const sansStop = positions.filter((p) => p.stop_loss == null && p.instrument !== "turbo").length;
+      const crypto = positions.filter((p) => /-(USD|EUR)$/.test(p.symbol)).length;
+      const corps =
+        sansStop > 0
+          ? `${sansStop} de vos positions ${sansStop > 1 ? "restent" : "reste"} sans stop pendant le week-end. On commence par là, puis votre semaine, l'agenda macro et l'actualité de vos actifs.`
+          : positions.length > 0
+            ? `Vous gardez ${positions.length} position${positions.length > 1 ? "s" : ""} ce week-end${crypto ? `, dont ${crypto} en crypto qui continue${crypto > 1 ? "nt" : ""} de coter` : ""}. Votre semaine, l'agenda macro et l'actualité de vos actifs, au même endroit.`
+            : favorites.length > 0
+              ? `Ce qu'ont fait vos ${favorites.length} actifs suivis, les annonces économiques qui arrivent et l'actualité qui les touche.`
+              : "Votre semaine, les annonces économiques qui arrivent et l'actualité des marchés, pendant qu'aucune séance ne vous presse.";
+      return {
+        eyebrow: "Le week-end",
+        title: `Préparez la semaine du ${lundiAPreparer()}.`,
+        body: corps,
+        cta: "Ouvrir la préparation",
+        href: "/semaine",
+      };
+    }
 
     if (positions.length > 0) {
       /* CELLE QUI MÉRITE LE REGARD, PAS LA PREMIÈRE DE LA LISTE.
