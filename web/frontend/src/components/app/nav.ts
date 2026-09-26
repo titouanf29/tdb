@@ -60,6 +60,7 @@ export const AREAS: NavArea[] = [
       { href: "/analysis", label: "Analyse", blurb: "Un actif, un verdict, et pourquoi" },
       { href: "/scanner", label: "Scanner", blurb: "Les opportunités qui vous correspondent" },
       { href: "/markets", label: "Marchés", blurb: "L'état général, par région et par classe" },
+      { href: "/macro", label: "Agenda macro", blurb: "Fed, BCE, inflation, emploi : quand, et ce que ça change pour vos actifs" },
     ],
   },
   {
@@ -131,6 +132,7 @@ export const MIGRATED_ROUTES = [
   "/dashboard",
   // Hors menu : on n'y entre que depuis l'accueil, le week-end.
   "/semaine",
+  "/macro",
   "/favorites",
   "/learn/glossaire",
   "/learn/missions",

@@ -7,6 +7,7 @@ Trading Tools API routes
 - Geopolitical Analysis
 - Trading Advice Cards (Fiches conseils)
 """
+import json
 import os
 import httpx
 from datetime import datetime, timedelta, timezone
@@ -327,109 +328,30 @@ async def get_economic_calendar(
     days: int = Query(default=7, le=30),
     current_user: dict = Depends(get_current_user)
 ):
-    """Get upcoming economic events"""
+    """Les annonces économiques à venir — celles du moteur macro.
 
-    # Key economic events (hardcoded for reliability)
-    # In production, this would fetch from an economic calendar API
-    events = [
-        {
-            "date": "2026-03-12",
-            "time": "14:30",
-            "event": "US CPI (Consumer Price Index)",
-            "country": "USA",
-            "importance": "high",
-            "previous": "2.8%",
-            "forecast": "2.9%",
-            "impact": "Inflation measure - affects Fed policy and markets"
-        },
-        {
-            "date": "2026-03-13",
-            "time": "14:30",
-            "event": "US PPI (Producer Price Index)",
-            "country": "USA",
-            "importance": "medium",
-            "previous": "3.0%",
-            "forecast": "2.8%",
-            "impact": "Leading indicator for consumer inflation"
-        },
-        {
-            "date": "2026-03-14",
-            "time": "16:00",
-            "event": "US Consumer Sentiment (Michigan)",
-            "country": "USA",
-            "importance": "medium",
-            "previous": "67.8",
-            "forecast": "68.0",
-            "impact": "Measures consumer confidence"
-        },
-        {
-            "date": "2026-03-18",
-            "time": "20:00",
-            "event": "FOMC Interest Rate Decision",
-            "country": "USA",
-            "importance": "high",
-            "previous": "4.50%",
-            "forecast": "4.50%",
-            "impact": "Major market mover - Fed monetary policy"
-        },
-        {
-            "date": "2026-03-19",
-            "time": "10:00",
-            "event": "ECB Economic Bulletin",
-            "country": "EU",
-            "importance": "medium",
-            "previous": "-",
-            "forecast": "-",
-            "impact": "ECB economic outlook and policy signals"
-        },
-        {
-            "date": "2026-03-20",
-            "time": "14:30",
-            "event": "US Jobless Claims",
-            "country": "USA",
-            "importance": "medium",
-            "previous": "220K",
-            "forecast": "218K",
-            "impact": "Weekly employment health indicator"
-        },
-        {
-            "date": "2026-03-25",
-            "time": "14:30",
-            "event": "US GDP Q4 Final",
-            "country": "USA",
-            "importance": "high",
-            "previous": "3.2%",
-            "forecast": "3.1%",
-            "impact": "Quarterly economic growth measure"
-        },
-        {
-            "date": "2026-03-28",
-            "time": "14:30",
-            "event": "US PCE Price Index",
-            "country": "USA",
-            "importance": "high",
-            "previous": "2.6%",
-            "forecast": "2.7%",
-            "impact": "Fed's preferred inflation measure"
-        }
-    ]
-
-    # Filter by date range
-    today = datetime.now().date()
-    end_date = today + timedelta(days=days)
-
-    filtered_events = [
-        e for e in events
-        if today <= datetime.strptime(e["date"], "%Y-%m-%d").date() <= end_date
-    ]
-
+    Cette route renvoyait une liste écrite à la main, datée de mars 2026, qui
+    se vidait passé ce mois-là. Elle lit désormais le calendrier réel
+    (calendriers officiels de la Fed et de la BCE, et ForexFactory).
+    """
+    from ..services.macro import calendrier
+    from ..services.macro.libelles import presenter
+    maintenant = datetime.now(timezone.utc)
+    evs = await calendrier.evenements(maintenant, maintenant + timedelta(days=days), importance_min="Medium")
+    events = []
+    for e in evs:
+        if e.get("importance") == "Holiday":
+            continue
+        v = presenter(e)
+        events.append({
+            "id": v["id"], "date": v["quand"][:10], "time": v["heure"], "event": v["titre"],
+            "country": v["pays"], "importance": {"forte": "high", "moyenne": "medium"}.get(v["importance"], "low"),
+            "previous": v["precedent"] or "-", "forecast": v["prevision"] or "-", "impact": v["pourquoi"] or "",
+        })
     return {
-        "events": filtered_events,
-        "total": len(filtered_events),
-        "date_range": {
-            "from": today.isoformat(),
-            "to": end_date.isoformat()
-        }
+        "events": events,
+        "total": len(events),
+        "date_range": {"from": maintenant.date().isoformat(), "to": (maintenant + timedelta(days=days)).date().isoformat()},
     }
 
 
@@ -2991,47 +2913,23 @@ async def get_event_summary(
     event_id: str,
     current_user: dict = Depends(get_current_user)
 ):
-    """Get AI-generated summary for an economic event after it occurred"""
-    is_premium = await is_user_premium(current_user)
+    """Le résumé d'une annonce publiée, tel que le moteur macro l'a établi.
 
-    if not is_premium:
-        raise HTTPException(
-            status_code=403,
-            detail="Les resumes d'evenements sont reserves aux membres Premium"
-        )
-
-    if not configured_providers():
-        raise HTTPException(status_code=503, detail="Le service IA n'est pas configuré sur ce site.")
-
-    # This would normally fetch real data from an economic calendar API
-    # For now, generate a summary based on the event
-    prompt = f"""Genere un resume court (3-4 paragraphes) d'un evenement economique recent:
-
-Evenement: {event_id}
-
-Structure du resume:
-1. Ce qui s'est passe (les chiffres annonces)
-2. Comparaison avec les attentes
-3. Reaction immediate des marches
-4. Implications pour les traders
-
-Sois factuel et concis."""
-
+    Cette route demandait à un modèle de langage de « résumer » un événement
+    à partir de son seul nom — c'est-à-dire d'inventer les chiffres, les
+    attentes et la réaction du marché. Elle rend maintenant ce qui a été lu :
+    le communiqué, la réaction mesurée des cours, la presse.
+    """
+    from ..services.macro import calendrier
+    await calendrier.init()
     try:
-        summary = await llm_chat(
-            [{"role": "system", "content": "Tu es un analyste financier qui resume les evenements economiques de facon claire et concise."},
-             {"role": "user", "content": prompt}],
-            temperature=0.4, max_tokens=500, timeout=30.0,
-        )
-        return {
-            "event_id": event_id,
-            "summary": summary,
-            "generated_at": datetime.now(timezone.utc).isoformat()
-        }
-
-    except LLMUnavailable as exc:
-        raise HTTPException(status_code=503, detail=exc.message)
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        ev_id = int(event_id)
+    except ValueError:
+        raise HTTPException(status_code=404, detail="Annonce introuvable.")
+    rows = await execute_query("SELECT resultat, resolu_le FROM macro_calendar WHERE id = ?", (ev_id,))
+    if not rows:
+        raise HTTPException(status_code=404, detail="Annonce introuvable.")
+    if not rows[0].get("resultat"):
+        raise HTTPException(status_code=404, detail="Cette annonce n'a pas encore été publiée.")
+    res = json.loads(rows[0]["resultat"])
+    return {"event_id": event_id, "summary": res.get("resume"), "generated_at": rows[0].get("resolu_le")}

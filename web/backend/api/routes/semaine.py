@@ -34,11 +34,9 @@ import asyncio
 import json
 import logging
 import math
-import time
 from datetime import date, datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
-import httpx
 from fastapi import APIRouter, Depends, HTTPException, Request
 from slowapi import Limiter
 from slowapi.util import get_remote_address
@@ -429,204 +427,40 @@ async def _actualite(suivis: list[str]) -> dict:
 
 # ── 4. L'agenda macro ─────────────────────────────────────────────────────
 
-CALENDRIER_URL = "https://nfs.faireconomy.media/ff_calendar_thisweek.json"
-_CAL_CACHE: dict = {"at": None}
-_CAL_TTL = 3 * 3600
-_cal_pret = False
-
-# Les annonces qui reviennent chaque mois, en clair. Le titre d'origine reste
-# affiché à côté : il est celui qu'on retrouve dans la presse.
-LIBELLES = [
-    ("Non-Farm Employment Change", "Créations d'emplois américaines (NFP)",
-     "Le chiffre qui fait le plus bouger le dollar et les indices US : il dit si l'économie embauche, donc si la Fed peut baisser ses taux."),
-    ("Unemployment Rate", "Taux de chômage",
-     "Un chômage qui monte pousse la banque centrale vers des baisses de taux."),
-    ("Core CPI", "Inflation sous-jacente (hors énergie et alimentation)",
-     "La mesure que les banques centrales surveillent le plus : une surprise à la hausse éloigne les baisses de taux."),
-    ("CPI", "Inflation (indice des prix)",
-     "Plus d'inflation que prévu, c'est des taux plus hauts plus longtemps : mauvais pour les actions de croissance, bon pour la devise."),
-    ("Core PCE", "Inflation PCE sous-jacente",
-     "L'indicateur d'inflation préféré de la Fed."),
-    ("PPI", "Prix à la production",
-     "L'inflation en amont, qui annonce souvent celle des prix à la consommation."),
-    ("Federal Funds Rate", "Décision de taux de la Fed",
-     "Le rendez-vous le plus important du mois pour tous les marchés."),
-    ("FOMC", "Fed (FOMC)",
-     "Tout ce que dit la Fed sur ses prochains taux déplace le dollar, l'or et les indices."),
-    ("Main Refinancing Rate", "Décision de taux de la BCE",
-     "Le taux directeur de la zone euro : il fait bouger l'euro et les banques européennes."),
-    ("ECB", "BCE",
-     "Les mots de la BCE sur l'inflation et les taux font bouger l'euro et les actions européennes."),
-    ("Official Bank Rate", "Décision de taux de la Banque d'Angleterre", "Fait bouger la livre et le FTSE."),
-    ("BOJ", "Banque du Japon", "Fait bouger le yen, et par ricochet tous les marchés quand elle surprend."),
-    ("GDP", "Croissance (PIB)", "La santé de l'économie sur le trimestre."),
-    ("Retail Sales", "Ventes au détail", "La consommation des ménages, moteur de l'économie."),
-    ("ISM Manufacturing PMI", "Indice ISM manufacturier (États-Unis)", "Au-dessus de 50, l'industrie accélère ; en dessous, elle ralentit."),
-    ("ISM Services PMI", "Indice ISM des services (États-Unis)", "Le secteur qui pèse le plus dans l'économie américaine."),
-    ("Manufacturing PMI", "Indice PMI manufacturier", "Au-dessus de 50, l'industrie accélère ; en dessous, elle ralentit."),
-    ("Services PMI", "Indice PMI des services", "Le moral des entreprises de services."),
-    ("Unemployment Claims", "Inscriptions hebdomadaires au chômage (US)", "Le thermomètre le plus rapide du marché du travail américain."),
-    ("JOLTS", "Offres d'emploi (JOLTS)", "Le nombre de postes à pourvoir aux États-Unis."),
-    ("Consumer Confidence", "Confiance des consommateurs", "Ce que les ménages pensent de l'économie."),
-    ("Consumer Sentiment", "Moral des ménages (Michigan)", "Ce que les ménages pensent de l'économie, et de l'inflation à venir."),
-    ("German Ifo", "Climat des affaires allemand (Ifo)", "Le baromètre de la première économie européenne."),
-    ("ZEW", "Sentiment économique (ZEW)", "Le moral des investisseurs sur l'Allemagne."),
-    ("Crude Oil Inventories", "Stocks de pétrole américains", "Des stocks qui baissent plus que prévu font monter le pétrole."),
-    ("Speaks", "Discours", "Un discours peut déplacer le marché s'il laisse entendre un changement de politique."),
-    ("Bank Holiday", "Jour férié", "Marché fermé ou peu actif dans ce pays."),
-]
-PAYS = {"USD": "États-Unis", "EUR": "Zone euro", "GBP": "Royaume-Uni", "JPY": "Japon",
-        "CHF": "Suisse", "CAD": "Canada", "AUD": "Australie", "NZD": "Nouvelle-Zélande",
-        "CNY": "Chine"}
-IMPORTANCE = {"High": "forte", "Medium": "moyenne", "Low": "faible", "Holiday": "férié"}
-
-
-QUALIFICATIFS = [("French ", "France"), ("German ", "Allemagne"), ("Spanish ", "Espagne"),
-                 ("Italian ", "Italie"), ("Flash ", "première estimation"), ("Revised ", "révisé"),
-                 ("Prelim ", "préliminaire"), ("Final ", "définitif")]
-
-
-def _libelle(titre: str) -> tuple[str, str]:
-    for motif, fr, pourquoi in LIBELLES:
-        if motif.lower() in titre.lower():
-            if motif == "Speaks":
-                qui = titre.replace("Speaks", "").strip()
-                return f"Discours : {qui}", pourquoi
-            precisions = [mot for cle, mot in QUALIFICATIFS if cle in f"{titre} "]
-            return (f"{fr} ({', '.join(precisions)})" if precisions else fr), pourquoi
-    return titre, ""
-
-
-async def _cal_init():
-    global _cal_pret
-    if _cal_pret:
-        return
-    cle = "SERIAL PRIMARY KEY" if USE_POSTGRES else "INTEGER PRIMARY KEY AUTOINCREMENT"
-    await execute_write(f"""
-        CREATE TABLE IF NOT EXISTS macro_calendar (
-            id {cle},
-            cle TEXT NOT NULL UNIQUE,
-            titre TEXT NOT NULL,
-            pays TEXT NOT NULL,
-            quand TEXT NOT NULL,
-            importance TEXT,
-            prevision TEXT,
-            precedent TEXT,
-            vu_le TEXT NOT NULL
-        )
-    """)
-    _cal_pret = True
-
-
-async def _rafraichir_calendrier() -> None:
-    """Relit le calendrier publié et le range en base.
-
-    Le flux ne couvre que la semaine en cours (du dimanche au samedi, heure
-    de New York) : la semaine suivante n'y apparaît que le dimanche. La base
-    garde donc ce qui a été lu, pour que rien ne disparaisse d'une lecture à
-    l'autre.
-    """
-    await _cal_init()
-    # None tant que rien n'a été lu : comparer à 0 ferait dépendre la première
-    # lecture du temps écoulé depuis le démarrage de la machine.
-    if _CAL_CACHE["at"] is not None and time.monotonic() - _CAL_CACHE["at"] < _CAL_TTL:
-        return
-    _CAL_CACHE["at"] = time.monotonic()
-    try:
-        async with httpx.AsyncClient(timeout=15.0, headers={"User-Agent": "Mozilla/5.0"}) as c:
-            r = await c.get(CALENDRIER_URL)
-            r.raise_for_status()
-            evenements = r.json()
-    except Exception as exc:
-        logger.warning("calendrier économique indisponible : %s", exc)
-        return
-    maintenant = datetime.now(timezone.utc).isoformat()
-    for e in evenements if isinstance(evenements, list) else []:
-        quand = _a_dt(e.get("date"))
-        if not quand or not e.get("title"):
-            continue
-        cle = f"{e.get('country')}|{e['title']}|{quand.astimezone(timezone.utc).isoformat()}"
-        try:
-            existe = await execute_query("SELECT id FROM macro_calendar WHERE cle = ?", (cle,))
-            if existe:
-                await execute_write(
-                    "UPDATE macro_calendar SET importance = ?, prevision = ?, precedent = ?, vu_le = ? WHERE cle = ?",
-                    (e.get("impact"), e.get("forecast"), e.get("previous"), maintenant, cle))
-            else:
-                await execute_write(
-                    """INSERT INTO macro_calendar (cle, titre, pays, quand, importance, prevision, precedent, vu_le)
-                       VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
-                    (cle, e["title"], e.get("country") or "", quand.astimezone(timezone.utc).isoformat(),
-                     e.get("impact"), e.get("forecast"), e.get("previous"), maintenant))
-        except Exception as exc:
-            logger.warning("calendrier : ligne non enregistrée (%s)", exc)
-
-
-def _chiffre(v) -> str | None:
-    """« 54.1 » → « 54,1 », « 201K » → « 201 k » : le calendrier est publié à l'anglaise."""
-    if not v:
-        return None
-    v = str(v).replace(".", ",")
-    v = v.replace("%", "\u202f%")
-    for suffixe, fr in (("K", "\u202fk"), ("M", "\u202fM"), ("B", "\u202fMd")):
-        if v.endswith(suffixe):
-            v = v[:-1] + fr
-    return v
-
-
-def _evenement(r: dict) -> dict:
-    quand = _a_dt(r["quand"]).astimezone(PARIS)
-    fr, pourquoi = _libelle(r["titre"])
-    return {
-        "titre": fr,
-        "titre_origine": r["titre"],
-        "pourquoi": pourquoi,
-        "pays": r["pays"],
-        "pays_nom": PAYS.get(r["pays"], r["pays"]),
-        "quand": quand.isoformat(),
-        "jour": f"{JOURS[quand.weekday()]} {quand.day}",
-        "heure": quand.strftime("%H:%M") if (quand.hour, quand.minute) != (0, 0) else "journée",
-        "importance": IMPORTANCE.get(r.get("importance") or "", "faible"),
-        "prevision": _chiffre(r.get("prevision")),
-        "precedent": _chiffre(r.get("precedent")),
-    }
-
-
 async def _agenda(devises: set[str], lundi: date, lundi_ecoule: date) -> dict:
-    await _rafraichir_calendrier()
+    from ..services.macro import calendrier
+    from ..services.macro.libelles import presenter
     debut_ecoule = datetime(lundi_ecoule.year, lundi_ecoule.month, lundi_ecoule.day, tzinfo=PARIS)
     debut = datetime(lundi.year, lundi.month, lundi.day, tzinfo=PARIS)
     fin = debut + timedelta(days=6)
     try:
-        lignes = await execute_query(
-            "SELECT * FROM macro_calendar WHERE quand >= ? AND quand < ? ORDER BY quand",
-            (debut_ecoule.astimezone(timezone.utc).isoformat(), fin.astimezone(timezone.utc).isoformat()),
-        ) or []
+        lignes = await calendrier.evenements(debut_ecoule, fin, devises=devises)
     except Exception:
         lignes = []
 
     a_venir, ecoule = [], []
     for r in lignes:
-        if r["pays"] not in devises:
-            continue
         quand = _a_dt(r["quand"])
-        e = _evenement(r)
+        e = presenter(r)
         if quand >= debut:
             if r.get("importance") in ("High", "Medium", "Holiday"):
                 a_venir.append(e)
         elif r.get("importance") in ("High", "Medium"):
             ecoule.append(e)
 
+    # Les décisions de banque centrale sont connues des mois à l'avance ; les
+    # statistiques, seulement le dimanche. Le samedi, l'agenda peut donc
+    # contenir la Fed mais pas encore l'inflation : on le dit.
+    stats_connues = any(not e["officiel"] for e in a_venir)
     return {
         "a_venir": a_venir,
         "semaine_ecoulee": ecoule[-10:],
-        # Le flux publie la semaine suivante le dimanche : le samedi, on le dit
-        # plutôt que de laisser croire qu'il n'y a rien.
-        "publie": bool(a_venir),
-        "note": None if a_venir else
-            "Le calendrier de la semaine prochaine est publié dans la nuit de samedi à dimanche. "
-            "Revenez dimanche : les rendez-vous apparaîtront ici.",
-        "source": "ForexFactory",
+        "publie": stats_connues,
+        "note": None if stats_connues else
+            "Les statistiques de la semaine prochaine (inflation, emploi…) sont publiées dans la nuit de "
+            "samedi à dimanche : revenez dimanche pour les voir ici. Les décisions de banques centrales, "
+            "elles, sont connues à l'avance.",
+        "source": "calendriers officiels de la Fed et de la BCE, et ForexFactory",
         "devises": sorted(devises),
     }
 

@@ -35,7 +35,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 from dotenv import load_dotenv
 load_dotenv(Path(__file__).parent.parent.parent / ".env")
 
-from api.routes import auth, market, wallet, analysis, users, ai_assistant, favorites, admin, tools, premium, community, portfolio, journal, weekly_prep, insights, content_factory, content_factory_visuals, missions, ipo_watch, daily_intent, welcome_back, price_alerts, intel, semaine
+from api.routes import auth, market, wallet, analysis, users, ai_assistant, favorites, admin, tools, premium, community, portfolio, journal, weekly_prep, insights, content_factory, content_factory_visuals, missions, ipo_watch, daily_intent, welcome_back, price_alerts, intel, semaine, macro
 from api.websocket import websocket_router
 from api.database import init_web_tables, execute_query, execute_write
 
@@ -68,7 +68,19 @@ async def lifespan(app: FastAPI):
 
     await _bootstrap_admin()
 
+    # Le moteur macro : calendrier, lecture des annonces dès leur publication,
+    # rappels et notifications. Toutes les cinq minutes ; une erreur n'arrête
+    # ni la boucle ni l'application.
+    async def _macro_boucle():
+        from api.services.macro import suivi
+        await _asyncio.sleep(20)
+        while True:
+            await suivi.tour()
+            await _asyncio.sleep(300)
+    _macro_tache = _asyncio.create_task(_macro_boucle())
+
     yield
+    _macro_tache.cancel()
     print("👋 TDB Web API shutting down...")
 
 
@@ -352,6 +364,7 @@ app.include_router(portfolio.router, prefix="/api/portfolio", tags=["Real Portfo
 app.include_router(journal.router, prefix="/api/journal", tags=["Trading Journal"])
 app.include_router(weekly_prep.router, prefix="/api/weekly-prep", tags=["Weekly Market Prep"])
 app.include_router(semaine.router, prefix="/api/semaine", tags=["Préparation du week-end"])
+app.include_router(macro.router, prefix="/api/macro", tags=["Moteur macro"])
 app.include_router(content_factory.router, prefix="/api/admin/content-factory", tags=["Content Factory"])
 app.include_router(content_factory_visuals.router, prefix="/api/admin/content-factory", tags=["Content Factory Visuals"])
 app.include_router(missions.router, prefix="/api/learn", tags=["Missions & Progress"])

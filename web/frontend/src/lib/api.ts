@@ -3118,6 +3118,9 @@ export interface ActifSemaine {
 }
 
 export interface EvenementMacro {
+  id?: number;
+  resume?: string | null;
+  officiel?: boolean;
   titre: string;
   titre_origine: string;
   pourquoi: string;
@@ -3187,4 +3190,110 @@ export const semaineAPI = {
   fenetre: () => fetchAPI<FenetreSemaine>("/api/semaine/fenetre"),
   get: () => fetchAPI<PreparationSemaine>("/api/semaine"),
   synthese: () => fetchAPI<{ texte: string | null; source: string }>("/api/semaine/synthese"),
+};
+
+// ── Le moteur macro ────────────────────────────────────────────────────────
+
+export interface AnnonceMacro {
+  id: number;
+  titre: string;
+  titre_origine: string;
+  pourquoi: string;
+  famille: string | null;
+  famille_nom: string | null;
+  banque: "FED" | "BCE" | "BOE" | "BOJ" | null;
+  pays: string;
+  pays_nom: string;
+  quand: string;
+  jour: string;
+  date_longue: string;
+  heure: string;
+  importance: "forte" | "moyenne" | "faible" | "férié";
+  prevision: string | null;
+  precedent: string | null;
+  officiel: boolean;
+  source: string | null;
+  note: string | null;
+  statut: "a_venir" | "en_cours" | "publie";
+  resume: string | null;
+  lecture: number | null;
+  vos_actifs?: {
+    symbole: string; nom: string; position: string | null;
+    sens_si_restrictive: number; sens_effectif: number | null; mesure: boolean;
+  }[];
+}
+
+export interface MesureMacro {
+  n?: number;
+  fiabilite: "fiable" | "indicatif" | "non_mesurable" | "en_calcul" | "thermometre";
+  amplification?: number | null;
+  pente_par_pas?: number;
+  t?: number;
+  moyenne_durs?: number | null;
+  n_durs?: number;
+  moyenne_doux?: number | null;
+  n_doux?: number;
+  regularite?: number | null;
+  decalage_jours?: number;
+  thermometre?: string;
+  pas?: string;
+  raison?: string;
+}
+
+export interface ImpactMacro {
+  symbole: string;
+  nom: string;
+  banque: string;
+  sens_si_restrictive: number;
+  source: "mesure" | "mecanisme" | "mesure_indicative" | null;
+  conforte: boolean;
+  contredit_mecanisme: boolean;
+  pourquoi: string | null;
+  mesure: MesureMacro | null;
+  mesure_par_procuration: boolean;
+  sens_effectif: number | null;
+  mouvement_attendu_pct: number | null;
+  phrase: string;
+  position?: string | null;
+}
+
+export interface ResultatMacro {
+  officiel: {
+    titre: string; url: string; publie_le: string;
+    decision: { action: "hausse" | "baisse" | "maintien"; ampleur_pb: number | null; niveau: string | null;
+      vote: string | null; unanime: boolean | null; extrait: string } | null;
+  } | null;
+  reaction: { symbole: string; nom: string; avant: number; apres: number; variation: number; unite: "pb" | "%"; minutes: number }[];
+  lecture: { sens: number | null; thermometre: string | null; mouvement: number | null; unite: string | null; phrase: string };
+  presse: { titre: string; source: string; lien: string; quand: string }[];
+  resume: string;
+  resume_communique: string | null;
+  maj: string;
+  definitif: boolean;
+}
+
+export interface FicheMacro extends AnnonceMacro {
+  explication: string | null;
+  restrictive: string | null;
+  type: "decision" | "statistique" | "discours" | null;
+  resultat: ResultatMacro | null;
+  impacts_vous: ImpactMacro[];
+  impacts_reference: ImpactMacro[];
+  thermometre: string | null;
+}
+
+export const macroAPI = {
+  agenda: (p: { jours?: number; passe?: number; importance?: "Low" | "Medium" | "High"; toutes?: boolean } = {}) => {
+    const q = new URLSearchParams();
+    if (p.jours) q.set("jours", String(p.jours));
+    if (p.passe != null) q.set("passe", String(p.passe));
+    if (p.importance) q.set("importance", p.importance);
+    if (p.toutes) q.set("toutes", "true");
+    return fetchAPI<{ evenements: AnnonceMacro[]; mes_actifs: { symbole: string; nom: string }[]; devises: string[] | null }>(
+      `/api/macro/agenda?${q}`);
+  },
+  evenement: (id: number) => fetchAPI<FicheMacro>(`/api/macro/evenement/${id}`),
+  actif: (symbol: string) =>
+    fetchAPI<{ symbole: string; nom: string; sensibilites: Record<"FED" | "BCE", ImpactMacro>; prochaines: (AnnonceMacro & { sens_si_restrictive: number })[] }>(
+      `/api/macro/actif/${encodeURIComponent(symbol)}`),
 };

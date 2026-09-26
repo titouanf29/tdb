@@ -273,7 +273,12 @@ function Contenu({ d, synthese, syntheseEnCours }: {
             )}
           </>
         )}
-        <Text size="caption" tone="faint" className="mt-4">Source : calendrier économique {d.agenda.source}.</Text>
+        <Text size="caption" tone="faint" className="mt-4">
+          Sources : {d.agenda.source}.{" "}
+          <Link href="/macro" className="underline underline-offset-2" style={{ color: "var(--cap-ocean)" }}>
+            Tout l&apos;agenda macro, et ce que chaque annonce change pour vos actifs
+          </Link>
+        </Text>
       </Panel>
 
       {/* ── L'actualité ────────────────────────────────────────────────────── */}
@@ -377,6 +382,11 @@ function Agenda({ evenements }: { evenements: EvenementMacro[] }) {
                 <Num tone="muted" className="w-[3.2rem] shrink-0 pt-[1px] text-[0.8rem]">{e.heure}</Num>
                 <div className="min-w-0">
                   <Text size="small" tone="ink">
+                    {e.id != null && (
+                      <Link href={`/macro?e=${e.id}`} className="mr-1 inline-flex align-middle" aria-label="Voir la fiche">
+                        <ArrowUpRight size={12} style={{ color: "var(--cap-ocean)" }} />
+                      </Link>
+                    )}
                     {e.importance === "forte" && (
                       <span className="mr-1.5 inline-block h-2 w-2 rounded-full align-middle"
                         style={{ backgroundColor: "var(--cap-down)" }} aria-label="importance forte" />
@@ -391,6 +401,7 @@ function Agenda({ evenements }: { evenements: EvenementMacro[] }) {
                     </Text>
                   )}
                   {e.pourquoi && e.importance === "forte" && <Text size="caption" className="mt-0.5">{e.pourquoi}</Text>}
+                  {e.resume && <Text size="caption" className="mt-0.5">{e.resume}</Text>}
                 </div>
               </li>
             ))}
