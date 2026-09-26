@@ -144,8 +144,19 @@ def calculer(serie_actif, serie_thermo, dates: list[date], banque: str, symbole:
     sens = 1 if pente > 0 else -1
     regulier = float(np.mean(np.sign(durs) == sens)) if len(durs) else None
 
-    fiab = "fiable" if abs(t) >= 2 and n >= 20 else "indicatif" if abs(t) >= 1.5 else "non_mesurable"
+    # UN LIEN SANS EXPLICATION EXIGE UNE PREUVE PLUS FORTE. On teste des
+    # dizaines d'actifs contre deux banques centrales : au seuil de t = 2,
+    # environ un test sur vingt passe par pur hasard. Quand le mécanisme
+    # prévoit le sens observé, t ≥ 2 suffit — la mesure confirme une raison.
+    # Quand aucun mécanisme ne relie l'actif à la banque, ou qu'il prévoit
+    # l'inverse, il faut t ≥ 3 sur au moins trente décisions ; en dessous, on
+    # ne dit rien plutôt que d'afficher une coïncidence comme un constat.
     theorie = mecanisme(banque, symbole)
+    explique = bool(theorie and theorie["sens"] and (theorie["sens"] > 0) == (pente > 0))
+    if explique:
+        fiab = "fiable" if abs(t) >= 2 and n >= 20 else "indicatif" if abs(t) >= 1.5 else "non_mesurable"
+    else:
+        fiab = "fiable" if abs(t) >= 3 and n >= 30 else "non_mesurable"
     accord = None
     if theorie and theorie["sens"] != 0 and fiab != "non_mesurable":
         accord = (theorie["sens"] > 0) == (pente > 0)

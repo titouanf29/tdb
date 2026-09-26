@@ -88,6 +88,9 @@ function Statut({ a }: { a: AnnonceMacro }) {
 /** « mercredi 28 octobre » → « Mercredi 28 octobre » : la majuscule au seul premier mot. */
 const phrase = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
 
+/** Les seuls actifs que l'annonce touche. */
+const touches = (l: ImpactMacro[]) => l.filter((x) => x.sens_si_restrictive !== 0);
+
 const fleche = (s: number) => (s > 0 ? "↑" : s < 0 ? "↓" : "→");
 
 /* ── L'agenda ──────────────────────────────────────────────────────────── */
@@ -375,25 +378,33 @@ function Fiche({ id }: { id: number }) {
 
       {f.banque && (
         <>
-          <Panel
-            title="Ce que ça change pour vos actifs"
-            hint={f.lecture != null
-              ? "Selon la lecture du marché, et ce que l'historique dit de chaque actif."
-              : "Le sens dépend de la surprise : plus ferme ou plus souple qu'attendu."}
-          >
-            {f.impacts_vous.length === 0 ? (
+          {/* Un actif sans effet attendu n'a rien à faire ici : une ligne
+              « pas d'effet net » sous un titre « plus ferme qu'attendu » laisse
+              croire qu'il se passe quelque chose. On ne montre que ce que
+              l'annonce touche. */}
+          {f.impacts_vous.length === 0 ? (
+            <Panel title="Ce que ça change pour vos actifs">
               <Text size="small">
                 Vous n&apos;avez ni position ouverte ni favori. Ajoutez des actifs en favori pour voir ici ce que
                 chaque annonce leur fait.
               </Text>
-            ) : (
-              <ListeImpacts impacts={f.impacts_vous} lecture={f.lecture} />
-            )}
-          </Panel>
+            </Panel>
+          ) : touches(f.impacts_vous).length > 0 && (
+            <Panel
+              title="Ce que ça change pour vos actifs"
+              hint={f.lecture != null
+                ? "Selon la lecture du marché, et ce que l'historique dit de chaque actif."
+                : "Le sens dépend de la surprise : plus ferme ou plus souple qu'attendu."}
+            >
+              <ListeImpacts impacts={touches(f.impacts_vous)} lecture={f.lecture} />
+            </Panel>
+          )}
 
-          <Panel title="Et pour le reste du marché" hint="Tous les actifs ne réagissent pas dans le même sens.">
-            <ListeImpacts impacts={f.impacts_reference} lecture={f.lecture} />
-          </Panel>
+          {touches(f.impacts_reference).length > 0 && (
+            <Panel title="Et pour le reste du marché" hint="Tous les actifs ne réagissent pas dans le même sens.">
+              <ListeImpacts impacts={touches(f.impacts_reference)} lecture={f.lecture} />
+            </Panel>
+          )}
 
           <Methode thermometre={f.thermometre} />
         </>
@@ -417,7 +428,6 @@ function LigneImpact({ x, lecture }: { x: ImpactMacro; lecture: number | null })
   const fiab =
     x.source === "mesure" ? { mot: "Mesuré · fiable", ton: "info" as const }
       : x.conforte ? { mot: "Mécanisme conforté par l'historique", ton: "neutre" as const }
-        : x.source === "mesure_indicative" ? { mot: "Tendance indicative", ton: "neutre" as const }
           : x.source === "mecanisme" ? { mot: "Mécanisme, non vérifié", ton: "neutre" as const }
             : { mot: "Pas d'effet net", ton: "neutre" as const };
 

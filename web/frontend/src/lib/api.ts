@@ -3245,7 +3245,7 @@ export interface ImpactMacro {
   nom: string;
   banque: string;
   sens_si_restrictive: number;
-  source: "mesure" | "mecanisme" | "mesure_indicative" | null;
+  source: "mesure" | "mecanisme" | null;
   conforte: boolean;
   contredit_mecanisme: boolean;
   pourquoi: string | null;

@@ -3,9 +3,11 @@ Ce qu'une annonce change pour un actif précis — en réunissant le mécanisme 
 la mesure.
 
 LA RÈGLE DE PRÉSÉANCE.
-  · Mesure fiable (|t| ≥ 2)         → c'est elle qui décide du sens, même si
-                                       elle contredit le mécanisme — et on le
-                                       signale, parce que c'est instructif.
+  · Mesure fiable                    → c'est elle qui décide du sens. Le seuil
+                                       est t ≥ 2 quand le mécanisme prévoit le
+                                       sens observé, t ≥ 3 sinon (mesure.py) :
+                                       un lien sans explication doit être très
+                                       net pour ne pas être une coïncidence.
   · Mesure indicative, qui confirme → le sens du mécanisme, dit « conforté ».
   · Pas de mesure utilisable        → le mécanisme, présenté comme un
                                        raisonnement et non comme un constat.
@@ -39,8 +41,6 @@ async def pour_actif(banque: str | None, symbole: str, *, nom: str | None = None
     elif theorie and theorie["sens"]:
         sens, source = theorie["sens"], "mecanisme"
         conforte = bool(mesure and mesure.get("fiabilite") == "indicatif" and mesure.get("sens_mesure") == theorie["sens"])
-    elif mesure and mesure.get("fiabilite") == "indicatif":
-        sens, source = mesure["sens_mesure"], "mesure_indicative"
 
     # Les annonces statistiques n'ont pas été mesurées elles-mêmes : la
     # sensibilité vient des jours de décision de la banque centrale qu'elles
@@ -103,6 +103,4 @@ def _phrase(banque, nom, sens, source, conforte, contredit, mesure, theorie, lec
         return tete + detail
     if conforte:
         return tete + f" Le raisonnement est conforté par l'historique ({mesure['n']} décisions), sans être assez net pour être dit fiable."
-    if source == "mesure_indicative":
-        return tete + " Tendance indicative seulement, sur l'historique des décisions."
     return tete + " C'est le mécanisme habituel ; l'historique ne permet pas de le confirmer pour cet actif."

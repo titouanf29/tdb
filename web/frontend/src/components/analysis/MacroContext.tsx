@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Landmark, Loader2 } from "lucide-react";
+import { Landmark } from "lucide-react";
 import { macroAPI, type ImpactMacro } from "@/lib/api";
 import { fr } from "@/lib/SettingsContext";
 import { Panel, Text } from "@/components/design-system";
@@ -32,6 +32,13 @@ export function MacroContext({ symbol }: { symbol: string }) {
     return () => { vivant = false; };
   }, [symbol]);
 
+  // Rien à dire, on ne dit rien : un bloc « la Fed plus ferme qu'attendu —
+  // pas d'effet net » annonce un événement qui n'existe pas pour cet actif.
+  const concernees = d ? (["FED", "BCE"] as const).filter((b) => d.sensibilites[b]?.sens_si_restrictive) : [];
+  // Pas de panneau pendant le chargement non plus : il apparaîtrait pour
+  // disparaître aussitôt sur un actif que les banques centrales ne touchent pas.
+  if (erreur || !d || (concernees.length === 0 && d.prochaines.length === 0)) return null;
+
   return (
     <Panel
       title="Banques centrales"
@@ -39,18 +46,12 @@ export function MacroContext({ symbol }: { symbol: string }) {
       aside={
         <span className="flex items-center gap-1.5">
           <Landmark size={15} aria-hidden style={{ color: "var(--cap-ink-4)" }} />
-          {!d && !erreur && <Loader2 size={14} className="animate-spin" aria-hidden style={{ color: "var(--cap-ink-4)" }} />}
         </span>
       }
     >
-      {erreur ? (
-        <Text size="small">Le moteur macro est momentanément indisponible. Le reste de l&apos;analyse n&apos;en dépend pas.</Text>
-      ) : !d ? (
-        <Text size="small">Mesure de la réaction historique aux décisions…</Text>
-      ) : (
-        <>
+      <>
           <div className="space-y-3">
-            {(["FED", "BCE"] as const).map((b) => <Sensibilite key={b} banque={b} x={d.sensibilites[b]} />)}
+            {concernees.map((b) => <Sensibilite key={b} banque={b} x={d.sensibilites[b]} />)}
           </div>
 
           {d.prochaines.length > 0 && (
@@ -71,8 +72,7 @@ export function MacroContext({ symbol }: { symbol: string }) {
           <Link href="/macro" className="mt-4 inline-block text-[0.82rem] underline underline-offset-2" style={{ color: "var(--cap-ocean)" }}>
             Tout l&apos;agenda macro
           </Link>
-        </>
-      )}
+      </>
     </Panel>
   );
 }

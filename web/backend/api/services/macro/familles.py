@@ -260,7 +260,7 @@ MECANISMES: dict[str, dict[str, tuple[int, int, str]]] = {
         "banques_us": (0, 1, "Les banques sont partagées : des taux plus hauts élargissent leur marge sur les prêts, mais ralentissent le crédit et fragilisent les emprunteurs."),
         "metaux_precieux": (-1, 2, "L'or ne rapporte aucun intérêt : quand les taux montent, le garder coûte plus cher, et le dollar fort le renchérit pour le reste du monde."),
         "crypto": (-1, 2, "Actif spéculatif, sans revenu : il souffre quand l'argent devient cher et que le dollar se renforce."),
-        "energie": (0, 1, "Peu d'effet direct sur l'énergie : le pétrole dépend d'abord de l'offre et de la demande mondiales. Mesuré, le secteur a même tendance à monter ces jours-là."),
+        "energie": (0, 1, "Peu d'effet direct sur l'énergie : le pétrole dépend d'abord de l'offre et de la demande mondiales."),
         "indices_eu": (-1, 1, "Par contagion : Wall Street donne le ton, mais l'effet est plus faible et arrive le lendemain, l'Europe étant fermée à l'annonce."),
         "exportateurs_eu": (0, 1, "Les exportateurs européens sont partagés : Wall Street en baisse pèse, mais un dollar fort rend leurs ventes aux États-Unis plus rentables une fois converties en euros."),
         "banques_eu": (0, 1, "Les banques européennes sont peu concernées directement : leurs marges dépendent des taux de la BCE."),
