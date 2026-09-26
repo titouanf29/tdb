@@ -40,10 +40,20 @@ export function useAssetSuggestions(valeur: string) {
      muet, ce qui serait un second défaut pour en corriger un premier. */
   const initiale = useRef(valeur);
   const touche_clavier = useRef(false);
+  /* Une valeur posée par l'écran (un actif choisi, l'actif de l'URL) n'est pas
+     une frappe non plus : la liste ne doit pas se rouvrir 220 ms après qu'on
+     a choisi. `poser` la marque pour que l'effet la laisse passer en silence. */
+  const posee = useRef<string | null>(null);
 
   useEffect(() => {
     if (timer.current) clearTimeout(timer.current);
     const q = valeur.trim();
+    if (posee.current !== null && q === posee.current.trim()) {
+      posee.current = null;
+      setHits([]); setOuvert(false); setCherche(false);
+      return;
+    }
+    posee.current = null;
     if (!touche_clavier.current) {
       if (q === initiale.current.trim()) return;
       touche_clavier.current = true;
@@ -77,7 +87,8 @@ export function useAssetSuggestions(valeur: string) {
   const choisi = hits.length ? (hits[actif] ?? hits[0]) : null;
 
   return { hits, ouvert, setOuvert, actif, setActif, cherche, touche, choisi,
-           vider: () => { setHits([]); setOuvert(false); } };
+           vider: () => { setHits([]); setOuvert(false); },
+           poser: (v: string) => { posee.current = v; setHits([]); setOuvert(false); } };
 }
 
 export function ListeSuggestions({

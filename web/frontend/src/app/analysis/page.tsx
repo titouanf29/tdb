@@ -158,6 +158,7 @@ function AnalysisScreen() {
   const urlSymbol = (params.get("symbol") || "").toUpperCase();
   const [symbol, setSymbol] = useState(urlSymbol);
   const [query, setQuery] = useState(urlSymbol);
+
   const [timeframe, setTimeframe] = useState(style.defaultTimeframe);
   // Miroir en ref : `changeStyle` doit pouvoir revenir à l'unité précédente
   // sans se redéclarer à chaque frappe sur le sélecteur d'unité.
@@ -343,9 +344,23 @@ function AnalysisScreen() {
   const formRef = useRef<HTMLFormElement>(null);
   useFermetureExterieure(formRef, sugg.ouvert, () => sugg.setOuvert(false));
 
+  /* L'ADRESSE FAIT FOI. `useState(urlSymbol)` ne lit l'adresse qu'au montage :
+     depuis une analyse déjà ouverte, choisir un actif dans la recherche de
+     l'en-tête changeait l'URL (/analysis?symbol=TTE.PA) sans changer l'écran,
+     qui restait sur l'actif précédent — le clic semblait ne rien faire. Même
+     chose avec les boutons précédent / suivant du navigateur. */
+  useEffect(() => {
+    if (urlSymbol && urlSymbol !== symbol) {
+      sugg.poser(urlSymbol);
+      setSymbol(urlSymbol);
+      setQuery(urlSymbol);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [urlSymbol]);
+
   const choisirActif = useCallback((s: string) => {
+    sugg.poser(s);
     setQuery(s);
-    sugg.vider();
     setSymbol(s);
     router.replace(`/analysis?symbol=${encodeURIComponent(s)}`);
     // eslint-disable-next-line react-hooks/exhaustive-deps
