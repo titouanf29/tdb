@@ -567,6 +567,7 @@ def _chiffre(v) -> str | None:
     if not v:
         return None
     v = str(v).replace(".", ",")
+    v = v.replace("%", "\u202f%")
     for suffixe, fr in (("K", "\u202fk"), ("M", "\u202fM"), ("B", "\u202fMd")):
         if v.endswith(suffixe):
             v = v[:-1] + fr
