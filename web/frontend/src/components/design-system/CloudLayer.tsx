@@ -147,11 +147,11 @@ export function CloudBank({ className }: { className?: string }) {
       aria-hidden
       className={`pointer-events-none absolute inset-x-0 bottom-0 h-[42vh] overflow-hidden ${className ?? ""}`}
     >
-      <motion.div
+      {/* Dérive en CSS : sur la carte graphique, pas en JavaScript. */}
+      <style>{`@keyframes cap-derive-banc{from{transform:translate3d(0,0,0)}to{transform:translate3d(-50%,0,0)}}`}</style>
+      <div
         className="absolute bottom-0 left-0 flex w-[200%] items-end"
-        animate={reduce ? { x: "0%" } : { x: ["0%", "-50%"] }}
-        transition={reduce ? { duration: 0 } : { duration: 240, repeat: Infinity, ease: "linear" }}
-        style={{ willChange: reduce ? undefined : "transform" }}
+        style={reduce ? undefined : { animation: "cap-derive-banc 240s linear infinite", willChange: "transform" }}
       >
         {/* Two identical runs, so the translation by exactly one run loops
             with no seam. */}
@@ -162,7 +162,7 @@ export function CloudBank({ className }: { className?: string }) {
             ))}
           </div>
         ))}
-      </motion.div>
+      </div>
     </div>
   );
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { motion, useMotionValue, useScroll, useSpring, useTransform, type MotionValue, type Variants } from "framer-motion";
+import { motion, useInView, useMotionValue, useScroll, useSpring, useTransform, type MotionValue, type Variants } from "framer-motion";
 import { useAnimationsEnabled } from "@/components/design-system";
 import { NuageImage } from "@/components/design-system/NuageImage";
 import { useMouvementReduit } from "@/components/design-system/useMouvementReduit";
@@ -49,19 +49,16 @@ const PROCHES: Masse[] = [
   { x: -30, y: 20, w: 95, forme: 0, cote: -1, retard: 0 },
   { x: 35, y: 30, w: 100, forme: 2, cote: 1, retard: 0.04 },
   { x: -10, y: 55, w: 90, forme: 1, cote: -1, retard: 0.08 },
-  { x: 25, y: -12, w: 85, forme: 3, cote: 1, retard: 0.06 },
 ];
 const MILIEU: Masse[] = [
   { x: -12, y: -6, w: 62, forme: 0, cote: -1, retard: 0.12 },
   { x: 42, y: -8, w: 64, forme: 2, cote: 1, retard: 0.1 },
   { x: -18, y: 32, w: 70, forme: 1, cote: -1, retard: 0.18 },
   { x: 44, y: 28, w: 66, forme: 0, cote: 1, retard: 0.16 },
-  { x: -6, y: 66, w: 64, forme: 3, cote: -1, retard: 0.22 },
 ];
 const LOINTAINS: Masse[] = [
   { x: 4, y: 4, w: 40, forme: 2, cote: -1, retard: 0.3 },
   { x: 52, y: 8, w: 44, forme: 3, cote: 1, retard: 0.34 },
-  { x: 24, y: 40, w: 46, forme: 0, cote: 1, retard: 0.38 },
 ];
 
 /**
@@ -122,8 +119,8 @@ export function OuvertureDuCiel() {
         {/* Tout près : on les traverse — ils foncent vers nous et se floutent. */}
         {PROCHES.map((n, i) => (
           <motion.div key={`p${i}`} className="absolute" style={{ left: `${n.x}vw`, top: `${n.y}vh`, width: `${n.w}vw`, willChange: "transform, opacity" }}
-            initial={{ x: 0, y: 0, scale: 1.3, opacity: 1 }}
-            animate={ouvre ? { x: `${n.cote * 70}vw`, y: "18vh", scale: 3.2, opacity: 0 } : undefined}
+            initial={{ x: 0, y: 0, scale: 1.2, opacity: 1 }}
+            animate={ouvre ? { x: `${n.cote * 75}vw`, y: "14vh", scale: 1.8, opacity: 0 } : undefined}
             transition={{ duration: 1.5, delay: 0.1 + n.retard, ease: [0.55, 0, 0.3, 1] }}>
             <Nuage forme={n.forme} retourne={n.cote > 0} style={{ width: "100%", height: "auto" }} flou={4} />
           </motion.div>
@@ -156,26 +153,21 @@ export function PremierPlan() {
   const actifs = useEffetsActifs();
   const { scrollY } = useScroll();
   const montee = useTransform(scrollY, [0, 900], [0, -420]);
-  const mx = useMotionValue(0);
-  const x = useSpring(mx, { stiffness: 40, damping: 20 });
-  useEffect(() => {
-    if (!actifs) return;
-    const bouge = (e: PointerEvent) => { if (e.pointerType === "mouse") mx.set(((e.clientX / window.innerWidth) * 2 - 1) * -40); };
-    window.addEventListener("pointermove", bouge, { passive: true });
-    return () => window.removeEventListener("pointermove", bouge);
-  }, [actifs, mx]);
   if (!actifs) return null;
   return (
-    <motion.div aria-hidden className="pointer-events-none absolute inset-x-0 top-[84vh] z-20 h-[60vh] sm:top-[70vh]" style={{ y: montee, x }}>
+    <motion.div aria-hidden className="pointer-events-none absolute inset-x-0 top-[84vh] z-20 h-[60vh] sm:top-[70vh]"
+      style={{ y: montee, willChange: "transform" }}>
+      {/* La lente dérive est une animation CSS : elle tourne sur la carte
+          graphique, sans occuper le JavaScript de la page. */}
+      <style>{`@keyframes cap-derive-a{0%,100%{transform:translate3d(0,0,0)}50%{transform:translate3d(6%,-4%,0)}}
+@keyframes cap-derive-b{0%,100%{transform:translate3d(0,0,0)}50%{transform:translate3d(-6%,-4%,0)}}`}</style>
       {[
-        { left: "-18%", top: "10%", w: "52%", forme: 0, duree: 34 },
-        { left: "62%", top: "0%", w: "56%", forme: 2, duree: 42 },
+        { left: "-18%", top: "10%", w: "52%", forme: 0, anim: "cap-derive-a 34s ease-in-out infinite" },
+        { left: "62%", top: "0%", w: "56%", forme: 2, anim: "cap-derive-b 42s ease-in-out infinite" },
       ].map((n, i) => (
-        <motion.div key={i} className="absolute" style={{ left: n.left, top: n.top, width: n.w, opacity: 0.92, willChange: "transform" }}
-          animate={{ x: ["0%", i ? "-6%" : "6%", "0%"], y: ["0%", "-4%", "0%"] }}
-          transition={{ duration: n.duree, repeat: Infinity, ease: "easeInOut" }}>
+        <div key={i} className="absolute" style={{ left: n.left, top: n.top, width: n.w, opacity: 0.92, animation: n.anim, willChange: "transform" }}>
           <Nuage forme={n.forme} retourne={i === 1} flou={7} style={{ width: "100%", height: "auto" }} />
-        </motion.div>
+        </div>
       ))}
     </motion.div>
   );
@@ -309,7 +301,7 @@ export function Inclinaison({ children, className, force = 9 }: {
   const rx = useSpring(useTransform(py, [0, 1], [force, -force]), { stiffness: 150, damping: 18 });
   const ry = useSpring(useTransform(px, [0, 1], [-force, force]), { stiffness: 150, damping: 18 });
   const reflet = useTransform([px, py] as MotionValue<number>[], ([x, y]: number[]) =>
-    `radial-gradient(600px circle at ${x * 100}% ${y * 100}%, rgba(255,255,255,0.35), transparent 45%)`);
+    `radial-gradient(600px circle at ${x * 100}% ${y * 100}%, rgba(255,255,255,0.28), transparent 45%)`);
   const [survol, setSurvol] = useState(false);
 
   if (!actifs) return <div className={className}>{children}</div>;
@@ -325,7 +317,9 @@ export function Inclinaison({ children, className, force = 9 }: {
         onPointerLeave={() => { px.set(0.5); py.set(0.5); setSurvol(false); }}>
         {children}
         <motion.div aria-hidden className="pointer-events-none absolute inset-0 rounded-[inherit]"
-          style={{ background: reflet, opacity: survol ? 1 : 0, transition: "opacity 300ms", borderRadius: "var(--cap-r-xl)", mixBlendMode: "soft-light" }} />
+          // Pas de mode de fusion : il forçait à recomposer toute la carte à
+          // chaque image pendant que les nuages défilaient derrière.
+          style={{ background: reflet, opacity: survol ? 0.6 : 0, transition: "opacity 300ms", borderRadius: "var(--cap-r-xl)" }} />
       </motion.div>
     </div>
   );
@@ -365,27 +359,37 @@ export function Aimant({ children, className, force = 0.3 }: {
 export function Traversee({ hauteur = 560 }: { hauteur?: number }) {
   const actifs = useEffetsActifs();
   const ref = useRef<HTMLDivElement>(null);
-  const { scrollYProgress } = useScroll({ target: ref, offset: ["start end", "end start"] });
-  const p = useSpring(scrollYProgress, { stiffness: 80, damping: 22 });
+  // Hors de l'écran, la traversée n'existe pas : ni nuages ni calcul. Sans
+  // ça, les cinq traversées recalculaient leurs douze mouvements à chaque
+  // pixel de défilement, même tout en haut de la page.
+  const proche = useInView(ref, { margin: "400px 0px 400px 0px" });
+  if (!actifs) return null;
+  return (
+    // La bande est aussi haute que les nuages grossis : rien ne dépasse, donc
+    // rien n'est coupé net par une ligne droite. Elle chevauche les deux
+    // sections voisines (marges négatives) pour ne pas allonger la page.
+    <div ref={ref} aria-hidden className="pointer-events-none relative z-10 overflow-hidden"
+      style={{ height: hauteur, marginTop: -hauteur / 2 + 40, marginBottom: -hauteur / 2 + 40 }}>
+      {proche && <CoucheTraversee cible={ref} />}
+    </div>
+  );
+}
 
-  // Trois profondeurs qui s'ouvrent à des vitesses différentes : le lointain
-  // à peine, le proche très vite — c'est ce décalage qui fait la profondeur.
-  const loinG = useTransform(p, [0.2, 0.8], ["0vw", "-22vw"]);
-  const loinD = useTransform(p, [0.2, 0.8], ["0vw", "22vw"]);
+function CoucheTraversee({ cible }: { cible: React.RefObject<HTMLDivElement> }) {
+  // Directement lié au défilement, sans ressort : le nuage suit le doigt ou
+  // la molette au pixel près, et s'arrête avec lui. Un ressort continuait de
+  // calculer après l'arrêt et donnait une impression de flottement saccadé.
+  const { scrollYProgress: p } = useScroll({ target: cible, offset: ["start end", "end start"] });
   const milieuG = useTransform(p, [0.15, 0.75], ["0vw", "-55vw"]);
   const milieuD = useTransform(p, [0.15, 0.75], ["0vw", "55vw"]);
   const procheG = useTransform(p, [0.25, 0.7], ["-8vw", "-95vw"]);
   const procheD = useTransform(p, [0.25, 0.7], ["8vw", "95vw"]);
-  const echLoin = useTransform(p, [0, 1], [0.8, 1]);
   const echMilieu = useTransform(p, [0, 0.75], [0.85, 1.15]);
-  const echProche = useTransform(p, [0.2, 0.7], [1, 1.5]);
-  const opLoin = useTransform(p, [0, 0.25, 0.7, 0.9], [0, 0.8, 0.6, 0]);
+  const echProche = useTransform(p, [0.2, 0.7], [1, 1.45]);
   const opMilieu = useTransform(p, [0, 0.2, 0.6, 0.85], [0, 1, 0.9, 0]);
   const opProche = useTransform(p, [0.2, 0.38, 0.55, 0.72], [0, 1, 1, 0]);
-  // Le moment où l'on est DANS la couche : un voile blanc, bref.
-  const voile = useTransform(p, [0.3, 0.45, 0.6], [0, 0.55, 0]);
+  const voile = useTransform(p, [0.3, 0.45, 0.6], [0, 0.5, 0]);
 
-  if (!actifs) return null;
   const rangee = (x: MotionValue<string>, echelle: MotionValue<number>, opacite: MotionValue<number>,
                   cote: "g" | "d", formes: number[], largeur: string, flou: number) => (
     <motion.div className={`absolute top-0 flex h-full items-center ${cote === "g" ? "-left-[6%] justify-start" : "-right-[6%] justify-end"}`}
@@ -397,20 +401,14 @@ export function Traversee({ hauteur = 560 }: { hauteur?: number }) {
     </motion.div>
   );
   return (
-    // La bande est aussi haute que les nuages grossis : rien ne dépasse, donc
-    // rien n'est coupé net par une ligne droite. Elle chevauche les deux
-    // sections voisines (marges négatives) pour ne pas allonger la page.
-    <div ref={ref} aria-hidden className="pointer-events-none relative z-10 overflow-hidden"
-      style={{ height: hauteur, marginTop: -hauteur / 2 + 40, marginBottom: -hauteur / 2 + 40 }}>
-      {rangee(loinG, echLoin, opLoin, "g", [3, 2], "40%", 2.4)}
-      {rangee(loinD, echLoin, opLoin, "d", [2, 3], "40%", 2.4)}
+    <>
       {rangee(milieuG, echMilieu, opMilieu, "g", [0, 2], "56%", 3)}
       {rangee(milieuD, echMilieu, opMilieu, "d", [1, 3], "56%", 3)}
       <motion.div className="absolute inset-0"
         style={{ opacity: voile, background: "radial-gradient(ellipse 60% 50% at 50% 50%, var(--cap-cloud-light), transparent 75%)" }} />
       {rangee(procheG, echProche, opProche, "g", [1], "64%", 5)}
       {rangee(procheD, echProche, opProche, "d", [0], "64%", 5)}
-    </div>
+    </>
   );
 }
 
@@ -423,8 +421,7 @@ export function Traversee({ hauteur = 560 }: { hauteur?: number }) {
 export function Redressement({ children, className }: { children: React.ReactNode; className?: string }) {
   const actifs = useEffetsActifs();
   const ref = useRef<HTMLDivElement>(null);
-  const { scrollYProgress } = useScroll({ target: ref, offset: ["start end", "center center"] });
-  const p = useSpring(scrollYProgress, { stiffness: 110, damping: 26 });
+  const { scrollYProgress: p } = useScroll({ target: ref, offset: ["start end", "center center"] });
   const rotateX = useTransform(p, [0, 1], [22, 0]);
   const scale = useTransform(p, [0, 1], [0.9, 1]);
   const y = useTransform(p, [0, 1], [60, 0]);

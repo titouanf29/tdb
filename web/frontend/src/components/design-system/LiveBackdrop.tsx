@@ -72,15 +72,15 @@ export function LiveBackdrop({
   const running = inView && !reduce;
 
   // Slow enough that the movement is felt rather than watched.
-  // À l'arrêt, on ramène explicitement la bande à sa place : un objet vide
-  // laisserait tourner la boucle déjà lancée (framer-motion ne l'annule pas).
-  const drift = (seconds: number, distance: string) =>
-    !running
-      ? { animate: { x: "0%" }, transition: { duration: 0 } }
-      : {
-          animate: { x: ["0%", distance] },
-          transition: { duration: seconds, repeat: Infinity, ease: "linear" as const },
-        };
+  // La dérive est une animation CSS : elle tourne sur la carte graphique,
+  // sans solliciter le JavaScript de la page à chaque image (une animation
+  // framer-motion infinie sur `x` recalculait la position en JS, en
+  // permanence, et se disputait le fil principal avec le défilement).
+  const drift = (seconds: number, _distance: string) => ({
+    style: running
+      ? { animation: `cap-derive-bande ${seconds}s linear infinite`, willChange: "transform" as const }
+      : { transform: "translate3d(0,0,0)" },
+  });
 
   return (
     <div
@@ -110,11 +110,12 @@ export function LiveBackdrop({
               `radial-gradient(${band.size} at 34% 58%, var(--cap-ink), transparent 66%),` +
               `radial-gradient(${band.size} at 59% 42%, var(--cap-ocean), transparent 68%),` +
               `radial-gradient(${band.size} at 84% 56%, var(--cap-ink), transparent 66%)`,
-            willChange: running ? "transform" : undefined,
+            ...drift(band.s, "-50%").style,
           }}
-          {...drift(band.s, "-50%")}
         />
       ))}
+
+      <style>{`@keyframes cap-derive-bande{from{transform:translate3d(0,0,0)}to{transform:translate3d(-50%,0,0)}}`}</style>
 
       {/* ── The market line ────────────────────────────────────────────── */}
       <div className="absolute inset-x-0 top-[12%] h-[38vh]">
@@ -122,8 +123,7 @@ export function LiveBackdrop({
           viewBox={`0 0 ${PERIOD * 2} 120`}
           preserveAspectRatio="none"
           className="absolute left-0 h-full w-[200%]"
-          style={{ willChange: running ? "transform" : undefined }}
-          {...drift(150, "-50%")}
+          style={drift(150, "-50%").style}
         >
           {/* Its grid, drifting with it — a chart, not a decorative squiggle. */}
           {/* Half as many rules, half as strong. At 25 lines the grid stopped
