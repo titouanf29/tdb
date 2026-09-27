@@ -33,11 +33,11 @@ export function useEffetsActifs() {
 
 /* ── Un nuage ─────────────────────────────────────────────────────────── */
 
-export function Nuage({ forme = 0, retourne, className, style, flou = 2.4 }: {
-  forme?: number; retourne?: boolean; className?: string; style?: React.CSSProperties; flou?: number;
+export function Nuage({ forme = 0, retourne, className, style, flou = 2.4, prioritaire }: {
+  forme?: number; retourne?: boolean; className?: string; style?: React.CSSProperties; flou?: number; prioritaire?: boolean;
 }) {
-  // Pré-dessiné en image : bouger ou grossir un nuage ne le redessine plus.
-  return <NuageImage forme={forme} retourne={retourne} flou={flou} className={className} style={style} />;
+  // Une image déjà prête : bouger ou grossir un nuage ne le redessine plus.
+  return <NuageImage forme={forme} retourne={retourne} flou={flou} className={className} style={style} prioritaire={prioritaire} />;
 }
 
 /* ── 1. L'ouverture du ciel ───────────────────────────────────────────── */
@@ -72,7 +72,25 @@ const LOINTAINS: Masse[] = [
  * déjà vu, animations coupées ou réduites → la classe « ciel-vu » les masque
  * avant même qu'ils soient peints ; sinon il note la visite et laisse jouer.
  */
-const DECISION = `try{var d=document.documentElement;if(sessionStorage.getItem('cap_ciel_ouvert')||localStorage.getItem('tdb_animations')==='off'||matchMedia('(prefers-reduced-motion: reduce)').matches){d.classList.add('ciel-vu')}else{window.__cielJoue=true;sessionStorage.setItem('cap_ciel_ouvert','1')}}catch(e){document.documentElement.classList.add('ciel-vu')}`;
+const DECISION = `try{var d=document.documentElement;var off=localStorage.getItem('tdb_animations')==='off'||matchMedia('(prefers-reduced-motion: reduce)').matches;if(off)d.classList.add('anim-off');if(off||sessionStorage.getItem('cap_ciel_ouvert')){d.classList.add('ciel-vu')}else{window.__cielJoue=true;sessionStorage.setItem('cap_ciel_ouvert','1')}}catch(e){document.documentElement.classList.add('ciel-vu')}`;
+
+/* L'ouverture en CSS : une fois lancées, ces animations sont confiées à la
+   carte graphique et ne dépendent plus du JavaScript de la page — qui, à
+   l'arrivée, est justement occupé à démarrer. Pilotées par framer-motion,
+   elles hoquetaient à chaque fois que React travaillait. */
+function cssOuverture(): string {
+  const regle = (cls: string, de: string, a: string, duree: number, delai: number, courbe: string) =>
+    `@keyframes ${cls}{from{transform:${de};opacity:1}to{transform:${a};opacity:0}}` +
+    `.ciel-rideau .${cls}{transform:${de}}` +
+    `.ciel-rideau.ouvre .${cls}{animation:${cls} ${duree}s ${courbe} ${delai}s both}`;
+  const out: string[] = [];
+  LOINTAINS.forEach((n, i) => out.push(regle(`co-l${i}`, "translate3d(0,0,0)", "translate3d(0,-35vh,0)", 2.1, 0.2 + n.retard, "cubic-bezier(.4,0,.2,1)")));
+  MILIEU.forEach((n, i) => out.push(regle(`co-m${i}`, "translate3d(0,0,0) scale(1.12)", `translate3d(${n.cote * 100}vw,0,0) scale(1.55)`, 1.9, 0.15 + n.retard, "cubic-bezier(.7,0,.3,1)")));
+  PROCHES.forEach((n, i) => out.push(regle(`co-p${i}`, "translate3d(0,0,0) scale(1.2)", `translate3d(${n.cote * 75}vw,14vh,0) scale(1.8)`, 1.5, 0.1 + n.retard, "cubic-bezier(.55,0,.3,1)")));
+  out.push(`@keyframes co-fond{from{opacity:1}to{opacity:0}}.ciel-rideau.ouvre .co-fond{animation:co-fond .9s ease-out .35s both}`);
+  out.push(`.ciel-vu .ciel-rideau{display:none}`);
+  return out.join("");
+}
 
 export function cielEnCours(): boolean {
   return typeof window !== "undefined" && Boolean((window as unknown as { __cielJoue?: boolean }).__cielJoue);
@@ -80,51 +98,58 @@ export function cielEnCours(): boolean {
 
 export function OuvertureDuCiel() {
   const [etat, setEtat] = useState<"attente" | "ouvre" | "fini">("attente");
+  const rideau = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!cielEnCours()) { setEtat("fini"); return; }
-    setEtat("ouvre");
-    const t = setTimeout(() => setEtat("fini"), 2600);
-    return () => clearTimeout(t);
+    if (!cielEnCours()) {
+      // Arrivée sans rechargement (lien interne) : le script de décision n'a
+      // pas tourné ; on pose la classe pour que le titre n'attende pas un
+      // ciel qui ne s'ouvrira pas.
+      document.documentElement.classList.add("ciel-vu");
+      setEtat("fini");
+      return;
+    }
+    let vivant = true;
+    let fin: ReturnType<typeof setTimeout> | undefined;
+    // ON NE PART QUE QUAND TOUT EST PRÊT. Démarrer l'animation pendant que la
+    // page démarre (React) et que les images se décodent, c'était la
+    // garantie de saccades à l'arrivée. Le ciel reste couvert, immobile — ce
+    // qui ne se voit pas — jusqu'à ce que les nuages soient décodés et que le
+    // navigateur ait un instant de libre ; au plus 1,2 s.
+    const images = Array.from(rideau.current?.querySelectorAll("img") ?? []);
+    const decodees = Promise.all(images.map((i) => i.decode().catch(() => undefined)));
+    const delai = new Promise((r) => setTimeout(r, 1200));
+    Promise.race([decodees, delai]).then(() => {
+      const partir = () => {
+        if (!vivant) return;
+        setEtat("ouvre");
+        fin = setTimeout(() => setEtat("fini"), 2600);
+      };
+      const w = window as unknown as { requestIdleCallback?: (f: () => void, o: { timeout: number }) => void };
+      if (w.requestIdleCallback) w.requestIdleCallback(partir, { timeout: 250 });
+      else setTimeout(partir, 60);
+    });
+    return () => { vivant = false; if (fin) clearTimeout(fin); };
   }, []);
 
   if (etat === "fini") return null;
   const ouvre = etat === "ouvre";
+  const masse = (cls: string, n: Masse, flou: number) => (
+    <div key={cls} className={`${cls} absolute`} style={{ left: `${n.x}vw`, top: `${n.y}vh`, width: `${n.w}vw`, willChange: "transform, opacity" }}>
+      <Nuage prioritaire forme={n.forme} retourne={n.cote > 0} style={{ width: "100%", height: "auto" }} flou={flou} />
+    </div>
+  );
   return (
     <>
       <script dangerouslySetInnerHTML={{ __html: DECISION }} />
-      <style>{`.ciel-vu .ciel-rideau{display:none}`}</style>
-      <div aria-hidden className="ciel-rideau pointer-events-none fixed inset-0 z-[60] overflow-hidden">
-        <motion.div className="absolute inset-0" style={{ backgroundColor: "var(--cap-bg)" }}
-          initial={{ opacity: 1 }} animate={ouvre ? { opacity: 0 } : undefined}
-          transition={{ duration: 0.9, delay: 0.35, ease: "easeOut" }} />
-        {/* Au loin : les nuages s'élèvent et s'effacent lentement. */}
-        {LOINTAINS.map((n, i) => (
-          <motion.div key={`l${i}`} className="absolute" style={{ left: `${n.x}vw`, top: `${n.y}vh`, width: `${n.w}vw`, willChange: "transform, opacity" }}
-            initial={{ y: 0, opacity: 0.9 }}
-            animate={ouvre ? { y: "-35vh", opacity: 0 } : undefined}
-            transition={{ duration: 2.1, delay: 0.2 + n.retard, ease: [0.4, 0, 0.2, 1] }}>
-            <Nuage forme={n.forme} retourne={n.cote > 0} style={{ width: "100%", height: "auto" }} flou={2.4} />
-          </motion.div>
-        ))}
-        {/* Au milieu : la couche s'ouvre par le centre. */}
-        {MILIEU.map((n, i) => (
-          <motion.div key={`m${i}`} className="absolute" style={{ left: `${n.x}vw`, top: `${n.y}vh`, width: `${n.w}vw`, willChange: "transform, opacity" }}
-            initial={{ x: 0, scale: 1.12, opacity: 1 }}
-            animate={ouvre ? { x: `${n.cote * 100}vw`, scale: 1.55, opacity: 0 } : undefined}
-            transition={{ duration: 1.9, delay: 0.15 + n.retard, ease: [0.7, 0, 0.3, 1] }}>
-            <Nuage forme={n.forme} retourne={n.cote > 0} style={{ width: "100%", height: "auto" }} flou={3} />
-          </motion.div>
-        ))}
-        {/* Tout près : on les traverse — ils foncent vers nous et se floutent. */}
-        {PROCHES.map((n, i) => (
-          <motion.div key={`p${i}`} className="absolute" style={{ left: `${n.x}vw`, top: `${n.y}vh`, width: `${n.w}vw`, willChange: "transform, opacity" }}
-            initial={{ x: 0, y: 0, scale: 1.2, opacity: 1 }}
-            animate={ouvre ? { x: `${n.cote * 75}vw`, y: "14vh", scale: 1.8, opacity: 0 } : undefined}
-            transition={{ duration: 1.5, delay: 0.1 + n.retard, ease: [0.55, 0, 0.3, 1] }}>
-            <Nuage forme={n.forme} retourne={n.cote > 0} style={{ width: "100%", height: "auto" }} flou={4} />
-          </motion.div>
-        ))}
+      <style>{cssOuverture()}</style>
+      <div ref={rideau} aria-hidden className={`ciel-rideau pointer-events-none fixed inset-0 z-[60] overflow-hidden${ouvre ? " ouvre" : ""}`}>
+        <div className="co-fond absolute inset-0" style={{ backgroundColor: "var(--cap-bg)", willChange: "opacity" }} />
+        {/* Au loin, les nuages s'élèvent ; au milieu, la couche s'ouvre par
+            le centre ; tout près, on les traverse. */}
+        {LOINTAINS.map((n, i) => masse(`co-l${i}`, n, 2.4))}
+        {MILIEU.map((n, i) => masse(`co-m${i}`, n, 3))}
+        {PROCHES.map((n, i) => masse(`co-p${i}`, n, 4))}
       </div>
     </>
   );
@@ -132,14 +157,14 @@ export function OuvertureDuCiel() {
 
 /** Le contenu du haut de page se met au point quand le ciel s'ouvre. */
 export function MiseAuPoint({ children, className }: { children: React.ReactNode; className?: string }) {
-  const [joue] = useState(() => cielEnCours());
-  if (!joue) return <div className={className}>{children}</div>;
+  // Un simple fondu, en CSS, seulement quand le ciel s'ouvre.
   return (
-    <motion.div className={className} initial={{ scale: 1.07, opacity: 0.3 }}
-      animate={{ scale: 1, opacity: 1 }}
-      transition={{ duration: 1.6, delay: 0.35, ease: [0.22, 1, 0.36, 1] }}>
+    <div className={`cap-mise-au-point ${className ?? ""}`}>
+      <style>{`@keyframes cap-fondu{from{opacity:0}to{opacity:1}}
+.cap-mise-au-point{animation:cap-fondu 1.2s cubic-bezier(.22,1,.36,1) 1.4s both}
+.ciel-vu .cap-mise-au-point,.anim-off .cap-mise-au-point{animation:none}`}</style>
       {children}
-    </motion.div>
+    </div>
   );
 }
 
@@ -216,21 +241,22 @@ export function Bouffees({ children, className }: { children: React.ReactNode; c
 export function Mots({ texte, delai = 0, pas = 0.07, className, style }: {
   texte: string; delai?: number; pas?: number; className?: string; style?: React.CSSProperties;
 }) {
-  const actifs = useEffetsActifs();
-  // Si le ciel s'ouvre, les mots attendent qu'il soit à moitié ouvert.
-  const [attente] = useState(() => (cielEnCours() ? 0.75 : 0));
-  if (!actifs) return <span className={className} style={style}>{texte}</span>;
+  // En CSS, pour la même raison que l'ouverture : les mots arrivent pendant
+  // que la page démarre, et une animation JavaScript hoquetait alors.
+  // Le délai tient compte de l'ouverture du ciel (classe posée avant
+  // l'affichage par le script de décision) ; rien ne bouge si les
+  // animations sont coupées ou réduites.
   const mots = texte.split(" ");
   return (
     <span className={className} style={{ ...style, perspective: "800px", display: "inline" }}>
+      <style>{`@keyframes cap-mot{from{opacity:0;transform:translate3d(0,.55em,0) rotateX(55deg)}to{opacity:1;transform:none}}
+.cap-mot{display:inline-block;transform-origin:50% 100%;animation:cap-mot .9s cubic-bezier(.16,1,.3,1) calc(var(--d) + 1.9s) both}
+.ciel-vu .cap-mot{animation-delay:calc(var(--d) + .3s)}
+.anim-off .cap-mot{animation:none}
+@media (prefers-reduced-motion: reduce){.cap-mot{animation:none}}`}</style>
       {mots.map((m, i) => (
-        <span key={i} className="inline-block overflow-visible whitespace-pre">
-          <motion.span className="inline-block" style={{ transformOrigin: "50% 100%" }}
-            initial={{ opacity: 0, y: "0.55em", rotateX: 55 }}
-            animate={{ opacity: 1, y: 0, rotateX: 0 }}
-            transition={{ duration: 0.9, delay: attente + delai + i * pas, ease: [0.16, 1, 0.3, 1] }}>
-            {m}
-          </motion.span>
+        <span key={i} className="inline-block whitespace-pre">
+          <span className="cap-mot" style={{ ["--d" as string]: `${(delai + i * pas).toFixed(2)}s` }}>{m}</span>
           {i < mots.length - 1 ? " " : ""}
         </span>
       ))}

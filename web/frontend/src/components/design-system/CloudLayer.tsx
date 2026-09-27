@@ -232,7 +232,7 @@ function CloudMass({
         willChange: "transform, opacity",
       }}
     >
-      <NuageImage forme={cloud.shape} retourne={cloud.flip} flou={2.2} style={{ width: "100%" }} />
+      <NuageImage prioritaire forme={cloud.shape} retourne={cloud.flip} flou={2.2} style={{ width: "100%" }} />
     </motion.div>
   );
 }

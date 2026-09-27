@@ -1,36 +1,30 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { SILHOUETTES } from "./CloudLayer";
 
 /**
- * Un nuage, pré-dessiné en image.
+ * Un nuage, sous forme d'image déjà prête.
  *
- * POURQUOI UNE IMAGE. Un nuage est un dessin vectoriel adouci par un flou
- * gaussien. Dessiné directement dans la page, ce flou est recalculé par le
- * navigateur à chaque image dès que le nuage grossit, se déplace ou change
- * d'opacité — mesuré sur la page de présentation : 43 % des images au-delà
- * de 25 ms au défilement, des pics à 350 ms à l'ouverture. Une fois converti
- * en image, le nuage est peint une seule fois ; ensuite on ne fait que le
- * déplacer, le grossir ou l'estomper, ce que le processeur graphique fait
- * sans rien redessiner.
- *
- * Les couleurs viennent du thème (variables --cap-cloud-*) : une image ne
- * lit pas les variables CSS, elles sont donc relues au montage et injectées.
+ * POURQUOI DES FICHIERS. Un nuage est une silhouette adoucie par un flou
+ * gaussien. Dessiné en direct (SVG), ce flou était recalculé par le
+ * navigateur à la taille d'affichage — jusqu'à deux écrans de large — et à
+ * chaque changement ; converti à la volée en image, la conversion tombait
+ * pendant l'arrivée sur la page, au pire moment. Les nuages sont donc
+ * générés une fois pour toutes (scripts/generer-nuages.py → public/nuages/,
+ * WebP, ~15 Ko chacun) : la page ne fait plus que les déplacer, les agrandir
+ * et les estomper, ce que la carte graphique fait sans rien redessiner.
  */
 
-export interface Teinte { light: string; mid: string; shade: string }
+export type Teinte = "clair" | "sombre";
 
-const CLAIR: Teinte = { light: "#FDFDFE", mid: "#E2E9F1", shade: "#BCC9DA" };
-
-/** Les couleurs de nuage du thème courant, lues après le premier rendu. */
+/** Le thème des nuages, lu après le premier rendu (clair par défaut). */
 export function useTeinteNuage(): Teinte {
-  const [t, setT] = useState<Teinte>(CLAIR);
+  const [t, setT] = useState<Teinte>("clair");
   useEffect(() => {
     const lire = () => {
       const s = getComputedStyle(document.querySelector(".cap") ?? document.documentElement);
-      const v = (n: string, d: string) => s.getPropertyValue(n).trim() || d;
-      setT({ light: v("--cap-cloud-light", CLAIR.light), mid: v("--cap-cloud-mid", CLAIR.mid), shade: v("--cap-cloud-shade", CLAIR.shade) });
+      const light = s.getPropertyValue("--cap-cloud-light").trim().toUpperCase();
+      setT(light === "#3B4D63" ? "sombre" : "clair");
     };
     lire();
     const obs = new MutationObserver(lire);
@@ -40,93 +34,37 @@ export function useTeinteNuage(): Teinte {
   return t;
 }
 
-// Marge autour du nuage pour que le flou ne soit jamais coupé : le nuage
-// occupe la boîte 200 × 100, l'image fait 260 × 160.
+const FLOUS = [2.4, 3.5, 5, 7];
+
+/** Le fichier le plus proche du flou demandé. */
+export function nuageSrc(forme: number, flou: number, teinte: Teinte): string {
+  const f = FLOUS.reduce((a, b) => (Math.abs(b - flou) < Math.abs(a - flou) ? b : a));
+  return `/nuages/${forme % 4}-${String(f).replace(".", "_")}-${teinte}.webp`;
+}
+
+// L'image est plus grande que la silhouette (marge de 30 unités pour le flou,
+// sur une silhouette de 200 × 100) ; elle déborde de la boîte sans la déformer.
 const M = 30;
-const cache = new Map<string, string>();
 
-export function nuageUrl(forme: number, t: Teinte, flou = 2.4, retourne = false): string {
-  const cle = `${forme}|${flou}|${retourne}|${t.light}|${t.mid}|${t.shade}`;
-  const deja = cache.get(cle);
-  if (deja) return deja;
-  const { lobes, base } = SILHOUETTES[forme % SILHOUETTES.length];
-  const formes =
-    `<ellipse cx="${base[0]}" cy="${base[1]}" rx="${base[2]}" ry="${base[3]}"/>` +
-    lobes.map(([cx, cy, r]) => `<circle cx="${cx}" cy="${cy}" r="${r}"/>`).join("");
-  const miroir = retourne ? ` transform="translate(200,0) scale(-1,1)"` : "";
-  const svg =
-    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${-M} ${-M} ${200 + 2 * M} ${100 + 2 * M}" width="${(200 + 2 * M) * 2}" height="${(100 + 2 * M) * 2}">` +
-    `<defs><linearGradient id="f" x1="0" y1="0" x2="0" y2="1">` +
-    `<stop offset="0%" stop-color="${t.light}"/><stop offset="46%" stop-color="${t.light}"/>` +
-    `<stop offset="74%" stop-color="${t.mid}"/><stop offset="100%" stop-color="${t.shade}"/></linearGradient>` +
-    `<filter id="s" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="${flou}"/></filter></defs>` +
-    `<g filter="url(#s)" fill="url(#f)"${miroir}>${formes}</g></svg>`;
-  const url = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
-  cache.set(cle, url);
-  return url;
-}
-
-/* ── La version bitmap ─────────────────────────────────────────────────
- *
- * Même en image, un SVG est redessiné à sa taille d'affichage : un nuage de
- * deux écrans de large recalcule son flou sur deux écrans. On le dessine
- * donc UNE fois dans une petite toile (520 × 320), et c'est cette toile, en
- * PNG, qui est affichée : l'agrandir ne coûte rien à la carte graphique, et
- * un nuage flou ne perd rien à être agrandi. */
-const bitmaps = new Map<string, string>();
-const enCours = new Map<string, Promise<string>>();
-
-function versBitmap(svgUrl: string): Promise<string> {
-  const deja = bitmaps.get(svgUrl);
-  if (deja) return Promise.resolve(deja);
-  const attente = enCours.get(svgUrl);
-  if (attente) return attente;
-  const p = new Promise<string>((resolve) => {
-    const img = new Image();
-    img.onload = () => {
-      try {
-        const c = document.createElement("canvas");
-        c.width = (200 + 2 * M) * 2; c.height = (100 + 2 * M) * 2;
-        c.getContext("2d")!.drawImage(img, 0, 0, c.width, c.height);
-        c.toBlob((b) => {
-          const url = b ? URL.createObjectURL(b) : svgUrl;
-          bitmaps.set(svgUrl, url); resolve(url);
-        }, "image/png");
-      } catch { resolve(svgUrl); }
-    };
-    img.onerror = () => resolve(svgUrl);
-    img.src = svgUrl;
-  });
-  enCours.set(svgUrl, p);
-  return p;
-}
-
-function useNuageBitmap(svgUrl: string): string {
-  const [url, setUrl] = useState(() => bitmaps.get(svgUrl) ?? svgUrl);
-  useEffect(() => {
-    let vivant = true;
-    versBitmap(svgUrl).then((u) => { if (vivant) setUrl(u); });
-    return () => { vivant = false; };
-  }, [svgUrl]);
-  return url;
-}
-
-/**
- * Le nuage dans une boîte au format 2:1 (celle de la silhouette). L'image,
- * plus grande pour loger le flou, déborde de la boîte sans la déformer.
- */
-export function NuageImage({ forme = 0, retourne, flou = 2.4, className, style }: {
+export function NuageImage({ forme = 0, retourne, flou = 2.4, className, style, prioritaire }: {
   forme?: number; retourne?: boolean; flou?: number; className?: string; style?: React.CSSProperties;
+  /** Chargé et décodé en priorité (les nuages visibles dès l'arrivée). */
+  prioritaire?: boolean;
 }) {
-  const t = useTeinteNuage();
-  const src = useNuageBitmap(nuageUrl(forme, t, flou, retourne));
+  const teinte = useTeinteNuage();
   return (
     <div aria-hidden className={className} style={{ position: "relative", aspectRatio: "2 / 1", ...style, height: undefined }}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={src} alt="" draggable={false} decoding="async"
+      <img src={nuageSrc(forme, flou, teinte)} alt="" draggable={false}
+        // Toujours décodé hors du fil principal : un décodage « sync »
+        // bloquait le démarrage de la page (tâches de 300 à 400 ms). Les
+        // nuages de l'ouverture attendent leur décodage avant de bouger.
+        decoding="async" loading={prioritaire ? "eager" : "lazy"}
+        {...(prioritaire ? { fetchpriority: "high" } : {})}
         style={{ position: "absolute", left: `${-(M / 200) * 100}%`, top: `${-(M / 100) * 100}%`,
                  width: `${((200 + 2 * M) / 200) * 100}%`, height: `${((100 + 2 * M) / 100) * 100}%`,
-                 maxWidth: "none", pointerEvents: "none", userSelect: "none" }} />
+                 maxWidth: "none", pointerEvents: "none", userSelect: "none",
+                 transform: retourne ? "scaleX(-1)" : undefined }} />
     </div>
   );
 }
