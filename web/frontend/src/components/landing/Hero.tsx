@@ -6,8 +6,7 @@ import {
   DUR, EASE,
 } from "@/components/design-system";
 import { AnalysisVisual } from "./AnalysisVisual";
-import { Aimant, Inclinaison, Mots, Redressement } from "./effets";
-import { BullesDeCours, CielDeMarche } from "./CielDeMarche";
+import { Aimant, Bouffees, Inclinaison, MiseAuPoint, Mots, PremierPlan, Redressement } from "./effets";
 import { DEMO_ASSETS } from "./demoData";
 import { useMouvementReduit } from "@/components/design-system/useMouvementReduit";
 
@@ -40,17 +39,15 @@ export function Hero() {
           others, or the opening just gets busy. */}
       <Atmosphere variant="top" />
       <LiveBackdrop clouds={false} opacity={0.55} />
-      {/* Le marché caché dans les nuages : chandeliers qui poussent à
-          l'horizon, ligne de cours dorée, nuages qui passent devant, et
-          de vrais cours qui flottent entre eux. */}
-      <CielDeMarche />
-      <BullesDeCours />
       <Contours
         className="absolute inset-x-0 top-0 h-[420px] w-full"
         lines={4}
         opacity={0.45}
       />
 
+      {/* Au tout premier plan, des nuages flous qui passent devant la page. */}
+      <PremierPlan />
+      <MiseAuPoint className="relative">
       <Container width="wide" className="relative">
         <div className="mx-auto max-w-[48rem] text-center">
           <motion.p
@@ -86,9 +83,11 @@ export function Hero() {
             {/* Equal width when stacked: two buttons of different lengths sitting
                 one above the other read as a primary and an afterthought. */}
             <Aimant className="w-full sm:w-auto">
+            <Bouffees>
             <Button href="/register" size="lg" className="w-full sm:w-auto">
               Commencer gratuitement
             </Button>
+            </Bouffees>
             </Aimant>
             <Aimant className="w-full sm:w-auto">
             <Button href="#demo" variant="secondary" size="lg" className="w-full sm:w-auto">
@@ -208,6 +207,7 @@ export function Hero() {
           </p>
         </motion.div>
       </Container>
+      </MiseAuPoint>
     </Section>
   );
 }

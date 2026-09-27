@@ -3,7 +3,7 @@
 import {
   Atmosphere, CloudBank, LiveBackdrop, Button, Container, Course, Heading, Section, Text,
 } from "@/components/design-system";
-import { Reveal } from "./effets";
+import { Aimant, Bouffees, Reveal } from "./effets";
 
 /**
  * Section 8 — the close.
@@ -31,9 +31,13 @@ export function ClosingSection() {
         </Reveal>
 
         <Reveal delay={0.16} className="mt-10">
-          <Button href="/register" size="lg">
-            Créer mon espace
-          </Button>
+          <Aimant>
+            <Bouffees>
+              <Button href="/register" size="lg">
+                Créer mon espace
+              </Button>
+            </Bouffees>
+          </Aimant>
         </Reveal>
 
         <Reveal delay={0.22}>
