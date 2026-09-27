@@ -151,15 +151,15 @@ export function LevelScale({
       <div className="flex items-baseline justify-between gap-4">
         <div>
           <Num tone="up" className="block text-[0.9rem]">{format(support)}</Num>
-          <span className="text-[0.72rem]" style={{ color: "var(--cap-ink-3)" }}>Support</span>
+          <span className="text-[0.75rem]" style={{ color: "var(--cap-ink-3)" }}>Support</span>
         </div>
         <div className="text-center">
           <Num className="block text-[0.9rem]">{format(price)}</Num>
-          <span className="text-[0.72rem]" style={{ color: "var(--cap-ink-3)" }}>Prix</span>
+          <span className="text-[0.75rem]" style={{ color: "var(--cap-ink-3)" }}>Prix</span>
         </div>
         <div className="text-right">
           <Num tone="down" className="block text-[0.9rem]">{format(resistance)}</Num>
-          <span className="text-[0.72rem]" style={{ color: "var(--cap-ink-3)" }}>Résistance</span>
+          <span className="text-[0.75rem]" style={{ color: "var(--cap-ink-3)" }}>Résistance</span>
         </div>
       </div>
 

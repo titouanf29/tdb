@@ -101,7 +101,7 @@ function Chip({
         />
       )}
       {count != null && (
-        <span className="cap-num text-[0.72rem] tabular-nums" style={{ opacity: active ? 0.7 : 0.55 }}>
+        <span className="cap-num text-[0.75rem] tabular-nums" style={{ opacity: active ? 0.7 : 0.55 }}>
           {count}
         </span>
       )}

@@ -119,7 +119,7 @@ export function DemoSection() {
                     </div>
                   </div>
                   <div className="text-right">
-                    <div className="text-[0.72rem] uppercase tracking-[0.14em]" style={{ color: "var(--cap-ink-3)" }}>
+                    <div className="text-[0.75rem] uppercase tracking-[0.14em]" style={{ color: "var(--cap-ink-3)" }}>
                       Direction
                     </div>
                     <div
@@ -149,7 +149,7 @@ export function DemoSection() {
                 <AnimatePresence mode="wait">
                   {level === "discover" && (
                     <motion.div key={`d-${asset.id}`} {...fade}>
-                      <div className="text-[0.72rem] uppercase tracking-[0.14em]" style={{ color: "var(--cap-ink-3)" }}>
+                      <div className="text-[0.75rem] uppercase tracking-[0.14em]" style={{ color: "var(--cap-ink-3)" }}>
                         Pourquoi
                       </div>
                       <ul className="mt-4 space-y-3">
@@ -170,7 +170,7 @@ export function DemoSection() {
                   {level === "intermediate" && (
                     <motion.div key={`i-${asset.id}`} {...fade}>
                       <div className="flex items-baseline justify-between">
-                        <div className="text-[0.72rem] uppercase tracking-[0.14em]" style={{ color: "var(--cap-ink-3)" }}>
+                        <div className="text-[0.75rem] uppercase tracking-[0.14em]" style={{ color: "var(--cap-ink-3)" }}>
                           Score
                         </div>
                         <div className="flex items-baseline gap-1">
@@ -195,7 +195,7 @@ export function DemoSection() {
 
                   {level === "advanced" && (
                     <motion.div key={`a-${asset.id}`} {...fade}>
-                      <div className="text-[0.72rem] uppercase tracking-[0.14em]" style={{ color: "var(--cap-ink-3)" }}>
+                      <div className="text-[0.75rem] uppercase tracking-[0.14em]" style={{ color: "var(--cap-ink-3)" }}>
                         Données du moteur
                       </div>
                       <dl className="mt-4">
@@ -219,7 +219,7 @@ export function DemoSection() {
             </div>
           </div>
 
-          <p className="mt-3 text-[0.72rem]" style={{ color: "var(--cap-ink-3)" }}>
+          <p className="mt-3 text-[0.75rem]" style={{ color: "var(--cap-ink-3)" }}>
             Données d'illustration — l'analyse réelle utilise les cours de marché.
           </p>
         </Reveal>

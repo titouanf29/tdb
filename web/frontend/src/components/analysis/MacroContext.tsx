@@ -60,7 +60,7 @@ export function MacroContext({ symbol }: { symbol: string }) {
               <ul className="space-y-1.5">
                 {d.prochaines.map((p) => (
                   <li key={p.id} className="flex flex-wrap items-baseline justify-between gap-x-3">
-                    <Link href={`/macro?e=${p.id}`} className="text-[0.88rem] hover:underline" style={{ color: "var(--cap-ink)" }}>
+                    <Link href={`/macro?e=${p.id}`} className="inline-flex min-h-[32px] items-center text-[0.88rem] hover:underline" style={{ color: "var(--cap-ink)" }}>
                       {p.titre}
                     </Link>
                     <Text size="caption" as="span">{p.date_longue.charAt(0).toUpperCase() + p.date_longue.slice(1)} · {p.heure}</Text>

@@ -55,7 +55,7 @@ export function AuthScreen({
 
           <div className="mt-14 max-w-[28rem]">
             <p
-              className="text-[0.73rem] font-medium uppercase tracking-[0.16em]"
+              className="text-[0.75rem] font-medium uppercase tracking-[0.16em]"
               style={{ color: "var(--cap-ocean)" }}
             >
               {eyebrow}
@@ -88,7 +88,7 @@ export function AuthScreen({
           <div className="mb-8 flex items-center justify-between lg:hidden">
             <Link
               href="/"
-              className="inline-flex items-center gap-2"
+              className="inline-flex min-h-[44px] items-center gap-2"
               style={{ color: "var(--cap-ink)" }}
               aria-label="Retour à l'accueil"
             >
@@ -122,7 +122,7 @@ export function AuthScreen({
               <Link
                 key={l.href}
                 href={l.href}
-                className="transition-colors hover:text-[color:var(--cap-ink)]"
+                className="inline-flex min-h-[32px] items-center transition-colors hover:text-[color:var(--cap-ink)]"
                 style={{ color: "var(--cap-ink-3)" }}
               >
                 {l.label}

@@ -161,7 +161,7 @@ function WeekendView({ lang, onIgnore, onClose }: { lang: "fr" | "en"; onIgnore:
         <h3 className="font-bold text-white text-[15px] leading-snug">
           {isFr ? "Alex fait une pause 😴" : "Alex is sleeping 😴"}
         </h3>
-        <p className="text-[11px] text-white/35 mt-0.5">
+        <p className="text-[12px] text-white/35 mt-0.5">
           {isFr ? "Marchés fermés · Réouverture lundi 09:00" : "Markets closed · Opens Monday 09:00"}
         </p>
         <motion.div
@@ -179,7 +179,7 @@ function WeekendView({ lang, onIgnore, onClose }: { lang: "fr" | "en"; onIgnore:
 
       {/* Tips list */}
       <div className="px-4 pb-3">
-        <p className="text-[10px] font-bold text-white/30 uppercase tracking-widest mb-2">
+        <p className="text-[12px] font-bold text-white/30 uppercase tracking-widest mb-2">
           {isFr ? "✅ Prépare ta semaine" : "✅ Prepare your week"}
         </p>
         <div className="space-y-1.5">
@@ -195,7 +195,7 @@ function WeekendView({ lang, onIgnore, onClose }: { lang: "fr" | "en"; onIgnore:
               <span className="text-base shrink-0 leading-none mt-0.5">{tip.emoji}</span>
               <div>
                 <p className="text-xs font-semibold text-white/85 leading-tight">{tip.title}</p>
-                <p className="text-[11px] leading-relaxed mt-0.5" style={{ color: "rgba(255,255,255,0.38)" }}>{tip.desc}</p>
+                <p className="text-[12px] leading-relaxed mt-0.5" style={{ color: "rgba(255,255,255,0.38)" }}>{tip.desc}</p>
               </div>
             </motion.div>
           ))}
@@ -216,7 +216,7 @@ function WeekendView({ lang, onIgnore, onClose }: { lang: "fr" | "en"; onIgnore:
         </Link>
         <button
           onClick={onIgnore}
-          className="w-full text-[11px] py-1.5 text-white/30 hover:text-white/60 active:text-white/80 transition-colors"
+          className="w-full text-[12px] py-1.5 text-white/30 hover:text-white/60 active:text-white/80 transition-colors"
         >
           {isFr ? "Accéder au coach quand même →" : "Open Alex anyway →"}
         </button>
@@ -932,7 +932,7 @@ function TipView() {
             href="/settings?tab=trading"
             title={style.pitch[lang]}
             className={cn(
-              "ml-auto inline-flex items-center gap-1 px-2 py-0.5 rounded-lg border text-[10px] font-semibold transition-all hover:brightness-125",
+              "ml-auto inline-flex items-center gap-1 px-2 py-0.5 rounded-lg border text-[12px] font-semibold transition-all hover:brightness-125",
               style.chip
             )}
           >
@@ -945,7 +945,7 @@ function TipView() {
           <p className="text-sm text-gray-200 leading-relaxed italic">&ldquo;{tip}&rdquo;</p>
         </div>
 
-        <p className="text-[11px] text-muted-foreground">
+        <p className="text-[12px] text-muted-foreground">
           {lang === "en"
             ? `Tailored to your ${style.label.en} horizon (${style.horizon.en}).`
             : `Adapté à votre horizon ${style.label.fr} (${style.horizon.fr}).`}
@@ -991,11 +991,11 @@ function MarketsView({ onClose }: { onClose: () => void }) {
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2">
                 <p className="text-sm font-semibold text-white">{m.name}</p>
-                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-white/10 text-gray-400">
+                <span className="text-[12px] px-1.5 py-0.5 rounded-full bg-white/10 text-gray-400">
                   Risque {m.risk}
                 </span>
               </div>
-              <p className="text-[11px] text-gray-500 mt-0.5">{m.examples}</p>
+              <p className="text-[12px] text-gray-500 mt-0.5">{m.examples}</p>
               <p className="text-xs text-gray-400 mt-1 leading-relaxed">{m.desc}</p>
             </div>
           </motion.div>

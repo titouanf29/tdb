@@ -608,7 +608,7 @@ export function AnnotatedChart({
           {!focus && placed.map((l) => (
             <span
               key={l.label}
-              className="absolute right-0 -translate-y-1/2 whitespace-nowrap rounded-[5px] px-1.5 text-[0.72rem]"
+              className="absolute right-0 -translate-y-1/2 whitespace-nowrap rounded-[5px] px-1.5 text-[0.75rem]"
               style={{ top: `${(y(l.value) / H) * 100}%`, color: TONE[l.tone],
                        backgroundColor: compact ? "color-mix(in srgb, var(--cap-surface) 72%, transparent)" : "transparent" }}
             >
@@ -643,7 +643,7 @@ export function AnnotatedChart({
                     chevauchait celle de l'invalidation, et la pastille
                     sélectionnée juste au-dessus nomme déjà la figure. */}
                 {!compact && <span
-                  className="absolute whitespace-nowrap rounded-[6px] px-2 py-0.5 text-[0.72rem] font-semibold"
+                  className="absolute whitespace-nowrap rounded-[6px] px-2 py-0.5 text-[0.75rem] font-semibold"
                   style={{
                     left: `${Math.min(80, Math.max(0, cx))}%`,
                     top: `${((dessus ? haut : bas) / H) * 100}%`,
@@ -655,13 +655,13 @@ export function AnnotatedChart({
                   {NUMERO[choix ?? 0] ?? ""} {figureChoisie.nom}
                 </span>}
                 {yObj != null && (
-                  <span className="absolute right-0 -translate-y-1/2 whitespace-nowrap rounded-[5px] px-1.5 text-[0.72rem] font-medium"
+                  <span className="absolute right-0 -translate-y-1/2 whitespace-nowrap rounded-[5px] px-1.5 text-[0.75rem] font-medium"
                         style={{ top: `${yObj}%`, color: couleurFig, backgroundColor: fond }}>
                     Objectif {format(obj!)}
                   </span>
                 )}
                 {yInv != null && (
-                  <span className="absolute right-0 -translate-y-1/2 whitespace-nowrap rounded-[5px] px-1.5 text-[0.72rem]"
+                  <span className="absolute right-0 -translate-y-1/2 whitespace-nowrap rounded-[5px] px-1.5 text-[0.75rem]"
                         style={{ top: `${yInv}%`, color: "var(--cap-ink-2)", backgroundColor: fond }}>
                     Annulée {figureChoisie.sens === "haussier" ? "sous" : "au-dessus de"} {format(inv!)}
                   </span>
@@ -671,7 +671,7 @@ export function AnnotatedChart({
           })()}
           {!focus && struct.invalidation != null && (
             <span
-              className="absolute left-0 -translate-y-1/2 whitespace-nowrap rounded-[5px] px-1.5 text-[0.72rem]"
+              className="absolute left-0 -translate-y-1/2 whitespace-nowrap rounded-[5px] px-1.5 text-[0.75rem]"
               style={{ top: `${(y(struct.invalidation) / H) * 100}%`, color: "var(--cap-ink-2)",
                        backgroundColor: compact ? "color-mix(in srgb, var(--cap-surface) 72%, transparent)" : "transparent" }}
             >
@@ -754,7 +754,7 @@ export function AnnotatedChart({
             <span className="text-[0.92rem] font-semibold" style={{ color: couleurFig }}>
               {NUMERO[choix ?? 0] ?? ""} {figureChoisie.nom}
             </span>
-            <span className="rounded-[6px] px-1.5 py-0.5 text-[0.72rem] font-medium"
+            <span className="rounded-[6px] px-1.5 py-0.5 text-[0.75rem] font-medium"
                   style={{ color: TON_VERDICT[figureChoisie.verdict.ton], boxShadow: "inset 0 0 0 1px var(--cap-line)" }}>
               {MOT_VERDICT[figureChoisie.verdict.ton]}
             </span>
@@ -775,7 +775,7 @@ export function AnnotatedChart({
           <p className="mt-1.5 text-[0.84rem]" style={{ color: "var(--cap-ink-2)" }}>
             {figureChoisie.verdict.phrase.split(/(?<=\.)\s/)[0]}{" "}
             <button type="button" onClick={() => setDetailVerdict((v) => !v)}
-                    className="underline underline-offset-4" style={{ color: "var(--cap-ink-3)" }}>
+                    className="-my-1.5 inline-flex min-h-[32px] items-center py-1.5 underline underline-offset-4" style={{ color: "var(--cap-ink-3)" }}>
               {detailVerdict ? "Moins" : "Le détail"}
             </button>
           </p>
@@ -787,7 +787,7 @@ export function AnnotatedChart({
           {lessonForFigure(figureChoisie.cle) && (
             <Link
               href={lessonForFigure(figureChoisie.cle)!}
-              className="mt-2 inline-block text-[0.78rem] underline underline-offset-4"
+              className="mt-1 inline-flex min-h-[32px] items-center text-[0.78rem] underline underline-offset-4"
               style={{ color: "var(--cap-ocean)" }}
             >
               Comprendre cette figure — le cours

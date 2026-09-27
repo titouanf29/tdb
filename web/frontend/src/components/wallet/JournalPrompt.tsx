@@ -100,7 +100,7 @@ export function JournalPrompt({
       >
         <div className="flex items-center gap-2">
           <Lightbulb className="h-4 w-4" style={{ color: "var(--cap-amber)" }} />
-          <span className="text-[0.72rem] uppercase tracking-[0.14em]" style={{ color: "var(--cap-ink-3)" }}>
+          <span className="text-[0.75rem] uppercase tracking-[0.14em]" style={{ color: "var(--cap-ink-3)" }}>
             Ce que dit ce trade
           </span>
         </div>

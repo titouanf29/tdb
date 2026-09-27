@@ -36,7 +36,7 @@ export function PourVous({
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="min-w-[16rem] flex-1">
             <span
-              className="text-[0.72rem] uppercase tracking-[0.14em]"
+              className="text-[0.75rem] uppercase tracking-[0.14em]"
               style={{ color: "var(--cap-ink-3)" }}
             >
               Pour vous
@@ -62,7 +62,7 @@ export function PourVous({
     <Panel>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <span
-          className="text-[0.72rem] uppercase tracking-[0.14em]"
+          className="text-[0.75rem] uppercase tracking-[0.14em]"
           style={{ color: "var(--cap-ink-3)" }}
         >
           Pour vous

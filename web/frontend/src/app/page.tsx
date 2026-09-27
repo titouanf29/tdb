@@ -1,52 +1,45 @@
 "use client";
 
-import { CloudLayer, PageCourse, type CourseStop } from "@/components/design-system";
-import { ClosingSection } from "@/components/landing/ClosingSection";
+import { Bandeau } from "@/components/landing/Bandeau";
 import { DemoSection } from "@/components/landing/DemoSection";
-import { Hero } from "@/components/landing/Hero";
-import { HowItWorks } from "@/components/landing/HowItWorks";
+import { Final } from "@/components/landing/Final";
+import { Fonctions } from "@/components/landing/Fonctions";
+import { HeroNuit } from "@/components/landing/HeroNuit";
 import { LandingFooter } from "@/components/landing/LandingFooter";
 import { LandingNav } from "@/components/landing/LandingNav";
-import { LearnSection } from "@/components/landing/LearnSection";
-import { PaperTradingSection } from "@/components/landing/PaperTradingSection";
-import { PersonalisationSection } from "@/components/landing/PersonalisationSection";
-import { ProblemSection } from "@/components/landing/ProblemSection";
+import { Preuves } from "@/components/landing/Preuves";
+import { Verite } from "@/components/landing/Verite";
 
 /**
- * The public page.
+ * La page de présentation.
  *
- * Each section is one idea and owns its own file; this one only decides the
- * order they are read in, and names the stops along the way. The `cap` class
- * scopes the rebuilt design tokens, so nothing here can reach the screens
- * that have not been migrated yet.
+ * Elle a quelques secondes pour convaincre quelqu'un qui ne connaît pas le
+ * site. L'ordre suit ce qu'il se demande :
+ *
+ *   qu'est-ce que c'est ?          le haut de page, avec le vrai cours ;
+ *   ça tourne vraiment ?           les cours qui défilent, les chiffres ;
+ *   pourquoi celui-là ?            les figures de TikTok, mesurées ;
+ *   qu'est-ce que j'y fais ?       les six fonctionnalités ;
+ *   à quoi ça ressemble ?          la démo interactive ;
+ *   je commence ?                  l'appel final.
+ *
+ * Tout ce qui est chiffré est lu sur le serveur ou vérifiable sur le site :
+ * aucun faux témoignage, aucun faux compteur d'utilisateurs.
  */
-
-const STOPS: CourseStop[] = [
-  { id: "depart", label: "Départ" },
-  { id: "probleme", label: "Le problème" },
-  { id: "fonctionnement", label: "Fonctionnement" },
-  { id: "demo", label: "Démo" },
-  { id: "paper-trading", label: "Paper trading" },
-  { id: "personnalisation", label: "Personnalisation" },
-  { id: "apprendre", label: "Apprendre" },
-  { id: "arrivee", label: "Arrivée" },
-];
-
 export default function LandingPage() {
   return (
-    <div className="cap min-h-screen">
-      <CloudLayer />
+    <div className="cap min-h-screen" style={{ backgroundColor: "#07111D" }}>
       <LandingNav />
-      <PageCourse stops={STOPS} />
       <main>
-        <Hero />
-        <ProblemSection />
-        <HowItWorks />
+        <HeroNuit />
+        <Bandeau />
+        <div className="pb-24 pt-16 sm:pb-28" style={{ backgroundColor: "#07111D" }}>
+          <Preuves />
+        </div>
+        <Verite />
+        <Fonctions />
         <DemoSection />
-        <PaperTradingSection />
-        <PersonalisationSection />
-        <LearnSection />
-        <ClosingSection />
+        <Final />
       </main>
       <LandingFooter />
     </div>

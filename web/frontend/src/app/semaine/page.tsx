@@ -142,7 +142,7 @@ function Contenu({ d, synthese, syntheseEnCours }: {
           className="p-5 sm:p-6"
           style={{ borderRadius: "var(--cap-r-xl)", backgroundColor: "var(--cap-navy)", color: "#E8EDF1" }}
         >
-          <div className="flex items-center gap-2 text-[0.72rem] font-medium uppercase tracking-[0.15em]"
+          <div className="flex items-center gap-2 text-[0.75rem] font-medium uppercase tracking-[0.15em]"
             style={{ color: "rgba(232,237,241,0.62)" }}>
             <Sparkles size={13} aria-hidden /> Le mot du week-end
           </div>

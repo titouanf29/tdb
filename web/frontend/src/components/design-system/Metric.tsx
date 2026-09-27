@@ -47,7 +47,8 @@ export function CountUp({
   return (
     <span ref={ref} className={cn("cap-num", className)}>
       {prefix}
-      {value.toFixed(decimals)}
+      {/* À la française : « 1 527 », « 12,5 » — toFixed écrivait « 1527 » et « 12.5 ». */}
+      {value.toLocaleString("fr-FR", { minimumFractionDigits: decimals, maximumFractionDigits: decimals })}
       {suffix}
     </span>
   );

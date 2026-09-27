@@ -45,7 +45,15 @@ function Macro() {
 
 /* ── Petits éléments partagés ──────────────────────────────────────────── */
 
-const DRAPEAU: Record<string, string> = { USD: "🇺🇸", EUR: "🇪🇺", GBP: "🇬🇧", JPY: "🇯🇵", CHF: "🇨🇭", CAD: "🇨🇦", AUD: "🇦🇺", NZD: "🇳🇿", CNY: "🇨🇳" };
+const PAYS_DRAPEAU: Record<string, string> = { USD: "us", EUR: "eu", GBP: "gb", JPY: "jp", CHF: "ch", CAD: "ca", AUD: "au", NZD: "nz", CNY: "cn" };
+
+/** Un drapeau en SVG (flag-icons), jamais en emoji : rendu identique partout. */
+function Drapeau({ pays, nom }: { pays: string; nom?: string }) {
+  const code = PAYS_DRAPEAU[pays];
+  if (!code) return null;
+  return <span className={`fi fi-${code} mr-1.5 rounded-[2px] align-[-1px]`} role="img" aria-label={nom ?? pays} />;
+}
+
 
 function Pastille({ children, ton = "neutre" }: { children: React.ReactNode; ton?: "neutre" | "haut" | "bas" | "fort" | "info" }) {
   const couleurs = {
@@ -56,7 +64,7 @@ function Pastille({ children, ton = "neutre" }: { children: React.ReactNode; ton
     info: { bg: "rgba(36,99,135,0.10)", fg: "var(--cap-ocean)" },
   }[ton];
   return (
-    <span className="inline-flex items-center whitespace-nowrap rounded-[6px] px-1.5 py-0.5 text-[0.72rem] font-medium"
+    <span className="inline-flex items-center whitespace-nowrap rounded-[6px] px-1.5 py-0.5 text-[0.75rem] font-medium"
       style={{ backgroundColor: couleurs.bg, color: couleurs.fg }}>
       {children}
     </span>
@@ -193,7 +201,7 @@ function LigneAnnonce({ a }: { a: AnnonceMacro }) {
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
               <span className="text-[0.95rem] font-medium" style={{ color: "var(--cap-ink)" }}>
-                {DRAPEAU[a.pays] ?? ""} {a.titre}
+                <Drapeau pays={a.pays} nom={a.pays_nom} />{a.titre}
               </span>
               {a.importance === "forte" && <Pastille ton="fort">Importance forte</Pastille>}
               {a.officiel && <Pastille>Date officielle</Pastille>}
@@ -270,7 +278,7 @@ function Fiche({ id }: { id: number }) {
       {retour}
       <header className="max-w-[44rem]">
         <Eyebrow>{f.pays_nom}{f.famille_nom && f.famille_nom !== f.titre ? ` · ${f.famille_nom}` : ""}</Eyebrow>
-        <Heading level={1} className="mt-3">{DRAPEAU[f.pays] ?? ""} {f.titre}</Heading>
+        <Heading level={1} className="mt-3"><Drapeau pays={f.pays} nom={f.pays_nom} />{f.titre}</Heading>
         <div className="mt-3 flex flex-wrap items-center gap-2">
           <Text size="small" tone="ink" as="span">{phrase(f.date_longue)} · {f.heure} (Paris)</Text>
           {f.importance === "forte" && <Pastille ton="fort">Importance forte</Pastille>}

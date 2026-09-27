@@ -330,7 +330,7 @@ function Card({
           // Le rang, pas une coche : l'ordre compte ici, et le premier choisi
           // décide de la place ouverte par défaut.
           <span
-            className="cap-num shrink-0 rounded-full px-2 py-0.5 text-[0.72rem]"
+            className="cap-num shrink-0 rounded-full px-2 py-0.5 text-[0.75rem]"
             style={{ backgroundColor: "var(--cap-ocean)", color: "var(--cap-on-inverse)" }}
           >
             {rank}

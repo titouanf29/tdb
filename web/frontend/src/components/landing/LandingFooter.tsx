@@ -37,7 +37,7 @@ export function LandingFooter() {
               <Link
                 key={l.href}
                 href={l.href}
-                className="text-[0.875rem] transition-colors duration-200 hover:text-[color:var(--cap-ink)]"
+                className="inline-flex min-h-[32px] items-center text-[0.875rem] transition-colors duration-200 hover:text-[color:var(--cap-ink)]"
                 style={{ color: "var(--cap-ink-2)" }}
               >
                 {l.label}

@@ -194,7 +194,7 @@ export default function DashboardPage() {
                 <button
                   onClick={refresh}
                   disabled={refreshing}
-                  className="flex items-center gap-1.5 text-[0.8rem] transition-colors hover:text-[color:var(--cap-ink)] disabled:opacity-50"
+                  className="-my-2 flex min-h-[44px] items-center gap-1.5 px-1 text-[0.8rem] transition-colors hover:text-[color:var(--cap-ink)] disabled:opacity-50"
                   style={{ color: "var(--cap-ink-3)" }}
                 >
                   <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? "animate-spin" : ""}`} />
@@ -599,7 +599,7 @@ function NextStep({
       <div className="flex items-center gap-2.5">
         <Waypoint size={11} tone="amber" />
         <span
-          className="text-[0.72rem] font-medium uppercase tracking-[0.15em]"
+          className="text-[0.75rem] font-medium uppercase tracking-[0.15em]"
           style={{ color: "rgba(232,237,241,0.62)" }}
         >
           {suggestion.eyebrow}

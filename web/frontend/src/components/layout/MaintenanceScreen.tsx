@@ -70,7 +70,7 @@ function FlipCounter({
                 </span>
               ))}
             </div>
-            <span className="font-mono text-[9px] uppercase tracking-[0.16em] text-muted-foreground/70">
+            <span className="font-mono text-[12px] uppercase tracking-[0.16em] text-muted-foreground/70">
               {group.label}
             </span>
           </div>
@@ -214,7 +214,7 @@ export function MaintenanceScreen({
               <span className="w-2 h-2 bg-primary/70" />
               <span className="w-2 h-2 bg-profit/60" />
             </div>
-            <span className="font-mono text-[11px] tracking-wide text-muted-foreground truncate">
+            <span className="font-mono text-[12px] tracking-wide text-muted-foreground truncate">
               captentdb.fr<span className="hidden sm:inline"> — system status</span>
             </span>
             <span className="ml-auto flex items-center gap-1.5">
@@ -223,7 +223,7 @@ export function MaintenanceScreen({
                 animate={reduce ? {} : { opacity: [1, 0.25, 1] }}
                 transition={{ duration: 1.6, repeat: Infinity, ease: "easeInOut" }}
               />
-              <span className="font-mono text-[10px] font-semibold tracking-[0.18em] text-primary">
+              <span className="font-mono text-[12px] font-semibold tracking-[0.18em] text-primary">
                 {t.status}
               </span>
             </span>
@@ -242,7 +242,7 @@ export function MaintenanceScreen({
                 <h1 className="text-lg sm:text-xl font-bold font-display leading-tight">
                   {t.title}
                 </h1>
-                <p className="font-mono text-[11px] text-muted-foreground">
+                <p className="font-mono text-[12px] text-muted-foreground">
                   Capten<span className="text-primary">TDB</span> · captentdb.fr
                 </p>
               </div>
@@ -261,7 +261,7 @@ export function MaintenanceScreen({
                   initial={{ opacity: 0, x: -8 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: 0.35 + i * 0.18, duration: 0.35 }}
-                  className="flex items-baseline gap-2 font-mono text-[11px] sm:text-xs"
+                  className="flex items-baseline gap-2 font-mono text-[12px] sm:text-xs"
                 >
                   <span className="text-primary/50">›</span>
                   <span className="text-muted-foreground">{line.label}</span>
@@ -283,7 +283,7 @@ export function MaintenanceScreen({
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ delay: 0.35 + BOOT_LINES[lang].length * 0.18 }}
-                className="flex items-start gap-2 pt-1 font-mono text-[11px] sm:text-xs text-muted-foreground"
+                className="flex items-start gap-2 pt-1 font-mono text-[12px] sm:text-xs text-muted-foreground"
               >
                 <span className="text-primary/50">$</span>
                 {/* Cursor lives inside the text flow, so it stays glued to the
@@ -307,7 +307,7 @@ export function MaintenanceScreen({
                 transition={{ delay: 0.9, duration: 0.4 }}
                 className="space-y-3"
               >
-                <p className="text-center font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
+                <p className="text-center font-mono text-[12px] uppercase tracking-[0.22em] text-muted-foreground">
                   {remaining && remaining > 0 ? t.back : t.soon}
                 </p>
                 <FlipCounter groups={clock} still={firstTick.current || !!reduce} />
@@ -317,7 +317,7 @@ export function MaintenanceScreen({
             {/* Real progress bar — only when we can actually compute one */}
             {pct != null && (
               <div className="space-y-1.5">
-                <div className="flex justify-between font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+                <div className="flex justify-between font-mono text-[12px] uppercase tracking-wider text-muted-foreground">
                   <span>{t.progress}</span>
                   <span className="text-primary tabular-nums">{Math.round(pct)}%</span>
                 </div>
@@ -346,7 +346,7 @@ export function MaintenanceScreen({
 
           {/* Rotating tip strip */}
           <div className="border-t border-primary/20 bg-primary/[0.035] px-5 py-3 sm:px-7">
-            <p className="mb-1 flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.18em] text-primary/70">
+            <p className="mb-1 flex items-center gap-2 font-mono text-[12px] uppercase tracking-[0.18em] text-primary/70">
               <span>{t.tipLabel}</span>
               <span className={`inline-flex items-center gap-1 border px-1.5 py-px normal-case tracking-normal ${style.chip}`}>
                 <span>{style.emoji}</span>
@@ -370,7 +370,7 @@ export function MaintenanceScreen({
           </div>
         </div>
 
-        <div className="mt-4 flex items-center justify-center gap-3 font-mono text-[10px] text-muted-foreground/60">
+        <div className="mt-4 flex items-center justify-center gap-3 font-mono text-[12px] text-muted-foreground/60">
           <span>{t.auto}</span>
           {showAdminLink && (
             <>

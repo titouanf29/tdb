@@ -824,7 +824,7 @@ function Verdict({
           </div>
 
           <div className="mt-4">
-            <span className="text-[0.72rem] uppercase tracking-[0.14em]" style={{ color: "var(--cap-ink-3)" }}>
+            <span className="text-[0.75rem] uppercase tracking-[0.14em]" style={{ color: "var(--cap-ink-3)" }}>
               Direction
             </span>
             <div
@@ -855,7 +855,7 @@ function Verdict({
 
       {/* The why. The part the product exists for. */}
       <div className="mt-7 border-t pt-6" style={{ borderColor: "var(--cap-line)" }}>
-        <span className="text-[0.72rem] uppercase tracking-[0.14em]" style={{ color: "var(--cap-ink-3)" }}>
+        <span className="text-[0.75rem] uppercase tracking-[0.14em]" style={{ color: "var(--cap-ink-3)" }}>
           Pourquoi
         </span>
         <ul className="mt-4 space-y-2.5">
@@ -881,7 +881,7 @@ function Verdict({
       {/* What the engine's own history says — including when it disagrees. */}
       {(edge || scenario) && (
         <div className="mt-6 border-t pt-5" style={{ borderColor: "var(--cap-line)" }}>
-          <span className="text-[0.72rem] uppercase tracking-[0.14em]" style={{ color: "var(--cap-ink-3)" }}>
+          <span className="text-[0.75rem] uppercase tracking-[0.14em]" style={{ color: "var(--cap-ink-3)" }}>
             Ce que dit l&apos;historique
           </span>
           {edge && (

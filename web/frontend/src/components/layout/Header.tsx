@@ -231,7 +231,7 @@ export function Header({ onMenuToggle }: { onMenuToggle?: () => void }) {
             >
               <Bell className="w-5 h-5 text-muted-foreground" />
               {unreadCount > 0 && (
-                <span className="absolute top-0.5 right-0.5 min-w-[16px] h-4 px-0.5 bg-loss rounded-full flex items-center justify-center text-[10px] font-bold text-white animate-pulse">
+                <span className="absolute top-0.5 right-0.5 min-w-[16px] h-4 px-0.5 bg-loss rounded-full flex items-center justify-center text-[12px] font-bold text-white animate-pulse">
                   {unreadCount > 9 ? "9+" : unreadCount}
                 </span>
               )}
@@ -279,7 +279,7 @@ export function Header({ onMenuToggle }: { onMenuToggle?: () => void }) {
                         <div className="flex-1 min-w-0">
                           <p className="text-xs font-semibold">{n.title}</p>
                           <p className="text-xs text-muted-foreground truncate">{n.message}</p>
-                          <p className="text-[10px] text-muted-foreground mt-0.5">
+                          <p className="text-[12px] text-muted-foreground mt-0.5">
                             {new Date(n.created_at).toLocaleString(lang === "en" ? "en-US" : "fr-FR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
                           </p>
                         </div>

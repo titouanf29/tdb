@@ -113,7 +113,7 @@ export function Notifications() {
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
             transition={{ duration: DUR.quick, ease: EASE }}
-            className="cap-num absolute -right-0.5 -top-0.5 grid h-[17px] min-w-[17px] place-items-center rounded-full px-1 text-[0.62rem] font-semibold"
+            className="cap-num absolute -right-0.5 -top-0.5 grid h-[17px] min-w-[17px] place-items-center rounded-full px-1 text-[0.75rem] font-semibold"
             style={{ backgroundColor: "var(--cap-down)", color: "#fff" }}
           >
             {nonLus > 9 ? "9+" : nonLus}
@@ -188,7 +188,7 @@ export function Notifications() {
                               {n.message}
                             </span>
                             <span
-                              className="mt-1 block text-[0.72rem]"
+                              className="mt-1 block text-[0.75rem]"
                               style={{ color: "var(--cap-ink-3)" }}
                             >
                               {depuis(n.created_at)}

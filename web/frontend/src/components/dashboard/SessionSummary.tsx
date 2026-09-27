@@ -429,7 +429,7 @@ function PerformerRow({
             {MEDALS[rank - 1]}
           </motion.span>
         ) : (
-          <span className="text-[11px] text-white/25 font-mono">{rank}</span>
+          <span className="text-[12px] text-white/25 font-mono">{rank}</span>
         )}
       </div>
 
@@ -439,7 +439,7 @@ function PerformerRow({
           <img src={asset.logo} alt={asset.name} className="w-5 h-5 object-contain"
             onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
         ) : (
-          <span className="text-[9px] font-bold text-white/40">{asset.symbol.slice(0, 3).replace("^", "")}</span>
+          <span className="text-[12px] font-bold text-white/40">{asset.symbol.slice(0, 3).replace("^", "")}</span>
         )}
       </div>
 
@@ -496,13 +496,13 @@ function Podium({ top3 }: { top3: AssetPerf[] }) {
           <div className="w-8 h-8 rounded-xl bg-white/8 overflow-hidden border border-white/10 flex items-center justify-center">
             {asset.logo
               ? <img src={asset.logo} alt={asset.name} className="w-6 h-6 object-contain" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
-              : <span className="text-[9px] font-bold text-white/40">{asset.symbol.slice(0, 3).replace("^", "")}</span>
+              : <span className="text-[12px] font-bold text-white/40">{asset.symbol.slice(0, 3).replace("^", "")}</span>
             }
           </div>
-          <span className="text-[10px] font-bold text-white/80 max-w-[54px] text-center truncate leading-tight">
+          <span className="text-[12px] font-bold text-white/80 max-w-[54px] text-center truncate leading-tight">
             {asset.name.length > 8 ? asset.symbol.replace("^", "") : asset.name}
           </span>
-          <span className="text-[10px] font-bold font-mono text-emerald-400">+{asset.change.toFixed(2)}%</span>
+          <span className="text-[12px] font-bold font-mono text-emerald-400">+{asset.change.toFixed(2)}%</span>
           <motion.div
             className={cn("w-14 rounded-t-xl border", bgColors[i], borderColors[i])}
             initial={{ scaleY: 0 }}
@@ -546,17 +546,17 @@ function WatchlistCard({ item, index }: { item: WatchItem; index: number }) {
           {item.asset.logo
             ? <img src={item.asset.logo} alt={item.asset.name} className="w-7 h-7 object-contain"
                 onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
-            : <span className="text-[10px] font-bold text-white/40">{item.asset.symbol.slice(0, 3).replace("^", "")}</span>
+            : <span className="text-[12px] font-bold text-white/40">{item.asset.symbol.slice(0, 3).replace("^", "")}</span>
           }
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5 flex-wrap mb-0.5">
             <span className="text-xs font-bold text-white">{item.asset.name.length > 14 ? item.asset.symbol.replace("^", "") : item.asset.name}</span>
-            <span className={cn("text-[11px] font-bold font-mono", isUp ? "text-emerald-400" : "text-rose-400")}>
+            <span className={cn("text-[12px] font-bold font-mono", isUp ? "text-emerald-400" : "text-rose-400")}>
               {isUp ? "+" : ""}{item.asset.change.toFixed(2)}%
             </span>
           </div>
-          <span className={cn("inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-full border", ts.bg, ts.border, ts.color)}>
+          <span className={cn("inline-flex items-center gap-1 text-[12px] font-semibold px-1.5 py-0.5 rounded-full border", ts.bg, ts.border, ts.color)}>
             <span>{item.emoji}</span>
             {t(ts.labelKey as any)}
           </span>
@@ -564,7 +564,7 @@ function WatchlistCard({ item, index }: { item: WatchItem; index: number }) {
         <ChevronRight className="w-3.5 h-3.5 text-white/20 group-hover:text-white/40 transition-colors flex-shrink-0 mt-1" />
       </div>
       {/* Reason */}
-      <p className="text-[11px] text-white/50 leading-relaxed">{item.reason}</p>
+      <p className="text-[12px] text-white/50 leading-relaxed">{item.reason}</p>
     </motion.div>
   );
 }
@@ -665,11 +665,11 @@ function SessionNarrativeSection({ result, isPremium }: { result: SessionResult;
           </div>
           <div>
             <h4 className="text-sm font-bold text-white">{t("session_ai_title")}</h4>
-            <p className="text-[11px] text-white/35">{t("session_ai_desc")}</p>
+            <p className="text-[12px] text-white/35">{t("session_ai_desc")}</p>
           </div>
         </div>
         {!isPremium && (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-yellow-500/15 border border-yellow-500/30 text-yellow-400 text-[10px] font-bold">
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-yellow-500/15 border border-yellow-500/30 text-yellow-400 text-[12px] font-bold">
             <Crown className="w-2.5 h-2.5" />
             PREMIUM
           </span>
@@ -712,9 +712,9 @@ function SessionNarrativeSection({ result, isPremium }: { result: SessionResult;
           >
             <div className="flex items-center gap-2 mb-3">
               <Sparkles className="w-3.5 h-3.5 text-primary" />
-              <span className="text-[11px] font-semibold text-primary uppercase tracking-wider">{t("session_ai_label")}</span>
+              <span className="text-[12px] font-semibold text-primary uppercase tracking-wider">{t("session_ai_label")}</span>
               {generatedAt && (
-                <span className="text-[10px] text-white/30 ml-auto">
+                <span className="text-[12px] text-white/30 ml-auto">
                   {new Date(generatedAt).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
                 </span>
               )}
@@ -723,7 +723,7 @@ function SessionNarrativeSection({ result, isPremium }: { result: SessionResult;
             <button
               onClick={generate}
               disabled={loading}
-              className="mt-3 text-[11px] text-primary/60 hover:text-primary transition-colors flex items-center gap-1"
+              className="mt-3 text-[12px] text-primary/60 hover:text-primary transition-colors flex items-center gap-1"
             >
               <RefreshCw className={cn("w-3 h-3", loading && "animate-spin")} />
               {t("session_regenerate")}
@@ -746,7 +746,7 @@ function SessionNarrativeSection({ result, isPremium }: { result: SessionResult;
                 <><Sparkles className="w-4 h-4" />{t("session_generate_btn")}</>
               )}
             </button>
-            <p className="text-[11px] text-white/25 text-center">
+            <p className="text-[12px] text-white/25 text-center">
               {t("session_ai_will_analyze")}
             </p>
           </div>
@@ -801,7 +801,7 @@ function SessionPanel({ result, isPremium }: { result: SessionResult; isPremium:
                     {/* Live indicator */}
                     {isLive ? (
                       <motion.span
-                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 text-[10px] font-bold"
+                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 text-[12px] font-bold"
                         animate={{ opacity: [1, 0.6, 1] }}
                         transition={{ duration: 1.5, repeat: Infinity }}
                       >
@@ -809,7 +809,7 @@ function SessionPanel({ result, isPremium }: { result: SessionResult; isPremium:
                         {t("session_live")}
                       </motion.span>
                     ) : (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white/5 border border-white/10 text-white/40 text-[10px]">
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white/5 border border-white/10 text-white/40 text-[12px]">
                         {t(session.closeTimeLabelKey as any)}
                       </span>
                     )}
@@ -825,7 +825,7 @@ function SessionPanel({ result, isPremium }: { result: SessionResult; isPremium:
                   : mood === "bearish" ? <TrendingDown className="w-3 h-3" />
                   : <Activity className="w-3 h-3" />}
                 {moodLabel[mood]}
-                <span className="opacity-60 text-[10px]">
+                <span className="opacity-60 text-[12px]">
                   ({avgChange >= 0 ? "+" : ""}{avgChange.toFixed(2)}% moy.)
                 </span>
               </div>
@@ -845,8 +845,8 @@ function SessionPanel({ result, isPremium }: { result: SessionResult; isPremium:
                   formatter={(v) => `${v >= 0 ? "+" : ""}${v.toFixed(2)}%`}
                   className={cn("block text-2xl font-black", avgChange >= 0 ? "text-emerald-400" : "text-rose-400")}
                 />
-                <div className="text-[11px] text-white/40">{t("session_avg_change")}</div>
-                <div className="text-[11px] text-white/40 mt-0.5">
+                <div className="text-[12px] text-white/40">{t("session_avg_change")}</div>
+                <div className="text-[12px] text-white/40 mt-0.5">
                   {Math.round(positiveRatio * 100)}% {t("session_pct_up")}
                 </div>
               </div>
@@ -862,7 +862,7 @@ function SessionPanel({ result, isPremium }: { result: SessionResult; isPremium:
               transition={{ duration: 1, ease: "easeOut", delay: 0.4 }}
             />
           </div>
-          <div className="flex justify-between text-[10px] text-white/30 mt-0.5">
+          <div className="flex justify-between text-[12px] text-white/30 mt-0.5">
             <span>{Math.round((1 - positiveRatio) * 100)}% {t("session_pct_down")}</span>
             <span>{Math.round(positiveRatio * 100)}% {t("session_pct_up")}</span>
           </div>
@@ -874,7 +874,7 @@ function SessionPanel({ result, isPremium }: { result: SessionResult; isPremium:
         <div className="border-b border-white/8 px-5 py-3">
           <div className="flex items-center gap-2 mb-2">
             <Flame className="w-3.5 h-3.5 text-yellow-400" />
-            <span className="text-[11px] font-bold text-white/50 uppercase tracking-wider">{t("session_podium")}</span>
+            <span className="text-[12px] font-bold text-white/50 uppercase tracking-wider">{t("session_podium")}</span>
           </div>
           <Podium top3={topN.slice(0, 3)} />
         </div>
@@ -891,7 +891,7 @@ function SessionPanel({ result, isPremium }: { result: SessionResult; isPremium:
               {/* "Top Performers" is standard international term, kept as-is */}
             </div>
             {!isPremium && topN.length > 3 && (
-              <span className="text-[10px] text-white/25">+{topN.length - 3} {t("session_with_premium")}</span>
+              <span className="text-[12px] text-white/25">+{topN.length - 3} {t("session_with_premium")}</span>
             )}
           </div>
           <div className="space-y-1.5">
@@ -911,7 +911,7 @@ function SessionPanel({ result, isPremium }: { result: SessionResult; isPremium:
               <span className="text-xs font-bold text-white/60 uppercase tracking-wider">{t("session_flop")}</span>
             </div>
             {!isPremium && flopN.length > 3 && (
-              <span className="text-[10px] text-white/25">+{flopN.length - 3} {t("session_with_premium")}</span>
+              <span className="text-[12px] text-white/25">+{flopN.length - 3} {t("session_with_premium")}</span>
             )}
           </div>
           <div className="space-y-1.5">
@@ -933,11 +933,11 @@ function SessionPanel({ result, isPremium }: { result: SessionResult; isPremium:
             </div>
             <div>
               <h4 className="text-sm font-bold text-white">{t("session_tomorrow_watch")}</h4>
-              <p className="text-[11px] text-white/35">{t("session_signals_found")}</p>
+              <p className="text-[12px] text-white/35">{t("session_signals_found")}</p>
             </div>
           </div>
           {!isPremium && (
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-yellow-500/15 border border-yellow-500/30 text-yellow-400 text-[10px] font-bold">
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-yellow-500/15 border border-yellow-500/30 text-yellow-400 text-[12px] font-bold">
               <Crown className="w-2.5 h-2.5" />
               PREMIUM
             </span>
@@ -967,7 +967,7 @@ function SessionPanel({ result, isPremium }: { result: SessionResult; isPremium:
         <div className="border-t border-white/8 px-5 py-3">
           <div className="flex items-center gap-2 mb-2.5">
             <BarChart2 className="w-3.5 h-3.5 text-white/40" />
-            <span className="text-[11px] font-bold text-white/40 uppercase tracking-wider">{t("session_stats")}</span>
+            <span className="text-[12px] font-bold text-white/40 uppercase tracking-wider">{t("session_stats")}</span>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             {[
@@ -1004,9 +1004,9 @@ function SessionPanel({ result, isPremium }: { result: SessionResult; isPremium:
                 transition={{ delay: 0.2 + i * 0.05 }}
                 whileHover={{ y: -3 }}
               >
-                <p className="text-[10px] text-white/40 mb-0.5">{stat.label}</p>
+                <p className="text-[12px] text-white/40 mb-0.5">{stat.label}</p>
                 <p className={cn("text-sm font-bold", stat.color)}>{stat.value}</p>
-                <p className="text-[10px] text-white/30 truncate">{stat.sub}</p>
+                <p className="text-[12px] text-white/30 truncate">{stat.sub}</p>
               </motion.div>
             ))}
           </div>
@@ -1097,7 +1097,7 @@ export function SessionSummaryWidget() {
           </div>
           <div>
             <h2 className="font-bold text-sm text-white">{t("session_title")}</h2>
-            <p className="text-[11px] text-white/30">
+            <p className="text-[12px] text-white/30">
               {lastUpdate
                 ? `${t("session_updated")} ${lastUpdate.toLocaleTimeString(lang === "en" ? "en-US" : "fr-FR", { hour: "2-digit", minute: "2-digit" })}`
                 : t("session_loading")}
@@ -1106,7 +1106,7 @@ export function SessionSummaryWidget() {
         </div>
         <div className="flex items-center gap-2">
           {!isPremium && (
-            <span className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-yellow-500/10 border border-yellow-500/20 text-yellow-400/70 text-[10px]">
+            <span className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-yellow-500/10 border border-yellow-500/20 text-yellow-400/70 text-[12px]">
               <Crown className="w-2.5 h-2.5" />
               {t("session_some_premium")}
             </span>
@@ -1154,9 +1154,9 @@ export function SessionSummaryWidget() {
                   </span>
                 )}
               </div>
-              <span className="font-semibold relative z-10 text-[11px]">{s.name}</span>
+              <span className="font-semibold relative z-10 text-[12px]">{s.name}</span>
               {avg !== null && (
-                <span className={cn("text-[10px] font-mono relative z-10", avg >= 0 ? "text-emerald-400" : "text-rose-400")}>
+                <span className={cn("text-[12px] font-mono relative z-10", avg >= 0 ? "text-emerald-400" : "text-rose-400")}>
                   {avg >= 0 ? "+" : ""}{avg.toFixed(2)}%
                 </span>
               )}

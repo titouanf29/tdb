@@ -170,7 +170,7 @@ function TopBar({ area }: { area?: NavArea }) {
         }}
       >
         <div className="flex h-16 items-center gap-6">
-          <Link href="/dashboard" aria-label="CaptenTDB" style={{ color: "var(--cap-ink)" }}>
+          <Link href="/dashboard" aria-label="CaptenTDB" className="-mx-2 inline-flex min-h-[44px] min-w-[44px] items-center px-2" style={{ color: "var(--cap-ink)" }}>
             <CaptenLogo size={21} className="hidden sm:inline-flex" />
             <CaptenLogo size={21} showName={false} className="sm:hidden" />
           </Link>
@@ -610,7 +610,7 @@ function MobileTabs() {
                 key={tab.href}
                 href={tab.href}
                 aria-current={active ? "page" : undefined}
-                className="relative flex min-h-[56px] flex-1 flex-col items-center justify-center gap-1 text-[0.68rem] transition-colors"
+                className="relative flex min-h-[56px] flex-1 flex-col items-center justify-center gap-1 text-[0.75rem] transition-colors"
                 style={{ color: active ? "var(--cap-ink)" : "var(--cap-ink-3)" }}
               >
                 {active && (
@@ -632,7 +632,7 @@ function MobileTabs() {
             onClick={() => setMenu(true)}
             aria-label="Tout le site"
             aria-expanded={menu}
-            className="relative flex min-h-[56px] flex-1 flex-col items-center justify-center gap-1 text-[0.68rem] transition-colors"
+            className="relative flex min-h-[56px] flex-1 flex-col items-center justify-center gap-1 text-[0.75rem] transition-colors"
             style={{ color: menu ? "var(--cap-ink)" : "var(--cap-ink-3)" }}
           >
             <Menu className="h-[19px] w-[19px]" aria-hidden />
@@ -705,7 +705,7 @@ function MenuMobile({ open, onClose }: { open: boolean; onClose: () => void }) {
           >
             <div className="sticky top-0 flex items-center justify-between gap-4 px-5 pb-2 pt-4"
                  style={{ backgroundColor: "var(--cap-surface)" }}>
-              <span className="text-[0.72rem] uppercase tracking-[0.14em]"
+              <span className="text-[0.75rem] uppercase tracking-[0.14em]"
                     style={{ color: "var(--cap-ink-3)" }}>
                 Tout le site
               </span>
@@ -724,7 +724,7 @@ function MenuMobile({ open, onClose }: { open: boolean; onClose: () => void }) {
               const items = area.items.filter((i) => !i.adminOnly || isAdmin);
               return (
                 <div key={area.id} className="px-5 pb-0.5 pt-2.5">
-                  <span className="text-[0.72rem] uppercase tracking-[0.14em]"
+                  <span className="text-[0.75rem] uppercase tracking-[0.14em]"
                         style={{ color: "var(--cap-ink-4)" }}>
                     {area.label}
                   </span>

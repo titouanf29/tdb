@@ -72,7 +72,7 @@ export function MesureFigure({ cle }: { cle: string }) {
   return (
     <Cadre>
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <span className="text-[0.72rem] uppercase tracking-[0.14em]" style={{ color: "var(--cap-ink-3)" }}>
+        <span className="text-[0.75rem] uppercase tracking-[0.14em]" style={{ color: "var(--cap-ink-3)" }}>
           Ce que disent nos données
         </span>
         <span className="rounded-[6px] px-2 py-0.5 text-[0.75rem] font-medium"
@@ -100,9 +100,9 @@ export function MesureFigure({ cle }: { cle: string }) {
 function Chiffre({ titre, valeur, note }: { titre: string; valeur: string; note?: string }) {
   return (
     <div>
-      <dt className="text-[0.72rem]" style={{ color: "var(--cap-ink-3)" }}>{titre}</dt>
+      <dt className="text-[0.75rem]" style={{ color: "var(--cap-ink-3)" }}>{titre}</dt>
       <dd className="mt-0.5 text-[1rem] font-semibold tabular-nums" style={{ color: "var(--cap-ink)" }}>{valeur}</dd>
-      {note && <dd className="text-[0.72rem]" style={{ color: "var(--cap-ink-3)" }}>{note}</dd>}
+      {note && <dd className="text-[0.75rem]" style={{ color: "var(--cap-ink-3)" }}>{note}</dd>}
     </div>
   );
 }
@@ -111,7 +111,7 @@ function Tableau({ m }: { m: FiguresMesure }) {
   const lignes = Object.entries(m.statistiques).sort((a, b) => b[1].n - a[1].n);
   return (
     <Cadre>
-      <p className="text-[0.72rem] uppercase tracking-[0.14em]" style={{ color: "var(--cap-ink-3)" }}>
+      <p className="text-[0.75rem] uppercase tracking-[0.14em]" style={{ color: "var(--cap-ink-3)" }}>
         {m.methode.figures.toLocaleString("fr-FR")} figures · {m.methode.panel} actifs · {m.methode.annees} ans
       </p>
       <div className="mt-3 overflow-x-auto">

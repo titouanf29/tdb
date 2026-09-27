@@ -102,7 +102,7 @@ export default function LoginPage() {
         <div className="-mt-2 flex justify-end">
           <Link
             href="/forgot-password"
-            className="text-[0.84rem] underline underline-offset-2 transition-colors hover:text-[color:var(--cap-ink)]"
+            className="inline-flex min-h-[44px] items-center text-[0.84rem] underline underline-offset-2 transition-colors hover:text-[color:var(--cap-ink)]"
             style={{ color: "var(--cap-ocean)" }}
           >
             Mot de passe oublié ?

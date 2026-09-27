@@ -153,7 +153,7 @@ export function Sidebar({
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
-                  className="px-3 mb-1 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/50"
+                  className="px-3 mb-1 text-[12px] font-semibold uppercase tracking-widest text-muted-foreground/50"
                 >
                   {t(group.labelKey)}
                 </motion.p>
@@ -225,7 +225,7 @@ export function Sidebar({
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
-                  className="px-3 mb-1 text-[10px] font-semibold uppercase tracking-widest text-yellow-500/40"
+                  className="px-3 mb-1 text-[12px] font-semibold uppercase tracking-widest text-yellow-500/40"
                 >
                   Admin
                 </motion.p>

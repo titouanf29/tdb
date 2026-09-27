@@ -72,7 +72,7 @@ export function LegalSectionTitle({ num, title, id }: { num: string; title: stri
           sautant d'une section à l'autre depuis le sommaire, et un repère
           qu'on retrouve d'un coup d'œil vaut mieux qu'un titre de plus. */}
       <span
-        className="flex h-7 w-7 flex-none items-center justify-center rounded-[9px] text-[0.72rem] font-semibold tabular-nums"
+        className="flex h-7 w-7 flex-none items-center justify-center rounded-[9px] text-[0.75rem] font-semibold tabular-nums"
         style={{ backgroundColor: "var(--cap-surface-2)", color: "var(--cap-ink-2)" }}
       >
         {num}

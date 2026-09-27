@@ -320,13 +320,13 @@ function MessageRow({
         </span>
         {m.is_admin && (
           <span
-            className="rounded-[5px] px-1.5 py-0.5 text-[0.68rem]"
+            className="rounded-[5px] px-1.5 py-0.5 text-[0.75rem]"
             style={{ backgroundColor: "var(--cap-navy)", color: "#E8EDF1" }}
           >
             Équipe
           </span>
         )}
-        <span className="cap-num text-[0.72rem]" style={{ color: "var(--cap-ink-3)" }}>
+        <span className="cap-num text-[0.75rem]" style={{ color: "var(--cap-ink-3)" }}>
           {time}
         </span>
       </div>

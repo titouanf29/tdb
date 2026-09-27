@@ -3,7 +3,9 @@
 import { useLanguage, Lang } from "@/lib/LanguageContext";
 import { cn } from "@/lib/utils";
 
-const FLAGS: Record<Lang, string> = { fr: "🇫🇷", en: "🇬🇧" };
+// Des drapeaux SVG (flag-icons, chargée par le layout), pas des emoji : un
+// emoji dépend de la police du système — Windows affiche « GB » en lettres.
+const FLAGS: Record<Lang, string> = { fr: "fi fi-fr", en: "fi fi-gb" };
 const LABELS: Record<Lang, string> = { fr: "FR", en: "EN" };
 
 interface Props {
@@ -21,12 +23,12 @@ export function LanguageToggle({ variant = "pill", className }: Props) {
       <button
         onClick={() => setLang(next)}
         className={cn(
-          "flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-sm font-medium transition-colors",
+          "flex min-h-[44px] items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-sm font-medium transition-colors",
           className
         )}
         title={`Switch to ${next === "en" ? "English" : "Français"}`}
       >
-        <span>{FLAGS[lang]}</span>
+        <span className={cn(FLAGS[lang], "rounded-[2px]")} aria-hidden />
         <span className="text-xs">{LABELS[lang]}</span>
       </button>
     );
@@ -45,7 +47,7 @@ export function LanguageToggle({ variant = "pill", className }: Props) {
               : "text-muted-foreground hover:text-foreground hover:bg-white/10"
           )}
         >
-          <span>{FLAGS[l]}</span>
+          <span className={cn(FLAGS[l], "rounded-[2px]")} aria-hidden />
           <span>{LABELS[l]}</span>
         </button>
       ))}
