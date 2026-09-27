@@ -36,3 +36,4 @@ export { SegmentedControl } from "./SegmentedControl";
 export { Eyebrow, Heading, Num, Text } from "./Text";
 export { Tooltip } from "./Tooltip";
 export { DUR, EASE, VIEWPORT, reveal, stagger, transition } from "./motion";
+export { useMouvementReduit } from "./useMouvementReduit";

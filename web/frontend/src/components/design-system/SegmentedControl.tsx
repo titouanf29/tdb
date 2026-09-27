@@ -1,9 +1,10 @@
 "use client";
 
-import { motion, useReducedMotion } from "framer-motion";
+import { motion } from "framer-motion";
 import { useId } from "react";
 import { cn } from "@/lib/utils";
 import { DUR, EASE } from "./motion";
+import { useMouvementReduit } from "./useMouvementReduit";
 
 /**
  * A row of mutually exclusive choices.
@@ -28,7 +29,7 @@ export function SegmentedControl<T extends string>({
   "aria-label"?: string;
 }) {
   const layoutId = useId();
-  const reduce = useReducedMotion();
+  const reduce = useMouvementReduit();
 
   const pad = size === "sm" ? "px-3 h-8 text-[0.82rem]" : "px-4 h-10 text-[0.9rem]";
 

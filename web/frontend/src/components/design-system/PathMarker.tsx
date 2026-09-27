@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { animate, motion, useInView, useMotionValue, useReducedMotion, useTransform } from "framer-motion";
+import { animate, motion, useInView, useMotionValue, useTransform } from "framer-motion";
 import { DUR, EASE } from "./motion";
+import { useMouvementReduit } from "./useMouvementReduit";
 
 /**
  * A marker that travels along an SVG path.
@@ -35,7 +36,7 @@ export function PathMarker({
   stroke?: string;
   fadeOut?: boolean;
 }) {
-  const reduce = useReducedMotion();
+  const reduce = useMouvementReduit();
   const groupRef = useRef<SVGGElement>(null);
   const pathRef = useRef<SVGPathElement>(null);
   const inView = useInView(groupRef, { once: true, amount: 0.3 });

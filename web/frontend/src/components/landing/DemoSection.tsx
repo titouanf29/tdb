@@ -1,13 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import {
-  Atmosphere, Container, CountUp, Eyebrow, Heading, Num, Progress, Reveal, Section,
-  SegmentedControl, Text, DUR, EASE,
+  Atmosphere, Container, CountUp, Eyebrow, Heading, Num, Progress, Section, SegmentedControl, Text, DUR, EASE,
 } from "@/components/design-system";
+import { Reveal } from "./effets";
 import { AnalysisVisual } from "./AnalysisVisual";
 import { DEMO_ASSETS, LEVELS, type LevelId } from "./demoData";
+import { useMouvementReduit } from "@/components/design-system/useMouvementReduit";
 
 /**
  * Section 4 — the demo. The most important section of the page.
@@ -20,7 +21,7 @@ import { DEMO_ASSETS, LEVELS, type LevelId } from "./demoData";
 export function DemoSection() {
   const [assetId, setAssetId] = useState(DEMO_ASSETS[0].id);
   const [level, setLevel] = useState<LevelId>("discover");
-  const reduce = useReducedMotion();
+  const reduce = useMouvementReduit();
 
   const asset = DEMO_ASSETS.find((a) => a.id === assetId) ?? DEMO_ASSETS[0];
   const dirTone =

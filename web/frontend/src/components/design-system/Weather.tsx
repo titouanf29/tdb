@@ -1,8 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useId, useState } from "react";
-import { motion, useReducedMotion } from "framer-motion";
+import { motion } from "framer-motion";
 import { SILHOUETTES } from "./CloudLayer";
+import { useMouvementReduit } from "./useMouvementReduit";
 
 /**
  * Live weather behind the app.
@@ -326,7 +327,7 @@ export function WeatherBackdrop({
   condition?: WeatherCondition;
   enabled?: boolean;
 }) {
-  const reduce = useReducedMotion();
+  const reduce = useMouvementReduit();
   // Off, or reduced motion: nothing at all. A still sky would be a decoration
   // with no information in it, which is the thing this component is not.
   if (!enabled || reduce) return null;

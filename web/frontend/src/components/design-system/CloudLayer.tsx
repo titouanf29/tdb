@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useId, useState } from "react";
-import { motion, useReducedMotion, useScroll, useSpring, useTransform } from "framer-motion";
+import { motion, useScroll, useSpring, useTransform } from "framer-motion";
+import { useMouvementReduit } from "./useMouvementReduit";
 
 /**
  * Cumulus at the top of the page, parting as you descend.
@@ -98,7 +99,7 @@ const CLOUDS: Cloud[] = [
 ];
 
 export function CloudLayer() {
-  const reduce = useReducedMotion();
+  const reduce = useMouvementReduit();
   const { scrollY } = useScroll();
   const [span, setSpan] = useState(0);
 
@@ -138,7 +139,7 @@ export function CloudLayer() {
  * clock, slowly enough to read as distance rather than as movement.
  */
 export function CloudBank({ className }: { className?: string }) {
-  const reduce = useReducedMotion();
+  const reduce = useMouvementReduit();
 
   return (
     <div
@@ -147,8 +148,8 @@ export function CloudBank({ className }: { className?: string }) {
     >
       <motion.div
         className="absolute bottom-0 left-0 flex w-[200%] items-end"
-        animate={reduce ? {} : { x: ["0%", "-50%"] }}
-        transition={reduce ? {} : { duration: 240, repeat: Infinity, ease: "linear" }}
+        animate={reduce ? { x: "0%" } : { x: ["0%", "-50%"] }}
+        transition={reduce ? { duration: 0 } : { duration: 240, repeat: Infinity, ease: "linear" }}
         style={{ willChange: reduce ? undefined : "transform" }}
       >
         {/* Two identical runs, so the translation by exactly one run loops

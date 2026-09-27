@@ -1,8 +1,9 @@
 "use client";
 
-import { motion, useReducedMotion } from "framer-motion";
+import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { DUR, EASE, VIEWPORT } from "./motion";
+import { useMouvementReduit } from "./useMouvementReduit";
 
 /**
  * The CaptenTDB motif: navigation, drawn as thin lines.
@@ -25,7 +26,7 @@ export function Contours({
   lines?: number;
   opacity?: number;
 }) {
-  const reduce = useReducedMotion();
+  const reduce = useMouvementReduit();
   return (
     <svg
       aria-hidden
@@ -113,7 +114,7 @@ export function Course({
   height?: number;
   delay?: number;
 }) {
-  const reduce = useReducedMotion();
+  const reduce = useMouvementReduit();
   const d = "M 8 96 C 90 96, 118 40, 200 44 C 268 47, 300 74, 392 26";
 
   return (

@@ -1,8 +1,9 @@
 "use client";
 
 import { useRef } from "react";
-import { motion, useReducedMotion, useScroll, useTransform } from "framer-motion";
+import { motion, useScroll, useTransform } from "framer-motion";
 import { cn } from "@/lib/utils";
+import { useMouvementReduit } from "./useMouvementReduit";
 
 /**
  * Weather behind the page.
@@ -34,7 +35,7 @@ export function Atmosphere({
   depth?: number;
 }) {
   const ref = useRef<HTMLDivElement>(null);
-  const reduce = useReducedMotion();
+  const reduce = useMouvementReduit();
   const { scrollYProgress } = useScroll({
     target: ref,
     offset: ["start end", "end start"],

@@ -1,9 +1,10 @@
 "use client";
 
-import { motion, useReducedMotion } from "framer-motion";
+import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { reveal, stagger, transition, VIEWPORT, DUR } from "./motion";
 import { useAnimationsEnabled } from "./Weather";
+import { useMouvementReduit } from "./useMouvementReduit";
 
 /* ── Container ──────────────────────────────────────────────────────────── */
 
@@ -95,7 +96,7 @@ export function Reveal({
   className?: string;
   as?: "div" | "li" | "span";
 }) {
-  const reduce = useReducedMotion();
+  const reduce = useMouvementReduit();
   // The same switch the weather reads. A control named "couper les
   // animations" has to cut the entrances too, or it is lying.
   const [anim] = useAnimationsEnabled();
@@ -129,7 +130,7 @@ export function RevealGroup({
   delay?: number;
   className?: string;
 }) {
-  const reduce = useReducedMotion();
+  const reduce = useMouvementReduit();
   if (reduce) return <div className={className}>{children}</div>;
 
   return (
@@ -153,7 +154,7 @@ export function RevealItem({
   children: React.ReactNode;
   className?: string;
 }) {
-  const reduce = useReducedMotion();
+  const reduce = useMouvementReduit();
   if (reduce) return <div className={className}>{children}</div>;
   return (
     <motion.div className={className} variants={reveal} transition={transition()}>

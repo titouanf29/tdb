@@ -1,10 +1,11 @@
 "use client";
 
-import { motion, useReducedMotion } from "framer-motion";
+import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { PathMarker } from "./PathMarker";
 import { CountUp } from "./Metric";
 import { DUR, EASE, VIEWPORT } from "./motion";
+import { useMouvementReduit } from "./useMouvementReduit";
 
 /**
  * The score, drawn as a bearing rather than a gauge.
@@ -49,7 +50,7 @@ export function ScoreDial({
   label?: string;
   className?: string;
 }) {
-  const reduce = useReducedMotion();
+  const reduce = useMouvementReduit();
   const R = 54;
   const C = 64;
   const pct = Math.max(0, Math.min(100, score)) / 100;

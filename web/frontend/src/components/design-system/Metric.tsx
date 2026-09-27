@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useInView, useReducedMotion } from "framer-motion";
+import { useInView } from "framer-motion";
 import { cn } from "@/lib/utils";
+import { useMouvementReduit } from "./useMouvementReduit";
 
 /**
  * A figure that counts up when it first comes into view.
@@ -27,7 +28,7 @@ export function CountUp({
 }) {
   const ref = useRef<HTMLSpanElement>(null);
   const inView = useInView(ref, { once: true, amount: 0.6 });
-  const reduce = useReducedMotion();
+  const reduce = useMouvementReduit();
   const [value, setValue] = useState(reduce ? to : 0);
 
   useEffect(() => {

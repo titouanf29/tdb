@@ -1,45 +1,61 @@
 "use client";
 
-import { Bandeau } from "@/components/landing/Bandeau";
+import { CloudLayer, PageCourse, type CourseStop } from "@/components/design-system";
+import { ClosingSection } from "@/components/landing/ClosingSection";
+import { OuvertureDuCiel, Traversee } from "@/components/landing/effets";
 import { DemoSection } from "@/components/landing/DemoSection";
-import { Final } from "@/components/landing/Final";
-import { Fonctions } from "@/components/landing/Fonctions";
-import { HeroNuit } from "@/components/landing/HeroNuit";
+import { Hero } from "@/components/landing/Hero";
+import { HowItWorks } from "@/components/landing/HowItWorks";
 import { LandingFooter } from "@/components/landing/LandingFooter";
 import { LandingNav } from "@/components/landing/LandingNav";
-import { Preuves } from "@/components/landing/Preuves";
-import { Verite } from "@/components/landing/Verite";
+import { LearnSection } from "@/components/landing/LearnSection";
+import { PaperTradingSection } from "@/components/landing/PaperTradingSection";
+import { PersonalisationSection } from "@/components/landing/PersonalisationSection";
+import { ProblemSection } from "@/components/landing/ProblemSection";
 
 /**
- * La page de présentation.
+ * The public page.
  *
- * Elle a quelques secondes pour convaincre quelqu'un qui ne connaît pas le
- * site. L'ordre suit ce qu'il se demande :
- *
- *   qu'est-ce que c'est ?          le haut de page, avec le vrai cours ;
- *   ça tourne vraiment ?           les cours qui défilent, les chiffres ;
- *   pourquoi celui-là ?            les figures de TikTok, mesurées ;
- *   qu'est-ce que j'y fais ?       les six fonctionnalités ;
- *   à quoi ça ressemble ?          la démo interactive ;
- *   je commence ?                  l'appel final.
- *
- * Tout ce qui est chiffré est lu sur le serveur ou vérifiable sur le site :
- * aucun faux témoignage, aucun faux compteur d'utilisateurs.
+ * Each section is one idea and owns its own file; this one only decides the
+ * order they are read in, and names the stops along the way. The `cap` class
+ * scopes the rebuilt design tokens, so nothing here can reach the screens
+ * that have not been migrated yet.
  */
+
+const STOPS: CourseStop[] = [
+  { id: "depart", label: "Départ" },
+  { id: "probleme", label: "Le problème" },
+  { id: "fonctionnement", label: "Fonctionnement" },
+  { id: "demo", label: "Démo" },
+  { id: "paper-trading", label: "Paper trading" },
+  { id: "personnalisation", label: "Personnalisation" },
+  { id: "apprendre", label: "Apprendre" },
+  { id: "arrivee", label: "Arrivée" },
+];
+
 export default function LandingPage() {
   return (
-    <div className="cap min-h-screen" style={{ backgroundColor: "#07111D" }}>
+    <div className="cap min-h-screen">
+      {/* À l'arrivée, l'écran est sous les nuages, qui s'écartent. */}
+      <OuvertureDuCiel />
+      <CloudLayer />
       <LandingNav />
+      <PageCourse stops={STOPS} />
       <main>
-        <HeroNuit />
-        <Bandeau />
-        <div className="pb-24 pt-16 sm:pb-28" style={{ backgroundColor: "#07111D" }}>
-          <Preuves />
-        </div>
-        <Verite />
-        <Fonctions />
+        <Hero />
+        {/* Entre deux sections, on traverse une couche de nuages qui
+            s'ouvre par le milieu. Purement visuel, masqué aux lecteurs
+            d'écran, absent si les animations sont réduites. */}
+        <Traversee />
+        <ProblemSection />
+        <HowItWorks />
+        <Traversee />
         <DemoSection />
-        <Final />
+        <PaperTradingSection />
+        <PersonalisationSection />
+        <Traversee />
+        <LearnSection />
+        <ClosingSection />
       </main>
       <LandingFooter />
     </div>

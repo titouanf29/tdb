@@ -1,9 +1,10 @@
 "use client";
 
-import { motion, useReducedMotion } from "framer-motion";
+import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { DUR, EASE, VIEWPORT } from "./motion";
 import { Num } from "./Text";
+import { useMouvementReduit } from "./useMouvementReduit";
 
 /**
  * A factor bar. Thin, single-colour, no gradient.
@@ -27,7 +28,7 @@ export function Progress({
   delay?: number;
   className?: string;
 }) {
-  const reduce = useReducedMotion();
+  const reduce = useMouvementReduit();
   const pct = Math.max(0, Math.min(100, (value / max) * 100));
 
   return (

@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { motion, useReducedMotion, useScroll, useSpring, useTransform } from "framer-motion";
+import { motion, useScroll, useSpring, useTransform } from "framer-motion";
+import { useMouvementReduit } from "./useMouvementReduit";
 
 /**
  * One course, plotted down the whole page.
@@ -32,7 +33,7 @@ const PATH =
   "C 22 500, 8 540, 13 620 C 18 700, 30 740, 24 820 C 19 900, 20 940, 20 992";
 
 export function PageCourse({ stops }: { stops: CourseStop[] }) {
-  const reduce = useReducedMotion();
+  const reduce = useMouvementReduit();
   const { scrollYProgress } = useScroll();
   // A little inertia so the line does not twitch with every wheel notch.
   const progress = useSpring(scrollYProgress, { stiffness: 90, damping: 26, mass: 0.4 });

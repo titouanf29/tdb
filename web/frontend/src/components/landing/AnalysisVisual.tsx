@@ -1,8 +1,9 @@
 "use client";
 
 import { useId, useMemo } from "react";
-import { motion, useReducedMotion } from "framer-motion";
+import { motion } from "framer-motion";
 import { DUR, EASE, VIEWPORT } from "@/components/design-system";
+import { useMouvementReduit } from "@/components/design-system/useMouvementReduit";
 
 /**
  * The hero's visual: one asset, drawn the way this product reads a market.
@@ -49,7 +50,7 @@ export function AnalysisVisual({
   className?: string;
   showLevels?: boolean;
 }) {
-  const reduce = useReducedMotion();
+  const reduce = useMouvementReduit();
   const W = 800;
   const H = 300;
   // The page renders this twice. A shared gradient id is invalid HTML and

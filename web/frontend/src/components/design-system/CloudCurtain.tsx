@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useId, useRef, useState } from "react";
-import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import { SILHOUETTES } from "./CloudLayer";
 import { EASE } from "./motion";
+import { useMouvementReduit } from "./useMouvementReduit";
 
 /**
  * Weather closing over the screen while something loads, then parting.
@@ -85,7 +86,7 @@ export function CloudCurtain({
   active: boolean;
   label?: string;
 }) {
-  const reduce = useReducedMotion();
+  const reduce = useMouvementReduit();
 
   return (
     <AnimatePresence>

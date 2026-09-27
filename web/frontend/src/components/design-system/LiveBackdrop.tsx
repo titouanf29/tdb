@@ -1,8 +1,9 @@
 "use client";
 
 import { useMemo, useRef } from "react";
-import { motion, useInView, useReducedMotion } from "framer-motion";
+import { motion, useInView } from "framer-motion";
 import { cn } from "@/lib/utils";
+import { useMouvementReduit } from "./useMouvementReduit";
 
 /**
  * The background, alive.
@@ -60,7 +61,7 @@ export function LiveBackdrop({
    *  stack into a haze nobody asked for. */
   clouds?: boolean;
 }) {
-  const reduce = useReducedMotion();
+  const reduce = useMouvementReduit();
   const d = useMemo(buildSeries, []);
   const ref = useRef<HTMLDivElement>(null);
   // Not `once`: the point is to stop again on the way out. Three sections
@@ -71,9 +72,11 @@ export function LiveBackdrop({
   const running = inView && !reduce;
 
   // Slow enough that the movement is felt rather than watched.
+  // À l'arrêt, on ramène explicitement la bande à sa place : un objet vide
+  // laisserait tourner la boucle déjà lancée (framer-motion ne l'annule pas).
   const drift = (seconds: number, distance: string) =>
     !running
-      ? {}
+      ? { animate: { x: "0%" }, transition: { duration: 0 } }
       : {
           animate: { x: ["0%", distance] },
           transition: { duration: seconds, repeat: Infinity, ease: "linear" as const },

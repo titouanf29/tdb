@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useReducedMotion } from "framer-motion";
+
 import { cn } from "@/lib/utils";
 import { useAnimationsEnabled } from "./Weather";
+import { useMouvementReduit } from "./useMouvementReduit";
 
 /**
  * Un chiffre qui se met à jour tout seul, et qui le montre.
@@ -51,7 +52,7 @@ export function LiveNum({
   className?: string;
   placeholder?: string;
 }) {
-  const reduce = useReducedMotion();
+  const reduce = useMouvementReduit();
   const [animOn] = useAnimationsEnabled();
   const moving = !reduce && animOn;
 

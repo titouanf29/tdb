@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect } from "react";
-import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { DUR, EASE } from "./motion";
+import { useMouvementReduit } from "./useMouvementReduit";
 
 /* Shared plumbing: escape to close, and the body does not scroll behind. */
 function useDismiss(open: boolean, onClose: () => void) {
@@ -66,7 +67,7 @@ export function Modal({
   closeLabel?: string;
   className?: string;
 }) {
-  const reduce = useReducedMotion();
+  const reduce = useMouvementReduit();
   useDismiss(open, onClose);
 
   return (
@@ -117,7 +118,7 @@ export function Drawer({
   children: React.ReactNode;
   closeLabel?: string;
 }) {
-  const reduce = useReducedMotion();
+  const reduce = useMouvementReduit();
   useDismiss(open, onClose);
 
   return (
