@@ -3,6 +3,7 @@
 import { CloudLayer, PageCourse, type CourseStop } from "@/components/design-system";
 import { ClosingSection } from "@/components/landing/ClosingSection";
 import { OuvertureDuCiel, Traversee } from "@/components/landing/effets";
+import { MarcheCache } from "@/components/landing/CielDeMarche";
 import { DemoSection } from "@/components/landing/DemoSection";
 import { Hero } from "@/components/landing/Hero";
 import { HowItWorks } from "@/components/landing/HowItWorks";
@@ -46,14 +47,14 @@ export default function LandingPage() {
         {/* Entre deux sections, on traverse une couche de nuages qui
             s'ouvre par le milieu. Purement visuel, masqué aux lecteurs
             d'écran, absent si les animations sont réduites. */}
-        <Traversee />
+        <Traversee centre={(p) => <MarcheCache p={p} />} />
         <ProblemSection />
         <HowItWorks />
-        <Traversee />
+        <Traversee centre={(p) => <MarcheCache p={p} />} />
         <DemoSection />
         <PaperTradingSection />
         <PersonalisationSection />
-        <Traversee />
+        <Traversee centre={(p) => <MarcheCache p={p} />} />
         <LearnSection />
         <ClosingSection />
       </main>

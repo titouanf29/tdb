@@ -6,7 +6,8 @@ import {
   DUR, EASE,
 } from "@/components/design-system";
 import { AnalysisVisual } from "./AnalysisVisual";
-import { Aimant, Eclaircie, Inclinaison, Mots, Redressement } from "./effets";
+import { Aimant, Inclinaison, Mots, Redressement } from "./effets";
+import { BullesDeCours, CielDeMarche } from "./CielDeMarche";
 import { DEMO_ASSETS } from "./demoData";
 import { useMouvementReduit } from "@/components/design-system/useMouvementReduit";
 
@@ -39,8 +40,11 @@ export function Hero() {
           others, or the opening just gets busy. */}
       <Atmosphere variant="top" />
       <LiveBackdrop clouds={false} opacity={0.55} />
-      {/* Une trouée de soleil qui suit la souris : le ciel réagit au visiteur. */}
-      <Eclaircie />
+      {/* Le marché caché dans les nuages : chandeliers qui poussent à
+          l'horizon, ligne de cours dorée, nuages qui passent devant, et
+          de vrais cours qui flottent entre eux. */}
+      <CielDeMarche />
+      <BullesDeCours />
       <Contours
         className="absolute inset-x-0 top-0 h-[420px] w-full"
         lines={4}

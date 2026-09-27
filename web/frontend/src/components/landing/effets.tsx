@@ -259,28 +259,6 @@ export function Aimant({ children, className, force = 0.3 }: {
   );
 }
 
-/* ── 6. La lumière qui suit le regard ─────────────────────────────────── */
-
-/** Une trouée de soleil dans le ciel du haut de page, qui suit la souris. */
-export function Eclaircie() {
-  const actifs = useEffetsActifs();
-  const x = useSpring(50, { stiffness: 40, damping: 20 }), y = useSpring(30, { stiffness: 40, damping: 20 });
-  const fond = useTransform([x, y] as MotionValue<number>[], ([a, b]: number[]) =>
-    `radial-gradient(520px circle at ${a}% ${b}%, rgba(255,247,222,0.55), transparent 60%)`);
-  useEffect(() => {
-    if (!actifs) return;
-    const bouge = (e: PointerEvent) => {
-      if (e.pointerType !== "mouse") return;
-      x.set((e.clientX / window.innerWidth) * 100);
-      y.set((e.clientY / window.innerHeight) * 100);
-    };
-    window.addEventListener("pointermove", bouge, { passive: true });
-    return () => window.removeEventListener("pointermove", bouge);
-  }, [actifs, x, y]);
-  if (!actifs) return null;
-  return <motion.div aria-hidden className="pointer-events-none absolute inset-0" style={{ background: fond }} />;
-}
-
 /* ── 7. La traversée des nuages entre deux sections ───────────────────── */
 
 /**
@@ -289,7 +267,7 @@ export function Eclaircie() {
  * de gauche filent à gauche, ceux de droite à droite, et grossissent en
  * passant devant.
  */
-export function Traversee({ hauteur = 480 }: { hauteur?: number }) {
+export function Traversee({ hauteur = 480, centre }: { hauteur?: number; centre?: (p: MotionValue<number>) => React.ReactNode }) {
   const actifs = useEffetsActifs();
   const ref = useRef<HTMLDivElement>(null);
   const { scrollYProgress } = useScroll({ target: ref, offset: ["start end", "end start"] });
@@ -306,6 +284,8 @@ export function Traversee({ hauteur = 480 }: { hauteur?: number }) {
     // ressemble plus à un nuage. Elle chevauche les deux sections voisines
     // (marges négatives) pour ne pas allonger la page.
     <div ref={ref} aria-hidden className="pointer-events-none relative z-10 overflow-hidden" style={{ height: hauteur, marginTop: -hauteur / 2 + 40, marginBottom: -hauteur / 2 + 40 }}>
+      {/* Ce qui se cache derrière la couche, révélé quand elle s'ouvre. */}
+      {centre?.(p)}
       {[{ cote: gauche, pos: "-left-[8%]", formes: [0, 2] }, { cote: droite, pos: "-right-[8%]", formes: [1, 3] }].map((g, k) => (
         <motion.div key={k} className={`absolute top-0 flex h-full w-[70%] items-center ${g.pos}`}
           style={{ x: g.cote, scale: echelle, opacity: opacite }}>
