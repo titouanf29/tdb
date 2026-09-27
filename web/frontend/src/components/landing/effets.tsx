@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { motion, useMotionValue, useScroll, useSpring, useTransform, type MotionValue, type Variants } from "framer-motion";
-import { SILHOUETTES, useAnimationsEnabled } from "@/components/design-system";
+import { useAnimationsEnabled } from "@/components/design-system";
+import { NuageImage } from "@/components/design-system/NuageImage";
 import { useMouvementReduit } from "@/components/design-system/useMouvementReduit";
 
 /**
@@ -35,26 +36,8 @@ export function useEffetsActifs() {
 export function Nuage({ forme = 0, retourne, className, style, flou = 2.4 }: {
   forme?: number; retourne?: boolean; className?: string; style?: React.CSSProperties; flou?: number;
 }) {
-  const id = useId().replace(/:/g, "");
-  const { lobes, base } = SILHOUETTES[forme % SILHOUETTES.length];
-  return (
-    <svg viewBox="0 0 200 100" aria-hidden className={className} style={{ overflow: "visible", ...style }}>
-      <defs>
-        <linearGradient id={`${id}-f`} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="var(--cap-cloud-light)" />
-          <stop offset="55%" stopColor="var(--cap-cloud-mid)" />
-          <stop offset="100%" stopColor="var(--cap-cloud-shade)" />
-        </linearGradient>
-        <filter id={`${id}-s`} x="-40%" y="-40%" width="180%" height="180%">
-          <feGaussianBlur stdDeviation={flou} />
-        </filter>
-      </defs>
-      <g filter={`url(#${id}-s)`} fill={`url(#${id}-f)`} transform={retourne ? "translate(200,0) scale(-1,1)" : undefined}>
-        <ellipse cx={base[0]} cy={base[1]} rx={base[2]} ry={base[3]} />
-        {lobes.map(([cx, cy, r], i) => <circle key={i} cx={cx} cy={cy} r={r} />)}
-      </g>
-    </svg>
-  );
+  // Pré-dessiné en image : bouger ou grossir un nuage ne le redessine plus.
+  return <NuageImage forme={forme} retourne={retourne} flou={flou} className={className} style={style} />;
 }
 
 /* ── 1. L'ouverture du ciel ───────────────────────────────────────────── */
@@ -67,7 +50,6 @@ const PROCHES: Masse[] = [
   { x: 35, y: 30, w: 100, forme: 2, cote: 1, retard: 0.04 },
   { x: -10, y: 55, w: 90, forme: 1, cote: -1, retard: 0.08 },
   { x: 25, y: -12, w: 85, forme: 3, cote: 1, retard: 0.06 },
-  { x: 5, y: 12, w: 80, forme: 0, cote: 1, retard: 0.1 },
 ];
 const MILIEU: Masse[] = [
   { x: -12, y: -6, w: 62, forme: 0, cote: -1, retard: 0.12 },
@@ -75,13 +57,11 @@ const MILIEU: Masse[] = [
   { x: -18, y: 32, w: 70, forme: 1, cote: -1, retard: 0.18 },
   { x: 44, y: 28, w: 66, forme: 0, cote: 1, retard: 0.16 },
   { x: -6, y: 66, w: 64, forme: 3, cote: -1, retard: 0.22 },
-  { x: 40, y: 64, w: 68, forme: 1, cote: 1, retard: 0.2 },
 ];
 const LOINTAINS: Masse[] = [
   { x: 4, y: 4, w: 40, forme: 2, cote: -1, retard: 0.3 },
   { x: 52, y: 8, w: 44, forme: 3, cote: 1, retard: 0.34 },
   { x: 24, y: 40, w: 46, forme: 0, cote: 1, retard: 0.38 },
-  { x: 60, y: 46, w: 38, forme: 1, cote: -1, retard: 0.42 },
 ];
 
 /**
@@ -123,7 +103,7 @@ export function OuvertureDuCiel() {
           transition={{ duration: 0.9, delay: 0.35, ease: "easeOut" }} />
         {/* Au loin : les nuages s'élèvent et s'effacent lentement. */}
         {LOINTAINS.map((n, i) => (
-          <motion.div key={`l${i}`} className="absolute" style={{ left: `${n.x}vw`, top: `${n.y}vh`, width: `${n.w}vw` }}
+          <motion.div key={`l${i}`} className="absolute" style={{ left: `${n.x}vw`, top: `${n.y}vh`, width: `${n.w}vw`, willChange: "transform, opacity" }}
             initial={{ y: 0, opacity: 0.9 }}
             animate={ouvre ? { y: "-35vh", opacity: 0 } : undefined}
             transition={{ duration: 2.1, delay: 0.2 + n.retard, ease: [0.4, 0, 0.2, 1] }}>
@@ -132,7 +112,7 @@ export function OuvertureDuCiel() {
         ))}
         {/* Au milieu : la couche s'ouvre par le centre. */}
         {MILIEU.map((n, i) => (
-          <motion.div key={`m${i}`} className="absolute" style={{ left: `${n.x}vw`, top: `${n.y}vh`, width: `${n.w}vw` }}
+          <motion.div key={`m${i}`} className="absolute" style={{ left: `${n.x}vw`, top: `${n.y}vh`, width: `${n.w}vw`, willChange: "transform, opacity" }}
             initial={{ x: 0, scale: 1.12, opacity: 1 }}
             animate={ouvre ? { x: `${n.cote * 100}vw`, scale: 1.55, opacity: 0 } : undefined}
             transition={{ duration: 1.9, delay: 0.15 + n.retard, ease: [0.7, 0, 0.3, 1] }}>
@@ -141,9 +121,9 @@ export function OuvertureDuCiel() {
         ))}
         {/* Tout près : on les traverse — ils foncent vers nous et se floutent. */}
         {PROCHES.map((n, i) => (
-          <motion.div key={`p${i}`} className="absolute" style={{ left: `${n.x}vw`, top: `${n.y}vh`, width: `${n.w}vw` }}
-            initial={{ x: 0, y: 0, scale: 1.3, opacity: 1, filter: "blur(0px)" }}
-            animate={ouvre ? { x: `${n.cote * 70}vw`, y: "18vh", scale: 3.2, opacity: 0, filter: "blur(14px)" } : undefined}
+          <motion.div key={`p${i}`} className="absolute" style={{ left: `${n.x}vw`, top: `${n.y}vh`, width: `${n.w}vw`, willChange: "transform, opacity" }}
+            initial={{ x: 0, y: 0, scale: 1.3, opacity: 1 }}
+            animate={ouvre ? { x: `${n.cote * 70}vw`, y: "18vh", scale: 3.2, opacity: 0 } : undefined}
             transition={{ duration: 1.5, delay: 0.1 + n.retard, ease: [0.55, 0, 0.3, 1] }}>
             <Nuage forme={n.forme} retourne={n.cote > 0} style={{ width: "100%", height: "auto" }} flou={4} />
           </motion.div>
@@ -158,8 +138,8 @@ export function MiseAuPoint({ children, className }: { children: React.ReactNode
   const [joue] = useState(() => cielEnCours());
   if (!joue) return <div className={className}>{children}</div>;
   return (
-    <motion.div className={className} initial={{ scale: 1.07, filter: "blur(8px)", opacity: 0.4 }}
-      animate={{ scale: 1, filter: "blur(0px)", opacity: 1 }}
+    <motion.div className={className} initial={{ scale: 1.07, opacity: 0.3 }}
+      animate={{ scale: 1, opacity: 1 }}
       transition={{ duration: 1.6, delay: 0.35, ease: [0.22, 1, 0.36, 1] }}>
       {children}
     </motion.div>
@@ -191,7 +171,7 @@ export function PremierPlan() {
         { left: "-18%", top: "10%", w: "52%", forme: 0, duree: 34 },
         { left: "62%", top: "0%", w: "56%", forme: 2, duree: 42 },
       ].map((n, i) => (
-        <motion.div key={i} className="absolute" style={{ left: n.left, top: n.top, width: n.w, opacity: 0.92 }}
+        <motion.div key={i} className="absolute" style={{ left: n.left, top: n.top, width: n.w, opacity: 0.92, willChange: "transform" }}
           animate={{ x: ["0%", i ? "-6%" : "6%", "0%"], y: ["0%", "-4%", "0%"] }}
           transition={{ duration: n.duree, repeat: Infinity, ease: "easeInOut" }}>
           <Nuage forme={n.forme} retourne={i === 1} flou={7} style={{ width: "100%", height: "auto" }} />
@@ -222,7 +202,8 @@ export function Bouffees({ children, className }: { children: React.ReactNode; c
             return (
               <motion.span key={k} className="absolute left-1/2 top-1/2 rounded-full"
                 style={{ width: taille, height: taille, marginLeft: -taille / 2, marginTop: -taille / 2,
-                         background: "radial-gradient(circle at 40% 35%, #fff, var(--cap-cloud-mid) 70%)", filter: "blur(3px)" }}
+                         // Des bords doux par le dégradé lui-même, sans filtre de flou.
+                         background: "radial-gradient(circle at 45% 40%, #fff 0%, var(--cap-cloud-mid) 45%, transparent 70%)" }}
                 initial={{ x: 0, y: 0, scale: 0.3, opacity: 0.95 }}
                 animate={{ x: Math.cos(angle) * d * 2.2, y: Math.sin(angle) * d, scale: 1.5, opacity: 0 }}
                 transition={{ duration: 1.1 + (k % 3) * 0.15, ease: [0.16, 1, 0.3, 1] }} />
@@ -253,8 +234,8 @@ export function Mots({ texte, delai = 0, pas = 0.07, className, style }: {
       {mots.map((m, i) => (
         <span key={i} className="inline-block overflow-visible whitespace-pre">
           <motion.span className="inline-block" style={{ transformOrigin: "50% 100%" }}
-            initial={{ opacity: 0, y: "0.55em", rotateX: 55, filter: "blur(14px)" }}
-            animate={{ opacity: 1, y: 0, rotateX: 0, filter: "blur(0px)" }}
+            initial={{ opacity: 0, y: "0.55em", rotateX: 55 }}
+            animate={{ opacity: 1, y: 0, rotateX: 0 }}
             transition={{ duration: 0.9, delay: attente + delai + i * pas, ease: [0.16, 1, 0.3, 1] }}>
             {m}
           </motion.span>
@@ -268,8 +249,8 @@ export function Mots({ texte, delai = 0, pas = 0.07, className, style }: {
 /* ── 3. L'apparition dans la brume (remplace Reveal sur cette page) ───── */
 
 const brume: Variants = {
-  hidden: { opacity: 0, y: 42, scale: 0.965, filter: "blur(10px)" },
-  shown: { opacity: 1, y: 0, scale: 1, filter: "blur(0px)" },
+  hidden: { opacity: 0, y: 42, scale: 0.965 },
+  shown: { opacity: 1, y: 0, scale: 1 },
 };
 
 export function Reveal({ children, delay = 0, className, as = "div" }: {
@@ -408,7 +389,7 @@ export function Traversee({ hauteur = 560 }: { hauteur?: number }) {
   const rangee = (x: MotionValue<string>, echelle: MotionValue<number>, opacite: MotionValue<number>,
                   cote: "g" | "d", formes: number[], largeur: string, flou: number) => (
     <motion.div className={`absolute top-0 flex h-full items-center ${cote === "g" ? "-left-[6%] justify-start" : "-right-[6%] justify-end"}`}
-      style={{ x, scale: echelle, opacity: opacite, width: "72%" }}>
+      style={{ x, scale: echelle, opacity: opacite, width: "72%", willChange: "transform, opacity" }}>
       {formes.map((f, i) => (
         <Nuage key={i} forme={f} retourne={cote === "d"} flou={flou}
           style={{ width: largeur, height: "auto", marginLeft: i ? "-16%" : 0, marginTop: i ? "5%" : 0 }} />

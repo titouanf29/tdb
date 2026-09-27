@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useId, useState } from "react";
+import { useEffect, useState } from "react";
+import { NuageImage } from "./NuageImage";
 import { motion, useScroll, useSpring, useTransform } from "framer-motion";
 import { useMouvementReduit } from "./useMouvementReduit";
 
@@ -177,46 +178,22 @@ function BankMass({
   width: number;
   lift: number;
 }) {
-  const id = useId().replace(/:/g, "");
-  const { lobes, base } = SILHOUETTES[shape];
-
   return (
-    <svg
-      viewBox="0 0 200 100"
+    <NuageImage
+      forme={shape}
+      retourne={flip}
+      flou={2.2}
       className="shrink-0"
       style={{
         width: `${width}%`,
-        height: "auto",
         // vh, not %. A percentage margin resolves against the containing
         // block's WIDTH — on a 2880px-wide row that pushed every mass some
         // 200px below the fold, leaving a bank nobody could see.
         marginBottom: `${-3 - lift * 2}vh`,
         marginLeft: "-2%",
         opacity: 0.88 + lift * 0.04,
-        overflow: "visible",
       }}
-    >
-      <defs>
-        <linearGradient id={`${id}-f`} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="var(--cap-cloud-light)" />
-          <stop offset="52%" stopColor="var(--cap-cloud-mid)" />
-          <stop offset="100%" stopColor="var(--cap-cloud-shade)" />
-        </linearGradient>
-        <filter id={`${id}-s`} x="-40%" y="-40%" width="180%" height="180%">
-          <feGaussianBlur stdDeviation="2.2" />
-        </filter>
-      </defs>
-      <g
-        filter={`url(#${id}-s)`}
-        fill={`url(#${id}-f)`}
-        transform={flip ? "translate(200,0) scale(-1,1)" : undefined}
-      >
-        <ellipse cx={base[0]} cy={base[1]} rx={base[2]} ry={base[3]} />
-        {lobes.map(([cx, cy, r], i) => (
-          <circle key={i} cx={cx} cy={cy} r={r} />
-        ))}
-      </g>
-    </svg>
+    />
   );
 }
 
@@ -227,9 +204,6 @@ function CloudMass({
   cloud: Cloud;
   progress: ReturnType<typeof useSpring>;
 }) {
-  const id = useId().replace(/:/g, "");
-  const { lobes, base } = SILHOUETTES[cloud.shape];
-
   const opacity = useTransform(
     progress,
     [0, cloud.out * 0.5, cloud.out],
@@ -239,60 +213,26 @@ function CloudMass({
   const y = useTransform(progress, [0, 1], ["0%", `${cloud.dy}%`]);
   const scale = useTransform(progress, [0, 1], [1, 1 + cloud.grow]);
 
+  // Le nuage est une image pré-dessinée : le grossir ou le déplacer au
+  // défilement ne recalcule plus son flou à chaque image (c'était la
+  // principale cause des saccades en haut de la page).
   return (
-    <motion.svg
-      viewBox="0 0 200 100"
+    <motion.div
+      aria-hidden
       className="absolute"
       style={{
         left: `${cloud.x}%`,
         top: `${cloud.y}%`,
         width: `${cloud.w}vw`,
-        height: `${cloud.w * 0.5}vw`,
         marginLeft: `-${cloud.w / 2}vw`,
         opacity,
         x,
         y,
         scale,
         willChange: "transform, opacity",
-        overflow: "visible",
       }}
     >
-      <defs>
-        {/* Bright crown over a cooler underside. A single flat fill reads as a
-            paper cut-out; the offset between the two stops is what gives the
-            mass a top and a bottom. */}
-        <linearGradient id={`${id}-fill`} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%"  stopColor="var(--cap-cloud-light)" />
-          <stop offset="46%" stopColor="var(--cap-cloud-light)" />
-          {/* A middle stop, so the turn from crown to underside is a curve
-              rather than a crease. Two stops made the shading look folded. */}
-          <stop offset="74%" stopColor="var(--cap-cloud-mid)" />
-          <stop offset="100%" stopColor="var(--cap-cloud-shade)" />
-        </linearGradient>
-        {/* Drawn hard, then softened. Blurring a silhouette keeps the shape;
-            fading a gradient loses it.
-            The region is generous on purpose: at the default -10% the blur was
-            clipped to a rectangle, leaving straight edges across the masses. */}
-        <filter id={`${id}-soft`} x="-40%" y="-40%" width="180%" height="180%">
-          <feGaussianBlur stdDeviation="2.2" />
-        </filter>
-      </defs>
-
-      {/* The mirror lives in SVG user space, not in the style: framer-motion
-          writes `transform` itself from x/y/scale, so a CSS transform here
-          would simply be overwritten. Four silhouettes go further when half
-          of them can be flipped. */}
-      <g
-        filter={`url(#${id}-soft)`}
-        fill={`url(#${id}-fill)`}
-        transform={cloud.flip ? "translate(200,0) scale(-1,1)" : undefined}
-      >
-        {/* The flat base first, so the swells sit on top of it. */}
-        <ellipse cx={base[0]} cy={base[1]} rx={base[2]} ry={base[3]} />
-        {lobes.map(([cx, cy, r], i) => (
-          <circle key={i} cx={cx} cy={cy} r={r} />
-        ))}
-      </g>
-    </motion.svg>
+      <NuageImage forme={cloud.shape} retourne={cloud.flip} flou={2.2} style={{ width: "100%" }} />
+    </motion.div>
   );
 }
