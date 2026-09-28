@@ -40,56 +40,73 @@ export function Nuage({ forme = 0, retourne, className, style, flou = 2.4, prior
   return <NuageImage forme={forme} retourne={retourne} flou={flou} className={className} style={style} prioritaire={prioritaire} />;
 }
 
-/* ── 1. L'ouverture du ciel ───────────────────────────────────────────── */
-
-type Masse = { x: number; y: number; w: number; forme: number; cote: -1 | 1; retard: number };
-
-/** Trois profondeurs : on sort de la couche comme un avion. */
-const PROCHES: Masse[] = [
-  { x: -30, y: 20, w: 95, forme: 0, cote: -1, retard: 0 },
-  { x: 35, y: 30, w: 100, forme: 2, cote: 1, retard: 0.04 },
-  { x: -10, y: 55, w: 90, forme: 1, cote: -1, retard: 0.08 },
-];
-const MILIEU: Masse[] = [
-  { x: -12, y: -6, w: 62, forme: 0, cote: -1, retard: 0.12 },
-  { x: 42, y: -8, w: 64, forme: 2, cote: 1, retard: 0.1 },
-  { x: -18, y: 32, w: 70, forme: 1, cote: -1, retard: 0.18 },
-  { x: 44, y: 28, w: 66, forme: 0, cote: 1, retard: 0.16 },
-];
-const LOINTAINS: Masse[] = [
-  { x: 4, y: 4, w: 40, forme: 2, cote: -1, retard: 0.3 },
-  { x: 52, y: 8, w: 44, forme: 3, cote: 1, retard: 0.34 },
-];
+/* ── 1. L'envol ──────────────────────────────────────────────────────── */
 
 /**
- * À l'arrivée, l'écran est sous les nuages ; ils s'écartent en 1,7 s et
- * découvrent la page. Une fois par visite : la seconde fois, ce serait
- * attendre pour rien.
+ * À chaque arrivée sur le site (chargement ou rafraîchissement), l'écran est
+ * rempli de nuages, sur quatre profondeurs, qui respirent doucement. Au
+ * premier geste — défilement, clic, toucher, touche du clavier — on
+ * s'envole : les plans de nuages foncent vers nous l'un après l'autre en
+ * accélérant, comme un avion qui traverse la couche, et l'on débouche sur la
+ * page.
  *
- * LES NUAGES SONT LÀ DÈS LE PREMIER AFFICHAGE. Attendre React pour les
- * dessiner laissait voir un ciel vide pendant le chargement, puis faisait
- * surgir les nuages d'un coup. Un petit script lu avant l'affichage décide :
- * déjà vu, animations coupées ou réduites → la classe « ciel-vu » les masque
- * avant même qu'ils soient peints ; sinon il note la visite et laisse jouer.
+ * Toujours évitable : n'importe quel geste lance la séquence (2 s), et un
+ * vrai bouton la déclenche au clavier. Aucune intro si le système demande
+ * moins d'animations ou si l'interrupteur du site est coupé.
+ *
+ * Tout le mouvement est en CSS, donc exécuté par la carte graphique, avec des
+ * nuages déjà prêts (public/nuages) : rien ne dépend du JavaScript de la
+ * page, occupé à démarrer au même moment.
  */
-const DECISION = `try{var d=document.documentElement;var off=localStorage.getItem('tdb_animations')==='off'||matchMedia('(prefers-reduced-motion: reduce)').matches;if(off)d.classList.add('anim-off');if(off||sessionStorage.getItem('cap_ciel_ouvert')){d.classList.add('ciel-vu')}else{window.__cielJoue=true;sessionStorage.setItem('cap_ciel_ouvert','1')}}catch(e){document.documentElement.classList.add('ciel-vu')}`;
+type Nue = { x: number; y: number; w: number; f: number; r?: boolean };
+type Plan = { s: number; o: number; nuages: Nue[] };
 
-/* L'ouverture en CSS : une fois lancées, ces animations sont confiées à la
-   carte graphique et ne dépendent plus du JavaScript de la page — qui, à
-   l'arrivée, est justement occupé à démarrer. Pilotées par framer-motion,
-   elles hoquetaient à chaque fois que React travaillait. */
-function cssOuverture(): string {
-  const regle = (cls: string, de: string, a: string, duree: number, delai: number, courbe: string) =>
-    `@keyframes ${cls}{from{transform:${de};opacity:1}to{transform:${a};opacity:0}}` +
-    `.ciel-rideau .${cls}{transform:${de}}` +
-    `.ciel-rideau.ouvre .${cls}{animation:${cls} ${duree}s ${courbe} ${delai}s both}`;
-  const out: string[] = [];
-  LOINTAINS.forEach((n, i) => out.push(regle(`co-l${i}`, "translate3d(0,0,0)", "translate3d(0,-35vh,0)", 2.1, 0.2 + n.retard, "cubic-bezier(.4,0,.2,1)")));
-  MILIEU.forEach((n, i) => out.push(regle(`co-m${i}`, "translate3d(0,0,0) scale(1.12)", `translate3d(${n.cote * 100}vw,0,0) scale(1.55)`, 1.9, 0.15 + n.retard, "cubic-bezier(.7,0,.3,1)")));
-  PROCHES.forEach((n, i) => out.push(regle(`co-p${i}`, "translate3d(0,0,0) scale(1.2)", `translate3d(${n.cote * 75}vw,14vh,0) scale(1.8)`, 1.5, 0.1 + n.retard, "cubic-bezier(.55,0,.3,1)")));
-  out.push(`@keyframes co-fond{from{opacity:1}to{opacity:0}}.ciel-rideau.ouvre .co-fond{animation:co-fond .9s ease-out .35s both}`);
-  out.push(`.ciel-vu .ciel-rideau{display:none}`);
-  return out.join("");
+const PLANS: Plan[] = [
+  // Le plus proche d'abord : c'est lui qu'on traverse en premier.
+  { s: 1, o: 1, nuages: [
+    { x: -18, y: -8, w: 78, f: 0 }, { x: 42, y: 4, w: 82, f: 2, r: true },
+    { x: 2, y: 44, w: 88, f: 1 }, { x: -28, y: 58, w: 62, f: 3, r: true }, { x: 56, y: 62, w: 60, f: 0 },
+  ] },
+  { s: 0.74, o: 0.96, nuages: [
+    { x: 8, y: -4, w: 64, f: 1, r: true }, { x: -14, y: 34, w: 66, f: 0 }, { x: 46, y: 38, w: 62, f: 3 },
+  ] },
+  { s: 0.55, o: 0.92, nuages: [
+    { x: 22, y: 12, w: 56, f: 2 }, { x: -2, y: 50, w: 56, f: 1, r: true }, { x: 50, y: 54, w: 50, f: 0 },
+  ] },
+  { s: 0.4, o: 0.86, nuages: [
+    { x: 24, y: 24, w: 52, f: 3 }, { x: 4, y: 4, w: 46, f: 0, r: true }, { x: 50, y: 10, w: 44, f: 2 },
+  ] },
+];
+
+const DUREE_VOL = 2.1;            // chaque plan
+const ECART_PLANS = 0.24;         // entre deux plans
+const FIN_VOL = DUREE_VOL + ECART_PLANS * (PLANS.length - 1);
+
+/* Lu avant le premier affichage : décide s'il y a une intro, sans attendre
+   React. Remonte aussi la page en haut au rafraîchissement, pour que le vol
+   débouche toujours sur l'accueil. */
+const DECISION = `try{var d=document.documentElement;var off=localStorage.getItem('tdb_animations')==='off'||matchMedia('(prefers-reduced-motion: reduce)').matches;if(off){d.classList.add('anim-off','ciel-vu')}else{d.classList.add('ciel-intro');window.__cielJoue=true;if('scrollRestoration' in history)history.scrollRestoration='manual';window.scrollTo(0,0)}}catch(e){document.documentElement.classList.add('ciel-vu')}`;
+
+function cssEnvol(): string {
+  const r: string[] = [];
+  PLANS.forEach((pl, i) => {
+    const fin = pl.s * 5.2;
+    r.push(`@keyframes cv-plan${i}{0%{transform:scale(${pl.s});opacity:${pl.o}}55%{opacity:${pl.o}}100%{transform:scale(${fin.toFixed(2)});opacity:0}}`);
+    r.push(`.ciel-rideau .cv-plan${i}{transform:scale(${pl.s});opacity:${pl.o}}`);
+    r.push(`.ciel-rideau.vol .cv-plan${i}{animation:cv-plan${i} ${DUREE_VOL}s cubic-bezier(.55,0,.85,.35) ${(i * ECART_PLANS).toFixed(2)}s both}`);
+  });
+  // En attendant le geste : chaque plan respire, à son rythme.
+  r.push(`@keyframes cv-souffle{0%,100%{transform:translate3d(0,0,0) scale(1)}50%{transform:translate3d(1.2%,-1%,0) scale(1.035)}}`);
+  PLANS.forEach((_, i) => r.push(`.ciel-rideau .cv-souffle${i}{animation:cv-souffle ${9 + i * 2.5}s ease-in-out ${-i * 1.7}s infinite}`));
+  // Le ciel derrière les nuages s'efface pendant la traversée.
+  r.push(`@keyframes cv-fond{from{opacity:1}to{opacity:0}}.ciel-rideau.vol .cv-fond{animation:cv-fond ${(FIN_VOL * 0.55).toFixed(2)}s ease-in ${(FIN_VOL * 0.35).toFixed(2)}s both}`);
+  // L'invitation.
+  r.push(`@keyframes cv-invite{0%,100%{transform:translate3d(0,0,0);opacity:.55}50%{transform:translate3d(0,6px,0);opacity:1}}`);
+  r.push(`.cv-fleche{animation:cv-invite 1.8s ease-in-out infinite}`);
+  r.push(`@keyframes cv-apparait{from{opacity:0;transform:translate3d(0,10px,0)}to{opacity:1;transform:none}}.cv-invitation{animation:cv-apparait .8s ease-out .6s both}`);
+  r.push(`.ciel-rideau.vol .cv-invitation{opacity:0;transition:opacity .25s ease-out;animation:none}`);
+  r.push(`.ciel-vu .ciel-rideau{display:none}`);
+  return r.join("");
 }
 
 export function cielEnCours(): boolean {
@@ -97,59 +114,97 @@ export function cielEnCours(): boolean {
 }
 
 export function OuvertureDuCiel() {
-  const [etat, setEtat] = useState<"attente" | "ouvre" | "fini">("attente");
-  const rideau = useRef<HTMLDivElement>(null);
+  const [etat, setEtat] = useState<"attente" | "vol" | "fini">("attente");
+  const bouton = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
+    const html = document.documentElement;
     if (!cielEnCours()) {
-      // Arrivée sans rechargement (lien interne) : le script de décision n'a
-      // pas tourné ; on pose la classe pour que le titre n'attende pas un
-      // ciel qui ne s'ouvrira pas.
-      document.documentElement.classList.add("ciel-vu");
+      // Arrivée par un lien interne (le script de décision n'a pas tourné)
+      // ou animations coupées : pas d'intro, la page s'affiche tout de suite.
+      html.classList.add("ciel-vu");
       setEtat("fini");
       return;
     }
-    let vivant = true;
-    let fin: ReturnType<typeof setTimeout> | undefined;
-    // ON NE PART QUE QUAND TOUT EST PRÊT. Démarrer l'animation pendant que la
-    // page démarre (React) et que les images se décodent, c'était la
-    // garantie de saccades à l'arrivée. Le ciel reste couvert, immobile — ce
-    // qui ne se voit pas — jusqu'à ce que les nuages soient décodés et que le
-    // navigateur ait un instant de libre ; au plus 1,2 s.
-    const images = Array.from(rideau.current?.querySelectorAll("img") ?? []);
-    const decodees = Promise.all(images.map((i) => i.decode().catch(() => undefined)));
-    const delai = new Promise((r) => setTimeout(r, 1200));
-    Promise.race([decodees, delai]).then(() => {
-      const partir = () => {
-        if (!vivant) return;
-        setEtat("ouvre");
-        fin = setTimeout(() => setEtat("fini"), 2600);
-      };
-      const w = window as unknown as { requestIdleCallback?: (f: () => void, o: { timeout: number }) => void };
-      if (w.requestIdleCallback) w.requestIdleCallback(partir, { timeout: 250 });
-      else setTimeout(partir, 60);
-    });
-    return () => { vivant = false; if (fin) clearTimeout(fin); };
+    // Pendant l'attente, la page ne défile pas : le premier geste sert à
+    // entrer, pas à glisser sous les nuages.
+    const ancien = html.style.overflow;
+    html.style.overflow = "hidden";
+    window.scrollTo(0, 0);
+    let parti = false;
+    const minuteries: ReturnType<typeof setTimeout>[] = [];
+    const empeche = (e: Event) => { if (!parti || html.style.overflow === "hidden") e.preventDefault(); };
+    const lance = () => {
+      if (parti) return;
+      parti = true;
+      setEtat("vol");
+      // Le titre commence à sortir de la brume pendant que les derniers
+      // nuages passent : on débouche sur la page sans temps mort.
+      minuteries.push(setTimeout(() => html.classList.add("ciel-parti"), FIN_VOL * 450));
+      minuteries.push(setTimeout(() => {
+        html.style.overflow = ancien;
+        setEtat("fini");
+      }, FIN_VOL * 1000 + 80));
+    };
+    const surTouche = (e: KeyboardEvent) => {
+      if (["Tab", "Shift", "Alt", "Control", "Meta"].includes(e.key)) return;
+      if ([" ", "ArrowDown", "PageDown", "End", "Enter"].includes(e.key)) e.preventDefault();
+      lance();
+    };
+    const surRoue = (e: WheelEvent) => { empeche(e); lance(); };
+    const surToucher = (e: TouchEvent) => { empeche(e); lance(); };
+    window.addEventListener("wheel", surRoue, { passive: false });
+    window.addEventListener("touchmove", surToucher, { passive: false });
+    window.addEventListener("keydown", surTouche);
+    window.addEventListener("pointerdown", lance);
+    bouton.current?.focus({ preventScroll: true });
+    return () => {
+      window.removeEventListener("wheel", surRoue);
+      window.removeEventListener("touchmove", surToucher);
+      window.removeEventListener("keydown", surTouche);
+      window.removeEventListener("pointerdown", lance);
+      minuteries.forEach(clearTimeout);
+      html.style.overflow = ancien;
+    };
   }, []);
 
   if (etat === "fini") return null;
-  const ouvre = etat === "ouvre";
-  const masse = (cls: string, n: Masse, flou: number) => (
-    <div key={cls} className={`${cls} absolute`} style={{ left: `${n.x}vw`, top: `${n.y}vh`, width: `${n.w}vw`, willChange: "transform, opacity" }}>
-      <Nuage prioritaire forme={n.forme} retourne={n.cote > 0} style={{ width: "100%", height: "auto" }} flou={flou} />
-    </div>
-  );
   return (
     <>
       <script dangerouslySetInnerHTML={{ __html: DECISION }} />
-      <style>{cssOuverture()}</style>
-      <div ref={rideau} aria-hidden className={`ciel-rideau pointer-events-none fixed inset-0 z-[60] overflow-hidden${ouvre ? " ouvre" : ""}`}>
-        <div className="co-fond absolute inset-0" style={{ backgroundColor: "var(--cap-bg)", willChange: "opacity" }} />
-        {/* Au loin, les nuages s'élèvent ; au milieu, la couche s'ouvre par
-            le centre ; tout près, on les traverse. */}
-        {LOINTAINS.map((n, i) => masse(`co-l${i}`, n, 2.4))}
-        {MILIEU.map((n, i) => masse(`co-m${i}`, n, 3))}
-        {PROCHES.map((n, i) => masse(`co-p${i}`, n, 4))}
+      <style>{cssEnvol()}</style>
+      {/* Le rideau garde les clics jusqu'à la fin du vol : sinon le toucher
+          qui lance la séquence « traversait » et activait le lien caché
+          dessous (mesuré : il ouvrait la page d'inscription). */}
+      <div className={`ciel-rideau fixed inset-0 z-[60] overflow-hidden${etat === "vol" ? " vol" : ""}`}>
+        <div aria-hidden className="cv-fond absolute inset-0" style={{ backgroundColor: "var(--cap-bg)", willChange: "opacity" }} />
+        {/* Du plus lointain au plus proche, pour que le proche soit devant. */}
+        {[...PLANS].map((pl, i) => ({ pl, i })).reverse().map(({ pl, i }) => (
+          <div key={i} aria-hidden className={`cv-plan${i} absolute inset-0`} style={{ willChange: "transform, opacity", transformOrigin: "50% 50%" }}>
+            <div className={`cv-souffle${i} absolute inset-0`}>
+              {pl.nuages.map((n, k) => (
+                // Largeur en vmax : la plus grande dimension de l'écran. En
+                // vw, un téléphone en portrait laissait des trous de ciel.
+                <div key={k} className="absolute" style={{ left: `${n.x}vw`, top: `${n.y}vh`, width: `${n.w}vmax`, marginLeft: `calc(${n.w / 2}vw - ${n.w / 2}vmax)` }}>
+                  <Nuage prioritaire forme={n.f} retourne={n.r} flou={i === 0 ? 3.5 : 2.4} style={{ width: "100%", height: "auto" }} />
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+        {/* L'invitation : un vrai bouton, pour le clavier et les lecteurs d'écran. */}
+        <div className="cv-invitation absolute inset-x-0 bottom-[9vh] flex flex-col items-center gap-3">
+          <button ref={bouton} type="button"
+            className="rounded-full px-5 py-2.5 text-[0.95rem] font-medium outline-none transition-colors focus-visible:ring-2"
+            style={{ color: "var(--cap-ink)", backgroundColor: "rgba(255,255,255,0.55)", boxShadow: "inset 0 0 0 1px var(--cap-line)" }}>
+            Entrer dans le ciel
+          </button>
+          <span className="text-[0.8rem]" style={{ color: "var(--cap-ink-2)" }}>ou faites défiler</span>
+          <svg aria-hidden className="cv-fleche" width="18" height="18" viewBox="0 0 24 24" fill="none"
+            stroke="var(--cap-ink-2)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M6 9l6 6 6-6" />
+          </svg>
+        </div>
       </div>
     </>
   );
@@ -157,12 +212,13 @@ export function OuvertureDuCiel() {
 
 /** Le contenu du haut de page se met au point quand le ciel s'ouvre. */
 export function MiseAuPoint({ children, className }: { children: React.ReactNode; className?: string }) {
-  // Un simple fondu, en CSS, seulement quand le ciel s'ouvre.
+  // À la sortie des nuages, la page arrive en léger zoom et en fondu (CSS).
   return (
     <div className={`cap-mise-au-point ${className ?? ""}`}>
-      <style>{`@keyframes cap-fondu{from{opacity:0}to{opacity:1}}
-.cap-mise-au-point{animation:cap-fondu 1.2s cubic-bezier(.22,1,.36,1) 1.4s both}
-.ciel-vu .cap-mise-au-point,.anim-off .cap-mise-au-point{animation:none}`}</style>
+      <style>{`@keyframes cap-arrivee{from{opacity:0;transform:scale(.94)}to{opacity:1;transform:none}}
+.ciel-intro .cap-mise-au-point{opacity:0}
+.ciel-intro.ciel-parti .cap-mise-au-point{animation:cap-arrivee 1.3s cubic-bezier(.16,1,.3,1) both}
+.anim-off .cap-mise-au-point{opacity:1;animation:none}`}</style>
       {children}
     </div>
   );
@@ -250,8 +306,9 @@ export function Mots({ texte, delai = 0, pas = 0.07, className, style }: {
   return (
     <span className={className} style={{ ...style, perspective: "800px", display: "inline" }}>
       <style>{`@keyframes cap-mot{from{opacity:0;transform:translate3d(0,.55em,0) rotateX(55deg)}to{opacity:1;transform:none}}
-.cap-mot{display:inline-block;transform-origin:50% 100%;animation:cap-mot .9s cubic-bezier(.16,1,.3,1) calc(var(--d) + 1.9s) both}
-.ciel-vu .cap-mot{animation-delay:calc(var(--d) + .3s)}
+.cap-mot{display:inline-block;transform-origin:50% 100%;animation:cap-mot .9s cubic-bezier(.16,1,.3,1) calc(var(--d) + .3s) both}
+.ciel-intro .cap-mot{opacity:0;animation:none}
+.ciel-intro.ciel-parti .cap-mot{animation:cap-mot .9s cubic-bezier(.16,1,.3,1) calc(var(--d) + .1s) both}
 .anim-off .cap-mot{animation:none}
 @media (prefers-reduced-motion: reduce){.cap-mot{animation:none}}`}</style>
       {mots.map((m, i) => (
