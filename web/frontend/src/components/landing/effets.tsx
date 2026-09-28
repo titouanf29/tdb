@@ -333,7 +333,10 @@ export function Reveal({ children, delay = 0, className, as = "div" }: {
 }) {
   const actifs = useEffetsActifs();
   const Comp = motion[as];
-  if (!actifs) return <Comp className={className}>{children}</Comp>;
+  // Sans effets : état final, posé explicitement. Le premier rendu se fait
+  // toujours avec effets (le mouvement réduit n'est connu qu'ensuite) ; sans
+  // ce « shown » forcé, l'élément restait figé à son état caché.
+  if (!actifs) return <Comp className={className} variants={brume} initial={false} animate="shown" transition={{ duration: 0 }}>{children}</Comp>;
   return (
     <Comp className={className} variants={brume} initial="hidden" whileInView="shown"
       viewport={{ once: true, amount: 0.25 }}
@@ -361,7 +364,7 @@ export function RevealItem({ children, className, as = "div" }: {
 }) {
   const actifs = useEffetsActifs();
   const Comp = motion[as];
-  if (!actifs) return <Comp className={className}>{children}</Comp>;
+  if (!actifs) return <Comp className={className} variants={brume} initial={false} animate="shown" transition={{ duration: 0 }}>{children}</Comp>;
   return (
     <Comp className={className} variants={brume} transition={{ duration: 0.85, ease: [0.16, 1, 0.3, 1] }}>
       {children}

@@ -4,7 +4,13 @@ import {
   Atmosphere, CloudBank, LiveBackdrop, Button, Container, Course, Heading, Section, Text,
 } from "@/components/design-system";
 import { Aimant, Bouffees, Reveal } from "./effets";
-import { MotsAuScroll } from "./animations";
+import { MotsAuScroll, useProgressionCSS } from "./animations";
+
+// La mer de nuages monte à mesure qu'on arrive, et une lueur s'ouvre derrière
+// la phrase : on sort au-dessus de la couche, dans la lumière.
+const CSS_FIN = `.cap-fin{--p:0}
+.cap-fin-banc{transform:translate3d(0,calc((1 - var(--p)) * 38%),0)}
+.cap-fin-lueur{opacity:calc(var(--p) * .9);transform:translate3d(-50%,-50%,0) scale(calc(.55 + var(--p) * .45))}`;
 
 /**
  * Section 8 — the close.
@@ -14,12 +20,20 @@ import { MotsAuScroll } from "./animations";
  * the sentence that matters.
  */
 export function ClosingSection() {
+  const ref = useProgressionCSS<HTMLDivElement>(["start end", "end end"]);
   return (
     <Section id="arrivee" size="xl" className="relative overflow-hidden">
       <Atmosphere variant="base" />
       <LiveBackdrop clouds={false} opacity={0.5} />
       {/* Closes the arc: the page opened under the weather, it ends above it. */}
-      <CloudBank />
+      <div ref={ref} aria-hidden className="cap-fin pointer-events-none absolute inset-0">
+        <style dangerouslySetInnerHTML={{ __html: CSS_FIN }} />
+        <div className="cap-fin-lueur absolute left-1/2 top-[38%] h-[70vmin] w-[110vmin] rounded-full"
+          style={{ background: "radial-gradient(closest-side, color-mix(in srgb, var(--cap-cloud-light) 95%, transparent), color-mix(in srgb, var(--cap-cloud-light) 45%, transparent) 45%, transparent)", willChange: "transform, opacity" }} />
+        <div className="cap-fin-banc absolute inset-0" style={{ willChange: "transform" }}>
+          <CloudBank />
+        </div>
+      </div>
       <Container width="text" className="relative text-center">
         <Heading level="display" as="p">
           <MotsAuScroll texte="Comprendre avant d'agir." />

@@ -1,13 +1,10 @@
 "use client";
 
-import { useRef } from "react";
-import { motion, useInView, useTransform, type MotionValue } from "framer-motion";
 import {
-  Atmosphere, LiveBackdrop, Container, Eyebrow, Heading, Num, Section, Text, DUR, EASE,
+  Atmosphere, LiveBackdrop, Container, Eyebrow, Heading, Section, Text,
 } from "@/components/design-system";
-import { Reveal, useEffetsActifs, useProgression } from "./effets";
-import { MotsAuScroll } from "./animations";
-import { useMouvementReduit } from "@/components/design-system/useMouvementReduit";
+import { Reveal } from "./effets";
+import { MotsAuScroll, useProgressionCSS } from "./animations";
 
 /**
  * Section 5 — paper trading, presented as practice.
@@ -26,14 +23,22 @@ const STEPS = [
   { label: "Analyser le résultat", note: "Ce qui a fonctionné, ce qui relevait de la chance." },
 ];
 
+const CSS_FIL = `.cap-pt{--p:0}
+.cap-pt-fil{transform:scaleY(var(--p))}
+.cap-pt-etape{--q:clamp(0,(var(--p) - var(--s)) * 7 + 1,1)}
+.cap-pt-texte{opacity:calc(.38 + var(--q) * .62);transform:translate3d(calc((1 - var(--q)) * 14px),0,0)}
+.cap-pt-point{opacity:var(--q);transform:scale(calc(.3 + var(--q) * .7))}
+.cap-pt-onde{opacity:var(--q)}
+@keyframes cap-pt-onde{0%{transform:scale(.6);opacity:.7}100%{transform:scale(2.6);opacity:0}}
+.cap-pt-onde > span{animation:cap-pt-onde 2.4s cubic-bezier(.2,.6,.3,1) infinite}
+.anim-off .cap-pt-onde > span{animation:none;opacity:0}
+@media (prefers-reduced-motion: reduce){.cap-pt-onde > span{animation:none;opacity:0}}`;
+
 export function PaperTradingSection() {
-  const ref = useRef<HTMLOListElement>(null);
-  const inView = useInView(ref, { once: true, amount: 0.2 });
-  const reduce = useMouvementReduit();
-  const actifs = useEffetsActifs();
   // Le fil doré avance avec le défilement : on suit le parcours du trade,
-  // étape par étape, au rythme de la lecture.
-  const progression = useProgression(ref as React.RefObject<HTMLElement>);
+  // étape par étape, au rythme de la lecture. Une seule variable CSS (--p)
+  // pilote le fil, les points et l'éclairage de chaque étape.
+  const ref = useProgressionCSS<HTMLOListElement>(["start 75%", "end 55%"]);
 
   return (
     <Section id="paper-trading" tone="inverse" className="relative overflow-hidden">
@@ -63,53 +68,40 @@ export function PaperTradingSection() {
             </Reveal>
           </div>
 
-          <ol ref={ref} className="relative">
+          <ol ref={ref} className="cap-pt relative">
+            <style dangerouslySetInnerHTML={{ __html: CSS_FIL }} />
             {/* The spine: one line the whole sequence hangs from. */}
-            <motion.span
+            <span
               aria-hidden
-              className="absolute left-[7px] top-2 w-px origin-top"
+              className="absolute left-[7px] top-2 w-px"
               style={{ backgroundColor: "var(--cap-line-strong)", bottom: "2rem" }}
-              initial={reduce ? false : { scaleY: 0 }}
-              animate={inView ? { scaleY: 1 } : {}}
-              transition={{ duration: 1.6, ease: EASE }}
+            />
+            <span
+              aria-hidden
+              className="cap-pt-fil absolute left-[7px] top-2 w-[2px] -translate-x-[0.5px] origin-top"
+              style={{ backgroundColor: "var(--cap-amber)", bottom: "2rem", boxShadow: "0 0 12px var(--cap-amber)" }}
             />
 
-            {actifs && (
-              <motion.span
-                aria-hidden
-                className="absolute left-[7px] top-2 w-[2px] -translate-x-[0.5px] origin-top"
-                style={{ backgroundColor: "var(--cap-amber)", bottom: "2rem", scaleY: progression,
-                         boxShadow: "0 0 12px var(--cap-amber)" }}
-              />
-            )}
-
             {STEPS.map((s, i) => (
-              <motion.li
+              <li
                 key={s.label}
-                className="relative flex gap-6 pb-10 last:pb-0"
-                initial={reduce ? false : { opacity: 0, x: 12 }}
-                animate={inView ? { opacity: 1, x: 0 } : {}}
-                transition={{ duration: DUR.base, delay: 0.25 + i * 0.16, ease: EASE }}
+                className="cap-pt-etape relative flex gap-6 pb-10 last:pb-0"
+                style={{ ["--s" as string]: (i / (STEPS.length - 1) * 0.96).toFixed(3) }}
               >
                 <span
                   aria-hidden
                   className="relative z-10 mt-1.5 h-[15px] w-[15px] shrink-0 rounded-full"
-                  style={{
-                    backgroundColor: "var(--cap-bg)",
-                    boxShadow: `inset 0 0 0 1px ${i === 0 ? "var(--cap-amber)" : "var(--cap-line-strong)"}`,
-                  }}
+                  style={{ backgroundColor: "var(--cap-bg)", boxShadow: "inset 0 0 0 1px var(--cap-line-strong)" }}
                 >
-                  {actifs && i > 0 ? (
-                    <Allume progression={progression} seuil={i / (STEPS.length - 1)} />
-                  ) : (
-                    <span
-                      className="absolute inset-[4px] rounded-full"
-                      style={{ backgroundColor: i === 0 ? "var(--cap-amber)" : "var(--cap-ink-4)" }}
-                    />
-                  )}
+                  <span className="absolute inset-[4px] rounded-full" style={{ backgroundColor: "var(--cap-ink-4)" }} />
+                  <span className="cap-pt-onde absolute inset-0">
+                    <span className="absolute inset-0 rounded-full" style={{ boxShadow: "0 0 0 1.5px var(--cap-amber)" }} />
+                  </span>
+                  <span className="cap-pt-point absolute inset-[3px] rounded-full"
+                    style={{ backgroundColor: "var(--cap-amber)", boxShadow: "0 0 10px var(--cap-amber)" }} />
                 </span>
 
-                <div className="min-w-0">
+                <div className="cap-pt-texte min-w-0">
                   <div
                     className={i === 0 ? "cap-num text-[1.15rem] font-medium" : "text-[1.05rem] font-semibold"}
                     style={{
@@ -121,25 +113,11 @@ export function PaperTradingSection() {
                   </div>
                   <Text size="small" className="mt-1.5">{s.note}</Text>
                 </div>
-              </motion.li>
+              </li>
             ))}
           </ol>
         </div>
       </Container>
     </Section>
-  );
-}
-
-/** Le point d'une étape s'allume quand le fil doré l'atteint. */
-function Allume({ progression, seuil }: { progression: MotionValue<number>; seuil: number }) {
-  const debut = Math.max(0, seuil - 0.08);
-  const opacity = useTransform(progression, [debut, seuil], [0, 1]);
-  const scale = useTransform(progression, [debut, seuil, Math.min(1, seuil + 0.05)], [0.4, 1.5, 1]);
-  return (
-    <>
-      <span className="absolute inset-[4px] rounded-full" style={{ backgroundColor: "var(--cap-ink-4)" }} />
-      <motion.span className="absolute inset-[3px] rounded-full"
-        style={{ backgroundColor: "var(--cap-amber)", opacity, scale, boxShadow: "0 0 10px var(--cap-amber)" }} />
-    </>
   );
 }

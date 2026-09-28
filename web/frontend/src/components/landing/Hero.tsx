@@ -21,9 +21,12 @@ export function Hero() {
   const reduce = useMouvementReduit();
   const apple = DEMO_ASSETS[0];
 
+  // En mouvement réduit, l'état final est posé explicitement : le premier
+  // rendu (serveur) part masqué, et un simple {} le laissait masqué.
+  const pose = { initial: false as const, animate: { opacity: 1, y: 0 }, transition: { duration: 0 } };
   const enter = (delay: number) =>
     reduce
-      ? {}
+      ? pose
       : {
           initial: { opacity: 0, y: 20 },
           animate: { opacity: 1, y: 0 },
@@ -106,7 +109,7 @@ export function Hero() {
         {/* ── The product itself ─────────────────────────────────────────── */}
         <motion.div
           {...(reduce
-            ? {}
+            ? pose
             : {
                 initial: { opacity: 0, y: 40 },
                 animate: { opacity: 1, y: 0 },

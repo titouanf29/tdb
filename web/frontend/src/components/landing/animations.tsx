@@ -19,7 +19,9 @@ import { useEffetsActifs } from "./effets";
  */
 
 /** Écrit la progression du défilement dans --p, sur l'élément visé. */
-function useProgressionCSS<T extends HTMLElement>(offset: ["start end" | "start 85%" | "start 70%", "center center" | "end center" | "center 45%" | "end 60%"]) {
+type Decalage = NonNullable<NonNullable<Parameters<typeof useScroll>[0]>["offset"]>;
+
+export function useProgressionCSS<T extends HTMLElement>(offset: Decalage) {
   const ref = useRef<T>(null);
   const actifs = useEffetsActifs();
   const { scrollYProgress } = useScroll({ target: ref, offset });

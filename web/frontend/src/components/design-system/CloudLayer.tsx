@@ -150,7 +150,9 @@ export function CloudBank({ className }: { className?: string }) {
       {/* Dérive en CSS : sur la carte graphique, pas en JavaScript. */}
       <style dangerouslySetInnerHTML={{ __html: `@keyframes cap-derive-banc{from{transform:translate3d(0,0,0)}to{transform:translate3d(-50%,0,0)}}` }} />
       <div
-        className="absolute bottom-0 left-0 flex w-[200%] items-end"
+        // Plus large sur mobile : à 200 %, chaque nuage ne faisait que
+        // 14 % d'un écran étroit, et le banc disparaissait sous le bord.
+        className="absolute bottom-0 left-0 flex w-[200%] items-end max-sm:w-[640%]"
         style={reduce ? undefined : { animation: "cap-derive-banc 240s linear infinite", willChange: "transform" }}
       >
         {/* Two identical runs, so the translation by exactly one run loops

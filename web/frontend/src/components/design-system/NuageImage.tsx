@@ -60,7 +60,7 @@ export function NuageImage({ forme = 0, retourne, flou = 2.4, className, style, 
         // bloquait le démarrage de la page (tâches de 300 à 400 ms). Les
         // nuages de l'ouverture attendent leur décodage avant de bouger.
         decoding="async" loading={prioritaire ? "eager" : "lazy"}
-        {...(prioritaire ? { fetchpriority: "high" } : {})}
+        {...(prioritaire ? { fetchPriority: "high" as const } : {})}
         style={{ position: "absolute", left: `${-(M / 200) * 100}%`, top: `${-(M / 100) * 100}%`,
                  width: `${((200 + 2 * M) / 200) * 100}%`, height: `${((100 + 2 * M) / 100) * 100}%`,
                  maxWidth: "none", pointerEvents: "none", userSelect: "none",

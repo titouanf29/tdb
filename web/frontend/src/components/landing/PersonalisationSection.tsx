@@ -5,7 +5,8 @@ import { AnimatePresence, motion, useInView } from "framer-motion";
 import {
   Container, Eyebrow, Heading, Num, Progress, Section, SegmentedControl, Text, DUR, EASE,
 } from "@/components/design-system";
-import { Reveal } from "./effets";
+import { Check } from "lucide-react";
+import { Reveal, useEffetsActifs } from "./effets";
 import { MotsAuScroll } from "./animations";
 import { useMouvementReduit } from "@/components/design-system/useMouvementReduit";
 
@@ -30,27 +31,50 @@ const QUESTIONS = [
 
 type Mode = "beginner" | "intermediate";
 
+const CSS_QUESTIONS = `.cap-q-coche{transform:scale(.4);opacity:0;transition:transform .45s cubic-bezier(.34,1.56,.64,1),opacity .3s}
+.cap-q[data-ok="1"] .cap-q-coche{transform:none;opacity:1}
+.cap-q-rond{transition:background-color .35s,box-shadow .35s}
+.cap-q[data-ok="1"] .cap-q-rond{background-color:var(--cap-ocean);box-shadow:0 0 0 4px color-mix(in srgb, var(--cap-ocean) 16%, transparent)}
+.cap-q-texte{transition:opacity .35s,transform .45s cubic-bezier(.16,1,.3,1)}
+.cap-q[data-ok="0"] .cap-q-texte{opacity:.55}
+.cap-q[data-ok="1"] .cap-q-texte{transform:translate3d(3px,0,0)}`;
+
 export function PersonalisationSection() {
   const ref = useRef<HTMLDivElement>(null);
-  const inView = useInView(ref, { once: true, amount: 0.4 });
+  const inView = useInView(ref, { once: true, amount: 0.3 });
   const reduce = useMouvementReduit();
+  const actifs = useEffetsActifs();
   const [mode, setMode] = useState<Mode>("beginner");
   const [touched, setTouched] = useState(false);
+  // Les cinq questions se cochent l'une après l'autre, comme si on y
+  // répondait ; une fois la dernière cochée, l'écran s'ajuste.
+  const [repondues, setRepondues] = useState(0);
+
+  useEffect(() => {
+    if (!actifs) { setRepondues(QUESTIONS.length); return; }
+    if (!inView) return;
+    let n = 0;
+    const t = setInterval(() => {
+      n += 1; setRepondues(n);
+      if (n >= QUESTIONS.length) clearInterval(t);
+    }, 380);
+    return () => clearInterval(t);
+  }, [inView, actifs]);
 
   // One demonstration pass, then it stops. A panel that keeps flipping by
   // itself becomes an animation the visitor has to wait out.
   useEffect(() => {
-    if (!inView || touched || reduce) return;
-    const t = setTimeout(() => setMode("intermediate"), 2200);
+    if (!inView || touched || !actifs || repondues < QUESTIONS.length) return;
+    const t = setTimeout(() => setMode("intermediate"), 700);
     return () => clearTimeout(t);
-  }, [inView, touched, reduce]);
+  }, [inView, touched, actifs, repondues]);
 
   const choose = (m: Mode) => { setTouched(true); setMode(m); };
 
   return (
     <Section id="personnalisation">
       <Container width="wide">
-        <div className="grid gap-14 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] lg:items-center lg:gap-20">
+        <div ref={ref} className="grid gap-14 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] lg:items-center lg:gap-20">
           <div>
             <Reveal><Eyebrow>Personnalisation</Eyebrow></Reveal>
             <Heading level={1} className="mt-5">
@@ -65,14 +89,19 @@ export function PersonalisationSection() {
 
             <Reveal delay={0.18}>
               <ul className="mt-8 space-y-0">
-                {QUESTIONS.map((q) => (
+                <style dangerouslySetInnerHTML={{ __html: CSS_QUESTIONS }} />
+                {QUESTIONS.map((q, i) => (
                   <li
                     key={q}
-                    className="flex items-center gap-3 border-b py-3 last:border-b-0"
+                    className="cap-q flex items-center gap-3 border-b py-3 last:border-b-0"
+                    data-ok={repondues > i ? "1" : "0"}
                     style={{ borderColor: "var(--cap-line)" }}
                   >
-                    <span aria-hidden className="h-px w-3 shrink-0" style={{ backgroundColor: "var(--cap-ocean)" }} />
-                    <Text size="small" tone="ink" as="span">{q}</Text>
+                    <span aria-hidden className="cap-q-rond relative inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full"
+                      style={{ boxShadow: "inset 0 0 0 1px var(--cap-line-strong)" }}>
+                      <Check className="cap-q-coche h-3 w-3" strokeWidth={3} style={{ color: "#fff" }} />
+                    </span>
+                    <Text size="small" tone="ink" as="span" className="cap-q-texte">{q}</Text>
                   </li>
                 ))}
               </ul>
@@ -80,7 +109,7 @@ export function PersonalisationSection() {
           </div>
 
           <Reveal delay={0.1}>
-            <div ref={ref}>
+            <div>
               <SegmentedControl
                 options={[
                   { value: "beginner", label: "Débutant" },
