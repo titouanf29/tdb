@@ -4,6 +4,7 @@ import {
   Atmosphere, CloudBank, LiveBackdrop, Button, Container, Course, Heading, Section, Text,
 } from "@/components/design-system";
 import { Aimant, Bouffees, Reveal } from "./effets";
+import { MotsAuScroll } from "./animations";
 
 /**
  * Section 8 — the close.
@@ -20,11 +21,9 @@ export function ClosingSection() {
       {/* Closes the arc: the page opened under the weather, it ends above it. */}
       <CloudBank />
       <Container width="text" className="relative text-center">
-        <Reveal>
-          <Heading level="display" as="p">
-            Comprendre avant d'agir.
-          </Heading>
-        </Reveal>
+        <Heading level="display" as="p">
+          <MotsAuScroll texte="Comprendre avant d'agir." />
+        </Heading>
 
         <Reveal delay={0.1} className="mx-auto mt-10 max-w-[22rem]">
           <Course height={90} delay={0.3} />

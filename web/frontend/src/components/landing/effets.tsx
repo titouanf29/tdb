@@ -172,7 +172,7 @@ export function OuvertureDuCiel() {
   return (
     <>
       <script dangerouslySetInnerHTML={{ __html: DECISION }} />
-      <style>{cssEnvol()}</style>
+      <style dangerouslySetInnerHTML={{ __html: cssEnvol() }} />
       {/* Le rideau garde les clics jusqu'à la fin du vol : sinon le toucher
           qui lance la séquence « traversait » et activait le lien caché
           dessous (mesuré : il ouvrait la page d'inscription). */}
@@ -215,10 +215,10 @@ export function MiseAuPoint({ children, className }: { children: React.ReactNode
   // À la sortie des nuages, la page arrive en léger zoom et en fondu (CSS).
   return (
     <div className={`cap-mise-au-point ${className ?? ""}`}>
-      <style>{`@keyframes cap-arrivee{from{opacity:0;transform:scale(.94)}to{opacity:1;transform:none}}
+      <style dangerouslySetInnerHTML={{ __html: `@keyframes cap-arrivee{from{opacity:0;transform:scale(.94)}to{opacity:1;transform:none}}
 .ciel-intro .cap-mise-au-point{opacity:0}
 .ciel-intro.ciel-parti .cap-mise-au-point{animation:cap-arrivee 1.3s cubic-bezier(.16,1,.3,1) both}
-.anim-off .cap-mise-au-point{opacity:1;animation:none}`}</style>
+.anim-off .cap-mise-au-point{opacity:1;animation:none}` }} />
       {children}
     </div>
   );
@@ -240,8 +240,8 @@ export function PremierPlan() {
       style={{ y: montee, willChange: "transform" }}>
       {/* La lente dérive est une animation CSS : elle tourne sur la carte
           graphique, sans occuper le JavaScript de la page. */}
-      <style>{`@keyframes cap-derive-a{0%,100%{transform:translate3d(0,0,0)}50%{transform:translate3d(6%,-4%,0)}}
-@keyframes cap-derive-b{0%,100%{transform:translate3d(0,0,0)}50%{transform:translate3d(-6%,-4%,0)}}`}</style>
+      <style dangerouslySetInnerHTML={{ __html: `@keyframes cap-derive-a{0%,100%{transform:translate3d(0,0,0)}50%{transform:translate3d(6%,-4%,0)}}
+@keyframes cap-derive-b{0%,100%{transform:translate3d(0,0,0)}50%{transform:translate3d(-6%,-4%,0)}}` }} />
       {[
         { left: "-18%", top: "10%", w: "52%", forme: 0, anim: "cap-derive-a 34s ease-in-out infinite" },
         { left: "62%", top: "0%", w: "56%", forme: 2, anim: "cap-derive-b 42s ease-in-out infinite" },
@@ -305,12 +305,12 @@ export function Mots({ texte, delai = 0, pas = 0.07, className, style }: {
   const mots = texte.split(" ");
   return (
     <span className={className} style={{ ...style, perspective: "800px", display: "inline" }}>
-      <style>{`@keyframes cap-mot{from{opacity:0;transform:translate3d(0,.55em,0) rotateX(55deg)}to{opacity:1;transform:none}}
+      <style dangerouslySetInnerHTML={{ __html: `@keyframes cap-mot{from{opacity:0;transform:translate3d(0,.55em,0) rotateX(55deg)}to{opacity:1;transform:none}}
 .cap-mot{display:inline-block;transform-origin:50% 100%;animation:cap-mot .9s cubic-bezier(.16,1,.3,1) calc(var(--d) + .3s) both}
 .ciel-intro .cap-mot{opacity:0;animation:none}
 .ciel-intro.ciel-parti .cap-mot{animation:cap-mot .9s cubic-bezier(.16,1,.3,1) calc(var(--d) + .1s) both}
 .anim-off .cap-mot{animation:none}
-@media (prefers-reduced-motion: reduce){.cap-mot{animation:none}}`}</style>
+@media (prefers-reduced-motion: reduce){.cap-mot{animation:none}}` }} />
       {mots.map((m, i) => (
         <span key={i} className="inline-block whitespace-pre">
           <span className="cap-mot" style={{ ["--d" as string]: `${(delai + i * pas).toFixed(2)}s` }}>{m}</span>

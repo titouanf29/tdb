@@ -1,9 +1,10 @@
 "use client";
 
 import {
-  Container, Course, Eyebrow, Heading, Section, Text,
+  Container, Eyebrow, Heading, Section,
 } from "@/components/design-system";
-import { Reveal, RevealGroup, RevealItem } from "./effets";
+import { Reveal } from "./effets";
+import { MotsAuScroll, ParcoursDefilant } from "./animations";
 
 /**
  * Section 3 — three steps, in order.
@@ -38,37 +39,14 @@ export function HowItWorks() {
           <Reveal>
             <Eyebrow>Comment ça fonctionne</Eyebrow>
           </Reveal>
-          <Reveal delay={0.05}>
-            <Heading level={1} className="mt-5">
-              Trois gestes, toujours dans le même ordre.
-            </Heading>
-          </Reveal>
+          <Heading level={1} className="mt-5">
+            <MotsAuScroll texte="Trois gestes, toujours dans le même ordre." />
+          </Heading>
         </div>
 
-        <Reveal delay={0.1} className="mx-auto mt-16 max-w-[40rem]">
-          <Course height={110} delay={0.2} />
-        </Reveal>
-
-        <RevealGroup gap={0.14} className="mt-8 grid gap-px sm:grid-cols-3">
-          {STEPS.map((s) => (
-            <RevealItem key={s.n}>
-              <div className="h-full px-0 py-8 sm:px-7">
-                <span
-                  className="cap-num text-[0.8rem]"
-                  style={{ color: "var(--cap-ocean)" }}
-                >
-                  {s.n}
-                </span>
-                <Heading level={2} className="mt-4">
-                  {s.title}
-                </Heading>
-                <Text size="body" className="mt-3">
-                  {s.body}
-                </Text>
-              </div>
-            </RevealItem>
-          ))}
-        </RevealGroup>
+        {/* La ligne se trace au défilement, un point la parcourt, et chaque
+            étape s'allume quand il l'atteint. */}
+        <ParcoursDefilant etapes={STEPS} />
       </Container>
     </Section>
   );

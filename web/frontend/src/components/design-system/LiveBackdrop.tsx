@@ -115,7 +115,7 @@ export function LiveBackdrop({
         />
       ))}
 
-      <style>{`@keyframes cap-derive-bande{from{transform:translate3d(0,0,0)}to{transform:translate3d(-50%,0,0)}}`}</style>
+      <style dangerouslySetInnerHTML={{ __html: `@keyframes cap-derive-bande{from{transform:translate3d(0,0,0)}to{transform:translate3d(-50%,0,0)}}` }} />
 
       {/* ── The market line ────────────────────────────────────────────── */}
       <div className="absolute inset-x-0 top-[12%] h-[38vh]">

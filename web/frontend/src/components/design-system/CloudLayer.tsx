@@ -148,7 +148,7 @@ export function CloudBank({ className }: { className?: string }) {
       className={`pointer-events-none absolute inset-x-0 bottom-0 h-[42vh] overflow-hidden ${className ?? ""}`}
     >
       {/* Dérive en CSS : sur la carte graphique, pas en JavaScript. */}
-      <style>{`@keyframes cap-derive-banc{from{transform:translate3d(0,0,0)}to{transform:translate3d(-50%,0,0)}}`}</style>
+      <style dangerouslySetInnerHTML={{ __html: `@keyframes cap-derive-banc{from{transform:translate3d(0,0,0)}to{transform:translate3d(-50%,0,0)}}` }} />
       <div
         className="absolute bottom-0 left-0 flex w-[200%] items-end"
         style={reduce ? undefined : { animation: "cap-derive-banc 240s linear infinite", willChange: "transform" }}

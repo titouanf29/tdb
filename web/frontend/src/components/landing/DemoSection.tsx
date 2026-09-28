@@ -5,7 +5,8 @@ import { AnimatePresence, motion } from "framer-motion";
 import {
   Atmosphere, Container, CountUp, Eyebrow, Heading, Num, Progress, Section, SegmentedControl, Text, DUR, EASE,
 } from "@/components/design-system";
-import { Reveal } from "./effets";
+import { Inclinaison, Reveal } from "./effets";
+import { MotsAuScroll } from "./animations";
 import { AnalysisVisual } from "./AnalysisVisual";
 import { DEMO_ASSETS, LEVELS, type LevelId } from "./demoData";
 import { useMouvementReduit } from "@/components/design-system/useMouvementReduit";
@@ -44,11 +45,9 @@ export function DemoSection() {
           <Reveal>
             <Eyebrow>La démo</Eyebrow>
           </Reveal>
-          <Reveal delay={0.05}>
-            <Heading level={1} className="mt-5">
-              Choisissez ce que vous voulez voir.
-            </Heading>
-          </Reveal>
+          <Heading level={1} className="mt-5">
+            <MotsAuScroll texte="Choisissez ce que vous voulez voir." />
+          </Heading>
           <Reveal delay={0.12}>
             <Text size="lead" className="mt-6">
               Le même actif, à trois niveaux de détail. C'est vous qui décidez
@@ -92,6 +91,8 @@ export function DemoSection() {
 
         {/* ── Panel ─────────────────────────────────────────────────────── */}
         <Reveal delay={0.2} className="mt-8">
+          {/* La carte de démo s'incline doucement sous le curseur. */}
+          <Inclinaison force={4}>
           <div
             className="overflow-hidden"
             style={{
@@ -219,6 +220,7 @@ export function DemoSection() {
               </div>
             </div>
           </div>
+          </Inclinaison>
 
           <p className="mt-3 text-[0.75rem]" style={{ color: "var(--cap-ink-3)" }}>
             Données d'illustration — l'analyse réelle utilise les cours de marché.

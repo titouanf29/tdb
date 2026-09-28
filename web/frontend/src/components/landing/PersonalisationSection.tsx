@@ -6,6 +6,7 @@ import {
   Container, Eyebrow, Heading, Num, Progress, Section, SegmentedControl, Text, DUR, EASE,
 } from "@/components/design-system";
 import { Reveal } from "./effets";
+import { MotsAuScroll } from "./animations";
 import { useMouvementReduit } from "@/components/design-system/useMouvementReduit";
 
 /**
@@ -52,11 +53,9 @@ export function PersonalisationSection() {
         <div className="grid gap-14 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] lg:items-center lg:gap-20">
           <div>
             <Reveal><Eyebrow>Personnalisation</Eyebrow></Reveal>
-            <Reveal delay={0.05}>
-              <Heading level={1} className="mt-5">
-                Votre espace ne devrait pas ressembler à celui des autres.
-              </Heading>
-            </Reveal>
+            <Heading level={1} className="mt-5">
+              <MotsAuScroll texte="Votre espace ne devrait pas ressembler à celui des autres." />
+            </Heading>
             <Reveal delay={0.12}>
               <Text size="lead" className="mt-6 max-w-[30rem]">
                 CaptenTDB pose cinq questions au départ, puis ajuste la quantité

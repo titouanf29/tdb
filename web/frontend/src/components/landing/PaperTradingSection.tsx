@@ -6,6 +6,7 @@ import {
   Atmosphere, LiveBackdrop, Container, Eyebrow, Heading, Num, Section, Text, DUR, EASE,
 } from "@/components/design-system";
 import { Reveal, useEffetsActifs, useProgression } from "./effets";
+import { MotsAuScroll } from "./animations";
 import { useMouvementReduit } from "@/components/design-system/useMouvementReduit";
 
 /**
@@ -44,11 +45,9 @@ export function PaperTradingSection() {
             <Reveal>
               <Eyebrow>Le portefeuille virtuel</Eyebrow>
             </Reveal>
-            <Reveal delay={0.05}>
-              <Heading level={1} className="mt-5">
-                Apprenez avant de risquer votre argent.
-              </Heading>
-            </Reveal>
+            <Heading level={1} className="mt-5">
+              <MotsAuScroll texte="Apprenez avant de risquer votre argent." />
+            </Heading>
             <Reveal delay={0.12}>
               <Text size="lead" className="mt-6 max-w-[28rem]">
                 Chaque position est fictive. L'erreur ne coûte rien — sauf la
