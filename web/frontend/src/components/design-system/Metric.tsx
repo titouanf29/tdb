@@ -32,7 +32,10 @@ export function CountUp({
   const [value, setValue] = useState(reduce ? to : 0);
 
   useEffect(() => {
-    if (!inView || reduce) return;
+    // Mouvement réduit : la valeur finale, tout de suite. Le premier rendu
+    // part de 0 (le réglage n'est connu qu'après), il faut donc la poser.
+    if (reduce) { setValue(to); return; }
+    if (!inView) return;
     let raf = 0;
     const start = performance.now();
     const tick = (now: number) => {

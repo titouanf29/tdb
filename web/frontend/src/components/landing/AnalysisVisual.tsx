@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useMemo } from "react";
+import { useId, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { DUR, EASE, VIEWPORT } from "@/components/design-system";
 import { useMouvementReduit } from "@/components/design-system/useMouvementReduit";
@@ -41,15 +41,36 @@ export function buildPath(
   return { d, x, y };
 }
 
+const CSS_VISUEL = `@keyframes cap-direct{0%{transform:translate(-50%,-50%) scale(.6);opacity:.55}100%{transform:translate(-50%,-50%) scale(3.2);opacity:0}}
+.cap-direct-onde{animation:cap-direct 2.2s cubic-bezier(.2,.6,.3,1) infinite}
+.anim-off .cap-direct-onde{animation:none;opacity:0}
+@media (prefers-reduced-motion: reduce){.cap-direct-onde{animation:none;opacity:0}}
+.cap-niveau{opacity:0;transform:translate3d(8px,-50%,0);transition:opacity .5s ease,transform .6s cubic-bezier(.16,1,.3,1)}
+.cap-niveau[data-vu="1"]{opacity:1;transform:translate3d(0,-50%,0)}
+.cap-reticule{opacity:0;transition:opacity .2s}
+.cap-reticule[data-on="1"]{opacity:1}`;
+
+/** « 245,18 € » → 245.18 ; « 97 420 € » → 97420. */
+function lirePrix(p: string): number {
+  return parseFloat(p.replace(/[^\d,.-]/g, "").replace(",", ".")) || 0;
+}
+
 export function AnalysisVisual({
   series,
   className,
   showLevels = true,
+  prix,
 }: {
   series: VisualSeries;
   className?: string;
   showLevels?: boolean;
+  /** Le dernier cours affiché (« 245,18 € ») : le réticule en déduit le
+   *  prix sous le curseur. Sans lui, pas de réticule. */
+  prix?: string;
 }) {
+  const boite = useRef<HTMLDivElement>(null);
+  const [dessine, setDessine] = useState(false);
+  const [survol, setSurvol] = useState<number | null>(null);
   const reduce = useMouvementReduit();
   const W = 800;
   const H = 300;
@@ -75,10 +96,28 @@ export function AnalysisVisual({
     return { d, y, areaD, trendD };
   }, [series]);
 
+  const n = series.points.length;
+  const dernier = series.points[n - 1];
+  const pct = (v: number) => `${(y(v) / H) * 100}%`;
+  const base = prix ? lirePrix(prix) : 0;
+  const euro = prix?.includes("€") ? " €" : "";
+  const format = (v: number) =>
+    (base * v / dernier).toLocaleString("fr-FR", { minimumFractionDigits: base < 1000 ? 2 : 0, maximumFractionDigits: base < 1000 ? 2 : 0 }) + euro;
+  const bouge = (e: React.PointerEvent) => {
+    const r = boite.current?.getBoundingClientRect();
+    if (!r || e.pointerType === "touch") return;
+    const i = Math.round(((e.clientX - r.left) / r.width) * (n - 1));
+    setSurvol(Math.max(0, Math.min(n - 1, i)));
+  };
+  const iSurvol = survol ?? n - 1;
+
   return (
+    <div ref={boite} className={`relative ${className ?? ""}`}
+      onPointerMove={prix ? bouge : undefined} onPointerLeave={() => setSurvol(null)}>
+    <style dangerouslySetInnerHTML={{ __html: CSS_VISUEL }} />
     <svg
       viewBox={`0 0 ${W} ${H}`}
-      className={className}
+      className="absolute inset-0 h-full w-full"
       preserveAspectRatio="none"
       role="img"
       aria-label="Exemple d'analyse : une courbe de prix avec sa tendance, un support et une résistance"
@@ -97,14 +136,16 @@ export function AnalysisVisual({
       {showLevels && (
         <>
           {/* Two levels, labelled by position rather than by a legend. */}
-          <line
-            x1="0" x2={W} y1={y(series.resistance)} y2={y(series.resistance)}
-            stroke="var(--cap-down)" strokeWidth="1" strokeDasharray="4 5" opacity="0.5"
-          />
-          <line
-            x1="0" x2={W} y1={y(series.support)} y2={y(series.support)}
-            stroke="var(--cap-up)" strokeWidth="1" strokeDasharray="4 5" opacity="0.5"
-          />
+          {/* Chaque niveau se trace de gauche à droite. */}
+          {[{ v: series.resistance, c: "var(--cap-down)" }, { v: series.support, c: "var(--cap-up)" }].map((l, k) => (
+            <motion.line key={k}
+              x1="0" y1={y(l.v)} y2={y(l.v)}
+              stroke={l.c} strokeWidth="1" strokeDasharray="4 5" opacity="0.5"
+              initial={reduce ? false : { x2: 0 }}
+              animate={{ x2: W }}
+              transition={{ duration: 0.9, delay: k * 0.12, ease: EASE }}
+            />
+          ))}
         </>
       )}
 
@@ -130,19 +171,28 @@ export function AnalysisVisual({
         transition={{ duration: DUR.slow, delay: DUR.draw }}
       />
 
+      {/* Une fois tracée, la courbe devient un chemin simple : le tiret animé
+          (pathLength) se recalculait mal avec vector-effect à chaque rendu, et
+          la courbe se retrouvait coupée avant la fin au survol. */}
+      {dessine || reduce ? (
+        <path d={d} fill="none" stroke="var(--cap-ocean)" strokeWidth="2"
+          strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+      ) : (
       <motion.path
-        d={d}
-        fill="none"
-        stroke="var(--cap-ocean)"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        vectorEffect="non-scaling-stroke"
-        initial={reduce ? false : { pathLength: 0 }}
-        whileInView={{ pathLength: 1 }}
-        viewport={VIEWPORT}
-        transition={{ duration: DUR.draw, ease: EASE }}
-      />
+          d={d}
+          fill="none"
+          stroke="var(--cap-ocean)"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          vectorEffect="non-scaling-stroke"
+          initial={reduce ? false : { pathLength: 0 }}
+          whileInView={{ pathLength: 1 }}
+          viewport={VIEWPORT}
+          transition={{ duration: DUR.draw, ease: EASE }}
+          onAnimationComplete={() => setDessine(true)}
+        />
+      )}
 
       {/* A scan sweeping across as the curve is drawn.
           Not a dot riding the path: this SVG stretches with
@@ -170,5 +220,39 @@ export function AnalysisVisual({
       )}
 
     </svg>
+
+      {/* Les éléments ronds et le texte sont en HTML, par-dessus : dans le SVG
+          étiré, un cercle deviendrait une ellipse. */}
+      {showLevels && [{ v: series.resistance, t: "Résistance", c: "var(--cap-down)" }, { v: series.support, t: "Support", c: "var(--cap-up)" }].map((l) => (
+        <span key={l.t} aria-hidden data-vu={dessine || reduce ? "1" : "0"}
+          className="cap-niveau pointer-events-none absolute right-2 rounded-full px-2 py-0.5 text-[0.68rem] font-medium"
+          style={{ top: pct(l.v), color: l.c, backgroundColor: "var(--cap-surface)", boxShadow: "inset 0 0 0 1px var(--cap-line)" }}>
+          {l.t}
+        </span>
+      ))}
+
+      {prix && (
+        <div aria-hidden className="cap-reticule pointer-events-none absolute inset-y-0" data-on={survol !== null ? "1" : "0"}
+          style={{ left: `${(iSurvol / (n - 1)) * 100}%` }}>
+          <span className="absolute inset-y-0 w-px" style={{ backgroundColor: "var(--cap-ink-4)" }} />
+          <span className="absolute h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full"
+            style={{ top: pct(series.points[iSurvol]), backgroundColor: "var(--cap-ocean)", boxShadow: "0 0 0 3px var(--cap-surface)" }} />
+          <span className="cap-num absolute -translate-y-[170%] whitespace-nowrap rounded-md px-2 py-1 text-[0.72rem]"
+            style={{ top: pct(series.points[iSurvol]), left: iSurvol > n * 0.8 ? "auto" : 8, right: iSurvol > n * 0.8 ? 8 : "auto",
+                     backgroundColor: "var(--cap-navy)", color: "#F2F5F7" }}>
+            {format(series.points[iSurvol])}
+          </span>
+        </div>
+      )}
+
+      {/* Le dernier cours, qui bat doucement : la courbe est « en direct ». */}
+      {(dessine || reduce) && survol === null && (
+        <span aria-hidden className="pointer-events-none absolute" style={{ left: "calc(100% - 6px)", top: pct(dernier) }}>
+          <span className="cap-direct-onde absolute left-0 top-0 h-2.5 w-2.5 rounded-full" style={{ backgroundColor: "var(--cap-ocean)" }} />
+          <span className="absolute left-0 top-0 h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full"
+            style={{ backgroundColor: "var(--cap-ocean)", boxShadow: "0 0 0 3px var(--cap-surface)" }} />
+        </span>
+      )}
+    </div>
   );
 }

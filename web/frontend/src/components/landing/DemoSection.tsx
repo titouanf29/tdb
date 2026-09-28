@@ -36,6 +36,17 @@ export function DemoSection() {
     exit: reduce ? { opacity: 0 } : { opacity: 0, y: -6 },
     transition: { duration: DUR.base, ease: EASE },
   };
+  const defile = (delay: number) => reduce ? {} : {
+    initial: { y: "100%", opacity: 0 },
+    animate: { y: "0%", opacity: 1 },
+    transition: { duration: 0.5, delay, ease: EASE },
+  };
+  // Les lignes du panneau arrivent l'une après l'autre.
+  const ligne = (i: number) => reduce ? {} : {
+    initial: { opacity: 0, x: 10 },
+    animate: { opacity: 1, x: 0 },
+    transition: { duration: 0.45, delay: 0.08 + i * 0.07, ease: EASE },
+  };
 
   return (
     <Section id="demo" tone="raised" className="relative overflow-hidden">
@@ -66,14 +77,22 @@ export function DemoSection() {
                   key={a.id}
                   onClick={() => setAssetId(a.id)}
                   aria-pressed={active}
-                  className="rounded-[10px] px-4 py-2.5 text-[0.9rem] font-medium transition-colors duration-200"
+                  className="relative rounded-[10px] px-4 py-2.5 text-[0.9rem] font-medium transition-colors duration-300"
                   style={{
-                    backgroundColor: active ? "var(--cap-navy)" : "transparent",
                     color: active ? "#F2F5F7" : "var(--cap-ink-2)",
-                    boxShadow: active ? "none" : "inset 0 0 0 1px var(--cap-line)",
+                    boxShadow: "inset 0 0 0 1px var(--cap-line)",
                   }}
                 >
-                  {a.name}
+                  {/* La pastille glisse d'un actif à l'autre. */}
+                  {active && (
+                    <motion.span
+                      layoutId="demo-actif"
+                      className="absolute inset-0 rounded-[10px]"
+                      style={{ backgroundColor: "var(--cap-navy)" }}
+                      transition={reduce ? { duration: 0 } : { type: "spring", stiffness: 420, damping: 36 }}
+                    />
+                  )}
+                  <span className="relative">{a.name}</span>
                 </button>
               );
             })}
@@ -106,29 +125,39 @@ export function DemoSection() {
               <div className="p-6 sm:p-8">
                 <div className="flex items-end justify-between gap-6">
                   <div>
-                    <div
-                      className="text-[1.2rem] font-semibold tracking-[-0.02em]"
-                      style={{ fontFamily: "var(--cap-font-display)" }}
-                    >
-                      {asset.name}
+                    {/* Nom, cours et variation défilent d'un actif à l'autre,
+                        comme sur un tableau d'affichage. */}
+                    <div className="overflow-hidden">
+                      <motion.div key={`n-${asset.id}`} {...defile(0)}
+                        className="text-[1.2rem] font-semibold tracking-[-0.02em]"
+                        style={{ fontFamily: "var(--cap-font-display)" }}
+                      >
+                        {asset.name}
+                      </motion.div>
                     </div>
-                    <div className="mt-1.5 flex items-baseline gap-3">
-                      <Num className="text-[1.4rem] font-medium">{asset.price}</Num>
-                      <Num tone={asset.change >= 0 ? "up" : "down"} className="text-[0.9rem]">
-                        {asset.change >= 0 ? "+" : ""}
-                        {asset.change.toFixed(2)} %
-                      </Num>
+                    <div className="mt-1.5 flex items-baseline gap-3 overflow-hidden">
+                      <motion.span key={`p-${asset.id}`} {...defile(0.05)}>
+                        <Num className="text-[1.4rem] font-medium">{asset.price}</Num>
+                      </motion.span>
+                      <motion.span key={`c-${asset.id}`} {...defile(0.1)}>
+                        <Num tone={asset.change >= 0 ? "up" : "down"} className="text-[0.9rem]">
+                          {asset.change >= 0 ? "+" : ""}
+                          {asset.change.toFixed(2)} %
+                        </Num>
+                      </motion.span>
                     </div>
                   </div>
                   <div className="text-right">
                     <div className="text-[0.75rem] uppercase tracking-[0.14em]" style={{ color: "var(--cap-ink-3)" }}>
                       Direction
                     </div>
-                    <div
-                      className="mt-1 text-[1rem] font-semibold"
-                      style={{ fontFamily: "var(--cap-font-display)", color: dirTone }}
-                    >
-                      {asset.direction}
+                    <div className="mt-1 overflow-hidden">
+                      <motion.div key={`d-${asset.id}`} {...defile(0.15)}
+                        className="text-[1rem] font-semibold"
+                        style={{ fontFamily: "var(--cap-font-display)", color: dirTone }}
+                      >
+                        {asset.direction}
+                      </motion.div>
                     </div>
                   </div>
                 </div>
@@ -136,6 +165,7 @@ export function DemoSection() {
                 <div className="mt-6 h-[200px] w-full">
                   <AnalysisVisual
                     key={asset.id}
+                    prix={asset.price}
                     series={{ points: asset.series, support: asset.support, resistance: asset.resistance }}
                     className="h-full w-full"
                     showLevels={level !== "discover"}
@@ -155,15 +185,15 @@ export function DemoSection() {
                         Pourquoi
                       </div>
                       <ul className="mt-4 space-y-3">
-                        {asset.reasons.map((r) => (
-                          <li key={r} className="flex gap-3">
+                        {asset.reasons.map((r, i) => (
+                          <motion.li key={r} className="flex gap-3" {...ligne(i)}>
                             <span
                               aria-hidden
                               className="mt-[0.55rem] h-px w-3 shrink-0"
                               style={{ backgroundColor: "var(--cap-ocean)" }}
                             />
                             <Text size="small" tone="ink" as="span">{r}</Text>
-                          </li>
+                          </motion.li>
                         ))}
                       </ul>
                     </motion.div>
@@ -201,9 +231,10 @@ export function DemoSection() {
                         Données du moteur
                       </div>
                       <dl className="mt-4">
-                        {asset.advanced.map((row) => (
-                          <div
+                        {asset.advanced.map((row, i) => (
+                          <motion.div
                             key={row.label}
+                            {...ligne(i)}
                             className="flex items-baseline justify-between gap-4 border-b py-2.5 last:border-b-0"
                             style={{ borderColor: "var(--cap-line)" }}
                           >
@@ -211,7 +242,7 @@ export function DemoSection() {
                               {row.label}
                             </dt>
                             <dd><Num className="text-[0.85rem]">{row.value}</Num></dd>
-                          </div>
+                          </motion.div>
                         ))}
                       </dl>
                     </motion.div>

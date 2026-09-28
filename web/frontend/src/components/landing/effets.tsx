@@ -31,6 +31,24 @@ export function useEffetsActifs() {
   return !reduit && anim;
 }
 
+/**
+ * Vrai une fois le ciel ouvert (ou tout de suite s'il n'y a pas d'ouverture).
+ * Ce qui se dessine en haut de page attend ce moment : sinon il se dessinait
+ * sous les nuages, sans personne pour le voir.
+ */
+export function useCielOuvert() {
+  const [ouvert, setOuvert] = useState(false);
+  useEffect(() => {
+    const d = document.documentElement;
+    const lire = () => setOuvert(!d.classList.contains("ciel-intro") || d.classList.contains("ciel-parti"));
+    lire();
+    const obs = new MutationObserver(lire);
+    obs.observe(d, { attributes: true, attributeFilter: ["class"] });
+    return () => obs.disconnect();
+  }, []);
+  return ouvert;
+}
+
 /* ── Un nuage ─────────────────────────────────────────────────────────── */
 
 export function Nuage({ forme = 0, retourne, className, style, flou = 2.4, prioritaire }: {

@@ -6,7 +6,7 @@ import {
   DUR, EASE,
 } from "@/components/design-system";
 import { AnalysisVisual } from "./AnalysisVisual";
-import { Aimant, Bouffees, Inclinaison, MiseAuPoint, Mots, PremierPlan, Redressement } from "./effets";
+import { Aimant, Bouffees, Inclinaison, MiseAuPoint, Mots, PremierPlan, Redressement, useCielOuvert } from "./effets";
 import { DEMO_ASSETS } from "./demoData";
 import { useMouvementReduit } from "@/components/design-system/useMouvementReduit";
 
@@ -19,6 +19,10 @@ import { useMouvementReduit } from "@/components/design-system/useMouvementRedui
  */
 export function Hero() {
   const reduce = useMouvementReduit();
+  // La jauge, la courbe et les raisons attendent l'ouverture du ciel : la
+  // clé les remonte à ce moment-là, et leur dessin se joue devant le visiteur.
+  const ouvert = useCielOuvert();
+  const cle = ouvert ? "ouvert" : "couvert";
   const apple = DEMO_ASSETS[0];
 
   // En mouvement réduit, l'état final est posé explicitement : le premier
@@ -166,13 +170,15 @@ export function Hero() {
                   {apple.direction}
                 </div>
                 <div className="mt-2 flex justify-end">
-                  <ScoreDial score={apple.score} size={124} />
+                  <ScoreDial key={cle} score={apple.score} size={124} />
                 </div>
               </div>
             </div>
 
             <div className="mt-6 h-[240px] w-full sm:h-[280px]">
               <AnalysisVisual
+                key={cle}
+                prix={apple.price}
                 series={{ points: apple.series, support: apple.support, resistance: apple.resistance }}
                 className="h-full w-full"
               />
@@ -187,8 +193,11 @@ export function Hero() {
                 Pourquoi
               </div>
               <ul className="mt-4 grid gap-2.5 sm:grid-cols-2 sm:gap-x-10">
-                {apple.reasons.map((r) => (
-                  <li key={r} className="flex gap-3">
+                {apple.reasons.map((r, i) => (
+                  <motion.li key={`${cle}-${r}`} className="flex gap-3"
+                    initial={reduce ? false : { opacity: 0, y: 8 }}
+                    animate={ouvert ? { opacity: 1, y: 0 } : undefined}
+                    transition={{ duration: 0.6, delay: 1.2 + i * 0.12, ease: EASE }}>
                     <span
                       aria-hidden
                       className="mt-[0.55rem] h-px w-3 shrink-0"
@@ -197,7 +206,7 @@ export function Hero() {
                     <Text size="small" tone="ink" as="span">
                       {r}
                     </Text>
-                  </li>
+                  </motion.li>
                 ))}
               </ul>
             </div>
