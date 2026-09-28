@@ -505,6 +505,30 @@ export function Traversee({ hauteur = 560 }: { hauteur?: number }) {
     if (proche) ref.current?.style.setProperty("--p", v.toFixed(4));
   });
   useEffect(() => { ref.current?.style.setProperty("--p", scrollYProgress.get().toFixed(4)); }, [proche, scrollYProgress]);
+
+  // La couleur de la section suivante. Deux sections de fonds différents se
+  // touchaient sur une ligne droite, et c'est elle qu'on voyait quand les
+  // nuages s'écartaient : le ciel semblait coupé net. Un fondu vers cette
+  // couleur, sous les nuages, finit exactement à la frontière.
+  const [fond, setFond] = useState<string | null>(null);
+  useEffect(() => {
+    const lire = () => {
+      // Sans fond propre, la section laisse voir celui de la page : on le
+      // cherche en remontant.
+      const vide = (c: string) => !c || c === "rgba(0, 0, 0, 0)" || c === "transparent";
+      let e = ref.current?.nextElementSibling as HTMLElement | null;
+      let c = e ? getComputedStyle(e).backgroundColor : "";
+      e = ref.current?.parentElement ?? null;
+      while (vide(c) && e) { c = getComputedStyle(e).backgroundColor; e = e.parentElement; }
+      setFond(vide(c) ? null : c);
+    };
+    lire();
+    // Le thème (clair / sombre) change la couleur.
+    const obs = new MutationObserver(lire);
+    obs.observe(document.documentElement, { attributes: true, attributeFilter: ["class", "data-theme", "style"] });
+    return () => obs.disconnect();
+  }, [actifs]);
+
   if (!actifs) return null;
   return (
     // La bande est aussi haute que les nuages grossis : rien ne dépasse, donc
@@ -513,6 +537,10 @@ export function Traversee({ hauteur = 560 }: { hauteur?: number }) {
     <div ref={ref} aria-hidden className="cap-tr pointer-events-none relative z-10 overflow-hidden"
       style={{ height: hauteur, marginTop: -hauteur / 2 + 40, marginBottom: -hauteur / 2 + 40 }}>
       <style dangerouslySetInnerHTML={{ __html: CSS_TRAVERSEE }} />
+      {fond && (
+        <div className="absolute inset-x-0 top-0"
+          style={{ height: hauteur / 2 + 40, background: `linear-gradient(to bottom, transparent 38%, ${fond})` }} />
+      )}
       {proche && PLANS_TRAVERSEE.map((r, k) => (
         <Fragment key={k}>
           {k === 4 && (
