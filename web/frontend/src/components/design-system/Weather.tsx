@@ -1,8 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useId, useState } from "react";
-import { motion } from "framer-motion";
-import { SILHOUETTES } from "./CloudLayer";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { NuageImage } from "./NuageImage";
 import { useMouvementReduit } from "./useMouvementReduit";
 
 /**
@@ -84,119 +83,38 @@ export function useAnimationsEnabled(): [boolean, (v: boolean) => void] {
 
 /* ── Pieces ───────────────────────────────────────────────────────────────── */
 
+/**
+ * Un nuage qui traverse l'écran.
+ *
+ * C'était un SVG flouté (deux flous gaussiens, dégradés, découpes) déplacé
+ * par framer-motion : le navigateur refaisait le flou à chaque image, sur
+ * six ou sept nuages grands comme la moitié de l'écran. C'est maintenant une
+ * image déjà floutée (voir NuageImage) qui glisse en CSS, sur la carte
+ * graphique. Deux étages : l'extérieur suit le défilement de la page à la
+ * vitesse de sa profondeur (les grands nuages, plus proches, bougent plus),
+ * l'intérieur traverse l'écran.
+ */
 function DriftingCloud({
-  shape,
-  top,
-  width,
-  duration,
-  delay,
-  opacity,
-  flip,
+  shape, top, width, duration, delay, opacity, flip,
 }: {
-  shape: number;
-  top: string;
-  width: number;
-  duration: number;
-  delay: number;
-  opacity: number;
-  flip?: boolean;
+  shape: number; top: string; width: number; duration: number; delay: number; opacity: number; flip?: boolean;
 }) {
-  const id = useId().replace(/:/g, "");
-  const { lobes, base } = SILHOUETTES[shape];
-
   return (
-    <motion.svg
-      viewBox="0 0 200 100"
-      aria-hidden
-      className="absolute"
-      style={{ top, width: `${width}vw`, height: "auto", opacity, overflow: "visible" }}
-      initial={{ x: "-40vw" }}
-      animate={{ x: "115vw" }}
-      transition={{ duration, delay, repeat: Infinity, ease: "linear" }}
-    >
-      <defs>
-        {/* La masse éclairée. Quatre arrêts, et le plus important est le
-            troisième : c'est là que la lumière bascule vers l'ombre, et un
-            cumulus se reconnaît à la netteté de ce basculement. Un dégradé
-            régulier du haut vers le bas donne une bulle, pas un nuage. */}
-        <linearGradient id={`${id}-f`} x1="0.15" y1="0" x2="0.4" y2="1">
-          <stop offset="0%" stopColor="var(--cap-sky-1)" />
-          <stop offset="38%" stopColor="var(--cap-sky-2)" />
-          <stop offset="66%" stopColor="var(--cap-sky-3)" />
-          <stop offset="100%" stopColor="var(--cap-sky-4)" />
-        </linearGradient>
-
-        {/* Le ventre : une seconde passe, plus sombre, décalée vers le bas et
-            écrêtée par la silhouette. C'est elle qui donne l'épaisseur — une
-            masse sans dessous est une tache. */}
-        <linearGradient id={`${id}-b`} x1="0" y1="0.42" x2="0" y2="1">
-          <stop offset="0%" stopColor="var(--cap-sky-4)" stopOpacity="0" />
-          <stop offset="100%" stopColor="var(--cap-sky-4)" stopOpacity="0.85" />
-        </linearGradient>
-
-        {/* La couronne : le point où le soleil frappe. Décentré vers le haut à
-            gauche, comme la lumière du reste de la page. */}
-        <radialGradient id={`${id}-h`} cx="0.36" cy="0.26" r="0.52">
-          <stop offset="0%" stopColor="var(--cap-sky-1)" stopOpacity="0.95" />
-          <stop offset="100%" stopColor="var(--cap-sky-1)" stopOpacity="0" />
-        </radialGradient>
-
-        {/* Deux flous, pas un. Le contour reste lisible pendant que l'intérieur
-            se fond : appliquer le même flou partout dissolvait la forme, et
-            c'est ce qui rendait les nuages invisibles. */}
-        <filter id={`${id}-soft`} x="-30%" y="-30%" width="160%" height="160%">
-          <feGaussianBlur stdDeviation="1.4" />
-        </filter>
-        <filter id={`${id}-wide`} x="-40%" y="-40%" width="180%" height="180%">
-          <feGaussianBlur stdDeviation="4.5" />
-        </filter>
-
-        {/* La silhouette, définie une fois et réutilisée par chaque passe. */}
-        <g id={`${id}-shape`}>
-          <ellipse cx={base[0]} cy={base[1]} rx={base[2]} ry={base[3]} />
-          {lobes.map(([cx, cy, r], i) => (
-            <circle key={i} cx={cx} cy={cy} r={r} />
-          ))}
-        </g>
-        <clipPath id={`${id}-clip`}>
-          <use href={`#${id}-shape`} />
-        </clipPath>
-      </defs>
-
-      <g transform={flip ? "translate(200,0) scale(-1,1)" : undefined}>
-        {/* 1. Le halo, très flou : l'air autour de la masse. */}
-        <use
-          href={`#${id}-shape`}
-          fill="var(--cap-sky-2)"
-          filter={`url(#${id}-wide)`}
-          opacity="0.5"
-        />
-        {/* 2. Le corps. */}
-        <use href={`#${id}-shape`} fill={`url(#${id}-f)`} filter={`url(#${id}-soft)`} />
-        {/* 3. L'ombre du dessous, écrêtée par la forme. */}
-        <g clipPath={`url(#${id}-clip)`}>
-          <rect x="0" y="0" width="200" height="100" fill={`url(#${id}-b)`} />
-          {/* Les lobes redessinés à l'intérieur : leurs bords créent le
-              modelé qui distingue un cumulus d'une masse lisse. */}
-          {lobes.map(([cx, cy, r], i) => (
-            <circle
-              key={`m${i}`}
-              cx={cx}
-              cy={cy + r * 0.16}
-              r={r * 0.92}
-              fill="var(--cap-sky-1)"
-              opacity="0.16"
-            />
-          ))}
-        </g>
-        {/* 4. La couronne éclairée, par-dessus tout. */}
-        <g clipPath={`url(#${id}-clip)`}>
-          <rect x="0" y="0" width="200" height="100" fill={`url(#${id}-h)`} />
-        </g>
-      </g>
-    </motion.svg>
+    <div aria-hidden className="cap-meteo-prof absolute left-0" style={{ top, width: `${width}vw`, ["--prof" as string]: (width / 70 * 0.22).toFixed(3) }}>
+      <div className="cap-meteo-nuage" style={{ opacity, animationDuration: `${duration}s`, animationDelay: `${delay}s` }}>
+        <NuageImage forme={shape} retourne={flip} flou={shape === 2 ? 3.5 : 2.4} style={{ width: "100%" }} />
+      </div>
+    </div>
   );
 }
+
+const CSS_METEO = `@keyframes cap-meteo{from{transform:translate3d(-45vw,0,0)}to{transform:translate3d(115vw,0,0)}}
+.cap-meteo-nuage{animation-name:cap-meteo;animation-timing-function:linear;animation-iteration-count:infinite;will-change:transform}
+.cap-meteo-prof{transform:translate3d(0,calc(var(--sy,0) * var(--prof) * -1px),0)}
+@keyframes cap-meteo-in{from{opacity:0}to{opacity:1}}
+@keyframes cap-meteo-out{from{opacity:1}to{opacity:0}}
+.cap-meteo-couche{animation:cap-meteo-in 1.6s ease both}
+.cap-meteo-couche[data-sort="1"]{animation:cap-meteo-out 1.6s ease both}`;
 
 /** Light from the top right. Never a drawn disc — a warm wash reads as sun
  *  without turning the page into a weather app icon. */
@@ -328,11 +246,38 @@ export function WeatherBackdrop({
   enabled?: boolean;
 }) {
   const reduce = useMouvementReduit();
+  const ref = useRef<HTMLDivElement>(null);
+
+  // Quand la météo change, l'ancien ciel s'efface pendant que le nouveau
+  // arrive : un fondu enchaîné, pas une coupure.
+  const [couches, setCouches] = useState<{ c: WeatherCondition; n: number; sort: boolean }[]>([{ c: condition, n: 0, sort: false }]);
+  useEffect(() => {
+    setCouches((cs) => {
+      const der = cs[cs.length - 1];
+      if (der.c === condition) return cs;
+      return [...cs.filter((x) => !x.sort).map((x) => ({ ...x, sort: true })), { c: condition, n: der.n + 1, sort: false }];
+    });
+    const t = setTimeout(() => setCouches((cs) => cs.filter((x) => !x.sort)), 1700);
+    return () => clearTimeout(t);
+  }, [condition]);
+
+  // Parallaxe : une seule écriture (--sy) par image de défilement.
+  useEffect(() => {
+    if (!enabled || reduce) return;
+    let raf = 0;
+    const lire = () => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => ref.current?.style.setProperty("--sy", String(Math.round(window.scrollY))));
+    };
+    lire();
+    window.addEventListener("scroll", lire, { passive: true });
+    return () => { window.removeEventListener("scroll", lire); cancelAnimationFrame(raf); };
+  }, [enabled, reduce]);
+
   // Off, or reduced motion: nothing at all. A still sky would be a decoration
   // with no information in it, which is the thing this component is not.
   if (!enabled || reduce) return null;
 
-  const preset = PRESETS[condition];
   // Base crossing time, in seconds, for the full width plus its margins.
   // It was 150, which works out at about 18 px/s — slow enough that the sky
   // read as a still image. At 52 a cloud crosses in under a minute: clearly
@@ -341,36 +286,36 @@ export function WeatherBackdrop({
 
   return (
     <div
+      ref={ref}
       aria-hidden
       className="pointer-events-none fixed inset-0 z-0 overflow-hidden"
       style={{ opacity: 0.95 }}
     >
-      {preset.sun > 0 && <Sun strength={preset.sun} />}
-      {preset.veil ? <Veil strength={preset.veil} /> : null}
-      {preset.clouds.map((c, i) => (
-        <DriftingCloud
-          key={`${condition}-${i}`}
-          shape={c.shape}
-          top={c.top}
-          width={c.w}
-          opacity={c.o}
-          flip={c.flip}
-          duration={(base / preset.speed) * (1 + (i % 3) * 0.26)}
-          // Le décalage de départ, pris dans une table dispersée plutôt que
-          // calculé en rampe.
-          //
-          // Avec un pas régulier — 0,17 puis 0,40 puis 0,63… — chaque nuage
-          // part un peu après le précédent, et comme ils avancent à la même
-          // allure ils restent en file. Mesuré à un instant donné : x = 231,
-          // 506, 697, 838, 945… une diagonale qui traverse l'écran, laissant
-          // la moitié du ciel vide en permanence. La marge gauche restait à
-          // 1,16 d'écart-type quoi qu'on fasse sur la taille des masses.
-          //
-          // Ces sept valeurs couvrent l'intervalle sans se suivre, donc le
-          // ciel est occupé sur toute sa largeur à n'importe quel moment.
-          delay={-(base / preset.speed) * PHASES[i % PHASES.length]}
-        />
-      ))}
+      <style dangerouslySetInnerHTML={{ __html: CSS_METEO }} />
+      {couches.map(({ c, n, sort }) => {
+        const preset = PRESETS[c];
+        return (
+          <div key={n} className="cap-meteo-couche absolute inset-0" data-sort={sort ? "1" : "0"}>
+            {preset.sun > 0 && <Sun strength={preset.sun} />}
+            {preset.veil ? <Veil strength={preset.veil} /> : null}
+            {preset.clouds.map((cl, i) => (
+              <DriftingCloud
+                key={i}
+                shape={cl.shape}
+                top={cl.top}
+                width={cl.w}
+                opacity={cl.o}
+                flip={cl.flip}
+                duration={(base / preset.speed) * (1 + (i % 3) * 0.26)}
+                // Le décalage de départ, pris dans une table dispersée plutôt
+                // que calculé en rampe : avec un pas régulier, les nuages
+                // restaient en file et laissaient la moitié du ciel vide.
+                delay={-(base / preset.speed) * PHASES[i % PHASES.length]}
+              />
+            ))}
+          </div>
+        );
+      })}
     </div>
   );
 }

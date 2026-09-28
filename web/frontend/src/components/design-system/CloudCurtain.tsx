@@ -1,10 +1,7 @@
 "use client";
 
-import { useEffect, useId, useRef, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
-import { SILHOUETTES } from "./CloudLayer";
-import { EASE } from "./motion";
-import { useMouvementReduit } from "./useMouvementReduit";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { lireTeinte, nuageSrc, type Teinte } from "./NuageImage";
 
 /**
  * Weather closing over the screen while something loads, then parting.
@@ -13,70 +10,96 @@ import { useMouvementReduit } from "./useMouvementReduit";
  * same sky as the landing page, so moving from the public site into the app
  * feels like walking through one building rather than two.
  *
- * Two banks: one sweeps down from the top, one up from the bottom. They meet,
- * hold for as long as the work takes, then draw apart. The middle is opaque,
- * so whatever is rendering underneath is never seen half-built.
+ * Deux moitiés opaques, bordées de nuages, se rejoignent au milieu ; quand le
+ * chargement finit, elles s'écartent vers le haut et vers le bas et laissent
+ * voir l'écran prêt.
  *
- * Under prefers-reduced-motion it becomes a plain fade of the same colour —
- * a full-screen wipe is exactly what that setting is for.
+ * L'OUVERTURE SURVIT AU RIDEAU. Les écrans l'emploient ainsi :
+ * `if (loading) return <CloudCurtain active />` — le rideau est donc retiré
+ * de l'arbre à la seconde où les données arrivent, et son animation de
+ * sortie ne jouait jamais : la page apparaissait d'un coup. À son retrait,
+ * il pose à sa place une copie hors de React (même dessin, même position),
+ * qui joue l'ouverture puis se supprime. Posée avant l'affichage de l'image
+ * suivante (useLayoutEffect), elle ne laisse passer aucun flash.
+ *
+ * Tout ne bouge qu'en transform et opacity, avec des nuages pré-rendus : le
+ * rideau précédent refaisait un flou SVG sur douze nuages à chaque image.
+ * Under prefers-reduced-motion (ou animations coupées) it becomes a plain
+ * fade of the same colour.
  */
 
-const TOP_BANK = [0, 2, 1, 3, 0, 2];
-const BOTTOM_BANK = [2, 1, 3, 0, 2, 1];
+const CSS_RIDEAU = `.cap-rideau{position:fixed;inset:0;z-index:70;pointer-events:none;overflow:hidden}
+.cap-rideau-moitie{position:absolute;left:0;right:0;height:50%;background:var(--cap-cloud-mid);will-change:transform}
+.cap-rideau-haut{top:0}.cap-rideau-bas{bottom:0}
+.cap-rideau-frange{position:absolute;left:-6%;right:-6%;display:flex}
+.cap-rideau-haut .cap-rideau-frange{top:100%;align-items:flex-start;margin-top:-7vh}
+.cap-rideau-bas .cap-rideau-frange{bottom:100%;align-items:flex-end;margin-bottom:-7vh}
+.cap-rideau-n{position:relative;flex-shrink:0;width:24%;aspect-ratio:2/1;margin-left:-5%}
+.cap-rideau-n img{position:absolute;left:-15%;top:-30%;width:130%;height:160%;max-width:none}
+.cap-rideau-lueur{position:absolute;left:50%;top:50%;width:70vmax;height:40vmax;border-radius:50%;
+  transform:translate(-50%,-50%);background:radial-gradient(closest-side,var(--cap-cloud-light),transparent);opacity:.7}
+.cap-rideau-mot{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  font-size:.82rem;letter-spacing:.06em;color:var(--cap-ink-3);animation:cap-rideau-mot .3s ease .5s both}
+@keyframes cap-rideau-mot{from{opacity:0}to{opacity:1}}
+@keyframes cap-rideau-haut-in{from{transform:translate3d(0,-115%,0)}to{transform:none}}
+@keyframes cap-rideau-bas-in{from{transform:translate3d(0,115%,0)}to{transform:none}}
+@keyframes cap-rideau-haut-out{from{transform:none}to{transform:translate3d(0,-122%,0) scale(1.06)}}
+@keyframes cap-rideau-bas-out{from{transform:none}to{transform:translate3d(0,122%,0) scale(1.06)}}
+@keyframes cap-rideau-fondu{from{opacity:1}to{opacity:0}}
+.cap-rideau[data-etat="ferme"] .cap-rideau-haut{animation:cap-rideau-haut-in .55s cubic-bezier(.16,1,.3,1) both}
+.cap-rideau[data-etat="ferme"] .cap-rideau-bas{animation:cap-rideau-bas-in .55s cubic-bezier(.16,1,.3,1) both}
+.cap-rideau[data-etat="ouvre"] .cap-rideau-haut{animation:cap-rideau-haut-out .9s cubic-bezier(.65,0,.35,1) both}
+.cap-rideau[data-etat="ouvre"] .cap-rideau-bas{animation:cap-rideau-bas-out .9s cubic-bezier(.65,0,.35,1) both}
+.cap-rideau[data-etat="ouvre"] .cap-rideau-lueur,.cap-rideau[data-etat="ouvre"] .cap-rideau-mot{animation:cap-rideau-fondu .35s ease both}
+.cap-rideau[data-calme="1"] .cap-rideau-frange{display:none}
+.cap-rideau[data-calme="1"][data-etat="ferme"] .cap-rideau-moitie{animation:cap-rideau-mot .25s ease both}
+.cap-rideau[data-calme="1"][data-etat="ouvre"]{animation:cap-rideau-fondu .25s ease both}
+.cap-rideau[data-calme="1"][data-etat="ouvre"] .cap-rideau-moitie{animation:none}`;
 
-function Mass({
-  shape,
-  flip,
-  invert,
-  index,
-}: {
-  shape: number;
-  flip: boolean;
-  /** Upside down, for the bank coming from the top. */
-  invert: boolean;
-  index: number;
-}) {
-  const id = useId().replace(/:/g, "");
-  const { lobes, base } = SILHOUETTES[shape];
+const HAUT = [0, 2, 1, 3, 0, 2, 1];
+const BAS = [2, 1, 3, 0, 2, 1, 3];
 
-  return (
-    <svg
-      viewBox="0 0 200 100"
-      className="shrink-0"
-      style={{
-        width: "19%",
-        marginLeft: "-2%",
-        // Staggered heights, so the meeting line is a skyline and not a ruler.
-        marginTop: invert ? `${-2 - (index % 3) * 2}vh` : undefined,
-        marginBottom: invert ? undefined : `${-2 - (index % 3) * 2}vh`,
-        overflow: "visible",
-      }}
-    >
-      <defs>
-        <linearGradient id={`${id}-f`} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="var(--cap-cloud-light)" />
-          <stop offset="52%" stopColor="var(--cap-cloud-mid)" />
-          <stop offset="100%" stopColor="var(--cap-cloud-shade)" />
-        </linearGradient>
-        <filter id={`${id}-s`} x="-40%" y="-40%" width="180%" height="180%">
-          <feGaussianBlur stdDeviation="2" />
-        </filter>
-      </defs>
-      <g
-        filter={`url(#${id}-s)`}
-        fill={`url(#${id}-f)`}
-        transform={[
-          flip ? "translate(200,0) scale(-1,1)" : "",
-          invert ? "translate(0,100) scale(1,-1)" : "",
-        ].filter(Boolean).join(" ") || undefined}
-      >
-        <ellipse cx={base[0]} cy={base[1]} rx={base[2]} ry={base[3]} />
-        {lobes.map(([cx, cy, r], i) => (
-          <circle key={i} cx={cx} cy={cy} r={r} />
-        ))}
-      </g>
-    </svg>
-  );
+/** Le dessin du rideau, en HTML : le même pour la version React et pour la
+ *  copie qui joue l'ouverture. */
+function dessin(teinte: Teinte, label: string): string {
+  const frange = (formes: number[], inverse: boolean) => formes.map((f, i) =>
+    `<div class="cap-rideau-n" style="margin-${inverse ? "top" : "bottom"}:${-(i % 3) * 1.5}vh">` +
+    `<img alt="" src="${nuageSrc(f, 3.5, teinte)}" style="transform:${inverse ? "scaleY(-1)" : ""}${i % 2 ? " scaleX(-1)" : ""}"></div>`).join("");
+  const echap = label.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c] as string);
+  return `<div class="cap-rideau-moitie cap-rideau-haut"><div class="cap-rideau-frange">${frange(HAUT, true)}</div></div>` +
+    `<div class="cap-rideau-moitie cap-rideau-bas"><div class="cap-rideau-frange">${frange(BAS, false)}</div></div>` +
+    `<div class="cap-rideau-lueur"></div><div class="cap-rideau-mot">${echap}</div>`;
+}
+
+function calme(): boolean {
+  try {
+    return localStorage.getItem("tdb_animations") === "off" || matchMedia("(prefers-reduced-motion: reduce)").matches;
+  } catch { return false; }
+}
+
+// La dernière copie posée. Si un autre rideau prend le relais dans la même
+// mise à jour (un Suspense qui cède la place au chargement de l'écran), la
+// copie est retirée avant d'être vue et le nouveau rideau reste fermé, sans
+// rejouer son arrivée : un seul rideau, qui ne s'ouvre qu'une fois.
+let derniere: { el: HTMLElement; t: number } | null = null;
+
+/** Pose la copie qui s'ouvre, puis la retire. */
+function ouvrir(teinte: Teinte, label: string) {
+  if (typeof document === "undefined") return;
+  if (!document.getElementById("cap-rideau-css")) {
+    const st = document.createElement("style");
+    st.id = "cap-rideau-css"; st.textContent = CSS_RIDEAU; document.head.appendChild(st);
+  }
+  const el = document.createElement("div");
+  el.className = "cap-rideau";
+  el.setAttribute("aria-hidden", "true");
+  el.dataset.etat = "ouvre";
+  el.dataset.calme = calme() ? "1" : "0";
+  el.innerHTML = dessin(teinte, label);
+  // Sur la page : le rideau suit le thème, qui est posé sur .cap.
+  (document.querySelector(".cap") ?? document.body).appendChild(el);
+  derniere = { el, t: performance.now() };
+  window.setTimeout(() => el.remove(), 1000);
 }
 
 export function CloudCurtain({
@@ -86,83 +109,40 @@ export function CloudCurtain({
   active: boolean;
   label?: string;
 }) {
-  const reduce = useMouvementReduit();
+  const [teinte, setTeinte] = useState<Teinte>("clair");
+  const [calmeOk, setCalme] = useState(false);
+  const etat = useRef({ active, teinte, label });
+  etat.current = { active, teinte, label };
 
+  useEffect(() => { setTeinte(lireTeinte()); setCalme(calme()); }, []);
+
+  const boite = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    if (active && derniere && performance.now() - derniere.t < 120) {
+      derniere.el.remove(); derniere = null;
+      boite.current?.setAttribute("data-etat", "tenu");
+    }
+  }, [active]);
+
+  // Passage de actif à inactif : l'ouverture.
+  const avant = useRef(active);
+  useLayoutEffect(() => {
+    if (avant.current && !active) ouvrir(teinte, label);
+    avant.current = active;
+  }, [active, teinte, label]);
+  // Retrait pendant qu'il était actif : l'ouverture aussi.
+  useLayoutEffect(() => () => {
+    const e = etat.current;
+    if (e.active) ouvrir(e.teinte, e.label);
+  }, []);
+
+  if (!active) return null;
   return (
-    <AnimatePresence>
-      {active && (
-        <motion.div
-          className="pointer-events-none fixed inset-0 z-[70]"
-          initial={{ opacity: reduce ? 0 : 1 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: reduce ? 0 : 1 }}
-          transition={{ duration: reduce ? 0.25 : 0 }}
-          role="status"
-          aria-live="polite"
-          aria-label={label}
-        >
-          {/* The opaque middle. It is what actually hides the page; the banks
-              are the edges that make it read as cloud. */}
-          <motion.div
-            className="absolute inset-x-0"
-            style={{ backgroundColor: "var(--cap-cloud-mid)" }}
-            initial={reduce ? { top: 0, bottom: 0 } : { top: "38%", bottom: "38%" }}
-            animate={{ top: "0%", bottom: "0%" }}
-            exit={reduce ? {} : { top: "-60%", bottom: "-60%" }}
-            transition={{ duration: 0.62, ease: EASE }}
-          />
-
-          {!reduce && (
-            <>
-              <motion.div
-                className="absolute inset-x-0 top-0 flex w-full items-start"
-                initial={{ y: "-100%" }}
-                animate={{ y: "0%" }}
-                exit={{ y: "-120%" }}
-                transition={{ duration: 0.62, ease: EASE }}
-              >
-                <div className="flex w-full items-start" style={{ transform: "translateY(-1px)" }}>
-                  {TOP_BANK.map((s, i) => (
-                    <Mass key={i} shape={s} flip={i % 2 === 0} invert index={i} />
-                  ))}
-                </div>
-              </motion.div>
-
-              <motion.div
-                className="absolute inset-x-0 bottom-0 flex w-full items-end"
-                initial={{ y: "100%" }}
-                animate={{ y: "0%" }}
-                exit={{ y: "120%" }}
-                transition={{ duration: 0.62, ease: EASE }}
-              >
-                <div className="flex w-full items-end" style={{ transform: "translateY(1px)" }}>
-                  {BOTTOM_BANK.map((s, i) => (
-                    <Mass key={i} shape={s} flip={i % 2 === 1} invert={false} index={i} />
-                  ))}
-                </div>
-              </motion.div>
-            </>
-          )}
-
-          {/* One line in the middle of the weather. It appears late, so a fast
-              load never flashes a word nobody had time to read. */}
-          <motion.div
-            className="absolute inset-0 flex items-center justify-center"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.3, delay: 0.5 }}
-          >
-            <span
-              className="text-[0.82rem] tracking-[0.06em]"
-              style={{ color: "var(--cap-ink-3)" }}
-            >
-              {label}
-            </span>
-          </motion.div>
-        </motion.div>
-      )}
-    </AnimatePresence>
+    <div role="status" aria-live="polite" aria-label={label}>
+      <style id="cap-rideau-css-r" dangerouslySetInnerHTML={{ __html: CSS_RIDEAU }} />
+      <div ref={boite} className="cap-rideau" data-etat="ferme" data-calme={calmeOk ? "1" : "0"}
+        dangerouslySetInnerHTML={{ __html: dessin(teinte, label) }} />
+    </div>
   );
 }
 

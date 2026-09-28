@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { motion, useInView, useMotionValue, useScroll, useSpring, useTransform, type MotionValue, type Variants } from "framer-motion";
+import { Fragment, useEffect, useRef, useState } from "react";
+import { motion, useInView, useMotionValue, useMotionValueEvent, useScroll, useSpring, useTransform, type MotionValue, type Variants } from "framer-motion";
 import { useAnimationsEnabled } from "@/components/design-system";
 import { NuageImage } from "@/components/design-system/NuageImage";
 import { useMouvementReduit } from "@/components/design-system/useMouvementReduit";
@@ -460,6 +460,39 @@ export function Aimant({ children, className, force = 0.3 }: {
  * de gauche filent à gauche, ceux de droite à droite, et grossissent en
  * passant devant.
  */
+const CSS_TRAVERSEE = `.cap-tr{--p:0}
+.cap-tr-rang{--t:clamp(0,(var(--p) - var(--p0)) / (var(--p1) - var(--p0)),1);
+  transform:translate3d(calc(var(--x0) + (var(--x1) - var(--x0)) * var(--t)),calc((var(--p) - .5) * var(--py)),0) scale(calc(var(--s0) + (var(--s1) - var(--s0)) * var(--t)));
+  opacity:calc(var(--om) * min(clamp(0,(var(--p) - var(--oa)) / (var(--ob) - var(--oa)),1),clamp(0,(var(--od) - var(--p)) / (var(--od) - var(--oc)),1)))}
+.cap-tr-voile{opacity:calc(.5 * min(clamp(0,(var(--p) - .3) / .15,1),clamp(0,(.62 - var(--p)) / .17,1)))}
+@keyframes cap-tr-flotte{0%,100%{transform:translate3d(0,0,0)}50%{transform:translate3d(var(--fx),-1.4vh,0)}}
+.cap-tr-flotte{animation:cap-tr-flotte var(--fd) ease-in-out infinite}
+.anim-off .cap-tr-flotte{animation:none}`;
+
+/**
+ * Trois plans, comme une vraie couche nuageuse vue d'avion : le lointain,
+ * petit et pâle, s'écarte à peine ; le milieu s'ouvre ; le proche, flou et
+ * grossissant, passe devant et file vers les bords. Chaque plan monte à sa
+ * propre vitesse (parallaxe), et chaque nuage flotte doucement sur place.
+ *
+ * Tout est calculé en CSS à partir d'une seule variable (--p) : il y avait
+ * ici douze valeurs animées recalculées en JavaScript à chaque pixel.
+ */
+const PLANS_TRAVERSEE: {
+  cote: "g" | "d"; formes: number[]; largeur: string; flou: number;
+  x: [string, string]; s: [number, number]; p: [number, number]; o: [number, number, number, number]; om: number; py: string;
+}[] = [
+  // Le lointain.
+  { cote: "g", formes: [3, 1], largeur: "44%", flou: 7, x: ["4vw", "-26vw"], s: [0.78, 0.95], p: [0.05, 0.85], o: [0.02, 0.2, 0.62, 0.86], om: 0.7, py: "-60px" },
+  { cote: "d", formes: [2, 0], largeur: "44%", flou: 7, x: ["-4vw", "26vw"], s: [0.78, 0.95], p: [0.05, 0.85], o: [0.02, 0.2, 0.62, 0.86], om: 0.7, py: "-60px" },
+  // Le milieu.
+  { cote: "g", formes: [0, 2], largeur: "56%", flou: 3.5, x: ["0vw", "-55vw"], s: [0.85, 1.15], p: [0.12, 0.75], o: [0, 0.2, 0.6, 0.85], om: 1, py: "-110px" },
+  { cote: "d", formes: [1, 3], largeur: "56%", flou: 3.5, x: ["0vw", "55vw"], s: [0.85, 1.15], p: [0.12, 0.75], o: [0, 0.2, 0.6, 0.85], om: 1, py: "-110px" },
+  // Le proche.
+  { cote: "g", formes: [1], largeur: "64%", flou: 5, x: ["-8vw", "-95vw"], s: [1, 1.5], p: [0.25, 0.7], o: [0.2, 0.38, 0.55, 0.72], om: 1, py: "-200px" },
+  { cote: "d", formes: [0], largeur: "64%", flou: 5, x: ["8vw", "95vw"], s: [1, 1.5], p: [0.25, 0.7], o: [0.2, 0.38, 0.55, 0.72], om: 1, py: "-200px" },
+];
+
 export function Traversee({ hauteur = 560 }: { hauteur?: number }) {
   const actifs = useEffetsActifs();
   const ref = useRef<HTMLDivElement>(null);
@@ -467,52 +500,40 @@ export function Traversee({ hauteur = 560 }: { hauteur?: number }) {
   // ça, les cinq traversées recalculaient leurs douze mouvements à chaque
   // pixel de défilement, même tout en haut de la page.
   const proche = useInView(ref, { margin: "400px 0px 400px 0px" });
+  const { scrollYProgress } = useScroll({ target: ref, offset: ["start end", "end start"] });
+  useMotionValueEvent(scrollYProgress, "change", (v) => {
+    if (proche) ref.current?.style.setProperty("--p", v.toFixed(4));
+  });
+  useEffect(() => { ref.current?.style.setProperty("--p", scrollYProgress.get().toFixed(4)); }, [proche, scrollYProgress]);
   if (!actifs) return null;
   return (
     // La bande est aussi haute que les nuages grossis : rien ne dépasse, donc
     // rien n'est coupé net par une ligne droite. Elle chevauche les deux
     // sections voisines (marges négatives) pour ne pas allonger la page.
-    <div ref={ref} aria-hidden className="pointer-events-none relative z-10 overflow-hidden"
+    <div ref={ref} aria-hidden className="cap-tr pointer-events-none relative z-10 overflow-hidden"
       style={{ height: hauteur, marginTop: -hauteur / 2 + 40, marginBottom: -hauteur / 2 + 40 }}>
-      {proche && <CoucheTraversee cible={ref} />}
-    </div>
-  );
-}
-
-function CoucheTraversee({ cible }: { cible: React.RefObject<HTMLDivElement> }) {
-  // Directement lié au défilement, sans ressort : le nuage suit le doigt ou
-  // la molette au pixel près, et s'arrête avec lui. Un ressort continuait de
-  // calculer après l'arrêt et donnait une impression de flottement saccadé.
-  const { scrollYProgress: p } = useScroll({ target: cible, offset: ["start end", "end start"] });
-  const milieuG = useTransform(p, [0.15, 0.75], ["0vw", "-55vw"]);
-  const milieuD = useTransform(p, [0.15, 0.75], ["0vw", "55vw"]);
-  const procheG = useTransform(p, [0.25, 0.7], ["-8vw", "-95vw"]);
-  const procheD = useTransform(p, [0.25, 0.7], ["8vw", "95vw"]);
-  const echMilieu = useTransform(p, [0, 0.75], [0.85, 1.15]);
-  const echProche = useTransform(p, [0.2, 0.7], [1, 1.45]);
-  const opMilieu = useTransform(p, [0, 0.2, 0.6, 0.85], [0, 1, 0.9, 0]);
-  const opProche = useTransform(p, [0.2, 0.38, 0.55, 0.72], [0, 1, 1, 0]);
-  const voile = useTransform(p, [0.3, 0.45, 0.6], [0, 0.5, 0]);
-
-  const rangee = (x: MotionValue<string>, echelle: MotionValue<number>, opacite: MotionValue<number>,
-                  cote: "g" | "d", formes: number[], largeur: string, flou: number) => (
-    <motion.div className={`absolute top-0 flex h-full items-center ${cote === "g" ? "-left-[6%] justify-start" : "-right-[6%] justify-end"}`}
-      style={{ x, scale: echelle, opacity: opacite, width: "72%", willChange: "transform, opacity" }}>
-      {formes.map((f, i) => (
-        <Nuage key={i} forme={f} retourne={cote === "d"} flou={flou}
-          style={{ width: largeur, height: "auto", marginLeft: i ? "-16%" : 0, marginTop: i ? "5%" : 0 }} />
+      <style dangerouslySetInnerHTML={{ __html: CSS_TRAVERSEE }} />
+      {proche && PLANS_TRAVERSEE.map((r, k) => (
+        <Fragment key={k}>
+          {k === 4 && (
+            <div className="cap-tr-voile absolute inset-0"
+              style={{ background: "radial-gradient(ellipse 60% 50% at 50% 50%, var(--cap-cloud-light), transparent 75%)" }} />
+          )}
+          <div className={`cap-tr-rang absolute top-0 flex h-full items-center ${r.cote === "g" ? "-left-[6%] justify-start" : "-right-[6%] justify-end"}`}
+            style={{ width: "72%", willChange: "transform, opacity",
+              ["--x0" as string]: r.x[0], ["--x1" as string]: r.x[1], ["--s0" as string]: r.s[0], ["--s1" as string]: r.s[1],
+              ["--p0" as string]: r.p[0], ["--p1" as string]: r.p[1], ["--oa" as string]: r.o[0], ["--ob" as string]: r.o[1],
+              ["--oc" as string]: r.o[2], ["--od" as string]: r.o[3], ["--om" as string]: r.om, ["--py" as string]: r.py }}>
+            {r.formes.map((f, i) => (
+              <div key={i} className="cap-tr-flotte" style={{ width: r.largeur, marginLeft: i ? "-16%" : 0, marginTop: i ? "5%" : 0, flexShrink: 0,
+                ["--fx" as string]: `${(r.cote === "g" ? -1 : 1) * (0.8 + i * 0.5)}vw`, ["--fd" as string]: `${11 + k * 1.7 + i * 2.3}s` }}>
+                <Nuage forme={f} retourne={r.cote === "d"} flou={r.flou} style={{ width: "100%", height: "auto" }} />
+              </div>
+            ))}
+          </div>
+        </Fragment>
       ))}
-    </motion.div>
-  );
-  return (
-    <>
-      {rangee(milieuG, echMilieu, opMilieu, "g", [0, 2], "56%", 3)}
-      {rangee(milieuD, echMilieu, opMilieu, "d", [1, 3], "56%", 3)}
-      <motion.div className="absolute inset-0"
-        style={{ opacity: voile, background: "radial-gradient(ellipse 60% 50% at 50% 50%, var(--cap-cloud-light), transparent 75%)" }} />
-      {rangee(procheG, echProche, opProche, "g", [1], "64%", 5)}
-      {rangee(procheD, echProche, opProche, "d", [0], "64%", 5)}
-    </>
+    </div>
   );
 }
 

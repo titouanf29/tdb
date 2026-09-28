@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { NuageImage } from "./NuageImage";
-import { motion, useScroll, useSpring, useTransform } from "framer-motion";
+import { useMotionValueEvent, useScroll } from "framer-motion";
 import { useMouvementReduit } from "./useMouvementReduit";
 
 /**
@@ -99,8 +99,17 @@ const CLOUDS: Cloud[] = [
   { x: 58, y: 74, w: 54, shape: 2, dx:  10, dy:  32, grow: 0.24, o: 0.88, out: 0.96 },
 ];
 
+const CSS_CIEL = `.cap-ciel{--p:0}
+.cap-ciel-masse{--u:calc(var(--p) / var(--out));
+  transform:translate3d(calc(var(--dx) * var(--p) * 1%),calc(var(--dy) * var(--p) * 1%),0) scale(calc(1 + var(--grow) * var(--p)));
+  opacity:calc(var(--o) * clamp(0,max(1 - 1.2 * var(--u),.8 * (1 - var(--u))),1))}
+@keyframes cap-ciel-vit{0%,100%{transform:translate3d(0,0,0)}50%{transform:translate3d(var(--vx),var(--vy),0)}}
+.cap-ciel-vit{animation:cap-ciel-vit var(--vd) ease-in-out infinite}
+.anim-off .cap-ciel-vit{animation:none}`;
+
 export function CloudLayer() {
   const reduce = useMouvementReduit();
+  const ref = useRef<HTMLDivElement>(null);
   const { scrollY } = useScroll();
   const [span, setSpan] = useState(0);
 
@@ -114,16 +123,23 @@ export function CloudLayer() {
     return () => window.removeEventListener("resize", measure);
   }, []);
 
-  const raw = useTransform(scrollY, [0, Math.max(span, 1)], [0, 1], { clamp: true });
-  // Smoothed, so a trackpad flick does not make the sky stutter.
-  const progress = useSpring(raw, { stiffness: 80, damping: 30, mass: 0.35 });
+  // Une seule écriture par image : la progression, dans --p. Chaque nuage en
+  // déduit sa place en CSS. Il y avait ici un ressort par nuage et quatre
+  // valeurs animées chacun, recalculés en JavaScript à chaque pixel ; le
+  // ressort, en plus, continuait de calculer après l'arrêt du défilement.
+  const ecrire = (y: number) => {
+    if (span > 0) ref.current?.style.setProperty("--p", Math.min(1, y / span).toFixed(4));
+  };
+  useMotionValueEvent(scrollY, "change", ecrire);
+  useEffect(() => { ecrire(scrollY.get()); });
 
   if (reduce || span === 0) return null;
 
   return (
-    <div aria-hidden className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
+    <div ref={ref} aria-hidden className="cap-ciel pointer-events-none fixed inset-0 z-0 overflow-hidden">
+      <style dangerouslySetInnerHTML={{ __html: CSS_CIEL }} />
       {CLOUDS.map((c, i) => (
-        <CloudMass key={i} cloud={c} progress={progress} />
+        <CloudMass key={i} cloud={c} i={i} />
       ))}
     </div>
   );
@@ -199,42 +215,30 @@ function BankMass({
   );
 }
 
-function CloudMass({
-  cloud,
-  progress,
-}: {
-  cloud: Cloud;
-  progress: ReturnType<typeof useSpring>;
-}) {
-  const opacity = useTransform(
-    progress,
-    [0, cloud.out * 0.5, cloud.out],
-    [cloud.o, cloud.o * 0.4, 0]
-  );
-  const x = useTransform(progress, [0, 1], ["0%", `${cloud.dx}%`]);
-  const y = useTransform(progress, [0, 1], ["0%", `${cloud.dy}%`]);
-  const scale = useTransform(progress, [0, 1], [1, 1 + cloud.grow]);
-
-  // Le nuage est une image pré-dessinée : le grossir ou le déplacer au
-  // défilement ne recalcule plus son flou à chaque image (c'était la
-  // principale cause des saccades en haut de la page).
+function CloudMass({ cloud, i }: { cloud: Cloud; i: number }) {
+  // Deux étages : l'extérieur suit le défilement (--p), l'intérieur respire
+  // doucement tout seul, pour que le ciel vive même quand on ne bouge pas.
   return (
-    <motion.div
+    <div
       aria-hidden
-      className="absolute"
+      className="cap-ciel-masse absolute"
       style={{
         left: `${cloud.x}%`,
         top: `${cloud.y}%`,
         width: `${cloud.w}vw`,
         marginLeft: `-${cloud.w / 2}vw`,
-        opacity,
-        x,
-        y,
-        scale,
         willChange: "transform, opacity",
+        ["--dx" as string]: cloud.dx, ["--dy" as string]: cloud.dy,
+        ["--grow" as string]: cloud.grow, ["--o" as string]: cloud.o, ["--out" as string]: cloud.out,
       }}
     >
-      <NuageImage prioritaire forme={cloud.shape} retourne={cloud.flip} flou={2.2} style={{ width: "100%" }} />
-    </motion.div>
+      <div className="cap-ciel-vit" style={{
+        ["--vx" as string]: `${(i % 2 ? -1 : 1) * (1.2 + (i % 3) * 0.6)}vw`,
+        ["--vy" as string]: `${(i % 3 - 1) * 0.6}vh`,
+        ["--vd" as string]: `${18 + (i * 7) % 14}s`,
+      }}>
+        <NuageImage prioritaire forme={cloud.shape} retourne={cloud.flip} flou={2.2} style={{ width: "100%" }} />
+      </div>
+    </div>
   );
 }

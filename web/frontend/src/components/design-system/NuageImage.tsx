@@ -17,15 +17,17 @@ import { useEffect, useState } from "react";
 
 export type Teinte = "clair" | "sombre";
 
+/** Le thème des nuages, lu sur la page. */
+export function lireTeinte(): Teinte {
+  const s = getComputedStyle(document.querySelector(".cap") ?? document.documentElement);
+  return s.getPropertyValue("--cap-cloud-light").trim().toUpperCase() === "#3B4D63" ? "sombre" : "clair";
+}
+
 /** Le thème des nuages, lu après le premier rendu (clair par défaut). */
 export function useTeinteNuage(): Teinte {
   const [t, setT] = useState<Teinte>("clair");
   useEffect(() => {
-    const lire = () => {
-      const s = getComputedStyle(document.querySelector(".cap") ?? document.documentElement);
-      const light = s.getPropertyValue("--cap-cloud-light").trim().toUpperCase();
-      setT(light === "#3B4D63" ? "sombre" : "clair");
-    };
+    const lire = () => setT(lireTeinte());
     lire();
     const obs = new MutationObserver(lire);
     obs.observe(document.documentElement, { attributes: true, attributeFilter: ["class", "data-theme", "style"] });
