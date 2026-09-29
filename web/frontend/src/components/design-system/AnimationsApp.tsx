@@ -27,17 +27,24 @@ a:hover .cap-fleche,button:hover .cap-fleche{transform:translate3d(3px,0,0)}
 @keyframes cap-app-barre{from{transform:scaleX(0)}}
 .cap-barre{transform-origin:0 50%;transition:transform 1s cubic-bezier(.22,1,.36,1);animation:cap-app-barre 1.1s cubic-bezier(.22,1,.36,1) .3s both}
 .cap-app-main h1{animation:cap-app-monte .6s cubic-bezier(.22,1,.36,1) both}
+.cap-apparait{animation:cap-app-monte .55s cubic-bezier(.22,1,.36,1) both;animation-delay:var(--d,0s)}
+.cap-trait{transform-origin:0 50%;animation:cap-app-barre .6s cubic-bezier(.22,1,.36,1) both;animation-delay:var(--d,.2s)}
+@keyframes cap-app-flotte{0%,100%{transform:translate3d(0,0,0)}50%{transform:translate3d(var(--fx,0),var(--fy,-3px),0)}}
+.cap-dir-fleche{animation:cap-app-flotte 2.6s ease-in-out infinite}
+.cap-plan-seg{transform-origin:var(--o,0%) 50%;animation:cap-app-barre .9s cubic-bezier(.22,1,.36,1) both;animation-delay:var(--d,.3s)}
 @keyframes cap-app-derive{from{transform:translate3d(-40%,0,0)}to{transform:translate3d(140%,0,0)}}
 .cap-carte-nuage{animation:cap-app-derive var(--t,46s) linear infinite;animation-delay:var(--d,0s)}
 @keyframes cap-app-reflet{0%,62%{transform:translate3d(-130%,0,0) skewX(-18deg)}100%{transform:translate3d(330%,0,0) skewX(-18deg)}}
 .cap-carte-reflet{animation:cap-app-reflet 7.5s cubic-bezier(.45,0,.2,1) 1.2s infinite}
 @keyframes cap-app-onde{0%{transform:scale(.6);opacity:.65}100%{transform:scale(2.6);opacity:0}}
 .cap-app-onde{animation:cap-app-onde 2.4s cubic-bezier(.2,.6,.3,1) infinite}
-.anim-off .cap-liste>*,.anim-off .cap-app-mot,.anim-off .cap-pop,.anim-off .cap-carte-nuage,.anim-off .cap-barre,.anim-off .cap-app-main h1{animation:none}
+.anim-off .cap-liste>*,.anim-off .cap-app-mot,.anim-off .cap-pop,.anim-off .cap-carte-nuage,.anim-off .cap-barre,.anim-off .cap-app-main h1,
+.anim-off .cap-apparait,.anim-off .cap-trait,.anim-off .cap-dir-fleche,.anim-off .cap-plan-seg{animation:none}
 .anim-off .cap-carte-reflet,.anim-off .cap-app-onde{display:none}
 .anim-off .cap-barre,.anim-off .cap-puce{transition:none}
 @media (prefers-reduced-motion: reduce){
-  .cap-liste>*,.cap-app-mot,.cap-pop,.cap-carte-nuage,.cap-barre,.cap-app-main h1{animation:none}
+  .cap-liste>*,.cap-app-mot,.cap-pop,.cap-carte-nuage,.cap-barre,.cap-app-main h1,
+  .cap-apparait,.cap-trait,.cap-dir-fleche,.cap-plan-seg{animation:none}
   .cap-carte-reflet,.cap-app-onde{display:none}
   .cap-barre,.cap-puce,.cap-chevron,.cap-fleche{transition:none}
 }`;

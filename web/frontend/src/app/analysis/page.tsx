@@ -4,7 +4,7 @@ import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "rea
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { AnimatePresence } from "framer-motion";
-import { ArrowRight, Loader2, Search, Star } from "lucide-react";
+import { ArrowRight, Loader2, MoveRight, Search, Star, TrendingDown, TrendingUp } from "lucide-react";
 import {
   analysisAPI, favoritesAPI, marketAPI,
   type Analysis, type ChartData, type Figure,
@@ -558,6 +558,9 @@ function AnalysisScreen() {
         {analysis && (
           <>
             <Verdict
+              // Un nouvel actif rejoue l'arrivée du verdict : sans clé, les
+              // chiffres changeaient sous les yeux sans que rien le signale.
+              key={`${analysis.symbol}-${analysis.timeframe}`}
               analysis={analysis}
               assetPrice={assetPrice}
               live={live}
@@ -828,13 +831,23 @@ function Verdict({
               Direction
             </span>
             <div
-              className="mt-1 text-[1.25rem] font-semibold"
+              className="cap-apparait mt-1 flex items-center gap-2 text-[1.25rem] font-semibold"
               style={{
                 fontFamily: "var(--cap-font-display)",
                 color: dir.tone === "up" ? "var(--cap-up)"
                   : dir.tone === "down" ? "var(--cap-down)" : "var(--cap-ink-2)",
+                ["--d" as string]: ".25s",
               }}
             >
+              {/* Le sens, dit aussi par un signe qui bouge doucement dans ce
+                  sens : vers le haut, vers le bas, ou de côté. */}
+              {dir.tone === "up" ? (
+                <TrendingUp aria-hidden className="cap-dir-fleche h-5 w-5" style={{ ["--fy" as string]: "-3px" }} />
+              ) : dir.tone === "down" ? (
+                <TrendingDown aria-hidden className="cap-dir-fleche h-5 w-5" style={{ ["--fy" as string]: "3px" }} />
+              ) : (
+                <MoveRight aria-hidden className="cap-dir-fleche h-5 w-5" style={{ ["--fx" as string]: "3px", ["--fy" as string]: "0px" }} />
+              )}
               {dir.text}
             </div>
           </div>
@@ -858,13 +871,14 @@ function Verdict({
         <span className="text-[0.75rem] uppercase tracking-[0.14em]" style={{ color: "var(--cap-ink-3)" }}>
           Pourquoi
         </span>
-        <ul className="mt-4 space-y-2.5">
-          {reasons.map((r) => (
+        <ul className="cap-liste mt-4 space-y-2.5">
+          {reasons.map((r, i) => (
             <li key={r.text} className="flex gap-3">
               <span
                 aria-hidden
-                className="mt-[0.55rem] h-px w-3 shrink-0"
+                className="cap-trait mt-[0.55rem] h-px w-3 shrink-0"
                 style={{
+                  ["--d" as string]: `${(0.2 + i * 0.07).toFixed(2)}s`,
                   backgroundColor:
                     r.tone === "up" ? "var(--cap-up)"
                     : r.tone === "down" ? "var(--cap-down)"
@@ -880,7 +894,7 @@ function Verdict({
 
       {/* What the engine's own history says — including when it disagrees. */}
       {(edge || scenario) && (
-        <div className="mt-6 border-t pt-5" style={{ borderColor: "var(--cap-line)" }}>
+        <div className="cap-apparait mt-6 border-t pt-5" style={{ borderColor: "var(--cap-line)", ["--d" as string]: ".35s" }}>
           <span className="text-[0.75rem] uppercase tracking-[0.14em]" style={{ color: "var(--cap-ink-3)" }}>
             Ce que dit l&apos;historique
           </span>
@@ -909,11 +923,56 @@ function Verdict({
           </div>
           <Button href={planHref} size="md">
             Ouvrir avec ce plan
-            <ArrowRight className="h-4 w-4" />
+            <ArrowRight className="cap-fleche h-4 w-4" />
           </Button>
+          <PlanBar
+            stop={a.risk.suggested_sl}
+            objectif={a.risk.suggested_tp}
+            cours={live?.price ?? a.price.current}
+          />
         </div>
       )}
     </Panel>
+  );
+}
+
+/**
+ * Le plan, dessiné : de l'invalidation à l'objectif, avec le cours entre les
+ * deux. Le rapport risque / rendement se lit alors d'un coup d'œil — la part
+ * rouge contre la part verte — au lieu d'un « 1 : 2,1 » à décoder. Les deux
+ * segments se tracent depuis le cours, qui apparaît ensuite.
+ */
+function PlanBar({ stop, objectif, cours }: { stop: number; objectif: number; cours: number }) {
+  const bas = Math.min(stop, objectif), haut = Math.max(stop, objectif);
+  if (!(haut > bas) || !Number.isFinite(cours)) return null;
+  const pos = Math.min(0.96, Math.max(0.04, (cours - bas) / (haut - bas)));
+  const stopAGauche = stop < objectif;
+  const gauche = stopAGauche ? "var(--cap-down)" : "var(--cap-up)";
+  const droite = stopAGauche ? "var(--cap-up)" : "var(--cap-down)";
+  const pct = `${(pos * 100).toFixed(1)}%`;
+  return (
+    <div aria-hidden className="w-full pt-1">
+      <div className="relative h-[6px] rounded-full" style={{ backgroundColor: "var(--cap-line)" }}>
+        <span className="cap-plan-seg absolute inset-y-0 left-0 rounded-l-full"
+          style={{ width: pct, backgroundColor: gauche, opacity: 0.85, ["--o" as string]: "100%" }} />
+        <span className="cap-plan-seg absolute inset-y-0 right-0 rounded-r-full"
+          style={{ left: pct, backgroundColor: droite, opacity: 0.85, ["--o" as string]: "0%" }} />
+        {/* Deux étages : le centrage (translate) et l'apparition (scale)
+            ne peuvent pas partager la même propriété transform. */}
+        <span className="absolute top-1/2 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2" style={{ left: pct }}>
+          <span className="cap-pop block h-full w-full rounded-full"
+            style={{ backgroundColor: "var(--cap-surface)", boxShadow: "0 0 0 2px var(--cap-ink), 0 2px 6px rgba(11,23,38,.25)", ["--d" as string]: ".9s" }} />
+        </span>
+      </div>
+      <div className="relative mt-2 flex justify-between text-[0.72rem]" style={{ color: "var(--cap-ink-3)" }}>
+        <span>{stopAGauche ? "Stop" : "Objectif"}</span>
+        {/* Sous le point du cours, tant qu'il ne chevauche pas les bouts. */}
+        {pos > 0.14 && pos < 0.86 && (
+          <span className="absolute top-0 -translate-x-1/2" style={{ left: pct, color: "var(--cap-ink-2)" }}>Cours</span>
+        )}
+        <span>{stopAGauche ? "Objectif" : "Stop"}</span>
+      </div>
+    </div>
   );
 }
 
@@ -947,7 +1006,7 @@ function Intermediate({ analysis: a, assetPrice }: { analysis: Analysis; assetPr
   const w = a.trade_window;
 
   return (
-    <div className="grid gap-5 lg:grid-cols-2">
+    <div className="cap-apparait grid gap-5 lg:grid-cols-2">
       {/* Combien de temps tenir. Le moteur le calculait — bornes, durée
           optimale, niveau de risque, raisons et avertissements, tout en
           français — et rien ne l'affichait. Dans un outil de trading, « je
@@ -1091,7 +1150,7 @@ function Advanced({ analysis: a, assetPrice }: { analysis: Analysis; assetPrice:
   const vol = a.volatility;
 
   return (
-    <div className="grid gap-5 lg:grid-cols-2">
+    <div className="cap-apparait grid gap-5 lg:grid-cols-2">
       {/* Les trois scénarios de prix et l'avis des analystes. Calculés depuis
           toujours, jamais montrés. Ils vont au niveau Avancé parce qu'une
           cible chiffrée se lit comme une promesse quand on débute — alors que
