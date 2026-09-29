@@ -46,8 +46,8 @@ ENGINE_VERSION = "2.1.0"
 # (règle fixée d'avance : meilleure espérance parmi les réglages totalisant
 # au moins 1 000 trades), puis jugé sur les deux dernières, jamais vues :
 # +0,150 R par trade, positif sur 86 % des actifs, contre −0,020 R pour le
-# score 2.0. Il n'est appliqué que là où il a été mesuré : bougies
-# journalières et plus longues. En intraday, le score reste celui de 2.0.
+# score 2.0. Il n'est appliqué que là où il a été mesuré — voir
+# extension_validee() pour l'intraday.
 EXTENSION_POIDS = 0.6
 EXTENSION_PENTE = 5.0      # points de composante par ATR d'écart
 EXTENSION_REPLI = -2.7     # ATR sous la moyenne : repli marqué
@@ -56,8 +56,16 @@ EXTENSION_ETIRE = 4.0      # ATR au-dessus : cours étiré
 
 def extension_validee(timeframe: str | None) -> bool:
     """La composante d'écart n'est active que sur les unités où elle a été
-    mesurée : le journalier et au-delà."""
-    return (timeframe or "1d") in ("1d", "3d", "1w", "1mo")
+    mesurée.
+
+    Journalier et au-delà : voir EXTENSION_POIDS. En bougies d'une heure
+    (2 ans, 40 actifs, mêmes deux périodes), le 2.1 fait aussi mieux que le
+    2.0 avant frais — +0,053 R contre +0,001 R par achat sur la période jamais
+    vue — mais à cette échelle les frais (≈ 0,17 R par aller-retour en
+    médiane) dépassent l'avantage de toutes les règles testées. Les bougies
+    de 4 h, agrégées depuis l'heure, suivent. De 5 à 30 minutes : non
+    mesuré, le score reste celui de 2.0."""
+    return (timeframe or "1d") in ("1h", "4h", "1d", "3d", "1w", "1mo")
 
 
 def compute_score(high, low, close, volume, current_price=None, partial_last=False,
