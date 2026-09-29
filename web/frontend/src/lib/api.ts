@@ -1130,6 +1130,19 @@ export interface TradingStats {
   avg_pnl: number;
 }
 
+export interface ClimatMesure {
+  niveau: number;
+  variation_20: number;
+  variation_20_pct: number | null;
+  bas_1an: number;
+  haut_1an: number;
+  position_1an: number | null;
+  unite: string;
+  date: string;
+  etat: string;
+  phrase: string;
+}
+
 export interface Analysis {
   /** Les signaux nommés que le moteur a relevés, haussiers et baissiers.
    *  Manquait au type alors que l'API les renvoie depuis toujours — donc
@@ -1180,6 +1193,12 @@ export interface Analysis {
     emoji: string;
   };
   trend: string;
+  /** Peur (VIX) et taux US 10 ans : contexte à lire, n'entre pas dans le score. */
+  climat_marche?: {
+    dans_le_score: false;
+    vix?: ClimatMesure;
+    taux_10ans?: ClimatMesure & { variation_20_pb?: number };
+  } | null;
   indicators: {
     /** Écart du cours à sa moyenne 200 bougies, en ATR, et la composante de
      *  score qui en découle (60 % du score depuis le moteur 2.1). */

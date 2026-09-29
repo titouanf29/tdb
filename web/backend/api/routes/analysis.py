@@ -25,6 +25,7 @@ from ._universe import (EXTRA_CRYPTO, extend_market, classify,
                         resolve_zones, zones_summary)
 from ._intent import parse as parse_intent
 from ._opportunity import describe as describe_opportunity
+from ._climat import climat_marche
 from ._market_context import (benchmark_for, compute_market_context,
                               apply_context_gate, regime_series)
 from ._scoring import (compute_score, derive_trend, derive_signal, TIMEFRAME_FETCH, derniere_bougie_en_cours, extension_validee, plan_structurel, NIVEAUX_FENETRE, jours_par_bougie, horizon_rejeu,
@@ -1497,6 +1498,9 @@ async def analyze_asset(
             "factor_directions": S.get("factor_directions"),
             # Regime of the asset's own market, and whether it leads or lags it.
             "market_context": market_context,
+            # Peur (VIX) et taux US 10 ans : contexte à lire, hors score
+            # (voir _climat.py pour la mesure qui l'a décidé).
+            "climat_marche": await climat_marche(),
             # A direction is not a trade. Blockers are listed explicitly so the
             # refusal is auditable rather than a silent downgrade.
             "tradeability": _tradeability(

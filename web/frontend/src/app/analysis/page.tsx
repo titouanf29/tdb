@@ -35,6 +35,7 @@ import { quoteState } from "@/lib/marketOf";
 import { FactorBars, LevelScale } from "@/components/analysis/Gauges";
 import { AskAssistant } from "@/components/analysis/AskAssistant";
 import { PressContext } from "@/components/analysis/PressContext";
+import { ClimatMarche } from "@/components/analysis/ClimatMarche";
 import { MacroContext } from "@/components/analysis/MacroContext";
 import { NoteScanner } from "@/components/analysis/NoteScanner";
 import {
@@ -713,6 +714,10 @@ function AnalysisScreen() {
                 la date de la prochaine décision et le sens habituel de la
                 réaction de CET actif. */}
             <MacroContext symbol={analysis.symbol} />
+
+            {/* La peur et les taux : le climat dans lequel le plan se joue.
+                Contexte à lire, hors score. */}
+            <ClimatMarche climat={analysis.climat_marche} />
 
             {depth !== "discover" && <Intermediate analysis={analysis} assetPrice={assetPrice} />}
             {depth === "advanced" && <Advanced analysis={analysis} assetPrice={assetPrice} />}
