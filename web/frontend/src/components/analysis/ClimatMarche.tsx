@@ -23,6 +23,7 @@ export function ClimatMarche({ climat }: { climat: Analysis["climat_marche"] }) 
   if (!climat || (!climat.vix && !climat.taux_10ans)) return null;
   return (
     <Panel
+      repliable="climat"
       title="Le climat des marchés"
       hint="Contexte à lire — n'entre pas dans le score : mesuré, il n'améliorait pas les signaux de façon stable."
       aside={<Gauge aria-hidden className="h-4 w-4" style={{ color: "var(--cap-ink-3)" }} />}

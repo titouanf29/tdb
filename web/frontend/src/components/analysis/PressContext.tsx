@@ -105,6 +105,7 @@ export function PressContext({
 
   return (
     <Panel
+      repliable="presse"
       title="Ce que dit la presse"
       hint="Les faits de l'actualité reliés à cet actif par un mécanisme économique nommé — et ce que le marché en a fait."
       aside={

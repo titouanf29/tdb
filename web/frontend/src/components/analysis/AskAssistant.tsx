@@ -141,6 +141,7 @@ export function AskAssistant({
 
   return (
     <Panel
+      repliable="assistant"
       title="Demander à l'assistant"
       hint="Il répond à partir des chiffres de cette analyse, pas de généralités."
       aside={

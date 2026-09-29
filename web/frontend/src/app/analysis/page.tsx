@@ -571,16 +571,6 @@ function AnalysisScreen() {
               onToggleFavorite={toggleFavorite}
             />
 
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <Heading level={3} as="h2">Aller plus loin</Heading>
-              <SegmentedControl
-                size="sm"
-                options={DEPTHS}
-                value={depth}
-                onChange={(d) => { setDepth(d); setDepthTouched(true); }}
-                aria-label="Niveau de détail"
-              />
-            </div>
 
             {/* CE QUE CE PLAN VEUT DIRE POUR VOUS.
                 Placé juste sous le verdict et son plan, parce que c'est là
@@ -693,6 +683,32 @@ function AnalysisScreen() {
                 par le scanner, ou si le scan date de plus de six heures. */}
             <NoteScanner symbol={analysis.symbol} format={assetPrice} />
 
+
+            {/* ── Aller plus loin : le détail qu'on choisit de voir. ─────── */}
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <Heading level={3} as="h2">Aller plus loin</Heading>
+              <SegmentedControl
+                size="sm"
+                options={DEPTHS}
+                value={depth}
+                onChange={(d) => { setDepth(d); setDepthTouched(true); }}
+                aria-label="Niveau de détail"
+              />
+            </div>
+
+            {depth !== "discover" && <Intermediate analysis={analysis} assetPrice={assetPrice} />}
+            {depth === "advanced" && <Advanced analysis={analysis} assetPrice={assetPrice} />}
+
+            {/* ── Les compléments, repliés. ──────────────────────────────
+                La page empilait tout au même niveau : presse, banques
+                centrales, climat, assistant, sous le verdict et le prix.
+                Ils restent là, en bas, fermés — leur titre et leur phrase
+                disent ce qu'il y a dedans, un clic les ouvre, et le site
+                retient ceux qu'on a laissés ouverts. */}
+            <div className="flex items-baseline justify-between gap-3 pt-2">
+              <Heading level={3} as="h2">Compléments</Heading>
+              <Text size="caption" as="span">Cliquez pour ouvrir</Text>
+            </div>
             {/* La presse, à tous les niveaux de détail. Un débutant a plus
                 besoin qu'un expert de savoir POURQUOI un actif bouge, et
                 c'est la seule partie de l'écran qui répond à cette
@@ -718,9 +734,6 @@ function AnalysisScreen() {
             {/* La peur et les taux : le climat dans lequel le plan se joue.
                 Contexte à lire, hors score. */}
             <ClimatMarche climat={analysis.climat_marche} />
-
-            {depth !== "discover" && <Intermediate analysis={analysis} assetPrice={assetPrice} />}
-            {depth === "advanced" && <Advanced analysis={analysis} assetPrice={assetPrice} />}
 
             {/* L'assistant en dernier, et à tous les niveaux. C'est la
                 question qu'on se pose APRÈS avoir lu, pas avant. */}

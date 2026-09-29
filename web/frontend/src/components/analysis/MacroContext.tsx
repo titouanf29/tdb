@@ -41,6 +41,7 @@ export function MacroContext({ symbol }: { symbol: string }) {
 
   return (
     <Panel
+      repliable="banques-centrales"
       title="Banques centrales"
       hint="Comment cet actif réagit aux décisions de la Fed et de la BCE, et quand tombent les prochaines."
       aside={
