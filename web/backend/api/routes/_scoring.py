@@ -26,7 +26,7 @@ def _safe(value, default=None, ndigits=None):
 # Stamped on every analysis so a position opened three months ago can be
 # traced back to the engine that produced it. Bump on any change that moves
 # scores: MINOR for new outputs, MAJOR for a change of meaning.
-ENGINE_VERSION = "2.1.0"
+ENGINE_VERSION = "2.2.0"
 
 
 # ── L'écart à la moyenne 200 bougies (moteur 2.1) ───────────────────────────
@@ -54,6 +54,61 @@ EXTENSION_REPLI = -2.7     # ATR sous la moyenne : repli marqué
 EXTENSION_ETIRE = 4.0      # ATR au-dessus : cours étiré
 
 
+# ── Le plan : stop et objectif ──────────────────────────────────────────────
+#
+# UNE SEULE FONCTION pour l'écran et pour le rejeu historique. L'analyse
+# ancrait son stop sous le support et plafonnait son objectif à la
+# résistance, pendant que le rejeu posait des barrières en purs multiples
+# d'ATR : l'historique jugeait un autre plan que celui affiché, puis ce
+# jugement pouvait bloquer le plan affiché.
+NIVEAUX_FENETRE = 20   # bougies qui définissent support et résistance
+
+
+def plan_structurel(prix: float, atr: float, support: float, resistance: float,
+                    vente: bool, sl_atr: float, tp_atr: float) -> dict:
+    """Stop et objectif d'un plan, ancrés sur la structure.
+
+    Un niveau ne compte comme ancre ou obstacle qu'à une distance d'au moins
+    1 ATR : sur un plus haut ou un plus bas récent, l'extrême des 20 bougies
+    EST le cours, et il ne doit pas étrangler le plan."""
+    base, plafonne = "atr", False
+    if vente:
+        sl = prix + atr * sl_atr
+        if (resistance - prix) >= atr and (resistance + atr * 0.5) < sl:
+            sl, base = resistance + atr * 0.5, "resistance"
+        tp = prix - atr * tp_atr
+        if tp < support < prix and (prix - support) >= atr:
+            tp, plafonne = support, True
+    else:
+        sl = prix - atr * sl_atr
+        if (prix - support) >= atr and (support - atr * 0.5) > sl:
+            sl, base = support - atr * 0.5, "support"
+        tp = prix + atr * tp_atr
+        if prix < resistance < tp and (resistance - prix) >= atr:
+            tp, plafonne = resistance, True
+    return {"sl": sl, "tp": tp, "sl_basis": base, "tp_capped": plafonne}
+
+
+_JOURS_FIXES = {"1d": 1.0, "3d": 3 * 5 / 7, "1w": 5.0, "1mo": 21.0}
+
+
+def jours_par_bougie(hist, timeframe: str | None) -> float:
+    """Séances de bourse couvertes par une bougie.
+
+    Au-dessus du jour, une constante (une semaine = 5 séances). En intraday,
+    mesuré sur les données : c'est l'inverse du nombre médian de bougies par
+    date. Une bougie d'une heure vaut ainsi 1/7 de séance sur une action
+    (7 bougies par jour) et 1/24 sur une crypto, qui cote en continu."""
+    tf = timeframe or "1d"
+    if tf in _JOURS_FIXES:
+        return _JOURS_FIXES[tf]
+    try:
+        par_jour = float(pd.Series(1, index=hist.index).groupby(hist.index.date).size().median())
+        return 1.0 / par_jour if par_jour >= 1 else 1.0
+    except Exception:
+        return 1.0
+
+
 def extension_validee(timeframe: str | None) -> bool:
     """La composante d'écart n'est active que sur les unités où elle a été
     mesurée.
@@ -69,7 +124,7 @@ def extension_validee(timeframe: str | None) -> bool:
 
 
 def compute_score(high, low, close, volume, current_price=None, partial_last=False,
-                  extension=True):
+                  extension=True, jours_par_bougie=1.0):
     """Compute indicators + score on a full OHLCV history (causal only).
 
     partial_last — the last bar is still forming (market open, or the day /
@@ -78,7 +133,13 @@ def compute_score(high, low, close, volume, current_price=None, partial_last=Fal
     thin during the session: the volume component fell by up to 20 points
     and "Volume très faible" appeared, always pushing the score down. The
     volume reading then uses the last COMPLETED bar instead.
+
+    jours_par_bougie — combien de séances une bougie représente (1 en
+    journalier, ≈ 0,15 pour une bougie d'une heure sur une action, 5 en
+    hebdomadaire). Les seuils de momentum et de volatilité, écrits pour des
+    bougies d'un jour, s'y ajustent ; voir le bloc MOMENTUM.
     """
+    _k = max(float(jours_par_bougie or 1.0), 1e-6) ** 0.5
     # RSI — Wilder's smoothing (matches TradingView/broker values)
     rsi = rsi_wilder(close)
     current_rsi = rsi.iloc[-1]
@@ -301,8 +362,9 @@ def compute_score(high, low, close, volume, current_price=None, partial_last=Fal
         bearish_signals.append(f"Volume élevé à la baisse ({nombre_fr(volume_ratio, 1)}x la moyenne)")
     elif volume_ratio < 0.5: bearish_signals.append("Volume très faible")
 
-    if momentum_10d > 5:   bullish_signals.append(f"Momentum 10j fort (+{nombre_fr(momentum_10d, 1)}%)")
-    elif momentum_10d < -5: bearish_signals.append(f"Momentum 10j faible ({nombre_fr(momentum_10d, 1)}%)")
+    _m10 = "10j" if abs(_k - 1) < 1e-9 else "10 bougies"
+    if momentum_10d / _k > 5:   bullish_signals.append(f"Momentum {_m10} fort (+{nombre_fr(momentum_10d, 1)}%)")
+    elif momentum_10d / _k < -5: bearish_signals.append(f"Momentum {_m10} faible ({nombre_fr(momentum_10d, 1)}%)")
 
     # NOTE: conviction_score is computed further down, from factor agreement
     # rather than from this signal tally. Counting the ~32 signals above as
@@ -433,26 +495,37 @@ def compute_score(high, low, close, volume, current_price=None, partial_last=Fal
         volume_score = 50  # neutre : il n'y a rien à lire
 
     # 4. MOMENTUM SCORE (multi-period: 3d, 10d, 20d)
+    #
+    # LES SEUILS SONT ÉCRITS POUR DES BOUGIES D'UN JOUR. « +8 % sur 10
+    # bougies » est une forte hausse en journalier et n'arrive presque jamais
+    # en bougies de 15 minutes : la composante restait collée à 50 en
+    # intraday, et sur-réagissait en hebdomadaire. Les mouvements sont donc
+    # ramenés à l'échelle d'un jour (une variation croît comme la racine du
+    # temps) avant d'être comparés aux mêmes seuils. En journalier, le
+    # facteur vaut 1 : rien ne change.
+    momentum_3d_j = momentum_3d / _k
+    momentum_10d_j = momentum_10d / _k
+    momentum_20d_j = momentum_20d / _k
     momentum_score = 50
 
-    if momentum_3d > 3:    momentum_score += 8
-    elif momentum_3d > 1:  momentum_score += 4
-    elif momentum_3d < -3: momentum_score -= 8
-    elif momentum_3d < -1: momentum_score -= 4
+    if momentum_3d_j > 3:    momentum_score += 8
+    elif momentum_3d_j > 1:  momentum_score += 4
+    elif momentum_3d_j < -3: momentum_score -= 8
+    elif momentum_3d_j < -1: momentum_score -= 4
 
-    if momentum_10d > 8:    momentum_score += 15
-    elif momentum_10d > 4:  momentum_score += 9
-    elif momentum_10d > 1:  momentum_score += 4
-    elif momentum_10d < -8: momentum_score -= 15
-    elif momentum_10d < -4: momentum_score -= 9
-    elif momentum_10d < -1: momentum_score -= 4
+    if momentum_10d_j > 8:    momentum_score += 15
+    elif momentum_10d_j > 4:  momentum_score += 9
+    elif momentum_10d_j > 1:  momentum_score += 4
+    elif momentum_10d_j < -8: momentum_score -= 15
+    elif momentum_10d_j < -4: momentum_score -= 9
+    elif momentum_10d_j < -1: momentum_score -= 4
 
-    if momentum_20d > 15:    momentum_score += 18
-    elif momentum_20d > 8:   momentum_score += 10
-    elif momentum_20d > 3:   momentum_score += 5
-    elif momentum_20d < -15: momentum_score -= 18
-    elif momentum_20d < -8:  momentum_score -= 10
-    elif momentum_20d < -3:  momentum_score -= 5
+    if momentum_20d_j > 15:    momentum_score += 18
+    elif momentum_20d_j > 8:   momentum_score += 10
+    elif momentum_20d_j > 3:   momentum_score += 5
+    elif momentum_20d_j < -15: momentum_score -= 18
+    elif momentum_20d_j < -8:  momentum_score -= 10
+    elif momentum_20d_j < -3:  momentum_score -= 5
 
     momentum_score = max(0, min(100, momentum_score))
 
@@ -482,13 +555,14 @@ def compute_score(high, low, close, volume, current_price=None, partial_last=Fal
         # Under ~60 bars a rank carries no information; fall back to absolute
         # bands and report which basis was used rather than pretending.
         vol_percentile = None
-        if bb_width_pct < 5:    volatility_score = 80
-        elif bb_width_pct < 10: volatility_score = 65
-        elif bb_width_pct < 18: volatility_score = 55
-        elif bb_width_pct < 28: volatility_score = 40
+        _bbw_j = bb_width_pct / _k      # à l'échelle d'un jour, comme le momentum
+        if _bbw_j < 5:    volatility_score = 80
+        elif _bbw_j < 10: volatility_score = 65
+        elif _bbw_j < 18: volatility_score = 55
+        elif _bbw_j < 28: volatility_score = 40
         else:                   volatility_score = 30
-        if relative_atr > 5:   volatility_score -= 10
-        elif relative_atr < 1: volatility_score += 5
+        if relative_atr / _k > 5:   volatility_score -= 10
+        elif relative_atr / _k < 1: volatility_score += 5
         vol_basis = "absolute"
 
     volatility_score = max(0, min(100, volatility_score))

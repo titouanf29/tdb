@@ -26,7 +26,9 @@ them comparable across assets and timeframes.
 import numpy as np
 import pandas as pd
 
-from ._scoring import compute_score, ENGINE_VERSION
+from ._scoring import (compute_score, ENGINE_VERSION, plan_structurel, NIVEAUX_FENETRE,
+                       htf_from_primary, htf_trend, apply_htf_gate)
+from ._market_context import compute_market_context, apply_context_gate
 
 BUCKETS = [
     (0, 25, "STRONG SELL (0-24)"),
@@ -164,6 +166,10 @@ def run_backtest(
     mode: str = "event",
     regimes: "pd.Series | None" = None,
     extension: bool = True,
+    timeframe: "str | None" = None,
+    bench_close: "pd.Series | None" = None,
+    bench_symbol: "str | None" = None,
+    jours_par_bougie: float = 1.0,
 ) -> dict:
     """Replay the engine bar by bar, with no lookahead, and label by barriers.
 
@@ -175,7 +181,18 @@ def run_backtest(
     mode="overlapping" score every eligible bar — more samples, but they
                        share most of their bars; useful to study behaviour,
                        never to claim significance.
+
+    LE REJEU JUGE LE SIGNAL ET LE PLAN AFFICHÉS, PAS UNE VERSION SIMPLIFIÉE.
+    Avec `timeframe` (et `bench_close`), le score de chaque date passée passe
+    par les mêmes portes que l'écran — unité supérieure (±8), contexte du
+    marché de référence (±6), figures mesurées — calculées sur les seules
+    données connues à cette date. Le stop et l'objectif viennent de
+    plan_structurel(), la fonction de l'écran. Avant, l'historique mesurait
+    le score brut et des barrières en purs multiples d'ATR, puis ce verdict
+    pouvait bloquer un plan qu'il n'avait jamais joué.
     """
+    if timeframe:
+        from ._figures import appliquer_figures  # import tardif : module lourd
     n = len(hist)
     highs = hist["High"].to_numpy(dtype=float)
     lows = hist["Low"].to_numpy(dtype=float)
@@ -215,11 +232,31 @@ def run_backtest(
             S = compute_score(
                 window["High"], window["Low"], window["Close"], window["Volume"],
                 current_price=entry, extension=extension,
+                jours_par_bougie=jours_par_bougie,
             )
         except Exception:
             continue
         n_evaluated += 1
         score = float(S["final_score"])
+        # Les portes de l'écran, dans son ordre, sur les données d'alors.
+        if timeframe:
+            try:
+                _htf = htf_from_primary(window, timeframe)
+                if _htf:
+                    score, _, _, _ = apply_htf_gate(score, htf_trend(_htf[1]), _htf[0])
+            except Exception:
+                pass
+            if bench_close is not None and bench_symbol:
+                try:
+                    _b = bench_close[bench_close.index <= window.index[-1]]
+                    score, _, _ = apply_context_gate(
+                        score, compute_market_context(window["Close"], _b, bench_symbol))
+                except Exception:
+                    pass
+            try:
+                score, _, _, _ = appliquer_figures(score, window, timeframe, entry)
+            except Exception:
+                pass
         atr = float(S["atr"]) if S["atr"] and not pd.isna(S["atr"]) else 0.0
         if atr <= 0:
             continue
@@ -236,10 +273,17 @@ def run_backtest(
         else:
             continue  # HOLD is not a trade — counting it as one would be dishonest
 
-        risk = sl_atr * atr
-        reward = tp_atr * atr
-        stop = entry - risk if is_long else entry + risk
-        target = entry + reward if is_long else entry - reward
+        # Le plan de l'écran : stop sous le support, objectif plafonné à la
+        # résistance, sur les NIVEAUX_FENETRE dernières bougies connues.
+        _plan = plan_structurel(
+            entry, atr,
+            float(window["Low"].tail(NIVEAUX_FENETRE).min()),
+            float(window["High"].tail(NIVEAUX_FENETRE).max()),
+            not is_long, sl_atr, tp_atr)
+        stop, target = _plan["sl"], _plan["tp"]
+        risk = abs(entry - stop)
+        if risk <= 0:
+            continue
 
         outcome, exit_px, bars = _walk_barriers(
             highs, lows, closes, t, horizon, entry, stop, target, is_long, opens

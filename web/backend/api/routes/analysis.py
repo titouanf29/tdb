@@ -27,7 +27,7 @@ from ._intent import parse as parse_intent
 from ._opportunity import describe as describe_opportunity
 from ._market_context import (benchmark_for, compute_market_context,
                               apply_context_gate, regime_series)
-from ._scoring import (compute_score, derive_trend, derive_signal, TIMEFRAME_FETCH, derniere_bougie_en_cours, extension_validee,
+from ._scoring import (compute_score, derive_trend, derive_signal, TIMEFRAME_FETCH, derniere_bougie_en_cours, extension_validee, plan_structurel, NIVEAUX_FENETRE, jours_par_bougie,
                        HIGHER_TF, htf_trend, apply_htf_gate, resample_ohlcv,
                        htf_from_primary, ENGINE_VERSION)
 from ._backtest import run_backtest
@@ -508,7 +508,8 @@ def _fetch_news_sync(ticker):
 
 
 def _historical_edge_sync(symbol: str, timeframe: str, hist, sl_atr: float,
-                          tp_atr: float, bench_close=None, current_regime: str | None = None) -> dict:
+                          tp_atr: float, bench_close=None, current_regime: str | None = None,
+                          bench_symbol: str | None = None) -> dict:
     """Triple-barrier replay of THIS asset's history with the user's own
     stop/target, cached for an hour.
 
@@ -518,7 +519,7 @@ def _historical_edge_sync(symbol: str, timeframe: str, hist, sl_atr: float,
     but "what followed it here, in a market like today's?".
     """
     import time as _time
-    key = (symbol, timeframe, round(sl_atr, 2), round(tp_atr, 2), current_regime or "-")
+    key = (symbol, timeframe, round(sl_atr, 2), round(tp_atr, 2), current_regime or "-", ENGINE_VERSION)
     hit = _EDGE_CACHE.get(key)
     if hit and _time.monotonic() - hit[0] < _EDGE_TTL:
         return hit[1]
@@ -532,9 +533,14 @@ def _historical_edge_sync(symbol: str, timeframe: str, hist, sl_atr: float,
         # Coarser sampling than the explicit backtest button (120 vs 250
         # evaluations): this runs on the first analysis of every asset, and
         # the trade count it yields is what matters, not the grid density.
+        # Le rejeu du signal AFFICHÉ : mêmes portes, même plan, mêmes seuils
+        # à l'échelle de la bougie que l'écran.
         r = run_backtest(hist, horizon=10, sl_atr=sl_atr, tp_atr=tp_atr,
                          mode="event", max_evals=120, regimes=regimes,
-                         extension=extension_validee(timeframe))
+                         extension=extension_validee(timeframe),
+                         timeframe=timeframe, bench_close=bench_close,
+                         bench_symbol=bench_symbol,
+                         jours_par_bougie=jours_par_bougie(hist, timeframe))
         edge = {
             "n_trades": r.get("n_trades", 0),
             "enough_samples": r.get("enough_samples", False),
@@ -946,9 +952,11 @@ async def analyze_asset(
         except Exception:
             pass  # keep OHLCV-derived values as fallback
 
+        _jpb = jours_par_bougie(hist, timeframe)
         S = compute_score(high, low, close, volume, current_price=current_price,
                           partial_last=derniere_bougie_en_cours(hist, timeframe),
-                          extension=extension_validee(timeframe))
+                          extension=extension_validee(timeframe),
+                          jours_par_bougie=_jpb)
         close_clean = S["close_clean"]; vol_clean = S["vol_clean"]
         avg_volume = S["avg_volume"]; volume_ratio = S["volume_ratio"]
         rsi = S["rsi"]; current_rsi = S["current_rsi"]; rsi_divergence = S["rsi_divergence"]
@@ -1031,7 +1039,7 @@ async def analyze_asset(
 
         _edge_fut = _loop.run_in_executor(
             None, _historical_edge_sync, symbol, timeframe, hist, sl_atr, tp_atr,
-            _bench_close, (market_context or {}).get("regime"))
+            _bench_close, (market_context or {}).get("regime"), _bench)
 
         # Determine trend (based on EMA alignment) — shared with the scanner
         trend = derive_trend(current_price, float(ema20.iloc[-1]), float(ema50.iloc[-1]))
@@ -1041,7 +1049,7 @@ async def analyze_asset(
         # 20 months on a monthly one. The window is reported alongside the
         # levels so a support 20% below the price is read as the multi-year
         # floor it is, not as an intraday level.
-        _levels_window = 20
+        _levels_window = NIVEAUX_FENETRE
         recent_low = low.tail(_levels_window).min()
         recent_high = high.tail(_levels_window).max()
 
@@ -1174,30 +1182,19 @@ async def analyze_asset(
         # extreme IS the current price and must not strangle the plan.
         # Multiples come from the trading profile (query), so this plan, the
         # setups and the backtest describe ONE stop and ONE target.
+        _plan = plan_structurel(current_price, atr, _support, _resistance,
+                                is_short_setup, sl_atr, tp_atr)
+        _sl, _tp = _plan["sl"], _plan["tp"]
+        sl_basis, tp_capped = _plan["sl_basis"], _plan["tp_capped"]
+        if tp_capped:
+            risk_notes.append("Objectif plafonné au support — premier obstacle structurel" if is_short_setup
+                              else "Objectif plafonné à la résistance — premier obstacle structurel")
         if is_short_setup:
-            _sl = current_price + atr * sl_atr
-            if (_resistance - current_price) >= atr and (_resistance + atr * 0.5) < _sl:
-                _sl = _resistance + atr * 0.5
-                sl_basis = "resistance"
-            _tp = current_price - atr * tp_atr
-            if _tp < _support < current_price and (current_price - _support) >= atr:
-                _tp = _support
-                tp_capped = True
-                risk_notes.append("Objectif plafonné au support — premier obstacle structurel")
             _sl_t = current_price + atr * sl_atr * 0.5
             # « Prudent » veut dire plus proche : jamais au-delà de l'objectif
             # principal, même quand celui-ci a été ramené au support.
             _tp_c = max(current_price - atr * tp_atr * 0.5, _tp)
         else:
-            _sl = current_price - atr * sl_atr
-            if (current_price - _support) >= atr and (_support - atr * 0.5) > _sl:
-                _sl = _support - atr * 0.5
-                sl_basis = "support"
-            _tp = current_price + atr * tp_atr
-            if current_price < _resistance < _tp and (_resistance - current_price) >= atr:
-                _tp = _resistance
-                tp_capped = True
-                risk_notes.append("Objectif plafonné à la résistance — premier obstacle structurel")
             _sl_t = current_price - atr * sl_atr * 0.5
             _tp_c = min(current_price + atr * tp_atr * 0.5, _tp)
 
@@ -1316,9 +1313,19 @@ async def analyze_asset(
             pass
 
         # Historical performance
-        hist_1m = ((close.iloc[-1] - close.iloc[-22]) / close.iloc[-22] * 100) if len(close) > 22 else None
-        hist_3m = ((close.iloc[-1] - close.iloc[-66]) / close.iloc[-66] * 100) if len(close) > 66 else None
-        hist_6m = ((close.iloc[-1] - close.iloc[-132]) / close.iloc[-132] * 100) if len(close) > 132 else None
+        # Au calendrier, pas en nombre de bougies : « 1 mois » valait 22
+        # bougies, soit 22 heures en horaire et 5 mois en hebdomadaire.
+        def _perf_mois(mois: int):
+            try:
+                c = close.dropna()
+                depart = c.index[-1] - pd.DateOffset(months=mois)
+                if c.index[0] > depart:
+                    return None   # l'historique ne remonte pas si loin
+                base = float(c[c.index <= depart].iloc[-1])
+                return (float(c.iloc[-1]) - base) / base * 100 if base else None
+            except Exception:
+                return None
+        hist_1m, hist_3m, hist_6m = _perf_mois(1), _perf_mois(3), _perf_mois(6)
         hist_ytd = None
         try:
             ytd_start = close[close.index.year == close.index[-1].year].iloc[0]
@@ -1337,8 +1344,13 @@ async def analyze_asset(
 
         # Volatility analysis
         daily_returns = close.pct_change().dropna()
-        volatility_20d = daily_returns.tail(20).std() * np.sqrt(252) * 100
-        volatility_60d = daily_returns.tail(60).std() * np.sqrt(252) * 100 if len(daily_returns) > 60 else None
+        # Annualisée avec le bon nombre de bougies par an : √252 supposait
+        # des bougies d'un jour — la volatilité d'une bougie de 5 minutes en
+        # sortait ~9 fois trop basse, celle d'une bougie hebdomadaire ~2 fois
+        # trop haute, et elle nourrit la durée de détention conseillée.
+        _bougies_an = 252.0 / max(_jpb, 1e-6)
+        volatility_20d = daily_returns.tail(20).std() * np.sqrt(_bougies_an) * 100
+        volatility_60d = daily_returns.tail(60).std() * np.sqrt(_bougies_an) * 100 if len(daily_returns) > 60 else None
 
         # Price targets based on ATR multiples + trend context
         atr_mult_bull = 4.0 if trend == "BULLISH" else 2.5
@@ -2076,7 +2088,8 @@ async def scan_market(
 
             S = compute_score(high, low, close, vol, current_price=price,
                               partial_last=derniere_bougie_en_cours(hist, timeframe),
-                              extension=extension_validee(timeframe))
+                              extension=extension_validee(timeframe),
+                              jours_par_bougie=jours_par_bougie(hist, timeframe))
             final_score = S["final_score"]
             ups   = list(S["bullish_signals"])
             downs = list(S["bearish_signals"])
@@ -2714,12 +2727,28 @@ async def backtest_symbol(
     if hist is None or hist.empty or len(hist) < 90:
         raise HTTPException(status_code=400, detail="Historique insuffisant pour un backtest (minimum 90 bougies)")
 
+    # Le marché de référence, comme pour l'analyse : sans lui, le rejeu
+    # ne peut pas appliquer la porte de contexte que l'écran applique.
+    _bench, _bench_close = benchmark_for(symbol), None
+    if _bench:
+        try:
+            _bh = await fetch_ohlcv(_bench, period=fetch_period, interval=fetch_interval)
+            if timeframe == "4h" and _bh is not None and not _bh.empty:
+                _bh = resample_ohlcv(_bh, "4h")
+            if _bh is not None and not _bh.empty:
+                _bench_close = _bh["Close"]
+        except Exception:
+            _bench_close = None
+
     loop = asyncio.get_event_loop()
     result = await loop.run_in_executor(
         None,
         lambda: run_backtest(hist, horizon=horizon, sl_atr=sl_atr, tp_atr=tp_atr,
                              cost_bps=cost_bps, mode=mode,
-                             extension=extension_validee(timeframe)),
+                             extension=extension_validee(timeframe),
+                             timeframe=timeframe, bench_close=_bench_close,
+                             bench_symbol=_bench,
+                             jours_par_bougie=jours_par_bougie(hist, timeframe)),
     )
 
     return _sanitize({
