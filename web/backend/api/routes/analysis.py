@@ -27,7 +27,7 @@ from ._intent import parse as parse_intent
 from ._opportunity import describe as describe_opportunity
 from ._market_context import (benchmark_for, compute_market_context,
                               apply_context_gate, regime_series)
-from ._scoring import (compute_score, derive_trend, derive_signal, TIMEFRAME_FETCH, derniere_bougie_en_cours,
+from ._scoring import (compute_score, derive_trend, derive_signal, TIMEFRAME_FETCH, derniere_bougie_en_cours, extension_validee,
                        HIGHER_TF, htf_trend, apply_htf_gate, resample_ohlcv,
                        htf_from_primary, ENGINE_VERSION)
 from ._backtest import run_backtest
@@ -533,7 +533,8 @@ def _historical_edge_sync(symbol: str, timeframe: str, hist, sl_atr: float,
         # evaluations): this runs on the first analysis of every asset, and
         # the trade count it yields is what matters, not the grid density.
         r = run_backtest(hist, horizon=10, sl_atr=sl_atr, tp_atr=tp_atr,
-                         mode="event", max_evals=120, regimes=regimes)
+                         mode="event", max_evals=120, regimes=regimes,
+                         extension=extension_validee(timeframe))
         edge = {
             "n_trades": r.get("n_trades", 0),
             "enough_samples": r.get("enough_samples", False),
@@ -571,6 +572,21 @@ _REGIME_FR = {"BULL": "marché haussier", "BEAR": "marché baissier", "NEUTRAL":
 # objectif, a déjà été joué et a perdu.
 EDGE_BRUIT = -0.05
 EDGE_BLOQUANT = -0.25
+
+# LA VENTE À DÉCOUVERT N'EST PROPOSÉE QUE LÀ OÙ ELLE A PAYÉ.
+#
+# Mesuré en septembre 2026 sur 40 actifs (actions US, Europe, Japon, crypto,
+# matières premières, indices, devises), 5 ans de bougies journalières,
+# stop 2 ATR, objectif 3 ATR, frais inclus, sans regard vers le futur : les
+# plans de vente du moteur ont perdu 0,16 R par trade sur plus de 4 000
+# trades, sur 36 actifs sur 40, et autant sur les trois premières années que
+# sur les deux dernières. Filtrer par la tendance ne les sauvait pas.
+#
+# Le verdict baissier reste affiché — c'est une lecture du marché, elle a sa
+# valeur — mais le plan qui l'accompagne devient un exemple, sauf si
+# l'historique de CET actif, dans CE sens, dit le contraire.
+VENTE_MINIMUM_R = 0.10
+VENTE_ETUDE = "−0,16 R par trade sur plus de 4 000 ventes, 36 actifs sur 40, 5 ans de données"
 
 
 def edge_du_sens(edge: dict, direction: str | None) -> dict | None:
@@ -704,6 +720,7 @@ def _tradeability(
     factor_agreement: int | None,
     edge_sens: dict | None = None,
     neutre: bool = False,
+    vente_non_prouvee: bool = False,
 ) -> dict:
     """Is this direction actually worth acting on?
 
@@ -718,6 +735,12 @@ def _tradeability(
 
     if neutre:
         blockers.append("Verdict neutre — le moteur ne voit pas de sens assez net pour proposer un trade")
+    if vente_non_prouvee:
+        blockers.append(
+            "Score bas : ce n'est pas le moment d'acheter. Le moteur ne propose pas pour "
+            "autant de vendre à découvert — ses plans de vente ont perdu en moyenne "
+            f"({VENTE_ETUDE})."
+        )
     if risk_reward is not None and risk_reward < 1.2:
         blockers.append(f"Rapport gain/risque de {nombre_fr(risk_reward, 1)} — sous 1,2, le setup rémunère mal le risque")
     if data_stale:
@@ -924,7 +947,8 @@ async def analyze_asset(
             pass  # keep OHLCV-derived values as fallback
 
         S = compute_score(high, low, close, volume, current_price=current_price,
-                          partial_last=derniere_bougie_en_cours(hist, timeframe))
+                          partial_last=derniere_bougie_en_cours(hist, timeframe),
+                          extension=extension_validee(timeframe))
         close_clean = S["close_clean"]; vol_clean = S["vol_clean"]
         avg_volume = S["avg_volume"]; volume_ratio = S["volume_ratio"]
         rsi = S["rsi"]; current_rsi = S["current_rsi"]; rsi_divergence = S["rsi_divergence"]
@@ -1187,9 +1211,17 @@ async def analyze_asset(
         _plan_neutre = 40 <= final_score < 60
         if _plan_neutre:
             risk_notes.append("Verdict neutre : ce plan à l'achat est un exemple, pas une recommandation")
+        _vente_prouvee = bool(
+            is_short_setup and _edge_sens and _edge_sens.get("base") == "directionnelle"
+            and _edge_sens.get("fiable")
+            and (_edge_sens.get("expectancy_net_r") or 0) >= VENTE_MINIMUM_R
+        )
+        _vente_non_prouvee = is_short_setup and not _vente_prouvee
+        if _vente_non_prouvee:
+            risk_notes.append("Plan de vente donné en exemple — historiquement, les ventes de ce moteur n'ont pas payé")
         risk_block = {
             "direction":                 "SHORT" if is_short_setup else "LONG",
-            "illustratif":               _plan_neutre,
+            "illustratif":               _plan_neutre or _vente_non_prouvee,
             "suggested_sl":              _px(_sl),
             "suggested_tp":              _px(_tp),
             "suggested_sl_tight":        _px(_sl_t),
@@ -1428,6 +1460,7 @@ async def analyze_asset(
                 # moyenne des deux sens.
                 edge_sens=_edge_sens,
                 neutre=_plan_neutre,
+                vente_non_prouvee=_vente_non_prouvee,
             ),
             "higher_timeframe": higher_tf_info,
             "conviction": {
@@ -1442,6 +1475,12 @@ async def analyze_asset(
             },
             "trend": trend,
             "indicators": {
+                # L'écart du cours à sa moyenne 200 bougies, en ATR — la
+                # composante qui pèse 60 % du score depuis le moteur 2.1.
+                "extension": {
+                    "atr": _safe(S.get("extension_atr"), None, 2),
+                    "score": S.get("extension_score"),
+                },
                 "rsi": {
                     "value": _safe(current_rsi, 50.0, 1),
                     "signal": "oversold" if current_rsi < 30 else "overbought" if current_rsi > 70 else "neutral",
@@ -2036,7 +2075,8 @@ async def scan_market(
                 return None
 
             S = compute_score(high, low, close, vol, current_price=price,
-                              partial_last=derniere_bougie_en_cours(hist, timeframe))
+                              partial_last=derniere_bougie_en_cours(hist, timeframe),
+                              extension=extension_validee(timeframe))
             final_score = S["final_score"]
             ups   = list(S["bullish_signals"])
             downs = list(S["bearish_signals"])
@@ -2678,7 +2718,8 @@ async def backtest_symbol(
     result = await loop.run_in_executor(
         None,
         lambda: run_backtest(hist, horizon=horizon, sl_atr=sl_atr, tp_atr=tp_atr,
-                             cost_bps=cost_bps, mode=mode),
+                             cost_bps=cost_bps, mode=mode,
+                             extension=extension_validee(timeframe)),
     )
 
     return _sanitize({

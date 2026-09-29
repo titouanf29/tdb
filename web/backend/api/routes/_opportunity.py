@@ -348,6 +348,24 @@ def conseiller_sens(
             ),
         }
 
+    # UN SCORE BAS, PAS UNE VENTE.
+    #
+    # Mesurées en septembre 2026 sur 40 actifs et 5 ans (frais inclus, sans
+    # regard vers le futur), les ventes à découvert de ce moteur ont perdu
+    # 0,16 R par trade, sur 36 actifs sur 40, sur les deux moitiés de la
+    # période. La carte garde son sens — l'actif est faible, c'est une
+    # information — mais elle ne propose plus de le vendre.
+    if sens == "short":
+        return {
+            "sens": "short",
+            "phrase": (
+                "Score bas : ce n'est pas le moment d'acheter — cours trop étiré ou "
+                "trop faible, selon les raisons ci-dessus. Le moteur ne propose pas de "
+                "le vendre à découvert : ses signaux de vente n'ont pas payé par le "
+                "passé (−0,16 R par trade en moyenne, sur 5 ans et 40 actifs)."
+            ),
+        }
+
     contre_tendance = (
         (sens == "long" and trend.upper().startswith("BEAR"))
         or (sens == "short" and trend.upper().startswith("BULL"))

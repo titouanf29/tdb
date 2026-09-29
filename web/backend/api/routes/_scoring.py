@@ -26,10 +26,42 @@ def _safe(value, default=None, ndigits=None):
 # Stamped on every analysis so a position opened three months ago can be
 # traced back to the engine that produced it. Bump on any change that moves
 # scores: MINOR for new outputs, MAJOR for a change of meaning.
-ENGINE_VERSION = "2.0.0"
+ENGINE_VERSION = "2.1.0"
 
 
-def compute_score(high, low, close, volume, current_price=None, partial_last=False):
+# ── L'écart à la moyenne 200 bougies (moteur 2.1) ───────────────────────────
+#
+# Mesuré en septembre 2026 sur 40 actifs et 5 ans de bougies journalières,
+# stop 2 ATR, objectif 3 ATR, frais inclus, sans regard vers le futur :
+#
+#   * le score 2.0 était INVERSÉ hors échantillon — sur les deux dernières
+#     années, ses achats (score ≥ 60) perdaient 0,02 R par trade, moins
+#     qu'acheter tous les jours sans réfléchir (+0,03 R) ;
+#   * la variable la plus parlante était l'écart du cours à sa moyenne
+#     200 bougies, en ATR, et dans le sens du RETOUR À LA MOYENNE : loin
+#     sous la moyenne, la suite est meilleure ; très étiré au-dessus, elle
+#     est moins bonne.
+#
+# Le mélange ci-dessous a été choisi sur les trois premières années seules
+# (règle fixée d'avance : meilleure espérance parmi les réglages totalisant
+# au moins 1 000 trades), puis jugé sur les deux dernières, jamais vues :
+# +0,150 R par trade, positif sur 86 % des actifs, contre −0,020 R pour le
+# score 2.0. Il n'est appliqué que là où il a été mesuré : bougies
+# journalières et plus longues. En intraday, le score reste celui de 2.0.
+EXTENSION_POIDS = 0.6
+EXTENSION_PENTE = 5.0      # points de composante par ATR d'écart
+EXTENSION_REPLI = -2.7     # ATR sous la moyenne : repli marqué
+EXTENSION_ETIRE = 4.0      # ATR au-dessus : cours étiré
+
+
+def extension_validee(timeframe: str | None) -> bool:
+    """La composante d'écart n'est active que sur les unités où elle a été
+    mesurée : le journalier et au-delà."""
+    return (timeframe or "1d") in ("1d", "3d", "1w", "1mo")
+
+
+def compute_score(high, low, close, volume, current_price=None, partial_last=False,
+                  extension=True):
     """Compute indicators + score on a full OHLCV history (causal only).
 
     partial_last — the last bar is still forming (market open, or the day /
@@ -220,8 +252,12 @@ def compute_score(high, low, close, volume, current_price=None, partial_last=Fal
     if current_price > float(ema50.iloc[-1]):  bullish_signals.append("Prix > EMA50")
     else:                                        bearish_signals.append("Prix < EMA50")
     if ema200 is not None:
-        if current_price > float(ema200.iloc[-1]): bullish_signals.append("Prix > EMA200 (zone dorée)")
-        else:                                        bearish_signals.append("Prix < EMA200")
+        # Au-dessus de la moyenne 200, ce n'est plus compté comme un signal
+        # d'achat quand l'écart est mesuré (moteur 2.1) : les données disent
+        # l'inverse au-delà de quelques ATR. Il reste l'information.
+        if not extension:
+            if current_price > float(ema200.iloc[-1]): bullish_signals.append("Prix > EMA200 (zone dorée)")
+            else:                                        bearish_signals.append("Prix < EMA200")
 
     if adx_val > 25:
         if current_plus_di > current_minus_di: bullish_signals.append(f"ADX fort ({nombre_fr(adx_val, 0)}) tendance haussière")
@@ -460,6 +496,26 @@ def compute_score(high, low, close, volume, current_price=None, partial_last=Fal
     )
     final_score = max(0, min(100, final_score))
 
+    # L'écart à la moyenne 200 (voir EXTENSION_POIDS plus haut).
+    extension_atr = None
+    extension_score = None
+    try:
+        if extension and ema200 is not None and atr and float(atr) > 0:
+            extension_atr = (float(current_price) - float(ema200.iloc[-1])) / float(atr)
+            extension_score = int(max(0, min(100, 50 - EXTENSION_PENTE * extension_atr)))
+            final_score = int((1 - EXTENSION_POIDS) * final_score + EXTENSION_POIDS * extension_score)
+            final_score = max(0, min(100, final_score))
+            if extension_atr <= EXTENSION_REPLI:
+                bullish_signals.append(
+                    f"Cours à {nombre_fr(abs(extension_atr), 1)} ATR sous sa moyenne 200 — repli marqué, "
+                    "historiquement suivi d'une reprise")
+            elif extension_atr >= EXTENSION_ETIRE:
+                bearish_signals.append(
+                    f"Cours étiré à {nombre_fr(extension_atr, 1)} ATR au-dessus de sa moyenne 200 — "
+                    "historiquement, la suite a été plus faible")
+    except Exception:
+        extension_atr = extension_score = None
+
     # ── FACTOR AGREEMENT ───────────────────────────────────────────────
     # Replaces the old "% of bullish signals among ~32". Those signals are
     # heavily correlated, so the tally measured trend strength twice rather
@@ -520,6 +576,8 @@ def compute_score(high, low, close, volume, current_price=None, partial_last=Fal
         "technical_score": technical_score, "trend_score": trend_score,
         "volume_score": volume_score, "momentum_score": momentum_score,
         "volatility_score": volatility_score, "final_score": final_score,
+        "extension_atr": _safe(extension_atr, None) if extension_atr is not None else None,
+        "extension_score": extension_score,
     }
 
 

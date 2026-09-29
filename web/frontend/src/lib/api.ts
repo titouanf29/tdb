@@ -1181,6 +1181,9 @@ export interface Analysis {
   };
   trend: string;
   indicators: {
+    /** Écart du cours à sa moyenne 200 bougies, en ATR, et la composante de
+     *  score qui en découle (60 % du score depuis le moteur 2.1). */
+    extension?: { atr: number | null; score: number | null };
     rsi: { value: number; signal: string };
     macd: {
       value: number;
@@ -1311,6 +1314,9 @@ export interface Analysis {
     suggested_sl: number;
     suggested_tp: number;
     risk_reward: number;
+    /** Vrai quand le plan n'est qu'un exemple (verdict neutre, ou vente à
+     *  découvert que l'historique n'a pas validée) : il ne s'ouvre pas. */
+    illustratif?: boolean;
     direction?: "LONG" | "SHORT";
     sl_basis?: string;
     tp_capped_at_level?: boolean;

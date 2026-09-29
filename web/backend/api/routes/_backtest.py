@@ -163,6 +163,7 @@ def run_backtest(
     cost_bps: float = 10.0,
     mode: str = "event",
     regimes: "pd.Series | None" = None,
+    extension: bool = True,
 ) -> dict:
     """Replay the engine bar by bar, with no lookahead, and label by barriers.
 
@@ -213,7 +214,7 @@ def run_backtest(
         try:
             S = compute_score(
                 window["High"], window["Low"], window["Close"], window["Volume"],
-                current_price=entry,
+                current_price=entry, extension=extension,
             )
         except Exception:
             continue

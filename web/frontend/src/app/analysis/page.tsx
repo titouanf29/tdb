@@ -921,10 +921,18 @@ function Verdict({
             <RiskBit label="Objectif" value={assetPrice(a.risk.suggested_tp)} tone="up" />
             <RiskBit label="Risque / rendement" value={`1 : ${fr(a.risk.risk_reward, 1)}`} />
           </div>
-          <Button href={planHref} size="md">
-            Ouvrir avec ce plan
-            <ArrowRight className="cap-fleche h-4 w-4" />
-          </Button>
+          {a.risk.illustratif ? (
+            /* Un plan d'exemple se lit, il ne s'ouvre pas : le bouton aurait
+               proposé exactement le trade que le moteur vient de refuser. */
+            <Text size="caption" className="max-w-[20rem] text-right">
+              Plan donné en exemple, pour apprendre à le lire — le moteur ne le propose pas.
+            </Text>
+          ) : (
+            <Button href={planHref} size="md">
+              Ouvrir avec ce plan
+              <ArrowRight className="cap-fleche h-4 w-4" />
+            </Button>
+          )}
           <PlanBar
             stop={a.risk.suggested_sl}
             objectif={a.risk.suggested_tp}
@@ -1000,6 +1008,11 @@ function Intermediate({ analysis: a, assetPrice }: { analysis: Analysis; assetPr
     { label: "Technique", value: a.score.technical },
     { label: "Volume", value: a.score.volume },
     { label: "Momentum", value: a.score.momentum },
+    // La composante la plus lourde depuis le moteur 2.1 : sans elle, les
+    // barres ci-dessous ne pesaient plus que 40 % du score affiché.
+    ...(a.indicators?.extension?.score != null
+      ? [{ label: "Écart à la moyenne 200 (60 % du score)", value: a.indicators.extension.score }]
+      : []),
     ...(a.score.fundamental != null ? [{ label: "Fondamentaux", value: a.score.fundamental }] : []),
   ].filter((s) => Number.isFinite(s.value));
 
