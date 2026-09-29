@@ -27,7 +27,7 @@ from ._intent import parse as parse_intent
 from ._opportunity import describe as describe_opportunity
 from ._market_context import (benchmark_for, compute_market_context,
                               apply_context_gate, regime_series)
-from ._scoring import (compute_score, derive_trend, derive_signal, TIMEFRAME_FETCH, derniere_bougie_en_cours, extension_validee, plan_structurel, NIVEAUX_FENETRE, jours_par_bougie,
+from ._scoring import (compute_score, derive_trend, derive_signal, TIMEFRAME_FETCH, derniere_bougie_en_cours, extension_validee, plan_structurel, NIVEAUX_FENETRE, jours_par_bougie, horizon_rejeu,
                        HIGHER_TF, htf_trend, apply_htf_gate, resample_ohlcv,
                        htf_from_primary, ENGINE_VERSION)
 from ._backtest import run_backtest
@@ -306,6 +306,25 @@ def compute_trade_window(
     candles_min = max(1, c_min + adj)
     candles_max = max(candles_min + 1, c_max + adj)
 
+    # EN JOURNALIER, LA DURÉE MESURÉE REMPLACE L'ESTIMATION.
+    #
+    # La fourchette ci-dessus (2 à 5 bougies, retouchée par le RSI, l'ADX…)
+    # n'avait jamais été confrontée aux prix. Mesuré sur 40 actifs et 5 ans,
+    # plan swing (stop 1,5 ATR, objectif 4,5 ATR, sortie à 20 séances) : quand
+    # l'objectif est atteint, il l'est en 11 séances en médiane (7 à 15), et
+    # les trades gagnants vont souvent jusqu'au bout des 20. L'écran disait
+    # « 5 jours » — il faisait sortir avant que le rebond ait eu lieu. Les
+    # avertissements qui poussaient à sortir vite tombent avec lui ; celui de
+    # la volatilité, qui ne parle pas de durée, reste.
+    if timeframe == "1d":
+        candles_min, candles_opt, candles_max = 7, 11, 20
+        reasons = [
+            "Durée mesurée sur 40 actifs et 5 ans : quand l'objectif est atteint, il l'est "
+            "en 11 séances en médiane (7 à 15), et les gagnants vont souvent jusqu'à 20. "
+            "Un rebond prend du temps — sortir au bout de quelques jours le coupe."
+        ]
+        warnings = [w for w in warnings if w.startswith("Volatilité historique")]
+
     min_min = candles_min * bar_min
     max_min = candles_max * bar_min
     opt_min = candles_opt * bar_min
@@ -352,9 +371,11 @@ def compute_trade_window(
         "candles_min":     candles_min,
         "candles_max":     candles_max,
         "candles_opt":     candles_opt,
-        "label_min":       _fmt(min_min),
-        "label_max":       _fmt(max_min),
-        "label_optimal":   _fmt(opt_min),
+        # En journalier, des séances : une bougie n'est pas un jour calendaire
+        # (7 séances font près d'une semaine et demie, pas une).
+        "label_min":       f"{candles_min} séances" if timeframe == "1d" else _fmt(min_min),
+        "label_max":       f"{candles_max} séances" if timeframe == "1d" else _fmt(max_min),
+        "label_optimal":   f"{candles_opt} séances" if timeframe == "1d" else _fmt(opt_min),
         "bar_label":       timeframe,
         "risk_level":      risk_level,
         "unreliable":      unreliable,
@@ -535,7 +556,7 @@ def _historical_edge_sync(symbol: str, timeframe: str, hist, sl_atr: float,
         # the trade count it yields is what matters, not the grid density.
         # Le rejeu du signal AFFICHÉ : mêmes portes, même plan, mêmes seuils
         # à l'échelle de la bougie que l'écran.
-        r = run_backtest(hist, horizon=10, sl_atr=sl_atr, tp_atr=tp_atr,
+        r = run_backtest(hist, horizon=horizon_rejeu(timeframe), sl_atr=sl_atr, tp_atr=tp_atr,
                          mode="event", max_evals=120, regimes=regimes,
                          extension=extension_validee(timeframe),
                          timeframe=timeframe, bench_close=bench_close,
@@ -2695,7 +2716,9 @@ async def backtest_symbol(
     request: Request,
     symbol: str,
     timeframe: str = Query(default="1d", pattern="^(1h|4h|1d|1w)$"),
-    horizon: int = Query(default=10, ge=1, le=60),
+    # Par défaut, la durée de détention du rejeu de l'analyse (voir
+    # horizon_rejeu) : le bouton et la page mesurent le même plan.
+    horizon: int | None = Query(default=None, ge=1, le=60),
     # The stop and target the backtest walks against. The client sends the
     # multiples of the user's trading profile, so the backtest validates the
     # plan actually shown on screen rather than a generic 2/3 ATR.
@@ -2743,7 +2766,7 @@ async def backtest_symbol(
     loop = asyncio.get_event_loop()
     result = await loop.run_in_executor(
         None,
-        lambda: run_backtest(hist, horizon=horizon, sl_atr=sl_atr, tp_atr=tp_atr,
+        lambda: run_backtest(hist, horizon=horizon or horizon_rejeu(timeframe), sl_atr=sl_atr, tp_atr=tp_atr,
                              cost_bps=cost_bps, mode=mode,
                              extension=extension_validee(timeframe),
                              timeframe=timeframe, bench_close=_bench_close,

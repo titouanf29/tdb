@@ -167,7 +167,11 @@ export const TRADING_STYLES: Record<TradingStyleId, TradingStyleProfile> = {
       fr: ["EMA 20 / 50", "RSI daily", "ATR", "Figures techniques"],
       en: ["EMA 20 / 50", "Daily RSI", "ATR", "Chart patterns"],
     },
-    atr: { sl: 1.5, tp: 3.0 },
+    // Objectif à 4,5 ATR (et non 3), tenu jusqu'à 20 séances : mesuré sur
+    // 40 actifs et 5 ans, les achats du moteur 2.1 — qui achète les replis —
+    // rapportent +0,33 R par trade sur la période jamais vue, contre +0,20 R
+    // avec l'ancien réglage (3 ATR, 10 séances). Un rebond prend du temps.
+    atr: { sl: 1.5, tp: 4.5 },
     fundWeight: 0.2,
     tips: {
       fr: [

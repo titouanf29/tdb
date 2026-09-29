@@ -109,6 +109,16 @@ def jours_par_bougie(hist, timeframe: str | None) -> float:
         return 1.0
 
 
+def horizon_rejeu(timeframe: str | None) -> int:
+    """Combien de bougies le rejeu historique tient une position.
+
+    20 en journalier : mesuré sur 40 actifs et 5 ans, les achats du moteur
+    2.1 (des replis) paient nettement mieux tenus 20 séances que 10, sur les
+    deux périodes — +0,32 R contre +0,20 R par trade, stop 1,5 ATR, sur la
+    période jamais vue. Un rebond prend du temps. Ailleurs, non mesuré : 10."""
+    return 20 if (timeframe or "1d") == "1d" else 10
+
+
 def extension_validee(timeframe: str | None) -> bool:
     """La composante d'écart n'est active que sur les unités où elle a été
     mesurée.

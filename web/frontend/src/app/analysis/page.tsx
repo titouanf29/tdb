@@ -1028,7 +1028,9 @@ function Intermediate({ analysis: a, assetPrice }: { analysis: Analysis; assetPr
       {w?.label_optimal && (
         <Panel
           title="Combien de temps tenir"
-          hint={`Estimé à partir de la volatilité et de la force de la tendance, en bougies de ${w.bar_label ?? a.timeframe}.`}
+          hint={(w.bar_label ?? a.timeframe) === "1d"
+            ? "Mesuré sur 40 actifs et 5 ans de séances : le temps qu'il a fallu, en pratique, aux trades de ce moteur."
+            : `Estimé à partir de la volatilité et de la force de la tendance, en bougies de ${w.bar_label ?? a.timeframe}.`}
           className="lg:col-span-2"
         >
           <div className="flex flex-wrap items-end gap-x-10 gap-y-5">
