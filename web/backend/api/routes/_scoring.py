@@ -29,8 +29,16 @@ def _safe(value, default=None, ndigits=None):
 ENGINE_VERSION = "2.0.0"
 
 
-def compute_score(high, low, close, volume, current_price=None):
-    """Compute indicators + score on a full OHLCV history (causal only)."""
+def compute_score(high, low, close, volume, current_price=None, partial_last=False):
+    """Compute indicators + score on a full OHLCV history (causal only).
+
+    partial_last — the last bar is still forming (market open, or the day /
+    week not over). Its volume is then only a fraction of a full bar's, and
+    comparing it with a 20-bar average of FULL bars made every stock look
+    thin during the session: the volume component fell by up to 20 points
+    and "Volume très faible" appeared, always pushing the score down. The
+    volume reading then uses the last COMPLETED bar instead.
+    """
     # RSI — Wilder's smoothing (matches TradingView/broker values)
     rsi = rsi_wilder(close)
     current_rsi = rsi.iloc[-1]
@@ -107,9 +115,24 @@ def compute_score(high, low, close, volume, current_price=None):
 
     # Volume analysis — use last non-NaN bar
     vol_clean = volume.dropna()
-    avg_volume = volume.rolling(window=20).mean().dropna().iloc[-1] if len(volume) >= 20 else vol_clean.mean()
-    current_volume = float(vol_clean.iloc[-1]) if not vol_clean.empty else 0.0
+    # La bougie dont on lit le volume : la dernière COMPLÈTE.
+    _vol_ref = vol_clean.iloc[:-1] if (partial_last and len(vol_clean) >= 21) else vol_clean
+    avg_volume = _vol_ref.rolling(window=20).mean().dropna().iloc[-1] if len(_vol_ref) >= 20 else _vol_ref.mean()
+    current_volume = float(_vol_ref.iloc[-1]) if not _vol_ref.empty else 0.0
     volume_ratio = current_volume / avg_volume if avg_volume > 0 else 1
+    # Sans volume publié (forex, la plupart des indices), le volume ne dit
+    # rien. L'OBV valait alors 0 comme sa moyenne, lu « baissier » : −8 à tous
+    # les coups, soit environ −1,6 sur le score final d'une paire de devises.
+    has_volume = bool(_safe(vol_clean.tail(20).sum(), 0) > 0)
+    # Le sens de cette même bougie : un gros volume en baisse n'est pas un
+    # signe d'achat — c'est souvent une capitulation.
+    _cc_ref = close.dropna()
+    if partial_last and len(_cc_ref) >= 3:
+        _bar_ret = float(_cc_ref.iloc[-2] / _cc_ref.iloc[-3] - 1)
+    elif len(_cc_ref) >= 2:
+        _bar_ret = float(_cc_ref.iloc[-1] / _cc_ref.iloc[-2] - 1)
+    else:
+        _bar_ret = 0.0
 
     # ── OBV (On-Balance Volume) ────────────────────────────────────────
     try:
@@ -122,6 +145,8 @@ def compute_score(high, low, close, volume, current_price=None):
     except Exception:
         obv_trend = "neutral"
         obv_slope = 0.0
+    if not has_volume:
+        obv_trend, obv_slope = "neutral", 0.0
 
     # ── Williams %R ────────────────────────────────────────────────────
     try:
@@ -224,7 +249,12 @@ def compute_score(high, low, close, volume, current_price=None):
     if current_price < float(bb_lower.iloc[-1]):  bullish_signals.append("Prix sous la bande Bollinger basse")
     elif current_price > float(bb_upper.iloc[-1]): bearish_signals.append("Prix au-dessus de la bande Bollinger haute")
 
-    if volume_ratio > 1.5:  bullish_signals.append(f"Volume élevé ({nombre_fr(volume_ratio, 1)}x la moyenne)")
+    if not has_volume:
+        pass  # aucun volume publié : rien à en dire
+    elif volume_ratio > 1.5 and _bar_ret >= 0:
+        bullish_signals.append(f"Volume élevé à la hausse ({nombre_fr(volume_ratio, 1)}x la moyenne)")
+    elif volume_ratio > 1.5:
+        bearish_signals.append(f"Volume élevé à la baisse ({nombre_fr(volume_ratio, 1)}x la moyenne)")
     elif volume_ratio < 0.5: bearish_signals.append("Volume très faible")
 
     if momentum_10d > 5:   bullish_signals.append(f"Momentum 10j fort (+{nombre_fr(momentum_10d, 1)}%)")
@@ -346,13 +376,17 @@ def compute_score(high, low, close, volume, current_price=None):
     elif current_cmf < -0.2: volume_score -= 15
     elif current_cmf < -0.1: volume_score -= 8
 
-    if volume_ratio > 2.0:   volume_score += 12
-    elif volume_ratio > 1.5: volume_score += 8
-    elif volume_ratio > 1.2: volume_score += 4
+    # L'afflux de volume renforce le mouvement de la bougie, dans SON sens.
+    _sens = 1 if _bar_ret >= 0 else -1
+    if volume_ratio > 2.0:   volume_score += 12 * _sens
+    elif volume_ratio > 1.5: volume_score += 8 * _sens
+    elif volume_ratio > 1.2: volume_score += 4 * _sens
     elif volume_ratio < 0.5: volume_score -= 10
     elif volume_ratio < 0.8: volume_score -= 5
 
     volume_score = max(0, min(100, volume_score))
+    if not has_volume:
+        volume_score = 50  # neutre : il n'y a rien à lire
 
     # 4. MOMENTUM SCORE (multi-period: 3d, 10d, 20d)
     momentum_score = 50
@@ -542,11 +576,40 @@ TIMEFRAME_FETCH = {
 }
 
 
+# Durée d'une bougie, en minutes, par unité de temps de l'analyse.
+_DUREE_BOUGIE = {"5m": 5, "15m": 15, "30m": 30, "1h": 60, "4h": 240,
+                 "1d": 1440, "3d": 4320, "1w": 10080, "1mo": 44640}
+
+
+def derniere_bougie_en_cours(hist, timeframe: str) -> bool:
+    """Vrai si la dernière bougie n'est pas encore close.
+
+    Une bougie est datée de son début : tant que sa durée n'est pas écoulée,
+    elle se forme encore. Pour une bougie journalière, cela couvre toute la
+    journée calendaire, y compris après la clôture — on lit alors le volume
+    de la veille, ce qui ne coûte qu'un jour de fraîcheur, là où lire une
+    séance à moitié faite faussait le score dans le sens de la baisse.
+    """
+    try:
+        t0 = hist.index[-1]
+        now = pd.Timestamp.now(tz=t0.tz) if getattr(t0, "tzinfo", None) else pd.Timestamp.now()
+        return (now - t0) < pd.Timedelta(minutes=_DUREE_BOUGIE.get(timeframe, 1440))
+    except Exception:
+        return False
+
+
 def resample_ohlcv(df, rule: str):
     """Aggregate OHLCV bars into a coarser interval Yahoo does not serve."""
     if df is None or df.empty:
         return df
-    out = df.resample(rule).agg({
+    # origin="epoch" : des bornes fixes. Par défaut elles partaient de la
+    # première ligne téléchargée ; la fenêtre glissant chaque jour, les
+    # bougies de 3 jours changeaient de découpage d'un jour à l'autre, et le
+    # graphique (2 ans) et l'analyse (5 ans) n'avaient pas les mêmes bougies.
+    # « 3D » n'est pas une durée fixe pour pandas (origin y est ignoré) :
+    # exprimé en heures, il l'est.
+    rule = {"3D": "72h", "1D": "24h"}.get(rule, rule)
+    out = df.resample(rule, origin="epoch").agg({
         "Open": "first", "High": "max", "Low": "min",
         "Close": "last", "Volume": "sum",
     }).dropna(subset=["Close"])

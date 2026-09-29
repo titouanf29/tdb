@@ -22,7 +22,7 @@ from slowapi.util import get_remote_address
 from ..database import execute_query, execute_write
 from .auth import get_current_user
 from ._llm import LLMUnavailable, llm_chat
-from ._scoring import (compute_score, derive_signal, TIMEFRAME_FETCH,
+from ._scoring import (compute_score, derive_signal, TIMEFRAME_FETCH, derniere_bougie_en_cours,
                        resample_ohlcv, htf_from_primary, htf_trend, apply_htf_gate)
 from ._market_context import benchmark_for, compute_market_context, apply_context_gate
 from ._prices import fetch_ohlcv
@@ -150,7 +150,8 @@ async def pick_assets(intent: str, max_assets: int = 2) -> list[dict]:
                 hist = resample_ohlcv(hist, resample)
             if hist is None or hist.empty or len(hist) < 60:
                 continue
-            s = compute_score(hist["High"], hist["Low"], hist["Close"], hist["Volume"])
+            s = compute_score(hist["High"], hist["Low"], hist["Close"], hist["Volume"],
+                              partial_last=derniere_bougie_en_cours(hist, tf))
             final = s["final_score"]
 
             htf = htf_from_primary(hist, tf)

@@ -27,7 +27,7 @@ from ._intent import parse as parse_intent
 from ._opportunity import describe as describe_opportunity
 from ._market_context import (benchmark_for, compute_market_context,
                               apply_context_gate, regime_series)
-from ._scoring import (compute_score, derive_trend, derive_signal, TIMEFRAME_FETCH,
+from ._scoring import (compute_score, derive_trend, derive_signal, TIMEFRAME_FETCH, derniere_bougie_en_cours,
                        HIGHER_TF, htf_trend, apply_htf_gate, resample_ohlcv,
                        htf_from_primary, ENGINE_VERSION)
 from ._backtest import run_backtest
@@ -538,6 +538,7 @@ def _historical_edge_sync(symbol: str, timeframe: str, hist, sl_atr: float,
             "n_trades": r.get("n_trades", 0),
             "enough_samples": r.get("enough_samples", False),
             "expectancy_net_r": r.get("expectancy_net_r"),
+            "se_r": r.get("se_r"),
             "win_rate": r.get("win_rate"),
             "p_target": r.get("p_target"),
             "p_stop": r.get("p_stop"),
@@ -702,6 +703,7 @@ def _tradeability(
     n_bars: int,
     factor_agreement: int | None,
     edge_sens: dict | None = None,
+    neutre: bool = False,
 ) -> dict:
     """Is this direction actually worth acting on?
 
@@ -714,6 +716,8 @@ def _tradeability(
     blockers: list[str] = []
     warnings: list[str] = []
 
+    if neutre:
+        blockers.append("Verdict neutre — le moteur ne voit pas de sens assez net pour proposer un trade")
     if risk_reward is not None and risk_reward < 1.2:
         blockers.append(f"Rapport gain/risque de {nombre_fr(risk_reward, 1)} — sous 1,2, le setup rémunère mal le risque")
     if data_stale:
@@ -907,7 +911,11 @@ async def analyze_asset(
 
         # Live price from the same source as top-movers so both stay consistent
         try:
-            live = await fetch_prices([symbol])
+            # Pas pour un contrat à terme (=F) : la source « live » y renvoie
+            # le cours AU COMPTANT (GC=F → XAU/USD). Mêler ce prix aux EMA,
+            # à l'ATR et aux niveaux du contrat décalait tout de la base —
+            # parfois de plus d'un ATR sur le gaz naturel.
+            live = {} if symbol.upper().endswith("=F") else await fetch_prices([symbol])
             lp = live.get(symbol.upper())
             if lp and lp.get("price"):
                 current_price = float(lp["price"])
@@ -915,7 +923,8 @@ async def analyze_asset(
         except Exception:
             pass  # keep OHLCV-derived values as fallback
 
-        S = compute_score(high, low, close, volume, current_price=current_price)
+        S = compute_score(high, low, close, volume, current_price=current_price,
+                          partial_last=derniere_bougie_en_cours(hist, timeframe))
         close_clean = S["close_clean"]; vol_clean = S["vol_clean"]
         avg_volume = S["avg_volume"]; volume_ratio = S["volume_ratio"]
         rsi = S["rsi"]; current_rsi = S["current_rsi"]; rsi_divergence = S["rsi_divergence"]
@@ -1053,14 +1062,18 @@ async def analyze_asset(
         fundamental_score = 50
         if fundamentals.get("pe_ratio"):
             pe = fundamentals["pe_ratio"]
-            if 0 < pe < 12:   fundamental_score += 15
+            # Un P/E négatif est une entreprise en pertes : il tombait dans
+            # « pe < 18 » et rapportait +8, comme une valeur bon marché.
+            if pe <= 0:       fundamental_score -= 8
+            elif pe < 12:     fundamental_score += 15
             elif pe < 18:     fundamental_score += 8
             elif pe < 30:     fundamental_score += 2
             elif pe > 60:     fundamental_score -= 15
             elif pe > 40:     fundamental_score -= 8
         if fundamentals.get("peg_ratio"):
             peg = fundamentals["peg_ratio"]
-            if 0 < peg < 1:   fundamental_score += 12
+            if peg <= 0:      pass  # croissance ou bénéfice négatif : le PEG ne dit rien
+            elif peg < 1:     fundamental_score += 12
             elif peg < 2:     fundamental_score += 5
             elif peg > 3:     fundamental_score -= 8
         if fundamentals.get("revenue_growth"):
@@ -1148,7 +1161,9 @@ async def analyze_asset(
                 tp_capped = True
                 risk_notes.append("Objectif plafonné au support — premier obstacle structurel")
             _sl_t = current_price + atr * sl_atr * 0.5
-            _tp_c = current_price - atr * tp_atr * 0.5
+            # « Prudent » veut dire plus proche : jamais au-delà de l'objectif
+            # principal, même quand celui-ci a été ramené au support.
+            _tp_c = max(current_price - atr * tp_atr * 0.5, _tp)
         else:
             _sl = current_price - atr * sl_atr
             if (current_price - _support) >= atr and (_support - atr * 0.5) > _sl:
@@ -1160,19 +1175,28 @@ async def analyze_asset(
                 tp_capped = True
                 risk_notes.append("Objectif plafonné à la résistance — premier obstacle structurel")
             _sl_t = current_price - atr * sl_atr * 0.5
-            _tp_c = current_price + atr * tp_atr * 0.5
+            _tp_c = min(current_price + atr * tp_atr * 0.5, _tp)
 
         _rr = abs(_tp - current_price) / abs(_sl - current_price) if abs(_sl - current_price) > 1e-9 else None
         if _rr is not None and _rr < 1.2:
             risk_notes.append(f"R/R de {nombre_fr(_rr, 1)} sous 1,2 — le setup rémunère mal le risque pris")
 
+        # Un verdict neutre n'est pas un trade (le backtest ne le compte pas
+        # comme tel). Le plan reste affiché — il apprend à lire un stop et un
+        # objectif — mais il est dit illustratif, et la jouabilité le refuse.
+        _plan_neutre = 40 <= final_score < 60
+        if _plan_neutre:
+            risk_notes.append("Verdict neutre : ce plan à l'achat est un exemple, pas une recommandation")
         risk_block = {
             "direction":                 "SHORT" if is_short_setup else "LONG",
+            "illustratif":               _plan_neutre,
             "suggested_sl":              _px(_sl),
             "suggested_tp":              _px(_tp),
             "suggested_sl_tight":        _px(_sl_t),
             "suggested_tp_conservative": _px(_tp_c),
-            "risk_reward":               _safe(_rr, 1.5, 2),
+            # Pas de valeur inventée : sans distance au stop, il n'y a pas de
+            # rapport à afficher (il valait 1,5 par défaut).
+            "risk_reward":               _safe(_rr, None, 2),
             "atr_stop_pct":              _safe(atr / current_price * 200, None, 2),
             "sl_basis":                  sl_basis,
             "tp_capped_at_level":        tp_capped,
@@ -1251,7 +1275,9 @@ async def analyze_asset(
                 import sys
                 sys.path.insert(0, "/app")
                 from utils.translate import translate_news_items
-                news_items = translate_news_items(news_items)
+                # Jusqu'à cinq appels HTTP bloquants : hors de la boucle
+                # d'événements, sinon tout le serveur attend la traduction.
+                news_items = await asyncio.to_thread(translate_news_items, news_items)
             except Exception:
                 pass
         except Exception:
@@ -1373,8 +1399,14 @@ async def analyze_asset(
             # et bloquer sur une autre mesure rendrait le refus incontestable
             # faute d'être compréhensible.
             "edge_direction": _edge_sens,
+            # L'edge du SENS proposé, comme la jouabilité : la page affichait
+            # « edge négatif » pour un achat dont l'historique à l'achat était
+            # positif, parce qu'elle lisait ici la moyenne des deux sens.
             "signal_quality": _signal_quality(
-                S.get("factor_agreement"), higher_tf_info.get("aligned"), historical_edge),
+                S.get("factor_agreement"), higher_tf_info.get("aligned"),
+                {"enough_samples": bool(_edge_sens and _edge_sens.get("fiable")),
+                 "expectancy_net_r": (_edge_sens or {}).get("expectancy_net_r")}
+                if _edge_sens else historical_edge),
             "volatility_context": {
                 "percentile": S.get("vol_percentile"),
                 "regime": S.get("vol_regime"),
@@ -1395,6 +1427,7 @@ async def analyze_asset(
                 # L'edge mesuré DANS LE SENS que le plan propose, pas la
                 # moyenne des deux sens.
                 edge_sens=_edge_sens,
+                neutre=_plan_neutre,
             ),
             "higher_timeframe": higher_tf_info,
             "conviction": {
@@ -2002,7 +2035,8 @@ async def scan_market(
             if price <= 0:
                 return None
 
-            S = compute_score(high, low, close, vol, current_price=price)
+            S = compute_score(high, low, close, vol, current_price=price,
+                              partial_last=derniere_bougie_en_cours(hist, timeframe))
             final_score = S["final_score"]
             ups   = list(S["bullish_signals"])
             downs = list(S["bearish_signals"])
@@ -2243,9 +2277,13 @@ async def scan_market(
             return False
         if direction == "long":
             return r["score"] >= min_score
+        # Strictement sous 40 : à l'exigence 60, le miroir « <= 40 » gardait
+        # un score de 40, que le moteur classe NEUTRE et pour lequel aucun
+        # sens n'est conseillé.
+        vente = r["score"] <= seuil_bas and r["score"] < 40
         if direction == "short":
-            return r["score"] <= seuil_bas
-        return r["score"] >= min_score or r["score"] <= seuil_bas
+            return vente
+        return r["score"] >= min_score or vente
 
     def _rang(r: dict) -> float:
         """Le plus convaincant d'abord, quel que soit le sens : c'est
@@ -2628,6 +2666,11 @@ async def backtest_symbol(
     fetch_period, fetch_interval = period_map[timeframe]
 
     hist = await fetch_ohlcv(symbol, period=fetch_period, interval=fetch_interval)
+    # Yahoo ne sert pas de bougies de 4 h : on les agrège, comme l'analyse.
+    # Le backtest « 4h » tournait sur les bougies d'une heure — stop, objectif,
+    # horizon et ATR décrivaient un autre plan que celui affiché.
+    if timeframe == "4h" and hist is not None and not hist.empty:
+        hist = resample_ohlcv(hist, "4h")
     if hist is None or hist.empty or len(hist) < 90:
         raise HTTPException(status_code=400, detail="Historique insuffisant pour un backtest (minimum 90 bougies)")
 

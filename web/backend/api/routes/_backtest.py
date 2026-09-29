@@ -58,6 +58,7 @@ def _rank_correlation(x: list[float], y: list[float]) -> float | None:
 def _walk_barriers(
     highs: np.ndarray, lows: np.ndarray, closes: np.ndarray,
     start: int, horizon: int, entry: float, stop: float, target: float, is_long: bool,
+    opens: "np.ndarray | None" = None,
 ) -> tuple[str, float, int]:
     """Walk forward bar by bar until a barrier is touched.
 
@@ -68,9 +69,21 @@ def _walk_barriers(
     from OHLC alone, so the STOP is assumed to have come first. That is the
     pessimistic reading, and the only honest one: assuming the target would
     manufacture wins that the data cannot support.
+
+    A bar that OPENS beyond a barrier (a gap: earnings, a weekend) fills at
+    its open, not at the barrier. Filling a gap-down at the stop price
+    recorded a −1 R loss where the account would really have lost −1,6 R or
+    more — the losses the engine most needs to see were the ones it trimmed.
+    The same holds, in the trader's favour, for a gap through the target.
     """
     last = min(start + horizon, len(closes))
     for i in range(start, last):
+        if opens is not None and np.isfinite(opens[i]):
+            o = float(opens[i])
+            if (o <= stop) if is_long else (o >= stop):
+                return "stop", o, i - start + 1
+            if (o >= target) if is_long else (o <= target):
+                return "target", o, i - start + 1
         hit_stop = lows[i] <= stop if is_long else highs[i] >= stop
         hit_tgt = highs[i] >= target if is_long else lows[i] <= target
         if hit_stop:
@@ -166,6 +179,7 @@ def run_backtest(
     highs = hist["High"].to_numpy(dtype=float)
     lows = hist["Low"].to_numpy(dtype=float)
     closes = hist["Close"].to_numpy(dtype=float)
+    opens = hist["Open"].to_numpy(dtype=float) if "Open" in hist else None
 
     empty = {
         "n_evaluated": 0, "n_trades": 0, "buckets": [], "correlation": None,
@@ -227,7 +241,7 @@ def run_backtest(
         target = entry + reward if is_long else entry - reward
 
         outcome, exit_px, bars = _walk_barriers(
-            highs, lows, closes, t, horizon, entry, stop, target, is_long
+            highs, lows, closes, t, horizon, entry, stop, target, is_long, opens
         )
         pnl = (exit_px - entry) if is_long else (entry - exit_px)
         gross_r = pnl / risk
@@ -308,6 +322,11 @@ def run_backtest(
         # beat 80% winners.
         "expectancy_gross_r": round(float(gross.mean()), 3),
         "expectancy_net_r": round(float(net.mean()), 3),
+        # L'erreur type de cette espérance. Sans elle, le garde-fou de
+        # l'historique prenait l'estimation pour certaine : 32 trades à
+        # −0,27 R bloquaient un plan que leur marge d'erreur (±0,21 R)
+        # rendait seulement douteux.
+        "se_r": round(float(net.std(ddof=1) / np.sqrt(n_trades)), 3) if n_trades > 1 else None,
         "cost_drag_r": round(float(gross.mean() - net.mean()), 3),
         "profit_factor": round(gross_profit / gross_loss, 2) if gross_loss > 0 else None,
         "max_drawdown_r": round(drawdown, 2),
