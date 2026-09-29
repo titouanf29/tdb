@@ -115,8 +115,12 @@ def horizon_rejeu(timeframe: str | None) -> int:
     20 en journalier : mesuré sur 40 actifs et 5 ans, les achats du moteur
     2.1 (des replis) paient nettement mieux tenus 20 séances que 10, sur les
     deux périodes — +0,32 R contre +0,20 R par trade, stop 1,5 ATR, sur la
-    période jamais vue. Un rebond prend du temps. Ailleurs, non mesuré : 10."""
-    return 20 if (timeframe or "1d") == "1d" else 10
+    période jamais vue. Un rebond prend du temps. En 3 jours, 20 aussi (+0,55 R
+    contre +0,34 R à 10, période jamais vue). En hebdomadaire et mensuel, 40 :
+    à ces horizons, c'est la durée de détention qui paie (profil long terme,
+    +0,59 R et +1,03 R par trade contre +0,16 R et +0,26 R à 10 bougies).
+    Intraday : 10 — la durée n'y rattrape pas les frais."""
+    return {"1d": 20, "3d": 20, "1w": 40, "1mo": 40}.get(timeframe or "1d", 10)
 
 
 def extension_validee(timeframe: str | None) -> bool:
@@ -128,9 +132,14 @@ def extension_validee(timeframe: str | None) -> bool:
     2.0 avant frais — +0,053 R contre +0,001 R par achat sur la période jamais
     vue — mais à cette échelle les frais (≈ 0,17 R par aller-retour en
     médiane) dépassent l'avantage de toutes les règles testées. Les bougies
-    de 4 h, agrégées depuis l'heure, suivent. De 5 à 30 minutes : non
-    mesuré, le score reste celui de 2.0."""
-    return (timeframe or "1d") in ("1h", "4h", "1d", "3d", "1w", "1mo")
+    de 4 h, agrégées depuis l'heure, suivent. De 5 à 30 minutes : le 2.1 y
+    fait moins bien que le 2.0 (bougies de 5 min, 60 jours), il reste éteint."""
+    # Pas en mensuel : sur 200 mois, presque tout actif est loin au-dessus de
+    # sa moyenne, et la composante écrasait le score — il plafonnait à 57,
+    # jamais un signal d'achat (mesuré sur 28 actifs, historiques complets).
+    # En 3 jours et en hebdomadaire, mesuré et conservé (le 2.1 y bat le 2.0
+    # sur les deux périodes ; en hebdomadaire ses signaux sont rares).
+    return (timeframe or "1d") in ("1h", "4h", "1d", "3d", "1w")
 
 
 def compute_score(high, low, close, volume, current_price=None, partial_last=False,

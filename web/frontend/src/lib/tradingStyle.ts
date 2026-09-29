@@ -83,12 +83,17 @@ export const TRADING_STYLES: Record<TradingStyleId, TradingStyleProfile> = {
       fr: ["Volume", "RSI 5 min", "Spread", "Niveaux intraday"],
       en: ["Volume", "5-min RSI", "Spread", "Intraday levels"],
     },
-    atr: { sl: 0.6, tp: 1.0 },
+    // Stop à 4 ATR (et non 0,6). Mesuré sur 40 actifs, 60 jours de bougies de
+    // 5 min, frais de 10 points de base par côté : avec 0,6 ATR, les frais
+    // valaient à eux seuls 5 fois le risque, et le plan perdait ~5 R par
+    // trade. À 4 ATR, la perte tombe vers 0,6 R. Aucun réglage testé n'est
+    // gagnant après frais : le profil le dit (tips).
+    atr: { sl: 4.0, tp: 6.0 },
     fundWeight: 0,
     tips: {
       fr: [
         "Le spread est votre premier adversaire. Sur 20 trades à 0,05 %, vous avez perdu 1 % avant d'avoir eu raison une seule fois.",
-        "En scalp, un stop large n'existe pas. Si vous devez le reculer, le trade est déjà mort.",
+        "Mesuré sur 40 actifs : en bougies de 5 minutes, avec des frais de 0,1 % par ordre, aucun plan testé n'a été gagnant. Un stop serré (0,6 ATR) fait payer aux frais 5 fois le risque pris — d'où un stop large ici.",
         "Les 30 premières minutes après l'ouverture concentrent le volume. Le reste de la séance, vous payez le spread pour rien.",
         "Un RSI en 5 min repasse sous 30 dix fois par séance. Ce n'est pas un signal, c'est du bruit.",
         "Sortez sur objectif, pas sur espoir. Le trade qui « va revenir » ne revient jamais assez vite.",
@@ -96,7 +101,7 @@ export const TRADING_STYLES: Record<TradingStyleId, TradingStyleProfile> = {
       ],
       en: [
         "Spread is your first opponent. Twenty trades at 0.05% and you're down 1% before being right once.",
-        "There is no such thing as a wide stop in scalping. If you have to move it, the trade is already dead.",
+        "Measured on 40 assets: on 5-minute bars, with 0.1% fees per order, no tested plan was profitable. A tight stop (0.6 ATR) makes fees cost 5 times the risk taken — hence a wide stop here.",
         "The first 30 minutes after the open hold the volume. The rest of the session you pay spread for nothing.",
         "A 5-min RSI dips under 30 ten times a session. That's not a signal, that's noise.",
         "Exit on target, not on hope. The trade that's \"coming back\" never comes back fast enough.",
@@ -125,10 +130,16 @@ export const TRADING_STYLES: Record<TradingStyleId, TradingStyleProfile> = {
       fr: ["VWAP", "Range d'ouverture", "MACD 15 min", "Volume"],
       en: ["VWAP", "Opening range", "15-min MACD", "Volume"],
     },
-    atr: { sl: 1.0, tp: 2.0 },
+    // Stop à 4 ATR, objectif 6 ATR (et non 1 et 2). Mesuré sur 40 actifs,
+    // 2 ans de bougies d'une heure, sortie à 10 bougies, frais de 10 points
+    // de base par côté : −0,12 R par trade au lieu de −0,50 R sur la période
+    // jamais vue. Les frais coûtaient 0,59 R avec un stop à 1 ATR, 0,15 R à
+    // 4 ATR. Toujours pas gagnant après frais : le profil le dit (tips).
+    atr: { sl: 4.0, tp: 6.0 },
     fundWeight: 0.05,
     tips: {
       fr: [
+        "Mesuré sur 40 actifs et 2 ans de bougies d'une heure : avec des frais de 0,1 % par ordre, aucun plan testé n'a été gagnant. Un stop serré (1 ATR) laisse aux frais 0,6 fois le risque à chaque trade — d'où un stop large ici.",
         "Le biais du jour se décide avant l'ouverture, pas pendant. Sans plan à 9 h, vous réagissez au lieu de trader.",
         "Le VWAP n'a rien de magique : c'est le prix moyen payé aujourd'hui. Au-dessus, les acheteurs mènent.",
         "Clôturez avant la fin de séance. Garder une position day sur la nuit, c'est changer de métier sans l'avoir décidé.",
@@ -137,6 +148,7 @@ export const TRADING_STYLES: Record<TradingStyleId, TradingStyleProfile> = {
         "Deux bons trades valent mieux que huit corrects. Le sur-trading est la maladie du day trader.",
       ],
       en: [
+        "Measured on 40 assets over 2 years of hourly bars: with 0.1% fees per order, no tested plan was profitable. A tight stop (1 ATR) leaves fees 0.6 times the risk on every trade — hence a wide stop here.",
         "The day's bias is set before the open, not during. Without a plan at 9am you're reacting, not trading.",
         "VWAP isn't magic: it's the average price paid today. Above it, buyers are in charge.",
         "Close before the session ends. Holding a day trade overnight is changing jobs without deciding to.",
@@ -215,7 +227,12 @@ export const TRADING_STYLES: Record<TradingStyleId, TradingStyleProfile> = {
     },
     // Deliberately wide: on a multi-year horizon an ATR-tight stop is noise,
     // and the real invalidation is structural (a durable loss of the EMA200).
-    atr: { sl: 4.0, tp: 8.0 },
+    // Stop 2 ATR, objectif 6 ATR, tenu jusqu'à 40 bougies (et non 4 / 8 / 10).
+    // Mesuré sur 40 actifs (hebdomadaire 10 ans, mensuel historiques
+    // complets) : +0,59 R et +1,03 R par trade sur la période jamais vue,
+    // contre +0,16 R et +0,26 R. À cet horizon, la durée paie plus que le
+    // moment d'entrée — aucun score n'y bat l'achat systématique.
+    atr: { sl: 2.0, tp: 6.0 },
     fundWeight: 0.45,
     tips: {
       fr: [

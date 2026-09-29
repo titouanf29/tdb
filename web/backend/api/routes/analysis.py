@@ -324,6 +324,19 @@ def compute_trade_window(
             "Un rebond prend du temps — sortir au bout de quelques jours le coupe."
         ]
         warnings = [w for w in warnings if w.startswith("Volatilité historique")]
+    # Même chose pour le profil long terme (stop 2 ATR, objectif 6 ATR, sortie
+    # à 40 bougies) : quand l'objectif est atteint, il l'est en 22 semaines en
+    # médiane (13 à 30) en hebdomadaire, en 20 mois (13 à 29) en mensuel.
+    # L'estimation disait 2 à 4 bougies.
+    elif timeframe in ("1w", "1mo"):
+        _u = "semaines" if timeframe == "1w" else "mois"
+        candles_min, candles_opt, candles_max = (13, 22, 40) if timeframe == "1w" else (13, 20, 40)
+        reasons = [
+            f"Durée mesurée sur 40 actifs : quand l'objectif est atteint, il l'est en "
+            f"{candles_opt} {_u} en médiane (13 à {'30' if timeframe == '1w' else '29'}). À cet "
+            "horizon, c'est la durée de détention qui paie, plus que le moment d'entrée."
+        ]
+        warnings = [w for w in warnings if w.startswith("Volatilité historique")]
 
     min_min = candles_min * bar_min
     max_min = candles_max * bar_min
@@ -344,6 +357,10 @@ def compute_trade_window(
             return f"{dd}j{hh:02d}h" if hh else f"{dd}j"
         w = d / 7
         return f"{nombre_fr(w, 1)} sem"
+
+    def _unite(n: int) -> str | None:
+        """Des séances, semaines ou mois plutôt que des jours calendaires."""
+        return {"1d": f"{n} séances", "1w": f"{n} semaines", "1mo": f"{n} mois"}.get(timeframe)
 
     # Impossible to give reliable window when ADX < 10 AND RSI extreme
     unreliable = adx < 10 and (rsi < 30 or rsi > 70)
@@ -373,9 +390,9 @@ def compute_trade_window(
         "candles_opt":     candles_opt,
         # En journalier, des séances : une bougie n'est pas un jour calendaire
         # (7 séances font près d'une semaine et demie, pas une).
-        "label_min":       f"{candles_min} séances" if timeframe == "1d" else _fmt(min_min),
-        "label_max":       f"{candles_max} séances" if timeframe == "1d" else _fmt(max_min),
-        "label_optimal":   f"{candles_opt} séances" if timeframe == "1d" else _fmt(opt_min),
+        "label_min":       _unite(candles_min) or _fmt(min_min),
+        "label_max":       _unite(candles_max) or _fmt(max_min),
+        "label_optimal":   _unite(candles_opt) or _fmt(opt_min),
         "bar_label":       timeframe,
         "risk_level":      risk_level,
         "unreliable":      unreliable,
