@@ -12,7 +12,7 @@ import { Notifications } from "./Notifications";
 import { useAuth } from "@/lib/AuthContext";
 import { usePremium } from "@/lib/PremiumContext";
 import {
-  CaptenLogo, CloudCurtain, DUR, EASE, useAnimationsEnabled, useRouteCurtain,
+  AnimationsApp, CaptenLogo, CloudCurtain, DUR, EASE, useAnimationsEnabled, useRouteCurtain,
 } from "@/components/design-system";
 import { ListeSuggestions, useAssetSuggestions, useFermetureExterieure } from "./assetSearch";
 import { AREAS, MOBILE_TABS, areaForPath, type NavArea } from "./nav";
@@ -43,6 +43,7 @@ export function AppChrome({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="cap relative min-h-screen">
+      <AnimationsApp />
       <CloudCurtain active={curtain && anim} />
       <TopBar area={area} />
       {/* La marge du bas suit la barre ET l'indicateur d'accueil : le
@@ -50,7 +51,7 @@ export function AppChrome({ children }: { children: React.ReactNode }) {
           deux. Les marges latérales s'élargissent en paysage sur un iPhone à
           encoche, où la page bord à bord passerait sinon dessous. */}
       <main
-        className="mx-auto w-full max-w-[82rem] pt-6 [--pad-x:1.25rem] sm:[--pad-x:2rem] lg:!pb-16"
+        className="cap-app-main mx-auto w-full max-w-[82rem] pt-6 [--pad-x:1.25rem] sm:[--pad-x:2rem] lg:!pb-16"
         style={{
           paddingBottom: "calc(7rem + env(safe-area-inset-bottom, 0px))",
           // La marge habituelle (20 px, 32 px dès 640 px) OU l'encoche, la

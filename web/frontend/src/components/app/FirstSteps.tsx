@@ -67,7 +67,12 @@ export function FirstSteps({
         </span>
       }
     >
-      <ol className="space-y-1">
+      {/* L'avancée, en une barre qui se remplit. */}
+      <div aria-hidden className="-mt-1 mb-3 h-[3px] overflow-hidden rounded-full" style={{ backgroundColor: "var(--cap-line)" }}>
+        <div className="cap-barre h-full rounded-full"
+          style={{ backgroundColor: "var(--cap-ocean)", transform: `scaleX(${done / steps.length})` }} />
+      </div>
+      <ol className="cap-liste space-y-1">
         {steps.map((s) => (
           <li key={s.label}>
             <Link
@@ -82,7 +87,7 @@ export function FirstSteps({
                   boxShadow: s.done ? "none" : "inset 0 0 0 1.5px var(--cap-line-strong)",
                 }}
               >
-                {s.done && <Check className="h-3 w-3 text-white" strokeWidth={3} />}
+                {s.done && <Check className="cap-pop h-3 w-3 text-white" strokeWidth={3} style={{ ["--d" as string]: ".35s" }} />}
               </span>
               <span className="min-w-0">
                 <span

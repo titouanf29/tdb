@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { ArrowRight, CloudOff, Globe2, RefreshCw, Sun } from "lucide-react";
 import { Intention } from "@/components/dashboard/Intention";
@@ -14,10 +14,11 @@ import {
   type TradingStats, type WalletBalance,
 } from "@/lib/api";
 import {
-  Button, CloudCurtain, DataList, DataRow, EmptyState, Heading, Num, Panel,
+  Button, CloudCurtain, DataList, DataRow, EmptyState, Heading, MotsApp, Num, Panel,
   Reveal, Text, Waypoint, WeatherBackdrop, WEATHER_LABEL,
   conditionFromChange, useAnimationsEnabled,
 } from "@/components/design-system";
+import { NuageImage } from "@/components/design-system/NuageImage";
 import { FirstSteps } from "@/components/app/FirstSteps";
 import { useProfile } from "@/lib/useProfile";
 
@@ -94,6 +95,8 @@ export default function DashboardPage() {
   );
 
   const equity = balance ? (balance.total_equity ?? balance.balance + balance.positions_value) : 0;
+  // Le solde compte jusqu'à sa valeur à l'arrivée, puis suit ses mises à jour.
+  const equityAffichee = useCompteur(equity, animOn);
   const pnl = balance?.total_pnl ?? 0;
   // Against the starting stake, which is what "how am I doing" means — not
   // against today's equity, which would flatter a losing account.
@@ -140,7 +143,7 @@ export default function DashboardPage() {
           <header className="flex flex-wrap items-end justify-between gap-5 pt-2">
             <div>
               <Heading level={1}>
-                {greeting}{first ? `, ${first}` : ""}.
+                <MotsApp texte={`${greeting}${first ? `, ${first}` : ""}.`} delai={0.4} />
               </Heading>
               <Text className="mt-2.5 max-w-[38rem]">
                 Espace réglé pour{" "}
@@ -204,12 +207,12 @@ export default function DashboardPage() {
               action={{ label: "Ouvrir le wallet", href: "/wallet" }}
             >
               <Num className="text-[clamp(1.9rem,4vw,2.5rem)] font-medium leading-none">
-                {money(equity)}
+                {money(equityAffichee)}
               </Num>
               <Text size="caption" className="mt-2">Valeur totale</Text>
 
               <div
-                className="mt-5 grid grid-cols-3 gap-4 border-t pt-4"
+                className="cap-liste mt-5 grid grid-cols-3 gap-4 border-t pt-4"
                 style={{ borderColor: "var(--cap-line)" }}
               >
                 <Figure
@@ -324,11 +327,11 @@ export default function DashboardPage() {
                 dans cet ordre, parce que chacun n&apos;a de sens qu&apos;avec
                 le précédent.
               </Text>
-              <div className="mt-4 flex flex-wrap gap-2">
+              <div className="cap-liste mt-4 flex flex-wrap gap-2">
                 {["Lire un graphique", "Tendance et momentum", "Dimensionner une position"].map((c) => (
                   <span
                     key={c}
-                    className="rounded-[9px] px-2.5 py-1.5 text-[0.8rem]"
+                    className="cap-puce rounded-[9px] px-2.5 py-1.5 text-[0.8rem]"
                     style={{ backgroundColor: "var(--cap-surface-2)", color: "var(--cap-ink-2)" }}
                   >
                     {c}
@@ -341,6 +344,31 @@ export default function DashboardPage() {
       </div>
     </>
   );
+}
+
+/**
+ * Un nombre qui va jusqu'à sa valeur au lieu d'y sauter : de zéro à
+ * l'arrivée, puis de l'ancienne valeur à la nouvelle quand elle change.
+ * Animations coupées ou mouvement réduit : la valeur, tout de suite.
+ */
+function useCompteur(cible: number, actif: boolean): number {
+  const [v, setV] = useState(actif ? 0 : cible);
+  const depuis = useRef(0);
+  useEffect(() => {
+    const reduit = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    if (!actif || reduit) { setV(cible); depuis.current = cible; return; }
+    const debut = performance.now(), a = depuis.current, duree = 1100;
+    let raf = 0;
+    const pas = (t: number) => {
+      const k = Math.min(1, (t - debut) / duree);
+      const val = a + (cible - a) * (1 - Math.pow(1 - k, 3));
+      setV(val); depuis.current = val;
+      if (k < 1) raf = requestAnimationFrame(pas);
+    };
+    raf = requestAnimationFrame(pas);
+    return () => cancelAnimationFrame(raf);
+  }, [cible, actif]);
+  return v;
 }
 
 /* ── Bits ─────────────────────────────────────────────────────────────────── */
@@ -596,8 +624,25 @@ function NextStep({
         color: "#E8EDF1",
       }}
     >
-      <div className="flex items-center gap-2.5">
-        <Waypoint size={11} tone="amber" />
+      {/* Le ciel, vu de nuit : deux nuages qui passent en transparence et un
+          reflet qui balaie la carte de temps en temps. Décor pur, derrière le
+          texte, en CSS (AnimationsApp). */}
+      <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
+        <div className="cap-carte-nuage absolute left-0 top-[-12%] w-[46%] opacity-[0.07]" style={{ ["--t" as string]: "52s" }}>
+          <NuageImage forme={0} flou={5} style={{ width: "100%" }} />
+        </div>
+        <div className="cap-carte-nuage absolute left-0 bottom-[-22%] w-[34%] opacity-[0.05]" style={{ ["--t" as string]: "68s", ["--d" as string]: "-30s" }}>
+          <NuageImage forme={2} retourne flou={5} style={{ width: "100%" }} />
+        </div>
+        <div className="cap-carte-reflet absolute inset-y-0 left-0 w-1/3"
+          style={{ background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.07), transparent)" }} />
+      </div>
+
+      <div className="relative flex items-center gap-2.5">
+        <span className="relative inline-flex">
+          <span aria-hidden className="cap-app-onde absolute inset-0 rounded-full" style={{ boxShadow: "0 0 0 1.5px var(--cap-amber)" }} />
+          <Waypoint size={11} tone="amber" />
+        </span>
         <span
           className="text-[0.75rem] font-medium uppercase tracking-[0.15em]"
           style={{ color: "rgba(232,237,241,0.62)" }}
@@ -609,26 +654,26 @@ function NextStep({
       {/* Inverted on purpose: one dark block on a light page is what makes the
           single recommendation impossible to scroll past. */}
       <h2
-        className="mt-3.5 max-w-[30rem] text-[clamp(1.35rem,2.6vw,1.9rem)] font-semibold leading-[1.15] tracking-[-0.02em]"
+        className="relative mt-3.5 max-w-[30rem] text-[clamp(1.35rem,2.6vw,1.9rem)] font-semibold leading-[1.15] tracking-[-0.02em]"
         style={{ fontFamily: "var(--cap-font-display)" }}
       >
         {suggestion.title}
       </h2>
       <p
-        className="mt-3 max-w-[34rem] text-[0.92rem] leading-[1.6]"
+        className="relative mt-3 max-w-[34rem] text-[0.92rem] leading-[1.6]"
         style={{ color: "rgba(232,237,241,0.72)" }}
       >
         {suggestion.body}
       </p>
 
-      <div className="mt-6">
+      <div className="relative mt-6">
         <Link
           href={suggestion.href}
           className="inline-flex h-11 items-center gap-2 rounded-[10px] px-5 text-[0.925rem] font-medium transition-opacity hover:opacity-90"
           style={{ backgroundColor: "#F2F5F7", color: "var(--cap-navy)" }}
         >
           {suggestion.cta}
-          <ArrowRight className="h-4 w-4" />
+          <ArrowRight className="cap-fleche h-4 w-4" />
         </Link>
       </div>
     </section>

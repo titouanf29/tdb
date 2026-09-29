@@ -102,7 +102,11 @@ export function Reveal({
   const [anim] = useAnimationsEnabled();
   const Comp = motion[as];
 
-  if (reduce || !anim) return <Comp className={className}>{children}</Comp>;
+  // L'état final, posé explicitement. Le premier rendu se fait toujours avec
+  // effets (le réglage n'est lu qu'ensuite) ; rendre simplement <Comp> sans
+  // animation laissait l'élément figé à son état caché — des écrans entiers
+  // restaient vides pour qui avait coupé les animations.
+  if (reduce || !anim) return <Comp className={className} variants={reveal} initial={false} animate="shown" transition={{ duration: 0 }}>{children}</Comp>;
 
   return (
     <Comp

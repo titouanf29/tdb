@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Num } from "./Text";
 
@@ -53,6 +54,8 @@ export function DataRow({
             {change.toFixed(2)} %
           </Num>
         )}
+        {/* Une ligne qui mène quelque part le montre au survol. */}
+        {href && <ChevronRight aria-hidden className="cap-chevron -ml-2 h-3.5 w-3.5 self-center sm:-ml-3" style={{ color: "var(--cap-ink-3)" }} />}
       </div>
     </>
   );
@@ -79,7 +82,8 @@ export function DataList({
   return (
     <div
       className={cn(
-        "[&>*+*]:border-t [&>*+*]:border-[color:var(--cap-line)]",
+        // cap-liste : les lignes arrivent l'une après l'autre (AnimationsApp).
+        "cap-liste [&>*+*]:border-t [&>*+*]:border-[color:var(--cap-line)]",
         className
       )}
     >

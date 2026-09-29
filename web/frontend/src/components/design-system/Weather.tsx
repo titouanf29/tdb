@@ -65,17 +65,29 @@ const STORAGE_KEY = "tdb_animations";
 export function useAnimationsEnabled(): [boolean, (v: boolean) => void] {
   const [on, setOn] = useState(true);
 
+  // Toutes les copies du réglage restent d'accord : couper les animations
+  // depuis l'accueil prévient aussi l'en-tête, le rideau, les apparitions —
+  // sans attendre un rechargement. La classe « anim-off » sur <html> permet
+  // aux animations purement CSS de s'arrêter elles aussi.
   useEffect(() => {
-    try {
-      setOn(localStorage.getItem(STORAGE_KEY) !== "off");
-    } catch {
-      /* private mode — keep the default */
-    }
+    const lire = () => {
+      let v = true;
+      try { v = localStorage.getItem(STORAGE_KEY) !== "off"; } catch { /* private mode — keep the default */ }
+      setOn(v);
+      // Le réglage de l'appareil compte aussi : la page d'accueil pose déjà
+      // la classe dans ce cas, il ne faut pas la retirer.
+      const reduit = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+      document.documentElement.classList.toggle("anim-off", !v || !!reduit);
+    };
+    lire();
+    window.addEventListener("tdb-animations", lire);
+    return () => window.removeEventListener("tdb-animations", lire);
   }, []);
 
   const set = useCallback((v: boolean) => {
-    setOn(v);
     try { localStorage.setItem(STORAGE_KEY, v ? "on" : "off"); } catch { /* ignore */ }
+    setOn(v);
+    window.dispatchEvent(new Event("tdb-animations"));
   }, []);
 
   return [on, set];
