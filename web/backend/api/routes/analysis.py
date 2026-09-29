@@ -2360,9 +2360,21 @@ async def scan_market(
         return r["score"] >= min_score or vente
 
     def _rang(r: dict) -> float:
-        """Le plus convaincant d'abord, quel que soit le sens : c'est
-        l'ÉCART à la neutralité qui mesure la conviction."""
-        return abs(r["score"] - 50)
+        """Les achats d'abord, puis les neutres, les scores bas en dernier.
+
+        Le tri se faisait sur l'écart à 50 « quel que soit le sens » : un 20
+        passait devant un 70. Depuis que le moteur ne propose plus de vente
+        à découvert, un score bas veut dire « pas le moment d'acheter » — il
+        n'a rien à faire en tête de liste.
+
+        Ce que le tri NE fait PAS, et pourquoi. Mesuré chaque vendredi sur
+        40 actifs et 5 ans (plan swing) : parmi les actifs à 60 ou plus,
+        prendre les 3 replis les plus profonds, ou les 3 meilleurs scores,
+        ne fait pas mieux que les prendre tous (+0,29 R et +0,27 R contre
+        +0,33 R par trade sur la période jamais vue). Le rang à l'intérieur
+        des achats n'est donc pas une promesse, et l'écran ne le présente
+        pas comme tel."""
+        return r["score"]
 
     gate = asyncio.Semaphore(_SCAN_CONCURRENCY)
 
