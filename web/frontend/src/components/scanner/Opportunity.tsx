@@ -51,7 +51,7 @@ export function Opportunity({
       /* Le décalage suit le rang, plafonné : au-delà d'une poignée de cartes
          l'escalier devient une attente au lieu d'un mouvement. */
       transition={{ duration: DUR.base, ease: EASE, delay: Math.min(index, 6) * 0.05 }}
-      className="py-4 first:pt-0 last:pb-0"
+      className="group py-4 first:pt-0 last:pb-0"
     >
       <div className="flex flex-wrap items-start justify-between gap-x-5 gap-y-2">
         <div className="min-w-0 flex-1">
@@ -130,7 +130,14 @@ export function Opportunity({
         <div className="flex shrink-0 items-center gap-4">
           <div className="text-right">
             <Num className="block text-[1.05rem]" tone="ink">{item.score}</Num>
-            <span className="text-[0.7rem]" style={{ color: ton }}>
+            {/* Le score, aussi en jauge : elle se remplit à l'arrivée, de la
+                couleur de la famille. */}
+            <span aria-hidden className="ml-auto mt-1 block h-[3px] w-10 overflow-hidden rounded-full" style={{ backgroundColor: "var(--cap-line)" }}>
+              <span className="cap-barre block h-full rounded-full"
+                style={{ transform: `scaleX(${Math.max(0, Math.min(100, item.score)) / 100})`, backgroundColor: ton,
+                         animationDelay: `${0.15 + Math.min(index, 6) * 0.05}s` }} />
+            </span>
+            <span className="mt-1 block text-[0.7rem]" style={{ color: ton }}>
               {item.setup ?? item.family ?? ""}
             </span>
           </div>
@@ -140,7 +147,7 @@ export function Opportunity({
             className="rounded-[8px] p-1.5 transition-colors hover:bg-[color:var(--cap-surface-2)]"
             style={{ color: "var(--cap-ink-3)" }}
           >
-            <ArrowUpRight className="h-4 w-4" />
+            <ArrowUpRight className="h-4 w-4 transition-transform duration-200 group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
           </Link>
         </div>
       </div>

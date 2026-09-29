@@ -427,6 +427,7 @@ export default function ScannerPage() {
                   phase={phase}
                   kept={results.length}
                   elapsed={elapsed}
+                  enCours={busy}
                 />
               </Panel>
             </motion.div>
@@ -442,6 +443,9 @@ export default function ScannerPage() {
             return (
               <Panel
                 key={key}
+                // La famille arrive en douceur quand sa première opportunité
+                // tombe, au lieu d'apparaître d'un bloc.
+                className="cap-apparait"
                 title={titre}
                 hint={quoi}
                 aside={
