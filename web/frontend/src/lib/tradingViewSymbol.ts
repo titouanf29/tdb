@@ -83,14 +83,30 @@ const INDICES: Record<string, string> = {
  * Café, coton et cacao n'ont aucun flux neutre — seulement des CFD de
  * courtiers. Ils n'ont donc pas d'entrée, et gardent le graphique interne.
  */
-// VIDE, depuis septembre 2026. Ces flux (TVC:GOLD, TVC:USOIL…) sont des prix
-// AU COMPTANT, alors que le site analyse le CONTRAT À TERME (GC=F, CL=F…) :
-// le stop et l'objectif, tracés sur un graphique qui cote quelques dizaines
-// de dollars plus bas, ne tombaient pas sur les bons niveaux. Le widget ne
-// sait pas afficher les contrats continus (voir plus haut) : les matières
-// premières prennent donc le graphique interne, construit sur les mêmes
-// bougies que l'analyse.
-const COMMODITIES: Record<string, string> = {};
+// Des flux AU COMPTANT (TVC:GOLD, TVC:USOIL…), alors que le site analyse le
+// CONTRAT À TERME (GC=F, CL=F…) : le widget intégrable ne sait pas afficher
+// les contrats continus (voir plus haut). Retirés un temps pour cette raison,
+// ils sont revenus : sans eux, « Complet » ne montrait plus de graphique
+// TradingView pour aucune matière première, ce qui se lisait comme une panne.
+// L'écran dit désormais, sous le graphique, que c'est le comptant — et
+// `estAuComptant()` permet de le savoir.
+const COMMODITIES: Record<string, string> = {
+  "GC=F": "TVC:GOLD",
+  "SI=F": "TVC:SILVER",
+  "HG=F": "FX:COPPER",
+  "CL=F": "TVC:USOIL",
+  "NG=F": "FX:NGAS",
+  "ZC=F": "OANDA:CORNUSD",
+  "ZW=F": "OANDA:WHEATUSD",
+  "ZS=F": "OANDA:SOYBNUSD",
+  "SB=F": "OANDA:SUGARUSD",
+};
+
+/** Le graphique TradingView de cet actif montre-t-il le comptant plutôt que
+ *  le contrat à terme analysé ? */
+export function estAuComptant(symbol: string): boolean {
+  return !!COMMODITIES[(symbol || "").trim().toUpperCase()];
+}
 
 /**
  * Le symbole TradingView correspondant, ou null si la correspondance n'est

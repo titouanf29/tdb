@@ -618,6 +618,25 @@ _REGIME_FR = {"BULL": "marché haussier", "BEAR": "marché baissier", "NEUTRAL":
 # Entre les deux, on avertit. Au-delà, on bloque : pas parce que la direction
 # serait fausse, mais parce que CE plan, sur CET actif, avec CE stop et CET
 # objectif, a déjà été joué et a perdu.
+# ── L'INTRADAY N'A PAS D'AVANTAGE MESURÉ ────────────────────────────────────
+#
+# Mesuré en septembre 2026 sur 40 actifs, avec TOUTE la chaîne de décision de
+# l'écran (portes, R/R jusqu'au premier obstacle, volatilité, et le blocage
+# par l'avantage de l'actif recalculé à chaque date avec ses seuls trades
+# déjà clos), frais compris, trois périodes successives :
+#   · 5 min : −0,36 / −0,31 / −0,28 R par trade proposé, aucun actif gagnant
+#     sur les deux dernières périodes ;
+#   · 1 h   : −0,01 / −0,07 / −0,04 R — environ zéro, toujours négatif ;
+#   · 4 h   : −0,03 / −0,03 / +0,07 R — environ zéro, de signe instable.
+# Le filtre par actif fait son travail (les achats qu'il bloque perdaient
+# ~0,8 R) mais ce qui reste ne bat pas les frais. Le moteur ne PROPOSE donc
+# pas de position à ces horizons : il analyse, et le dit. 15 et 30 min n'ont
+# pas été mesurés à part ; ils se situent entre 5 min et 1 h, où les frais
+# pèsent déjà plus que tout avantage.
+INTRADAY_SANS_AVANTAGE = {"5m", "15m", "30m", "1h", "4h"}
+INTRADAY_ETUDE = ("−0,28 à −0,36 R par trade en 5 min, environ zéro en 1 h et en 4 h, frais compris, "
+                  "40 actifs, trois périodes")
+
 EDGE_BRUIT = -0.05
 EDGE_BLOQUANT = -0.25
 
@@ -798,6 +817,7 @@ def _tradeability(
     neutre: bool = False,
     vente_non_prouvee: bool = False,
     jusqua_obstacle: bool = False,
+    timeframe: str | None = None,
 ) -> dict:
     """Is this direction actually worth acting on?
 
@@ -810,6 +830,10 @@ def _tradeability(
     blockers: list[str] = []
     warnings: list[str] = []
 
+    if (timeframe or "") in INTRADAY_SANS_AVANTAGE:
+        blockers.append(
+            "Intraday : le moteur n'a pas d'avantage mesuré après frais à cet horizon "
+            f"({INTRADAY_ETUDE}) — il analyse, il ne propose pas de trade")
     if neutre:
         blockers.append("Verdict neutre — le moteur ne voit pas de sens assez net pour proposer un trade")
     if vente_non_prouvee:
@@ -1637,6 +1661,7 @@ async def analyze_asset(
                 # La décision d'entrer : la place jusqu'au premier obstacle.
                 risk_reward=_rr_structure,
                 jusqua_obstacle=_obstacle and not tp_capped,
+                timeframe=timeframe,
                 data_stale=data_stale,
                 confidence=_confidence,
                 vol_percentile=S.get("vol_percentile"),
@@ -2421,7 +2446,12 @@ async def scan_market(
                 # « long », « short » ou « aucun », et la raison — adossée à
                 # l'horizon de l'utilisateur, pas au seul score.
                 "sens":          opp["sens"],
-                "sens_phrase":   opp["sens_phrase"],
+                # En intraday, le moteur n'a pas d'avantage mesuré : le
+                # conseil reste une lecture, et la carte le dit.
+                "sens_phrase":   opp["sens_phrase"] + (
+                    " En intraday, le moteur n'a pas d'avantage mesuré après frais : "
+                    "une lecture, pas une proposition."
+                    if timeframe in INTRADAY_SANS_AVANTAGE and opp["sens"] == "long" else ""),
                 # Entrée, objectif, invalidation — ce que l'écran d'analyse
                 # reprendra pour expliquer d'où vient la sélection.
                 "plan":          opp["plan"],

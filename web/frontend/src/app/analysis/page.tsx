@@ -29,7 +29,7 @@ import { RefreshTimer, useAutoRefresh } from "@/components/app/RefreshTimer";
 import { type Level } from "@/components/analysis/PriceChart";
 import { AnnotatedChart } from "@/components/analysis/AnnotatedChart";
 import { TradingViewChart } from "@/components/analysis/TradingViewChart";
-import { hasTradingView } from "@/lib/tradingViewSymbol";
+import { estAuComptant, hasTradingView } from "@/lib/tradingViewSymbol";
 import { quoteState } from "@/lib/marketOf";
 import { FactorBars, LevelScale } from "@/components/analysis/Gauges";
 import { AskAssistant } from "@/components/analysis/AskAssistant";
@@ -589,6 +589,7 @@ function AnalysisScreen() {
               tickerHint={`Cadence ${style.label.fr} — toutes les ${style.refreshSeconds} s. Elle suit votre horizon de trading, modifiable dans Réglages.`}
               isFavorite={favorites.has(symbol)}
               onToggleFavorite={toggleFavorite}
+              onPasserEnSwing={() => changeStyle("swing")}
             />
 
 
@@ -669,6 +670,14 @@ function AnalysisScreen() {
                 ) : tvAvailable ? (
                   <>
                     <TradingViewChart symbol={symbol} interval={tvInterval(timeframe)} />
+                    {estAuComptant(symbol) && (
+                      <Text size="caption" className="mt-3" tone="ink">
+                        Ce graphique TradingView montre le prix AU COMPTANT : leur widget ne sait pas
+                        afficher le contrat à terme ({symbol}) sur lequel sont calculés l&apos;analyse,
+                        le stop et l&apos;objectif. Le contrat cote en général un peu au-dessus : pour les
+                        niveaux exacts, voyez le graphique « Commenté ».
+                      </Text>
+                    )}
                     <Text size="caption" className="mt-3">
                       Graphique fourni par TradingView. Il se charge depuis leurs
                       serveurs, à qui le symbole consulté est donc transmis.
@@ -793,6 +802,7 @@ function Verdict({
   tickerHint,
   isFavorite,
   onToggleFavorite,
+  onPasserEnSwing,
 }: {
   analysis: Analysis;
   /** Un cours n'a pas la précision d'une somme : sur un actif à 0,34 €, deux
@@ -804,6 +814,7 @@ function Verdict({
   tickerHint: string;
   isFavorite: boolean;
   onToggleFavorite: () => void;
+  onPasserEnSwing?: () => void;
 }) {
   const dir = directionLabel(a);
   const reasons = useMemo(() => buildReasons(a), [a]);
@@ -924,7 +935,8 @@ function Verdict({
           verdict, avant les raisons : c'est la question que se pose celui qui
           ouvre une analyse (« j'y vais ? »), la réponse ne doit pas attendre
           au bas de la carte. */}
-      <PropositionNimbo analysis={a} assetPrice={assetPrice} cours={live?.price ?? a.price.current} planHref={planHref} />
+      <PropositionNimbo analysis={a} assetPrice={assetPrice} cours={live?.price ?? a.price.current} planHref={planHref}
+        onPasserEnSwing={onPasserEnSwing} />
 
       {/* The why. The part the product exists for. */}
       <div className="mt-7 border-t pt-6" style={{ borderColor: "var(--cap-line)" }}>
@@ -989,15 +1001,20 @@ function PropositionNimbo({
   assetPrice,
   cours,
   planHref,
+  onPasserEnSwing,
 }: {
   analysis: Analysis;
   assetPrice: (v: number) => string;
   cours: number;
   planHref: string;
+  onPasserEnSwing?: () => void;
 }) {
   const nom = a.company?.name || a.symbol;
   const plan = a.risk?.suggested_sl != null && a.risk?.suggested_tp != null ? a.risk : null;
   const blocage = a.tradeability?.blockers?.[0];
+  // L'intraday, mesuré sans avantage après frais : Nimbo ne propose rien et
+  // le dit sans détour — la raison n'est pas CET actif, c'est l'horizon.
+  const intraday = !!blocage?.startsWith("Intraday");
   // Le cas qui déroute : un bon score, et pourtant rien. Le plus souvent,
   // l'objectif bute sur un niveau tout proche (plafonné à la résistance) et
   // le rapport gain / risque tombe sous 1,2. Nimbo le dit avec les chiffres
@@ -1080,7 +1097,9 @@ function PropositionNimbo({
           <p className="mt-1 text-[1.05rem] font-semibold leading-snug sm:text-[1.15rem]" style={{ color: "var(--cap-ink)", fontFamily: "var(--cap-font-display)" }}>
             {propose && plan
               ? `${vente ? "Vendre à découvert" : "Acheter"} ${nom} : je vous propose de prendre position.`
-              : `Je ne vous propose pas de position sur ${nom} pour l'instant.`}
+              : intraday
+                ? "Je ne propose pas de position en intraday."
+                : `Je ne vous propose pas de position sur ${nom} pour l'instant.`}
           </p>
           <Text size="small" className="mt-1.5">
             {propose && plan
@@ -1100,6 +1119,23 @@ function PropositionNimbo({
                       {taille.plafonnee ? " — tout votre capital, le plafond" : ""}.</>
                   )}
                 </>
+              : intraday
+                ? <>
+                    En intraday, je ne propose jamais de position : mesuré sur 40 actifs, même mes meilleurs
+                    signaux n&apos;y battent pas les frais (−0,28 à −0,36 R par trade en 5 min, environ zéro
+                    en 1 h et en 4 h). L&apos;analyse reste utile pour lire le marché. Pour des positions que je propose,
+                    le Swing est l&apos;horizon où mon avantage est mesuré.
+                    {onPasserEnSwing && (
+                      <button
+                        type="button"
+                        onClick={onPasserEnSwing}
+                        className="ml-1 inline font-medium underline underline-offset-2"
+                        style={{ color: "var(--cap-ocean)" }}
+                      >
+                        Passer en Swing
+                      </button>
+                    )}
+                  </>
               : freine
                 ? <>
                     Le signal seul serait à {freine.avant}/100, mais {freine.raisons} : le moteur retire{" "}
