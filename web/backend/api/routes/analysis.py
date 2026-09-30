@@ -1075,14 +1075,20 @@ async def analyze_asset(
         # classic trap. The signal is pulled back toward neutral when the
         # higher timeframe disagrees, and credited when it confirms.
         higher_tf_info = {"interval": None, "trend": "UNKNOWN", "aligned": None}
+        # Le score AVANT les portes, gardé pour que l'écran puisse dire
+        # « le signal seul serait à 63, mais la tendance de fond est contre » —
+        # la raison la plus fréquente pour laquelle le moteur se tait.
+        _score_avant_portes = float(final_score)
         _htf = htf_from_primary(hist, timeframe)   # derived, no second download
         if _htf:
             try:
                 _htf_interval, _htf_closes = _htf
                 _h_trend = htf_trend(_htf_closes)
+                _avant = final_score
                 final_score, _aligned, _bull_note, _bear_note = apply_htf_gate(
                     final_score, _h_trend, _htf_interval)
-                higher_tf_info = {"interval": _htf_interval, "trend": _h_trend, "aligned": _aligned}
+                higher_tf_info = {"interval": _htf_interval, "trend": _h_trend, "aligned": _aligned,
+                                  "ajustement": round(final_score - _avant, 1)}
                 if _bull_note: bullish_signals.append(_bull_note)
                 if _bear_note: bearish_signals.append(_bear_note)
             except Exception:
@@ -1103,7 +1109,9 @@ async def analyze_asset(
                 if _b_hist is not None and not _b_hist.empty:
                     _bench_close = _b_hist["Close"]
                     market_context = compute_market_context(close, _b_hist["Close"], _bench)
+                    _avant = final_score
                     final_score, _c_bull, _c_bear = apply_context_gate(final_score, market_context)
+                    market_context["ajustement"] = round(final_score - _avant, 1)
                     if _c_bull: bullish_signals.append(_c_bull)
                     if _c_bear: bearish_signals.append(_c_bear)
             except Exception as exc:
@@ -1562,6 +1570,19 @@ async def analyze_asset(
             # refusal is auditable rather than a silent downgrade.
             # Le seuil d'achat appliqué à CET utilisateur, pour que l'écran
             # dise pourquoi un score sous 60 est proposé.
+            # Ce que les portes ont fait au score. Mesuré (septembre 2026, 40
+            # actifs, plan de l'écran, frais compris) : en journalier, les
+            # achats que la tendance hebdomadaire éteint ont rapporté +0,13 R
+            # et +0,30 R par trade sur les deux périodes, contre +0,43 R et
+            # +0,40 R pour ceux qu'elle laisse passer — la porte trie dans le
+            # bon sens, elle reste. En hebdomadaire, les signaux éteints par la
+            # tendance mensuelle ont paru meilleurs, mais sur 4 actifs par
+            # période et un seul épisode dominant : pas assez pour la retirer.
+            "portes": {
+                "score_avant": round(_score_avant_portes, 1),
+                "unite_superieure": higher_tf_info.get("ajustement", 0.0),
+                "contexte": (market_context or {}).get("ajustement", 0.0),
+            },
             "seuil_achat": {
                 "valeur": _seuil,
                 "niveau_risque": _niveau_risque,

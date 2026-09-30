@@ -994,6 +994,29 @@ function PropositionNimbo({
         }
       : null;
   const score = Math.round(a.profile_score?.total ?? a.score.total);
+  // L'autre cas qui déroute : le signal seul passerait, mais une porte de
+  // contexte le ramène au neutre — le plus souvent la tendance de l'unité
+  // supérieure. Nimbo le dit, avec la mesure qui justifie la porte.
+  const seuil = a.seuil_achat?.valeur ?? 60;
+  const portes = a.portes;
+  const freine =
+    !!portes && !!blocage?.startsWith("Verdict neutre") && portes.score_avant >= seuil
+    && a.score.total < seuil && (portes.unite_superieure < 0 || portes.contexte < 0)
+      ? {
+          avant: Math.round(portes.score_avant),
+          retire: Math.round(-(portes.unite_superieure + portes.contexte)),
+          raisons: [
+            portes.unite_superieure < 0 && a.higher_timeframe?.interval
+              ? `la tendance ${UNITE_SUP[a.higher_timeframe.interval] ?? "de fond"} est baissière`
+              : null,
+            portes.contexte < 0 && a.market_context
+              ? a.market_context.regime === "BEAR"
+                ? `le marché de référence (${NOM_INDICE[a.market_context.benchmark] ?? a.market_context.benchmark}) baisse`
+                : `l'actif fait moins bien que son marché (${NOM_INDICE[a.market_context.benchmark] ?? a.market_context.benchmark})`
+              : null,
+          ].filter(Boolean).join(", et "),
+        }
+      : null;
   const proposeMoteur = !!plan && !plan.illustratif && !blocage;
   const vente = plan?.direction === "SHORT";
   const ton = directionLabel(a).tone;
@@ -1055,6 +1078,15 @@ function PropositionNimbo({
                       {taille.plafonnee ? " — tout votre capital, le plafond" : ""}.</>
                   )}
                 </>
+              : freine
+                ? <>
+                    Le signal seul serait à {freine.avant}/100, mais {freine.raisons} : le moteur retire{" "}
+                    {freine.retire} points et attend que le vent tourne.
+                    {a.timeframe === "1d" && portes && portes.unite_superieure < 0 && (
+                      <> Mesuré sur 40 actifs, les achats qu&apos;il écarte ainsi ont rapporté moins que ceux
+                        qu&apos;il garde : +0,13 et +0,30 R par trade sur deux périodes, contre +0,43 et +0,40 R.</>
+                    )}
+                  </>
               : butee
                 ? <>
                     Le signal est bon ({score}/100), mais le cours est juste {vente ? "au-dessus d'un support" : "sous une résistance"} à{" "}
@@ -1106,6 +1138,14 @@ function PropositionNimbo({
     </section>
   );
 }
+
+/** L'unité supérieure, dite en français. */
+const UNITE_SUP: Record<string, string> = {
+  "1h": "horaire", "1d": "journalière", "1wk": "hebdomadaire", "1mo": "mensuelle",
+};
+const NOM_INDICE: Record<string, string> = {
+  "^GSPC": "S&P 500", "^STOXX50E": "Euro Stoxx 50", "^N225": "Nikkei 225", "BTC-USD": "Bitcoin",
+};
 
 /** Un écart de prix en pourcentage du cours — lisible quel que soit l'actif,
  *  là où « 0,51000 € » garde toutes les décimales d'un cours. */

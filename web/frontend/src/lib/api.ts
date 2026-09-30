@@ -1186,6 +1186,14 @@ export interface Analysis {
     interval: string | null;
     trend: "BULLISH" | "BEARISH" | "NEUTRAL" | "UNKNOWN";
     aligned: boolean | null;
+    /** Points retirés (négatif) ou ajoutés par cette tendance. */
+    ajustement?: number;
+  };
+  /** Le score avant les deux portes, et ce que chacune a fait. */
+  portes?: {
+    score_avant: number;
+    unite_superieure: number;
+    contexte: number;
   };
   data_quality?: {
     stale: boolean;
