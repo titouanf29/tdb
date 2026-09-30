@@ -315,13 +315,16 @@ async def fetch_prices(symbols: list[str]) -> dict[str, dict]:
                 yf_only.append(sym)
             continue
 
-        # Commodity futures
+        # Contrats à terme : le contrat lui-même, jamais le comptant.
+        #
+        # GC=F passait par Twelve Data en XAU/USD — l'or AU COMPTANT — alors
+        # que les bougies, l'analyse, le stop et l'objectif sont ceux du
+        # CONTRAT À TERME. Le contrat cote au-dessus du comptant (le coût de
+        # portage, quelques dizaines de dollars sur l'or) : une position
+        # s'ouvrait au comptant avec un stop calculé sur le contrat, décalé
+        # parfois de la moitié de la distance au stop. Un seul prix, partout.
         if s.endswith("=F"):
-            td_sym = COMMODITY_TO_TD.get(s)
-            if td_sym:
-                td_map[td_sym] = sym
-            else:
-                yf_only.append(sym)
+            yf_only.append(sym)
             continue
 
         # Forex  EURUSD=X → EUR/USD

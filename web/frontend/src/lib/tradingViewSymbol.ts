@@ -83,17 +83,14 @@ const INDICES: Record<string, string> = {
  * Café, coton et cacao n'ont aucun flux neutre — seulement des CFD de
  * courtiers. Ils n'ont donc pas d'entrée, et gardent le graphique interne.
  */
-const COMMODITIES: Record<string, string> = {
-  "GC=F": "TVC:GOLD",
-  "SI=F": "TVC:SILVER",
-  "HG=F": "FX:COPPER",
-  "CL=F": "TVC:USOIL",
-  "NG=F": "FX:NGAS",
-  "ZC=F": "OANDA:CORNUSD",
-  "ZW=F": "OANDA:WHEATUSD",
-  "ZS=F": "OANDA:SOYBNUSD",
-  "SB=F": "OANDA:SUGARUSD",
-};
+// VIDE, depuis septembre 2026. Ces flux (TVC:GOLD, TVC:USOIL…) sont des prix
+// AU COMPTANT, alors que le site analyse le CONTRAT À TERME (GC=F, CL=F…) :
+// le stop et l'objectif, tracés sur un graphique qui cote quelques dizaines
+// de dollars plus bas, ne tombaient pas sur les bons niveaux. Le widget ne
+// sait pas afficher les contrats continus (voir plus haut) : les matières
+// premières prennent donc le graphique interne, construit sur les mêmes
+// bougies que l'analyse.
+const COMMODITIES: Record<string, string> = {};
 
 /**
  * Le symbole TradingView correspondant, ou null si la correspondance n'est

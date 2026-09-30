@@ -834,6 +834,17 @@ function Verdict({
             </button>
           </div>
 
+          {/* Un contrat à terme n'est pas le prix au comptant qu'affiche un
+              courtier CFD (GC=F contre XAU/USD) : l'écart est petit mais réel,
+              et quelqu'un qui compare avec son courtier doit le savoir. */}
+          {a.symbol.toUpperCase().endsWith("=F") && (
+            <p className="mt-1 max-w-[34rem] text-[0.8rem] leading-snug" style={{ color: "var(--cap-ink-3)" }}>
+              Contrat à terme ({a.symbol}){COMPTANT[a.symbol.toUpperCase()] ? ` — pas le prix au comptant ${COMPTANT[a.symbol.toUpperCase()]}` : ""}.
+              Il cote en général un peu au-dessus (coût de portage) ; analyse, stop et objectif sont tous
+              calculés sur ce contrat.
+            </p>
+          )}
+
           {/* Le prix affiché est la DERNIÈRE cotation connue, pas celle du
               chargement de la page. Les deux chiffres défilent au lieu de
               sauter, et la pastille colorée dit le sens du mouvement à
@@ -1142,6 +1153,12 @@ function PropositionNimbo({
     </section>
   );
 }
+
+/** Le prix au comptant qu'un courtier affiche pour ces contrats à terme. */
+const COMPTANT: Record<string, string> = {
+  "GC=F": "XAU/USD", "SI=F": "XAG/USD", "PL=F": "XPT/USD", "PA=F": "XPD/USD",
+  "CL=F": "WTI au comptant", "BZ=F": "Brent au comptant", "NG=F": "gaz naturel au comptant",
+};
 
 /** L'unité supérieure, dite en français. */
 const UNITE_SUP: Record<string, string> = {
