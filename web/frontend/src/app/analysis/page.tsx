@@ -34,7 +34,7 @@ import { quoteState } from "@/lib/marketOf";
 import { FactorBars, LevelScale } from "@/components/analysis/Gauges";
 import { AskAssistant } from "@/components/analysis/AskAssistant";
 import { RoueRisque } from "@/components/analysis/RoueRisque";
-import { RISQUE, SEUIL_AGRESSIF, niveauRisque, seuilAbaisse, tailleSelonRisque, type NiveauRisque } from "@/lib/risque";
+import { RISQUE, SEUIL_AGRESSIF, niveauRisque, seuilAbaisse, tailleSelonRisque } from "@/lib/risque";
 import { PressContext } from "@/components/analysis/PressContext";
 import { ClimatMarche } from "@/components/analysis/ClimatMarche";
 import { MacroContext } from "@/components/analysis/MacroContext";
@@ -508,16 +508,25 @@ function AnalysisScreen() {
               <Text size="caption" as="span">Sur quel horizon analysez-vous ?</Text>
               {switching && <Text size="caption" as="span" tone="accent">Nouveau modèle appliqué…</Text>}
             </div>
-            <div className="mt-2.5 -mx-1 overflow-x-auto px-1 pb-1">
-              <SegmentedControl
-                size="md"
-                options={TRADING_STYLE_IDS.map((id) => ({
-                  value: id,
-                  label: TRADING_STYLES[id].label.fr,
-                }))}
-                value={settings.tradingStyle as TradingStyleId}
-                onChange={changeStyle}
-                aria-label="Horizon d'analyse"
+            {/* L'horizon et, juste à côté, le risque par trade : les deux
+                réglages qui décident d'un plan. Le bouton se tourne ; il
+                règle la taille de la position, jamais le stop ni l'objectif. */}
+            <div className="mt-2.5 flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
+              <div className="-mx-1 max-w-full overflow-x-auto px-1 pb-1">
+                <SegmentedControl
+                  size="md"
+                  options={TRADING_STYLE_IDS.map((id) => ({
+                    value: id,
+                    label: TRADING_STYLES[id].label.fr,
+                  }))}
+                  value={settings.tradingStyle as TradingStyleId}
+                  onChange={changeStyle}
+                  aria-label="Horizon d'analyse"
+                />
+              </div>
+              <RoueRisque
+                niveau={niveauRisque(settings.riskLevel)}
+                onChange={(n) => { saveSettings({ riskLevel: n }).catch(() => {}); }}
               />
             </div>
             <Text size="caption" className="mt-2.5">
@@ -981,19 +990,10 @@ function PropositionNimbo({
   const vente = plan?.direction === "SHORT";
   const ton = directionLabel(a).tone;
 
-  // Le risque que l'utilisateur accepte : son réglage, modifiable ici même sur
-  // la roue (et enregistré). Il règle la taille de la position, pas le plan.
-  const { settings, setRiskLevel, isLoaded } = useSettings();
-  const [niveau, setNiveau] = useState<NiveauRisque>(() => niveauRisque(settings.riskLevel));
-  const niveauTouche = useRef(false);
-  useEffect(() => {
-    if (isLoaded && !niveauTouche.current) setNiveau(niveauRisque(settings.riskLevel));
-  }, [isLoaded, settings.riskLevel]);
-  const changerNiveau = (n: NiveauRisque) => {
-    niveauTouche.current = true;
-    setNiveau(n);
-    setRiskLevel(n);
-  };
+  // Le risque que l'utilisateur accepte : son réglage, que le bouton rotatif
+  // du haut de page modifie. Il règle la taille de la position, pas le plan.
+  const { settings } = useSettings();
+  const niveau = niveauRisque(settings.riskLevel);
   const [capital, setCapital] = useState<number | null>(null);
   useEffect(() => {
     walletAPI.getBalance().then((b) => setCapital(b.balance)).catch(() => {});
@@ -1065,30 +1065,22 @@ function PropositionNimbo({
         </div>
       </div>
 
-      {/* Le plan à gauche, la roue du risque à droite : ce que le marché
-          propose, et ce que l'on accepte d'y mettre. */}
-      <div className="mt-4 grid items-center gap-x-8 gap-y-5 md:grid-cols-[minmax(0,1fr)_15rem]">
-        {plan ? (
-          <div className="min-w-0">
-            <div className="flex flex-wrap gap-x-8 gap-y-2">
-              <RiskBit label="Stop" value={assetPrice(plan.suggested_sl)} tone="down" />
-              <RiskBit label="Objectif" value={assetPrice(plan.suggested_tp)} tone="up" />
-              <RiskBit label="Risque / rendement" value={`1 : ${fr(plan.risk_reward, 1)}`} />
-              {taille?.position != null && <RiskBit label="Taille de position" value={somme(taille.position)} />}
-            </div>
-            <div className="mt-3">
-              <PlanBar stop={plan.suggested_sl} objectif={plan.suggested_tp} cours={cours} />
-            </div>
+      {plan && (
+        <div className="mt-4">
+          <div className="flex flex-wrap gap-x-8 gap-y-2">
+            <RiskBit label="Stop" value={assetPrice(plan.suggested_sl)} tone="down" />
+            <RiskBit label="Objectif" value={assetPrice(plan.suggested_tp)} tone="up" />
+            <RiskBit label="Risque / rendement" value={`1 : ${fr(plan.risk_reward, 1)}`} />
+            {taille?.position != null && <RiskBit label="Taille de position" value={somme(taille.position)} />}
+            {perte != null && (
+              <RiskBit label={`Perte au stop (${RISQUE[niveau].pct.toLocaleString("fr-FR")} %)`} value={somme(perte)} tone="down" />
+            )}
           </div>
-        ) : <div className="hidden md:block" />}
-        <RoueRisque
-          niveau={niveau}
-          onChange={changerNiveau}
-          perte={perte != null ? somme(perte) : null}
-          capital={capital != null ? somme(capital) : null}
-          className="mx-auto w-full max-w-[17rem] md:mx-0"
-        />
-      </div>
+          <div className="mt-3">
+            <PlanBar stop={plan.suggested_sl} objectif={plan.suggested_tp} cours={cours} />
+          </div>
+        </div>
+      )}
 
       {/* La prise de position passe TOUJOURS par Nimbo. Quand il propose,
           bouton plein ; quand il ne propose pas, le bouton reste là, en
