@@ -33,20 +33,7 @@ export function tailleSelonRisque(capital: number, pct: number, cours: number, s
   return { perte, position: brute, plafonnee: false };
 }
 
-/**
- * Un profil agressif voit aussi les achats dès un score de 55, mais seulement
- * là où c'est mesuré gagnant : en journalier.
- *
- * Mesuré sur 40 actifs, avec le plan de l'écran et le filtre R/R ≥ 1,2, frais
- * compris : la tranche 55–59 a rapporté +0,21 R par trade sur la période A et
- * +0,26 R sur la période jamais vue B (74 % et 64 % des actifs positifs) —
- * à peine moins que les scores ≥ 60 (+0,22 et +0,35), pour deux fois plus de
- * signaux. En 3 jours et en hebdomadaire, la tranche change de signe d'une
- * période à l'autre ; en intraday, elle perd davantage encore. Là, rien ne
- * change : même agressif, le seuil reste 60.
- */
-export const SEUIL_AGRESSIF = { score: 55, unites: ["1d"], etude: "+0,21 R et +0,26 R par trade sur deux périodes, 40 actifs" };
 
-export function seuilAbaisse(niveau: NiveauRisque, unite: string | undefined): boolean {
-  return (niveau === "aggressive" || niveau === "very_aggressive") && SEUIL_AGRESSIF.unites.includes(unite ?? "");
-}
+// Le seuil d'achat abaissé des profils agressifs (55 en journalier) est une
+// règle du MOTEUR : voir web/backend/api/routes/_risque.py. L'écran lit
+// `analysis.seuil_achat`, il ne la recalcule pas.

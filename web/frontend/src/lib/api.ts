@@ -566,11 +566,14 @@ export const dailyIntentAPI = {
 export const analysisAPI = {
   // sl/tp/fundWeight come from the trading profile so the risk plan, the
   // setups and the backtest all describe one stop and one target.
+  // riskLevel : le risque par trade choisi. Le moteur s'en sert pour le seuil
+  // d'achat des profils agressifs (dès 55 en journalier), rien d'autre.
   analyze: (symbol: string, timeframe = "1d", slAtr = 2.0, tpAtr = 3.0, fundWeight = 0,
-             style = "day") =>
+             style = "day", riskLevel?: string) =>
     fetchAPI<Analysis>(
       `/api/analysis/${symbol}?timeframe=${timeframe}&sl_atr=${slAtr}&tp_atr=${tpAtr}`
       + `&fund_weight=${fundWeight}&style=${style}`
+      + (riskLevel ? `&risk_level=${riskLevel}` : "")
     ),
 
   // slAtr/tpAtr come from the trading profile, so the backtest validates
@@ -1305,6 +1308,15 @@ export interface Analysis {
   };
   /** Direction of each independent factor family, -1 to +1. */
   factor_directions?: Record<string, number>;
+  /** Le seuil d'achat appliqué à cet utilisateur : 55 pour un profil
+   *  agressif en journalier, 60 sinon. `abaisse` : ce score n'est proposé
+   *  QUE grâce au profil. */
+  seuil_achat?: {
+    valeur: number;
+    niveau_risque: string;
+    abaisse: boolean;
+    etude: string | null;
+  };
   tradeability?: {
     tradable: boolean;
     blockers: string[];

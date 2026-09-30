@@ -13,7 +13,7 @@ import { NIVEAUX_RISQUE, RISQUE, type NiveauRisque } from "@/lib/risque";
  * sens de l'accessibilité, qui annonce « Modéré, 1 % du capital »).
  */
 
-const T = 64;                 // taille du dessin, en px
+const T = 96;                 // taille du dessin, en px — assez grand pour se tourner au doigt
 const C = T / 2;
 const CRANS = [-120, -40, 40, 120];   // angle de chaque niveau, depuis midi
 const COULEURS: Record<NiveauRisque, string> = {
@@ -82,11 +82,11 @@ export function RoueRisque({
         <svg viewBox={`0 0 ${T} ${T}`} width={T} height={T} aria-hidden className="block">
           {/* Les crans, autour du disque. */}
           {CRANS.map((a, k) => {
-            const p = point(C - 4, a);
+            const p = point(C - 5, a);
             return (
               <circle
                 key={k}
-                cx={p.x} cy={p.y} r={k === i ? 3 : 2}
+                cx={p.x} cy={p.y} r={k === i ? 4.5 : 3}
                 fill={COULEURS[NIVEAUX_RISQUE[k]]}
                 opacity={k === i ? 1 : 0.4}
                 style={{ transition: "opacity .3s" }}
@@ -94,24 +94,27 @@ export function RoueRisque({
             );
           })}
           {/* Le disque, en relief léger, et son repère qui tourne. */}
-          <circle cx={C} cy={C} r={C - 11} fill="var(--cap-surface)" stroke="var(--cap-line-strong)" strokeWidth={1} />
-          <circle cx={C} cy={C} r={C - 14} fill="none" stroke="var(--cap-line)" strokeWidth={1} />
+          <circle cx={C} cy={C} r={C - 13} fill="var(--cap-surface)" stroke="var(--cap-line-strong)" strokeWidth={1.2}
+            style={{ filter: "drop-shadow(0 2px 3px rgba(11,23,38,.12))" }} />
+          <circle cx={C} cy={C} r={C - 18} fill="none" stroke="var(--cap-line)" strokeWidth={1} />
           <g className="bouton-risque" style={{ transform: `rotate(${CRANS[i]}deg)`, transformOrigin: `${C}px ${C}px` }}>
-            <line x1={C} y1={C - 6} x2={C} y2={15} stroke={COULEURS[niveau]} strokeWidth={3} strokeLinecap="round"
+            <line x1={C} y1={C - 8} x2={C} y2={20} stroke={COULEURS[niveau]} strokeWidth={4.5} strokeLinecap="round"
               style={{ transition: "stroke .3s" }} />
           </g>
+          <circle cx={C} cy={C} r={3.5} fill="var(--cap-line-strong)" />
         </svg>
       </div>
 
       <div className="min-w-0 leading-tight">
-        <span className="block text-[0.72rem]" style={{ color: "var(--cap-ink-3)" }}>Risque par trade</span>
-        <span className="mt-0.5 block text-[0.95rem]" style={{ color: "var(--cap-ink)" }}>
+        <span className="block text-[0.75rem]" style={{ color: "var(--cap-ink-3)" }}>Risque par trade</span>
+        <span className="mt-0.5 block text-[1.05rem]" style={{ color: "var(--cap-ink)" }}>
           <span className="cap-num font-medium" style={{ color: COULEURS[niveau] }}>
             {RISQUE[niveau].pct.toLocaleString("fr-FR")} %
           </span>{" "}
           <span className="font-semibold">{RISQUE[niveau].label}</span>
         </span>
-        <span className="block text-[0.72rem]" style={{ color: "var(--cap-ink-3)" }}>du capital, si le stop est touché</span>
+        <span className="block text-[0.75rem]" style={{ color: "var(--cap-ink-3)" }}>du capital, si le stop est touché</span>
+        <span className="mt-1 block text-[0.72rem] italic" style={{ color: "var(--cap-ink-3)" }}>Tournez le bouton pour changer</span>
       </div>
 
       <style dangerouslySetInnerHTML={{ __html: `

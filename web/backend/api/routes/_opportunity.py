@@ -76,6 +76,7 @@ def describe(
     signal: str,
     score: float = 50.0,
     style: str = "day",
+    seuil_achat: int = 60,
 ) -> dict:
     """Rend {setup, headline, action, family} pour un actif scoré.
 
@@ -268,7 +269,7 @@ def describe(
 
     avis = conseiller_sens(
         setup=setup, family=family, score=score, trend=trend, signal=signal,
-        style=style, above20=above20, above50=above50,
+        style=style, above20=above20, above50=above50, seuil_achat=seuil_achat,
     )
     return {
         "setup": setup, "family": family, "headline": headline, "action": action,
@@ -322,6 +323,7 @@ def conseiller_sens(
     style: str = "day",
     above20: bool = False,
     above50: bool = False,
+    seuil_achat: int = 60,
 ) -> dict:
     """Faut-il envisager un achat, une vente, ou rien — pour CE profil.
 
@@ -334,8 +336,9 @@ def conseiller_sens(
 
     # Le score porte le sens. Les seuils sont ceux que le moteur utilise
     # partout ailleurs — 60 et 40 — pour que l'écran ne dise pas autre chose
-    # que ce que le backtest a mesuré.
-    if score >= 60:
+    # que ce que le backtest a mesuré. Le seuil d'achat descend à 55 pour un
+    # profil agressif en journalier, comme sur l'analyse (voir _risque.py).
+    if score >= seuil_achat:
         sens = "long"
     elif score < 40:
         sens = "short"

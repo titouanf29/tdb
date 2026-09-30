@@ -25,6 +25,8 @@ from ._universe import (EXTRA_CRYPTO, extend_market, classify,
                         resolve_zones, zones_summary)
 from ._intent import parse as parse_intent
 from ._opportunity import describe as describe_opportunity
+from .users import style_normalise
+from ._risque import (ETUDE_SEUIL_AGRESSIF, SEUIL_ACHAT, risque_utilisateur, seuil_achat)
 from ._climat import climat_marche
 from ._market_context import (benchmark_for, compute_market_context,
                               apply_context_gate, regime_series)
@@ -905,7 +907,7 @@ async def _horizon_utilisateur(current_user: dict) -> str:
             (current_user.get("id"),),
         )
         if rows and rows[0].get("trading_style"):
-            return str(rows[0]["trading_style"])
+            return style_normalise(rows[0]["trading_style"])
     except Exception:
         pass
     return "day"
@@ -964,6 +966,11 @@ async def analyze_asset(
     # L'horizon déclaré, pour que les constats personnels puissent proposer
     # un autre horizon quand celui-ci ne tient pas avec les disponibilités.
     style: str = Query(default="day", pattern="^(scalp|day|swing|long)$"),
+    # Le risque par trade choisi par l'utilisateur (le bouton de l'écran). À
+    # défaut, celui de ses réglages. Il ne touche ni au score ni au plan : il
+    # abaisse seulement le seuil d'achat des profils agressifs, là où c'est
+    # mesuré (voir _risque.py).
+    risk_level: Optional[str] = Query(default=None, pattern="^(conservative|moderate|aggressive|very_aggressive)$"),
     # OPTIONNEL, et c'est délibéré : l'analyse doit continuer de répondre sans
     # jeton. Un utilisateur connu reçoit en plus le bloc `personnel`.
     current_user: Optional[dict] = Depends(get_current_user_optional),
@@ -1284,7 +1291,15 @@ async def analyze_asset(
         # Un verdict neutre n'est pas un trade (le backtest ne le compte pas
         # comme tel). Le plan reste affiché — il apprend à lire un stop et un
         # objectif — mais il est dit illustratif, et la jouabilité le refuse.
-        _plan_neutre = 40 <= final_score < 60
+        _niveau_risque = risk_level or await risque_utilisateur(current_user)
+        _seuil = seuil_achat(_niveau_risque, timeframe)
+        _plan_neutre = 40 <= final_score < _seuil
+        # Profil agressif, en journalier : un score de 55 à 59 devient un
+        # achat proposé — la seule tranche « neutre » mesurée gagnante.
+        _seuil_abaisse = _seuil <= final_score < SEUIL_ACHAT
+        if _seuil_abaisse:
+            risk_notes.append(f"Profil agressif : achat proposé dès {_seuil} en journalier "
+                              f"({ETUDE_SEUIL_AGRESSIF})")
         if _plan_neutre:
             risk_notes.append("Verdict neutre : ce plan à l'achat est un exemple, pas une recommandation")
         _vente_prouvee = bool(
@@ -1545,6 +1560,14 @@ async def analyze_asset(
             "climat_marche": await climat_marche(),
             # A direction is not a trade. Blockers are listed explicitly so the
             # refusal is auditable rather than a silent downgrade.
+            # Le seuil d'achat appliqué à CET utilisateur, pour que l'écran
+            # dise pourquoi un score sous 60 est proposé.
+            "seuil_achat": {
+                "valeur": _seuil,
+                "niveau_risque": _niveau_risque,
+                "abaisse": _seuil_abaisse,
+                "etude": ETUDE_SEUIL_AGRESSIF if _seuil < SEUIL_ACHAT else None,
+            },
             "tradeability": _tradeability(
                 risk_reward=_rr,
                 data_stale=data_stale,
@@ -2098,6 +2121,13 @@ async def scan_market(
     # « 1d » sert aussi bien au swing qu'au long terme, et ces deux profils ne
     # doivent pas recevoir le même conseil sur un rebond à contre-tendance.
     _style = await _horizon_utilisateur(current_user)
+    # Le risque par trade, lu de même : un profil agressif, en journalier, voit
+    # aussi les achats dès 55 — la règle de l'analyse, pour que le scanner et
+    # la page d'analyse ne se contredisent pas.
+    _seuil = seuil_achat(await risque_utilisateur(current_user), timeframe)
+    # L'exigence par défaut (60) suit ce seuil ; une exigence choisie à la main
+    # reste celle de l'utilisateur.
+    _exigence_long = _seuil if min_score == SEUIL_ACHAT else min_score
 
     fetch_period, fetch_interval, fetch_resample = TIMEFRAME_FETCH.get(timeframe, ("2y", "1d", None))
 
@@ -2306,6 +2336,7 @@ async def scan_market(
                 # L'horizon déclaré : c'est lui qui décide si un rebond à
                 # contre-tendance est une opération ou une distraction.
                 style=_style,
+                seuil_achat=_seuil,
             )
 
             return {
@@ -2413,14 +2444,14 @@ async def scan_market(
         if opportunity_type != "all" and r["opp_type"] != opportunity_type:
             return False
         if direction == "long":
-            return r["score"] >= min_score
+            return r["score"] >= _exigence_long
         # Strictement sous 40 : à l'exigence 60, le miroir « <= 40 » gardait
         # un score de 40, que le moteur classe NEUTRE et pour lequel aucun
         # sens n'est conseillé.
         vente = r["score"] <= seuil_bas and r["score"] < 40
         if direction == "short":
             return vente
-        return r["score"] >= min_score or vente
+        return r["score"] >= _exigence_long or vente
 
     def _rang(r: dict) -> float:
         """Les achats d'abord, puis les neutres, les scores bas en dernier.
@@ -2469,7 +2500,7 @@ async def scan_market(
             # ce qu'il faut pour dessiner l'univers et commencer à vivre.
             yield _json.dumps({
                 "type": "start", "total": len(assets), "symbols": assets,
-                "timeframe": timeframe, "min_score": min_score,
+                "timeframe": timeframe, "min_score": min_score, "seuil_achat": _seuil,
             }) + "\n"
 
             yield _json.dumps({"type": "phase", "phase": "prices",
@@ -2579,6 +2610,7 @@ async def scan_market(
         "market":         market_key,
         "timeframe":      timeframe,
         "min_score":      min_score,
+        "seuil_achat":    _seuil,
         "total_scanned":  len(assets),
         # Requested vs actually priced. A gap means some tickers returned no
         # data — better surfaced than silently shrinking the universe.

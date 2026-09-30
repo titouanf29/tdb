@@ -56,6 +56,12 @@ LEGACY_STYLE_MAP = {
     "Long Terme": "long",
 }
 
+def style_normalise(v) -> str:
+    """Un style lisible par le moteur : scalp, day, swing ou long."""
+    v = LEGACY_STYLE_MAP.get(v, v)
+    return v if v in ("scalp", "day", "swing", "long") else "day"
+
+
 SETTINGS_DEFAULTS = {
     "trading_style": "day",
     "risk_level": "moderate",
@@ -221,7 +227,11 @@ async def update_user_settings(
     # Bare upsert: every other column has a DB default, so a trading_level-only
     # PUT can no longer reset trading_style/risk_level.
     await execute_write(
-        "INSERT INTO web_user_settings (user_id) VALUES (?) ON CONFLICT (user_id) DO NOTHING",
+        # Le style explicitement : la colonne a pour défaut l'ancien libellé
+        # « Day Trading », que la normalisation du démarrage ne rattrape
+        # qu'au redémarrage suivant. D'ici là, le scanner lisait un horizon
+        # inconnu et le traitait comme un horizon long.
+        "INSERT INTO web_user_settings (user_id, trading_style) VALUES (?, 'day') ON CONFLICT (user_id) DO NOTHING",
         (user_id,),
     )
 

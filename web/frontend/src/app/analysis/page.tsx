@@ -34,7 +34,7 @@ import { quoteState } from "@/lib/marketOf";
 import { FactorBars, LevelScale } from "@/components/analysis/Gauges";
 import { AskAssistant } from "@/components/analysis/AskAssistant";
 import { RoueRisque } from "@/components/analysis/RoueRisque";
-import { RISQUE, SEUIL_AGRESSIF, niveauRisque, seuilAbaisse, tailleSelonRisque } from "@/lib/risque";
+import { RISQUE, niveauRisque, tailleSelonRisque } from "@/lib/risque";
 import { PressContext } from "@/components/analysis/PressContext";
 import { ClimatMarche } from "@/components/analysis/ClimatMarche";
 import { MacroContext } from "@/components/analysis/MacroContext";
@@ -256,6 +256,14 @@ function AnalysisScreen() {
    */
   const demande = useRef(0);
 
+  // Le risque par trade part au moteur avec la demande. Il ne change le
+  // verdict qu'en passant d'un profil prudent/modéré à un profil agressif (le
+  // seuil d'achat en journalier) : l'analyse n'est relancée que dans ce cas,
+  // pas à chaque cran du bouton.
+  const risqueRef = useRef(settings.riskLevel);
+  risqueRef.current = settings.riskLevel;
+  const profilAgressif = settings.riskLevel === "aggressive" || settings.riskLevel === "very_aggressive";
+
   const run = useCallback(async (sym: string, tf: string) => {
     if (!sym) return;
     const n = ++demande.current;
@@ -266,7 +274,7 @@ function AnalysisScreen() {
       // fundamentals, so the plan shown here is the plan the backtest
       // validated and the one the trading screen will receive.
       const a = await analysisAPI.analyze(sym, tf, style.atr.sl, style.atr.tp,
-                                          style.fundWeight, style.id);
+                                          style.fundWeight, style.id, risqueRef.current);
       if (n !== demande.current) return; // une demande plus récente a pris la main
       setAnalysis(a);
       // Le graphique est secondaire : un échec ici ne doit pas perdre
@@ -291,7 +299,7 @@ function AnalysisScreen() {
       if (n === demande.current) setLoading(false);
     }
   }, [style.id, style.atr.sl, style.atr.tp, style.fundWeight,
-      style.chartWindow.period, style.chartWindow.interval]);
+      style.chartWindow.period, style.chartWindow.interval, profilAgressif]);
 
   useEffect(() => {
     // Deux conditions, deux raisons.
@@ -1002,15 +1010,11 @@ function PropositionNimbo({
   const pct = RISQUE[niveau].pct;
   const taille = capital != null && plan ? tailleSelonRisque(capital, pct, cours, plan.suggested_sl) : null;
   const perte = taille ? taille.perte : capital != null ? (capital * pct) / 100 : null;
-  // Profil agressif, en journalier : l'achat à 55–59 est proposé aussi — la
-  // seule tranche « neutre » mesurée gagnante (voir SEUIL_AGRESSIF). Seulement
-  // si le verdict neutre est l'UNIQUE obstacle et que le plan tient (R/R ≥ 1,2).
+  // C'est le MOTEUR qui décide : pour un profil agressif en journalier, il
+  // propose l'achat dès 55 (voir _risque.py côté serveur) et le dit ici.
   const scoreMoteur = a.score.total;
-  const parSeuilAgressif =
-    !proposeMoteur && !!plan && plan.direction !== "SHORT" && seuilAbaisse(niveau, a.timeframe)
-    && scoreMoteur >= SEUIL_AGRESSIF.score && scoreMoteur < 60 && plan.risk_reward >= 1.2
-    && (a.tradeability?.blockers ?? []).length === 1 && !!blocage?.startsWith("Verdict neutre");
-  const propose = proposeMoteur || parSeuilAgressif;
+  const parSeuilAgressif = proposeMoteur && !!a.seuil_achat?.abaisse;
+  const propose = proposeMoteur;
   const href = `${planHref}&risk=${pct}`;
   const humeur = propose ? "cap" : ton !== "up" && ton !== "down" ? "reflechit" : "prudent";
 
@@ -1043,7 +1047,7 @@ function PropositionNimbo({
                   Stop à {assetPrice(plan.suggested_sl)}, objectif à {assetPrice(plan.suggested_tp)} : vous risquez 1 pour viser {fr(plan.risk_reward, 1)}.
                   {parSeuilAgressif && (
                     <> Le score ({Math.round(scoreMoteur)}) est sous 60, mais avec votre profil {RISQUE[niveau].label.toLowerCase()} je
-                      propose aussi les achats dès 55 en journalier : sur 40 actifs, ils ont rapporté +0,21 et +0,26 R
+                      propose aussi les achats dès {a.seuil_achat?.valeur} en journalier : sur 40 actifs, ils ont rapporté +0,21 et +0,26 R
                       par trade sur deux périodes, un peu moins que les signaux plus nets.</>
                   )}
                   {taille?.position != null && (

@@ -160,7 +160,8 @@ async def _profil(user: dict) -> dict:
         rows = await execute_query(
             "SELECT trading_style, risk_level FROM web_user_settings WHERE user_id = ?", (uid,))
         if rows:
-            out["style"] = rows[0].get("trading_style") or "day"
+            from .users import style_normalise
+            out["style"] = style_normalise(rows[0].get("trading_style"))
             out["risk"] = rows[0].get("risk_level") or "moderate"
     except Exception:
         pass

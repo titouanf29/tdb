@@ -51,7 +51,8 @@ async def _trading_style(numeric_id) -> str:
             "SELECT trading_style FROM web_user_settings WHERE user_id = ?", (numeric_id,)
         )
         if rows and rows[0].get("trading_style"):
-            return str(rows[0]["trading_style"])
+            from .users import style_normalise
+            return style_normalise(rows[0]["trading_style"])
     except Exception:
         pass
     return "day"
