@@ -25,6 +25,7 @@ from ._universe import (EXTRA_CRYPTO, extend_market, classify,
                         resolve_zones, zones_summary)
 from ._intent import parse as parse_intent
 from ._opportunity import describe as describe_opportunity
+from ._confluence import contexte_technique
 from .users import style_normalise
 from ._risque import (ETUDE_SEUIL_AGRESSIF, SEUIL_ACHAT, risque_utilisateur, seuil_achat)
 from ._climat import climat_marche
@@ -1146,6 +1147,24 @@ async def analyze_asset(
         recent_low = low.tail(_levels_window).min()
         recent_high = high.tail(_levels_window).max()
 
+        # ── Structure, Fibonacci et confluence — EN SHADOW ────────────────
+        # Où se situe le prix dans la géométrie de son mouvement (voir
+        # _structure.py et _confluence.py). Calculé à partir de ce que le
+        # moteur a déjà (compute_score, niveaux de l'écran) : ~15 ms. AUCUN
+        # effet sur le score tant que la mesure n'a pas montré un apport
+        # (scripts/mesurer_structure.py). Absent du scanner : son coût y
+        # serait multiplié par des centaines d'actifs pour un score identique.
+        contexte_tech = None
+        try:
+            contexte_tech = contexte_technique(hist, S, timeframe, current_price, {
+                "support 20 bougies": float(recent_low),
+                "résistance 20 bougies": float(recent_high),
+                "moyenne 50": float(ema50.iloc[-1]),
+                "moyenne 200": float(S["ema200"].iloc[-1]) if S.get("ema200") is not None else None,
+            })
+        except Exception as exc:
+            logger.warning("contexte technique indisponible pour %s : %s", symbol, exc)
+
         # Collect the two background jobs launched right after the engine ran.
         historical_edge = await _edge_fut
         if _info_fut is not None:
@@ -1710,6 +1729,9 @@ async def analyze_asset(
                 "volume_ratio": _safe(volume_ratio, 1.0, 2),
             },
             "fibonacci": fibonacci,
+            # Le nouveau moteur de structure, en shadow (version, jambes par
+            # échelle, niveaux et zones, confluence par familles).
+            "contexte_technique": contexte_tech,
             "levels": {
                 "support":    _px(recent_low),
                 "resistance": _px(recent_high),
