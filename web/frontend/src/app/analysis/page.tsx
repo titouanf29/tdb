@@ -944,8 +944,8 @@ function Verdict({
  * Quand le plan tient (aucun blocage, plan non illustratif), Nimbo le dit à la
  * première personne, avec les niveaux et un gros bouton qui ouvre l'ordre
  * pré-rempli. Sinon il dit qu'il ne propose rien et pourquoi — la première
- * raison bloquante — et le plan éventuel reste lisible comme exemple, sans
- * bouton : le bouton aurait proposé exactement le trade que le moteur refuse.
+ * raison bloquante — mais la prise de position reste possible depuis sa
+ * carte : un bouton secondaire, « quand même », et un avertissement clair.
  */
 function PropositionNimbo({
   analysis: a,
@@ -1012,19 +1012,23 @@ function PropositionNimbo({
         </div>
       )}
 
-      {propose ? (
-        <div className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-2">
-          <Button href={planHref} size="lg" className="w-full sm:w-auto">
-            Prendre position
-            <ArrowRight className="cap-fleche h-4 w-4" />
-          </Button>
-          <Text size="caption">Argent virtuel — l&apos;ordre s&apos;ouvre pré-rempli, vous validez.</Text>
-        </div>
-      ) : plan ? (
-        <Text size="caption" className="mt-3">
-          Plan donné en exemple, pour apprendre à le lire — je ne le propose pas.
+      {/* La prise de position passe TOUJOURS par Nimbo. Quand il propose,
+          bouton plein ; quand il ne propose pas, le bouton reste là, en
+          retrait, et Nimbo dit franchement qu'il ne le conseille pas — c'est
+          de l'argent virtuel, se tromper ici fait partie de l'apprentissage. */}
+      <div className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-2">
+        <Button href={planHref} size="lg" variant={propose ? "primary" : "secondary"} className="w-full sm:w-auto">
+          {propose ? "Prendre position" : "Prendre position quand même"}
+          <ArrowRight className="cap-fleche h-4 w-4" />
+        </Button>
+        <Text size="caption" className="max-w-[30rem]">
+          {propose
+            ? "Argent virtuel — l'ordre s'ouvre pré-rempli, vous validez."
+            : plan
+              ? "Je ne vous le conseille pas, mais c'est vous qui décidez : l'ordre s'ouvre avec ce plan d'exemple, modifiable. Argent virtuel."
+              : "Je ne vous le conseille pas, mais c'est vous qui décidez : l'ordre s'ouvre sans niveaux, à vous de poser stop et objectif. Argent virtuel."}
         </Text>
-      ) : null}
+      </div>
     </section>
   );
 }
