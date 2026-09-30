@@ -883,17 +883,17 @@ function Verdict({
         </div>
       </div>
 
+      {/* Nimbo propose — ou dit pourquoi il ne propose pas. Juste sous le
+          verdict, avant les raisons : c'est la question que se pose celui qui
+          ouvre une analyse (« j'y vais ? »), la réponse ne doit pas attendre
+          au bas de la carte. */}
+      <PropositionNimbo analysis={a} assetPrice={assetPrice} cours={live?.price ?? a.price.current} planHref={planHref} />
+
       {/* The why. The part the product exists for. */}
       <div className="mt-7 border-t pt-6" style={{ borderColor: "var(--cap-line)" }}>
-        <div className="flex items-center justify-between gap-3">
-          <span className="text-[0.75rem] uppercase tracking-[0.14em]" style={{ color: "var(--cap-ink-3)" }}>
-            Pourquoi
-          </span>
-          {/* Nimbo résume la jouabilité d'un coup d'œil : prudent quand le
-              plan est refusé (les raisons suivent, en premier), il montre le
-              cap quand le plan tient. Décoratif : le texte dit tout. */}
-          <Nimbo humeur={(a.tradeability?.blockers?.length ?? 0) > 0 ? "prudent" : "cap"} taille={52} />
-        </div>
+        <span className="text-[0.75rem] uppercase tracking-[0.14em]" style={{ color: "var(--cap-ink-3)" }}>
+          Pourquoi
+        </span>
         <ul className="cap-liste mt-4 space-y-2.5">
           {reasons.map((r, i) => (
             <li key={r.text} className="flex gap-3">
@@ -934,36 +934,98 @@ function Verdict({
         </div>
       )}
 
-      {a.risk?.suggested_sl != null && a.risk?.suggested_tp != null && (
-        <div
-          className="mt-6 flex flex-wrap items-center justify-between gap-4 border-t pt-5"
-          style={{ borderColor: "var(--cap-line)" }}
-        >
+    </Panel>
+  );
+}
+
+/**
+ * Nimbo propose de prendre position.
+ *
+ * Quand le plan tient (aucun blocage, plan non illustratif), Nimbo le dit à la
+ * première personne, avec les niveaux et un gros bouton qui ouvre l'ordre
+ * pré-rempli. Sinon il dit qu'il ne propose rien et pourquoi — la première
+ * raison bloquante — et le plan éventuel reste lisible comme exemple, sans
+ * bouton : le bouton aurait proposé exactement le trade que le moteur refuse.
+ */
+function PropositionNimbo({
+  analysis: a,
+  assetPrice,
+  cours,
+  planHref,
+}: {
+  analysis: Analysis;
+  assetPrice: (v: number) => string;
+  cours: number;
+  planHref: string;
+}) {
+  const nom = a.company?.name || a.symbol;
+  const plan = a.risk?.suggested_sl != null && a.risk?.suggested_tp != null ? a.risk : null;
+  const blocage = a.tradeability?.blockers?.[0];
+  const propose = !!plan && !plan.illustratif && !blocage;
+  const vente = plan?.direction === "SHORT";
+  const ton = directionLabel(a).tone;
+  const humeur = propose ? "cap" : ton !== "up" && ton !== "down" ? "reflechit" : "prudent";
+
+  const teinte = propose ? "var(--cap-up)" : "var(--cap-amber)";
+  return (
+    <section
+      aria-label={propose ? "Proposition de Nimbo" : "Nimbo ne propose pas de position"}
+      className="cap-apparait mt-6 rounded-[var(--cap-r-lg)] p-4 sm:p-5"
+      style={{
+        backgroundColor: `color-mix(in srgb, ${teinte} ${propose ? 8 : 7}%, var(--cap-surface))`,
+        boxShadow: `inset 0 0 0 1px color-mix(in srgb, ${teinte} 32%, transparent)`,
+        ["--d" as string]: ".15s",
+      }}
+    >
+      <div className="flex items-start gap-3 sm:gap-4">
+        <Nimbo humeur={humeur} taille={104} className="-my-2 -ml-2 hidden sm:inline-flex" />
+        <Nimbo humeur={humeur} taille={64} className="-my-1 -ml-1 sm:hidden" />
+        <div className="min-w-0 flex-1">
+          <span className="text-[0.75rem] uppercase tracking-[0.14em]" style={{ color: "var(--cap-ink-3)" }}>
+            {propose ? "Nimbo vous propose" : "L'avis de Nimbo"}
+          </span>
+          <p className="mt-1 text-[1.05rem] font-semibold leading-snug sm:text-[1.15rem]" style={{ color: "var(--cap-ink)", fontFamily: "var(--cap-font-display)" }}>
+            {propose && plan
+              ? `${vente ? "Vendre à découvert" : "Acheter"} ${nom} : je vous propose de prendre position.`
+              : `Je ne vous propose pas de position sur ${nom} pour l'instant.`}
+          </p>
+          <Text size="small" className="mt-1.5">
+            {propose && plan
+              ? <>Stop à {assetPrice(plan.suggested_sl)}, objectif à {assetPrice(plan.suggested_tp)} : vous risquez 1 pour viser {fr(plan.risk_reward, 1)}.</>
+              : blocage
+                ? <>{blocage}.</>
+                : "Le moteur ne voit pas de plan assez net. Revenez voir plus tard, ou changez d'unité de temps."}
+          </Text>
+        </div>
+      </div>
+
+      {plan && (
+        <div className="mt-4">
           <div className="flex flex-wrap gap-x-8 gap-y-2">
-            <RiskBit label="Stop" value={assetPrice(a.risk.suggested_sl)} tone="down" />
-            <RiskBit label="Objectif" value={assetPrice(a.risk.suggested_tp)} tone="up" />
-            <RiskBit label="Risque / rendement" value={`1 : ${fr(a.risk.risk_reward, 1)}`} />
+            <RiskBit label="Stop" value={assetPrice(plan.suggested_sl)} tone="down" />
+            <RiskBit label="Objectif" value={assetPrice(plan.suggested_tp)} tone="up" />
+            <RiskBit label="Risque / rendement" value={`1 : ${fr(plan.risk_reward, 1)}`} />
           </div>
-          {a.risk.illustratif ? (
-            /* Un plan d'exemple se lit, il ne s'ouvre pas : le bouton aurait
-               proposé exactement le trade que le moteur vient de refuser. */
-            <Text size="caption" className="max-w-[20rem] text-right">
-              Plan donné en exemple, pour apprendre à le lire — le moteur ne le propose pas.
-            </Text>
-          ) : (
-            <Button href={planHref} size="md">
-              Ouvrir avec ce plan
-              <ArrowRight className="cap-fleche h-4 w-4" />
-            </Button>
-          )}
-          <PlanBar
-            stop={a.risk.suggested_sl}
-            objectif={a.risk.suggested_tp}
-            cours={live?.price ?? a.price.current}
-          />
+          <div className="mt-3">
+            <PlanBar stop={plan.suggested_sl} objectif={plan.suggested_tp} cours={cours} />
+          </div>
         </div>
       )}
-    </Panel>
+
+      {propose ? (
+        <div className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-2">
+          <Button href={planHref} size="lg" className="w-full sm:w-auto">
+            Prendre position
+            <ArrowRight className="cap-fleche h-4 w-4" />
+          </Button>
+          <Text size="caption">Argent virtuel — l&apos;ordre s&apos;ouvre pré-rempli, vous validez.</Text>
+        </div>
+      ) : plan ? (
+        <Text size="caption" className="mt-3">
+          Plan donné en exemple, pour apprendre à le lire — je ne le propose pas.
+        </Text>
+      ) : null}
+    </section>
   );
 }
 

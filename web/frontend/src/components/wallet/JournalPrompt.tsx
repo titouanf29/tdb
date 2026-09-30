@@ -2,10 +2,10 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowRight, Check, Lightbulb } from "lucide-react";
+import { ArrowRight, Check } from "lucide-react";
 import { journalAPI } from "@/lib/api";
 import type { JournalDraft } from "@/lib/journalDraft";
-import { Button, Drawer, FormError, Heading, Num, Text } from "@/components/design-system";
+import { Button, Drawer, FormError, Heading, Nimbo, Num, Text } from "@/components/design-system";
 
 /**
  * Le moment où l'on a quelque chose à écrire.
@@ -98,11 +98,18 @@ export function JournalPrompt({
         className="mt-6 rounded-[12px] p-4"
         style={{ backgroundColor: "var(--cap-surface-2)" }}
       >
-        <div className="flex items-center gap-2">
-          <Lightbulb className="h-4 w-4" style={{ color: "var(--cap-amber)" }} />
-          <span className="text-[0.75rem] uppercase tracking-[0.14em]" style={{ color: "var(--cap-ink-3)" }}>
-            Ce que dit ce trade
-          </span>
+        {/* Nimbo commente : il fête un gain, et accompagne une perte sans
+            la juger — le conseil qui suit dit quoi en retenir. */}
+        <div className="flex items-center gap-3">
+          <Nimbo humeur={win ? "fete" : draft.pnl < 0 ? "triste" : "content"} taille={56} />
+          <div className="min-w-0">
+            <p className="text-[0.95rem] font-semibold" style={{ color: "var(--cap-ink)" }}>
+              {win ? "Bien joué, ce trade est gagnant !" : draft.pnl < 0 ? "Celui-ci n'est pas passé — ça arrive." : "Sorti à l'équilibre."}
+            </p>
+            <span className="text-[0.75rem] uppercase tracking-[0.14em]" style={{ color: "var(--cap-ink-3)" }}>
+              Ce que dit ce trade
+            </span>
+          </div>
         </div>
         <ul className="mt-2.5 space-y-2">
           {draft.advice.map((a, i) => (
@@ -115,9 +122,12 @@ export function JournalPrompt({
 
       {saved ? (
         <div className="mt-6">
-          <div className="flex items-center gap-2">
-            <Check className="h-4 w-4" style={{ color: "var(--cap-up)" }} />
-            <Text size="small" tone="ink" as="span">Noté dans votre journal.</Text>
+          <div className="flex items-center gap-3" role="status">
+            <Nimbo humeur="content" taille={44} />
+            <Text size="small" tone="ink" as="span">
+              <Check className="mr-1.5 inline h-4 w-4 align-[-3px]" style={{ color: "var(--cap-up)" }} aria-hidden />
+              Noté dans votre journal. Relire ses trades, c&apos;est comme ça qu&apos;on progresse.
+            </Text>
           </div>
           <div className="mt-5 flex flex-wrap gap-2.5">
             <Button size="md" href="/journal">

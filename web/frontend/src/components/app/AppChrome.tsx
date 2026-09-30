@@ -9,6 +9,7 @@ import {
   Wallet, X,
 } from "lucide-react";
 import { Notifications } from "./Notifications";
+import { ReussiteNimbo } from "./ReussiteNimbo";
 import { useAuth } from "@/lib/AuthContext";
 import { usePremium } from "@/lib/PremiumContext";
 import {
@@ -64,6 +65,7 @@ export function AppChrome({ children }: { children: React.ReactNode }) {
         {children}
       </main>
       <MobileTabs />
+      <ReussiteNimbo />
     </div>
   );
 }

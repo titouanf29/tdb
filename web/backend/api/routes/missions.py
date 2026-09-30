@@ -375,6 +375,10 @@ async def record_action(body: ProgressAction, current_user: dict = Depends(get_c
         "new_badges": [BADGES.get(b) for b in new_badges if b in BADGES],
         "new_xp": new_xp,
         "new_level": new_level,
+        # Pour le message de réussite : le titre lisible, pas l'identifiant,
+        # et le passage de niveau que le client ne peut pas déduire seul.
+        "mission_titles": [m["title"] for m in ALL_MISSIONS if m["id"] in completed],
+        "level_up": new_level > _xp_to_level(progress["xp"]),
     }
 
 
@@ -474,6 +478,8 @@ async def complete_lesson(
             "xp_gained": reward["xp_gained"] + quiz_reward["xp_gained"],
             "missions_completed": reward["missions_completed"] + quiz_reward["missions_completed"],
             "new_badges": reward["new_badges"] + quiz_reward["new_badges"],
+            "mission_titles": reward["mission_titles"] + quiz_reward["mission_titles"],
+            "level_up": reward["level_up"] or quiz_reward["level_up"],
         }
 
     return {"already_completed": False, "quiz_score": score, **reward}

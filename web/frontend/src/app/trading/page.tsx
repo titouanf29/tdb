@@ -8,11 +8,12 @@ import {
   marketAPI, missionsAPI, walletAPI,
   type DevisTurbo, type Quote, type WalletBalance,
 } from "@/lib/api";
+import { annoncerReussite } from "@/lib/reussite";
 // `fr` : la virgule décimale. « 0.4 % » et « 6.6689 » dans un écran français
 // sont la faute qui revient le plus souvent dès qu'un nombre est affiché.
 import { fr, useSettings, convertCurrency, useFormatAssetPrice, BROKER_PRESETS } from "@/lib/SettingsContext";
 import {
-  Button, Checkbox, Field, FormError, Heading, Num, Panel, SegmentedControl,
+  Button, Checkbox, Field, FormError, Heading, Nimbo, Num, Panel, SegmentedControl,
   Text, TextInput, WeatherBackdrop, useAnimationsEnabled,
 } from "@/components/design-system";
 
@@ -267,9 +268,16 @@ export default function TradingPage() {
         take_profit: useTP ? takeProfit ?? undefined : undefined,
         stop_loss: useSL ? stopLoss ?? undefined : undefined,
       });
-      setSuccess(turbo && r.turbo
+      const fait = turbo && r.turbo
         ? `${r.turbo.unites} titres achetés à ${moneyTitre(r.turbo.prix_titre)}${r.frais ? `, plus ${money(r.frais)} de frais` : ""}.`
-        : `Position ouverte à ${money(r.entry_price || price)}.`);
+        : `Position ouverte à ${money(r.entry_price || price)}.`;
+      setSuccess(fait);
+      // Le message de la page disparaît avec la redirection vers le
+      // portefeuille ; celui de Nimbo la suit.
+      annoncerReussite({
+        titre: `${direction === "SHORT" ? "Vente" : "Achat"} ${symbol.toUpperCase()} en place`,
+        detail: fait,
+      });
       if (balance) setBalance({ ...balance, balance: r.new_balance });
       missionsAPI.recordAction("position_open").catch(() => {});
       setTimeout(() => router.push("/wallet"), 1800);
@@ -639,7 +647,8 @@ export default function TradingPage() {
             {error && <FormError>{error}</FormError>}
             {success && (
               <div
-                className="px-3.5 py-3 text-[0.85rem]"
+                role="status"
+                className="px-3 py-2.5 text-[0.85rem]"
                 style={{
                   borderRadius: "var(--cap-r-md)",
                   backgroundColor: "rgba(23,138,88,0.08)",
@@ -647,7 +656,13 @@ export default function TradingPage() {
                   color: "var(--cap-up)",
                 }}
               >
-                {success}
+                <span className="flex items-center gap-3">
+                  <Nimbo humeur="fete" taille={48} />
+                  <span>
+                    <span className="block font-semibold">Bravo, c&apos;est fait !</span>
+                    {success} Direction le portefeuille…
+                  </span>
+                </span>
               </div>
             )}
 

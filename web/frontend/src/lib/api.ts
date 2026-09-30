@@ -3,6 +3,7 @@
  */
 
 import { authHeaders, removeToken, getToken } from "./auth";
+import { annoncerRecompenses } from "./reussite";
 
 // In the browser, use relative URLs so requests go through Next.js proxy (no CORS).
 // During SSR, call the backend directly.
@@ -3046,15 +3047,22 @@ export interface ActionResult {
   new_badges: { icon: string; name: string; color: string }[];
   new_xp: number;
   new_level: number;
+  mission_titles?: string[];
+  level_up?: boolean;
 }
 
 export const missionsAPI = {
   list: () => fetchAPI<{ missions: Mission[] }>("/api/learn/missions"),
   progress: () => fetchAPI<UserProgress>("/api/learn/progress"),
+  // Chaque récompense gagnée est annoncée par Nimbo, où que l'action ait été
+  // faite : l'appelant n'a rien à afficher lui-même.
   recordAction: (action: string, value: number = 1) =>
     fetchAPI<ActionResult>("/api/learn/progress/action", {
       method: "POST",
       body: JSON.stringify({ action, value }),
+    }).then((r) => {
+      annoncerRecompenses(r);
+      return r;
     }),
 };
 
@@ -3075,7 +3083,10 @@ export const learnAPI = {
     fetchAPI<ActionResult & { already_completed: boolean; quiz_score: number | null }>(
       `/api/learn/lessons/${moduleId}/${lessonId}`,
       { method: "POST", body: JSON.stringify({ quiz_score: quizScore ?? null }) }
-    ),
+    ).then((r) => {
+      if (!r.already_completed) annoncerRecompenses(r);
+      return r;
+    }),
 
   /** Reprise unique de ce qu'un navigateur détient encore localement. */
   importLocal: (completed: string[], quizScores: Record<string, number>) =>
