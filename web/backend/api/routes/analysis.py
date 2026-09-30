@@ -814,6 +814,13 @@ def _tradeability(
             "autant de vendre à découvert — ses plans de vente ont perdu en moyenne "
             f"({VENTE_ETUDE})."
         )
+    # Mesuré (40 actifs, période A puis période jamais vue B, frais compris) :
+    # en journalier, les achats bloqués ici — presque tous parce que l'objectif
+    # bute sur une résistance proche — ont rapporté -0,02 R et -0,03 R par
+    # trade, contre +0,22 R et +0,35 R pour les achats acceptés. Le blocage
+    # tient. En intraday il ne change rien : acceptés ou bloqués, les achats
+    # perdent autant (-0,6 à -0,7 R en 5 min, -0,15 R en 1 h), les frais
+    # dominent. L'assouplir n'y ajouterait que des trades perdants.
     if risk_reward is not None and risk_reward < 1.2:
         blockers.append(f"Rapport gain/risque de {nombre_fr(risk_reward, 1)} — sous 1,2, le setup rémunère mal le risque")
     if data_stale:

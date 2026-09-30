@@ -961,6 +961,20 @@ function PropositionNimbo({
   const nom = a.company?.name || a.symbol;
   const plan = a.risk?.suggested_sl != null && a.risk?.suggested_tp != null ? a.risk : null;
   const blocage = a.tradeability?.blockers?.[0];
+  // Le cas qui déroute : un bon score, et pourtant rien. Le plus souvent,
+  // l'objectif bute sur un niveau tout proche (plafonné à la résistance) et
+  // le rapport gain / risque tombe sous 1,2. Nimbo le dit avec les chiffres
+  // plutôt que de citer la règle : bon signal, mauvais endroit.
+  const butee =
+    !!plan && !!plan.tp_capped_at_level && !!blocage?.startsWith("Rapport gain/risque") && !!a.levels
+      ? {
+          niveau: plan.direction === "SHORT" ? a.levels.support : a.levels.resistance,
+          repli: plan.direction === "SHORT" ? a.levels.resistance : a.levels.support,
+          marge: Math.abs(plan.suggested_tp - cours),
+          risque: Math.abs(cours - plan.suggested_sl),
+        }
+      : null;
+  const score = Math.round(a.profile_score?.total ?? a.score.total);
   const propose = !!plan && !plan.illustratif && !blocage;
   const vente = plan?.direction === "SHORT";
   const ton = directionLabel(a).tone;
@@ -992,6 +1006,13 @@ function PropositionNimbo({
           <Text size="small" className="mt-1.5">
             {propose && plan
               ? <>Stop à {assetPrice(plan.suggested_sl)}, objectif à {assetPrice(plan.suggested_tp)} : vous risquez 1 pour viser {fr(plan.risk_reward, 1)}.</>
+              : butee
+                ? <>
+                    Le signal est bon ({score}/100), mais le cours est juste {vente ? "au-dessus d'un support" : "sous une résistance"} à{" "}
+                    {assetPrice(butee.niveau)} : {pctEcart(butee.marge, cours)} de marge pour {pctEcart(butee.risque, cours)} de risque.
+                    Si {vente ? "ce support cède" : "cette résistance cède"}, ou si le cours revient vers {assetPrice(butee.repli)},
+                    le calcul change — revenez voir.
+                  </>
               : blocage
                 ? <>{blocage}.</>
                 : "Le moteur ne voit pas de plan assez net. Revenez voir plus tard, ou changez d'unité de temps."}
@@ -1031,6 +1052,13 @@ function PropositionNimbo({
       </div>
     </section>
   );
+}
+
+/** Un écart de prix en pourcentage du cours — lisible quel que soit l'actif,
+ *  là où « 0,51000 € » garde toutes les décimales d'un cours. */
+function pctEcart(ecart: number, cours: number): string {
+  const v = (ecart / cours) * 100;
+  return `${fr(v, v < 1 ? 2 : 1)} %`;
 }
 
 /**
