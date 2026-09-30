@@ -38,3 +38,5 @@ export { Tooltip } from "./Tooltip";
 export { DUR, EASE, VIEWPORT, reveal, stagger, transition } from "./motion";
 export { useMouvementReduit } from "./useMouvementReduit";
 export { AnimationsApp, MotsApp, CSS_APP } from "./AnimationsApp";
+export { Nimbo, type NimboHumeur } from "./Nimbo";
+export { nimboSvg } from "./nimbo";

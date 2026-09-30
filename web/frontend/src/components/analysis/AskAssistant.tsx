@@ -2,11 +2,10 @@
 
 import { useEffect, useRef, useState } from "react";
 import { motion, useReducedMotion } from "framer-motion";
-import { ArrowUp, Loader2 } from "lucide-react";
+import { ArrowUp } from "lucide-react";
 import { aiAPI, type Analysis } from "@/lib/api";
 import {
-  Button, DUR, EASE, Panel, Markdown, Text,
-} from "@/components/design-system";
+  Button, DUR, EASE, Panel, Markdown, Nimbo, Text } from "@/components/design-system";
 
 /**
  * Poser une question sur CETTE analyse.
@@ -152,6 +151,11 @@ export function AskAssistant({
     >
       {messages.length === 0 && (
         <div className="space-y-2">
+          {/* Nimbo montre les questions que l'écran soulève. */}
+          <div className="mb-3 flex items-end gap-3">
+            <Nimbo humeur="pointe" taille={56} />
+            <Text size="small" as="span">Une question sur cette analyse ? Je réponds à partir de ses chiffres — en voici quelques-unes pour commencer.</Text>
+          </div>
           {/* Les questions que l'écran soulève, plutôt qu'un champ vide. */}
           {hints.map((h) => (
             <button
@@ -175,8 +179,9 @@ export function AskAssistant({
               initial={reduce ? false : { opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: DUR.base, ease: EASE }}
-              className={m.role === "user" ? "flex justify-end" : ""}
+              className={m.role === "user" ? "flex justify-end" : "flex items-start gap-2.5"}
             >
+              {m.role !== "user" && <Nimbo humeur="content" taille={30} mini className="mt-1" />}
               <div
                 className="max-w-[46rem] rounded-[12px] px-4 py-3"
                 style={{
@@ -200,7 +205,7 @@ export function AskAssistant({
           ))}
           {busy && (
             <div className="flex items-center gap-2">
-              <Loader2 className="h-3.5 w-3.5 animate-spin" style={{ color: "var(--cap-ink-3)" }} />
+              <Nimbo humeur="reflechit" taille={40} />
               <Text size="caption" as="span">L&apos;assistant lit l&apos;analyse…</Text>
             </div>
           )}

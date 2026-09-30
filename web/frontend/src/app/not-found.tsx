@@ -1,69 +1,46 @@
 "use client";
 
-import Link from "next/link";
-import { motion } from "framer-motion";
-import { Home, TrendingUp, BarChart3, ArrowLeft } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
+import { Button, Heading, Nimbo, Text } from "@/components/design-system";
 
+/**
+ * Page introuvable.
+ *
+ * Nimbo, surpris, à la place du grand « 404 » lumineux qui datait d'avant la
+ * refonte. Trois sorties utiles plutôt qu'une impasse, et le retour en
+ * arrière pour qui s'est trompé de lien.
+ */
 export default function NotFound() {
   return (
-    <div className="flex flex-col items-center justify-center min-h-[70vh] text-center px-4">
-      <motion.div
-        initial={{ opacity: 0, y: 24 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-        className="space-y-6 max-w-md"
+    // Plein écran : une adresse inconnue ne figure pas dans les routes de la
+    // nouvelle application, et AppLayout l'enveloppait dans l'ancienne mise
+    // en page (barre latérale d'avant la refonte). La page s'affiche donc
+    // par-dessus, avec ses propres sorties.
+    <div className="cap fixed inset-0 z-[80] flex flex-col items-center justify-center overflow-y-auto px-5 text-center"
+      style={{ backgroundColor: "var(--cap-bg)", color: "var(--cap-ink)" }}>
+      <Nimbo humeur="surpris" taille={150} label="Nimbo, surpris" />
+      <p className="cap-num mt-4 text-[0.8rem] tracking-[0.14em]" style={{ color: "var(--cap-ink-3)" }}>
+        ERREUR 404
+      </p>
+      <Heading level={1} className="mt-2">Cette page n&apos;existe pas.</Heading>
+      <Text className="mx-auto mt-3 max-w-[26rem]">
+        Le lien est peut-être ancien, ou la page a changé d&apos;adresse. Nimbo ne la trouve pas
+        non plus — voici par où repartir.
+      </Text>
+      <div className="mt-8 flex flex-wrap justify-center gap-3">
+        <Button href="/dashboard">Mon espace</Button>
+        <Button href="/analysis" variant="secondary">Analyser un actif</Button>
+        <Button href="/markets" variant="secondary">Les marchés</Button>
+      </div>
+      <button
+        type="button"
+        onClick={() => window.history.back()}
+        className="mt-6 inline-flex min-h-[44px] items-center gap-2 px-2 text-[0.85rem] transition-colors hover:text-[color:var(--cap-ink)]"
+        style={{ color: "var(--cap-ink-3)" }}
       >
-        {/* Glowing 404 */}
-        <div className="relative">
-          <p className="text-[120px] font-black leading-none gradient-text select-none">
-            404
-          </p>
-          <div
-            className="absolute inset-0 -z-10 blur-3xl opacity-30"
-            style={{ background: "radial-gradient(circle, rgba(232,168,32,0.6) 0%, transparent 70%)" }}
-          />
-        </div>
-
-        <div className="space-y-2">
-          <h1 className="text-2xl font-bold">Page introuvable</h1>
-          <p className="text-muted-foreground text-sm">
-            Cette page n'existe pas ou a été déplacée.
-          </p>
-        </div>
-
-        {/* Quick links */}
-        <div className="flex flex-wrap gap-3 justify-center pt-2">
-          <Link
-            href="/dashboard"
-            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-primary/15 text-primary hover:bg-primary/25 transition-colors text-sm font-medium border border-primary/20"
-          >
-            <Home className="w-4 h-4" />
-            Dashboard
-          </Link>
-          <Link
-            href="/markets"
-            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 transition-colors text-sm font-medium border border-white/10"
-          >
-            <BarChart3 className="w-4 h-4" />
-            Marchés
-          </Link>
-          <Link
-            href="/wallet"
-            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 transition-colors text-sm font-medium border border-white/10"
-          >
-            <TrendingUp className="w-4 h-4" />
-            Wallet
-          </Link>
-        </div>
-
-        <button
-          onClick={() => window.history.back()}
-          className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors mx-auto"
-        >
-          <ArrowLeft className="w-3.5 h-3.5" />
-          Retour à la page précédente
-        </button>
-      </motion.div>
+        <ArrowLeft className="h-4 w-4" aria-hidden />
+        Revenir à la page précédente
+      </button>
     </div>
   );
 }

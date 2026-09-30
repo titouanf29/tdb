@@ -14,7 +14,7 @@ import {
   type TradingStats, type WalletBalance,
 } from "@/lib/api";
 import {
-  Button, CloudCurtain, DataList, DataRow, EmptyState, Heading, MotsApp, Num, Panel,
+  Button, CloudCurtain, DataList, DataRow, EmptyState, Heading, MotsApp, Nimbo, Num, Panel,
   Reveal, Text, Waypoint, WeatherBackdrop, WEATHER_LABEL,
   conditionFromChange, useAnimationsEnabled,
 } from "@/components/design-system";
@@ -141,6 +141,16 @@ export default function DashboardPage() {
         {/* ── 1. Where you are ─────────────────────────────────────────── */}
         <Reveal>
           <header className="flex flex-wrap items-end justify-between gap-5 pt-2">
+            <div className="flex items-center gap-4">
+            {/* Nimbo suit le ciel de l'accueil, qui suit les actifs suivis :
+                il salue sous un ciel dégagé, reste serein quand c'est couvert,
+                devient prudent quand le ciel est bas. */}
+            <Nimbo
+              humeur={condition === "clear" || condition === "fair" ? "salue"
+                : condition === "cloudy" ? "content" : "prudent"}
+              taille={72}
+              className="hidden sm:inline-flex"
+            />
             <div>
               <Heading level={1}>
                 <MotsApp texte={`${greeting}${first ? `, ${first}` : ""}.`} delai={0.4} />
@@ -156,6 +166,7 @@ export default function DashboardPage() {
                 {" "}— horizon {style.horizon.fr.toLowerCase()}.
                 {goalLine && ` ${goalLine}`}
               </Text>
+            </div>
             </div>
 
             <WeatherToggle

@@ -1,6 +1,7 @@
 "use client";
 
 import { Button } from "./Button";
+import { Nimbo, type NimboHumeur } from "./Nimbo";
 import { Heading, Text } from "./Text";
 
 /**
@@ -14,27 +15,19 @@ export function EmptyState({
   title,
   description,
   action,
+  humeur = "dort",
 }: {
   title: string;
+  /** L'humeur de Nimbo : il dort par défaut — il n'y a encore rien ici. */
+  humeur?: NimboHumeur;
   description?: string;
   action?: { label: string; href?: string; onClick?: () => void };
 }) {
   return (
     <div className="mx-auto max-w-sm py-14 text-center">
-      {/* The one motif: a route that stops. Decorative, and hidden from
-          assistive tech because it adds nothing a screen reader can use. */}
-      <svg aria-hidden viewBox="0 0 120 40" className="mx-auto mb-6 h-10 w-[120px]">
-        <path
-          d="M4 30 C 28 30, 34 14, 58 14 C 78 14, 84 22, 100 22"
-          fill="none"
-          stroke="var(--cap-line-strong)"
-          strokeWidth="1.25"
-          strokeDasharray="3 4"
-          strokeLinecap="round"
-        />
-        <circle cx="4" cy="30" r="2.5" fill="var(--cap-ink-4)" />
-        <circle cx="100" cy="22" r="3" fill="none" stroke="var(--cap-ocean)" strokeWidth="1.25" />
-      </svg>
+      {/* Nimbo tient compagnie à l'écran vide. Décoratif : le titre et la
+          phrase disent déjà tout. */}
+      <Nimbo humeur={humeur} taille={104} className="mx-auto mb-4" />
 
       <Heading level={3}>{title}</Heading>
       {description && (

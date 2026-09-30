@@ -2,6 +2,7 @@
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { lireTeinte, nuageSrc, type Teinte } from "./NuageImage";
+import { nimboSvg } from "./nimbo";
 
 /**
  * Weather closing over the screen while something loads, then parting.
@@ -35,7 +36,9 @@ const CSS_RIDEAU = `.cap-rideau{position:fixed;inset:0;z-index:70;pointer-events
 .cap-rideau-n img{position:absolute;left:-15%;top:-30%;width:130%;height:160%;max-width:none}
 .cap-rideau-lueur{position:absolute;left:50%;top:50%;width:70vmax;height:40vmax;border-radius:50%;
   transform:translate(-50%,-50%);background:radial-gradient(closest-side,var(--cap-cloud-light),transparent);transition:opacity .35s ease}
-.cap-rideau-mot{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+.cap-rideau-nimbo{position:absolute;left:50%;top:50%;transform:translate(-50%,-110%);transition:opacity .3s ease}
+.cap-rideau[data-etat="ouvre"] .cap-rideau-nimbo{opacity:0}
+.cap-rideau-mot{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding-top:28px;
   font-size:.82rem;letter-spacing:.06em;color:var(--cap-ink-3);transition:opacity .3s ease}
 .cap-rideau[data-etat="loin"] .cap-rideau-haut,.cap-rideau[data-etat="ouvre"] .cap-rideau-haut{transform:translate3d(0,-122%,0)}
 .cap-rideau[data-etat="loin"] .cap-rideau-bas,.cap-rideau[data-etat="ouvre"] .cap-rideau-bas{transform:translate3d(0,122%,0)}
@@ -57,7 +60,10 @@ function dessin(teinte: Teinte): string {
     `<img alt="" decoding="async" src="${nuageSrc(f, 3.5, teinte)}" style="transform:${inverse ? "scaleY(-1)" : ""}${i % 2 ? " scaleX(-1)" : ""}"></div>`).join("");
   return `<div class="cap-rideau-moitie cap-rideau-haut"><div class="cap-rideau-frange">${frange(HAUT, true)}</div></div>` +
     `<div class="cap-rideau-moitie cap-rideau-bas"><div class="cap-rideau-frange">${frange(BAS, false)}</div></div>` +
-    `<div class="cap-rideau-lueur"></div><div class="cap-rideau-mot"></div>`;
+    `<div class="cap-rideau-lueur"></div>` +
+    // Nimbo réfléchit pendant le chargement, au-dessus du libellé.
+    `<div class="cap-rideau-nimbo">${nimboSvg("reflechit", 96, { label: "" })}</div>` +
+    `<div class="cap-rideau-mot"></div>`;
 }
 
 function calme(): boolean {

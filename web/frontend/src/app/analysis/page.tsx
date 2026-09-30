@@ -24,8 +24,7 @@ import { lessonFor, lessonHref } from "@/lib/lessonLinks";
 import {
   Button, CloudCurtain, EmptyState, FormError, Heading, LiveNum, Num, Panel,
   Progress, ScoreDial, SegmentedControl, Text, WeatherBackdrop,
-  useAnimationsEnabled,
-} from "@/components/design-system";
+  useAnimationsEnabled, Nimbo } from "@/components/design-system";
 import { RefreshTimer, useAutoRefresh } from "@/components/app/RefreshTimer";
 import { type Level } from "@/components/analysis/PriceChart";
 import { AnnotatedChart } from "@/components/analysis/AnnotatedChart";
@@ -886,9 +885,15 @@ function Verdict({
 
       {/* The why. The part the product exists for. */}
       <div className="mt-7 border-t pt-6" style={{ borderColor: "var(--cap-line)" }}>
-        <span className="text-[0.75rem] uppercase tracking-[0.14em]" style={{ color: "var(--cap-ink-3)" }}>
-          Pourquoi
-        </span>
+        <div className="flex items-center justify-between gap-3">
+          <span className="text-[0.75rem] uppercase tracking-[0.14em]" style={{ color: "var(--cap-ink-3)" }}>
+            Pourquoi
+          </span>
+          {/* Nimbo résume la jouabilité d'un coup d'œil : prudent quand le
+              plan est refusé (les raisons suivent, en premier), il montre le
+              cap quand le plan tient. Décoratif : le texte dit tout. */}
+          <Nimbo humeur={(a.tradeability?.blockers?.length ?? 0) > 0 ? "prudent" : "cap"} taille={52} />
+        </div>
         <ul className="cap-liste mt-4 space-y-2.5">
           {reasons.map((r, i) => (
             <li key={r.text} className="flex gap-3">
