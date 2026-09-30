@@ -9,6 +9,7 @@ import {
   type DevisTurbo, type Quote, type WalletBalance,
 } from "@/lib/api";
 import { annoncerReussite } from "@/lib/reussite";
+import { RISQUE, niveauRisque } from "@/lib/risque";
 // `fr` : la virgule décimale. « 0.4 % » et « 6.6689 » dans un écran français
 // sont la faute qui revient le plus souvent dès qu'un nombre est affiché.
 import { fr, useSettings, convertCurrency, useFormatAssetPrice, BROKER_PRESETS } from "@/lib/SettingsContext";
@@ -63,7 +64,11 @@ export default function TradingPage() {
   const [stopLoss, setStopLoss] = useState<number | null>(planSl);
   const [useTP, setUseTP] = useState(planTp != null);
   const [useSL, setUseSL] = useState(planSl != null);
-  const [riskPct, setRiskPct] = useState(1);
+  // Le risque accepté part du réglage de l'utilisateur (Prudent 0,5 %…
+  // Très agressif 5 %), ou de la roue de l'analyse s'il vient de là.
+  const riskUrl = Number(params.get("risk"));
+  const [riskPct, setRiskPct] = useState(RISK_PRESETS.includes(riskUrl) ? riskUrl : 1);
+  const riskTouched = useRef(RISK_PRESETS.includes(riskUrl));
   const [sizingOn, setSizingOn] = useState(planSl != null);
 
   const [balance, setBalance] = useState<WalletBalance | null>(null);
@@ -115,6 +120,10 @@ export default function TradingPage() {
       setLeverage(Number(settings.defaultLeverage) || 1);
     }
   }, [isLoaded, settings.defaultLeverage]);
+
+  useEffect(() => {
+    if (isLoaded && !riskTouched.current) setRiskPct(RISQUE[niveauRisque(settings.riskLevel)].pct);
+  }, [isLoaded, settings.riskLevel]);
 
   useEffect(() => {
     walletAPI.getBalance().then(setBalance).catch(() => {});
@@ -488,7 +497,7 @@ export default function TradingPage() {
                         <button
                           key={r}
                           type="button"
-                          onClick={() => { amountTouched.current = false; setRiskPct(r); }}
+                          onClick={() => { amountTouched.current = false; riskTouched.current = true; setRiskPct(r); }}
                           className="rounded-[9px] px-3 py-2 text-[0.85rem] transition-colors"
                           style={
                             riskPct === r

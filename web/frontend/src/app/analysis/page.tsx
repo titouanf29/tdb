@@ -6,7 +6,7 @@ import Link from "next/link";
 import { AnimatePresence } from "framer-motion";
 import { ArrowRight, Loader2, MoveRight, Search, Star, TrendingDown, TrendingUp } from "lucide-react";
 import {
-  analysisAPI, favoritesAPI, marketAPI,
+  analysisAPI, favoritesAPI, marketAPI, walletAPI,
   type Analysis, type ChartData, type Figure,
 } from "@/lib/api";
 import { fr, useFormatAssetPrice, useFormatSomme, useSettings } from "@/lib/SettingsContext";
@@ -33,6 +33,8 @@ import { hasTradingView } from "@/lib/tradingViewSymbol";
 import { quoteState } from "@/lib/marketOf";
 import { FactorBars, LevelScale } from "@/components/analysis/Gauges";
 import { AskAssistant } from "@/components/analysis/AskAssistant";
+import { RoueRisque } from "@/components/analysis/RoueRisque";
+import { RISQUE, SEUIL_AGRESSIF, niveauRisque, seuilAbaisse, tailleSelonRisque, type NiveauRisque } from "@/lib/risque";
 import { PressContext } from "@/components/analysis/PressContext";
 import { ClimatMarche } from "@/components/analysis/ClimatMarche";
 import { MacroContext } from "@/components/analysis/MacroContext";
@@ -975,9 +977,41 @@ function PropositionNimbo({
         }
       : null;
   const score = Math.round(a.profile_score?.total ?? a.score.total);
-  const propose = !!plan && !plan.illustratif && !blocage;
+  const proposeMoteur = !!plan && !plan.illustratif && !blocage;
   const vente = plan?.direction === "SHORT";
   const ton = directionLabel(a).tone;
+
+  // Le risque que l'utilisateur accepte : son réglage, modifiable ici même sur
+  // la roue (et enregistré). Il règle la taille de la position, pas le plan.
+  const { settings, setRiskLevel, isLoaded } = useSettings();
+  const [niveau, setNiveau] = useState<NiveauRisque>(() => niveauRisque(settings.riskLevel));
+  const niveauTouche = useRef(false);
+  useEffect(() => {
+    if (isLoaded && !niveauTouche.current) setNiveau(niveauRisque(settings.riskLevel));
+  }, [isLoaded, settings.riskLevel]);
+  const changerNiveau = (n: NiveauRisque) => {
+    niveauTouche.current = true;
+    setNiveau(n);
+    setRiskLevel(n);
+  };
+  const [capital, setCapital] = useState<number | null>(null);
+  useEffect(() => {
+    walletAPI.getBalance().then((b) => setCapital(b.balance)).catch(() => {});
+  }, []);
+  const somme = useFormatSomme();
+  const pct = RISQUE[niveau].pct;
+  const taille = capital != null && plan ? tailleSelonRisque(capital, pct, cours, plan.suggested_sl) : null;
+  const perte = taille ? taille.perte : capital != null ? (capital * pct) / 100 : null;
+  // Profil agressif, en journalier : l'achat à 55–59 est proposé aussi — la
+  // seule tranche « neutre » mesurée gagnante (voir SEUIL_AGRESSIF). Seulement
+  // si le verdict neutre est l'UNIQUE obstacle et que le plan tient (R/R ≥ 1,2).
+  const scoreMoteur = a.score.total;
+  const parSeuilAgressif =
+    !proposeMoteur && !!plan && plan.direction !== "SHORT" && seuilAbaisse(niveau, a.timeframe)
+    && scoreMoteur >= SEUIL_AGRESSIF.score && scoreMoteur < 60 && plan.risk_reward >= 1.2
+    && (a.tradeability?.blockers ?? []).length === 1 && !!blocage?.startsWith("Verdict neutre");
+  const propose = proposeMoteur || parSeuilAgressif;
+  const href = `${planHref}&risk=${pct}`;
   const humeur = propose ? "cap" : ton !== "up" && ton !== "down" ? "reflechit" : "prudent";
 
   const teinte = propose ? "var(--cap-up)" : "var(--cap-amber)";
@@ -1005,7 +1039,18 @@ function PropositionNimbo({
           </p>
           <Text size="small" className="mt-1.5">
             {propose && plan
-              ? <>Stop à {assetPrice(plan.suggested_sl)}, objectif à {assetPrice(plan.suggested_tp)} : vous risquez 1 pour viser {fr(plan.risk_reward, 1)}.</>
+              ? <>
+                  Stop à {assetPrice(plan.suggested_sl)}, objectif à {assetPrice(plan.suggested_tp)} : vous risquez 1 pour viser {fr(plan.risk_reward, 1)}.
+                  {parSeuilAgressif && (
+                    <> Le score ({Math.round(scoreMoteur)}) est sous 60, mais avec votre profil {RISQUE[niveau].label.toLowerCase()} je
+                      propose aussi les achats dès 55 en journalier : sur 40 actifs, ils ont rapporté +0,21 et +0,26 R
+                      par trade sur deux périodes, un peu moins que les signaux plus nets.</>
+                  )}
+                  {taille?.position != null && (
+                    <> Avec votre risque {RISQUE[niveau].label.toLowerCase()}, la position fait environ {somme(taille.position)}
+                      {taille.plafonnee ? " — tout votre capital, le plafond" : ""}.</>
+                  )}
+                </>
               : butee
                 ? <>
                     Le signal est bon ({score}/100), mais le cours est juste {vente ? "au-dessus d'un support" : "sous une résistance"} à{" "}
@@ -1020,25 +1065,37 @@ function PropositionNimbo({
         </div>
       </div>
 
-      {plan && (
-        <div className="mt-4">
-          <div className="flex flex-wrap gap-x-8 gap-y-2">
-            <RiskBit label="Stop" value={assetPrice(plan.suggested_sl)} tone="down" />
-            <RiskBit label="Objectif" value={assetPrice(plan.suggested_tp)} tone="up" />
-            <RiskBit label="Risque / rendement" value={`1 : ${fr(plan.risk_reward, 1)}`} />
+      {/* Le plan à gauche, la roue du risque à droite : ce que le marché
+          propose, et ce que l'on accepte d'y mettre. */}
+      <div className="mt-4 grid items-center gap-x-8 gap-y-5 md:grid-cols-[minmax(0,1fr)_15rem]">
+        {plan ? (
+          <div className="min-w-0">
+            <div className="flex flex-wrap gap-x-8 gap-y-2">
+              <RiskBit label="Stop" value={assetPrice(plan.suggested_sl)} tone="down" />
+              <RiskBit label="Objectif" value={assetPrice(plan.suggested_tp)} tone="up" />
+              <RiskBit label="Risque / rendement" value={`1 : ${fr(plan.risk_reward, 1)}`} />
+              {taille?.position != null && <RiskBit label="Taille de position" value={somme(taille.position)} />}
+            </div>
+            <div className="mt-3">
+              <PlanBar stop={plan.suggested_sl} objectif={plan.suggested_tp} cours={cours} />
+            </div>
           </div>
-          <div className="mt-3">
-            <PlanBar stop={plan.suggested_sl} objectif={plan.suggested_tp} cours={cours} />
-          </div>
-        </div>
-      )}
+        ) : <div className="hidden md:block" />}
+        <RoueRisque
+          niveau={niveau}
+          onChange={changerNiveau}
+          perte={perte != null ? somme(perte) : null}
+          capital={capital != null ? somme(capital) : null}
+          className="mx-auto w-full max-w-[17rem] md:mx-0"
+        />
+      </div>
 
       {/* La prise de position passe TOUJOURS par Nimbo. Quand il propose,
           bouton plein ; quand il ne propose pas, le bouton reste là, en
           retrait, et Nimbo dit franchement qu'il ne le conseille pas — c'est
           de l'argent virtuel, se tromper ici fait partie de l'apprentissage. */}
       <div className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-2">
-        <Button href={planHref} size="lg" variant={propose ? "primary" : "secondary"} className="w-full sm:w-auto">
+        <Button href={href} size="lg" variant={propose ? "primary" : "secondary"} className="w-full sm:w-auto">
           {propose ? "Prendre position" : "Prendre position quand même"}
           <ArrowRight className="cap-fleche h-4 w-4" />
         </Button>

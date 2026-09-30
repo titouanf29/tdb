@@ -545,10 +545,10 @@ function ProfilePanels() {
 /* ── Trading ────────────────────────────────────────────────────────────── */
 
 const RISKS: Option<string>[] = [
-  { value: "conservative", label: "Prudent", detail: "Tailles de position réduites, stops serrés. Les suggestions privilégient la préservation du capital." },
-  { value: "moderate", label: "Modéré", detail: "L'équilibre par défaut entre risque pris et objectif visé." },
-  { value: "aggressive", label: "Agressif", detail: "Positions plus larges, objectifs plus lointains, pertes potentielles plus grandes." },
-  { value: "very_aggressive", label: "Très agressif", detail: "Le risque maximal que le simulateur autorise. À réserver au papier." },
+  { value: "conservative", label: "Prudent", detail: "0,5 % du capital perdu si le stop est touché. Des positions plus petites, pour durer." },
+  { value: "moderate", label: "Modéré", detail: "1 % du capital par trade — la règle la plus répandue chez les traders." },
+  { value: "aggressive", label: "Agressif", detail: "2 % du capital par trade. Les séries perdantes creusent deux fois plus vite." },
+  { value: "very_aggressive", label: "Très agressif", detail: "5 % du capital par trade. Dix pertes d'affilée et il en manque 40 %. À réserver au papier." },
 ];
 
 /** Un nombre écrit à la française : 1.5 → « 1,5 », 1 → « 1 ». */
@@ -618,7 +618,7 @@ function TradingSection() {
 
       <Panel
         title="Votre appétit pour le risque"
-        hint="Utilisé par les calculateurs et par la taille de position suggérée."
+        hint="La part du capital que vous acceptez de perdre si le stop est touché. Elle règle la taille des positions — jamais le stop ni l'objectif, qui dépendent de votre horizon."
         aside={done === "risk" ? <Text size="caption" as="span" tone="up">Enregistré.</Text> : undefined}
       >
         <Choice
