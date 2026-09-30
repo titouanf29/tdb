@@ -1319,6 +1319,11 @@ export interface Analysis {
     se_r?: number | null;
     win_rate?: number | null;
     fiable: boolean;
+    /** Faux au-dessus de l'intraday : l'historique d'un seul actif y est
+     *  affiché mais ne pèse pas (il n'y prédit pas l'avenir). */
+    pris_en_compte?: boolean;
+    /** Le résultat mesuré sur l'ensemble des actifs, cité à la place. */
+    panel?: { expectancy_net_r: number; base: string };
   } | null;
   levels: {
     support: number;

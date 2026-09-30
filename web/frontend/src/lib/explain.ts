@@ -252,6 +252,22 @@ export function edgeSentence(a: Analysis): { text: string; tone: "up" | "down" |
   const exp = e.expectancy_net_r;
   if (exp == null) return null;
 
+  // Au-dessus de l'intraday, le passé d'un seul actif ne prédit pas son
+  // avenir (mesuré) : on le montre, on dit qu'il ne pèse pas, et on cite le
+  // résultat mesuré sur l'ensemble des actifs.
+  if (e.pris_en_compte === false) {
+    const panel = e.panel
+      ? ` Sur l'ensemble des actifs mesurés (${e.panel.base}), ce plan a rapporté ${e.panel.expectancy_net_r >= 0 ? "+" : "−"}${fr(Math.abs(e.panel.expectancy_net_r), 2)} R par trade.`
+      : "";
+    return {
+      text:
+        `Sur cet actif, ${e.n_trades} trades comparables ${portee} : ${exp >= 0 ? "+" : "−"}${fr(Math.abs(exp), 2)} R en moyenne. ` +
+        "C'est trop peu pour conclure — à cette échelle, le passé d'un seul actif ne prédit pas son avenir, et ce chiffre ne pèse pas sur le verdict." +
+        panel,
+      tone: "warn",
+    };
+  }
+
   if (exp < 0) {
     const bloquant = (a.tradeability?.blockers ?? []).some((b) => b.startsWith("Ce plan a déjà perdu"));
     return {

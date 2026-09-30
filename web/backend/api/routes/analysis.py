@@ -630,6 +630,32 @@ EDGE_BLOQUANT = -0.25
 # Le verdict baissier reste affiché — c'est une lecture du marché, elle a sa
 # valeur — mais le plan qui l'accompagne devient un exemple, sauf si
 # l'historique de CET actif, dans CE sens, dit le contraire.
+# L'HISTORIQUE D'UN ACTIF NE PRÉDIT SON AVENIR QU'EN INTRADAY.
+#
+# Mesuré en septembre 2026 sur 40 actifs (période de réglage puis période
+# jamais vue) : en bougies de 5 min et d'une heure, un actif qui perdait
+# continue de perdre (corrélation +0,67 et +0,43 entre les deux périodes,
+# 100 à 200 trades par actif) — surtout parce que ses frais, rapportés à ses
+# mouvements, ne changent pas. En journalier, hebdomadaire et mensuel, avec
+# 10 à 30 trades par actif, aucun lien (≈ 0, voire négatif) : les actifs
+# qu'il aurait bloqués ont même fait un peu mieux ensuite, et la moyenne de
+# tous les actifs prévoyait mieux (erreur 0,82 R contre 1,21 R en hebdo).
+# Au-dessus de l'intraday, l'historique de l'actif est donc AFFICHÉ, mais il
+# ne bloque rien ; la page cite le résultat mesuré sur l'ensemble des actifs.
+EDGE_ACTIF_FIABLE = {"5m", "15m", "30m", "1h", "4h"}
+# Achats du moteur avec le plan du profil, sur la période jamais vue.
+EDGE_PANEL = {
+    "1d":  (0.33, "40 actifs, 5 ans de séances"),
+    "3d":  (0.55, "40 actifs, 5 ans"),
+    "1w":  (0.59, "40 actifs, 10 ans"),
+    "1mo": (0.88, "28 actifs, historiques complets"),
+}
+
+
+def edge_actif_pris_en_compte(timeframe: str | None) -> bool:
+    return (timeframe or "1d") in EDGE_ACTIF_FIABLE
+
+
 VENTE_MINIMUM_R = 0.10
 VENTE_ETUDE = "−0,16 R par trade sur plus de 4 000 ventes, 36 actifs sur 40, 5 ans de données"
 
@@ -745,7 +771,9 @@ def _signal_quality(factor_agreement, htf_aligned, edge: dict) -> dict:
         pts += 15; notes.append("Confirmé par le timeframe supérieur")
     elif htf_aligned is False:
         pts -= 15; notes.append("Contredit par le timeframe supérieur")
-    if edge.get("enough_samples"):
+    if edge.get("hors_mesure"):
+        notes.append("À cette échelle, l'historique d'un seul actif ne prédit pas son avenir : il n'est pas pris en compte")
+    elif edge.get("enough_samples"):
         e = edge.get("expectancy_net_r") or 0.0
         if e > 0.15:
             pts += 10; notes.append(f"Edge historique positif sur cet actif (+{nombre_fr(e, 2)}R)")
@@ -814,7 +842,7 @@ def _tradeability(
     # plan sont deux questions. Le moteur peut avoir raison sur le sens et le
     # trade rester mauvais — c'est exactement ce que cette fonction existe
     # pour dire, et la raison est nommée plutôt que fondue dans un chiffre.
-    if edge_sens and edge_sens.get("fiable"):
+    if edge_sens and edge_sens.get("fiable") and edge_sens.get("pris_en_compte", True):
         e = edge_sens.get("expectancy_net_r")
         n = edge_sens.get("n_trades") or 0
         precision = ("dans ce sens" if edge_sens.get("base") == "directionnelle"
@@ -1210,6 +1238,11 @@ async def analyze_asset(
         # la jouabilité et la phrase de l'écran doivent lire la MÊME mesure,
         # sinon la page explique un chiffre et en bloque un autre.
         _edge_sens = edge_du_sens(historical_edge, "SHORT" if is_short_setup else "LONG")
+        if _edge_sens is not None:
+            _edge_sens["pris_en_compte"] = edge_actif_pris_en_compte(timeframe)
+            if not _edge_sens["pris_en_compte"] and timeframe in EDGE_PANEL:
+                _edge_sens["panel"] = {"expectancy_net_r": EDGE_PANEL[timeframe][0],
+                                       "base": EDGE_PANEL[timeframe][1]}
         _support = float(recent_low)
         _resistance = float(recent_high)
         risk_notes: list[str] = []
@@ -1249,7 +1282,7 @@ async def analyze_asset(
             risk_notes.append("Verdict neutre : ce plan à l'achat est un exemple, pas une recommandation")
         _vente_prouvee = bool(
             is_short_setup and _edge_sens and _edge_sens.get("base") == "directionnelle"
-            and _edge_sens.get("fiable")
+            and _edge_sens.get("fiable") and _edge_sens.get("pris_en_compte", True)
             and (_edge_sens.get("expectancy_net_r") or 0) >= VENTE_MINIMUM_R
         )
         _vente_non_prouvee = is_short_setup and not _vente_prouvee
@@ -1487,7 +1520,9 @@ async def analyze_asset(
             # positif, parce qu'elle lisait ici la moyenne des deux sens.
             "signal_quality": _signal_quality(
                 S.get("factor_agreement"), higher_tf_info.get("aligned"),
-                {"enough_samples": bool(_edge_sens and _edge_sens.get("fiable")),
+                {"hors_mesure": not _edge_sens.get("pris_en_compte", True),
+                 "enough_samples": bool(_edge_sens and _edge_sens.get("fiable")
+                                        and _edge_sens.get("pris_en_compte", True)),
                  "expectancy_net_r": (_edge_sens or {}).get("expectancy_net_r")}
                 if _edge_sens else historical_edge),
             "volatility_context": {
