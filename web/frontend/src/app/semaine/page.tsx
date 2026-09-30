@@ -344,7 +344,7 @@ function TableActifs({ actifs, compact }: { actifs: ActifSemaine[]; compact?: bo
             </Link>
             {!compact && a.disponible && a.bas != null && a.haut != null && (
               <Text size="caption" as="span" className="block">
-                semaine entre {assetPrice(a.bas)} et {assetPrice(a.haut)}
+                semaine entre {assetPrice(a.bas, a.symbole)} et {assetPrice(a.haut, a.symbole)}
               </Text>
             )}
           </div>

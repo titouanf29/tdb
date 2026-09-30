@@ -1,10 +1,11 @@
 "use client";
 
+import { formatCours } from "@/lib/devise";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Plus, RefreshCw, Trash2 } from "lucide-react";
 import { favoritesAPI, type Favorite } from "@/lib/api";
-import { useSettings, convertCurrency } from "@/lib/SettingsContext";
+import { fr, useSettings, convertCurrency } from "@/lib/SettingsContext";
 import {
   Button, CloudCurtain, EmptyState, Field, FormError, Heading, Modal, Num,
   Panel, SegmentedControl, Text, TextInput, WeatherBackdrop,
@@ -190,13 +191,13 @@ export default function FavoritesPage() {
                       </span>
                     </span>
                     <span className="flex shrink-0 items-baseline gap-5">
-                      <Num className="text-[0.95rem]">{money(f.price)}</Num>
+                      <Num className="text-[0.95rem]">{formatCours(f.price, f.symbol)}</Num>
                       <Num
                         tone={(f.change ?? 0) >= 0 ? "up" : "down"}
                         className="w-[4.5rem] text-right text-[0.9rem]"
                       >
                         {(f.change ?? 0) >= 0 ? "+" : ""}
-                        {(f.change ?? 0).toFixed(2)} %
+                        {fr(f.change ?? 0, 2)} %
                       </Num>
                     </span>
                   </Link>

@@ -34,6 +34,7 @@ import { quoteState } from "@/lib/marketOf";
 import { FactorBars, LevelScale } from "@/components/analysis/Gauges";
 import { AskAssistant } from "@/components/analysis/AskAssistant";
 import { RoueRisque } from "@/components/analysis/RoueRisque";
+import { StructureMouvement } from "@/components/analysis/StructureMouvement";
 import { RISQUE, niveauRisque, tailleSelonRisque } from "@/lib/risque";
 import { PressContext } from "@/components/analysis/PressContext";
 import { ClimatMarche } from "@/components/analysis/ClimatMarche";
@@ -426,7 +427,8 @@ function AnalysisScreen() {
      « stop 0,35 € / objectif 0,35 € », deux nombres différents rendus
      identiques. Le contexte envoyé à l'assistant portait les mêmes valeurs
      arrondies : il raisonnait sur un stop égal à son objectif. */
-  const assetPrice = useFormatAssetPrice();
+  // Dans la devise de cotation de l'actif (dollars pour Apple, euros pour LVMH…).
+  const assetPrice = useFormatAssetPrice(analysis?.symbol ?? symbol);
 
   return (
     <>
@@ -748,6 +750,11 @@ function AnalysisScreen() {
                 la date de la prochaine décision et le sens habituel de la
                 réaction de CET actif. */}
             <MacroContext symbol={analysis.symbol} />
+
+            {/* La géométrie du mouvement : structure, dernière jambe, où en
+                est le prix. Une description — mesurée, elle n'aide pas à
+                décider, donc elle est ici, fermée, et le dit. */}
+            <StructureMouvement contexte={analysis.contexte_technique} assetPrice={assetPrice} />
 
             {/* La peur et les taux : le climat dans lequel le plan se joue.
                 Contexte à lire, hors score. */}

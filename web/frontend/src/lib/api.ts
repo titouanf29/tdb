@@ -563,6 +563,58 @@ export const dailyIntentAPI = {
 };
 
 // Analysis API
+// ── Structure du mouvement (backend _structure.py / _confluence.py, v1.0) ──
+export type FamilleStructure =
+  | "FIBONACCI" | "MULTI_UNITES" | "SUPPORT_RESISTANCE" | "STRUCTURE" | "TENDANCE"
+  | "MOMENTUM" | "VOLUME" | "VOLATILITE" | "PRIX";
+
+export interface JambeStructure {
+  unite: string;
+  echelle: string;
+  id: string;
+  sens: "hausse" | "baisse";
+  depart: number;
+  fin: number;
+  fin_confirmee: boolean;
+  amplitude_atr: number;
+  duree_bougies: number;
+  age_bougies: number;
+  phase: "extension" | "correction" | "invalidee";
+  retracement: number;
+  zone_repli: boolean;
+  niveau_proche: { ratio: string; prix: number; zone: [number, number]; distance_atr: number; position: string };
+  confiance: "haute" | "moyenne" | "faible";
+  raisons_confiance: string[];
+}
+
+export interface ContexteTechnique {
+  version: string;
+  shadow: boolean;
+  unite: string;
+  market_structure: Record<string, {
+    etat: "haussiere" | "baissiere" | "range" | "indetermine";
+    sommets: "HH" | "LH" | null;
+    creux: "HL" | "LL" | null;
+    invalidation: number | null;
+    rompue: boolean;
+  } | null>;
+  fibonacci: {
+    primaire: JambeStructure | null;
+    alternative: JambeStructure | null;
+    mineure: JambeStructure | null;
+    superieure: JambeStructure | null;
+    bruite: boolean;
+  };
+  confluence: {
+    situation: string;
+    lecture: string;
+    familles: Partial<Record<FamilleStructure, { vote: -1 | 0 | 1; pourquoi: string }>>;
+    alignees: FamilleStructure[];
+    contraires: FamilleStructure[];
+    force?: number;
+  };
+}
+
 export const analysisAPI = {
   // sl/tp/fundWeight come from the trading profile so the risk plan, the
   // setups and the backtest all describe one stop and one target.
@@ -1189,6 +1241,8 @@ export interface Analysis {
     /** Points retirés (négatif) ou ajoutés par cette tendance. */
     ajustement?: number;
   };
+  /** Le moteur de structure / Fibonacci / confluence, en shadow (hors score). */
+  contexte_technique?: ContexteTechnique | null;
   /** Le score avant les deux portes, et ce que chacune a fait. */
   portes?: {
     score_avant: number;

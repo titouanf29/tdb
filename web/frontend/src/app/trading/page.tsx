@@ -9,6 +9,7 @@ import {
   type DevisTurbo, type Quote, type WalletBalance,
 } from "@/lib/api";
 import { annoncerReussite } from "@/lib/reussite";
+import { symboleCotation } from "@/lib/devise";
 import { RISQUE, niveauRisque } from "@/lib/risque";
 // `fr` : la virgule décimale. « 0.4 % » et « 6.6689 » dans un écran français
 // sont la faute qui revient le plus souvent dès qu'un nombre est affiché.
@@ -229,7 +230,10 @@ export default function TradingPage() {
 
   // Un COURS, pas une somme : sur un actif à 0,34 €, deux décimales
   // affichent la même valeur avant et après un mouvement réel.
-  const assetPrice = useFormatAssetPrice();
+  // Les cours dans la devise de cotation de l'actif ; les sommes via money().
+  const assetPrice = useFormatAssetPrice(symbol);
+  // Stop et objectif se saisissent dans la devise de cotation : on la dit.
+  const deviseSaisie = symboleCotation(symbol) ? ` (en ${symboleCotation(symbol)})` : "";
 
   const money = useCallback(
     (v: number) =>
@@ -279,7 +283,7 @@ export default function TradingPage() {
       });
       const fait = turbo && r.turbo
         ? `${r.turbo.unites} titres achetés à ${moneyTitre(r.turbo.prix_titre)}${r.frais ? `, plus ${money(r.frais)} de frais` : ""}.`
-        : `Position ouverte à ${money(r.entry_price || price)}.`;
+        : `Position ouverte à ${assetPrice(r.entry_price || price)}.`;
       setSuccess(fait);
       // Le message de la page disparaît avec la redirection vers le
       // portefeuille ; celui de Nimbo la suit.
@@ -349,7 +353,7 @@ export default function TradingPage() {
                   error={quoteError || undefined}
                   hint={
                     !quoteError && quote
-                      ? `Dernier prix : ${money(price)}`
+                      ? `Dernier prix : ${assetPrice(price)}`
                       : "AAPL, BTC-USD, MC.PA…"
                   }
                 >
@@ -410,7 +414,7 @@ export default function TradingPage() {
                   Stop de protection
                 </Checkbox>
                 {useSL && (
-                  <Field label="Prix du stop" htmlFor="tr-sl">
+                  <Field label={`Prix du stop${deviseSaisie}`} htmlFor="tr-sl">
                     <SaisieNombre
                       id="tr-sl"
                       value={stopLoss}
@@ -428,7 +432,7 @@ export default function TradingPage() {
                   Objectif de gain
                 </Checkbox>
                 {useTP && (
-                  <Field label="Prix de l'objectif" htmlFor="tr-tp">
+                  <Field label={`Prix de l'objectif${deviseSaisie}`} htmlFor="tr-tp">
                     <SaisieNombre
                       id="tr-tp"
                       value={takeProfit}

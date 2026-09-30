@@ -447,14 +447,14 @@ export default function WalletPage() {
                         {p.instrument === "turbo" && p.unites
                           ? <>{p.unites} titres à {fr(p.prix_unitaire ?? 0, (p.prix_unitaire ?? 0) < 1 ? 3 : 2)} €
                               {p.status !== "closed" && p.prix_titre_actuel != null && <> (maintenant {fr(p.prix_titre_actuel, p.prix_titre_actuel < 1 ? 3 : 2)} €)</>}
-                              {" · "}barrière {assetPrice(p.barriere ?? 0)}
+                              {" · "}barrière {assetPrice(p.barriere ?? 0, p.symbol)}
                               {p.status !== "closed" && p.distance_barriere_pct != null && <> à {fr(p.distance_barriere_pct, 1)} %</>}
                               {" · "}</>
                           : null}
-                        {money(p.amount)} · entrée {assetPrice(p.entry_price)}
+                        {money(p.amount)} · entrée {assetPrice(p.entry_price, p.symbol)}
                         {p.frais_payes ? ` · frais ${money(p.frais_payes)}` : ""}
-                        {p.status === "closed" ? "" : p.stop_loss ? ` · stop ${assetPrice(p.stop_loss)}` : ""}
-                        {p.status === "closed" ? "" : p.take_profit ? ` · objectif ${assetPrice(p.take_profit)}` : ""}
+                        {p.status === "closed" ? "" : p.stop_loss ? ` · stop ${assetPrice(p.stop_loss, p.symbol)}` : ""}
+                        {p.status === "closed" ? "" : p.take_profit ? ` · objectif ${assetPrice(p.take_profit, p.symbol)}` : ""}
                       </Text>
                     </div>
 
@@ -490,7 +490,7 @@ export default function WalletPage() {
                             )}
                             {p.exit_price != null && (
                               <Text size="caption" as="span" className="mt-0.5 block">
-                                sortie {assetPrice(p.exit_price)}
+                                sortie {assetPrice(p.exit_price, p.symbol)}
                               </Text>
                             )}
                           </>
@@ -500,7 +500,7 @@ export default function WalletPage() {
                               Cours indisponible
                             </Text>
                             <Text size="caption" as="span" className="mt-0.5 block">
-                              entrée {assetPrice(p.entry_price)}
+                              entrée {assetPrice(p.entry_price, p.symbol)}
                             </Text>
                           </>
                         ) : (
@@ -508,7 +508,7 @@ export default function WalletPage() {
                             {p.current_price != null && (
                               <LiveNum
                                 value={p.current_price}
-                                format={assetPrice}
+                                format={(v: number) => assetPrice(v, p.symbol)}
                                 className="block text-[0.92rem]"
                               />
                             )}
@@ -592,7 +592,7 @@ export default function WalletPage() {
         position={closedSheet}
         onClose={() => setClosedSheet(null)}
         money={money}
-        price={assetPrice}
+        price={(v: number) => assetPrice(v, closedSheet?.symbol)}
       />
 
       <JournalPrompt
@@ -613,7 +613,7 @@ export default function WalletPage() {
         }}
         onClosePosition={(p) => { setSheet(null); setClosing(p); setError(""); }}
         money={money}
-        price={assetPrice}
+        price={(v: number) => assetPrice(v, sheet?.symbol)}
       />
 
       <Modal open={!!closing} onClose={() => setClosing(null)} title="Clôturer">

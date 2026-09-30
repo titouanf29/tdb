@@ -1,5 +1,6 @@
 "use client";
 
+import { formatCours } from "@/lib/devise";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { ArrowRight, CloudOff, Globe2, RefreshCw, Sun } from "lucide-react";
@@ -228,7 +229,7 @@ export default function DashboardPage() {
               >
                 <Figure
                   value={`${pnl >= 0 ? "+" : ""}${money(pnl)}`}
-                  label={`${pnl >= 0 ? "+" : ""}${pnlPct.toFixed(1)} %`}
+                  label={`${pnl >= 0 ? "+" : ""}${fr(pnlPct, 1)} %`}
                   tone={pnl >= 0 ? "up" : "down"}
                 />
                 <Figure
@@ -236,7 +237,7 @@ export default function DashboardPage() {
                   label={positions.length > 1 ? "positions" : "position"}
                 />
                 <Figure
-                  value={stats && stats.total_trades > 0 ? `${stats.win_rate.toFixed(0)} %` : "—"}
+                  value={stats && stats.total_trades > 0 ? `${fr(stats.win_rate, 0)} %` : "—"}
                   label={
                     stats && stats.total_trades > 0
                       ? `sur ${stats.total_trades} trades`
@@ -291,7 +292,7 @@ export default function DashboardPage() {
                       key={f.symbol}
                       href={`/analysis?symbol=${encodeURIComponent(f.symbol)}`}
                       label={f.symbol}
-                      value={money(f.price)}
+                      value={formatCours(f.price, f.symbol)}
                       change={f.change}
                     />
                   ))}

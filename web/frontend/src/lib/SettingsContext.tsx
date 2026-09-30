@@ -1,5 +1,7 @@
 "use client";
 
+import { formatCours, priceDecimals } from "./devise";
+
 import {
   createContext, useContext, useState, useEffect, useCallback, useMemo, useRef, ReactNode,
 } from "react";
@@ -409,9 +411,12 @@ export function useFormatCurrency() {
  * le moteur ; ils n'ont donc pas besoin de deviner la devise d'origine, mais
  * ils ont besoin de la même précision adaptative.
  */
-export function useFormatAssetPrice() {
+export function useFormatAssetPrice(symboleParDefaut?: string | null) {
   const { settings, eurUsd } = useSettings();
-  return useCallback((value: number): string => {
+  return useCallback((value: number, symbole?: string | null): string => {
+    // Avec un symbole : le cours dans SA devise de cotation (voir ./devise).
+    const sym = symbole ?? symboleParDefaut;
+    if (sym) return formatCours(value, sym);
     const converted = convertCurrency(value, "EUR", settings.currency, eurUsd);
     const d = priceDecimals(converted);
     return new Intl.NumberFormat("fr-FR", {
@@ -420,7 +425,7 @@ export function useFormatAssetPrice() {
       minimumFractionDigits: d,
       maximumFractionDigits: d,
     }).format(converted);
-  }, [settings.currency, eurUsd]);
+  }, [settings.currency, eurUsd, symboleParDefaut]);
 }
 
 /**
@@ -433,35 +438,9 @@ export function useFormatAssetPrice() {
  * Use this for any market price coming directly from Yahoo Finance / the prices API.
  * Use useFormatCurrency for wallet / P&L values (which are always stored in USD).
  */
-const EUR_SUFFIXES = [".PA", ".DE", ".AS", ".BR", ".LS", ".MI", ".MC", ".AT", ".CO", ".ST", ".HE", ".OL", ".WA"];
 
-/**
- * Le nombre de décimales d'un PRIX, selon son ordre de grandeur.
- *
- * Deux décimales conviennent à une action à 336 €. Elles sont ruineuses pour
- * un actif à 0,34 € : sur TRX, une position affichait « entrée 0,34 € » et
- * « cours actuel 0,34 € » à côté d'un résultat de −0,88 €. Le calcul était
- * juste — l'entrée valait 0,34260 et le cours 0,34250, soit −0,029 % que le
- * levier ×10 transformait en −0,29 %. C'est l'affichage qui mentait, en
- * arrondissant deux nombres différents au même.
- *
- * Un écran qui montre deux fois le même prix à côté d'une perte se lit comme
- * un bug, et c'est bien un bug : il cache la seule chose qu'il devait
- * montrer.
- *
- * À NE PAS UTILISER POUR UNE SOMME D'ARGENT. Un solde, un montant engagé ou
- * un résultat s'écrivent toujours au centime : « 299,1245 € » de valeur de
- * position n'a pas de sens, alors que « 0,342500 € » de cours en a un.
- */
-export function priceDecimals(value: number): number {
-  const v = Math.abs(value);
-  if (!Number.isFinite(v) || v === 0) return 2;
-  if (v >= 100) return 2;
-  if (v >= 1) return 3;
-  if (v >= 0.01) return 5;
-  if (v >= 0.0001) return 6;
-  return 8;
-}
+// Déplacée dans ./devise (qui écrit les cours) ; réexportée pour les imports existants.
+export { priceDecimals } from "./devise";
 
 /**
  * Une SOMME D'ARGENT, toujours au centime.
@@ -489,17 +468,8 @@ export function useFormatSomme() {
 }
 
 export function useFormatPrice() {
-  const { settings, eurUsd } = useSettings();
-  return useCallback((value: number, symbol: string): string => {
-    const nativeCurrency: Currency = EUR_SUFFIXES.some((sfx) => symbol.toUpperCase().endsWith(sfx)) ? "EUR" : "USD";
-    const converted = convertCurrency(value, nativeCurrency, settings.currency, eurUsd);
-    return new Intl.NumberFormat("fr-FR", {
-      style: "currency",
-      currency: settings.currency,
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(converted);
-  }, [settings.currency, eurUsd]);
+  // Un cours de marché : dans sa devise de cotation, comme partout ailleurs.
+  return useCallback((value: number, symbol: string): string => formatCours(value, symbol), []);
 }
 
 /**

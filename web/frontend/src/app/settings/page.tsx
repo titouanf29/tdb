@@ -931,7 +931,7 @@ function AppearanceSection() {
 
       <Panel
         title="Devise d'affichage"
-        hint="Les cours sont convertis au taux du jour. Les indices et les paires de devises restent en valeur nue."
+        hint="Soldes, montants et résultats s'affichent dans cette devise. Les cours restent dans leur devise de cotation (dollars pour Apple, euros pour LVMH), comme chez un courtier ; les indices et les paires de devises en valeur nue."
       >
         <SegmentedControl
           size="md"
