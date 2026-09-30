@@ -1121,10 +1121,12 @@ function PropositionNimbo({
                 </>
               : intraday
                 ? <>
-                    En intraday, je ne propose jamais de position : mesuré sur 40 actifs, même mes meilleurs
-                    signaux n&apos;y battent pas les frais (−0,28 à −0,36 R par trade en 5 min, environ zéro
-                    en 1 h et en 4 h). L&apos;analyse reste utile pour lire le marché. Pour des positions que je propose,
-                    le Swing est l&apos;horizon où mon avantage est mesuré.
+                    J&apos;ai rejoué mes signaux sur 40 actifs : sur des mouvements de quelques minutes ou
+                    quelques heures, les frais mangent le gain. En 5 minutes, même mes meilleurs signaux
+                    perdaient en moyenne le tiers de la somme risquée à chaque trade ; en 1 h et en 4 h, ils ne
+                    gagnaient rien une fois les frais payés. Ici, vous pouvez analyser et vous entraîner
+                    (« quand même » ci-dessous) — les positions que je propose, c&apos;est en Swing, sur
+                    plusieurs jours, là où mes signaux ont gagné.
                     {onPasserEnSwing && (
                       <button
                         type="button"
@@ -1176,6 +1178,11 @@ function PropositionNimbo({
         </div>
       )}
 
+      {/* Ce qui arrive EN VRAI aux achats comparables : l'utilisateur doit
+          savoir, avant d'entrer, que le stop sera souvent touché — et que
+          l'ensemble gagne quand même. Seulement quand Nimbo propose. */}
+      {propose && a.probabilites && <DixAchats p={a.probabilites} />}
+
       {/* La prise de position passe TOUJOURS par Nimbo. Quand il propose,
           bouton plein ; quand il ne propose pas, le bouton reste là, en
           retrait, et Nimbo dit franchement qu'il ne le conseille pas — c'est
@@ -1194,6 +1201,45 @@ function PropositionNimbo({
         </Text>
       </div>
     </section>
+  );
+}
+
+/**
+ * Sur dix achats comparables : combien ont atteint l'objectif, touché le
+ * stop, ou sont sortis à l'échéance. Une rangée de dix points plutôt qu'un
+ * pourcentage : « 2 sur 10 » se retient, « 23 % » se lit comme une note.
+ */
+function DixAchats({ p }: { p: NonNullable<Analysis["probabilites"]> }) {
+  const { objectif, stop, echeance } = p.sur_dix;
+  const points = [
+    ...Array(objectif).fill("var(--cap-up)"),
+    ...Array(stop).fill("var(--cap-down)"),
+    ...Array(echeance).fill("var(--cap-ink-4)"),
+  ];
+  const gain = Math.round(p.echeance_en_gain * 10);
+  return (
+    <div className="mt-5 rounded-[var(--cap-r-md)] p-3.5" style={{ backgroundColor: "var(--cap-surface)", boxShadow: "inset 0 0 0 1px var(--cap-line)" }}>
+      <p className="text-[0.75rem] uppercase tracking-[0.14em]" style={{ color: "var(--cap-ink-3)" }}>
+        Sur 10 achats comparables
+      </p>
+      <div className="mt-2 flex gap-1.5" role="img"
+        aria-label={`${objectif} objectifs atteints, ${stop} stops touchés, ${echeance} sorties à l'échéance, sur dix achats`}>
+        {points.map((c, i) => (
+          <span key={i} className="h-3.5 w-3.5 rounded-full" style={{ backgroundColor: c }} />
+        ))}
+      </div>
+      <Text size="small" tone="ink" className="mt-2.5">
+        <strong style={{ color: "var(--cap-up)" }}>{objectif}</strong> ont atteint l&apos;objectif (en {p.duree_objectif_seances} séances
+        environ), <strong style={{ color: "var(--cap-down)" }}>{stop}</strong> ont touché le stop
+        {echeance > 0 && <>, <strong>{echeance}</strong> sont sortis au bout de {p.echeance_seances} séances — {gain} fois sur 10 en gain</>}.
+        Le stop sera donc souvent touché : c&apos;est normal. Au total, ces achats ont gagné, parce que l&apos;objectif
+        vise bien plus loin que le stop.
+      </Text>
+      <Text size="caption" className="mt-1.5">
+        Mesuré sur {p.n.toLocaleString("fr-FR")} achats du moteur, {p.actifs} actifs, horizon {p.libelle}, frais compris —
+        sur l&apos;ensemble des actifs, pas sur celui-ci en particulier.
+      </Text>
+    </div>
   );
 }
 

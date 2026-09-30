@@ -26,6 +26,7 @@ from ._universe import (EXTRA_CRYPTO, extend_market, classify,
 from ._intent import parse as parse_intent
 from ._opportunity import describe as describe_opportunity
 from ._confluence import contexte_technique
+from ._calibrage import probabilites
 from .users import style_normalise
 from ._risque import (ETUDE_SEUIL_AGRESSIF, SEUIL_ACHAT, risque_utilisateur, seuil_achat)
 from ._climat import climat_marche
@@ -831,9 +832,10 @@ def _tradeability(
     warnings: list[str] = []
 
     if (timeframe or "") in INTRADAY_SANS_AVANTAGE:
+        # Dit sans jargon : le détail chiffré est dans INTRADAY_ETUDE.
         blockers.append(
-            "Intraday : le moteur n'a pas d'avantage mesuré après frais à cet horizon "
-            f"({INTRADAY_ETUDE}) — il analyse, il ne propose pas de trade")
+            "Intraday : sur des mouvements aussi courts, les frais mangent le gain — mesuré, "
+            "les signaux du moteur n'y ont pas gagné d'argent. Il analyse, il ne propose pas de trade")
     if neutre:
         blockers.append("Verdict neutre — le moteur ne voit pas de sens assez net pour proposer un trade")
     if vente_non_prouvee:
@@ -1651,6 +1653,9 @@ async def analyze_asset(
                 "unite_superieure": higher_tf_info.get("ajustement", 0.0),
                 "contexte": (market_context or {}).get("ajustement", 0.0),
             },
+            # Ce qui arrive en vrai aux achats que le moteur propose à cet
+            # horizon : objectif, stop ou échéance, sur dix (voir _calibrage.py).
+            "probabilites": probabilites(timeframe, final_score, _seuil_abaisse),
             "seuil_achat": {
                 "valeur": _seuil,
                 "niveau_risque": _niveau_risque,

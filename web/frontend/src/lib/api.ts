@@ -1241,6 +1241,14 @@ export interface Analysis {
     /** Points retirés (négatif) ou ajoutés par cette tendance. */
     ajustement?: number;
   };
+  /** Ce qui arrive en vrai aux achats que le moteur propose à cet horizon
+   *  (mesuré sur 40 actifs, plan de l'écran). Absent si rien n'est mesuré. */
+  probabilites?: {
+    objectif: number; stop: number; echeance: number; echeance_en_gain: number;
+    duree_objectif_seances: number; echeance_seances: number; r_moyen: number;
+    n: number; actifs: number; libelle: string;
+    sur_dix: { objectif: number; stop: number; echeance: number };
+  } | null;
   /** Le moteur de structure / Fibonacci / confluence, en shadow (hors score). */
   contexte_technique?: ContexteTechnique | null;
   /** Le score avant les deux portes, et ce que chacune a fait. */
