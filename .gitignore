@@ -72,3 +72,7 @@ node_modules/
 # Temporary files
 *.tmp
 *.temp
+
+# graphify : le graphe se régénère avec `graphify update .` après chaque
+# modification ; le commiter ferait un diff de plusieurs Mo à chaque fois.
+graphify-out/
