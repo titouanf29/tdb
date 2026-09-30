@@ -26,7 +26,7 @@ them comparable across assets and timeframes.
 import numpy as np
 import pandas as pd
 
-from ._scoring import (compute_score, ENGINE_VERSION, plan_structurel, NIVEAUX_FENETRE,
+from ._scoring import (compute_score, ENGINE_VERSION, plan_structurel, objectif_plafonne, NIVEAUX_FENETRE,
                        htf_from_primary, htf_trend, apply_htf_gate)
 from ._market_context import compute_market_context, apply_context_gate
 
@@ -279,7 +279,9 @@ def run_backtest(
             entry, atr,
             float(window["Low"].tail(NIVEAUX_FENETRE).min()),
             float(window["High"].tail(NIVEAUX_FENETRE).max()),
-            not is_long, sl_atr, tp_atr)
+            not is_long, sl_atr, tp_atr,
+            # Le plan de l'écran, objectif compris (voir objectif_plafonne).
+            plafonner=objectif_plafonne(timeframe))
         stop, target = _plan["sl"], _plan["tp"]
         risk = abs(entry - stop)
         if risk <= 0:

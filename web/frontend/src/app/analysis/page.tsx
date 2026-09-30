@@ -985,11 +985,11 @@ function PropositionNimbo({
   // le rapport gain / risque tombe sous 1,2. Nimbo le dit avec les chiffres
   // plutôt que de citer la règle : bon signal, mauvais endroit.
   const butee =
-    !!plan && !!plan.tp_capped_at_level && !!blocage?.startsWith("Rapport gain/risque") && !!a.levels
+    !!plan && (!!plan.tp_capped_at_level || !!plan.obstacle) && !!blocage?.startsWith("Rapport gain/risque") && !!a.levels
       ? {
           niveau: plan.direction === "SHORT" ? a.levels.support : a.levels.resistance,
           repli: plan.direction === "SHORT" ? a.levels.resistance : a.levels.support,
-          marge: Math.abs(plan.suggested_tp - cours),
+          marge: Math.abs((plan.tp_structure ?? plan.suggested_tp) - cours),
           risque: Math.abs(cours - plan.suggested_sl),
         }
       : null;
@@ -1068,6 +1068,10 @@ function PropositionNimbo({
             {propose && plan
               ? <>
                   Stop à {assetPrice(plan.suggested_sl)}, objectif à {assetPrice(plan.suggested_tp)} : vous risquez 1 pour viser {fr(plan.risk_reward, 1)}.
+                  {plan.obstacle && !plan.tp_capped_at_level && plan.tp_structure != null && (
+                    <> {vente ? "Un support" : "Une résistance"} à {assetPrice(plan.tp_structure)} est sur la route : je vise
+                      au-delà — mesuré sur 40 actifs, ça a mieux payé que de s&apos;y arrêter.</>
+                  )}
                   {parSeuilAgressif && (
                     <> Le score ({Math.round(scoreMoteur)}) est sous 60, mais avec votre profil {RISQUE[niveau].label.toLowerCase()} je
                       propose aussi les achats dès {a.seuil_achat?.valeur} en journalier : sur 40 actifs, ils ont rapporté +0,21 et +0,26 R

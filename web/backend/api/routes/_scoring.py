@@ -64,29 +64,52 @@ EXTENSION_ETIRE = 4.0      # ATR au-dessus : cours étiré
 NIVEAUX_FENETRE = 20   # bougies qui définissent support et résistance
 
 
+def objectif_plafonne(timeframe: str | None) -> bool:
+    """L'objectif s'arrête-t-il à la résistance (au support pour une vente) ?
+
+    Non en journalier et en 3 jours. Mesuré en septembre 2026 sur 40 actifs,
+    signaux gardés par le moteur, plan de l'écran, frais compris — la décision
+    d'entrer restant la même (bloquée quand la résistance est trop proche) :
+    viser le multiple d'ATR complet a rapporté +0,43 et +0,47 R par trade en
+    journalier contre +0,43 et +0,40 R en s'arrêtant à la résistance, et +0,87
+    et +1,72 R contre +0,75 et +1,51 R en 3 jours, sur les deux périodes. Un
+    achat de repli qui tient dépasse souvent le dernier plus haut. En
+    hebdomadaire, le plafond fait mieux sur la période jamais vue (+1,19 contre
+    +1,06 R) ; en intraday, aucune différence : il y reste."""
+    return (timeframe or "1d") not in ("1d", "3d")
+
+
 def plan_structurel(prix: float, atr: float, support: float, resistance: float,
-                    vente: bool, sl_atr: float, tp_atr: float) -> dict:
+                    vente: bool, sl_atr: float, tp_atr: float, plafonner: bool = True) -> dict:
     """Stop et objectif d'un plan, ancrés sur la structure.
 
     Un niveau ne compte comme ancre ou obstacle qu'à une distance d'au moins
     1 ATR : sur un plus haut ou un plus bas récent, l'extrême des 20 bougies
-    EST le cours, et il ne doit pas étrangler le plan."""
-    base, plafonne = "atr", False
+    EST le cours, et il ne doit pas étrangler le plan.
+
+    `tp_structure` est l'objectif arrêté au premier obstacle, qu'il soit ou
+    non retenu comme objectif (voir objectif_plafonne) : c'est lui qui dit si
+    la place jusqu'à l'obstacle rémunère le risque, et donc s'il faut entrer."""
+    base, obstacle = "atr", False
     if vente:
         sl = prix + atr * sl_atr
         if (resistance - prix) >= atr and (resistance + atr * 0.5) < sl:
             sl, base = resistance + atr * 0.5, "resistance"
         tp = prix - atr * tp_atr
         if tp < support < prix and (prix - support) >= atr:
-            tp, plafonne = support, True
+            obstacle, tp_structure = True, support
     else:
         sl = prix - atr * sl_atr
         if (prix - support) >= atr and (support - atr * 0.5) > sl:
             sl, base = support - atr * 0.5, "support"
         tp = prix + atr * tp_atr
         if prix < resistance < tp and (resistance - prix) >= atr:
-            tp, plafonne = resistance, True
-    return {"sl": sl, "tp": tp, "sl_basis": base, "tp_capped": plafonne}
+            obstacle, tp_structure = True, resistance
+    if not obstacle:
+        tp_structure = tp
+    plafonne = obstacle and plafonner
+    return {"sl": sl, "tp": tp_structure if plafonne else tp, "sl_basis": base,
+            "tp_capped": plafonne, "obstacle": obstacle, "tp_structure": tp_structure}
 
 
 _JOURS_FIXES = {"1d": 1.0, "3d": 3 * 5 / 7, "1w": 5.0, "1mo": 21.0}

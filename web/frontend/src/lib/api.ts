@@ -1365,6 +1365,12 @@ export interface Analysis {
     direction?: "LONG" | "SHORT";
     sl_basis?: string;
     tp_capped_at_level?: boolean;
+    /** Un obstacle (résistance, ou support pour une vente) entre le cours et
+     *  l'objectif. En journalier et 3 jours l'objectif le dépasse (mesuré). */
+    obstacle?: boolean;
+    tp_structure?: number | null;
+    /** Rapport gain/risque jusqu'à l'obstacle : c'est lui qui décide d'entrer. */
+    risk_reward_obstacle?: number | null;
     notes?: string[];
   };
   fundamentals?: {

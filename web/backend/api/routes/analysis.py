@@ -30,7 +30,7 @@ from ._risque import (ETUDE_SEUIL_AGRESSIF, SEUIL_ACHAT, risque_utilisateur, seu
 from ._climat import climat_marche
 from ._market_context import (benchmark_for, compute_market_context,
                               apply_context_gate, regime_series)
-from ._scoring import (compute_score, derive_trend, derive_signal, TIMEFRAME_FETCH, derniere_bougie_en_cours, extension_validee, plan_structurel, NIVEAUX_FENETRE, jours_par_bougie, horizon_rejeu,
+from ._scoring import (compute_score, derive_trend, derive_signal, TIMEFRAME_FETCH, derniere_bougie_en_cours, extension_validee, plan_structurel, objectif_plafonne, NIVEAUX_FENETRE, jours_par_bougie, horizon_rejeu,
                        HIGHER_TF, htf_trend, apply_htf_gate, resample_ohlcv,
                        htf_from_primary, ENGINE_VERSION)
 from ._backtest import run_backtest
@@ -796,6 +796,7 @@ def _tradeability(
     edge_sens: dict | None = None,
     neutre: bool = False,
     vente_non_prouvee: bool = False,
+    jusqua_obstacle: bool = False,
 ) -> dict:
     """Is this direction actually worth acting on?
 
@@ -824,7 +825,10 @@ def _tradeability(
     # perdent autant (-0,6 à -0,7 R en 5 min, -0,15 R en 1 h), les frais
     # dominent. L'assouplir n'y ajouterait que des trades perdants.
     if risk_reward is not None and risk_reward < 1.2:
-        blockers.append(f"Rapport gain/risque de {nombre_fr(risk_reward, 1)} — sous 1,2, le setup rémunère mal le risque")
+        blockers.append(
+            f"Rapport gain/risque de {nombre_fr(risk_reward, 1)} jusqu'au premier obstacle — sous 1,2, "
+            "le setup rémunère mal le risque" if jusqua_obstacle else
+            f"Rapport gain/risque de {nombre_fr(risk_reward, 1)} — sous 1,2, le setup rémunère mal le risque")
     if data_stale:
         blockers.append("Données de marché périmées — le prix affiché ne reflète plus la séance")
     if confidence < 40:
@@ -1277,12 +1281,19 @@ async def analyze_asset(
         # Multiples come from the trading profile (query), so this plan, the
         # setups and the backtest describe ONE stop and ONE target.
         _plan = plan_structurel(current_price, atr, _support, _resistance,
-                                is_short_setup, sl_atr, tp_atr)
+                                is_short_setup, sl_atr, tp_atr,
+                                plafonner=objectif_plafonne(timeframe))
         _sl, _tp = _plan["sl"], _plan["tp"]
         sl_basis, tp_capped = _plan["sl_basis"], _plan["tp_capped"]
+        _obstacle = _plan["obstacle"]
         if tp_capped:
             risk_notes.append("Objectif plafonné au support — premier obstacle structurel" if is_short_setup
                               else "Objectif plafonné à la résistance — premier obstacle structurel")
+        elif _obstacle:
+            risk_notes.append(
+                f"Objectif au-delà {'du support' if is_short_setup else 'de la résistance'} "
+                f"({nombre_fr(_plan['tp_structure'], 2)}) — mesuré en {timeframe}, viser le multiple "
+                "d'ATR complet a mieux payé que s'arrêter au premier obstacle")
         if is_short_setup:
             _sl_t = current_price + atr * sl_atr * 0.5
             # « Prudent » veut dire plus proche : jamais au-delà de l'objectif
@@ -1293,8 +1304,17 @@ async def analyze_asset(
             _tp_c = min(current_price + atr * tp_atr * 0.5, _tp)
 
         _rr = abs(_tp - current_price) / abs(_sl - current_price) if abs(_sl - current_price) > 1e-9 else None
-        if _rr is not None and _rr < 1.2:
-            risk_notes.append(f"R/R de {nombre_fr(_rr, 1)} sous 1,2 — le setup rémunère mal le risque pris")
+        # Faut-il entrer ? Jugé sur la place jusqu'au PREMIER OBSTACLE, même
+        # quand l'objectif le dépasse : un achat juste sous une résistance
+        # paie tout le risque pour une marge minuscule (mesuré : les achats
+        # ainsi bloqués ont rapporté ~0 R en journalier).
+        _rr_structure = (abs(_plan["tp_structure"] - current_price) / abs(_sl - current_price)
+                         if abs(_sl - current_price) > 1e-9 else None)
+        if _rr_structure is not None and _rr_structure < 1.2:
+            risk_notes.append(
+                f"R/R de {nombre_fr(_rr_structure, 1)} jusqu'{'au support' if is_short_setup else 'à la résistance'} "
+                "sous 1,2 — le setup rémunère mal le risque pris" if _obstacle and not tp_capped else
+                f"R/R de {nombre_fr(_rr_structure, 1)} sous 1,2 — le setup rémunère mal le risque pris")
 
         # Un verdict neutre n'est pas un trade (le backtest ne le compte pas
         # comme tel). Le plan reste affiché — il apprend à lire un stop et un
@@ -1331,6 +1351,11 @@ async def analyze_asset(
             "atr_stop_pct":              _safe(atr / current_price * 200, None, 2),
             "sl_basis":                  sl_basis,
             "tp_capped_at_level":        tp_capped,
+            # Un obstacle (résistance, ou support pour une vente) se trouve
+            # entre le cours et l'objectif ; `tp_structure` est ce niveau.
+            "obstacle":                  _obstacle,
+            "tp_structure":              _px(_plan["tp_structure"]),
+            "risk_reward_obstacle":      _safe(_rr_structure, None, 2),
             "notes":                     risk_notes,
         }
 
@@ -1590,7 +1615,9 @@ async def analyze_asset(
                 "etude": ETUDE_SEUIL_AGRESSIF if _seuil < SEUIL_ACHAT else None,
             },
             "tradeability": _tradeability(
-                risk_reward=_rr,
+                # La décision d'entrer : la place jusqu'au premier obstacle.
+                risk_reward=_rr_structure,
+                jusqua_obstacle=_obstacle and not tp_capped,
                 data_stale=data_stale,
                 confidence=_confidence,
                 vol_percentile=S.get("vol_percentile"),
