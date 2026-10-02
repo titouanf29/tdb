@@ -215,7 +215,7 @@ export function OuvertureDuCiel() {
           <button ref={bouton} type="button"
             className="rounded-full px-5 py-2.5 text-[0.95rem] font-medium outline-none transition-colors focus-visible:ring-2"
             style={{ color: "var(--cap-ink)", backgroundColor: "rgba(255,255,255,0.55)", boxShadow: "inset 0 0 0 1px var(--cap-line)" }}>
-            Entrer dans le ciel
+            Découvrir CaptenTDB
           </button>
           <span className="text-[0.8rem]" style={{ color: "var(--cap-ink-2)" }}>ou faites défiler</span>
           <svg aria-hidden className="cv-fleche" width="18" height="18" viewBox="0 0 24 24" fill="none"
