@@ -5,6 +5,7 @@ import { Check, Loader2, RefreshCw, X } from "lucide-react";
 import { adminAPI, type AdminAIHealth, type AdminAuditEntry, type AdminDataHealth } from "@/lib/api";
 import { Button, Panel, Text } from "@/components/design-system";
 import { EmailPanel } from "./EmailPanel";
+import { OuverturePremium } from "./OuverturePremium";
 
 /**
  * L'exploitation : les interrupteurs, l'état des services, et qui a fait quoi.
@@ -125,6 +126,8 @@ export function Operations({
           />
         </div>
       </Panel>
+
+      <OuverturePremium />
 
       <EmailPanel />
 
