@@ -133,7 +133,7 @@ _SETTING_MAP = {
 }
 
 
-async def effective_limits() -> dict:
+async def effective_limits(a_l_ouverture: bool = False) -> dict:
     """Les limites RÉELLEMENT appliquées, pour les DEUX formules.
 
     `get_user_limits` n'en rendait qu'une, celle de l'utilisateur courant.
@@ -161,7 +161,7 @@ async def effective_limits() -> dict:
     # Le retour est automatique : le jour où l'offre rouvre, ce bloc ne
     # s'exécute plus et les limites reprennent leurs valeurs. Rien à se
     # rappeler de faire.
-    if not offre_payante_ouverte():
+    if not offre_payante_ouverte() and not a_l_ouverture:
         out["free"] = dict(PREMIUM_FEATURES["premium"])
 
     try:
@@ -683,42 +683,23 @@ async def get_features_comparison():
     return {
         "free": limits["free"],
         "premium": limits["premium"],
+        # Les limites gratuites telles qu'elles s'appliqueront le jour où
+        # l'offre ouvre — pour l'essai administrateur, qui doit voir la
+        # comparaison réelle et non deux colonnes identiques.
+        "free_ouverture": (await effective_limits(a_l_ouverture=True))["free"],
+        # Seulement ce qui est réellement limité ET visible sur le site. La
+        # liste promettait un « Backtest Manager », une « analyse
+        # géopolitique », des « pivots avancés » et un « calendrier sur
+        # 30 jours » : des écrans qui n'existent plus depuis la refonte.
         "benefits": [
-            {
-                "icon": "rocket",
-                "title": "Positions illimitees",
-                "description": "Ouvrez jusqu'a 50 positions simultanees au lieu de 5",
-            },
-            {
-                "icon": "brain",
-                "title": "IA illimitee",
-                "description": "Acces illimite a l'assistant IA pour vos analyses",
-            },
-            {
-                "icon": "chart",
-                "title": "Backtest Manager",
-                "description": "Testez vos strategies sur des donnees historiques",
-            },
-            {
-                "icon": "globe",
-                "title": "Analyse Geopolitique",
-                "description": "Analyses detaillees des risques geopolitiques et leur impact",
-            },
-            {
-                "icon": "target",
-                "title": "Pivots Avances",
-                "description": "Acces a toutes les methodes: Fibonacci, Woodie, Camarilla, DeMark",
-            },
-            {
-                "icon": "calendar",
-                "title": "Calendrier Etendu",
-                "description": "Consultez les evenements economiques sur 30 jours",
-            },
-            {
-                "icon": "headphones",
-                "title": "Support Prioritaire",
-                "description": "Acces direct aux admins pour vos questions",
-            },
+            {"icon": "search", "title": "Scans sans limite",
+             "description": "Le scanner du marché autant de fois que vous voulez, au lieu d'une fois par jour."},
+            {"icon": "brain", "title": "Assistant sans limite",
+             "description": "Toutes vos questions à l'assistant, sans compteur quotidien."},
+            {"icon": "rocket", "title": "Plus de positions",
+             "description": "Jusqu'à 50 positions virtuelles ouvertes en même temps."},
+            {"icon": "star", "title": "Plus d'actifs suivis",
+             "description": "Jusqu'à 100 favoris surveillés par Nimbo."},
         ]
     }
 

@@ -199,7 +199,9 @@ export default function AssistantPage() {
             </Text>
           </div>
           <div className="flex items-center gap-3">
-            {limit && !limit.is_premium && (
+            {/* Seulement quand il y a une limite : sans limite (offre fermée, ou
+                Premium), le serveur répond -1 et l'écran affichait « -1 / -1 ». */}
+            {limit && !limit.is_premium && limit.daily_limit >= 0 && (
               <Text size="caption" as="span">
                 {limit.remaining} / {limit.daily_limit} messages aujourd&apos;hui
               </Text>

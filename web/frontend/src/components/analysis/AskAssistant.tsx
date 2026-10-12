@@ -117,7 +117,7 @@ export function AskAssistant({
     try {
       const r = await aiAPI.analysisChat(q, contextOf(analysis, assetPrice), history);
       setMessages((m) => [...m, { role: "assistant", content: r.response }]);
-      setRemaining(r.is_premium ? null : r.remaining);
+      setRemaining(r.is_premium || r.remaining < 0 ? null : r.remaining);
     } catch (err) {
       // Trois échecs distincts, trois messages distincts. « Une erreur est
       // survenue » laisserait l'utilisateur réessayer indéfiniment une chose

@@ -2492,6 +2492,43 @@ export interface BacktestResult {
   }[];
 }
 
+/** L'éditeur publié par le serveur (backend api/legal.py) : une seule source
+ *  pour les mentions légales, les CGV et l'ouverture de l'offre. */
+export interface EditeurPublic {
+  statut: "non_immatricule" | "micro_entreprise" | "societe";
+  nom_public: string;
+  identite: string;
+  adresse: string;
+  email: string;
+  telephone: string;
+  siren: string;
+  rcs: string;
+  tva_intracom: string;
+  mention_tva: string;
+  mediateur: { nom: string; adresse: string; site: string };
+  pays: string;
+  offre_ouverte: boolean;
+  prix_centimes: number;
+  cgv_version: string;
+}
+
+/** La liste de contrôle d'ouverture du Premium (admin). */
+export interface OuverturePremium {
+  ouverte: boolean;
+  mode_test: boolean;
+  essai_admin: boolean;
+  liste: Array<{ cle: string; libelle: string; ok: boolean; comment: string }>;
+  stripe: null | { joignable: boolean; erreur?: string; montant_centimes?: number; devise?: string;
+    intervalle?: string; actif?: boolean };
+  webhook_url: string;
+  evenements_webhook: string[];
+}
+
+export const legalAPI = {
+  editeur: () => fetchAPI<EditeurPublic>("/api/legal/editeur"),
+  ouverture: () => fetchAPI<OuverturePremium>("/api/legal/ouverture"),
+};
+
 // Premium API
 export const premiumAPI = {
   // Check premium status
@@ -2500,9 +2537,23 @@ export const premiumAPI = {
   // Get features comparison
   getFeatures: () => fetchAPI<PremiumFeatures>("/api/premium/features"),
 
-  // Create Stripe checkout session
-  createCheckout: () =>
-    fetchAPI<{ url: string }>("/api/premium/checkout", { method: "POST" }),
+  // Ouvre le paiement Stripe. Refusé côté serveur sans acceptation des CGV.
+  createCheckout: (accepteCgv: boolean) =>
+    fetchAPI<{ url: string }>("/api/premium/checkout", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ accepte_cgv: accepteCgv }),
+    }),
+
+  /** Résilier : effet à la fin du mois payé. */
+  resilier: () => fetchAPI<{ ok: boolean; fin: string | null }>("/api/premium/resilier", { method: "POST" }),
+  /** Annuler une résiliation programmée. */
+  reprendre: () => fetchAPI<{ ok: boolean }>("/api/premium/reprendre", { method: "POST" }),
+  /** Le portail Stripe : carte et factures. */
+  portail: () => fetchAPI<{ url: string }>("/api/premium/portail", { method: "POST" }),
+  /** Se rétracter dans les 14 jours : remboursement intégral. */
+  retractation: () =>
+    fetchAPI<{ ok: boolean; rembourse_centimes: number }>("/api/premium/retractation", { method: "POST" }),
 
   // Contact admin for premium
   contact: (message: string) =>
@@ -2576,6 +2627,18 @@ export interface PremiumStatus {
     since: string | null;
     expires: string | null;
   } | null;
+  /** L'abonnement Stripe, s'il y en a eu un (backend premium.py). */
+  abonnement: {
+    statut: "active" | "annulation_programmee" | "impaye" | "termine" | "retracte" | null;
+    en_cours: boolean;
+    fin_periode: string | null;
+    souscrit_le: string | null;
+    retractation_jusquau: string | null;
+    retractation_possible: boolean;
+    portail: boolean;
+  } | null;
+  /** L'état de l'offre : ouverte au public, ou en essai pour un administrateur. */
+  offre: { ouverte: boolean; essai_admin: boolean; prix_centimes: number };
   features: {
     free: PremiumLimits;
     premium: PremiumLimits;
@@ -2599,6 +2662,8 @@ export interface PremiumLimits {
 }
 
 export interface PremiumFeatures {
+  /** Les limites gratuites à l'ouverture de l'offre (avant : tout le monde a les limites Premium). */
+  free_ouverture?: PremiumLimits;
   free: PremiumLimits;
   premium: PremiumLimits;
   benefits: {
