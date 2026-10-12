@@ -472,6 +472,8 @@ async def _notifier(uid: int, titre: str, message: str, lien: str) -> None:
         """INSERT INTO user_notifications (user_id, type, title, message, link, is_read, created_at)
            VALUES (?, 'macro', ?, ?, ?, 0, ?)""",
         (uid, titre, message, lien, datetime.now(timezone.utc).isoformat()))
+    from .. import push
+    push.envoyer_plus_tard(uid, titre, message, lien)
 
 
 async def rappels() -> None:

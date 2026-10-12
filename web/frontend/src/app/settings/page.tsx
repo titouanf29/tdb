@@ -18,6 +18,7 @@ import {
 import { Choice, Toggle, type Option } from "@/components/settings/Choice";
 import { useCapTheme, type CapTheme } from "@/lib/capTheme";
 import { useProfile } from "@/lib/useProfile";
+import { NotificationsAppareil } from "@/components/app/NotificationsAppareil";
 import { GOALS, MARKETS, TIMES } from "@/lib/profileQuestions";
 
 /**
@@ -801,6 +802,8 @@ function NotificationsSection() {
   return (
     <>
       {error && <FormError>{error}</FormError>}
+
+      <NotificationsAppareil forme="reglage" />
 
       <Panel title="Alertes de prix">
         <Toggle

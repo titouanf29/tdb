@@ -1151,3 +1151,10 @@ async def create_user_notification(user_id: int, type: str, title: str, message:
         )
     except Exception as e:
         print(f"[NOTIF] Failed to create user notification: {e}")
+        return
+    # Et sur les appareils abonnés, si la personne l'a demandé (services/push.py).
+    try:
+        from .services import push
+        push.envoyer_plus_tard(int(user_id), title, message, link)
+    except Exception as e:
+        print(f"[NOTIF] push impossible : {e}")

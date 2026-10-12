@@ -9,6 +9,7 @@ import { PremiumProvider } from "@/lib/PremiumContext";
 import { LanguageProvider } from "@/lib/LanguageContext";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { ServiceWorker } from "@/components/app/ServiceWorker";
 
 /*
  * POLICES HÉBERGÉES DANS LE PROJET, pas téléchargées au build.
@@ -153,6 +154,7 @@ export default function RootLayout({
         />
       </head>
       <body className="min-h-screen bg-background font-sans">
+        <ServiceWorker />
         {/* Background effects — GPU-composited layer, no blur filters */}
         <div className="fixed inset-0 -z-10 overflow-hidden" style={{ contain: "strict", willChange: "transform" }}>
           {/* Grid */}

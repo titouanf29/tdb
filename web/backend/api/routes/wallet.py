@@ -75,6 +75,14 @@ async def _notify(numeric_id, type_: str, title: str, message: str, link: str) -
         )
     except Exception as exc:
         print(f"[wallet] notification non écrite : {exc}")
+        return
+    # Sur les appareils abonnés aussi : c'est précisément la nuit qu'un stop
+    # se fait toucher (services/push.py).
+    from ..services import push
+    try:
+        push.envoyer_plus_tard(int(numeric_id), title, message, link)
+    except (TypeError, ValueError):
+        pass
 
 
 async def _journal_trace(user_id, rev: dict) -> None:

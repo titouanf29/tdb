@@ -3389,6 +3389,20 @@ export const nimboSuiviAPI = {
   get: () => fetchAPI<SuiviNimbo>("/api/nimbo/suivi"),
 };
 
+// ── Notifications push (backend routes/push.py) ────────────────────────────
+export const pushAPI = {
+  cle: () => fetchAPI<{ cle: string | null }>("/api/push/cle"),
+  abonner: (a: { endpoint: string; keys: { p256dh: string; auth: string } }) =>
+    fetchAPI<{ ok: boolean }>("/api/push/abonnement", {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(a),
+    }),
+  desabonner: (endpoint: string) =>
+    fetchAPI<{ ok: boolean }>("/api/push/abonnement", {
+      method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ endpoint }),
+    }),
+  essai: () => fetchAPI<{ envoyees: number }>("/api/push/essai", { method: "POST" }),
+};
+
 // ── Le moteur macro ────────────────────────────────────────────────────────
 
 export interface AnnonceMacro {

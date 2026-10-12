@@ -1857,7 +1857,11 @@ async def analyze_asset(
             try:
                 await noter_proposition(symbol, timeframe, risk_block["direction"], float(final_score),
                                         float(current_price), float(risk_block["suggested_sl"]),
-                                        float(risk_block["suggested_tp"]), seuil_abaisse=bool(_seuil_abaisse))
+                                        float(risk_block["suggested_tp"]), seuil_abaisse=bool(_seuil_abaisse),
+                                        # La veille des favoris analyse au nom d'un abonné : lui
+                                        # aussi doit être prévenu (nimbo_suivi.veiller_favoris).
+                                        auteur=None if request.headers.get("X-Nimbo-Veille") or not current_user
+                                        else current_user.get("id"))
             except Exception as e:
                 logger.warning("proposition %s non suivie : %s", symbol, e)
 

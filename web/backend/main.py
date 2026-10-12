@@ -35,7 +35,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 from dotenv import load_dotenv
 load_dotenv(Path(__file__).parent.parent.parent / ".env")
 
-from api.routes import auth, market, wallet, analysis, users, ai_assistant, favorites, admin, tools, premium, community, portfolio, journal, weekly_prep, insights, content_factory, content_factory_visuals, missions, ipo_watch, daily_intent, welcome_back, price_alerts, intel, semaine, macro, nimbo_suivi
+from api.routes import auth, market, wallet, analysis, users, ai_assistant, favorites, admin, tools, premium, community, portfolio, journal, weekly_prep, insights, content_factory, content_factory_visuals, missions, ipo_watch, daily_intent, welcome_back, price_alerts, intel, semaine, macro, nimbo_suivi, push
 from api.websocket import websocket_router
 from api.database import init_web_tables, execute_query, execute_write
 
@@ -79,8 +79,27 @@ async def lifespan(app: FastAPI):
             await _asyncio.sleep(300)
     _macro_tache = _asyncio.create_task(_macro_boucle())
 
+    # La veille des favoris : en semaine, de 9 h à 18 h (Paris), toutes les
+    # trois heures — Nimbo prévient quand il propose un achat sur un favori.
+    # Ne fait rien tant que les clés VAPID ne sont pas posées.
+    async def _veille_boucle():
+        from datetime import datetime as _dt
+        from zoneinfo import ZoneInfo
+        from api.routes import nimbo_suivi as _ns
+        await _asyncio.sleep(120)
+        while True:
+            maintenant = _dt.now(ZoneInfo("Europe/Paris"))
+            if maintenant.weekday() < 5 and 9 <= maintenant.hour < 18:
+                try:
+                    await _ns.veiller_favoris()
+                except Exception as e:
+                    print(f"[veille] {e}")
+            await _asyncio.sleep(3 * 3600)
+    _veille_tache = _asyncio.create_task(_veille_boucle())
+
     yield
     _macro_tache.cancel()
+    _veille_tache.cancel()
     print("👋 TDB Web API shutting down...")
 
 
@@ -349,6 +368,7 @@ app.include_router(market.router, prefix="/api/market", tags=["Market Data"])
 app.include_router(wallet.router, prefix="/api/wallet", tags=["Wallet"])
 app.include_router(analysis.router, prefix="/api/analysis", tags=["Analysis"])
 app.include_router(nimbo_suivi.router, prefix="/api/nimbo/suivi", tags=["Suivi de Nimbo"])
+app.include_router(push.router, prefix="/api/push", tags=["Notifications push"])
 app.include_router(intel.router, prefix="/api/intel", tags=["Market Intelligence"])
 app.include_router(users.router, prefix="/api/users", tags=["Users"])
 app.include_router(ai_assistant.router, prefix="/api/ai", tags=["AI Assistant"])

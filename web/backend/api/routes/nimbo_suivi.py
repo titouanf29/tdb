@@ -17,6 +17,7 @@ sont devenues.
 """
 from __future__ import annotations
 
+import asyncio
 import logging
 import time
 from datetime import datetime, timedelta, timezone
@@ -72,10 +73,13 @@ async def init() -> None:
 
 
 async def noter(symbol: str, timeframe: str, direction: str, score: float, entree: float,
-                stop: float, objectif: float, seuil_abaisse: bool = False) -> None:
-    """Enregistre une proposition ; la deuxième du jour sur le même actif est ignorée."""
+                stop: float, objectif: float, seuil_abaisse: bool = False, auteur: int | None = None) -> bool:
+    """Enregistre une proposition ; la deuxième du jour sur le même actif est ignorée.
+
+    Rend True pour une proposition NOUVELLE : c'est elle, et elle seule, qui
+    prévient ceux qui suivent cet actif."""
     if timeframe not in SEANCES or not (entree and stop and objectif):
-        return
+        return False
     await init()
     maintenant = datetime.now(timezone.utc)
     cle = f"{symbol.upper()}|{timeframe}|{maintenant.date().isoformat()}"
@@ -83,7 +87,7 @@ async def noter(symbol: str, timeframe: str, direction: str, score: float, entre
     try:
         existe = await execute_query("SELECT id FROM nimbo_propositions WHERE cle = ?", (cle,))
         if existe:
-            return
+            return False
         await execute_write(
             "INSERT INTO nimbo_propositions (cle, symbol, timeframe, calibrage, direction, score, entree, stop, "
             "objectif, cree_le) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
@@ -91,6 +95,80 @@ async def noter(symbol: str, timeframe: str, direction: str, score: float, entre
              float(objectif), maintenant.isoformat()))
     except Exception as e:     # doublon concurrent, base occupée : la proposition suivante sera notée
         logger.debug("proposition %s non notée : %s", cle, e)
+        return False
+    if timeframe == "1d":
+        await _prevenir_favoris(symbol.upper(), direction, entree, stop, objectif, auteur)
+    return True
+
+
+async def _prevenir_favoris(symbol: str, direction: str, entree: float, stop: float, objectif: float,
+                            auteur: int | None = None) -> None:
+    """« Nimbo propose un achat sur un de vos favoris » — dans le site, et sur
+    les appareils abonnés (database.create_user_notification s'en charge).
+    Pas à celui qui a l'analyse sous les yeux : il le voit déjà."""
+    from ..database import create_user_notification
+    from .market import SYMBOL_NAMES
+    try:
+        rows = await execute_query("SELECT DISTINCT user_id FROM web_favorites WHERE UPPER(symbol) = ?",
+                                   (symbol,)) or []
+    except Exception:
+        return
+    nom = SYMBOL_NAMES.get(symbol, symbol)
+    achat = direction != "SHORT"
+    gain = abs(objectif - entree) / entree * 100 if entree else 0
+    risque = abs(entree - stop) / entree * 100 if entree else 0
+    titre = f"Nimbo propose {'un achat' if achat else 'une vente'} sur {nom}"
+    message = (f"Un de vos favoris : objectif à +{gain:.1f} %, stop à −{risque:.1f} %. "
+               "Argent virtuel — à vous de décider.").replace(".", ",", 2)
+    for r in rows:
+        if auteur is not None and int(r["user_id"]) == auteur:
+            continue
+        try:
+            await create_user_notification(int(r["user_id"]), "nimbo", titre, message,
+                                           f"/analysis?symbol={symbol}")
+        except Exception as e:
+            logger.debug("favori %s non prévenu : %s", symbol, e)
+
+
+async def veiller_favoris() -> int:
+    """Analyse les favoris des personnes abonnées aux notifications.
+
+    Une proposition n'existe que si quelqu'un ouvre l'analyse ; sans cette
+    veille, « Nimbo propose un achat sur un de vos favoris » n'arriverait que
+    par hasard. L'analyse passe par l'API elle-même, au nom d'un des abonnés
+    qui suivent l'actif : c'est le même moteur, les mêmes portes, la même
+    proposition que l'écran — et `noter` prévient tous ceux qui le suivent.
+    """
+    import os
+    import httpx
+    from ..services import push
+    from .auth import create_access_token, token_payload
+
+    if not push.actif():
+        return 0
+    await push.init()
+    rows = await execute_query(
+        """SELECT f.symbol AS symbol, MIN(f.user_id) AS user_id FROM web_favorites f
+           JOIN push_abonnements a ON a.user_id = f.user_id GROUP BY f.symbol""") or []
+    port = os.getenv("PORT", "8000")
+    vus = 0
+    async with httpx.AsyncClient(timeout=90.0) as client:
+        for r in rows[:60]:
+            try:
+                u = await execute_query("SELECT * FROM web_users WHERE id = ?", (int(r["user_id"]),))
+                if not u:
+                    continue
+                jeton = create_access_token(token_payload(u[0]))
+                await client.get(f"http://127.0.0.1:{port}/api/analysis/{r['symbol']}",
+                                 params={"timeframe": "1d", "style": "swing"},
+                                 headers={"Authorization": f"Bearer {jeton}", "X-Nimbo-Veille": "1"})
+                vus += 1
+            except Exception as e:
+                logger.info("veille %s : %s", r.get("symbol"), e)
+            # L'analyse est limitée à 10 par minute et par adresse : la veille
+            # passe sous la limite plutôt que de la heurter.
+            await asyncio.sleep(7)
+    return vus
 
 
 def _resultat_r(entree: float, stop: float, sortie: float, achat: bool) -> float:

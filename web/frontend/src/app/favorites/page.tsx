@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Plus, RefreshCw, Trash2 } from "lucide-react";
 import { favoritesAPI, type Favorite } from "@/lib/api";
+import { NotificationsAppareil } from "@/components/app/NotificationsAppareil";
 import { fr, useSettings, convertCurrency } from "@/lib/SettingsContext";
 import {
   Button, CloudCurtain, EmptyState, Field, FormError, Heading, Modal, Num,
@@ -135,6 +136,8 @@ export default function FavoritesPage() {
             Suivre un actif
           </Button>
         </header>
+
+        {favorites.length > 0 && <NotificationsAppareil forme="invitation" />}
 
         <Panel
           title="Liste de suivi"
