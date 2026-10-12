@@ -220,6 +220,7 @@ export const walletAPI = {
     ),
 
   getStats: () => fetchAPI<TradingStats>("/api/wallet/stats"),
+  getCourbe: () => fetchAPI<CourbeWallet>("/api/wallet/courbe"),
 
   /** Créditer, ou RETIRER avec un montant négatif. Le solde ne peut pas
    *  devenir négatif : ce n'est pas un découvert, c'est un simulateur. */
@@ -1173,6 +1174,19 @@ export interface SymbolSummary {
   short: number;
   avg_held_minutes: number | null;
   last_closed_at: string | null;
+}
+
+/** Le résultat cumulé des trades clôturés (backend wallet.py, /courbe). */
+export interface CourbeWallet {
+  capital_depart: number;
+  points: Array<{ t: string; cumul: number; pnl: number; symbol: string; issue: "objectif" | "stop" | "manuelle" }>;
+  trades: number;
+  issues: { objectif: number; stop: number; manuelle: number };
+  gagnants: number;
+  sur_dix: SurDix | null;
+  r_moyen: number | null;
+  trades_avec_stop: number;
+  nimbo: { sur_dix: SurDix; r_moyen: number; echeance_seances: number };
 }
 
 export interface TradingStats {

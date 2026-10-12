@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Plus } from "lucide-react";
 import {
   walletAPI,
-  type Position, type SymbolSummary, type TradingStats, type WalletBalance,
+  type CourbeWallet, type Position, type SymbolSummary, type TradingStats, type WalletBalance,
 } from "@/lib/api";
 import { fr, useSettings, convertCurrency, useFormatAssetPrice } from "@/lib/SettingsContext";
 import {
@@ -13,6 +13,7 @@ import {
   Panel, SegmentedControl, Text, TextInput, WeatherBackdrop,
   conditionFromChange, useAnimationsEnabled,
 } from "@/components/design-system";
+import { CourbeCapital } from "@/components/wallet/CourbeCapital";
 import { PositionSheet } from "@/components/wallet/PositionSheet";
 import { JournalPrompt } from "@/components/wallet/JournalPrompt";
 import { SymbolReview } from "@/components/wallet/SymbolReview";
@@ -41,6 +42,7 @@ export default function WalletPage() {
 
   const [balance, setBalance] = useState<WalletBalance | null>(null);
   const [stats, setStats] = useState<TradingStats | null>(null);
+  const [courbe, setCourbe] = useState<CourbeWallet | null>(null);
   const [open, setOpen] = useState<Position[]>([]);
   const [history, setHistory] = useState<Position[]>([]);
   const [loading, setLoading] = useState(true);
@@ -64,6 +66,7 @@ export default function WalletPage() {
   const [error, setError] = useState("");
 
   const load = useCallback(async () => {
+    walletAPI.getCourbe().then(setCourbe).catch(() => {});
     const [b, s, o, h, y] = await Promise.allSettled([
       walletAPI.getBalance(),
       walletAPI.getStats(),
@@ -373,6 +376,8 @@ export default function WalletPage() {
             </div>
           )}
         </Panel>
+
+        {courbe && courbe.trades > 0 && <CourbeCapital c={courbe} money={money} />}
 
         <Panel
           title="Vos positions"

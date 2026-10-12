@@ -1253,3 +1253,78 @@ async def get_trading_stats(current_user: dict = Depends(get_current_user)):
         "worst_trade": round(min(pnls), 2) if pnls else 0,
         "avg_pnl": round(sum(pnls) / len(pnls), 2) if pnls else 0
     }
+
+
+@router.get("/courbe")
+async def courbe_de_capital(current_user: dict = Depends(get_current_user)):
+    """Le résultat cumulé, trade après trade, et comment les trades se sont terminés.
+
+    Le résultat cumulé plutôt que le solde : un dépôt ou un solde reposé
+    ferait un saut sur la courbe sans qu'aucun trade l'ait gagné. La courbe
+    dit ce que les DÉCISIONS ont rapporté.
+
+    La sortie n'est pas enregistrée : elle se déduit du cours de sortie —
+    égal au stop, c'est le stop ; égal à l'objectif, c'est l'objectif ;
+    ailleurs, une sortie à la main. Les mêmes trois issues que les dix
+    points de Nimbo (objectif, stop, échéance) — la sortie à la main tient
+    le rôle de l'échéance.
+    """
+    from ._calibrage import CALIBRAGE, sur_dix
+
+    user_id = get_user_id(current_user)
+    rows = await execute_query(
+        """SELECT symbol, direction, entry_price, exit_price, quantity, stop_loss, take_profit,
+                  realized_pnl, created_at, closed_at, instrument
+           FROM positions WHERE user_id = ? AND status = 'closed' AND (archived IS NULL OR archived = 0)
+           ORDER BY closed_at""",
+        (user_id,),
+    ) or []
+    depart = await capital_de_depart()
+
+    def proche(a, b) -> bool:
+        try:
+            a, b = float(a), float(b)
+        except (TypeError, ValueError):
+            return False
+        return abs(a - b) <= max(1e-9, abs(b) * 0.0005)
+
+    cumul = 0.0
+    points, issues, rs = [], {"objectif": 0, "stop": 0, "manuelle": 0}, []
+    for r in rows:
+        pnl = float(r.get("realized_pnl") or 0)
+        cumul += pnl
+        if r.get("take_profit") and proche(r.get("exit_price"), r["take_profit"]):
+            issue = "objectif"
+        elif r.get("stop_loss") and proche(r.get("exit_price"), r["stop_loss"]):
+            issue = "stop"
+        else:
+            issue = "manuelle"
+        issues[issue] += 1
+        # Le résultat en R : gagné ou perdu, rapporté à ce que le stop
+        # risquait. Seulement quand un stop était posé — sans stop, il n'y a
+        # pas d'unité de risque.
+        try:
+            if (r.get("instrument") or "cfd") != "turbo" and r.get("stop_loss"):
+                risque = abs(float(r["entry_price"]) - float(r["stop_loss"])) * float(r["quantity"])
+                if risque > 0:
+                    rs.append(pnl / risque)
+        except (TypeError, ValueError):
+            pass
+        points.append({"t": r.get("closed_at"), "cumul": round(cumul, 2), "pnl": round(pnl, 2),
+                       "symbol": r.get("symbol"), "issue": issue})
+
+    n = len(rows)
+    attendu = CALIBRAGE["1d"]
+    return {
+        "capital_depart": depart,
+        "points": points,
+        "trades": n,
+        "issues": issues,
+        "gagnants": sum(1 for p in points if p["pnl"] > 0),
+        "sur_dix": sur_dix(issues["objectif"] / n, issues["stop"] / n) if n else None,
+        "r_moyen": round(sum(rs) / len(rs), 2) if rs else None,
+        "trades_avec_stop": len(rs),
+        "nimbo": {"sur_dix": sur_dix(attendu["objectif"], attendu["stop"]), "r_moyen": attendu["r_moyen"],
+                  "echeance_seances": attendu["echeance_seances"]},
+    }
+
