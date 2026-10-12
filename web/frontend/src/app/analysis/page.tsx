@@ -4,7 +4,7 @@ import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "rea
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { AnimatePresence } from "framer-motion";
-import { ArrowRight, Loader2, MoveRight, Search, Star, TrendingDown, TrendingUp } from "lucide-react";
+import { ArrowRight, CalendarClock, Loader2, MoveRight, Search, Star, TrendingDown, TrendingUp } from "lucide-react";
 import {
   analysisAPI, favoritesAPI, marketAPI, walletAPI,
   type Analysis, type ChartData, type Figure,
@@ -1178,6 +1178,12 @@ function PropositionNimbo({
         </div>
       )}
 
+      {/* Ce qui tombe PENDANT le trade : une publication de résultats, une
+          décision de la Fed ou de la BCE. Un avertissement, pas un refus. */}
+      {plan && a.evenements_plan && (a.evenements_plan.resultats || a.evenements_plan.macro.length > 0) && (
+        <PendantLeTrade ev={a.evenements_plan} />
+      )}
+
       {/* Ce qui arrive EN VRAI aux achats comparables : l'utilisateur doit
           savoir, avant d'entrer, que le stop sera souvent touché — et que
           l'ensemble gagne quand même. Seulement quand Nimbo propose. */}
@@ -1201,6 +1207,54 @@ function PropositionNimbo({
         </Text>
       </div>
     </section>
+  );
+}
+
+function quandRelatif(dans: number, dateLongue: string): string {
+  if (dans === 0) return "aujourd'hui";
+  if (dans === 1) return "demain";
+  if (dans <= 6) return `dans ${dans} jours`;
+  return `le ${dateLongue}`;
+}
+
+/**
+ * Les rendez-vous qui tombent avant l'échéance du plan. Mesuré (backend
+ * _evenements.py) : les achats qui enjambent une publication n'ont pas fait
+ * pire en moyenne, mais leurs écarts sont plus grands — d'où un
+ * avertissement, et pas un refus.
+ */
+function PendantLeTrade({ ev }: { ev: NonNullable<Analysis["evenements_plan"]> }) {
+  const lignes: { cle: string; titre: string; texte: string }[] = [];
+  if (ev.resultats) {
+    lignes.push({
+      cle: "res",
+      titre: `Résultats ${quandRelatif(ev.resultats.dans_jours, ev.resultats.date_longue)}`,
+      texte: "Le cours peut ouvrir loin de la veille, y compris par-dessus votre stop. Sur 24 actions, ces trades n'ont pas fait pire en moyenne — mais avec des écarts plus grands, dans les deux sens.",
+    });
+  }
+  for (const m of ev.macro) {
+    lignes.push({
+      cle: m.banque,
+      titre: `Décision de ${m.banque === "FED" ? "la Fed" : "la BCE"} ${quandRelatif(m.dans_jours, m.date_longue)}`,
+      texte: `Une surprise sur les taux le pousse plutôt à la ${m.sens_si_restrictive > 0 ? "hausse" : "baisse"} si elle durcit le ton, l'inverse sinon : ce jour-là, le cours peut bouger fort.`,
+    });
+  }
+  return (
+    <div className="mt-5 rounded-[var(--cap-r-md)] p-3.5"
+      style={{ backgroundColor: "color-mix(in srgb, var(--cap-amber) 7%, var(--cap-surface))", boxShadow: "inset 0 0 0 1px color-mix(in srgb, var(--cap-amber) 30%, transparent)" }}>
+      <p className="flex items-center gap-1.5 text-[0.75rem] uppercase tracking-[0.14em]" style={{ color: "var(--cap-ink-3)" }}>
+        <CalendarClock aria-hidden className="h-3.5 w-3.5" />
+        Pendant votre trade
+      </p>
+      <ul className="mt-2 space-y-2">
+        {lignes.map((l) => (
+          <li key={l.cle}>
+            <span className="text-[0.9rem] font-semibold" style={{ color: "var(--cap-ink)" }}>{l.titre}</span>
+            <Text size="small" as="span"> — {l.texte}</Text>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
 

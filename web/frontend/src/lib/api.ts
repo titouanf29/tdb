@@ -1243,6 +1243,14 @@ export interface Analysis {
   };
   /** Ce qui arrive en vrai aux achats que le moteur propose à cet horizon
    *  (mesuré sur 40 actifs, plan de l'écran). Absent si rien n'est mesuré. */
+  /** Ce qui tombe avant l'échéance du plan (backend _evenements.py). */
+  evenements_plan?: {
+    jours: number;
+    resultats: { quand: string; date_longue: string; dans_jours: number } | null;
+    macro: Array<{ banque: "FED" | "BCE"; titre: string; quand: string; date_longue: string;
+      dans_jours: number; officiel: boolean; sens_si_restrictive: number }>;
+    phrases: string[];
+  };
   probabilites?: {
     objectif: number; stop: number; echeance: number; echeance_en_gain: number;
     duree_objectif_seances: number; echeance_seances: number; r_moyen: number;

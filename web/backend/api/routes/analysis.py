@@ -27,6 +27,7 @@ from ._intent import parse as parse_intent
 from ._opportunity import describe as describe_opportunity
 from ._confluence import contexte_technique
 from ._calibrage import probabilites
+from ._evenements import pendant_le_plan
 from .users import style_normalise
 from ._risque import (ETUDE_SEUIL_AGRESSIF, SEUIL_ACHAT, risque_utilisateur, seuil_achat)
 from ._climat import climat_marche
@@ -1790,6 +1791,18 @@ async def analyze_asset(
             # Ce que le moteur a vu en figures, et le poids qu'il leur a donné.
             "figures": figures_bloc,
         }
+
+        # ── Ce qui tombe pendant le plan : résultats, Fed, BCE ─────────────
+        # Un avertissement, jamais un blocage : mesuré, les achats qui
+        # enjambent une publication n'ont pas fait pire en moyenne, seulement
+        # plus dispersé (voir _evenements.py).
+        try:
+            ev_plan = await pendant_le_plan(symbol, timeframe, info=info, nom=company_info.get("name"))
+            result["evenements_plan"] = ev_plan
+            if ev_plan["phrases"]:
+                result["tradeability"]["warnings"] = ev_plan["phrases"] + result["tradeability"]["warnings"]
+        except Exception as e:
+            logger.warning("événements du plan indisponibles pour %s : %s", symbol, e)
 
         # ── Ce que cette analyse veut dire POUR CETTE PERSONNE ─────────────
         #
