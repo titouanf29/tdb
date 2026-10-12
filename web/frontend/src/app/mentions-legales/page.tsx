@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { Scale, AlertTriangle, ExternalLink } from "lucide-react";
 import { LegalNav, LegalSectionTitle, InfoBox, Dl } from "@/components/legal/LegalNav";
-import { EDITEUR, EST_PROFESSIONNEL } from "@/lib/legal";
+import { HEBERGEUR } from "@/lib/legal";
+import { lireEditeur, prixTexte } from "@/lib/legal-serveur";
 
 export const metadata = {
   title: "Mentions légales — CaptenTDB",
@@ -23,7 +24,14 @@ const TOC = [
   { id: "droit", label: "Droit applicable" },
 ];
 
-export default function MentionsLegalesPage() {
+// Relues sur le serveur toutes les cinq minutes (api/legal.py).
+export const revalidate = 300;
+
+export default async function MentionsLegalesPage() {
+  const e = await lireEditeur();
+  const EST_PROFESSIONNEL = e.statut !== "non_immatricule";
+  const EDITEUR = { nomPublic: e.nom_public, identite: e.identite, statut: e.statut, adresse: e.adresse,
+    siren: e.siren, rcs: e.rcs, tvaIntracom: e.tva_intracom, email: e.email, telephone: e.telephone, pays: e.pays };
   return (
     <div className="cap-legal space-y-6">
       <LegalNav current="/mentions-legales" />
@@ -83,13 +91,13 @@ export default function MentionsLegalesPage() {
                 { label: "Adresse", value: EDITEUR.adresse },
                 { label: "SIREN", value: EDITEUR.siren },
                 ...(EDITEUR.rcs ? [{ label: "RCS", value: EDITEUR.rcs }] : []),
-                { label: "TVA", value: EDITEUR.tvaIntracom || "Non applicable — franchise en base de TVA (art. 293 B du CGI)" },
-                { label: "E-mail", value: EDITEUR.email },
+                { label: "TVA", value: EDITEUR.tvaIntracom || "TVA non applicable, art. 293 B du CGI (franchise en base)" },
+                { label: "E-mail", value: EDITEUR.email ? <a href={`mailto:${EDITEUR.email}`} className="text-primary hover:underline">{EDITEUR.email}</a> : "—" },
                 { label: "Téléphone", value: EDITEUR.telephone },
                 { label: "Pays", value: EDITEUR.pays },
               ]} />
               <p className="text-xs text-muted-foreground">
-                En proposant un abonnement payant, l'éditeur agit en qualité de « professionnel » au sens de l'article L.217-1 du code de la consommation pour les relations avec ses utilisateurs abonnés.
+                L'éditeur agit en qualité de professionnel au sens du code de la consommation dans ses relations avec les abonnés Premium.
               </p>
             </>
           ) : (
@@ -118,8 +126,8 @@ export default function MentionsLegalesPage() {
           <LegalSectionTitle num="2" id="hebergement-title" title="Hébergement" />
           <p className="text-muted-foreground">L'infrastructure de CaptenTDB (serveurs applicatifs et base de données) est hébergée par :</p>
           <Dl items={[
-            { label: "Société", value: "Railway Corp." },
-            { label: "Adresse", value: "548 Market St, PMB 68956, San Francisco, CA 94104, États-Unis" },
+            { label: "Société", value: HEBERGEUR.societe },
+            { label: "Adresse", value: HEBERGEUR.adresse },
             { label: "Site web", value: <a href="https://railway.app" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline inline-flex items-center gap-1">railway.app <ExternalLink className="w-3 h-3" /></a> },
           ]} />
           <InfoBox variant="info">
@@ -230,13 +238,21 @@ export default function MentionsLegalesPage() {
         {/* 10. Médiation */}
         <section id="mediation" className="glass-card p-6 space-y-4 scroll-mt-6">
           <LegalSectionTitle num="10" id="mediation-title" title="Médiation de la consommation" />
+          {/* Aucune adhésion n'est affirmée tant qu'elle n'a pas été prise : la
+              version précédente annonçait l'ANM Conso sans contrat. Et la
+              plateforme européenne de règlement en ligne des litiges a fermé
+              le 20 juillet 2025 : elle n'est plus citée. */}
           <InfoBox variant="info">
-            <p className="mb-2">Conformément aux articles L.611-1 et suivants et L.616-1 du code de la consommation, tout consommateur a le droit de recourir gratuitement à un médiateur de la consommation en vue de la résolution amiable du litige qui l'oppose à un professionnel.</p>
-            <p className="mb-2">CaptenTDB adhère au dispositif de médiation de l'ANM Conso (Association Nationale des Médiateurs) :</p>
-            <p className="mb-2 font-semibold">ANM Conso — 62 rue Tiquetonne, 75002 Paris<br />
-            <a href="https://www.anm-conso.com" target="_blank" rel="noopener noreferrer" className="underline inline-flex items-center gap-1">www.anm-conso.com <ExternalLink className="w-3 h-3" /></a></p>
-            <p>En cas d'échec de la médiation, l'utilisateur peut saisir la plateforme européenne de règlement en ligne des litiges (RLL) :{" "}
-            <a href="https://ec.europa.eu/consumers/odr" target="_blank" rel="noopener noreferrer" className="underline inline-flex items-center gap-1">ec.europa.eu/consumers/odr <ExternalLink className="w-3 h-3" /></a></p>
+            <p className="mb-2">Conformément aux articles L.611-1 et suivants du code de la consommation, tout consommateur a le droit de recourir gratuitement à un médiateur de la consommation en vue de la résolution amiable d'un litige qui l'oppose à un professionnel.</p>
+            {!EST_PROFESSIONNEL ? (
+              <p>Sans objet à ce jour : le site est édité à titre non professionnel et ne vend rien.</p>
+            ) : e.mediateur.nom ? (
+              <p className="font-semibold">{e.mediateur.nom}{e.mediateur.adresse ? ` — ${e.mediateur.adresse}` : ""}
+                {e.mediateur.site && (<><br /><a href={e.mediateur.site} target="_blank" rel="noopener noreferrer" className="underline inline-flex items-center gap-1 font-normal">{e.mediateur.site.replace(/^https?:\/\//, "")} <ExternalLink className="w-3 h-3" /></a></>)}
+              </p>
+            ) : (
+              <p>Le médiateur de la consommation sera indiqué ici avant l'ouverture de toute vente.</p>
+            )}
           </InfoBox>
         </section>
 
@@ -249,16 +265,15 @@ export default function MentionsLegalesPage() {
           {EST_PROFESSIONNEL ? (
             <>
               <p className="text-muted-foreground">
-                Pour toute souscription à l'abonnement Premium, les conditions complètes de vente sont
-                détaillées dans les <Link href="/cgu#premium" className="text-primary hover:underline">CGU (Article 7 — Abonnement Premium)</Link> et{" "}
-                <Link href="/cgu#retractation" className="text-primary hover:underline">CGU (Article 8 — Droit de rétractation)</Link>.
+                L'abonnement Premium est régi par les{" "}
+                <Link href="/cgv" className="text-primary hover:underline">conditions générales de vente</Link>.
               </p>
               <Dl items={[
-                { label: "Prix", value: "5,00 € TTC / mois" },
-                { label: "Paiement", value: "Via Stripe, Inc. (PCI-DSS Level 1) — CB, Visa, Mastercard" },
-                { label: "Exécution", value: "Accès Premium activé sous 24-48h après validation de la demande par l'équipe" },
-                { label: "Durée", value: "Abonnement mensuel renouvelable — résiliable à tout moment" },
-                { label: "Rétractation", value: "14 jours calendaires à compter de l'activation (L.221-18 code consommation)" },
+                { label: "Prix", value: `${prixTexte(e.prix_centimes)} TTC / mois — ${e.tva_intracom ? "TVA incluse" : e.mention_tva}` },
+                { label: "Paiement", value: "Par carte, via Stripe (PCI-DSS) — la carte n'est jamais vue par l'éditeur" },
+                { label: "Accès", value: "Immédiat, dès la confirmation du paiement" },
+                { label: "Durée", value: "Mensuelle, sans engagement — résiliable en trois clics depuis la page Premium" },
+                { label: "Rétractation", value: "14 jours après la souscription, remboursement intégral" },
               ]} />
             </>
           ) : (

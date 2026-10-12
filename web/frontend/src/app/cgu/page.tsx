@@ -1,7 +1,7 @@
 import Link from "next/link";
-import { FileText, AlertTriangle, ExternalLink } from "lucide-react";
+import { FileText, AlertTriangle } from "lucide-react";
 import { LegalNav, LegalSectionTitle, InfoBox, Dl } from "@/components/legal/LegalNav";
-import { OFFRE_PAYANTE_OUVERTE } from "@/lib/legal";
+import { lireEditeur } from "@/lib/legal-serveur";
 
 export const metadata = {
   title: "Conditions Générales d'Utilisation — CaptenTDB",
@@ -27,7 +27,12 @@ const TOC = [
   { id: "droit", label: "Droit applicable & médiation" },
 ];
 
-export default function CguPage() {
+// Relues sur le serveur toutes les cinq minutes (api/legal.py).
+export const revalidate = 300;
+
+export default async function CguPage() {
+  const e = await lireEditeur();
+  const OFFRE_PAYANTE_OUVERTE = e.offre_ouverte;
   return (
     <div className="cap-legal space-y-6">
       <LegalNav current="/cgu" />
@@ -202,52 +207,27 @@ export default function CguPage() {
               qu'à compter de l'ouverture effective d'une offre payante.
             </InfoBox>
           )}
-          <div className="space-y-3 text-muted-foreground">
-            <p>
-              <strong className="text-foreground">7.1 Offre & tarif.</strong> Un abonnement Premium est proposé au tarif de <strong className="text-foreground">5,00 € TTC / mois</strong>. Cet abonnement permet d'accéder à des fonctionnalités étendues (limites augmentées, outils avancés) et finance les coûts d'infrastructure de la plateforme (serveurs, base de données, API).
-            </p>
-            <p>
-              <strong className="text-foreground">7.2 Souscription.</strong> L'abonnement est souscrit via la page Premium de la plateforme. Il est renouvelé automatiquement chaque mois à la date anniversaire de souscription, jusqu'à résiliation.
-            </p>
-            <p>
-              <strong className="text-foreground">7.3 Paiement.</strong> Les paiements sont traités par <strong className="text-foreground">Stripe, Inc.</strong> (certifié PCI-DSS Level 1). CaptenTDB n'a jamais accès à vos coordonnées bancaires complètes.
-            </p>
-            <p>
-              <strong className="text-foreground">7.4 Résiliation.</strong> L'abonnement peut être résilié à tout moment via le support de la plateforme. La résiliation prend effet à la fin de la période mensuelle en cours, sans remboursement prorata sauf disposition légale contraire (voir Article 8 — Droit de rétractation).
-            </p>
-            <p>
-              <strong className="text-foreground">7.5 Modification tarifaire.</strong> L'Éditeur se réserve le droit de modifier le tarif de l'abonnement avec un préavis minimum de 30 jours par notification sur la plateforme. La poursuite de l'abonnement après ce délai vaut acceptation du nouveau tarif.
-            </p>
-            <p>
-              <strong className="text-foreground">7.6 Information pré-contractuelle.</strong> Conformément à l'article L.221-5 du code de la consommation, les informations essentielles relatives à l'abonnement Premium sont disponibles sur la page Premium avant toute demande de souscription : caractéristiques du service, prix TTC, conditions de résiliation, droit de rétractation.
-            </p>
-          </div>
+          {/* UNE SEULE SOURCE POUR LA VENTE : LES CGV. Ces deux articles
+              doublaient les CGV — et les contredisaient (résiliation « via le
+              support », rétractation avec renonciation à cocher). Ils
+              renvoient désormais aux CGV, qui suivent le parcours réel. */}
+          <p className="text-muted-foreground">
+            L&apos;abonnement Premium, payant, relève les limites d&apos;usage du compte gratuit. Sa souscription,
+            son prix, son paiement, sa résiliation (en trois clics depuis la page Premium) et le droit de
+            rétractation sont régis par les{" "}
+            <Link href="/cgv" className="text-primary hover:underline">conditions générales de vente</Link>, qui
+            prévalent sur les présentes CGU pour tout ce qui concerne l&apos;abonnement.
+          </p>
         </section>
 
         {/* 8. Rétractation */}
         <section id="retractation" className="glass-card p-6 space-y-4 scroll-mt-6">
           <LegalSectionTitle num="8" id="retractation-title" title="Droit de rétractation" />
-          <InfoBox variant="warning">
-            <div className="space-y-2">
-              <p className="font-semibold">Information obligatoire — Directive 2011/83/UE — Art. L.221-18 et suivants du code de la consommation</p>
-              <p>Conformément à l'article L.221-18 du code de la consommation, vous disposez d'un délai de <strong>14 jours calendaires</strong> à compter de la date de souscription pour exercer votre droit de rétractation sans avoir à justifier de motifs.</p>
-            </div>
-          </InfoBox>
-          <div className="space-y-3 text-muted-foreground">
-            <p>
-              <strong className="text-foreground">8.1 Exercice du droit de rétractation.</strong> Pour exercer ce droit, vous devez notifier votre décision de rétractation avant l'expiration du délai de 14 jours via la plateforme (section « Communauté » → « Contacter Admin »), en indiquant clairement votre décision et vos coordonnées.
-            </p>
-            <p>
-              Vous pouvez utiliser le modèle de formulaire de rétractation suivant (non obligatoire) :<br />
-              « À l'attention de l'éditeur de CaptenTDB (contact via la plateforme) — Je/Nous [*] vous notifie/notifions par la présente ma/notre [*] rétractation du contrat portant sur la prestation de services ci-dessous — Commandé(e) le [*]/reçu(e) le [*] — Nom du/des consommateur(s) — Adresse du/des consommateur(s) — Date [*] — [Signature du/des consommateur(s) uniquement en cas de notification du présent formulaire sur papier] »
-            </p>
-            <p>
-              <strong className="text-foreground">8.2 Dérogation pour contenu numérique fourni immédiatement.</strong> Conformément à l'article L.221-28 12° du code de la consommation, si vous avez expressément consenti à l'exécution immédiate du service numérique dès la souscription (accès Premium activé immédiatement) et renoncé à votre droit de rétractation en cochant la case prévue à cet effet lors de la souscription, vous ne pourrez pas exercer ce droit de rétractation pour la période déjà consommée.
-            </p>
-            <p>
-              <strong className="text-foreground">8.3 Remboursement.</strong> En l'absence de dérogation valable, le remboursement sera effectué dans les 14 jours suivant la notification de rétractation, par le même moyen de paiement que celui utilisé pour la transaction initiale.
-            </p>
-          </div>
+          <p className="text-muted-foreground">
+            Le Client dispose de 14 jours à compter de la souscription pour se rétracter, remboursé en entier :
+            voir l&apos;<Link href="/cgv#retractation" className="text-primary hover:underline">article 6 des CGV</Link>,
+            qui précise les modalités et contient le modèle de formulaire.
+          </p>
         </section>
 
         {/* 9. PI */}
@@ -357,13 +337,7 @@ export default function CguPage() {
               <strong className="text-foreground">16.2 Résolution amiable.</strong> En cas de litige entre l'utilisateur et l'Éditeur, les parties s'engagent à rechercher une solution amiable avant tout recours judiciaire, en contactant l'Éditeur via la plateforme.
             </p>
             <p>
-              <strong className="text-foreground">16.3 Médiation de la consommation.</strong> Conformément aux articles L.611-1 et suivants et L.616-1 du code de la consommation, tout consommateur a le droit de recourir gratuitement à un médiateur de la consommation en vue de la résolution amiable du litige qui l'oppose à un professionnel. CaptenTDB adhère au dispositif de médiation de l'ANM Conso (Association Nationale des Médiateurs) : ANM Conso — 62 rue Tiquetonne, 75002 Paris —{" "}
-              <a href="https://www.anm-conso.com" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline inline-flex items-center gap-1">
-                www.anm-conso.com <ExternalLink className="w-3 h-3" />
-              </a>. En cas d'échec de la médiation, l'utilisateur peut saisir la plateforme européenne de règlement en ligne des litiges (RLL) :{" "}
-              <a href="https://ec.europa.eu/consumers/odr" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline inline-flex items-center gap-1">
-                ec.europa.eu/consumers/odr <ExternalLink className="w-3 h-3" />
-              </a>
+              <strong className="text-foreground">16.3 Médiation de la consommation.</strong> Le consommateur abonné peut recourir gratuitement à un médiateur de la consommation (art. L.611-1 et suivants du code de la consommation){e.mediateur.nom ? ` : ${e.mediateur.nom}${e.mediateur.site ? ` (${e.mediateur.site.replace(/^https?:\/\//, "")})` : ""}.` : " ; ses coordonnées figurent dans les CGV."}
             </p>
             <p>
               <strong className="text-foreground">16.4 Juridiction compétente.</strong> À défaut de résolution amiable ou par médiation, tout litige relatif à la validité, l'interprétation ou l'exécution des présentes CGU sera soumis aux juridictions françaises compétentes, sous réserve des règles impératives de protection des consommateurs applicable dans le pays de résidence de l'utilisateur au sein de l'Union européenne.

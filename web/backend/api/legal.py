@@ -151,7 +151,6 @@ def version_cgv() -> str:
 # comme une panne et fait réessayer — ou écrire au support pour un problème
 # qui n'en est pas un.
 MESSAGE_OFFRE_FERMEE = (
-    "L'abonnement Premium n'est pas ouvert. CaptenTDB est édité à titre non "
-    "professionnel et ne perçoit aucun paiement : les fonctionnalités "
-    "annoncées sont accessibles gratuitement."
+    "L'abonnement Premium n'est pas encore ouvert : aucun paiement n'est "
+    "perçu, et tous les comptes ont gratuitement l'accès complet."
 )
