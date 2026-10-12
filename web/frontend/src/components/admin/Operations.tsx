@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Check, Loader2, RefreshCw, X } from "lucide-react";
-import { adminAPI, type AdminAIHealth, type AdminAuditEntry } from "@/lib/api";
+import { adminAPI, type AdminAIHealth, type AdminAuditEntry, type AdminDataHealth } from "@/lib/api";
 import { Button, Panel, Text } from "@/components/design-system";
 import { EmailPanel } from "./EmailPanel";
 
@@ -80,6 +80,7 @@ export function Operations({
   const [ia, setIa] = useState<AdminAIHealth | null>(null);
   const [sonde, setSonde] = useState(false);
   const [audit, setAudit] = useState<AdminAuditEntry[]>([]);
+  const [donnees, setDonnees] = useState<AdminDataHealth | null>(null);
 
   const sonder = useCallback(async () => {
     setSonde(true);
@@ -90,6 +91,7 @@ export function Operations({
 
   useEffect(() => {
     sonder();
+    adminAPI.getDataHealth().then(setDonnees).catch(() => setDonnees(null));
     adminAPI.getAuditLog(1, 40).then((d) => setAudit(d.logs || [])).catch(() => setAudit([]));
   }, [sonder]);
 
@@ -190,6 +192,8 @@ export function Operations({
         )}
       </Panel>
 
+      {donnees && <SourcesDeCours d={donnees} />}
+
       {/* Le journal d'audit : écrit, et jamais affiché jusqu'ici. */}
       <Panel
         title="Journal des actions"
@@ -220,6 +224,52 @@ export function Operations({
         )}
       </Panel>
     </div>
+  );
+}
+
+const NOM_SOURCE: Record<string, string> = {
+  yahoo: "Yahoo (source principale)",
+  twelvedata: "Twelve Data (secours)",
+  cache_expire: "Dernière série gardée (expirée)",
+  echec: "Aucune donnée",
+};
+
+/** D'où viennent les bougies : si Yahoo fléchit, ça se voit ici d'abord. */
+function SourcesDeCours({ d }: { d: AdminDataHealth }) {
+  const ordre = ["yahoo", "twelvedata", "cache_expire", "echec"] as const;
+  const total = ordre.reduce((t, k) => t + (d.compteurs[k] ?? 0), 0);
+  return (
+    <Panel
+      title="Sources de cours"
+      hint={`Depuis le démarrage du serveur (${quand(new Date(d.depuis * 1000).toISOString())}). Secours Twelve Data : ${d.secours_configure ? "configuré" : "non configuré (clé TWELVEDATA_API_KEY absente)"}.`}
+    >
+      {total === 0 ? (
+        <Text size="caption">Aucune série téléchargée depuis le démarrage.</Text>
+      ) : (
+        <ul className="grid gap-3 sm:grid-cols-4">
+          {ordre.map((k) => (
+            <li key={k}>
+              <Text size="caption" as="p">{NOM_SOURCE[k]}</Text>
+              <span className="cap-num text-[1.3rem] font-semibold" style={{ color: k === "yahoo" ? "var(--cap-ink)" : (d.compteurs[k] ?? 0) > 0 ? "var(--cap-down)" : "var(--cap-ink-3)" }}>
+                {d.compteurs[k] ?? 0}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+      {d.incidents.length > 0 && (
+        <ul className="mt-5 [&>*+*]:border-t [&>*+*]:border-[color:var(--cap-line)]">
+          {d.incidents.slice(0, 12).map((i, n) => (
+            <li key={n} className="flex flex-wrap items-baseline justify-between gap-x-5 py-2">
+              <span className="text-[0.88rem]" style={{ color: "var(--cap-ink)" }}>
+                {i.symbole} <span style={{ color: "var(--cap-ink-3)" }}>· {NOM_SOURCE[i.source] ?? i.source} · {i.detail}</span>
+              </span>
+              <Text size="caption" as="span">{quand(new Date(i.quand * 1000).toISOString())}</Text>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Panel>
   );
 }
 

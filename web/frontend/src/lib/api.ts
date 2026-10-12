@@ -1716,6 +1716,14 @@ export interface EmailTest extends EmailEtat {
   conseil?: string;
 }
 
+export interface AdminDataHealth {
+  depuis: number;
+  compteurs: Partial<Record<"yahoo" | "twelvedata" | "cache_expire" | "echec", number>>;
+  part_yahoo: number | null;
+  incidents: Array<{ quand: number; source: string; symbole: string; detail: string | null }>;
+  secours_configure: boolean;
+}
+
 export const adminAPI = {
   emailStatus: () => fetchAPI<EmailEtat>("/api/admin/email/status"),
   /** Envoie en direct et rend l'erreur exacte en cas d'échec. */
@@ -1874,6 +1882,10 @@ export const adminAPI = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email }),
     }),
+
+  /** D'où viennent les cours depuis le démarrage du serveur (backend _qualite.py). */
+  getDataHealth: () =>
+    fetchAPI<AdminDataHealth>("/api/admin/data-health"),
 
   /** L'état réel des fournisseurs d'IA : chacun est interrogé, pas seulement
    *  vérifié pour la présence d'une clé. */

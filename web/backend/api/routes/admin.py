@@ -203,6 +203,20 @@ async def ai_health(admin: dict = Depends(get_admin_user)):
     }
 
 
+@router.get("/data-health")
+async def data_health(admin: dict = Depends(get_admin_user)):
+    """D'où viennent les bougies depuis le démarrage : Yahoo, le secours, ou rien.
+
+    Tout le moteur repose sur Yahoo, qui n'a pas d'accord de service. Quand
+    il fléchit, l'analyse bascule sur Twelve Data ou sur la dernière série
+    gardée en mémoire (voir _qualite.py) — et cet écran le montre.
+    """
+    from config import TWELVEDATA_API_KEY
+    from ._qualite import etat_des_sources
+
+    return {**etat_des_sources(), "secours_configure": bool(TWELVEDATA_API_KEY)}
+
+
 # ============== DASHBOARD ==============
 
 @router.get("/dashboard")

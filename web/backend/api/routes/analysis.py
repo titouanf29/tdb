@@ -28,6 +28,7 @@ from ._opportunity import describe as describe_opportunity
 from ._confluence import contexte_technique
 from ._calibrage import probabilites
 from ._evenements import pendant_le_plan
+from ._qualite import controle as controle_qualite, phrase as phrase_qualite
 from ._liquidite import liquidite, blocage as blocage_liquidite, avertissement as avertissement_liquidite
 from ._correlation import avec_positions, phrase as phrase_correlation
 from .users import style_normalise
@@ -823,6 +824,8 @@ def _tradeability(
     jusqua_obstacle: bool = False,
     timeframe: str | None = None,
     liquidite: dict | None = None,
+    qualite: dict | None = None,
+    source_cours: str | None = None,
 ) -> dict:
     """Is this direction actually worth acting on?
 
@@ -842,6 +845,11 @@ def _tradeability(
             "les signaux du moteur n'y ont pas gagné d'argent. Il analyse, il ne propose pas de trade")
     # Hors du terrain mesuré : le moteur a été rejoué sur des actifs très
     # échangés, où les frais simulés disent la vérité (voir _liquidite.py).
+    _bq, _aq = phrase_qualite(qualite, source_cours)
+    if _bq:
+        blockers.append(_bq)
+    if _aq:
+        warnings.append(_aq)
     _bl = blocage_liquidite(liquidite)
     if _bl:
         blockers.append(_bl)
@@ -1029,6 +1037,9 @@ async def analyze_asset(
         hist = await fetch_ohlcv(symbol, period=_period, interval=actual_interval)
         # La liquidité se lit sur les bougies d'origine, avant regroupement.
         _liquidite = liquidite(hist, symbol, {"1wk": 5, "1mo": 21}.get(actual_interval, 1.0))
+        # D'où viennent les bougies, et tiennent-elles debout (_qualite.py).
+        _source_cours = (getattr(hist, "attrs", None) or {}).get("source", "yahoo")
+        _qualite_cours = controle_qualite(hist, symbol)
         if _resample:
             hist = resample_ohlcv(hist, _resample)
 
@@ -1692,8 +1703,11 @@ async def analyze_asset(
                 neutre=_plan_neutre,
                 vente_non_prouvee=_vente_non_prouvee,
                 liquidite=_liquidite,
+                qualite=_qualite_cours,
+                source_cours=_source_cours,
             ),
             "liquidite": _liquidite,
+            "qualite_donnees": {"source": _source_cours, **(_qualite_cours or {})},
             "higher_timeframe": higher_tf_info,
             "conviction": {
                 "score": conviction_score,

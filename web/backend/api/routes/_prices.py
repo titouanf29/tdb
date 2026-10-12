@@ -559,7 +559,26 @@ async def fetch_ohlcv(symbol: str, period: str = "1mo", interval: str = "1d"):
     if hit is not None and _time.monotonic() - hit[0] < _ohlcv_ttl(interval):
         return hit[1].copy()
 
+    from . import _qualite
     df = await _download_ohlcv(symbol, period, interval)
     if df is not None and not df.empty:
+        _qualite.noter("yahoo")
         _cache_put(symbol.upper(), period, interval, df)
+        df.attrs["source"] = "yahoo"
+        return df
+
+    # Yahoo s'est tu : la source de secours, puis la dernière série valide,
+    # même expirée, marquée comme telle (voir _qualite.py).
+    df = await _qualite.twelvedata_ohlcv(symbol, period, interval)
+    if df is not None and not df.empty:
+        _qualite.noter("twelvedata", symbol, f"{period}/{interval}")
+        _cache_put(symbol.upper(), period, interval, df)
+        df.attrs["source"] = "twelvedata"
+        return df
+    if hit is not None:
+        _qualite.noter("cache_expire", symbol, f"{period}/{interval}")
+        old = hit[1].copy()
+        old.attrs["source"] = "cache_expire"
+        return old
+    _qualite.noter("echec", symbol, f"{period}/{interval}")
     return df
