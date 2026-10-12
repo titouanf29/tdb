@@ -27,7 +27,7 @@ import {
   useAnimationsEnabled, Nimbo } from "@/components/design-system";
 import { RefreshTimer, useAutoRefresh } from "@/components/app/RefreshTimer";
 import { type Level } from "@/components/analysis/PriceChart";
-import { AnnotatedChart } from "@/components/analysis/AnnotatedChart";
+import { AnnotatedChart, type PlanDessine } from "@/components/analysis/AnnotatedChart";
 import { TradingViewChart } from "@/components/analysis/TradingViewChart";
 import { estAuComptant, hasTradingView } from "@/lib/tradingViewSymbol";
 import { quoteState } from "@/lib/marketOf";
@@ -666,6 +666,7 @@ function AnalysisScreen() {
                     levels={chartLevels(analysis, depth)}
                     figures={figures}
                     format={assetPrice}
+                    plan={planDessine(analysis)}
                   />
                 ) : tvAvailable ? (
                   <>
@@ -694,6 +695,7 @@ function AnalysisScreen() {
                       levels={chartLevels(analysis, depth)}
                       figures={figures}
                       format={assetPrice}
+                      plan={planDessine(analysis)}
                     />
                     <Text size="caption" className="mt-3">
                       TradingView ne référence pas cet actif — voici la vue
@@ -1974,6 +1976,18 @@ function tvInterval(timeframe: string): string {
     "1d": "D", "1wk": "W", "1mo": "M",
   };
   return map[timeframe] ?? "D";
+}
+
+/** Le plan à dessiner sur le graphique commenté : celui de la proposition. */
+function planDessine(a: Analysis): PlanDessine | null {
+  const r = a.risk;
+  if (!r?.suggested_sl || !r?.suggested_tp || !a.price?.current) return null;
+  return {
+    entree: a.price.current,
+    stop: r.suggested_sl,
+    objectif: r.suggested_tp,
+    propose: !r.illustratif && !a.tradeability?.blockers?.length,
+  };
 }
 
 function chartLevels(a: Analysis, depth: Depth): Level[] {

@@ -40,6 +40,14 @@ import { lessonForFigure } from "@/lib/lessonLinks";
  *  chiffres démentent.
  */
 
+export interface PlanDessine {
+  entree: number;
+  stop: number;
+  objectif: number;
+  /** Nimbo le propose (trait plein) ou c'est un exemple (atténué). */
+  propose: boolean;
+}
+
 export interface ChartLevel {
   value: number;
   label: string;
@@ -126,6 +134,7 @@ export function AnnotatedChart({
   figures = [],
   height = 360,
   format,
+  plan = null,
 }: {
   bars: Bar[];
   levels?: ChartLevel[];
@@ -133,6 +142,9 @@ export function AnnotatedChart({
   figures?: Figure[];
   height?: number;
   format: (v: number) => string;
+  /** Le plan de Nimbo, dessiné à droite du dernier cours : la zone de perte
+   *  jusqu'au stop, la zone de gain jusqu'à l'objectif. */
+  plan?: PlanDessine | null;
 }) {
   /* UNE FIGURE À LA FOIS.
    *
@@ -157,6 +169,11 @@ export function AnnotatedChart({
     return () => ro.disconnect();
   }, []);
   const { W, H, PAD_R } = compact ? COMPACT : LARGE;
+  // LA PLACE DU PLAN : une bande à droite du dernier cours, comme l'outil
+  // « position » des plateformes. Le prix s'arrête avant, le plan regarde
+  // devant — c'est ce qu'il est : une projection, pas un historique.
+  const PLAN_W = plan ? Math.round((W - PAD_R) * (compact ? 0.2 : 0.15)) : 0;
+  const XT = W - PAD_R - PLAN_W;
   const reduce = useReducedMotion();
   const gid = `ac-${useId().replace(/:/g, "")}`;
 
@@ -228,12 +245,13 @@ export function AnnotatedChart({
       ...pts.map((b) => b.low),
       ...levels.map((l) => l.value),
       ...projection,
+      ...(plan ? [plan.stop, plan.objectif, plan.entree] : []),
     ].filter(Number.isFinite);
     const min = Math.min(...all);
     const max = Math.max(...all);
     const span = max - min || 1;
 
-    const x = (i: number) => ((i / (pts.length - 1)) * (W - PAD_R));
+    const x = (i: number) => ((i / (pts.length - 1)) * XT);
     const y = (v: number) => PAD_T + (1 - (v - min) / span) * (H - PAD_T - PAD_B);
 
     const line = pts
@@ -241,7 +259,7 @@ export function AnnotatedChart({
       .join(" ");
 
     return { pts, struct, x, y, line, fig, rising: pts[pts.length - 1].close >= pts[0].close };
-  }, [complet, fenetre, levels, figureChoisie, W, H, PAD_R]);
+  }, [complet, fenetre, levels, figureChoisie, W, H, XT, plan]);
 
   /* Le tirer-pour-zoomer. La sélection se mesure en FRACTION de la largeur du
      tracé, pas en pixels : le SVG est mis à l'échelle par son viewBox, donc
@@ -257,9 +275,9 @@ export function AnnotatedChart({
     // La colonne des étiquettes n'appartient pas au tracé : sans cette
     // correction, relâcher tout à droite désignait une bougie qui n'est pas
     // sous le curseur.
-    const largeurTrace = r.width * ((W - PAD_R) / W);
+    const largeurTrace = r.width * (XT / W);
     return Math.min(1, Math.max(0, (clientX - r.left) / largeurTrace));
-  }, [W, PAD_R]);
+  }, [W, XT]);
 
   const finirTrace = useCallback(() => {
     if (!tracant.current) return;
@@ -463,7 +481,7 @@ export function AnnotatedChart({
           ))}
 
           <motion.path
-            d={`${line} L ${W - PAD_R} ${H} L 0 ${H} Z`}
+            d={`${line} L ${XT} ${H} L 0 ${H} Z`}
             fill={`url(#${gid})`}
             initial={reduce ? false : { opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -521,7 +539,7 @@ export function AnnotatedChart({
           {struct.invalidation != null && (
             <line
               x1="0"
-              x2={W - PAD_R}
+              x2={XT}
               y1={y(struct.invalidation)}
               y2={y(struct.invalidation)}
               stroke="var(--cap-ink-3)"
@@ -584,6 +602,28 @@ export function AnnotatedChart({
               </g>
             );
           })()}
+
+          {/* ── LE PLAN DE NIMBO ─────────────────────────────────────────────
+              Deux zones, partant du dernier cours : en rouge ce qu'on perd
+              si le stop est touché, en vert ce qu'on gagne si l'objectif
+              l'est. Leur rapport de hauteur EST le rapport gain / risque —
+              « vous risquez 1 pour viser 3 » se voit avant de se lire. */}
+          {plan && (() => {
+            const x0 = XT + 4, x1 = W - PAD_R - 2;
+            const ye = y(plan.entree), ys = y(plan.stop), yo = y(plan.objectif);
+            const opa = plan.propose ? 1 : 0.55;
+            return (
+              <g opacity={focus ? 0.35 : opa} style={{ transition: "opacity 200ms" }}>
+                <rect x={x0} width={x1 - x0} y={Math.min(ye, ys)} height={Math.abs(ys - ye)}
+                      fill="var(--cap-down)" fillOpacity="0.14" stroke="var(--cap-down)" strokeOpacity="0.45" strokeWidth="1" />
+                <rect x={x0} width={x1 - x0} y={Math.min(ye, yo)} height={Math.abs(yo - ye)}
+                      fill="var(--cap-up)" fillOpacity="0.14" stroke="var(--cap-up)" strokeOpacity="0.45" strokeWidth="1" />
+                <line x1={x(pts.length - 1)} x2={x1} y1={ye} y2={ye} stroke="var(--cap-ink-2)" strokeWidth="1.2"
+                      strokeDasharray={plan.propose ? undefined : "4 3"} />
+                <circle cx={x(pts.length - 1)} cy={ye} r="3.5" fill="var(--cap-ink)" stroke="var(--cap-surface)" strokeWidth="1.5" />
+              </g>
+            );
+          })()}
         </svg>
 
         {/* La sélection en cours, pendant le geste. Sans ce rectangle, on tire
@@ -593,8 +633,8 @@ export function AnnotatedChart({
           <div
             className="pointer-events-none absolute top-0 h-full"
             style={{
-              left: `${Math.min(trace.a, trace.b) * ((W - PAD_R) / W) * 100}%`,
-              width: `${Math.abs(trace.a - trace.b) * ((W - PAD_R) / W) * 100}%`,
+              left: `${Math.min(trace.a, trace.b) * (XT / W) * 100}%`,
+              width: `${Math.abs(trace.a - trace.b) * (XT / W) * 100}%`,
               backgroundColor: "var(--cap-ocean)",
               opacity: 0.12,
               boxShadow: "inset 1px 0 0 var(--cap-ocean), inset -1px 0 0 var(--cap-ocean)",
@@ -605,6 +645,40 @@ export function AnnotatedChart({
         {/* Les étiquettes hors du SVG : à l'intérieur elles seraient étirées
             par la mise à l'échelle et changeraient de taille avec la fenêtre. */}
         <div className="pointer-events-none absolute inset-0">
+          {plan && !focus && (() => {
+            const gauche = `${((XT + 8) / W) * 100}%`;
+            const pct = (v: number) => {
+              const p = ((v - plan.entree) / plan.entree) * 100;
+              return `${p >= 0 ? "+" : "−"}${Math.abs(p).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} %`;
+            };
+            const yo = y(plan.objectif), ys = y(plan.stop), ye = y(plan.entree);
+            const assez = (a: number, b: number) => Math.abs(a - b) / H > 0.07;
+            return (
+              <>
+                {/* Au-dessus des zones, ou dessous quand elles touchent le haut du
+                    cadre. Sur un téléphone, la bande est trop étroite pour un titre. */}
+                {!compact && <span className="absolute whitespace-nowrap text-[0.68rem] font-semibold uppercase tracking-[0.08em]"
+                  style={{ left: gauche, color: "var(--cap-ink-3)",
+                           top: Math.min(yo, ys) / H > 0.12
+                             ? `calc(${(Math.min(yo, ys) / H) * 100}% - 1.15rem)`
+                             : `calc(${(Math.max(yo, ys) / H) * 100}% + 0.3rem)` }}>
+                  {plan.propose ? "Plan de Nimbo" : "Plan d'exemple"}
+                </span>}
+                {assez(yo, ye) && (
+                  <span className="absolute -translate-y-1/2 text-[0.72rem] font-semibold"
+                    style={{ left: gauche, top: `${(((yo + ye) / 2) / H) * 100}%`, color: "var(--cap-up)" }}>
+                    {pct(plan.objectif)}
+                  </span>
+                )}
+                {assez(ys, ye) && (
+                  <span className="absolute -translate-y-1/2 text-[0.72rem] font-semibold"
+                    style={{ left: gauche, top: `${(((ys + ye) / 2) / H) * 100}%`, color: "var(--cap-down)" }}>
+                    {pct(plan.stop)}
+                  </span>
+                )}
+              </>
+            );
+          })()}
           {!focus && placed.map((l) => (
             <span
               key={l.label}
