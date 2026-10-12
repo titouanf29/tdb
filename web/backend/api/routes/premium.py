@@ -12,7 +12,8 @@ from datetime import datetime, timezone
 from ..database import execute_query, execute_write, create_admin_notification
 from .auth import get_current_user
 from .admin import get_admin_user, log_admin_action, check_if_admin
-from ..legal import MESSAGE_OFFRE_FERMEE, offre_payante_ouverte
+from ..legal import (MESSAGE_OFFRE_FERMEE, editeur, essai_admin_possible, offre_payante_ouverte,
+                     prix_mensuel_centimes, version_cgv)
 
 router = APIRouter()
 
@@ -208,122 +209,408 @@ async def check_premium_required(current_user: dict = Depends(get_current_user))
     return current_user
 
 
-# ============== STRIPE CHECKOUT ==============
+# ============== STRIPE : L'ABONNEMENT ==============
+#
+# Tout le cycle d'un abonnement, et pas seulement l'encaissement :
+#
+#   · SOUSCRIRE — après acceptation des CGV, gardée en preuve (date et
+#     version) ; le pied de facture Stripe porte l'identité de l'entrepreneur
+#     et « TVA non applicable, art. 293 B du CGI » ;
+#   · RÉSILIER EN TROIS CLICS — exigé depuis le 1er juin 2023 pour un contrat
+#     conclu en ligne (code de la consommation, art. L.215-1-1) : effet à la
+#     fin du mois payé, réversible jusque-là ;
+#   · SE RÉTRACTER — 14 jours après la souscription, remboursement INTÉGRAL.
+#     Plus généreux que la loi (qui permettrait de retenir les jours
+#     consommés), et c'est voulu : aucune case de renonciation à faire cocher,
+#     aucun calcul au prorata à contester ;
+#   · LES IMPAYÉS — Stripe relance la carte ; le compte est prévenu, l'accès
+#     reste ouvert jusqu'à ce que Stripe renonce ;
+#   · LE WEBHOOK — idempotent : Stripe renvoie un événement tant qu'il n'a
+#     pas reçu de réponse, il ne doit pas compter deux fois.
+#
+# Tout reste FERMÉ tant que `offre_payante_ouverte()` dit non (api/legal.py).
+# Seule exception : les administrateurs, avec une clé Stripe de TEST, pour
+# essayer le parcours complet avec les cartes de test avant l'ouverture.
+
+RETRACTATION_JOURS = 14
+_pret_abonnement = False
+
+
+async def _init_abonnement() -> None:
+    global _pret_abonnement
+    if _pret_abonnement:
+        return
+    for col in ("premium_statut", "premium_fin_periode", "premium_souscrit_le", "cgv_acceptees_le", "cgv_version"):
+        try:
+            await execute_write(f"ALTER TABLE web_users ADD COLUMN {col} TEXT")
+        except Exception:
+            pass
+    await execute_write("""
+        CREATE TABLE IF NOT EXISTS stripe_evenements (
+            id TEXT PRIMARY KEY,
+            type TEXT,
+            recu_le TEXT
+        )
+    """)
+    _pret_abonnement = True
+
+
+def _stripe():
+    import stripe
+    stripe.api_key = os.getenv("STRIPE_SECRET_KEY", "")
+    return stripe
+
+
+def _d(o):
+    """Un objet Stripe en dict ordinaire. Depuis stripe-python 8, les objets
+    ne sont plus des dict : `.get()` lève une AttributeError — c'est ainsi
+    que l'ancien webhook aurait échoué sur le premier paiement réel."""
+    if o is None:
+        return None
+    return o.to_dict() if hasattr(o, "to_dict") else o
+
+
+def _prix_texte() -> str:
+    c = prix_mensuel_centimes()
+    return (f"{c // 100} €" if c % 100 == 0 else f"{c / 100:.2f} €".replace(".", ","))
+
+
+def _pied_de_facture() -> str:
+    """Ce que chaque facture Stripe doit porter : l'entrepreneur, son SIREN,
+    son adresse, et la mention de franchise de TVA."""
+    e = editeur()
+    morceaux = [e["identite"], e["adresse"], f"SIREN {e['siren']}" if e["siren"] else "", e["mention_tva"]]
+    return " — ".join(m for m in morceaux if m)
+
+
+def _ts_iso(ts) -> Optional[str]:
+    try:
+        return datetime.fromtimestamp(int(ts), tz=timezone.utc).isoformat() if ts else None
+    except (TypeError, ValueError):
+        return None
+
+
+def _fin_de_periode(sub) -> Optional[str]:
+    """La fin de la période payée. Selon la version de l'API Stripe, elle est
+    sur l'abonnement ou sur sa ligne : les deux sont lues."""
+    if not sub:
+        return None
+    fin = sub.get("current_period_end")
+    if not fin:
+        try:
+            fin = sub["items"]["data"][0].get("current_period_end")
+        except (KeyError, IndexError, TypeError):
+            fin = None
+    return _ts_iso(fin)
+
+
+def _abonnement_de_facture(invoice) -> Optional[str]:
+    sid = invoice.get("subscription")
+    if not sid:
+        try:
+            sid = invoice["parent"]["subscription_details"]["subscription"]
+        except (KeyError, TypeError):
+            sid = None
+    return sid if isinstance(sid, str) else (sid or {}).get("id") if sid else None
+
+
+async def _utilisateur_stripe(subscription_id: Optional[str] = None, customer_id: Optional[str] = None,
+                              user_id: Optional[str] = None) -> Optional[dict]:
+    if user_id:
+        r = await execute_query("SELECT * FROM web_users WHERE id = ?", (int(user_id),))
+        if r:
+            return r[0]
+    if subscription_id:
+        r = await execute_query("SELECT * FROM web_users WHERE stripe_subscription_id = ?", (subscription_id,))
+        if r:
+            return r[0]
+    if customer_id:
+        r = await execute_query("SELECT * FROM web_users WHERE stripe_customer_id = ?", (customer_id,))
+        if r:
+            return r[0]
+    return None
+
+
+async def _peut_payer(user: dict) -> bool:
+    if offre_payante_ouverte():
+        return True
+    return essai_admin_possible() and await check_if_admin(user)
+
+
+class Souscription(BaseModel):
+    accepte_cgv: bool = False
+
 
 @router.post("/checkout")
-async def create_checkout_session(current_user: dict = Depends(get_current_user)):
-    """Create a Stripe Checkout session for Premium subscription (5€/month)"""
-    import stripe
-    STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY", "")
-    STRIPE_PRICE_ID = os.getenv("STRIPE_PRICE_ID", "")
-    FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
-
-    # LE VERROU D'ABORD, AVANT TOUTE CHOSE. Tant que l'éditeur n'est pas
-    # immatriculé, il n'y a pas d'offre payante : encaisser un abonnement de
-    # façon habituelle sans activité déclarée est du travail dissimulé. Le
-    # bouton est masqué côté écran, ce qui ne ferme rien — un appel direct à
-    # cette route suffisait. Voir api/legal.py.
-    if not offre_payante_ouverte():
+async def create_checkout_session(data: Souscription = Souscription(),
+                                  current_user: dict = Depends(get_current_user)):
+    """Ouvre le paiement Stripe de l'abonnement mensuel."""
+    # LE VERROU D'ABORD, AVANT TOUTE CHOSE (voir api/legal.py).
+    if not await _peut_payer(current_user):
         raise HTTPException(status_code=503, detail=MESSAGE_OFFRE_FERMEE)
+    if not data.accepte_cgv:
+        raise HTTPException(status_code=400, detail="Acceptez les conditions générales de vente pour continuer.")
+    await _init_abonnement()
 
-    if not STRIPE_SECRET_KEY or not STRIPE_PRICE_ID:
-        raise HTTPException(status_code=503, detail="Paiement non configuré. Contactez l'administrateur.")
-
-    if await is_user_premium(current_user):
-        raise HTTPException(status_code=400, detail="Vous êtes déjà Premium")
-
-    stripe.api_key = STRIPE_SECRET_KEY
     user_id = current_user["id"]
+    row = (await execute_query("SELECT * FROM web_users WHERE id = ?", (user_id,)) or [{}])[0]
+    if row.get("stripe_subscription_id") and row.get("premium_statut") in ("active", "annulation_programmee", "impaye"):
+        raise HTTPException(status_code=400, detail="Vous avez déjà un abonnement en cours.")
 
-    # Get or create Stripe customer
-    result = await execute_query(
-        "SELECT stripe_customer_id FROM web_users WHERE id = ?", (user_id,)
-    )
-    customer_id = result[0].get("stripe_customer_id") if result else None
+    stripe = _stripe()
+    front = os.getenv("FRONTEND_URL", "http://localhost:3000").rstrip("/")
+    pied = _pied_de_facture()
+    try:
+        customer_id = row.get("stripe_customer_id")
+        if customer_id:
+            stripe.Customer.modify(customer_id, invoice_settings={"footer": pied} if pied else {})
+        else:
+            customer = stripe.Customer.create(
+                email=current_user["email"], name=current_user.get("username") or None,
+                metadata={"user_id": str(user_id)}, preferred_locales=["fr"],
+                invoice_settings={"footer": pied} if pied else {},
+            )
+            customer_id = customer.id
+            await execute_write("UPDATE web_users SET stripe_customer_id = ? WHERE id = ?", (customer_id, user_id))
 
-    if not customer_id:
-        customer = stripe.Customer.create(
-            email=current_user["email"],
-            metadata={"user_id": str(user_id)}
+        session = stripe.checkout.Session.create(
+            customer=customer_id,
+            mode="subscription",
+            line_items=[{"price": os.getenv("STRIPE_PRICE_ID", ""), "quantity": 1}],
+            success_url=f"{front}/premium?bienvenue=1",
+            cancel_url=f"{front}/premium?annule=1",
+            client_reference_id=str(user_id),
+            metadata={"user_id": str(user_id)},
+            subscription_data={"metadata": {"user_id": str(user_id)}},
+            locale="fr",
         )
-        customer_id = customer.id
-        await execute_write(
-            "UPDATE web_users SET stripe_customer_id = ? WHERE id = ?",
-            (customer_id, user_id)
-        )
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).error("checkout Stripe impossible : %s", e)
+        raise HTTPException(status_code=502, detail="Le paiement n'a pas pu être ouvert. Réessayez dans un instant.")
 
-    session = stripe.checkout.Session.create(
-        customer=customer_id,
-        payment_method_types=["card"],
-        line_items=[{"price": STRIPE_PRICE_ID, "quantity": 1}],
-        mode="subscription",
-        success_url=f"{FRONTEND_URL}/premium?success=1",
-        cancel_url=f"{FRONTEND_URL}/premium?canceled=1",
-        metadata={"user_id": str(user_id)},
-        locale="fr",
-    )
-
+    # LA PREUVE DE L'ACCEPTATION : la date et la version des CGV acceptées.
+    await execute_write("UPDATE web_users SET cgv_acceptees_le = ?, cgv_version = ? WHERE id = ?",
+                        (datetime.now(timezone.utc).isoformat(), version_cgv(), user_id))
     return {"url": session.url}
+
+
+async def _abonnement_courant(current_user: dict) -> dict:
+    await _init_abonnement()
+    row = (await execute_query("SELECT * FROM web_users WHERE id = ?", (current_user["id"],)) or [{}])[0]
+    if not row.get("stripe_subscription_id"):
+        raise HTTPException(status_code=404, detail="Aucun abonnement en cours.")
+    return row
+
+
+@router.post("/resilier")
+async def resilier(current_user: dict = Depends(get_current_user)):
+    """Résilier : effet à la fin du mois payé, plus aucun prélèvement ensuite."""
+    row = await _abonnement_courant(current_user)
+    stripe = _stripe()
+    try:
+        sub = _d(stripe.Subscription.modify(row["stripe_subscription_id"], cancel_at_period_end=True))
+    except Exception:
+        raise HTTPException(status_code=502, detail="La résiliation n'a pas pu être enregistrée. Réessayez.")
+    fin = _fin_de_periode(sub) or row.get("premium_expires")
+    await execute_write("UPDATE web_users SET premium_statut = 'annulation_programmee', premium_fin_periode = ? WHERE id = ?",
+                        (fin, current_user["id"]))
+    return {"ok": True, "fin": fin}
+
+
+@router.post("/reprendre")
+async def reprendre(current_user: dict = Depends(get_current_user)):
+    """Annuler une résiliation programmée, avant la fin du mois payé."""
+    row = await _abonnement_courant(current_user)
+    stripe = _stripe()
+    try:
+        stripe.Subscription.modify(row["stripe_subscription_id"], cancel_at_period_end=False)
+    except Exception:
+        raise HTTPException(status_code=502, detail="La reprise n'a pas pu être enregistrée. Réessayez.")
+    await execute_write("UPDATE web_users SET premium_statut = 'active' WHERE id = ?", (current_user["id"],))
+    return {"ok": True}
+
+
+@router.post("/portail")
+async def portail(current_user: dict = Depends(get_current_user)):
+    """Le portail Stripe : changer de carte, télécharger ses factures."""
+    await _init_abonnement()
+    row = (await execute_query("SELECT stripe_customer_id FROM web_users WHERE id = ?", (current_user["id"],)) or [{}])[0]
+    if not row.get("stripe_customer_id"):
+        raise HTTPException(status_code=404, detail="Aucun compte de paiement.")
+    stripe = _stripe()
+    front = os.getenv("FRONTEND_URL", "http://localhost:3000").rstrip("/")
+    try:
+        s = stripe.billing_portal.Session.create(customer=row["stripe_customer_id"], return_url=f"{front}/premium",
+                                                 locale="fr")
+    except Exception:
+        raise HTTPException(status_code=502, detail="Le portail de paiement n'est pas disponible. Réessayez plus tard.")
+    return {"url": s.url}
+
+
+def _fin_retractation(row: dict) -> Optional[datetime]:
+    from datetime import timedelta
+    debut = row.get("premium_souscrit_le")
+    if not debut:
+        return None
+    try:
+        d = datetime.fromisoformat(str(debut).replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    return d + timedelta(days=RETRACTATION_JOURS)
+
+
+@router.post("/retractation")
+async def retractation(current_user: dict = Depends(get_current_user)):
+    """Se rétracter dans les 14 jours : abonnement arrêté et remboursement intégral."""
+    row = await _abonnement_courant(current_user)
+    fin = _fin_retractation(row)
+    if not fin or datetime.now(timezone.utc) > fin:
+        raise HTTPException(status_code=400, detail="Le délai de rétractation de 14 jours est dépassé. "
+                                                    "Vous pouvez résilier : l'accès reste ouvert jusqu'à la fin du mois payé.")
+    stripe = _stripe()
+    rembourse = 0
+    try:
+        # Toutes les factures payées depuis la souscription (une seule, en
+        # pratique, sur 14 jours), remboursées en entier.
+        for inv in (_d(x) for x in stripe.Invoice.list(subscription=row["stripe_subscription_id"], status="paid", limit=5).data):
+            pi = inv.get("payment_intent")
+            if not pi:
+                try:
+                    pays = [_d(x) for x in stripe.InvoicePayment.list(invoice=inv["id"], limit=3).data]
+                    pi = next((x["payment"].get("payment_intent") for x in pays if x.get("payment")), None)
+                except Exception:
+                    pi = None
+            if pi:
+                stripe.Refund.create(payment_intent=pi if isinstance(pi, str) else pi["id"],
+                                     reason="requested_by_customer")
+                rembourse += int(inv.get("amount_paid") or 0)
+        stripe.Subscription.cancel(row["stripe_subscription_id"])
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).error("rétractation %s : %s", current_user["id"], e)
+        raise HTTPException(status_code=502, detail="Le remboursement n'a pas pu être lancé automatiquement. "
+                                                    "Écrivez-nous : il sera fait à la main sous 14 jours.")
+    await execute_write("""UPDATE web_users SET is_premium = 0, premium_expires = ?, premium_statut = 'retracte',
+                           stripe_subscription_id = NULL WHERE id = ?""",
+                        (datetime.now(timezone.utc).isoformat(), current_user["id"]))
+    return {"ok": True, "rembourse_centimes": rembourse}
 
 
 @router.post("/webhook")
 async def stripe_webhook(request: Request):
-    """Handle Stripe webhook events (no auth — verified by signature)"""
-    import stripe
-    STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY", "")
-    STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET", "")
-
-    stripe.api_key = STRIPE_SECRET_KEY
+    """Les événements Stripe (sans authentification — vérifiés par signature)."""
+    stripe = _stripe()
     payload = await request.body()
-    sig_header = request.headers.get("stripe-signature", "")
-
     try:
-        event = stripe.Webhook.construct_event(payload, sig_header, STRIPE_WEBHOOK_SECRET)
+        stripe.Webhook.construct_event(payload, request.headers.get("stripe-signature", ""),
+                                       os.getenv("STRIPE_WEBHOOK_SECRET", ""))
     except Exception:
         raise HTTPException(status_code=400, detail="Invalid webhook signature")
+    # Signature vérifiée : on lit le corps comme du JSON ordinaire.
+    import json
+    event = json.loads(payload)
+    await _init_abonnement()
 
-    event_type = event["type"]
-
-    # Payment confirmed → activate Premium
-    if event_type == "checkout.session.completed":
-        session = event["data"]["object"]
-        user_id = session.get("metadata", {}).get("user_id")
-        subscription_id = session.get("subscription")
-        customer_id = session.get("customer")
-
-        if user_id:
-            from datetime import timedelta
-            expires = (datetime.now(timezone.utc) + timedelta(days=32)).isoformat()
-            await execute_write("""
-                UPDATE web_users
-                SET is_premium = 1, premium_since = ?, premium_expires = ?,
-                    stripe_customer_id = ?, stripe_subscription_id = ?
-                WHERE id = ?
-            """, (datetime.now(timezone.utc).isoformat(), expires, customer_id, subscription_id, int(user_id)))
-
-    # Subscription renewed → extend expiry
-    elif event_type == "invoice.paid":
-        invoice = event["data"]["object"]
-        subscription_id = invoice.get("subscription")
-        if subscription_id:
-            from datetime import timedelta
-            expires = (datetime.now(timezone.utc) + timedelta(days=32)).isoformat()
-            await execute_write("""
-                UPDATE web_users SET is_premium = 1, premium_expires = ?
-                WHERE stripe_subscription_id = ?
-            """, (expires, subscription_id))
-
-    # Subscription cancelled → revoke Premium
-    elif event_type in ("customer.subscription.deleted", "customer.subscription.paused"):
-        subscription = event["data"]["object"]
-        subscription_id = subscription.get("id")
-        if subscription_id:
-            await execute_write("""
-                UPDATE web_users SET is_premium = 0, premium_expires = ?, stripe_subscription_id = NULL
-                WHERE stripe_subscription_id = ?
-            """, (datetime.now(timezone.utc).isoformat(), subscription_id))
-
+    # Une seule fois par événement : Stripe renvoie tant qu'il n'a pas eu de 2xx.
+    if await execute_query("SELECT id FROM stripe_evenements WHERE id = ?", (event["id"],)):
+        return {"status": "deja_traite"}
+    await traiter_evenement(event)
+    await execute_write("INSERT INTO stripe_evenements (id, type, recu_le) VALUES (?, ?, ?)",
+                        (event["id"], event["type"], datetime.now(timezone.utc).isoformat()))
     return {"status": "ok"}
+
+
+async def traiter_evenement(event) -> None:
+    from datetime import timedelta
+    from ..database import create_user_notification
+
+    t = event["type"]
+    obj = event["data"]["object"]
+    maintenant = datetime.now(timezone.utc)
+    # Deux jours de marge après la fin de période : le renouvellement est
+    # payé quelques heures après l'échéance, l'accès ne doit pas clignoter.
+    marge = timedelta(days=2)
+
+    def expire(fin_iso: Optional[str]) -> str:
+        if fin_iso:
+            return (datetime.fromisoformat(fin_iso) + marge).isoformat()
+        return (maintenant + timedelta(days=32)).isoformat()
+
+    if t == "checkout.session.completed":
+        sid, cid = obj.get("subscription"), obj.get("customer")
+        u = await _utilisateur_stripe(sid, cid, (obj.get("metadata") or {}).get("user_id") or obj.get("client_reference_id"))
+        if not u:
+            return
+        fin = None
+        try:
+            fin = _fin_de_periode(_d(_stripe().Subscription.retrieve(sid))) if sid else None
+        except Exception:
+            pass
+        premiere = not u.get("premium_souscrit_le") or u.get("premium_statut") in (None, "", "retracte", "termine")
+        await execute_write("""
+            UPDATE web_users SET is_premium = 1, premium_since = COALESCE(premium_since, ?), premium_expires = ?,
+                   stripe_customer_id = ?, stripe_subscription_id = ?, premium_statut = 'active',
+                   premium_fin_periode = ?, premium_souscrit_le = ?
+            WHERE id = ?""",
+            (maintenant.isoformat(), expire(fin), cid, sid, fin,
+             maintenant.isoformat() if premiere else u.get("premium_souscrit_le"), u["id"]))
+        try:
+            from ..email_service import send_confirmation_abonnement
+            e = editeur()
+            ligne = " — ".join(x for x in (e["identite"], e["adresse"], e["email"]) if x) or "CaptenTDB"
+            fin_r = (maintenant + timedelta(days=RETRACTATION_JOURS)).strftime("%d/%m/%Y")
+            await send_confirmation_abonnement(u["email"], u.get("username") or "", _prix_texte(), fin_r, ligne)
+        except Exception as ex:
+            import logging
+            logging.getLogger(__name__).warning("confirmation d'abonnement non envoyée : %s", ex)
+        await create_user_notification(u["id"], "premium", "Bienvenue en Premium",
+                                       "Votre abonnement est actif. Vous pouvez le gérer depuis la page Premium.",
+                                       "/premium")
+
+    elif t == "invoice.paid":
+        sid = _abonnement_de_facture(obj)
+        u = await _utilisateur_stripe(sid, obj.get("customer"))
+        if not u:
+            return
+        fin = None
+        try:
+            fin = _ts_iso(obj["lines"]["data"][0]["period"]["end"])
+        except (KeyError, IndexError, TypeError):
+            pass
+        statut = "annulation_programmee" if u.get("premium_statut") == "annulation_programmee" else "active"
+        await execute_write("""UPDATE web_users SET is_premium = 1, premium_expires = ?, premium_fin_periode = ?,
+                               premium_statut = ? WHERE id = ?""", (expire(fin), fin, statut, u["id"]))
+
+    elif t == "invoice.payment_failed":
+        u = await _utilisateur_stripe(_abonnement_de_facture(obj), obj.get("customer"))
+        if not u:
+            return
+        await execute_write("UPDATE web_users SET premium_statut = 'impaye' WHERE id = ?", (u["id"],))
+        await create_user_notification(
+            u["id"], "premium", "Le paiement de votre abonnement a échoué",
+            "Stripe va réessayer dans les prochains jours. Vérifiez votre carte depuis la page Premium "
+            "(« Gérer le paiement ») pour garder l'accès.", "/premium")
+
+    elif t == "customer.subscription.updated":
+        u = await _utilisateur_stripe(obj.get("id"), obj.get("customer"))
+        if not u:
+            return
+        fin = _fin_de_periode(obj)
+        st = obj.get("status")
+        statut = ("annulation_programmee" if obj.get("cancel_at_period_end") or obj.get("cancel_at")
+                  else "impaye" if st in ("past_due", "unpaid") else "active" if st in ("active", "trialing")
+                  else u.get("premium_statut"))
+        await execute_write("UPDATE web_users SET premium_statut = ?, premium_fin_periode = COALESCE(?, premium_fin_periode) WHERE id = ?",
+                            (statut, fin, u["id"]))
+
+    elif t in ("customer.subscription.deleted", "customer.subscription.paused"):
+        u = await _utilisateur_stripe(obj.get("id"), obj.get("customer"))
+        if not u:
+            return
+        await execute_write("""UPDATE web_users SET is_premium = 0, premium_expires = ?, stripe_subscription_id = NULL,
+                               premium_statut = CASE WHEN premium_statut = 'retracte' THEN 'retracte' ELSE 'termine' END
+                               WHERE id = ?""", (maintenant.isoformat(), u["id"]))
 
 
 # ============== USER ROUTES ==============
@@ -349,11 +636,34 @@ async def get_premium_status(current_user: dict = Depends(get_current_user)):
 
     is_admin = await check_if_admin(current_user)
 
+    # L'ABONNEMENT, tel que la page de gestion l'affiche : où il en est, ce
+    # que l'on peut encore faire (reprendre, se rétracter), et jusqu'à quand.
+    await _init_abonnement()
+    row = (await execute_query("SELECT * FROM web_users WHERE id = ?", (current_user["id"],)) or [{}])[0]
+    fin_r = _fin_retractation(row)
+    abonnement = None
+    if row.get("stripe_subscription_id") or row.get("premium_statut"):
+        abonnement = {
+            "statut": row.get("premium_statut"),
+            "en_cours": bool(row.get("stripe_subscription_id")),
+            "fin_periode": row.get("premium_fin_periode"),
+            "souscrit_le": row.get("premium_souscrit_le"),
+            "retractation_jusquau": fin_r.isoformat() if fin_r else None,
+            "retractation_possible": bool(fin_r and datetime.now(timezone.utc) <= fin_r and row.get("stripe_subscription_id")),
+            "portail": bool(row.get("stripe_customer_id")),
+        }
+
     return {
         "is_premium": is_premium,
         "is_admin": is_admin,
         "limits": limits,
         "premium_info": premium_info,
+        "abonnement": abonnement,
+        "offre": {
+            "ouverte": offre_payante_ouverte(),
+            "essai_admin": essai_admin_possible() and is_admin,
+            "prix_centimes": prix_mensuel_centimes(),
+        },
         "features": {
             "free": PREMIUM_FEATURES["free"],
             "premium": PREMIUM_FEATURES["premium"],
@@ -585,11 +895,21 @@ async def grant_premium(
         }
 
     elif data.action == "revoke":
+        # UN ABONNEMENT PAYÉ S'ARRÊTE AUSSI CHEZ STRIPE. Retirer le Premium
+        # sans annuler l'abonnement laissait la carte débitée chaque mois
+        # pour un accès qui n'existait plus.
+        sid = user[0].get("stripe_subscription_id")
+        if sid and os.getenv("STRIPE_SECRET_KEY"):
+            try:
+                _stripe().Subscription.cancel(sid)
+            except Exception as e:
+                raise HTTPException(status_code=502, detail=f"L'abonnement Stripe n'a pas pu être annulé : {e}")
         await execute_write("""
             UPDATE web_users
-            SET is_premium = 0, premium_expires = NULL
+            SET is_premium = 0, premium_expires = NULL, stripe_subscription_id = NULL,
+                premium_statut = CASE WHEN ? IS NULL THEN premium_statut ELSE 'termine' END
             WHERE id = ?
-        """, (data.user_id,))
+        """, (sid, data.user_id))
 
         await log_admin_action(
             admin["id"],

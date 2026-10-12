@@ -272,3 +272,35 @@ async def send_password_reset_email(to: str, username: str, token: str) -> None:
       </p>
     """)
     await _send(to, "CaptenTDB – Réinitialisation du mot de passe", html)
+
+
+async def send_confirmation_abonnement(to: str, username: str, prix: str, fin_retractation: str,
+                                       editeur_ligne: str) -> None:
+    """La confirmation du contrat sur un support durable, exigée à la vente à
+    distance (code de la consommation, art. L.221-13) : ce qui a été acheté,
+    à quel prix, comment résilier, et le droit de rétractation avec son
+    formulaire. Stripe envoie le reçu ; ceci est le contrat."""
+    html = _base_template(f"""
+      <h2>Votre abonnement Premium est actif</h2>
+      <p>Bonjour <strong style="color:#e2e8f0">{username}</strong>,</p>
+      <p>Merci ! Votre abonnement <strong style="color:#e2e8f0">CaptenTDB Premium</strong> est activé :
+         <strong style="color:#e2e8f0">{prix} par mois</strong>, renouvelé automatiquement chaque mois.</p>
+      <p><strong style="color:#e2e8f0">Résilier</strong> : à tout moment depuis la page Premium
+         (« Résilier mon abonnement »). L'accès reste ouvert jusqu'à la fin du mois payé, et plus rien
+         n'est prélevé ensuite.</p>
+      <p><strong style="color:#e2e8f0">Changer d'avis</strong> : vous pouvez vous rétracter jusqu'au
+         <strong style="color:#e2e8f0">{fin_retractation}</strong> (14 jours), sans motif : bouton
+         « Me rétracter » sur la page Premium, ou par simple écrit. Vous êtes alors remboursé en entier.</p>
+      <div style="text-align:center">
+        <a class="btn" href="{FRONTEND_URL}/premium">Gérer mon abonnement</a>
+      </div>
+      <p style="font-size:13px;color:#64748b">Conditions générales de vente :
+         <a href="{FRONTEND_URL}/cgv" style="color:#818cf8">{FRONTEND_URL}/cgv</a></p>
+      <hr>
+      <p style="font-size:12px;color:#64748b;margin:0 0 10px">Modèle de formulaire de rétractation
+         (à n'utiliser que si vous souhaitez vous rétracter) : « À l'attention de {editeur_ligne} — Je vous
+         notifie par la présente ma rétractation du contrat portant sur l'abonnement CaptenTDB Premium,
+         souscrit le [date]. Nom, adresse e-mail du compte, date. »</p>
+      <p style="font-size:12px;color:#64748b;margin:0">{editeur_ligne}</p>
+    """)
+    await _send(to, "CaptenTDB – Votre abonnement Premium", html)
