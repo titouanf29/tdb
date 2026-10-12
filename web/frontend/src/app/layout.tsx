@@ -63,13 +63,50 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
+  // La barre du navigateur et celle de l'application installée prennent le
+  // bleu nuit du logo.
+  themeColor: "#0B1726",
 };
 
+const DESCRIPTION =
+  "Apprendre le trading sans risquer un euro : analyses expliquées, argent virtuel, et Nimbo qui propose — et dit franchement ce qui arrive en vrai.";
+
+/* L'IDENTITÉ, partout où le site apparaît hors de lui-même : l'onglet (le
+ * nouveau symbole sur fond bleu nuit), l'écran d'accueil d'un téléphone, et
+ * l'aperçu d'un lien partagé (image 1200 × 630 avec Nimbo). Sans
+ * `metadataBase`, les réseaux recevaient une adresse d'image relative qu'ils
+ * ne savent pas suivre : le lien partagé arrivait sans image. */
 export const metadata: Metadata = {
-  title: "CaptenTDB - Trading Education Platform",
-  description: "Plateforme educative de trading par CaptenQwark - Analyses, formations et communaute",
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "https://captentdb.fr"),
+  title: {
+    default: "CaptenTDB — apprendre le trading, sans risquer un euro",
+    template: "%s · CaptenTDB",
+  },
+  description: DESCRIPTION,
+  applicationName: "CaptenTDB",
+  manifest: "/manifest.webmanifest",
   icons: {
-    icon: "/favicon.svg",
+    icon: [
+      { url: "/favicon.svg", type: "image/svg+xml" },
+      { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
+    ],
+    apple: [{ url: "/icons/apple-touch-icon.png", sizes: "180x180" }],
+  },
+  appleWebApp: { capable: true, title: "CaptenTDB", statusBarStyle: "default" },
+  openGraph: {
+    type: "website",
+    locale: "fr_FR",
+    url: "/",
+    siteName: "CaptenTDB",
+    title: "CaptenTDB — apprendre le trading, sans risquer un euro",
+    description: DESCRIPTION,
+    images: [{ url: "/og-image.png", width: 1200, height: 630, alt: "CaptenTDB, avec Nimbo : « Je vous propose de prendre position. »" }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "CaptenTDB — apprendre le trading, sans risquer un euro",
+    description: DESCRIPTION,
+    images: ["/og-image.png"],
   },
 };
 
