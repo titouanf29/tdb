@@ -1328,7 +1328,10 @@ function DixAchats({ p }: { p: NonNullable<Analysis["probabilites"]> }) {
       </Text>
       <Text size="caption" className="mt-1.5">
         Mesuré sur {p.n.toLocaleString("fr-FR")} achats du moteur, {p.actifs} actifs, horizon {p.libelle}, frais compris —
-        sur l&apos;ensemble des actifs, pas sur celui-ci en particulier.
+        sur l&apos;ensemble des actifs, pas sur celui-ci en particulier.{" "}
+        <Link href="/nimbo" className="underline underline-offset-2" style={{ color: "var(--cap-ocean)" }}>
+          Et en vrai, depuis que je propose ?
+        </Link>
       </Text>
     </div>
   );

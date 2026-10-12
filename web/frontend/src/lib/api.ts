@@ -3346,6 +3346,35 @@ export const semaineAPI = {
   synthese: () => fetchAPI<{ texte: string | null; source: string }>("/api/semaine/synthese"),
 };
 
+// ── Le suivi réel des propositions de Nimbo (backend nimbo_suivi.py) ───────
+export interface SurDix { objectif: number; stop: number; echeance: number }
+export interface BilanHorizon {
+  cle: string;
+  libelle: string;
+  closes: number;
+  en_cours: number;
+  compte: { objectif: number; stop: number; echeance: number };
+  sur_dix: SurDix | null;
+  r_moyen: number | null;
+  r_erreur: number | null;
+  attendu: { sur_dix: SurDix; r_moyen: number } | null;
+}
+export interface PropositionSuivie {
+  symbol: string; timeframe: string; direction: string; score: number;
+  entree: number; stop: number; objectif: number; cree_le: string;
+  statut: "en_cours" | "objectif" | "stop" | "echeance";
+  sortie: number | null; r: number | null; clos_le: string | null;
+}
+export interface SuiviNimbo {
+  depuis: string | null;
+  total: number;
+  horizons: BilanHorizon[];
+  dernieres: PropositionSuivie[];
+}
+export const nimboSuiviAPI = {
+  get: () => fetchAPI<SuiviNimbo>("/api/nimbo/suivi"),
+};
+
 // ── Le moteur macro ────────────────────────────────────────────────────────
 
 export interface AnnonceMacro {

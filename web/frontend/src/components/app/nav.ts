@@ -133,6 +133,8 @@ export const MIGRATED_ROUTES = [
   // Hors menu : on n'y entre que depuis l'accueil, le week-end.
   "/semaine",
   "/macro",
+  // Hors menu : depuis la proposition de Nimbo (« Et en vrai ? »).
+  "/nimbo",
   "/favorites",
   "/learn/glossaire",
   "/learn/missions",

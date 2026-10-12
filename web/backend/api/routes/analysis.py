@@ -28,6 +28,7 @@ from ._opportunity import describe as describe_opportunity
 from ._confluence import contexte_technique
 from ._calibrage import probabilites
 from ._evenements import pendant_le_plan
+from .nimbo_suivi import noter as noter_proposition
 from ._qualite import controle as controle_qualite, phrase as phrase_qualite
 from ._liquidite import liquidite, blocage as blocage_liquidite, avertissement as avertissement_liquidite
 from ._correlation import avec_positions, phrase as phrase_correlation
@@ -1847,6 +1848,18 @@ async def analyze_asset(
                         result["tradeability"]["warnings"].insert(0, ph)
             except Exception as e:
                 logger.warning("corrélation indisponible pour %s : %s", symbol, e)
+
+        # ── Le suivi réel : chaque proposition est notée (nimbo_suivi.py) ──
+        # Après tous les avertissements, sur le verdict final : seule une
+        # proposition que l'écran FAIT est suivie.
+        if (result["tradeability"]["tradable"] and not risk_block.get("illustratif")
+                and risk_block.get("suggested_sl") and risk_block.get("suggested_tp")):
+            try:
+                await noter_proposition(symbol, timeframe, risk_block["direction"], float(final_score),
+                                        float(current_price), float(risk_block["suggested_sl"]),
+                                        float(risk_block["suggested_tp"]), seuil_abaisse=bool(_seuil_abaisse))
+            except Exception as e:
+                logger.warning("proposition %s non suivie : %s", symbol, e)
 
         # ── Ce que cette analyse veut dire POUR CETTE PERSONNE ─────────────
         #
