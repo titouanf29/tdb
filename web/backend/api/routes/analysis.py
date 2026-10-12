@@ -28,6 +28,7 @@ from ._opportunity import describe as describe_opportunity
 from ._confluence import contexte_technique
 from ._calibrage import probabilites
 from ._evenements import pendant_le_plan
+from ._correlation import avec_positions, phrase as phrase_correlation
 from .users import style_normalise
 from ._risque import (ETUDE_SEUIL_AGRESSIF, SEUIL_ACHAT, risque_utilisateur, seuil_achat)
 from ._climat import climat_marche
@@ -1803,6 +1804,21 @@ async def analyze_asset(
                 result["tradeability"]["warnings"] = ev_plan["phrases"] + result["tradeability"]["warnings"]
         except Exception as e:
             logger.warning("événements du plan indisponibles pour %s : %s", symbol, e)
+
+        # ── Ce trade ressemble-t-il à ceux qui sont déjà ouverts ? ─────────
+        # Arithmétique du portefeuille, pas un signal : le verdict ne bouge
+        # pas, l'avertissement s'ajoute (voir _correlation.py).
+        if current_user:
+            try:
+                corr = await avec_positions(current_user, symbol, risk_block.get("direction"),
+                                            hist if timeframe == "1d" else None)
+                if corr:
+                    result["correlation_positions"] = corr
+                    ph = phrase_correlation(corr)
+                    if ph:
+                        result["tradeability"]["warnings"].insert(0, ph)
+            except Exception as e:
+                logger.warning("corrélation indisponible pour %s : %s", symbol, e)
 
         # ── Ce que cette analyse veut dire POUR CETTE PERSONNE ─────────────
         #

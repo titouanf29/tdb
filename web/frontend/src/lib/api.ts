@@ -1243,6 +1243,11 @@ export interface Analysis {
   };
   /** Ce qui arrive en vrai aux achats que le moteur propose à cet horizon
    *  (mesuré sur 40 actifs, plan de l'écran). Absent si rien n'est mesuré. */
+  /** Positions ouvertes qui gagnent et perdent avec celle-ci (backend _correlation.py). */
+  correlation_positions?: {
+    proches: Array<{ symbol: string; nom?: string | null; direction: string; correlation: number; seances: number }>;
+    ouvertes: number;
+  };
   /** Ce qui tombe avant l'échéance du plan (backend _evenements.py). */
   evenements_plan?: {
     jours: number;

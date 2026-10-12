@@ -4,7 +4,7 @@ import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "rea
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { AnimatePresence } from "framer-motion";
-import { ArrowRight, CalendarClock, Loader2, MoveRight, Search, Star, TrendingDown, TrendingUp } from "lucide-react";
+import { ArrowRight, CalendarClock, Layers, Loader2, MoveRight, Search, Star, TrendingDown, TrendingUp } from "lucide-react";
 import {
   analysisAPI, favoritesAPI, marketAPI, walletAPI,
   type Analysis, type ChartData, type Figure,
@@ -1184,6 +1184,12 @@ function PropositionNimbo({
         <PendantLeTrade ev={a.evenements_plan} />
       )}
 
+      {/* Le même pari, deux fois : des positions ouvertes qui bougent comme
+          celle-ci. Les stops sautent ensemble le jour où ça se retourne. */}
+      {plan && (a.correlation_positions?.proches.length ?? 0) > 0 && (
+        <MemePari c={a.correlation_positions!} vente={plan.direction === "SHORT"} />
+      )}
+
       {/* Ce qui arrive EN VRAI aux achats comparables : l'utilisateur doit
           savoir, avant d'entrer, que le stop sera souvent touché — et que
           l'ensemble gagne quand même. Seulement quand Nimbo propose. */}
@@ -1254,6 +1260,37 @@ function PendantLeTrade({ ev }: { ev: NonNullable<Analysis["evenements_plan"]> }
           </li>
         ))}
       </ul>
+    </div>
+  );
+}
+
+/**
+ * Les positions déjà ouvertes qui gagnent et perdent avec celle-ci —
+ * corrélation des rendements journaliers sur 90 séances, au-dessus de 0,7.
+ */
+function MemePari({ c, vente }: { c: NonNullable<Analysis["correlation_positions"]>; vente: boolean }) {
+  const n = c.proches.length;
+  return (
+    <div className="mt-3 rounded-[var(--cap-r-md)] p-3.5"
+      style={{ backgroundColor: "color-mix(in srgb, var(--cap-amber) 7%, var(--cap-surface))", boxShadow: "inset 0 0 0 1px color-mix(in srgb, var(--cap-amber) 30%, transparent)" }}>
+      <p className="flex items-center gap-1.5 text-[0.75rem] uppercase tracking-[0.14em]" style={{ color: "var(--cap-ink-3)" }}>
+        <Layers aria-hidden className="h-3.5 w-3.5" />
+        Déjà dans votre portefeuille
+      </p>
+      <Text size="small" className="mt-2">
+        {n === 1 ? "Une de vos positions ouvertes bouge" : `${n} de vos positions ouvertes bougent`} presque comme
+        celle-ci :{" "}
+        {c.proches.slice(0, 4).map((p, i) => (
+          <span key={p.symbol}>
+            {i > 0 && ", "}
+            <Link href={`/analysis?symbol=${encodeURIComponent(p.symbol)}`} className="font-semibold underline underline-offset-2"
+              style={{ color: "var(--cap-ink)" }}>{p.nom || p.symbol}</Link>
+            {" "}({p.direction === "SHORT" ? "vente, " : ""}corrélation {fr(p.correlation, 2)})
+          </span>
+        ))}
+        . {vente ? "Vendre" : "Acheter"} celle-ci, c&apos;est surtout renforcer le même pari : si le marché se retourne, les
+        stops risquent de sauter ensemble. Réduisez la taille{n === 1 ? ", ou gardez la meilleure des deux" : ""}.
+      </Text>
     </div>
   );
 }
