@@ -10,7 +10,7 @@ import { useAuth } from "@/lib/AuthContext";
 import { fr, useSettings, convertCurrency } from "@/lib/SettingsContext";
 import { useTradingStyle } from "@/lib/tradingStyle";
 import {
-  dailyIntentAPI, favoritesAPI, journalAPI, walletAPI,
+  dailyIntentAPI, favoritesAPI, walletAPI,
   type DailyIntentResult, type Favorite, type Position,
   type TradingStats, type WalletBalance,
 } from "@/lib/api";
@@ -20,7 +20,7 @@ import {
   conditionFromChange, useAnimationsEnabled,
 } from "@/components/design-system";
 import { NuageImage } from "@/components/design-system/NuageImage";
-import { FirstSteps } from "@/components/app/FirstSteps";
+import { ParcoursNimbo } from "@/components/app/ParcoursNimbo";
 import { useProfile } from "@/lib/useProfile";
 
 /**
@@ -49,30 +49,24 @@ export default function DashboardPage() {
   const [positions, setPositions] = useState<Position[]>([]);
   const [favorites, setFavorites] = useState<Favorite[]>([]);
   const [intent, setIntent] = useState<DailyIntentResult | null>(null);
-  const [journalCount, setJournalCount] = useState(0);
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async () => {
     // allSettled, not all: one endpoint being down must not blank the screen.
-    const [b, s, p, f, i, j] = await Promise.allSettled([
+    const [b, s, p, f, i] = await Promise.allSettled([
       walletAPI.getBalance(),
       walletAPI.getStats(),
       walletAPI.getPositions("open"),
       favoritesAPI.getFavorites(),
       dailyIntentAPI.get(),
-      journalAPI.list(),
     ]);
     if (b.status === "fulfilled") setBalance(b.value);
     if (s.status === "fulfilled") setStats(s.value);
     if (p.status === "fulfilled") setPositions(p.value.positions || []);
     if (f.status === "fulfilled") setFavorites(f.value.favorites || []);
     if (i.status === "fulfilled") setIntent(i.value);
-    if (j.status === "fulfilled") {
-      const entries = (j.value as unknown as { entries?: unknown[] })?.entries;
-      setJournalCount(Array.isArray(entries) ? entries.length : 0);
-    }
   }, []);
 
   useEffect(() => {
@@ -323,12 +317,7 @@ export default function DashboardPage() {
         {/* ── 5. Le démarrage guidé et le parcours ─────────────────────── */}
         <Reveal delay={0.16} className={goal === "comprendre" ? "order-first" : ""}>
           <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-            <FirstSteps
-              analysed={favorites.length > 0 || positions.length > 0 || journalCount > 0}
-              hasFavorite={favorites.length > 0}
-              hasPosition={positions.length > 0 || (stats?.total_trades ?? 0) > 0}
-              hasJournal={journalCount > 0}
-            />
+            <ParcoursNimbo aUnePosition={positions.length > 0 || (stats?.total_trades ?? 0) > 0} />
             <Panel
               title="Continuer le parcours"
               hint="Court, concret, et toujours reprenable là où vous l'avez laissé."

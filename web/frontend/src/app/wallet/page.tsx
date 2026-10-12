@@ -14,6 +14,7 @@ import {
   conditionFromChange, useAnimationsEnabled,
 } from "@/components/design-system";
 import { CourbeCapital } from "@/components/wallet/CourbeCapital";
+import { noterGeste } from "@/lib/parcours";
 import { PositionSheet } from "@/components/wallet/PositionSheet";
 import { JournalPrompt } from "@/components/wallet/JournalPrompt";
 import { SymbolReview } from "@/components/wallet/SymbolReview";
@@ -433,7 +434,10 @@ export default function WalletPage() {
                             « que vaut cet actif ». Le lien vers l'analyse
                             est dans la fiche. */}
                         <button
-                          onClick={() => (p.status === "closed" ? setClosedSheet(p) : setSheet(p))}
+                          onClick={() => {
+                            if (p.status === "closed") setClosedSheet(p);
+                            else { setSheet(p); noterGeste("suivi"); }
+                          }}
                           className="text-[0.98rem] font-medium transition-colors hover:underline"
                           style={{ color: "var(--cap-ink)" }}
                         >

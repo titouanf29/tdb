@@ -36,6 +36,7 @@ import { AskAssistant } from "@/components/analysis/AskAssistant";
 import { RoueRisque } from "@/components/analysis/RoueRisque";
 import { StructureMouvement } from "@/components/analysis/StructureMouvement";
 import { RISQUE, niveauRisque, tailleSelonRisque } from "@/lib/risque";
+import { noterGeste } from "@/lib/parcours";
 import { PressContext } from "@/components/analysis/PressContext";
 import { ClimatMarche } from "@/components/analysis/ClimatMarche";
 import { MacroContext } from "@/components/analysis/MacroContext";
@@ -1079,8 +1080,22 @@ function PropositionNimbo({
   const humeur = propose ? "cap" : ton !== "up" && ton !== "down" ? "reflechit" : "prudent";
 
   const teinte = propose ? "var(--cap-up)" : "var(--cap-amber)";
+
+  // Le premier parcours (lib/parcours.ts) : l'étape « analyser avec Nimbo »
+  // est faite quand son avis a été VU, pas seulement chargé en bas de page.
+  const carte = useRef<HTMLElement | null>(null);
+  useEffect(() => {
+    const el = carte.current;
+    if (!el || typeof IntersectionObserver === "undefined") return;
+    const io = new IntersectionObserver(([e]) => {
+      if (e.isIntersecting) { noterGeste("analyse"); io.disconnect(); }
+    }, { threshold: 0.5 });
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
   return (
     <section
+      ref={carte}
       aria-label={propose ? "Proposition de Nimbo" : "Nimbo ne propose pas de position"}
       className="cap-apparait mt-6 rounded-[var(--cap-r-lg)] p-4 sm:p-5"
       style={{
