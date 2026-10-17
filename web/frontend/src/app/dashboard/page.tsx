@@ -684,11 +684,14 @@ function NextStep({
       <div className="relative mt-6">
         <Link
           href={suggestion.href}
-          className="inline-flex h-11 items-center gap-2 rounded-[10px] px-5 text-[0.925rem] font-medium transition-opacity hover:opacity-90"
-          style={{ backgroundColor: "#F2F5F7", color: "var(--cap-navy)" }}
+          // Sur le bloc de nuit, le bouton de l'identité en négatif : papier
+          // clair, point ambre, flèche ambre. Plus une boîte blanche anonyme.
+          className="group inline-flex h-11 items-center gap-2.5 rounded-[12px] px-5 text-[0.925rem] font-semibold transition-transform hover:-translate-y-px"
+          style={{ backgroundColor: "#F6F2EA", color: "var(--cap-navy)" }}
         >
+          <span aria-hidden className="h-2 w-2 rounded-full transition-transform group-hover:scale-125" style={{ backgroundColor: "var(--cap-ambre)" }} />
           {suggestion.cta}
-          <ArrowRight className="cap-fleche h-4 w-4" />
+          <ArrowRight className="cap-fleche h-4 w-4 transition-transform group-hover:translate-x-1" style={{ color: "#c98a1e" }} />
         </Link>
       </div>
     </section>

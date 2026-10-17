@@ -21,8 +21,10 @@ export function ProblemSection() {
     <Section id="probleme" size="md" tone="raised" className="relative overflow-hidden">
       <Atmosphere variant="side" />
       <Container width="wide">
-        <div className="grid gap-14 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] lg:items-center lg:gap-20">
-          <div>
+        <div className="grid gap-14 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] lg:items-start lg:gap-20">
+          {/* Le titre reste en vue pendant que les données se rangent à
+              côté de lui, au lieu de flotter seul au milieu d'un grand vide. */}
+          <div className="lg:sticky lg:top-32">
             <Reveal>
               <Eyebrow>Le problème</Eyebrow>
             </Reveal>
