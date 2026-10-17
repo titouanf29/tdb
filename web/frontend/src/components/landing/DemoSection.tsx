@@ -49,9 +49,10 @@ export function DemoSection() {
   };
 
   return (
-    <Section id="demo" tone="raised" className="relative overflow-hidden">
+    <Section id="demo" size="md" tone="raised" className="relative overflow-hidden">
       <Atmosphere variant="side" />
       <Container width="wide">
+        <div className="flex flex-col gap-10 lg:flex-row lg:items-end lg:justify-between">
         <div className="max-w-[36rem]">
           <Reveal>
             <Eyebrow>La démo</Eyebrow>
@@ -68,8 +69,8 @@ export function DemoSection() {
         </div>
 
         {/* ── Controls ──────────────────────────────────────────────────── */}
-        <Reveal delay={0.16} className="mt-12">
-          <div className="flex flex-wrap items-center gap-2">
+        <Reveal delay={0.16} className="lg:pb-1">
+          <div className="flex flex-wrap items-center gap-2 lg:justify-end">
             {DEMO_ASSETS.map((a) => {
               const active = a.id === assetId;
               return (
@@ -98,7 +99,7 @@ export function DemoSection() {
             })}
           </div>
 
-          <div className="mt-4">
+          <div className="mt-3 lg:flex lg:justify-end">
             <SegmentedControl
               options={LEVELS}
               value={level}
@@ -107,9 +108,10 @@ export function DemoSection() {
             />
           </div>
         </Reveal>
+        </div>
 
         {/* ── Panel ─────────────────────────────────────────────────────── */}
-        <Reveal delay={0.2} className="mt-8">
+        <Reveal delay={0.2} className="mt-10">
           {/* La carte de démo s'incline doucement sous le curseur. */}
           <Inclinaison force={4}>
           <div

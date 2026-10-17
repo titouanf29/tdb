@@ -33,7 +33,7 @@ const STEPS = [
 
 export function HowItWorks() {
   return (
-    <Section id="fonctionnement">
+    <Section id="fonctionnement" size="md">
       <Container width="wide">
         <div className="max-w-[34rem]">
           <Reveal>

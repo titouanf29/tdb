@@ -2,6 +2,8 @@
 
 import { CloudLayer, PageCourse, type CourseStop } from "@/components/design-system";
 import { ClosingSection } from "@/components/landing/ClosingSection";
+import { ChiffresCles } from "@/components/landing/ChiffresCles";
+import { FaqSection } from "@/components/landing/FaqSection";
 import { OuvertureDuCiel, Traversee } from "@/components/landing/effets";
 import { DemoSection } from "@/components/landing/DemoSection";
 import { Hero } from "@/components/landing/Hero";
@@ -30,6 +32,7 @@ const STOPS: CourseStop[] = [
   { id: "paper-trading", label: "Paper trading" },
   { id: "personnalisation", label: "Personnalisation" },
   { id: "apprendre", label: "Apprendre" },
+  { id: "faq", label: "Questions" },
   { id: "arrivee", label: "Arrivée" },
 ];
 
@@ -43,19 +46,19 @@ export default function LandingPage() {
       <PageCourse stops={STOPS} />
       <main>
         <Hero />
-        {/* Entre deux sections, on traverse une couche de nuages qui
-            s'ouvre par le milieu. Purement visuel, masqué aux lecteurs
-            d'écran, absent si les animations sont réduites. */}
-        <Traversee />
+        <ChiffresCles />
         <ProblemSection />
         <HowItWorks />
-        <Traversee />
+        {/* Une seule traversée au milieu de la page, et une avant la fin :
+            cinq couches de nuages faisaient de la page une longue attente
+            entre deux contenus. */}
+        <Traversee hauteur={380} />
         <DemoSection />
         <PaperTradingSection />
         <PersonalisationSection />
-        <Traversee />
         <LearnSection />
-        <Traversee />
+        <FaqSection />
+        <Traversee hauteur={340} />
         <ClosingSection />
       </main>
       <LandingFooter />

@@ -34,7 +34,7 @@ const STAGES = [
 
 export function LearnSection() {
   return (
-    <Section id="apprendre" tone="raised">
+    <Section id="apprendre" size="md" tone="raised">
       <Container width="wide">
         <div className="max-w-[34rem]">
           <Reveal><Eyebrow>Apprendre</Eyebrow></Reveal>

@@ -18,7 +18,7 @@ import { MotsAuScroll, NuageDeDonnees } from "./animations";
 
 export function ProblemSection() {
   return (
-    <Section id="probleme" tone="raised" className="relative overflow-hidden">
+    <Section id="probleme" size="md" tone="raised" className="relative overflow-hidden">
       <Atmosphere variant="side" />
       <Container width="wide">
         <div className="grid gap-14 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] lg:items-center lg:gap-20">

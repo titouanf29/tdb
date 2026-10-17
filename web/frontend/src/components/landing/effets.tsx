@@ -123,6 +123,11 @@ function cssEnvol(): string {
   r.push(`.cv-fleche{animation:cv-invite 1.8s ease-in-out infinite}`);
   r.push(`@keyframes cv-apparait{from{opacity:0;transform:translate3d(0,10px,0)}to{opacity:1;transform:none}}.cv-invitation{animation:cv-apparait .7s ease-out .25s both}`);
   r.push(`.ciel-rideau.vol .cv-invitation{opacity:0;transition:opacity .25s ease-out;animation:none}`);
+  // LE FILET DE SÉCURITÉ. Si le JavaScript tarde ou échoue (réseau lent,
+  // bloqueur, erreur), rien n'ouvrirait le ciel et le visiteur resterait
+  // devant des nuages. Au bout de cinq secondes, le rideau s'efface de
+  // lui-même, en CSS pur.
+  r.push(`@keyframes cv-secours{to{opacity:0;visibility:hidden}}.ciel-rideau:not(.vol){animation:cv-secours .6s ease-out 5s forwards}`);
   r.push(`.ciel-vu .ciel-rideau{display:none}`);
   return r.join("");
 }

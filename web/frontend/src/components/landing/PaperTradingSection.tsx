@@ -41,7 +41,7 @@ export function PaperTradingSection() {
   const ref = useProgressionCSS<HTMLOListElement>(["start 75%", "end 55%"]);
 
   return (
-    <Section id="paper-trading" tone="inverse" className="relative overflow-hidden">
+    <Section id="paper-trading" size="md" tone="inverse" className="relative overflow-hidden">
       <Atmosphere variant="top" />
       <LiveBackdrop />
       <Container width="wide">

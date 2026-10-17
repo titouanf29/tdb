@@ -72,7 +72,7 @@ export function PersonalisationSection() {
   const choose = (m: Mode) => { setTouched(true); setMode(m); };
 
   return (
-    <Section id="personnalisation">
+    <Section id="personnalisation" size="md">
       <Container width="wide">
         <div ref={ref} className="grid gap-14 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] lg:items-center lg:gap-20">
           <div>
