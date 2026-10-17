@@ -655,7 +655,7 @@ function NextStep({
       {/* Inverted on purpose: one dark block on a light page is what makes the
           single recommendation impossible to scroll past. */}
       <h2
-        className="relative mt-3.5 max-w-[30rem] text-[clamp(1.35rem,2.6vw,1.9rem)] font-semibold leading-[1.15] tracking-[-0.02em]"
+        className="relative mt-3.5 max-w-[30rem] text-[clamp(1.35rem,2.6vw,1.9rem)] font-semibold leading-[1.15] tracking-[-0.01em]"
         style={{ fontFamily: "var(--cap-font-display)" }}
       >
         {suggestion.title}

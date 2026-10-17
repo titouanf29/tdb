@@ -86,7 +86,7 @@ function Reinitialiser() {
       </div>
 
       <h2
-        className="mt-0 text-[1.35rem] font-semibold tracking-[-0.02em] lg:mt-7"
+        className="mt-0 text-[1.35rem] font-semibold tracking-[-0.01em] lg:mt-7"
         style={{ fontFamily: "var(--cap-font-display)", color: "var(--cap-ink)" }}
       >
         {etat === "fait" ? "Mot de passe changé" : "Choisir un nouveau mot de passe"}

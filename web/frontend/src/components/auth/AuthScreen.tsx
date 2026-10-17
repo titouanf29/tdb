@@ -61,7 +61,7 @@ export function AuthScreen({
               {eyebrow}
             </p>
             <h1
-              className="mt-5 text-[clamp(2rem,3.4vw,2.9rem)] font-semibold leading-[1.08] tracking-[-0.03em]"
+              className="mt-5 text-[clamp(2rem,3.4vw,2.9rem)] font-semibold leading-[1.08] tracking-[-0.01em]"
               style={{ fontFamily: "var(--cap-font-display)", color: "var(--cap-ink)" }}
             >
               {title}

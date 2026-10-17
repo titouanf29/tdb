@@ -837,7 +837,7 @@ function Verdict({
         <div className="min-w-0">
           <div className="flex items-center gap-2.5">
             <span
-              className="text-[1.4rem] font-semibold tracking-[-0.02em]"
+              className="text-[1.4rem] font-semibold tracking-[-0.01em]"
               style={{ fontFamily: "var(--cap-font-display)", color: "var(--cap-ink)" }}
             >
               {a.company?.name || a.symbol}

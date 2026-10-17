@@ -5,19 +5,20 @@ import { cn } from "@/lib/utils";
 /**
  * Type scale.
  *
- * Two families and one job each: Sora sets headings, Inter carries prose, and
- * the monospace appears only on figures. Sizes are fluid so the hierarchy
+ * Two families and one job each: Fraunces (a warm editorial serif) sets
+ * headings, Plus Jakarta Sans carries prose, and the monospace appears only
+ * on figures. Sizes are fluid so the hierarchy
  * survives from a phone to a large monitor without a stack of breakpoints.
  */
 
 const HEADING = {
   // Capped at 4rem: past that a two-line headline breaks in the wrong place on
   // a laptop, and the sentence stops reading as one thought.
-  display: "text-[clamp(2.4rem,5.2vw,4rem)] leading-[1.06] tracking-[-0.03em] font-semibold",
-  1: "text-[clamp(2rem,4.2vw,3.25rem)] leading-[1.08] tracking-[-0.03em] font-semibold",
-  2: "text-[clamp(1.5rem,2.8vw,2.25rem)] leading-[1.15] tracking-[-0.022em] font-semibold",
-  3: "text-[clamp(1.125rem,1.7vw,1.4rem)] leading-[1.3] tracking-[-0.015em] font-semibold",
-  4: "text-[0.95rem] leading-[1.4] tracking-[-0.01em] font-semibold",
+  display: "text-[clamp(2.4rem,5.2vw,4rem)] leading-[1.06] tracking-[-0.012em] font-medium",
+  1: "text-[clamp(2rem,4.2vw,3.25rem)] leading-[1.08] tracking-[-0.012em] font-medium",
+  2: "text-[clamp(1.5rem,2.8vw,2.25rem)] leading-[1.15] tracking-[-0.008em] font-medium",
+  3: "text-[clamp(1.125rem,1.7vw,1.4rem)] leading-[1.3] tracking-[-0.004em] font-semibold",
+  4: "text-[0.95rem] leading-[1.4] tracking-[0em] font-semibold",
 } as const;
 
 export function Heading({

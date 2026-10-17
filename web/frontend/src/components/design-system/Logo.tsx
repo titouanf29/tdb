@@ -67,7 +67,7 @@ export function CaptenLogo({
       <CaptenMark size={size} />
       {showName && (
         <span
-          className="font-semibold tracking-[-0.02em]"
+          className="font-semibold tracking-[-0.01em]"
           style={{
             fontFamily: "var(--cap-font-display)",
             fontSize: `${size * 0.82}px`,

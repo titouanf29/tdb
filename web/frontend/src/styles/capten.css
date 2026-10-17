@@ -238,8 +238,13 @@
   --cap-dur-3: 900ms;
 
   /* ── Type ─────────────────────────────────────────────────────────────── */
-  --cap-font-display: var(--font-sora), var(--font-inter), system-ui, sans-serif;
-  --cap-font-text: var(--font-inter), system-ui, sans-serif;
+  /* La voix du site : une serif éditoriale pour les titres (Fraunces),
+     une sans-serif douce pour le texte (Plus Jakarta Sans). Les chiffres
+     restent en chasse fixe : sur un écran de marché, les colonnes doivent
+     s'aligner. */
+  --cap-font-display: var(--font-fraunces), Georgia, "Times New Roman", serif;
+  --cap-font-text: var(--font-jakarta), var(--font-inter), system-ui, sans-serif;
+  --cap-ambre: #e5a83a;
   --cap-font-num: var(--font-mono), ui-monospace, "SF Mono", Menlo, monospace;
 }
 
@@ -428,6 +433,9 @@ body:has(.cap) {
   background-color: var(--cap-bg);
   color: var(--cap-ink);
   font-family: var(--cap-font-text);
+  /* Plus Jakarta Sans a une espace étroite : « Rechercher un actif » se
+     lisait « Rechercherun actif ». */
+  word-spacing: 0.05em;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
@@ -740,3 +748,57 @@ body:has(.cap) {
 /* Animations coupées ou mouvement réduit : Nimbo reste, immobile. */
 .anim-off .nimbo *, .anim-off .nimbo.n-fete .n-corps { animation: none !important; }
 @media (prefers-reduced-motion: reduce) { .nimbo * { animation: none !important; } }
+
+
+/* ── LA DIRECTION ARTISTIQUE DU SITE ─────────────────────────────────────
+   La même voix que la page de présentation, posée une fois ici pour tous
+   les écrans reconstruits. */
+
+/* Les titres : l'optique « display » de Fraunces, adoucie. */
+.cap h1, .cap h2, .cap h3, .cap h4 { font-variation-settings: "opsz" 72, "SOFT" 50; }
+
+/* Les étiquettes de section : une légende en italique, précédée d'un trait
+   ambre, au lieu des petites capitales espacées. */
+.cap [data-eyebrow] {
+  font-family: var(--cap-font-display);
+  font-style: italic;
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 1.05rem;
+  font-weight: 400;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+.cap [data-eyebrow]::before {
+  content: "";
+  width: 1.4rem; height: 2px; border-radius: 2px;
+  background: var(--cap-ambre);
+}
+
+/* Les micro-étiquettes des panneaux (« Sur 10 achats comparables »,
+   « Pendant votre trade », titres de colonnes) : même traitement, plus
+   discret. Les capitales espacées de 0,14 em étaient la tenue par défaut
+   des tableaux de bord générés. */
+.cap [class~="uppercase"][class*="tracking-[0."] {
+  font-family: var(--cap-font-display);
+  font-style: italic;
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 400;
+  font-size: max(0.86rem, 1em);
+}
+
+/* Le bouton principal porte le point ambre du logo ; au survol, il
+   s'allume. */
+.cap [data-btn="primary"]::before {
+  content: "";
+  width: 0.5rem; height: 0.5rem; border-radius: 99px; flex: none;
+  background: var(--cap-ambre);
+  transition: transform .3s var(--cap-ease), box-shadow .3s ease;
+}
+.cap [data-btn="primary"]:hover::before { transform: scale(1.3); box-shadow: 0 0 12px 2px rgba(229,168,58,.5); }
+.cap [data-btn="secondary"]:hover { box-shadow: inset 0 0 0 1px var(--cap-ambre) !important; }
+@media (prefers-reduced-motion: reduce) {
+  .cap [data-btn="primary"]::before { transition: none; }
+}
