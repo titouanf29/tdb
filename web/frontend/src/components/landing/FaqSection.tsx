@@ -61,9 +61,9 @@ export function FaqSection() {
               sont courtes et ce sont elles qui rassurent : les cacher derrière
               des « + » obligeait à cliquer six fois pour lire ce qu'on venait
               chercher, et c'était la FAQ de tous les sites générés. */}
-          <dl className="vitrine-qr">
+          <dl className="cap-qr">
             {QUESTIONS.map((x) => (
-              <Reveal key={x.q} className="vitrine-qr-item">
+              <Reveal key={x.q} className="cap-qr-item">
                 <dt>{x.q}</dt>
                 <dd><Text>{x.r}</Text></dd>
               </Reveal>

@@ -46,12 +46,12 @@ export function LearnSection() {
             parties se suivent, donc elles sont écrites comme la table des
             matières d'un livre, avec leur numéro de chapitre. */}
         <Reveal delay={0.16} className="mt-14">
-          <ol className="vitrine-sommaire grid gap-x-16 lg:grid-cols-2">
+          <ol className="cap-sommaire grid gap-x-16 lg:grid-cols-2">
             {STAGES.map((s, i) => (
               <li key={s.title}>
-                <span className="vitrine-sommaire-num" aria-hidden>{i + 1}</span>
-                <span className="vitrine-sommaire-titre">{s.title}</span>
-                <span className="vitrine-sommaire-texte">{s.body}</span>
+                <span className="cap-sommaire-num" aria-hidden>{i + 1}</span>
+                <span className="cap-sommaire-titre">{s.title}</span>
+                <span className="cap-sommaire-texte">{s.body}</span>
               </li>
             ))}
           </ol>

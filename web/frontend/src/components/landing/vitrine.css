@@ -174,64 +174,8 @@
   border-right: 1px solid var(--cap-line-strong);
 }
 
-/* La ligne datée du haut de page : petites capitales de la serif, un filet
-   au-dessous, comme la date en tête d'un journal. */
-.vitrine .vitrine-dateline {
-  display: inline-block;
-  font-family: var(--cap-font-display);
-  font-style: italic;
-  font-size: 1rem;
-  color: var(--cap-ink-2);
-  padding-bottom: 0.55rem;
-  border-bottom: 1px solid var(--cap-line-strong);
-}
-.vitrine .vitrine-dateline time { font-style: normal; font-weight: 600; color: var(--cap-ink); margin-right: 0.15rem; }
-
-/* Les nombres de la phrase de chapeau. */
-.vitrine .vitrine-chiffre {
-  font-weight: 600;
-  color: var(--cap-ink);
-  font-variant-numeric: lining-nums;
-  white-space: nowrap;
-  background-image: linear-gradient(transparent 68%, rgba(229,168,58,.32) 68%, rgba(229,168,58,.32) 92%, transparent 92%);
-}
-
-/* Le sommaire : numéro, titre, points de conduite, texte. */
-.vitrine .vitrine-sommaire li {
-  display: grid;
-  grid-template-columns: 2.4rem minmax(0, 1fr);
-  column-gap: 0.4rem;
-  padding: 1.15rem 0;
-  border-top: 1px solid var(--cap-line);
-}
-.vitrine .vitrine-sommaire-num {
-  font-family: var(--cap-font-display); font-style: italic;
-  font-size: 1.35rem; line-height: 1.15; color: #c98a1e;
-}
-.vitrine .vitrine-sommaire-titre {
-  font-family: var(--cap-font-display); font-weight: 600; font-size: 1.3rem; line-height: 1.2;
-  color: var(--cap-ink);
-  display: flex; align-items: baseline; gap: 0.6rem;
-}
-.vitrine .vitrine-sommaire-titre::after {
-  content: ""; flex: 1; transform: translateY(-0.2em);
-  border-bottom: 1.5px dotted var(--cap-line-strong);
-}
-.vitrine .vitrine-sommaire-texte {
-  grid-column: 2; margin-top: 0.4rem;
-  font-size: 0.95rem; line-height: 1.6; color: var(--cap-ink-2);
-}
-
-/* Questions et réponses, composées comme un entretien. */
-.vitrine .vitrine-qr { display: grid; gap: 0; }
-.vitrine .vitrine-qr-item { padding: 1.35rem 0 1.4rem; border-top: 1px solid var(--cap-line); }
-.vitrine .vitrine-qr-item:last-child { border-bottom: 1px solid var(--cap-line); }
-.vitrine .vitrine-qr dt {
-  font-family: var(--cap-font-display); font-weight: 600; font-size: 1.22rem; line-height: 1.3;
-  color: var(--cap-ink);
-}
-.vitrine .vitrine-qr dt::before { content: "Q."; font-style: italic; font-weight: 500; color: #c98a1e; margin-right: 0.55rem; }
-.vitrine .vitrine-qr dd { margin-top: 0.5rem; padding-left: 1.85rem; }
+/* La ligne datée, les chiffres, le sommaire et les questions-réponses sont
+   des éléments de l'identité : ils vivent dans styles/capten.css, sous .cap. */
 
 /* Les trois gestes : plus de cartes arrondies, un filet en tête de chaque
    colonne, qui passe à l'ambre quand le point du parcours l'atteint. */

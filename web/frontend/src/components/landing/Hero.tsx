@@ -10,7 +10,7 @@ import { Aimant, Bouffees, Inclinaison, MiseAuPoint, Mots, PremierPlan, Redresse
 import { DEMO_ASSETS } from "./demoData";
 import { CoursVivant, LueurSouris, Machine } from "./animationsPlus";
 import { useMouvementReduit } from "@/components/design-system/useMouvementReduit";
-import { LigneDatee } from "./LigneDatee";
+import { LigneDatee } from "@/components/design-system/LigneDatee";
 
 /**
  * Two sentences, two buttons, and the product's actual output.
@@ -71,7 +71,7 @@ export function Hero() {
                 posent au-dessus de leur titre. Ici, comme en tête d'un
                 journal : le jour, l'heure, et ce que font les marchés en ce
                 moment même. C'est vrai, et c'est déjà le sujet du site. */}
-            <motion.p {...enter(0)} className="vitrine-dateline">
+            <motion.p {...enter(0)} className="cap-dateline">
               <LigneDatee />
             </motion.p>
 

@@ -16,7 +16,7 @@ import {
   type TradingStats, type WalletBalance,
 } from "@/lib/api";
 import {
-  Button, CloudCurtain, DataList, DataRow, EmptyState, Heading, MotsApp, Nimbo, Num, Panel,
+  Button, CloudCurtain, DataList, DataRow, EmptyState, Heading, LigneDatee, MotsApp, Nimbo, Num, Panel,
   Reveal, Text, Waypoint, WeatherBackdrop, WEATHER_LABEL,
   conditionFromChange, useAnimationsEnabled,
 } from "@/components/design-system";
@@ -148,6 +148,12 @@ export default function DashboardPage() {
               className="hidden sm:inline-flex"
             />
             <div>
+              {/* La ligne datée de la page de présentation : en arrivant dans
+                  son espace, on lit d'abord le jour et l'état des marchés,
+                  comme en tête d'un journal. C'est la signature du site. */}
+              <p className="cap-dateline mb-4 text-[0.92rem]">
+                <LigneDatee />
+              </p>
               <Heading level={1}>
                 <MotsApp texte={`${greeting}${first ? `, ${first}` : ""}.`} delai={0.4} />
               </Heading>

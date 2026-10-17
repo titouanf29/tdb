@@ -844,3 +844,66 @@ body:has(.cap) {
   color: var(--cap-ocean) !important;
 }
 .cap [data-btn="quiet"]:hover { text-decoration: underline; text-decoration-color: var(--cap-line-strong); text-underline-offset: 6px; }
+
+/* ── L'IDENTITÉ DU SITE : LES ÉLÉMENTS SIGNATURE ─────────────────────────
+   Nés sur la page de présentation, partagés par tout le site. Voir
+   web/docs/identite.md : une publication sous les nuages, pas un modèle. */
+/* La ligne datée du haut de page : petites capitales de la serif, un filet
+   au-dessous, comme la date en tête d'un journal. */
+.cap .cap-dateline {
+  display: inline-block;
+  font-family: var(--cap-font-display);
+  font-style: italic;
+  font-size: 1rem;
+  color: var(--cap-ink-2);
+  padding-bottom: 0.55rem;
+  border-bottom: 1px solid var(--cap-line-strong);
+}
+.cap .cap-dateline time { font-style: normal; font-weight: 600; color: var(--cap-ink); margin-right: 0.15rem; }
+
+/* Les nombres de la phrase de chapeau. */
+.cap .cap-chiffre {
+  font-weight: 600;
+  color: var(--cap-ink);
+  font-variant-numeric: lining-nums;
+  white-space: nowrap;
+  background-image: linear-gradient(transparent 68%, rgba(229,168,58,.32) 68%, rgba(229,168,58,.32) 92%, transparent 92%);
+}
+
+/* Le sommaire : numéro, titre, points de conduite, texte. */
+.cap .cap-sommaire li {
+  display: grid;
+  grid-template-columns: 2.4rem minmax(0, 1fr);
+  column-gap: 0.4rem;
+  padding: 1.15rem 0;
+  border-top: 1px solid var(--cap-line);
+}
+.cap .cap-sommaire-num {
+  font-family: var(--cap-font-display); font-style: italic;
+  font-size: 1.35rem; line-height: 1.15; color: #c98a1e;
+}
+.cap .cap-sommaire-titre {
+  font-family: var(--cap-font-display); font-weight: 600; font-size: 1.3rem; line-height: 1.2;
+  color: var(--cap-ink);
+  display: flex; align-items: baseline; gap: 0.6rem;
+}
+.cap .cap-sommaire-titre::after {
+  content: ""; flex: 1; transform: translateY(-0.2em);
+  border-bottom: 1.5px dotted var(--cap-line-strong);
+}
+.cap .cap-sommaire-texte {
+  grid-column: 2; margin-top: 0.4rem;
+  font-size: 0.95rem; line-height: 1.6; color: var(--cap-ink-2);
+}
+
+/* Questions et réponses, composées comme un entretien. */
+.cap .cap-qr { display: grid; gap: 0; }
+.cap .cap-qr-item { padding: 1.35rem 0 1.4rem; border-top: 1px solid var(--cap-line); }
+.cap .cap-qr-item:last-child { border-bottom: 1px solid var(--cap-line); }
+.cap .cap-qr dt {
+  font-family: var(--cap-font-display); font-weight: 600; font-size: 1.22rem; line-height: 1.3;
+  color: var(--cap-ink);
+}
+.cap .cap-qr dt::before { content: "Q."; font-style: italic; font-weight: 500; color: #c98a1e; margin-right: 0.55rem; }
+.cap .cap-qr dd { margin-top: 0.5rem; padding-left: 1.85rem; }
+

@@ -15,7 +15,7 @@ import { Compteur } from "./animationsPlus";
  */
 export function ChiffresCles() {
   const n = (v: string) => (
-    <span className="vitrine-chiffre"><Compteur valeur={v} /></span>
+    <span className="cap-chiffre"><Compteur valeur={v} /></span>
   );
   return (
     <section aria-label="CaptenTDB en chiffres" className="relative z-10 pb-4 pt-2">

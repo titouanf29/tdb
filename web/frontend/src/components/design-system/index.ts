@@ -8,6 +8,7 @@
  */
 export { Atmosphere } from "./Atmosphere";
 export { Button } from "./Button";
+export { LigneDatee } from "./LigneDatee";
 export { Card } from "./Card";
 export { CloudBank, CloudLayer, SILHOUETTES } from "./CloudLayer";
 export { CloudCurtain, useRouteCurtain } from "./CloudCurtain";
