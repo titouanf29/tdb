@@ -142,11 +142,11 @@ export function Hero() {
           {/* Nimbo, assis sur le bord de la carte, et ce qu'il dit. */}
           <div className="pointer-events-none absolute -top-2 left-1/2 z-20 flex -translate-x-1/2 items-end gap-2 sm:left-auto sm:right-6 sm:translate-x-0 lg:-top-6">
             {/* Nimbo saute sur la carte à l'ouverture du ciel. */}
-            <motion.div initial={reduce ? false : { y: -60, opacity: 0 }} animate={ouvert ? { y: 0, opacity: 1 } : undefined}
-              transition={{ type: "spring", stiffness: 260, damping: 11, delay: 0.9 }}>
-              <Nimbo humeur="cap" taille={124} label="Nimbo" />
+            <motion.div initial={reduce ? false : { y: 8, opacity: 0 }} animate={ouvert ? { y: 0, opacity: 1 } : undefined}
+              transition={{ duration: 0.6, ease: EASE, delay: 0.9 }}>
+              <Nimbo humeur="content" taille={76} label="Nimbo, le guide de CaptenTDB" />
             </motion.div>
-            <div className="mb-14 hidden max-w-[14rem] rounded-[16px] rounded-bl-[4px] px-3.5 py-2.5 text-[0.85rem] leading-snug sm:block"
+            <div className="mb-8 hidden max-w-[15rem] rounded-[16px] rounded-bl-[4px] px-3.5 py-2.5 text-[0.85rem] leading-snug sm:block"
               style={{ backgroundColor: "var(--cap-surface)", color: "var(--cap-ink)", boxShadow: "var(--cap-shadow-md, 0 8px 24px rgba(11,23,38,0.12)), inset 0 0 0 1px var(--cap-line)" }}>
               {ouvert ? <Machine texte="Je vous propose d'acheter Apple. Et je vous dis pourquoi." delai={1.5} /> : "\u00a0"}
             </div>

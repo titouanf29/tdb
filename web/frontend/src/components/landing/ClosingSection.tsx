@@ -1,7 +1,7 @@
 "use client";
 
 import {
-  Atmosphere, CloudBank, LiveBackdrop, Button, Container, Heading, Nimbo, Section, Text,
+  Atmosphere, CaptenMark, CloudBank, LiveBackdrop, Button, Container, Heading, Section, Text,
 } from "@/components/design-system";
 import { Aimant, Bouffees, Reveal } from "./effets";
 import { MotsAuScroll, useProgressionCSS } from "./animations";
@@ -35,10 +35,9 @@ export function ClosingSection() {
         </div>
       </div>
       <Container width="text" className="relative text-center">
-        {/* Nimbo accueille à la fin comme il guide ensuite dans le site : le
-            dernier écran donne un visage à l'invitation. */}
+        {/* Le logo, sobrement : la fin de page signe, elle ne joue pas. */}
         <Reveal className="mx-auto w-fit">
-          <Nimbo humeur="salue" taille={150} label="Nimbo vous attend" />
+          <CaptenMark size={64} className="text-[color:var(--cap-ink)]" />
         </Reveal>
         <Heading level="display" as="p" className="mt-6">
           <MotsAuScroll texte="Comprendre avant d'agir." />

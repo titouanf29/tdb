@@ -6,7 +6,6 @@ import { CloudLayer, PageCourse, type CourseStop } from "@/components/design-sys
 import { ClosingSection } from "@/components/landing/ClosingSection";
 import { ChiffresCles } from "@/components/landing/ChiffresCles";
 import { FaqSection } from "@/components/landing/FaqSection";
-import { NimboCompagnon } from "@/components/landing/animationsPlus";
 import { OuvertureDuCiel, Traversee } from "@/components/landing/effets";
 import { DemoSection } from "@/components/landing/DemoSection";
 import { Hero } from "@/components/landing/Hero";
@@ -65,7 +64,6 @@ export default function LandingPage() {
         <ClosingSection />
       </main>
       <LandingFooter />
-      <NimboCompagnon />
     </div>
   );
 }

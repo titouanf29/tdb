@@ -2,7 +2,7 @@
 
 import { Fragment, useEffect, useRef, useState } from "react";
 import { motion, useInView, useMotionValue, useMotionValueEvent, useScroll, useSpring, useTransform, type MotionValue, type Variants } from "framer-motion";
-import { Nimbo, useAnimationsEnabled } from "@/components/design-system";
+import { CaptenMark, useAnimationsEnabled } from "@/components/design-system";
 import { NuageImage } from "@/components/design-system/NuageImage";
 import { useMouvementReduit } from "@/components/design-system/useMouvementReduit";
 
@@ -124,27 +124,22 @@ function cssEnvol(): string {
   r.push(`@keyframes cv-apparait{from{opacity:0;transform:translate3d(0,10px,0)}to{opacity:1;transform:none}}.cv-invitation{animation:cv-apparait .7s ease-out .25s both}`);
   r.push(`.ciel-rideau.vol .cv-invitation{opacity:0;transition:opacity .25s ease-out;animation:none}`);
   // ── LA SCÈNE D'ARRIVÉE ─────────────────────────────────────────────────
-  // Le soleil du logo se lève derrière les nuages, Nimbo arrive en volant et
-  // atterrit, le nom s'écrit lettre à lettre. Au départ, le soleil éclate en
-  // lumière, Nimbo file vers sa place sur la carte et les lettres s'élèvent.
-  r.push(`@keyframes cv-pulse{0%,100%{box-shadow:0 0 30px 10px rgba(243,197,110,.55),0 0 90px 40px rgba(229,168,58,.22)}50%{box-shadow:0 0 44px 16px rgba(243,197,110,.7),0 0 120px 56px rgba(229,168,58,.3)}}`);
-  r.push(`.cv-soleil{animation:cv-leve 1.1s cubic-bezier(.2,.8,.2,1) .1s both, cv-pulse 3s ease-in-out 1.2s infinite}`);
-  r.push(`@keyframes cv-leve{from{transform:translate3d(0,50px,0) scale(.5);opacity:0}to{transform:none;opacity:1}}`);
+  // Le logo se pose depuis la brume, de fins rayons tournent derrière son
+  // point ambre, le nom s'écrit lettre à lettre. Au départ, une lumière
+  // dorée traverse les nuages et le titre s'élève.
   r.push(`@keyframes cv-rayons{to{transform:translate(-50%,-50%) rotate(360deg)}}@keyframes cv-rayons-in{from{opacity:0}to{opacity:.5}}`);
   r.push(`.cv-rayons{animation:cv-rayons 40s linear infinite, cv-rayons-in 1.4s ease-out .4s both}`);
-  r.push(`@keyframes cv-vol-nimbo{0%{transform:translate3d(-46vw,-38vh,0) rotate(-24deg) scale(.55);opacity:0}15%{opacity:1}70%{transform:translate3d(2vw,6px,0) rotate(6deg) scale(1.02)}84%{transform:translate3d(0,-6px,0) rotate(-2deg) scale(1.06,.95)}100%{transform:none}}`);
-  r.push(`.cv-nimbo{animation:cv-vol-nimbo 1.25s cubic-bezier(.3,.7,.3,1) .3s both}`);
+  r.push(`@keyframes cv-logo{from{transform:translate3d(0,18px,0) scale(.92);opacity:0;filter:blur(10px)}to{transform:none;opacity:1;filter:blur(0)}}`);
+  r.push(`.cv-nimbo{animation:cv-logo 1.1s cubic-bezier(.2,.8,.2,1) .3s both}`);
   r.push(`@keyframes cv-lettre{from{opacity:0;transform:translate3d(0,.5em,0);filter:blur(8px)}to{opacity:1;transform:none;filter:blur(0)}}`);
   r.push(`.cv-lettre{display:inline-block;animation:cv-lettre .6s cubic-bezier(.2,.8,.2,1) both}`);
   r.push(`@keyframes cv-trait{from{transform:scaleX(0)}to{transform:scaleX(1)}}.cv-trait-nom{transform-origin:left;animation:cv-trait .7s cubic-bezier(.6,0,.2,1) 1.45s both}`);
   r.push(`.cv-accroche{animation:cv-apparait .7s ease-out 1.65s both}`);
   // Le départ.
-  r.push(`@keyframes cv-soleil-part{to{transform:scale(3.2);opacity:0;filter:blur(6px)}}`);
-  r.push(`.ciel-rideau.vol .cv-soleil{animation:cv-soleil-part .9s cubic-bezier(.4,0,.2,1) both}`);
   r.push(`@keyframes cv-eclat{0%{opacity:0}30%{opacity:1}100%{opacity:0}}`);
   r.push(`.ciel-rideau.vol .cv-eclat{animation:cv-eclat 1.5s ease-out both}`);
   r.push(`.ciel-rideau.vol .cv-rayons{opacity:0;transition:opacity .4s}`);
-  r.push(`@keyframes cv-envol{to{transform:translate3d(30vw,-46vh,0) rotate(14deg) scale(.42);opacity:0}}`);
+  r.push(`@keyframes cv-envol{to{transform:translate3d(0,-30px,0) scale(.9);opacity:0;filter:blur(6px)}}`);
   r.push(`.ciel-rideau.vol .cv-nimbo{animation:cv-envol .95s cubic-bezier(.5,0,.75,0) .05s both}`);
   r.push(`@keyframes cv-eleve{to{opacity:0;transform:translate3d(0,-.8em,0);filter:blur(6px)}}`);
   r.push(`.ciel-rideau.vol .cv-lettre{animation:cv-eleve .5s ease-in both !important;animation-delay:0s !important}`);
@@ -248,15 +243,13 @@ export function OuvertureDuCiel() {
         {/* LA SCÈNE : le soleil du logo derrière, Nimbo qui arrive en volant,
             le nom qui s'écrit. On sait tout de suite où l'on arrive. */}
         <div className="pointer-events-none absolute inset-0">
-          <div aria-hidden className="cv-rayons absolute left-[calc(50%+110px)] top-[calc(40%-118px)] h-[120vmax] w-[120vmax]"
+          <div aria-hidden className="cv-rayons absolute left-1/2 top-[calc(46%-80px)] h-[120vmax] w-[120vmax]"
             style={{ transform: "translate(-50%,-50%)", background: "repeating-conic-gradient(from 0deg, rgba(255,236,190,.0) 0deg 9deg, rgba(255,236,190,.35) 9deg 12deg)",
               maskImage: "radial-gradient(closest-side, #000 0%, transparent 70%)", WebkitMaskImage: "radial-gradient(closest-side, #000 0%, transparent 70%)" }} />
-          <div aria-hidden className="cv-soleil absolute left-[calc(50%+78px)] top-[calc(40%-150px)] h-[64px] w-[64px] rounded-full"
-            style={{ background: "radial-gradient(circle at 40% 38%, #fff3d6, #f3c56e 45%, #e5a83a 75%)" }} />
           <div aria-hidden className="cv-eclat absolute inset-0 opacity-0"
-            style={{ background: "radial-gradient(circle at calc(50% + 110px) calc(40% - 118px), rgba(255,246,222,.98) 0%, rgba(255,232,180,.7) 22%, rgba(255,255,255,0) 62%)" }} />
+            style={{ background: "radial-gradient(circle at 50% calc(46% - 80px), rgba(255,246,222,.98) 0%, rgba(255,232,180,.7) 22%, rgba(255,255,255,0) 62%)" }} />
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 pb-[8vh]">
-            <div className="cv-nimbo"><Nimbo humeur="salue" taille={150} label="" /></div>
+            <div className="cv-nimbo"><CaptenMark size={92} className="text-[color:var(--cap-ink)]" /></div>
             <p className="relative mt-2 text-[clamp(2.2rem,5vw,3.4rem)] font-medium leading-none"
               style={{ fontFamily: "var(--cap-font-display)", color: "var(--cap-ink)", letterSpacing: "-0.01em" }}
               aria-label="CaptenTDB">
