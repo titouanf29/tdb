@@ -221,6 +221,8 @@ export const walletAPI = {
 
   getStats: () => fetchAPI<TradingStats>("/api/wallet/stats"),
   getCourbe: () => fetchAPI<CourbeWallet>("/api/wallet/courbe"),
+  /** La façon de trader mesurée sur les positions (backend moi.py). */
+  getProfilObserve: () => fetchAPI<ProfilObserve>("/api/moi/profil"),
 
   /** Créditer, ou RETIRER avec un montant négatif. Le solde ne peut pas
    *  devenir négatif : ce n'est pas un découvert, c'est un simulateur. */
@@ -1174,6 +1176,43 @@ export interface SymbolSummary {
   short: number;
   avg_held_minutes: number | null;
   last_closed_at: string | null;
+}
+
+/** Un constat sur la façon de trader : mérité par les chiffres de la
+ *  personne, ou absent. */
+export interface ConstatObserve {
+  cle: string;
+  ton: "attention" | "neutre" | "bien";
+  titre: string;
+  phrase: string;
+  conseil: string;
+  lien: { href: string; label: string };
+}
+
+export interface ProfilObserve {
+  trades_fermes: number;
+  positions_ouvertes: number;
+  assez: boolean;
+  min_trades: number;
+  declare: {
+    style: string; style_mot: string;
+    risque: string; risque_mot: string; risque_pct: number;
+    perte_max_pct: number | null; disponibilite: string | null;
+  };
+  mesures: {
+    detention?: { mediane_min: number; mediane_mot: string; dans_horizon: number };
+    sorties?: { objectif: number; stop: number; manuelle: number };
+    taux_gagnants?: number;
+    r_moyen?: number;
+    perte_sur_gain?: number | null;
+    sans_stop?: number;
+    risque_capital_pct?: number;
+    stop_montant_pct?: number;
+    actifs?: Array<{ symbol: string; n: number }>;
+    classes?: Array<{ classe: string; mot: string; part: number }>;
+    rythme?: { heure: number; jour: string; part_soir: number; part_weekend: number };
+  };
+  constats: ConstatObserve[];
 }
 
 /** Le résultat cumulé des trades clôturés (backend wallet.py, /courbe). */

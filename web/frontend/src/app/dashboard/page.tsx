@@ -4,6 +4,7 @@ import { formatCours } from "@/lib/devise";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { ArrowRight, CloudOff, Globe2, RefreshCw, Sun } from "lucide-react";
+import { FaconDeTrader } from "@/components/dashboard/FaconDeTrader";
 import { Intention } from "@/components/dashboard/Intention";
 import { lundiAPreparer, weekendOuvert } from "@/lib/semaine";
 import { useAuth } from "@/lib/AuthContext";
@@ -158,7 +159,7 @@ export default function DashboardPage() {
                 >
                   {style.label.fr.toLowerCase()}
                 </Link>
-                {" "}— horizon {style.horizon.fr.toLowerCase()}.
+                , horizon {style.horizon.fr.toLowerCase()}.
                 {goalLine && ` ${goalLine}`}
               </Text>
             </div>
@@ -197,7 +198,7 @@ export default function DashboardPage() {
                 sous sa forme la plus coûteuse : sur l'écran d'accueil, et
                 sur un chiffre d'argent. */}
             <Panel
-              title="Votre wallet — simulation"
+              title="Votre wallet de simulation"
               className="h-full"
               aside={
                 <button
@@ -295,6 +296,13 @@ export default function DashboardPage() {
             </Panel>
           </Reveal>
         </div>
+
+        {/* ── 4. Ce que la personne fait vraiment ──────────────────────────
+            Mesuré sur ses trades, à côté de ses réglages. Il remonte quand
+            l'objectif déclaré est de tester : c'est la question qu'elle pose. */}
+        <Reveal delay={0.13} className={goal === "tester" ? "order-1" : ""}>
+          <FaconDeTrader />
+        </Reveal>
 
         {/* ── 4 bis. L'intention du jour et la semaine qui vient ─────────
             Deux panneaux que la refonte avait laissés derrière elle. Celui de
