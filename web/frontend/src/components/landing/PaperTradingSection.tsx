@@ -26,7 +26,7 @@ const STEPS = [
 const CSS_FIL = `.cap-pt{--p:0}
 .cap-pt-fil{transform:scaleY(var(--p))}
 .cap-pt-etape{--q:clamp(0,(var(--p) - var(--s)) * 7 + 1,1)}
-.cap-pt-texte{opacity:calc(.38 + var(--q) * .62);transform:translate3d(calc((1 - var(--q)) * 14px),0,0)}
+.cap-pt-texte{opacity:calc(.6 + var(--q) * .4);transform:translate3d(calc((1 - var(--q)) * 14px),0,0)}
 .cap-pt-point{opacity:var(--q);transform:scale(calc(.3 + var(--q) * .7))}
 .cap-pt-onde{opacity:var(--q)}
 @keyframes cap-pt-onde{0%{transform:scale(.6);opacity:.7}100%{transform:scale(2.6);opacity:0}}

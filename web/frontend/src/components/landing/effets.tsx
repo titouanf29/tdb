@@ -2,7 +2,7 @@
 
 import { Fragment, useEffect, useRef, useState } from "react";
 import { motion, useInView, useMotionValue, useMotionValueEvent, useScroll, useSpring, useTransform, type MotionValue, type Variants } from "framer-motion";
-import { useAnimationsEnabled } from "@/components/design-system";
+import { Nimbo, useAnimationsEnabled } from "@/components/design-system";
 import { NuageImage } from "@/components/design-system/NuageImage";
 import { useMouvementReduit } from "@/components/design-system/useMouvementReduit";
 
@@ -121,7 +121,7 @@ function cssEnvol(): string {
   // L'invitation.
   r.push(`@keyframes cv-invite{0%,100%{transform:translate3d(0,0,0);opacity:.55}50%{transform:translate3d(0,6px,0);opacity:1}}`);
   r.push(`.cv-fleche{animation:cv-invite 1.8s ease-in-out infinite}`);
-  r.push(`@keyframes cv-apparait{from{opacity:0;transform:translate3d(0,10px,0)}to{opacity:1;transform:none}}.cv-invitation{animation:cv-apparait .8s ease-out .6s both}`);
+  r.push(`@keyframes cv-apparait{from{opacity:0;transform:translate3d(0,10px,0)}to{opacity:1;transform:none}}.cv-invitation{animation:cv-apparait .7s ease-out .25s both}`);
   r.push(`.ciel-rideau.vol .cv-invitation{opacity:0;transition:opacity .25s ease-out;animation:none}`);
   r.push(`.ciel-vu .ciel-rideau{display:none}`);
   return r.join("");
@@ -176,6 +176,10 @@ export function OuvertureDuCiel() {
     window.addEventListener("keydown", surTouche);
     window.addEventListener("pointerdown", lance);
     bouton.current?.focus({ preventScroll: true });
+    // LE CIEL S'OUVRE DE LUI-MÊME. Attendre un geste laissait le visiteur
+    // devant un écran de nuages sans message : beaucoup ne cliquaient pas.
+    // Un court instant pour voir Nimbo, puis la traversée part seule.
+    minuteries.push(setTimeout(lance, 2600));
     return () => {
       window.removeEventListener("wheel", surRoue);
       window.removeEventListener("touchmove", surToucher);
@@ -210,6 +214,16 @@ export function OuvertureDuCiel() {
             </div>
           </div>
         ))}
+        {/* Nimbo et le nom, au milieu des nuages : on sait tout de suite où
+            l'on arrive. */}
+        <div className="cv-invitation pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-4 pb-[8vh]">
+          <Nimbo humeur="salue" taille={132} label="" />
+          <p className="text-[clamp(1.8rem,4vw,2.6rem)] font-semibold tracking-[-0.03em]"
+            style={{ fontFamily: "var(--cap-font-display)", color: "var(--cap-ink)" }}>
+            CaptenTDB
+          </p>
+          <p className="text-[0.95rem]" style={{ color: "var(--cap-ink-2)" }}>Les marchés, au-dessus des nuages.</p>
+        </div>
         {/* L'invitation : un vrai bouton, pour le clavier et les lecteurs d'écran. */}
         <div className="cv-invitation absolute inset-x-0 bottom-[9vh] flex flex-col items-center gap-3">
           <button ref={bouton} type="button"
@@ -217,7 +231,7 @@ export function OuvertureDuCiel() {
             style={{ color: "var(--cap-ink)", backgroundColor: "rgba(255,255,255,0.55)", boxShadow: "inset 0 0 0 1px var(--cap-line)" }}>
             Découvrir CaptenTDB
           </button>
-          <span className="text-[0.8rem]" style={{ color: "var(--cap-ink-2)" }}>ou faites défiler</span>
+          <span className="text-[0.8rem]" style={{ color: "var(--cap-ink-2)" }}>ou patientez une seconde</span>
           <svg aria-hidden className="cv-fleche" width="18" height="18" viewBox="0 0 24 24" fill="none"
             stroke="var(--cap-ink-2)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
             <path d="M6 9l6 6 6-6" />
@@ -254,7 +268,7 @@ export function PremierPlan() {
   const montee = useTransform(scrollY, [0, 900], [0, -420]);
   if (!actifs) return null;
   return (
-    <motion.div aria-hidden className="pointer-events-none absolute inset-x-0 top-[84vh] z-20 h-[60vh] sm:top-[70vh]"
+    <motion.div aria-hidden className="pointer-events-none absolute inset-x-0 top-[100svh] z-20 h-[60vh] lg:top-[94vh]"
       style={{ y: montee, willChange: "transform" }}>
       {/* La lente dérive est une animation CSS : elle tourne sur la carte
           graphique, sans occuper le JavaScript de la page. */}

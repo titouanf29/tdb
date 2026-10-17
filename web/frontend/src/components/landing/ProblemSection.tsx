@@ -1,7 +1,7 @@
 "use client";
 
 import {
-  Atmosphere, Container, Eyebrow, Heading, Section, Text,
+  Atmosphere, Container, Eyebrow, Heading, Nimbo, Section, Text,
 } from "@/components/design-system";
 import { Reveal } from "./effets";
 import { MotsAuScroll, NuageDeDonnees } from "./animations";
@@ -39,7 +39,20 @@ export function ProblemSection() {
 
           {/* Des lectures éparpillées qui rejoignent leur famille au fil du
               défilement : le bruit devient une grille de lecture. */}
-          <NuageDeDonnees />
+          <div>
+            <NuageDeDonnees />
+            {/* La réponse au problème, juste sous le bruit : quelqu'un trie. */}
+            <Reveal delay={0.2}>
+              <div className="mt-10 flex items-center gap-4 rounded-[var(--cap-r-lg)] p-4 sm:p-5"
+                style={{ backgroundColor: "color-mix(in srgb, var(--cap-surface) 80%, transparent)", boxShadow: "inset 0 0 0 1px var(--cap-line), var(--cap-shadow-md, 0 8px 24px rgba(11,23,38,0.08))" }}>
+                <Nimbo humeur="reflechit" taille={84} label="Nimbo" className="-my-2 shrink-0" />
+                <Text size="small" tone="ink">
+                  Je regarde ces quatre familles pour vous, sur chaque actif — et je vous dis lesquelles comptent
+                  aujourd&apos;hui, en une phrase.
+                </Text>
+              </div>
+            </Reveal>
+          </div>
         </div>
       </Container>
     </Section>

@@ -1,7 +1,7 @@
 "use client";
 
 import {
-  Atmosphere, CloudBank, LiveBackdrop, Button, Container, Course, Heading, Section, Text,
+  Atmosphere, CloudBank, LiveBackdrop, Button, Container, Heading, Nimbo, Section, Text,
 } from "@/components/design-system";
 import { Aimant, Bouffees, Reveal } from "./effets";
 import { MotsAuScroll, useProgressionCSS } from "./animations";
@@ -35,22 +35,31 @@ export function ClosingSection() {
         </div>
       </div>
       <Container width="text" className="relative text-center">
-        <Heading level="display" as="p">
+        {/* Nimbo accueille à la fin comme il guide ensuite dans le site : le
+            dernier écran donne un visage à l'invitation. */}
+        <Reveal className="mx-auto w-fit">
+          <Nimbo humeur="salue" taille={150} label="Nimbo vous attend" />
+        </Reveal>
+        <Heading level="display" as="p" className="mt-6">
           <MotsAuScroll texte="Comprendre avant d'agir." />
         </Heading>
 
-        <Reveal delay={0.1} className="mx-auto mt-10 max-w-[22rem]">
-          <Course height={90} delay={0.3} />
+        <Reveal delay={0.1}>
+          <Text size="lead" className="mx-auto mt-6 max-w-[30rem]">
+            10 000 € virtuels, de vrais marchés, et Nimbo pour vous expliquer chaque décision.
+            Une minute pour créer votre espace.
+          </Text>
         </Reveal>
 
-        <Reveal delay={0.16} className="mt-10">
+        <Reveal delay={0.16} className="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row">
           <Aimant>
             <Bouffees>
               <Button href="/register" size="lg">
-                Créer mon espace
+                Créer mon espace gratuit
               </Button>
             </Bouffees>
           </Aimant>
+          <Button href="/login" variant="secondary" size="lg">J&apos;ai déjà un compte</Button>
         </Reveal>
 
         <Reveal delay={0.22}>
