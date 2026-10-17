@@ -4,7 +4,7 @@
  * en capitales espacées : c'est la tenue par défaut de mille sites générés,
  * et elle se reconnaît au premier coup d'œil. Cette page a la sienne —
  * une serif éditoriale chaleureuse pour les titres (Fraunces), une sans-serif
- * douce pour le texte (Plus Jakarta Sans), des boutons en pilule à l'ambre
+ * douce pour le texte (Plus Jakarta Sans), des boutons à l'encre et au point ambre
  * du logo, et des étiquettes en italique, comme une légende de magazine.
  *
  * Tout est scopé sous .vitrine : l'application garde son style. */
@@ -59,41 +59,58 @@
   background: var(--vitrine-ambre);
 }
 
-/* Les boutons : des pilules. Le principal à l'ambre du logo, le second en
-   verre dépoli sur le ciel. Une flèche glisse au survol. */
+/* LES BOUTONS, D'APRÈS LE LOGO.
+ *
+ * La pilule orange en dégradé ressemblait au bouton d'achat d'un grand site
+ * marchand. Ici, le bouton principal est à l'encre bleu nuit du logo,
+ * précédé de son point ambre — le soleil au-dessus de la montagne. Au
+ * survol, le point s'allume et la flèche avance. Le second n'est pas une
+ * boîte : c'est un lien éditorial, souligné d'ambre. */
 .vitrine [data-btn] {
-  border-radius: 999px !important;
+  letter-spacing: 0 !important;
   font-weight: 600 !important;
-  letter-spacing: -0.005em;
-  transition: transform 0.25s cubic-bezier(.2,.8,.2,1), box-shadow 0.25s ease, background-color 0.25s ease, filter 0.25s ease !important;
+  transition: transform .25s cubic-bezier(.2,.8,.2,1), box-shadow .25s ease, background-color .25s ease, color .25s ease !important;
 }
 .vitrine [data-btn="primary"] {
-  background: linear-gradient(180deg, var(--vitrine-ambre-clair), var(--vitrine-ambre)) !important;
-  color: var(--vitrine-nuit) !important;
-  box-shadow: 0 1px 0 rgba(255,255,255,.55) inset, 0 10px 24px -10px rgba(196,132,28,.65) !important;
+  border-radius: 14px !important;
+  background: var(--vitrine-nuit) !important;
+  color: #f6f2ea !important;
+  padding-left: 1.35rem !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.08), 0 14px 30px -16px rgba(11,23,38,.7) !important;
 }
-.vitrine [data-btn="primary"]:hover {
-  transform: translateY(-2px);
-  filter: brightness(1.03);
-  box-shadow: 0 1px 0 rgba(255,255,255,.6) inset, 0 16px 32px -12px rgba(196,132,28,.75) !important;
+.vitrine [data-btn="primary"]::before {
+  content: "";
+  width: .55rem; height: .55rem; border-radius: 99px; flex: none;
+  background: var(--vitrine-ambre);
+  box-shadow: 0 0 0 0 rgba(229,168,58,.0);
+  transition: transform .3s cubic-bezier(.2,.8,.2,1), box-shadow .3s ease;
 }
 .vitrine [data-btn="primary"]::after {
   content: "→";
   display: inline-block;
-  margin-left: 0.15rem;
-  transition: transform 0.25s cubic-bezier(.2,.8,.2,1);
+  color: var(--vitrine-ambre-clair);
+  transition: transform .25s cubic-bezier(.2,.8,.2,1);
 }
+.vitrine [data-btn="primary"]:hover { transform: translateY(-1px); box-shadow: inset 0 1px 0 rgba(255,255,255,.1), 0 18px 34px -16px rgba(11,23,38,.8) !important; }
+.vitrine [data-btn="primary"]:hover::before { transform: scale(1.35); box-shadow: 0 0 14px 3px rgba(229,168,58,.55); }
 .vitrine [data-btn="primary"]:hover::after { transform: translateX(4px); }
+
 .vitrine [data-btn="secondary"] {
-  background: rgba(255,255,255,.6) !important;
-  backdrop-filter: blur(8px);
-  box-shadow: inset 0 0 0 1px rgba(11,23,38,.12), 0 6px 18px -12px rgba(11,23,38,.25) !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  padding-left: .25rem !important; padding-right: .25rem !important;
+  color: var(--cap-ink) !important;
+  text-decoration: underline;
+  text-decoration-color: var(--vitrine-ambre);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 7px;
 }
-.vitrine [data-btn="secondary"]:hover { transform: translateY(-2px); background: rgba(255,255,255,.85) !important; }
-.vitrine [data-btn="quiet"] { border-radius: 999px !important; }
+.vitrine [data-btn="secondary"]:hover { color: var(--cap-ocean) !important; text-underline-offset: 9px; }
+.vitrine [data-btn="quiet"] { border-radius: 10px !important; }
 
 /* La barre du haut : le bouton « Commencer » suit la même règle. */
-.vitrine header [data-btn] { height: 2.5rem; }
+.vitrine header [data-btn] { height: 2.5rem; border-radius: 12px !important; }
 
 @media (prefers-reduced-motion: reduce) {
   .vitrine [data-btn], .vitrine [data-btn]::after { transition: none !important; }
