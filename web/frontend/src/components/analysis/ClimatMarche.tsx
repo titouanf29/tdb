@@ -25,13 +25,13 @@ export function ClimatMarche({ climat }: { climat: Analysis["climat_marche"] }) 
     <Panel
       repliable="climat"
       title="Le climat des marchés"
-      hint="Contexte à lire — n'entre pas dans le score : mesuré, il n'améliorait pas les signaux de façon stable."
+      hint="Contexte à lire, n'entre pas dans le score : mesuré, il n'améliorait pas les signaux de façon stable."
       aside={<Gauge aria-hidden className="h-4 w-4" style={{ color: "var(--cap-ink-3)" }} />}
     >
       <div className="cap-liste grid gap-6 sm:grid-cols-2">
         {climat.vix && (
           <Tuile
-            titre="La peur — VIX"
+            titre="La peur, VIX"
             m={climat.vix}
             valeur={fr(climat.vix.niveau, 1)}
             variation={`${climat.vix.variation_20 >= 0 ? "+" : ""}${fr(climat.vix.variation_20, 1)} pt sur un mois`}
@@ -40,7 +40,7 @@ export function ClimatMarche({ climat }: { climat: Analysis["climat_marche"] }) 
         )}
         {climat.taux_10ans && (
           <Tuile
-            titre="Le prix de l'argent — taux US 10 ans"
+            titre="Le prix de l'argent, taux US 10 ans"
             m={climat.taux_10ans}
             valeur={`${fr(climat.taux_10ans.niveau, 2)} %`}
             variation={`${(climat.taux_10ans.variation_20_pb ?? 0) >= 0 ? "+" : ""}${climat.taux_10ans.variation_20_pb ?? 0} pb sur un mois`}

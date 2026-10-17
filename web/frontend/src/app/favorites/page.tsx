@@ -128,7 +128,7 @@ export default function FavoritesPage() {
             <Text className="mt-2.5 max-w-[34rem]">
               {favorites.length === 0
                 ? "Les actifs que vous suivez apparaîtront ici, avec leur variation du jour."
-                : `${favorites.length} actif${favorites.length > 1 ? "s" : ""} suivi${favorites.length > 1 ? "s" : ""} — ${up} en hausse, ${down} en baisse.`}
+                : `${favorites.length} actif${favorites.length > 1 ? "s" : ""} suivi${favorites.length > 1 ? "s" : ""}, ${up} en hausse, ${down} en baisse.`}
             </Text>
           </div>
           <Button onClick={() => setAdding(true)} size="md">
@@ -171,7 +171,7 @@ export default function FavoritesPage() {
           {favorites.length === 0 ? (
             <EmptyState
               title="Aucun actif suivi"
-              description="Ajoutez une action, une crypto ou un indice — vous le retrouverez ici et sur votre accueil."
+              description="Ajoutez une action, une crypto ou un indice, vous le retrouverez ici et sur votre accueil."
               action={{ label: "Suivre un actif", onClick: () => setAdding(true) }}
             />
           ) : (
@@ -226,7 +226,7 @@ export default function FavoritesPage() {
       <Modal open={adding} onClose={() => setAdding(false)} title="Suivre un actif">
         <Heading level={3}>Suivre un actif</Heading>
         <Text size="small" className="mt-2">
-          Entrez son symbole — AAPL pour Apple, BTC-USD pour Bitcoin, MC.PA pour
+          Entrez son symbole, AAPL pour Apple, BTC-USD pour Bitcoin, MC.PA pour
           LVMH.
         </Text>
 

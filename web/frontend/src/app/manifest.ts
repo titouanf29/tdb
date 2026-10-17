@@ -10,7 +10,7 @@ import type { MetadataRoute } from "next";
  */
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "CaptenTDB — apprendre le trading",
+    name: "CaptenTDB · apprendre le trading",
     short_name: "CaptenTDB",
     description: "Apprendre le trading sans risquer un euro, avec Nimbo.",
     lang: "fr",

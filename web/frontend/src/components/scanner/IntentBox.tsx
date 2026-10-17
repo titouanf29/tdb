@@ -149,7 +149,7 @@ export function IntentBox({
                 <Text size="small">
                   Je n&apos;ai rien reconnu dans cette phrase. Précisez une durée
                   (« sur 3 semaines »), un sens (« long », « short ») ou une zone
-                  (« Europe », « crypto ») — ou réglez directement ci-dessous.
+                  (« Europe », « crypto »), ou réglez directement ci-dessous.
                 </Text>
               )}
             </div>

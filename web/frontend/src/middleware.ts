@@ -18,7 +18,7 @@ const SESSION_COOKIE = "tdb_sess";
    The previous lock was a component: the server still sent the real page and
    the browser swapped in a maintenance screen once the JavaScript had loaded
    and /api/status had answered. So the actual HTML of the site went out to
-   everyone — visible with JavaScript off, in "view source", to any scraper,
+   everyone, visible with JavaScript off, in "view source", to any scraper,
    and for the second or two before the check returned. On top of that the
    landing page is statically generated and CDN-cached (x-nextjs-cache: HIT),
    so it was served without the app ever running.

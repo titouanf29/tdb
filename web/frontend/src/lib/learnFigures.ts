@@ -14,7 +14,7 @@ export const MODULE_FIGURES: Module = {
   id: "figures-chartistes",
   title: "Les figures chartistes, sans légende",
   description:
-    "Double sommet, épaule-tête-épaule, triangles, drapeaux : les reconnaître, comprendre ce qu'elles promettent — et voir ce qu'elles ont vraiment donné sur dix ans de données.",
+    "Double sommet, épaule-tête-épaule, triangles, drapeaux : les reconnaître, comprendre ce qu'elles promettent, et voir ce qu'elles ont vraiment donné sur dix ans de données.",
   icon: "📐",
   color: "from-primary/20 to-neon-cyan/20 border-primary/30",
   level: "all",
@@ -29,22 +29,22 @@ export const MODULE_FIGURES: Module = {
         "Elle n'existe qu'une fois CASSÉE : avant, ce n'est qu'un dessin",
         "La seule question qui compte : fait-elle mieux que le hasard ?",
         "Le hasard n'est pas 50 % : sur un marché haussier, le prix monte déjà plus souvent qu'il ne baisse",
-        "Une vidéo montre les figures qui ont marché — jamais celles qui ont échoué",
+        "Une vidéo montre les figures qui ont marché, jamais celles qui ont échoué",
       ],
-      content: `Sur les réseaux, la scène est toujours la même : un graphique, une forme surlignée — deux sommets, une « tête » entre deux « épaules », un triangle — puis une flèche, et le prix qui part exactement dans le sens annoncé. C'est convaincant, et c'est fait pour.
+      content: `Sur les réseaux, la scène est toujours la même : un graphique, une forme surlignée, deux sommets, une « tête » entre deux « épaules », un triangle, puis une flèche, et le prix qui part exactement dans le sens annoncé. C'est convaincant, et c'est fait pour.
 
 Une **figure chartiste** est une forme que le prix dessine sur un graphique, à laquelle on associe une suite probable. Le double sommet « annonce » une baisse, le double creux une hausse, et ainsi de suite. Ces figures ont des noms, des règles de tracé, et un siècle d'histoire.
 
 **Quatre choses que les vidéos ne disent pas.**
 
-• **Une figure n'existe qu'au moment où elle casse.** Deux sommets à la même hauteur, c'est un dessin. Ça devient un double sommet quand le prix passe sous le creux qui les sépare — la « ligne de cou ». Avant, la moitié des « doubles sommets » deviennent autre chose.
-• **Une figure peut être annulée avant d'être confirmée.** Si le prix repasse au-dessus des deux sommets avant de casser la ligne de cou, il n'y a plus de double sommet — même si la ligne finit par céder des mois plus tard. Notre propre détecteur a fait cette erreur au début : il « trouvait » des figures déjà mortes. Corrigé, il en trouve un tiers de moins… et la conclusion reste la même.
+• **Une figure n'existe qu'au moment où elle casse.** Deux sommets à la même hauteur, c'est un dessin. Ça devient un double sommet quand le prix passe sous le creux qui les sépare, la « ligne de cou ». Avant, la moitié des « doubles sommets » deviennent autre chose.
+• **Une figure peut être annulée avant d'être confirmée.** Si le prix repasse au-dessus des deux sommets avant de casser la ligne de cou, il n'y a plus de double sommet, même si la ligne finit par céder des mois plus tard. Notre propre détecteur a fait cette erreur au début : il « trouvait » des figures déjà mortes. Corrigé, il en trouve un tiers de moins… et la conclusion reste la même.
 • **On ne vous montre que celles qui ont marché.** Une vidéo sélectionne. Pour chaque figure qui a « prédit » la suite, il y en a d'autres, jamais filmées, qui ont fait l'inverse.
 • **Le bon repère n'est pas 50 %.** Sur les dix dernières années, le prix de nos 31 actifs a monté 58,8 % du temps à 20 séances. Une figure haussière qui « réussit » 58 % du temps ne fait donc RIEN : c'est la tendance du marché, pas la figure.
 
 **Ce que ce cours fait différemment.** Pour chaque figure : sa forme, ses repères, ce qu'elle promet — puis ce qu'elle a réellement donné. Nous avons détecté plus de 1 500 figures confirmées sur 31 actifs (actions, indices, matières premières, devises, crypto) et dix ans de données, et compté ce qui s'est passé après chacune.
 
-Nous avons aussi vérifié notre propre outil. Sur des séries fabriquées au hasard — où, par construction, rien ne peut être prédit — notre détecteur trouve autant de figures que sur les vrais marchés, et elles « réussissent » exactement une fois sur deux. C'est la preuve que la détection ne triche pas en regardant l'avenir. Et c'est déjà une leçon : **le hasard dessine ces formes tout seul**.
+Nous avons aussi vérifié notre propre outil. Sur des séries fabriquées au hasard, où, par construction, rien ne peut être prédit, notre détecteur trouve autant de figures que sur les vrais marchés, et elles « réussissent » exactement une fois sur deux. C'est la preuve que la détection ne triche pas en regardant l'avenir. Et c'est déjà une leçon : **le hasard dessine ces formes tout seul**.
 
 [[mesure:tableau]]
 
@@ -85,7 +85,7 @@ La suite du cours prend les figures une par une. Retenez déjà la colonne de dr
         "La ligne de cou passe par le point intermédiaire ; sa cassure confirme",
         "Objectif théorique : la hauteur de la figure, reportée depuis la cassure",
         "Invalidation : un retour au-delà des deux sommets (ou sous les deux creux)",
-        "Les plus fréquentes — et elles ne battent pas le hasard",
+        "Les plus fréquentes, et elles ne battent pas le hasard",
       ],
       content: `Ce sont les figures les plus fréquentes, et celles qu'on voit le plus souvent en vidéo.
 
@@ -93,7 +93,7 @@ La suite du cours prend les figures une par une. Retenez déjà la colonne de dr
 
 **Le double sommet** (on dit aussi « M ») : le prix monte, recule, remonte jusqu'au même niveau sans le dépasser, puis redescend. L'idée derrière : les acheteurs ont échoué deux fois au même endroit, ils abandonnent.
 
-• **Les deux sommets** doivent être proches — dans notre détecteur, moins de 3 % d'écart.
+• **Les deux sommets** doivent être proches, dans notre détecteur, moins de 3 % d'écart.
 • **Le creux** entre les deux doit être franc : un retour d'au moins 2,5 %. Sans lui, ce n'est qu'une hésitation.
 • **La ligne de cou** passe par ce creux. Tant qu'elle n'est pas cassée, rien n'est confirmé.
 • **L'objectif théorique** : la hauteur entre les sommets et le creux, reportée vers le bas depuis la cassure.
@@ -146,7 +146,7 @@ Autrement dit : quand vous voyez un double creux, vous savez qu'il y a eu deux c
         "La ligne de cou relie les deux creux ; elle peut être inclinée",
         "Objectif : la hauteur tête–ligne de cou, reportée depuis la cassure",
         "Invalidation : un retour au-dessus de la tête",
-        "La plus célèbre des figures — et aucun avantage mesurable",
+        "La plus célèbre des figures, et aucun avantage mesurable",
       ],
       content: `C'est la figure la plus célèbre, celle qu'on cite comme le « signal de retournement » par excellence.
 
@@ -154,7 +154,7 @@ Autrement dit : quand vous voyez un double creux, vous savez qu'il y a eu deux c
 
 **L'épaule-tête-épaule** (ETE) : trois sommets. Celui du milieu, la **tête**, dépasse nettement les deux autres, les **épaules**, qui sont à peu près à la même hauteur. Entre eux, deux creux.
 
-• **La ligne de cou** relie les deux creux. Elle n'est pas forcément horizontale — et la forcer à l'horizontale fait rater la moitié des cas réels.
+• **La ligne de cou** relie les deux creux. Elle n'est pas forcément horizontale, et la forcer à l'horizontale fait rater la moitié des cas réels.
 • **La confirmation** : une clôture sous la ligne de cou, prolongée jusqu'au jour de la cassure.
 • **L'objectif** : la distance entre la tête et la ligne de cou, reportée vers le bas.
 • **L'invalidation** : un retour au-dessus de la tête.
@@ -203,9 +203,9 @@ L'histoire qu'on raconte : le marché fait un dernier sommet plus haut (la tête
       duration: "7 min",
       keyPoints: [
         "Deux droites qui se rapprochent : le prix se comprime",
-        "Ascendant : plafond plat, creux qui montent — réputé haussier",
-        "Descendant : plancher plat, sommets qui baissent — réputé baissier",
-        "Symétrique : les deux côtés convergent — c'est la sortie qui donne le sens",
+        "Ascendant : plafond plat, creux qui montent, réputé haussier",
+        "Descendant : plancher plat, sommets qui baissent, réputé baissier",
+        "Symétrique : les deux côtés convergent, c'est la sortie qui donne le sens",
         "Le triangle ascendant a semblé marcher… puis la vérification l'a démenti",
       ],
       content: `Un triangle, c'est un marché qui se comprime : les mouvements rétrécissent, jusqu'à ce que le prix sorte d'un côté.
@@ -336,7 +336,7 @@ Regardez la dernière ligne : son objectif est rarement atteint avant son invali
 • **Devant tout pourcentage de réussite, demandez le taux de base.** « 60 % de réussite » ne veut rien dire sur un marché qui monte déjà 59 % du temps.
 • **Demandez sur combien de cas, et sur quelle période.** Dix exemples choisis ne prouvent rien ; mille cas sur une seule année haussière non plus.
 • **Méfiez-vous des objectifs.** Même dans le « bon » sens, le prix atteint rarement l'objectif théorique avant l'invalidation.
-• **Testez vous-même.** Dans le Wallet, ouvrez des positions sur des figures que vous repérez, notez-les dans le Journal, et regardez le bilan après une vingtaine de trades. C'est exactement ce que nous avons fait — à plus grande échelle.
+• **Testez vous-même.** Dans le Wallet, ouvrez des positions sur des figures que vous repérez, notez-les dans le Journal, et regardez le bilan après une vingtaine de trades. C'est exactement ce que nous avons fait, à plus grande échelle.
 
 **Dans l'Analyse**, le graphique commenté dessine les figures qu'il trouve sur la période affichée, et écrit à côté ce qu'elles ont donné. Vous pouvez les masquer d'un clic. Vous savez maintenant comment lire ce qui est écrit dessous.`,
       quiz: [

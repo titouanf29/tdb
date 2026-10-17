@@ -14,7 +14,7 @@ export const MODULE_EXPLANATIONS: Record<string, ModuleExplanation> = {
     tip: "💡 Regarde toujours la tendance sur un timeframe supérieur avant d'analyser en détail.",
   },
   "rsi-panel": {
-    title: "📈 RSI — Relative Strength Index",
+    title: "📈 RSI, Relative Strength Index",
     simple: "Le RSI mesure la 'fatigue' du marché. Au-dessus de 70 = trop de monde a acheté (suracheté). En-dessous de 30 = trop de monde a vendu (survendu). La correction est souvent proche.",
     standard: "RSI 14 périodes. Oscillateur normalisé 0-100. Cherche surtout les divergences RSI/prix : prix monte mais RSI baisse = signal de faiblesse. Très puissant en tendance latérale.",
     tip: "💡 Ne trade pas uniquement sur le RSI. Combine-le avec un support/résistance ou une EMA.",
@@ -24,7 +24,7 @@ export const MODULE_EXPLANATIONS: Record<string, ModuleExplanation> = {
     title: "📊 Volume",
     simple: "Le volume = le nombre de personnes qui ont acheté/vendu. Grand mouvement + gros volume = signal fiable. Grand mouvement + petit volume = méfiance, le mouvement peut être faux.",
     standard: "Confirme la validité des mouvements. Un breakout avec volume élevé = confirmation forte. Divergence prix/volume = signal de retournement potentiel.",
-    tip: "💡 Un breakout sans volume c'est comme un feu d'artifice mouillé — attends la confirmation.",
+    tip: "💡 Un breakout sans volume c'est comme un feu d'artifice mouillé, attends la confirmation.",
     learnMoreUrl: "/learn/glossaire",
   },
   "asset-selector": {

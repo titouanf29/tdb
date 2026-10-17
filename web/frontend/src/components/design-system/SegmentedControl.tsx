@@ -9,9 +9,9 @@ import { useMouvementReduit } from "./useMouvementReduit";
 /**
  * A row of mutually exclusive choices.
  *
- * The selected state is a single filled shape that slides between options —
- * one object moving, rather than several lighting up. Slightly rounded, never
- * a set of capsules.
+ * Pas de bac gris à pastilles, la tenue par défaut des kits d'interface :
+ * les options sont des mots, et un trait ambre glisse sous celle qui est
+ * choisie, comme sous les liens de la page de présentation.
  */
 export function SegmentedControl<T extends string>({
   options,
@@ -31,14 +31,14 @@ export function SegmentedControl<T extends string>({
   const layoutId = useId();
   const reduce = useMouvementReduit();
 
-  const pad = size === "sm" ? "px-3 h-8 text-[0.82rem]" : "px-4 h-10 text-[0.9rem]";
+  const pad = size === "sm" ? "px-2 h-9 text-[0.85rem]" : "px-2.5 h-11 text-[0.93rem]";
 
   return (
     <div
       role="tablist"
       aria-label={ariaLabel}
-      className={cn("inline-flex gap-1 rounded-[10px] p-1", className)}
-      style={{ backgroundColor: "var(--cap-surface-2)" }}
+      className={cn("inline-flex flex-wrap gap-x-3 border-b", className)}
+      style={{ borderColor: "var(--cap-line)" }}
     >
       {options.map((opt) => {
         const active = opt.value === value;
@@ -63,19 +63,16 @@ export function SegmentedControl<T extends string>({
             aria-selected={active}
             onClick={() => onChange(opt.value)}
             className={cn(
-              "relative rounded-[7px] font-medium transition-colors duration-200",
+              "relative transition-colors duration-200 hover:text-[color:var(--cap-ink)]",
               pad
             )}
-            style={{ color: active ? "var(--cap-ink)" : "var(--cap-ink-3)" }}
+            style={{ color: active ? "var(--cap-ink)" : "var(--cap-ink-3)", fontWeight: active ? 600 : 500 }}
           >
             {active && (
               <motion.span
                 layoutId={reduce ? undefined : `seg-${layoutId}`}
-                className="absolute inset-0 rounded-[7px]"
-                style={{
-                  backgroundColor: "var(--cap-surface)",
-                  boxShadow: "0 1px 2px rgba(11,23,38,0.06)",
-                }}
+                className="absolute inset-x-1.5 -bottom-px h-[2px] rounded-full"
+                style={{ backgroundColor: "var(--cap-ambre)" }}
                 transition={{ duration: DUR.quick, ease: EASE }}
               />
             )}

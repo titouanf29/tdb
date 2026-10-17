@@ -15,7 +15,7 @@ function getBeginnerSteps(lang: "fr" | "en"): TourStepDef[] {
       {
         emoji: "👋",
         title: "Welcome to CaptenTDB!",
-        description: "I'm Alex, your trading coach. Let me show you around the platform in 2 minutes — I promise it'll be quick!",
+        description: "I'm Alex, your trading coach. Let me show you around the platform in 2 minutes, I promise it'll be quick!",
       },
       {
         element: "[data-tour='dashboard']",
@@ -61,7 +61,7 @@ function getBeginnerSteps(lang: "fr" | "en"): TourStepDef[] {
       {
         emoji: "🚀",
         title: "Let's go!",
-        description: "Start with the Learning Center to build your foundations. Good luck on the markets — I'll be here if you need me!",
+        description: "Start with the Learning Center to build your foundations. Good luck on the markets, I'll be here if you need me!",
       },
     ];
   }
@@ -70,7 +70,7 @@ function getBeginnerSteps(lang: "fr" | "en"): TourStepDef[] {
     {
       emoji: "👋",
       title: "Bienvenue sur CaptenTDB !",
-      description: "Je suis Alex, votre coach trading. Laissez-moi vous faire découvrir la plateforme en 2 minutes — promis, c'est rapide !",
+      description: "Je suis Alex, votre coach trading. Laissez-moi vous faire découvrir la plateforme en 2 minutes, promis, c'est rapide !",
     },
     {
       element: "[data-tour='dashboard']",
@@ -116,7 +116,7 @@ function getBeginnerSteps(lang: "fr" | "en"): TourStepDef[] {
     {
       emoji: "🚀",
       title: "À vous de jouer !",
-      description: "Commencez par la Formation pour acquérir les bases. Bonne chance sur les marchés — je serai là si vous avez besoin !",
+      description: "Commencez par la Formation pour acquérir les bases. Bonne chance sur les marchés, je serai là si vous avez besoin !",
     },
   ];
 }
@@ -133,7 +133,7 @@ function getIntermediateSteps(lang: "fr" | "en"): TourStepDef[] {
         element: "[data-tour='scanner']",
         emoji: "🔍",
         title: "Advanced Scanner",
-        description: "6 technical indicators simultaneously — RSI, MACD, EMA, Bollinger, Volume, ATR. Filter by market, volatility and signal strength.",
+        description: "6 technical indicators simultaneously, RSI, MACD, EMA, Bollinger, Volume, ATR. Filter by market, volatility and signal strength.",
       },
       {
         element: "[data-tour='analysis']",
@@ -165,7 +165,7 @@ function getIntermediateSteps(lang: "fr" | "en"): TourStepDef[] {
       element: "[data-tour='scanner']",
       emoji: "🔍",
       title: "Scanner avancé",
-      description: "6 indicateurs techniques simultanés — RSI, MACD, EMA, Bollinger, Volume, ATR. Filtrez par marché, volatilité et force de signal.",
+      description: "6 indicateurs techniques simultanés, RSI, MACD, EMA, Bollinger, Volume, ATR. Filtrez par marché, volatilité et force de signal.",
     },
     {
       element: "[data-tour='analysis']",

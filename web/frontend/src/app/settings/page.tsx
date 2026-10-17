@@ -402,7 +402,7 @@ function ExperienceSection() {
     <>
     <Panel
       title="Votre niveau"
-      hint="Il règle la quantité d'information affichée — jamais sa véracité. Tous les niveaux voient les mêmes chiffres."
+      hint="Il règle la quantité d'information affichée, jamais sa véracité. Tous les niveaux voient les mêmes chiffres."
       aside={done ? <Text size="caption" as="span" tone="up">Enregistré.</Text> : undefined}
     >
       {error && <div className="mb-4"><FormError>{error}</FormError></div>}
@@ -547,7 +547,7 @@ function ProfilePanels() {
 
 const RISKS: Option<string>[] = [
   { value: "conservative", label: "Prudent", detail: "0,5 % du capital perdu si le stop est touché. Des positions plus petites, pour durer." },
-  { value: "moderate", label: "Modéré", detail: "1 % du capital par trade — la règle la plus répandue chez les traders." },
+  { value: "moderate", label: "Modéré", detail: "1 % du capital par trade, la règle la plus répandue chez les traders." },
   { value: "aggressive", label: "Agressif", detail: "2 % du capital par trade. Les séries perdantes creusent deux fois plus vite." },
   { value: "very_aggressive", label: "Très agressif", detail: "5 % du capital par trade. Dix pertes d'affilée et il en manque 40 %. À réserver au papier." },
 ];
@@ -619,7 +619,7 @@ function TradingSection() {
 
       <Panel
         title="Votre appétit pour le risque"
-        hint="La part du capital que vous acceptez de perdre si le stop est touché. Elle règle la taille des positions — jamais le stop ni l'objectif, qui dépendent de votre horizon."
+        hint="La part du capital que vous acceptez de perdre si le stop est touché. Elle règle la taille des positions, jamais le stop ni l'objectif, qui dépendent de votre horizon."
         aside={done === "risk" ? <Text size="caption" as="span" tone="up">Enregistré.</Text> : undefined}
       >
         <Choice
@@ -647,7 +647,7 @@ function TradingSection() {
           <Text size="caption" as="span">
             {settings.defaultLeverage === "1"
               ? "Sans levier : vous ne pouvez pas perdre plus que la somme engagée."
-              : `Un mouvement de 1 % devient ${settings.defaultLeverage} % — dans les deux sens.`}
+              : `Un mouvement de 1 % devient ${settings.defaultLeverage} %, dans les deux sens.`}
           </Text>
         </div>
       </Panel>
@@ -965,7 +965,7 @@ function AppearanceSection() {
         />
         <Text size="caption" className="mt-4">
           {capTheme === "system"
-            ? `Suit le réglage de votre appareil — actuellement ${resolved === "dark" ? "sombre" : "clair"}. Il basculera tout seul si votre système le fait.`
+            ? `Suit le réglage de votre appareil, actuellement ${resolved === "dark" ? "sombre" : "clair"}. Il basculera tout seul si votre système le fait.`
             : "S'applique à l'ensemble du site, y compris aux écrans pas encore reconstruits."}
         </Text>
       </Panel>
@@ -973,7 +973,7 @@ function AppearanceSection() {
       <Panel title="Animations" hint="Le ciel de fond et les transitions entre écrans.">
         <Toggle
           label="Afficher le ciel animé"
-          detail="Des nuages traversent l'arrière-plan et la météo suit l'état du marché. Coupez-les si vous préférez une surface calme — l'information reste lisible sans."
+          detail="Des nuages traversent l'arrière-plan et la météo suit l'état du marché. Coupez-les si vous préférez une surface calme, l'information reste lisible sans."
           checked={animOn}
           onChange={setAnimOn}
         />
@@ -990,7 +990,7 @@ function AppearanceSection() {
           désormais pilotés par le seul réglage du haut. */}
       <Panel
         title="Couleur d'accent"
-        hint="Ne s'applique qu'aux écrans qui n'ont pas encore reçu la nouvelle interface — Scanner, Outils, Premium et les pages d'administration."
+        hint="Ne s'applique qu'aux écrans qui n'ont pas encore reçu la nouvelle interface, Scanner, Outils, Premium et les pages d'administration."
       >
         <div className="flex flex-wrap gap-2">
           {(Object.keys(ACCENT_LABEL) as AccentColor[]).map((c) => (

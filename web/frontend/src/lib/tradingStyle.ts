@@ -93,7 +93,7 @@ export const TRADING_STYLES: Record<TradingStyleId, TradingStyleProfile> = {
     tips: {
       fr: [
         "Le spread est votre premier adversaire. Sur 20 trades à 0,05 %, vous avez perdu 1 % avant d'avoir eu raison une seule fois.",
-        "Mesuré sur 40 actifs : en bougies de 5 minutes, avec des frais de 0,1 % par ordre, aucun plan testé n'a été gagnant. Un stop serré (0,6 ATR) fait payer aux frais 5 fois le risque pris — d'où un stop large ici.",
+        "Mesuré sur 40 actifs : en bougies de 5 minutes, avec des frais de 0,1 % par ordre, aucun plan testé n'a été gagnant. Un stop serré (0,6 ATR) fait payer aux frais 5 fois le risque pris, d'où un stop large ici.",
         "Les 30 premières minutes après l'ouverture concentrent le volume. Le reste de la séance, vous payez le spread pour rien.",
         "Un RSI en 5 min repasse sous 30 dix fois par séance. Ce n'est pas un signal, c'est du bruit.",
         "Sortez sur objectif, pas sur espoir. Le trade qui « va revenir » ne revient jamais assez vite.",
@@ -101,7 +101,7 @@ export const TRADING_STYLES: Record<TradingStyleId, TradingStyleProfile> = {
       ],
       en: [
         "Spread is your first opponent. Twenty trades at 0.05% and you're down 1% before being right once.",
-        "Measured on 40 assets: on 5-minute bars, with 0.1% fees per order, no tested plan was profitable. A tight stop (0.6 ATR) makes fees cost 5 times the risk taken — hence a wide stop here.",
+        "Measured on 40 assets: on 5-minute bars, with 0.1% fees per order, no tested plan was profitable. A tight stop (0.6 ATR) makes fees cost 5 times the risk taken, hence a wide stop here.",
         "The first 30 minutes after the open hold the volume. The rest of the session you pay spread for nothing.",
         "A 5-min RSI dips under 30 ten times a session. That's not a signal, that's noise.",
         "Exit on target, not on hope. The trade that's \"coming back\" never comes back fast enough.",
@@ -139,7 +139,7 @@ export const TRADING_STYLES: Record<TradingStyleId, TradingStyleProfile> = {
     fundWeight: 0.05,
     tips: {
       fr: [
-        "Mesuré sur 40 actifs et 2 ans de bougies d'une heure : avec des frais de 0,1 % par ordre, aucun plan testé n'a été gagnant. Un stop serré (1 ATR) laisse aux frais 0,6 fois le risque à chaque trade — d'où un stop large ici.",
+        "Mesuré sur 40 actifs et 2 ans de bougies d'une heure : avec des frais de 0,1 % par ordre, aucun plan testé n'a été gagnant. Un stop serré (1 ATR) laisse aux frais 0,6 fois le risque à chaque trade, d'où un stop large ici.",
         "Le biais du jour se décide avant l'ouverture, pas pendant. Sans plan à 9 h, vous réagissez au lieu de trader.",
         "Le VWAP n'a rien de magique : c'est le prix moyen payé aujourd'hui. Au-dessus, les acheteurs mènent.",
         "Clôturez avant la fin de séance. Garder une position day sur la nuit, c'est changer de métier sans l'avoir décidé.",
@@ -148,7 +148,7 @@ export const TRADING_STYLES: Record<TradingStyleId, TradingStyleProfile> = {
         "Deux bons trades valent mieux que huit corrects. Le sur-trading est la maladie du day trader.",
       ],
       en: [
-        "Measured on 40 assets over 2 years of hourly bars: with 0.1% fees per order, no tested plan was profitable. A tight stop (1 ATR) leaves fees 0.6 times the risk on every trade — hence a wide stop here.",
+        "Measured on 40 assets over 2 years of hourly bars: with 0.1% fees per order, no tested plan was profitable. A tight stop (1 ATR) leaves fees 0.6 times the risk on every trade, hence a wide stop here.",
         "The day's bias is set before the open, not during. Without a plan at 9am you're reacting, not trading.",
         "VWAP isn't magic: it's the average price paid today. Above it, buyers are in charge.",
         "Close before the session ends. Holding a day trade overnight is changing jobs without deciding to.",
@@ -192,7 +192,7 @@ export const TRADING_STYLES: Record<TradingStyleId, TradingStyleProfile> = {
         "Un R/R sous 1:2 ne paie pas en swing : vous immobilisez du capital plusieurs jours pour une miette.",
         "Le gap d'ouverture est le prix à payer du swing. Dimensionnez en pensant au pire lundi matin.",
         "Une figure met des jours à se former. La regarder toutes les heures ne l'accélère pas.",
-        "Si la tendance daily est baissière, un rebond en 4 h reste un rebond — pas un retournement.",
+        "Si la tendance daily est baissière, un rebond en 4 h reste un rebond, pas un retournement.",
       ],
       en: [
         "A position opened the day before a CPI print is a bet, not a trade. Check the calendar before the chart.",
@@ -200,7 +200,7 @@ export const TRADING_STYLES: Record<TradingStyleId, TradingStyleProfile> = {
         "Anything under 1:2 R/R doesn't pay in swing: you tie up capital for days to collect crumbs.",
         "The opening gap is the price of swing trading. Size for the worst Monday morning.",
         "A pattern takes days to form. Checking it hourly doesn't speed it up.",
-        "If the daily trend is down, a 4h bounce is still a bounce — not a reversal.",
+        "If the daily trend is down, a 4h bounce is still a bounce, not a reversal.",
       ],
     },
     accent: "text-neon-purple",

@@ -223,7 +223,7 @@ function LearnScreen() {
             {done === 0
               ? "Vingt-trois leçons, de ce qu'est un marché jusqu'à la gestion du risque. Rien n'est verrouillé : l'ordre est une suggestion, pas une barrière."
               : done === total
-                ? "Vous avez terminé le parcours. Les leçons restent disponibles — relire une leçon après avoir tradé n'est pas la même lecture."
+                ? "Vous avez terminé le parcours. Les leçons restent disponibles, relire une leçon après avoir tradé n'est pas la même lecture."
                 : `${done} leçon${done > 1 ? "s" : ""} sur ${total}. ${xp ? `Niveau ${xp.level}, ${xp.xp} XP.` : ""}`}
           </Text>
         </header>
@@ -330,7 +330,7 @@ function LearnScreen() {
                     Glossaire
                   </span>
                   <span className="mt-0.5 block text-[0.78rem]" style={{ color: "var(--cap-ink-3)" }}>
-                    Chaque terme défini en une phrase — pour le mot croisé en cours de lecture.
+                    Chaque terme défini en une phrase, pour le mot croisé en cours de lecture.
                   </span>
                 </span>
                 <ArrowRight className="h-4 w-4 shrink-0" style={{ color: "var(--cap-ink-4)" }} />
@@ -475,7 +475,7 @@ function LessonView({
 
         <Panel>
           {/* Le schéma d'abord, le texte ensuite. Ces leçons décrivent des
-              formes — un corps de bougie, un palier, un rapport de distances —
+              formes, un corps de bougie, un palier, un rapport de distances,
               et voir la forme avant de lire sa description évite d'avoir à la
               reconstruire mentalement à partir de quatre définitions. */}
           <LessonDiagram lessonKey={`${module.id}/${lesson.id}`} />

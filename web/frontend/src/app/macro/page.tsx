@@ -139,7 +139,7 @@ function Agenda() {
         <Heading level={1} className="mt-3">Agenda macro</Heading>
         <Text className="mt-3">
           Les décisions des banques centrales et les chiffres qui font bouger les marchés. Pour chacun :
-          ce que c&apos;est, ce qui a été annoncé, comment le marché l&apos;a lu — et ce que ça change pour
+          ce que c&apos;est, ce qui a été annoncé, comment le marché l&apos;a lu, et ce que ça change pour
           vos actifs, qui ne réagissent pas tous dans le même sens.
         </Text>
       </header>
@@ -306,7 +306,7 @@ function Fiche({ id }: { id: number }) {
 
       {r ? (
         <Panel
-          title={r.definitif ? "Ce qui a été annoncé" : "Ce qui a été annoncé — lecture provisoire"}
+          title={r.definitif ? "Ce qui a été annoncé" : "Ce qui a été annoncé, lecture provisoire"}
           hint={r.definitif ? undefined : "La première heure après l'annonce : la lecture se précise toutes les cinq minutes."}
           aside={<Landmark size={15} aria-hidden style={{ color: "var(--cap-ink-4)" }} />}
         >
@@ -509,7 +509,7 @@ function Methode({ thermometre }: { thermometre: string | null }) {
         Deux couches. Le <b>mécanisme</b> dit comment une surprise se transmet à chaque famille d&apos;actifs
         (taux, devise, secteur). La <b>mesure</b> vérifie, actif par actif, ce qui s&apos;est réellement passé
         lors de chaque décision depuis 2021 pour la Fed et 2022 pour la BCE. Le marché y dit lui-même si une
-        décision a surpris : on suit {thermometre ?? "un thermomètre de marché"} le jour de l&apos;annonce —
+        décision a surpris : on suit {thermometre ?? "un thermomètre de marché"} le jour de l&apos;annonce,
         s&apos;il monte, la décision a été lue comme plus ferme qu&apos;attendu.
       </Text>
       <Text size="small" className="mt-2">

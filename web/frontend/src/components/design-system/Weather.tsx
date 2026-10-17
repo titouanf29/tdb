@@ -72,7 +72,7 @@ export function useAnimationsEnabled(): [boolean, (v: boolean) => void] {
   useEffect(() => {
     const lire = () => {
       let v = true;
-      try { v = localStorage.getItem(STORAGE_KEY) !== "off"; } catch { /* private mode — keep the default */ }
+      try { v = localStorage.getItem(STORAGE_KEY) !== "off"; } catch { /* private mode, keep the default */ }
       setOn(v);
       // Le réglage de l'appareil compte aussi : la page d'accueil pose déjà
       // la classe dans ce cas, il ne faut pas la retirer.

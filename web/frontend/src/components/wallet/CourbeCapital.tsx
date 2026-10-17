@@ -53,7 +53,7 @@ export function CourbeCapital({ c, money }: { c: CourbeWallet; money: (v: number
   return (
     <Panel
       title="Votre courbe"
-      hint="Le résultat cumulé de vos trades clôturés, frais compris — sans les dépôts ni les remises à zéro du solde."
+      hint="Le résultat cumulé de vos trades clôturés, frais compris, sans les dépôts ni les remises à zéro du solde."
     >
       <div className="flex flex-wrap items-baseline gap-x-8 gap-y-2">
         <span className="cap-num text-[1.6rem] font-semibold leading-none" style={{ color: couleur }}>
@@ -92,7 +92,7 @@ export function CourbeCapital({ c, money }: { c: CourbeWallet; money: (v: number
           <Text size="small" className="mt-2">
             <strong>{c.issues.objectif}</strong> à l&apos;objectif, <strong>{c.issues.stop}</strong> au stop,{" "}
             <strong>{manuelles}</strong> fermé{manuelles > 1 ? "s" : ""} à la main
-            {c.r_moyen != null && <> — {c.r_moyen >= 0 ? "+" : "−"}{fr(Math.abs(c.r_moyen), 2)} R par trade
+            {c.r_moyen != null && <>, {c.r_moyen >= 0 ? "+" : "−"}{fr(Math.abs(c.r_moyen), 2)} R par trade
               {c.trades_avec_stop < c.trades && <> (sur les {c.trades_avec_stop} avec un stop)</>}</>}.
           </Text>
         </div>
@@ -101,7 +101,7 @@ export function CourbeCapital({ c, money }: { c: CourbeWallet; money: (v: number
           <div className="mt-2"><Points s={c.nimbo.sur_dix} label="Nimbo" /></div>
           <Text size="small" className="mt-2">
             {c.nimbo.sur_dix.objectif} à l&apos;objectif, {c.nimbo.sur_dix.stop} au stop, {c.nimbo.sur_dix.echeance} à
-            l&apos;échéance ({c.nimbo.echeance_seances} séances) — +{fr(c.nimbo.r_moyen, 2)} R par trade.{" "}
+            l&apos;échéance ({c.nimbo.echeance_seances} séances), +{fr(c.nimbo.r_moyen, 2)} R par trade.{" "}
             <Link href="/nimbo" className="underline underline-offset-2" style={{ color: "var(--cap-ocean)" }}>
               Son bilan réel
             </Link>

@@ -239,13 +239,16 @@
 
   /* ── Type ─────────────────────────────────────────────────────────────── */
   /* La voix du site : une serif éditoriale pour les titres (Fraunces),
-     une sans-serif douce pour le texte (Plus Jakarta Sans). Les chiffres
-     restent en chasse fixe : sur un écran de marché, les colonnes doivent
-     s'aligner. */
+     une sans-serif douce pour le texte (Plus Jakarta Sans). Les chiffres ne
+     sont plus en police de terminal : « 10 000,00 € » tapé à la machine
+     faisait de chaque écran une console. Ils prennent la sans-serif du texte
+     en chiffres tabulaires, qui s'alignent en colonne tout autant, et la
+     serif quand ils sont grands. */
   --cap-font-display: var(--font-fraunces), Georgia, "Times New Roman", serif;
   --cap-font-text: var(--font-jakarta), var(--font-inter), system-ui, sans-serif;
   --cap-ambre: #e5a83a;
-  --cap-font-num: var(--font-mono), ui-monospace, "SF Mono", Menlo, monospace;
+  --cap-font-num: var(--font-jakarta), var(--font-inter), system-ui, sans-serif;
+  --cap-font-code: var(--font-mono), ui-monospace, "SF Mono", Menlo, monospace;
 }
 
 /* Dark surface for the inverted sections. Scoped, not global: the page owns
@@ -476,8 +479,8 @@ body:has(.cap) {
 /* Figures line up in columns and stop jittering as they animate. */
 .cap-num {
   font-family: var(--cap-font-num);
-  font-variant-numeric: tabular-nums;
-  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums lining-nums;
+  letter-spacing: -0.005em;
 }
 
 /* Le markdown de l'assistant.
@@ -511,7 +514,7 @@ body:has(.cap) {
 .cap-md li > ul, .cap-md li > ol { margin: 0.2em 0; }
 
 .cap-md code {
-  font-family: var(--cap-font-num);
+  font-family: var(--cap-font-code);
   font-size: 0.88em;
   background-color: var(--cap-surface-2);
   border-radius: 4px;
@@ -802,3 +805,42 @@ body:has(.cap) {
 @media (prefers-reduced-motion: reduce) {
   .cap [data-btn="primary"]::before { transition: none; }
 }
+
+/* ── LA FIN DE L'ALLURE « KIT D'INTERFACE » ───────────────────────────────
+   Les grands montants (solde, cours, score) passent en serif, comme les
+   titres : c'est le chiffre qu'on lit en premier sur un écran, il porte la
+   voix du site. Les petits restent en sans-serif tabulaire. */
+.cap .cap-num[class*="text-[clamp"],
+.cap .cap-num[class*="text-[1.9"], .cap .cap-num[class*="text-[2"], .cap .cap-num[class*="text-[3"],
+.cap .cap-num.text-2xl, .cap .cap-num.text-3xl, .cap .cap-num.text-4xl {
+  font-family: var(--cap-font-display);
+  font-variation-settings: "opsz" 72, "SOFT" 50;
+  font-weight: 500 !important;
+  letter-spacing: -0.01em;
+}
+/* Les classes font-mono éparpillées dans les écrans suivent la même règle ;
+   seul le code, dans les réponses de l'assistant, garde sa chasse fixe. */
+.cap .font-mono:not(code):not(pre):not(kbd) {
+  font-family: var(--cap-font-num);
+  font-variant-numeric: tabular-nums lining-nums;
+}
+
+/* Les boutons secondaires ne sont plus des boîtes bordées grises : un lien
+   éditorial, souligné d'ambre, comme sur la page de présentation. */
+.cap [data-btn="secondary"] {
+  box-shadow: none !important;
+  background: transparent !important;
+  padding-left: 0.35rem !important;
+  padding-right: 0.35rem !important;
+  text-decoration: underline;
+  text-decoration-color: var(--cap-ambre);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 6px;
+}
+.cap [data-btn="secondary"]:hover {
+  box-shadow: none !important;
+  background: transparent !important;
+  text-underline-offset: 8px;
+  color: var(--cap-ocean) !important;
+}
+.cap [data-btn="quiet"]:hover { text-decoration: underline; text-decoration-color: var(--cap-line-strong); text-underline-offset: 6px; }

@@ -74,7 +74,7 @@ export function buildReasons(a: Analysis): Reason[] {
 
   if (a.data_quality?.stale) {
     out.push({
-      text: "La dernière bougie est ancienne — le marché est probablement fermé, et les niveaux datent de la dernière séance.",
+      text: "La dernière bougie est ancienne, le marché est probablement fermé, et les niveaux datent de la dernière séance.",
       tone: "warn",
     });
   }
@@ -98,7 +98,7 @@ export function buildReasons(a: Analysis): Reason[] {
             ? "trop peu de cas mesurés pour conclure"
             : `mesurée sur ${f.n_mesure ?? "plusieurs centaines de"} cas, cette figure ne fait pas mieux que le hasard`;
     out.push({
-      text: `${f.nom} (figure repérée ${f.age}) — sans poids dans le score : ${cause}.`,
+      text: `${f.nom} (figure repérée ${f.age}), sans poids dans le score : ${cause}.`,
       tone: "neutral",
     });
   });
@@ -118,7 +118,7 @@ export function buildReasons(a: Analysis): Reason[] {
     named.bearish_signals?.slice(0, 3).forEach((t) => out.push({ text: t, tone: "down" }));
     if (named.bullish_signals?.length && named.bearish_signals?.length) {
       out.push({
-        text: "Des signaux vont dans les deux sens — c'est ce qui limite la confiance du verdict.",
+        text: "Des signaux vont dans les deux sens, c'est ce qui limite la confiance du verdict.",
         tone: "warn",
       });
     }
@@ -142,7 +142,7 @@ export function buildReasons(a: Analysis): Reason[] {
   // The contradiction gets its own line, named.
   if (bullish.length && bearish.length) {
     out.push({
-      text: "Les facteurs se contredisent — c'est ce qui limite la confiance du verdict.",
+      text: "Les facteurs se contredisent, c'est ce qui limite la confiance du verdict.",
       tone: "warn",
     });
   }
@@ -150,9 +150,9 @@ export function buildReasons(a: Analysis): Reason[] {
   // 3. Volume, said only when it is actually notable.
   const vr = a.indicators?.volume_ratio;
   if (typeof vr === "number" && vr >= 1.3) {
-    out.push({ text: `Volume ${fr(vr, 1)}× la moyenne — le mouvement est confirmé par les échanges.`, tone: "up" });
+    out.push({ text: `Volume ${fr(vr, 1)}× la moyenne, le mouvement est confirmé par les échanges.`, tone: "up" });
   } else if (typeof vr === "number" && vr <= 0.6) {
-    out.push({ text: `Volume à ${fr(vr, 1)}× la moyenne — peu d'échanges derrière ce mouvement.`, tone: "warn" });
+    out.push({ text: `Volume à ${fr(vr, 1)}× la moyenne, peu d'échanges derrière ce mouvement.`, tone: "warn" });
   }
 
   // 4. Volatility, relative to this asset's own history rather than absolute.
@@ -160,8 +160,8 @@ export function buildReasons(a: Analysis): Reason[] {
   if (vol?.regime === "EXTREME" || vol?.regime === "HIGH") {
     out.push({
       text: vol.percentile != null
-        ? `Volatilité au ${Math.round(vol.percentile)}ᵉ percentile de son historique — les écarts seront larges.`
-        : "Volatilité élevée pour cet actif — les écarts seront larges.",
+        ? `Volatilité au ${Math.round(vol.percentile)}ᵉ percentile de son historique, les écarts seront larges.`
+        : "Volatilité élevée pour cet actif, les écarts seront larges.",
       tone: "warn",
     });
   }
@@ -174,9 +174,9 @@ export function buildReasons(a: Analysis): Reason[] {
     const toRes = ((res - px) / px) * 100;
     const toSup = ((px - sup) / px) * 100;
     if (toRes >= 0 && toRes < 3) {
-      out.push({ text: `Une résistance est à ${fr(toRes, 1)} % au-dessus — c'est le point de vigilance.`, tone: "warn" });
+      out.push({ text: `Une résistance est à ${fr(toRes, 1)} % au-dessus, c'est le point de vigilance.`, tone: "warn" });
     } else if (toSup >= 0 && toSup < 3) {
-      out.push({ text: `Un support est à ${fr(toSup, 1)} % en dessous — c'est le niveau à surveiller.`, tone: "neutral" });
+      out.push({ text: `Un support est à ${fr(toSup, 1)} % en dessous, c'est le niveau à surveiller.`, tone: "neutral" });
     }
   }
 
@@ -244,7 +244,7 @@ export function edgeSentence(a: Analysis): { text: string; tone: "up" | "down" |
 
   if (!e.fiable) {
     return {
-      text: `Seulement ${e.n_trades} trades comparables dans l'historique (${portee}) — trop peu pour en tirer une statistique.`,
+      text: `Seulement ${e.n_trades} trades comparables dans l'historique (${portee}), trop peu pour en tirer une statistique.`,
       tone: "warn",
     };
   }
@@ -262,7 +262,7 @@ export function edgeSentence(a: Analysis): { text: string; tone: "up" | "down" |
     return {
       text:
         `Sur cet actif, ${e.n_trades} trades comparables ${portee} : ${exp >= 0 ? "+" : "−"}${fr(Math.abs(exp), 2)} R en moyenne. ` +
-        "C'est trop peu pour conclure — à cette échelle, le passé d'un seul actif ne prédit pas son avenir, et ce chiffre ne pèse pas sur le verdict." +
+        "C'est trop peu pour conclure, à cette échelle, le passé d'un seul actif ne prédit pas son avenir, et ce chiffre ne pèse pas sur le verdict." +
         panel,
       tone: "warn",
     };

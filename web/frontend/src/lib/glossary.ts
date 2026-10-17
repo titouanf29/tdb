@@ -73,7 +73,7 @@ const EXTRA_TERMS: Record<string, TooltipDefinition> = {
     learnLink: "/learn",
   },
   "PnL": {
-    simple: "Profit and Loss — vos gains et pertes. PnL positif = vous gagnez, négatif = vous perdez.",
+    simple: "Profit and Loss, vos gains et pertes. PnL positif = vous gagnez, négatif = vous perdez.",
     standard: "PnL réalisé = clôtures. PnL non réalisé = positions ouvertes. PnL net = après frais et commissions.",
     technical: "PnL% = (Exit − Entry) / Entry × 100 × levier. Drawdown = max PnL négatif depuis le dernier pic.",
     example: "Achat BTC à 60k, vente à 63k → PnL = +5% (hors frais).",

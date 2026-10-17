@@ -55,8 +55,8 @@ export function SymbolReview({
       hint={
         perdants > 0
           ? perdants > 1
-            ? `${perdants} actifs vous coûtent de l'argent — ils sont en haut.`
-            : "Un actif vous coûte de l'argent — il est en haut."
+            ? `${perdants} actifs vous coûtent de l'argent, ils sont en haut.`
+            : "Un actif vous coûte de l'argent, il est en haut."
           : "Chaque actif que vous avez tradé, du moins rentable au plus rentable."
       }
     >

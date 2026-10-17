@@ -155,7 +155,7 @@ function PremiumContenu() {
           <Heading level={1}>Premium</Heading>
           <Text className="mt-2.5 max-w-[42rem]">
             Un niveau d&apos;accès, pas un autre produit. Les mêmes écrans, les mêmes
-            analyses — sans les limites que le compte gratuit impose sur ce qui coûte
+            analyses, sans les limites que le compte gratuit impose sur ce qui coûte
             cher à calculer.
           </Text>
         </header>
@@ -168,7 +168,7 @@ function PremiumContenu() {
               <Nimbo humeur="fete" taille={64} className="-my-1 shrink-0" />
               <div>
                 <Text tone="ink">
-                  {abo?.en_cours ? "Bienvenue en Premium — votre abonnement est actif." : "Paiement reçu, j'active votre accès…"}
+                  {abo?.en_cours ? "Bienvenue en Premium, votre abonnement est actif." : "Paiement reçu, j'active votre accès…"}
                 </Text>
                 <Text size="caption" className="mt-1">
                   Un e-mail de confirmation vous a été envoyé, avec les conditions et le droit de rétractation.
@@ -213,7 +213,7 @@ function PremiumContenu() {
           title={comparer ? "Ce qui change, ligne par ligne" : "Ce que l'accès Premium ouvrira"}
           hint={
             comparer
-              ? "Les chiffres sont lus sur le serveur qui les fait respecter — pas recopiés ici."
+              ? "Les chiffres sont lus sur le serveur qui les fait respecter, pas recopiés ici."
               : "Tant que l'abonnement n'est pas ouvert, ces limites ne s'appliquent à personne : tous les comptes ont l'accès complet."
           }
         >
@@ -285,7 +285,7 @@ function Offre({ prixCentimes, essai }: { prixCentimes: number; essai: boolean }
       {essai && (
         <p className="mb-4 rounded-[10px] px-3 py-2 text-[0.8rem]"
           style={{ backgroundColor: "color-mix(in srgb, var(--cap-amber) 12%, transparent)", color: "var(--cap-ink)" }}>
-          Mode test Stripe — visible par les administrateurs seulement. Aucun paiement réel : utilisez la carte
+          Mode test Stripe, visible par les administrateurs seulement. Aucun paiement réel : utilisez la carte
           4242 4242 4242 4242, une date future et n&apos;importe quel code.
         </p>
       )}
@@ -310,7 +310,7 @@ function Offre({ prixCentimes, essai }: { prixCentimes: number; essai: boolean }
       </Checkbox>
       <div className="mt-4 flex flex-wrap items-center gap-4">
         <Button size="lg" onClick={souscrire} disabled={!cgv || occupe}>
-          {occupe ? "Ouverture du paiement…" : `S'abonner — payer ${prix} par mois`}
+          {occupe ? "Ouverture du paiement…" : `S'abonner, payer ${prix} par mois`}
         </Button>
         <Text size="caption" as="span">Paiement sécurisé par Stripe. Votre carte n&apos;est jamais vue par CaptenTDB.</Text>
       </div>

@@ -47,7 +47,7 @@ export function StructureMouvement({
     ? "Pas assez de sommets et de creux confirmés pour la lire."
     : st.etat === "range"
       ? `Sans direction : sommets ${st.sommets === "HH" ? "montants" : "descendants"}, creux ${st.creux === "HL" ? "montants" : "descendants"}.`
-      : `${st.etat === "haussiere" ? "Haussière — sommets et creux montants" : "Baissière — sommets et creux descendants"}${
+      : `${st.etat === "haussiere" ? "Haussière, sommets et creux montants" : "Baissière, sommets et creux descendants"}${
           st.rompue && st.invalidation != null
             ? `, mais ROMPUE : le prix a franchi ${st.etat === "haussiere" ? "le dernier creux" : "le dernier sommet"} (${assetPrice(st.invalidation)}).`
             : st.invalidation != null
@@ -72,7 +72,7 @@ export function StructureMouvement({
     <Panel
       repliable="structure"
       title="La structure du mouvement"
-      hint="Où se situe le prix dans son dernier mouvement — une description, pas un signal : n'entre pas dans le score."
+      hint="Où se situe le prix dans son dernier mouvement, une description, pas un signal : n'entre pas dans le score."
       aside={<Move aria-hidden className="h-4 w-4" style={{ color: "var(--cap-ink-3)" }} />}
     >
       <dl className="grid gap-4 sm:grid-cols-[10rem_1fr]">
@@ -82,7 +82,7 @@ export function StructureMouvement({
         <dt className="text-[0.8rem]" style={{ color: "var(--cap-ink-3)" }}>Dernier mouvement</dt>
         <dd>
           <Text size="small" tone="ink" as="span">
-            {hausse ? "Hausse" : "Baisse"} de {assetPrice(j.depart)} à {assetPrice(j.fin)} — {fr(j.amplitude_atr, 1)} ATR
+            {hausse ? "Hausse" : "Baisse"} de {assetPrice(j.depart)} à {assetPrice(j.fin)}, {fr(j.amplitude_atr, 1)} ATR
             sur {j.duree_bougies} bougies{j.fin_confirmee ? "" : " (encore en cours : il peut s'étendre)"}.
           </Text>
         </dd>

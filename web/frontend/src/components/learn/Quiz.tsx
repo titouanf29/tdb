@@ -66,7 +66,7 @@ export function Quiz({
             ? "Sans faute."
             : score >= 70
               ? "C'est acquis."
-              : "À revoir — et c'est normal."}
+              : "À revoir, et c'est normal."}
         </Heading>
         <Text size="small" className="mx-auto mt-2 max-w-[28rem]">
           {score >= 70

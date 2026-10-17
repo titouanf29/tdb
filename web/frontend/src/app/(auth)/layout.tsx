@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "CaptenTDB — Connexion",
+  title: "CaptenTDB, Connexion",
   description: "Connectez-vous à votre espace CaptenTDB",
 };
 

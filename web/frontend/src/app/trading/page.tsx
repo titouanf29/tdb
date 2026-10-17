@@ -316,7 +316,7 @@ export default function TradingPage() {
           <Heading level={1}>Ouvrir une position</Heading>
           <Text className="mt-2.5 max-w-[36rem]">
             Argent virtuel. La question qui compte est « où est-ce que ça
-            s&apos;arrête ? » — le reste en découle.
+            s&apos;arrête ? », le reste en découle.
           </Text>
         </header>
 
@@ -640,7 +640,7 @@ export default function TradingPage() {
                 <div className="mt-4">
                   <Text size="caption">
                     À ce cours, la totalité des {money(amount)} engagés est perdue et la
-                    position est fermée d&apos;office — c&apos;est ce qu&apos;un courtier
+                    position est fermée d&apos;office, c&apos;est ce qu&apos;un courtier
                     appelle un appel de marge. Un stop placé au-delà ne servirait à rien :
                     il ne serait jamais atteint.
                   </Text>
@@ -651,7 +651,7 @@ export default function TradingPage() {
                 <div className="mt-4">
                   <Text size="caption" tone="down">
                     Plus de 5 % du capital sur une seule position. C&apos;est
-                    beaucoup — même en virtuel, l&apos;habitude se prend ici.
+                    beaucoup, même en virtuel, l&apos;habitude se prend ici.
                   </Text>
                 </div>
               )}

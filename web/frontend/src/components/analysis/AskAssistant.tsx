@@ -30,7 +30,7 @@ function contextOf(a: Analysis, assetPrice: (v: number) => string): string {
   const lines = [
     `Actif : ${a.company?.name ?? a.symbol} (${a.symbol}), unité ${a.timeframe}`,
     `Prix : ${assetPrice(a.price.current)} (${a.price.change >= 0 ? "+" : ""}${a.price.change.toFixed(2)} % sur la séance)`,
-    `Score du profil : ${Math.round(a.profile_score?.total ?? a.score.total)}/100 — tendance lue : ${a.trend}`,
+    `Score du profil : ${Math.round(a.profile_score?.total ?? a.score.total)}/100, tendance lue : ${a.trend}`,
     `Niveaux : support ${assetPrice(a.levels.support)}, résistance ${assetPrice(a.levels.resistance)}`,
     a.risk?.suggested_sl != null
       ? `Plan : stop ${assetPrice(a.risk.suggested_sl)}, objectif ${assetPrice(a.risk.suggested_tp)}, rapport ${a.risk.risk_reward?.toFixed(2)}`
@@ -61,14 +61,14 @@ function suggestions(a: Analysis): string[] {
   const bear = a.conviction?.bearish_signals?.length ?? 0;
 
   if (bull && bear) {
-    out.push("Des signaux se contredisent ici — lequel devrais-je écouter ?");
+    out.push("Des signaux se contredisent ici, lequel devrais-je écouter ?");
   }
   if (a.historical_edge?.enough_samples && (a.historical_edge.expectancy_net_r ?? 0) < 0) {
     out.push("Pourquoi suivre ce verdict si l'historique ne le soutient pas ?");
   }
   if (a.risk?.suggested_sl != null && a.price?.current) {
     const d = Math.abs((a.price.current - a.risk.suggested_sl) / a.price.current) * 100;
-    if (d < 1.5) out.push(`Le stop est à ${d.toFixed(1)} % du prix — n'est-ce pas trop serré ?`);
+    if (d < 1.5) out.push(`Le stop est à ${d.toFixed(1)} % du prix, n'est-ce pas trop serré ?`);
   }
   if (a.tradeability?.blockers?.length) {
     out.push("Qu'est-ce qui rend ce setup inexploitable en l'état ?");
@@ -154,7 +154,7 @@ export function AskAssistant({
           {/* Nimbo montre les questions que l'écran soulève. */}
           <div className="mb-3 flex items-end gap-3">
             <Nimbo humeur="pointe" taille={56} />
-            <Text size="small" as="span">Une question sur cette analyse ? Je réponds à partir de ses chiffres — en voici quelques-unes pour commencer.</Text>
+            <Text size="small" as="span">Une question sur cette analyse ? Je réponds à partir de ses chiffres, en voici quelques-unes pour commencer.</Text>
           </div>
           {/* Les questions que l'écran soulève, plutôt qu'un champ vide. */}
           {hints.map((h) => (
@@ -192,7 +192,7 @@ export function AskAssistant({
                     faisait sortir les astérisques, les dièses et les barres
                     des tableaux en caractères littéraux, le tout écrasé en un
                     seul pavé par le HTML. La question de l'utilisateur, elle,
-                    reste du texte — avec ses retours à la ligne. */}
+                    reste du texte, avec ses retours à la ligne. */}
                 {m.role === "user" ? (
                   <Text size="small" tone="ink" className="whitespace-pre-wrap">
                     {m.content}

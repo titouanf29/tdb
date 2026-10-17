@@ -150,7 +150,7 @@ function Contenu({ d, synthese, syntheseEnCours }: {
             <>
               <p className="mt-3 max-w-[46rem] text-[0.98rem] leading-[1.65]">{synthese}</p>
               <p className="mt-3 text-[0.75rem]" style={{ color: "rgba(232,237,241,0.55)" }}>
-                Rédigé par l&apos;IA à partir des seuls éléments de cette page — aucun chiffre ajouté.
+                Rédigé par l&apos;IA à partir des seuls éléments de cette page, aucun chiffre ajouté.
               </p>
             </>
           ) : (
@@ -319,7 +319,7 @@ function Contenu({ d, synthese, syntheseEnCours }: {
                 <Text size="small" tone="ink">{n.titre_fr || n.titre}</Text>
                 <Text size="caption" className="mt-1">
                   {n.voix} source{n.voix > 1 ? "s" : ""}
-                  {n.voix <= 1 ? " — à confirmer" : ""}
+                  {n.voix <= 1 ? ", à confirmer" : ""}
                   {n.vos_actifs.length > 0 && <> · touche {n.vos_actifs.map((a) => a.nom).join(", ")}</>}
                 </Text>
               </li>

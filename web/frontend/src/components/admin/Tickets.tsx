@@ -62,7 +62,7 @@ export function Tickets() {
       <Panel
         title="Tickets"
         hint={enAttente > 0
-          ? `${enAttente} attend${enAttente > 1 ? "ent" : ""} une réponse — ils sont en haut.`
+          ? `${enAttente} attend${enAttente > 1 ? "ent" : ""} une réponse, ils sont en haut.`
           : "Personne n'attend de réponse."}
         aside={
           <SegmentedControl

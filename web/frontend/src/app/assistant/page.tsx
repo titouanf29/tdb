@@ -156,7 +156,7 @@ export default function AssistantPage() {
           /* Le message du serveur est une phrase française complète, il se
              suffit. Le préfixe le recopiait derrière « Je n'ai pas pu
              répondre : », ce qui a donné à l'utilisateur la ligne
-             « Je n'ai pas pu répondre : Erreur IA (404): {"error":{...}} » —
+             « Je n'ai pas pu répondre : Erreur IA (404): {"error":{...}} »,
              le JSON brut du fournisseur, dans la bulle de l'assistant.
              On ne préfixe donc que ce qui ne se lit pas comme une phrase. */
           content: assistantError(err),

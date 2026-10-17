@@ -4,8 +4,8 @@ import { LegalNav, LegalSectionTitle, InfoBox, Dl } from "@/components/legal/Leg
 import { lireEditeur } from "@/lib/legal-serveur";
 
 export const metadata = {
-  title: "Conditions Générales d'Utilisation — CaptenTDB",
-  description: "CGU de CaptenTDB — Conditions générales d'utilisation de la plateforme éducative de paper trading.",
+  title: "Conditions Générales d'Utilisation, CaptenTDB",
+  description: "CGU de CaptenTDB, Conditions générales d'utilisation de la plateforme éducative de paper trading.",
 };
 
 const TOC = [
@@ -62,14 +62,14 @@ export default async function CguPage() {
           Il était écrit en `text-yellow-300/80`, hérité du thème sombre : sur
           le fond clair, le paragraphe le plus important de la page se lisait
           en jaune pâle sur beige. Il passe par l'encadré du pont légal, dont
-          l'encre est celle du texte courant — la couleur reste sur le filet
+          l'encre est celle du texte courant, la couleur reste sur le filet
           et sur le titre, là où elle signale sans empêcher de lire. */}
       <InfoBox variant="warning">
         <div className="flex items-start gap-3">
           <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5" style={{ color: "var(--cap-amber-ink)" }} />
           <div className="space-y-1">
             <p className="font-semibold" style={{ color: "var(--cap-ink)" }}>
-              Avertissement réglementaire — Lecture obligatoire
+              Avertissement réglementaire, Lecture obligatoire
             </p>
             <p>
               CaptenTDB est une <strong>plateforme éducative de paper trading</strong> (argent virtuel uniquement). Elle n'est pas agréée par l'AMF. Aucune information sur ce site ne constitue un conseil en investissement au sens de la Directive MIF 2 (2014/65/UE) ou du code monétaire et financier. Le trading sur les marchés réels comporte un risque de perte en capital.
@@ -80,7 +80,7 @@ export default async function CguPage() {
 
       {/* TOC */}
       <div className="glass-card p-5">
-        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Sommaire — {TOC.length} articles</p>
+        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Sommaire, {TOC.length} articles</p>
         <ol className="grid grid-cols-1 sm:grid-cols-2 gap-1">
           {TOC.map(({ id, label }, i) => (
             <li key={id}>
@@ -115,8 +115,8 @@ export default async function CguPage() {
           <p className="text-muted-foreground">CaptenTDB est une plateforme en ligne à vocation éducative proposant :</p>
           <ul className="list-disc pl-5 space-y-1.5 text-muted-foreground">
             <li><strong className="text-foreground">Paper trading :</strong> simulation de trades sur un portefeuille virtuel crédité de 10 000 $ fictifs à l'inscription, sans aucun argent réel</li>
-            <li><strong className="text-foreground">Analyse technique & fondamentale :</strong> graphiques, indicateurs, scanner de marchés, points pivots, backtesting — à titre éducatif</li>
-            <li><strong className="text-foreground">Assistant IA :</strong> chatbot pédagogique spécialisé en trading, propulsé par l'API Groq (modèle Llama) — ne fournit pas de conseils financiers</li>
+            <li><strong className="text-foreground">Analyse technique & fondamentale :</strong> graphiques, indicateurs, scanner de marchés, points pivots, backtesting, à titre éducatif</li>
+            <li><strong className="text-foreground">Assistant IA :</strong> chatbot pédagogique spécialisé en trading, propulsé par l'API Groq (modèle Llama), ne fournit pas de conseils financiers</li>
             <li><strong className="text-foreground">Outils complémentaires :</strong> calendrier économique, analyse géopolitique, alertes de prix, palmares, communauté</li>
             <li><strong className="text-foreground">Option Premium :</strong> fonctionnalités avancées (limites étendues, outils Pro) en échange d'un abonnement mensuel</li>
           </ul>
@@ -179,7 +179,7 @@ export default async function CguPage() {
 
         {/* 6. Compte */}
         <section id="compte" className="glass-card p-6 space-y-3 scroll-mt-6">
-          <LegalSectionTitle num="6" id="compte-title" title="Compte utilisateur — suspension & suppression" />
+          <LegalSectionTitle num="6" id="compte-title" title="Compte utilisateur, suspension & suppression" />
           <div className="space-y-3 text-muted-foreground">
             <p>
               <strong className="text-foreground">6.1 Suspension.</strong> L'Éditeur se réserve le droit de suspendre temporairement ou définitivement tout compte en cas de violation des présentes CGU, de comportement frauduleux, d'atteinte au bon fonctionnement du Service ou d'atteinte aux droits de tiers, sans préavis et sans indemnité.
@@ -198,7 +198,7 @@ export default async function CguPage() {
           <LegalSectionTitle num="7" id="premium-title" title="Abonnement Premium" />
           {/* Les articles 7 et 8 décrivent un abonnement et un droit de
               rétractation. Tant qu'aucune offre n'est ouverte, ils décrivent
-              une situation qui n'existe pas — on le dit ici plutôt que de les
+              une situation qui n'existe pas, on le dit ici plutôt que de les
               retirer, parce qu'ils s'appliqueront tels quels le jour venu. */}
           {!OFFRE_PAYANTE_OUVERTE && (
             <InfoBox variant="warning">
@@ -208,7 +208,7 @@ export default async function CguPage() {
             </InfoBox>
           )}
           {/* UNE SEULE SOURCE POUR LA VENTE : LES CGV. Ces deux articles
-              doublaient les CGV — et les contredisaient (résiliation « via le
+              doublaient les CGV, et les contredisaient (résiliation « via le
               support », rétractation avec renonciation à cocher). Ils
               renvoient désormais aux CGV, qui suivent le parcours réel. */}
           <p className="text-muted-foreground">
@@ -235,7 +235,7 @@ export default async function CguPage() {
           <LegalSectionTitle num="9" id="pi-title" title="Propriété intellectuelle" />
           <div className="space-y-3 text-muted-foreground">
             <p>
-              <strong className="text-foreground">9.1 Droits de l'Éditeur.</strong> L'ensemble des éléments du Service — interface graphique, code source, logique applicative, textes, bases de données, marques et logos — sont protégés par le droit de la propriété intellectuelle et sont la propriété exclusive de CaptenQwark. Toute reproduction ou utilisation non autorisée est constitutive de contrefaçon (art. L.335-2 CPI).
+              <strong className="text-foreground">9.1 Droits de l'Éditeur.</strong> L'ensemble des éléments du Service, interface graphique, code source, logique applicative, textes, bases de données, marques et logos, sont protégés par le droit de la propriété intellectuelle et sont la propriété exclusive de CaptenQwark. Toute reproduction ou utilisation non autorisée est constitutive de contrefaçon (art. L.335-2 CPI).
             </p>
             <p>
               <strong className="text-foreground">9.2 Droits de l'utilisateur.</strong> L'utilisateur conserve la propriété des contenus qu'il publie sur la plateforme (messages communauté, etc.). En publiant ces contenus, il accorde à l'Éditeur une licence non exclusive, mondiale, gratuite et pour la durée de protection légale, nécessaire à leur affichage et distribution dans le cadre du Service.
@@ -344,7 +344,7 @@ export default async function CguPage() {
             </p>
           </div>
           <div className="flex items-center justify-between text-xs text-muted-foreground pt-2 border-t border-white/10">
-            <span>Version 1.1 — Dernière mise à jour : mai 2026</span>
+            <span>Version 1.1, Dernière mise à jour : mai 2026</span>
             <a href="#" className="hover:text-primary transition-colors">↑ Haut de page</a>
           </div>
         </section>

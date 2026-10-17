@@ -45,7 +45,7 @@ export const AREAS: NavArea[] = [
       // garantie : « Portefeuille » et « Wallet » sont le même mot dans deux
       // langues. Les libellés portent donc maintenant la distinction, au lieu
       // de compter sur l'utilisateur pour s'en souvenir.
-      { href: "/wallet", label: "Wallet — simulation", blurb: "Votre compte d'entraînement : solde, positions, résultats" },
+      { href: "/wallet", label: "Wallet de simulation", blurb: "Votre compte d'entraînement : solde, positions, résultats" },
       { href: "/trading", label: "Ouvrir une position", blurb: "Passer un ordre sur le compte d'entraînement" },
       { href: "/journal", label: "Journal", blurb: "Vos décisions, relues après coup" },
       { href: "/favorites", label: "Favoris", blurb: "Les actifs que vous suivez" },

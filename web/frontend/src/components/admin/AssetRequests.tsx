@@ -63,7 +63,7 @@ export function AssetRequests() {
   return (
     <Panel
       title="Demandes d'actifs"
-      hint="Ce que les utilisateurs cherchent et ne trouvent pas — le seul canal qui dit ce qui manque à l'univers."
+      hint="Ce que les utilisateurs cherchent et ne trouvent pas, le seul canal qui dit ce qui manque à l'univers."
       aside={enAttente > 0
         ? <Text size="caption" as="span">{enAttente} en attente</Text>
         : undefined}

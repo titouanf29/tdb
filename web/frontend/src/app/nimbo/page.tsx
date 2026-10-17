@@ -57,7 +57,7 @@ export default function BilanNimboPage() {
             <Heading level={1} className="mt-2">Ce que mes propositions sont devenues.</Heading>
             <Text className="mt-3">
               Chaque position que je propose est notée au moment où je la propose, puis suivie jusqu&apos;à
-              l&apos;objectif, au stop ou à l&apos;échéance — avec les mêmes règles que le rejeu qui me sert à
+              l&apos;objectif, au stop ou à l&apos;échéance, avec les mêmes règles que le rejeu qui me sert à
               dire « sur 10 achats comparables » : frais compris, et le stop compté en premier quand une même
               séance touche les deux.
             </Text>
@@ -118,7 +118,7 @@ function Horizon({ h }: { h: BilanHorizon }) {
               <strong>{h.compte.objectif}</strong> objectif{h.compte.objectif > 1 ? "s" : ""},{" "}
               <strong>{h.compte.stop}</strong> stop{h.compte.stop > 1 ? "s" : ""},{" "}
               <strong>{h.compte.echeance}</strong> à l&apos;échéance
-              {h.r_moyen != null && <> — {h.r_moyen >= 0 ? "+" : "−"}{fr(Math.abs(h.r_moyen), 2)} R par trade en moyenne</>}
+              {h.r_moyen != null && <>, {h.r_moyen >= 0 ? "+" : "−"}{fr(Math.abs(h.r_moyen), 2)} R par trade en moyenne</>}
               {h.r_erreur != null && <> (± {fr(h.r_erreur, 2)})</>}.
             </Text>
           </div>
@@ -128,7 +128,7 @@ function Horizon({ h }: { h: BilanHorizon }) {
               <div className="mt-2"><Points s={h.attendu.sur_dix} label="Annoncé" /></div>
               <Text size="small" className="mt-2">
                 {h.attendu.sur_dix.objectif} objectifs, {h.attendu.sur_dix.stop} stops, {h.attendu.sur_dix.echeance} à
-                l&apos;échéance — +{fr(h.attendu.r_moyen, 2)} R par trade.
+                l&apos;échéance, +{fr(h.attendu.r_moyen, 2)} R par trade.
               </Text>
             </div>
           )}

@@ -152,8 +152,8 @@ export function ClosedSheet({
         >
           <Text size="small" as="span">
             {auStop
-              ? "Fermée automatiquement sur le stop — la perte s'est arrêtée où vous l'aviez décidée."
-              : "Fermée automatiquement sur l'objectif — le plan est allé au bout."}
+              ? "Fermée automatiquement sur le stop, la perte s'est arrêtée où vous l'aviez décidée."
+              : "Fermée automatiquement sur l'objectif, le plan est allé au bout."}
           </Text>
         </div>
       )}
@@ -233,7 +233,7 @@ export function ClosedSheet({
         ) : (
           <>
             <Text size="small" className="mt-2.5">
-              Aucune note pour ce trade. Un trade sans trace est une leçon perdue —
+              Aucune note pour ce trade. Un trade sans trace est une leçon perdue,
               c&apos;est en les relisant qu&apos;on repère ce qui se répète.
             </Text>
             <div className="mt-4">

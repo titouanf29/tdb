@@ -117,7 +117,7 @@ export function NoteScanner({
       )}
 
       <Text size="caption" tone="faint" className="mt-3">
-        Ces niveaux viennent du balayage, pas de l&apos;analyse ci-dessous — les deux
+        Ces niveaux viennent du balayage, pas de l&apos;analyse ci-dessous, les deux
         se lisent ensemble et peuvent diverger.{" "}
         <Link href="/scanner" className="underline underline-offset-2" style={{ color: "var(--cap-ocean)" }}>
           Revenir au scan

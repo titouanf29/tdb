@@ -87,8 +87,8 @@ export function Opportunity({
 
           {/* ACHAT, VENTE, OU RIEN — et pourquoi, pour CET horizon.
               Le scanner décrivait ce qu'il voyait et laissait le lecteur en
-              tirer un sens. Or la convention du score — au-dessus de 60 on
-              achète, sous 40 on vend — n'est écrite nulle part à l'écran :
+              tirer un sens. Or la convention du score, au-dessus de 60 on
+              achète, sous 40 on vend, n'est écrite nulle part à l'écran :
               « RSI à 27, en zone de survente » ne dit pas s'il faut acheter
               le creux ou s'en écarter. Et la réponse dépend de l'horizon : un
               rebond à contre-tendance se joue en day trading et ne se tient

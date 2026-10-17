@@ -74,7 +74,7 @@ export default function ScannerPage() {
   const [universe, setUniverse] = useState<ScanUniverse | null>(null);
   const [sel, setSel] = useState<Selection>(SELECTION_VIDE);
   /* L'horizon peut venir de la phrase d'intention ; sinon c'est celui du
-     profil. Une phrase ne doit pas modifier le réglage du compte — elle
+     profil. Une phrase ne doit pas modifier le réglage du compte, elle
      vaut pour ce scan-là. */
   const [horizonScan, setHorizonScan] = useState<string | null>(null);
   const [direction, setDirection] = useState<"long" | "short" | "both">("both");
@@ -120,7 +120,7 @@ export default function ScannerPage() {
    * actifs » après. La persistance est maintenant déclenchée par l'action de
    * l'utilisateur, donc elle ne peut pas se produire quand il n'a rien fait. */
   /* Une intention pose des réglages, elle ne lance rien. L'utilisateur voit
-     ce qui a changé et peut le reprendre avant de balayer — c'est la seule
+     ce qui a changé et peut le reprendre avant de balayer, c'est la seule
      façon qu'un texte libre reste vérifiable. */
   const appliquerIntention = useCallback((it: ScanIntent) => {
     if (it.zones.length) {
@@ -283,7 +283,7 @@ export default function ScannerPage() {
             <Heading level={1}>Scanner</Heading>
             <Text className="mt-2.5 max-w-[38rem]">
               Choisissez ce que vous voulez balayer, et l&apos;outil vous dit où
-              quelque chose se prépare — avec le niveau qui le confirme et celui
+              quelque chose se prépare, avec le niveau qui le confirme et celui
               qui l&apos;annule.
             </Text>
           </div>
@@ -299,8 +299,8 @@ export default function ScannerPage() {
           title="Ce que vous cherchez"
           hint={
             horizonScan
-              ? `Horizon posé par votre phrase — le scan et l'analyse se feront en ${uniteFr(horizonScan)}.`
-              : `Horizon ${style.label.fr} — l'analyse se fera en ${style.defaultTimeframe}, comme le scan.`
+              ? `Horizon posé par votre phrase, le scan et l'analyse se feront en ${uniteFr(horizonScan)}.`
+              : `Horizon ${style.label.fr}, l'analyse se fera en ${style.defaultTimeframe}, comme le scan.`
           }
         >
           <IntentBox onApply={appliquerIntention} />
@@ -385,7 +385,7 @@ export default function ScannerPage() {
           {/* LA SÉANCE, DITE AVANT DE LANCER. Le scanner acceptait de balayer
               l'Europe un dimanche sans un mot : les résultats étaient corrects
               et inutilisables, calculés sur la clôture de vendredi. Ce n'est
-              pas une erreur à empêcher — on prépare sa semaine le dimanche —
+              pas une erreur à empêcher, on prépare sa semaine le dimanche,
               c'est une condition à annoncer. */}
           {seance && (
             <div
@@ -462,7 +462,7 @@ export default function ScannerPage() {
                 {lot.length > montres.length && (
                   <Text size="caption" className="mt-4">
                     {lot.length - montres.length} autre
-                    {lot.length - montres.length > 1 ? "s" : ""} dans cette famille —
+                    {lot.length - montres.length > 1 ? "s" : ""} dans cette famille,
                     passez au niveau supérieur dans les réglages pour les voir.
                   </Text>
                 )}

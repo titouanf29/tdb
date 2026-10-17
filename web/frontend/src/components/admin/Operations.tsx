@@ -111,7 +111,7 @@ export function Operations({
         <div className="[&>*+*]:border-t [&>*+*]:border-[color:var(--cap-line)]">
           <Interrupteur
             titre="Mode maintenance"
-            detail="Bloque le site pour tous sauf les administrateurs. À activer pendant un déploiement, et surtout à ne pas oublier ensuite — rien d'autre que cet écran ne le rappelle."
+            detail="Bloque le site pour tous sauf les administrateurs. À activer pendant un déploiement, et surtout à ne pas oublier ensuite, rien d'autre que cet écran ne le rappelle."
             actif={reglages["maintenance_mode"] === "true"}
             dangereux
             occupe={occupe === "maintenance_mode"}
@@ -136,7 +136,7 @@ export function Operations({
           pas disponible », et rien ne remonte. */}
       <Panel
         title="Fournisseurs d'IA"
-        hint="Chacun est réellement interrogé — une clé posée ne prouve pas qu'un service répond."
+        hint="Chacun est réellement interrogé, une clé posée ne prouve pas qu'un service répond."
         aside={
           <button
             type="button"

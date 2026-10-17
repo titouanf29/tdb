@@ -70,7 +70,7 @@ export function Panel({
       <div className="min-w-0">
         {title && (
           <h2
-            className="text-[1.02rem] font-semibold tracking-[-0.015em]"
+            className="text-[1.22rem] font-medium leading-tight tracking-[-0.006em]"
             style={{ fontFamily: "var(--cap-font-display)", color: "var(--cap-ink)" }}
           >
             {title}
@@ -101,12 +101,15 @@ export function Panel({
     <section
       className={cn("flex flex-col overflow-hidden", className)}
       style={{
-        borderRadius: "var(--cap-r-xl)",
-        backgroundColor: tone === "quiet" ? "transparent" : "var(--cap-surface)",
-        boxShadow:
-          tone === "quiet"
-            ? "inset 0 0 0 1px var(--cap-line)"
-            : "inset 0 0 0 1px var(--cap-line), var(--cap-shadow)",
+        // Une feuille posée dans le ciel plutôt qu'une carte soulevée par une
+        // ombre : un léger voile laisse passer les nuages, un filet la borde.
+        borderRadius: "var(--cap-r-lg)",
+        backgroundColor: tone === "quiet"
+          ? "transparent"
+          : "color-mix(in srgb, var(--cap-surface) 88%, transparent)",
+        backdropFilter: tone === "quiet" ? undefined : "blur(14px) saturate(1.1)",
+        WebkitBackdropFilter: tone === "quiet" ? undefined : "blur(14px) saturate(1.1)",
+        boxShadow: "inset 0 0 0 1px var(--cap-line)",
       }}
     >
       {(title || aside) && (repliable ? (
@@ -135,14 +138,18 @@ export function Panel({
       )}
 
       {visible && action && (
-        <Link
-          href={action.href}
-          className="flex items-center justify-between gap-2 border-t px-5 py-3.5 text-[0.85rem] transition-colors hover:bg-[color:var(--cap-surface-2)] sm:px-6"
-          style={{ borderColor: "var(--cap-line)", color: "var(--cap-ocean)" }}
-        >
-          {action.label}
-          <ArrowRight className="h-3.5 w-3.5" />
-        </Link>
+        // Le lien de sortie : souligné d'ambre, comme sur la page de
+        // présentation, plutôt qu'une rangée de menu bleue sur toute la largeur.
+        <div className="px-5 pb-4 sm:px-6 sm:pb-5">
+          <Link
+            href={action.href}
+            className="group inline-flex min-h-[44px] items-center gap-2 text-[0.9rem] font-semibold underline decoration-[color:var(--cap-ambre)] decoration-2 underline-offset-[6px] transition-[text-underline-offset] hover:underline-offset-[8px]"
+            style={{ color: "var(--cap-ink)" }}
+          >
+            {action.label}
+            <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-1" style={{ color: "var(--cap-ambre)" }} />
+          </Link>
+        </div>
       )}
     </section>
   );

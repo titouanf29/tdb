@@ -44,7 +44,7 @@ export function Intention() {
       setData(await dailyIntentAPI.set(intention));
       setTexte("");
     } catch (err) {
-      setErreur(err instanceof Error ? err.message : "L'envoi a échoué — réessayez.");
+      setErreur(err instanceof Error ? err.message : "L'envoi a échoué, réessayez.");
     } finally {
       setEnvoi(false);
     }

@@ -172,7 +172,7 @@ export function SchemaFigure({ cle }: { cle: string }) {
               fill="var(--cap-ink-2)" {...HALO}>invalidation</text>
       </svg>
       <figcaption className="mt-2 text-[0.78rem]" style={{ color: "var(--cap-ink-3)" }}>
-        {s.titre} — forme idéalisée. Sur un vrai graphique elle est toujours plus bruitée.
+        {s.titre}, forme idéalisée. Sur un vrai graphique elle est toujours plus bruitée.
       </figcaption>
     </figure>
   );

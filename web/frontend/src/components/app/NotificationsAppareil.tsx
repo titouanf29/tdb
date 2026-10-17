@@ -38,7 +38,7 @@ export function NotificationsAppareil({ forme }: { forme: "reglage" | "invitatio
     setOccupe(true); setMessage("");
     try {
       const r = await pushAPI.essai();
-      setMessage(r.envoyees ? "Envoyée — elle arrive dans quelques secondes." : "Aucun appareil n'a accepté la notification.");
+      setMessage(r.envoyees ? "Envoyée, elle arrive dans quelques secondes." : "Aucun appareil n'a accepté la notification.");
     } catch { setMessage("L'envoi a échoué."); }
     finally { setOccupe(false); }
   };
@@ -59,7 +59,7 @@ export function NotificationsAppareil({ forme }: { forme: "reglage" | "invitatio
           </p>
           <Text size="small" className="mt-1">
             Une notification sur ce téléphone ou cet ordinateur, même site fermé. Pas de publicité, pas plus
-            d&apos;une par actif et par jour — et vous coupez quand vous voulez dans les réglages.
+            d&apos;une par actif et par jour, et vous coupez quand vous voulez dans les réglages.
           </Text>
           <div className="mt-3 flex flex-wrap items-center gap-3">
             <Button size="md" onClick={activer} disabled={occupe}>

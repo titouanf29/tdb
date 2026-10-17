@@ -4,7 +4,7 @@ import { LegalNav, LegalSectionTitle, InfoBox, Dl } from "@/components/legal/Leg
 import { lireEditeur, ligneVendeur, prixTexte } from "@/lib/legal-serveur";
 
 export const metadata = {
-  title: "Conditions Générales de Vente — CaptenTDB",
+  title: "Conditions Générales de Vente, CaptenTDB",
   description: "Conditions générales de vente de l'abonnement Premium CaptenTDB, conformément au code de la consommation français.",
 };
 
@@ -159,7 +159,7 @@ export default async function CgvPage() {
           <LegalSectionTitle num="4" id="commande-title" title="Commande" />
           <ol className="list-decimal pl-5 space-y-1.5 text-muted-foreground">
             <li>Le Client, connecté à son compte, ouvre la page Premium, qui présente le service, le prix et les présentes conditions.</li>
-            <li>Il coche la case d&apos;acceptation des CGV, puis valide sa commande par le bouton « S&apos;abonner — payer {prix} par mois », qui emporte obligation de paiement.</li>
+            <li>Il coche la case d&apos;acceptation des CGV, puis valide sa commande par le bouton « S&apos;abonner, payer {prix} par mois », qui emporte obligation de paiement.</li>
             <li>Il saisit ses informations de paiement sur la page sécurisée de Stripe et confirme.</li>
             <li>L&apos;accès Premium est activé dès la confirmation du paiement. Une confirmation du contrat, reprenant ses conditions et le formulaire de rétractation, est envoyée par e-mail.</li>
           </ol>
@@ -189,11 +189,11 @@ export default async function CgvPage() {
         <section id="retractation" className="glass-card p-6 space-y-4 scroll-mt-6">
           <LegalSectionTitle num="6" id="retractation-title" title="Droit de rétractation" />
           <InfoBox variant="warning">
-            <p className="font-semibold">14 jours pour changer d&apos;avis — remboursement intégral</p>
+            <p className="font-semibold">14 jours pour changer d&apos;avis, remboursement intégral</p>
             <p className="mt-1">
               Le Client dispose de 14 jours à compter de la souscription pour se rétracter, sans avoir à se
               justifier (art. L.221-18 du code de la consommation). Le vendeur lui rembourse alors la
-              <strong> totalité</strong> des sommes versées — sans retenir la part du mois déjà utilisée —
+              <strong> totalité</strong> des sommes versées, sans retenir la part du mois déjà utilisée,
               dans un délai de 14 jours, par le moyen de paiement utilisé.
             </p>
           </InfoBox>
@@ -205,7 +205,7 @@ export default async function CgvPage() {
               modèle ci-dessous.
             </p>
             <div className="p-4 rounded-xl bg-white/5 border border-white/10 text-xs">
-              « À l&apos;attention de {ligneVendeur(e)}{e.email ? ` (${e.email})` : ""} — Je vous notifie par la
+              « À l&apos;attention de {ligneVendeur(e)}{e.email ? ` (${e.email})` : ""}, Je vous notifie par la
               présente ma rétractation du contrat portant sur l&apos;abonnement CaptenTDB Premium, souscrit le
               [date]. Nom du consommateur, adresse e-mail du compte, date. »
             </div>
@@ -245,7 +245,7 @@ export default async function CgvPage() {
             </p>
             {e.mediateur.nom ? (
               <div className="p-3 rounded-xl bg-white/5 border border-white/10 text-sm">
-                <p className="font-semibold text-foreground">{e.mediateur.nom}{e.mediateur.adresse ? ` — ${e.mediateur.adresse}` : ""}</p>
+                <p className="font-semibold text-foreground">{e.mediateur.nom}{e.mediateur.adresse ? `, ${e.mediateur.adresse}` : ""}</p>
                 {e.mediateur.site && (
                   <a href={e.mediateur.site} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline inline-flex items-center gap-1 text-xs mt-1">
                     {e.mediateur.site.replace(/^https?:\/\//, "")} <ExternalLink className="w-3 h-3" />
@@ -278,7 +278,7 @@ export default async function CgvPage() {
             des règles protectrices du pays de résidence du consommateur au sein de l&apos;Union européenne.
           </p>
           <div className="flex items-center justify-between text-xs text-muted-foreground pt-2 border-t border-white/10">
-            <span>Version {e.cgv_version} — octobre 2026</span>
+            <span>Version {e.cgv_version}, octobre 2026</span>
             <a href="#" className="hover:text-primary transition-colors">↑ Haut de page</a>
           </div>
         </section>

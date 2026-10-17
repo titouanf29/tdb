@@ -669,7 +669,7 @@ function HoverView({ message, onDisable }: { message: string; onDisable: () => v
           </motion.div>
           <p className="text-sm text-gray-300 font-medium">Mode exploration actif</p>
           <p className="text-xs text-gray-500 leading-relaxed max-w-[220px]">
-            Survolez un module sur la page — graphique, RSI, sélecteur d&apos;actif — pour que je l&apos;explique.
+            Survolez un module sur la page, graphique, RSI, sélecteur d&apos;actif, pour que je l&apos;explique.
           </p>
         </div>
       )}

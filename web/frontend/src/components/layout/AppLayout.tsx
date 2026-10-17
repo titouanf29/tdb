@@ -58,7 +58,7 @@ function LegalShell({ children }: { children: React.ReactNode }) {
      invisible dessus.
      La classe `cap` fait les deux choses d'un coup : elle peint le cadre,
      comme avant, et elle fait basculer le fond du DOCUMENT au clair par la
-     règle `body:has(.cap)` — sans quoi les bandes de sécurité de l'iPhone
+     règle `body:has(.cap)`, sans quoi les bandes de sécurité de l'iPhone
      restent noires autour d'une page claire. Le noir du `body` reste en
      place partout ailleurs, pour les écrans non migrés qui sont sombres à
      l'intérieur. */
@@ -181,8 +181,8 @@ function AuthShell({
                 {lang === "en" ? "Maintenance. " : "Maintenance. "}
               </span>
               {lang === "en"
-                ? "The site is closed to visitors — only team accounts can sign in right now."
-                : "Le site est fermé aux visiteurs — seuls les comptes de l'équipe peuvent se connecter."}
+                ? "The site is closed to visitors, only team accounts can sign in right now."
+                : "Le site est fermé aux visiteurs, seuls les comptes de l'équipe peuvent se connecter."}
             </p>
           </div>
         )}

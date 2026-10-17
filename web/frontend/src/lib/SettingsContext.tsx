@@ -290,7 +290,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
         });
         hydrateLang(remote.language);
       })
-      .catch(() => { /* offline / 401 — keep the validated local cache */ })
+      .catch(() => { /* offline / 401, keep the validated local cache */ })
       .finally(() => { if (!cancelled) setIsLoaded(true); });
 
     return () => { cancelled = true; };

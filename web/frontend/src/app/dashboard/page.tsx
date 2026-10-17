@@ -189,8 +189,8 @@ export default function DashboardPage() {
         <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
           <Reveal delay={0.08} className={goal === "suivre" ? "order-2" : "order-1"}>
             {/* CE PANNEAU LIT LE WALLET, PAS LE PORTEFEUILLE. Il s'intitulait
-                « Votre portefeuille » et son lien menait à /portfolio — les
-                placements réels saisis à la main — alors que le solde, le
+                « Votre portefeuille » et son lien menait à /portfolio, les
+                placements réels saisis à la main, alors que le solde, le
                 résultat et les positions affichés viennent tous de
                 walletAPI, c'est-à-dire du compte d'entraînement.
                 « Voir le détail » ouvrait donc un autre compte que celui
@@ -277,7 +277,7 @@ export default function DashboardPage() {
               {favorites.length === 0 ? (
                 <EmptyState
                   title="Aucun actif suivi"
-                  description="Ajoutez ceux que vous voulez garder à l'œil — ils apparaîtront ici chaque jour."
+                  description="Ajoutez ceux que vous voulez garder à l'œil, ils apparaîtront ici chaque jour."
                   action={{ label: "Chercher un actif", href: "/analysis" }}
                 />
               ) : (
@@ -308,7 +308,7 @@ export default function DashboardPage() {
             Deux panneaux que la refonte avait laissés derrière elle. Celui de
             l'intention fermait une boucle ouverte : l'accueil LISAIT déjà
             l'intention pour composer sa recommandation, mais plus aucun écran
-            ne permettait de l'écrire — elle était donc toujours vide. Celui
+            ne permettait de l'écrire, elle était donc toujours vide. Celui
             de la semaine affichait un briefing que le serveur continuait de
             générer chaque dimanche pour personne.
 
@@ -332,7 +332,7 @@ export default function DashboardPage() {
               action={{ label: "Ouvrir le parcours", href: "/learn" }}
             >
               <Text size="small">
-                Les bases, puis les indicateurs, puis la gestion du risque —
+                Les bases, puis les indicateurs, puis la gestion du risque,
                 dans cet ordre, parce que chacun n&apos;a de sens qu&apos;avec
                 le précédent.
               </Text>
@@ -425,10 +425,10 @@ function WeatherToggle({
   return (
     /* `flex-wrap` et `whitespace-nowrap` vont ensemble : sur 390 px, les deux
        boutons et la météo ne tiennent pas sur une ligne, et sans consigne le
-       navigateur coupait À L'INTÉRIEUR des libellés — « Les / marchés ».
+       navigateur coupait À L'INTÉRIEUR des libellés, « Les / marchés ».
        Un libellé de bouton ne se coupe pas ; c'est la rangée qui passe à la
        ligne. */
-    <div className="flex flex-wrap items-center gap-2">
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
       {on && (
         <span
           className="flex items-center gap-1.5 text-[0.82rem]"
@@ -444,23 +444,23 @@ function WeatherToggle({
         </span>
       )}
       {/* L'ENTRÉE DIRECTE VERS LES MARCHÉS. L'accueil parlait déjà du climat
-          des marchés — c'est ce que le ciel raconte — mais aucun lien ne
+          des marchés, c'est ce que le ciel raconte, mais aucun lien ne
           menait à l'écran qui l'explique : il fallait ouvrir le menu
           « Analyser » et descendre au troisième élément. Le mettre ici le
           place à côté de la seule chose de cette page qui parle de l'état
           général, plutôt que dans un menu dédié à l'étude d'une valeur. */}
       <Link
         href="/markets"
-        className="flex items-center gap-2 whitespace-nowrap rounded-[10px] px-3 py-2 text-[0.82rem] transition-colors hover:bg-[color:var(--cap-surface-2)]"
-        style={{ color: "var(--cap-ink-2)", boxShadow: "inset 0 0 0 1px var(--cap-line)" }}
+        className="flex min-h-[44px] items-center gap-2 whitespace-nowrap px-1.5 text-[0.85rem] underline decoration-[color:var(--cap-line-strong)] underline-offset-[6px] transition-colors hover:text-[color:var(--cap-ink)] hover:decoration-[color:var(--cap-ambre)]"
+        style={{ color: "var(--cap-ink-2)" }}
       >
         <Globe2 className="h-3.5 w-3.5" />
         Les marchés
       </Link>
       <button
         onClick={() => onChange(!on)}
-        className="flex items-center gap-2 whitespace-nowrap rounded-[10px] px-3 py-2 text-[0.82rem] transition-colors hover:bg-[color:var(--cap-surface-2)]"
-        style={{ color: "var(--cap-ink-2)", boxShadow: "inset 0 0 0 1px var(--cap-line)" }}
+        className="flex min-h-[44px] items-center gap-2 whitespace-nowrap px-1.5 text-[0.85rem] underline decoration-[color:var(--cap-line-strong)] underline-offset-[6px] transition-colors hover:text-[color:var(--cap-ink)] hover:decoration-[color:var(--cap-ambre)]"
+        style={{ color: "var(--cap-ink-2)" }}
       >
         {on ? <CloudOff className="h-3.5 w-3.5" /> : <Sun className="h-3.5 w-3.5" />}
         {on ? "Couper les animations" : "Réactiver les animations"}
@@ -493,7 +493,7 @@ function NextStep({
     const picked = (intent as unknown as { assets?: { symbol: string }[] })?.assets?.[0];
 
     /* Le nom, jamais le code. « Analysez CL=F » demandait au lecteur de
-       savoir que CL=F est le brut WTI — c'est-à-dire de connaître la
+       savoir que CL=F est le brut WTI, c'est-à-dire de connaître la
        nomenclature Yahoo. Le serveur rend maintenant le nom avec les favoris
        et les positions ; le code reste pour l'URL, où il est à sa place. */
     const nommer = (o: { symbol: string; name?: string }) => o.name || o.symbol;
@@ -524,7 +524,7 @@ function NextStep({
 
     if (positions.length > 0) {
       /* CELLE QUI MÉRITE LE REGARD, PAS LA PREMIÈRE DE LA LISTE.
-         L'écran pointait `positions[0]` — l'ordre de création — et disait la
+         L'écran pointait `positions[0]`, l'ordre de création, et disait la
          même phrase tous les jours. Une position qui approche son stop et une
          position tranquille ne demandent pas la même attention.
 
@@ -590,7 +590,7 @@ function NextStep({
 
     if (favorites.length > 0) {
       /* CELUI QUI A BOUGÉ, PAS LE PREMIER AJOUTÉ.
-         « Vous le suivez déjà — voyez ce que le moteur en dit » ne donnait
+         « Vous le suivez déjà, voyez ce que le moteur en dit » ne donnait
          aucune raison de cliquer AUJOURD'HUI plutôt qu'hier, et désignait
          toujours le même actif. La variation du jour en donne une, et elle
          change toute seule d'un matin à l'autre. */
@@ -601,7 +601,7 @@ function NextStep({
 
       const corps =
         v != null && Math.abs(v) >= 1.5
-          ? `Il fait ${v >= 0 ? "+" : ""}${fr(v, 2)} % aujourd'hui — le plus gros mouvement parmi vos actifs suivis. Voyez si le moteur y lit quelque chose.`
+          ? `Il fait ${v >= 0 ? "+" : ""}${fr(v, 2)} % aujourd'hui, le plus gros mouvement parmi vos actifs suivis. Voyez si le moteur y lit quelque chose.`
           : v != null && Math.abs(v) >= 0.4
             ? `Il fait ${v >= 0 ? "+" : ""}${fr(v, 2)} % aujourd'hui. Voyez ce que le moteur en dit, et surtout pourquoi.`
             : "Séance calme sur vos actifs suivis. C'est le bon moment pour lire une analyse sans avoir de décision à prendre dans la foulée.";

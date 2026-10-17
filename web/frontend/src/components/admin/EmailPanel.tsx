@@ -19,7 +19,7 @@ const NOM: Record<EmailEtat["fournisseur"], string> = {
   brevo: "Brevo (API HTTPS)",
   resend: "Resend (API HTTPS)",
   smtp: "SMTP",
-  aucun: "Aucun — aucun e-mail ne part",
+  aucun: "Aucun, aucun e-mail ne part",
 };
 
 export function EmailPanel() {
@@ -93,7 +93,7 @@ export function EmailPanel() {
                    "bloqué par Railway hors forfait Pro")}
             {ligne("EMAIL_FROM", vars.EMAIL_FROM, "l'expéditeur affiché")}
             {ligne("FRONTEND_URL", vars.FRONTEND_URL && !etat.frontend_url_locale,
-                   etat.frontend_url_locale ? `vaut ${etat.frontend_url} — les liens des e-mails ne marcheront pas` : etat.frontend_url)}
+                   etat.frontend_url_locale ? `vaut ${etat.frontend_url}, les liens des e-mails ne marcheront pas` : etat.frontend_url)}
           </ul>
 
           {etat.fournisseur === "smtp" && !test && (
@@ -108,7 +108,7 @@ export function EmailPanel() {
                  style={{ boxShadow: `inset 3px 0 0 ${test.ok ? "var(--cap-up)" : "var(--cap-down)"}, inset 0 0 0 1px var(--cap-line)` }}>
               {test.ok ? (
                 <Text size="small">
-                  Envoyé à <strong>{test.to}</strong> via {test.voie}. Vérifiez la boîte de réception —
+                  Envoyé à <strong>{test.to}</strong> via {test.voie}. Vérifiez la boîte de réception,
                   et les indésirables, pour un premier envoi.
                 </Text>
               ) : (

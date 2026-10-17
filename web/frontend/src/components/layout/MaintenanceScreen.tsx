@@ -146,7 +146,7 @@ export function MaintenanceScreen({
       back: "Retour estimé dans",
       soon: "Retour imminent",
       progress: "Progression",
-      auto: "Cette page se réactualise toute seule — rien à faire.",
+      auto: "Cette page se réactualise toute seule, rien à faire.",
       tipLabel: "En attendant",
       safe: "Vos positions, votre solde et votre historique sont intacts.",
       admin: "Accès équipe",
@@ -157,7 +157,7 @@ export function MaintenanceScreen({
       back: "Estimated back in",
       soon: "Back any moment now",
       progress: "Progress",
-      auto: "This page refreshes itself — nothing to do.",
+      auto: "This page refreshes itself, nothing to do.",
       tipLabel: "Meanwhile",
       safe: "Your positions, balance and history are untouched.",
       admin: "Team access",
@@ -215,7 +215,7 @@ export function MaintenanceScreen({
               <span className="w-2 h-2 bg-profit/60" />
             </div>
             <span className="font-mono text-[12px] tracking-wide text-muted-foreground truncate">
-              captentdb.fr<span className="hidden sm:inline"> — system status</span>
+              captentdb.fr<span className="hidden sm:inline">, system status</span>
             </span>
             <span className="ml-auto flex items-center gap-1.5">
               <motion.span
@@ -376,7 +376,7 @@ export function MaintenanceScreen({
             <>
               <span aria-hidden className="text-muted-foreground/30">·</span>
               {/* Deliberately quiet: the way back in for the team, not a call
-                  to action for visitors. A plain <a> — the router is inside a
+                  to action for visitors. A plain <a>, the router is inside a
                   shell this screen has replaced. */}
               <a
                 href="/login"

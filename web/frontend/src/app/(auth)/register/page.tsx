@@ -67,7 +67,7 @@ export default function RegisterPage() {
       title={<>Commencez avec 10 000 € qui ne sont pas les vôtres.</>}
       lead="Un espace d'entraînement complet : vous prenez de vraies décisions sur de vrais marchés, sans qu'un euro ne soit en jeu."
       points={[
-        "800+ actifs — actions, crypto, indices, matières premières",
+        "800+ actifs, actions, crypto, indices, matières premières",
         "Analyse expliquée, au niveau de détail que vous choisissez",
         "Journal, formation et missions pour progresser",
       ]}
@@ -141,7 +141,7 @@ export default function RegisterPage() {
           label="Mot de passe"
           htmlFor="reg-password"
           hint="6 caractères minimum"
-          error={tooShort ? "Trop court — 6 caractères minimum." : undefined}
+          error={tooShort ? "Trop court, 6 caractères minimum." : undefined}
         >
           <TextInput
             id="reg-password"

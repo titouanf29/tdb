@@ -96,7 +96,7 @@ const NUMERO = ["①", "②", "③", "④"];
 
 /* Le rapport du viewBox doit approcher celui du panneau rendu, sinon le
    navigateur ajuste « en hauteur » et centre le dessin entre deux bandes
-   vides — c'est ce qui laissait un sixième de la largeur inutilisé de chaque
+   vides, c'est ce qui laissait un sixième de la largeur inutilisé de chaque
    côté. On ne peut pas recourir à preserveAspectRatio="none" ici : il
    étirerait les pivots en ovales, erreur déjà commise ailleurs dans ce
    projet. */
@@ -104,7 +104,7 @@ const NUMERO = ["①", "②", "③", "④"];
    Au format large, 1240 × 340 donne sur un téléphone de 390 px un dessin
    d'une centaine de pixels de haut : les pivots se touchent et une figure
    ne se lit plus. Le format compact est presque carré et rend la colonne des
-   étiquettes au tracé — elles passent par-dessus, sur un fond qui les garde
+   étiquettes au tracé, elles passent par-dessus, sur un fond qui les garde
    lisibles. */
 const LARGE = { W: 1240, H: 340, PAD_R: 128 };
 const COMPACT = { W: 640, H: 440, PAD_R: 6 };
@@ -341,11 +341,11 @@ export function AnnotatedChart({
 
   /* LA COURBE SUIT LA STRUCTURE, PAS LES DEUX EXTRÉMITÉS. Elle était colorée
      en comparant la dernière clôture à la première, ce qui est une autre
-     mesure — et le zoom l'a rendu visible : sur une fenêtre où le prix finit
+     mesure, et le zoom l'a rendu visible : sur une fenêtre où le prix finit
      plus haut qu'il n'a commencé mais enchaîne des sommets de plus en plus
      bas, l'écran affichait une grande courbe verte sous la phrase « structure
      baissière ». Les deux énoncés étaient exacts et se contredisaient à
-     l'œil. Quand la structure n'a pas d'avis — un range — on retombe sur le
+     l'œil. Quand la structure n'a pas d'avis, un range, on retombe sur le
      sens du mouvement, qui reste le moins arbitraire des deux. */
   const stroke =
     struct.kind === "up" ? "var(--cap-up)"
@@ -501,7 +501,7 @@ export function AnnotatedChart({
 
           {/* LA STRUCTURE : les pivots, reliés. C'est le seul « schéma » que
               nous posons, parce que c'est le seul qui soit une description et
-              non une prédiction. Les sommets entre eux, les creux entre eux —
+              non une prédiction. Les sommets entre eux, les creux entre eux,
               la pente de ces deux lignes EST la tendance. */}
           <g opacity={focus ? 0.16 : 1} style={{ transition: "opacity 200ms" }}>
           {highs.length > 1 && (
@@ -552,7 +552,7 @@ export function AnnotatedChart({
               Une zone teintée plutôt qu'un trait épais posé sur le prix : la
               courbe reste lisible, et la forme se voit comme une forme. Ses
               lignes (cou, côtés, mât) en trait net ; la cassure marquée ; et,
-              depuis la cassure, ce qu'elle annonce — l'objectif — et ce qui
+              depuis la cassure, ce qu'elle annonce, l'objectif, et ce qui
               l'annulerait. C'est la projection qui donne son sens au dessin :
               sans elle, on voit une forme sans savoir ce qu'elle promet. */}
           {focus && fig && figureChoisie && (() => {
@@ -606,7 +606,7 @@ export function AnnotatedChart({
           {/* ── LE PLAN DE NIMBO ─────────────────────────────────────────────
               Deux zones, partant du dernier cours : en rouge ce qu'on perd
               si le stop est touché, en vert ce qu'on gagne si l'objectif
-              l'est. Leur rapport de hauteur EST le rapport gain / risque —
+              l'est. Leur rapport de hauteur EST le rapport gain / risque,
               « vous risquez 1 pour viser 3 » se voit avant de se lire. */}
           {plan && (() => {
             const x0 = XT + 4, x1 = W - PAD_R - 2;
@@ -628,7 +628,7 @@ export function AnnotatedChart({
 
         {/* La sélection en cours, pendant le geste. Sans ce rectangle, on tire
             à l'aveugle et on découvre la période choisie une fois le bouton
-            relâché — ce qui oblige à recommencer presque à chaque fois. */}
+            relâché, ce qui oblige à recommencer presque à chaque fois. */}
         {trace && Math.abs(trace.a - trace.b) > 0.004 && (
           <div
             className="pointer-events-none absolute top-0 h-full"
@@ -765,7 +765,7 @@ export function AnnotatedChart({
         <Text size="caption">
           {fenetre
             ? `${pts.length} bougies affichées · ${etiquetteDate(pts[0].timestamp, pts.length <= 40)} → ${etiquetteDate(pts[pts.length - 1].timestamp, pts.length <= 40)}`
-            : "Tirez sur le graphique pour zoomer sur une période — tout se recalcule dessus."}
+            : "Tirez sur le graphique pour zoomer sur une période, tout se recalcule dessus."}
         </Text>
         <div className="flex flex-wrap items-center gap-1.5">
           {[30, 60, 120].map((n) =>
@@ -818,7 +818,7 @@ export function AnnotatedChart({
       {/* CE QUE VAUT LA FIGURE AFFICHÉE.
           C'est la partie qui manque à toutes les captures qui circulent : la
           forme est montrée, jamais ce qu'elle a donné. Trois lignes : ce que
-          c'est, ce qu'elle annonce, ce qu'elle a réellement donné — le détail
+          c'est, ce qu'elle annonce, ce qu'elle a réellement donné, le détail
           chiffré est à un clic, pour qu'un paragraphe de statistiques ne
           noie pas la réponse. */}
       {figureChoisie && (
@@ -864,7 +864,7 @@ export function AnnotatedChart({
               className="mt-1 inline-flex min-h-[32px] items-center text-[0.78rem] underline underline-offset-4"
               style={{ color: "var(--cap-ocean)" }}
             >
-              Comprendre cette figure — le cours
+              Comprendre cette figure, le cours
             </Link>
           )}
           {!fig && (

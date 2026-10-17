@@ -50,7 +50,7 @@ export function BreadthBar({
       aria-label={`${up} en hausse, ${down} en baisse`}
     >
       {/* LES TEINTES FRANCHES, ET C'EST UNE CORRECTION. Cette barre était en
-          teinte douce pour ne pas faire vibrer la page — cinq aplats pleine
+          teinte douce pour ne pas faire vibrer la page, cinq aplats pleine
           largeur en vert et rouge vifs, c'était le raisonnement. Mais la
           mesure a montré ce que ça donnait vraiment : 1,67:1 et 1,81:1 sur le
           panneau, et 1,08:1 entre les deux moitiés. Autrement dit une barre
@@ -63,8 +63,8 @@ export function BreadthBar({
       {up > 0 && <span style={{ width: `${pct(up)}%`, backgroundColor: "var(--cap-up-fill)" }} />}
       {flat > 0 && <span style={{ width: `${pct(flat)}%`, backgroundColor: "var(--cap-line-strong)" }} />}
       {/* LA COULEUR N'EST JAMAIS LE SEUL CANAL. Deux teintes qui se détachent
-          toutes deux d'un fond clair ont forcément une luminance voisine —
-          c'est de la géométrie, pas un mauvais choix de nuancier — donc une
+          toutes deux d'un fond clair ont forcément une luminance voisine,
+          c'est de la géométrie, pas un mauvais choix de nuancier, donc une
           personne daltonienne verra deux gris consécutifs. Ce trait dit où
           l'un finit et où l'autre commence, indépendamment de la teinte. */}
       {up > 0 && down > 0 && (

@@ -221,14 +221,17 @@ function TopBar({ area }: { area?: NavArea }) {
                 <Link
                   key={it.href}
                   href={it.href}
-                  className="relative whitespace-nowrap rounded-[9px] px-3 py-1.5 text-[0.875rem] transition-colors"
-                  style={{ color: active ? "var(--cap-ink)" : "var(--cap-ink-3)" }}
+                  aria-current={active ? "page" : undefined}
+                  className="relative whitespace-nowrap px-3 py-1.5 text-[0.875rem] transition-colors hover:text-[color:var(--cap-ink)]"
+                  style={{ color: active ? "var(--cap-ink)" : "var(--cap-ink-3)", fontWeight: active ? 600 : 400 }}
                 >
+                  {/* Un trait ambre sous la page où l'on est, comme sur la
+                      page de présentation, plutôt qu'une pastille. */}
                   {active && (
                     <motion.span
                       layoutId="chrome-sub"
-                      className="absolute inset-0 rounded-[9px]"
-                      style={{ backgroundColor: "var(--cap-surface)" }}
+                      className="absolute inset-x-3 -bottom-[11px] h-[2px] rounded-full"
+                      style={{ backgroundColor: "var(--cap-ambre)" }}
                       transition={{ duration: DUR.quick, ease: EASE }}
                     />
                   )}
@@ -620,7 +623,7 @@ function MobileTabs() {
                   <motion.span
                     layoutId="chrome-tab"
                     className="absolute inset-x-4 top-0 h-[2px]"
-                    style={{ backgroundColor: "var(--cap-ocean)" }}
+                    style={{ backgroundColor: "var(--cap-ambre)" }}
                     transition={{ duration: DUR.quick, ease: EASE }}
                   />
                 )}
@@ -749,7 +752,7 @@ function MenuMobile({ open, onClose }: { open: boolean; onClose: () => void }) {
                               Sur 390 px, une phrase de description passe à deux
                               ou trois lignes et la rangée atteint 110 px : la
                               feuille n'en montre plus que quatre, et le Scanner
-                              — celui qu'on est venu chercher — tombe à 900 px
+                             , celui qu'on est venu chercher, tombe à 900 px
                               du haut. Tronquée, la phrase oriente toujours, et
                               tout tient sans défiler. */}
                           <span

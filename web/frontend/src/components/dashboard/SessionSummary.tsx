@@ -153,8 +153,8 @@ const WATCH_REASONS: Record<WatchTag, WatchReasonFn> = {
     ? `${n} is up +${c.toFixed(1)}% with strong volume. Bullish momentum may continue. Watch key resistance levels.`
     : `${n} affiche un gain de +${c.toFixed(1)}% avec un fort volume. La dynamique haussière pourrait se prolonger. Surveiller les résistances clés.`,
   consolidation: (n, c, lang) => lang === "en"
-    ? `${n} closed nearly flat (${c > 0 ? "+" : ""}${c.toFixed(2)}%). Consolidation underway — next direction will be key.`
-    : `${n} clôture quasi stable (${c > 0 ? "+" : ""}${c.toFixed(2)}%). Une consolidation en cours — la prochaine direction sera déterminante.`,
+    ? `${n} closed nearly flat (${c > 0 ? "+" : ""}${c.toFixed(2)}%). Consolidation underway, next direction will be key.`
+    : `${n} clôture quasi stable (${c > 0 ? "+" : ""}${c.toFixed(2)}%). Une consolidation en cours, la prochaine direction sera déterminante.`,
   vigilance: (n, c, lang) => lang === "en"
     ? `Notable move on ${n} (${c > 0 ? "+" : ""}${c.toFixed(1)}%). Stay alert to fundamental developments and order flow.`
     : `Mouvement notable sur ${n} (${c > 0 ? "+" : ""}${c.toFixed(1)}%). Rester vigilant sur l'évolution des fondamentaux et du flux d'ordres.`,

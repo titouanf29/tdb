@@ -5,7 +5,7 @@ import { HEBERGEUR } from "@/lib/legal";
 import { lireEditeur, prixTexte } from "@/lib/legal-serveur";
 
 export const metadata = {
-  title: "Mentions légales — CaptenTDB",
+  title: "Mentions légales, CaptenTDB",
   description: "Mentions légales de CaptenTDB conformément à la loi LCEN n°2004-575 du 21 juin 2004.",
 };
 
@@ -78,7 +78,7 @@ export default async function MentionsLegalesPage() {
           <LegalSectionTitle num="1" id="editeur-title" title="Éditeur du site" />
           {/* CETTE SECTION SUIT LE STATUT RÉEL DE L'ÉDITEUR, PAS UN MODÈLE.
               Elle annonçait un éditeur « personne physique » sans adresse ni
-              SIREN — le régime de l'éditeur NON professionnel — et affirmait
+              SIREN, le régime de l'éditeur NON professionnel, et affirmait
               juste en dessous qu'il agissait « en qualité de professionnel »
               du fait de l'abonnement payant. Les deux ne peuvent pas être
               vrais ensemble. Voir lib/legal.ts. */}
@@ -105,7 +105,7 @@ export default async function MentionsLegalesPage() {
               <p className="text-muted-foreground">Le site internet <strong className="text-foreground">CaptenTDB</strong> est édité à titre <strong className="text-foreground">non professionnel</strong> par une personne physique :</p>
               <Dl items={[
                 { label: "Éditeur", value: EDITEUR.nomPublic },
-                { label: "Statut", value: "Personne physique — édition à titre non professionnel" },
+                { label: "Statut", value: "Personne physique, édition à titre non professionnel" },
                 { label: "Pays", value: EDITEUR.pays },
                 { label: "Contact", value: <span>Via la plateforme : section « Communauté » → « Contacter Admin »</span> },
               ]} />
@@ -168,7 +168,7 @@ export default async function MentionsLegalesPage() {
         <section id="pi" className="glass-card p-6 space-y-4 scroll-mt-6">
           <LegalSectionTitle num="5" id="pi-title" title="Propriété intellectuelle" />
           <p className="text-muted-foreground">
-            L'ensemble des éléments constituant le site CaptenTDB — notamment l'interface graphique, le code source, les textes, la logique applicative, le nom et le logo — sont la propriété exclusive de CaptenQwark et sont protégés par le droit de la propriété intellectuelle (code de la propriété intellectuelle, articles L.111-1 et suivants).
+            L'ensemble des éléments constituant le site CaptenTDB, notamment l'interface graphique, le code source, les textes, la logique applicative, le nom et le logo, sont la propriété exclusive de CaptenQwark et sont protégés par le droit de la propriété intellectuelle (code de la propriété intellectuelle, articles L.111-1 et suivants).
           </p>
           <p className="text-muted-foreground">
             Toute reproduction, représentation, modification, adaptation, traduction ou exploitation, totale ou partielle, par quelque procédé que ce soit, sans l'autorisation préalable et écrite de CaptenQwark, est strictement interdite et constituerait une contrefaçon sanctionnée par les articles L.335-2 et suivants du code de la propriété intellectuelle.
@@ -247,7 +247,7 @@ export default async function MentionsLegalesPage() {
             {!EST_PROFESSIONNEL ? (
               <p>Sans objet à ce jour : le site est édité à titre non professionnel et ne vend rien.</p>
             ) : e.mediateur.nom ? (
-              <p className="font-semibold">{e.mediateur.nom}{e.mediateur.adresse ? ` — ${e.mediateur.adresse}` : ""}
+              <p className="font-semibold">{e.mediateur.nom}{e.mediateur.adresse ? `, ${e.mediateur.adresse}` : ""}
                 {e.mediateur.site && (<><br /><a href={e.mediateur.site} target="_blank" rel="noopener noreferrer" className="underline inline-flex items-center gap-1 font-normal">{e.mediateur.site.replace(/^https?:\/\//, "")} <ExternalLink className="w-3 h-3" /></a></>)}
               </p>
             ) : (
@@ -269,10 +269,10 @@ export default async function MentionsLegalesPage() {
                 <Link href="/cgv" className="text-primary hover:underline">conditions générales de vente</Link>.
               </p>
               <Dl items={[
-                { label: "Prix", value: `${prixTexte(e.prix_centimes)} TTC / mois — ${e.tva_intracom ? "TVA incluse" : e.mention_tva}` },
-                { label: "Paiement", value: "Par carte, via Stripe (PCI-DSS) — la carte n'est jamais vue par l'éditeur" },
+                { label: "Prix", value: `${prixTexte(e.prix_centimes)} TTC / mois, ${e.tva_intracom ? "TVA incluse" : e.mention_tva}` },
+                { label: "Paiement", value: "Par carte, via Stripe (PCI-DSS), la carte n'est jamais vue par l'éditeur" },
                 { label: "Accès", value: "Immédiat, dès la confirmation du paiement" },
-                { label: "Durée", value: "Mensuelle, sans engagement — résiliable en trois clics depuis la page Premium" },
+                { label: "Durée", value: "Mensuelle, sans engagement, résiliable en trois clics depuis la page Premium" },
                 { label: "Rétractation", value: "14 jours après la souscription, remboursement intégral" },
               ]} />
             </>
@@ -294,7 +294,7 @@ export default async function MentionsLegalesPage() {
             Les présentes mentions légales sont régies par le droit français. En cas de litige relatif à l'interprétation ou à l'exécution des présentes mentions légales, et à défaut de résolution amiable, les tribunaux français seront seuls compétents.
           </p>
           <div className="flex items-center justify-between text-xs text-muted-foreground pt-2 border-t border-white/10">
-            <span>Version 1.1 — Dernière mise à jour : mai 2026</span>
+            <span>Version 1.1, Dernière mise à jour : mai 2026</span>
             <a href="#" className="hover:text-primary transition-colors">↑ Haut de page</a>
           </div>
         </section>

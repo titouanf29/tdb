@@ -104,8 +104,8 @@ export function PriceAlertWatcher() {
                   </div>
                   <p className="text-sm mt-0.5 leading-snug">
                     {fr
-                      ? <>A {up ? "franchi" : "chuté sous"} votre cible de <b>{a.target}</b>{a.triggered_price != null && <> — cours actuel <b>{a.triggered_price}</b></>}.</>
-                      : <>{up ? "Crossed above" : "Dropped below"} your <b>{a.target}</b> target{a.triggered_price != null && <> — now <b>{a.triggered_price}</b></>}.</>}
+                      ? <>A {up ? "franchi" : "chuté sous"} votre cible de <b>{a.target}</b>{a.triggered_price != null && <>, cours actuel <b>{a.triggered_price}</b></>}.</>
+                      : <>{up ? "Crossed above" : "Dropped below"} your <b>{a.target}</b> target{a.triggered_price != null && <>, now <b>{a.triggered_price}</b></>}.</>}
                   </p>
                   {a.note && <p className="text-[12px] text-muted-foreground mt-0.5 italic">« {a.note} »</p>}
                   <Link href={`/analysis?symbol=${a.symbol}`} onClick={() => dismiss(a.id)}

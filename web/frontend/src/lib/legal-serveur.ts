@@ -50,5 +50,5 @@ export function prixTexte(centimes: number): string {
 
 /** « Prénom Nom EI — adresse — SIREN … » : la ligne qui désigne le vendeur. */
 export function ligneVendeur(e: EditeurPublic): string {
-  return [e.identite || e.nom_public, e.adresse, e.siren ? `SIREN ${e.siren}` : ""].filter(Boolean).join(" — ");
+  return [e.identite || e.nom_public, e.adresse, e.siren ? `SIREN ${e.siren}` : ""].filter(Boolean).join(", ");
 }

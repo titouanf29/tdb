@@ -97,7 +97,7 @@ const QUESTIONS: Question[] = [
     cle: "reaction",
     titre: "Votre position perd 15 %. Vous faites quoi ?",
     pourquoi:
-      "Un plan n'existe que s'il est tenu. Répondez ce que vous FAITES, pas ce qu'il faudrait faire — c'est le seul moyen que l'écran vous signale un plan que vous ne jouerez pas.",
+      "Un plan n'existe que s'il est tenu. Répondez ce que vous FAITES, pas ce qu'il faudrait faire, c'est le seul moyen que l'écran vous signale un plan que vous ne jouerez pas.",
     choix: [
       { valeur: "coupe", label: "Je coupe" },
       { valeur: "attend", label: "J'attends que ça remonte" },
@@ -119,7 +119,7 @@ const QUESTIONS: Question[] = [
     cle: "connait",
     titre: "Lesquels connaissez-vous déjà ?",
     pourquoi:
-      "Ceux que vous cochez ne seront plus expliqués — l'écran garde la place pour ce qu'ils disent aujourd'hui, sur cet actif.",
+      "Ceux que vous cochez ne seront plus expliqués, l'écran garde la place pour ce qu'ils disent aujourd'hui, sur cet actif.",
     multiple: true,
     choix: [
       { valeur: "rsi", label: "RSI" },

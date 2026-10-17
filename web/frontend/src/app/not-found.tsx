@@ -25,7 +25,7 @@ export default function NotFound() {
       <Heading level={1} className="mt-2">Cette page n&apos;existe pas.</Heading>
       <Text className="mx-auto mt-3 max-w-[26rem]">
         Le lien est peut-être ancien, ou la page a changé d&apos;adresse. Nimbo ne la trouve pas
-        non plus — voici par où repartir.
+        non plus, voici par où repartir.
       </Text>
       <div className="mt-8 flex flex-wrap justify-center gap-3">
         <Button href="/dashboard">Mon espace</Button>

@@ -229,7 +229,7 @@ function BriefingPreview({ briefing }: { briefing: WeeklyBriefing }) {
         <div className="flex items-center gap-2 mb-2">
           <MacroIcon className={cn("w-4 h-4", macroMeta.color)} />
           <span className={cn("text-sm font-semibold", macroMeta.color)}>
-            Sentiment macro — {macroMeta.label}
+            Sentiment macro, {macroMeta.label}
           </span>
         </div>
         <p className="text-sm leading-relaxed font-medium">{briefing.macro?.summary}</p>
@@ -551,7 +551,7 @@ export default function AdminWeeklyPrepPage() {
     try {
       parsed = JSON.parse(jsonText);
     } catch {
-      setJsonError("JSON invalide — corrigez la syntaxe avant de sauvegarder.");
+      setJsonError("JSON invalide, corrigez la syntaxe avant de sauvegarder.");
       return;
     }
     setBriefing(parsed);
@@ -565,7 +565,7 @@ export default function AdminWeeklyPrepPage() {
     try {
       parsed = JSON.parse(jsonText);
     } catch {
-      setJsonError("JSON invalide — corrigez la syntaxe avant de publier.");
+      setJsonError("JSON invalide, corrigez la syntaxe avant de publier.");
       return;
     }
     setPublishing(true);
@@ -577,7 +577,7 @@ export default function AdminWeeklyPrepPage() {
       setTimeout(() => setPublishOk(false), 3000);
     } catch (e: any) {
       if (e?.status === 404) {
-        setError("Endpoint de publication non disponible — re-deploy le backend.");
+        setError("Endpoint de publication non disponible, re-deploy le backend.");
       } else {
         setError(e?.message || "Erreur lors de la publication");
       }

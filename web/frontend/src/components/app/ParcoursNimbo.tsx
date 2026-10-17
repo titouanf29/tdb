@@ -74,7 +74,7 @@ export function ParcoursNimbo({ aUnePosition }: { aUnePosition: boolean }) {
     },
     {
       humeur: "cap",
-      dit: "Maintenant, une première position — en argent virtuel.",
+      dit: "Maintenant, une première position, en argent virtuel.",
       detail: "Sur une analyse où je propose d'entrer, appuyez sur « Prendre position » : l'ordre s'ouvre avec mon stop et mon objectif, vous n'avez qu'à valider. Se tromper ici ne coûte rien.",
       bouton: "Trouver une proposition",
       href: `/analysis?symbol=${encodeURIComponent(actif)}`,

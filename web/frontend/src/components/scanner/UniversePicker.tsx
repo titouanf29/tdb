@@ -257,7 +257,7 @@ export function UniversePicker({
       </div>
 
       {/* Le compte en direct : sans lui on coche à l'aveugle et on découvre à
-          la fin qu'on vient de lancer 819 actifs — ou zéro. */}
+          la fin qu'on vient de lancer 819 actifs, ou zéro. */}
       <Text size="small" tone={count === 0 ? "down" : "ink"}>
         {count === null
           ? ""

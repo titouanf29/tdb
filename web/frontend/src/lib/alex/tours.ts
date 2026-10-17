@@ -31,7 +31,7 @@ export const TOURS: Record<TourId, Tour> = {
       },
       {
         id: "choose-asset",
-        message: "Choisis un actif qui t'intéresse. Pour commencer, je te recommande **Bitcoin (BTC)** — c'est le plus connu et le plus analysé. Clique sur 'Analyser' à côté de n'importe quel actif.",
+        message: "Choisis un actif qui t'intéresse. Pour commencer, je te recommande **Bitcoin (BTC)**, c'est le plus connu et le plus analysé. Clique sur 'Analyser' à côté de n'importe quel actif.",
         hint: "Cherche le bouton 'Analyser' dans la liste des actifs.",
         hintDelay: 15000,
         validation: {
@@ -74,7 +74,7 @@ export const TOURS: Record<TourId, Tour> = {
             valid: true,
             message:
               value === "overbought"
-                ? "⚠️ Le marché est suracheté. Sois prudent avant d'acheter — attends un retour vers 50-60."
+                ? "⚠️ Le marché est suracheté. Sois prudent avant d'acheter, attends un retour vers 50-60."
                 : value === "oversold"
                 ? "💡 Le marché est survendu. Cela peut indiquer un rebond potentiel, mais confirme avec d'autres indicateurs."
                 : "✅ Zone neutre. Le RSI n'envoie pas de signal extrême. Cherche d'autres confirmations.",

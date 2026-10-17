@@ -3,7 +3,7 @@ import { Shield, ExternalLink } from "lucide-react";
 import { LegalNav, LegalSectionTitle, InfoBox, Dl } from "@/components/legal/LegalNav";
 
 export const metadata = {
-  title: "Politique de confidentialité — CaptenTDB",
+  title: "Politique de confidentialité, CaptenTDB",
   description: "Politique de confidentialité de CaptenTDB, conforme au RGPD (Règlement UE 2016/679) et à la loi Informatique et Libertés.",
 };
 
@@ -41,7 +41,7 @@ export default function PolitiqueConfidentialitePage() {
             </div>
             <h1 className="text-2xl font-bold">Politique de confidentialité</h1>
             <p className="text-sm text-muted-foreground mt-1">
-              Règlement (UE) 2016/679 du 27 avril 2016 (RGPD) — Loi n°78-17 du 6 janvier 1978 modifiée
+              Règlement (UE) 2016/679 du 27 avril 2016 (RGPD), Loi n°78-17 du 6 janvier 1978 modifiée
             </p>
           </div>
         </div>
@@ -96,7 +96,7 @@ export default function PolitiqueConfidentialitePage() {
                 <li>Adresse e-mail (identifiant unique, vérifiée par confirmation)</li>
                 <li>Nom d'utilisateur / pseudonyme</li>
                 <li>Prénom et nom de famille <em>(facultatifs)</em></li>
-                <li>Mot de passe — stocké exclusivement sous forme hachée (bcrypt), jamais en clair</li>
+                <li>Mot de passe, stocké exclusivement sous forme hachée (bcrypt), jamais en clair</li>
               </ul>
             </div>
 
@@ -154,7 +154,7 @@ export default function PolitiqueConfidentialitePage() {
                   ["Création et gestion du compte utilisateur", "Exécution du contrat (§1.b)", "Durée de vie du compte + 30 jours après suppression"],
                   ["Fourniture des fonctionnalités (paper trading, favoris, alertes)", "Exécution du contrat (§1.b)", "Durée de vie du compte"],
                   ["Historique des conversations IA", "Exécution du contrat (§1.b)", "90 jours glissants (purge automatique)"],
-                  ["Vérification de l'adresse e-mail", "Exécution du contrat (§1.b)", "Token : 24h — E-mail : durée du compte"],
+                  ["Vérification de l'adresse e-mail", "Exécution du contrat (§1.b)", "Token : 24h, E-mail : durée du compte"],
                   ["Gestion de l'abonnement Premium & facturation", "Exécution du contrat (§1.b)", "Durée de l'abonnement + 10 ans (obligations comptables)"],
                   ["Sécurité, détection des abus et de la fraude", "Intérêt légitime (§1.f)", "1 an"],
                   ["Envoi de notifications de la plateforme", "Consentement ou intérêt légitime (§1.f)", "Durée du compte"],
@@ -186,21 +186,21 @@ export default function PolitiqueConfidentialitePage() {
                 role: "Hébergement serveurs & base de données",
                 country: "États-Unis 🇺🇸",
                 data: "Toutes les données utilisateur (stockées dans la base de données)",
-                guarantee: "Standard Contractual Clauses (SCC/CCT) UE-USA — Data Processing Agreement",
+                guarantee: "Standard Contractual Clauses (SCC/CCT) UE-USA, Data Processing Agreement",
               },
               {
                 name: "Groq, Inc.",
                 role: "Moteur IA de l'assistant (API Llama)",
                 country: "États-Unis 🇺🇸",
                 data: "Contenu de vos messages envoyés à l'assistant IA (transmis à l'API pour générer une réponse, non conservés par Groq selon leur politique)",
-                guarantee: "Standard Contractual Clauses (SCC/CCT) — Privacy Policy Groq",
+                guarantee: "Standard Contractual Clauses (SCC/CCT), Privacy Policy Groq",
               },
               {
                 name: "Stripe, Inc.",
                 role: "Traitement des paiements Premium",
                 country: "États-Unis 🇺🇸",
-                data: "E-mail, identifiant client Stripe — Les données bancaires sont traitées directement par Stripe, jamais par CaptenTDB",
-                guarantee: "Certifié PCI-DSS Level 1 — SCC UE-USA — Stripe Privacy Policy",
+                data: "E-mail, identifiant client Stripe, Les données bancaires sont traitées directement par Stripe, jamais par CaptenTDB",
+                guarantee: "Certifié PCI-DSS Level 1, SCC UE-USA, Stripe Privacy Policy",
               },
             ].map(({ name, role, country, data, guarantee }) => (
               <div key={name} className="p-4 rounded-xl bg-white/5 border border-white/10 space-y-2">
@@ -289,7 +289,7 @@ export default function PolitiqueConfidentialitePage() {
           </div>
 
           <InfoBox variant="warning">
-            <strong>Droit de réclamation auprès de la CNIL :</strong> Si vous estimez que le traitement de vos données ne respecte pas le RGPD, vous avez le droit d'introduire une réclamation auprès de la Commission Nationale de l'Informatique et des Libertés (CNIL) — <a href="https://www.cnil.fr" target="_blank" rel="noopener noreferrer" className="underline inline-flex items-center gap-1">cnil.fr <ExternalLink className="w-3 h-3" /></a> — ou de toute autre autorité de contrôle européenne compétente (Art. 77 RGPD).
+            <strong>Droit de réclamation auprès de la CNIL :</strong> Si vous estimez que le traitement de vos données ne respecte pas le RGPD, vous avez le droit d'introduire une réclamation auprès de la Commission Nationale de l'Informatique et des Libertés (CNIL), <a href="https://www.cnil.fr" target="_blank" rel="noopener noreferrer" className="underline inline-flex items-center gap-1">cnil.fr <ExternalLink className="w-3 h-3" /></a>, ou de toute autre autorité de contrôle européenne compétente (Art. 77 RGPD).
           </InfoBox>
         </section>
 
@@ -301,7 +301,7 @@ export default function PolitiqueConfidentialitePage() {
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {[
-              { title: "Chiffrement des mots de passe", desc: "Algorithme bcrypt avec salt — les mots de passe ne sont jamais stockés en clair et sont non réversibles." },
+              { title: "Chiffrement des mots de passe", desc: "Algorithme bcrypt avec salt, les mots de passe ne sont jamais stockés en clair et sont non réversibles." },
               { title: "Chiffrement des communications", desc: "Toutes les communications entre votre navigateur et nos serveurs sont chiffrées via HTTPS/TLS 1.3." },
               { title: "Authentification par JWT", desc: "Tokens signés à durée de vie limitée, invalidés à la déconnexion." },
               { title: "Accès restreint", desc: "Accès à la base de données limité au serveur applicatif uniquement (pas d'exposition directe)." },
@@ -321,7 +321,7 @@ export default function PolitiqueConfidentialitePage() {
             L'assistant IA de CaptenTDB utilise l'API Groq (modèle Llama) pour générer des réponses à vos messages. Ce traitement est soumis aux dispositions de l'article 22 du RGPD relatif aux décisions automatisées.
           </p>
           <InfoBox variant="info">
-            <strong>Art. 22 RGPD — Décisions automatisées :</strong> L'assistant IA de CaptenTDB est un outil éducatif et conversationnel. Il ne produit aucune décision automatisée ayant un effet juridique ou significatif sur vous (pas de scoring, pas d'évaluation de solvabilité, pas de décision d'accès au service). Il génère des réponses textuelles à but informatif uniquement. L'article 22 dans son sens restrictif ne s'applique donc pas.
+            <strong>Art. 22 RGPD, Décisions automatisées :</strong> L'assistant IA de CaptenTDB est un outil éducatif et conversationnel. Il ne produit aucune décision automatisée ayant un effet juridique ou significatif sur vous (pas de scoring, pas d'évaluation de solvabilité, pas de décision d'accès au service). Il génère des réponses textuelles à but informatif uniquement. L'article 22 dans son sens restrictif ne s'applique donc pas.
           </InfoBox>
           <p className="text-muted-foreground">
             Le contenu de vos messages est transmis à l'API Groq (Groq Inc., USA) pour traitement. Groq déclare ne pas utiliser les données de l'API pour entraîner ses modèles selon sa politique de confidentialité. Ces données sont couvertes par les garanties mentionnées à l'article 4 (SCC).
@@ -362,7 +362,7 @@ export default function PolitiqueConfidentialitePage() {
             La date de dernière mise à jour figure en haut de cette page. L'utilisation continue du service après notification vaut acceptation des nouvelles dispositions.
           </p>
           <div className="flex items-center justify-between text-xs text-muted-foreground pt-2 border-t border-white/10">
-            <span>Version 1.1 — Dernière mise à jour : mai 2026</span>
+            <span>Version 1.1, Dernière mise à jour : mai 2026</span>
             <a href="#" className="hover:text-primary transition-colors">↑ Haut de page</a>
           </div>
         </section>

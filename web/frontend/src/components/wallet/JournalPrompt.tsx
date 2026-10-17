@@ -99,12 +99,12 @@ export function JournalPrompt({
         style={{ backgroundColor: "var(--cap-surface-2)" }}
       >
         {/* Nimbo commente : il fête un gain, et accompagne une perte sans
-            la juger — le conseil qui suit dit quoi en retenir. */}
+            la juger, le conseil qui suit dit quoi en retenir. */}
         <div className="flex items-center gap-3">
           <Nimbo humeur={win ? "fete" : draft.pnl < 0 ? "triste" : "content"} taille={56} />
           <div className="min-w-0">
             <p className="text-[0.95rem] font-semibold" style={{ color: "var(--cap-ink)" }}>
-              {win ? "Bien joué, ce trade est gagnant !" : draft.pnl < 0 ? "Celui-ci n'est pas passé — ça arrive." : "Sorti à l'équilibre."}
+              {win ? "Bien joué, ce trade est gagnant !" : draft.pnl < 0 ? "Celui-ci n'est pas passé, ça arrive." : "Sorti à l'équilibre."}
             </p>
             <span className="text-[0.75rem] uppercase tracking-[0.14em]" style={{ color: "var(--cap-ink-3)" }}>
               Ce que dit ce trade
@@ -148,7 +148,7 @@ export function JournalPrompt({
               Votre note
             </label>
             <Text size="caption" className="mt-1">
-              Tout le reste — prix, quantité, durée, résultat, niveaux — est déjà rempli.
+              Tout le reste, prix, quantité, durée, résultat, niveaux, est déjà rempli.
             </Text>
             <textarea
               id="journal-notes"

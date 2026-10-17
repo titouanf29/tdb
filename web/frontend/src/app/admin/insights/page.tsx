@@ -269,7 +269,7 @@ function BriefingView({ data, heatScore, fearGreed, news }: {
     const dblSep = "═".repeat(52);
     const lines: string[] = [];
     lines.push(dblSep);
-    lines.push("  BRIEFING BRUT — Géopolitique & Marchés");
+    lines.push("  BRIEFING BRUT, Géopolitique & Marchés");
     lines.push(`  Période : ${data.period}  ·  Risque : ${data.risk_level.toUpperCase()}`);
     lines.push(dblSep);
     lines.push("");
@@ -562,7 +562,7 @@ export default function InsightsPage() {
 
     // Header
     lines.push(dblSep);
-    lines.push(`  CAPTENTDB — Script TikTok/Reels`);
+    lines.push(`  CAPTENTDB, Script TikTok/Reels`);
     lines.push(`  ${now}  ·  ${periodLabel}  ·  Mode ${modeLabel}`);
     lines.push(dblSep);
     lines.push("");
@@ -605,7 +605,7 @@ export default function InsightsPage() {
         lines.push(`  📸 Réalisation : ${seg.visual}`);
       }
       if (seg.tool_url) {
-        lines.push(`  🔗 Outil à filmer : ${seg.tool_name ? seg.tool_name + " — " : ""}${seg.tool_url}`);
+        lines.push(`  🔗 Outil à filmer : ${seg.tool_name ? seg.tool_name + ", " : ""}${seg.tool_url}`);
       }
       lines.push("");
 
@@ -687,12 +687,12 @@ export default function InsightsPage() {
               </span>
             </h1>
             <p className="text-muted-foreground text-sm mt-1">
-              Génère des scripts TikTok/Reels + graphiques prêts à filmer — propulsé par les données réelles des marchés.
+              Génère des scripts TikTok/Reels + graphiques prêts à filmer, propulsé par les données réelles des marchés.
             </p>
           </div>
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <Zap className="w-4 h-4 text-yellow-500" />
-            Gratuit — yfinance + Gemini Flash
+            Gratuit, yfinance + Gemini Flash
           </div>
         </div>
       </motion.div>
@@ -773,7 +773,7 @@ export default function InsightsPage() {
           )}
           {mode === "BRIEF" && (
             <p className="text-xs text-primary/80">
-              Mode briefing — analyse brute sans instructions vidéo ni CTA
+              Mode briefing, analyse brute sans instructions vidéo ni CTA
             </p>
           )}
           <div className="flex gap-2">

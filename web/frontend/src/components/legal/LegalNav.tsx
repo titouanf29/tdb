@@ -90,7 +90,7 @@ export function InfoBox({
   variant?: "info" | "warning" | "success" | "danger";
 }) {
   /* Fond très dilué, filet plus franc, encre normale. Le texte d'un encadré
-     légal se lit en entier — le colorer entièrement, comme le faisait la
+     légal se lit en entier, le colorer entièrement, comme le faisait la
      version sombre, le rendait pénible sur les paragraphes longs. */
   const teinte = {
     info: "21, 94, 117",

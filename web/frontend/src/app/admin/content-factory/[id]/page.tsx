@@ -495,7 +495,7 @@ export default function EditContentPage() {
 
           {!filmingGuide ? (
             <div className="h-16 bg-white/3 rounded-lg flex items-center justify-center text-xs text-muted-foreground">
-              Guide de tournage personnalisé plan-par-plan — cliquez pour générer
+              Guide de tournage personnalisé plan-par-plan, cliquez pour générer
             </div>
           ) : (
             <div className="space-y-4">

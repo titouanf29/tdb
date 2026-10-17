@@ -10,7 +10,7 @@ import { MARKET_KEY } from "@/lib/profileQuestions";
 import { getAssetInfo } from "@/lib/assetInfo";
 import { authHeaders } from "@/lib/auth";
 import { isMarketOpen, getMarketHoursDisplay, getTimeUntilChange } from "@/lib/marketStatus";
-import { useFormatPrice, useSettings } from "@/lib/SettingsContext";
+import { fr, useFormatPrice, useSettings } from "@/lib/SettingsContext";
 import { usePremium } from "@/lib/PremiumContext";
 import { useUserLevel } from "@/hooks/useUserLevel";
 import { formatVolume } from "@/lib/utils";
@@ -82,7 +82,7 @@ const PLACE_NAME: Record<string, string> = {
 
 /** What each place is, in the words of someone who does not work in finance. */
 const PLACE_BLURB: Record<string, string> = {
-  USA: "Wall Street — les plus grandes capitalisations mondiales.",
+  USA: "Wall Street, les plus grandes capitalisations mondiales.",
   EUROPE: "Paris, Francfort, Londres et les grandes valeurs européennes.",
   ASIA: "Tokyo, Hong Kong, Séoul.",
   CRYPTO: "Ouvert en permanence, week-ends compris.",
@@ -452,11 +452,11 @@ export default function MarketsPage() {
             <Heading level={1}>Marchés</Heading>
             <Text className="mt-2.5 max-w-[36rem]">
               {openCount === 0
-                ? "Toutes les places sont fermées pour le moment — les chiffres ci-dessous datent de la dernière séance."
+                ? "Toutes les places sont fermées pour le moment, les chiffres ci-dessous datent de la dernière séance."
                 : `${openCount} place${openCount > 1 ? "s" : ""} ouverte${openCount > 1 ? "s" : ""} sur ${markets.length}.`}{" "}
               {globalBreadth == null
                 ? "Le climat du jour s'affiche dès que les cours sont chargés."
-                : `Sur les ${globalBreadth.total} valeurs suivies, ${globalBreadth.up} montent et ${globalBreadth.down} baissent — ${
+                : `Sur les ${globalBreadth.total} valeurs suivies, ${globalBreadth.up} montent et ${globalBreadth.down} baissent, ${
                     globalBreadth.margin > 0.15 ? "la hausse l'emporte nettement."
                     : globalBreadth.margin > 0.05 ? "la hausse l'emporte de peu."
                     : globalBreadth.margin < -0.15 ? "la baisse l'emporte nettement."
@@ -508,7 +508,7 @@ export default function MarketsPage() {
                     {p && (
                       <Num tone={p.avg >= 0 ? "up" : "down"} className="shrink-0 text-[0.85rem]">
                         {p.avg >= 0 ? "+" : ""}
-                        {p.avg.toFixed(2)} %
+                        {fr(p.avg, 2)} %
                       </Num>
                     )}
                   </div>
@@ -547,7 +547,7 @@ export default function MarketsPage() {
         {/* ── 2. Quel temps il fait sur cette place ──────────────────────── */}
         {market && (
           <Panel
-            title={`Le climat — ${PLACE_NAME[market.key] ?? market.name}`}
+            title={`Le climat, ${PLACE_NAME[market.key] ?? market.name}`}
             hint={depth === "discover" ? PLACE_BLURB[market.key] : undefined}
             aside={
               // Hidden below sm: the opening hours are supplementary, and at
@@ -582,7 +582,7 @@ export default function MarketsPage() {
                     ? `La hausse domine : ${here.up} valeurs sur ${here.up + here.down + here.flat} montent.`
                     : here.down > here.up * 1.5
                       ? `La baisse domine : ${here.down} valeurs sur ${here.up + here.down + here.flat} reculent.`
-                      : "La séance est partagée — autant de hausses que de baisses, sans direction nette."}{" "}
+                      : "La séance est partagée, autant de hausses que de baisses, sans direction nette."}{" "}
                   {depth === "discover" &&
                     "Une séance partagée est normale ; c'est quand tout monte ou tout baisse ensemble qu'il se passe quelque chose."}
                 </Text>
@@ -646,7 +646,7 @@ export default function MarketsPage() {
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Chercher un actif — Apple, BTC, LVMH…"
+              placeholder="Chercher un actif, Apple, BTC, LVMH…"
               aria-label="Chercher un actif"
               className="h-11 w-full rounded-[12px] pl-10 pr-3.5 text-[0.92rem] outline-none placeholder:text-[color:var(--cap-ink-4)]"
               style={{
@@ -690,7 +690,7 @@ export default function MarketsPage() {
               results.length === 0 && !searching ? (
                 <EmptyState
                   title="Aucun résultat"
-                  description={`Rien ne correspond à « ${query.trim()} ». Essayez le symbole exact — AAPL, BTC-USD, MC.PA.`}
+                  description={`Rien ne correspond à « ${query.trim()} ». Essayez le symbole exact, AAPL, BTC-USD, MC.PA.`}
                 />
               ) : (
                 <ul className="[&>*+*]:border-t [&>*+*]:border-[color:var(--cap-line)]">
@@ -827,7 +827,7 @@ function AssetRow({
           {change != null && (
             <Num tone={change >= 0 ? "up" : "down"} className="w-[4.5rem] text-right text-[0.88rem]">
               {change >= 0 ? "+" : ""}
-              {change.toFixed(2)} %
+              {fr(change, 2)} %
             </Num>
           )}
         </span>

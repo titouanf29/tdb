@@ -213,7 +213,7 @@ export function RiskReward() {
   return (
     <Frame
       label="L'entrée, le stop en dessous et l'objectif au-dessus, avec les distances comparées"
-      caption="Le rapport compare ce que vous risquez à ce que vous visez. À 1 pour 2, vous pouvez vous tromper deux fois sur trois et rester à l'équilibre — c'est ce calcul, pas le taux de réussite, qui décide du résultat."
+      caption="Le rapport compare ce que vous risquez à ce que vous visez. À 1 pour 2, vous pouvez vous tromper deux fois sur trois et rester à l'équilibre, c'est ce calcul, pas le taux de réussite, qui décide du résultat."
     >
       <defs>
         <marker id={`${gid}-a`} markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto">
@@ -252,7 +252,7 @@ export function OrderTypes() {
   return (
     <Frame
       label="Un ordre au marché exécuté au prix courant, un ordre limité en attente sous le prix"
-      caption="L'ordre au marché achète tout de suite, au prix disponible. L'ordre limité attend votre prix — et n'est jamais exécuté si le marché ne vient pas le chercher."
+      caption="L'ordre au marché achète tout de suite, au prix disponible. L'ordre limité attend votre prix, et n'est jamais exécuté si le marché ne vient pas le chercher."
     >
       <line x1="30" y1="120" x2="530" y2="120" stroke="var(--cap-line-strong)" strokeWidth="1" />
       <Tag x={30} y={40}>Prix du marché</Tag>
@@ -276,7 +276,7 @@ export function OrderTypes() {
         Limité à 115,00 €
       </text>
       <text x="415" y="196" textAnchor="middle" fontSize="11.5" fill="var(--cap-ink-2)" style={{ fontFamily: "var(--cap-font-text)" }}>
-        En attente — rien n&apos;est acheté
+        En attente, rien n&apos;est acheté
       </text>
       <line x1="320" y1="181" x2="276" y2="140" stroke="var(--cap-ink-4)" strokeWidth="1" strokeDasharray="3 3" />
     </Frame>

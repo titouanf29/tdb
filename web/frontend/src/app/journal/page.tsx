@@ -204,7 +204,7 @@ export default function JournalPage() {
           {entries.length === 0 ? (
             <EmptyState
               title="Aucune entrée"
-              description="Notez une décision — même une que vous n'avez pas prise. Ce sont souvent les plus instructives."
+              description="Notez une décision, même une que vous n'avez pas prise. Ce sont souvent les plus instructives."
               action={{ label: "Nouvelle entrée", onClick: startCreate }}
             />
           ) : (
@@ -443,8 +443,8 @@ function EntryRow({
       {/* QUAND. Un journal de trading sans date n'est pas un journal : on ne
           peut ni retrouver la séance, ni relire un trade « celui de mardi »,
           ni voir combien de temps une position a été tenue. Les deux horodatages
-          étaient enregistrés depuis le début — la clôture automatique écrit
-          `exit_time` à la seconde où le stop est touché — et aucun écran ne
+          étaient enregistrés depuis le début, la clôture automatique écrit
+          `exit_time` à la seconde où le stop est touché, et aucun écran ne
           les affichait.
 
           La fin d'abord : c'est elle qu'on cherche quand on relit. */}

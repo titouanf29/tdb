@@ -444,7 +444,7 @@ Commencez toujours avec levier ×1. Maîtrisez la gestion du risque sans levier 
           "Le revenge trading mène à des pertes catastrophiques",
           "Un plan de trading écrit neutralise les décisions émotionnelles",
         ],
-        content: `80% des traders particuliers perdent de l'argent. La raison principale n'est pas technique — c'est psychologique.
+        content: `80% des traders particuliers perdent de l'argent. La raison principale n'est pas technique, c'est psychologique.
 
 **La peur**
 La peur de perdre pousse à :
@@ -649,7 +649,7 @@ EUR/USD = 1.1000 signifie que 1 euro vaut 1.10 dollar.
 La plus petite unité de variation de prix. Pour EUR/USD, un pip = 0.0001.
 
 **Pourquoi le forex est-il si complexe ?**
-Les variations journalières sont souvent très petites (quelques centimes). Pour être rentable, il faut utiliser du levier — ce qui amplifie les risques. Le forex est recommandé pour les traders avec de l'expérience.
+Les variations journalières sont souvent très petites (quelques centimes). Pour être rentable, il faut utiliser du levier, ce qui amplifie les risques. Le forex est recommandé pour les traders avec de l'expérience.
 
 **Les horaires du forex**
 Contrairement aux bourses, le forex est ouvert 24h/24 du dimanche soir (ouverture Sydney) au vendredi soir (fermeture New York). Il n'y a pas de pause sauf le week-end.`,
@@ -895,8 +895,8 @@ Ne fermez pas trop tôt ! En tendance forte, laissez courir avec un trailing sto
           {
             question: "Vous identifiez une tendance haussière sur BTC. Le prix vient de faire un pull-back sur l'EMA 50. C'est :",
             options: [
-              "Un signal de retournement baissier — vendre",
-              "Une opportunité d'achat dans la tendance — entrée potentielle",
+              "Un signal de retournement baissier, vendre",
+              "Une opportunité d'achat dans la tendance, entrée potentielle",
               "Un signal neutre à ignorer",
               "Un faux signal car l'EMA 50 n'est pas fiable",
             ],
@@ -915,7 +915,7 @@ Ne fermez pas trop tôt ! En tendance forte, laissez courir avec un trailing sto
           "Swing trading : positions de jours à semaines, idéal pour les débutants",
           "Choisir son style selon son temps disponible, capital et personnalité",
         ],
-        content: `Il n'existe pas de style de trading supérieur — seulement celui qui correspond à votre personnalité, votre temps disponible et votre capital.
+        content: `Il n'existe pas de style de trading supérieur, seulement celui qui correspond à votre personnalité, votre temps disponible et votre capital.
 
 **Le Scalping**
 • Durée : secondes à quelques minutes
@@ -955,9 +955,9 @@ Toutes les positions sont clôturées en fin de journée : pas de risque overnig
           {
             question: "Vous travaillez à plein temps et pouvez analyser les marchés 30 min le soir. Quel style vous convient le mieux ?",
             options: [
-              "Scalping — le plus rentable",
-              "Day trading — 1 trade par jour",
-              "Swing trading — positions sur plusieurs jours",
+              "Scalping, le plus rentable",
+              "Day trading, 1 trade par jour",
+              "Swing trading, positions sur plusieurs jours",
               "Tous les styles conviennent également",
             ],
             correct: 2,
@@ -973,13 +973,13 @@ Toutes les positions sont clôturées en fin de journée : pas de risque overnig
           "Scalping = capturer des micro-mouvements de 0.1 à 0.5% par trade",
           "10 à 50 trades par jour sur timeframes 1m / 5m",
           "Requis : spread ultra-faible, connexion rapide, concentration totale",
-          "Risque par trade réduit à 0.2-0.5% — la discipline est vitale",
+          "Risque par trade réduit à 0.2-0.5%, la discipline est vitale",
         ],
         content: `Le scalping, c'est le style que tout le monde fantasme avant de comprendre ce que c'est vraiment. On voit le trader avec ses 3 écrans, 30 trades dans la journée, et on imagine des milliers d'euros qui tombent en quelques heures. La réalité ? C'est l'activité la plus épuisante et la plus destructrice pour les débutants qui existent en trading.
 
 Voilà ce qu'on ne vous dit pas assez clairement : **95% des gens qui essaient le scalping perdent de l'argent**. Pas parce que la stratégie ne fonctionne pas. Parce qu'ils n'ont pas la psychologie, l'infrastructure ou l'expérience pour l'exécuter correctement.
 
-Ceci dit — bien fait, le scalping est une machine à cash. Voici comment ça marche vraiment.
+Ceci dit, bien fait, le scalping est une machine à cash. Voici comment ça marche vraiment.
 
 ---
 
@@ -995,15 +995,15 @@ Le profit vient du volume, pas de la taille de chaque gain. Un bon scalper avec 
 
 Si vous tradez en 4G ou en Wi-Fi partagé, oubliez le scalping. Vous perdez des ordres, vous avez du slippage, vous êtes à 200ms de latence quand les algo sont à 2ms. Le marché ne vous fera aucun cadeau là-dessus.
 
-Ce qu'il faut minimum : une connexion fibre stable, un broker ECN avec spread variable (0 à 1 pip sur EUR/USD, pas 3 pips fixes), et une plateforme qui permet de passer un ordre en un raccourci clavier. Beaucoup de scalpers ont 2 à 3 écrans, mais ce n'est pas obligatoire — par contre, avoir votre graphique et votre book d'ordres simultanément, c'est quasi indispensable.
+Ce qu'il faut minimum : une connexion fibre stable, un broker ECN avec spread variable (0 à 1 pip sur EUR/USD, pas 3 pips fixes), et une plateforme qui permet de passer un ordre en un raccourci clavier. Beaucoup de scalpers ont 2 à 3 écrans, mais ce n'est pas obligatoire, par contre, avoir votre graphique et votre book d'ordres simultanément, c'est quasi indispensable.
 
 ---
 
 **Les deux setups qui marchent vraiment**
 
-Le **range scalping** est le plus accessible. Le marché est calme (typiquement avant 9h ou la nuit sur crypto), le prix bounce entre un support et une résistance clairs depuis 30 minutes. Vous achetez sur le support avec un stop juste dessous, vous prenez votre profit sur 60-70% du range. Simple. Quand la volatilité revient et que la bougie explose hors du range — vous sortez, vous ne restez pas dedans.
+Le **range scalping** est le plus accessible. Le marché est calme (typiquement avant 9h ou la nuit sur crypto), le prix bounce entre un support et une résistance clairs depuis 30 minutes. Vous achetez sur le support avec un stop juste dessous, vous prenez votre profit sur 60-70% du range. Simple. Quand la volatilité revient et que la bougie explose hors du range, vous sortez, vous ne restez pas dedans.
 
-Le **breakout scalping** demande plus d'expérience. Vous identifiez un niveau clé — ouverture de session, résistance majeure — et vous entrez quand le prix le franchit avec du volume. La clé : attendre que la bougie se clôture au-dessus, pas pendant. Les faux breakouts tueront votre compte si vous entrez trop tôt.
+Le **breakout scalping** demande plus d'expérience. Vous identifiez un niveau clé, ouverture de session, résistance majeure, et vous entrez quand le prix le franchit avec du volume. La clé : attendre que la bougie se clôture au-dessus, pas pendant. Les faux breakouts tueront votre compte si vous entrez trop tôt.
 
 Le news trading (entrer après un NFP ou un CPI), c'est pour les traders très avancés avec une infrastructure dédiée. Le slippage peut être de 20-30 pips sur certaines publications. Ne commencez pas par là.
 
@@ -1011,7 +1011,7 @@ Le news trading (entrer après un NFP ou un CPI), c'est pour les traders très a
 
 **Le risque en scalping, c'est mathématique**
 
-En swing, vous risquez 1-2% par trade sur 2-3 trades par jour. En scalping, vous faites 30-40 trades — donc même avec 0.3% de risque par trade, votre exposition journalière cumulée est réelle. Une mauvaise série de 8 trades perdants consécutifs à 0.5% de risque = -4% dans la journée.
+En swing, vous risquez 1-2% par trade sur 2-3 trades par jour. En scalping, vous faites 30-40 trades, donc même avec 0.3% de risque par trade, votre exposition journalière cumulée est réelle. Une mauvaise série de 8 trades perdants consécutifs à 0.5% de risque = -4% dans la journée.
 
 **Règle absolue** : définissez une perte max journalière (1.5 à 2% du compte) et respectez-la religieusement. Quand vous l'atteignez, fermez la plateforme. C'est non négociable. Les pires journées des scalpers professionnels sont celles où ils ont ignoré cette règle et ont fait du revenge trading à 15h après une mauvaise matinée.
 
@@ -1034,13 +1034,13 @@ Les meilleurs scalpers tradent 2 heures, pas 8. Ils ont des règles strictes sur
               "+22 pips",
             ],
             correct: 1,
-            explanation: "6 × 8 pips = +48 pips gagnés. 4 × 5 pips = -20 pips perdus. Brut = +28 pips. Spread : 1 pip × 10 trades = -10 pips. Net = +18 pips. En scalping, les frais de transaction représentent une part majeure — toujours les intégrer dans vos calculs de rentabilité.",
+            explanation: "6 × 8 pips = +48 pips gagnés. 4 × 5 pips = -20 pips perdus. Brut = +28 pips. Spread : 1 pip × 10 trades = -10 pips. Net = +18 pips. En scalping, les frais de transaction représentent une part majeure, toujours les intégrer dans vos calculs de rentabilité.",
           },
           {
             question: "Vous êtes en scalping sur une paire forex. Vous avez déjà perdu 1.8% de votre compte aujourd'hui. Que faites-vous ?",
             options: [
               "Prendre des positions plus grandes pour récupérer",
-              "Changer de paire — celle-ci est contre vous",
+              "Changer de paire, celle-ci est contre vous",
               "Fermer la plateforme. Règle de perte journalière : arrêt à 2%",
               "Passer sur un timeframe plus petit pour plus d'opportunités",
             ],
@@ -1054,10 +1054,10 @@ Les meilleurs scalpers tradent 2 heures, pas 8. Ils ont des règles strictes sur
         title: "Day Trading : Maîtriser le trading intraday",
         duration: "13 min",
         keyPoints: [
-          "Toutes les positions fermées chaque soir — zéro risque overnight",
+          "Toutes les positions fermées chaque soir, zéro risque overnight",
           "Sessions optimales : London (9h-12h) et New York (14h30-17h30 Paris)",
           "Stratégie phare : Opening Range Breakout (ORB)",
-          "Maximum 3 à 5 trades par jour — qualité absolument prioritaire sur quantité",
+          "Maximum 3 à 5 trades par jour, qualité absolument prioritaire sur quantité",
         ],
         content: `Le day trading, c'est le seul style où vous fermez tout avant de dormir. Chaque soir, position à zéro. Pas de cauchemar à 3h du matin parce que Trump a tweeté quelque chose. Pas de gap d'ouverture qui efface votre semaine. C'est à la fois sa grande force et sa grande contrainte : vous devez être là, disponible, aux bonnes heures.
 
@@ -1065,31 +1065,31 @@ Et les bonnes heures, c'est vraiment important de comprendre ça.
 
 ---
 
-Le marché, ça dort. Pas complètement — il y a toujours un prix — mais la grande majorité des mouvements interessants se produisent sur deux fenêtres précises. L'ouverture de Londres autour de 9h (heure de Paris), et l'ouverture de New York autour de 14h30. La période entre 14h30 et 17h30 où les deux sessions se chevauchent, c'est le moment le plus actif de la journée. Les volumes explosent. Les tendances s'accélèrent. Les breakouts tiennent.
+Le marché, ça dort. Pas complètement, il y a toujours un prix, mais la grande majorité des mouvements interessants se produisent sur deux fenêtres précises. L'ouverture de Londres autour de 9h (heure de Paris), et l'ouverture de New York autour de 14h30. La période entre 14h30 et 17h30 où les deux sessions se chevauchent, c'est le moment le plus actif de la journée. Les volumes explosent. Les tendances s'accélèrent. Les breakouts tiennent.
 
 Entre 12h et 14h30 par contre ? Le marché baille. Les Américains dorment encore, les Européens déjeunent. On voit beaucoup de faux mouvements, des algos qui s'ennuient, des ranges qui vont nulle part. La plupart des day traders expérimentés ne tradent tout simplement pas pendant cette période.
 
 ---
 
-La stratégie de base qui fonctionne vraiment, c'est l'Opening Range Breakout — l'ORB. L'idée est simple à comprendre, difficile à exécuter avec discipline.
+La stratégie de base qui fonctionne vraiment, c'est l'Opening Range Breakout, l'ORB. L'idée est simple à comprendre, difficile à exécuter avec discipline.
 
 En début de session, le marché "tâtonne". Les premiers 15 à 30 minutes, il définit une zone : un plus haut et un plus bas que vous tracez sur votre graphique. C'est l'Opening Range. La vraie question c'est : dans quelle direction va-t-il sortir de cette zone ?
 
 Quand le prix casse franchement au-dessus du plus haut avec du volume, c'est votre signal Long. Quand il casse en dessous du plus bas avec du volume, c'est votre signal Short. Vous entrez à l'ouverture de la bougie suivante. Votre stop va sous le bas du range (si vous êtes Long) ou au-dessus du haut du range (si vous êtes Short). Votre premier objectif de profit correspond à l'amplitude du range projeté dans la direction du mouvement.
 
-Exemple concret : BTC un matin de session London. Entre 9h00 et 9h30, le marché forme un range entre 44 100$ et 45 200$ — donc 1 100$ d'amplitude. À 9h35, le prix casse à 45 300$ avec volume doublé. Entrée Long à 45 300$. Stop à 44 050$ (sous le bas du range). Premier objectif à 46 300$ (+1 100$). Deuxième objectif à 47 400$ (+2 200$). Net, propre, reproductible.
+Exemple concret : BTC un matin de session London. Entre 9h00 et 9h30, le marché forme un range entre 44 100$ et 45 200$, donc 1 100$ d'amplitude. À 9h35, le prix casse à 45 300$ avec volume doublé. Entrée Long à 45 300$. Stop à 44 050$ (sous le bas du range). Premier objectif à 46 300$ (+1 100$). Deuxième objectif à 47 400$ (+2 200$). Net, propre, reproductible.
 
 ---
 
 Ce qui sépare vraiment les day traders qui durent de ceux qui grillent leurs comptes en 3 mois, c'est la gestion des stops.
 
-Dès l'entrée, votre stop initial est placé et ne bouge jamais vers le bas (jamais vous n'élargissez un stop pour "laisser le trade respirer" — c'est comme ça qu'on ruine des comptes). Quand le trade atteint +1R de profit, vous déplacez le stop au point d'entrée. Vous ne pouvez plus perdre. Ensuite vous suivez le mouvement avec un trailing stop sous chaque nouveau creux (sur un Long) jusqu'à être sorti.
+Dès l'entrée, votre stop initial est placé et ne bouge jamais vers le bas (jamais vous n'élargissez un stop pour "laisser le trade respirer", c'est comme ça qu'on ruine des comptes). Quand le trade atteint +1R de profit, vous déplacez le stop au point d'entrée. Vous ne pouvez plus perdre. Ensuite vous suivez le mouvement avec un trailing stop sous chaque nouveau creux (sur un Long) jusqu'à être sorti.
 
-La règle des 3 pertes consécutives est tout aussi importante. Si vous perdez 3 trades dans la même journée, vous arrêtez. Complètement. Vous fermez la plateforme. Les jours où vous n'êtes pas en phase avec le marché existent — les émotions se dégradent trade après trade, les décisions deviennent irrationnelles, et les amateurs continuent pendant que les pros prennent un café et reprennent le lendemain. Une mauvaise journée ne devient jamais une catastrophe quand on a cette règle.
+La règle des 3 pertes consécutives est tout aussi importante. Si vous perdez 3 trades dans la même journée, vous arrêtez. Complètement. Vous fermez la plateforme. Les jours où vous n'êtes pas en phase avec le marché existent, les émotions se dégradent trade après trade, les décisions deviennent irrationnelles, et les amateurs continuent pendant que les pros prennent un café et reprennent le lendemain. Une mauvaise journée ne devient jamais une catastrophe quand on a cette règle.
 
 ---
 
-Sur quoi trader ? EUR/USD sur la session London (9h-17h) pour les spreads les plus serrés. GBP/USD si vous voulez plus de volatilité. SPX500 et NAS100 dès 15h30 pour l'ouverture américaine — forte liquidité, tendances nettes. BTC fonctionne 24h/24 mais les meilleures sessions correspondent quand même à London et New York.
+Sur quoi trader ? EUR/USD sur la session London (9h-17h) pour les spreads les plus serrés. GBP/USD si vous voulez plus de volatilité. SPX500 et NAS100 dès 15h30 pour l'ouverture américaine, forte liquidité, tendances nettes. BTC fonctionne 24h/24 mais les meilleures sessions correspondent quand même à London et New York.
 
 Le journal de trading n'est pas facultatif. Chaque trade noté : l'actif, la direction, le prix d'entrée et de sortie, la raison d'entrer, et surtout ce que vous ressentiez au moment de la décision. Peur ? FOMO ? Confiance ? Les patterns d'erreurs émotionnelles deviennent visibles après quelques semaines. C'est là que le vrai progrès commence.`,
         quiz: [
@@ -1098,16 +1098,16 @@ Le journal de trading n'est pas facultatif. Chaque trade noté : l'actif, la dir
             options: [
               "Attendre pour voir si c'est un faux breakout",
               "Entrer en Long immédiatement à l'ouverture de la bougie suivante, stop sous le LOW du range",
-              "Entrer en Short — le prix est trop haut après une hausse rapide",
-              "Ignorer — l'ORB ne fonctionne qu'avec le NYSE",
+              "Entrer en Short, le prix est trop haut après une hausse rapide",
+              "Ignorer, l'ORB ne fonctionne qu'avec le NYSE",
             ],
             correct: 1,
-            explanation: "C'est le setup ORB classique : breakout au-dessus du range d'ouverture avec fort volume. Entrée à l'ouverture de la bougie suivante (confirmation), stop sous le LOW du range. Le volume x3 est une excellente confirmation — les breakouts sur fort volume tendent à continuer. Agissez selon votre plan.",
+            explanation: "C'est le setup ORB classique : breakout au-dessus du range d'ouverture avec fort volume. Entrée à l'ouverture de la bougie suivante (confirmation), stop sous le LOW du range. Le volume x3 est une excellente confirmation, les breakouts sur fort volume tendent à continuer. Agissez selon votre plan.",
           },
           {
             question: "Vous êtes en day trading. Votre stop initial est à -100€. Le trade atteint +100€ de profit (+1R). Que faites-vous ?",
             options: [
-              "Fermer la position — vous avez atteint votre objectif",
+              "Fermer la position, vous avez atteint votre objectif",
               "Déplacer le stop au break-even (0€ de P&L) et laisser courir vers TP2",
               "Ajouter à la position pour maximiser",
               "Garder le stop initial, rien ne change",
@@ -1123,39 +1123,39 @@ Le journal de trading n'est pas facultatif. Chaque trade noté : l'actif, la dir
         duration: "14 min",
         keyPoints: [
           "Swing = capturer les oscillations du marché sur 2 à 14 jours",
-          "Timeframes : 4H et Daily — signaux plus clairs, moins de bruit",
-          "30 à 60 minutes d'analyse le soir suffisent — idéal pour actifs professionnels",
-          "Erreur n°1 : sortir trop tôt — laisser courir les positions gagnantes",
+          "Timeframes : 4H et Daily, signaux plus clairs, moins de bruit",
+          "30 à 60 minutes d'analyse le soir suffisent, idéal pour actifs professionnels",
+          "Erreur n°1 : sortir trop tôt, laisser courir les positions gagnantes",
         ],
-        content: `Si vous avez un travail, une vie, et pas envie de passer vos journées à regarder un graphique clignoter — le swing trading est fait pour vous. Sérieusement. 30 à 60 minutes le soir, c'est suffisant pour analyser, placer vos ordres, et reprendre votre vie normale. Le lendemain matin vous vérifiez, éventuellement vous ajustez. C'est tout.
+        content: `Si vous avez un travail, une vie, et pas envie de passer vos journées à regarder un graphique clignoter, le swing trading est fait pour vous. Sérieusement. 30 à 60 minutes le soir, c'est suffisant pour analyser, placer vos ordres, et reprendre votre vie normale. Le lendemain matin vous vérifiez, éventuellement vous ajustez. C'est tout.
 
-L'idée, c'est de capturer les grandes vagues du marché. Pas les petites oscillations à la minute — les vraies tendances sur plusieurs jours ou plusieurs semaines. Un trade bien placé peut vous rapporter 5, 10, parfois 20% en quelques jours. Et pendant que la position court, vous faites autre chose.
+L'idée, c'est de capturer les grandes vagues du marché. Pas les petites oscillations à la minute, les vraies tendances sur plusieurs jours ou plusieurs semaines. Un trade bien placé peut vous rapporter 5, 10, parfois 20% en quelques jours. Et pendant que la position court, vous faites autre chose.
 
 ---
 
-Pour comprendre le swing trading, il faut comprendre comment les marchés bougent. Ça n'est pas aléatoire. Les prix suivent des cycles. D'abord une longue période calme, quasi horizontale, où le marché accumule — les gros acteurs achètent discrètement pendant que les petits ont abandonné. Puis la cassure : le prix sort vers le haut avec du volume, et là commence la phase de hausse. C'est la phase où vous voulez être dedans. Elle peut durer des semaines ou des mois. Après vient la distribution — le volume reste fort mais le prix n'avance plus, les institutionnels revendent à ceux qui arrivent en retard euphoriques. Puis la baisse.
+Pour comprendre le swing trading, il faut comprendre comment les marchés bougent. Ça n'est pas aléatoire. Les prix suivent des cycles. D'abord une longue période calme, quasi horizontale, où le marché accumule, les gros acteurs achètent discrètement pendant que les petits ont abandonné. Puis la cassure : le prix sort vers le haut avec du volume, et là commence la phase de hausse. C'est la phase où vous voulez être dedans. Elle peut durer des semaines ou des mois. Après vient la distribution, le volume reste fort mais le prix n'avance plus, les institutionnels revendent à ceux qui arrivent en retard euphoriques. Puis la baisse.
 
-Identifier dans quelle phase se trouve un actif — et ne trader que pendant la phase de hausse en Long — c'est 80% du travail du swing trader. Si vous tradez dans la bonne direction de la bonne phase, les probabilités jouent pour vous.
+Identifier dans quelle phase se trouve un actif, et ne trader que pendant la phase de hausse en Long, c'est 80% du travail du swing trader. Si vous tradez dans la bonne direction de la bonne phase, les probabilités jouent pour vous.
 
 ---
 
 Le setup que presque tous les swing traders professionnels utilisent, c'est le pullback sur zone de valeur. Voilà comment ça marche concrètement.
 
-Vous avez identifié un actif en tendance haussière claire sur le graphique journalier. Le prix monte, fait des plus hauts et des plus bas plus élevés successivement. Puis il recule — normal, aucun marché monte en ligne droite. Il revient tester une zone importante : un ancien niveau de résistance franchi qui devient maintenant support, un niveau de retracement de Fibonacci entre 50% et 61.8% du dernier swing, ou simplement un support majeur testé plusieurs fois. C'est votre zone.
+Vous avez identifié un actif en tendance haussière claire sur le graphique journalier. Le prix monte, fait des plus hauts et des plus bas plus élevés successivement. Puis il recule, normal, aucun marché monte en ligne droite. Il revient tester une zone importante : un ancien niveau de résistance franchi qui devient maintenant support, un niveau de retracement de Fibonacci entre 50% et 61.8% du dernier swing, ou simplement un support majeur testé plusieurs fois. C'est votre zone.
 
 Vous attendez. La patience ici n'est pas optionnelle, c'est la compétence principale. Vous attendez que le prix arrive sur cette zone et montre un signal de retournement : une pin bar (longue mèche basse qui signifie que les vendeurs ont essayé et ont été repoussés), une bougie d'engulfing haussier, n'importe quelle formation qui montre que les acheteurs reprennent le dessus. Avec du volume croissant, c'est encore mieux.
 
-À l'ouverture de la bougie suivante, vous entrez. Stop sous le bas de la zone testée — pas au niveau exact du support, mais un peu en dessous pour donner de la marge. Premier objectif : la prochaine résistance majeure. Deuxième objectif : plus loin si le mouvement est fort.
+À l'ouverture de la bougie suivante, vous entrez. Stop sous le bas de la zone testée, pas au niveau exact du support, mais un peu en dessous pour donner de la marge. Premier objectif : la prochaine résistance majeure. Deuxième objectif : plus loin si le mouvement est fort.
 
 ---
 
-Prenons ETH comme exemple. L'actif a franchi une résistance majeure à 3 200$ il y a trois semaines et continue de monter. Maintenant il pullback et revient tester les 3 200$ — ancienne résistance devenue support. Le prix touche 3 180$ et forme une pin bar claire sur le graphique 4 heures, avec un volume qui augmente sur la bougie de confirmation.
+Prenons ETH comme exemple. L'actif a franchi une résistance majeure à 3 200$ il y a trois semaines et continue de monter. Maintenant il pullback et revient tester les 3 200$, ancienne résistance devenue support. Le prix touche 3 180$ et forme une pin bar claire sur le graphique 4 heures, avec un volume qui augmente sur la bougie de confirmation.
 
-Entrée : 3 220$ (bougie suivante). Stop : 3 080$ (sous la zone, avec marge). C'est 140$ de risque par ETH. Premier objectif à 3 600$ — soit 380$ de gain et un ratio risque/récompense de 2.7. Deuxième objectif à 3 950$ — soit 730$ de gain et un ratio de 5.2. Un seul de ces trades bien joué compense plusieurs petites erreurs.
+Entrée : 3 220$ (bougie suivante). Stop : 3 080$ (sous la zone, avec marge). C'est 140$ de risque par ETH. Premier objectif à 3 600$, soit 380$ de gain et un ratio risque/récompense de 2.7. Deuxième objectif à 3 950$, soit 730$ de gain et un ratio de 5.2. Un seul de ces trades bien joué compense plusieurs petites erreurs.
 
 ---
 
-La technique des deux lots est simple mais efficace. Vous divisez votre position en deux moitiés égales. La première moitié, vous la fermez au premier objectif — vous encaissez, le trade est "payé". La deuxième moitié, vous déplacez le stop au point d'entrée et vous laissez courir avec un trailing stop sous chaque nouveau creux sur le graphique journalier. Cette demi-position peut faire ×2, ×3, ×4 si le mouvement est fort. Vous maximisez sans vous mettre en risque.
+La technique des deux lots est simple mais efficace. Vous divisez votre position en deux moitiés égales. La première moitié, vous la fermez au premier objectif, vous encaissez, le trade est "payé". La deuxième moitié, vous déplacez le stop au point d'entrée et vous laissez courir avec un trailing stop sous chaque nouveau creux sur le graphique journalier. Cette demi-position peut faire ×2, ×3, ×4 si le mouvement est fort. Vous maximisez sans vous mettre en risque.
 
 L'erreur que fait absolument tout le monde au début : sortir trop tôt. Vous êtes à +3%, ça commence à trembler, vous fermez. Et le trade va ensuite chercher +15%. Ça arrive, encore et encore, jusqu'à ce qu'on comprenne que couper ses positions gagnantes trop tôt est aussi destructeur que laisser courir ses pertes. Si votre stop n'est pas touché et que la structure haussière continue (nouveaux plus hauts, nouveaux plus bas plus élevés), vous n'avez aucune raison de sortir. Configurez une alerte de prix. Vérifiez une fois le soir. Faites confiance à ce que vous avez analysé et à la position que vous avez construite.`,
         quiz: [
@@ -1173,9 +1173,9 @@ L'erreur que fait absolument tout le monde au début : sortir trop tôt. Vous ê
           {
             question: "Vous êtes en swing trading. Votre TP1 vient d'être atteint avec le lot 1. Le lot 2 est toujours ouvert. La tendance continue (nouveaux Higher Highs). Que faites-vous avec le lot 2 ?",
             options: [
-              "Fermer aussi le lot 2 — vous avez déjà bien gagné",
+              "Fermer aussi le lot 2, vous avez déjà bien gagné",
               "Déplacer le stop au break-even et laisser courir vers TP2 avec trailing stop",
-              "Ajouter une nouvelle position — la tendance est forte",
+              "Ajouter une nouvelle position, la tendance est forte",
               "Fermer et réentrer sur le prochain pull-back",
             ],
             correct: 1,
@@ -1188,7 +1188,7 @@ L'erreur que fait absolument tout le monde au début : sortir trop tôt. Vous ê
         title: "Quel style de trading vous correspond ?",
         duration: "8 min",
         keyPoints: [
-          "Il n'existe pas de style 'meilleur' — seulement celui adapté à votre profil",
+          "Il n'existe pas de style 'meilleur', seulement celui adapté à votre profil",
           "4 facteurs clés : temps disponible, capital, personnalité, expérience",
           "Règle d'or : maîtrisez UN style avant d'en ajouter un second",
           "L'évolution naturelle : swing → day trading → scalping (jamais l'inverse)",
@@ -1199,39 +1199,39 @@ Voilà comment choisir honnêtement.
 
 ---
 
-La première question, c'est votre temps. Pas le temps que vous aimeriez avoir — le temps que vous avez vraiment, structurellement, semaine après semaine. Si vous êtes salarié avec des journées chargées et que vous avez 30 à 60 minutes calmes le soir, le swing trading est votre seule vraie option raisonnable. Le day trading nécessite 2 à 4 heures de disponibilité continue pendant les heures de marché — si vous avez des réunions ou des imprévus professionnels, vous allez rater des entrées, mal gérer des positions ouvertes, et prendre de mauvaises décisions sous pression. Le scalping demande 6 à 8 heures de concentration sans interruption, pendant lesquelles vous ne pouvez littéralement rien faire d'autre.
+La première question, c'est votre temps. Pas le temps que vous aimeriez avoir, le temps que vous avez vraiment, structurellement, semaine après semaine. Si vous êtes salarié avec des journées chargées et que vous avez 30 à 60 minutes calmes le soir, le swing trading est votre seule vraie option raisonnable. Le day trading nécessite 2 à 4 heures de disponibilité continue pendant les heures de marché, si vous avez des réunions ou des imprévus professionnels, vous allez rater des entrées, mal gérer des positions ouvertes, et prendre de mauvaises décisions sous pression. Le scalping demande 6 à 8 heures de concentration sans interruption, pendant lesquelles vous ne pouvez littéralement rien faire d'autre.
 
-La deuxième question, c'est votre capital. Avec moins de 500€, le swing trading sur crypto est la seule chose qui a du sens — les frais de transaction sur d'autres marchés mangeraient vos gains. Entre 500€ et 5 000€, vous pouvez envisager le swing ou le day trading sur crypto ou forex. Le scalping en dessous de 5 000€ est mathématiquement peu intéressant : les gains par trade sont si petits qu'il faut un volume de trades considérable pour que ça représente quelque chose.
+La deuxième question, c'est votre capital. Avec moins de 500€, le swing trading sur crypto est la seule chose qui a du sens, les frais de transaction sur d'autres marchés mangeraient vos gains. Entre 500€ et 5 000€, vous pouvez envisager le swing ou le day trading sur crypto ou forex. Le scalping en dessous de 5 000€ est mathématiquement peu intéressant : les gains par trade sont si petits qu'il faut un volume de trades considérable pour que ça représente quelque chose.
 
 ---
 
 Mais la vraie variable, celle que personne n'aime regarder en face, c'est la personnalité.
 
-Si vous êtes du genre à vérifier vos positions toutes les heures quand vous avez un trade ouvert, si une perte de 2% vous ruine la journée émotionnellement, si vous avez du mal à "ne rien faire" quand vous êtes devant votre écran — le scalping va vous détruire. Pas parce que le style est mauvais, mais parce qu'il amplifie exactement ces traits. Des dizaines de micro-décisions par heure, des pertes fréquentes qui font partie du plan, une discipline de fer nécessaire à chaque instant. Les traders qui réussissent en scalping ont quelque chose qui ressemble à un détachement émotionnel presque clinique vis-à-vis de leurs trades.
+Si vous êtes du genre à vérifier vos positions toutes les heures quand vous avez un trade ouvert, si une perte de 2% vous ruine la journée émotionnellement, si vous avez du mal à "ne rien faire" quand vous êtes devant votre écran, le scalping va vous détruire. Pas parce que le style est mauvais, mais parce qu'il amplifie exactement ces traits. Des dizaines de micro-décisions par heure, des pertes fréquentes qui font partie du plan, une discipline de fer nécessaire à chaque instant. Les traders qui réussissent en scalping ont quelque chose qui ressemble à un détachement émotionnel presque clinique vis-à-vis de leurs trades.
 
-À l'inverse, si vous êtes quelqu'un de patient, analytique, qui aime prendre le temps de comprendre avant d'agir — le swing trading va vous correspondre naturellement. Vous analysez le soir, vous posez vos ordres, et vous laissez le marché travailler. Les décisions se prennent à tête reposée, sans pression.
+À l'inverse, si vous êtes quelqu'un de patient, analytique, qui aime prendre le temps de comprendre avant d'agir, le swing trading va vous correspondre naturellement. Vous analysez le soir, vous posez vos ordres, et vous laissez le marché travailler. Les décisions se prennent à tête reposée, sans pression.
 
 ---
 
 En termes de progression, ne brûlez pas les étapes. Ce n'est pas une question d'ambition, c'est une question de mécanique d'apprentissage.
 
-Les 6 premiers mois, le swing trading est obligatoire. Pas parce que c'est le style "pour les débutants" — mais parce que les timeframes longs vous donnent le temps d'apprendre. Chaque signal sur le graphique journalier laisse des heures pour réfléchir, analyser, comprendre pourquoi vous avez tort ou raison. Sur le scalping, vous avez 10 secondes. Vous ne pouvez pas apprendre à cette vitesse quand vous ne maîtrisez pas encore les bases.
+Les 6 premiers mois, le swing trading est obligatoire. Pas parce que c'est le style "pour les débutants", mais parce que les timeframes longs vous donnent le temps d'apprendre. Chaque signal sur le graphique journalier laisse des heures pour réfléchir, analyser, comprendre pourquoi vous avez tort ou raison. Sur le scalping, vous avez 10 secondes. Vous ne pouvez pas apprendre à cette vitesse quand vous ne maîtrisez pas encore les bases.
 
-Entre 6 et 18 mois, si votre swing trading est cohérent et rentable, vous pouvez commencer à explorer le day trading — d'abord en paper trading (sans argent réel) pendant un ou deux mois pour valider votre approche intraday, puis avec un capital réduit. Le scalping ? Après 18 mois minimum de trading actif régulier, et seulement si vous savez déjà gagner de manière consistante en swing. Beaucoup de traders professionnels ne font jamais de scalping. Ce n'est pas une étape obligatoire.
+Entre 6 et 18 mois, si votre swing trading est cohérent et rentable, vous pouvez commencer à explorer le day trading, d'abord en paper trading (sans argent réel) pendant un ou deux mois pour valider votre approche intraday, puis avec un capital réduit. Le scalping ? Après 18 mois minimum de trading actif régulier, et seulement si vous savez déjà gagner de manière consistante en swing. Beaucoup de traders professionnels ne font jamais de scalping. Ce n'est pas une étape obligatoire.
 
 ---
 
-Warren Buffett est un investisseur long terme. George Soros est un macro trader. Paul Tudor Jones est un trend follower swing. Des milliards de dollars générés à chaque style. Ce qui compte, ce n'est pas le style que vous choisissez — c'est que vous le pratiquez avec discipline, que vous l'analysez honnêtement, et que vous l'améliorez régulièrement.
+Warren Buffett est un investisseur long terme. George Soros est un macro trader. Paul Tudor Jones est un trend follower swing. Des milliards de dollars générés à chaque style. Ce qui compte, ce n'est pas le style que vous choisissez, c'est que vous le pratiquez avec discipline, que vous l'analysez honnêtement, et que vous l'améliorez régulièrement.
 
 Un style mal adapté à votre vie, c'est la première cause d'abandon. Et l'abandon garantit les pertes.`,
         quiz: [
           {
             question: "Paul est comptable (35h/semaine), disponible 45 minutes chaque soir, capital de 2 000€, débutant depuis 3 mois. Quel style est le plus adapté ?",
             options: [
-              "Scalping — maximise les opportunités avec ses 45 minutes",
-              "Day trading — flexible selon ses horaires de bureau",
-              "Swing trading — 45 min le soir, capital adapté, signaux clairs pour débutant",
-              "Position trading — trop peu de trades pour apprendre rapidement",
+              "Scalping, maximise les opportunités avec ses 45 minutes",
+              "Day trading, flexible selon ses horaires de bureau",
+              "Swing trading, 45 min le soir, capital adapté, signaux clairs pour débutant",
+              "Position trading, trop peu de trades pour apprendre rapidement",
             ],
             correct: 2,
             explanation: "Le swing trading coche toutes les cases pour Paul : 30-60 min le soir suffisent (il en a 45), le capital de 2 000€ est compatible, et à 3 mois d'expérience le swing trading sur Daily/4H est le seul style vraiment adapté. Le scalping et le day trading nécessitent plus d'expérience et de disponibilité continue. Le position trading manquerait de feedback pour un débutant qui cherche à apprendre.",
@@ -1239,7 +1239,7 @@ Un style mal adapté à votre vie, c'est la première cause d'abandon. Et l'aban
           {
             question: "Après 6 mois de swing trading, vous envisagez de passer au day trading. Quelle est la bonne approche ?",
             options: [
-              "Basculer immédiatement — 6 mois c'est suffisant",
+              "Basculer immédiatement, 6 mois c'est suffisant",
               "Tester en paper trading 1 à 2 mois, puis avec très petit capital si résultats positifs",
               "Day trader ET swing trader simultanément pour ne rien rater",
               "Attendre 5 ans de swing trading avant d'essayer",

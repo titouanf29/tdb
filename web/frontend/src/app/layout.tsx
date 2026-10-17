@@ -89,7 +89,7 @@ export const viewport: Viewport = {
 };
 
 const DESCRIPTION =
-  "Apprendre le trading sans risquer un euro : analyses expliquées, argent virtuel, et Nimbo qui propose — et dit franchement ce qui arrive en vrai.";
+  "Apprendre le trading sans risquer un euro : analyses expliquées, argent virtuel, et Nimbo qui propose, et dit franchement ce qui arrive en vrai.";
 
 /* L'IDENTITÉ, partout où le site apparaît hors de lui-même : l'onglet (le
  * nouveau symbole sur fond bleu nuit), l'écran d'accueil d'un téléphone, et
@@ -99,7 +99,7 @@ const DESCRIPTION =
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "https://captentdb.fr"),
   title: {
-    default: "CaptenTDB — apprendre le trading, sans risquer un euro",
+    default: "CaptenTDB · apprendre le trading, sans risquer un euro",
     template: "%s · CaptenTDB",
   },
   description: DESCRIPTION,
@@ -118,13 +118,13 @@ export const metadata: Metadata = {
     locale: "fr_FR",
     url: "/",
     siteName: "CaptenTDB",
-    title: "CaptenTDB — apprendre le trading, sans risquer un euro",
+    title: "CaptenTDB · apprendre le trading, sans risquer un euro",
     description: DESCRIPTION,
     images: [{ url: "/og-image.png", width: 1200, height: 630, alt: "CaptenTDB, avec Nimbo : « Je vous propose de prendre position. »" }],
   },
   twitter: {
     card: "summary_large_image",
-    title: "CaptenTDB — apprendre le trading, sans risquer un euro",
+    title: "CaptenTDB · apprendre le trading, sans risquer un euro",
     description: DESCRIPTION,
     images: ["/og-image.png"],
   },

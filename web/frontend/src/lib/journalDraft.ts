@@ -75,7 +75,7 @@ function buildAdvice(
     out.push(
       pnl < 0
         ? "Aucun stop n'était posé. Cette perte n'avait pas de plancher : elle s'est arrêtée parce que vous avez clôturé, pas parce qu'une limite l'a arrêtée."
-        : "Aucun stop n'était posé. Ça s'est bien terminé cette fois, mais le résultat ne doit rien au plan — il doit tout au marché."
+        : "Aucun stop n'était posé. Ça s'est bien terminé cette fois, mais le résultat ne doit rien au plan, il doit tout au marché."
     );
   }
 
@@ -90,7 +90,7 @@ function buildAdvice(
   // 3. Sorti avant l'objectif alors que le trade gagnait.
   if (pnl > 0 && p.take_profit != null && reward != null && moved < reward * 0.6) {
     out.push(
-      `Vous avez clôturé à ${fmtShort(exitPrice)} alors que l'objectif était à ${fmtShort(p.take_profit)} — ` +
+      `Vous avez clôturé à ${fmtShort(exitPrice)} alors que l'objectif était à ${fmtShort(p.take_profit)}, ` +
         `environ ${Math.round((moved / reward) * 100)} % du chemin. Couper tôt sur les gagnants et tenir les perdants est le schéma qui vide un compte lentement.`
     );
   }
@@ -130,7 +130,7 @@ function buildAdvice(
   if (out.length === 0) {
     out.push(
       pnl >= 0
-        ? "Rien à redire sur l'exécution : niveaux posés, sortie cohérente avec le plan. Notez ce qui vous a fait entrer — c'est cette partie-là qui se répète."
+        ? "Rien à redire sur l'exécution : niveaux posés, sortie cohérente avec le plan. Notez ce qui vous a fait entrer, c'est cette partie-là qui se répète."
         : "L'exécution a suivi le plan ; c'est le plan qui n'a pas fonctionné. Une perte dans les règles est le coût normal du métier, pas une erreur."
     );
   }

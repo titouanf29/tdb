@@ -109,7 +109,7 @@ export function avertissementSeance(
   // horaires dans une phrase ne se retiennent pas, et les pastilles portent
   // déjà le détail, zone par zone, dans leur infobulle.
   const quand = fermees.length === 1 ? etatZone(fermees[0].key).quand : "";
-  const reprise = quand ? ` — ${quand.toLowerCase()}` : "";
+  const reprise = quand ? `, ${quand.toLowerCase()}` : "";
 
   const toutFerme = fermees.length === zones.length;
   const phrase = toutFerme

@@ -359,7 +359,7 @@ function AnalysisScreen() {
   /* L'ADRESSE FAIT FOI. `useState(urlSymbol)` ne lit l'adresse qu'au montage :
      depuis une analyse déjà ouverte, choisir un actif dans la recherche de
      l'en-tête changeait l'URL (/analysis?symbol=TTE.PA) sans changer l'écran,
-     qui restait sur l'actif précédent — le clic semblait ne rien faire. Même
+     qui restait sur l'actif précédent, le clic semblait ne rien faire. Même
      chose avec les boutons précédent / suivant du navigateur. */
   useEffect(() => {
     if (urlSymbol && urlSymbol !== symbol) {
@@ -424,7 +424,7 @@ function AnalysisScreen() {
   /* Un COURS et une SOMME ne se formatent pas pareil, et cet écran ne montre
      que des cours : stop, objectif, EMA, bandes de Bollinger, supports,
      objectifs de prix. Tous passaient par le formateur des sommes, figé à
-     deux décimales — sur un actif sous l'euro, le plan affichait
+     deux décimales, sur un actif sous l'euro, le plan affichait
      « stop 0,35 € / objectif 0,35 € », deux nombres différents rendus
      identiques. Le contexte envoyé à l'assistant portait les mêmes valeurs
      arrondies : il raisonnait sur un stop égal à son objectif. */
@@ -442,7 +442,7 @@ function AnalysisScreen() {
         <header className="pt-2">
           <Heading level={1}>Analyse</Heading>
           <Text className="mt-2.5 max-w-[36rem]">
-            Un actif, un verdict, et la raison du verdict — au niveau de détail
+            Un actif, un verdict, et la raison du verdict, au niveau de détail
             que vous choisissez.
           </Text>
         </header>
@@ -459,7 +459,7 @@ function AnalysisScreen() {
               écran. Les deux partagent maintenant le même comportement.
 
               Le libellé aussi a changé. « AAPL, BTC-USD, MC.PA… » enseignait
-              qu'il fallait connaître le code — ce qui était exact, et c'est
+              qu'il fallait connaître le code, ce qui était exact, et c'est
               précisément ce qu'on corrige. */}
           <form
             ref={formRef}
@@ -508,7 +508,7 @@ function AnalysisScreen() {
           </form>
 
           {/* L'horizon, et c'est un vrai changement de modèle.
-              Le moteur y répond réellement — vérifié sur AAPL : le stop passe
+              Le moteur y répond réellement, vérifié sur AAPL : le stop passe
               de 335,86 en scalping à 220,71 en long terme, le rapport
               gain/risque de 1,67 à 2,00 et le score de 55 à 77. Le réglage
               existait déjà mais n'était modifiable que dans les paramètres,
@@ -571,7 +571,7 @@ function AnalysisScreen() {
           <Panel>
             <EmptyState
               title="Choisissez un actif"
-              description="Commencez par une entreprise que vous connaissez — comprendre l'analyse compte plus que le choix de l'actif."
+              description="Commencez par une entreprise que vous connaissez, comprendre l'analyse compte plus que le choix de l'actif."
               action={{ label: "Analyser Apple", onClick: () => { setQuery("AAPL"); setSymbol("AAPL"); } }}
             />
           </Panel>
@@ -587,7 +587,7 @@ function AnalysisScreen() {
               assetPrice={assetPrice}
               live={live}
               ticker={ticker}
-              tickerHint={`Cadence ${style.label.fr} — toutes les ${style.refreshSeconds} s. Elle suit votre horizon de trading, modifiable dans Réglages.`}
+              tickerHint={`Cadence ${style.label.fr}, toutes les ${style.refreshSeconds} s. Elle suit votre horizon de trading, modifiable dans Réglages.`}
               isFavorite={favorites.has(symbol)}
               onToggleFavorite={toggleFavorite}
               onPasserEnSwing={() => changeStyle("swing")}
@@ -598,7 +598,7 @@ function AnalysisScreen() {
                 Placé juste sous le verdict et son plan, parce que c'est là
                 qu'il se lit : « stop à 327,22 $ » ne dit rien à quelqu'un qui
                 engage 500 €, « 21 € risqués » si. Tant qu'aucune intention
-                n'a été donnée, le panneau ne raconte rien — il propose de
+                n'a été donnée, le panneau ne raconte rien, il propose de
                 poser les questions. */}
             <PourVous
               bloc={analysis.personnel}
@@ -616,7 +616,7 @@ function AnalysisScreen() {
                     : chartMode === "annotated"
                       ? "La structure et les niveaux, tracés sur le prix. Quatre repères, pas quarante."
                       : tvAvailable
-                        ? "Graphique TradingView — outils de dessin et indicateurs complets."
+                        ? "Graphique TradingView, outils de dessin et indicateurs complets."
                         : `${chart!.data.length} points · ${chart!.interval}`
                 }
                 aside={
@@ -635,7 +635,7 @@ function AnalysisScreen() {
               >
                 {/* L'état du marché, avant le graphique et dans les trois
                     vues. Un graphique qui s'arrête le vendredi soir se lit
-                    comme une panne quand rien ne dit que c'est le week-end —
+                    comme une panne quand rien ne dit que c'est le week-end,
                     c'est exactement la conclusion qu'un utilisateur a tirée.
                     La phrase distingue aussi le seul cas qui mérite qu'on
                     s'inquiète : des données en retard marché OUVERT. */}
@@ -688,8 +688,8 @@ function AnalysisScreen() {
                 ) : (
                   <>
                     {/* TradingView ne connaît pas tous les symboles que ce
-                        site analyse. Plutôt qu'un cadre vide — ou pire, le
-                        graphique d'un autre actif — on montre la vue
+                        site analyse. Plutôt qu'un cadre vide, ou pire, le
+                        graphique d'un autre actif, on montre la vue
                         commentée et on dit pourquoi. */}
                     <AnnotatedChart
                       bars={chart!.data}
@@ -699,7 +699,7 @@ function AnalysisScreen() {
                       plan={planDessine(analysis)}
                     />
                     <Text size="caption" className="mt-3">
-                      TradingView ne référence pas cet actif — voici la vue
+                      TradingView ne référence pas cet actif, voici la vue
                       commentée à la place.
                     </Text>
                   </>
@@ -734,7 +734,7 @@ function AnalysisScreen() {
             {/* ── Les compléments, repliés. ──────────────────────────────
                 La page empilait tout au même niveau : presse, banques
                 centrales, climat, assistant, sous le verdict et le prix.
-                Ils restent là, en bas, fermés — leur titre et leur phrase
+                Ils restent là, en bas, fermés, leur titre et leur phrase
                 disent ce qu'il y a dedans, un clic les ouvre, et le site
                 retient ceux qu'on a laissés ouverts. */}
             <div className="flex items-baseline justify-between gap-3 pt-2">
@@ -764,7 +764,7 @@ function AnalysisScreen() {
             <MacroContext symbol={analysis.symbol} />
 
             {/* La géométrie du mouvement : structure, dernière jambe, où en
-                est le prix. Une description — mesurée, elle n'aide pas à
+                est le prix. Une description, mesurée, elle n'aide pas à
                 décider, donc elle est ici, fermée, et le dit. */}
             <StructureMouvement contexte={analysis.contexte_technique} assetPrice={assetPrice} />
 
@@ -781,7 +781,7 @@ function AnalysisScreen() {
 
       {/* Le questionnaire. L'analyse est RELANCÉE après enregistrement : le
           bloc « Pour vous » est calculé côté serveur à partir des réponses,
-          donc sans nouvelle requête il resterait celui d'avant — et le
+          donc sans nouvelle requête il resterait celui d'avant, et le
           questionnaire n'aurait visiblement rien changé, ce qui est
           exactement l'impression à ne pas donner. */}
       <Intentions
@@ -860,7 +860,7 @@ function Verdict({
               et quelqu'un qui compare avec son courtier doit le savoir. */}
           {a.symbol.toUpperCase().endsWith("=F") && (
             <p className="mt-1 max-w-[34rem] text-[0.8rem] leading-snug" style={{ color: "var(--cap-ink-3)" }}>
-              Contrat à terme ({a.symbol}){COMPTANT[a.symbol.toUpperCase()] ? ` — pas le prix au comptant ${COMPTANT[a.symbol.toUpperCase()]}` : ""}.
+              Contrat à terme ({a.symbol}){COMPTANT[a.symbol.toUpperCase()] ? `, pas le prix au comptant ${COMPTANT[a.symbol.toUpperCase()]}` : ""}.
               Il cote en général un peu au-dessus (coût de portage) ; analyse, stop et objectif sont tous
               calculés sur ce contrat.
             </p>
@@ -923,8 +923,8 @@ function Verdict({
 
         <div className="shrink-0">
           {/* Le score PONDÉRÉ PAR LE PROFIL, pas le générique.
-              L'écran envoyait déjà les paramètres du style de trading —
-              multiples d'ATR et poids des fondamentaux — et le moteur
+              L'écran envoyait déjà les paramètres du style de trading,
+              multiples d'ATR et poids des fondamentaux, et le moteur
               renvoyait les deux scores. Seul le générique était affiché : sur
               AAPL, 69 alors que le score du profil valait 71. Les paramètres
               promettent noir sur blanc que le style « change le poids des
@@ -1124,7 +1124,7 @@ function PropositionNimbo({
                   Stop à {assetPrice(plan.suggested_sl)}, objectif à {assetPrice(plan.suggested_tp)} : vous risquez 1 pour viser {fr(plan.risk_reward, 1)}.
                   {plan.obstacle && !plan.tp_capped_at_level && plan.tp_structure != null && (
                     <> {vente ? "Un support" : "Une résistance"} à {assetPrice(plan.tp_structure)} est sur la route : je vise
-                      au-delà — mesuré sur 40 actifs, ça a mieux payé que de s&apos;y arrêter.</>
+                      au-delà, mesuré sur 40 actifs, ça a mieux payé que de s&apos;y arrêter.</>
                   )}
                   {parSeuilAgressif && (
                     <> Le score ({Math.round(scoreMoteur)}) est sous 60, mais avec votre profil {RISQUE[niveau].label.toLowerCase()} je
@@ -1133,7 +1133,7 @@ function PropositionNimbo({
                   )}
                   {taille?.position != null && (
                     <> Avec votre risque {RISQUE[niveau].label.toLowerCase()}, la position fait environ {somme(taille.position)}
-                      {taille.plafonnee ? " — tout votre capital, le plafond" : ""}.</>
+                      {taille.plafonnee ? ", tout votre capital, le plafond" : ""}.</>
                   )}
                 </>
               : intraday
@@ -1142,7 +1142,7 @@ function PropositionNimbo({
                     quelques heures, les frais mangent le gain. En 5 minutes, même mes meilleurs signaux
                     perdaient en moyenne le tiers de la somme risquée à chaque trade ; en 1 h et en 4 h, ils ne
                     gagnaient rien une fois les frais payés. Ici, vous pouvez analyser et vous entraîner
-                    (« quand même » ci-dessous) — les positions que je propose, c&apos;est en Swing, sur
+                    (« quand même » ci-dessous), les positions que je propose, c&apos;est en Swing, sur
                     plusieurs jours, là où mes signaux ont gagné.
                     {onPasserEnSwing && (
                       <button
@@ -1169,7 +1169,7 @@ function PropositionNimbo({
                     Le signal est bon ({score}/100), mais le cours est juste {vente ? "au-dessus d'un support" : "sous une résistance"} à{" "}
                     {assetPrice(butee.niveau)} : {pctEcart(butee.marge, cours)} de marge pour {pctEcart(butee.risque, cours)} de risque.
                     Si {vente ? "ce support cède" : "cette résistance cède"}, ou si le cours revient vers {assetPrice(butee.repli)},
-                    le calcul change — revenez voir.
+                    le calcul change, revenez voir.
                   </>
               : blocage
                 ? <>{blocage}.</>
@@ -1208,13 +1208,13 @@ function PropositionNimbo({
       )}
 
       {/* Ce qui arrive EN VRAI aux achats comparables : l'utilisateur doit
-          savoir, avant d'entrer, que le stop sera souvent touché — et que
+          savoir, avant d'entrer, que le stop sera souvent touché, et que
           l'ensemble gagne quand même. Seulement quand Nimbo propose. */}
       {propose && a.probabilites && <DixAchats p={a.probabilites} />}
 
       {/* La prise de position passe TOUJOURS par Nimbo. Quand il propose,
           bouton plein ; quand il ne propose pas, le bouton reste là, en
-          retrait, et Nimbo dit franchement qu'il ne le conseille pas — c'est
+          retrait, et Nimbo dit franchement qu'il ne le conseille pas, c'est
           de l'argent virtuel, se tromper ici fait partie de l'apprentissage. */}
       <div className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-2">
         <Button href={href} size="lg" variant={propose ? "primary" : "secondary"} className="w-full sm:w-auto">
@@ -1223,7 +1223,7 @@ function PropositionNimbo({
         </Button>
         <Text size="caption" className="max-w-[30rem]">
           {propose
-            ? "Argent virtuel — l'ordre s'ouvre pré-rempli, vous validez."
+            ? "Argent virtuel, l'ordre s'ouvre pré-rempli, vous validez."
             : plan
               ? "Je ne vous le conseille pas, mais c'est vous qui décidez : l'ordre s'ouvre avec ce plan d'exemple, modifiable. Argent virtuel."
               : "Je ne vous le conseille pas, mais c'est vous qui décidez : l'ordre s'ouvre sans niveaux, à vous de poser stop et objectif. Argent virtuel."}
@@ -1252,7 +1252,7 @@ function PendantLeTrade({ ev }: { ev: NonNullable<Analysis["evenements_plan"]> }
     lignes.push({
       cle: "res",
       titre: `Résultats ${quandRelatif(ev.resultats.dans_jours, ev.resultats.date_longue)}`,
-      texte: "Le cours peut ouvrir loin de la veille, y compris par-dessus votre stop. Sur 24 actions, ces trades n'ont pas fait pire en moyenne — mais avec des écarts plus grands, dans les deux sens.",
+      texte: "Le cours peut ouvrir loin de la veille, y compris par-dessus votre stop. Sur 24 actions, ces trades n'ont pas fait pire en moyenne, mais avec des écarts plus grands, dans les deux sens.",
     });
   }
   for (const m of ev.macro) {
@@ -1273,7 +1273,7 @@ function PendantLeTrade({ ev }: { ev: NonNullable<Analysis["evenements_plan"]> }
         {lignes.map((l) => (
           <li key={l.cle}>
             <span className="text-[0.9rem] font-semibold" style={{ color: "var(--cap-ink)" }}>{l.titre}</span>
-            <Text size="small" as="span"> — {l.texte}</Text>
+            <Text size="small" as="span">, {l.texte}</Text>
           </li>
         ))}
       </ul>
@@ -1339,12 +1339,12 @@ function DixAchats({ p }: { p: NonNullable<Analysis["probabilites"]> }) {
       <Text size="small" tone="ink" className="mt-2.5">
         <strong style={{ color: "var(--cap-up)" }}>{objectif}</strong> ont atteint l&apos;objectif (en {p.duree_objectif_seances} séances
         environ), <strong style={{ color: "var(--cap-down)" }}>{stop}</strong> ont touché le stop
-        {echeance > 0 && <>, <strong>{echeance}</strong> sont sortis au bout de {p.echeance_seances} séances — {gain} fois sur 10 en gain</>}.
+        {echeance > 0 && <>, <strong>{echeance}</strong> sont sortis au bout de {p.echeance_seances} séances, {gain} fois sur 10 en gain</>}.
         Le stop sera donc souvent touché : c&apos;est normal. Au total, ces achats ont gagné, parce que l&apos;objectif
         vise bien plus loin que le stop.
       </Text>
       <Text size="caption" className="mt-1.5">
-        Mesuré sur {p.n.toLocaleString("fr-FR")} achats du moteur, {p.actifs} actifs, horizon {p.libelle}, frais compris —
+        Mesuré sur {p.n.toLocaleString("fr-FR")} achats du moteur, {p.actifs} actifs, horizon {p.libelle}, frais compris,
         sur l&apos;ensemble des actifs, pas sur celui-ci en particulier.{" "}
         <Link href="/nimbo" className="underline underline-offset-2" style={{ color: "var(--cap-ocean)" }}>
           Et en vrai, depuis que je propose ?
@@ -1453,7 +1453,7 @@ function Intermediate({ analysis: a, assetPrice }: { analysis: Analysis; assetPr
     <div className="cap-apparait grid gap-5 lg:grid-cols-2">
       {/* Combien de temps tenir. Le moteur le calculait — bornes, durée
           optimale, niveau de risque, raisons et avertissements, tout en
-          français — et rien ne l'affichait. Dans un outil de trading, « je
+          français, et rien ne l'affichait. Dans un outil de trading, « je
           garde ça combien de temps » est une question de premier plan, pas
           un détail. */}
       {w?.label_optimal && (
@@ -1488,7 +1488,7 @@ function Intermediate({ analysis: a, assetPrice }: { analysis: Analysis; assetPr
 
           {w.unreliable && (
             <Text size="small" tone="down" className="mt-5">
-              Cette estimation est peu fiable sur cet actif — les données ne
+              Cette estimation est peu fiable sur cet actif, les données ne
               permettent pas de trancher.
             </Text>
           )}
@@ -1541,7 +1541,7 @@ function Intermediate({ analysis: a, assetPrice }: { analysis: Analysis; assetPr
                 {a.higher_timeframe.trend === "BULLISH" ? "haussière"
                   : a.higher_timeframe.trend === "BEARISH" ? "baissière" : "neutre"}
               </strong>
-              {a.higher_timeframe.aligned === false && " — en désaccord avec l'horizon affiché."}
+              {a.higher_timeframe.aligned === false && ", en désaccord avec l'horizon affiché."}
             </Text>
           </div>
         )}
@@ -1599,7 +1599,7 @@ function Advanced({ analysis: a, assetPrice }: { analysis: Analysis; assetPrice:
     <div className="cap-apparait grid gap-5 lg:grid-cols-2">
       {/* Les trois scénarios de prix et l'avis des analystes. Calculés depuis
           toujours, jamais montrés. Ils vont au niveau Avancé parce qu'une
-          cible chiffrée se lit comme une promesse quand on débute — alors que
+          cible chiffrée se lit comme une promesse quand on débute, alors que
           c'est une projection, et elle est présentée comme telle. */}
       {t && (t.bull != null || t.base != null || t.bear != null) && (
         <Panel
@@ -1644,7 +1644,7 @@ function Advanced({ analysis: a, assetPrice }: { analysis: Analysis; assetPrice:
               {vol["20d"] != null && vol["60d"] != null ? ", " : ""}
               {vol["60d"] != null ? `${fr(vol["60d"], 1)} % sur 60 jours` : ""}
               {vol["20d"] != null && vol["60d"] != null && vol["20d"] > vol["60d"] * 1.2
-                ? " — l'agitation récente dépasse la normale de cet actif."
+                ? ", l'agitation récente dépasse la normale de cet actif."
                 : ""}
             </Text>
             </div>
@@ -1700,7 +1700,7 @@ function Advanced({ analysis: a, assetPrice }: { analysis: Analysis; assetPrice:
               meaning={
                 ind.adx.value >= 25
                   ? "Au-dessus de 25 : il y a une vraie tendance, dans un sens ou dans l'autre."
-                  : "Sous 25 : pas de tendance nette — le prix oscille."
+                  : "Sous 25 : pas de tendance nette, le prix oscille."
               }
             />
           )}
@@ -1727,7 +1727,7 @@ function Advanced({ analysis: a, assetPrice }: { analysis: Analysis; assetPrice:
             name="Bandes de Bollinger"
             cle="bollinger"
             aExpliquer={aExpliquer}
-            value={`${assetPrice(ind.bollinger.lower)} — ${assetPrice(ind.bollinger.upper)}`}
+            value={`${assetPrice(ind.bollinger.lower)}, ${assetPrice(ind.bollinger.upper)}`}
             meaning="L'enveloppe dans laquelle le prix évolue habituellement. Des bandes resserrées précèdent souvent un mouvement."
           />
           {ind.stochastic && (
@@ -1783,7 +1783,7 @@ function Advanced({ analysis: a, assetPrice }: { analysis: Analysis; assetPrice:
       {a.historical_edge?.by_regime && Object.keys(a.historical_edge.by_regime).length > 0 && (
         <Panel
           title="Par régime de marché"
-          hint="Chaque cellule avec son nombre de trades — un échantillon de douze n'est pas un échantillon de quarante."
+          hint="Chaque cellule avec son nombre de trades, un échantillon de douze n'est pas un échantillon de quarante."
         >
           <dl className="space-y-3">
             {Object.entries(a.historical_edge.by_regime).map(([reg, s]) => (
@@ -1940,18 +1940,18 @@ function ChartGuide({ analysis: a, assetPrice }: { analysis: Analysis; assetPric
     },
     {
       title: "2. Les paliers où le prix a déjà réagi",
-      body: `Les zones où le cours a buté plusieurs fois comptent plus que les autres. Sur cet actif, le support mesuré est à ${assetPrice(a.levels.support)} et la résistance à ${assetPrice(a.levels.resistance)} — deux repères, pas deux certitudes : ils cèdent régulièrement.`,
+      body: `Les zones où le cours a buté plusieurs fois comptent plus que les autres. Sur cet actif, le support mesuré est à ${assetPrice(a.levels.support)} et la résistance à ${assetPrice(a.levels.resistance)}, deux repères, pas deux certitudes : ils cèdent régulièrement.`,
     },
     {
       title: "3. Le volume, sous le prix",
       body:
         a.indicators?.volume_ratio != null
-          ? `La barre du bas dit combien d'échanges ont eu lieu. Un mouvement sans volume est fragile. Ici le volume vaut ${fr(a.indicators.volume_ratio, 1)} fois sa moyenne${a.indicators.volume_ratio >= 1.3 ? " — le mouvement est confirmé par les échanges." : a.indicators.volume_ratio <= 0.6 ? " — peu d'échanges derrière ce mouvement." : "."}`
+          ? `La barre du bas dit combien d'échanges ont eu lieu. Un mouvement sans volume est fragile. Ici le volume vaut ${fr(a.indicators.volume_ratio, 1)} fois sa moyenne${a.indicators.volume_ratio >= 1.3 ? ", le mouvement est confirmé par les échanges." : a.indicators.volume_ratio <= 0.6 ? ", peu d'échanges derrière ce mouvement." : "."}`
           : "La barre du bas dit combien d'échanges ont eu lieu. Un mouvement de prix accompagné d'un fort volume est plus fiable qu'un mouvement dans le vide.",
     },
     {
       title: "4. L'unité de temps change tout",
-      body: `Le même actif paraît haussier en 1 jour et baissier en 5 minutes. Choisissez l'unité qui correspond à la durée pendant laquelle vous comptez rester${a.trade_window?.label_optimal ? ` — pour cet actif, le moteur estime ${a.trade_window.label_optimal}` : ""}. Les boutons d'horizon en haut de page la règlent pour toute l'analyse.`,
+      body: `Le même actif paraît haussier en 1 jour et baissier en 5 minutes. Choisissez l'unité qui correspond à la durée pendant laquelle vous comptez rester${a.trade_window?.label_optimal ? `, pour cet actif, le moteur estime ${a.trade_window.label_optimal}` : ""}. Les boutons d'horizon en haut de page la règlent pour toute l'analyse.`,
     },
     {
       title: "5. Ce qu'un graphique ne dit pas",

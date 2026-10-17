@@ -127,7 +127,7 @@ export function quoteState(
 
   const majuscule = lastQuote.charAt(0).toUpperCase() + lastQuote.slice(1);
   const sentence = suspicious
-    ? `${majuscule}, alors que le marché est ouvert — les données ont du retard.`
+    ? `${majuscule}, alors que le marché est ouvert, les données ont du retard.`
     : open
       ? `Marché ouvert · ${lastQuote}${until ? ` · ${until}` : ""}.`
       : `Marché fermé · ${lastQuote}${until ? ` · ${until}` : ""}. ` +

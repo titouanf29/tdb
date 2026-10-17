@@ -58,7 +58,7 @@ export default function WalletPage() {
   const [bySymbol, setBySymbol] = useState<SymbolSummary[]>([]);
   /* Un trade clôturé a sa propre fiche : la fiche des positions ouvertes
      répond à « qu'est-ce que je fais maintenant », celle-ci à la seule
-     question qui fasse progresser — « qu'est-ce que j'ai fait ». */
+     question qui fasse progresser, « qu'est-ce que j'ai fait ». */
   const [closedSheet, setClosedSheet] = useState<Position | null>(null);
   const [funding, setFunding] = useState(false);
   const [resetting, setResetting] = useState(false);
@@ -100,7 +100,7 @@ export default function WalletPage() {
      cotations en cache quelques secondes, donc la cadence de l'écran est
      découplée du débit vers le fournisseur (voir _prices.py).
 
-     Le compteur ne tourne que sur l'onglet des positions ouvertes — un
+     Le compteur ne tourne que sur l'onglet des positions ouvertes, un
      historique figé n'a rien à rafraîchir. */
   const style = useTradingStyle();
   const { remaining, busy: refreshing, paused, refreshNow } = useAutoRefresh(
@@ -139,7 +139,7 @@ export default function WalletPage() {
   /* La clôture enchaîne sur la proposition de journal.
      C'est le seul moment où l'utilisateur sait encore POURQUOI il était
      entré ; une demi-heure plus tard, la réponse est perdue et le journal
-     reste vide — c'est ce qui lui arrivait. Le brouillon est construit à
+     reste vide, c'est ce qui lui arrivait. Le brouillon est construit à
      partir de la position qu'on vient de fermer, donc AVANT le rechargement
      qui la fera disparaître de la liste. */
   const doClose = async () => {
@@ -286,20 +286,20 @@ export default function WalletPage() {
       <div className="relative space-y-8">
         <header className="flex flex-wrap items-end justify-between gap-5 pt-2">
           <div>
-            <Heading level={1}>Wallet — simulation</Heading>
+            <Heading level={1}>Wallet de simulation</Heading>
             <Text className="mt-2.5 max-w-[36rem]">
-              Votre compte d&apos;entraînement. Tout y est virtuel — c&apos;est
+              Votre compte d&apos;entraînement. Tout y est virtuel, c&apos;est
               exactement ce qui permet de se tromper utilement. À ne pas
               confondre avec le Portefeuille réel, qui est un registre de vos
               placements hors du site.
             </Text>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
           <button
             type="button"
             onClick={() => { setResetting(true); setError(""); }}
-            className="rounded-[9px] px-3 py-2 text-[0.85rem] transition-colors"
-            style={{ color: "var(--cap-ink-3)", boxShadow: "inset 0 0 0 1px var(--cap-line)" }}
+            className="min-h-[44px] px-1.5 text-[0.85rem] underline decoration-[color:var(--cap-line-strong)] underline-offset-[6px] transition-colors hover:text-[color:var(--cap-down)] hover:decoration-[color:var(--cap-down)]"
+            style={{ color: "var(--cap-ink-3)" }}
           >
             Recommencer
           </button>
@@ -394,7 +394,7 @@ export default function WalletPage() {
                   busy={refreshing}
                   paused={paused}
                   onRefresh={refreshNow}
-                  hint={`Cadence ${style.label.fr} — toutes les ${style.refreshSeconds} s. Elle suit votre horizon de trading, modifiable dans Réglages.`}
+                  hint={`Cadence ${style.label.fr}, toutes les ${style.refreshSeconds} s. Elle suit votre horizon de trading, modifiable dans Réglages.`}
                 />
               )}
             <SegmentedControl
@@ -470,7 +470,7 @@ export default function WalletPage() {
                     <div className="flex items-center gap-5">
                       {/* Trois états, pas deux. Une position qui n'a pas bougé
                           et une position dont on n'a pas le cours affichaient
-                          exactement la même chose — « 0,00 € · 0,0 % » — et
+                          exactement la même chose, « 0,00 € · 0,0 % », et
                           l'utilisateur ne pouvait pas savoir laquelle il
                           regardait. Le troisième état le dit. */}
                       <div className="text-right">
@@ -479,7 +479,7 @@ export default function WalletPage() {
                             des positions ouvertes : il lisait unrealized_pnl,
                             qui est nul une fois la position fermée. Résultat,
                             chaque trade passé se montrait avec son plan
-                            d'origine — « stop 0,35210 · objectif 0,38662 » —
+                            d'origine, « stop 0,35210 · objectif 0,38662 »,
                             et AUCUN résultat. L'historique ne disait donc pas
                             la seule chose qu'on lui demande. */}
                         {p.status === "closed" ? (
@@ -686,7 +686,7 @@ export default function WalletPage() {
           refermées. Vos trades passés ne sont pas supprimés : ils sortent des
           écrans et des statistiques, parce que leurs montants n&apos;ont plus
           de rapport avec le nouveau compte. Le journal, lui, n&apos;est pas
-          touché — vos notes restent.
+          touché, vos notes restent.
         </Text>
         {error && <div className="mt-4"><FormError>{error}</FormError></div>}
         <div className="mt-6 flex gap-2">
@@ -705,7 +705,7 @@ export default function WalletPage() {
         <Text size="small" className="mt-2">
           De l&apos;argent virtuel, pour continuer à s&apos;entraîner. Cela
           n&apos;a aucun effet en dehors de la plateforme.{" "}
-          <strong>Un montant négatif retire</strong> — « −500 » enlève 500 €.
+          <strong>Un montant négatif retire</strong> : « −500 » enlève 500 €.
         </Text>
         <form onSubmit={addFunds} className="mt-6 space-y-4" noValidate>
           {error && <FormError>{error}</FormError>}
@@ -752,7 +752,7 @@ export default function WalletPage() {
             Remettre le solde au capital de départ
           </button>
           <Text size="caption" className="mt-1.5">
-            Les positions en cours et l&apos;historique ne bougent pas — seul le solde
+            Les positions en cours et l&apos;historique ne bougent pas, seul le solde
             revient à son point de départ.
           </Text>
         </div>

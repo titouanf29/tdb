@@ -184,7 +184,7 @@ export default function PortfolioPage() {
             <Heading level={1}>Portefeuille réel</Heading>
             <Text className="mt-2.5 max-w-[36rem]">
               Vos positions réelles, celles que vous détenez chez votre courtier.
-              Rien n&apos;est exécuté ici — c&apos;est un registre que vous
+              Rien n&apos;est exécuté ici, c&apos;est un registre que vous
               tenez.
             </Text>
           </div>

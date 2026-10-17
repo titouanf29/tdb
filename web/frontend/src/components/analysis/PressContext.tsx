@@ -107,7 +107,7 @@ export function PressContext({
     <Panel
       repliable="presse"
       title="Ce que dit la presse"
-      hint="Les faits de l'actualité reliés à cet actif par un mécanisme économique nommé — et ce que le marché en a fait."
+      hint="Les faits de l'actualité reliés à cet actif par un mécanisme économique nommé, et ce que le marché en a fait."
       aside={
         <span className="flex items-center gap-1.5">
           <Newspaper size={15} aria-hidden style={{ color: "var(--cap-ink-4)" }} />
@@ -167,7 +167,7 @@ export function PressContext({
           ) : (
             <Text size="small" tone="ink">
               Cet actif n&apos;est rattaché à aucun des thèmes que le moteur
-              sait relier à un marché — chocs pétroliers, politique monétaire,
+              sait relier à un marché, chocs pétroliers, politique monétaire,
               barrières douanières, conflits. Son analyse reste technique et
               fondamentale.
             </Text>
@@ -251,11 +251,11 @@ function Evenement({
               seulement « plutôt favorable » : le lecteur devait cliquer pour
               savoir pourquoi, et ce pourquoi est la seule raison d'être du
               panneau. La chaîne de raisonnement, elle, peut rester derrière
-              un clic — c'est le détail, pas la conclusion. */}
+              un clic, c'est le détail, pas la conclusion. */}
           <Text size="caption" as="span" className="mt-1 block">
             <span style={{ color: sensCouleur }}>{sensMot}</span>
             {e.effet && !repetition && (
-              <span style={{ color: "var(--cap-ink-2)" }}> — {e.effet}</span>
+              <span style={{ color: "var(--cap-ink-2)" }}>, {e.effet}</span>
             )}
             {repetition && (
               <span style={{ color: "var(--cap-ink-3)" }}>
@@ -310,7 +310,7 @@ function Evenement({
 
               {/* LE MÉCANISME, PAS UNE ÉTIQUETTE. « Sentiment : négatif »
                   n'explique rien et ne se conteste pas. Une chaîne se lit,
-                  se discute, et tombe si l'un de ses maillons ne tient pas —
+                  se discute, et tombe si l'un de ses maillons ne tient pas,
                   c'est ce qui la rend utile à quelqu'un qui apprend. */}
               <Text size="caption" tone="faint" className="mb-1.5">
                 Par quel chemin cela atteint cet actif
@@ -335,7 +335,7 @@ function Evenement({
               {/* De quoi contredire ce qu'on vient de lire. C'est ce qui
                   sépare un panneau d'analyse d'un oracle : la chaîne annonce
                   un effet, cette ligne dit où aller vérifier qu'il se
-                  produit — ou constater qu'il ne se produit pas. */}
+                  produit, ou constater qu'il ne se produit pas. */}
               {e.a_surveiller && (
                 <Text size="caption" className="mt-2">
                   À surveiller pour vérifier : {e.a_surveiller}.
