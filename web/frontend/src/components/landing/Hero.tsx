@@ -81,7 +81,14 @@ export function Hero() {
                 {/* Chaque mot sort de la brume, l'un après l'autre. */}
                 <Mots texte="Apprenez la bourse." delai={0.35} />
                 <br />
-                <Mots texte="Sans risquer un euro." delai={0.75} className="vitrine-italique" style={{ color: "var(--cap-ocean)" }} />
+                <span className="relative inline-block">
+                  <Mots texte="Sans risquer un euro." delai={0.75} className="vitrine-italique" style={{ color: "var(--cap-ocean)" }} />
+                  {/* Un trait ambre, tracé à la main sous la promesse. */}
+                  <svg aria-hidden viewBox="0 0 300 20" preserveAspectRatio="none"
+                    className="vitrine-trait pointer-events-none absolute -bottom-[0.12em] right-0 h-[0.32em] w-[46%]">
+                    <path d="M3 13 C 60 4, 120 3, 170 9 S 260 16, 297 6" fill="none" stroke="#e5a83a" strokeWidth="5" strokeLinecap="round" />
+                  </svg>
+                </span>
               </Heading>
             </div>
 

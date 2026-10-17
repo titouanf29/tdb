@@ -99,3 +99,45 @@
   .vitrine [data-btn], .vitrine [data-btn]::after { transition: none !important; }
   .vitrine [data-btn]:hover { transform: none; }
 }
+
+/* Les petites capitales espacées qui restaient (« POURQUOI », « DIRECTION »,
+   titres du pied de page) deviennent des légendes en italique. */
+.vitrine [class*="uppercase"]:not([data-btn]):not([data-eyebrow]) {
+  text-transform: none !important;
+  letter-spacing: 0 !important;
+  font-family: var(--cap-font-display) !important;
+  font-style: italic;
+  font-weight: 400 !important;
+  font-size: 0.98rem !important;
+}
+
+/* Les numéros d'étapes : des chiffres serif, à l'ambre. */
+.vitrine .cap-etape-apprendre .cap-num,
+.vitrine #fonctionnement .cap-num {
+  font-family: var(--cap-font-display) !important;
+  font-style: italic;
+  font-size: 1.05rem !important;
+  color: #c98a1e !important;
+}
+
+/* Les liens du menu : un trait ambre qui se dessine au survol. */
+.vitrine .vitrine-lien { position: relative; }
+.vitrine .vitrine-lien::after {
+  content: ""; position: absolute; left: 0; right: 0; bottom: -6px; height: 2px; border-radius: 2px;
+  background: var(--vitrine-ambre); transform: scaleX(0); transform-origin: left;
+  transition: transform .3s cubic-bezier(.2,.8,.2,1);
+}
+.vitrine .vitrine-lien:hover::after { transform: scaleX(1); }
+
+/* Le trait sous « un euro » se trace après l'arrivée des mots. */
+@keyframes vitrine-trace { from { stroke-dashoffset: 340; } to { stroke-dashoffset: 0; } }
+.vitrine .vitrine-trait path { stroke-dasharray: 340; stroke-dashoffset: 340; animation: vitrine-trace 1s 2.1s cubic-bezier(.6,0,.2,1) forwards; }
+.ciel-intro:not(.ciel-parti) .vitrine .vitrine-trait path { animation-play-state: paused; }
+
+.vitrine .vitrine-signature span { font-family: var(--cap-font-display); font-style: italic; font-size: 1rem; }
+
+@media (prefers-reduced-motion: reduce) {
+  .vitrine .vitrine-trait path { animation: none; stroke-dashoffset: 0; }
+  .vitrine .vitrine-lien::after { transition: none; }
+}
+.anim-off .vitrine .vitrine-trait path { animation: none; stroke-dashoffset: 0; }

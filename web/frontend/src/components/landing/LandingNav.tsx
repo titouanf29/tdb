@@ -57,7 +57,7 @@ export function LandingNav() {
               <a
                 key={l.href}
                 href={l.href}
-                className="text-[0.9rem] transition-colors duration-200 hover:text-[color:var(--cap-ink)]"
+                className="vitrine-lien text-[0.9rem] transition-colors duration-200 hover:text-[color:var(--cap-ink)]"
                 style={{ color: "var(--cap-ink-2)" }}
               >
                 {l.label}

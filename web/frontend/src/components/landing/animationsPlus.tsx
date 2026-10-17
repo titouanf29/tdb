@@ -175,6 +175,16 @@ export function NimboCompagnon() {
     if (fin) ioFin.observe(fin);
     return () => { io.disconnect(); ioFin.disconnect(); window.removeEventListener("scroll", surHaut); };
   }, []);
+  // La bulle parle quelques secondes à chaque nouvelle section, puis se
+  // replie : Nimbo reste, discret, et ne cache plus le texte. Un clic sur
+  // lui la rouvre.
+  const [parle, setParle] = useState(true);
+  useEffect(() => {
+    if (!section) return;
+    setParle(true);
+    const t = setTimeout(() => setParle(false), 6500);
+    return () => clearTimeout(t);
+  }, [section]);
   const b = section ? BULLES[section] : null;
   if (ferme) return null;
   return (
@@ -186,7 +196,7 @@ export function NimboCompagnon() {
             animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 30, scale: 0.8 }}
             transition={{ type: "spring", stiffness: 300, damping: 22 }}>
             <AnimatePresence mode="wait">
-              <motion.div key={section} className="relative mb-12 max-w-[15rem] rounded-[16px] rounded-br-[4px] px-4 py-3 text-[0.88rem] leading-snug"
+              {parle && <motion.div key={section} className="relative mb-12 max-w-[15rem] rounded-[16px] rounded-br-[4px] px-4 py-3 text-[0.88rem] leading-snug"
                 initial={actifs ? { opacity: 0, x: 12 } : false} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -8 }}
                 transition={{ duration: 0.3 }}
                 style={{ backgroundColor: "var(--cap-surface)", color: "var(--cap-ink)", boxShadow: "0 12px 30px -12px rgba(11,23,38,0.3), inset 0 0 0 1px var(--cap-line)" }}>
@@ -194,12 +204,13 @@ export function NimboCompagnon() {
                 <button type="button" onClick={() => setFerme(true)} aria-label="Masquer Nimbo"
                   className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full text-[0.75rem]"
                   style={{ backgroundColor: "var(--cap-surface)", color: "var(--cap-ink-3)", boxShadow: "inset 0 0 0 1px var(--cap-line)" }}>×</button>
-              </motion.div>
+              </motion.div>}
             </AnimatePresence>
-            <motion.div key={`n-${section}`} initial={actifs ? { y: -10 } : false} animate={{ y: 0 }}
+            <motion.button type="button" key={`n-${section}`} onClick={() => setParle((v) => !v)}
+              aria-label={parle ? "Replier la bulle de Nimbo" : "Que dit Nimbo ?"} className="cursor-pointer" initial={actifs ? { y: -10 } : false} animate={{ y: 0 }}
               transition={{ type: "spring", stiffness: 500, damping: 12 }}>
-              <Nimbo humeur={b.h} taille={92} label="Nimbo" />
-            </motion.div>
+              <Nimbo humeur={b.h} taille={80} label="" />
+            </motion.button>
           </motion.div>
         )}
       </AnimatePresence>

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { CaptenLogo, Container, Text } from "@/components/design-system";
+import { CaptenLogo, Container, Nimbo, Text } from "@/components/design-system";
 
 /**
  * Le pied de page : où aller, et ce que le site n'est pas.
@@ -26,6 +26,10 @@ export function LandingFooter() {
               Plateforme éducative de trading en argent virtuel. Analysez de vrais marchés, entraînez-vous sans
               risque, et comprenez chaque décision.
             </Text>
+            <p className="vitrine-signature mt-5 flex items-center gap-3" style={{ color: "var(--cap-ink-2)" }}>
+              <Nimbo humeur="content" taille={40} label="" />
+              <span>Imaginé et construit en France, par CaptenQwark.</span>
+            </p>
           </div>
           {COLONNES.map((c) => (
             <nav key={c.titre} aria-label={c.titre}>
