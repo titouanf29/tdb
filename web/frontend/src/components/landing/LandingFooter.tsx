@@ -50,7 +50,7 @@ export function LandingFooter() {
             CaptenTDB n&apos;est pas un prestataire de services d&apos;investissement, ne collecte aucun fonds et ne
             fournit aucun conseil personnalisé. Les performances passées ne préjugent pas des performances futures.
           </Text>
-          <Text size="caption" tone="faint" className="shrink-0">© {new Date().getFullYear()} CaptenTDB — par CaptenQwark</Text>
+          <Text size="caption" tone="faint" className="shrink-0">© {new Date().getFullYear()} CaptenTDB, par CaptenQwark</Text>
         </div>
       </Container>
     </footer>

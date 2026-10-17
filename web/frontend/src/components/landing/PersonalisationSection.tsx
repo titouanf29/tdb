@@ -187,8 +187,8 @@ export function PersonalisationSection() {
 
               <Text size="caption" tone="faint" className="mt-3">
                 {mode === "beginner"
-                  ? "Débutant — l'essentiel, rien de plus."
-                  : "Intermédiaire — les facteurs derrière la direction."}
+                  ? "Débutant : l'essentiel, rien de plus."
+                  : "Intermédiaire : les facteurs derrière la direction."}
               </Text>
             </div>
           </Reveal>

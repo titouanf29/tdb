@@ -27,7 +27,7 @@ const QUESTIONS: { q: string; r: React.ReactNode }[] = [
       <>
         Non. CaptenTDB est un outil éducatif : il n&apos;est pas prestataire de services d&apos;investissement et
         ne donne aucun conseil personnalisé. Quand Nimbo « propose » une position, c&apos;est un exercice, chiffré
-        et expliqué — détails dans les{" "}
+        et expliqué. Détails dans les{" "}
         <Link href="/mentions-legales" className="underline underline-offset-2" style={{ color: "var(--cap-ocean)" }}>mentions légales</Link>.
       </>
     ),
@@ -38,7 +38,7 @@ const QUESTIONS: { q: string; r: React.ReactNode }[] = [
   },
   {
     q: "Nimbo a-t-il toujours raison ?",
-    r: "Non, et il le dit. Sur dix achats comparables, il montre combien ont atteint l'objectif, combien ont touché le stop et combien sont sortis à l'échéance — mesuré sur des années de données. Et chacune de ses vraies propositions est suivie jusqu'au bout : le bilan est consultable dans votre espace.",
+    r: "Non, et il le dit. Sur dix achats comparables, il montre combien ont atteint l'objectif, combien ont touché le stop et combien sont sortis à l'échéance, mesuré sur des années de données. Et chacune de ses vraies propositions est suivie jusqu'au bout : le bilan est consultable dans votre espace.",
   },
   {
     q: "Ça marche sur téléphone ?",

@@ -3,6 +3,7 @@
 import {
   Atmosphere, LiveBackdrop, Container, Eyebrow, Heading, Section, Text,
 } from "@/components/design-system";
+import { Etoiles } from "./animationsPlus";
 import { Reveal } from "./effets";
 import { MotsAuScroll, useProgressionCSS } from "./animations";
 
@@ -42,9 +43,10 @@ export function PaperTradingSection() {
 
   return (
     <Section id="paper-trading" size="md" tone="inverse" className="relative overflow-hidden">
+      <Etoiles />
       <Atmosphere variant="top" />
       <LiveBackdrop />
-      <Container width="wide">
+      <Container width="wide" className="relative">
         <div className="grid gap-14 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:gap-24">
           <div className="lg:sticky lg:top-32 lg:self-start">
             <Reveal>
@@ -55,7 +57,7 @@ export function PaperTradingSection() {
             </Heading>
             <Reveal delay={0.12}>
               <Text size="lead" className="mt-6 max-w-[28rem]">
-                Chaque position est fictive. L'erreur ne coûte rien — sauf la
+                Chaque position est fictive. L'erreur ne coûte rien, sauf la
                 leçon qu'elle vous apprend.
               </Text>
             </Reveal>

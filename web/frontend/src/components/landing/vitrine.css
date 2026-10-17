@@ -1,0 +1,101 @@
+/* LA VOIX DE LA PAGE DE PRÉSENTATION.
+ *
+ * Inter partout, des boutons rectangulaires bleu nuit, de petites étiquettes
+ * en capitales espacées : c'est la tenue par défaut de mille sites générés,
+ * et elle se reconnaît au premier coup d'œil. Cette page a la sienne —
+ * une serif éditoriale chaleureuse pour les titres (Fraunces), une sans-serif
+ * douce pour le texte (Plus Jakarta Sans), des boutons en pilule à l'ambre
+ * du logo, et des étiquettes en italique, comme une légende de magazine.
+ *
+ * Tout est scopé sous .vitrine : l'application garde son style. */
+
+.vitrine {
+  --cap-font-display: var(--font-fraunces), Georgia, "Times New Roman", serif;
+  --cap-font-text: var(--font-jakarta), var(--font-inter), system-ui, sans-serif;
+  --vitrine-ambre: #e5a83a;
+  --vitrine-ambre-clair: #f3c56e;
+  --vitrine-nuit: #0b1726;
+  font-family: var(--cap-font-text);
+}
+
+/* Les titres : la serif, un peu moins grasse, l'optique « display ». */
+.vitrine h1, .vitrine h2, .vitrine h3,
+.vitrine [class*="tracking-[-0.03em]"] {
+  font-family: var(--cap-font-display);
+  font-variation-settings: "opsz" 96, "SOFT" 50;
+}
+.vitrine h1, .vitrine h2 { font-weight: 500 !important; letter-spacing: -0.012em !important; }
+.vitrine h3 { font-weight: 600 !important; letter-spacing: -0.004em !important; }
+/* Les classes de l'ancien style resserraient toutes les lettres (-0,03 em) :
+   bien pour Sora, illisible pour une serif. Le texte retrouve un espacement
+   normal, les titres un resserrement léger. */
+.vitrine :is(p, li, a, button, dd, dt, label):not([class*="tracking-[-0.03em]"]) { letter-spacing: 0.002em; }
+.vitrine :where(h1, h2, h3) :where(span) { letter-spacing: inherit; }
+.vitrine em, .vitrine .vitrine-italique {
+  font-family: var(--cap-font-display);
+  font-style: italic;
+  font-weight: 400;
+}
+
+/* Les étiquettes : plus de capitales espacées, une légende en italique,
+   précédée d'un petit trait ambre. */
+.vitrine [data-eyebrow] {
+  font-family: var(--cap-font-display) !important;
+  font-style: italic;
+  text-transform: none !important;
+  letter-spacing: 0 !important;
+  font-size: 1.12rem !important;
+  font-weight: 400 !important;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+.vitrine #paper-trading [data-eyebrow] { color: #a8cde3 !important; }
+.vitrine [data-eyebrow]::before {
+  content: "";
+  width: 1.6rem;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--vitrine-ambre);
+}
+
+/* Les boutons : des pilules. Le principal à l'ambre du logo, le second en
+   verre dépoli sur le ciel. Une flèche glisse au survol. */
+.vitrine [data-btn] {
+  border-radius: 999px !important;
+  font-weight: 600 !important;
+  letter-spacing: -0.005em;
+  transition: transform 0.25s cubic-bezier(.2,.8,.2,1), box-shadow 0.25s ease, background-color 0.25s ease, filter 0.25s ease !important;
+}
+.vitrine [data-btn="primary"] {
+  background: linear-gradient(180deg, var(--vitrine-ambre-clair), var(--vitrine-ambre)) !important;
+  color: var(--vitrine-nuit) !important;
+  box-shadow: 0 1px 0 rgba(255,255,255,.55) inset, 0 10px 24px -10px rgba(196,132,28,.65) !important;
+}
+.vitrine [data-btn="primary"]:hover {
+  transform: translateY(-2px);
+  filter: brightness(1.03);
+  box-shadow: 0 1px 0 rgba(255,255,255,.6) inset, 0 16px 32px -12px rgba(196,132,28,.75) !important;
+}
+.vitrine [data-btn="primary"]::after {
+  content: "→";
+  display: inline-block;
+  margin-left: 0.15rem;
+  transition: transform 0.25s cubic-bezier(.2,.8,.2,1);
+}
+.vitrine [data-btn="primary"]:hover::after { transform: translateX(4px); }
+.vitrine [data-btn="secondary"] {
+  background: rgba(255,255,255,.6) !important;
+  backdrop-filter: blur(8px);
+  box-shadow: inset 0 0 0 1px rgba(11,23,38,.12), 0 6px 18px -12px rgba(11,23,38,.25) !important;
+}
+.vitrine [data-btn="secondary"]:hover { transform: translateY(-2px); background: rgba(255,255,255,.85) !important; }
+.vitrine [data-btn="quiet"] { border-radius: 999px !important; }
+
+/* La barre du haut : le bouton « Commencer » suit la même règle. */
+.vitrine header [data-btn] { height: 2.5rem; }
+
+@media (prefers-reduced-motion: reduce) {
+  .vitrine [data-btn], .vitrine [data-btn]::after { transition: none !important; }
+  .vitrine [data-btn]:hover { transform: none; }
+}

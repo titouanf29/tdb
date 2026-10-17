@@ -47,7 +47,7 @@ export function ProblemSection() {
                 style={{ backgroundColor: "color-mix(in srgb, var(--cap-surface) 80%, transparent)", boxShadow: "inset 0 0 0 1px var(--cap-line), var(--cap-shadow-md, 0 8px 24px rgba(11,23,38,0.08))" }}>
                 <Nimbo humeur="reflechit" taille={84} label="Nimbo" className="-my-2 shrink-0" />
                 <Text size="small" tone="ink">
-                  Je regarde ces quatre familles pour vous, sur chaque actif — et je vous dis lesquelles comptent
+                  Je regarde ces quatre familles pour vous, sur chaque actif, et je vous dis lesquelles comptent
                   aujourd&apos;hui, en une phrase.
                 </Text>
               </div>

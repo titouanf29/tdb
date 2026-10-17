@@ -8,6 +8,7 @@ import {
 import { AnalysisVisual } from "./AnalysisVisual";
 import { Aimant, Bouffees, Inclinaison, MiseAuPoint, Mots, PremierPlan, Redressement, useCielOuvert } from "./effets";
 import { DEMO_ASSETS } from "./demoData";
+import { CoursVivant, LueurSouris, Machine } from "./animationsPlus";
 import { useMouvementReduit } from "@/components/design-system/useMouvementReduit";
 
 /**
@@ -53,6 +54,7 @@ export function Hero() {
       />
 
       {/* Au tout premier plan, des nuages flous qui passent devant la page. */}
+      <LueurSouris />
       <PremierPlan />
       <MiseAuPoint className="relative">
       <Container width="wide" className="relative">
@@ -79,14 +81,14 @@ export function Hero() {
                 {/* Chaque mot sort de la brume, l'un après l'autre. */}
                 <Mots texte="Apprenez la bourse." delai={0.35} />
                 <br />
-                <Mots texte="Sans risquer un euro." delai={0.75} style={{ color: "var(--cap-ocean)" }} />
+                <Mots texte="Sans risquer un euro." delai={0.75} className="vitrine-italique" style={{ color: "var(--cap-ocean)" }} />
               </Heading>
             </div>
 
             <motion.div {...enter(0.2)} className="mx-auto mt-7 max-w-[34rem] lg:mx-0">
               <Text size="lead">
-                Analysez de vrais marchés, prenez position avec 10 000 € virtuels, et laissez Nimbo
-                vous expliquer chaque décision — y compris quand il vous conseille d&apos;attendre.
+                Analysez de vrais marchés, prenez position avec 10 000 € virtuels, et laissez Nimbo
+                vous expliquer chaque décision, y compris quand il vous conseille d&apos;attendre.
               </Text>
             </motion.div>
 
@@ -132,10 +134,14 @@ export function Hero() {
         >
           {/* Nimbo, assis sur le bord de la carte, et ce qu'il dit. */}
           <div className="pointer-events-none absolute -top-2 left-1/2 z-20 flex -translate-x-1/2 items-end gap-2 sm:left-auto sm:right-6 sm:translate-x-0 lg:-top-6">
-            <Nimbo humeur="cap" taille={124} label="Nimbo" />
+            {/* Nimbo saute sur la carte à l'ouverture du ciel. */}
+            <motion.div initial={reduce ? false : { y: -60, opacity: 0 }} animate={ouvert ? { y: 0, opacity: 1 } : undefined}
+              transition={{ type: "spring", stiffness: 260, damping: 11, delay: 0.9 }}>
+              <Nimbo humeur="cap" taille={124} label="Nimbo" />
+            </motion.div>
             <div className="mb-14 hidden max-w-[14rem] rounded-[16px] rounded-bl-[4px] px-3.5 py-2.5 text-[0.85rem] leading-snug sm:block"
               style={{ backgroundColor: "var(--cap-surface)", color: "var(--cap-ink)", boxShadow: "var(--cap-shadow-md, 0 8px 24px rgba(11,23,38,0.12)), inset 0 0 0 1px var(--cap-line)" }}>
-              Je vous propose d&apos;acheter Apple — <strong>et je vous dis pourquoi.</strong>
+              {ouvert ? <Machine texte="Je vous propose d'acheter Apple. Et je vous dis pourquoi." delai={1.5} /> : "\u00a0"}
             </div>
           </div>
           <Redressement>
@@ -159,7 +165,7 @@ export function Hero() {
                   <span className="text-[0.82rem]" style={{ color: "var(--cap-ink-3)" }}>{apple.ticker}</span>
                 </div>
                 <div className="mt-2 flex items-baseline gap-3">
-                  <Num className="text-[1.6rem] font-medium">{apple.price}</Num>
+                  <Num className="text-[1.6rem] font-medium"><CoursVivant base={245.18} /></Num>
                   <Num tone="up" className="text-[0.95rem]">+{apple.change.toFixed(2)} %</Num>
                 </div>
                 <div className="mt-2 text-[0.95rem] font-semibold" style={{ fontFamily: "var(--cap-font-display)", color: "var(--cap-up)" }}>
@@ -197,7 +203,7 @@ export function Hero() {
           </Redressement>
 
           <p className="mt-3 text-center text-[0.75rem]" style={{ color: "var(--cap-ink-3)" }}>
-            Exemple d&apos;analyse — données d&apos;illustration
+            Exemple d&apos;analyse, données d&apos;illustration
           </p>
         </motion.div>
         </div>

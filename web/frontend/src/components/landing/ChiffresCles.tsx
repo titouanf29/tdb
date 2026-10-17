@@ -2,6 +2,7 @@
 
 import { Container } from "@/components/design-system";
 import { Reveal } from "./effets";
+import { Compteur } from "./animationsPlus";
 
 /**
  * Les chiffres qui rassurent, juste sous le haut de page.
@@ -38,7 +39,7 @@ export function ChiffresCles() {
                 <dt className="sr-only">{c.l}</dt>
                 <dd>
                   <span className="block text-[clamp(1.5rem,2.6vw,2.15rem)] font-semibold tracking-[-0.03em]"
-                    style={{ fontFamily: "var(--cap-font-display)", color: "var(--cap-ink)" }}>{c.v}</span>
+                    style={{ fontFamily: "var(--cap-font-display)", color: "var(--cap-ink)" }}><Compteur valeur={c.v} /></span>
                   <span className="mt-1 block text-[0.92rem] font-medium" style={{ color: "var(--cap-ink)" }}>{c.l}</span>
                   <span className="mt-0.5 block text-[0.8rem] leading-snug" style={{ color: "var(--cap-ink-3)" }}>{c.d}</span>
                 </dd>

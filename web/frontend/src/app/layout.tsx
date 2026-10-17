@@ -44,6 +44,25 @@ const sora = localFont({
   weight: "400 700",
 });
 
+// La page de présentation a sa propre voix : une serif éditoriale pour les
+// titres, une sans-serif douce pour le texte (licence SIL OFL, hébergées ici).
+const fraunces = localFont({
+  src: [
+    { path: "../fonts/Fraunces-normal.woff2", style: "normal" },
+    { path: "../fonts/Fraunces-italic.woff2", style: "italic" },
+  ],
+  variable: "--font-fraunces",
+  display: "swap",
+  weight: "300 700",
+});
+
+const jakarta = localFont({
+  src: "../fonts/PlusJakartaSans-normal.woff2",
+  variable: "--font-jakarta",
+  display: "swap",
+  weight: "400 700",
+});
+
 const spaceGrotesk = localFont({
   src: "../fonts/SpaceGrotesk.woff2",
   variable: "--font-display",
@@ -126,7 +145,7 @@ export default function RootLayout({
     <html
       lang="fr"
       suppressHydrationWarning
-      className={`dark ${inter.variable} ${sora.variable} ${spaceGrotesk.variable} ${jetbrainsMono.variable}`}
+      className={`dark ${inter.variable} ${sora.variable} ${spaceGrotesk.variable} ${jetbrainsMono.variable} ${fraunces.variable} ${jakarta.variable}`}
     >
       <head>
         {/* Applies the cached theme / accent / language BEFORE first paint.

@@ -1,9 +1,12 @@
 "use client";
 
+import "@/components/landing/vitrine.css";
+
 import { CloudLayer, PageCourse, type CourseStop } from "@/components/design-system";
 import { ClosingSection } from "@/components/landing/ClosingSection";
 import { ChiffresCles } from "@/components/landing/ChiffresCles";
 import { FaqSection } from "@/components/landing/FaqSection";
+import { NimboCompagnon } from "@/components/landing/animationsPlus";
 import { OuvertureDuCiel, Traversee } from "@/components/landing/effets";
 import { DemoSection } from "@/components/landing/DemoSection";
 import { Hero } from "@/components/landing/Hero";
@@ -38,7 +41,7 @@ const STOPS: CourseStop[] = [
 
 export default function LandingPage() {
   return (
-    <div className="cap min-h-screen">
+    <div className="cap vitrine min-h-screen">
       {/* À l'arrivée, l'écran est sous les nuages, qui s'écartent. */}
       <OuvertureDuCiel />
       <CloudLayer />
@@ -62,6 +65,7 @@ export default function LandingPage() {
         <ClosingSection />
       </main>
       <LandingFooter />
+      <NimboCompagnon />
     </div>
   );
 }

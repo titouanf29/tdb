@@ -256,7 +256,7 @@ export function DemoSection() {
           </Inclinaison>
 
           <p className="mt-3 text-[0.75rem]" style={{ color: "var(--cap-ink-3)" }}>
-            Données d'illustration — l'analyse réelle utilise les cours de marché.
+            Données d'illustration. L'analyse réelle utilise les cours de marché.
           </p>
         </Reveal>
       </Container>

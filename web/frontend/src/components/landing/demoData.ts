@@ -57,7 +57,7 @@ export const DEMO_ASSETS: DemoAsset[] = [
       "La tendance de fond est orientée à la hausse.",
       "Le momentum accompagne le mouvement, sans excès.",
       "Les volumes confirment les dernières séances.",
-      "Une résistance se trouve à proximité — c'est le point de vigilance.",
+      "Une résistance se trouve à proximité : c'est le point de vigilance.",
     ],
     factors: [
       { label: "Tendance", value: 86 },
@@ -160,7 +160,7 @@ export const DEMO_ASSETS: DemoAsset[] = [
     score: 66,
     reasons: [
       "La tendance longue est solide et régulière.",
-      "Le momentum est modéré — le mouvement est lent, pas faible.",
+      "Le momentum est modéré : le mouvement est lent, pas faible.",
       "La volatilité reste sous sa moyenne.",
       "C'est un profil d'horizon long plutôt que de séance.",
     ],

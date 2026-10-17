@@ -70,7 +70,7 @@ export function Button({
 
   if (href) {
     return (
-      <Link href={href} className={cls} style={styles(variant)} aria-label={ariaLabel}>
+      <Link href={href} className={cls} style={styles(variant)} aria-label={ariaLabel} data-btn={variant}>
         {children}
       </Link>
     );
@@ -84,6 +84,7 @@ export function Button({
       className={cls}
       style={styles(variant)}
       aria-label={ariaLabel}
+      data-btn={variant}
     >
       {children}
     </button>

@@ -100,6 +100,7 @@ export function Eyebrow({
 }) {
   return (
     <p
+      data-eyebrow
       className={cn("text-[0.75rem] font-medium tracking-[0.14em] uppercase", className)}
       style={{ color: "var(--cap-ocean)" }}
     >

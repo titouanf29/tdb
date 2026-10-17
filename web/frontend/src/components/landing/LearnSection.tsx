@@ -23,7 +23,7 @@ const ICONES = [BookOpen, LineChart, Radar, Wallet, NotebookPen, Target, Message
 
 const STAGES = [
   { title: "Formation", body: "Les bases, puis les indicateurs, puis la gestion du risque. Dans cet ordre." },
-  { title: "Analyse", body: "Un actif, un verdict, et la raison du verdict — au niveau de détail que vous avez choisi." },
+  { title: "Analyse", body: "Un actif, un verdict, et la raison du verdict, au niveau de détail que vous avez choisi." },
   { title: "Scanner", body: "Les opportunités qui correspondent à votre profil, et pourquoi elles y correspondent." },
   { title: "Paper trading", body: "La décision se teste. Le risque est dimensionné avant l'entrée." },
   { title: "Journal", body: "Chaque position relue : la décision, le résultat, et l'écart entre les deux." },
@@ -75,12 +75,12 @@ export function LearnSection() {
               }
             >
               <div
-                className="cap-etape-apprendre group h-full border-b py-7 pr-8"
+                className="cap-etape-apprendre group h-full border-b py-7 pr-8 transition-transform duration-300 ease-out hover:-translate-y-1.5"
                 style={{ borderColor: "var(--cap-line)" }}
               >
                 <div className="flex items-center gap-3">
                   {(() => { const I = ICONES[i]; return (
-                    <span className="cap-icone-apprendre inline-flex h-9 w-9 items-center justify-center rounded-[11px]"
+                    <span className="cap-icone-apprendre inline-flex h-9 w-9 items-center justify-center rounded-[11px] transition-transform duration-300 group-hover:-rotate-6 group-hover:scale-110"
                       style={{ backgroundColor: "color-mix(in srgb, var(--cap-ocean) 10%, transparent)", color: "var(--cap-ocean)" }}>
                       <I className="h-[18px] w-[18px]" aria-hidden />
                     </span>

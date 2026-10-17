@@ -27,7 +27,7 @@ const STEPS = [
   {
     n: "03",
     title: "S'entraîner",
-    body: "La décision se teste avec de l'argent virtuel. Le résultat est mesuré, puis relu — c'est là que l'apprentissage a lieu.",
+    body: "La décision se teste avec de l'argent virtuel. Le résultat est mesuré, puis relu : c'est là que l'apprentissage a lieu.",
   },
 ];
 
