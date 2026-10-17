@@ -10,6 +10,7 @@ import { Aimant, Bouffees, Inclinaison, MiseAuPoint, Mots, PremierPlan, Redresse
 import { DEMO_ASSETS } from "./demoData";
 import { CoursVivant, LueurSouris, Machine } from "./animationsPlus";
 import { useMouvementReduit } from "@/components/design-system/useMouvementReduit";
+import { LigneDatee } from "./LigneDatee";
 
 /**
  * Two sentences, two buttons, and the product's actual output.
@@ -65,15 +66,13 @@ export function Hero() {
             l'âme du site et n'apparaissait nulle part sur cette page. */}
         <div className="grid items-center gap-14 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,0.9fr)] lg:gap-10">
           <div className="text-center lg:text-left">
-            <motion.p
-              {...enter(0)}
-              className="inline-flex items-center gap-2 rounded-full px-3.5 py-1.5 text-[0.78rem] font-medium"
-              style={{ color: "var(--cap-ocean)", backgroundColor: "color-mix(in srgb, var(--cap-surface) 70%, transparent)",
-                boxShadow: "inset 0 0 0 1px var(--cap-line)", backdropFilter: "blur(6px)" }}
-            >
-              <span aria-hidden className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: "var(--cap-up)" }} />
-              <span className="sm:hidden">Simulateur éducatif · 100 % virtuel</span>
-              <span className="hidden sm:inline">Simulateur de trading éducatif · argent 100 % virtuel</span>
+            {/* UNE LIGNE DATÉE, PAS UN BADGE. La pastille « Simulateur · 100 %
+                virtuel » est la première chose que tous les sites générés
+                posent au-dessus de leur titre. Ici, comme en tête d'un
+                journal : le jour, l'heure, et ce que font les marchés en ce
+                moment même. C'est vrai, et c'est déjà le sujet du site. */}
+            <motion.p {...enter(0)} className="vitrine-dateline">
+              <LigneDatee />
             </motion.p>
 
             <div className="mt-6">
@@ -117,15 +116,9 @@ export function Hero() {
               </Aimant>
             </motion.div>
 
-            <motion.ul {...enter(0.4)} className="mt-8 flex flex-wrap justify-center gap-x-6 gap-y-2 lg:justify-start">
-              {["Gratuit", "Sans carte bancaire", "Expliqué en français"].map((t) => (
-                <li key={t} className="flex items-center gap-2 text-[0.85rem]" style={{ color: "var(--cap-ink-2)" }}>
-                  <span aria-hidden className="flex h-4 w-4 items-center justify-center rounded-full text-[0.6rem] text-white"
-                    style={{ backgroundColor: "var(--cap-ocean)" }}>✓</span>
-                  {t}
-                </li>
-              ))}
-            </motion.ul>
+            <motion.p {...enter(0.4)} className="vitrine-italique mt-7 text-[1.02rem]" style={{ color: "var(--cap-ink-2)" }}>
+              Gratuit, sans carte bancaire, et entièrement en français.
+            </motion.p>
           </div>
 
         {/* ── Le produit, avec Nimbo ─────────────────────────────────────── */}
@@ -173,7 +166,7 @@ export function Hero() {
                 </div>
                 <div className="mt-2 flex items-baseline gap-3">
                   <Num className="text-[1.6rem] font-medium"><CoursVivant base={245.18} /></Num>
-                  <Num tone="up" className="text-[0.95rem]">+{apple.change.toFixed(2)} %</Num>
+                  <Num tone="up" className="text-[0.95rem]">+{apple.change.toFixed(2).replace(".", ",")} %</Num>
                 </div>
                 <div className="mt-2 text-[0.95rem] font-semibold" style={{ fontFamily: "var(--cap-font-display)", color: "var(--cap-up)" }}>
                   {apple.direction}

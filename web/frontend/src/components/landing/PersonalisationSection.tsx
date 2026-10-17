@@ -5,7 +5,6 @@ import { AnimatePresence, motion, useInView } from "framer-motion";
 import {
   Container, Eyebrow, Heading, Num, Progress, Section, SegmentedControl, Text, DUR, EASE,
 } from "@/components/design-system";
-import { Check } from "lucide-react";
 import { Reveal, useEffetsActifs } from "./effets";
 import { MotsAuScroll } from "./animations";
 import { useMouvementReduit } from "@/components/design-system/useMouvementReduit";
@@ -31,10 +30,8 @@ const QUESTIONS = [
 
 type Mode = "beginner" | "intermediate";
 
-const CSS_QUESTIONS = `.cap-q-coche{transform:scale(.4);opacity:0;transition:transform .45s cubic-bezier(.34,1.56,.64,1),opacity .3s}
-.cap-q[data-ok="1"] .cap-q-coche{transform:none;opacity:1}
-.cap-q-rond{transition:background-color .35s,box-shadow .35s}
-.cap-q[data-ok="1"] .cap-q-rond{background-color:var(--cap-ocean);box-shadow:0 0 0 4px color-mix(in srgb, var(--cap-ocean) 16%, transparent)}
+const CSS_QUESTIONS = `.cap-q-num{width:1.4rem;flex:none;font-family:var(--cap-font-display);font-style:italic;font-size:1.1rem;color:var(--cap-ink-4);transition:color .35s}
+.cap-q[data-ok="1"] .cap-q-num{color:#c98a1e}
 .cap-q-texte{transition:opacity .35s,transform .45s cubic-bezier(.16,1,.3,1)}
 .cap-q[data-ok="0"] .cap-q-texte{opacity:.55}
 .cap-q[data-ok="1"] .cap-q-texte{transform:translate3d(3px,0,0)}`;
@@ -97,10 +94,9 @@ export function PersonalisationSection() {
                     data-ok={repondues > i ? "1" : "0"}
                     style={{ borderColor: "var(--cap-line)" }}
                   >
-                    <span aria-hidden className="cap-q-rond relative inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full"
-                      style={{ boxShadow: "inset 0 0 0 1px var(--cap-line-strong)" }}>
-                      <Check className="cap-q-coche h-3 w-3" strokeWidth={3} style={{ color: "#fff" }} />
-                    </span>
+                    {/* Un numéro de question, qui passe à l'ambre une fois
+                        répondu, plutôt qu'une coche bleue dans un rond. */}
+                    <span aria-hidden className="cap-q-num">{i + 1}</span>
                     <Text size="small" tone="ink" as="span" className="cap-q-texte">{q}</Text>
                   </li>
                 ))}

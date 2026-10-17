@@ -70,7 +70,7 @@ export function DemoSection() {
 
         {/* ── Controls ──────────────────────────────────────────────────── */}
         <Reveal delay={0.16} className="lg:pb-1">
-          <div className="flex flex-wrap items-center gap-2 lg:justify-end">
+          <div className="flex flex-wrap items-center gap-x-3 lg:justify-end">
             {DEMO_ASSETS.map((a) => {
               const active = a.id === assetId;
               return (
@@ -78,18 +78,18 @@ export function DemoSection() {
                   key={a.id}
                   onClick={() => setAssetId(a.id)}
                   aria-pressed={active}
-                  className="relative rounded-[10px] px-4 py-2.5 text-[0.9rem] font-medium transition-colors duration-300"
+                  className="relative min-h-[44px] px-2.5 py-2.5 text-[0.95rem] transition-colors duration-300 hover:text-[color:var(--cap-ink)]"
                   style={{
-                    color: active ? "#F2F5F7" : "var(--cap-ink-2)",
-                    boxShadow: "inset 0 0 0 1px var(--cap-line)",
+                    color: active ? "var(--cap-ink)" : "var(--cap-ink-3)",
+                    fontWeight: active ? 600 : 500,
                   }}
                 >
                   {/* La pastille glisse d'un actif à l'autre. */}
                   {active && (
                     <motion.span
                       layoutId="demo-actif"
-                      className="absolute inset-0 rounded-[10px]"
-                      style={{ backgroundColor: "var(--cap-navy)" }}
+                      className="absolute inset-x-2 bottom-1 h-[2px] rounded-full"
+                      style={{ backgroundColor: "#e5a83a" }}
                       transition={reduce ? { duration: 0 } : { type: "spring", stiffness: 420, damping: 36 }}
                     />
                   )}
@@ -144,7 +144,7 @@ export function DemoSection() {
                       <motion.span key={`c-${asset.id}`} {...defile(0.1)}>
                         <Num tone={asset.change >= 0 ? "up" : "down"} className="text-[0.9rem]">
                           {asset.change >= 0 ? "+" : ""}
-                          {asset.change.toFixed(2)} %
+                          {asset.change.toFixed(2).replace(".", ",")} %
                         </Num>
                       </motion.span>
                     </div>

@@ -63,7 +63,7 @@ export function ClosingSection() {
 
         <Reveal delay={0.22}>
           <Text size="caption" tone="faint" className="mt-6">
-            Gratuit · Argent virtuel uniquement · Aucun conseil en investissement
+            Gratuit. L&apos;argent est virtuel, et rien ici n&apos;est un conseil en investissement.
           </Text>
         </Reveal>
       </Container>

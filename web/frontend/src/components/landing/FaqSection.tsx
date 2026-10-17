@@ -1,10 +1,7 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
-import { AnimatePresence, motion } from "framer-motion";
-import { Plus } from "lucide-react";
-import { Container, Eyebrow, Heading, Section, Text, DUR, EASE } from "@/components/design-system";
+import { Container, Eyebrow, Heading, Section, Text } from "@/components/design-system";
 import { Reveal } from "./effets";
 
 /**
@@ -47,7 +44,6 @@ const QUESTIONS: { q: string; r: React.ReactNode }[] = [
 ];
 
 export function FaqSection() {
-  const [ouvert, setOuvert] = useState<number | null>(0);
   return (
     <Section id="faq" size="md">
       <Container width="wide">
@@ -61,31 +57,18 @@ export function FaqSection() {
               </Text>
             </Reveal>
           </div>
-          <Reveal delay={0.1}>
-            <ul className="overflow-hidden" style={{ borderRadius: "var(--cap-r-xl)", backgroundColor: "var(--cap-surface)", boxShadow: "inset 0 0 0 1px var(--cap-line)" }}>
-              {QUESTIONS.map((x, i) => {
-                const actif = ouvert === i;
-                return (
-                  <li key={x.q} style={{ borderTop: i ? "1px solid var(--cap-line)" : undefined }}>
-                    <button type="button" onClick={() => setOuvert(actif ? null : i)} aria-expanded={actif}
-                      className="flex min-h-[64px] w-full items-center justify-between gap-6 px-6 py-4 text-left transition-colors hover:bg-[color:var(--cap-surface-2)] sm:px-8">
-                      <span className="text-[1.02rem] font-semibold" style={{ color: "var(--cap-ink)" }}>{x.q}</span>
-                      <Plus aria-hidden className="h-5 w-5 shrink-0 transition-transform duration-300"
-                        style={{ color: "var(--cap-ocean)", transform: actif ? "rotate(45deg)" : undefined }} />
-                    </button>
-                    <AnimatePresence initial={false}>
-                      {actif && (
-                        <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }}
-                          exit={{ height: 0, opacity: 0 }} transition={{ duration: DUR.base, ease: EASE }} style={{ overflow: "hidden" }}>
-                          <Text className="px-6 pb-6 sm:px-8">{x.r}</Text>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                  </li>
-                );
-              })}
-            </ul>
-          </Reveal>
+          {/* QUESTIONS ET RÉPONSES COMPOSÉES, PAS UN ACCORDÉON. Les réponses
+              sont courtes et ce sont elles qui rassurent : les cacher derrière
+              des « + » obligeait à cliquer six fois pour lire ce qu'on venait
+              chercher, et c'était la FAQ de tous les sites générés. */}
+          <dl className="vitrine-qr">
+            {QUESTIONS.map((x) => (
+              <Reveal key={x.q} className="vitrine-qr-item">
+                <dt>{x.q}</dt>
+                <dd><Text>{x.r}</Text></dd>
+              </Reveal>
+            ))}
+          </dl>
         </div>
       </Container>
     </Section>
