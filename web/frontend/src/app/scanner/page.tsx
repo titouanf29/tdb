@@ -7,8 +7,9 @@ import {
   analysisAPI,
   type ScanEvent, type ScanIntent, type ScanQuota, type ScanResultItem, type ScanUniverse,
 } from "@/lib/api";
-import { fr } from "@/lib/SettingsContext";
-import { useTradingStyle } from "@/lib/tradingStyle";
+import { fr, useSettings } from "@/lib/SettingsContext";
+import { TRADING_STYLE_IDS, TRADING_STYLES, useTradingStyle } from "@/lib/tradingStyle";
+import { NIVEAUX_RISQUE, RISQUE, niveauRisque } from "@/lib/risque";
 import { useUserLevel } from "@/hooks/useUserLevel";
 import {
   Button, EmptyState, FormError, Heading, Panel, SegmentedControl, Text,
@@ -68,6 +69,7 @@ const uniteFr = (tf: string) => UNITE_FR[tf] ?? tf;
 export default function ScannerPage() {
   const [animOn] = useAnimationsEnabled();
   const style = useTradingStyle();
+  const { settings, saveSettings } = useSettings();
   const level = useUserLevel();
   const expert = level.level === "expert";
 
@@ -88,6 +90,29 @@ export default function ScannerPage() {
   const [quota, setQuota] = useState<ScanQuota | null>(null);
   const [fini, setFini] = useState(false);
   const [elapsed, setElapsed] = useState(0);
+
+  /* LE PROFIL, CHANGEABLE ICI. Nimbo vérifie chaque opportunité avec
+     l'horizon et le risque enregistrés : les changer change ce qu'il
+     propose. On enregistre d'abord (le serveur relit le profil au moment du
+     scan), puis on efface les résultats, qui ne valent plus pour ce profil.
+     Le scan n'est pas relancé tout seul : il compte dans le quota du jour. */
+  const [profilEnCours, setProfilEnCours] = useState(false);
+  const [profilChange, setProfilChange] = useState(false);
+  const changerProfil = async (patch: { tradingStyle?: string; riskLevel?: string }) => {
+    setProfilEnCours(true);
+    setErreur("");
+    try {
+      await saveSettings(patch);
+      setHorizonScan(null);
+      setResults([]);
+      setFini(false);
+      setProfilChange(true);
+    } catch (e) {
+      setErreur(e instanceof Error ? e.message : "Le profil n'a pas pu être enregistré.");
+    } finally {
+      setProfilEnCours(false);
+    }
+  };
 
   const abort = useRef<AbortController | null>(null);
   const t0 = useRef(0);
@@ -261,9 +286,15 @@ export default function ScannerPage() {
 
   useEffect(() => () => abort.current?.abort(), []);
 
+  /* Ce que Nimbo propose passe en tête, dans sa propre section : c'est ce
+     qu'on vient chercher. Les familles ne gardent que le reste. */
+  const proposes = useMemo(
+    () => results.filter((r) => r.nimbo?.propose).sort((a, b) => b.score - a.score),
+    [results],
+  );
   const parFamille = useMemo(() => {
     const m: Record<Famille, ScanResultItem[]> = { cassure: [], rebond: [], tendance: [] };
-    for (const r of results) m[(r.family ?? "tendance") as Famille]?.push(r);
+    for (const r of results) if (!r.nimbo?.propose) m[(r.family ?? "tendance") as Famille]?.push(r);
     for (const k of Object.keys(m) as Famille[]) m[k].sort((a, b) => b.score - a.score);
     return m;
   }, [results]);
@@ -294,6 +325,49 @@ export default function ScannerPage() {
             </Text>
           )}
         </header>
+
+        {/* Le bandeau du profil : ce avec quoi Nimbo juge chaque opportunité. */}
+        <section
+          aria-label="Votre profil"
+          className="flex flex-wrap items-end gap-x-10 gap-y-4 border-y py-4"
+          style={{ borderColor: "var(--cap-line-strong)", opacity: profilEnCours ? 0.6 : 1 }}
+        >
+          <p className="cap-dateline !border-0 !pb-0 self-center" style={{ fontSize: "1.02rem" }}>
+            <time>Votre profil.</time> Nimbo juge chaque opportunité avec lui.
+          </p>
+          <div>
+            <Text size="caption" className="mb-1">Horizon</Text>
+            <SegmentedControl
+              size="sm"
+              options={TRADING_STYLE_IDS.map((id) => ({ value: id, label: TRADING_STYLES[id].label.fr }))}
+              value={style.id}
+              onChange={(v) => { if (v !== style.id) changerProfil({ tradingStyle: v }); }}
+              aria-label="Horizon de trading"
+            />
+          </div>
+          <div>
+            <Text size="caption" className="mb-1">Risque par trade</Text>
+            <SegmentedControl
+              size="sm"
+              options={NIVEAUX_RISQUE.map((n) => ({ value: n, label: `${RISQUE[n].label} ${fr(RISQUE[n].pct, 1)} %` }))}
+              value={niveauRisque(settings.riskLevel)}
+              onChange={(v) => { if (v !== settings.riskLevel) changerProfil({ riskLevel: v }); }}
+              aria-label="Risque par trade"
+            />
+          </div>
+          {(style.id === "scalp" || style.id === "day") && (
+            <Text size="caption" className="basis-full italic">
+              En {style.label.fr.toLowerCase()}, l&apos;analyse se fait en intraday : Nimbo lit le marché mais ne
+              propose pas de position, ses signaux n&apos;y ont pas gagné après frais. Les propositions se font en Swing
+              ou en Long terme.
+            </Text>
+          )}
+          {profilChange && !busy && results.length === 0 && (
+            <Text size="caption" tone="ink" className="basis-full">
+              Profil enregistré : relancez le scan pour voir ce que Nimbo propose avec lui.
+            </Text>
+          )}
+        </section>
 
         <Panel
           title="Ce que vous cherchez"
@@ -433,6 +507,33 @@ export default function ScannerPage() {
             </motion.div>
           )}
         </AnimatePresence>
+
+        {proposes.length > 0 && (
+          <Panel
+            className="cap-apparait"
+            title="Nimbo vous propose"
+            hint={`Vérifiées avec le moteur de l'analyse, à votre profil ${style.label.fr.toLowerCase()} : le même plan vous attend au clic.`}
+            aside={
+              <Text size="caption" as="span">
+                {proposes.length} position{proposes.length > 1 ? "s" : ""}
+              </Text>
+            }
+          >
+            <ul className="[&>*+*]:border-t [&>*+*]:border-[color:var(--cap-line)]">
+              {proposes.map((item, i) => (
+                <Opportunity key={item.symbol} item={item} index={i} detailed={expert} timeframe={horizonScan ?? style.defaultTimeframe} />
+              ))}
+            </ul>
+          </Panel>
+        )}
+        {fini && results.length > 0 && proposes.length === 0 && (
+          <Panel className="cap-apparait" title="Nimbo ne propose rien sur ce scan">
+            <Text size="small">
+              Aucune des opportunités ci-dessous ne passe toutes ses vérifications pour l&apos;instant. Chaque carte dit
+              pourquoi, et quand revenir voir.
+            </Text>
+          </Panel>
+        )}
 
         {/* Les opportunités, rangées par famille. */}
         {results.length > 0 &&
