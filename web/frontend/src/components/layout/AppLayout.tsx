@@ -248,8 +248,11 @@ function AuthShell({
             la première et parfois la seule chose que voyait un inscrit du
             jour. Elle reste en service sur les écrans non encore migrés, et
             les deux écrivent le même champ. */}
-        <WelcomeDialog open={showOnboarding} onClose={() => setShowOnboarding(false)} />
-        <AppChrome>{children}</AppChrome>
+        {/* Dans le cadre, pour hériter des polices et des classes du site. */}
+        <AppChrome>
+          <WelcomeDialog open={showOnboarding} onClose={() => setShowOnboarding(false)} />
+          {children}
+        </AppChrome>
       </>
     );
   }

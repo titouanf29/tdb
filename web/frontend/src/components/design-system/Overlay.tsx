@@ -80,7 +80,7 @@ export function Modal({
               role="dialog"
               aria-modal="true"
               aria-label={title}
-              className={cn("relative w-full max-w-lg p-6 sm:p-8", className)}
+              className={cn("relative max-h-[calc(100dvh-2rem)] w-full max-w-lg overflow-y-auto p-6 sm:p-8", className)}
               style={{
                 borderRadius: "var(--cap-r-xl)",
                 backgroundColor: "var(--cap-surface)",
