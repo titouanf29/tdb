@@ -229,69 +229,6 @@ function LearnScreen() {
 
         <Sommaire faites={new Set(Object.keys(records))} />
 
-        <div className="border-t pt-8" style={{ borderColor: "var(--cap-line-strong)" }}>
-          <Heading level={2}>Pour aller plus loin</Heading>
-          <Text className="mt-2 max-w-[40rem]">
-            Des compléments : les styles de trading en détail, les marchés, le carnet d&apos;ordres.
-          </Text>
-        </div>
-
-        {/* ── Les modules ────────────────────────────────────────────────── */}
-        {modules.map((m) => {
-          const mDone = m.lessons.filter((l) => records[`${m.id}/${l.id}`]).length;
-          return (
-            <Panel
-              key={m.id}
-              title={m.title}
-              hint={m.description}
-              aside={
-                <span className="text-[0.76rem] whitespace-nowrap" style={{ color: "var(--cap-ink-3)" }}>
-                  {mDone === m.lessons.length ? "Terminé" : `${mDone} / ${m.lessons.length}`}
-                </span>
-              }
-            >
-              <ul className="[&>*+*]:border-t [&>*+*]:border-[color:var(--cap-line)]">
-                {m.lessons.map((l) => {
-                  const rec = records[`${m.id}/${l.id}`];
-                  return (
-                    <li key={l.id}>
-                      <button
-                        onClick={() => goTo(`${m.id}/${l.id}`)}
-                        className="-mx-3 flex w-full items-center gap-3.5 rounded-[9px] px-3 py-3.5 text-left transition-colors hover:bg-[color:var(--cap-surface-2)]"
-                      >
-                        <span
-                          aria-hidden
-                          className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full"
-                          style={{
-                            backgroundColor: rec ? "var(--cap-up-soft)" : "transparent",
-                            boxShadow: rec ? "none" : "inset 0 0 0 1px var(--cap-line-strong)",
-                          }}
-                        >
-                          {rec && <Check className="h-3.5 w-3.5" style={{ color: "var(--cap-up)" }} />}
-                        </span>
-                        <span className="min-w-0 flex-1">
-                          <span className="block truncate text-[0.93rem] font-medium" style={{ color: "var(--cap-ink)" }}>
-                            {l.title}
-                          </span>
-                          <span className="mt-0.5 block text-[0.78rem]" style={{ color: "var(--cap-ink-3)" }}>
-                            {l.duration}
-                            {rec?.quiz_score != null && ` · quiz ${rec.quiz_score} %`}
-                          </span>
-                        </span>
-                        <ArrowRight className="h-4 w-4 shrink-0" style={{ color: "var(--cap-ink-4)" }} />
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
-
-              <Text size="caption" className="mt-4">
-                {LEVEL_LABEL[m.level]}
-              </Text>
-            </Panel>
-          );
-        })}
-
         <Panel title="À côté du parcours" hint="Deux compléments, utiles à des moments différents.">
           <ul className="[&>*+*]:border-t [&>*+*]:border-[color:var(--cap-line)]">
             <li>

@@ -8,7 +8,7 @@
  * videos/PLAN.md). Une leçon ajoutée au plan s'ajoute ici et dans lecons/.
  */
 
-export type ChapitreId = "lire" | "marches" | "ordres" | "risque" | "indicateurs" | "signaux" | "tenir";
+export type ChapitreId = "marches" | "lire" | "ordres" | "risque" | "signaux" | "indicateurs" | "pratique" | "or";
 
 export interface Chapitre { id: ChapitreId; titre: string; resume: string; lecons: number[] }
 
@@ -22,14 +22,19 @@ export interface FicheLecon {
   resume: string;
 }
 
+// L'ordre où l'on progresse, pas celui des vidéos : comprendre ce qu'on
+// trade, lire un graphique, passer un ordre et savoir ce qu'il coûte, gérer
+// son risque, lire les signaux du prix, puis les indicateurs, s'entraîner, et
+// un marché repris de A à Z.
 export const CHAPITRES: Chapitre[] = [
+  { id: "marches", titre: "Comprendre les marchés", resume: "Ce qu'on achète sur chaque marché, quand il bouge, et les annonces qui le font sauter.", lecons: [2, 12, 13] },
   { id: "lire", titre: "Lire un graphique", resume: "Les axes, les bougies, la tendance, et les niveaux où le prix réagit.", lecons: [1, 3, 28, 29, 33, 34, 35] },
-  { id: "marches", titre: "Les marchés et leurs horaires", resume: "Ce qu'on achète, quand ça bouge, et pourquoi tout le monde regarde l'or.", lecons: [2, 12, 13, 5] },
-  { id: "ordres", titre: "Passer un ordre, et ce qu'il coûte", resume: "Les ordres, acheter ou vendre, et chaque frais qui se cache dans un trade.", lecons: [14, 15, 16, 17, 18, 36, 21, 22] },
-  { id: "risque", titre: "Gérer son risque", resume: "Le stop, la taille de position, le plan : ce qui sépare le trader du joueur.", lecons: [7, 19, 20, 24, 23] },
+  { id: "ordres", titre: "Passer un ordre, et ce qu'il coûte", resume: "Acheter ou vendre, les ordres, le levier, et chaque frais qui se cache dans un trade.", lecons: [15, 14, 16, 17, 18, 36, 21, 22] },
+  { id: "risque", titre: "Gérer son risque", resume: "Le stop, la taille de position, les erreurs à éviter et le plan : ce qui sépare le trader du joueur.", lecons: [7, 19, 20, 24] },
+  { id: "signaux", titre: "Les signaux du prix", resume: "Les cassures, les retours, le volume qui confirme, les pin bars et les figures.", lecons: [30, 31, 37, 32, 10] },
   { id: "indicateurs", titre: "Les indicateurs", resume: "Moyennes mobiles, RSI, MACD, Bollinger, Fibonacci : ce qu'ils mesurent, et leurs pièges.", lecons: [6, 4, 8, 9, 25] },
-  { id: "signaux", titre: "Les signaux du prix", resume: "Le volume, les cassures, les retours, les pin bars et les figures : lire ce que le prix raconte.", lecons: [37, 30, 31, 32, 10] },
-  { id: "tenir", titre: "Tester, se protéger, tenir", resume: "Tester une idée sur le passé, repérer les arnaques, et tenir face à ses émotions.", lecons: [26, 27, 11] },
+  { id: "pratique", titre: "S'entraîner et tenir", resume: "S'entraîner sans risque, tester une idée sur le passé, tenir face à ses émotions, éviter les arnaques.", lecons: [23, 26, 11, 27] },
+  { id: "or", titre: "Un marché de A à Z : l'or", resume: "Tout ce qui précède, appliqué à un seul marché, de la première once à la méthode.", lecons: [5] },
 ];
 
 export const FICHES: FicheLecon[] = [

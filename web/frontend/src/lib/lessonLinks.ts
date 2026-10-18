@@ -29,7 +29,7 @@ const LESSONS: Record<string, LessonLink> = {
     key: "lecon/6",
     label: "Comprendre les moyennes mobiles",
   },
-  Volume: { key: "technical-analysis/reading-charts", label: "Ce que dit le volume" },
+  Volume: { key: "lecon/37", label: "Ce que dit le volume" },
   Support: { key: "lecon/33", label: "Supports et résistances" },
   Résistance: { key: "lecon/33", label: "Supports et résistances" },
   Stop: { key: "lecon/7", label: "Pourquoi un stop" },
@@ -65,6 +65,8 @@ export function lessonForFigure(cle: string): string | null {
   const l = LECONS_FIGURES[cle];
   // La leçon 10 de la série traite double sommet, tête et épaules et triangle ;
   // les drapeaux restent dans l'ancien module.
+  // Les drapeaux ne sont pas (encore) dans la série : pas de lien plutôt
+  // qu'un lien vers une leçon qui n'en parle pas.
   if (l && l !== "drapeaux") return lessonHref("lecon/10");
-  return l ? lessonHref(`figures-chartistes/${l}`) : null;
+  return null;
 }
