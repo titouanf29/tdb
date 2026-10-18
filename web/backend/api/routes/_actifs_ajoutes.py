@@ -41,6 +41,15 @@ def marche_de(symbol: str, asset_type: Optional[str] = None) -> Optional[str]:
     return "USA"
 
 
+# Les actifs ajoutés à la demande de clients et livrés avec le code : ils
+# rejoignent l'univers au démarrage, sur tout serveur, sans passer par la
+# base. Le reste des ajouts se fait depuis l'administration (table ci-dessous).
+ACTIFS_LIVRES: list[tuple[str, str, str]] = [
+    ("SOI.PA", "Soitec", "EUROPE"),
+    ("ARG.PA", "Argan", "EUROPE"),
+]
+
+
 async def _table() -> None:
     await execute_write("""
         CREATE TABLE IF NOT EXISTS actifs_ajoutes (
@@ -63,6 +72,9 @@ def _greffer(symbol: str, marche: Optional[str], nom: Optional[str]) -> None:
         from . import market as _m
         if nom:
             _m.SYMBOL_NAMES.setdefault(symbol, nom)
+            # Le nom que le scanner affiche sur ses cartes.
+            from . import analysis as _a
+            _a.ASSET_NAMES.setdefault(symbol, nom)
         # L'index de recherche est construit une fois, au premier appel : on
         # le vide pour que l'actif ajouté s'y trouve à la frappe suivante.
         _m._INDEX.clear()
@@ -71,7 +83,9 @@ def _greffer(symbol: str, marche: Optional[str], nom: Optional[str]) -> None:
 
 
 async def charger() -> int:
-    """Au démarrage : remet en place les ajouts enregistrés. Ne lève jamais."""
+    """Au démarrage : remet en place les ajouts livrés et enregistrés. Ne lève jamais."""
+    for symbol, nom, marche in ACTIFS_LIVRES:
+        _greffer(symbol, marche, nom)
     try:
         await _table()
         rows = await execute_query("SELECT symbol, marche, nom FROM actifs_ajoutes") or []
@@ -79,7 +93,7 @@ async def charger() -> int:
         return 0
     for r in rows:
         _greffer(r["symbol"], r.get("marche"), r.get("nom"))
-    return len(rows)
+    return len(rows) + len(ACTIFS_LIVRES)
 
 
 MARCHES = ("EUROPE", "USA", "ASIA", "CRYPTO", "COMMODITIES")
