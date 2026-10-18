@@ -84,6 +84,8 @@ export function GraphiqueEcole(cfg: ConfigGraphique) {
   const [revele, setRevele] = useState<number | null>(null);
   const [introFinie, setIntroFinie] = useState(true);
   const [tic, setTic] = useState(0);
+  // « Revoir » : rejoue l'apparition et l'entrée des éléments.
+  const [rejeu, setRejeu] = useState(0);
 
   useEffect(() => {
     const el = boite.current;
@@ -103,18 +105,19 @@ export function GraphiqueEcole(cfg: ConfigGraphique) {
     const lancer = () => {
       setIntroFinie(false);
       const t0 = performance.now();
-      const duree = Math.min(2600, 700 + n * 28);
+      // Une vitesse régulière, une bougie à la fois : on doit pouvoir suivre
+      // ce qui se passe, comme sur une plateforme qu'on fait défiler.
+      const duree = Math.min(9000, 1500 + n * 90);
       const pas = (t: number) => {
         const f = Math.min(1, (t - t0) / duree);
-        const e = 1 - Math.pow(1 - f, 3);
-        setRevele(Math.round(e * n));
+        setRevele(Math.max(1, Math.round(f * n)));
         if (f < 1) raf = requestAnimationFrame(pas);
         else { setRevele(null); setIntroFinie(true); }
       };
       raf = requestAnimationFrame(pas);
     };
     const r = el.getBoundingClientRect();
-    if (r.top < window.innerHeight * 0.92 && r.bottom > 0) { lancer(); return () => cancelAnimationFrame(raf); }
+    if (rejeu > 0 || (r.top < window.innerHeight * 0.92 && r.bottom > 0)) { lancer(); return () => cancelAnimationFrame(raf); }
     setRevele(-1);
     setIntroFinie(false);
     const io = new IntersectionObserver(([e]) => {
@@ -124,7 +127,7 @@ export function GraphiqueEcole(cfg: ConfigGraphique) {
     return () => { io.disconnect(); cancelAnimationFrame(raf); };
     // Une seule apparition, au premier passage à l'écran.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [calme]);
+  }, [calme, rejeu]);
 
   // Le cours en direct : la dernière bougie visible respire autour de sa clôture.
   useEffect(() => {
@@ -199,6 +202,10 @@ export function GraphiqueEcole(cfg: ConfigGraphique) {
   const y = (p: number) => 8 + (1 - (p - echelle.lo) / (echelle.hi - echelle.lo)) * (HP - 16);
   const corps = Math.max(1.2, slot * 0.64);
   const finX = x(fin) + slot / 2;
+  // Un élément après l'autre, sans faire attendre plus de quelques secondes.
+  const nbZones = (cfg.zones ?? []).length, nbNiveaux = (cfg.niveaux ?? []).length;
+  const delai = (k: number) => `${Math.min(k * 0.9, 3.6)}s`;
+  const enApparition = revele != null && revele > 0 && revele < n;
   const finXCfg = x(finCfg) + slot / 2;
   const yPan0 = HP + 10;
   const H = yPan0 + panneaux.length * (HPAN + 10);
@@ -234,6 +241,13 @@ export function GraphiqueEcole(cfg: ConfigGraphique) {
 
   return (
     <div ref={boite} className="relative w-full select-none">
+      {!calme && cfg.apparition !== false && !cfg.onClic && introFinie && revele == null && (
+        <button type="button" onClick={() => setRejeu((r) => r + 1)}
+          className="absolute right-1 top-0 z-10 rounded-[8px] px-2 py-1 text-[0.8rem] font-medium underline decoration-[color:var(--cap-ambre)] decoration-2 underline-offset-4 transition-colors hover:bg-[color:var(--cap-surface-2)]"
+          style={{ color: "var(--cap-ink-2)" }} aria-label="Revoir l'animation du graphique">
+          Revoir
+        </button>
+      )}
       <svg viewBox={`0 0 ${W} ${H}`} width="100%" height={H} className={`ge block${calme ? " ge-calme" : ""}`} role="img"
         aria-label={cfg.ariaLabel ?? "Graphique de la leçon"} style={{ fontFamily: "var(--cap-font-text)" }}>
         <defs>
@@ -250,8 +264,8 @@ export function GraphiqueEcole(cfg: ConfigGraphique) {
         ))}
 
         {/* Zones et niveaux d'abord : sous le prix */}
-        {introFinie && (cfg.zones ?? []).map((z) => (
-          <g key={`z${z.i0}-${z.i1}-${z.p0}-${z.p1}-${z.label ?? ""}`} className="ge-fondu">
+        {introFinie && (cfg.zones ?? []).map((z, k) => (
+          <g key={`${rejeu}z${z.i0}-${z.i1}-${z.p0}-${z.p1}-${z.label ?? ""}`} className="ge-fondu" style={{ animationDelay: delai(k) }}>
             <rect x={x(z.i0) - slot / 2} width={Math.max(1, x(z.i1) - x(z.i0) + slot)} y={y(Math.max(z.p0, z.p1))}
               height={Math.abs(y(z.p0) - y(z.p1))} fill={z.couleur ?? "var(--cap-ocean)"} opacity="0.12" rx="3" />
             {z.label && <text x={x(z.i0)} y={y(Math.max(z.p0, z.p1)) - 5} fontSize="12" fontWeight="600" fill={z.couleur ?? "var(--cap-ocean)"}>{z.label}</text>}
@@ -261,7 +275,7 @@ export function GraphiqueEcole(cfg: ConfigGraphique) {
           const c = nv.couleur ?? "var(--cap-ink-2)";
           const yLabel = placesEtiquettes[k];
           return (
-            <g key={`n${nv.prix}-${nv.label ?? ""}-${nv.couleur ?? ""}`} className="ge-etire">
+            <g key={`${rejeu}n${nv.prix}-${nv.label ?? ""}-${nv.couleur ?? ""}`} className="ge-etire" style={{ animationDelay: delai(nbZones + k) }}>
               {nv.zone ? <rect x={G} width={plotW} y={y(nv.prix + nv.zone / 2)} height={Math.abs(y(nv.prix - nv.zone / 2) - y(nv.prix + nv.zone / 2))} fill={c} opacity="0.1" /> : null}
               <line x1={G} x2={G + plotW} y1={y(nv.prix)} y2={y(nv.prix)} stroke={c} strokeWidth={nv.epaisseur ?? 1.5} strokeDasharray={nv.pointille === false ? undefined : "6 4"} />
               {nv.label && (
@@ -312,7 +326,7 @@ export function GraphiqueEcole(cfg: ConfigGraphique) {
           const iFin = t.prolonger ? n - 1 : i1;
           const c = t.couleur ?? "var(--cap-ink)";
           return (
-            <g key={`t${k}-${i0}-${p0}-${i1}-${p1}-${t.label ?? ""}`} className="ge-etire">
+            <g key={`${rejeu}t${k}-${i0}-${p0}-${i1}-${p1}-${t.label ?? ""}`} className="ge-etire" style={{ animationDelay: delai(nbZones + nbNiveaux + k) }}>
               <line x1={x(i0)} y1={y(p0)} x2={x(iFin)} y2={y(p0 + pente * (iFin - i0))} stroke={c} strokeWidth="2" strokeDasharray={t.pointille ? "6 4" : undefined} />
               {t.label && <text x={x(i1) + 6} y={y(p1) - 8} fontSize="12" fontWeight="700" fill={c} stroke="var(--cap-surface)" strokeWidth="3" paintOrder="stroke">{t.label}</text>}
             </g>
@@ -326,7 +340,7 @@ export function GraphiqueEcole(cfg: ConfigGraphique) {
           const xx = x(m.i);
           const c = m.type === "achat" ? "var(--cap-up)" : m.type === "vente" ? "var(--cap-down)" : "var(--cap-ink)";
           return (
-            <g key={`k${m.i}-${m.type}-${m.label ?? ""}-${k}`} className="ge-pop">
+            <g key={`${rejeu}k${m.i}-${m.type}-${m.label ?? ""}-${k}`} className="ge-pop">
               {m.type === "achat" && <path d={`M${xx},${yy + 6} l6,10 h-12 z`} fill={c} />}
               {m.type === "vente" && <path d={`M${xx},${yy - 6} l6,-10 h-12 z`} fill={c} />}
               {m.type === "point" && <circle cx={xx} cy={yy} r="4.5" fill={c} stroke="var(--cap-surface)" strokeWidth="1.5" />}
@@ -343,7 +357,7 @@ export function GraphiqueEcole(cfg: ConfigGraphique) {
           const xx = Math.min(Math.max(x(no.i), G + 40), G + plotW - 40);
           const yy = y(no.prix) + (no.dessous ? 22 : -14);
           return (
-            <text key={`o${no.i}-${no.texte}-${k}`} className="ge-fondu" x={xx} y={yy} textAnchor="middle" fontSize="12.5" fontWeight="600" fill={no.couleur ?? "var(--cap-ink)"}
+            <text key={`${rejeu}o${no.i}-${no.texte}-${k}`} className="ge-fondu" x={xx} y={yy} textAnchor="middle" fontSize="12.5" fontWeight="600" fill={no.couleur ?? "var(--cap-ink)"}
               stroke="var(--cap-surface)" strokeWidth="4" paintOrder="stroke">{no.texte}</text>
           );
         })}
@@ -355,6 +369,13 @@ export function GraphiqueEcole(cfg: ConfigGraphique) {
               <text x={(finXCfg + G + plotW) / 2} y={26} textAnchor="middle" fontSize="12.5" fontStyle="italic" fill="var(--cap-ink-3)"
                 style={{ fontFamily: "var(--cap-font-display)" }}>la suite</text>
             )}
+          </g>
+        )}
+
+        {enApparition && (
+          <g pointerEvents="none">
+            <line x1={finX} x2={finX} y1={4} y2={H - 2} stroke="var(--cap-ambre)" strokeWidth="2" opacity="0.85" />
+            <circle cx={finX} cy={y(bougies[fin].c)} r="4.5" fill="var(--cap-ambre)" />
           </g>
         )}
 
