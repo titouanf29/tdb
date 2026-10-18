@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { bollinger as calcBollinger, ema as calcEma, fmt, macd as calcMacd, rsi as calcRsi, sma as calcSma, type Bougie } from "@/lib/cours/marche";
+import { useAnimationsEnabled, useMouvementReduit } from "@/components/design-system";
+import { hasard, bollinger as calcBollinger, ema as calcEma, fmt, macd as calcMacd, rsi as calcRsi, sma as calcSma, type Bougie } from "@/lib/cours/marche";
 
 /**
  * Le graphique des leçons.
@@ -12,6 +13,13 @@ import { bollinger as calcBollinger, ema as calcEma, fmt, macd as calcMacd, rsi 
  * dessous, le RSI, le MACD ou le volume. Survoler une bougie dit ses quatre
  * prix en clair. `jusqua` n'affiche que les premières bougies : une leçon peut
  * faire avancer le temps, comme sur une vraie plateforme.
+ *
+ * Il s'anime : quand il arrive à l'écran, les bougies apparaissent de gauche à
+ * droite, puis les lignes se tracent, les zones apparaissent en fondu et les
+ * marques arrivent avec un léger rebond. Un élément qui change d'une étape à
+ * l'autre (dans les scènes) s'anime à son tour. `vivant` fait vibrer la
+ * dernière bougie comme un cours en direct. Rien ne bouge si l'utilisateur a
+ * coupé les animations (sur le site ou sur son appareil).
  */
 
 export type Niveau = { prix: number; label?: string; couleur?: string; pointille?: boolean; epaisseur?: number; zone?: number };
@@ -44,6 +52,10 @@ export interface ConfigGraphique {
   /** Unité affichée sous le survol : « jour », « heure »… */
   unite?: string;
   ariaLabel?: string;
+  /** La dernière bougie bouge comme un cours en direct. */
+  vivant?: boolean;
+  /** false : pas d'apparition des bougies à l'arrivée à l'écran (les exercices, par exemple). */
+  apparition?: boolean;
 }
 
 const COUL = ["var(--cap-ocean)", "var(--cap-amber-ink)", "var(--cap-ink-3)", "var(--cap-cyan)"];
@@ -63,6 +75,15 @@ export function GraphiqueEcole(cfg: ConfigGraphique) {
   const boite = useRef<HTMLDivElement | null>(null);
   const [W, setW] = useState(640);
   const [survol, setSurvol] = useState<number | null>(null);
+  const reduit = useMouvementReduit();
+  const [animOn] = useAnimationsEnabled();
+  const calme = reduit || !animOn;
+  // L'apparition : null tant qu'on ne sait pas (tout est affiché, comme au
+  // rendu du serveur) ; -1 pour un graphique encore hors de l'écran ; puis le
+  // nombre de bougies montrées pendant qu'elles arrivent.
+  const [revele, setRevele] = useState<number | null>(null);
+  const [introFinie, setIntroFinie] = useState(true);
+  const [tic, setTic] = useState(0);
 
   useEffect(() => {
     const el = boite.current;
@@ -72,9 +93,57 @@ export function GraphiqueEcole(cfg: ConfigGraphique) {
     return () => ro.disconnect();
   }, []);
 
-  const { bougies } = cfg;
-  const n = bougies.length;
-  const fin = Math.min(n - 1, cfg.jusqua ?? n - 1);
+  const n = cfg.bougies.length;
+  const finCfg = Math.min(n - 1, cfg.jusqua ?? n - 1);
+
+  useEffect(() => {
+    const el = boite.current;
+    if (!el || calme || cfg.apparition === false || typeof IntersectionObserver === "undefined") return;
+    let raf = 0;
+    const lancer = () => {
+      setIntroFinie(false);
+      const t0 = performance.now();
+      const duree = Math.min(1100, 260 + n * 14);
+      const pas = (t: number) => {
+        const f = Math.min(1, (t - t0) / duree);
+        const e = 1 - Math.pow(1 - f, 3);
+        setRevele(Math.round(e * n));
+        if (f < 1) raf = requestAnimationFrame(pas);
+        else { setRevele(null); setIntroFinie(true); }
+      };
+      raf = requestAnimationFrame(pas);
+    };
+    const r = el.getBoundingClientRect();
+    if (r.top < window.innerHeight * 0.92 && r.bottom > 0) { lancer(); return () => cancelAnimationFrame(raf); }
+    setRevele(-1);
+    setIntroFinie(false);
+    const io = new IntersectionObserver(([e]) => {
+      if (e.isIntersecting) { io.disconnect(); lancer(); }
+    }, { threshold: 0.25 });
+    io.observe(el);
+    return () => { io.disconnect(); cancelAnimationFrame(raf); };
+    // Une seule apparition, au premier passage à l'écran.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [calme]);
+
+  // Le cours en direct : la dernière bougie visible respire autour de sa clôture.
+  useEffect(() => {
+    if (!cfg.vivant || calme || !introFinie) return;
+    const id = window.setInterval(() => setTic((t) => t + 1), 650);
+    return () => window.clearInterval(id);
+  }, [cfg.vivant, calme, introFinie]);
+
+  const fin = revele == null ? finCfg : Math.min(finCfg, revele - 1);
+  const bougies = useMemo(() => {
+    if (!cfg.vivant || tic === 0) return cfg.bougies;
+    const b = cfg.bougies[finCfg];
+    const r = hasard(tic * 7919 + 13);
+    const amp = (b.h - b.l) * 0.35 || Math.abs(b.c) * 0.002;
+    const c = b.c + (r() - 0.5) * amp;
+    const copie = cfg.bougies.slice();
+    copie[finCfg] = { ...b, c, h: Math.max(b.h, c), l: Math.min(b.l, c) };
+    return copie;
+  }, [cfg.bougies, cfg.vivant, tic, finCfg]);
   const closes = useMemo(() => bougies.map((b) => b.c), [bougies]);
   const etroit = W < 520;
   const HP = cfg.hauteur ?? (etroit ? 230 : 300);
@@ -130,6 +199,7 @@ export function GraphiqueEcole(cfg: ConfigGraphique) {
   const y = (p: number) => 8 + (1 - (p - echelle.lo) / (echelle.hi - echelle.lo)) * (HP - 16);
   const corps = Math.max(1.2, slot * 0.64);
   const finX = x(fin) + slot / 2;
+  const finXCfg = x(finCfg) + slot / 2;
   const yPan0 = HP + 10;
   const H = yPan0 + panneaux.length * (HPAN + 10);
 
@@ -164,7 +234,7 @@ export function GraphiqueEcole(cfg: ConfigGraphique) {
 
   return (
     <div ref={boite} className="relative w-full select-none">
-      <svg viewBox={`0 0 ${W} ${H}`} width="100%" height={H} className="block" role="img"
+      <svg viewBox={`0 0 ${W} ${H}`} width="100%" height={H} className={`ge block${calme ? " ge-calme" : ""}`} role="img"
         aria-label={cfg.ariaLabel ?? "Graphique de la leçon"} style={{ fontFamily: "var(--cap-font-text)" }}>
         <defs>
           <pattern id="ge-futur" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
@@ -180,18 +250,18 @@ export function GraphiqueEcole(cfg: ConfigGraphique) {
         ))}
 
         {/* Zones et niveaux d'abord : sous le prix */}
-        {(cfg.zones ?? []).map((z, k) => (
-          <g key={`z${k}`}>
+        {introFinie && (cfg.zones ?? []).map((z) => (
+          <g key={`z${z.i0}-${z.i1}-${z.p0}-${z.p1}-${z.label ?? ""}`} className="ge-fondu">
             <rect x={x(z.i0) - slot / 2} width={Math.max(1, x(z.i1) - x(z.i0) + slot)} y={y(Math.max(z.p0, z.p1))}
               height={Math.abs(y(z.p0) - y(z.p1))} fill={z.couleur ?? "var(--cap-ocean)"} opacity="0.12" rx="3" />
             {z.label && <text x={x(z.i0)} y={y(Math.max(z.p0, z.p1)) - 5} fontSize="12" fontWeight="600" fill={z.couleur ?? "var(--cap-ocean)"}>{z.label}</text>}
           </g>
         ))}
-        {(cfg.niveaux ?? []).map((nv, k) => {
+        {introFinie && (cfg.niveaux ?? []).map((nv, k) => {
           const c = nv.couleur ?? "var(--cap-ink-2)";
           const yLabel = placesEtiquettes[k];
           return (
-            <g key={`n${k}`}>
+            <g key={`n${nv.prix}-${nv.label ?? ""}-${nv.couleur ?? ""}`} className="ge-etire">
               {nv.zone ? <rect x={G} width={plotW} y={y(nv.prix + nv.zone / 2)} height={Math.abs(y(nv.prix - nv.zone / 2) - y(nv.prix + nv.zone / 2))} fill={c} opacity="0.1" /> : null}
               <line x1={G} x2={G + plotW} y1={y(nv.prix)} y2={y(nv.prix)} stroke={c} strokeWidth={nv.epaisseur ?? 1.5} strokeDasharray={nv.pointille === false ? undefined : "6 4"} />
               {nv.label && (
@@ -236,13 +306,13 @@ export function GraphiqueEcole(cfg: ConfigGraphique) {
           <path key={`m${k}`} d={chemin(s, y)} fill="none" stroke={cfg.moyennes![k].couleur ?? COUL[k % COUL.length]} strokeWidth="2" strokeLinejoin="round" />
         ))}
 
-        {(cfg.traits ?? []).map((t, k) => {
+        {introFinie && (cfg.traits ?? []).map((t, k) => {
           const [i0, p0] = t.de, [i1, p1] = t.a;
           const pente = (p1 - p0) / (i1 - i0 || 1);
           const iFin = t.prolonger ? n - 1 : i1;
           const c = t.couleur ?? "var(--cap-ink)";
           return (
-            <g key={`t${k}`}>
+            <g key={`t${k}-${i0}-${p0}-${i1}-${p1}-${t.label ?? ""}`} className="ge-etire">
               <line x1={x(i0)} y1={y(p0)} x2={x(iFin)} y2={y(p0 + pente * (iFin - i0))} stroke={c} strokeWidth="2" strokeDasharray={t.pointille ? "6 4" : undefined} />
               {t.label && <text x={x(i1) + 6} y={y(p1) - 8} fontSize="12" fontWeight="700" fill={c} stroke="var(--cap-surface)" strokeWidth="3" paintOrder="stroke">{t.label}</text>}
             </g>
@@ -256,7 +326,7 @@ export function GraphiqueEcole(cfg: ConfigGraphique) {
           const xx = x(m.i);
           const c = m.type === "achat" ? "var(--cap-up)" : m.type === "vente" ? "var(--cap-down)" : "var(--cap-ink)";
           return (
-            <g key={`k${k}`}>
+            <g key={`k${m.i}-${m.type}-${m.label ?? ""}-${k}`} className="ge-pop">
               {m.type === "achat" && <path d={`M${xx},${yy + 6} l6,10 h-12 z`} fill={c} />}
               {m.type === "vente" && <path d={`M${xx},${yy - 6} l6,-10 h-12 z`} fill={c} />}
               {m.type === "point" && <circle cx={xx} cy={yy} r="4.5" fill={c} stroke="var(--cap-surface)" strokeWidth="1.5" />}
@@ -273,16 +343,16 @@ export function GraphiqueEcole(cfg: ConfigGraphique) {
           const xx = Math.min(Math.max(x(no.i), G + 40), G + plotW - 40);
           const yy = y(no.prix) + (no.dessous ? 22 : -14);
           return (
-            <text key={`o${k}`} x={xx} y={yy} textAnchor="middle" fontSize="12.5" fontWeight="600" fill={no.couleur ?? "var(--cap-ink)"}
+            <text key={`o${no.i}-${no.texte}-${k}`} className="ge-fondu" x={xx} y={yy} textAnchor="middle" fontSize="12.5" fontWeight="600" fill={no.couleur ?? "var(--cap-ink)"}
               stroke="var(--cap-surface)" strokeWidth="4" paintOrder="stroke">{no.texte}</text>
           );
         })}
 
-        {fin < n - 1 && (
+        {finCfg < n - 1 && (
           <g>
-            <rect x={finX} y={8} width={G + plotW - finX} height={HP - 16} fill="url(#ge-futur)" opacity="0.6" />
-            {G + plotW - finX > 60 && (
-              <text x={(finX + G + plotW) / 2} y={26} textAnchor="middle" fontSize="12.5" fontStyle="italic" fill="var(--cap-ink-3)"
+            <rect x={finXCfg} y={8} width={G + plotW - finX} height={HP - 16} fill="url(#ge-futur)" opacity="0.6" />
+            {G + plotW - finXCfg > 60 && (
+              <text x={(finXCfg + G + plotW) / 2} y={26} textAnchor="middle" fontSize="12.5" fontStyle="italic" fill="var(--cap-ink-3)"
                 style={{ fontFamily: "var(--cap-font-display)" }}>la suite</text>
             )}
           </g>
@@ -325,7 +395,7 @@ export function GraphiqueEcole(cfg: ConfigGraphique) {
                   fill={bg.c >= bg.o ? "var(--cap-up-fill)" : "var(--cap-down-fill)"} opacity="0.5" />
               ))}
               {series.map((s, j) => <path key={j} d={chemin(s.s, yy)} fill="none" stroke={s.c} strokeWidth="1.8" />)}
-              {fin < n - 1 && <rect x={finX} y={y0 + 2} width={G + plotW - finX} height={HPAN - 2} fill="url(#ge-futur)" opacity="0.45" />}
+              {finCfg < n - 1 && <rect x={finXCfg} y={y0 + 2} width={G + plotW - finXCfg} height={HPAN - 2} fill="url(#ge-futur)" opacity="0.45" />}
             </g>
           );
         })}
