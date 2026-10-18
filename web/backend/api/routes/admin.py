@@ -494,15 +494,19 @@ async def perform_user_action(action: UserAction, admin: dict = Depends(get_admi
         return {"success": True, "message": f"Wallet reset for user {action.user_id}"}
 
     elif action.action == "delete":
-        # Delete user data
-        await execute_write("DELETE FROM web_ai_chat WHERE user_id = ?", (action.user_id,))
-        await execute_write("DELETE FROM web_favorites WHERE user_id = ?", (action.user_id,))
-        await execute_write("DELETE FROM positions WHERE user_id = ?", (action.user_id,))
-        await execute_write("DELETE FROM wallet WHERE user_id = ?", (action.user_id,))
-        await execute_write("DELETE FROM web_user_settings WHERE user_id = ?", (action.user_id,))
-        await execute_write("DELETE FROM web_users WHERE id = ?", (action.user_id,))
-        await log_admin_action(admin["id"], "delete_user", f"Deleted user {action.user_id}: {action.reason}")
-        return {"success": True, "message": f"User {action.user_id} has been deleted"}
+        # La suppression complète, la même que celle de l'utilisateur
+        # (users.effacer_compte) : toutes les tables, positions et wallet
+        # compris (rangés sous « web_<id> », que l'ancien code ne visait pas),
+        # et l'abonnement Stripe annulé d'abord.
+        if action.user_id == admin["id"]:
+            raise HTTPException(status_code=400,
+                                detail="Pour supprimer votre propre compte, passez par vos réglages.")
+        from .users import effacer_compte
+        cible = user[0]
+        await effacer_compte(action.user_id)
+        await log_admin_action(admin["id"], "delete_user",
+                               f"Compte {action.user_id} ({cible.get('email')}) supprimé : {action.reason or 'sans motif'}")
+        return {"success": True, "message": "Le compte et ses données ont été supprimés."}
 
     else:
         raise HTTPException(status_code=400, detail="Invalid action")

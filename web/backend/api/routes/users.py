@@ -2,6 +2,7 @@
 User routes — settings, profile, password, RGPD export & account deletion.
 """
 import re
+import os
 from datetime import datetime, timedelta, timezone
 import json
 from typing import List, Optional
@@ -421,6 +422,49 @@ class DeleteAccountRequest(BaseModel):
     confirm: str
 
 
+# Tout ce qui appartient à un compte, par la convention de son user_id. Une
+# table oubliée ici garde des données personnelles après la suppression :
+# la liste a été dressée à partir de toutes les tables du site.
+_TABLES_TEXTE = ("positions", "real_positions", "trading_journal", "price_alerts",
+                 "dashboard_snapshots", "wallet")
+_TABLES_ENTIER = ("web_favorites", "web_ai_chat", "user_notifications", "user_changelog_reads",
+                  "web_scan_usage", "user_missions", "user_progress", "user_lessons",
+                  "community_message_likes", "community_messages", "admin_ticket_messages",
+                  "admin_tickets", "daily_intents", "email_verification_tokens",
+                  "password_reset_tokens", "push_abonnements", "user_profile", "asset_requests",
+                  "premium_requests", "macro_notifie", "weekend_synthese", "web_user_settings")
+
+
+async def effacer_compte(uid: int) -> None:
+    """Supprime un compte et toutes ses données (RGPD, art. 17).
+
+    La même fonction sert à l'utilisateur (réglages) et à l'administration.
+    L'abonnement Stripe est annulé AVANT d'effacer quoi que ce soit : effacé
+    d'abord, le compte disparaissait et la carte continuait d'être débitée
+    chaque mois, sans plus aucun moyen de le voir ni de l'arrêter depuis le
+    site. Si Stripe refuse, rien n'est supprimé et l'erreur est rendue."""
+    rows = await execute_query("SELECT stripe_subscription_id FROM web_users WHERE id = ?", (uid,))
+    if not rows:
+        raise HTTPException(status_code=404, detail="Compte introuvable.")
+    sid = rows[0].get("stripe_subscription_id")
+    if sid and os.getenv("STRIPE_SECRET_KEY"):
+        try:
+            import stripe
+            stripe.api_key = os.getenv("STRIPE_SECRET_KEY", "")
+            stripe.Subscription.cancel(sid)
+        except Exception as e:
+            if "No such subscription" not in str(e) and "canceled" not in str(e).lower():
+                raise HTTPException(status_code=502,
+                                    detail=f"L'abonnement Stripe n'a pas pu être annulé, rien n'a été supprimé : {e}")
+
+    tuid = (str(uid), f"web_{uid}")  # les deux conventions des user_id texte
+    for tbl in _TABLES_TEXTE:
+        await _safe_write(f"DELETE FROM {tbl} WHERE user_id IN (?, ?)", tuid)
+    for tbl in _TABLES_ENTIER:
+        await _safe_write(f"DELETE FROM {tbl} WHERE user_id = ?", (uid,))
+    await execute_write("DELETE FROM web_users WHERE id = ?", (uid,))
+
+
 @router.delete("/me")
 @limiter.limit("3/minute")
 async def delete_account(
@@ -437,24 +481,7 @@ async def delete_account(
     if not verify_password(data.password, current_user["password_hash"]):
         raise HTTPException(status_code=401, detail="Mot de passe incorrect")
 
-    uid = current_user["id"]
-    tuid = (str(uid), f"web_{uid}")  # covers both TEXT conventions
-
-    # TEXT user_id
-    for tbl in ("positions", "real_positions", "trading_journal",
-                "price_alerts", "dashboard_snapshots"):
-        await _safe_write(f"DELETE FROM {tbl} WHERE user_id IN (?, ?)", tuid)
-    await _safe_write("DELETE FROM wallet WHERE user_id IN (?, ?)", tuid)
-
-    # INTEGER user_id
-    for tbl in ("web_favorites", "web_ai_chat", "user_notifications",
-                "user_changelog_reads", "web_scan_usage", "user_missions",
-                "user_progress", "community_message_likes", "community_messages",
-                "admin_ticket_messages", "admin_tickets", "daily_intents",
-                "email_verification_tokens", "web_user_settings"):
-        await _safe_write(f"DELETE FROM {tbl} WHERE user_id = ?", (uid,))
-
-    await execute_write("DELETE FROM web_users WHERE id = ?", (uid,))
+    await effacer_compte(current_user["id"])
     return {"success": True}
 
 

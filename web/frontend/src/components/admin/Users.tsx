@@ -158,13 +158,16 @@ function UserSheet({
 }) {
   const [detail, setDetail] = useState<AdminUserDetails | null>(null);
   const [montant, setMontant] = useState("");
-  const [confirme, setConfirme] = useState<null | "ban" | "unban" | "reset" | "wallet" | "promote">(null);
+  const [confirme, setConfirme] = useState<null | "ban" | "unban" | "reset" | "wallet" | "promote" | "delete">(null);
+  // La suppression se confirme en recopiant l'adresse du compte : un clic de
+  // trop ne doit pas pouvoir effacer quelqu'un.
+  const [saisie, setSaisie] = useState("");
   const [occupe, setOccupe] = useState(false);
   const [erreur, setErreur] = useState("");
 
   useEffect(() => {
     if (!user) { setDetail(null); return; }
-    setConfirme(null); setErreur(""); setMontant("");
+    setConfirme(null); setErreur(""); setMontant(""); setSaisie("");
     adminAPI.getUserDetails(user.id).then(setDetail).catch(() => setDetail(null));
   }, [user]);
 
@@ -182,6 +185,14 @@ function UserSheet({
         await adminAPI.adjustWallet(user.id, v, "Ajustement administrateur");
       } else if (confirme === "promote") {
         await adminAPI.promote(user.email);
+      } else if (confirme === "delete") {
+        if (saisie.trim().toLowerCase() !== (user.email || "").toLowerCase())
+          throw new Error("Recopiez exactement l'adresse du compte pour confirmer.");
+        await adminAPI.performUserAction(user.id, "delete", "Suppression par l'administration");
+        setConfirme(null);
+        onChanged();
+        onClose();
+        return;
       } else {
         await adminAPI.performUserAction(
           user.id,
@@ -206,6 +217,7 @@ function UserSheet({
     reset: `Le portefeuille de ${user.email} repart à son solde de départ. Ses positions ouvertes ET son historique sont perdus. C'est irréversible.`,
     wallet: `Le solde de ${user.email} sera ajusté de ${montant || "0"} €. L'opération est tracée dans le journal des actions.`,
     promote: `${user.email} deviendra administrateur : accès complet à cet écran, aux comptes et aux réglages du site.`,
+    delete: `Le compte ${user.email} et toutes ses données seront supprimés : positions, wallet, journal, favoris, messages, tickets, notifications. Un abonnement Premium en cours est d'abord annulé chez Stripe. C'est définitif.`,
   };
 
   return (
@@ -247,10 +259,18 @@ function UserSheet({
               </Field>
             </div>
           )}
+          {confirme === "delete" && (
+            <div className="mt-3">
+              <Field label={`Recopiez l'adresse du compte : ${user.email}`}>
+                <TextInput value={saisie} onChange={setSaisie} placeholder={user.email} />
+              </Field>
+            </div>
+          )}
           {erreur && <div className="mt-3"><FormError>{erreur}</FormError></div>}
           <div className="mt-4 flex flex-wrap gap-2.5">
-            <Button size="md" onClick={agir} disabled={occupe}>
-              {occupe ? "…" : "Confirmer"}
+            <Button size="md" onClick={agir}
+              disabled={occupe || (confirme === "delete" && saisie.trim().toLowerCase() !== (user.email || "").toLowerCase())}>
+              {occupe ? "…" : confirme === "delete" ? "Supprimer définitivement" : "Confirmer"}
             </Button>
             <Button variant="quiet" size="md" onClick={() => setConfirme(null)} disabled={occupe}>
               Annuler
@@ -271,6 +291,14 @@ function UserSheet({
           <Button variant="quiet" size="md" onClick={() => setConfirme("promote")}>
             Promouvoir administrateur
           </Button>
+          <button
+            type="button"
+            onClick={() => setConfirme("delete")}
+            className="min-h-[44px] px-1.5 text-[0.9rem] font-medium underline decoration-2 underline-offset-[6px]"
+            style={{ color: "var(--cap-down)", textDecorationColor: "color-mix(in srgb, var(--cap-down) 40%, transparent)" }}
+          >
+            Supprimer le compte
+          </button>
         </div>
       )}
 
