@@ -3,13 +3,14 @@
 import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, ArrowRight, RotateCcw } from "lucide-react";
 import type { Bloc } from "@/lib/cours/types";
+import { lier } from "@/lib/cours/liens";
 import { Nimbo, useMouvementReduit } from "@/components/design-system";
 import { GraphiqueEcole, type ConfigGraphique } from "./GraphiqueEcole";
 
 /** Le texte d'une leçon, écrit par nous : quelques balises de mise en valeur seulement. */
 export function Html({ html, className, as = "p" }: { html: string; className?: string; as?: "p" | "span" | "div" }) {
   const T = as;
-  return <T className={className} dangerouslySetInnerHTML={{ __html: html }} />;
+  return <T className={className} dangerouslySetInnerHTML={{ __html: lier(html) }} />;
 }
 
 function Encart({ etiquette, couleur, children }: { etiquette: string; couleur: string; children: React.ReactNode }) {
@@ -54,7 +55,7 @@ export function Scenes({ titre, scenes }: { titre?: string; scenes: { legende: s
         <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <p className="min-w-0 flex-1 text-[1rem] leading-snug" style={{ color: "var(--cap-ink)" }} aria-live="polite">
             <span className="mr-2 italic" style={{ color: "#c98a1e", fontFamily: "var(--cap-font-display)" }}>{k + 1}/{scenes.length}</span>
-            <span dangerouslySetInnerHTML={{ __html: s.legende }} />
+            <span dangerouslySetInnerHTML={{ __html: lier(s.legende) }} />
           </p>
           <div className="flex flex-none items-center justify-end gap-1">
             <button type="button" onClick={() => setK(Math.max(0, k - 1))} disabled={k === 0} aria-label="Étape précédente"
@@ -95,7 +96,7 @@ export function Blocs({ blocs }: { blocs: Bloc[] }) {
             const L = b.numerotee ? "ol" : "ul";
             return (
               <L key={i} className={`cours-texte my-4 space-y-2 pl-6 text-[1.05rem] leading-relaxed ${b.numerotee ? "list-decimal" : "list-disc"}`}>
-                {b.items.map((it, j) => <li key={j} dangerouslySetInnerHTML={{ __html: it }} />)}
+                {b.items.map((it, j) => <li key={j} dangerouslySetInnerHTML={{ __html: lier(it) }} />)}
               </L>
             );
           }
@@ -108,7 +109,7 @@ export function Blocs({ blocs }: { blocs: Bloc[] }) {
               <div key={i} className="my-6 flex items-start gap-3">
                 <Nimbo humeur={b.humeur ?? "pointe"} taille={56} label="" className="-mt-1 flex-none" />
                 <p className="cours-texte rounded-[14px] px-4 py-3 text-[1rem] leading-relaxed" style={{ backgroundColor: "var(--cap-surface-2)", color: "var(--cap-ink)" }}
-                  dangerouslySetInnerHTML={{ __html: b.texte }} />
+                  dangerouslySetInnerHTML={{ __html: lier(b.texte) }} />
               </div>
             );
           case "graphique":
@@ -117,7 +118,7 @@ export function Blocs({ blocs }: { blocs: Bloc[] }) {
                 <div className="rounded-[14px] p-3 sm:p-4" style={{ backgroundColor: "var(--cap-surface)", boxShadow: "inset 0 0 0 1px var(--cap-line-strong)" }}>
                   <GraphiqueEcole {...b.cfg} />
                 </div>
-                {b.legende && <figcaption className="mt-2 text-[0.95rem]" style={{ color: "var(--cap-ink-3)" }} dangerouslySetInnerHTML={{ __html: b.legende }} />}
+                {b.legende && <figcaption className="mt-2 text-[0.95rem]" style={{ color: "var(--cap-ink-3)" }} dangerouslySetInnerHTML={{ __html: lier(b.legende) }} />}
               </figure>
             );
           case "scenes":
@@ -127,7 +128,7 @@ export function Blocs({ blocs }: { blocs: Bloc[] }) {
               <section key={i} className="my-8 rounded-[16px] p-4 sm:p-6" style={{ backgroundColor: "var(--cap-surface)", boxShadow: "inset 0 0 0 1px var(--cap-line-strong)" }}>
                 <p data-eyebrow className="mb-1">À vous</p>
                 <h4 className="text-[1.2rem] font-semibold leading-tight" style={{ color: "var(--cap-ink)", fontFamily: "var(--cap-font-display)" }}>{b.titre}</h4>
-                {b.consigne && <p className="mt-1.5 text-[0.98rem]" style={{ color: "var(--cap-ink-2)" }} dangerouslySetInnerHTML={{ __html: b.consigne }} />}
+                {b.consigne && <p className="mt-1.5 text-[0.98rem]" style={{ color: "var(--cap-ink-2)" }} dangerouslySetInnerHTML={{ __html: lier(b.consigne) }} />}
                 <div className="mt-4">{b.el}</div>
               </section>
             );
@@ -140,7 +141,7 @@ export function Blocs({ blocs }: { blocs: Bloc[] }) {
                   </thead>
                   <tbody>
                     {b.lignes.map((l, j) => (
-                      <tr key={j}>{l.map((c, m) => <td key={m} className="border-b px-3 py-2.5 align-top" style={{ borderColor: "var(--cap-line)", color: "var(--cap-ink-2)" }} dangerouslySetInnerHTML={{ __html: c }} />)}</tr>
+                      <tr key={j}>{l.map((c, m) => <td key={m} className="border-b px-3 py-2.5 align-top" style={{ borderColor: "var(--cap-line)", color: "var(--cap-ink-2)" }} dangerouslySetInnerHTML={{ __html: lier(c) }} />)}</tr>
                     ))}
                   </tbody>
                 </table>
@@ -153,7 +154,7 @@ export function Blocs({ blocs }: { blocs: Bloc[] }) {
                 {b.items.map((it, j) => (
                   <div key={j} className="cap-qr-item">
                     <dt>{it.q}</dt>
-                    <dd dangerouslySetInnerHTML={{ __html: it.r }} />
+                    <dd dangerouslySetInnerHTML={{ __html: lier(it.r) }} />
                   </div>
                 ))}
               </dl>

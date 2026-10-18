@@ -9,7 +9,7 @@ import { ChoixInd, LectureInd, RecommencerInd } from "./ElementsIndicateurs";
  * taille : 0,01 lot.
  */
 const QUESTIONS = [
-  { q: "J'ai un plan de trading écrit (leçon 24).", bon: true, pourquoi: "Sans plan écrit, il n'y a rien à suivre, donc rien à vérifier." },
+  { q: "J'ai un plan de trading écrit (leçon « Le plan de trading »).", bon: true, pourquoi: "Sans plan écrit, il n'y a rien à suivre, donc rien à vérifier." },
   { q: "Je l'ai suivi sur chaque position, sans exception, depuis plusieurs semaines.", bon: true, pourquoi: "Suivre son plan quand c'est facile ne prouve rien : il faut des semaines, pertes comprises." },
   { q: "Chaque position est dans mon journal, et je le relis chaque semaine.", bon: true, pourquoi: "Le journal est la seule preuve que vous suivez vraiment votre plan." },
   { q: "Je passe un ordre, je pose un stop et je calcule ma taille sans hésiter.", bon: true, pourquoi: "En réel, une erreur de bouton coûte de l'argent : la plateforme doit être une habitude." },

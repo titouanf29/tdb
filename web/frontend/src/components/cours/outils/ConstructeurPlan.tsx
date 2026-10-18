@@ -15,14 +15,14 @@ const QUESTIONS: Q[] = [
   { id: "quoi", titre: "Sur quoi, et quand ?", aide: "Un ou deux marchés, des heures fixes. Pas tout, tout le temps.",
     exemples: ["L'euro-dollar (EUR/USD), de 14 h à 17 h, heure de Paris", "L'or (XAU/USD), de 9 h à 12 h, heure de Paris", "Le DAX, de 9 h à 11 h, heure de Paris"] },
   { id: "setup", titre: "Mon setup : la situation qui me fait entrer", aide: "Précise au point qu'un autre pourrait la reconnaître.",
-    exemples: ["Le prix revient sur un support, et une bougie le rejette (longue mèche basse)", "Le prix casse une résistance, revient dessus, et repart (pullback, leçon 31)", "En tendance haussière, le prix revient sur sa moyenne 20 et rebondit"] },
+    exemples: ["Le prix revient sur un support, et une bougie le rejette (longue mèche basse)", "Le prix casse une résistance, revient dessus, et repart (pullback, leçon « Le pullback »)", "En tendance haussière, le prix revient sur sa moyenne 20 et rebondit"] },
   { id: "stop", titre: "Mon stop : là où mon idée devient fausse", aide: "Un endroit sur le graphique, pas un montant.",
     exemples: ["Juste sous le support, sous la mèche de rejet", "Juste sous l'ancienne résistance devenue support", "Sous le dernier creux"] },
   { id: "risque", titre: "Combien je risque", aide: "Le montant perdu si le stop est touché. 1 % du compte au plus.", exemples: [] },
   { id: "sortie", titre: "Où je sors avec un gain", aide: "Votre take profit, décidé avant d'entrer.",
     exemples: ["Sur le dernier sommet", "Sur la prochaine résistance", "À deux fois mon risque"] },
   { id: "jamais", titre: "Ce que je ne fais jamais", aide: "Les erreurs qui coûtent cher, interdites d'avance.",
-    exemples: ["Entrer juste avant une annonce forte (leçon 13)", "Reculer mon stop", "Rentrer tout de suite pour me refaire après une perte", "Entrer le vendredi soir"] },
+    exemples: ["Entrer juste avant une annonce forte (leçon « Les annonces économiques »)", "Reculer mon stop", "Rentrer tout de suite pour me refaire après une perte", "Entrer le vendredi soir"] },
 ];
 
 const champ = "w-full rounded-[10px] px-3 py-2.5 text-[1rem] outline-none focus:ring-2";
@@ -104,7 +104,7 @@ export function ConstructeurPlan() {
                   </div>
                 </div>
                 <p className="col-span-2 text-[0.95rem] tabular-nums" style={{ color: "var(--cap-ink-2)" }} aria-live="polite">
-                  Si le stop est touché, je perds <b style={{ color: "var(--cap-ink)" }}>{nf(montant, montant % 1 ? 2 : 0)} $</b>. La taille se calcule à partir de ce montant (leçon 19).
+                  Si le stop est touché, je perds <b style={{ color: "var(--cap-ink)" }}>{nf(montant, montant % 1 ? 2 : 0)} $</b>. La taille se calcule à partir de ce montant (leçon « La taille de position »).
                 </p>
               </div>
             ) : (
@@ -180,7 +180,7 @@ export function ConstructeurPlan() {
         </div>
         {remplies === 6 && (
           <div className="mt-3">
-            <LectureInd ton="juste"><p>Six réponses : votre plan existe. Essayez-le en démo (leçon 23), notez chaque position dans votre journal, et relisez-le chaque semaine.</p></LectureInd>
+            <LectureInd ton="juste"><p>Six réponses : votre plan existe. Essayez-le en démo (leçon « Le compte démo »), notez chaque position dans votre journal, et relisez-le chaque semaine.</p></LectureInd>
           </div>
         )}
       </div>

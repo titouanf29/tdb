@@ -21,12 +21,12 @@ export function Sommaire({ faites }: { faites?: Set<string> }) {
   const prochaine = faites ? ORDRE.find((n) => DISPONIBLES.has(n) && !fait(n)) : undefined;
   const nbFaites = faites ? ORDRE.filter(fait).length : 0;
 
-  const Ligne = ({ n }: { n: number }) => {
+  const Ligne = ({ n, rang }: { n: number; rang: string }) => {
     const f = fiche(n)!;
     const dispo = DISPONIBLES.has(n);
     const contenu = (
       <>
-        <span className="w-9 flex-none text-[1.2rem] italic leading-tight" style={{ color: "#c98a1e", fontFamily: "var(--cap-font-display)" }}>{n}</span>
+        <span className="w-9 flex-none text-[1.2rem] italic leading-tight" style={{ color: "#c98a1e", fontFamily: "var(--cap-font-display)" }}>{rang}</span>
         <span className="min-w-0 flex-1">
           <span className="flex items-baseline gap-2">
             <span className="text-[1.08rem] font-semibold leading-snug" style={{ color: dispo ? "var(--cap-ink)" : "var(--cap-ink-3)", fontFamily: "var(--cap-font-display)" }}>{f.court}</span>
@@ -60,7 +60,7 @@ export function Sommaire({ faites }: { faites?: Set<string> }) {
               {nbFaites === 0 ? "Commencer ici" : `Reprendre, ${nbFaites} leçon${nbFaites > 1 ? "s" : ""} sur ${FICHES.length} terminée${nbFaites > 1 ? "s" : ""}`}
             </p>
             <p className="mt-1 text-[1.5rem] font-medium leading-tight" style={{ color: "var(--cap-ink)", fontFamily: "var(--cap-font-display)" }}>
-              <span className="mr-2 italic" style={{ color: "#c98a1e" }}>{prochaine}.</span>{fiche(prochaine)!.titre}
+              {fiche(prochaine)!.titre}
             </p>
           </div>
           <Button href={`/lecon/${prochaine}`} size="md">{nbFaites === 0 ? "Commencer" : "Reprendre"} <ArrowRight className="h-4 w-4" /></Button>
@@ -69,7 +69,7 @@ export function Sommaire({ faites }: { faites?: Set<string> }) {
 
       <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
         <Text size="small" className="max-w-[36rem]">
-          Chaque leçon porte le numéro de sa vidéo. Rangées par chapitres, elles suivent l&apos;ordre où l&apos;on progresse ; rien n&apos;est verrouillé.
+          Les leçons sont rangées dans l&apos;ordre où l&apos;on progresse, chapitre après chapitre ; rien n&apos;est verrouillé. Vous cherchez la leçon d&apos;une vidéo ? Passez à l&apos;ordre des vidéos.
         </Text>
         <SegmentedControl size="sm" aria-label="Classement des leçons" value={vue} onChange={setVue}
           options={[{ value: "chapitres", label: "Par chapitres" }, { value: "videos", label: "Dans l'ordre des vidéos" }]} />
@@ -89,7 +89,7 @@ export function Sommaire({ faites }: { faites?: Set<string> }) {
                 </div>
                 <p className="mt-2 text-[0.98rem]" style={{ color: "var(--cap-ink-2)" }}>{c.resume}</p>
                 <ul className="mt-2 [&>*+*]:border-t [&>*+*]:border-[color:var(--cap-line)]">
-                  {c.lecons.map((n) => <Ligne key={n} n={n} />)}
+                  {c.lecons.map((n, j) => <Ligne key={n} n={n} rang={String(j + 1)} />)}
                 </ul>
               </li>
             );
@@ -97,7 +97,7 @@ export function Sommaire({ faites }: { faites?: Set<string> }) {
         </ol>
       ) : (
         <ul className="[&>*+*]:border-t [&>*+*]:border-[color:var(--cap-line)]">
-          {FICHES.map((f) => <Ligne key={f.numero} n={f.numero} />)}
+          {FICHES.map((f) => <Ligne key={f.numero} n={f.numero} rang={String(f.numero)} />)}
         </ul>
       )}
     </div>

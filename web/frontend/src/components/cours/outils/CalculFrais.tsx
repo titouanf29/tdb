@@ -42,7 +42,7 @@ export function CalculFrais() {
         <div>
           <Curseur label="Taille" valeur={taille} texte={lots(taille)} min={0.01} max={1} pas={0.01} onChange={(v) => setTaille(Math.round(v * 100) / 100)} />
           <Curseur label="Spread" valeur={spread} texte={`${nb(spread, 1)} pip`} min={0} max={3} pas={0.1} onChange={(v) => setSpread(Math.round(v * 10) / 10)}
-            aide="Payé une fois, à l'entrée (leçon 16)." />
+            aide="Payé une fois, à l'entrée (leçon « Le spread »)." />
           <Curseur label="Commission, par lot" valeur={commission} texte={`${nb(commission, 1)} $`} min={0} max={10} pas={0.5} onChange={setCommission}
             aide={`La moitié en entrant, la moitié en sortant : ${usd(commission * taille / 2, 2)} puis ${usd(commission * taille / 2, 2)} sur ${lots(taille)}.`} />
         </div>

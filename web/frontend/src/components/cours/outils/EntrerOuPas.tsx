@@ -19,7 +19,7 @@ const SITUATIONS: { texte: string; cases: Cases; jamais?: string; pourquoi: stri
   { texte: "Jeudi, 15 h 45. Le prix traverse le support sans s'arrêter. « Il va forcément rebondir », vous dites-vous.",
     cases: [true, false, true], pourquoi: "Pas de bougie qui rejette le support : ce n'est pas votre setup. « Forcément » n'existe pas en trading." },
   { texte: "Vendredi, 14 h 20. Support touché, bougie de rejet, stop et taille prêts. À 14 h 30 tombe le chiffre de l'emploi américain.",
-    cases: [true, true, true], jamais: "Entrer juste avant une annonce forte", pourquoi: "Les trois cases sont cochées, mais votre règle 6 l'interdit : à 14 h 30, le prix peut sauter votre stop (leçon 22)." },
+    cases: [true, true, true], jamais: "Entrer juste avant une annonce forte", pourquoi: "Les trois cases sont cochées, mais votre règle 6 l'interdit : à 14 h 30, le prix peut sauter votre stop (leçon « Le slippage »)." },
   { texte: "Lundi, 16 h. Setup présent, bonne heure. Vous avez perdu hier : vous prenez 0,30 lot « pour vous refaire ». 60 $ de risque.",
     cases: [true, true, false], pourquoi: "60 $, c'est 3 % de 2 000 $. Votre plan dit 1 % au plus : 20 $, donc 0,10 lot avec ce stop." },
 ];

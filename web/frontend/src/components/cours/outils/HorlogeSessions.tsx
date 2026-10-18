@@ -48,7 +48,7 @@ function attente(jour: Jour, h: number, s: ReturnType<typeof sessions>): { titre
 
   if (h >= fermeture || h < tokyo[0]) return { titre: "Le creux entre deux journées", niveau: 1, texte: "New York vient de fermer et Tokyo n'a pas encore ouvert. C'est le moment le plus creux : peu d'ordres, peu de liquidité, et le spread grandit souvent. C'est aussi l'heure où le courtier compte les frais de nuit (le swap)." };
   if (dans(h, londres) && dans(h, newYork)) {
-    if (h >= 14.25 && h < 15) return { titre: "14 h 30 : les chiffres américains", niveau: 4, texte: `Londres et New York sont ouverts ensemble, et c'est l'heure des grands chiffres américains (l'emploi, l'inflation). Le prix peut sauter de plusieurs dizaines de pips en une minute, et le spread s'élargir : c'est la leçon 13.${vendredi}` };
+    if (h >= 14.25 && h < 15) return { titre: "14 h 30 : les chiffres américains", niveau: 4, texte: `Londres et New York sont ouverts ensemble, et c'est l'heure des grands chiffres américains (l'emploi, l'inflation). Le prix peut sauter de plusieurs dizaines de pips en une minute, et le spread s'élargir : c'est la leçon « Les annonces économiques ».${vendredi}` };
     return { titre: "Le chevauchement", niveau: 4, texte: `Londres et New York travaillent en même temps : le plus de monde, le plus de liquidité, et souvent les plus grands mouvements de la journée. Wall Street ouvre à ${wallStreet}.${vendredi}` };
   }
   if (dans(h, tokyo) && dans(h, londres)) return { titre: "Londres ouvre", niveau: 3, texte: "La plus grande place du forex arrive pendant que Tokyo finit sa journée. Le volume grimpe d'un coup, et le prix sort souvent du petit couloir de la nuit." };

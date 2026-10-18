@@ -58,7 +58,7 @@ function simuler(type: TypeOrdre, niveau: number, slD: number, tpD: number, nom:
 
   if (type === "marche") {
     entree = { i: 0, p: entreeVisee };
-    ev.push({ i: 0, texte: `Ordre au marché : acheté tout de suite à ${prix(entreeVisee)}, l'ask. Le prix affiché était ${prix(ch[0])} : ce pip d'écart, c'est le spread (leçon 16).` });
+    ev.push({ i: 0, texte: `Ordre au marché : acheté tout de suite à ${prix(entreeVisee)}, l'ask. Le prix affiché était ${prix(ch[0])} : ce pip d'écart, c'est le spread (leçon « Le spread »).` });
   } else {
     ev.push({ i: 0, texte: `Ordre placé : ${nomOrdre} à ${prix(niveau)}. Il attend : c'est un ordre en attente (pending order).` });
   }
@@ -206,7 +206,7 @@ export function SimulateurOrdres() {
             </li>
           )}
         </ol>
-        {k === 0 && <p className="mt-2 text-[0.92rem]" style={{ color: "var(--cap-ink-3)" }}>Lancez le prix, puis changez de trajet ou d'ordre et comparez. {dollars(1)} par pip : c'est la valeur d'un pip avec 0,10 lot (leçon 17).</p>}
+        {k === 0 && <p className="mt-2 text-[0.92rem]" style={{ color: "var(--cap-ink-3)" }}>Lancez le prix, puis changez de trajet ou d'ordre et comparez. {dollars(1)} par pip : c'est la valeur d'un pip avec 0,10 lot (leçon « Le pip et le lot »).</p>}
       </div>
     </div>
   );

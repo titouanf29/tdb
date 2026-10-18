@@ -131,7 +131,7 @@ export function SemaineMarches() {
         <p className="mt-1 text-[0.97rem] leading-relaxed" style={{ color: "var(--cap-ink-2)" }}>{commentaire(jour, heure)}</p>
       </div>
       <p className="mt-2 text-[0.85rem]" style={{ color: "var(--cap-ink-3)" }}>
-        Heures de Paris, en temps normal. Les jours fériés ferment les bourses, les horaires varient un peu selon le courtier, et quelques semaines par an Wall Street ouvre à 14 h 30 pour nous (leçon 12).
+        Heures de Paris, en temps normal. Les jours fériés ferment les bourses, les horaires varient un peu selon le courtier, et quelques semaines par an Wall Street ouvre à 14 h 30 pour nous (leçon « Les sessions »).
       </p>
     </div>
   );

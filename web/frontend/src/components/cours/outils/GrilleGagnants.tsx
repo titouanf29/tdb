@@ -76,7 +76,7 @@ export function GrilleGagnants({ risque = 20 }: { risque?: number }) {
                 {n === seuil ? "Exactement. " : n > seuil ? "Ça ne perd pas, mais on peut descendre plus bas. " : "Encore en perte. "}
                 Avec 1 pour {nb(ratio, 1)}, le point mort tombe à {nb(pointMort, 1)} gagnants sur 100 :
                 {Number.isInteger(pointMort) ? ` à ${seuil}, vous êtes à zéro, et au-delà, en gain.` : ` il faut ${seuil} gagnants pour finir au-dessus de zéro.`}
-                {" "}La case cerclée d'ambre marque ce seuil. Frais non compris : ils le remontent un peu (leçons 16 et 21).
+                {" "}La case cerclée d'ambre marque ce seuil. Frais non compris : ils le remontent un peu (leçons « Le spread » et « Commission et swap »).
               </Verdict>
               <div className="mt-2"><BoutonLien onClick={() => setVu(false)}>Essayer un autre nombre</BoutonLien></div>
             </>

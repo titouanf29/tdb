@@ -10,6 +10,9 @@ import type { LeconSerie } from "@/lib/cours/types";
 import { Button, Text } from "@/components/design-system";
 import { Quiz } from "@/components/learn/Quiz";
 import { Blocs } from "./Blocs";
+import { lier, nommer, place } from "@/lib/cours/liens";
+
+const ROMAINS = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII"];
 
 /**
  * Une leçon de la série, en entier : l'accroche de la vidéo, les parties, les
@@ -25,6 +28,9 @@ export function LeconVue({ lecon }: { lecon: LeconSerie }) {
   const f = fiche(lecon.numero)!;
   const ch = chapitreDe(lecon.numero);
   const { avant, apres } = voisines(lecon.numero);
+  // Le numéro de la vidéo reste dans l'adresse ; à l'écran, la place dans le chapitre.
+  const pl = place(lecon.numero);
+  const quiz = lecon.quiz.map((q) => ({ ...q, question: nommer(q.question), options: q.options.map(nommer), explanation: nommer(q.explanation) }));
   const { isAuthenticated } = useAuth();
   const [faite, setFaite] = useState(false);
   const [score, setScore] = useState<number | null>(null);
@@ -60,14 +66,14 @@ export function LeconVue({ lecon }: { lecon: LeconSerie }) {
 
       <header className="max-w-[760px]">
         <p className="text-[1rem] italic" style={{ color: "var(--cap-ink-3)", fontFamily: "var(--cap-font-display)" }}>
-          Leçon <span style={{ color: "#c98a1e" }}>{lecon.numero}</span>, {f.duree} de lecture
+          {pl ? <>Chapitre <span style={{ color: "#c98a1e" }}>{ROMAINS[pl.chapitre]}</span>, leçon {pl.rang} sur {pl.total}, </> : null}{f.duree} de lecture
           {faite && <span style={{ color: "var(--cap-up)" }}>, terminée{score != null ? `, quiz ${score} %` : ""}</span>}
         </p>
         <h1 className="mt-1 text-[clamp(1.9rem,4.4vw,2.9rem)] font-medium leading-[1.08]" style={{ color: "var(--cap-ink)", fontFamily: "var(--cap-font-display)", letterSpacing: "-0.01em" }}>
           {f.titre}
         </h1>
-        <p className="mt-4 text-[1.2rem] italic leading-snug" style={{ color: "var(--cap-ink-2)", fontFamily: "var(--cap-font-display)" }}>{lecon.accroche}</p>
-        <p className="mt-3 text-[1.05rem] leading-relaxed" style={{ color: "var(--cap-ink-2)" }}>{lecon.promesse}</p>
+        <p className="mt-4 text-[1.2rem] italic leading-snug" style={{ color: "var(--cap-ink-2)", fontFamily: "var(--cap-font-display)" }}>{nommer(lecon.accroche)}</p>
+        <p className="mt-3 text-[1.05rem] leading-relaxed" style={{ color: "var(--cap-ink-2)" }}>{nommer(lecon.promesse)}</p>
       </header>
 
       <div className="mt-10 grid gap-12 lg:grid-cols-[minmax(0,760px)_minmax(0,1fr)]">
@@ -93,7 +99,7 @@ export function LeconVue({ lecon }: { lecon: LeconSerie }) {
                     <span className="text-[1.05rem] font-semibold" style={{ color: "var(--cap-ink)" }}>{m.terme}</span>
                     {m.en && <span className="block text-[0.92rem] italic" style={{ color: "var(--cap-ink-3)" }}>{m.en}</span>}
                   </dt>
-                  <dd className="text-[1rem] leading-relaxed" style={{ color: "var(--cap-ink-2)" }}>{m.def}</dd>
+                  <dd className="text-[1rem] leading-relaxed" style={{ color: "var(--cap-ink-2)" }}>{nommer(m.def)}</dd>
                 </div>
               ))}
             </dl>
@@ -105,7 +111,7 @@ export function LeconVue({ lecon }: { lecon: LeconSerie }) {
               {lecon.retenir.map((r, i) => (
                 <li key={i} className="flex gap-3 text-[1.05rem] leading-relaxed" style={{ color: "var(--cap-ink)" }}>
                   <Check className="mt-[0.3em] h-4 w-4 flex-none" style={{ color: "var(--cap-up)" }} />
-                  <span dangerouslySetInnerHTML={{ __html: r }} />
+                  <span dangerouslySetInnerHTML={{ __html: lier(r) }} />
                 </li>
               ))}
             </ul>
@@ -117,7 +123,7 @@ export function LeconVue({ lecon }: { lecon: LeconSerie }) {
               {lecon.quiz.length} questions. L&apos;explication s&apos;affiche dès votre réponse, juste ou fausse.
               {!isAuthenticated && " Avec un compte gratuit, votre progression est gardée."}
             </Text>
-            <Quiz questions={lecon.quiz} onDone={(s) => terminer(s)} />
+            <Quiz questions={quiz} onDone={(s) => terminer(s)} />
           </section>
 
           {lecon.pratique && lecon.pratique.length > 0 && (
@@ -126,7 +132,7 @@ export function LeconVue({ lecon }: { lecon: LeconSerie }) {
               <ul className="mt-4 space-y-4">
                 {lecon.pratique.map((p) => (
                   <li key={p.href} className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <span className="min-w-0 flex-1 text-[1.02rem]" style={{ color: "var(--cap-ink-2)" }}>{p.texte}</span>
+                    <span className="min-w-0 flex-1 text-[1.02rem]" style={{ color: "var(--cap-ink-2)" }}>{nommer(p.texte)}</span>
                     <Button href={isAuthenticated ? p.href : "/register"} size="md">{isAuthenticated ? p.bouton : "Créer un compte gratuit"}</Button>
                   </li>
                 ))}
@@ -138,13 +144,13 @@ export function LeconVue({ lecon }: { lecon: LeconSerie }) {
             {avant ? (
               <Link href={`/lecon/${avant.numero}`} className="group rounded-[14px] p-4 transition-colors hover:bg-[color:var(--cap-surface-2)]">
                 <span className="flex items-center gap-1.5 text-[0.88rem]" style={{ color: "var(--cap-ink-3)" }}><ArrowLeft size={14} /> Avant</span>
-                <span className="mt-1 block text-[1.08rem] font-semibold" style={{ color: "var(--cap-ink)", fontFamily: "var(--cap-font-display)" }}>{avant.numero}. {avant.court}</span>
+                <span className="mt-1 block text-[1.08rem] font-semibold" style={{ color: "var(--cap-ink)", fontFamily: "var(--cap-font-display)" }}>{avant.court}</span>
               </Link>
             ) : <span />}
             {apres && (
               <Link href={`/lecon/${apres.numero}`} className="group rounded-[14px] p-4 text-right transition-colors hover:bg-[color:var(--cap-surface-2)]">
                 <span className="flex items-center justify-end gap-1.5 text-[0.88rem]" style={{ color: "var(--cap-ink-3)" }}>Ensuite <ArrowRight size={14} /></span>
-                <span className="mt-1 block text-[1.08rem] font-semibold" style={{ color: "var(--cap-ink)", fontFamily: "var(--cap-font-display)" }}>{apres.numero}. {apres.court}</span>
+                <span className="mt-1 block text-[1.08rem] font-semibold" style={{ color: "var(--cap-ink)", fontFamily: "var(--cap-font-display)" }}>{apres.court}</span>
               </Link>
             )}
           </nav>
