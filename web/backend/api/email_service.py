@@ -214,97 +214,149 @@ async def _send(to: str, subject: str, html: str) -> None:
         raise
 
 
-# ── Templates ──────────────────────────────────────────────────────────────────
+# ── Gabarit ────────────────────────────────────────────────────────────────
+#
+# L'IDENTITÉ DU SITE, JUSQUE DANS LA BOÎTE DE RÉCEPTION (web/docs/identite.md).
+# Les e-mails partaient en violet sur fond noir avec un émoji 📈 en guise de
+# logo : rien de CaptenTDB. Ils reprennent maintenant le ciel clair, la
+# feuille blanche, le logo, les titres en serif, l'étiquette italique au trait
+# ambre et le bouton à l'encre avec son point ambre.
+#
+# Écrit pour les messageries, pas pour un navigateur : mise en page en
+# tableaux, styles en ligne (Gmail et Outlook ignorent une partie des
+# feuilles de style), logo en PNG (le SVG n'y est pas affiché), polices de
+# repli Georgia et Arial quand Fraunces et Plus Jakarta Sans ne chargent pas.
 
-def _base_template(content: str) -> str:
+_ENCRE = "#0B1726"
+_ENCRE_2 = "#3A4A5C"
+_ENCRE_3 = "#6B7A8C"
+_AMBRE = "#E5A83A"
+_AMBRE_FONCE = "#C98A1E"
+_CIEL = "#E6EDF4"
+_FILET = "#DCE3EB"
+_SERIF = "Fraunces, Georgia, 'Times New Roman', serif"
+_SANS = "'Plus Jakarta Sans', Arial, Helvetica, sans-serif"
+
+
+def _esc(v) -> str:
+    return _html.escape(str(v or ""))
+
+
+def _p(texte: str, taille: int = 15, couleur: str = _ENCRE_2, marge: str = "0 0 16px") -> str:
+    return (f'<p style="margin:{marge};font-family:{_SANS};font-size:{taille}px;line-height:1.6;'
+            f'color:{couleur};">{texte}</p>')
+
+
+def _fort(texte: str) -> str:
+    return f'<strong style="color:{_ENCRE};font-weight:600;">{texte}</strong>'
+
+
+def _bouton(url: str, texte: str) -> str:
+    """Le bouton du site : encre, point ambre, flèche ambre."""
+    return f"""<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:8px 0 24px;">
+  <tr><td bgcolor="{_ENCRE}" style="border-radius:12px;">
+    <a href="{url}" target="_blank" style="display:inline-block;padding:14px 26px;font-family:{_SANS};
+       font-size:15px;font-weight:600;color:#F6F2EA;text-decoration:none;border-radius:12px;">
+      <span style="color:{_AMBRE};">&#9679;</span>&nbsp;&nbsp;{texte}&nbsp;&nbsp;<span style="color:{_AMBRE};">&#8594;</span>
+    </a>
+  </td></tr>
+</table>"""
+
+
+def _lien_secours(url: str) -> str:
+    return (_p("Si le bouton ne s'ouvre pas, copiez ce lien dans votre navigateur :", 13, _ENCRE_3, "0 0 6px")
+            + f'<p style="margin:0 0 8px;font-family:{_SANS};font-size:12px;line-height:1.5;word-break:break-all;">'
+              f'<a href="{url}" style="color:{_ENCRE_2};text-decoration:underline;">{url}</a></p>')
+
+
+def _gabarit(etiquette: str, titre: str, contenu: str, apercu: str = "") -> str:
+    """La lettre complète. `etiquette` : la petite ligne en italique au-dessus
+    du titre ; `apercu` : la phrase que la messagerie affiche à côté de l'objet."""
+    site = adresse_site()
+    logo = f"{site}/icons/icon-192.png"
     return f"""<!DOCTYPE html>
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <style>
-    body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-           background: #0f1117; color: #e2e8f0; margin: 0; padding: 0; }}
-    .wrapper {{ max-width: 560px; margin: 40px auto; padding: 0 16px; }}
-    .card {{ background: #1a1f2e; border: 1px solid rgba(255,255,255,0.08);
-             border-radius: 16px; padding: 40px 36px; }}
-    .logo {{ text-align: center; margin-bottom: 32px; }}
-    .logo-icon {{ display: inline-flex; align-items: center; justify-content: center;
-                  width: 56px; height: 56px; background: rgba(99,102,241,0.2);
-                  border-radius: 14px; margin-bottom: 12px; font-size: 28px; }}
-    .logo-text {{ font-size: 22px; font-weight: 700; color: #fff; }}
-    .logo-text span {{ color: #818cf8; }}
-    h2 {{ font-size: 20px; font-weight: 600; color: #fff; margin: 0 0 12px; }}
-    p  {{ font-size: 15px; color: #94a3b8; line-height: 1.6; margin: 0 0 20px; }}
-    .btn {{ display: inline-block; padding: 14px 32px; background: #6366f1;
-            color: #fff !important; text-decoration: none; border-radius: 12px;
-            font-weight: 600; font-size: 15px; margin: 8px 0 24px; }}
-    .url-box {{ background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
-                border-radius: 8px; padding: 12px 16px; font-size: 12px;
-                color: #64748b; word-break: break-all; margin-bottom: 24px; }}
-    .footer {{ text-align: center; font-size: 12px; color: #475569; margin-top: 24px; }}
-    hr {{ border: none; border-top: 1px solid rgba(255,255,255,0.08); margin: 24px 0; }}
-  </style>
+  <meta name="color-scheme" content="light only">
+  <title>{_esc(titre)}</title>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;1,9..144,400&family=Plus+Jakarta+Sans:wght@400;600&display=swap" rel="stylesheet">
 </head>
-<body>
-  <div class="wrapper">
-    <div class="card">
-      <div class="logo">
-        <div class="logo-icon">📈</div>
-        <div class="logo-text">Capten<span>TDB</span></div>
-      </div>
-      {content}
-    </div>
-    <div class="footer">
-      © 2025 CaptenTDB · Paper Trading uniquement<br>
-      Cet email a été envoyé automatiquement, ne pas répondre.
-    </div>
-  </div>
+<body style="margin:0;padding:0;background:{_CIEL};">
+  <div style="display:none;max-height:0;overflow:hidden;opacity:0;color:{_CIEL};">{_esc(apercu)}</div>
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="{_CIEL}" style="background:{_CIEL};">
+    <tr><td align="center" style="padding:36px 14px 28px;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:560px;">
+        <!-- Le logo et le nom, comme en tête du site. -->
+        <tr><td style="padding:0 6px 18px;">
+          <a href="{site}" target="_blank" style="text-decoration:none;">
+            <img src="{logo}" width="40" height="40" alt="CaptenTDB" style="vertical-align:middle;border:0;border-radius:10px;">
+            <span style="vertical-align:middle;margin-left:10px;font-family:{_SERIF};font-size:22px;font-weight:600;color:{_ENCRE};">CaptenTDB</span>
+          </a>
+        </td></tr>
+        <!-- La feuille. -->
+        <tr><td bgcolor="#FFFFFF" style="background:#FFFFFF;border-radius:18px;border:1px solid {_FILET};padding:36px 34px 30px;">
+          <p style="margin:0 0 10px;font-family:{_SERIF};font-style:italic;font-size:16px;color:{_ENCRE_3};">
+            <span style="display:inline-block;width:22px;height:2px;background:{_AMBRE};vertical-align:middle;margin-right:8px;"></span>{_esc(etiquette)}
+          </p>
+          <h1 style="margin:0 0 18px;font-family:{_SERIF};font-size:26px;line-height:1.2;font-weight:500;color:{_ENCRE};">{_esc(titre)}</h1>
+          {contenu}
+        </td></tr>
+        <!-- Le colophon. -->
+        <tr><td style="padding:22px 8px 0;">
+          <p style="margin:0 0 8px;font-family:{_SERIF};font-style:italic;font-size:14px;line-height:1.55;color:{_ENCRE_2};">
+            Imaginé et construit en France. Les cours sont réels, l'argent ne l'est pas.
+          </p>
+          <p style="margin:0;font-family:{_SANS};font-size:12px;line-height:1.55;color:{_ENCRE_3};">
+            CaptenTDB est un simulateur éducatif : aucun conseil en investissement, aucun fonds collecté.
+            Cet e-mail a été envoyé automatiquement, merci de ne pas y répondre.
+            <a href="{site}" style="color:{_ENCRE_3};">{site.replace("https://", "")}</a>
+          </p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
 </body>
 </html>"""
 
 
+def _base_template(content: str) -> str:
+    """Ancien point d'entrée (e-mail de test de l'administration)."""
+    return _gabarit("Message de CaptenTDB", "CaptenTDB", content)
+
+
 async def send_verification_email(to: str, username: str, token: str) -> None:
-    """Send account email verification link."""
-    url = f"{FRONTEND_URL}/verify-email?token={token}"
-    html = _base_template(f"""
-      <h2>Vérifiez votre adresse email</h2>
-      <p>Bonjour <strong style="color:#e2e8f0">{_html.escape(username or "")}</strong>,</p>
-      <p>Merci de vous être inscrit sur CaptenTDB ! Cliquez sur le bouton
-         ci-dessous pour activer votre compte. Ce lien expire dans <strong
-         style="color:#e2e8f0">24 heures</strong>.</p>
-      <div style="text-align:center">
-        <a class="btn" href="{url}">Vérifier mon email</a>
-      </div>
-      <p style="font-size:13px;color:#64748b">Si le bouton ne fonctionne pas, copiez ce lien dans votre navigateur :</p>
-      <div class="url-box">{url}</div>
-      <hr>
-      <p style="font-size:13px;color:#64748b;margin:0">
-        Si vous n'avez pas créé de compte, ignorez cet email.
-      </p>
-    """)
-    await _send(to, "CaptenTDB – Vérifiez votre adresse email", html)
+    """Le lien qui confirme l'adresse du compte."""
+    url = f"{adresse_site()}/verify-email?token={token}"
+    html = _gabarit(
+        "Bienvenue à bord", "Confirmez votre adresse e-mail",
+        _p(f"Bonjour {_fort(_esc(username))},")
+        + _p("Merci de rejoindre CaptenTDB. Un clic pour confirmer que cette adresse est bien la vôtre, "
+             f"et votre espace est prêt. Le lien reste valable {_fort('24 heures')}.")
+        + _bouton(url, "Confirmer mon adresse")
+        + _lien_secours(url)
+        + _p("Vous n'avez pas créé de compte ? Ignorez simplement cet e-mail.", 13, _ENCRE_3, "16px 0 0"),
+        apercu="Un clic pour confirmer votre adresse et ouvrir votre espace.",
+    )
+    await _send(to, "Confirmez votre adresse e-mail · CaptenTDB", html)
 
 
 async def send_password_reset_email(to: str, username: str, token: str) -> None:
-    """Send password reset link."""
-    url = f"{FRONTEND_URL}/reset-password?token={token}"
-    html = _base_template(f"""
-      <h2>Réinitialisation du mot de passe</h2>
-      <p>Bonjour <strong style="color:#e2e8f0">{_html.escape(username or "")}</strong>,</p>
-      <p>Vous avez demandé à réinitialiser votre mot de passe. Cliquez ci-dessous.
-         Ce lien expire dans <strong style="color:#e2e8f0">1 heure</strong>.</p>
-      <div style="text-align:center">
-        <a class="btn" href="{url}">Réinitialiser mon mot de passe</a>
-      </div>
-      <div class="url-box">{url}</div>
-      <hr>
-      <p style="font-size:13px;color:#64748b;margin:0">
-        Si vous n'avez pas fait cette demande, ignorez cet email.
-        Votre mot de passe reste inchangé.
-      </p>
-    """)
-    await _send(to, "CaptenTDB – Réinitialisation du mot de passe", html)
+    """Le lien de réinitialisation du mot de passe."""
+    url = f"{adresse_site()}/reset-password?token={token}"
+    html = _gabarit(
+        "Mot de passe oublié", "Choisissez un nouveau mot de passe",
+        _p(f"Bonjour {_fort(_esc(username))},")
+        + _p("Vous avez demandé à changer de mot de passe. Le lien ci-dessous vous y mène ; il reste "
+             f"valable {_fort('1 heure')} et ne sert qu'une fois.")
+        + _bouton(url, "Choisir un nouveau mot de passe")
+        + _lien_secours(url)
+        + _p("Vous n'avez rien demandé ? Ignorez cet e-mail : votre mot de passe ne change pas, "
+             "et personne ne peut l'utiliser sans ce lien.", 13, _ENCRE_3, "16px 0 0"),
+        apercu="Le lien pour choisir un nouveau mot de passe, valable une heure.",
+    )
+    await _send(to, "Votre nouveau mot de passe · CaptenTDB", html)
 
 
 async def send_confirmation_abonnement(to: str, username: str, prix: str, fin_retractation: str,
@@ -313,27 +365,26 @@ async def send_confirmation_abonnement(to: str, username: str, prix: str, fin_re
     distance (code de la consommation, art. L.221-13) : ce qui a été acheté,
     à quel prix, comment résilier, et le droit de rétractation avec son
     formulaire. Stripe envoie le reçu ; ceci est le contrat."""
-    html = _base_template(f"""
-      <h2>Votre abonnement Premium est actif</h2>
-      <p>Bonjour <strong style="color:#e2e8f0">{_html.escape(username or "")}</strong>,</p>
-      <p>Merci ! Votre abonnement <strong style="color:#e2e8f0">CaptenTDB Premium</strong> est activé :
-         <strong style="color:#e2e8f0">{prix} par mois</strong>, renouvelé automatiquement chaque mois.</p>
-      <p><strong style="color:#e2e8f0">Résilier</strong> : à tout moment depuis la page Premium
-         (« Résilier mon abonnement »). L'accès reste ouvert jusqu'à la fin du mois payé, et plus rien
-         n'est prélevé ensuite.</p>
-      <p><strong style="color:#e2e8f0">Changer d'avis</strong> : vous pouvez vous rétracter jusqu'au
-         <strong style="color:#e2e8f0">{fin_retractation}</strong> (14 jours), sans motif : bouton
-         « Me rétracter » sur la page Premium, ou par simple écrit. Vous êtes alors remboursé en entier.</p>
-      <div style="text-align:center">
-        <a class="btn" href="{FRONTEND_URL}/premium">Gérer mon abonnement</a>
-      </div>
-      <p style="font-size:13px;color:#64748b">Conditions générales de vente :
-         <a href="{FRONTEND_URL}/cgv" style="color:#818cf8">{FRONTEND_URL}/cgv</a></p>
-      <hr>
-      <p style="font-size:12px;color:#64748b;margin:0 0 10px">Modèle de formulaire de rétractation
-         (à n'utiliser que si vous souhaitez vous rétracter) : « À l'attention de {editeur_ligne} — Je vous
-         notifie par la présente ma rétractation du contrat portant sur l'abonnement CaptenTDB Premium,
-         souscrit le [date]. Nom, adresse e-mail du compte, date. »</p>
-      <p style="font-size:12px;color:#64748b;margin:0">{editeur_ligne}</p>
-    """)
-    await _send(to, "CaptenTDB – Votre abonnement Premium", html)
+    site = adresse_site()
+    html = _gabarit(
+        "Premium", "Votre abonnement Premium est actif",
+        _p(f"Bonjour {_fort(_esc(username))},")
+        + _p(f"Merci ! Votre abonnement {_fort('CaptenTDB Premium')} est activé : {_fort(_esc(prix) + ' par mois')}, "
+             "renouvelé automatiquement chaque mois.")
+        + _p(f"{_fort('Résilier')} : à tout moment depuis la page Premium (« Résilier mon abonnement »). "
+             "L'accès reste ouvert jusqu'à la fin du mois payé, et plus rien n'est prélevé ensuite.")
+        + _p(f"{_fort('Changer d’avis')} : vous pouvez vous rétracter jusqu'au {_fort(_esc(fin_retractation))} "
+             "(14 jours), sans motif : bouton « Me rétracter » sur la page Premium, ou par simple écrit. "
+             "Vous êtes alors remboursé en entier.")
+        + _bouton(f"{site}/premium", "Gérer mon abonnement")
+        + _p(f'Conditions générales de vente : <a href="{site}/cgv" style="color:{_ENCRE_2};">{site}/cgv</a>',
+             13, _ENCRE_3)
+        + f'<div style="border-top:1px solid {_FILET};margin:20px 0 14px;"></div>'
+        + _p("Modèle de formulaire de rétractation (à n'utiliser que si vous souhaitez vous rétracter) : "
+             f"« À l'attention de {_esc(editeur_ligne)}. Je vous notifie par la présente ma rétractation du "
+             "contrat portant sur l'abonnement CaptenTDB Premium, souscrit le [date]. Nom, adresse e-mail "
+             "du compte, date. »", 12, _ENCRE_3, "0 0 10px")
+        + _p(_esc(editeur_ligne), 12, _ENCRE_3, "0"),
+        apercu="Votre abonnement est actif : comment le gérer, le résilier ou vous rétracter.",
+    )
+    await _send(to, "Votre abonnement Premium · CaptenTDB", html)

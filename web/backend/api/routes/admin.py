@@ -178,12 +178,15 @@ async def email_test(data: EmailTestRequest, admin: dict = Depends(get_admin_use
     to = (data.to or admin.get("email") or "").strip()
     if "@" not in to:
         raise HTTPException(status_code=400, detail="Adresse de destination invalide.")
-    html = e._base_template(
-        "<h2>E-mail de test</h2><p>Si vous lisez ceci, l'envoi d'e-mails de CaptenTDB "
-        "fonctionne. Les liens de réinitialisation de mot de passe arriveront de la même façon.</p>"
+    html = e._gabarit(
+        "Administration", "L'envoi d'e-mails fonctionne",
+        e._p("Si vous lisez ceci, CaptenTDB sait envoyer ses e-mails. Les liens de confirmation "
+             "d'adresse et de mot de passe oublié arriveront de la même façon, sous cette forme.")
+        + e._bouton(e.adresse_site(), "Ouvrir le site"),
+        apercu="Test de l'envoi d'e-mails de CaptenTDB.",
     )
     try:
-        voie = await e.envoyer(to, "CaptenTDB – e-mail de test", html)
+        voie = await e.envoyer(to, "E-mail de test · CaptenTDB", html)
     except e.EchecEnvoi as exc:
         return {"ok": False, "to": to, "erreur": exc.message, "conseil": exc.conseil, **_etat_email()}
     except Exception as exc:  # une erreur imprévue doit s'afficher, pas faire un 500 muet
