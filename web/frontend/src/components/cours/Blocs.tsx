@@ -36,7 +36,7 @@ export function Scenes({ titre, scenes }: { titre?: string; scenes: { legende: s
     if (reduce || cible <= depart) { setJusqua(cible); return; }
     let raf = 0;
     const t0 = performance.now();
-    const duree = Math.min(1400, 40 * (cible - depart));
+    const duree = Math.min(2800, 80 * (cible - depart));
     const pas = (t: number) => {
       const f = Math.min(1, (t - t0) / duree);
       setJusqua(Math.round(depart + (cible - depart) * f));

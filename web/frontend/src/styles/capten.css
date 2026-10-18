@@ -987,9 +987,9 @@ body:has(.cap) {
   65% { opacity: 1; transform: scale(1.18); }
   100% { opacity: 1; transform: scale(1); }
 }
-.cap .ge .ge-etire { transform-box: view-box; transform-origin: 0 0; animation: ge-etire 0.7s var(--cap-ease) both; }
-.cap .ge .ge-fondu { animation: ge-fondu 0.55s ease both; }
-.cap .ge .ge-pop { transform-box: fill-box; transform-origin: center; animation: ge-pop 0.45s var(--cap-ease) both; }
+.cap .ge .ge-etire { transform-box: view-box; transform-origin: 0 0; animation: ge-etire 1.4s var(--cap-ease) both; }
+.cap .ge .ge-fondu { animation: ge-fondu 1.1s ease both; }
+.cap .ge .ge-pop { transform-box: fill-box; transform-origin: center; animation: ge-pop 0.8s var(--cap-ease) both; }
 .cap .ge.ge-calme .ge-etire, .cap .ge.ge-calme .ge-fondu, .cap .ge.ge-calme .ge-pop { animation: none; }
 @media (prefers-reduced-motion: reduce) {
   .cap .ge .ge-etire, .cap .ge .ge-fondu, .cap .ge .ge-pop { animation: none; }

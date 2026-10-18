@@ -103,7 +103,7 @@ export function GraphiqueEcole(cfg: ConfigGraphique) {
     const lancer = () => {
       setIntroFinie(false);
       const t0 = performance.now();
-      const duree = Math.min(1100, 260 + n * 14);
+      const duree = Math.min(2600, 700 + n * 28);
       const pas = (t: number) => {
         const f = Math.min(1, (t - t0) / duree);
         const e = 1 - Math.pow(1 - f, 3);
@@ -129,7 +129,7 @@ export function GraphiqueEcole(cfg: ConfigGraphique) {
   // Le cours en direct : la dernière bougie visible respire autour de sa clôture.
   useEffect(() => {
     if (!cfg.vivant || calme || !introFinie) return;
-    const id = window.setInterval(() => setTic((t) => t + 1), 650);
+    const id = window.setInterval(() => setTic((t) => t + 1), 1100);
     return () => window.clearInterval(id);
   }, [cfg.vivant, calme, introFinie]);
 
