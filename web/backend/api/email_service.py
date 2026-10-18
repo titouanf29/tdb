@@ -34,7 +34,8 @@ SMTP_HOST      = os.getenv("SMTP_HOST", "")
 SMTP_PORT      = int(os.getenv("SMTP_PORT", "587"))
 SMTP_USER      = os.getenv("SMTP_USER", "")
 SMTP_PASSWORD  = os.getenv("SMTP_PASSWORD", "")
-BREVO_API_KEY  = os.getenv("BREVO_API_KEY", "").strip()
+# Les guillemets et espaces collés avec la clé font refuser une clé juste.
+BREVO_API_KEY  = os.getenv("BREVO_API_KEY", "").strip().strip("'\"").strip()
 RESEND_API_KEY = os.getenv("RESEND_API_KEY", "").strip()
 EMAIL_FROM     = (os.getenv("EMAIL_FROM") or os.getenv("SMTP_FROM")
                   or (f"CaptenTDB <{SMTP_USER}>" if SMTP_USER else ""))
@@ -106,8 +107,28 @@ async def _via_brevo(to: str, subject: str, html: str) -> None:
         return
     texte = r.text[:300]
     if r.status_code == 401:
-        raise EchecEnvoi("Clé API Brevo refusée.",
-                         "Vérifiez BREVO_API_KEY : une clé API (menu SMTP & API → Clés API), pas le mot de passe SMTP.")
+        # « Clé refusée » recouvrait trois causes qui ne se règlent pas de la
+        # même façon : on lit la réponse de Brevo pour dire laquelle.
+        try:
+            raison = str((r.json() or {}).get("message") or texte)
+        except ValueError:
+            raison = texte
+        bas = raison.lower()
+        if BREVO_API_KEY.startswith("xsmtpsib-"):
+            raise EchecEnvoi("C'est la clé SMTP de Brevo, pas une clé API.",
+                             "Dans Brevo : SMTP & API → onglet « Clés API » → Générer une clé (elle commence par "
+                             "xkeysib-), puis remplacez BREVO_API_KEY sur Railway.")
+        if "ip" in bas and ("unrecogni" in bas or "authori" in bas or "not allowed" in bas):
+            raise EchecEnvoi(f"Brevo bloque l'adresse IP du serveur ({raison}).",
+                             "Dans Brevo : Paramètres → Sécurité → « IP autorisées » : désactivez le blocage des IP "
+                             "inconnues (l'adresse du serveur Railway change), ou ajoutez l'adresse indiquée.")
+        if "not enabled" in bas or "disabled" in bas or "suspend" in bas:
+            raise EchecEnvoi(f"Le compte ou la clé Brevo n'est pas activé ({raison}).",
+                             "Terminez l'activation du compte Brevo (e-mail de confirmation, profil), "
+                             "ou réactivez la clé dans SMTP & API → Clés API.")
+        raise EchecEnvoi(f"Clé API Brevo refusée ({raison}).",
+                         "Vérifiez BREVO_API_KEY sur Railway : la clé API entière (elle commence par xkeysib-), "
+                         "sans guillemets ni espace, et pas le mot de passe SMTP.")
     if "sender" in texte.lower():
         raise EchecEnvoi(f"Brevo refuse l'expéditeur « {adresse} ».",
                          "Ajoutez et validez cette adresse dans Brevo (Expéditeurs, domaines et IP dédiées → Expéditeurs).")
