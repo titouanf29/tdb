@@ -3739,7 +3739,31 @@ export interface SignalStrategie {
   };
 }
 
+export interface SerieFilm { cle: string; label: string; valeurs: (number | null)[] }
+
+export interface TradeFilm {
+  symbol: string; entree_le: string; sortie_le: string; entree: number; sortie: number;
+  issue: "objectif" | "stop" | "durée"; r: number; bougies: number; stop: number; objectif: number;
+  i_e: number; i_s: number;
+}
+
+/** Le détail bougie par bougie d'un actif, pour rejouer le test pas à pas. */
+export interface FilmStrategie {
+  symbol: string; erreur?: string; unite: string; debut: number; sens: "achat" | "vente";
+  risque_pct: number; stop_atr: number; objectif_r: number; duree_max: number;
+  dates: string[]; o: (number | null)[]; h: (number | null)[]; l: (number | null)[]; c: (number | null)[];
+  superpositions: SerieFilm[];
+  panneaux: { type: "rsi" | "macd" | "volume"; label: string; seuils: number[]; series: SerieFilm[] }[];
+  conditions: { texte: string; type: string; valeur: string | null; masque: string | null }[];
+  trades: TradeFilm[];
+  refus: { i: number; score: number | null }[];
+  achat_conserve_pct: number;
+}
+
 export const strategiesAPI = {
+  film: (regles: ReglesStrategie, symbol: string) =>
+    fetchAPI<FilmStrategie>("/api/strategies/film", {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ regles, symbol }) }),
   verifier: (regles: ReglesStrategie) =>
     fetchAPI<{ regles: ReglesStrategie; avis: AvisNimbo[]; bloquante: boolean; description: { conditions: string[]; unite: string } }>(
       "/api/strategies/verifier", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ regles }) }),

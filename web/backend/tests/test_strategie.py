@@ -80,3 +80,21 @@ def test_signal_du_jour():
     s = S.normaliser({"conditions": [{"type": "tendance_ma", "periode": 50, "position": "dessus"}], "actifs": ["X"]})
     sig = S.signal_du_jour(h, s)
     assert sig["reunies"] is True and sig["plan"]["stop"] < sig["plan"]["entree"] < sig["plan"]["objectif"]
+
+
+def test_film_coherent_avec_le_rejeu():
+    h = cours()
+    s = S.normaliser({"conditions": [{"type": "tendance_ma", "periode": 50, "position": "dessus"},
+                                     {"type": "rsi", "seuil": 45, "mode": "dessus"}],
+                      "actifs": ["X"], "stop_atr": 2, "objectif_r": 2, "duree_max": 20})
+    f = S.film(h, s, "X")
+    n = len(f["dates"])
+    assert len(f["c"]) == n and all(len(x["masque"]) == n for x in f["conditions"])
+    assert [x["cle"] for x in f["superpositions"]] == ["ema50"] and f["panneaux"][0]["type"] == "rsi"
+    for t in f["trades"]:
+        # Le jour de l'entrée, toutes les conditions étaient vraies.
+        assert all(x["masque"][t["i_e"]] == "1" for x in f["conditions"])
+        assert f["dates"][t["i_e"]] == t["entree_le"] and f["dates"][t["i_s"]] == t["sortie_le"]
+        assert t["stop"] < t["entree"] < t["objectif"]
+    import json
+    json.dumps(f)

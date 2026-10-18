@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence } from "framer-motion";
 import {
   favoritesAPI, strategiesAPI,
@@ -14,6 +14,7 @@ import {
 import { Condition } from "@/components/strategie/Condition";
 import { ListeAvis } from "@/components/strategie/ListeAvis";
 import { Resultats } from "@/components/strategie/Resultats";
+import { Rejeu } from "@/components/strategie/Rejeu";
 
 /**
  * Ma stratégie : la composer avec Nimbo, la tester sur des années de cours,
@@ -145,6 +146,9 @@ export default function StrategiePage() {
   const R = regles.objectif_r;
   const testable = !bloquante && !enTest;
   const resultatPerime = resultat && teste !== JSON.stringify(regles);
+  // Le rejeu porte sur la stratégie telle qu'elle a été testée, pas sur les retouches d'après.
+  const reglesTestees = useMemo<ReglesStrategie | null>(() => (teste ? JSON.parse(teste) : null), [teste]);
+  const actifsTestes = useMemo(() => (resultat?.par_actif ?? []).filter((a) => !a.erreur && a.trades > 0).map((a) => a.symbol), [resultat]);
 
   return (
     <div className="relative space-y-8">
@@ -349,7 +353,8 @@ export default function StrategiePage() {
             </div>
           </div>
           {message && <Text size="small" tone="up">{message}</Text>}
-          <Resultats r={resultat} risque={regles.risque_pct} />
+          <Resultats r={resultat} risque={regles.risque_pct}
+            rejeu={reglesTestees && actifsTestes.length > 0 ? <Rejeu regles={reglesTestees} actifs={actifsTestes} /> : null} />
         </div>
       )}
     </div>

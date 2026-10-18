@@ -41,7 +41,7 @@ function Chiffre({ valeur, legende, ton }: { valeur: string; legende: string; to
   );
 }
 
-export function Resultats({ r, risque }: { r: ResultatStrategie; risque: number }) {
+export function Resultats({ r, risque, rejeu }: { r: ResultatStrategie; risque: number; rejeu?: React.ReactNode }) {
   const s = r.stats;
   const signe = (x?: number) => (x == null ? "—" : `${x >= 0 ? "+" : ""}${v(x, 1)}`);
   return (
@@ -75,6 +75,8 @@ export function Resultats({ r, risque }: { r: ResultatStrategie; risque: number 
           )}
         </Panel>
       )}
+
+      {s.trades > 0 && rejeu}
 
       {r.par_actif.length > 0 && (
         <Panel title="Actif par actif">

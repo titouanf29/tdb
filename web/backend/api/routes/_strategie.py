@@ -364,6 +364,7 @@ def rejouer(hist: pd.DataFrame, s: dict, symbol: str = "") -> dict:
     achat = s["sens"] == "achat"
     debut = 60
     trades = []
+    refus = []  # tout était réuni, sauf le score de Nimbo
     t = debut
     while t < n - 1:
         # La bougie t-1 vient de clôturer : on regarde si tout y est réuni.
@@ -373,6 +374,7 @@ def rejouer(hist: pd.DataFrame, s: dict, symbol: str = "") -> dict:
         if score_min is not None:
             sc = _score_nimbo_a(hist, t)
             if sc is None or sc < score_min:
+                refus.append({"i": t - 1, "score": round(sc) if sc is not None else None})
                 t += 1
                 continue
         entree = cl[t - 1]
@@ -389,14 +391,100 @@ def rejouer(hist: pd.DataFrame, s: dict, symbol: str = "") -> dict:
             "entree": round(float(entree), 6), "sortie": round(float(sortie), 6),
             "issue": {"target": "objectif", "stop": "stop", "timeout": "durée"}[issue],
             "r": round(float(r), 3), "bougies": int(duree),
+            "stop": round(float(stop), 6), "objectif": round(float(cible), 6),
+            "i_e": int(t - 1), "i_s": int(min(t - 1 + duree, n - 1)),
         })
         t = t + duree  # la position suivante ne commence qu'une fois celle-ci fermée
     # Combien de fois chaque condition était vraie : ce qui rend la stratégie rare.
     frequences = {k: round(float(m.iloc[debut:].mean()) * 100, 1) for k, m in M.items()}
     return {
-        "symbol": symbol, "trades": trades, "frequences": frequences,
+        "symbol": symbol, "trades": trades, "frequences": frequences, "refus": refus, "masques": M, "i_debut": debut,
         "debut": str(hist.index[debut])[:10], "fin": str(hist.index[-1])[:10],
         "achat_conserve_pct": round(float((cl[-1] / cl[debut] - 1) * 100), 1),
+    }
+
+
+def _liste(x) -> list:
+    """Une série en liste JSON : six chiffres significatifs, None pour les trous."""
+    out = []
+    for v in np.asarray(x, dtype=float):
+        out.append(float(f"{v:.6g}") if np.isfinite(v) else None)
+    return out
+
+
+def film(hist: pd.DataFrame, s: dict, symbol: str = "") -> dict:
+    """Tout ce qu'il faut pour rejouer la stratégie bougie par bougie : les
+    cours, les indicateurs que ses conditions regardent, chaque condition
+    vraie ou fausse à chaque clôture, et les trades avec leur stop et leur
+    objectif. Les valeurs d'une bougie ne dépendent que du passé : le rejeu
+    peut s'arrêter n'importe où sans dévoiler la suite."""
+    hist = hist.dropna(subset=["High", "Low", "Close"])
+    r = rejouer(hist, s, symbol)
+    if r.get("erreur"):
+        return {"symbol": symbol, "erreur": r["erreur"]}
+    h, l, c = hist["High"].astype(float), hist["Low"].astype(float), hist["Close"].astype(float)
+    o = hist["Open"].astype(float) if "Open" in hist else c
+    v = hist["Volume"].astype(float) if "Volume" in hist else pd.Series(np.nan, index=hist.index)
+
+    superpositions: dict[str, dict] = {}
+    panneaux: dict[str, dict] = {}
+    conditions = []
+    for i, cd in enumerate(s["conditions"]):
+        t = cd["type"]
+        cle_valeur = None
+        if t == "tendance_ma":
+            k = f"ema{cd['periode']}"
+            superpositions.setdefault(k, {"cle": k, "label": f"Moyenne {cd['periode']}", "valeurs": _liste(_ema(c, cd["periode"]))})
+            cle_valeur = k
+        elif t == "croisement_ma":
+            for p in (cd["rapide"], cd["lente"]):
+                k = f"ema{p}"
+                superpositions.setdefault(k, {"cle": k, "label": f"Moyenne {p}", "valeurs": _liste(_ema(c, p))})
+            cle_valeur = f"ema{cd['rapide']}"
+        elif t == "cassure":
+            n = cd["periode"]
+            k = f"{'haut' if cd['sens'] == 'haut' else 'bas'}{n}"
+            serie = h.shift(1).rolling(n).max() if cd["sens"] == "haut" else l.shift(1).rolling(n).min()
+            label = f"Plus haut des {n} dernières" if cd["sens"] == "haut" else f"Plus bas des {n} dernières"
+            superpositions.setdefault(k, {"cle": k, "label": label, "valeurs": _liste(serie)})
+            cle_valeur = k
+        elif t == "rsi":
+            p = panneaux.setdefault("rsi", {"type": "rsi", "label": "RSI (14)", "seuils": [],
+                                            "series": [{"cle": "rsi", "label": "RSI", "valeurs": _liste(rsi_wilder(c))}]})
+            if cd["seuil"] not in p["seuils"]:
+                p["seuils"].append(cd["seuil"])
+            cle_valeur = "rsi"
+        elif t == "macd":
+            m = _ema(c, 12) - _ema(c, 26)
+            panneaux.setdefault("macd", {"type": "macd", "label": "MACD (12, 26, 9)", "seuils": [0], "series": [
+                {"cle": "macd", "label": "MACD", "valeurs": _liste(m)},
+                {"cle": "signal", "label": "Signal", "valeurs": _liste(_ema(m, 9))}]})
+            cle_valeur = "macd"
+        elif t == "volume":
+            p = panneaux.setdefault("volume", {"type": "volume", "label": "Volume", "seuils": [], "series": [
+                {"cle": "volume", "label": "Volume", "valeurs": _liste(v)}]})
+            k = f"vol{cd['multiple']}"
+            if not any(x["cle"] == k for x in p["series"]):
+                p["series"].append({"cle": k, "label": f"{str(cd['multiple']).replace('.', ',')} fois la moyenne",
+                                    "valeurs": _liste(cd["multiple"] * v.shift(1).rolling(20).mean())})
+            cle_valeur = "volume"
+        m = r["masques"].get(f"{i}:{t}")
+        conditions.append({
+            "texte": decrire_condition(cd), "type": t, "valeur": cle_valeur,
+            # Le score de Nimbo coûte cher : il n'est calculé que les jours où
+            # le reste est réuni (voir `refus`).
+            "masque": "".join("1" if x else "0" for x in m.to_numpy()) if m is not None else None,
+        })
+
+    return {
+        "symbol": symbol, "unite": UNITES[s["unite"]], "debut": r["i_debut"],
+        "sens": s["sens"], "risque_pct": s["risque_pct"], "stop_atr": s["stop_atr"],
+        "objectif_r": s["objectif_r"], "duree_max": s["duree_max"],
+        "dates": [str(d)[:10] for d in hist.index],
+        "o": _liste(o), "h": _liste(h), "l": _liste(l), "c": _liste(c),
+        "superpositions": list(superpositions.values()), "panneaux": list(panneaux.values()),
+        "conditions": conditions, "trades": r["trades"], "refus": r["refus"],
+        "achat_conserve_pct": r["achat_conserve_pct"],
     }
 
 
