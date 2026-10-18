@@ -8,6 +8,7 @@ export const CHARGEURS: Record<number, () => Promise<{ default: LeconSerie }>> =
   6: () => import("./06"),
   7: () => import("./07"),
   8: () => import("./08"),
+  9: () => import("./09"),
   12: () => import("./12"),
   13: () => import("./13"),
   14: () => import("./14"),
@@ -21,8 +22,13 @@ export const CHARGEURS: Record<number, () => Promise<{ default: LeconSerie }>> =
   22: () => import("./22"),
   23: () => import("./23"),
   24: () => import("./24"),
+  25: () => import("./25"),
+  30: () => import("./30"),
+  31: () => import("./31"),
+  32: () => import("./32"),
   33: () => import("./33"),
   36: () => import("./36"),
+  37: () => import("./37"),
 };
 
 export const DISPONIBLES = new Set<number>(Object.keys(CHARGEURS).map(Number));

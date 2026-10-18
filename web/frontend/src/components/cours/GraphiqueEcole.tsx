@@ -246,13 +246,7 @@ export function GraphiqueEcole(cfg: ConfigGraphique) {
 
   return (
     <div ref={boite} className="relative w-full select-none">
-      {!calme && cfg.apparition !== false && !cfg.onClic && introFinie && prog == null && (
-        <button type="button" onClick={() => setRejeu((r) => r + 1)}
-          className="absolute right-1 top-0 z-10 rounded-[8px] px-2 py-1 text-[0.8rem] font-medium underline decoration-[color:var(--cap-ambre)] decoration-2 underline-offset-4 transition-colors hover:bg-[color:var(--cap-surface-2)]"
-          style={{ color: "var(--cap-ink-2)" }} aria-label="Revoir l'animation du graphique">
-          Revoir
-        </button>
-      )}
+
       <svg viewBox={`0 0 ${W} ${H}`} width="100%" height={H} className={`ge block${calme ? " ge-calme" : ""}`} role="img"
         aria-label={cfg.ariaLabel ?? "Graphique de la leçon"} style={{ fontFamily: "var(--cap-font-text)" }}>
         <defs>
@@ -456,6 +450,17 @@ export function GraphiqueEcole(cfg: ConfigGraphique) {
           onPointerMove={cfg.sansSurvol ? undefined : surDeplacement} onPointerLeave={() => setSurvol(null)} onClick={surClic} />
       </svg>
 
+      {!calme && cfg.apparition !== false && !cfg.onClic && (
+        <div className="flex h-8 items-center justify-end">
+          {introFinie && prog == null && (
+            <button type="button" onClick={() => setRejeu((r) => r + 1)}
+              className="rounded-[8px] px-2 py-1 text-[0.82rem] font-medium underline decoration-[color:var(--cap-ambre)] decoration-2 underline-offset-4 transition-colors hover:bg-[color:var(--cap-surface-2)]"
+              style={{ color: "var(--cap-ink-2)" }} aria-label="Revoir l'animation du graphique">
+              Revoir l&apos;animation
+            </button>
+          )}
+        </div>
+      )}
       {b && !cfg.sansSurvol && !ligne && (
         <div className="pointer-events-none absolute left-2 top-2 rounded-[10px] px-3 py-2 text-[0.84rem] leading-snug shadow-sm"
           style={{ backgroundColor: "var(--cap-surface)", color: "var(--cap-ink-2)", border: "1px solid var(--cap-line-strong)" }}>
