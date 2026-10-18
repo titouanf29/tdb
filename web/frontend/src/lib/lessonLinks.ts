@@ -23,18 +23,18 @@ export interface LessonLink {
 }
 
 const LESSONS: Record<string, LessonLink> = {
-  RSI: { key: "advanced-strategies/rsi-divergence", label: "Comprendre le RSI" },
-  MACD: { key: "technical-analysis/trend-indicators", label: "Comprendre le MACD" },
+  RSI: { key: "lecon/4", label: "Comprendre le RSI" },
+  MACD: { key: "lecon/8", label: "Comprendre le MACD" },
   "Moyennes mobiles": {
-    key: "technical-analysis/trend-indicators",
+    key: "lecon/6",
     label: "Comprendre les moyennes mobiles",
   },
   Volume: { key: "technical-analysis/reading-charts", label: "Ce que dit le volume" },
-  Support: { key: "technical-analysis/support-resistance", label: "Supports et résistances" },
-  Résistance: { key: "technical-analysis/support-resistance", label: "Supports et résistances" },
-  Stop: { key: "risk-management/risk-basics", label: "Pourquoi un stop" },
+  Support: { key: "lecon/33", label: "Supports et résistances" },
+  Résistance: { key: "lecon/33", label: "Supports et résistances" },
+  Stop: { key: "lecon/7", label: "Pourquoi un stop" },
   "Taille de position": {
-    key: "risk-management/position-sizing",
+    key: "lecon/19",
     label: "Dimensionner une position",
   },
 };
@@ -46,6 +46,8 @@ export function lessonFor(term: string): LessonLink | null {
 
 /** L'URL d'une leçon, pour un lien direct depuis n'importe quel écran. */
 export function lessonHref(key: string): string {
+  // Les leçons de la série ont leur adresse propre : /lecon/33.
+  if (key.startsWith("lecon/")) return `/${key}`;
   return `/learn?lecon=${encodeURIComponent(key)}`;
 }
 
@@ -61,5 +63,8 @@ const LECONS_FIGURES: Record<string, string> = {
 
 export function lessonForFigure(cle: string): string | null {
   const l = LECONS_FIGURES[cle];
+  // La leçon 10 de la série traite double sommet, tête et épaules et triangle ;
+  // les drapeaux restent dans l'ancien module.
+  if (l && l !== "drapeaux") return lessonHref("lecon/10");
   return l ? lessonHref(`figures-chartistes/${l}`) : null;
 }

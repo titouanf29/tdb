@@ -15,6 +15,7 @@ import {
 import { LessonBody } from "@/components/learn/LessonBody";
 import { LessonDiagram } from "@/components/learn/Diagrams";
 import { Quiz } from "@/components/learn/Quiz";
+import { Sommaire } from "@/components/cours/Sommaire";
 
 /**
  * Le Parcours — la formation, réécrite comme un chemin plutôt qu'un catalogue.
@@ -218,49 +219,22 @@ function LearnScreen() {
 
       <div className="relative space-y-6">
         <header className="pt-2">
-          <Heading level={1}>Parcours</Heading>
-          <Text className="mt-2.5 max-w-[36rem]">
-            {done === 0
-              ? "Vingt-trois leçons, de ce qu'est un marché jusqu'à la gestion du risque. Rien n'est verrouillé : l'ordre est une suggestion, pas une barrière."
-              : done === total
-                ? "Vous avez terminé le parcours. Les leçons restent disponibles, relire une leçon après avoir tradé n'est pas la même lecture."
-                : `${done} leçon${done > 1 ? "s" : ""} sur ${total}. ${xp ? `Niveau ${xp.level}, ${xp.xp} XP.` : ""}`}
+          <p className="text-[1rem] italic" style={{ color: "var(--cap-ink-3)", fontFamily: "var(--cap-font-display)" }}>La série CaptenTDB</p>
+          <Heading level={1}>Apprendre, une leçon après l&apos;autre</Heading>
+          <Text className="mt-2.5 max-w-[40rem]">
+            Chaque vidéo de la série a sa leçon complète : les explications en détail, des exemples chiffrés, des graphiques
+            à manipuler et un quiz.{xp ? ` Niveau ${xp.level}, ${xp.xp} XP.` : ""}
           </Text>
         </header>
 
-        {/* ── Le bouton le plus utile de la page ─────────────────────────── */}
-        {next && (
-          <Panel
-            title={done === 0 ? "Commencer ici" : "Reprendre"}
-            hint={pacing(profile.weekly_time, next.module.title, remainingInModule)}
-          >
-            <div className="flex flex-wrap items-end justify-between gap-5">
-              <div className="min-w-0">
-                <Heading level={3}>{next.lesson.title}</Heading>
-                <div className="mt-2 flex items-center gap-1.5">
-                  <Clock className="h-3.5 w-3.5" style={{ color: "var(--cap-ink-4)" }} />
-                  <Text size="caption" as="span">
-                    {next.lesson.duration}
-                    {next.lesson.quiz?.length ? ` · ${next.lesson.quiz.length} question${next.lesson.quiz.length > 1 ? "s" : ""}` : ""}
-                  </Text>
-                </div>
-              </div>
-              <Button size="md" onClick={() => goTo(`${next.module.id}/${next.lesson.id}`)}>
-                {done === 0 ? "Commencer" : "Reprendre"}
-                <ArrowRight className="h-4 w-4" />
-              </Button>
-            </div>
+        <Sommaire faites={new Set(Object.keys(records))} />
 
-            {done > 0 && (
-              <div className="mt-6">
-                <Progress value={done} max={total} label="Progression du parcours" showValue={false} />
-                <Text size="caption" className="mt-2">
-                  {done} sur {total}
-                </Text>
-              </div>
-            )}
-          </Panel>
-        )}
+        <div className="border-t pt-8" style={{ borderColor: "var(--cap-line-strong)" }}>
+          <Heading level={2}>Pour aller plus loin</Heading>
+          <Text className="mt-2 max-w-[40rem]">
+            Des compléments : les styles de trading en détail, les marchés, le carnet d&apos;ordres.
+          </Text>
+        </div>
 
         {/* ── Les modules ────────────────────────────────────────────────── */}
         {modules.map((m) => {

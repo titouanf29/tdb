@@ -2,8 +2,9 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { pontAPI, type PontTiktok as Etat } from "@/lib/api";
-import { LEARN_MODULES } from "@/lib/learnContent";
-import { COUVERTURE } from "@/lib/pontTiktok";
+import Link from "next/link";
+import { fiche } from "@/lib/cours/catalogue";
+import { DISPONIBLES } from "@/lib/cours/lecons";
 import { EmptyState, Panel, Text } from "@/components/design-system";
 
 /**
@@ -12,10 +13,6 @@ import { EmptyState, Panel, Text } from "@/components/design-system";
  * Une leçon publiée sans rien dans Apprendre vient en tête : c'est là qu'un
  * visiteur venu de la vidéo ne trouve pas ce qu'il cherche.
  */
-
-const TITRES: Record<string, string> = Object.fromEntries(
-  LEARN_MODULES.flatMap((m) => m.lessons.map((l) => [l.id, l.title])),
-);
 
 function dateCourte(iso: string | null) {
   if (!iso) return "";
@@ -45,9 +42,10 @@ export function PontTiktok() {
       const prog = vids.filter((v) => v.statut === "programmee");
       const statut = publiees.length ? "publiee" : prog.length ? "programmee" : vids.length ? "prete" : "a_ecrire";
       const date = publiees[0]?.date ?? prog[0]?.date ?? null;
-      const cv = COUVERTURE[n];
-      const manque = !cv ? "rien" : cv.niveau === "partielle" ? "partielle" : "ok";
-      return { n, titre: plan?.titre || vids[0]?.titre || `Leçon ${n}`, statut, date, cv, manque, parties: vids.length };
+      // La leçon du site : écrite (une page /lecon/n), annoncée au sommaire
+      // mais pas encore écrite, ou absente du sommaire (une leçon nouvelle du plan).
+      const manque = DISPONIBLES.has(n) ? "ok" : fiche(n) ? "partielle" : "rien";
+      return { n, titre: plan?.titre || vids[0]?.titre || `Leçon ${n}`, statut, date, manque, parties: vids.length };
     });
   }, [etat]);
 
@@ -59,7 +57,7 @@ export function PontTiktok() {
 
   return (
     <Panel title="Apprendre et le TikTok"
-      hint="Les leçons de la série, ce que le Studio dit de leur publication, et ce qui leur répond dans l'onglet Apprendre. Aucun chiffre TikTok n'est repris sur le site.">
+      hint="Les leçons de la série, ce que le Studio dit de leur publication, et si chacune a sa leçon complète sur le site. Aucun chiffre TikTok n'est repris sur le site.">
       {erreur && <Text size="small" tone="down">{erreur}</Text>}
       {etat && !etat.configure && (
         <Text size="small" className="mb-4">
@@ -92,8 +90,9 @@ export function PontTiktok() {
                     : l.statut === "prete" ? "Prête, pas programmée" : "À tourner"}
                 </span>
                 <span className="text-[0.86rem]" style={{ color: l.manque === "ok" ? "var(--cap-up)" : l.manque === "partielle" ? "var(--cap-amber-ink)" : l.statut === "publiee" ? "var(--cap-down)" : "var(--cap-ink-3)" }}>
-                  {l.manque === "rien" ? "Rien dans Apprendre"
-                    : `${l.manque === "ok" ? "Couverte" : "En partie"} : ${l.cv!.lecons.map((id) => TITRES[id] ?? id).join(", ") || "—"}${l.cv!.note ? ` (${l.cv!.note})` : ""}`}
+                  {l.manque === "ok" ? <Link href={`/lecon/${l.n}`} className="cap-lien">Leçon {l.n} sur le site</Link>
+                    : l.manque === "partielle" ? "Au sommaire, pas encore écrite"
+                    : "À ajouter au site (catalogue et leçon)"}
                 </span>
               </li>
             ))}

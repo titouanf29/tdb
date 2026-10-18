@@ -962,3 +962,15 @@ body:has(.cap) {
 }
 .cap .cap-rubriques section[data-repliable] > div { padding-left: 0 !important; padding-right: 0 !important; }
 .cap .cap-rubriques [data-aside] { display: none; }
+
+/* ── LES LEÇONS DE LA SÉRIE ──────────────────────────────────────────────
+   Le texte d'une leçon : l'essentiel en gras, et les mots des traders
+   surlignés d'ambre, comme un chiffre dans le texte. */
+.cap .cours-texte { color: var(--cap-ink-2); }
+.cap .cours-texte b, .cap .cours-texte strong { color: var(--cap-ink); font-weight: 650; }
+.cap .cours-texte .mot {
+  color: var(--cap-ink); font-style: italic;
+  background: linear-gradient(transparent 62%, rgba(229, 168, 58, 0.32) 0);
+  padding: 0 0.1em;
+}
+.cap .cap-qr dd { color: var(--cap-ink-2); line-height: 1.7; }

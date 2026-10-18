@@ -18,6 +18,7 @@ import { PriceAlertWatcher } from "@/components/PriceAlertWatcher";
 import { MaintenanceScreen } from "./MaintenanceScreen";
 import { useMaintenance } from "@/lib/useMaintenance";
 import { AppChrome } from "@/components/app/AppChrome";
+import { CoursChrome } from "@/components/cours/CoursChrome";
 import { isMigrated } from "@/components/app/nav";
 import { Loader2 } from "lucide-react";
 import type { TradingLevel } from "@/lib/auth";
@@ -68,6 +69,18 @@ function LegalShell({ children }: { children: React.ReactNode }) {
         {children}
       </div>
     </div>
+  );
+}
+
+/** Les leçons de la série : publiques. Avec un compte, dans le cadre de
+ *  l'application ; sans compte, dans un cadre léger qui invite à s'inscrire. */
+function CoursShell({ children }: { children: React.ReactNode }) {
+  const { isAuthenticated, isLoading } = useAuth();
+  if (isLoading) return <div className="cap min-h-screen" />;
+  return (
+    <LandingShell>
+      {isAuthenticated ? <AppChrome>{children}</AppChrome> : <CoursChrome>{children}</CoursChrome>}
+    </LandingShell>
   );
 }
 
@@ -351,6 +364,10 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
   if (isLegalPage) {
     return <LegalShell>{children}</LegalShell>;
+  }
+
+  if (pathname?.startsWith("/lecon/") || pathname === "/cours") {
+    return <CoursShell>{children}</CoursShell>;
   }
 
   // Auth pages and protected pages both go through AuthShell

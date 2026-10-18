@@ -172,6 +172,8 @@ export function isMigrated(pathname: string | null): boolean {
 
 export function areaForPath(pathname: string | null): NavArea | undefined {
   if (!pathname) return undefined;
+  // Une leçon de la série se lit dans Parcours.
+  if (pathname.startsWith("/lecon/") || pathname === "/cours") pathname = "/learn";
   // Longest match wins, so /learn/missions resolves inside Parcours rather
   // than matching the first area that happens to share a prefix.
   let best: { area: NavArea; len: number } | undefined;

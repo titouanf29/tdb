@@ -1,6 +1,6 @@
 "use client";
 
-import { Container, Eyebrow, Heading, Section, Text } from "@/components/design-system";
+import { Button, Container, Eyebrow, Heading, Section, Text } from "@/components/design-system";
 import { Reveal } from "./effets";
 import { MotsAuScroll } from "./animations";
 
@@ -13,7 +13,7 @@ import { MotsAuScroll } from "./animations";
  */
 
 const STAGES = [
-  { title: "Formation", body: "Les bases, puis les indicateurs, puis la gestion du risque. Dans cet ordre." },
+  { title: "Formation", body: "Trente-quatre leçons, une par vidéo de la série : lire un graphique, les ordres, le risque, les indicateurs, avec des graphiques à manipuler." },
   { title: "Analyse", body: "Un actif, un verdict, et la raison du verdict, au niveau de détail que vous avez choisi." },
   { title: "Scanner", body: "Les opportunités qui correspondent à votre profil, et pourquoi elles y correspondent." },
   { title: "Paper trading", body: "La décision se teste. Le risque est dimensionné avant l'entrée." },
@@ -55,6 +55,11 @@ export function LearnSection() {
               </li>
             ))}
           </ol>
+        </Reveal>
+
+        <Reveal delay={0.2} className="mt-12 flex flex-wrap items-center gap-x-6 gap-y-3">
+          <Button href="/cours" size="lg">Lire les leçons, sans compte</Button>
+          <Text size="small">Gratuites, avec un quiz à la fin de chacune.</Text>
         </Reveal>
       </Container>
     </Section>

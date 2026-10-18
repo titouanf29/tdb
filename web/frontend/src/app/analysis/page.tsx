@@ -2009,7 +2009,7 @@ function ChartGuide({ analysis: a, assetPrice }: { analysis: Analysis; assetPric
       ))}
       <div className="border-t pt-4" style={{ borderColor: "var(--cap-line)" }}>
         <Link
-          href={lessonHref("technical-analysis/reading-charts")}
+          href={lessonHref("lecon/1")}
           className="inline-flex items-center gap-1.5 text-[0.85rem]"
           style={{ color: "var(--cap-ocean)" }}
         >
