@@ -18,6 +18,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from slowapi import Limiter
+from .limite import cle_client  # voir limite.py
 from slowapi.util import get_remote_address
 from slowapi.middleware import SlowAPIMiddleware
 from slowapi.errors import RateLimitExceeded
@@ -50,7 +51,7 @@ app = FastAPI(
 )
 
 # Global rate limiter
-limiter = Limiter(key_func=get_remote_address)
+limiter = Limiter(key_func=cle_client)
 app.state.limiter = limiter
 app.add_middleware(SlowAPIMiddleware)
 

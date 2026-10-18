@@ -44,14 +44,7 @@ class ConnectionManager:
 
 manager = ConnectionManager()
 
-_JWT_SECRET_RAW = os.getenv("JWT_SECRET", "")
-if not _JWT_SECRET_RAW:
-    _is_prod_ws = os.getenv("ENV", "development").lower() == "production"
-    if _is_prod_ws:
-        import sys
-        print("[FATAL] JWT_SECRET non défini — arrêt en production.", flush=True)
-        sys.exit(1)
-    _JWT_SECRET_RAW = "dev-only-insecure-secret-do-not-use-in-prod"
+from .secret_jwt import SECRET as _JWT_SECRET_RAW  # voir secret_jwt.py
 _JWT_SECRET = _JWT_SECRET_RAW
 
 

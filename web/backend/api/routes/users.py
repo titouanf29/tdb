@@ -12,6 +12,7 @@ from fastapi.security import HTTPAuthorizationCredentials
 from jose import JWTError, jwt
 from pydantic import BaseModel, Field
 from slowapi import Limiter
+from ..limite import cle_client  # voir limite.py
 from slowapi.util import get_remote_address
 
 from ..database import execute_query, execute_write
@@ -34,7 +35,7 @@ router = APIRouter()
 # so a router-local Limiter works. Handlers decorated with @limiter.limit MUST
 # take a parameter literally named `request: Request` — hence every Pydantic
 # body parameter in this module is named `data`.
-limiter = Limiter(key_func=get_remote_address)
+limiter = Limiter(key_func=cle_client)
 
 VALID_STYLES     = {"scalp", "day", "swing", "long"}
 VALID_RISKS      = {"conservative", "moderate", "aggressive", "very_aggressive"}

@@ -2,15 +2,34 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from urllib.parse import urlparse
 
-from fastapi import APIRouter, Depends
-from pydantic import BaseModel
+from fastapi import APIRouter, Depends, HTTPException, Request
+from pydantic import BaseModel, Field
 
 from ..database import execute_query, execute_write
 from ..services import push
-from .auth import get_current_user
+from .auth import get_current_user, limiter
 
 router = APIRouter()
+
+# LE SERVEUR POSTE VERS L'ADRESSE DE L'ABONNEMENT : elle ne peut donc être que
+# celle d'un vrai service de notifications. N'importe quelle adresse https
+# était acceptée, et « Essai » faisait envoyer par le serveur des requêtes
+# vers des hôtes choisis par l'utilisateur, internes compris.
+_SERVICES_PUSH = ("fcm.googleapis.com", "updates.push.services.mozilla.com", "web.push.apple.com")
+_SUFFIXES_PUSH = (".push.services.mozilla.com", ".notify.windows.com", ".push.apple.com")
+APPAREILS_MAX = 5
+
+
+def _service_push_connu(endpoint: str) -> bool:
+    try:
+        u = urlparse(endpoint)
+    except ValueError:
+        return False
+    hote = (u.hostname or "").lower()
+    return (u.scheme == "https" and not u.username and not u.password
+            and (hote in _SERVICES_PUSH or hote.endswith(_SUFFIXES_PUSH)))
 
 
 class Cles(BaseModel):
@@ -19,7 +38,7 @@ class Cles(BaseModel):
 
 
 class Abonnement(BaseModel):
-    endpoint: str
+    endpoint: str = Field(max_length=1024)
     keys: Cles
 
 
@@ -36,8 +55,16 @@ async def cle():
 @router.post("/abonnement")
 async def abonner(a: Abonnement, current_user: dict = Depends(get_current_user)):
     await push.init()
-    if not a.endpoint.startswith("https://"):
-        return {"ok": False}
+    if not _service_push_connu(a.endpoint):
+        raise HTTPException(status_code=400, detail="Adresse de notification non reconnue.")
+    n = await execute_query("SELECT COUNT(*) AS n FROM push_abonnements WHERE user_id = ? AND endpoint != ?",
+                            (current_user["id"], a.endpoint))
+    if n and int(n[0]["n"] or 0) >= APPAREILS_MAX:
+        # Le plus ancien laisse sa place : on change de téléphone plus souvent
+        # qu'on n'en ajoute un sixième.
+        await execute_write(
+            "DELETE FROM push_abonnements WHERE id = (SELECT id FROM push_abonnements WHERE user_id = ? "
+            "ORDER BY cree_le ASC LIMIT 1)", (current_user["id"],))
     # Un même appareil réabonné (autre compte, clés renouvelées) remplace
     # l'ancien enregistrement plutôt que de s'y ajouter.
     await execute_write("DELETE FROM push_abonnements WHERE endpoint = ?", (a.endpoint,))
@@ -63,7 +90,8 @@ async def etat(current_user: dict = Depends(get_current_user)):
 
 
 @router.post("/essai")
-async def essai(current_user: dict = Depends(get_current_user)):
+@limiter.limit("3/minute")
+async def essai(request: Request, current_user: dict = Depends(get_current_user)):
     """Une notification d'essai sur ses propres appareils."""
     n = await push.envoyer(current_user["id"], "Nimbo est là",
                            "Les notifications fonctionnent : je vous préviendrai quand je propose un achat "

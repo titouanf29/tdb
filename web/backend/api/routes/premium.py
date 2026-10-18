@@ -502,9 +502,13 @@ async def stripe_webhook(request: Request):
     """Les événements Stripe (sans authentification — vérifiés par signature)."""
     stripe = _stripe()
     payload = await request.body()
+    secret = os.getenv("STRIPE_WEBHOOK_SECRET", "").strip()
+    if not secret:
+        # Sans secret, aucune signature ne peut être vérifiée : on refuse,
+        # quelle que soit la version de la bibliothèque Stripe installée.
+        raise HTTPException(status_code=503, detail="Webhook non configuré")
     try:
-        stripe.Webhook.construct_event(payload, request.headers.get("stripe-signature", ""),
-                                       os.getenv("STRIPE_WEBHOOK_SECRET", ""))
+        stripe.Webhook.construct_event(payload, request.headers.get("stripe-signature", ""), secret)
     except Exception:
         raise HTTPException(status_code=400, detail="Invalid webhook signature")
     # Signature vérifiée : on lit le corps comme du JSON ordinaire.
@@ -538,6 +542,11 @@ async def traiter_evenement(event) -> None:
         return (maintenant + timedelta(days=32)).isoformat()
 
     if t == "checkout.session.completed":
+        # Une session « terminée » n'est pas forcément payée (moyen de paiement
+        # différé, 3-D Secure en attente). Le Premium ne s'ouvre que sur un
+        # paiement encaissé ; le reste arrive par invoice.paid.
+        if obj.get("payment_status") not in ("paid", "no_payment_required"):
+            return
         sid, cid = obj.get("subscription"), obj.get("customer")
         u = await _utilisateur_stripe(sid, cid, (obj.get("metadata") or {}).get("user_id") or obj.get("client_reference_id"))
         if not u:

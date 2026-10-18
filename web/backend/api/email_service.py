@@ -17,6 +17,7 @@ configuration SMTP parfaitement correcte y échoue donc en silence — la
 connexion est coupée avant d'atteindre le serveur de messagerie. Les API
 passent par HTTPS, qui n'est jamais bloqué.
 """
+import html as _html
 import os
 import re
 import ssl
@@ -236,7 +237,7 @@ async def send_verification_email(to: str, username: str, token: str) -> None:
     url = f"{FRONTEND_URL}/verify-email?token={token}"
     html = _base_template(f"""
       <h2>Vérifiez votre adresse email</h2>
-      <p>Bonjour <strong style="color:#e2e8f0">{username}</strong>,</p>
+      <p>Bonjour <strong style="color:#e2e8f0">{_html.escape(username or "")}</strong>,</p>
       <p>Merci de vous être inscrit sur CaptenTDB ! Cliquez sur le bouton
          ci-dessous pour activer votre compte. Ce lien expire dans <strong
          style="color:#e2e8f0">24 heures</strong>.</p>
@@ -258,7 +259,7 @@ async def send_password_reset_email(to: str, username: str, token: str) -> None:
     url = f"{FRONTEND_URL}/reset-password?token={token}"
     html = _base_template(f"""
       <h2>Réinitialisation du mot de passe</h2>
-      <p>Bonjour <strong style="color:#e2e8f0">{username}</strong>,</p>
+      <p>Bonjour <strong style="color:#e2e8f0">{_html.escape(username or "")}</strong>,</p>
       <p>Vous avez demandé à réinitialiser votre mot de passe. Cliquez ci-dessous.
          Ce lien expire dans <strong style="color:#e2e8f0">1 heure</strong>.</p>
       <div style="text-align:center">
@@ -282,7 +283,7 @@ async def send_confirmation_abonnement(to: str, username: str, prix: str, fin_re
     formulaire. Stripe envoie le reçu ; ceci est le contrat."""
     html = _base_template(f"""
       <h2>Votre abonnement Premium est actif</h2>
-      <p>Bonjour <strong style="color:#e2e8f0">{username}</strong>,</p>
+      <p>Bonjour <strong style="color:#e2e8f0">{_html.escape(username or "")}</strong>,</p>
       <p>Merci ! Votre abonnement <strong style="color:#e2e8f0">CaptenTDB Premium</strong> est activé :
          <strong style="color:#e2e8f0">{prix} par mois</strong>, renouvelé automatiquement chaque mois.</p>
       <p><strong style="color:#e2e8f0">Résilier</strong> : à tout moment depuis la page Premium

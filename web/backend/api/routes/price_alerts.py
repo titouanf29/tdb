@@ -16,6 +16,7 @@ from datetime import datetime, timezone, timedelta
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, field_validator
 from slowapi import Limiter
+from ..limite import cle_client  # voir limite.py
 from slowapi.util import get_remote_address
 
 from ..database import execute_query, execute_write
@@ -23,7 +24,7 @@ from .auth import get_current_user
 from ._prices import fetch_prices
 
 router = APIRouter()
-limiter = Limiter(key_func=get_remote_address)
+limiter = Limiter(key_func=cle_client)
 
 MAX_ACTIVE_ALERTS = 30
 _SYMBOL_RE = re.compile(r"^[A-Z0-9.\-=^]{1,15}$")

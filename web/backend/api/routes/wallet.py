@@ -4,7 +4,7 @@ Wallet routes - Synchronized with Telegram bot
 from datetime import datetime, timezone
 from typing import Optional
 from fastapi import APIRouter, HTTPException, Depends
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 from ..database import execute_query, execute_write
 from .auth import get_current_user
@@ -24,6 +24,9 @@ def get_user_id(user: dict) -> str:
 
 
 class OpenPositionRequest(BaseModel):
+    # NaN et l'infini refusés : {"amount": NaN} mettait le solde à NULL,
+    # et le compte répondait ensuite en erreur 500.
+    model_config = ConfigDict(allow_inf_nan=False)
     symbol: str
     direction: str  # "LONG" or "SHORT"
     amount: float = 0
@@ -1040,6 +1043,9 @@ async def update_position(
 
 
 class AddFundsRequest(BaseModel):
+    # NaN et l'infini refusés : {"amount": NaN} mettait le solde à NULL,
+    # et le compte répondait ensuite en erreur 500.
+    model_config = ConfigDict(allow_inf_nan=False)
     amount: float
 
 
@@ -1047,6 +1053,8 @@ class SetBalanceRequest(BaseModel):
     """`amount` absent = le capital de départ. C'est le bouton « remettre à
     10 000 € » : il ne doit pas avoir à connaître le chiffre, sans quoi
     l'interface et le serveur finiront par ne plus dire le même."""
+    # NaN et l'infini refusés (voir AddFundsRequest).
+    model_config = ConfigDict(allow_inf_nan=False)
     amount: Optional[float] = None
 
 

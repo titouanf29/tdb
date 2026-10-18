@@ -18,6 +18,7 @@ from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, Query, Request
 from slowapi import Limiter
+from ..limite import cle_client  # voir limite.py
 from slowapi.util import get_remote_address
 
 from ..database import execute_query, execute_write
@@ -31,7 +32,7 @@ from .favorites import get_user_id as _fav_uid
 from ._fr import nombre_fr
 
 router = APIRouter()
-limiter = Limiter(key_func=get_remote_address)
+limiter = Limiter(key_func=cle_client)
 
 # Minimum absence before we bother showing a recap (avoids firing on refreshes)
 MIN_GAP_MINUTES = 30

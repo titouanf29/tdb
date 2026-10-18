@@ -10,6 +10,7 @@ from typing import Optional
 from fastapi import APIRouter, HTTPException, Query, Depends, Request
 from pydantic import BaseModel
 from slowapi import Limiter
+from ..limite import cle_client  # voir limite.py
 from slowapi.util import get_remote_address
 
 logger = logging.getLogger(__name__)
@@ -41,7 +42,7 @@ METHODE_FIGURES = {
 from .auth import get_current_user
 
 router = APIRouter()
-limiter = Limiter(key_func=get_remote_address)
+limiter = Limiter(key_func=cle_client)
 _SYMBOL_RE = re.compile(r'^[\^A-Z0-9.\-=]{1,30}$')
 
 # Human-readable names — covers ALL registered MARKETS assets (~800 symbols)

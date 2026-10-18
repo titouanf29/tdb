@@ -17,6 +17,7 @@ import httpx
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, field_validator
 from slowapi import Limiter
+from ..limite import cle_client  # voir limite.py
 from slowapi.util import get_remote_address
 
 from ..database import execute_query, execute_write
@@ -28,7 +29,7 @@ from ._market_context import benchmark_for, compute_market_context, apply_contex
 from ._prices import fetch_ohlcv
 
 router = APIRouter()
-limiter = Limiter(key_func=get_remote_address)
+limiter = Limiter(key_func=cle_client)
 
 MAX_INTENTS_PER_DAY = 8  # thread messages allowed per day, bounded (API cost control)
 

@@ -17,6 +17,7 @@ from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from slowapi import Limiter
+from api.limite import cle_client  # voir limite.py
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 
@@ -40,7 +41,7 @@ from api.websocket import websocket_router
 from api.database import init_web_tables, execute_query, execute_write
 
 # Global rate limiter (IP-based)
-limiter = Limiter(key_func=get_remote_address)
+limiter = Limiter(key_func=cle_client)
 
 IS_PRODUCTION = os.getenv("ENV", "development").lower() == "production"
 
@@ -67,6 +68,8 @@ async def lifespan(app: FastAPI):
     print("✅ Database tables initialized")
 
     await _bootstrap_admin()
+    from api.routes.admin import figer_admins
+    await figer_admins()
 
     # Les actifs acceptés depuis l'administration rejoignent l'univers.
     from api.routes._actifs_ajoutes import charger as _charger_actifs
@@ -266,7 +269,7 @@ async def _token_user_id(auth_header: str) -> int | None:
     token = auth_header[7:]
     try:
         from jose import jwt as _jwt, JWTError
-        secret = os.getenv("JWT_SECRET", "dev-only-insecure-secret-do-not-use-in-prod")
+        from api.secret_jwt import SECRET as secret
         payload = _jwt.decode(token, secret, algorithms=["HS256"])
         sub = payload.get("sub")
         return int(sub) if sub else None
@@ -275,18 +278,11 @@ async def _token_user_id(auth_header: str) -> int | None:
 
 
 async def _is_admin(user_id: int) -> bool:
-    try:
-        rows = await execute_query(
-            "SELECT is_admin FROM web_users WHERE id = ?", (user_id,)
-        )
-        if rows and rows[0].get("is_admin"):
-            return True
-        first = await execute_query("SELECT id FROM web_users ORDER BY id ASC LIMIT 1")
-        if first and first[0]["id"] == user_id:
-            return True
-    except Exception:
-        pass
-    return False
+    # La même règle que l'administration (admin.check_if_admin) : `is_admin`
+    # sur un compte actif. L'ancienne règle du « premier inscrit » est figée
+    # au démarrage (admin.figer_admins), puis plus jamais recalculée.
+    from api.routes.admin import check_if_admin
+    return await check_if_admin({"id": user_id})
 
 
 # Reachable even while the site is locked. Logging in MUST stay open or an
@@ -358,6 +354,18 @@ async def security_headers(request: Request, call_next):
     if IS_PRODUCTION:
         response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains; preload"
     return response
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    """Le 422 habituel, sans recopier la valeur reçue.
+
+    La réponse par défaut renvoie l'entrée fautive : un `NaN` envoyé dans un
+    montant ne pouvait pas s'écrire en JSON, et la réponse au refus devenait
+    elle-même une erreur 500. On ne renvoie que le champ et la raison."""
+    erreurs = [{"loc": list(e.get("loc", ())), "msg": e.get("msg", ""), "type": e.get("type", "")}
+               for e in exc.errors()]
+    return JSONResponse(status_code=422, content={"detail": erreurs})
 
 
 @app.exception_handler(Exception)

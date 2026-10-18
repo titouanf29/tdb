@@ -26,43 +26,54 @@ if env_admins:
     ADMIN_WHITELIST.extend([e.strip() for e in env_admins.split(",") if e.strip()])
 
 
-async def is_first_user(user_id: int) -> bool:
-    """Check if this user is the first registered user (auto-admin)"""
-    first_user = await execute_query("SELECT id FROM web_users ORDER BY id ASC LIMIT 1")
-    return first_user and first_user[0]["id"] == user_id
+async def figer_admins() -> None:
+    """Une seule fois : inscrit en base les administrateurs que donnaient les
+    anciennes règles, avant qu'elles disparaissent.
+
+    LE STATUT D'ADMINISTRATEUR VENAIT DE TROIS SOURCES, DONT DEUX
+    DANGEREUSES. « Le premier inscrit », relu à chaque requête, désignait le
+    plus petit identifiant ENCORE PRÉSENT : le compte n° 1 supprimé (bouton
+    RGPD, ménage d'un admin), le suivant devenait administrateur, même banni.
+    Et une adresse de ADMIN_EMAILS sans compte pouvait être prise à
+    l'inscription, puisque l'adresse n'y est pas vérifiée.
+
+    Désormais seul `is_admin` compte (plus ADMIN_BOOTSTRAP_*, qui exige aussi
+    le mot de passe dans l'environnement). Pour ne déposséder personne, les
+    admins que donnaient les anciennes règles sont figés au premier démarrage,
+    puis plus jamais recalculés.
+    """
+    try:
+        await execute_write(
+            "CREATE TABLE IF NOT EXISTS migrations_securite (cle TEXT PRIMARY KEY, faite_le TEXT NOT NULL)")
+        fait = await execute_query("SELECT cle FROM migrations_securite WHERE cle = 'admins_figes'")
+        if fait:
+            return
+        for email in {e.lower().strip() for e in ADMIN_WHITELIST if e.strip()}:
+            await execute_write("UPDATE web_users SET is_admin = 1 WHERE LOWER(email) = ?", (email,))
+        deja = await execute_query("SELECT id FROM web_users WHERE is_admin = 1 LIMIT 1")
+        if not deja:
+            premier = await execute_query("SELECT id FROM web_users ORDER BY id ASC LIMIT 1")
+            if premier:
+                await execute_write("UPDATE web_users SET is_admin = 1 WHERE id = ?", (premier[0]["id"],))
+        await execute_write(
+            "INSERT INTO migrations_securite (cle, faite_le) VALUES ('admins_figes', ?)",
+            (datetime.now(timezone.utc).isoformat(),))
+    except Exception as e:
+        print(f"⚠️ figer_admins : {e}")
 
 
 async def check_if_admin(user: dict) -> bool:
-    """Check if user is admin via whitelist, env vars, or first user"""
-    user_email = (user.get("email") or "").lower().strip()
+    """Administrateur = `is_admin` en base, sur un compte actif. Rien d'autre."""
     user_id = user.get("id")
-
-    # Check whitelist first (case-insensitive comparison)
-    whitelist_lower = [e.lower().strip() for e in ADMIN_WHITELIST]
-    if user_email and user_email in whitelist_lower:
-        return True
-
-    # Check if first user (auto-admin)
-    if user_id:
-        try:
-            if await is_first_user(user_id):
-                return True
-        except Exception:
-            pass
-
-    # Check if user is marked as admin in database
-    if user_id:
-        try:
-            admin_check = await execute_query(
-                "SELECT is_admin FROM web_users WHERE id = ?",
-                (user_id,)
-            )
-            if admin_check and admin_check[0].get("is_admin"):
-                return True
-        except Exception:
-            pass
-
-    return False
+    if not user_id:
+        return False
+    try:
+        rows = await execute_query("SELECT is_admin, is_active FROM web_users WHERE id = ?", (user_id,))
+    except Exception:
+        return False
+    if not rows:
+        return False
+    return bool(rows[0].get("is_admin")) and rows[0].get("is_active") not in (0, False)
 
 
 async def get_admin_user(current_user: dict = Depends(get_current_user)):
@@ -329,6 +340,15 @@ async def get_admin_dashboard(admin: dict = Depends(get_admin_user)):
 
 # ============== USER MANAGEMENT ==============
 
+# Ce qu'aucune réponse de l'administration ne doit contenir : la liste des
+# comptes renvoyait `SELECT u.*`, donc chaque empreinte de mot de passe.
+_COLONNES_SECRETES = ("password_hash", "verification_token", "reset_token", "remember_token")
+
+
+def _sans_secrets(ligne: dict) -> dict:
+    return {k: v for k, v in dict(ligne).items() if k not in _COLONNES_SECRETES}
+
+
 @router.get("/users")
 async def get_all_users(
     page: int = 1,
@@ -337,6 +357,8 @@ async def get_all_users(
     admin: dict = Depends(get_admin_user)
 ):
     """Get all users with pagination"""
+    limit = max(1, min(limit, 200))
+    page = max(1, page)
     offset = (page - 1) * limit
 
     if search:
@@ -369,7 +391,7 @@ async def get_all_users(
         total = await execute_query("SELECT COUNT(*) as count FROM web_users")
 
     return {
-        "users": users or [],
+        "users": [_sans_secrets(u) for u in (users or [])],
         "total": total[0]["count"] if total else 0,
         "page": page,
         "limit": limit,
@@ -420,7 +442,7 @@ async def get_user_details(user_id: int, admin: dict = Depends(get_admin_user)):
     """, (user_id,))
 
     return {
-        "user": user[0],
+        "user": _sans_secrets(user[0]),
         "wallet": wallet[0] if wallet else None,
         "positions": positions or [],
         "favorites": favorites or [],

@@ -11,6 +11,7 @@ from typing import List, Optional
 from fastapi import APIRouter, HTTPException, Depends, Request, Query
 from pydantic import BaseModel, field_validator
 from slowapi import Limiter
+from ..limite import cle_client  # voir limite.py
 from slowapi.util import get_remote_address
 
 from ..database import execute_query, execute_write
@@ -18,7 +19,7 @@ from .auth import get_current_user
 from .premium import is_user_premium, get_user_limits
 
 router = APIRouter()
-limiter = Limiter(key_func=get_remote_address)
+limiter = Limiter(key_func=cle_client)
 
 # Le modèle n'est plus une constante : Groq retire régulièrement des
 # modèles, et un nom écrit en dur ici arrêtait d'un coup les cinq

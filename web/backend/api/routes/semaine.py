@@ -39,6 +39,7 @@ from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from slowapi import Limiter
+from ..limite import cle_client  # voir limite.py
 from slowapi.util import get_remote_address
 
 from ..database import USE_POSTGRES, execute_query, execute_write
@@ -48,7 +49,7 @@ from ._fr import nombre_fr
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
-limiter = Limiter(key_func=get_remote_address)
+limiter = Limiter(key_func=cle_client)
 
 PARIS = ZoneInfo("Europe/Paris")
 NEW_YORK = ZoneInfo("America/New_York")

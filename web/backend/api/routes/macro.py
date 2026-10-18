@@ -13,6 +13,7 @@ from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from slowapi import Limiter
+from ..limite import cle_client  # voir limite.py
 from slowapi.util import get_remote_address
 
 from ..database import execute_query
@@ -25,7 +26,7 @@ from .market import SYMBOL_NAMES
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
-limiter = Limiter(key_func=get_remote_address)
+limiter = Limiter(key_func=cle_client)
 
 # Les actifs de référence montrés pour chaque banque centrale, en plus de ceux
 # de l'utilisateur : de quoi voir d'un coup d'œil qui gagne et qui perd.

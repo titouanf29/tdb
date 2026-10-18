@@ -16,6 +16,7 @@ from pydantic import BaseModel, EmailStr, Field
 from jose import JWTError, jwt
 import bcrypt
 from slowapi import Limiter
+from ..limite import cle_client  # voir limite.py
 from slowapi.util import get_remote_address
 
 from ..database import execute_query, execute_write, create_admin_notification
@@ -23,19 +24,10 @@ from ..email_service import send_verification_email, send_password_reset_email, 
 
 router = APIRouter()
 security = HTTPBearer(auto_error=False)
-limiter = Limiter(key_func=get_remote_address)
+limiter = Limiter(key_func=cle_client)
 
 # JWT Configuration
-_JWT_SECRET_ENV = os.getenv("JWT_SECRET", "")
-if not _JWT_SECRET_ENV:
-    import sys
-    _is_prod = os.getenv("ENV", "development").lower() == "production"
-    if _is_prod:
-        print("[FATAL] JWT_SECRET environment variable is not set. Refusing to start in production.", flush=True)
-        sys.exit(1)
-    else:
-        # Development fallback — never used in production
-        _JWT_SECRET_ENV = "dev-only-insecure-secret-do-not-use-in-prod"
+from ..secret_jwt import SECRET as _JWT_SECRET_ENV  # voir secret_jwt.py
 SECRET_KEY = _JWT_SECRET_ENV
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_HOURS = 1   # session courte (sans "rester connecté")
@@ -49,7 +41,9 @@ VERIFICATION_EXPIRE_HOURS = 24
 class RegisterRequest(BaseModel):
     email: EmailStr
     password: str = Field(min_length=6, max_length=128)
-    username: str = Field(min_length=3, max_length=30)
+    # Lettres, chiffres, point, tiret et souligné : le pseudo est repris dans
+    # les e-mails du site, il ne doit pas pouvoir y injecter du HTML.
+    username: str = Field(min_length=3, max_length=30, pattern=r"^[A-Za-zÀ-ÿ0-9_.\-]+$")
     first_name: Optional[str] = Field(default=None, max_length=100)
 
 
@@ -147,6 +141,10 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
     users = await execute_query("SELECT * FROM web_users WHERE id = ?", (int(user_id),))
     if not users:
         raise HTTPException(status_code=404, detail="User not found")
+    # Un compte suspendu par l'administration ne passe plus, même avec un
+    # jeton encore valide : le bannissement ne bloquait rien.
+    if users[0].get("is_active") in (0, False):
+        raise HTTPException(status_code=403, detail="Ce compte est suspendu.")
 
     # Tokens minted before the last password change are rejected.
     changed = users[0].get("password_changed_at")
@@ -190,6 +188,12 @@ async def register(request: Request, data: RegisterRequest):
         msg = (msg_rows[0]["value"] if msg_rows else None) or \
               "Les inscriptions sont temporairement fermées."
         raise HTTPException(status_code=403, detail=msg)
+
+    # La même règle que le changement et la réinitialisation du mot de passe :
+    # l'inscription acceptait « 123456 ».
+    erreur_mdp = regle_mot_de_passe(data.password)
+    if erreur_mdp:
+        raise HTTPException(status_code=400, detail=erreur_mdp)
 
     existing = await execute_query(
         "SELECT id FROM web_users WHERE email = ?", (data.email.lower(),)
@@ -296,6 +300,11 @@ def _set_session_cookie(response: Response, token: str, max_age: int) -> None:
     )
 
 
+# Une empreinte bcrypt quelconque, calculée une fois, pour les tentatives sur
+# une adresse inconnue (voir login).
+_EMPREINTE_FACTICE = bcrypt.hashpw(b"empreinte-factice", bcrypt.gensalt()).decode()
+
+
 @router.post("/login", response_model=TokenResponse)
 @limiter.limit("10/minute")
 async def login(request: Request, response: Response, data: LoginRequest):
@@ -304,12 +313,17 @@ async def login(request: Request, response: Response, data: LoginRequest):
         "SELECT * FROM web_users WHERE email = ?", (data.email.lower(),)
     )
     if not users:
+        # Le même calcul bcrypt qu'avec un vrai compte : sans lui, la réponse
+        # arrivait plus vite et trahissait qu'aucun compte n'existe.
+        verify_password(data.password, _EMPREINTE_FACTICE)
         raise HTTPException(status_code=401, detail="Email ou mot de passe incorrect")
 
     user = users[0]
 
     if not verify_password(data.password, user["password_hash"]):
         raise HTTPException(status_code=401, detail="Email ou mot de passe incorrect")
+    if user.get("is_active") in (0, False):
+        raise HTTPException(status_code=403, detail="Ce compte est suspendu.")
 
     await execute_write(
         "UPDATE web_users SET last_login = ? WHERE id = ?",

@@ -10,6 +10,7 @@ from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, HTTPException, Depends, Request
 from pydantic import BaseModel
 from slowapi import Limiter
+from ..limite import cle_client  # voir limite.py
 from slowapi.util import get_remote_address
 
 logger = logging.getLogger(__name__)
@@ -19,7 +20,7 @@ from .auth import get_current_user
 from .admin import check_if_admin
 
 router = APIRouter()
-limiter = Limiter(key_func=get_remote_address)
+limiter = Limiter(key_func=cle_client)
 
 
 async def _require_admin(user: dict = Depends(get_current_user)):
