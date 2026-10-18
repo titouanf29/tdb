@@ -1724,10 +1724,11 @@ export interface AdminAssetRequest {
   email?: string;
   username?: string;
   symbol: string;
-  name?: string;
+  asset_name?: string;
+  asset_type?: string;
   reason?: string;
   status: "pending" | "approved" | "rejected";
-  admin_note?: string;
+  admin_notes?: string;
   created_at: string;
 }
 
@@ -1907,7 +1908,7 @@ export const adminAPI = {
     fetchAPI<{ requests: AdminAssetRequest[] }>("/api/admin/asset-requests"),
 
   assetRequestAction: (requestId: number, action: "approve" | "reject", note?: string) =>
-    fetchAPI<{ success: boolean }>("/api/admin/asset-requests/action", {
+    fetchAPI<{ success: boolean; status: string; marche: string | null }>("/api/admin/asset-requests/action", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ request_id: requestId, action, note }),

@@ -42,6 +42,7 @@ export default function CommunityPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [sent, setSent] = useState(false);
+  const [sentTicket, setSentTicket] = useState<number | null>(null);
 
   const endRef = useRef<HTMLDivElement>(null);
   const atBottom = useRef(true);
@@ -110,7 +111,8 @@ export default function CommunityPage() {
     setBusy(true);
     setError("");
     try {
-      await communityAPI.contactAdmin(subject.trim(), body.trim());
+      const r = await communityAPI.contactAdmin(subject.trim(), body.trim());
+      setSentTicket(r.ticket_id ?? null);
       setSent(true);
       setSubject("");
       setBody("");
@@ -244,10 +246,12 @@ export default function CommunityPage() {
         {sent ? (
           <>
             <Text size="small" className="mt-2">
-              Message envoyé. Vous recevrez une réponse dans votre espace.
+              Message envoyé. La réponse de l&apos;équipe s&apos;affichera dans « Mes demandes », et une
+              notification vous préviendra.
             </Text>
-            <div className="mt-6">
-              <Button size="md" onClick={() => setContactOpen(false)}>Fermer</Button>
+            <div className="mt-6 flex flex-wrap items-center gap-3">
+              <Button size="md" href={sentTicket ? `/support?ticket=${sentTicket}` : "/support"}>Voir la conversation</Button>
+              <Button variant="secondary" size="md" onClick={() => setContactOpen(false)}>Fermer</Button>
             </div>
           </>
         ) : (

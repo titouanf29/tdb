@@ -11,7 +11,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 import os
 
-from ..database import execute_query, execute_write, create_admin_notification
+from ..database import execute_query, execute_write, create_admin_notification, create_user_notification
 from .auth import get_current_user
 
 router = APIRouter()
@@ -966,9 +966,16 @@ async def promote_user_to_admin(data: PromoteAdmin, admin: dict = Depends(get_ad
 # ============== ASSET REQUESTS ==============
 
 class AssetRequestAction(BaseModel):
+    """L'écran envoie `action` (« approve » / « reject ») et `note` ; l'ancien
+    contrat disait `status` (« approved » / « rejected ») et `admin_notes`.
+    Le modèle n'acceptait que le second : chaque clic sur Accepter ou Refuser
+    repartait en 422 et la demande restait en attente. Les deux formes sont
+    reçues."""
     request_id: int
-    status: str  # approved, rejected
+    status: Optional[str] = None
+    action: Optional[str] = None
     admin_notes: Optional[str] = None
+    note: Optional[str] = None
 
 
 @router.get("/asset-requests")
@@ -1014,27 +1021,65 @@ async def get_asset_requests(
 
 @router.post("/asset-requests/action")
 async def process_asset_request(data: AssetRequestAction, admin: dict = Depends(get_admin_user)):
-    """Process an asset request (approve/reject)"""
+    """Accepter ou refuser une demande d'actif.
+
+    Accepter ajoute réellement l'actif à l'univers du site (voir
+    _actifs_ajoutes.py) ; dans les deux cas, la personne qui l'a demandé est
+    prévenue."""
+    status = data.status or {"approve": "approved", "reject": "rejected"}.get((data.action or "").lower())
+    if status not in ("approved", "rejected"):
+        raise HTTPException(status_code=422, detail="Action attendue : approve ou reject.")
+    note = (data.admin_notes or data.note or "").strip() or None
+
     request = await execute_query(
         "SELECT * FROM asset_requests WHERE id = ?",
         (data.request_id,)
     )
     if not request:
-        raise HTTPException(status_code=404, detail="Request not found")
+        raise HTTPException(status_code=404, detail="Demande introuvable.")
+    demande = request[0]
+    if demande.get("status") not in (None, "pending"):
+        raise HTTPException(status_code=409, detail="Cette demande a déjà été traitée.")
+
+    marche = None
+    if status == "approved":
+        from ._actifs_ajoutes import ajouter
+        marche = await ajouter(demande["symbol"], demande.get("asset_name"), demande.get("asset_type"),
+                               demande["id"], admin["id"])
 
     await execute_write("""
         UPDATE asset_requests
         SET status = ?, admin_notes = ?, processed_at = ?, processed_by = ?
         WHERE id = ?
-    """, (data.status, data.admin_notes, datetime.now(timezone.utc).isoformat(), admin["id"], data.request_id))
+    """, (status, note, datetime.now(timezone.utc).isoformat(), admin["id"], data.request_id))
 
     await log_admin_action(
         admin["id"],
-        f"asset_request_{data.status}",
-        f"Processed asset request {data.request_id}: {data.status}"
+        f"asset_request_{status}",
+        f"Processed asset request {data.request_id} ({demande['symbol']}): {status}"
     )
 
-    return {"success": True, "message": f"Request {data.status}"}
+    symbol = demande["symbol"]
+    try:
+        if status == "approved":
+            await create_user_notification(
+                user_id=demande["user_id"], type="asset_request",
+                title=f"{symbol} est disponible",
+                message=f"Votre demande a été acceptée : {symbol} est ajouté au site."
+                        + (f" Note : {note}" if note else ""),
+                link=f"/analysis?symbol={symbol}",
+            )
+        else:
+            await create_user_notification(
+                user_id=demande["user_id"], type="asset_request",
+                title=f"Demande pour {symbol}",
+                message="Votre demande n'a pas été retenue." + (f" Raison : {note}" if note else ""),
+                link="/markets",
+            )
+    except Exception:
+        pass
+
+    return {"success": True, "status": status, "marche": marche}
 
 
 # ============== SUPPORT TICKETS ==============
@@ -1159,6 +1204,18 @@ async def admin_reply_ticket(ticket_id: int, data: TicketReplyRequest, admin: di
     )
 
     await log_admin_action(admin["id"], "ticket_reply", f"Replied to ticket {ticket_id}")
+
+    # La personne doit savoir qu'on lui a répondu, et pouvoir lire la
+    # réponse : la notification mène à sa conversation.
+    try:
+        await create_user_notification(
+            user_id=ticket[0]["user_id"], type="ticket_reply",
+            title="Réponse à votre demande",
+            message=f"L'équipe a répondu à : {ticket[0].get('subject') or 'votre demande'}",
+            link=f"/support?ticket={ticket_id}",
+        )
+    except Exception:
+        pass
 
     return {"success": True}
 

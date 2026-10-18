@@ -87,6 +87,7 @@ export const AREAS: NavArea[] = [
     href: "/community",
     items: [
       { href: "/community", label: "Communauté", blurb: "Ce que font et disent les autres membres" },
+      { href: "/support", label: "Mes demandes", blurb: "Vos échanges avec l'équipe, et ses réponses" },
     ],
   },
 ];
@@ -144,6 +145,7 @@ export const MIGRATED_ROUTES = [
   "/wallet",
   "/journal",
   "/community",
+  "/support",
   "/analysis",
   "/markets",
   "/scanner",

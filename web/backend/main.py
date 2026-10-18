@@ -68,6 +68,10 @@ async def lifespan(app: FastAPI):
 
     await _bootstrap_admin()
 
+    # Les actifs acceptés depuis l'administration rejoignent l'univers.
+    from api.routes._actifs_ajoutes import charger as _charger_actifs
+    print(f"✅ {await _charger_actifs()} actif(s) ajouté(s) depuis l'administration")
+
     # Le moteur macro : calendrier, lecture des annonces dès leur publication,
     # rappels et notifications. Toutes les cinq minutes ; une erreur n'arrête
     # ni la boucle ni l'application.

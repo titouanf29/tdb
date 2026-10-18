@@ -95,8 +95,8 @@ export function AssetRequests() {
                     <span className="cap-num text-[0.95rem] font-medium" style={{ color: "var(--cap-ink)" }}>
                       {r.symbol}
                     </span>
-                    {r.name && (
-                      <span className="text-[0.85rem]" style={{ color: "var(--cap-ink-2)" }}>{r.name}</span>
+                    {r.asset_name && (
+                      <span className="text-[0.85rem]" style={{ color: "var(--cap-ink-2)" }}>{r.asset_name}</span>
                     )}
                     {r.status !== "pending" && (
                       <span
@@ -115,7 +115,7 @@ export function AssetRequests() {
                   )}
                   <Text size="caption" className="mt-1">
                     {r.username || r.email || `compte #${r.user_id}`}
-                    {r.admin_note ? ` · note : ${r.admin_note}` : ""}
+                    {r.admin_notes ? `, note : ${r.admin_notes}` : ""}
                   </Text>
                 </div>
 
