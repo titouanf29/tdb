@@ -102,7 +102,13 @@ export function GraphiqueEcole(cfg: ConfigGraphique) {
 
   useEffect(() => {
     const el = boite.current;
-    if (!el || calme || cfg.apparition === false || typeof IntersectionObserver === "undefined") return;
+    if (!el || calme || cfg.apparition === false || typeof IntersectionObserver === "undefined") {
+      // « Réduire les animations » n'est connu qu'après le premier rendu : une
+      // apparition déjà commencée doit alors laisser place au graphique entier.
+      setProg(null);
+      setIntroFinie(true);
+      return;
+    }
     let raf = 0;
     const lancer = () => {
       setIntroFinie(false);

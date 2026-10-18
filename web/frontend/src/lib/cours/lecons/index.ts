@@ -2,7 +2,9 @@
 import type { LeconSerie } from "../types";
 
 export const CHARGEURS: Record<number, () => Promise<{ default: LeconSerie }>> = {
+  1: () => import("./01"),
   2: () => import("./02"),
+  3: () => import("./03"),
   4: () => import("./04"),
   5: () => import("./05"),
   6: () => import("./06"),
@@ -27,10 +29,14 @@ export const CHARGEURS: Record<number, () => Promise<{ default: LeconSerie }>> =
   25: () => import("./25"),
   26: () => import("./26"),
   27: () => import("./27"),
+  28: () => import("./28"),
+  29: () => import("./29"),
   30: () => import("./30"),
   31: () => import("./31"),
   32: () => import("./32"),
   33: () => import("./33"),
+  34: () => import("./34"),
+  35: () => import("./35"),
   36: () => import("./36"),
   37: () => import("./37"),
 };
