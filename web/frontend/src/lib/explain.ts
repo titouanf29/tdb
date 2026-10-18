@@ -47,6 +47,40 @@ export function directionLabel(a: Analysis): { text: string; tone: "up" | "down"
 }
 
 /**
+ * Ce que « Tendance de fond » mesure, avec les chiffres.
+ *
+ * Le mot seul trompait : « Neutre » à côté d'un score de 71 et d'une
+ * proposition d'achat se lisait comme une contradiction. Il n'y en a pas —
+ * la tendance se lit sur l'alignement du cours et de ses moyennes 20 et 50,
+ * le score sur l'ensemble des signaux, dont le momentum. La phrase dit où est
+ * le cours par rapport aux deux moyennes, et la tendance de l'unité
+ * supérieure quand elle ne va pas dans le même sens.
+ */
+export function tendanceExpliquee(a: Analysis, prix: (v: number) => string): string | null {
+  const e = a.indicators?.ema;
+  const c = a.price?.current;
+  if (!e || e.ema20 == null || e.ema50 == null || c == null) return null;
+  const sur20 = c > e.ema20, sur50 = c > e.ema50;
+  const m20 = `sa moyenne 20 (${prix(e.ema20)})`, m50 = `sa moyenne 50 (${prix(e.ema50)})`;
+  let phrase: string;
+  const t = directionLabel(a).tone;
+  if (t === "up") phrase = `Le cours est au-dessus de ${m20} et de ${m50}, rangées vers le haut.`;
+  else if (t === "down") phrase = `Le cours est sous ${m20} et sous ${m50}, rangées vers le bas.`;
+  else if (sur20 && !sur50) phrase = `Le cours est repassé au-dessus de ${m20}, mais pas encore de ${m50} : la reprise n'est pas confirmée.`;
+  else if (!sur20 && sur50) phrase = `Le cours est retombé sous ${m20}, mais reste au-dessus de ${m50} : la tendance hésite.`;
+  else phrase = `Le cours et ses moyennes 20 (${prix(e.ema20)}) et 50 (${prix(e.ema50)}) ne sont pas rangés dans un sens net.`;
+  const h = a.higher_timeframe;
+  const unite: Record<string, string> = { "1wk": "hebdomadaire", "1d": "journalière", "1mo": "mensuelle", "4h": "en 4 heures" };
+  if (h && h.interval && (h.trend === "BULLISH" || h.trend === "BEARISH")) {
+    const sensH = h.trend === "BULLISH" ? "up" : "down";
+    if (sensH !== t) {
+      phrase += ` La tendance ${unite[h.interval] ?? "de l'unité supérieure"} est ${h.trend === "BULLISH" ? "haussière" : "baissière"}.`;
+    }
+  }
+  return phrase;
+}
+
+/**
  * The "why", in three to five sentences.
  *
  * Ordered by what a reader needs first: the blockers that make the setup

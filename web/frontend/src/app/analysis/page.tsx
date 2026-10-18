@@ -18,7 +18,7 @@ import { useProfile } from "@/lib/useProfile";
 import { Intentions } from "@/components/analysis/Intentions";
 import { PourVous } from "@/components/analysis/PourVous";
 import {
-  buildReasons, directionLabel, edgeSentence, scenarioSentence,
+  buildReasons, directionLabel, edgeSentence, scenarioSentence, tendanceExpliquee,
 } from "@/lib/explain";
 import { lessonFor, lessonHref } from "@/lib/lessonLinks";
 import {
@@ -907,8 +907,12 @@ function Verdict({
           </div>
 
           <div className="mt-4">
+            {/* « Tendance de fond », pas « Direction » : le mot mesure
+                l'alignement du cours et de ses moyennes, pas le verdict. Sous
+                un score de 71 et une proposition d'achat, « Direction :
+                Neutre » se lisait comme une contradiction. */}
             <span className="text-[0.75rem] uppercase tracking-[0.14em]" style={{ color: "var(--cap-ink-3)" }}>
-              Direction
+              Tendance de fond
             </span>
             <div
               className="cap-apparait mt-1 flex items-center gap-2 text-[1.25rem] font-semibold"
@@ -930,6 +934,9 @@ function Verdict({
               )}
               {dir.text}
             </div>
+            {tendanceExpliquee(a, assetPrice) && (
+              <Text size="small" className="mt-1 max-w-[36rem]">{tendanceExpliquee(a, assetPrice)}</Text>
+            )}
           </div>
         </div>
 
@@ -1134,6 +1141,18 @@ function PropositionNimbo({
             {propose && plan
               ? <>
                   Stop à {assetPrice(plan.suggested_sl)}, objectif à {assetPrice(plan.suggested_tp)} : vous risquez 1 pour viser {fr(plan.risk_reward, 1)}.
+                  {/* UN ACHAT CONTRE LA TENDANCE DE FOND, DIT COMME TEL. Le
+                      score peut porter un achat quand la tendance n'est pas
+                      encore retournée (un rebond porté par le momentum) : la
+                      carte le dit, au lieu de laisser « Neutre » au-dessus
+                      faire douter de la proposition. */}
+                  {(vente ? ton !== "down" : ton !== "up") && (
+                    <> {vente
+                      ? "C'est une vente sur un essoufflement : la tendance de fond n'est pas encore baissière."
+                      : "C'est un achat de rebond : la tendance de fond n'est pas encore haussière."}{" "}
+                      Le signal vient {a.score.momentum >= 60 ? `surtout du momentum (${Math.round(a.score.momentum)}/100)` : "de l'ensemble des signaux"},
+                      et le stop borne la perte si le mouvement échoue.</>
+                  )}
                   {plan.obstacle && !plan.tp_capped_at_level && plan.tp_structure != null && (
                     <> {vente ? "Un support" : "Une résistance"} à {assetPrice(plan.tp_structure)} est sur la route : je vise
                       au-delà, mesuré sur 40 actifs, ça a mieux payé que de s&apos;y arrêter.</>
