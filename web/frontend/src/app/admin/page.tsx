@@ -19,6 +19,7 @@ import { AssetRequests } from "@/components/admin/AssetRequests";
 import { Comms } from "@/components/admin/Comms";
 import { Operations } from "@/components/admin/Operations";
 import { Tickets } from "@/components/admin/Tickets";
+import { PontTiktok } from "@/components/admin/PontTiktok";
 
 /**
  * L'administration.
@@ -123,7 +124,12 @@ export default function AdminPage() {
       case "positions":
         return <Positions money={money} />;
       case "comms":
-        return <Comms />;
+        return (
+          <div className="space-y-8">
+            <Comms />
+            <PontTiktok />
+          </div>
+        );
       case "operations":
         return <Operations reglages={reglages} onReglage={poserReglage} />;
       default:

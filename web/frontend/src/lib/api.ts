@@ -1812,6 +1812,17 @@ export interface AdminDataHealth {
   secours_configure: boolean;
 }
 
+export interface PontTiktok {
+  configure: boolean;
+  maj: string | null;
+  videos: { id: string; numero: number | null; partie: number | null; titre: string; statut: "publiee" | "programmee" | "prete"; date: string | null }[];
+  plan: { numero: number; titre: string; apprend: string; mots: string; a_ecrire: boolean }[];
+}
+
+export const pontAPI = {
+  tiktok: () => fetchAPI<PontTiktok>("/api/pont/tiktok"),
+};
+
 export const adminAPI = {
   emailStatus: () => fetchAPI<EmailEtat>("/api/admin/email/status"),
   /** Envoie en direct et rend l'erreur exacte en cas d'échec. */
