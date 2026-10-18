@@ -13,7 +13,11 @@ interface Changelog {
   created_at: string;
 }
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "";
+// Dans le navigateur, une adresse relative : la requête passe par le proxy
+// du site, comme toutes les autres (lib/api.ts). En appelant l'API par son
+// adresse publique, ce bandeau était le seul à dépendre du CORS, et cessait
+// de répondre dès que l'adresse du site changeait.
+const API_BASE = typeof window !== "undefined" ? "" : (process.env.NEXT_PUBLIC_API_URL || "");
 
 async function fetchLatestUnread(token: string): Promise<Changelog | null> {
   try {

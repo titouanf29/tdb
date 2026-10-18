@@ -39,7 +39,18 @@ RESEND_API_KEY = os.getenv("RESEND_API_KEY", "").strip()
 EMAIL_FROM     = (os.getenv("EMAIL_FROM") or os.getenv("SMTP_FROM")
                   or (f"CaptenTDB <{SMTP_USER}>" if SMTP_USER else ""))
 SMTP_FROM      = EMAIL_FROM  # ancien nom, conservé
-FRONTEND_URL   = os.getenv("FRONTEND_URL", "http://localhost:3000")
+def adresse_site() -> str:
+    """L'adresse publique du site, pour les liens envoyés (e-mails, Stripe).
+
+    FRONTEND_URL sert aussi de liste d'origines autorisées (CORS), séparées
+    par des virgules. Telle quelle dans un lien, une liste donnait
+    « https://captentdb.fr,https://… /reset-password » : la PREMIÈRE adresse
+    est celle du site."""
+    brut = os.getenv("FRONTEND_URL", "") or "http://localhost:3000"
+    return (brut.split(",")[0].strip() or "http://localhost:3000").rstrip("/")
+
+
+FRONTEND_URL   = adresse_site()
 
 DELAI_S = 15  # au-delà, un envoi est considéré comme perdu — pas de requête pendue
 

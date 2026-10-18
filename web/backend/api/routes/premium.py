@@ -358,7 +358,8 @@ async def create_checkout_session(data: Souscription = Souscription(),
         raise HTTPException(status_code=400, detail="Vous avez déjà un abonnement en cours.")
 
     stripe = _stripe()
-    front = os.getenv("FRONTEND_URL", "http://localhost:3000").rstrip("/")
+    from ..email_service import adresse_site
+    front = adresse_site()
     pied = _pied_de_facture()
     try:
         customer_id = row.get("stripe_customer_id")
@@ -439,7 +440,8 @@ async def portail(current_user: dict = Depends(get_current_user)):
     if not row.get("stripe_customer_id"):
         raise HTTPException(status_code=404, detail="Aucun compte de paiement.")
     stripe = _stripe()
-    front = os.getenv("FRONTEND_URL", "http://localhost:3000").rstrip("/")
+    from ..email_service import adresse_site
+    front = adresse_site()
     try:
         s = stripe.billing_portal.Session.create(customer=row["stripe_customer_id"], return_url=f"{front}/premium",
                                                  locale="fr")

@@ -196,7 +196,15 @@ async def rate_limit_handler(request: Request, exc: RateLimitExceeded):
 _frontend_env = os.getenv("FRONTEND_URL", "")
 _cors_origins: list[str] = ["http://localhost:3000", "http://127.0.0.1:3000"]
 if _frontend_env:
-    _cors_origins += [u.strip() for u in _frontend_env.split(",") if u.strip()]
+    _cors_origins += [u.strip().rstrip("/") for u in _frontend_env.split(",") if u.strip()]
+# Le site répond sous « captentdb.fr » et « www.captentdb.fr » : l'une
+# autorise l'autre, pour qu'un visiteur arrivé par www ne soit pas refusé.
+for _o in list(_cors_origins):
+    if _o.startswith("https://") and "localhost" not in _o:
+        _hote = _o[len("https://"):]
+        _autre = _hote[4:] if _hote.startswith("www.") else f"www.{_hote}"
+        if f"https://{_autre}" not in _cors_origins:
+            _cors_origins.append(f"https://{_autre}")
 
 app.add_middleware(
     CORSMiddleware,
