@@ -84,7 +84,7 @@ export function Panel({
       </div>
       {(aside || repliable) && (
         <div className="flex shrink-0 items-center gap-3">
-          {aside}
+          {aside && <span data-aside className="contents">{aside}</span>}
           {repliable && (
             <ChevronDown
               aria-hidden
@@ -99,6 +99,7 @@ export function Panel({
 
   return (
     <section
+      data-repliable={repliable ? "" : undefined}
       className={cn("flex flex-col overflow-hidden", className)}
       style={{
         // Une feuille posée dans le ciel plutôt qu'une carte soulevée par une

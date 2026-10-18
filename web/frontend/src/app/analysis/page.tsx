@@ -4,7 +4,7 @@ import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "rea
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { AnimatePresence } from "framer-motion";
-import { ArrowRight, CalendarClock, Layers, Loader2, MoveRight, Search, Star, TrendingDown, TrendingUp } from "lucide-react";
+import { ArrowRight, Layers, Loader2, MoveRight, Star, TrendingDown, TrendingUp } from "lucide-react";
 import {
   analysisAPI, favoritesAPI, marketAPI, walletAPI,
   type Analysis, type ChartData, type Figure,
@@ -22,7 +22,7 @@ import {
 } from "@/lib/explain";
 import { lessonFor, lessonHref } from "@/lib/lessonLinks";
 import {
-  Button, CloudCurtain, EmptyState, FormError, Heading, LiveNum, Num, Panel,
+  Button, LigneDatee, CloudCurtain, EmptyState, FormError, Heading, LiveNum, Num, Panel,
   Progress, ScoreDial, SegmentedControl, Text, WeatherBackdrop,
   useAnimationsEnabled, Nimbo } from "@/components/design-system";
 import { RefreshTimer, useAutoRefresh } from "@/components/app/RefreshTimer";
@@ -449,6 +449,8 @@ function AnalysisScreen() {
 
       <div className="relative space-y-6">
         <header className="pt-2">
+          {/* La signature du site : le jour et l'état des marchés. */}
+          <p className="cap-dateline mb-4 text-[0.92rem]"><LigneDatee /></p>
           <Heading level={1}>Analyse</Heading>
           <Text className="mt-2.5 max-w-[36rem]">
             Un actif, un verdict, et la raison du verdict, au niveau de détail
@@ -473,14 +475,15 @@ function AnalysisScreen() {
           <form
             ref={formRef}
             onSubmit={submit}
-            className="relative flex flex-col gap-3 sm:flex-row sm:items-center"
+            className="relative flex flex-col gap-3 sm:flex-row sm:items-end"
           >
             <div className="relative min-w-0 flex-1">
-              <Search
-                className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2"
-                style={{ color: "var(--cap-ink-4)" }}
-              />
+              <label htmlFor="analyse-actif" className="vitrine-italique mb-1 block text-[0.95rem]"
+                style={{ fontFamily: "var(--cap-font-display)", fontStyle: "italic", color: "var(--cap-ink-3)" }}>
+                Quel actif voulez-vous comprendre ?
+              </label>
               <input
+                id="analyse-actif"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 onKeyDown={sugg.touche}
@@ -490,12 +493,10 @@ function AnalysisScreen() {
                 role="combobox"
                 aria-expanded={sugg.ouvert}
                 aria-autocomplete="list"
-                className="h-12 w-full rounded-[12px] pl-10 pr-3.5 text-[0.95rem] outline-none placeholder:text-[color:var(--cap-ink-4)]"
-                style={{
-                  backgroundColor: "var(--cap-bg)",
-                  color: "var(--cap-ink)",
-                  boxShadow: "inset 0 0 0 1px var(--cap-line-strong)",
-                }}
+                // Une ligne d'écriture en serif, soulignée, qui passe à l'ambre
+                // quand on écrit : la question se pose comme dans un carnet.
+                className="cap-champ-ligne h-12 w-full bg-transparent px-0.5 text-[1.35rem] outline-none placeholder:italic placeholder:text-[color:var(--cap-ink-4)]"
+                style={{ color: "var(--cap-ink)", fontFamily: "var(--cap-font-display)" }}
               />
             </div>
             <Button type="submit" size="md" disabled={loading}>
@@ -551,11 +552,11 @@ function AnalysisScreen() {
               />
             </div>
             <Text size="caption" className="mt-2.5">
-              {style.horizon.fr} · stop à {style.atr.sl.toLocaleString("fr-FR")}× l&apos;ATR,
-              objectif à {style.atr.tp.toLocaleString("fr-FR")}×
+              Un horizon de {style.horizon.fr.toLowerCase()}. Le stop se place à {style.atr.sl.toLocaleString("fr-FR")} fois
+              l&apos;ATR, l&apos;objectif à {style.atr.tp.toLocaleString("fr-FR")} fois
               {style.fundWeight > 0
-                ? ` · fondamentaux ${Math.round(style.fundWeight * 100)} % du score`
-                : " · fondamentaux ignorés"}
+                ? `, et les fondamentaux comptent pour ${Math.round(style.fundWeight * 100)} % du score.`
+                : ", et les fondamentaux ne comptent pas."}
             </Text>
           </div>
 
@@ -747,10 +748,10 @@ function AnalysisScreen() {
                 Ils restent là, en bas, fermés, leur titre et leur phrase
                 disent ce qu'il y a dedans, un clic les ouvre, et le site
                 retient ceux qu'on a laissés ouverts. */}
-            <div className="flex items-baseline justify-between gap-3 pt-2">
+            <div className="pt-2">
               <Heading level={3} as="h2">Compléments</Heading>
-              <Text size="caption" as="span">Cliquez pour ouvrir</Text>
             </div>
+            <div className="cap-rubriques">
             {/* La presse, à tous les niveaux de détail. Un débutant a plus
                 besoin qu'un expert de savoir POURQUOI un actif bouge, et
                 c'est la seule partie de l'écran qui répond à cette
@@ -785,6 +786,7 @@ function AnalysisScreen() {
             {/* L'assistant en dernier, et à tous les niveaux. C'est la
                 question qu'on se pose APRÈS avoir lu, pas avant. */}
             <AskAssistant analysis={analysis} assetPrice={assetPrice} />
+            </div>
           </>
         )}
       </div>
@@ -1280,12 +1282,8 @@ function PendantLeTrade({ ev }: { ev: NonNullable<Analysis["evenements_plan"]> }
     });
   }
   return (
-    <div className="mt-5 rounded-[var(--cap-r-md)] p-3.5"
-      style={{ backgroundColor: "color-mix(in srgb, var(--cap-amber) 7%, var(--cap-surface))", boxShadow: "inset 0 0 0 1px color-mix(in srgb, var(--cap-amber) 30%, transparent)" }}>
-      <p className="flex items-center gap-1.5 text-[0.75rem] uppercase tracking-[0.14em]" style={{ color: "var(--cap-ink-3)" }}>
-        <CalendarClock aria-hidden className="h-3.5 w-3.5" />
-        Pendant votre trade
-      </p>
+    <div className="cap-encart mt-5" style={{ borderLeftColor: "var(--cap-ambre)" }}>
+      <p className="cap-encart-titre">Pendant votre trade</p>
       <ul className="mt-2 space-y-2">
         {lignes.map((l) => (
           <li key={l.cle}>
@@ -1343,10 +1341,8 @@ function DixAchats({ p }: { p: NonNullable<Analysis["probabilites"]> }) {
   ];
   const gain = Math.round(p.echeance_en_gain * 10);
   return (
-    <div className="mt-5 rounded-[var(--cap-r-md)] p-3.5" style={{ backgroundColor: "var(--cap-surface)", boxShadow: "inset 0 0 0 1px var(--cap-line)" }}>
-      <p className="text-[0.75rem] uppercase tracking-[0.14em]" style={{ color: "var(--cap-ink-3)" }}>
-        Sur 10 achats comparables
-      </p>
+    <div className="cap-encart mt-5">
+      <p className="cap-encart-titre">Sur 10 achats comparables</p>
       <div className="mt-2 flex gap-1.5" role="img"
         aria-label={`${objectif} objectifs atteints, ${stop} stops touchés, ${echeance} sorties à l'échéance, sur dix achats`}>
         {points.map((c, i) => (

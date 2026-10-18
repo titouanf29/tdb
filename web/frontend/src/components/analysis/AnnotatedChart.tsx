@@ -368,8 +368,8 @@ export function AnnotatedChart({
       {/* LES FIGURES REPÉRÉES, au-dessus du graphique : on choisit ce qu'on
           regarde avant de regarder. La plus récente est affichée d'office. */}
       {figures.length > 0 && (
-        <div className="mb-3 flex flex-wrap items-center gap-1.5">
-          <span className="mr-1 text-[0.76rem]" style={{ color: "var(--cap-ink-3)" }}>
+        <div className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-1">
+          <span className="text-[0.95rem] italic" style={{ color: "var(--cap-ink-3)", fontFamily: "var(--cap-font-display)" }}>
             Figures repérées
           </span>
           {figures.map((f, k) => {
@@ -381,11 +381,12 @@ export function AnnotatedChart({
                 type="button"
                 onClick={() => setChoix(k)}
                 aria-pressed={actif}
-                className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[0.78rem] transition-colors"
+                // Un mot souligné de sa couleur quand il est choisi, comme les
+                // onglets du site, plutôt qu'une pastille bordée.
+                className="inline-flex min-h-[36px] items-center gap-1.5 text-[0.88rem] underline-offset-[6px] transition-colors"
                 style={{
                   color: actif ? c : "var(--cap-ink-2)",
-                  backgroundColor: actif ? "color-mix(in srgb, currentColor 9%, transparent)" : "transparent",
-                  boxShadow: `inset 0 0 0 1px ${actif ? c : "var(--cap-line)"}`,
+                  textDecoration: actif ? `underline 2px ${c}` : "none",
                   fontWeight: actif ? 600 : 400,
                 }}
               >
@@ -398,10 +399,11 @@ export function AnnotatedChart({
             type="button"
             onClick={() => setChoix(null)}
             aria-pressed={choix === null}
-            className="rounded-full px-2.5 py-1 text-[0.78rem]"
+            className="min-h-[36px] text-[0.88rem] underline-offset-[6px]"
             style={{
               color: choix === null ? "var(--cap-ink)" : "var(--cap-ink-3)",
-              boxShadow: `inset 0 0 0 1px ${choix === null ? "var(--cap-ink-3)" : "var(--cap-line)"}`,
+              textDecoration: choix === null ? "underline 2px var(--cap-ambre)" : "none",
+              fontWeight: choix === null ? 600 : 400,
             }}
           >
             Aucune
@@ -410,10 +412,9 @@ export function AnnotatedChart({
             <button
               type="button"
               onClick={zoomerSurFigure}
-              className="ml-auto inline-flex items-center gap-1.5 rounded-[8px] px-2.5 py-1 text-[0.76rem]"
-              style={{ color: "var(--cap-ocean)", boxShadow: "inset 0 0 0 1px var(--cap-line)" }}
+              className="cap-lien ml-auto inline-flex min-h-[36px] items-center gap-1.5 text-[0.86rem]"
             >
-              <Maximize2 className="h-3 w-3" />
+              <Maximize2 className="h-3 w-3" aria-hidden />
               Zoomer sur la figure
             </button>
           )}
@@ -767,18 +768,14 @@ export function AnnotatedChart({
             ? `${pts.length} bougies affichées · ${etiquetteDate(pts[0].timestamp, pts.length <= 40)} → ${etiquetteDate(pts[pts.length - 1].timestamp, pts.length <= 40)}`
             : "Tirez sur le graphique pour zoomer sur une période, tout se recalcule dessus."}
         </Text>
-        <div className="flex flex-wrap items-center gap-1.5">
+        <div className="flex flex-wrap items-center gap-x-4">
           {[30, 60, 120].map((n) =>
             complet.length > n + 4 ? (
               <button
                 key={n}
                 type="button"
                 onClick={() => setFenetre([complet.length - n, complet.length - 1])}
-                className="rounded-[8px] px-2.5 py-1 text-[0.76rem] transition-colors"
-                style={{
-                  color: "var(--cap-ink-2)",
-                  boxShadow: "inset 0 0 0 1px var(--cap-line)",
-                }}
+                className="cap-lien min-h-[36px] text-[0.86rem]"
               >
                 {n} dernières
               </button>
@@ -788,10 +785,9 @@ export function AnnotatedChart({
             <button
               type="button"
               onClick={() => setFenetre(null)}
-              className="inline-flex items-center gap-1.5 rounded-[8px] px-2.5 py-1 text-[0.76rem] transition-colors"
-              style={{ color: "var(--cap-ocean)", boxShadow: "inset 0 0 0 1px var(--cap-line)" }}
+              className="cap-lien inline-flex min-h-[36px] items-center gap-1.5 text-[0.86rem]"
             >
-              <Maximize2 className="h-3 w-3" />
+              <Maximize2 className="h-3 w-3" aria-hidden />
               Tout voir
             </button>
           )}
@@ -828,8 +824,8 @@ export function AnnotatedChart({
             <span className="text-[0.92rem] font-semibold" style={{ color: couleurFig }}>
               {NUMERO[choix ?? 0] ?? ""} {figureChoisie.nom}
             </span>
-            <span className="rounded-[6px] px-1.5 py-0.5 text-[0.75rem] font-medium"
-                  style={{ color: TON_VERDICT[figureChoisie.verdict.ton], boxShadow: "inset 0 0 0 1px var(--cap-line)" }}>
+            <span className="text-[0.92rem] italic"
+                  style={{ color: TON_VERDICT[figureChoisie.verdict.ton], fontFamily: "var(--cap-font-display)" }}>
               {MOT_VERDICT[figureChoisie.verdict.ton]}
             </span>
           </div>

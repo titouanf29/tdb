@@ -89,7 +89,7 @@ export function quoteState(
 
   if (!lastBarMs) {
     return { open, until, lastQuote: "", suspicious: false,
-      sentence: open ? "Marché ouvert." : `Marché fermé${until ? ` · ${until}` : ""}.` };
+      sentence: open ? "Marché ouvert." : `Marché fermé.${until ? ` ${until}.` : ""}` };
   }
 
   const d = new Date(lastBarMs);
@@ -129,8 +129,8 @@ export function quoteState(
   const sentence = suspicious
     ? `${majuscule}, alors que le marché est ouvert, les données ont du retard.`
     : open
-      ? `Marché ouvert · ${lastQuote}${until ? ` · ${until}` : ""}.`
-      : `Marché fermé · ${lastQuote}${until ? ` · ${until}` : ""}. ` +
+      ? `Marché ouvert, ${lastQuote}.${until ? ` ${until}.` : ""}`
+      : `Marché fermé, ${lastQuote}.${until ? ` ${until}.` : ""} ` +
         `Le graphique s'arrête là tant que les échanges n'ont pas repris.`;
 
   return { open, until, lastQuote, suspicious, sentence };

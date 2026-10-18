@@ -907,3 +907,58 @@ body:has(.cap) {
 .cap .cap-qr dt::before { content: "Q."; font-style: italic; font-weight: 500; color: #c98a1e; margin-right: 0.55rem; }
 .cap .cap-qr dd { margin-top: 0.5rem; padding-left: 1.85rem; }
 
+
+/* ── L'ANALYSE, SELON LA CHARTE ───────────────────────────────────────────
+   Un champ qu'on écrit comme dans un carnet : une ligne, pas une boîte. */
+.cap .cap-champ-ligne {
+  border-bottom: 2px solid var(--cap-line-strong);
+  transition: border-color .25s ease;
+}
+.cap .cap-champ-ligne:focus { border-bottom-color: var(--cap-ambre); }
+.cap .cap-champ-ligne:focus-visible { outline: none; }
+
+/* Un encart à l'intérieur d'un panneau : un filet à gauche et un titre en
+   italique, plutôt qu'une boîte de plus dans la boîte. */
+.cap .cap-encart {
+  border-left: 2px solid var(--cap-line-strong);
+  padding: 0.15rem 0 0.15rem 1rem;
+}
+.cap .cap-encart-titre {
+  font-family: var(--cap-font-display);
+  font-style: italic;
+  font-size: 1rem;
+  color: var(--cap-ink-3);
+}
+
+/* Un lien d'action discret, souligné d'ambre au survol. */
+.cap .cap-lien {
+  color: var(--cap-ink-2);
+  text-decoration: underline;
+  text-decoration-color: var(--cap-line-strong);
+  text-underline-offset: 5px;
+  transition: color .2s ease, text-decoration-color .2s ease;
+}
+.cap .cap-lien:hover { color: var(--cap-ink); text-decoration-color: var(--cap-ambre); }
+
+/* Les compléments : des rubriques numérotées sur un filet, comme une table
+   des matières, plutôt qu'une pile de cartes à icônes. */
+.cap .cap-rubriques { counter-reset: rubrique; display: flex; flex-direction: column; }
+.cap .cap-rubriques section[data-repliable] {
+  counter-increment: rubrique;
+  border-radius: 0 !important;
+  background: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  box-shadow: none !important;
+  border-top: 1px solid var(--cap-line-strong);
+}
+.cap .cap-rubriques section[data-repliable]:last-of-type { border-bottom: 1px solid var(--cap-line-strong); }
+.cap .cap-rubriques section[data-repliable] > button,
+.cap .cap-rubriques section[data-repliable] > header { padding-left: 0 !important; padding-right: 0 !important; }
+.cap .cap-rubriques section[data-repliable] > button:hover { background: none !important; }
+.cap .cap-rubriques section[data-repliable] > button h2::before {
+  content: counter(rubrique) ".";
+  font-style: italic; font-weight: 500; color: #c98a1e; margin-right: 0.6rem;
+}
+.cap .cap-rubriques section[data-repliable] > div { padding-left: 0 !important; padding-right: 0 !important; }
+.cap .cap-rubriques [data-aside] { display: none; }
