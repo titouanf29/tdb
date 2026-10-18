@@ -89,6 +89,26 @@ async def rejouer(hist, timeframe: str, sl_atr: float, tp_atr: float, bench_clos
                                       bench_close, bench_symbol)
 
 
+async def executer(fn, *args):
+    """N'importe quel calcul pur, dans le groupe de processus quand il est
+    disponible, sinon dans un thread. `fn` doit être une fonction de module."""
+    global _POOL, _HORS_SERVICE
+    loop = asyncio.get_running_loop()
+    pool = _pool()
+    if pool is not None:
+        try:
+            return await loop.run_in_executor(pool, fn, *args)
+        except (BrokenProcessPool, pickle.PicklingError, OSError) as e:
+            logger.warning("calcul en processus indisponible, retour au thread : %s", e)
+            _HORS_SERVICE = True
+            try:
+                pool.shutdown(wait=False, cancel_futures=True)
+            except Exception:
+                pass
+            _POOL = None
+    return await loop.run_in_executor(None, fn, *args)
+
+
 def arreter() -> None:
     global _POOL
     if _POOL is not None:

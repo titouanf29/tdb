@@ -32,6 +32,7 @@ from ._backtest import _walk_barriers
 FRAIS_BPS = 10.0
 UNITES = {"1d": "séance", "1wk": "semaine"}
 ACTIFS_MAX = 5
+SCORE_PAS = {"1d": 5, "1wk": 2}
 CONDITIONS_MAX = 5
 
 # ── Le catalogue des conditions ────────────────────────────────────────────
@@ -361,6 +362,13 @@ def rejouer(hist: pd.DataFrame, s: dict, symbol: str = "") -> dict:
     for m in M.values():
         tous &= m.to_numpy()
     score_min = next((c["min"] for c in s["conditions"] if c["type"] == "score_nimbo"), None)
+    # Le score coûte une dizaine de millisecondes ; le recalculer à chaque
+    # jour candidat demandait près de mille calculs par actif (une minute et
+    # demie pour cinq actifs). Il est recalculé une fois par semaine de cours
+    # et réutilisé jusqu'au suivant : toujours sur des clôtures passées, donc
+    # sans regarder le futur, au prix de quelques jours de retard au plus.
+    pas_score = SCORE_PAS.get(s["unite"], 1)
+    scores: dict[int, Optional[float]] = {}
     achat = s["sens"] == "achat"
     debut = 60
     trades = []
@@ -372,7 +380,10 @@ def rejouer(hist: pd.DataFrame, s: dict, symbol: str = "") -> dict:
             t += 1
             continue
         if score_min is not None:
-            sc = _score_nimbo_a(hist, t)
+            b = ((t - 1) // pas_score) * pas_score + 1  # la dernière date de calcul, au plus t
+            if b not in scores:
+                scores[b] = _score_nimbo_a(hist, b)
+            sc = scores[b]
             if sc is None or sc < score_min:
                 refus.append({"i": t - 1, "score": round(sc) if sc is not None else None})
                 t += 1

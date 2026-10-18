@@ -22,6 +22,7 @@ from ..limite import cle_client
 from .auth import get_current_user
 from ._prices import fetch_ohlcv
 from . import _strategie as S
+from ._rejeu import executer
 
 router = APIRouter()
 limiter = Limiter(key_func=cle_client)
@@ -90,8 +91,6 @@ async def backtest(request: Request, data: Regles, current_user: dict = Depends(
     if S.bloquante(avis):
         return {"regles": regles, "avis": avis, "bloquante": True, "resultat": None}
     periode, intervalle = _PERIODE[regles["unite"]]
-    loop = asyncio.get_running_loop()
-
     async def un(symbol: str) -> dict:
         try:
             hist = await fetch_ohlcv(symbol, period=periode, interval=intervalle)
@@ -99,7 +98,11 @@ async def backtest(request: Request, data: Regles, current_user: dict = Depends(
             hist = None
         if hist is None or len(hist) < 80:
             return {"symbol": symbol, "trades": [], "erreur": "Pas assez de cours pour cet actif."}
-        return await loop.run_in_executor(None, S.rejouer, hist, regles, symbol)
+        # Dans des processus à part : les actifs se calculent vraiment en même
+        # temps, et le reste du serveur n'attend pas derrière le calcul.
+        r = await executer(S.rejouer, hist, regles, symbol)
+        r.pop("masques", None)
+        return r
 
     par_actif = await asyncio.gather(*[un(a) for a in regles["actifs"]])
     resultat = S.synthese(par_actif, regles)
@@ -132,7 +135,7 @@ async def film(request: Request, data: Film, current_user: dict = Depends(get_cu
         hist = None
     if hist is None or len(hist) < 80:
         return {"symbol": symbol, "erreur": "Pas assez de cours pour cet actif."}
-    return await asyncio.get_running_loop().run_in_executor(None, S.film, hist, regles, symbol)
+    return await executer(S.film, hist, regles, symbol)
 
 
 @router.get("")

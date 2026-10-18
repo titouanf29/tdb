@@ -137,8 +137,10 @@ async function proxy(request: NextRequest): Promise<NextResponse> {
   // autres appels doivent répondre vite ou être signalés indisponibles.
   const streaming = pathname.startsWith("/api/analysis/scan/")
     && request.nextUrl.searchParams.get("stream") === "true";
-  const timeoutMs = streaming ? 600_000
-    : pathname.startsWith("/api/analysis/scan/") ? 120_000 : 25_000;
+  // Le test d'une stratégie rejoue des années de cours sur plusieurs actifs.
+  const long = pathname.startsWith("/api/analysis/scan/")
+    || pathname === "/api/strategies/backtest" || pathname === "/api/strategies/film";
+  const timeoutMs = streaming ? 600_000 : long ? 120_000 : 25_000;
 
   try {
     const res = await fetch(targetUrl, {

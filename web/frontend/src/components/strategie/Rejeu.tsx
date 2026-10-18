@@ -176,56 +176,72 @@ export function Rejeu({ regles, actifs }: { regles: ReglesStrategie; actifs: str
         <div onKeyDown={clavier} className="outline-none">
           <Entete f={f} k={survol ?? i} survol={survol != null} capital={rj.capital[i]} />
 
-          <div className="mt-3 grid gap-6 lg:grid-cols-[minmax(0,1fr)_300px]">
-            <div className="min-w-0">
-              <div ref={boite} className="w-full">
-                <GraphiqueRejeu f={f} rj={rj} i={i} fenetre={nbFenetre} largeur={largeur} survol={survol} onSurvol={setSurvol} />
-              </div>
-              <Legende f={f} />
-              <div className="mt-5 lg:hidden">{etat}</div>
+          {/* Ce que dit Nimbo d'abord, en grand : c'est ce qu'on lit. */}
+          <div className="mt-4 rounded-[14px] p-4 sm:p-5" style={{ backgroundColor: "var(--cap-surface-2)" }}>{etat}</div>
 
-              <Commandes
-                lecture={lecture} fin={i >= n - 1} bloque={attendPari}
-                onBasculer={basculer}
-                onDebut={() => { setLecture(false); aller(f.debut); }}
-                onPrec={() => { setLecture(false); aller(i - 1); }}
-                onSuiv={() => { setLecture(false); avancer(1); }}
-                onEntreePrec={entreePrec} onEntreeSuiv={entreeSuiv}
-              />
-              <Frise f={f} rj={rj} i={i} onAller={(k) => { setLecture(false); aller(k); }} />
-
-              <div className="mt-4 flex flex-wrap items-center gap-x-8 gap-y-3">
-                <div>
-                  <span className="mb-1 block text-[0.76rem]" style={{ color: "var(--cap-ink-3)" }}>Vitesse</span>
-                  <SegmentedControl size="sm" aria-label="Vitesse de lecture" options={VITESSES} value={vitesse} onChange={setVitesse} />
-                </div>
-                <div>
-                  <span className="mb-1 block text-[0.76rem]" style={{ color: "var(--cap-ink-3)" }}>Fenêtre</span>
-                  <SegmentedControl size="sm" aria-label="Période affichée" options={FENETRES.map(({ value, label }) => ({ value, label }))} value={fenetre} onChange={setFenetre} />
-                </div>
-                <div className="flex flex-col gap-2">
-                  <Checkbox checked={arretTrades} onChange={setArretTrades}>
-                    <span className="text-[0.88rem]">M&apos;arrêter à chaque entrée et sortie</span>
-                  </Checkbox>
-                  <Checkbox checked={pari} onChange={(v) => { setPari(v); if (v) setArretTrades(true); }}>
-                    <span className="text-[0.88rem]">Deviner l&apos;issue de chaque trade</span>
-                  </Checkbox>
-                </div>
-              </div>
-              <Text size="caption" className="mt-3">
-                Au clavier : espace pour lire ou mettre en pause, flèches pour avancer ou reculer d&apos;une {f.unite}, Maj et flèche pour sauter d&apos;un trade à l&apos;autre.
-              </Text>
+          <Section titre="Le graphique" aide="Il s'arrête au jour rejoué : la suite, hachurée, reste cachée.">
+            <div ref={boite} className="w-full">
+              <GraphiqueRejeu f={f} rj={rj} i={i} fenetre={nbFenetre} largeur={largeur} survol={survol} onSurvol={setSurvol} />
             </div>
+            <Legende f={f} />
+            <Commandes
+              lecture={lecture} fin={i >= n - 1} bloque={attendPari}
+              onBasculer={basculer}
+              onDebut={() => { setLecture(false); aller(f.debut); }}
+              onPrec={() => { setLecture(false); aller(i - 1); }}
+              onSuiv={() => { setLecture(false); avancer(1); }}
+              onEntreePrec={entreePrec} onEntreeSuiv={entreeSuiv}
+            />
+            <Frise f={f} rj={rj} i={i} onAller={(k) => { setLecture(false); aller(k); }} />
+          </Section>
 
-            <aside className="min-w-0 space-y-5">
-              <div className="hidden lg:block">{etat}</div>
+          <Section titre="Réglages">
+            <div className="flex flex-wrap items-start gap-x-10 gap-y-4">
+              <div>
+                <span className="mb-1 block text-[0.85rem]" style={{ color: "var(--cap-ink-2)" }}>Vitesse</span>
+                <SegmentedControl size="sm" aria-label="Vitesse de lecture" options={VITESSES} value={vitesse} onChange={setVitesse} />
+              </div>
+              <div>
+                <span className="mb-1 block text-[0.85rem]" style={{ color: "var(--cap-ink-2)" }}>Période affichée</span>
+                <SegmentedControl size="sm" aria-label="Période affichée" options={FENETRES.map(({ value, label }) => ({ value, label }))} value={fenetre} onChange={setFenetre} />
+              </div>
+              <div className="flex flex-col gap-2.5 pt-1">
+                <Checkbox checked={arretTrades} onChange={setArretTrades}>
+                  <span className="text-[0.95rem]">M&apos;arrêter à chaque entrée et sortie</span>
+                </Checkbox>
+                <Checkbox checked={pari} onChange={(v) => { setPari(v); if (v) setArretTrades(true); }}>
+                  <span className="text-[0.95rem]">Deviner l&apos;issue de chaque trade</span>
+                </Checkbox>
+              </div>
+            </div>
+            <Text size="small" className="mt-3 hidden sm:block">
+              Au clavier : espace pour lire ou mettre en pause, flèches pour avancer ou reculer d&apos;une {f.unite}, Maj et flèche pour sauter d&apos;un trade à l&apos;autre.
+            </Text>
+          </Section>
+
+          <div className="grid gap-x-10 md:grid-cols-2">
+            <Section titre="Vos conditions ce jour-là">
+              <Conditions f={f} i={i} />
+            </Section>
+            <Section titre="Le résultat jusqu'ici">
               <Score f={f} rj={rj} i={i} pari={pari} paris={paris} />
-              <Fil f={f} rj={rj} i={i} regles={regles} onAller={(k) => { setLecture(false); aller(k); }} />
-            </aside>
+            </Section>
           </div>
+          <Fil f={f} rj={rj} i={i} regles={regles} onAller={(k) => { setLecture(false); aller(k); }} />
         </div>
       )}
     </Panel>
+  );
+}
+
+/** Une partie du rejeu, avec son titre : pour se repérer d'un coup d'œil. */
+function Section({ titre, aide, children }: { titre: string; aide?: string; children: React.ReactNode }) {
+  return (
+    <section className="mt-7 border-t pt-5" style={{ borderColor: "var(--cap-line-strong)" }}>
+      <h3 className="text-[1.15rem] font-semibold leading-tight" style={{ color: "var(--cap-ink)", fontFamily: "var(--cap-font-display)" }}>{titre}</h3>
+      {aide && <p className="mt-1 text-[0.92rem]" style={{ color: "var(--cap-ink-3)" }}>{aide}</p>}
+      <div className="mt-3">{children}</div>
+    </section>
   );
 }
 
@@ -238,21 +254,21 @@ function Entete({ f, k, survol, capital }: { f: FilmStrategie; k: number; survol
   return (
     <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-2">
       <div className="min-w-0">
-        <p className="text-[0.8rem] italic" style={{ color: "var(--cap-ink-3)", fontFamily: "var(--cap-font-display)" }}>
-          {survol ? "Survol" : `${f.symbol}, à la clôture du`}
+        <p className="text-[0.95rem] italic" style={{ color: "var(--cap-ink-3)", fontFamily: "var(--cap-font-display)" }}>
+          {survol ? "Sous votre souris" : `${f.symbol}, à la clôture du`}
         </p>
         <p className="text-[clamp(1.25rem,2.4vw,1.6rem)] font-medium leading-tight first-letter:uppercase"
           style={{ color: "var(--cap-ink)", fontFamily: "var(--cap-font-display)" }} aria-live="off">
           {dateLongue(f.dates[k], !f.unite.startsWith("sem"))}
         </p>
-        <p className="mt-1 text-[0.82rem] tabular-nums" style={{ color: "var(--cap-ink-3)" }}>
+        <p className="mt-1 text-[0.92rem] tabular-nums" style={{ color: "var(--cap-ink-2)" }}>
           ouverture {prix(o)}, plus haut {prix(h)}, plus bas {prix(l)}, clôture <b style={{ color: "var(--cap-ink)" }}>{prix(c)}</b>
           {var_ != null && <span style={{ color: var_ >= 0 ? "var(--cap-up)" : "var(--cap-down)" }}> ({signe(var_, 2)} %)</span>}
         </p>
       </div>
       <div className="text-right">
-        <span className="block text-[0.76rem]" style={{ color: "var(--cap-ink-3)" }}>Le capital (100 au départ)</span>
-        <span className="text-[1.6rem] font-medium tabular-nums leading-none"
+        <span className="block text-[0.88rem]" style={{ color: "var(--cap-ink-3)" }}>Votre capital (100 au départ)</span>
+        <span className="text-[1.9rem] font-medium tabular-nums leading-none"
           style={{ fontFamily: "var(--cap-font-display)", color: Math.abs(capital - 100) < 0.05 ? "var(--cap-ink)" : capital > 100 ? "var(--cap-up)" : "var(--cap-down)" }}>
           {nombre(capital, 1)}
         </span>
@@ -264,7 +280,7 @@ function Entete({ f, k, survol, capital }: { f: FilmStrategie; k: number; survol
 function Legende({ f }: { f: FilmStrategie }) {
   const couleurs = ["var(--cap-ocean)", "var(--cap-cyan)", "var(--cap-ink-3)", "var(--cap-amber-ink)"];
   return (
-    <div className="mt-1 flex flex-wrap gap-x-5 gap-y-1 text-[0.78rem]" style={{ color: "var(--cap-ink-3)" }}>
+    <div className="mt-2 flex flex-wrap gap-x-5 gap-y-1.5 text-[0.9rem]" style={{ color: "var(--cap-ink-2)" }}>
       {f.superpositions.map((s, k) => (
         <span key={s.cle} className="inline-flex items-center gap-1.5">
           <span aria-hidden className="inline-block h-[2px] w-4" style={{ backgroundColor: couleurs[k % couleurs.length] }} />{s.label}
@@ -285,12 +301,13 @@ function Legende({ f }: { f: FilmStrategie }) {
 
 // ── Les commandes ──────────────────────────────────────────────────────────
 
-function Bouton({ label, onClick, children, disabled }: { label: string; onClick: () => void; children: React.ReactNode; disabled?: boolean }) {
+function Bouton({ label, court, onClick, children, disabled }: { label: string; court: string; onClick: () => void; children: React.ReactNode; disabled?: boolean }) {
   return (
     <button type="button" aria-label={label} title={label} onClick={onClick} disabled={disabled}
-      className="flex h-11 w-11 items-center justify-center rounded-full transition-colors hover:bg-[color:var(--cap-surface-2)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-40"
+      className="flex min-h-11 min-w-11 flex-col items-center justify-center gap-0.5 rounded-[10px] px-2 py-1 transition-colors hover:bg-[color:var(--cap-surface-2)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-40"
       style={{ color: "var(--cap-ink)" }}>
       {children}
+      <span aria-hidden className="hidden text-[0.75rem] leading-none sm:block" style={{ color: "var(--cap-ink-3)" }}>{court}</span>
     </button>
   );
 }
@@ -301,19 +318,19 @@ function Commandes({ lecture, fin, bloque, onBasculer, onDebut, onPrec, onSuiv, 
   onEntreePrec: () => void; onEntreeSuiv: () => void;
 }) {
   return (
-    <div className="mt-4 flex flex-wrap items-center justify-center gap-1 sm:justify-start">
-      <Bouton label="Revenir au début" onClick={onDebut}><RotateCcw size={18} /></Bouton>
-      <Bouton label="Trade précédent" onClick={onEntreePrec}><ChevronsLeft size={20} /></Bouton>
-      <Bouton label="Bougie précédente" onClick={onPrec}><ChevronLeft size={20} /></Bouton>
+    <div className="mt-5 flex flex-wrap items-center justify-center gap-1">
+      <Bouton label="Revenir au début" court="Début" onClick={onDebut}><RotateCcw size={18} /></Bouton>
+      <Bouton label="Trade précédent" court="Trade préc." onClick={onEntreePrec}><ChevronsLeft size={20} /></Bouton>
+      <Bouton label="Bougie précédente" court="Reculer" onClick={onPrec}><ChevronLeft size={20} /></Bouton>
       <button type="button" onClick={onBasculer} disabled={bloque}
-        className="mx-1 inline-flex h-11 min-w-[6.75rem] items-center justify-center gap-2 rounded-[10px] px-3.5 sm:mx-2 sm:min-w-[8.5rem] sm:px-5 text-[0.925rem] font-semibold transition-opacity hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-50"
+        className="mx-1 inline-flex h-12 min-w-[6.75rem] items-center justify-center gap-2 rounded-[10px] px-3.5 text-[1rem] font-semibold sm:mx-3 sm:min-w-[9rem] sm:px-5 transition-opacity hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-50"
         style={{ backgroundColor: "var(--cap-ink)", color: "var(--cap-on-inverse)" }}>
         <span aria-hidden className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: "var(--cap-ambre)" }} />
         {lecture ? <Pause size={16} /> : <Play size={16} />}
         {bloque ? "Pariez d'abord" : lecture ? "Pause" : fin ? "Rejouer" : "Lecture"}
       </button>
-      <Bouton label="Bougie suivante" onClick={onSuiv} disabled={fin}><ChevronRight size={20} /></Bouton>
-      <Bouton label="Trade suivant" onClick={onEntreeSuiv} disabled={fin}><ChevronsRight size={20} /></Bouton>
+      <Bouton label="Bougie suivante" court="Avancer" onClick={onSuiv} disabled={fin}><ChevronRight size={20} /></Bouton>
+      <Bouton label="Trade suivant" court="Trade suiv." onClick={onEntreeSuiv} disabled={fin}><ChevronsRight size={20} /></Bouton>
     </div>
   );
 }
@@ -347,7 +364,7 @@ function Frise({ f, rj, i, onAller }: { f: FilmStrategie; rj: ReturnType<typeof 
       <input type="range" min={f.debut} max={n - 1} value={i} onChange={(e) => onAller(Number(e.target.value))}
         aria-label="Se déplacer dans le temps" aria-valuetext={dateLongue(f.dates[i])}
         className="w-full cursor-pointer" style={{ accentColor: "var(--cap-ink)" }} />
-      <div className="relative h-4 text-[0.72rem]" style={{ color: "var(--cap-ink-4)" }} aria-hidden>
+      <div className="relative h-5 text-[0.82rem]" style={{ color: "var(--cap-ink-3)" }} aria-hidden>
         <span className="absolute left-0">{dateCourte(f.dates[f.debut])}</span>
         {annees.filter((_, k) => annees.length <= 6 || k % 2 === 0).map(({ k, a }) => (
           <span key={a} className="absolute hidden -translate-x-1/2 sm:inline" style={{ left: `${pct(k)}%` }}>{a}</span>
@@ -406,10 +423,10 @@ function Etat({ f, rj, i, regles, pari, paris, onParier, onPremier }: {
   return (
     <div>
       <div className="flex items-start gap-3">
-        <Nimbo humeur={humeur} taille={52} label="" className="-mt-1 flex-none" />
+        <Nimbo humeur={humeur} taille={64} label="" className="-mt-1 flex-none" />
         <div className="min-w-0 space-y-2" aria-live="polite">
           {debut && (
-            <p className="text-[0.95rem] leading-snug" style={{ color: "var(--cap-ink)" }}>
+            <p className="text-[1.05rem] leading-snug sm:text-[1.12rem]" style={{ color: "var(--cap-ink)" }}>
               Appuyez sur Lecture : j&apos;avance une {f.unite} après l&apos;autre et je vous dis ce que votre stratégie voit.
               {f.trades.length > 0 && (
                 <> Ou <button type="button" className="cap-lien" onClick={onPremier}>allez au premier trade</button>.</>
@@ -417,18 +434,18 @@ function Etat({ f, rj, i, regles, pari, paris, onParier, onPremier }: {
             </p>
           )}
           {ici.map((e, n) => (
-            <p key={n} className="text-[0.95rem] leading-snug" style={{ color: "var(--cap-ink)", fontFamily: e.type === "refus" ? undefined : "var(--cap-font-display)" }}>
+            <p key={n} className="text-[1.05rem] leading-snug sm:text-[1.12rem]" style={{ color: "var(--cap-ink)", fontFamily: e.type === "refus" ? undefined : "var(--cap-font-display)" }}>
               {recit(e, f, regles)}
             </p>
           ))}
           {!debut && !ici.length && t && cours != null && (
-            <p className="text-[0.95rem] leading-snug" style={{ color: "var(--cap-ink)" }}>
+            <p className="text-[1.05rem] leading-snug sm:text-[1.12rem]" style={{ color: "var(--cap-ink)" }}>
               En position depuis {pluriel(f.unite, i - t.i_e)}. Le trade vaut {signe(rLatent(t, cours, achat), 2)} R pour l&apos;instant ;
               sortie forcée dans {pluriel(f.unite, Math.max(0, t.i_e + f.duree_max - i))} si rien n&apos;est touché.
             </p>
           )}
           {!debut && !ici.length && !t && (
-            <p className="text-[0.95rem] leading-snug" style={{ color: "var(--cap-ink)" }}>
+            <p className="text-[1.05rem] leading-snug sm:text-[1.12rem]" style={{ color: "var(--cap-ink)" }}>
               {calculables.length === 0
                 ? "J'attends que mon score atteigne votre seuil."
                 : reunies === calculables.length
@@ -453,12 +470,18 @@ function Etat({ f, rj, i, regles, pari, paris, onParier, onPremier }: {
         </p>
       )}
 
-      <ul className="mt-4 flex flex-col gap-2 border-t pt-3" style={{ borderColor: "var(--cap-line)" }}>
+    </div>
+  );
+}
+
+function Conditions({ f, i }: { f: FilmStrategie; i: number }) {
+  return (
+      <ul className="flex flex-col gap-3">
         {f.conditions.map((c, n) => {
           const ok = c.masque ? c.masque[i] === "1" : null;
           const val = valeurCondition(f, c.valeur, i);
           return (
-            <li key={n} className="flex items-start gap-2.5 text-[0.88rem]" style={{ color: ok ? "var(--cap-ink)" : "var(--cap-ink-3)" }}>
+            <li key={n} className="flex items-start gap-2.5 text-[0.98rem]" style={{ color: ok ? "var(--cap-ink)" : "var(--cap-ink-3)" }}>
               <span aria-hidden className="mt-[0.1rem] flex h-5 w-5 flex-none items-center justify-center rounded-full text-[0.72rem] font-bold"
                 style={{ backgroundColor: ok ? "var(--cap-up)" : "var(--cap-surface-2)", color: ok ? "#fff" : "var(--cap-ink-3)" }}>
                 {ok ? "✓" : ok === null ? "?" : "·"}
@@ -466,13 +489,12 @@ function Etat({ f, rj, i, regles, pari, paris, onParier, onPremier }: {
               <span className="min-w-0">
                 {c.texte.charAt(0).toUpperCase() + c.texte.slice(1)}
                 <span className="sr-only">{ok ? " : réunie" : ok === null ? " : vérifiée seulement quand le reste l'est" : " : pas réunie"}</span>
-                {val && <span className="block text-[0.78rem] tabular-nums" style={{ color: "var(--cap-ink-4)" }}>{val}</span>}
+                {val && <span className="block text-[0.86rem] tabular-nums" style={{ color: "var(--cap-ink-3)" }}>{val}</span>}
               </span>
             </li>
           );
         })}
       </ul>
-    </div>
   );
 }
 
@@ -540,9 +562,8 @@ function Score({ f, rj, i, pari, paris }: { f: FilmStrategie; rj: ReturnType<typ
   const pariés = f.trades.map((t, k) => ({ t, k })).filter(({ t, k }) => t.i_s <= i && paris[k] && paris[k] !== "passe");
   const justes = pariés.filter(({ t, k }) => paris[k] === t.issue).length;
   return (
-    <div className="border-t pt-4" style={{ borderColor: "var(--cap-line)" }}>
-      <p className="mb-2 text-[0.8rem] italic" style={{ color: "var(--cap-ink-3)", fontFamily: "var(--cap-font-display)" }}>Jusqu&apos;ici</p>
-      <dl className="grid grid-cols-2 gap-x-4 gap-y-2.5 text-[0.86rem]">
+    <div>
+      <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-[1rem] sm:grid-cols-3">
         <Ligne dt="Trades fermés" dd={String(b.trades)} />
         <Ligne dt="Gagnants" dd={b.taux == null ? "—" : `${nombre(b.taux, 0)} %`} />
         <Ligne dt="Total" dd={`${signe(b.rTotal, 1)} R`} ton={b.rTotal >= 0 ? "up" : "down"} />
@@ -551,6 +572,10 @@ function Score({ f, rj, i, pari, paris }: { f: FilmStrategie; rj: ReturnType<typ
         {f.sens === "achat" && <Ligne dt="Acheter et garder" dd={`${signe(cons, 1)} %`} />}
       </dl>
       <Courbe f={f} rj={rj} i={i} />
+      <p className="mt-1 flex flex-wrap gap-x-5 text-[0.85rem]" style={{ color: "var(--cap-ink-3)" }}>
+        <span className="inline-flex items-center gap-1.5"><span aria-hidden className="inline-block h-[2px] w-4" style={{ backgroundColor: "var(--cap-ink-2)" }} />la stratégie</span>
+        {f.sens === "achat" && <span className="inline-flex items-center gap-1.5"><span aria-hidden className="inline-block w-4 border-t border-dashed" style={{ borderColor: "var(--cap-ink-4)" }} />acheter et garder</span>}
+      </p>
       {pari && pariés.length > 0 && (
         <Text size="small" className="mt-2">
           Vos paris : {justes} juste{justes > 1 ? "s" : ""} sur {pariés.length}.
@@ -564,7 +589,7 @@ function Score({ f, rj, i, pari, paris }: { f: FilmStrategie; rj: ReturnType<typ
 function Ligne({ dt, dd, ton }: { dt: string; dd: string; ton?: "up" | "down" }) {
   return (
     <div className="min-w-0">
-      <dt className="text-[0.74rem]" style={{ color: "var(--cap-ink-3)" }}>{dt}</dt>
+      <dt className="text-[0.84rem]" style={{ color: "var(--cap-ink-3)" }}>{dt}</dt>
       <dd className="font-semibold tabular-nums" style={{ color: ton === "up" ? "var(--cap-up)" : ton === "down" ? "var(--cap-down)" : "var(--cap-ink)" }}>{dd}</dd>
     </div>
   );
@@ -588,11 +613,10 @@ function Courbe({ f, rj, i }: { f: FilmStrategie; rj: ReturnType<typeof preparer
     return d + `L${x(i).toFixed(1)},${y(s[i]).toFixed(1)}`;
   };
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="mt-3 h-auto w-full" role="img" aria-label="Le capital de la stratégie face à l'achat-conservation">
+    <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className="mt-4 h-24 w-full" role="img" aria-label="Le capital de la stratégie face à l'achat-conservation">
       <line x1={P} x2={W - P} y1={y(100)} y2={y(100)} stroke="var(--cap-line-strong)" strokeDasharray="3 3" />
-      {f.sens === "achat" && <path d={chemin(rj.conserve)} fill="none" stroke="var(--cap-ink-4)" strokeWidth="1.2" strokeDasharray="3 2" />}
-      <path d={chemin(rj.capital)} fill="none" stroke={rj.capital[i] >= 100 ? "var(--cap-up)" : "var(--cap-down)"} strokeWidth="2" strokeLinejoin="round" />
-      <circle cx={x(i)} cy={y(rj.capital[i])} r="3" fill="var(--cap-ink)" />
+      {f.sens === "achat" && <path d={chemin(rj.conserve)} fill="none" stroke="var(--cap-ink-4)" strokeWidth="1.2" strokeDasharray="3 2" vectorEffect="non-scaling-stroke" />}
+      <path d={chemin(rj.capital)} fill="none" stroke={rj.capital[i] >= 100 ? "var(--cap-up)" : "var(--cap-down)"} strokeWidth="2" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
     </svg>
   );
 }
@@ -603,26 +627,25 @@ function Fil({ f, rj, i, regles, onAller }: { f: FilmStrategie; rj: ReturnType<t
   const passes: Evenement[] = rj.evenements.filter((e) => e.i < i).slice(-6).reverse();
   if (!passes.length) return null;
   return (
-    <div className="border-t pt-4" style={{ borderColor: "var(--cap-line)" }}>
-      <p className="mb-2 text-[0.8rem] italic" style={{ color: "var(--cap-ink-3)", fontFamily: "var(--cap-font-display)" }}>Le fil</p>
-      <ol className="flex flex-col gap-2.5">
+    <Section titre="Ce qui s'est passé avant">
+      <ol className="grid gap-x-8 gap-y-3.5 md:grid-cols-2">
         {passes.map((e, n) => (
           <li key={`${e.type}${e.i}${n}`}>
             <button type="button" onClick={() => onAller(e.i)}
               className="group block w-full text-left focus-visible:outline focus-visible:outline-2">
-              <span className="block text-[0.74rem] tabular-nums" style={{ color: "var(--cap-ink-4)" }}>
+              <span className="block text-[0.85rem] tabular-nums" style={{ color: "var(--cap-ink-3)" }}>
                 {dateLongue(f.dates[e.i])}
                 {e.type === "sortie" && (
                   <b className="ml-1.5" style={{ color: e.trade.r >= 0 ? "var(--cap-up)" : "var(--cap-down)" }}>{signe(e.trade.r, 2)} R</b>
                 )}
               </span>
-              <span className="line-clamp-2 text-[0.84rem] leading-snug group-hover:underline" style={{ color: "var(--cap-ink-2)" }}>
+              <span className="line-clamp-2 text-[0.95rem] leading-snug group-hover:underline" style={{ color: "var(--cap-ink-2)" }}>
                 {recit(e, f, regles)}
               </span>
             </button>
           </li>
         ))}
       </ol>
-    </div>
+    </Section>
   );
 }

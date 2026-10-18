@@ -13,7 +13,7 @@ import { prix, signe, compact, nombre, type Rejeu } from "@/lib/rejeu";
 
 const COULEURS = ["var(--cap-ocean)", "var(--cap-cyan)", "var(--cap-ink-3)", "var(--cap-amber-ink)"];
 const L = 6;
-const R = 72;
+const R = 86;
 
 function graduations(min: number, max: number, n = 4): number[] {
   const brut = (max - min) / n;
@@ -49,8 +49,8 @@ export function GraphiqueRejeu({ f, rj, i, fenetre, largeur, survol, onSurvol }:
   const W = Math.max(300, largeur);
   const etroit = W < 560;
   const HP = etroit ? 230 : 310;
-  const HPAN = etroit ? 70 : 84;
-  const LIGNE = 20;
+  const HPAN = etroit ? 80 : 100;
+  const LIGNE = 30;
   const achat = f.sens === "achat";
 
   const g = useMemo(() => {
@@ -112,14 +112,14 @@ export function GraphiqueRejeu({ f, rj, i, fenetre, largeur, survol, onSurvol }:
       {graduations(g.lo, g.hi).map((v) => (
         <g key={v}>
           <line x1={L} x2={finPlot} y1={y(v)} y2={y(v)} stroke="var(--cap-line-chart)" />
-          <text x={finPlot + 6} y={y(v) + 3.5} fontSize="10.5" fill="var(--cap-ink-4)">{prix(v)}</text>
+          <text x={finPlot + 6} y={y(v) + 3.5} fontSize="12" fill="var(--cap-ink-3)">{prix(v)}</text>
         </g>
       ))}
 
       {/* La suite, cachée */}
       <rect x={finPresent} y={g.top} width={Math.max(0, finPlot - finPresent)} height={HP - g.top - 6} fill="url(#rj-futur)" opacity="0.55" />
       {finPlot - finPresent > 74 && (
-        <text x={(finPresent + finPlot) / 2} y={g.top + 16} textAnchor="middle" fontSize="11" fontStyle="italic"
+        <text x={(finPresent + finPlot) / 2} y={g.top + 16} textAnchor="middle" fontSize="13" fontStyle="italic"
           fill="var(--cap-ink-3)" style={{ fontFamily: "var(--cap-font-display)" }}>la suite</text>
       )}
 
@@ -142,7 +142,7 @@ export function GraphiqueRejeu({ f, rj, i, fenetre, largeur, survol, onSurvol }:
               </>
             )}
             {!enCours && (
-              <text x={(x1 + x2) / 2} y={Math.min(y(t.objectif), y(t.stop)) - 4} textAnchor="middle" fontSize="10.5" fontWeight="600"
+              <text x={(x1 + x2) / 2} y={Math.min(y(t.objectif), y(t.stop)) - 4} textAnchor="middle" fontSize="12.5" fontWeight="700"
                 fill={t.r >= 0 ? "var(--cap-up)" : "var(--cap-down)"}>{signe(t.r, 1)} R</text>
             )}
           </g>
@@ -201,8 +201,8 @@ export function GraphiqueRejeu({ f, rj, i, fenetre, largeur, survol, onSurvol }:
       {cours != null && (
         <g>
           <line x1={finPresent} x2={finPlot} y1={y(cours)} y2={y(cours)} stroke="var(--cap-ink)" strokeWidth="0.8" strokeDasharray="2 3" />
-          <rect x={finPlot + 2} y={y(cours) - 9} width={R - 4} height={18} rx="4" fill="var(--cap-ink)" />
-          <text x={finPlot + 2 + (R - 4) / 2} y={y(cours) + 3.8} textAnchor="middle" fontSize="11" fontWeight="600" fill="var(--cap-on-inverse)">{prix(cours)}</text>
+          <rect x={finPlot + 2} y={y(cours) - 11} width={R - 4} height={22} rx="5" fill="var(--cap-ink)" />
+          <text x={finPlot + 2 + (R - 4) / 2} y={y(cours) + 4.5} textAnchor="middle" fontSize="12.5" fontWeight="700" fill="var(--cap-on-inverse)">{prix(cours)}</text>
         </g>
       )}
 
@@ -220,19 +220,19 @@ export function GraphiqueRejeu({ f, rj, i, fenetre, largeur, survol, onSurvol }:
           if (p.type === "macd") { const m = Math.max(Math.abs(lo), Math.abs(hi)) || 1; lo = -m; hi = m; }
           if (!Number.isFinite(lo)) { lo = 0; hi = 1; }
         }
-        const yy = (v: number) => y0 + 14 + (1 - (v - lo) / (hi - lo || 1)) * (HPAN - 16);
+        const yy = (v: number) => y0 + 20 + (1 - (v - lo) / (hi - lo || 1)) * (HPAN - 22);
         const derniere = p.series[0]?.valeurs[i];
         return (
           <g key={p.type}>
             <line x1={L} x2={finPlot} y1={y0} y2={y0} stroke="var(--cap-line)" />
-            <text x={L} y={y0 + 11} fontSize="10.5" fill="var(--cap-ink-3)">
+            <text x={L} y={y0 + 14} fontSize="12.5" fontWeight="600" fill="var(--cap-ink-2)">
               {p.label}{derniere != null ? ` : ${p.type === "volume" ? compact(derniere) : nombre(derniere, p.type === "rsi" ? 1 : 2)}` : ""}
             </text>
             {p.type === "rsi" && [30, 70].map((s) => <line key={s} x1={L} x2={finPlot} y1={yy(s)} y2={yy(s)} stroke="var(--cap-line-strong)" />)}
             {p.seuils.map((s) => (
               <g key={s}>
                 <line x1={L} x2={finPlot} y1={yy(s)} y2={yy(s)} stroke="var(--cap-amber-ink)" strokeDasharray="4 3" />
-                {p.type !== "macd" && <text x={finPlot + 6} y={yy(s) + 3.5} fontSize="10" fill="var(--cap-amber-ink)">{nombre(s, 0)}</text>}
+                {p.type !== "macd" && <text x={finPlot + 6} y={yy(s) + 3.5} fontSize="12" fontWeight="600" fill="var(--cap-amber-ink)">{nombre(s, 0)}</text>}
               </g>
             ))}
             {p.type === "volume"
@@ -252,21 +252,21 @@ export function GraphiqueRejeu({ f, rj, i, fenetre, largeur, survol, onSurvol }:
       })}
 
       {/* Les bandes : chaque condition, vraie ou pas */}
-      {[...f.conditions.map((c, n) => ({ texte: c.texte, n })), { texte: "toutes réunies", n: -1 }].map(({ texte, n }, ligne) => {
+      {[...f.conditions.map((c, n) => ({ texte: c.texte, n })), { texte: etroit ? "toutes réunies" : "toutes vos conditions réunies (en ambre : une entrée)", n: -1 }].map(({ texte, n }, ligne) => {
         const y0 = yBandes + ligne * LIGNE;
         const c = n >= 0 ? f.conditions[n] : null;
         const vrai = c ? (c.masque ? (k: number) => c.masque![k] === "1" : null) : (k: number) => rj.toutes[k] === 1;
         return (
           <g key={ligne}>
-            <text x={L} y={y0 + 8} fontSize="10" fill={n < 0 ? "var(--cap-ink)" : "var(--cap-ink-3)"} fontWeight={n < 0 ? 600 : 400}>
+            <text x={L} y={y0 + 12} fontSize="12.5" fill={n < 0 ? "var(--cap-ink)" : "var(--cap-ink-3)"} fontWeight={n < 0 ? 600 : 400}>
               {texte.charAt(0).toUpperCase() + texte.slice(1)}{c && !c.masque ? " (calculé seulement quand le reste est réuni)" : ""}
             </text>
-            <rect x={L} y={y0 + 11} width={finPresent - L} height="6" rx="1" fill="var(--cap-surface-2)" />
+            <rect x={L} y={y0 + 17} width={finPresent - L} height="8" rx="2" fill="var(--cap-surface-2)" />
             {vrai && plages(vrai, start, i).map(([a, b]) => (
-              <rect key={a} x={x(a) - slot / 2} y={y0 + 11} width={(b - a + 1) * slot} height="6" fill={n < 0 ? "var(--cap-ink)" : "var(--cap-ocean)"} opacity={n < 0 ? 0.9 : 0.55} />
+              <rect key={a} x={x(a) - slot / 2} y={y0 + 17} width={(b - a + 1) * slot} height="8" fill={n < 0 ? "var(--cap-ink)" : "var(--cap-ocean)"} opacity={n < 0 ? 0.9 : 0.55} />
             ))}
             {(n < 0 || (c && !c.masque)) && rj.evenements.filter((e) => e.i >= start && e.i <= i && (e.type === "entree" || (e.type === "refus" && c && !c.masque))).map((e) => (
-              <rect key={`${e.type}${e.i}`} x={x(e.i) - 1.5} y={y0 + 9} width="3" height="10" fill={e.type === "entree" ? "var(--cap-ambre)" : "var(--cap-ink-4)"} />
+              <rect key={`${e.type}${e.i}`} x={x(e.i) - 1.5} y={y0 + 15} width="3" height="12" fill={e.type === "entree" ? "var(--cap-ambre)" : "var(--cap-ink-4)"} />
             ))}
           </g>
         );
@@ -297,8 +297,8 @@ function Ligne({ s, start, i, x, y, couleur }: {
 function Etiquette({ x, y, texte, couleur }: { x: number; y: number; texte: string; couleur: string }) {
   return (
     <g>
-      <rect x={x + 2} y={y - 8} width={R - 4} height={16} rx="4" fill="var(--cap-surface)" stroke={couleur} strokeWidth="1" />
-      <text x={x + 2 + (R - 4) / 2} y={y + 3.5} textAnchor="middle" fontSize="9.5" fontWeight="600" fill={couleur}>{texte}</text>
+      <rect x={x + 2} y={y - 10} width={R - 4} height={20} rx="5" fill="var(--cap-surface)" stroke={couleur} strokeWidth="1" />
+      <text x={x + 2 + (R - 4) / 2} y={y + 3.5} textAnchor="middle" fontSize="11.5" fontWeight="700" fill={couleur}>{texte}</text>
     </g>
   );
 }
