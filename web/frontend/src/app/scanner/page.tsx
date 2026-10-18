@@ -456,7 +456,7 @@ export default function ScannerPage() {
               >
                 <ul className="[&>*+*]:border-t [&>*+*]:border-[color:var(--cap-line)]">
                   {montres.map((item, i) => (
-                    <Opportunity key={item.symbol} item={item} index={i} detailed={expert} />
+                    <Opportunity key={item.symbol} item={item} index={i} detailed={expert} timeframe={horizonScan ?? style.defaultTimeframe} />
                   ))}
                 </ul>
                 {lot.length > montres.length && (

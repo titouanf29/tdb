@@ -215,7 +215,7 @@ export function MaintenanceScreen({
               <span className="w-2 h-2 bg-profit/60" />
             </div>
             <span className="font-mono text-[12px] tracking-wide text-muted-foreground truncate">
-              captentdb.fr<span className="hidden sm:inline">, system status</span>
+              captentdb.fr<span className="hidden sm:inline"> · system status</span>
             </span>
             <span className="ml-auto flex items-center gap-1.5">
               <motion.span

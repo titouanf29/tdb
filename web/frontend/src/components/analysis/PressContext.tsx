@@ -255,7 +255,7 @@ function Evenement({
           <Text size="caption" as="span" className="mt-1 block">
             <span style={{ color: sensCouleur }}>{sensMot}</span>
             {e.effet && !repetition && (
-              <span style={{ color: "var(--cap-ink-2)" }}>, {e.effet}</span>
+              <span style={{ color: "var(--cap-ink-2)" }}> : {e.effet.charAt(0).toLowerCase() + e.effet.slice(1)}</span>
             )}
             {repetition && (
               <span style={{ color: "var(--cap-ink-3)" }}>

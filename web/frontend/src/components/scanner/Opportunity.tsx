@@ -5,7 +5,8 @@ import { motion } from "framer-motion";
 import { ArrowUpRight } from "lucide-react";
 import type { ScanResultItem } from "@/lib/api";
 import { fr } from "@/lib/SettingsContext";
-import { DUR, EASE, Num, Text } from "@/components/design-system";
+import { formatCours } from "@/lib/devise";
+import { Button, DUR, EASE, Nimbo, Num, Text } from "@/components/design-system";
 
 /**
  * Une opportunité, telle qu'elle se lit.
@@ -33,14 +34,21 @@ export function Opportunity({
   item,
   index,
   detailed,
+  timeframe,
 }: {
   item: ScanResultItem;
+  /** L'unité du scan : l'analyse doit s'ouvrir sur la même. */
+  timeframe?: string;
   /** Rang dans sa famille, pour décaler l'entrée. */
   index: number;
   /** Le niveau déclaré déplie les chiffres bruts. */
   detailed: boolean;
 }) {
-  const hausse = item.change >= 0;
+  // Arrondi d'abord : -0,004 % s'affichait « +-0,00 % ».
+  const variation = Math.round(item.change * 100) / 100 || 0;
+  const hausse = variation >= 0;
+  const href = `/analysis?symbol=${encodeURIComponent(item.symbol)}${timeframe ? `&tf=${timeframe}` : ""}`;
+  const avis = item.nimbo;
   const ton = FAMILLE_TON[item.family ?? "tendance"] ?? "var(--cap-ink-3)";
 
   return (
@@ -57,7 +65,7 @@ export function Opportunity({
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
             <Link
-              href={`/analysis?symbol=${encodeURIComponent(item.symbol)}`}
+              href={href}
               className="text-[1rem] font-medium transition-colors hover:underline"
               style={{ color: "var(--cap-ink)" }}
             >
@@ -69,7 +77,7 @@ export function Opportunity({
               </span>
             )}
             <Num tone={hausse ? "up" : "down"} className="text-[0.82rem]">
-              {hausse ? "+" : ""}{fr(item.change, 2)} %
+              {hausse ? "+" : ""}{fr(variation, 2)} %
             </Num>
           </div>
 
@@ -93,7 +101,38 @@ export function Opportunity({
               le creux ou s'en écarter. Et la réponse dépend de l'horizon : un
               rebond à contre-tendance se joue en day trading et ne se tient
               pas en long terme. */}
-          {item.sens_phrase && (
+          {/* L'AVIS DE NIMBO, VÉRIFIÉ AVEC LE MOTEUR DE L'ANALYSE. Avant, le
+              sens venait d'une règle propre au scanner, et l'analyse ouverte
+              au clic pouvait ne rien proposer. Ici, c'est la même décision :
+              s'il propose, le plan est là et le bouton mène à sa proposition ;
+              sinon il dit pourquoi, et quand revenir voir. */}
+          {avis ? (
+            <div
+              className="mt-3 flex items-start gap-3 rounded-[12px] px-3 py-2.5"
+              style={avis.propose
+                ? { backgroundColor: "color-mix(in srgb, var(--cap-up) 7%, var(--cap-surface))", boxShadow: "inset 3px 0 0 var(--cap-ambre)" }
+                : { backgroundColor: "var(--cap-surface-2)" }}
+            >
+              <Nimbo humeur={avis.propose ? "cap" : "reflechit"} taille={40} label="" className="-my-1 shrink-0" />
+              <div className="min-w-0 flex-1">
+                <Text size="small" tone="ink" className="font-medium">{item.sens_phrase}</Text>
+                {avis.propose && avis.stop != null && avis.objectif != null && (
+                  <Text size="caption" className="mt-0.5">
+                    Stop {formatCours(avis.stop, item.symbol)}, objectif {formatCours(avis.objectif, item.symbol)}
+                    {avis.rr != null ? `, 1 pour ${fr(avis.rr, 1)}` : ""}.
+                  </Text>
+                )}
+                {!avis.propose && avis.revoir && (
+                  <Text size="caption" className="mt-0.5 italic">{avis.revoir.texte}</Text>
+                )}
+              </div>
+              {avis.propose && (
+                <Button href={href} size="sm" className="shrink-0 self-center">
+                  Voir sa proposition
+                </Button>
+              )}
+            </div>
+          ) : item.sens_phrase && (
             <div className="mt-2.5 flex items-start gap-2.5">
               <span
                 aria-hidden
@@ -142,7 +181,7 @@ export function Opportunity({
             </span>
           </div>
           <Link
-            href={`/analysis?symbol=${encodeURIComponent(item.symbol)}`}
+            href={href}
             aria-label={`Analyser ${item.symbol}`}
             className="rounded-[8px] p-1.5 transition-colors hover:bg-[color:var(--cap-surface-2)]"
             style={{ color: "var(--cap-ink-3)" }}

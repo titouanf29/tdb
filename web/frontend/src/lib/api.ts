@@ -1253,6 +1253,7 @@ export interface ClimatMesure {
 }
 
 export interface Analysis {
+  nimbo?: NimboAvis;
   /** Les signaux nommés que le moteur a relevés, haussiers et baissiers.
    *  Manquait au type alors que l'API les renvoie depuis toujours — donc
    *  invisibles à l'écran sans qu'aucune erreur ne le signale. */
@@ -1582,7 +1583,20 @@ export interface Analysis {
   }[];
 }
 
+/** Ce que Nimbo dit de l'opportunité, vérifiée avec le moteur de l'analyse
+ *  (backend analysis.py, `_confirmer`). La même décision qu'au clic. */
+export interface NimboAvis {
+  propose: boolean;
+  sens: "long" | "short" | null;
+  raison: string | null;
+  revoir: { texte: string; a: string | null } | null;
+  stop: number | null;
+  objectif: number | null;
+  rr: number | null;
+}
+
 export interface ScanResultItem {
+  nimbo?: NimboAvis;
   symbol: string;
   name?: string;
   price: number;

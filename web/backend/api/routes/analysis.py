@@ -1853,7 +1853,11 @@ async def analyze_asset(
         # Après tous les avertissements, sur le verdict final : seule une
         # proposition que l'écran FAIT est suivie.
         if (result["tradeability"]["tradable"] and not risk_block.get("illustratif")
-                and risk_block.get("suggested_sl") and risk_block.get("suggested_tp")):
+                and risk_block.get("suggested_sl") and risk_block.get("suggested_tp")
+                # Le scanner vérifie avec ce moteur sans que la vérification
+                # compte comme une proposition faite : elle le sera quand la
+                # personne ouvrira l'analyse.
+                and not request.headers.get("X-Nimbo-Scanner")):
             try:
                 await noter_proposition(symbol, timeframe, risk_block["direction"], float(final_score),
                                         float(current_price), float(risk_block["suggested_sl"]),
@@ -1864,6 +1868,24 @@ async def analyze_asset(
                                         else current_user.get("id"))
             except Exception as e:
                 logger.warning("proposition %s non suivie : %s", symbol, e)
+
+        # ── Quand Nimbo ne propose rien : quand revenir (_revoir.py) ───────
+        # La même phrase sur l'analyse et dans le scanner, calculée une fois.
+        _propose = (result["tradeability"]["tradable"] and not risk_block.get("illustratif")
+                    and risk_block.get("suggested_sl") and risk_block.get("suggested_tp"))
+        result["nimbo"] = {
+            "propose": bool(_propose),
+            "sens": ("short" if risk_block.get("direction") == "SHORT" else "long") if _propose else None,
+            "raison": None if _propose else (result["tradeability"]["blockers"] or [None])[0],
+            "revoir": None,
+        }
+        if not _propose:
+            try:
+                from ._revoir import quand_revenir
+                result["nimbo"]["revoir"] = quand_revenir(
+                    result["nimbo"]["raison"] or "Verdict neutre", timeframe, symbol)
+            except Exception as e:
+                logger.warning("revoir %s : %s", symbol, e)
 
         # ── Ce que cette analyse veut dire POUR CETTE PERSONNE ─────────────
         #
@@ -2649,6 +2671,68 @@ async def scan_market(
         pas comme tel."""
         return r["score"]
 
+    # ── NIMBO VÉRIFIE CHAQUE OPPORTUNITÉ RETENUE ──────────────────────────
+    #
+    # Le scanner partageait le SCORE de l'analyse, pas sa DÉCISION. Il
+    # étiquetait « long » ou « short » d'après le score et l'horizon, alors
+    # que Nimbo, sur la page d'analyse, ne propose qu'après toutes ses portes :
+    # rapport gain/risque jusqu'au premier obstacle, historique du plan sur
+    # l'actif, liquidité, qualité des données, vente à découvert non prouvée,
+    # intraday. On cliquait sur un « long » et Nimbo ne proposait rien.
+    #
+    # Les opportunités gardées passent donc par la fonction d'analyse
+    # elle-même, aux réglages du profil (mêmes multiples d'ATR que l'écran,
+    # lib/tradingStyle.ts). Le sens, le stop, l'objectif et la raison
+    # affichés sont ceux que Nimbo montrera au clic, et quand il ne propose
+    # rien, la carte dit pourquoi et quand revenir.
+    _PLAN_STYLE = {"scalp": (4.0, 6.0, 0.0), "day": (4.0, 6.0, 0.05),
+                   "swing": (1.5, 4.5, 0.2), "long": (2.0, 6.0, 0.45)}
+    _risque_profil = await risque_utilisateur(current_user)
+
+    async def _confirmer(rows: list) -> None:
+        from starlette.requests import Request as _Req
+        sl_atr, tp_atr, fund_w = _PLAN_STYLE.get(_style, _PLAN_STYLE["day"])
+        _req = _Req({"type": "http", "method": "GET", "path": "/", "query_string": b"",
+                     "headers": [(b"x-nimbo-scanner", b"1")], "client": ("127.0.0.1", 0)})
+        sem = asyncio.Semaphore(4)
+
+        async def _un(r: dict) -> None:
+            async with sem:
+                try:
+                    a = await analyze_asset.__wrapped__(
+                        request=_req, symbol=r["symbol"], timeframe=timeframe,
+                        sl_atr=sl_atr, tp_atr=tp_atr, fund_weight=fund_w,
+                        style=_style, risk_level=_risque_profil, current_user=current_user)
+                except Exception as e:
+                    logger.info("confirmation %s : %s", r.get("symbol"), e)
+                    return
+            n = (a or {}).get("nimbo") or {}
+            rk = (a or {}).get("risk") or {}
+            r["nimbo"] = {
+                "propose": bool(n.get("propose")),
+                "sens": n.get("sens"),
+                "raison": n.get("raison"),
+                "revoir": n.get("revoir"),
+                "stop": rk.get("suggested_sl") if n.get("propose") else None,
+                "objectif": rk.get("suggested_tp") if n.get("propose") else None,
+                "rr": rk.get("risk_reward") if n.get("propose") else None,
+            }
+            r["sens"] = n.get("sens") or "aucun"
+            if n.get("propose"):
+                r["sens_phrase"] = ("Nimbo propose de vendre à découvert" if n.get("sens") == "short"
+                                    else "Nimbo propose d'acheter") + (
+                    f" : vous risquez 1 pour viser {nombre_fr(rk['risk_reward'], 1)}."
+                    if rk.get("risk_reward") else ".")
+            else:
+                # La première phrase de la raison : le détail chiffré est sur
+                # l'analyse, la carte du scanner dit l'essentiel.
+                raison = (n.get("raison") or "le moteur ne voit pas de plan assez net").split(" — ")[0].split(". ")[0].rstrip(".")
+                r["sens_phrase"] = f"Nimbo ne propose rien pour l'instant : {raison[:1].lower() + raison[1:]}."
+
+        await asyncio.gather(*[_un(r) for r in rows])
+        # Ce que Nimbo propose passe devant, puis le reste par score.
+        rows.sort(key=lambda r: (bool((r.get("nimbo") or {}).get("propose")), r["score"]), reverse=True)
+
     gate = asyncio.Semaphore(_SCAN_CONCURRENCY)
 
     async def _analyze_gated(symbol: str):
@@ -2753,12 +2837,16 @@ async def scan_market(
             await _record_scan(current_user["id"], market_key)
             q = await _check_scan_limit(current_user)
             kept.sort(key=_rang, reverse=True)
+            retenus = kept[:limit]
+            yield _json.dumps({"type": "phase", "phase": "nimbo",
+                               "label": "Nimbo vérifie chaque opportunité"}) + "\n"
+            await _confirmer(retenus)
             yield _json.dumps({
                 "type": "done",
                 "total_scanned": len(assets),
                 "total_analyzed": analyzed_n,
                 "kept": len(kept),
-                "results": [_sanitize(r) for r in kept[:limit]],
+                "results": [_sanitize(r) for r in retenus],
                 "quota": {
                     "scans_today": q["scans_today"], "daily_limit": q["daily_limit"],
                     "remaining": q["remaining"], "is_premium": q["is_premium"],
@@ -2779,6 +2867,8 @@ async def scan_market(
     analyzed = [r for r in all_results if r is not None]
     results = [r for r in analyzed if _garde(r)]
     results.sort(key=_rang, reverse=True)
+    results = results[:limit]
+    await _confirmer(results)
 
     # Record the scan usage (non-blocking)
     await _record_scan(current_user["id"], market_key)

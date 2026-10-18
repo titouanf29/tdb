@@ -77,6 +77,8 @@ const DEPTHS: { value: Depth; label: string }[] = [
   { value: "advanced", label: "Avancé" },
 ];
 
+const TIMEFRAMES_VALIDES = ["5m", "15m", "30m", "1h", "4h", "1d", "3d", "1w", "1mo"];
+
 export default function AnalysisPage() {
   return (
     <Suspense fallback={<CloudCurtain active label="Chargement" />}>
@@ -185,7 +187,14 @@ function AnalysisScreen() {
    * touche au sélecteur d'unité, l'horizon ne le réécrit plus — jusqu'au
    * prochain changement d'horizon, qui reprend la main.
    */
-  const [uniteChoisie, setUniteChoisie] = useState(false);
+  // Depuis le scanner, l'unité du scan arrive dans l'adresse (`tf`) : Nimbo
+  // y a déjà vérifié l'opportunité, l'analyse doit s'ouvrir sur la même.
+  const urlTf = params.get("tf");
+  const [uniteChoisie, setUniteChoisie] = useState(!!urlTf && TIMEFRAMES_VALIDES.includes(urlTf));
+  useEffect(() => {
+    if (urlTf && TIMEFRAMES_VALIDES.includes(urlTf)) { setTimeframe(urlTf); setUniteChoisie(true); }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [urlTf]);
   useEffect(() => {
     if (!uniteChoisie) setTimeframe(style.defaultTimeframe);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1173,8 +1182,15 @@ function PropositionNimbo({
                   </>
               : blocage
                 ? <>{blocage}.</>
-                : "Le moteur ne voit pas de plan assez net. Revenez voir plus tard, ou changez d'unité de temps."}
+                : "Le moteur ne voit pas de plan assez net."}
           </Text>
+          {/* Quand revenir : calculé par le serveur (_revoir.py), la même
+              phrase que sur la carte du scanner. */}
+          {!propose && a.nimbo?.revoir && (
+            <p className="mt-2 text-[0.92rem] italic" style={{ color: "var(--cap-ink)", fontFamily: "var(--cap-font-display)" }}>
+              {a.nimbo.revoir.texte}
+            </p>
+          )}
         </div>
       </div>
 
@@ -1273,7 +1289,7 @@ function PendantLeTrade({ ev }: { ev: NonNullable<Analysis["evenements_plan"]> }
         {lignes.map((l) => (
           <li key={l.cle}>
             <span className="text-[0.9rem] font-semibold" style={{ color: "var(--cap-ink)" }}>{l.titre}</span>
-            <Text size="small" as="span">, {l.texte}</Text>
+            <Text size="small" as="span"> : {l.texte.charAt(0).toLowerCase() + l.texte.slice(1)}</Text>
           </li>
         ))}
       </ul>
