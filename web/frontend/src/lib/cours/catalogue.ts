@@ -23,12 +23,12 @@ export interface FicheLecon {
 }
 
 export const CHAPITRES: Chapitre[] = [
-  { id: "lire", titre: "Lire un graphique", resume: "Les axes, les bougies, la tendance, et les niveaux où le prix réagit.", lecons: [1, 3, 28, 29, 33, 34] },
+  { id: "lire", titre: "Lire un graphique", resume: "Les axes, les bougies, la tendance, et les niveaux où le prix réagit.", lecons: [1, 3, 28, 29, 33, 34, 35] },
   { id: "marches", titre: "Les marchés et leurs horaires", resume: "Ce qu'on achète, quand ça bouge, et pourquoi tout le monde regarde l'or.", lecons: [2, 12, 13, 5] },
-  { id: "ordres", titre: "Passer un ordre, et ce qu'il coûte", resume: "Les ordres, acheter ou vendre, et chaque frais qui se cache dans un trade.", lecons: [14, 15, 16, 17, 18, 21, 22] },
+  { id: "ordres", titre: "Passer un ordre, et ce qu'il coûte", resume: "Les ordres, acheter ou vendre, et chaque frais qui se cache dans un trade.", lecons: [14, 15, 16, 17, 18, 36, 21, 22] },
   { id: "risque", titre: "Gérer son risque", resume: "Le stop, la taille de position, le plan : ce qui sépare le trader du joueur.", lecons: [7, 19, 20, 24, 23] },
   { id: "indicateurs", titre: "Les indicateurs", resume: "Moyennes mobiles, RSI, MACD, Bollinger, Fibonacci : ce qu'ils mesurent, et leurs pièges.", lecons: [6, 4, 8, 9, 25] },
-  { id: "signaux", titre: "Les signaux du prix", resume: "Cassures, retours, pin bars et figures : lire ce que le prix raconte.", lecons: [30, 31, 32, 10] },
+  { id: "signaux", titre: "Les signaux du prix", resume: "Le volume, les cassures, les retours, les pin bars et les figures : lire ce que le prix raconte.", lecons: [37, 30, 31, 32, 10] },
   { id: "tenir", titre: "Tester, se protéger, tenir", resume: "Tester une idée sur le passé, repérer les arnaques, et tenir face à ses émotions.", lecons: [26, 27, 11] },
 ];
 
@@ -66,7 +66,10 @@ export const FICHES: FicheLecon[] = [
   { numero: 31, slug: "le-pullback", titre: "Le pullback : le retour sur la cassure", court: "Le pullback", duree: "12 min", resume: "Le retour sur le niveau cassé, et comment y entrer." },
   { numero: 32, slug: "la-pin-bar", titre: "La pin bar : la bougie qui dit non", court: "La pin bar", duree: "10 min", resume: "Une longue mèche sur un niveau : le prix a été refusé." },
   { numero: 33, slug: "supports-et-resistances", titre: "Les supports et les résistances, en détail", court: "Supports et résistances", duree: "14 min", resume: "Pourquoi le prix rebondit au même endroit, et comment tracer ses zones." },
-  { numero: 34, slug: "le-range", titre: "Le range : quand le prix ne choisit pas", court: "Le range", duree: "12 min", resume: "Un couloir entre un plancher et un plafond, et comment le trader." },
+  { numero: 34, slug: "le-range", titre: "Le range : quand le prix tourne en rond", court: "Le range", duree: "12 min", resume: "Un couloir entre un plancher et un plafond, et comment le trader." },
+  { numero: 35, slug: "les-triangles", titre: "Les triangles : quand le prix se resserre", court: "Les triangles", duree: "12 min", resume: "Ascendant, descendant, symétrique : le range qui se resserre avant de sortir." },
+  { numero: 36, slug: "effet-de-levier-en-vrai", titre: "L'effet de levier, en vrai : ce qu'il fait à votre compte", court: "Le levier, en vrai", duree: "12 min", resume: "La marge, la marge libre, le niveau de marge, l'appel de marge et la clôture forcée, chiffre par chiffre." },
+  { numero: 37, slug: "le-volume", titre: "Le volume : ce qu'il confirme", court: "Le volume", duree: "10 min", resume: "Ce qui s'est échangé pendant une bougie, et pourquoi une cassure avec du volume est plus crédible." },
 ];
 
 export function fiche(numero: number): FicheLecon | undefined {

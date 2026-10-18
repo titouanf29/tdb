@@ -13,7 +13,7 @@ import { MotsAuScroll } from "./animations";
  */
 
 const STAGES = [
-  { title: "Formation", body: "Trente-quatre leçons, une par vidéo de la série : lire un graphique, les ordres, le risque, les indicateurs, avec des graphiques à manipuler." },
+  { title: "Formation", body: "Une leçon par vidéo de la série : lire un graphique, les ordres, le risque, les indicateurs, avec des graphiques à manipuler." },
   { title: "Analyse", body: "Un actif, un verdict, et la raison du verdict, au niveau de détail que vous avez choisi." },
   { title: "Scanner", body: "Les opportunités qui correspondent à votre profil, et pourquoi elles y correspondent." },
   { title: "Paper trading", body: "La décision se teste. Le risque est dimensionné avant l'entrée." },
