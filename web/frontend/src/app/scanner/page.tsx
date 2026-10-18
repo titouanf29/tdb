@@ -236,14 +236,27 @@ export default function ScannerPage() {
           classes: sel.classes,
           minScore,
           direction,
-          limit: 40,
+          // 24 et non 40 : chaque opportunité retenue est vérifiée par
+          // Nimbo avec le moteur complet, et l'écran n'en montre au plus
+          // qu'une douzaine par famille. Quarante vérifications pour en
+          // afficher vingt, c'était le gros de l'attente.
+          limit: 24,
           timeframe: horizonScan ?? style.defaultTimeframe,
         },
         (e: ScanEvent) => {
           if (e.type === "start") {
             setSweep({ symbols: e.symbols, done: new Map() });
           } else if (e.type === "phase") {
-            setPhase(e.label);
+            setPhase(e.phase === "nimbo" && e.total
+              ? `Nimbo vérifie chaque opportunité, ${e.deja ?? 0} sur ${e.total}` : e.label);
+          } else if (e.type === "nimbo") {
+            // L'avis arrive carte par carte, dès le balayage : celles que
+            // Nimbo propose montent dans « Nimbo vous propose » aussitôt.
+            setResults((rs) => {
+              const i = rs.findIndex((r) => r.symbol === e.item.symbol);
+              if (i < 0) return [...rs, e.item];
+              const n = rs.slice(); n[i] = e.item; return n;
+            });
           } else if (e.type === "result") {
             // Une Map neuve à chaque événement : muter celle de l'état ne
             // déclencherait aucun rendu, et le balayage resterait figé.

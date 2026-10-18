@@ -555,9 +555,9 @@ def _fetch_news_sync(ticker):
         return []
 
 
-def _historical_edge_sync(symbol: str, timeframe: str, hist, sl_atr: float,
-                          tp_atr: float, bench_close=None, current_regime: str | None = None,
-                          bench_symbol: str | None = None) -> dict:
+async def _historical_edge(symbol: str, timeframe: str, hist, sl_atr: float,
+                           tp_atr: float, bench_close=None, current_regime: str | None = None,
+                           bench_symbol: str | None = None) -> dict:
     """Triple-barrier replay of THIS asset's history with the user's own
     stop/target, cached for an hour.
 
@@ -565,30 +565,18 @@ def _historical_edge_sync(symbol: str, timeframe: str, hist, sl_atr: float,
     with the market regime that was visible when it opened, so the engine can
     answer the sharper question: not "what followed this score level here?"
     but "what followed it here, in a market like today's?".
-    """
+
+    Le rejeu tourne dans un processus à part (_rejeu.py) : deux secondes de
+    calcul pur qui, dans un thread, bloquaient le serveur et passaient en
+    file derrière les autres."""
     import time as _time
+    from ._rejeu import rejouer
     key = (symbol, timeframe, round(sl_atr, 2), round(tp_atr, 2), current_regime or "-", ENGINE_VERSION)
     hit = _EDGE_CACHE.get(key)
     if hit and _time.monotonic() - hit[0] < _EDGE_TTL:
         return hit[1]
     try:
-        regimes = None
-        if bench_close is not None:
-            try:
-                regimes = regime_series(bench_close)
-            except Exception:
-                regimes = None
-        # Coarser sampling than the explicit backtest button (120 vs 250
-        # evaluations): this runs on the first analysis of every asset, and
-        # the trade count it yields is what matters, not the grid density.
-        # Le rejeu du signal AFFICHÉ : mêmes portes, même plan, mêmes seuils
-        # à l'échelle de la bougie que l'écran.
-        r = run_backtest(hist, horizon=horizon_rejeu(timeframe), sl_atr=sl_atr, tp_atr=tp_atr,
-                         mode="event", max_evals=120, regimes=regimes,
-                         extension=extension_validee(timeframe),
-                         timeframe=timeframe, bench_close=bench_close,
-                         bench_symbol=bench_symbol,
-                         jours_par_bougie=jours_par_bougie(hist, timeframe))
+        r = await rejouer(hist, timeframe, sl_atr, tp_atr, bench_close, bench_symbol)
         edge = {
             "n_trades": r.get("n_trades", 0),
             "enough_samples": r.get("enough_samples", False),
@@ -1031,6 +1019,13 @@ async def analyze_asset(
     if not _SYMBOL_RE.match(symbol.upper()):
         raise HTTPException(status_code=400, detail="Symbole invalide")
     symbol = symbol.upper()
+    # LA VÉRIFICATION DU SCANNER (en-tête X-Nimbo-Scanner) ne demande que la
+    # DÉCISION : score, portes, plan, blocages. Ce qui ne fait qu'ajouter du
+    # contexte ou des avertissements (actualité et sa traduction, climat,
+    # événements pendant le plan, corrélation, bloc personnel) est sauté :
+    # une seconde à quatre par actif, pour rien que la carte affiche. Tout
+    # reste calculé quand la personne ouvre l'analyse.
+    _leger = bool(request.headers.get("X-Nimbo-Scanner"))
 
     try:
         # Get historical data
@@ -1183,9 +1178,9 @@ async def analyze_asset(
         bullish_signals.extend(_f_bull)
         bearish_signals.extend(_f_bear)
 
-        _edge_fut = _loop.run_in_executor(
-            None, _historical_edge_sync, symbol, timeframe, hist, sl_atr, tp_atr,
-            _bench_close, (market_context or {}).get("regime"), _bench)
+        _edge_fut = asyncio.ensure_future(_historical_edge(
+            symbol, timeframe, hist, sl_atr, tp_atr,
+            _bench_close, (market_context or {}).get("regime"), _bench))
 
         # Determine trend (based on EMA alignment) — shared with the scanner
         trend = derive_trend(current_price, float(ema20.iloc[-1]), float(ema50.iloc[-1]))
@@ -1445,7 +1440,7 @@ async def analyze_asset(
         news_items = []
         try:
             news = (await asyncio.get_event_loop().run_in_executor(None, _fetch_news_sync, ticker)
-                    if ticker is not None else [])
+                    if ticker is not None and not _leger else [])
             for item in news:
                 content = item.get("content") or {}
                 provider = content.get("provider") or {}
@@ -1661,7 +1656,7 @@ async def analyze_asset(
             "market_context": market_context,
             # Peur (VIX) et taux US 10 ans : contexte à lire, hors score
             # (voir _climat.py pour la mesure qui l'a décidé).
-            "climat_marche": await climat_marche(),
+            "climat_marche": None if _leger else await climat_marche(),
             # A direction is not a trade. Blockers are listed explicitly so the
             # refusal is auditable rather than a silent downgrade.
             # Le seuil d'achat appliqué à CET utilisateur, pour que l'écran
@@ -1827,7 +1822,8 @@ async def analyze_asset(
         # enjambent une publication n'ont pas fait pire en moyenne, seulement
         # plus dispersé (voir _evenements.py).
         try:
-            ev_plan = await pendant_le_plan(symbol, timeframe, info=info, nom=company_info.get("name"))
+            ev_plan = ({"phrases": []} if _leger
+                       else await pendant_le_plan(symbol, timeframe, info=info, nom=company_info.get("name")))
             result["evenements_plan"] = ev_plan
             if ev_plan["phrases"]:
                 result["tradeability"]["warnings"] = ev_plan["phrases"] + result["tradeability"]["warnings"]
@@ -1837,7 +1833,7 @@ async def analyze_asset(
         # ── Ce trade ressemble-t-il à ceux qui sont déjà ouverts ? ─────────
         # Arithmétique du portefeuille, pas un signal : le verdict ne bouge
         # pas, l'avertissement s'ajoute (voir _correlation.py).
-        if current_user:
+        if current_user and not _leger:
             try:
                 corr = await avec_positions(current_user, symbol, risk_block.get("direction"),
                                             hist if timeframe == "1d" else None)
@@ -1893,7 +1889,7 @@ async def analyze_asset(
         # du verdict : les réponses de l'utilisateur décident de ce qu'on lui
         # montre et de ce dont on l'avertit, pas de ce que fait le marché.
         # Un échec ici doit coûter le bloc, pas l'analyse.
-        if current_user:
+        if current_user and not _leger:
             try:
                 profil = await lire_profil(current_user["id"])
                 personnel = adapter_personnel(profil, result, style)
@@ -2689,47 +2685,49 @@ async def scan_market(
                    "swing": (1.5, 4.5, 0.2), "long": (2.0, 6.0, 0.45)}
     _risque_profil = await risque_utilisateur(current_user)
 
+    from starlette.requests import Request as _Req
+    _sl_atr, _tp_atr, _fund_w = _PLAN_STYLE.get(_style, _PLAN_STYLE["day"])
+    _req_verif = _Req({"type": "http", "method": "GET", "path": "/", "query_string": b"",
+                       "headers": [(b"x-nimbo-scanner", b"1")], "client": ("127.0.0.1", 0)})
+    _sem_verif = asyncio.Semaphore(4)
+
+    async def _verifier(r: dict) -> dict:
+        """L'avis de Nimbo sur une opportunité, posé sur la ligne elle-même."""
+        async with _sem_verif:
+            try:
+                a = await analyze_asset.__wrapped__(
+                    request=_req_verif, symbol=r["symbol"], timeframe=timeframe,
+                    sl_atr=_sl_atr, tp_atr=_tp_atr, fund_weight=_fund_w,
+                    style=_style, risk_level=_risque_profil, current_user=current_user)
+            except Exception as e:
+                logger.info("confirmation %s : %s", r.get("symbol"), e)
+                return r
+        n = (a or {}).get("nimbo") or {}
+        rk = (a or {}).get("risk") or {}
+        r["nimbo"] = {
+            "propose": bool(n.get("propose")),
+            "sens": n.get("sens"),
+            "raison": n.get("raison"),
+            "revoir": n.get("revoir"),
+            "stop": rk.get("suggested_sl") if n.get("propose") else None,
+            "objectif": rk.get("suggested_tp") if n.get("propose") else None,
+            "rr": rk.get("risk_reward") if n.get("propose") else None,
+        }
+        r["sens"] = n.get("sens") or "aucun"
+        if n.get("propose"):
+            r["sens_phrase"] = ("Nimbo propose de vendre à découvert" if n.get("sens") == "short"
+                                else "Nimbo propose d'acheter") + (
+                f" : vous risquez 1 pour viser {nombre_fr(rk['risk_reward'], 1)}."
+                if rk.get("risk_reward") else ".")
+        else:
+            # La première phrase de la raison : le détail chiffré est sur
+            # l'analyse, la carte du scanner dit l'essentiel.
+            raison = (n.get("raison") or "le moteur ne voit pas de plan assez net").split(" — ")[0].split(". ")[0].rstrip(".")
+            r["sens_phrase"] = f"Nimbo ne propose rien pour l'instant : {raison[:1].lower() + raison[1:]}."
+        return r
+
     async def _confirmer(rows: list) -> None:
-        from starlette.requests import Request as _Req
-        sl_atr, tp_atr, fund_w = _PLAN_STYLE.get(_style, _PLAN_STYLE["day"])
-        _req = _Req({"type": "http", "method": "GET", "path": "/", "query_string": b"",
-                     "headers": [(b"x-nimbo-scanner", b"1")], "client": ("127.0.0.1", 0)})
-        sem = asyncio.Semaphore(4)
-
-        async def _un(r: dict) -> None:
-            async with sem:
-                try:
-                    a = await analyze_asset.__wrapped__(
-                        request=_req, symbol=r["symbol"], timeframe=timeframe,
-                        sl_atr=sl_atr, tp_atr=tp_atr, fund_weight=fund_w,
-                        style=_style, risk_level=_risque_profil, current_user=current_user)
-                except Exception as e:
-                    logger.info("confirmation %s : %s", r.get("symbol"), e)
-                    return
-            n = (a or {}).get("nimbo") or {}
-            rk = (a or {}).get("risk") or {}
-            r["nimbo"] = {
-                "propose": bool(n.get("propose")),
-                "sens": n.get("sens"),
-                "raison": n.get("raison"),
-                "revoir": n.get("revoir"),
-                "stop": rk.get("suggested_sl") if n.get("propose") else None,
-                "objectif": rk.get("suggested_tp") if n.get("propose") else None,
-                "rr": rk.get("risk_reward") if n.get("propose") else None,
-            }
-            r["sens"] = n.get("sens") or "aucun"
-            if n.get("propose"):
-                r["sens_phrase"] = ("Nimbo propose de vendre à découvert" if n.get("sens") == "short"
-                                    else "Nimbo propose d'acheter") + (
-                    f" : vous risquez 1 pour viser {nombre_fr(rk['risk_reward'], 1)}."
-                    if rk.get("risk_reward") else ".")
-            else:
-                # La première phrase de la raison : le détail chiffré est sur
-                # l'analyse, la carte du scanner dit l'essentiel.
-                raison = (n.get("raison") or "le moteur ne voit pas de plan assez net").split(" — ")[0].split(". ")[0].rstrip(".")
-                r["sens_phrase"] = f"Nimbo ne propose rien pour l'instant : {raison[:1].lower() + raison[1:]}."
-
-        await asyncio.gather(*[_un(r) for r in rows])
+        await asyncio.gather(*[_verifier(r) for r in rows])
         # Ce que Nimbo propose passe devant, puis le reste par score.
         rows.sort(key=lambda r: (bool((r.get("nimbo") or {}).get("propose")), r["score"]), reverse=True)
 
@@ -2782,6 +2780,27 @@ async def scan_market(
 
             kept: list = []
             analyzed_n = 0
+            # LA VÉRIFICATION DÉMARRE PENDANT LE BALAYAGE. Le balayage attend
+            # surtout le réseau ; la vérification, elle, calcule (le rejeu de
+            # l'historique du plan, deux secondes par actif). Les enchaîner
+            # additionnait les deux attentes ; les superposer, c'est n'en
+            # payer qu'une. Chaque opportunité retenue part donc en
+            # vérification dès qu'elle est retenue, et son avis est diffusé
+            # dès qu'il est prêt.
+            verifs: dict = {}
+            avis_prets: asyncio.Queue = asyncio.Queue()
+
+            async def _verifier_et_signaler(r: dict) -> None:
+                await _verifier(r)
+                await avis_prets.put(r)
+
+            def _vider_avis():
+                out = []
+                while not avis_prets.empty():
+                    r = avis_prets.get_nowait()
+                    out.append(_json.dumps({"type": "nimbo", "done": None, "total": None,
+                                            "item": _sanitize(r)}) + "\n")
+                return out
             done_n = 0
 
             # PAR PAQUETS, et c'est tout l'intérêt.
@@ -2817,8 +2836,14 @@ async def scan_market(
                             continue
                         analyzed_n += 1
                         keep = _garde(r)
+                        for ligne in _vider_avis():
+                            yield ligne
                         if keep:
                             kept.append(r)
+                            # Plafonné : à l'exigence « Large » sur tout
+                            # l'univers, des centaines d'actifs sont retenus.
+                            if len(verifs) < limit + 10:
+                                verifs[r["symbol"]] = asyncio.create_task(_verifier_et_signaler(r))
                             yield _json.dumps({"type": "result", "done": done_n,
                                                "item": _sanitize(r)}) + "\n"
                         else:
@@ -2838,9 +2863,33 @@ async def scan_market(
             q = await _check_scan_limit(current_user)
             kept.sort(key=_rang, reverse=True)
             retenus = kept[:limit]
-            yield _json.dumps({"type": "phase", "phase": "nimbo",
+            garder = {r["symbol"] for r in retenus}
+            for sym, t in verifs.items():
+                if sym not in garder and not t.done():
+                    t.cancel()
+            for r in retenus:
+                if r["symbol"] not in verifs:
+                    verifs[r["symbol"]] = asyncio.create_task(_verifier_et_signaler(r))
+            a_attendre = [verifs[r["symbol"]] for r in retenus]
+            deja = sum(1 for t in a_attendre if t.done())
+            yield _json.dumps({"type": "phase", "phase": "nimbo", "total": len(retenus), "deja": deja,
                                "label": "Nimbo vérifie chaque opportunité"}) + "\n"
-            await _confirmer(retenus)
+            for ligne in _vider_avis():
+                yield ligne
+            faits = deja
+            for fut in asyncio.as_completed([t for t in a_attendre if not t.done()]):
+                try:
+                    await fut
+                except Exception:
+                    pass
+                faits += 1
+                for ligne in _vider_avis():
+                    yield ligne
+                yield _json.dumps({"type": "phase", "phase": "nimbo", "total": len(retenus), "deja": faits,
+                                   "label": "Nimbo vérifie chaque opportunité"}) + "\n"
+            for ligne in _vider_avis():
+                yield ligne
+            retenus.sort(key=lambda r: (bool((r.get("nimbo") or {}).get("propose")), r["score"]), reverse=True)
             yield _json.dumps({
                 "type": "done",
                 "total_scanned": len(assets),

@@ -1689,7 +1689,10 @@ export interface ScanIntent {
 /** Un événement du scan diffusé au fil de l'eau. */
 export type ScanEvent =
   | { type: "start"; total: number; symbols: string[]; timeframe: string; min_score: number }
-  | { type: "phase"; phase: string; label: string }
+  | { type: "phase"; phase: string; label: string; total?: number; deja?: number }
+  /** Un actif retenu vient d'être vérifié par Nimbo (moteur de l'analyse),
+   *  pendant le balayage ou juste après. */
+  | { type: "nimbo"; item: ScanResultItem }
   | { type: "result"; done: number; item: ScanResultItem }
   | { type: "seen"; done: number; symbol: string; score: number; place?: string }
   | { type: "skip"; done: number }

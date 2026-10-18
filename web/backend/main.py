@@ -102,6 +102,9 @@ async def lifespan(app: FastAPI):
     _veille_tache = _asyncio.create_task(_veille_boucle())
 
     yield
+    # Les processus du rejeu (_rejeu.py) s'arrêtent avec le serveur.
+    from api.routes._rejeu import arreter as _arreter_rejeu
+    _arreter_rejeu()
     _macro_tache.cancel()
     _veille_tache.cancel()
     print("👋 TDB Web API shutting down...")
