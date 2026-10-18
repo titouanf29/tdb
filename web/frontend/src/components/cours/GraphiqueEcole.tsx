@@ -109,7 +109,7 @@ export function GraphiqueEcole(cfg: ConfigGraphique) {
       const t0 = performance.now();
       // Lent et régulier, avec un départ et une arrivée en douceur : on doit
       // pouvoir suivre ce qui se passe.
-      const duree = Math.min(7000, 2500 + n * 55);
+      const duree = Math.min(5000, 1800 + n * 40);
       const pas = (t: number) => {
         const f = Math.min(1, (t - t0) / duree);
         setProg(-(Math.cos(Math.PI * f) - 1) / 2);
@@ -207,7 +207,7 @@ export function GraphiqueEcole(cfg: ConfigGraphique) {
   const finXCfg = x(finCfg) + slot / 2;
   // Un élément après l'autre, sans faire attendre plus de quelques secondes.
   const nbZones = (cfg.zones ?? []).length, nbNiveaux = (cfg.niveaux ?? []).length;
-  const delai = (k: number) => `${Math.min(k * 0.9, 3.6)}s`;
+  const delai = (k: number) => `${Math.min(k * 0.6, 2.4)}s`;
   // Le bord du balayage, en pixels, et ce qui est déjà passé dessous.
   const bord = prog == null ? null : G + prog * (finXCfg - G);
   const passe = (i: number) => bord == null || x(i) <= bord;
