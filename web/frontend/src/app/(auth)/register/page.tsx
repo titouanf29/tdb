@@ -64,12 +64,13 @@ export default function RegisterPage() {
   return (
     <AuthScreen
       eyebrow="Créer un compte"
-      title={<>Commencez avec 10 000 € qui ne sont pas les vôtres.</>}
-      lead="Un espace d'entraînement complet : vous prenez de vraies décisions sur de vrais marchés, sans qu'un euro ne soit en jeu."
+      title={<>Ici, vous allez apprendre à trader sans risquer un euro.</>}
+      lead="Vous recevez 10 000 € fictifs et les vrais cours du marché. Nimbo, votre guide, vous explique chaque décision avant que vous la preniez, puis vous aide à comprendre ce qui s'est passé."
       points={[
-        "800+ actifs, actions, crypto, indices, matières premières",
-        "Analyse expliquée, au niveau de détail que vous choisissez",
-        "Journal, formation et missions pour progresser",
+        "Plus de 800 actifs : actions, crypto, indices, matières premières",
+        "Des analyses expliquées, au niveau de détail que vous choisissez",
+        "Vos propres stratégies, testées sur des années de cours",
+        "Des cours, un journal et des missions pour progresser à votre rythme",
       ]}
       footer={
         <Text size="small" className="text-center">

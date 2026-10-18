@@ -224,7 +224,7 @@ export default function PolitiqueConfidentialitePage() {
         <section id="cookies" className="glass-card p-6 space-y-4 scroll-mt-6">
           <LegalSectionTitle num="5" id="cookies-title" title="Cookies & stockage local" />
           <p className="text-muted-foreground">
-            CaptenTDB n'utilise pas de cookies au sens strict (fichiers déposés par le serveur sur votre navigateur). Nous utilisons uniquement le <strong className="text-foreground">localStorage</strong> du navigateur pour stocker des données côté client.
+            CaptenTDB dépose un seul cookie, celui qui garde votre session ouverte. Le reste (vos préférences d'affichage, ce que vous avez déjà vu) est gardé dans le <strong className="text-foreground">stockage local</strong> de votre navigateur et ne quitte pas votre appareil.
           </p>
           <div className="overflow-x-auto rounded-xl border border-white/10">
             <table className="w-full text-xs min-w-[400px]">
@@ -237,6 +237,12 @@ export default function PolitiqueConfidentialitePage() {
                 </tr>
               </thead>
               <tbody className="text-muted-foreground divide-y divide-white/5">
+                <tr>
+                  <td className="p-3 font-mono">tdb_sess (cookie)</td>
+                  <td className="p-3">Votre session de connexion. Illisible par les scripts de la page (httpOnly), jamais envoyé à un autre site (SameSite=Lax), seulement en HTTPS.</td>
+                  <td className="p-3">1 heure, ou 30 jours avec « rester connecté »</td>
+                  <td className="p-3" style={{ color: "var(--cap-up)" }}>✓ Oui</td>
+                </tr>
                 <tr>
                   <td className="p-3 font-mono">auth_token</td>
                   <td className="p-3">Token JWT d'authentification (signé, non chiffré)</td>
@@ -253,7 +259,7 @@ export default function PolitiqueConfidentialitePage() {
             </table>
           </div>
           <InfoBox variant="success">
-            Aucun cookie publicitaire, aucun traceur tiers (Google Analytics, Meta Pixel, Hotjar, etc.) n'est utilisé. Conformément à la délibération CNIL n°2020-092 du 17 septembre 2020, aucun bandeau de consentement aux cookies n'est requis pour les seuls cookies techniques nécessaires.
+            Aucun cookie publicitaire, aucune mesure d'audience, aucun traceur tiers (Google Analytics, Meta Pixel, Hotjar, etc.) : les polices sont servies par le site lui-même et le paiement se fait sur la page de Stripe. Le cookie de session et le stockage local servent uniquement à faire fonctionner le service que vous demandez ; ils sont exemptés de consentement (article 82 de la loi Informatique et Libertés, lignes directrices de la CNIL du 17 septembre 2020). C'est pourquoi le site n'affiche pas de bandeau cookies.
           </InfoBox>
         </section>
 
