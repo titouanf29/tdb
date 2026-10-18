@@ -59,6 +59,7 @@ export const AREAS: NavArea[] = [
     items: [
       { href: "/analysis", label: "Analyse", blurb: "Un actif, un verdict, et pourquoi" },
       { href: "/scanner", label: "Scanner", blurb: "Les opportunités qui vous correspondent" },
+      { href: "/strategie", label: "Ma stratégie", blurb: "Composer vos règles avec Nimbo, les tester sur des années de cours" },
       { href: "/markets", label: "Marchés", blurb: "L'état général, par région et par classe" },
       { href: "/macro", label: "Agenda macro", blurb: "Fed, BCE, inflation, emploi : quand, et ce que ça change pour vos actifs" },
     ],
@@ -149,6 +150,7 @@ export const MIGRATED_ROUTES = [
   "/analysis",
   "/markets",
   "/scanner",
+  "/strategie",
   "/learn",
   "/settings",
   "/admin",

@@ -40,6 +40,7 @@ import { noterGeste } from "@/lib/parcours";
 import { PressContext } from "@/components/analysis/PressContext";
 import { ClimatMarche } from "@/components/analysis/ClimatMarche";
 import { MacroContext } from "@/components/analysis/MacroContext";
+import { MaStrategie } from "@/components/analysis/MaStrategie";
 import { NoteScanner } from "@/components/analysis/NoteScanner";
 import {
   ListeSuggestions, useAssetSuggestions, useFermetureExterieure,
@@ -725,6 +726,11 @@ function AnalysisScreen() {
                 zéro. Le panneau s'efface de lui-même si l'on n'est pas passé
                 par le scanner, ou si le scan date de plus de six heures. */}
             <NoteScanner symbol={analysis.symbol} format={assetPrice} />
+
+            {/* La stratégie de l'utilisateur, appliquée à cet actif : Nimbo dit
+                si elle se déclenche, et s'il est d'accord. */}
+            <MaStrategie symbol={analysis.symbol} assetPrice={assetPrice}
+              nimboPropose={!!analysis.nimbo?.propose} nimboSens={analysis.nimbo?.sens ?? null} />
 
 
             {/* ── Aller plus loin : le détail qu'on choisit de voir. ─────── */}

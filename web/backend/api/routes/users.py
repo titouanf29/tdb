@@ -432,7 +432,8 @@ _TABLES_ENTIER = ("web_favorites", "web_ai_chat", "user_notifications", "user_ch
                   "community_message_likes", "community_messages", "admin_ticket_messages",
                   "admin_tickets", "daily_intents", "email_verification_tokens",
                   "password_reset_tokens", "push_abonnements", "user_profile", "asset_requests",
-                  "premium_requests", "macro_notifie", "weekend_synthese", "web_user_settings")
+                  "premium_requests", "macro_notifie", "weekend_synthese", "strategies",
+                  "web_user_settings")
 
 
 async def effacer_compte(uid: int) -> None:

@@ -3673,3 +3673,85 @@ export const macroAPI = {
     fetchAPI<{ symbole: string; nom: string; sensibilites: Record<"FED" | "BCE", ImpactMacro>; prochaines: (AnnonceMacro & { sens_si_restrictive: number })[] }>(
       `/api/macro/actif/${encodeURIComponent(symbol)}`),
 };
+
+
+// ── Stratégies (backend strategies.py / _strategie.py) ─────────────────────
+
+export type ConditionStrategie =
+  | { type: "tendance_ma"; periode: number; position: "dessus" | "dessous" }
+  | { type: "croisement_ma"; rapide: number; lente: number; sens: "haussier" | "baissier" }
+  | { type: "rsi"; seuil: number; mode: "sous" | "dessus" | "repasse_dessus" | "repasse_dessous" }
+  | { type: "cassure"; periode: number; sens: "haut" | "bas" }
+  | { type: "macd"; mode: "croise_dessus" | "croise_dessous" | "dessus" | "dessous" }
+  | { type: "volume"; multiple: number }
+  | { type: "score_nimbo"; min: number };
+
+export interface ReglesStrategie {
+  nom: string;
+  sens: "achat" | "vente";
+  unite: "1d" | "1wk";
+  conditions: ConditionStrategie[];
+  stop_atr: number;
+  objectif_r: number;
+  duree_max: number;
+  risque_pct: number;
+  actifs: string[];
+}
+
+export interface AvisNimbo {
+  niveau: "erreur" | "attention" | "conseil" | "bien";
+  cle: string;
+  texte: string;
+}
+
+export interface TradeStrategie {
+  symbol: string; entree_le: string; sortie_le: string; entree: number; sortie: number;
+  issue: "objectif" | "stop" | "durée"; r: number; bougies: number;
+}
+
+export interface ResultatStrategie {
+  stats: {
+    trades: number; taux_gagnants?: number; r_moyen?: number; r_total?: number;
+    gain_moyen_r?: number; perte_moyenne_r?: number; facteur_profit?: number | null;
+    pire_serie_r?: number; capital_final_pct?: number; baisse_max_pct?: number;
+    issues?: { objectif: number; stop: number; "durée": number }; duree_moyenne?: number;
+    achat_conserve_pct?: number;
+    courbe?: Array<{ date: string; capital: number; r: number; symbol: string }>;
+  };
+  lecture: AvisNimbo[];
+  trades: TradeStrategie[];
+  par_actif: Array<{ symbol: string; trades: number; r_total: number; debut?: string; fin?: string; erreur?: string | null }>;
+}
+
+export interface StrategieSauvee {
+  id: number; nom: string; active: boolean; regles: ReglesStrategie;
+  dernier_test: { r_moyen?: number; trades?: number; capital_final_pct?: number } | null;
+  updated_at?: string;
+}
+
+export interface SignalStrategie {
+  strategie: null | { id: number; nom: string; regles?: ReglesStrategie; testee_sur?: string[];
+    dernier_test?: StrategieSauvee["dernier_test"] };
+  signal?: {
+    possible: boolean; raison?: string; reunies?: boolean; manquantes?: number;
+    conditions?: Array<{ texte: string; ok: boolean; valeur?: number | null }>;
+    plan?: { direction: "LONG" | "SHORT"; entree: number; stop: number; objectif: number; rr: number } | null;
+  };
+}
+
+export const strategiesAPI = {
+  verifier: (regles: ReglesStrategie) =>
+    fetchAPI<{ regles: ReglesStrategie; avis: AvisNimbo[]; bloquante: boolean; description: { conditions: string[]; unite: string } }>(
+      "/api/strategies/verifier", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ regles }) }),
+  backtest: (regles: ReglesStrategie) =>
+    fetchAPI<{ regles: ReglesStrategie; avis: AvisNimbo[]; bloquante: boolean; resultat: ResultatStrategie | null }>(
+      "/api/strategies/backtest", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ regles }) }),
+  lister: () => fetchAPI<{ strategies: StrategieSauvee[]; max: number }>("/api/strategies"),
+  sauvegarder: (regles: ReglesStrategie & { _test?: unknown }, id?: number) =>
+    fetchAPI<{ strategie: StrategieSauvee }>("/api/strategies", {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ regles, id }) }),
+  supprimer: (id: number) => fetchAPI<{ ok: boolean }>(`/api/strategies/${id}`, { method: "DELETE" }),
+  activer: (id: number) => fetchAPI<{ active: boolean }>(`/api/strategies/${id}/activer`, { method: "POST" }),
+  signal: (symbol: string) =>
+    fetchAPI<SignalStrategie>(`/api/strategies/active/signal?symbol=${encodeURIComponent(symbol)}`),
+};
