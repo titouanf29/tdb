@@ -125,7 +125,7 @@ export function LeconVue({ lecon }: { lecon: LeconSerie }) {
               <h2 className="text-[1.6rem] font-medium" style={{ color: "var(--cap-ink)", fontFamily: "var(--cap-font-display)" }}>Mettre en pratique</h2>
               <ul className="mt-4 space-y-4">
                 {lecon.pratique.map((p) => (
-                  <li key={p.href} className="flex flex-wrap items-center justify-between gap-3">
+                  <li key={p.href} className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <span className="min-w-0 flex-1 text-[1.02rem]" style={{ color: "var(--cap-ink-2)" }}>{p.texte}</span>
                     <Button href={isAuthenticated ? p.href : "/register"} size="md">{isAuthenticated ? p.bouton : "Créer un compte gratuit"}</Button>
                   </li>
