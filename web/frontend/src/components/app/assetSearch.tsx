@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { motion } from "framer-motion";
 import { marketAPI, type AssetHit } from "@/lib/api";
 import { DUR, EASE } from "@/components/design-system";
@@ -99,7 +100,10 @@ export function ListeSuggestions({
   onChoisir,
   className,
   style,
+  requete,
 }: {
+  /** Ce qui a été tapé : sans résultat, on propose d'en demander l'ajout. */
+  requete?: string;
   hits: AssetHit[];
   actif: number;
   cherche: boolean;
@@ -126,6 +130,15 @@ export function ListeSuggestions({
       {hits.length === 0 ? (
         <div className="px-3 py-2.5 text-[0.82rem]" style={{ color: "var(--cap-ink-3)" }}>
           {cherche ? "Recherche…" : "Aucun actif de ce nom dans le catalogue."}
+          {!cherche && requete && requete.trim().length >= 2 && (
+            <Link
+              href={`/support?actif=${encodeURIComponent(requete.trim())}`}
+              className="mt-1.5 block font-medium underline decoration-[color:var(--cap-ambre)] decoration-2 underline-offset-4"
+              style={{ color: "var(--cap-ink)" }}
+            >
+              Demander l&apos;ajout de « {requete.trim()} »
+            </Link>
+          )}
         </div>
       ) : (
         hits.map((h, i) => (

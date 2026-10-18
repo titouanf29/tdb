@@ -3,7 +3,7 @@
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
-  communityAPI, type SupportTicket, type TicketMessage,
+  communityAPI, marketAPI, type AssetRequest, type SupportTicket, type TicketMessage,
 } from "@/lib/api";
 import {
   Button, EmptyState, Field, FormError, Heading, Panel, Text, TextInput,
@@ -30,10 +30,94 @@ const zone = {
   boxShadow: "inset 0 0 0 1px var(--cap-line-strong)",
 } as const;
 
+const ETAPE: Record<string, string> = {
+  pending: "Reçue, l'équipe va l'étudier",
+  info_requested: "L'équipe vous pose une question",
+  accepted: "Acceptée, en cours d'ajout",
+  added: "Ajoutée au site",
+  approved: "Ajoutée au site",
+  rejected: "Non retenue",
+};
+
+/** Demander un actif absent, et suivre où en est chaque demande. */
+function ActifsDemandes({ initial }: { initial: string }) {
+  const [liste, setListe] = useState<AssetRequest[] | null>(null);
+  const [nom, setNom] = useState(initial);
+  const [pourquoi, setPourquoi] = useState("");
+  const [occupe, setOccupe] = useState(false);
+  const [erreur, setErreur] = useState("");
+  const [envoye, setEnvoye] = useState(false);
+
+  const charger = useCallback(async () => {
+    try { setListe((await marketAPI.getMyAssetRequests()).requests || []); } catch { setListe([]); }
+  }, []);
+  useEffect(() => { charger(); }, [charger]);
+
+  const envoyer = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!nom.trim()) return;
+    setOccupe(true); setErreur(""); setEnvoye(false);
+    try {
+      await marketAPI.requestAsset({ symbol: nom.trim(), asset_name: nom.trim(), reason: pourquoi.trim() || undefined });
+      setNom(""); setPourquoi(""); setEnvoye(true);
+      await charger();
+    } catch (err) {
+      setErreur(err instanceof Error ? err.message : "Envoi impossible.");
+    } finally { setOccupe(false); }
+  };
+
+  return (
+    <Panel
+      title="Demander un actif"
+      hint="Une action, une crypto, un indice absent du site : donnez son nom ou son symbole, l'équipe l'ajoute et vous prévient."
+    >
+      <form onSubmit={envoyer} className="grid gap-3 sm:grid-cols-[1fr_1.4fr_auto] sm:items-start" noValidate>
+        <Field label="Nom ou symbole" htmlFor="a-nom" hint="Ex. Soitec, ou SOI.PA">
+          <TextInput id="a-nom" value={nom} onChange={setNom} placeholder="Soitec" required />
+        </Field>
+        <Field label="Pourquoi (facultatif)" htmlFor="a-pq">
+          <TextInput id="a-pq" value={pourquoi} onChange={setPourquoi} placeholder="Je le suis depuis longtemps…" />
+        </Field>
+        <div className="sm:pt-[1.85rem]"><Button type="submit" size="md" disabled={occupe || !nom.trim()}>{occupe ? "Envoi…" : "Demander"}</Button></div>
+      </form>
+      {erreur && <div className="mt-3"><FormError>{erreur}</FormError></div>}
+      {envoye && <Text size="small" tone="up" className="mt-3">Demande envoyée. Vous serez prévenu dès que l&apos;actif est ajouté.</Text>}
+
+      {liste && liste.length > 0 && (
+        <ul className="mt-6 border-t pt-2 [&>*+*]:border-t [&>*+*]:border-[color:var(--cap-line)]" style={{ borderColor: "var(--cap-line)" }}>
+          {liste.map((r) => {
+            const ajoute = r.status === "added" || r.status === "approved";
+            const sym = r.symbole_final || r.symbol;
+            return (
+              <li key={r.id} className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 py-3">
+                <div className="min-w-0">
+                  <span className="text-[0.95rem] font-semibold" style={{ color: "var(--cap-ink)", fontFamily: "var(--cap-font-display)" }}>
+                    {r.asset_name || r.symbol}
+                  </span>
+                  <span className="ml-2 text-[0.85rem]" style={{ color: "var(--cap-ink-2)" }}>
+                    {ETAPE[r.status] ?? r.status}
+                    {r.status === "rejected" && r.admin_notes ? ` : ${r.admin_notes}` : ""}
+                  </span>
+                </div>
+                {ajoute ? (
+                  <Button href={`/analysis?symbol=${encodeURIComponent(sym)}`} variant="secondary" size="sm">Analyser {sym}</Button>
+                ) : r.ticket_id ? (
+                  <Button href={`/support?ticket=${r.ticket_id}`} variant="secondary" size="sm">Répondre à l&apos;équipe</Button>
+                ) : null}
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </Panel>
+  );
+}
+
 function Support() {
   const router = useRouter();
   const params = useSearchParams();
   const choisi = Number(params.get("ticket")) || null;
+  const actifDemande = params.get("actif") || "";
 
   const [tickets, setTickets] = useState<SupportTicket[] | null>(null);
   const [fil, setFil] = useState<{ ticket: SupportTicket; messages: TicketMessage[] } | null>(null);
@@ -60,8 +144,8 @@ function Support() {
   // Sans ticket dans l'adresse, la demande la plus récente s'ouvre.
   useEffect(() => {
     if (choisi) { setNouveau(false); chargerFil(choisi); }
-    else if (tickets && tickets.length > 0) router.replace(`/support?ticket=${tickets[0].id}`);
-  }, [choisi, tickets, chargerFil, router]);
+    else if (tickets && tickets.length > 0 && !actifDemande) router.replace(`/support?ticket=${tickets[0].id}`);
+  }, [choisi, tickets, chargerFil, router, actifDemande]);
 
   // Les réponses de l'équipe arrivent sans recharger la page.
   useEffect(() => {
@@ -219,6 +303,8 @@ function Support() {
           </Panel>
         )}
       </div>
+
+      <ActifsDemandes initial={actifDemande} />
     </div>
   );
 }

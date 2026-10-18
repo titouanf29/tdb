@@ -455,6 +455,7 @@ function AssetSearch() {
       <AnimatePresence>
         {s.ouvert && value.trim().length >= 2 && (
           <ListeSuggestions
+            requete={value}
             hits={s.hits}
             actif={s.actif}
             cherche={s.cherche}

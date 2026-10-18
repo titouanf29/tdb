@@ -964,13 +964,21 @@ async def promote_user_to_admin(data: PromoteAdmin, admin: dict = Depends(get_ad
 
 
 # ============== ASSET REQUESTS ==============
+#
+# Le traitement d'une demande, en étapes :
+#
+#   pending ──(précisions)──► info_requested ──► accepted ──(« Ajouté »)──► added
+#        └──────────────────────────────── rejected
+#
+# Les précisions passent par un ticket support : le client les lit et y
+# répond dans « Mes demandes », l'administrateur voit l'échange dans la ligne
+# de la demande. « Ajouté » ne vient qu'à la fin, avec le symbole Yahoo et le
+# marché exacts, après vérification que le symbole renvoie un cours : c'est
+# là que l'actif entre réellement sur le site, et que le client est prévenu.
 
 class AssetRequestAction(BaseModel):
     """L'écran envoie `action` (« approve » / « reject ») et `note` ; l'ancien
-    contrat disait `status` (« approved » / « rejected ») et `admin_notes`.
-    Le modèle n'acceptait que le second : chaque clic sur Accepter ou Refuser
-    repartait en 422 et la demande restait en attente. Les deux formes sont
-    reçues."""
+    contrat disait `status` et `admin_notes`. Les deux formes sont reçues."""
     request_id: int
     status: Optional[str] = None
     action: Optional[str] = None
@@ -978,108 +986,212 @@ class AssetRequestAction(BaseModel):
     note: Optional[str] = None
 
 
+class AssetQuestion(BaseModel):
+    message: str
+
+
+class AssetAjout(BaseModel):
+    symbol: str
+    name: Optional[str] = None
+    market: Optional[str] = None
+
+
+_ETATS_OUVERTS = (None, "pending", "info_requested", "accepted")
+
+
 @router.get("/asset-requests")
 async def get_asset_requests(
     status: str = "all",
     page: int = 1,
-    limit: int = 20,
+    limit: int = 50,
     admin: dict = Depends(get_admin_user)
 ):
-    """Get all asset requests"""
+    """Les demandes d'actif, avec le dernier message de l'échange de précisions."""
     offset = (page - 1) * limit
-
+    base = """
+        SELECT r.*, u.email, u.username,
+               (SELECT message FROM admin_ticket_messages WHERE ticket_id = r.ticket_id ORDER BY created_at DESC LIMIT 1) AS dernier_message,
+               (SELECT is_admin FROM admin_ticket_messages WHERE ticket_id = r.ticket_id ORDER BY created_at DESC LIMIT 1) AS dernier_de_admin
+        FROM asset_requests r
+        LEFT JOIN web_users u ON r.user_id = u.id
+    """
     if status == "all":
-        requests = await execute_query("""
-            SELECT r.*, u.email, u.username
-            FROM asset_requests r
-            LEFT JOIN web_users u ON r.user_id = u.id
-            ORDER BY r.created_at DESC
-            LIMIT ? OFFSET ?
-        """, (limit, offset))
+        requests = await execute_query(base + " ORDER BY r.created_at DESC LIMIT ? OFFSET ?", (limit, offset))
         total = await execute_query("SELECT COUNT(*) as count FROM asset_requests")
     else:
-        requests = await execute_query("""
-            SELECT r.*, u.email, u.username
-            FROM asset_requests r
-            LEFT JOIN web_users u ON r.user_id = u.id
-            WHERE r.status = ?
-            ORDER BY r.created_at DESC
-            LIMIT ? OFFSET ?
-        """, (status, limit, offset))
-        total = await execute_query(
-            "SELECT COUNT(*) as count FROM asset_requests WHERE status = ?",
-            (status,)
-        )
-
+        requests = await execute_query(base + " WHERE r.status = ? ORDER BY r.created_at DESC LIMIT ? OFFSET ?",
+                                       (status, limit, offset))
+        total = await execute_query("SELECT COUNT(*) as count FROM asset_requests WHERE status = ?", (status,))
     return {
         "requests": requests or [],
         "total": total[0]["count"] if total else 0,
         "page": page,
-        "limit": limit
+        "limit": limit,
     }
+
+
+async def _demande(request_id: int) -> dict:
+    rows = await execute_query("SELECT * FROM asset_requests WHERE id = ?", (request_id,))
+    if not rows:
+        raise HTTPException(status_code=404, detail="Demande introuvable.")
+    return rows[0]
 
 
 @router.post("/asset-requests/action")
 async def process_asset_request(data: AssetRequestAction, admin: dict = Depends(get_admin_user)):
-    """Accepter ou refuser une demande d'actif.
-
-    Accepter ajoute réellement l'actif à l'univers du site (voir
-    _actifs_ajoutes.py) ; dans les deux cas, la personne qui l'a demandé est
-    prévenue."""
-    status = data.status or {"approve": "approved", "reject": "rejected"}.get((data.action or "").lower())
-    if status not in ("approved", "rejected"):
+    """Accepter (l'ajout est en cours) ou refuser une demande."""
+    status = data.status or {"approve": "accepted", "reject": "rejected"}.get((data.action or "").lower())
+    if status == "approved":
+        status = "accepted"
+    if status not in ("accepted", "rejected"):
         raise HTTPException(status_code=422, detail="Action attendue : approve ou reject.")
     note = (data.admin_notes or data.note or "").strip() or None
-
-    request = await execute_query(
-        "SELECT * FROM asset_requests WHERE id = ?",
-        (data.request_id,)
-    )
-    if not request:
-        raise HTTPException(status_code=404, detail="Demande introuvable.")
-    demande = request[0]
-    if demande.get("status") not in (None, "pending"):
+    demande = await _demande(data.request_id)
+    if demande.get("status") not in _ETATS_OUVERTS:
         raise HTTPException(status_code=409, detail="Cette demande a déjà été traitée.")
 
-    marche = None
-    if status == "approved":
-        from ._actifs_ajoutes import ajouter
-        marche = await ajouter(demande["symbol"], demande.get("asset_name"), demande.get("asset_type"),
-                               demande["id"], admin["id"])
-
     await execute_write("""
-        UPDATE asset_requests
-        SET status = ?, admin_notes = ?, processed_at = ?, processed_by = ?
+        UPDATE asset_requests SET status = ?, admin_notes = COALESCE(?, admin_notes), processed_at = ?, processed_by = ?
         WHERE id = ?
     """, (status, note, datetime.now(timezone.utc).isoformat(), admin["id"], data.request_id))
+    await log_admin_action(admin["id"], f"asset_request_{status}",
+                           f"Asset request {data.request_id} ({demande['symbol']}): {status}")
 
-    await log_admin_action(
-        admin["id"],
-        f"asset_request_{status}",
-        f"Processed asset request {data.request_id} ({demande['symbol']}): {status}"
-    )
-
-    symbol = demande["symbol"]
-    try:
-        if status == "approved":
+    if status == "rejected":
+        await _clore_conversation(demande, admin["id"],
+                                  "Nous ne retenons pas cette demande." + (f" {note}" if note else ""))
+        try:
             await create_user_notification(
                 user_id=demande["user_id"], type="asset_request",
-                title=f"{symbol} est disponible",
-                message=f"Votre demande a été acceptée : {symbol} est ajouté au site."
-                        + (f" Note : {note}" if note else ""),
-                link=f"/analysis?symbol={symbol}",
-            )
-        else:
-            await create_user_notification(
-                user_id=demande["user_id"], type="asset_request",
-                title=f"Demande pour {symbol}",
+                title=f"Demande pour {demande['symbol']}",
                 message="Votre demande n'a pas été retenue." + (f" Raison : {note}" if note else ""),
-                link="/markets",
+                link="/support",
             )
+        except Exception:
+            pass
+    return {"success": True, "status": status}
+
+
+@router.post("/asset-requests/{request_id}/question")
+async def ask_asset_details(request_id: int, data: AssetQuestion, admin: dict = Depends(get_admin_user)):
+    """Demander une précision au client : le symbole exact, la place de cotation…"""
+    texte = data.message.strip()
+    if not texte:
+        raise HTTPException(status_code=422, detail="Écrivez votre question.")
+    demande = await _demande(request_id)
+    if demande.get("status") not in _ETATS_OUVERTS:
+        raise HTTPException(status_code=409, detail="Cette demande a déjà été traitée.")
+    now = datetime.now(timezone.utc).isoformat()
+
+    ticket_id = demande.get("ticket_id")
+    if not ticket_id:
+        await execute_write(
+            "INSERT INTO admin_tickets (user_id, subject, status, created_at, updated_at) VALUES (?, ?, 'open', ?, ?)",
+            (demande["user_id"], f"Votre demande d'actif : {demande['symbol']}", now, now))
+        t = await execute_query("SELECT id FROM admin_tickets WHERE user_id = ? ORDER BY id DESC LIMIT 1",
+                                (demande["user_id"],))
+        ticket_id = t[0]["id"]
+    else:
+        await execute_write("UPDATE admin_tickets SET status = 'open', updated_at = ? WHERE id = ?", (now, ticket_id))
+    await execute_write(
+        "INSERT INTO admin_ticket_messages (ticket_id, user_id, message, is_admin, created_at) VALUES (?, ?, ?, 1, ?)",
+        (ticket_id, admin["id"], texte, now))
+    await execute_write("UPDATE asset_requests SET status = 'info_requested', ticket_id = ? WHERE id = ?",
+                        (ticket_id, request_id))
+    await log_admin_action(admin["id"], "asset_request_question", f"Asset request {request_id}: question")
+    try:
+        await create_user_notification(
+            user_id=demande["user_id"], type="asset_request",
+            title=f"Une précision sur {demande['symbol']}",
+            message="L'équipe a une question sur votre demande d'actif.",
+            link=f"/support?ticket={ticket_id}",
+        )
+    except Exception:
+        pass
+    return {"success": True, "ticket_id": ticket_id}
+
+
+async def _clore_conversation(demande: dict, admin_id: int, texte: str) -> None:
+    """La demande est réglée : l'échange de précisions reçoit le mot de la fin
+    et se ferme, pour ne pas rester « en attente de réponse » des deux côtés."""
+    tid = demande.get("ticket_id")
+    if not tid:
+        return
+    now = datetime.now(timezone.utc).isoformat()
+    try:
+        await execute_write(
+            "INSERT INTO admin_ticket_messages (ticket_id, user_id, message, is_admin, created_at) VALUES (?, ?, ?, 1, ?)",
+            (tid, admin_id, texte, now))
+        await execute_write("UPDATE admin_tickets SET status = 'closed', updated_at = ? WHERE id = ?", (now, tid))
     except Exception:
         pass
 
-    return {"success": True, "status": status, "marche": marche}
+
+async def _verifier_symbole(symbol: str) -> float:
+    """Le symbole doit renvoyer un cours : un symbole mort ajouté au site
+    serait un actif vide dans les marchés et le scanner."""
+    from ._prices import fetch_prices
+    try:
+        px = (await fetch_prices([symbol]) or {}).get(symbol) or {}
+    except Exception:
+        px = {}
+    prix = px.get("price") if isinstance(px, dict) else None
+    if not prix:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Aucun cours trouvé pour {symbol}. Vérifiez le symbole Yahoo (ex. SOI.PA pour Soitec à Paris).")
+    return float(prix)
+
+
+@router.post("/asset-requests/{request_id}/added")
+async def mark_asset_added(request_id: int, data: AssetAjout, admin: dict = Depends(get_admin_user)):
+    """« Ajouté » : l'actif entre sur le site, et le client est prévenu."""
+    from ._actifs_ajoutes import ajouter
+    demande = await _demande(request_id)
+    if demande.get("status") not in _ETATS_OUVERTS:
+        raise HTTPException(status_code=409, detail="Cette demande a déjà été traitée.")
+    symbol = (data.symbol or demande["symbol"]).strip().upper()
+    nom = (data.name or demande.get("asset_name") or "").strip() or None
+    prix = await _verifier_symbole(symbol)
+    marche = await ajouter(symbol, nom, demande.get("asset_type"), request_id, admin["id"], data.market)
+    now = datetime.now(timezone.utc).isoformat()
+    await execute_write("""
+        UPDATE asset_requests SET status = 'added', symbole_final = ?, marche_final = ?, ajoute_le = ?,
+               processed_at = ?, processed_by = ?
+        WHERE id = ?
+    """, (symbol, marche, now, now, admin["id"], request_id))
+    await log_admin_action(admin["id"], "asset_request_added", f"Asset request {request_id}: {symbol} added")
+    await _clore_conversation(demande, admin["id"],
+                              f"C'est fait : {nom or symbol} ({symbol}) est ajouté au site. Merci pour la demande !")
+    try:
+        await create_user_notification(
+            user_id=demande["user_id"], type="asset_request",
+            title=f"{nom or symbol} est disponible",
+            message=f"Votre demande est ajoutée : {nom or symbol} ({symbol}) est sur le site, vous pouvez l'analyser.",
+            link=f"/analysis?symbol={symbol}",
+        )
+    except Exception:
+        pass
+    return {"success": True, "symbol": symbol, "marche": marche, "prix": prix}
+
+
+@router.get("/actifs-ajoutes")
+async def list_added_assets(admin: dict = Depends(get_admin_user)):
+    from ._actifs_ajoutes import lister
+    return {"actifs": await lister()}
+
+
+@router.post("/actifs-ajoutes")
+async def add_asset_direct(data: AssetAjout, admin: dict = Depends(get_admin_user)):
+    """Ajouter un actif sans demande en ligne (un client l'a demandé ailleurs)."""
+    from ._actifs_ajoutes import ajouter
+    symbol = data.symbol.strip().upper()
+    if not symbol:
+        raise HTTPException(status_code=422, detail="Indiquez le symbole Yahoo.")
+    prix = await _verifier_symbole(symbol)
+    marche = await ajouter(symbol, (data.name or "").strip() or None, None, None, admin["id"], data.market)
+    await log_admin_action(admin["id"], "asset_added", f"{symbol} added directly")
+    return {"success": True, "symbol": symbol, "marche": marche, "prix": prix}
 
 
 # ============== SUPPORT TICKETS ==============

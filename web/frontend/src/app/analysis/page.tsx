@@ -505,6 +505,7 @@ function AnalysisScreen() {
             <AnimatePresence>
               {sugg.ouvert && query.trim().length >= 2 && (
                 <ListeSuggestions
+                  requete={query}
                   hits={sugg.hits}
                   actif={sugg.actif}
                   cherche={sugg.cherche}

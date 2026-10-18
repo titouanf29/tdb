@@ -82,11 +82,25 @@ async def charger() -> int:
     return len(rows)
 
 
+MARCHES = ("EUROPE", "USA", "ASIA", "CRYPTO", "COMMODITIES")
+
+
+async def lister() -> list[dict]:
+    try:
+        await _table()
+        return await execute_query("SELECT * FROM actifs_ajoutes ORDER BY ajoute_le DESC") or []
+    except Exception:
+        return []
+
+
 async def ajouter(symbol: str, nom: Optional[str], asset_type: Optional[str],
-                  demande_id: int, admin_id: int) -> Optional[str]:
-    """Ajoute l'actif à l'univers web et renvoie le marché choisi (ou None)."""
+                  demande_id: Optional[int], admin_id: int, marche: Optional[str] = None) -> Optional[str]:
+    """Ajoute l'actif à l'univers web et renvoie le marché retenu (ou None).
+
+    Le marché choisi par l'administrateur l'emporte ; à défaut, il se déduit
+    de la forme du symbole."""
     symbol = symbol.upper()
-    marche = marche_de(symbol, asset_type)
+    marche = marche if marche in MARCHES else marche_de(symbol, asset_type)
     await _table()
     deja = await execute_query("SELECT symbol FROM actifs_ajoutes WHERE symbol = ?", (symbol,))
     if not deja:

@@ -340,6 +340,13 @@ async def _init_postgres():
                 processed_by INTEGER
             )
         """)
+        # Le traitement d'une demande d'actif : la conversation de précisions
+        # (un ticket support), puis le symbole et le marché réellement ajoutés.
+        for _col in ("ticket_id INTEGER", "symbole_final TEXT", "marche_final TEXT", "ajoute_le TEXT"):
+            try:
+                await conn.execute(f"ALTER TABLE asset_requests ADD COLUMN {_col}")
+            except Exception:
+                pass  # la colonne existe déjà
         await conn.execute("""
             CREATE TABLE IF NOT EXISTS premium_requests (
                 id SERIAL PRIMARY KEY,
@@ -834,6 +841,13 @@ async def _init_sqlite():
                 FOREIGN KEY (processed_by) REFERENCES web_users(id)
             )
         """)
+        # Le traitement d'une demande d'actif : la conversation de précisions
+        # (un ticket support), puis le symbole et le marché réellement ajoutés.
+        for _col in ("ticket_id INTEGER", "symbole_final TEXT", "marche_final TEXT", "ajoute_le TEXT"):
+            try:
+                await db.execute(f"ALTER TABLE asset_requests ADD COLUMN {_col}")
+            except Exception:
+                pass  # la colonne existe déjà
         await db.execute("""
             CREATE TABLE IF NOT EXISTS premium_requests (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,

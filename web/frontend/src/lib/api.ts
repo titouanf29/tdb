@@ -172,6 +172,8 @@ export interface AssetRequest {
   reason?: string;
   status: string;
   admin_notes?: string;
+  ticket_id?: number | null;
+  symbole_final?: string | null;
   created_at: string;
   processed_at?: string;
 }
@@ -1741,9 +1743,24 @@ export interface AdminAssetRequest {
   asset_name?: string;
   asset_type?: string;
   reason?: string;
-  status: "pending" | "approved" | "rejected";
+  /** pending → info_requested → accepted → added, ou rejected.
+   *  « approved » : l'ancien statut, traité comme « added ». */
+  status: "pending" | "info_requested" | "accepted" | "added" | "approved" | "rejected";
   admin_notes?: string;
+  ticket_id?: number | null;
+  symbole_final?: string | null;
+  marche_final?: string | null;
+  dernier_message?: string | null;
+  dernier_de_admin?: number | boolean | null;
   created_at: string;
+}
+
+export interface ActifAjoute {
+  symbol: string;
+  marche: string | null;
+  nom: string | null;
+  demande_id: number | null;
+  ajoute_le: string;
 }
 
 export interface AdminChangelog {
@@ -1922,10 +1939,36 @@ export const adminAPI = {
     fetchAPI<{ requests: AdminAssetRequest[] }>("/api/admin/asset-requests"),
 
   assetRequestAction: (requestId: number, action: "approve" | "reject", note?: string) =>
-    fetchAPI<{ success: boolean; status: string; marche: string | null }>("/api/admin/asset-requests/action", {
+    fetchAPI<{ success: boolean; status: string }>("/api/admin/asset-requests/action", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ request_id: requestId, action, note }),
+    }),
+
+  /** Une question au client : elle ouvre une conversation dans « Mes demandes ». */
+  assetRequestQuestion: (requestId: number, message: string) =>
+    fetchAPI<{ success: boolean; ticket_id: number }>(`/api/admin/asset-requests/${requestId}/question`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message }),
+    }),
+
+  /** « Ajouté » : le symbole est vérifié, l'actif entre sur le site, le client est prévenu. */
+  assetRequestAdded: (requestId: number, symbol: string, name?: string, market?: string) =>
+    fetchAPI<{ success: boolean; symbol: string; marche: string | null; prix: number }>(
+      `/api/admin/asset-requests/${requestId}/added`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ symbol, name, market }),
+      }),
+
+  getAddedAssets: () => fetchAPI<{ actifs: ActifAjoute[] }>("/api/admin/actifs-ajoutes"),
+
+  addAssetDirect: (symbol: string, name?: string, market?: string) =>
+    fetchAPI<{ success: boolean; symbol: string; marche: string | null; prix: number }>("/api/admin/actifs-ajoutes", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ symbol, name, market }),
     }),
 
   getChangelogs: () =>
