@@ -19,13 +19,17 @@ import os
 from datetime import datetime, timezone
 from typing import Optional
 
-from fastapi import APIRouter, Depends, Header, HTTPException
+from fastapi import APIRouter, Depends, Header, HTTPException, Request
+from slowapi import Limiter
+
+from ..limite import cle_client
 from pydantic import BaseModel, Field
 
 from ..database import execute_query, execute_write
 from .admin import get_admin_user
 
 router = APIRouter()
+limiter = Limiter(key_func=cle_client)
 
 STATUTS = ("publiee", "programmee", "prete")
 
@@ -72,7 +76,8 @@ def _cle_valide(recue: Optional[str]) -> bool:
 
 
 @router.post("/tiktok")
-async def recevoir(data: Envoi, x_pont_cle: Optional[str] = Header(default=None)):
+@limiter.limit("20/minute")
+async def recevoir(request: Request, data: Envoi, x_pont_cle: Optional[str] = Header(default=None)):
     """Le Studio envoie l'état de la série : remplace le précédent."""
     if not _cle_valide(x_pont_cle):
         raise HTTPException(status_code=401, detail="Clé refusée.")

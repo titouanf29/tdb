@@ -43,7 +43,7 @@ from api.database import init_web_tables, execute_query, execute_write
 # Global rate limiter (IP-based)
 limiter = Limiter(key_func=cle_client)
 
-IS_PRODUCTION = os.getenv("ENV", "development").lower() == "production"
+from api.environnement import EN_PRODUCTION as IS_PRODUCTION  # ENV=production, ou Railway
 
 
 @asynccontextmanager
@@ -276,7 +276,7 @@ async def _token_user_id(auth_header: str) -> int | None:
         return None
     token = auth_header[7:]
     try:
-        from jose import jwt as _jwt, JWTError
+        import jwt as _jwt
         from api.secret_jwt import SECRET as secret
         payload = _jwt.decode(token, secret, algorithms=["HS256"])
         sub = payload.get("sub")
@@ -344,6 +344,25 @@ async def maintenance_middleware(request: Request, call_next):
         status_code=503,
         content={"detail": msg, "maintenance": True, "end_time": end_time},
     )
+
+
+# La taille des requêtes. Aucune route ne reçoit de fichier : 2 Mo suffisent
+# largement, et refuser plus tôt évite qu'un envoi de plusieurs centaines de
+# mégaoctets soit lu en entier puis analysé.
+TAILLE_MAX_REQUETE = 2 * 1024 * 1024
+
+
+@app.middleware("http")
+async def limite_taille(request: Request, call_next):
+    longueur = request.headers.get("content-length")
+    if longueur:
+        try:
+            trop = int(longueur) > TAILLE_MAX_REQUETE
+        except ValueError:
+            return JSONResponse(status_code=400, content={"detail": "En-tête Content-Length invalide."})
+        if trop:
+            return JSONResponse(status_code=413, content={"detail": "Requête trop volumineuse."})
+    return await call_next(request)
 
 
 # Security headers middleware

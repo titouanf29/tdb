@@ -32,7 +32,8 @@ from .routes import content_factory
 
 # ── JWT constants (imported once at module level — avoids dynamic import inside middleware) ──
 from .routes.auth import SECRET_KEY, ALGORITHM
-from jose import JWTError, jwt as _jose_jwt
+import jwt as _jose_jwt
+from jwt import PyJWTError as JWTError
 
 
 @asynccontextmanager

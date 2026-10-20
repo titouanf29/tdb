@@ -21,6 +21,7 @@ vérifier sur des cours inventés.
 from __future__ import annotations
 
 import math
+import re
 from typing import Any, Optional
 
 import numpy as np
@@ -32,6 +33,7 @@ from ._backtest import _walk_barriers
 FRAIS_BPS = 10.0
 UNITES = {"1d": "séance", "1wk": "semaine"}
 ACTIFS_MAX = 5
+SYMBOLE = re.compile(r"\^?[A-Z0-9][A-Z0-9.\-=]{0,19}")
 SCORE_PAS = {"1d": 5, "1wk": 2}
 CONDITIONS_MAX = 5
 
@@ -92,7 +94,9 @@ def normaliser(brut: dict) -> dict:
     actifs = []
     for a in (s.get("actifs") or []):
         a = str(a or "").strip().upper()
-        if a and a not in actifs and len(a) <= 20:
+        # Un symbole de cotation, rien d'autre : il part ensuite dans une
+        # requête vers le fournisseur de cours.
+        if a and a not in actifs and SYMBOLE.fullmatch(a):
             actifs.append(a)
     return {
         "nom": str(s.get("nom") or "Ma stratégie").strip()[:60] or "Ma stratégie",

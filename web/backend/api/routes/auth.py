@@ -13,7 +13,8 @@ from typing import Optional
 from fastapi import APIRouter, HTTPException, Depends, Query, Request, Response
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel, EmailStr, Field
-from jose import JWTError, jwt
+import jwt
+from jwt import PyJWTError as JWTError
 import bcrypt
 from slowapi import Limiter
 from ..limite import cle_client  # voir limite.py
@@ -28,6 +29,7 @@ limiter = Limiter(key_func=cle_client)
 
 # JWT Configuration
 from ..secret_jwt import SECRET as _JWT_SECRET_ENV  # voir secret_jwt.py
+from ..environnement import EN_PRODUCTION
 SECRET_KEY = _JWT_SECRET_ENV
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_HOURS = 1   # session courte (sans "rester connecté")
@@ -294,7 +296,7 @@ def _set_session_cookie(response: Response, token: str, max_age: int) -> None:
         token,
         max_age=max_age,
         httponly=True,
-        secure=os.getenv("ENV", "development").lower() == "production",
+        secure=EN_PRODUCTION,
         samesite="lax",
         path="/",
     )

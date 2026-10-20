@@ -75,7 +75,8 @@ def _decrire(regles: dict) -> dict:
 
 
 @router.post("/verifier")
-async def verifier(data: Regles, current_user: dict = Depends(get_current_user)):
+@limiter.limit("60/minute")
+async def verifier(request: Request, data: Regles, current_user: dict = Depends(get_current_user)):
     """Ce que Nimbo relève dans la stratégie, avant tout test."""
     regles = S.normaliser(data.regles)
     avis = S.verifier(regles)
@@ -127,7 +128,9 @@ async def film(request: Request, data: Film, current_user: dict = Depends(get_cu
     regles = S.normaliser(data.regles)
     if S.bloquante(S.verifier(regles)):
         raise HTTPException(status_code=400, detail="Corrigez d'abord les erreurs que Nimbo signale.")
-    symbol = data.symbol.strip().upper()[:20]
+    symbol = data.symbol.strip().upper()
+    if not S.SYMBOLE.fullmatch(symbol):
+        raise HTTPException(status_code=400, detail="Symbole invalide.")
     periode, intervalle = _PERIODE[regles["unite"]]
     try:
         hist = await fetch_ohlcv(symbol, period=periode, interval=intervalle)
@@ -217,7 +220,9 @@ async def signal(request: Request, symbol: str, current_user: dict = Depends(get
     if not rows:
         return {"strategie": None}
     st = _lire(rows[0])
-    symbol = symbol.strip().upper()[:20]
+    symbol = symbol.strip().upper()
+    if not S.SYMBOLE.fullmatch(symbol):
+        raise HTTPException(status_code=400, detail="Symbole invalide.")
     periode, intervalle = ("2y", "1d") if st["regles"]["unite"] == "1d" else ("10y", "1wk")
     try:
         hist = await fetch_ohlcv(symbol, period=periode, interval=intervalle)
