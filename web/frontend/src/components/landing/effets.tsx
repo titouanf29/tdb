@@ -5,6 +5,7 @@ import { motion, useInView, useMotionValue, useMotionValueEvent, useScroll, useS
 import { CaptenMark, useAnimationsEnabled } from "@/components/design-system";
 import { NuageImage } from "@/components/design-system/NuageImage";
 import { useMouvementReduit } from "@/components/design-system/useMouvementReduit";
+import { useNonce } from "@/lib/nonce";
 
 /**
  * Les effets de la page de présentation.
@@ -158,6 +159,7 @@ export function cielEnCours(): boolean {
 }
 
 export function OuvertureDuCiel() {
+  const nonce = useNonce();
   const [etat, setEtat] = useState<"attente" | "vol" | "fini">("attente");
   const bouton = useRef<HTMLButtonElement>(null);
 
@@ -219,7 +221,7 @@ export function OuvertureDuCiel() {
   if (etat === "fini") return null;
   return (
     <>
-      <script dangerouslySetInnerHTML={{ __html: DECISION }} />
+      <script nonce={nonce} suppressHydrationWarning dangerouslySetInnerHTML={{ __html: DECISION }} />
       <style dangerouslySetInnerHTML={{ __html: cssEnvol() }} />
       {/* Le rideau garde les clics jusqu'à la fin du vol : sinon le toucher
           qui lance la séquence « traversait » et activait le lien caché

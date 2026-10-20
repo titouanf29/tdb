@@ -1,13 +1,9 @@
 import type { Metadata } from "next";
-import { FICHES, fiche } from "@/lib/cours/catalogue";
+import { fiche } from "@/lib/cours/catalogue";
 import { LeconChargee } from "./LeconChargee";
 
 // Next 15 : les paramètres d'une page rendue sur le serveur arrivent en promesse.
 type Props = { params: Promise<{ numero: string }> };
-
-export function generateStaticParams() {
-  return FICHES.map((f) => ({ numero: String(f.numero) }));
-}
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { numero } = await params;

@@ -79,17 +79,18 @@ async function maintenanceStatus(token: string | undefined): Promise<Status | nu
   }
 }
 
-async function gate(request: NextRequest): Promise<NextResponse> {
+async function gate(request: NextRequest, entetes: Headers): Promise<NextResponse> {
   const { pathname } = request.nextUrl;
+  const suite = () => NextResponse.next({ request: { headers: entetes } });
 
   if (OPEN_PREFIXES.some((p) => pathname === p || pathname.startsWith(p + "/"))) {
-    return NextResponse.next();
+    return suite();
   }
 
   const token = request.cookies.get(SESSION_COOKIE)?.value;
   const status = await maintenanceStatus(token);
   if (!status || !status.on || status.isAdmin) {
-    return NextResponse.next();
+    return suite();
   }
 
   // A redirect, not a rewrite. Under a rewrite the browser URL stays put, so
@@ -189,11 +190,50 @@ async function proxy(request: NextRequest): Promise<NextResponse> {
   }
 }
 
+/* ── La politique de contenu (CSP) ─────────────────────────────────────────
+
+   Un jeton (nonce) tiré au hasard à chaque page : seuls les scripts qui le
+   portent s'exécutent. Next.js l'applique à ses propres scripts (il le lit
+   dans l'en-tête de la requête), la mise en page le donne aux deux scripts
+   écrits dans le HTML, et 'strict-dynamic' laisse ces scripts de confiance
+   charger les morceaux de l'application. Un script injecté par un attaquant
+   n'a pas le jeton : il ne s'exécute pas. */
+
+function politique(nonce: string, request: NextRequest): string {
+  const dev = process.env.NODE_ENV !== "production";
+  const hote = request.headers.get("host") ?? "";
+  return [
+    "default-src 'self'",
+    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${dev ? " 'unsafe-eval'" : ""}`,
+    "style-src 'self' 'unsafe-inline'",
+    "img-src 'self' data: blob: https:",
+    "font-src 'self' data:",
+    // Les connexions en direct passent par l'adresse du site lui-même.
+    `connect-src 'self' wss://${hote}${dev ? ` ws://${hote}` : ""}`,
+    "frame-src https://s.tradingview.com https://www.tradingview.com",
+    "worker-src 'self' blob:",
+    "manifest-src 'self'",
+    "media-src 'self'",
+    "frame-ancestors 'none'",
+    "object-src 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+    ...(dev ? [] : ["upgrade-insecure-requests"]),
+  ].join("; ");
+}
+
 export async function middleware(request: NextRequest) {
   if (request.nextUrl.pathname.startsWith("/api/")) {
     return proxy(request);
   }
-  return gate(request);
+  const nonce = btoa(crypto.randomUUID());
+  const csp = politique(nonce, request);
+  const entetes = new Headers(request.headers);
+  entetes.set("x-nonce", nonce);
+  entetes.set("content-security-policy", csp);
+  const res = await gate(request, entetes);
+  res.headers.set("Content-Security-Policy", csp);
+  return res;
 }
 
 export const config = {

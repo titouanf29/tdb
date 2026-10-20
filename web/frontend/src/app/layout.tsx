@@ -10,6 +10,8 @@ import { LanguageProvider } from "@/lib/LanguageContext";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { ServiceWorker } from "@/components/app/ServiceWorker";
+import { headers } from "next/headers";
+import { NonceProvider } from "@/lib/nonce";
 
 /*
  * POLICES HÉBERGÉES DANS LE PROJET, pas téléchargées au build.
@@ -130,11 +132,15 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
+// Les pages sont rendues à chaque visite : le jeton de la CSP change à chaque fois.
+export const dynamic = "force-dynamic";
+
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const nonce = (await headers()).get("x-nonce") ?? undefined;
   return (
     // suppressHydrationWarning : le script ci-dessous pose data-theme, style
     // et lang sur <html> AVANT que React n'hydrate, pour éviter un premier
@@ -152,6 +158,8 @@ export default function RootLayout({
             Without this, a light-theme user gets a full dark first paint on
             every navigation while the settings GET is in flight. */}
         <script
+          nonce={nonce}
+          suppressHydrationWarning
           dangerouslySetInnerHTML={{
             __html: `
 (function(){try{
@@ -173,6 +181,7 @@ export default function RootLayout({
         />
       </head>
       <body className="min-h-screen bg-background font-sans">
+       <NonceProvider nonce={nonce}>
         <ServiceWorker />
         {/* Background effects — GPU-composited layer, no blur filters */}
         <div className="fixed inset-0 -z-10 overflow-hidden" style={{ contain: "strict", willChange: "transform" }}>
@@ -198,6 +207,7 @@ export default function RootLayout({
             </AuthProvider>
           </LanguageProvider>
         </ErrorBoundary>
+       </NonceProvider>
       </body>
     </html>
   );
