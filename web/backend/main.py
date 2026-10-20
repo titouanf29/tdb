@@ -390,9 +390,38 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
     La réponse par défaut renvoie l'entrée fautive : un `NaN` envoyé dans un
     montant ne pouvait pas s'écrire en JSON, et la réponse au refus devenait
     elle-même une erreur 500. On ne renvoie que le champ et la raison."""
-    erreurs = [{"loc": list(e.get("loc", ())), "msg": e.get("msg", ""), "type": e.get("type", "")}
+    erreurs = [{"loc": list(e.get("loc", ())), "msg": message_fr(e), "type": e.get("type", "")}
                for e in exc.errors()]
     return JSONResponse(status_code=422, content={"detail": erreurs})
+
+
+# Les refus d'un formulaire, en français : le message part tel quel à
+# l'écran. « String should have at least 3 characters » laissait l'utilisateur
+# sans savoir quel champ corriger, et l'inscription paraissait cassée.
+_CHAMPS = {
+    "email": "L'adresse e-mail", "password": "Le mot de passe", "new_password": "Le nouveau mot de passe",
+    "current_password": "Le mot de passe actuel", "username": "Le pseudo", "first_name": "Le prénom",
+    "symbol": "Le symbole", "amount": "Le montant", "quantity": "La quantité", "message": "Le message",
+}
+
+
+def message_fr(e: dict) -> str:
+    loc = [str(x) for x in e.get("loc", ()) if x not in ("body", "query", "path")]
+    champ = _CHAMPS.get(loc[-1] if loc else "", "Ce champ")
+    t, ctx = e.get("type", ""), e.get("ctx") or {}
+    if t == "missing":
+        return f"{champ} est obligatoire."
+    if t == "string_too_short":
+        return f"{champ} doit contenir au moins {ctx.get('min_length', '?')} caractères."
+    if t == "string_too_long":
+        return f"{champ} doit contenir au plus {ctx.get('max_length', '?')} caractères."
+    if t == "string_pattern_mismatch" and loc and loc[-1] == "username":
+        return "Le pseudo ne peut contenir que des lettres, des chiffres, des espaces et les signes . - _"
+    if loc and loc[-1] == "email":
+        return "L'adresse e-mail n'est pas valide."
+    if t in ("greater_than", "greater_than_equal", "less_than", "less_than_equal"):
+        return f"{champ} est hors des limites permises."
+    return f"{champ} n'est pas valide."
 
 
 @app.exception_handler(Exception)

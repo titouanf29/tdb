@@ -83,6 +83,14 @@ export const setUser = (user: User): void => {
   localStorage.setItem("tdb_user", JSON.stringify(user));
 };
 
+/** Le refus du serveur en une phrase lisible : un texte, ou une liste de
+ *  champs refusés (dont le serveur rédige déjà les messages en français). */
+function lireErreur(d: unknown): string {
+  if (typeof d === "string") return d;
+  if (Array.isArray(d)) return d.map((e) => (e && typeof e === "object" && "msg" in e ? String((e as { msg: unknown }).msg) : "")).filter(Boolean).join(" ");
+  return "";
+}
+
 // API calls
 export async function register(
   email: string,
@@ -101,11 +109,14 @@ export async function register(
     }),
   });
 
+  if (response.status === 429) {
+    throw new Error("Trop de tentatives depuis cette connexion. Attendez une minute, puis réessayez.");
+  }
   if (!response.ok) {
-    let detail = "Registration failed";
+    let detail = "L'inscription n'a pas abouti. Réessayez dans un instant.";
     try {
       const error = await response.json();
-      detail = error.detail || detail;
+      detail = lireErreur(error.detail) || detail;
     } catch {
       // Non-JSON response (e.g. 502 proxy error)
     }
@@ -129,11 +140,14 @@ export async function login(
     body: JSON.stringify({ email, password, remember_me: rememberMe }),
   });
 
+  if (response.status === 429) {
+    throw new Error("Trop de tentatives depuis cette connexion. Attendez une minute, puis réessayez.");
+  }
   if (!response.ok) {
-    let detail = "Login failed";
+    let detail = "La connexion n'a pas abouti. Réessayez dans un instant.";
     try {
       const error = await response.json();
-      detail = error.detail || detail;
+      detail = lireErreur(error.detail) || detail;
     } catch {
       // Non-JSON response (e.g. 502 proxy error)
     }

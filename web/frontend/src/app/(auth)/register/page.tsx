@@ -22,25 +22,54 @@ export default function RegisterPage() {
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
-  // Validation happens per field, so the message sits next to the thing that
-  // is wrong instead of at the top of the form.
-  const tooShort = password.length > 0 && password.length < 6;
-  const mismatch = confirm.length > 0 && confirm !== password;
+  // Chaque problème est dit sous son champ, en clair, avec les MÊMES règles
+  // que le serveur. Avant, la page annonçait « 6 caractères » quand le serveur
+  // en voulait 8 avec un chiffre, et un pseudo avec un espace était refusé
+  // par un message illisible : l'inscription paraissait cassée.
+  const [touches, setTouches] = useState<Record<string, boolean>>({});
+  const [essaye, setEssaye] = useState(false);
+  const vu = (champ: string) => essaye || touches[champ];
+  const toucher = (champ: string) => setTouches((t) => ({ ...t, [champ]: true }));
+
+  const pseudo = username.trim().replace(/\s+/g, " ");
+  const erreurPseudo =
+    !pseudo ? "Choisissez un pseudo."
+    : pseudo.length < 3 ? "Trop court : 3 caractères au moins."
+    : pseudo.length > 30 ? "Trop long : 30 caractères au plus."
+    : !/^[A-Za-zÀ-ÿ0-9_.\- ]+$/.test(pseudo) ? "Le pseudo ne peut contenir que des lettres, des chiffres, des espaces et les signes . - _"
+    : "";
+  const adresse = email.trim();
+  const erreurEmail =
+    !adresse ? "Indiquez votre adresse e-mail."
+    : !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(adresse) ? "Cette adresse e-mail n'est pas valide (exemple : vous@exemple.com)."
+    : "";
+  const erreurMdp =
+    !password ? "Choisissez un mot de passe."
+    : password.length < 8 ? `Trop court : 8 caractères au moins (encore ${8 - password.length}).`
+    : !/[A-Za-z]/.test(password) ? "Ajoutez au moins une lettre."
+    : !/\d/.test(password) ? "Ajoutez au moins un chiffre."
+    : new TextEncoder().encode(password).length > 72 ? "Trop long : raccourcissez-le un peu."
+    : "";
+  const erreurConfirm =
+    !confirm ? "Retapez le mot de passe."
+    : confirm !== password ? "Les deux mots de passe ne correspondent pas."
+    : "";
+  // Le mot de passe se juge dès qu'on tape : on voit tout de suite ce qui manque.
+  const montreMdp = password.length > 0 || essaye;
+  const montreConfirm = confirm.length > 0 || essaye;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    setEssaye(true);
 
-    if (password.length < 6) {
-      setError(lang === "en"
-        ? "Password must be at least 6 characters"
-        : "Le mot de passe doit contenir au moins 6 caractères");
-      return;
-    }
-    if (password !== confirm) {
-      setError(lang === "en"
-        ? "Passwords do not match"
-        : "Les mots de passe ne correspondent pas");
+    const premiere = [
+      ["reg-username", "Le pseudo", erreurPseudo], ["reg-email", "L'adresse e-mail", erreurEmail],
+      ["reg-password", "Le mot de passe", erreurMdp], ["reg-confirm", "La confirmation", erreurConfirm],
+    ].find(([, , m]) => m);
+    if (premiere) {
+      setError(`${premiere[1]} : ${premiere[2].charAt(0).toLowerCase()}${premiere[2].slice(1)}`);
+      document.getElementById(premiere[0])?.focus();
       return;
     }
     if (!accepted) {
@@ -52,7 +81,7 @@ export default function RegisterPage() {
 
     setIsLoading(true);
     try {
-      await register(email, password, username, username);
+      await register(adresse, password, pseudo, pseudo);
       router.push("/dashboard");
     } catch (err) {
       setError(err instanceof Error ? err.message : t("error_generic"));
@@ -115,34 +144,41 @@ export default function RegisterPage() {
       <form onSubmit={handleSubmit} className="mt-6 space-y-5" noValidate>
         {error && <FormError>{error}</FormError>}
 
-        <Field label="Nom d'utilisateur" htmlFor="reg-username">
+        <Field label="Nom d'utilisateur" htmlFor="reg-username"
+          hint="3 à 30 caractères : lettres, chiffres, espaces, . - _"
+          error={vu("pseudo") && erreurPseudo ? erreurPseudo : undefined}>
           <TextInput
             id="reg-username"
             value={username}
             onChange={setUsername}
+            onBlur={() => toucher("pseudo")}
             placeholder="votre pseudo"
             autoComplete="username"
             required
+            invalid={!!(vu("pseudo") && erreurPseudo)}
           />
         </Field>
 
-        <Field label="Adresse e-mail" htmlFor="reg-email">
+        <Field label="Adresse e-mail" htmlFor="reg-email"
+          error={vu("email") && erreurEmail ? erreurEmail : undefined}>
           <TextInput
             id="reg-email"
             type="email"
             value={email}
             onChange={setEmail}
+            onBlur={() => toucher("email")}
             placeholder="vous@exemple.com"
             autoComplete="email"
             required
+            invalid={!!(vu("email") && erreurEmail)}
           />
         </Field>
 
         <Field
           label="Mot de passe"
           htmlFor="reg-password"
-          hint="6 caractères minimum"
-          error={tooShort ? "Trop court, 6 caractères minimum." : undefined}
+          hint="8 caractères au moins, avec une lettre et un chiffre"
+          error={montreMdp && erreurMdp ? erreurMdp : undefined}
         >
           <TextInput
             id="reg-password"
@@ -152,14 +188,14 @@ export default function RegisterPage() {
             placeholder="••••••••"
             autoComplete="new-password"
             required
-            invalid={tooShort}
+            invalid={!!(montreMdp && erreurMdp)}
           />
         </Field>
 
         <Field
           label="Confirmer le mot de passe"
           htmlFor="reg-confirm"
-          error={mismatch ? "Les deux mots de passe diffèrent." : undefined}
+          error={montreConfirm && erreurConfirm ? erreurConfirm : undefined}
         >
           <TextInput
             id="reg-confirm"
@@ -169,7 +205,7 @@ export default function RegisterPage() {
             placeholder="••••••••"
             autoComplete="new-password"
             required
-            invalid={mismatch}
+            invalid={!!(montreConfirm && erreurConfirm)}
           />
         </Field>
 

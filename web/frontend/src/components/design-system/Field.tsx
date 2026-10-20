@@ -66,6 +66,7 @@ export function TextInput({
   invalid,
   describedBy,
   className,
+  onBlur,
 }: {
   id?: string;
   type?: "text" | "email" | "password";
@@ -77,6 +78,8 @@ export function TextInput({
   invalid?: boolean;
   describedBy?: string;
   className?: string;
+  /** Quand on quitte le champ (pour n'y signaler un problème qu'à ce moment). */
+  onBlur?: () => void;
 }) {
   const [reveal, setReveal] = useState(false);
   const isPassword = type === "password";
@@ -113,6 +116,7 @@ export function TextInput({
           e.currentTarget.style.boxShadow = `inset 0 0 0 1px ${
             invalid ? "var(--cap-down)" : "var(--cap-line-strong)"
           }`;
+          onBlur?.();
         }}
       />
       {isPassword && (

@@ -12,7 +12,7 @@ from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Depends, Query, Request, Response
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, field_validator, EmailStr, Field
 import jwt
 from jwt import PyJWTError as JWTError
 import bcrypt
@@ -45,14 +45,33 @@ class RegisterRequest(BaseModel):
     password: str = Field(min_length=6, max_length=128)
     # Lettres, chiffres, point, tiret et souligné : le pseudo est repris dans
     # les e-mails du site, il ne doit pas pouvoir y injecter du HTML.
-    username: str = Field(min_length=3, max_length=30, pattern=r"^[A-Za-zÀ-ÿ0-9_.\-]+$")
+    # Les espaces sont permis à l'intérieur (« Jean Dupont ») : ils ne peuvent
+    # rien injecter. Ceux du début et de la fin sont retirés.
+    username: str = Field(min_length=3, max_length=30, pattern=r"^[A-Za-zÀ-ÿ0-9_.\- ]+$")
     first_name: Optional[str] = Field(default=None, max_length=100)
+
+    @field_validator("username", mode="before")
+    @classmethod
+    def _pseudo_net(cls, v):
+        # « Jean   Dupont  » devient « Jean Dupont ».
+        return " ".join(str(v).split()) if isinstance(v, str) else v
+
+    @field_validator("email", mode="before")
+    @classmethod
+    def _email_net(cls, v):
+        # Un espace collé par le clavier du téléphone ne doit pas tout refuser.
+        return v.strip() if isinstance(v, str) else v
 
 
 class LoginRequest(BaseModel):
     email: EmailStr
     password: str
     remember_me: bool = False
+
+    @field_validator("email", mode="before")
+    @classmethod
+    def _email_net(cls, v):
+        return v.strip() if isinstance(v, str) else v
 
 
 class TokenResponse(BaseModel):
@@ -201,13 +220,13 @@ async def register(request: Request, data: RegisterRequest):
         "SELECT id FROM web_users WHERE email = ?", (data.email.lower(),)
     )
     if existing:
-        raise HTTPException(status_code=400, detail="Email déjà utilisé")
+        raise HTTPException(status_code=400, detail="Cette adresse e-mail a déjà un compte. Connectez-vous, ou utilisez « Mot de passe oublié » si vous ne vous en souvenez plus.")
 
     existing_username = await execute_query(
         "SELECT id FROM web_users WHERE username = ?", (data.username.lower(),)
     )
     if existing_username:
-        raise HTTPException(status_code=400, detail="Nom d'utilisateur déjà pris")
+        raise HTTPException(status_code=400, detail="Ce pseudo est déjà pris : choisissez-en un autre.")
 
     password_hash = hash_password(data.password)
     await execute_write(
@@ -513,7 +532,7 @@ def regle_mot_de_passe(motdepasse: str) -> Optional[str]:
         # en silence, et deux mots de passe différents deviendraient égaux.
         # La limite est en OCTETS : un caractère accentué en compte deux.
         # Annoncer « 72 caractères » serait faux pour un mot de passe accentué.
-        return "Le mot de passe est trop long — raccourcissez-le un peu."
+        return "Le mot de passe est trop long : raccourcissez-le un peu."
     return None
 
 
