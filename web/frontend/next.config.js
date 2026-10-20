@@ -3,7 +3,10 @@ const nextConfig = {
   reactStrictMode: true,
   output: 'standalone',
   images: {
-    domains: ['t.me', 'telegram.org'],
+    // Le site n'utilise pas next/image : l'optimiseur d'images de Next est
+    // coupé, ce qui ferme les failles qui passent par lui (exécution de code
+    // à distance avec un fichier AVIF, dénis de service, cache sans limite).
+    unoptimized: true,
   },
   // API proxy is handled by src/middleware.ts (reads BACKEND_URL at runtime).
   typescript: {
