@@ -124,7 +124,8 @@ function Reinitialiser() {
               </li>
             ))}
           </ul>
-          <Field label="Confirmer" htmlFor="rp-conf">
+          <Field label="Confirmer" htmlFor="rp-conf"
+            error={confirmation.length > 0 && !identiques ? "Les deux mots de passe ne correspondent pas." : undefined}>
             <TextInput id="rp-conf" type="password" value={confirmation} onChange={setConfirmation}
                        placeholder="••••••••" autoComplete="new-password" required
                        invalid={confirmation.length > 0 && !identiques} />

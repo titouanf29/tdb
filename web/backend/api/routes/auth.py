@@ -337,12 +337,12 @@ async def login(request: Request, response: Response, data: LoginRequest):
         # Le même calcul bcrypt qu'avec un vrai compte : sans lui, la réponse
         # arrivait plus vite et trahissait qu'aucun compte n'existe.
         verify_password(data.password, _EMPREINTE_FACTICE)
-        raise HTTPException(status_code=401, detail="Email ou mot de passe incorrect")
+        raise HTTPException(status_code=401, detail="Adresse e-mail ou mot de passe incorrect. Vous l'avez oublié ? « Mot de passe oublié » vous envoie un lien.")
 
     user = users[0]
 
     if not verify_password(data.password, user["password_hash"]):
-        raise HTTPException(status_code=401, detail="Email ou mot de passe incorrect")
+        raise HTTPException(status_code=401, detail="Adresse e-mail ou mot de passe incorrect. Vous l'avez oublié ? « Mot de passe oublié » vous envoie un lien.")
     if user.get("is_active") in (0, False):
         raise HTTPException(status_code=403, detail="Ce compte est suspendu.")
 

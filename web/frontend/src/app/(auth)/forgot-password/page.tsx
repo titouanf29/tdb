@@ -25,8 +25,12 @@ export default function ForgotPasswordPage() {
   const envoyer = async (e: React.FormEvent) => {
     e.preventDefault();
     setErreur("");
-    if (!/^\S+@\S+\.\S+$/.test(email.trim())) {
+    if (!email.trim()) {
       setErreur("Indiquez l'adresse e-mail de votre compte.");
+      return;
+    }
+    if (!/^\S+@\S+\.\S+$/.test(email.trim())) {
+      setErreur("Cette adresse e-mail n'est pas valide (exemple : vous@exemple.com).");
       return;
     }
     setEnvoi(true);
@@ -79,8 +83,7 @@ export default function ForgotPasswordPage() {
             <div>
               <p className="text-[0.92rem]" style={{ color: "var(--cap-ink)" }}>{message}</p>
               <Text size="caption" className="mt-2">
-                Rien reçu après quelques minutes ? Vérifiez l&apos;adresse saisie —{" "}
-                <strong>{email.trim()}</strong> —{" "}
+                Rien reçu après quelques minutes ? Vérifiez l&apos;adresse saisie (<strong>{email.trim()}</strong>),{" "}
                 <button type="button" onClick={() => setMessage(null)}
                         className="underline underline-offset-2" style={{ color: "var(--cap-ocean)" }}>
                   ou recommencez

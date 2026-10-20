@@ -19,12 +19,26 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
+  // Un champ vide ou une adresse mal écrite se dit avant l'envoi, sous le
+  // champ : le serveur ne répondait que « adresse e-mail pas valide ».
+  const [essaye, setEssaye] = useState(false);
+  const adresse = email.trim();
+  const erreurEmail = !adresse ? "Indiquez votre adresse e-mail."
+    : !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(adresse) ? "Cette adresse e-mail n'est pas valide (exemple : vous@exemple.com)."
+    : "";
+  const erreurMdp = !password ? "Indiquez votre mot de passe." : "";
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    setEssaye(true);
+    if (erreurEmail || erreurMdp) {
+      document.getElementById(erreurEmail ? "login-email" : "login-password")?.focus();
+      return;
+    }
     setIsLoading(true);
     try {
-      await login(email, password, rememberMe);
+      await login(adresse, password, rememberMe);
       router.push("/dashboard");
     } catch (err) {
       setError(err instanceof Error ? err.message : t("error_generic"));
@@ -70,7 +84,7 @@ export default function LoginPage() {
       <form onSubmit={handleSubmit} className="mt-7 space-y-5" noValidate>
         {error && <FormError>{error}</FormError>}
 
-        <Field label="Adresse e-mail" htmlFor="login-email">
+        <Field label="Adresse e-mail" htmlFor="login-email" error={essaye && erreurEmail ? erreurEmail : undefined}>
           <TextInput
             id="login-email"
             type="email"
@@ -79,11 +93,11 @@ export default function LoginPage() {
             placeholder="vous@exemple.com"
             autoComplete="email"
             required
-            invalid={!!error}
+            invalid={!!error || !!(essaye && erreurEmail)}
           />
         </Field>
 
-        <Field label="Mot de passe" htmlFor="login-password">
+        <Field label="Mot de passe" htmlFor="login-password" error={essaye && erreurMdp ? erreurMdp : undefined}>
           <TextInput
             id="login-password"
             type="password"
@@ -92,7 +106,7 @@ export default function LoginPage() {
             placeholder="••••••••"
             autoComplete="current-password"
             required
-            invalid={!!error}
+            invalid={!!error || !!(essaye && erreurMdp)}
           />
         </Field>
 
