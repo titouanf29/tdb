@@ -201,7 +201,7 @@ export function maintenantParis(d = new Date()) {
 export const JOURS = ["lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche"];
 
 /** La largeur réelle d'un élément, pour dessiner un SVG net à toutes les tailles. */
-export function useLargeur(defaut = 600): [RefObject<HTMLDivElement>, number] {
+export function useLargeur(defaut = 600): [RefObject<HTMLDivElement | null>, number] {
   const ref = useRef<HTMLDivElement>(null);
   const [w, setW] = useState(defaut);
   useEffect(() => {

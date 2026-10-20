@@ -2,12 +2,16 @@ import type { Metadata } from "next";
 import { FICHES, fiche } from "@/lib/cours/catalogue";
 import { LeconChargee } from "./LeconChargee";
 
+// Next 15 : les paramètres d'une page rendue sur le serveur arrivent en promesse.
+type Props = { params: Promise<{ numero: string }> };
+
 export function generateStaticParams() {
   return FICHES.map((f) => ({ numero: String(f.numero) }));
 }
 
-export function generateMetadata({ params }: { params: { numero: string } }): Metadata {
-  const f = fiche(Number(params.numero));
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { numero } = await params;
+  const f = fiche(Number(numero));
   if (!f) return { title: "Leçon introuvable | CaptenTDB" };
   return {
     title: `Leçon ${f.numero} : ${f.titre} | CaptenTDB`,
@@ -15,6 +19,7 @@ export function generateMetadata({ params }: { params: { numero: string } }): Me
   };
 }
 
-export default function Page({ params }: { params: { numero: string } }) {
-  return <LeconChargee numero={Number(params.numero)} />;
+export default async function Page({ params }: Props) {
+  const { numero } = await params;
+  return <LeconChargee numero={Number(numero)} />;
 }

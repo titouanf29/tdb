@@ -91,7 +91,7 @@ export function AppChrome({ children }: { children: React.ReactNode }) {
  *     qu'on atteint la fin d'une page.
  * Sur ordinateur, rien ne change : l'en-tête reste, la place ne manque pas.
  */
-function useEnteteMasquee(ref: React.RefObject<HTMLElement>): boolean {
+function useEnteteMasquee(ref: React.RefObject<HTMLElement | null>): boolean {
   const pathname = usePathname();
   const [masquee, setMasquee] = useState(false);
 

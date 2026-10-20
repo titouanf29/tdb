@@ -376,7 +376,7 @@ export function TrendShape() {
  * le lecteur essaie d'y lire quelque chose, n'y trouve rien, et se méfie des
  * suivantes.
  */
-const BY_LESSON: Record<string, () => JSX.Element> = {
+const BY_LESSON: Record<string, () => React.JSX.Element> = {
   "technical-analysis/reading-charts": CandleAnatomy,
   "technical-analysis/support-resistance": SupportResistance,
   "technical-analysis/trend-indicators": TrendShape,
