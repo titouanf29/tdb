@@ -67,8 +67,16 @@ export const removeToken = (): void => {
 
 export const getUser = (): User | null => {
   if (typeof window === "undefined") return null;
-  const user = localStorage.getItem("tdb_user");
-  return user ? JSON.parse(user) : null;
+  // Une valeur abîmée (extension, ancienne version du site) ne doit pas faire
+  // planter toutes les pages : elle est oubliée, et l'utilisateur se reconnecte.
+  try {
+    const user = localStorage.getItem("tdb_user");
+    const lu = user ? JSON.parse(user) : null;
+    return lu && typeof lu === "object" ? (lu as User) : null;
+  } catch {
+    try { localStorage.removeItem("tdb_user"); } catch { /* navigation privée */ }
+    return null;
+  }
 };
 
 export const setUser = (user: User): void => {
