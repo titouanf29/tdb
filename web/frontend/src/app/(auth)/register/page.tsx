@@ -160,6 +160,7 @@ export default function RegisterPage() {
         </Field>
 
         <Field label="Adresse e-mail" htmlFor="reg-email"
+          hint="Elle ne sert qu'à votre compte : pas de newsletter, pas de publicité, jamais vendue ni cédée."
           error={vu("email") && erreurEmail ? erreurEmail : undefined}>
           <TextInput
             id="reg-email"

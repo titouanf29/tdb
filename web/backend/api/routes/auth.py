@@ -277,10 +277,18 @@ async def register(request: Request, data: RegisterRequest):
         link="/admin?tab=users"
     )
 
-    # Auto-verify and return token directly (no email verification required)
-    await execute_write(
-        "UPDATE web_users SET email_verified = 1 WHERE id = ?", (user["id"],)
-    )
+    # La vérification de l'adresse, en douceur : l'espace est utilisable tout
+    # de suite, un e-mail part avec le lien de confirmation, et un bandeau le
+    # rappelle tant que l'adresse n'est pas confirmée. Sans service d'envoi
+    # configuré (développement), le compte est vérifié d'office : personne
+    # n'attend un e-mail qui ne partira jamais.
+    verifie = False
+    if EMAIL_ENABLED:
+        jeton = await _create_verification_token(user["id"])
+        asyncio.create_task(_envoyer_verification(user["email"], user["username"], jeton))
+    else:
+        await execute_write("UPDATE web_users SET email_verified = 1 WHERE id = ?", (user["id"],))
+        verifie = True
     access_token = create_access_token(token_payload(user))
     return TokenResponse(
         access_token=access_token,
@@ -290,8 +298,17 @@ async def register(request: Request, data: RegisterRequest):
             "first_name": user.get("first_name"),
             "trading_level": user.get("trading_level"),
             "user_type": "email",
+            "email_verified": verifie,
         }
     )
+
+
+async def _envoyer_verification(email: str, username: str, jeton: str) -> None:
+    """En tâche de fond : l'inscription n'attend pas le fournisseur d'e-mail."""
+    try:
+        await send_verification_email(email, username, jeton)
+    except Exception as e:  # le compte existe ; le bandeau permet de renvoyer le lien
+        logging.getLogger(__name__).error("E-mail de vérification non envoyé : %s", e)
 
 
 SESSION_COOKIE = "tdb_sess"
@@ -381,14 +398,14 @@ async def verify_email(request: Request, token: str):
         "SELECT * FROM email_verification_tokens WHERE token = ?", (token,)
     )
     if not rows:
-        raise HTTPException(status_code=400, detail="Lien invalide ou expiré")
+        raise HTTPException(status_code=400, detail="Ce lien n'est plus valable : il a déjà servi, ou un lien plus récent a été envoyé. Demandez-en un nouveau.")
 
     record = rows[0]
     if datetime.now(timezone.utc) > datetime.fromisoformat(record["expires_at"]):
         await execute_write(
             "DELETE FROM email_verification_tokens WHERE token = ?", (token,)
         )
-        raise HTTPException(status_code=400, detail="Lien expiré. Demandez un nouveau.")
+        raise HTTPException(status_code=400, detail="Ce lien a expiré (il dure 24 heures). Demandez-en un nouveau.")
 
     user_id = record["user_id"]
     await execute_write("UPDATE web_users SET email_verified = 1 WHERE id = ?", (user_id,))
@@ -406,6 +423,7 @@ async def verify_email(request: Request, token: str):
             "first_name": user.get("first_name"),
             "trading_level": user.get("trading_level"),
             "user_type": "email",
+            "email_verified": True,
         }
     )
 
@@ -414,28 +432,19 @@ async def verify_email(request: Request, token: str):
 @limiter.limit("3/minute")
 async def resend_verification(request: Request, data: dict):
     """Resend verification email."""
-    email = (data.get("email") or "").lower().strip()
+    email = str(data.get("email") or "").lower().strip()[:254]
     if not email:
-        raise HTTPException(status_code=400, detail="Email requis")
+        raise HTTPException(status_code=400, detail="Indiquez votre adresse e-mail.")
+    neutre = {"message": "Si cette adresse a un compte à confirmer, un nouveau lien vient de lui être envoyé. "
+                         "Pensez à regarder dans les indésirables."}
 
     users = await execute_query("SELECT * FROM web_users WHERE email = ?", (email,))
-    if not users:
-        # Don't reveal if email exists
-        return {"message": "Si ce compte existe, un email a été envoyé."}
-
+    if not users or users[0].get("email_verified"):
+        return neutre
     user = users[0]
-    if user.get("email_verified"):
-        return {"message": "Ce compte est déjà vérifié."}
-
     token = await _create_verification_token(user["id"])
-    try:
-        await send_verification_email(email, user["username"], token)
-    except Exception as e:
-        import logging
-        logging.getLogger(__name__).error("Failed to resend verification: %s", e)
-        raise HTTPException(status_code=500, detail="Impossible d'envoyer l'email. Réessayez.")
-
-    return {"message": "Email de vérification envoyé."}
+    asyncio.create_task(_envoyer_verification(email, user["username"], token))
+    return neutre
 
 
 @router.get("/me")

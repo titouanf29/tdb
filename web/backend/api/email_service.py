@@ -332,12 +332,15 @@ async def send_verification_email(to: str, username: str, token: str) -> None:
     html = _gabarit(
         "Bienvenue à bord", "Confirmez votre adresse e-mail",
         _p(f"Bonjour {_fort(_esc(username))},")
-        + _p("Merci de rejoindre CaptenTDB. Un clic pour confirmer que cette adresse est bien la vôtre, "
-             f"et votre espace est prêt. Le lien reste valable {_fort('24 heures')}.")
+        + _p("Merci de rejoindre CaptenTDB. Votre espace est déjà ouvert ; un clic suffit pour confirmer "
+             f"que cette adresse est bien la vôtre. Le lien reste valable {_fort('24 heures')}.")
         + _bouton(url, "Confirmer mon adresse")
         + _lien_secours(url)
-        + _p("Vous n'avez pas créé de compte ? Ignorez simplement cet e-mail.", 13, _ENCRE_3, "16px 0 0"),
-        apercu="Un clic pour confirmer votre adresse et ouvrir votre espace.",
+        + _p("Votre adresse ne sert qu'à votre compte : vous reconnecter, récupérer votre mot de passe, "
+             "et le reçu si vous prenez Premium. Pas de newsletter, pas de publicité, et elle n'est jamais "
+             "vendue ni cédée.", 13, _ENCRE_3, "16px 0 0")
+        + _p("Vous n'avez pas créé de compte ? Ignorez simplement cet e-mail.", 13, _ENCRE_3, "8px 0 0"),
+        apercu="Un clic pour confirmer votre adresse. Pas de newsletter, pas de publicité.",
     )
     await _send(to, "Confirmez votre adresse e-mail · CaptenTDB", html)
 

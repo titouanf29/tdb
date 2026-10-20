@@ -363,6 +363,17 @@ export interface BlocPersonnel {
 }
 
 /** Mot de passe oublié. Les trois appels fonctionnent sans être connecté. */
+/** La confirmation de l'adresse e-mail, depuis le lien reçu. */
+export const verificationAPI = {
+  confirmer: (token: string) =>
+    fetchAPI<{ access_token: string; user: import("./auth").User }>(`/api/auth/verify-email?token=${encodeURIComponent(token)}`),
+  /** Répond pareil que l'adresse ait un compte ou non : c'est voulu. */
+  renvoyer: (email: string) =>
+    fetchAPI<{ message: string }>("/api/auth/resend-verification", {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email }),
+    }),
+};
+
 export const passwordResetAPI = {
   /** Répond pareil que le compte existe ou non : c'est voulu. */
   request: (email: string) =>

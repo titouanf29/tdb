@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { Notifications } from "./Notifications";
 import { ReussiteNimbo } from "./ReussiteNimbo";
+import { BandeauVerification } from "./BandeauVerification";
 import { useAuth } from "@/lib/AuthContext";
 import { usePremium } from "@/lib/PremiumContext";
 import {
@@ -62,6 +63,7 @@ export function AppChrome({ children }: { children: React.ReactNode }) {
           paddingRight: "max(var(--pad-x), env(safe-area-inset-right, 0px))",
         }}
       >
+        <BandeauVerification />
         {children}
       </main>
       <MobileTabs />

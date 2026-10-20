@@ -139,6 +139,9 @@ export default function PolitiqueConfidentialitePage() {
         {/* 3. Finalités */}
         <section id="finalites" className="glass-card p-6 space-y-4 scroll-mt-6">
           <LegalSectionTitle num="3" id="finalites-title" title="Finalités du traitement & bases légales" />
+          <InfoBox variant="success">
+            <strong className="text-foreground">Votre adresse e-mail ne sert qu'à votre compte.</strong> Nous vous écrivons seulement pour confirmer l'adresse à l'inscription, vous envoyer un lien si vous oubliez votre mot de passe, et le reçu d'un abonnement Premium. Aucune newsletter, aucune prospection commerciale, aucune publicité : votre adresse n'est jamais vendue ni cédée. Elle passe seulement par notre prestataire d'envoi (Brevo), qui la traite pour notre compte et pour ces seuls messages.
+          </InfoBox>
           <p className="text-muted-foreground">Conformément à l'article 6 du RGPD, chaque traitement repose sur une base légale identifiée :</p>
           <div className="overflow-x-auto rounded-xl border border-white/10">
             <table className="w-full text-xs min-w-[500px]">
@@ -201,6 +204,13 @@ export default function PolitiqueConfidentialitePage() {
                 country: "États-Unis 🇺🇸",
                 data: "E-mail, identifiant client Stripe, Les données bancaires sont traitées directement par Stripe, jamais par CaptenTDB",
                 guarantee: "Certifié PCI-DSS Level 1, SCC UE-USA, Stripe Privacy Policy",
+              },
+              {
+                name: "Brevo (Sendinblue SAS)",
+                role: "Envoi des e-mails du compte (confirmation de l'adresse, mot de passe oublié, reçu Premium)",
+                country: "France 🇫🇷",
+                data: "Adresse e-mail, pseudo, et le contenu de ces seuls messages. Aucune liste de diffusion, aucune newsletter",
+                guarantee: "Société de droit français, données hébergées dans l'Union européenne, accord de sous-traitance (DPA) Brevo",
               },
             ].map(({ name, role, country, data, guarantee }) => (
               <div key={name} className="p-4 rounded-xl bg-white/5 border border-white/10 space-y-2">
