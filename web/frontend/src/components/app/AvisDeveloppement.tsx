@@ -9,8 +9,9 @@ import { motion } from "framer-motion";
 import { Button, EASE, Nimbo, useMouvementReduit } from "@/components/design-system";
 
 const CLE = "tdb_avis_dev_ferme";
+const SEANCE = "tdb_avis_dev_seance";
 /** Au-delà, le compte n'est plus nouveau : l'avis ne s'affiche plus. */
-const JOURS = 30;
+const JOURS = 2;
 
 /**
  * L'avis d'arrivée : le site est en développement, et voici où écrire.
@@ -18,7 +19,13 @@ const JOURS = 30;
  * Un souci gardé pour soi, c'est un inscrit qui repart sans rien dire. L'avis
  * le dit d'emblée, et montre le chemin en trois temps, Communauté, Mes
  * demandes, le message ; « Me montrer » le parcourt sur les vrais écrans,
- * avec la visite guidée. Il se ferme pour de bon d'un clic.
+ * avec la visite guidée.
+ *
+ * IL NE S'AFFICHE QU'UNE FOIS, à l'arrivée sur l'accueil juste après
+ * l'inscription. Il revenait à chaque visite pendant trente jours tant qu'on
+ * ne le fermait pas : un avis répété devient du bruit qu'on ne lit plus. Il
+ * est donc noté comme vu dès sa première apparition : il reste le temps de
+ * la séance, puis ne revient plus.
  */
 export function AvisDeveloppement() {
   const { user } = useAuth();
@@ -26,7 +33,15 @@ export function AvisDeveloppement() {
   const reduit = useMouvementReduit();
 
   useEffect(() => {
-    try { setFerme(localStorage.getItem(CLE) === "1"); } catch { setFerme(false); }
+    // Vu une fois : noté aussitôt pour les visites suivantes, mais gardé pour
+    // la séance en cours (un aller-retour pendant la visite guidée ne le
+    // fait pas disparaître avant qu'on l'ait lu).
+    try {
+      const vu = localStorage.getItem(CLE) === "1";
+      const seance = sessionStorage.getItem(SEANCE) === "1";
+      if (!vu) { localStorage.setItem(CLE, "1"); sessionStorage.setItem(SEANCE, "1"); }
+      setFerme(vu && !seance);
+    } catch { setFerme(false); }
   }, []);
 
   if (!user || ferme) return null;
@@ -35,7 +50,7 @@ export function AvisDeveloppement() {
 
   const fermer = () => {
     setFerme(true);
-    try { localStorage.setItem(CLE, "1"); } catch { /* navigation privée */ }
+    try { localStorage.setItem(CLE, "1"); sessionStorage.removeItem(SEANCE); } catch { /* navigation privée */ }
   };
 
   const etapes = ["Communauté", "Mes demandes", "Votre message"];

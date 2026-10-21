@@ -320,20 +320,6 @@ export function WelcomeDialog({
               ))}
           </ul>
 
-          {/* Le site évolue encore : le dire dès l'arrivée, et montrer où
-              écrire, vaut mieux qu'un souci gardé pour soi. */}
-          <div className="mt-5 border-t pt-4" style={{ borderColor: "var(--cap-line)" }}>
-            <p className="text-[0.95rem] font-semibold" style={{ color: "var(--cap-ink)", fontFamily: "var(--cap-font-display)" }}>
-              Le site est en développement.
-            </p>
-            <Text size="small" className="mt-1">
-              Si vous rencontrez une difficulté, un problème, ou si une idée vous vient, merci de contacter le
-              support : chaque message est lu, et la réponse arrive dans Mes demandes.
-            </Text>
-            <button type="button" onClick={() => visite("support")} className="cap-lien mt-2 text-[0.9rem]">
-              Me montrer comment le contacter
-            </button>
-          </div>
 
           <p className="mt-6 text-[1.05rem] font-semibold" style={{ color: "var(--cap-ink)", fontFamily: "var(--cap-font-display)" }}>
             Par où voulez-vous commencer ?
