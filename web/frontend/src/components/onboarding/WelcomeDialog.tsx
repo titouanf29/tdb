@@ -2,22 +2,24 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { motion } from "framer-motion";
 import { ArrowLeft, ArrowRight, Check } from "lucide-react";
 import { useAuth } from "@/lib/AuthContext";
 import { useProfile } from "@/lib/useProfile";
 import { GOALS, MARKETS, TIMES } from "@/lib/profileQuestions";
 import type { TradingLevel } from "@/lib/auth";
 import {
-  Button, FormError, Heading, Modal, Nimbo, Text, DUR, EASE, useMouvementReduit,
+  Button, FormError, Heading, Modal, Nimbo, Text,
 } from "@/components/design-system";
+import { lancerVisite, type VisiteId } from "@/lib/visite";
+import { Presentation } from "./Presentation";
 
 /** Mémorise un refus, pour que la question ne revienne pas à chaque page. */
 export const DISMISSED_KEY = "tdb_welcome_dismissed";
 
 /**
- * L'accueil d'un inscrit : Nimbo se présente, dit en quatre lignes comment
- * marche le site, puis pose quatre questions pour l'adapter. On peut partir
+ * L'accueil d'un inscrit : Nimbo se présente, montre le site en quatre
+ * chapitres animés (Presentation.tsx), puis pose quatre questions pour
+ * l'adapter. La fin propose la visite guidée sur les vrais écrans. On peut partir
  * découvrir seul à chaque étape, sans rien perdre : les questions restent
  * dans les paramètres.
  *
@@ -84,14 +86,6 @@ const LEVELS: LevelDef[] = [
 type Step = "nimbo" | "visite" | "level" | "goal" | "markets" | "time" | "done";
 const QUESTIONS: Step[] = ["level", "goal", "markets", "time"];
 
-/** Comment marche le site, en quatre parties, comme une table des matières. */
-const VISITE = [
-  { titre: "Lire", ou: "Analyse", texte: "Choisissez un actif : je donne mon verdict et sa raison en une phrase, puis le détail si vous le voulez." },
-  { titre: "S'entraîner", ou: "Wallet", texte: "10 000 € fictifs pour prendre de vraies positions sur les vrais cours, chacune avec son stop et son objectif." },
-  { titre: "Apprendre", ou: "Parcours", texte: "Des cours courts, des exercices sur de vrais graphiques et des missions, du premier ordre aux stratégies." },
-  { titre: "Tester ses idées", ou: "Ma stratégie", texte: "Écrivez vos propres règles : je les relis, puis vous les rejouez sur des années de cours passés." },
-];
-
 export function WelcomeDialog({
   open,
   onClose,
@@ -104,7 +98,6 @@ export function WelcomeDialog({
   const { profile, save } = useProfile();
 
   const [step, setStep] = useState<Step>("nimbo");
-  const reduce = useMouvementReduit();
   const [level, setLevel] = useState<LevelDef | null>(null);
   const [markets, setMarkets] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
@@ -125,6 +118,12 @@ export function WelcomeDialog({
   const close = () => {
     try { localStorage.setItem(DISMISSED_KEY, "1"); } catch { /* navigation privée */ }
     onClose();
+  };
+
+  /** Fermer le dialogue, puis lancer la visite une fois qu'il a disparu. */
+  const visite = (id: VisiteId) => {
+    close();
+    setTimeout(() => lancerVisite(id), 380);
   };
 
   const guard = async (fn: () => Promise<void>, next: Step) => {
@@ -197,38 +196,12 @@ export function WelcomeDialog({
               </dd>
             </div>
           </dl>
-          <Suite onSuite={() => setStep("visite")} label="Faire le tour en une minute" onSeul={close} />
+          <Suite onSuite={() => setStep("visite")} label="Découvrir le site" onSeul={close} />
         </>
       )}
 
       {step === "visite" && (
-        <>
-          <Heading level={2}>Comment ça marche</Heading>
-          <Text size="small" className="mt-2">Quatre endroits, dans l&apos;ordre où l&apos;on progresse.</Text>
-          <ol className="mt-4">
-            {VISITE.map((v, i) => (
-              <motion.li key={v.titre}
-                initial={reduce ? false : { opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: DUR.base, ease: EASE, delay: reduce ? 0 : 0.12 + i * 0.11 }}
-                className="grid grid-cols-[2rem_minmax(0,1fr)] gap-x-1.5 border-t py-3" style={{ borderColor: "var(--cap-line)" }}>
-                <span aria-hidden className="text-[1.15rem] italic leading-tight" style={{ color: "#c98a1e", fontFamily: "var(--cap-font-display)" }}>{i + 1}</span>
-                <span>
-                  <span className="flex items-baseline gap-2">
-                    <span className="text-[1.08rem] font-semibold leading-tight" style={{ color: "var(--cap-ink)", fontFamily: "var(--cap-font-display)" }}>{v.titre}</span>
-                    <span aria-hidden className="flex-1 -translate-y-[0.2em] border-b-[1.5px] border-dotted" style={{ borderColor: "var(--cap-line-strong)" }} />
-                    <span className="text-[0.8rem] italic" style={{ color: "var(--cap-ink-3)", fontFamily: "var(--cap-font-display)" }}>{v.ou}</span>
-                  </span>
-                  <span className="mt-1 block text-[0.88rem] leading-relaxed" style={{ color: "var(--cap-ink-2)" }}>{v.texte}</span>
-                </span>
-              </motion.li>
-            ))}
-          </ol>
-          <Text size="caption" className="mt-2">
-            En plus : un assistant pour vos questions, l&apos;agenda des annonces qui font bouger les marchés, et une
-            communauté pour comparer vos idées.
-          </Text>
-          <Suite onSuite={() => setStep("level")} label="Adapter le site à moi" onSeul={close} onRetour={() => setStep("nimbo")} />
-        </>
+        <Presentation onFin={() => setStep("level")} onRetour={() => setStep("nimbo")} onSeul={close} />
       )}
 
       {step === "level" && (
@@ -347,14 +320,32 @@ export function WelcomeDialog({
               ))}
           </ul>
 
+          {/* Le site évolue encore : le dire dès l'arrivée, et montrer où
+              écrire, vaut mieux qu'un souci gardé pour soi. */}
+          <div className="mt-5 border-t pt-4" style={{ borderColor: "var(--cap-line)" }}>
+            <p className="text-[0.95rem] font-semibold" style={{ color: "var(--cap-ink)", fontFamily: "var(--cap-font-display)" }}>
+              Le site est en développement.
+            </p>
+            <Text size="small" className="mt-1">
+              Si vous rencontrez une difficulté, un problème, ou si une idée vous vient, merci de contacter le
+              support : chaque message est lu, et la réponse arrive dans Mes demandes.
+            </Text>
+            <button type="button" onClick={() => visite("support")} className="cap-lien mt-2 text-[0.9rem]">
+              Me montrer comment le contacter
+            </button>
+          </div>
+
           <p className="mt-6 text-[1.05rem] font-semibold" style={{ color: "var(--cap-ink)", fontFamily: "var(--cap-font-display)" }}>
             Par où voulez-vous commencer ?
           </p>
           <div className="mt-3 space-y-2">
+            <Card title="La visite guidée du site" detail="Deux minutes sur les vrais écrans : je vous montre où tout se trouve, jusqu'à votre première analyse."
+              onClick={() => visite("decouverte")} />
             {departs(profile.goal).map((d) => (
               <Card key={d.href} title={d.titre} detail={d.detail} onClick={() => { close(); router.push(d.href); }} />
             ))}
           </div>
+
           <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
             <button type="button" onClick={close} className="cap-lien text-[0.9rem]">Explorer par moi-même</button>
             <Text size="caption" as="span">Modifiable dans Paramètres › Mon expérience.</Text>

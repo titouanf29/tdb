@@ -591,6 +591,7 @@ function AnalysisScreen() {
 
         {analysis && (
           <>
+            <div data-visite="analyse-verdict">
             <Verdict
               // Un nouvel actif rejoue l'arrivée du verdict : sans clé, les
               // chiffres changeaient sous les yeux sans que rien le signale.
@@ -604,6 +605,7 @@ function AnalysisScreen() {
               onToggleFavorite={toggleFavorite}
               onPasserEnSwing={() => changeStyle("swing")}
             />
+            </div>
 
 
             {/* CE QUE CE PLAN VEUT DIRE POUR VOUS.
@@ -1260,7 +1262,7 @@ function PropositionNimbo({
           bouton plein ; quand il ne propose pas, le bouton reste là, en
           retrait, et Nimbo dit franchement qu'il ne le conseille pas, c'est
           de l'argent virtuel, se tromper ici fait partie de l'apprentissage. */}
-      <div className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-2">
+      <div className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-2" data-visite="analyse-position">
         <Button href={href} size="lg" variant={propose ? "primary" : "secondary"} className="w-full sm:w-auto">
           {propose ? "Prendre position" : "Prendre position quand même"}
           <ArrowRight className="cap-fleche h-4 w-4" />

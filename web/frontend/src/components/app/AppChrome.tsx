@@ -5,12 +5,14 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import {
-  ChevronDown, Globe2, Home, LineChart, LogOut, Menu, Search, Settings, Shield,
+  ChevronDown, Compass, Globe2, Home, LineChart, LogOut, Menu, Search, Settings, Shield,
   Wallet, X,
 } from "lucide-react";
 import { Notifications } from "./Notifications";
 import { ReussiteNimbo } from "./ReussiteNimbo";
 import { BandeauVerification } from "./BandeauVerification";
+import { VisiteGuidee } from "./VisiteGuidee";
+import { EVT_OUVRIR, lancerVisite } from "@/lib/visite";
 import { useAuth } from "@/lib/AuthContext";
 import { usePremium } from "@/lib/PremiumContext";
 import {
@@ -68,6 +70,7 @@ export function AppChrome({ children }: { children: React.ReactNode }) {
       </main>
       <MobileTabs />
       <ReussiteNimbo />
+      <VisiteGuidee />
     </div>
   );
 }
@@ -150,6 +153,16 @@ function TopBar({ area }: { area?: NavArea }) {
   const entete = useRef<HTMLElement>(null);
   const masquee = useEnteteMasquee(entete);
 
+  // La visite guidée ouvre un menu pour montrer ce qu'il contient.
+  useEffect(() => {
+    const ouvrir = (e: Event) => {
+      if (window.innerWidth < 1024) return;
+      setOpen((e as CustomEvent<string | null>).detail);
+    };
+    window.addEventListener(EVT_OUVRIR, ouvrir);
+    return () => window.removeEventListener(EVT_OUVRIR, ouvrir);
+  }, []);
+
   return (
     <header
       ref={entete}
@@ -181,7 +194,7 @@ function TopBar({ area }: { area?: NavArea }) {
           </Link>
 
           {/* Areas. Hidden on a phone, where the bottom bar does this job. */}
-          <nav className="hidden items-center gap-1 lg:flex" aria-label="Sections">
+          <nav className="hidden items-center gap-1 lg:flex" aria-label="Sections" data-visite="sections">
             {AREAS.map((a) => (
               <AreaButton
                 key={a.id}
@@ -285,6 +298,7 @@ function AreaButton({
     return (
       <Link
         href={items[0].href}
+        data-visite={`zone-${area.id}`}
         className="rounded-[9px] px-3 py-2 text-[0.9rem] transition-colors hover:bg-[color:var(--cap-surface-2)]"
         style={{ color: current ? "var(--cap-ink)" : "var(--cap-ink-2)" }}
       >
@@ -294,7 +308,7 @@ function AreaButton({
   }
 
   return (
-    <div ref={ref} className="relative">
+    <div ref={ref} className="relative" data-visite={`zone-${area.id}`}>
       <button
         onClick={onOpen}
         aria-expanded={open}
@@ -333,6 +347,7 @@ function AreaButton({
                 href={it.href}
                 role="menuitem"
                 onClick={onClose}
+                data-visite={`lien-${it.href}`}
                 className="block rounded-[10px] px-3 py-2.5 transition-colors hover:bg-[color:var(--cap-surface-2)]"
               >
                 <div className="text-[0.9rem] font-medium" style={{ color: "var(--cap-ink)" }}>
@@ -407,7 +422,7 @@ function AssetSearch() {
   };
 
   return (
-    <div ref={boxRef} className="relative">
+    <div ref={boxRef} className="relative" data-visite="recherche">
       {/* Le déclencheur du petit écran. */}
       <button
         type="button"
@@ -541,6 +556,15 @@ function UserMenu() {
             </Link>
             <button
               role="menuitem"
+              onClick={() => { setOpen(false); lancerVisite("decouverte"); }}
+              className="flex w-full items-center gap-2.5 rounded-[10px] px-3 py-2 text-left text-[0.875rem] transition-colors hover:bg-[color:var(--cap-surface-2)]"
+              style={{ color: "var(--cap-ink)" }}
+            >
+              <Compass className="h-4 w-4" style={{ color: "var(--cap-ink-3)" }} />
+              Visite guidée du site
+            </button>
+            <button
+              role="menuitem"
               onClick={() => { setOpen(false); logout(); }}
               className="flex w-full items-center gap-2.5 rounded-[10px] px-3 py-2 text-left text-[0.875rem] transition-colors hover:bg-[color:var(--cap-surface-2)]"
               style={{ color: "var(--cap-ink)" }}
@@ -578,6 +602,15 @@ function MobileTabs() {
   const pathname = usePathname();
   const [menu, setMenu] = useState(false);
 
+  useEffect(() => {
+    const ouvrir = (e: Event) => {
+      if (window.innerWidth >= 1024) return;
+      setMenu((e as CustomEvent<string | null>).detail != null);
+    };
+    window.addEventListener(EVT_OUVRIR, ouvrir);
+    return () => window.removeEventListener(EVT_OUVRIR, ouvrir);
+  }, []);
+
   const ICONES: Record<string, typeof Home> = {
     "/dashboard": Home,
     "/wallet": Wallet,
@@ -609,6 +642,7 @@ function MobileTabs() {
           paddingRight: "env(safe-area-inset-right, 0px)",
         }}
         aria-label="Navigation"
+        data-visite="onglets"
       >
         <div className="flex">
           {MOBILE_TABS.map((tab) => {
@@ -641,6 +675,7 @@ function MobileTabs() {
             onClick={() => setMenu(true)}
             aria-label="Tout le site"
             aria-expanded={menu}
+            data-visite="menu-mobile"
             className="relative flex min-h-[56px] flex-1 flex-col items-center justify-center gap-1 text-[0.75rem] transition-colors"
             style={{ color: menu ? "var(--cap-ink)" : "var(--cap-ink-3)" }}
           >
@@ -745,6 +780,7 @@ function MenuMobile({ open, onClose }: { open: boolean; onClose: () => void }) {
                           key={it.href}
                           href={it.href}
                           onClick={onClose}
+                          data-visite={`lien-${it.href}`}
                           className="flex min-h-[52px] flex-col justify-center rounded-[10px] px-3 py-2"
                           style={{ backgroundColor: active ? "var(--cap-surface-2)" : "transparent" }}
                         >

@@ -122,7 +122,9 @@ function Support() {
   const [tickets, setTickets] = useState<SupportTicket[] | null>(null);
   const [fil, setFil] = useState<{ ticket: SupportTicket; messages: TicketMessage[] } | null>(null);
   const [reponse, setReponse] = useState("");
-  const [nouveau, setNouveau] = useState(false);
+  // `?nouveau=1` ouvre directement le formulaire : c'est là que la visite
+  // « Contacter le support » et l'avis de l'accueil mènent.
+  const [nouveau, setNouveau] = useState(params.get("nouveau") === "1");
   const [sujet, setSujet] = useState("");
   const [corps, setCorps] = useState("");
   const [occupe, setOccupe] = useState(false);
@@ -238,7 +240,8 @@ function Support() {
         </Panel>
 
         {nouveau || (tickets && tickets.length === 0) ? (
-          <Panel title="Nouvelle demande" hint="Un bug, une question, une suggestion : l'équipe vous répond ici.">
+          <div data-visite="support-nouvelle">
+          <Panel title="Nouvelle demande" hint="Un bug, une question, une idée : l'équipe lit chaque message et vous répond ici.">
             <form onSubmit={creer} className="space-y-4" noValidate>
               <Field label="Sujet" htmlFor="s-sujet">
                 <TextInput id="s-sujet" value={sujet} onChange={setSujet} placeholder="Un bug, une question…" required />
@@ -256,6 +259,7 @@ function Support() {
               </div>
             </form>
           </Panel>
+          </div>
         ) : !fil ? (
           <Panel><EmptyState title="Choisissez une demande" description="La conversation s'affichera ici." /></Panel>
         ) : (

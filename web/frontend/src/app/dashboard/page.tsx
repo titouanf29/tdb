@@ -22,6 +22,7 @@ import {
 } from "@/components/design-system";
 import { NuageImage } from "@/components/design-system/NuageImage";
 import { ParcoursNimbo } from "@/components/app/ParcoursNimbo";
+import { AvisDeveloppement } from "@/components/app/AvisDeveloppement";
 import { useProfile } from "@/lib/useProfile";
 
 /**
@@ -179,6 +180,9 @@ export default function DashboardPage() {
             />
           </header>
         </Reveal>
+
+        {/* Le site évolue encore : un nouvel inscrit sait d'emblée où écrire. */}
+        <AvisDeveloppement />
 
         {/* ── 2. One thing to do ───────────────────────────────────────── */}
         <Reveal delay={0.04}>

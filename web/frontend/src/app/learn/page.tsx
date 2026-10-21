@@ -218,7 +218,7 @@ function LearnScreen() {
       <WeatherBackdrop condition="fair" enabled={animOn} />
 
       <div className="relative space-y-6">
-        <header className="pt-2">
+        <header className="pt-2" data-visite="parcours">
           <p className="text-[1rem] italic" style={{ color: "var(--cap-ink-3)", fontFamily: "var(--cap-font-display)" }}>La série CaptenTDB</p>
           <Heading level={1}>Apprendre, une leçon après l&apos;autre</Heading>
           <Text className="mt-2.5 max-w-[40rem]">

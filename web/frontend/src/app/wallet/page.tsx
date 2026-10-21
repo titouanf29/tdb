@@ -310,6 +310,7 @@ export default function WalletPage() {
           </div>
         </header>
 
+        <div data-visite="wallet-compte">
         <Panel title="Votre compte">
           <div className="flex flex-wrap items-end gap-x-12 gap-y-7">
             {/* Les trois chiffres vivants du compte. Ils défilent d'une valeur
@@ -377,6 +378,7 @@ export default function WalletPage() {
             </div>
           )}
         </Panel>
+        </div>
 
         {courbe && courbe.trades > 0 && <CourbeCapital c={courbe} money={money} />}
 
