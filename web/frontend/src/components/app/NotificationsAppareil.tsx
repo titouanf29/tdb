@@ -5,6 +5,7 @@ import { BellRing, X } from "lucide-react";
 import { Button, Nimbo, Panel, Text } from "@/components/design-system";
 import { pushAPI } from "@/lib/api";
 import { activerPush, desactiverPush, etatPush, type EtatPush } from "@/lib/push";
+import { EVT_PUSH } from "@/components/settings/ReglagesNotifications";
 
 const CLE_INVITATION = "tdb_push_invitation_vue";
 
@@ -26,19 +27,19 @@ export function NotificationsAppareil({ forme }: { forme: "reglage" | "invitatio
 
   const activer = async () => {
     setOccupe(true); setMessage("");
-    try { setEtat(await activerPush()); }
+    try { setEtat(await activerPush()); window.dispatchEvent(new Event(EVT_PUSH)); }
     catch { setMessage("L'activation a échoué. Réessayez dans un instant."); }
     finally { setOccupe(false); }
   };
   const desactiver = async () => {
     setOccupe(true);
-    try { setEtat(await desactiverPush()); } finally { setOccupe(false); }
+    try { setEtat(await desactiverPush()); window.dispatchEvent(new Event(EVT_PUSH)); } finally { setOccupe(false); }
   };
   const essayer = async () => {
     setOccupe(true); setMessage("");
     try {
       const r = await pushAPI.essai();
-      setMessage(r.envoyees ? "Envoyée, elle arrive dans quelques secondes." : "Aucun appareil n'a accepté la notification.");
+      setMessage(r.envoyees ? "Envoyée, elle arrive dans quelques secondes." : "Aucun appareil n'a accepté la notification. Désactivez puis réactivez-les ici pour réabonner cet appareil.");
     } catch { setMessage("L'envoi a échoué."); }
     finally { setOccupe(false); }
   };
@@ -86,7 +87,7 @@ export function NotificationsAppareil({ forme }: { forme: "reglage" | "invitatio
   return (
     <Panel
       title="Notifications sur cet appareil"
-      hint="Quand Nimbo propose un achat sur un de vos favoris, quand un stop ou un objectif ferme une de vos positions, et avant une décision de banque centrale qui les touche."
+      hint="Une notification sur ce téléphone ou cet ordinateur, même site fermé. Ce que vous recevez se choisit juste en dessous."
     >
       <div className="flex flex-wrap items-center justify-between gap-4">
         <Text size="small" className="max-w-[36rem]">{etat ? texte[etat] : "…"}</Text>

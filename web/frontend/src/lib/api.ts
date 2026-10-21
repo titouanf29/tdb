@@ -2902,6 +2902,13 @@ export const communityAPI = {
 
   markAllNotificationsRead: () =>
     fetchAPI<{ success: boolean }>("/api/community/notifications/read-all", { method: "POST" }),
+
+  deleteNotification: (notifId: number) =>
+    fetchAPI<{ success: boolean }>(`/api/community/notifications/${notifId}`, { method: "DELETE" }),
+
+  /** Efface les notifications déjà lues ; les non lues restent. */
+  clearReadNotifications: () =>
+    fetchAPI<{ success: boolean }>("/api/community/notifications", { method: "DELETE" }),
 };
 
 // Community Types
@@ -3588,6 +3595,44 @@ export const pushAPI = {
       method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ endpoint }),
     }),
   essai: () => fetchAPI<{ envoyees: number }>("/api/push/essai", { method: "POST" }),
+  appareils: () => fetchAPI<{ appareils: AppareilPush[] }>("/api/push/appareils"),
+  retirerAppareil: (id: number) => fetchAPI<{ ok: boolean }>(`/api/push/appareils/${id}`, { method: "DELETE" }),
+};
+
+export interface AppareilPush {
+  id: number;
+  nom: string;
+  depuis: string;
+  dernier_envoi: string | null;
+  echecs: number;
+}
+
+// ── Les choix de notification (backend services/notifications.py) ─────────
+
+export interface CategorieNotif {
+  id: string;
+  label: string;
+  detail: string;
+  site: boolean;
+  appareil: boolean;
+  site_verrouille: boolean;
+}
+
+export interface PreferencesNotif {
+  categories: CategorieNotif[];
+  calme: { actif: boolean; debut: number; fin: number };
+}
+
+export const notificationsAPI = {
+  preferences: () => fetchAPI<PreferencesNotif>("/api/notifications/preferences"),
+  enregistrer: (p: PreferencesNotif) =>
+    fetchAPI<PreferencesNotif>("/api/notifications/preferences", {
+      method: "PUT", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        categories: Object.fromEntries(p.categories.map((c) => [c.id, { site: c.site, appareil: c.appareil }])),
+        calme: p.calme,
+      }),
+    }),
 };
 
 // ── Le moteur macro ────────────────────────────────────────────────────────

@@ -8,13 +8,19 @@ self.addEventListener("activate", (e) => e.waitUntil(self.clients.claim()));
 self.addEventListener("push", (e) => {
   let d = {};
   try { d = e.data ? e.data.json() : {}; } catch { d = { message: e.data && e.data.text() }; }
-  e.waitUntil(self.registration.showNotification(d.titre || "CaptenTDB", {
-    body: d.message || "",
-    icon: "/icons/icon-192.png",
-    badge: "/icons/icon-192.png",
-    lang: "fr",
-    data: { lien: d.lien || "/dashboard" },
-  }));
+  e.waitUntil(Promise.all([
+    self.registration.showNotification(d.titre || "CaptenTDB", {
+      body: d.message || "",
+      icon: "/icons/icon-192.png",
+      badge: "/icons/icon-192.png",
+      lang: "fr",
+      data: { lien: d.lien || "/dashboard" },
+    }),
+    // Les pages ouvertes rechargent leur cloche tout de suite, au lieu
+    // d'attendre leur prochain passage.
+    self.clients.matchAll({ type: "window", includeUncontrolled: true })
+      .then((fenetres) => fenetres.forEach((f) => f.postMessage({ type: "tdb-notification" }))),
+  ]));
 });
 
 self.addEventListener("notificationclick", (e) => {

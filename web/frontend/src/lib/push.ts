@@ -7,6 +7,7 @@
  * demande donc jamais à froid : seulement quand elle appuie sur le bouton.
  */
 import { pushAPI } from "./api";
+import { getToken } from "./auth";
 
 export type EtatPush = "indisponible" | "non_configure" | "refuse" | "inactif" | "actif";
 
@@ -66,4 +67,45 @@ export async function desactiverPush(): Promise<EtatPush> {
     await abo.unsubscribe().catch(() => {});
   }
   return "inactif";
+}
+
+function memeCle(abo: PushSubscription, cle: string): boolean {
+  const actuelle = abo.options?.applicationServerKey;
+  if (!actuelle) return true; // le navigateur ne la donne pas : on ne peut pas comparer
+  const a = new Uint8Array(actuelle);
+  const b = versOctets(cle);
+  return a.length === b.length && a.every((x, i) => x === b[i]);
+}
+
+/**
+ * À chaque ouverture du site : redire au serveur que cet appareil est abonné.
+ *
+ * Le navigateur peut garder un abonnement que le serveur a oublié (appareil
+ * retiré après trop d'échecs, sixième appareil qui a pris la place du plus
+ * ancien, base restaurée) : l'écran affichait « Activées sur cet appareil »
+ * et plus rien n'arrivait. Si les clés du serveur ont changé, l'ancien
+ * abonnement ne peut plus rien recevoir : on le refait. Jamais de demande
+ * d'autorisation ici, seulement quand elle est déjà accordée.
+ */
+export async function resynchroniserPush(): Promise<void> {
+  if (!pushPossible() || Notification.permission !== "granted" || !getToken()) return;
+  const reg = await navigator.serviceWorker.getRegistration("/");
+  let abo = await reg?.pushManager.getSubscription();
+  if (!reg || !abo) return;
+  const { cle } = await pushAPI.cle().catch(() => ({ cle: null }));
+  if (!cle) return;
+  if (!memeCle(abo, cle)) {
+    await abo.unsubscribe().catch(() => {});
+    abo = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: versOctets(cle) });
+  }
+  const j = abo.toJSON() as { endpoint: string; keys: { p256dh: string; auth: string } };
+  await pushAPI.abonner({ endpoint: j.endpoint, keys: j.keys }).catch(() => {});
+}
+
+/** Le serveur oublie cet appareil ; l'abonnement du navigateur reste, pour la prochaine connexion. */
+export async function oublierCetAppareil(): Promise<void> {
+  if (!pushPossible() || !getToken()) return;
+  const reg = await navigator.serviceWorker.getRegistration("/");
+  const abo = await reg?.pushManager.getSubscription();
+  if (abo) await pushAPI.desabonner(abo.endpoint).catch(() => {});
 }

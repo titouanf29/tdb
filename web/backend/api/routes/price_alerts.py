@@ -1,14 +1,11 @@
 """
 Price alerts — "préviens-moi quand X franchit Y".
 
-Users set a target on any asset (above/below). While they are on the site
-the frontend polls /check, which evaluates active alerts against live
-prices server-side and flips any that crossed to 'triggered', returning
-the freshly-crossed ones so the UI can surface an in-app notification.
-
-No external delivery (email/push) — alerts fire while the user is active.
-Server-side evaluation means an alert triggers even if the user isn't
-looking at that particular asset.
+Users set a target on any asset (above/below). The server watches every
+active alert in the background (services/veille_notifs.py) : une alerte se
+déclenche même site fermé, et prévient dans le site et sur les appareils,
+selon les choix de la personne. /check fait la même vérification à la
+demande, pour qu'une page ouverte l'affiche tout de suite.
 """
 import re
 from datetime import datetime, timezone, timedelta
@@ -101,6 +98,49 @@ def _row(r) -> dict:
     }
 
 
+def _fr(x: float) -> str:
+    """Un cours écrit à la française : virgule décimale, espace des milliers."""
+    dec = 2 if abs(x) >= 1 else 4
+    return f"{x:,.{dec}f}".replace(",", "\u202f").replace(".", ",")
+
+
+async def declencher_si_franchie(a: dict, price) -> dict | None:
+    """Si le cours a franchi le seuil : marque l'alerte et prévient, une seule
+    fois. Rend la ligne déclenchée, ou None.
+
+    La page (/check) et la veille du serveur peuvent arriver en même temps :
+    comme pour les stops du wallet, l'horodatage écrit sert de jeton, et seul
+    celui qui le retrouve en base annonce l'alerte."""
+    if not price:
+        return None
+    price = float(price)
+    crossed = (a["direction"] == "above" and price >= a["target"]) or \
+              (a["direction"] == "below" and price <= a["target"])
+    if not crossed:
+        return None
+    now = datetime.now(timezone.utc).isoformat()
+    await execute_write(
+        "UPDATE price_alerts SET status = 'triggered', triggered_at = ?, triggered_price = ? "
+        "WHERE id = ? AND status = 'active'",
+        (now, round(price, 6), a["id"]),
+    )
+    verif = await execute_query("SELECT triggered_at FROM price_alerts WHERE id = ?", (a["id"],))
+    if not verif or str(verif[0].get("triggered_at")) != now:
+        return None
+    row = dict(a)
+    row.update({"status": "triggered", "triggered_at": now, "triggered_price": round(price, 6)})
+    from ..services.notifications import notifier
+    from .market import SYMBOL_NAMES
+    nom = SYMBOL_NAMES.get(a["symbol"], a["symbol"])
+    sens = "au-dessus de" if a["direction"] == "above" else "sous"
+    note = (a.get("note") or "").strip()
+    await notifier(
+        a["user_id"], "price_alert", f"{nom} est passé {sens} {_fr(float(a['target']))}",
+        f"Votre alerte s'est déclenchée : {nom} cote {_fr(price)}." + (f" Votre note : {note}" if note else ""),
+        f"/analysis?symbol={a['symbol']}", cle=f"alerte:{a['id']}")
+    return row
+
+
 @router.get("")
 async def list_alerts(current_user: dict = Depends(get_current_user)):
     await _ensure_table()
@@ -186,22 +226,9 @@ async def check_alerts(
         return {"triggered": [], "active_count": len(active)}
 
     triggered = []
-    now = datetime.now(timezone.utc).isoformat()
     for a in active:
-        pr = prices.get(a["symbol"]) or {}
-        price = pr.get("price")
-        if not price:
-            continue
-        price = float(price)
-        crossed = (a["direction"] == "above" and price >= a["target"]) or \
-                  (a["direction"] == "below" and price <= a["target"])
-        if crossed:
-            await execute_write(
-                "UPDATE price_alerts SET status = 'triggered', triggered_at = ?, triggered_price = ? WHERE id = ?",
-                (now, round(price, 6), a["id"]),
-            )
-            row = dict(a)
-            row.update({"status": "triggered", "triggered_at": now, "triggered_price": round(price, 6)})
+        row = await declencher_si_franchie(a, (prices.get(a["symbol"]) or {}).get("price"))
+        if row:
             triggered.append(_row(row))
 
     remaining = await execute_query(

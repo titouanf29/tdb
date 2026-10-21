@@ -61,7 +61,7 @@ async def _trading_style(numeric_id) -> str:
     return "day"
 
 
-async def _notify(numeric_id, type_: str, title: str, message: str, link: str) -> None:
+async def _notify(numeric_id, type_: str, title: str, message: str, link: str, cle: str | None = None) -> None:
     """Une notification dans le fil de l'utilisateur.
 
     Une position fermée par son stop l'est SANS lui, souvent la nuit. Sans
@@ -69,23 +69,10 @@ async def _notify(numeric_id, type_: str, title: str, message: str, link: str) -
     quand ni pourquoi. Un échec d'écriture ne doit jamais faire échouer la
     clôture elle-même : le trade est déjà fermé et le solde déjà crédité.
     """
-    try:
-        await execute_write(
-            """INSERT INTO user_notifications (user_id, type, title, message, link, is_read, created_at)
-               VALUES (?, ?, ?, ?, ?, 0, ?)""",
-            (numeric_id, type_, title, message, link,
-             datetime.now(timezone.utc).isoformat()),
-        )
-    except Exception as exc:
-        print(f"[wallet] notification non écrite : {exc}")
-        return
-    # Sur les appareils abonnés aussi : c'est précisément la nuit qu'un stop
-    # se fait toucher (services/push.py).
-    from ..services import push
-    try:
-        push.envoyer_plus_tard(int(numeric_id), title, message, link)
-    except (TypeError, ValueError):
-        pass
+    # Dans le site et sur les appareils, selon les choix de la personne :
+    # c'est précisément la nuit qu'un stop se fait toucher.
+    from ..services.notifications import notifier
+    await notifier(numeric_id, type_, title, message, link, cle)
 
 
 async def _journal_trace(user_id, rev: dict) -> None:
@@ -259,7 +246,7 @@ async def _execute_levels(user_id, positions: list, numeric_id=None) -> list:
                      f"Position clôturée automatiquement à {fmt_price(level)} · "
                      f"{'+' if gagnant else ''}{fmt_eur(realized)}. "
                      "Le trade est déjà noté dans votre journal."),
-                    "/journal",
+                    "/journal", cle=f"position:{pos['id']}",
                 )
                 await _journal_trace(user_id, rev)
             except Exception as exc:

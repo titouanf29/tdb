@@ -36,7 +36,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 from dotenv import load_dotenv
 load_dotenv(Path(__file__).parent.parent.parent / ".env")
 
-from api.routes import auth, market, wallet, analysis, users, ai_assistant, favorites, admin, tools, premium, community, portfolio, journal, weekly_prep, insights, content_factory, content_factory_visuals, missions, ipo_watch, daily_intent, welcome_back, price_alerts, intel, semaine, macro, nimbo_suivi, push, editeur, moi, strategies, pont_tiktok
+from api.routes import auth, market, wallet, analysis, users, ai_assistant, favorites, admin, tools, premium, community, portfolio, journal, weekly_prep, insights, content_factory, content_factory_visuals, missions, ipo_watch, daily_intent, welcome_back, price_alerts, intel, semaine, macro, nimbo_suivi, push, notifications, editeur, moi, strategies, pont_tiktok
 from api.websocket import websocket_router
 from api.database import init_web_tables, execute_query, execute_write
 
@@ -104,12 +104,24 @@ async def lifespan(app: FastAPI):
             await _asyncio.sleep(3 * 3600)
     _veille_tache = _asyncio.create_task(_veille_boucle())
 
+    # Les stops, objectifs et alertes de prix, vérifiés par le serveur toutes
+    # les trois minutes : sans cela, rien ne se déclenchait site fermé, et la
+    # notification arrivait quand on rouvrait la page (services/veille_notifs.py).
+    async def _notifs_boucle():
+        from api.services import veille_notifs
+        await _asyncio.sleep(45)
+        while True:
+            await veille_notifs.tour()
+            await _asyncio.sleep(int(os.getenv("VEILLE_NOTIFS_SECONDES", "180")))
+    _notifs_tache = _asyncio.create_task(_notifs_boucle())
+
     yield
     # Les processus du rejeu (_rejeu.py) s'arrêtent avec le serveur.
     from api.routes._rejeu import arreter as _arreter_rejeu
     _arreter_rejeu()
     _macro_tache.cancel()
     _veille_tache.cancel()
+    _notifs_tache.cancel()
     print("👋 TDB Web API shutting down...")
 
 
@@ -446,6 +458,7 @@ app.include_router(wallet.router, prefix="/api/wallet", tags=["Wallet"])
 app.include_router(analysis.router, prefix="/api/analysis", tags=["Analysis"])
 app.include_router(nimbo_suivi.router, prefix="/api/nimbo/suivi", tags=["Suivi de Nimbo"])
 app.include_router(push.router, prefix="/api/push", tags=["Notifications push"])
+app.include_router(notifications.router, prefix="/api/notifications", tags=["Notifications"])
 app.include_router(editeur.router, prefix="/api/legal", tags=["Éditeur et ouverture du Premium"])
 app.include_router(intel.router, prefix="/api/intel", tags=["Market Intelligence"])
 app.include_router(users.router, prefix="/api/users", tags=["Users"])

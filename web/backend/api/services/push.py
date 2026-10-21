@@ -27,6 +27,7 @@ import logging
 import os
 import struct
 import time
+from datetime import datetime, timezone
 from urllib.parse import urlparse
 
 import httpx
@@ -114,6 +115,16 @@ async def init() -> None:
             cree_le TEXT NOT NULL
         )
     """)
+    # Ce qu'il faut pour que la personne reconnaisse et gère ses appareils :
+    # un nom lisible, la dernière notification bien reçue, les échecs.
+    for col, typ in (("appareil", "TEXT"), ("dernier_envoi", "TEXT"), ("echecs", "INTEGER DEFAULT 0")):
+        try:
+            if USE_POSTGRES:
+                await execute_write(f"ALTER TABLE push_abonnements ADD COLUMN IF NOT EXISTS {col} {typ}")
+            else:
+                await execute_write(f"ALTER TABLE push_abonnements ADD COLUMN {col} {typ}")
+        except Exception:
+            pass  # la colonne existe déjà
     _pret = True
 
 
@@ -130,25 +141,58 @@ async def envoyer(user_id: int, titre: str, message: str, lien: str | None = Non
     ok = 0
     async with httpx.AsyncClient(timeout=10.0) as client:
         for a in abos:
-            try:
-                r = await client.post(a["endpoint"], content=chiffrer(corps, a["p256dh"], a["auth"]), headers={
-                    "Content-Encoding": "aes128gcm",
-                    "Content-Type": "application/octet-stream",
-                    "TTL": "86400",
-                    "Urgency": "normal",
-                    "Authorization": f"vapid t={jeton_vapid(a['endpoint'])}, k={cle_publique()}",
-                })
-                if r.status_code in (404, 410):
-                    # L'abonnement n'existe plus (application désinstallée,
-                    # autorisation retirée) : on l'oublie.
+            statut = await _poster(client, a, corps)
+            if statut in (404, 410):
+                # L'abonnement n'existe plus (application désinstallée,
+                # autorisation retirée) : on l'oublie.
+                await execute_write("DELETE FROM push_abonnements WHERE id = ?", (a["id"],))
+            elif statut is not None and statut < 300:
+                ok += 1
+                await execute_write("UPDATE push_abonnements SET dernier_envoi = ?, echecs = 0 WHERE id = ?",
+                                    (datetime.now(timezone.utc).isoformat(), a["id"]))
+            else:
+                echecs = int(a.get("echecs") or 0) + 1
+                if echecs >= ECHECS_MAX:
+                    # Un appareil qui refuse tout depuis des jours ne recevra
+                    # plus rien : le garder ferait croire qu'il est prévenu.
                     await execute_write("DELETE FROM push_abonnements WHERE id = ?", (a["id"],))
-                elif r.status_code < 300:
-                    ok += 1
                 else:
-                    logger.info("push refusé (%s) : %s", r.status_code, r.text[:200])
-            except Exception as e:
-                logger.info("push impossible : %s", e)
+                    await execute_write("UPDATE push_abonnements SET echecs = ? WHERE id = ?", (echecs, a["id"]))
     return ok
+
+
+ECHECS_MAX = 20
+
+
+async def _poster(client: httpx.AsyncClient, a: dict, corps: bytes) -> int | None:
+    """Un envoi, et un second essai si le service de push est momentanément
+    indisponible (erreur réseau, 429, 5xx). Rend le statut HTTP, ou None."""
+    for essai in range(2):
+        try:
+            r = await client.post(a["endpoint"], content=chiffrer(corps, a["p256dh"], a["auth"]), headers={
+                "Content-Encoding": "aes128gcm",
+                "Content-Type": "application/octet-stream",
+                "TTL": "86400",
+                "Urgency": "normal",
+                "Authorization": f"vapid t={jeton_vapid(a['endpoint'])}, k={cle_publique()}",
+            })
+            if r.status_code == 429 or r.status_code >= 500:
+                logger.info("push refusé pour l'instant (%s)", r.status_code)
+            else:
+                if r.status_code >= 300:
+                    logger.info("push refusé (%s) : %s", r.status_code, r.text[:200])
+                return r.status_code
+        except Exception as e:
+            logger.info("push impossible : %s", e)
+        if essai == 0:
+            await asyncio.sleep(3)
+    return None
+
+
+# Les envois en cours. Une tâche asyncio dont personne ne garde la
+# référence peut être ramassée par le ramasse-miettes avant d'avoir fini :
+# la notification partait… parfois.
+_en_cours: set[asyncio.Task] = set()
 
 
 def envoyer_plus_tard(user_id: int, titre: str, message: str, lien: str | None = None) -> None:
@@ -156,6 +200,19 @@ def envoyer_plus_tard(user_id: int, titre: str, message: str, lien: str | None =
     if not actif():
         return
     try:
-        asyncio.get_running_loop().create_task(envoyer(user_id, titre, message, lien))
+        t = asyncio.get_running_loop().create_task(envoyer(user_id, titre, message, lien))
     except RuntimeError:
-        pass
+        return
+    _en_cours.add(t)
+    t.add_done_callback(_en_cours.discard)
+
+
+def nom_appareil(ua: str) -> str:
+    """« Chrome sur Android », « Safari sur iPhone » : de quoi reconnaître un appareil."""
+    ua = ua or ""
+    systeme = ("iPhone" if "iPhone" in ua else "iPad" if "iPad" in ua else "Android" if "Android" in ua
+               else "Mac" if "Mac OS" in ua else "Windows" if "Windows" in ua else "Linux" if "Linux" in ua
+               else "un appareil")
+    nav = ("Edge" if "Edg/" in ua else "Firefox" if "Firefox" in ua else "Opera" if "OPR/" in ua
+           else "Chrome" if "Chrome" in ua else "Safari" if "Safari" in ua else "Navigateur")
+    return f"{nav} sur {systeme}"

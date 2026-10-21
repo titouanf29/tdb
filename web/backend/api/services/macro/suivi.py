@@ -468,12 +468,8 @@ async def _deja(evid: int, uid: int, genre: str) -> bool:
 
 
 async def _notifier(uid: int, titre: str, message: str, lien: str) -> None:
-    await execute_write(
-        """INSERT INTO user_notifications (user_id, type, title, message, link, is_read, created_at)
-           VALUES (?, 'macro', ?, ?, ?, 0, ?)""",
-        (uid, titre, message, lien, datetime.now(timezone.utc).isoformat()))
-    from .. import push
-    push.envoyer_plus_tard(uid, titre, message, lien)
+    from ..notifications import notifier
+    await notifier(uid, "macro", titre, message, lien)
 
 
 async def rappels() -> None:

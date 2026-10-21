@@ -91,6 +91,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const login = useCallback(async (email: string, password: string, rememberMe = false) => {
     const response = await authLogin(email, password, rememberMe);
     setUser(response.user);
+    // Cet appareil reçoit de nouveau les notifications, pour CE compte.
+    import("./push").then((m) => m.resynchroniserPush()).catch(() => {});
   }, []);
 
   const register = useCallback(async (
@@ -101,10 +103,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   ): Promise<RegisterResponse> => {
     const response = await authRegister(email, password, username, firstName);
     if (response.user) setUser(response.user);
+    import("./push").then((m) => m.resynchroniserPush()).catch(() => {});
     return response;
   }, []);
 
   const logout = useCallback(async () => {
+    // Avant de partir : cet appareil ne reçoit plus les notifications du
+    // compte. Sur un ordinateur partagé, la personne suivante verrait sinon
+    // « Stop touché sur … » d'un autre. L'autorisation du navigateur reste :
+    // à la prochaine connexion, l'appareil se réabonne tout seul.
+    await import("./push").then((m) => m.oublierCetAppareil()).catch(() => {});
     await authLogout();
     setUser(null);
   }, []);

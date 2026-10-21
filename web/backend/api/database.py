@@ -1155,20 +1155,9 @@ async def create_admin_notification(type: str, title: str, message: str, link: s
         print(f"[NOTIF] Failed to create admin notification: {e}")
 
 
-async def create_user_notification(user_id: int, type: str, title: str, message: str, link: str = None):
-    """Insert a notification for a specific user."""
-    from datetime import datetime
-    try:
-        await execute_write(
-            "INSERT INTO user_notifications (user_id, type, title, message, link, is_read, created_at) VALUES (?, ?, ?, ?, ?, 0, ?)",
-            (user_id, type, title, message, link, datetime.now(timezone.utc).isoformat()),
-        )
-    except Exception as e:
-        print(f"[NOTIF] Failed to create user notification: {e}")
-        return
-    # Et sur les appareils abonnés, si la personne l'a demandé (services/push.py).
-    try:
-        from .services import push
-        push.envoyer_plus_tard(int(user_id), title, message, link)
-    except Exception as e:
-        print(f"[NOTIF] push impossible : {e}")
+async def create_user_notification(user_id: int, type: str, title: str, message: str, link: str = None,
+                                   cle: str = None):
+    """Une notification pour une personne : dans le site et sur ses appareils,
+    selon ses choix (services/notifications.py, la seule porte)."""
+    from .services.notifications import notifier
+    await notifier(user_id, type, title, message, link, cle)

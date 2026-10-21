@@ -53,7 +53,7 @@ async def cle():
 
 
 @router.post("/abonnement")
-async def abonner(a: Abonnement, current_user: dict = Depends(get_current_user)):
+async def abonner(a: Abonnement, request: Request, current_user: dict = Depends(get_current_user)):
     await push.init()
     if not _service_push_connu(a.endpoint):
         raise HTTPException(status_code=400, detail="Adresse de notification non reconnue.")
@@ -69,8 +69,10 @@ async def abonner(a: Abonnement, current_user: dict = Depends(get_current_user))
     # l'ancien enregistrement plutôt que de s'y ajouter.
     await execute_write("DELETE FROM push_abonnements WHERE endpoint = ?", (a.endpoint,))
     await execute_write(
-        "INSERT INTO push_abonnements (user_id, endpoint, p256dh, auth, cree_le) VALUES (?, ?, ?, ?, ?)",
-        (current_user["id"], a.endpoint, a.keys.p256dh, a.keys.auth, datetime.now(timezone.utc).isoformat()))
+        "INSERT INTO push_abonnements (user_id, endpoint, p256dh, auth, cree_le, appareil, echecs) "
+        "VALUES (?, ?, ?, ?, ?, ?, 0)",
+        (current_user["id"], a.endpoint, a.keys.p256dh, a.keys.auth, datetime.now(timezone.utc).isoformat(),
+         push.nom_appareil(request.headers.get("user-agent", ""))))
     return {"ok": True}
 
 
@@ -89,11 +91,32 @@ async def etat(current_user: dict = Depends(get_current_user)):
     return {"actif": push.actif(), "appareils": int((n or [{"n": 0}])[0]["n"])}
 
 
+@router.get("/appareils")
+async def appareils(current_user: dict = Depends(get_current_user)):
+    """Les appareils qui reçoivent les notifications de ce compte. L'adresse
+    d'abonnement n'est pas renvoyée : elle suffit pour écrire à l'appareil."""
+    await push.init()
+    rows = await execute_query(
+        "SELECT id, appareil, cree_le, dernier_envoi, echecs FROM push_abonnements WHERE user_id = ? "
+        "ORDER BY cree_le DESC", (current_user["id"],)) or []
+    return {"appareils": [{"id": r["id"], "nom": r.get("appareil") or "Un appareil", "depuis": r["cree_le"],
+                           "dernier_envoi": r.get("dernier_envoi"), "echecs": int(r.get("echecs") or 0)}
+                          for r in rows]}
+
+
+@router.delete("/appareils/{aid}")
+async def retirer_appareil(aid: int, current_user: dict = Depends(get_current_user)):
+    """Ne plus rien envoyer à cet appareil (un téléphone perdu, vendu, prêté)."""
+    await push.init()
+    await execute_write("DELETE FROM push_abonnements WHERE id = ? AND user_id = ?", (aid, current_user["id"]))
+    return {"ok": True}
+
+
 @router.post("/essai")
 @limiter.limit("3/minute")
 async def essai(request: Request, current_user: dict = Depends(get_current_user)):
     """Une notification d'essai sur ses propres appareils."""
     n = await push.envoyer(current_user["id"], "Nimbo est là",
-                           "Les notifications fonctionnent : je vous préviendrai quand je propose un achat "
-                           "sur un de vos favoris.", "/favorites")
+                           "Les notifications fonctionnent sur cet appareil. Vous choisissez ce que vous "
+                           "recevez dans Réglages, Notifications.", "/settings?section=notifications")
     return {"envoyees": n}

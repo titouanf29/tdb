@@ -465,7 +465,10 @@ async def get_user_notifications(
            ORDER BY created_at DESC LIMIT 50""",
         (user_id,)
     )
-    unread_count = sum(1 for n in (notifications or []) if not n["is_read"])
+    # Compté en base, pas sur les 50 affichées : au-delà, la pastille mentait.
+    n = await execute_query(
+        "SELECT COUNT(*) AS n FROM user_notifications WHERE user_id = ? AND is_read = 0", (user_id,))
+    unread_count = int((n or [{"n": 0}])[0]["n"] or 0)
     return {"notifications": notifications or [], "unread_count": unread_count}
 
 
@@ -480,6 +483,22 @@ async def mark_user_notification_read(
         "UPDATE user_notifications SET is_read = 1 WHERE id = ? AND user_id = ?",
         (notif_id, user_id)
     )
+    return {"success": True}
+
+
+@router.delete("/notifications/{notif_id}")
+async def delete_user_notification(notif_id: int, current_user: dict = Depends(get_current_user)):
+    """Effacer une notification de son fil."""
+    await execute_write("DELETE FROM user_notifications WHERE id = ? AND user_id = ?",
+                        (notif_id, current_user.get("id")))
+    return {"success": True}
+
+
+@router.delete("/notifications")
+async def clear_read_user_notifications(current_user: dict = Depends(get_current_user)):
+    """Effacer d'un coup les notifications déjà lues ; les non lues restent."""
+    await execute_write("DELETE FROM user_notifications WHERE user_id = ? AND is_read = 1",
+                        (current_user.get("id"),))
     return {"success": True}
 
 

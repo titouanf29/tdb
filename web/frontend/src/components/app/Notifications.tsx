@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
-import { Bell, Check } from "lucide-react";
+import { Bell, Check, Settings2, X } from "lucide-react";
 import { communityAPI, type UserNotification } from "@/lib/api";
 import { DUR, EASE, Text } from "@/components/design-system";
 
@@ -60,11 +60,19 @@ export function Notifications() {
     const visibilite = () => { if (!document.hidden) charger(); };
     demarrer();
     document.addEventListener("visibilitychange", visibilite);
+    // Une notification vient d'arriver sur l'appareil (public/sw.js) : la
+    // cloche le montre tout de suite, sans attendre son prochain passage.
+    const message = (e: MessageEvent) => { if (e.data?.type === "tdb-notification") charger(); };
+    navigator.serviceWorker?.addEventListener("message", message);
     return () => {
       if (id) clearInterval(id);
       document.removeEventListener("visibilitychange", visibilite);
+      navigator.serviceWorker?.removeEventListener("message", message);
     };
   }, [charger]);
+
+  // À l'ouverture, le fil est relu : ce qu'on voit est l'état du moment.
+  useEffect(() => { if (ouvert) charger(); }, [ouvert, charger]);
 
   // Un clic ailleurs referme : un panneau qui reste ouvert pendant qu'on
   // navigue recouvre ce qu'on essaie de lire.
@@ -88,6 +96,17 @@ export function Notifications() {
     setNonLus(0);
     setItems((l) => l.map((n) => ({ ...n, is_read: 1 })));
     try { await communityAPI.markAllNotificationsRead(); } catch { /* ignore */ }
+  };
+
+  const effacer = async (n: UserNotification) => {
+    setItems((l) => l.filter((x) => x.id !== n.id));
+    if (!n.is_read) setNonLus((c) => Math.max(0, c - 1));
+    try { await communityAPI.deleteNotification(n.id); } catch { charger(); }
+  };
+
+  const effacerLues = async () => {
+    setItems((l) => l.filter((x) => !x.is_read));
+    try { await communityAPI.clearReadNotifications(); } catch { charger(); }
   };
 
   const lire = async (n: UserNotification) => {
@@ -141,24 +160,39 @@ export function Notifications() {
               style={{ borderBottom: "1px solid var(--cap-line)" }}
             >
               <Text size="small" tone="ink" as="span">Notifications</Text>
-              {nonLus > 0 && (
-                <button
-                  type="button"
-                  onClick={toutLire}
-                  className="text-[0.78rem] transition-colors"
-                  style={{ color: "var(--cap-ocean)" }}
+              <div className="flex items-center gap-1">
+                {nonLus > 0 && (
+                  <button
+                    type="button"
+                    onClick={toutLire}
+                    className="px-1.5 py-1 text-[0.78rem] transition-colors"
+                    style={{ color: "var(--cap-ocean)" }}
+                  >
+                    Tout marquer comme lu
+                  </button>
+                )}
+                {/* Le contrôle à un geste : ce qu'on reçoit se règle d'ici. */}
+                <Link
+                  href="/settings?section=notifications"
+                  onClick={() => setOuvert(false)}
+                  aria-label="Choisir ce que je reçois"
+                  title="Choisir ce que je reçois"
+                  className="flex h-9 w-9 items-center justify-center rounded-full transition-colors hover:bg-[color:var(--cap-surface-2)]"
+                  style={{ color: "var(--cap-ink-3)" }}
                 >
-                  Tout marquer comme lu
-                </button>
-              )}
+                  <Settings2 className="h-4 w-4" />
+                </Link>
+              </div>
             </div>
 
             <div className="max-h-[22rem] overflow-y-auto">
               {items.length === 0 ? (
                 <div className="px-4 py-6">
                   <Text size="caption">
-                    Rien pour le moment. Vous serez prévenu ici quand une position
-                    atteint son stop ou son objectif.
+                    Rien pour le moment. Vous êtes prévenu ici quand un stop ou un objectif
+                    ferme une position, quand une alerte de prix se déclenche, ou quand
+                    l&apos;équipe vous répond. Vous choisissez quoi dans les{" "}
+                    <Link href="/settings?section=notifications" onClick={() => setOuvert(false)} className="cap-lien">réglages</Link>.
                   </Text>
                 </div>
               ) : (
@@ -174,7 +208,7 @@ export function Notifications() {
                               style={{ backgroundColor: "var(--cap-ocean)" }}
                             />
                           )}
-                          <div className={n.is_read ? "pl-3.5" : ""}>
+                          <div className={`min-w-0 pr-8 ${n.is_read ? "pl-3.5" : ""}`}>
                             <span
                               className="block text-[0.86rem] font-medium"
                               style={{ color: "var(--cap-ink)" }}
@@ -198,7 +232,7 @@ export function Notifications() {
                       </>
                     );
                     return (
-                      <li key={n.id} style={{ borderTop: "1px solid var(--cap-line)" }}>
+                      <li key={n.id} className="relative" style={{ borderTop: "1px solid var(--cap-line)" }}>
                         {n.link ? (
                           <Link
                             href={n.link}
@@ -216,6 +250,15 @@ export function Notifications() {
                             {corps}
                           </button>
                         )}
+                        <button
+                          type="button"
+                          onClick={() => effacer(n)}
+                          aria-label={`Effacer : ${n.title}`}
+                          className="absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-full transition-colors hover:bg-[color:var(--cap-surface-2)]"
+                          style={{ color: "var(--cap-ink-4)" }}
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
                       </li>
                     );
                   })}
@@ -223,13 +266,22 @@ export function Notifications() {
               )}
             </div>
 
-            {items.length > 0 && nonLus === 0 && (
+            {items.length > 0 && (
               <div
-                className="flex items-center gap-1.5 px-4 py-2.5"
+                className="flex items-center justify-between gap-3 px-4 py-2.5"
                 style={{ borderTop: "1px solid var(--cap-line)" }}
               >
-                <Check className="h-3.5 w-3.5" style={{ color: "var(--cap-up)" }} />
-                <Text size="caption" as="span">Tout est lu.</Text>
+                {nonLus === 0 ? (
+                  <span className="flex items-center gap-1.5">
+                    <Check className="h-3.5 w-3.5" style={{ color: "var(--cap-up)" }} />
+                    <Text size="caption" as="span">Tout est lu.</Text>
+                  </span>
+                ) : <span />}
+                {items.some((n) => n.is_read) && (
+                  <button type="button" onClick={effacerLues} className="cap-lien text-[0.78rem]">
+                    Effacer les notifications lues
+                  </button>
+                )}
               </div>
             )}
           </motion.div>

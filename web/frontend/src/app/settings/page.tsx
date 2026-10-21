@@ -19,6 +19,7 @@ import { Choice, Toggle, type Option } from "@/components/settings/Choice";
 import { useCapTheme, type CapTheme } from "@/lib/capTheme";
 import { useProfile } from "@/lib/useProfile";
 import { NotificationsAppareil } from "@/components/app/NotificationsAppareil";
+import { MesAppareils, PreferencesNotifications } from "@/components/settings/ReglagesNotifications";
 import { GOALS, MARKETS, TIMES } from "@/lib/profileQuestions";
 
 /**
@@ -805,15 +806,9 @@ function NotificationsSection() {
 
       <NotificationsAppareil forme="reglage" />
 
-      <Panel title="Alertes de prix">
-        <Toggle
-          label="M'avertir quand une alerte se déclenche"
-          detail="Une notification dans le site dès qu'un actif franchit le seuil que vous avez posé. Aucun e-mail, aucune notification système."
-          checked={settings.priceAlertsEnabled}
-          onChange={(v) => save({ priceAlertsEnabled: v })}
-          disabled={busy}
-        />
-      </Panel>
+      <PreferencesNotifications />
+
+      <MesAppareils />
 
       <Panel
         title="Récapitulatif de retour"
@@ -861,7 +856,7 @@ function ActiveAlerts() {
   return (
     <Panel
       title="Vos alertes"
-      hint={active.length > 0 ? "Elles sont vérifiées pendant que le site est ouvert." : undefined}
+      hint={active.length > 0 ? "Le serveur les vérifie toutes les trois minutes, même site fermé." : undefined}
     >
       {alerts === null ? (
         <Text size="small">Chargement…</Text>
