@@ -5,8 +5,8 @@ import { cn } from "@/lib/utils";
 /**
  * Type scale.
  *
- * Two families and one job each: Fraunces (a warm editorial serif) sets
- * headings, Plus Jakarta Sans carries prose, and the monospace appears only
+ * Two families and one job each: Bodoni Moda (the Didone of the financial
+ * press) sets headings, Schibsted Grotesk carries prose, and the monospace appears only
  * on figures. Sizes are fluid so the hierarchy
  * survives from a phone to a large monitor without a stack of breakpoints.
  */

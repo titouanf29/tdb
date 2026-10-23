@@ -3,15 +3,15 @@
  * Inter partout, des boutons rectangulaires bleu nuit, de petites étiquettes
  * en capitales espacées : c'est la tenue par défaut de mille sites générés,
  * et elle se reconnaît au premier coup d'œil. Cette page a la sienne —
- * une serif éditoriale chaleureuse pour les titres (Fraunces), une sans-serif
- * douce pour le texte (Plus Jakarta Sans), des boutons à l'encre et au point ambre
+ * la typographie de la presse financière, une Didone pour les titres (Bodoni
+ * Moda), une grotesque de presse pour le texte (Schibsted Grotesk), des boutons à l'encre et au point ambre
  * du logo, et des étiquettes en italique, comme une légende de magazine.
  *
  * Tout est scopé sous .vitrine : l'application garde son style. */
 
 .vitrine {
-  --cap-font-display: var(--font-fraunces), Georgia, "Times New Roman", serif;
-  --cap-font-text: var(--font-jakarta), var(--font-inter), system-ui, sans-serif;
+  --cap-font-display: var(--font-bodoni), "Didot", "Bodoni 72", Georgia, serif;
+  --cap-font-text: var(--font-schibsted), system-ui, sans-serif;
   --vitrine-ambre: #e5a83a;
   --vitrine-ambre-clair: #f3c56e;
   --vitrine-nuit: #0b1726;
@@ -22,7 +22,7 @@
 .vitrine h1, .vitrine h2, .vitrine h3,
 .vitrine [class*="tracking-[-0.03em]"] {
   font-family: var(--cap-font-display);
-  font-variation-settings: "opsz" 96, "SOFT" 50;
+  font-optical-sizing: auto;
 }
 .vitrine h1, .vitrine h2 { font-weight: 500 !important; letter-spacing: -0.012em !important; }
 .vitrine h3 { font-weight: 600 !important; letter-spacing: -0.004em !important; }

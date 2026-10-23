@@ -139,7 +139,7 @@ html {
 
   body {
     @apply bg-background text-foreground antialiased;
-    font-family: var(--font-inter), system-ui, -apple-system, sans-serif;
+    font-family: var(--font-schibsted), system-ui, -apple-system, sans-serif;
     font-feature-settings: "rlig" 1, "calt" 1, "ss01" 1;
     /* Tabular figures everywhere — prices and P&L columns stay aligned */
     font-variant-numeric: tabular-nums lining-nums;
@@ -150,7 +150,7 @@ html {
 
   /* Display face for headings — the CaptenTDB typographic signature */
   h1, h2, h3 {
-    font-family: var(--font-display), var(--font-inter), system-ui, sans-serif;
+    font-family: var(--font-schibsted), system-ui, sans-serif;
     letter-spacing: -0.015em;
   }
 

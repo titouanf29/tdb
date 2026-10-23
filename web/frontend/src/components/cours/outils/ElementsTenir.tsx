@@ -67,7 +67,7 @@ export function ResultatTenir({ children, className = "" }: { children: ReactNod
   );
 }
 
-/** Un grand chiffre, en Fraunces. */
+/** Un grand chiffre, dans la Didone des titres. */
 export function ChiffreTenir({ valeur, legende, couleur }: { valeur: string; legende: string; couleur?: string }) {
   return (
     <div className="min-w-0">

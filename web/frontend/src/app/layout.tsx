@@ -23,13 +23,6 @@ import { NonceProvider } from "@/lib/nonce";
  * polices variables, sous-ensemble latin (accents français, œ, € compris),
  * reprises telles quelles de Google Fonts (licence SIL Open Font).
  */
-const inter = localFont({
-  src: "../fonts/Inter.woff2",
-  variable: "--font-inter",
-  display: "swap",
-  weight: "300 800",
-});
-
 const jetbrainsMono = localFont({
   src: "../fonts/JetBrainsMono.woff2",
   variable: "--font-mono",
@@ -37,39 +30,41 @@ const jetbrainsMono = localFont({
   weight: "400 700",
 });
 
-// Headings of the rebuilt screens. Space Grotesk stays only until the last
-// legacy page is migrated, then it goes.
-const sora = localFont({
-  src: "../fonts/Sora.woff2",
-  variable: "--font-sora",
-  display: "swap",
-  weight: "400 700",
-});
-
-// La page de présentation a sa propre voix : une serif éditoriale pour les
-// titres, une sans-serif douce pour le texte (licence SIL OFL, hébergées ici).
-const fraunces = localFont({
+/*
+ * LA VOIX DU SITE : CELLE DE LA PRESSE FINANCIÈRE.
+ *
+ * Fraunces et Plus Jakarta Sans (avant elles Inter, Sora, Space Grotesk)
+ * sont les polices qu'on retrouve sur des milliers de sites générés : le site
+ * ressemblait à un modèle. Il prend maintenant la typographie des pages
+ * saumon et des cotes du journal :
+ *
+ *   · Bodoni Moda pour les titres et les grands montants : une Didone, à
+ *     fort contraste, de la famille des titres de la presse économique. Ses
+ *     tailles optiques (axe opsz) épaississent les déliés aux petites tailles,
+ *     sans quoi un titre de panneau serait trop fragile ;
+ *   · Schibsted Grotesk pour le texte et les chiffres : une grotesque
+ *     dessinée pour un groupe de presse, avec de vrais chiffres tabulaires,
+ *     indispensables à des cours qui s'alignent en colonne et ne « sautent »
+ *     pas quand ils changent.
+ */
+const bodoni = localFont({
   src: [
-    { path: "../fonts/Fraunces-normal.woff2", style: "normal" },
-    { path: "../fonts/Fraunces-italic.woff2", style: "italic" },
+    { path: "../fonts/BodoniModa-normal.woff2", style: "normal" },
+    { path: "../fonts/BodoniModa-italic.woff2", style: "italic" },
   ],
-  variable: "--font-fraunces",
+  variable: "--font-bodoni",
   display: "swap",
-  weight: "300 700",
+  weight: "400 900",
 });
 
-const jakarta = localFont({
-  src: "../fonts/PlusJakartaSans-normal.woff2",
-  variable: "--font-jakarta",
+const schibsted = localFont({
+  src: [
+    { path: "../fonts/SchibstedGrotesk-normal.woff2", style: "normal" },
+    { path: "../fonts/SchibstedGrotesk-italic.woff2", style: "italic" },
+  ],
+  variable: "--font-schibsted",
   display: "swap",
-  weight: "400 700",
-});
-
-const spaceGrotesk = localFont({
-  src: "../fonts/SpaceGrotesk.woff2",
-  variable: "--font-display",
-  display: "swap",
-  weight: "400 700",
+  weight: "400 900",
 });
 
 /**
@@ -151,7 +146,7 @@ export default async function RootLayout({
     <html
       lang="fr"
       suppressHydrationWarning
-      className={`dark ${inter.variable} ${sora.variable} ${spaceGrotesk.variable} ${jetbrainsMono.variable} ${fraunces.variable} ${jakarta.variable}`}
+      className={`dark ${jetbrainsMono.variable} ${bodoni.variable} ${schibsted.variable}`}
     >
       <head>
         {/* Applies the cached theme / accent / language BEFORE first paint.

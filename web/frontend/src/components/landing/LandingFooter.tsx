@@ -58,7 +58,7 @@ export function LandingFooter() {
           {/* Le colophon. */}
           <div className="mt-14 grid gap-6 border-t pt-7 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] lg:gap-20" style={{ borderColor: "var(--cap-line)" }}>
             <p className="vitrine-italique text-[0.95rem] leading-[1.6]" style={{ color: "var(--cap-ink-2)" }}>
-              Composé en Fraunces et Plus Jakarta Sans. Imaginé et construit en France, par CaptenQwark.
+              Composé en Bodoni Moda et Schibsted Grotesk. Imaginé et construit en France, par CaptenQwark.
               Les cours sont réels, l&apos;argent ne l&apos;est pas.
             </p>
             <div>

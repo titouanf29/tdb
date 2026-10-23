@@ -52,8 +52,8 @@ const config: Config = {
         },
       },
       fontFamily: {
-        sans: ["var(--font-inter)", "system-ui", "-apple-system", "sans-serif"],
-        display: ["var(--font-display)", "var(--font-inter)", "system-ui", "sans-serif"],
+        sans: ["var(--font-schibsted)", "system-ui", "-apple-system", "sans-serif"],
+        display: ["var(--font-schibsted)", "system-ui", "sans-serif"],
         mono: ["var(--font-mono)", "ui-monospace", "SFMono-Regular", "Menlo", "monospace"],
       },
       /* Terminal theme: square. The whole scale collapses to hairline radii so
