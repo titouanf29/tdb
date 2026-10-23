@@ -15,9 +15,9 @@ présentation seulement).
 
 | Élément | La règle | À la place de |
 |---|---|---|
-| Titres | **Bodoni Moda**, la Didone de la presse financière ; optique automatique pour le grand titre, optique 14 dessous | une sans-serif grasse partout ; Fraunces, Playfair, Instrument Serif |
+| Titres | **IBM Plex Serif**, serif robuste à faible contraste, lisible à toutes les tailles | une sans-serif grasse partout ; Fraunces, Playfair, Instrument Serif ; une Didone (Bodoni) : ses déliés disparaissent à l'écran |
 | Texte | **Schibsted Grotesk**, grotesque dessinée pour un groupe de presse | Inter, Plus Jakarta Sans, DM Sans, Geist, Space Grotesk |
-| Chiffres | Schibsted en chiffres tabulaires (seuls les chiffres sont tabulaires, la virgule et le point gardent leur chasse) ; **Bodoni Moda** pour les grands montants | une police de terminal |
+| Chiffres | Schibsted en chiffres tabulaires (seuls les chiffres sont tabulaires, la virgule et le point gardent leur chasse) ; **IBM Plex Serif** pour les grands montants | une police de terminal |
 | Étiquettes | italique serif, précédée d'un trait ambre (ou du numéro de chapitre sur la page de présentation) | petites capitales espacées |
 | Ponctuation | virgule, deux-points ou point ; décimales à la virgule ; espace fine avant les milliers | tirets cadratins ; « 1.42 % » |
 

@@ -239,13 +239,13 @@
 
   /* ── Type ─────────────────────────────────────────────────────────────── */
   /* La voix du site, celle de la presse financière : une Didone pour les
-     titres (Bodoni Moda), une grotesque de presse pour le texte (Schibsted
+     titres (IBM Plex Serif), une grotesque de presse pour le texte (Schibsted
      Grotesk). Voir app/layout.tsx. Les chiffres ne
      sont plus en police de terminal : « 10 000,00 € » tapé à la machine
      faisait de chaque écran une console. Ils prennent la sans-serif du texte
      en chiffres tabulaires, qui s'alignent en colonne tout autant, et la
      serif quand ils sont grands. */
-  --cap-font-display: var(--font-bodoni), "Didot", "Bodoni 72", Georgia, serif;
+  --cap-font-display: var(--font-plex-serif), Georgia, "Times New Roman", serif;
   --cap-font-text: var(--font-schibsted), system-ui, sans-serif;
   --cap-ambre: #e5a83a;
   --cap-font-num: var(--font-schibsted), system-ui, sans-serif;
@@ -755,13 +755,6 @@ body:has(.cap) {
    La même voix que la page de présentation, posée une fois ici pour tous
    les écrans reconstruits. */
 
-/* Les titres : la Didone choisit elle-même son optique selon la taille
-   (déliés fins en grand, plus robustes en petit). */
-.cap h1 { font-optical-sizing: auto; }
-/* Sous le grand titre, une optique plus robuste : sur un écran ordinaire,
-   les déliés de la Didone à 20-30 px disparaissaient (« Analy sez », surtout
-   en clair sur fond sombre). L'optique 14 garde le contraste, sans le fil. */
-.cap h2, .cap h3, .cap h4 { font-variation-settings: "opsz" 14; }
 
 /* Les étiquettes de section : une légende en italique, précédée d'un trait
    ambre, au lieu des petites capitales espacées. */
@@ -817,7 +810,6 @@ body:has(.cap) {
 .cap .cap-num[class*="text-[1.9"], .cap .cap-num[class*="text-[2"], .cap .cap-num[class*="text-[3"],
 .cap .cap-num.text-2xl, .cap .cap-num.text-3xl, .cap .cap-num.text-4xl {
   font-family: var(--cap-font-display);
-  font-optical-sizing: auto;
   font-variant-numeric: lining-nums tabular-nums;
   font-weight: 500 !important;
   letter-spacing: -0.01em;

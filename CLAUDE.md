@@ -11,4 +11,4 @@ Rules:
 
 ## Identité visuelle
 
-Avant de toucher à un écran, lire `web/docs/identite.md` : la charte du site (Bodoni Moda + Schibsted Grotesk, ambre pour marquer, ligne datée, sommaire, questions-réponses, pas de tirets cadratins ni d'allure de modèle de site).
+Avant de toucher à un écran, lire `web/docs/identite.md` : la charte du site (IBM Plex Serif + Schibsted Grotesk, ambre pour marquer, ligne datée, sommaire, questions-réponses, pas de tirets cadratins ni d'allure de modèle de site).

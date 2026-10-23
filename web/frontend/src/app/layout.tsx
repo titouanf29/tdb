@@ -38,23 +38,28 @@ const jetbrainsMono = localFont({
  * ressemblait à un modèle. Il prend maintenant la typographie des pages
  * saumon et des cotes du journal :
  *
- *   · Bodoni Moda pour les titres et les grands montants : une Didone, à
- *     fort contraste, de la famille des titres de la presse économique. Ses
- *     tailles optiques (axe opsz) épaississent les déliés aux petites tailles,
- *     sans quoi un titre de panneau serait trop fragile ;
+ *   · IBM Plex Serif pour les titres et les grands montants : une serif
+ *     robuste, à faible contraste, de la famille des polices de terminal de
+ *     marché. Une Didone (Bodoni Moda) l'a précédée un jour : ses déliés
+ *     disparaissaient à l'écran, « on ne voit rien ». Plex reste lisible à
+ *     toutes les tailles, en clair comme en sombre, et ses chiffres ont tous
+ *     la même largeur ;
  *   · Schibsted Grotesk pour le texte et les chiffres : une grotesque
  *     dessinée pour un groupe de presse, avec de vrais chiffres tabulaires,
  *     indispensables à des cours qui s'alignent en colonne et ne « sautent »
  *     pas quand ils changent.
  */
-const bodoni = localFont({
+const plexSerif = localFont({
   src: [
-    { path: "../fonts/BodoniModa-normal.woff2", style: "normal" },
-    { path: "../fonts/BodoniModa-italic.woff2", style: "italic" },
+    { path: "../fonts/IBMPlexSerif-400-normal.woff2", weight: "400", style: "normal" },
+    { path: "../fonts/IBMPlexSerif-500-normal.woff2", weight: "500", style: "normal" },
+    { path: "../fonts/IBMPlexSerif-600-normal.woff2", weight: "600", style: "normal" },
+    { path: "../fonts/IBMPlexSerif-700-normal.woff2", weight: "700", style: "normal" },
+    { path: "../fonts/IBMPlexSerif-400-italic.woff2", weight: "400", style: "italic" },
+    { path: "../fonts/IBMPlexSerif-500-italic.woff2", weight: "500", style: "italic" },
   ],
-  variable: "--font-bodoni",
+  variable: "--font-plex-serif",
   display: "swap",
-  weight: "400 900",
 });
 
 const schibsted = localFont({
@@ -146,7 +151,7 @@ export default async function RootLayout({
     <html
       lang="fr"
       suppressHydrationWarning
-      className={`dark ${jetbrainsMono.variable} ${bodoni.variable} ${schibsted.variable}`}
+      className={`dark ${jetbrainsMono.variable} ${plexSerif.variable} ${schibsted.variable}`}
     >
       <head>
         {/* Applies the cached theme / accent / language BEFORE first paint.
