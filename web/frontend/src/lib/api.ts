@@ -1877,6 +1877,9 @@ export const adminAPI = {
 
   getUserDetails: (userId: number) =>
     fetchAPI<AdminUserDetails>(`/api/admin/users/${userId}`),
+  /** Ce que fait ce compte : habitudes, progression, fil des événements. */
+  getUserActivity: (userId: number) =>
+    fetchAPI<ActiviteCompte>(`/api/admin/users/${userId}/activite`),
 
   performUserAction: (userId: number, action: string, reason?: string) =>
     fetchAPI<{ success: boolean; message: string }>("/api/admin/users/action", {
@@ -2270,10 +2273,28 @@ export interface AdminUser {
   avatar_url?: string;
   created_at: string;
   last_login?: string;
+  /** La dernière requête, même sans nouvelle connexion (« rester connecté »). */
+  last_active?: string | null;
   is_active: number;
   balance?: number;
   open_positions?: number;
   favorites_count?: number;
+}
+
+export interface ActiviteCompte {
+  derniere_activite: string | null;
+  jours_venus: number;
+  jours_venus_30j: number;
+  gestes: Record<string, number>;
+  niveau: number;
+  xp: number;
+  serie: number;
+  missions: number;
+  lecons: number;
+  alertes_actives: number;
+  appareils: number;
+  trades: { fermes: number; gagnants: number; resultat: number };
+  fil: { quand: string; genre: string; texte: string }[];
 }
 
 export interface AdminUserDetails {

@@ -62,6 +62,15 @@ export default function AdminPage() {
 
   const [autorise, setAutorise] = useState<boolean | null>(null);
   const [section, setSection] = useState<Section>("overview");
+  // Une notification « Nouvelle inscription » mène à /admin?section=users&compte=…
+  const [compte, setCompte] = useState<number | null>(null);
+  useEffect(() => {
+    const p = new URLSearchParams(window.location.search);
+    const s = p.get("section");
+    if (s && SECTIONS.some((x) => x.id === s)) setSection(s as Section);
+    const c = Number(p.get("compte"));
+    if (c > 0) setCompte(c);
+  }, []);
   const [dashboard, setDashboard] = useState<AdminDashboard | null>(null);
   const [reglages, setReglages] = useState<Record<string, string>>({});
 
@@ -117,7 +126,7 @@ export default function AdminPage() {
       case "retention":
         return <Retention />;
       case "users":
-        return <Users money={money} />;
+        return <Users money={money} ouvrirId={compte} />;
       case "support":
         return (
           <div className="space-y-8">
@@ -139,7 +148,7 @@ export default function AdminPage() {
       default:
         return <EmptyState title="Section inconnue" description="" />;
     }
-  }, [section, dashboard, reglages, money, poserReglage]);
+  }, [section, dashboard, reglages, money, poserReglage, compte]);
 
   if (autorise === null) return <CloudCurtain active label="Vérification des droits" />;
   if (!autorise) return null;

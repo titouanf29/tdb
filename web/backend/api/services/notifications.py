@@ -47,6 +47,9 @@ CATEGORIES: list[dict] = [
     {"id": "compte", "label": "Compte et Premium",
      "detail": "Votre abonnement et la sécurité de votre compte. Ils restent toujours dans le site.",
      "types": ["premium", "compte"], "site_verrouille": True},
+    {"id": "admin", "label": "Administration",
+     "detail": "Chaque nouvelle inscription, avec un lien vers la fiche du compte. Réservé à l'équipe.",
+     "types": ["admin_inscription"], "admin_only": True},
 ]
 _PAR_TYPE = {t: c["id"] for c in CATEGORIES for t in c["types"]}
 _IDS = [c["id"] for c in CATEGORIES]

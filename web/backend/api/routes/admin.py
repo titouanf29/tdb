@@ -13,6 +13,7 @@ import os
 
 from ..database import execute_query, execute_write, create_admin_notification, create_user_notification
 from .auth import get_current_user
+from ._fr import nombre_fr
 
 router = APIRouter()
 
@@ -111,7 +112,7 @@ class SystemSetting(BaseModel):
     value: str
 
 class WalletAdjustment(BaseModel):
-    user_id: int
+    user_id: Optional[int] = None  # l'identifiant de l'adresse fait foi
     amount: float
     reason: str
 
@@ -229,6 +230,11 @@ async def data_health(admin: dict = Depends(get_admin_user)):
     from ._qualite import etat_des_sources
 
     return {**etat_des_sources(), "secours_configure": bool(TWELVEDATA_API_KEY)}
+
+
+def _wuid(user_id) -> str:
+    """L'identifiant sous lequel le wallet et les positions d'un compte du site sont rangés."""
+    return f"web_{int(user_id)}"
 
 
 # ============== RÉTENTION ==============
@@ -387,10 +393,10 @@ async def get_all_users(
     if search:
         users = await execute_query("""
             SELECT u.*, w.balance,
-                   (SELECT COUNT(*) FROM positions WHERE user_id = u.id AND status = 'open') as open_positions,
+                   (SELECT COUNT(*) FROM positions WHERE user_id = 'web_' || u.id AND status = 'open') as open_positions,
                    (SELECT COUNT(*) FROM web_favorites WHERE user_id = u.id) as favorites_count
             FROM web_users u
-            LEFT JOIN wallet w ON u.id = w.user_id
+            LEFT JOIN wallet w ON w.user_id = 'web_' || u.id
             WHERE u.email LIKE ? OR u.username LIKE ?
             ORDER BY u.created_at DESC
             LIMIT ? OFFSET ?
@@ -403,10 +409,10 @@ async def get_all_users(
     else:
         users = await execute_query("""
             SELECT u.*, w.balance,
-                   (SELECT COUNT(*) FROM positions WHERE user_id = u.id AND status = 'open') as open_positions,
+                   (SELECT COUNT(*) FROM positions WHERE user_id = 'web_' || u.id AND status = 'open') as open_positions,
                    (SELECT COUNT(*) FROM web_favorites WHERE user_id = u.id) as favorites_count
             FROM web_users u
-            LEFT JOIN wallet w ON u.id = w.user_id
+            LEFT JOIN wallet w ON w.user_id = 'web_' || u.id
             ORDER BY u.created_at DESC
             LIMIT ? OFFSET ?
         """, (limit, offset))
@@ -433,11 +439,15 @@ async def get_user_details(user_id: int, admin: dict = Depends(get_admin_user)):
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    wallet = await execute_query("SELECT * FROM wallet WHERE user_id = ?", (user_id,))
+    # LE WALLET ET LES POSITIONS SONT RANGÉS SOUS « web_{id} » (wallet.get_user_id).
+    # Cherchés sous l'identifiant brut, ils ne remontaient jamais : la fiche
+    # montrait un solde vide et aucune position pour tous les comptes du site.
+    wuid = _wuid(user_id)
+    wallet = await execute_query("SELECT * FROM wallet WHERE user_id = ?", (wuid,))
 
     positions = await execute_query("""
         SELECT * FROM positions WHERE user_id = ? ORDER BY created_at DESC LIMIT 50
-    """, (user_id,))
+    """, (wuid,))
 
     favorites = await execute_query("""
         SELECT * FROM web_favorites WHERE user_id = ?
@@ -462,7 +472,7 @@ async def get_user_details(user_id: int, admin: dict = Depends(get_admin_user)):
             MIN(realized_pnl) as worst_trade
         FROM positions
         WHERE user_id = ? AND status = 'closed'
-    """, (user_id,))
+    """, (wuid,))
 
     return {
         "user": _sans_secrets(user[0]),
@@ -503,12 +513,12 @@ async def perform_user_action(action: UserAction, admin: dict = Depends(get_admi
     elif action.action == "reset_wallet":
         await execute_write(
             "UPDATE wallet SET balance = 10000 WHERE user_id = ?",
-            (action.user_id,)
+            (_wuid(action.user_id),)
         )
         # Close all open positions
         await execute_write(
-            "UPDATE positions SET status = 'closed', realized_pnl = 0 WHERE user_id = ? AND status = 'open'",
-            (action.user_id,)
+            "UPDATE positions SET status = 'closed', realized_pnl = 0, closed_at = ? WHERE user_id = ? AND status = 'open'",
+            (datetime.now(timezone.utc).isoformat(), _wuid(action.user_id))
         )
         await log_admin_action(admin["id"], "reset_wallet", f"Reset wallet for user {action.user_id}: {action.reason}")
         return {"success": True, "message": f"Wallet reset for user {action.user_id}"}
@@ -532,21 +542,101 @@ async def perform_user_action(action: UserAction, admin: dict = Depends(get_admi
         raise HTTPException(status_code=400, detail="Invalid action")
 
 
+_GESTES = {
+    "inscription": "S'est inscrit", "visite": "Est venu sur le site", "analyse": "A analysé un actif",
+    "position": "A ouvert une position", "lecon": "A terminé une leçon", "scan": "A lancé un scan",
+    "assistant": "A posé une question à l'assistant", "alerte": "A posé une alerte de prix",
+}
+
+
+@router.get("/users/{user_id}/activite")
+async def get_user_activity(user_id: int, admin: dict = Depends(get_admin_user)):
+    """Ce que fait ce compte : ses habitudes, sa progression, et un fil des
+    derniers événements (gestes, positions, alertes, demandes au support)."""
+    from ..services import evenements
+    await evenements.init()
+    u = await execute_query("SELECT id, created_at, last_login, last_active, trading_level FROM web_users WHERE id = ?",
+                            (user_id,))
+    if not u:
+        raise HTTPException(status_code=404, detail="Compte introuvable.")
+    wuid = _wuid(user_id)
+    maintenant = datetime.now(timezone.utc)
+    il_y_a_30j = (maintenant - timedelta(days=30)).date().isoformat()
+
+    gestes = await execute_query("SELECT type, jour, cree_le FROM evenements WHERE user_id = ? ORDER BY cree_le DESC",
+                                 (user_id,)) or []
+    par_type: dict[str, int] = {}
+    for g in gestes:
+        par_type[g["type"]] = par_type.get(g["type"], 0) + 1
+    jours = {g["jour"] for g in gestes}
+
+    async def un(q, params):
+        try:
+            r = await execute_query(q, params)
+            return r[0] if r else {}
+        except Exception:
+            return {}
+
+    progres = await un("SELECT xp, level, streak_days FROM user_progress WHERE user_id = ?", (user_id,))
+    missions = await un("SELECT COUNT(*) AS n FROM user_missions WHERE user_id = ? AND status = 'completed'", (user_id,))
+    lecons = await un("SELECT COUNT(*) AS n FROM user_lessons WHERE user_id = ?", (user_id,))
+    alertes = await un("SELECT COUNT(*) AS n FROM price_alerts WHERE user_id = ? AND status = 'active'", (str(user_id),))
+    appareils = await un("SELECT COUNT(*) AS n FROM push_abonnements WHERE user_id = ?", (user_id,))
+    trades = await un("SELECT COUNT(*) AS n, COALESCE(SUM(realized_pnl), 0) AS pnl, "
+                      "SUM(CASE WHEN realized_pnl > 0 THEN 1 ELSE 0 END) AS gagnants "
+                      "FROM positions WHERE user_id = ? AND status = 'closed'", (wuid,))
+
+    # Le fil : les gestes notés, les positions, les alertes, le support.
+    fil = [{"quand": g["cree_le"], "genre": g["type"], "texte": _GESTES.get(g["type"], g["type"])} for g in gestes[:60]]
+    for p in (await execute_query("SELECT symbol, direction, amount, leverage, status, realized_pnl, created_at, closed_at "
+                                  "FROM positions WHERE user_id = ? ORDER BY created_at DESC LIMIT 30", (wuid,)) or []):
+        sens = "Achat" if (p["direction"] or "LONG") == "LONG" else "Vente"
+        levier = f" ×{p['leverage']}" if (p.get("leverage") or 1) > 1 else ""
+        fil.append({"quand": p["created_at"], "genre": "position",
+                    "texte": f"{sens}{levier} sur {p['symbol']}, {nombre_fr(p['amount'] or 0, 2)} € engagés"})
+        if p["status"] == "closed" and p.get("closed_at"):
+            fil.append({"quand": p["closed_at"], "genre": "cloture",
+                        "texte": f"Position {p['symbol']} fermée, {nombre_fr(p['realized_pnl'] or 0, 2, signe=True)} €"})
+    try:
+        for t in (await execute_query("SELECT subject, created_at FROM admin_tickets WHERE user_id = ? "
+                                      "ORDER BY created_at DESC LIMIT 10", (user_id,)) or []):
+            fil.append({"quand": t["created_at"], "genre": "support", "texte": f"Demande au support : {t['subject']}"})
+    except Exception:
+        pass
+    # Les gestes « position » font doublon avec les positions elles-mêmes, plus parlantes.
+    fil = [f for f in fil if not (f["genre"] == "position" and f["texte"] == _GESTES["position"])]
+    fil.sort(key=lambda f: str(f["quand"]), reverse=True)
+
+    return {
+        "derniere_activite": u[0].get("last_active") or u[0].get("last_login"),
+        "jours_venus": len(jours),
+        "jours_venus_30j": len({j for j in jours if j >= il_y_a_30j}),
+        "gestes": par_type,
+        "niveau": int(progres.get("level") or 1), "xp": int(progres.get("xp") or 0),
+        "serie": int(progres.get("streak_days") or 0),
+        "missions": int(missions.get("n") or 0), "lecons": int(lecons.get("n") or 0),
+        "alertes_actives": int(alertes.get("n") or 0), "appareils": int(appareils.get("n") or 0),
+        "trades": {"fermes": int(trades.get("n") or 0), "gagnants": int(trades.get("gagnants") or 0),
+                   "resultat": round(float(trades.get("pnl") or 0), 2)},
+        "fil": fil[:40],
+    }
+
+
 @router.post("/users/{user_id}/adjust-wallet")
 async def adjust_user_wallet(user_id: int, adjustment: WalletAdjustment, admin: dict = Depends(get_admin_user)):
     """Adjust user wallet balance"""
 
-    wallet = await execute_query("SELECT * FROM wallet WHERE user_id = ?", (user_id,))
+    wallet = await execute_query("SELECT * FROM wallet WHERE user_id = ?", (_wuid(user_id),))
     if not wallet:
-        raise HTTPException(status_code=404, detail="Wallet not found")
+        raise HTTPException(status_code=404, detail="Ce compte n'a pas encore de wallet.")
 
     new_balance = wallet[0]["balance"] + adjustment.amount
     if new_balance < 0:
-        raise HTTPException(status_code=400, detail="Balance cannot be negative")
+        raise HTTPException(status_code=400, detail="Le solde ne peut pas devenir négatif.")
 
     await execute_write(
         "UPDATE wallet SET balance = ? WHERE user_id = ?",
-        (new_balance, user_id)
+        (new_balance, _wuid(user_id))
     )
 
     await log_admin_action(
@@ -922,7 +1012,7 @@ async def get_all_positions(
         positions = await execute_query("""
             SELECT p.*, u.email, u.username
             FROM positions p
-            LEFT JOIN web_users u ON p.user_id = u.id
+            LEFT JOIN web_users u ON p.user_id = 'web_' || u.id
             ORDER BY p.created_at DESC
             LIMIT ? OFFSET ?
         """, (limit, offset))
@@ -931,7 +1021,7 @@ async def get_all_positions(
         positions = await execute_query("""
             SELECT p.*, u.email, u.username
             FROM positions p
-            LEFT JOIN web_users u ON p.user_id = u.id
+            LEFT JOIN web_users u ON p.user_id = 'web_' || u.id
             WHERE p.status = ?
             ORDER BY p.created_at DESC
             LIMIT ? OFFSET ?

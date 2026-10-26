@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Search } from "lucide-react";
 import {
-  adminAPI, type AdminUser, type AdminUserDetails,
+  adminAPI, type ActiviteCompte, type AdminUser, type AdminUserDetails,
 } from "@/lib/api";
 import { fr } from "@/lib/SettingsContext";
 import {
@@ -45,7 +45,10 @@ function pastille(last?: string | null): string {
   return "var(--cap-ink-4)";
 }
 
-export function Users({ money }: { money: (v: number) => string }) {
+/** La dernière trace de vie : la dernière requête, sinon la dernière connexion. */
+const vu = (u: AdminUser) => u.last_active || u.last_login;
+
+export function Users({ money, ouvrirId }: { money: (v: number) => string; ouvrirId?: number | null }) {
   const [q, setQ] = useState("");
   const [rows, setRows] = useState<AdminUser[]>([]);
   const [charge, setCharge] = useState(true);
@@ -58,6 +61,13 @@ export function Users({ money }: { money: (v: number) => string }) {
     catch { setRows([]); }
     finally { setCharge(false); }
   }, []);
+
+  // Arrivé depuis une notification (« Nouvelle inscription ») : la fiche
+  // du compte s'ouvre directement.
+  useEffect(() => {
+    if (!ouvrirId) return;
+    adminAPI.getUserDetails(ouvrirId).then((d) => setOuvert(d.user)).catch(() => {});
+  }, [ouvrirId]);
 
   useEffect(() => {
     // La recherche part après une pause : interroger à chaque touche
@@ -108,7 +118,7 @@ export function Users({ money }: { money: (v: number) => string }) {
                   >
                     <span className="flex min-w-0 items-center gap-2.5">
                       <span aria-hidden className="h-1.5 w-1.5 shrink-0 rounded-full"
-                            style={{ backgroundColor: pastille(u.last_login) }} />
+                            style={{ backgroundColor: pastille(vu(u)) }} />
                       <span className="min-w-0">
                         <span className="block truncate text-[0.92rem]" style={{ color: "var(--cap-ink)" }}>
                           {u.username || u.email}
@@ -123,7 +133,7 @@ export function Users({ money }: { money: (v: number) => string }) {
                       {u.balance != null && (
                         <Num className="text-[0.85rem]">{money(u.balance)}</Num>
                       )}
-                      <Text size="caption" as="span">{depuis(u.last_login)}</Text>
+                      <Text size="caption" as="span">{depuis(vu(u))}</Text>
                     </span>
                   </button>
                 </li>
@@ -174,6 +184,8 @@ function UserSheet({
   if (!user) return <Drawer open={false} onClose={onClose}><span /></Drawer>;
 
   const actif = user.is_active !== 0;
+  // La fiche reçoit les 50 dernières positions, fermées comprises.
+  const ouvertes = (detail?.positions ?? []).filter((p) => p.status === "open");
 
   const agir = async () => {
     if (!confirme) return;
@@ -224,17 +236,17 @@ function UserSheet({
     <Drawer open onClose={onClose} title="Compte">
       <Heading level={3}>{user.username || user.email}</Heading>
       <Text size="caption" className="mt-1">
-        {user.username ? `${user.email} · ` : ""}inscrit {depuis(user.created_at)} · vu {depuis(user.last_login)}
+        {user.username ? `${user.email} · ` : ""}inscrit {depuis(user.created_at)} · vu {depuis(vu(user))}
         {!actif ? " · suspendu" : ""}
       </Text>
 
       <div className="mt-6 flex flex-wrap gap-x-10 gap-y-5">
         <div>
-          <Num className="block text-[1.3rem]">{money(detail?.user.balance ?? user.balance ?? 0)}</Num>
+          <Num className="block text-[1.3rem]">{money(detail?.wallet?.balance ?? user.balance ?? 10000)}</Num>
           <Text size="caption" className="mt-1">solde</Text>
         </div>
         <div>
-          <Num className="block text-[1.3rem]">{fr(detail?.positions?.length ?? user.open_positions ?? 0, 0)}</Num>
+          <Num className="block text-[1.3rem]">{fr(ouvertes.length || user.open_positions || 0, 0)}</Num>
           <Text size="caption" className="mt-1">positions</Text>
         </div>
         <div>
@@ -302,11 +314,13 @@ function UserSheet({
         </div>
       )}
 
-      {detail?.positions && detail.positions.length > 0 && (
+      <Activite userId={user.id} money={money} />
+
+      {ouvertes.length > 0 && (
         <div className="mt-7 border-t pt-5" style={{ borderColor: "var(--cap-line)" }}>
           <Text size="caption">Positions ouvertes</Text>
           <ul className="mt-2 [&>*+*]:border-t [&>*+*]:border-[color:var(--cap-line)]">
-            {detail.positions.slice(0, 8).map((p) => (
+            {ouvertes.slice(0, 8).map((p) => (
               <li key={p.id} className="flex items-baseline justify-between gap-4 py-2">
                 <span className="text-[0.88rem]" style={{ color: "var(--cap-ink)" }}>
                   {p.symbol}
@@ -322,5 +336,83 @@ function UserSheet({
         </div>
       )}
     </Drawer>
+  );
+}
+
+/* ── Ce que fait ce compte ─────────────────────────────────────────────── */
+
+const LIBELLES: Record<string, string> = {
+  visite: "visites", analyse: "analyses", lecon: "leçons", scan: "scans",
+  assistant: "questions", alerte: "alertes posées", position: "positions",
+};
+
+function quand(iso: string) {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  return d.toLocaleDateString("fr-FR", { day: "numeric", month: "short" }) + ", "
+    + d.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+}
+
+/**
+ * L'activité d'un compte, pour comprendre ce qu'il fait du site : ses
+ * habitudes (jours venus, gestes), sa progression (niveau, série, missions,
+ * leçons), son trading, et le fil de ses derniers événements. Tout vient du
+ * journal des gestes et des tables du site ; rien n'est lu dans ses messages.
+ */
+function Activite({ userId, money }: { userId: number; money: (v: number) => string }) {
+  const [a, setA] = useState<ActiviteCompte | null>(null);
+  const [tout, setTout] = useState(false);
+  useEffect(() => {
+    setA(null); setTout(false);
+    adminAPI.getUserActivity(userId).then(setA).catch(() => setA(null));
+  }, [userId]);
+  if (!a) return null;
+
+  const chiffres: [string, string][] = [
+    [fr(a.jours_venus, 0), `jour${a.jours_venus > 1 ? "s" : ""} venu${a.jours_venus > 1 ? "s" : ""}, dont ${fr(a.jours_venus_30j, 0)} ces 30 jours`],
+    [`Niveau ${a.niveau}`, `${fr(a.xp, 0)} points, série de ${fr(a.serie, 0)} j`],
+    [fr(a.missions, 0), `missions, ${fr(a.lecons, 0)} leçon${a.lecons > 1 ? "s" : ""} terminée${a.lecons > 1 ? "s" : ""}`],
+    [fr(a.trades.fermes, 0), `trades fermés, ${fr(a.trades.gagnants, 0)} gagnant${a.trades.gagnants > 1 ? "s" : ""}, ${money(a.trades.resultat)}`],
+  ];
+  const gestes = Object.entries(a.gestes).filter(([k]) => k !== "inscription" && LIBELLES[k]);
+
+  return (
+    <div className="mt-7 border-t pt-5" style={{ borderColor: "var(--cap-line)" }}>
+      <Text size="caption">Ce qu&apos;il fait sur le site</Text>
+      <div className="mt-3 grid grid-cols-2 gap-x-6 gap-y-4">
+        {chiffres.map(([v, l]) => (
+          <div key={l} className="min-w-0">
+            <Num className="block text-[1.05rem]">{v}</Num>
+            <span className="mt-0.5 block text-[0.78rem] leading-snug" style={{ color: "var(--cap-ink-3)" }}>{l}</span>
+          </div>
+        ))}
+      </div>
+      <p className="mt-4 text-[0.82rem]" style={{ color: "var(--cap-ink-2)" }}>
+        {gestes.length
+          ? gestes.map(([k, n]) => `${n} jour${n > 1 ? "s" : ""} avec ${LIBELLES[k]}`).join(", ") + "."
+          : "Aucun geste noté depuis le début de la mesure."}
+        {" "}{a.alertes_actives} alerte{a.alertes_actives > 1 ? "s" : ""} active{a.alertes_actives > 1 ? "s" : ""},{" "}
+        {a.appareils ? `notifications activées sur ${a.appareils} appareil${a.appareils > 1 ? "s" : ""}` : "notifications non activées"}.
+      </p>
+
+      {a.fil.length > 0 && (
+        <>
+          <Text size="caption" className="mt-5">Derniers événements</Text>
+          <ol className="mt-2">
+            {(tout ? a.fil : a.fil.slice(0, 8)).map((f, i) => (
+              <li key={i} className="grid grid-cols-[6.5rem_minmax(0,1fr)] gap-3 border-t py-2 text-[0.84rem]" style={{ borderColor: "var(--cap-line)" }}>
+                <span className="cap-num" style={{ color: "var(--cap-ink-3)" }}>{quand(f.quand)}</span>
+                <span style={{ color: f.genre === "cloture" ? "var(--cap-ink)" : "var(--cap-ink-2)" }}>{f.texte}</span>
+              </li>
+            ))}
+          </ol>
+          {a.fil.length > 8 && (
+            <button type="button" onClick={() => setTout((v) => !v)} className="cap-lien mt-2 text-[0.84rem]">
+              {tout ? "Réduire" : `Voir les ${a.fil.length} derniers événements`}
+            </button>
+          )}
+        </>
+      )}
+    </div>
   );
 }

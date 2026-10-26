@@ -291,6 +291,7 @@ async def register(request: Request, data: RegisterRequest):
         verifie = True
     from ..services import evenements
     await evenements.noter(user["id"], "inscription")
+    await _prevenir_les_admins(user)
     access_token = create_access_token(token_payload(user))
     return TokenResponse(
         access_token=access_token,
@@ -303,6 +304,28 @@ async def register(request: Request, data: RegisterRequest):
             "email_verified": verifie,
         }
     )
+
+
+async def _prevenir_les_admins(user: dict) -> None:
+    """Chaque inscription, annoncée à l'équipe : dans la cloche, sur ses
+    appareils (catégorie « Administration », réglable), et dans le fil de
+    l'administration. Ne fait jamais échouer l'inscription."""
+    try:
+        from ..services.notifications import notifier
+        from ..database import create_admin_notification
+        debut = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0).isoformat()
+        jour = await execute_query("SELECT COUNT(*) AS n FROM web_users WHERE created_at >= ?", (debut,))
+        n = int((jour or [{"n": 1}])[0]["n"] or 1)
+        pseudo = user.get("username") or user.get("email")
+        titre = f"Nouvelle inscription : {pseudo}"
+        message = f"{user.get('email')} vient de créer son compte. {n} inscription{'s' if n > 1 else ''} aujourd'hui."
+        lien = f"/admin?section=users&compte={user['id']}"
+        admins = await execute_query("SELECT id FROM web_users WHERE is_admin = 1 AND id != ?", (user["id"],)) or []
+        for a in admins:
+            await notifier(a["id"], "admin_inscription", titre, message, lien, cle=f"inscription:{user['id']}")
+        await create_admin_notification("new_user", titre, message, lien)
+    except Exception as e:
+        logging.getLogger(__name__).warning("équipe non prévenue de l'inscription %s : %s", user.get("id"), e)
 
 
 async def _envoyer_verification(email: str, username: str, jeton: str) -> None:
