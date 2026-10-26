@@ -463,6 +463,21 @@ export const equipeAPI = {
   nouveauteLue: (id: number) => fetchAPI<{ success: boolean }>(`/api/admin/changelog/${id}/read`, { method: "POST" }),
 };
 
+// Nimbo, l'aide du site (backend routes/aide.py).
+export interface ReponseAideIA {
+  reponse: string | null;
+  destinations: { libelle: string; lien?: string; visite?: "decouverte" | "support" }[];
+  source: "ia" | "indisponible" | "limite";
+}
+
+export const aideAPI = {
+  question: (question: string, page: string, historique: { role: "moi" | "nimbo"; texte: string }[]) =>
+    fetchAPI<ReponseAideIA>("/api/aide/question", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ question, page, historique }),
+    }),
+};
+
 // « Depuis votre dernière visite » (backend routes/welcome_back.py).
 export interface RecapRetour {
   has_summary: boolean;

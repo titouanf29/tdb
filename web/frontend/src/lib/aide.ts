@@ -62,6 +62,15 @@ export const AIDE: ReponseAide[] = [
     actions: [{ libelle: "Ouvrir une position", lien: "/trading" }, { libelle: "Choisir un actif", lien: "/analysis" }],
   },
   {
+    id: "fermer", question: "Comment fermer une position ?",
+    motsCles: ["fermer", "cloturer", "cloture", "sortir", "couper", "arreter", "solder", "revendre", "position"],
+    reponse: [
+      "Dans le Wallet de simulation, chaque position en cours a un bouton « Clôturer » : confirmez, et elle se ferme au cours du moment.",
+      "Elle se ferme aussi toute seule quand son stop ou son objectif est atteint, même site fermé, et une notification vous prévient.",
+    ],
+    actions: [{ libelle: "Ouvrir le wallet", lien: "/wallet" }],
+  },
+  {
     id: "argent", question: "C'est de l'argent réel ?",
     motsCles: ["reel", "vrai argent", "argent", "risque", "perdre", "payer", "gratuit", "euros"],
     reponse: [
@@ -99,7 +108,7 @@ export const AIDE: ReponseAide[] = [
   },
   {
     id: "notifications", question: "Comment recevoir les notifications sur mon téléphone ?",
-    motsCles: ["notif", "telephone", "push", "cloche", "prevenu", "silence", "couper", "heures calmes"],
+    motsCles: ["notif", "telephone", "iphone", "android", "portable", "mobile", "push", "cloche", "recevoir", "prevenu", "silence", "heures calmes"],
     reponse: [
       "Dans Réglages, Notifications : « Activer » sur cet appareil, puis vous choisissez ce que vous recevez, catégorie par catégorie, et vos heures calmes.",
       "Sur iPhone, ajoutez d'abord le site à l'écran d'accueil (Partager, puis « Sur l'écran d'accueil ») et ouvrez-le depuis l'icône.",
@@ -219,13 +228,30 @@ function normaliser(t: string): string {
   return t.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[’']/g, " ");
 }
 
+/** Un mot-clé d'un seul mot reconnaît ses variantes : « fermer », « ferme », « fermé ». */
+function racine(mot: string): string {
+  return mot.length > 5 ? mot.slice(0, mot.length - 1) : mot;
+}
+
+function correspond(motCle: string, q: string, mots: string[]): boolean {
+  const m = normaliser(motCle).trim();
+  if (m.includes(" ") || m.includes("/")) return q.includes(m);
+  const r = racine(m);
+  return mots.some((w) => w.startsWith(r) || (w.length >= 4 && m.startsWith(w)));
+}
+
+// Un mot-clé propre à une seule réponse pèse plus qu'un mot partagé.
+const FREQUENCE = new Map<string, number>();
+for (const a of AIDE) for (const m of a.motsCles) FREQUENCE.set(m, (FREQUENCE.get(m) ?? 0) + 1);
+
 /** La réponse la plus proche d'une question tapée, ou null. */
 export function chercher(question: string): ReponseAide | null {
   const q = ` ${normaliser(question)} `;
+  const mots = q.split(/[^a-z0-9/]+/).filter((w) => w.length >= 3);
   let meilleure: ReponseAide | null = null;
   let score = 0;
   for (const a of AIDE) {
-    const s = a.motsCles.reduce((n, m) => n + (q.includes(normaliser(m)) ? (m.length > 6 ? 2 : 1) : 0), 0);
+    const s = a.motsCles.reduce((n, m) => n + (correspond(m, q, mots) ? ((FREQUENCE.get(m) ?? 1) > 1 ? 1 : 2) : 0), 0);
     if (s > score) { score = s; meilleure = a; }
   }
   return score > 0 ? meilleure : null;

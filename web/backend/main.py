@@ -36,7 +36,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 from dotenv import load_dotenv
 load_dotenv(Path(__file__).parent.parent.parent / ".env")
 
-from api.routes import auth, market, wallet, analysis, users, ai_assistant, favorites, admin, tools, premium, community, portfolio, journal, weekly_prep, insights, content_factory, content_factory_visuals, missions, ipo_watch, daily_intent, welcome_back, price_alerts, intel, semaine, macro, nimbo_suivi, push, notifications, editeur, moi, strategies, pont_tiktok
+from api.routes import auth, market, wallet, analysis, users, ai_assistant, favorites, admin, tools, premium, community, portfolio, journal, weekly_prep, insights, content_factory, content_factory_visuals, missions, ipo_watch, daily_intent, welcome_back, price_alerts, intel, semaine, macro, nimbo_suivi, push, notifications, aide, editeur, moi, strategies, pont_tiktok
 from api.websocket import websocket_router
 from api.database import init_web_tables, execute_query, execute_write
 
@@ -505,6 +505,7 @@ app.include_router(analysis.router, prefix="/api/analysis", tags=["Analysis"])
 app.include_router(nimbo_suivi.router, prefix="/api/nimbo/suivi", tags=["Suivi de Nimbo"])
 app.include_router(push.router, prefix="/api/push", tags=["Notifications push"])
 app.include_router(notifications.router, prefix="/api/notifications", tags=["Notifications"])
+app.include_router(aide.router, prefix="/api/aide", tags=["Aide du site"])
 app.include_router(editeur.router, prefix="/api/legal", tags=["Éditeur et ouverture du Premium"])
 app.include_router(intel.router, prefix="/api/intel", tags=["Market Intelligence"])
 app.include_router(users.router, prefix="/api/users", tags=["Users"])

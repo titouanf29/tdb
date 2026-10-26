@@ -6,6 +6,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { ArrowRight, Send, X } from "lucide-react";
 import { Nimbo, EASE, useMouvementReduit } from "@/components/design-system";
 import { AIDE, chercher, suggestions, type ActionAide, type ReponseAide } from "@/lib/aide";
+import { aideAPI } from "@/lib/api";
 import { lancerVisite } from "@/lib/visite";
 
 /**
@@ -25,7 +26,17 @@ import { lancerVisite } from "@/lib/visite";
 type Bulle =
   | { de: "moi"; texte: string }
   | { de: "nimbo"; reponse: ReponseAide }
+  | { de: "nimbo"; ia: { texte: string; actions: ActionAide[] } }
+  | { de: "nimbo"; attente: true }
   | { de: "nimbo"; inconnu: true; question: string };
+
+/** Le texte d'une bulle, pour donner l'historique à l'IA. */
+function texteDe(b: Bulle): string | null {
+  if (b.de === "moi") return b.texte;
+  if ("reponse" in b) return b.reponse.reponse.join(" ");
+  if ("ia" in b) return b.ia.texte;
+  return null;
+}
 
 const CLE_VUE = "tdb_aide_nimbo_vue";
 
@@ -65,12 +76,44 @@ export function AideNimbo() {
   // Changer de page referme le panneau : la réponse a mené où il fallait.
   useEffect(() => { setOuvert(false); }, [pathname]);
 
-  const demander = (texte: string, connue?: ReponseAide) => {
+  const [enCours, setEnCours] = useState(false);
+
+  /**
+   * Une question proposée a sa réponse écrite, immédiate. Une question tapée
+   * part à l'IA, qui la lit avec le guide du site, la page et les derniers
+   * échanges (backend routes/aide.py). Si l'IA ne répond pas, Nimbo revient
+   * aux réponses écrites, rapprochées par mots-clés.
+   */
+  const demander = async (texte: string, connue?: ReponseAide) => {
     const q = texte.trim();
-    if (!q) return;
-    const r = connue ?? chercher(q);
-    setFil((f) => [...f, { de: "moi", texte: q }, r ? { de: "nimbo", reponse: r } : { de: "nimbo", inconnu: true, question: q }]);
+    if (!q || enCours) return;
     setSaisie("");
+    if (connue) {
+      setFil((f) => [...f, { de: "moi", texte: q }, { de: "nimbo", reponse: connue }]);
+      return;
+    }
+    const historique = fil.map((b) => ({ role: b.de, texte: texteDe(b) }))
+      .filter((h): h is { role: "moi" | "nimbo"; texte: string } => !!h.texte).slice(-6);
+    setFil((f) => [...f, { de: "moi", texte: q }, { de: "nimbo", attente: true }]);
+    setEnCours(true);
+    let bulle: Bulle;
+    try {
+      const r = await aideAPI.question(q, pathname, historique);
+      if (r.reponse) {
+        const actions: ActionAide[] = r.destinations.map((d) =>
+          d.visite ? { libelle: d.libelle, visite: d.visite } : { libelle: d.libelle, lien: d.lien || "/dashboard" });
+        bulle = { de: "nimbo", ia: { texte: r.reponse, actions } };
+      } else {
+        const loc = chercher(q);
+        bulle = loc ? { de: "nimbo", reponse: loc } : { de: "nimbo", inconnu: true, question: q };
+      }
+    } catch {
+      const loc = chercher(q);
+      bulle = loc ? { de: "nimbo", reponse: loc } : { de: "nimbo", inconnu: true, question: q };
+    } finally {
+      setEnCours(false);
+    }
+    setFil((f) => [...f.filter((b) => !("attente" in b)), bulle]);
   };
 
   const agir = (a: ActionAide) => {
@@ -139,12 +182,27 @@ export function AideNimbo() {
             </header>
 
             <div className="flex-1 space-y-3 overflow-y-auto px-4 py-4" aria-live="polite">
-              <BulleNimbo>Bonjour. Choisissez une question, ou tapez la vôtre.</BulleNimbo>
+              <BulleNimbo>Bonjour. Posez-moi votre question sur le site, avec vos mots, ou choisissez-en une.</BulleNimbo>
               {fil.length === 0 && <Puces liste={proposees} onChoisir={(r) => demander(r.question, r)} />}
 
               {fil.map((b, i) => b.de === "moi" ? (
                 <p key={i} className="ml-auto w-fit max-w-[85%] rounded-[14px] rounded-br-[4px] px-3.5 py-2 text-[0.9rem]"
                   style={{ backgroundColor: "var(--cap-navy)", color: "#F2F5F7" }}>{b.texte}</p>
+              ) : "attente" in b ? (
+                <BulleNimbo key={i}>
+                  <span className="inline-flex items-center gap-1.5" aria-label="Nimbo réfléchit">
+                    {[0, 1, 2].map((k) => (
+                      <motion.span key={k} className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: "var(--cap-ink-3)" }}
+                        animate={reduit ? undefined : { opacity: [0.3, 1, 0.3] }}
+                        transition={{ duration: 1.1, repeat: Infinity, delay: k * 0.18 }} />
+                    ))}
+                  </span>
+                </BulleNimbo>
+              ) : "ia" in b ? (
+                <div key={i} className="space-y-2">
+                  <BulleNimbo>{b.ia.texte.split(/\n+/).map((p, k) => <p key={k} className={k ? "mt-2" : ""}>{p}</p>)}</BulleNimbo>
+                  {b.ia.actions.length > 0 && <Actions liste={b.ia.actions} onAgir={agir} />}
+                </div>
               ) : "reponse" in b ? (
                 <div key={i} className="space-y-2">
                   <BulleNimbo>{b.reponse.reponse.map((p, k) => <p key={k} className={k ? "mt-2" : ""}>{p}</p>)}</BulleNimbo>
@@ -173,10 +231,10 @@ export function AideNimbo() {
               className="flex items-center gap-2 border-t px-3 py-2.5" style={{ borderColor: "var(--cap-line)" }}>
               <label htmlFor="aide-question" className="sr-only">Votre question</label>
               <input ref={champ} id="aide-question" value={saisie} onChange={(e) => setSaisie(e.target.value)} maxLength={200}
-                placeholder="Comment faire pour…"
+                placeholder="Par exemple : comment je ferme une position ?"
                 className="h-10 min-w-0 flex-1 rounded-[10px] px-3 text-[0.92rem] outline-none focus:shadow-[inset_0_0_0_2px_var(--cap-ocean)]"
                 style={{ backgroundColor: "var(--cap-bg)", color: "var(--cap-ink)", boxShadow: "inset 0 0 0 1px var(--cap-line-strong)" }} />
-              <button type="submit" disabled={!saisie.trim()} aria-label="Demander"
+              <button type="submit" disabled={!saisie.trim() || enCours} aria-label="Demander"
                 className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] disabled:opacity-30"
                 style={{ backgroundColor: "var(--cap-navy)", color: "#F2F5F7" }}>
                 <Send className="h-4 w-4" />
