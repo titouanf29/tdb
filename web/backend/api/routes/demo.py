@@ -120,6 +120,13 @@ def _raisons(a: dict) -> list[str]:
     return raisons
 
 
+def _direction(nimbo: dict) -> str:
+    """Haussier ou Baissier quand Nimbo propose un plan, Neutre sinon."""
+    if not nimbo.get("propose"):
+        return "Neutre"
+    return "Baissier" if nimbo.get("sens") == "short" else "Haussier"
+
+
 def traduire(ident: str, a: dict, cloture: list[float]) -> dict:
     """L'analyse complète, ramenée à ce qu'une page publique affiche."""
     fiche = ACTIFS[ident]
@@ -132,7 +139,7 @@ def traduire(ident: str, a: dict, cloture: list[float]) -> dict:
     # score de 62 sur un rebond, sous une tendance baissière et sans plan
     # proposé, s'affichait « Haussier » au-dessus de raisons qui disaient
     # l'inverse. Même règle que l'écran Analyse.
-    sens = (("Baissier" if nimbo.get("sens") == "short" else "Haussier") if nimbo.get("propose") else "Neutre")
+    sens = _direction(nimbo)
     pct = (a.get("volatility_context") or {}).get("percentile")
     f = a.get("factor_directions") or {}
     niveaux = a.get("levels") or {}

@@ -45,6 +45,14 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
+/** Ce que dit le RSI, en une phrase. */
+function lectureRsi(rsi: number | null): string | undefined {
+  if (rsi == null) return undefined;
+  if (rsi >= 70) return "Au-dessus de 70 : les hausses ont nettement dominé, le mouvement est tendu.";
+  if (rsi <= 30) return "Sous 30 : les baisses ont nettement dominé, le mouvement est tendu.";
+  return "Entre 30 et 70 : ni excès d'achat, ni excès de vente.";
+}
+
 function Chiffre({ titre, valeur, lecon, detail }: { titre: string; valeur: string; lecon?: { n: number; titre: string }; detail?: string }) {
   return (
     <div className="border-t py-3.5" style={{ borderColor: "var(--cap-line)" }}>
@@ -86,12 +94,17 @@ export default async function Page({ params }: Props) {
   const ailleurs = autres.filter((x) => x.categorie !== a.categorie).slice(0, 6 - Math.min(memes.length, 3));
   // \s couvre déjà les espaces insécables du séparateur de milliers.
   const unite = a.price.replace(/^[\d\s,.\-−]+/, "").trim();
-  const prixNombre = (v: number | null) =>
-    v == null ? "n.d." : `${v.toLocaleString("fr-FR", { minimumFractionDigits: a.ticker.endsWith("=X") ? 4 : 2, maximumFractionDigits: a.ticker.endsWith("=X") ? 4 : 2 })}${unite ? ` ${unite}` : ""}`;
-  const rsiLecture = a.rsi == null ? undefined
-    : a.rsi >= 70 ? "Au-dessus de 70 : les hausses ont nettement dominé, le mouvement est tendu."
-    : a.rsi <= 30 ? "Sous 30 : les baisses ont nettement dominé, le mouvement est tendu."
-    : "Entre 30 et 70 : ni excès d'achat, ni excès de vente.";
+  const decimales = a.ticker.endsWith("=X") ? 4 : 2;
+  const suffixe = unite ? ` ${unite}` : "";
+  const prixNombre = (v: number | null) => {
+    if (v == null) return "n.d.";
+    return v.toLocaleString("fr-FR", { minimumFractionDigits: decimales, maximumFractionDigits: decimales }) + suffixe;
+  };
+  const rsiLecture = lectureRsi(a.rsi);
+  const dernier = a.series[a.series.length - 1];
+  const cote = a.moyennes.ema200 != null && dernier >= a.moyennes.ema200 ? "au-dessus" : "en dessous";
+  const positionMoyenne = a.moyennes.ema200 == null ? undefined
+    : `Le cours est ${cote} de sa tendance de long terme.`;
 
   const donnees = {
     "@context": "https://schema.org",
@@ -169,7 +182,7 @@ export default async function Page({ params }: Props) {
           <Chiffre titre="RSI sur 14 séances" valeur={a.rsi == null ? "n.d." : a.rsi.toLocaleString("fr-FR", { maximumFractionDigits: 1 })}
             detail={rsiLecture} lecon={{ n: 4, titre: "Comprendre le RSI" }} />
           <Chiffre titre="Moyenne mobile 200 séances" valeur={prixNombre(a.moyennes.ema200)}
-            detail={a.moyennes.ema200 == null ? undefined : `Le cours est ${a.series[a.series.length - 1] >= a.moyennes.ema200 ? "au-dessus" : "en dessous"} de sa tendance de long terme.`}
+            detail={positionMoyenne}
             lecon={{ n: 6, titre: "Comprendre les moyennes mobiles" }} />
           <Chiffre titre="Support" valeur={prixNombre(a.support)} detail="Le niveau où le prix a récemment cessé de baisser."
             lecon={{ n: 33, titre: "Comprendre supports et résistances" }} />

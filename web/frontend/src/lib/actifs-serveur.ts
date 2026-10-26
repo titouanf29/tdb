@@ -65,5 +65,8 @@ export function dateAnalyse(iso: string): string {
 export function pourcent(v: number | null | undefined): string {
   if (v == null || !Number.isFinite(v)) return "n.d.";
   const t = Math.abs(v).toLocaleString("fr-FR", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
-  return `${v > 0 ? "+" : v < 0 ? "−" : ""}${t} %`;
+  let signe = "";
+  if (v > 0) signe = "+";
+  else if (v < 0) signe = "−";
+  return `${signe}${t} %`;
 }
