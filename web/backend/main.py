@@ -139,6 +139,20 @@ async def lifespan(app: FastAPI):
             await _asyncio.sleep(600)
     _bilan_tache = _asyncio.create_task(_bilan_boucle())
 
+    # La Communauté : la note du jour de Nimbo (matins de semaine) et les
+    # réussites du défi de la semaine, toutes les quinze minutes.
+    async def _communaute_boucle():
+        from api.services import note_du_jour, defi
+        await _asyncio.sleep(60)
+        while True:
+            for etape in (note_du_jour.publier_si_besoin, defi.prevenir_les_reussites):
+                try:
+                    await etape()
+                except Exception as e:
+                    print(f"[communauté] {etape.__name__} : {e}")
+            await _asyncio.sleep(900)
+    _communaute_tache = _asyncio.create_task(_communaute_boucle())
+
     yield
     # Les processus du rejeu (_rejeu.py) s'arrêtent avec le serveur.
     from api.routes._rejeu import arreter as _arreter_rejeu
@@ -148,6 +162,7 @@ async def lifespan(app: FastAPI):
     _notifs_tache.cancel()
     _strategies_tache.cancel()
     _bilan_tache.cancel()
+    _communaute_tache.cancel()
     print("👋 TDB Web API shutting down...")
 
 

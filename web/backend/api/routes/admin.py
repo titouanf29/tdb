@@ -9,6 +9,7 @@ from pydantic import BaseModel
 from typing import Optional, List
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+import logging
 import os
 
 from ..database import execute_query, execute_write, create_admin_notification, create_user_notification
@@ -653,6 +654,16 @@ async def adjust_user_wallet(user_id: int, adjustment: WalletAdjustment, admin: 
     }
 
 
+async def _dans_le_fil(admin_id: int, titre: str, texte: str) -> None:
+    """Les mots de l'équipe s'affichent aussi dans la Communauté : le fil a
+    toujours de quoi être lu, et on peut y répondre."""
+    try:
+        from .community import publier
+        await publier(admin_id, texte, "equipe", {"titre": titre})
+    except Exception as e:
+        logging.getLogger(__name__).info("mot de l'équipe non publié dans le fil : %s", e)
+
+
 # ============== BROADCAST ==============
 
 @router.post("/broadcast")
@@ -666,6 +677,7 @@ async def send_broadcast(message: BroadcastMessage, admin: dict = Depends(get_ad
     """, (admin["id"], message.title, message.message, message.type, datetime.now(timezone.utc).isoformat()))
 
     await log_admin_action(admin["id"], "broadcast", f"Sent broadcast: {message.title}")
+    await _dans_le_fil(admin["id"], message.title, message.message)
 
     return {
         "success": True,
@@ -729,6 +741,7 @@ async def create_changelog(data: ChangelogCreate, admin: dict = Depends(get_admi
     """, (admin["id"], data.title, data.content, data.version, datetime.now(timezone.utc).isoformat()))
 
     await log_admin_action(admin["id"], "create_changelog", f"Changelog created: {data.title}")
+    await _dans_le_fil(admin["id"], data.title, data.content)
 
     return {"success": True, "message": "Changelog published"}
 

@@ -2882,6 +2882,22 @@ export interface PremiumUser {
 
 // Community API
 export const communityAPI = {
+  signaler: (messageId: number, motif = "") =>
+    fetchAPI<{ success: boolean; masque?: boolean; deja?: boolean }>(`/api/community/messages/${messageId}/signaler`, {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ motif }),
+    }),
+  partager: (p: { symbol: string; nom: string; verdict: string; score: number | null; commentaire: string }) =>
+    fetchAPI<{ success: boolean; message: CommunityMessage }>("/api/community/partages", {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(p),
+    }),
+  defi: () => fetchAPI<DefiSemaine>("/api/community/defi"),
+  participerAuDefi: () => fetchAPI<DefiSemaine>("/api/community/defi/participer", { method: "POST" }),
+  signalements: () => fetchAPI<{ signalements: Signalement[] }>("/api/community/admin/signalements"),
+  trancher: (messageId: number, action: "garder" | "masquer" | "supprimer") =>
+    fetchAPI<{ success: boolean }>(`/api/community/admin/signalements/${messageId}`, {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action }),
+    }),
+
   // Get chat messages
   getMessages: (limit = 50, beforeId?: number) =>
     fetchAPI<{ messages: CommunityMessage[] }>(
@@ -2966,6 +2982,41 @@ export interface CommunityMessage {
   is_admin: boolean;
   likes: number;
   user_liked: boolean;
+  /** message d'un membre, note du jour de Nimbo, mot de l'équipe, analyse partagée */
+  genre: "message" | "note" | "equipe" | "partage";
+  donnees: {
+    titre?: string;
+    symbol?: string; nom?: string; verdict?: string; score?: number | null;
+    marches?: { nom: string; variation: number }[];
+    agenda?: { nom: string; heure: string }[];
+    defi?: string;
+  } | null;
+  signale_par_moi: boolean;
+}
+
+export interface DefiSemaine {
+  semaine: string;
+  fin: string;
+  defi: { id: string; titre: string; texte: string; cible: number; unite: string };
+  ma_progression: number;
+  reussi: boolean;
+  participe: boolean;
+  rang: number | null;
+  participants: number;
+  classement: { pseudo: string; progression: number; reussi: boolean; moi: boolean }[];
+}
+
+export interface Signalement {
+  message_id: number;
+  nb: number;
+  dernier: string;
+  content: string;
+  created_at: string;
+  user_id: number;
+  username: string | null;
+  email: string | null;
+  masque: boolean;
+  motifs: string[];
 }
 
 export interface SupportTicket {

@@ -1,12 +1,13 @@
 """
 Community routes - Chat and Admin Contact
 """
+import json
 from datetime import datetime, timezone
 from typing import Optional, List
 from fastapi import APIRouter, HTTPException, Depends, Query
 from pydantic import BaseModel, Field
 
-from ..database import execute_query, execute_write, create_admin_notification, create_user_notification
+from ..database import USE_POSTGRES, execute_query, execute_write, create_admin_notification, create_user_notification
 from .auth import get_current_user
 from .admin import get_admin_user, check_if_admin
 
@@ -44,6 +45,94 @@ def _contains_profanity(text: str) -> bool:
 router = APIRouter()
 
 
+# ============== LE FIL : sortes de publications, signalements, défi ==============
+#
+# Le fil n'était fait que de messages de membres : vide, il affichait
+# « Personne n'a encore écrit » et faisait fuir. Il porte maintenant aussi la
+# note du jour de Nimbo (services/note_du_jour.py), les mots de l'équipe et
+# les analyses partagées. Un message masqué par la modération (is_deleted = 2)
+# disparaît du fil comme un message supprimé (is_deleted = 1).
+
+GENRES = ("message", "note", "equipe", "partage")
+SIGNALEMENTS_POUR_MASQUER = 3
+MESSAGES_PAR_JOUR = 60
+LIENS_MAX = 2
+
+_pret = False
+
+
+async def init_communaute() -> None:
+    global _pret
+    if _pret:
+        return
+    for col, typ in (("genre", "TEXT DEFAULT 'message'"), ("donnees", "TEXT")):
+        try:
+            if USE_POSTGRES:
+                await execute_write(f"ALTER TABLE community_messages ADD COLUMN IF NOT EXISTS {col} {typ}")
+            else:
+                await execute_write(f"ALTER TABLE community_messages ADD COLUMN {col} {typ}")
+        except Exception:
+            pass
+    cle = "SERIAL PRIMARY KEY" if USE_POSTGRES else "INTEGER PRIMARY KEY AUTOINCREMENT"
+    await execute_write(f"""
+        CREATE TABLE IF NOT EXISTS community_signalements (
+            id {cle},
+            message_id INTEGER NOT NULL,
+            user_id INTEGER NOT NULL,
+            motif TEXT,
+            cree_le TEXT NOT NULL,
+            traite INTEGER DEFAULT 0,
+            UNIQUE (message_id, user_id)
+        )
+    """)
+    _pret = True
+
+
+def _select_messages(where: str) -> str:
+    """La requête du fil. L'heure de comparaison du Premium est passée en
+    paramètre : datetime('now') n'existe que dans SQLite, et sous PostgreSQL
+    le fil entier tombait en erreur."""
+    return f"""
+        SELECT m.*, u.username, u.is_admin,
+               CASE WHEN u.is_admin = 1 OR (u.is_premium = 1 AND (u.premium_expires IS NULL OR u.premium_expires > ?)) THEN 1 ELSE 0 END as is_premium,
+               (SELECT COUNT(*) FROM community_message_likes WHERE message_id = m.id) as likes,
+               EXISTS(SELECT 1 FROM community_message_likes WHERE message_id = m.id AND user_id = ?) as user_liked,
+               EXISTS(SELECT 1 FROM community_signalements WHERE message_id = m.id AND user_id = ?) as signale_par_moi
+        FROM community_messages m
+        LEFT JOIN web_users u ON m.user_id = u.id
+        WHERE {where}
+    """
+
+
+def _propre(m: dict) -> dict:
+    """Une publication prête pour l'écran : ses données décodées, son auteur nommé."""
+    m = dict(m)
+    try:
+        m["donnees"] = json.loads(m["donnees"]) if m.get("donnees") else None
+    except (TypeError, ValueError):
+        m["donnees"] = None
+    m["genre"] = m.get("genre") or "message"
+    if m["genre"] == "note":
+        m["username"] = "Nimbo"
+    for k in ("user_liked", "signale_par_moi"):
+        m[k] = bool(m.get(k))
+    return m
+
+
+async def publier(user_id: int, contenu: str, genre: str = "message", donnees: dict | None = None,
+                  reply_to: int | None = None) -> dict | None:
+    """Ajoute une publication au fil et la rend, prête pour l'écran."""
+    await init_communaute()
+    maintenant = datetime.now(timezone.utc).isoformat()
+    await execute_write(
+        "INSERT INTO community_messages (user_id, content, reply_to, created_at, is_deleted, genre, donnees) "
+        "VALUES (?, ?, ?, ?, 0, ?, ?)",
+        (user_id, contenu, reply_to, maintenant, genre, json.dumps(donnees, ensure_ascii=False) if donnees else None))
+    rows = await execute_query(_select_messages("m.user_id = ? AND m.created_at = ?") + " ORDER BY m.id DESC LIMIT 1",
+                               (maintenant, user_id, user_id, user_id, maintenant))
+    return _propre(rows[0]) if rows else None
+
+
 # ============== MODELS ==============
 
 class SendMessageRequest(BaseModel):
@@ -69,38 +158,19 @@ async def get_chat_messages(
     before_id: Optional[int] = None,
     current_user: dict = Depends(get_current_user)
 ):
-    """Get community chat messages"""
+    """Le fil de la Communauté, du plus ancien au plus récent."""
+    await init_communaute()
     user_id = current_user.get("id")
-
+    maintenant = datetime.now(timezone.utc).isoformat()
     if before_id:
-        messages = await execute_query("""
-            SELECT m.*, u.username, u.is_admin,
-                   CASE WHEN u.is_admin = 1 OR (u.is_premium = 1 AND (u.premium_expires IS NULL OR u.premium_expires > datetime('now'))) THEN 1 ELSE 0 END as is_premium,
-                   (SELECT COUNT(*) FROM community_message_likes WHERE message_id = m.id) as likes,
-                   EXISTS(SELECT 1 FROM community_message_likes WHERE message_id = m.id AND user_id = ?) as user_liked
-            FROM community_messages m
-            LEFT JOIN web_users u ON m.user_id = u.id
-            WHERE m.id < ? AND m.is_deleted = 0
-            ORDER BY m.created_at DESC
-            LIMIT ?
-        """, (user_id, before_id, limit))
+        messages = await execute_query(
+            _select_messages("m.id < ? AND m.is_deleted = 0") + " ORDER BY m.created_at DESC LIMIT ?",
+            (maintenant, user_id, user_id, before_id, limit))
     else:
-        messages = await execute_query("""
-            SELECT m.*, u.username, u.is_admin,
-                   CASE WHEN u.is_admin = 1 OR (u.is_premium = 1 AND (u.premium_expires IS NULL OR u.premium_expires > datetime('now'))) THEN 1 ELSE 0 END as is_premium,
-                   (SELECT COUNT(*) FROM community_message_likes WHERE message_id = m.id) as likes,
-                   EXISTS(SELECT 1 FROM community_message_likes WHERE message_id = m.id AND user_id = ?) as user_liked
-            FROM community_messages m
-            LEFT JOIN web_users u ON m.user_id = u.id
-            WHERE m.is_deleted = 0
-            ORDER BY m.created_at DESC
-            LIMIT ?
-        """, (user_id, limit))
-
-    # Reverse to get chronological order
-    messages = list(reversed(messages)) if messages else []
-
-    return {"messages": messages}
+        messages = await execute_query(
+            _select_messages("m.is_deleted = 0") + " ORDER BY m.created_at DESC LIMIT ?",
+            (maintenant, user_id, user_id, limit))
+    return {"messages": [_propre(m) for m in reversed(messages or [])]}
 
 
 @router.post("/messages")
@@ -108,47 +178,54 @@ async def send_chat_message(
     request: SendMessageRequest,
     current_user: dict = Depends(get_current_user)
 ):
-    """Send a message to community chat"""
+    """Écrire dans la Communauté (ou répondre à une publication)."""
+    await init_communaute()
     user_id = current_user.get("id")
     content = request.content.strip()
-
     if not content:
-        raise HTTPException(status_code=400, detail="Message cannot be empty")
-
-    if len(content) > 1000:
-        raise HTTPException(status_code=400, detail="Message too long (max 1000 characters)")
-
+        raise HTTPException(status_code=400, detail="Le message est vide.")
     if _contains_profanity(content):
         raise HTTPException(status_code=400, detail="Votre message contient des mots inappropriés. Merci de respecter les autres membres.")
+    if content.lower().count("http") > LIENS_MAX:
+        raise HTTPException(status_code=400, detail=f"Pas plus de {LIENS_MAX} liens par message.")
+    await _verifier_rythme(user_id)
 
-    # Check for spam (max 5 messages per minute)
+    parent = None
+    if request.reply_to:
+        p = await execute_query("SELECT id, user_id, content, genre FROM community_messages WHERE id = ? AND is_deleted = 0",
+                                (request.reply_to,))
+        if not p:
+            raise HTTPException(status_code=404, detail="Le message auquel vous répondez n'existe plus.")
+        parent = p[0]
+
+    nouveau = await publier(user_id, content, "message", reply_to=request.reply_to)
+
+    # Prévenir l'auteur du message auquel on répond : sans cela, une question
+    # posée ici restait sans nouvelles, et on ne revenait pas voir.
+    if parent and parent["user_id"] and int(parent["user_id"]) != int(user_id):
+        from ..services.notifications import notifier
+        pseudo = current_user.get("username") or "Un membre"
+        await notifier(parent["user_id"], "communaute", f"{pseudo} vous a répondu",
+                       content[:140] + ("…" if len(content) > 140 else ""), "/community",
+                       cle=f"reponse:{nouveau['id'] if nouveau else ''}")
+    return {"success": True, "message": nouveau}
+
+
+async def _verifier_rythme(user_id: int) -> None:
+    """Cinq messages par minute au plus, et soixante par jour : de quoi
+    discuter, pas de quoi inonder le fil."""
     from datetime import timedelta
-    _1min_ago = (datetime.now(timezone.utc) - timedelta(minutes=1)).isoformat()
-    recent = await execute_query(
+    maintenant = datetime.now(timezone.utc)
+    minute = await execute_query(
         "SELECT COUNT(*) as count FROM community_messages WHERE user_id = ? AND created_at > ?",
-        (user_id, _1min_ago)
-    )
-
-    if recent and recent[0]["count"] >= 5:
-        raise HTTPException(status_code=429, detail="Too many messages. Please wait a moment.")
-
-    # Insert message
-    await execute_write("""
-        INSERT INTO community_messages (user_id, content, reply_to, created_at, is_deleted)
-        VALUES (?, ?, ?, ?, 0)
-    """, (user_id, content, request.reply_to, datetime.now(timezone.utc).isoformat()))
-
-    # Get the inserted message
-    new_message = await execute_query("""
-        SELECT m.*, u.username, u.is_admin,
-               CASE WHEN u.is_admin = 1 OR (u.is_premium = 1 AND (u.premium_expires IS NULL OR u.premium_expires > datetime('now'))) THEN 1 ELSE 0 END as is_premium
-        FROM community_messages m
-        LEFT JOIN web_users u ON m.user_id = u.id
-        WHERE m.user_id = ?
-        ORDER BY m.id DESC LIMIT 1
-    """, (user_id,))
-
-    return {"success": True, "message": new_message[0] if new_message else None}
+        (user_id, (maintenant - timedelta(minutes=1)).isoformat()))
+    if minute and minute[0]["count"] >= 5:
+        raise HTTPException(status_code=429, detail="Vous écrivez très vite : attendez une minute avant le prochain message.")
+    jour = await execute_query(
+        "SELECT COUNT(*) as count FROM community_messages WHERE user_id = ? AND created_at > ?",
+        (user_id, (maintenant - timedelta(days=1)).isoformat()))
+    if jour and jour[0]["count"] >= MESSAGES_PAR_JOUR:
+        raise HTTPException(status_code=429, detail=f"Limite de {MESSAGES_PAR_JOUR} messages par jour atteinte. Revenez demain.")
 
 
 @router.delete("/messages/{message_id}")
@@ -207,7 +284,145 @@ async def like_message(
             "INSERT INTO community_message_likes (message_id, user_id, created_at) VALUES (?, ?, ?)",
             (message_id, user_id, datetime.now(timezone.utc).isoformat())
         )
+        # L'auteur l'apprend, au plus une fois par message et par jour.
+        auteur = await execute_query("SELECT user_id, content FROM community_messages WHERE id = ?", (message_id,))
+        if auteur and auteur[0]["user_id"] and int(auteur[0]["user_id"]) != int(user_id):
+            from ..services.notifications import notifier
+            from ..temps import aujourdhui_paris
+            extrait = (auteur[0]["content"] or "")[:80]
+            await notifier(auteur[0]["user_id"], "communaute", "Votre message a été aimé",
+                           f"« {extrait}{'…' if len(auteur[0]['content'] or '') > 80 else ''} »", "/community",
+                           cle=f"jaime:{message_id}:{aujourdhui_paris().isoformat()}")
         return {"liked": True}
+
+
+# ============== SIGNALER, MODÉRER ==============
+
+class Signalement(BaseModel):
+    motif: str = Field(default="", max_length=200)
+
+
+@router.post("/messages/{message_id}/signaler")
+async def signaler(message_id: int, data: Signalement, current_user: dict = Depends(get_current_user)):
+    """Signaler un message à l'équipe. Au troisième signalement par trois
+    personnes différentes, il est masqué en attendant que l'équipe tranche."""
+    await init_communaute()
+    uid = current_user.get("id")
+    m = await execute_query("SELECT id, user_id, content FROM community_messages WHERE id = ? AND is_deleted = 0",
+                            (message_id,))
+    if not m:
+        raise HTTPException(status_code=404, detail="Ce message n'existe plus.")
+    if m[0]["user_id"] == uid:
+        raise HTTPException(status_code=400, detail="Vous ne pouvez pas signaler votre propre message.")
+    try:
+        await execute_write(
+            "INSERT INTO community_signalements (message_id, user_id, motif, cree_le, traite) VALUES (?, ?, ?, ?, 0)",
+            (message_id, uid, data.motif.strip(), datetime.now(timezone.utc).isoformat()))
+    except Exception:
+        return {"success": True, "deja": True}
+    n = await execute_query("SELECT COUNT(*) AS n FROM community_signalements WHERE message_id = ? AND traite = 0",
+                            (message_id,))
+    total = int((n or [{"n": 0}])[0]["n"] or 0)
+    masque = total >= SIGNALEMENTS_POUR_MASQUER
+    if masque:
+        await execute_write("UPDATE community_messages SET is_deleted = 2 WHERE id = ? AND is_deleted = 0", (message_id,))
+    # L'équipe est prévenue au premier signalement, et quand le message est masqué.
+    if total == 1 or masque:
+        from ..services.notifications import notifier
+        titre = "Message masqué après signalements" if masque else "Un message a été signalé"
+        texte = f"« {(m[0]['content'] or '')[:120]} »" + (f" Motif : {data.motif.strip()}" if data.motif.strip() else "")
+        for a in (await execute_query("SELECT id FROM web_users WHERE is_admin = 1") or []):
+            await notifier(a["id"], "admin_signalement", titre, texte, "/admin?section=support",
+                           cle=f"signalement:{message_id}:{'masque' if masque else 'premier'}")
+    return {"success": True, "masque": masque}
+
+
+@router.get("/admin/signalements")
+async def liste_signalements(admin: dict = Depends(get_admin_user)):
+    """Les messages signalés, non encore traités, le plus signalé d'abord."""
+    await init_communaute()
+    rows = await execute_query("""
+        SELECT s.message_id, COUNT(*) AS nb, MAX(s.cree_le) AS dernier,
+               m.content, m.is_deleted, m.created_at, m.user_id, u.username, u.email
+        FROM community_signalements s
+        JOIN community_messages m ON m.id = s.message_id
+        LEFT JOIN web_users u ON u.id = m.user_id
+        WHERE s.traite = 0
+        GROUP BY s.message_id, m.content, m.is_deleted, m.created_at, m.user_id, u.username, u.email
+        ORDER BY nb DESC, dernier DESC
+    """) or []
+    motifs = await execute_query("SELECT message_id, motif FROM community_signalements WHERE traite = 0 AND motif != ''") or []
+    par_message: dict[int, list[str]] = {}
+    for mo in motifs:
+        par_message.setdefault(mo["message_id"], []).append(mo["motif"])
+    return {"signalements": [{**dict(r), "masque": r["is_deleted"] == 2, "motifs": par_message.get(r["message_id"], [])[:5]}
+                             for r in rows]}
+
+
+class Decision(BaseModel):
+    action: str  # "garder", "masquer", "supprimer"
+
+
+@router.post("/admin/signalements/{message_id}")
+async def traiter_signalement(message_id: int, d: Decision, admin: dict = Depends(get_admin_user)):
+    """Trancher : garder le message (il réapparaît), le masquer, ou le supprimer."""
+    await init_communaute()
+    if d.action not in ("garder", "masquer", "supprimer"):
+        raise HTTPException(status_code=400, detail="Action inconnue.")
+    etat = {"garder": 0, "masquer": 2, "supprimer": 1}[d.action]
+    await execute_write("UPDATE community_messages SET is_deleted = ? WHERE id = ?", (etat, message_id))
+    await execute_write("UPDATE community_signalements SET traite = 1 WHERE message_id = ?", (message_id,))
+    return {"success": True}
+
+
+# ============== PARTAGER UNE ANALYSE ==============
+
+class Partage(BaseModel):
+    symbol: str = Field(..., min_length=1, max_length=20)
+    nom: str = Field(default="", max_length=80)
+    verdict: str = Field(default="", max_length=60)
+    score: Optional[int] = None
+    commentaire: str = Field(default="", max_length=500)
+
+
+@router.post("/partages")
+async def partager_analyse(p: Partage, current_user: dict = Depends(get_current_user)):
+    """Partager une analyse dans la Communauté : une carte (actif, verdict,
+    score, lien) et, si on veut, une phrase. Un sujet concret, plutôt qu'un
+    « bonjour » dans le vide."""
+    import re
+    await init_communaute()
+    uid = current_user.get("id")
+    symbole = p.symbol.strip().upper()
+    if not re.fullmatch(r"\^?[A-Z0-9][A-Z0-9.\-=]{0,19}", symbole):
+        raise HTTPException(status_code=400, detail="Symbole invalide.")
+    commentaire = p.commentaire.strip()
+    if commentaire and _contains_profanity(commentaire):
+        raise HTTPException(status_code=400, detail="Votre message contient des mots inappropriés. Merci de respecter les autres membres.")
+    await _verifier_rythme(uid)
+    donnees = {
+        "symbol": symbole, "nom": p.nom.strip()[:80] or symbole, "verdict": p.verdict.strip()[:60],
+        "score": max(0, min(100, int(p.score))) if p.score is not None else None,
+    }
+    nouveau = await publier(uid, commentaire, "partage", donnees)
+    return {"success": True, "message": nouveau}
+
+
+# ============== LE DÉFI DE LA SEMAINE ==============
+
+@router.get("/defi")
+async def defi_de_la_semaine(current_user: dict = Depends(get_current_user)):
+    """Le défi de la semaine, ma progression, et le classement de ceux qui participent."""
+    from ..services import defi
+    return await defi.etat(current_user.get("id"))
+
+
+@router.post("/defi/participer")
+async def participer_au_defi(current_user: dict = Depends(get_current_user)):
+    """Apparaître dans le classement de la semaine, ou le quitter."""
+    from ..services import defi
+    await defi.basculer(current_user.get("id"), defi.lundi_de())
+    return await defi.etat(current_user.get("id"))
 
 
 @router.get("/online-count")

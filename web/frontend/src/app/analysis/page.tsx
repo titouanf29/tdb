@@ -42,6 +42,7 @@ import { ClimatMarche } from "@/components/analysis/ClimatMarche";
 import { MacroContext } from "@/components/analysis/MacroContext";
 import { MaStrategie } from "@/components/analysis/MaStrategie";
 import { MePrevenir } from "@/components/analysis/MePrevenir";
+import { PartagerAnalyse } from "@/components/analysis/PartagerAnalyse";
 import { NoteScanner } from "@/components/analysis/NoteScanner";
 import {
   ListeSuggestions, useAssetSuggestions, useFermetureExterieure,
@@ -1299,6 +1300,12 @@ function PropositionNimbo({
           ...(a.levels?.resistance ? [{ libelle: "La résistance", prix: a.levels.resistance }] : []),
           ...(a.levels?.support ? [{ libelle: "Le support", prix: a.levels.support }] : []),
         ]}
+      />
+      <PartagerAnalyse
+        symbol={a.symbol}
+        nom={nom}
+        score={score}
+        verdict={propose && plan ? (plan.direction === "SHORT" ? "Nimbo propose une vente" : "Nimbo propose un achat") : "Nimbo ne propose pas de position"}
       />
     </section>
   );

@@ -21,6 +21,7 @@ import { Operations } from "@/components/admin/Operations";
 import { Tickets } from "@/components/admin/Tickets";
 import { PontTiktok } from "@/components/admin/PontTiktok";
 import { Retention } from "@/components/admin/Retention";
+import { Moderation } from "@/components/admin/Moderation";
 
 /**
  * L'administration.
@@ -131,6 +132,7 @@ export default function AdminPage() {
         return (
           <div className="space-y-8">
             <Tickets />
+            <Moderation />
             <AssetRequests />
           </div>
         );

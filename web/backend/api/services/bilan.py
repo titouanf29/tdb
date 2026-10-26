@@ -126,7 +126,26 @@ async def bilan(user: dict, lundi: date) -> dict:
     semaine = await _ma_semaine({**user, "user_type": "email"}, debut, fin)
     semaine.pop("_ouvertes", None)
     activite = await _activite(int(user["id"]), lundi, suivant)
-    return {"lundi": lundi.isoformat(), "semaine": semaine, "activite": activite, **lire(semaine, activite)}
+    lecture = lire(semaine, activite)
+    await _ajouter_defi(int(user["id"]), lundi, lecture)
+    return {"lundi": lundi.isoformat(), "semaine": semaine, "activite": activite, **lecture}
+
+
+async def _ajouter_defi(user_id: int, lundi: date, lecture: dict) -> None:
+    """Le défi de la semaine, pour ceux qui y participaient."""
+    try:
+        from . import defi
+        if not await defi.participe(user_id, lundi):
+            return
+        d = defi.defi_de(lundi)
+        p = await defi.progression(user_id, d, lundi)
+        lecture["constats"].append({
+            "ton": "bon" if p >= d["cible"] else "neutre",
+            "texte": (f"Défi « {d['titre']} » réussi." if p >= d["cible"]
+                      else f"Défi « {d['titre']} » : {min(p, d['cible'])} sur {d['cible']} {d['unite']}."),
+        })
+    except Exception as e:
+        logger.info("défi absent du bilan de %s : %s", user_id, e)
 
 
 # ── L'envoi du vendredi soir ─────────────────────────────────────────────

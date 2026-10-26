@@ -47,6 +47,9 @@ CATEGORIES: list[dict] = [
     {"id": "macro", "label": "Annonces économiques",
      "detail": "Une heure avant une décision de banque centrale qui touche vos positions, puis ce qu'elle change.",
      "types": ["macro"]},
+    {"id": "communaute", "label": "Communauté",
+     "detail": "Quelqu'un répond à votre message ou l'aime (une fois par jour au plus), et le défi de la semaine.",
+     "types": ["communaute"]},
     {"id": "support", "label": "Réponses de l'équipe",
      "detail": "L'équipe répond à une de vos demandes, ou à une demande d'actif.",
      "types": ["ticket_reply", "asset_request"]},
@@ -54,8 +57,8 @@ CATEGORIES: list[dict] = [
      "detail": "Votre abonnement et la sécurité de votre compte. Ils restent toujours dans le site.",
      "types": ["premium", "compte"], "site_verrouille": True},
     {"id": "admin", "label": "Administration",
-     "detail": "Chaque nouvelle inscription, avec un lien vers la fiche du compte. Réservé à l'équipe.",
-     "types": ["admin_inscription"], "admin_only": True},
+     "detail": "Chaque nouvelle inscription, et les messages signalés dans la Communauté. Réservé à l'équipe.",
+     "types": ["admin_inscription", "admin_signalement"], "admin_only": True},
 ]
 _PAR_TYPE = {t: c["id"] for c in CATEGORIES for t in c["types"]}
 _IDS = [c["id"] for c in CATEGORIES]
