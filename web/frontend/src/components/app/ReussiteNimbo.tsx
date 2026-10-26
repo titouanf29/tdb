@@ -43,8 +43,8 @@ export function ReussiteNimbo() {
   return (
     <div
       aria-live="polite"
-      className="pointer-events-none fixed inset-x-0 z-50 flex flex-col items-center gap-3 px-4 sm:inset-x-auto sm:right-6 sm:items-end lg:bottom-6"
-      style={{ bottom: "calc(4.75rem + env(safe-area-inset-bottom, 0px))" }}
+      // Au-dessus du bouton de Nimbo (AideNimbo), qui occupe le coin.
+      className="pointer-events-none fixed inset-x-0 bottom-[calc(9rem+env(safe-area-inset-bottom,0px))] z-50 flex flex-col items-center gap-3 px-4 sm:inset-x-auto sm:right-6 sm:items-end lg:bottom-24"
     >
       <AnimatePresence initial={false}>
         {/* Sur téléphone, une seule carte à la fois — la plus récente : trois

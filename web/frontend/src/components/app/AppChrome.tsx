@@ -13,6 +13,7 @@ import { ReussiteNimbo } from "./ReussiteNimbo";
 import { BandeauVerification } from "./BandeauVerification";
 import { MessagesEquipe } from "./MessagesEquipe";
 import { VisiteGuidee } from "./VisiteGuidee";
+import { AideNimbo } from "./AideNimbo";
 import { EVT_OUVRIR, lancerVisite } from "@/lib/visite";
 import { missionsAPI } from "@/lib/api";
 import { useSignalDepart } from "./DepuisDerniereVisite";
@@ -103,6 +104,7 @@ export function AppChrome({ children }: { children: React.ReactNode }) {
       </main>
       <MobileTabs />
       <ReussiteNimbo />
+      <AideNimbo />
       <VisiteGuidee />
     </div>
   );
