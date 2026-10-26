@@ -54,6 +54,32 @@ def calculer(hist, timeframe: str, sl_atr: float, tp_atr: float, bench_close=Non
                         jours_par_bougie=jours_par_bougie(hist, timeframe))
 
 
+def _echauffement() -> bool:
+    """Charger dans le processus de calcul ce que le rejeu importe."""
+    from ._backtest import run_backtest  # noqa: F401
+    from ._market_context import regime_series  # noqa: F401
+    from ._scoring import extension_validee  # noqa: F401
+    return True
+
+
+async def prechauffer() -> None:
+    """Démarrer les processus de calcul dès le lancement du serveur.
+
+    Ils naissaient au premier rejeu demandé : le premier visiteur après un
+    redémarrage attendait leur démarrage et le chargement de pandas dans
+    chacun, soit 15 secondes de plus sur sa première analyse (mesuré : 17,5 s
+    pour Apple, contre 2,9 s pour l'actif suivant)."""
+    pool = _pool()
+    if pool is None:
+        return
+    loop = asyncio.get_running_loop()
+    n = getattr(pool, "_max_workers", 1)
+    try:
+        await asyncio.gather(*[loop.run_in_executor(pool, _echauffement) for _ in range(n)])
+    except Exception as e:
+        logger.info("préchauffage du rejeu impossible : %s", e)
+
+
 def _pool() -> Optional[ProcessPoolExecutor]:
     global _POOL
     if _HORS_SERVICE:

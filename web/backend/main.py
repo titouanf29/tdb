@@ -67,6 +67,11 @@ async def lifespan(app: FastAPI):
     await init_web_tables()
     print("✅ Database tables initialized")
 
+    # Les processus du rejeu démarrent tout de suite, sans retarder le
+    # démarrage : le premier visiteur n'attend plus leur naissance.
+    from api.routes._rejeu import prechauffer as _prechauffer_rejeu
+    _prechauffage = _asyncio.create_task(_prechauffer_rejeu())
+
     await _bootstrap_admin()
     from api.routes.admin import figer_admins
     await figer_admins()

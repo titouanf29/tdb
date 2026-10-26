@@ -251,6 +251,7 @@ function AnalysisScreen() {
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const etapeChargement = useEtapesAnalyse(symbol, loading);
 
   useEffect(() => {
     favoritesAPI.getFavorites()
@@ -286,6 +287,23 @@ function AnalysisScreen() {
     const n = ++demande.current;
     setLoading(true);
     setError("");
+    // Le graphique et les figures partent EN MÊME TEMPS que l'analyse : ils
+    // n'en dépendent pas, et ils attendaient qu'elle soit arrivée pour être
+    // demandés, une seconde de plus à chaque actif.
+    // Le graphique est secondaire : un échec ici ne doit pas perdre
+    // l'analyse. Sa fenêtre suit l'horizon — « 3 mois en journalier » pour
+    // tout le monde donnait treize bougies en long terme, et le graphique
+    // commenté n'y trouvait aucune structure à lire.
+    marketAPI.getChart(sym, style.chartWindow.period, style.chartWindow.interval)
+      .then((c) => { if (n === demande.current) setChart(c); })
+      .catch(() => { if (n === demande.current) setChart(null); });
+    // Les figures sur la MÊME fenêtre que le graphique : leurs indices
+    // pointent dans ses bougies. Un échec les efface, il ne casse rien —
+    // le graphique commenté se lit très bien sans.
+    setFigures([]);
+    marketAPI.getFigures(sym, style.chartWindow.period, style.chartWindow.interval)
+      .then((r) => { if (n === demande.current) setFigures(r.figures ?? []); })
+      .catch(() => { if (n === demande.current) setFigures([]); });
     try {
       // The profile drives the stop, the target and the weight given to
       // fundamentals, so the plan shown here is the plan the backtest
@@ -300,20 +318,6 @@ function AnalysisScreen() {
         comptes.current.add(sym);
         missionsAPI.recordAction("analysis_open").catch(() => {});
       }
-      // Le graphique est secondaire : un échec ici ne doit pas perdre
-      // l'analyse. Sa fenêtre suit l'horizon — « 3 mois en journalier » pour
-      // tout le monde donnait treize bougies en long terme, et le graphique
-      // commenté n'y trouvait aucune structure à lire.
-      marketAPI.getChart(sym, style.chartWindow.period, style.chartWindow.interval)
-        .then((c) => { if (n === demande.current) setChart(c); })
-        .catch(() => { if (n === demande.current) setChart(null); });
-      // Les figures sur la MÊME fenêtre que le graphique : leurs indices
-      // pointent dans ses bougies. Un échec les efface, il ne casse rien —
-      // le graphique commenté se lit très bien sans.
-      setFigures([]);
-      marketAPI.getFigures(sym, style.chartWindow.period, style.chartWindow.interval)
-        .then((r) => { if (n === demande.current) setFigures(r.figures ?? []); })
-        .catch(() => { if (n === demande.current) setFigures([]); });
     } catch (err) {
       if (n !== demande.current) return;
       setAnalysis(null);
@@ -588,7 +592,7 @@ function AnalysisScreen() {
 
         {error && <FormError>{error}</FormError>}
 
-        {loading && !analysis && <CloudCurtain active label={`Analyse de ${symbol}`} />}
+        {loading && !analysis && <CloudCurtain active label={etapeChargement} />}
 
         {!symbol && !loading && (
           <Panel>
@@ -2103,4 +2107,26 @@ function compact(v: number): string {
   if (Math.abs(v) >= 1e9) return `${fr(v / 1e9, 2)} Md`;
   if (Math.abs(v) >= 1e6) return `${fr(v / 1e6, 1)} M`;
   return v.toLocaleString("fr-FR");
+}
+
+/**
+ * Ce que fait l'analyse pendant qu'on l'attend. Un rideau muet de cinq
+ * secondes se lit comme une panne ; dire l'étape en cours fait patienter.
+ * Les étapes sont celles du serveur, dans l'ordre (cours, rejeu de
+ * l'historique avec le plan de l'utilisateur, actualité et agenda, avis).
+ */
+function useEtapesAnalyse(symbole: string, enCours: boolean): string {
+  const [i, setI] = useState(0);
+  useEffect(() => {
+    setI(0);
+    if (!enCours) return;
+    const t = setInterval(() => setI((x) => Math.min(x + 1, 3)), 1600);
+    return () => clearInterval(t);
+  }, [enCours, symbole]);
+  return [
+    `Je lis les cours de ${symbole}…`,
+    "Je rejoue son historique avec votre stop et votre objectif…",
+    "Je regarde l'actualité et l'agenda économique…",
+    "Je prépare mon avis…",
+  ][i];
 }

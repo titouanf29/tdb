@@ -548,6 +548,36 @@ def _fetch_ticker_info_sync(symbol: str):
     return ticker, info
 
 
+_NEWS_CACHE: dict[str, tuple[float, list]] = {}
+_NEWS_TTL = 600
+
+
+async def _actualite(symbol: str, ticker) -> list:
+    """Les cinq derniers articles, gardés dix minutes : ils étaient relus à
+    chaque ouverture de l'analyse (0,5 à 0,8 s), même pour un actif vu à
+    l'instant."""
+    import time as _time
+    hit = _NEWS_CACHE.get(symbol)
+    if hit and _time.monotonic() - hit[0] < _NEWS_TTL:
+        return hit[1]
+    news = await asyncio.get_running_loop().run_in_executor(None, _fetch_news_sync, ticker)
+    _NEWS_CACHE[symbol] = (_time.monotonic(), news)
+    return news
+
+
+async def _sans_trainer(tache, secondes: float, defaut):
+    """Attendre un complément au plus `secondes`. S'il traîne, l'analyse part
+    sans lui ; le calcul continue en arrière-plan (shield) et remplit son
+    cache pour la visite suivante. Réservé à ce qui n'entre pas dans la
+    décision : l'actualité, les événements pendant le plan."""
+    try:
+        return await asyncio.wait_for(asyncio.shield(tache), secondes)
+    except asyncio.TimeoutError:
+        return defaut
+    except Exception:
+        return defaut
+
+
 def _fetch_news_sync(ticker):
     """Blocking network call; was being made inline in an async route."""
     try:
@@ -1031,6 +1061,12 @@ async def analyze_asset(
     try:
         # Get historical data
         _period, actual_interval, _resample = TIMEFRAME_FETCH.get(timeframe, ("2y", "1d", None))
+        # EN PARALLÈLE, PAS L'UN APRÈS L'AUTRE. Le cours en direct part en
+        # même temps que l'historique (0,6 s de gagnées), et plus bas
+        # l'actualité et les événements du plan partent dès que la fiche de
+        # l'actif est connue, pendant le rejeu de l'historique.
+        _live_tache = (None if symbol.endswith("=F")
+                       else asyncio.ensure_future(fetch_prices([symbol])))
         hist = await fetch_ohlcv(symbol, period=_period, interval=actual_interval)
         # La liquidité se lit sur les bougies d'origine, avant regroupement.
         _liquidite = liquidite(hist, symbol, {"1wk": 5, "1mo": 21}.get(actual_interval, 1.0))
@@ -1078,7 +1114,7 @@ async def analyze_asset(
             # le cours AU COMPTANT (GC=F → XAU/USD). Mêler ce prix aux EMA,
             # à l'ATR et aux niveaux du contrat décalait tout de la base —
             # parfois de plus d'un ATR sur le gaz naturel.
-            live = {} if symbol.upper().endswith("=F") else await fetch_prices([symbol])
+            live = {} if _live_tache is None else await _live_tache
             lp = live.get(symbol.upper())
             if lp and lp.get("price"):
                 current_price = float(lp["price"])
@@ -1214,11 +1250,15 @@ async def analyze_asset(
             logger.warning("contexte technique indisponible pour %s : %s", symbol, exc)
 
         # Collect the two background jobs launched right after the engine ran.
-        historical_edge = await _edge_fut
         if _info_fut is not None:
             ticker, info = await _info_fut
         else:
             ticker, info = None, {}
+        _news_tache = (asyncio.ensure_future(_actualite(symbol, ticker))
+                       if ticker is not None and not _leger else None)
+        _plan_tache = (None if _leger else asyncio.ensure_future(
+            pendant_le_plan(symbol, timeframe, info=info, nom=(info or {}).get("shortName") or (info or {}).get("longName"))))
+        historical_edge = await _edge_fut
 
         # Fundamental metrics
         fundamentals = {
@@ -1440,8 +1480,7 @@ async def analyze_asset(
         # Get recent news (handles both old and new yfinance formats)
         news_items = []
         try:
-            news = (await asyncio.get_event_loop().run_in_executor(None, _fetch_news_sync, ticker)
-                    if ticker is not None and not _leger else [])
+            news = await _sans_trainer(_news_tache, 2.5, []) if _news_tache is not None else []
             for item in news:
                 content = item.get("content") or {}
                 provider = content.get("provider") or {}
@@ -1823,8 +1862,8 @@ async def analyze_asset(
         # enjambent une publication n'ont pas fait pire en moyenne, seulement
         # plus dispersé (voir _evenements.py).
         try:
-            ev_plan = ({"phrases": []} if _leger
-                       else await pendant_le_plan(symbol, timeframe, info=info, nom=company_info.get("name")))
+            ev_plan = ({"phrases": []} if _plan_tache is None
+                       else await _sans_trainer(_plan_tache, 2.5, {"jours": None, "resultats": None, "macro": [], "phrases": []}))
             result["evenements_plan"] = ev_plan
             if ev_plan["phrases"]:
                 result["tradeability"]["warnings"] = ev_plan["phrases"] + result["tradeability"]["warnings"]
