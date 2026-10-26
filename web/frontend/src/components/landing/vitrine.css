@@ -3,48 +3,50 @@
  * Inter partout, des boutons rectangulaires bleu nuit, de petites étiquettes
  * en capitales espacées : c'est la tenue par défaut de mille sites générés,
  * et elle se reconnaît au premier coup d'œil. Cette page a la sienne —
- * la typographie de la presse financière, une serif robuste pour les titres (IBM
- * Plex Serif), une grotesque de presse pour le texte (Schibsted Grotesk), des boutons à l'encre et au point ambre
+ * une police simple et très lisible (Public Sans), des boutons à l'encre et au point ambre
  * du logo, et des étiquettes en italique, comme une légende de magazine.
  *
  * Tout est scopé sous .vitrine : l'application garde son style. */
 
 .vitrine {
-  --cap-font-display: var(--font-plex-serif), Georgia, "Times New Roman", serif;
-  --cap-font-text: var(--font-schibsted), system-ui, sans-serif;
+  --cap-font-display: var(--font-public-sans), system-ui, sans-serif;
+  --cap-font-text: var(--font-public-sans), system-ui, sans-serif;
   --vitrine-ambre: #e5a83a;
   --vitrine-ambre-clair: #f3c56e;
   --vitrine-nuit: #0b1726;
   font-family: var(--cap-font-text);
 }
 
-/* Les titres : la serif, un peu moins grasse, l'optique « display ». */
+/* Les titres : la police du site, appuyée. */
 .vitrine h1, .vitrine h2, .vitrine h3,
 .vitrine [class*="tracking-[-0.03em]"] {
   font-family: var(--cap-font-display);
 }
-.vitrine h1, .vitrine h2 { font-weight: 500 !important; letter-spacing: -0.012em !important; }
+.vitrine h1, .vitrine h2 { font-weight: 700 !important; letter-spacing: -0.015em !important; }
 .vitrine h3 { font-weight: 600 !important; letter-spacing: -0.004em !important; }
 /* Les classes de l'ancien style resserraient toutes les lettres (-0,03 em) :
    bien pour Sora, illisible pour une serif. Le texte retrouve un espacement
    normal, les titres un resserrement léger. */
 .vitrine :is(p, li, a, button, dd, dt, label):not([class*="tracking-[-0.03em]"]) { letter-spacing: 0.002em; }
 .vitrine :where(h1, h2, h3) :where(span) { letter-spacing: inherit; }
+/* Les mots mis en avant : l'ambre du logo plutôt qu'un italique, qui se
+   lisait moins bien. */
 .vitrine em, .vitrine .vitrine-italique {
   font-family: var(--cap-font-display);
-  font-style: italic;
-  font-weight: 400;
+  font-style: normal;
+  font-weight: inherit;
+  color: #b57610;
 }
 
 /* Les étiquettes : plus de capitales espacées, une légende en italique,
    précédée d'un petit trait ambre. */
 .vitrine [data-eyebrow] {
   font-family: var(--cap-font-display) !important;
-  font-style: italic;
+  font-style: normal;
   text-transform: none !important;
   letter-spacing: 0 !important;
-  font-size: 1.12rem !important;
-  font-weight: 400 !important;
+  font-size: 1.05rem !important;
+  font-weight: 600 !important;
   display: inline-flex;
   align-items: center;
   gap: 0.6rem;
@@ -122,18 +124,18 @@
   text-transform: none !important;
   letter-spacing: 0 !important;
   font-family: var(--cap-font-display) !important;
-  font-style: italic;
-  font-weight: 400 !important;
-  font-size: 0.98rem !important;
+  font-style: normal;
+  font-weight: 600 !important;
+  font-size: 0.95rem !important;
 }
 
 /* Les numéros d'étapes : des chiffres serif, à l'ambre. */
 .vitrine .cap-etape-apprendre .cap-num,
 .vitrine #fonctionnement .cap-num {
   font-family: var(--cap-font-display) !important;
-  font-style: italic;
+  font-weight: 700;
   font-size: 1.05rem !important;
-  color: #c98a1e !important;
+  color: #b57610 !important;
 }
 
 /* Les liens du menu : un trait ambre qui se dessine au survol. */
@@ -150,7 +152,7 @@
 .vitrine .vitrine-trait path { stroke-dasharray: 340; stroke-dashoffset: 340; animation: vitrine-trace 1s 2.1s cubic-bezier(.6,0,.2,1) forwards; }
 .ciel-intro:not(.ciel-parti) .vitrine .vitrine-trait path { animation-play-state: paused; }
 
-.vitrine .vitrine-signature span { font-family: var(--cap-font-display); font-style: italic; font-size: 1rem; }
+.vitrine .vitrine-signature span { font-family: var(--cap-font-display); font-weight: 600; font-size: 1rem; }
 
 @media (prefers-reduced-motion: reduce) {
   .vitrine .vitrine-trait path { animation: none; stroke-dashoffset: 0; }

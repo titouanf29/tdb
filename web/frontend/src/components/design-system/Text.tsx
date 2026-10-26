@@ -5,18 +5,17 @@ import { cn } from "@/lib/utils";
 /**
  * Type scale.
  *
- * Two families and one job each: IBM Plex Serif (a sturdy, low-contrast
- * serif) sets headings, Schibsted Grotesk carries prose, and the monospace appears only
- * on figures. Sizes are fluid so the hierarchy
+ * One family, Public Sans, for headings, prose and figures (see
+ * app/layout.tsx); hierarchy comes from size and weight. Sizes are fluid so the hierarchy
  * survives from a phone to a large monitor without a stack of breakpoints.
  */
 
 const HEADING = {
   // Capped at 4rem: past that a two-line headline breaks in the wrong place on
   // a laptop, and the sentence stops reading as one thought.
-  display: "text-[clamp(2.4rem,5.2vw,4rem)] leading-[1.06] tracking-[-0.012em] font-medium",
-  1: "text-[clamp(2rem,4.2vw,3.25rem)] leading-[1.08] tracking-[-0.012em] font-medium",
-  2: "text-[clamp(1.5rem,2.8vw,2.25rem)] leading-[1.15] tracking-[-0.008em] font-medium",
+  display: "text-[clamp(2.4rem,5.2vw,4rem)] leading-[1.06] tracking-[-0.02em] font-bold",
+  1: "text-[clamp(2rem,4.2vw,3.25rem)] leading-[1.08] tracking-[-0.018em] font-bold",
+  2: "text-[clamp(1.5rem,2.8vw,2.25rem)] leading-[1.15] tracking-[-0.012em] font-bold",
   3: "text-[clamp(1.125rem,1.7vw,1.4rem)] leading-[1.3] tracking-[-0.004em] font-semibold",
   4: "text-[0.95rem] leading-[1.4] tracking-[0em] font-semibold",
 } as const;
@@ -53,9 +52,9 @@ export function Heading({
 
 const TEXT = {
   lead: "text-[clamp(1.05rem,1.6vw,1.3rem)] leading-[1.6]",
-  body: "text-[0.975rem] leading-[1.65]",
-  small: "text-[0.85rem] leading-[1.55]",
-  caption: "text-[0.76rem] leading-[1.45]",
+  body: "text-[1rem] leading-[1.65]",
+  small: "text-[0.9rem] leading-[1.55]",
+  caption: "text-[0.82rem] leading-[1.45]",
 } as const;
 
 export function Text({
