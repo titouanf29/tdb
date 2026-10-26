@@ -33,7 +33,7 @@ import { ProblemSection } from "@/components/landing/ProblemSection";
  */
 
 /** Une section qui s'hydrate à son tour (voir plus haut). */
-function Tour({ children }: { children: React.ReactNode }) {
+function Tour({ children }: Readonly<{ children: React.ReactNode }>) {
   return <Suspense fallback={null}>{children}</Suspense>;
 }
 

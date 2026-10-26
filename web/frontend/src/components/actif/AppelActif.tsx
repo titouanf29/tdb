@@ -9,7 +9,7 @@ import { useAuth } from "@/lib/AuthContext";
  * visiteur crée son compte, quelqu'un de connecté ouvre l'analyse complète
  * du même actif (horizon, plan, stop et objectif).
  */
-export function AppelActif({ symbole, nom }: { symbole: string; nom: string }) {
+export function AppelActif({ symbole, nom }: Readonly<{ symbole: string; nom: string }>) {
   const { isAuthenticated } = useAuth();
   const analyse = `/analysis?symbol=${encodeURIComponent(symbole)}`;
   return (

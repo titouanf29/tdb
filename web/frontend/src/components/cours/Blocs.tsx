@@ -85,7 +85,7 @@ export function Scenes({ titre, scenes }: { titre?: string; scenes: { legende: s
 
 /** `niveau` : celui des sous-titres. 3 sous une partie titrée (h2), 2 quand
  *  la leçon n'a qu'une partie, pour ne jamais sauter de h1 à h3. */
-export function Blocs({ blocs, niveau = 3 }: { blocs: Bloc[]; niveau?: 2 | 3 }) {
+export function Blocs({ blocs, niveau = 3 }: Readonly<{ blocs: Bloc[]; niveau?: 2 | 3 }>) {
   const Sous = `h${niveau}` as "h2" | "h3";
   const Carte = `h${niveau + 1}` as "h3" | "h4";
   return (

@@ -34,7 +34,7 @@ function Chiffre({ titre, t, definition }: { titre: string; t: TauxRetention; de
  * décrochage d'une étape à la suivante est nommé en clair : c'est là qu'il
  * faut travailler.
  */
-function PanneauEntonnoir({ e, semaines }: { e: Entonnoir; semaines: Donnees["entonnoir_semaines"] }) {
+function PanneauEntonnoir({ e, semaines }: Readonly<{ e: Entonnoir; semaines: Donnees["entonnoir_semaines"] }>) {
   const etapes = [{ cle: "inscrits", libelle: "Inscription", oui: e.inscrits, total: e.inscrits, taux: e.inscrits ? 100 : null }, ...e.etapes];
   let pire: { de: string; a: string; perte: number } | null = null;
   for (let i = 1; i < etapes.length; i++) {

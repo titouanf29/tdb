@@ -17,7 +17,7 @@ import { analyseActif, dateAnalyse, listeActifs, pourcent, type AnalysePublique 
  */
 
 const SITE = process.env.NEXT_PUBLIC_SITE_URL || "https://captentdb.fr";
-type Props = { params: Promise<{ slug: string }> };
+type Props = Readonly<{ params: Promise<{ slug: string }> }>;
 
 // Ce que dit Nimbo aujourd'hui. La direction suit son plan (backend demo.py).
 const VERDICT: Record<string, string> = {
@@ -53,7 +53,7 @@ function lectureRsi(rsi: number | null): string | undefined {
   return "Entre 30 et 70 : ni excès d'achat, ni excès de vente.";
 }
 
-function Chiffre({ titre, valeur, lecon, detail }: { titre: string; valeur: string; lecon?: { n: number; titre: string }; detail?: string }) {
+function Chiffre({ titre, valeur, lecon, detail }: Readonly<{ titre: string; valeur: string; lecon?: { n: number; titre: string }; detail?: string }>) {
   return (
     <div className="border-t py-3.5" style={{ borderColor: "var(--cap-line)" }}>
       <dt className="text-[0.92rem] font-semibold" style={{ color: "var(--cap-ink-2)" }}>{titre}</dt>
