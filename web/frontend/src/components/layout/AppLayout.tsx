@@ -76,7 +76,10 @@ function LegalShell({ children }: { children: React.ReactNode }) {
  *  l'application ; sans compte, dans un cadre léger qui invite à s'inscrire. */
 function CoursShell({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth();
-  if (isLoading) return <div className="cap min-h-screen" />;
+  // PENDANT QUE LA SESSION SE LIT, LA LEÇON S'AFFICHE QUAND MÊME. Un cadre
+  // vide ici effaçait la leçon du rendu serveur : Google et les aperçus de
+  // liens recevaient une page blanche, alors que tout le texte était prêt.
+  if (isLoading) return <LandingShell><CoursChrome>{children}</CoursChrome></LandingShell>;
   return (
     <LandingShell>
       {isAuthenticated ? <AppChrome>{children}</AppChrome> : <CoursChrome>{children}</CoursChrome>}

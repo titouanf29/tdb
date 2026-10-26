@@ -30,6 +30,7 @@ export function LeconVue({ lecon }: { lecon: LeconSerie }) {
   const { avant, apres } = voisines(lecon.numero);
   // Le numéro de la vidéo reste dans l'adresse ; à l'écran, la place dans le chapitre.
   const pl = place(lecon.numero);
+  const aPratique = !!lecon.pratique && lecon.pratique.length > 0;
   const quiz = lecon.quiz.map((q) => ({ ...q, question: nommer(q.question), options: q.options.map(nommer), explanation: nommer(q.explanation) }));
   const { isAuthenticated } = useAuth();
   const [faite, setFaite] = useState(false);
@@ -126,17 +127,49 @@ export function LeconVue({ lecon }: { lecon: LeconSerie }) {
             <Quiz questions={quiz} onDone={(s) => terminer(s)} />
           </section>
 
-          {lecon.pratique && lecon.pratique.length > 0 && (
+          {isAuthenticated && aPratique && (
             <section className="mt-14 border-t pt-8" style={{ borderColor: "var(--cap-line-strong)" }}>
               <h2 className="text-[1.6rem] font-medium" style={{ color: "var(--cap-ink)", fontFamily: "var(--cap-font-display)" }}>Mettre en pratique</h2>
               <ul className="mt-4 space-y-4">
                 {lecon.pratique.map((p) => (
                   <li key={p.href} className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <span className="min-w-0 flex-1 text-[1.02rem]" style={{ color: "var(--cap-ink-2)" }}>{nommer(p.texte)}</span>
-                    <Button href={isAuthenticated ? p.href : "/register"} size="md">{isAuthenticated ? p.bouton : "Créer un compte gratuit"}</Button>
+                    <Button href={p.href} size="md">{p.bouton}</Button>
                   </li>
                 ))}
               </ul>
+            </section>
+          )}
+
+          {/* La fin de chaque leçon mène à la pratique : un lecteur venu de
+              Google ou de TikTok apprend ici qu'il peut essayer sur un vrai
+              actif, avec de l'argent fictif. Connecté, il a les exercices de
+              la leçon ci-dessus. */}
+          {!(isAuthenticated && aPratique) && (
+            <section className="mt-14 rounded-[16px] px-5 py-6 sm:px-7" style={{ backgroundColor: "var(--cap-navy)", color: "#E8EDF1" }}
+              aria-labelledby="essayer-titre">
+              <h2 id="essayer-titre" className="text-[1.45rem] font-medium" style={{ fontFamily: "var(--cap-font-display)" }}>
+                Essayez sur un vrai actif
+              </h2>
+              <p className="mt-2 max-w-[38rem] text-[0.98rem] leading-relaxed" style={{ color: "rgba(232,237,241,0.78)" }}>
+                {isAuthenticated
+                  ? "Ouvrez l'analyse d'un actif que vous connaissez et retrouvez ce que vous venez d'apprendre, sur les vrais cours."
+                  : "10 000 € fictifs, les vrais cours du marché, et Nimbo pour vous expliquer chaque décision. Gratuit, sans carte bancaire."}
+              </p>
+              <div className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-3">
+                <Link href={isAuthenticated ? "/analysis" : "/register"}
+                  className="inline-flex h-11 items-center gap-2.5 rounded-[12px] px-5 text-[0.95rem] font-semibold"
+                  style={{ backgroundColor: "#F6F2EA", color: "var(--cap-navy)" }}>
+                  <span aria-hidden className="h-2 w-2 rounded-full" style={{ backgroundColor: "var(--cap-ambre)" }} />
+                  {isAuthenticated ? "Analyser un actif" : "Créer mon compte gratuit"}
+                  <ArrowRight size={16} style={{ color: "#c98a1e" }} />
+                </Link>
+                {!isAuthenticated && (
+                  <Link href="/#demo" className="text-[0.92rem] underline decoration-[color:var(--cap-ambre)] underline-offset-[5px]">
+                    Voir une analyse d&apos;exemple
+                  </Link>
+                )}
+              </div>
             </section>
           )}
 
