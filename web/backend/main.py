@@ -491,6 +491,12 @@ async def global_exception_handler(request: Request, exc: Exception):
     """Catch all unhandled exceptions and return a generic error (never expose internals)."""
     print(f"[ERROR] Unhandled exception on {request.method} {request.url.path}: {type(exc).__name__}: {exc}", flush=True)
     traceback.print_exc()
+    # Prévenir l'équipe quand les erreurs s'enchaînent (services/surveillance.py).
+    # Le modèle de la route (« /api/analysis/{symbol} ») plutôt que l'adresse :
+    # cent symboles différents restent une seule panne.
+    from api.services import surveillance
+    route = getattr(request.scope.get("route"), "path", None) or request.url.path
+    surveillance.noter(request.method, route, exc)
     return JSONResponse(
         status_code=500,
         content={"detail": "Une erreur interne est survenue. Veuillez réessayer."}

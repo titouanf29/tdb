@@ -1887,6 +1887,8 @@ export const adminAPI = {
 
   // Dashboard
   getDashboard: () => fetchAPI<AdminDashboard>("/api/admin/dashboard"),
+  /** Les dernières erreurs serveur (backend services/surveillance.py). */
+  erreurs: () => fetchAPI<{ a: string; route: string; erreur: string; detail: string }[]>("/api/admin/erreurs"),
   /** Qui revient (backend services/retention.py pour les définitions). */
   retention: () => fetchAPI<Retention>("/api/admin/retention"),
 

@@ -240,6 +240,13 @@ def _wuid(user_id) -> str:
 
 # ============== RÉTENTION ==============
 
+@router.get("/erreurs")
+async def get_erreurs(admin: dict = Depends(get_admin_user)):
+    """Les dernières erreurs serveur non gérées (services/surveillance.py)."""
+    from ..services import surveillance
+    return [{k: v for k, v in e.items() if k != "t"} for e in surveillance.dernieres()]
+
+
 @router.get("/retention")
 async def get_retention(admin: dict = Depends(get_admin_user)):
     """Qui revient : activation, retours à J1, J7, J30, semaines actives
