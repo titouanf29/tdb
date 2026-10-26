@@ -51,7 +51,7 @@ export function AvisDeveloppement() {
   }, [user, cle, seanceCle]);
 
   if (!user || ferme) return null;
-  const cree = user.created_at ? Date.parse(user.created_at) : NaN;
+  const cree = user.created_at ? Date.parse(user.created_at) : Number.NaN;
   if (Number.isFinite(cree) && Date.now() - cree > JOURS * 86_400_000) return null;
 
   const fermer = () => {

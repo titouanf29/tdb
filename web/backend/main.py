@@ -583,9 +583,14 @@ async def site_status(request: Request):
 
 if __name__ == "__main__":
     import uvicorn
+    # Lancement local seulement (`python main.py`) : la machine seule par
+    # défaut, pas toutes les interfaces réseau. La production démarre par le
+    # Dockerfile (uvicorn main:app --host 0.0.0.0), où le conteneur doit
+    # écouter au-dehors. HOTE permet d'ouvrir le serveur local au réseau
+    # quand on le veut vraiment.
     # Use app object directly to avoid path conflicts with root main.py
     uvicorn.run(
         app,
-        host="0.0.0.0",
+        host=os.getenv("HOTE", "127.0.0.1"),
         port=8000
     )

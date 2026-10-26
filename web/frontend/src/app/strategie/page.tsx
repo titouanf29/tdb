@@ -187,7 +187,7 @@ export default function StrategiePage() {
                     if (!confirm(`Supprimer « ${s.nom} » ?`)) return;
                     await strategiesAPI.supprimer(s.id);
                     if (enCours === s.id) { setEnCours(null); }
-                    charger();
+                    await charger();
                   }}>Supprimer</Button>
                 </div>
               </li>

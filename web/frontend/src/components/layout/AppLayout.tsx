@@ -118,7 +118,7 @@ function AuthShell({
     if (!isAuthenticated || !user || user.trading_level != null) return;
     // Seulement pour un compte neuf : un ancien compte qui l'avait fermée
     // (quand la fermeture était retenue par navigateur) ne la revoit pas.
-    const cree = user.created_at ? Date.parse(user.created_at) : NaN;
+    const cree = user.created_at ? Date.parse(user.created_at) : Number.NaN;
     if (Number.isFinite(cree) && Date.now() - cree > 7 * 86_400_000) return;
     let dismissed = false;
     try { dismissed = localStorage.getItem(cleFermeture(user.id)) === "1"; } catch { /* ignore */ }

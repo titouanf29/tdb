@@ -506,11 +506,11 @@ export const welcomeBackAPI = {
   activite: () => {
     const jeton = getToken();
     if (!jeton) return;
-    try {
-      fetch(`${API_URL}/api/dashboard/activity`, {
-        method: "POST", keepalive: true, headers: { Authorization: `Bearer ${jeton}` },
-      }).catch(() => {});
-    } catch { /* le navigateur refuse : la prochaine visite partira de la dernière photo */ }
+    // Un refus du navigateur arrive en promesse rejetée : la prochaine visite
+    // partira alors de la dernière photo.
+    fetch(`${API_URL}/api/dashboard/activity`, {
+      method: "POST", keepalive: true, headers: { Authorization: `Bearer ${jeton}` },
+    }).catch(() => {});
   },
 };
 

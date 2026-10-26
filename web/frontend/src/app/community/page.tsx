@@ -211,7 +211,7 @@ export default function CommunityPage() {
                 <textarea
                   value={input}
                   onChange={(e) => { setInput(e.target.value); if (sendError) setSendError(""); }}
-                  onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(e); } }}
+                  onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); void send(e); } }}
                   rows={1}
                   maxLength={1000}
                   placeholder={replyTo ? "Votre réponse…" : "Une question, un avis, un bonjour…"}
