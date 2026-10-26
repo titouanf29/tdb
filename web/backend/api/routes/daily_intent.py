@@ -20,7 +20,7 @@ from slowapi import Limiter
 from ..limite import cle_client  # voir limite.py
 from slowapi.util import get_remote_address
 
-from ..database import execute_query, execute_write
+from ..database import USE_POSTGRES, execute_query, execute_write
 from .auth import get_current_user
 from ._llm import LLMUnavailable, llm_chat
 from ._scoring import (compute_score, derive_signal, TIMEFRAME_FETCH, derniere_bougie_en_cours,
@@ -183,9 +183,12 @@ async def pick_assets(intent: str, max_assets: int = 2) -> list[dict]:
 
 
 async def _ensure_table() -> None:
+    # AUTOINCREMENT n'existe que dans SQLite : sous PostgreSQL, la table
+    # n'était jamais créée et chaque appel de la route échouait.
+    cle = "SERIAL PRIMARY KEY" if USE_POSTGRES else "INTEGER PRIMARY KEY AUTOINCREMENT"
     await execute_write(
-        """CREATE TABLE IF NOT EXISTS daily_intents (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+        f"""CREATE TABLE IF NOT EXISTS daily_intents (
+            id {cle},
             user_id INTEGER NOT NULL,
             date TEXT NOT NULL,
             intent TEXT NOT NULL,

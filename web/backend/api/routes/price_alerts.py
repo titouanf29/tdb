@@ -16,7 +16,7 @@ from slowapi import Limiter
 from ..limite import cle_client  # voir limite.py
 from slowapi.util import get_remote_address
 
-from ..database import execute_query, execute_write
+from ..database import USE_POSTGRES, execute_query, execute_write
 from .auth import get_current_user
 from ._prices import fetch_prices
 
@@ -28,9 +28,12 @@ _SYMBOL_RE = re.compile(r"^[A-Z0-9.\-=^]{1,15}$")
 
 
 async def _ensure_table() -> None:
+    # AUTOINCREMENT n'existe que dans SQLite : sous PostgreSQL, la table
+    # n'était jamais créée et chaque appel de la route échouait.
+    cle = "SERIAL PRIMARY KEY" if USE_POSTGRES else "INTEGER PRIMARY KEY AUTOINCREMENT"
     await execute_write(
-        """CREATE TABLE IF NOT EXISTS price_alerts (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+        f"""CREATE TABLE IF NOT EXISTS price_alerts (
+            id {cle},
             user_id TEXT NOT NULL,
             symbol TEXT NOT NULL,
             direction TEXT NOT NULL,

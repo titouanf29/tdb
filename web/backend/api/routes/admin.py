@@ -969,7 +969,7 @@ async def get_ai_analytics(days: int = 30, admin: dict = Depends(get_admin_user)
         FROM web_ai_chat c
         LEFT JOIN web_users u ON c.user_id = u.id
         WHERE c.created_at > ?
-        GROUP BY c.user_id
+        GROUP BY c.user_id, u.email, u.username
         ORDER BY message_count DESC
         LIMIT 10
     """, (cutoff,))

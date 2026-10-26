@@ -33,15 +33,21 @@ _pg_pool = None  # asyncpg connection pool
 # -- PostgreSQL helpers -------------------------------------------------------
 
 def _to_pg(query: str) -> str:
-    """Convert SQLite ? placeholders to PostgreSQL $1, $2, ... format."""
+    """Convert SQLite ? placeholders to PostgreSQL $1, $2, ... format.
+
+    A ? inside a quoted literal ('/analysis?symbol=AAPL', « …aujourd'hui ? »)
+    is text, not a placeholder: numbering it shifted every parameter after it.
+    """
     counter = 0
 
-    def _replace(_match):
+    def _replace(match):
         nonlocal counter
+        if match.group(0) != "?":
+            return match.group(0)
         counter += 1
         return f"${counter}"
 
-    return re.sub(r"\?", _replace, query)
+    return re.sub(r"'(?:[^']|'')*'|\?", _replace, query)
 
 
 async def _get_pool():

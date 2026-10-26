@@ -239,6 +239,9 @@ async def get_market_trends(current_user: dict = Depends(get_current_user)):
     for symbol, name in indices.items():
         try:
             hist = await fetch_ohlcv(symbol, period="3mo", interval="1d")
+            # Une séance sans cours de clôture (souvent celle du jour, pas encore
+            # close) donnait NaN partout, et la réponse ne passait plus en JSON.
+            hist = hist.dropna(subset=["Close"])
 
             if len(hist) < 20:
                 continue
@@ -277,6 +280,9 @@ async def get_market_trends(current_user: dict = Depends(get_current_user)):
     for symbol, name in sectors.items():
         try:
             hist = await fetch_ohlcv(symbol, period="1mo", interval="1d")
+            # Une séance sans cours de clôture (souvent celle du jour, pas encore
+            # close) donnait NaN partout, et la réponse ne passait plus en JSON.
+            hist = hist.dropna(subset=["Close"])
 
             if len(hist) < 5:
                 continue
@@ -318,7 +324,9 @@ async def get_market_trends(current_user: dict = Depends(get_current_user)):
         except Exception:
             pass  # le commentaire IA est un agrément : la page vit sans
 
-    return trends
+    # Filet : aucune valeur manquante ne doit faire échouer toute la page.
+    from .analysis import _sanitize
+    return _sanitize(trends)
 
 
 # ============== ECONOMIC CALENDAR ==============
