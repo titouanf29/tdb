@@ -1,0 +1,195 @@
+"use client";
+
+import Link from "next/link";
+import { motion } from "framer-motion";
+import { ArrowUpRight } from "lucide-react";
+import type { ScanResultItem } from "@/lib/api";
+import { fr } from "@/lib/SettingsContext";
+import { formatCours } from "@/lib/devise";
+import { Button, DUR, EASE, Nimbo, Num, Text } from "@/components/design-system";
+
+/**
+ * Une opportunité, telle qu'elle se lit.
+ *
+ * Le scanner affichait un tableau : symbole, score, RSI, volume, tendance.
+ * Des colonnes de chiffres se comparent bien et ne s'expliquent pas — il
+ * fallait déjà savoir ce qu'on cherchait pour y trouver quoi que ce soit.
+ *
+ * Ici chaque opportunité tient en deux phrases, dans cet ordre : ce qui se
+ * passe, puis ce qui l'invalide. La seconde compte plus que la première ;
+ * c'est elle qui transforme une observation en décision, et c'est elle qui
+ * manquait entièrement.
+ *
+ * Le score reste, en petit et à droite. Il départage à l'intérieur d'une
+ * famille ; il n'est pas ce qu'on lit en premier.
+ */
+
+const FAMILLE_TON: Record<string, string> = {
+  cassure: "var(--cap-up)",
+  rebond: "var(--cap-ocean)",
+  tendance: "var(--cap-amber)",
+};
+
+export function Opportunity({
+  item,
+  index,
+  detailed,
+  timeframe,
+}: {
+  item: ScanResultItem;
+  /** L'unité du scan : l'analyse doit s'ouvrir sur la même. */
+  timeframe?: string;
+  /** Rang dans sa famille, pour décaler l'entrée. */
+  index: number;
+  /** Le niveau déclaré déplie les chiffres bruts. */
+  detailed: boolean;
+}) {
+  // Arrondi d'abord : -0,004 % s'affichait « +-0,00 % ».
+  const variation = Math.round(item.change * 100) / 100 || 0;
+  const hausse = variation >= 0;
+  const href = `/analysis?symbol=${encodeURIComponent(item.symbol)}${timeframe ? `&tf=${timeframe}` : ""}`;
+  const avis = item.nimbo;
+  const ton = FAMILLE_TON[item.family ?? "tendance"] ?? "var(--cap-ink-3)";
+
+  return (
+    <motion.li
+      layout
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      /* Le décalage suit le rang, plafonné : au-delà d'une poignée de cartes
+         l'escalier devient une attente au lieu d'un mouvement. */
+      transition={{ duration: DUR.base, ease: EASE, delay: Math.min(index, 6) * 0.05 }}
+      className="group py-4 first:pt-0 last:pb-0"
+    >
+      <div className="flex flex-wrap items-start justify-between gap-x-5 gap-y-2">
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
+            <Link
+              href={href}
+              className="text-[1rem] font-medium transition-colors hover:underline"
+              style={{ color: "var(--cap-ink)" }}
+            >
+              {item.symbol}
+            </Link>
+            {item.name && item.name !== item.symbol && (
+              <span className="truncate text-[0.82rem]" style={{ color: "var(--cap-ink-3)" }}>
+                {item.name}
+              </span>
+            )}
+            <Num tone={hausse ? "up" : "down"} className="text-[0.82rem]">
+              {hausse ? "+" : ""}{fr(variation, 2)} %
+            </Num>
+          </div>
+
+          {/* Les deux phrases. */}
+          {item.headline && (
+            <Text size="small" tone="ink" className="mt-2 max-w-[54rem]">
+              {item.headline}
+            </Text>
+          )}
+          {item.action && (
+            <Text size="small" className="mt-1.5 max-w-[54rem]">
+              {item.action}
+            </Text>
+          )}
+
+          {/* ACHAT, VENTE, OU RIEN — et pourquoi, pour CET horizon.
+              Le scanner décrivait ce qu'il voyait et laissait le lecteur en
+              tirer un sens. Or la convention du score, au-dessus de 60 on
+              achète, sous 40 on vend, n'est écrite nulle part à l'écran :
+              « RSI à 27, en zone de survente » ne dit pas s'il faut acheter
+              le creux ou s'en écarter. Et la réponse dépend de l'horizon : un
+              rebond à contre-tendance se joue en day trading et ne se tient
+              pas en long terme. */}
+          {/* L'AVIS DE NIMBO, VÉRIFIÉ AVEC LE MOTEUR DE L'ANALYSE. Avant, le
+              sens venait d'une règle propre au scanner, et l'analyse ouverte
+              au clic pouvait ne rien proposer. Ici, c'est la même décision :
+              s'il propose, le plan est là et le bouton mène à sa proposition ;
+              sinon il dit pourquoi, et quand revenir voir. */}
+          {avis ? (
+            <div
+              className="mt-3 flex items-start gap-3 rounded-[12px] px-3 py-2.5"
+              style={avis.propose
+                ? { backgroundColor: "color-mix(in srgb, var(--cap-up) 7%, var(--cap-surface))", boxShadow: "inset 3px 0 0 var(--cap-ambre)" }
+                : { backgroundColor: "var(--cap-surface-2)" }}
+            >
+              <Nimbo humeur={avis.propose ? "cap" : "reflechit"} taille={40} label="" className="-my-1 shrink-0" />
+              <div className="min-w-0 flex-1">
+                <Text size="small" tone="ink" className="font-medium">{item.sens_phrase}</Text>
+                {avis.propose && avis.stop != null && avis.objectif != null && (
+                  <Text size="caption" className="mt-0.5">
+                    Stop {formatCours(avis.stop, item.symbol)}, objectif {formatCours(avis.objectif, item.symbol)}
+                    {avis.rr != null ? `, 1 pour ${fr(avis.rr, 1)}` : ""}.
+                  </Text>
+                )}
+                {!avis.propose && avis.revoir && (
+                  <Text size="caption" className="mt-0.5 italic">{avis.revoir.texte}</Text>
+                )}
+              </div>
+              {avis.propose && (
+                <Button href={href} size="sm" className="shrink-0 self-center">
+                  Voir sa proposition
+                </Button>
+              )}
+            </div>
+          ) : item.sens_phrase && (
+            <div className="mt-2.5 flex items-start gap-2.5">
+              <span
+                aria-hidden
+                className="mt-[0.42rem] h-1.5 w-1.5 shrink-0 rounded-full"
+                style={{
+                  backgroundColor:
+                    item.sens === "long" ? "var(--cap-up-fill)"
+                    : item.sens === "short" ? "var(--cap-down-fill)"
+                    : "var(--cap-ink-4)",
+                }}
+              />
+              <Text size="caption" as="span" className="max-w-[52rem]">
+                {item.sens_phrase}
+              </Text>
+            </div>
+          )}
+
+          {/* Les chiffres bruts, seulement pour qui les a demandés. Les
+              montrer à tout le monde, c'est reconstruire le tableau qu'on
+              vient de remplacer. */}
+          {detailed && (
+            <Text size="caption" className="mt-2">
+              RSI {fr(item.rsi, 0)} · volume ×{fr(item.volume_ratio, 1)} · MACD{" "}
+              {item.macd_signal === "HAUSSIER" ? "haussier" : "baissier"}
+              {item.relative_strength != null
+                ? ` · force relative ${item.relative_strength >= 0 ? "+" : ""}${fr(item.relative_strength, 1)}`
+                : ""}
+              {" · semaine "}{item.change_1w >= 0 ? "+" : ""}{fr(item.change_1w, 1)} %
+              {" · mois "}{item.change_1m >= 0 ? "+" : ""}{fr(item.change_1m, 1)} %
+            </Text>
+          )}
+        </div>
+
+        <div className="flex shrink-0 items-center gap-4">
+          <div className="text-right">
+            <Num className="block text-[1.05rem]" tone="ink">{item.score}</Num>
+            {/* Le score, aussi en jauge : elle se remplit à l'arrivée, de la
+                couleur de la famille. */}
+            <span aria-hidden className="ml-auto mt-1 block h-[3px] w-10 overflow-hidden rounded-full" style={{ backgroundColor: "var(--cap-line)" }}>
+              <span className="cap-barre block h-full rounded-full"
+                style={{ transform: `scaleX(${Math.max(0, Math.min(100, item.score)) / 100})`, backgroundColor: ton,
+                         animationDelay: `${0.15 + Math.min(index, 6) * 0.05}s` }} />
+            </span>
+            <span className="mt-1 block text-[0.7rem]" style={{ color: ton }}>
+              {item.setup ?? item.family ?? ""}
+            </span>
+          </div>
+          <Link
+            href={href}
+            aria-label={`Analyser ${item.symbol}`}
+            className="rounded-[8px] p-1.5 transition-colors hover:bg-[color:var(--cap-surface-2)]"
+            style={{ color: "var(--cap-ink-3)" }}
+          >
+            <ArrowUpRight className="h-4 w-4 transition-transform duration-200 group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
+          </Link>
+        </div>
+      </div>
+    </motion.li>
+  );
+}

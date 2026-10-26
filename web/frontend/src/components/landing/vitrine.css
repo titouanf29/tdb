@@ -1,0 +1,190 @@
+/* LA VOIX DE LA PAGE DE PRÉSENTATION.
+ *
+ * Inter partout, des boutons rectangulaires bleu nuit, de petites étiquettes
+ * en capitales espacées : c'est la tenue par défaut de mille sites générés,
+ * et elle se reconnaît au premier coup d'œil. Cette page a la sienne —
+ * la typographie de la presse financière, une serif robuste pour les titres (IBM
+ * Plex Serif), une grotesque de presse pour le texte (Schibsted Grotesk), des boutons à l'encre et au point ambre
+ * du logo, et des étiquettes en italique, comme une légende de magazine.
+ *
+ * Tout est scopé sous .vitrine : l'application garde son style. */
+
+.vitrine {
+  --cap-font-display: var(--font-plex-serif), Georgia, "Times New Roman", serif;
+  --cap-font-text: var(--font-schibsted), system-ui, sans-serif;
+  --vitrine-ambre: #e5a83a;
+  --vitrine-ambre-clair: #f3c56e;
+  --vitrine-nuit: #0b1726;
+  font-family: var(--cap-font-text);
+}
+
+/* Les titres : la serif, un peu moins grasse, l'optique « display ». */
+.vitrine h1, .vitrine h2, .vitrine h3,
+.vitrine [class*="tracking-[-0.03em]"] {
+  font-family: var(--cap-font-display);
+}
+.vitrine h1, .vitrine h2 { font-weight: 500 !important; letter-spacing: -0.012em !important; }
+.vitrine h3 { font-weight: 600 !important; letter-spacing: -0.004em !important; }
+/* Les classes de l'ancien style resserraient toutes les lettres (-0,03 em) :
+   bien pour Sora, illisible pour une serif. Le texte retrouve un espacement
+   normal, les titres un resserrement léger. */
+.vitrine :is(p, li, a, button, dd, dt, label):not([class*="tracking-[-0.03em]"]) { letter-spacing: 0.002em; }
+.vitrine :where(h1, h2, h3) :where(span) { letter-spacing: inherit; }
+.vitrine em, .vitrine .vitrine-italique {
+  font-family: var(--cap-font-display);
+  font-style: italic;
+  font-weight: 400;
+}
+
+/* Les étiquettes : plus de capitales espacées, une légende en italique,
+   précédée d'un petit trait ambre. */
+.vitrine [data-eyebrow] {
+  font-family: var(--cap-font-display) !important;
+  font-style: italic;
+  text-transform: none !important;
+  letter-spacing: 0 !important;
+  font-size: 1.12rem !important;
+  font-weight: 400 !important;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+.vitrine #paper-trading [data-eyebrow] { color: #a8cde3 !important; }
+.vitrine [data-eyebrow]::before {
+  content: "";
+  width: 1.6rem;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--vitrine-ambre);
+}
+
+/* LES BOUTONS, D'APRÈS LE LOGO.
+ *
+ * La pilule orange en dégradé ressemblait au bouton d'achat d'un grand site
+ * marchand. Ici, le bouton principal est à l'encre bleu nuit du logo,
+ * précédé de son point ambre — le soleil au-dessus de la montagne. Au
+ * survol, le point s'allume et la flèche avance. Le second n'est pas une
+ * boîte : c'est un lien éditorial, souligné d'ambre. */
+.vitrine [data-btn] {
+  letter-spacing: 0 !important;
+  font-weight: 600 !important;
+  transition: transform .25s cubic-bezier(.2,.8,.2,1), box-shadow .25s ease, background-color .25s ease, color .25s ease !important;
+}
+.vitrine [data-btn="primary"] {
+  border-radius: 14px !important;
+  background: var(--vitrine-nuit) !important;
+  color: #f6f2ea !important;
+  padding-left: 1.35rem !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.08), 0 14px 30px -16px rgba(11,23,38,.7) !important;
+}
+.vitrine [data-btn="primary"]::before {
+  content: "";
+  width: .55rem; height: .55rem; border-radius: 99px; flex: none;
+  background: var(--vitrine-ambre);
+  box-shadow: 0 0 0 0 rgba(229,168,58,.0);
+  transition: transform .3s cubic-bezier(.2,.8,.2,1), box-shadow .3s ease;
+}
+.vitrine [data-btn="primary"]::after {
+  content: "→";
+  display: inline-block;
+  color: var(--vitrine-ambre-clair);
+  transition: transform .25s cubic-bezier(.2,.8,.2,1);
+}
+.vitrine [data-btn="primary"]:hover { transform: translateY(-1px); box-shadow: inset 0 1px 0 rgba(255,255,255,.1), 0 18px 34px -16px rgba(11,23,38,.8) !important; }
+.vitrine [data-btn="primary"]:hover::before { transform: scale(1.35); box-shadow: 0 0 14px 3px rgba(229,168,58,.55); }
+.vitrine [data-btn="primary"]:hover::after { transform: translateX(4px); }
+
+.vitrine [data-btn="secondary"] {
+  background: transparent !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  padding-left: .25rem !important; padding-right: .25rem !important;
+  color: var(--cap-ink) !important;
+  text-decoration: underline;
+  text-decoration-color: var(--vitrine-ambre);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 7px;
+}
+.vitrine [data-btn="secondary"]:hover { color: var(--cap-ocean) !important; text-underline-offset: 9px; }
+.vitrine [data-btn="quiet"] { border-radius: 10px !important; }
+
+/* La barre du haut : le bouton « Commencer » suit la même règle. */
+.vitrine header [data-btn] { height: 2.5rem; border-radius: 12px !important; }
+
+@media (prefers-reduced-motion: reduce) {
+  .vitrine [data-btn], .vitrine [data-btn]::after { transition: none !important; }
+  .vitrine [data-btn]:hover { transform: none; }
+}
+
+/* Les petites capitales espacées qui restaient (« POURQUOI », « DIRECTION »,
+   titres du pied de page) deviennent des légendes en italique. */
+.vitrine [class*="uppercase"]:not([data-btn]):not([data-eyebrow]) {
+  text-transform: none !important;
+  letter-spacing: 0 !important;
+  font-family: var(--cap-font-display) !important;
+  font-style: italic;
+  font-weight: 400 !important;
+  font-size: 0.98rem !important;
+}
+
+/* Les numéros d'étapes : des chiffres serif, à l'ambre. */
+.vitrine .cap-etape-apprendre .cap-num,
+.vitrine #fonctionnement .cap-num {
+  font-family: var(--cap-font-display) !important;
+  font-style: italic;
+  font-size: 1.05rem !important;
+  color: #c98a1e !important;
+}
+
+/* Les liens du menu : un trait ambre qui se dessine au survol. */
+.vitrine .vitrine-lien { position: relative; }
+.vitrine .vitrine-lien::after {
+  content: ""; position: absolute; left: 0; right: 0; bottom: -6px; height: 2px; border-radius: 2px;
+  background: var(--vitrine-ambre); transform: scaleX(0); transform-origin: left;
+  transition: transform .3s cubic-bezier(.2,.8,.2,1);
+}
+.vitrine .vitrine-lien:hover::after { transform: scaleX(1); }
+
+/* Le trait sous « un euro » se trace après l'arrivée des mots. */
+@keyframes vitrine-trace { from { stroke-dashoffset: 340; } to { stroke-dashoffset: 0; } }
+.vitrine .vitrine-trait path { stroke-dasharray: 340; stroke-dashoffset: 340; animation: vitrine-trace 1s 2.1s cubic-bezier(.6,0,.2,1) forwards; }
+.ciel-intro:not(.ciel-parti) .vitrine .vitrine-trait path { animation-play-state: paused; }
+
+.vitrine .vitrine-signature span { font-family: var(--cap-font-display); font-style: italic; font-size: 1rem; }
+
+@media (prefers-reduced-motion: reduce) {
+  .vitrine .vitrine-trait path { animation: none; stroke-dashoffset: 0; }
+  .vitrine .vitrine-lien::after { transition: none; }
+}
+.anim-off .vitrine .vitrine-trait path { animation: none; stroke-dashoffset: 0; }
+
+/* ── UNE PUBLICATION, PAS UN MODÈLE DE SITE ──────────────────────────────
+   Chaque section porte son numéro de chapitre en chiffres romains devant son
+   étiquette, comme les parties d'un livre. Les arrêts de la barre de
+   progression disent la même chose : la page se lit dans un ordre. */
+.vitrine main { counter-reset: chapitre; }
+.vitrine main [data-eyebrow] { counter-increment: chapitre; }
+.vitrine main [data-eyebrow]::before {
+  content: counter(chapitre, upper-roman) ".";
+  width: auto; height: auto; border-radius: 0; background: none;
+  font-style: normal; font-weight: 600; letter-spacing: 0.02em;
+  font-size: 0.95em; color: #c98a1e;
+  padding-right: 0.65rem; margin-right: 0.1rem;
+  border-right: 1px solid var(--cap-line-strong);
+}
+
+/* La ligne datée, les chiffres, le sommaire et les questions-réponses sont
+   des éléments de l'identité : ils vivent dans styles/capten.css, sous .cap. */
+
+/* Les trois gestes : plus de cartes arrondies, un filet en tête de chaque
+   colonne, qui passe à l'ambre quand le point du parcours l'atteint. */
+.vitrine .cap-etape {
+  background: none !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  padding-left: 0 !important;
+  border-top: 2px solid var(--cap-line-strong);
+  transition: border-color .5s ease;
+}
+.vitrine .cap-etape[data-actif="1"] { border-top-color: var(--vitrine-ambre); }
+.vitrine .cap-num-etape { box-shadow: none !important; background: none !important; width: auto !important; justify-content: flex-start !important; }

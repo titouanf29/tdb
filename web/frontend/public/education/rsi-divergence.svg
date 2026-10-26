@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 350" style="background:#0a0a0f">
+  <!-- Title -->
+  <text x="300" y="25" fill="#fff" font-size="14" text-anchor="middle" font-weight="bold">Divergence Haussiere RSI</text>
+
+  <!-- Price chart area -->
+  <rect x="50" y="40" width="230" height="130" fill="#111" rx="5"/>
+  <text x="165" y="60" fill="#888" font-size="11" text-anchor="middle">PRIX</text>
+
+  <!-- Price line going down -->
+  <path d="M70,80 L120,100 L170,130 L220,150"
+        fill="none" stroke="#ef4444" stroke-width="3"/>
+  <circle cx="120" cy="100" r="4" fill="#ef4444"/>
+  <circle cx="220" cy="150" r="4" fill="#ef4444"/>
+  <text x="120" y="92" fill="#ef4444" font-size="9" text-anchor="middle">Bas 1</text>
+  <text x="220" y="142" fill="#ef4444" font-size="9" text-anchor="middle">Bas 2 (plus bas)</text>
+
+  <!-- RSI chart area -->
+  <rect x="50" y="190" width="230" height="130" fill="#111" rx="5"/>
+  <text x="165" y="210" fill="#888" font-size="11" text-anchor="middle">RSI</text>
+
+  <!-- RSI line going UP -->
+  <path d="M70,280 L120,290 L170,260 L220,240"
+        fill="none" stroke="#8b5cf6" stroke-width="3"/>
+  <circle cx="120" cy="290" r="4" fill="#8b5cf6"/>
+  <circle cx="220" cy="240" r="4" fill="#8b5cf6"/>
+  <text x="120" y="305" fill="#8b5cf6" font-size="9" text-anchor="middle">Bas RSI 1</text>
+  <text x="220" y="255" fill="#22c55e" font-size="9" text-anchor="middle">Bas RSI 2 (plus haut!)</text>
+
+  <!-- Arrow showing divergence -->
+  <path d="M240,130 Q260,180 240,240" fill="none" stroke="#22c55e" stroke-width="2" marker-end="url(#arrowhead)"/>
+  <defs>
+    <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#22c55e"/>
+    </marker>
+  </defs>
+
+  <!-- Result area -->
+  <rect x="320" y="40" width="230" height="280" fill="#111" rx="5"/>
+  <text x="435" y="65" fill="#22c55e" font-size="12" text-anchor="middle" font-weight="bold">SIGNAL D'ACHAT</text>
+
+  <!-- Result price going up -->
+  <path d="M340,250 L380,220 L420,180 L460,130 L500,80"
+        fill="none" stroke="#22c55e" stroke-width="3"/>
+
+  <!-- Explanation -->
+  <text x="435" y="280" fill="#888" font-size="10" text-anchor="middle">Le prix fait un nouveau bas</text>
+  <text x="435" y="295" fill="#888" font-size="10" text-anchor="middle">mais le RSI fait un bas plus haut</text>
+  <text x="435" y="310" fill="#22c55e" font-size="10" text-anchor="middle">= Retournement haussier probable!</text>
+</svg>

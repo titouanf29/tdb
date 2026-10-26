@@ -1,0 +1,644 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * Fluid base font-size — scales with viewport so text is comfortable on every screen.
+ * All Tailwind rem utilities (text, spacing) scale proportionally.
+ *   < 1024px  → 16px   (mobile / tablet — unchanged)
+ *   1024–1280 → 16.5px (small laptop)
+ *   1280–1440 → 17px   (HD laptop / standard monitor)
+ *   1440–1920 → 17.5px (large monitor)
+ *   1920px+   → 18px   (2K / 4K)
+ */
+html {
+  font-size: 16px;
+}
+@media (min-width: 1024px) {
+  html { font-size: 16.5px; }
+}
+@media (min-width: 1280px) {
+  html { font-size: 17px; }
+}
+@media (min-width: 1440px) {
+  html { font-size: 17.5px; }
+}
+@media (min-width: 1920px) {
+  html { font-size: 18px; }
+}
+
+@layer base {
+  :root {
+    /*
+     * CaptenTDB — "trading terminal" theme.
+     * Near-black carbon, the logo's GOLD as the primary colour, hairline
+     * borders and square corners. No glassmorphism, no neon glow, no blue
+     * gradients: the look is a professional market terminal, not a generic
+     * SaaS dashboard.
+     */
+    --background: 240 6% 4%;      /* #0A0A0B carbon */
+    --foreground: 40 12% 92%;     /* warm off-white, never pure #fff */
+    --card: 240 5% 7%;            /* #111113 panel */
+    --card-foreground: 40 12% 92%;
+    --primary: 41 82% 52%;        /* #E8A820 — the logo arrow */
+    --primary-foreground: 240 6% 5%;
+    --secondary: 240 5% 11%;
+    --secondary-foreground: 40 12% 92%;
+    --muted: 240 5% 11%;
+    --muted-foreground: 40 6% 58%;
+    --accent: 187 62% 58%;        /* cyan, used sparingly for secondary data */
+    --accent-foreground: 240 6% 5%;
+    --border: 240 5% 15%;         /* hairline */
+    --ring: 41 82% 52%;
+    --radius: 2px;                /* square — the single biggest anti-"AI" cue */
+
+    /* Gold — the brand signature, now also the primary */
+    --gold: 41 82% 52%;
+
+    /* Data colours: terminal green / red, readable on carbon */
+    --neon-blue: 41 82% 52%;      /* legacy alias → gold */
+    --neon-cyan: 187 62% 58%;
+    --neon-purple: 41 60% 45%;    /* legacy alias → dim gold */
+    --neon-green: 152 68% 48%;
+  }
+
+  /* Light theme */
+  /* Light = "paper terminal": warm newsprint, ink text, same gold accent.
+     Deliberately NOT a blue-grey admin panel. */
+  [data-theme="light"] {
+    --background: 40 24% 96%;     /* #F7F4EE paper */
+    --foreground: 240 8% 12%;     /* ink */
+    --card: 40 30% 99%;
+    --card-foreground: 240 8% 12%;
+    --primary: 36 78% 40%;        /* darker gold so it passes contrast on paper */
+    --primary-foreground: 40 30% 99%;
+    --secondary: 40 18% 91%;
+    --secondary-foreground: 240 8% 12%;
+    --muted: 40 18% 91%;
+    --muted-foreground: 40 6% 40%;
+    --accent: 190 60% 32%;
+    --accent-foreground: 40 30% 99%;
+    --border: 40 14% 84%;
+    --ring: 36 78% 40%;
+    --gold: 36 78% 40%;
+    --neon-blue: 36 78% 40%;
+    --neon-cyan: 190 60% 32%;
+    --neon-purple: 36 60% 35%;
+    --neon-green: 152 60% 30%;
+  }
+
+  [data-theme="light"] body {
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+  }
+
+  [data-theme="light"] .glass-card {
+    background-color: hsl(var(--card)) !important;
+    background-image: none !important;
+    border: 1px solid hsl(var(--border)) !important;
+    box-shadow: none !important;
+  }
+
+  [data-theme="light"] .skeleton {
+    background: rgba(0, 0, 0, 0.05) !important;
+  }
+
+  [data-theme="light"] .skeleton::after {
+    background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.5) 50%, transparent 100%) !important;
+  }
+
+  [data-theme="light"] .btn-secondary {
+    background: transparent !important;
+    border-color: hsl(var(--border)) !important;
+    color: hsl(var(--foreground)) !important;
+  }
+
+  [data-theme="light"] .input {
+    background: hsl(var(--card)) !important;
+    border-color: hsl(var(--border)) !important;
+    color: hsl(var(--foreground)) !important;
+  }
+
+  /* The app is built dark-first: bare white-alpha utilities are invisible on a
+     light background. These four rules make every surface built from them
+     (settings rows, option cards, modals) legible in light mode. */
+  [data-theme="light"] .bg-white\/5 { background-color: rgba(15, 23, 42, 0.04) !important; }
+  [data-theme="light"] .bg-white\/10 { background-color: rgba(15, 23, 42, 0.07) !important; }
+  [data-theme="light"] .border-white\/10 { border-color: rgba(15, 23, 42, 0.10) !important; }
+  [data-theme="light"] .text-white { color: hsl(var(--foreground)) !important; }
+  /* Hover variants are a DIFFERENT selector (.hover\:bg-white\/10:hover) and are
+     not matched by the rules above — without these, hovering paints white on
+     white and the resting/hover states become indistinguishable. */
+  [data-theme="light"] .hover\:bg-white\/5:hover { background-color: rgba(15, 23, 42, 0.07) !important; }
+  [data-theme="light"] .hover\:bg-white\/10:hover { background-color: rgba(15, 23, 42, 0.10) !important; }
+  [data-theme="light"] .hover\:bg-white\/8:hover { background-color: rgba(15, 23, 42, 0.09) !important; }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family: var(--font-schibsted), system-ui, -apple-system, sans-serif;
+    font-feature-settings: "rlig" 1, "calt" 1, "ss01" 1;
+    /* Tabular figures everywhere — prices and P&L columns stay aligned */
+    font-variant-numeric: tabular-nums lining-nums;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* Display face for headings — the CaptenTDB typographic signature */
+  h1, h2, h3 {
+    font-family: var(--font-schibsted), system-ui, sans-serif;
+    letter-spacing: -0.015em;
+  }
+
+  /* Terminal signature: every number, price, symbol and metric renders in the
+     monospace face so columns line up like a real market screen. */
+  .font-mono, code, kbd, samp, pre {
+    font-family: var(--font-mono), ui-monospace, "SF Mono", Menlo, monospace;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Section labels — the small uppercase headers of a terminal */
+  .terminal-label {
+    font-family: var(--font-mono), ui-monospace, monospace;
+    font-size: 0.6875rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: hsl(var(--muted-foreground));
+  }
+
+  /* Brand-tinted text selection */
+  ::selection {
+    background: hsl(var(--primary) / 0.30);
+    color: hsl(var(--foreground));
+  }
+
+  /* Visible focus for keyboard navigation only */
+  :focus-visible {
+    outline: 1px solid hsl(var(--primary));
+    outline-offset: 2px;
+    border-radius: 0;
+  }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: hsl(var(--background));
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: hsl(var(--border));
+    border-radius: 0;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--primary) / 0.55);
+  }
+}
+
+@layer components {
+  /*
+   * Terminal panel (kept under the historical .glass-card name so every
+   * existing page inherits the new look): flat carbon surface, hairline
+   * border, square corners. No blur, no inner highlight, no lift.
+   */
+  .glass-card {
+    border-radius: var(--radius);
+    background-color: hsl(var(--card));
+    border: 1px solid hsl(var(--border));
+    box-shadow: none;
+  }
+
+  .glass-card-hover {
+    @apply glass-card transition-colors duration-150;
+    position: relative;
+  }
+
+  /* Hover = the border lights up gold. No sweep, no translate, no glow. */
+  .glass-card-hover:hover {
+    border-color: hsl(var(--primary) / 0.55);
+    background-color: hsl(var(--secondary));
+  }
+
+  /* Legacy hook — glow is gone in the terminal theme, kept as a no-op so
+     existing markup does not break. */
+  .glow {
+    @apply relative;
+  }
+
+  /* Terminal theme: flat gold, no gradient. */
+  .gradient-text {
+    color: hsl(var(--primary));
+  }
+
+  /* Gold gradient text — brand signature, reserved for hero & premium moments */
+  .gradient-text-gold {
+    color: hsl(var(--primary));
+  }
+
+  /* Trading colors */
+  .profit { @apply text-profit; }
+  .loss   { @apply text-loss; }
+
+  /* Shimmer effect */
+  .shimmer {
+    @apply animate-shimmer bg-gradient-to-r from-transparent via-white/10 to-transparent bg-[length:200%_100%];
+  }
+
+  /* Price change animations */
+  .price-up   { animation: priceUp 0.7s ease-out; }
+  .price-down { animation: priceDown 0.7s ease-out; }
+
+  @keyframes priceUp {
+    0%  {
+      color: #10b981;
+      text-shadow: 0 0 10px rgba(16, 185, 129, 0.7);
+      transform: scale(1.06);
+    }
+    60% { color: #10b981; }
+    100% {
+      text-shadow: none;
+      transform: scale(1);
+    }
+  }
+
+  @keyframes priceDown {
+    0%  {
+      color: #ef4444;
+      text-shadow: 0 0 10px rgba(239, 68, 68, 0.7);
+      transform: scale(1.06);
+    }
+    60% { color: #ef4444; }
+    100% {
+      text-shadow: none;
+      transform: scale(1);
+    }
+  }
+
+  /* New item highlight pulse (e.g. recently added favorite) */
+  .highlight-new {
+    animation: highlightNew 2s ease-out forwards;
+  }
+
+  @keyframes highlightNew {
+    0%   { background-color: rgba(16, 185, 129, 0.18); }
+    60%  { background-color: rgba(16, 185, 129, 0.08); }
+    100% { background-color: transparent; }
+  }
+
+  /* Neon border — subtle gradient glow outline */
+  .neon-border {
+    @apply relative;
+  }
+
+  .neon-border::before {
+    content: "";
+    @apply absolute rounded-xl -z-10;
+    inset: -1px;
+    background: hsl(var(--primary) / 0.45);
+    filter: none;
+  }
+
+  @keyframes neonGlow {
+    0%,100% { background-position: 0% 50%;   opacity: 0.6; }
+    50%     { background-position: 100% 50%; opacity: 1; }
+  }
+
+  /* Neon accent line (horizontal separator) */
+  .neon-line {
+    height: 1px;
+    background: linear-gradient(90deg,
+      transparent,
+      hsl(var(--neon-blue) / 0.5) 30%,
+      hsl(var(--neon-cyan) / 0.6) 50%,
+      hsl(var(--neon-blue) / 0.5) 70%,
+      transparent
+    );
+    animation: neonLinePulse 3s ease-in-out infinite;
+  }
+
+  @keyframes neonLinePulse {
+    0%, 100% { opacity: 0.6; }
+    50%      { opacity: 1; }
+  }
+
+  /* Score badge styles */
+  .score-badge  { @apply px-3 py-1 rounded-full text-sm font-bold; }
+  .score-high   { @apply bg-profit/20 text-profit border border-profit/30; }
+  .score-medium { @apply bg-warning/20 text-warning border border-warning/30; }
+  .score-low    { @apply bg-loss/20 text-loss border border-loss/30; }
+
+  /* Button styles */
+  .btn-primary {
+    @apply relative overflow-hidden font-semibold px-6 py-2 transition-colors duration-150 active:translate-y-px;
+    border-radius: var(--radius);
+    background: hsl(var(--primary));
+    color: hsl(var(--primary-foreground));
+    box-shadow: none;
+    letter-spacing: 0.01em;
+  }
+
+  .btn-primary:hover {
+    background: hsl(var(--primary) / 0.86);
+  }
+
+  /* Ripple on click */
+  .btn-primary::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: radial-gradient(circle, rgba(255,255,255,0.35) 0%, transparent 65%);
+    transform: scale(0);
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .btn-primary:active::after {
+    animation: btnRipple 0.45s ease-out forwards;
+  }
+
+  @keyframes btnRipple {
+    0%   { transform: scale(0);   opacity: 0.9; }
+    100% { transform: scale(2.8); opacity: 0; }
+  }
+
+  .btn-secondary {
+    @apply relative overflow-hidden text-foreground font-medium px-6 py-2 transition-colors duration-150;
+    border-radius: var(--radius);
+    background: transparent;
+    border: 1px solid hsl(var(--border));
+  }
+
+  .btn-secondary:hover {
+    background: hsl(var(--secondary));
+    border-color: hsl(var(--primary) / 0.55);
+  }
+
+  .btn-secondary::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: radial-gradient(circle, rgba(255,255,255,0.2) 0%, transparent 65%);
+    transform: scale(0);
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .btn-secondary:active::after {
+    animation: btnRipple 0.45s ease-out forwards;
+  }
+
+  /* Hover lift — subtle card elevation on hover */
+  .hover-lift {
+    transition: transform 0.22s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.22s ease;
+  }
+
+  .hover-lift:hover {
+    border-color: hsl(var(--primary) / 0.45);
+  }
+
+  .btn-ghost {
+    @apply hover:bg-white/10 text-muted-foreground hover:text-foreground px-4 py-2 rounded-lg transition-all duration-200;
+  }
+
+  /* Input styles */
+  .input {
+    @apply px-4 py-2 text-foreground placeholder:text-muted-foreground focus:outline-none transition-colors duration-150;
+    border-radius: var(--radius);
+    background: hsl(var(--background));
+    border: 1px solid hsl(var(--border));
+  }
+
+  .input:focus {
+    border-color: hsl(var(--primary));
+    box-shadow: none;
+  }
+
+  /* Chart container */
+  .chart-container {
+    @apply glass-card p-4 rounded-xl;
+  }
+
+  /* Skeleton shimmer for loading states */
+  .skeleton {
+    @apply relative overflow-hidden rounded-lg;
+    background: rgba(255, 255, 255, 0.05);
+  }
+
+  .skeleton::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.07) 50%, transparent 100%);
+    background-size: 200% 100%;
+    animation: skeletonShimmer 1.6s ease-in-out infinite;
+  }
+
+  @keyframes skeletonShimmer {
+    0%   { background-position: -200% 0; }
+    100% { background-position:  200% 0; }
+  }
+
+  /* Divider with center label */
+  .divider-label {
+    @apply relative flex items-center gap-3 text-xs text-muted-foreground;
+  }
+  .divider-label::before,
+  .divider-label::after {
+    content: "";
+    @apply flex-1 h-px;
+    background: rgba(255,255,255,0.08);
+  }
+}
+
+@layer utilities {
+  /* Text sitting on a saturated / gradient background: stays white in BOTH
+     themes (the light-theme `.text-white` override must not reach it). */
+  .text-on-color { color: #ffffff !important; }
+
+  /* Hide scrollbar but keep functionality */
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  /* Aspect ratios */
+  .aspect-trading-chart { aspect-ratio: 16/9; }
+
+  /* Fade in animation */
+  .animate-fade-in {
+    animation: fadeIn 0.3s ease-out;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes ticker {
+    from { transform: translateX(0); }
+    to   { transform: translateX(-50%); }
+  }
+
+  /* Neon text glow */
+  .text-neon { color: hsl(var(--accent)); }
+  .text-neon-blue { color: hsl(var(--primary)); }
+
+  /* Page enter animation for main content */
+  .page-enter {
+    animation: pageEnter 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  @keyframes pageEnter {
+    from {
+      opacity: 0;
+      transform: translateY(16px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  /* Staggered children entrance */
+  .stagger-enter > * {
+    animation: staggerItem 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  .stagger-enter > *:nth-child(1) { animation-delay: 0ms; }
+  .stagger-enter > *:nth-child(2) { animation-delay: 60ms; }
+  .stagger-enter > *:nth-child(3) { animation-delay: 120ms; }
+  .stagger-enter > *:nth-child(4) { animation-delay: 180ms; }
+  .stagger-enter > *:nth-child(5) { animation-delay: 240ms; }
+  .stagger-enter > *:nth-child(6) { animation-delay: 300ms; }
+  .stagger-enter > *:nth-child(7) { animation-delay: 360ms; }
+  .stagger-enter > *:nth-child(8) { animation-delay: 420ms; }
+
+  @keyframes staggerItem {
+    from {
+      opacity: 0;
+      transform: translateY(12px) scale(0.98);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+
+  /* Animated gradient border (for premium/special cards) */
+  .gradient-border {
+    position: relative;
+    border-radius: var(--radius);
+  }
+
+  .gradient-border::before {
+    content: "";
+    position: absolute;
+    inset: -1px;
+    border-radius: calc(var(--radius) + 1px);
+    background: linear-gradient(135deg,
+      hsl(var(--neon-cyan) / 0.7),
+      hsl(var(--neon-blue) / 0.8),
+      hsl(var(--gold) / 0.6)
+    );
+    -webkit-mask:
+      linear-gradient(#fff 0 0) content-box,
+      linear-gradient(#fff 0 0);
+    mask:
+      linear-gradient(#fff 0 0) content-box,
+      linear-gradient(#fff 0 0);
+    -webkit-mask-composite: destination-out;
+    mask-composite: exclude;
+    padding: 1px;
+    z-index: 0;
+  }
+
+  @property --angle {
+    syntax: "<angle>";
+    initial-value: 0deg;
+    inherits: false;
+  }
+
+  @keyframes spinBorder {
+    from { --angle: 0deg; }
+    to   { --angle: 360deg; }
+  }
+
+  /* Pulsing glow dot (for live indicators) */
+  .pulse-glow {
+    position: relative;
+  }
+
+  .pulse-glow::before {
+    content: "";
+    position: absolute;
+    inset: -4px;
+    border-radius: 50%;
+    background: currentColor;
+    opacity: 0.3;
+    animation: pulseRing 2s ease-out infinite;
+  }
+
+  @keyframes pulseRing {
+    0%   { transform: scale(1);   opacity: 0.3; }
+    70%  { transform: scale(1.8); opacity: 0; }
+    100% { transform: scale(1);   opacity: 0; }
+  }
+
+  /* Floating badge animation */
+  .badge-float {
+    animation: badgeFloat 3s ease-in-out infinite;
+  }
+
+  @keyframes badgeFloat {
+    0%, 100% { transform: translateY(0) rotate(-1deg); }
+    50%      { transform: translateY(-4px) rotate(1deg); }
+  }
+
+  /* Typing cursor effect */
+  .typing-cursor::after {
+    content: "|";
+    animation: typingCursor 1s step-end infinite;
+    margin-left: 1px;
+    color: hsl(var(--neon-cyan));
+  }
+
+  @keyframes typingCursor {
+    0%, 100% { opacity: 1; }
+    50%      { opacity: 0; }
+  }
+
+  /* Counter number animation */
+  .count-up {
+    animation: countUp 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  @keyframes countUp {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* Backdrop glow for modal/overlay elements */
+  .backdrop-glow {
+    box-shadow: 0 24px 64px rgba(0, 0, 0, 0.75);
+  }
+}
+
+/* ── Alex Hover Mode ──────────────────────────────────────────────────────── */
+.alex-hover-active [data-module-id]:hover {
+  outline: 2px solid rgba(0, 212, 170, 0.5);
+  outline-offset: 4px;
+  border-radius: 8px;
+  cursor: help;
+  transition: outline 0.2s;
+}

@@ -1,0 +1,116 @@
+{
+ "actifs": 31,
+ "bougies": 80326,
+ "figures": 1527,
+ "base_hausse_20": 58.8,
+ "tableau": {
+  "double_sommet": {
+   "n": 362,
+   "sens_20": 40.9,
+   "ecart": -0.3,
+   "erreur_type": 2.6,
+   "ecart_A": -1.2,
+   "ecart_B": 0.7,
+   "moy_20": -0.28,
+   "objectif": 39.8,
+   "invalide": 29.6,
+   "verdict": "neutre"
+  },
+  "double_creux": {
+   "n": 398,
+   "sens_20": 54.8,
+   "ecart": -4.0,
+   "erreur_type": 2.5,
+   "ecart_A": -1.0,
+   "ecart_B": -7.3,
+   "moy_20": 0.55,
+   "objectif": 40.7,
+   "invalide": 22.6,
+   "verdict": "neutre"
+  },
+  "ete": {
+   "n": 91,
+   "sens_20": 44.0,
+   "ecart": 2.8,
+   "erreur_type": 5.2,
+   "ecart_A": 7.1,
+   "ecart_B": -1.4,
+   "moy_20": -0.92,
+   "objectif": 25.3,
+   "invalide": 28.6,
+   "verdict": "trop_peu"
+  },
+  "ete_inversee": {
+   "n": 131,
+   "sens_20": 58.0,
+   "ecart": -0.8,
+   "erreur_type": 4.3,
+   "ecart_A": 1.8,
+   "ecart_B": -1.8,
+   "moy_20": 1.09,
+   "objectif": 26.0,
+   "invalide": 19.1,
+   "verdict": "neutre"
+  },
+  "triangle_ascendant": {
+   "n": 143,
+   "sens_20": 63.6,
+   "ecart": 4.8,
+   "erreur_type": 4.1,
+   "ecart_A": -2.9,
+   "ecart_B": 12.8,
+   "moy_20": 1.9,
+   "objectif": 14.7,
+   "invalide": 21.7,
+   "verdict": "neutre"
+  },
+  "triangle_descendant": {
+   "n": 117,
+   "sens_20": 47.9,
+   "ecart": 6.7,
+   "erreur_type": 4.6,
+   "ecart_A": 13.0,
+   "ecart_B": 1.7,
+   "moy_20": -1.68,
+   "objectif": 7.7,
+   "invalide": 45.3,
+   "verdict": "neutre"
+  },
+  "triangle_symetrique": {
+   "n": 42,
+   "sens_20": 52.4,
+   "ecart": -6.4,
+   "erreur_type": 7.6,
+   "ecart_A": -16.8,
+   "ecart_B": 3.4,
+   "moy_20": 1.89,
+   "objectif": 14.3,
+   "invalide": 2.4,
+   "verdict": "trop_peu"
+  },
+  "drapeau_haussier": {
+   "n": 175,
+   "sens_20": 62.3,
+   "ecart": 3.5,
+   "erreur_type": 3.7,
+   "ecart_A": 1.1,
+   "ecart_B": 5.9,
+   "moy_20": 2.25,
+   "objectif": 26.3,
+   "invalide": 54.3,
+   "verdict": "neutre"
+  },
+  "drapeau_baissier": {
+   "n": 68,
+   "sens_20": 42.6,
+   "ecart": 1.5,
+   "erreur_type": 6.0,
+   "ecart_A": -9.6,
+   "ecart_B": 8.2,
+   "moy_20": 0.02,
+   "objectif": 16.2,
+   "invalide": 73.5,
+   "verdict": "trop_peu"
+  }
+ }
+}

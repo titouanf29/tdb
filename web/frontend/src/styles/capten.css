@@ -1,0 +1,1006 @@
+/*
+ * CaptenTDB — design tokens.
+ *
+ * A deliberately separate namespace (--cap-*) from the legacy terminal theme.
+ * The two coexist while screens migrate one at a time: nothing here can reach
+ * a page that has not opted in, so the site is never half-broken mid-rebuild.
+ *
+ * Light is the primary mode. The public site starts on ivory, not on black.
+ */
+
+:root {
+  /* ── Palette ───────────────────────────────────────────────────────────
+     Six colours carry the identity. Green and red are reserved for market
+     direction and appear nowhere else — that is what keeps them readable. */
+  --cap-ivory:  #F7F6F2;
+  --cap-white:  #FFFFFF;
+  --cap-navy:   #0B1726;
+  --cap-ocean:  #155E75;
+  --cap-cyan:   #29A9C7;
+  --cap-amber:  #E5A83A;
+  /* L'ambre, mais lisible. #E5A83A mesure 1,60:1 sur un panneau clair : très
+     bien pour un aplat ou un filet, hors-jeu pour un pictogramme ou un mot.
+     Assombri jusqu'à 4,08:1, il passe le seuil des éléments non textuels
+     (3:1) en restant de la même famille de couleur. */
+  --cap-amber-ink: #8A6414;
+  /* Vert et rouge, en deux intensités — et c'est la distinction qui compte.
+
+     Mesuré sur l'écran Marchés : 0,74 % des pixels étaient très saturés,
+     contre 0,16 % sur le Portefeuille, un écran de la même famille qui ne
+     fatigue personne. Le Portefeuille affiche pourtant PLUS de pixels
+     colorés au total. Toute la différence tient à la surface : une barre
+     pleine sur toute la largeur et un chiffre de douze pixels ne délivrent
+     pas la même quantité de lumière colorée, même teinte exacte. Une
+     couleur de texte utilisée comme aplat, c'est cela qui « pète aux yeux ».
+
+     D'où deux tons par sens. Le premier pour les chiffres et les traits
+     fins, le second — une teinte du premier fondue dans la surface — pour
+     tout ce qui remplit.
+
+     La saturation du ton fort est d'abord descendue de 71 % à 42 %, en même
+     temps que les aplats passaient en teinte douce. C'était une correction de
+     trop : la mesure montrait que l'éblouissement venait presque entièrement
+     des aplats — 0,74 % de pixels très saturés avant, 0,08 % après, alors que
+     les chiffres ne représentent qu'une poignée de pixels. Baisser AUSSI la
+     saturation du texte n'a donc rien calmé qui ne l'était déjà, et a rendu
+     les variations fades.
+
+     Elle est finalement poussée à 85 % en mode clair — pratiquement le
+     plafond que le contraste autorise — parce que c'est ce qui a été
+     demandé deux fois et que la mesure montre que ça ne coûte rien : la
+     couleur franche n'occupe que les chiffres et les traits fins, les aplats
+     restent en teinte douce. C'est la distinction utile, et elle ne se lit
+     pas sur un nuancier — elle se mesure en pixels.
+
+     Le vert de NUIT est la seule valeur retenue en dessous du plafond, à
+     66 %. À 86 % il donne un menthe fluorescent qui brille sur un ciel
+     d'orage : le néon que la direction artistique proscrit, et qui n'a pas
+     le même effet sur fond sombre que sur fond clair.
+
+     Les quatre valeurs tiennent 4,6:1 sur les trois fonds où du texte coloré
+     apparaît — panneau, page et tuile sélectionnée. Les toutes premières
+     valeurs du projet, elles, plafonnaient à 4,13:1, sous le seuil AA. */
+  --cap-up:        #097241;
+  --cap-down:      #C51B0F;
+  --cap-up-soft:   #A6CBBC;
+  --cap-down-soft: #E6AEAB;
+
+  /* ── Aplats qui SONT la donnée ────────────────────────────────────────
+     Les teintes douces ci-dessus sont faites pour passer sous du texte :
+     l'encre y tient 13:1, elles ne brillent pas, elles font leur travail.
+     On les a aussi employées là où l'aplat ne porte pas de texte mais porte
+     l'information — la barre de respiration du marché, les jauges, les
+     bougies des schémas. Et là, la mesure est sans appel :
+
+       #A6CBBC sur un panneau .......... 1,67:1
+       #E6AEAB sur un panneau .......... 1,81:1
+       les deux l'une contre l'autre ... 1,08:1
+
+     1,08:1 entre les deux moitiés d'une même barre, c'est la même couleur.
+     « Le rouge et le vert sont trop pâles, on a du mal à distinguer » n'était
+     pas une impression : la barre ne montrait rien. Le minimum exigé d'un
+     élément non textuel est 3:1.
+
+     Un seul jeton ne peut pas faire les deux métiers, puisqu'ils demandent
+     l'inverse l'un de l'autre : un fond de badge doit s'effacer derrière son
+     texte, un aplat de donnée doit se voir seul. D'où cette seconde paire,
+     franche, réservée aux aplats qui parlent d'eux-mêmes — 4,17:1 et 4,40:1
+     sur un panneau, 3,47:1 et 3,66:1 sur le fond de page.
+
+     Leur contraste MUTUEL reste faible, et aucun choix de teinte ne le
+     réglera : deux couleurs qui se détachent toutes deux d'un fond clair ont
+     forcément une luminance voisine. C'est pourquoi la barre porte aussi un
+     séparateur et une légende chiffrée — la couleur n'est jamais le seul
+     canal. */
+  --cap-up-fill:   #0E8A50;
+  --cap-down-fill: #D8382A;
+
+  /* ── Surfaces ─────────────────────────────────────────────────────────
+     Layered off-whites, not one flat fill. The panel sits about 2% of
+     luminance above the ground, which is enough to separate them without a
+     border. This is where the "cloudy" quality comes from — overlapping pale
+     layers and very wide, very faint washes. Deliberately NOT glassmorphism:
+     no blur, nothing transparent, so text stays on an opaque surface and
+     nothing shimmers.
+
+     Cool, not warm, and no pure white anywhere. Two reasons:
+
+     1. Glare comes from the panels, not the page. #FFFFFF next to a near-white
+        ground is the brightest thing on screen and the eye keeps resetting to
+        it. Dropping the surface to #F7F9FB and the ground to #EDF0F4 keeps the
+        same separation with far less light.
+     2. A warm ivory ground with an amber accent is the cream-and-orange
+        palette every current AI product ships. Cool greys read as mist and as
+        a marine chart, which is what this product is about, and they are
+        nobody else's signature. */
+  /* Le fond a été mesuré à 84,4 de luminance pour un écart-type de 1,6 : très
+     lumineux et quasiment uniforme. C'est cette combinaison qui fatigue — un
+     aplat pâle sans modulation devient la source de lumière de l'écran, et
+     l'œil n'a nulle part où se reposer. Descendre à 77,8 retire de l'éclat,
+     et fait remonter la séparation avec les panneaux de 1,11:1 à 1,20:1 : ils
+     se détachent mieux sur un ciel moins blanc. Les nuages font le reste, en
+     donnant au fond le relief qui lui manquait. */
+  --cap-bg:        #DEE5EF;
+  /* Le même fond, mais porté par la racine : il sert au canevas du document,
+     hors de la coque (voir `body:has(.cap)`). */
+  --cap-canvas:    #DEE5EF;
+  --cap-surface:   #F7F9FB;
+  --cap-surface-2: #E0E6EE;
+  --cap-surface-3: #D4DCE6;
+  --cap-inverse:   var(--cap-navy);
+
+  /* Atmosphere: three washes, each far wider than the viewport so they read
+     as weather rather than as shapes. Above 6% they become blobs. */
+  --cap-mist-warm: rgba(229, 168, 58, 0.025);
+  --cap-mist-cool: rgba(21, 94, 117, 0.07);
+  --cap-mist-deep: rgba(11, 23, 38, 0.045);
+
+  /* The cloud at the top of the page. Two tones, not one: a crown lighter
+     than the ground and an underside cooler than it. A single flat colour
+     reads as a stain — the offset between the two is what makes a mass look
+     like it has a top and a bottom.
+
+     The crown is off-white, not #FFFFFF. Pure white is banned from every
+     other surface here precisely because it is what glares, and a cloud that
+     covers half the opening screen is the last place to make an exception.
+
+     So presence comes from the gap between crown and underside, never from
+     raising the crown: pushing the top toward white reads as brighter, not as
+     more solid. The crown barely moves and the shade drops a long way —
+     which is also how a real cloud stays legible on an overcast day. */
+  --cap-cloud-light: #FDFDFE;
+  --cap-cloud-mid:   #E2E9F1;
+  --cap-cloud-shade: #BCC9DA;
+
+  /* Les nuages qui traversent l'app, en quatre arrêts. Plus contrastés que
+     ceux de l'accueil : mesurés sur le fond de travail, les tons marketing
+     ne déplaçaient la luminance que de un à quatre points sur 255 — le ciel
+     était techniquement dessiné et visuellement absent. */
+  --cap-sky-1: #FCFDFE;
+  --cap-sky-2: #DDE5EE;
+  --cap-sky-3: #C2D0E0;
+  --cap-sky-4: #AABDD3;
+  /* La lumière qui tombe du haut à droite. Jamais un disque dessiné : un
+     lavis se lit comme du soleil sans transformer la page en application
+     météo. */
+  --cap-sun-core: 229, 168, 58;
+  --cap-sun-halo: 255, 236, 196;
+  /* Le voile des mauvais jours : ce qui écrase la lumière quand le ciel
+     descend. */
+  --cap-veil-rgb:  11, 23, 38;
+  --cap-veil-tint: 21, 94, 117;
+
+  /* ── Ink ───────────────────────────────────────────────────────────────
+     One hue at four weights rather than four greys: the page reads as a
+     single material instead of a stack of unrelated layers. */
+  --cap-ink:        #0B1726;
+  /* La gamme d'encre, recalibrée sur le contraste mesuré.
+
+     Les valeurs précédentes (0,66 / 0,46 / 0,30) donnaient 5,70:1, 3,02:1 et
+     1,96:1 sur la surface des panneaux. Le seuil WCAG AA du texte normal est
+     4,5:1 : ink-3 et ink-4 étaient donc sous la barre, et ce sont eux qui
+     portent TOUTES les légendes, les sous-titres de panneaux et les lignes
+     secondaires des listes. La moitié du texte du site était trop pâle pour
+     être lue confortablement.
+
+     Monter ink-3 seul ne suffisait pas : à l'alpha requis (0,61) il rejoignait
+     ink-2 à 0,66 et la hiérarchie s'effondrait. Toute la gamme est donc
+     redescendue d'un cran, ce qui rouvre l'écart entre les niveaux tout en
+     passant le seuil :
+
+       ink-2  0,80  ->  9,36:1   texte courant
+       ink-3  0,62  ->  4,97:1   légendes — désormais au-dessus de 4,5:1
+       ink-4  0,47  ->  3,10:1   icônes et traits seulement, jamais du texte
+
+     ink-4 reste sous le seuil du texte, volontairement : il atteint les 3:1
+     exigés des éléments non textuels, et c'est son seul emploi.
+
+     À ne pas confondre avec le calme demandé sur les couleurs : là il
+     s'agissait de saturation sur de grands aplats, ici de luminance sur du
+     texte. Du gris plus foncé est à la fois plus lisible et plus reposant. */
+  --cap-ink-2:      rgba(11, 23, 38, 0.80);
+  --cap-ink-3:      rgba(11, 23, 38, 0.62);
+  --cap-ink-4:      rgba(11, 23, 38, 0.47);
+  --cap-on-inverse: #F2F5F7;
+
+  /* ── Lines ─────────────────────────────────────────────────────────────
+     Hairlines only. A border that announces itself is a border doing the job
+     that spacing should be doing. */
+  --cap-line:        rgba(11, 23, 38, 0.075);
+  --cap-line-strong: rgba(11, 23, 38, 0.15);
+  --cap-line-chart:  rgba(11, 23, 38, 0.06);
+
+  /* ── Radii — 8 / 12 / 16, 20 for large blocks. Never a capsule. ───────── */
+  --cap-r-sm: 8px;
+  --cap-r-md: 12px;
+  --cap-r-lg: 16px;
+  --cap-r-xl: 20px;
+
+  /* ── Elevation ─────────────────────────────────────────────────────────
+     Wide and extremely faint: a panel should look like it is resting in
+     diffuse light, not lifted on a drop shadow. Three stops rather than one,
+     because a single blur at this opacity has a visible edge. */
+  --cap-shadow:
+    0 1px 1px rgba(11, 23, 38, 0.03),
+    0 6px 16px rgba(11, 23, 38, 0.035),
+    0 24px 56px rgba(11, 23, 38, 0.045);
+  --cap-shadow-lg:
+    0 2px 4px rgba(11, 23, 38, 0.03),
+    0 14px 36px rgba(11, 23, 38, 0.05),
+    0 48px 96px rgba(11, 23, 38, 0.06);
+
+  /* ── Motion ───────────────────────────────────────────────────────────
+     Slow and decelerating. Every duration here is long enough to be read as
+     a movement rather than a flicker. */
+  --cap-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --cap-dur-1: 240ms;
+  --cap-dur-2: 520ms;
+  --cap-dur-3: 900ms;
+
+  /* ── Type ─────────────────────────────────────────────────────────────── */
+  /* La voix du site, celle de la presse financière : une Didone pour les
+     titres (IBM Plex Serif), une grotesque de presse pour le texte (Schibsted
+     Grotesk). Voir app/layout.tsx. Les chiffres ne
+     sont plus en police de terminal : « 10 000,00 € » tapé à la machine
+     faisait de chaque écran une console. Ils prennent la sans-serif du texte
+     en chiffres tabulaires, qui s'alignent en colonne tout autant, et la
+     serif quand ils sont grands. */
+  --cap-font-display: var(--font-plex-serif), Georgia, "Times New Roman", serif;
+  --cap-font-text: var(--font-schibsted), system-ui, sans-serif;
+  --cap-ambre: #e5a83a;
+  --cap-font-num: var(--font-schibsted), system-ui, sans-serif;
+  --cap-font-code: var(--font-mono), ui-monospace, "SF Mono", Menlo, monospace;
+}
+
+/* Dark surface for the inverted sections. Scoped, not global: the page owns
+   its own mode rather than inheriting a site-wide theme flag. */
+.cap-dark {
+  --cap-bg:        var(--cap-navy);
+  --cap-surface:   #0F1E31;
+  --cap-surface-2: #14263B;
+  --cap-surface-3: #1A2F47;
+  --cap-inverse:   var(--cap-ivory);
+
+  /* The same weather, seen at night. */
+  --cap-mist-warm: rgba(229, 168, 58, 0.05);
+  --cap-mist-cool: rgba(41, 169, 199, 0.07);
+  --cap-mist-deep: rgba(255, 255, 255, 0.03);
+
+  --cap-ink:        #EEF2F5;
+  /* Même recalibrage de nuit : 0,30 donnait 2,52:1, sous le seuil des
+     éléments non textuels lui-même. */
+  --cap-ink-2:      rgba(238, 242, 245, 0.80);
+  --cap-ink-3:      rgba(238, 242, 245, 0.64);
+  --cap-ink-4:      rgba(238, 242, 245, 0.47);
+  --cap-on-inverse: #0B1726;
+
+  --cap-line:        rgba(238, 242, 245, 0.12);
+  --cap-line-strong: rgba(238, 242, 245, 0.22);
+  --cap-line-chart:  rgba(238, 242, 245, 0.09);
+
+  /* Le même couple, remonté en clarté : un vert à 31 % de clarté est illisible
+     sur un fond sombre. Mêmes teintes, même saturation contenue. */
+  --cap-up:        #56B391;
+  --cap-down:      #C77E75;
+  --cap-up-soft:   #275152;
+  --cap-down-soft: #4E3F48;
+  /* Mêmes rôles qu'en clair : les douces passent sous du texte (1,91 et 1,70
+     sur le panneau, donc invisibles seules), les franches portent la donnée —
+     5,68 et 4,87. Un cran sous les couleurs de texte, pour qu'un aplat ne
+     brille pas plus fort que le chiffre qu'il accompagne. */
+  --cap-up-fill:   #3FA87C;
+  --cap-down-fill: #D8695C;
+
+  --cap-shadow: none;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   LE MODE SOMBRE — un ciel d'avant-orage, pas une inversion.
+
+   Inverser une interface claire donne du gris sur du noir : techniquement
+   sombre, et sans caractère. Celui-ci a un sujet, et c'est le même que le
+   reste du produit — le ciel. Avant l'orage la lumière ne disparaît pas,
+   elle s'écrase : le plafond descend, l'air devient dense, et ce qui reste
+   de clarté se concentre sur un bord. D'où trois règles.
+
+   1. Jamais de noir. Le fond est un navy poussé vers l'ardoise (#0F1823).
+      Le noir pur creuse un trou dans l'écran et fait vibrer le texte clair
+      posé dessus ; un bleu profond garde de la matière.
+   2. Les panneaux sont PLUS CLAIRS que le ciel, pas plus sombres. C'est
+      l'inverse du mode clair, et c'est ainsi que fonctionne la lumière :
+      dans le noir, ce qui est proche est ce qui reçoit encore un peu de
+      jour. La séparation mesure 1,21:1 — assez pour détacher un panneau
+      sans dessiner une boîte.
+   3. La structure ne bouge pas. Mêmes rayons, mêmes espacements, mêmes
+      composants : seuls les jetons changent. C'est le même site, à une
+      autre heure.
+
+   Tous les niveaux d'encre repassent les seuils : 13,2:1, 8,9:1, 6,2:1 sur
+   un panneau, et ink-4 à 4,0:1 alors qu'il ne sert qu'aux traits.
+   ═══════════════════════════════════════════════════════════════════════ */
+/* Le canevas suit le thème, et il est déclaré sur la racine parce que `body`
+   ne peut pas hériter d'une variable posée sur son propre descendant. */
+[data-cap-theme="dark"] {
+  --cap-canvas:    #0F1823;
+}
+/* Sur fond sombre, c'est l'ambre clair qui est lisible : la version
+   assombrie du thème clair y disparaîtrait. */
+[data-cap-theme="dark"] .cap,
+[data-cap-theme="dark"] .cap-surface {
+  --cap-amber-ink: #E5A83A;
+}
+
+[data-cap-theme="dark"] .cap,
+[data-cap-theme="dark"] .cap-surface {
+  --cap-bg:        #0F1823;
+  --cap-surface:   #1C2938;
+  --cap-surface-2: #253345;
+  --cap-surface-3: #2F3F53;
+  --cap-inverse:   #E9EFF4;
+  --cap-on-inverse:#0F1823;
+
+  --cap-ink:        #E9EFF4;
+  --cap-ink-2:      rgba(233, 239, 244, 0.80);
+  --cap-ink-3:      rgba(233, 239, 244, 0.64);
+  --cap-ink-4:      rgba(233, 239, 244, 0.47);
+
+  --cap-line:        rgba(233, 239, 244, 0.10);
+  --cap-line-strong: rgba(233, 239, 244, 0.20);
+  --cap-line-chart:  rgba(233, 239, 244, 0.08);
+
+  /* L'océan de jour est trop foncé pour se lire sur un ciel de nuit : il
+     remonte en clarté sans changer de teinte. 6,3:1 sur un panneau. */
+  --cap-ocean: #4FB3CE;
+
+  /* Mêmes teintes qu'en clair, remontées pour rester lisibles. Les tons
+     doux, eux, descendent : un aplat doit rester plus sombre que le texte
+     qui le surmonte. */
+  /* Mêmes teintes qu'en clair, remontées en clarté pour tenir sur un ciel de
+     nuit, et ravivées comme elles. Le rouge est plus clair que ce qu'on
+     poserait d'instinct : c'est la tuile sélectionnée des Marchés
+     (--cap-surface-2) qui commande, et c'est là qu'une valeur trop sombre
+     tombait à 4,07:1. Celle-ci tient 4,67:1. */
+  --cap-up:        #3ED890;
+  --cap-down:      #F08079;
+  --cap-up-soft:   #286456;
+  --cap-down-soft: #664549;
+  /* 6,34 et 4,73 sur le panneau, contre 2,14 et 1,76 pour les teintes douces
+     qui tenaient ce rôle et ne se voyaient pas. */
+  --cap-up-fill:   #35C083;
+  --cap-down-fill: #EA6A61;
+
+  /* Les nuages, vus d'en dessous. Le ventre est sombre et la couronne garde
+     la dernière lumière — c'est ce décalage, et lui seul, qui fait qu'une
+     masse ressemble à un nuage et non à une tache. */
+  --cap-cloud-light: #3B4D63;
+  --cap-cloud-mid:   #26344A;
+  --cap-cloud-shade: #16202F;
+
+  /* Le nuage d'orage : couronne éclairée, ventre presque au niveau du ciel.
+     C'est le contraire du mode clair, où la couronne est le point le plus
+     lumineux de l'écran — ici elle est la seule chose qui capte encore du
+     jour, et le bas de la masse se fond dans le fond. */
+  --cap-sky-1: #4A5E78;
+  --cap-sky-2: #32435C;
+  --cap-sky-3: #202D41;
+  --cap-sky-4: #141E2C;
+  /* Plus de soleil avant l'orage : ce qui reste est une lueur froide sur le
+     bord du ciel. */
+  --cap-sun-core: 79, 179, 206;
+  --cap-sun-halo: 140, 190, 215;
+  /* De nuit, un voile navy ne se voit pas sur un ciel navy : il faut du noir
+     pour creuser encore, et le renfort passe au cyan pour rester perceptible. */
+  --cap-veil-rgb:  0, 0, 0;
+  --cap-veil-tint: 79, 179, 206;
+
+  --cap-mist-warm: rgba(229, 168, 58, 0.035);
+  --cap-mist-cool: rgba(79, 179, 206, 0.055);
+  --cap-mist-deep: rgba(0, 0, 0, 0.22);
+
+  /* Une ombre portée est invisible sur fond sombre. L'élévation vient d'un
+     liseré de lumière sur l'arête supérieure — la façon dont un relief se
+     détache quand le jour tombe — doublé d'une ombre profonde qui creuse
+     le fond sous le panneau. */
+  --cap-shadow:
+    inset 0 1px 0 rgba(233, 239, 244, 0.045),
+    0 2px 6px rgba(0, 0, 0, 0.30),
+    0 18px 44px rgba(0, 0, 0, 0.34);
+  --cap-shadow-lg:
+    inset 0 1px 0 rgba(233, 239, 244, 0.06),
+    0 6px 18px rgba(0, 0, 0, 0.36),
+    0 38px 84px rgba(0, 0, 0, 0.44);
+}
+
+/* LE FOND DU DOCUMENT, PAS SEULEMENT CELUI DE LA COQUE.
+ *
+ * `.cap` peint son propre rectangle, qui fait exactement la largeur et la
+ * hauteur du contenu. Tout ce qui se trouve HORS de ce rectangle est peint
+ * par le canevas du navigateur, c'est-à-dire par le fond de `body` — resté
+ * #0A0A0B, la couleur de l'ancien thème sombre, parce que les écrans non
+ * migrés en ont encore besoin.
+ *
+ * Sur un ordinateur cela ne se voit jamais : rien ne dépasse. Sur un iPhone,
+ * si : les bandes de sécurité autour de l'encoche, en paysage, sont peintes
+ * avec cette couleur-là, et l'élan du défilement en découvre autant. D'où le
+ * « bandeau noir sur le côté droit ».
+ *
+ * `:has()` fait le choix au bon endroit : le fond du document suit l'écran
+ * affiché, clair tant qu'une coque `.cap` est montée, sombre partout ailleurs.
+ * La variable est déclarée sur la racine — les jetons du thème sombre, eux,
+ * sont portés par `.cap` et ne remontent donc pas jusqu'ici. */
+body:has(.cap) {
+  background-color: var(--cap-canvas);
+}
+
+/* The root of every rebuilt screen. */
+.cap {
+  background-color: var(--cap-bg);
+  color: var(--cap-ink);
+  font-family: var(--cap-font-text);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* A trace of grain over the whole page.
+   Layered pale washes band visibly on a gradient this shallow — 2% noise
+   breaks the banding, and it is what stops the surface reading as flat CSS
+   and starts it reading as paper under diffuse light.
+
+   It sits ABOVE the content rather than behind it. Behind, it would need every
+   direct child to be positioned in order to paint over them — and forcing
+   `position: relative` on all of them breaks anything meant to be `fixed`,
+   which silently unpinned the header and the course rail. At 2.5% over the
+   whole page this is the ordinary film-grain technique and is invisible on
+   text. */
+.cap::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  pointer-events: none;
+  opacity: 0.025;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+
+.cap ::selection {
+  background: rgba(21, 94, 117, 0.16);
+  color: var(--cap-ink);
+}
+
+.cap :focus-visible {
+  outline: 2px solid var(--cap-ocean);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+/* Figures line up in columns and stop jittering as they animate. */
+.cap-num {
+  font-family: var(--cap-font-num);
+  font-variant-numeric: tabular-nums lining-nums;
+  letter-spacing: -0.005em;
+}
+
+/* Le markdown de l'assistant.
+   Les valeurs sont serrées à dessein : une réponse tient dans un encart, pas
+   dans une page. Ce qui gagne de la place sans coûter en lisibilité, c'est de
+   réduire les marges verticales et la taille des titres, pas l'interligne du
+   corps de texte — c'est lui qui rend une phrase lisible. */
+.cap-md > :first-child { margin-top: 0; }
+.cap-md > :last-child  { margin-bottom: 0; }
+
+.cap-md p { margin: 0.55em 0; }
+.cap-md strong { font-weight: 600; color: var(--cap-ink); }
+.cap-md em { font-style: italic; }
+.cap-md a { color: var(--cap-ocean); text-decoration: underline; }
+
+/* Un ### dans une réponse courte est une étiquette, pas un titre de page. */
+.cap-md h1, .cap-md h2, .cap-md h3, .cap-md h4 {
+  margin: 1.1em 0 0.4em;
+  font-family: var(--cap-font-display);
+  font-size: 0.95rem;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--cap-ink);
+}
+.cap-md h1 { font-size: 1.05rem; }
+
+.cap-md ul, .cap-md ol { margin: 0.5em 0; padding-left: 1.15rem; }
+.cap-md ul { list-style: disc; }
+.cap-md ol { list-style: decimal; }
+.cap-md li { margin: 0.22em 0; }
+.cap-md li > ul, .cap-md li > ol { margin: 0.2em 0; }
+
+.cap-md code {
+  font-family: var(--cap-font-code);
+  font-size: 0.88em;
+  background-color: var(--cap-surface-2);
+  border-radius: 4px;
+  padding: 0.08em 0.32em;
+}
+.cap-md pre {
+  margin: 0.6em 0;
+  padding: 0.7em 0.85em;
+  overflow-x: auto;
+  border-radius: 8px;
+  background-color: var(--cap-surface-2);
+}
+.cap-md pre code { background: none; padding: 0; }
+
+.cap-md blockquote {
+  margin: 0.6em 0;
+  padding-left: 0.8em;
+  border-left: 2px solid var(--cap-line);
+  color: var(--cap-ink-3);
+}
+
+/* Le séparateur que le modèle sème entre ses sections : un filet, pas une
+   barre. Il en met beaucoup ; il ne doit pas hacher la lecture. */
+.cap-md hr {
+  margin: 0.9em 0;
+  border: 0;
+  border-top: 1px solid var(--cap-line);
+}
+
+/* Un tableau de niveaux se lit en colonne ou ne se lit pas. Le conteneur
+   défile plutôt que de laisser le tableau déborder du panneau. */
+.cap-md .cap-md-table { margin: 0.7em 0; overflow-x: auto; }
+.cap-md table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.86rem;
+  line-height: 1.45;
+}
+.cap-md th {
+  text-align: left;
+  font-weight: 600;
+  font-size: 0.74rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--cap-ink-3);
+  padding: 0 0.7em 0.35em 0;
+  border-bottom: 1px solid var(--cap-line);
+  white-space: nowrap;
+}
+.cap-md td {
+  padding: 0.38em 0.7em 0.38em 0;
+  border-bottom: 1px solid var(--cap-line-soft, var(--cap-line));
+  vertical-align: top;
+}
+.cap-md tr:last-child td { border-bottom: 0; }
+.cap-md th:last-child, .cap-md td:last-child { padding-right: 0; }
+
+/* Le battement d'un chiffre qui vient de changer.
+   Elle monte vite (l'œil doit l'attraper), redescend lentement (elle ne doit
+   pas devenir un clignotant).
+
+   C'est un CADRE, pas une pastille pleine, et ce n'est pas un choix
+   esthétique. Un fond teinté derrière le nombre le rend moins lisible au
+   moment précis où on veut le lire : un chiffre vert sur un fond vert doux
+   mesure 3,4:1 au pic du battement, sous le seuil AA de 4,5:1 — et le
+   résultat d'une position est justement un chiffre coloré. Baisser l'opacité
+   ne sauvait rien (4,48:1 à 0,40, où le battement ne se voit déjà plus).
+   Le cadre ne passe pas sous les glyphes : le contraste du texte reste celui
+   qu'il était, et le cadre lui-même, élément non textuel, tient 3,4 à 6,8:1
+   selon le fond, pour un seuil de 3:1. */
+.cap-tick {
+  position: absolute;
+  inset: -0.2em -0.36em;
+  border-radius: 7px;
+  pointer-events: none;
+  z-index: 0;
+  border: 1.5px solid var(--cap-tick-tone, transparent);
+  animation: cap-tick-fade 900ms ease-out forwards;
+}
+
+@keyframes cap-tick-fade {
+  0%   { opacity: 0;   transform: scale(0.92); }
+  14%  { opacity: 0.9; transform: scale(1); }
+  100% { opacity: 0;   transform: scale(1.04); }
+}
+
+/* The one piece of identity that repeats: a hairline route drawing itself.
+   Used sparingly — a motif stops being a motif once it is everywhere. */
+@keyframes cap-draw {
+  from { stroke-dashoffset: var(--cap-len, 1000); }
+  to   { stroke-dashoffset: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cap *,
+  .cap *::before,
+  .cap *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   LES PAGES LÉGALES — un pont, pas une réécriture.
+
+   Les quatre documents (mentions légales, CGU, CGV, confidentialité) font
+   environ 1 240 lignes et sont rédigés dans l'ancien vocabulaire : glass-card,
+   text-muted-foreground, text-primary, bg-white/10. Les convertir à la main
+   voudrait dire relire mille lignes de texte juridique en cherchant des noms
+   de classes — et une phrase déplacée par erreur dans un document opposable
+   coûte plus cher que n'importe quel défaut visuel.
+
+   Or ces classes ne portent pas leurs couleurs : elles lisent des variables.
+   `text-muted-foreground` vaut `hsl(var(--muted-foreground))`. Redéfinir ces
+   variables sur un conteneur suffit donc à basculer TOUT le document d'un
+   coup, sans qu'une seule ligne de texte soit touchée. Les équivalences sont
+   calculées, pas choisies à l'œil : `--muted-foreground` est l'encre à 80 %
+   composée sur la surface claire, ce qui donne exactement la couleur que le
+   reste du site affiche.
+
+   Restent quelques littéraux — bg-white/10, text-yellow-300 — qui ne passent
+   par aucune variable. Ils sont reprisés en dessous, un par un.
+   ═════════════════════════════════════════════════════════════════════════ */
+
+.cap-legal {
+  --background:          210 33% 98%;
+  --foreground:          213 55% 10%;   /* --cap-ink */
+  --card:                210 33% 98%;   /* --cap-surface */
+  --card-foreground:     213 55% 10%;
+  --popover:             210 33% 98%;
+  --popover-foreground:  213 55% 10%;
+  --primary:             194 70% 27%;   /* --cap-ocean */
+  --primary-foreground:  210 33% 98%;
+  --secondary:           214 29% 91%;   /* --cap-surface-2 */
+  --secondary-foreground:213 55% 10%;
+  --muted:               214 29% 91%;
+  --muted-foreground:    214 17% 27%;   /* encre à 80 % sur la surface */
+  --accent:              214 29% 91%;
+  --accent-foreground:   213 55% 10%;
+  --destructive:         4 86% 42%;     /* --cap-down */
+  --destructive-foreground: 210 33% 98%;
+  --border:              210 13% 91%;   /* --cap-line */
+  --input:               210 13% 91%;
+  --ring:                194 70% 27%;
+  --radius: var(--cap-r-lg);
+
+  color: var(--cap-ink);
+  font-family: var(--cap-font-text);
+}
+
+/* Le panneau. Même géométrie et même ombre que partout ailleurs, pour que ces
+   pages n'aient pas l'air d'un site voisin. */
+.cap-legal .glass-card {
+  border-radius: var(--cap-r-xl);
+  background-color: var(--cap-surface);
+  border: 0;
+  box-shadow: inset 0 0 0 1px var(--cap-line), var(--cap-shadow);
+}
+
+/* Les littéraux qui ne lisent aucune variable. */
+.cap-legal .bg-white\/5,
+.cap-legal .bg-white\/10,
+.cap-legal .bg-white\/\[0\.02\],
+.cap-legal .bg-white\/\[0\.03\],
+.cap-legal .bg-white\/\[0\.04\] { background-color: var(--cap-surface-2) !important; }
+
+.cap-legal .border-white\/5,
+.cap-legal .border-white\/8,
+.cap-legal .border-white\/10,
+.cap-legal .border-white\/20 { border-color: var(--cap-line) !important; }
+
+/* L'encadré d'avertissement passait par du jaune sur fond sombre : illisible
+   sur du clair — mesuré à 1,9:1. L'ambre profond du nuancier tient 4,8:1. */
+.cap-legal .text-yellow-300,
+.cap-legal .text-yellow-400 { color: #8A5A08 !important; }
+.cap-legal .bg-yellow-500\/10 { background-color: rgba(229, 168, 58, 0.14) !important; }
+.cap-legal .border-yellow-500\/30 { border-color: rgba(229, 168, 58, 0.45) !important; }
+
+.cap-legal .text-green-300,
+.cap-legal .text-green-400 { color: var(--cap-up) !important; }
+.cap-legal .bg-green-500\/10 { background-color: rgba(9, 114, 65, 0.10) !important; }
+.cap-legal .border-green-500\/30 { border-color: rgba(9, 114, 65, 0.35) !important; }
+
+/* Le corps du texte. Les documents alternent des tailles arbitraires ; on les
+   ramène à l'échelle du site pour que la lecture longue reste confortable. */
+.cap-legal { font-size: 0.95rem; line-height: 1.65; }
+.cap-legal h1 { font-family: var(--cap-font-display); letter-spacing: -0.015em; }
+.cap-legal h2 { font-family: var(--cap-font-display); }
+.cap-legal a { text-underline-offset: 2px; }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   NIMBO — le petit nuage de CaptenTDB (dessin : design-system/nimbo.ts)
+
+   Il garde sa lumière la nuit : un nuage est éclairé, même sur fond sombre.
+   Seuls son ventre et son contour changent, pour rester détaché du fond.
+   ═══════════════════════════════════════════════════════════════════════ */
+:root {
+  --n-haut: #FFFFFF;  --n-milieu: #EEF3F9;  --n-bas: #D5E0EC;  --n-contour: #B9C8DA;
+  --n-gris-haut: #E9EDF2;  --n-gris-bas: #BCC7D3;
+  --n-oeil: #0B1726;  --n-joue: #F4B2A3;  --n-goutte: #6FA6C6;
+}
+[data-cap-theme="dark"] .cap, [data-cap-theme="dark"] .cap-surface, .cap-dark {
+  --n-haut: #F4F7FB;  --n-milieu: #DCE5EF;  --n-bas: #A9BBCF;  --n-contour: #7E93AA;
+  --n-gris-haut: #CBD3DD;  --n-gris-bas: #8C9BAC;
+}
+.nimbo { display: block; overflow: visible; }
+.nimbo .n-corps   { transform-box: view-box; transform-origin: 100px 150px; animation: n-flotte 3.6s ease-in-out infinite; }
+.nimbo .n-souffle { transform-box: view-box; transform-origin: 100px 150px; animation: n-souffle 3.6s ease-in-out infinite; }
+.nimbo .n-yeux    { transform-box: fill-box; transform-origin: center; animation: n-cligne 4.6s infinite; }
+.nimbo .n-etoile  { animation: n-etoile 3.6s ease-in-out infinite; }
+.nimbo .n-bras-salue  { transform-box: view-box; transform-origin: 156px 124px; animation: n-salue .9s ease-in-out infinite; }
+.nimbo .n-bras-pointe { animation: n-pointe 1.4s ease-in-out infinite; }
+.nimbo .n-orbite  { transform-box: view-box; transform-origin: 100px 96px; animation: n-orbite 3.2s linear infinite; }
+.nimbo .n-goutte  { animation: n-goutte 1.8s ease-in infinite; }
+.nimbo .n-z { animation: n-z 2.6s ease-in infinite; }  .nimbo .n-z2 { animation-delay: 1.3s; }
+.nimbo .n-eti { transform-box: fill-box; transform-origin: center; animation: n-eti 1.2s ease-out infinite; }
+.nimbo .n-eti2 { animation-delay: .4s; }  .nimbo .n-eti3 { animation-delay: .8s; }
+.nimbo.n-fete .n-corps { animation: n-saute 1.1s cubic-bezier(.3,.7,.3,1) infinite; }
+.nimbo.n-dort .n-corps { animation-duration: 6s; }
+.nimbo.n-surpris .n-corps { animation: n-sursaut .6s ease-out 1, n-flotte 3.6s ease-in-out .6s infinite; }
+@keyframes n-flotte  { 0%,100% { transform: translate3d(0,0,0) } 50% { transform: translate3d(0,-7px,0) } }
+@keyframes n-souffle { 0%,100% { transform: scale(1,1) } 50% { transform: scale(1.015,.985) } }
+@keyframes n-cligne  { 0%,93%,100% { transform: scaleY(1) } 96% { transform: scaleY(.12) } }
+@keyframes n-etoile  { 0%,100% { transform: translate3d(0,0,0) } 50% { transform: translate3d(0,-4px,0) } }
+@keyframes n-salue   { 0%,100% { transform: rotate(0deg) } 50% { transform: rotate(-26deg) } }
+@keyframes n-pointe  { 0%,100% { transform: translateX(0) } 50% { transform: translateX(5px) } }
+@keyframes n-orbite  { to { transform: rotate(360deg) } }
+@keyframes n-goutte  { 0% { opacity: 0; transform: translateY(-4px) } 20% { opacity: 1 } 100% { opacity: 0; transform: translateY(26px) } }
+@keyframes n-z       { 0% { opacity: 0; transform: translate(0,0) scale(.6) } 40% { opacity: 1 } 100% { opacity: 0; transform: translate(14px,-26px) scale(1.1) } }
+@keyframes n-eti     { 0% { opacity: 0; transform: scale(.3) } 40% { opacity: 1; transform: scale(1) } 100% { opacity: 0; transform: scale(.6) translateY(-10px) } }
+@keyframes n-saute   { 0%,100% { transform: translate3d(0,0,0) scale(1,1) } 20% { transform: translate3d(0,2px,0) scale(1.06,.94) } 45% { transform: translate3d(0,-26px,0) scale(.97,1.04) } 70% { transform: translate3d(0,0,0) scale(1.04,.96) } }
+@keyframes n-sursaut { 0% { transform: translate3d(0,0,0) } 30% { transform: translate3d(0,-14px,0) scale(1.04) } 100% { transform: translate3d(0,0,0) } }
+/* Animations coupées ou mouvement réduit : Nimbo reste, immobile. */
+.anim-off .nimbo *, .anim-off .nimbo.n-fete .n-corps { animation: none !important; }
+@media (prefers-reduced-motion: reduce) { .nimbo * { animation: none !important; } }
+
+
+/* ── LA DIRECTION ARTISTIQUE DU SITE ─────────────────────────────────────
+   La même voix que la page de présentation, posée une fois ici pour tous
+   les écrans reconstruits. */
+
+
+/* Les étiquettes de section : une légende en italique, précédée d'un trait
+   ambre, au lieu des petites capitales espacées. */
+.cap [data-eyebrow] {
+  font-family: var(--cap-font-display);
+  font-style: italic;
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 1.05rem;
+  font-weight: 400;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+.cap [data-eyebrow]::before {
+  content: "";
+  width: 1.4rem; height: 2px; border-radius: 2px;
+  background: var(--cap-ambre);
+}
+
+/* Les micro-étiquettes des panneaux (« Sur 10 achats comparables »,
+   « Pendant votre trade », titres de colonnes) : même traitement, plus
+   discret. Les capitales espacées de 0,14 em étaient la tenue par défaut
+   des tableaux de bord générés. */
+.cap [class~="uppercase"][class*="tracking-[0."] {
+  font-family: var(--cap-font-display);
+  font-style: italic;
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 400;
+  font-size: max(0.86rem, 1em);
+}
+
+/* Le bouton principal porte le point ambre du logo ; au survol, il
+   s'allume. */
+.cap [data-btn="primary"]::before {
+  content: "";
+  width: 0.5rem; height: 0.5rem; border-radius: 99px; flex: none;
+  background: var(--cap-ambre);
+  transition: transform .3s var(--cap-ease), box-shadow .3s ease;
+}
+.cap [data-btn="primary"]:hover::before { transform: scale(1.3); box-shadow: 0 0 12px 2px rgba(229,168,58,.5); }
+.cap [data-btn="secondary"]:hover { box-shadow: inset 0 0 0 1px var(--cap-ambre) !important; }
+@media (prefers-reduced-motion: reduce) {
+  .cap [data-btn="primary"]::before { transition: none; }
+}
+
+/* ── LA FIN DE L'ALLURE « KIT D'INTERFACE » ───────────────────────────────
+   Les grands montants (solde, cours, score) passent en serif, comme les
+   titres : c'est le chiffre qu'on lit en premier sur un écran, il porte la
+   voix du site. Les petits restent en sans-serif tabulaire. */
+.cap .cap-num[class*="text-[clamp"],
+.cap .cap-num[class*="text-[1.9"], .cap .cap-num[class*="text-[2"], .cap .cap-num[class*="text-[3"],
+.cap .cap-num.text-2xl, .cap .cap-num.text-3xl, .cap .cap-num.text-4xl {
+  font-family: var(--cap-font-display);
+  font-variant-numeric: lining-nums tabular-nums;
+  font-weight: 500 !important;
+  letter-spacing: -0.01em;
+}
+/* Les classes font-mono éparpillées dans les écrans suivent la même règle ;
+   seul le code, dans les réponses de l'assistant, garde sa chasse fixe. */
+.cap .font-mono:not(code):not(pre):not(kbd) {
+  font-family: var(--cap-font-num);
+  font-variant-numeric: tabular-nums lining-nums;
+}
+
+/* Les boutons secondaires ne sont plus des boîtes bordées grises : un lien
+   éditorial, souligné d'ambre, comme sur la page de présentation. */
+.cap [data-btn="secondary"] {
+  box-shadow: none !important;
+  background: transparent !important;
+  padding-left: 0.35rem !important;
+  padding-right: 0.35rem !important;
+  text-decoration: underline;
+  text-decoration-color: var(--cap-ambre);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 6px;
+}
+.cap [data-btn="secondary"]:hover {
+  box-shadow: none !important;
+  background: transparent !important;
+  text-underline-offset: 8px;
+  color: var(--cap-ocean) !important;
+}
+.cap [data-btn="quiet"]:hover { text-decoration: underline; text-decoration-color: var(--cap-line-strong); text-underline-offset: 6px; }
+
+/* ── L'IDENTITÉ DU SITE : LES ÉLÉMENTS SIGNATURE ─────────────────────────
+   Nés sur la page de présentation, partagés par tout le site. Voir
+   web/docs/identite.md : une publication sous les nuages, pas un modèle. */
+/* La ligne datée du haut de page : petites capitales de la serif, un filet
+   au-dessous, comme la date en tête d'un journal. */
+.cap .cap-dateline {
+  display: inline-block;
+  font-family: var(--cap-font-display);
+  font-style: italic;
+  font-size: 1rem;
+  color: var(--cap-ink-2);
+  padding-bottom: 0.55rem;
+  border-bottom: 1px solid var(--cap-line-strong);
+}
+.cap .cap-dateline time { font-style: normal; font-weight: 600; color: var(--cap-ink); margin-right: 0.15rem; }
+
+/* Les nombres de la phrase de chapeau. */
+.cap .cap-chiffre {
+  font-weight: 600;
+  color: var(--cap-ink);
+  font-variant-numeric: lining-nums;
+  white-space: nowrap;
+  background-image: linear-gradient(transparent 68%, rgba(229,168,58,.32) 68%, rgba(229,168,58,.32) 92%, transparent 92%);
+}
+
+/* Le sommaire : numéro, titre, points de conduite, texte. */
+.cap .cap-sommaire li {
+  display: grid;
+  grid-template-columns: 2.4rem minmax(0, 1fr);
+  column-gap: 0.4rem;
+  padding: 1.15rem 0;
+  border-top: 1px solid var(--cap-line);
+}
+.cap .cap-sommaire-num {
+  font-family: var(--cap-font-display); font-style: italic;
+  font-size: 1.35rem; line-height: 1.15; color: #c98a1e;
+}
+.cap .cap-sommaire-titre {
+  font-family: var(--cap-font-display); font-weight: 600; font-size: 1.3rem; line-height: 1.2;
+  color: var(--cap-ink);
+  display: flex; align-items: baseline; gap: 0.6rem;
+}
+.cap .cap-sommaire-titre::after {
+  content: ""; flex: 1; transform: translateY(-0.2em);
+  border-bottom: 1.5px dotted var(--cap-line-strong);
+}
+.cap .cap-sommaire-texte {
+  grid-column: 2; margin-top: 0.4rem;
+  font-size: 0.95rem; line-height: 1.6; color: var(--cap-ink-2);
+}
+
+/* Questions et réponses, composées comme un entretien. */
+.cap .cap-qr { display: grid; gap: 0; }
+.cap .cap-qr-item { padding: 1.35rem 0 1.4rem; border-top: 1px solid var(--cap-line); }
+.cap .cap-qr-item:last-child { border-bottom: 1px solid var(--cap-line); }
+.cap .cap-qr dt {
+  font-family: var(--cap-font-display); font-weight: 600; font-size: 1.22rem; line-height: 1.3;
+  color: var(--cap-ink);
+}
+.cap .cap-qr dt::before { content: "Q."; font-style: italic; font-weight: 500; color: #c98a1e; margin-right: 0.55rem; }
+.cap .cap-qr dd { margin-top: 0.5rem; padding-left: 1.85rem; }
+
+
+/* ── L'ANALYSE, SELON LA CHARTE ───────────────────────────────────────────
+   Un champ qu'on écrit comme dans un carnet : une ligne, pas une boîte. */
+.cap .cap-champ-ligne {
+  border-bottom: 2px solid var(--cap-line-strong);
+  transition: border-color .25s ease;
+}
+.cap .cap-champ-ligne:focus { border-bottom-color: var(--cap-ambre); }
+.cap .cap-champ-ligne:focus-visible { outline: none; }
+
+/* Un encart à l'intérieur d'un panneau : un filet à gauche et un titre en
+   italique, plutôt qu'une boîte de plus dans la boîte. */
+.cap .cap-encart {
+  border-left: 2px solid var(--cap-line-strong);
+  padding: 0.15rem 0 0.15rem 1rem;
+}
+.cap .cap-encart-titre {
+  font-family: var(--cap-font-display);
+  font-style: italic;
+  font-size: 1rem;
+  color: var(--cap-ink-3);
+}
+
+/* Un lien d'action discret, souligné d'ambre au survol. */
+.cap .cap-lien {
+  color: var(--cap-ink-2);
+  text-decoration: underline;
+  text-decoration-color: var(--cap-line-strong);
+  text-underline-offset: 5px;
+  transition: color .2s ease, text-decoration-color .2s ease;
+}
+.cap .cap-lien:hover { color: var(--cap-ink); text-decoration-color: var(--cap-ambre); }
+
+/* Les compléments : des rubriques numérotées sur un filet, comme une table
+   des matières, plutôt qu'une pile de cartes à icônes. */
+.cap .cap-rubriques { counter-reset: rubrique; display: flex; flex-direction: column; }
+.cap .cap-rubriques section[data-repliable] {
+  counter-increment: rubrique;
+  border-radius: 0 !important;
+  background: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  box-shadow: none !important;
+  border-top: 1px solid var(--cap-line-strong);
+}
+.cap .cap-rubriques section[data-repliable]:last-of-type { border-bottom: 1px solid var(--cap-line-strong); }
+.cap .cap-rubriques section[data-repliable] > button,
+.cap .cap-rubriques section[data-repliable] > header { padding-left: 0 !important; padding-right: 0 !important; }
+.cap .cap-rubriques section[data-repliable] > button:hover { background: none !important; }
+.cap .cap-rubriques section[data-repliable] > button h2::before {
+  content: counter(rubrique) ".";
+  font-style: italic; font-weight: 500; color: #c98a1e; margin-right: 0.6rem;
+}
+.cap .cap-rubriques section[data-repliable] > div { padding-left: 0 !important; padding-right: 0 !important; }
+.cap .cap-rubriques [data-aside] { display: none; }
+
+/* ── LES LEÇONS DE LA SÉRIE ──────────────────────────────────────────────
+   Le texte d'une leçon : l'essentiel en gras, et les mots des traders
+   surlignés d'ambre, comme un chiffre dans le texte. */
+.cap .cours-texte { color: var(--cap-ink-2); }
+.cap .cours-texte b, .cap .cours-texte strong { color: var(--cap-ink); font-weight: 650; }
+.cap .cours-texte .mot {
+  color: var(--cap-ink); font-style: italic;
+  background: linear-gradient(transparent 62%, rgba(229, 168, 58, 0.32) 0);
+  padding: 0 0.1em;
+}
+.cap .cap-qr dd { color: var(--cap-ink-2); line-height: 1.7; }
+
+/* Les graphiques des leçons s'animent : les lignes se tracent (de gauche à
+   droite), les zones et les notes apparaissent en fondu, les marques arrivent
+   avec un léger rebond. Un élément nouveau, d'une étape à l'autre, rejoue son
+   entrée. Rien ne bouge avec « couper les animations » ou la préférence de
+   l'appareil. */
+@keyframes ge-etire { from { transform: scaleX(0); opacity: 0.2; } to { transform: scaleX(1); opacity: 1; } }
+@keyframes ge-fondu { from { opacity: 0; } to { opacity: 1; } }
+@keyframes ge-pop {
+  0% { opacity: 0; transform: scale(0.3); }
+  65% { opacity: 1; transform: scale(1.18); }
+  100% { opacity: 1; transform: scale(1); }
+}
+.cap .ge .ge-etire { transform-box: view-box; transform-origin: 0 0; animation: ge-etire 1.6s cubic-bezier(0.45, 0, 0.25, 1) both; }
+.cap .ge .ge-fondu { animation: ge-fondu 1.2s ease both; }
+.cap .ge .ge-pop { transform-box: fill-box; transform-origin: center; animation: ge-pop 1s var(--cap-ease) both; }
+.cap .ge.ge-calme .ge-etire, .cap .ge.ge-calme .ge-fondu, .cap .ge.ge-calme .ge-pop { animation: none; }
+@media (prefers-reduced-motion: reduce) {
+  .cap .ge .ge-etire, .cap .ge .ge-fondu, .cap .ge .ge-pop { animation: none; }
+}
+
+/* La visite guidée (components/app/VisiteGuidee) : l'élément éclairé porte
+   un anneau ambre qui respire doucement, pour que l'œil le trouve tout de
+   suite. Les cibles gardent une marge en haut, sinon l'en-tête collant les
+   recouvrirait une fois la page défilée jusqu'à elles. */
+[data-visite] { scroll-margin-top: 136px; scroll-margin-bottom: 96px; }
+@keyframes vg-pouls {
+  0%, 100% { box-shadow: 0 0 0 2px var(--cap-ambre), 0 0 0 6px rgba(229, 168, 58, 0.28); }
+  50% { box-shadow: 0 0 0 2px var(--cap-ambre), 0 0 0 13px rgba(229, 168, 58, 0); }
+}
+.vg-anneau { animation: vg-pouls 2.2s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .vg-anneau { animation: none; box-shadow: 0 0 0 2px var(--cap-ambre); }
+}

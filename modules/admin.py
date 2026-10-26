@@ -168,6 +168,8 @@ class AdminModule:
             await self._show_discord_menu(query)
         elif action == "discord_test":
             await self._send_discord_test(query)
+        elif action == "discord_toggle_weekly":
+            await self._toggle_weekly_preview(query)
         elif action.startswith("user_detail_"):
             user_id = int(action.replace("user_detail_", ""))
             await self._show_user_detail(query, user_id)
@@ -1080,6 +1082,10 @@ Votre ID : <code>{user_id}</code>
                     status = "🟢" if discord_service._is_market_open(key) else "🔴"
                     text += f"   {market['emoji']} {market['name']}: {status}\n"
             text += "\n"
+
+            weekly_status = "🔴 Désactivé cette semaine" if discord_service.skip_weekly_preview else "🟢 Activé (dimanche 18h)"
+            text += f"📅 **Préparation semaine:** {weekly_status}\n\n"
+
             text += "📝 **Envoyer un message:**\n"
             text += "`/discord Votre message ici`\n\n"
             text += "Exemple:\n"
@@ -1088,8 +1094,11 @@ Votre ID : <code>{user_id}</code>
             text += "📡 **Status:** 🔴 Non configuré\n\n"
             text += "⚠️ Ajoutez `DISCORD_WEBHOOK_URL` dans votre `.env`"
 
+        weekly_btn_label = "🔔 Réactiver préparation semaine" if discord_service.skip_weekly_preview else "🔕 Passer la semaine"
+
         keyboard = [
             [InlineKeyboardButton("🧪 Envoyer un test", callback_data="admin_discord_test")],
+            [InlineKeyboardButton(weekly_btn_label, callback_data="admin_discord_toggle_weekly")],
             [InlineKeyboardButton("◀️ Retour", callback_data="admin_back")]
         ]
 
@@ -1132,6 +1141,23 @@ Votre ID : <code>{user_id}</code>
                     InlineKeyboardButton("◀️ Retour", callback_data="admin_discord")
                 ]])
             )
+
+    async def _toggle_weekly_preview(self, query):
+        """Active ou désactive l'envoi de la préparation de semaine du dimanche"""
+        discord_service.skip_weekly_preview = not discord_service.skip_weekly_preview
+
+        if discord_service.skip_weekly_preview:
+            msg = "🔕 **Préparation semaine désactivée**\n\nLe message du dimanche 18h ne sera pas envoyé cette semaine."
+        else:
+            msg = "🔔 **Préparation semaine réactivée**\n\nLe message du dimanche 18h sera envoyé normalement."
+
+        await query.edit_message_text(
+            msg,
+            parse_mode='Markdown',
+            reply_markup=InlineKeyboardMarkup([[
+                InlineKeyboardButton("◀️ Retour Discord", callback_data="admin_discord")
+            ]])
+        )
 
     async def cmd_discord_message(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Commande /discord <message> - Envoie un message sur Discord"""
