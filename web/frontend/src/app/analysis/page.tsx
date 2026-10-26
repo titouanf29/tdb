@@ -6,7 +6,7 @@ import Link from "next/link";
 import { AnimatePresence } from "framer-motion";
 import { ArrowRight, Layers, Loader2, MoveRight, Star, TrendingDown, TrendingUp } from "lucide-react";
 import {
-  analysisAPI, favoritesAPI, marketAPI, walletAPI,
+  analysisAPI, favoritesAPI, marketAPI, missionsAPI, walletAPI,
   type Analysis, type ChartData, type Figure,
 } from "@/lib/api";
 import { fr, useFormatAssetPrice, useFormatSomme, useSettings } from "@/lib/SettingsContext";
@@ -267,6 +267,9 @@ function AnalysisScreen() {
    * perdait systématiquement la course.
    */
   const demande = useRef(0);
+  // Les actifs déjà comptés pour les missions pendant cette visite : changer
+  // d'horizon relance l'analyse, ce n'est pas une analyse de plus.
+  const comptes = useRef(new Set<string>());
 
   // Le risque par trade part au moteur avec la demande. Il ne change le
   // verdict qu'en passant d'un profil prudent/modéré à un profil agressif (le
@@ -289,6 +292,12 @@ function AnalysisScreen() {
                                           style.fundWeight, style.id, risqueRef.current);
       if (n !== demande.current) return; // une demande plus récente a pris la main
       setAnalysis(a);
+      // « Première analyse » et « Analyse du jour » attendaient ce signal,
+      // que rien n'envoyait : les deux missions ne se validaient jamais.
+      if (!comptes.current.has(sym)) {
+        comptes.current.add(sym);
+        missionsAPI.recordAction("analysis_open").catch(() => {});
+      }
       // Le graphique est secondaire : un échec ici ne doit pas perdre
       // l'analyse. Sa fenêtre suit l'horizon — « 3 mois en journalier » pour
       // tout le monde donnait treize bougies en long terme, et le graphique

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Moon, Radar, RotateCcw } from "lucide-react";
 import {
-  analysisAPI,
+  analysisAPI, missionsAPI,
   type ScanEvent, type ScanIntent, type ScanQuota, type ScanResultItem, type ScanUniverse,
 } from "@/lib/api";
 import { fr, useSettings } from "@/lib/SettingsContext";
@@ -282,6 +282,8 @@ export default function ScannerPage() {
             // le scanner vient de calculer est perdu entre deux écrans.
             enregistrerScan(e.results, horizonScan ?? style.defaultTimeframe);
             if (e.quota) setQuota(e.quota);
+            // Pour « Premier scan » et « Scan du jour », jamais signalés jusqu'ici.
+            missionsAPI.recordAction("scanner_run").catch(() => {});
             setPhase("Balayage terminé");
             setFini(true);
           }

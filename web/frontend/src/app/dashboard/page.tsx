@@ -23,6 +23,7 @@ import {
 import { NuageImage } from "@/components/design-system/NuageImage";
 import { ParcoursNimbo } from "@/components/app/ParcoursNimbo";
 import { AvisDeveloppement } from "@/components/app/AvisDeveloppement";
+import { DepuisDerniereVisite } from "@/components/app/DepuisDerniereVisite";
 import { useProfile } from "@/lib/useProfile";
 
 /**
@@ -183,6 +184,9 @@ export default function DashboardPage() {
 
         {/* Le site évolue encore : un nouvel inscrit sait d'emblée où écrire. */}
         <AvisDeveloppement />
+
+        {/* Après une absence : ce qui s'est passé entre-temps. */}
+        <DepuisDerniereVisite />
 
         {/* ── 2. One thing to do ───────────────────────────────────────── */}
         <Reveal delay={0.04}>

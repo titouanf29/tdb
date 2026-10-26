@@ -32,7 +32,7 @@ MISSIONS = [
     {
         "id": "complete_lesson_1",
         "title": "Premier cours",
-        "description": "Terminez votre premier cours dans la section Formation",
+        "description": "Terminez votre premier cours dans le Parcours",
         "icon": "📚",
         "xp": 100,
         "category": "learn",
@@ -44,7 +44,7 @@ MISSIONS = [
     {
         "id": "complete_3_lessons",
         "title": "Élève assidu",
-        "description": "Terminez 3 cours dans la section Formation",
+        "description": "Terminez 3 cours dans le Parcours",
         "icon": "🎓",
         "xp": 250,
         "category": "learn",
@@ -104,8 +104,8 @@ MISSIONS = [
     # ── Intermédiaire ─────────────────────────────────────────────────────────
     {
         "id": "complete_10_lessons",
-        "title": "Formation complète",
-        "description": "Terminez 10 cours dans la section Formation",
+        "title": "Parcours complet",
+        "description": "Terminez 10 cours dans le Parcours",
         "icon": "🏆",
         "xp": 500,
         "category": "learn",
@@ -188,7 +188,7 @@ ALL_MISSIONS = MISSIONS + DAILY_MISSIONS
 BADGES = {
     "first_step": {"icon": "🌟", "name": "Premier pas", "color": "#638CFF"},
     "diligent_student": {"icon": "📖", "name": "Élève assidu", "color": "#00D4AA"},
-    "training_complete": {"icon": "🏆", "name": "Formation complète", "color": "#FFD700"},
+    "training_complete": {"icon": "🏆", "name": "Parcours complet", "color": "#FFD700"},
     "streak_7": {"icon": "🔥", "name": "7 jours de suite", "color": "#FF4757"},
 }
 
@@ -272,23 +272,34 @@ async def list_missions(current_user: dict = Depends(get_current_user)):
 async def get_progress(current_user: dict = Depends(get_current_user)):
     user_id = current_user["id"]
     progress = await _get_or_create_progress(user_id)
-    xp_for_next = (progress["level"]) * XP_PER_LEVEL
-    xp_current_level = (progress["level"] - 1) * XP_PER_LEVEL
+    # LA BARRE DU NIVEAU EN COURS, ET SEULEMENT ELLE. Le total à atteindre
+    # (niveau × 500) était comparé aux points gagnés DANS le niveau : au
+    # niveau 2, 100 points sur 500 s'affichaient « 100 sur 1 000 », et la
+    # progression paraissait de plus en plus lente à chaque niveau.
+    debut_niveau = (progress["level"] - 1) * XP_PER_LEVEL
     return {
         **progress,
-        "xp_for_next_level": xp_for_next,
-        "xp_in_current_level": progress["xp"] - xp_current_level,
+        "xp_for_next_level": XP_PER_LEVEL,
+        "xp_in_current_level": max(0, min(XP_PER_LEVEL, progress["xp"] - debut_niveau)),
         "badges_detail": [BADGES.get(b) for b in progress["badges"] if b in BADGES],
     }
 
 
+# Les gestes que le navigateur peut signaler. La valeur n'est plus libre :
+# « value: 1000 » réussissait d'un coup toutes les missions d'une action.
+ACTIONS_CLIENT = {m["action"] for m in MISSIONS}
+
+
 class ProgressAction(BaseModel):
     action: str  # e.g. "lesson_complete", "quiz_pass", "scanner_run"
-    value: int = 1  # amount to increment
+    value: int = 1  # toujours ramené à 1 : un geste compte pour un
 
 
 @router.post("/progress/action")
 async def record_action(body: ProgressAction, current_user: dict = Depends(get_current_user)):
+    if body.action not in ACTIONS_CLIENT:
+        raise HTTPException(status_code=400, detail="Action inconnue.")
+    body.value = 1
     user_id = current_user["id"]
     now = datetime.now(timezone.utc).isoformat()
     today = datetime.now(timezone.utc).date().isoformat()
@@ -296,6 +307,22 @@ async def record_action(body: ProgressAction, current_user: dict = Depends(get_c
     progress = await _get_or_create_progress(user_id)
     user_missions = await _get_user_missions(user_id)
     user_map = {r["mission_id"]: r for r in user_missions}
+
+    # LA SÉRIE AVANT LES MISSIONS. La mission « 7 jours consécutifs » ajoutait
+    # +1 à chaque connexion quotidienne, même espacées d'un mois : elle
+    # comptait des visites, pas une série. Sa progression est maintenant la
+    # série elle-même, qui retombe à 1 après un jour manqué.
+    streak = progress["streak_days"]
+    last_date = progress.get("last_activity_date")
+    if body.action == "daily_login":
+        if last_date == today:
+            pass  # already counted today
+        elif last_date and (datetime.fromisoformat(today) - datetime.fromisoformat(last_date)).days == 1:
+            streak += 1
+        else:
+            streak = 1
+        progress["last_activity_date"] = today
+        progress["streak_days"] = streak
 
     xp_gained = 0
     completed = []
@@ -312,7 +339,10 @@ async def record_action(body: ProgressAction, current_user: dict = Depends(get_c
                 continue
             um = {**um, "progress": 0}
 
-        current_progress = (um["progress"] if um else 0) + body.value
+        if m.get("category") == "streak":
+            current_progress = streak
+        else:
+            current_progress = (um["progress"] if um else 0) + body.value
         if current_progress >= m["target"]:
             # Complete the mission
             xp_gained += m["xp"]
@@ -346,28 +376,23 @@ async def record_action(body: ProgressAction, current_user: dict = Depends(get_c
                     (user_id, m["id"], "active", current_progress, now),
                 )
 
-    # Update streak for daily_login action
-    streak = progress["streak_days"]
-    last_date = progress.get("last_activity_date")
-    if body.action == "daily_login":
-        if last_date == today:
-            pass  # already counted today
-        elif last_date and (datetime.fromisoformat(today) - datetime.fromisoformat(last_date)).days == 1:
-            streak += 1
-        else:
-            streak = 1
-        progress["last_activity_date"] = today
-        progress["streak_days"] = streak
-
-    # Update XP and level
-    new_xp = progress["xp"] + xp_gained
-    new_level = _xp_to_level(new_xp)
-    new_badges_json = json.dumps(progress["badges"])
-
+    # LES POINTS S'AJOUTENT EN BASE, pas en mémoire. Deux gestes au même
+    # instant (une analyse pendant le signal de visite) lisaient le même total
+    # et le second écrivait le sien par-dessus : des points disparaissaient.
     await execute_write(
-        "UPDATE user_progress SET xp=?, level=?, badges=?, streak_days=?, last_activity_date=?, updated_at=? WHERE user_id=?",
-        (new_xp, new_level, new_badges_json, streak, progress.get("last_activity_date"), now, user_id),
+        "UPDATE user_progress SET xp = xp + ?, streak_days=?, last_activity_date=?, updated_at=? WHERE user_id=?",
+        (xp_gained, streak, progress.get("last_activity_date"), now, user_id),
     )
+    frais = await execute_query("SELECT xp, badges FROM user_progress WHERE user_id = ?", (user_id,))
+    new_xp = int(frais[0]["xp"]) if frais else progress["xp"] + xp_gained
+    new_level = _xp_to_level(new_xp)
+    try:
+        badges_base = set(json.loads(frais[0]["badges"])) if frais else set()
+    except (TypeError, ValueError):
+        badges_base = set()
+    tous_badges = sorted(badges_base | set(progress["badges"]))
+    await execute_write("UPDATE user_progress SET level=?, badges=? WHERE user_id=?",
+                        (new_level, json.dumps(tous_badges), user_id))
 
     return {
         "xp_gained": xp_gained,
@@ -378,7 +403,7 @@ async def record_action(body: ProgressAction, current_user: dict = Depends(get_c
         # Pour le message de réussite : le titre lisible, pas l'identifiant,
         # et le passage de niveau que le client ne peut pas déduire seul.
         "mission_titles": [m["title"] for m in ALL_MISSIONS if m["id"] in completed],
-        "level_up": new_level > _xp_to_level(progress["xp"]),
+        "level_up": new_level > _xp_to_level(new_xp - xp_gained),
     }
 
 

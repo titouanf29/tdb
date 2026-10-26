@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Loader2, Send, Trash2 } from "lucide-react";
-import { aiAPI, type AILimitStatus, type ChatMessage } from "@/lib/api";
+import { aiAPI, missionsAPI, type AILimitStatus, type ChatMessage } from "@/lib/api";
 import {
   CaptenMark, Heading, Markdown, Panel, Text, WeatherBackdrop, useAnimationsEnabled,
 } from "@/components/design-system";
@@ -148,6 +148,8 @@ export default function AssistantPage() {
         { role: "assistant", content: res.response, created_at: new Date().toISOString() },
       ]);
       aiAPI.getLimit().then(setLimit).catch(() => {});
+      // Pour la mission « Première question », jamais signalée jusqu'ici.
+      missionsAPI.recordAction("ai_chat").catch(() => {});
     } catch (err) {
       setMessages((m) => [
         ...m,

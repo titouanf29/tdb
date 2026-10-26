@@ -133,20 +133,8 @@ function AuthShell({
     return () => clearTimeout(t);
   }, [isAuthenticated, user]);
 
-  // Record daily login for missions/streak
-  useEffect(() => {
-    if (!isAuthenticated || !user) return;
-    const today = new Date().toISOString().split("T")[0];
-    const lastKey = "tdb_last_login_date";
-    const last = localStorage.getItem(lastKey);
-    if (last !== today) {
-      localStorage.setItem(lastKey, today);
-      import("@/lib/api").then(({ missionsAPI }) => {
-        missionsAPI.recordAction("daily_login").catch(() => {});
-        missionsAPI.recordAction("login").catch(() => {});
-      });
-    }
-  }, [isAuthenticated, user]);
+  // La visite du jour (missions, série) est signalée par AppChrome, qui
+  // couvre aussi les leçons ouvertes directement.
 
   // Close mobile menu on route change
   useEffect(() => {

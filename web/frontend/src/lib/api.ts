@@ -453,44 +453,40 @@ export const alertsAPI = {
   check: () => fetchAPI<{ triggered: PriceAlert[]; active_count: number }>("/api/alerts/check", { method: "POST" }),
 };
 
-// Welcome-back recap — "ce qui a bougé depuis votre dernière visite"
-export interface WelcomeBackPositionMove {
-  symbol: string;
-  pnl_now: number;
-  pnl_before: number;
-  pnl_delta: number;
-  price_now: number;
-  price_before: number;
-  pct_move: number;
-}
-export interface WelcomeBackFavoriteMove {
-  symbol: string;
-  price_now: number;
-  price_before: number;
-  pct_move: number;
-}
-export interface WelcomeBackResult {
+// « Depuis votre dernière visite » (backend routes/welcome_back.py).
+export interface RecapRetour {
   has_summary: boolean;
-  first_name?: string;
+  depuis?: string;
   away_minutes?: number;
   away_label?: string;
-  currency?: string;
-  equity?: { now: number; before: number; change: number; change_pct: number };
-  positions?: WelcomeBackPositionMove[];
-  favorites?: WelcomeBackFavoriteMove[];
-  opened_positions?: string[];
-  closed_positions?: string[];
-  best?: { symbol: string; pct: number } | null;
-  worst?: { symbol: string; pct: number } | null;
-  message?: string;
+  titre?: string;
+  marche?: { change: number; change_pct: number };
+  positions?: { symbol: string; nom: string; pnl_delta: number; pct: number }[];
+  fermees?: { symbol: string; nom: string; realized_pnl: number }[];
+  notifications?: { id: number; type: string; title: string; link: string | null; is_read: boolean }[];
+  notifications_total?: number;
+  favorites?: { symbol: string; nom: string; pct: number }[];
+  serie?: number;
 }
 
 export const welcomeBackAPI = {
-  // Compares the portfolio to the last time the dashboard was opened; the
-  // endpoint refreshes that baseline on each call, so a recap only appears
-  // after a real absence and never replays on refresh.
-  get: (lang = "fr", minGapMinutes = 30) =>
-    fetchAPI<WelcomeBackResult>(`/api/dashboard/welcome-back?lang=${lang}&min_gap_minutes=${minGapMinutes}`),
+  /** Le récapitulatif, s'il y a eu une vraie absence (au moins `minGapMinutes`). */
+  get: (minGapMinutes = 30) =>
+    fetchAPI<RecapRetour>(`/api/dashboard/welcome-back?min_gap_minutes=${minGapMinutes}`),
+  /**
+   * La page est quittée : l'état du compte devient la base de la prochaine
+   * visite. `keepalive` laisse partir la requête même pendant la fermeture
+   * de l'onglet, avec le jeton (ce que sendBeacon ne permet pas).
+   */
+  activite: () => {
+    const jeton = getToken();
+    if (!jeton) return;
+    try {
+      fetch(`${API_URL}/api/dashboard/activity`, {
+        method: "POST", keepalive: true, headers: { Authorization: `Bearer ${jeton}` },
+      }).catch(() => {});
+    } catch { /* le navigateur refuse : la prochaine visite partira de la dernière photo */ }
+  },
 };
 
 export interface BacktestBucket {

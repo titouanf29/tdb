@@ -775,8 +775,8 @@ function CourtierPanel() {
 /* ── Notifications ──────────────────────────────────────────────────────── */
 
 const RECAPS: Option<RecapFrequency>[] = [
-  { value: "always", label: "À chaque visite", detail: "Ce qui a bougé depuis la dernière fois, dès l'ouverture de l'accueil." },
-  { value: "daily", label: "Une fois par jour", detail: "Le récapitulatif n'apparaît qu'à la première visite de la journée." },
+  { value: "always", label: "À chaque visite", detail: "Ce qui a bougé depuis la dernière fois, dès l'ouverture de l'accueil, après au moins 30 minutes d'absence." },
+  { value: "daily", label: "Une fois par jour", detail: "Le récapitulatif n'apparaît qu'après au moins 12 heures d'absence." },
   { value: "weekly", label: "Une fois par semaine", detail: "Un point hebdomadaire, rien entre-temps." },
   { value: "off", label: "Jamais", detail: "Aucun récapitulatif. L'accueil s'ouvre directement sur vos données." },
 ];

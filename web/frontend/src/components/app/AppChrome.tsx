@@ -13,6 +13,8 @@ import { ReussiteNimbo } from "./ReussiteNimbo";
 import { BandeauVerification } from "./BandeauVerification";
 import { VisiteGuidee } from "./VisiteGuidee";
 import { EVT_OUVRIR, lancerVisite } from "@/lib/visite";
+import { missionsAPI } from "@/lib/api";
+import { useSignalDepart } from "./DepuisDerniereVisite";
 import { useAuth } from "@/lib/AuthContext";
 import { usePremium } from "@/lib/PremiumContext";
 import {
@@ -39,7 +41,35 @@ import { cn } from "@/lib/utils";
  * the most frequent thing anyone does here, and it should never cost a
  * navigation.
  */
+/**
+ * La visite du jour, pour les missions et la série de jours d'affilée.
+ *
+ * Elle vivait dans l'ancien AuthShell : une visite arrivée directement sur une
+ * leçon n'était pas comptée. La clé est propre à chaque compte (deux comptes
+ * sur un même navigateur se bloquaient l'un l'autre), et les deux signaux
+ * partent l'un APRÈS l'autre : envoyés ensemble, ils lisaient le même total de
+ * points et le second écrasait le premier.
+ */
+function useVisiteDuJour() {
+  const { user } = useAuth();
+  useEffect(() => {
+    if (!user?.id) return;
+    const jour = new Date().toISOString().slice(0, 10);
+    const cle = `tdb_visite_du_jour_${user.id}`;
+    try {
+      if (localStorage.getItem(cle) === jour) return;
+      localStorage.setItem(cle, jour);
+    } catch { /* navigation privée : on signale quand même */ }
+    missionsAPI.recordAction("daily_login")
+      .then(() => missionsAPI.recordAction("login"))
+      .catch(() => {});
+  }, [user?.id]);
+}
+
 export function AppChrome({ children }: { children: React.ReactNode }) {
+  useVisiteDuJour();
+  const { user } = useAuth();
+  useSignalDepart(!!user);
   const pathname = usePathname();
   const area = areaForPath(pathname);
   const curtain = useRouteCurtain(pathname ?? "");
