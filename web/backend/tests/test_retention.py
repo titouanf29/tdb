@@ -56,3 +56,27 @@ def test_les_gestes_sont_notes_et_lisibles_par_l_administration():
     assert [l["type"] for l in lignes] == ["analyse", "inscription", "visite"]
     # La route est réservée à l'administration.
     assert client.get("/api/admin/retention", headers=h).status_code in (401, 403)
+
+
+def test_l_entonnoir_par_etape_et_par_semaine():
+    auj = date(2026, 3, 31)
+    inscrits = [
+        {"id": 1, "created_at": "2026-03-02T09:00:00+00:00", "email_verified": 1},  # tout le parcours
+        {"id": 2, "created_at": "2026-03-03T09:00:00+00:00", "email_verified": 1},  # analyse, pas d'ordre
+        {"id": 3, "created_at": "2026-03-04T09:00:00+00:00", "email_verified": 0},  # rien
+        {"id": 4, "created_at": "2026-03-30T09:00:00+00:00", "email_verified": 1},  # trop récent pour J7
+    ]
+    gestes = [
+        _g(1, "analyse", "2026-03-02"), _g(1, "position", "2026-03-02", "11:00:00"),
+        _g(1, "visite", "2026-03-03"), _g(1, "visite", "2026-03-09"),
+        _g(2, "analyse", "2026-03-03"),
+        _g(4, "analyse", "2026-03-30"), _g(4, "visite", "2026-03-31"),
+    ]
+    r = calculer(inscrits, gestes, abonnes=set(), debut="2026-03-01T00:00:00+00:00", aujourdhui=auj)
+    e = {x["cle"]: x for x in r["entonnoir"]["etapes"]}
+    assert r["entonnoir"]["inscrits"] == 4
+    assert (e["email"]["oui"], e["analyse"]["oui"], e["position"]["oui"]) == (3, 3, 1)
+    assert (e["j1"]["oui"], e["j1"]["total"]) == (2, 4)      # 1 le 3 mars, 4 le 31 mars
+    assert (e["j7"]["oui"], e["j7"]["total"]) == (1, 3)      # 4 pas encore éligible
+    semaines = {s["debut"]: s["inscrits"] for s in r["entonnoir_semaines"]}
+    assert semaines == {"2026-03-02": 3, "2026-03-30": 1}

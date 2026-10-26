@@ -247,7 +247,7 @@ async def get_retention(admin: dict = Depends(get_admin_user)):
     from ..services import evenements, retention
     debut = await evenements.debut_mesure()
     depuis = (datetime.now(timezone.utc) - timedelta(days=120)).isoformat()
-    inscrits = await execute_query("SELECT id, created_at FROM web_users WHERE created_at >= ?", (depuis,)) or []
+    inscrits = await execute_query("SELECT id, created_at, email_verified FROM web_users WHERE created_at >= ?", (depuis,)) or []
     gestes = await evenements.lignes(depuis)
     try:
         from ..services import push

@@ -1867,7 +1867,11 @@ export interface Retention {
   venus_7j: number;
   notifications: TauxRetention;
   semaines: { debut: string; inscriptions: number; actifs: number }[];
+  entonnoir: Entonnoir;
+  entonnoir_semaines: (Entonnoir & { debut: string })[];
 }
+export interface EtapeEntonnoir extends TauxRetention { cle: string; libelle: string }
+export interface Entonnoir { inscrits: number; etapes: EtapeEntonnoir[] }
 
 export const adminAPI = {
   emailStatus: () => fetchAPI<EmailEtat>("/api/admin/email/status"),
