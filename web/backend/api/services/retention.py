@@ -21,17 +21,19 @@ qu'un 100 % sur deux personnes se lise comme tel.
 from __future__ import annotations
 
 from collections import defaultdict
+
+from ..temps import aujourdhui_paris, jour_paris
 from datetime import date, datetime, timedelta, timezone
 
 
 def _jour(iso: str) -> date | None:
-    try:
-        d = datetime.fromisoformat(str(iso).replace("Z", "+00:00"))
-    except ValueError:
-        return None
-    if d.tzinfo is None:
-        d = d.replace(tzinfo=timezone.utc)
-    return d.astimezone(timezone.utc).date()
+    """Le jour à Paris ; un jour seul (« 2026-03-01 ») reste ce jour-là."""
+    if len(str(iso)) == 10:
+        try:
+            return date.fromisoformat(str(iso))
+        except ValueError:
+            return None
+    return jour_paris(iso)
 
 
 def _instant(iso: str) -> datetime | None:
@@ -50,7 +52,7 @@ def calculer(inscrits: list[dict], gestes: list[dict], abonnes: set[int], debut:
              aujourdhui: date | None = None) -> dict:
     """`inscrits` : {id, created_at} ; `gestes` : {user_id, type, jour, cree_le} ;
     `abonnes` : identifiants avec un appareil abonné aux notifications."""
-    aujourdhui = aujourdhui or datetime.now(timezone.utc).date()
+    aujourdhui = aujourdhui or aujourdhui_paris()
     debut_j = _jour(debut) if debut else None
 
     jours = defaultdict(set)          # les jours où chacun est venu
@@ -67,17 +69,17 @@ def calculer(inscrits: list[dict], gestes: list[dict], abonnes: set[int], debut:
     cohorte = []
     for u in inscrits:
         t = _instant(u["created_at"])
-        if t and debut_j and t.astimezone(timezone.utc).date() >= debut_j:
+        if t and debut_j and jour_paris(t) >= debut_j:
             cohorte.append((int(u["id"]), t))
 
     def retour(de: int, a: int):
-        eligibles = [(uid, t) for uid, t in cohorte if t.date() + timedelta(days=a) <= aujourdhui]
+        eligibles = [(uid, t) for uid, t in cohorte if jour_paris(t) + timedelta(days=a) <= aujourdhui]
         revenus = [uid for uid, t in eligibles
-                   if any(t.date() + timedelta(days=k) in jours[uid] for k in range(de, a + 1))]
+                   if any(jour_paris(t) + timedelta(days=k) in jours[uid] for k in range(de, a + 1))]
         return _taux(len(revenus), len(eligibles))
 
     # Ceux dont les 24 premières heures sont passées (inscrits avant aujourd'hui).
-    activables = [(uid, t) for uid, t in cohorte if t.date() < aujourdhui]
+    activables = [(uid, t) for uid, t in cohorte if jour_paris(t) < aujourdhui]
     actives = [uid for uid, t in activables
                if all(k in premiers[uid] and premiers[uid][k] <= t + timedelta(hours=24) for k in ("analyse", "position"))]
 

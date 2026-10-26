@@ -55,7 +55,8 @@ function useVisiteDuJour() {
   const { user } = useAuth();
   useEffect(() => {
     if (!user?.id) return;
-    const jour = new Date().toISOString().slice(0, 10);
+    // Le jour à Paris, comme le serveur (backend api/temps.py), pas en UTC.
+    const jour = new Intl.DateTimeFormat("fr-CA", { timeZone: "Europe/Paris" }).format(new Date());
     const cle = `tdb_visite_du_jour_${user.id}`;
     try {
       if (localStorage.getItem(cle) === jour) return;

@@ -9,6 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from ..database import execute_query, execute_write
+from ..temps import aujourdhui_paris, jour_paris
 from .auth import get_current_user
 
 router = APIRouter()
@@ -237,10 +238,11 @@ async def _get_user_missions(user_id: int) -> List[dict]:
 
 
 def _completed_today(um: Optional[dict], today: str) -> bool:
-    """True if this user-mission row was completed today (UTC)."""
+    """True if this user-mission row was completed today (à Paris)."""
     if not um or um.get("status") != "completed" or not um.get("completed_at"):
         return False
-    return str(um["completed_at"])[:10] == today
+    j = jour_paris(um["completed_at"])
+    return bool(j) and j.isoformat() == today
 
 
 # ─── Routes ───────────────────────────────────────────────────────────────────
@@ -248,7 +250,7 @@ def _completed_today(um: Optional[dict], today: str) -> bool:
 @router.get("/missions")
 async def list_missions(current_user: dict = Depends(get_current_user)):
     user_id = current_user["id"]
-    today = datetime.now(timezone.utc).date().isoformat()
+    today = aujourdhui_paris().isoformat()
     user_mission_rows = await _get_user_missions(user_id)
     user_map = {r["mission_id"]: r for r in user_mission_rows}
 
@@ -304,7 +306,7 @@ async def aujourdhui(current_user: dict = Depends(get_current_user)):
     l'ancien compte jusqu'à la prochaine visite."""
     user_id = current_user["id"]
     progress = await _get_or_create_progress(user_id)
-    today = datetime.now(timezone.utc).date()
+    today = aujourdhui_paris()
     last = progress.get("last_activity_date")
     serie = progress["streak_days"] or 0
     try:
@@ -373,7 +375,7 @@ async def record_action(body: ProgressAction, current_user: dict = Depends(get_c
     from ..services import evenements
     await evenements.noter(user_id, evenements.PAR_ACTION.get(body.action, ""))
     now = datetime.now(timezone.utc).isoformat()
-    today = datetime.now(timezone.utc).date().isoformat()
+    today = aujourdhui_paris().isoformat()
 
     progress = await _get_or_create_progress(user_id)
     user_missions = await _get_user_missions(user_id)

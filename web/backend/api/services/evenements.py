@@ -18,6 +18,7 @@ import logging
 from datetime import datetime, timezone
 
 from ..database import USE_POSTGRES, execute_query, execute_write
+from ..temps import aujourdhui_paris
 
 logger = logging.getLogger(__name__)
 TYPES = {"inscription", "visite", "analyse", "position", "lecon", "scan", "assistant", "alerte"}
@@ -67,7 +68,7 @@ async def noter(user_id, type_: str) -> None:
         await execute_write(
             "INSERT INTO evenements (user_id, type, jour, cree_le) VALUES (?, ?, ?, ?) "
             "ON CONFLICT (user_id, type, jour) DO NOTHING",
-            (uid, type_, maintenant.date().isoformat(), maintenant.isoformat()))
+            (uid, type_, aujourdhui_paris().isoformat(), maintenant.isoformat()))
     except Exception as e:
         logger.info("geste %s non noté pour %s : %s", type_, user_id, e)
 

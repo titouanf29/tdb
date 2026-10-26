@@ -9,6 +9,7 @@ from fastapi.testclient import TestClient
 from main import app
 from api.database import execute_query, execute_write
 from api.routes import _prices
+from api.temps import aujourdhui_paris
 
 client = TestClient(app)
 
@@ -57,7 +58,7 @@ def test_barre_du_niveau_en_cours():
 def test_la_serie_demande_des_jours_consecutifs():
     uid, h = _compte()
     client.get("/api/learn/progress", headers=h)
-    aujourdhui = datetime.now(timezone.utc).date()
+    aujourdhui = aujourdhui_paris()
     # Six jours d'affilée jusqu'à hier, puis la visite d'aujourd'hui : la série atteint 7.
     asyncio.run(execute_write("UPDATE user_progress SET streak_days = 6, last_activity_date = ? WHERE user_id = ?",
                               ((aujourdhui - timedelta(days=1)).isoformat(), uid)))
@@ -131,7 +132,7 @@ def test_recapitulatif_apres_une_absence(monkeypatch):
 def test_encart_aujourdhui():
     uid, h = _compte()
     client.get("/api/learn/progress", headers=h)
-    aujourdhui = datetime.now(timezone.utc).date()
+    aujourdhui = aujourdhui_paris()
     # Une vieille série de 5 jours, mais pas venu depuis 3 jours : elle ne tient plus.
     asyncio.run(execute_write("UPDATE user_progress SET streak_days = 5, last_activity_date = ? WHERE user_id = ?",
                               ((aujourdhui - timedelta(days=3)).isoformat(), uid)))
@@ -146,3 +147,12 @@ def test_encart_aujourdhui():
     fait = {m["id"]: m["fait"] for m in d["missions"]}
     assert fait == {"daily_analysis": True, "daily_lesson": False, "daily_scan": False}
     assert next(m for m in d["missions"] if m["id"] == "daily_analysis")["lien"].startswith("/analysis?symbol=")
+
+
+def test_les_journees_sont_celles_de_paris():
+    from api.temps import jour_paris
+    # 23 h 30 UTC en hiver, c'est déjà le lendemain à Paris (0 h 30).
+    assert jour_paris("2026-03-01T23:30:00+00:00").isoformat() == "2026-03-02"
+    # En été (UTC+2), 22 h 30 UTC est aussi le lendemain.
+    assert jour_paris("2026-07-01T22:30:00+00:00").isoformat() == "2026-07-02"
+    assert jour_paris("2026-07-01T21:30:00+00:00").isoformat() == "2026-07-01"
