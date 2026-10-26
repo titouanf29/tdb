@@ -1,7 +1,6 @@
-"use client";
-
 import "@/components/landing/vitrine.css";
 
+import { Suspense } from "react";
 import { CloudLayer, PageCourse, type CourseStop } from "@/components/design-system";
 import { ClosingSection } from "@/components/landing/ClosingSection";
 import { ChiffresCles } from "@/components/landing/ChiffresCles";
@@ -24,7 +23,19 @@ import { ProblemSection } from "@/components/landing/ProblemSection";
  * order they are read in, and names the stops along the way. The `cap` class
  * scopes the rebuilt design tokens, so nothing here can reach the screens
  * that have not been migrated yet.
+ *
+ * LA PAGE ELLE-MÊME EST RENDUE PAR LE SERVEUR, ET CHAQUE SECTION SE MET EN
+ * ROUTE À SON TOUR. Tout l'accueil s'hydratait d'un bloc dans le navigateur :
+ * plus d'une seconde de calcul sur un téléphone moyen (Lighthouse), pendant
+ * laquelle la page ne répondait pas et le premier écran tardait. Chaque
+ * section est une frontière Suspense : React les hydrate l'une après l'autre
+ * et rend la main entre deux, en commençant par celle que l'on touche.
  */
+
+/** Une section qui s'hydrate à son tour (voir plus haut). */
+function Tour({ children }: { children: React.ReactNode }) {
+  return <Suspense fallback={null}>{children}</Suspense>;
+}
 
 const STOPS: CourseStop[] = [
   { id: "depart", label: "Départ" },
@@ -45,25 +56,25 @@ export default function LandingPage() {
       <OuvertureDuCiel />
       <CloudLayer />
       <LandingNav />
-      <PageCourse stops={STOPS} />
+      <Tour><PageCourse stops={STOPS} /></Tour>
       <main>
         <Hero />
-        <ChiffresCles />
-        <ProblemSection />
-        <HowItWorks />
+        <Tour><ChiffresCles /></Tour>
+        <Tour><ProblemSection /></Tour>
+        <Tour><HowItWorks /></Tour>
         {/* Une seule traversée au milieu de la page, et une avant la fin :
             cinq couches de nuages faisaient de la page une longue attente
             entre deux contenus. */}
-        <Traversee hauteur={380} />
-        <DemoSection />
-        <PaperTradingSection />
-        <PersonalisationSection />
-        <LearnSection />
-        <FaqSection />
-        <Traversee hauteur={340} />
-        <ClosingSection />
+        <Tour><Traversee hauteur={380} /></Tour>
+        <Tour><DemoSection /></Tour>
+        <Tour><PaperTradingSection /></Tour>
+        <Tour><PersonalisationSection /></Tour>
+        <Tour><LearnSection /></Tour>
+        <Tour><FaqSection /></Tour>
+        <Tour><Traversee hauteur={340} /></Tour>
+        <Tour><ClosingSection /></Tour>
       </main>
-      <LandingFooter />
+      <Tour><LandingFooter /></Tour>
     </div>
   );
 }

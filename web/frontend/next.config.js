@@ -4,6 +4,11 @@ const nextConfig = {
   // Ne pas annoncer « Next.js » dans chaque réponse.
   poweredByHeader: false,
   output: 'standalone',
+  // Le titre et la description toujours DANS <head>, pour tout le monde.
+  // Next 15 les envoie sinon en flux, après le contenu, sauf pour une liste
+  // de robots dont Googlebot ne fait pas partie : la page arrivait avec son
+  // titre hors de l'en-tête, et Lighthouse la disait sans description.
+  htmlLimitedBots: /.*/,
   images: {
     // Le site n'utilise pas next/image : l'optimiseur d'images de Next est
     // coupé, ce qui ferme les failles qui passent par lui (exécution de code
