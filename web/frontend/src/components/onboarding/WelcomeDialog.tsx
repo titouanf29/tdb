@@ -15,6 +15,10 @@ import { Presentation } from "./Presentation";
 
 /** Mémorise un refus, pour que la question ne revienne pas à chaque page. */
 export const DISMISSED_KEY = "tdb_welcome_dismissed";
+/** La fermeture est retenue PAR COMPTE. Une clé commune au navigateur
+ *  faisait qu'un compte créé là où un autre l'avait déjà fermée ne voyait
+ *  jamais la présentation de Nimbo. */
+export const cleFermeture = (userId: number | string | undefined) => `${DISMISSED_KEY}_${userId ?? "anonyme"}`;
 
 /**
  * L'accueil d'un inscrit : Nimbo se présente, montre le site en quatre
@@ -94,7 +98,7 @@ export function WelcomeDialog({
   onClose: () => void;
 }) {
   const router = useRouter();
-  const { setTradingLevel } = useAuth();
+  const { setTradingLevel, user } = useAuth();
   const { profile, save } = useProfile();
 
   const [step, setStep] = useState<Step>("nimbo");
@@ -116,7 +120,7 @@ export function WelcomeDialog({
    * les questions restent dans les paramètres.
    */
   const close = () => {
-    try { localStorage.setItem(DISMISSED_KEY, "1"); } catch { /* navigation privée */ }
+    try { localStorage.setItem(cleFermeture(user?.id), "1"); } catch { /* navigation privée */ }
     onClose();
   };
 
