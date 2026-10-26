@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   Atmosphere, Container, CountUp, Eyebrow, Heading, Num, Progress, Section, SegmentedControl, Text, DUR, EASE,
@@ -8,7 +9,7 @@ import {
 import { Inclinaison, Reveal } from "./effets";
 import { MotsAuScroll } from "./animations";
 import { AnalysisVisual } from "./AnalysisVisual";
-import { DEMO_ASSETS, LEVELS, type LevelId } from "./demoData";
+import { DEMO_ASSETS, LEVELS, type DemoAsset, type LevelId } from "./demoData";
 import { useMouvementReduit } from "@/components/design-system/useMouvementReduit";
 
 /**
@@ -18,13 +19,56 @@ import { useMouvementReduit } from "@/components/design-system/useMouvementRedui
  * visitor picks how much they want to see, and the same asset answers at three
  * different resolutions. Someone who wants a direction gets a sentence;
  * someone who wants the engine's internals gets them, one click away.
+ *
+ * EN DIRECT. Chaque actif est la vraie analyse du moteur, sur les cours du
+ * jour (backend : routes/demo.py, gardée dix minutes). Elle est demandée un
+ * peu avant que la section n'arrive à l'écran. Tant qu'elle n'est pas là, ou
+ * si le serveur ne répond pas, la page montre l'exemple fixe, et le dit.
  */
+
+/** « 2026-10-26T20:13+01:00 » → « 20 h 13 ». */
+function heure(iso: string): string {
+  const [h, m] = iso.slice(11, 16).split(":");
+  return `${Number(h)} h ${m}`;
+}
 export function DemoSection() {
   const [assetId, setAssetId] = useState(DEMO_ASSETS[0].id);
   const [level, setLevel] = useState<LevelId>("discover");
   const reduce = useMouvementReduit();
+  const section = useRef<HTMLDivElement>(null);
+  const [proche, setProche] = useState(false);
+  const [vivants, setVivants] = useState<Record<string, DemoAsset>>({});
+  const demandes = useRef(new Set<string>());
 
-  const asset = DEMO_ASSETS.find((a) => a.id === assetId) ?? DEMO_ASSETS[0];
+  // La section approche de l'écran : la démo peut aller chercher ses cours.
+  useEffect(() => {
+    const el = section.current;
+    if (!el || typeof IntersectionObserver === "undefined") { setProche(true); return; }
+    const obs = new IntersectionObserver(([e]) => {
+      if (e.isIntersecting) { setProche(true); obs.disconnect(); }
+    }, { rootMargin: "600px 0px" });
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
+
+  // Une seule demande par actif et par visite ; un échec laisse l'exemple.
+  useEffect(() => {
+    if (!proche || demandes.current.has(assetId)) return;
+    demandes.current.add(assetId);
+    fetch(`/api/demo/${assetId}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((a: DemoAsset | null) => {
+        if (a && Array.isArray(a.series) && a.series.length > 1) setVivants((v) => ({ ...v, [a.id]: a }));
+      })
+      .catch(() => {});
+  }, [proche, assetId]);
+
+  const exemple = DEMO_ASSETS.find((a) => a.id === assetId) ?? DEMO_ASSETS[0];
+  const asset = vivants[assetId] ?? exemple;
+  const direct = !!asset.analyse_a;
+  // Change quand l'exemple cède la place aux vrais cours : les chiffres
+  // défilent et la courbe se retrace au lieu de sauter.
+  const cle = `${asset.id}-${direct ? "v" : "e"}`;
   const dirTone =
     asset.direction === "Haussier" ? "var(--cap-up)"
     : asset.direction === "Baissier" ? "var(--cap-down)"
@@ -52,6 +96,7 @@ export function DemoSection() {
     <Section id="demo" size="md" tone="raised" className="relative overflow-hidden">
       <Atmosphere variant="side" />
       <Container width="wide">
+        <div ref={section} />
         <div className="flex flex-col gap-10 lg:flex-row lg:items-end lg:justify-between">
         <div className="max-w-[36rem]">
           <Reveal>
@@ -130,7 +175,7 @@ export function DemoSection() {
                     {/* Nom, cours et variation défilent d'un actif à l'autre,
                         comme sur un tableau d'affichage. */}
                     <div className="overflow-hidden">
-                      <motion.div key={`n-${asset.id}`} {...defile(0)}
+                      <motion.div key={`n-${cle}`} {...defile(0)}
                         className="text-[1.2rem] font-semibold tracking-[-0.02em]"
                         style={{ fontFamily: "var(--cap-font-display)" }}
                       >
@@ -138,10 +183,10 @@ export function DemoSection() {
                       </motion.div>
                     </div>
                     <div className="mt-1.5 flex items-baseline gap-3 overflow-hidden">
-                      <motion.span key={`p-${asset.id}`} {...defile(0.05)}>
+                      <motion.span key={`p-${cle}`} {...defile(0.05)}>
                         <Num className="text-[1.4rem] font-medium">{asset.price}</Num>
                       </motion.span>
-                      <motion.span key={`c-${asset.id}`} {...defile(0.1)}>
+                      <motion.span key={`c-${cle}`} {...defile(0.1)}>
                         <Num tone={asset.change >= 0 ? "up" : "down"} className="text-[0.9rem]">
                           {asset.change >= 0 ? "+" : ""}
                           {asset.change.toFixed(2).replace(".", ",")} %
@@ -154,7 +199,7 @@ export function DemoSection() {
                       Direction
                     </div>
                     <div className="mt-1 overflow-hidden">
-                      <motion.div key={`d-${asset.id}`} {...defile(0.15)}
+                      <motion.div key={`d-${cle}`} {...defile(0.15)}
                         className="text-[1rem] font-semibold"
                         style={{ fontFamily: "var(--cap-font-display)", color: dirTone }}
                       >
@@ -166,7 +211,7 @@ export function DemoSection() {
 
                 <div className="mt-6 h-[200px] w-full">
                   <AnalysisVisual
-                    key={asset.id}
+                    key={cle}
                     prix={asset.price}
                     series={{ points: asset.series, support: asset.support, resistance: asset.resistance }}
                     className="h-full w-full"
@@ -182,7 +227,7 @@ export function DemoSection() {
               >
                 <AnimatePresence mode="wait">
                   {level === "discover" && (
-                    <motion.div key={`d-${asset.id}`} {...fade}>
+                    <motion.div key={`d-${cle}`} {...fade}>
                       <div className="text-[0.75rem] uppercase tracking-[0.14em]" style={{ color: "var(--cap-ink-3)" }}>
                         Pourquoi
                       </div>
@@ -202,7 +247,7 @@ export function DemoSection() {
                   )}
 
                   {level === "intermediate" && (
-                    <motion.div key={`i-${asset.id}`} {...fade}>
+                    <motion.div key={`i-${cle}`} {...fade}>
                       <div className="flex items-baseline justify-between">
                         <div className="text-[0.75rem] uppercase tracking-[0.14em]" style={{ color: "var(--cap-ink-3)" }}>
                           Score
@@ -228,7 +273,7 @@ export function DemoSection() {
                   )}
 
                   {level === "advanced" && (
-                    <motion.div key={`a-${asset.id}`} {...fade}>
+                    <motion.div key={`a-${cle}`} {...fade}>
                       <div className="text-[0.75rem] uppercase tracking-[0.14em]" style={{ color: "var(--cap-ink-3)" }}>
                         Données du moteur
                       </div>
@@ -255,9 +300,25 @@ export function DemoSection() {
           </div>
           </Inclinaison>
 
-          <p className="mt-3 text-[0.75rem]" style={{ color: "var(--cap-ink-3)" }}>
-            Données d'illustration. L'analyse réelle utilise les cours de marché.
-          </p>
+          <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-baseline sm:justify-between">
+            <p className="flex items-baseline gap-2 text-[0.8rem]" style={{ color: "var(--cap-ink-3)" }} aria-live="polite">
+              {direct ? (
+                <>
+                  <span aria-hidden className="inline-block h-1.5 w-1.5 shrink-0 translate-y-[-1px] rounded-full" style={{ backgroundColor: "var(--cap-ambre)" }} />
+                  <span>
+                    Analyse réelle du moteur, cours de {heure(asset.analyse_a!)}, heure de Paris.
+                    Une lecture du marché, pas un conseil en investissement.
+                  </span>
+                </>
+              ) : (
+                <span>Exemple d&apos;illustration, le temps de charger les cours du jour.</span>
+              )}
+            </p>
+            <Link href="/register" className="shrink-0 text-[0.92rem] font-medium underline decoration-[color:var(--cap-ambre)] underline-offset-[5px]"
+              style={{ color: "var(--cap-ink)" }}>
+              Analyser l&apos;actif de votre choix, gratuitement
+            </Link>
+          </div>
         </Reveal>
       </Container>
     </Section>

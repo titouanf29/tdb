@@ -1,7 +1,9 @@
 /**
  * Illustrative data for the public page.
  *
- * Fixed, not fetched. The landing page has to render with the API closed (and
+ * The fallback, not the demo itself: DemoSection asks the backend for the real
+ * analysis of the same assets (/api/demo) and shows these only while it
+ * answers, or when it cannot. Fixed, not fetched. The landing page has to render with the API closed (and
  * during maintenance it is), and a marketing page that quotes a live price it
  * cannot guarantee is worse than one that shows a clearly framed example. The
  * UI labels these as an illustration wherever they appear.
@@ -27,6 +29,9 @@ export interface DemoAsset {
   series: number[];
   support: number;
   resistance: number;
+  /** Présent quand l'actif vient du moteur (route /api/demo) : l'heure de
+   *  l'analyse, heure de Paris. Absent sur l'exemple fixe. */
+  analyse_a?: string;
 }
 
 const s = (seed: number[], n = 48): number[] => {

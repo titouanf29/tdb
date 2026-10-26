@@ -28,10 +28,12 @@ export function buildPath(
   values: number[],
   w: number,
   h: number,
-  padY = 10
+  padY = 10,
+  /** D'autres valeurs à faire tenir dans le cadre (les niveaux). */
+  etendue: number[] = []
 ): { d: string; x: (i: number) => number; y: (v: number) => number } {
-  const min = Math.min(...values);
-  const max = Math.max(...values);
+  const min = Math.min(...values, ...etendue);
+  const max = Math.max(...values, ...etendue);
   const span = max - min || 1;
   const x = (i: number) => (i / (values.length - 1)) * w;
   const y = (v: number) => padY + (1 - (v - min) / span) * (h - padY * 2);
@@ -79,7 +81,10 @@ export function AnalysisVisual({
   const gradientId = `cap-fill-${useId().replace(/:/g, "")}`;
 
   const { d, y, areaD, trendD } = useMemo(() => {
-    const { d, x, y } = buildPath(series.points, W, H);
+    // Les niveaux comptent dans l'échelle : sur de vrais cours, un support
+    // peut se trouver sous le plus bas des séances dessinées.
+    const { d, x, y } = buildPath(series.points, W, H, 10,
+      [series.support, series.resistance].filter((v) => Number.isFinite(v)));
     const areaD = `${d} L ${W} ${H} L 0 ${H} Z`;
     // A straight regression through the series: the trend, stated once.
     const n = series.points.length;
@@ -100,7 +105,9 @@ export function AnalysisVisual({
   const dernier = series.points[n - 1];
   const pct = (v: number) => `${(y(v) / H) * 100}%`;
   const base = prix ? lirePrix(prix) : 0;
-  const euro = prix?.includes("€") ? " €" : "";
+  // L'unité du cours affiché (€, $, pts), reprise sous le curseur.
+  const unite = prix?.match(/[^\d\s,.\-−]+$/)?.[0];
+  const euro = unite ? ` ${unite}` : "";
   const format = (v: number) =>
     (base * v / dernier).toLocaleString("fr-FR", { minimumFractionDigits: base < 1000 ? 2 : 0, maximumFractionDigits: base < 1000 ? 2 : 0 }) + euro;
   const bouge = (e: React.PointerEvent) => {

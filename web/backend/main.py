@@ -36,7 +36,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 from dotenv import load_dotenv
 load_dotenv(Path(__file__).parent.parent.parent / ".env")
 
-from api.routes import auth, market, wallet, analysis, users, ai_assistant, favorites, admin, tools, premium, community, portfolio, journal, weekly_prep, insights, content_factory, content_factory_visuals, missions, ipo_watch, daily_intent, welcome_back, price_alerts, intel, semaine, macro, nimbo_suivi, push, notifications, aide, editeur, moi, strategies, pont_tiktok
+from api.routes import auth, market, wallet, analysis, users, ai_assistant, favorites, admin, tools, premium, community, portfolio, journal, weekly_prep, insights, content_factory, content_factory_visuals, missions, ipo_watch, daily_intent, welcome_back, price_alerts, intel, semaine, macro, nimbo_suivi, push, notifications, aide, editeur, moi, strategies, pont_tiktok, demo
 from api.websocket import websocket_router
 from api.database import init_web_tables, execute_query, execute_write
 
@@ -71,6 +71,9 @@ async def lifespan(app: FastAPI):
     # démarrage : le premier visiteur n'attend plus leur naissance.
     from api.routes._rejeu import prechauffer as _prechauffer_rejeu
     _prechauffage = _asyncio.create_task(_prechauffer_rejeu())
+    # Les analyses de la démo de l'accueil, prêtes avant le premier visiteur.
+    from api.routes.demo import prechauffer as _prechauffer_demo
+    _demo_tache = _asyncio.create_task(_prechauffer_demo())
 
     await _bootstrap_admin()
     from api.routes.admin import figer_admins
@@ -168,6 +171,7 @@ async def lifespan(app: FastAPI):
     _strategies_tache.cancel()
     _bilan_tache.cancel()
     _communaute_tache.cancel()
+    _demo_tache.cancel()
     print("👋 TDB Web API shutting down...")
 
 
@@ -506,6 +510,7 @@ app.include_router(nimbo_suivi.router, prefix="/api/nimbo/suivi", tags=["Suivi d
 app.include_router(push.router, prefix="/api/push", tags=["Notifications push"])
 app.include_router(notifications.router, prefix="/api/notifications", tags=["Notifications"])
 app.include_router(aide.router, prefix="/api/aide", tags=["Aide du site"])
+app.include_router(demo.router, prefix="/api/demo", tags=["Démo de l'accueil"])
 app.include_router(editeur.router, prefix="/api/legal", tags=["Éditeur et ouverture du Premium"])
 app.include_router(intel.router, prefix="/api/intel", tags=["Market Intelligence"])
 app.include_router(users.router, prefix="/api/users", tags=["Users"])
