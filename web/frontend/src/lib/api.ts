@@ -3376,6 +3376,18 @@ export const insightsAPI = {
 
 // ── Missions & Progress ───────────────────────────────────────────────────────
 
+/** Un geste vient d'être compté (missions, série) : les écrans qui l'affichent se relisent. */
+export const EVT_PROGRESSION = "tdb:progression";
+
+export interface Aujourdhui {
+  serie: number;
+  semaine: { jour: string; venu: boolean; aujourdhui: boolean }[];
+  missions: { id: string; title: string; description: string; xp: number; fait: boolean; lien: string }[];
+  niveau: number;
+  xp_niveau: number;
+  xp_par_niveau: number;
+}
+
 export interface Mission {
   id: string;
   title: string;
@@ -3418,6 +3430,7 @@ export interface ActionResult {
 export const missionsAPI = {
   list: () => fetchAPI<{ missions: Mission[] }>("/api/learn/missions"),
   progress: () => fetchAPI<UserProgress>("/api/learn/progress"),
+  aujourdhui: () => fetchAPI<Aujourdhui>("/api/learn/aujourdhui"),
   // Chaque récompense gagnée est annoncée par Nimbo, où que l'action ait été
   // faite : l'appelant n'a rien à afficher lui-même.
   recordAction: (action: string, value: number = 1) =>
@@ -3426,6 +3439,8 @@ export const missionsAPI = {
       body: JSON.stringify({ action, value }),
     }).then((r) => {
       annoncerRecompenses(r);
+      // L'encart « Aujourd'hui » de l'accueil se met à jour tout seul.
+      if (typeof window !== "undefined") window.dispatchEvent(new Event(EVT_PROGRESSION));
       return r;
     }),
 };
@@ -3449,6 +3464,7 @@ export const learnAPI = {
       { method: "POST", body: JSON.stringify({ quiz_score: quizScore ?? null }) }
     ).then((r) => {
       if (!r.already_completed) annoncerRecompenses(r);
+      if (typeof window !== "undefined") window.dispatchEvent(new Event(EVT_PROGRESSION));
       return r;
     }),
 

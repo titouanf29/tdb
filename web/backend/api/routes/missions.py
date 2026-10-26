@@ -2,7 +2,7 @@
 Missions & Quests API — adaptive educational system
 """
 import json
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Optional, List
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -288,6 +288,74 @@ async def get_progress(current_user: dict = Depends(get_current_user)):
 # Les gestes que le navigateur peut signaler. La valeur n'est plus libre :
 # « value: 1000 » réussissait d'un coup toutes les missions d'une action.
 ACTIONS_CLIENT = {m["action"] for m in MISSIONS}
+
+
+# Où mène chaque mission du jour.
+_LIEN_DU_JOUR = {"daily_analysis": "/analysis", "daily_lesson": "/learn", "daily_scan": "/scanner"}
+
+
+@router.get("/aujourdhui")
+async def aujourdhui(current_user: dict = Depends(get_current_user)):
+    """L'encart « Aujourd'hui » de l'accueil : la série de jours d'affilée,
+    les sept derniers jours, les trois missions du jour et le niveau.
+
+    La série affichée est celle qui tient ENCORE : venue hier ou aujourd'hui,
+    elle continue ; sinon elle est retombée à zéro, même si la base garde
+    l'ancien compte jusqu'à la prochaine visite."""
+    user_id = current_user["id"]
+    progress = await _get_or_create_progress(user_id)
+    today = datetime.now(timezone.utc).date()
+    last = progress.get("last_activity_date")
+    serie = progress["streak_days"] or 0
+    try:
+        ecart = (today - datetime.fromisoformat(last).date()).days if last else None
+    except ValueError:
+        ecart = None
+    if ecart is None or ecart > 1:
+        serie = 0
+
+    # Les jours venus : le journal des gestes, et à défaut la série elle-même.
+    venus: set[str] = set()
+    try:
+        from ..services import evenements
+        await evenements.init()
+        debut = (today - timedelta(days=6)).isoformat()
+        rows = await execute_query("SELECT DISTINCT jour FROM evenements WHERE user_id = ? AND jour >= ?",
+                                   (user_id, debut)) or []
+        venus = {r["jour"] for r in rows}
+    except Exception:
+        pass
+    if serie and last:
+        fin = datetime.fromisoformat(last).date()
+        venus |= {(fin - timedelta(days=k)).isoformat() for k in range(min(serie, 7))}
+    semaine = []
+    for k in range(6, -1, -1):
+        j = today - timedelta(days=k)
+        semaine.append({"jour": j.isoformat(), "venu": j.isoformat() in venus, "aujourdhui": k == 0})
+
+    user_map = {r["mission_id"]: r for r in await _get_user_missions(user_id)}
+    du_jour = []
+    for m in DAILY_MISSIONS:
+        fait = _completed_today(user_map.get(m["id"]), today.isoformat())
+        du_jour.append({"id": m["id"], "title": m["title"], "description": m["description"],
+                        "xp": m["xp"], "fait": fait, "lien": _LIEN_DU_JOUR.get(m["id"], "/learn/missions")})
+
+    # La prochaine analyse : le favori le plus récent, sinon Apple.
+    fav = await execute_query("SELECT symbol FROM web_favorites WHERE user_id = ? ORDER BY id DESC LIMIT 1", (user_id,))
+    symbole = fav[0]["symbol"] if fav else "AAPL"
+    for m in du_jour:
+        if m["id"] == "daily_analysis":
+            m["lien"] = f"/analysis?symbol={symbole}"
+
+    debut_niveau = (progress["level"] - 1) * XP_PER_LEVEL
+    return {
+        "serie": serie,
+        "semaine": semaine,
+        "missions": du_jour,
+        "niveau": progress["level"],
+        "xp_niveau": max(0, min(XP_PER_LEVEL, progress["xp"] - debut_niveau)),
+        "xp_par_niveau": XP_PER_LEVEL,
+    }
 
 
 class ProgressAction(BaseModel):

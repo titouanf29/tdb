@@ -126,3 +126,23 @@ def test_recapitulatif_apres_une_absence(monkeypatch):
     assert "—" not in r["titre"]
     # Montré une fois : la visite suivante ne le rejoue pas.
     assert client.get("/api/dashboard/welcome-back", headers=h).json()["has_summary"] is False
+
+
+def test_encart_aujourdhui():
+    uid, h = _compte()
+    client.get("/api/learn/progress", headers=h)
+    aujourdhui = datetime.now(timezone.utc).date()
+    # Une vieille série de 5 jours, mais pas venu depuis 3 jours : elle ne tient plus.
+    asyncio.run(execute_write("UPDATE user_progress SET streak_days = 5, last_activity_date = ? WHERE user_id = ?",
+                              ((aujourdhui - timedelta(days=3)).isoformat(), uid)))
+    d = client.get("/api/learn/aujourdhui", headers=h).json()
+    assert d["serie"] == 0 and len(d["semaine"]) == 7 and d["semaine"][-1]["aujourdhui"]
+    assert [m["fait"] for m in d["missions"]] == [False, False, False]
+    # La visite du jour relance la série ; l'analyse coche sa mission.
+    _action(h, "daily_login")
+    _action(h, "analysis_open")
+    d = client.get("/api/learn/aujourdhui", headers=h).json()
+    assert d["serie"] == 1 and d["semaine"][-1]["venu"]
+    fait = {m["id"]: m["fait"] for m in d["missions"]}
+    assert fait == {"daily_analysis": True, "daily_lesson": False, "daily_scan": False}
+    assert next(m for m in d["missions"] if m["id"] == "daily_analysis")["lien"].startswith("/analysis?symbol=")

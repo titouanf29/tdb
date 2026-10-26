@@ -24,6 +24,7 @@ import { NuageImage } from "@/components/design-system/NuageImage";
 import { ParcoursNimbo } from "@/components/app/ParcoursNimbo";
 import { AvisDeveloppement } from "@/components/app/AvisDeveloppement";
 import { DepuisDerniereVisite } from "@/components/app/DepuisDerniereVisite";
+import { Aujourdhui } from "@/components/app/Aujourdhui";
 import { useProfile } from "@/lib/useProfile";
 
 /**
@@ -192,6 +193,9 @@ export default function DashboardPage() {
         <Reveal delay={0.04}>
           <NextStep intent={intent} positions={positions} favorites={favorites} />
         </Reveal>
+
+        {/* La série de jours d'affilée et les missions du jour. */}
+        <Aujourdhui />
 
         {/* ── 3 & 4. L'argent et la veille — dans l'ordre de l'objectif ──
             L'objectif déclaré au premier lancement réordonne réellement cette
