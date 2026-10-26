@@ -115,6 +115,17 @@ async def lifespan(app: FastAPI):
             await _asyncio.sleep(int(os.getenv("VEILLE_NOTIFS_SECONDES", "180")))
     _notifs_tache = _asyncio.create_task(_notifs_boucle())
 
+    # La stratégie active de chacun, relue toutes les deux heures sur ses
+    # actifs et ses favoris : on est prévenu quand elle se déclenche
+    # (services/veille_strategies.py).
+    async def _strategies_boucle():
+        from api.services import veille_strategies
+        await _asyncio.sleep(300)
+        while True:
+            await veille_strategies.tour()
+            await _asyncio.sleep(int(os.getenv("VEILLE_STRATEGIES_SECONDES", "7200")))
+    _strategies_tache = _asyncio.create_task(_strategies_boucle())
+
     yield
     # Les processus du rejeu (_rejeu.py) s'arrêtent avec le serveur.
     from api.routes._rejeu import arreter as _arreter_rejeu
@@ -122,6 +133,7 @@ async def lifespan(app: FastAPI):
     _macro_tache.cancel()
     _veille_tache.cancel()
     _notifs_tache.cancel()
+    _strategies_tache.cancel()
     print("👋 TDB Web API shutting down...")
 
 

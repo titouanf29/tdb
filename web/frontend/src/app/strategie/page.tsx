@@ -131,7 +131,7 @@ export default function StrategiePage() {
       setEnCours(strategie.id);
       if (activer && !strategie.active) await strategiesAPI.activer(strategie.id);
       await charger();
-      setMessage(activer ? "Stratégie enregistrée et activée : Nimbo l'appliquera sur l'analyse de chaque actif."
+      setMessage(activer ? "Stratégie enregistrée et activée : Nimbo l'appliquera sur l'analyse de chaque actif, et vous serez prévenu quand elle se déclenche sur un de ses actifs ou de vos favoris."
                          : "Stratégie enregistrée.");
     } catch (e) {
       setErreur(e instanceof Error ? e.message : "Enregistrement impossible.");
@@ -162,7 +162,7 @@ export default function StrategiePage() {
       </header>
 
       {sauvees.length > 0 && (
-        <Panel title="Vos stratégies" hint="Celle qui est active est appliquée par Nimbo sur la page d'analyse.">
+        <Panel title="Vos stratégies" hint="Celle qui est active est appliquée par Nimbo sur la page d'analyse, et je vous préviens quand elle se déclenche sur un de ses actifs ou de vos favoris.">
           <ul className="[&>*+*]:border-t [&>*+*]:border-[color:var(--cap-line)]">
             {sauvees.map((s) => (
               <li key={s.id} className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 py-3">
