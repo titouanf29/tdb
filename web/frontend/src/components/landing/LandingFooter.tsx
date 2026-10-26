@@ -36,7 +36,7 @@ export function LandingFooter() {
             <div className="grid grid-cols-2 gap-x-8 gap-y-8 sm:grid-cols-3">
               {RUBRIQUES.map((r) => (
                 <nav key={r.titre} aria-label={r.titre}>
-                  <p className="vitrine-italique text-[1rem]" style={{ color: "#c98a1e" }}>{r.titre}</p>
+                  <p className="vitrine-italique text-[1rem]" style={{ color: "var(--cap-amber-ink)" }}>{r.titre}</p>
                   <ul className="mt-3">
                     {r.liens.map(([href, label]) => (
                       <li key={href}>

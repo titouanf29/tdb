@@ -67,7 +67,7 @@ export function LeconVue({ lecon }: { lecon: LeconSerie }) {
 
       <header className="max-w-[760px]">
         <p className="text-[1rem] italic" style={{ color: "var(--cap-ink-3)", fontFamily: "var(--cap-font-display)" }}>
-          {pl ? <>Chapitre <span style={{ color: "#c98a1e" }}>{ROMAINS[pl.chapitre]}</span>, leçon {pl.rang} sur {pl.total}, </> : null}{f.duree} de lecture
+          {pl ? <>Chapitre <span style={{ color: "var(--cap-amber-ink)" }}>{ROMAINS[pl.chapitre]}</span>, leçon {pl.rang} sur {pl.total}, </> : null}{f.duree} de lecture
           {faite && <span style={{ color: "var(--cap-up)" }}>, terminée{score != null ? `, quiz ${score} %` : ""}</span>}
         </p>
         <h1 className="mt-1 text-[clamp(1.9rem,4.4vw,2.9rem)] font-medium leading-[1.08]" style={{ color: "var(--cap-ink)", fontFamily: "var(--cap-font-display)", letterSpacing: "-0.01em" }}>
@@ -83,10 +83,10 @@ export function LeconVue({ lecon }: { lecon: LeconSerie }) {
             <section key={i} id={`partie-${i + 1}`} className="scroll-mt-28">
               {plusieurs && (
                 <h2 className="mb-2 mt-12 border-t pt-8 text-[1.75rem] font-medium leading-tight first:mt-0" style={{ color: "var(--cap-ink)", fontFamily: "var(--cap-font-display)", borderColor: "var(--cap-line-strong)" }}>
-                  <span className="mr-3 italic" style={{ color: "#c98a1e" }}>{["I", "II", "III", "IV", "V"][i]}.</span>{p.titre}
+                  <span className="mr-3 italic" style={{ color: "var(--cap-amber-ink)" }}>{["I", "II", "III", "IV", "V"][i]}.</span>{p.titre}
                 </h2>
               )}
-              <Blocs blocs={p.blocs} />
+              <Blocs blocs={p.blocs} niveau={plusieurs ? 3 : 2} />
             </section>
           ))}
 

@@ -235,7 +235,7 @@ export default function CommunityPage() {
       </div>
 
       <Modal open={contactOpen} onClose={() => setContactOpen(false)} title="Contacter l'équipe">
-        <Heading level={3}>Contacter l&apos;équipe</Heading>
+        <Heading level={3} as="h2">Contacter l&apos;équipe</Heading>
         {sent ? (
           <>
             <Text size="small" className="mt-2">

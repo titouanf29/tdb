@@ -51,7 +51,7 @@ export function Presentation({ onFin, onRetour, onSeul }: { onFin: () => void; o
             <c.Scene reduit={reduit} />
           </div>
           <div className="mt-5 grid grid-cols-[2.4rem_minmax(0,1fr)] gap-x-1.5">
-            <span aria-hidden className="text-[1.3rem] italic leading-tight" style={{ color: "#c98a1e", fontFamily: "var(--cap-font-display)" }}>{c.num}</span>
+            <span aria-hidden className="text-[1.3rem] italic leading-tight" style={{ color: "var(--cap-amber-ink)", fontFamily: "var(--cap-font-display)" }}>{c.num}</span>
             <div>
               <div className="flex items-baseline gap-2">
                 <h2 className="text-[1.25rem] font-semibold leading-tight" style={{ color: "var(--cap-ink)", fontFamily: "var(--cap-font-display)" }}>{c.titre}</h2>

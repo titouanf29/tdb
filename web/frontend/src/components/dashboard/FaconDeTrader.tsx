@@ -48,7 +48,7 @@ export function FaconDeTrader() {
             ? `Après ${p.min_trades} trades fermés, ce panneau dira comment vous tradez vraiment : combien de temps vous gardez une position, ce que vous risquez au stop, comment vous sortez.`
             : `Encore ${reste} trade${reste > 1 ? "s" : ""} fermé${reste > 1 ? "s" : ""} avant un premier constat. En dessous, il décrirait un hasard, pas une habitude.`}
         </Text>
-        <div className="mt-4 flex gap-1.5" aria-label={`${n} trades fermés sur ${p.min_trades}`}>
+        <div className="mt-4 flex gap-1.5" role="img" aria-label={`${n} trades fermés sur ${p.min_trades}`}>
           {Array.from({ length: p.min_trades }, (_, i) => (
             <span
               key={i}

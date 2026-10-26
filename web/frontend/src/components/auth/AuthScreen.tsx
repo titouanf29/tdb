@@ -41,7 +41,8 @@ export function AuthScreen({
       <LiveBackdrop clouds={false} opacity={0.4} />
       <CloudBank />
 
-      <div className="relative mx-auto grid min-h-screen w-full max-w-[78rem] grid-cols-1 items-center gap-16 px-6 py-10 sm:px-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,27rem)] lg:gap-24 lg:py-16">
+      {/* La zone principale, déclarée pour les lecteurs d'écran. */}
+      <main className="relative mx-auto grid min-h-screen w-full max-w-[78rem] grid-cols-1 items-center gap-16 px-6 py-10 sm:px-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,27rem)] lg:gap-24 lg:py-16">
         {/* ── Left: where you are ──────────────────────────────────────── */}
         <div className="hidden lg:block">
           <Link
@@ -130,12 +131,12 @@ export function AuthScreen({
             ))}
           </div>
         </div>
-      </div>
+      </main>
 
       {/* The language toggle lives out of the way on wide screens. */}
-      <div className="absolute right-6 top-8 hidden lg:block">
+      <nav aria-label="Langue" className="absolute right-6 top-8 hidden lg:block">
         <LanguageToggle variant="compact" />
-      </div>
+      </nav>
     </div>
   );
 }

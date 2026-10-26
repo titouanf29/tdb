@@ -26,7 +26,7 @@ export function Sommaire({ faites }: { faites?: Set<string> }) {
     const dispo = DISPONIBLES.has(n);
     const contenu = (
       <>
-        <span className="w-9 flex-none text-[1.2rem] italic leading-tight" style={{ color: "#c98a1e", fontFamily: "var(--cap-font-display)" }}>{rang}</span>
+        <span className="w-9 flex-none text-[1.2rem] italic leading-tight" style={{ color: "var(--cap-amber-ink)", fontFamily: "var(--cap-font-display)" }}>{rang}</span>
         <span className="min-w-0 flex-1">
           <span className="flex items-baseline gap-2">
             <span className="text-[1.08rem] font-semibold leading-snug" style={{ color: dispo ? "var(--cap-ink)" : "var(--cap-ink-3)", fontFamily: "var(--cap-font-display)" }}>{f.court}</span>
@@ -83,7 +83,7 @@ export function Sommaire({ faites }: { faites?: Set<string> }) {
               <li key={c.id}>
                 <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-b pb-3" style={{ borderColor: "var(--cap-line-strong)" }}>
                   <h2 className="text-[1.65rem] font-medium leading-tight" style={{ color: "var(--cap-ink)", fontFamily: "var(--cap-font-display)" }}>
-                    <span className="mr-3 italic" style={{ color: "#c98a1e" }}>{ROMAINS[k]}.</span>{c.titre}
+                    <span className="mr-3 italic" style={{ color: "var(--cap-amber-ink)" }}>{ROMAINS[k]}.</span>{c.titre}
                   </h2>
                   {nb != null && <span className="text-[0.88rem]" style={{ color: nb === c.lecons.length ? "var(--cap-up)" : "var(--cap-ink-3)" }}>{nb === c.lecons.length ? "Terminé" : `${nb} sur ${c.lecons.length}`}</span>}
                 </div>

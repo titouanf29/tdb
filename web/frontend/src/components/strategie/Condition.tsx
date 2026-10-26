@@ -84,7 +84,7 @@ export function Condition({ c, index, onChange, onRetirer }: {
   return (
     <li className="border-t py-4 first:border-t-0" style={{ borderColor: "var(--cap-line)" }}>
       <div className="flex items-start gap-3">
-        <span className="mt-0.5 w-6 flex-none text-[1.05rem] italic" style={{ fontFamily: "var(--cap-font-display)", color: "#c98a1e" }}>
+        <span className="mt-0.5 w-6 flex-none text-[1.05rem] italic" style={{ fontFamily: "var(--cap-font-display)", color: "var(--cap-amber-ink)" }}>
           {index === 0 ? "Si" : "et"}
         </span>
         <p className="min-w-0 flex-1 text-[1.02rem] leading-[1.9]" style={{ color: "var(--cap-ink-2)" }}>{phrase}</p>

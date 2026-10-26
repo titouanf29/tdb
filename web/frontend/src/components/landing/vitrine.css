@@ -35,7 +35,7 @@
   font-family: var(--cap-font-display);
   font-style: normal;
   font-weight: inherit;
-  color: #b57610;
+  color: var(--cap-amber-ink);
 }
 
 /* Les étiquettes : plus de capitales espacées, une légende en italique,
@@ -135,7 +135,7 @@
   font-family: var(--cap-font-display) !important;
   font-weight: 700;
   font-size: 1.05rem !important;
-  color: #b57610 !important;
+  color: var(--cap-amber-ink) !important;
 }
 
 /* Les liens du menu : un trait ambre qui se dessine au survol. */
@@ -170,7 +170,7 @@
   content: counter(chapitre, upper-roman) ".";
   width: auto; height: auto; border-radius: 0; background: none;
   font-style: normal; font-weight: 600; letter-spacing: 0.02em;
-  font-size: 0.95em; color: #c98a1e;
+  font-size: 0.95em; color: var(--cap-amber-ink);
   padding-right: 0.65rem; margin-right: 0.1rem;
   border-right: 1px solid var(--cap-line-strong);
 }

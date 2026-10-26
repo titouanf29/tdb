@@ -89,7 +89,7 @@ export function AvisDeveloppement() {
           <ol className="mt-3 flex flex-wrap items-baseline gap-x-5 gap-y-1">
             {etapes.map((e, i) => (
               <li key={e} className="flex items-baseline gap-1.5 text-[0.88rem]" style={{ color: "var(--cap-ink)" }}>
-                <span className="italic" style={{ color: "#c98a1e", fontFamily: "var(--cap-font-display)" }}>{i + 1}</span>
+                <span className="italic" style={{ color: "var(--cap-amber-ink)", fontFamily: "var(--cap-font-display)" }}>{i + 1}</span>
                 {e}
               </li>
             ))}

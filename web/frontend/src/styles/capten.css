@@ -22,7 +22,7 @@
      bien pour un aplat ou un filet, hors-jeu pour un pictogramme ou un mot.
      Assombri jusqu'à 4,08:1, il passe le seuil des éléments non textuels
      (3:1) en restant de la même famille de couleur. */
-  --cap-amber-ink: #8A6414;
+  --cap-amber-ink: #7A5810;   /* 5:1 sur le fond clair : l'ambre lisible pour du texte */
   /* Vert et rouge, en deux intensités — et c'est la distinction qui compte.
 
      Mesuré sur l'écran Marchés : 0,74 % des pixels étaient très saturés,
@@ -873,7 +873,7 @@ body:has(.cap) {
 }
 .cap .cap-sommaire-num {
   font-family: var(--cap-font-display); font-weight: 600;
-  font-size: 1.35rem; line-height: 1.15; color: #c98a1e;
+  font-size: 1.35rem; line-height: 1.15; color: var(--cap-amber-ink);
 }
 .cap .cap-sommaire-titre {
   font-family: var(--cap-font-display); font-weight: 600; font-size: 1.3rem; line-height: 1.2;
@@ -897,7 +897,7 @@ body:has(.cap) {
   font-family: var(--cap-font-display); font-weight: 600; font-size: 1.22rem; line-height: 1.3;
   color: var(--cap-ink);
 }
-.cap .cap-qr dt::before { content: "Q."; font-weight: 700; color: #c98a1e; margin-right: 0.55rem; }
+.cap .cap-qr dt::before { content: "Q."; font-weight: 700; color: var(--cap-amber-ink); margin-right: 0.55rem; }
 .cap .cap-qr dd { margin-top: 0.5rem; padding-left: 1.85rem; }
 
 
@@ -951,7 +951,7 @@ body:has(.cap) {
 .cap .cap-rubriques section[data-repliable] > button:hover { background: none !important; }
 .cap .cap-rubriques section[data-repliable] > button h2::before {
   content: counter(rubrique) ".";
-  font-weight: 600; color: #c98a1e; margin-right: 0.6rem;
+  font-weight: 600; color: var(--cap-amber-ink); margin-right: 0.6rem;
 }
 .cap .cap-rubriques section[data-repliable] > div { padding-left: 0 !important; padding-right: 0 !important; }
 .cap .cap-rubriques [data-aside] { display: none; }
@@ -1013,3 +1013,8 @@ body:has(.cap) {
 .vitrine [style*="font-style: italic"] {
   font-style: normal !important;
 }
+
+/* Les titres en gras, comme le veut la charte (Public Sans 700) : certains
+   écrans gardaient la graisse moyenne réglée pour l'ancienne serif. */
+.cap :is(h1, h2) { font-weight: 700; }
+.cap h3 { font-weight: 600; }
