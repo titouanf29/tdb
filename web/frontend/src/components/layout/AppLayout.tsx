@@ -246,7 +246,9 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     return <LegalShell>{children}</LegalShell>;
   }
 
-  if (pathname?.startsWith("/lecon/") || pathname === "/cours") {
+  // Les pages publiques à lire sans compte : les leçons et les analyses du jour.
+  if (pathname?.startsWith("/lecon/") || pathname === "/cours"
+    || pathname?.startsWith("/actif/") || pathname === "/actifs") {
     return <CoursShell>{children}</CoursShell>;
   }
 

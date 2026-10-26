@@ -156,7 +156,7 @@ export const DEMO_ASSETS: DemoAsset[] = [
     resistance: 108,
   },
   {
-    id: "gold",
+    id: "or",
     name: "Or",
     ticker: "GC=F",
     price: "2 412 €",

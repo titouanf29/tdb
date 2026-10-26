@@ -12,7 +12,7 @@ import { CaptenLogo, Container, Text } from "@/components/design-system";
  * composée et par qui, comme à la fin d'un livre.
  */
 const RUBRIQUES = [
-  { titre: "Lire", liens: [["#demo", "La démo"], ["#fonctionnement", "Le fonctionnement"], ["#apprendre", "Le parcours"], ["#faq", "Les questions"]] },
+  { titre: "Lire", liens: [["#demo", "La démo"], ["/actifs", "Les analyses du jour"], ["/cours", "Les leçons"], ["#fonctionnement", "Le fonctionnement"], ["#faq", "Les questions"]] },
   { titre: "Commencer", liens: [["/register", "Créer un compte"], ["/login", "Se connecter"], ["#paper-trading", "Le portefeuille virtuel"]] },
   { titre: "Les règles", liens: [["/mentions-legales", "Mentions légales"], ["/politique-de-confidentialite", "Confidentialité"], ["/cgu", "Conditions d'utilisation"], ["/cgv", "Conditions de vente"]] },
 ];

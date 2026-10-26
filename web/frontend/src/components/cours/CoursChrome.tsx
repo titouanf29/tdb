@@ -4,7 +4,7 @@ import Link from "next/link";
 import { CaptenLogo } from "@/components/design-system";
 
 /**
- * Le cadre des leçons pour un visiteur sans compte : le logo, les leçons, et
+ * Le cadre des leçons et des analyses du jour pour un visiteur sans compte : le logo, les leçons, et
  * deux portes (se connecter, créer un compte). C'est souvent la première page
  * du site qu'il voit, en venant d'une vidéo.
  */
@@ -15,7 +15,8 @@ export function CoursChrome({ children }: { children: React.ReactNode }) {
         <div className="mx-auto flex h-16 max-w-[82rem] items-center justify-between gap-4 px-4 sm:px-8">
           <Link href="/" aria-label="CaptenTDB, accueil"><CaptenLogo size={22} /></Link>
           <nav className="flex items-center gap-4 text-[0.95rem] sm:gap-6">
-            <Link href="/cours" className="hidden sm:inline" style={{ color: "var(--cap-ink-2)" }}>Toutes les leçons</Link>
+            <Link href="/cours" className="hidden sm:inline" style={{ color: "var(--cap-ink-2)" }}>Les leçons</Link>
+            <Link href="/actifs" className="hidden sm:inline" style={{ color: "var(--cap-ink-2)" }}>Analyses du jour</Link>
             <Link href="/login" style={{ color: "var(--cap-ink-2)" }}>Se connecter</Link>
             <Link href="/register" className="inline-flex h-10 items-center gap-2 rounded-[10px] px-4 font-semibold" style={{ backgroundColor: "var(--cap-ink)", color: "var(--cap-on-inverse)" }}>
               <span aria-hidden className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: "var(--cap-ambre)" }} />
