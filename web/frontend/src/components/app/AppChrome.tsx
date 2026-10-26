@@ -11,6 +11,7 @@ import {
 import { Notifications } from "./Notifications";
 import { ReussiteNimbo } from "./ReussiteNimbo";
 import { BandeauVerification } from "./BandeauVerification";
+import { MessagesEquipe } from "./MessagesEquipe";
 import { VisiteGuidee } from "./VisiteGuidee";
 import { EVT_OUVRIR, lancerVisite } from "@/lib/visite";
 import { missionsAPI } from "@/lib/api";
@@ -96,6 +97,7 @@ export function AppChrome({ children }: { children: React.ReactNode }) {
         }}
       >
         <BandeauVerification />
+        <MessagesEquipe />
         {children}
       </main>
       <MobileTabs />

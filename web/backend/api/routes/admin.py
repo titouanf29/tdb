@@ -231,6 +231,26 @@ async def data_health(admin: dict = Depends(get_admin_user)):
     return {**etat_des_sources(), "secours_configure": bool(TWELVEDATA_API_KEY)}
 
 
+# ============== RÉTENTION ==============
+
+@router.get("/retention")
+async def get_retention(admin: dict = Depends(get_admin_user)):
+    """Qui revient : activation, retours à J1, J7, J30, semaines actives
+    (services/retention.py pour les définitions)."""
+    from ..services import evenements, retention
+    debut = await evenements.debut_mesure()
+    depuis = (datetime.now(timezone.utc) - timedelta(days=120)).isoformat()
+    inscrits = await execute_query("SELECT id, created_at FROM web_users WHERE created_at >= ?", (depuis,)) or []
+    gestes = await evenements.lignes(depuis)
+    try:
+        from ..services import push
+        await push.init()
+        abonnes = {int(r["user_id"]) for r in (await execute_query("SELECT DISTINCT user_id FROM push_abonnements") or [])}
+    except Exception:
+        abonnes = set()
+    return retention.calculer(inscrits, gestes, abonnes, debut)
+
+
 # ============== DASHBOARD ==============
 
 @router.get("/dashboard")
@@ -245,11 +265,11 @@ async def get_admin_dashboard(admin: dict = Depends(get_admin_user)):
     # User stats
     total_users = await execute_query("SELECT COUNT(*) as count FROM web_users")
     active_24h = await execute_query(
-        "SELECT COUNT(*) as count FROM web_users WHERE last_login > ?",
+        "SELECT COUNT(*) as count FROM web_users WHERE COALESCE(last_active, last_login) > ?",
         (cutoff_1d,)
     )
     active_7d = await execute_query(
-        "SELECT COUNT(*) as count FROM web_users WHERE last_login > ?",
+        "SELECT COUNT(*) as count FROM web_users WHERE COALESCE(last_active, last_login) > ?",
         (cutoff_7d,)
     )
     new_users_7d = await execute_query(

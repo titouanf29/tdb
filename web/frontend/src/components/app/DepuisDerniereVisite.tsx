@@ -74,7 +74,7 @@ export function DepuisDerniereVisite() {
       initial={reduit ? false : { opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.55, ease: EASE }}
-      className="relative rounded-[16px] px-5 py-5 sm:px-6"
+      className="relative z-10 rounded-[16px] px-5 py-5 sm:px-6"
       style={{ backgroundColor: "var(--cap-surface)", boxShadow: "inset 0 0 0 1px var(--cap-line)" }}
     >
       <button type="button" onClick={() => setFerme(true)} aria-label="Masquer le récapitulatif"

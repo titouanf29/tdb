@@ -453,6 +453,16 @@ export const alertsAPI = {
   check: () => fetchAPI<{ triggered: PriceAlert[]; active_count: number }>("/api/alerts/check", { method: "POST" }),
 };
 
+// Les messages de l'équipe : annonces et nouveautés (backend routes/admin.py).
+export interface AnnonceEquipe { id: number; title: string; message: string; type: string; created_at: string }
+export interface NouveauteEquipe { id: number; title: string; content: string; version?: string | null; created_at: string }
+
+export const equipeAPI = {
+  annonces: () => fetchAPI<{ broadcasts: AnnonceEquipe[] }>("/api/admin/broadcasts/public?limit=5"),
+  nouveaute: () => fetchAPI<{ changelog: NouveauteEquipe | null }>("/api/admin/changelog/latest-unread"),
+  nouveauteLue: (id: number) => fetchAPI<{ success: boolean }>(`/api/admin/changelog/${id}/read`, { method: "POST" }),
+};
+
 // « Depuis votre dernière visite » (backend routes/welcome_back.py).
 export interface RecapRetour {
   has_summary: boolean;
@@ -1830,6 +1840,20 @@ export const pontAPI = {
   tiktok: () => fetchAPI<PontTiktok>("/api/pont/tiktok"),
 };
 
+export interface TauxRetention { oui: number; total: number; taux: number | null }
+export interface Retention {
+  debut_mesure: string | null;
+  cohorte: number;
+  activation: TauxRetention;
+  j1: TauxRetention;
+  j7: TauxRetention;
+  j30: TauxRetention;
+  semaines_actives: number;
+  venus_7j: number;
+  notifications: TauxRetention;
+  semaines: { debut: string; inscriptions: number; actifs: number }[];
+}
+
 export const adminAPI = {
   emailStatus: () => fetchAPI<EmailEtat>("/api/admin/email/status"),
   /** Envoie en direct et rend l'erreur exacte en cas d'échec. */
@@ -1844,6 +1868,8 @@ export const adminAPI = {
 
   // Dashboard
   getDashboard: () => fetchAPI<AdminDashboard>("/api/admin/dashboard"),
+  /** Qui revient (backend services/retention.py pour les définitions). */
+  retention: () => fetchAPI<Retention>("/api/admin/retention"),
 
   // Users
   getUsers: (page = 1, limit = 50, search = "") =>

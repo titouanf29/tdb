@@ -61,7 +61,7 @@ export function AvisDeveloppement() {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.6, delay: 0.3, ease: EASE }}
       aria-labelledby="avis-dev-titre"
-      className="relative rounded-[16px] px-5 py-5 sm:px-6"
+      className="relative z-10 rounded-[16px] px-5 py-5 sm:px-6"
       style={{ backgroundColor: "var(--cap-surface)", boxShadow: "inset 3px 0 0 var(--cap-ambre), inset 0 0 0 1px var(--cap-line)" }}
     >
       <button type="button" onClick={fermer} aria-label="Masquer cet avis"

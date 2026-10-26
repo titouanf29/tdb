@@ -189,6 +189,8 @@ async def create_alert(
     rows = await execute_query(
         "SELECT * FROM price_alerts WHERE user_id = ? ORDER BY id DESC LIMIT 1", (uid,)
     )
+    from ..services import evenements
+    await evenements.noter(current_user.get("id"), "alerte")
     return _row(rows[0])
 
 

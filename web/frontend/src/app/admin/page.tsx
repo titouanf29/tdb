@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import {
-  Activity, BookOpen, LayoutGrid, LifeBuoy, Megaphone, Users as UsersIcon,
+  Activity, BookOpen, LayoutGrid, LifeBuoy, LineChart, Megaphone, Users as UsersIcon,
 } from "lucide-react";
 import { adminAPI, type AdminDashboard } from "@/lib/api";
 import { convertCurrency, useSettings } from "@/lib/SettingsContext";
@@ -20,6 +20,7 @@ import { Comms } from "@/components/admin/Comms";
 import { Operations } from "@/components/admin/Operations";
 import { Tickets } from "@/components/admin/Tickets";
 import { PontTiktok } from "@/components/admin/PontTiktok";
+import { Retention } from "@/components/admin/Retention";
 
 /**
  * L'administration.
@@ -42,10 +43,11 @@ import { PontTiktok } from "@/components/admin/PontTiktok";
  *      rangée d'onglets qui déborde se relit à chaque fois.
  */
 
-type Section = "overview" | "users" | "support" | "positions" | "comms" | "operations";
+type Section = "overview" | "retention" | "users" | "support" | "positions" | "comms" | "operations";
 
 const SECTIONS: { id: Section; label: string; icon: typeof LayoutGrid }[] = [
   { id: "overview", label: "Vue d'ensemble", icon: LayoutGrid },
+  { id: "retention", label: "Rétention", icon: LineChart },
   { id: "users", label: "Comptes", icon: UsersIcon },
   { id: "support", label: "Support", icon: LifeBuoy },
   { id: "positions", label: "Positions", icon: Activity },
@@ -112,6 +114,8 @@ export default function AdminPage() {
     switch (section) {
       case "overview":
         return <Overview dashboard={dashboard} reglages={reglages} onGo={(s) => setSection(s as Section)} />;
+      case "retention":
+        return <Retention />;
       case "users":
         return <Users money={money} />;
       case "support":

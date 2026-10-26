@@ -289,6 +289,8 @@ async def register(request: Request, data: RegisterRequest):
     else:
         await execute_write("UPDATE web_users SET email_verified = 1 WHERE id = ?", (user["id"],))
         verifie = True
+    from ..services import evenements
+    await evenements.noter(user["id"], "inscription")
     access_token = create_access_token(token_payload(user))
     return TokenResponse(
         access_token=access_token,

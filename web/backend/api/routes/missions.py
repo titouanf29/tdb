@@ -301,6 +301,9 @@ async def record_action(body: ProgressAction, current_user: dict = Depends(get_c
         raise HTTPException(status_code=400, detail="Action inconnue.")
     body.value = 1
     user_id = current_user["id"]
+    # Le même signal alimente le journal des gestes (la mesure des retours).
+    from ..services import evenements
+    await evenements.noter(user_id, evenements.PAR_ACTION.get(body.action, ""))
     now = datetime.now(timezone.utc).isoformat()
     today = datetime.now(timezone.utc).date().isoformat()
 
