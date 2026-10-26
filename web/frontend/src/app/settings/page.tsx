@@ -875,7 +875,7 @@ function ActiveAlerts() {
                 </span>
                 <Text size="caption" className="mt-0.5">
                   {a.direction === "above" ? "Au-dessus de" : "En dessous de"}{" "}
-                  <Num className="text-[0.78rem]">{a.target}</Num>
+                  <Num className="text-[0.78rem]">{a.target.toLocaleString("fr-FR", { maximumFractionDigits: a.target >= 1 ? 2 : 6 })}</Num>
                   {a.note ? ` · ${a.note}` : ""}
                 </Text>
               </div>

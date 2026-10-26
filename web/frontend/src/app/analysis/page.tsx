@@ -41,6 +41,7 @@ import { PressContext } from "@/components/analysis/PressContext";
 import { ClimatMarche } from "@/components/analysis/ClimatMarche";
 import { MacroContext } from "@/components/analysis/MacroContext";
 import { MaStrategie } from "@/components/analysis/MaStrategie";
+import { MePrevenir } from "@/components/analysis/MePrevenir";
 import { NoteScanner } from "@/components/analysis/NoteScanner";
 import {
   ListeSuggestions, useAssetSuggestions, useFermetureExterieure,
@@ -1284,6 +1285,21 @@ function PropositionNimbo({
               : "Je ne vous le conseille pas, mais c'est vous qui décidez : l'ordre s'ouvre sans niveaux, à vous de poser stop et objectif. Argent virtuel."}
         </Text>
       </div>
+
+      {/* Un rendez-vous avec l'actif : être prévenu quand il atteint un prix,
+          plutôt que de repasser par hasard. Les prix proposés sont ceux que
+          cette carte vient de montrer. */}
+      <MePrevenir
+        symbol={a.symbol}
+        nom={nom}
+        cours={cours}
+        assetPrice={assetPrice}
+        reperes={[
+          ...(plan ? [{ libelle: "L'objectif", prix: plan.suggested_tp }, { libelle: "Le stop", prix: plan.suggested_sl }] : []),
+          ...(a.levels?.resistance ? [{ libelle: "La résistance", prix: a.levels.resistance }] : []),
+          ...(a.levels?.support ? [{ libelle: "Le support", prix: a.levels.support }] : []),
+        ]}
+      />
     </section>
   );
 }
