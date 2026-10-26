@@ -127,7 +127,9 @@ export function Panel({
           {titre}
         </button>
       ) : (
-        <header className="flex items-start justify-between gap-4 px-5 pt-5 sm:px-6 sm:pt-6">
+        // Sur un téléphone, un contrôle large (trois onglets) passe sous le
+        // titre au lieu de l'écraser.
+        <header className="flex flex-wrap items-start justify-between gap-x-4 gap-y-3 px-5 pt-5 sm:px-6 sm:pt-6">
           {titre}
         </header>
       ))}

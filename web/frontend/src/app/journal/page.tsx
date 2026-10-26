@@ -49,6 +49,26 @@ export default function JournalPage() {
   const [formOpen, setFormOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  // Juste après un enregistrement : l'étape suivante, au lieu d'une liste
+  // qui se contente de s'allonger.
+  const [apres, setApres] = useState<{ symbole: string; complet: boolean } | null>(null);
+
+  // Arrivée depuis un ordre (« Noter mon plan au journal ») : le formulaire
+  // s'ouvre avec l'actif, le sens et le prix d'entrée.
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search);
+    const nouveau = (q.get("nouveau") || "").toUpperCase();
+    if (!nouveau) return;
+    setEditing(null);
+    setForm({
+      ...EMPTY,
+      symbol: nouveau,
+      direction: q.get("sens") === "SHORT" ? "SHORT" : "LONG",
+      entry_price: Number(q.get("prix")) || undefined,
+    });
+    setFormOpen(true);
+    window.history.replaceState(null, "", "/journal");
+  }, []);
 
   const load = useCallback(async (f: Filter) => {
     const [e, s] = await Promise.allSettled([
@@ -108,6 +128,7 @@ export default function JournalPage() {
       if (editing) await journalAPI.update(editing.id, payload);
       else await journalAPI.create(payload);
       setFormOpen(false);
+      setApres({ symbole: payload.symbol, complet: !!(payload.post_trade_notes?.trim() || payload.result) });
       await load(filter);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Enregistrement impossible.");
@@ -149,6 +170,26 @@ export default function JournalPage() {
           </Button>
         </header>
 
+        {apres && (
+          <div role="status" className="flex flex-col gap-4 px-5 py-4 sm:flex-row sm:items-center sm:justify-between"
+            style={{ borderRadius: "var(--cap-r-md)", backgroundColor: "var(--cap-surface)", boxShadow: "inset 0 0 0 1px var(--cap-line)" }}>
+            <div className="min-w-0">
+              <Text tone="ink" className="font-medium">Entrée {apres.symbole} enregistrée.</Text>
+              <Text size="small" className="mt-1">
+                {apres.complet
+                  ? "Relisez-la dans une semaine : c'est là qu'elle sert. En attendant, voyez où en sont vos positions."
+                  : "Une fois la position fermée, revenez écrire ce qui s'est passé : l'écart avec votre plan est la leçon."}
+              </Text>
+            </div>
+            <div className="flex shrink-0 flex-wrap gap-2.5">
+              <Button href="/wallet" size="md" variant={apres.complet ? "primary" : "secondary"}>Mes positions</Button>
+              <Button href={`/analysis?symbol=${encodeURIComponent(apres.symbole)}`} size="md" variant="quiet">
+                Analyser {apres.symbole}
+              </Button>
+            </div>
+          </div>
+        )}
+
         {stats && stats.total > 0 && (
           <Panel title="Ce que disent vos trades">
             <div className="flex flex-wrap items-end gap-x-12 gap-y-7">
@@ -157,7 +198,7 @@ export default function JournalPage() {
                   {stats.win_rate.toFixed(0)} %
                 </Num>
                 <Text size="caption" className="mt-2">
-                  de réussite sur {stats.total} entrées
+                  de réussite sur {stats.total} entrée{stats.total > 1 ? "s" : ""}
                 </Text>
               </div>
               <div>

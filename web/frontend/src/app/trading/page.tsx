@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import Link from "next/link";
 import {
@@ -46,7 +46,6 @@ const TURBO_LEVIER_MINI = 1.5;
 const TURBO_LEVIER_MAXI = 50;
 
 export default function TradingPage() {
-  const router = useRouter();
   const params = useSearchParams();
   const { settings, eurUsd, isLoaded } = useSettings();
   const [animOn] = useAnimationsEnabled();
@@ -79,6 +78,8 @@ export default function TradingPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  // Ce qui vient d'être ouvert, pour proposer de noter le plan au journal.
+  const [ouverte, setOuverte] = useState<{ symbole: string; sens: string; prix: number } | null>(null);
 
   const levelsFromPlan = useRef(planSl != null || planTp != null);
   const levelsTouched = useRef(false);
@@ -285,15 +286,15 @@ export default function TradingPage() {
         ? `${r.turbo.unites} titres achetés à ${moneyTitre(r.turbo.prix_titre)}${r.frais ? `, plus ${money(r.frais)} de frais` : ""}.`
         : `Position ouverte à ${assetPrice(r.entry_price || price)}.`;
       setSuccess(fait);
-      // Le message de la page disparaît avec la redirection vers le
-      // portefeuille ; celui de Nimbo la suit.
+      setOuverte({ symbole: symbol.toUpperCase(), sens: direction, prix: r.entry_price || price });
+      // La page ne part plus d'elle-même vers le portefeuille : la personne
+      // choisit la suite (le wallet, le journal, ou une autre position).
       annoncerReussite({
         titre: `${direction === "SHORT" ? "Vente" : "Achat"} ${symbol.toUpperCase()} en place`,
         detail: fait,
       });
       if (balance) setBalance({ ...balance, balance: r.new_balance });
       missionsAPI.recordAction("position_open").catch(() => {});
-      setTimeout(() => router.push("/wallet"), 1800);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Impossible d'ouvrir la position.");
     } finally {
@@ -673,13 +674,25 @@ export default function TradingPage() {
                   <Nimbo humeur="fete" taille={48} />
                   <span>
                     <span className="block font-semibold">Bravo, c&apos;est fait !</span>
-                    {success} Direction le portefeuille…
+                    {success}
                   </span>
+                </span>
+                <span className="mt-3 flex flex-wrap gap-2.5">
+                  <Button href="/wallet" size="md">Voir mon wallet</Button>
+                  {ouverte && (
+                    <Button variant="secondary" size="md"
+                      href={`/journal?nouveau=${encodeURIComponent(ouverte.symbole)}&sens=${ouverte.sens}&prix=${ouverte.prix}`}>
+                      Noter mon plan au journal
+                    </Button>
+                  )}
+                  <Button variant="quiet" size="md" type="button" onClick={() => { setSuccess(""); setOuverte(null); }}>
+                    Ouvrir une autre position
+                  </Button>
                 </span>
               </div>
             )}
 
-            <Button
+            {!success && <Button
               type="submit"
               size="lg"
               disabled={submitting || !quote || price <= 0}
@@ -695,7 +708,7 @@ export default function TradingPage() {
                   ? `Acheter ${unites} titre${unites > 1 ? "s" : ""} · turbo ${direction === "LONG" ? "long" : "short"}`
                   : `Ouvrir la position ${direction === "LONG" ? "à l'achat" : "à la vente"}`
               )}
-            </Button>
+            </Button>}
           </div>
         </form>
       </div>

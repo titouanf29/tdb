@@ -117,59 +117,6 @@ export const MOBILE_TABS = [
   { href: "/analysis", label: "Analyser" },
 ] as const;
 
-/**
- * Screens already rebuilt in the new design.
- *
- * The new chrome is light; the screens that have not been migrated are still
- * dark inside. Wrapping those in a light frame would look broken, so the shell
- * is chosen per route and the list grows as screens move over.
- *
- * There is no shortcut here, and it is worth writing down why: the legacy
- * screens carry about 1 600 hard-coded white classes — text-white, bg-white/5,
- * border-white/10. Those are not theme tokens, so flipping the palette would
- * not convert them, it would erase them. Each screen has to be rebuilt, and
- * this list is how the app stays coherent while that happens.
- */
-export const MIGRATED_ROUTES = [
-  "/dashboard",
-  // Hors menu : on n'y entre que depuis l'accueil, le week-end.
-  "/semaine",
-  "/macro",
-  // Hors menu : depuis la proposition de Nimbo (« Et en vrai ? »).
-  "/nimbo",
-  "/favorites",
-  "/learn/glossaire",
-  "/learn/missions",
-  "/assistant",
-  "/trading",
-  "/portfolio",
-  "/wallet",
-  "/journal",
-  "/community",
-  "/support",
-  "/analysis",
-  "/markets",
-  "/scanner",
-  "/strategie",
-  "/learn",
-  "/settings",
-  "/admin",
-  "/premium",
-  // Les quatre documents légaux. Ils ne sont pas « migrés » au sens des
-  // autres écrans — leur contenu reste écrit dans l'ancien vocabulaire — mais
-  // un pont CSS (`.cap-legal`) traduit ce vocabulaire, donc ils rendent le
-  // thème clair et doivent recevoir la coque claire comme les autres.
-  "/mentions-legales",
-  "/politique-de-confidentialite",
-  "/cgu",
-  "/cgv",
-];
-
-export function isMigrated(pathname: string | null): boolean {
-  if (!pathname) return false;
-  return MIGRATED_ROUTES.some((r) => pathname === r || pathname.startsWith(r + "/"));
-}
-
 export function areaForPath(pathname: string | null): NavArea | undefined {
   if (!pathname) return undefined;
   // Une leçon de la série se lit dans Parcours.

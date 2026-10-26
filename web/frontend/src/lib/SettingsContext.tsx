@@ -50,22 +50,8 @@ function frais(v: unknown): string {
   return Number.isFinite(n) && n >= 0 && n <= 50 ? String(n) : "0";
 }
 
-/** Labels are NOT stored here — they are t() keys (`settings_accent_<key>`). */
-/*
- * Terminal-theme accents. The stored KEYS are unchanged (the backend enum and
- * every existing row depend on them) but the colours and their labels are
- * re-tuned for the carbon/gold terminal: "blue" is the default and is the
- * logo's gold. These values are written inline on <html> at runtime, so they
- * MUST stay in sync with the pre-paint map in app/layout.tsx.
- */
-export const ACCENT_PRESETS: Record<AccentColor, { primary: string; neonBlue: string; ring: string; hex: string }> = {
-  blue:   { primary: "41 82% 52%",  neonBlue: "41 82% 52%",  ring: "41 82% 52%",  hex: "#E8A820" }, // Or (défaut)
-  purple: { primary: "25 85% 55%",  neonBlue: "25 85% 55%",  ring: "25 85% 55%",  hex: "#F0821E" }, // Ambre
-  teal:   { primary: "170 60% 45%", neonBlue: "170 60% 45%", ring: "170 60% 45%", hex: "#2EB89B" }, // Jade
-  orange: { primary: "187 62% 58%", neonBlue: "187 62% 58%", ring: "187 62% 58%", hex: "#5FC9DC" }, // Cyan
-  pink:   { primary: "340 65% 60%", neonBlue: "340 65% 60%", ring: "340 65% 60%", hex: "#DB5A85" }, // Magenta
-};
-
+/* L'accent n'est plus appliqué (voir plus bas) ; la clé reste dans les
+ * réglages enregistrés, dont dépend l'énumération du serveur. */
 export interface Settings {
   currency: Currency;
   tradingStyle: string;
@@ -251,18 +237,14 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     catch { /* Safari private mode / quota */ }
   }, [settings]);
 
-  // ── Apply theme + accent to the DOM. NOT gated on isLoaded: the cache read
-  //    is synchronous and app/layout.tsx runs the same logic before paint. ──
+  // ── Apply the theme to the DOM. NOT gated on isLoaded: the cache read is
+  //    synchronous and app/layout.tsx runs the same logic before paint. The
+  //    accent colour is no longer applied: the site has one identity (amber
+  //    to mark), and the setting only reached screens left from the old
+  //    interface. The field stays in the stored settings. ──
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", settings.theme);
-    const preset = ACCENT_PRESETS[settings.accentColor];
-    if (preset) {
-      const s = document.documentElement.style;
-      s.setProperty("--primary", preset.primary);
-      s.setProperty("--neon-blue", preset.neonBlue);
-      s.setProperty("--ring", preset.ring);
-    }
-  }, [settings.theme, settings.accentColor]);
+  }, [settings.theme]);
 
   // ── Hydrate from the server, re-running whenever the identity changes ────
   useEffect(() => {

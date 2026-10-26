@@ -6,7 +6,7 @@ import { Download, Loader2, LogOut, Trash2 } from "lucide-react";
 import { useAuth } from "@/lib/AuthContext";
 import {
   useSettings, BROKERS, BROKER_PRESETS,
-  type AccentColor, type Broker, type Currency, type OrderMode, type RecapFrequency,
+  type Broker, type Currency, type OrderMode, type RecapFrequency,
 } from "@/lib/SettingsContext";
 import { TRADING_STYLES, TRADING_STYLE_IDS, type TradingStyleId } from "@/lib/tradingStyle";
 import { accountAPI, alertsAPI, type PriceAlert } from "@/lib/api";
@@ -898,14 +898,6 @@ function ActiveAlerts() {
 
 /* ── Apparence ──────────────────────────────────────────────────────────── */
 
-const ACCENT_LABEL: Record<AccentColor, string> = {
-  blue: "Or",
-  purple: "Ambre",
-  teal: "Jade",
-  orange: "Cyan",
-  pink: "Magenta",
-};
-
 function AppearanceSection() {
   const { settings, saveSettings, isLoaded } = useSettings();
   const [animOn, setAnimOn] = useAnimationsEnabled();
@@ -978,37 +970,6 @@ function AppearanceSection() {
         </Text>
       </Panel>
 
-      {/* La couleur d'accent, et elle seule. Le thème clair/sombre était
-          proposé ici une seconde fois, avec les mêmes mots que le contrôle
-          ci-dessus : actionner l'un laissait l'autre moitié du site
-          inchangée, ce qui se lit comme une bascule cassée. Les deux sont
-          désormais pilotés par le seul réglage du haut. */}
-      <Panel
-        title="Couleur d'accent"
-        hint="Ne s'applique qu'aux écrans qui n'ont pas encore reçu la nouvelle interface, Scanner, Outils, Premium et les pages d'administration."
-      >
-        <div className="flex flex-wrap gap-2">
-          {(Object.keys(ACCENT_LABEL) as AccentColor[]).map((c) => (
-            <button
-              key={c}
-              onClick={() => save({ accentColor: c })}
-              aria-pressed={settings.accentColor === c}
-              className="rounded-[10px] px-3.5 py-2 text-[0.85rem] transition-colors"
-              style={{
-                color: "var(--cap-ink)",
-                backgroundColor:
-                  settings.accentColor === c ? "var(--cap-surface-2)" : "transparent",
-                boxShadow:
-                  settings.accentColor === c
-                    ? "inset 0 0 0 1px var(--cap-ocean)"
-                    : "inset 0 0 0 1px var(--cap-line)",
-              }}
-            >
-              {ACCENT_LABEL[c]}
-            </button>
-          ))}
-        </div>
-      </Panel>
     </>
   );
 }

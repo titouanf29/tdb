@@ -2,26 +2,15 @@
 
 import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/lib/AuthContext";
 import { useLanguage } from "@/lib/LanguageContext";
 import { usePremium } from "@/lib/PremiumContext";
-import { Sidebar } from "./Sidebar";
-import { Header } from "./Header";
-import { BroadcastBanner } from "./BroadcastBanner";
-import { ChangelogBanner } from "./ChangelogBanner";
-import { OnboardingModal } from "@/components/onboarding/OnboardingModal";
 import { WelcomeDialog, DISMISSED_KEY as WELCOME_DISMISSED_KEY } from "@/components/onboarding/WelcomeDialog";
-import { OnboardingTour } from "@/components/OnboardingTour";
-import { CoachOverlay } from "@/components/CoachAlex";
-import { PriceAlertWatcher } from "@/components/PriceAlertWatcher";
 import { MaintenanceScreen } from "./MaintenanceScreen";
 import { useMaintenance } from "@/lib/useMaintenance";
 import { AppChrome } from "@/components/app/AppChrome";
 import { CoursChrome } from "@/components/cours/CoursChrome";
-import { isMigrated } from "@/components/app/nav";
 import { Loader2 } from "lucide-react";
-import type { TradingLevel } from "@/lib/auth";
 
 // ── Public pages: no auth logic, no effects ───────────────────────────────────
 
@@ -101,9 +90,7 @@ function AuthShell({
   const { isAdmin } = usePremium();
   const router = useRouter();
   const pathname = usePathname();
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
-  const [forceTourLevel, setForceTourLevel] = useState<TradingLevel | null>(null);
   const maintenance = useMaintenance();
 
   const maintenanceProps = {
@@ -138,20 +125,6 @@ function AuthShell({
 
   // La visite du jour (missions, série) est signalée par AppChrome, qui
   // couvre aussi les leçons ouvertes directement.
-
-  // Close mobile menu on route change
-  useEffect(() => {
-    setMobileMenuOpen(false);
-  }, [pathname]);
-
-  /** Called when user clicks "Démarrer la visite" in OnboardingModal */
-  const handleStartTour = (level: TradingLevel) => {
-    setShowOnboarding(false);
-    // Small delay to let modal exit animation complete
-    setTimeout(() => {
-      setForceTourLevel(level);
-    }, 350);
-  };
 
   if (isAuthPage) {
     // La connexion ET la récupération du mot de passe restent ouvertes : un
@@ -197,25 +170,8 @@ function AuthShell({
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-          className="text-center space-y-4"
-        >
-          <div className="relative w-16 h-16 mx-auto">
-            <div className="absolute inset-0 rounded-full border-2 border-primary/20" />
-            <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-primary animate-spin" />
-            <div className="absolute inset-2 rounded-full bg-primary/10 flex items-center justify-center">
-              <Loader2 className="w-6 h-6 text-primary animate-spin" style={{ animationDuration: "1.5s" }} />
-            </div>
-          </div>
-          <div>
-            <p className="text-foreground font-medium">{t("loading")}</p>
-            <p className="text-muted-foreground text-sm mt-1">{lang === "fr" ? "Récupération de vos données" : "Fetching your data"}</p>
-          </div>
-        </motion.div>
+      <div className="cap flex min-h-screen items-center justify-center" style={{ backgroundColor: "var(--cap-bg)" }}>
+        <Loader2 aria-label={t("loading")} className="h-6 w-6 animate-spin" style={{ color: "var(--cap-ink-3)" }} />
       </div>
     );
   }
@@ -227,8 +183,8 @@ function AuthShell({
   // Wait for maintenance status before showing anything (prevents flash of app content)
   if (!maintenance.checked) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="w-6 h-6 rounded-full border-2 border-transparent border-t-primary animate-spin" />
+      <div className="cap flex min-h-screen items-center justify-center" style={{ backgroundColor: "var(--cap-bg)" }}>
+        <Loader2 aria-hidden className="h-6 w-6 animate-spin" style={{ color: "var(--cap-ink-3)" }} />
       </div>
     );
   }
@@ -239,86 +195,15 @@ function AuthShell({
     return <MaintenanceScreen {...maintenanceProps} />;
   }
 
-  // Rebuilt screens get the new chrome; the rest keep the old rail until they
-  // are migrated. Choosing per route is what lets an app this size change
-  // shell without a flag day: a light frame around a screen that is still dark
-  // inside would look broken, and migrating twenty screens at once would mean
-  // shipping none of them.
-  if (isMigrated(pathname)) {
-    return (
-      <>
-        {/* La version reconstruite du dialogue de bienvenue. L'ancienne est
-            sombre : posée par-dessus la nouvelle interface claire, elle était
-            la première et parfois la seule chose que voyait un inscrit du
-            jour. Elle reste en service sur les écrans non encore migrés, et
-            les deux écrivent le même champ. */}
-        {/* Dans le cadre, pour hériter des polices et des classes du site. */}
-        <AppChrome>
-          <WelcomeDialog open={showOnboarding} onClose={() => setShowOnboarding(false)} />
-          {children}
-        </AppChrome>
-      </>
-    );
-  }
-
+  // Tous les écrans ont la nouvelle interface : l'ancien cadre sombre
+  // (barre latérale, en-tête, bandeaux) n'apparaissait plus que sur une
+  // adresse inconnue. Il a été retiré, avec ce qui ne servait qu'à lui.
   return (
-    <div className="flex h-screen overflow-hidden overflow-x-hidden">
-      {/* Onboarding modal (level selection + welcome step) */}
-      <AnimatePresence>
-        {showOnboarding && (
-          <OnboardingModal
-            onClose={() => setShowOnboarding(false)}
-            onStartTour={handleStartTour}
-          />
-        )}
-      </AnimatePresence>
-
-      {/* Driver.js tour — force-started after level selection or auto on first login */}
-      <OnboardingTour
-        forceLevel={forceTourLevel}
-        onTourDone={() => setForceTourLevel(null)}
-      />
-
-      <CoachOverlay />
-
-      <PriceAlertWatcher />
-
-      {mobileMenuOpen && (
-        <div
-          className="fixed inset-0 bg-black/60 z-40 lg:hidden"
-          onClick={() => setMobileMenuOpen(false)}
-        />
-      )}
-
-      <Sidebar mobileOpen={mobileMenuOpen} onMobileClose={() => setMobileMenuOpen(false)} />
-
-      <div className="flex flex-col flex-1 overflow-hidden">
-        <Header onMenuToggle={() => setMobileMenuOpen(!mobileMenuOpen)} />
-        <main className="flex-1 overflow-auto overflow-x-hidden p-4 md:p-6">
-          <BroadcastBanner />
-          <ChangelogBanner />
-          <motion.div
-            key={pathname}
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.2, ease: "easeInOut" }}
-          >
-              {children}
-              <footer className="mt-8 pt-4 border-t border-white/10 text-center text-xs text-muted-foreground space-y-2">
-                <p>{lang === "fr" ? "Fait par" : "Made by"} <span className="text-primary font-semibold">CaptenQwark</span> - CaptenTDB</p>
-                <p>{lang === "fr" ? "Les analyses sont à but éducatif uniquement. Ce site ne fournit pas de conseils financiers. Paper trading uniquement." : "Analyses are for educational purposes only. This site does not provide financial advice. Paper trading only."}</p>
-                <div className="flex flex-wrap gap-3 justify-center">
-                  <a href="/mentions-legales" className="hover:text-primary hover:underline">{lang === "fr" ? "Mentions légales" : "Legal notice"}</a>
-                  <span>·</span>
-                  <a href="/politique-de-confidentialite" className="hover:text-primary hover:underline">{lang === "fr" ? "Politique de confidentialité" : "Privacy policy"}</a>
-                  <span>·</span>
-                  <a href="/cgu" className="hover:text-primary hover:underline">{lang === "fr" ? "CGU" : "ToS"}</a>
-                </div>
-              </footer>
-          </motion.div>
-        </main>
-      </div>
-    </div>
+    // Dans le cadre, pour hériter des polices et des classes du site.
+    <AppChrome>
+      <WelcomeDialog open={showOnboarding} onClose={() => setShowOnboarding(false)} />
+      {children}
+    </AppChrome>
   );
 }
 

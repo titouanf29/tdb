@@ -164,10 +164,7 @@ export default async function RootLayout({
             __html: `
 (function(){try{
   var s=JSON.parse(localStorage.getItem("tdb_settings")||"{}");
-  var A={blue:"41 82% 52%",purple:"25 85% 55%",teal:"170 60% 45%",orange:"187 62% 58%",pink:"340 65% 60%"};
   if(s.theme==="light"||s.theme==="dark")document.documentElement.setAttribute("data-theme",s.theme);
-  var c=A[s.accentColor];if(c){var e=document.documentElement.style;
-    e.setProperty("--primary",c);e.setProperty("--ring",c);e.setProperty("--neon-blue",c);}
   var l=localStorage.getItem("tdb_lang");if(l==="fr"||l==="en")document.documentElement.lang=l;
   // Le mode de l'interface reconstruite, posé avant le premier rendu. Sans
   // cela, un utilisateur en sombre reçoit un éclair blanc pleine page à

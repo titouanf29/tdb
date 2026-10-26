@@ -159,6 +159,8 @@ function AnalysisScreen() {
   const somme = useFormatSomme();
   const { profile, save: saveProfile } = useProfile();
   const [questionsOuvertes, setQuestionsOuvertes] = useState(false);
+  // Téléphone : les réglages de l'analyse, repliés une fois un actif analysé.
+  const [reglagesOuverts, setReglagesOuverts] = useState(false);
   // En ref : `changeStyle` le lit sans se redéclarer à chaque réponse
   // enregistrée, ce qui relancerait l'analyse pour rien.
   const profileRef = useRef(profile);
@@ -541,6 +543,22 @@ function AnalysisScreen() {
               existait déjà mais n'était modifiable que dans les paramètres,
               trois écrans plus loin, alors que c'est ici qu'on se pose la
               question. Il écrit le même réglage : changer ici change partout. */}
+          {/* SUR TÉLÉPHONE, UNE FOIS L'ACTIF ANALYSÉ, les réglages tiennent en
+              une ligne : ils prenaient un écran et demi avant le verdict, et
+              on ne les change pas à chaque visite. Un geste les rouvre. */}
+          {analysis && !reglagesOuverts && (
+            <div className="mt-4 flex items-center justify-between gap-3 border-t pt-3 sm:hidden" style={{ borderColor: "var(--cap-line)" }}>
+              <Text size="small" as="span" tone="ink" className="min-w-0">
+                {style.label.fr} · {timeframe} · risque {RISQUE[niveauRisque(settings.riskLevel)].pct.toLocaleString("fr-FR")} %
+              </Text>
+              <button type="button" onClick={() => setReglagesOuverts(true)} aria-expanded={false}
+                className="min-h-[44px] shrink-0 text-[0.9rem] font-medium underline decoration-[color:var(--cap-ambre)] underline-offset-[5px]"
+                style={{ color: "var(--cap-ink)" }}>
+                Régler
+              </button>
+            </div>
+          )}
+          <div className={analysis && !reglagesOuverts ? "hidden sm:block" : undefined}>
           <div className="mt-5 border-t pt-5" style={{ borderColor: "var(--cap-line)" }}>
             <div className="flex flex-wrap items-center justify-between gap-3">
               <Text size="caption" as="span">Sur quel horizon analysez-vous ?</Text>
@@ -587,6 +605,7 @@ function AnalysisScreen() {
             <Text size="caption" as="span">
               Unité du graphique, dans cet horizon.
             </Text>
+          </div>
           </div>
         </Panel>
 
@@ -855,7 +874,20 @@ function Verdict({
   onPasserEnSwing?: () => void;
 }) {
   const dir = directionLabel(a);
-  const reasons = useMemo(() => buildReasons(a), [a]);
+  // La première raison bloquante est déjà dite par la carte de Nimbo, juste
+  // au-dessus : la liste ne la répète pas. Le tiret cadratin des phrases du
+  // moteur devient une virgule (charte du site).
+  const reasons = useMemo(() => {
+    const dite = a.tradeability?.blockers?.[0];
+    return buildReasons(a)
+      .filter((r) => !dite || r.text.replace(/\.$/, "") !== dite.replace(/\.$/, ""))
+      .filter((r) => !(dite?.startsWith("Intraday") && r.text.startsWith("Intraday")))
+      .map((r) => ({ ...r, text: r.text.replace(/\s*—\s*/g, ", ") }));
+  }, [a]);
+  // Quatre raisons d'abord : la liste en comptait jusqu'à dix, et sur un
+  // téléphone elle repoussait le graphique de deux écrans.
+  const [toutesRaisons, setToutesRaisons] = useState(false);
+  const raisonsVues = toutesRaisons ? reasons : reasons.slice(0, 4);
   const edge = useMemo(() => edgeSentence(a), [a]);
   const scenario = useMemo(() => scenarioSentence(a), [a]);
 
@@ -989,7 +1021,7 @@ function Verdict({
           Pourquoi
         </span>
         <ul className="cap-liste mt-4 space-y-2.5">
-          {reasons.map((r, i) => (
+          {raisonsVues.map((r, i) => (
             <li key={r.text} className="flex gap-3">
               <span
                 aria-hidden
@@ -1007,6 +1039,13 @@ function Verdict({
             </li>
           ))}
         </ul>
+        {reasons.length > 4 && (
+          <button type="button" onClick={() => setToutesRaisons((v) => !v)} aria-expanded={toutesRaisons}
+            className="mt-3 min-h-[44px] text-[0.88rem] font-medium underline decoration-[color:var(--cap-ambre)] underline-offset-[5px]"
+            style={{ color: "var(--cap-ink)" }}>
+            {toutesRaisons ? "Voir moins" : `Voir les ${reasons.length - 4} autres raisons`}
+          </button>
+        )}
       </div>
 
       {/* What the engine's own history says — including when it disagrees. */}
@@ -1192,12 +1231,9 @@ function PropositionNimbo({
                 </>
               : intraday
                 ? <>
-                    J&apos;ai rejoué mes signaux sur 40 actifs : sur des mouvements de quelques minutes ou
-                    quelques heures, les frais mangent le gain. En 5 minutes, même mes meilleurs signaux
-                    perdaient en moyenne le tiers de la somme risquée à chaque trade ; en 1 h et en 4 h, ils ne
-                    gagnaient rien une fois les frais payés. Ici, vous pouvez analyser et vous entraîner
-                    (« quand même » ci-dessous), les positions que je propose, c&apos;est en Swing, sur
-                    plusieurs jours, là où mes signaux ont gagné.
+                    Sur quelques minutes ou quelques heures, les frais mangent le gain : rejoués sur
+                    40 actifs, mes signaux n&apos;y gagnaient rien. Je propose des positions en Swing, sur
+                    plusieurs jours, là où ils ont gagné.
                     {onPasserEnSwing && (
                       <button
                         type="button"
@@ -1231,7 +1267,18 @@ function PropositionNimbo({
           </Text>
           {/* Quand revenir : calculé par le serveur (_revoir.py), la même
               phrase que sur la carte du scanner. */}
-          {!propose && a.nimbo?.revoir && (
+          {intraday && !propose && (
+            <details className="mt-2 text-[0.85rem]" style={{ color: "var(--cap-ink-2)" }}>
+              <summary className="cursor-pointer py-1.5 font-medium" style={{ color: "var(--cap-ink)" }}>La mesure en détail</summary>
+              <p className="mt-1 leading-relaxed">
+                En 5 minutes, même mes meilleurs signaux perdaient en moyenne le tiers de la somme risquée à
+                chaque trade ; en 1 h et en 4 h, ils ne gagnaient rien une fois les frais payés. Vous pouvez
+                tout de même analyser et vous entraîner ici, avec « Prendre position quand même ».
+              </p>
+            </details>
+          )}
+          {/* En intraday, « quand revenir » redisait de passer en Swing. */}
+          {!propose && !intraday && a.nimbo?.revoir && (
             <p className="mt-2 text-[0.92rem] italic" style={{ color: "var(--cap-ink)", fontFamily: "var(--cap-font-display)" }}>
               {a.nimbo.revoir.texte}
             </p>
