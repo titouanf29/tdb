@@ -33,7 +33,7 @@ def _fil(h):
 def test_preferences_par_defaut_et_verrou():
     uid, h = _compte()
     p = client.get("/api/notifications/preferences", headers=h).json()
-    assert [c["id"] for c in p["categories"]] == ["positions", "alertes", "nimbo", "strategie", "macro", "support", "compte"]
+    assert [c["id"] for c in p["categories"]] == ["positions", "alertes", "nimbo", "strategie", "bilan", "macro", "support", "compte"]
     assert all(c["site"] and c["appareil"] for c in p["categories"])
     # « Compte » reste toujours dans le site, même si on demande le contraire.
     cats = {c["id"]: {"site": False, "appareil": False} for c in p["categories"]}

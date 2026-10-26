@@ -137,6 +137,37 @@ function Contenu({ d, synthese, syntheseEnCours }: {
         </Text>
       </header>
 
+      {/* ── Le bilan de la semaine ───────────────────────────────────────
+          Ce que la notification du vendredi soir annonce : la phrase qui
+          résume, les constats, et un seul conseil pour la semaine suivante. */}
+      {d.bilan && (
+        <section aria-labelledby="bilan-titre" className="relative z-10 rounded-[16px] px-5 py-5 sm:px-6"
+          style={{ backgroundColor: "var(--cap-surface)", boxShadow: "inset 0 0 0 1px var(--cap-line)" }}>
+          <p className="flex items-center gap-2 text-[0.95rem] italic" style={{ color: "var(--cap-ink-3)", fontFamily: "var(--cap-font-display)" }}>
+            <span aria-hidden className="h-[2px] w-5 rounded-full" style={{ backgroundColor: "var(--cap-ambre)" }} />
+            Le bilan de la semaine
+          </p>
+          <h2 id="bilan-titre" className="mt-2 max-w-[44rem] text-[clamp(1.2rem,2.4vw,1.55rem)] font-semibold leading-snug"
+            style={{ color: "var(--cap-ink)", fontFamily: "var(--cap-font-display)" }}>
+            {d.bilan.titre}
+          </h2>
+          <ul className="mt-4 max-w-[46rem]">
+            {d.bilan.constats.map((c, i) => (
+              <li key={i} className="flex gap-3 border-t py-2.5 text-[0.93rem]" style={{ borderColor: "var(--cap-line)", color: "var(--cap-ink-2)" }}>
+                <span aria-hidden className="mt-[0.55em] h-2 w-2 shrink-0 rounded-full"
+                  style={{ backgroundColor: c.ton === "bon" ? "var(--cap-up)" : c.ton === "attention" ? "var(--cap-down)" : "var(--cap-ink-4)" }} />
+                <span><span className="sr-only">{c.ton === "bon" ? "Bien : " : c.ton === "attention" ? "À surveiller : " : ""}</span>{c.texte}</span>
+              </li>
+            ))}
+          </ul>
+          <p className="mt-4 max-w-[46rem] rounded-[12px] px-4 py-3 text-[0.95rem] leading-relaxed"
+            style={{ backgroundColor: "var(--cap-surface-2)", color: "var(--cap-ink)" }}>
+            <span className="italic" style={{ fontFamily: "var(--cap-font-display)", color: "var(--cap-ink-3)" }}>Pour la semaine prochaine : </span>
+            {d.bilan.conseil}
+          </p>
+        </section>
+      )}
+
       {(synthese || syntheseEnCours) && (
         <section
           className="p-5 sm:p-6"

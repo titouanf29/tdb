@@ -126,6 +126,19 @@ async def lifespan(app: FastAPI):
             await _asyncio.sleep(int(os.getenv("VEILLE_STRATEGIES_SECONDES", "7200")))
     _strategies_tache = _asyncio.create_task(_strategies_boucle())
 
+    # Le bilan de la semaine, envoyé le vendredi à 22 h 30 (Paris), à
+    # l'ouverture de l'espace du week-end (services/bilan.py).
+    async def _bilan_boucle():
+        from api.services import bilan
+        await _asyncio.sleep(90)
+        while True:
+            try:
+                await bilan.envoyer()
+            except Exception as e:
+                print(f"[bilan] {e}")
+            await _asyncio.sleep(600)
+    _bilan_tache = _asyncio.create_task(_bilan_boucle())
+
     yield
     # Les processus du rejeu (_rejeu.py) s'arrêtent avec le serveur.
     from api.routes._rejeu import arreter as _arreter_rejeu
@@ -134,6 +147,7 @@ async def lifespan(app: FastAPI):
     _veille_tache.cancel()
     _notifs_tache.cancel()
     _strategies_tache.cancel()
+    _bilan_tache.cancel()
     print("👋 TDB Web API shutting down...")
 
 

@@ -684,10 +684,19 @@ async def _tout(user: dict) -> dict:
         "semaine_pct": (prix.get(p["symbol"]) or {}).get("semaine_pct"),
     } for p in ouvertes]
 
+    try:
+        from ..services import bilan as _bilan
+        activite = await _bilan._activite(int(user["id"]), lundi_ecoule, lundi)
+        lecture = {"activite": activite, **_bilan.lire(semaine, activite)}
+    except Exception as e:
+        logger.info("semaine : bilan indisponible (%s)", e)
+        lecture = None
+
     return {
         "fenetre": f,
         "profil": {k: profil[k] for k in ("goal", "markets", "style", "weekly_time")},
         "semaine": semaine,
+        "bilan": lecture,
         "positions": positions,
         "actifs": actifs,
         "actualite": actu,

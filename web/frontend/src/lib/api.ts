@@ -3562,6 +3562,13 @@ export interface PointAPenser {
   lien: string | null;
 }
 
+export interface BilanSemaine {
+  titre: string;
+  conseil: string;
+  constats: { ton: "bon" | "neutre" | "attention"; texte: string }[];
+  activite: { jours: number; analyses: number; lecons: number; serie: number };
+}
+
 export interface PreparationSemaine {
   fenetre: FenetreSemaine;
   profil: { goal: string | null; markets: string[]; style: string; weekly_time: string | null };
@@ -3605,6 +3612,8 @@ export interface PreparationSemaine {
     devises: string[];
   };
   a_penser: PointAPenser[];
+  /** Le bilan de la semaine (backend services/bilan.py), ou null s'il n'a pas pu être calculé. */
+  bilan: BilanSemaine | null;
 }
 
 export const semaineAPI = {
