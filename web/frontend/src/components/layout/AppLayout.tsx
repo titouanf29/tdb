@@ -159,7 +159,7 @@ function AuthShell({
           >
             <p className="text-[0.82rem] leading-relaxed">
               <span className="font-semibold">
-                {lang === "en" ? "Maintenance. " : "Maintenance. "}
+                Maintenance.{" "}
               </span>
               {lang === "en"
                 ? "The site is closed to visitors, only team accounts can sign in right now."

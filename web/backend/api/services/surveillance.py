@@ -24,6 +24,9 @@ SEUIL = 5            # erreurs…
 FENETRE = 600        # … en dix minutes
 _recentes: deque = deque(maxlen=50)
 _derniere_alerte = 0.0
+# Les alertes en cours d'envoi. Une tâche asyncio que rien ne retient peut
+# être ramassée par le ramasse-miettes avant d'avoir fini.
+_envois: set[asyncio.Task] = set()
 
 
 def dernieres() -> list[dict]:
@@ -45,7 +48,9 @@ def noter(methode: str, route: str, erreur: BaseException) -> None:
         fenetre = [e for e in _recentes if maintenant - e["t"] <= FENETRE]
         if len(fenetre) >= SEUIL and maintenant - _derniere_alerte > 3600:
             _derniere_alerte = maintenant
-            asyncio.get_running_loop().create_task(_prevenir(fenetre))
+            tache = asyncio.get_running_loop().create_task(_prevenir(fenetre))
+            _envois.add(tache)
+            tache.add_done_callback(_envois.discard)
     except Exception as e:  # la surveillance ne doit jamais casser une réponse
         logger.warning("erreur non notée : %s", e)
 

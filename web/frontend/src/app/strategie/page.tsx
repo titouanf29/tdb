@@ -185,7 +185,9 @@ export default function StrategiePage() {
                   </Button>
                   <Button size="sm" variant="quiet" onClick={async () => {
                     if (!confirm(`Supprimer « ${s.nom} » ?`)) return;
-                    await strategiesAPI.supprimer(s.id); if (enCours === s.id) setEnCours(null); charger();
+                    await strategiesAPI.supprimer(s.id);
+                    if (enCours === s.id) { setEnCours(null); }
+                    charger();
                   }}>Supprimer</Button>
                 </div>
               </li>

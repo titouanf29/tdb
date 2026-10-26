@@ -84,7 +84,8 @@ export default async function Page({ params }: Props) {
   const autres = liste.filter((x) => x.id !== slug);
   const memes = autres.filter((x) => x.categorie === a.categorie).slice(0, 6);
   const ailleurs = autres.filter((x) => x.categorie !== a.categorie).slice(0, 6 - Math.min(memes.length, 3));
-  const unite = a.price.replace(/^[\d\s ,.\-−]+/, "").trim();
+  // \s couvre déjà les espaces insécables du séparateur de milliers.
+  const unite = a.price.replace(/^[\d\s,.\-−]+/, "").trim();
   const prixNombre = (v: number | null) =>
     v == null ? "n.d." : `${v.toLocaleString("fr-FR", { minimumFractionDigits: a.ticker.endsWith("=X") ? 4 : 2, maximumFractionDigits: a.ticker.endsWith("=X") ? 4 : 2 })}${unite ? ` ${unite}` : ""}`;
   const rsiLecture = a.rsi == null ? undefined
