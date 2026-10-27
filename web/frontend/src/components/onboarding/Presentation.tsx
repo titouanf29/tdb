@@ -149,7 +149,9 @@ function SceneWallet({ reduit }: { reduit: boolean }) {
     const a = animate(0, 10000, { duration: 1.6, delay: 0.2, ease: [0.22, 1, 0.36, 1], onUpdate: (v) => setMontant(v) });
     return () => a.stop();
   }, [reduit]);
-  const texte = `${Math.round(montant / 10) * 10}`.replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+  // Les milliers séparés par le formatage français du navigateur, qui met
+  // l'espace fine insécable voulue (sans expression régulière à rebours).
+  const texte = (Math.round(montant / 10) * 10).toLocaleString("fr-FR");
   return (
     <svg viewBox={`0 0 ${W} ${H}`} className="block h-auto w-full" role="img" aria-label="10 000 euros fictifs, puis une position avec son stop et son objectif">
       <text x={24} y={30} style={LEGENDE}>Votre compte d&apos;entraînement</text>

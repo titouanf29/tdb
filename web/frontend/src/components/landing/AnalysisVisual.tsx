@@ -106,7 +106,8 @@ export function AnalysisVisual({
   const pct = (v: number) => `${(y(v) / H) * 100}%`;
   const base = prix ? lirePrix(prix) : 0;
   // L'unité du cours affiché (€, $, pts), reprise sous le curseur.
-  const unite = prix?.match(/[^\d\s,.\-−]+$/)?.[0];
+  // Ancrée au début, l'expression ne parcourt la chaîne qu'une fois.
+  const unite = prix?.replace(/^[\d\s,.\-−]+/, "").trim() || undefined;
   const euro = unite ? ` ${unite}` : "";
   const format = (v: number) =>
     (base * v / dernier).toLocaleString("fr-FR", { minimumFractionDigits: base < 1000 ? 2 : 0, maximumFractionDigits: base < 1000 ? 2 : 0 }) + euro;
