@@ -172,6 +172,7 @@ export default function CommunityPage() {
                     description="Chaque matin de semaine, Nimbo y publie la note du jour. Posez une question, ou partagez une analyse depuis la page d'un actif."
                   />
                 ) : (
+                  <>
                   <ul className="[&>*+*]:border-t [&>*+*]:border-[color:var(--cap-line)]">
                     {messages.map((m) => (
                       <Publication
@@ -186,8 +187,11 @@ export default function CommunityPage() {
                         onReport={() => signaler(m)}
                       />
                     ))}
-                    <div ref={endRef} />
                   </ul>
+                  {/* Le repère de fin du fil, hors de la liste (une liste ne
+                      contient que des éléments de liste). */}
+                  <div ref={endRef} />
+                  </>
                 )}
               </div>
             </Panel>

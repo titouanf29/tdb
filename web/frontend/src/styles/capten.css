@@ -60,8 +60,8 @@
      Les quatre valeurs tiennent 4,6:1 sur les trois fonds où du texte coloré
      apparaît — panneau, page et tuile sélectionnée. Les toutes premières
      valeurs du projet, elles, plafonnaient à 4,13:1, sous le seuil AA. */
-  --cap-up:        #097241;
-  --cap-down:      #C51B0F;
+  --cap-up:        #08683B;   /* 5:1 sur le fond clair */
+  --cap-down:      #B3170C;   /* 5:1 sur le fond clair */
   --cap-up-soft:   #A6CBBC;
   --cap-down-soft: #E6AEAB;
 
@@ -120,10 +120,10 @@
      et fait remonter la séparation avec les panneaux de 1,11:1 à 1,20:1 : ils
      se détachent mieux sur un ciel moins blanc. Les nuages font le reste, en
      donnant au fond le relief qui lui manquait. */
-  --cap-bg:        #DEE5EF;
+  --cap-bg:        #D6DFEA;   /* panneaux 1,27:1 sur le fond (1,20 avant) */
   /* Le même fond, mais porté par la racine : il sert au canevas du document,
      hors de la coque (voir `body:has(.cap)`). */
-  --cap-canvas:    #DEE5EF;
+  --cap-canvas:    #D6DFEA;
   --cap-surface:   #F7F9FB;
   --cap-surface-2: #E0E6EE;
   --cap-surface-3: #D4DCE6;
@@ -206,8 +206,8 @@
   /* ── Lines ─────────────────────────────────────────────────────────────
      Hairlines only. A border that announces itself is a border doing the job
      that spacing should be doing. */
-  --cap-line:        rgba(11, 23, 38, 0.075);
-  --cap-line-strong: rgba(11, 23, 38, 0.15);
+  --cap-line:        rgba(11, 23, 38, 0.10);
+  --cap-line-strong: rgba(11, 23, 38, 0.17);
   --cap-line-chart:  rgba(11, 23, 38, 0.06);
 
   /* ── Radii — 8 / 12 / 16, 20 for large blocks. Never a capsule. ───────── */
@@ -1018,3 +1018,36 @@ body:has(.cap) {
    écrans gardaient la graisse moyenne réglée pour l'ancienne serif. */
 .cap :is(h1, h2) { font-weight: 700; }
 .cap h3 { font-weight: 600; }
+
+/* La rangée d'onglets qui défile : un fondu au bord droit montre qu'il y a
+   une suite (AppChrome). */
+@media (max-width: 1023px) {
+  .cap .cap-onglets {
+    mask-image: linear-gradient(to right, #000 calc(100% - 2.5rem), transparent);
+    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 2.5rem), transparent);
+    padding-right: 2rem;
+  }
+}
+
+/* ── PAS DE TEXTE MINUSCULE ──────────────────────────────────────────────
+   Les légendes, explications et badges descendaient jusqu'à 0,66 rem
+   (10 px), souvent dans le gris le plus clair : difficiles à lire sur un
+   téléphone. Une taille plancher pour tout le site (0,82 rem, environ
+   13 px), et le gris le plus pâle remonte d'un cran quand il colore du
+   texte. Les graphiques (texte SVG) ne sont pas concernés. */
+.cap [class*="text-[0.6"], .cap [class*="text-[0.7"], .cap [class*="text-[0.80rem]"], .cap [class*="text-[0.8rem]"],
+.vitrine [class*="text-[0.6"], .vitrine [class*="text-[0.7"], .vitrine [class*="text-[0.8rem]"] {
+  font-size: 0.82rem !important;
+}
+.cap :is(p, span, li, dd, dt, small, label, a, button)[style*="color: var(--cap-ink-4)"] {
+  color: var(--cap-ink-3) !important;
+}
+
+/* ── LECTURE CONFORTABLE (Réglages, lib/lecture.ts) ─────────────────────
+   La taille de base un cran plus grande : tout ce qui est en rem suit. Le
+   ciel animé s'arrête. La taille plancher des petits textes monte aussi. */
+html.lecture-confortable { font-size: 112.5%; }
+html.lecture-confortable .cap-meteo { display: none; }
+html.lecture-confortable .cap [class*="text-[0.6"], html.lecture-confortable .cap [class*="text-[0.7"],
+html.lecture-confortable .cap [class*="text-[0.8rem]"] { font-size: 0.88rem !important; }
+html.lecture-confortable .cap :is(p, li, dd) { line-height: 1.7; }

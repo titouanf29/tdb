@@ -20,6 +20,7 @@ présentation seulement).
 | Chiffres | Public Sans en chiffres tabulaires (seuls les chiffres sont tabulaires, la virgule, le point et les symboles monétaires gardent leur chasse : fichiers retouchés dans `src/fonts`) | une police de terminal |
 | Étiquettes | droites, graisse 600, précédées d'un trait ambre (ou du numéro de chapitre sur la page de présentation) ; pas d'italique dans l'interface | petites capitales espacées ; l'italique, moins lisible petit et sur téléphone |
 | Ponctuation | virgule, deux-points ou point ; décimales à la virgule ; espace fine avant les milliers | tirets cadratins ; « 1.42 % » |
+| Lisibilité | panneaux opaques (le texte ne repose jamais sur les nuages) ; ciel limité au haut de l'écran ; aucun texte sous 0,82 rem ; contraste d'au moins 4,5:1 pour tout texte, couleurs de hausse et de baisse comprises ; réglage « Lecture confortable » (texte un cran plus grand, ciel coupé) | voiles translucides derrière du texte, légendes de 10 px en gris pâle |
 
 ## La couleur
 

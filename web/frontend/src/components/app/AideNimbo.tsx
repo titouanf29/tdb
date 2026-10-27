@@ -56,7 +56,12 @@ export function AideNimbo() {
     let vu = true;
     try { vu = localStorage.getItem(CLE_VUE) === "1"; } catch { /* navigation privée */ }
     if (vu) return;
-    const t = setTimeout(() => setIndice(true), 6000);
+    // Notée vue dès qu'elle s'affiche : elle revenait sinon à chaque page
+    // tant qu'on n'avait pas ouvert l'aide, par-dessus les boutons.
+    const t = setTimeout(() => {
+      setIndice(true);
+      try { localStorage.setItem(CLE_VUE, "1"); } catch { /* navigation privée */ }
+    }, 6000);
     const t2 = setTimeout(() => setIndice(false), 16000);
     return () => { clearTimeout(t); clearTimeout(t2); };
   }, []);

@@ -150,6 +150,8 @@ export default async function RootLayout({
   var s=JSON.parse(localStorage.getItem("tdb_settings")||"{}");
   if(s.theme==="light"||s.theme==="dark")document.documentElement.setAttribute("data-theme",s.theme);
   var l=localStorage.getItem("tdb_lang");if(l==="fr"||l==="en")document.documentElement.lang=l;
+  // La lecture confortable (lib/lecture.ts), avant le premier affichage.
+  if(localStorage.getItem("tdb_lecture")==="1")document.documentElement.classList.add("lecture-confortable");
   // Le mode de l'interface reconstruite, posé avant le premier rendu. Sans
   // cela, un utilisateur en sombre reçoit un éclair blanc pleine page à
   // chaque navigation, le temps que React monte.
