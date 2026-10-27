@@ -24,6 +24,8 @@ import { Text } from "@/components/design-system";
  * c'est l'actif ou le site qui échoue. Le parent retombe alors sur le
  * graphique interne, qui fonctionne pour tout.
  */
+const CLE_ACCORD = "tdb_tradingview_accord";
+
 export function TradingViewChart({
   symbol,
   interval = "D",
@@ -39,6 +41,20 @@ export function TradingViewChart({
   const [slow, setSlow] = useState(false);
   const frame = useRef<HTMLIFrameElement | null>(null);
 
+  // ON DEMANDE AVANT DE CHARGER. Le cadre vient des serveurs de TradingView,
+  // qui reçoivent alors l'adresse IP du visiteur et le symbole consulté :
+  // un tiers hors de l'Union européenne. Rien ne part tant que la personne
+  // n'a pas dit oui, en sachant quoi ; son accord est retenu dans ce
+  // navigateur pour ne pas le lui redemander à chaque actif.
+  const [accord, setAccord] = useState<boolean | null>(null);
+  useEffect(() => {
+    try { setAccord(localStorage.getItem(CLE_ACCORD) === "1"); } catch { setAccord(false); }
+  }, []);
+  const accepter = () => {
+    try { localStorage.setItem(CLE_ACCORD, "1"); } catch { /* navigation privée */ }
+    setAccord(true);
+  };
+
   // Un cadre tiers peut rester blanc indéfiniment — réseau filtré, bloqueur
   // de contenu, service en panne. Au bout de huit secondes on le dit, plutôt
   // que de laisser un rectangle vide sans explication.
@@ -50,6 +66,27 @@ export function TradingViewChart({
   }, [tvSymbol, interval]);
 
   if (!tvSymbol) return null;
+
+  if (accord !== true) {
+    return (
+      <div className="flex w-full flex-col items-start justify-center gap-3 rounded-[12px] px-5 py-6"
+        style={{ minHeight: Math.min(height, 240), backgroundColor: "var(--cap-bg)", boxShadow: "inset 0 0 0 1px var(--cap-line)" }}>
+        <Text size="small" tone="ink" className="max-w-[40rem]">
+          Ce graphique est fourni par TradingView, une société américaine. En le chargeant, votre adresse IP et
+          le symbole consulté lui sont transmis. Le graphique « Commenté » juste au-dessus, lui, ne sort pas du site.
+        </Text>
+        {accord === false && (
+          <button type="button" onClick={accepter}
+            className="inline-flex min-h-[44px] items-center gap-2.5 rounded-[12px] px-5 text-[0.95rem] font-semibold"
+            style={{ backgroundColor: "var(--cap-ink)", color: "var(--cap-on-inverse)" }}>
+            <span aria-hidden className="h-2 w-2 rounded-full" style={{ backgroundColor: "var(--cap-ambre)" }} />
+            Charger le graphique TradingView
+          </button>
+        )}
+        <Text size="caption">Votre choix est retenu dans ce navigateur. Détail dans la politique de confidentialité.</Text>
+      </div>
+    );
+  }
 
   const params = new URLSearchParams({
     symbol: tvSymbol,
