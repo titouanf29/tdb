@@ -1012,14 +1012,16 @@ function Verdict({
           verdict, avant les raisons : c'est la question que se pose celui qui
           ouvre une analyse (« j'y vais ? »), la réponse ne doit pas attendre
           au bas de la carte. */}
+      {/* LA CARTE EN TROIS TEMPS, chacun avec son titre : ce que dit Nimbo,
+          le plan, pourquoi. Tout s'empilait au même niveau, et l'œil ne
+          savait pas où commençait la réponse. */}
+      <h2 className="mt-9 text-[1.2rem] font-bold leading-tight" style={{ color: "var(--cap-ink)" }}>Ce que dit Nimbo</h2>
       <PropositionNimbo analysis={a} assetPrice={assetPrice} cours={live?.price ?? a.price.current} planHref={planHref}
         onPasserEnSwing={onPasserEnSwing} />
 
       {/* The why. The part the product exists for. */}
-      <div className="mt-7 border-t pt-6" style={{ borderColor: "var(--cap-line)" }}>
-        <span className="text-[0.75rem] uppercase tracking-[0.14em]" style={{ color: "var(--cap-ink-3)" }}>
-          Pourquoi
-        </span>
+      <div className="mt-9 border-t pt-7" style={{ borderColor: "var(--cap-line-strong)" }}>
+        <h2 className="text-[1.2rem] font-bold leading-tight" style={{ color: "var(--cap-ink)" }}>Pourquoi</h2>
         <ul className="cap-liste mt-4 space-y-2.5">
           {raisonsVues.map((r, i) => (
             <li key={r.text} className="flex gap-3">
@@ -1050,10 +1052,10 @@ function Verdict({
 
       {/* What the engine's own history says — including when it disagrees. */}
       {(edge || scenario) && (
-        <div className="cap-apparait mt-6 border-t pt-5" style={{ borderColor: "var(--cap-line)", ["--d" as string]: ".35s" }}>
-          <span className="text-[0.75rem] uppercase tracking-[0.14em]" style={{ color: "var(--cap-ink-3)" }}>
+        <div className="cap-apparait mt-8 border-t pt-6" style={{ borderColor: "var(--cap-line)", ["--d" as string]: ".35s" }}>
+          <h3 className="text-[1.05rem] font-semibold" style={{ color: "var(--cap-ink)" }}>
             Ce que dit l&apos;historique
-          </span>
+          </h3>
           {edge && (
             <Text
               size="small"
@@ -1189,10 +1191,8 @@ function PropositionNimbo({
         <Nimbo humeur={humeur} taille={104} className="-my-2 -ml-2 hidden sm:inline-flex" />
         <Nimbo humeur={humeur} taille={64} className="-my-1 -ml-1 sm:hidden" />
         <div className="min-w-0 flex-1">
-          <span className="text-[0.75rem] uppercase tracking-[0.14em]" style={{ color: "var(--cap-ink-3)" }}>
-            {propose ? "Nimbo vous propose" : "L'avis de Nimbo"}
-          </span>
-          <p className="mt-1 text-[1.05rem] font-semibold leading-snug sm:text-[1.15rem]" style={{ color: "var(--cap-ink)", fontFamily: "var(--cap-font-display)" }}>
+          {/* Le titre « Ce que dit Nimbo » est juste au-dessus de la carte. */}
+          <p className="text-[1.05rem] font-semibold leading-snug sm:text-[1.15rem]" style={{ color: "var(--cap-ink)", fontFamily: "var(--cap-font-display)" }}>
             {propose && plan
               ? `${vente ? "Vendre à découvert" : "Acheter"} ${nom} : je vous propose de prendre position.`
               : intraday
@@ -1287,7 +1287,10 @@ function PropositionNimbo({
       </div>
 
       {plan && (
-        <div className="mt-4">
+        <div className="mt-5 border-t pt-4" style={{ borderColor: "color-mix(in srgb, var(--cap-ink) 12%, transparent)" }}>
+          <h3 className="mb-2.5 text-[1.05rem] font-semibold" style={{ color: "var(--cap-ink)" }}>
+            {propose ? "Le plan" : "Le plan d'exemple"}
+          </h3>
           <div className="flex flex-wrap gap-x-8 gap-y-2">
             <RiskBit label="Stop" value={assetPrice(plan.suggested_sl)} tone="down" />
             <RiskBit label="Objectif" value={assetPrice(plan.suggested_tp)} tone="up" />

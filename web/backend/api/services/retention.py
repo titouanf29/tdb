@@ -10,7 +10,12 @@ Les définitions, pour qu'on lise tous la même chose :
   · SEMAINES ACTIVES : les personnes qui, sur les 7 derniers jours, ont fait
     au moins une analyse ou une leçon (le chiffre à faire monter) ;
   · NOTIFICATIONS ACTIVÉES : parmi les actifs des 7 derniers jours, ceux qui
-    ont au moins un appareil abonné.
+    ont au moins un appareil abonné ;
+  · L'ENTONNOIR : pour chaque semaine d'inscription, combien ont confirmé
+    leur e-mail, fait une analyse, pris une position, puis sont revenus le
+    lendemain et à J7. Chaque étape compte toute personne qui l'a franchie,
+    même dans le désordre ; les retours ne comptent que les inscrits dont le
+    délai est écoulé.
 
 Un inscrit n'entre dans un taux qu'une fois le délai écoulé (on ne compte pas
 « pas revenu à J7 » quelqu'un inscrit avant-hier), et seulement s'il s'est
@@ -100,8 +105,38 @@ def calculer(inscrits: list[dict], gestes: list[dict], abonnes: set[int], debut:
             "actifs": sum(1 for js in jours.values() if any(d0 <= j <= d1 for j in js)),
         })
 
+    # L'entonnoir, au total et par semaine d'inscription.
+    verifies = {int(u["id"]) for u in inscrits if int(u.get("email_verified") or 0) == 1}
+
+    def entonnoir(groupe: list[tuple[int, datetime]]) -> dict:
+        def revenus(de: int, a: int):
+            el = [(uid, t) for uid, t in groupe if jour_paris(t) + timedelta(days=a) <= aujourdhui]
+            ok = [uid for uid, t in el if any(jour_paris(t) + timedelta(days=k) in jours[uid] for k in range(de, a + 1))]
+            return _taux(len(ok), len(el))
+        n = len(groupe)
+        return {
+            "inscrits": n,
+            "etapes": [
+                {"cle": "email", "libelle": "E-mail confirmé", **_taux(sum(1 for u, _ in groupe if u in verifies), n)},
+                {"cle": "analyse", "libelle": "Première analyse", **_taux(sum(1 for u, _ in groupe if "analyse" in premiers[u]), n)},
+                {"cle": "position", "libelle": "Premier ordre", **_taux(sum(1 for u, _ in groupe if "position" in premiers[u]), n)},
+                {"cle": "j1", "libelle": "Revenu le lendemain", **revenus(1, 1)},
+                {"cle": "j7", "libelle": "Revenu à J7", **revenus(6, 8)},
+            ],
+        }
+
+    par_semaine = []
+    for k in range(7, -1, -1):
+        d0 = lundi - timedelta(weeks=k)
+        d1 = d0 + timedelta(days=6)
+        groupe = [(uid, t) for uid, t in cohorte if d0 <= jour_paris(t) <= d1]
+        if groupe:
+            par_semaine.append({"debut": d0.isoformat(), **entonnoir(groupe)})
+
     return {
         "debut_mesure": debut,
+        "entonnoir": entonnoir(cohorte),
+        "entonnoir_semaines": par_semaine,
         "cohorte": len(cohorte),
         "activation": _taux(len(actives), len(activables)),
         "j1": retour(1, 1),

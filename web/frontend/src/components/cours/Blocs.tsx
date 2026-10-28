@@ -54,7 +54,7 @@ export function Scenes({ titre, scenes }: { titre?: string; scenes: { legende: s
         <GraphiqueEcole {...s.cfg} jusqua={jusqua} />
         <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <p className="min-w-0 flex-1 text-[1rem] leading-snug" style={{ color: "var(--cap-ink)" }} aria-live="polite">
-            <span className="mr-2 italic" style={{ color: "#c98a1e", fontFamily: "var(--cap-font-display)" }}>{k + 1}/{scenes.length}</span>
+            <span className="mr-2 italic" style={{ color: "var(--cap-amber-ink)", fontFamily: "var(--cap-font-display)" }}>{k + 1}/{scenes.length}</span>
             <span dangerouslySetInnerHTML={{ __html: lier(s.legende) }} />
           </p>
           <div className="flex flex-none items-center justify-end gap-1">
@@ -83,7 +83,11 @@ export function Scenes({ titre, scenes }: { titre?: string; scenes: { legende: s
   );
 }
 
-export function Blocs({ blocs }: { blocs: Bloc[] }) {
+/** `niveau` : celui des sous-titres. 3 sous une partie titrée (h2), 2 quand
+ *  la leçon n'a qu'une partie, pour ne jamais sauter de h1 à h3. */
+export function Blocs({ blocs, niveau = 3 }: Readonly<{ blocs: Bloc[]; niveau?: 2 | 3 }>) {
+  const Sous = `h${niveau}` as "h2" | "h3";
+  const Carte = `h${niveau + 1}` as "h3" | "h4";
   return (
     <>
       {blocs.map((b, i) => {
@@ -91,7 +95,7 @@ export function Blocs({ blocs }: { blocs: Bloc[] }) {
           case "p":
             return <Html key={i} html={b.html} className="cours-texte my-4 text-[1.05rem] leading-[1.75]" />;
           case "h":
-            return <h3 key={i} className="mb-2 mt-9 text-[1.35rem] font-semibold leading-tight" style={{ color: "var(--cap-ink)", fontFamily: "var(--cap-font-display)" }}>{b.texte}</h3>;
+            return <Sous key={i} className="mb-2 mt-9 text-[1.35rem] font-semibold leading-tight" style={{ color: "var(--cap-ink)", fontFamily: "var(--cap-font-display)" }}>{b.texte}</Sous>;
           case "liste": {
             const L = b.numerotee ? "ol" : "ul";
             return (
@@ -127,7 +131,7 @@ export function Blocs({ blocs }: { blocs: Bloc[] }) {
             return (
               <section key={i} className="my-8 rounded-[16px] p-4 sm:p-6" style={{ backgroundColor: "var(--cap-surface)", boxShadow: "inset 0 0 0 1px var(--cap-line-strong)" }}>
                 <p data-eyebrow className="mb-1">À vous</p>
-                <h4 className="text-[1.2rem] font-semibold leading-tight" style={{ color: "var(--cap-ink)", fontFamily: "var(--cap-font-display)" }}>{b.titre}</h4>
+                <Carte className="text-[1.2rem] font-semibold leading-tight" style={{ color: "var(--cap-ink)", fontFamily: "var(--cap-font-display)" }}>{b.titre}</Carte>
                 {b.consigne && <p className="mt-1.5 text-[0.98rem]" style={{ color: "var(--cap-ink-2)" }} dangerouslySetInnerHTML={{ __html: lier(b.consigne) }} />}
                 <div className="mt-4">{b.el}</div>
               </section>

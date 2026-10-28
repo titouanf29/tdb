@@ -703,7 +703,7 @@ function NextStep({
         >
           <span aria-hidden className="h-2 w-2 rounded-full transition-transform group-hover:scale-125" style={{ backgroundColor: "var(--cap-ambre)" }} />
           {suggestion.cta}
-          <ArrowRight className="cap-fleche h-4 w-4 transition-transform group-hover:translate-x-1" style={{ color: "#c98a1e" }} />
+          <ArrowRight className="cap-fleche h-4 w-4 transition-transform group-hover:translate-x-1" style={{ color: "var(--cap-amber-ink)" }} />
         </Link>
       </div>
     </section>

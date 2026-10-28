@@ -57,8 +57,8 @@ CATEGORIES: list[dict] = [
      "detail": "Votre abonnement et la sécurité de votre compte. Ils restent toujours dans le site.",
      "types": ["premium", "compte"], "site_verrouille": True},
     {"id": "admin", "label": "Administration",
-     "detail": "Chaque nouvelle inscription, et les messages signalés dans la Communauté. Réservé à l'équipe.",
-     "types": ["admin_inscription", "admin_signalement"], "admin_only": True},
+     "detail": "Chaque nouvelle inscription, les messages signalés dans la Communauté, et les erreurs du site quand elles s'enchaînent. Réservé à l'équipe.",
+     "types": ["admin_inscription", "admin_signalement", "admin_erreurs"], "admin_only": True},
 ]
 _PAR_TYPE = {t: c["id"] for c in CATEGORIES for t in c["types"]}
 _IDS = [c["id"] for c in CATEGORIES]

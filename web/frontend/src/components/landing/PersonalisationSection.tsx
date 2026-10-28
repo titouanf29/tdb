@@ -31,7 +31,7 @@ const QUESTIONS = [
 type Mode = "beginner" | "intermediate";
 
 const CSS_QUESTIONS = `.cap-q-num{width:1.4rem;flex:none;font-family:var(--cap-font-display);font-style:italic;font-size:1.1rem;color:var(--cap-ink-4);transition:color .35s}
-.cap-q[data-ok="1"] .cap-q-num{color:#c98a1e}
+.cap-q[data-ok="1"] .cap-q-num{color:var(--cap-amber-ink)}
 .cap-q-texte{transition:opacity .35s,transform .45s cubic-bezier(.16,1,.3,1)}
 .cap-q[data-ok="0"] .cap-q-texte{opacity:.55}
 .cap-q[data-ok="1"] .cap-q-texte{transform:translate3d(3px,0,0)}`;

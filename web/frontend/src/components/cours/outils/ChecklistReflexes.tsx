@@ -42,7 +42,7 @@ export function ChecklistReflexes() {
               </span>
               <span className="min-w-0 flex-1">
                 <span className="block text-[1rem] font-semibold leading-snug" style={{ color: "var(--cap-ink)" }}>
-                  <span className="mr-1.5 italic" style={{ color: "#c98a1e", fontFamily: "var(--cap-font-display)" }}>{i + 1}.</span>{r.titre}
+                  <span className="mr-1.5 italic" style={{ color: "var(--cap-amber-ink)", fontFamily: "var(--cap-font-display)" }}>{i + 1}.</span>{r.titre}
                 </span>
                 <span className="mt-0.5 block text-[0.92rem] leading-snug" style={{ color: "var(--cap-ink-2)" }}>
                   {r.detail} <span className="italic" style={{ color: "var(--cap-ink-3)", fontFamily: "var(--cap-font-display)" }}>À relire :{" "}

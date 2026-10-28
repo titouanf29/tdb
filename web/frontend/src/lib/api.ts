@@ -506,11 +506,11 @@ export const welcomeBackAPI = {
   activite: () => {
     const jeton = getToken();
     if (!jeton) return;
-    try {
-      fetch(`${API_URL}/api/dashboard/activity`, {
-        method: "POST", keepalive: true, headers: { Authorization: `Bearer ${jeton}` },
-      }).catch(() => {});
-    } catch { /* le navigateur refuse : la prochaine visite partira de la dernière photo */ }
+    // Un refus du navigateur arrive en promesse rejetée : la prochaine visite
+    // partira alors de la dernière photo.
+    fetch(`${API_URL}/api/dashboard/activity`, {
+      method: "POST", keepalive: true, headers: { Authorization: `Bearer ${jeton}` },
+    }).catch(() => {});
   },
 };
 
@@ -1867,7 +1867,11 @@ export interface Retention {
   venus_7j: number;
   notifications: TauxRetention;
   semaines: { debut: string; inscriptions: number; actifs: number }[];
+  entonnoir: Entonnoir;
+  entonnoir_semaines: (Entonnoir & { debut: string })[];
 }
+export interface EtapeEntonnoir extends TauxRetention { cle: string; libelle: string }
+export interface Entonnoir { inscrits: number; etapes: EtapeEntonnoir[] }
 
 export const adminAPI = {
   emailStatus: () => fetchAPI<EmailEtat>("/api/admin/email/status"),
@@ -1883,6 +1887,8 @@ export const adminAPI = {
 
   // Dashboard
   getDashboard: () => fetchAPI<AdminDashboard>("/api/admin/dashboard"),
+  /** Les dernières erreurs serveur (backend services/surveillance.py). */
+  erreurs: () => fetchAPI<{ a: string; route: string; erreur: string; detail: string }[]>("/api/admin/erreurs"),
   /** Qui revient (backend services/retention.py pour les définitions). */
   retention: () => fetchAPI<Retention>("/api/admin/retention"),
 

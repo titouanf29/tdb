@@ -300,8 +300,15 @@ export function WeatherBackdrop({
     <div
       ref={ref}
       aria-hidden
-      className="pointer-events-none fixed inset-0 z-0 overflow-hidden"
-      style={{ opacity: 0.95 }}
+      className="cap-meteo pointer-events-none fixed inset-0 z-0 overflow-hidden"
+      // LE CIEL EN HAUT, PAS DERRIÈRE LE TEXTE. Il s'estompe vers le bas de
+      // l'écran : la page garde son ciel au-dessus du titre, et le contenu
+      // se lit sur un fond calme.
+      style={{
+        opacity: 0.9,
+        maskImage: "linear-gradient(to bottom, #000 0, #000 18vh, transparent 52vh)",
+        WebkitMaskImage: "linear-gradient(to bottom, #000 0, #000 18vh, transparent 52vh)",
+      }}
     >
       <style dangerouslySetInnerHTML={{ __html: CSS_METEO }} />
       {couches.map(({ c, n, sort }) => {

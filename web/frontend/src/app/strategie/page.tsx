@@ -170,7 +170,7 @@ export default function StrategiePage() {
                   <span className="text-[1.02rem] font-semibold" style={{ color: "var(--cap-ink)", fontFamily: "var(--cap-font-display)" }}>
                     {s.nom}
                   </span>
-                  {s.active && <span className="ml-2 text-[0.82rem] italic" style={{ color: "#c98a1e", fontFamily: "var(--cap-font-display)" }}>active</span>}
+                  {s.active && <span className="ml-2 text-[0.82rem] italic" style={{ color: "var(--cap-amber-ink)", fontFamily: "var(--cap-font-display)" }}>active</span>}
                   <span className="block text-[0.82rem]" style={{ color: "var(--cap-ink-3)" }}>
                     {s.regles.conditions.length} condition{s.regles.conditions.length > 1 ? "s" : ""}
                     {s.dernier_test?.trades != null
@@ -185,7 +185,9 @@ export default function StrategiePage() {
                   </Button>
                   <Button size="sm" variant="quiet" onClick={async () => {
                     if (!confirm(`Supprimer « ${s.nom} » ?`)) return;
-                    await strategiesAPI.supprimer(s.id); if (enCours === s.id) setEnCours(null); charger();
+                    await strategiesAPI.supprimer(s.id);
+                    if (enCours === s.id) { setEnCours(null); }
+                    await charger();
                   }}>Supprimer</Button>
                 </div>
               </li>

@@ -12,7 +12,7 @@ import { CaptenLogo, Container, Text } from "@/components/design-system";
  * composée et par qui, comme à la fin d'un livre.
  */
 const RUBRIQUES = [
-  { titre: "Lire", liens: [["#demo", "La démo"], ["#fonctionnement", "Le fonctionnement"], ["#apprendre", "Le parcours"], ["#faq", "Les questions"]] },
+  { titre: "Lire", liens: [["#demo", "La démo"], ["/actifs", "Les analyses du jour"], ["/cours", "Les leçons"], ["#fonctionnement", "Le fonctionnement"], ["#faq", "Les questions"]] },
   { titre: "Commencer", liens: [["/register", "Créer un compte"], ["/login", "Se connecter"], ["#paper-trading", "Le portefeuille virtuel"]] },
   { titre: "Les règles", liens: [["/mentions-legales", "Mentions légales"], ["/politique-de-confidentialite", "Confidentialité"], ["/cgu", "Conditions d'utilisation"], ["/cgv", "Conditions de vente"]] },
 ];
@@ -36,7 +36,7 @@ export function LandingFooter() {
             <div className="grid grid-cols-2 gap-x-8 gap-y-8 sm:grid-cols-3">
               {RUBRIQUES.map((r) => (
                 <nav key={r.titre} aria-label={r.titre}>
-                  <p className="vitrine-italique text-[1rem]" style={{ color: "#c98a1e" }}>{r.titre}</p>
+                  <p className="vitrine-italique text-[1rem]" style={{ color: "var(--cap-amber-ink)" }}>{r.titre}</p>
                   <ul className="mt-3">
                     {r.liens.map(([href, label]) => (
                       <li key={href}>
@@ -58,7 +58,7 @@ export function LandingFooter() {
           {/* Le colophon. */}
           <div className="mt-14 grid gap-6 border-t pt-7 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] lg:gap-20" style={{ borderColor: "var(--cap-line)" }}>
             <p className="vitrine-italique text-[0.95rem] leading-[1.6]" style={{ color: "var(--cap-ink-2)" }}>
-              Composé en IBM Plex Serif et Schibsted Grotesk. Imaginé et construit en France, par CaptenQwark.
+              Composé en Public Sans. Imaginé et construit en France, par CaptenQwark.
               Les cours sont réels, l&apos;argent ne l&apos;est pas.
             </p>
             <div>

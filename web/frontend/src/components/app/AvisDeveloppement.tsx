@@ -32,25 +32,31 @@ export function AvisDeveloppement() {
   const [ferme, setFerme] = useState(true);
   const reduit = useMouvementReduit();
 
+  // Par compte, comme la présentation de Nimbo : une clé commune au
+  // navigateur cachait l'avis à tout compte créé après un premier.
+  const cle = `${CLE}_${user?.id ?? "anonyme"}`;
+  const seanceCle = `${SEANCE}_${user?.id ?? "anonyme"}`;
+
   useEffect(() => {
+    if (!user) return;
     // Vu une fois : noté aussitôt pour les visites suivantes, mais gardé pour
     // la séance en cours (un aller-retour pendant la visite guidée ne le
     // fait pas disparaître avant qu'on l'ait lu).
     try {
-      const vu = localStorage.getItem(CLE) === "1";
-      const seance = sessionStorage.getItem(SEANCE) === "1";
-      if (!vu) { localStorage.setItem(CLE, "1"); sessionStorage.setItem(SEANCE, "1"); }
+      const vu = localStorage.getItem(cle) === "1";
+      const seance = sessionStorage.getItem(seanceCle) === "1";
+      if (!vu) { localStorage.setItem(cle, "1"); sessionStorage.setItem(seanceCle, "1"); }
       setFerme(vu && !seance);
     } catch { setFerme(false); }
-  }, []);
+  }, [user, cle, seanceCle]);
 
   if (!user || ferme) return null;
-  const cree = user.created_at ? Date.parse(user.created_at) : NaN;
+  const cree = user.created_at ? Date.parse(user.created_at) : Number.NaN;
   if (Number.isFinite(cree) && Date.now() - cree > JOURS * 86_400_000) return null;
 
   const fermer = () => {
     setFerme(true);
-    try { localStorage.setItem(CLE, "1"); sessionStorage.removeItem(SEANCE); } catch { /* navigation privée */ }
+    try { localStorage.setItem(cle, "1"); sessionStorage.removeItem(seanceCle); } catch { /* navigation privée */ }
   };
 
   const etapes = ["Communauté", "Mes demandes", "Votre message"];
@@ -83,7 +89,7 @@ export function AvisDeveloppement() {
           <ol className="mt-3 flex flex-wrap items-baseline gap-x-5 gap-y-1">
             {etapes.map((e, i) => (
               <li key={e} className="flex items-baseline gap-1.5 text-[0.88rem]" style={{ color: "var(--cap-ink)" }}>
-                <span className="italic" style={{ color: "#c98a1e", fontFamily: "var(--cap-font-display)" }}>{i + 1}</span>
+                <span className="italic" style={{ color: "var(--cap-amber-ink)", fontFamily: "var(--cap-font-display)" }}>{i + 1}</span>
                 {e}
               </li>
             ))}

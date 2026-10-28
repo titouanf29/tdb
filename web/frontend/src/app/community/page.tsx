@@ -172,6 +172,7 @@ export default function CommunityPage() {
                     description="Chaque matin de semaine, Nimbo y publie la note du jour. Posez une question, ou partagez une analyse depuis la page d'un actif."
                   />
                 ) : (
+                  <>
                   <ul className="[&>*+*]:border-t [&>*+*]:border-[color:var(--cap-line)]">
                     {messages.map((m) => (
                       <Publication
@@ -186,8 +187,11 @@ export default function CommunityPage() {
                         onReport={() => signaler(m)}
                       />
                     ))}
-                    <div ref={endRef} />
                   </ul>
+                  {/* Le repère de fin du fil, hors de la liste (une liste ne
+                      contient que des éléments de liste). */}
+                  <div ref={endRef} />
+                  </>
                 )}
               </div>
             </Panel>
@@ -211,7 +215,7 @@ export default function CommunityPage() {
                 <textarea
                   value={input}
                   onChange={(e) => { setInput(e.target.value); if (sendError) setSendError(""); }}
-                  onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(e); } }}
+                  onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(e).catch(() => {}); } }}
                   rows={1}
                   maxLength={1000}
                   placeholder={replyTo ? "Votre réponse…" : "Une question, un avis, un bonjour…"}
@@ -235,7 +239,7 @@ export default function CommunityPage() {
       </div>
 
       <Modal open={contactOpen} onClose={() => setContactOpen(false)} title="Contacter l'équipe">
-        <Heading level={3}>Contacter l&apos;équipe</Heading>
+        <Heading level={3} as="h2">Contacter l&apos;équipe</Heading>
         {sent ? (
           <>
             <Text size="small" className="mt-2">

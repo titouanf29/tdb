@@ -49,3 +49,22 @@ def test_route_et_cache(monkeypatch):
     assert r1["name"] == "Tesla" and r1["series"] == [1.0, 2.0, 3.0] and r1["analyse_a"]
     assert r2 == r1 and appels == ["TSLA"]
     assert client.get("/api/demo/inconnu").status_code == 404
+
+
+def test_la_liste_des_pages_publiques():
+    r = client.get("/api/demo").json()
+    ids = [a["id"] for a in r]
+    assert ids[:5] == ["apple", "bitcoin", "tesla", "or", "sp500"] and all(a["demo"] for a in r[:5])
+    assert {"lvmh", "cac40", "eur-usd"} <= set(ids) and len(ids) == len(set(ids))
+
+
+def test_un_cours_de_change_garde_quatre_decimales():
+    d = demo.traduire("eur-usd", {**ANALYSE, "price": {"current": 1.08421, "change": 0.1}}, [1.08, 1.0842])
+    assert d["price"] == "1,0842" and d["categorie"] == "Devises"
+
+
+def test_la_direction_suit_le_plan_de_nimbo_et_pas_le_score_seul():
+    rebond = {**ANALYSE, "score": {**ANALYSE["score"], "total": 62.0}, "nimbo": {"propose": False}}
+    assert demo.traduire("lvmh", rebond, [1.0, 2.0])["direction"] == "Neutre"
+    achat = {**rebond, "nimbo": {"propose": True, "sens": "long"}}
+    assert demo.traduire("lvmh", achat, [1.0, 2.0])["direction"] == "Haussier"

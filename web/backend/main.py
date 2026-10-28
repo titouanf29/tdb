@@ -491,6 +491,12 @@ async def global_exception_handler(request: Request, exc: Exception):
     """Catch all unhandled exceptions and return a generic error (never expose internals)."""
     print(f"[ERROR] Unhandled exception on {request.method} {request.url.path}: {type(exc).__name__}: {exc}", flush=True)
     traceback.print_exc()
+    # Prévenir l'équipe quand les erreurs s'enchaînent (services/surveillance.py).
+    # Le modèle de la route (« /api/analysis/{symbol} ») plutôt que l'adresse :
+    # cent symboles différents restent une seule panne.
+    from api.services import surveillance
+    route = getattr(request.scope.get("route"), "path", None) or request.url.path
+    surveillance.noter(request.method, route, exc)
     return JSONResponse(
         status_code=500,
         content={"detail": "Une erreur interne est survenue. Veuillez réessayer."}
@@ -577,9 +583,14 @@ async def site_status(request: Request):
 
 if __name__ == "__main__":
     import uvicorn
+    # Lancement local seulement (`python main.py`) : la machine seule par
+    # défaut, pas toutes les interfaces réseau. La production démarre par le
+    # Dockerfile (uvicorn main:app --host 0.0.0.0), où le conteneur doit
+    # écouter au-dehors. HOTE permet d'ouvrir le serveur local au réseau
+    # quand on le veut vraiment.
     # Use app object directly to avoid path conflicts with root main.py
     uvicorn.run(
         app,
-        host="0.0.0.0",
+        host=os.getenv("HOTE", "127.0.0.1"),
         port=8000
     )

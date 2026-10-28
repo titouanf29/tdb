@@ -85,7 +85,7 @@ export function Quiz({
         </Text>
       </div>
 
-      <Heading level={4}>{q.question}</Heading>
+      <Heading level={4} as="h3">{q.question}</Heading>
 
       <div className="mt-5 space-y-2">
         {q.options.map((opt, i) => {
