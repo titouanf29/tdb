@@ -7,7 +7,7 @@ import { AnimatePresence } from "framer-motion";
 import { ArrowRight, Layers, Loader2, MoveRight, Star, TrendingDown, TrendingUp } from "lucide-react";
 import {
   analysisAPI, favoritesAPI, marketAPI, missionsAPI, walletAPI,
-  type Analysis, type ChartData, type Figure,
+  type Analysis, type ChartData, type Favorite, type Figure,
 } from "@/lib/api";
 import { fr, useFormatAssetPrice, useFormatSomme, useSettings } from "@/lib/SettingsContext";
 import {
@@ -251,13 +251,20 @@ function AnalysisScreen() {
   const [chart, setChart] = useState<ChartData | null>(null);
   const [figures, setFigures] = useState<Figure[]>([]);
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
+  // Les favoris avec leur variation du jour : le raccourci « Mes actifs »
+  // sous la recherche, pour que l'usage quotidien tienne en deux gestes.
+  const [mesActifs, setMesActifs] = useState<Favorite[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const etapeChargement = useEtapesAnalyse(symbol, loading);
 
   useEffect(() => {
     favoritesAPI.getFavorites()
-      .then((d) => setFavorites(new Set((d.favorites || []).map((f) => f.symbol))))
+      .then((d) => {
+        const liste = d.favorites || [];
+        setFavorites(new Set(liste.map((f) => f.symbol)));
+        setMesActifs(liste.filter((f) => !f.error));
+      })
       .catch(() => {});
   }, []);
 
@@ -535,6 +542,35 @@ function AnalysisScreen() {
               )}
             </AnimatePresence>
           </form>
+
+          {/* MES ACTIFS, EN UN GESTE. Quelqu'un qui revient chaque jour
+              regarde les mêmes trois ou quatre actifs ; les retaper à chaque
+              fois est le genre de friction qui fait sauter une visite. Les
+              favoris sont là, avec leur variation du jour, et celui qui a
+              le plus bougé en premier. */}
+          {mesActifs.length > 0 && (
+            <div className="mt-4 flex flex-wrap items-center gap-2" role="group" aria-label="Mes actifs">
+              <span className="mr-1 text-[0.85rem]" style={{ color: "var(--cap-ink-3)" }}>Mes actifs</span>
+              {[...mesActifs].sort((a, b) => Math.abs(b.change ?? 0) - Math.abs(a.change ?? 0)).slice(0, 8).map((f) => {
+                const actif = f.symbol === symbol;
+                const v = f.change ?? 0;
+                return (
+                  <button key={f.symbol} type="button" onClick={() => choisirActif(f.symbol)} aria-pressed={actif}
+                    className="inline-flex min-h-[36px] items-center gap-2 rounded-[10px] px-3 text-[0.88rem] transition-colors"
+                    style={{
+                      backgroundColor: actif ? "var(--cap-ink)" : "var(--cap-surface-2)",
+                      color: actif ? "var(--cap-on-inverse)" : "var(--cap-ink)",
+                      boxShadow: actif ? "none" : "inset 0 0 0 1px var(--cap-line)",
+                    }}>
+                    <span className="font-medium">{f.name || f.symbol}</span>
+                    <span className="cap-num text-[0.8rem]" style={{ color: actif ? "var(--cap-on-inverse)" : v >= 0 ? "var(--cap-up)" : "var(--cap-down)" }}>
+                      {v >= 0 ? "+" : "−"}{Math.abs(v).toLocaleString("fr-FR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} %
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
 
           {/* L'horizon, et c'est un vrai changement de modèle.
               Le moteur y répond réellement, vérifié sur AAPL : le stop passe

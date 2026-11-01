@@ -27,6 +27,8 @@ import { DepuisDerniereVisite } from "@/components/app/DepuisDerniereVisite";
 import { Aujourdhui } from "@/components/app/Aujourdhui";
 import { NotificationsAppareil } from "@/components/app/NotificationsAppareil";
 import { PointDuMatin } from "@/components/app/PointDuMatin";
+import { Demain } from "@/components/app/Demain";
+import { InstallerApplication } from "@/components/app/InstallerApplication";
 import { useProfile } from "@/lib/useProfile";
 
 /**
@@ -208,6 +210,9 @@ export default function DashboardPage() {
             chose à suivre, et seulement si cet appareil peut la recevoir. */}
         {(favorites.length > 0 || positions.length > 0) && <NotificationsAppareil forme="matin" />}
 
+        {/* Au troisième jour d'affilée : une place sur l'écran d'accueil. */}
+        <InstallerApplication />
+
         {/* ── 3 & 4. L'argent et la veille — dans l'ordre de l'objectif ──
             L'objectif déclaré au premier lancement réordonne réellement cette
             page. Poser la question et ne rien changer derrière, c'est le
@@ -349,6 +354,14 @@ export default function DashboardPage() {
               préparation du week-end : ses niveaux et ses rendez-vous étaient
               écrits par un modèle de langage, sans source. */}
           <Intention />
+        </Reveal>
+
+        {/* ── 4 ter. Demain ──────────────────────────────────────────────
+            Ce qui attend à la prochaine séance : annonces, plans de Nimbo
+            encore ouverts sur les favoris, positions sans stop. Le panneau
+            s'efface quand il n'a rien de particulier à dire. */}
+        <Reveal delay={0.15}>
+          <Demain />
         </Reveal>
 
         {/* ── 5. Le démarrage guidé et le parcours ─────────────────────── */}

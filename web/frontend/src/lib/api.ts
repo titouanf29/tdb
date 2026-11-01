@@ -3688,6 +3688,18 @@ export interface PreparationSemaine {
   bilan: BilanSemaine | null;
 }
 
+// ── Demain : la prochaine séance (backend routes/demain.py) ────────────────
+export interface Demain {
+  jour: { date: string; libelle: string; est_demain: boolean };
+  seances: { place: string; ouvre: string; ferme: string }[];
+  agenda: { titre: string; heure: string; importance: string; pays: string; pourquoi?: string | null }[];
+  plans: { symbol: string; nom: string; achat: boolean; timeframe: string; entree: number; stop: number; objectif: number; depuis: string }[];
+  sans_stop: number;
+}
+export const demainAPI = {
+  get: () => fetchAPI<Demain>("/api/demain"),
+};
+
 export const semaineAPI = {
   fenetre: () => fetchAPI<FenetreSemaine>("/api/semaine/fenetre"),
   get: () => fetchAPI<PreparationSemaine>("/api/semaine"),
