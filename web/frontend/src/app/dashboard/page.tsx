@@ -26,6 +26,7 @@ import { AvisDeveloppement } from "@/components/app/AvisDeveloppement";
 import { DepuisDerniereVisite } from "@/components/app/DepuisDerniereVisite";
 import { Aujourdhui } from "@/components/app/Aujourdhui";
 import { NotificationsAppareil } from "@/components/app/NotificationsAppareil";
+import { PointDuMatin } from "@/components/app/PointDuMatin";
 import { useProfile } from "@/lib/useProfile";
 
 /**
@@ -172,6 +173,9 @@ export default function DashboardPage() {
                 , horizon {style.horizon.fr.toLowerCase()}.
                 {goalLine && ` ${goalLine}`}
               </Text>
+              {/* Le point du matin du jour, pour ceux qui ne l'ont pas reçu
+                  sur leur appareil. */}
+              <PointDuMatin />
             </div>
             </div>
 
