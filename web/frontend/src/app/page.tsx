@@ -14,7 +14,8 @@ import { LandingNav } from "@/components/landing/LandingNav";
 import { LearnSection } from "@/components/landing/LearnSection";
 import { PaperTradingSection } from "@/components/landing/PaperTradingSection";
 import { PersonalisationSection } from "@/components/landing/PersonalisationSection";
-import { ProblemSection } from "@/components/landing/ProblemSection";
+import { UsagesSection } from "@/components/landing/UsagesSection";
+import { analyseActif, type AnalysePublique } from "@/lib/actifs-serveur";
 
 /**
  * The public page.
@@ -39,7 +40,7 @@ function Tour({ children }: Readonly<{ children: React.ReactNode }>) {
 
 const STOPS: CourseStop[] = [
   { id: "depart", label: "Départ" },
-  { id: "probleme", label: "Le problème" },
+  { id: "usages", label: "Ce qu'on fait ici" },
   { id: "fonctionnement", label: "Fonctionnement" },
   { id: "demo", label: "Démo" },
   { id: "paper-trading", label: "Paper trading" },
@@ -49,7 +50,14 @@ const STOPS: CourseStop[] = [
   { id: "arrivee", label: "Arrivée" },
 ];
 
-export default function LandingPage() {
+export default async function LandingPage() {
+  // LE HAUT DE PAGE MONTRE LA VRAIE ANALYSE DU JOUR. La carte d'accueil était
+  // un exemple fixe (Apple à 245 €, haussier) pendant que la démo, plus bas,
+  // donnait la lecture réelle du moteur, parfois l'inverse. Même source que
+  // la démo et les pages par actif, lue ici par le serveur (cache de dix
+  // minutes) ; si le moteur ne répond pas, l'exemple reste, et le dit.
+  const lecture = await analyseActif("apple");
+  const analyse: AnalysePublique | null = lecture && lecture !== "indisponible" ? lecture : null;
   return (
     <div className="cap vitrine min-h-screen">
       {/* À l'arrivée, l'écran est sous les nuages, qui s'écartent. */}
@@ -58,9 +66,9 @@ export default function LandingPage() {
       <LandingNav />
       <Tour><PageCourse stops={STOPS} /></Tour>
       <main>
-        <Hero />
+        <Hero analyse={analyse} />
         <Tour><ChiffresCles /></Tour>
-        <Tour><ProblemSection /></Tour>
+        <Tour><UsagesSection /></Tour>
         <Tour><HowItWorks /></Tour>
         {/* Une seule traversée au milieu de la page, et une avant la fin :
             cinq couches de nuages faisaient de la page une longue attente

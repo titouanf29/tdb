@@ -15,7 +15,7 @@ import { Button, CaptenLogo, Container, DUR, EASE } from "@/components/design-sy
  */
 
 const LINKS = [
-  { href: "#probleme", label: "Le problème" },
+  { href: "#usages", label: "Ce qu'on fait ici" },
   { href: "#fonctionnement", label: "Fonctionnement" },
   { href: "#demo", label: "Démo" },
   { href: "#apprendre", label: "Apprendre" },
