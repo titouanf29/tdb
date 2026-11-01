@@ -25,6 +25,7 @@ import { ParcoursNimbo } from "@/components/app/ParcoursNimbo";
 import { AvisDeveloppement } from "@/components/app/AvisDeveloppement";
 import { DepuisDerniereVisite } from "@/components/app/DepuisDerniereVisite";
 import { Aujourdhui } from "@/components/app/Aujourdhui";
+import { NotificationsAppareil } from "@/components/app/NotificationsAppareil";
 import { useProfile } from "@/lib/useProfile";
 
 /**
@@ -196,6 +197,12 @@ export default function DashboardPage() {
 
         {/* La série de jours d'affilée et les missions du jour. */}
         <Aujourdhui />
+
+        {/* LE RENDEZ-VOUS DU MATIN. Le site savait prévenir quand quelque
+            chose arrivait ; rien ne donnait de raison de revenir un matin
+            ordinaire. L'invitation ne vient qu'à ceux qui ont déjà quelque
+            chose à suivre, et seulement si cet appareil peut la recevoir. */}
+        {(favorites.length > 0 || positions.length > 0) && <NotificationsAppareil forme="matin" />}
 
         {/* ── 3 & 4. L'argent et la veille — dans l'ordre de l'objectif ──
             L'objectif déclaré au premier lancement réordonne réellement cette

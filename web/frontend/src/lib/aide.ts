@@ -170,6 +170,15 @@ export const AIDE: ReponseAide[] = [
     actions: [{ libelle: "Ouvrir la Communauté", lien: "/community" }],
   },
   {
+    id: "matin", question: "C'est quoi le point du matin ?",
+    motsCles: ["matin", "point du matin", "8 h 45", "notification", "chaque jour", "quotidien", "rendez-vous"],
+    reponse: [
+      "Chaque matin de semaine à 8 h 45, trois phrases : ce que vos actifs suivis ont fait depuis hier, où en sont vos positions, et l'annonce économique du jour.",
+      "Il arrive dans la cloche du site et, si vous l'avez accepté, sur votre téléphone. Vous le coupez quand vous voulez dans les réglages, rubrique Notifications.",
+    ],
+    actions: [{ libelle: "Régler mes notifications", lien: "/settings?section=notifications" }],
+  },
+  {
     id: "bilan", question: "C'est quoi le bilan de la semaine ?",
     motsCles: ["bilan", "semaine", "week-end", "weekend", "vendredi", "preparer"],
     reponse: [

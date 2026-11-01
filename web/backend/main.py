@@ -147,6 +147,20 @@ async def lifespan(app: FastAPI):
             await _asyncio.sleep(600)
     _bilan_tache = _asyncio.create_task(_bilan_boucle())
 
+    # Le point du matin, envoyé à 8 h 45 (Paris) du lundi au vendredi à ceux
+    # qui suivent quelque chose : vos actifs depuis hier, vos positions, et
+    # l'annonce du jour (services/point_du_matin.py).
+    async def _matin_boucle():
+        from api.services import point_du_matin
+        await _asyncio.sleep(150)
+        while True:
+            try:
+                await point_du_matin.envoyer()
+            except Exception as e:
+                print(f"[matin] {e}")
+            await _asyncio.sleep(600)
+    _matin_tache = _asyncio.create_task(_matin_boucle())
+
     # La Communauté : la note du jour de Nimbo (matins de semaine) et les
     # réussites du défi de la semaine, toutes les quinze minutes.
     async def _communaute_boucle():
@@ -170,6 +184,7 @@ async def lifespan(app: FastAPI):
     _notifs_tache.cancel()
     _strategies_tache.cancel()
     _bilan_tache.cancel()
+    _matin_tache.cancel()
     _communaute_tache.cancel()
     _demo_tache.cancel()
     print("👋 TDB Web API shutting down...")
