@@ -147,17 +147,19 @@ async def lifespan(app: FastAPI):
             await _asyncio.sleep(600)
     _bilan_tache = _asyncio.create_task(_bilan_boucle())
 
-    # Le point du matin, envoyé à 8 h 45 (Paris) du lundi au vendredi à ceux
-    # qui suivent quelque chose : vos actifs depuis hier, vos positions, et
-    # l'annonce du jour (services/point_du_matin.py).
+    # Les deux rendez-vous du jour : le point du matin à 8 h 45 (Paris), du
+    # lundi au vendredi, à ceux qui suivent quelque chose
+    # (services/point_du_matin.py) ; et le soir à 18 h 30, le rappel de
+    # relire un trade fermé sans note au journal (services/rappel_journal.py).
     async def _matin_boucle():
-        from api.services import point_du_matin
+        from api.services import point_du_matin, rappel_journal
         await _asyncio.sleep(150)
         while True:
-            try:
-                await point_du_matin.envoyer()
-            except Exception as e:
-                print(f"[matin] {e}")
+            for etape in (point_du_matin.envoyer, rappel_journal.envoyer):
+                try:
+                    await etape()
+                except Exception as e:
+                    print(f"[rendez-vous] {etape.__module__} : {e}")
             await _asyncio.sleep(600)
     _matin_tache = _asyncio.create_task(_matin_boucle())
 

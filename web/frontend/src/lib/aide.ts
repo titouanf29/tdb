@@ -179,6 +179,15 @@ export const AIDE: ReponseAide[] = [
     actions: [{ libelle: "Régler mes notifications", lien: "/settings?section=notifications" }],
   },
   {
+    id: "rappel-journal", question: "Pourquoi un rappel le soir pour le journal ?",
+    motsCles: ["rappel", "soir", "18 h 30", "relire", "journal", "note", "trade fermé"],
+    reponse: [
+      "Quand une position s'est fermée dans la journée et que le journal n'a pas encore sa note, je vous le rappelle à 18 h 30, le soir même, pendant que le trade est frais.",
+      "Deux lignes suffisent : ce qui était prévu, ce qui s'est passé. C'est en relisant qu'on voit ce qui se répète. Le rappel se coupe dans les réglages, rubrique Notifications.",
+    ],
+    actions: [{ libelle: "Ouvrir le journal", lien: "/journal" }],
+  },
+  {
     id: "bilan", question: "C'est quoi le bilan de la semaine ?",
     motsCles: ["bilan", "semaine", "week-end", "weekend", "vendredi", "preparer"],
     reponse: [
