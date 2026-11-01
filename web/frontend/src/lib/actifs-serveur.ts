@@ -13,6 +13,8 @@ export interface AnalysePublique {
   id: string;
   name: string;
   ticker: string;
+  /** Le nom du symbole tel qu'il se lit sur les plateformes (« XAU/USD » pour GC=F). */
+  affiche?: string;
   price: string;
   change: number;
   direction: "Haussier" | "Baissier" | "Neutre";

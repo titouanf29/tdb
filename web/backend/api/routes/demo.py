@@ -42,10 +42,10 @@ limiter = Limiter(key_func=cle_client)
 # slug → (symbole, nom affiché, unité du cours, décimales, catégorie, présentation)
 _A = [
     # Les cinq de la démo de l'accueil, en tête.
+    ("or", "GC=F", "Or (Gold)", "$", 2, "Matières premières", "le métal refuge, analysé ici sur son contrat à terme en dollars l'once"),
     ("apple", "AAPL", "Apple", "$", 2, "Actions américaines", "le fabricant de l'iPhone et du Mac, l'une des plus grosses capitalisations au monde"),
     ("bitcoin", "BTC-USD", "Bitcoin", "$", 0, "Cryptomonnaies", "la première cryptomonnaie, qui cote sept jours sur sept, jour et nuit"),
     ("tesla", "TSLA", "Tesla", "$", 2, "Actions américaines", "le constructeur de voitures électriques d'Elon Musk, réputé pour ses fortes variations"),
-    ("or", "GC=F", "Or", "$", 2, "Matières premières", "le métal refuge, analysé ici sur son contrat à terme en dollars l'once"),
     ("sp500", "^GSPC", "S&P 500", "pts", 2, "Indices", "l'indice des 500 plus grandes entreprises américaines"),
     # Actions françaises.
     ("lvmh", "MC.PA", "LVMH", "€", 2, "Actions françaises", "le numéro un mondial du luxe (Louis Vuitton, Dior, Moët Hennessy)"),
@@ -80,7 +80,13 @@ _A = [
     ("eur-usd", "EURUSD=X", "Euro / Dollar", "", 4, "Devises", "la paire de devises la plus échangée au monde"),
 ]
 ACTIFS = {a[0]: {"symbole": a[1], "nom": a[2], "unite": a[3], "dec": a[4], "categorie": a[5], "presentation": a[6]} for a in _A}
-DEMO = ("apple", "bitcoin", "tesla", "or", "sp500")
+# L'or en tête : c'est l'actif que les visiteurs connaissent le mieux, et
+# celui qui attire. Il ouvre l'accueil (haut de page, démo, personnalisation).
+DEMO = ("or", "apple", "bitcoin", "tesla", "sp500")
+# Le nom sous lequel un symbole se lit sur les plateformes, quand il diffère
+# du symbole de la source de cours. Affiché seulement ; le symbole, lui, reste
+# celui que l'analyse et l'application comprennent.
+AFFICHAGE = {"GC=F": "XAU/USD", "SI=F": "XAG/USD", "CL=F": "WTI", "EURUSD=X": "EUR/USD"}
 
 FRAICHEUR = 600          # secondes avant de recalculer
 POINTS = 60              # séances dessinées
@@ -159,6 +165,7 @@ def traduire(ident: str, a: dict, cloture: list[float]) -> dict:
         "id": ident,
         "name": nom,
         "ticker": symbole,
+        "affiche": AFFICHAGE.get(symbole, symbole),
         "price": _prix(float((a.get("price") or {}).get("current") or 0), unite, dec),
         "change": float((a.get("price") or {}).get("change") or 0),
         "direction": sens,

@@ -19,12 +19,21 @@ function heure(iso: string): string {
   return `${Number(h)} h ${m}`;
 }
 
+/** Le nom de l'actif dans une phrase : « l'or », « Apple ». */
+function dansLaPhrase(id: string, nom: string): string {
+  if (id === "or") return "l'or";
+  if (id === "bitcoin") return "le bitcoin";
+  if (id === "sp500") return "le S&P 500";
+  return nom;
+}
+
 /** Ce que Nimbo dit de l'actif du jour, d'après la direction réelle. */
-function phraseNimbo(nom: string, direction: string, direct: boolean): string {
-  if (!direct) return `Je vous propose d'acheter ${nom}. Et je vous dis pourquoi.`;
-  if (direction === "Haussier") return `Aujourd'hui, je propose un achat sur ${nom}. Et je vous dis pourquoi.`;
-  if (direction === "Baissier") return `Aujourd'hui, je propose une vente sur ${nom}. Et je vous dis pourquoi.`;
-  return `Aujourd'hui, je ne propose rien sur ${nom}. Et je vous dis pourquoi.`;
+function phraseNimbo(id: string, nom: string, direction: string, direct: boolean): string {
+  const n = dansLaPhrase(id, nom);
+  if (!direct) return `Je vous explique ${n}, et je vous dis pourquoi.`;
+  if (direction === "Haussier") return `Aujourd'hui, je propose un achat sur ${n}. Et je vous dis pourquoi.`;
+  if (direction === "Baissier") return `Aujourd'hui, je propose une vente sur ${n}. Et je vous dis pourquoi.`;
+  return `Aujourd'hui, je ne propose rien sur ${n}. Et je vous dis pourquoi.`;
 }
 
 /**
@@ -163,7 +172,7 @@ export function Hero({ analyse }: Readonly<{ analyse?: AnalysePublique | null }>
             </motion.div>
             <div className="mb-8 hidden max-w-[15rem] rounded-[16px] rounded-bl-[4px] px-3.5 py-2.5 text-[0.85rem] leading-snug sm:block"
               style={{ backgroundColor: "var(--cap-surface)", color: "var(--cap-ink)", boxShadow: "var(--cap-shadow-md, 0 8px 24px rgba(11,23,38,0.12)), inset 0 0 0 1px var(--cap-line)" }}>
-              {ouvert ? <Machine texte={phraseNimbo(apple.name, apple.direction, direct)} delai={1.5} /> : "\u00a0"}
+              {ouvert ? <Machine texte={phraseNimbo(apple.id, apple.name, apple.direction, direct)} delai={1.5} /> : "\u00a0"}
             </div>
           </div>
           <Redressement>
@@ -184,7 +193,7 @@ export function Hero({ analyse }: Readonly<{ analyse?: AnalysePublique | null }>
                     style={{ fontFamily: "var(--cap-font-display)", color: "var(--cap-ink)" }}>
                     {apple.name}
                   </span>
-                  <span className="text-[0.82rem]" style={{ color: "var(--cap-ink-3)" }}>{apple.ticker}</span>
+                  <span className="text-[0.82rem]" style={{ color: "var(--cap-ink-3)" }}>{apple.affiche ?? apple.ticker}</span>
                 </div>
                 <div className="mt-2 flex items-baseline gap-3">
                   <Num className="text-[1.6rem] font-medium">{apple.price}</Num>

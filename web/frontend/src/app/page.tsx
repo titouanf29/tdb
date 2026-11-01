@@ -56,7 +56,7 @@ export default async function LandingPage() {
   // donnait la lecture réelle du moteur, parfois l'inverse. Même source que
   // la démo et les pages par actif, lue ici par le serveur (cache de dix
   // minutes) ; si le moteur ne répond pas, l'exemple reste, et le dit.
-  const lecture = await analyseActif("apple");
+  const lecture = await analyseActif("or");
   const analyse: AnalysePublique | null = lecture && lecture !== "indisponible" ? lecture : null;
   return (
     <div className="cap vitrine min-h-screen">

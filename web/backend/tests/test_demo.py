@@ -54,7 +54,7 @@ def test_route_et_cache(monkeypatch):
 def test_la_liste_des_pages_publiques():
     r = client.get("/api/demo").json()
     ids = [a["id"] for a in r]
-    assert ids[:5] == ["apple", "bitcoin", "tesla", "or", "sp500"] and all(a["demo"] for a in r[:5])
+    assert ids[:5] == ["or", "apple", "bitcoin", "tesla", "sp500"] and all(a["demo"] for a in r[:5])
     assert {"lvmh", "cac40", "eur-usd"} <= set(ids) and len(ids) == len(set(ids))
 
 
