@@ -8,6 +8,7 @@ import {
 import { Reveal, useEffetsActifs } from "./effets";
 import { MotsAuScroll } from "./animations";
 import { useMouvementReduit } from "@/components/design-system/useMouvementReduit";
+import { DEMO_ASSETS, type DemoAsset } from "./demoData";
 
 /**
  * Section 6 — the same screen at two levels.
@@ -36,7 +37,15 @@ const CSS_QUESTIONS = `.cap-q-num{width:1.4rem;flex:none;font-family:var(--cap-f
 .cap-q[data-ok="0"] .cap-q-texte{opacity:.55}
 .cap-q[data-ok="1"] .cap-q-texte{transform:translate3d(3px,0,0)}`;
 
-export function PersonalisationSection() {
+export function PersonalisationSection({ analyse }: Readonly<{ analyse?: DemoAsset | null }>) {
+  // LE MÊME ACTIF QUE LE HAUT DE PAGE ET LA DÉMO. L'écran montrait un Apple
+  // fixe (245 €, haussier) sous deux sections qui donnaient la lecture réelle,
+  // parfois l'inverse. Il reçoit la même analyse, lue par le serveur.
+  const a = analyse ?? DEMO_ASSETS[0];
+  let dirTone = "var(--cap-ink-2)";
+  if (a.direction === "Haussier") dirTone = "var(--cap-up)";
+  else if (a.direction === "Baissier") dirTone = "var(--cap-down)";
+  const facteurs = a.factors.filter((f) => f.label !== "Volatilité").slice(0, 3);
   const ref = useRef<HTMLDivElement>(null);
   const inView = useInView(ref, { once: true, amount: 0.3 });
   const reduce = useMouvementReduit();
@@ -130,9 +139,9 @@ export function PersonalisationSection() {
                       className="text-[1.1rem] font-semibold tracking-[-0.02em]"
                       style={{ fontFamily: "var(--cap-font-display)" }}
                     >
-                      Apple
+                      {a.name}
                     </span>
-                    <Num className="text-[1.1rem] font-medium">245,18 €</Num>
+                    <Num className="text-[1.1rem] font-medium">{a.price}</Num>
                   </div>
 
                   <div
@@ -141,8 +150,8 @@ export function PersonalisationSection() {
                   >
                     <div className="flex items-baseline justify-between">
                       <Text size="small" as="span">Direction</Text>
-                      <span className="text-[0.95rem] font-semibold" style={{ color: "var(--cap-up)" }}>
-                        Haussier
+                      <span className="text-[0.95rem] font-semibold" style={{ color: dirTone }}>
+                        {a.direction}
                       </span>
                     </div>
                   </div>
@@ -163,16 +172,12 @@ export function PersonalisationSection() {
                           className="mt-5 space-y-5 border-t pt-5"
                           style={{ borderColor: "var(--cap-line)" }}
                         >
-                          {[
-                            { label: "Tendance", value: 86 },
-                            { label: "Momentum", value: 74 },
-                            { label: "Volume", value: 69 },
-                          ].map((f, i) => (
+                          {facteurs.map((f, i) => (
                             <Progress key={f.label} label={f.label} value={f.value} delay={i * 0.1} />
                           ))}
                           <div className="flex items-baseline justify-between">
                             <Text size="small" as="span">Risque</Text>
-                            <Text size="small" tone="ink" as="span" className="font-medium">Modéré</Text>
+                            <Text size="small" tone="ink" as="span" className="font-medium">{a.risk}</Text>
                           </div>
                         </div>
                       </motion.div>
@@ -185,6 +190,7 @@ export function PersonalisationSection() {
                 {mode === "beginner"
                   ? "Débutant : l'essentiel, rien de plus."
                   : "Intermédiaire : les facteurs derrière la direction."}
+                {analyse ? " Lecture réelle du moteur." : ""}
               </Text>
             </div>
           </Reveal>

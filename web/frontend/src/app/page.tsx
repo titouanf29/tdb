@@ -74,9 +74,9 @@ export default async function LandingPage() {
             cinq couches de nuages faisaient de la page une longue attente
             entre deux contenus. */}
         <Tour><Traversee hauteur={380} /></Tour>
-        <Tour><DemoSection /></Tour>
+        <Tour><DemoSection initial={analyse} /></Tour>
         <Tour><PaperTradingSection /></Tour>
-        <Tour><PersonalisationSection /></Tour>
+        <Tour><PersonalisationSection analyse={analyse} /></Tour>
         <Tour><LearnSection /></Tour>
         <Tour><FaqSection /></Tour>
         <Tour><Traversee hauteur={340} /></Tour>

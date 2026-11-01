@@ -25,7 +25,7 @@ import { DEMO_ASSETS, type DemoAsset } from "./demoData";
  */
 
 const USAGES = [
-  { titre: "Analyser 31 actifs", texte: "Actions, indices, crypto, or, devises. Pour chacun, la direction, un score sur 100, et les raisons du moteur, en français." },
+  { titre: "Analyser n'importe quel actif", texte: "Actions, indices, crypto, or, devises : 800 valeurs dans votre espace, et 31 analyses publiques chaque jour. Pour chacune, la direction, un score sur 100, et les raisons du moteur, en français." },
   { titre: "Suivre les propositions de Nimbo", texte: "Quand un signal est net, Nimbo propose une position avec son stop et son objectif, et dit pourquoi. Sinon, il dit d'attendre." },
   { titre: "Prendre position avec 10 000 €", texte: "Un ordre se passe comme chez un courtier, mais l'argent est fictif. Stop et objectif se posent avant d'entrer." },
   { titre: "Tenir son journal", texte: "Chaque position fermée est relue : ce qui était prévu, ce qui s'est passé, et ce qu'on en retient." },
@@ -91,7 +91,7 @@ function EcranAnalyses({ actifs, direct }: Readonly<{ actifs: DemoAsset[]; direc
           ))}
         </tbody>
       </table>
-      <Note>Cinq des 31 actifs suivis. Une lecture du marché, pas un conseil.</Note>
+      <Note>Cinq des 31 analyses publiques du jour. Une lecture du marché, pas un conseil.</Note>
     </div>
   );
 }
