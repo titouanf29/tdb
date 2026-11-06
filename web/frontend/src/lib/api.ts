@@ -1414,6 +1414,15 @@ export interface Analysis {
   figures?: FigureMoteur[];
   /** Ce que ce plan veut dire pour cette personne. Absent sans intentions. */
   personnel?: BlocPersonnel;
+  /** La dernière fois que cette personne a lu cette analyse, un autre jour :
+   *  ce qu'elle disait alors, pour voir ce qui a bougé depuis. */
+  derniere_lecture?: {
+    lu_le: string;
+    score: number | null;
+    trend: string | null;
+    propose: boolean;
+    prix: number | null;
+  };
   /** Technical verdict re-read with the profile's fundamental weight. Kept
    *  apart from `score`, which stays the verdict the scanner shares. */
   profile_score?: {
@@ -1773,6 +1782,8 @@ export interface Favorite {
   change: number;
   added_at: string;
   error?: boolean;
+  /** Le score vu à la dernière lecture de l'analyse par cette personne, et quand. */
+  lecture?: { score: number | null; lu_le: string } | null;
 }
 
 // Admin API

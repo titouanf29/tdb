@@ -75,20 +75,26 @@ export function brancherHote(): () => void {
 /** Ce que rapporte une action : missions, badges, niveau. Rien s'il n'y a rien. */
 export function annoncerRecompenses(res: Partial<ActionResult> | null | undefined) {
   if (!res) return;
-  const xp = res.xp_gained ? ` · +${res.xp_gained} XP` : "";
+  // UNE CARTE PAR GESTE. Une première analyse en faisait tomber trois d'un
+  // coup (mission, badge, missions du jour), et un lecteur adulte s'en
+  // agaçait. Tout ce que le geste a rapporté tient sur une seule carte.
   const missions = res.mission_titles ?? [];
-  if (missions.length) {
-    annoncerReussite({
-      titre: missions.length > 1 ? `${missions.length} missions accomplies` : "Mission accomplie",
-      detail: missions.join(" · ") + xp,
-    });
-  } else if (res.missions_completed?.length) {
-    annoncerReussite({ titre: "Mission accomplie", detail: xp.replace(/^ · /, "") || undefined });
-  }
-  for (const b of res.new_badges ?? []) {
-    if (b?.name) annoncerReussite({ titre: "Nouveau badge", detail: b.name });
-  }
-  if (res.level_up && res.new_level) {
-    annoncerReussite({ titre: `Niveau ${res.new_level} atteint`, detail: "Continuez comme ça." });
-  }
+  const nbMissions = missions.length || (res.missions_completed?.length ?? 0);
+  const badges = (res.new_badges ?? []).map((b) => b?.name).filter((n): n is string => !!n);
+  const niveau = res.level_up && res.new_level ? res.new_level : null;
+  if (!nbMissions && !badges.length && !niveau) return;
+
+  let titre: string;
+  if (niveau && !nbMissions) titre = `Niveau ${niveau} atteint`;
+  else if (nbMissions > 1) titre = `${nbMissions} missions accomplies`;
+  else if (nbMissions === 1) titre = "Mission accomplie";
+  else titre = badges.length > 1 ? "Nouveaux badges" : "Nouveau badge";
+
+  const detail = [
+    ...missions,
+    ...badges.map((b) => `badge ${b}`),
+    niveau && nbMissions ? `niveau ${niveau}` : null,
+    res.xp_gained ? `+${res.xp_gained} XP` : null,
+  ].filter(Boolean).join(" · ");
+  annoncerReussite({ titre, detail: detail || undefined });
 }

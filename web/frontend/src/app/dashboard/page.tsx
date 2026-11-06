@@ -31,6 +31,7 @@ import { PointDuMatin } from "@/components/app/PointDuMatin";
 import { Demain } from "@/components/app/Demain";
 import { InstallerApplication } from "@/components/app/InstallerApplication";
 import { useProfile } from "@/lib/useProfile";
+import { ilYA } from "@/lib/quand";
 
 /**
  * The signed-in home screen.
@@ -328,7 +329,12 @@ export default function DashboardPage() {
                       key={f.symbol}
                       href={`/analysis?symbol=${encodeURIComponent(f.symbol)}`}
                       label={f.name || f.symbol}
-                      sub={f.name && f.name !== f.symbol ? f.symbol : undefined}
+                      // Le code, et le score vu à la dernière lecture : une
+                      // raison de rouvrir l'analyse, « il était à 58 hier ».
+                      sub={[
+                        f.name && f.name !== f.symbol ? f.symbol : null,
+                        f.lecture?.score != null ? `score ${Math.round(f.lecture.score)} ${ilYA(f.lecture.lu_le)}` : null,
+                      ].filter(Boolean).join(" · ") || undefined}
                       value={formatCours(f.price, f.symbol)}
                       change={f.change}
                     />

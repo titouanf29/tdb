@@ -7,6 +7,7 @@ import { EVT_PROGRESSION, learnAPI, type LessonRecord } from "@/lib/api";
 import { LEARN_MODULES } from "@/lib/learnContent";
 import { MODULE_SERIE, ORDRE, chapitreDe, cleLecon, fiche } from "@/lib/cours/catalogue";
 import { Panel, Text } from "@/components/design-system";
+import { ilYA } from "@/lib/quand";
 
 /**
  * « Continuer à apprendre » : la prochaine leçon par son nom, sa durée, et
@@ -72,15 +73,7 @@ function derniere(records: Record<string, LessonRecord>): { titre: string; quand
     titre = LEARN_MODULES.find((m) => m.id === mod)?.lessons.find((l) => l.id === lid)?.title;
   }
   if (!titre) return null;
-  const jours = Math.floor((Date.now() - new Date(meilleure.date).getTime()) / 86_400_000);
-  return { titre, quand: ilYA(jours, meilleure.date) };
-}
-
-function ilYA(jours: number, iso: string): string {
-  if (jours <= 0) return "aujourd'hui";
-  if (jours === 1) return "hier";
-  if (jours < 14) return `il y a ${jours} jours`;
-  return `le ${new Date(iso).toLocaleDateString("fr-FR", { day: "numeric", month: "long" })}`;
+  return { titre, quand: ilYA(meilleure.date) };
 }
 
 export function ProchaineLecon() {

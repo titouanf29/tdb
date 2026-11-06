@@ -7,6 +7,7 @@ import { Plus, RefreshCw, Trash2 } from "lucide-react";
 import { favoritesAPI, type Favorite } from "@/lib/api";
 import { NotificationsAppareil } from "@/components/app/NotificationsAppareil";
 import { fr, useSettings, convertCurrency } from "@/lib/SettingsContext";
+import { ilYA } from "@/lib/quand";
 import {
   Button, CloudCurtain, EmptyState, Field, FormError, Heading, Modal, Num,
   Panel, SegmentedControl, Text, TextInput, WeatherBackdrop,
@@ -187,10 +188,16 @@ export default function FavoritesPage() {
                         className="block truncate text-[0.95rem] font-medium"
                         style={{ color: "var(--cap-ink)" }}
                       >
-                        {f.symbol}
+                        {f.name || f.symbol}
                       </span>
+                      {/* Le code, et le score vu à la dernière lecture :
+                          « il était à 59 il y a deux jours » donne une raison
+                          de rouvrir l'analyse, « Voir l'analyse » n'en donnait pas. */}
                       <span className="mt-0.5 block text-[0.78rem]" style={{ color: "var(--cap-ink-3)" }}>
-                        Voir l&apos;analyse
+                        {[
+                          f.name && f.name !== f.symbol ? f.symbol : null,
+                          f.lecture?.score != null ? `score ${Math.round(f.lecture.score)} ${ilYA(f.lecture.lu_le)}` : "pas encore lu",
+                        ].filter(Boolean).join(" · ")}
                       </span>
                     </span>
                     <span className="flex shrink-0 items-baseline gap-5">
@@ -207,7 +214,7 @@ export default function FavoritesPage() {
                   <button
                     onClick={() => remove(f.symbol)}
                     disabled={removing === f.symbol}
-                    aria-label={`Ne plus suivre ${f.symbol}`}
+                    aria-label={`Ne plus suivre ${f.name || f.symbol}`}
                     // Visible on hover on a pointer device, always present for
                     // keyboard and touch — a destructive action hidden behind
                     // hover is unreachable on a phone.

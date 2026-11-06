@@ -877,7 +877,7 @@ def _tradeability(
     if _av:
         warnings.append(_av)
     if neutre:
-        blockers.append("Verdict neutre — le moteur ne voit pas de sens assez net pour proposer un trade")
+        blockers.append("Verdict neutre : le moteur ne voit pas de sens assez net pour proposer un trade")
     if vente_non_prouvee:
         blockers.append(
             "Score bas : ce n'est pas le moment d'acheter. Le moteur ne propose pas pour "
@@ -897,13 +897,13 @@ def _tradeability(
             "le setup rémunère mal le risque" if jusqua_obstacle else
             f"Rapport gain/risque de {nombre_fr(risk_reward, 1)} — sous 1,2, le setup rémunère mal le risque")
     if data_stale:
-        blockers.append("Données de marché périmées — le prix affiché ne reflète plus la séance")
+        blockers.append("Données de marché périmées : le prix affiché ne reflète plus la séance")
     if confidence < 40:
-        blockers.append(f"Confiance des données à {confidence} % — historique trop court pour conclure")
+        blockers.append(f"Confiance des données à {confidence} % : historique trop court pour conclure")
     if n_bars < 60:
-        blockers.append(f"Seulement {n_bars} bougies disponibles — insuffisant pour les indicateurs longs")
+        blockers.append(f"Seulement {n_bars} bougies disponibles : insuffisant pour les indicateurs longs")
     if vol_percentile is not None and vol_percentile >= 95:
-        blockers.append("Volatilité dans son centile extrême — tout stop devient une loterie")
+        blockers.append("Volatilité dans son centile extrême : tout stop devient une loterie")
 
     # L'EDGE HISTORIQUE NÉGATIF PÈSE ICI, et c'est le bon endroit.
     #
@@ -1944,6 +1944,20 @@ async def analyze_asset(
                     result["personnel"] = personnel
             except Exception as e:
                 logger.warning("bloc personnel indisponible pour %s : %s", symbol, e)
+
+            # ── Depuis la dernière lecture (_lectures.py) ──────────────────
+            # Le score et le verdict de la dernière fois qu'elle a ouvert cette
+            # analyse un autre jour, pour voir ce qui a bougé sans s'en souvenir.
+            try:
+                from ._lectures import relire
+                _score_lu = (result.get("profile_score") or {}).get("total", result["score"]["total"])
+                lecture = await relire(
+                    int(current_user["id"]), symbol, timeframe, _score_lu, result.get("trend"),
+                    bool(_propose), result["price"]["current"])
+                if lecture:
+                    result["derniere_lecture"] = lecture
+            except Exception as e:
+                logger.warning("dernière lecture indisponible pour %s : %s", symbol, e)
 
         return _sanitize(result)
 
