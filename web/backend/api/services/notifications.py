@@ -41,6 +41,12 @@ CATEGORIES: list[dict] = [
     {"id": "strategie", "label": "Ma stratégie",
      "detail": "Votre stratégie active se déclenche sur un de ses actifs ou un de vos favoris, une fois par bougie.",
      "types": ["strategie"]},
+    {"id": "matin", "label": "Le point du matin",
+     "detail": "Chaque matin de semaine vers 8 h 45 : vos actifs depuis hier, vos positions et l'annonce du jour, en trois phrases.",
+     "types": ["matin"]},
+    {"id": "journal", "label": "Le soir, relire ses trades",
+     "detail": "À 18 h 30, quand une position fermée dans la journée n'a pas encore sa note au journal.",
+     "types": ["journal"]},
     {"id": "bilan", "label": "Le bilan de la semaine",
      "detail": "Le vendredi soir : votre résultat, votre discipline et un conseil pour la semaine suivante.",
      "types": ["bilan"]},
@@ -57,8 +63,8 @@ CATEGORIES: list[dict] = [
      "detail": "Votre abonnement et la sécurité de votre compte. Ils restent toujours dans le site.",
      "types": ["premium", "compte"], "site_verrouille": True},
     {"id": "admin", "label": "Administration",
-     "detail": "Chaque nouvelle inscription, et les messages signalés dans la Communauté. Réservé à l'équipe.",
-     "types": ["admin_inscription", "admin_signalement"], "admin_only": True},
+     "detail": "Chaque nouvelle inscription, les messages signalés dans la Communauté, et les erreurs du site quand elles s'enchaînent. Réservé à l'équipe.",
+     "types": ["admin_inscription", "admin_signalement", "admin_erreurs"], "admin_only": True},
 ]
 _PAR_TYPE = {t: c["id"] for c in CATEGORIES for t in c["types"]}
 _IDS = [c["id"] for c in CATEGORIES]

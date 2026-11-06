@@ -168,8 +168,9 @@ export default function WalletPage() {
               risk_reward: res.review.risk_reward,
               exit_price: res.review.exit_price,
               pnl: res.review.pnl,
+              journal_entry_id: res.journal_entry_id ?? null,
             }
-          : draftFromPosition(closed, exit, pnl, style)
+          : { ...draftFromPosition(closed, exit, pnl, style), journal_entry_id: res.journal_entry_id ?? null }
       );
       await load();
     } catch (err) {
@@ -290,7 +291,7 @@ export default function WalletPage() {
             <Text className="mt-2.5 max-w-[36rem]">
               Votre compte d&apos;entraînement. Tout y est virtuel, c&apos;est
               exactement ce qui permet de se tromper utilement. À ne pas
-              confondre avec le Portefeuille réel, qui est un registre de vos
+              confondre avec « Mes placements hors site », qui est un registre de vos
               placements hors du site.
             </Text>
           </div>
@@ -364,7 +365,7 @@ export default function WalletPage() {
               style={{ borderColor: "var(--cap-line)" }}
             >
               <Text size="small" as="span">
-                Meilleur trade <Num tone="up">+{money(stats.best_trade)}</Num>
+                Meilleur trade <Num tone={stats.best_trade >= 0 ? "up" : "down"}>{stats.best_trade > 0 ? "+" : ""}{money(stats.best_trade)}</Num>
               </Text>
               <Text size="small" as="span">
                 Pire trade <Num tone="down">{money(stats.worst_trade)}</Num>

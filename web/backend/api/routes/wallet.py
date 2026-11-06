@@ -75,16 +75,20 @@ async def _notify(numeric_id, type_: str, title: str, message: str, link: str, c
     await notifier(numeric_id, type_, title, message, link, cle)
 
 
-async def _journal_trace(user_id, rev: dict) -> None:
-    """La trace au journal, écrite d'office pour une clôture automatique.
+async def _journal_trace(user_id, rev: dict) -> int | None:
+    """La trace au journal, écrite d'office à chaque clôture.
 
-    À la clôture manuelle, on PROPOSE d'écrire et l'utilisateur complète. Sur
-    un stop touché il n'est pas là, et c'est justement le trade dont on
-    apprend le plus. L'entrée est donc créée sans lui, avec les faits et le
-    constat ; il n'aura qu'à ajouter ce que lui seul sait.
+    Elle ne l'était que pour une clôture automatique ; à la clôture manuelle,
+    on PROPOSAIT d'écrire, et la note vivait ensuite à part de la position :
+    la fiche du trade disait « Aucune note » même après coup, et la
+    statistique comptait des entrées sans résultat. Chaque position fermée a
+    maintenant sa ligne, avec les faits et le constat ; la personne y ajoute
+    ce qu'elle seule sait. Rend l'identifiant de la ligne, pour que la
+    proposition de note la complète au lieu d'en créer une seconde.
     """
     try:
         now = datetime.now(timezone.utc).isoformat()
+        ferme = rev.get("closed_by")
         await execute_write(
             """INSERT INTO trading_journal
                (user_id, symbol, direction, timeframe, setup,
@@ -94,15 +98,21 @@ async def _journal_trace(user_id, rev: dict) -> None:
                 created_at, updated_at)
                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             (user_id, rev["symbol"], rev["direction"], None,
-             "stop" if rev["closed_by"] == "stop_loss" else "objectif",
+             "stop" if ferme == "stop_loss" else "objectif" if ferme == "take_profit"
+             else "liquidation" if ferme == "liquidation" else "manuel",
              rev["entry_time"], rev["exit_time"],
              rev["entry_price"], rev["exit_price"], rev["quantity"],
              rev["risk_reward"], rev["result"], rev["pnl"],
              rev["pre_trade_notes"], rev["post_trade_notes"], None,
              now, now),
         )
+        rows = await execute_query(
+            "SELECT id FROM trading_journal WHERE user_id = ? AND symbol = ? AND created_at = ? ORDER BY id DESC LIMIT 1",
+            (user_id, rev["symbol"], now))
+        return int(rows[0]["id"]) if rows else None
     except Exception as exc:
         print(f"[wallet] trace de journal non écrite : {exc}")
+        return None
 
 
 async def _execute_levels(user_id, positions: list, numeric_id=None) -> list:
@@ -814,10 +824,14 @@ async def close_position(
     # premier ajustement les deux versions disent des choses différentes du
     # même trade.
     rev = None
+    journal_id = None
     try:
         style = await _trading_style(current_user.get("id"))
         rev = review_trade(position, float(exit_price), float(pnl), style=style,
                            closed_by="liquidation" if liquidee else None)
+        # La ligne du journal, écrite tout de suite : la note viendra la
+        # compléter, ou pas, mais le trade est tracé.
+        journal_id = await _journal_trace(user_id, rev)
     except Exception as exc:
         print(f"[wallet] bilan de clôture : {exc}")
 
@@ -826,6 +840,7 @@ async def close_position(
         "message": f"Position closed: {position['symbol']}",
         "liquidated": liquidee,
         "review": rev,
+        "journal_entry_id": journal_id,
         "exit_price": _px(exit_price),
         "realized_pnl": round(pnl, 2),
         "frais": round(frais_entree + sortie, 2),

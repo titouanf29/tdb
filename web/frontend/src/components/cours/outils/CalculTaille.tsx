@@ -37,7 +37,7 @@ export function CalculTaille() {
 
       <ol className="mt-4 space-y-4">
         <li className="grid grid-cols-[2rem_minmax(0,1fr)] gap-x-2">
-          <span className="text-[1.3rem] italic leading-none" style={{ color: "#c98a1e", fontFamily: "var(--cap-font-display)" }}>1</span>
+          <span className="text-[1.3rem] italic leading-none" style={{ color: "var(--cap-amber-ink)", fontFamily: "var(--cap-font-display)" }}>1</span>
           <div>
             <Etiquette>Votre risque en argent</Etiquette>
             <div className="flex flex-wrap items-baseline gap-x-4">
@@ -49,7 +49,7 @@ export function CalculTaille() {
           </div>
         </li>
         <li className="grid grid-cols-[2rem_minmax(0,1fr)] gap-x-2">
-          <span className="text-[1.3rem] italic leading-none" style={{ color: "#c98a1e", fontFamily: "var(--cap-font-display)" }}>2</span>
+          <span className="text-[1.3rem] italic leading-none" style={{ color: "var(--cap-amber-ink)", fontFamily: "var(--cap-font-display)" }}>2</span>
           <div>
             <Etiquette>La distance de votre stop, posé d'abord sur le graphique</Etiquette>
             <Curseur label={inst === "eurusd" ? "Stop, en pips" : "Stop, en dollars de prix"} valeur={stop} texte={ecrireStop(inst, stop)}
@@ -58,7 +58,7 @@ export function CalculTaille() {
           </div>
         </li>
         <li className="grid grid-cols-[2rem_minmax(0,1fr)] gap-x-2">
-          <span className="text-[1.3rem] italic leading-none" style={{ color: "#c98a1e", fontFamily: "var(--cap-font-display)" }}>3</span>
+          <span className="text-[1.3rem] italic leading-none" style={{ color: "var(--cap-amber-ink)", fontFamily: "var(--cap-font-display)" }}>3</span>
           <div>
             <Etiquette>Ce que vaut ce mouvement, pour un lot</Etiquette>
             <p className="text-[0.98rem]" style={{ color: "var(--cap-ink-2)" }}>{I.explication}</p>

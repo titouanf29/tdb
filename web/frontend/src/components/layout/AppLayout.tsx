@@ -5,7 +5,7 @@ import { useRouter, usePathname } from "next/navigation";
 import { useAuth } from "@/lib/AuthContext";
 import { useLanguage } from "@/lib/LanguageContext";
 import { usePremium } from "@/lib/PremiumContext";
-import { WelcomeDialog, DISMISSED_KEY as WELCOME_DISMISSED_KEY } from "@/components/onboarding/WelcomeDialog";
+import { WelcomeDialog, cleFermeture } from "@/components/onboarding/WelcomeDialog";
 import { MaintenanceScreen } from "./MaintenanceScreen";
 import { useMaintenance } from "@/lib/useMaintenance";
 import { AppChrome } from "@/components/app/AppChrome";
@@ -116,8 +116,12 @@ function AuthShell({
   // question à chaque chargement transformerait une invitation en harcèlement.
   useEffect(() => {
     if (!isAuthenticated || !user || user.trading_level != null) return;
+    // Seulement pour un compte neuf : un ancien compte qui l'avait fermée
+    // (quand la fermeture était retenue par navigateur) ne la revoit pas.
+    const cree = user.created_at ? Date.parse(user.created_at) : Number.NaN;
+    if (Number.isFinite(cree) && Date.now() - cree > 7 * 86_400_000) return;
     let dismissed = false;
-    try { dismissed = localStorage.getItem(WELCOME_DISMISSED_KEY) === "1"; } catch { /* ignore */ }
+    try { dismissed = localStorage.getItem(cleFermeture(user.id)) === "1"; } catch { /* ignore */ }
     if (dismissed) return;
     const t = setTimeout(() => setShowOnboarding(true), 800);
     return () => clearTimeout(t);
@@ -155,7 +159,7 @@ function AuthShell({
           >
             <p className="text-[0.82rem] leading-relaxed">
               <span className="font-semibold">
-                {lang === "en" ? "Maintenance. " : "Maintenance. "}
+                Maintenance.{" "}
               </span>
               {lang === "en"
                 ? "The site is closed to visitors, only team accounts can sign in right now."
@@ -242,7 +246,9 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     return <LegalShell>{children}</LegalShell>;
   }
 
-  if (pathname?.startsWith("/lecon/") || pathname === "/cours") {
+  // Les pages publiques à lire sans compte : les leçons et les analyses du jour.
+  if (pathname?.startsWith("/lecon/") || pathname === "/cours"
+    || pathname?.startsWith("/actif/") || pathname === "/actifs") {
     return <CoursShell>{children}</CoursShell>;
   }
 

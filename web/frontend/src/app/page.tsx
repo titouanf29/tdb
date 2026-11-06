@@ -1,7 +1,6 @@
-"use client";
-
 import "@/components/landing/vitrine.css";
 
+import { Suspense } from "react";
 import { CloudLayer, PageCourse, type CourseStop } from "@/components/design-system";
 import { ClosingSection } from "@/components/landing/ClosingSection";
 import { ChiffresCles } from "@/components/landing/ChiffresCles";
@@ -15,7 +14,8 @@ import { LandingNav } from "@/components/landing/LandingNav";
 import { LearnSection } from "@/components/landing/LearnSection";
 import { PaperTradingSection } from "@/components/landing/PaperTradingSection";
 import { PersonalisationSection } from "@/components/landing/PersonalisationSection";
-import { ProblemSection } from "@/components/landing/ProblemSection";
+import { UsagesSection } from "@/components/landing/UsagesSection";
+import { analyseActif, type AnalysePublique } from "@/lib/actifs-serveur";
 
 /**
  * The public page.
@@ -24,11 +24,23 @@ import { ProblemSection } from "@/components/landing/ProblemSection";
  * order they are read in, and names the stops along the way. The `cap` class
  * scopes the rebuilt design tokens, so nothing here can reach the screens
  * that have not been migrated yet.
+ *
+ * LA PAGE ELLE-MÊME EST RENDUE PAR LE SERVEUR, ET CHAQUE SECTION SE MET EN
+ * ROUTE À SON TOUR. Tout l'accueil s'hydratait d'un bloc dans le navigateur :
+ * plus d'une seconde de calcul sur un téléphone moyen (Lighthouse), pendant
+ * laquelle la page ne répondait pas et le premier écran tardait. Chaque
+ * section est une frontière Suspense : React les hydrate l'une après l'autre
+ * et rend la main entre deux, en commençant par celle que l'on touche.
  */
+
+/** Une section qui s'hydrate à son tour (voir plus haut). */
+function Tour({ children }: Readonly<{ children: React.ReactNode }>) {
+  return <Suspense fallback={null}>{children}</Suspense>;
+}
 
 const STOPS: CourseStop[] = [
   { id: "depart", label: "Départ" },
-  { id: "probleme", label: "Le problème" },
+  { id: "usages", label: "Ce qu'on fait ici" },
   { id: "fonctionnement", label: "Fonctionnement" },
   { id: "demo", label: "Démo" },
   { id: "paper-trading", label: "Paper trading" },
@@ -38,32 +50,42 @@ const STOPS: CourseStop[] = [
   { id: "arrivee", label: "Arrivée" },
 ];
 
-export default function LandingPage() {
+export default async function LandingPage() {
+  // LE HAUT DE PAGE MONTRE LA VRAIE ANALYSE DU JOUR. La carte d'accueil était
+  // un exemple fixe (Apple à 245 €, haussier) pendant que la démo, plus bas,
+  // donnait la lecture réelle du moteur, parfois l'inverse. Même source que
+  // la démo et les pages par actif, lue ici par le serveur (cache de dix
+  // minutes) ; si le moteur ne répond pas, l'exemple reste, et le dit.
+  const lecture = await analyseActif("or");
+  const analyse: AnalysePublique | null = lecture && lecture !== "indisponible" ? lecture : null;
   return (
     <div className="cap vitrine min-h-screen">
       {/* À l'arrivée, l'écran est sous les nuages, qui s'écartent. */}
       <OuvertureDuCiel />
       <CloudLayer />
       <LandingNav />
-      <PageCourse stops={STOPS} />
+      <Tour><PageCourse stops={STOPS} /></Tour>
       <main>
-        <Hero />
-        <ChiffresCles />
-        <ProblemSection />
-        <HowItWorks />
+        <Hero analyse={analyse} />
+        <Tour><ChiffresCles /></Tour>
+        <Tour><UsagesSection /></Tour>
+        <Tour><HowItWorks /></Tour>
         {/* Une seule traversée au milieu de la page, et une avant la fin :
             cinq couches de nuages faisaient de la page une longue attente
             entre deux contenus. */}
-        <Traversee hauteur={380} />
-        <DemoSection />
-        <PaperTradingSection />
-        <PersonalisationSection />
-        <LearnSection />
-        <FaqSection />
-        <Traversee hauteur={340} />
-        <ClosingSection />
+        <Tour><Traversee hauteur={380} /></Tour>
+        <Tour><DemoSection initial={analyse} /></Tour>
+        <Tour><PaperTradingSection /></Tour>
+        {/* Sur téléphone, la page faisait seize écrans et deux visiteuses ont
+            décroché à mi-chemin : la personnalisation, déjà racontée par les
+            cinq questions de l'arrivée, ne s'affiche que sur grand écran. */}
+        <div className="hidden sm:block"><Tour><PersonalisationSection analyse={analyse} /></Tour></div>
+        <Tour><LearnSection /></Tour>
+        <Tour><FaqSection /></Tour>
+        <Tour><Traversee hauteur={340} /></Tour>
+        <Tour><ClosingSection /></Tour>
       </main>
-      <LandingFooter />
+      <Tour><LandingFooter /></Tour>
     </div>
   );
 }

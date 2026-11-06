@@ -193,10 +193,17 @@ export default function PolitiqueConfidentialitePage() {
               },
               {
                 name: "Groq, Inc.",
-                role: "Moteur IA de l'assistant (API Llama)",
+                role: "Moteur IA de l'assistant et de l'aide de Nimbo (API Llama), quand le site est configuré sur Groq",
                 country: "États-Unis 🇺🇸",
                 data: "Contenu de vos messages envoyés à l'assistant IA (transmis à l'API pour générer une réponse, non conservés par Groq selon leur politique)",
                 guarantee: "Standard Contractual Clauses (SCC/CCT), Privacy Policy Groq",
+              },
+              {
+                name: "Mistral AI SAS",
+                role: "Moteur IA de l'assistant et de l'aide de Nimbo, quand le site est configuré sur Mistral (un seul des deux fournisseurs est utilisé)",
+                country: "France 🇫🇷",
+                data: "Contenu de vos messages envoyés à l'assistant ou à Nimbo, transmis à l'API pour générer une réponse",
+                guarantee: "Société de droit français, données traitées dans l'Union européenne, Mistral AI Privacy Policy",
               },
               {
                 name: "Stripe, Inc.",
@@ -204,6 +211,13 @@ export default function PolitiqueConfidentialitePage() {
                 country: "États-Unis 🇺🇸",
                 data: "E-mail, identifiant client Stripe, Les données bancaires sont traitées directement par Stripe, jamais par CaptenTDB",
                 guarantee: "Certifié PCI-DSS Level 1, SCC UE-USA, Stripe Privacy Policy",
+              },
+              {
+                name: "TradingView, Inc.",
+                role: "Graphique « Complet » de la page Analyse, seulement si vous choisissez de le charger",
+                country: "États-Unis 🇺🇸",
+                data: "Adresse IP et symbole consulté, transmis à TradingView au chargement de son graphique. Rien n'est transmis tant que vous n'avez pas cliqué sur « Charger le graphique TradingView » ; le graphique « Commenté » ne sort pas du site",
+                guarantee: "Cadre isolé (sandbox), sans accès aux données du site ; chargement sur votre demande, retenu dans votre navigateur ; TradingView Privacy Policy",
               },
               {
                 name: "Brevo (Sendinblue SAS)",
@@ -226,7 +240,7 @@ export default function PolitiqueConfidentialitePage() {
           </div>
 
           <InfoBox variant="info">
-            <strong>Transferts hors UE (Art. 46 RGPD) :</strong> Les trois sous-traitants sont établis aux États-Unis. Ces transferts sont encadrés par les Clauses Contractuelles Types (CCT) adoptées par la Commission européenne, conformément à l'article 46§2.c du RGPD.
+            <strong>Transferts hors UE (Art. 46 RGPD) :</strong> Railway, Groq, Stripe et TradingView sont établis aux États-Unis. Ces transferts sont encadrés par les Clauses Contractuelles Types (CCT) adoptées par la Commission européenne, conformément à l'article 46§2.c du RGPD.
           </InfoBox>
         </section>
 

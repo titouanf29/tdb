@@ -506,11 +506,11 @@ export const welcomeBackAPI = {
   activite: () => {
     const jeton = getToken();
     if (!jeton) return;
-    try {
-      fetch(`${API_URL}/api/dashboard/activity`, {
-        method: "POST", keepalive: true, headers: { Authorization: `Bearer ${jeton}` },
-      }).catch(() => {});
-    } catch { /* le navigateur refuse : la prochaine visite partira de la dernière photo */ }
+    // Un refus du navigateur arrive en promesse rejetée : la prochaine visite
+    // partira alors de la dernière photo.
+    fetch(`${API_URL}/api/dashboard/activity`, {
+      method: "POST", keepalive: true, headers: { Authorization: `Bearer ${jeton}` },
+    }).catch(() => {});
   },
 };
 
@@ -992,6 +992,8 @@ export interface Figure {
   cle: string;
   nom: string;
   sens: "haussier" | "baissier";
+  /** Ce que la figure est devenue depuis sa confirmation (bougies suivantes). */
+  statut?: "en_cours" | "annulee" | "objectif_atteint";
   points: { i: number; prix: number; ts: number }[];
   /** La ligne de cou, la base ou la borne cassée. */
   ligne: { i1: number; p1: number; i2: number; p2: number; ts1: number; ts2: number } | null;
@@ -1178,6 +1180,8 @@ export interface TradeReview {
 }
 
 export interface PositionResult {
+  /** La ligne du journal écrite à la clôture, à compléter plutôt qu'à recréer. */
+  journal_entry_id?: number | null;
   success: boolean;
   message: string;
   entry_price?: number;
@@ -1525,6 +1529,9 @@ export interface Analysis {
     /** Vrai quand le plan n'est qu'un exemple (verdict neutre, ou vente à
      *  découvert que l'historique n'a pas validée) : il ne s'ouvre pas. */
     illustratif?: boolean;
+    /** Vrai quand les niveaux n'ont pas de sens (multiple d'ATR au-delà du
+     *  cours, actif sans cotation) : l'écran ne montre pas le plan. */
+    degenere?: boolean;
     direction?: "LONG" | "SHORT";
     sl_basis?: string;
     tp_capped_at_level?: boolean;
@@ -1867,7 +1874,11 @@ export interface Retention {
   venus_7j: number;
   notifications: TauxRetention;
   semaines: { debut: string; inscriptions: number; actifs: number }[];
+  entonnoir: Entonnoir;
+  entonnoir_semaines: (Entonnoir & { debut: string })[];
 }
+export interface EtapeEntonnoir extends TauxRetention { cle: string; libelle: string }
+export interface Entonnoir { inscrits: number; etapes: EtapeEntonnoir[] }
 
 export const adminAPI = {
   emailStatus: () => fetchAPI<EmailEtat>("/api/admin/email/status"),
@@ -1883,6 +1894,8 @@ export const adminAPI = {
 
   // Dashboard
   getDashboard: () => fetchAPI<AdminDashboard>("/api/admin/dashboard"),
+  /** Les dernières erreurs serveur (backend services/surveillance.py). */
+  erreurs: () => fetchAPI<{ a: string; route: string; erreur: string; detail: string }[]>("/api/admin/erreurs"),
   /** Qui revient (backend services/retention.py pour les définitions). */
   retention: () => fetchAPI<Retention>("/api/admin/retention"),
 
@@ -3181,7 +3194,10 @@ export interface JournalEntry {
 }
 
 export interface JournalStats {
+  /** Les entrées tranchées (gagné, perdu, à l'équilibre). */
   total: number;
+  /** Toutes les entrées, notes sans résultat comprises. */
+  entrees?: number;
   wins: number;
   losses: number;
   breakevens: number;
@@ -3681,6 +3697,18 @@ export interface PreparationSemaine {
   /** Le bilan de la semaine (backend services/bilan.py), ou null s'il n'a pas pu être calculé. */
   bilan: BilanSemaine | null;
 }
+
+// ── Demain : la prochaine séance (backend routes/demain.py) ────────────────
+export interface Demain {
+  jour: { date: string; libelle: string; est_demain: boolean };
+  seances: { place: string; ouvre: string; ferme: string }[];
+  agenda: { titre: string; heure: string; importance: string; pays: string; pourquoi?: string | null }[];
+  plans: { symbol: string; nom: string; achat: boolean; timeframe: string; entree: number; stop: number; objectif: number; depuis: string }[];
+  sans_stop: number;
+}
+export const demainAPI = {
+  get: () => fetchAPI<Demain>("/api/demain"),
+};
 
 export const semaineAPI = {
   fenetre: () => fetchAPI<FenetreSemaine>("/api/semaine/fenetre"),

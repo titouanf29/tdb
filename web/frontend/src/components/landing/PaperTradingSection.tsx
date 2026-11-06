@@ -3,8 +3,7 @@
 import {
   Atmosphere, LiveBackdrop, Container, Eyebrow, Heading, Section, Text,
 } from "@/components/design-system";
-import { Etoiles } from "./animationsPlus";
-import { Reveal } from "./effets";
+import { Nuage, Reveal } from "./effets";
 import { MotsAuScroll, useProgressionCSS } from "./animations";
 
 /**
@@ -43,7 +42,25 @@ export function PaperTradingSection() {
 
   return (
     <Section id="paper-trading" size="md" tone="inverse" className="relative overflow-hidden">
-      <Etoiles />
+      {/* DES NUAGES DE NUIT, PAS DES ÉTOILES. Le ciel étoilé était le seul
+          décor de la page hors de sa météo : tout le reste se passe dans les
+          nuages. Les mêmes nuages, en version sombre, très pâles, qui
+          dérivent comme ceux du haut. */}
+      <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
+        <style dangerouslySetInnerHTML={{ __html: `@keyframes cap-nuit-a{0%,100%{transform:translate3d(0,0,0)}50%{transform:translate3d(3%,-2%,0)}}
+@keyframes cap-nuit-b{0%,100%{transform:translate3d(0,0,0)}50%{transform:translate3d(-3%,-3%,0)}}
+.anim-off .cap-nuit{animation:none !important}
+@media (prefers-reduced-motion: reduce){.cap-nuit{animation:none !important}}` }} />
+        {[
+          { left: "-14%", top: "-18%", w: "54%", forme: 0, o: 0.16, anim: "cap-nuit-a 46s ease-in-out infinite" },
+          { left: "58%", top: "-10%", w: "58%", forme: 2, o: 0.13, anim: "cap-nuit-b 58s ease-in-out infinite", r: true },
+          { left: "20%", top: "62%", w: "62%", forme: 1, o: 0.11, anim: "cap-nuit-a 52s ease-in-out infinite" },
+        ].map((n, i) => (
+          <div key={i} className="cap-nuit absolute" style={{ left: n.left, top: n.top, width: n.w, opacity: n.o, animation: n.anim, willChange: "transform" }}>
+            <Nuage forme={n.forme} retourne={n.r} flou={7} style={{ width: "100%", height: "auto" }} />
+          </div>
+        ))}
+      </div>
       <Atmosphere variant="top" />
       <LiveBackdrop />
       <Container width="wide" className="relative">

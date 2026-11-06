@@ -198,7 +198,7 @@ export default function JournalPage() {
                   {stats.win_rate.toFixed(0)} %
                 </Num>
                 <Text size="caption" className="mt-2">
-                  de réussite sur {stats.total} entrée{stats.total > 1 ? "s" : ""}
+                  de réussite sur {stats.total} trade{stats.total > 1 ? "s" : ""} tranché{stats.total > 1 ? "s" : ""}
                 </Text>
               </div>
               <div>

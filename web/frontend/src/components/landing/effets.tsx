@@ -104,7 +104,12 @@ const FIN_VOL = DUREE_VOL + ECART_PLANS * (PLANS.length - 1);
 /* Lu avant le premier affichage : décide s'il y a une intro, sans attendre
    React. Remonte aussi la page en haut au rafraîchissement, pour que le vol
    débouche toujours sur l'accueil. */
-const DECISION = `try{var d=document.documentElement;var off=localStorage.getItem('tdb_animations')==='off'||matchMedia('(prefers-reduced-motion: reduce)').matches;if(off){d.classList.add('anim-off','ciel-vu')}else{d.classList.add('ciel-intro');window.__cielJoue=true;if('scrollRestoration' in history)history.scrollRestoration='manual';window.scrollTo(0,0)}}catch(e){document.documentElement.classList.add('ciel-vu')}`;
+// UNE FOIS PAR VISITE. Le vol rejouait à chaque retour sur l'accueil (depuis
+// une leçon, une fiche d'actif, le bouton « retour ») : la deuxième fois, on
+// attend devant des nuages qu'on a déjà vus. Le navigateur retient qu'il s'est
+// joué, le temps de la visite (sessionStorage), et l'accueil s'affiche alors
+// directement.
+const DECISION = `try{var d=document.documentElement;var off=localStorage.getItem('tdb_animations')==='off'||matchMedia('(prefers-reduced-motion: reduce)').matches;var vu=false;try{vu=sessionStorage.getItem('tdb_ciel')==='1'}catch(e){}if(off){d.classList.add('anim-off','ciel-vu')}else if(vu){d.classList.add('ciel-vu')}else{d.classList.add('ciel-intro');window.__cielJoue=true;if('scrollRestoration' in history)history.scrollRestoration='manual';window.scrollTo(0,0)}}catch(e){document.documentElement.classList.add('ciel-vu')}`;
 
 function cssEnvol(): string {
   const r: string[] = [];
@@ -183,6 +188,7 @@ export function OuvertureDuCiel() {
     const lance = () => {
       if (parti) return;
       parti = true;
+      try { sessionStorage.setItem("tdb_ciel", "1"); } catch { /* navigation privée */ }
       setEtat("vol");
       // Le titre commence à sortir de la brume pendant que les derniers
       // nuages passent : on débouche sur la page sans temps mort.
@@ -206,8 +212,10 @@ export function OuvertureDuCiel() {
     bouton.current?.focus({ preventScroll: true });
     // LE CIEL S'OUVRE DE LUI-MÊME. Attendre un geste laissait le visiteur
     // devant un écran de nuages sans message : beaucoup ne cliquaient pas.
-    // Un court instant pour voir Nimbo, puis la traversée part seule.
-    minuteries.push(setTimeout(lance, 3200));
+    // Un court instant pour lire le nom et ce qu'est le site, puis la
+    // traversée part seule. Trois secondes paraissaient longues sans rien à
+    // faire ; le nom est écrit à 1,4 s, la phrase à 2,3 s.
+    minuteries.push(setTimeout(lance, 2600));
     return () => {
       window.removeEventListener("wheel", surRoue);
       window.removeEventListener("touchmove", surToucher);
@@ -260,8 +268,13 @@ export function OuvertureDuCiel() {
               ))}
               <span aria-hidden className="cv-trait-nom absolute -bottom-3 left-[8%] right-[8%] h-[3px] rounded-full" style={{ backgroundColor: "#e5a83a" }} />
             </p>
-            <p className="cv-accroche mt-4 text-[1.05rem] italic" style={{ fontFamily: "var(--cap-font-display)", color: "var(--cap-ink-2)" }}>
-              Les marchés, au-dessus des nuages.
+            {/* ON SAIT OÙ L'ON ARRIVE. « Les marchés, au-dessus des nuages »
+                était joli et ne disait rien : un visiteur qui ne connaît pas
+                le site restait devant un logo sans savoir de quoi il s'agit.
+                Une phrase qui le dit, avant même que le ciel s'ouvre. */}
+            <p className="cv-accroche mt-4 max-w-[22rem] text-center text-[1.08rem] font-medium leading-snug"
+              style={{ fontFamily: "var(--cap-font-display)", color: "var(--cap-ink-2)" }}>
+              L&apos;école de bourse en argent fictif. De vrais marchés, sans risquer un euro.
             </p>
           </div>
         </div>

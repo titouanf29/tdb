@@ -60,12 +60,16 @@ const QUESTIONS: Question[] = [
     titre: "Combien engagez-vous sur une position ?",
     pourquoi:
       "Pour traduire le plan en euros. « Stop à 327,22 $ » ne vous dit pas ce que vous perdez ; « 21 € sur les 500 € engagés », si.",
+    // « Moins de 100 € » et « rien pour l'instant » : une étudiante avec
+    // 50 € d'épargne n'a pas trouvé sa case, et en a conclu que le site
+    // n'était pas pour elle.
     choix: [
+      { valeur: 50, label: "Moins de 100 €" },
       { valeur: 100, label: "100 €" },
       { valeur: 500, label: "500 €" },
       { valeur: 1000, label: "1 000 €" },
       { valeur: 5000, label: "5 000 €" },
-      { valeur: 0, label: "Je préfère ne pas le dire", suite: "Le plan restera en prix, sans traduction en euros." },
+      { valeur: 0, label: "Rien pour l'instant, je viens apprendre", suite: "Le plan restera en prix, sans traduction en euros. L'argent du site est fictif de toute façon." },
     ],
     libre: { unite: "€", placeholder: "Un autre montant" },
   },

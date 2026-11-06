@@ -1445,9 +1445,16 @@ async def analyze_asset(
         _vente_non_prouvee = is_short_setup and not _vente_prouvee
         if _vente_non_prouvee:
             risk_notes.append("Plan de vente donné en exemple — historiquement, les ventes de ce moteur n'ont pas payé")
+        # Pas de plan quand les niveaux n'ont pas de sens : un multiple d'ATR
+        # qui dépasse le cours (horizon mensuel sur une action volatile), ou
+        # un actif sans cotation réelle (ATR nul, stop égal à l'objectif).
+        _degenere = bool(_plan.get("degenere")) or bool(blocage_liquidite(_liquidite))
+        if _degenere:
+            risk_notes.append("Pas de plan affichable sur cet horizon : les niveaux calculés n'ont pas de sens ici")
         risk_block = {
             "direction":                 "SHORT" if is_short_setup else "LONG",
-            "illustratif":               _plan_neutre or _vente_non_prouvee,
+            "illustratif":               _plan_neutre or _vente_non_prouvee or _degenere,
+            "degenere":                  _degenere,
             "suggested_sl":              _px(_sl),
             "suggested_tp":              _px(_tp),
             "suggested_sl_tight":        _px(_sl_t),
@@ -2417,6 +2424,14 @@ async def scan_market(
             if fetch_resample:
                 hist = resample_ohlcv(hist, fetch_resample)
             if hist is None or len(hist) < 20:
+                return None
+            # LE SCANNER NE PROPOSE PAS CE QUE L'ANALYSE REFUSE. Un actif sans
+            # cotation réelle (ARB-USD à 0,0006 $, 19 séances sans échange)
+            # sortait en tête d'un scan crypto avec stop = objectif = prix. La
+            # même règle de liquidité que la page d'analyse, avant le score.
+            if blocage_liquidite(liquidite(hist, symbol, {"1w": 5, "1mo": 21}.get(timeframe, 1.0))):
+                return None
+            if float(hist["Close"].iloc[-1]) <= 0:
                 return None
 
             close = hist["Close"].astype(float)

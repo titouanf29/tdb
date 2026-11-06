@@ -8,9 +8,33 @@ import {
 import { AnalysisVisual } from "./AnalysisVisual";
 import { Aimant, Bouffees, Inclinaison, MiseAuPoint, Mots, PremierPlan, Redressement, useCielOuvert } from "./effets";
 import { DEMO_ASSETS } from "./demoData";
-import { CoursVivant, LueurSouris, Machine } from "./animationsPlus";
+import { LueurSouris, Machine } from "./animationsPlus";
 import { useMouvementReduit } from "@/components/design-system/useMouvementReduit";
 import { LigneDatee } from "@/components/design-system/LigneDatee";
+import type { AnalysePublique } from "@/lib/actifs-serveur";
+
+/** « 2026-11-01T00:04+01:00 » → « 0 h 04 ». */
+function heure(iso: string): string {
+  const [h, m] = iso.slice(11, 16).split(":");
+  return `${Number(h)} h ${m}`;
+}
+
+/** Le nom de l'actif dans une phrase : « l'or », « Apple ». */
+function dansLaPhrase(id: string, nom: string): string {
+  if (id === "or") return "l'or";
+  if (id === "bitcoin") return "le bitcoin";
+  if (id === "sp500") return "le S&P 500";
+  return nom;
+}
+
+/** Ce que Nimbo dit de l'actif du jour, d'après la direction réelle. */
+function phraseNimbo(id: string, nom: string, direction: string, direct: boolean): string {
+  const n = dansLaPhrase(id, nom);
+  if (!direct) return `Je vous explique ${n}, et je vous dis pourquoi.`;
+  if (direction === "Haussier") return `Aujourd'hui, je propose un achat sur ${n}. Et je vous dis pourquoi.`;
+  if (direction === "Baissier") return `Aujourd'hui, je propose une vente sur ${n}. Et je vous dis pourquoi.`;
+  return `Aujourd'hui, je ne propose rien sur ${n}. Et je vous dis pourquoi.`;
+}
 
 /**
  * Two sentences, two buttons, and the product's actual output.
@@ -19,13 +43,20 @@ import { LigneDatee } from "@/components/design-system/LigneDatee";
  * are deciding about is shown rather than claimed: the panel below the copy is
  * a real analysis layout, not a screenshot mock or a wall of statistics.
  */
-export function Hero() {
+export function Hero({ analyse }: Readonly<{ analyse?: AnalysePublique | null }>) {
   const reduce = useMouvementReduit();
   // La jauge, la courbe et les raisons attendent l'ouverture du ciel : la
   // clé les remonte à ce moment-là, et leur dessin se joue devant le visiteur.
   const ouvert = useCielOuvert();
   const cle = ouvert ? "ouvert" : "couvert";
-  const apple = DEMO_ASSETS[0];
+  // LA VRAIE ANALYSE DU JOUR, LUE PAR LE SERVEUR (app/page.tsx). L'exemple
+  // fixe ne sert que si le moteur ne répond pas, et la légende le dit.
+  const direct = !!analyse;
+  const apple = analyse ?? DEMO_ASSETS[0];
+  let dirTone = "var(--cap-ink-2)";
+  if (apple.direction === "Haussier") dirTone = "var(--cap-up)";
+  else if (apple.direction === "Baissier") dirTone = "var(--cap-down)";
+  const raisons = direct ? [...apple.reasons.slice(0, 2), apple.reasons[apple.reasons.length - 1]] : apple.reasons.slice(0, 3);
 
   // En mouvement réduit, l'état final est posé explicitement : le premier
   // rendu (serveur) part masqué, et un simple {} le laissait masqué.
@@ -141,7 +172,7 @@ export function Hero() {
             </motion.div>
             <div className="mb-8 hidden max-w-[15rem] rounded-[16px] rounded-bl-[4px] px-3.5 py-2.5 text-[0.85rem] leading-snug sm:block"
               style={{ backgroundColor: "var(--cap-surface)", color: "var(--cap-ink)", boxShadow: "var(--cap-shadow-md, 0 8px 24px rgba(11,23,38,0.12)), inset 0 0 0 1px var(--cap-line)" }}>
-              {ouvert ? <Machine texte="Je vous propose d'acheter Apple. Et je vous dis pourquoi." delai={1.5} /> : "\u00a0"}
+              {ouvert ? <Machine texte={phraseNimbo(apple.id, apple.name, apple.direction, direct)} delai={1.5} /> : "\u00a0"}
             </div>
           </div>
           <Redressement>
@@ -162,13 +193,15 @@ export function Hero() {
                     style={{ fontFamily: "var(--cap-font-display)", color: "var(--cap-ink)" }}>
                     {apple.name}
                   </span>
-                  <span className="text-[0.82rem]" style={{ color: "var(--cap-ink-3)" }}>{apple.ticker}</span>
+                  <span className="text-[0.82rem]" style={{ color: "var(--cap-ink-3)" }}>{apple.affiche ?? apple.ticker}</span>
                 </div>
                 <div className="mt-2 flex items-baseline gap-3">
-                  <Num className="text-[1.6rem] font-medium"><CoursVivant base={245.18} /></Num>
-                  <Num tone="up" className="text-[0.95rem]">+{apple.change.toFixed(2).replace(".", ",")} %</Num>
+                  <Num className="text-[1.6rem] font-medium">{apple.price}</Num>
+                  <Num tone={apple.change >= 0 ? "up" : "down"} className="text-[0.95rem]">
+                    {apple.change >= 0 ? "+" : ""}{apple.change.toFixed(2).replace(".", ",")} %
+                  </Num>
                 </div>
-                <div className="mt-2 text-[0.95rem] font-semibold" style={{ fontFamily: "var(--cap-font-display)", color: "var(--cap-up)" }}>
+                <div className="mt-2 text-[0.95rem] font-semibold" style={{ fontFamily: "var(--cap-font-display)", color: dirTone }}>
                   {apple.direction}
                 </div>
               </div>
@@ -187,7 +220,7 @@ export function Hero() {
             <div className="border-t px-6 py-5 sm:px-8" style={{ borderColor: "var(--cap-line)" }}>
               <div className="text-[0.75rem] uppercase tracking-[0.14em]" style={{ color: "var(--cap-ink-3)" }}>Pourquoi</div>
               <ul className="mt-3 grid gap-2">
-                {apple.reasons.slice(0, 3).map((r, i) => (
+                {raisons.map((r, i) => (
                   <motion.li key={`${cle}-${r}`} className="flex gap-3"
                     initial={reduce ? false : { opacity: 0, y: 8 }}
                     animate={ouvert ? { opacity: 1, y: 0 } : undefined}
@@ -202,8 +235,10 @@ export function Hero() {
           </Inclinaison>
           </Redressement>
 
-          <p className="mt-3 text-center text-[0.75rem]" style={{ color: "var(--cap-ink-3)" }}>
-            Exemple d&apos;analyse, données d&apos;illustration
+          <p className="mt-3 text-center text-[0.82rem]" style={{ color: "var(--cap-ink-3)" }}>
+            {direct && apple.analyse_a
+              ? `Analyse réelle du moteur, cours de ${heure(apple.analyse_a)}, heure de Paris. Pas un conseil.`
+              : "Exemple d'analyse, le temps que le moteur réponde."}
           </p>
         </motion.div>
         </div>

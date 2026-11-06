@@ -80,7 +80,7 @@ export function PontTiktok() {
           <ul className="mt-4 [&>*+*]:border-t [&>*+*]:border-[color:var(--cap-line)]">
             {triees.map((l) => (
               <li key={l.n} className="grid gap-x-4 gap-y-1 py-2.5 sm:grid-cols-[3rem_minmax(0,1fr)_10rem_minmax(0,16rem)]">
-                <span className="text-[1rem] italic" style={{ color: "#c98a1e", fontFamily: "var(--cap-font-display)" }}>{l.n}</span>
+                <span className="text-[1rem] italic" style={{ color: "var(--cap-amber-ink)", fontFamily: "var(--cap-font-display)" }}>{l.n}</span>
                 <span className="min-w-0 text-[0.95rem] font-medium" style={{ color: "var(--cap-ink)" }}>
                   {l.titre}{l.parties > 1 && !/partie/i.test(l.titre) ? ` (${l.parties} parties)` : ""}
                 </span>

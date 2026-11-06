@@ -38,6 +38,8 @@ export interface JournalDraft {
   post_trade_notes: string;
   /** Les remarques seules, pour les afficher en évidence dans le dialogue. */
   advice: string[];
+  /** La ligne déjà écrite au journal par la clôture : la note la complète. */
+  journal_entry_id?: number | null;
 }
 
 /** Combien de temps la position est restée ouverte, en minutes. */

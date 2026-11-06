@@ -25,6 +25,18 @@ export function ReussiteNimbo() {
     setItems((l) => l.filter((i) => i.id !== id));
   }, []);
 
+  // Les cartes attendent qu'un dialogue ouvert se ferme (Overlay.tsx pose
+  // data-modal-ouverte sur <html>) : une seule voix à la fois.
+  const [dialogue, setDialogue] = useState(false);
+  useEffect(() => {
+    const d = document.documentElement;
+    const lire = () => setDialogue("modalOuverte" in d.dataset);
+    lire();
+    const obs = new MutationObserver(lire);
+    obs.observe(d, { attributes: true, attributeFilter: ["data-modal-ouverte"] });
+    return () => obs.disconnect();
+  }, []);
+
   useEffect(() => {
     const surReussite = (e: Event) => {
       const r = (e as CustomEvent<Reussite>).detail;
@@ -43,14 +55,17 @@ export function ReussiteNimbo() {
   return (
     <div
       aria-live="polite"
-      // Au-dessus du bouton de Nimbo (AideNimbo), qui occupe le coin.
-      className="pointer-events-none fixed inset-x-0 bottom-[calc(9rem+env(safe-area-inset-bottom,0px))] z-50 flex flex-col items-center gap-3 px-4 sm:inset-x-auto sm:right-6 sm:items-end lg:bottom-24"
+      // SUR TÉLÉPHONE, JUSTE AU-DESSUS DE LA BARRE DU BAS, à gauche du bouton
+      // de Nimbo : au milieu de l'écran, la carte cachait le verdict qu'on
+      // était en train de lire. Sur ordinateur, au-dessus du bouton, dans le
+      // coin.
+      className="pointer-events-none fixed inset-x-0 bottom-[calc(4.6rem+env(safe-area-inset-bottom,0px))] z-50 flex flex-col items-start gap-3 pl-3 pr-[5.25rem] sm:inset-x-auto sm:right-6 sm:items-end sm:px-0 lg:bottom-24"
     >
       <AnimatePresence initial={false}>
         {/* Sur téléphone, une seule carte à la fois — la plus récente : trois
             empilées couvraient la moitié de l'écran et le bouton en dessous.
             Les précédentes attendent leur tour, masquées. */}
-        {items.map((r, i) => (
+        {!dialogue && items.map((r, i) => (
           <Carte key={r.id} r={r} anim={anim} masqueMobile={i < items.length - 1} onFermer={() => retirer(r.id)} />
         ))}
       </AnimatePresence>
@@ -81,7 +96,7 @@ function Carte({
       onMouseLeave={() => setEnPause(false)}
       onFocus={() => setEnPause(true)}
       onBlur={() => setEnPause(false)}
-      className={`pointer-events-auto w-full ${masqueMobile ? "hidden sm:flex" : "flex"} max-w-[24rem] items-center gap-3 rounded-[var(--cap-r-lg)] border py-2.5 pl-2 pr-1.5`}
+      className={`pointer-events-auto w-full ${masqueMobile ? "hidden sm:flex" : "flex"} max-w-[24rem] items-center gap-2.5 rounded-[var(--cap-r-lg)] border py-1.5 pl-2 pr-1 sm:gap-3 sm:py-2.5 sm:pr-1.5`}
       style={{
         backgroundColor: "var(--cap-surface)",
         borderColor: "var(--cap-line)",
@@ -90,7 +105,9 @@ function Carte({
       }}
       role="status"
     >
-      <Nimbo humeur="fete" taille={56} />
+      {/* Plus petit sur téléphone : la carte tient sur deux lignes. */}
+      <Nimbo humeur="fete" taille={40} className="sm:hidden" />
+      <Nimbo humeur="fete" taille={56} className="hidden sm:inline-flex" />
       <div className="min-w-0 flex-1">
         <p className="text-[0.95rem] font-semibold leading-snug">{r.titre}</p>
         {r.detail && (

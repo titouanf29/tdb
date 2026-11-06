@@ -15,11 +15,12 @@ présentation seulement).
 
 | Élément | La règle | À la place de |
 |---|---|---|
-| Titres | **IBM Plex Serif**, serif robuste à faible contraste, lisible à toutes les tailles | une sans-serif grasse partout ; Fraunces, Playfair, Instrument Serif ; une Didone (Bodoni) : ses déliés disparaissent à l'écran |
-| Texte | **Schibsted Grotesk**, grotesque dessinée pour un groupe de presse | Inter, Plus Jakarta Sans, DM Sans, Geist, Space Grotesk |
-| Chiffres | Schibsted en chiffres tabulaires (seuls les chiffres sont tabulaires, la virgule et le point gardent leur chasse) ; **IBM Plex Serif** pour les grands montants | une police de terminal |
-| Étiquettes | italique serif, précédée d'un trait ambre (ou du numéro de chapitre sur la page de présentation) | petites capitales espacées |
+| Titres | **Public Sans** en gras (700), la même police que le texte : la hiérarchie tient à la taille et à la graisse | une serif de presse (IBM Plex Serif, Bodoni) : jugée difficile à lire par les utilisateurs ; Fraunces, Playfair, Instrument Serif |
+| Texte | **Public Sans**, simple et très lisible, 1 rem au minimum pour le texte courant, 0,82 rem pour les légendes | Inter, Plus Jakarta Sans, DM Sans, Geist, Space Grotesk |
+| Chiffres | Public Sans en chiffres tabulaires (seuls les chiffres sont tabulaires, la virgule, le point et les symboles monétaires gardent leur chasse : fichiers retouchés dans `src/fonts`) | une police de terminal |
+| Étiquettes | droites, graisse 600, précédées d'un trait ambre (ou du numéro de chapitre sur la page de présentation) ; pas d'italique dans l'interface | petites capitales espacées ; l'italique, moins lisible petit et sur téléphone |
 | Ponctuation | virgule, deux-points ou point ; décimales à la virgule ; espace fine avant les milliers | tirets cadratins ; « 1.42 % » |
+| Lisibilité | panneaux opaques (le texte ne repose jamais sur les nuages) ; ciel limité au haut de l'écran ; aucun texte sous 0,82 rem ; contraste d'au moins 4,5:1 pour tout texte, couleurs de hausse et de baisse comprises ; réglage « Lecture confortable » (texte un cran plus grand, ciel coupé) | voiles translucides derrière du texte, légendes de 10 px en gris pâle |
 
 ## La couleur
 
@@ -45,7 +46,7 @@ présentation seulement).
 4. **Les chapitres** : sur la page de présentation, chaque section porte son
    numéro en chiffres romains.
 5. **Le sommaire** (`.cap-sommaire`) : une liste de parties s'écrit comme une
-   table des matières (numéro italique, titre, points de conduite, texte).
+   table des matières (numéro ambre, titre, points de conduite, texte).
    Pas de grille d'icônes dans des carrés arrondis.
 6. **Les questions-réponses** (`.cap-qr`) : composées comme un entretien,
    « Q. » en ambre, réponses visibles. Pas d'accordéon à « + ».

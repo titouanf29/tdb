@@ -15,6 +15,8 @@ export interface DemoAsset {
   id: string;
   name: string;
   ticker: string;
+  /** Le symbole tel qu'il se lit sur les plateformes (« XAU/USD »). */
+  affiche?: string;
   price: string;
   change: number;
   direction: "Haussier" | "Baissier" | "Neutre";
@@ -50,6 +52,42 @@ const s = (seed: number[], n = 48): number[] => {
 };
 
 export const DEMO_ASSETS: DemoAsset[] = [
+  {
+    id: "or",
+    name: "Or (Gold)",
+    ticker: "GC=F",
+    affiche: "XAU/USD",
+    price: "3 898 $",
+    change: 0.38,
+    direction: "Haussier",
+    score: 66,
+    reasons: [
+      "La tendance longue est solide et régulière.",
+      "Le momentum est modéré : le mouvement est lent, pas faible.",
+      "La volatilité reste sous sa moyenne.",
+      "C'est un profil d'horizon long plutôt que de séance.",
+    ],
+    factors: [
+      { label: "Tendance", value: 81 },
+      { label: "Momentum", value: 55 },
+      { label: "Volume", value: 51 },
+      { label: "Volatilité", value: 28 },
+    ],
+    risk: "Faible",
+    advanced: [
+      { label: "Trend factor", value: "+0,71" },
+      { label: "Momentum factor", value: "+0,18" },
+      { label: "Flow factor", value: "+0,09" },
+      { label: "Volatilité (percentile)", value: "22ᵉ" },
+      { label: "Régime de marché", value: "Haussier" },
+      { label: "Probabilité estimée", value: "57 %" },
+      { label: "Espérance", value: "+0,21 R" },
+      { label: "Risque / rendement", value: "1 : 1,9" },
+    ],
+    series: s([100, 102, 101, 105, 104, 108, 110, 109, 113, 115, 114, 118]),
+    support: 103,
+    resistance: 117,
+  },
   {
     id: "apple",
     name: "Apple",
@@ -154,41 +192,6 @@ export const DEMO_ASSETS: DemoAsset[] = [
     series: s([100, 106, 99, 108, 101, 104, 97, 105, 100, 103, 98, 101]),
     support: 97,
     resistance: 108,
-  },
-  {
-    id: "gold",
-    name: "Or",
-    ticker: "GC=F",
-    price: "2 412 €",
-    change: 0.38,
-    direction: "Haussier",
-    score: 66,
-    reasons: [
-      "La tendance longue est solide et régulière.",
-      "Le momentum est modéré : le mouvement est lent, pas faible.",
-      "La volatilité reste sous sa moyenne.",
-      "C'est un profil d'horizon long plutôt que de séance.",
-    ],
-    factors: [
-      { label: "Tendance", value: 81 },
-      { label: "Momentum", value: 55 },
-      { label: "Volume", value: 51 },
-      { label: "Volatilité", value: 28 },
-    ],
-    risk: "Faible",
-    advanced: [
-      { label: "Trend factor", value: "+0,71" },
-      { label: "Momentum factor", value: "+0,18" },
-      { label: "Flow factor", value: "+0,09" },
-      { label: "Volatilité (percentile)", value: "22ᵉ" },
-      { label: "Régime de marché", value: "Haussier" },
-      { label: "Probabilité estimée", value: "57 %" },
-      { label: "Espérance", value: "+0,21 R" },
-      { label: "Risque / rendement", value: "1 : 1,9" },
-    ],
-    series: s([100, 102, 101, 105, 104, 108, 110, 109, 113, 115, 114, 118]),
-    support: 103,
-    resistance: 117,
   },
   {
     id: "sp500",

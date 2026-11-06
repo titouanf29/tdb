@@ -7,11 +7,12 @@ import { AnimatePresence } from "framer-motion";
 import { ArrowRight, Layers, Loader2, MoveRight, Star, TrendingDown, TrendingUp } from "lucide-react";
 import {
   analysisAPI, favoritesAPI, marketAPI, missionsAPI, walletAPI,
-  type Analysis, type ChartData, type Figure,
+  type Analysis, type ChartData, type Favorite, type Figure,
 } from "@/lib/api";
 import { fr, useFormatAssetPrice, useFormatSomme, useSettings } from "@/lib/SettingsContext";
+import { getAssetName } from "@/lib/assetInfo";
 import {
-  useTradingStyle, TRADING_STYLES, TRADING_STYLE_IDS, type TradingStyleId,
+  TRADING_STYLES, TRADING_STYLE_IDS, type TradingStyleId,
 } from "@/lib/tradingStyle";
 import { useUserLevel } from "@/hooks/useUserLevel";
 import { useProfile } from "@/lib/useProfile";
@@ -94,7 +95,20 @@ function AnalysisScreen() {
   const router = useRouter();
   const params = useSearchParams();
   const { settings, saveSettings, isLoaded: reglagesLus } = useSettings();
-  const style = useTradingStyle();
+  /**
+   * L'HORIZON CHOISI ICI NE CHANGE PAS LE RÉGLAGE DU COMPTE.
+   *
+   * Cliquer « Swing » pour comparer deux lectures, ou suivre le lien
+   * « Passer en Swing » de Nimbo, réécrivait l'horizon de tout le site sans
+   * le dire : l'accueil annonçait ensuite « Espace réglé pour swing » à
+   * quelqu'un qui n'avait fait que regarder. Trois visiteurs sur trois l'ont
+   * relevé. L'horizon de la page est local ; un lien propose d'en faire le
+   * réglage, et c'est le seul moment où le compte change.
+   */
+  const [horizonLocal, setHorizonLocal] = useState<TradingStyleId | null>(null);
+  const horizonId = ((horizonLocal ?? settings.tradingStyle) in TRADING_STYLES
+    ? (horizonLocal ?? settings.tradingStyle) : "swing") as TradingStyleId;
+  const style = useMemo(() => TRADING_STYLES[horizonId], [horizonId]);
   const [switching, setSwitching] = useState(false);
 
   /**
@@ -120,32 +134,26 @@ function AnalysisScreen() {
    * React : un seul rendu, une seule requête, la bonne.
    */
   const changeStyle = useCallback(
-    async (id: string) => {
+    (id: string) => {
       const next = TRADING_STYLES[id as TradingStyleId];
       if (!next) return;
-      const unitePrecedente = timeframeRef.current;
-      setSwitching(true);
+      // L'unité et l'horizon changent dans le même rendu : une seule
+      // analyse part, la bonne. Les cinq questions ne surgissent plus ici ;
+      // le bloc « Pour vous » les propose, à son heure.
       setUniteChoisie(false);
       setTimeframe(next.defaultTimeframe);
-      try {
-        await saveSettings({ tradingStyle: id });
-        // CHANGER D'HORIZON EST LE BON MOMENT POUR DEMANDER LE RESTE.
-        //
-        // Quelqu'un qui vient de dire « en fait je suis plutôt long terme »
-        // est en train de décrire sa façon de faire : c'est là que les cinq
-        // questions tombent juste, et pas au milieu d'une lecture. Une fois
-        // répondues — même par « passer » — on ne redemande plus.
-        if (!profileRef.current?.intentions_at) setQuestionsOuvertes(true);
-      } catch {
-        // saveSettings a annulé le profil ; l'unité doit revenir avec lui,
-        // sans quoi l'écran resterait en mensuel avec un profil day trading.
-        setTimeframe(unitePrecedente);
-      } finally {
-        setSwitching(false);
-      }
+      setHorizonLocal(id as TradingStyleId);
     },
-    [saveSettings]
+    []
   );
+  /** Le compte prend l'horizon de la page : le seul geste qui touche au réglage. */
+  const adopterHorizon = useCallback(async () => {
+    if (!horizonLocal) return;
+    setSwitching(true);
+    try { await saveSettings({ tradingStyle: horizonLocal }); setHorizonLocal(null); }
+    catch { /* le réglage reste, l'horizon de la page aussi */ }
+    finally { setSwitching(false); }
+  }, [horizonLocal, saveSettings]);
   const [animOn] = useAnimationsEnabled();
 
   // ── Ce que la personne a dit d'elle ──────────────────────────────────────
@@ -161,10 +169,6 @@ function AnalysisScreen() {
   const [questionsOuvertes, setQuestionsOuvertes] = useState(false);
   // Téléphone : les réglages de l'analyse, repliés une fois un actif analysé.
   const [reglagesOuverts, setReglagesOuverts] = useState(false);
-  // En ref : `changeStyle` le lit sans se redéclarer à chaque réponse
-  // enregistrée, ce qui relancerait l'analyse pour rien.
-  const profileRef = useRef(profile);
-  profileRef.current = profile;
 
   const urlSymbol = (params.get("symbol") || "").toUpperCase();
   const [symbol, setSymbol] = useState(urlSymbol);
@@ -251,13 +255,20 @@ function AnalysisScreen() {
   const [chart, setChart] = useState<ChartData | null>(null);
   const [figures, setFigures] = useState<Figure[]>([]);
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
+  // Les favoris avec leur variation du jour : le raccourci « Mes actifs »
+  // sous la recherche, pour que l'usage quotidien tienne en deux gestes.
+  const [mesActifs, setMesActifs] = useState<Favorite[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const etapeChargement = useEtapesAnalyse(symbol, loading);
 
   useEffect(() => {
     favoritesAPI.getFavorites()
-      .then((d) => setFavorites(new Set((d.favorites || []).map((f) => f.symbol))))
+      .then((d) => {
+        const liste = d.favorites || [];
+        setFavorites(new Set(liste.map((f) => f.symbol)));
+        setMesActifs(liste.filter((f) => !f.error));
+      })
       .catch(() => {});
   }, []);
 
@@ -536,6 +547,35 @@ function AnalysisScreen() {
             </AnimatePresence>
           </form>
 
+          {/* MES ACTIFS, EN UN GESTE. Quelqu'un qui revient chaque jour
+              regarde les mêmes trois ou quatre actifs ; les retaper à chaque
+              fois est le genre de friction qui fait sauter une visite. Les
+              favoris sont là, avec leur variation du jour, et celui qui a
+              le plus bougé en premier. */}
+          {mesActifs.length > 0 && (
+            <div className="mt-4 flex flex-wrap items-center gap-2" role="group" aria-label="Mes actifs">
+              <span className="mr-1 text-[0.85rem]" style={{ color: "var(--cap-ink-3)" }}>Mes actifs</span>
+              {[...mesActifs].sort((a, b) => Math.abs(b.change ?? 0) - Math.abs(a.change ?? 0)).slice(0, 8).map((f) => {
+                const actif = f.symbol === symbol;
+                const v = f.change ?? 0;
+                return (
+                  <button key={f.symbol} type="button" onClick={() => choisirActif(f.symbol)} aria-pressed={actif}
+                    className="inline-flex min-h-[36px] items-center gap-2 rounded-[10px] px-3 text-[0.88rem] transition-colors"
+                    style={{
+                      backgroundColor: actif ? "var(--cap-ink)" : "var(--cap-surface-2)",
+                      color: actif ? "var(--cap-on-inverse)" : "var(--cap-ink)",
+                      boxShadow: actif ? "none" : "inset 0 0 0 1px var(--cap-line)",
+                    }}>
+                    <span className="font-medium">{f.name || f.symbol}</span>
+                    <span className="cap-num text-[0.8rem]" style={{ color: actif ? "var(--cap-on-inverse)" : v >= 0 ? "var(--cap-up)" : "var(--cap-down)" }}>
+                      {v >= 0 ? "+" : "−"}{Math.abs(v).toLocaleString("fr-FR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} %
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
           {/* L'horizon, et c'est un vrai changement de modèle.
               Le moteur y répond réellement, vérifié sur AAPL : le stop passe
               de 335,86 en scalping à 220,71 en long terme, le rapport
@@ -575,7 +615,7 @@ function AnalysisScreen() {
                     value: id,
                     label: TRADING_STYLES[id].label.fr,
                   }))}
-                  value={settings.tradingStyle as TradingStyleId}
+                  value={horizonId}
                   onChange={changeStyle}
                   aria-label="Horizon d'analyse"
                 />
@@ -592,6 +632,15 @@ function AnalysisScreen() {
                 ? `, et les fondamentaux comptent pour ${Math.round(style.fundWeight * 100)} % du score.`
                 : ", et les fondamentaux ne comptent pas."}
             </Text>
+            {horizonLocal && horizonLocal !== settings.tradingStyle && (
+              <Text size="caption" className="mt-1.5">
+                Pour cette analyse seulement. Votre réglage du site reste{" "}
+                {TRADING_STYLES[settings.tradingStyle as TradingStyleId]?.label.fr ?? settings.tradingStyle}.{" "}
+                <button type="button" onClick={adopterHorizon} disabled={switching} className="cap-lien">
+                  En faire mon réglage
+                </button>
+              </Text>
+            )}
           </div>
 
           <div className="mt-4 flex flex-wrap items-center gap-3">
@@ -907,11 +956,17 @@ function Verdict({
               className="text-[1.4rem] font-semibold tracking-[-0.01em]"
               style={{ fontFamily: "var(--cap-font-display)", color: "var(--cap-ink)" }}
             >
-              {a.company?.name || a.symbol}
+              {/* LE NOM, PAS SEULEMENT LE CODE. Sans fiche société, l'en-tête
+                  affichait « AAPL AAPL » et « MC.PA MC.PA » : pour une
+                  débutante, une page en langue étrangère dès le titre. Le
+                  catalogue du site connaît les noms ; le code reste à côté. */}
+              {a.company?.name || getAssetName(a.symbol)}
             </span>
-            <span className="text-[0.85rem]" style={{ color: "var(--cap-ink-3)" }}>
-              {a.symbol}
-            </span>
+            {(a.company?.name || getAssetName(a.symbol)) !== a.symbol && (
+              <span className="text-[0.85rem]" style={{ color: "var(--cap-ink-3)" }}>
+                {a.symbol}
+              </span>
+            )}
             <button
               onClick={onToggleFavorite}
               aria-label={isFavorite ? "Ne plus suivre" : "Suivre cet actif"}
@@ -1012,14 +1067,16 @@ function Verdict({
           verdict, avant les raisons : c'est la question que se pose celui qui
           ouvre une analyse (« j'y vais ? »), la réponse ne doit pas attendre
           au bas de la carte. */}
+      {/* LA CARTE EN TROIS TEMPS, chacun avec son titre : ce que dit Nimbo,
+          le plan, pourquoi. Tout s'empilait au même niveau, et l'œil ne
+          savait pas où commençait la réponse. */}
+      <h2 className="mt-9 text-[1.2rem] font-bold leading-tight" style={{ color: "var(--cap-ink)" }}>Ce que dit Nimbo</h2>
       <PropositionNimbo analysis={a} assetPrice={assetPrice} cours={live?.price ?? a.price.current} planHref={planHref}
         onPasserEnSwing={onPasserEnSwing} />
 
       {/* The why. The part the product exists for. */}
-      <div className="mt-7 border-t pt-6" style={{ borderColor: "var(--cap-line)" }}>
-        <span className="text-[0.75rem] uppercase tracking-[0.14em]" style={{ color: "var(--cap-ink-3)" }}>
-          Pourquoi
-        </span>
+      <div className="mt-9 border-t pt-7" style={{ borderColor: "var(--cap-line-strong)" }}>
+        <h2 className="text-[1.2rem] font-bold leading-tight" style={{ color: "var(--cap-ink)" }}>Pourquoi</h2>
         <ul className="cap-liste mt-4 space-y-2.5">
           {raisonsVues.map((r, i) => (
             <li key={r.text} className="flex gap-3">
@@ -1050,10 +1107,10 @@ function Verdict({
 
       {/* What the engine's own history says — including when it disagrees. */}
       {(edge || scenario) && (
-        <div className="cap-apparait mt-6 border-t pt-5" style={{ borderColor: "var(--cap-line)", ["--d" as string]: ".35s" }}>
-          <span className="text-[0.75rem] uppercase tracking-[0.14em]" style={{ color: "var(--cap-ink-3)" }}>
+        <div className="cap-apparait mt-8 border-t pt-6" style={{ borderColor: "var(--cap-line)", ["--d" as string]: ".35s" }}>
+          <h3 className="text-[1.05rem] font-semibold" style={{ color: "var(--cap-ink)" }}>
             Ce que dit l&apos;historique
-          </span>
+          </h3>
           {edge && (
             <Text
               size="small"
@@ -1094,7 +1151,9 @@ function PropositionNimbo({
   onPasserEnSwing?: () => void;
 }) {
   const nom = a.company?.name || a.symbol;
-  const plan = a.risk?.suggested_sl != null && a.risk?.suggested_tp != null ? a.risk : null;
+  // Un plan dégénéré (objectif qui passerait sous zéro en mensuel, actif sans
+  // cotation) n'est pas montré : une ligne absurde disqualifie toute la page.
+  const plan = a.risk?.suggested_sl != null && a.risk?.suggested_tp != null && !a.risk.degenere ? a.risk : null;
   const blocage = a.tradeability?.blockers?.[0];
   // L'intraday, mesuré sans avantage après frais : Nimbo ne propose rien et
   // le dit sans détour — la raison n'est pas CET actif, c'est l'horizon.
@@ -1189,10 +1248,8 @@ function PropositionNimbo({
         <Nimbo humeur={humeur} taille={104} className="-my-2 -ml-2 hidden sm:inline-flex" />
         <Nimbo humeur={humeur} taille={64} className="-my-1 -ml-1 sm:hidden" />
         <div className="min-w-0 flex-1">
-          <span className="text-[0.75rem] uppercase tracking-[0.14em]" style={{ color: "var(--cap-ink-3)" }}>
-            {propose ? "Nimbo vous propose" : "L'avis de Nimbo"}
-          </span>
-          <p className="mt-1 text-[1.05rem] font-semibold leading-snug sm:text-[1.15rem]" style={{ color: "var(--cap-ink)", fontFamily: "var(--cap-font-display)" }}>
+          {/* Le titre « Ce que dit Nimbo » est juste au-dessus de la carte. */}
+          <p className="text-[1.05rem] font-semibold leading-snug sm:text-[1.15rem]" style={{ color: "var(--cap-ink)", fontFamily: "var(--cap-font-display)" }}>
             {propose && plan
               ? `${vente ? "Vendre à découvert" : "Acheter"} ${nom} : je vous propose de prendre position.`
               : intraday
@@ -1262,7 +1319,7 @@ function PropositionNimbo({
                     le calcul change, revenez voir.
                   </>
               : blocage
-                ? <>{blocage}.</>
+                ? <>{blocage.replace(/\.\s*$/, "")}.</>
                 : "Le moteur ne voit pas de plan assez net."}
           </Text>
           {/* Quand revenir : calculé par le serveur (_revoir.py), la même
@@ -1287,7 +1344,10 @@ function PropositionNimbo({
       </div>
 
       {plan && (
-        <div className="mt-4">
+        <div className="mt-5 border-t pt-4" style={{ borderColor: "color-mix(in srgb, var(--cap-ink) 12%, transparent)" }}>
+          <h3 className="mb-2.5 text-[1.05rem] font-semibold" style={{ color: "var(--cap-ink)" }}>
+            {propose ? "Le plan" : "Le plan d'exemple"}
+          </h3>
           <div className="flex flex-wrap gap-x-8 gap-y-2">
             <RiskBit label="Stop" value={assetPrice(plan.suggested_sl)} tone="down" />
             <RiskBit label="Objectif" value={assetPrice(plan.suggested_tp)} tone="up" />

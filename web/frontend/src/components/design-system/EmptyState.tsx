@@ -29,7 +29,8 @@ export function EmptyState({
           phrase disent déjà tout. */}
       <Nimbo humeur={humeur} taille={104} className="mx-auto mb-4" />
 
-      <Heading level={3}>{title}</Heading>
+      {/* h2 : un état vide peut suivre directement le titre de la page (h1). */}
+      <Heading level={3} as="h2">{title}</Heading>
       {description && (
         <Text size="small" className="mx-auto mt-2">
           {description}

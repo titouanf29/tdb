@@ -8,22 +8,25 @@ import { activerPush, desactiverPush, etatPush, type EtatPush } from "@/lib/push
 import { EVT_PUSH } from "@/components/settings/ReglagesNotifications";
 
 const CLE_INVITATION = "tdb_push_invitation_vue";
+const CLE_INVITATION_MATIN = "tdb_push_invitation_matin_vue";
 
 /**
  * Les notifications sur cet appareil : l'interrupteur des réglages, et
- * l'invitation de Nimbo sur la page des favoris — là où la promesse a un
- * sens (« je vous préviens quand je propose un achat sur l'un d'eux »).
+ * l'invitation de Nimbo là où la promesse a un sens : sur la page des favoris
+ * (« je vous préviens quand je propose un achat sur l'un d'eux ») et sur
+ * l'accueil (« chaque matin, le point sur ce que vous suivez »).
  */
-export function NotificationsAppareil({ forme }: { forme: "reglage" | "invitation" }) {
+export function NotificationsAppareil({ forme }: { forme: "reglage" | "invitation" | "matin" }) {
   const [etat, setEtat] = useState<EtatPush | null>(null);
   const [occupe, setOccupe] = useState(false);
   const [message, setMessage] = useState("");
   const [cachee, setCachee] = useState(true);
+  const cle = forme === "matin" ? CLE_INVITATION_MATIN : CLE_INVITATION;
 
   useEffect(() => {
     etatPush().then(setEtat).catch(() => setEtat("indisponible"));
-    try { setCachee(localStorage.getItem(CLE_INVITATION) === "1"); } catch { setCachee(false); }
-  }, []);
+    try { setCachee(localStorage.getItem(cle) === "1"); } catch { setCachee(false); }
+  }, [cle]);
 
   const activer = async () => {
     setOccupe(true); setMessage("");
@@ -45,26 +48,32 @@ export function NotificationsAppareil({ forme }: { forme: "reglage" | "invitatio
   };
   const fermer = () => {
     setCachee(true);
-    try { localStorage.setItem(CLE_INVITATION, "1"); } catch { /* navigation privée */ }
+    try { localStorage.setItem(cle, "1"); } catch { /* navigation privée */ }
   };
 
-  if (forme === "invitation") {
+  if (forme === "invitation" || forme === "matin") {
     if (etat !== "inactif" || cachee) return null;
+    const matin = forme === "matin";
+    let libelleBouton = matin ? "Recevoir le point du matin" : "Me prévenir";
+    if (occupe) libelleBouton = "…";
     return (
       <div className="cap-apparait flex items-start gap-3 rounded-[var(--cap-r-lg)] p-4"
         style={{ backgroundColor: "color-mix(in srgb, var(--cap-ocean) 7%, var(--cap-surface))", boxShadow: "inset 0 0 0 1px color-mix(in srgb, var(--cap-ocean) 25%, transparent)" }}>
-        <Nimbo humeur="content" taille={56} className="-my-1 shrink-0" />
+        <Nimbo humeur={matin ? "salue" : "content"} taille={56} className="-my-1 shrink-0" />
         <div className="min-w-0 flex-1">
           <p className="text-[0.98rem] font-semibold" style={{ color: "var(--cap-ink)" }}>
-            Je peux vous prévenir quand je propose un achat sur un de vos favoris.
+            {matin
+              ? "Chaque matin de semaine, je peux vous envoyer le point : vos actifs depuis hier, vos positions, l'annonce du jour."
+              : "Je peux vous prévenir quand je propose un achat sur un de vos favoris."}
           </p>
           <Text size="small" className="mt-1">
-            Une notification sur ce téléphone ou cet ordinateur, même site fermé. Pas de publicité, pas plus
-            d&apos;une par actif et par jour, et vous coupez quand vous voulez dans les réglages.
+            {matin
+              ? "Une notification à 8 h 45 sur ce téléphone ou cet ordinateur, trois phrases, même site fermé. Pas de publicité, et vous coupez quand vous voulez dans les réglages."
+              : "Une notification sur ce téléphone ou cet ordinateur, même site fermé. Pas de publicité, pas plus d'une par actif et par jour, et vous coupez quand vous voulez dans les réglages."}
           </Text>
           <div className="mt-3 flex flex-wrap items-center gap-3">
             <Button size="md" onClick={activer} disabled={occupe}>
-              <BellRing className="h-4 w-4" /> {occupe ? "…" : "Me prévenir"}
+              <BellRing className="h-4 w-4" /> {libelleBouton}
             </Button>
             {message && <Text size="caption" as="span">{message}</Text>}
           </div>

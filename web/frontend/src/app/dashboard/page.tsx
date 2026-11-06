@@ -25,6 +25,10 @@ import { ParcoursNimbo } from "@/components/app/ParcoursNimbo";
 import { AvisDeveloppement } from "@/components/app/AvisDeveloppement";
 import { DepuisDerniereVisite } from "@/components/app/DepuisDerniereVisite";
 import { Aujourdhui } from "@/components/app/Aujourdhui";
+import { NotificationsAppareil } from "@/components/app/NotificationsAppareil";
+import { PointDuMatin } from "@/components/app/PointDuMatin";
+import { Demain } from "@/components/app/Demain";
+import { InstallerApplication } from "@/components/app/InstallerApplication";
 import { useProfile } from "@/lib/useProfile";
 
 /**
@@ -163,7 +167,7 @@ export default function DashboardPage() {
               <Text className="mt-2.5 max-w-[38rem]">
                 Espace réglé pour{" "}
                 <Link
-                  href="/settings"
+                  href="/settings?section=trading"
                   className="underline decoration-[color:var(--cap-ink-4)] underline-offset-2 transition-colors hover:text-[color:var(--cap-ink)]"
                 >
                   {style.label.fr.toLowerCase()}
@@ -171,6 +175,9 @@ export default function DashboardPage() {
                 , horizon {style.horizon.fr.toLowerCase()}.
                 {goalLine && ` ${goalLine}`}
               </Text>
+              {/* Le point du matin du jour, pour ceux qui ne l'ont pas reçu
+                  sur leur appareil. */}
+              <PointDuMatin />
             </div>
             </div>
 
@@ -183,9 +190,6 @@ export default function DashboardPage() {
           </header>
         </Reveal>
 
-        {/* Le site évolue encore : un nouvel inscrit sait d'emblée où écrire. */}
-        <AvisDeveloppement />
-
         {/* Après une absence : ce qui s'est passé entre-temps. */}
         <DepuisDerniereVisite />
 
@@ -196,6 +200,20 @@ export default function DashboardPage() {
 
         {/* La série de jours d'affilée et les missions du jour. */}
         <Aujourdhui />
+
+        {/* LE RENDEZ-VOUS DU MATIN. Le site savait prévenir quand quelque
+            chose arrivait ; rien ne donnait de raison de revenir un matin
+            ordinaire. L'invitation ne vient qu'à ceux qui ont déjà quelque
+            chose à suivre, et seulement si cet appareil peut la recevoir. */}
+        {(favorites.length > 0 || positions.length > 0) && <NotificationsAppareil forme="matin" />}
+
+        {/* Au troisième jour d'affilée : une place sur l'écran d'accueil. */}
+        <InstallerApplication />
+
+        {/* Le site évolue encore : un nouvel inscrit sait où écrire. Plus
+            bas qu'avant : en premier bloc, c'était la première chose lue dans
+            un espace tout neuf, et ce n'est pas une bienvenue. */}
+        <AvisDeveloppement />
 
         {/* ── 3 & 4. L'argent et la veille — dans l'ordre de l'objectif ──
             L'objectif déclaré au premier lancement réordonne réellement cette
@@ -340,8 +358,19 @@ export default function DashboardPage() {
           <Intention />
         </Reveal>
 
+        {/* ── 4 ter. Demain ──────────────────────────────────────────────
+            Ce qui attend à la prochaine séance : annonces, plans de Nimbo
+            encore ouverts sur les favoris, positions sans stop. Le panneau
+            s'efface quand il n'a rien de particulier à dire. */}
+        <Reveal delay={0.15}>
+          <Demain />
+        </Reveal>
+
         {/* ── 5. Le démarrage guidé et le parcours ─────────────────────── */}
-        <Reveal delay={0.16} className={goal === "comprendre" ? "order-first" : ""}>
+        {/* « Votre premier parcours » monte en tête tant que le compte n'a
+            rien fait : le bloc qui s'appelle « premier » était le dernier de
+            la page. */}
+        <Reveal delay={0.16} className={goal === "comprendre" || (positions.length === 0 && (stats?.total_trades ?? 0) === 0) ? "order-first" : ""}>
           <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
             <ParcoursNimbo aUnePosition={positions.length > 0 || (stats?.total_trades ?? 0) > 0} />
             <Panel
@@ -703,7 +732,7 @@ function NextStep({
         >
           <span aria-hidden className="h-2 w-2 rounded-full transition-transform group-hover:scale-125" style={{ backgroundColor: "var(--cap-ambre)" }} />
           {suggestion.cta}
-          <ArrowRight className="cap-fleche h-4 w-4 transition-transform group-hover:translate-x-1" style={{ color: "#c98a1e" }} />
+          <ArrowRight className="cap-fleche h-4 w-4 transition-transform group-hover:translate-x-1" style={{ color: "var(--cap-amber-ink)" }} />
         </Link>
       </div>
     </section>

@@ -234,8 +234,12 @@ _AMBRE = "#E5A83A"
 _AMBRE_FONCE = "#C98A1E"
 _CIEL = "#E6EDF4"
 _FILET = "#DCE3EB"
-_SERIF = "Fraunces, Georgia, 'Times New Roman', serif"
-_SANS = "'Plus Jakarta Sans', Arial, Helvetica, sans-serif"
+# Aucune police chargée depuis un tiers : une feuille Google Fonts dans un
+# e-mail envoie l'adresse IP du lecteur à Google à l'ouverture (ce que le
+# site lui-même ne fait pas). Les polices du système, Public Sans quand elle
+# est installée, comme la charte du site.
+_SERIF = "'Public Sans', -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif"
+_SANS = "'Public Sans', -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif"
 
 
 def _esc(v) -> str:
@@ -281,7 +285,6 @@ def _gabarit(etiquette: str, titre: str, contenu: str, apercu: str = "") -> str:
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="color-scheme" content="light only">
   <title>{_esc(titre)}</title>
-  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;1,9..144,400&family=Plus+Jakarta+Sans:wght@400;600&display=swap" rel="stylesheet">
 </head>
 <body style="margin:0;padding:0;background:{_CIEL};">
   <div style="display:none;max-height:0;overflow:hidden;opacity:0;color:{_CIEL};">{_esc(apercu)}</div>

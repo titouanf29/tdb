@@ -11,7 +11,7 @@ export default function robots(): MetadataRoute.Robots {
   return {
     rules: [{
       userAgent: "*",
-      allow: ["/", "/cours", "/lecon/", "/mentions-legales", "/politique-de-confidentialite", "/cgu", "/cgv"],
+      allow: ["/", "/cours", "/lecon/", "/actifs", "/actif/", "/mentions-legales", "/politique-de-confidentialite", "/cgu", "/cgv"],
       disallow: ["/api/", "/admin", "/dashboard", "/wallet", "/trading", "/journal", "/favorites", "/portfolio",
                  "/analysis", "/scanner", "/strategie", "/markets", "/macro", "/learn", "/assistant", "/community",
                  "/support", "/settings", "/premium", "/semaine", "/nimbo", "/verify-email", "/reset-password"],

@@ -36,7 +36,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 from dotenv import load_dotenv
 load_dotenv(Path(__file__).parent.parent.parent / ".env")
 
-from api.routes import auth, market, wallet, analysis, users, ai_assistant, favorites, admin, tools, premium, community, portfolio, journal, weekly_prep, insights, content_factory, content_factory_visuals, missions, ipo_watch, daily_intent, welcome_back, price_alerts, intel, semaine, macro, nimbo_suivi, push, notifications, aide, editeur, moi, strategies, pont_tiktok, demo
+from api.routes import auth, market, wallet, analysis, users, ai_assistant, favorites, admin, tools, premium, community, portfolio, journal, weekly_prep, insights, content_factory, content_factory_visuals, missions, ipo_watch, daily_intent, welcome_back, price_alerts, intel, semaine, macro, nimbo_suivi, push, notifications, aide, editeur, moi, strategies, pont_tiktok, demo, demain
 from api.websocket import websocket_router
 from api.database import init_web_tables, execute_query, execute_write
 
@@ -147,6 +147,22 @@ async def lifespan(app: FastAPI):
             await _asyncio.sleep(600)
     _bilan_tache = _asyncio.create_task(_bilan_boucle())
 
+    # Les deux rendez-vous du jour : le point du matin à 8 h 45 (Paris), du
+    # lundi au vendredi, à ceux qui suivent quelque chose
+    # (services/point_du_matin.py) ; et le soir à 18 h 30, le rappel de
+    # relire un trade fermé sans note au journal (services/rappel_journal.py).
+    async def _matin_boucle():
+        from api.services import point_du_matin, rappel_journal
+        await _asyncio.sleep(150)
+        while True:
+            for etape in (point_du_matin.envoyer, rappel_journal.envoyer):
+                try:
+                    await etape()
+                except Exception as e:
+                    print(f"[rendez-vous] {etape.__module__} : {e}")
+            await _asyncio.sleep(600)
+    _matin_tache = _asyncio.create_task(_matin_boucle())
+
     # La Communauté : la note du jour de Nimbo (matins de semaine) et les
     # réussites du défi de la semaine, toutes les quinze minutes.
     async def _communaute_boucle():
@@ -170,6 +186,7 @@ async def lifespan(app: FastAPI):
     _notifs_tache.cancel()
     _strategies_tache.cancel()
     _bilan_tache.cancel()
+    _matin_tache.cancel()
     _communaute_tache.cancel()
     _demo_tache.cancel()
     print("👋 TDB Web API shutting down...")
@@ -491,6 +508,12 @@ async def global_exception_handler(request: Request, exc: Exception):
     """Catch all unhandled exceptions and return a generic error (never expose internals)."""
     print(f"[ERROR] Unhandled exception on {request.method} {request.url.path}: {type(exc).__name__}: {exc}", flush=True)
     traceback.print_exc()
+    # Prévenir l'équipe quand les erreurs s'enchaînent (services/surveillance.py).
+    # Le modèle de la route (« /api/analysis/{symbol} ») plutôt que l'adresse :
+    # cent symboles différents restent une seule panne.
+    from api.services import surveillance
+    route = getattr(request.scope.get("route"), "path", None) or request.url.path
+    surveillance.noter(request.method, route, exc)
     return JSONResponse(
         status_code=500,
         content={"detail": "Une erreur interne est survenue. Veuillez réessayer."}
@@ -511,6 +534,7 @@ app.include_router(push.router, prefix="/api/push", tags=["Notifications push"])
 app.include_router(notifications.router, prefix="/api/notifications", tags=["Notifications"])
 app.include_router(aide.router, prefix="/api/aide", tags=["Aide du site"])
 app.include_router(demo.router, prefix="/api/demo", tags=["Démo de l'accueil"])
+app.include_router(demain.router, prefix="/api/demain", tags=["Demain"])
 app.include_router(editeur.router, prefix="/api/legal", tags=["Éditeur et ouverture du Premium"])
 app.include_router(intel.router, prefix="/api/intel", tags=["Market Intelligence"])
 app.include_router(users.router, prefix="/api/users", tags=["Users"])
@@ -577,9 +601,14 @@ async def site_status(request: Request):
 
 if __name__ == "__main__":
     import uvicorn
+    # Lancement local seulement (`python main.py`) : la machine seule par
+    # défaut, pas toutes les interfaces réseau. La production démarre par le
+    # Dockerfile (uvicorn main:app --host 0.0.0.0), où le conteneur doit
+    # écouter au-dehors. HOTE permet d'ouvrir le serveur local au réseau
+    # quand on le veut vraiment.
     # Use app object directly to avoid path conflicts with root main.py
     uvicorn.run(
         app,
-        host="0.0.0.0",
+        host=os.getenv("HOTE", "127.0.0.1"),
         port=8000
     )

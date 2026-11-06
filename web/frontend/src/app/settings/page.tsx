@@ -16,6 +16,7 @@ import {
   Panel, SegmentedControl, Text, TextInput, WeatherBackdrop, useAnimationsEnabled,
 } from "@/components/design-system";
 import { Choice, Toggle, type Option } from "@/components/settings/Choice";
+import { useLectureConfortable } from "@/lib/lecture";
 import { useCapTheme, type CapTheme } from "@/lib/capTheme";
 import { useProfile } from "@/lib/useProfile";
 import { NotificationsAppareil } from "@/components/app/NotificationsAppareil";
@@ -901,6 +902,7 @@ function ActiveAlerts() {
 function AppearanceSection() {
   const { settings, saveSettings, isLoaded } = useSettings();
   const [animOn, setAnimOn] = useAnimationsEnabled();
+  const [lecture, setLecture] = useLectureConfortable();
   const { theme: capTheme, resolved, setTheme: setCapTheme } = useCapTheme();
   const [error, setError] = useState("");
 
@@ -955,6 +957,16 @@ function AppearanceSection() {
             ? `Suit le réglage de votre appareil, actuellement ${resolved === "dark" ? "sombre" : "clair"}. Il basculera tout seul si votre système le fait.`
             : "S'applique à l'ensemble du site, y compris aux écrans pas encore reconstruits."}
         </Text>
+      </Panel>
+
+      <Panel title="Lecture confortable" hint="Pour lire sur un petit écran, ou quand les yeux fatiguent.">
+        <Toggle
+          label="Agrandir le texte et calmer l'écran"
+          detail="Tout le texte du site passe un cran plus grand, et le ciel animé s'arrête. Le reste de l'interface ne change pas."
+          checked={lecture}
+          onChange={(v) => { setLecture(v); if (v && animOn) setAnimOn(false); }}
+        />
+        <Text size="caption" className="mt-4">Ce réglage est propre à ce navigateur.</Text>
       </Panel>
 
       <Panel title="Animations" hint="Le ciel de fond et les transitions entre écrans.">

@@ -176,6 +176,20 @@ def build_advice(pos: dict, exit_price: float, pnl: float,
             "horizon n'est plus celle que vous aviez prévue."
         )
 
+    # 6 bis. FERMÉ À LA MAIN, AVANT LE STOP. Le constat disait « l'exécution
+    #    a suivi le plan » à quelqu'un qui venait de couper sa position sept
+    #    minutes après l'entrée, bien avant le stop : c'est précisément
+    #    l'erreur qu'il venait corriger ici, et le site l'en félicitait.
+    if closed_by is None and pnl < 0 and sl is not None:
+        past = exit_price < sl if long else exit_price > sl
+        if not past:
+            out.append(
+                f"Vous avez fermé à la main à {_fmt(exit_price)}, avant le stop prévu à {_fmt(sl)}. "
+                "La perte est plus petite que celle acceptée, mais ce n'était pas le plan : si une raison "
+                "lue sur le graphique vous a fait sortir, notez-la ; si c'est l'inconfort, c'est le stop "
+                "qui devait décider."
+            )
+
     # 7. Rien à redire : on le dit aussi, plutôt que d'inventer un reproche.
     if not out:
         out.append(
@@ -232,6 +246,8 @@ def review(pos: dict, exit_price: float, pnl: float, *,
                else "appel de marge." if closed_by == "liquidation"
                else "l'objectif.")
         )
+    else:
+        lignes.append("Clôture à la main" + (", avant le stop et l'objectif." if (sl is not None or tp is not None) else "."))
     lignes += ["", "Pourquoi suis-je entré ? "]
 
     post = [f"• {a}" for a in advice] + ["", "Ce que je referais pareil : ", "Ce que je changerais : "]

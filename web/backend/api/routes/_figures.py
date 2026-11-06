@@ -497,8 +497,32 @@ def detecter(df: pd.DataFrame, k: Optional[int] = None) -> list[dict]:
         if cle in vues:
             continue
         vues.add(cle)
+        f["statut"] = statut_figure(f, close, high, low)
         uniques.append(f)
     return uniques
+
+
+def statut_figure(f: dict, close: np.ndarray, high: np.ndarray, low: np.ndarray) -> str:
+    """Ce que la figure est devenue depuis sa confirmation, lu sur les bougies
+    qui ont suivi : `annulee` si le prix a franchi son niveau d'invalidation,
+    `objectif_atteint` s'il a touché l'objectif, `en_cours` sinon.
+
+    L'écran présentait un « Double creux, annulé sous 189,80 $ » comme actif
+    avec un cours à 187,59 $ : la règle d'annulation était écrite, jamais
+    appliquée au présent. Un lecteur de graphiques le voit tout de suite, et
+    c'est toute la page qu'il cesse de croire.
+    """
+    depuis = int(f.get("i_fin", len(close) - 1)) + 1
+    if depuis >= len(close):
+        return "en_cours"
+    haussier = f.get("sens") == "haussier"
+    inval, obj = f.get("invalidation"), f.get("objectif")
+    hs, ls = high[depuis:], low[depuis:]
+    if inval is not None and ((haussier and float(ls.min()) < inval) or (not haussier and float(hs.max()) > inval)):
+        return "annulee"
+    if obj is not None and ((haussier and float(hs.max()) >= obj) or (not haussier and float(ls.min()) <= obj)):
+        return "objectif_atteint"
+    return "en_cours"
 
 
 # ═══════════════════════════════════════════════════════════════════════════

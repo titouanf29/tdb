@@ -240,6 +240,13 @@ def _wuid(user_id) -> str:
 
 # ============== RÉTENTION ==============
 
+@router.get("/erreurs")
+async def get_erreurs(admin: dict = Depends(get_admin_user)):
+    """Les dernières erreurs serveur non gérées (services/surveillance.py)."""
+    from ..services import surveillance
+    return [{k: v for k, v in e.items() if k != "t"} for e in surveillance.dernieres()]
+
+
 @router.get("/retention")
 async def get_retention(admin: dict = Depends(get_admin_user)):
     """Qui revient : activation, retours à J1, J7, J30, semaines actives
@@ -247,7 +254,7 @@ async def get_retention(admin: dict = Depends(get_admin_user)):
     from ..services import evenements, retention
     debut = await evenements.debut_mesure()
     depuis = (datetime.now(timezone.utc) - timedelta(days=120)).isoformat()
-    inscrits = await execute_query("SELECT id, created_at FROM web_users WHERE created_at >= ?", (depuis,)) or []
+    inscrits = await execute_query("SELECT id, created_at, email_verified FROM web_users WHERE created_at >= ?", (depuis,)) or []
     gestes = await evenements.lignes(depuis)
     try:
         from ..services import push

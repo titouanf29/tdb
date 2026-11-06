@@ -21,6 +21,7 @@ import { Operations } from "@/components/admin/Operations";
 import { Tickets } from "@/components/admin/Tickets";
 import { PontTiktok } from "@/components/admin/PontTiktok";
 import { Retention } from "@/components/admin/Retention";
+import { ErreursRecentes } from "@/components/admin/ErreursRecentes";
 import { Moderation } from "@/components/admin/Moderation";
 
 /**
@@ -146,7 +147,12 @@ export default function AdminPage() {
           </div>
         );
       case "operations":
-        return <Operations reglages={reglages} onReglage={poserReglage} />;
+        return (
+          <div className="space-y-8">
+            <ErreursRecentes />
+            <Operations reglages={reglages} onReglage={poserReglage} />
+          </div>
+        );
       default:
         return <EmptyState title="Section inconnue" description="" />;
     }

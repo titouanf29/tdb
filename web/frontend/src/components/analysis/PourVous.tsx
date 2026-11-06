@@ -44,7 +44,7 @@ export function PourVous({
             <Text size="small" className="mt-2">
               Cette analyse est calculée sur votre horizon, mais elle ne sait rien de ce que
               vous engagez, de ce que vous acceptez de perdre, ni du moment où vous pouvez
-              regarder un écran. Cinq questions et elle le saura.
+              regarder un écran. Six questions et elle le saura.
             </Text>
           </div>
           <Button variant="secondary" size="md" onClick={onOuvrirQuestions}>

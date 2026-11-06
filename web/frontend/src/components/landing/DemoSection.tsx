@@ -31,14 +31,16 @@ function heure(iso: string): string {
   const [h, m] = iso.slice(11, 16).split(":");
   return `${Number(h)} h ${m}`;
 }
-export function DemoSection() {
+export function DemoSection({ initial }: Readonly<{ initial?: DemoAsset | null }>) {
   const [assetId, setAssetId] = useState(DEMO_ASSETS[0].id);
   const [level, setLevel] = useState<LevelId>("discover");
   const reduce = useMouvementReduit();
   const section = useRef<HTMLDivElement>(null);
   const [proche, setProche] = useState(false);
-  const [vivants, setVivants] = useState<Record<string, DemoAsset>>({});
-  const demandes = useRef(new Set<string>());
+  // Le premier actif arrive déjà lu par le serveur (app/page.tsx) : la démo
+  // ne montre plus l'exemple fixe le temps d'une requête.
+  const [vivants, setVivants] = useState<Record<string, DemoAsset>>(() => (initial ? { [initial.id]: initial } : {}));
+  const demandes = useRef(new Set<string>(initial ? [initial.id] : []));
 
   // La section approche de l'écran : la démo peut aller chercher ses cours.
   useEffect(() => {

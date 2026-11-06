@@ -84,7 +84,7 @@ export const AIDE: ReponseAide[] = [
     motsCles: ["solde", "recommencer", "reinitialiser", "remettre", "zero", "ajuster", "wallet", "portefeuille"],
     reponse: [
       "Dans le Wallet de simulation : « Recommencer » remet le compte à son solde de départ, « Ajuster le solde » ajoute ou retire des euros fictifs.",
-      "Le Portefeuille réel, lui, est autre chose : un relevé de vos placements hors du site, que vous saisissez à la main.",
+      "« Mes placements hors site », c'est autre chose : un relevé de vos placements réels, hors du site, que vous saisissez à la main. Rien n'y est exécuté.",
     ],
     actions: [{ libelle: "Ouvrir le wallet", lien: "/wallet" }],
   },
@@ -168,6 +168,24 @@ export const AIDE: ReponseAide[] = [
       "Chaque semaine, un défi sur la discipline (stops, journal, leçons, régularité), avec un classement pour ceux qui veulent y participer. Jamais sur les gains.",
     ],
     actions: [{ libelle: "Ouvrir la Communauté", lien: "/community" }],
+  },
+  {
+    id: "matin", question: "C'est quoi le point du matin ?",
+    motsCles: ["matin", "point du matin", "8 h 45", "notification", "chaque jour", "quotidien", "rendez-vous"],
+    reponse: [
+      "Chaque matin de semaine à 8 h 45, trois phrases : ce que vos actifs suivis ont fait depuis hier, où en sont vos positions, et l'annonce économique du jour.",
+      "Il arrive dans la cloche du site et, si vous l'avez accepté, sur votre téléphone. Vous le coupez quand vous voulez dans les réglages, rubrique Notifications.",
+    ],
+    actions: [{ libelle: "Régler mes notifications", lien: "/settings?section=notifications" }],
+  },
+  {
+    id: "rappel-journal", question: "Pourquoi un rappel le soir pour le journal ?",
+    motsCles: ["rappel", "soir", "18 h 30", "relire", "journal", "note", "trade fermé"],
+    reponse: [
+      "Quand une position s'est fermée dans la journée et que le journal n'a pas encore sa note, je vous le rappelle à 18 h 30, le soir même, pendant que le trade est frais.",
+      "Deux lignes suffisent : ce qui était prévu, ce qui s'est passé. C'est en relisant qu'on voit ce qui se répète. Le rappel se coupe dans les réglages, rubrique Notifications.",
+    ],
+    actions: [{ libelle: "Ouvrir le journal", lien: "/journal" }],
   },
   {
     id: "bilan", question: "C'est quoi le bilan de la semaine ?",

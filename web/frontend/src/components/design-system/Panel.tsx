@@ -102,15 +102,16 @@ export function Panel({
       data-repliable={repliable ? "" : undefined}
       className={cn("flex flex-col overflow-hidden", className)}
       style={{
-        // Une feuille posée dans le ciel plutôt qu'une carte soulevée par une
-        // ombre : un léger voile laisse passer les nuages, un filet la borde.
+        // UNE FEUILLE PLEINE. Le panneau était un voile translucide : les
+        // nuages passaient derrière le texte, et sa lisibilité changeait avec
+        // le ciel. Le texte repose maintenant toujours sur un fond uni, bordé
+        // d'un filet net et soulevé d'une ombre à peine marquée, pour que l'œil
+        // voie où chaque bloc commence.
         borderRadius: "var(--cap-r-lg)",
-        backgroundColor: tone === "quiet"
-          ? "transparent"
-          : "color-mix(in srgb, var(--cap-surface) 88%, transparent)",
-        backdropFilter: tone === "quiet" ? undefined : "blur(14px) saturate(1.1)",
-        WebkitBackdropFilter: tone === "quiet" ? undefined : "blur(14px) saturate(1.1)",
-        boxShadow: "inset 0 0 0 1px var(--cap-line)",
+        backgroundColor: tone === "quiet" ? "transparent" : "var(--cap-surface)",
+        boxShadow: tone === "quiet"
+          ? "inset 0 0 0 1px var(--cap-line)"
+          : "inset 0 0 0 1px var(--cap-line-strong), 0 1px 2px rgba(11, 23, 38, 0.05)",
       }}
     >
       {(title || aside) && (repliable ? (

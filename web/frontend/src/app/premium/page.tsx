@@ -257,9 +257,10 @@ function PremiumContenu() {
 }
 
 /**
- * L'offre, et la commande. Le bouton dit qu'il engage à payer (art. L.221-14
- * du code de la consommation : « commande avec obligation de paiement » ou
- * une formule équivalente sans ambiguïté), et il reste grisé tant que les CGV
+ * L'offre, et la commande. Le bouton porte la formule de l'art. L.221-14 du
+ * code de la consommation, « commande avec obligation de paiement », avec le
+ * prix et la périodicité ; la phrase au-dessus dit le renouvellement
+ * automatique et la rétractation. Il reste grisé tant que les CGV
  * ne sont pas acceptées — acceptation que le serveur garde en preuve.
  */
 function Offre({ prixCentimes, essai }: { prixCentimes: number; essai: boolean }) {
@@ -295,8 +296,9 @@ function Offre({ prixCentimes, essai }: { prixCentimes: number; essai: boolean }
             {prix}<span className="text-[1rem] font-normal" style={{ color: "var(--cap-ink-3)" }}> TTC par mois</span>
           </p>
           <Text size="small" className="mt-2 max-w-[32rem]">
-            Sans engagement : résiliable en trois clics depuis cette page, l&apos;accès reste ouvert jusqu&apos;à la
-            fin du mois payé. Rétractation possible pendant 14 jours, remboursée en entier.
+            Abonnement mensuel, renouvelé automatiquement chaque mois au même prix, sans engagement :
+            résiliable en trois clics depuis cette page, l&apos;accès reste ouvert jusqu&apos;à la fin du mois
+            payé. Rétractation possible pendant 14 jours, remboursée en entier.
           </Text>
         </div>
       </div>
@@ -310,7 +312,7 @@ function Offre({ prixCentimes, essai }: { prixCentimes: number; essai: boolean }
       </Checkbox>
       <div className="mt-4 flex flex-wrap items-center gap-4">
         <Button size="lg" onClick={souscrire} disabled={!cgv || occupe}>
-          {occupe ? "Ouverture du paiement…" : `S'abonner, payer ${prix} par mois`}
+          {occupe ? "Ouverture du paiement…" : `Commande avec obligation de paiement : ${prix} par mois`}
         </Button>
         <Text size="caption" as="span">Paiement sécurisé par Stripe. Votre carte n&apos;est jamais vue par CaptenTDB.</Text>
       </div>

@@ -270,7 +270,7 @@ function Support() {
                 return (
                   <li key={m.id} className={equipe ? "self-start" : "self-end"} style={{ maxWidth: "min(36rem, 92%)" }}>
                     <p className={`text-[0.8rem] ${equipe ? "" : "text-right"}`} style={{ color: "var(--cap-ink-3)" }}>
-                      <span style={{ fontFamily: "var(--cap-font-display)", fontStyle: "italic", color: equipe ? "#c98a1e" : "var(--cap-ink-2)" }}>
+                      <span style={{ fontFamily: "var(--cap-font-display)", fontStyle: "italic", color: equipe ? "var(--cap-amber-ink)" : "var(--cap-ink-2)" }}>
                         {equipe ? "L'équipe CaptenTDB" : "Vous"}
                       </span>
                       {", "}{quand(m.created_at)}

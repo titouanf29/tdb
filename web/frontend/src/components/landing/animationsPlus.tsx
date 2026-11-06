@@ -45,14 +45,18 @@ export function Compteur({ valeur, className }: { valeur: string; className?: st
   const actifs = useEffetsActifs();
   const m = valeur.match(/^(\D*)(\d(?:[\d\s ]*\d)?)(.*)$/);
   const cible = m ? parseInt(m[2].replace(/\D/g, ""), 10) : NaN;
-  const [v, setV] = useState(0);
+  // Le compte part de 92 % de la valeur, pas de zéro : « 9 868 € virtuels »
+  // affiché le temps de l'animation a fait croire à trois visiteurs que le
+  // capital de départ n'était pas 10 000 €.
+  const depart = Number.isFinite(cible) ? Math.round(cible * 0.92) : 0;
+  const [v, setV] = useState(depart);
   useEffect(() => {
     if (!vu || !actifs || !Number.isFinite(cible)) return;
-    const debut = performance.now(), duree = 1600;
+    const debut = performance.now(), duree = 1100;
     let raf = 0;
     const f = (t: number) => {
       const p = Math.min(1, (t - debut) / duree);
-      setV(Math.round(cible * (1 - Math.pow(1 - p, 3))));
+      setV(Math.round(depart + (cible - depart) * (1 - Math.pow(1 - p, 3))));
       if (p < 1) raf = requestAnimationFrame(f);
     };
     raf = requestAnimationFrame(f);
@@ -62,7 +66,7 @@ export function Compteur({ valeur, className }: { valeur: string; className?: st
   return (
     <span ref={ref} className={className}>
       <span className="sr-only">{valeur}</span>
-      <span aria-hidden>{m[1]}{(vu ? v : 0).toLocaleString("fr-FR")}{m[3]}</span>
+      <span aria-hidden>{m[1]}{(vu ? v : depart).toLocaleString("fr-FR")}{m[3]}</span>
     </span>
   );
 }

@@ -49,7 +49,9 @@ export const AREAS: NavArea[] = [
       { href: "/trading", label: "Ouvrir une position", blurb: "Passer un ordre sur le compte d'entraînement" },
       { href: "/journal", label: "Journal", blurb: "Vos décisions, relues après coup" },
       { href: "/favorites", label: "Favoris", blurb: "Les actifs que vous suivez" },
-      { href: "/portfolio", label: "Portefeuille réel", blurb: "Vos placements hors du site, saisis à la main" },
+      // « Portefeuille réel » faisait peur, deux visiteuses l'ont dit : le mot
+      // « réel » sur un site qui promet de ne pas risquer un euro.
+      { href: "/portfolio", label: "Mes placements hors site", blurb: "Un carnet pour vos placements réels, saisis à la main. Rien n'est exécuté ici" },
     ],
   },
   {
@@ -62,6 +64,9 @@ export const AREAS: NavArea[] = [
       { href: "/strategie", label: "Ma stratégie", blurb: "Composer vos règles avec Nimbo, les tester sur des années de cours" },
       { href: "/markets", label: "Marchés", blurb: "L'état général, par région et par classe" },
       { href: "/macro", label: "Agenda macro", blurb: "Fed, BCE, inflation, emploi : quand, et ce que ça change pour vos actifs" },
+      // Promis par la page d'accueil, introuvable dans l'espace : le bilan réel
+      // des propositions de Nimbo, objectif, stop ou échéance.
+      { href: "/nimbo", label: "Le bilan de Nimbo", blurb: "Ce que ses propositions ont réellement donné, depuis le début" },
     ],
   },
   {

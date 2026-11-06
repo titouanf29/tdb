@@ -264,13 +264,17 @@ function TopBar({ area }: { area?: NavArea }) {
 
         {/* Contextual row. Only the screens of the area you are in. */}
         {items.length > 1 && (
-          <div className="-mx-1 flex gap-1 overflow-x-auto pb-2.5 no-scrollbar">
+          // Sur téléphone, la rangée défile : un fondu au bord droit dit qu'il
+          // y a une suite, au lieu d'un dernier onglet coupé net, et l'onglet
+          // de la page s'amène dans le champ.
+          <div className="cap-onglets -mx-1 flex gap-1 overflow-x-auto pb-2.5 no-scrollbar">
             {items.map((it) => {
               const active = pathname === it.href;
               return (
                 <Link
                   key={it.href}
                   href={it.href}
+                  ref={active ? (el) => { el?.scrollIntoView({ block: "nearest", inline: "center" }); } : undefined}
                   aria-current={active ? "page" : undefined}
                   className="relative whitespace-nowrap px-3 py-1.5 text-[0.875rem] transition-colors hover:text-[color:var(--cap-ink)]"
                   style={{ color: active ? "var(--cap-ink)" : "var(--cap-ink-3)", fontWeight: active ? 600 : 400 }}

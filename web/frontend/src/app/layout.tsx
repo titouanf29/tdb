@@ -31,45 +31,29 @@ const jetbrainsMono = localFont({
 });
 
 /*
- * LA VOIX DU SITE : CELLE DE LA PRESSE FINANCIÈRE.
+ * UNE SEULE POLICE, PUBLIC SANS, POUR TOUT LE SITE : TITRES, TEXTE ET CHIFFRES.
  *
- * Fraunces et Plus Jakarta Sans (avant elles Inter, Sora, Space Grotesk)
- * sont les polices qu'on retrouve sur des milliers de sites générés : le site
- * ressemblait à un modèle. Il prend maintenant la typographie des pages
- * saumon et des cotes du journal :
+ * Le site a d'abord eu une serif de presse pour les titres (Bodoni Moda,
+ * puis IBM Plex Serif) et une grotesque pour le texte (Schibsted Grotesk).
+ * Retour des utilisateurs : trop difficile à lire, et pas l'envie de rester.
+ * Public Sans est simple, ouverte, très lisible à petite taille, avec des
+ * chiffres nets ; elle n'est pas de celles qu'on retrouve sur tous les sites
+ * générés (Inter, Geist, DM Sans…).
  *
- *   · IBM Plex Serif pour les titres et les grands montants : une serif
- *     robuste, à faible contraste, de la famille des polices de terminal de
- *     marché. Une Didone (Bodoni Moda) l'a précédée un jour : ses déliés
- *     disparaissaient à l'écran, « on ne voit rien ». Plex reste lisible à
- *     toutes les tailles, en clair comme en sombre, et ses chiffres ont tous
- *     la même largeur ;
- *   · Schibsted Grotesk pour le texte et les chiffres : une grotesque
- *     dessinée pour un groupe de presse, avec de vrais chiffres tabulaires,
- *     indispensables à des cours qui s'alignent en colonne et ne « sautent »
- *     pas quand ils changent.
+ * Les fichiers sont retouchés sur un point : sa fonction « chiffres
+ * tabulaires » élargissait aussi la virgule, le point et les symboles
+ * monétaires, ce qui espaçait « 343,92 $ ». Seuls les chiffres sont
+ * tabulaires : les cours s'alignent et ne sautent pas, la ponctuation garde
+ * sa largeur.
  */
-const plexSerif = localFont({
+const publicSans = localFont({
   src: [
-    { path: "../fonts/IBMPlexSerif-400-normal.woff2", weight: "400", style: "normal" },
-    { path: "../fonts/IBMPlexSerif-500-normal.woff2", weight: "500", style: "normal" },
-    { path: "../fonts/IBMPlexSerif-600-normal.woff2", weight: "600", style: "normal" },
-    { path: "../fonts/IBMPlexSerif-700-normal.woff2", weight: "700", style: "normal" },
-    { path: "../fonts/IBMPlexSerif-400-italic.woff2", weight: "400", style: "italic" },
-    { path: "../fonts/IBMPlexSerif-500-italic.woff2", weight: "500", style: "italic" },
+    { path: "../fonts/PublicSans-normal.woff2", style: "normal" },
+    { path: "../fonts/PublicSans-italic.woff2", style: "italic" },
   ],
-  variable: "--font-plex-serif",
+  variable: "--font-public-sans",
   display: "swap",
-});
-
-const schibsted = localFont({
-  src: [
-    { path: "../fonts/SchibstedGrotesk-normal.woff2", style: "normal" },
-    { path: "../fonts/SchibstedGrotesk-italic.woff2", style: "italic" },
-  ],
-  variable: "--font-schibsted",
-  display: "swap",
-  weight: "400 900",
+  weight: "100 900",
 });
 
 /**
@@ -151,7 +135,7 @@ export default async function RootLayout({
     <html
       lang="fr"
       suppressHydrationWarning
-      className={`dark ${jetbrainsMono.variable} ${plexSerif.variable} ${schibsted.variable}`}
+      className={`dark ${jetbrainsMono.variable} ${publicSans.variable}`}
     >
       <head>
         {/* Applies the cached theme / accent / language BEFORE first paint.
@@ -166,6 +150,8 @@ export default async function RootLayout({
   var s=JSON.parse(localStorage.getItem("tdb_settings")||"{}");
   if(s.theme==="light"||s.theme==="dark")document.documentElement.setAttribute("data-theme",s.theme);
   var l=localStorage.getItem("tdb_lang");if(l==="fr"||l==="en")document.documentElement.lang=l;
+  // La lecture confortable (lib/lecture.ts), avant le premier affichage.
+  if(localStorage.getItem("tdb_lecture")==="1")document.documentElement.classList.add("lecture-confortable");
   // Le mode de l'interface reconstruite, posé avant le premier rendu. Sans
   // cela, un utilisateur en sombre reçoit un éclair blanc pleine page à
   // chaque navigation, le temps que React monte.
