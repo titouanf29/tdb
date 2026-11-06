@@ -11,6 +11,7 @@ import {
 import { annoncerReussite } from "@/lib/reussite";
 import { symboleCotation } from "@/lib/devise";
 import { useAuth } from "@/lib/AuthContext";
+import { getAssetName } from "@/lib/assetInfo";
 import { RISQUE, niveauRisque } from "@/lib/risque";
 // `fr` : la virgule décimale. « 0.4 % » et « 6.6689 » dans un écran français
 // sont la faute qui revient le plus souvent dès qu'un nombre est affiché.
@@ -739,7 +740,7 @@ export default function TradingPage() {
                 visiteur a ouvert ×5 sans l'avoir vu. Ici, le bouton le dit. */}
             {!success && quote && price > 0 && (
               <Text size="small" tone="ink">
-                Vous allez {direction === "LONG" ? "acheter" : "vendre"} {symbol.toUpperCase()} pour{" "}
+                Vous allez {direction === "LONG" ? "acheter" : "vendre"} {getAssetName(symbol.toUpperCase())} pour{" "}
                 {money(turbo ? coutTitres : amount)}
                 {!turbo && leverage > 1 && <>, avec un levier ×{leverage} (exposition {money(exposition)})</>}
                 {turbo && <> en turbo ×{fr(levierTurbo, 1)}</>}
