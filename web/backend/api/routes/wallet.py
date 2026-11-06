@@ -90,9 +90,9 @@ async def _journal_ouverture(user_id, symbol: str, direction: str, entry_price: 
         now = datetime.now(timezone.utc).isoformat()
         sens = "Achat" if direction == "LONG" else "Vente"
         faits = f"{sens} de {fmt_eur(amount)}" + (f" avec un levier ×{leverage:g}" if leverage and leverage > 1 else "")
-        faits += f", entrée à {entry_price:g}"
-        faits += f", stop à {stop_loss:g}" if stop_loss is not None else ", sans stop"
-        faits += f", objectif à {take_profit:g}" if take_profit is not None else ", sans objectif"
+        faits += f", entrée à {fmt_price(entry_price)}"
+        faits += f", stop à {fmt_price(stop_loss)}" if stop_loss is not None else ", sans stop"
+        faits += f", objectif à {fmt_price(take_profit)}" if take_profit is not None else ", sans objectif"
         faits += "." if instrument != "turbo" else " (turbo)."
         await execute_write(
             """INSERT INTO trading_journal

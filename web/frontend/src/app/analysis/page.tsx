@@ -1155,7 +1155,8 @@ function PropositionNimbo({
   planHref: string;
   onPasserEnSwing?: () => void;
 }) {
-  const nom = a.company?.name || a.symbol;
+  // Le même nom que l'en-tête : « LVMH », pas « MC.PA ».
+  const nom = a.company?.name || getAssetName(a.symbol);
   // Un plan dégénéré (objectif qui passerait sous zéro en mensuel, actif sans
   // cotation) n'est pas montré : une ligne absurde disqualifie toute la page.
   const plan = a.risk?.suggested_sl != null && a.risk?.suggested_tp != null && !a.risk.degenere ? a.risk : null;

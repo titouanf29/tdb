@@ -796,5 +796,6 @@ function effetNiveau(p: Position, saisie: string, quoi: "stop" | "objectif", mon
   const mauvaisCote = quoi === "stop" ? cotePerte : !cotePerte && niveau !== cours;
   const rappel = quoi === "stop" ? "un stop se place du côté de la perte" : "un objectif se place du côté du gain";
   if (mauvaisCote || niveau === cours) return `${d} : ${rappel}, il se déclencherait tout de suite.`;
-  return `${d}, ${euros}${p.leverage > 1 ? ` (levier ×${p.leverage} compris)` : ""}.`;
+  const levier = p.leverage > 1 ? ` (levier ×${p.leverage} compris)` : "";
+  return `${d}, ${euros}${levier}.`;
 }

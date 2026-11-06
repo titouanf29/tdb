@@ -689,7 +689,7 @@ async def _tout(user: dict) -> dict:
     try:
         from ..services import bilan as _bilan
         activite = await _bilan._activite(int(user["id"]), lundi_ecoule, lundi)
-        lecture = {"activite": activite, **_bilan.lire(semaine, activite)}
+        lecture = {"activite": activite, **_bilan.lire(semaine, activite, len(ouvertes))}
         await _bilan._ajouter_defi(int(user["id"]), lundi_ecoule, lecture)
     except Exception as e:
         logger.info("semaine : bilan indisponible (%s)", e)
