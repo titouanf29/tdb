@@ -6,6 +6,8 @@ import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import type { Position } from "@/lib/api";
 import { Button, Drawer, Heading, LiveNum, Num, Text } from "@/components/design-system";
+import { PlanBar } from "@/components/analysis/PlanBar";
+import { weekendOuvert } from "@/lib/semaine";
 
 /**
  * La fiche d'une position — tout ce qui la concerne, en un endroit.
@@ -218,6 +220,18 @@ export function PositionSheet({
         </div>
       </div>
 
+      {/* OÙ EN EST LA POSITION, EN UNE PHRASE. Nimbo promettait « la fiche
+          montre où en est le cours entre le stop et l'objectif, et ce que je
+          ferais maintenant » ; la fiche alignait des chiffres et se taisait. */}
+      {p.status !== "closed" && price != null && (
+        <div className="mt-5 rounded-[var(--cap-r-md)] p-3.5" style={{ backgroundColor: "var(--cap-surface-2)" }}>
+          {p.stop_loss != null && p.take_profit != null && (
+            <div className="mb-3"><PlanBar stop={p.stop_loss} objectif={p.take_profit} cours={price} /></div>
+          )}
+          <Text size="small" tone="ink">{ouEnEst(p, dStop, dTarget)}</Text>
+        </div>
+      )}
+
       {/* Ce que le simulateur fera tout seul. Une position à stop posé se
           ferme sans intervention, et l'utilisateur doit le savoir avant de
           fermer l'onglet. */}
@@ -250,4 +264,35 @@ export function PositionSheet({
       </div>
     </Drawer>
   );
+}
+
+/**
+ * La phrase de la fiche : la distance au stop, celle à l'objectif, et ce
+ * qu'il y a à faire. Souvent : rien, et c'est dit.
+ */
+function phraseStop(p: Position, dStop: number | null): string | null {
+  if (p.stop_loss == null) {
+    return p.instrument === "turbo" ? null
+      : "Sans stop, rien ne limite la perte : posez-en un avec « Modifier les niveaux », c'est la première chose à faire.";
+  }
+  if (dStop == null) return null;
+  const long = p.direction === "LONG";
+  const dessus = long ? dStop < 0 : dStop > 0;
+  const d = Math.abs(dStop).toLocaleString("fr-FR", { maximumFractionDigits: 1 });
+  if (!dessus) return "Le cours a franchi votre stop : la position va se clôturer au prochain cours.";
+  if (Math.abs(dStop) < 1) return `Le cours est à ${d} % de votre stop : la position est sur le point de se fermer d'elle-même, c'est le rôle du stop.`;
+  return `Le cours est à ${d} % ${long ? "au-dessus" : "en dessous"} de votre stop.`;
+}
+
+function phraseObjectif(p: Position, dTarget: number | null): string | null {
+  if (p.take_profit == null) return "Sans objectif, la position ne se ferme qu'au stop ou à la main : décidez à l'avance le prix où vous prendrez votre gain.";
+  if (dTarget == null) return null;
+  return `L'objectif est à ${Math.abs(dTarget).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} %.`;
+}
+
+function ouEnEst(p: Position, dStop: number | null, dTarget: number | null): string {
+  const parts = [phraseStop(p, dStop), phraseObjectif(p, dTarget)];
+  if (weekendOuvert()) parts.push("Les marchés sont fermés : rien à faire avant la réouverture.");
+  else if (dStop != null && Math.abs(dStop) >= 2 && (dTarget == null || Math.abs(dTarget) >= 2)) parts.push("Rien d'urgent : laissez le plan travailler.");
+  return parts.filter(Boolean).join(" ");
 }

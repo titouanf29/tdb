@@ -8,6 +8,7 @@ import { ArrowRight, Layers, Loader2, MoveRight, Star, TrendingDown, TrendingUp 
 import {
   analysisAPI, favoritesAPI, marketAPI, missionsAPI, walletAPI,
   type Analysis, type ChartData, type Favorite, type Figure,
+  type Position,
 } from "@/lib/api";
 import { fr, useFormatAssetPrice, useFormatSomme, useSettings } from "@/lib/SettingsContext";
 import { getAssetName } from "@/lib/assetInfo";
@@ -19,6 +20,7 @@ import { useProfile } from "@/lib/useProfile";
 import { Intentions } from "@/components/analysis/Intentions";
 import { PourVous } from "@/components/analysis/PourVous";
 import { DepuisLecture } from "@/components/analysis/DepuisLecture";
+import { PlanBar } from "@/components/analysis/PlanBar";
 import {
   buildReasons, directionLabel, edgeSentence, scenarioSentence, tendanceExpliquee,
 } from "@/lib/explain";
@@ -1207,9 +1209,15 @@ function PropositionNimbo({
   const { settings } = useSettings();
   const niveau = niveauRisque(settings.riskLevel);
   const [capital, setCapital] = useState<number | null>(null);
+  // La position déjà ouverte sur cet actif, s'il y en a une : « je ne vous
+  // propose rien » se lit autrement quand on en porte déjà une.
+  const [dejaOuverte, setDejaOuverte] = useState<Position | null>(null);
   useEffect(() => {
     walletAPI.getBalance().then((b) => setCapital(b.balance)).catch(() => {});
-  }, []);
+    walletAPI.getPositions("open")
+      .then((r) => setDejaOuverte((r.positions || []).find((p) => p.symbol.toUpperCase() === a.symbol.toUpperCase()) ?? null))
+      .catch(() => {});
+  }, [a.symbol]);
   const somme = useFormatSomme();
   const pct = RISQUE[niveau].pct;
   const taille = capital != null && plan ? tailleSelonRisque(capital, pct, cours, plan.suggested_sl) : null;
@@ -1259,6 +1267,14 @@ function PropositionNimbo({
                 ? "Je ne propose pas de position en intraday."
                 : `Je ne vous propose pas de position sur ${nom} pour l'instant.`}
           </p>
+          {dejaOuverte && (
+            <Text size="small" tone="ink" className="mt-1.5">
+              Vous avez déjà une position {dejaOuverte.direction === "LONG" ? "à l'achat" : "à la vente"} sur {nom}
+              {dejaOuverte.pnl_percent != null ? ` (${dejaOuverte.pnl_percent >= 0 ? "+" : ""}${fr(dejaOuverte.pnl_percent, 1)} % depuis l'entrée)` : ""}
+              {dejaOuverte.stop_loss != null ? `, stop à ${assetPrice(dejaOuverte.stop_loss)}` : ", sans stop"}.{" "}
+              <Link href="/wallet" className="underline underline-offset-2">La revoir dans le wallet</Link>.
+            </Text>
+          )}
           <Text size="small" className="mt-1.5">
             {propose && plan
               ? <>
@@ -1567,40 +1583,6 @@ function pctEcart(ecart: number, cours: number): string {
  * rouge contre la part verte — au lieu d'un « 1 : 2,1 » à décoder. Les deux
  * segments se tracent depuis le cours, qui apparaît ensuite.
  */
-function PlanBar({ stop, objectif, cours }: { stop: number; objectif: number; cours: number }) {
-  const bas = Math.min(stop, objectif), haut = Math.max(stop, objectif);
-  if (!(haut > bas) || !Number.isFinite(cours)) return null;
-  const pos = Math.min(0.96, Math.max(0.04, (cours - bas) / (haut - bas)));
-  const stopAGauche = stop < objectif;
-  const gauche = stopAGauche ? "var(--cap-down)" : "var(--cap-up)";
-  const droite = stopAGauche ? "var(--cap-up)" : "var(--cap-down)";
-  const pct = `${(pos * 100).toFixed(1)}%`;
-  return (
-    <div aria-hidden className="w-full pt-1">
-      <div className="relative h-[6px] rounded-full" style={{ backgroundColor: "var(--cap-line)" }}>
-        <span className="cap-plan-seg absolute inset-y-0 left-0 rounded-l-full"
-          style={{ width: pct, backgroundColor: gauche, opacity: 0.85, ["--o" as string]: "100%" }} />
-        <span className="cap-plan-seg absolute inset-y-0 right-0 rounded-r-full"
-          style={{ left: pct, backgroundColor: droite, opacity: 0.85, ["--o" as string]: "0%" }} />
-        {/* Deux étages : le centrage (translate) et l'apparition (scale)
-            ne peuvent pas partager la même propriété transform. */}
-        <span className="absolute top-1/2 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2" style={{ left: pct }}>
-          <span className="cap-pop block h-full w-full rounded-full"
-            style={{ backgroundColor: "var(--cap-surface)", boxShadow: "0 0 0 2px var(--cap-ink), 0 2px 6px rgba(11,23,38,.25)", ["--d" as string]: ".9s" }} />
-        </span>
-      </div>
-      <div className="relative mt-2 flex justify-between text-[0.72rem]" style={{ color: "var(--cap-ink-3)" }}>
-        <span>{stopAGauche ? "Stop" : "Objectif"}</span>
-        {/* Sous le point du cours, tant qu'il ne chevauche pas les bouts. */}
-        {pos > 0.14 && pos < 0.86 && (
-          <span className="absolute top-0 -translate-x-1/2" style={{ left: pct, color: "var(--cap-ink-2)" }}>Cours</span>
-        )}
-        <span>{stopAGauche ? "Objectif" : "Stop"}</span>
-      </div>
-    </div>
-  );
-}
-
 function RiskBit({
   label,
   value,

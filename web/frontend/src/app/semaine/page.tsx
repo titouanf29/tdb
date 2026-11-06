@@ -244,7 +244,7 @@ function Contenu({ d, synthese, syntheseEnCours }: {
 
           {d.positions.length > 0 && (
             <div className="mt-5">
-              <Text size="caption" tone="faint" className="mb-2">Gardées pendant le week-end</Text>
+              <Text size="caption" tone="faint" className="mb-2">Gardées pendant le week-end. La variation est celle de l&apos;actif sur la semaine ; votre résultat est dans le wallet.</Text>
               <ul className="space-y-2">
                 {d.positions.map((p, i) => (
                   <li key={i} className="flex items-baseline justify-between gap-3">

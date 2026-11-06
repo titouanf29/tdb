@@ -200,7 +200,7 @@ export default function DashboardPage() {
 
         {/* ── 2. One thing to do ───────────────────────────────────────── */}
         <Reveal delay={0.04}>
-          <NextStep intent={intent} positions={positions} favorites={favorites} />
+          <NextStep intent={intent} positions={positions} favorites={favorites} money={money} />
         </Reveal>
 
         {/* La série de jours d'affilée et les missions du jour. */}
@@ -227,7 +227,7 @@ export default function DashboardPage() {
             parcours, « suivre » fait remonter les actifs suivis, « tester »
             garde le portefeuille en tête. Ce n'est pas un thème, c'est
             l'ordre dans lequel les choses arrivent sous les yeux. */}
-        <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+        <div className="grid grid-cols-[minmax(0,1fr)] gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
           <Reveal delay={0.08} className={goal === "suivre" ? "order-2" : "order-1"}>
             {/* CE PANNEAU LIT LE WALLET, PAS LE PORTEFEUILLE. Il s'intitulait
                 « Votre portefeuille » et son lien menait à /portfolio, les
@@ -383,7 +383,7 @@ export default function DashboardPage() {
             rien fait : le bloc qui s'appelle « premier » était le dernier de
             la page. */}
         <Reveal delay={0.16} className={goal === "comprendre" || (positions.length === 0 && (stats?.total_trades ?? 0) === 0) ? "order-first" : ""}>
-          <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+          <div className="grid grid-cols-[minmax(0,1fr)] gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
             <ParcoursNimbo aUnePosition={positions.length > 0 || (stats?.total_trades ?? 0) > 0} />
             {/* La prochaine leçon par son nom, pas une description du
                 parcours : c'est ce qu'on lit le soir pour savoir quoi faire
@@ -521,14 +521,36 @@ function WeatherToggle({
  * recommendation that says the same thing every morning stops being read by
  * the third one.
  */
+/**
+ * « Votre position LVMH vaut 512 € (+2,4 %), à 4,6 % au-dessus de son stop. »
+ * Le nom, la valeur, et la distance au niveau qui compte, en une phrase.
+ */
+function etatPosition(p: Position, money: (v: number) => string): string {
+  const nom = p.name || p.symbol;
+  const pnl = p.unrealized_pnl;
+  const valeur = pnl != null ? money(p.amount + pnl) : money(p.amount);
+  const pct = p.pnl_percent != null ? ` (${p.pnl_percent >= 0 ? "+" : ""}${fr(p.pnl_percent, 1)} %)` : "";
+  let niveau = "";
+  if (p.stop_loss != null && p.current_price) {
+    const d = Math.abs((p.current_price - p.stop_loss) / p.current_price) * 100;
+    const dessus = p.direction === "LONG" ? p.current_price > p.stop_loss : p.current_price < p.stop_loss;
+    niveau = dessus ? `, à ${fr(d, 1)} % de son stop` : ", sous son stop";
+  } else if (p.instrument !== "turbo") {
+    niveau = ", sans stop";
+  }
+  return `Votre position ${nom} vaut ${valeur}${pct}${niveau}.`;
+}
+
 function NextStep({
   intent,
   positions,
   favorites,
+  money,
 }: {
   intent: DailyIntentResult | null;
   positions: Position[];
   favorites: Favorite[];
+  money: (v: number) => string;
 }) {
   const suggestion = useMemo(() => {
     const picked = (intent as unknown as { assets?: { symbol: string }[] })?.assets?.[0];
@@ -546,14 +568,27 @@ function NextStep({
     if (weekendOuvert()) {
       const sansStop = positions.filter((p) => p.stop_loss == null && p.instrument !== "turbo").length;
       const crypto = positions.filter((p) => /-(USD|EUR)$/.test(p.symbol)).length;
-      const corps =
-        sansStop > 0
-          ? `${sansStop} de vos positions ${sansStop > 1 ? "restent" : "reste"} sans stop pendant le week-end. On commence par là, puis votre semaine, l'agenda macro et l'actualité de vos actifs.`
-          : positions.length > 0
-            ? `Vous gardez ${positions.length} position${positions.length > 1 ? "s" : ""} ce week-end${crypto ? `, dont ${crypto} en crypto qui continue${crypto > 1 ? "nt" : ""} de coter` : ""}. Votre semaine, l'agenda macro et l'actualité de vos actifs, au même endroit.`
-            : favorites.length > 0
-              ? `Ce qu'ont fait vos ${favorites.length} actifs suivis, les annonces économiques qui arrivent et l'actualité qui les touche.`
-              : "Votre semaine, les annonces économiques qui arrivent et l'actualité des marchés, pendant qu'aucune séance ne vous presse.";
+      /* UNE SEULE POSITION : ON LA DÉCRIT. « Vous gardez 1 position ce
+         week-end » obligeait à descendre trois écrans pour savoir si elle
+         allait bien. Son nom, sa valeur, sa distance au stop, et le fait
+         qu'il n'y a rien à faire tant que les marchés sont fermés. */
+      const seule = positions.length === 1 ? etatPosition(positions[0], money) : null;
+      const suite = "Votre semaine, l'agenda macro et l'actualité de vos actifs, au même endroit.";
+      let corps: string;
+      if (sansStop > 0 && seule) {
+        corps = `${seule} Elle n'a pas de stop : c'est ce qu'il faut poser avant lundi. Puis votre semaine, l'agenda macro et l'actualité de vos actifs.`;
+      } else if (sansStop > 0) {
+        corps = `${sansStop} de vos positions ${sansStop > 1 ? "restent" : "reste"} sans stop pendant le week-end. On commence par là, puis votre semaine, l'agenda macro et l'actualité de vos actifs.`;
+      } else if (seule) {
+        corps = `${seule} Rien à faire tant que les marchés sont fermés. ${suite}`;
+      } else if (positions.length > 0) {
+        const enCrypto = crypto ? `, dont ${crypto} en crypto qui continue${crypto > 1 ? "nt" : ""} de coter` : "";
+        corps = `Vous gardez ${positions.length} position${positions.length > 1 ? "s" : ""} ce week-end${enCrypto}. ${suite}`;
+      } else if (favorites.length > 0) {
+        corps = `Ce qu'ont fait vos ${favorites.length} actifs suivis, les annonces économiques qui arrivent et l'actualité qui les touche.`;
+      } else {
+        corps = "Votre semaine, les annonces économiques qui arrivent et l'actualité des marchés, pendant qu'aucune séance ne vous presse.";
+      }
       return {
         eyebrow: "Le week-end",
         title: `Préparez la semaine du ${lundiAPreparer()}.`,
@@ -601,12 +636,13 @@ function NextStep({
       const { p, c } = classees[0];
       const pct = p.pnl_percent;
 
+      const etat = etatPosition(p, money);
       const corps =
         c && c.part >= 0.7
-          ? `Le cours a parcouru ${Math.round(c.part * 100)} % de la distance qui sépare votre entrée de votre ${c.vers}. C'est le moment de décider, pas de subir.`
+          ? `${etat} Le cours a parcouru ${Math.round(c.part * 100)} % de la distance qui sépare votre entrée de votre ${c.vers}. C'est le moment de décider, pas de subir.`
           : pct != null && Math.abs(pct) >= 3
-            ? `Elle est à ${pct >= 0 ? "+" : ""}${fr(pct, 1)} % depuis l'entrée. Vérifiez que le scénario tient encore, et que le stop est toujours au bon endroit.`
-            : "Rien d'urgent dessus aujourd'hui. Relisez quand même le scénario d'entrée : c'est ce qui vous dira quand sortir.";
+            ? `${etat} Vérifiez que le scénario tient encore, et que le stop est toujours au bon endroit.`
+            : `${etat} Rien d'urgent dessus aujourd'hui. Relisez quand même le scénario d'entrée : c'est ce qui vous dira quand sortir.`;
 
       return {
         eyebrow: "Votre prochaine étape",
@@ -663,7 +699,7 @@ function NextStep({
       cta: "Commencer",
       href: "/analysis?symbol=AAPL",
     };
-  }, [intent, positions, favorites]);
+  }, [intent, positions, favorites, money]);
 
   return (
     <section

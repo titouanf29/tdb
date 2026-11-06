@@ -143,7 +143,7 @@ def _a_dt(v) -> datetime | None:
 
 async def _profil(user: dict) -> dict:
     uid = user["id"]
-    out = {"goal": None, "markets": [], "weekly_time": None, "style": "day",
+    out = {"goal": None, "markets": [], "weekly_time": None, "style": "swing",
            "risk": "moderate", "perte_max_pct": None, "disponibilite": None}
     try:
         rows = await execute_query(
