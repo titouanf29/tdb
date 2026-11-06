@@ -34,6 +34,10 @@ export function FaconDeTrader() {
   if (!p) return null;
   const m = p.mesures;
   const n = p.trades_fermes;
+  // Avant le premier trade fermé, le panneau ne décrivait rien : il
+  // promettait. Une promesse n'a pas sa place sur un accueil qu'on voudrait
+  // tenir sur un écran de téléphone ; il apparaît au premier constat partiel.
+  if (n === 0) return null;
 
   if (!p.assez) {
     const reste = p.min_trades - n;

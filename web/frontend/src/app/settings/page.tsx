@@ -663,8 +663,8 @@ function TradingSection() {
 const MODES: Option<OrderMode>[] = [
   {
     value: "cfd",
-    label: "Montant × levier (CFD)",
-    detail: "Vous engagez une somme, le levier la multiplie. Liquidation quand la perte atteint la marge.",
+    label: "Au comptant, ou montant × levier (CFD)",
+    detail: "Levier ×1 : vous achetez des titres pour la somme engagée, comme chez un courtier classique. Au-delà, le levier la multiplie, avec liquidation quand la perte atteint la marge.",
   },
   {
     value: "turbo",

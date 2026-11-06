@@ -37,7 +37,7 @@ export type OrderMode = typeof ORDER_MODES[number];
 /** Ce que fait chaque courtier quand on prend du levier, et ce que coûte un
  *  ordre chez lui. Les frais sont des ordres de grandeur publics, modifiables. */
 export const BROKER_PRESETS: Record<Broker, { label: string; mode: OrderMode; fee: string; note: string }> = {
-  none:           { label: "Aucun en particulier", mode: "cfd",   fee: "0",    note: "Montant × levier, sans frais." },
+  none:           { label: "Aucun en particulier", mode: "cfd",   fee: "0",    note: "Au comptant ou avec levier, sans frais." },
   // LE COURTIER NE CHOISIT PLUS LE PRODUIT. Déclarer Boursorama ouvrait
   // chaque ordre sur un turbo ×5 : quelqu'un qui achète des actions au
   // comptant s'est retrouvé avec un levier qu'il n'avait pas choisi. Le

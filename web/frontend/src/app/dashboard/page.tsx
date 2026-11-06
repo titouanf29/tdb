@@ -143,7 +143,10 @@ export default function DashboardPage() {
           conteneur flex ou grid, et c'est lui qui réalise la personnalisation. */}
       <div className="relative flex flex-col gap-8">
         {/* ── 1. Where you are ─────────────────────────────────────────── */}
-        <Reveal>
+        {/* `order-first` aussi : le parcours d'un compte neuf passe devant
+            tout, mais pas devant le bonjour. À égalité, l'ordre du DOM
+            tranche, et l'en-tête est écrit le premier. */}
+        <Reveal className="order-first">
           <header className="flex flex-wrap items-end justify-between gap-5 pt-2">
             <div className="flex items-center gap-4">
             {/* Nimbo suit le ciel de l'accueil, qui suit les actifs suivis :
