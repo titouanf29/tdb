@@ -90,7 +90,7 @@ interface SettingsContextType {
 
 const defaultSettings: Settings = {
   currency: "EUR",
-  tradingStyle: "day",
+  tradingStyle: "swing",
   riskLevel: "moderate",
   defaultLeverage: "1",
   theme: "dark",
@@ -164,7 +164,7 @@ function readCache(): Settings {
     if (!c || typeof c !== "object") throw new Error("not an object");
     return {
       currency:        pick(c.currency, CURRENCIES, defaultSettings.currency),
-      tradingStyle:    pick(c.tradingStyle, TRADING_STYLES, "day"),
+      tradingStyle:    pick(c.tradingStyle, TRADING_STYLES, "swing"),
       riskLevel:       pick(c.riskLevel, RISK_LEVELS, "moderate"),
       defaultLeverage: pick(c.defaultLeverage, LEVERAGES, "1"),
       theme:           pick(c.theme, THEMES, defaultSettings.theme),

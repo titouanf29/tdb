@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, ArrowRight, Check } from "lucide-react";
 import { useAuth } from "@/lib/AuthContext";
 import { useProfile } from "@/lib/useProfile";
+import { useSettings } from "@/lib/SettingsContext";
 import { GOALS, MARKETS, TIMES } from "@/lib/profileQuestions";
 import type { TradingLevel } from "@/lib/auth";
 import {
@@ -87,8 +88,24 @@ const LEVELS: LevelDef[] = [
   },
 ];
 
-type Step = "nimbo" | "visite" | "level" | "goal" | "markets" | "time" | "done";
-const QUESTIONS: Step[] = ["level", "goal", "markets", "time"];
+/**
+ * L'HORIZON, DEMANDÉ À L'ARRIVÉE. Le site réglait tout nouveau compte en
+ * day trading sans poser la question, et la toute première analyse d'une
+ * débutante s'ouvrait sur « Je ne propose pas de position en intraday » :
+ * quatre visiteurs sur quatre l'ont relevé, deux ont failli partir là. La
+ * page d'accueil promettait cinq questions dont l'horizon ; les voici.
+ */
+const HORIZONS: { id: string; label: string; detail: string }[] = [
+  { id: "swing", label: "Quelques jours à quelques semaines",
+    detail: "Conseillé pour débuter : une lecture par jour suffit, et c'est l'horizon où les signaux de Nimbo ont gagné." },
+  { id: "long", label: "Plusieurs mois, voire des années",
+    detail: "Pour un placement qu'on garde : les fondamentaux entrent dans le score, les stops sont larges." },
+  { id: "day", label: "Quelques heures, dans la journée",
+    detail: "Demande de suivre l'écran en séance. Nimbo n'y propose pas de position : les frais mangent le gain." },
+];
+
+type Step = "nimbo" | "visite" | "level" | "horizon" | "goal" | "markets" | "time" | "done";
+const QUESTIONS: Step[] = ["level", "horizon", "goal", "markets", "time"];
 
 export function WelcomeDialog({
   open,
@@ -100,6 +117,7 @@ export function WelcomeDialog({
   const router = useRouter();
   const { setTradingLevel, user } = useAuth();
   const { profile, save } = useProfile();
+  const { settings, saveSettings } = useSettings();
 
   const [step, setStep] = useState<Step>("nimbo");
   const [level, setLevel] = useState<LevelDef | null>(null);
@@ -144,7 +162,9 @@ export function WelcomeDialog({
   };
 
   const pickLevel = (def: LevelDef) =>
-    guard(async () => { await setTradingLevel(def.id); setLevel(def); }, "goal");
+    guard(async () => { await setTradingLevel(def.id); setLevel(def); }, "horizon");
+
+  const pickHorizon = (id: string) => guard(() => saveSettings({ tradingStyle: id }), "goal");
 
   const pickGoal = (value: string) => guard(() => save({ goal: value }), "markets");
 
@@ -212,7 +232,7 @@ export function WelcomeDialog({
         <>
           <Heading level={2}>Où en êtes-vous ?</Heading>
           <Text size="small" className="mt-2.5">
-            Quatre questions, une minute, pour que le site s&apos;adapte à vous. Chacune change quelque chose de
+            Cinq questions, une minute, pour que le site s&apos;adapte à vous. Chacune change quelque chose de
             précis, et tout se modifie ensuite dans les paramètres.
           </Text>
           <div className="mt-6 space-y-2.5">
@@ -228,6 +248,23 @@ export function WelcomeDialog({
         </>
       )}
 
+      {step === "horizon" && (
+        <>
+          <Heading level={2}>Combien de temps gardez-vous une position ?</Heading>
+          <Text size="small" className="mt-2.5">
+            C&apos;est l&apos;horizon de vos analyses : il règle où se placent le stop et l&apos;objectif, et
+            l&apos;unité des graphiques. Sur une analyse, vous pourrez toujours en essayer un autre.
+          </Text>
+          <div className="mt-6 space-y-2.5">
+            {HORIZONS.map((h) => (
+              <Card key={h.id} onClick={() => pickHorizon(h.id)} disabled={busy}
+                title={h.label} detail={h.detail} selected={settings.tradingStyle === h.id} />
+            ))}
+          </div>
+          <Back onClick={() => setStep("level")} />
+        </>
+      )}
+
       {step === "goal" && (
         <>
           <Heading level={2}>Qu&apos;est-ce qui vous amène ?</Heading>
@@ -240,7 +277,7 @@ export function WelcomeDialog({
                 title={g.label} detail={g.effect} />
             ))}
           </div>
-          <Back onClick={() => setStep("level")} />
+          <Back onClick={() => setStep("horizon")} />
         </>
       )}
 
@@ -305,6 +342,9 @@ export function WelcomeDialog({
           <ul className="mt-4 space-y-2.5">
             {[
               ...(level?.effects ?? []),
+              ...(HORIZONS.find((h) => h.id === settings.tradingStyle)
+                ? [`Vos analyses sont réglées sur ${HORIZONS.find((h) => h.id === settings.tradingStyle)!.label.toLowerCase()}.`]
+                : []),
               ...(profile.goal
                 ? [GOALS.find((g) => g.value === profile.goal)?.effect ?? ""]
                 : []),

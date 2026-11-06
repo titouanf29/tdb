@@ -10,8 +10,9 @@ import {
   type Analysis, type ChartData, type Favorite, type Figure,
 } from "@/lib/api";
 import { fr, useFormatAssetPrice, useFormatSomme, useSettings } from "@/lib/SettingsContext";
+import { getAssetName } from "@/lib/assetInfo";
 import {
-  useTradingStyle, TRADING_STYLES, TRADING_STYLE_IDS, type TradingStyleId,
+  TRADING_STYLES, TRADING_STYLE_IDS, type TradingStyleId,
 } from "@/lib/tradingStyle";
 import { useUserLevel } from "@/hooks/useUserLevel";
 import { useProfile } from "@/lib/useProfile";
@@ -94,7 +95,20 @@ function AnalysisScreen() {
   const router = useRouter();
   const params = useSearchParams();
   const { settings, saveSettings, isLoaded: reglagesLus } = useSettings();
-  const style = useTradingStyle();
+  /**
+   * L'HORIZON CHOISI ICI NE CHANGE PAS LE RÉGLAGE DU COMPTE.
+   *
+   * Cliquer « Swing » pour comparer deux lectures, ou suivre le lien
+   * « Passer en Swing » de Nimbo, réécrivait l'horizon de tout le site sans
+   * le dire : l'accueil annonçait ensuite « Espace réglé pour swing » à
+   * quelqu'un qui n'avait fait que regarder. Trois visiteurs sur trois l'ont
+   * relevé. L'horizon de la page est local ; un lien propose d'en faire le
+   * réglage, et c'est le seul moment où le compte change.
+   */
+  const [horizonLocal, setHorizonLocal] = useState<TradingStyleId | null>(null);
+  const horizonId = ((horizonLocal ?? settings.tradingStyle) in TRADING_STYLES
+    ? (horizonLocal ?? settings.tradingStyle) : "swing") as TradingStyleId;
+  const style = useMemo(() => TRADING_STYLES[horizonId], [horizonId]);
   const [switching, setSwitching] = useState(false);
 
   /**
@@ -120,32 +134,26 @@ function AnalysisScreen() {
    * React : un seul rendu, une seule requête, la bonne.
    */
   const changeStyle = useCallback(
-    async (id: string) => {
+    (id: string) => {
       const next = TRADING_STYLES[id as TradingStyleId];
       if (!next) return;
-      const unitePrecedente = timeframeRef.current;
-      setSwitching(true);
+      // L'unité et l'horizon changent dans le même rendu : une seule
+      // analyse part, la bonne. Les cinq questions ne surgissent plus ici ;
+      // le bloc « Pour vous » les propose, à son heure.
       setUniteChoisie(false);
       setTimeframe(next.defaultTimeframe);
-      try {
-        await saveSettings({ tradingStyle: id });
-        // CHANGER D'HORIZON EST LE BON MOMENT POUR DEMANDER LE RESTE.
-        //
-        // Quelqu'un qui vient de dire « en fait je suis plutôt long terme »
-        // est en train de décrire sa façon de faire : c'est là que les cinq
-        // questions tombent juste, et pas au milieu d'une lecture. Une fois
-        // répondues — même par « passer » — on ne redemande plus.
-        if (!profileRef.current?.intentions_at) setQuestionsOuvertes(true);
-      } catch {
-        // saveSettings a annulé le profil ; l'unité doit revenir avec lui,
-        // sans quoi l'écran resterait en mensuel avec un profil day trading.
-        setTimeframe(unitePrecedente);
-      } finally {
-        setSwitching(false);
-      }
+      setHorizonLocal(id as TradingStyleId);
     },
-    [saveSettings]
+    []
   );
+  /** Le compte prend l'horizon de la page : le seul geste qui touche au réglage. */
+  const adopterHorizon = useCallback(async () => {
+    if (!horizonLocal) return;
+    setSwitching(true);
+    try { await saveSettings({ tradingStyle: horizonLocal }); setHorizonLocal(null); }
+    catch { /* le réglage reste, l'horizon de la page aussi */ }
+    finally { setSwitching(false); }
+  }, [horizonLocal, saveSettings]);
   const [animOn] = useAnimationsEnabled();
 
   // ── Ce que la personne a dit d'elle ──────────────────────────────────────
@@ -161,10 +169,6 @@ function AnalysisScreen() {
   const [questionsOuvertes, setQuestionsOuvertes] = useState(false);
   // Téléphone : les réglages de l'analyse, repliés une fois un actif analysé.
   const [reglagesOuverts, setReglagesOuverts] = useState(false);
-  // En ref : `changeStyle` le lit sans se redéclarer à chaque réponse
-  // enregistrée, ce qui relancerait l'analyse pour rien.
-  const profileRef = useRef(profile);
-  profileRef.current = profile;
 
   const urlSymbol = (params.get("symbol") || "").toUpperCase();
   const [symbol, setSymbol] = useState(urlSymbol);
@@ -611,7 +615,7 @@ function AnalysisScreen() {
                     value: id,
                     label: TRADING_STYLES[id].label.fr,
                   }))}
-                  value={settings.tradingStyle as TradingStyleId}
+                  value={horizonId}
                   onChange={changeStyle}
                   aria-label="Horizon d'analyse"
                 />
@@ -628,6 +632,15 @@ function AnalysisScreen() {
                 ? `, et les fondamentaux comptent pour ${Math.round(style.fundWeight * 100)} % du score.`
                 : ", et les fondamentaux ne comptent pas."}
             </Text>
+            {horizonLocal && horizonLocal !== settings.tradingStyle && (
+              <Text size="caption" className="mt-1.5">
+                Pour cette analyse seulement. Votre réglage du site reste{" "}
+                {TRADING_STYLES[settings.tradingStyle as TradingStyleId]?.label.fr ?? settings.tradingStyle}.{" "}
+                <button type="button" onClick={adopterHorizon} disabled={switching} className="cap-lien">
+                  En faire mon réglage
+                </button>
+              </Text>
+            )}
           </div>
 
           <div className="mt-4 flex flex-wrap items-center gap-3">
@@ -943,11 +956,17 @@ function Verdict({
               className="text-[1.4rem] font-semibold tracking-[-0.01em]"
               style={{ fontFamily: "var(--cap-font-display)", color: "var(--cap-ink)" }}
             >
-              {a.company?.name || a.symbol}
+              {/* LE NOM, PAS SEULEMENT LE CODE. Sans fiche société, l'en-tête
+                  affichait « AAPL AAPL » et « MC.PA MC.PA » : pour une
+                  débutante, une page en langue étrangère dès le titre. Le
+                  catalogue du site connaît les noms ; le code reste à côté. */}
+              {a.company?.name || getAssetName(a.symbol)}
             </span>
-            <span className="text-[0.85rem]" style={{ color: "var(--cap-ink-3)" }}>
-              {a.symbol}
-            </span>
+            {(a.company?.name || getAssetName(a.symbol)) !== a.symbol && (
+              <span className="text-[0.85rem]" style={{ color: "var(--cap-ink-3)" }}>
+                {a.symbol}
+              </span>
+            )}
             <button
               onClick={onToggleFavorite}
               aria-label={isFavorite ? "Ne plus suivre" : "Suivre cet actif"}

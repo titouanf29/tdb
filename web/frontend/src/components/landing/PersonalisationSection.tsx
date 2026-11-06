@@ -21,12 +21,14 @@ import { DEMO_ASSETS, type DemoAsset } from "./demoData";
  * It cycles once on its own to demonstrate, then hands control to the visitor.
  */
 
+// Les cinq questions posées à l'arrivée, telles quelles (WelcomeDialog.tsx) :
+// la page promettait un « niveau de détail » que personne ne demandait.
 const QUESTIONS = [
   "Votre niveau",
+  "Votre horizon",
   "Votre objectif",
   "Les marchés que vous suivez",
-  "Votre horizon",
-  "Le niveau de détail souhaité",
+  "Le temps que vous pouvez y consacrer",
 ];
 
 type Mode = "beginner" | "intermediate";

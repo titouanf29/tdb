@@ -62,11 +62,11 @@ LEGACY_STYLE_MAP = {
 def style_normalise(v) -> str:
     """Un style lisible par le moteur : scalp, day, swing ou long."""
     v = LEGACY_STYLE_MAP.get(v, v)
-    return v if v in ("scalp", "day", "swing", "long") else "day"
+    return v if v in ("scalp", "day", "swing", "long") else "swing"
 
 
 SETTINGS_DEFAULTS = {
-    "trading_style": "day",
+    "trading_style": "swing",
     "risk_level": "moderate",
     "notifications_enabled": True,
     "theme": "dark",
@@ -234,7 +234,7 @@ async def update_user_settings(
         # « Day Trading », que la normalisation du démarrage ne rattrape
         # qu'au redémarrage suivant. D'ici là, le scanner lisait un horizon
         # inconnu et le traitait comme un horizon long.
-        "INSERT INTO web_user_settings (user_id, trading_style) VALUES (?, 'day') ON CONFLICT (user_id) DO NOTHING",
+        "INSERT INTO web_user_settings (user_id, trading_style) VALUES (?, 'swing') ON CONFLICT (user_id) DO NOTHING",
         (user_id,),
     )
 

@@ -190,7 +190,7 @@ async def _init_postgres():
         await conn.execute("""
             CREATE TABLE IF NOT EXISTS web_user_settings (
                 user_id INTEGER PRIMARY KEY,
-                trading_style TEXT DEFAULT 'day',
+                trading_style TEXT DEFAULT 'swing',
                 risk_level TEXT DEFAULT 'moderate',
                 notifications_enabled INTEGER DEFAULT 1,
                 theme TEXT DEFAULT 'dark',
@@ -684,7 +684,7 @@ async def _init_sqlite():
         await db.execute("""
             CREATE TABLE IF NOT EXISTS web_user_settings (
                 user_id INTEGER PRIMARY KEY,
-                trading_style TEXT DEFAULT 'day',
+                trading_style TEXT DEFAULT 'swing',
                 risk_level TEXT DEFAULT 'moderate',
                 notifications_enabled INTEGER DEFAULT 1,
                 theme TEXT DEFAULT 'dark',
