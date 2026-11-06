@@ -25,6 +25,18 @@ export function ReussiteNimbo() {
     setItems((l) => l.filter((i) => i.id !== id));
   }, []);
 
+  // Les cartes attendent qu'un dialogue ouvert se ferme (Overlay.tsx pose
+  // data-modal-ouverte sur <html>) : une seule voix à la fois.
+  const [dialogue, setDialogue] = useState(false);
+  useEffect(() => {
+    const d = document.documentElement;
+    const lire = () => setDialogue("modalOuverte" in d.dataset);
+    lire();
+    const obs = new MutationObserver(lire);
+    obs.observe(d, { attributes: true, attributeFilter: ["data-modal-ouverte"] });
+    return () => obs.disconnect();
+  }, []);
+
   useEffect(() => {
     const surReussite = (e: Event) => {
       const r = (e as CustomEvent<Reussite>).detail;
@@ -53,7 +65,7 @@ export function ReussiteNimbo() {
         {/* Sur téléphone, une seule carte à la fois — la plus récente : trois
             empilées couvraient la moitié de l'écran et le bouton en dessous.
             Les précédentes attendent leur tour, masquées. */}
-        {items.map((r, i) => (
+        {!dialogue && items.map((r, i) => (
           <Carte key={r.id} r={r} anim={anim} masqueMobile={i < items.length - 1} onFermer={() => retirer(r.id)} />
         ))}
       </AnimatePresence>

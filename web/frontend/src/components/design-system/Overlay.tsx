@@ -69,6 +69,21 @@ export function Modal({
 }) {
   const reduce = useMouvementReduit();
   useDismiss(open, onClose);
+  // UNE SEULE VOIX À LA FOIS. Pendant qu'un dialogue est ouvert (Nimbo qui se
+  // présente, les questions), les cartes de réussite attendent : à
+  // l'arrivée, la fenêtre de Nimbo, un badge et une bulle d'aide parlaient
+  // ensemble, et trois visiteurs sur quatre l'ont relevé.
+  useEffect(() => {
+    if (!open) return;
+    const d = document.documentElement;
+    const avant = Number(d.dataset.modalOuverte || 0);
+    d.dataset.modalOuverte = String(avant + 1);
+    return () => {
+      const n = Number(d.dataset.modalOuverte || 1) - 1;
+      if (n > 0) d.dataset.modalOuverte = String(n);
+      else delete d.dataset.modalOuverte;
+    };
+  }, [open]);
 
   return (
     <AnimatePresence>

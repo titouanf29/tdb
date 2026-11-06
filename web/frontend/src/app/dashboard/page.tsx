@@ -167,7 +167,7 @@ export default function DashboardPage() {
               <Text className="mt-2.5 max-w-[38rem]">
                 Espace réglé pour{" "}
                 <Link
-                  href="/settings"
+                  href="/settings?section=trading"
                   className="underline decoration-[color:var(--cap-ink-4)] underline-offset-2 transition-colors hover:text-[color:var(--cap-ink)]"
                 >
                   {style.label.fr.toLowerCase()}
@@ -190,9 +190,6 @@ export default function DashboardPage() {
           </header>
         </Reveal>
 
-        {/* Le site évolue encore : un nouvel inscrit sait d'emblée où écrire. */}
-        <AvisDeveloppement />
-
         {/* Après une absence : ce qui s'est passé entre-temps. */}
         <DepuisDerniereVisite />
 
@@ -212,6 +209,11 @@ export default function DashboardPage() {
 
         {/* Au troisième jour d'affilée : une place sur l'écran d'accueil. */}
         <InstallerApplication />
+
+        {/* Le site évolue encore : un nouvel inscrit sait où écrire. Plus
+            bas qu'avant : en premier bloc, c'était la première chose lue dans
+            un espace tout neuf, et ce n'est pas une bienvenue. */}
+        <AvisDeveloppement />
 
         {/* ── 3 & 4. L'argent et la veille — dans l'ordre de l'objectif ──
             L'objectif déclaré au premier lancement réordonne réellement cette
@@ -365,7 +367,10 @@ export default function DashboardPage() {
         </Reveal>
 
         {/* ── 5. Le démarrage guidé et le parcours ─────────────────────── */}
-        <Reveal delay={0.16} className={goal === "comprendre" ? "order-first" : ""}>
+        {/* « Votre premier parcours » monte en tête tant que le compte n'a
+            rien fait : le bloc qui s'appelle « premier » était le dernier de
+            la page. */}
+        <Reveal delay={0.16} className={goal === "comprendre" || (positions.length === 0 && (stats?.total_trades ?? 0) === 0) ? "order-first" : ""}>
           <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
             <ParcoursNimbo aUnePosition={positions.length > 0 || (stats?.total_trades ?? 0) > 0} />
             <Panel

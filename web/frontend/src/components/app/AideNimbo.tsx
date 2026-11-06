@@ -58,11 +58,15 @@ export function AideNimbo() {
     if (vu) return;
     // Notée vue dès qu'elle s'affiche : elle revenait sinon à chaque page
     // tant qu'on n'avait pas ouvert l'aide, par-dessus les boutons.
+    // Pas sur un petit écran : la bulle couvrait le prix de l'actif ou le
+    // message de confirmation, et deux visiteuses l'ont dit. Le bouton
+    // Nimbo reste ; l'aide est à un geste.
+    if (window.innerWidth < 640) return;
     const t = setTimeout(() => {
       setIndice(true);
       try { localStorage.setItem(CLE_VUE, "1"); } catch { /* navigation privée */ }
     }, 6000);
-    const t2 = setTimeout(() => setIndice(false), 16000);
+    const t2 = setTimeout(() => setIndice(false), 12000);
     return () => { clearTimeout(t); clearTimeout(t2); };
   }, []);
 
