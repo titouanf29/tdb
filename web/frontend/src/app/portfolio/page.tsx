@@ -181,7 +181,7 @@ export default function PortfolioPage() {
                 d'un « Wallet », c'est le même mot dans deux langues pour deux
                 choses opposées : un registre de placements réels et un compte
                 de simulation. */}
-            <Heading level={1}>Portefeuille réel</Heading>
+            <Heading level={1}>Mes placements hors site</Heading>
             <Text className="mt-2.5 max-w-[36rem]">
               Vos positions réelles, celles que vous détenez chez votre courtier.
               Rien n&apos;est exécuté ici, c&apos;est un registre que vous

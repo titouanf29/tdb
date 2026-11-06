@@ -84,7 +84,7 @@ export const AIDE: ReponseAide[] = [
     motsCles: ["solde", "recommencer", "reinitialiser", "remettre", "zero", "ajuster", "wallet", "portefeuille"],
     reponse: [
       "Dans le Wallet de simulation : « Recommencer » remet le compte à son solde de départ, « Ajuster le solde » ajoute ou retire des euros fictifs.",
-      "Le Portefeuille réel, lui, est autre chose : un relevé de vos placements hors du site, que vous saisissez à la main.",
+      "« Mes placements hors site », c'est autre chose : un relevé de vos placements réels, hors du site, que vous saisissez à la main. Rien n'y est exécuté.",
     ],
     actions: [{ libelle: "Ouvrir le wallet", lien: "/wallet" }],
   },

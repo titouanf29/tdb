@@ -76,7 +76,10 @@ export default async function LandingPage() {
         <Tour><Traversee hauteur={380} /></Tour>
         <Tour><DemoSection initial={analyse} /></Tour>
         <Tour><PaperTradingSection /></Tour>
-        <Tour><PersonalisationSection analyse={analyse} /></Tour>
+        {/* Sur téléphone, la page faisait seize écrans et deux visiteuses ont
+            décroché à mi-chemin : la personnalisation, déjà racontée par les
+            cinq questions de l'arrivée, ne s'affiche que sur grand écran. */}
+        <div className="hidden sm:block"><Tour><PersonalisationSection analyse={analyse} /></Tour></div>
         <Tour><LearnSection /></Tour>
         <Tour><FaqSection /></Tour>
         <Tour><Traversee hauteur={340} /></Tour>

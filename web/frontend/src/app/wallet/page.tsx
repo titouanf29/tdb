@@ -291,7 +291,7 @@ export default function WalletPage() {
             <Text className="mt-2.5 max-w-[36rem]">
               Votre compte d&apos;entraînement. Tout y est virtuel, c&apos;est
               exactement ce qui permet de se tromper utilement. À ne pas
-              confondre avec le Portefeuille réel, qui est un registre de vos
+              confondre avec « Mes placements hors site », qui est un registre de vos
               placements hors du site.
             </Text>
           </div>

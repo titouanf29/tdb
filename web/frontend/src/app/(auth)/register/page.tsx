@@ -73,9 +73,10 @@ export default function RegisterPage() {
       return;
     }
     if (!accepted) {
-      setError(lang === "en"
-        ? "You must accept the terms of service"
-        : "Vous devez accepter les conditions d'utilisation");
+      // Toujours en français : le site l'est « entièrement », et un visiteur
+      // au navigateur anglais lisait ici sa seule phrase anglaise du site.
+      void lang;
+      setError("Vous devez accepter les conditions d'utilisation.");
       return;
     }
 

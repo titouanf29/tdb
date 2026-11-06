@@ -17,8 +17,8 @@ export function CoursChrome({ children }: { children: React.ReactNode }) {
           <nav className="flex items-center gap-4 text-[0.95rem] sm:gap-6">
             <Link href="/cours" className="hidden sm:inline" style={{ color: "var(--cap-ink-2)" }}>Les leçons</Link>
             <Link href="/actifs" className="hidden sm:inline" style={{ color: "var(--cap-ink-2)" }}>Analyses du jour</Link>
-            <Link href="/login" style={{ color: "var(--cap-ink-2)" }}>Se connecter</Link>
-            <Link href="/register" className="inline-flex h-10 items-center gap-2 rounded-[10px] px-4 font-semibold" style={{ backgroundColor: "var(--cap-ink)", color: "var(--cap-on-inverse)" }}>
+            <Link href="/login" className="whitespace-nowrap" style={{ color: "var(--cap-ink-2)" }}>Se connecter</Link>
+            <Link href="/register" className="inline-flex h-10 items-center gap-2 whitespace-nowrap rounded-[10px] px-4 font-semibold" style={{ backgroundColor: "var(--cap-ink)", color: "var(--cap-on-inverse)" }}>
               <span aria-hidden className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: "var(--cap-ambre)" }} />
               Créer un compte
             </Link>

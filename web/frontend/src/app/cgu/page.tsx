@@ -114,7 +114,7 @@ export default async function CguPage() {
           <LegalSectionTitle num="2" id="service-title" title="Description du service" />
           <p className="text-muted-foreground">CaptenTDB est une plateforme en ligne à vocation éducative proposant :</p>
           <ul className="list-disc pl-5 space-y-1.5 text-muted-foreground">
-            <li><strong className="text-foreground">Paper trading :</strong> simulation de trades sur un portefeuille virtuel crédité de 10 000 $ fictifs à l'inscription, sans aucun argent réel</li>
+            <li><strong className="text-foreground">Paper trading :</strong> simulation de trades sur un portefeuille virtuel crédité de 10 000 € fictifs à l'inscription, sans aucun argent réel</li>
             <li><strong className="text-foreground">Analyse technique & fondamentale :</strong> graphiques, indicateurs, scanner de marchés, points pivots, backtesting, à titre éducatif</li>
             <li><strong className="text-foreground">Assistant IA :</strong> chatbot pédagogique spécialisé en trading, propulsé par l'API Groq (modèle Llama), ne fournit pas de conseils financiers</li>
             <li><strong className="text-foreground">Outils complémentaires :</strong> calendrier économique, analyse géopolitique, alertes de prix, palmares, communauté</li>
@@ -132,7 +132,7 @@ export default async function CguPage() {
             <p><strong className="text-foreground">3.1 Âge minimum.</strong> L'accès au Service est strictement réservé aux personnes physiques âgées d'au moins <strong className="text-foreground">18 ans</strong>. En créant un compte, l'utilisateur déclare sur l'honneur être majeur. L'Éditeur se réserve le droit de supprimer tout compte dont l'utilisateur serait mineur.</p>
             <p><strong className="text-foreground">3.2 Inscription.</strong> L'accès aux fonctionnalités du Service nécessite la création d'un compte. L'utilisateur s'engage à fournir des informations exactes, complètes et à les maintenir à jour. Un seul compte par personne physique est autorisé.</p>
             <p><strong className="text-foreground">3.3 Identifiants.</strong> L'utilisateur est seul responsable de la confidentialité de son adresse e-mail, de son mot de passe et de l'ensemble des actions effectuées depuis son compte. Toute utilisation non autorisée du compte doit être immédiatement signalée à l'Éditeur.</p>
-            <p><strong className="text-foreground">3.4 Vérification e-mail.</strong> Un lien de vérification est envoyé à l'adresse e-mail fournie. L'activation du compte requiert la validation de ce lien dans les 24 heures.</p>
+            <p><strong className="text-foreground">3.4 Vérification e-mail.</strong> Un lien de vérification est envoyé à l'adresse e-mail fournie. Le compte est utilisable dès l'inscription ; la validation du lien confirme l'adresse et conditionne l'envoi des e-mails du Service (réinitialisation du mot de passe, notifications choisies).</p>
           </div>
         </section>
 
@@ -212,7 +212,8 @@ export default async function CguPage() {
               support », rétractation avec renonciation à cocher). Ils
               renvoient désormais aux CGV, qui suivent le parcours réel. */}
           <p className="text-muted-foreground">
-            L&apos;abonnement Premium, payant, relève les limites d&apos;usage du compte gratuit. Sa souscription,
+            L&apos;abonnement Premium, payant, relève les limites d&apos;usage du compte gratuit. À la date de ces conditions,
+            cette option n&apos;est pas encore ouverte et aucun paiement n&apos;est perçu : tous les comptes ont l&apos;accès complet. Sa souscription,
             son prix, son paiement, sa résiliation (en trois clics depuis la page Premium) et le droit de
             rétractation sont régis par les{" "}
             <Link href="/cgv" className="text-primary hover:underline">conditions générales de vente</Link>, qui
