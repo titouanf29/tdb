@@ -1,5 +1,7 @@
 "use client";
 
+import { getAssetName } from "@/lib/assetInfo";
+
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowRight, BookOpen, Check, Lightbulb } from "lucide-react";
@@ -122,10 +124,10 @@ export function ClosedSheet({
     && Math.abs(p.exit_price - p.take_profit) < Math.max(1e-8, Math.abs(p.take_profit) * 1e-6);
 
   return (
-    <Drawer open onClose={onClose} title={`Trade ${p.symbol}`}>
+    <Drawer open onClose={onClose} title={`Trade ${p.name || getAssetName(p.symbol)}`}>
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
-          <Heading level={3}>{p.symbol}</Heading>
+          <Heading level={3}>{p.name || getAssetName(p.symbol)}{(p.name || getAssetName(p.symbol)) !== p.symbol ? <span className="ml-2 text-[0.85rem] font-normal" style={{ color: "var(--cap-ink-3)" }}>{p.symbol}</span> : null}</Heading>
           <Text size="caption" className="mt-1">
             {long ? "Achat" : "Vente à découvert"}
             {p.leverage > 1 ? ` · levier ×${p.leverage}` : ""} · clôturé {quand(p.closed_at)}
@@ -252,7 +254,7 @@ export function ClosedSheet({
           className="inline-flex items-center gap-1.5 text-[0.85rem]"
           style={{ color: "var(--cap-ocean)" }}
         >
-          Où en est {p.symbol} aujourd&apos;hui
+          Où en est {p.name || getAssetName(p.symbol)} aujourd&apos;hui
           <ArrowRight className="h-3.5 w-3.5" />
         </Link>
       </div>

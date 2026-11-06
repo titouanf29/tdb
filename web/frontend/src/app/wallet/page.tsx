@@ -1,5 +1,7 @@
 "use client";
 
+import { getAssetName } from "@/lib/assetInfo";
+
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Plus } from "lucide-react";
@@ -444,7 +446,11 @@ export default function WalletPage() {
                           className="text-[0.98rem] font-medium transition-colors hover:underline"
                           style={{ color: "var(--cap-ink)" }}
                         >
-                          {p.symbol}
+                          {/* Le nom, le code à côté : « LVMH », pas « MC.PA ». */}
+                          {p.name || getAssetName(p.symbol)}
+                          {(p.name || getAssetName(p.symbol)) !== p.symbol && (
+                            <span className="ml-1.5 text-[0.8rem] font-normal" style={{ color: "var(--cap-ink-3)" }}>{p.symbol}</span>
+                          )}
                         </button>
                         <span
                           className="rounded-[6px] px-1.5 py-0.5 text-[0.7rem]"

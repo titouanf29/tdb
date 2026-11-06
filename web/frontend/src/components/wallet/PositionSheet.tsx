@@ -1,5 +1,7 @@
 "use client";
 
+import { getAssetName } from "@/lib/assetInfo";
+
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import type { Position } from "@/lib/api";
@@ -110,10 +112,10 @@ export function PositionSheet({
   const rr = risk && reward && risk > 0 ? reward / risk : null;
 
   return (
-    <Drawer open onClose={onClose} title={`Position ${p.symbol}`}>
+    <Drawer open onClose={onClose} title={`Position ${p.name || getAssetName(p.symbol)}`}>
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
-          <Heading level={3}>{p.symbol}</Heading>
+          <Heading level={3}>{p.name || getAssetName(p.symbol)}{(p.name || getAssetName(p.symbol)) !== p.symbol ? <span className="ml-2 text-[0.85rem] font-normal" style={{ color: "var(--cap-ink-3)" }}>{p.symbol}</span> : null}</Heading>
           <Text size="caption" className="mt-1">
             {long ? "Achat" : "Vente à découvert"}
             {p.leverage > 1 ? ` · levier ×${p.leverage}` : ""} · ouverte {since(p.created_at)}
@@ -242,7 +244,7 @@ export function PositionSheet({
           className="inline-flex items-center gap-1.5 text-[0.85rem]"
           style={{ color: "var(--cap-ocean)" }}
         >
-          Revoir l&apos;analyse de {p.symbol}
+          Revoir l&apos;analyse de {p.name || getAssetName(p.symbol)}
           <ArrowRight className="h-3.5 w-3.5" />
         </Link>
       </div>
